@@ -59,7 +59,7 @@ int32_t Get_Minion_Frequency(void);
     \param New Frequency in Mhz
     \returns int
 */
-void Update_Minion_Frequency_Global_Reg(uint32_t new_freq);
+void Update_Minion_Frequency_Global_Reg(int32_t new_freq);
 
 /*! \fn int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies)
     \brief Interface to get module's ASIC frequencies from global variable

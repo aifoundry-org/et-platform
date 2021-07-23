@@ -83,7 +83,13 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 // TODO: This needs to extracted from OTP Fuse
 #define DP_per_Mhz 1
 
-
+/*! \def FILL_POWER_STATUS(ptr, throttle_st, pwr_st, curr_pwr, curr_temp) 
+    \brief Help macro to fill up Power Status Struct
+*/
+#define FILL_POWER_STATUS(ptr, u, v, w, x, y, z)       \
+        ptr.throttle_state = u; ptr.power_state = v ;  \
+        ptr.current_power = w ; ptr.current_temp = x;  \
+        ptr.tgt_freq = y ; ptr.tgt_voltage = z;        \
 
 /*! \def SEND_THROTTLE_EVENT(THROTTLE_EVENT_TYPE)
     \brief Sends throttle event to host
@@ -989,7 +995,7 @@ int init_thermal_pwr_mgmt_service(void)
 *       int                       Return status
 *
 ***********************************************************************/
-int reduce_minion_operating_point(int32_t delta_power)
+int reduce_minion_operating_point(int32_t delta_power, struct trace_power_event_status_t *power_status)
 {
     /* Compute delta freq to compensate for delta Power */
     int32_t delta_freq = delta_power * DP_per_Mhz;
@@ -1007,7 +1013,12 @@ int reduce_minion_operating_point(int32_t delta_power)
         //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
     }
 
-    Update_Minion_Frequency_Global_Reg((uint32_t)new_freq);
+    Update_Minion_Frequency_Global_Reg(new_freq);
+
+    power_status->tgt_freq = (uint16_t)new_freq;
+    power_status->tgt_voltage = (uint16_t)new_voltage;
+
+    Trace_Power_Status(Trace_Get_SP_CB(), power_status);
 
     return 0;
 }
@@ -1032,7 +1043,7 @@ int reduce_minion_operating_point(int32_t delta_power)
 *       int                       Return status
 *
 ***********************************************************************/
-int increase_minion_operating_point(int32_t delta_power)
+int increase_minion_operating_point(int32_t delta_power, struct trace_power_event_status_t *power_status)
 {
     /* Compute delta freq to compensate for delta Power */
     int32_t delta_freq = delta_power * DP_per_Mhz;
@@ -1050,7 +1061,12 @@ int increase_minion_operating_point(int32_t delta_power)
         return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
     }
 
-    Update_Minion_Frequency_Global_Reg((uint32_t)new_freq);
+    Update_Minion_Frequency_Global_Reg(new_freq);
+
+    power_status->tgt_freq = (uint16_t) new_freq;
+    power_status->tgt_voltage = (uint16_t) new_voltage;
+
+    Trace_Power_Status(Trace_Get_SP_CB(), power_status);
 
     return 0;
 }
@@ -1075,8 +1091,13 @@ int increase_minion_operating_point(int32_t delta_power)
 *       int                       Return status
 *
 ***********************************************************************/
-int go_to_safe_state(void)
+int go_to_safe_state(power_state_e power_state, power_throttle_state_e throttle_state)
 {
+    uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
+    uint8_t current_power = 0;
+    struct trace_power_event_status_t power_status =  { 0 };
+    int32_t new_voltage = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY);
+
     if (SAFE_STATE_FREQUENCY < Get_Minion_Frequency())
     {
         if (0 != Minion_Shire_Update_PLL_Freq(pll_freq_to_mode(SAFE_STATE_FREQUENCY)))
@@ -1085,7 +1106,6 @@ int go_to_safe_state(void)
             return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
         }
 
-        int32_t new_voltage = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY);
         if (new_voltage != get_soc_power_reg()->module_voltage.minion)
         {
             //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
@@ -1093,7 +1113,6 @@ int go_to_safe_state(void)
     }
     else if (SAFE_STATE_FREQUENCY > Get_Minion_Frequency())
     {
-        int32_t new_voltage = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY);
         if (new_voltage != get_soc_power_reg()->module_voltage.minion)
         {
             //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
@@ -1113,6 +1132,23 @@ int go_to_safe_state(void)
     {
         update_module_power_state(POWER_STATE_SAFE_POWER);
     }
+
+     /* Get the current power */
+     if (0 != pmic_read_soc_power(&current_power))
+     {
+         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
+     }
+    
+    if (0 != pmic_get_temperature(&current_temperature))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
+    }
+
+    FILL_POWER_STATUS(power_status, throttle_state, power_state,
+                      current_power, current_temperature, 
+                      (uint16_t)SAFE_STATE_FREQUENCY, (uint16_t)new_voltage)
+
+    Trace_Power_Status(Trace_Get_SP_CB(), &power_status);
 
     return 0;
 }
@@ -1140,18 +1176,25 @@ void power_throttling(power_throttle_state_e throttle_state)
 {
     uint64_t start_time;
     uint64_t end_time;
+    uint8_t current_temperature = 0;
     uint8_t current_power = 0;
     int32_t current_power_mW;
     int32_t tdp_level_mW;
     int32_t delta_power_mW;
     uint8_t throttle_condition_met = 0;
+    struct trace_power_event_status_t power_status = { 0 };
 
     /* We need to throttle the voltage and frequency, lets keep track of throttling time */
     start_time = timer_get_ticks_count();
 
     if (throttle_state == POWER_THROTTLE_SAFE)
     {
-        go_to_safe_state();
+        go_to_safe_state(get_soc_power_reg()->module_power_state, throttle_state);
+    }
+
+    if (0 != pmic_get_temperature(&current_temperature))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc temperature\r\n");
     }
 
     if (0 != pmic_read_soc_power(&current_power))
@@ -1169,15 +1212,17 @@ void power_throttling(power_throttle_state_e throttle_state)
         switch (throttle_state)
         {
             case POWER_THROTTLE_UP: {
-                delta_power_mW =
-                    (int32_t)((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
-                increase_minion_operating_point(delta_power_mW);
+                delta_power_mW = ((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
+                FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state, 
+                                  current_power, current_temperature, 0, 0)
+                increase_minion_operating_point(delta_power_mW, &power_status);
                 break;
             }
             case POWER_THROTTLE_DOWN: {
-                delta_power_mW =
-                    (int32_t)((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
-                reduce_minion_operating_point(delta_power_mW);
+                delta_power_mW = ((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
+                FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state, 
+                                  current_power, current_temperature, 0, 0)
+                reduce_minion_operating_point(delta_power_mW, &power_status);
                 break;
             }
             case POWER_THROTTLE_SAFE: {
@@ -1267,13 +1312,14 @@ void thermal_throttling(power_throttle_state_e throttle_state)
     uint8_t current_power = 0;
     int32_t current_power_mW;
     int32_t delta_power_mW;
+    struct trace_power_event_status_t power_status = { 0 };
 
     /* We need to throttle the voltage and frequency, lets keep track of throttling time */
     start_time = timer_get_ticks_count();
 
     if (throttle_state == THERMAL_THROTTLE_SAFE)
     {
-        go_to_safe_state();
+        go_to_safe_state(get_soc_power_reg()->module_power_state, throttle_state);
     }
 
     if (0 != pmic_get_temperature(&current_temperature))
@@ -1295,11 +1341,12 @@ void thermal_throttling(power_throttle_state_e throttle_state)
                 }
 
                 current_power_mW = Power_Convert_Hex_to_mW(current_power);
-                delta_power_mW =
-                    (int32_t)((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
+                delta_power_mW = ((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
 
+                FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state, 
+                                  current_power, current_temperature, 0, 0)
                 /* Program the new operating point  */
-                reduce_minion_operating_point(delta_power_mW);
+                reduce_minion_operating_point(delta_power_mW, &power_status);
                 break;
             }
             case THERMAL_THROTTLE_SAFE: {

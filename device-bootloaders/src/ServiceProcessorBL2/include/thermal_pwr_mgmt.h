@@ -20,6 +20,7 @@
 #include "dm.h"
 #include "bl2_pmic_controller.h"
 #include "dm_event_def.h"
+#include "trace.h"
 
 // Thresholds
 #define L0 0x0 // Low
@@ -194,19 +195,23 @@ int get_max_throttle_time(uint64_t *max_throttle_time);
 */
 int get_soc_max_temperature(uint8_t *max_temp);
 
-/*! \fn int increase_minion_operating_point(int32_t delta_power) 
+/*! \fn int increase_minion_operating_point(int32_t delta_power,
+                 struct trace_power_event_status_t *power_status) 
     \brief This function will increase the Minion Voltage/Freq
     \param Amount of Power to be increased by (in mW)
     \returns Status indicating success or negative error
 */
-int increase_minion_operating_point(int32_t delta_power);
+int increase_minion_operating_point(int32_t delta_power, 
+                              struct trace_power_event_status_t *power_status);
 
-/*! \fn int reduce_minion_operating_point(int32_t delta_power) 
+/*! \fn int reduce_minion_operating_point(int32_t delta_power,
+                 struct trace_power_event_status_t *power_status) 
     \brief This function will reduce the Minion Voltage/Freq
     \param Amount of Power to be reduced by (in mW)
     \returns Status indicating success or negative error
 */
-int reduce_minion_operating_point(int32_t delta_power);
+int reduce_minion_operating_point(int32_t delta_power, 
+                              struct trace_power_event_status_t *power_status);
 
 /*! \fn int set_power_event_cb(dm_event_isr_callback event_cb)
     \brief Interface to set temperature event callback variable
@@ -229,12 +234,14 @@ int init_thermal_pwr_mgmt_service(void);
 */
 void dump_power_globals(void);
 
-/*! \fn int go_to_safe_state(void)
+/*! \fn int go_to_safe_state(power_state_e power_state, 
+                             power_throttle_state_e throttle_state)
     \brief This function will switch frequency and voltage to safe predefined values
     \param none
     \returns Status indicating success or negative error
 */
-int go_to_safe_state(void);
+int go_to_safe_state(power_state_e power_state, 
+                     power_throttle_state_e throttle_state);
 
 /*! \fn void power_throttling(power_throttle_state_e throttle_state)
     \brief This function handles power throttling
