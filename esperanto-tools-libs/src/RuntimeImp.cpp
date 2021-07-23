@@ -515,3 +515,7 @@ std::vector<int> RuntimeImp::getDevicesWithEventsOnFly() const {
   });
   return result;
 }
+
+std::vector<StreamError> RuntimeImp::retrieveStreamErrors(StreamId stream) {
+  return streamManager_.retrieveErrors(stream);
+}

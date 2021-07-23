@@ -64,6 +64,9 @@ public:
   IProfiler* getProfiler() override {
     return &profiler_;
   }
+
+  std::vector<StreamError> retrieveStreamErrors(StreamId stream) override;
+
   // IResponseServices
   std::vector<int> getDevicesWithEventsOnFly() const override;
   void onResponseReceived(const std::vector<std::byte>& response) override;
