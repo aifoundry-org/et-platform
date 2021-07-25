@@ -136,15 +136,9 @@ static void flashfs_driver_task(void *pvParameters)
     }
 }
 
-int flashfs_drv_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
-                     const FLASH_FS_BL1_INFO_t *restrict flash_fs_bl1_info)
+int flashfs_drv_init(void)
 {
     gs_next_request_id = 0;
-
-    if (0 != flash_fs_init(flash_fs_bl2_info, flash_fs_bl1_info)) {
-        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_init:  flash_fs_init() failed!\r\n");
-        return -1;
-    }
 
     gs_flashfs_driver_reqeust_queue = xQueueCreateStatic(
         FLASHFS_DRIVER_REQUEST_QUEUE_SIZE, sizeof(FLASHFS_DRIVER_REQUEST_MESSAGE_t),

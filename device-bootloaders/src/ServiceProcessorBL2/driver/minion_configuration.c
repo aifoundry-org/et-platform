@@ -442,8 +442,6 @@ int Minion_Load_Authenticate_Firmware(void)
         return FW_SW_CERTS_LOAD_ERROR;
     }
 
-    // In fast-boot mode we skip loading from flash, and assume everything is already pre-loaded
-#if !FAST_BOOT
     if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MACHINE_MINION)) {
         Log_Write(LOG_LEVEL_ERROR, "Failed to load Machine Minion firmware!\n");
         return FW_MACH_LOAD_ERROR;
@@ -461,7 +459,6 @@ int Minion_Load_Authenticate_Firmware(void)
         return FW_CM_LOAD_ERROR;
     }
     Log_Write(LOG_LEVEL_INFO, "WM FW loaded.\n");
-#endif
 
    return SUCCESS;
 }

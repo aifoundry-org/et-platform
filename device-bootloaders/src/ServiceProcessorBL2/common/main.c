@@ -59,6 +59,7 @@
     {                                                                              \
         Log_Write(LOG_LEVEL_ERROR,                                                 \
         "Fatal error on line %d in %s: %s\r\n", __LINE__, __FUNCTION__, log);      \
+        Log_Write(LOG_LEVEL_ERROR, "Waiting for SOC RESET!!!\n");                  \
         while (1)                                                                  \
         {                                                                          \
             Log_Write(LOG_LEVEL_CRITICAL, "M");                                    \
@@ -151,11 +152,23 @@ static void taskMain(void *pvParameters)
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);
 
-#if !TEST_FRAMEWORK
+    if (!is_vaultip_disabled()) {
+        status = Vault_Initialize();
+        ASSERT_FATAL(status == STATUS_SUCCESS, "Vault_Initialize() failed!");
+        status = crypto_init(get_service_processor_bl2_data()->vaultip_coid_set);
+        ASSERT_FATAL(status == STATUS_SUCCESS, "crypto_init() failed!");
+    }
+
+    // In fast-boot mode we skip loading from flash, and assume everything is already pre-loaded
+#if !FAST_BOOT
+    status = flashfs_drv_init();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "flashfs_drv_init() failed!")
+
     // Minion FW Authenticate and load to DDR
     status = Minion_Load_Authenticate_Firmware();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to load Minion Firmware!")
 #endif
+
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_FW_AUTHENTICATED_INITIALIZED);
 
     // Launch Dispatcher
@@ -232,8 +245,34 @@ static void taskMain(void *pvParameters)
     }
 }
 
-static int copy_bl1_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
+static int initialize_bl2_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 {
+#if FAST_BOOT || TEST_FRAMEWORK
+    // In fast-boot mode, generate fake BL1-data (we are not running BL1)
+    static SERVICE_PROCESSOR_BL1_DATA_t fake_bl1_data;
+    fake_bl1_data.service_processor_bl1_data_size = sizeof(fake_bl1_data);
+    fake_bl1_data.service_processor_bl1_version = SERVICE_PROCESSOR_BL1_DATA_VERSION;
+    fake_bl1_data.service_processor_rom_version = 0xDEADBEEF;
+    fake_bl1_data.sp_gpio_pins = 0;
+    fake_bl1_data.sp_pll0_frequency = 0;
+    fake_bl1_data.sp_pll1_frequency = 0;
+    fake_bl1_data.pcie_pll0_frequency = 0;
+    fake_bl1_data.timer_raw_ticks_before_pll_turned_on = 0;
+    fake_bl1_data.vaultip_coid_set = 0;
+    fake_bl1_data.spi_controller_rx_baudrate_divider = 0;
+    fake_bl1_data.spi_controller_tx_baudrate_divider = 0;
+    // fake_bl1_data.flash_fs_bl1_info bypassed
+    // fake_bl1_data.pcie_config_header bypassed
+    // fake_bl1_data.sp_certificates[2] bypassed
+    // fake_bl1_data.sp_bl1_header bypassed
+    // fake_bl1_data.sp_bl2_header bypassed
+    bl1_data = &fake_bl1_data;
+#endif
+
+    memset(&g_service_processor_bl2_data, 0, sizeof(g_service_processor_bl2_data));
+    g_service_processor_bl2_data.service_processor_bl2_data_size = sizeof(g_service_processor_bl2_data);
+    g_service_processor_bl2_data.service_processor_bl2_version = SERVICE_PROCESSOR_BL2_DATA_VERSION;
+
     if (NULL == bl1_data ||
         sizeof(SERVICE_PROCESSOR_BL1_DATA_t) != bl1_data->service_processor_bl1_data_size ||
         SERVICE_PROCESSOR_BL1_DATA_VERSION != bl1_data->service_processor_bl1_version) {
@@ -272,6 +311,11 @@ static int copy_bl1_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     memcpy(&(g_service_processor_bl2_data.sp_bl2_header), &(bl1_data->sp_bl2_header),
            sizeof(bl1_data->sp_bl2_header));
 
+#if !FAST_BOOT
+    // Initialize BL2 Flash File-System by copy content from BL1 Flash info
+    flash_fs_init(&g_service_processor_bl2_data.flash_fs_bl2_info, &bl1_data->flash_fs_bl1_info);
+#endif
+
     return 0;
 }
 
@@ -279,33 +323,11 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data);
 
 void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 {
-    bool vaultip_disabled;
+    int status;
     const IMAGE_VERSION_INFO_t *image_version_info = get_image_version_info();
-
+  
     // Disable buffering on stdout
     setbuf(stdout, NULL);
-
-    // In fast-boot mode, generate fake BL1-data (we are not running BL1)
-#if FAST_BOOT || TEST_FRAMEWORK
-    static SERVICE_PROCESSOR_BL1_DATA_t fake_bl1_data;
-    fake_bl1_data.service_processor_bl1_data_size = sizeof(fake_bl1_data);
-    fake_bl1_data.service_processor_bl1_version = SERVICE_PROCESSOR_BL1_DATA_VERSION;
-    fake_bl1_data.service_processor_rom_version = 0xDEADBEEF;
-    fake_bl1_data.sp_gpio_pins = 0;
-    fake_bl1_data.sp_pll0_frequency = 0;
-    fake_bl1_data.sp_pll1_frequency = 0;
-    fake_bl1_data.pcie_pll0_frequency = 0;
-    fake_bl1_data.timer_raw_ticks_before_pll_turned_on = 0;
-    fake_bl1_data.vaultip_coid_set = 0;
-    fake_bl1_data.spi_controller_rx_baudrate_divider = 0;
-    fake_bl1_data.spi_controller_tx_baudrate_divider = 0;
-    // fake_bl1_data.flash_fs_bl1_info bypassed
-    // fake_bl1_data.pcie_config_header bypassed
-    // fake_bl1_data.sp_certificates[2] bypassed
-    // fake_bl1_data.sp_bl1_header bypassed
-    // fake_bl1_data.sp_bl2_header bypassed
-    bl1_data = &fake_bl1_data;
-#endif
 
     // In Production mode, the bootrom initializes SPIO UART0
 #if FAST_BOOT || TEST_FRAMEWORK
@@ -318,62 +340,26 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 
     Log_Init(LOG_LEVEL_WARNING);
     Trace_Init_SP(NULL);
+
     Log_Write(LOG_LEVEL_CRITICAL, "\n** SP BL2 STARTED **\r\n");
     Log_Write(LOG_LEVEL_CRITICAL, "BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
            image_version_info->file_version_major, image_version_info->file_version_minor,
            image_version_info->file_version_revision);
 
-    memset(&g_service_processor_bl2_data, 0, sizeof(g_service_processor_bl2_data));
-    g_service_processor_bl2_data.service_processor_bl2_data_size =
-        sizeof(g_service_processor_bl2_data);
-    g_service_processor_bl2_data.service_processor_bl2_version = SERVICE_PROCESSOR_BL2_DATA_VERSION;
-
-
-    if (0 != copy_bl1_data(bl1_data)) {
-        Log_Write(LOG_LEVEL_ERROR, "copy_bl1_data() failed!!\n");
-        goto FATAL_ERROR;
-    }
+    status = initialize_bl2_data(bl1_data);
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed initialize_bl2_data()");
 
     timer_init(bl1_data->timer_raw_ticks_before_pll_turned_on, bl1_data->sp_pll0_frequency);
 
-    if (0 != sp_otp_init()) {
-        Log_Write(LOG_LEVEL_ERROR, "sp_otp_init() failed!\n");
-        goto FATAL_ERROR;
-    }
+    status = sp_otp_init();
 
-    vaultip_disabled = is_vaultip_disabled();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "sp_otp_init() failed!");
 
-    if (0 != pll_init(bl1_data->sp_pll0_frequency, bl1_data->sp_pll1_frequency,
-                      bl1_data->pcie_pll0_frequency)) {
-        Log_Write(LOG_LEVEL_ERROR, "pll_init() failed!\n");
-        goto FATAL_ERROR;
-    }
+    status = pll_init(bl1_data->sp_pll0_frequency, bl1_data->sp_pll1_frequency,
+                      bl1_data->pcie_pll0_frequency);
+    ASSERT_FATAL(status == STATUS_SUCCESS, "pll_init() failed!");
 
     INT_init();
-
-    if (vaultip_disabled) {
-        Log_Write(LOG_LEVEL_INFO, "VaultIP is disabled!\n");
-    } else {
-        if (0 != Vault_Initialize()) {
-            Log_Write(LOG_LEVEL_ERROR, "Vault_Initialize() failed!\n");
-            goto FATAL_ERROR;
-        }
-        if (0 != crypto_init(bl1_data->vaultip_coid_set)) {
-            Log_Write(LOG_LEVEL_ERROR, "crypto_init() failed!\n");
-            goto FATAL_ERROR;
-        }
-    }
-
-    // In fast-boot mode we skip loading from flash, and assume everything is already pre-loaded
-#if !(FAST_BOOT || TEST_FRAMEWORK)
-    if (0 != flashfs_drv_init(&g_service_processor_bl2_data.flash_fs_bl2_info,
-                              &bl1_data->flash_fs_bl1_info)) {
-        Log_Write(LOG_LEVEL_ERROR, "flashfs_drv_init() failed!\n");
-        goto FATAL_ERROR;
-    }
-#endif
-
-    Log_Write(LOG_LEVEL_CRITICAL, "Starting RTOS...\n");
 
     gs_taskHandleMain = xTaskCreateStatic(taskMain, "Main Task", TASK_STACK_SIZE, NULL, 1,
                                           gs_stackMain, &gs_taskBufferMain);
@@ -381,13 +367,12 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
         Log_Write(LOG_LEVEL_ERROR, "xTaskCreateStatic(taskMain) failed!\r\n");
     }
 
-    vTaskStartScheduler();
+    Log_Write(LOG_LEVEL_CRITICAL, "Starting RTOS Scheduler...\n");
 
-FATAL_ERROR:
-    Log_Write(LOG_LEVEL_ERROR, "Encountered a FATAL ERROR!\n");
-    Log_Write(LOG_LEVEL_ERROR, "Waiting for RESET!!!\n");
-    for (;;)
-        ;
+    vTaskStartScheduler();
+   
+    ASSERT_FATAL(false, "Failed to Launch RTOS Scheduler!") 
+    
 }
 
 /* configUSE_STATIC_ALLOCATION is set to 1, so the application must provide an

@@ -15,8 +15,7 @@
 #include "service_processor_BL2_data.h"
 #include "bl2_spi_flash.h"
 
-int flashfs_drv_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
-                     const FLASH_FS_BL1_INFO_t *restrict flash_fs_bl1_info);
+int flashfs_drv_init(void);
 int flashfs_drv_get_config_data(void *buffer);
 int flashfs_drv_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t *size);
 int flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, void *buffer,
