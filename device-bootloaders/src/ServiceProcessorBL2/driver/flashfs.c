@@ -269,6 +269,8 @@ static int flash_fs_scan_regions(uint32_t partition_size,
                 partition_info->maxion_bl1_region_index = n;
                 break;
             default:
+                MESSAGE_ERROR("flash_fs_scan_regions: invalid region id: %u!\n", 
+                                            partition_info->regions_table[n].region_id);
                 return ERROR_SPI_FLASH_INVALID_REGION_ID; /* we should never get here */
         }
     }
@@ -429,7 +431,7 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
     /* re-scan both partitions in the flash */
     for (n = 0; n < 2; n++)
     {
-        Log_Write(LOG_LEVEL_ERROR, "Re-scanning partition %u...\n", n);
+        Log_Write(LOG_LEVEL_INFO, "Re-scanning partition %u...\n", n);
 
         if (0 != flash_fs_scan_partition(partition_size, &flash_fs_bl2_info->partition_info[n]))
         {

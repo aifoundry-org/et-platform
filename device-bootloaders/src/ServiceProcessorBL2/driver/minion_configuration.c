@@ -172,12 +172,11 @@ static void minion_error_update_count(uint8_t error_type)
 *
 *   FUNCTION
 *
-*       Minion_Enable_Neighborhoods
+*       Minion_Enable_Shire_Cache_and_Neighborhoods
 *
 *   DESCRIPTION
 *
-*       This function enables minion neighborhoods PLL and DLLs for a given
-        set of shires.
+*       This function enables minion Shire caches and neighborhoods
 *
 *   INPUTS
 *
@@ -188,7 +187,7 @@ static void minion_error_update_count(uint8_t error_type)
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-int Minion_Enable_Neighborhoods(uint64_t shire_mask)
+int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask)
 {
     for (uint8_t i = 0; i <= 32; i++)
     {
@@ -314,11 +313,12 @@ int Minion_Program_Step_Clock_PLL(uint8_t mode)
 *
 *   FUNCTION
 *
-*       Minion_Enable_Compute_Minion
+*       Minion_Configure_Minion_Clock_Reset
 *
 *   DESCRIPTION
 *
-*       This function enables compute minion threads.
+*       This function configures the Minion PLLs to Step Clock, and bring them
+*       out of reset.
 *
 *   INPUTS
 *
@@ -330,7 +330,7 @@ int Minion_Program_Step_Clock_PLL(uint8_t mode)
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-int Minion_Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode )
+int Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t mode )
 {
 
     /* TODO: Update Minion Voltage if neccesary
@@ -595,11 +595,11 @@ int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args)
 *
 *   FUNCTION
 *
-*       Minion_State_Init
+*       Minion_Set_Active_Shire_Mask(minion_shires_mask)
 *
 *   DESCRIPTION
 *
-*       This function Initialize Minion state service.
+*       This function set the active Shire Mask global
 *
 *   INPUTS
 *
@@ -610,7 +610,7 @@ int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args)
 *       None
 *
 ***********************************************************************/
-void Minion_State_Init(uint64_t active_shire_mask)
+void Minion_Set_Active_Shire_Mask(uint64_t active_shire_mask)
 {
     g_active_shire_mask = active_shire_mask;
 }

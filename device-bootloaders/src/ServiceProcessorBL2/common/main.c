@@ -62,8 +62,8 @@
         Log_Write(LOG_LEVEL_ERROR, "Waiting for SOC RESET!!!\n");                  \
         while (1)                                                                  \
         {                                                                          \
-            Log_Write(LOG_LEVEL_CRITICAL, "M");                                    \
-            vTaskDelay(2U);                                                        \
+            Log_Write(LOG_LEVEL_CRITICAL, "SP Down..");                            \
+            vTaskDelay(1000U);                                                     \
         }                                                                          \
     }
 
@@ -100,22 +100,22 @@ static void taskMain(void *pvParameters)
     // Establish connection to PMIC
     setup_pmic();
 
-    // In non-fast-boot mode, the bootrom initializes PCIe link
 #if FAST_BOOT
+    // In cases where BootROM is bypass, initialize PCIe link
     PCIe_release_pshire_from_reset();
     /* Configure Pshire Pll to 1010 Mhz */
     configure_pshire_pll(6);
-    PCIe_init(false /*expect_link_up*/);
+    PCIe_init(false /*expect_link_down*/);
 #else
     #if !TEST_FRAMEWORK /* Do not initialize PCIe for TF */
+    // In cases where BootROM is executed, PCIe link is expected to be up
     PCIe_init(true /*expect_link_up*/);
     #endif
 #endif
 
-    // Initialize Compute Minions based on active compute minion mask
+    // Extract the active Compute Minions based on fuse
     minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
-
-    Minion_State_Init(minion_shires_mask);
+    Minion_Set_Active_Shire_Mask(minion_shires_mask);
 
     // Initialize Host to Service Processor Interface
     #if !TEST_FRAMEWORK
@@ -130,9 +130,10 @@ static void taskMain(void *pvParameters)
     /* Initialize the DIRs */
     DIR_Init();
 
-    /* Set the minion shires available */
+    /* Populate DIR with General Device Attributes */
     DIR_Set_Minion_Shires(minion_shires_mask);
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_VQ_READY);
+
     Log_Write(LOG_LEVEL_CRITICAL, "time: %lu\n", timer_get_ticks_count());
 
     // Setup NOC
@@ -145,53 +146,56 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_memshire() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
 
-    // Setup Minions
-    /* Setup default PLL to be 650 Mhz (Mode -3) */
-    status = Minion_Enable_Compute_Minion(minion_shires_mask, 3);
+    /* Setup Compute Minions Shire Clocks and bring them out of Reset
+       Switch all Minion to use Step Clock from IO Shire @ 650 Mhz (Mode 3) */
+    status = Minion_Configure_Minion_Clock_Reset(minion_shires_mask, 3);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Enable Compute Minion failed!")
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);
 
+    // Initialize Vault service 
     if (!is_vaultip_disabled()) {
         status = Vault_Initialize();
-        ASSERT_FATAL(status == STATUS_SUCCESS, "Vault_Initialize() failed!");
+        ASSERT_FATAL(status == STATUS_SUCCESS, "Vault_Initialize() failed!")
         status = crypto_init(get_service_processor_bl2_data()->vaultip_coid_set);
-        ASSERT_FATAL(status == STATUS_SUCCESS, "crypto_init() failed!");
+        ASSERT_FATAL(status == STATUS_SUCCESS, "crypto_init() failed!")
     }
 
-    // In fast-boot mode we skip loading from flash, and assume everything is already pre-loaded
 #if !FAST_BOOT
+    // Initialize Flash service 
     status = flashfs_drv_init();
     ASSERT_FATAL(status == STATUS_SUCCESS, "flashfs_drv_init() failed!")
 
-    // Minion FW Authenticate and load to DDR
+    // Extract Minion FW from Flash, authenticate and load to DDR
     status = Minion_Load_Authenticate_Firmware();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to load Minion Firmware!")
 #endif
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_FW_AUTHENTICATED_INITIALIZED);
 
-    // Launch Dispatcher
 #if !TEST_FRAMEWORK
+    // Launch Host->SP Command Handler 
     launch_host_sp_command_handler();
 #endif
+    // Launch MM->SP Command Handler 
     launch_mm_sp_command_handler();
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_COMMAND_DISPATCHER_INITIALIZED);
 
-    status = Minion_Enable_Neighborhoods(minion_shires_mask);
+   // Enable Compute Minion Shire Caches and Neighbourhoods
+    status = Minion_Enable_Shire_Cache_and_Neighborhoods(minion_shires_mask);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to enable minion neighborhoods!")
 
-    // Potentially reprogram NOC?
+    // Extract Master Minion Shire ID from Fuses
     status = otp_get_master_shire_id(&mm_id);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to read master minion shire ID!")
-
-    //Value wasn't burned into fuse, using default value
+    // If ID Value wasn't burned into fuse, use default value
     if (mm_id == 0xff){
        Log_Write(LOG_LEVEL_WARNING, "Master shire ID was not found in the OTP, using default value of 32!\n");
        mm_id = 32;
     }
 
+    // Launch Master Minion Runtime
     status = Minion_Enable_Master_Shire_Threads(mm_id);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to enable Master minion threads!")
 
@@ -208,23 +212,23 @@ static void taskMain(void *pvParameters)
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_ATU_PROGRAMMED);
 
-    // init thermal power management service
+    // Initialize thermal power management service
     status = init_thermal_pwr_mgmt_service();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init thermal power management!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_PM_READY);
 
-    // init watchdog service
+    // Initialize  watchdog service
     status = init_watchdog_service();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init watchdog service!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_SP_WATCHDOG_TASK_READY);
 
-    // init DM event handler task
+    // Initialize  DM event handler task
     status = dm_event_control_init();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to create dm event handler task!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_EVENT_HANDLER_READY);
 
 #if !FAST_BOOT
-    // SP and minions have booted successfully. Increment the completed boot counter
+    // At this point, SP and minions have booted successfully. Increment the completed boot counter
     status = flashfs_drv_increment_completed_boot_count();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to increment the completed boot counter!")
     Log_Write(LOG_LEVEL_CRITICAL, "Incremented the completed boot counter!\n");
@@ -233,52 +237,31 @@ static void taskMain(void *pvParameters)
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
     Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\n");
 
-    // Init DM sampling task
+    // Initialize DM sampling task
     init_dm_sampling_task();
 
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
     while (1) {
-        Log_Write(LOG_LEVEL_CRITICAL, "M");
-        vTaskDelay(2U);
+        Log_Write(LOG_LEVEL_CRITICAL, "SP Alive..");
+        // Print SP Hearbeat
+        vTaskDelay(1000U);
     }
 }
 
 static int initialize_bl2_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 {
-#if FAST_BOOT || TEST_FRAMEWORK
-    // In fast-boot mode, generate fake BL1-data (we are not running BL1)
-    static SERVICE_PROCESSOR_BL1_DATA_t fake_bl1_data;
-    fake_bl1_data.service_processor_bl1_data_size = sizeof(fake_bl1_data);
-    fake_bl1_data.service_processor_bl1_version = SERVICE_PROCESSOR_BL1_DATA_VERSION;
-    fake_bl1_data.service_processor_rom_version = 0xDEADBEEF;
-    fake_bl1_data.sp_gpio_pins = 0;
-    fake_bl1_data.sp_pll0_frequency = 0;
-    fake_bl1_data.sp_pll1_frequency = 0;
-    fake_bl1_data.pcie_pll0_frequency = 0;
-    fake_bl1_data.timer_raw_ticks_before_pll_turned_on = 0;
-    fake_bl1_data.vaultip_coid_set = 0;
-    fake_bl1_data.spi_controller_rx_baudrate_divider = 0;
-    fake_bl1_data.spi_controller_tx_baudrate_divider = 0;
-    // fake_bl1_data.flash_fs_bl1_info bypassed
-    // fake_bl1_data.pcie_config_header bypassed
-    // fake_bl1_data.sp_certificates[2] bypassed
-    // fake_bl1_data.sp_bl1_header bypassed
-    // fake_bl1_data.sp_bl2_header bypassed
-    bl1_data = &fake_bl1_data;
-#endif
-
-    memset(&g_service_processor_bl2_data, 0, sizeof(g_service_processor_bl2_data));
-    g_service_processor_bl2_data.service_processor_bl2_data_size = sizeof(g_service_processor_bl2_data);
-    g_service_processor_bl2_data.service_processor_bl2_version = SERVICE_PROCESSOR_BL2_DATA_VERSION;
-
     if (NULL == bl1_data ||
         sizeof(SERVICE_PROCESSOR_BL1_DATA_t) != bl1_data->service_processor_bl1_data_size ||
         SERVICE_PROCESSOR_BL1_DATA_VERSION != bl1_data->service_processor_bl1_version) {
         Log_Write(LOG_LEVEL_ERROR, "Invalid BL1 DATA!\n");
         return -1;
     }
+
+    memset(&g_service_processor_bl2_data, 0, sizeof(g_service_processor_bl2_data));
+    g_service_processor_bl2_data.service_processor_bl2_data_size = sizeof(g_service_processor_bl2_data);
+    g_service_processor_bl2_data.service_processor_bl2_version = SERVICE_PROCESSOR_BL2_DATA_VERSION;
 
     g_service_processor_bl2_data.service_processor_rom_version =
         bl1_data->service_processor_rom_version;
@@ -324,16 +307,39 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data);
 void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 {
     int status;
+
+    // Populate BL2 Image information
     const IMAGE_VERSION_INFO_t *image_version_info = get_image_version_info();
   
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
-    // In Production mode, the bootrom initializes SPIO UART0
 #if FAST_BOOT || TEST_FRAMEWORK
+    // In cases where BL1 is skipped, generate fake BL1-data
+    static SERVICE_PROCESSOR_BL1_DATA_t fake_bl1_data;
+    fake_bl1_data.service_processor_bl1_data_size = sizeof(fake_bl1_data);
+    fake_bl1_data.service_processor_bl1_version = SERVICE_PROCESSOR_BL1_DATA_VERSION;
+    fake_bl1_data.service_processor_rom_version = 0xDEADBEEF;
+    fake_bl1_data.sp_gpio_pins = 0;
+    fake_bl1_data.sp_pll0_frequency = 0;
+    fake_bl1_data.sp_pll1_frequency = 0;
+    fake_bl1_data.pcie_pll0_frequency = 0;
+    fake_bl1_data.timer_raw_ticks_before_pll_turned_on = 0;
+    fake_bl1_data.vaultip_coid_set = 0;
+    fake_bl1_data.spi_controller_rx_baudrate_divider = 0;
+    fake_bl1_data.spi_controller_tx_baudrate_divider = 0;
+    // fake_bl1_data.flash_fs_bl1_info bypassed
+    // fake_bl1_data.pcie_config_header bypassed
+    // fake_bl1_data.sp_certificates[2] bypassed
+    // fake_bl1_data.sp_bl1_header bypassed
+    // fake_bl1_data.sp_bl2_header bypassed
+    bl1_data = &fake_bl1_data;
+
+    // In cases where production BootROM is skipped, initializes SPIO UART0
     SERIAL_init(UART0);
 #endif
 
+    // Initialize all UART and Trace support
     SERIAL_init(UART1);
     SERIAL_init(PU_UART0);
     SERIAL_init(PU_UART1);
@@ -341,36 +347,39 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     Log_Init(LOG_LEVEL_WARNING);
     Trace_Init_SP(NULL);
 
+    // Initialize Splash screen
     Log_Write(LOG_LEVEL_CRITICAL, "\n** SP BL2 STARTED **\r\n");
     Log_Write(LOG_LEVEL_CRITICAL, "BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
            image_version_info->file_version_major, image_version_info->file_version_minor,
            image_version_info->file_version_revision);
 
+    // Populate BL2 globals using BL1 data from previous BL1 
     status = initialize_bl2_data(bl1_data);
-    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed initialize_bl2_data()");
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed initialize_bl2_data()")
 
+    // Start System Timer 
     timer_init(bl1_data->timer_raw_ticks_before_pll_turned_on, bl1_data->sp_pll0_frequency);
 
+    // Initialize SP OTP  
     status = sp_otp_init();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "sp_otp_init() failed!")
 
-    ASSERT_FATAL(status == STATUS_SUCCESS, "sp_otp_init() failed!");
-
+    // Initialize PLL 0,1, PShire globals  
     status = pll_init(bl1_data->sp_pll0_frequency, bl1_data->sp_pll1_frequency,
                       bl1_data->pcie_pll0_frequency);
-    ASSERT_FATAL(status == STATUS_SUCCESS, "pll_init() failed!");
+    ASSERT_FATAL(status == STATUS_SUCCESS, "pll_init() failed!")
 
+    // Initialize System Interrupt
     INT_init();
 
+    // Create Main RTOS task and launch Scheduler
+    Log_Write(LOG_LEVEL_CRITICAL, "Starting RTOS...\n");
     gs_taskHandleMain = xTaskCreateStatic(taskMain, "Main Task", TASK_STACK_SIZE, NULL, 1,
                                           gs_stackMain, &gs_taskBufferMain);
-    if (gs_taskHandleMain == NULL) {
-        Log_Write(LOG_LEVEL_ERROR, "xTaskCreateStatic(taskMain) failed!\r\n");
-    }
-
-    Log_Write(LOG_LEVEL_CRITICAL, "Starting RTOS Scheduler...\n");
-
+    ASSERT_FATAL(gs_taskHandleMain != NULL, "xTaskCreateStatic(taskMain) failed!")
     vTaskStartScheduler();
-   
+    
+    // If Scheduler fails, spin waiting for SOC Reset 
     ASSERT_FATAL(false, "Failed to Launch RTOS Scheduler!") 
     
 }

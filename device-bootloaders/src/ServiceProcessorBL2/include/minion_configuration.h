@@ -74,13 +74,12 @@ int Minion_Program_Step_Clock_PLL(uint8_t mode);
 */
 uint8_t pll_freq_to_mode(int32_t freq);
 
-/*! \fn int Minion_Enable_Neighborhoods(uint64_t shire_mask)
-    \brief This function enables minion neighborhoods PLL and DLLs for a given
-           set of shires
+/*! \fn int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask)
+    \brief This function enables minion shire caches and neighborhoods
     \param shire_mask shire to be configured
     \return The function call status, pass/fail.
 */
-int Minion_Enable_Neighborhoods(uint64_t shire_mask);
+int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask);
 
 /*! \fn int Minion_Enable_Master_Shire_Threads(uint8_t mm_id)
     \brief This function enables mastershire threads
@@ -89,13 +88,13 @@ int Minion_Enable_Neighborhoods(uint64_t shire_mask);
 */
 int Minion_Enable_Master_Shire_Threads(uint8_t mm_id);
 
-/*! \fn int Minion_Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode)
-    \brief This function enables compute minion threads
+/*! \fn int Minion_Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t mode)
+    \brief This function configures the Minion PLLs to Step Clock, and bring them out of reset. 
     \param  minion_shires_mask Shire Mask to enable
     \param  mode Frequency mode to bring up Minions
     \return The function call status, pass/fail.
 */
-int Minion_Enable_Compute_Minion(uint64_t minion_shires_mask, uint8_t mode);
+int Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t mode);
 
 /*! \fn uint64_t Minion_Get_Active_Compute_Minion_Mask(void)
     \brief This function gets the active compute shire mask
@@ -150,11 +149,11 @@ int Minion_Write_ESR(uint32_t address, uint64_t data, uint64_t mmshire_mask);
 */
 int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args);
 
-/*! \brief Initialize Minion state service
+/*! \brief Sets the active Shire Mask global 
     \param active_shire_mask Mask of active Shires
     \returns none
 */
-void Minion_State_Init(uint64_t active_shire_mask);
+void Minion_Set_Active_Shire_Mask(uint64_t active_shire_mask);
 
 /*! \fn void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
     \brief Process the Minion State related host request
