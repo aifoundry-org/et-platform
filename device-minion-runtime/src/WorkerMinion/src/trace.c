@@ -58,7 +58,7 @@ typedef struct cm_trace_control_block {
 */
 #define CM_BASE_HART_ID             0
 
-/*! \def GET_CB_INDEX
+/*! \def CM_TRACE_CB
     \brief A local Trace control block for a Compute Minion.
 */
 #define CM_TRACE_CB                 ((cm_trace_control_block_t*)FW_CM_TRACE_CB_BASEADDR)
@@ -136,6 +136,9 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
         trace_header->magic_header = TRACE_MAGIC_HEADER;
         trace_header->type = TRACE_CM_BUFFER;
         trace_header->data_size = 0;
+
+        /* Set the default offset */
+        CM_TRACE_CB[hart_cb_index].cb.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
     }
     else
     {
@@ -143,6 +146,9 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
             (struct trace_buffer_size_header_t *)CM_TRACE_CB[hart_cb_index].cb.base_per_hart;
 
         size_header->data_size = 0;
+
+        /* Set the default offset */
+        CM_TRACE_CB[hart_cb_index].cb.offset_per_hart = sizeof(struct trace_buffer_size_header_t);
     }
 
     /* Verify if the current shire and thread is enabled for tracing */
@@ -163,6 +169,10 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
     {
         /* Disable Trace for current Hart in Compute Minion Shire. */
         CM_TRACE_CB[hart_cb_index].cb.enable = TRACE_DISABLE;
+        /* Zero-out the values */
+        CM_TRACE_CB[hart_cb_index].cb.threshold = 0;
+        CM_TRACE_CB[hart_cb_index].cb.event_mask = 0;
+        CM_TRACE_CB[hart_cb_index].cb.filter_mask = 0;
     }
 
     /* Evict the buffer header to L3 Cache. */

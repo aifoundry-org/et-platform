@@ -79,7 +79,7 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
             -DTEST_FRAMEWORK=${TEST_FRAMEWORK}
         PRIVATE
             $<$<BOOL:${ENABLE_CMD_EXECUTION_TRACE}>: MM_ENABLE_CMD_EXECUTION_TRACE>
-    
+
     )
     target_link_libraries(${MM_BUILD_VARIANT}.elf
         PUBLIC
@@ -87,7 +87,6 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
             deviceApi::deviceApi
             etsoc_hal::etsoc_hal
             deviceFirmware::device_common
-            deviceFirmware::device_trace
             deviceFirmware::firmware_helpers_serial
         PRIVATE
             deviceFirmware::device_configuration
