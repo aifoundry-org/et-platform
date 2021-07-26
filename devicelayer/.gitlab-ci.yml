@@ -14,6 +14,10 @@ include:
 
 build:conan:
   stage: build
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /extract-etsoc-sysemu-$/
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH'
   variables:
     DOCKER_IMAGE: conanio/${COMPILER}
   parallel:
@@ -31,6 +35,10 @@ build:conan:
 
 package:
   stage: package
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /extract-etsoc-sysemu-$/
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH'
   variables:
     DOCKER_IMAGE: conanio/${COMPILER}${COMPILER_VERSION}
     CONAN_OPTIONS: "g3log:use_dynamic_logging_levels=True,boost:header_only=True"
