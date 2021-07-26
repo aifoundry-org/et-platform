@@ -153,7 +153,7 @@ static void taskMain(void *pvParameters)
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);
 
-    // Initialize Vault service 
+    // Initialize Vault service
     if (!is_vaultip_disabled()) {
         status = Vault_Initialize();
         ASSERT_FATAL(status == STATUS_SUCCESS, "Vault_Initialize() failed!")
@@ -161,8 +161,8 @@ static void taskMain(void *pvParameters)
         ASSERT_FATAL(status == STATUS_SUCCESS, "crypto_init() failed!")
     }
 
-#if !FAST_BOOT
-    // Initialize Flash service 
+#if !(FAST_BOOT || TEST_FRAMEWORK)
+    // Initialize Flash service
     status = flashfs_drv_init();
     ASSERT_FATAL(status == STATUS_SUCCESS, "flashfs_drv_init() failed!")
 
@@ -174,15 +174,15 @@ static void taskMain(void *pvParameters)
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_FW_AUTHENTICATED_INITIALIZED);
 
 #if !TEST_FRAMEWORK
-    // Launch Host->SP Command Handler 
+    // Launch Host->SP Command Handler
     launch_host_sp_command_handler();
 #endif
-    // Launch MM->SP Command Handler 
+    // Launch MM->SP Command Handler
     launch_mm_sp_command_handler();
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_COMMAND_DISPATCHER_INITIALIZED);
 
-   // Enable Compute Minion Shire Caches and Neighbourhoods
+    // Enable Compute Minion Shire Caches and Neighbourhoods
     status = Minion_Enable_Shire_Cache_and_Neighborhoods(minion_shires_mask);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to enable minion neighborhoods!")
 
@@ -294,7 +294,7 @@ static int initialize_bl2_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     memcpy(&(g_service_processor_bl2_data.sp_bl2_header), &(bl1_data->sp_bl2_header),
            sizeof(bl1_data->sp_bl2_header));
 
-#if !FAST_BOOT
+#if !(FAST_BOOT || TEST_FRAMEWORK)
     // Initialize BL2 Flash File-System by copy content from BL1 Flash info
     flash_fs_init(&g_service_processor_bl2_data.flash_fs_bl2_info, &bl1_data->flash_fs_bl1_info);
 #endif
@@ -310,7 +310,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 
     // Populate BL2 Image information
     const IMAGE_VERSION_INFO_t *image_version_info = get_image_version_info();
-  
+
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
@@ -353,18 +353,18 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
            image_version_info->file_version_major, image_version_info->file_version_minor,
            image_version_info->file_version_revision);
 
-    // Populate BL2 globals using BL1 data from previous BL1 
+    // Populate BL2 globals using BL1 data from previous BL1
     status = initialize_bl2_data(bl1_data);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed initialize_bl2_data()")
 
-    // Start System Timer 
+    // Start System Timer
     timer_init(bl1_data->timer_raw_ticks_before_pll_turned_on, bl1_data->sp_pll0_frequency);
 
-    // Initialize SP OTP  
+    // Initialize SP OTP
     status = sp_otp_init();
     ASSERT_FATAL(status == STATUS_SUCCESS, "sp_otp_init() failed!")
 
-    // Initialize PLL 0,1, PShire globals  
+    // Initialize PLL 0,1, PShire globals
     status = pll_init(bl1_data->sp_pll0_frequency, bl1_data->sp_pll1_frequency,
                       bl1_data->pcie_pll0_frequency);
     ASSERT_FATAL(status == STATUS_SUCCESS, "pll_init() failed!")
@@ -378,10 +378,10 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
                                           gs_stackMain, &gs_taskBufferMain);
     ASSERT_FATAL(gs_taskHandleMain != NULL, "xTaskCreateStatic(taskMain) failed!")
     vTaskStartScheduler();
-    
-    // If Scheduler fails, spin waiting for SOC Reset 
-    ASSERT_FATAL(false, "Failed to Launch RTOS Scheduler!") 
-    
+
+    // If Scheduler fails, spin waiting for SOC Reset
+    ASSERT_FATAL(false, "Failed to Launch RTOS Scheduler!")
+
 }
 
 /* configUSE_STATIC_ALLOCATION is set to 1, so the application must provide an
