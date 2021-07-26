@@ -82,22 +82,29 @@ class SwSysemuConan(ConanFile):
     def package(self):
         cmake = self._configure_cmake()
         cmake.install()
+        tools.rmdir(os.path.join(self.package_folder, "lib64", "cmake"))
     
     def package_info(self):
         # library components
         self.cpp_info.components["libsysemu"].names["cmake_find_package"] = "sysemu"
         self.cpp_info.components["libsysemu"].names["cmake_find_package_multi"] = "sysemu"
         self.cpp_info.components["libsysemu"].requires = ["elfio::elfio"]
+        self.cpp_info.components["libsysemu"].libs = ["sysemu"]
+        self.cpp_info.components["libsysemu"].libdirs = ["lib64"]
         if self.options.backtrace:
             self.cpp_info.components["libsysemu"].requires.append("libunwind::libunwind")
         
         self.cpp_info.components["libfpu"].names["cmake_find_package"] = "fpu"
         self.cpp_info.components["libfpu"].names["cmake_find_package_multi"] = "fpu"
         self.cpp_info.components["libfpu"].requires = []
+        self.cpp_info.components["libfpu"].libs = ["fpu"]
+        self.cpp_info.components["libfpu"].libdirs = ["lib64"]
 
         self.cpp_info.components["libsw-sysemu"].names["cmake_find_package"] = "sw-sysemu"
         self.cpp_info.components["libsw-sysemu"].names["cmake_find_package_multi"] = "sw-sysemu"
         self.cpp_info.components["libsw-sysemu"].requires = ["libsysemu", "libfpu", "glog::glog"]
+        self.cpp_info.components["libsw-sysemu"].libs = ["sw-sysemu"]
+        self.cpp_info.components["libsw-sysemu"].libdirs = ["lib64"]
 
         # utilities
         bin_path = os.path.join(self.package_folder, "bin")
@@ -109,3 +116,4 @@ class SwSysemuConan(ConanFile):
         sys_emu = tools.unix_path(os.path.join(self.package_folder, "bin", "sys_emu" + bin_ext))
         self.output.info("Setting SYS_EMU to {}".format(sys_emu))
         self.env_info.SYS_EMU = sys_emu
+
