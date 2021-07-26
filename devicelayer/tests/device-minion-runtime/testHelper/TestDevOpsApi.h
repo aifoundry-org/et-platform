@@ -220,15 +220,21 @@ protected:
   }
 
   inline int getSqCount(int deviceIdx) {
-    return devLayer_->getSubmissionQueuesCount(deviceIdx);
+    try {
+      return devLayer_->getSubmissionQueuesCount(deviceIdx);
+    } CATCH_EXCEPTION
   }
 
   inline void* allocDmaBuffer(int deviceIdx, size_t sizeInBytes, bool writeable) {
-    return devLayer_->allocDmaBuffer(deviceIdx, sizeInBytes, writeable);
+    try {
+      return devLayer_->allocDmaBuffer(deviceIdx, sizeInBytes, writeable);
+    } CATCH_EXCEPTION
   }
 
   inline void freeDmaBuffer(void* dmaBuffer) {
-    return devLayer_->freeDmaBuffer(dmaBuffer);
+    try {
+      return devLayer_->freeDmaBuffer(dmaBuffer);
+    } CATCH_EXCEPTION
   }
 
   inline size_t key(int deviceIdx, int queueIdx) {
