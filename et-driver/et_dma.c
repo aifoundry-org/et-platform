@@ -491,6 +491,16 @@ ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev,
 			return rv;
 		}
 
+		// TODO SW-8645: Discover from DIRs
+		if (cmd->list[node_num].size > BIT(27) /* 128MB */) {
+			dev_err(&et_dev->pdev->dev,
+				"readlist[%u].size out of bound (0x%x/0x%zx)!",
+				node_num,
+				cmd->list[node_num].size,
+				BIT(27));
+			return rv;
+		}
+
 		if (cmd->list[node_num].dst_host_virt_addr +
 			    cmd->list[node_num].size >
 		    vma->vm_end) {

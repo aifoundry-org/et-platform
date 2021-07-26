@@ -49,7 +49,6 @@ MODULE_VERSION("1.0");
 #define ET_PCIE_TEST_DEVICE_ID 0x9038
 #define ET_PCIE_SOC1_ID	       0xeb01
 #define ET_MAX_DEVS	       64
-#define DMA_MAX_ALLOC_SIZE     (BIT(31)) /* 2GB */
 
 static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{ PCI_DEVICE(ET_PCIE_VENDOR_ID, ET_PCIE_TEST_DEVICE_ID) },
@@ -151,8 +150,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].soc_addr;
 		user_dram.size =
 			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].size;
-		user_dram.dma_max_alloc_size = DMA_MAX_ALLOC_SIZE;
-		// TODO: Discover from DIRs
+		// TODO SW-8645: Discover from DIRs
 		user_dram.dma_max_elem_size = BIT(27); /* 128MB */
 
 		switch (ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]
@@ -398,12 +396,6 @@ static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 
 	if (vma->vm_pgoff != 0) {
 		dev_err(&et_dev->pdev->dev, "mmap() offset must be 0.\n");
-		return -EINVAL;
-	}
-
-	if (size > DMA_MAX_ALLOC_SIZE) {
-		dev_err(&et_dev->pdev->dev,
-			"mmap() can't map more than 2GB at a time!");
 		return -EINVAL;
 	}
 
