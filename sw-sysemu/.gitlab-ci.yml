@@ -17,6 +17,8 @@ build:system_pkg_manager:
   tags:
     - docker
   image: ubuntu:latest
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH'
   variables:
     DEBIAN_FRONTEND: noninteractive
   parallel:
@@ -38,6 +40,8 @@ build:system_pkg_manager:
 
 build:conan:
   stage: build
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH'
   variables:
     DOCKER_IMAGE: conanio/${COMPILER}
   parallel:
@@ -59,11 +63,16 @@ build:conan:
 
 package:
   stage: package
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /extract-etsoc-sysemu-$/
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH'
   variables:
     DOCKER_IMAGE: conanio/${COMPILER}${COMPILER_VERSION}
     CONAN_STABLE_BRANCH_PATTERN: "develop/sw-sysemu"
     CONAN_UPLOAD_FORCE: 0
     CPT_SUMMARY_FILE: "cpt_summary_file.json"
+    CI_BUILD_REF_NAME: ${CI_COMMIT_REF_NAME}
   parallel:
     matrix:
       - COMPILER: [ gcc ]
@@ -73,8 +82,7 @@ package:
         COMPILER_VERSION: [ 10 ]
         CONAN_CLANG_VERSIONS: [ 10 ]
   script:
-    - unset CONAN_USERNAME
-    - unset CONAN_CHANNEL
+    - echo ${CI_BUILD_REF_NAME}
     - ./conan/ci/package.sh
   artifacts:
     paths:
