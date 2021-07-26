@@ -190,6 +190,18 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getTraceBuffer_1_49) {
   getTraceBuffer_1_49(false /* Multiple devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModulePowerStateRange_1_50) {
+  setModulePowerStateRange_1_50(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModuleSetTemperatureThresholdRange_1_51) {
+  setModuleSetTemperatureThresholdRange_1_51(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModuleStaticTDPLevelRange_1_52) {
+  setModuleStaticTDPLevelRange_1_52(false /* Multiple Devices */);
+}
+
 // retrieve MM FW error counts. This test should be run last so that we are
 // able to capture any errors in the previous test runs
 // Note after fix from: SW-8409, counters needs to adjusted to handle expected failures

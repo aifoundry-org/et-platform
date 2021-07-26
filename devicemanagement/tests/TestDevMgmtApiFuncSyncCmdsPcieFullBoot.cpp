@@ -228,6 +228,18 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getTraceBuffer_1_49) {
   getTraceBuffer_1_49(false /* Multiple devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, setModulePowerStateRange_1_50) {
+  setModulePowerStateRange_1_50(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, setModuleSetTemperatureThresholdRange_1_51) {
+  setModuleSetTemperatureThresholdRange_1_51(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, setModuleStaticTDPLevelRange_1_52) {
+  setModuleStaticTDPLevelRange_1_52(false /* Multiple Devices */);
+}
+
 int main(int argc, char** argv) {
   logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);
