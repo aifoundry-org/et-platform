@@ -8,14 +8,14 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
+#include "IDeviceLayer.h"
 #include <condition_variable>
+#include <cstdlib>
 #include <cstring>
-#include <device-layer/IDeviceLayer.h>
 #include <esperanto/device-apis/device_apis_message_types.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <mutex>
 #include <queue>
-#include <cstdlib>
 #include <string>
 namespace dev {
 class IDeviceLayerFake : public IDeviceLayer {
@@ -33,33 +33,32 @@ public:
     rsp_header_t rsp;
     rsp.rsp_hdr.tag_id = cmd->tag_id;
     switch (cmd->msg_id) {
-      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD: 
-        rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
-        break;
-      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD: 
-        rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP;
-        break;
-      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP: 
-        rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-        break;
-      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
-        rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
-        break;
-      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD:
-        rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP;
-        break;
-      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD:
-        rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-        break;
-      default:
-        throw Exception("Please, add command with msg_id: " + std::to_string(cmd->msg_id));
+    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD:
+      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
+      break;
+    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
+      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP;
+      break;
+    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP:
+      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
+      break;
+    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
+      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
+      break;
+    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD:
+      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP;
+      break;
+    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD:
+      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
+      break;
+    default:
+      throw Exception("Please, add command with msg_id: " + std::to_string(cmd->msg_id));
     }
     responsesMasterMinion_.push(rsp);
     return true;
   }
 
   void setSqThresholdMasterMinion(int, int, uint32_t) override {
-    
   }
 
   void waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool& cq_available,
@@ -150,7 +149,7 @@ public:
   uint64_t getDramBaseAddress() const override {
     return 0x8000;
   }
-  void* allocDmaBuffer(int, size_t sizeInBytes, bool ) override {
+  void* allocDmaBuffer(int, size_t sizeInBytes, bool) override {
     return malloc(sizeInBytes);
   }
   void freeDmaBuffer(void* dmaBuffer) override {
