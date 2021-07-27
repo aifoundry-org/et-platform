@@ -1,9 +1,19 @@
 from conans import ConanFile, CMake, tools
+from conans.tools import Version, load
 import os
+import re
+
+def get_version():
+    try:
+        content = load("CMakeLists.txt")
+        version = re.search("project\(sw-sysemu VERSION (.*)\)", content).group(1)
+        return version.strip()
+    except Exception as e:
+        return None
 
 class SwSysemuConan(ConanFile):
     name = "sw-sysemu"
-    version = "1.0"
+    version = get_version()
     url = "https://gitlab.esperanto.ai/software/sw-sysemu"
     description = "The functional ETSOC-1 emulator. Able to execute RISC-V instructions with Esperanto extensions"
     license = "Esperanto Technologies"
