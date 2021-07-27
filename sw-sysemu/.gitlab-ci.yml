@@ -54,9 +54,11 @@ build:conan:
         BUILD_TYPE: [ Release, Debug ]
         PROFILING: [ 'False' ]
         BACKTRACE: [ 'False' ]
-  script:
+  script: 
+    # remove custom FindXXX.cmake modules when using conan 
+    - rm -rf ../cmake #TODO: remove cmake/ dir in the future
     - conan install .. -s build_type=${BUILD_TYPE} -o sw-sysemu:profiling=${PROFILING} -o sw-sysemu:backtrace=${BACKTRACE} --build missing
-    - cmake -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -G Ninja ..
+    - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DPROFILING=${PROFILING} -DBACKGRACE=${BACKTRACE} -G Ninja ..
     - ninja
 
 #### package
