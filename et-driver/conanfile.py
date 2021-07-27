@@ -2,7 +2,7 @@ from conans import ConanFile
 
 class EtIoctlConan(ConanFile):
     name = "linuxDriver"
-    version = "0.1"
+    version = "0.1.0"
     # No settings/options are necessary, this is header only
     exports_sources = "et_ioctl.h"
     no_copy_source = True
