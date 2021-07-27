@@ -234,14 +234,15 @@ static void taskMain(void *pvParameters)
     Log_Write(LOG_LEVEL_CRITICAL, "Incremented the completed boot counter!\n");
 #endif
 
-    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
-    Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\n");
-
     // Initialize DM sampling task
     init_dm_sampling_task();
 
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
+    
+    /* Inform Host Device is Ready */
+    Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
 
     while (1) {
         Log_Write(LOG_LEVEL_CRITICAL, "SP Alive..");
