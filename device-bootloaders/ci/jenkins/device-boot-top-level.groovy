@@ -18,7 +18,10 @@ pipeline {
     string(name: 'EMAIL_NIGHTLY_BRANCH', defaultValue: 'master', description: 'This specifies the branch that runs regressions and if EMAIL_NIGHTLY_TEAM is enabled emails will be sent to EMAIL_NIGHTLY_RECIPIENTS when the branch name matches this parameter.')
     string(name: 'EMAIL_NIGHTLY_RECIPIENTS', defaultValue: 'et-sw-infra@esperantotech.com', description: 'Comma seperated list of email recipients for a given project')
     string(name: 'CRON_STRING', defaultValue: '', description: 'Cron string to cause a job to execute automatically, Syntax is normal cron with %param_name=value at the end.  Additional details can be found at: https://plugins.jenkins.io/parameterized-scheduler/')
+    string(name: 'RUN_ID', defaultValue: '1/1', description: '<job_id>/<total_jobs> In case this pipeline was triggered multiple time from its top-level pipeline by using the `njobs` attribute, this parameter indicates which id has the current build')
+    booleanParam(name: 'FORCE_CHILD_RETRIGGER', defaultValue: 'false', description: 'Forces all child jobs of the current job to retrigger even if smart-retrigger is being used')
     booleanParam(name: 'CHECK_ON_TOP_OF_MASTER', defaultValue: 'true', description: 'when true this executes checks that ensures Merge Request has merged origin/master with their MR at the time the MR was submiteted')
+    booleanParam(name: 'CANCEL_OUTDATED_MR_CI', defaultValue: 'true', description: 'Whether to, if the pipeline has been triggered by a MR, cancel the previous pipeline (if it is still running) that was triggered by the same MR.')
     string(name: 'SW_PLATFORM_BRANCH', defaultValue: 'origin/develop/system-sw', description: 'SW-Platform branch to track')
     booleanParam(name: 'RUN_ZEBU', defaultValue: 'true', description: 'Run Zebu Job')
     string(name: 'INPUT_TAGS', defaultValue: '', description: 'Parameter to receive tags from parent pipelines')
@@ -39,7 +42,7 @@ pipeline {
     parameterizedCron( env.CRON_STRING )
   }
   environment {
-    CHECK_CHILD_JOBS = " --commit-passed ${GIT_COMMIT}  --job-params \' \\\"COMPONENT_COMMITS\\\": \\\"${COMPONENT_COMMITS}\\\"}\' "
+    JOB_IDENTIFICATION_PARAMETERS = "{\"RUN_ID\": \"${RUN_ID}\", \"COMPONENT_COMMITS\": \"${COMPONENT_COMMITS}\"}"
     PIPELINE_TAGS = "${INPUT_TAGS},"
   }
   stages {
@@ -67,68 +70,127 @@ pipeline {
         }
       }
     }
-    stage('CHECK_MERGE_UP_TO_DATE') {
-      when {
-        expression {
-          return sh(returnStatus: true, script: "${CHECK_ON_TOP_OF_MASTER}") == 0
+    stage('INIT_UTILS') {
+      steps {
+        script {
+          if (fileExists('./ci/ci-tools')){
+            sh 'git submodule update --init ci/ci-tools'
+          }
         }
-      }
-      steps {
-        sh 'if [ ! -z \"${gitlabTargetBranch}\" ] ; then git fetch && git merge origin/$gitlabTargetBranch | grep Already && ( echo \"Branch is up to date with target branch proceeding...\" && exit 0 ) || ( echo \"Merge request is out of date with respect to target branch. Please, rebase it and re-submit merge request\" && exit 1 ); else echo \"Skipping branch up to date check as environment variable gitlabTargetBranch is not defined!\" ; fi'
-      }
-    }
-    stage('DSL_JOB') {
-      steps {
-        build job:
-          'meta-job',
-          propagate: true,
-          parameters: [
-            string(name: 'BRANCH', value: "${BRANCH}"),
-            string(name: 'REPO_SSH_URL', value: "${REPO_SSH_URL}"),
-            string(name: 'REPO_NAME', value: "${REPO_NAME}"),
-            string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-          ]
       }
     }
     stage('PARALLEL0') {
       parallel {
-        stage('JOB_CODE_QUALITY') {
+        stage('CANCEL_OUTDATED_MR_CI') {
+          when {
+            expression {
+              return sh(returnStatus: true, script: "${CANCEL_OUTDATED_MR_CI}") == 0
+            }
+          }
           steps {
+            script {
+              if ( env.gitlabMergeRequestId != null){
+                sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py cancel_previous_CI_of_Merge_Request "${JOB_NAME}" "${gitlabMergeRequestIid}" "${BUILD_ID}"')
+              }
+            }
+          }
+        }
+        stage('CHECK_MERGE_UP_TO_DATE') {
+          when {
+            expression {
+              return sh(returnStatus: true, script: "${CHECK_ON_TOP_OF_MASTER}") == 0
+            }
+          }
+          steps {
+            sh 'if [ ! -z \"${gitlabTargetBranch}\" ] ; then git fetch && git merge origin/$gitlabTargetBranch | grep Already && ( echo \"Branch is up to date with target branch proceeding...\" && exit 0 ) || ( echo \"Merge request is out of date with respect to target branch. Please, rebase it and re-submit merge request\" && exit 1 ); else echo \"Skipping branch up to date check as environment variable gitlabTargetBranch is not defined!\" ; fi'
+          }
+        }
+      }
+    }
+    stage('DSL_JOB') {
+      steps {
+        script {
+          if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${BRANCH}" + '" --repo_ssh_url "' + "${REPO_SSH_URL}" + '" meta-job \'{  }\'') != 0) {
             build job:
-              'sw-platform/code-analysis/device-bootloaders-sonarqube',
+              'meta-job',
               propagate: true,
               parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'GITLAB_SOURCE_BRANCH', value: "${env.gitlabSourceBranch}"),
-                string(name: 'GITLAB_TARGET_BRANCH', value: "${env.gitlabTargetBranch}"),
-                string(name: 'GITLAB_MR_ID', value: "${env.gitlabMergeRequestIid}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
+                string(name: 'BRANCH', value: "${BRANCH}"),
+                string(name: 'REPO_SSH_URL', value: "${REPO_SSH_URL}"),
+                string(name: 'REPO_NAME', value: "${REPO_NAME}"),
+                booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
                 string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
+          }
+          else {
+            sh 'echo Skipping job because it passed'
+          }
+        }
+      }
+    }
+    stage('PARALLEL1') {
+      parallel {
+        stage('JOB_CODE_QUALITY') {
+          steps {
+            script {
+              if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/code-analysis/device-bootloaders-sonarqube \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}" + '" }\'') != 0) {
+                build job:
+                  'sw-platform/code-analysis/device-bootloaders-sonarqube',
+                  propagate: true,
+                  parameters: [
+                    string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                    string(name: 'GITLAB_SOURCE_BRANCH', value: "${env.gitlabSourceBranch}"),
+                    string(name: 'GITLAB_TARGET_BRANCH', value: "${env.gitlabTargetBranch}"),
+                    string(name: 'GITLAB_MR_ID', value: "${env.gitlabMergeRequestIid}"),
+                    string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
+                    booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                    string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                  ]
+              }
+              else {
+                sh 'echo Skipping job because it passed'
+              }
+            }
           }
         }
         stage('JOB_DEVICE_MANAGEMENT_SYSEMU') {
           steps {
-            build job:
-              'sw-platform/system-sw-integration/pipelines/device-management-checkin-tests',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
-                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-              ]
+            script {
+              if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-management-checkin-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}" + '" }\'') != 0) {
+                build job:
+                  'sw-platform/system-sw-integration/pipelines/device-management-checkin-tests',
+                  propagate: true,
+                  parameters: [
+                    string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                    string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
+                    booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                    string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                  ]
+              }
+              else {
+                sh 'echo Skipping job because it passed'
+              }
+            }
           }
         }
         stage('JOB_DEVICE_MANAGEMENT_ZEBU') {
           steps {
-            build job:
-              'sw-platform/system-sw-integration/pipelines/device-management-zebu-tests',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
-                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-              ]
+            script {
+              if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-management-zebu-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}" + '" }\'') != 0) {
+                build job:
+                  'sw-platform/system-sw-integration/pipelines/device-management-zebu-tests',
+                  propagate: true,
+                  parameters: [
+                    string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                    string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
+                    booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                    string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                  ]
+              }
+              else {
+                sh 'echo Skipping job because it passed'
+              }
+            }
           }
         }
       }
