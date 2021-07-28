@@ -6,5 +6,5 @@
 #include <iostream>
 
 int main() {
-    std::cout << "SUCCESS" << std::endl;
+    std::cout << "SUCCESS component: logging" << std::endl;
 }
