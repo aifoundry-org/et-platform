@@ -57,7 +57,7 @@ void TestDevOpsApi::initTestHelperPcie() {
     try {
       devices_[i]->dmaWriteAddr_ = devices_[i]->dmaReadAddr_ = devLayer_->getDramBaseAddress();
       devices_[i]->sqBitmap_ = ~0ULL;
-    } CATCH_EXCEPTION 
+    } CATCH_EXCEPTION
   }
 }
 
@@ -81,7 +81,7 @@ void TestDevOpsApi::dispatchStreamAsync(const std::shared_ptr<Stream>& stream) {
       } else {
         cmdIdx++;
       }
-    } CATCH_EXCEPTION 
+    } CATCH_EXCEPTION
   }
 }
 
@@ -115,7 +115,7 @@ void TestDevOpsApi::waitForCqAvailability(int deviceIdx, TimeDuration timeout) {
     if (FLAGS_use_epoll) {
       try {
         devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sqBitmap, cqAvailable);
-      } CATCH_EXCEPTION 
+      } CATCH_EXCEPTION
     } else {
       std::this_thread::sleep_for(kPollingInterval);
       sqBitmap = (0x1U << queueCount) - 1;
@@ -207,7 +207,7 @@ void TestDevOpsApi::dispatchStreamSync(const std::shared_ptr<Stream>& stream, Ti
         ASSERT_TRUE(end > Clock::now()) << "\nexecuteSync timed out!\n" << std::endl;
         devLayer_->waitForEpollEventsMasterMinion(stream->deviceIdx_, sqBitmap, cqAvailable);
       }
-    } CATCH_EXCEPTION 
+    } CATCH_EXCEPTION
   }
 }
 
@@ -333,7 +333,7 @@ void TestDevOpsApi::resetMemPooltoDefault(int deviceIdx) {
   auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
   try {
     deviceInfo->dmaWriteAddr_ = deviceInfo->dmaReadAddr_ = devLayer_->getDramBaseAddress();
-  } CATCH_EXCEPTION 
+  } CATCH_EXCEPTION
 }
 
 uint64_t TestDevOpsApi::getDmaWriteAddr(int deviceIdx, size_t bufSize) {
@@ -346,7 +346,7 @@ uint64_t TestDevOpsApi::getDmaWriteAddr(int deviceIdx, size_t bufSize) {
   uint64_t dramEnd;
   try {
     dramEnd = devLayer_->getDramBaseAddress() + devLayer_->getDramSize();
-  } CATCH_EXCEPTION 
+  } CATCH_EXCEPTION
   if (deviceInfo->dmaWriteAddr_ + bufSize < dramEnd) {
     auto currentDmaPtr = deviceInfo->dmaWriteAddr_;
     deviceInfo->dmaWriteAddr_ += bufSize;
@@ -384,7 +384,7 @@ bool TestDevOpsApi::pushCmd(int deviceIdx, int queueIdx, CmdTag tagId) {
   try {
     res = devLayer_->sendCommandMasterMinion(deviceIdx, queueIdx, devOpsApiCmd->getCmdPtr(), devOpsApiCmd->getCmdSize(),
                                              devOpsApiCmd->isDma());
-  } CATCH_EXCEPTION 
+  } CATCH_EXCEPTION
   if (!res) {
     return res;
   }
@@ -405,7 +405,7 @@ TestDevOpsApi::PopRspResult TestDevOpsApi::popRsp(int deviceIdx) {
   bool res;
   try {
     res = devLayer_->receiveResponseMasterMinion(deviceIdx, rspMem);
-  } CATCH_EXCEPTION 
+  } CATCH_EXCEPTION
   if (!res) {
     return {res};
   }
@@ -765,7 +765,7 @@ bool TestDevOpsApi::printCMTraceData(unsigned char* traceBuf, size_t bufSize) co
   bool validStringEventFound = false;
   const struct trace_buffer_size_header_t* size_header;
 
-  for (int i = 0; i < WORKER_HART_COUNT; ++i) {
+  for (int i = 0; (i < WORKER_HART_COUNT); ++i) {
     // For CM buffers (except first HART's buffer) Header is just size of data in buffer.
     if (i != 0) {
       headerSize = sizeof(struct trace_buffer_size_header_t);
@@ -776,21 +776,24 @@ bool TestDevOpsApi::printCMTraceData(unsigned char* traceBuf, size_t bufSize) co
     // Last 32 harts of MM Shire are working as Compute worker, adjust HART ID based on that.
     cmHartID = i < MM_BASE_ID ? i : i + 32;
 
-    if ((dataSize + headerSize) > perHartBufSize) {
-      // This buffer is not valid, no need parse this. Move to next Hart's buffer
+    if (dataSize <= headerSize) {
+      // No payload, hence no need parse this. Move to next Hart's buffer
       hartDataPtr += CM_SIZE_PER_HART;
-      continue;
+    } else if ((dataSize + headerSize) > perHartBufSize) {
+      // This buffer is not valid. Stop the processing and return error case
+      validStringEventFound = false;
+      break;
+    } else {
+      // Move the pointer on top of trace buffer header.
+      hartDataPtr = hartDataPtr + headerSize;
+
+      if(printCMTraceSingleHartData(hartDataPtr, cmHartID, dataSize) == true)
+      {
+        validStringEventFound = true;
+      }
+
+      hartDataPtr += (CM_SIZE_PER_HART - headerSize);
     }
-
-    // Move the pointer on top of trace buffer header.
-    hartDataPtr = hartDataPtr + headerSize;
-
-    if(printCMTraceSingleHartData(hartDataPtr, cmHartID, dataSize) == true)
-    {
-      validStringEventFound = true;
-    }
-
-    hartDataPtr += (CM_SIZE_PER_HART - headerSize);
   }
 
   return validStringEventFound;
