@@ -16,7 +16,12 @@ include(GNUInstallDirs)
 
 find_package(g3log REQUIRED)
 
-add_library(debug 
+# WARNING: 'debug' is a very unfortunate name 
+# because it's reserved as a special keword in CMake target_link_libraries
+# INFO: I will introduce a new target 'debugging' with a name to avoid collisions
+
+# old target
+add_library(debug
     include/debug/StackException.h
     src/StackException.cpp
 )
@@ -35,10 +40,24 @@ set_target_properties(debug PROPERTIES
 )
 set_target_properties(debug PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+###########
+# new target 
+add_library(debugging $<TARGET_OBJECTS:debug>)
+target_compile_features(debugging INTERFACE cxx_std_17)
+target_set_project_warnings(debugging)
+target_include_directories(debugging
+    PUBLIC
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>     
+)
+target_link_libraries(debugging PUBLIC g3log::g3log)
+
+###########
+
 # Add package information
 include(CMakePackageConfigHelpers)
 
-install(TARGETS debug
+install(TARGETS debug debugging
     EXPORT hostUtilsTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

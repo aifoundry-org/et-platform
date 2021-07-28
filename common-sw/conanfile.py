@@ -4,7 +4,7 @@ import os
 
 class HostUtilsConan(ConanFile):
     name = "hostUtils"
-    version = "1.0"
+    version = "0.1.0"
     url = "https://gitlab.esperanto.ai/software/common-sw"
     description = ""
     license = "Esperanto Technologies"
@@ -26,10 +26,6 @@ class HostUtilsConan(ConanFile):
     requires = "g3log/1.3.2"
     build_requires = "cmake-modules/[>=0.4.1 <1.0.0]"
     python_requires = "conan-common/[>=0.1.0 <1.0.0]"
-
-    @property
-    def _build_subfolder(self):
-        return "build_subfolder"
     
     def configure(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
@@ -40,12 +36,10 @@ class HostUtilsConan(ConanFile):
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
         tc.generate()
     
-
     _cmake = None
     def _configure_cmake(self):
         if not self._cmake:
-            cmake = CMake(self, build_folder=self._build_subfolder)
-            cmake.verbose = True
+            cmake = CMake(self)
             cmake.configure()
             self._cmake = cmake
         return self._cmake
@@ -60,9 +54,11 @@ class HostUtilsConan(ConanFile):
     
     def package_info(self):
         # library components
-        self.cpp_info.components["logging"].names["cmake_find_package"] = "logging"
-        self.cpp_info.components["logging"].names["cmake_find_package_multi"] = "logging"
+        self.cpp_info.components["logging"].set_property("cmake_target_name", "logging")
         self.cpp_info.components["logging"].requires = ["g3log::g3log"]
-        self.cpp_info.components["debug"].names["cmake_find_package"] = "debug"
-        self.cpp_info.components["debug"].names["cmake_find_package_multi"] = "debug"
+        self.cpp_info.components["logging"].libs = ["logging"]
+        self.cpp_info.components["logging"].libdirs = ["lib", "lib64"]
+        self.cpp_info.components["debug"].set_property("cmake_target_name", "debug")
         self.cpp_info.components["debug"].requires = ["g3log::g3log"]
+        self.cpp_info.components["debug"].libs = ["debugging"]
+        self.cpp_info.components["debug"].libdirs = ["lib", "lib64"]
