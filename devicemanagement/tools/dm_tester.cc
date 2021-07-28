@@ -1013,12 +1013,6 @@ bool validThresholds() {
   }
 
   errno = 0;
-  auto hi = std::strtoul(str_optarg.substr(pos + 1).c_str(), &end, 10);
-
-  if (hi > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(FATAL) << "Aborting, argument: " << hi << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
-    return false;
-  }
 
   sw_temperature_c = (uint8_t)lo;
 
