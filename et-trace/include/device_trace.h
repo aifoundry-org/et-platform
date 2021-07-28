@@ -20,6 +20,10 @@
 #include <stdbool.h>
 #include "device_trace_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Get the Shire mask form Hart ID using Harts per Shire information.
  */
@@ -129,4 +133,9 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
         const struct trace_cmd_status_internal_t *cmd_data);
 void Trace_Power_Status(struct trace_control_block_t *cb,
     const struct trace_power_event_status_t *cmd_data);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

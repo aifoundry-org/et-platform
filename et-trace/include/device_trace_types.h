@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Note: This header should be auto-generated
 
 /*! \def TRACE_STRING_MAX_SIZE
@@ -165,5 +169,9 @@ trace_scalar_type_def(u32, uint32_t, 0)
 trace_scalar_type_def(u16, uint16_t, 2)
 trace_scalar_type_def(u8, uint8_t, 3)
 trace_scalar_type_def(float, float, 0)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
