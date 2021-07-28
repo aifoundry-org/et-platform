@@ -2199,7 +2199,7 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 		pr_err("User buffer not large enough\n");
 		// Enqueue the msg again so the userspace can retry with a larger buffer
 		enqueue_msg_node(cq, msg);
-		return -ENOMEM;
+		return -EINVAL;
 	}
 
 	rv = free_dma_kernel_entry(et_dev, is_mgmt, msg);
@@ -2208,7 +2208,7 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 
 	if (copy_to_user(ubuf, msg->msg, msg->msg_size)) {
 		pr_err("failed to copy to user\n");
-		rv = -ENOMEM;
+		rv = -EFAULT;
 		goto free_msg_node;
 	}
 
