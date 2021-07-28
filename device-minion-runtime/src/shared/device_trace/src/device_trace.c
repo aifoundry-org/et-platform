@@ -258,7 +258,7 @@ void *Trace_Buffer_Reserve(struct trace_control_block_t *cb, uint64_t size)
            syscall(SYSCALL_TRACE_BUFFER_THRESHOLD_HIT) */
 
         /* Check if Trace buffer is filled upto threshold. Then do reset the buffer. */
-        if (trace_check_buffer_full(cb, size))//NOSONAR Do not merge this "if" with enclosing because of task pending above
+        if (trace_check_buffer_full(cb, size))
         {
             /* Reset buffer. */
             (READ_U8(cb->header) == TRACE_STD_HEADER) ?

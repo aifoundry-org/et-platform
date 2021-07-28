@@ -169,10 +169,6 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
     {
         /* Disable Trace for current Hart in Compute Minion Shire. */
         CM_TRACE_CB[hart_cb_index].cb.enable = TRACE_DISABLE;
-        /* Zero-out the values */
-        CM_TRACE_CB[hart_cb_index].cb.threshold = 0;
-        CM_TRACE_CB[hart_cb_index].cb.event_mask = 0;
-        CM_TRACE_CB[hart_cb_index].cb.filter_mask = 0;
     }
 
     /* Evict the buffer header to L3 Cache. */

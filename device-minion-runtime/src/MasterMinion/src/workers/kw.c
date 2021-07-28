@@ -986,7 +986,7 @@ static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t 
             break;
 
         case CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION:
-        {   //NOSONAR Is not feasible to break this code block into a new method.
+        {
             const cm_to_mm_message_exception_t *exception =
                 (cm_to_mm_message_exception_t *)&message;
 
