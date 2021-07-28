@@ -156,13 +156,7 @@ void Dispatcher_Launch(uint32_t hart_id)
     status = SW_Timer_Init();
     dispatcher_assert(status == SW_TIMER_OPERATION_SUCCESS, MM_CW_INIT_ERROR,
                                                         "SW Timer init failure.");
-
-    /* Setup MM->SP Heartbeat */
-    status = SP_Iface_Setup_MM_HeartBeat();
-    dispatcher_assert(status == STATUS_SUCCESS, MM_CW_INIT_ERROR,
-                                                    "MM->SP Heartbeat init failure.");
-
-    /* Initialize Computer Workers */
+     /* Initialize Computer Workers */
     status = CW_Init();
     dispatcher_assert(status == STATUS_SUCCESS, MM_CW_INIT_ERROR,
                                                     "Compute Workers init failure.");
@@ -202,6 +196,11 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     Log_Write(LOG_LEVEL_DEBUG,
         "Dispatcher:Master Minion READY!\r\n");
+
+   /* Setup MM->SP Heartbeat */
+    status = SP_Iface_Setup_MM_HeartBeat();
+    dispatcher_assert(status == STATUS_SUCCESS, MM_CW_INIT_ERROR,
+                                                    "MM->SP Heartbeat init failure.");
 
     /* Wait for a message from the host, SP, worker minions etc. */
     while(1)

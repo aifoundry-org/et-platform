@@ -743,7 +743,7 @@ int8_t SP_Iface_Setup_MM_HeartBeat(void)
     /* Create timer for MM heartbeat */
     /* TODO: Fine tune the heartbeat interval */
     sw_timer_idx = SW_Timer_Create_Timeout(&sp_iface_mm_heartbeat_cb, 0,
-        SP_IFACE_MM_HEARTBEAT_INTERVAL(5));
+        SP_IFACE_MM_HEARTBEAT_INTERVAL(100));
 
     /* If the timer was not successfully registered */
     if(sw_timer_idx < 0)
