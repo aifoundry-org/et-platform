@@ -233,7 +233,7 @@ private:
   ///
   /// @return True if PCIE Lane Width is valid
   bool isValidPcieLaneWidth(const char* input_buff);
-
+  
   /// @brief Determine if parameter related to command is valid
   ///
   /// @param[in] cmd_code  Command code for which parameter needs validation

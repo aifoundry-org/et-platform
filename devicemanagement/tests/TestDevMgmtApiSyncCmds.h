@@ -87,6 +87,13 @@ protected:
   void setModuleStaticTDPLevelRange_1_52(bool singleDevice);
   void setPCIEMaxLinkSpeedRange_1_53(bool singleDevice);
   void setPCIELaneWidthRange_1_54(bool singleDevice);
+  void setModulePowerStateRangeInvalidInputSize_1_55(bool singleDevice);
+  void getModuleManufactureNameInvalidOutputSize_1_56(bool singleDevice);
+  void getModuleManufactureNameInvalidDeviceNode_1_57(bool singleDevice);
+  void getModuleManufactureNameInvalidHostLatency_1_58(bool singleDevice);
+  void getModuleManufactureNameInvalidDeviceLatency_1_59(bool singleDevice);
+  void getModuleManufactureNameInvalidOutputBuffer_1_60(bool singleDevice);
+  void setModulePowerStateRangeInvalidInputBuffer_1_61(bool singleDevice);
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
 };

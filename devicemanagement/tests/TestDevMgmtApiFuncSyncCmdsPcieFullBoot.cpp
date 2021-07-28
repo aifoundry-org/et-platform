@@ -240,6 +240,35 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, setModuleStaticTDPLevelRange_1_52
   setModuleStaticTDPLevelRange_1_52(false /* Multiple Devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, setModulePowerStateRangeInvalidInputSize_1_55) {
+  setModulePowerStateRangeInvalidInputSize_1_55(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getModuleManufactureNameInvalidOutputSize_1_56) {
+  getModuleManufactureNameInvalidOutputSize_1_56(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getModuleManufactureNameInvalidDeviceNode_1_57) {
+  getModuleManufactureNameInvalidDeviceNode_1_57(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getModuleManufactureNameInvalidHostLatency_1_58) {
+  getModuleManufactureNameInvalidHostLatency_1_58(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getModuleManufactureNameInvalidDeviceLatency_1_59) {
+  getModuleManufactureNameInvalidDeviceLatency_1_59(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getModuleManufactureNameInvalidOutputBuffer_1_60) {
+  getModuleManufactureNameInvalidOutputBuffer_1_60(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, setModulePowerStateRangeInvalidInputBuffer_1_61) {
+  setModulePowerStateRangeInvalidInputBuffer_1_61(false /* Multiple Devices */);
+}
+
+
 int main(int argc, char** argv) {
   logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);

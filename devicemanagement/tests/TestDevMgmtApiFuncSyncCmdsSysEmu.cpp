@@ -250,6 +250,34 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setPCIELaneWidthRange_1_54) {
   setPCIELaneWidthRange_1_54(false /* Multiple Devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setModulePowerStateRangeInvalidInputSize_1_55) {
+  setModulePowerStateRangeInvalidInputSize_1_55(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleManufactureNameInvalidOutputSize_1_56) {
+  getModuleManufactureNameInvalidOutputSize_1_56(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleManufactureNameInvalidDeviceNode_1_57) {
+  getModuleManufactureNameInvalidDeviceNode_1_57(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleManufactureNameInvalidHostLatency_1_58) {
+  getModuleManufactureNameInvalidHostLatency_1_58(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleManufactureNameInvalidDeviceLatency_1_59) {
+  getModuleManufactureNameInvalidDeviceLatency_1_59(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleManufactureNameInvalidOutputBuffer_1_60) {
+  getModuleManufactureNameInvalidOutputBuffer_1_60(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setModulePowerStateRangeInvalidInputBuffer_1_61) {
+  setModulePowerStateRangeInvalidInputBuffer_1_61(false /* Multiple Devices */);
+}
+
 int main(int argc, char** argv) {
   logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);

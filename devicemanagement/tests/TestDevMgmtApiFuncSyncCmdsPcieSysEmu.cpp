@@ -202,6 +202,35 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModuleStaticTDPLevelRange_1_52) 
   setModuleStaticTDPLevelRange_1_52(false /* Multiple Devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModulePowerStateRangeInvalidInputSize_1_55) {
+  setModulePowerStateRangeInvalidInputSize_1_55(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleManufactureNameInvalidOutputSize_1_56) {
+  getModuleManufactureNameInvalidOutputSize_1_56(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleManufactureNameInvalidDeviceNode_1_57) {
+  getModuleManufactureNameInvalidDeviceNode_1_57(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleManufactureNameInvalidHostLatency_1_58) {
+  getModuleManufactureNameInvalidHostLatency_1_58(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleManufactureNameInvalidDeviceLatency_1_59) {
+  getModuleManufactureNameInvalidDeviceLatency_1_59(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleManufactureNameInvalidOutputBuffer_1_60) {
+  getModuleManufactureNameInvalidOutputBuffer_1_60(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModulePowerStateRangeInvalidInputBuffer_1_61) {
+  setModulePowerStateRangeInvalidInputBuffer_1_61(false /* Multiple Devices */);
+}
+
+
 // retrieve MM FW error counts. This test should be run last so that we are
 // able to capture any errors in the previous test runs
 // Note after fix from: SW-8409, counters needs to adjusted to handle expected failures
