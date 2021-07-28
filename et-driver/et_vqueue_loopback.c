@@ -2197,21 +2197,25 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 
 	if (count < msg->msg_size) {
 		pr_err("User buffer not large enough\n");
-		rv = -ENOMEM;
-		goto update_cq_bitmap;
+		// Enqueue the msg again so the userspace can retry with a larger buffer
+		enqueue_msg_node(cq, msg);
+		return -ENOMEM;
 	}
 
 	rv = free_dma_kernel_entry(et_dev, is_mgmt, msg);
 	if (rv < 0)
-		goto update_cq_bitmap;
+		goto free_msg_node;
 
 	if (copy_to_user(ubuf, msg->msg, msg->msg_size)) {
 		pr_err("failed to copy to user\n");
 		rv = -ENOMEM;
-		goto update_cq_bitmap;
+		goto free_msg_node;
 	}
 
 	rv = msg->msg_size;
+
+free_msg_node:
+	destroy_msg_node(msg);
 
 update_cq_bitmap:
 	// Update cq_bitmap
@@ -2274,6 +2278,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 			       (u8 *)msg_node->msg + sizeof(header),
 			       header.size,
 			       ET_CB_SYNC_FOR_DEVICE)) {
+		destroy_msg_node(msg_node);
 		rv = -EAGAIN;
 		goto error_unlock_mutex;
 	}
