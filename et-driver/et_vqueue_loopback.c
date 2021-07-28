@@ -1998,7 +1998,7 @@ ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 
 	rv = cmd_loopback_handler(sq);
 	if (rv) {
-		pr_err("VQ[%d]: cmd_loopback_handler failed", sq->index);
+		// cmd_loopback_handler couldn't push response to CQ
 		goto update_sq_bitmap;
 	}
 
