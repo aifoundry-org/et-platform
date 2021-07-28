@@ -113,29 +113,29 @@ static void pc_vq_task(void *pvParameters)
     tag_id_t tag_id;
     msg_id_t msg_id;
 
-    // Disable buffering on stdout
+    /* Disable buffering on stdout */
     setbuf(stdout, NULL);
 
     while (1) {
         uint32_t notificationValue;
 
-        // ISRs set notification bits per ipi_trigger in case we want them - not currently using them
+        /* ISRs set notification bits per ipi_trigger in case we want them - not currently using them */
         xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
 
         Log_Write(LOG_LEVEL_INFO, "Host_Iface: Received DM request from host.\n");
-        // Process as many new messages as possible
+        /* Process as many new messages as possible */
         while (1) {
 
-            // Pop a command from SP<->PC VQueue
+            /* Pop a command from SP<->PC VQueue */
             uint32_t length = SP_Host_Iface_SQ_Pop_Cmd(&buffer);
 
-            // No new messages
+            /* No new messages */
             if (length == 0) {
                 Log_Write(LOG_LEVEL_DEBUG, "Host_Iface: DM request received with 0 length.\n");
                 break;
             }
 
-            // Message with an invalid size
+            /* Message with an invalid size */
             if ((size_t)length < sizeof(struct cmd_header_t)) {
                 Log_Write(LOG_LEVEL_ERROR, "Invalid message: length = %d, min length %ld\n", length,
                        sizeof(struct cmd_header_t));
@@ -145,77 +145,33 @@ static void pc_vq_task(void *pvParameters)
             const dev_mgmt_cmd_header_t *const hdr = (void *)buffer;
             tag_id = hdr->cmd_hdr.tag_id;
             msg_id = hdr->cmd_hdr.msg_id;
-            // Process new message
+            /* Process new message */
             switch (msg_id) {
-            case DM_CMD_GET_MODULE_MANUFACTURE_NAME:
-            case DM_CMD_GET_MODULE_PART_NUMBER:
-            case DM_CMD_GET_MODULE_SERIAL_NUMBER:
-            case DM_CMD_GET_ASIC_CHIP_REVISION:
-            case DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED:
-            case DM_CMD_GET_MODULE_REVISION:
-            case DM_CMD_GET_MODULE_FORM_FACTOR:
-            case DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
-            case DM_CMD_GET_MODULE_MEMORY_SIZE_MB:
-            case DM_CMD_GET_MODULE_MEMORY_TYPE:
-                // Process asset tracking service request cmd
+            case DM_CMD_GET_MODULE_MANUFACTURE_NAME ... DM_CMD_GET_MODULE_MEMORY_TYPE:
+                /* Process asset tracking service request cmd */
                 asset_tracking_process_request(tag_id, msg_id);
                 break;
-            case DM_CMD_SET_FIRMWARE_UPDATE:
-            case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS:
-            case DM_CMD_GET_FIRMWARE_BOOT_STATUS:
-            case DM_CMD_SET_FIRMWARE_VERSION_COUNTER:
-            case DM_CMD_SET_SW_BOOT_ROOT_CERT:
-            case DM_CMD_SET_SP_BOOT_ROOT_CERT:
-            case DM_CMD_GET_FUSED_PUBLIC_KEYS:
-            case DM_CMD_RESET_ETSOC:
-                // Process firmware service request cmd
+            case DM_CMD_GET_FUSED_PUBLIC_KEYS ... DM_CMD_SET_FIRMWARE_VALID:
+                /* Process firmware service request cmd */
                 firmware_service_process_request(tag_id, msg_id, (void *)buffer);
                 break;
-            case DM_CMD_GET_MODULE_POWER_STATE:
-            case DM_CMD_SET_MODULE_POWER_STATE:
-            case DM_CMD_GET_MODULE_STATIC_TDP_LEVEL:
-            case DM_CMD_SET_MODULE_STATIC_TDP_LEVEL:
-            case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS:
-            case DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS:
-            case DM_CMD_GET_MODULE_CURRENT_TEMPERATURE:
-            case DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES:
-            case DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES:
-            case DM_CMD_GET_MODULE_POWER:
-            case DM_CMD_GET_MODULE_VOLTAGE:
-            case DM_CMD_GET_MODULE_UPTIME:
+            case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS ... DM_CMD_GET_MODULE_POWER:
                 thermal_power_monitoring_process(tag_id, msg_id, (void *)buffer);
                 break;
-            case DM_CMD_SET_PCIE_RESET:
-            case DM_CMD_SET_PCIE_MAX_LINK_SPEED:
-            case DM_CMD_SET_PCIE_LANE_WIDTH:
-            case DM_CMD_SET_PCIE_RETRAIN_PHY:
-            case DM_CMD_GET_MODULE_PCIE_ECC_UECC:
-            case DM_CMD_GET_MODULE_DDR_ECC_UECC:
-            case DM_CMD_GET_MODULE_SRAM_ECC_UECC:
-            case DM_CMD_GET_MODULE_DDR_BW_COUNTER:
+            case DM_CMD_SET_PCIE_RESET ... DM_CMD_SET_PCIE_RETRAIN_PHY:
                 link_mgmt_process_request(tag_id, msg_id, (void *)buffer);
                 break;
-            case DM_CMD_SET_DDR_ECC_COUNT:
-            case DM_CMD_SET_PCIE_ECC_COUNT:
-            case DM_CMD_SET_SRAM_ECC_COUNT:
-                // Process set error control cmd
+            case DM_CMD_SET_DDR_ECC_COUNT ... DM_CMD_SET_SRAM_ECC_COUNT:
+                /* Process set error control cmd */
                 error_control_process_request(tag_id, msg_id);
                 break;
-            case DM_CMD_GET_MAX_MEMORY_ERROR:
-            case DM_CMD_GET_MODULE_MAX_DDR_BW:
-            case DM_CMD_GET_MODULE_MAX_TEMPERATURE:
+            case DM_CMD_GET_MODULE_MAX_TEMPERATURE ... DM_CMD_GET_MAX_MEMORY_ERROR:
                 historical_extreme_value_request(tag_id, msg_id);
                 break;
             case DM_CMD_GET_MM_ERROR_COUNT:
                 Minion_State_Host_Iface_Process_Request(tag_id, msg_id);
                 break;
-            case DM_CMD_GET_ASIC_FREQUENCIES:
-            case DM_CMD_GET_DRAM_BANDWIDTH:
-            case DM_CMD_GET_DRAM_CAPACITY_UTILIZATION:
-            case DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION:
-            case DM_CMD_GET_ASIC_UTILIZATION:
-            case DM_CMD_GET_ASIC_STALLS:
-            case DM_CMD_GET_ASIC_LATENCY:
+            case DM_CMD_GET_ASIC_FREQUENCIES ... DM_CMD_GET_ASIC_LATENCY:
                 process_performance_request(tag_id, msg_id);
                 break;
             case DM_CMD_GET_DEVICE_ERROR_EVENTS:
@@ -227,6 +183,10 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_SET_DM_TRACE_CONFIG:
                 Trace_Process_CMD(tag_id, msg_id, (void *)buffer);
                 break;
+            case DM_CMD_RESET_ETSOC:
+                /* Process firmware service request cmd */
+                firmware_service_process_request(tag_id, msg_id, (void *)buffer);
+            break;
             default:
                 Log_Write(LOG_LEVEL_ERROR, "[PC VQ] Invalid message id: %d\r\n", msg_id);
                 Log_Write(LOG_LEVEL_ERROR, "message length: %d, buffer:\r\n", length);

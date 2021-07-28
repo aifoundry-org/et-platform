@@ -177,7 +177,7 @@ static void asset_tracking_send_response(tag_id_t tag_id, msg_id_t msg_id, uint6
 
     Log_Write(LOG_LEVEL_DEBUG, "Response for msg_id = %u, tag_id = %u\n",msg_id, tag_id);
 
-    strncpy(dm_rsp.asset_info.asset, asset_info, 8);
+    strncpy(dm_rsp.asset_info.asset, asset_info, sizeof(struct asset_info_t));
 
     FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status);
 
@@ -211,7 +211,7 @@ static void asset_tracking_send_response(tag_id_t tag_id, msg_id_t msg_id, uint6
 void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id)
 {
     int32_t ret = 0;
-    char req_asset_info[8] = { 0 };
+    char req_asset_info[sizeof(struct asset_info_t)] = { 0 };
     uint64_t req_start_time;
 
     req_start_time = timer_get_ticks_count();

@@ -21,9 +21,9 @@
 
 #include "bl2_spi_flash.h"
 
-/*! \fn int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info, 
+/*! \fn int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
 *                         const FLASH_FS_BL1_INFO_t *restrict flash_fs_bl1_info)
-    \brief This function initialize bl2 flash info struct by copying data from 
+    \brief This function initialize bl2 flash info struct by copying data from
 *          bl1 flash info struct, also initialize partition infos.
     \param flash_fs_bl2_info - bl2 flash info struct to initialize
     \param flash_fs_bl1_info - bl1 flash info struct to copy data from
@@ -50,7 +50,7 @@ int flash_fs_get_config_data(void *buffer);
 */
 int flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t *size);
 
-/*! \fn int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, 
+/*! \fn int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset,
 *                              void *buffer, uint32_t buffer_size)
     \brief This function reads the data from the file of the particular region.
     \param region_id - region id
@@ -62,7 +62,7 @@ int flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t *size
 int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, void *buffer,
                        uint32_t buffer_size);
 
-/*! \fn int flash_fs_write_partition(uint32_t partition_address, void *buffer, 
+/*! \fn int flash_fs_write_partition(uint32_t partition_address, void *buffer,
 *                                    uint32_t buffer_size, uint32_t chunk_size)
     \brief This function writes new data to the flash partition.
     \param partition_address - address of the partition
@@ -101,7 +101,7 @@ int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk
 */
 int flash_fs_swap_primary_boot_partition(void);
 
-/*! \fn int flash_fs_get_boot_counters(uint32_t *attempted_boot_counter, 
+/*! \fn int flash_fs_get_boot_counters(uint32_t *attempted_boot_counter,
 *                                      uint32_t *completed_boot_counter)
     \brief This function reads boot counter reagion from flash and counts zeros
 *       to calculate attempted and completed boot counters.
@@ -125,46 +125,52 @@ int flash_fs_increment_completed_boot_count(void);
 */
 int flash_fs_increment_attempted_boot_count(void);
 
-/*! \fn int flash_fs_get_manufacturer_name(char *mfg_name)
+/*! \fn int flash_fs_get_manufacturer_name(char *mfg_name, size_t size)
     \brief This function returns ET-SOC manufacturer name.
     \param mfg_name - manufacturer name
+    \param size - size of the name
     \return The function call status, pass/fail.
 */
-int flash_fs_get_manufacturer_name(char *mfg_name);
+int flash_fs_get_manufacturer_name(char *mfg_name, size_t size);
 
-/*! \fn int flash_fs_get_part_number(char *part_number)
+/*! \fn int flash_fs_get_part_number(char *part_number, size_t size)
     \brief This function returns ET-SOC part number.
     \param part_number - part number
+    \param size - size of part number
     \return The function call status, pass/fail.
 */
-int flash_fs_get_part_number(char *part_number);
+int flash_fs_get_part_number(char *part_number, size_t size);
 
-/*! \fn int flash_fs_get_serial_number(char *ser_number)
+/*! \fn int flash_fs_get_serial_number(char *ser_number, size_t size)
     \brief This function returns ET-SOC serial number.
     \param ser_number - serial number
+    \param size - size of the serial number
     \return The function call status, pass/fail.
 */
-int flash_fs_get_serial_number(char *ser_number);
+int flash_fs_get_serial_number(char *ser_number, size_t size);
 
-/*! \fn int flash_fs_get_module_rev(char *module_rev)
+/*! \fn int flash_fs_get_module_rev(char *module_rev, size_t size)
     \brief This function returns ET-SOC module revision.
     \param module_rev - module revision
+    \param size - size of the revision
     \return The function call status, pass/fail.
 */
-int flash_fs_get_module_rev(char *module_rev);
+int flash_fs_get_module_rev(char *module_rev, size_t size);
 
-/*! \fn int flash_fs_get_memory_size(char *mem_size)
+/*! \fn int flash_fs_get_memory_size(char *mem_size, size_t size)
     \brief This function returns ET-SOC memory size.
     \param mem_size - memory size
+    \param size - size of the memory
     \return The function call status, pass/fail.
 */
-int flash_fs_get_memory_size(char *mem_size);
+int flash_fs_get_memory_size(char *mem_size, size_t size);
 
-/*! \fn int flash_fs_get_form_factor(char *form_factor)
+/*! \fn int flash_fs_get_form_factor(char *form_factor, size_t size)
     \brief This function returns ET-SOC form factor (PCIe or Dual M.2).
     \param form_factor - form factor
+    \param size - size of the form factor
     \return The function call status, pass/fail.
 */
-int flash_fs_get_form_factor(char *form_factor);
+int flash_fs_get_form_factor(char *form_factor, size_t size);
 
 #endif

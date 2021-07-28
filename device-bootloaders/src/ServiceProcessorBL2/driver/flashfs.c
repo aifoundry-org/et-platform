@@ -270,7 +270,7 @@ static int flash_fs_scan_regions(uint32_t partition_size,
                 partition_info->maxion_bl1_region_index = n;
                 break;
             default:
-                MESSAGE_ERROR("flash_fs_scan_regions: invalid region id: %u!\n", 
+                MESSAGE_ERROR("flash_fs_scan_regions: invalid region id: %u!\n",
                                             partition_info->regions_table[n].region_id);
                 return ERROR_SPI_FLASH_INVALID_REGION_ID; /* we should never get here */
         }
@@ -1166,11 +1166,11 @@ int flash_fs_swap_primary_boot_partition(void)
 *
 ***********************************************************************/
 
-int flash_fs_get_manufacturer_name(char *mfg_name)
+int flash_fs_get_manufacturer_name(char *mfg_name, size_t size)
 {
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    char name[] = "Esperan";
-    snprintf(mfg_name, 8, "%s", name);
+    char name[] = "Esperanto Technologies";
+    snprintf(mfg_name, size, "%s", name);
 
     return 0;
 }
@@ -1195,11 +1195,11 @@ int flash_fs_get_manufacturer_name(char *mfg_name)
 *
 ***********************************************************************/
 
-int flash_fs_get_part_number(char *part_number)
+int flash_fs_get_part_number(char *part_number, size_t size)
 {
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
     char name[] = "ETPART1";
-    snprintf(part_number, 8, "%s", name);
+    snprintf(part_number, size, "%s", name);
 
     return 0;
 }
@@ -1224,11 +1224,11 @@ int flash_fs_get_part_number(char *part_number)
 *
 ***********************************************************************/
 
-int flash_fs_get_serial_number(char *ser_number)
+int flash_fs_get_serial_number(char *ser_number, size_t size)
 {
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
     char name[] = "ETSER_1";
-    snprintf(ser_number, 8, "%s", name);
+    snprintf(ser_number, size, "%s", name);
 
     return 0;
 }
@@ -1253,11 +1253,11 @@ int flash_fs_get_serial_number(char *ser_number)
 *
 ***********************************************************************/
 
-int flash_fs_get_module_rev(char *module_rev)
+int flash_fs_get_module_rev(char *module_rev, size_t size)
 {
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
     uint64_t revision = 1;
-    sprintf(module_rev, "%ld", revision);
+    snprintf(module_rev, size, "%ld", revision);
     return 0;
 }
 
@@ -1281,11 +1281,11 @@ int flash_fs_get_module_rev(char *module_rev)
 *
 ***********************************************************************/
 
-int flash_fs_get_memory_size(char *mem_size)
+int flash_fs_get_memory_size(char *mem_size, size_t size)
 {
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    uint64_t size = 16 * 1024;
-    snprintf(mem_size, 8, "%ld", size);
+    uint64_t m_size = 16 * 1024;
+    snprintf(mem_size, size, "%ld", m_size);
     return 0;
 }
 
@@ -1309,10 +1309,10 @@ int flash_fs_get_memory_size(char *mem_size)
 *
 ***********************************************************************/
 
-int flash_fs_get_form_factor(char *form_factor)
+int flash_fs_get_form_factor(char *form_factor, size_t size)
 {
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    strcpy(form_factor, "Dual_M2");
+    strncpy(form_factor, "Dual_M2", size);
     return 0;
 }
 

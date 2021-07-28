@@ -10,7 +10,7 @@
 *
 ************************************************************************/
 /*! \file asset_track_mgmt.c
-    \brief A C module that implements functions to retrieve 
+    \brief A C module that implements functions to retrieve
     the Asset Tracking Metrics
 
     Public interfaces:
@@ -30,17 +30,17 @@
 
 int get_manufacturer_name(char *mfg_name)
 {
-    return flash_fs_get_manufacturer_name(mfg_name);
+    return flash_fs_get_manufacturer_name(mfg_name, sizeof(struct asset_info_t));
 }
 
 int get_part_number(char *part_number)
 {
-    return flash_fs_get_part_number(part_number);
+    return flash_fs_get_part_number(part_number, sizeof(struct asset_info_t));
 }
 
 int get_serial_number(char *ser_number)
 {
-    return flash_fs_get_serial_number(ser_number);
+    return flash_fs_get_serial_number(ser_number, sizeof(struct asset_info_t));
 }
 
 int get_chip_revision(char *chip_rev)
@@ -55,12 +55,12 @@ int get_PCIE_speed(char *pcie_speed)
 
 int get_module_rev(char *module_rev)
 {
-    return flash_fs_get_module_rev(module_rev);
+    return flash_fs_get_module_rev(module_rev, sizeof(struct asset_info_t));
 }
 
 int get_form_factor(char *form_factor)
 {
-    return flash_fs_get_form_factor(form_factor);
+    return flash_fs_get_form_factor(form_factor, sizeof(struct asset_info_t));
 }
 
 int get_memory_details(char *mem_detail)
@@ -70,7 +70,7 @@ int get_memory_details(char *mem_detail)
 
 int get_memory_size(char *mem_size)
 {
-    return flash_fs_get_memory_size(mem_size);
+    return flash_fs_get_memory_size(mem_size, sizeof(struct asset_info_t));
 }
 
 int get_memory_type(char *mem_type)
