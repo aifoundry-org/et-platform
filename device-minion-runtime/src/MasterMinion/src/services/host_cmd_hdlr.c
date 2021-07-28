@@ -317,14 +317,14 @@ static inline int8_t kernel_launch_cmd_handler(void* command_buffer, uint8_t sqw
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
-    /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
+    /* Blocking call to launch kernel */
+    status = KW_Dispatch_Kernel_Launch_Cmd(cmd, sqw_idx, &kw_idx);
+
+    /* Compute Wait Cycles (cycles the command waits to launch on Compute Minions)
         Snapshot current cycle */
     cycles.cmd_start_cycles = start_cycles;
     cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
     cycles.exec_start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
-
-    /* Blocking call to launch kernel */
-    status = KW_Dispatch_Kernel_Launch_Cmd(cmd, sqw_idx, &kw_idx);
 
     if(status == STATUS_SUCCESS)
     {
