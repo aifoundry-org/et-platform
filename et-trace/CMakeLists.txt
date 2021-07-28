@@ -11,9 +11,17 @@
 cmake_minimum_required(VERSION 3.14)
 project(device-trace LANGUAGES C)
 
+option(DTRACE_TEST "Build device_trace tests" OFF)
+
 add_library(device_trace INTERFACE)
 target_include_directories(device_trace
   INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/device_trace>
 )
+
+if (DTRACE_TEST)
+  message(STATUS "Building device_trace tests")
+  enable_testing()
+  add_subdirectory(tests)
+endif()
