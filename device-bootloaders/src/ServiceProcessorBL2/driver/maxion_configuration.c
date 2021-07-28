@@ -36,7 +36,7 @@ void Maxion_Shire_Channel_Enable(void) {
 
     #define SUB_REGION_ADDR 0x02
 
-    volatile uint64_t *p = get_esr_address(PP_MACHINE, IOSHIRE_ID, REGION_OTHER, SUB_REGION_ADDR,
+    volatile uint64_t *p = esr_address_new(PP_MACHINE, IOSHIRE_ID, REGION_OTHER, SUB_REGION_ADDR,
                                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS,0x0);
 
     *p =    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_RESET_VALUE |
