@@ -27,7 +27,7 @@
 /*
  * Service Processor Trace control block.
  */
-static struct trace_control_block_t SP_Trace_CB;
+struct trace_control_block_t SP_Trace_CB;
 
 static void Trace_Run_Control(trace_enable_e state);
 static void Trace_CONFIGURE(uint32_t event_mask, uint32_t filter_mask);

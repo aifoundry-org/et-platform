@@ -20,8 +20,24 @@
 void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
 {
     struct event_message_t message;
+    
     uint64_t req_start_time = timer_get_ticks_count();
+    uint32_t trace_buf_offset = Trace_Get_SP_CB()->offset_per_hart;
+    struct trace_control_block_t* trace_cb = Trace_Get_SP_CB();
+    uint64_t *trace_buf;
+    
+    trace_buf = (uint64_t *)Trace_Buffer_Reserve(trace_cb,
+                                                SP_EXCEPTION_FRAME_SIZE);
 
+    /* fill in dummy data to trace buffer */
+    memset(trace_buf,0xa5,SP_EXCEPTION_FRAME_SIZE);
+
+   /* add details in message header and fill payload */
+    FILL_EVENT_HEADER(&message.header, SP_RUNTIME_EXCEPT,
+                        sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, 0, trace_buf_offset)
+    power_event_callback(UNCORRECTABLE, &message);
+    
     /* Generate PCIE Correctable Error */
     FILL_EVENT_HEADER(&message.header, PCIE_CE, sizeof(struct event_message_t))
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0)
