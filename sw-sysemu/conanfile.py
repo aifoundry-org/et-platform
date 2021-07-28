@@ -1,12 +1,19 @@
-from conans import ConanFile, tools
-from conan.tools.cmake import CMake, CMakeToolchain
-from conans.errors import ConanInvalidConfiguration
+from conans import ConanFile, CMake, tools
+from conans.tools import Version, load
 import os
-import shutil
+import re
+
+def get_version():
+    try:
+        content = load("CMakeLists.txt")
+        version = re.search("project\(sw-sysemu VERSION (.*)\)", content).group(1)
+        return version.strip()
+    except Exception as e:
+        return None
 
 class SwSysemuConan(ConanFile):
     name = "sw-sysemu"
-    version = "1.0"
+    version = get_version()
     url = "https://gitlab.esperanto.ai/software/sw-sysemu"
     description = "The functional ETSOC-1 emulator. Able to execute RISC-V instructions with Esperanto extensions"
     license = "Esperanto Technologies"
@@ -60,18 +67,13 @@ class SwSysemuConan(ConanFile):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
         check_req_min_cppstd(self, "17")
 
-    def generate(self):
-        tc = CMakeToolchain(self)
-        tc.variables["PROFILING"] = self.options.profiling
-        tc.variables["BACKTRACE"] = self.options.backtrace
-        tc.generate()
-
     _cmake = None
     def _configure_cmake(self):
         if not self._cmake:
-            cmake = CMake(self, build_folder=self._build_subfolder)
-            cmake.verbose = True
-            cmake.configure()
+            cmake = CMake(self)
+            cmake.definitions["PROFILING"] = self.options.profiling
+            cmake.definitions["BACKTRACE"] = self.options.backtrace
+            cmake.configure(build_folder=self._build_subfolder)
             self._cmake = cmake
         return self._cmake
     
