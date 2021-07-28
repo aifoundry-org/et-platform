@@ -81,6 +81,15 @@ bool DeviceManagement::isSetCommand(itCmd& cmd) {
   return false;
 }
 
+bool DeviceManagement::isGetCommand(itCmd& cmd) {
+  if (cmd->first.find("DM_CMD_GET") == 0) {
+    return true;
+  }
+
+  return false;
+}
+
+
 std::shared_ptr<lockable_> DeviceManagement::getDevice(const uint32_t index) {
   auto& ptr = deviceMap_[index];
 
@@ -193,9 +202,12 @@ bool DeviceManagement::isValidPowerState(const char* input_buff) {
   return false;
 }
 
-bool DeviceManagement::isValidTemprature(const char* input_buff) {
+bool DeviceManagement::isValidTemperature(const char* input_buff) {
   device_mgmt_api::temperature_threshold_t* temperature_threshold = (device_mgmt_api::temperature_threshold_t*)input_buff;
-  if(temperature_threshold->lo_temperature_c >= 20 && temperature_threshold->lo_temperature_c <= 125 && temperature_threshold->hi_temperature_c >= 20 && temperature_threshold->hi_temperature_c <= 125) {
+  if(temperature_threshold->lo_temperature_c >= 20
+    && temperature_threshold->lo_temperature_c <= 125
+     && temperature_threshold->hi_temperature_c >= 20
+      && temperature_threshold->hi_temperature_c <= 125) {
     return true;
   }
   return false;
@@ -219,58 +231,27 @@ bool DeviceManagement::isValidPcieLaneWidth(const char* input_buff) {
   return false;
 }
 
-bool DeviceManagement::isValidParameter(uint32_t cmd_code, const char* input_buff) {
+bool DeviceManagement::isInputBufferValid(uint32_t cmd_code, const char* input_buff) {
   bool ret;
-  switch (cmd_code)
-  {
-  case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE:
-    if (!isValidPowerState(input_buff)) {
-      ret = false;
-    }
-    else {
+  switch (cmd_code) {
+    case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE:
+      ret = isValidPowerState(input_buff);
+      break;
+    case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS:
+      ret = isValidTemperature(input_buff);
+      break;
+    case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL:
+      ret = isValidTdpLevel(input_buff);
+      break;
+    case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED:
+      ret = isValidPcieLinkSpeed(input_buff);
+      break;
+    case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH:
+      ret = isValidPcieLaneWidth(input_buff);
+      break;
+    default:
       ret = true;
-    }
-    break;
-  
-  case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS:
-    if (!isValidTemprature(input_buff)) {
-      ret = false;
-    }
-    else {
-      ret = true;
-    }
-    break;
-  
-  case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL:
-    if (!isValidTdpLevel(input_buff)) {
-      ret = false;
-    }
-    else {
-      ret = true;
-    }
-    break;
-  
-  case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED:
-    if (!isValidPcieLinkSpeed(input_buff)) {
-      ret = false;
-    }
-    else {
-      ret = true;
-    }
-    break;
-  
-  case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH:
-    if (!isValidPcieLaneWidth(input_buff)) {
-      ret = false;
-    }
-    else {
-      ret = true;
-    }
-    break;
-  
-  default:
-    ret = true;
-    break;
+      break;
   }
   return ret;
 }
@@ -291,11 +272,12 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
   }
 
   auto isSet = isSetCommand(cmd);
-  if (isSet && !input_buff) {
+  if (isSet && (!input_buff || !input_size)) {
     return -EINVAL;
   }
 
-  if (!output_buff) {
+  auto isGet = isGetCommand(cmd);
+  if (isGet && (!output_buff || !output_size)) {
     return -EINVAL;
   }
 
@@ -311,7 +293,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
     return -EINVAL;
   }
 
-  if (!isValidParameter(cmd_code, input_buff)) {
+  if (!isInputBufferValid(cmd_code, input_buff)) {
     return -EINVAL;
   }
 
@@ -411,7 +393,9 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
         DV_LOG(INFO) << "Read rsp to cmd: " << rCB->info.rsp_hdr.msg_id
                      << " with header size: " << rCB->info.rsp_hdr.size << std::endl;
 
-        memcpy(output_buff, rCB->payload, output_size);
+        if (output_buff && output_size) {
+          memcpy(output_buff, rCB->payload, output_size);
+        }
 
         auto status = rCB->info.rsp_hdr_ext.status;
 
