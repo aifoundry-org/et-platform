@@ -36,7 +36,6 @@ def test_echo_to_sp():
 def test_sp_fw_ver():
     print('SP FW version ..')
     command = tf_spec.command("TF_CMD_SP_FW_VERSION", "SP")
-    print(str(command))
     response = dut_fifo_iface.execute_test(command)
     assert response["major"] == 0x01
     assert response["minor"] == 0x02
@@ -50,11 +49,9 @@ def test_move_data_between_host_and_device():
     test_data_len = len(test_data)
     command = tf_spec.command("TF_CMD_MOVE_DATA_TO_DEVICE", "SP", device_addr, test_data_len, test_data)
     response = dut_fifo_iface.execute_test(command)
-    tf_spec.prettyprint(response)
     assert response["bytes_written"] == test_data_len
     command = tf_spec.command("TF_CMD_MOVE_DATA_TO_HOST", "SP", device_addr, test_data_len)
     response = dut_fifo_iface.execute_test(command)
-    tf_spec.prettyprint(response)
     assert response["bytes_read"] == test_data_len
 
 def test_env_finalize():
