@@ -1001,7 +1001,7 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 			// Do not flood the console, only print once in 10s
 			if (i % 10 == 0)
 				pr_debug("Mgmt: DIRs not ready, status: %d",
-				 rv);
+					 rv);
 			msleep(1000);
 		}
 	}
@@ -1296,8 +1296,7 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 		} else {
 			// Do not flood the console, only print once in 10s
 			if (i % 10 == 0)
-				pr_debug("Ops: DIRs not ready, status: %d",
-				 rv);
+				pr_debug("Ops: DIRs not ready, status: %d", rv);
 			msleep(1000);
 		}
 	}

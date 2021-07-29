@@ -176,8 +176,23 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev,
 	struct et_dma_info *dma_info;
 	ssize_t rv;
 
+	if (!cmd->src_host_virt_addr) {
+		dev_err(&et_dev->pdev->dev,
+			"Invalid DMA write cmd (src_host_virt_addr: 0x%llx)!",
+			cmd->src_host_virt_addr);
+		return -EINVAL;
+	}
+
+	if (!cmd->size) {
+		dev_err(&et_dev->pdev->dev,
+			"Invalid DMA write cmd (size: %u)!",
+			cmd->size);
+		return -EINVAL;
+	}
+
 	if (cmd->size > S32_MAX) {
-		pr_err("Can't transfer more than 2GB at a time");
+		dev_err(&et_dev->pdev->dev,
+			"Can't transfer more than 2GB at a time");
 		return -EINVAL;
 	}
 
@@ -192,7 +207,7 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev,
 	dma_info->is_writable = false; /* readonly */
 	dma_info->kern_vaddr = et_dma_alloc_coherent(dma_info);
 	if (!dma_info->kern_vaddr) {
-		pr_err("dma alloc failed\n");
+		dev_err(&et_dev->pdev->dev, "dma alloc failed\n");
 		rv = -ENOMEM;
 		goto error_free_dma_info;
 	}
@@ -208,7 +223,7 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev,
 
 	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
 	if (!et_dma_insert_info(&et_dev->ops.dma_rbtree, dma_info)) {
-		pr_err("err: tag_id already exists\n");
+		dev_err(&et_dev->pdev->dev, "tag_id already exists\n");
 		rv = -EINVAL;
 		mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
 		// TODO JIRA SW-957: Uncomment when zero copy support is
@@ -222,7 +237,8 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev,
 			    dma_info->usr_vaddr,
 			    dma_info->size);
 	if (rv != 0) {
-		pr_err("Failed to copy from user\n");
+		dev_err(&et_dev->pdev->dev, "Failed to copy from user\n");
+		rv = -EFAULT;
 		goto error_dma_delete_info;
 	}
 
@@ -232,7 +248,8 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev,
 		goto error_dma_delete_info;
 
 	if (rv != cmd_size) {
-		pr_err("vqueue write didn't send all bytes\n");
+		dev_err(&et_dev->pdev->dev,
+			"vqueue write didn't send all bytes\n");
 		rv = -EIO;
 		goto error_dma_delete_info;
 	}
@@ -264,8 +281,23 @@ ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev,
 	struct et_dma_info *dma_info;
 	ssize_t rv;
 
+	if (!cmd->dst_host_virt_addr) {
+		dev_err(&et_dev->pdev->dev,
+			"Invalid DMA read cmd (dst_host_virt_addr: 0x%llx)!",
+			cmd->dst_host_virt_addr);
+		return -EINVAL;
+	}
+
+	if (!cmd->size) {
+		dev_err(&et_dev->pdev->dev,
+			"Invalid DMA read cmd (size: %u)!",
+			cmd->size);
+		return -EINVAL;
+	}
+
 	if (cmd->size > S32_MAX) {
-		pr_err("Can't transfer more than 2GB at a time");
+		dev_err(&et_dev->pdev->dev,
+			"Can't transfer more than 2GB at a time");
 		return -EINVAL;
 	}
 
@@ -280,7 +312,7 @@ ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev,
 	dma_info->is_writable = true; /* writable */
 	dma_info->kern_vaddr = et_dma_alloc_coherent(dma_info);
 	if (!dma_info->kern_vaddr) {
-		pr_err("dma alloc failed\n");
+		dev_err(&et_dev->pdev->dev, "dma alloc failed\n");
 		rv = -ENOMEM;
 		goto error_free_dma_info;
 	}
@@ -296,7 +328,7 @@ ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev,
 
 	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
 	if (!et_dma_insert_info(&et_dev->ops.dma_rbtree, dma_info)) {
-		pr_err("err: tag_id already exists\n");
+		dev_err(&et_dev->pdev->dev, "tag_id already exists\n");
 		rv = -EINVAL;
 		mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
 		// TODO JIRA SW-957: Uncomment when zero copy support is
@@ -312,7 +344,8 @@ ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev,
 		goto error_dma_delete_info;
 
 	if (rv != cmd_size) {
-		pr_err("vqueue write didn't send all bytes\n");
+		dev_err(&et_dev->pdev->dev,
+			"vqueue write didn't send all bytes\n");
 		rv = -EIO;
 		goto error_dma_delete_info;
 	}
@@ -353,11 +386,27 @@ ssize_t et_dma_writelist_to_device(struct et_pci_dev *et_dev,
 	if (cmd_size <= sizeof(struct device_ops_dma_writelist_cmd_t) ||
 	    !nodes_count) {
 		dev_err(&et_dev->pdev->dev,
-			"Invalid DMA writelist cmd (size %ld)!",
+			"Invalid DMA writelist cmd (size %zu)!",
 			cmd_size);
 	}
 
 	for (node_num = 0; node_num < nodes_count; node_num++) {
+		if (!cmd->list[node_num].src_host_virt_addr) {
+			dev_err(&et_dev->pdev->dev,
+				"Invalid writelist[%u].src_host_virt_addr: 0x%llx!",
+				node_num,
+				cmd->list[node_num].src_host_virt_addr);
+			return rv;
+		}
+
+		if (!cmd->list[node_num].size) {
+			dev_err(&et_dev->pdev->dev,
+				"Invalid writelist[%u].size: %u!",
+				node_num,
+				cmd->list[node_num].size);
+			return rv;
+		}
+
 		vma = find_vma(current->mm,
 			       cmd->list[node_num].src_host_virt_addr);
 		if (!vma) {
@@ -412,11 +461,27 @@ ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev,
 	if (cmd_size <= sizeof(struct device_ops_dma_readlist_cmd_t) ||
 	    !nodes_count) {
 		dev_err(&et_dev->pdev->dev,
-			"Invalid DMA readlist cmd (size %ld)!",
+			"Invalid DMA readlist cmd (size %zu)!",
 			cmd_size);
 	}
 
 	for (node_num = 0; node_num < nodes_count; node_num++) {
+		if (!cmd->list[node_num].dst_host_virt_addr) {
+			dev_err(&et_dev->pdev->dev,
+				"Invalid readlist[%u].dst_host_virt_addr: 0x%llx!",
+				node_num,
+				cmd->list[node_num].dst_host_virt_addr);
+			return rv;
+		}
+
+		if (!cmd->list[node_num].size) {
+			dev_err(&et_dev->pdev->dev,
+				"Invalid readlist[%u].size: %u!",
+				node_num,
+				cmd->list[node_num].size);
+			return rv;
+		}
+
 		vma = find_vma(current->mm,
 			       cmd->list[node_num].dst_host_virt_addr);
 		if (!vma) {
