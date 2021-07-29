@@ -71,6 +71,7 @@ class SwSysemuConan(ConanFile):
     def _configure_cmake(self):
         if not self._cmake:
             cmake = CMake(self)
+            cmake.definitions["CMAKE_INSTALL_LIBDIR"] = "lib"
             cmake.definitions["PROFILING"] = self.options.profiling
             cmake.definitions["BACKTRACE"] = self.options.backtrace
             cmake.configure(build_folder=self._build_subfolder)
@@ -84,7 +85,7 @@ class SwSysemuConan(ConanFile):
     def package(self):
         cmake = self._configure_cmake()
         cmake.install()
-        tools.rmdir(os.path.join(self.package_folder, "lib64", "cmake"))
+        tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
     
     def package_info(self):
         # library components
@@ -92,7 +93,6 @@ class SwSysemuConan(ConanFile):
         self.cpp_info.components["libsysemu"].names["cmake_find_package_multi"] = "sysemu"
         self.cpp_info.components["libsysemu"].requires = ["elfio::elfio"]
         self.cpp_info.components["libsysemu"].libs = ["sysemu"]
-        self.cpp_info.components["libsysemu"].libdirs = ["lib64"]
         if self.options.backtrace:
             self.cpp_info.components["libsysemu"].requires.append("libunwind::libunwind")
         
@@ -100,13 +100,11 @@ class SwSysemuConan(ConanFile):
         self.cpp_info.components["libfpu"].names["cmake_find_package_multi"] = "fpu"
         self.cpp_info.components["libfpu"].requires = []
         self.cpp_info.components["libfpu"].libs = ["fpu"]
-        self.cpp_info.components["libfpu"].libdirs = ["lib64"]
 
         self.cpp_info.components["libsw-sysemu"].names["cmake_find_package"] = "sw-sysemu"
         self.cpp_info.components["libsw-sysemu"].names["cmake_find_package_multi"] = "sw-sysemu"
         self.cpp_info.components["libsw-sysemu"].requires = ["libsysemu", "libfpu", "glog::glog"]
         self.cpp_info.components["libsw-sysemu"].libs = ["sw-sysemu"]
-        self.cpp_info.components["libsw-sysemu"].libdirs = ["lib64"]
 
         # utilities
         bin_path = os.path.join(self.package_folder, "bin")
