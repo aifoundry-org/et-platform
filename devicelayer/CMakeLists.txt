@@ -117,6 +117,9 @@ install(TARGETS deviceLayer
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/device-layer
 )
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/deviceLayer
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
 
 # Install the export set for use with the install-tree
 install(EXPORT DeviceLayerTargets
