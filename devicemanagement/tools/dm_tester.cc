@@ -11,7 +11,6 @@
 #include "../src/utils.h"
 #include <boost/multiprecision/cpp_int.hpp>
 #include "deviceManagement/DeviceManagement.h"
-#include "DeviceSysEmu.h"
 #include <cerrno>
 #include <chrono>
 #include <climits>

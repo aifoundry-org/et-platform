@@ -11,7 +11,6 @@
 #ifndef TEST_DEVICE_M_H
 #define TEST_DEVICE_M_H
 
-#include "DeviceSysEmu.h"
 #include "deviceManagement/DeviceManagement.h"
 #include "utils.h"
 #include <gflags/gflags.h>
