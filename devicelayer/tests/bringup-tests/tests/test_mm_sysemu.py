@@ -31,8 +31,6 @@ def test_echo_to_mm():
     mm_cmd = tf_spec.command("TF_CMD_MM_ECHO", "MM", expected_payload)
     mm_cmd_len = len(mm_cmd)
     sp_cmd = tf_spec.command("TF_CMD_MM_CMD_SHELL", "SP", mm_cmd_len, mm_cmd)
-    print(str(sp_cmd))
-    print(len(sp_cmd))
     response = dut_fifo_iface.execute_test(sp_cmd, wait_for_response_secs = 2)
     tf_spec.prettyprint(response)
     assert response["device_cmd_start_ts"] != 0
@@ -44,8 +42,6 @@ def test_fw_ver_to_mm():
     mm_cmd = tf_spec.command("TF_CMD_MM_FW_VERSION", "MM", firmware_type)
     mm_cmd_len = len(mm_cmd)
     sp_cmd = tf_spec.command("TF_CMD_MM_CMD_SHELL", "SP", mm_cmd_len, mm_cmd)
-    print(str(sp_cmd))
-    print(len(sp_cmd))
     response = dut_fifo_iface.execute_test(sp_cmd, wait_for_response_secs = 2)
     tf_spec.prettyprint(response)
     assert response["type"] == firmware_type
@@ -78,15 +74,8 @@ def test_kernel_launch_to_mm():
     device_addr = kernel_device_load_addr
     test_data = kernel_data
     test_data_len = len(test_data)
-    print("kernel data")
-    print(test_data)
-    print("kernel size")
-    print(test_data_len)
     command = tf_spec.command("TF_CMD_MOVE_DATA_TO_DEVICE", "SP", device_addr, test_data_len, test_data)
-    print("ToDUT")
-    print(str(command))
     response = dut_fifo_iface.execute_test(command)
-    tf_spec.prettyprint(response)
     assert response["bytes_written"] == test_data_len
 
     ###################################
@@ -102,8 +91,6 @@ def test_kernel_launch_to_mm():
     mm_cmd_len = len(mm_cmd)
     sp_cmd = tf_spec.command("TF_CMD_MM_CMD_SHELL", "SP", mm_cmd_len, mm_cmd)
     print("Kernel launch command to DUT")
-    print(str(sp_cmd))
-    print(len(sp_cmd))
     response = dut_fifo_iface.execute_test(sp_cmd, wait_for_response_secs = 4)
     print("DUT response from kernel launch")
     tf_spec.prettyprint(response)

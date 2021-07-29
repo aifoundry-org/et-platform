@@ -27,10 +27,8 @@ def test_echo_to_sp():
     expected_payload = 0xDEADBEEF
     #Instantiate test command
     command = tf_spec.command("TF_CMD_ECHO_TO_SP", "SP", expected_payload)
-    print(str(command))
     #Issue test command
     response = dut_fifo_iface.execute_test(command)
-    tf_spec.prettyprint(response)
     #validate response using relevant assertions
     assert response["cmd_payload"] == expected_payload
 
@@ -40,7 +38,6 @@ def test_sp_fw_ver():
     command = tf_spec.command("TF_CMD_SP_FW_VERSION", "SP")
     print(str(command))
     response = dut_fifo_iface.execute_test(command)
-    tf_spec.prettyprint(response)
     assert response["major"] == 0x01
     assert response["minor"] == 0x02
     assert response["revision"] == 0x03
@@ -52,12 +49,10 @@ def test_move_data_between_host_and_device():
     test_data = bytes(b'123456789')
     test_data_len = len(test_data)
     command = tf_spec.command("TF_CMD_MOVE_DATA_TO_DEVICE", "SP", device_addr, test_data_len, test_data)
-    print(str(command))
     response = dut_fifo_iface.execute_test(command)
     tf_spec.prettyprint(response)
     assert response["bytes_written"] == test_data_len
     command = tf_spec.command("TF_CMD_MOVE_DATA_TO_HOST", "SP", device_addr, test_data_len)
-    print(str(command))
     response = dut_fifo_iface.execute_test(command)
     tf_spec.prettyprint(response)
     assert response["bytes_read"] == test_data_len
