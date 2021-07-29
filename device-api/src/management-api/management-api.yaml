@@ -85,9 +85,9 @@ Modules:
           Value: 30
         - Name: GET_MODULE_POWER
           Value: 31
-        - Name: GET_MODULE_MAX_TEMPERATURE
-          Value: 32
         - Name: GET_MODULE_RESIDENCY_POWER_STATES
+          Value: 32
+        - Name: GET_MODULE_MAX_TEMPERATURE
           Value: 33
         - Name: GET_MODULE_MAX_DDR_BW
           Value: 34
@@ -283,7 +283,7 @@ Modules:
     - Name: asset_info_t
       Description: Asset Information
       Fields:
-        - Name: asset[8]
+        - Name: asset[24]
           Type: char
     - Name: fused_public_keys_t
       Description: Fused Public Keys
