@@ -21,7 +21,10 @@ class DeviceMinionRuntimeConan(ConanFile):
 
     exports_sources = [ "CMakeLists.txt", "cmake/*", "external/*", "include/*", "scripts/*", "src/*", "tools/*", "EsperantoDeviceMinionRuntimeConfig.cmake.in", "EsperantoDeviceMinionRuntimeConfigVersion.cmake.in" ]
 
-    requires = "deviceApi/0.1", "signedImageFormat/1.0"
+    requires = [
+        "deviceApi/0.1.0",
+        "signedImageFormat/1.0" 
+    ]
 
     def build_requirements(self):
         self.build_requires("cmake-modules/[>=0.4.1 <1.0.0]", force_host_context=True)
@@ -62,4 +65,39 @@ class DeviceMinionRuntimeConan(ConanFile):
         cmake.install()
     
     def package_info(self):
-        self.cpp_info.libs = tools.collect_libs(self)
+        etfw_includedir = os.path.join("include", "esperanto-fw")
+        etfw_libdir = os.path.join("lib", "esperanto-fw")
+        
+        self.cpp_info.set_property("cmake_target_name", "EsperantoDeviceMinionRuntime")
+        self.cpp_info.components["device_configuration"].requires = ["signedImageFormat::signedImageFormat"]
+
+        self.cpp_info.components["device_common"].includedirs = ["include", etfw_includedir, os.path.join(etfw_includedir, "device-common")]
+
+        self.cpp_info.components["device_trace"].includedirs = ["include", etfw_includedir, os.path.join(etfw_includedir, "device_trace")]
+        self.cpp_info.components["device_trace"].libdirs = [etfw_libdir]
+        self.cpp_info.components["device_trace"].libs = ["device_trace"]
+        self.cpp_info.components["device_trace"].defines = ["-DSP_OR_COMPUTE_MINION=1"]
+        self.cpp_info.components["device_trace"].requires = ["device_common"]
+
+        self.cpp_info.components["device_trace_mm"].includedirs = ["include", etfw_includedir, os.path.join(etfw_includedir, "device_trace")]
+        self.cpp_info.components["device_trace_mm"].libdirs = [etfw_libdir]
+        self.cpp_info.components["device_trace_mm"].libs = ["device_trace_mm"]
+        self.cpp_info.components["device_trace_mm"].defines = ["-DMASTER_MINION=1"]
+        self.cpp_info.components["device_trace_mm"].requires = ["device_common"]
+
+        self.cpp_info.components["sp_firmware_helpers"].includedirs = ["include", etfw_includedir, os.path.join(etfw_includedir, "firmware_helpers")]
+        self.cpp_info.components["sp_firmware_helpers"].libs = ["sp_firmware_helpers"]
+        self.cpp_info.components["sp_firmware_helpers"].libdirs = [etfw_libdir]
+        self.cpp_info.components["sp_firmware_helpers"].requires = ["device_common"]
+
+        self.cpp_info.components["mm_firmware_helpers"].includedirs = ["include", etfw_includedir, os.path.join(etfw_includedir, "firmware_helpers")]
+        self.cpp_info.components["mm_firmware_helpers"].libs = ["mm_firmware_helpers"]
+        self.cpp_info.components["mm_firmware_helpers"].libdirs = [etfw_libdir]
+        self.cpp_info.components["mm_firmware_helpers"].requires = ["device_common"]
+
+        self.cpp_info.components["MachineMinion"].bindirs = [os.path.join(etfw_libdir, "MachineMinion")]
+        self.cpp_info.components["MachineMinion"].requires = ["device_configuration"]
+        self.cpp_info.components["MasterMinion"].bindirs = [os.path.join(etfw_libdir, "MasterMinion")]
+        self.cpp_info.components["MasterMinion"].requires = ["deviceApi::deviceApi", "device_trace_mm", "device_common", "device_configuration"]
+        self.cpp_info.components["WorkerMinion"].bindirs = [os.path.join(etfw_libdir, "WorkerMinion")]
+        self.cpp_info.components["WorkerMinion"].requires = ["deviceApi::deviceApi", "device_configuration"]
