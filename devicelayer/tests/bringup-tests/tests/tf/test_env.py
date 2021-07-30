@@ -25,19 +25,19 @@ class TfEnv:
             print("Launch TF Manager")
             os.system(tf_defs["launch_tf_manager"])
             time.sleep(1) # some time for tf manager to launch
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                self.socket = s
-                s.connect((HOST, PORT))
-                s.send(tf_defs["start_sim_cmd"].encode())
-                time.sleep(1) # some time for sim to launch
+            self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.conn.connect((HOST, PORT))
+            self.conn.send(tf_defs["start_sim_cmd"].encode())
+            time.sleep(1) # some time for sim to launch
 
 
     def finalize(self, env_type):
         if(env_type == "sim"):
             print("Tear down environment")
-            """
-            TODO: Update this to use stop_sim command over socket once lib-sysemu supports a finalize API
-            #self.socket.send(tf_defs["start_sim_cmd"].encode())
-            """
-            os.system("pkill launchSim")
-            self.socket.close()
+            self.conn.send(tf_defs["stop_simcmd"].encode())
+            time.sleep(1)  # some time for sim stop
+            self.conn.close()
+            # Forcefully close sim
+            pNames = os.popen("ps -Af").read()
+            if pNames.count('launchSim') > 0:
+                os.system("pkill launchSim")
