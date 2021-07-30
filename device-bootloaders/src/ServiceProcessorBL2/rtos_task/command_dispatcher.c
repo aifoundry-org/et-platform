@@ -155,7 +155,7 @@ static void pc_vq_task(void *pvParameters)
                 /* Process firmware service request cmd */
                 firmware_service_process_request(tag_id, msg_id, (void *)buffer);
                 break;
-            case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS ... DM_CMD_GET_MODULE_POWER:
+            case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS ... DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES:
                 thermal_power_monitoring_process(tag_id, msg_id, (void *)buffer);
                 break;
             case DM_CMD_SET_PCIE_RESET ... DM_CMD_SET_PCIE_RETRAIN_PHY:

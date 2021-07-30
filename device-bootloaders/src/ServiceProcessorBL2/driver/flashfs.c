@@ -1312,7 +1312,8 @@ int flash_fs_get_memory_size(char *mem_size, size_t size)
 int flash_fs_get_form_factor(char *form_factor, size_t size)
 {
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    strncpy(form_factor, "Dual_M2", size);
+    char form_factor_l[] = "Dual_M2";
+    snprintf(form_factor, size, "%s", form_factor_l);
     return 0;
 }
 
