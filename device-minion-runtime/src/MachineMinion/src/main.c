@@ -148,8 +148,8 @@ void __attribute__((noreturn)) main(void)
             uint64_t mprot = *mprot_ptr;
             // Clear io_access_mode, disable_pcie_access, disable_osbox_access
             mprot &= ~0x4Fu;
-            // Set enable_secure_memory, disable_pcie_access and io_access_mode = b01 (S-mode)
-            mprot |= 0x45;
+            // Set enable_secure_memory, disable_pcie_access and io_access_mode = b11 (M-mode only)
+            mprot |= 0x47;
             *mprot_ptr = mprot;
 
             // minion thread1s aren't enabled yet, so send FCC0 to all thread0s

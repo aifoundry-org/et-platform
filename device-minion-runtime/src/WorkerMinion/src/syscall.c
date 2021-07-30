@@ -27,10 +27,7 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         ret = return_from_kernel((int64_t)arg1);
         break;
     case SYSCALL_LOG_WRITE:
-        ret = log_write_str(LOG_LEVEL_CRITICAL, (const char *)arg1, (size_t)arg2);
-        break;
-    case SYSCALL_GET_LOG_LEVEL:
-        ret = (int64_t)log_get_level();
+        ret = log_write_str(LOG_LEVEL_CRITICAL, (const char *)arg1);
         break;
     case SYSCALL_GET_MTIME:
         ret = syscall(SYSCALL_GET_MTIME_INT, arg1, arg2, arg3);

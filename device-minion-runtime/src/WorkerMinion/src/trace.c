@@ -252,18 +252,6 @@ void Trace_RT_Control_CM(uint32_t control)
     {
         Trace_Set_Enable_CM(TRACE_DISABLE);
     }
-
-    /* Check flag to redirect logs to Trace or UART. */
-    if (control & TRACE_RT_CONTROL_LOG_TO_UART)
-    {
-        log_set_interface(LOG_DUMP_TO_UART);
-    }
-    else
-    {
-        log_set_interface(LOG_DUMP_TO_TRACE);
-        log_write(LOG_LEVEL_DEBUG,
-                "TRACE_RT_CONTROL:CM:Logs redirected to Trace buffer.\r\n");
-    }
 }
 
 /************************************************************************
