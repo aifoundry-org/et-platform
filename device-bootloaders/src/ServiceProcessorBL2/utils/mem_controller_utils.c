@@ -107,7 +107,7 @@ static uint32_t get_mail(uint32_t memshire)
 {
   uint32_t mail;
 
-  ms_poll_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x00000001, 0x0, 100, 1);               // wait for handshake
+  ms_poll_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x00000000, 0x1, 100, 1);               // wait for handshake
 
   mail = ms_read_ddrc_reg(memshire, 2, APBONLY0_UctWriteOnlyShadow) |
          (ms_read_ddrc_reg(memshire, 2, APBONLY0_UctDatWriteOnlyShadow) << 16);                 // read message
