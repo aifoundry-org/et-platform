@@ -165,6 +165,7 @@ static int find_first_unset_bit_offset(uint32_t *offset, uint32_t *bit,
                 }
             }
         }
+        data++;
     }
 
     return ERROR_SPI_FLASH_BOOT_COUNTER_REGION_FULL;
