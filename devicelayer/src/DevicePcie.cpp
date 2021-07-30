@@ -183,7 +183,8 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
 
       DV_LOG(INFO) << "PCIe target ops opened: \"" << path << "\""
                    << "\nDRAM base: 0x" << std::hex << deviceInfo.userDram_.base << "\nDRAM size: 0x" << std::hex
-                   << deviceInfo.userDram_.size << "\nDRAM alignment: " << deviceInfo.userDram_.align_in_bits << "bits"
+                   << deviceInfo.userDram_.size << "\nDRAM alignment: " << std::dec << deviceInfo.userDram_.align_in_bits
+                   << "bits"
                    << "\nMM SQ count: " << deviceInfo.mmSqCount_
                    << "\nMM VQ Maximum message size: " << deviceInfo.mmSqMaxMsgSize_ << std::endl;
     }
