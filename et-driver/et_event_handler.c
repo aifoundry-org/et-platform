@@ -232,7 +232,6 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	uint16_t idx = 0;
 	uint64_t *trace_data;
 	void *trace_buf = kmalloc(SP_EXCEPTION_FRAME_SIZE, GFP_KERNEL);
-
 	trace_data = (uint64_t *)trace_buf;
 
 	strcat(dbg_msg->syndrome, "Service Processor Error");
@@ -242,8 +241,9 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		       PTR_ERR(trace_data));
 		return;
 	}
-
-	if (!trace_region->is_valid) {
+	if ((!trace_region->is_valid) ||
+	    ((uint64_t)(event_msg->event_syndrome[1] +
+			SP_EXCEPTION_FRAME_SIZE) > trace_region->size)) {
 		strcat(dbg_msg->syndrome, "Invalid Trace Region");
 	} else {
 		/* Get the Device Trace base address */
@@ -255,12 +255,13 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 			  (u8 *)trace_data,
 			  SP_EXCEPTION_FRAME_SIZE);
 
-		/* print GPRs */
+		/* print GPRs - GPRs are stored on trace buffer starting from x1 then x5 to x31 */
 		snprintf(value_str,
 			 VALUE_STR_MAX_LEN,
 			 "x1: 0x%llX\n",
 			 *trace_data++);
 		strcat(dbg_msg->syndrome, value_str);
+
 		for (idx = 1; idx < SP_GPR_REGISTERS; idx++) {
 			snprintf(value_str,
 				 VALUE_STR_MAX_LEN,
@@ -270,7 +271,7 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 			strcat(dbg_msg->syndrome, value_str);
 		}
 
-		/* print CSRs */
+		/* print CSRs (mepc, mstatus, mtval, mcause) */
 		snprintf(value_str,
 			 VALUE_STR_MAX_LEN,
 			 "mepc = 0x%llX\n",
@@ -400,7 +401,7 @@ int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 		break;
 	case DEV_MGMT_API_MID_SP_RUNTIME_EXCEPTION_EVENT:
 	case DEV_MGMT_API_MID_SP_RUNTIME_HANG_EVENT:
-		dbg_msg.desc = "SP Runtime Error";
+		dbg_msg.desc = "SP Runtime Exception";
 		parse_sp_runtime_syndrome(&event_msg,
 					  &dbg_msg,
 					  cq->vq_common->trace_region);

@@ -131,7 +131,7 @@ struct event_dbg_msg {
 	char *syndrome;
 };
 
-#define ET_EVENT_SYNDROME_LEN		500
+#define ET_EVENT_SYNDROME_LEN			1024
 
 static inline void et_print_event(struct pci_dev *pdev,
 				  struct event_dbg_msg *dbg_msg) {
