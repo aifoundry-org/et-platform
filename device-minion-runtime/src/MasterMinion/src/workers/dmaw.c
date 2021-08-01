@@ -1099,7 +1099,7 @@ void DMAW_Launch(uint32_t hart_id)
 {
     uint8_t dma_chan_id;
 
-    Log_Write(LOG_LEVEL_CRITICAL, "DMAW:H%d\r\n", hart_id);
+    Log_Write(LOG_LEVEL_INFO, "DMAW:H%d\r\n", hart_id);
 
     /* Design Notes: Note a DMA write command from host will trigger
     the implementation to configure a DMA read channel on device to move

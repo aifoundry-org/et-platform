@@ -47,7 +47,7 @@ void SPW_Launch(uint32_t hart_id)
 {
     uint64_t sip;
 
-    Log_Write(LOG_LEVEL_CRITICAL, "SPW:launched on H%d\r\n", hart_id);
+    Log_Write(LOG_LEVEL_INFO, "SPW:launched on H%d\r\n", hart_id);
 
     /* Reset PMC cycles counter for all Harts
     (can be even or odd depending upong hart ID) in the Neighbourhood */

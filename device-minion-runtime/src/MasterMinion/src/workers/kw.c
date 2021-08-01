@@ -1150,7 +1150,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     kernel_instance_t *const kernel = &KW_CB.kernels[kw_idx];
     exec_cycles_t cycles;
 
-    Log_Write(LOG_LEVEL_CRITICAL, "KW:H%d:IDX=%d\r\n", hart_id, kw_idx);
+    Log_Write(LOG_LEVEL_INFO, "KW:H%d:IDX=%d\r\n", hart_id, kw_idx);
 
     while(1)
     {

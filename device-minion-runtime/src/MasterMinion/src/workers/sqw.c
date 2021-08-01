@@ -371,7 +371,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
     /* Update the local VQ CB to point to the cached L1 stack variable */
     vq_cached.circbuff_cb = &circ_buff_cached;
 
-    Log_Write(LOG_LEVEL_CRITICAL, "SQW:H%d:IDX=%d\r\n", hart_id, sqw_idx);
+    Log_Write(LOG_LEVEL_INFO, "SQW:H%d:IDX=%d\r\n", hart_id, sqw_idx);
 
     while(1)
     {
