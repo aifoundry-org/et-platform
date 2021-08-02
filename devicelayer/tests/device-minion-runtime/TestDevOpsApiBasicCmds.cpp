@@ -87,20 +87,26 @@ void TestDevOpsApiBasicCmds::devUnknownCmd_NegativeTest_2_7() {
   // Create unknown command
   auto tagId = IDevOpsApiCmd::createCmd<CustomCmd>(templ::bit_cast<std::byte*>(&unknownCmd), sizeof(unknownCmd));
 
-  int deviceIdx = 0;
-  controlTraceLogging(deviceIdx, true /* to trace buffer */, true /* Reset trace buffer. */);
+  auto deviceCount = getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    if (FLAGS_enable_trace_dump) {
+      controlTraceLogging(deviceIdx, true /* to trace buffer */, true /* Reset trace buffer. */);
+    }
 
-  auto queueCount = getSqCount(deviceIdx);
-  for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
-    // Push command to all the availabel queus one by one.
-    auto res = pushCmd(deviceIdx, queueIdx, tagId);
-    EXPECT_TRUE(res) << "Unable to send the unknown command!";
+    auto queueCount = getSqCount(deviceIdx);
+    for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
+      // Push command to all the available queues one by one.
+      auto res = pushCmd(deviceIdx, queueIdx, tagId);
+      EXPECT_TRUE(res) << "Unable to send the unknown command!";
+    }
   }
 
   TEST_VLOG(1) << "Waiting for some time to see if response is received for unknown command ...";
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  EXPECT_FALSE(popRsp(deviceIdx)) << "ERROR: Response received for unknown command!";
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    EXPECT_FALSE(popRsp(deviceIdx)) << "ERROR: Response received for unknown command!";
+  }
 }
 
 /***********************************************************

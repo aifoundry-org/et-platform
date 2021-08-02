@@ -25,6 +25,10 @@ protected:
   }
 };
 
+TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, devUnknownCmd_1_0) {
+  devUnknownCmd_NegativeTest_2_7();
+}
+
 TEST_F(TestDevOpsApiLoopbackBasicCmdsPcie, backToBackSame50kCmdsSingleDeviceSingleQueue_1_1) {
   backToBackSameCmds(true /* single device */, true /* single queue */, 50000);
 }
