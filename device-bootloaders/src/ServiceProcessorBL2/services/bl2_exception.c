@@ -26,6 +26,26 @@ static void dump_csrs(void *buf);
 static void *dump_perf_globals_trace(void *buf);
 static void dump_power_globals_trace(void *buf);
 
+/*! \def DUMP_THROTTLE_RESIDENCY(THROTTLE_STATE) 
+    \brief Dumps throttle residency to memory
+*/
+#define DUMP_THROTTLE_RESIDENCY(THROTTLE_STATE)                               \
+    if (0 != get_throttle_residency(THROTTLE_STATE, &residency))              \
+    {                                                                         \
+        memcpy(trace_buf, &residency, sizeof(struct residency_t));                   \
+        trace_buf += sizeof(uint64_t);                                        \
+    }
+
+/*! \def DUMP_POWER_RESIDENCY(POWER_STATE) 
+    \brief Dumps power residency to memory
+*/
+#define DUMP_POWER_RESIDENCY(POWER_STATE)                                     \
+    if (0 != get_power_residency(POWER_STATE, &residency))                    \
+    {                                                                         \
+        memcpy(trace_buf, &residency, sizeof(struct residency_t));                   \
+        trace_buf += sizeof(uint64_t);                                        \
+    }
+
 /************************************************************************
 *
 *   FUNCTION
@@ -280,7 +300,7 @@ static void dump_power_globals_trace(void *buf)
     struct module_voltage_t module_voltage = { 0 };
     power_state_e power_state = 0;
     uint8_t tdp_level = 0;
-    uint64_t throttle_time = 0;
+    struct residency_t residency = {0, 0, 0, 0};
     uint8_t temp = 0;
 
     if (0 != get_module_power_state(&power_state))
@@ -318,16 +338,16 @@ static void dump_power_globals_trace(void *buf)
         trace_buf += sizeof(struct module_voltage_t);
     }
 
-    if (0 != get_throttle_time(&throttle_time))
-    {
-        memcpy(trace_buf, &throttle_time, sizeof(uint64_t));
-        trace_buf += sizeof(uint64_t);
-    }
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_UP)
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_DOWN)
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_THERMAL_DOWN)
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_SAFE)
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_THERMAL_SAFE)
 
-    if (0 != get_max_throttle_time(&throttle_time))
-    {
-        memcpy(trace_buf, &throttle_time, sizeof(uint64_t));
-    }
+    DUMP_POWER_RESIDENCY(POWER_STATE_MAX_POWER)
+    DUMP_POWER_RESIDENCY(POWER_STATE_MANAGED_POWER)
+    DUMP_POWER_RESIDENCY(POWER_STATE_SAFE_POWER)
+    DUMP_POWER_RESIDENCY(POWER_STATE_LOW_POWER)
 }
 
 /************************************************************************

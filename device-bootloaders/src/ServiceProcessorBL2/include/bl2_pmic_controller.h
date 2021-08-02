@@ -21,17 +21,6 @@
 #include "hwinc/pmic_i2c.h"
 
 /*!
- * @def   PMIC_INT_CAUSE*
- * @brief PMIC interrupt cause defines
- */
-#define PMIC_INT_CAUSE_OVER_TEMP              0
-#define PMIC_INT_CAUSE_OVER_POWER             1
-#define PMIC_INT_CAUSE_INPUT_VOLTAGE_DROOP    2
-#define PMIC_INT_CAUSE_MINION_VOLTAGE_DROOP   3
-#define PMIC_INT_CAUSE_MSG_ERROR              5
-#define PMIC_INT_CAUSE_REG_COM_FAIL           6
-
-/*!
  * @enum  enum voltage_type_e
  * @brief Different voltage types supported by PMIC
  */

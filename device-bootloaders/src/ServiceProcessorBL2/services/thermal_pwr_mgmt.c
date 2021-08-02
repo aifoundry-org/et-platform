@@ -113,24 +113,51 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 /*! \def UPDATE_RESIDENCY(RESIDENCY_TYPE) 
     \brief Updates residency
 */
-#define UPDATE_RESIDENCY(RESIDENCY_TYPE)                               \
-    get_soc_power_reg()->RESIDENCY_TYPE.cumulative += time_usec;       \
-                                                                       \
-    /* Update the AVG throttle time */                                 \
-    get_soc_power_reg()->RESIDENCY_TYPE.average =                      \
-        (get_soc_power_reg()->RESIDENCY_TYPE.average + time_usec) / 2; \
-                                                                       \
-    /* Update the MAX throttle time */                                 \
-    if (get_soc_power_reg()->RESIDENCY_TYPE.maximum < time_usec)       \
-    {                                                                  \
-        get_soc_power_reg()->RESIDENCY_TYPE.maximum = time_usec;       \
-    }                                                                  \
-                                                                       \
-    /* Update the MIN throttle time */                                 \
-    if (get_soc_power_reg()->RESIDENCY_TYPE.minimum > time_usec)       \
-    {                                                                  \
-        get_soc_power_reg()->RESIDENCY_TYPE.minimum = time_usec;       \
-    }
+#define UPDATE_RESIDENCY(RESIDENCY_TYPE)                                    \
+    get_soc_power_reg()->RESIDENCY_TYPE.cumulative += time_usec;            \
+                                                                            \
+    /* Update the AVG throttle time */                                      \
+    if(0 != get_soc_power_reg()->RESIDENCY_TYPE.average)                    \
+    {                                                                       \
+        get_soc_power_reg()->RESIDENCY_TYPE.average =                       \
+        (get_soc_power_reg()->RESIDENCY_TYPE.average + time_usec) / 2;      \
+    }                                                                       \
+    else                                                                    \
+    {                                                                       \
+        get_soc_power_reg()->RESIDENCY_TYPE.average = time_usec;            \
+    }                                                                       \
+                                                                            \
+    /* Update the MAX throttle time */                                      \
+    if (get_soc_power_reg()->RESIDENCY_TYPE.maximum < time_usec)            \
+    {                                                                       \
+        get_soc_power_reg()->RESIDENCY_TYPE.maximum = time_usec;            \
+    }                                                                       \
+                                                                            \
+    /* Update the MIN throttle time */                                      \
+    if(0 == get_soc_power_reg()->RESIDENCY_TYPE.minimum)                    \
+    {                                                                       \
+        get_soc_power_reg()->RESIDENCY_TYPE.minimum = time_usec;            \
+    }                                                                       \
+    else                                                                    \
+    {                                                                       \
+        if (get_soc_power_reg()->RESIDENCY_TYPE.minimum > time_usec)        \
+        {                                                                   \
+            get_soc_power_reg()->RESIDENCY_TYPE.minimum = time_usec;        \
+        }                                                                   \
+    } 
+
+/*! \def PRINT_RESIDENCY(RESIDENCY_TYPE) 
+    \brief Prints residency
+*/
+#define PRINT_RESIDENCY(RESIDENCY_TYPE)                       \
+    Log_Write(LOG_LEVEL_CRITICAL, "\t cumulative = %lu\n",    \
+              soc_power_reg->RESIDENCY_TYPE.cumulative);      \
+    Log_Write(LOG_LEVEL_CRITICAL, "\t average = %lu\n",       \
+              soc_power_reg->RESIDENCY_TYPE.average);         \
+    Log_Write(LOG_LEVEL_CRITICAL, "\t maximum = %lu\n",       \
+              soc_power_reg->RESIDENCY_TYPE.maximum);         \
+    Log_Write(LOG_LEVEL_CRITICAL, "\t minimum = %lu\n",       \
+              soc_power_reg->RESIDENCY_TYPE.minimum);
 
 /*! \def TDP_LEVEL_SAFE_GUARD
     \brief TDP level safe guard, (power_scale_factor)% above TDP level
@@ -228,7 +255,7 @@ int update_module_tdp_level(uint8_t tdp)
     }
     else
     {
-        Log_Write(LOG_LEVEL_DEBUG,
+        Log_Write(LOG_LEVEL_INFO,
               "thermal pwr mgmt svc: Update module tdp level threshold to new level: %d\r\n", tdp);
         get_soc_power_reg()->module_tdp_level = tdp;
     }
@@ -280,10 +307,9 @@ int get_module_tdp_level(uint8_t *tdp_level)
 *       int                 Return status
 *
 ***********************************************************************/
-int update_module_temperature_threshold(uint8_t lo_threshold)
+int update_module_temperature_threshold(uint8_t sw_threshold)
 {
-    // TODO: Update field names to sw and hw threshold instead of lo and hi
-    get_soc_power_reg()->temperature_threshold.lo_temperature_c = lo_threshold;
+    get_soc_power_reg()->temperature_threshold.sw_temperature_c = sw_threshold;
 
     return 0;
 }
@@ -357,14 +383,14 @@ int update_module_current_temperature(void)
 
     get_module_temperature_threshold(&temperature_threshold);
 
-    if ((get_soc_power_reg()->soc_temperature) > (temperature_threshold.lo_temperature_c))
+    if ((get_soc_power_reg()->soc_temperature) > (temperature_threshold.sw_temperature_c))
     {
         /* Switch power throttle state only if we are currently in lower priority throttle
         state */
-        if (get_soc_power_reg()->power_throttle_state < THERMAL_THROTTLE_DOWN)
+        if (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_THERMAL_DOWN)
         {
             /* Do the thermal throttling */
-            get_soc_power_reg()->power_throttle_state = THERMAL_THROTTLE_DOWN;
+            get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_DOWN;
             xTaskNotify(t_handle, 0, eSetValueWithOverwrite);
         }
 
@@ -464,7 +490,7 @@ int update_module_soc_power(void)
     tdp_level_mW = Power_Convert_Hex_to_mW(get_soc_power_reg()->module_tdp_level);
 
     if ((soc_pwr_mW > TDP_LEVEL_SAFE_GUARD) &&
-        (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_DOWN))
+        (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_POWER_DOWN))
     {
         /* Update the power state */
         if (get_soc_power_reg()->module_power_state != POWER_STATE_MAX_POWER &&
@@ -474,7 +500,7 @@ int update_module_soc_power(void)
         }
 
         /* Do the power throttling down */
-        get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_DOWN;
+        get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_DOWN;
         xTaskNotify(t_handle, 0, eSetValueWithOverwrite);
     }
     else
@@ -488,10 +514,10 @@ int update_module_soc_power(void)
     }
 
     if ((soc_pwr_mW < tdp_level_mW) &&
-        (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_UP))
+        (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_POWER_UP))
     {
         /* Do the power throttling up */
-        get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_UP;
+        get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_UP;
         xTaskNotify(t_handle, 0, eSetValueWithOverwrite);
     }
 
@@ -763,23 +789,23 @@ int update_module_throttle_time(power_throttle_state_e throttle_state, uint64_t 
 {
     switch (throttle_state)
     {
-        case POWER_THROTTLE_UP: {
+        case POWER_THROTTLE_STATE_POWER_UP: {
             UPDATE_RESIDENCY(power_up_throttled_states_residency)
             break;
         }
-        case POWER_THROTTLE_DOWN: {
+        case POWER_THROTTLE_STATE_POWER_DOWN: {
             UPDATE_RESIDENCY(power_down_throttled_states_residency)
             break;
         }
-        case THERMAL_THROTTLE_DOWN: {
+        case POWER_THROTTLE_STATE_THERMAL_DOWN: {
             UPDATE_RESIDENCY(thermal_down_throttled_states_residency)
             break;
         }
-        case POWER_THROTTLE_SAFE: {
+        case POWER_THROTTLE_STATE_POWER_SAFE: {
             UPDATE_RESIDENCY(power_safe_throttled_states_residency)
             break;
         }
-        case THERMAL_THROTTLE_SAFE: {
+        case POWER_THROTTLE_STATE_THERMAL_SAFE: {
             UPDATE_RESIDENCY(thermal_safe_throttled_states_residency)
             break;
         }
@@ -845,26 +871,52 @@ int update_module_power_residency(power_state_e power_state, uint64_t time_usec)
 *
 *   FUNCTION
 *
-*       get_throttle_time
+*       get_throttle_residency
 *
 *   DESCRIPTION
 *
-*       This function gets throttle time from the global variable.
+*       This function gets throttle residency from the global variable.
 *
 *   INPUTS
 *
-*       throttle_time       Module's throttle time
+*       throttle_state      Throttle state
+*       residency           Module's throttle residency
 *
 *   OUTPUTS
 *
 *       int                 Return status
 *
 ***********************************************************************/
-int get_throttle_time(uint64_t *throttle_time)
+int get_throttle_residency(power_throttle_state_e throttle_state, struct residency_t *residency)
 {
-    *throttle_time = get_soc_power_reg()->thermal_down_throttled_states_residency.cumulative;
-    // TODO: Add get functions for all throtlle states, update function to return residency_t
-    //       type containing cumulative, average, maximum and minimum residency
+    switch (throttle_state)
+    {
+        case POWER_THROTTLE_STATE_POWER_UP: {
+            *residency = get_soc_power_reg()->power_up_throttled_states_residency;
+            break;
+        }
+        case POWER_THROTTLE_STATE_POWER_DOWN: {
+            *residency = get_soc_power_reg()->power_down_throttled_states_residency;
+            break;
+        }
+        case POWER_THROTTLE_STATE_THERMAL_DOWN: {
+            *residency = get_soc_power_reg()->thermal_down_throttled_states_residency;
+            break;
+        }
+        case POWER_THROTTLE_STATE_POWER_SAFE: {
+            *residency = get_soc_power_reg()->power_safe_throttled_states_residency;
+            break;
+        }
+        case POWER_THROTTLE_STATE_THERMAL_SAFE: {
+            *residency = get_soc_power_reg()->thermal_safe_throttled_states_residency;
+            break;
+        }
+        default: {
+            Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state!\n");
+            return THERMAL_PWR_MGMT_UNKNOWN_THROTTLE_STATE;
+        }
+    }
+
     return 0;
 }
 
@@ -872,25 +924,48 @@ int get_throttle_time(uint64_t *throttle_time)
 *
 *   FUNCTION
 *
-*       get_max_throttle_time
+*       get_power_residency
 *
 *   DESCRIPTION
 *
-*       This function gets Max throttle time from the global variable.
+*       This function gets power residency from the global variable.
 *
 *   INPUTS
 *
-*       *max_throttled_time       Module's max throttle time
+*       power_state         Power state
+*       residency           Module's power residency
 *
 *   OUTPUTS
 *
-*       int                       Return status
+*       int                 Return status
 *
 ***********************************************************************/
-int get_max_throttle_time(uint64_t *max_throttle_time)
+int get_power_residency(power_state_e power_state, struct residency_t *residency)
 {
-    *max_throttle_time = get_soc_power_reg()->thermal_down_throttled_states_residency.maximum;
-    // TODO: Remove this function once upper one is updated
+    switch (power_state)
+    {
+        case POWER_STATE_MAX_POWER: {
+            *residency = get_soc_power_reg()->power_max_residency;
+            break;
+        }
+        case POWER_STATE_MANAGED_POWER: {
+            *residency = get_soc_power_reg()->power_managed_residency;
+            break;
+        }
+        case POWER_STATE_SAFE_POWER: {
+            *residency = get_soc_power_reg()->power_safe_residency;
+            break;
+        }
+        case POWER_STATE_LOW_POWER: {
+            *residency = get_soc_power_reg()->power_low_residency;
+            break;
+        }
+        default: {
+            Log_Write(LOG_LEVEL_ERROR, "Unexpected power state!\n");
+            return THERMAL_PWR_MGMT_UNKNOWN_POWER_STATE;
+        }
+    }
+
     return 0;
 }
 
@@ -942,7 +1017,7 @@ int init_thermal_pwr_mgmt_service(void)
 {
     int status = 0;
 
-    get_soc_power_reg()->power_throttle_state = POWER_IDLE;
+    get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
 
     /* Create the power management task - use for throttling and DVFS */
     t_handle = xTaskCreateStatic(thermal_power_task_entry, "TT_TASK", TT_TASK_STACK_SIZE, NULL,
@@ -1187,7 +1262,7 @@ void power_throttling(power_throttle_state_e throttle_state)
     /* We need to throttle the voltage and frequency, lets keep track of throttling time */
     start_time = timer_get_ticks_count();
 
-    if (throttle_state == POWER_THROTTLE_SAFE)
+    if (throttle_state == POWER_THROTTLE_STATE_POWER_SAFE)
     {
         go_to_safe_state(get_soc_power_reg()->module_power_state, throttle_state);
     }
@@ -1211,21 +1286,21 @@ void power_throttling(power_throttle_state_e throttle_state)
         /* Program the new operating point */
         switch (throttle_state)
         {
-            case POWER_THROTTLE_UP: {
+            case POWER_THROTTLE_STATE_POWER_UP: {
                 delta_power_mW = ((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
                 FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state, 
                                   current_power, current_temperature, 0, 0)
                 increase_minion_operating_point(delta_power_mW, &power_status);
                 break;
             }
-            case POWER_THROTTLE_DOWN: {
+            case POWER_THROTTLE_STATE_POWER_DOWN: {
                 delta_power_mW = ((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
                 FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state, 
                                   current_power, current_temperature, 0, 0)
                 reduce_minion_operating_point(delta_power_mW, &power_status);
                 break;
             }
-            case POWER_THROTTLE_SAFE: {
+            case POWER_THROTTLE_STATE_POWER_SAFE: {
                 break;
             }
             default: {
@@ -1246,15 +1321,15 @@ void power_throttling(power_throttle_state_e throttle_state)
         /* Check if throttle condition is met */
         switch (throttle_state)
         {
-            case POWER_THROTTLE_UP: {
+            case POWER_THROTTLE_STATE_POWER_UP: {
                 if (current_power_mW > tdp_level_mW)
                 {
                     throttle_condition_met = 1;
                 }
                 break;
             }
-            case POWER_THROTTLE_DOWN:
-            case POWER_THROTTLE_SAFE: {
+            case POWER_THROTTLE_STATE_POWER_DOWN:
+            case POWER_THROTTLE_STATE_POWER_SAFE: {
                 if (current_power_mW < TDP_LEVEL_SAFE_GUARD)
                 {
                     throttle_condition_met = 1;
@@ -1271,7 +1346,7 @@ void power_throttling(power_throttle_state_e throttle_state)
 
     if (get_soc_power_reg()->power_throttle_state == throttle_state)
     {
-        get_soc_power_reg()->power_throttle_state = POWER_IDLE;
+        get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
     }
 
     /* Update the power state */
@@ -1317,7 +1392,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
     /* We need to throttle the voltage and frequency, lets keep track of throttling time */
     start_time = timer_get_ticks_count();
 
-    if (throttle_state == THERMAL_THROTTLE_SAFE)
+    if (throttle_state == POWER_THROTTLE_STATE_THERMAL_SAFE)
     {
         go_to_safe_state(get_soc_power_reg()->module_power_state, throttle_state);
     }
@@ -1327,12 +1402,12 @@ void thermal_throttling(power_throttle_state_e throttle_state)
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
     }
 
-    while ((current_temperature > get_soc_power_reg()->temperature_threshold.lo_temperature_c) &&
-           (get_soc_power_reg()->power_throttle_state <= THERMAL_THROTTLE_DOWN))
+    while ((current_temperature > get_soc_power_reg()->temperature_threshold.sw_temperature_c) &&
+           (get_soc_power_reg()->power_throttle_state <= POWER_THROTTLE_STATE_THERMAL_DOWN))
     {
         switch (throttle_state)
         {
-            case THERMAL_THROTTLE_DOWN: {
+            case POWER_THROTTLE_STATE_THERMAL_DOWN: {
                 /* Get the current power */
                 if (0 != pmic_read_soc_power(&current_power))
                 {
@@ -1349,7 +1424,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
                 reduce_minion_operating_point(delta_power_mW, &power_status);
                 break;
             }
-            case THERMAL_THROTTLE_SAFE: {
+            case POWER_THROTTLE_STATE_THERMAL_SAFE: {
                 break;
             }
             default: {
@@ -1369,15 +1444,15 @@ void thermal_throttling(power_throttle_state_e throttle_state)
 
     end_time = timer_get_ticks_count();
 
-    if (get_soc_power_reg()->power_throttle_state == THERMAL_THROTTLE_DOWN)
+    if (get_soc_power_reg()->power_throttle_state == POWER_THROTTLE_STATE_THERMAL_DOWN)
     {
-        get_soc_power_reg()->power_throttle_state = THERMAL_IDLE;
+        get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_IDLE;
     }
 
     SEND_THROTTLE_EVENT(THROTTLE_TIME);
 
     /* Update the throttle time here */
-    update_module_throttle_time(THERMAL_THROTTLE_DOWN, end_time - start_time);
+    update_module_throttle_time(POWER_THROTTLE_STATE_THERMAL_DOWN, end_time - start_time);
 }
 
 /************************************************************************
@@ -1407,7 +1482,7 @@ void thermal_power_task_entry(void *pvParameter)
 
     while (1)
     {
-        if (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_UP)
+        if (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_POWER_UP)
         {
             xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
         }
@@ -1416,24 +1491,24 @@ void thermal_power_task_entry(void *pvParameter)
 
         switch (get_soc_power_reg()->power_throttle_state)
         {
-            case POWER_THROTTLE_UP: {
-                power_throttling(POWER_THROTTLE_UP);
+            case POWER_THROTTLE_STATE_POWER_UP: {
+                power_throttling(POWER_THROTTLE_STATE_POWER_UP);
                 break;
             }
-            case POWER_THROTTLE_DOWN: {
-                power_throttling(POWER_THROTTLE_DOWN);
+            case POWER_THROTTLE_STATE_POWER_DOWN: {
+                power_throttling(POWER_THROTTLE_STATE_POWER_DOWN);
                 break;
             }
-            case THERMAL_THROTTLE_DOWN: {
-                thermal_throttling(THERMAL_THROTTLE_DOWN);
+            case POWER_THROTTLE_STATE_THERMAL_DOWN: {
+                thermal_throttling(POWER_THROTTLE_STATE_THERMAL_DOWN);
                 break;
             }
-            case POWER_THROTTLE_SAFE: {
-                power_throttling(POWER_THROTTLE_SAFE);
+            case POWER_THROTTLE_STATE_POWER_SAFE: {
+                power_throttling(POWER_THROTTLE_STATE_POWER_SAFE);
                 break;
             }
-            case THERMAL_THROTTLE_SAFE: {
-                thermal_throttling(THERMAL_THROTTLE_SAFE);
+            case POWER_THROTTLE_STATE_THERMAL_SAFE: {
+                thermal_throttling(POWER_THROTTLE_STATE_THERMAL_SAFE);
                 break;
             }
             default: {
@@ -1469,22 +1544,13 @@ static void pmic_isr_callback(enum error_type type, struct event_message_t *msg)
     (void)type;
     BaseType_t xHigherPriorityTaskWoken;
 
-    switch (msg->payload.syndrome[0])
+    if(PMIC_I2C_INT_CTRL_OV_TEMP_GET(msg->payload.syndrome[0]))
     {
-        case PMIC_INT_CAUSE_OVER_POWER: /* POWER CRITICAL PMIC CALLBACK */
-        {
-            get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_SAFE;
-            break;
-        }
-        case PMIC_INT_CAUSE_OVER_TEMP: /* THERMAL CRITICAL PMIC CALLBACK */
-        {
-            get_soc_power_reg()->power_throttle_state = THERMAL_THROTTLE_SAFE;
-            break;
-        }
-        default: {
-            Log_Write(LOG_LEVEL_ERROR, "Unexpected PMIC callback event!\n");
-            break;
-        }
+        get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_SAFE;
+    }
+    else if(PMIC_I2C_INT_CTRL_OV_POWER_GET(msg->payload.syndrome[0]))
+    {
+        get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_SAFE;
     }
 
     xTaskNotifyFromISR(t_handle, (uint32_t)msg->header.msg_id, eSetValueWithOverwrite,
@@ -1527,9 +1593,27 @@ void dump_power_globals(void)
               soc_power_reg->module_uptime.day, soc_power_reg->module_uptime.hours,
               soc_power_reg->module_uptime.mins);
 
-    Log_Write(LOG_LEVEL_CRITICAL, "Module throttled residency = %lu\n",
-              soc_power_reg->thermal_down_throttled_states_residency.cumulative);
-    // TODO: Add log write for all throttle states
+    /* Print power throttle states residency */
+    Log_Write(LOG_LEVEL_CRITICAL, "Module power up throttled residency:\n");
+    PRINT_RESIDENCY(power_up_throttled_states_residency)
+    Log_Write(LOG_LEVEL_CRITICAL, "Module power down throttled residency:\n");
+    PRINT_RESIDENCY(power_down_throttled_states_residency)
+    Log_Write(LOG_LEVEL_CRITICAL, "Module thermal down throttled residency:\n");
+    PRINT_RESIDENCY(thermal_down_throttled_states_residency)
+    Log_Write(LOG_LEVEL_CRITICAL, "Module power safe throttled residency:\n");
+    PRINT_RESIDENCY(power_safe_throttled_states_residency)
+    Log_Write(LOG_LEVEL_CRITICAL, "Module thermal safe throttled residency:\n");
+    PRINT_RESIDENCY(thermal_safe_throttled_states_residency)
+
+    /* Print power states residency */
+    Log_Write(LOG_LEVEL_CRITICAL, "Module power max residency:\n");
+    PRINT_RESIDENCY(power_max_residency)
+    Log_Write(LOG_LEVEL_CRITICAL, "Module power managed residency:\n");
+    PRINT_RESIDENCY(power_managed_residency)
+    Log_Write(LOG_LEVEL_CRITICAL, "Module power safe residency:\n");
+    PRINT_RESIDENCY(power_safe_residency)
+    Log_Write(LOG_LEVEL_CRITICAL, "Module power low residency:\n");
+    PRINT_RESIDENCY(power_low_residency)
 
     Log_Write(
         LOG_LEVEL_CRITICAL,

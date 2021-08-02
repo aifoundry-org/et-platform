@@ -86,8 +86,6 @@
 #define PMIC_GPIO_INT_PIN_NUMBER   0x1
 #define ENABLE_ALL_PMIC_INTERRUPTS 0xFF
 
-
-
 static struct pmic_event_control_block event_control_block __attribute__((section(".data")));
 
 /* Generic PMIC setup */
@@ -427,17 +425,11 @@ void pmic_error_isr(void)
 
     /* Call thermal power callback */
 
-    if (PMIC_I2C_INT_CTRL_OV_TEMP_GET(int_cause))
+    if (PMIC_I2C_INT_CTRL_OV_TEMP_GET(int_cause) ||
+        PMIC_I2C_INT_CTRL_OV_POWER_GET(int_cause))
     {
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, PMIC_INT_CAUSE_OVER_TEMP, reg_value)
-        event_control_block.thermal_pwr_event_cb(UNCORRECTABLE, &message);
-    }
-
-    if (PMIC_I2C_INT_CTRL_OV_TEMP_GET(int_cause))
-    {
-        FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, PMIC_INT_CAUSE_OVER_POWER, reg_value)
+        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, int_cause, reg_value)
         event_control_block.thermal_pwr_event_cb(UNCORRECTABLE, &message);
     }
 
@@ -450,7 +442,8 @@ void pmic_error_isr(void)
             MESSAGE_ERROR("PMIC read failed!");
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_INT_CAUSE_OVER_TEMP, reg_value)
+        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 
+                            1 << PMIC_I2C_INT_CAUSE_OV_TEMP_LSB, reg_value)
         event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 
@@ -461,7 +454,8 @@ void pmic_error_isr(void)
             MESSAGE_ERROR("PMIC read failed!");
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_INT_CAUSE_OVER_POWER, reg_value)
+        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 
+                            1 << PMIC_I2C_INT_CAUSE_OV_POWER_LSB, reg_value)
         event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 
@@ -473,28 +467,28 @@ void pmic_error_isr(void)
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
         FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 
-                            1 << PMIC_INT_CAUSE_INPUT_VOLTAGE_DROOP, reg_value)
+                            1 << PMIC_I2C_INT_CAUSE_PWR_FAIL_LSB, reg_value)
         event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 
     if (PMIC_I2C_INT_CTRL_MINION_DROOP_GET(int_cause))
     {
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_INT_CAUSE_MINION_VOLTAGE_DROOP, 0)
+        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_MINION_DROOP_LSB, 0)
         event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 
     if (PMIC_I2C_INT_CTRL_MESSAGE_ERROR_GET(int_cause))
     {
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_INT_CAUSE_MSG_ERROR, 0)
+        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_MESSAGE_ERROR_LSB, 0)
         event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 
     if (PMIC_I2C_INT_CTRL_REG_COM_FAIL_GET(int_cause))
     {
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_INT_CAUSE_REG_COM_FAIL, 0)
+        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_REG_COM_FAIL_LSB, 0)
         event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 }

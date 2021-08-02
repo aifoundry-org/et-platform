@@ -179,6 +179,7 @@ static void pc_vq_task(void *pvParameters)
             case DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS:
             case DM_CMD_GET_MODULE_CURRENT_TEMPERATURE:
             case DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES:
+            case DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES:
             case DM_CMD_GET_MODULE_POWER:
             case DM_CMD_GET_MODULE_VOLTAGE:
             case DM_CMD_GET_MODULE_UPTIME:
@@ -202,7 +203,6 @@ static void pc_vq_task(void *pvParameters)
                 break;
             case DM_CMD_GET_MAX_MEMORY_ERROR:
             case DM_CMD_GET_MODULE_MAX_DDR_BW:
-            case DM_CMD_GET_MODULE_MAX_THROTTLE_TIME:
             case DM_CMD_GET_MODULE_MAX_TEMPERATURE:
                 historical_extreme_value_request(tag_id, msg_id);
                 break;

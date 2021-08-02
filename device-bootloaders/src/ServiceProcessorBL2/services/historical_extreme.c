@@ -122,54 +122,6 @@ static void get_module_max_ddr_bw(tag_id_t tag_id, uint64_t req_start_time)
 *
 *   FUNCTION
 *
-*       get_module_max_throttle_time
-*
-*   DESCRIPTION
-*
-*       This function returns the maximum total time the device has been
-*       resident in the throttles state i.e. non-full power mode from Device Reset.
-*
-*   INPUTS
-*
-*       req_start_time    Time stamp when the request was received by the
-*                         Command Dispatcher
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-static void get_module_max_throttle_time(tag_id_t tag_id, uint64_t req_start_time)
-{
-    struct device_mgmt_max_throttle_time_rsp_t dm_rsp;
-    uint64_t max_throttle_time;
-    int32_t status;
-
-    Log_Write(LOG_LEVEL_INFO, "Historical extreme value request: %s\n",__func__);
-
-    status = get_max_throttle_time(&max_throttle_time);
-
-    if (0 != status) {
-        Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt svc error: get_module_max_throttle_time()\r\n");
-    } else {
-        dm_rsp.max_throttle_time.time_usec = max_throttle_time;
-    }
-
-    Log_Write(LOG_LEVEL_INFO, "Historical extreme value response: %s\n",__func__);
-
-    FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MODULE_MAX_THROTTLE_TIME,
-                    timer_get_ticks_count() - req_start_time, status);
-
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
-                                       sizeof(struct device_mgmt_max_throttle_time_rsp_t))) {
-        Log_Write(LOG_LEVEL_ERROR, "get_module_max_throttle_time: Cqueue push error!\n");
-    }
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
 *       get_module_max_temperature
 *
 *   DESCRIPTION
@@ -248,9 +200,6 @@ void historical_extreme_value_request(tag_id_t tag_id, msg_id_t msg_id)
     } break;
     case DM_CMD_GET_MODULE_MAX_DDR_BW: {
         get_module_max_ddr_bw(tag_id, req_start_time);
-    } break;
-    case DM_CMD_GET_MODULE_MAX_THROTTLE_TIME: {
-        get_module_max_throttle_time(tag_id, req_start_time);
     } break;
     case DM_CMD_GET_MODULE_MAX_TEMPERATURE: {
         get_module_max_temperature(tag_id, req_start_time);

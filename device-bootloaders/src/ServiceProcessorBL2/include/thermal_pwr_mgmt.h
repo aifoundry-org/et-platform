@@ -34,32 +34,6 @@
 #define SECONDS_IN_HOUR   3600
 #define SECONDS_IN_MINUTE 60
 
-/*! \enum POWER_THROTTLE_STATE
-    \brief Power Throttle State of the ETSOC
-*/
-enum POWER_THROTTLE_STATE
-{
-    POWER_IDLE = 0,            /**<  */
-    THERMAL_IDLE = 1,          /**<  */
-    POWER_THROTTLE_UP = 2,     /**<  */
-    POWER_THROTTLE_DOWN = 3,   /**<  */
-    THERMAL_THROTTLE_DOWN = 4, /**<  */
-    POWER_THROTTLE_SAFE = 5,   /**<  */
-    THERMAL_THROTTLE_SAFE = 6, /**<  */
-};
-typedef uint8_t power_throttle_state_e;
-
-/*! \struct residency_t
-    \brief 
-*/
-struct residency_t
-{
-    uint64_t cumulative;
-    uint64_t average;
-    uint64_t maximum;
-    uint64_t minimum;
-};
-
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register
     \param none
@@ -174,19 +148,22 @@ int update_module_throttle_time(power_throttle_state_e throttle_state, uint64_t 
 */
 int update_module_power_residency(power_state_e power_state, uint64_t time_msec);
 
-/*! \fn int get_throttle_time(uint64_t *throttle_time)
-    \brief Interface to get the module's throttle time.
-    \param throttle_time  Pointer to throttle time variable
+/*! \fn int get_throttle_residency(power_throttle_state_e throttle_state,
+*                                          struct residency_t *residency)
+    \brief Interface to get the module throttle residency from the global variable
+    \param power_state Power throttle state
+    \param residency Pointer to residency variable
     \returns Status indicating success or negative error
 */
-int get_throttle_time(uint64_t *throttle_time);
+int get_throttle_residency(power_throttle_state_e throttle_state, struct residency_t *residency);
 
-/*! \fn int get_module_max_throttle_time(uint64_t *max_throttle_time)
-    \brief Interface to get the module max throttle time from the global variable
-    \param *max_throttle_time
+/*! \fn int get_power_residency(power_state_e power_state, struct residency_t *residency)
+    \brief Interface to get the module power residency from the global variable
+    \param power_state Power state
+    \param residency Pointer to residency variable
     \returns Status indicating success or negative error
 */
-int get_max_throttle_time(uint64_t *max_throttle_time);
+int get_power_residency(power_state_e power_state, struct residency_t *residency);
 
 /*! \fn int get_soc_max_temperature(uint8_t *max_temp)
     \brief Interface to get module max temperature from global variable

@@ -393,14 +393,14 @@ static void pwr_svc_get_module_temp_thresholds(uint16_t tag, uint64_t req_start_
 *
 ***********************************************************************/
 static void pwr_svc_set_module_temp_thresholds(uint16_t tag, uint64_t req_start_time,
-                                               uint8_t lo_threshold)
+                                               uint8_t sw_threshold)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
     int32_t status;
 
     Log_Write(LOG_LEVEL_INFO, "Thermal & pwr mgmt request: %s\n", __func__);
 
-    status = update_module_temperature_threshold(lo_threshold);
+    status = update_module_temperature_threshold(sw_threshold);
 
     if (0 != status)
     {
@@ -479,26 +479,30 @@ static void pwr_svc_get_module_current_temperature(uint16_t tag, uint64_t req_st
 *   DESCRIPTION
 *
 *       This function returns the total time the device has been resident in the
-*       throttles state i.e. non-full power mode from Device Reset
+*       throttles state, cumulative, average, maximum and minimum
 *       Note the value doesnt hold over a consequtitve Device Reset
 *
 *   INPUTS
 *
 *       req_start_time    Time stamp when the request was received by the Command
 *                         Dispatcher
+*       throttle_state    Throttle state for which residency will be fetched
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t req_start_time)
+static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t req_start_time, 
+                                                            power_throttle_state_e throttle_state)
 {
-    struct device_mgmt_throttle_time_rsp_t dm_rsp;
-    uint64_t throttle_time;
+    struct device_mgmt_throttle_residency_rsp_t dm_rsp;
+    struct residency_t residency;
     int32_t status;
 
-    status = get_throttle_time(&throttle_time);
+    Log_Write(LOG_LEVEL_ERROR, "MICHA: throttle state: %d\r\n", throttle_state);
+
+    status = get_throttle_residency(throttle_state, &residency);
 
     if (0 != status)
     {
@@ -506,17 +510,71 @@ static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t 
     }
     else
     {
-        dm_rsp.throttle_time.time_usec = throttle_time;
+        dm_rsp.throttle_residency = residency;
     }
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES,
                     timer_get_ticks_count() - req_start_time, status);
 
     if (0 !=
-        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_throttle_time_rsp_t)))
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, 
+                                    sizeof(struct device_mgmt_throttle_residency_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR,
                   "pwr_svc_get_module_residency_throttle_states: Cqueue push error!\n");
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pwr_svc_get_module_residency_power_states
+*
+*   DESCRIPTION
+*
+*       This function returns the total time the device has been resident in the
+*       power state, cumulative, average, maximum and minimum
+*       Note the value doesnt hold over a consequtitve Device Reset
+*
+*   INPUTS
+*
+*       req_start_time    Time stamp when the request was received by the Command
+*                         Dispatcher
+*       power_state       Power state for which residency will be fetched
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void pwr_svc_get_module_residency_power_states(uint16_t tag, uint64_t req_start_time, 
+                                                            power_state_e power_state)
+{
+    struct device_mgmt_power_residency_rsp_t dm_rsp;
+    struct residency_t residency;
+    int32_t status;
+
+    status = get_power_residency(power_state, &residency);
+
+    if (0 != status)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt error: get_throttle_time()\r\n");
+    }
+    else
+    {
+        dm_rsp.power_residency = residency;
+    }
+
+    FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES,
+                    timer_get_ticks_count() - req_start_time, status);
+
+    if (0 !=
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, 
+                                    sizeof(struct device_mgmt_power_residency_rsp_t)))
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+                  "pwr_svc_get_module_residency_power_states: Cqueue push error!\n");
     }
 }
 
@@ -623,7 +681,7 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
         case DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS: {
             struct device_mgmt_temperature_threshold_cmd_t *threshold_cmd = buffer;
             pwr_svc_set_module_temp_thresholds(
-                tag_id, req_start_time, threshold_cmd->temperature_threshold.lo_temperature_c);
+                tag_id, req_start_time, threshold_cmd->temperature_threshold.sw_temperature_c);
             break;
         }
         case DM_CMD_GET_MODULE_CURRENT_TEMPERATURE: {
@@ -631,7 +689,17 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
             break;
         }
         case DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES: {
-            pwr_svc_get_module_residency_throttle_states(tag_id, req_start_time);
+            struct device_mgmt_throttle_residency_cmd_t *throttle_residency_cmd =
+                (struct device_mgmt_throttle_residency_cmd_t *)buffer;
+            pwr_svc_get_module_residency_throttle_states(
+                tag_id, req_start_time, throttle_residency_cmd->pwr_throttle_state);
+            break;
+        }
+        case DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES: {
+            struct device_mgmt_power_residency_cmd_t *power_residency_cmd =
+                (struct device_mgmt_power_residency_cmd_t *)buffer;
+            pwr_svc_get_module_residency_power_states(
+                tag_id, req_start_time, power_residency_cmd->pwr_state);
             break;
         }
         case DM_CMD_GET_MODULE_POWER: {
