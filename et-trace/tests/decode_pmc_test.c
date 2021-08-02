@@ -61,20 +61,20 @@ int main(int argc, const char **argv)
     static const size_t trace_size = 4096;
     static const uint32_t test_tag = 0x5AD;
     static const uint64_t n_entries = 10;
-    static const char test_str[64] = "Hello world";
+    static const size_t n_counters = 7;
 
     struct user_args uargs;
     parse_args(argc, argv, &uargs);
 
-    srand(uargs.seed);
-
     struct trace_control_block_t cb = { 0 };
     struct trace_buffer_std_header_t *buf = test_trace_create(&cb, trace_size);
 
-    printf("-- populating trace buffer\n");
-    { /* Populate trace buffer */
+    srand(uargs.seed);
+    {
+        printf("-- populating trace buffer\n");
         for (uint64_t i = 0; i < n_entries; ++i) {
-            Trace_String(TRACE_EVENT_STRING_INFO, &cb, test_str);
+            int counter = i % n_counters;
+            Trace_PMC_Counter(&cb, counter);
         }
     }
 
@@ -89,16 +89,18 @@ int main(int argc, const char **argv)
         }
     }
 
-    { /* Decode trace buffer */
+    srand(uargs.seed);
+    {
         printf("-- decoding trace buffer\n");
-        struct trace_string_t *entry = NULL;
+        struct trace_pmc_counter_t *entry = NULL;
         uint64_t i = 0;
         while (1) {
+            int next_counter = i % n_counters;
             entry = Trace_Decode(buf, entry);
             if (!entry)
                 break;
-            CHECK_EQ(entry->header.type, TRACE_TYPE_STRING);
-            REQUIRE_STREQ(entry->string, test_str);
+            CHECK_EQ(entry->header.type, TRACE_TYPE_PMC_COUNTER);
+            /* REQUIRE_EQ(entry->counter, next_counter); */ /* TODO */
             ++i;
         }
         REQUIRE_EQ(i, n_entries);

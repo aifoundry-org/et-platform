@@ -61,7 +61,6 @@ int main(int argc, const char **argv)
     static const size_t trace_size = 4096;
     static const uint32_t test_tag = 0x5AD;
     static const uint64_t n_entries = 10;
-    static const char test_str[64] = "Hello world";
 
     struct user_args uargs;
     parse_args(argc, argv, &uargs);
@@ -74,7 +73,7 @@ int main(int argc, const char **argv)
     printf("-- populating trace buffer\n");
     { /* Populate trace buffer */
         for (uint64_t i = 0; i < n_entries; ++i) {
-            Trace_String(TRACE_EVENT_STRING_INFO, &cb, test_str);
+            Trace_Format_String(TRACE_EVENT_STRING_INFO, &cb, "Hello %ld", i);
         }
     }
 
@@ -92,13 +91,15 @@ int main(int argc, const char **argv)
     { /* Decode trace buffer */
         printf("-- decoding trace buffer\n");
         struct trace_string_t *entry = NULL;
+        char expected_str[TRACE_STRING_MAX_SIZE];
         uint64_t i = 0;
         while (1) {
+            sprintf(expected_str, "Hello %ld", i);
             entry = Trace_Decode(buf, entry);
             if (!entry)
                 break;
             CHECK_EQ(entry->header.type, TRACE_TYPE_STRING);
-            REQUIRE_STREQ(entry->string, test_str);
+            REQUIRE_STREQ(entry->string, expected_str);
             ++i;
         }
         REQUIRE_EQ(i, n_entries);

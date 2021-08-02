@@ -19,3 +19,5 @@ macro(add_dtrace_test name)
 endmacro()
 
 add_dtrace_test(decode_string_test)
+add_dtrace_test(decode_string_fmt_test)
+add_dtrace_test(decode_pmc_test)
