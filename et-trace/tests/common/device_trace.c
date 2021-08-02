@@ -10,17 +10,9 @@
 #include <stdlib.h>
 #include "device_trace.h"
 
-/* These are mock functions to support the device-side implementation. */
-#define atomic_load_local_64(addr) (*(addr))
-#define atomic_load_local_32(addr) (*(addr))
-#define atomic_load_local_16(addr) (*(addr))
-#define atomic_load_local_8(addr)  (*(addr))
-#define atomic_store_local_64(addr, value) (*(addr) = value)
-#define atomic__local_32(addr, value)      (*(addr) = value)
-#define atomic__local_16(addr, value)      (*(addr) = value)
-#define atomic__local_8(addr, value)       (*(addr) = value)
-#define ETSOC_Memory_Write_Local_Atomic(src, dest, size) memcpy(dest, src, size)
+#include "mock_atomics.h"
 
+static int get_hart_id() { return rand() % 4; }
 
 /* For Master Minion all Trace data is based on L2 Cache, that means we need to perform all updates in L2.
    On other hand, for Service Processor and Compute Minion, Trace data is in L1 Cache, and updates are

@@ -21,6 +21,7 @@ struct trace_buffer_std_header_t *test_trace_create(struct trace_control_block_t
 
     cb->size_per_hart = size;
     cb->base_per_hart = (uint64_t)buf;
+    cb->offset_per_hart = sizeof(struct trace_buffer_std_header_t);
     Trace_Init(&info, cb, TRACE_STD_HEADER);
 
     buf->magic_header = TRACE_MAGIC_HEADER;
