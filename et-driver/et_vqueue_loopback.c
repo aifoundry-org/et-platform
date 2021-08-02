@@ -53,7 +53,7 @@ enum mgmt_device_msg_e {
 	DM_CMD_GET_MODULE_VOLTAGE = 30,
 	DM_CMD_GET_MODULE_POWER = 31,
 	DM_CMD_GET_MODULE_MAX_TEMPERATURE = 32,
-	DM_CMD_GET_MODULE_MAX_THROTTLE_TIME = 33,
+	DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES = 33,
 	DM_CMD_GET_MODULE_MAX_DDR_BW = 34,
 	DM_CMD_GET_MAX_MEMORY_ERROR = 35,
 	DM_CMD_SET_DDR_ECC_COUNT = 36,
@@ -141,8 +141,11 @@ struct current_temperature_t {
 	u8 pad[7];
 } __packed;
 
-struct throttle_time_t {
-	u64 time_usec;
+struct residency_t {
+	u64 cumulative;
+	u64 average;
+	u64 maximum;
+	u64 minimum;
 } __packed;
 
 struct module_power_t {
@@ -171,11 +174,6 @@ struct max_dram_bw_t {
 	u8 max_bw_rd_req_sec;
 	u8 max_bw_wr_req_sec;
 	u8 pad[6];
-
-} __packed;
-
-struct max_throttle_time_t {
-	u64 time_usec;
 
 } __packed;
 
@@ -319,11 +317,11 @@ struct device_mgmt_current_temperature_rsp_t {
 } __packed;
 
 /*
- * Response for throttle time command
+ * Response for throttle residency command
  */
-struct device_mgmt_throttle_time_rsp_t {
+struct device_mgmt_throttle_residency_rsp_t {
 	struct dev_mgmt_rsp_header_t rsp_hdr;
-	struct throttle_time_t throttle_time;
+	struct residency_t residency;
 } __packed;
 
 /*
@@ -375,11 +373,11 @@ struct device_mgmt_max_dram_bw_rsp_t {
 } __packed;
 
 /*
- * Response for max throttle time command
+ * Response for power residency command
  */
-struct device_mgmt_max_throttle_time_rsp_t {
+struct device_mgmt_power_residency_rsp_t {
 	struct dev_mgmt_rsp_header_t rsp_hdr;
-	struct max_throttle_time_t max_throttle_time;
+	struct residency_t residency;
 } __packed;
 
 /*
@@ -971,7 +969,7 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 	struct device_mgmt_dram_bw_counter_rsp_t dm_dbc_rsp;
 	struct device_mgmt_max_memory_error_rsp_t dm_mme_rsp;
 	struct device_mgmt_max_dram_bw_rsp_t dm_mdb_rsp;
-	struct device_mgmt_max_throttle_time_rsp_t dm_mtt_rsp;
+	struct device_mgmt_power_residency_rsp_t dm_mtt_rsp;
 	struct device_mgmt_max_temperature_rsp_t dm_mt_rsp;
 	struct device_mgmt_firmware_versions_rsp_t dm_fv_rsp;
 	struct device_mgmt_asset_tracking_rsp_t dm_at_rsp;
@@ -979,7 +977,7 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 	struct device_mgmt_tdp_level_rsp_t dm_tl_rsp;
 	struct device_mgmt_temperature_threshold_rsp_t dm_tt_rsp;
 	struct device_mgmt_current_temperature_rsp_t dm_ct_rsp;
-	struct device_mgmt_throttle_time_rsp_t dm_tht_rsp;
+	struct device_mgmt_throttle_residency_rsp_t dm_tht_rsp;
 	struct device_mgmt_module_power_rsp_t dm_mp_rsp;
 	struct device_mgmt_module_voltage_rsp_t dm_mv_rsp;
 	struct device_mgmt_module_uptime_rsp_t dm_mu_rsp;
@@ -1360,21 +1358,6 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			rv = -EAGAIN;
 		break;
 
-	case DM_CMD_GET_MODULE_MAX_THROTTLE_TIME:
-		FILL_RSP_HEADER(dm_mtt_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_MAX_THROTTLE_TIME,
-				0,
-				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_mtt_rsp,
-					sizeof(dm_mtt_rsp),
-					ET_CB_SYNC_FOR_HOST |
-						ET_CB_SYNC_FOR_DEVICE))
-			rv = -EAGAIN;
-		break;
-
 	case DM_CMD_GET_MODULE_MAX_TEMPERATURE:
 		FILL_RSP_HEADER(dm_mt_rsp,
 				header.tag_id,
@@ -1726,6 +1709,21 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 					cq->cb_mem,
 					(u8 *)&dm_tht_rsp,
 					sizeof(dm_tht_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES:
+		FILL_RSP_HEADER(dm_mtt_rsp,
+				header.tag_id,
+				DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_mtt_rsp,
+					sizeof(dm_mtt_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
 			rv = -EAGAIN;
