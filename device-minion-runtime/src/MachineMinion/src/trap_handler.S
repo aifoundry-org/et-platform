@@ -138,16 +138,34 @@ slow_path:
     /* Switch to the M-mode global pointer */
     la    gp, __global_pointer$
 
-    /* Invoke trap routine with params (a0-a3, mcause, mpec, mtval, pointer to saved context) */
-    csrr  a4, mcause
-    csrr  a5, mepc
-    csrr  a6, mtval
-    mv    a7, sp
+    /* Load x1 with cause. a0-a3 contains syscall args */
+    csrr  x1, mcause
+
+    /* In slow path, we directly handle syscall here instead of going to trap_routine */
+    li    x3, EXCEPTION_ENVIRONMENT_CALL_FROM_S_MODE
+    bne   x3, x1, some_other_exception  /* Not an environment call in slow path, so some other exception. */
+
+    jal   syscall_handler               /* Environment call */
+    sd    a0, 10 * 8(sp)                /* Update a0 in saved context with environment call return value */
+    /* Return to the following instruction that caused the trap */
+    csrr  x1, mepc
+    /* TODO: Support compressed instructions? */
+    addi  x1, x1, 4
+    csrw  mepc, x1
+    j     done_slow_path
+
+some_other_exception:
+    /* Invoke trap routine with params (a0-a3: mcause, mpec, mtval, pointer to saved context) */
+    csrr  a0, mcause
+    csrr  a1, mepc
+    csrr  a2, mtval
+    mv    a3, sp
     jal   trap_routine
 
     /* Return value of trap routine is return address */
     csrw  mepc, a0
 
+done_slow_path:
     /* Restore context */
     ld    x31, 31 * 8(sp)
     ld    x30, 30 * 8(sp)

@@ -8,8 +8,7 @@ extern int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, ui
 
 static void write_reg(uint64_t *const reg, uint64_t rd, uint64_t val);
 
-uint64_t trap_routine(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t mcause,
-                      uint64_t mepc, uint64_t mtval, uint64_t *const regs);
+uint64_t trap_routine(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t *const regs);
 
 static inline uint64_t __attribute__((always_inline)) get_mhart_id(void)
 {
@@ -18,14 +17,11 @@ static inline uint64_t __attribute__((always_inline)) get_mhart_id(void)
     return ret;
 }
 
-uint64_t trap_routine(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t mcause,
-                      uint64_t mepc, uint64_t mtval, uint64_t *const regs)
+uint64_t trap_routine(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t *const regs)
 {
     bool delegate = false;
 
-    if (mcause == EXCEPTION_ENVIRONMENT_CALL_FROM_S_MODE) {
-        syscall_handler(a0, a1, a2, a3);
-    } else if (mcause == EXCEPTION_ILLEGAL_INSTRUCTION) {
+    if (mcause == EXCEPTION_ILLEGAL_INSTRUCTION) {
         if ((mtval & INST_CSRRx_MASK) == INST_CSRRS_MHARTID) {
             uint64_t rd = (mtval >> 7) & 0x1F;
             write_reg(regs, rd, get_mhart_id());
