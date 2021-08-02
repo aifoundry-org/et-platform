@@ -87,7 +87,7 @@ Modules:
           Value: 31
         - Name: GET_MODULE_MAX_TEMPERATURE
           Value: 32
-        - Name: GET_MODULE_MAX_THROTTLE_TIME
+        - Name: GET_MODULE_RESIDENCY_POWER_STATES
           Value: 33
         - Name: GET_MODULE_MAX_DDR_BW
           Value: 34
@@ -260,6 +260,24 @@ Modules:
           Value: 3
         - Name: EVENT_STRING_DEBUG
           Value: 4
+    - Name: power_throttle_state
+      Description: Power throttle states
+      Type: uint8_t
+      Values:
+        - Name: POWER_IDLE
+          Value: 0
+        - Name: THERMAL_IDLE
+          Value: 1
+        - Name: POWER_UP
+          Value: 2
+        - Name: POWER_DOWN
+          Value: 3
+        - Name: THERMAL_DOWN
+          Value: 4
+        - Name: POWER_SAFE
+          Value: 5
+        - Name: THERMAL_SAFE
+          Value: 6
 
   Structs:
     - Name: asset_info_t
@@ -307,13 +325,10 @@ Modules:
           Type: char
     - Name: temperature_threshold_t
       Fields:
-        - Name: lo_temperature_c
+        - Name: sw_temperature_c
           Description: Low temperature threshold
           Type: uint8_t
-        - Name: hi_temperature_c
-          Description: High temperature threshold
-          Type: uint8_t
-        - Name: pad[6]
+        - Name: pad[7]
           Description: Padding for alignment
           Type: uint8_t
     - Name: current_temperature_t
@@ -324,9 +339,18 @@ Modules:
         - Name: pad[7]
           Description: Padding for alignment
           Type: uint8_t
-    - Name: throttle_time_t
+    - Name: residency_t
       Fields:
-        - Name: time_usec
+        - Name: cumulative
+          Description: Time(in usecs)
+          Type: uint64_t
+        - Name: average
+          Description: Time(in usecs)
+          Type: uint64_t
+        - Name: maximum
+          Description: Time(in usecs)
+          Type: uint64_t
+        - Name: minimum
           Description: Time(in usecs)
           Type: uint64_t
     - Name: module_power_t
@@ -676,23 +700,27 @@ Modules:
           Description: Current temperature (in C).
           Type: struct
           Struct: current_temperature_t
-    - Name: device_mgmt_throttle_time_cmd
-      Description:  Command to get the throttle time
+    - Name: device_mgmt_throttle_residency_cmd
+      Description:  Command to get the power throttle residency
       Type: Command
-      PairedMessage: device_mgmt_throttle_time_rsp
+      PairedMessage: device_mgmt_throttle_residency_rsp
       Fields:
-        - Name: dummy
-          Description: Dummy field.
-          Type: uint64_t
-    - Name: device_mgmt_throttle_time_rsp
+        - Name: pwr_throttle_state
+          Description: Power Throttle State
+          Type: enum
+          Enum: power_throttle_state
+        - Name: pad[7]
+          Description: Padding for alignment
+          Type: uint8_t
+    - Name: device_mgmt_throttle_residency_rsp
       Type: Response
-      Description: Response for throttle time command
-      PairedMessage: device_mgmt_throttle_time_cmd
+      Description: Response for throttle residency command
+      PairedMessage: device_mgmt_throttle_residency_cmd
       Fields:
-        - Name: throttle_time
+        - Name: throttle_residency
           Description: Time in microseconds.
           Type: struct
-          Struct: throttle_time_t
+          Struct: residency_t
     - Name: device_mgmt_module_power_cmd
       Description:  Command to get the module power info
       Type: Command
@@ -795,23 +823,27 @@ Modules:
           Description: Max DRAM BW info
           Type: struct
           Struct: max_dram_bw_t
-    - Name: device_mgmt_max_throttle_time_cmd
-      Description:  Command to get the max throttle time
+    - Name: device_mgmt_power_residency_cmd
+      Description:  Command to get the power residency
       Type: Command
-      PairedMessage: device_mgmt_max_throttle_time_rsp
+      PairedMessage: device_mgmt_power_residency_rsp
       Fields:
-        - Name: dummy
-          Description: Dummy field.
-          Type: uint64_t
-    - Name: device_mgmt_max_throttle_time_rsp
+        - Name: pwr_state
+          Description: Power State
+          Type: enum
+          Enum: power_state
+        - Name: pad[7]
+          Description: Padding for alignment
+          Type: uint8_t
+    - Name: device_mgmt_power_residency_rsp
       Type: Response
-      Description: Response for max throttle time command
-      PairedMessage: device_mgmt_max_throttle_time_cmd
+      Description: Response for power_residency command
+      PairedMessage: device_mgmt_power_residency_cmd
       Fields:
-        - Name: max_throttle_time
+        - Name: power_residency
           Description: Time in microseconds.
           Type: struct
-          Struct: max_throttle_time_t
+          Struct: residency_t
     - Name: device_mgmt_set_error_count_cmd
       Description:  Command to set the error count
       PairedMessage: None
