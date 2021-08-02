@@ -12,7 +12,8 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/device_apis.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/esperanto/device-apis/device_apis.h)
 
 set(DEV_API_HDRS ${CMAKE_CURRENT_BINARY_DIR}/device_apis.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_message_types.h)
+    ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_message_types.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_trace_types.h)
 
 include(GenerateApi)
 
@@ -23,7 +24,6 @@ jinja_generate_apis_cpp(DEVICE_API_OPS_SRCS DEVICE_API_OPS_HDRS OPERATIONS
         device_apis_cxx.h.jinja
         device_apis_spec.h.jinja
         device_apis_rpc_types.h.jinja
-        device_apis_tracing_types.h.jinja
 )
 
 jinja_generate_apis_cpp(DEVICE_API_MGMT_SRCS DEVICE_API_MGMT_HDRS MANAGEMENT
@@ -46,6 +46,10 @@ target_include_directories(deviceApi
 add_library(deviceApi::deviceApi ALIAS deviceApi)
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_message_types.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto/device-apis
+    COMPONENT deviceApi)
+
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_trace_types.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto/device-apis
     COMPONENT deviceApi)
 
