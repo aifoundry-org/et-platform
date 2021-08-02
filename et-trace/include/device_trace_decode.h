@@ -55,19 +55,18 @@ void* Trace_Decode(struct trace_buffer_std_header_t* tb, void* prev)
 {
     if (tb == NULL) return NULL;
 
-    const size_t header_size = sizeof(struct trace_entry_header_t);
     const size_t buffer_size = tb->data_size;
 
     if (prev == NULL)
     {
         /* Check if valid trace buffer */
         if (tb->magic_header != TRACE_MAGIC_HEADER) return NULL;
-        if (buffer_size == sizeof(struct trace_buffer_std_header_t)) return NULL;
+        if (buffer_size <= sizeof(struct trace_buffer_std_header_t)) return NULL;
         /* First entry */
         return tb + 1;
     }
 
-    const uint8_t entry_type = ((struct trace_entry_header_t*)prev)->type;
+    const uint16_t entry_type = ((struct trace_entry_header_t*)prev)->type;
     size_t payload_size;
 
 #define DEVICE_TRACE_PAYLOAD_SIZE(E, S)  \
@@ -99,7 +98,9 @@ void* Trace_Decode(struct trace_buffer_std_header_t* tb, void* prev)
 
 #undef DEVICE_TRACE_PAYLOAD_SIZE
 
-    void* next = (char*)prev + header_size + payload_size;
+    if (payload_size == 0) return NULL;
+
+    void* next = (char*)prev + payload_size;
 
     /* End of buffer? */
     const size_t cur_size = (char*)next - (char*)tb;
