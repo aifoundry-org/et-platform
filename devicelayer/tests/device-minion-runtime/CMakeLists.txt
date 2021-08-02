@@ -171,44 +171,6 @@ create_test(
     PROPERTIES "LABELS;BEMU;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;240"
 )
 
-#########################
-# LOOPBACK DRIVER TESTS #
-#########################
-if(BUILD_PCIE_LOOPBACK_DRIVER)
-    set(LOOPBACK_DRIVER "true")
-    create_test(
-        TARGET     TestDevOpenCloseLoopbackPcie
-        TARGET_DEF TARGET_PCIE
-        SOURCES    pcie/loopback/TestDevOpenCloseLoopbackPcie.cpp
-        ARGS       --loopback_driver=${LOOPBACK_DRIVER}
-        PROPERTIES "LABELS;LOOPBACK;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;UNIT;TIMEOUT;120"
-    )
-
-    create_test(
-        TARGET     TestDevOpsApiLoopbackBasicCmdsPcie
-        TARGET_DEF TARGET_PCIE
-        SOURCES    pcie/loopback/TestDevOpsApiLoopbackBasicCmdsPcie.cpp TestDevOpsApiBasicCmds.cpp
-        ARGS       --loopback_driver=${LOOPBACK_DRIVER}
-        PROPERTIES "LABELS;LOOPBACK;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;120"
-    )
-
-    create_test(
-        TARGET     TestDevOpsApiLoopbackDmaCmdsPcie
-        TARGET_DEF TARGET_PCIE
-        SOURCES    pcie/loopback/TestDevOpsApiLoopbackDmaCmdsPcie.cpp TestDevOpsApiDmaCmds.cpp
-        ARGS       --loopback_driver=${LOOPBACK_DRIVER}
-        PROPERTIES "LABELS;LOOPBACK;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;120"
-    )
-
-    create_test(
-        TARGET     TestDevOpsApiLoopbackKernelCmdsPcie
-        TARGET_DEF TARGET_PCIE
-        SOURCES    pcie/loopback/TestDevOpsApiLoopbackKernelCmdsPcie.cpp TestDevOpsApiKernelCmds.cpp
-        ARGS       --kernels_dir=${KERNELS_DIR} --loopback_driver=${LOOPBACK_DRIVER}
-        PROPERTIES "LABELS;LOOPBACK;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;120"
-    )
-endif()
-
 #################
 # NIGHTLY TESTS #
 #################
@@ -302,3 +264,62 @@ create_test(
     ARGS       --kernels_dir=${KERNELS_DIR}
     PROPERTIES "LABELS;PCIE-SYSEMU;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;500"
 )
+
+#########################
+# LOOPBACK DRIVER TESTS #
+#########################
+create_test(
+    TARGET     TestDevOpenCloseLoopbackPcie
+    TARGET_DEF TARGET_PCIE
+    SOURCES    pcie/loopback/TestDevOpenCloseLoopbackPcie.cpp
+    ARGS       --loopback_driver=${LOOPBACK_DRIVER}
+    PROPERTIES "LABELS;LOOPBACK;LABELS;PCIE;LABELS;OPS;LABELS;FUNCTIONAL;LABEL;UNIT;TIMEOUT;120"
+)
+
+create_test(
+    TARGET     TestDevOpsApiLoopbackBasicCmdsPcie
+    TARGET_DEF TARGET_PCIE
+    SOURCES    pcie/loopback/TestDevOpsApiLoopbackBasicCmdsPcie.cpp TestDevOpsApiBasicCmds.cpp
+    ARGS       --loopback_driver=${LOOPBACK_DRIVER}
+    PROPERTIES "LABELS;LOOPBACK;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;120"
+)
+
+create_test(
+    TARGET     TestDevOpsApiLoopbackDmaCmdsPcie
+    TARGET_DEF TARGET_PCIE
+    SOURCES    pcie/loopback/TestDevOpsApiLoopbackDmaCmdsPcie.cpp TestDevOpsApiDmaCmds.cpp
+    ARGS       --loopback_driver=${LOOPBACK_DRIVER}
+    PROPERTIES "LABELS;LOOPBACK;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;120"
+)
+
+create_test(
+    TARGET     TestDevOpsApiLoopbackKernelCmdsPcie
+    TARGET_DEF TARGET_PCIE
+    SOURCES    pcie/loopback/TestDevOpsApiLoopbackKernelCmdsPcie.cpp TestDevOpsApiKernelCmds.cpp
+    ARGS       --kernels_dir=${KERNELS_DIR} --loopback_driver=${LOOPBACK_DRIVER}
+    PROPERTIES "LABELS;LOOPBACK;LABELS;PCIE;LABELS;OPS;LABELS;STRESS;LABEL;SYSTEM;TIMEOUT;120"
+)
+
+configure_file(
+    pcie/loopback/TestDevOpsApiLoopbackMixAllCmdsPcie.sh.in
+    ${CMAKE_CURRENT_BINARY_DIR}/TestDevOpsApiLoopbackMixAllCmdsPcie.sh @ONLY
+)
+
+set(TEST_MINOR 1)
+foreach (TIME_IN_MIN 5 15 30 45 60)
+    set(TEST_NAME device-layer:TestDevOpsApiLoopbackMixAllCmdsPcie.${TIME_IN_MIN}minTest_4_${TEST_MINOR})
+    add_test(
+        NAME              ${TEST_NAME}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMAND           TestDevOpsApiLoopbackMixAllCmdsPcie.sh ${TIME_IN_MIN}minute
+    )
+
+    set_tests_properties(${TEST_NAME}
+        PROPERTIES
+        DEPENDS TestDevOpenCloseLoopbackPcie
+        DEPENDS TestDevOpsApiLoopbackBasicCmdsPcie
+        DEPENDS TestDevOpsApiLoopbackDmaCmdsPcie
+        DEPENDS TestDevOpsApiLoopbackKernelCmdsPcie
+    )
+    MATH(EXPR TEST_MINOR "${TEST_MINOR}+1")
+endforeach()
