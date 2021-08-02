@@ -93,8 +93,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleMaxMemoryErrors_1_20) {
   getModuleMaxMemoryErrors_1_20(false /* single device */);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleMaxThrottleTime_1_22) {
-  getModuleMaxThrottleTime_1_22(false /* single device */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleResidencyPowerState_1_22) {
+  getModuleResidencyPowerState_1_22(false /* single device */);
 }
 
 // Error Control

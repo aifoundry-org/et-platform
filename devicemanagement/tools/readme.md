@@ -21,7 +21,7 @@
                         35: DM_CMD_GET_MAX_MEMORY_ERROR
                         34: DM_CMD_GET_MODULE_MAX_DDR_BW
                         43: DM_CMD_GET_MODULE_SRAM_ECC_UECC
-                        33: DM_CMD_GET_MODULE_MAX_THROTTLE_TIME
+                        33: DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES
                         53: DM_CMD_GET_ASIC_STALLS
                         32: DM_CMD_GET_MODULE_MAX_TEMPERATURE
                         49: DM_CMD_GET_DRAM_BANDWIDTH

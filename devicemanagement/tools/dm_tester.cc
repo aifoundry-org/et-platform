@@ -141,8 +141,7 @@ static bool pcie_link_speed_flag = false;
 static pcie_lane_w_split_e pcie_lane_width;
 static bool pcie_lane_width_flag = false;
 
-static uint8_t lo_temperature_c;
-static uint8_t hi_temperature_c;
+static uint8_t sw_temperature_c;
 static bool thresholds_flag = false;
 
 static uint8_t mem_count;
@@ -331,9 +330,7 @@ int verifyService() {
     }
 
     temperature_threshold_t* temperature_threshold = (temperature_threshold_t*)output_buff;
-    DV_LOG(INFO) << "Low Temperature Threshold Output: " << +temperature_threshold->lo_temperature_c << " c"
-                 << std::endl;
-    DV_LOG(INFO) << "High Temperature Threshold Output: " << +temperature_threshold->hi_temperature_c << " c"
+    DV_LOG(INFO) << "Low Temperature Threshold Output: " << +temperature_threshold->sw_temperature_c << " c"
                  << std::endl;
   } break;
 
@@ -343,8 +340,7 @@ int verifyService() {
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(temperature_threshold_t);
-    const char input_buff[input_size] = {(char)lo_temperature_c,
-                                         (char)hi_temperature_c}; // bounds check prevents issues with narrowing
+    const char input_buff[input_size] = {(char)sw_temperature_c}; // bounds check prevents issues with narrowing
 
     const uint32_t output_size = sizeof(uint32_t);
     char output_buff[output_size] = {0};
@@ -369,15 +365,15 @@ int verifyService() {
 #endif
 
   case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES: {
-    const uint32_t output_size = sizeof(throttle_time_t);
+    const uint32_t output_size = sizeof(residency_t);
     char output_buff[output_size] = {0};
 
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
 
-    throttle_time_t* throttle_time = (throttle_time_t*)output_buff;
-    DV_LOG(INFO) << "Residency Throttle States Output: " << throttle_time->time_usec << " us" << std::endl;
+    residency_t* residency = (residency_t*)output_buff;
+    DV_LOG(INFO) << "Residency Throttle States Output: " << residency->average << " us" << std::endl;
   } break;
 
 #ifdef TARGET_PCIE
@@ -483,16 +479,16 @@ int verifyService() {
     DV_LOG(INFO) << "Module Max DDR BW Write Output: " << +max_dram_bw->max_bw_wr_req_sec <<" GB/s" <<std::endl;
   } break;
 
-  case DM_CMD::DM_CMD_GET_MODULE_MAX_THROTTLE_TIME: {
-    const uint32_t output_size = sizeof(max_throttle_time_t);
+  case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES: {
+    const uint32_t output_size = sizeof(residency_t);
     char output_buff[output_size] = {0};
 
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
 
-    max_throttle_time_t* max_throttle_time = (max_throttle_time_t*)output_buff;
-    DV_LOG(INFO) << "Max throttle time Output: " << max_throttle_time->time_usec << " us" << std::endl;
+    residency_t* residency = (residency_t*)output_buff;
+    DV_LOG(INFO) << "Max throttle time Output: " << residency->average << " us" << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_SET_DDR_ECC_COUNT:
@@ -1054,8 +1050,7 @@ bool validThresholds() {
     return false;
   }
 
-  lo_temperature_c = (uint8_t)lo;
-  hi_temperature_c = (uint8_t)hi;
+  sw_temperature_c = (uint8_t)lo;
 
   return true;
 }

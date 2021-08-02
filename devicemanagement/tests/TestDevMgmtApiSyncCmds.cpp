@@ -481,7 +481,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13(bool singl
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     const uint32_t input_size = sizeof(device_mgmt_api::temperature_threshold_t);
-    const char input_buff[input_size] = {(uint8_t)56, (uint8_t)84};
+    const char input_buff[input_size] = {(uint8_t)56};
 
     // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
     const uint32_t set_output_size = sizeof(uint32_t);
@@ -512,7 +512,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13(bool singl
     if (!FLAGS_loopback_driver) {
       device_mgmt_api::temperature_threshold_t* temperature_threshold =
         (device_mgmt_api::temperature_threshold_t*)get_output_buff;
-      ASSERT_EQ(temperature_threshold->lo_temperature_c, 56);
+      ASSERT_EQ(temperature_threshold->sw_temperature_c, 56);
     }
   }
 }
@@ -522,15 +522,17 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14(bool singleDev
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  const uint32_t output_size = sizeof(device_mgmt_api::throttle_time_t);
+  const uint32_t output_size = sizeof(device_mgmt_api::residency_t);
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = sizeof(device_mgmt_api::power_throttle_state_e);
+    const char input_buff[input_size] = {device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP};
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
     ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES,
-                                nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                input_buff, input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -538,8 +540,12 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14(bool singleDev
     // Skip printing if loopback driver
     if (!FLAGS_loopback_driver) {
       // Note: Throttle time could vary. So there cannot be expected value for throttle time in the test
-      device_mgmt_api::throttle_time_t* throttle_time = (device_mgmt_api::throttle_time_t*)output_buff;
-      printf("throttle_time (in usecs): %d\n", throttle_time->time_usec);
+      device_mgmt_api::residency_t* residency = (device_mgmt_api::residency_t*)output_buff;
+      printf("throttle_residency (in usecs):\n");
+      printf("\tcumulative: %d\n", residency->cumulative);
+      printf("\taverage: %d\n", residency->average);
+      printf("\tmaximum: %d\n", residency->maximum);
+      printf("\tminimum: %d\n", residency->minimum);
     }
   }
 }
@@ -742,32 +748,35 @@ void TestDevMgmtApiSyncCmds::getModuleMaxDDRBW_1_21(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleMaxThrottleTime_1_22(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState_1_22(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  const uint32_t output_size = sizeof(device_mgmt_api::max_throttle_time_t);
-
+  const uint32_t output_size = sizeof(device_mgmt_api::residency_t);
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
+    const char input_buff[input_size] = {device_mgmt_api::POWER_STATE_MANAGED_POWER};
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_THROTTLE_TIME, nullptr, 0,
-                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES,
+                                input_buff, input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
     if (!FLAGS_loopback_driver) {
-      device_mgmt_api::max_throttle_time_t* max_throttle_time = (device_mgmt_api::max_throttle_time_t*)output_buff;
-
-      // Note: Throttle time could vary so there cannot be an expected value.
-      // ASSERT_EQ(max_throttle_time->time_usec, 1000);
-      printf("Max Throttle Time: %llu\n", max_throttle_time->time_usec);
+      // Note: Throttle time could vary. So there cannot be expected value for throttle time in the test
+      device_mgmt_api::residency_t* residency = (device_mgmt_api::residency_t*)output_buff;
+      printf("throttle_residency (in usecs):\n");
+      printf("\tcumulative: %d\n", residency->cumulative);
+      printf("\taverage: %d\n", residency->average);
+      printf("\tmaximum: %d\n", residency->maximum);
+      printf("\tminimum: %d\n", residency->minimum);
     }
   }
 }

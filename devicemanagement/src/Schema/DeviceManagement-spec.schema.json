@@ -37,6 +37,7 @@
 			"DM_CMD_SET_MODULE_STATIC_TDP_LEVEL",
 			"DM_CMD_GET_MODULE_CURRENT_TEMPERATURE",
 			"DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES",
+			"DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES",
 			"DM_CMD_GET_MODULE_UPTIME",
 			"DM_CMD_GET_MODULE_VOLTAGE",
 			"DM_CMD_GET_MODULE_POWER",
@@ -44,7 +45,6 @@
 			"======Comment: Historical extreme values =====",
 
 			"DM_CMD_GET_MODULE_MAX_TEMPERATURE",
-			"DM_CMD_GET_MODULE_MAX_THROTTLE_TIME",
 			"DM_CMD_GET_MODULE_MAX_DDR_BW",
 			"DM_CMD_GET_MAX_MEMORY_ERROR",
 
@@ -181,13 +181,11 @@
 				},
 
 				"fields": {
-					"low_temperature_c": "int32_t",
-					"high_temperature_c": "int32_t"
+					"sw_temperature_c": "int32_t"
 				},
 
 				"default_temp_threshold" : {
-					"low_temp_c" : 70,
-					"high_temp_c" : 80
+					"sw_temp_c" : 70
 				}
 			},
 			"power_state": {
@@ -230,7 +228,7 @@
 				}
 			},
 
-			"throttle_time": {
+			"throttle_residency": {
 				"usage": {
 					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
 					"input_buff": null,
@@ -238,7 +236,24 @@
 				},
 
 				"fields": {
-					"time_usec": "uint64_t"
+					"cumulative": "uint64_t",
+					"average": "uint64_t",
+					"maximum": "uint64_t",
+					"minimum": "uint64_t"
+				}
+			},
+
+			"power_residency": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES"
+				},
+				"fields": {
+					"cumulative": "uint64_t",
+					"average": "uint64_t",
+					"maximum": "uint64_t",
+					"minimum": "uint64_t"
 				}
 			},
 
@@ -321,17 +336,6 @@
 				"fields": {
 					"max_bw_rd_req_sec": "uint32_t",
 					"max_bw_wr_req_sec": "uint32_t"
-				}
-			},
-
-			"max_throttle_time": {
-				"usage": {
-					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
-					"input_buff": null,
-					"output_buff": "DM_CMD_GET_MODULE_MAX_THROTTLE_TIME"
-				},
-				"fields": {
-					"max_time_usec": "uint64_t"
 				}
 			}
 		},

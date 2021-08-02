@@ -130,8 +130,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMaxDDRBW_1_21) {
   getModuleMaxDDRBW_1_21(false);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMaxThrottleTime_1_22) {
-  getModuleMaxThrottleTime_1_22(false /* Multiple Devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleResidencyPowerState_1_22) {
+  getModuleResidencyPowerState_1_22(false /* Multiple Devices */);
 }
 
 // Error Control

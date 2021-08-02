@@ -114,8 +114,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getModuleMaxDDRBW_1_21) {
   getModuleMaxDDRBW_1_21(false /* Multiple devices */);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getModuleMaxThrottleTime_1_22) {
-  getModuleMaxThrottleTime_1_22(false /* Multiple devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getModuleResidencyPowerState_1_22) {
+  getModuleResidencyPowerState_1_22(false /* Multiple devices */);
 }
 
 // Error Control

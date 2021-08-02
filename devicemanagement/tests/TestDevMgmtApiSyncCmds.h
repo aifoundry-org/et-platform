@@ -52,7 +52,7 @@ protected:
   void getModuleMaxTemperature_1_19(bool singleDevice);
   void getModuleMaxMemoryErrors_1_20(bool singleDevice);
   void getModuleMaxDDRBW_1_21(bool singleDevice);
-  void getModuleMaxThrottleTime_1_22(bool singleDevice);
+  void getModuleResidencyPowerState_1_22(bool singleDevice);
   void setAndGetDDRECCThresholdCount_1_23(bool singleDevice);
   void setAndGetSRAMECCThresholdCount_1_24(bool singleDevice);
   void setAndGetPCIEECCThresholdCount_1_25(bool singleDevice);
