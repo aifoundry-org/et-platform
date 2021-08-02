@@ -8,6 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
+#include <esperanto/device-apis/device_apis_trace_types.h>
 #include "TestDevOpsApiTraceCmds.h"
 #include "Autogen.h"
 
@@ -89,8 +90,8 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
 
     // Trace Config the first Hart of CM
     stream.push_back(IDevOpsApiCmd::createCmd<TraceRtConfigCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
-                                    CM_SHIRE_MASK, HART_ID, TRACE_STRING_FILTER, TRACE_STRING_LOG_INFO,
-                                    device_ops_api::DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS));
+                          CM_DEFAULT_TRACE_SHIRE_MASK, CM_DEFAULT_TRACE_THREAD_MASK, TRACE_STRING_FILTER,
+                          TRACE_STRING_LOG_INFO, device_ops_api::DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS));
 
     // start CM trace and dump logs to trace buffer
     stream.push_back(IDevOpsApiCmd::createCmd<TraceRtControlCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE,
@@ -116,7 +117,8 @@ void TestDevOpsApiTraceCmds::traceCtrlAndExtractCMFwData_5_2() {
   }
 
   for (size_t i = 0; i < readBufs.size(); ++i) {
-    EXPECT_TRUE(printCMTraceData(readBufs[i].data(), readBufs[i].size()))
+    EXPECT_TRUE(printCMTraceData(readBufs[i].data(), readBufs[i].size(),
+        CM_DEFAULT_TRACE_SHIRE_MASK, CM_DEFAULT_TRACE_THREAD_MASK))
       << "No Trace String event found!" << std::endl;
       deleteStreams();
   }

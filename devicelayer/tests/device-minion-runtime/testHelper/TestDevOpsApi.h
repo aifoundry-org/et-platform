@@ -38,6 +38,11 @@ DECLARE_bool(use_epoll);
 
 namespace dev::dl_tests {
 
+/*! \def ALIGN(x, a)
+    \brief Alignemnt checking macro
+*/
+#define ALIGN(x, a) (((x) + ((a) - 1)) & ~((a) - 1))
+
 using Clock = std::chrono::system_clock;
 using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
@@ -65,12 +70,30 @@ constexpr uint32_t MM_BASE_ID = 2048;
 constexpr uint32_t TRACE_STRING_MAX_SIZE = 64;
 constexpr uint32_t TRACE_MAGIC_HEADER = 0x76543210;
 constexpr uint64_t MM_SHIRE_MASK = (0x1ULL << 32);
-constexpr uint64_t CM_SHIRE_MASK = 0x1;
 constexpr uint64_t HART_ID = 0x1;
 constexpr uint32_t TRACE_STRING_FILTER = 0x1;
 constexpr uint32_t TRACE_STRING_LOG_INFO = 0x3;
 
 extern "C" {
+
+/*! \def GET_SHIRE_MASK
+ *  \brief Get the Shire mask form Hart ID using Harts per Shire information.
+ */
+#define GET_SHIRE_MASK(hart_id)     (1UL << ((hart_id) / 64U))
+
+/*! \def GET_HART_MASK
+ * \brief Get Hart mask form Hart ID using Harts per Shire information.
+ */
+#define GET_HART_MASK(hart_id)      (1UL << ((hart_id) % 64U))
+
+
+/*! \def CHECK_CM_HART_TRACE_ENABLED
+ * \brief Check if CM Hart tracing is enabled for given hart and mask.
+ */
+#define CHECK_CM_HART_TRACE_ENABLED(hart_id, shire_mask, thread_mask)  \
+              ((shire_mask & GET_SHIRE_MASK(hart_id)) &&               \
+               (thread_mask & GET_HART_MASK(hart_id)))
+
 enum trace_type_e {
   TRACE_TYPE_STRING,
   TRACE_TYPE_PMC_COUNTER,
@@ -211,7 +234,7 @@ protected:
 
   void controlTraceLogging(int deviceIdx, bool toTraceBuf, bool resetTraceBuf);
   bool printMMTraceData(unsigned char* traceBuf, size_t bufSize) const;
-  bool printCMTraceData(unsigned char* traceBuf, size_t bufSize) const;
+  bool printCMTraceData(unsigned char* traceBuf, size_t bufSize, uint64_t shire_mask, uint64_t hart_mask) const;
   bool printCMTraceSingleHartData(unsigned char* hartDataPtr, uint32_t cmHartID, size_t dataSize) const;
   void extractAndPrintTraceData(int deviceIdx);
 

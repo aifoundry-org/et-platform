@@ -8,6 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
+#include <esperanto/device-apis/device_apis_trace_types.h>
 #include "TestDevOpsApi.h"
 #include "Autogen.h"
 #include <cmath>
@@ -747,7 +748,8 @@ bool TestDevOpsApi::printMMTraceData(unsigned char* traceBuf, size_t bufSize) co
   return validStringEventFound;
 }
 
-bool TestDevOpsApi::printCMTraceData(unsigned char* traceBuf, size_t bufSize) const {
+bool TestDevOpsApi::printCMTraceData(unsigned char* traceBuf, size_t bufSize,
+                    uint64_t shire_mask, uint64_t hart_mask) const {
   // Get size from Trace buffer header
   auto traceHeader = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf);
 
@@ -776,8 +778,9 @@ bool TestDevOpsApi::printCMTraceData(unsigned char* traceBuf, size_t bufSize) co
     // Last 32 harts of MM Shire are working as Compute worker, adjust HART ID based on that.
     cmHartID = i < MM_BASE_ID ? i : i + 32;
 
-    if (dataSize <= headerSize) {
-      // No payload, hence no need parse this. Move to next Hart's buffer
+    if (!CHECK_CM_HART_TRACE_ENABLED(cmHartID, shire_mask, hart_mask) &&
+        (dataSize <= headerSize)) {
+      // No payload / Trace disabled, hence no need parse this. Move to next Hart's buffer
       hartDataPtr += CM_SIZE_PER_HART;
     } else if ((dataSize + headerSize) > perHartBufSize) {
       // This buffer is not valid. Stop the processing and return error case
@@ -792,6 +795,7 @@ bool TestDevOpsApi::printCMTraceData(unsigned char* traceBuf, size_t bufSize) co
         validStringEventFound = true;
       }
 
+      // Move to next Hart's buffer
       hartDataPtr += (CM_SIZE_PER_HART - headerSize);
     }
   }
@@ -870,7 +874,8 @@ void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
         return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_SUCCESSFUL;
       }) == stream->cmds_.size()) {
     printMMTraceData(static_cast<unsigned char*>(rdBufMem), cmBufSize);
-    printCMTraceData(static_cast<unsigned char*>(rdBufMem) + mmBufSize, mmBufSize);
+    printCMTraceData(static_cast<unsigned char*>(rdBufMem) + mmBufSize, mmBufSize,
+        CM_DEFAULT_TRACE_SHIRE_MASK, CM_DEFAULT_TRACE_THREAD_MASK);
   } else {
     TEST_VLOG(0) << "Failed to pull DMA trace buffers!";
   }
