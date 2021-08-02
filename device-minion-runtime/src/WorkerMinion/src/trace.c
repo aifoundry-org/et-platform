@@ -21,6 +21,7 @@
 /***********************************************************************/
 
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
+#include <esperanto/device-apis/device_apis_trace_types.h>
 #include <stddef.h>
 #include <inttypes.h>
 #include "etsoc_memory.h"
@@ -139,6 +140,11 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
 
         /* Set the default offset */
         CM_TRACE_CB[hart_cb_index].cb.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
+
+        /* Evict the Trace buffer standard header which is part of Base Hart's buffer.
+           It is required, even if tracing is disabled ofr base because it contain buffer
+           validation data as part of trace buffer standard header. */
+        Trace_Evict_CM_Buffer();
     }
     else
     {
@@ -164,15 +170,15 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
             /* Initialize Trace for current Hart in Compute Minion Shire. */
             Trace_Init(&hart_init_info, &CM_TRACE_CB[hart_cb_index].cb, TRACE_SIZE_HEADER);
         }
+
+        /* Evict the buffer header to L3 Cache. */
+        Trace_Evict_CM_Buffer();
     }
     else
     {
         /* Disable Trace for current Hart in Compute Minion Shire. */
         CM_TRACE_CB[hart_cb_index].cb.enable = TRACE_DISABLE;
     }
-
-    /* Evict the buffer header to L3 Cache. */
-    Trace_Evict_CM_Buffer();
 }
 
 /************************************************************************

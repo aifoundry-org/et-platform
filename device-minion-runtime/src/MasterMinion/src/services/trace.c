@@ -20,6 +20,7 @@
 /***********************************************************************/
 
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
+#include <esperanto/device-apis/device_apis_trace_types.h>
 #include "device-common/atomic.h"
 #include "device-common/cacheops.h"
 #include "device-common/hart.h"

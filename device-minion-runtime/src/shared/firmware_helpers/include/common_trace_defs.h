@@ -40,14 +40,4 @@
                     (((shire_mask & CM_SHIRE_MASK) && (thread_mask & MM_HART_MASK)) ||  \
                     ((shire_mask & MM_SHIRE_MASK) && (thread_mask & CW_IN_MM_SHIRE)))
 
-/*! \def CM_DEFAULT_TRACE_THREAD_MASK
-    \brief Default masks to enable Trace for first hart in CM Shires.
-*/
-#define CM_DEFAULT_TRACE_THREAD_MASK      (0x1UL)
-
-/*! \def CM_DEFAULT_TRACE_SHIRE_MASK
-    \brief Default masks to enable Trace for first CM shire.
-*/
-#define CM_DEFAULT_TRACE_SHIRE_MASK       (0x1UL)
-
 #endif
