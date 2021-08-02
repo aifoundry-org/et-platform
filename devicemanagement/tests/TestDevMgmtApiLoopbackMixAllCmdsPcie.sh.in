@@ -1,0 +1,45 @@
+#!/bin/bash
+
+#------------------------------------------------------------------------------
+# Copyright (C) 2021, Esperanto Technologies Inc.
+# The copyright to the computer program(s) herein is the
+# property of Esperanto Technologies, Inc. All Rights Reserved.
+# The program(s) may be used and/or copied only with
+# the written permission of Esperanto Technologies and
+# in accordance with the terms and conditions stipulated in the
+# agreement/contract under which the program(s) have been supplied.
+#------------------------------------------------------------------------------
+
+RUN_DIR=@CMAKE_CURRENT_BINARY_DIR@
+cd $RUN_DIR
+
+if [ -n "$1" ]; then
+    TESTS_DURATION=$1
+else
+    ## Default test duration
+    TESTS_DURATION="5minute"
+fi
+echo "Tests duration is $TESTS_DURATION"
+
+mgmt_tests=($(ctest -N -L LOOPBACK | awk '$2 ~ /#[0-9]+:/ && $4 !~ /Disabled/ {print $3}'))
+mgmt_tests_count=${#mgmt_tests[@]}
+if [[ $mgmt_tests_count -eq 0 ]]; then
+    exit 1
+fi
+
+## save logs for one test and print at once. This will be helpful when
+## mgmt and ops tests be executed in parallel
+mgmt_tests_logfile=$(mktemp)
+mgmt_tests_endtime=$(date -ud "$TESTS_DURATION" +%s)
+while [[ $(date -u +%s) -le $mgmt_tests_endtime ]]
+do
+    mgmt_exec_idx=$(($RANDOM % $mgmt_tests_count))
+    sudo ctest -R ${mgmt_tests[$mgmt_exec_idx]} -V > $mgmt_tests_logfile
+    mgmt_tests_rv=$?
+    cat $mgmt_tests_logfile
+    if [ $mgmt_tests_rv -ne 0 ]; then
+        rm $mgmt_tests_logfile
+        exit $mgmt_tests_rv
+    fi
+done
+rm $mgmt_tests_logfile

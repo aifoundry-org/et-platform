@@ -89,7 +89,27 @@ create_test(
 create_test(
     TARGET     TestDevMgmtApiFuncSyncCmdsPcieSysEmu
     SOURCES    TestDevMgmtApiFuncSyncCmdsPcieSysEmu.cpp TestDevMgmtApiSyncCmds.cpp
-    ARGS       --loopback_driver=${LOOPBACK_DRIVER}
-    PROPERTIES "LABELS;PCIE-SYSEMU;LABELS;MGMT;LABELS;FUNCTIONAL;LABELS;SYSTEM;LABELS;LOOPBACK;TIMEOUT;600"
+    ARGS       ""
+    PROPERTIES "LABELS;PCIE-SYSEMU;LABELS;MGMT;LABELS;FUNCTIONAL;LABELS;SYSTEM;TIMEOUT;600"
 )
 
+configure_file(
+    TestDevMgmtApiLoopbackMixAllCmdsPcie.sh.in
+    ${CMAKE_CURRENT_BINARY_DIR}/TestDevMgmtApiLoopbackMixAllCmdsPcie.sh @ONLY
+)
+
+set(TEST_MINOR 1)
+foreach (TIME_IN_MIN 5 15 30 45 60)
+    set(TEST_NAME deviceManagement:TestDevMgmtApiLoopbackMixAllCmdsPcie.${TIME_IN_MIN}minTest_4_${TEST_MINOR})
+    add_test(
+        NAME              ${TEST_NAME}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMAND           TestDevMgmtApiLoopbackMixAllCmdsPcie.sh ${TIME_IN_MIN}minute
+    )
+
+    set_tests_properties(${TEST_NAME}
+        PROPERTIES
+        DEPENDS TestDevMgmtApiFuncSyncCmdsPcieSysEmu
+    )
+    MATH(EXPR TEST_MINOR "${TEST_MINOR}+1")
+endforeach()
