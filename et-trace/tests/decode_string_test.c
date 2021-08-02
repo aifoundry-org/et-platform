@@ -1,6 +1,6 @@
 /*
- * Test: create_trace
- * Randomly generates a synthetic device trace.
+ * Test: decode_string_test
+ * Fills a trace with n_entries strings.
  * This trace is then read and decoded.
  */
 
@@ -13,7 +13,7 @@
 #include <device_trace_types.h>
 
 #include "common/test_trace.h"
-#include "common/test_common.h"
+#include "common/test_macros.h"
 
 struct user_args {
     int seed;
@@ -98,10 +98,10 @@ int main(int argc, const char **argv)
             if (!entry)
                 break;
             CHECK_EQ(entry->header.type, TRACE_TYPE_STRING);
-            REQUIRE_STREQ(entry->string, test_str);
+            CHECK_STREQ(entry->string, test_str);
             ++i;
         }
-        REQUIRE_EQ(i, n_entries);
+        CHECK_EQ(i, n_entries);
     }
 
     test_trace_destroy(buf);

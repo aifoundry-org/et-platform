@@ -1,6 +1,6 @@
 /*
- * Test: decode_pmc
- * Fills a trace with n_entries random counters.
+ * Test: decode_float
+ * Fills a trace with n_entries floats.
  * This trace is then read and decoded.
  */
 
@@ -73,8 +73,7 @@ int main(int argc, const char **argv)
     {
         printf("-- populating trace buffer\n");
         for (uint64_t i = 0; i < n_entries; ++i) {
-            int counter = i % n_counters;
-            Trace_PMC_Counter(&cb, counter);
+            Trace_Value_float(&cb, test_tag, i + 0.5f);
         }
     }
 
@@ -92,15 +91,18 @@ int main(int argc, const char **argv)
     srand(uargs.seed);
     {
         printf("-- decoding trace buffer\n");
-        struct trace_pmc_counter_t *entry = NULL;
+        struct trace_value_float_t *entry = NULL;
         uint64_t i = 0;
         while (1) {
-            int next_counter = i % n_counters;
             entry = Trace_Decode(buf, entry);
             if (!entry)
                 break;
-            CHECK_EQ(entry->header.type, TRACE_TYPE_PMC_COUNTER);
-            /* CHECK_EQ(entry->counter, next_counter); */ /* TODO */
+            CHECK_EQ(entry->header.type, TRACE_TYPE_VALUE_FLOAT);
+            CHECK_EQ(entry->tag, test_tag);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat"
+            CHECK_EQ(entry->value, i + 0.5f);
+#pragma GCC diagnostic pop
             ++i;
         }
         CHECK_EQ(i, n_entries);

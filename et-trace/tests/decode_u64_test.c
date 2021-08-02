@@ -1,6 +1,6 @@
 /*
- * Test: decode_pmc
- * Fills a trace with n_entries random counters.
+ * Test: decode_u64
+ * Fills a trace with n_entries u64 values.
  * This trace is then read and decoded.
  */
 
@@ -73,8 +73,7 @@ int main(int argc, const char **argv)
     {
         printf("-- populating trace buffer\n");
         for (uint64_t i = 0; i < n_entries; ++i) {
-            int counter = i % n_counters;
-            Trace_PMC_Counter(&cb, counter);
+            Trace_Value_u64(&cb, test_tag, i);
         }
     }
 
@@ -92,15 +91,15 @@ int main(int argc, const char **argv)
     srand(uargs.seed);
     {
         printf("-- decoding trace buffer\n");
-        struct trace_pmc_counter_t *entry = NULL;
+        struct trace_value_u64_t *entry = NULL;
         uint64_t i = 0;
         while (1) {
-            int next_counter = i % n_counters;
             entry = Trace_Decode(buf, entry);
             if (!entry)
                 break;
-            CHECK_EQ(entry->header.type, TRACE_TYPE_PMC_COUNTER);
-            /* CHECK_EQ(entry->counter, next_counter); */ /* TODO */
+            CHECK_EQ(entry->header.type, TRACE_TYPE_VALUE_U64);
+            CHECK_EQ(entry->tag, test_tag);
+            CHECK_EQ(entry->value, i);
             ++i;
         }
         CHECK_EQ(i, n_entries);
