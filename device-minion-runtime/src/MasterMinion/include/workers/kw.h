@@ -91,7 +91,7 @@
     \brief This macro provides the base timeout factor for all kernel launch related
     timeouts.
 */
-#define KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR 100U
+#define KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR 240U /* On Zebu, this timeout comes out to be 7200 seconds */
 
 /*! \def KERNEL_LAUNCH_TIMEOUT(x)
     \brief Timeout value for kernel launch

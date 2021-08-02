@@ -908,6 +908,52 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 *
 *   FUNCTION
 *
+*       kw_cm_to_mm_kernel_force_abort
+*
+*   DESCRIPTION
+*
+*       Local fn helper to abort a kernel currently running on CMs.
+*
+*   INPUTS
+*
+*       kernel_shire_mask  Kernel shire mask
+*       reset_on_failure   Reset CMs on abort multicast failure
+*
+*   OUTPUTS
+*
+*       int8_t             status success or error
+*
+***********************************************************************/
+static inline int8_t kw_cm_to_mm_kernel_force_abort(uint64_t kernel_shire_mask,
+    bool reset_on_failure)
+{
+    cm_iface_message_t abort_msg = { .header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT };
+    int8_t status;
+
+    /* Blocking call (with timeout) that blocks till all shires ack */
+    status = CM_Iface_Multicast_Send(kernel_shire_mask, &abort_msg);
+
+    /* Verify that there is no abort hang situation recovery failure */
+    if(status != STATUS_SUCCESS)
+    {
+        SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
+
+        if(reset_on_failure)
+        {
+            /* TODO: SW-6569: Send cmd to SP to reset the shires involved in kernel launch.
+            After reset, we will respond back to host with abort status */
+            Log_Write(LOG_LEVEL_ERROR,
+                "KW:MM->CM:Abort hanged, doing reset of shires.status:%d\r\n", status);
+        }
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       kw_cm_to_mm_process_single_message
 *
 *   DESCRIPTION
@@ -1002,18 +1048,8 @@ static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t 
                    if it was not previously aborted by host.
                    Multicast abort to shires associated with current kernel slot
                    excluding the shire which took an exception */
-                message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
-
-                /* Blocking call (with timeout) that blocks till
-                all shires ack */
-                status_internal->status = CM_Iface_Multicast_Send(
-                    MASK_RESET_BIT(kernel_shire_mask, exception->shire_id),
-                    &message);
-
-                if(status_internal->status != STATUS_SUCCESS)
-                {
-                    SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
-                }
+                status_internal->status = kw_cm_to_mm_kernel_force_abort(
+                    MASK_RESET_BIT(kernel_shire_mask, exception->shire_id), false);
             }
 
             if (!status_internal->cw_exception)
@@ -1023,26 +1059,18 @@ static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t 
             break;
         }
         case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR:
-            /* Multicast abort to shires associated with current kernel slot */
-            message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
+            /* Report error to SP */
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_KERNEL_LAUNCH_ERROR);
 
             const cm_to_mm_message_kernel_launch_error_t *error_mesg =
                 (cm_to_mm_message_kernel_launch_error_t *)&message;
-
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_KERNEL_LAUNCH_ERROR);
 
             Log_Write(LOG_LEVEL_DEBUG,
                 "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR from H%" PRId64 "\r\n",
                 error_mesg->hart_id);
 
-            /* Fatal error received. Try to recover kernel shires by sending abort message.
-               Blocking call (with timeout) that blocks till all shires ack */
-            status_internal->status = CM_Iface_Multicast_Send(kernel_shire_mask, &message);
-
-            if(status_internal->status != STATUS_SUCCESS)
-            {
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
-            }
+            /* Fatal error received. Try to recover kernel shires by sending abort message */
+            status_internal->status = kw_cm_to_mm_kernel_force_abort(kernel_shire_mask, false);
 
             /* Set error and done flag */
             status_internal->cw_error = true;
@@ -1137,10 +1165,8 @@ static inline uint32_t kw_get_kernel_launch_completion_status(uint32_t kernel_st
 void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 {
     uint64_t sip;
-    cm_iface_message_t message;
     bool timeout_abort_serviced;
     int8_t status;
-    int8_t status_hang_abort;
     uint8_t local_sqw_idx;
     uint32_t kernel_state;
     uint64_t kernel_shire_mask;
@@ -1166,7 +1192,6 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         status_internal.cw_error = false;
         timeout_abort_serviced = false;
         status_internal.status = STATUS_SUCCESS;
-        status_hang_abort = STATUS_SUCCESS;
 
         /* Read the shire mask for the current kernel */
         kernel_shire_mask = atomic_load_local_64(&kernel->kernel_shire_mask);
@@ -1199,27 +1224,15 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
                 /* Multicast abort to shires associated with current kernel slot
                 This abort should forcefully abort all the shires involved in
-                kernel launch and if it timesout as well, do a reset of the shires. */
-                message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
-
-                /* Blocking call (with timeout) that blocks till all shires ack */
-                status_hang_abort = CM_Iface_Multicast_Send(kernel_shire_mask, &message);
+                kernel launch and if it times out as well, do a reset of the shires. */
+                kw_cm_to_mm_kernel_force_abort(kernel_shire_mask, true);
             }
-
-            /* Verify that there is no abort hang situation recovery failure */
-            if(status_hang_abort != STATUS_SUCCESS)
+            else
             {
-                /* TODO: SW-6569: Do the reset of the shires involved in kernel launch. */
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
-                Log_Write(LOG_LEVEL_ERROR,
-                    "KW:MM->CM:Abort hanged, doing reset of shires.status:%d\r\n",
-                    status_hang_abort);
-                /* After reset, we will simply break this loop and respond back to host */
-                break;
+                /* Handle message from Compute Worker */
+                kw_cm_to_mm_process_single_message(kw_idx, kernel_shire_mask,
+                    &status_internal, kernel);
             }
-
-            /* Handle message from Compute Worker */
-            kw_cm_to_mm_process_single_message(kw_idx, kernel_shire_mask, &status_internal, kernel);
         }
 
         /* Kernel run complete with host abort, exception or success.
