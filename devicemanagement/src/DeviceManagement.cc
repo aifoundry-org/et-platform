@@ -382,10 +382,13 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
         }
         auto rCB = reinterpret_cast<dm_rsp*>(message.data());
 
-        if (rCB->info.rsp_hdr.msg_id != wCB->info.cmd_hdr.msg_id) {
-          DV_LOG(INFO) << "Read rsp to cmd: " << rCB->info.rsp_hdr.msg_id
-                       << " but expected: " << wCB->info.cmd_hdr.msg_id << std::endl;
-          // TODO: How to handle different response than expected
+        if (rCB->info.rsp_hdr.msg_id != wCB->info.cmd_hdr.msg_id ||
+            rCB->info.rsp_hdr.tag_id != wCB->info.cmd_hdr.tag_id) {
+          DV_LOG(INFO) << "Read rsp to cmd: " << rCB->info.rsp_hdr.msg_id << " (tag_id: " << rCB->info.rsp_hdr.tag_id
+                       << ") but expected: " << wCB->info.cmd_hdr.msg_id << " (tag_id: " << wCB->info.cmd_hdr.tag_id
+                       << ")" << std::endl;
+          // Discarding if old/different response is received
+          event_pending = true;
           continue;
         }
 
