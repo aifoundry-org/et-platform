@@ -17,6 +17,13 @@
 
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 
+/* Cache Operations */
+static void cache_ops_evict_sw(uint64_t csr_enc);
+static void cache_ops_flush_sw(uint64_t csr_enc);
+static void cache_ops_lock_sw(uint64_t csr_enc);
+static void cache_ops_unlock_sw(uint64_t csr_enc);
+static void cache_ops_cache_invalidate(uint64_t csr_enc);
+
 static int64_t enable_thread1(uint64_t disable_mask, uint64_t enable_mask);
 
 static int64_t pre_kernel_setup(uint64_t hart_enable_mask, uint64_t first_worker);
@@ -41,7 +48,7 @@ static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en);
 
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
 {
-    int64_t ret;
+    int64_t ret = SYSCALL_SUCCESS;
     volatile const uint64_t *const mtime_reg =
         (volatile const uint64_t *const)(R_PU_RVTIM_BASEADDR);
 
@@ -90,12 +97,147 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
     case SYSCALL_CONFIGURE_COMPUTE_MINION:
         ret = configure_compute_minion(arg1, arg2);
         break;
+    case SYSCALL_CACHE_OPS_EVICT_SW_INT:
+        cache_ops_evict_sw(arg1);
+        break;
+    case SYSCALL_CACHE_OPS_FLUSH_SW_INT:
+        cache_ops_flush_sw(arg1);
+        break;
+    case SYSCALL_CACHE_OPS_LOCK_SW_INT:
+        cache_ops_lock_sw(arg1);
+        break;
+    case SYSCALL_CACHE_OPS_UNLOCK_SW_INT:
+        cache_ops_unlock_sw(arg1);
+        break;
+    case SYSCALL_CACHE_OPS_INVALIDATE_INT:
+        cache_ops_cache_invalidate(arg1);
+        break;
     default:
-        ret = -1; // unhandled syscall! Ignoring for now.
+        ret = SYSCALL_INVALID_ID;
         break;
     }
 
     return ret;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       cache_ops_evict_sw
+*
+*   DESCRIPTION
+*
+*       Local fn helper to write to evict SW CSR.
+*
+*   INPUTS
+*
+*       csr_enc        Value to be written to CSR
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void cache_ops_evict_sw(uint64_t csr_enc)
+{
+    __asm__ __volatile__ ( "csrw 0x7f9, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       cache_ops_flush_sw
+*
+*   DESCRIPTION
+*
+*       Local fn helper to write to flush SW CSR.
+*
+*   INPUTS
+*
+*       csr_enc        Value to be written to CSR
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void cache_ops_flush_sw(uint64_t csr_enc)
+{
+    __asm__ __volatile__ ( "csrw 0x7fb, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       cache_ops_lock_sw
+*
+*   DESCRIPTION
+*
+*       Local fn helper to write to lock SW CSR.
+*
+*   INPUTS
+*
+*       csr_enc        Value to be written to CSR
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void cache_ops_lock_sw(uint64_t csr_enc)
+{
+    __asm__ __volatile__ ( "csrw 0x7fd, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       cache_ops_unlock_sw
+*
+*   DESCRIPTION
+*
+*       Local fn helper to write to unlock SW CSR.
+*
+*   INPUTS
+*
+*       csr_enc        Value to be written to CSR
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void cache_ops_unlock_sw(uint64_t csr_enc)
+{
+    __asm__ __volatile__ ( "csrw 0x7ff, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       cache_ops_cache_invalidate
+*
+*   DESCRIPTION
+*
+*       Local fn helper to write to cache invalidate CSR.
+*
+*   INPUTS
+*
+*       csr_enc        Value to be written to CSR
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void cache_ops_cache_invalidate(uint64_t csr_enc)
+{
+    __asm__ __volatile__ ( "csrw 0x7d0, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
 }
 
 // disable_mask is a bitmask to DISABLE a thread1: bit 0 = minion 0, bit 31 = minion 31
@@ -107,7 +249,7 @@ static int64_t enable_thread1(uint64_t disable_mask, uint64_t enable_mask)
         (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, THREAD1_DISABLE);
     *disable_thread1_ptr = (*disable_thread1_ptr & ~enable_mask) | disable_mask;
 
-    return 0;
+    return SYSCALL_SUCCESS;
 }
 
 // All the M-mode only work that needs to be done before a kernel launch
@@ -131,7 +273,7 @@ static int64_t pre_kernel_setup(uint64_t thread1_enable_mask, uint64_t first_wor
         asm volatile("csrw cache_invalidate, 1");
     }
 
-    return 0;
+    return SYSCALL_SUCCESS;
 }
 
 // All the M-mode only work that needs to be done after a kernel returns
@@ -154,7 +296,7 @@ static int64_t post_kernel_cleanup(uint64_t thread_count)
         evict_l2();
     }
 
-    return 0;
+    return SYSCALL_SUCCESS;
 }
 
 static inline void unlock_required_sw(void)
@@ -306,7 +448,7 @@ static int64_t evict_l2(void)
     sc_idx_cop_sm_ctl_all_banks_go(THIS_SHIRE, SC_CACHEOP_OPCODE_L2_EVICT); // Evict all L2 indexes
     sc_idx_cop_sm_ctl_all_banks_wait_idle(THIS_SHIRE);
 
-    return 0;
+    return SYSCALL_SUCCESS;
 }
 
 static int64_t flush_l3(void)
@@ -315,7 +457,7 @@ static int64_t flush_l3(void)
     sc_idx_cop_sm_ctl_all_banks_go(THIS_SHIRE, SC_CACHEOP_OPCODE_L3_FLUSH); // Flush all L3 indexes
     sc_idx_cop_sm_ctl_all_banks_wait_idle(THIS_SHIRE);
 
-    return 0;
+    return SYSCALL_SUCCESS;
 }
 
 static int64_t evict_l3(void)
@@ -324,7 +466,7 @@ static int64_t evict_l3(void)
     sc_idx_cop_sm_ctl_all_banks_go(THIS_SHIRE, SC_CACHEOP_OPCODE_L3_EVICT); // Evict all L3 indexes
     sc_idx_cop_sm_ctl_all_banks_wait_idle(THIS_SHIRE);
 
-    return 0;
+    return SYSCALL_SUCCESS;
 }
 
 static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op)
@@ -336,7 +478,7 @@ static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, ui
     case SC_CACHEOP_OPCODE_L3_EVICT:
     case SC_CACHEOP_OPCODE_CB_INV:
         sc_cache_bank_op(shire, bank, op);
-        return 0;
+        return SYSCALL_SUCCESS;
     default:
         return -1;
     }
@@ -418,5 +560,5 @@ static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en)
     // Release the hold of the processor
     excl_mode(0);
 
-    return 0;
+    return SYSCALL_SUCCESS;
 }
