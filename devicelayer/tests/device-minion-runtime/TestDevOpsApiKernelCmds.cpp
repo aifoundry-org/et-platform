@@ -500,6 +500,7 @@ void TestDevOpsApiKernelCmds::varifyAddKernelLaunchKernel(bool singleDevice, boo
 
 void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevice, bool singleQueue, uint64_t totalKer,
                                                                  uint64_t shire_mask) {
+  skipIfMultiDevMultiSqNotAvailable(singleDevice, singleQueue);
   std::vector<CmdTag> streamSameKer;
   std::vector<std::vector<ELFIO::elfio>> readersStorageSameKer;
   std::vector<ELFIO::elfio> readersSameKer;
@@ -598,6 +599,7 @@ void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchCmds_3_1(bool singleDevi
 
 void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchCmds_3_2(bool singleDevice, bool singleQueue,
                                                                       uint64_t totalKer, uint64_t shire_mask) {
+  skipIfMultiDevMultiSqNotAvailable(singleDevice, singleQueue);
   int numElemsDiffKer = 1024;
   std::vector<KernelTypes> kerTypes = generateKernelTypes(KernelTypes::ADD_KERNEL_TYPE, totalKer, 0x3);
   kernelContainer_t kernels = buildKernelsInfo(kerTypes, singleDevice, singleQueue, false);
@@ -1379,12 +1381,14 @@ void TestDevOpsApiKernelCmds::launchHangKernelListCmd(uint64_t shire_mask, bool 
 /* Kernel Stress Tests*/
 void TestDevOpsApiKernelCmds::backToBackSameKernelLaunchListCmds(bool singleDevice, bool singleQueue, uint64_t totalKer,
                                                                  uint64_t shire_mask) {
+  skipIfMultiDevMultiSqNotAvailable(singleDevice, singleQueue);
   launchKernelDMAListCmds(shire_mask, generateKernelTypes(KernelTypes::ADD_KERNEL_TYPE, totalKer), singleDevice,
                           singleQueue);
 }
 
 void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchListCmds(bool singleDevice, bool singleQueue,
                                                                       uint64_t totalKer, uint64_t shire_mask) {
+  skipIfMultiDevMultiSqNotAvailable(singleDevice, singleQueue);
   isReadExceptionContext_ = false;
   launchKernelDMAListCmds(shire_mask, generateKernelTypes(KernelTypes::ADD_KERNEL_TYPE, totalKer, 0x3), singleDevice,
                           singleQueue);
@@ -1393,6 +1397,7 @@ void TestDevOpsApiKernelCmds::backToBackDifferentKernelLaunchListCmds(bool singl
 void TestDevOpsApiKernelCmds::backToBackEmptyKernelLaunchListCmds(bool singleDevice, bool singleQueue,
                                                                   uint64_t totalKer, uint64_t shire_mask,
                                                                   bool flushL3) {
+  skipIfMultiDevMultiSqNotAvailable(singleDevice, singleQueue);
   flushL3_ = flushL3;
   launchKernelDMAListCmds(shire_mask, generateKernelTypes(KernelTypes::EMPTY_KERNEL_TYPE, totalKer), singleDevice,
                           singleQueue);

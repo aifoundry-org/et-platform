@@ -673,6 +673,7 @@ void TestDevOpsApiDmaCmds::dataWRListStressSpeed(uint8_t maxExp2) {
 }
 
 void TestDevOpsApiDmaCmds::dataWRStressChannels(bool singleDevice, bool singleQueue, uint32_t numOfLoopbackCmds) {
+  skipIfMultiDevMultiSqNotAvailable(singleDevice, singleQueue);
   std::vector<std::vector<uint8_t>> dmaRdBufs;
   std::vector<std::vector<uint8_t>> dmaWrBufs;
   std::vector<std::pair<DmaType, size_t>> cmdSequence;
@@ -760,6 +761,7 @@ void TestDevOpsApiDmaCmds::dataWRCmdSingleWriteMultipleReads(int kMaxDmaSequence
 }
 
 void TestDevOpsApiDmaCmds::dmaListWrAndRd(bool singleDevice, bool singleQueue, uint32_t numOfDmaEntries) {
+  skipIfMultiDevMultiSqNotAvailable(singleDevice, singleQueue);
   std::vector<std::pair<DmaType, size_t>> dmaMoveSequence;
   auto deviceCount = singleDevice ? 1 : getDevicesCount();
   auto queueCount = singleQueue ? 1 : getSqCount(0);

@@ -269,6 +269,21 @@ protected:
 
   TimeDuration execTimeout_;
 
+  inline void skipIfMultiDevMultiSqNotAvailable(bool singleDevice, bool singleQueue) {
+  if (!singleDevice && getDevicesCount() == 1) {
+    TEST_VLOG(0) << "Skipping Test: " << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()
+                 << "." << ::testing::UnitTest::GetInstance()->current_test_info()->name()
+                 << " because multiple devices are not available.";
+    std::exit(EXIT_SUCCESS);
+  }
+  if (!singleQueue && getSqCount(0) == 1) {
+    TEST_VLOG(0) << "Skipping Test: " << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name()
+                 << "." << ::testing::UnitTest::GetInstance()->current_test_info()->name()
+                 << " because multiple SQs are not available.";
+    std::exit(EXIT_SUCCESS);
+  }
+}
+
 private:
   struct DeviceInfo {
     uint64_t dmaWriteAddr_;
