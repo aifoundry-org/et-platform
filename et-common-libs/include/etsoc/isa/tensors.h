@@ -54,7 +54,6 @@
 #else
 #include <inttypes.h>
 #endif
-#include "device-common/cacheops.h"
 
 typedef enum {
    FADD = 0x0ULL,
