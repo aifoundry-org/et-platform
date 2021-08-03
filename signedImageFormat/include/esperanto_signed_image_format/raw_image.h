@@ -29,7 +29,7 @@ typedef struct ESPERANTO_RAW_IMAGE_INFO {
     VERSION_TAG_t version_tag;
     uint32_t image_info_flags;
     uint32_t file_version;                          // monotonic version of the executable image
-    ESPERANTO_IMAGE_TYPE_t image_type;
+    ESPERANTO_RAW_IMAGE_TYPE_t image_type;
     uint32_t revocation_counter;
     DATE_AND_TIME_STAMP_t fileDateAndTimeStamp;
     HASH_ALG_t raw_image_hash_algorithm;
