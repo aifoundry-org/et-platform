@@ -91,7 +91,8 @@ void* Trace_Decode(struct trace_buffer_std_header_t* tb, void* prev)
         break;
     }
     DEVICE_TRACE_PAYLOAD_SIZE(EXCEPTION, 0)
-    DEVICE_TRACE_PAYLOAD_SIZE(CMD_STATUS, 0)
+    DEVICE_TRACE_PAYLOAD_SIZE(CMD_STATUS, sizeof(struct trace_cmd_status_t))
+    DEVICE_TRACE_PAYLOAD_SIZE(POWER_STATUS, sizeof(struct trace_power_status_t))
     default:
         payload_size = 0;
     }
