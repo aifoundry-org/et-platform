@@ -20,7 +20,7 @@ struct user_args {
     const char *output;
 };
 
-void parse_args(int argc, const char **argv, struct user_args *uargs)
+static void parse_args(int argc, const char **argv, struct user_args *uargs)
 {
     opterr = 0;
 
