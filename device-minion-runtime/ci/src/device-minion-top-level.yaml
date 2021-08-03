@@ -18,6 +18,10 @@ parameters:
     description: Run Zebu Job
     type: bool
     default_value: true
+  FORCE_CHILD_RETRIGGER:
+    description: 'Forces all child jobs of the current job to retrigger even if smart-retrigger is being used'
+    type: bool
+    default_value: true
 
 stages:
   CHECK_IN:

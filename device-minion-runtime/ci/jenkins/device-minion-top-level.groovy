@@ -19,7 +19,7 @@ pipeline {
     string(name: 'EMAIL_NIGHTLY_RECIPIENTS', defaultValue: 'et-sw-infra@esperantotech.com', description: 'Comma seperated list of email recipients for a given project')
     string(name: 'CRON_STRING', defaultValue: '', description: 'Cron string to cause a job to execute automatically, Syntax is normal cron with %param_name=value at the end.  Additional details can be found at: https://plugins.jenkins.io/parameterized-scheduler/')
     string(name: 'RUN_ID', defaultValue: '1/1', description: '<job_id>/<total_jobs> In case this pipeline was triggered multiple time from its top-level pipeline by using the `njobs` attribute, this parameter indicates which id has the current build')
-    booleanParam(name: 'FORCE_CHILD_RETRIGGER', defaultValue: 'false', description: 'Forces all child jobs of the current job to retrigger even if smart-retrigger is being used')
+    booleanParam(name: 'FORCE_CHILD_RETRIGGER', defaultValue: 'true', description: 'Forces all child jobs of the current job to retrigger even if smart-retrigger is being used')
     booleanParam(name: 'CHECK_ON_TOP_OF_MASTER', defaultValue: 'true', description: 'when true this executes checks that ensures Merge Request has merged origin/master with their MR at the time the MR was submiteted')
     booleanParam(name: 'CANCEL_OUTDATED_MR_CI', defaultValue: 'true', description: 'Whether to, if the pipeline has been triggered by a MR, cancel the previous pipeline (if it is still running) that was triggered by the same MR.')
     string(name: 'SW_PLATFORM_BRANCH', defaultValue: 'origin/develop/system-sw', description: 'SW-Platform branch to track')
@@ -32,7 +32,6 @@ pipeline {
   options {
     buildDiscarder(logRotator(daysToKeepStr: '15', artifactDaysToKeepStr: '15'))
     gitLabConnection('Gitlab')
-    timeout(time: "${params.TIMEOUT}", unit: "HOURS")
     timestamps()
     skipDefaultCheckout(true)
     ansiColor('xterm')
@@ -46,123 +45,83 @@ pipeline {
     PIPELINE_TAGS = "${INPUT_TAGS},"
   }
   stages {
-    stage('CHECKOUT_SCM') {
-      steps {
-        updateGitlabCommitStatus name: JOB_NAME, state: 'pending'
-        script {
-          def seconds = -1
-          retry(8) {
-            seconds = seconds * 2 + 2
-            sleep(time: seconds, unit: "SECONDS")
-            scm_variables = checkout([
-              $class: 'GitSCM',
-              branches: [[name: BRANCH]],
-              doGenerateSubmoduleConfigurations: false,
-              extensions: [],
-              submoduleCfg: [],
-              userRemoteConfigs: [[
-                credentialsId: 'aws_private_key',
-                url: "${REPO_SSH_URL}"
-              ]]
-            ])
-            env.GIT_COMMIT = scm_variables.get('GIT_COMMIT')
-          }
-        }
+    stage('WRAPPER') {
+      options {
+        timeout(time: "${params.TIMEOUT}", unit: "HOURS")
       }
-    }
-    stage('INIT_UTILS') {
-      steps {
-        script {
-          if (fileExists('./ci/ci-tools')){
-            sh 'git submodule update --init ci/ci-tools'
-          }
-        }
-      }
-    }
-    stage('PARALLEL0') {
-      parallel {
-        stage('CANCEL_OUTDATED_MR_CI') {
-          when {
-            expression {
-              return sh(returnStatus: true, script: "${CANCEL_OUTDATED_MR_CI}") == 0
-            }
-          }
+      stages {
+        stage('CHECKOUT_SCM') {
           steps {
+            updateGitlabCommitStatus name: JOB_NAME, state: 'pending'
             script {
-              if ( env.gitlabMergeRequestId != null){
-                sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py cancel_previous_CI_of_Merge_Request "${JOB_NAME}" "${gitlabMergeRequestIid}" "${BUILD_ID}"')
+              def seconds = -1
+              retry(8) {
+                seconds = seconds * 2 + 2
+                sleep(time: seconds, unit: "SECONDS")
+                scm_variables = checkout([
+                  $class: 'GitSCM',
+                  branches: [[name: BRANCH]],
+                  doGenerateSubmoduleConfigurations: false,
+                  extensions: [],
+                  submoduleCfg: [],
+                  userRemoteConfigs: [[
+                    credentialsId: 'aws_private_key',
+                    url: "${REPO_SSH_URL}"
+                  ]]
+                ])
+                env.GIT_COMMIT = scm_variables.get('GIT_COMMIT')
               }
             }
           }
         }
-        stage('CHECK_MERGE_UP_TO_DATE') {
-          when {
-            expression {
-              return sh(returnStatus: true, script: "${CHECK_ON_TOP_OF_MASTER}") == 0
-            }
-          }
-          steps {
-            sh 'if [ ! -z \"${gitlabTargetBranch}\" ] ; then git fetch && git merge origin/$gitlabTargetBranch | grep Already && ( echo \"Branch is up to date with target branch proceeding...\" && exit 0 ) || ( echo \"Merge request is out of date with respect to target branch. Please, rebase it and re-submit merge request\" && exit 1 ); else echo \"Skipping branch up to date check as environment variable gitlabTargetBranch is not defined!\" ; fi'
-          }
-        }
-      }
-    }
-    stage('DSL_JOB') {
-      steps {
-        script {
-          if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${BRANCH}" + '" --repo_ssh_url "' + "${REPO_SSH_URL}" + '" meta-job \'{  }\'') != 0) {
-            build job:
-              'meta-job',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${BRANCH}"),
-                string(name: 'REPO_SSH_URL', value: "${REPO_SSH_URL}"),
-                string(name: 'REPO_NAME', value: "${REPO_NAME}"),
-                booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-              ]
-          }
-          else {
-            sh 'echo Skipping job because it passed'
-          }
-        }
-      }
-    }
-    stage('CHECK_IN') {
-      steps {
-        script {
-          if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-firmware-checkin-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
-            build job:
-              'sw-platform/system-sw-integration/pipelines/device-firmware-checkin-tests',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
-                booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-              ]
-          }
-          else {
-            sh 'echo Skipping job because it passed'
-          }
-        }
-      }
-    }
-    stage('PARALLEL1') {
-      parallel {
-        stage('JOB_CODE_QUALITY') {
+        stage('INIT_UTILS') {
           steps {
             script {
-              if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/code-analysis/device-minion-runtime-sonarqube \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
+              if (fileExists('./ci/ci-tools')){
+                sh 'git submodule update --init ci/ci-tools'
+              }
+            }
+          }
+        }
+        stage('PARALLEL0') {
+          parallel {
+            stage('CANCEL_OUTDATED_MR_CI') {
+              when {
+                expression {
+                  return sh(returnStatus: true, script: "${CANCEL_OUTDATED_MR_CI}") == 0
+                }
+              }
+              steps {
+                script {
+                  if ( env.gitlabMergeRequestId != null){
+                    sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py cancel_previous_CI_of_Merge_Request "${JOB_NAME}" "${gitlabMergeRequestIid}" "${BUILD_ID}"')
+                  }
+                }
+              }
+            }
+            stage('CHECK_MERGE_UP_TO_DATE') {
+              when {
+                expression {
+                  return sh(returnStatus: true, script: "${CHECK_ON_TOP_OF_MASTER}") == 0
+                }
+              }
+              steps {
+                sh 'if [ ! -z \"${gitlabTargetBranch}\" ] ; then git fetch && git merge origin/$gitlabTargetBranch | grep Already && ( echo \"Branch is up to date with target branch proceeding...\" && exit 0 ) || ( echo \"Merge request is out of date with respect to target branch. Please, rebase it and re-submit merge request\" && exit 1 ); else echo \"Skipping branch up to date check as environment variable gitlabTargetBranch is not defined!\" ; fi'
+              }
+            }
+          }
+        }
+        stage('DSL_JOB') {
+          steps {
+            script {
+              if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${BRANCH}" + '" --repo_ssh_url "' + "${REPO_SSH_URL}" + '" meta-job \'{  }\'') != 0) {
                 build job:
-                  'sw-platform/code-analysis/device-minion-runtime-sonarqube',
+                  'meta-job',
                   propagate: true,
                   parameters: [
-                    string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                    string(name: 'GITLAB_SOURCE_BRANCH', value: "${env.gitlabSourceBranch}"),
-                    string(name: 'GITLAB_TARGET_BRANCH', value: "${env.gitlabTargetBranch}"),
-                    string(name: 'GITLAB_MR_ID', value: "${env.gitlabMergeRequestIid}"),
-                    string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
+                    string(name: 'BRANCH', value: "${BRANCH}"),
+                    string(name: 'REPO_SSH_URL', value: "${REPO_SSH_URL}"),
+                    string(name: 'REPO_NAME', value: "${REPO_NAME}"),
                     booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
                     string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
                   ]
@@ -173,12 +132,12 @@ pipeline {
             }
           }
         }
-        stage('JOB_DEVICE_LAYER_SYSEMU') {
+        stage('CHECK_IN') {
           steps {
             script {
-              if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
+              if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-firmware-checkin-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
                 build job:
-                  'sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests',
+                  'sw-platform/system-sw-integration/pipelines/device-firmware-checkin-tests',
                   propagate: true,
                   parameters: [
                     string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
@@ -193,42 +152,89 @@ pipeline {
             }
           }
         }
-        stage('JOB_DEVICE_LAYER_ZEBU') {
-          steps {
-            script {
-              if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
-                build job:
-                  'sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests',
-                  propagate: true,
-                  parameters: [
-                    string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                    string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
-                    booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                    string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                  ]
-              }
-              else {
-                sh 'echo Skipping job because it passed'
+        stage('PARALLEL1') {
+          parallel {
+            stage('JOB_CODE_QUALITY') {
+              steps {
+                script {
+                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/code-analysis/device-minion-runtime-sonarqube \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
+                    build job:
+                      'sw-platform/code-analysis/device-minion-runtime-sonarqube',
+                      propagate: true,
+                      parameters: [
+                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                        string(name: 'GITLAB_SOURCE_BRANCH', value: "${env.gitlabSourceBranch}"),
+                        string(name: 'GITLAB_TARGET_BRANCH', value: "${env.gitlabTargetBranch}"),
+                        string(name: 'GITLAB_MR_ID', value: "${env.gitlabMergeRequestIid}"),
+                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
+                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                      ]
+                  }
+                  else {
+                    sh 'echo Skipping job because it passed'
+                  }
+                }
               }
             }
-          }
-        }
-        stage('JOB_RUNTIME') {
-          steps {
-            script {
-              if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
-                build job:
-                  'sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release',
-                  propagate: true,
-                  parameters: [
-                    string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                    string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
-                    booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                    string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                  ]
+            stage('JOB_DEVICE_LAYER_SYSEMU') {
+              steps {
+                script {
+                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
+                    build job:
+                      'sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests',
+                      propagate: true,
+                      parameters: [
+                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
+                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                      ]
+                  }
+                  else {
+                    sh 'echo Skipping job because it passed'
+                  }
+                }
               }
-              else {
-                sh 'echo Skipping job because it passed'
+            }
+            stage('JOB_DEVICE_LAYER_ZEBU') {
+              steps {
+                script {
+                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
+                    build job:
+                      'sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests',
+                      propagate: true,
+                      parameters: [
+                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
+                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                      ]
+                  }
+                  else {
+                    sh 'echo Skipping job because it passed'
+                  }
+                }
+              }
+            }
+            stage('JOB_RUNTIME') {
+              steps {
+                script {
+                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
+                    build job:
+                      'sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release',
+                      propagate: true,
+                      parameters: [
+                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
+                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                      ]
+                  }
+                  else {
+                    sh 'echo Skipping job because it passed'
+                  }
+                }
               }
             }
           }
@@ -238,143 +244,153 @@ pipeline {
   }
   post {
     always {
-      sh 'echo \"Sending metrics to InfluxDB\"'
-      script {
-         influxDbPublisher(selectedTarget: 'Influxdb-general-metrics')
+      timeout(time: 1, unit: 'HOURS') {
+        sh 'echo \"Sending metrics to InfluxDB\"'
+        script {
+           influxDbPublisher(selectedTarget: 'Influxdb-general-metrics')
+        }
       }
     }
     success {
-      updateGitlabCommitStatus name: JOB_NAME, state: 'success'
-      script {
-          if (env.EMAIL_CI_AUTHORS == 'true') {
-            if (env.gitlabUserName) {
-              emailext(subject: "PASSING CI Branch ${env.BRANCH} Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
-                  body: "  <p><font size='6' color='green'> CI PIPELINE SUCCEEDED :-)</font></p> \
-                           <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
-                           <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
-                           <p> CI Pipeline Trigered by ${env.gitlabUserName}<${env.gitlabUserEmail}> into Repository <a href=\"${gitlabSourceRepoHomepage}\">${gitlabSourceRepoName}</a> </p> \
-                           <p> Source Branch=<a href=\"${gitlabSourceRepoHomepage}/-/tree/${env.gitlabSourceBranch}\">${env.gitlabSourceBranch}</a> ->  \
-                           Target Branch=<a href=\"${gitlabSourceRepoHomepage}/-/tree/${env.gitlabTargetBranch}\">${env.gitlabTargetBranch} </a> </p> \
-                           <p> Merge Request=${gitlabSourceRepoHomepage}/-/merge_requests/${env.gitlabMergeRequestIid} </p>    \
-                  ",
-                  mimeType: 'text/html',
-                  recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
-                  to: env.gitlabUserEmail
-              )
-            } else {
-              emailext(subject: "PASSING CI Branch ${env.BRANCH} Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
-                  body: "  <p><font size='6' color='green'> CI PIPELINE SUCCEEDED :-)</font></p> \
-                           <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
-                           <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
-                  ",
-                  mimeType: 'text/html',
-                  recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
-                  to: env.EMAIL_CI_EXTRAS
-              )
+      timeout(time: 1, unit: 'HOURS') {
+        updateGitlabCommitStatus name: JOB_NAME, state: 'success'
+        script {
+            if (env.EMAIL_CI_AUTHORS == 'true') {
+              if (env.gitlabUserName) {
+                emailext(subject: "PASSING CI Branch ${env.BRANCH} Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                    body: "  <p><font size='6' color='green'> CI PIPELINE SUCCEEDED :-)</font></p> \
+                             <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
+                             <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
+                             <p> CI Pipeline Trigered by ${env.gitlabUserName}<${env.gitlabUserEmail}> into Repository <a href=\"${gitlabSourceRepoHomepage}\">${gitlabSourceRepoName}</a> </p> \
+                             <p> Source Branch=<a href=\"${gitlabSourceRepoHomepage}/-/tree/${env.gitlabSourceBranch}\">${env.gitlabSourceBranch}</a> ->  \
+                             Target Branch=<a href=\"${gitlabSourceRepoHomepage}/-/tree/${env.gitlabTargetBranch}\">${env.gitlabTargetBranch} </a> </p> \
+                             <p> Merge Request=${gitlabSourceRepoHomepage}/-/merge_requests/${env.gitlabMergeRequestIid} </p>    \
+                    ",
+                    mimeType: 'text/html',
+                    recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
+                    to: env.gitlabUserEmail
+                )
+              } else {
+                emailext(subject: "PASSING CI Branch ${env.BRANCH} Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                    body: "  <p><font size='6' color='green'> CI PIPELINE SUCCEEDED :-)</font></p> \
+                             <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
+                             <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
+                    ",
+                    mimeType: 'text/html',
+                    recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
+                    to: env.EMAIL_CI_EXTRAS
+                )
+              }
             }
-          }
-          if (env.EMAIL_NIGHTLY_TEAM == 'true') {
-            if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
-              emailext(subject: "PASSING NIGHTLY Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
-                  body: '''<p><font size="6" color="green"> NIGHTLY PIPELINE SUCCEEDED :-)</font></p>
-                      <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
-                      <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
-                  mimeType: 'text/html',
-                  to: env.EMAIL_NIGHTLY_RECIPIENTS
-              )
+            if (env.EMAIL_NIGHTLY_TEAM == 'true') {
+              if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
+                emailext(subject: "PASSING NIGHTLY Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                    body: '''<p><font size="6" color="green"> NIGHTLY PIPELINE SUCCEEDED :-)</font></p>
+                        <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
+                        <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
+                    mimeType: 'text/html',
+                    to: env.EMAIL_NIGHTLY_RECIPIENTS
+                )
+              }
             }
-          }
+        }
       }
     }
     failure {
-      updateGitlabCommitStatus name: JOB_NAME, state: 'failed'
-      script {
-          if (env.EMAIL_CI_AUTHORS == 'true') {
-            if (env.gitlabUserName) {
-              emailext(subject: "FAILING CI Branch ${env.BRANCH} Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
-                  body: "  <p><font size='6' color='red'> CI PIPELINE FAILED :-(</font></p> \
-                           <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
-                           <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
-                           <p> CI Pipeline Trigered by ${env.gitlabUserName}<${env.gitlabUserEmail}> into Repository <a href=\"${gitlabSourceRepoHomepage}\">${gitlabSourceRepoName}</a> </p> \
-                           <p> Source Branch=<a href=\"${gitlabSourceRepoHomepage}/-/tree/${env.gitlabSourceBranch}\">${env.gitlabSourceBranch}</a> ->  \
-                           Target Branch=<a href=\"${gitlabSourceRepoHomepage}/-/tree/${env.gitlabTargetBranch}\">${env.gitlabTargetBranch} </a> </p> \
-                           <p> Merge Request=${gitlabSourceRepoHomepage}/-/merge_requests/${env.gitlabMergeRequestIid} </p>    \
-                  ",
-                  mimeType: 'text/html',
-                  recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
-                  to: env.gitlabUserEmail
-              )
-            } else {
-              emailext(subject: "FAILING CI Branch ${env.BRANCH} Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
-                  body: "  <p><font size='6' color='red'> CI PIPELINE FAILED :-(</font></p> \
-                           <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
-                           <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
-                  ",
-                  mimeType: 'text/html',
-                  recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
-                  to: env.EMAIL_CI_EXTRAS
-              )
+      timeout(time: 1, unit: 'HOURS') {
+        updateGitlabCommitStatus name: JOB_NAME, state: 'failed'
+        script {
+            if (env.EMAIL_CI_AUTHORS == 'true') {
+              if (env.gitlabUserName) {
+                emailext(subject: "FAILING CI Branch ${env.BRANCH} Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                    body: "  <p><font size='6' color='red'> CI PIPELINE FAILED :-(</font></p> \
+                             <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
+                             <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
+                             <p> CI Pipeline Trigered by ${env.gitlabUserName}<${env.gitlabUserEmail}> into Repository <a href=\"${gitlabSourceRepoHomepage}\">${gitlabSourceRepoName}</a> </p> \
+                             <p> Source Branch=<a href=\"${gitlabSourceRepoHomepage}/-/tree/${env.gitlabSourceBranch}\">${env.gitlabSourceBranch}</a> ->  \
+                             Target Branch=<a href=\"${gitlabSourceRepoHomepage}/-/tree/${env.gitlabTargetBranch}\">${env.gitlabTargetBranch} </a> </p> \
+                             <p> Merge Request=${gitlabSourceRepoHomepage}/-/merge_requests/${env.gitlabMergeRequestIid} </p>    \
+                    ",
+                    mimeType: 'text/html',
+                    recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
+                    to: env.gitlabUserEmail
+                )
+              } else {
+                emailext(subject: "FAILING CI Branch ${env.BRANCH} Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                    body: "  <p><font size='6' color='red'> CI PIPELINE FAILED :-(</font></p> \
+                             <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
+                             <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
+                    ",
+                    mimeType: 'text/html',
+                    recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
+                    to: env.EMAIL_CI_EXTRAS
+                )
+              }
             }
-          }
-          if (env.EMAIL_NIGHTLY_TEAM == 'true') {
-            if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
-              emailext(subject: "FAILING NIGHTLY Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
-                  body: '''<p><font size="6" color="red"> NIGHTLY PIPELINE FAILED :-(</font></p>
-                      <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
-                      <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
-                  mimeType: 'text/html',
-                  to: env.EMAIL_NIGHTLY_RECIPIENTS
-              )
+            if (env.EMAIL_NIGHTLY_TEAM == 'true') {
+              if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
+                emailext(subject: "FAILING NIGHTLY Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                    body: '''<p><font size="6" color="red"> NIGHTLY PIPELINE FAILED :-(</font></p>
+                        <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
+                        <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
+                    mimeType: 'text/html',
+                    to: env.EMAIL_NIGHTLY_RECIPIENTS
+                )
+              }
             }
-          }
+        }
       }
     }
     aborted {
-      updateGitlabCommitStatus name: JOB_NAME, state: 'canceled'
-      script {
-          if (env.EMAIL_CI_AUTHORS == 'true') {
-            if (env.gitlabUserName) {
-              emailext(subject: "ABORTED CI Branch ${env.BRANCH} Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
-                  body: "  <p><font size='6' color='red'> CI PIPELINE ABORTED :-(</font></p> \
-                           <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
-                           <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
-                           <p> CI Pipeline Trigered by ${env.gitlabUserName}<${env.gitlabUserEmail}> into Repository <a href=\"${gitlabSourceRepoHomepage}\">${gitlabSourceRepoName}</a> </p> \
-                           <p> Source Branch=<a href=\"${gitlabSourceRepoHomepage}/-/tree/${env.gitlabSourceBranch}\">${env.gitlabSourceBranch}</a> ->  \
-                           Target Branch=<a href=\"${gitlabSourceRepoHomepage}/-/tree/${env.gitlabTargetBranch}\">${env.gitlabTargetBranch} </a> </p> \
-                           <p> Merge Request=${gitlabSourceRepoHomepage}/-/merge_requests/${env.gitlabMergeRequestIid} </p>    \
-                  ",
-                  mimeType: 'text/html',
-                  recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
-                  to: env.gitlabUserEmail
-              )
-            } else {
-              emailext(subject: "ABORTED CI Branch ${env.BRANCH} Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
-                  body: "  <p><font size='6' color='red'> CI PIPELINE ABORTED :-(</font></p> \
-                           <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
-                           <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
-                  ",
-                  mimeType: 'text/html',
-                  recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
-                  to: env.EMAIL_CI_EXTRAS
-              )
+      timeout(time: 1, unit: 'HOURS') {
+        updateGitlabCommitStatus name: JOB_NAME, state: 'canceled'
+        script {
+            if (env.EMAIL_CI_AUTHORS == 'true') {
+              if (env.gitlabUserName) {
+                emailext(subject: "ABORTED CI Branch ${env.BRANCH} Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                    body: "  <p><font size='6' color='red'> CI PIPELINE ABORTED :-(</font></p> \
+                             <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
+                             <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
+                             <p> CI Pipeline Trigered by ${env.gitlabUserName}<${env.gitlabUserEmail}> into Repository <a href=\"${gitlabSourceRepoHomepage}\">${gitlabSourceRepoName}</a> </p> \
+                             <p> Source Branch=<a href=\"${gitlabSourceRepoHomepage}/-/tree/${env.gitlabSourceBranch}\">${env.gitlabSourceBranch}</a> ->  \
+                             Target Branch=<a href=\"${gitlabSourceRepoHomepage}/-/tree/${env.gitlabTargetBranch}\">${env.gitlabTargetBranch} </a> </p> \
+                             <p> Merge Request=${gitlabSourceRepoHomepage}/-/merge_requests/${env.gitlabMergeRequestIid} </p>    \
+                    ",
+                    mimeType: 'text/html',
+                    recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
+                    to: env.gitlabUserEmail
+                )
+              } else {
+                emailext(subject: "ABORTED CI Branch ${env.BRANCH} Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                    body: "  <p><font size='6' color='red'> CI PIPELINE ABORTED :-(</font></p> \
+                             <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
+                             <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p> \
+                    ",
+                    mimeType: 'text/html',
+                    recipientProviders: [[$class:'UpstreamComitterRecipientProvider']],
+                    to: env.EMAIL_CI_EXTRAS
+                )
+              }
             }
-          }
-          if (env.EMAIL_NIGHTLY_TEAM == 'true') {
-            if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
-              emailext(subject: "ABORTED NIGHTLY Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
-                  body: '''<p><font size="6" color="red"> NIGHTLY PIPELINE ABORTED :-(</font></p>
-                      <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
-                      <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
-                  mimeType: 'text/html',
-                  to: env.EMAIL_NIGHTLY_RECIPIENTS
-              )
+            if (env.EMAIL_NIGHTLY_TEAM == 'true') {
+              if (env.BRANCH == env.EMAIL_NIGHTLY_BRANCH) {
+                emailext(subject: "ABORTED NIGHTLY Job '${env.JOB_NAME}' (${env.BUILD_NUMBER})",
+                    body: '''<p><font size="6" color="red"> NIGHTLY PIPELINE ABORTED :-(</font></p>
+                        <p> Build at <a href='${BUILD_URL}'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>
+                        <p> Check console output at <a href='${BUILD_URL}consoleText'>${JOB_NAME} [${BUILD_NUMBER}]</a></p>''',
+                    mimeType: 'text/html',
+                    to: env.EMAIL_NIGHTLY_RECIPIENTS
+                )
+              }
             }
-          }
+        }
       }
     }
     cleanup {
-      sh 'for pid in $(lsof +D . 2> /dev/null | grep .nfs | awk \"{print $2}\" ); do kill -9 $pid; done'
-      sh "if [ ${HARD_CLEAN} = true ]; then rm -rf * && rm -rf .[^.]*; fi"
+      timeout(time: 1, unit: 'HOURS') {
+        sh 'for pid in $(lsof +D . 2> /dev/null | grep .nfs | awk \"{print $2}\" ); do kill -9 $pid; done'
+        sh "if [ ${HARD_CLEAN} = true ]; then rm -rf * && rm -rf .[^.]*; fi"
+      }
     }
   }
 }
