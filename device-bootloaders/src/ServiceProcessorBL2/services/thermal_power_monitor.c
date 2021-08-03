@@ -567,7 +567,7 @@ static void pwr_svc_get_module_residency_power_states(uint16_t tag, uint64_t req
     }
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES,
-                    timer_get_ticks_count() - req_start_time, status);
+                    timer_get_ticks_count() - req_start_time, status)
 
     if (0 !=
         SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, 
@@ -689,14 +689,14 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
             break;
         }
         case DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES: {
-            struct device_mgmt_throttle_residency_cmd_t *throttle_residency_cmd =
+            const struct device_mgmt_throttle_residency_cmd_t *throttle_residency_cmd =
                 (struct device_mgmt_throttle_residency_cmd_t *)buffer;
             pwr_svc_get_module_residency_throttle_states(
                 tag_id, req_start_time, throttle_residency_cmd->pwr_throttle_state);
             break;
         }
         case DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES: {
-            struct device_mgmt_power_residency_cmd_t *power_residency_cmd =
+           const struct device_mgmt_power_residency_cmd_t *power_residency_cmd =
                 (struct device_mgmt_power_residency_cmd_t *)buffer;
             pwr_svc_get_module_residency_power_states(
                 tag_id, req_start_time, power_residency_cmd->pwr_state);

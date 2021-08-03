@@ -229,7 +229,7 @@ static void taskMain(void *pvParameters)
 
 #if !FAST_BOOT
     // At this point, SP and minions have booted successfully. Increment the completed boot counter
-    status = flashfs_drv_increment_completed_boot_count();
+    status = flash_fs_increment_completed_boot_count();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to increment the completed boot counter!")
     Log_Write(LOG_LEVEL_CRITICAL, "Incremented the completed boot counter!\n");
 #endif
@@ -245,7 +245,7 @@ static void taskMain(void *pvParameters)
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
     while (1) {
-        Log_Write(LOG_LEVEL_CRITICAL, "SP Alive..");
+        Log_Write(LOG_LEVEL_CRITICAL, "SP Alive..\r\n");
         // Print SP Hearbeat
         vTaskDelay(1000U);
     }
