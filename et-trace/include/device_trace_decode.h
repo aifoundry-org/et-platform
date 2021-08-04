@@ -37,6 +37,7 @@ struct trace_buffer_std_header_t;
  *              NULL if the end of the trace buffer has been reached.
  *              Note: This is a void* to support both trace_entry_ext_t
  *              and trace_entry_t types depending on the trace type.
+ *              On decode errors or wrong inputs, the function returns NULL.
  *
  ***********************************************************************/
 void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev);
@@ -73,6 +74,10 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
         return tb + 1;
     }
 
+    /* Invalid prev entry */
+    if (prev < (void *)tb)
+        return NULL;
+
     const uint16_t entry_type = ((struct trace_entry_header_t *)prev)->type;
     size_t payload_size;
 
@@ -101,7 +106,7 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
         DEVICE_TRACE_PAYLOAD_SIZE(CMD_STATUS, sizeof(struct trace_cmd_status_t))
         DEVICE_TRACE_PAYLOAD_SIZE(POWER_STATUS, sizeof(struct trace_power_status_t))
     default:
-        payload_size = 0;
+        return NULL;
     }
 
 #undef DEVICE_TRACE_PAYLOAD_SIZE
