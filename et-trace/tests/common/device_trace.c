@@ -11,8 +11,7 @@
 #include "device_trace.h"
 
 #include "mock_atomics.h"
-
-static int get_hart_id() { return rand() % 4; }
+#include "mock_etsoc.h"
 
 /* For Master Minion all Trace data is based on L2 Cache, that means we need to perform all updates in L2.
    On other hand, for Service Processor and Compute Minion, Trace data is in L1 Cache, and updates are
@@ -89,8 +88,7 @@ union trace_header_u {
  * Here we simply increment a static value. */
 static inline uint64_t PMU_Get_hpmcounter3(void)
 {
-    static uint64_t val = 0;
-    return ++val;
+    return reg_hpmcounter3;
 }
 
 /* Mock: Since we don't have pmu counters, we simply return random values */
@@ -99,19 +97,19 @@ static inline uint64_t PMU_Get_Counter(enum pmc_counter_e counter)
     uint64_t val;
     switch (counter) {
     case PMC_COUNTER_HPMCOUNTER4:
-        val = rand();
+        val = reg_hpmcounter4;
         break;
     case PMC_COUNTER_HPMCOUNTER5:
-        val = rand();
+        val = reg_hpmcounter5;
         break;
     case PMC_COUNTER_HPMCOUNTER6:
-        val = rand();
+        val = reg_hpmcounter6;
         break;
     case PMC_COUNTER_HPMCOUNTER7:
-        val = rand();
+        val = reg_hpmcounter7;
         break;
     case PMC_COUNTER_HPMCOUNTER8:
-        val = rand();
+        val = reg_hpmcounter8;
         break;
     case PMC_COUNTER_SHIRE_CACHE_FOO:
         val = 0; // syscall
@@ -400,6 +398,37 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
 
     ADD_MESSAGE_HEADER(entry, TRACE_TYPE_CMD_STATUS)
     WRITE_U64(entry->cmd.raw_cmd, cmd_data->raw_cmd);
+}
+
+/* NB: This is still missing from the device-minion-runtime */
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Power_Status
+*
+*   DESCRIPTION
+*
+*       A function to log Trace power status message.
+*
+*   INPUTS
+*
+*       trace_control_block_t        Trace control block of logging Hart.
+*       trace_power_event_status_t   Power status data.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Power_Status(struct trace_control_block_t *cb,
+    const struct trace_power_event_status_t *pwr_data)
+{
+    struct trace_power_status_t *entry =
+        Trace_Buffer_Reserve(cb, sizeof(*entry));
+
+    ADD_MESSAGE_HEADER(entry, TRACE_TYPE_POWER_STATUS)
+    WRITE_U64(entry->cmd.raw_cmd, pwr_data->raw_cmd);
 }
 
 /************************************************************************
