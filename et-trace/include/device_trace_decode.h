@@ -39,7 +39,7 @@ struct trace_buffer_std_header_t;
  *              and trace_entry_t types depending on the trace type.
  *
  ***********************************************************************/
-void* Trace_Decode(struct trace_buffer_std_header_t* tb, void* prev);
+void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev);
 
 /*
  * Implement Trace_Decode by defining DEVICE_TRACE_DECODE_IMPL
@@ -56,62 +56,65 @@ void* Trace_Decode(struct trace_buffer_std_header_t* tb, void* prev);
 
 #include <device_trace_types.h>
 
-void* Trace_Decode(struct trace_buffer_std_header_t* tb, void* prev)
+void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
 {
-    if (tb == NULL) return NULL;
+    if (tb == NULL)
+        return NULL;
 
     const size_t buffer_size = tb->data_size;
 
-    if (prev == NULL)
-    {
+    if (prev == NULL) {
         /* Check if valid trace buffer */
-        if (tb->magic_header != TRACE_MAGIC_HEADER) return NULL;
-        if (buffer_size <= sizeof(struct trace_buffer_std_header_t)) return NULL;
+        if (tb->magic_header != TRACE_MAGIC_HEADER)
+            return NULL;
+        if (buffer_size <= sizeof(struct trace_buffer_std_header_t))
+            return NULL;
         /* First entry */
         return tb + 1;
     }
 
-    const uint16_t entry_type = ((struct trace_entry_header_t*)prev)->type;
+    const uint16_t entry_type = ((struct trace_entry_header_t *)prev)->type;
     size_t payload_size;
 
-#define DEVICE_TRACE_PAYLOAD_SIZE(E, S)  \
-    case TRACE_TYPE_ ## E:               \
-        payload_size = S;                \
+#define DEVICE_TRACE_PAYLOAD_SIZE(E, S) \
+    case TRACE_TYPE_##E:                \
+        payload_size = S;               \
         break;
 
     /* Get payload size depending on entry type */
     switch (entry_type) {
-    DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U8, sizeof(struct trace_value_u8_t))
-    DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U16, sizeof(struct trace_value_u16_t))
-    DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U32, sizeof(struct trace_value_u32_t))
-    DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U64, sizeof(struct trace_value_u64_t))
-    DEVICE_TRACE_PAYLOAD_SIZE(VALUE_FLOAT, sizeof(struct trace_value_float_t))
-    DEVICE_TRACE_PAYLOAD_SIZE(STRING, sizeof(struct trace_string_t))
-    DEVICE_TRACE_PAYLOAD_SIZE(PMC_COUNTER, sizeof(struct trace_pmc_counter_t))
-    DEVICE_TRACE_PAYLOAD_SIZE(PMC_ALL_COUNTERS, sizeof(struct trace_pmc_counter_t) * 7)
+        DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U8, sizeof(struct trace_value_u8_t))
+        DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U16, sizeof(struct trace_value_u16_t))
+        DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U32, sizeof(struct trace_value_u32_t))
+        DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U64, sizeof(struct trace_value_u64_t))
+        DEVICE_TRACE_PAYLOAD_SIZE(VALUE_FLOAT, sizeof(struct trace_value_float_t))
+        DEVICE_TRACE_PAYLOAD_SIZE(STRING, sizeof(struct trace_string_t))
+        DEVICE_TRACE_PAYLOAD_SIZE(PMC_COUNTER, sizeof(struct trace_pmc_counter_t))
+        DEVICE_TRACE_PAYLOAD_SIZE(PMC_ALL_COUNTERS, sizeof(struct trace_pmc_counter_t) * 7)
     case TRACE_TYPE_MEMORY: {
-        payload_size = sizeof(struct trace_entry_header_t)
-                     + sizeof(uint64_t) /* src_addr */
-                     + sizeof(uint64_t) /* size */
-                     + ((struct trace_memory_t*)prev)->size;
+        payload_size = sizeof(struct trace_entry_header_t) + sizeof(uint64_t) /* src_addr */
+                       + sizeof(uint64_t) /* size */
+                       + ((struct trace_memory_t *)prev)->size;
         break;
     }
-    DEVICE_TRACE_PAYLOAD_SIZE(EXCEPTION, 0)
-    DEVICE_TRACE_PAYLOAD_SIZE(CMD_STATUS, sizeof(struct trace_cmd_status_t))
-    DEVICE_TRACE_PAYLOAD_SIZE(POWER_STATUS, sizeof(struct trace_power_status_t))
+        DEVICE_TRACE_PAYLOAD_SIZE(EXCEPTION, 0)
+        DEVICE_TRACE_PAYLOAD_SIZE(CMD_STATUS, sizeof(struct trace_cmd_status_t))
+        DEVICE_TRACE_PAYLOAD_SIZE(POWER_STATUS, sizeof(struct trace_power_status_t))
     default:
         payload_size = 0;
     }
 
 #undef DEVICE_TRACE_PAYLOAD_SIZE
 
-    if (payload_size == 0) return NULL;
+    if (payload_size == 0)
+        return NULL;
 
-    void* next = (uint8_t*)prev + payload_size;
+    void *next = (uint8_t *)prev + payload_size;
 
     /* End of buffer? */
-    const size_t cur_size = (uint8_t*)next - (uint8_t*)tb;
-    if (cur_size >= buffer_size) return NULL;
+    const size_t cur_size = (uint8_t *)next - (uint8_t *)tb;
+    if (cur_size >= buffer_size)
+        return NULL;
 
     return next;
 }
