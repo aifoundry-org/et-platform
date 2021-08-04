@@ -15,7 +15,6 @@ find_package(gflags REQUIRED)
 find_package(glog REQUIRED)
 find_package(Threads REQUIRED)
 
-
 set(COMMON_LIBRARIES
     glog::glog
     gflags::gflags
@@ -34,23 +33,6 @@ target_include_directories(dm-tester
 target_link_libraries(dm-tester ${COMMON_LIBRARIES})
 
 install(TARGETS dm-tester
-    EXPORT deviceManagementTargets
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-
-add_executable(dm-tester-pcie dm_tester.cc)
-target_compile_definitions(dm-tester-pcie PUBLIC TARGET_PCIE)
-target_compile_features(dm-tester-pcie PUBLIC cxx_std_17)
-set_target_properties(dm-tester-pcie PROPERTIES OUTPUT_NAME "dm-tester-pcie")
-target_include_directories(dm-tester-pcie
-    PRIVATE
-        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
-)
-target_link_libraries(dm-tester-pcie ${COMMON_LIBRARIES})
-
-install(TARGETS dm-tester-pcie
     EXPORT deviceManagementTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

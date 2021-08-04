@@ -66,68 +66,6 @@ getDM_t TestDevMgmtApiSyncCmds::getInstance() {
   return (getDM_t)0;
 }
 
-void TestDevMgmtApiSyncCmds::setTraceControl_1_47(bool singleDevice) {
-  getDM_t dmi = getInstance();
-  ASSERT_TRUE(dmi);
-  DeviceManagement& dm = (*dmi)(devLayer_.get());
-
-  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(device_mgmt_api::trace_control_e);
-    const char input_buff[input_size] = {device_mgmt_api::TRACE_CONTROL_TRACE_UART_DISABLE};
-
-    const uint32_t set_output_size = sizeof(uint8_t);
-    char set_output_buff[set_output_size] = {0};
-
-    auto hst_latency = std::make_unique<uint32_t>();
-    auto dev_latency = std::make_unique<uint64_t>();
-
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff,
-                                input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
-              device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-
-    // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
-      ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-    }
-  }
-}
-
-void TestDevMgmtApiSyncCmds::setTraceConfigure_1_48(bool singleDevice) {
-  getDM_t dmi = getInstance();
-  ASSERT_TRUE(dmi);
-  DeviceManagement& dm = (*dmi)(devLayer_.get());
-
-  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size =
-      (sizeof(device_mgmt_api::trace_configure_e) + sizeof(device_mgmt_api::trace_configure_filter_mask_e)) /
-      sizeof(uint32_t);
-    const uint32_t input_buff[input_size] = {device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
-                                             device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG};
-
-    const uint32_t set_output_size = sizeof(uint8_t);
-    char set_output_buff[set_output_size] = {0};
-
-    auto hst_latency = std::make_unique<uint32_t>();
-    auto dev_latency = std::make_unique<uint64_t>();
-
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG,
-                                reinterpret_cast<const char*>(input_buff), input_size * sizeof(uint32_t),
-                                set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
-              device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-
-    // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
-      ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-    }
-  }
-}
-
 void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
@@ -1555,6 +1493,120 @@ void TestDevMgmtApiSyncCmds::setSpRootCertificate_1_46(bool singleDevice) {
   }
 }
 
+void TestDevMgmtApiSyncCmds::setTraceControl_1_47(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = sizeof(device_mgmt_api::trace_control_e);
+    const char input_buff[input_size] = {device_mgmt_api::TRACE_CONTROL_TRACE_UART_DISABLE};
+
+    const uint32_t set_output_size = sizeof(uint8_t);
+    char set_output_buff[set_output_size] = {0};
+
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff,
+                                input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+
+    // Skip validation if loopback driver
+    if (!FLAGS_loopback_driver) {
+      ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+    }
+  }
+}
+
+void TestDevMgmtApiSyncCmds::setTraceConfigure_1_48(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size =
+      (sizeof(device_mgmt_api::trace_configure_e) + sizeof(device_mgmt_api::trace_configure_filter_mask_e)) /
+      sizeof(uint32_t);
+    const uint32_t input_buff[input_size] = {device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                                             device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG};
+
+    const uint32_t set_output_size = sizeof(uint8_t);
+    char set_output_buff[set_output_size] = {0};
+
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG,
+                                reinterpret_cast<const char*>(input_buff), input_size * sizeof(uint32_t),
+                                set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+
+    // Skip validation if loopback driver
+    if (!FLAGS_loopback_driver) {
+      ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+    }
+  }
+}
+
+// Note this test should always be the last one
+void TestDevMgmtApiSyncCmds::getTraceBuffer_1_49(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+  std::vector<std::byte> response;
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    ASSERT_EQ(dm.getTraceBufferServiceProcessor(deviceIdx, response, DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+
+    // Skip validation if loopback driver
+    if (!FLAGS_loopback_driver) {
+      bool validStringEventFound = false;
+#if SW_8496
+      // Get Trace buffer header
+      auto traceHeader = templ::bit_cast<trace_buffer_std_header_t*>(response.data());
+      // TODO: enable after SW-8496
+      // Check if it is valid SP Trace buffer.
+      if ((traceHeader->magic_header != TRACE_MAGIC_HEADER) || (traceHeader->type != TRACE_SP_BUFFER) ||
+          ((traceHeader->data_size) > response.size())) {
+        DM_LOG(ERROR) << "Invalid SP Trace Buffer!";
+        break;
+      }
+      // Get size from Trace buffer header
+      size_t dataSize = traceHeader->data_size - sizeof(struct trace_buffer_std_header_t);
+#endif
+      size_t dataSize = response.size() - sizeof(struct trace_buffer_std_header_t);
+      auto traceBuf = response.data() + sizeof(struct trace_buffer_std_header_t);
+      auto dataPtr = templ::bit_cast<trace_string_t*>(traceBuf);
+      char stringLog[TRACE_STRING_MAX_SIZE + 1]; // NOSONAR this is required for SP trace buffer parsing.
+      size_t dataPopped = 0;
+      DM_LOG(INFO) << "Printing trace buffer:";
+      while (dataPopped < dataSize) {
+        if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
+          strncpy(&stringLog[0], dataPtr->dataString, TRACE_STRING_MAX_SIZE);
+          stringLog[TRACE_STRING_MAX_SIZE] = '\0';
+          std::cout << stringLog << std::endl;
+          dataPtr++;
+          dataPopped += sizeof(struct trace_string_t);
+          validStringEventFound = true;
+        } else {
+          break;
+        }
+      }
+      ASSERT_EQ(validStringEventFound, true);
+    }
+  }
+}
+
 void TestDevMgmtApiSyncCmds::setModulePowerStateRange_1_50(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
@@ -1828,56 +1880,3 @@ void TestDevMgmtApiSyncCmds::setModulePowerStateRangeInvalidInputBuffer_1_61(boo
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
-
-// Note this test should always be the last one
-void TestDevMgmtApiSyncCmds::getTraceBuffer_1_49(bool singleDevice) {
-  getDM_t dmi = getInstance();
-  ASSERT_TRUE(dmi);
-  DeviceManagement& dm = (*dmi)(devLayer_.get());
-  std::vector<std::byte> response;
-
-  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    ASSERT_EQ(dm.getTraceBufferServiceProcessor(deviceIdx, response, DM_SERVICE_REQUEST_TIMEOUT),
-              device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-
-    // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
-      bool validStringEventFound = false;
-#if SW_8496
-      // Get Trace buffer header
-      auto traceHeader = templ::bit_cast<trace_buffer_std_header_t*>(response.data());
-      // TODO: enable after SW-8496
-      // Check if it is valid SP Trace buffer.
-      if ((traceHeader->magic_header != TRACE_MAGIC_HEADER) || (traceHeader->type != TRACE_SP_BUFFER) ||
-          ((traceHeader->data_size) > response.size())) {
-        DM_LOG(ERROR) << "Invalid SP Trace Buffer!";
-        break;
-      }
-      // Get size from Trace buffer header
-      size_t dataSize = traceHeader->data_size - sizeof(struct trace_buffer_std_header_t);
-#endif
-      size_t dataSize = response.size() - sizeof(struct trace_buffer_std_header_t);
-      auto traceBuf = response.data() + sizeof(struct trace_buffer_std_header_t);
-      auto dataPtr = templ::bit_cast<trace_string_t*>(traceBuf);
-      char stringLog[TRACE_STRING_MAX_SIZE + 1]; // NOSONAR this is required for SP trace buffer parsing.
-      size_t dataPopped = 0;
-      DM_LOG(INFO) << "Printing trace buffer:";
-      while (dataPopped < dataSize) {
-        if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
-          strncpy(&stringLog[0], dataPtr->dataString, TRACE_STRING_MAX_SIZE);
-          stringLog[TRACE_STRING_MAX_SIZE] = '\0';
-          std::cout << stringLog << std::endl;
-          dataPtr++;
-          dataPopped += sizeof(struct trace_string_t);
-          validStringEventFound = true;
-        } else {
-          break;
-        }
-      }
-      ASSERT_EQ(validStringEventFound, true);
-    }
-  }
-}
-

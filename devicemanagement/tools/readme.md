@@ -155,4 +155,4 @@
 
 ## Zebu
 
-### Usage: dm-tester-pcie -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nlotemp,nhitemp]
+### Usage: dm-tester -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nlotemp,nhitemp]

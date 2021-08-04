@@ -38,41 +38,11 @@ using Clock = std::chrono::system_clock;
 using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
 
-namespace {
-constexpr int kIDevice = 0;
-constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
-constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
-} // namespace
-
 class DMLib {
 public:
   DMLib() {
-    handle_ = nullptr;
     handle_ = dlopen("libDM.so", RTLD_LAZY);
-
-#ifdef TARGET_PCIE
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
-#else
-    emu::SysEmuOptions sysEmuOptions;
-
-    sysEmuOptions.bootromTrampolineToBL2ElfPath = BOOTROM_TRAMPOLINE_TO_BL2_ELF;
-    sysEmuOptions.spBL2ElfPath = BL2_ELF;
-    sysEmuOptions.machineMinionElfPath = MACHINE_MINION_ELF;
-    sysEmuOptions.masterMinionElfPath = MASTER_MINION_ELF;
-    sysEmuOptions.workerMinionElfPath = WORKER_MINION_ELF;
-    sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
-    sysEmuOptions.runDir = fs::current_path();
-    sysEmuOptions.maxCycles = kSysEmuMaxCycles;
-    sysEmuOptions.minionShiresMask = kSysEmuMinionShiresMask;
-    sysEmuOptions.puUart0Path = sysEmuOptions.runDir + "/pu_uart0_tx.log";
-    sysEmuOptions.puUart1Path = sysEmuOptions.runDir + "/pu_uart1_tx.log";
-    sysEmuOptions.spUart0Path = sysEmuOptions.runDir + "/spio_uart0_tx.log";
-    sysEmuOptions.spUart1Path = sysEmuOptions.runDir + "/spio_uart1_tx.log";
-    sysEmuOptions.startGdb = false;
-
-    // Launch Sysemu through IDevice Abstraction
-    devLayer_ = IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
-#endif
   }
 
   ~DMLib() {
