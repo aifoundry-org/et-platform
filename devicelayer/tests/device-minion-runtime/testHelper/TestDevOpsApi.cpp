@@ -426,12 +426,14 @@ TestDevOpsApi::PopRspResult TestDevOpsApi::popRsp(int deviceIdx) {
     return popRsp(deviceIdx);
   }
 
+  if (devOpsApiCmd->getCmdStatus() != CmdStatus::CMD_SUCCESSFUL) {
+    TEST_VLOG(0) << devOpsApiCmd->printSummary();
+  }
+
   if (devOpsApiCmd->getCmdStatus() == CmdStatus::CMD_RSP_DUPLICATE) {
     return popRsp(deviceIdx);
   }
-
-  TEST_VLOG(1) << devOpsApiCmd->printSummary();
-
+  
   return {rspTagId};
 }
 
