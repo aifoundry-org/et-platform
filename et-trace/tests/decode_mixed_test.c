@@ -104,7 +104,7 @@ CHECK_ENTRY(u16, uint16_t)
 CHECK_ENTRY(u32, uint32_t)
 CHECK_ENTRY(u64, uint64_t)
 
-static void check_random_entry(const struct trace_entry_header_t *entry)
+static void check_random_entry(const void *entry)
 {
     switch (rand() % 4) {
     case 0:
