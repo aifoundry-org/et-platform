@@ -5,7 +5,6 @@
  */
 
 #include <stdlib.h>
-#include <getopt.h>
 
 #define DEVICE_TRACE_DECODE_IMPL
 #include <device_trace.h>
@@ -14,47 +13,7 @@
 
 #include "common/test_trace.h"
 #include "common/test_macros.h"
-
-struct user_args {
-    int seed;
-    const char *output;
-};
-
-static void parse_args(int argc, const char **argv, struct user_args *uargs)
-{
-    opterr = 0;
-
-    uargs->seed = 1453;
-    uargs->output = NULL;
-
-    int ret;
-    while ((ret = getopt(argc, (char *const *)argv, ":s:o:h")) != -1) {
-        switch (ret) {
-        case 's':
-            uargs->seed = atoi(optarg);
-            break;
-        case 'o':
-            uargs->output = optarg;
-            break;
-        case 'h':
-            printf("usage: %s [-s seed] [-o output]\n", argv[0]);
-            exit(EXIT_SUCCESS);
-            break;
-        case ':':
-            fprintf(stderr, "error: missing value for '%s'\n", argv[optind - 1]);
-            exit(EXIT_FAILURE);
-            break;
-        case '?':
-        default:
-            fprintf(stderr, "error: unknown option '%s'\n", argv[optind - 1]);
-            exit(EXIT_FAILURE);
-        }
-    }
-    if (optind < argc) {
-        fprintf(stderr, "error: pending arguments\n");
-        exit(EXIT_FAILURE);
-    }
-}
+#include "common/user_args.h"
 
 int main(int argc, const char **argv)
 {
