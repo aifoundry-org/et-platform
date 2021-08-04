@@ -1,7 +1,7 @@
 #ifndef FLB_H
 #define FLB_H
 
-#include "device-common/esr_defines.h"
+#include "esr_defines.h"
 
 #include <stdint.h>
 
