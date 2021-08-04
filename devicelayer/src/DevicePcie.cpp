@@ -14,6 +14,7 @@
 #include <dirent.h>
 #include <experimental/filesystem>
 #include <fcntl.h>
+#include <fstream>
 #include <regex>
 #include <stdio.h>
 #include <sys/epoll.h>
@@ -32,6 +33,25 @@ int countDeviceNodes(bool isMngmt) {
   return static_cast<int>(std::count_if(fs::begin(it), fs::end(it), [isMngmt](auto& e) {
     return regex_match(e.path().filename().string(), std::regex(isMngmt ? "(et)(.*)(_mgmt)" : "(et)(.*)(_ops)"));
   }));
+}
+
+unsigned long getCmaFreeMem() {
+  std::string token;
+  std::ifstream file("/proc/meminfo");
+  while(file >> token) {
+    if(token == "CmaFree:") {
+      unsigned long memInKB;
+      if(file >> memInKB) {
+        // Return mem in bytes
+        return memInKB * 1024;
+      } else {
+        return 0;
+      }
+    }
+    // Ignore the rest of the line
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+  }
+  return 0;
 }
 
 struct IoctlResult {
@@ -410,6 +430,11 @@ void* DevicePcie::allocDmaBuffer(int device, size_t sizeInBytes, bool writeable)
   if (device >= static_cast<int>(devices_.size())) {
     throw Exception("Invalid device");
   }
+
+  if (sizeInBytes > getCmaFreeMem()) {
+    throw Exception("Not enough CMA memory!");
+  }
+
   // NOTE fdOps_ must be open with O_RDWR for PROT_READ/PROT_WRITE with MAP_SHARED
   // Argument "prot" can be one of PROT_WRITE, PROT_READ, or both.
   // Refer: https://man7.org/linux/man-pages/man2/mmap.2.html
