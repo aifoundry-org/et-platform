@@ -30,6 +30,10 @@
 #include "pcie_int.h"
 #include "vq.h"
 #include "log.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "portmacro.h"
+
 
 /*! \struct host_iface_sqs_cb_t;
     \brief Host interface control block that manages
@@ -193,8 +197,16 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
 {
     int8_t status;
 
+    /* Disabling preemption here - just a workaround
+        see details at  https://esperantotech.atlassian.net/browse/SW-8881
+        TODO: Remove it after problem is root caused
+    */
+    portDISABLE_INTERRUPTS();
+
     /* Push the command to circular buffer */
     status = VQ_Push(&SP_Host_CQ.vqueue, p_cmd, cmd_size);
+
+    portENABLE_INTERRUPTS();
 
     if (status == STATUS_SUCCESS)
     {
@@ -233,8 +245,17 @@ uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff)
     uint32_t return_val = 0;
     int32_t pop_ret_val;
 
+
+    /* Disabling preemption here - just a workaround
+        see details at  https://esperantotech.atlassian.net/browse/SW-8881
+        TODO: Remove it after problem is root caused
+    */
+    portDISABLE_INTERRUPTS();
+
     /* Pop the command from circular buffer */
     pop_ret_val = VQ_Pop(&SP_Host_SQ.vqueue, rx_buff);
+
+    portENABLE_INTERRUPTS();
 
     if (pop_ret_val > 0)
     {
