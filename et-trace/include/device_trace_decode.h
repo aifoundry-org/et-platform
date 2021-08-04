@@ -13,7 +13,7 @@
 #ifndef DEVICE_TRACE_DECODE_H
 #define DEVICE_TRACE_DECODE_H
 
-#include "device_trace_types.h"
+struct trace_buffer_std_header_t;
 
 /***********************************************************************
  *
@@ -45,11 +45,16 @@ void* Trace_Decode(struct trace_buffer_std_header_t* tb, void* prev);
  * Implement Trace_Decode by defining DEVICE_TRACE_DECODE_IMPL
  * in a *single* source file before including the header, i.e.:
  *
- * #define DEVICE_TRACE_DECODE_IMPL
- * #include <device_trace_decode.h>
+ *     #define DEVICE_TRACE_DECODE_IMPL
+ *     #include <device_trace_decode.h>
+ *
+ * Note: The implementation of Trace_Decode changes depending on
+ *       whether `MASTER_MINION` is set or not (see device_trace_types.h)
  */
 
 #ifdef DEVICE_TRACE_DECODE_IMPL
+
+#include <device_trace_types.h>
 
 void* Trace_Decode(struct trace_buffer_std_header_t* tb, void* prev)
 {
@@ -74,6 +79,7 @@ void* Trace_Decode(struct trace_buffer_std_header_t* tb, void* prev)
         payload_size = S;                \
         break;
 
+    /* Get payload size depending on entry type */
     switch (entry_type) {
     DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U8, sizeof(struct trace_value_u8_t))
     DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U16, sizeof(struct trace_value_u16_t))
@@ -101,10 +107,10 @@ void* Trace_Decode(struct trace_buffer_std_header_t* tb, void* prev)
 
     if (payload_size == 0) return NULL;
 
-    void* next = (char*)prev + payload_size;
+    void* next = (uint8_t*)prev + payload_size;
 
     /* End of buffer? */
-    const size_t cur_size = (char*)next - (char*)tb;
+    const size_t cur_size = (uint8_t*)next - (uint8_t*)tb;
     if (cur_size >= buffer_size) return NULL;
 
     return next;
