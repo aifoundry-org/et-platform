@@ -36,8 +36,9 @@ class TfEnv:
             print("Tear down environment")
             self.conn.send(tf_defs["stop_simcmd"].encode())
             time.sleep(1)  # some time for sim stop
-            self.conn.close()
             # Forcefully close sim
             pNames = os.popen("ps -Af").read()
             if pNames.count('launchSim') > 0:
                 os.system("pkill launchSim")
+            self.conn.close()
+            time.sleep(1)  # some time for socket close

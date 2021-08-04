@@ -89,6 +89,10 @@ void *tf_mgmt_server_thread(void *thread_data)
         std::cout << "Failed to create socket. errno: " << errno << std::endl;
     }
 
+    // Forcefully attaching socket to the port
+    int opt = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt));
+
     int iMode=0;
     ioctl(sockfd, _IONBF, &iMode);
 
