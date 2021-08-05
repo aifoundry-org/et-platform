@@ -7,13 +7,13 @@
 // in accordance with the terms and conditions stipulated in the
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
+#include "Utils.h"
 #include "runtime/IRuntime.h"
-#include "utils.h"
 #include <chrono>
-#include <hostUtils/logging/Logger.h>
 #include <device-layer/IDeviceLayerFake.h>
 #include <functional>
 #include <gtest/gtest.h>
+#include <hostUtils/logging/Logger.h>
 #include <thread>
 
 using namespace rt;

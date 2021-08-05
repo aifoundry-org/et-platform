@@ -321,7 +321,7 @@ void RuntimeImp::setOnStreamErrorsCallback(StreamErrorCallback callback) {
   streamManager_.setErrorCallback(std::move(callback));
 }
 
-void RuntimeImp::processResponseError(uint32_t errorCode, EventId event) {
+void RuntimeImp::processResponseError(DeviceErrorCode errorCode, EventId event) {
   std::lock_guard lock(mutex_);
   auto t = std::thread([this, errorCode, event] {
     // here we have to check if there is an associated errorbuffer with the event; if so, copy the buffer from
@@ -374,7 +374,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on DMA read: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError(r->status, eventId);
+      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
     }
     break;
   }
@@ -384,7 +384,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on DMA write: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError(r->status, eventId);
+      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
     }
     break;
   }
@@ -395,7 +395,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
         device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on kernel launch: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError(r->status, eventId);
+      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
     } else {
       executionContextCache_->releaseBuffer(eventId);
     }
@@ -407,7 +407,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on firmware trace configure: " << r->status
                       << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError(r->status, eventId);
+      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
     }
     break;
   }
@@ -417,7 +417,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on firmware trace control (start/stop): " << r->status
                       << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError(r->status, eventId);
+      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
     }
     break;
   }

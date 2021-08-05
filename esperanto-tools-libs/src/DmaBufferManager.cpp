@@ -9,8 +9,8 @@
  *-------------------------------------------------------------------------*/
 
 #include "DmaBufferManager.h"
+#include "Utils.h"
 #include "runtime/DmaBuffer.h"
-#include "utils.h"
 #include <algorithm>
 using namespace rt;
 

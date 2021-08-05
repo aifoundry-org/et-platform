@@ -9,9 +9,9 @@
 //------------------------------------------------------------------------------
 
 #include "TestUtils.h"
+#include "Utils.h"
 #include "common/Constants.h"
 #include "runtime/IRuntime.h"
-#include "utils.h"
 #include <device-layer/IDeviceLayer.h>
 #include <hostUtils/logging/Logger.h>
 

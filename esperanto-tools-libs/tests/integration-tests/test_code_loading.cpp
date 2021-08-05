@@ -9,11 +9,11 @@
 //------------------------------------------------------------------------------
 
 #include "RuntimeImp.h"
+#include "Utils.h"
 #include "common/Constants.h"
 #include "device-layer/IDeviceLayer.h"
 #include "runtime/IRuntime.h"
 #include "sw-sysemu/SysEmuOptions.h"
-#include "utils.h"
 
 #include <hostUtils/logging/Logger.h>
 #include <experimental/filesystem>

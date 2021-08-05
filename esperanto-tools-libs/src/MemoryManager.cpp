@@ -9,8 +9,8 @@
  *-------------------------------------------------------------------------*/
 
 #include "MemoryManager.h"
+#include "Utils.h"
 #include "runtime/IRuntime.h"
-#include "utils.h"
 #include <algorithm>
 #include <cassert>
 #include <cmath>

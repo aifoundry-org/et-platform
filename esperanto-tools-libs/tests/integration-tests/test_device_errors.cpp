@@ -9,9 +9,10 @@
 //------------------------------------------------------------------------------
 
 #include "TestUtils.h"
+#include "Utils.h"
 #include "common/Constants.h"
 #include "runtime/IRuntime.h"
-#include "utils.h"
+#include "runtime/Types.h"
 #include <device-layer/IDeviceLayer.h>
 #include <hostUtils/logging/Logger.h>
 
@@ -20,32 +21,49 @@
 #include <ios>
 #include <random>
 
-namespace {
-
 struct DeviceErrors : public Fixture {
   DeviceErrors() {
     auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
     init(std::move(deviceLayer));
-    kernel_ = loadKernel("add_vector.elf");
+    add_vector_kernel = loadKernel("add_vector.elf");
+    exception_kernel = loadKernel("exception.elf");
   }
-  rt::KernelId kernel_;
+  rt::KernelId add_vector_kernel;
+  rt::KernelId exception_kernel;
 };
-// Load and removal of a single kernel.
+
 TEST_F(DeviceErrors, KernelLaunchInvalidMask) {
   std::array<std::byte, 64> dummyArgs;
 
-  runtime_->kernelLaunch(defaultStream_, kernel_, dummyArgs.data(), sizeof(dummyArgs), 0UL);
+  runtime_->kernelLaunch(defaultStream_, add_vector_kernel, dummyArgs.data(), sizeof(dummyArgs), 0UL);
   runtime_->waitForStream(defaultStream_);
   auto errors = runtime_->retrieveStreamErrors(defaultStream_);
   EXPECT_EQ(errors.size(), 1UL);
   bool callbackExecuted = false;
   runtime_->setOnStreamErrorsCallback([&callbackExecuted](auto, const auto&) { callbackExecuted = true; });
-  runtime_->kernelLaunch(defaultStream_, kernel_, dummyArgs.data(), sizeof(dummyArgs), 0UL);
+  runtime_->kernelLaunch(defaultStream_, add_vector_kernel, dummyArgs.data(), sizeof(dummyArgs), 0UL);
   runtime_->waitForStream(defaultStream_);
   EXPECT_TRUE(callbackExecuted);
 }
 
-} // namespace
+TEST_F(DeviceErrors, KernelLaunchException) {
+  std::array<std::byte, 64> dummyArgs;
+
+  runtime_->kernelLaunch(defaultStream_, exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0xFFFFFFFFUL);
+  runtime_->waitForStream(defaultStream_);
+  auto errors = runtime_->retrieveStreamErrors(defaultStream_);
+  EXPECT_EQ(errors.size(), 1UL);
+  RT_LOG(logging::VLOG_HIGH) << "";
+  bool callbackExecuted = false;
+  runtime_->setOnStreamErrorsCallback([&callbackExecuted, &errors](auto, const rt::StreamError& streamError) {
+    callbackExecuted = true;
+    EXPECT_EQ(streamError.getString(), errors[0].getString());
+  });
+  runtime_->kernelLaunch(defaultStream_, exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0xFFFFFFFFUL);
+  runtime_->waitForStream(defaultStream_);
+  RT_LOG(INFO) << "This is expected, part of the test. Stream error message: \n" << errors[0].getString();
+  EXPECT_TRUE(callbackExecuted);
+}
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);

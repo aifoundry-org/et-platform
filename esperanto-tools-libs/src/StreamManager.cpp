@@ -9,8 +9,8 @@
  *-------------------------------------------------------------------------*/
 
 #include "StreamManager.h"
+#include "Utils.h"
 #include "runtime/IRuntime.h"
-#include "utils.h"
 #include <g3log/loglevels.hpp>
 #include <mutex>
 #include <type_traits>

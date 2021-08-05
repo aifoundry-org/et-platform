@@ -9,8 +9,8 @@
 //------------------------------------------------------------------------------
 
 #include "TestUtils.h"
+#include "Utils.h"
 #include "runtime/IRuntime.h"
-#include "utils.h"
 #include <device-layer/IDeviceLayer.h>
 using namespace rt;
 

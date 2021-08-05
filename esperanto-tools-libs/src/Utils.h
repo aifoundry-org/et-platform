@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------
- * Copyright (C) 2020, Esperanto Technologies Inc.
+ * Copyright (C) 2021, Esperanto Technologies Inc.
  * The copyright to the computer program(s) herein is the
  * property of Esperanto Technologies, Inc. All Rights Reserved.
  * The program(s) may be used and/or copied only with
@@ -43,3 +43,5 @@ template <typename T, typename... Args> void unused(T t, Args... args) {
 #define RT_DLOG(severity) ET_DLOG(RUNTIME, severity)
 #define RT_VLOG(severity) ET_VLOG(RUNTIME, severity)
 #define RT_LOG_IF(severity, condition) ET_LOG_IF(RUNTIME, severity, condition)
+
+rt::DeviceErrorCode convert(int responseType, uint32_t responseCode);

@@ -9,7 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #include "EventManager.h"
-#include "utils.h"
+#include "Utils.h"
 #include "runtime/IRuntime.h"
 #include <algorithm>
 #include <cassert>

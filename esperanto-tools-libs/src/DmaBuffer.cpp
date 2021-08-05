@@ -12,7 +12,7 @@
 #include "DmaBufferImp.h"
 #include "DmaBufferManager.h"
 #include "RuntimeImp.h"
-#include "utils.h"
+#include "Utils.h"
 
 namespace rt {
 

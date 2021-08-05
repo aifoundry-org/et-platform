@@ -16,8 +16,9 @@
 #include "ProfilerImp.h"
 #include "ResponseReceiver.h"
 #include "StreamManager.h"
+#include "Utils.h"
 #include "runtime/IRuntime.h"
-#include "utils.h"
+#include "runtime/Types.h"
 #include <algorithm>
 #include <mutex>
 #include <thread>
@@ -103,7 +104,7 @@ private:
     std::ostream* cmOutput_;
   };
 
-  void processResponseError(uint32_t errorCode, EventId event);
+  void processResponseError(DeviceErrorCode errorCode, EventId event);
 
   inline void Sync([[maybe_unused]] EventId e) {
 #ifdef RUNTIME_SYNCHRONOUS_MODE

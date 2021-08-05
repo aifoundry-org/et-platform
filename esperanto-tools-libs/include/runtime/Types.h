@@ -60,13 +60,48 @@ struct ErrorContext {
   std::array<uint64_t, 31> gpr_; ///< RiscV ABI, corresponds to x1-x31 registers
 };
 
+enum class DeviceErrorCode {
+  KernelLaunchError,
+  KernelLaunchException,
+  KernelLaunchShiresNotReady,
+  KernelLaunchHostAborted,
+  KernelLaunchInvalidAddress,
+  KernelLaunchTimeoutHang,
+  KernelLaunchInvalidArgsPayloadSize,
+
+  KernelAbortError,
+  KernelAbortInvalidTagId,
+  KernelAbortTimeoutHang,
+
+  DmaError,
+  DmaTimeoutIdleChannelUnavailable,
+  DmaAborted,
+  DmaTimeoutHang,
+  DmaInvalidAddress,
+  DmaInvalidSize,
+
+  TraceConfigError,
+  TraceConfigBadShireMask,
+  TraceConfigBadThreadMask,
+  TraceConfigBadEventMask,
+  TraceConfigBadFilterMask,
+
+  TraceControlBadRtType,
+  TraceControlBadControlMask,
+  TraceControlComputeMinionRtCtrlError,
+  TraceControlMasterMinionRtCtrlError,
+
+  Unknown
+};
+
 /// \brief This struct contains the errorCode given by de device when some command fail and the associated
 /// \ref ErrorContext (if any)
 struct StreamError {
-  explicit StreamError(uint32_t errorCode)
+  explicit StreamError(DeviceErrorCode errorCode)
     : errorCode_(errorCode) {
   }
-  uint32_t errorCode_;
+  std::string getString() const; /// < returns a string representation of the StreamError
+  DeviceErrorCode errorCode_;
   std::optional<std::vector<ErrorContext>> errorContext_;
 };
 /// \brief This callback can be optionally set to automatically retrieve stream errors when produced
@@ -76,3 +111,10 @@ constexpr auto kCacheLineSize = 64U; // TODO This should not be here, it should 
                                      // in a header with project-wide constants
 
 } // namespace rt
+
+namespace std {
+string to_string(rt::DeviceErrorCode);
+inline string to_string(const rt::StreamError& e) {
+  return e.getString();
+}
+} // namespace std

@@ -12,7 +12,7 @@
 #include "MemoryManager.h"
 #include "RuntimeImp.h"
 #include "ScopedProfileEvent.h"
-#include "utils.h"
+#include "Utils.h"
 #include <chrono>
 #include <cstdio>
 #include <device-layer/IDeviceLayer.h>

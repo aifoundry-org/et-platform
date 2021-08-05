@@ -8,10 +8,10 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "runtime/IRuntime.h" 
-#include <device-layer/IDeviceLayerFake.h>
 #include "TestUtils.h"
-#include "utils.h"
+#include "Utils.h"
+#include "runtime/IRuntime.h"
+#include <device-layer/IDeviceLayerFake.h>
 using namespace rt;
 
 namespace {
