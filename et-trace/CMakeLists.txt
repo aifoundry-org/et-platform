@@ -9,11 +9,12 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.14)
-project(device-trace LANGUAGES C)
+project(deviceTrace LANGUAGES C)
 
 option(DTRACE_TEST "Build device_trace tests" OFF)
 
 add_library(device_trace INTERFACE)
+add_library(deviceTrace::device_trace ALIAS device_trace)
 target_include_directories(device_trace
   INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -25,3 +26,15 @@ if (DTRACE_TEST)
   enable_testing()
   add_subdirectory(tests)
 endif()
+
+install(TARGETS device_trace
+    EXPORT deviceTraceTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+install(EXPORT deviceTraceTargets
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceTrace
+    NAMESPACE deviceTrace::
+)
