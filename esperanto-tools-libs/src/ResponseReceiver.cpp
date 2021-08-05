@@ -22,7 +22,8 @@
 using namespace rt;
 using namespace std::chrono_literals;
 namespace {
-constexpr auto kPollingInterval = 10ms;
+constexpr auto kPollingInterval = 10us;
+constexpr auto kNumTriesBeforePolling = 20;
 }
 
 void ResponseReceiver::threadFunction() {
@@ -35,15 +36,17 @@ void ResponseReceiver::threadFunction() {
   std::mt19937 gen(rd());
 
   while (run_) {
-    auto devicesToCheck = receiverServices_->getDevicesWithEventsOnFly();
-    std::shuffle(begin(devicesToCheck), end(devicesToCheck), gen);
     int responsesCount = 0;
-    for (auto dev : devicesToCheck) {
-      while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
-        RT_VLOG(HIGH) << "Got response from deviceId: " << dev;
-        responsesCount++;
-        receiverServices_->onResponseReceived(buffer);
-        RT_VLOG(HIGH) << "Response processed";
+    for (int i = 0; i < kNumTriesBeforePolling; ++i) {
+      auto devicesToCheck = receiverServices_->getDevicesWithEventsOnFly();
+      std::shuffle(begin(devicesToCheck), end(devicesToCheck), gen);
+      for (auto dev : devicesToCheck) {
+        while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
+          RT_VLOG(HIGH) << "Got response from deviceId: " << dev;
+          responsesCount++;
+          receiverServices_->onResponseReceived(buffer);
+          RT_VLOG(HIGH) << "Response processed";
+        }
       }
     }
     if (responsesCount == 0) {
