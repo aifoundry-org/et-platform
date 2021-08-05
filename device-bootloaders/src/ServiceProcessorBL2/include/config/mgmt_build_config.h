@@ -306,7 +306,7 @@
 /*! \def RT_ERROR_THRESHOLD
     \brief Predefined runtime error threshold.
 */
-#define RT_ERROR_THRESHOLD  1  //TODO: Change it after bring up
+#define RT_ERROR_THRESHOLD  0
 
 /************************/
 /* Compile-time checks  */

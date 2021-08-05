@@ -500,8 +500,6 @@ static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t 
     struct residency_t residency;
     int32_t status;
 
-    Log_Write(LOG_LEVEL_ERROR, "MICHA: throttle state: %d\r\n", throttle_state);
-
     status = get_throttle_residency(throttle_state, &residency);
 
     if (0 != status)
