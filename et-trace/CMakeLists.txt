@@ -13,9 +13,9 @@ project(deviceTrace LANGUAGES C)
 
 option(DTRACE_TEST "Build device_trace tests" OFF)
 
-add_library(device_trace INTERFACE)
-add_library(deviceTrace::device_trace ALIAS device_trace)
-target_include_directories(device_trace
+add_library(device_trace_headers INTERFACE)
+add_library(deviceTrace::headers ALIAS device_trace_headers)
+target_include_directories(device_trace_headers
   INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/device_trace>
@@ -27,7 +27,7 @@ if (DTRACE_TEST)
   add_subdirectory(tests)
 endif()
 
-install(TARGETS device_trace
+install(TARGETS device_trace_headers
     EXPORT deviceTraceTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
