@@ -8,8 +8,8 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
-#include "KernelParametersCache.h"
 #include "EventManager.h"
+#include "ExecutionContextCache.h"
 #include "device-layer/IDeviceLayer.h"
 #include <atomic>
 #include <functional>

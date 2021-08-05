@@ -66,7 +66,7 @@ add_library(etrt_obj OBJECT
     src/RuntimeImp.cpp
     src/MemoryManager.cpp
     src/EventManager.cpp
-    src/KernelParametersCache.cpp
+    src/ExecutionContextCache.cpp
     src/ResponseReceiver.cpp
     src/KernelLaunch.cpp
     src/DmaBufferManager.cpp

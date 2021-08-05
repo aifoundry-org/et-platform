@@ -9,13 +9,15 @@
  *-------------------------------------------------------------------------*/
 
 #include "RuntimeImp.h"
-#include "KernelParametersCache.h"
+#include "ExecutionContextCache.h"
 #include "MemoryManager.h"
 #include "ScopedProfileEvent.h"
 
 #include "runtime/DmaBuffer.h"
 #include "runtime/IRuntime.h"
+#include "runtime/Types.h"
 
+#include <cstdint>
 #include <device-layer/IDeviceLayer.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 
@@ -37,10 +39,15 @@ constexpr auto kTracingFwCmSize = 1 * (1 << 20);
 constexpr auto kTracingFwBufferSize = kTracingFwCmSize + kTracingFwMmSize;
 constexpr int kEnableTracingBit = 1 << 0;
 constexpr int kResetTraceBufferAddressBit = 1 << 2; // Reset Trace buffer point to device side Trace Buffer base address
+constexpr auto kNumErrorContexts = 2080;
+constexpr auto kExceptionBufferSize = sizeof(ErrorContext) * kNumErrorContexts;
 } // namespace
 
 RuntimeImp::~RuntimeImp() {
   RT_LOG(INFO) << "Destroying runtime";
+  for (auto& t : threadsToJoin_) {
+    t.join();
+  }
   responseReceiver_.reset();
 }
 
@@ -60,7 +67,9 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
     dmaBufferManagers_.try_emplace(d, std::make_unique<DmaBufferManager>(deviceLayer_, static_cast<int>(d)));
     deviceTracing_.try_emplace(d, DeviceFwTracing{allocateDmaBuffer(d, kTracingFwBufferSize, false), nullptr, nullptr});
   }
-  kernelParametersCache_ = std::make_unique<KernelParametersCache>(this);
+  // Allocate 1MB for exception buffer and 1024B for kernel parameters
+  executionContextCache_ =
+    std::make_unique<ExecutionContextCache>(this, 5, align(kExceptionBufferSize + kBlockSize, kBlockSize));
   responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
 }
 
@@ -69,7 +78,7 @@ std::vector<DeviceId> RuntimeImp::getDevices() {
   return devices_;
 }
 
-KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
+KernelId RuntimeImp::loadCode(DeviceId device, const std::byte* data, size_t size) {
   ScopedProfileEvent profileEvent(Class::LoadCode, profiler_, device);
   std::unique_lock lock(mutex_);
 
@@ -102,8 +111,7 @@ KernelId RuntimeImp::loadCode(DeviceId device, const void* data, size_t size) {
       RT_VLOG(LOW) << "Found segment: " << segment->get_index() << std::hex << " Offset: 0x" << offset
                    << " Physical Address: 0x" << loadAddress << " Mem Size: 0x" << memSize << " Copying to address: 0x"
                    << addr << " Entry: 0x" << entry << "\n";
-      memcpyHostToDevice(sstream, reinterpret_cast<const uint8_t*>(data) + offset, reinterpret_cast<void*>(addr),
-                         memSize, false);
+      memcpyHostToDevice(sstream, data + offset, reinterpret_cast<std::byte*>(addr), memSize, false);
     }
   }
   if (!basePhysicalAddressCalculated) {
@@ -141,7 +149,7 @@ void RuntimeImp::unloadCode(KernelId kernel) {
   kernels_.erase(it);
 }
 
-void* RuntimeImp::mallocDevice(DeviceId device, size_t size, uint32_t alignment) {
+std::byte* RuntimeImp::mallocDevice(DeviceId device, size_t size, uint32_t alignment) {
   ScopedProfileEvent profileEvent(Class::MallocDevice, profiler_, device);
   RT_LOG(INFO) << "Malloc requested device " << std::hex << static_cast<std::underlying_type_t<DeviceId>>(device)
                << " size: " << size << " alignment: " << alignment;
@@ -155,7 +163,7 @@ void* RuntimeImp::mallocDevice(DeviceId device, size_t size, uint32_t alignment)
   return it->second.malloc(size, alignment);
 }
 
-void RuntimeImp::freeDevice(DeviceId device, void* buffer) {
+void RuntimeImp::freeDevice(DeviceId device, std::byte* buffer) {
   ScopedProfileEvent profileEvent(Class::FreeDevice, profiler_, device);
   RT_LOG(INFO) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
                << " buffer address: " << std::hex << buffer;
@@ -175,7 +183,8 @@ void RuntimeImp::destroyStream(StreamId stream) {
   streamManager_.destroyStream(stream);
 }
 
-EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void* d_dst, size_t size, bool barrier) {
+EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
+                                       bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_, stream);
   std::unique_lock lock(mutex_);
   auto streamInfo = streamManager_.getStreamInfo(stream);
@@ -192,7 +201,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   auto dmaBufferManager = find(dmaBufferManagers_, DeviceId{streamInfo.device_})->second.get();
   RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
                << " Host address: " << h_src << " Device address: " << cmd.dst_device_phy_addr << " Size: " << size;
-  if (dmaBufferManager->isDmaBuffer(reinterpret_cast<const std::byte*>(h_src))) {
+  if (dmaBufferManager->isDmaBuffer(h_src)) {
     cmd.src_host_virt_addr = cmd.src_host_phy_addr = reinterpret_cast<uint64_t>(h_src);
   } else {
     // if not, allocate a buffer, and stage the memory first into it
@@ -202,8 +211,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
                  << tmpBuffer.getPtr();
 
     // TODO: It can be copied in background and return control to the user. Future work.
-    auto srcPtr = reinterpret_cast<const std::byte*>(h_src);
-    std::copy(srcPtr, srcPtr + size, tmpBuffer.getPtr());
+    std::copy(h_src, h_src + size, tmpBuffer.getPtr());
 
     // TODO: There are more efficient ways of achieving this. Future work.
     auto t = std::thread([this, evt, tmpBuffer = std::move(tmpBuffer)]() mutable {
@@ -226,7 +234,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const void* h_src, void*
   return evt;
 }
 
-EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void* h_dst, size_t size,
+EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                        [[maybe_unused]] bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_, stream);
   RT_VLOG(LOW) << "MemcpyDeviceToHost stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
@@ -250,13 +258,13 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
     cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
 
   // first check if its a DmaBuffer
-  auto dmaBufferManager = find(dmaBufferManagers_, DeviceId{streamInfo.device_})->second.get();
-  if (dmaBufferManager->isDmaBuffer(reinterpret_cast<std::byte*>(h_dst))) {
+  if (auto dmaBufferManager = find(dmaBufferManagers_, DeviceId{streamInfo.device_})->second.get();
+      dmaBufferManager->isDmaBuffer(h_dst)) {
     cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(h_dst);
     sendCommandMasterMinion(streamInfo.vq_, streamInfo.device_, cmd, lock, true);
   } else {
     // if not, allocate a buffer, and copy the results from it to h_dst
-    auto tmpBuffer = dmaBufferManager->allocate(size, false);
+    auto tmpBuffer = dmaBufferManager->allocate(size, true);
     RT_VLOG(LOW) << std::hex << "Staging memory transfer into a DmaBuffer to enable DMA. Dma address (actual address): "
                  << tmpBuffer.getPtr();
     cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer.getPtr());
@@ -272,7 +280,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const void* d_src, void*
       // first wait till the copy ends
       waitForEvent(memcpyEvt);
       // copy results to user buffer
-      std::copy(tmpBuffer.getPtr(), tmpBuffer.getPtr() + size, reinterpret_cast<std::byte*>(h_dst));
+      std::copy(tmpBuffer.getPtr(), tmpBuffer.getPtr() + size, h_dst);
       streamManager_.removeEvent(evt);
       // dispatch the event
       eventManager_.dispatch(evt);
@@ -309,8 +317,35 @@ bool RuntimeImp::waitForStream(StreamId stream, std::chrono::seconds timeout) {
   }
 }
 
-void RuntimeImp::onStreamErrors(StreamErrorCallback callback) {
+void RuntimeImp::setOnStreamErrorsCallback(StreamErrorCallback callback) {
   streamManager_.setErrorCallback(std::move(callback));
+}
+
+void RuntimeImp::processResponseError(uint32_t errorCode, EventId event) {
+  std::lock_guard lock(mutex_);
+  auto t = std::thread([this, errorCode, event] {
+    // here we have to check if there is an associated errorbuffer with the event; if so, copy the buffer from
+    // devicebuffer into dmabuffer; then do the callback
+    StreamError streamError(errorCode);
+    if (auto buffer = executionContextCache_->getReservedBuffer(event); buffer != nullptr) {
+      // do the copy
+      auto st = createStream(buffer->device_);
+      auto errorContexts = std::vector<ErrorContext>(kNumErrorContexts);
+      memcpyDeviceToHost(st, buffer->getExceptionContextPtr(), reinterpret_cast<std::byte*>(errorContexts.data()),
+                         errorContexts.size(), false);
+      waitForStream(st);
+      streamError.errorContext_.emplace(std::move(errorContexts));
+      executionContextCache_->releaseBuffer(event);
+    }
+    if (!streamManager_.executeCallback(event, streamError)) {
+      // the callback was not set, so add the error to the error list
+      streamManager_.addError(event, std::move(streamError));
+    }
+    // release the buffer
+    streamManager_.removeEvent(event);
+    eventManager_.dispatch(event);
+  });
+  threadsToJoin_.emplace_back(std::move(t));
 }
 
 void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
@@ -331,61 +366,72 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
 
   RT_VLOG(MID) << "Response received eventId: " << std::hex << static_cast<int>(eventId)
                << " Message Id: " << header->rsp_hdr.msg_id;
+  bool responseWasOk = true;
   switch (header->rsp_hdr.msg_id) {
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_read_rsp_t*>(response.data());
-    if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
-      std::stringstream ss;
-      ss << "Error on DMA read: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      throw Exception(ss.str());
-    }
     fillEvent(event, *r);
+    if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
+      responseWasOk = false;
+      RT_LOG(WARNING) << "Error on DMA read: " << r->status << ". Tag id: " << static_cast<int>(eventId);
+      processResponseError(r->status, eventId);
+    }
     break;
   }
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_write_rsp_t*>(response.data());
-    if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
-      std::stringstream ss;
-      ss << "Error on DMA write: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      throw Exception(ss.str());
-    }
     fillEvent(event, *r);
+    if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
+      responseWasOk = false;
+      RT_LOG(WARNING) << "Error on DMA write: " << r->status << ". Tag id: " << static_cast<int>(eventId);
+      processResponseError(r->status, eventId);
+    }
     break;
   }
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_kernel_launch_rsp_t*>(response.data());
     fillEvent(event, *r);
-    kernelParametersCache_->releaseBuffer(eventId);
     if (r->status !=
         device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED) {
-      std::stringstream ss;
-      ss << "Error on kernel launch: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      throw Exception(ss.str());
+      responseWasOk = false;
+      RT_LOG(WARNING) << "Error on kernel launch: " << r->status << ". Tag id: " << static_cast<int>(eventId);
+      processResponseError(r->status, eventId);
+    } else {
+      executionContextCache_->releaseBuffer(eventId);
     }
     break;
   }
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_trace_rt_config_rsp_t*>(response.data());
     if (r->status != device_ops_api::DEV_OPS_TRACE_RT_CONFIG_RESPONSE::DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS) {
-      std::stringstream ss;
-      ss << "Error on firmware trace configure: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      throw Exception(ss.str());
+      responseWasOk = false;
+      RT_LOG(WARNING) << "Error on firmware trace configure: " << r->status
+                      << ". Tag id: " << static_cast<int>(eventId);
+      processResponseError(r->status, eventId);
     }
     break;
   }
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_trace_rt_control_rsp_t*>(response.data());
     if (r->status != device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS) {
-      std::stringstream ss;
-      ss << "Error on firmware trace control (start/stop): " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      throw Exception(ss.str());
+      responseWasOk = false;
+      RT_LOG(WARNING) << "Error on firmware trace control (start/stop): " << r->status
+                      << ". Tag id: " << static_cast<int>(eventId);
+      processResponseError(r->status, eventId);
     }
     break;
   }
+  default:
+    RT_LOG(WARNING) << "Unknown response msg id";
+    assert(false);
+    break;
   }
   profiler_.record(event);
-  streamManager_.removeEvent(eventId);
-  eventManager_.dispatch(eventId);
+  // if response wasn't ok, then processResponseError will clean events
+  if (responseWasOk) {
+    streamManager_.removeEvent(eventId);
+    eventManager_.dispatch(eventId);
+  }
 }
 
 DmaBuffer RuntimeImp::allocateDmaBuffer(DeviceId device, size_t size, bool writeable) {

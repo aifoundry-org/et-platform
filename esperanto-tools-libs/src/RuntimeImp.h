@@ -26,7 +26,7 @@
 
 using namespace std::chrono_literals;
 namespace rt {
-class KernelParametersCache;
+class ExecutionContextCache;
 class MemoryManager;
 class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
 public:
@@ -35,20 +35,20 @@ public:
 
   std::vector<DeviceId> getDevices() override;
 
-  KernelId loadCode(DeviceId device, const void* elf, size_t elf_size) override;
+  KernelId loadCode(DeviceId device, const std::byte* elf, size_t elf_size) override;
   void unloadCode(KernelId kernel) override;
 
-  void* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) override;
-  void freeDevice(DeviceId device, void* buffer) override;
+  std::byte* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) override;
+  void freeDevice(DeviceId device, std::byte* buffer) override;
 
   StreamId createStream(DeviceId device) override;
   void destroyStream(StreamId stream) override;
 
-  EventId kernelLaunch(StreamId stream, KernelId kernel, const void* kernel_args, size_t kernel_args_size,
+  EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
                        uint64_t shire_mask, bool barrier, bool flushL3) override;
 
-  EventId memcpyHostToDevice(StreamId stream, const void* src, void* dst, size_t size, bool barrier) override;
-  EventId memcpyDeviceToHost(StreamId stream, const void* src, void* dst, size_t size, bool barrier) override;
+  EventId memcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) override;
+  EventId memcpyDeviceToHost(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) override;
 
   bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) override;
   bool waitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) override;
@@ -65,7 +65,7 @@ public:
     return &profiler_;
   }
 
-  void onStreamErrors(StreamErrorCallback callback) override;
+  void setOnStreamErrorsCallback(StreamErrorCallback callback) override;
 
   std::vector<StreamError> retrieveStreamErrors(StreamId stream) override;
 
@@ -77,7 +77,7 @@ public:
 
 private:
   struct Kernel {
-    Kernel(DeviceId deviceId, void* deviceBuffer, uint64_t entryPoint)
+    Kernel(DeviceId deviceId, std::byte* deviceBuffer, uint64_t entryPoint)
       : deviceId_(deviceId)
       , deviceBuffer_(deviceBuffer)
       , entryPoint_(entryPoint) {
@@ -93,7 +93,7 @@ private:
       return reinterpret_cast<uint64_t>(deviceBuffer_);
     }
     DeviceId deviceId_;
-    void* deviceBuffer_;
+    std::byte* deviceBuffer_;
     uint64_t entryPoint_;
   };
 
@@ -102,6 +102,8 @@ private:
     std::ostream* mmOutput_;
     std::ostream* cmOutput_;
   };
+
+  void processResponseError(uint32_t errorCode, EventId event);
 
   inline void Sync([[maybe_unused]] EventId e) {
 #ifdef RUNTIME_SYNCHRONOUS_MODE
@@ -154,7 +156,9 @@ private:
   mutable std::recursive_mutex mutex_;
 
   profiling::ProfilerImp profiler_;
-  std::unique_ptr<KernelParametersCache> kernelParametersCache_;
+  std::unique_ptr<ExecutionContextCache> executionContextCache_;
   std::unique_ptr<ResponseReceiver> responseReceiver_;
+  // TODO refactor this shit... these are the response threads which must be waited at some point
+  std::vector<std::thread> threadsToJoin_;
 };
 } // namespace rt

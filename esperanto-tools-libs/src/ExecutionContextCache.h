@@ -9,8 +9,8 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
-#include "runtime/IRuntime.h"
 #include "MemoryManager.h"
+#include "runtime/IRuntime.h"
 #include <cstddef>
 #include <mutex>
 #include <set>
@@ -18,18 +18,28 @@
 #include <vector>
 
 namespace rt {
-class KernelParametersCache {
+class ExecutionContextCache {
 public:
   struct Buffer {
     explicit Buffer(DeviceId device, IRuntime* runtime, size_t size);
     ~Buffer();
-    void* deviceBuffer_;
+    std::byte* getExceptionContextPtr() const {
+      return deviceBuffer_ + kBlockSize;
+    }
+    std::byte* getParametersPtr() const {
+      return deviceBuffer_;
+    }
+    Buffer(const Buffer&) = delete;
+    Buffer& operator=(const Buffer&) = delete;
+    Buffer(Buffer&&) = delete;
+    Buffer& operator=(Buffer&&) = delete;
     std::vector<std::byte> hostBuffer_;
+    std::byte* deviceBuffer_;
     DeviceId device_;
     IRuntime* runtime_;
   };
 
-  explicit KernelParametersCache(IRuntime* runtime, int initialFreeListSize = 10, int bufferSize = kBlockSize);
+  explicit ExecutionContextCache(IRuntime* runtime, int initialFreeListSize = 10, int bufferSize = kBlockSize);
 
   // returns a buffer from the free list, if there are no free list then it will allocate a buffer and use that
   Buffer* allocBuffer(DeviceId deviceId);
@@ -43,10 +53,13 @@ public:
   // the kernel completes execution
   void releaseBuffer(EventId eventId);
 
-  ~KernelParametersCache();
+  // returns an associated buffer for eventId or nullptr if there is no associated buffer
+  Buffer* getReservedBuffer(EventId eventId) const;
+
+  ~ExecutionContextCache();
 
 private:
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   std::unordered_map<DeviceId, std::vector<Buffer*>> freeBuffers_;
   std::unordered_map<EventId, Buffer*> reservedBuffers_;
   // these are the buffers which are currently allocated but yet not reserved.

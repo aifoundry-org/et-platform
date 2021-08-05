@@ -98,8 +98,8 @@ TEST(Profiler, add_2_vectors_profiling) {
   auto bufResult = runtime->mallocDevice(devices[0], bufferSize);
 
   auto stream = runtime->createStream(dev);
-  runtime->memcpyHostToDevice(stream, vA.data(), bufA, bufferSize);
-  runtime->memcpyHostToDevice(stream, vB.data(), bufB, bufferSize);
+  runtime->memcpyHostToDevice(stream, reinterpret_cast<std::byte*>(vA.data()), bufA, bufferSize);
+  runtime->memcpyHostToDevice(stream, reinterpret_cast<std::byte*>(vB.data()), bufB, bufferSize);
 
   struct Parameters {
     void* vA;
@@ -112,12 +112,12 @@ TEST(Profiler, add_2_vectors_profiling) {
   for (auto i = 0u; i < static_cast<unsigned long>(numElems); ++i) {
     resultFromDevice[i] = 0xF;
   }
-  runtime->memcpyHostToDevice(stream, resultFromDevice.data(), bufResult, bufferSize);
-  runtime->kernelLaunch(stream, kernelId, &parameters, sizeof(parameters), 0x1);
+  runtime->memcpyHostToDevice(stream, reinterpret_cast<std::byte*>(resultFromDevice.data()), bufResult, bufferSize);
+  runtime->kernelLaunch(stream, kernelId, reinterpret_cast<std::byte*>(&parameters), sizeof(parameters), 0x1);
   for (auto i = 0u; i < static_cast<unsigned long>(numElems); ++i) {
     resultFromDevice[i] = 0x0;
   }
-  runtime->memcpyDeviceToHost(stream, bufResult, resultFromDevice.data(), bufferSize);
+  runtime->memcpyDeviceToHost(stream, bufResult, reinterpret_cast<std::byte*>(resultFromDevice.data()), bufferSize);
   runtime->waitForStream(stream);
   profiler->stop();
   runtime.reset();

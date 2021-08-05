@@ -52,22 +52,25 @@ struct ErrorContext {
   uint64_t cycle_;  ///< The cycle as sampled from the system counters at the point where the event type has happened.
                     ///< Its accurate to within 100 cycles.
   uint64_t hartId_; ///< The Hart thread ID which took the error event.
-  std::array<uint64_t, 31> gpr_; ///< RiscV ABI, corresponds to x1-x31 registers
   uint64_t mepc_;                ///< Device exception program counter
   uint64_t mstatus_;             ///< Device status register
   uint64_t mtval_;               ///< Device bad address or instruction
   uint64_t mcause_;              ///< Device trap cause
   uint64_t userDefinedError_;    ///< User defined error (Depending on the Type)
+  std::array<uint64_t, 31> gpr_; ///< RiscV ABI, corresponds to x1-x31 registers
 };
 
 /// \brief This struct contains the errorCode given by de device when some command fail and the associated
 /// \ref ErrorContext (if any)
 struct StreamError {
-  int errorCode_; ///<
-  std::optional<ErrorContext> errorContext_;
+  explicit StreamError(uint32_t errorCode)
+    : errorCode_(errorCode) {
+  }
+  uint32_t errorCode_;
+  std::optional<std::vector<ErrorContext>> errorContext_;
 };
 /// \brief This callback can be optionally set to automatically retrieve stream errors when produced
-using StreamErrorCallback = std::function<void(EventId, StreamError)>;
+using StreamErrorCallback = std::function<void(EventId, const StreamError&)>;
 /// \brief Constants
 constexpr auto kCacheLineSize = 64U; // TODO This should not be here, it should be
                                      // in a header with project-wide constants

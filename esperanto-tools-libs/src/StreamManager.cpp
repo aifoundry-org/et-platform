@@ -82,12 +82,23 @@ std::optional<EventId> StreamManager::getLastEvent(StreamId stream) const {
   return {};
 }
 
+bool StreamManager::executeCallback(EventId eventId, const StreamError& error) {
+  std::lock_guard lock(mutex_);
+  if (!streamErrorCallback_) {
+    return false;
+  } else {
+    streamErrorCallback_(eventId, error);
+    return true;
+  }
+}
+
 std::vector<StreamError> StreamManager::retrieveErrors(StreamId stream) {
   std::lock_guard lock(mutex_);
   return std::move(find(streams_, stream)->second.errors_);
 }
 
 void StreamManager::setErrorCallback(StreamErrorCallback callback) {
+  std::lock_guard lock(mutex_);
   streamErrorCallback_ = std::move(callback);
 }
 
@@ -102,8 +113,8 @@ void StreamManager::addError(EventId event, StreamError error) {
         stream.errors_.emplace_back(std::move(error));
         return;
       }
-      RT_LOG(WARNING) << "Trying to process an error without a host callback set and the stream was already destroyed. "
-                         "So this error will be unnoticed by host.";
     }
+    RT_LOG(WARNING) << "Trying to process an error without a host callback set and the stream was already destroyed. "
+                       "So this error will be unnoticed by host.";
   }
 }

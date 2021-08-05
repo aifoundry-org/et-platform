@@ -172,7 +172,7 @@ void MemoryManager::setDebugMode(bool enabled) {
   debugMode_ = enabled;
 }
 
-void MemoryManager::free(void* ptr) {
+void MemoryManager::free(std::byte* ptr) {
   auto tmp = compressPointer(ptr);
   auto it = allocated_.find(tmp);
   if (it == allocated_.end()) {
@@ -185,7 +185,7 @@ void MemoryManager::free(void* ptr) {
   }
 }
 
-void* MemoryManager::malloc(size_t size, uint32_t alignment) {
+std::byte* MemoryManager::malloc(size_t size, uint32_t alignment) {
   // calculate size in number of blocks
   auto blockSize = getBlockSize();
 

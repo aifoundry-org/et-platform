@@ -70,7 +70,7 @@ void sendH2D_K_D2H(int iterations, StreamId stream, KernelId kernel, RuntimePtr&
   RT_LOG(INFO) << "Submitting " << iterations
                << " HostToDevice DMA + Kernel + DeviceToHost DMA. Syncing on each iteration? "
                << (sync_on_each_iter ? "True" : "False");
-  static std::array<char, 128> args;
+  static std::array<std::byte, 128> args;
   const size_t transferSize = 16;
   static std::array<std::byte, transferSize> dummyBuffer;
   for (int i = 0; i < iterations; ++i) {

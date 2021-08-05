@@ -8,14 +8,14 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
-#include "KernelParametersCache.h"
+#include "ExecutionContextCache.h"
 #include "MemoryManager.h"
 #include "utils.h"
 #include <algorithm>
 #include <cassert>
 #include <type_traits>
 using namespace rt;
-using Buffer = KernelParametersCache::Buffer;
+using Buffer = ExecutionContextCache::Buffer;
 
 Buffer::Buffer(DeviceId device, IRuntime* runtime, size_t size)
   : hostBuffer_(size)
@@ -28,12 +28,21 @@ Buffer::~Buffer() {
   runtime_->freeDevice(device_, deviceBuffer_);
 }
 
-KernelParametersCache::~KernelParametersCache() {
+ExecutionContextCache::~ExecutionContextCache() {
+  RT_LOG_IF(WARNING, !reservedBuffers_.empty() || !allocBuffers_.empty())
+    << "Reserved or allocated buffers are not empty in destruction.";
+  for (const auto& [event, value] : reservedBuffers_) {
+    unused(value);
+    RT_LOG(WARNING) << "Reserved buffer for event " << static_cast<int>(event) << " wasn't released.";
+  }
+  for (auto const buffer : allocBuffers_) {
+    RT_LOG(WARNING) << "Allocated buffer 0x" << buffer << " wasn't released.";
+  }
   assert(reservedBuffers_.empty());
   assert(allocBuffers_.empty());
 }
 
-KernelParametersCache::KernelParametersCache(IRuntime* runtime, int initialFreeListSize, int bufferSize)
+ExecutionContextCache::ExecutionContextCache(IRuntime* runtime, int initialFreeListSize, int bufferSize)
   : runtime_(runtime)
   , bufferSize_(bufferSize) {
   auto devices = runtime->getDevices();
@@ -49,8 +58,8 @@ KernelParametersCache::KernelParametersCache(IRuntime* runtime, int initialFreeL
   }
 }
 
-Buffer* KernelParametersCache::allocBuffer(DeviceId deviceId) {
-  RT_VLOG(HIGH) << "Allocating parameter buffer for device " << static_cast<int>(deviceId);
+Buffer* ExecutionContextCache::allocBuffer(DeviceId deviceId) {
+  RT_VLOG(HIGH) << "Allocating buffer for device " << static_cast<int>(deviceId);
   std::lock_guard lock(mutex_);
   auto&& list = freeBuffers_[deviceId];
   if (list.empty()) {
@@ -59,25 +68,31 @@ Buffer* KernelParametersCache::allocBuffer(DeviceId deviceId) {
   }
   auto result = list.back();
   auto [insertion, res] = allocBuffers_.insert(result);
-  (void)insertion;
-  (void)res;
+  unused(insertion, res);
   assert(res);
   list.pop_back();
   return result;
 }
 
-void KernelParametersCache::reserveBuffer(EventId event, Buffer* buffer) {
+void ExecutionContextCache::reserveBuffer(EventId event, Buffer* buffer) {
   RT_VLOG(HIGH) << "Reserving buffer " << buffer << " for event " << static_cast<int>(event);
   std::lock_guard lock(mutex_);
   auto it = find(allocBuffers_, buffer, "Trying to reserve a buffer which wasn't allocated previously");
   auto [insertion, res] = reservedBuffers_.emplace(event, *it);
-  (void)insertion;
-  (void)res;
+  unused(insertion, res);
   assert(res);
   allocBuffers_.erase(it);
 }
 
-void KernelParametersCache::releaseBuffer(EventId id) {
+Buffer* ExecutionContextCache::getReservedBuffer(EventId eventId) const {
+  std::lock_guard lock(mutex_);
+  if (auto it = reservedBuffers_.find(eventId); it != end(reservedBuffers_)) {
+    return it->second;
+  }
+  return nullptr;
+}
+
+void ExecutionContextCache::releaseBuffer(EventId id) {
   RT_VLOG(HIGH) << "Releasing buffer for event " << static_cast<int>(id);
   std::lock_guard lock(mutex_);
   auto it = find(reservedBuffers_, id);

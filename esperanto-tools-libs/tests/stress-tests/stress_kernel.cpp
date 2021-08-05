@@ -43,9 +43,9 @@ public:
     std::vector<std::vector<int>> host_src1(num_executions);
     std::vector<std::vector<int>> host_src2(num_executions);
     std::vector<std::vector<int>> host_dst(num_executions);
-    std::vector<void*> dev_mem_src1(num_executions);
-    std::vector<void*> dev_mem_src2(num_executions);
-    std::vector<void*> dev_mem_dst(num_executions);
+    std::vector<std::byte*> dev_mem_src1(num_executions);
+    std::vector<std::byte*> dev_mem_src2(num_executions);
+    std::vector<std::byte*> dev_mem_dst(num_executions);
     for (auto j = 0U; j < num_streams; ++j) {
       streams_[j] = runtime_->createStream(dev);
       for (auto k = 0U; k < num_executions / num_streams; ++k) {
@@ -59,16 +59,19 @@ public:
         dev_mem_src1[idx] = runtime_->mallocDevice(dev, elems * sizeof(int));
         dev_mem_src2[idx] = runtime_->mallocDevice(dev, elems * sizeof(int));
         dev_mem_dst[idx] = runtime_->mallocDevice(dev, elems * sizeof(int));
-        runtime_->memcpyHostToDevice(streams_[j], host_src1[idx].data(), dev_mem_src1[idx], elems * sizeof(int));
-        runtime_->memcpyHostToDevice(streams_[j], host_src2[idx].data(), dev_mem_src2[idx], elems * sizeof(int));
+        runtime_->memcpyHostToDevice(streams_[j], reinterpret_cast<std::byte*>(host_src1[idx].data()),
+                                     dev_mem_src1[idx], elems * sizeof(int));
+        runtime_->memcpyHostToDevice(streams_[j], reinterpret_cast<std::byte*>(host_src2[idx].data()),
+                                     dev_mem_src2[idx], elems * sizeof(int));
         struct {
           void* src1;
           void* src2;
           void* dst;
           int elements;
         } params{dev_mem_src1[idx], dev_mem_src2[idx], dev_mem_dst[idx], static_cast<int>(elems)};
-        runtime_->kernelLaunch(streams_[j], kernel_, &params, sizeof(params), 0x1);
-        runtime_->memcpyDeviceToHost(streams_[j], dev_mem_dst[idx], host_dst[idx].data(), elems * sizeof(int));
+        runtime_->kernelLaunch(streams_[j], kernel_, reinterpret_cast<std::byte*>(&params), sizeof(params), 0x1);
+        runtime_->memcpyDeviceToHost(streams_[j], dev_mem_dst[idx], reinterpret_cast<std::byte*>(host_dst[idx].data()),
+                                     elems * sizeof(int));
       }
     }
     for (auto j = 0U; j < num_streams; ++j) {

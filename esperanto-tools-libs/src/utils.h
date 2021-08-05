@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
+#include <assert.h>
 #include <hostUtils/logging/Logging.h>
 #include <runtime/Types.h>
 #include <string>
@@ -22,13 +23,20 @@ template <typename Container, typename Key> auto find(Container& c, Key&& k, con
 }
 } // namespace rt
 
+template <typename T, typename U> T align(T address, U alignment) {
+  auto one = static_cast<T>(1);
+  auto align = static_cast<T>(alignment);
+  assert((align & one) == 0);
+  return (address + (align - one)) & ~(align - one);
+}
+
 template <typename T> void unused(T t) {
   (void)t;
 }
 
 template <typename T, typename... Args> void unused(T t, Args... args) {
   unused(t);
-  unused(std::forward(args...));
+  unused(args...);
 }
 
 #define RT_LOG(severity) ET_LOG(RUNTIME, severity)

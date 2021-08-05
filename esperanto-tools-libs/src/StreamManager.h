@@ -73,6 +73,8 @@ public:
   void removeEvent(EventId event);
   std::vector<StreamError> retrieveErrors(StreamId stream);
   void setErrorCallback(StreamErrorCallback callback);
+  // returns false if there is no callback
+  bool executeCallback(EventId eventId, const StreamError& error);
   void addError(EventId event, StreamError error);
 
 private:

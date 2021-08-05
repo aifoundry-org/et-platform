@@ -22,8 +22,8 @@ class MemoryManager {
 public:
   explicit MemoryManager(uint64_t dramBaseAddr, size_t totalMemoryBytes, uint32_t blockSize = kBlockSize);
 
-  void* malloc(size_t size, uint32_t alignment);
-  void free(void* ptr);
+  std::byte* malloc(size_t size, uint32_t alignment);
+  void free(std::byte* ptr);
 
   uint32_t getBlockSize() const;
 
@@ -54,19 +54,19 @@ private:
     }
   };
 
-  uint32_t compressPointer(void* ptr) const {
+  uint32_t compressPointer(std::byte* ptr) const {
     auto tmp = reinterpret_cast<uint64_t>(ptr);
     tmp -= dramBaseAddr_;
     tmp >>= blockSizeLog2_;
     assert(tmp < std::numeric_limits<uint32_t>::max());
     return static_cast<uint32_t>(tmp);
   }
-  void* uncompressPointer(uint32_t ptr) const {
+  std::byte* uncompressPointer(uint32_t ptr) const {
     auto tmp = static_cast<uint64_t>(ptr);
     tmp <<= blockSizeLog2_;
     assert(tmp < totalMemoryBytes_);
     tmp += dramBaseAddr_;
-    return reinterpret_cast<void*>(tmp);
+    return reinterpret_cast<std::byte*>(tmp);
   }
 
   void addChunk(FreeChunk chunk);

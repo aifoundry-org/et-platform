@@ -1,4 +1,5 @@
 #include "RuntimeImp.h"
+#include "runtime/Types.h"
 #include <common/Constants.h>
 #include <device-layer/IDeviceLayer.h>
 #include <gmock/gmock.h>
@@ -38,6 +39,8 @@ public:
     devices_ = runtime_->getDevices();
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
     imp->setMemoryManagerDebugMode(devices_[0], true);
+    defaultDevice_ = devices_[0];
+    defaultStream_ = runtime_->createStream(devices_[0]);
   }
 
   rt::KernelId loadKernel(const std::string& kernel_name, uint32_t deviceIdx = 0) {
@@ -46,12 +49,17 @@ public:
     EXPECT_TRUE(devices_.size() > deviceIdx);
     return runtime_->loadCode(devices_[deviceIdx], kernelContent.data(), kernelContent.size());
   }
+  void TearDown() override {
+    runtime_->destroyStream(defaultStream_);
+  }
 
 protected:
   logging::LoggerDefault loggerDefault_;
   std::unique_ptr<dev::IDeviceLayer> deviceLayer_;
   rt::RuntimePtr runtime_;
   std::vector<rt::DeviceId> devices_;
+  rt::DeviceId defaultDevice_;
+  rt::StreamId defaultStream_;
 };
 
 inline auto getDefaultOptions() {
@@ -88,7 +96,7 @@ void stressMemThreadFunc(rt::IRuntime* runtime, uint32_t streams, uint32_t trans
   std::vector<rt::StreamId> streams_(streams);
   std::vector<std::vector<std::byte>> host_src(transactions);
   std::vector<std::vector<std::byte>> host_dst(transactions);
-  std::vector<void*> dev_mem(transactions);
+  std::vector<std::byte*> dev_mem(transactions);
   for (auto j = 0U; j < streams; ++j) {
     streams_[j] = runtime->createStream(dev);
     for (auto k = 0U; k < transactions / streams; ++k) {

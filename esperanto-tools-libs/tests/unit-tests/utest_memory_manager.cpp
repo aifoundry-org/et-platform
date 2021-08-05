@@ -45,7 +45,7 @@ TEST(MemoryManager, compress_and_uncompress) {
       for (auto size : {1UL, 3UL, 12UL, 15UL}) {
         auto ptr = size * minAllocation + baseAddr;
         auto mm = MemoryManager(baseAddr, 1ul << 40, minAllocation);
-        auto compressed = mm.compressPointer(reinterpret_cast<void*>(ptr));
+        auto compressed = mm.compressPointer(reinterpret_cast<std::byte*>(ptr));
         EXPECT_LE(compressed, ptr);
         auto uncompressed = mm.uncompressPointer(compressed);
         EXPECT_EQ(reinterpret_cast<decltype(ptr)>(uncompressed), ptr);
@@ -68,7 +68,7 @@ TEST(MemoryManager, SW8673) {
   // test for three differents base address, given by the same device layer mock
   std::for_each(begin(values), end(values), [&](const auto&) {
     auto rt = IRuntime::create(&deviceLayer);
-    std::vector<void*> allocated;
+    std::vector<std::byte*> allocated;
     for (auto alignment : {0x100000U, 0x10000U, 0x1000U, 0x200U}) {
       std::uniform_int_distribution<uint32_t> uniform_dist(1, alignment * 7);
       std::uniform_real_distribution<float> dice(0.0f, 1.0f);
@@ -160,7 +160,7 @@ TEST(MemoryManager, SW8240_4) {
 
   std::default_random_engine e1(12389);
   std::uniform_int_distribution<uint32_t> uniform_dist(1U, 1U << 29);
-  std::vector<void*> ptrs;
+  std::vector<std::byte*> ptrs;
   auto&& mm = rimp->memoryManagers_.find(device)->second;
 
   for (int i = 0; i < 10000; ++i) {
@@ -258,7 +258,7 @@ TEST(MemoryManager, malloc_free_basic) {
       for (auto minAllocation : {1U << 10, 1U << 11, 1U << 13}) {
         auto mm = MemoryManager(baseAddr, totalRam, minAllocation);
         mm.setDebugMode(true);
-        std::vector<void*> ptrs;
+        std::vector<std::byte*> ptrs;
         for (auto mallocSize : {1UL << 11, 1UL << 12, 1UL << 30}) {
           auto ptr = mm.malloc(mallocSize, alignment);
           ASSERT_EQ(reinterpret_cast<uint64_t>(ptr) % alignment, 0UL);
@@ -281,7 +281,7 @@ TEST(MemoryManager, malloc_free_holes) {
   EXPECT_THROW({ mm.malloc(totalRam + 1024, 1024); }, Exception);
 
   // alloc 100 buffers
-  std::vector<void*> ptrs;
+  std::vector<std::byte*> ptrs;
   for (int i = 0; i < 100; ++i) {
     ptrs.emplace_back(mm.malloc(1024, 1024));
     ASSERT_NE(ptrs.back(), nullptr);

@@ -8,7 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
-#include "KernelParametersCache.h"
+#include "ExecutionContextCache.h"
 #include "MemoryManager.h"
 #include "RuntimeImp.h"
 #include "ScopedProfileEvent.h"
@@ -25,10 +25,10 @@
 using namespace rt;
 using namespace rt::profiling;
 
-EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const void* kernel_args, size_t kernel_args_size,
-                                 uint64_t shire_mask, bool barrier, bool flushL3) {
+EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std::byte* kernel_args,
+                                 size_t kernel_args_size, uint64_t shire_mask, bool barrier, bool flushL3) {
   std::unique_lock lock(mutex_);
-  auto&& kernel = find(kernels_, kernelId)->second;
+  const auto& kernel = find(kernels_, kernelId)->second;
   ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId, kernelId, kernel->getLoadAddress());
 
   if (kernel_args_size > kBlockSize) {
@@ -43,19 +43,18 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
     throw Exception("Can't execute stream and kernel associated to a different device");
   }
 
-  KernelParametersCache::Buffer* pBuffer = nullptr;
+  ExecutionContextCache::Buffer* pBuffer = nullptr;
   if (kernel_args_size > 0) {
     barrier = true; // we must wait for parameters, so barrier is true if parameters
-    pBuffer = kernelParametersCache_->allocBuffer(kernel->deviceId_);
+    pBuffer = executionContextCache_->allocBuffer(kernel->deviceId_);
     //stage parameters in host buffer
-    auto args = reinterpret_cast<const std::byte*>(kernel_args);
-    std::copy(args, args + kernel_args_size, begin(pBuffer->hostBuffer_));
-    memcpyHostToDevice(streamId, pBuffer->hostBuffer_.data(), pBuffer->deviceBuffer_, kernel_args_size, false);
+    std::copy(kernel_args, kernel_args + kernel_args_size, begin(pBuffer->hostBuffer_));
+    memcpyHostToDevice(streamId, pBuffer->hostBuffer_.data(), pBuffer->getParametersPtr(), kernel_args_size, false);
   }
   auto event = eventManager_.getNextId();
   streamManager_.addEvent(streamId, event);
   if (kernel_args_size > 0) {
-    kernelParametersCache_->reserveBuffer(event, pBuffer);
+    executionContextCache_->reserveBuffer(event, pBuffer);
   }
 
   // todo: SW-7616 - Allocation/extraction of Error buffer
@@ -75,7 +74,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const voi
   }
 
   cmd.code_start_address = kernel->getEntryAddress();
-  cmd.pointer_to_args = kernel_args_size > 0 ? reinterpret_cast<uint64_t>(pBuffer->deviceBuffer_) : 0;
+  cmd.pointer_to_args = kernel_args_size > 0 ? reinterpret_cast<uint64_t>(pBuffer->getParametersPtr()) : 0;
   cmd.shire_mask = shire_mask;
 
   RT_VLOG(LOW) << "Pushing kernel Launch Command on SQ: " << streamInfo.vq_ << " Tag id: " << std::hex
