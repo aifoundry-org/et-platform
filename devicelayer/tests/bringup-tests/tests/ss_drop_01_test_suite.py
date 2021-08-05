@@ -183,6 +183,52 @@ def test_move_data_between_host_and_device():
     assert response["bytes_read"] == test_data_len
     assert test_data == response["data_ptr"].to_bytes(response["bytes_read"], 'little')
 
+def test_sp_pcie_retain_phy():
+    print('SP PCIE retain Phy')
+    command = tf_spec.command("TF_CMD_SP_PCIE_RETAIN_PHY", "SP")
+    response = dut_fifo_iface.execute_test(command)
+    #validate response
+    assert response["status"] == 0
+
+def test_sp_get_module_asic_freq():
+    print('SP Get module ASIC freq')
+    command = tf_spec.command("TF_CMD_GET_MODULE_ASIC_FREQ", "SP")
+    response = dut_fifo_iface.execute_test(command)
+    #validate response
+    assert response["minion_shire_mhz"] >= 0
+    assert response["noc_mhz"] >= 0
+    assert response["mem_shire_mhz"] >= 0
+    assert response["ddr_mhz"] >= 0
+    assert response["pcie_shire_mhz"] >= 0
+    assert response["io_shire_mhz"] >= 0
+
+# PMIC helper
+def check_pmic_ranged(cmd, ret_list, ret_min, ret_max):
+    command = tf_spec.command(cmd, "SP")
+    response = dut_fifo_iface.execute_test(command)
+    for ret_field in ret_list:
+        assert (response[ret_field] >= ret_min and response[ret_field] <= ret_max)
+
+# PMIC tests
+def test_pmic_module_temperature():
+    print('SP PMIC: Testing SP Module temperature')
+    check_pmic_ranged("TF_CMD_PMIC_MODULE_TEMPERATURE", ["mod_temperature"], 0, 100)
+
+def test_sp_pmic_module_power():
+    print('SP PMIC: Testing SP Module power')
+    check_pmic_ranged("TF_CMD_PMIC_MODULE_POWER", ["mod_power"], 0, 100)
+
+def test_sp_pmic_module_voltage():
+    print('SP PMIC: Testing SP Module voltage')
+    res_list = ["ddr_voltage", "l2_cache_voltage", "maxion_voltage", "minion_voltage",\
+                 "noc_voltage", "pcie_voltage","pcie_logic_voltage", "vddqlp_voltage",\
+                 "vddq_voltage"]
+    check_pmic_ranged("TF_CMD_PMIC_MODULE_VOLTAGE", res_list, 0, 100)
+
+def test_sp_pmic_module_uptime():
+    print('SP PMIC: Testing SP Module uptime')
+    res_list = ["day", "hour", "minute"]
+    check_pmic_ranged("TF_CMD_PMIC_MODULE_UPTIME", res_list, 0, 100)
 
 def test_env_finalize():
     test_helpers.teardown_iface()
