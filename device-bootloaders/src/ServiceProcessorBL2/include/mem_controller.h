@@ -32,6 +32,19 @@
 */
 #define NUMBER_OF_MEMSHIRE     8
 
+#define FOR_EACH_MEMSHIRE(statements)                                              \
+            {                                                                      \
+                for(memshire = 0;memshire < NUMBER_OF_MEMSHIRE;++memshire)         \
+                   statements                                                      \
+            }
+#define FOR_EACH_MEMSHIRE_EVEN_FIRST(statements)                                   \
+            {                                                                      \
+                for(memshire = 0;memshire < NUMBER_OF_MEMSHIRE;memshire += 2)      \
+                   statements                                                      \
+                for(memshire = 1;memshire < NUMBER_OF_MEMSHIRE;memshire += 2)      \
+                   statements                                                      \
+            }
+
 /**
  * @enum ddr_frequency_t
  * @brief Frequency enum defines for DDR memory

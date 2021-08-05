@@ -32,19 +32,6 @@
 #include "dm_event_control.h"
 #include "hal_ddr_init.h"
 
-#define FOR_EACH_MEMSHIRE(statement)                                               \
-            {                                                                      \
-                for(memshire = 0;memshire < NUMBER_OF_MEMSHIRE;++memshire)         \
-                   statement;                                                      \
-            }
-#define FOR_EACH_MEMSHIRE_EVEN_FIRST(statement)                                    \
-            {                                                                      \
-                for(memshire = 0;memshire < NUMBER_OF_MEMSHIRE;memshire += 2)      \
-                   statement;                                                      \
-                for(memshire = 1;memshire < NUMBER_OF_MEMSHIRE;memshire += 2)      \
-                   statement;                                                      \
-            }
-
 static uint32_t memshire_frequency;
 static uint32_t ddr_frequency;
 
@@ -159,15 +146,15 @@ int ddr_config(DDR_MODE *ddr_mode)
 
     FOR_EACH_MEMSHIRE(
         ms_init_seq_phase1(memshire, config_ecc, config_real_pll, config_800mhz, config_933mhz,
-          config_training, config_4gb, config_8gb, config_32gb)
+          config_training, config_4gb, config_8gb, config_32gb);
     );
 
     FOR_EACH_MEMSHIRE(
-        ms_init_seq_phase2(memshire, config_real_pll)
+        ms_init_seq_phase2(memshire, config_real_pll);
     );
 
     FOR_EACH_MEMSHIRE(
-        ms_init_seq_phase3_01(memshire, config_800mhz, config_933mhz)
+        ms_init_seq_phase3_01(memshire, config_800mhz, config_933mhz);
     );
 
     if(config_training) {
@@ -177,8 +164,8 @@ int ddr_config(DDR_MODE *ddr_mode)
         ms_init_seq_phase3_02_no_loop(memshire, config_800mhz, config_933mhz);
 
         FOR_EACH_MEMSHIRE_EVEN_FIRST(
-            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]start training", memshire);
-            ms_init_seq_phase3_03(memshire, config_debug_level, config_sim_only)
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]Training 1D starts", memshire);
+            ms_init_seq_phase3_03(memshire, config_debug_level, config_sim_only);
         );
 
         ms_init_seq_phase3_04_no_loop(memshire, config_train_poll_max_iterations, config_train_poll_iteration_delay);
@@ -187,22 +174,23 @@ int ddr_config(DDR_MODE *ddr_mode)
             ms_init_seq_phase3_05_no_loop(memshire, config_800mhz, config_933mhz);
 
             FOR_EACH_MEMSHIRE_EVEN_FIRST(
-                ms_init_seq_phase3_06 (memshire, config_debug_level, config_sim_only)
+                Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]Training 2D starts", memshire);
+                ms_init_seq_phase3_06 (memshire, config_debug_level, config_sim_only);
             );
 
             ms_init_seq_phase3_07_no_loop (memshire, config_train_poll_max_iterations, config_train_poll_iteration_delay);
         }
 
         FOR_EACH_MEMSHIRE(
-            ms_init_seq_phase3_08 (memshire, config_ecc, config_800mhz, config_933mhz, config_4gb, config_8gb, config_32gb)
+            ms_init_seq_phase3_08 (memshire, config_ecc, config_800mhz, config_933mhz, config_4gb, config_8gb, config_32gb);
         );
     }
     FOR_EACH_MEMSHIRE(
-        ms_init_seq_phase4_01(memshire, config_800mhz, config_933mhz)
+        ms_init_seq_phase4_01(memshire, config_800mhz, config_933mhz);
     );
 
     FOR_EACH_MEMSHIRE(
-        ms_init_seq_phase4_02(memshire, config_auto_precharge, config_disable_unused_clks)
+        ms_init_seq_phase4_02(memshire, config_auto_precharge, config_disable_unused_clks);
     );
 
     return 0;

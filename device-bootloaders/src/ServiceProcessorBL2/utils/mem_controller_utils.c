@@ -17,6 +17,9 @@
 #include "mem_controller.h"
 #include "log.h"
 
+#include "bl2_scratch_buffer.h"
+#include "bl2_flashfs_driver.h"
+
 #include "hwinc/hal_device.h"
 #include "hwinc/ddrc_reg_def.h"
 #include "hal_ddr_init.h"
@@ -38,6 +41,135 @@ static inline volatile void *get_ddrc_address(uint32_t memshire, uint32_t block,
   if(block == 1)
     reg |= 0x1000;
   return (volatile void *) (R_SHIRE_LPDDR_BASEADDR | ((uint64_t)memshire & 0x7) << 26 | reg);
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wswitch-enum"
+static uint32_t load_raw_image(ESPERANTO_FLASH_REGION_ID_t region_id, void *buffer, uint32_t buffer_size)
+{
+  ESPERANTO_RAW_IMAGE_FILE_HEADER_t image_file_header;
+  uint32_t image_file_size;
+  const char *image_name;
+
+  switch(region_id) {
+    case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING:
+      image_name = "DDR_TRAINING_1D_I";
+      break;
+    case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_800MHZ:
+      image_name = "DDR_TRAINING_1D_800_D";
+      break;
+    case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_933MHZ:
+      image_name = "DDR_TRAINING_1D_933_D";
+      break;
+    case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_1067MHZ:
+      image_name = "DDR_TRAINING_1D_1067_D";
+      break;
+    case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D:
+      image_name = "DDR_TRAINING_2D_I";
+      break;
+    case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_800MHZ:
+      image_name = "DDR_TRAINING_2D_800_D";
+      break;
+    case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_933MHZ:
+      image_name = "DDR_TRAINING_2D_933_D";
+      break;
+    case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_1067MHZ:
+      image_name = "DDR_TRAINING_2D_1067_D";
+      break;
+    default:
+      Log_Write(LOG_LEVEL_ERROR, "load_raw_image: unrecongnized region id %d\n", region_id);
+      return 0;
+  }
+  Log_Write(LOG_LEVEL_INFO, "load_raw_image: Loading %s firmware\n", image_name);
+
+  if (0 != flashfs_drv_get_file_size(region_id, &image_file_size))
+  {
+    Log_Write(LOG_LEVEL_ERROR, "load_raw_image: flashfs_drv_get_file_size(%s) failed!\n", image_name);
+    return 0;
+  }
+  if (image_file_size < sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t))
+  {
+    Log_Write(LOG_LEVEL_ERROR, "load_raw_image: %s image file too small!\n", image_name);
+    return 0;
+  }
+  if (0 != flashfs_drv_read_file(region_id, 0, &image_file_header, sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t)))
+  {
+    Log_Write(LOG_LEVEL_ERROR, "load_raw_image: flashfs_drv_read_file(%s header) failed!\n", image_name);
+    return 0;
+  }
+  Log_Write(LOG_LEVEL_INFO, "Loaded %s header...\n", image_name);
+
+  image_file_size = image_file_header.info.image_info_and_signaure.info.raw_image_size;
+  if(image_file_size > buffer_size) {
+    Log_Write(LOG_LEVEL_ERROR, "load_raw_image: buffer too small to fit %s image file at %d bytes!\n", image_name, image_file_size);
+    return 0;
+  }
+
+  if (0 != flashfs_drv_read_file(region_id, sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t), buffer, image_file_size))
+  {
+    Log_Write(LOG_LEVEL_ERROR, "load_raw_image: flashfs_drv_read_file(code) failed!\n");
+    return 0;
+  }
+
+  Log_Write(LOG_LEVEL_INFO, "load_raw_image: Loaded %s firmware with %d bytes\n", image_name, image_file_size);
+  return image_file_size;
+}
+#pragma GCC diagnostic pop
+
+static uint64_t program_all_ddrc(uint64_t target_address, const void *buffer, uint32_t size)
+{
+  uint32_t memshire;
+  const uint32_t *ptr = buffer;
+
+  Log_Write(LOG_LEVEL_INFO, "program_all_ddrc: %d bytes to 0x%016lx\n", size, target_address);
+
+  while( ((const uint8_t*)ptr - (const uint8_t*)buffer) < size) {
+    FOR_EACH_MEMSHIRE(
+      ms_write_ddrc_addr(memshire, target_address, *ptr);
+    )
+    target_address += 4;
+    ++ptr;
+  }
+
+  Log_Write(LOG_LEVEL_INFO, "program_all_ddrc: done till address 0x%016lx\n", target_address);
+  return target_address;
+}
+
+static void load_training_fw(ESPERANTO_FLASH_REGION_ID_t region_instruction, ESPERANTO_FLASH_REGION_ID_t region_data)
+{
+  void *buffer;
+  uint32_t buffer_size;
+  uint32_t real_size;
+  uint64_t target_address = DDRC_PMU_SRAM;
+  uint32_t memshire;    // for FOR_EACH_MEMSHIRE
+
+  // get scratch buffer to use
+  buffer = get_scratch_buffer(&buffer_size);
+
+  // load Synopsys firmware code
+  real_size = load_raw_image(region_instruction, buffer, buffer_size);
+  if(real_size == 0) {
+    Log_Write(LOG_LEVEL_ERROR, "load_training_fw: load_raw_image failed with region_id %d!\n", region_instruction);
+    return;
+  }
+
+  // program Synopsys firmware code
+  target_address = program_all_ddrc(target_address, buffer, real_size);
+
+  FOR_EACH_MEMSHIRE(
+    ms_write_ddrc_reg(memshire, 2, APBONLY0_MicroContMuxSel, 0x00000001);
+    ms_write_ddrc_reg(memshire, 2, APBONLY0_MicroContMuxSel, 0x00000000);
+  )
+
+  // load Synopsys firmware data for a specific frequency
+  real_size = load_raw_image(region_data, buffer, buffer_size);
+  if(real_size == 0) {
+    Log_Write(LOG_LEVEL_ERROR, "load_training_fw: load_raw_image failed with region_id %d!\n", region_data);
+    return;
+  }
+
+  // program Synopsys firmware data for a specific frequency
+  program_all_ddrc(target_address, buffer, real_size);
 }
 
 typedef enum
@@ -139,6 +271,8 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
   uint8_t major_msg;
   uint8_t number_of_shire_completed;
   uint8_t shire_completed[NUMBER_OF_MEMSHIRE] = { 0 };
+
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[0][txt]Wait for training");
 
   // memshire is not define outside, use it as a local variable
   memshire = 0;
@@ -277,9 +411,28 @@ uint32_t ms_poll_ddrc_reg(uint32_t memshire, uint32_t blk, uint64_t reg, uint32_
 */
 void ms_ddr_phy_1d_train_from_file(uint32_t mem_config, uint32_t memshire)
 {
-  // TODO Now nothing but supress compile warnings
-  (void)mem_config;
-  (void)memshire;
+  ESPERANTO_FLASH_REGION_ID_t region_id;
+
+  // decide which frequency to run
+  switch(mem_config) {
+    case DDR_800MHZ:
+      region_id = ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_800MHZ;
+      break;
+    case DDR_933MHZ:
+      region_id = ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_933MHZ;
+      break;
+    case DDR_1067MHZ:
+      region_id = ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_1067MHZ;
+      break;
+    default:
+      Log_Write(LOG_LEVEL_ERROR, "DDR:[0][txt]Unrecongnized mem_config = %d", mem_config);
+      return;
+  }
+
+  load_training_fw(ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING, region_id);
+
+  // suppress compilation warning
+  (void) memshire;
 }
 
 void ms_wait_for_training(uint32_t memshire, uint32_t train_poll_max_iterations, uint32_t train_poll_iteration_delay)
@@ -289,9 +442,28 @@ void ms_wait_for_training(uint32_t memshire, uint32_t train_poll_max_iterations,
 
 void ms_ddr_phy_2d_train_from_file(uint32_t mem_config, uint32_t memshire)
 {
-  // TODO Now nothing but supress compile warnings
-  (void)mem_config;
-  (void)memshire;
+  ESPERANTO_FLASH_REGION_ID_t region_id;
+
+  // decide which frequency to run
+  switch(mem_config) {
+    case DDR_800MHZ:
+      region_id = ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_800MHZ;
+      break;
+    case DDR_933MHZ:
+      region_id = ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_933MHZ;
+      break;
+    case DDR_1067MHZ:
+      region_id = ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_1067MHZ;
+      break;
+    default:
+      Log_Write(LOG_LEVEL_ERROR, "DDR:[0][txt]Unrecongnized mem_config = %d", mem_config);
+      return;
+  }
+
+  load_training_fw(ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D, region_id);
+
+  // suppress compilation warning
+  (void) memshire;
 }
 
 void ms_wait_for_training_2d(uint32_t memshire, uint32_t train_poll_max_iterations, uint32_t train_poll_iteration_delay)
