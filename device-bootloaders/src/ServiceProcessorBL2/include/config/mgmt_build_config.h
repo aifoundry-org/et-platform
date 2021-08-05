@@ -261,6 +261,13 @@
 */
 #define SP2MM_CMD_TIMEOUT      200
 
+
+/*! \def HOST_VQ_MAX_TIMEOUT
+    \brief A macro that provides the timeout for host VQ locks
+           NOTE: This value is in terms of OS ticks i.e. TickType_t.
+*/
+#define HOST_VQ_MAX_TIMEOUT      200
+
 /*! \def PMIC_TEMP_LOWER_SET_LIMIT
     \brief A macro that provides pmic minimum temperature threshold value
 */

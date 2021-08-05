@@ -32,6 +32,7 @@
 #include "log.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 #include "portmacro.h"
 
 
@@ -71,6 +72,26 @@ static sp_host_iface_sqs_cb_t SP_Host_SQ __attribute__((aligned(64))) = {0};
 */
 static sp_host_iface_cqs_cb_t SP_Host_CQ __attribute__((aligned(64))) = {0};
 
+/*! \var SemaphoreHandle_t Host_CQ_Lock
+    \brief Host CQ lock
+*/
+static SemaphoreHandle_t Host_CQ_Lock = NULL;
+
+/*! \var StaticSemaphore_t Host_CQ_Mutex_Buffer
+    \brief Host CQ lock buffer
+*/
+
+static StaticSemaphore_t Host_CQ_Mutex_Buffer;
+
+/*! \var SemaphoreHandle_t Host_SQ_Lock
+    \brief Host SQ lock
+*/
+static SemaphoreHandle_t Host_SQ_Lock = NULL;
+
+/*! \var StaticSemaphore_t Host_SQ_Mutex_Buffer
+     \brief Host SQ lock buffer
+*/
+static StaticSemaphore_t Host_SQ_Mutex_Buffer;
 /************************************************************************
 *
 *   FUNCTION
@@ -79,7 +100,7 @@ static sp_host_iface_cqs_cb_t SP_Host_CQ __attribute__((aligned(64))) = {0};
 *
 *   DESCRIPTION
 *
-*       Initiliaze SQs and CQs used for Host to SP communications
+*       Initialiaze SQs and CQs used for Host to SP communications
 *
 *   INPUTS
 *
@@ -112,7 +133,7 @@ int8_t SP_Host_Iface_Init(void)
 *
 *   DESCRIPTION
 *
-*       Initiliaze SQs used by Host to post commands to SP
+*       Initialize SQs used by Host to post commands to SP
 *
 *   INPUTS
 *
@@ -137,6 +158,16 @@ int8_t SP_Host_Iface_SQ_Init(void)
                       SP_Host_SQ.vqueue_base,
                       SP_Host_SQ.vqueue_size,
                       0,sizeof(cmd_size_t),SP_SQ_MEM_TYPE);
+
+    if (status == STATUS_SUCCESS)
+    {
+        /* Init SQ lock to released state */
+        Host_SQ_Lock = xSemaphoreCreateMutexStatic(&Host_SQ_Mutex_Buffer);
+        if (!Host_SQ_Lock)
+        {
+            status = GENERAL_ERROR;
+        }
+    }
 
     return status;
 }
@@ -183,6 +214,16 @@ int8_t SP_Host_Iface_CQ_Init(void)
             sizeof(SP_Host_CQ.circ_buff_local));
     }
 
+    if (status == STATUS_SUCCESS)
+    {
+        /* Init CQ lock to released state */
+        Host_CQ_Lock = xSemaphoreCreateMutexStatic(&Host_CQ_Mutex_Buffer);
+        if (!Host_CQ_Lock)
+        {
+            status = GENERAL_ERROR;
+        }
+    }
+
     return status;
 }
 
@@ -207,47 +248,46 @@ int8_t SP_Host_Iface_CQ_Init(void)
 ***********************************************************************/
 int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
 {
-    int8_t status;
+    int8_t status = GENERAL_ERROR;
 
-    /* Disabling preemption here - just a workaround
-        see details at  https://esperantotech.atlassian.net/browse/SW-8881
-        TODO: Remove it after problem is root caused
+    /* Obtain the mutex to serialize access to the VQs.
+       The mutex includes the priority inheritance and hence
+       avoids the priority inversion problem
+       In case mutex is already locked, the calling task will have to wait until
+       it is released by the prior task. The max wait time is defined by the
+       HOST_VQ_MAX_TIMEOUT.
+       If wait time exceeds the HOST_VQ_MAX_TIMEOUT, the call will return with
+       the error.
     */
-    portDISABLE_INTERRUPTS();
-
-    /* Verify that the head value read from shared memory is equal to previous head value */
-    if(SP_Host_CQ.circ_buff_local.head_offset != VQ_Get_Head_Offset(&SP_Host_CQ.vqueue))
+    if (xSemaphoreTake(Host_CQ_Lock, (TickType_t)HOST_VQ_MAX_TIMEOUT ) == pdTRUE)
     {
-        uint64_t local_head_offset =  SP_Host_CQ.circ_buff_local.head_offset;
-        uint64_t reference_head_offset = VQ_Get_Head_Offset(&SP_Host_CQ.vqueue);
+        /* Verify that the head value read from shared memory is equal to previous head value */
+        if(SP_Host_CQ.circ_buff_local.head_offset != VQ_Get_Head_Offset(&SP_Host_CQ.vqueue))
+        {
+            uint64_t local_head_offset =  SP_Host_CQ.circ_buff_local.head_offset;
+            uint64_t reference_head_offset = VQ_Get_Head_Offset(&SP_Host_CQ.vqueue);
 
-        /* Fallback mechanism: use the cached copy of SQ tail */
-        SP_Host_CQ.vqueue.circbuff_cb->head_offset = SP_Host_CQ.circ_buff_local.head_offset;
+            /* Fallback mechanism: use the cached copy of SQ tail */
+            SP_Host_CQ.vqueue.circbuff_cb->head_offset = SP_Host_CQ.circ_buff_local.head_offset;
 
-        /* If this condition occurs, there's definitely some corruption in VQs */
-        Log_Write(LOG_LEVEL_ERROR,
-        "SP_Host_Iface_CQ_Push_Cmd:FATAL_ERROR:Tail Mismatch:Local: %ld, Shared Memory: %ld Using local value as fallback mechanism\r\n",
-        local_head_offset, reference_head_offset);
+            /* If this condition occurs, there's definitely some corruption in VQs */
+            Log_Write(LOG_LEVEL_ERROR,
+            "SP_Host_Iface_CQ_Push_Cmd:FATAL_ERROR:Tail Mismatch:Local: %ld, Shared Memory: %ld Using local value as fallback mechanism\r\n",
+            local_head_offset, reference_head_offset);
+        }
 
-    }
+        /* Push the command to circular buffer */
+        status = VQ_Push(&SP_Host_CQ.vqueue, p_cmd, cmd_size);
 
-    /* Push the command to circular buffer */
-    status = VQ_Push(&SP_Host_CQ.vqueue, p_cmd, cmd_size);
+        /* Get the updated head pointer in local copy */
+        SP_Host_CQ.circ_buff_local.head_offset = VQ_Get_Head_Offset(&SP_Host_CQ.vqueue);
 
-    /* Get the updated head pointer in local copy */
-    SP_Host_CQ.circ_buff_local.head_offset = VQ_Get_Head_Offset(&SP_Host_CQ.vqueue);
+        if(status == STATUS_SUCCESS)
+        {
+            pcie_interrupt_host(SP_CQ_NOTIFY_VECTOR);
+        }
 
-    portENABLE_INTERRUPTS();
-
-    if(status == STATUS_SUCCESS)
-    {
-        pcie_interrupt_host(SP_CQ_NOTIFY_VECTOR);
-    }
-    else
-    {
-        Log_Write(LOG_LEVEL_ERROR,
-            "SP_Host_Iface_CQ_Push_Cmd: ERROR: Circbuff Push Failed. (Error code: %d)\r\n",
-            status);
+        xSemaphoreGive(Host_CQ_Lock);
     }
 
     return status;
@@ -275,19 +315,24 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
 uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff)
 {
     uint32_t return_val = 0;
-    int32_t pop_ret_val;
+    int32_t pop_ret_val = 0;
 
-
-    /* Disabling preemption here - just a workaround
-        see details at  https://esperantotech.atlassian.net/browse/SW-8881
-        TODO: Remove it after problem is root caused
+   /*  Obtain the mutex to serialize access to the VQs.
+       The mutex includes the priority inheritance and hence
+       avoids the priority inversion problem
+       In case mutex is already locked, the calling task will have to wait until
+       it is released by the prior task. The max wait time is defined by the
+       HOST_VQ_MAX_TIMEOUT.
+       If wait time exceeds the HOST_VQ_MAX_TIMEOUT, the call will return with
+       the error.
     */
-    portDISABLE_INTERRUPTS();
+    if (xSemaphoreTake(Host_SQ_Lock, (TickType_t)HOST_VQ_MAX_TIMEOUT ) == pdTRUE)
+    {
+        /* Pop the command from circular buffer */
+        pop_ret_val = VQ_Pop(&SP_Host_SQ.vqueue, rx_buff);
 
-    /* Pop the command from circular buffer */
-    pop_ret_val = VQ_Pop(&SP_Host_SQ.vqueue, rx_buff);
-
-    portENABLE_INTERRUPTS();
+        xSemaphoreGive(Host_SQ_Lock);
+    }
 
     if (pop_ret_val > 0)
     {

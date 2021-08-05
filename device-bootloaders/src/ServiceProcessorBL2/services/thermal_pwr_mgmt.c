@@ -99,7 +99,7 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 // TODO: This needs to updated once we have characterized in Silicon 
 #define DP_per_Mhz 1
 
-/*! \def FILL_POWER_STATUS(ptr, throttle_st, pwr_st, curr_pwr, curr_temp) 
+/*! \def FILL_POWER_STATUS(ptr, throttle_st, pwr_st, curr_pwr, curr_temp)
     \brief Help macro to fill up Power Status Struct
 */
 #define FILL_POWER_STATUS(ptr, u, v, w, x, y, z)       \
@@ -126,7 +126,7 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: event_cb is not initialized\r\n"); \
     }
 
-/*! \def UPDATE_RESIDENCY(RESIDENCY_TYPE) 
+/*! \def UPDATE_RESIDENCY(RESIDENCY_TYPE)
     \brief Updates residency
 */
 #define UPDATE_RESIDENCY(RESIDENCY_TYPE)                                    \
@@ -160,9 +160,9 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
         {                                                                   \
             get_soc_power_reg()->RESIDENCY_TYPE.minimum = time_usec;        \
         }                                                                   \
-    } 
+    }
 
-/*! \def PRINT_RESIDENCY(RESIDENCY_TYPE) 
+/*! \def PRINT_RESIDENCY(RESIDENCY_TYPE)
     \brief Prints residency
 */
 #define PRINT_RESIDENCY(RESIDENCY_TYPE)                       \
@@ -285,7 +285,7 @@ int update_module_tdp_level(uint8_t tdp)
 *
 *   DESCRIPTION
 *
-*       This function gets the TDP level of the module as per 
+*       This function gets the TDP level of the module as per
 *       Global Power Register.
 *
 *   INPUTS
@@ -1072,8 +1072,8 @@ int init_thermal_pwr_mgmt_service(void)
 *
 *   DESCRIPTION
 *
-*       This function will algorithmically lower down frequency/voltage 
-*       of the Minion Shire to compensate for Over-Temperature OR 
+*       This function will algorithmically lower down frequency/voltage
+*       of the Minion Shire to compensate for Over-Temperature OR
 *       Over-Power operating regions
 *
 *   INPUTS
@@ -1121,7 +1121,7 @@ static int reduce_minion_operating_point(int32_t delta_power, struct trace_power
 *
 *   DESCRIPTION
 *
-*       This function will algorithmically increase frequency/voltage 
+*       This function will algorithmically increase frequency/voltage
 *       of the Minion Shire to hit most efficient operating point
 *
 *   INPUTS
@@ -1169,7 +1169,7 @@ static int increase_minion_operating_point(int32_t delta_power, struct trace_pow
 *
 *   DESCRIPTION
 *
-*       This function will switch frequency and voltage to 
+*       This function will switch frequency and voltage to
 *       safe predefined values
 *
 *   INPUTS
@@ -1228,14 +1228,14 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
      {
          Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
      }
-    
+
     if (0 != pmic_get_temperature(&current_temperature))
     {
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
     }
 
     FILL_POWER_STATUS(power_status, throttle_state, power_state,
-                      current_power, current_temperature, 
+                      current_power, current_temperature,
                       (uint16_t)SAFE_STATE_FREQUENCY, (uint16_t)new_voltage)
 
     Trace_Power_Status(Trace_Get_SP_CB(), &power_status);
@@ -1303,14 +1303,14 @@ void power_throttling(power_throttle_state_e throttle_state)
         {
             case POWER_THROTTLE_STATE_POWER_UP: {
                 delta_power_mW = ((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
-                FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state, 
+                FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state,
                                   current_power, current_temperature, 0, 0)
                 increase_minion_operating_point(delta_power_mW, &power_status);
                 break;
             }
             case POWER_THROTTLE_STATE_POWER_DOWN: {
                 delta_power_mW = ((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
-                FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state, 
+                FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state,
                                   current_power, current_temperature, 0, 0)
                 reduce_minion_operating_point(delta_power_mW, &power_status);
                 break;
@@ -1433,7 +1433,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
                 current_power_mW = Power_Convert_Hex_to_mW(current_power);
                 delta_power_mW = ((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
 
-                FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state, 
+                FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state,
                                   current_power, current_temperature, 0, 0)
                 /* Program the new operating point  */
                 reduce_minion_operating_point(delta_power_mW, &power_status);
@@ -1557,7 +1557,7 @@ void thermal_power_task_entry(void *pvParameter)
 static void pmic_isr_callback(enum error_type type, struct event_message_t *msg)
 {
     (void)type;
-    BaseType_t xHigherPriorityTaskWoken;
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
     if(PMIC_I2C_INT_CTRL_OV_TEMP_GET(msg->payload.syndrome[0]))
     {

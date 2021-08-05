@@ -59,28 +59,9 @@ typedef struct log_cb
 static log_cb_t Log_CB __attribute__((aligned(64))) = { .current_log_level = LOG_LEVEL_WARNING,
                                                         .current_log_interface = LOG_DUMP_TO_UART };
 
-static SemaphoreHandle_t xSemaphore = NULL;
-static StaticSemaphore_t xMutexBuffer;
+static SemaphoreHandle_t Log_Mutex = NULL;
+static StaticSemaphore_t Log_Mutex_Buffer;
 
-/*! \def  PRINT_TO_SERIAL
-    \brief Macro to print to serial output
-*/
-#define PRINT_TO_SERIAL(level, str)                                                \
-    if (level <= Log_CB.current_log_level)                                         \
-    {                                                                              \
-        if (xSemaphore && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)) \
-        {                                                                          \
-            if (xSemaphoreTake(xSemaphore, portMAX_DELAY) == pdTRUE)              \
-            {                                                                      \
-                bytes_written = printf("%s", str);                                 \
-                xSemaphoreGive(xSemaphore);                                        \
-            }                                                                      \
-        }                                                                          \
-        else                                                                       \
-        {                                                                          \
-            bytes_written = printf("%s", str);                                     \
-        }                                                                          \
-    }
 
 /************************************************************************
 *
@@ -104,9 +85,13 @@ static StaticSemaphore_t xMutexBuffer;
 void Log_Init(log_level_t level)
 {
     /* Init console lock to released state */
-    xSemaphore = xSemaphoreCreateMutexStatic(&xMutexBuffer);
+    Log_Mutex = xSemaphoreCreateMutexStatic(&Log_Mutex_Buffer);
 
-    configASSERT(xSemaphore);
+    if (!Log_Mutex)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Log Mutex creation failed!\n");
+        return;
+    }
 
     /* Initialize the log level */
     Log_Set_Level(level);
@@ -235,51 +220,12 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
     va_list va;
     int32_t bytes_written = 0;
 
-    /* Dump the log message over current log interface. */
-    if (Log_CB.current_log_interface == LOG_DUMP_TO_TRACE)
+    if (level <= Log_CB.current_log_level)
     {
-        /* TODO: Use Trace_Format_String() when Trace common library has support/alternative
-           of libc_nano to process va_list string formatting. Also, remove log_level check
-           from here, as trace library does that internally .*/
-        if (CHECK_STRING_FILTER(Trace_Get_SP_CB(), level))
-        {
-            va_start(va, fmt);
-            vsnprintf(buff, sizeof(buff), fmt, va);
-            va_end(va);
-
-            Trace_String(level, Trace_Get_SP_CB(), buff);
-
-            /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
-            type message. */
-            bytes_written = TRACE_STRING_MAX_SIZE;
-        }
-    }
-    else
-    {
-        if (level <= Log_CB.current_log_level)
-        {
-            va_start(va, fmt);
-            vsnprintf(buff, sizeof(buff), fmt, va);
-            va_end(va);
-
-            if (xSemaphore && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
-            {
-                xSemaphoreTake(xSemaphore, portMAX_DELAY);
-            }
-
-            bytes_written = printf("%s", buff);
-
-            if (xSemaphore && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
-            {
-                xSemaphoreGive(xSemaphore);
-            }
-        }
-    }
-
-    /* Update runtime error count for error events */
-    if (level == LOG_LEVEL_ERROR)
-    {
-        update_runtime_error_count();
+        va_start(va, fmt);
+        vsnprintf(buff, sizeof(buff), fmt, va);
+        va_end(va);
+        bytes_written = Log_Write_String(level, buff, sizeof(buff));
     }
 
     return bytes_written;
@@ -311,6 +257,11 @@ int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
     int32_t bytes_written = 0;
     (void)length;
 
+    if (Log_Mutex && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+    {
+        xSemaphoreTake(Log_Mutex, portMAX_DELAY);
+    }
+
     /* Dump the log message over current log interface. */
     if (Log_CB.current_log_interface == LOG_DUMP_TO_TRACE)
     {
@@ -322,13 +273,21 @@ int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
     }
     else
     {
-        PRINT_TO_SERIAL(level, str)
+        if (level <= Log_CB.current_log_level)
+        {
+            bytes_written = printf("%s", str);
+        }
     }
 
     /* Check if severity of message is error or above */
     if (level == LOG_LEVEL_ERROR)
     {
         update_runtime_error_count();
+    }
+
+    if (Log_Mutex && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+    {
+        xSemaphoreGive(Log_Mutex);
     }
 
     return bytes_written;
@@ -358,12 +317,6 @@ static void update_runtime_error_count(void)
 {
     static uint32_t rt_error_count = 0;
     uint32_t error_count;
-
-    if (xSemaphore && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
-    {
-        xSemaphoreTake(xSemaphore, portMAX_DELAY);
-    }
-
     error_count = ++rt_error_count;
 
     /* Check if the error threshold has reached */
@@ -384,10 +337,5 @@ static void update_runtime_error_count(void)
         {
             Log_Write(LOG_LEVEL_WARNING, "update_runtime_error_count :  push to CQ failed!\n");
         }
-    }
-
-    if (xSemaphore && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
-    {
-        xSemaphoreGive(xSemaphore);
     }
 }

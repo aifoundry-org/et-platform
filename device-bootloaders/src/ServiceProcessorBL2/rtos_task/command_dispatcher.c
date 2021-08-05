@@ -59,27 +59,25 @@ static void pc_vq_task(void *pvParameters);
 
 static void vqueue_pcie_isr(void)
 {
-    BaseType_t xHigherPriorityTaskWoken;
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     const uint32_t ipi_trigger = *(volatile uint32_t *)R_PU_TRG_PCIE_BASEADDR;
     volatile uint32_t *const ipi_clear_ptr = (volatile uint32_t *)(R_PU_TRG_PCIE_SP_BASEADDR);
 
-    xTaskNotifyFromISR(g_pc_vq_task_handle, ipi_trigger, eSetBits, &xHigherPriorityTaskWoken);
-
     *ipi_clear_ptr = ipi_trigger;
 
+    xTaskNotifyFromISR(g_pc_vq_task_handle, ipi_trigger, eSetBits, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 static void vqueue_mm_isr(void)
 {
-    BaseType_t xHigherPriorityTaskWoken;
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     const uint32_t ipi_trigger = *(volatile uint32_t *)R_PU_TRG_MMIN_BASEADDR;
     volatile uint32_t *const ipi_clear_ptr = (volatile uint32_t *)(R_PU_TRG_MMIN_SP_BASEADDR);
 
-    xTaskNotifyFromISR(g_mm_cmd_hdlr_handle, ipi_trigger, eSetBits, &xHigherPriorityTaskWoken);
-
     *ipi_clear_ptr = ipi_trigger;
 
+    xTaskNotifyFromISR(g_mm_cmd_hdlr_handle, ipi_trigger, eSetBits, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
