@@ -21,26 +21,6 @@
 
 #define L2_SCP_ENTRIES 65536
 
-// Info of an L2 Scp fill for a minion
-struct l2_scp_fill_info_t
-{
-    uint32_t line;
-    uint32_t id;
-};
-
-// L2 Scp status
-enum l2_scp_status {
-   L2Scp_Fill,
-   L2Scp_Valid
-};
-
-struct shire_scp_info_t
-{
-    l2_scp_status                 l2_scp_line_status[L2_SCP_ENTRIES];  // Status of all the L2 scp entries
-    uint64_t                      l2_scp_line_addr[L2_SCP_ENTRIES];    // Address that was prefetched to each L2 scp entries
-    std::list<l2_scp_fill_info_t> l2_scp_fills[EMU_MINIONS_PER_SHIRE]; // For each minion in the shire list of outstanding l2 scp fills
-};
-
 class l2_scp_checker : public bemu::Agent
 {
   public:
@@ -64,6 +44,32 @@ class l2_scp_checker : public bemu::Agent
     uint32_t log_shire  = 64;              // None by default
     uint32_t log_line   = 1 * 1024 * 1024; // None by default
     uint32_t log_minion = 2048;            // None by default
+
+  private:
+    // Info of an L2 Scp fill for a minion
+    struct l2_scp_fill_info_t
+    {
+      uint32_t line;
+      uint32_t id;
+    };
+    
+    // L2 Scp status
+    enum class l2_scp_status
+    {
+      Fill,
+      Valid
+    };
+    
+    struct shire_scp_info_t
+    {
+      l2_scp_status                 l2_scp_line_status[L2_SCP_ENTRIES];  // Status of all the L2 scp entries
+      uint64_t                      l2_scp_line_addr[L2_SCP_ENTRIES];    // Address that was prefetched to each L2 scp entries
+      std::list<l2_scp_fill_info_t> l2_scp_fills[EMU_MINIONS_PER_SHIRE]; // For each minion in the shire list of outstanding l2 scp fills
+    };
+
+  private:
+    uint64_t convertToLinear(uint64_t addr) const;
+    std::string to_string(l2_scp_status status) const;
 
   private:
     shire_scp_info_t  shire_scp_info[EMU_NUM_SHIRES];

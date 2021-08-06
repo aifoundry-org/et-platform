@@ -37,7 +37,7 @@ l2_scp_checker::l2_scp_checker(bemu::System* chip) : bemu::Agent(chip)
   {
     for(uint32_t entry = 0; entry < L2_SCP_ENTRIES; entry++)
     {
-      shire_scp_info[shire].l2_scp_line_status[entry] = L2Scp_Valid;
+      shire_scp_info[shire].l2_scp_line_status[entry] = l2_scp_status::Valid;
       shire_scp_info[shire].l2_scp_line_addr[entry]   = 0x0ULL;
     }
   }
@@ -53,12 +53,15 @@ void l2_scp_checker::l2_scp_fill(uint32_t thread, uint32_t idx, uint32_t id, uin
   uint32_t minion_id = thread / EMU_THREADS_PER_MINION;
   uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
   uint32_t shire     = thread / EMU_THREADS_PER_SHIRE;
-  L2_SCP_CHECKER_LOG(shire, idx, minion_id, printf("l2_scp_checker::l2_scp_fill => valid shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, idx, id));
+  src_addr = convertToLinear(src_addr);
 
-  if((shire_scp_info[shire].l2_scp_line_status[idx] == L2Scp_Fill) && (shire_scp_info[shire].l2_scp_line_addr[idx] != src_addr))
+  L2_SCP_CHECKER_LOG(shire, idx, minion_id, LOG_AGENT(INFO, *this, "l2_scp_checker::l2_scp_fill => shire: %i, minion: %i, line: %i, id: %i, src_addr: %016llx",
+        shire, minion, idx, id, (long long unsigned int) src_addr));
+
+  if((shire_scp_info[shire].l2_scp_line_status[idx] == l2_scp_status::Fill) && (shire_scp_info[shire].l2_scp_line_addr[idx] != src_addr))
   {
-    LOG_AGENT(FTL, *this, "l2_scp_checker::l2_scp_fill => filling with a different address an already inflight fill line %i. Old addr %016llX, new addr %016llX\n",
-                 idx, (long long unsigned int) shire_scp_info[shire].l2_scp_line_addr[idx], (long long unsigned int) src_addr);
+    LOG_AGENT(FTL, *this, "l2_scp_checker::l2_scp_fill => filling with a different address an already inflight fill shire: %i, minion %i, line %i, old addr %016llX, new addr %016llX",
+                 shire, minion, idx, (long long unsigned int) shire_scp_info[shire].l2_scp_line_addr[idx], (long long unsigned int) src_addr);
   }
 
   // If line is being overwritten with exact same addr as before and it is already valid, the line
@@ -66,14 +69,15 @@ void l2_scp_checker::l2_scp_fill(uint32_t thread, uint32_t idx, uint32_t id, uin
   // in convolution nodes. When optimized, we could disable this.
   // TODO: this is a potential hole in the checking, as it make sense for close prefetches, but for
   // long prefetches the contents of the source address might have changed
-  if((shire_scp_info[shire].l2_scp_line_status[idx] == L2Scp_Valid) && (shire_scp_info[shire].l2_scp_line_addr[idx] == src_addr))
+  if((shire_scp_info[shire].l2_scp_line_status[idx] == l2_scp_status::Valid) && (shire_scp_info[shire].l2_scp_line_addr[idx] == src_addr))
   {
     return;
   }
 
   // Marks the line as in fill
-  shire_scp_info[shire].l2_scp_line_status[idx] = L2Scp_Fill;
+  shire_scp_info[shire].l2_scp_line_status[idx] = l2_scp_status::Fill;
   shire_scp_info[shire].l2_scp_line_addr[idx]   = src_addr;
+  L2_SCP_CHECKER_LOG(shire, idx, minion_id, LOG_AGENT(INFO, *this, "l2_scp_checker::l2_scp_fill => setting to fill shire: %i, minion: %i, line: %i, id: %i", shire, minion, idx, id));
 
   // Enters pending l2 scp fill for minion
   l2_scp_fill_info_t l2_scp_fill;
@@ -92,7 +96,7 @@ void l2_scp_checker::l2_scp_wait(uint32_t thread, uint32_t id)
   uint32_t minion_id = thread / EMU_THREADS_PER_MINION;
   uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
   uint32_t shire     = thread / EMU_THREADS_PER_SHIRE;
-  L2_SCP_CHECKER_LOG(shire, 0xFFFFFFFF, minion_id, printf("l2_scp_checker::l2_scp_wait => shire: %i, minion: %i, id: %i\n", shire, minion, id));
+  L2_SCP_CHECKER_LOG(shire, 0xFFFFFFFF, minion_id, LOG_AGENT(INFO, *this, "l2_scp_checker::l2_scp_wait => shire: %i, minion: %i, id: %i", shire, minion, id));
 
   // Goes over all entries of minion
   auto it = shire_scp_info[shire].l2_scp_fills[minion].begin();
@@ -101,8 +105,8 @@ void l2_scp_checker::l2_scp_wait(uint32_t thread, uint32_t id)
     // Same ID, set line as valid and remove from list
     if(it->id == id)
     {
-      L2_SCP_CHECKER_LOG(shire, it->line, minion_id, printf("l2_scp_checker::l2_scp_wait => valid shire: %i, line: %i\n", shire, it->line));
-      shire_scp_info[shire].l2_scp_line_status[it->line] = L2Scp_Valid;
+      L2_SCP_CHECKER_LOG(shire, it->line, minion_id, LOG_AGENT(INFO, *this, "l2_scp_checker::l2_scp_wait => setting to valid shire: %i, line: %i", shire, it->line));
+      shire_scp_info[shire].l2_scp_line_status[it->line] = l2_scp_status::Valid;
       auto it_orig = it;
       it++;
       shire_scp_info[shire].l2_scp_fills[minion].erase(it_orig);
@@ -120,10 +124,30 @@ void l2_scp_checker::l2_scp_wait(uint32_t thread, uint32_t id)
  */
 void l2_scp_checker::l2_scp_read(uint32_t thread, uint64_t addr)
 {
-  uint32_t minion_id    = thread / EMU_THREADS_PER_MINION;
-  uint32_t minion       = minion_id % EMU_MINIONS_PER_SHIRE;
-  uint32_t shire        = thread / EMU_THREADS_PER_SHIRE;
+  uint32_t minion_id = thread / EMU_THREADS_PER_MINION;
+  uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
+  uint32_t shire     = thread / EMU_THREADS_PER_SHIRE;
 
+  addr = convertToLinear(addr);
+  uint32_t shire_access = (addr >> 23) & 0x3FULL;
+  uint32_t line_access  = (addr >> 6) & 0x1FFFF;
+  L2_SCP_CHECKER_LOG(shire_access, line_access, minion_id, LOG_AGENT(INFO, *this, "l2_scp_checker::l2_scp_read => shire: %i, minion: %i, addr: %016llX, shire_addr: %i, line: %i",
+        shire, minion, (long long unsigned int) addr, shire_access, line_access));
+
+  if(shire_access >= EMU_NUM_SHIRES)
+  {
+    LOG_AGENT(FTL, *this, "l2_scp_checker::l2_scp_read => accessing beyond limit shire: %i, minion: %i, shire_addr: %i",
+        shire, minion, shire_access);
+  }
+
+  if(shire_scp_info[shire_access].l2_scp_line_status[line_access] != l2_scp_status::Valid)
+  {
+    LOG_AGENT(FTL, *this, "l2_scp_checker::l2_scp_read => line state is not valid!! shire: %i, minion: %i, shire_addr: %i, line: %i, state: %s",
+        shire, minion, shire_access, line_access, to_string(shire_scp_info[shire_access].l2_scp_line_status[line_access]).c_str());
+  }
+}
+
+uint64_t l2_scp_checker::convertToLinear(uint64_t addr) const {
   // Non-linear address, convert it!
   if(addr & 0x40000000ULL)
   {
@@ -132,22 +156,25 @@ void l2_scp_checker::l2_scp_read(uint32_t thread, uint64_t addr)
     new_addr = new_addr | ((addr >> 5)  &   0x7FFFC0ULL); // Offset
     new_addr = new_addr | ((addr << 17) &  0xF800000ULL); // Shire Id [4:0]
     new_addr = new_addr | (addr         & 0x30000000ULL); // Shire Id [6:5]
+    new_addr = new_addr |                 0x80000000ULL ; // L2Scp
     addr = new_addr;
   }
+  return addr;
+}
 
-  uint32_t shire_access = (addr >> 23) & 0x3FULL;
-  uint32_t line_access  = (addr >> 6) & 0x1FFFF;
-
-  L2_SCP_CHECKER_LOG(shire, line_access, minion_id, printf("l2_scp_checker::l2_scp_read => shire: %i, minion: %i, addr: %016llX, shire_addr: %i, line: %i\n", shire, minion, (long long unsigned int) addr, shire_access, line_access));
-
-  if(shire_access >= EMU_NUM_SHIRES)
+std::string l2_scp_checker::to_string(l2_scp_status status) const
+{
+  std::string ret = "";
+  switch (status)
   {
-    LOG_AGENT(FTL, *this, "l2_scp_checker::l2_scp_read => accessing shire %i beyond limit %i\n", shire_access, EMU_NUM_SHIRES);
+    case l2_scp_status::Fill:
+      ret = "Fill";
+      break;
+    case l2_scp_status::Valid:
+      ret = "Valid";
+      break;
   }
 
-  if(shire_scp_info[shire_access].l2_scp_line_status[line_access] != L2Scp_Valid)
-  {
-    LOG_AGENT(FTL, *this, "l2_scp_checker::l2_scp_read => line state is not valid!! It is %i\n", shire_scp_info[shire_access].l2_scp_line_status[line_access]);
-  }
+  return ret;
 }
 

@@ -512,7 +512,7 @@ void tensor_load_l2_start(Hart& cpu, uint64_t control)
                 LOG_MEMREAD512(paddr, tmp.u32);
                 cpu.chip->memory.write(cpu, l2scp_addr, L1D_LINE_SIZE, tmp.u32.data());
                 LOG_MEMWRITE512(l2scp_addr, tmp.u32);
-                L2_SCP_CHECK_FILL(cpu, dst + i, id, addr);
+                L2_SCP_CHECK_FILL(cpu, dst + i, id, vaddr);
             }
             catch (const sync_trap_t&) {
                 update_tensor_error(cpu, 1 << 7);
