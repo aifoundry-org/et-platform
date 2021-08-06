@@ -57,14 +57,16 @@ static const struct pci_device_id esperanto_pcie_tbl[] = {
 };
 
 /*
- * DIR discovery timeout in seconds for mgmt/ops nodes, should be removed
- * in production
+ * DIR discovery timeout in seconds for mgmt/ops nodes, if set to 0, checks
+ * DIR status only once and returns immediately if not ready.
+ *
+ * TODO: Remove these params in production after bringup
  */
-static int mgmt_discovery_timeout = 300;
-module_param(mgmt_discovery_timeout, int, 0);
+static uint mgmt_discovery_timeout = 300;
+module_param(mgmt_discovery_timeout, uint, 0);
 
-static int ops_discovery_timeout = 300;
-module_param(ops_discovery_timeout, int, 0);
+static uint ops_discovery_timeout = 300;
+module_param(ops_discovery_timeout, uint, 0);
 
 static DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
 
@@ -984,7 +986,7 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 
 	// TODO: Improve device discovery
 	// Waiting for device to be ready, wait for mgmt_discovery_timeout
-	for (i = 0; !dir_ready && i < mgmt_discovery_timeout; i++) {
+	for (i = 0; !dir_ready && i <= mgmt_discovery_timeout; i++) {
 		rv = (int)ioread16(&dir_mgmt_mem->status);
 		if (rv == MGMT_BOOT_STATUS_DEV_READY) {
 			pr_debug("Mgmt: DIRs ready, status: %d", rv);
@@ -994,7 +996,8 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 			if (i % 10 == 0)
 				pr_debug("Mgmt: DIRs not ready, status: %d",
 					 rv);
-			msleep(1000);
+			if (i > 0)
+				msleep(1000);
 		}
 	}
 
@@ -1280,7 +1283,7 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 
 	// TODO: Improve device discovery
 	// Waiting for device to be ready, wait for ops_discovery_timeout
-	for (i = 0; !dir_ready && i < ops_discovery_timeout; i++) {
+	for (i = 0; !dir_ready && i <= ops_discovery_timeout; i++) {
 		rv = (int)ioread16(&dir_ops_mem->status);
 		if (rv == OPS_BOOT_STATUS_MM_READY) {
 			pr_debug("Ops: DIRs ready, status: %d", rv);
@@ -1289,7 +1292,8 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 			// Do not flood the console, only print once in 10s
 			if (i % 10 == 0)
 				pr_debug("Ops: DIRs not ready, status: %d", rv);
-			msleep(1000);
+			if (i > 0)
+				msleep(1000);
 		}
 	}
 
