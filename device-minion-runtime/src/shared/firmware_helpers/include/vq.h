@@ -90,6 +90,19 @@ int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size);
 */
 int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
 
+/*! \fn int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint32_t vq_used_space,
+    void *const shared_mem_ptr, void* rx_buff)
+    \brief Pops a command from a virtual queue.
+    \param vq_cb Pointer to virtual queue control block.
+    \param vq_used_space Number of bytes used in VQ
+    \param shared_mem_ptr Pointer to the VQ shared memory buffer used as
+    circular buffer
+    \param rx_buff Pointer to rx command buffer.
+    \return The size of the command in bytes or negative error code.
+*/
+int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
+    void *const shared_mem_ptr, void* rx_buff);
+
 /*! \fn int32_t VQ_Prefetch_Buffer(vq_cb_t* vq_cb, uint32_t vq_used_space,
     void *const shared_mem_ptr, void* rx_buff)
     \brief Prefetches the data from a virtual queue.
@@ -135,14 +148,24 @@ bool VQ_Data_Avail(vq_cb_t* vq_cb);
 */
 int8_t VQ_Deinit(void);
 
-/*! \fn static inline uint64_t VQ_Get_Tail_Offset(vq_cb_t* vq_cb)
+/*! \fn static inline uint64_t VQ_Get_Tail_Offset(const vq_cb_t* vq_cb)
     \brief Get the tail offset of the VQ
     \param vq_cb Pointer to virtual queue control block.
     \return Value of tail offset
 */
-static inline uint64_t VQ_Get_Tail_Offset(vq_cb_t* vq_cb)
+static inline uint64_t VQ_Get_Tail_Offset(const vq_cb_t* vq_cb)
 {
     return (vq_cb->circbuff_cb->tail_offset);
+}
+
+/*! \fn static inline uint64_t VQ_Get_Head_Offset(const vq_cb_t* vq_cb)
+    \brief Get the head offset of the VQ
+    \param vq_cb Pointer to virtual queue control block.
+    \return Value of head offset
+*/
+static inline uint64_t VQ_Get_Head_Offset(const vq_cb_t* vq_cb)
+{
+    return (vq_cb->circbuff_cb->head_offset);
 }
 
 /*! \fn static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val)
@@ -151,9 +174,13 @@ static inline uint64_t VQ_Get_Tail_Offset(vq_cb_t* vq_cb)
 */
 static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val)
 {
+#if defined(MASTER_MINION)
     Circbuffer_Set_Tail((circ_buff_cb_t*)(uintptr_t)
         atomic_load_local_64((uint64_t*)(void*)&dest_vq_cb->circbuff_cb), tail_val,
         atomic_load_local_32(&dest_vq_cb->flags));
+#else
+    Circbuffer_Set_Tail(dest_vq_cb->circbuff_cb, tail_val, dest_vq_cb->flags);
+#endif
 }
 
 /*! \fn static inline void VQ_Get_Head_And_Tail(vq_cb_t* src_vq_cb, vq_cb_t* dest_vq_cb)
@@ -163,8 +190,12 @@ static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val)
 */
 static inline void VQ_Get_Head_And_Tail(vq_cb_t* src_vq_cb, vq_cb_t* dest_vq_cb)
 {
-    Circbuffer_Get_Head_Tail((circ_buff_cb_t*)(uintptr_t)
-        atomic_load_local_64((uint64_t*)(void*)&src_vq_cb->circbuff_cb),
+    Circbuffer_Get_Head_Tail(
+#if defined(MASTER_MINION)
+        (circ_buff_cb_t*)(uintptr_t)atomic_load_local_64((uint64_t*)&src_vq_cb->circbuff_cb),
+#else
+        src_vq_cb->circbuff_cb,
+#endif
         dest_vq_cb->circbuff_cb, dest_vq_cb->flags);
 }
 
