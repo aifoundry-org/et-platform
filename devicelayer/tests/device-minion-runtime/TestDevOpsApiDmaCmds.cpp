@@ -569,10 +569,10 @@ void TestDevOpsApiDmaCmds::dataRWListCmd_NegativeTesting_3_12() {
     }
     stream.push_back(
       IDevOpsApiCmd::createCmd<DmaWriteListCmd>(device_ops_api::CMD_FLAGS_BARRIER_DISABLE, wrList.data(), kNodeCount,
-                                                device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS));
+                                                device_ops_api::DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS));
     stream.push_back(
       IDevOpsApiCmd::createCmd<DmaReadListCmd>(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, rdList.data(), kNodeCount,
-                                               device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS));
+                                               device_ops_api::DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS));
     // Save stream against deviceIdx and queueIdx
     insertStream(deviceIdx, queueIdx, std::move(stream));
     stream.clear();
