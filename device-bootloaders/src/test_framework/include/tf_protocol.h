@@ -91,6 +91,10 @@ typedef enum {
     TF_CMD_MAXION_INTERNAL_INIT=59,
     TF_CMD_PMIC_MODULE_TEMPERATURE=60,
     TF_CMD_PMIC_MODULE_POWER=61,
+    TF_CMD_PMIC_MODULE_VOLTAGE=62,
+    TF_CMD_PMIC_MODULE_UPTIME=63,
+    TF_CMD_SP_PCIE_RETAIN_PHY=64,
+    TF_CMD_GET_MODULE_ASIC_FREQ=65,
     /* SW TF commands from 97 - 255 */
     TF_CMD_AT_MANUFACTURER_NAME=97,
     TF_CMD_AT_PART_NUMBER=98,
@@ -171,6 +175,10 @@ typedef enum {
     TF_RSP_MAXION_INTERNAL_INIT=315,
     TF_RSP_PMIC_MODULE_TEMPERATURE=316,
     TF_RSP_PMIC_MODULE_POWER=317,
+    TF_RSP_PMIC_MODULE_VOLTAGE=318,
+    TF_RSP_PMIC_MODULE_UPTIME=319,
+    TF_RSP_SP_PCIE_RETAIN_PHY=320,
+    TF_RSP_GET_MODULE_ASIC_FREQ=321,
     /* SW TF response from 352 - 511 */
     TF_RSP_AT_MANUFACTURER_NAME=352,
     TF_RSP_AT_PART_NUMBER=353,
@@ -254,9 +262,12 @@ struct tf_get_spfw_ver_cmd_t {
 
 struct tf_get_spfw_ver_rsp_t {
     tf_rsp_hdr_t  rsp_hdr;
-    uint32_t      major;
-    uint32_t      minor;
-    uint32_t      version;
+    uint32_t  bl1_v;        /**< BL1 Firmware version */
+    uint32_t  bl2_v;        /**< BL2 Firmware version */
+    uint32_t  mm_v;         /**< Machine Minion Firmware version */
+    uint32_t  wm_v;         /**< Worker Minion Firmware version */
+    uint32_t  machm_v;      /**< Machine Minion Firmware version */
+    uint32_t  pad;          /**< Padding for alignment */
 };
 
 struct tf_mm_cmd_shell_cmd_t {
@@ -302,6 +313,43 @@ struct tf_asset_tracking_rsp_t {
 struct tf_pmic_rsp_t {
     tf_rsp_hdr_t rsp_hdr;
     uint8_t      value;
+};
+
+struct tf_sp_pcie_retain_phy_rsp_t {
+    tf_rsp_hdr_t rsp_hdr;
+    int32_t      status;
+};
+
+struct tf_sp_get_asic_freq_rsp_t {
+    tf_rsp_hdr_t rsp_hdr;
+    uint32_t  minion_shire_mhz;     /**< Minion Shire frequency in MHz */
+    uint32_t  noc_mhz;              /**< NOC frequency in MHz */
+    uint32_t  mem_shire_mhz;        /**< Mem Shire frequency in MHz */
+    uint32_t  ddr_mhz;              /**< DDR frequency in MHz */
+    uint32_t  pcie_shire_mhz;       /**< PCIe Shire frequency in MHz */
+    uint32_t  io_shire_mhz;         /**< IO Shire frequency in MHz */
+};
+
+struct tf_pmic_module_voltage_rsp_t {
+    tf_rsp_hdr_t rsp_hdr;
+    uint8_t  ddr;         /**< DDR Voltage */
+    uint8_t  l2_cache;    /**< L2 Cache Voltage */
+    uint8_t  maxion;      /**< Maxion's Voltage */
+    uint8_t  minion;      /**< Minion's Voltage */
+    uint8_t  pcie;        /**< PCIe's Voltage */
+    uint8_t  noc;         /**< NOC's Voltage */
+    uint8_t  pcie_logic;  /**< PCIE Logic Voltage */
+    uint8_t  vddqlp;      /**< Vddlp Voltage */
+    uint8_t  vddq;        /**< Vddq Voltage */
+    uint8_t  pad[7];      /**< Padding for alignment */
+};
+
+struct tf_pmic_module_uptime_rsp_t {
+    tf_rsp_hdr_t rsp_hdr;
+    uint16_t  day;          /**< time day */
+    uint8_t  hours;         /**< time hour */
+    uint8_t  mins;          /**< time minutes */
+    uint8_t  pad[4];        /**< Padding for alignment */
 };
 
 #endif

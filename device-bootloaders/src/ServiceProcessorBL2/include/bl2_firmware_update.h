@@ -20,7 +20,6 @@
 
 #include <stdint.h>
 #include "dm.h"
-#include "bl2_build_configuration.h"
 #include "bl2_firmware_loader.h"
 #include "bl2_flash_fs.h"
 #include "bl2_main.h"
@@ -97,5 +96,12 @@ void firmware_service_get_wm_version(uint8_t *major, uint8_t *minor, uint8_t *re
     \returns none
 */
 void firmware_service_get_machm_version(uint8_t *major, uint8_t *minor, uint8_t *revision);
+
+/*! \fn int32_t sp_get_image_version_info(void)
+    \brief Function to get image FW version
+    \param none
+    \returns image FW revision version
+*/
+uint32_t sp_get_image_version_info(void);
 
 #endif

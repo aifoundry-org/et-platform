@@ -15,7 +15,7 @@
         firmware_service_process_request
 */
 /***********************************************************************/
-
+#include "bl2_build_configuration.h"
 #include "bl2_firmware_update.h"
 
 #define SPI_FLASH_WRITES_256B_CHUNK_SIZE 256
@@ -386,6 +386,32 @@ static int32_t dm_svc_firmware_update(void)
     }
 
     return DEVICE_FW_FLASH_UPDATE_SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       sp_get_image_version_info
+*
+*   DESCRIPTION
+*
+*       This is a function returns image version information
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       file verison information
+*
+***********************************************************************/
+uint32_t sp_get_image_version_info(void)
+{
+   return (FORMAT_VERSION((uint32_t)get_image_version_info()->file_version_major,
+                       (uint32_t)get_image_version_info()->file_version_minor,
+                       (uint32_t)get_image_version_info()->file_version_revision));
 }
 
 /************************************************************************

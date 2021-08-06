@@ -8,6 +8,8 @@ extern int8_t Echo_To_SP_Cmd_Handler(void* test_cmd);
 extern int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd);
 extern int8_t Move_Data_To_Device_Cmd_Handler(void* test_cmd);
 extern int8_t Move_Data_To_Host_Cmd_Handler(void* test_cmd);
+extern int8_t SP_PCIE_Retain_Phy_Cmd_Handler(void* test_cmd);
+extern int8_t SP_Get_Module_ASIC_Freq_Cmd_Handler(void* test_cmd);
 
 #if !TF_CORE
 /* SPIO tests */
@@ -78,6 +80,9 @@ extern int8_t Asset_Tracking_Memory_Type_Cmd_Handler(void* test_cmd);
 /* PMIC Tests */
 extern int8_t PMIC_Module_Temperature_Cmd_Handler(void* test_cmd);
 extern int8_t PMIC_Module_Power_Cmd_Handler(void* test_cmd);
+extern int8_t PMIC_Module_Voltage_Cmd_Handler(void* test_cmd);
+extern int8_t PMIC_Module_Uptime_Cmd_Handler(void* test_cmd);
+
 #endif  // !TF_CORE
 
 /* Unregistered Handler */
@@ -227,13 +232,13 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
 // 61
     PMIC_Module_Power_Cmd_Handler,
 // 62
-    Unregistered_Handler, // Future HW Use
+    PMIC_Module_Voltage_Cmd_Handler, 
 // 63
-    Unregistered_Handler, // Future HW Use
+    PMIC_Module_Uptime_Cmd_Handler, 
 // 64
-    Unregistered_Handler, // Future HW Use
+    SP_PCIE_Retain_Phy_Cmd_Handler,
 // 65
-    Unregistered_Handler, // Future HW Use
+    SP_Get_Module_ASIC_Freq_Cmd_Handler,
 // 66
     Unregistered_Handler, // Future HW Use
 // 67

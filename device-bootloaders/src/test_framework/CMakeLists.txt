@@ -9,7 +9,6 @@ target_sources(test_framework_core
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/tf/tf.c
     ${CMAKE_CURRENT_SOURCE_DIR}/test_commands.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/tf_generic_tests.c
 )
 
 target_link_libraries(test_framework_core
