@@ -15,12 +15,23 @@
 *   DESCRIPTION
 *
 *       Header/Interface description for public interfaces that provide
-*       SP to Minion communications
+*       SP to Host communications
 *
 ***********************************************************************/
+#ifndef SP_HOST_IFACE_DEFS_H
+#define SP_HOST_IFACE_DEFS_H
+
 #include "common_defs.h"
 #include "vq.h"
 #include "sp_vq_build_config.h"
+
+/**
+ * @brief Enum of supported virtual queue types
+ */
+typedef enum {
+    SQ,
+    CQ
+} vq_type_t;
 
 /*! \fn int8_t SP_Host_Iface_Init(void)
     \brief Initialize SP to Host Interface
@@ -56,3 +67,29 @@ uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff);
     \returns [out] Status
 */
 int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size);
+
+/*! \fn vq_cb_t* SP_Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type)
+    \brief Obtain pointer to virtual queue associated
+    with the queue type
+    \param vq_type Virtual Queue Type
+    \return vq_cb_t* Pointer to the virtual queue control block
+*/
+vq_cb_t* SP_Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type);
+
+/******************************/
+/* Special Optimized routines */
+/******************************/
+
+/*! \fn void SP_Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached)
+    \brief This function is used to update the value of tail
+    from cached VQ CB to shared VQ CB
+    \param sq_shared Pointer to shared VQ CB
+    \param sq_cached Pointer to cached VQ CB
+*/
+static inline void SP_Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached)
+{
+    /* Update tail value in VQ memory */
+    VQ_Set_Tail_Offset(sq_shared, VQ_Get_Tail_Offset(sq_cached));
+}
+
+#endif /* SP_HOST_IFACE_DEFS_H */

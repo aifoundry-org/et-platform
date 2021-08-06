@@ -50,6 +50,9 @@ typedef struct host_iface_sqs_cb_ {
     completion queues
 */
 typedef struct host_iface_cqs_cb_ {
+    /* Local copy globals */
+    circ_buff_cb_t circ_buff_local;
+    /* Shared copy globals */
     uint32_t vqueue_base;
     uint32_t vqueue_size;
     vq_cb_t vqueue;
@@ -60,13 +63,13 @@ typedef struct host_iface_cqs_cb_ {
     \brief Global Host to SP submission
     queues interface
 */
-static sp_host_iface_sqs_cb_t SP_Host_SQ = {0};
+static sp_host_iface_sqs_cb_t SP_Host_SQ __attribute__((aligned(64))) = {0};
 
 /*! \var host_iface_cqs_cb_t Host_CQs
     \brief Global SP to Host Minion completion
     queues interface
 */
-static sp_host_iface_cqs_cb_t SP_Host_CQ = {0};
+static sp_host_iface_cqs_cb_t SP_Host_CQ __attribute__((aligned(64))) = {0};
 
 /************************************************************************
 *
@@ -171,6 +174,15 @@ int8_t SP_Host_Iface_CQ_Init(void)
                       SP_Host_CQ.vqueue_base,
                       SP_Host_CQ.vqueue_size,
                       0,sizeof(cmd_size_t),SP_CQ_MEM_TYPE);
+
+    /* Populate data in local copy globals */
+    if(status == STATUS_SUCCESS)
+    {
+        /* Make a copy of the Circular Buffer CB in shared SRAM to global variable */
+        memcpy(&SP_Host_CQ.circ_buff_local, SP_Host_CQ.vqueue.circbuff_cb,
+            sizeof(SP_Host_CQ.circ_buff_local));
+    }
+
     return status;
 }
 
@@ -203,20 +215,36 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
     */
     portDISABLE_INTERRUPTS();
 
+    /* Verify that the head value read from shared memory is equal to previous head value */
+    if(SP_Host_CQ.circ_buff_local.head_offset != VQ_Get_Head_Offset(&SP_Host_CQ.vqueue))
+    {
+        /* If this condition occurs, there's definitely some corruption in VQs */
+        Log_Write(LOG_LEVEL_ERROR,
+        "SP_Host_Iface_CQ_Push_Cmd:FATAL_ERROR:Tail Mismatch:Local: %ld, Shared Memory: %ld Using local value as fallback mechanism\r\n",
+        SP_Host_CQ.circ_buff_local.head_offset, VQ_Get_Head_Offset(&SP_Host_CQ.vqueue));
+
+        /* Fallback mechanism: use the cached copy of SQ tail */
+        SP_Host_CQ.vqueue.circbuff_cb->head_offset = SP_Host_CQ.circ_buff_local.head_offset;
+    }
+
     /* Push the command to circular buffer */
     status = VQ_Push(&SP_Host_CQ.vqueue, p_cmd, cmd_size);
 
+    /* Get the updated head pointer in local copy */
+    SP_Host_CQ.circ_buff_local.head_offset = VQ_Get_Head_Offset(&SP_Host_CQ.vqueue);
+
     portENABLE_INTERRUPTS();
 
-    if (status == STATUS_SUCCESS)
+    if(status == STATUS_SUCCESS)
     {
-      pcie_interrupt_host(SP_CQ_NOTIFY_VECTOR);
+        pcie_interrupt_host(SP_CQ_NOTIFY_VECTOR);
     }
     else
     {
-       //MESSAGE_ERROR("SP_Host_Iface_CQ_Push_Cmd: ERROR: Circbuff Push Failed. (Error code: )", status, "\r\n");
+        Log_Write(LOG_LEVEL_ERROR,
+            "SP_Host_Iface_CQ_Push_Cmd: ERROR: Circbuff Push Failed. (Error code: %d)\r\n",
+            status);
     }
-
 
     return status;
 }
@@ -267,4 +295,45 @@ uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff)
     }
 
     return return_val;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       SP_Host_Iface_Get_VQ_Base_Addr
+*
+*   DESCRIPTION
+*
+*       Obtain the Virtual Queue base address
+*
+*   INPUTS
+*
+*       vq_type     Virtuql Queue Type
+*
+*   OUTPUTS
+*
+*       vq_cb_t*    Pointer to Virtual queue base
+*
+***********************************************************************/
+vq_cb_t* SP_Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type)
+{
+    vq_cb_t* retval = 0;
+
+    if(vq_type == SQ)
+    {
+        retval = &SP_Host_SQ.vqueue;
+    }
+    else if(vq_type == CQ)
+    {
+        retval = &SP_Host_CQ.vqueue;
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+            "HostIface:ERROR:Obtaining VQ base address, bad vq_type: %d\r\n",
+            vq_type);
+    }
+
+    return retval;
 }

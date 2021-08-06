@@ -105,95 +105,160 @@ static void create_mm_cmd_hdlr_task(void)
     }
 }
 
+static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *vq_shared,
+    void* shared_mem_ptr, uint64_t vq_used_space)
+{
+    static uint8_t buffer[SP_HOST_SQ_MAX_ELEMENT_SIZE] __attribute__((aligned(8))) = { 0 };
+    tag_id_t tag_id;
+    msg_id_t msg_id;
+    int8_t status = STATUS_SUCCESS;
+
+    /* Pop a command from SP<->PC VQueue */
+    int32_t pop_ret_val =
+        VQ_Pop_Optimized(vq_cached, vq_used_space, shared_mem_ptr, buffer);
+
+    /* Update the tail offset in VQ shared memory (SRAM) so that host is able to push new commands */
+    SP_Host_Iface_Optimized_SQ_Update_Tail(vq_shared, vq_cached);
+
+    /* Check for valid data */
+    if(pop_ret_val > 0)
+    {
+        const dev_mgmt_cmd_header_t *const hdr = (void *)buffer;
+        tag_id = hdr->cmd_hdr.tag_id;
+        msg_id = hdr->cmd_hdr.msg_id;
+
+        /* Process new message */
+        switch (msg_id)
+        {
+        case DM_CMD_GET_MODULE_MANUFACTURE_NAME ... DM_CMD_GET_MODULE_MEMORY_TYPE:
+            /* Process asset tracking service request cmd */
+            asset_tracking_process_request(tag_id, msg_id);
+            break;
+        case DM_CMD_GET_FUSED_PUBLIC_KEYS ... DM_CMD_SET_FIRMWARE_VALID:
+            /* Process firmware service request cmd */
+            firmware_service_process_request(tag_id, msg_id, (void *)buffer);
+            break;
+        case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS ... DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES:
+            thermal_power_monitoring_process(tag_id, msg_id, (void *)buffer);
+            break;
+        case DM_CMD_SET_PCIE_RESET ... DM_CMD_SET_PCIE_RETRAIN_PHY:
+            link_mgmt_process_request(tag_id, msg_id, (void *)buffer);
+            break;
+        case DM_CMD_SET_DDR_ECC_COUNT ... DM_CMD_SET_SRAM_ECC_COUNT:
+            /* Process set error control cmd */
+            error_control_process_request(tag_id, msg_id);
+            break;
+        case DM_CMD_GET_MODULE_MAX_TEMPERATURE ... DM_CMD_GET_MAX_MEMORY_ERROR:
+            historical_extreme_value_request(tag_id, msg_id);
+            break;
+        case DM_CMD_GET_MM_ERROR_COUNT:
+            Minion_State_Host_Iface_Process_Request(tag_id, msg_id);
+            break;
+        case DM_CMD_GET_ASIC_FREQUENCIES ... DM_CMD_GET_ASIC_LATENCY:
+            process_performance_request(tag_id, msg_id);
+            break;
+        case DM_CMD_GET_DEVICE_ERROR_EVENTS:
+#ifdef TEST_EVENT_GEN
+            start_test_events(tag_id, msg_id);
+#endif
+            break;
+        case DM_CMD_SET_DM_TRACE_RUN_CONTROL:
+        case DM_CMD_SET_DM_TRACE_CONFIG:
+            Trace_Process_CMD(tag_id, msg_id, (void *)buffer);
+            break;
+        case DM_CMD_RESET_ETSOC:
+            /* Process firmware service request cmd */
+            firmware_service_process_request(tag_id, msg_id, (void *)buffer);
+            break;
+        default:
+            Log_Write(LOG_LEVEL_ERROR, "[PC VQ] Invalid message id: %d\r\n", msg_id);
+            Log_Write(LOG_LEVEL_ERROR, "message length: %d, buffer:\r\n", pop_ret_val);
+            // TODO:
+            // Implement error handler
+            break;
+        }
+    }
+    else if(pop_ret_val < 0)
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+            "pc_vq_task:ERROR:Host cmd processing failed:%d\r\n", pop_ret_val);
+
+        status = GENERAL_ERROR;
+    }
+
+    return status;
+}
+
 static void pc_vq_task(void *pvParameters)
 {
     (void)pvParameters;
 
-    static uint8_t buffer[SP_HOST_SQ_MAX_ELEMENT_SIZE] __attribute__((aligned(8))) = { 0 };
-    tag_id_t tag_id;
-    msg_id_t msg_id;
+    circ_buff_cb_t circ_buff_cached __attribute__((aligned(64)));
+    void* shared_mem_ptr;
+    vq_cb_t vq_cached;
+    uint64_t tail_prev;
+
+    /* Declare a pointer to the VQ control block that is pointing to the VQ attributes in
+    global memory and the actual Circular Buffer CB in SRAM (which is shared with host) */
+    vq_cb_t *vq_shared = SP_Host_Iface_Get_VQ_Base_Addr(SQ);
+
+    /* Make a copy of the VQ CB in global data to cached L1 stack variable */
+    memcpy(&vq_cached, vq_shared, sizeof(vq_cached));
+
+    /* Make a copy of the Circular Buffer CB in shared SRAM to cached L1 stack variable */
+    memcpy(&circ_buff_cached, vq_cached.circbuff_cb, sizeof(circ_buff_cached));
+
+    /* Save the shared memory pointer to data buffer */
+    shared_mem_ptr = (void*)vq_cached.circbuff_cb->buffer_ptr;
+
+    /* Update the local VQ CB to point to the cached L1 stack variable */
+    vq_cached.circbuff_cb = &circ_buff_cached;
 
     /* Disable buffering on stdout */
     setbuf(stdout, NULL);
 
-    while (1) {
+    while (1)
+    {
         uint32_t notificationValue;
 
         /* ISRs set notification bits per ipi_trigger in case we want them - not currently using them */
         xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
 
         Log_Write(LOG_LEVEL_INFO, "Host_Iface: Received DM request from host.\n");
+
+        /* Get the cached tail pointer */
+        tail_prev = VQ_Get_Tail_Offset(&vq_cached);
+
+        /* Refresh the cached VQ CB - Get updated head and tail values from SRAM */
+        VQ_Get_Head_And_Tail(vq_shared, &vq_cached);
+
+        /* Verify that the tail value read from memory is equal to previous tail value */
+        if(tail_prev != VQ_Get_Tail_Offset(&vq_cached))
+        {
+            /* If this condition occurs, there's definitely some corruption in VQs */
+            Log_Write(LOG_LEVEL_ERROR,
+            "pc_vq_task:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
+            tail_prev, VQ_Get_Tail_Offset(&vq_cached));
+
+            /* Fallback mechanism: use the cached copy of SQ tail */
+            vq_cached.circbuff_cb->tail_offset = tail_prev;
+        }
+
+        /* Calculate the total number of bytes available in the VQ */
+        uint64_t vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
+
         /* Process as many new messages as possible */
-        while (1) {
-
-            /* Pop a command from SP<->PC VQueue */
-            uint32_t length = SP_Host_Iface_SQ_Pop_Cmd(&buffer);
-
-            /* No new messages */
-            if (length == 0) {
-                Log_Write(LOG_LEVEL_DEBUG, "Host_Iface: DM request received with 0 length.\n");
+        while (vq_used_space)
+        {
+            /* Process the command */
+            if(STATUS_SUCCESS !=
+                pc_vq_process_pending_command(&vq_cached, vq_shared, shared_mem_ptr, vq_used_space))
+            {
                 break;
             }
 
-            /* Message with an invalid size */
-            if ((size_t)length < sizeof(struct cmd_header_t)) {
-                Log_Write(LOG_LEVEL_ERROR, "Invalid message: length = %d, min length %ld\n", length,
-                       sizeof(struct cmd_header_t));
-                break;
-            }
-
-            const dev_mgmt_cmd_header_t *const hdr = (void *)buffer;
-            tag_id = hdr->cmd_hdr.tag_id;
-            msg_id = hdr->cmd_hdr.msg_id;
-            /* Process new message */
-            switch (msg_id) {
-            case DM_CMD_GET_MODULE_MANUFACTURE_NAME ... DM_CMD_GET_MODULE_MEMORY_TYPE:
-                /* Process asset tracking service request cmd */
-                asset_tracking_process_request(tag_id, msg_id);
-                break;
-            case DM_CMD_GET_FUSED_PUBLIC_KEYS ... DM_CMD_SET_FIRMWARE_VALID:
-                /* Process firmware service request cmd */
-                firmware_service_process_request(tag_id, msg_id, (void *)buffer);
-                break;
-            case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS ... DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES:
-                thermal_power_monitoring_process(tag_id, msg_id, (void *)buffer);
-                break;
-            case DM_CMD_SET_PCIE_RESET ... DM_CMD_SET_PCIE_RETRAIN_PHY:
-                link_mgmt_process_request(tag_id, msg_id, (void *)buffer);
-                break;
-            case DM_CMD_SET_DDR_ECC_COUNT ... DM_CMD_SET_SRAM_ECC_COUNT:
-                /* Process set error control cmd */
-                error_control_process_request(tag_id, msg_id);
-                break;
-            case DM_CMD_GET_MODULE_MAX_TEMPERATURE ... DM_CMD_GET_MAX_MEMORY_ERROR:
-                historical_extreme_value_request(tag_id, msg_id);
-                break;
-            case DM_CMD_GET_MM_ERROR_COUNT:
-                Minion_State_Host_Iface_Process_Request(tag_id, msg_id);
-                break;
-            case DM_CMD_GET_ASIC_FREQUENCIES ... DM_CMD_GET_ASIC_LATENCY:
-                process_performance_request(tag_id, msg_id);
-                break;
-            case DM_CMD_GET_DEVICE_ERROR_EVENTS:
-#ifdef TEST_EVENT_GEN
-                start_test_events(tag_id, msg_id);
-#endif
-                break;
-            case DM_CMD_SET_DM_TRACE_RUN_CONTROL:
-            case DM_CMD_SET_DM_TRACE_CONFIG:
-                Trace_Process_CMD(tag_id, msg_id, (void *)buffer);
-                break;
-            case DM_CMD_RESET_ETSOC:
-                /* Process firmware service request cmd */
-                firmware_service_process_request(tag_id, msg_id, (void *)buffer);
-            break;
-            default:
-                Log_Write(LOG_LEVEL_ERROR, "[PC VQ] Invalid message id: %d\r\n", msg_id);
-                Log_Write(LOG_LEVEL_ERROR, "message length: %d, buffer:\r\n", length);
-                // TODO:
-                // Implement error handler
-                break;
-            }
+            /* Re-calculate the total number of bytes available in the VQ */
+            vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
         }
     }
 }
