@@ -1169,7 +1169,7 @@ int flash_fs_swap_primary_boot_partition(void)
 int flash_fs_get_manufacturer_name(char *mfg_name, size_t size)
 {
     /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    char name[] = "Esperanto Technologies";
+    char name[] = "Esperan";
     snprintf(mfg_name, size, "%s", name);
 
     return 0;

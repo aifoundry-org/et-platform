@@ -296,7 +296,7 @@ struct tf_move_data_to_host_rsp_t {
 /* DM test command and response prototypes */
 struct tf_asset_tracking_rsp_t {
     tf_rsp_hdr_t rsp_hdr;
-    char         data[24];
+    char         data[8];
 };
 
 struct tf_pmic_rsp_t {
