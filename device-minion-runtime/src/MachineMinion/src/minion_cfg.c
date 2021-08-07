@@ -11,7 +11,9 @@
 */
 
 #include "device-common/esr_defines.h"
-#include "minion_esr_defines.h"
+#include "etsoc_hal/inc/esr.h"
+#include "etsoc_hal/inc/etsoc_shire_other_esr.h"
+#include "config/mm_config.h"
 #include "broadcast.h"
 #include "minion_cfg.h"
 
@@ -40,8 +42,11 @@ static int64_t enable_compute_threads(uint64_t shire_mask)
     // Enable parts of the Master Shire Threads which also participate in Compute Kernel Exection
     // Note the rests of the MM threads has been enabled during BL2 phase hence keep mask to all threads
     // to avoid disabling the rest of the threads
-    write_esr(PP_MACHINE, MM_SHIRE_ID, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, ~MM_ALL_THREADS);
-    write_esr(PP_MACHINE, MM_SHIRE_ID, REGION_OTHER, SHIRE_OTHER_THREAD1_DISABLE, ~MM_ALL_THREADS);
+    write_esr_new(PP_MACHINE, MM_SHIRE_ID, REGION_OTHER, 2, ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_BYTE_ADDRESS,
+                    ~(MM_HART_MASK), 0);
+    write_esr_new(PP_MACHINE, MM_SHIRE_ID, REGION_OTHER, 2, ETSOC_SHIRE_OTHER_ESR_THREAD1_DISABLE_BYTE_ADDRESS,
+                    ~(MM_HART_MASK), 0);
+
 
     return 0;
 }

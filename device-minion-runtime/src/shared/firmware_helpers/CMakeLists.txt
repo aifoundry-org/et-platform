@@ -82,7 +82,6 @@ install(FILES
     include/etsoc_ddr_region_map.h
     include/hal_device.h
     include/layout.h
-    include/minion_esr_defines.h
     include/minion_fw_boot_config.h
     include/pcie_device.h
     include/pcie_int.h
