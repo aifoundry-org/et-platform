@@ -7,13 +7,13 @@ int8_t SP_Fw_Version_Cmd_Handler(void* test_cmd);
 int8_t Echo_To_SP_Cmd_Handler(void* test_cmd);
 int8_t Move_Data_To_Device_Cmd_Handler(void* test_cmd);
 int8_t Move_Data_To_Host_Cmd_Handler(void* test_cmd);
-int8_t SP_PCIE_Retain_Phy_Cmd_Handler(void* test_cmd);
-int8_t SP_Get_Module_ASIC_Freq_Cmd_Handler(void* test_cmd);
+int8_t SP_PCIE_Retain_Phy_Cmd_Handler(const void* test_cmd);
+int8_t SP_Get_Module_ASIC_Freq_Cmd_Handler(const void* test_cmd);
 
 int8_t SP_Fw_Version_Cmd_Handler(void* test_cmd)
 {
     (void) test_cmd;
-    SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
+    const SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
     struct tf_get_spfw_ver_rsp_t rsp;
     uint8_t major;
     uint8_t minor;
@@ -129,7 +129,7 @@ int8_t Move_Data_To_Host_Cmd_Handler(void* test_cmd)
 }
 
 
-int8_t SP_PCIE_Retain_Phy_Cmd_Handler(void* test_cmd)
+int8_t SP_PCIE_Retain_Phy_Cmd_Handler(const void* test_cmd)
 {
     (void) test_cmd;
     struct tf_sp_pcie_retain_phy_rsp_t rsp;
@@ -144,7 +144,7 @@ int8_t SP_PCIE_Retain_Phy_Cmd_Handler(void* test_cmd)
     return 0;
 }
 
-int8_t SP_Get_Module_ASIC_Freq_Cmd_Handler(void* test_cmd)
+int8_t SP_Get_Module_ASIC_Freq_Cmd_Handler(const void* test_cmd)
 {
     (void) test_cmd;
     struct asic_frequencies_t asic_frequencies;

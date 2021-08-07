@@ -5,8 +5,8 @@
 
 int8_t PMIC_Module_Temperature_Cmd_Handler(void* test_cmd);
 int8_t PMIC_Module_Power_Cmd_Handler(void* test_cmd);
-int8_t PMIC_Module_Voltage_Cmd_Handler(void* test_cmd);
-int8_t PMIC_Module_Uptime_Cmd_Handler(void* test_cmd);
+int8_t PMIC_Module_Voltage_Cmd_Handler(const void* test_cmd);
+int8_t PMIC_Module_Uptime_Cmd_Handler(const void* test_cmd);
 
 int8_t PMIC_Send_TF(uint16_t id);
 
@@ -44,10 +44,10 @@ int8_t PMIC_Module_Power_Cmd_Handler(void* test_cmd)
     return PMIC_Send_TF(TF_RSP_PMIC_MODULE_POWER);
 }
 
-int8_t PMIC_Module_Voltage_Cmd_Handler(void* test_cmd)
+int8_t PMIC_Module_Voltage_Cmd_Handler(const void* test_cmd)
 {
     (void) test_cmd;
-    struct module_voltage_t module_voltage ={0};;
+    struct module_voltage_t module_voltage ={0};
     struct tf_pmic_module_voltage_rsp_t rsp;
 
     rsp.rsp_hdr.id = TF_RSP_PMIC_MODULE_VOLTAGE;
@@ -70,7 +70,7 @@ int8_t PMIC_Module_Voltage_Cmd_Handler(void* test_cmd)
     return TF_Send_Response(&rsp, sizeof(struct tf_pmic_module_voltage_rsp_t));
 }
 
-int8_t PMIC_Module_Uptime_Cmd_Handler(void* test_cmd)
+int8_t PMIC_Module_Uptime_Cmd_Handler(const void* test_cmd)
 {
     (void) test_cmd;
     struct module_uptime_t module_uptime = {0};
