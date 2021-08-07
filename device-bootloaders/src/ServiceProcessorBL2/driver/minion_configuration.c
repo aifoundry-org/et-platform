@@ -38,7 +38,7 @@
 
 #include <hwinc/etsoc_shire_other_esr.h>
 
-#include "minion_esr_defines.h"
+#include "esr.h"
 #include "minion_configuration.h"
 
 /*!
@@ -64,6 +64,12 @@ static struct minion_event_control_block event_control_block __attribute__((sect
 
 /* This chracterized co-efficient needs to be extracted from OTP */
 #define DeltaVolt_per_DeltaFreq 0
+
+// Define for Threads which participate in the Device Runtime FW management.
+// Currently only lower 16 Minions (64 Harts) of the whole Minion Shire which
+// participate in the Device Runtime. This might change with Virtual Queue
+// implementation
+#define MM_RT_THREADS 0x0000FFFFU
 
 static uint64_t g_active_shire_mask = 0;
 
@@ -94,15 +100,18 @@ static int pll_config(uint8_t shire_id)
     uint64_t reg_value;
 
     /* Select 1 GHz from step_clock, Bits[2:0] = 3'b011. Bit 3 to '1' to go with DLL output */
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_CTRL_CLOCKMUX, 0xb);
+    write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, 2, 
+                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CTRL_CLOCKMUX_ADDRESS, 0xb, 0);
 
     /* Auto-config register set dll_enable and get reset deasserted of the DLL */
-    reg_value = SHIRE_OTHER_DLL_AUTO_CONFIG_PCLK_SEL |
-                (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_DLL_EN_OFF);
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, reg_value);
+    reg_value = ETSOC_SHIRE_OTHER_ESR_SHIRE_DLL_AUTO_CONFIG_PCLK_SEL_SET(2) |
+                ETSOC_SHIRE_OTHER_ESR_SHIRE_DLL_AUTO_CONFIG_DLL_ENABLE_SET(1);
+    write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, 2, 
+                    ETSOC_SHIRE_OTHER_ESR_SHIRE_DLL_AUTO_CONFIG_ADDRESS, reg_value, 0);
 
     /* Wait until DLL is locked to change clock mux */
-    while (!(read_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_DLL_READ_DATA) & 0x20000));
+    while (!(read_esr_new(PP_MACHINE, shire_id, REGION_OTHER, 2, 
+                ETSOC_SHIRE_OTHER_ESR_SHIRE_DLL_READ_DATA_ADDRESS, 0) & 0x20000));
    return 0;
 }
 
@@ -197,7 +206,8 @@ int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask)
             const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(i) |
                                     ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(1) |
                                     ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(0xF);
-            write_esr(PP_MACHINE, i, REGION_OTHER, SHIRE_OTHER_CONFIG, config);
+            write_esr_new(PP_MACHINE, i, REGION_OTHER, 2,
+                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
         }
         shire_mask >>= 1;
     }
@@ -226,7 +236,8 @@ int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask)
 int Minion_Enable_Master_Shire_Threads(uint8_t mm_id)
 {
     /* Enable only Device Runtime Management thread on Master Shire */
-    write_esr(PP_MACHINE, mm_id, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, ~(MM_RT_THREADS));
+    write_esr_new(PP_MACHINE, mm_id, REGION_OTHER, 2, ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_ADDRESS,
+                    ~(MM_RT_THREADS), 0);
     return 0;
 }
 

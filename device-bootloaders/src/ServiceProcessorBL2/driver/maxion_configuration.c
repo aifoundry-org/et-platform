@@ -25,7 +25,6 @@
 
 #include "hwinc/etsoc_shire_other_esr.h"
 #include "esr.h"
-//#include "minion_esr_defines.h"
 #include "maxion_configuration.h"
 
 void Maxion_Shire_Channel_Enable(void) {
