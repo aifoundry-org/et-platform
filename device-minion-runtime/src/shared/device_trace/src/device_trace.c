@@ -303,7 +303,7 @@ void *Trace_Buffer_Reserve(struct trace_control_block_t *cb, uint64_t size)
 *
 ***********************************************************************/
 void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb,
-    trace_header_type_e buff_header)
+    uint8_t buff_header)
 {
     if (!init_info || !cb)
         return;
@@ -431,12 +431,12 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
 *
 *   DESCRIPTION
 *
-*       A function to log Power event status messages.
+*       A function to log Trace power status message.
 *
 *   INPUTS
 *
-*       trace_control_block_t   Trace control block
-*       trace_power_status_t    Power status data.
+*       trace_control_block_t       Trace control block of logging Hart
+*       trace_power_event_status_t  Power status data.
 *
 *   OUTPUTS
 *
@@ -444,13 +444,13 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
 *
 ***********************************************************************/
 void Trace_Power_Status(struct trace_control_block_t *cb,
-    const struct trace_power_event_status_t *cmd_data)
+    const struct trace_power_event_status_t *pwr_data)
 {
-    struct trace_cmd_status_t *entry =
+    struct trace_power_status_t *entry =
         Trace_Buffer_Reserve(cb, sizeof(*entry));
 
     ADD_MESSAGE_HEADER(entry, TRACE_TYPE_POWER_STATUS)
-    WRITE_U64(entry->cmd.raw_cmd, cmd_data->raw_cmd);
+    WRITE_U64(entry->cmd.raw_cmd, pwr_data->raw_cmd);
 }
 
 /************************************************************************

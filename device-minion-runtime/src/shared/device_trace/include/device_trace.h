@@ -112,8 +112,7 @@ struct trace_control_block_t {
     uint8_t  header;            /*!< Buffer header type of value trace_header_type_e */
 } __attribute__((aligned(64)));
 
-void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb,
-    trace_header_type_e);
+void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb, uint8_t buff_header);
 void Trace_String(enum trace_string_event log_level, struct trace_control_block_t *cb, const char *str);
 void Trace_Format_String(enum trace_string_event log_level, struct trace_control_block_t *cb, const char *format, ...);
 void Trace_PMC_All_Counters(struct trace_control_block_t *cb);
