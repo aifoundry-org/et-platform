@@ -27,6 +27,11 @@ stages:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
           PYTEST_RETRIES: "0"
+      - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
+          PYTEST_RETRIES: "0"
 
   JOB_CODE_QUALITY:
     cmds:

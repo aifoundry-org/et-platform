@@ -368,6 +368,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
                << " Message Id: " << header->rsp_hdr.msg_id;
   bool responseWasOk = true;
   switch (header->rsp_hdr.msg_id) {
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP:
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_read_rsp_t*>(response.data());
     fillEvent(event, *r);
@@ -378,6 +379,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     }
     break;
   }
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP:
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_write_rsp_t*>(response.data());
     fillEvent(event, *r);
@@ -422,8 +424,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     break;
   }
   default:
-    RT_LOG(WARNING) << "Unknown response msg id";
-    assert(false);
+    RT_LOG(WARNING) << "Unknown response msg id: " << header->rsp_hdr.msg_id;
     break;
   }
   profiler_.record(event);

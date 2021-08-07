@@ -15,11 +15,11 @@ using namespace rt;
 
 std::string StreamError::getString() const {
   std::stringstream ss;
-  ss << std::hex;
   ss << "Error code: " << std::to_string(errorCode_);
   if (errorContext_) {
     const auto& values = errorContext_.value();
     ss << "\n Num contexts: " << values.size();
+    ss << std::hex;
     for (auto i = 0UL, count = values.size(); i < count; ++i) {
       const auto& ctx = values[i];
       ss << "{\n\ttype: ";
@@ -38,6 +38,7 @@ std::string StreamError::getString() const {
         break;
       case 4:
         ss << "kernel execution error";
+        break;
       default:
         ss << " unknown";
         break;
@@ -113,11 +114,9 @@ std::string std::to_string(rt::DeviceErrorCode e) {
   case DeviceErrorCode::TraceControlMasterMinionRtCtrlError:
     return "TraceControlMasterMinionRtCtrlError";
   case rt::DeviceErrorCode::Unknown:
-    assert(false);
     RT_LOG(WARNING) << "Unknown error code";
     return "Unknown error code";
   default:
-    assert(false);
     RT_LOG(WARNING) << "Not stringized error code. Consider adding it to " __FILE__;
     return "Not stringized error code: " + std::to_string(static_cast<int>(e));
   }

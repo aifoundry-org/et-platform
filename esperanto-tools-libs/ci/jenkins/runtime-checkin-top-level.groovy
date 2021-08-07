@@ -118,6 +118,15 @@ pipeline {
                 string(name: 'PYTEST_RETRIES', value: '0'),
                 string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
               ]
+            build job:
+              'sw-platform/runtime-integration/pipelines/runtime-checkin-tests',
+              propagate: true,
+              parameters: [
+                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"),
+                string(name: 'PYTEST_RETRIES', value: '0'),
+                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+              ]
           }
         }
       }

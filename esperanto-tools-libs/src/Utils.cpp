@@ -29,7 +29,6 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
     case DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_PAYLOAD_SIZE:
       return rt::DeviceErrorCode::KernelLaunchInvalidArgsPayloadSize;
     default:
-      assert(false);
       RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP response code";
       return rt::DeviceErrorCode::Unknown;
     }
@@ -42,7 +41,6 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
     case DEV_OPS_API_KERNEL_ABORT_RESPONSE_TIMEOUT_HANG:
       return rt::DeviceErrorCode::KernelAbortTimeoutHang;
     default:
-      assert(false);
       RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP response code";
       return rt::DeviceErrorCode::Unknown;
     }
@@ -64,7 +62,6 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
     case DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE:
       return rt::DeviceErrorCode::DmaInvalidSize;
     default:
-      assert(false);
       RT_LOG(WARNING) << "Unknown DEV_OPS_API_DMA_RESPONSE response code";
       return rt::DeviceErrorCode::Unknown;
     }
@@ -81,7 +78,6 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
     case DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR:
       return rt::DeviceErrorCode::TraceConfigError;
     default:
-      assert(false);
       RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_RSP response code";
       return rt::DeviceErrorCode::Unknown;
     }
@@ -96,7 +92,6 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
     case DEV_OPS_TRACE_RT_CONTROL_RESPONSE_MM_RT_CTRL_ERROR:
       return rt::DeviceErrorCode::TraceControlMasterMinionRtCtrlError;
     default:
-      assert(false);
       RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP response code";
       return rt::DeviceErrorCode::Unknown;
     }
@@ -104,7 +99,6 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
   case DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP:
   case DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP:
   default:
-    assert(false);
     RT_LOG(WARNING) << "Unknown errorcodes for this response";
     return rt::DeviceErrorCode::Unknown;
   }
