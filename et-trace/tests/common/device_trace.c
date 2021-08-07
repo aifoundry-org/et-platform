@@ -413,8 +413,8 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
 *
 *   INPUTS
 *
-*       trace_control_block_t        Trace control block of logging Hart.
-*       trace_power_event_status_t   Power status data.
+*       trace_control_block_t       Trace control block of logging Hart
+*       trace_power_event_status_t  Power status data.
 *
 *   OUTPUTS
 *
