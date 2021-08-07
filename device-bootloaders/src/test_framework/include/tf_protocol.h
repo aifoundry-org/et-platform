@@ -262,12 +262,9 @@ struct tf_get_spfw_ver_cmd_t {
 
 struct tf_get_spfw_ver_rsp_t {
     tf_rsp_hdr_t  rsp_hdr;
-    uint32_t  bl1_v;        /**< BL1 Firmware version */
-    uint32_t  bl2_v;        /**< BL2 Firmware version */
-    uint32_t  mm_v;         /**< Machine Minion Firmware version */
-    uint32_t  wm_v;         /**< Worker Minion Firmware version */
-    uint32_t  machm_v;      /**< Machine Minion Firmware version */
-    uint32_t  pad;          /**< Padding for alignment */
+    uint32_t      major;
+    uint32_t      minor;
+    uint32_t      version;
 };
 
 struct tf_mm_cmd_shell_cmd_t {

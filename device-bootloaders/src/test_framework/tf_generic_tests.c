@@ -13,38 +13,15 @@ int8_t SP_Get_Module_ASIC_Freq_Cmd_Handler(const void* test_cmd);
 int8_t SP_Fw_Version_Cmd_Handler(void* test_cmd)
 {
     (void) test_cmd;
-    const SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
     struct tf_get_spfw_ver_rsp_t rsp;
-    uint8_t major;
-    uint8_t minor;
-    uint8_t revision;
 
     rsp.rsp_hdr.id = TF_RSP_SP_FW_VERSION;
     rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
     rsp.rsp_hdr.payload_size =  TF_GET_PAYLOAD_SIZE(struct tf_get_spfw_ver_rsp_t);
+    rsp.major = 0x01;
+    rsp.minor = 0x02;
+    rsp.version = 0x03;
     
-    // Get BL1 version from BL2 data.
-    sp_bl2_data = get_service_processor_bl2_data();
-
-    rsp.bl1_v =
-        FORMAT_VERSION((uint32_t)sp_bl2_data->service_processor_bl1_image_file_version_major,
-                       (uint32_t)sp_bl2_data->service_processor_bl1_image_file_version_minor,
-                       (uint32_t)sp_bl2_data->service_processor_bl1_image_file_version_revision);
-
-    rsp.bl2_v = sp_get_image_version_info();
-
-    // Get the MM FW version values
-    firmware_service_get_mm_version(&major, &minor, &revision);
-    rsp.mm_v = FORMAT_VERSION((uint32_t)major, (uint32_t)minor, (uint32_t)revision);
-
-    // Get the WM FW version values
-    firmware_service_get_wm_version(&major, &minor, &revision);
-    rsp.wm_v = FORMAT_VERSION((uint32_t)major, (uint32_t)minor, (uint32_t)revision);
-
-    // Get the Machine FW version values
-    firmware_service_get_machm_version(&major, &minor, &revision);
-    rsp.machm_v = FORMAT_VERSION((uint32_t)major, (uint32_t)minor, (uint32_t)revision);
-
     TF_Send_Response(&rsp, sizeof(struct tf_get_spfw_ver_rsp_t));
 
     return 0;

@@ -218,13 +218,17 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
     /* Verify that the head value read from shared memory is equal to previous head value */
     if(SP_Host_CQ.circ_buff_local.head_offset != VQ_Get_Head_Offset(&SP_Host_CQ.vqueue))
     {
-        /* If this condition occurs, there's definitely some corruption in VQs */
-        Log_Write(LOG_LEVEL_ERROR,
-        "SP_Host_Iface_CQ_Push_Cmd:FATAL_ERROR:Tail Mismatch:Local: %ld, Shared Memory: %ld Using local value as fallback mechanism\r\n",
-        SP_Host_CQ.circ_buff_local.head_offset, VQ_Get_Head_Offset(&SP_Host_CQ.vqueue));
+        uint64_t local_head_offset =  SP_Host_CQ.circ_buff_local.head_offset;
+        uint64_t reference_head_offset = VQ_Get_Head_Offset(&SP_Host_CQ.vqueue);
 
         /* Fallback mechanism: use the cached copy of SQ tail */
         SP_Host_CQ.vqueue.circbuff_cb->head_offset = SP_Host_CQ.circ_buff_local.head_offset;
+
+        /* If this condition occurs, there's definitely some corruption in VQs */
+        Log_Write(LOG_LEVEL_ERROR,
+        "SP_Host_Iface_CQ_Push_Cmd:FATAL_ERROR:Tail Mismatch:Local: %ld, Shared Memory: %ld Using local value as fallback mechanism\r\n",
+        local_head_offset, reference_head_offset);
+
     }
 
     /* Push the command to circular buffer */
