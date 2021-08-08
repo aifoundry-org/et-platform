@@ -199,11 +199,11 @@ int Pshire_PLL_Program(uint8_t frequency);
 */
 int Pshire_NOC_update_routing_table(void);
 
-/*! \fn int PCIe_Phy_Firmware_Update (uint64_t* image)
+/*! \fn int PCIe_Phy_Firmware_Update (const uint64_t* image)
     \brief Interface to update phy firmware
     \param image pointer to firmware image 
     \returns Status indicating success or negative error
 */
-int PCIe_Phy_Firmware_Update (uint64_t* image);
+int PCIe_Phy_Firmware_Update (const uint64_t* image);
 
 #endif

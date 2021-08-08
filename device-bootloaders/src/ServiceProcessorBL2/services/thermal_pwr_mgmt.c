@@ -12,8 +12,27 @@
     \brief A C module that abstracts the Power Management services
 
     Public interfaces:
-    TODO
-
+       init_thermal_pwr_mgmt_service
+       update_module_power_state
+       update_module_tdp_level
+       update_module_temperature_threshold
+       update_module_current_temperature
+       update_module_soc_power
+       update_module_uptime
+       update_module_throttle_time
+       update_module_power_residency
+       get_module_power_state
+       get_module_tdp_level
+       get_module_temperature_threshold
+       get_module_current_temperature
+       get_module_soc_power
+       get_module_voltage
+       get_soc_max_temperature
+       get_module_uptime
+       get_throttle_residency
+       get_power_residency
+       set_power_event_cb
+    
 */
 /***********************************************************************/
 #include "thermal_pwr_mgmt.h"
@@ -77,10 +96,7 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
     return &g_soc_power_reg;
 }
 
-// TODO: Need to create mapping between Power State to actual value in W
-#define POWER_STATE_TO_W(state) 25
-
-// TODO: This needs to extracted from OTP Fuse
+// TODO: This needs to updated once we have characterized in Silicon 
 #define DP_per_Mhz 1
 
 /*! \def FILL_POWER_STATUS(ptr, throttle_st, pwr_st, curr_pwr, curr_temp) 
@@ -193,7 +209,6 @@ int update_module_power_state(power_state_e state)
     else
     {
         update_module_power_residency(state, timer_get_ticks_count() - power_state_change_time);
-        // TODO: Add tracing for power state changes
     }
 
     get_soc_power_reg()->module_power_state = state;
@@ -1070,7 +1085,7 @@ int init_thermal_pwr_mgmt_service(void)
 *       int                       Return status
 *
 ***********************************************************************/
-int reduce_minion_operating_point(int32_t delta_power, struct trace_power_event_status_t *power_status)
+static int reduce_minion_operating_point(int32_t delta_power, struct trace_power_event_status_t *power_status)
 {
     /* Compute delta freq to compensate for delta Power */
     int32_t delta_freq = delta_power * DP_per_Mhz;
@@ -1118,7 +1133,7 @@ int reduce_minion_operating_point(int32_t delta_power, struct trace_power_event_
 *       int                       Return status
 *
 ***********************************************************************/
-int increase_minion_operating_point(int32_t delta_power, struct trace_power_event_status_t *power_status)
+static int increase_minion_operating_point(int32_t delta_power, struct trace_power_event_status_t *power_status)
 {
     /* Compute delta freq to compensate for delta Power */
     int32_t delta_freq = delta_power * DP_per_Mhz;
@@ -1166,7 +1181,7 @@ int increase_minion_operating_point(int32_t delta_power, struct trace_power_even
 *       int                       Return status
 *
 ***********************************************************************/
-int go_to_safe_state(power_state_e power_state, power_throttle_state_e throttle_state)
+static int go_to_safe_state(power_state_e power_state, power_throttle_state_e throttle_state)
 {
     uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
     uint8_t current_power = 0;

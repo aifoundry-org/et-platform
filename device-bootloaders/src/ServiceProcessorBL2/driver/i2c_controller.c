@@ -135,7 +135,7 @@ int i2c_init(ET_I2C_DEV_t* dev, ET_I2C_SPEED_t speed, uint8_t addr_slave)
     return ET_I2C_OK;
 }
 
-int i2c_write(ET_I2C_DEV_t* dev, uint8_t regAddr, uint8_t* txDataBuff, uint8_t txDataCount)
+int i2c_write(ET_I2C_DEV_t* dev, uint8_t regAddr, const uint8_t* txDataBuff, uint8_t txDataCount)
 {
     if (dev->isInitialized == false) return ET_I2C_ERROR_DEV_NOT_INITIALIZED;
 

@@ -111,7 +111,11 @@ static int pll_config(uint8_t shire_id)
 
     /* Wait until DLL is locked to change clock mux */
     while (!(read_esr_new(PP_MACHINE, shire_id, REGION_OTHER, 2, 
-                ETSOC_SHIRE_OTHER_ESR_SHIRE_DLL_READ_DATA_ADDRESS, 0) & 0x20000));
+                ETSOC_SHIRE_OTHER_ESR_SHIRE_DLL_READ_DATA_ADDRESS, 0) & 0x20000))
+    {
+      // Continue to poll till DLL is locked
+      // Need to implement timeout mechanism
+    } 
    return 0;
 }
 
@@ -137,11 +141,6 @@ static int mm_get_error_count(struct mm_error_count_t *mm_error_count)
 
 static void minion_error_update_count(uint8_t error_type)
 {
-    /* TODO: This is just an example implementation.
-       The final driver implementation will read these values from the
-       hardware, create a message and invoke call back with message and
-       error type as parameters. */
-
     struct event_message_t message;
 
     switch (error_type)
@@ -151,8 +150,8 @@ static void minion_error_update_count(uint8_t error_type)
 
                 /* add details in message header and fill payload */
                 FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH,
-                                    sizeof(struct event_message_t));
-                FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1024, 1, 0);
+                                    sizeof(struct event_message_t))
+                FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1024, 1, 0)
 
                 /* call the callback function and post message */
                 event_control_block.event_cb(CORRECTABLE, &message);
@@ -164,8 +163,8 @@ static void minion_error_update_count(uint8_t error_type)
 
                 /* add details in message header and fill payload */
                 FILL_EVENT_HEADER(&message.header, MINION_HANG_TH,
-                                    sizeof(struct event_message_t));
-                FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1020, 1, 0);
+                                    sizeof(struct event_message_t))
+                FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1020, 1, 0)
 
                 /* call the callback function and post message */
                 event_control_block.event_cb(CORRECTABLE, &message);
@@ -529,7 +528,7 @@ int Minion_Shire_Update_PLL_Freq(uint8_t mode)
 ***********************************************************************/
 uint64_t Minion_Read_ESR(uint32_t address)
 {
-    volatile uint64_t *p = esr_address(PP_MACHINE, 0, REGION_MINION, address);
+    const volatile uint64_t *p = esr_address(PP_MACHINE, 0, REGION_MINION, address);
     return *p;
 }
 
@@ -676,30 +675,25 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
     int32_t status;
     req_start_time = timer_get_ticks_count();
 
-    switch (msg_id) {
-        case DM_CMD_GET_MM_ERROR_COUNT: {
-            struct device_mgmt_mm_state_rsp_t dm_rsp;
+    if (msg_id != DM_CMD_GET_MM_ERROR_COUNT)  {
+        Log_Write(LOG_LEVEL_ERROR, " mm state svc error: Invalid Minion State Request id: %d\r\n",msg_id);
+    } else {
+        struct device_mgmt_mm_state_rsp_t dm_rsp;
 
-            status = mm_get_error_count(&dm_rsp.mm_error_count);
+        status = mm_get_error_count(&dm_rsp.mm_error_count);
 
-            if (0 != status) {
-                Log_Write(LOG_LEVEL_ERROR, " mm state svc error: get_mm_error_count()\r\n");
-            }
-
+        if (0 != status) {
+             Log_Write(LOG_LEVEL_ERROR, " mm state svc error: get_mm_error_count()\r\n");
+        } else {
             FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MM_ERROR_COUNT,
-                            timer_get_ticks_count() - req_start_time, status);
+                        timer_get_ticks_count() - req_start_time, status)
 
-            if (0 !=
-                SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_mm_state_rsp_t))) {
-                Log_Write(LOG_LEVEL_ERROR, "Minion_State_Host_Iface_Process_Request: Cqueue push error!\n");
+            if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_mm_state_rsp_t))) {
+                  Log_Write(LOG_LEVEL_ERROR, "Minion_State_Host_Iface_Process_Request: Cqueue push error!\n");
             }
-            break;
-        }
-        default:
-            break;
+        } 
     }
 }
-
 /************************************************************************
 *
 *   FUNCTION

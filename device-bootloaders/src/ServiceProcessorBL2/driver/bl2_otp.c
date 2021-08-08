@@ -76,7 +76,7 @@ static inline bool otp_is_bank_locked(uint32_t bank_index)
 
 int OTP_Initialize(void)
 {
-    volatile uint32_t * sp_otp_data = (uint32_t*)R_SP_EFUSE_BASEADDR;
+    const volatile uint32_t * sp_otp_data = (uint32_t*)R_SP_EFUSE_BASEADDR;
     uint32_t main_wrck;
     uint32_t vault_wrck;
     uint32_t timeout;
@@ -140,7 +140,7 @@ int OTP_Initialize(void)
 
 uint32_t OTP_Read_Word (uint32_t bank, uint32_t row, uint32_t mask)
 {
-    volatile uint32_t * sp_otp_data = (uint32_t*)R_SP_EFUSE_BASEADDR;
+    const volatile uint32_t * sp_otp_data = (uint32_t*)R_SP_EFUSE_BASEADDR;
     uint32_t index = bank + row;
     if (index >= 256)
     {
@@ -163,7 +163,8 @@ int OTP_Write_Word (uint32_t bank, uint32_t row, uint32_t mask, uint32_t value)
     uint32_t offset = bank + row;
     volatile uint32_t * sp_otp_data = (uint32_t*)R_SP_EFUSE_BASEADDR;
     uint32_t bank_index = OTP_CALC_START_BANK_INDEX(offset);
-    uint32_t old_value, new_value;
+    uint32_t old_value;
+    uint32_t new_value;
 
     if (!gs_is_otp_available)
     {

@@ -531,13 +531,6 @@ static void pcie_init_atus(void)
                  status_command_reg) == 0);
     Log_Write(LOG_LEVEL_CRITICAL, " done\r\n");
 
-    /* TODO: I need to ensure the host does not try and send Mem Rd / Mem Wr before the iATUs
-       are configured. The latency of a PCIe transaction (1-10s of uS) is probably long enough
-       that the iATUs will always be programmed between the PCIe config TLP to enable mem
-       space and the first PCIe MRd/MWr. However, we should make sure. Send the host an interrupt
-      (once interrupts are implemented), make the  kernel driver block on receiving the first
-      interrupt before doing MRd/MWr to these regions. */
-
     /* Setup BAR0
        Name        Host Addr       SoC Addr      Size   Notes
        R_L3_DRAM   BAR0 + 0x0000   0x8005000000  ~32G   SoC DRAM */
@@ -648,11 +641,6 @@ int32_t pcie_get_uce_count(uint32_t *uce_count)
 
 void pcie_error_threshold_isr(void)
 {
-    /* TODO: This is just an example implementation.
-       The final driver implementation will read these values from the
-       hardware, create a message and invoke call back with message and error type as parameters.
-    */
-
     if (++event_control_block.ce_count > event_control_block.ce_threshold)
     {
         struct event_message_t message;
@@ -699,7 +687,8 @@ int32_t pcie_retrain_phy(void)
 
 int pcie_get_speed(char *pcie_speed)
 {
-    uint32_t pcie_gen, tmp;
+    uint32_t pcie_gen;
+    uint32_t tmp;
 
     tmp = ioread32(PCIE_CUST_SS +
                    DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
@@ -748,7 +737,7 @@ int Pshire_NOC_update_routing_table(void)
     return 0;
 }
 
-int PCIe_Phy_Firmware_Update (uint64_t* image)
+int PCIe_Phy_Firmware_Update (const uint64_t* image)
 {
     /* interface to initialize PCIe phy */
     (void)image;

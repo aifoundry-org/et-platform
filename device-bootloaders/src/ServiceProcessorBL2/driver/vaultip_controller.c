@@ -1,4 +1,4 @@
-/*-------------------------------------------------------------------------
+/************************************************************************
 * Copyright (C) 2018, Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
@@ -6,7 +6,6 @@
 * the written permission of Esperanto Technologies and
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
 ************************************************************************/
 /*! \file vaultip_controller.c
     \brief A C module that implements vaultip controller's sub system.
@@ -229,17 +228,6 @@ static int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t *pinput_token)
         MESSAGE_ERROR("MAILBOX_STAT mbx1_in_full is not 1!\n");
         return -1;
     }
-    /*
-    MESSAGE_INFO_DEBUG("Wrote token:\n");
-    for (n = 0; n < 64; n+=8) {
-        MESSAGE_INFO_DEBUG("  %08x %08x %08x %08x %08x %08x %08x %08x\n",
-               pinput_token->dw[n+0], pinput_token->dw[n+1], pinput_token->dw[n+2], pinput_token->dw[n+3],
-               pinput_token->dw[n+4], pinput_token->dw[n+5], pinput_token->dw[n+6], pinput_token->dw[n+7]);
-    }
-
-     if (!suppress_token_send_diagnostics) {
-         MESSAGE_INFO_DEBUG("SI[0] = 0x%08x\n", pinput_token->dw_00);
-     }*/
 
     return 0;
 }
@@ -319,10 +307,6 @@ static int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t *poutput_token, uint
         return -1;
     }
 
-    /* if (!suppress_token_read_diagnostics) {
-         MESSAGE_INFO_DEBUG("SO[0] = 0x%08x\n", poutput_token->dw_00);
-     } */
-
     return 0;
 }
 
@@ -370,7 +354,6 @@ bool is_vaultip_disabled(void)
 /* VAULTIP_TOKEN_SYSTEM_SUBCODE_SELF_TEST */
 int vaultip_self_test(void)
 {
-    /* uint64_t time_start, time_end, time_delta; */
     volatile VAULTIP_HW_REGS_t *vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
 
     (void)vaultip_regs;
@@ -381,8 +364,6 @@ int vaultip_self_test(void)
     gs_input_token.dw_00.TokenID = get_next_token_id();
     gs_input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_SYSTEM;
     gs_input_token.dw_00.SubCode = VAULTIP_TOKEN_SYSTEM_SUBCODE_SELF_TEST;
-
-    /*time_start = timer_get_ticks_count(); */
 
     if (0 != vaultip_send_input_token(&gs_input_token))
     {
@@ -396,17 +377,12 @@ int vaultip_self_test(void)
         return -1;
     }
 
-    /* time_end = timer_get_ticks_count(); */
-
     MESSAGE_INFO_DEBUG("MODULE_STATUS: %08x\n", vaultip_regs->MODULE_STATUS.R);
     if (1 == vaultip_regs->MODULE_STATUS.B.FIPS_mode &&
         0 == vaultip_regs->MODULE_STATUS.B.Non_FIPS_mode)
     {
         MESSAGE_INFO("FIPS ON\n");
     }
-
-    /* time_delta = time_end - time_start;
-      MESSAGE_INFO_DEBUG("SelfTest time: %lu\n", time_delta); */
 
     if (0 == gs_output_token.dw_00.Error)
     {
@@ -421,7 +397,6 @@ int vaultip_self_test(void)
 int vaultip_get_system_information(uint32_t identity,
                                    VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t *system_info)
 {
-    /* uint64_t time_start, time_end, time_delta; */
     volatile VAULTIP_HW_REGS_t *vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
 
     (void)vaultip_regs;
@@ -435,8 +410,6 @@ int vaultip_get_system_information(uint32_t identity,
 
     gs_input_token.dw_01.Identity = identity;
 
-    /* time_start = timer_get_ticks_count(); */
-
     if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
@@ -449,12 +422,7 @@ int vaultip_get_system_information(uint32_t identity,
         return -1;
     }
 
-    /* time_end = timer_get_ticks_count(); */
-
     MESSAGE_INFO_DEBUG("MODULE_STATUS: %08x\n", vaultip_regs->MODULE_STATUS.R);
-
-    /* time_delta = time_end - time_start;
-       MESSAGE_INFO_DEBUG("GetSystemInfo time: %lu\n", time_delta); */
 
     if (0 == gs_output_token.dw_00.Error)
     {
@@ -570,8 +538,6 @@ int vaultip_monotonic_counter_read(uint32_t identity, uint32_t asset_id, uint8_t
     }
     else
     {
-        /* MESSAGE_ERROR_DEBUG("monotonic_counter_read: gs_output_token = 0x%x\n", gs_output_token.dw[0]);
-           print_failed_input_token_info(gs_input_token.dw, 6); */
         return -1;
     }
 }

@@ -1,5 +1,4 @@
 /***********************************************************************
-*
 * Copyright (C) 2020 Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
@@ -7,7 +6,6 @@
 * the written permission of Esperanto Technologies and
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
-*
 ************************************************************************/
 /*! \file spi_controller.c
     \brief A C module that implements SPI controller's functionality.
@@ -158,8 +156,6 @@ int spi_controller_init(SPI_CONTROLLER_ID_t id)
     {
         return -1;
     }
-
-    /* MESSAGE_INFO_DEBUG("SSI_VERSION_ID: 0x%08x\n", spi_regs->SSI_VERSION_ID); */
 
     iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
 
@@ -380,6 +376,64 @@ DONE:
     return rv;
 }
 
+#define CHECK_ERROR_CONDITION(cmd_len, data_size, cmd, data)                                    \
+    if (4 != cmd_len)                                                                           \
+    {                                                                                           \
+        MESSAGE_ERROR("spi_controller_rx32_data: command_length is not 4!\n");                  \
+        return -1;                                                                              \
+    }                                                                                           \
+    if (0 != (data_size & 0x3))                                                                 \
+    {                                                                                           \
+        MESSAGE_ERROR("spi_controller_rx32_data: rx_data_size is not a multiple of 32-bit!\n"); \
+        return -1;                                                                              \
+    }                                                                                           \
+    if (0 != (cmd & 0x3))                                                                       \
+    {                                                                                           \
+        MESSAGE_ERROR("spi_controller_rx32_data: command is not 32-bit aligned!\n");            \
+        return -1;                                                                              \
+    }                                                                                           \
+    if (0 != (data & 0x3))                                                                      \
+    {                                                                                           \
+        MESSAGE_ERROR("spi_controller_rx32_data: rx_data is not 32-bit aligned!\n");            \
+        return -1;                                                                              \
+    }                                                                                           \
+
+#define ALIGN_START_ADDRESS(data, data_size, read_value, bytes_to_align) \
+        switch(bytes_to_align) {                                         \
+             case 0:                                                     \
+                    data = read_value;                                   \
+                    data_size = 4;                                       \
+                    break;                                               \
+             case 1:                                                     \
+                    data = read_value + 1;                               \
+                    data_size = 3;                                       \
+                    bytes_to_align -= 1;                                 \
+                    break;                                               \
+             case 2:                                                     \
+                    data = read_value + 2;                               \
+                    data_size = 2;                                       \
+                    bytes_to_align -= 2;                                 \
+                    break;                                               \
+             case 3:                                                     \
+                    data = read_value + 3;                               \
+                    data_size = 1;                                       \
+                    bytes_to_align -= 3;                                 \
+                    break;                                               \
+             default:                                                    \
+                    data_size = 0;                                       \
+                    bytes_to_align -= 4;                                 \
+           }                                                             \
+
+#define MEM_COPY_DATA(src_ptr, src_size, dest_ptr, dest_size) \
+                while (src_size > 0 && dest_size > 0)         \
+                {                                             \
+                    *dest_ptr = *src_ptr;                     \
+                    dest_ptr++;                               \
+                    src_ptr++;                                \
+                    src_size--;                               \
+                    dest_size--;                              \
+                }                                             \
+
 static int spi_controller_rx32_data(uintptr_t spi_regs, const uint8_t *spi_command,
                                     uint32_t spi_command_length, uint32_t read_frames,
                                     uint32_t skip_read_size, uint8_t *rx_data,
@@ -393,7 +447,6 @@ static int spi_controller_rx32_data(uintptr_t spi_regs, const uint8_t *spi_comma
         uint8_t u8[4];
         uint32_t u32;
     } read_value;
-    uint32_t n;
     const uint32_t *spi_command_32;
     const uint8_t *data;
     uint32_t data_size;
@@ -413,29 +466,7 @@ static int spi_controller_rx32_data(uintptr_t spi_regs, const uint8_t *spi_comma
     }
 #endif
 
-    if (4 != spi_command_length)
-    {
-        MESSAGE_ERROR("spi_controller_rx32_data: command_length is not 4!\n");
-        return -1;
-    }
-
-    if (0 != (rx_data_size & 0x3))
-    {
-        MESSAGE_ERROR("spi_controller_rx32_data: rx_data_size is not a multiple of 32-bit!\n");
-        return -1;
-    }
-
-    if (0 != (((const size_t)spi_command) & 0x3))
-    {
-        MESSAGE_ERROR("spi_controller_rx32_data: command is not 32-bit aligned!\n");
-        return -1;
-    }
-
-    if (0 != (((const size_t)rx_data) & 0x3))
-    {
-        MESSAGE_ERROR("spi_controller_rx32_data: rx_data is not 32-bit aligned!\n");
-        return -1;
-    }
+    CHECK_ERROR_CONDITION(spi_command_length, rx_data_size, (const size_t)spi_command, (const size_t)rx_data)
 
     spi_command_32 = (const uint32_t *)(const void *)spi_command;
 
@@ -449,50 +480,13 @@ static int spi_controller_rx32_data(uintptr_t spi_regs, const uint8_t *spi_comma
         rxflr = ioread32(spi_regs + SSI_RXFLR_ADDRESS);
         if (SSI_RXFLR_RXTFL_GET(rxflr) > 0)
         {
-            for (n = 0; n < rxflr; n++)
+            for (uint32_t n = 0; n < rxflr; n++)
             {
                 read_value.u32 = reverse_endian(ioread32(spi_regs + SSI_DR0_ADDRESS));
-                if (0 == skip_read_size)
-                {
-                    data = read_value.u8;
-                    data_size = 4;
-                }
-                else if (1 == skip_read_size)
-                {
-                    data = read_value.u8 + 1;
-                    data_size = 3;
-                    skip_read_size -= 1;
-                    /* MESSAGE_INFO_DEBUG("S1"); */
-                }
-                else if (2 == skip_read_size)
-                {
-                    data = read_value.u8 + 2;
-                    data_size = 2;
-                    skip_read_size -= 2;
-                    /* MESSAGE_INFO_DEBUG("S2"); */
-                }
-                else if (3 == skip_read_size)
-                {
-                    data = read_value.u8 + 3;
-                    data_size = 1;
-                    skip_read_size -= 3;
-                    /* MESSAGE_INFO_DEBUG("S3"); */
-                }
-                else
-                { /* if (skip_read_size >= 4) */
-                    data_size = 0;
-                    skip_read_size -= 4;
-                }
-                /* MESSAGE_INFO_DEBUG("R%u", data_size); */
 
-                while (data_size > 0 && rx_data_size > 0)
-                {
-                    *rx_data = *data;
-                    rx_data++;
-                    data++;
-                    data_size--;
-                    rx_data_size--;
-                }
+                ALIGN_START_ADDRESS(data, data_size, read_value.u8, skip_read_size)
+
+                MEM_COPY_DATA(data, data_size, rx_data, rx_data_size)
 
                 read_frames--;
                 timeout = 0;
@@ -533,7 +527,6 @@ static int spi_controller_rx_data(uintptr_t spi_regs, const uint8_t *spi_command
 {
     int rv;
     uint32_t sr;
-    /* Ssi_TXFLR_t txflr; */
     uint32_t rxflr;
     uint32_t timeout;
     uint8_t byte_value;
@@ -562,7 +555,6 @@ static int spi_controller_rx_data(uintptr_t spi_regs, const uint8_t *spi_command
         spi_command_length--;
     }
 
-    /* txflr.R = 0; */
     sr = ioread32(spi_regs + SSI_SR_ADDRESS);
     timeout = 0;
     while (rx_data_size > 0)
@@ -733,13 +725,11 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
         if (use_32bit_frames)
         {
             read_frames = true_read_size / 4;
-            /* MESSAGE_INFO_DEBUG("RX frames: %u\n", read_frames); */
             iowrite32(spi_regs + SSI_CTRLR1_ADDRESS,
                       SSI_CTRLR1_NDF_SET((uint16_t)(read_frames - 1u)));
         }
         else
         {
-            /*MESSAGE_INFO_DEBUG("RX bytes: %u\n", true_read_size); */
             iowrite32(spi_regs + SSI_CTRLR1_ADDRESS,
                       SSI_CTRLR1_NDF_SET((uint16_t)(true_read_size - 1u)));
         }

@@ -35,7 +35,7 @@ uint32_t PU_SRAM_Read(uint32_t *address)
         (((uintptr_t)address > (uintptr_t)R_PU_SRAM_MID_BASEADDR) &&
         ((uintptr_t)address < (uintptr_t)(R_PU_SRAM_MID_BASEADDR + R_PU_SRAM_MID_SIZE))))
     {
-        return (uint32_t)*address;
+        return *address;
     }
 
     return 0;

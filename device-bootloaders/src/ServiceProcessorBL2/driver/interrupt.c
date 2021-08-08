@@ -106,7 +106,7 @@ void INT_enableInterrupt(interrupt_t interrupt, uint32_t priority, void (*isr)(v
         vectorTable[SPIO_PLIC_PU_PLIC0_INTR] = &pu_plicISR;
         plicEnableInterrupt((volatile uint32_t *const)(SPIO_PLIC + SPIO_PLIC_PRIORITY_0_ADDRESS),
                             (volatile uint32_t *const)(SPIO_PLIC + SPIO_PLIC_ENABLE_T0_R0_ADDRESS),
-                            SPIO_PLIC_PU_PLIC0_INTR, 7); /*TODO: appropriate priority?*/
+                            SPIO_PLIC_PU_PLIC0_INTR, 7);
 
         ++pu_plicEnabledIntCnt;
     }

@@ -68,7 +68,7 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode)
 /*
 ** following DDR initialization flow from hardware team
 */
-int ddr_config(DDR_MODE *ddr_mode)
+int ddr_config(const DDR_MODE *ddr_mode)
 {
     // algorithm/flow and config parameters are from hardware team
     uint32_t config_ecc;
@@ -147,15 +147,15 @@ int ddr_config(DDR_MODE *ddr_mode)
     FOR_EACH_MEMSHIRE(
         ms_init_seq_phase1(memshire, config_ecc, config_real_pll, config_800mhz, config_933mhz,
           config_training, config_4gb, config_8gb, config_32gb);
-    );
+    )
 
     FOR_EACH_MEMSHIRE(
         ms_init_seq_phase2(memshire, config_real_pll);
-    );
+    )
 
     FOR_EACH_MEMSHIRE(
         ms_init_seq_phase3_01(memshire, config_800mhz, config_933mhz);
-    );
+    )
 
     if(config_training) {
 
@@ -166,7 +166,7 @@ int ddr_config(DDR_MODE *ddr_mode)
         FOR_EACH_MEMSHIRE_EVEN_FIRST(
             Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]Training 1D starts", memshire);
             ms_init_seq_phase3_03(memshire, config_debug_level, config_sim_only);
-        );
+        )
 
         ms_init_seq_phase3_04_no_loop(memshire, config_train_poll_max_iterations, config_train_poll_iteration_delay);
 
@@ -176,22 +176,22 @@ int ddr_config(DDR_MODE *ddr_mode)
             FOR_EACH_MEMSHIRE_EVEN_FIRST(
                 Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]Training 2D starts", memshire);
                 ms_init_seq_phase3_06 (memshire, config_debug_level, config_sim_only);
-            );
+            )
 
             ms_init_seq_phase3_07_no_loop (memshire, config_train_poll_max_iterations, config_train_poll_iteration_delay);
         }
 
         FOR_EACH_MEMSHIRE(
             ms_init_seq_phase3_08 (memshire, config_ecc, config_800mhz, config_933mhz, config_4gb, config_8gb, config_32gb);
-        );
+        )
     }
     FOR_EACH_MEMSHIRE(
         ms_init_seq_phase4_01(memshire, config_800mhz, config_933mhz);
-    );
+    )
 
     FOR_EACH_MEMSHIRE(
         ms_init_seq_phase4_02(memshire, config_auto_precharge, config_disable_unused_clks);
-    );
+    )
 
     return 0;
 }

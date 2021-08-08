@@ -72,6 +72,16 @@
 */
 #define PAGE_PROGRAM_TIMEOUT 2000
 
+/*! @union value_uu  
+    \brief Use to represent the smallest chunk of the Flash memory
+*/
+union
+{
+    unsigned long long ull;
+    uint8_t u8[sizeof(unsigned long long)];
+} value_uu;
+
+
 static FLASH_FS_BL2_INFO_t sg_flash_fs_bl2_info = { 0 };
 
 /************************************************************************
@@ -97,10 +107,9 @@ static FLASH_FS_BL2_INFO_t sg_flash_fs_bl2_info = { 0 };
 
 static uint32_t count_zero_bits(const unsigned long long *data, uint32_t data_size)
 {
-    uint32_t index;
     int count = 0;
 
-    for (index = 0; index < data_size; index++)
+    for (uint32_t index = 0; index < data_size; index++)
     {
         count += __builtin_popcountll(data[index]);
     }
@@ -130,15 +139,28 @@ static uint32_t count_zero_bits(const unsigned long long *data, uint32_t data_si
 *
 ***********************************************************************/
 
-union
+static inline void search_bit_location(uint32_t byte_index, uint32_t current_chunk, uint32_t *chunk_offset, uint32_t flash_region, uint32_t *bit) 
 {
-    unsigned long long ull;
-    uint8_t u8[sizeof(unsigned long long)];
-} value_uu;
+   uint32_t flag;
+   if (0 != current_chunk)
+   {
+       for (uint32_t n = 0; n < 8; n++)
+       {
+           flag = 0x01u << n;
+           if (flag & current_chunk)
+           {
+               *chunk_offset = byte_index + (uint32_t)(sizeof(unsigned long long) * flash_region);
+               *bit = n;
+               return;
+           }
+       }
+   }
+}
+
 static int find_first_unset_bit_offset(uint32_t *offset, uint32_t *bit,
                                        const unsigned long long *ull_array, uint32_t ull_array_size)
 {
-    uint32_t n, b_index, ull_index, flag;
+    uint32_t ull_index;
     const unsigned long long *data = ull_array;
     const unsigned long long *ull_array_end = ull_array + ull_array_size;
 
@@ -148,21 +170,9 @@ static int find_first_unset_bit_offset(uint32_t *offset, uint32_t *bit,
         {
             ull_index = (uint32_t)(data - ull_array);
             value_uu.ull = *data;
-            for (b_index = 0; b_index < sizeof(unsigned long long); b_index++)
+            for (uint32_t b_index = 0; b_index < sizeof(unsigned long long); b_index++)
             {
-                if (0 != value_uu.u8[b_index])
-                {
-                    for (n = 0; n < 8; n++)
-                    {
-                        flag = 0x01u << n;
-                        if (flag & value_uu.u8[b_index])
-                        {
-                            *offset = b_index + (uint32_t)(sizeof(unsigned long long) * ull_index);
-                            *bit = n;
-                            return 0;
-                        }
-                    }
-                }
+              search_bit_location(b_index,value_uu.u8[b_index],offset,ull_index, bit); 
             }
         }
         data++;
@@ -196,13 +206,12 @@ static int flash_fs_scan_regions(uint32_t partition_size,
                                  ESPERANTO_PARTITION_BL2_INFO_t *partition_info)
 {
     uint32_t crc;
-    uint32_t n;
     uint32_t region_offset_end;
     uint32_t partition_size_in_blocks = partition_size / FLASH_PAGE_SIZE;
 
     partition_info->sp_bl2_region_index = INVALID_REGION_INDEX;
 
-    for (n = 0; n < partition_info->header.regions_count; n++)
+    for (uint32_t n = 0; n < partition_info->header.regions_count; n++)
     {
         switch (partition_info->regions_table[n].region_id)
         {
@@ -1020,7 +1029,7 @@ int flash_fs_increment_completed_boot_count(void)
     }
 
     page_address = increment_offset & 0xFFFFFFF0u;
-    /* Log_Write(LOG_LEVEL_ERROR, "page_address: 0x%x\n", page_address); */
+    Log_Write(LOG_LEVEL_DEBUG, "page_address: 0x%x\n", page_address);
     mask = (uint8_t) ~(1u << bit_offset);
 
     sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]

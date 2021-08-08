@@ -104,7 +104,7 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode);
     \param ddr_mode point to a DDR_MODE structure, which contains the parameters for DDR init
     \return Zero indicating success or non-zero for error
 */
-int ddr_config(DDR_MODE *ddr_mode);
+int ddr_config(const DDR_MODE *ddr_mode);
 
 /*! \fn int32_t ddr_error_control_init(dm_event_isr_callback event_cb)
     \brief This function initializes the ddr error control subsystem, including

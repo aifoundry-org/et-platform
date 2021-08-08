@@ -68,7 +68,7 @@ enum ET_I2C_ERROR_CODES {
 */
 int i2c_init(ET_I2C_DEV_t* dev, ET_I2C_SPEED_t speed, uint8_t addr_slave);
 
-/*! \fn int i2c_write(ET_I2C_DEV_t* dev, uint8_t regAddr, uint8_t* txDataBuff, uint8_t txDataCount)
+/*! \fn int i2c_write(ET_I2C_DEV_t* dev, uint8_t regAddr, const uint8_t* txDataBuff, uint8_t txDataCount)
     \brief Interface to write data onto I2C slave
     \param dev pointer to I2C device control block
     \param regAddr register address
@@ -76,7 +76,7 @@ int i2c_init(ET_I2C_DEV_t* dev, ET_I2C_SPEED_t speed, uint8_t addr_slave);
     \param txDataCount data size
     \return Status indicating success or negative error
 */
-int i2c_write(ET_I2C_DEV_t* dev, uint8_t regAddr, uint8_t* txDataBuff, uint8_t txDataCount);
+int i2c_write(ET_I2C_DEV_t* dev, uint8_t regAddr, const uint8_t* txDataBuff, uint8_t txDataCount);
 
 /*! \fn int i2c_read(ET_I2C_DEV_t* dev, uint8_t regAddr, uint8_t* rxDataBuff, uint8_t rxDataCount)
     \brief Interface to read data from I2C slave

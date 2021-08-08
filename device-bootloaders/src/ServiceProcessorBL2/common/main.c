@@ -212,11 +212,6 @@ static void taskMain(void *pvParameters)
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_ATU_PROGRAMMED);
 
-    // Initialize thermal power management service
-    status = init_thermal_pwr_mgmt_service();
-    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init thermal power management!")
-    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_PM_READY);
-
     // Initialize  watchdog service
     status = init_watchdog_service();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init watchdog service!")
@@ -231,8 +226,13 @@ static void taskMain(void *pvParameters)
     // At this point, SP and minions have booted successfully. Increment the completed boot counter
     status = flash_fs_increment_completed_boot_count();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to increment the completed boot counter!")
-    Log_Write(LOG_LEVEL_CRITICAL, "Incremented the completed boot counter!\n");
+    Log_Write(LOG_LEVEL_INFO, "Incremented the completed boot counter!\n");
 #endif
+
+    // Initialize thermal power management service
+    status = init_thermal_pwr_mgmt_service();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init thermal power management!")
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_PM_READY);
 
     // Initialize DM sampling task
     init_dm_sampling_task();

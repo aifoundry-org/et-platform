@@ -172,24 +172,6 @@ int get_power_residency(power_state_e power_state, struct residency_t *residency
 */
 int get_soc_max_temperature(uint8_t *max_temp);
 
-/*! \fn int increase_minion_operating_point(int32_t delta_power,
-                 struct trace_power_event_status_t *power_status) 
-    \brief This function will increase the Minion Voltage/Freq
-    \param Amount of Power to be increased by (in mW)
-    \returns Status indicating success or negative error
-*/
-int increase_minion_operating_point(int32_t delta_power, 
-                              struct trace_power_event_status_t *power_status);
-
-/*! \fn int reduce_minion_operating_point(int32_t delta_power,
-                 struct trace_power_event_status_t *power_status) 
-    \brief This function will reduce the Minion Voltage/Freq
-    \param Amount of Power to be reduced by (in mW)
-    \returns Status indicating success or negative error
-*/
-int reduce_minion_operating_point(int32_t delta_power, 
-                              struct trace_power_event_status_t *power_status);
-
 /*! \fn int set_power_event_cb(dm_event_isr_callback event_cb)
     \brief Interface to set temperature event callback variable
     \param event_cb  Temperature event callback function ptr
@@ -210,15 +192,6 @@ int init_thermal_pwr_mgmt_service(void);
     \returns none
 */
 void dump_power_globals(void);
-
-/*! \fn int go_to_safe_state(power_state_e power_state, 
-                             power_throttle_state_e throttle_state)
-    \brief This function will switch frequency and voltage to safe predefined values
-    \param none
-    \returns Status indicating success or negative error
-*/
-int go_to_safe_state(power_state_e power_state, 
-                     power_throttle_state_e throttle_state);
 
 /*! \fn void power_throttling(power_throttle_state_e throttle_state)
     \brief This function handles power throttling
