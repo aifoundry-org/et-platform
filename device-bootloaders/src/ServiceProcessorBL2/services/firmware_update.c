@@ -102,6 +102,7 @@ static int32_t dm_svc_get_firmware_status(void)
 
     if (0 != flash_fs_get_boot_counters(&attempted_boot_counter, &completed_boot_counter)) {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_get_boot_counters: failed to get boot counters!\n");
+        return DEVICE_FW_UPDATED_IMAGE_BOOT_FAILED;
     } else {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_get_boot_counters: Success!\n");
         if (attempted_boot_counter != completed_boot_counter) {
