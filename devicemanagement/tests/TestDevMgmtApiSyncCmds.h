@@ -80,7 +80,7 @@ protected:
   void isUnsupportedService_1_45(bool singleDevice);
   void setSpRootCertificate_1_46(bool singleDevice);
   void setTraceControl_1_47(bool singleDevice);
-  void setTraceConfigure_1_48(bool singleDevice);
+  void setTraceConfigure_1_48(bool singleDevice, uint32_t event_type, uint32_t filter_level);
   void getTraceBuffer_1_49(bool singleDevice);
   void setModulePowerStateRange_1_50(bool singleDevice);
   void setModuleSetTemperatureThresholdRange_1_51(bool singleDevice);

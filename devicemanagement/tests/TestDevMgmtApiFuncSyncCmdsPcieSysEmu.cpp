@@ -156,7 +156,7 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICLatency_1_39) {
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, serializeAccessMgmtNode_1_43) {
-  serializeAccessMgmtNode_1_43(false );
+  serializeAccessMgmtNode_1_43(false);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDeviceErrorEvents_1_44) {
@@ -176,14 +176,24 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setTraceControl_1_47) {
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setTraceConfigure_1_48) {
-  setTraceConfigure_1_48(false /* Multiple devices */);
+  setTraceConfigure_1_48(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG);
+
+  /* Restore the logging level back */
+  setTraceConfigure_1_48(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getTraceBuffer_1_49) {
   setTraceControl_1_47(false /* Multiple devices */);
-  setTraceConfigure_1_48(false /* Multiple devices */);
+  setTraceConfigure_1_48(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG);
   setAndGetModuleStaticTDPLevel_1_12(false /* Multiple devices */);
   getTraceBuffer_1_49(false /* Multiple devices */);
+
+  /* Restore the logging level back */
+  setTraceConfigure_1_48(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModulePowerStateRange_1_50) {
@@ -226,11 +236,10 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModulePowerStateRangeInvalidInpu
   setModulePowerStateRangeInvalidInputBuffer_1_61(false /* Multiple Devices */);
 }
 
-
 // retrieve MM FW error counts. This test should be run last so that we are
 // able to capture any errors in the previous test runs
 // Note after fix from: SW-8409, counters needs to adjusted to handle expected failures
-//TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getMMErrorCount_1_40) {
+// TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getMMErrorCount_1_40) {
 //  getMMErrorCount_1_40(false /* single device */);
 //}
 

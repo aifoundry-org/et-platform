@@ -159,7 +159,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getSRAMECCUECCCount_1_28) {
   getSRAMECCUECCCount_1_28(false /* Multiple Devices */);
 }
 
-
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getDDRBWCounter_1_29) {
   getDDRBWCounter_1_29(false);
 }
@@ -181,7 +180,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getASICFrequencies_1_33) {
   getASICFrequencies_1_33(false /* Multiple Devices */);
 }
 
-
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getDRAMBW_1_34) {
   getDRAMBW_1_34(false);
 }
@@ -189,7 +187,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getDRAMBW_1_34) {
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getDRAMCapacityUtilization_1_35) {
   getDRAMCapacityUtilization_1_35(false);
 }
-
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getASICPerCoreDatapathUtilization_1_36) {
   getASICPerCoreDatapathUtilization_1_36(false /* Multiple Devices */);
@@ -221,7 +218,12 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setTraceControl_1_47) {
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setTraceConfigure_1_48) {
-  setTraceConfigure_1_48(false /* Multiple Devices */);
+  setTraceConfigure_1_48(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG);
+
+  /* Restore the logging level back */
+  setTraceConfigure_1_48(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
 }
 
 // retrieve MM FW error counts. This test should be run last so that we are

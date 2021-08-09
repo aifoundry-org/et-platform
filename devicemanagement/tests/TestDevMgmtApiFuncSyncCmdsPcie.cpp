@@ -213,12 +213,12 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getASICLatency_1_39) {
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getMMErrorCount_1_40) {
- getMMErrorCount_1_40(false /* Multiple devices */);
+  getMMErrorCount_1_40(false /* Multiple devices */);
 }
 
 // Test serial access
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, serializeAccessMgmtNode_1_43) {
-  serializeAccessMgmtNode_1_43(false );
+  serializeAccessMgmtNode_1_43(false);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDeviceErrorEvents_1_44) {
@@ -377,14 +377,24 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setTraceControl_1_47) {
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setTraceConfigure_1_48) {
-  setTraceConfigure_1_48(false /* Multiple devices */);
+  setTraceConfigure_1_48(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG);
+
+  /* Restore the logging level back */
+  setTraceConfigure_1_48(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getTraceBuffer_1_49) {
   setTraceControl_1_47(false /* Multiple devices */);
-  setTraceConfigure_1_48(false /* Multiple devices */);
+  setTraceConfigure_1_48(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG);
   setAndGetModuleStaticTDPLevel_1_12(false /* Multiple devices */);
   getTraceBuffer_1_49(false /* Multiple devices */);
+
+  /* Restore the logging level back */
+  setTraceConfigure_1_48(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setModulePowerStateRange_1_50) {
@@ -426,7 +436,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleManufactureNameInvalidOutputBuff
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setModulePowerStateRangeInvalidInputBuffer_1_61) {
   setModulePowerStateRangeInvalidInputBuffer_1_61(false /* Multiple Devices */);
 }
-
 
 int main(int argc, char** argv) {
   logging::LoggerDefault loggerDefault_;
