@@ -84,14 +84,13 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw);
 #define MM_Iface_Pop_Rsp_From_SP2MM_CQ(rx_buff)          \
         SP_MM_Iface_Pop(MM_CQ, rx_buff)
 
-/*! \fn int8_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff)
+/*! \fn int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff)
     \brief Pop command from Master Minion (MM) to Service Processor (SP)
     Submission Queue(SQ)
     \param rx_buff Buffer to receive response popped
     \return Status indicating success or negative error
 */
-#define MM_Iface_Pop_Cmd_From_MM2SP_SQ(rx_buff)           \
-        SP_MM_Iface_Pop(SP_SQ, rx_buff)
+int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff);
 
 /*! \fn int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(void* p_cmd, uint32_t cmd_size)
     \brief Push response to Master Minion (MM) to Service Processor (SP)

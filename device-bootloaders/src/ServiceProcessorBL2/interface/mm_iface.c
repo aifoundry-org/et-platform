@@ -19,9 +19,12 @@
 *
 *   FUNCTIONS
 *
-*       MM_Iface_Init
+*       MM_Iface_MM_Command_Shell
 *       MM_Iface_Send_Echo_Cmd
+*       MM_Iface_Get_DRAM_BW
 *       MM_Iface_Update_MM_Heartbeat
+*       MM_Iface_Pop_Cmd_From_MM2SP_SQ
+*       MM_Iface_Init
 *
 ***********************************************************************/
 #include <stdio.h>
@@ -327,6 +330,38 @@ int8_t MM_Iface_Update_MM_Heartbeat(void)
     }
 
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       MM_Iface_Pop_Cmd_From_MM2SP_SQ
+*
+*   DESCRIPTION
+*
+*       This function is used to pop a command from MM2SP submission queue.
+*
+*   INPUTS
+*
+*       rx_buff    Pointer to rx buffer to copy popped data.
+*
+*   OUTPUTS
+*
+*       int32_t    Negative value - error
+*                  zero - No Data
+*                  Positive value - Number of bytes popped
+*
+***********************************************************************/
+int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff)
+{
+    if(SP_MM_Iface_Verify_Tail(SP_SQ) == SP_MM_IFACE_ERROR_VQ_BAD_TAIL)
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+        "MM_Iface_Pop_Cmd_From_MM2SP_SQ:FATAL_ERROR:Tail Mismatch! Using cached value as fallback mechanism\r\n");
+    }
+
+    return SP_MM_Iface_Pop(SP_SQ, rx_buff);
 }
 
 /************************************************************************
