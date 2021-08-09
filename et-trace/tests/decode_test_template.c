@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 #define DEVICE_TRACE_DECODE_IMPL
-#include "common/device_trace.h"
+#include <device_trace.h>
 #include <device_trace_decode.h>
 #include <device_trace_types.h>
 

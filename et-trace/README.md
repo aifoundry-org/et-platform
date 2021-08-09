@@ -7,6 +7,7 @@ Project layout:
 
     device_trace/
     ├── include/                    Public header files
+    │   ├── device_trace.h          Encode interface (mainly for the device)
     │   ├── device_trace_decode.h   Decode interface (mainly for the host)
     │   └── device_trace_types.h    Type definitions (shared)
     └── tests/                      Unit-level tests
