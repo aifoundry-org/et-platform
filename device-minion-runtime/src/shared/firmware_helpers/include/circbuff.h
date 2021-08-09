@@ -200,6 +200,22 @@ static inline void Circbuffer_Get_Head_Tail(const circ_buff_cb_t *src_circ_buff_
         sizeof(((circ_buff_cb_t*)0)->head_offset) + sizeof(((circ_buff_cb_t*)0)->tail_offset));
 }
 
+/*! \fn static inline uint64_t Circbuffer_Get_Tail(const circ_buff_cb_t *circ_buff_cb_ptr,
+    uint32_t flags)
+    \brief Gets the tail offset value in circular buffer CB.
+    \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
+    \param [in] flags: Indicates memory access type
+*/
+static inline uint64_t Circbuffer_Get_Tail(const circ_buff_cb_t *circ_buff_cb_ptr, uint32_t flags)
+{
+    uint64_t tail;
+
+    /* Read the circular buffer CB from memory */
+    (*memory_read[flags]) (&circ_buff_cb_ptr->tail_offset, &tail, sizeof(tail));
+
+    return tail;
+}
+
 /*! \fn static inline void Circbuffer_Set_Tail(circ_buff_cb_t *restrict dest_circ_buff_cb_ptr,
     uint64_t tail_val, uint32_t flags)
     \brief Sets the tail offset value in provided destination circular buffer CB.
@@ -213,6 +229,22 @@ static inline void Circbuffer_Set_Tail(circ_buff_cb_t *restrict dest_circ_buff_c
     /* Write the circular buffer CB from memory */
     (*memory_write[flags]) ((void*)&tail_val, (void*)&dest_circ_buff_cb_ptr->tail_offset,
         sizeof(tail_val));
+}
+
+/*! \fn static inline uint64_t Circbuffer_Get_Head(const circ_buff_cb_t *circ_buff_cb_ptr,
+    uint32_t flags)
+    \brief Gets the head offset value in circular buffer CB.
+    \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
+    \param [in] flags: Indicates memory access type
+*/
+static inline uint64_t Circbuffer_Get_Head(const circ_buff_cb_t *circ_buff_cb_ptr, uint32_t flags)
+{
+    uint64_t head;
+
+    /* Read the circular buffer CB from memory */
+    (*memory_read[flags]) (&circ_buff_cb_ptr->head_offset, &head, sizeof(head));
+
+    return head;
 }
 
 /*! \fn static inline void Circbuffer_Set_Head(circ_buff_cb_t *restrict dest_circ_buff_cb_ptr,

@@ -170,7 +170,8 @@ static inline uint64_t VQ_Get_Head_Offset(const vq_cb_t* vq_cb)
 
 /*! \fn static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val)
     \brief Set the tail offset of the VQ
-    \param vq_cb Pointer to destination virtual queue control block.
+    \param dest_vq_cb Pointer to destination virtual queue control block.
+    \param tail_val Value of tail to set
 */
 static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val)
 {
@@ -180,6 +181,22 @@ static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val)
         atomic_load_local_32(&dest_vq_cb->flags));
 #else
     Circbuffer_Set_Tail(dest_vq_cb->circbuff_cb, tail_val, dest_vq_cb->flags);
+#endif
+}
+
+/*! \fn static inline void VQ_Set_Head_Offset(vq_cb_t* dest_vq_cb, uint64_t head_val)
+    \brief Set the tail offset of the VQ
+    \param dest_vq_cb Pointer to destination virtual queue control block.
+    \param head_val Value of head to set
+*/
+static inline void VQ_Set_Head_Offset(vq_cb_t* dest_vq_cb, uint64_t head_val)
+{
+#if defined(MASTER_MINION)
+    Circbuffer_Set_Head((circ_buff_cb_t*)(uintptr_t)
+        atomic_load_local_64((uint64_t*)&dest_vq_cb->circbuff_cb), head_val,
+        atomic_load_local_32(&dest_vq_cb->flags));
+#else
+    Circbuffer_Set_Head(dest_vq_cb->circbuff_cb, head_val, dest_vq_cb->flags);
 #endif
 }
 

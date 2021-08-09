@@ -26,6 +26,21 @@
 */
 #define SP_MM_IFACE_INTERRUPT_SP   -1
 
+/*! \def SP_MM_IFACE_ERROR_INVALID_TARGET
+    \brief SP MM Iface - Invalid target error
+*/
+#define SP_MM_IFACE_ERROR_INVALID_TARGET   -1
+
+/*! \def SP_MM_IFACE_ERROR_VQ_BAD_HEAD
+    \brief SP MM Iface - Bad head pointer error
+*/
+#define SP_MM_IFACE_ERROR_VQ_BAD_HEAD      -2
+
+/*! \def SP_MM_IFACE_ERROR_VQ_BAD_TAIL
+    \brief SP MM Iface - Bad tail pointer error
+*/
+#define SP_MM_IFACE_ERROR_VQ_BAD_TAIL      -3
+
 /*! \def SP_MM_IFACE_INIT_MSG_HDR
     \brief Helper to initialize msg header
 */
@@ -71,5 +86,12 @@ int32_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff);
     \return Boolean indicating status
 */
 bool SP_MM_Iface_Data_Available(uint8_t target);
+
+/*! \fn int8_t SP_MM_Iface_Verify_Tail(uint8_t target)
+    \brief Check if the tail of a VQ matches the shared and local copy
+    \param target target SP to MM interface
+    \return success or error code
+*/
+int8_t SP_MM_Iface_Verify_Tail(uint8_t target);
 
 #endif /* __SP_MM_IFACE_H__ */
