@@ -146,7 +146,7 @@ int ddr_config(const DDR_MODE *ddr_mode)
 
     FOR_EACH_MEMSHIRE(
         ms_init_seq_phase1(memshire, config_ecc, config_real_pll, config_800mhz, config_933mhz,
-          config_training, config_4gb, config_8gb, config_32gb);
+          config_training, config_4gb, config_8gb, config_32gb, config_sim_only);
     )
 
     FOR_EACH_MEMSHIRE(
@@ -154,17 +154,20 @@ int ddr_config(const DDR_MODE *ddr_mode)
     )
 
     FOR_EACH_MEMSHIRE(
-        ms_init_seq_phase3_01(memshire, config_800mhz, config_933mhz);
+        if(config_sim_only)
+            ms_init_seq_phase3_01_skiptrain(memshire, config_800mhz, config_933mhz);
+        else
+            ms_init_seq_phase3_01(memshire, config_800mhz, config_933mhz);
     )
 
     if(config_training) {
 
-        Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]config_debug_level = 0x%02x", 0, config_debug_level);
+        Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]config_debug_level = 0x%02x\n", 0, config_debug_level);
 
         ms_init_seq_phase3_02_no_loop(memshire, config_800mhz, config_933mhz);
 
         FOR_EACH_MEMSHIRE_EVEN_FIRST(
-            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]Training 1D starts", memshire);
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]Training 1D starts\n", memshire);
             ms_init_seq_phase3_03(memshire, config_debug_level, config_sim_only);
         )
 
@@ -174,7 +177,7 @@ int ddr_config(const DDR_MODE *ddr_mode)
             ms_init_seq_phase3_05_no_loop(memshire, config_800mhz, config_933mhz);
 
             FOR_EACH_MEMSHIRE_EVEN_FIRST(
-                Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]Training 2D starts", memshire);
+                Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]Training 2D starts\n", memshire);
                 ms_init_seq_phase3_06 (memshire, config_debug_level, config_sim_only);
             )
 
@@ -186,11 +189,14 @@ int ddr_config(const DDR_MODE *ddr_mode)
         )
     }
     FOR_EACH_MEMSHIRE(
-        ms_init_seq_phase4_01(memshire, config_800mhz, config_933mhz);
+        if(config_sim_only)
+            ms_init_seq_phase4_01_skiptrain(memshire, config_800mhz, config_933mhz);
+        else
+            ms_init_seq_phase4_01(memshire, config_800mhz, config_933mhz);
     )
 
     FOR_EACH_MEMSHIRE(
-        ms_init_seq_phase4_02(memshire, config_auto_precharge, config_disable_unused_clks);
+        ms_init_seq_phase4_02(memshire, config_auto_precharge, config_disable_unused_clks, config_training);
     )
 
     return 0;

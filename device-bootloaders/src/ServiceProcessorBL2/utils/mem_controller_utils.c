@@ -470,3 +470,9 @@ void ms_wait_for_training_2d(uint32_t memshire, uint32_t train_poll_max_iteratio
 {
   wait_for_training_internal(TRAINING_2D, memshire, train_poll_max_iterations, train_poll_iteration_delay);
 }
+
+void post_train_update_regs(uint32_t memshire)
+{
+  // suppress compilation warning
+  (void) memshire;
+}
