@@ -216,11 +216,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getMMErrorCount_1_40) {
  getMMErrorCount_1_40(false /* Multiple devices */);
 }
 
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getFWBootstatus_1_41) {
-  getFWBootstatus_1_41(false /* Multiple devices */);
-}
-
 // Test serial access
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, serializeAccessMgmtNode_1_43) {
   serializeAccessMgmtNode_1_43(false );

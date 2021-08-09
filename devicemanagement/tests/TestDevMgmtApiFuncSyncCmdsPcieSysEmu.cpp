@@ -155,10 +155,6 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICLatency_1_39) {
   getASICLatency_1_39(false /* single device */);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getFWBootstatus_1_41) {
-  getFWBootstatus_1_41(false /* single device */);
-}
-
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, serializeAccessMgmtNode_1_43) {
   serializeAccessMgmtNode_1_43(false );
 }
