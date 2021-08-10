@@ -27,6 +27,11 @@ struct I2c : public MemoryRegion {
     typedef typename MemoryRegion::pointer        pointer;
     typedef typename MemoryRegion::const_pointer  const_pointer;
 
+    enum : unsigned long long {
+        I2C_IC_RXFLR = 0x78,
+    };
+
+
     static_assert(N == 4_KiB, "bemu::I2c has illegal size");
 
     void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
@@ -37,8 +42,13 @@ struct I2c : public MemoryRegion {
         if (n != 4)
             throw memory_error(first() + pos);
 
-        // STUBBED: Always returns 0
-        *result32 = 0;
+        switch (pos) {
+        case I2C_IC_RXFLR:
+            *result32 = n; 
+            break;
+        default:
+            *result32 = 0;
+        }
     }
 
     void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
