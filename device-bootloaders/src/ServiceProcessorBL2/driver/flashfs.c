@@ -117,6 +117,25 @@ static uint32_t count_zero_bits(const unsigned long long *data, uint32_t data_si
     return (data_size * (uint32_t)sizeof(unsigned long long) * 8u) - (uint32_t)count;
 }
 
+static inline int search_bit_location(uint32_t byte_index, uint32_t current_chunk, uint32_t *chunk_offset, uint32_t flash_region, uint32_t *bit)
+{
+   uint32_t flag;
+   if (0 != current_chunk)
+   {
+       for (uint32_t n = 0; n < 8; n++)
+       {
+           flag = 0x01u << n;
+           if (flag & current_chunk)
+           {
+               *chunk_offset = byte_index + (uint32_t)(sizeof(unsigned long long) * flash_region);
+               *bit = n;
+               return 1;
+           }
+       }
+   }
+   return -1;
+}
+
 /************************************************************************
 *
 *   FUNCTION
@@ -139,24 +158,6 @@ static uint32_t count_zero_bits(const unsigned long long *data, uint32_t data_si
 *
 ***********************************************************************/
 
-static inline void search_bit_location(uint32_t byte_index, uint32_t current_chunk, uint32_t *chunk_offset, uint32_t flash_region, uint32_t *bit) 
-{
-   uint32_t flag;
-   if (0 != current_chunk)
-   {
-       for (uint32_t n = 0; n < 8; n++)
-       {
-           flag = 0x01u << n;
-           if (flag & current_chunk)
-           {
-               *chunk_offset = byte_index + (uint32_t)(sizeof(unsigned long long) * flash_region);
-               *bit = n;
-               return;
-           }
-       }
-   }
-}
-
 static int find_first_unset_bit_offset(uint32_t *offset, uint32_t *bit,
                                        const unsigned long long *ull_array, uint32_t ull_array_size)
 {
@@ -172,7 +173,10 @@ static int find_first_unset_bit_offset(uint32_t *offset, uint32_t *bit,
             value_uu.ull = *data;
             for (uint32_t b_index = 0; b_index < sizeof(unsigned long long); b_index++)
             {
-              search_bit_location(b_index,value_uu.u8[b_index],offset,ull_index, bit); 
+              if(search_bit_location(b_index,value_uu.u8[b_index],offset,ull_index, bit))
+              {
+                   return 0;
+              }
             }
         }
         data++;
@@ -987,7 +991,8 @@ int flash_fs_increment_completed_boot_count(void)
     uint32_t region_index;
     uint32_t region_address;
     uint32_t counter_data_address;
-    uint32_t increment_offset, bit_offset;
+    uint32_t increment_offset=0;
+    uint32_t bit_offset = 0;
     uint32_t page_address;
     uint8_t mask;
 
