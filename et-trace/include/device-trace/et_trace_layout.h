@@ -20,13 +20,19 @@ extern "C" {
 */
 #define TRACE_MAGIC_HEADER        0x76543210
 
-/*! \enum trace_buffer_type_e
-    \brief Trace buffer type either MM, CM, or SP.
+/*! \typedef trace_buffer_type_e
+    \brief Trace buffer type either MM, CM, SP etc.
 */
-enum trace_buffer_type_e {
+typedef uint8_t trace_buffer_type_e;
+
+/*! \enum trace_buffer_type
+    \brief Trace buffer type either MM, CM, or SP etc.
+*/
+enum trace_buffer_type {
     TRACE_MM_BUFFER,
     TRACE_CM_BUFFER,
-    TRACE_SP_BUFFER
+    TRACE_SP_BUFFER,
+    TRACE_CM_UMODE_BUFFER
 };
 
 /*! \typedef trace_header_type_e
@@ -34,7 +40,7 @@ enum trace_buffer_type_e {
 */
 typedef uint8_t trace_header_type_e;
 
-/*! \trace_header_type_e
+/*! \enum trace_header_type
     \brief Trace buffer header type.
 */
 enum trace_header_type {
@@ -42,7 +48,15 @@ enum trace_header_type {
     TRACE_SIZE_HEADER   /**< Size only trace buffer header of type struct trace_buffer_size_header_t */
 };
 
-enum trace_type_e {
+/*! \typedef trace_type_e
+    \brief Trace packet type.
+*/
+typedef uint16_t trace_type_e;
+
+/*! \enum trace_type
+    \brief Trace packet types.
+*/
+enum trace_type {
     TRACE_TYPE_STRING,
     TRACE_TYPE_PMC_COUNTER,
     TRACE_TYPE_PMC_ALL_COUNTERS,
@@ -57,8 +71,14 @@ enum trace_type_e {
     TRACE_TYPE_POWER_STATUS
 };
 
+/*! \typedef trace_cmd_status_e
+    \brief Trace command statuses. Refers to enum trace_cmd_status.
+*/
 typedef uint8_t trace_cmd_status_e;
 
+/*! \enum trace_cmd_status
+    \brief Trace command statuses.
+*/
 enum trace_cmd_status {
     CMD_STATUS_WAIT_BARRIER = 1, /**< Conditional: Command is awaiting for Barrier to be released */
     CMD_STATUS_RECEIVED,    /**< Command is popped/received from submission Queue. */
@@ -68,7 +88,15 @@ enum trace_cmd_status {
     CMD_STATUS_SUCCEEDED,   /**< Command completed successfully. */
 };
 
-enum pmc_counter_e {
+/*! \typedef pmc_counter_e
+    \brief Counter type of log timestamp. Refers to enum pmc_counter.
+*/
+typedef uint8_t pmc_counter_e;
+
+/*! \enum pmc_counter
+    \brief Counter type of log timestamp.
+*/
+enum pmc_counter {
     PMC_COUNTER_HPMCOUNTER4,
     PMC_COUNTER_HPMCOUNTER5,
     PMC_COUNTER_HPMCOUNTER6,
@@ -78,10 +106,21 @@ enum pmc_counter_e {
     PMC_COUNTER_MEMSHIRE_FOO
 };
 
+/*! \struct trace_buffer_size_header_t
+    \brief Trace buffer header (resides at the beggining of the buffer).
+           It contains size of valid data in that buffer.
+           This header is used for sub-buffers when a buffer is partitioned into sub-bufers.
+*/
 struct trace_buffer_size_header_t {
     uint32_t data_size;     /**< Data in the buffer. */
 } __attribute__((packed));
 
+/*! \struct trace_buffer_std_header_t
+    \brief Trace buffer header (resides at the beggining of the buffer).
+           It contains size of valid data, type of buffer and Esperanto magic
+           number to validate buffer. It is used for once for the whole buffer
+           not matter if it divided into sub-buffers or not
+*/
 struct trace_buffer_std_header_t {
     uint32_t magic_header;  /**< Esperanto magic header. */
     uint32_t data_size;     /**< Data in the buffer. */
@@ -89,17 +128,40 @@ struct trace_buffer_std_header_t {
     uint8_t  pad[6];        /**< Padding for Cache alignment. */
 } __attribute__((packed));
 
-struct trace_entry_header_t {
+/*! \struct trace_entry_header_mm_t
+    \brief This Trace packet entry header is for Master Minion.
+*/
+struct trace_entry_header_mm_t {
     uint64_t cycle;   /**< Current cycle */
-#if defined(MASTER_MINION)
     uint32_t hart_id; /**< Hart ID of the Hart which is logging Trace */
     uint16_t type;    /**< One of enum trace_type_e */
-    uint8_t  pad[2];  /**< Cache Alignment for MM as it used atomic operations. */
-#else
-    uint16_t type;    /**< One of enum trace_type_e */
-#endif
+    uint8_t  pad[2];  /**< Cache Alignment for MM as it uses atomic operations. */
 } __attribute__((packed));
 
+/*! \struct trace_entry_header_generic_t
+    \brief This Trace packet entry header is a generic implementation. In general,
+           this should be used until unless specific requirements needs other packer header.
+*/
+struct trace_entry_header_generic_t {
+    uint64_t cycle;   /**< Current cycle */
+    uint16_t type;    /**< One of enum trace_type_e */
+    uint8_t  pad[6];  /**< To keep natural alignment for memory operations. */
+} __attribute__((packed));
+
+/*! \struct trace_entry_header_t
+    \brief This Trace packet entry header it includes different implementation of headers
+           in a union. So user must know what implementation names it needs to access.
+*/
+struct trace_entry_header_t {
+    union {
+        struct trace_entry_header_generic_t generic;
+        struct trace_entry_header_mm_t mm;
+    };
+} __attribute__((packed));
+
+/*! \struct trace_pmc_counter_t
+    \brief A Trace packet strucure for a single PMC counter.
+*/
 struct trace_pmc_counter_t {
     struct trace_entry_header_t header;
     uint64_t value;
@@ -107,7 +169,10 @@ struct trace_pmc_counter_t {
     uint8_t  pad[7];
 } __attribute__((packed));
 
-struct trace_cmd_status_internal_t {
+/*! \struct trace_event_cmd_status_t
+    \brief A Trace event strucure for a command execution status.
+*/
+struct trace_event_cmd_status_t {
     union{
         struct{
             uint16_t mesg_id;               /**< Command message ID */
@@ -120,12 +185,18 @@ struct trace_cmd_status_internal_t {
     };
 } __attribute__((packed));
 
+/*! \struct trace_entry_header_t
+    \brief A Trace packet strucure for a command execution status.
+*/
 struct trace_cmd_status_t {
     struct trace_entry_header_t header;
-    struct trace_cmd_status_internal_t cmd;
+    struct trace_event_cmd_status_t cmd;
 } __attribute__((packed));
 
-struct trace_power_event_status_t {
+/*! \struct trace_entry_header_t
+    \brief A Trace event strucure for a power status.
+*/
+struct trace_event_power_status_t {
     union{
         struct{
             uint8_t throttle_state;            /**< Power Throttle State: UP, Down */
@@ -139,16 +210,25 @@ struct trace_power_event_status_t {
     };
 } __attribute__((packed));
 
+/*! \struct trace_entry_header_t
+    \brief A Trace packet strucure for a power status.
+*/
 struct trace_power_status_t {
     struct trace_entry_header_t header;
-    struct trace_power_event_status_t cmd;
+    struct trace_event_power_status_t power;
 } __attribute__((packed));
 
+/*! \struct trace_entry_header_t
+    \brief A Trace packet strucure for a string message.
+*/
 struct trace_string_t {
     struct trace_entry_header_t header;
     char string[TRACE_STRING_MAX_SIZE];
 } __attribute__((packed));
 
+/*! \struct trace_entry_header_t
+    \brief A Trace packet strucure for a memory dump of variable size.
+*/
 struct trace_memory_t {
     struct trace_entry_header_t header;
     uint64_t src_addr;
