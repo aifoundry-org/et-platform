@@ -46,7 +46,7 @@ struct DeviceInfo {
   uint16_t totalL2Size_;            ///< total size of L2 cache in MBytes
   uint16_t totalScratchPadSize_;    ///< total scratchpad size in MBytes
   uint16_t cacheLineSize_;          ///< chache line size, in Bytes
-  uint64_t computeMinionShireMask_; ///< mask which indicates what are the compute minion shires
+  uint32_t computeMinionShireMask_; ///< mask which indicates what are the compute minion shires
 };
 
 class Exception : public dbg::StackException {
