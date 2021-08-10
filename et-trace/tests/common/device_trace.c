@@ -1,41 +1,17 @@
-/***********************************************************************
-*
-* Copyright (C) 2021 Esperanto Technologies Inc.
-* The copyright to the computer program(s) herein is the
-* property of Esperanto Technologies, Inc. All Rights Reserved.
-* The program(s) may be used and/or copied only with
-* the written permission of Esperanto Technologies and
-* in accordance with the terms and conditions stipulated in the
-* agreement/contract under which the program(s) have been supplied.
-*
-************************************************************************/
-/*! \file device_trace.c
-    \brief A C module that implements the Trace services for device side.
+/* 
+ * This file is largely copies the implementation from device-minion-runtime,
+ * with a few modifications to make it compile for non-minions.
+ */
 
-    Public interfaces:
-        Trace_Init
-        Trace_String
-        Trace_Format_String
-        Trace_PMC_All_Counters
-        Trace_PMC_Counter
-        Trace_Value_u64
-        Trace_Value_u32
-        Trace_Value_u16
-        Trace_Value_u8
-        Trace_Value_float
-        Trace_Memory
-*/
-/***********************************************************************/
 
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "device_trace.h"
-#include "device-common/hart.h"
-#if defined(MASTER_MINION)
-#include "device-common/atomic.h"
-#include "etsoc_memory.h"
-#endif
+
+#include "mock_atomics.h"
+#include "mock_etsoc.h"
 
 /* For Master Minion all Trace data is based on L2 Cache, that means we need to perform all updates in L2.
    On other hand, for Service Processor and Compute Minion, Trace data is in L1 Cache, and updates are
@@ -108,31 +84,32 @@ union trace_header_u {
     uint64_t header_raw;
 };
 
+/* Mock: This counter should return the current cycle time.
+ * Here we simply increment a static value. */
 static inline uint64_t PMU_Get_hpmcounter3(void)
 {
-    uint64_t val;
-    __asm__ __volatile__("csrr %0, hpmcounter3\n" : "=r"(val));
-    return val;
+    return reg_hpmcounter3;
 }
 
+/* Mock: Since we don't have pmu counters, we simply return random values */
 static inline uint64_t PMU_Get_Counter(enum pmc_counter_e counter)
 {
     uint64_t val;
     switch (counter) {
     case PMC_COUNTER_HPMCOUNTER4:
-        __asm__ __volatile__("csrr %0, hpmcounter4\n" : "=r"(val));
+        val = reg_hpmcounter4;
         break;
     case PMC_COUNTER_HPMCOUNTER5:
-        __asm__ __volatile__("csrr %0, hpmcounter5\n" : "=r"(val));
+        val = reg_hpmcounter5;
         break;
     case PMC_COUNTER_HPMCOUNTER6:
-        __asm__ __volatile__("csrr %0, hpmcounter6\n" : "=r"(val));
+        val = reg_hpmcounter6;
         break;
     case PMC_COUNTER_HPMCOUNTER7:
-        __asm__ __volatile__("csrr %0, hpmcounter7\n" : "=r"(val));
+        val = reg_hpmcounter7;
         break;
     case PMC_COUNTER_HPMCOUNTER8:
-        __asm__ __volatile__("csrr %0, hpmcounter8\n" : "=r"(val));
+        val = reg_hpmcounter8;
         break;
     case PMC_COUNTER_SHIRE_CACHE_FOO:
         val = 0; // syscall
@@ -303,7 +280,7 @@ void *Trace_Buffer_Reserve(struct trace_control_block_t *cb, uint64_t size)
 *
 ***********************************************************************/
 void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb,
-    trace_header_type_e buff_header)
+    uint8_t buff_header)
 {
     if (!init_info || !cb)
         return;
@@ -423,6 +400,7 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
     WRITE_U64(entry->cmd.raw_cmd, cmd_data->raw_cmd);
 }
 
+/* NB: This is still missing from the device-minion-runtime */
 /************************************************************************
 *
 *   FUNCTION
@@ -431,12 +409,12 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
 *
 *   DESCRIPTION
 *
-*       A function to log Power event status messages.
+*       A function to log Trace power status message.
 *
 *   INPUTS
 *
-*       trace_control_block_t   Trace control block
-*       trace_power_status_t    Power status data.
+*       trace_control_block_t        Trace control block of logging Hart.
+*       trace_power_event_status_t   Power status data.
 *
 *   OUTPUTS
 *
@@ -444,13 +422,13 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
 *
 ***********************************************************************/
 void Trace_Power_Status(struct trace_control_block_t *cb,
-    const struct trace_power_event_status_t *cmd_data)
+    const struct trace_power_event_status_t *pwr_data)
 {
-    struct trace_cmd_status_t *entry =
+    struct trace_power_status_t *entry =
         Trace_Buffer_Reserve(cb, sizeof(*entry));
 
     ADD_MESSAGE_HEADER(entry, TRACE_TYPE_POWER_STATUS)
-    WRITE_U64(entry->cmd.raw_cmd, cmd_data->raw_cmd);
+    WRITE_U64(entry->cmd.raw_cmd, pwr_data->raw_cmd);
 }
 
 /************************************************************************
