@@ -10,6 +10,11 @@
 #include <stddef.h>
 #include <string.h>
 
+/*! \def CHECK_STRING_FILTER
+    \brief This checks if trace string log level is enabled to log the given level.
+*/
+#define CHECK_STRING_FILTER(cb, log_level) ((cb->filter_mask & TRACE_FILTER_STRING_MASK) >= log_level)
+
 /************************************************************************
 *
 *   FUNCTION

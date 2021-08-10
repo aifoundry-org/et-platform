@@ -27,9 +27,12 @@
 #include "layout.h"
 #include "config/mm_config.h"
 #include "services/log.h"
-#include "services/trace.h"
 #include "common_trace_defs.h"
 #include "etsoc_memory.h"
+
+#define ET_TRACE_ENCODER_IMPL
+#include "services/trace_mm_primitives.h"
+#include "services/trace.h"
 
 /*! \def MM_DEFAULT_THREAD_MASK
     \brief Default masks to enable Trace for Dispatcher, SQ Worker (SQW),

@@ -33,6 +33,11 @@
 */
 static log_interface_t Log_Interface __attribute__((aligned(64))) = LOG_DUMP_TO_UART;
 
+/*! \def CHECK_STRING_FILTER
+    \brief This checks if trace string log level is enabled to log the given level.
+*/
+#define CHECK_STRING_FILTER(cb, log_level) ((atomic_load_local_32(&cb->filter_mask) & TRACE_FILTER_STRING_MASK) >= log_level)
+
 /************************************************************************
 *
 *   FUNCTION
@@ -136,12 +141,12 @@ int32_t __Log_Write(const char *const fmt, ...)
     if (atomic_load_local_8(&Log_Interface) == LOG_DUMP_TO_TRACE)
     {
         /* TODO: Use Trace_Format_String() when Trace common library has support/alternative
-           of libc_nano to process va_list string formatting. Also, remove log_level check 
+           of libc_nano to process va_list string formatting. Also, remove log_level check
            from here, as trace library does that internally .*/
         va_start(va, fmt);
         vsnprintf(buff, sizeof(buff), fmt, va);
 
-        Trace_String((enum trace_string_event)CURRENT_LOG_LEVEL, Trace_Get_MM_CB(), buff);
+        Trace_String((trace_string_event_e)CURRENT_LOG_LEVEL, Trace_Get_MM_CB(), buff);
 
         /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
         type message. */
@@ -187,9 +192,9 @@ int32_t __Log_Write_String(const char *str, size_t length)
     /* Dump the log message over current log interface. */
     if (atomic_load_local_8(&Log_Interface) == LOG_DUMP_TO_TRACE)
     {
-        Trace_String((enum trace_string_event)CURRENT_LOG_LEVEL, Trace_Get_MM_CB(), str);
+        Trace_String((trace_string_event_e)CURRENT_LOG_LEVEL, Trace_Get_MM_CB(), str);
 
-        /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string 
+        /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
            type message. */
         bytes_written = TRACE_STRING_MAX_SIZE;
     }

@@ -83,7 +83,7 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
     )
     target_link_libraries(${MM_BUILD_VARIANT}.elf
         PUBLIC
-            deviceFirmware::device_trace_mm
+            deviceFirmware::device_trace
             deviceApi::deviceApi
             etsoc_hal::etsoc_hal
             deviceFirmware::device_common

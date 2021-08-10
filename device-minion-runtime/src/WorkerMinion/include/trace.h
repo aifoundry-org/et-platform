@@ -16,7 +16,7 @@
 #ifndef CM_TRACE_H
 #define CM_TRACE_H
 
-#include "device_trace.h"
+#include "device-trace/et_trace.h"
 
 /*! \fn void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
     \brief This function initializes Trace for a single Hart in CM Shires.

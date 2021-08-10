@@ -1266,8 +1266,6 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         local_sqw_idx = (uint8_t)atomic_load_local_16(&kernel->sqw_idx);
 
         /* Get completion status of kernel launch. */
-        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD,
-            local_sqw_idx, launch_rsp.response_info.rsp_hdr.tag_id, kernel_state);
         launch_rsp.status = kw_get_kernel_launch_completion_status(kernel_state, &status_internal);
 
         /* Give back the reserved compute shires. */
@@ -1288,11 +1286,19 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         status = Host_Iface_CQ_Push_Cmd(0, &launch_rsp, sizeof(launch_rsp));
 #endif
 
-        Log_Write(LOG_LEVEL_DEBUG, "KW:CQ_Push:KERNEL_LAUNCH_CMD_RSP:tag_id=%x\r\n",
-            launch_rsp.response_info.rsp_hdr.tag_id);
-
-        if(status != STATUS_SUCCESS)
+        if(status == STATUS_SUCCESS)
         {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD,
+                local_sqw_idx, launch_rsp.response_info.rsp_hdr.tag_id, CMD_STATUS_SUCCEEDED);
+
+            Log_Write(LOG_LEVEL_DEBUG, "KW:CQ_Push:KERNEL_LAUNCH_CMD_RSP:tag_id=%x\r\n",
+                launch_rsp.response_info.rsp_hdr.tag_id);
+        }
+        else
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD,
+                local_sqw_idx, launch_rsp.response_info.rsp_hdr.tag_id, CMD_STATUS_FAILED);
+
             Log_Write(LOG_LEVEL_ERROR, "KW:CQ_Push:Failed\r\n");
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
         }

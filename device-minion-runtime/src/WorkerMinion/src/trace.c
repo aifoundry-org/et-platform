@@ -25,12 +25,15 @@
 #include <stddef.h>
 #include <inttypes.h>
 #include "etsoc_memory.h"
-#include "trace.h"
 #include "log.h"
 #include "device-common/hart.h"
 #include "layout.h"
 #include "device-common/cacheops.h"
 #include "common_trace_defs.h"
+
+#define ET_TRACE_ENCODER_IMPL
+#include "trace_cm_primitives.h"
+#include "trace.h"
 
 #ifndef __ASSEMBLER__
 #include <assert.h>

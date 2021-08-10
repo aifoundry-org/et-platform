@@ -16,7 +16,7 @@
 #ifndef MM_TRACE_H
 #define MM_TRACE_H
 
-#include "device_trace.h"
+#include "device-trace/et_trace.h"
 
 /**************************/
 /* MM Trace Status Codes  */
@@ -26,7 +26,7 @@
 
 #ifdef MM_ENABLE_CMD_EXECUTION_TRACE
 #define TRACE_LOG_CMD_STATUS(message_id, sqw_idx, tag_id, status)                       \
-            {   struct trace_cmd_status_internal_t cmd_data = {.queue_slot_id=sqw_idx,  \
+            {   struct trace_event_cmd_status_t cmd_data = {.queue_slot_id=sqw_idx,  \
                     .mesg_id = message_id, .trans_id = tag_id, .cmd_status = status};   \
                 Trace_Cmd_Status(Trace_Get_MM_CB(), &cmd_data); }
 #else
