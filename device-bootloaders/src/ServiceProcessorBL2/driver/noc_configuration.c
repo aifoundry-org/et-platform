@@ -21,8 +21,10 @@
 #include "bl_error_code.h"
 #include "log.h"
 
-#include "noc_configuration.h"
+#include "hal_noc_reconfig.h"
+#include "slam_engine.h"
 
+#include "noc_configuration.h"
 
 int32_t NOC_Configure(uint8_t mode)
 {
@@ -34,10 +36,18 @@ int32_t NOC_Configure(uint8_t mode)
    // TBD: Configure Main NOC Registers via Regbus
    // Remap NOC ID based on MM OTP value
    // Other potential NOC workarounds
-   
+
+    /* tables are avaiable in hal_noc_reconfig.h.  Currently we have
+        reconfig_noc_4_west_memshires
+        reconfig_noc_2_west_memshires
+        reconfig_noc_1_west_memshires
+        reconfig_noc_4_east_memshires
+        reconfig_noc_2_east_memshires
+        reconfig_noc_1_east_memshires
+    */
+    CSR_SLAM_TABLE *reconfig_table_ptr = CSR_SLAM_TABLE_PTR_NULL;
+    if(reconfig_table_ptr != CSR_SLAM_TABLE_PTR_NULL)
+        SLAM_ENGINE(reconfig_table_ptr);
+
    return SUCCESS;
 }
-
-/* TODO: SW-8062 More functions to be implementated */ 
-
-
