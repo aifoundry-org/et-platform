@@ -41,19 +41,6 @@ namespace bemu {
 #define IO_SHIRE_ID             254
 #define IO_SHIRE_SP_HARTID      (IO_SHIRE_ID * EMU_THREADS_PER_SHIRE)
 
-
-inline long shire_index(long shireid)
-{
-    return (shireid == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shireid;
-}
-
-
-inline long shireid(long shire)
-{
-    return (shire == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : shire;
-}
-
-
 // Message ports
 #define NR_MSG_PORTS         4
 #define PORT_LOG2_MIN_SIZE   2
@@ -117,26 +104,6 @@ inline long shireid(long shire)
 
 // L2
 #define SC_NUM_BANKS  4
-
-// L2 scratchpad
-#define L2_SCP_BASE        0x80000000ULL
-#define L2_SCP_OFFSET      0x00800000ULL
-#define L2_SCP_SIZE        0x00400000ULL
-#define L2_SCP_LINEAR_BASE 0xC0000000ULL
-#define L2_SCP_LINEAR_SIZE 0x40000000ULL
-#define SCP_REGION_BASE    0x80000000ULL
-#define SCP_REGION_SIZE    0x80000000ULL
-
-// IO region
-#define IO_REGION_BASE     0x0000000000ULL
-#define IO_REGION_SIZE     0x0040000000ULL
-
-// System version
-enum class system_version_t {
-    UNKNOWN = 0,
-    ETSOC1_A0 = 1,
-};
-
 
 // CSRs
 enum : uint16_t {
@@ -268,20 +235,6 @@ enum : freg {
     f31 = 31,
 };
 
-enum rounding_mode {
-    rne = 0,
-    rtz = 1,
-    rdn = 2,
-    rup = 3,
-    rmm = 4,
-    rmdyn = 7 //dynamic rounding mode, read from rm register
-};
-
-enum et_core_t {
-   ET_MINION = 0,
-   ET_MAXION
-};
-
 /* Obsolete texsnd/texrcv instuctions use the low 128b of the fregs for data transfers */
 #define VL_TBOX 4
 
@@ -300,7 +253,21 @@ enum et_core_t {
 #define ET_DIAG_IRQ_INJ_TI      (1)
 #define ET_DIAG_IRQ_INJ_SEI     (2)
 
-#define MEM_RESET_PATTERN_SIZE 4 // mem reset pattern is 4 bytes (to allow for instance, 0xDEADBEEF)
+// mem reset pattern is 4 bytes (to allow for instance, 0xDEADBEEF)
+#define MEM_RESET_PATTERN_SIZE 4
+
+// L2 scratchpad
+#define L2_SCP_BASE        0x80000000ULL
+#define L2_SCP_OFFSET      0x00800000ULL
+#define L2_SCP_SIZE        0x00400000ULL
+#define L2_SCP_LINEAR_BASE 0xC0000000ULL
+#define L2_SCP_LINEAR_SIZE 0x40000000ULL
+#define SCP_REGION_BASE    0x80000000ULL
+#define SCP_REGION_SIZE    0x80000000ULL
+
+// IO region
+#define IO_REGION_BASE     0x0000000000ULL
+#define IO_REGION_SIZE     0x0040000000ULL
 
 // PU PLIC
 #define PU_PLIC_TIMER0_INTR_ID       6

@@ -13,7 +13,7 @@
 
 #include <algorithm>
 #include <array>
-#include "lazy_array.h"
+#include "support/lazy_array.h"
 #include "system.h"
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"

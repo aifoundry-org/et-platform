@@ -222,12 +222,12 @@ static inline unsigned target_num_threads()
 /* Returns whether the thread is "physically present" */
 static inline bool target_thread_exists(int thread)
 {
-    return g_sys_emu->thread_is_active(to_target_thread(thread));
+    return g_sys_emu->thread_exists(to_target_thread(thread));
 }
 
 static inline bool target_thread_is_alive(int thread)
 {
-    return g_sys_emu->thread_is_active(to_target_thread(thread))
+    return !g_sys_emu->thread_is_unavailable(to_target_thread(thread))
         /* && !g_sys_emu->thread_is_running(to_target_thread(thread)) */ ;
 }
 
@@ -796,7 +796,7 @@ static void gdbstub_handle_thread_alive(const char *packet)
 
     thread_id = strtol(&packet[1], NULL, 16);
 
-    if (target_thread_is_alive(thread_id))
+    if (target_thread_exists(thread_id) && target_thread_is_alive(thread_id))
         rsp_send_packet("OK");
     else
         rsp_send_packet("E00");
@@ -804,10 +804,13 @@ static void gdbstub_handle_thread_alive(const char *packet)
 
 static inline void gdbstub_handle_vcont_action(char action, int thread)
 {
-    if (action == 's')
-        target_step(thread);
-    else if (action == 'c')
-        target_continue(thread);
+    if (target_thread_exists(thread)) {
+        if (action == 's') {
+            target_step(thread);
+        } else if (action == 'c') {
+            target_continue(thread);
+        }
+    }
 }
 
 static void gdbstub_handle_vcont(char *packet)
@@ -830,8 +833,9 @@ static void gdbstub_handle_vcont(char *packet)
         LOG_GDBSTUB(DEBUG, "vCont action %s, thread: %d", action, thread);
 
         if (thread == THREAD_ID_ALL_THREADS) {
-            for (unsigned id = 1; id <= target_num_threads(); id++)
+            for (unsigned id = 1; id <= target_num_threads(); id++) {
                 gdbstub_handle_vcont_action(*action, id);
+            }
         } else {
             gdbstub_handle_vcont_action(*action, thread);
         }

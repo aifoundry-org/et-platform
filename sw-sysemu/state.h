@@ -72,15 +72,6 @@ typedef std::bitset<MLEN>   mreg_t;
 static_assert(VLEN == 256, "Only 256-bit vectors supported");
 
 
-// -----------------------------------------------------------------------------
-// Privilege levels
-enum prv_t : uint8_t {
-    PRV_U = 0,
-    PRV_S = 1,
-    PRV_M = 3
-};
-
-
 } // namespace bemu
 
 #endif // BEMU_STATE_H

@@ -95,7 +95,7 @@ float32_t f32_log2( float32_t a )
 
     exponent = ( (expA >= 0x7F) ? (expA + 1) : (~expA - !!sigA) ) & 0x7F;
 
-      //cancel bits to match rtl datapath    
+      //cancel bits to match rtl datapath
     if (((exponent&0x7F)!=0x0) || (((exponent&0x7F)==0x0) && (expA+( sigA >> 22 )) != 0x7f))
       product &= 0xffffffffffffff80;
 

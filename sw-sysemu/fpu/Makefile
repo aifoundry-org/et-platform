@@ -19,7 +19,7 @@ libfpu_SRCS := $(fpu_cpp_srcs) $(fpu_c_srcs) $(softfloat_c_srcs)
 libfpu_OBJS := $(patsubst %,$(libfpu_OBJDIR)/fpu_obj/%.o,$(basename $(libfpu_SRCS)))
 libfpu_DEPS := $(libfpu_OBJS:.o=.d)
 
-EXTRA_MAKE_OPTS ?= 
+EXTRA_MAKE_OPTS ?=
 
 ARFLAGS  := rvs
 CPPFLAGS := -MMD -MP -I..
@@ -65,7 +65,7 @@ $(libfpu_OBJDIR)/libfpu.so: $(libfpu_OBJS)
 	$(CXX) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 $(libfpu_OBJDIR)/libfpu.a: $(libfpu_OBJS)
-	$(AR) $(ARFLAGS) $@ $^ 
+	$(AR) $(ARFLAGS) $@ $^
 
 # ----- dependencies ----------------------------------------------------------
 

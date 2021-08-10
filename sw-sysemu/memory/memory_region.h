@@ -27,7 +27,7 @@ struct MemoryRegion
     typedef value_type            reset_value_type[MEM_RESET_PATTERN_SIZE];
     typedef value_type*           pointer;
     typedef const value_type*     const_pointer;
-  
+
     virtual ~MemoryRegion() {}
 
     // Copies @n bytes starting from offset @pos into @result

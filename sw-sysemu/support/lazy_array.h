@@ -90,7 +90,7 @@ struct lazy_array {
       for ( size_t i = 0 ; i < N ; i++)
         (*p)[i] = val[i % size];
     }
-  
+
     void swap(lazy_array& other) noexcept { p->swap(other); }
 
     // Members
