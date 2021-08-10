@@ -154,7 +154,7 @@ struct mm_trace_string_t {
   char dataString[64];
 } __attribute__((packed));
 
-struct trace_cmd_status_internal_t {
+struct trace_event_cmd_status_t {
   union{
     struct{
       uint16_t mesg_id;               /**< Command message ID */
@@ -169,12 +169,12 @@ struct trace_cmd_status_internal_t {
 
 struct mm_trace_cmd_status_t {
   struct trace_entry_header_mm_t mm_header;
-  struct trace_cmd_status_internal_t cmd;
+  struct trace_event_cmd_status_t cmd;
 } __attribute__((packed));
 
 struct cm_trace_cmd_status_t {
   struct trace_entry_header_t header;
-  struct trace_cmd_status_internal_t cmd;
+  struct trace_event_cmd_status_t cmd;
 } __attribute__((packed));
 
 }
