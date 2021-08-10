@@ -261,13 +261,8 @@ void *Trace_Buffer_Reserve(struct trace_control_block_t *cb, uint64_t size)
         if (trace_check_buffer_full(cb, size))
         {
             /* Reset buffer. */
-            (READ_U8(cb->header) == TRACE_STD_HEADER) ?
-                WRITE_U32(cb->offset_per_hart, sizeof(struct trace_buffer_std_header_t)) :
-                WRITE_U32(cb->offset_per_hart, sizeof(struct trace_buffer_size_header_t));
-
-            head = (void *)(uintptr_t)(READ_U64(cb->base_per_hart));
-
-            return head;
+            current_offset = (READ_U8(cb->header) == TRACE_STD_HEADER) ?
+                sizeof(struct trace_buffer_std_header_t) : sizeof(struct trace_buffer_size_header_t);
         }
     }
 
