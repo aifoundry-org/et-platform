@@ -8,10 +8,10 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include <esperanto/device-apis/device_apis_trace_types.h>
 #include "TestDevOpsApi.h"
 #include "Autogen.h"
 #include <cmath>
+#include <esperanto/device-apis/device_apis_trace_types.h>
 #include <experimental/filesystem>
 #include <iostream>
 #include <numeric>
@@ -43,7 +43,8 @@ void TestDevOpsApi::initTestHelperSysEmu(const emu::SysEmuOptions& options) {
     try {
       devices_[i]->dmaWriteAddr_ = devices_[i]->dmaReadAddr_ = devLayer_->getDramBaseAddress();
       devices_[i]->sqBitmap_ = ~0ULL;
-    } CATCH_EXCEPTION
+    }
+    CATCH_EXCEPTION
   }
 }
 
@@ -58,7 +59,8 @@ void TestDevOpsApi::initTestHelperPcie() {
     try {
       devices_[i]->dmaWriteAddr_ = devices_[i]->dmaReadAddr_ = devLayer_->getDramBaseAddress();
       devices_[i]->sqBitmap_ = ~0ULL;
-    } CATCH_EXCEPTION
+    }
+    CATCH_EXCEPTION
   }
 }
 
@@ -82,7 +84,8 @@ void TestDevOpsApi::dispatchStreamAsync(const std::shared_ptr<Stream>& stream) {
       } else {
         cmdIdx++;
       }
-    } CATCH_EXCEPTION
+    }
+    CATCH_EXCEPTION
   }
 }
 
@@ -116,7 +119,8 @@ void TestDevOpsApi::waitForCqAvailability(int deviceIdx, TimeDuration timeout) {
     if (FLAGS_use_epoll) {
       try {
         devLayer_->waitForEpollEventsMasterMinion(deviceIdx, sqBitmap, cqAvailable);
-      } CATCH_EXCEPTION
+      }
+      CATCH_EXCEPTION
     } else {
       std::this_thread::sleep_for(kPollingInterval);
       sqBitmap = (0x1U << queueCount) - 1;
@@ -149,7 +153,8 @@ void TestDevOpsApi::fListener(int deviceIdx) {
         rspsToReceive--;
         rspsToReceive += handleStreamReTransmission(res.tagId_);
       }
-    } CATCH_EXCEPTION
+    }
+    CATCH_EXCEPTION
   }
 
   std::scoped_lock lk(deviceInfo->asyncEpollMtx_);
@@ -208,7 +213,8 @@ void TestDevOpsApi::dispatchStreamSync(const std::shared_ptr<Stream>& stream, Ti
         ASSERT_TRUE(end > Clock::now()) << "\nexecuteSync timed out!\n" << std::endl;
         devLayer_->waitForEpollEventsMasterMinion(stream->deviceIdx_, sqBitmap, cqAvailable);
       }
-    } CATCH_EXCEPTION
+    }
+    CATCH_EXCEPTION
   }
 }
 
@@ -334,7 +340,8 @@ void TestDevOpsApi::resetMemPooltoDefault(int deviceIdx) {
   auto& deviceInfo = devices_[static_cast<unsigned long>(deviceIdx)];
   try {
     deviceInfo->dmaWriteAddr_ = deviceInfo->dmaReadAddr_ = devLayer_->getDramBaseAddress();
-  } CATCH_EXCEPTION
+  }
+  CATCH_EXCEPTION
 }
 
 uint64_t TestDevOpsApi::getDmaWriteAddr(int deviceIdx, size_t bufSize) {
@@ -347,7 +354,8 @@ uint64_t TestDevOpsApi::getDmaWriteAddr(int deviceIdx, size_t bufSize) {
   uint64_t dramEnd;
   try {
     dramEnd = devLayer_->getDramBaseAddress() + devLayer_->getDramSize();
-  } CATCH_EXCEPTION
+  }
+  CATCH_EXCEPTION
   if (deviceInfo->dmaWriteAddr_ + bufSize < dramEnd) {
     auto currentDmaPtr = deviceInfo->dmaWriteAddr_;
     deviceInfo->dmaWriteAddr_ += bufSize;
@@ -385,7 +393,8 @@ bool TestDevOpsApi::pushCmd(int deviceIdx, int queueIdx, CmdTag tagId) {
   try {
     res = devLayer_->sendCommandMasterMinion(deviceIdx, queueIdx, devOpsApiCmd->getCmdPtr(), devOpsApiCmd->getCmdSize(),
                                              devOpsApiCmd->isDma());
-  } CATCH_EXCEPTION
+  }
+  CATCH_EXCEPTION
   if (!res) {
     return res;
   }
@@ -406,7 +415,8 @@ TestDevOpsApi::PopRspResult TestDevOpsApi::popRsp(int deviceIdx) {
   bool res;
   try {
     res = devLayer_->receiveResponseMasterMinion(deviceIdx, rspMem);
-  } CATCH_EXCEPTION
+  }
+  CATCH_EXCEPTION
   if (!res) {
     return {res};
   }
@@ -433,7 +443,7 @@ TestDevOpsApi::PopRspResult TestDevOpsApi::popRsp(int deviceIdx) {
   if (devOpsApiCmd->getCmdStatus() == CmdStatus::CMD_RSP_DUPLICATE) {
     return popRsp(deviceIdx);
   }
-  
+
   return {rspTagId};
 }
 
@@ -571,6 +581,7 @@ void TestDevOpsApi::printCmdExecutionSummary() {
 
 void TestDevOpsApi::printErrorContext(int queueId, const std::byte* buffer, uint64_t shireMask, CmdTag tagId) const {
   std::stringstream logs;
+  auto streamFlags = logs.flags();
   std::ofstream logfile;
   if (FLAGS_enable_trace_dump) {
     logfile.open(FLAGS_trace_logfile, std::ios_base::app);
@@ -593,6 +604,7 @@ void TestDevOpsApi::printErrorContext(int queueId, const std::byte* buffer, uint
     // print the context of the first hart in a shire only
     auto minionHartID = shireId * 64;
     logs << "  * DEVICE CONTEXT *" << std::endl;
+    logs.flags(streamFlags);
     logs << "* HartID: " << context[minionHartID].hart_id << std::endl;
     switch (context[minionHartID].type) {
     case CM_CONTEXT_TYPE_USER_KERNEL_ERROR:
@@ -628,7 +640,8 @@ void TestDevOpsApi::printErrorContext(int queueId, const std::byte* buffer, uint
       logs << "* tval: 0x" << std::hex << context[minionHartID].stval << std::endl;
       logs << "* cause: 0x" << std::hex << context[minionHartID].scause << std::endl;
       for (auto i = 0; i < 31; i++) {
-        logs << "* gpr[x" << std::hex << i + 1 << "] :" << arr[i] << ": 0x" << std::hex << context[minionHartID].gpr[i]
+        logs.flags(streamFlags);
+        logs << "* gpr[x" << i + 1 << "] :" << arr[i] << ": 0x" << std::hex << context[minionHartID].gpr[i]
              << std::endl;
       }
     }
@@ -646,12 +659,12 @@ void TestDevOpsApi::printErrorContext(int queueId, const std::byte* buffer, uint
 
 // Trace Command status packet decoding string messages
 const std::array<std::string, 7> cmdStatusString = {"",
-  "CMD_STATUS_WAIT_BARRIER",
-  "CMD_STATUS_RECEIVED",
-  "CMD_STATUS_EXECUTING",
-  "CMD_STATUS_FAILED",
-  "CMD_STATUS_ABORTED",
-  "CMD_STATUS_SUCCEEDED"};
+                                                    "CMD_STATUS_WAIT_BARRIER",
+                                                    "CMD_STATUS_RECEIVED",
+                                                    "CMD_STATUS_EXECUTING",
+                                                    "CMD_STATUS_FAILED",
+                                                    "CMD_STATUS_ABORTED",
+                                                    "CMD_STATUS_SUCCEEDED"};
 
 #define XSTR(s) std::string(s)
 #define STRINGIFY(s) #s
@@ -665,8 +678,9 @@ bool TestDevOpsApi::printMMTraceData(unsigned char* traceBuf, size_t bufSize) co
 
   // Get Trace buffer header
   auto traceHeader = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf);
-  size_t dataSize = (traceHeader->data_size > sizeof(struct trace_buffer_std_header_t))?
-                    traceHeader->data_size - sizeof(struct trace_buffer_std_header_t): 0;
+  size_t dataSize = (traceHeader->data_size > sizeof(struct trace_buffer_std_header_t))
+                      ? traceHeader->data_size - sizeof(struct trace_buffer_std_header_t)
+                      : 0;
 
   // Check if it is valid MM Trace buffer.
   if ((traceHeader->magic_header != TRACE_MAGIC_HEADER) || (traceHeader->type != TRACE_MM_BUFFER) ||
@@ -690,50 +704,47 @@ bool TestDevOpsApi::printMMTraceData(unsigned char* traceBuf, size_t bufSize) co
       tracePacketString = templ::bit_cast<mm_trace_string_t*>(traceBuf + dataPopped);
       strncpy(&stringLog[0], tracePacketString->dataString, TRACE_STRING_MAX_SIZE);
       stringLog[TRACE_STRING_MAX_SIZE] = '\0';
-      logs << "Timestamp:" << tracePacketString->mm_header.cycle                \
-        << " H:" << tracePacketString->mm_header.hart_id << " :" << stringLog << std::endl;
+      logs << "Timestamp:" << tracePacketString->mm_header.cycle << " H:" << tracePacketString->mm_header.hart_id
+           << " :" << stringLog << std::endl;
       dataPopped += sizeof(struct mm_trace_string_t);
       validStringEventFound = true;
-    }
-    else if (packetHeader->type == TRACE_TYPE_CMD_STATUS) {
+    } else if (packetHeader->type == TRACE_TYPE_CMD_STATUS) {
       tracePacketCmdStatus = templ::bit_cast<mm_trace_cmd_status_t*>(traceBuf + dataPopped);
-      logs << "Timestamp: " << tracePacketCmdStatus->mm_header.cycle             \
-        << "\tCMD: ";
-      switch (tracePacketCmdStatus->cmd.mesg_id)
-      {
-        case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD:
-          logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD);
-          break;
-        case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD:
-          logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD);
-          break;
-        case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD:
-          logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD);
-          break;
-        case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD:
-          logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD);
-          break;
-        case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
-        case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD:
-          logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD);
-          break;
-        case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
-        case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD:
-          logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD);
-          break;
-        case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD:
-          logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD);
-          break;
-        case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD:
-          logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD);
-          break;
-        default:
-          logs << STRINGIFY(UNKOWN);
-          break;
+      logs << "Timestamp: " << tracePacketCmdStatus->mm_header.cycle << "\tCMD: ";
+      switch (tracePacketCmdStatus->cmd.mesg_id) {
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD:
+        logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD);
+        break;
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD:
+        logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD);
+        break;
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD:
+        logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD);
+        break;
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD:
+        logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD);
+        break;
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD:
+        logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD);
+        break;
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD:
+        logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD);
+        break;
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD:
+        logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD);
+        break;
+      case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD:
+        logs << STRINGIFY(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD);
+        break;
+      default:
+        logs << STRINGIFY(UNKOWN);
+        break;
       }
-      logs << "\tSTATUS: " << cmdStatusString[tracePacketCmdStatus->cmd.cmd_status]  \
-        << "\tSQ_ID: " << (uint16_t)tracePacketCmdStatus->cmd.queue_slot_id       \
-        << "\tTAG_ID: " << tracePacketCmdStatus->cmd.trans_id << std::endl;
+      logs << "\tSTATUS: " << cmdStatusString[tracePacketCmdStatus->cmd.cmd_status]
+           << "\tSQ_ID: " << (uint16_t)tracePacketCmdStatus->cmd.queue_slot_id
+           << "\tTAG_ID: " << tracePacketCmdStatus->cmd.trans_id << std::endl;
       dataPopped += sizeof(struct mm_trace_cmd_status_t);
     } else {
       break;
@@ -750,8 +761,8 @@ bool TestDevOpsApi::printMMTraceData(unsigned char* traceBuf, size_t bufSize) co
   return validStringEventFound;
 }
 
-bool TestDevOpsApi::printCMTraceData(unsigned char* traceBuf, size_t bufSize,
-                    uint64_t shire_mask, uint64_t hart_mask) const {
+bool TestDevOpsApi::printCMTraceData(unsigned char* traceBuf, size_t bufSize, uint64_t shire_mask,
+                                     uint64_t hart_mask) const {
   // Get size from Trace buffer header
   auto traceHeader = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf);
 
@@ -762,7 +773,7 @@ bool TestDevOpsApi::printCMTraceData(unsigned char* traceBuf, size_t bufSize,
   }
 
   size_t headerSize = sizeof(struct trace_buffer_std_header_t);
-  size_t dataSize = (traceHeader->data_size > headerSize)? (traceHeader->data_size - headerSize): 0;
+  size_t dataSize = (traceHeader->data_size > headerSize) ? (traceHeader->data_size - headerSize) : 0;
   auto perHartBufSize = bufSize / WORKER_HART_COUNT;
   uint32_t cmHartID;
   auto hartDataPtr = traceBuf;
@@ -774,14 +785,13 @@ bool TestDevOpsApi::printCMTraceData(unsigned char* traceBuf, size_t bufSize,
     if (i != 0) {
       headerSize = sizeof(struct trace_buffer_size_header_t);
       size_header = templ::bit_cast<struct trace_buffer_size_header_t*>(hartDataPtr);
-      dataSize = (size_header->data_size > headerSize)? (size_header->data_size - headerSize): 0;
+      dataSize = (size_header->data_size > headerSize) ? (size_header->data_size - headerSize) : 0;
     }
 
     // Last 32 harts of MM Shire are working as Compute worker, adjust HART ID based on that.
     cmHartID = i < MM_BASE_ID ? i : i + 32;
 
-    if (!CHECK_CM_HART_TRACE_ENABLED(cmHartID, shire_mask, hart_mask) &&
-        (dataSize <= headerSize)) {
+    if (!CHECK_CM_HART_TRACE_ENABLED(cmHartID, shire_mask, hart_mask) && (dataSize <= headerSize)) {
       // No payload / Trace disabled, hence no need parse this. Move to next Hart's buffer
       hartDataPtr += CM_SIZE_PER_HART;
     } else if ((dataSize + headerSize) > perHartBufSize) {
@@ -792,8 +802,7 @@ bool TestDevOpsApi::printCMTraceData(unsigned char* traceBuf, size_t bufSize,
       // Move the pointer on top of trace buffer header.
       hartDataPtr = hartDataPtr + headerSize;
 
-      if(printCMTraceSingleHartData(hartDataPtr, cmHartID, dataSize) == true)
-      {
+      if (printCMTraceSingleHartData(hartDataPtr, cmHartID, dataSize) == true) {
         validStringEventFound = true;
       }
 
@@ -805,7 +814,7 @@ bool TestDevOpsApi::printCMTraceData(unsigned char* traceBuf, size_t bufSize,
   return validStringEventFound;
 }
 
-bool TestDevOpsApi::printCMTraceSingleHartData(unsigned char* hartDataPtr, uint32_t cmHartID, size_t dataSize) const{
+bool TestDevOpsApi::printCMTraceSingleHartData(unsigned char* hartDataPtr, uint32_t cmHartID, size_t dataSize) const {
   std::stringstream logs;
   std::ofstream logfile;
   if (FLAGS_enable_trace_dump) {
@@ -816,28 +825,25 @@ bool TestDevOpsApi::printCMTraceSingleHartData(unsigned char* hartDataPtr, uint3
   const cm_trace_string_t* tracePacketString;
   const cm_trace_cmd_status_t* tracePacketCmdStatus;
   auto packetHeader = templ::bit_cast<trace_entry_header_t*>(hartDataPtr);
-  char stringLog[TRACE_STRING_MAX_SIZE + 1]; //NOSONAR For Device Trace string processing.
+  char stringLog[TRACE_STRING_MAX_SIZE + 1]; // NOSONAR For Device Trace string processing.
   bool validStringEventFound = false;
 
   while (dataPopped < dataSize) {
     if (packetHeader->type == TRACE_TYPE_STRING) {
       tracePacketString = templ::bit_cast<cm_trace_string_t*>(hartDataPtr + dataPopped);
-      if(tracePacketString->dataString[0] != '\0'){
+      if (tracePacketString->dataString[0] != '\0') {
         strncpy(&stringLog[0], tracePacketString->dataString, TRACE_STRING_MAX_SIZE);
         stringLog[TRACE_STRING_MAX_SIZE] = '\0';
-        logs << "Timestamp:" << tracePacketString->header.cycle << "H:"           \
-          << cmHartID << ":" << stringLog << std::endl;
+        logs << "Timestamp:" << tracePacketString->header.cycle << "H:" << cmHartID << ":" << stringLog << std::endl;
         validStringEventFound = true;
       }
       dataPopped += sizeof(struct cm_trace_string_t);
-    }
-    else if (packetHeader->type == TRACE_TYPE_CMD_STATUS) {
+    } else if (packetHeader->type == TRACE_TYPE_CMD_STATUS) {
       tracePacketCmdStatus = templ::bit_cast<cm_trace_cmd_status_t*>(hartDataPtr + dataPopped);
-      logs << "Timestamp: " << tracePacketCmdStatus->header.cycle                \
-        << "\tCMD_ID: " << tracePacketCmdStatus->cmd.mesg_id                     \
-        << "\tSTATUS: " << cmdStatusString[tracePacketCmdStatus->cmd.cmd_status] \
-        << "\tSQ_ID: " << (uint16_t)tracePacketCmdStatus->cmd.queue_slot_id      \
-        << "\tTAD_ID: " << tracePacketCmdStatus->cmd.trans_id << std::endl;
+      logs << "Timestamp: " << tracePacketCmdStatus->header.cycle << "\tCMD_ID: " << tracePacketCmdStatus->cmd.mesg_id
+           << "\tSTATUS: " << cmdStatusString[tracePacketCmdStatus->cmd.cmd_status]
+           << "\tSQ_ID: " << (uint16_t)tracePacketCmdStatus->cmd.queue_slot_id
+           << "\tTAD_ID: " << tracePacketCmdStatus->cmd.trans_id << std::endl;
       dataPopped += sizeof(struct cm_trace_cmd_status_t);
     } else {
       break;
@@ -876,8 +882,8 @@ void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
         return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_SUCCESSFUL;
       }) == stream->cmds_.size()) {
     printMMTraceData(static_cast<unsigned char*>(rdBufMem), cmBufSize);
-    printCMTraceData(static_cast<unsigned char*>(rdBufMem) + mmBufSize, mmBufSize,
-        CM_DEFAULT_TRACE_SHIRE_MASK, CM_DEFAULT_TRACE_THREAD_MASK);
+    printCMTraceData(static_cast<unsigned char*>(rdBufMem) + mmBufSize, mmBufSize, CM_DEFAULT_TRACE_SHIRE_MASK,
+                     CM_DEFAULT_TRACE_THREAD_MASK);
   } else {
     TEST_VLOG(0) << "Failed to pull DMA trace buffers!";
   }

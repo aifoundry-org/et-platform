@@ -351,7 +351,7 @@ void TestDevOpsApiKernelCmds::launchExceptionKernel_NegativeTesting_4_6(uint64_t
       kernelLaunchTagId.push_back(streamExceptKer.back());
 
       // pull the exception buffer from device
-      vResult.resize(0x1000, 0);
+      vResult.resize(0x100000, 0);
       vResultStorage.push_back(std::move(vResult));
       auto hostVirtAddr = templ::bit_cast<uint64_t>(vResultStorage.back().data());
       streamExceptKer.push_back(IDevOpsApiCmd::createCmd<DataReadCmd>(
@@ -1017,10 +1017,17 @@ void TestDevOpsApiKernelCmds::handleExceptionOrAbortKernelDMAListCmd(int deviceI
     sendAbortCmd_ ? device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED
                   : device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
 
+  uint64_t exceptionBuffer = 0;
+
+  if (isReadExceptionContext_) {
+    // Get the kernel exception buffer address
+    exceptionBuffer = kernelExceptionSpace(deviceIdx);
+  }
+
   // Kernel launch
   stream.push_back(IDevOpsApiCmd::createCmd<KernelLaunchCmd>(
-    device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryAddr, 0 /* No kernel args */, kernelExceptionSpace(deviceIdx),
-    shireMask, 0, nullptr, 0, "",
+    device_ops_api::CMD_FLAGS_BARRIER_ENABLE, kernelEntryAddr, 0 /* No kernel args */, exceptionBuffer, shireMask, 0,
+    nullptr, 0, "",
     kertype == KernelTypes::EXCEP_KERNEL_TYPE ? device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION
                                               : // exception kernel
       hangKerExpectedRsp));                     // hang kernel
@@ -1039,7 +1046,7 @@ void TestDevOpsApiKernelCmds::handleExceptionOrAbortKernelDMAListCmd(int deviceI
     device_ops_api::dma_read_node contextNode;
     // DMA list node
     auto readPtr = static_cast<void*>(getMmapBuffer(deviceIdx, kExceptionSize, false));
-    contextNode = {templ::bit_cast<uint64_t>(readPtr), 0, kernelExceptionSpace(deviceIdx), kExceptionSize};
+    contextNode = {templ::bit_cast<uint64_t>(readPtr), 0, exceptionBuffer, kExceptionSize};
 
     // create DMA read list command
     stream.push_back(IDevOpsApiCmd::createCmd<DmaReadListCmd>(device_ops_api::CMD_FLAGS_BARRIER_ENABLE, &contextNode, 1,
