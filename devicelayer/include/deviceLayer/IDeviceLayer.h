@@ -37,6 +37,18 @@
 /// @{
 namespace dev {
 
+/// \brief This struct contains hardware information
+struct DeviceInfo {
+  enum class FormFactor { PCIE } formFactor_;
+  uint16_t tdp_;                    ///< TDP in Watts
+  uint16_t minionBootFrequency_;    ///< minion boot frequency in Mhz
+  uint16_t totalL3Size_;            ///< total size of L3 cache in MBytes
+  uint16_t totalL2Size_;            ///< total size of L2 cache in MBytes
+  uint16_t totalScratchPadSize_;    ///< total scratchpad size in MBytes
+  uint16_t cacheLineSize_;          ///< chache line size, in Bytes
+  uint64_t computeMinionShireMask_; ///< mask which indicates what are the compute minion shires
+};
+
 class Exception : public dbg::StackException {
   using dbg::StackException::StackException;
 };
@@ -212,6 +224,12 @@ public:
   /// @param[in] dmaBuffer the buffer to be deallocated.
   ///
   virtual void freeDmaBuffer(void* dmaBuffer) = 0;
+
+  /// \brief returns a \ref DeviceInfo struct containing device hardware details
+  ///
+  /// @param[in] device the device which will be queried
+  ///
+  virtual DeviceInfo getDeviceInfo(int device) = 0;
 };
 
 class IDeviceLayer : public IDeviceAsync, public IDeviceSync {

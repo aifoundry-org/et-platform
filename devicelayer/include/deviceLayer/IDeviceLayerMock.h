@@ -37,5 +37,6 @@ public:
   MOCK_METHOD3(allocDmaBuffer, void*(int, size_t sizeInBytes, bool));
   MOCK_METHOD1(freeDmaBuffer, void(void*));
   MOCK_METHOD2(getTraceBufferServiceProcessor, bool(int, std::vector<std::byte>&));
+  MOCK_METHOD1(getDeviceInfo, DeviceInfo(int));
 };
 } // namespace dev

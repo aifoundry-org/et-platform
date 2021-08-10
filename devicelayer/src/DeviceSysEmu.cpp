@@ -8,8 +8,9 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #include "DeviceSysEmu.h"
+#include "DummyDeviceInfo.h"
 #include "SysEmuHostListener.h"
-#include "utils.h"
+#include "Utils.h"
 #include <boost/crc.hpp>
 #include <chrono>
 #include <elfio/elfio.hpp>
@@ -536,4 +537,9 @@ void DeviceSysEmu::freeDmaBuffer(void* dmaBuffer) {
     throw Exception("Can't free a null pointer");
   }
   free(dmaBuffer);
+}
+
+DeviceInfo DeviceSysEmu::getDeviceInfo(int device) {
+  unused(device);
+  return getDeviceInfoDummy();
 }

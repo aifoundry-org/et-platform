@@ -43,6 +43,7 @@ public:
   uint64_t getDramBaseAddress() const override;
   void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) override;
   void freeDmaBuffer(void* dmaBuffer) override;
+  DeviceInfo getDeviceInfo(int device) override;
 
 private:
   struct DevInfo {

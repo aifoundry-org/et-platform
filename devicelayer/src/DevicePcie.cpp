@@ -8,7 +8,8 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #include "DevicePcie.h"
-#include "utils.h"
+#include "DummyDeviceInfo.h"
+#include "Utils.h"
 #include <cassert>
 #include <cstring>
 #include <dirent.h>
@@ -456,5 +457,10 @@ void DevicePcie::freeDmaBuffer(void* dmaBuffer) {
     throw Exception("Error munmap: '"s + std::strerror(errno) + "'");
   }
   dmaBuffers_.erase(it);
+}
+
+DeviceInfo DevicePcie::getDeviceInfo(int device) {
+  unused(device);
+  return getDeviceInfoDummy();
 }
 } // namespace dev

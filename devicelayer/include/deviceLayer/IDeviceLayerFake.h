@@ -155,8 +155,11 @@ public:
   void freeDmaBuffer(void* dmaBuffer) override {
     free(dmaBuffer);
   }
-  bool getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) override {
+  bool getTraceBufferServiceProcessor(int, std::vector<std::byte>&) override {
     return false;
+  }
+  DeviceInfo getDeviceInfo(int) override {
+    return DeviceInfo{};
   }
 };
 
