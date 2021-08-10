@@ -32,7 +32,7 @@
        get_throttle_residency
        get_power_residency
        set_power_event_cb
-    
+
 */
 /***********************************************************************/
 #include "config/mgmt_build_config.h"
@@ -94,7 +94,7 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
     return &g_soc_power_reg;
 }
 
-// TODO: This needs to updated once we have characterized in Silicon 
+// TODO: This needs to updated once we have characterized in Silicon
 #define DP_per_Mhz 1
 
 /*! \def FILL_POWER_STATUS(ptr, throttle_st, pwr_st, curr_pwr, curr_temp)
@@ -1086,7 +1086,7 @@ int init_thermal_pwr_mgmt_service(void)
 *       int                       Return status
 *
 ***********************************************************************/
-static int reduce_minion_operating_point(int32_t delta_power, struct trace_power_event_status_t *power_status)
+static int reduce_minion_operating_point(int32_t delta_power, struct trace_event_power_status_t *power_status)
 {
     /* Compute delta freq to compensate for delta Power */
     int32_t delta_freq = delta_power * DP_per_Mhz;
@@ -1134,7 +1134,7 @@ static int reduce_minion_operating_point(int32_t delta_power, struct trace_power
 *       int                       Return status
 *
 ***********************************************************************/
-static int increase_minion_operating_point(int32_t delta_power, struct trace_power_event_status_t *power_status)
+static int increase_minion_operating_point(int32_t delta_power, struct trace_event_power_status_t *power_status)
 {
     /* Compute delta freq to compensate for delta Power */
     int32_t delta_freq = delta_power * DP_per_Mhz;
@@ -1186,7 +1186,7 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
 {
     uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
     uint8_t current_power = 0;
-    struct trace_power_event_status_t power_status =  { 0 };
+    struct trace_event_power_status_t power_status =  { 0 };
     int32_t new_voltage = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY);
 
     if (SAFE_STATE_FREQUENCY < Get_Minion_Frequency())
@@ -1273,7 +1273,7 @@ void power_throttling(power_throttle_state_e throttle_state)
     int32_t tdp_level_mW;
     int32_t delta_power_mW;
     uint8_t throttle_condition_met = 0;
-    struct trace_power_event_status_t power_status = { 0 };
+    struct trace_event_power_status_t power_status = { 0 };
 
     /* We need to throttle the voltage and frequency, lets keep track of throttling time */
     start_time = timer_get_ticks_count();
@@ -1403,7 +1403,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
     uint8_t current_power = 0;
     int32_t current_power_mW;
     int32_t delta_power_mW;
-    struct trace_power_event_status_t power_status = { 0 };
+    struct trace_event_power_status_t power_status = { 0 };
 
     /* We need to throttle the voltage and frequency, lets keep track of throttling time */
     start_time = timer_get_ticks_count();

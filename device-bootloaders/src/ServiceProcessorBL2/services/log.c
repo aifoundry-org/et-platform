@@ -62,6 +62,10 @@ static log_cb_t Log_CB __attribute__((aligned(64))) = { .current_log_level = LOG
 static SemaphoreHandle_t Log_Mutex = NULL;
 static StaticSemaphore_t Log_Mutex_Buffer;
 
+/*! \def CHECK_STRING_FILTER
+    \brief This checks if trace string log level is enabled to log the given level.
+*/
+#define CHECK_STRING_FILTER(cb, log_level) ((cb->filter_mask & TRACE_FILTER_STRING_MASK) >= log_level)
 
 /************************************************************************
 *

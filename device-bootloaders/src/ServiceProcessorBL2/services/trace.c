@@ -20,9 +20,12 @@
 /***********************************************************************/
 
 #include "log.h"
-#include "trace.h"
 #include <string.h>
 #include "config/mgmt_build_config.h"
+
+#define ET_TRACE_ENCODER_IMPL
+#include "trace_sp_primitives.h"
+#include "trace.h"
 
 /*
  * Service Processor Trace control block.
@@ -30,7 +33,7 @@
 struct trace_control_block_t SP_Trace_CB;
 
 static void Trace_Run_Control(trace_enable_e state);
-static void Trace_CONFIGURE(uint32_t event_mask, uint32_t filter_mask);
+static void Trace_Configure(uint32_t event_mask, uint32_t filter_mask);
 
 static void trace_process_control_cmd(void *buffer)
 {
@@ -87,7 +90,7 @@ static void trace_process_config_cmd(void *buffer)
     struct device_mgmt_trace_config_cmd_t *dm_cmd =
         (struct device_mgmt_trace_config_cmd_t *)buffer;
 
-    Trace_CONFIGURE(dm_cmd->event_mask, dm_cmd->filter_mask);
+    Trace_Configure(dm_cmd->event_mask, dm_cmd->filter_mask);
           Log_Write(LOG_LEVEL_DEBUG,
                             "TRACE_CONFIG:SP:Trace Event/Filter Mask set.\r\n");
 }
@@ -231,7 +234,7 @@ static void Trace_Run_Control(trace_enable_e state)
 *
 *   FUNCTION
 *
-*       Trace_CONFIGURE
+*       Trace_Configure
 *
 *   DESCRIPTION
 *
@@ -247,7 +250,7 @@ static void Trace_Run_Control(trace_enable_e state)
 *       None
 *
 ***********************************************************************/
-static void Trace_CONFIGURE(uint32_t event_mask, uint32_t filter_mask)
+static void Trace_Configure(uint32_t event_mask, uint32_t filter_mask)
 {
        SP_Trace_CB.event_mask = event_mask;
        SP_Trace_CB.filter_mask = filter_mask;
