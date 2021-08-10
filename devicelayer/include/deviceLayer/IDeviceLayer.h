@@ -39,7 +39,8 @@ namespace dev {
 
 /// \brief This struct contains hardware information
 struct DeviceInfo {
-  enum class FormFactor { PCIE } formFactor_;
+  enum class FormFactor { PCIE };
+  FormFactor formFactor_;           ///< device form factor
   uint16_t tdp_;                    ///< TDP in Watts
   uint16_t minionBootFrequency_;    ///< minion boot frequency in Mhz
   uint16_t totalL3Size_;            ///< total size of L3 cache in MBytes

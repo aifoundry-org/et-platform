@@ -11,6 +11,6 @@
 #include "deviceLayer/IDeviceLayer.h"
 namespace dev {
 inline DeviceInfo getDeviceInfoDummy() {
-  return DeviceInfo{DeviceInfo::FormFactor::PCIE, 25, 650, 32, 16, 80, 64, 0x10000003};
+  return DeviceInfo{DeviceInfo::FormFactor::PCIE, 25, 650, 32, 16, 80, 64, 0xFFFFFFFF};
 }
 } // namespace dev
