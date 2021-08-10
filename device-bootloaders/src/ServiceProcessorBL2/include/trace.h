@@ -25,9 +25,14 @@
 /**************************/
 /* SP Trace Status Codes  */
 /**************************/
-#define INVALID_TRACE_INIT_INFO       -10
-#define SP_TRACE_ENABLE               (1U << 0)
-#define SP_TRACE_UART_ENABLE          (1U << 1)
+#define INVALID_TRACE_INIT_INFO -10
+#define SP_TRACE_ENABLE         (1U << 0)
+#define SP_TRACE_UART_ENABLE    (1U << 1)
+
+/*! \def SP_TRACE_GET_ENTRY_OFFSET(addr)
+    \brief Returns offset of addr from SP trace buffer base.
+*/
+#define SP_TRACE_GET_ENTRY_OFFSET(addr, cb) ((uint64_t)addr - cb->base_per_hart)
 
 /*! \fn void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     \brief This function initializes Trace for sp
@@ -40,7 +45,7 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info);
     \brief This function return Trace control block for given Hart ID.
     \return Pointer to the Trace control block for caller Hart.
 */
-struct trace_control_block_t* Trace_Get_SP_CB(void);
+struct trace_control_block_t *Trace_Get_SP_CB(void);
 
 /*! \fn uint32_t Trace_Get_SP_Buffer(void)
     \brief This function returns the common Trace control block buffer offset per

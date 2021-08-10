@@ -20,6 +20,9 @@
 #include "bl2_exception.h"
 #include "portmacro.h"
 
+#define ET_TRACE_ENCODER_IMPL
+#include <et_trace.h>
+
 /* Local functions */
 static void dump_stack_frame(const void *stack_frame, void *trace_buf);
 static void dump_csrs(void *buf);
@@ -29,22 +32,53 @@ static void dump_power_globals_trace(void *buf);
 /*! \def DUMP_THROTTLE_RESIDENCY(THROTTLE_STATE) 
     \brief Dumps throttle residency to memory
 */
-#define DUMP_THROTTLE_RESIDENCY(THROTTLE_STATE)                               \
-    if (0 != get_throttle_residency(THROTTLE_STATE, &residency))              \
-    {                                                                         \
-        memcpy(trace_buf, &residency, sizeof(struct residency_t));                   \
-        trace_buf += sizeof(uint64_t);                                        \
+#define DUMP_THROTTLE_RESIDENCY(THROTTLE_STATE)                    \
+    if (0 != get_throttle_residency(THROTTLE_STATE, &residency))   \
+    {                                                              \
+        memcpy(trace_buf, &residency, sizeof(struct residency_t)); \
+        trace_buf += sizeof(uint64_t);                             \
     }
 
 /*! \def DUMP_POWER_RESIDENCY(POWER_STATE) 
     \brief Dumps power residency to memory
 */
-#define DUMP_POWER_RESIDENCY(POWER_STATE)                                     \
-    if (0 != get_power_residency(POWER_STATE, &residency))                    \
-    {                                                                         \
-        memcpy(trace_buf, &residency, sizeof(struct residency_t));                   \
-        trace_buf += sizeof(uint64_t);                                        \
+#define DUMP_POWER_RESIDENCY(POWER_STATE)                          \
+    if (0 != get_power_residency(POWER_STATE, &residency))         \
+    {                                                              \
+        memcpy(trace_buf, &residency, sizeof(struct residency_t)); \
+        trace_buf += sizeof(uint64_t);                             \
     }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       SP_Exception_Trace_Buffer_Reserve
+*
+*   DESCRIPTION
+*
+*       This function reserves region for SP exception in SP trace buffer.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint8_t*    Pointer to region in trace buffer reserved for
+*                   exception entry.
+*
+***********************************************************************/
+uint8_t *SP_Exception_Trace_Buffer_Reserve(void)
+{
+    uint64_t exception_entry_size =
+        sizeof(struct trace_entry_header_t) + SP_EXCEPTION_FRAME_SIZE + SP_GLOBALS_SIZE;
+    uint8_t *exception_entry_ptr = Trace_Buffer_Reserve(Trace_Get_SP_CB(), exception_entry_size);
+    struct trace_entry_header_t *entry_header = (struct trace_entry_header_t *)exception_entry_ptr;
+    entry_header->generic.cycle = timer_get_ticks_count();
+    entry_header->generic.type = TRACE_TYPE_EXCEPTION;
+    return exception_entry_ptr;
+}
 
 /************************************************************************
 *
@@ -71,34 +105,28 @@ __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
     /* Disable global interrupts - no nested exceptions */
     portDISABLE_INTERRUPTS();
 
-    /* get trace buffer start pointer */
-    uint32_t trace_buf_offset = Trace_Get_SP_CB()->offset_per_hart;
-
-    /* prepare exception trace header */
-    uint64_t *trace_buf =
-        Trace_Buffer_Reserve(Trace_Get_SP_CB(), SP_EXCEPTION_FRAME_SIZE + SP_GLOBALS_SIZE);
-    *trace_buf++ = timer_get_ticks_count();
-    *trace_buf++ = TRACE_TYPE_EXCEPTION;
+    uint8_t *trace_buf = SP_Exception_Trace_Buffer_Reserve();
+    uint8_t *trace_data_ptr = trace_buf + sizeof(struct trace_entry_header_t);
 
     /* Dump the arch and chip sepcifc registers. No chip registers are currently saved
         in the context switch code.
     */
-    dump_stack_frame(stack_frame, trace_buf);
+    dump_stack_frame(stack_frame, (void *)trace_data_ptr);
 
-    trace_buf += SP_EXCEPTION_STACK_FRAME_SIZE;
+    trace_data_ptr += SP_EXCEPTION_STACK_FRAME_SIZE;
 
     /* Dump the important CSRs */
-    dump_csrs(trace_buf);
+    dump_csrs((void *)trace_data_ptr);
 
-    trace_buf += SP_EXCEPTION_CSRS_FRAME_SIZE;
+    trace_data_ptr += SP_EXCEPTION_CSRS_FRAME_SIZE;
 
     /* Dump the globals for performance service */
-    trace_buf = dump_perf_globals_trace(trace_buf);
+    trace_data_ptr = dump_perf_globals_trace((void *)trace_data_ptr);
 
     /* Dump the globals for power and thermal service */
-    dump_power_globals_trace(trace_buf);
+    dump_power_globals_trace((void *)trace_data_ptr);
 
-    SP_Exception_Event(trace_buf_offset);
+    SP_Exception_Event(SP_TRACE_GET_ENTRY_OFFSET(trace_buf, Trace_Get_SP_CB()));
 
     Log_Write(LOG_LEVEL_CRITICAL, "SP Spining in Exception handler..\r\n");
 
@@ -130,9 +158,8 @@ __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
 void bl2_dump_stack_frame(void)
 {
     uint64_t stack_frame;
-    uint64_t *trace_buf = Trace_Buffer_Reserve(Trace_Get_SP_CB(), SP_EXCEPTION_FRAME_SIZE);
-    *trace_buf++ = timer_get_ticks_count();
-    *trace_buf++ = TRACE_TYPE_EXCEPTION;
+    uint8_t *trace_buf = SP_Exception_Trace_Buffer_Reserve();
+    trace_buf += sizeof(struct trace_entry_header_t);
 
     /* For dumping the stack frame outside of exception context such as
         wdog interrupt, the stack is assumed to be present in the a7 register.
@@ -140,8 +167,9 @@ void bl2_dump_stack_frame(void)
         the driver ISR handler.
     */
     asm volatile("mv %0, a7" : "=r"(stack_frame));
-    dump_stack_frame((void *)stack_frame, trace_buf);
-    dump_csrs(trace_buf);
+    dump_stack_frame((void *)stack_frame, (void *)trace_buf);
+    trace_buf += SP_EXCEPTION_STACK_FRAME_SIZE;
+    dump_csrs((void *)trace_buf);
 }
 
 /************************************************************************
@@ -302,7 +330,7 @@ static void dump_power_globals_trace(void *buf)
     struct module_voltage_t module_voltage = { 0 };
     power_state_e power_state = 0;
     uint8_t tdp_level = 0;
-    struct residency_t residency = {0, 0, 0, 0};
+    struct residency_t residency = { 0, 0, 0, 0 };
     uint8_t temp = 0;
 
     if (0 != get_module_power_state(&power_state))
@@ -371,13 +399,12 @@ static void dump_power_globals_trace(void *buf)
 *       void                       none
 *
 ***********************************************************************/
-void SP_Exception_Event(uint32_t buf)
+void SP_Exception_Event(uint64_t buf)
 {
     struct event_message_t message;
 
     /* add details in message header and fill payload */
-    FILL_EVENT_HEADER(&message.header, SP_RUNTIME_EXCEPT,
-                        sizeof(struct event_message_t))
+    FILL_EVENT_HEADER(&message.header, SP_RUNTIME_EXCEPT, sizeof(struct event_message_t))
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, timer_get_ticks_count(), buf)
 
     /* Post message to the queue */

@@ -53,11 +53,18 @@ void bl2_exception_entry(const void *stack_frame);
 */
 void bl2_dump_stack_frame(void);
 
-/*! \fn void SP_Exception_Event(uint32_t buf)
+/*! \fn void SP_Exception_Event(uint64_t buf)
     \brief Send exception event to host
     \param buf_offset trace buffer offset
     \returns none
 */
-void SP_Exception_Event(uint32_t buf_offset);
+void SP_Exception_Event(uint64_t buf_offset);
+
+/*! \fn uint8_t *SP_Exception_Trace_Buffer_Reserve(void)
+    \brief Reserve region in trace buffer for exception entry
+    \param none
+    \returns Pointer to region in trace buffer reserved for exception entry
+*/
+uint8_t *SP_Exception_Trace_Buffer_Reserve(void);
 
 #endif

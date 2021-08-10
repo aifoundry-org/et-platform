@@ -20,24 +20,20 @@
 void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
 {
     struct event_message_t message;
-    
     uint64_t req_start_time = timer_get_ticks_count();
-    uint32_t trace_buf_offset = Trace_Get_SP_CB()->offset_per_hart;
-    struct trace_control_block_t* trace_cb = Trace_Get_SP_CB();
-    uint64_t *trace_buf;
-    
-    trace_buf = (uint64_t *)Trace_Buffer_Reserve(trace_cb,
-                                                SP_EXCEPTION_FRAME_SIZE);
+
+    uint8_t *trace_buf = SP_Exception_Trace_Buffer_Reserve();
+    uint8_t *trace_data_ptr = trace_buf + sizeof(struct trace_entry_header_t);
 
     /* fill in dummy data to trace buffer */
-    memset(trace_buf,0xa5,SP_EXCEPTION_FRAME_SIZE);
+    memset(trace_data_ptr, 0xa5, SP_EXCEPTION_FRAME_SIZE + SP_GLOBALS_SIZE);
 
-   /* add details in message header and fill payload */
-    FILL_EVENT_HEADER(&message.header, SP_RUNTIME_EXCEPT,
-                        sizeof(struct event_message_t))
-    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, 0, trace_buf_offset)
+    /* Generate SP Runtime Exception */
+    FILL_EVENT_HEADER(&message.header, SP_RUNTIME_EXCEPT, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, 0,
+                       SP_TRACE_GET_ENTRY_OFFSET(trace_buf, Trace_Get_SP_CB()))
     power_event_callback(UNCORRECTABLE, &message);
-    
+
     /* Generate PCIE Correctable Error */
     FILL_EVENT_HEADER(&message.header, PCIE_CE, sizeof(struct event_message_t))
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0)
@@ -95,17 +91,13 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
     minion_event_callback(UNCORRECTABLE, &message);
 
     /* Generate runtime error */
-    FILL_EVENT_HEADER(&message.header, SP_RUNTIME_ERROR,
-             sizeof(struct event_message_t))
+    FILL_EVENT_HEADER(&message.header, SP_RUNTIME_ERROR, sizeof(struct event_message_t))
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, 2, 15)
     minion_event_callback(UNCORRECTABLE, &message);
 
     struct device_mgmt_default_rsp_t dm_rsp;
-
     FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, 0)
-
     dm_rsp.payload = 0;
-
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR, "send_status_response: Cqueue push error!\n");
