@@ -36,8 +36,8 @@ int32_t init_watchdog_service(void)
 {
     int32_t status = 0;
 
-   /* Use 40% of the scheduling delays.*/ 
-    status = watchdog_init((WDOG_DEFAULT_TIMEOUT_MSEC * 40) / 100);
+    /* Build time argument to configure Time slicing schedule delays. */ 
+    status = watchdog_init((WDOG_DEFAULT_TIMEOUT_MSEC * WDOG_TIME_SLICE_PERC) / 100);
     if (!status) {
         /* Create the watchdog feeding task */
         t_handle = xTaskCreateStatic(watchdog_task_entry, "WDOG_TASK", WDOG_TASK_STACK_SIZE,

@@ -11,6 +11,7 @@
 
 #include "esr_defines.h"
 #include "hwinc/hal_device.h"
+#include "config/mgmt_build_config.h"
 #include "interrupt.h"
 #include "pcie_int.h"
 #include "bl2_asset_trk.h"
@@ -41,10 +42,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "log.h"
-
-
-#define VQUEUE_TASK_PRIORITY 2
-#define VQUEUE_STACK_SIZE    2048
 
 static TaskHandle_t g_pc_vq_task_handle;
 static StackType_t g_pc_vq_task_stack[VQUEUE_STACK_SIZE];

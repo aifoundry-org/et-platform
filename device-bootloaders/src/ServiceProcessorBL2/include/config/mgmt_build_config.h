@@ -315,6 +315,40 @@
 */
 #define RT_ERROR_THRESHOLD  0
 
+/************************
+  RTOS Task Properties
+ ************************/
+// Main Task
+#define MAIN_TASK_PRIORITY           4
+#define MAIN_TASK_STACK_SIZE      4096
+#define MAIN_DEFAULT_TIMEOUT_MSEC 1000
+// WDOG Service
+#define WDOG_TASK_PRIORITY            4
+#define WDOG_TASK_STACK_SIZE        512
+#define WDOG_DEFAULT_TIMEOUT_MSEC 10000
+#define WDOG_TIME_SLICE_PERC         40
+// Error Reporting
+#define DM_EVENT_TASK_PRIORITY       4
+#define DM_EVENT_TASK_STACK        1024
+// Host/MM VQ Command Handler
+#define VQUEUE_TASK_PRIORITY         3
+#define VQUEUE_STACK_SIZE         2048
+// Sampler
+#define DM_TASK_PRIORITY             2
+#define DM_TASK_STACK             1024
+#define DM_TASK_DELAY_MS           100
+// Power Management
+#define TT_TASK_PRIORITY             2
+#define TT_TASK_STACK_SIZE        1024
+// SMBUS
+#define SMBUS_TASK_PRIORITY          1
+// Vault IP
+#define VAULTIP_DRIVER_TASK_PRIORITY       1
+#define VAULTIP_DRIVER_TASK_STACK_SIZE  4096
+// Flash File System 
+#define FLASHFS_DRIVER_TASK_PRIORITY       1
+#define FLASHFS_DRIVER_TASK_STACK_SIZE  4096
+
 /************************/
 /* Compile-time checks  */
 /************************/

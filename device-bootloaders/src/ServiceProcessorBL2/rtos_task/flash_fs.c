@@ -8,7 +8,7 @@
 #include "task.h"
 #include "queue.h"
 
-#include "bl2_task_priorities.h"
+#include "config/mgmt_build_config.h"
 
 #include "bl2_flashfs_driver.h"
 #include "bl2_flash_fs.h"
@@ -16,7 +16,6 @@
 #pragma GCC push_options
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
-#define FLASHFS_DRIVER_TASK_STACK_SIZE     4096
 #define FLASHFS_DRIVER_REQUEST_QUEUE_SIZE  4
 #define FLASHFS_DRIVER_RESPONSE_QUEUE_SIZE 4
 

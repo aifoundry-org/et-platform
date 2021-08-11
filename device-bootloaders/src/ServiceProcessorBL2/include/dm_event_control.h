@@ -23,6 +23,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
+#include "config/mgmt_build_config.h"
 
 /*!
  * @struct struct event_control_block_t
@@ -54,8 +55,6 @@ void wdog_timeout_callback(enum error_type type, struct event_message_t *msg);
 void minion_event_callback(enum error_type type, struct event_message_t *msg);
 void pmic_event_callback(enum error_type type, struct event_message_t *msg);
 
-#define DM_EVENT_TASK_STACK             1024
-#define DM_EVENT_TASK_PRIORITY          1
 #define DM_EVENT_QUEUE_LENGTH           8
 #define DM_EVENT_QUEUE_ITEM_SIZE sizeof (struct event_message_t)
 #define DM_EVENT_QUEUE_SIZE             DM_EVENT_QUEUE_LENGTH * DM_EVENT_QUEUE_ITEM_SIZE

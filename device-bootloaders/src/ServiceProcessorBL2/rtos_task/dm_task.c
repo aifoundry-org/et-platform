@@ -25,17 +25,12 @@
 #include "log.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "config/mgmt_build_config.h"
 #include "bl2_pmic_controller.h"
 #include "dm.h"
 #include "dm_task.h"
 #include "perf_mgmt.h"
 #include "thermal_pwr_mgmt.h"
-
-// TODO: will be configurable by the host
-#define DM_TASK_DELAY_MS 100
-
-#define DM_TASK_STACK    1024
-#define DM_TASK_PRIORITY 1
 
 /* GLobals */
 static TaskHandle_t g_dm_task_handle;

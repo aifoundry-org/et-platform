@@ -35,6 +35,7 @@
     
 */
 /***********************************************************************/
+#include "config/mgmt_build_config.h"
 #include "thermal_pwr_mgmt.h"
 #include "perf_mgmt.h"
 #include "bl2_pmic_controller.h"
@@ -46,11 +47,8 @@
 
 struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
 
-#define TT_TASK_STACK_SIZE 1024
-#define TT_TASK_PRIORITY   1
-
 /* The variable used to hold task's handle */
-static TaskHandle_t t_handle;
+static TaskHandle_t g_pm_handle;
 
 /* Task entry function */
 static void thermal_power_task_entry(void *pvParameters);
@@ -406,7 +404,7 @@ int update_module_current_temperature(void)
         {
             /* Do the thermal throttling */
             get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_DOWN;
-            xTaskNotify(t_handle, 0, eSetValueWithOverwrite);
+            xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
         }
 
         /* add details in message header and fill payload */
@@ -516,7 +514,7 @@ int update_module_soc_power(void)
 
         /* Do the power throttling down */
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_DOWN;
-        xTaskNotify(t_handle, 0, eSetValueWithOverwrite);
+        xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
     }
     else
     {
@@ -533,7 +531,7 @@ int update_module_soc_power(void)
     {
         /* Do the power throttling up */
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_UP;
-        xTaskNotify(t_handle, 0, eSetValueWithOverwrite);
+        xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
     }
 
     return 0;
@@ -1035,18 +1033,16 @@ int init_thermal_pwr_mgmt_service(void)
     get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
 
     /* Create the power management task - use for throttling and DVFS */
-    t_handle = xTaskCreateStatic(thermal_power_task_entry, "TT_TASK", TT_TASK_STACK_SIZE, NULL,
+    g_pm_handle = xTaskCreateStatic(thermal_power_task_entry, "TT_TASK", TT_TASK_STACK_SIZE, NULL,
                                  TT_TASK_PRIORITY, g_pm_task, &g_staticTask_ptr);
-    if (!t_handle)
+    if (!g_pm_handle)
     {
         MESSAGE_ERROR("Task Creation Failed: Failed to create power management task.\n");
         status = THERMAL_PWR_MGMT_TASK_CREATION_FAILED;
     }
 
-    if (!status)
-    {
-        status = pmic_thermal_pwr_cb_init(pmic_isr_callback);
-    }
+    /* Suspend till Host enables this Device to Dynamically Manage Power */
+    vTaskSuspend(g_pm_handle);
 
     /* Set default parameters */
     status = update_module_temperature_threshold(TEMP_THRESHOLD_LO);
@@ -1061,6 +1057,11 @@ int init_thermal_pwr_mgmt_service(void)
         status = update_module_tdp_level(POWER_THRESHOLD_LO);
     }
 
+    if (!status)
+    {
+        status = pmic_thermal_pwr_cb_init(pmic_isr_callback);
+    }
+ 
     return status;
 }
 
@@ -1557,7 +1558,7 @@ void thermal_power_task_entry(void *pvParameter)
 static void pmic_isr_callback(enum error_type type, struct event_message_t *msg)
 {
     (void)type;
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    //NOSONAR BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
     if(PMIC_I2C_INT_CTRL_OV_TEMP_GET(msg->payload.syndrome[0]))
     {
@@ -1568,10 +1569,10 @@ static void pmic_isr_callback(enum error_type type, struct event_message_t *msg)
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_SAFE;
     }
 
-    xTaskNotifyFromISR(t_handle, (uint32_t)msg->header.msg_id, eSetValueWithOverwrite,
-                       &xHigherPriorityTaskWoken);
+    //NOSONAR xTaskNotifyFromISR(g_pm_handle, (uint32_t)msg->header.msg_id, eSetValueWithOverwrite,
+    //NOSONAR                   &xHigherPriorityTaskWoken);
 
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    //NOSONAR portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 /************************************************************************

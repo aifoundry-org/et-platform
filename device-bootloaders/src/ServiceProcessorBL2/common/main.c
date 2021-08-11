@@ -1,3 +1,4 @@
+#include "config/mgmt_build_config.h" 
 #include "serial.h"
 #include "interrupt.h"
 #include "dummy_isr.h"
@@ -67,8 +68,6 @@
         }                                                                          \
     }
 
-#define TASK_STACK_SIZE 4096 // overkill for now
-
 void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
                                    StackType_t **ppxIdleTaskStackBuffer,
                                    uint32_t *pulIdleTaskStackSize);
@@ -84,7 +83,7 @@ SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void)
 }
 
 static TaskHandle_t gs_taskHandleMain;
-static StackType_t gs_stackMain[TASK_STACK_SIZE];
+static StackType_t gs_stackMain[MAIN_TASK_STACK_SIZE];
 static StaticTask_t gs_taskBufferMain;
 
 static void taskMain(void *pvParameters)
@@ -247,7 +246,7 @@ static void taskMain(void *pvParameters)
     while (1) {
         Log_Write(LOG_LEVEL_CRITICAL, "SP Alive..\r\n");
         // Print SP Hearbeat
-        vTaskDelay(1000U);
+        vTaskDelay(MAIN_DEFAULT_TIMEOUT_MSEC);
     }
 }
 
@@ -375,7 +374,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 
     // Create Main RTOS task and launch Scheduler
     Log_Write(LOG_LEVEL_CRITICAL, "Starting RTOS...\n");
-    gs_taskHandleMain = xTaskCreateStatic(taskMain, "Main Task", TASK_STACK_SIZE, NULL, 1,
+    gs_taskHandleMain = xTaskCreateStatic(taskMain, "Main Task", MAIN_TASK_STACK_SIZE, NULL, 1,
                                           gs_stackMain, &gs_taskBufferMain);
     ASSERT_FATAL(gs_taskHandleMain != NULL, "xTaskCreateStatic(taskMain) failed!")
     vTaskStartScheduler();
