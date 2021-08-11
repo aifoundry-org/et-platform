@@ -9,6 +9,7 @@ extern int8_t Echo_To_SP_Cmd_Handler(void* test_cmd);
 extern int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd);
 extern int8_t Move_Data_To_Device_Cmd_Handler(void* test_cmd);
 extern int8_t Move_Data_To_Host_Cmd_Handler(void* test_cmd);
+extern int8_t SP_Cmd_Get_MM_Heartbeat_Handler(void* test_cmd);
 extern int8_t SP_PCIE_Retain_Phy_Cmd_Handler(void* test_cmd);
 extern int8_t SP_Get_Module_ASIC_Freq_Cmd_Handler(void* test_cmd);
 
@@ -326,5 +327,7 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
     MM_Cmd_Shell_Cmd_Handler,
 // 108
     MM_Cmd_Shell_Debug_Print_Cmd_Handler,
+// 109
+    SP_Cmd_Get_MM_Heartbeat_Handler,
 #endif  // !TF_CORE
 };

@@ -4,14 +4,7 @@
 #include "common_defs.h"
 #include <esperanto/tf-protocol/tf_protocol.h>
 
-enum interception_points_t {
-    TF_DEFAULT_ENTRY = 0,
-    TF_BL1_ENTRY = 1,
-    TF_BL2_ENTRY_FOR_HW = 2,
-    TF_BL2_ENTRY_FOR_DM = 3,
-    TF_BL2_ENTRY_FOR_DM_WITH_PCIE = 4,
-    TF_BL2_ENTRY_FOR_SP_MM = 5
-};
+#define TF_EXIT_FROM_TF_LOOP    -1
 
 uint8_t TF_Set_Entry_Point(uint8_t intercept);
 uint8_t TF_Get_Entry_Point(void);

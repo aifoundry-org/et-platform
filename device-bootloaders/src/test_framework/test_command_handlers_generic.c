@@ -10,20 +10,30 @@ int8_t Move_Data_To_Host_Cmd_Handler(void* test_cmd);
 
 int8_t TF_Set_Entry_Point_Handler(void* test_cmd)
 {
-    struct tf_set_intercept_cmd_t* cmd = (struct tf_set_intercept_cmd_t*) test_cmd;
-    struct tf_set_intercept_rsp_t rsp;
+    const struct tf_cmd_set_intercept_t* cmd = (struct tf_cmd_set_intercept_t*) test_cmd;
+    struct tf_rsp_set_intercept_t rsp;
     uint8_t retval;
+    int8_t rtn_arg;
 
     retval = TF_Set_Entry_Point(cmd->target_intercept);
 
     rsp.rsp_hdr.id = TF_RSP_SET_INTERCEPT;
     rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
-    rsp.rsp_hdr.payload_size =  TF_GET_PAYLOAD_SIZE(struct tf_set_intercept_rsp_t);
+    rsp.rsp_hdr.payload_size =  TF_GET_PAYLOAD_SIZE(struct tf_rsp_set_intercept_t);
     rsp.current_intercept = retval;
 
-    TF_Send_Response(&rsp, sizeof(struct tf_set_intercept_rsp_t));
+    TF_Send_Response(&rsp, sizeof(struct tf_rsp_set_intercept_t));
 
-    return 0;
+    if (retval !=0)
+    {
+        rtn_arg = TF_EXIT_FROM_TF_LOOP;
+    }
+    else
+    {
+        rtn_arg = 0x0;
+    }
+
+    return rtn_arg;
 }
 
 int8_t SP_Fw_Version_Cmd_Handler(void* test_cmd)

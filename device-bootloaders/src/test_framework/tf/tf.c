@@ -8,9 +8,7 @@ static char Input_Cmd_Buffer[TF_MAX_CMD_SIZE];
 static char Output_Rsp_Buffer[TF_MAX_RSP_SIZE];
 
 /* Initialize to earliest interception point in BL1 */
-/* TODO: This can be updated to TF_DEFAULT_ENTRY once
-BL1 host tests are updated to use set intercept command */
-static uint8_t TF_Interception_Point = TF_BL1_ENTRY;
+static uint8_t TF_Interception_Point = TF_DEFAULT_ENTRY;
 
 extern int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd);
 
@@ -57,10 +55,17 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
     char *p_buff = &Input_Cmd_Buffer[0];
     void *p_hdr=0;
     struct header_t cmd_hdr;
+    int8_t rtn_arg;
 
-    if(intercept != TF_Interception_Point)
+    /* First entry unconditionally hook-in */
+    /* Subsequent entries fall thru if current intercept
+    is not equal to TF_Interception_Point set by host */
+    if(TF_Interception_Point != TF_DEFAULT_ENTRY)
     {
-        return 0;
+        if(intercept != TF_Interception_Point)
+        {
+            return 0;
+        }
     }
 
     for(;;)
@@ -68,7 +73,6 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
         do
         {
             SERIAL_getchar(UART1, &c);
-            /* printf("%c", c); */
 
             if(c == TF_CMD_START)
             {
@@ -80,14 +84,18 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 
         } while (c != TF_CHECKSUM_END);
 
-        /* *p_buff = '\0'; */
-
         byte_copy((char*)&cmd_hdr, (char*)p_hdr,
             sizeof(struct header_t));
 
-        TF_Test_Cmd_Handler[cmd_hdr.id](p_hdr);
+        rtn_arg = TF_Test_Cmd_Handler[cmd_hdr.id](p_hdr);
 
+        if(rtn_arg == TF_EXIT_FROM_TF_LOOP)
+        {
+            break;
+        }
     }
+
+    return 0;
 }
 
 int8_t TF_Send_Response(void* rsp, uint32_t rsp_size)

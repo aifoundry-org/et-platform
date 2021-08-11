@@ -106,16 +106,17 @@ static void taskMain(void *pvParameters)
     configure_pshire_pll(6);
     PCIe_init(false /*expect_link_down*/);
 #else
-    #if !TEST_FRAMEWORK
-        // If not built for TF initialize PCIe
+#if !TEST_FRAMEWORK
+    // If not built for TF initialize PCIe
+    PCIe_init(true /*expect_link_up*/);
+#else
+    // If build is for TF skip PCIe initilize, except if
+    // TF_Entry_Point is set to TF_BL2_ENTRY_FOR_DM_WITH_PCIE
+    if(TF_Get_Entry_Point() == TF_BL2_ENTRY_FOR_DM_WITH_PCIE)
+    {
         PCIe_init(true /*expect_link_up*/);
-    #else
-        // If build is for TF skip PCIe initilize, except if
-        // TF_Entry_Point is set to TF_BL2_ENTRY_FOR_DM_WITH_PCIE
-        if(TF_Get_Entry_Point() == TF_BL2_ENTRY_FOR_DM_WITH_PCIE) {
-            PCIe_init(true /*expect_link_up*/);
-        }
-    #endif
+    }
+#endif
 #endif
 
     // Extract the active Compute Minions based on fuse
@@ -123,22 +124,23 @@ static void taskMain(void *pvParameters)
     Minion_Set_Active_Shire_Mask(minion_shires_mask);
 
     // Initialize Host to Service Processor Interface
-    #if !TEST_FRAMEWORK
+#if !TEST_FRAMEWORK
+    status = SP_Host_Iface_Init();
+    ASSERT_FATAL(status == STATUS_SUCCESS,
+        "SP Host Interface Initialization failed!")
+#else
+    // If build is for TF skip Host to SP interface initilization,
+    // except if TF_Entry_Point is set to TF_BL2_ENTRY_FOR_DM_WITH_PCIE
+    if(TF_Get_Entry_Point() == TF_BL2_ENTRY_FOR_DM_WITH_PCIE)
+    {
+        // Initialize Host->SP interface
         status = SP_Host_Iface_Init();
         ASSERT_FATAL(status == STATUS_SUCCESS,
             "SP Host Interface Initialization failed!")
-    #else
-        // If build is for TF skip Host to SP interface initilization,
-        // except if TF_Entry_Point is set to TF_BL2_ENTRY_FOR_DM_WITH_PCIE
-        if(TF_Get_Entry_Point() == TF_BL2_ENTRY_FOR_DM_WITH_PCIE) {
-            // Initialize Host->SP interface
-            status = SP_Host_Iface_Init();
-            ASSERT_FATAL(status == STATUS_SUCCESS,
-                "SP Host Interface Initialization failed!")
-            // Launch Host->SP Command Handler
-            launch_host_sp_command_handler();
-        }
-    #endif
+        // Launch Host->SP Command Handler
+        launch_host_sp_command_handler();
+    }
+#endif
 
     // Initialize Service Processor to Master Minion FW interface
     status = MM_Iface_Init();
@@ -170,8 +172,13 @@ static void taskMain(void *pvParameters)
 #if TEST_FRAMEWORK
     // Control does not return from call below
     // if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_DM ..
+    Log_Write(LOG_LEVEL_INFO, "Entering TF_BL2_ENTRY_FOR_DM intercept\r\n");
     TF_Wait_And_Process_TF_Cmds(TF_BL2_ENTRY_FOR_DM);
+    Log_Write(LOG_LEVEL_INFO, "Fall thru TF_BL2_ENTRY_FOR_DM intercept\r\n");
+
+    Log_Write(LOG_LEVEL_INFO, "Entering TF_BL2_ENTRY_FOR_DM_WITH_PCIE intercept\r\n");
     TF_Wait_And_Process_TF_Cmds(TF_BL2_ENTRY_FOR_DM_WITH_PCIE);
+    Log_Write(LOG_LEVEL_INFO, "Fall thru TF_BL2_ENTRY_FOR_DM_WITH_PCIE intercept\r\n");
 #endif
 
     // Setup MemShire/DDR
@@ -179,8 +186,8 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_memshire() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
 
-    // Setup Compute Minions Shire Clocks and bring them out of Reset
-    // Switch all Minion to use Step Clock from IO Shire @ 650 Mhz (Mode 3)
+    /* Setup Compute Minions Shire Clocks and bring them out of Reset
+    Switch all Minion to use Step Clock from IO Shire @ 650 Mhz (Mode 3) */
     status = Minion_Configure_Minion_Clock_Reset(minion_shires_mask, 3);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Enable Compute Minion failed!")
 
@@ -234,7 +241,9 @@ static void taskMain(void *pvParameters)
 #if TEST_FRAMEWORK
     // Control does not return from call below
     // if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_SP_MM ..
+    Log_Write(LOG_LEVEL_INFO, "Entering TF_BL2_ENTRY_FOR_SP_MM intercept.\r\n");
     TF_Wait_And_Process_TF_Cmds(TF_BL2_ENTRY_FOR_SP_MM);
+    Log_Write(LOG_LEVEL_INFO, "Fall thru TF_BL2_ENTRY_FOR_SP_MM intercept\r\n");
 #endif
 
     // Program ATUs here
@@ -378,11 +387,18 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     Log_Init(LOG_LEVEL_WARNING);
     Trace_Init_SP(NULL);
 
-    #if TEST_FRAMEWORK
+#if TEST_FRAMEWORK
     // Control does not return from call below
     // if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_HW ..
+    Log_Set_Level(LOG_LEVEL_INFO);
+    Log_Write(LOG_LEVEL_INFO, "Entering TF_DEFAULT_ENTRY intercept. Waiting for host to set interception point.\r\n");
+    TF_Wait_And_Process_TF_Cmds(TF_DEFAULT_ENTRY);
+    Log_Write(LOG_LEVEL_INFO, "Host set TFintercept to: %d.\n", TF_Get_Entry_Point());
+
+    Log_Write(LOG_LEVEL_INFO, "Entering TF_BL2_ENTRY_FOR_HW intercept.\r\n");
     TF_Wait_And_Process_TF_Cmds(TF_BL2_ENTRY_FOR_HW);
-    #endif
+    Log_Write(LOG_LEVEL_INFO, "Fall thru TF_BL2_ENTRY_FOR_HW intercept.\r\n");
+#endif
 
     // Initialize Splash screen
     Log_Write(LOG_LEVEL_CRITICAL, "\n** SP BL2 STARTED **\r\n");

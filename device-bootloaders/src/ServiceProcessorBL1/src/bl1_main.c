@@ -158,7 +158,8 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
 {
 #if TEST_FRAMEWORK
     printx("\n** SP BL1 STARTED - TF **\r\n");
-    /* control does not return from call below for now .. */
+    // Control does not return from call below
+    TF_Wait_And_Process_TF_Cmds(TF_DEFAULT_ENTRY);
     TF_Wait_And_Process_TF_Cmds(TF_BL1_ENTRY);
 #endif  // TEST_FRAMEWORK
 

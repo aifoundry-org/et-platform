@@ -4,6 +4,7 @@
 
 int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd);
 int8_t MM_Cmd_Shell_Debug_Print_Cmd_Handler(void* test_cmd);
+int8_t SP_Cmd_Get_MM_Heartbeat_Handler(void* test_cmd);
 
 int8_t MM_Cmd_Shell_Debug_Print_Cmd_Handler(void* test_cmd)
 {
@@ -32,6 +33,24 @@ int8_t MM_Cmd_Shell_Debug_Print_Cmd_Handler(void* test_cmd)
         Log_Write(LOG_LEVEL_INFO, "ToMM:mm_cmd.msg_id = %d.\r\n", mm_cmd_hdr->msg_id);
         Log_Write(LOG_LEVEL_INFO, "ToMM:mm_cmd.flags = %d.\r\n", mm_cmd_hdr->flags);
     }
+
+    return 0;
+}
+
+int8_t SP_Cmd_Get_MM_Heartbeat_Handler(void* test_cmd)
+{
+    struct tf_rsp_get_mm_heartbeat_t rsp;
+
+    (void) test_cmd;
+
+    rsp.rsp_hdr.id = TF_RSP_GET_MM_HEARTBEAT;
+    rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
+    rsp.rsp_hdr.payload_size =  TF_GET_PAYLOAD_SIZE(struct tf_rsp_get_mm_heartbeat_t);
+    rsp.heartbeat_count = 0xFFFFFFFFFFFFFFFF;
+
+    /* Implement logic to fetch heartbeat when heartbeat support becomes available */
+
+    TF_Send_Response(&rsp, sizeof(struct tf_rsp_get_mm_heartbeat_t));
 
     return 0;
 }

@@ -14,6 +14,7 @@ target_sources(test_framework_core
 
 target_link_libraries(test_framework_core
   PUBLIC
+    tf-protocol::tf-protocol
     EsperantoDeviceMinionRuntime::sp_firmware_helpers
     deviceFirmware::device_serial
 )
