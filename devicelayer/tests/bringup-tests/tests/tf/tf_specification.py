@@ -178,7 +178,7 @@ class TfSpecification:
                 #obtain response name
                 rsp_name = self.tf_rsp_id_list[rsp_id]
                 #obtain response spec
-                rsp_hdr = self.data["tf_rsp_hdr"]
+                rsp_hdr = self.data["tf_cmd_rsp_hdr"]
                 rsp_spec = self.data["tf_sp_rsp_spec"][rsp_name]
                 #obtain flags
                 start_idx = byte_idx + protocol["flags_idx"]

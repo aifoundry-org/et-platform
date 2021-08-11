@@ -15,6 +15,8 @@ tf_defs = {
 HOST = '127.0.0.1'  # tf_manager IP
 PORT = 9999         # tf_manager port
 
+TF_SPEC = "../../../../../../common-apis/tf-protocol/src/tf_specification.json"
+
 class TfEnv:
     def __init__(self, env_type):
         if(env_type == "sim"):

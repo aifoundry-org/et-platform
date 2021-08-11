@@ -6,6 +6,7 @@ sys.path.append(".")
 
 # Import test framework
 from tf.test_env import TfEnv
+from tf.test_env import TF_SPEC
 from tf.tf_specification import TfSpecification
 from tf.tf_target_fifo import TargetFifo
 
@@ -14,7 +15,7 @@ def test_env_initialize():
     global env
     env = TfEnv("sim")
     global tf_spec
-    tf_spec = TfSpecification("tf/tf_specification.json")
+    tf_spec = TfSpecification(TF_SPEC)
     global dut_fifo_iface
     dut_fifo_iface = TargetFifo("run/sp_uart1_tx", "run/sp_uart1_rx", tf_spec)
     dut_fifo_iface.open()
