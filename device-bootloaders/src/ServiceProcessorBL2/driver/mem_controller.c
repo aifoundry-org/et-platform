@@ -145,6 +145,10 @@ int ddr_config(const DDR_MODE *ddr_mode)
     config_training_2d = true;
 
     FOR_EACH_MEMSHIRE(
+        CHECK_MEMSHIRE_ID(memshire);
+    )
+
+    FOR_EACH_MEMSHIRE(
         ms_init_seq_phase1(memshire, config_ecc, config_real_pll, config_800mhz, config_933mhz,
           config_training, config_4gb, config_8gb, config_32gb, config_sim_only);
     )

@@ -10,11 +10,8 @@
 *
 ************************************************************************/
 
-#define DEBUG_INFO  1                   // true to enable preliminary debug codes
-
 #include <stdint.h>
 #include "usdelay.h"
-#include "mem_controller.h"
 #include "log.h"
 
 #include "bl2_scratch_buffer.h"
@@ -22,7 +19,10 @@
 
 #include "hwinc/hal_device.h"
 #include "hwinc/ddrc_reg_def.h"
+#include "hwinc/etsoc_mem_shire_esr.h"
 #include "hal_ddr_init.h"
+
+#include "mem_controller.h"
 
 /*
 ** Private functions/macros used only in this file
@@ -131,6 +131,23 @@ static uint64_t program_all_ddrc(uint64_t target_address, const void *buffer, ui
     ++ptr;
   }
 
+#if (DDR_DIAG & DDR_DIAG_VERIFY_SRAM_WRITE)
+  uint32_t read_back;
+  ptr = buffer;
+  target_address -= (size + 3)/4*4;  // round up to multiple of 4
+  while( ((const uint8_t*)ptr - (const uint8_t*)buffer) < size) {
+    FOR_EACH_MEMSHIRE(
+      read_back = ms_read_ddrc_reg(memshire, 0, target_address);
+      if(read_back != *ptr) {
+        Log_Write(LOG_LEVEL_ERROR, "DDR:[%d][txt]program_all_ddrc() write verification fails at address 0x%016lx (written 0x%08x, read back 0x%08x)\n",
+          memshire, target_address, *ptr, read_back);
+      }
+    )
+    target_address += 4;
+    ++ptr;
+  }
+#endif // (DDR_DIAG & DDR_DIAG_VERIFY_SRAM_WRITE)
+
   Log_Write(LOG_LEVEL_INFO, "program_all_ddrc: done till address 0x%016lx\n", target_address);
   return target_address;
 }
@@ -178,7 +195,7 @@ typedef enum
   TRAINING_2D
 }training_stage;
 
-#if DEBUG_INFO
+#if (DDR_DIAG & DDR_DIAG_DEBUG_INFO)
 static const char* get_training_status_text(uint8_t major_msg)
 {
   switch(major_msg) {
@@ -229,11 +246,11 @@ static void log_training_error(training_stage stage, uint32_t memshire, uint8_t 
 
 #define LOG_TRAINING(stage, memshire, major_msg)    log_training_error(stage, memshire, major_msg)
 
-#else   // DEBUG_INFO
+#else   // (DDR_DIAG & DDR_DIAG_DEBUG_INFO)
 
 #define LOG_TRAINING(stage, memshire, major_msg)    ((void)stage)     // to suppress compilation warning
 
-#endif  // DEBUG_INFO
+#endif  // (DDR_DIAG & DDR_DIAG_DEBUG_INFO)
 
 static uint32_t get_mail(uint32_t memshire)
 {
@@ -327,6 +344,24 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
 }
 
 /*
+** Support functions for ddr
+*/
+#if (DDR_DIAG & DDR_DIAG_MEMSHIRE_ID)
+void check_memshire_revision_id(uint32_t memshire)
+{
+    uint64_t rev_id;
+
+    rev_id = ms_read_esr(memshire, ms_mem_revision_id);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]MemshireID = 0x%02x\n", memshire, (uint8_t) ETSOC_MEM_SHIRE_ESR_MS_MEM_REVISION_ID_MEMSHIRE_ID_GET(rev_id));
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]RevisionB3 = 0x%02x\n", memshire, (uint8_t) ETSOC_MEM_SHIRE_ESR_MS_MEM_REVISION_ID_MEMSHIRE_REVISION_B3_GET(rev_id));
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]RevisionB2 = 0x%02x\n", memshire, (uint8_t) ETSOC_MEM_SHIRE_ESR_MS_MEM_REVISION_ID_MEMSHIRE_REVISION_B2_GET(rev_id));
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]RevisionB1 = 0x%02x\n", memshire, (uint8_t) ETSOC_MEM_SHIRE_ESR_MS_MEM_REVISION_ID_MEMSHIRE_REVISION_B1_GET(rev_id));
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]RevisionB0 = 0x%02x\n", memshire, (uint8_t) ETSOC_MEM_SHIRE_ESR_MS_MEM_REVISION_ID_MEMSHIRE_REVISION_B0_GET(rev_id));
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Raw = 0x%016lx\n", memshire, rev_id);
+}
+#endif // (DDR_DIAG & DDR_DIAG_MEMSHIRE_ID)
+
+/*
 ** Low-level support functions
 */
 uint64_t ms_read_esr(uint32_t memshire, uint64_t reg)
@@ -337,6 +372,14 @@ uint64_t ms_read_esr(uint32_t memshire, uint64_t reg)
 void ms_write_esr(uint32_t memshire, uint64_t reg, uint64_t value)
 {
   *(volatile uint64_t*)GET_MEMSHIRE_ESR(memshire, reg) = value;
+
+#if (DDR_DIAG & DDR_DIAG_VERIFY_REGISTER_WRITE)
+  uint64_t read_back = ms_read_esr(memshire, reg);
+  if(read_back != value) {
+    Log_Write(LOG_LEVEL_ERROR, "DDR:[%d][txt]ms_write_esr() write verification fails at register 0x%016lx (written 0x%016lx, read back 0x%016lx)\n",
+      memshire, reg, value, read_back);
+  }
+#endif // (DDR_DIAG & DDR_DIAG_VERIFY_REGISTER_WRITE)
 }
 
 uint32_t ms_read_reg(uint32_t memshire, uint64_t reg)
@@ -347,6 +390,14 @@ uint32_t ms_read_reg(uint32_t memshire, uint64_t reg)
 void ms_write_reg(uint32_t memshire, uint64_t reg, uint32_t value)
 {
   *(volatile uint32_t*)GET_MEMSHIRE_ESR(memshire, reg) = value;
+
+#if (DDR_DIAG & DDR_DIAG_VERIFY_REGISTER_WRITE)
+  uint32_t read_back = ms_read_reg(memshire, reg);
+  if(read_back != value) {
+    Log_Write(LOG_LEVEL_ERROR, "DDR:[%d][txt]ms_write_reg() write verification fails at register 0x%016lx (written 0x%08x, read back 0x%08x)\n",
+      memshire, reg, value, read_back);
+  }
+#endif // (DDR_DIAG & DDR_DIAG_VERIFY_REGISTER_WRITE)
 }
 
 uint32_t ms_read_ddrc_reg(uint32_t memshire, uint32_t blk, uint64_t reg)
@@ -357,17 +408,42 @@ uint32_t ms_read_ddrc_reg(uint32_t memshire, uint32_t blk, uint64_t reg)
 void ms_write_ddrc_reg(uint32_t memshire, uint32_t blk, uint64_t reg, uint32_t value)
 {
   *(volatile uint32_t*) get_ddrc_address(memshire, blk, reg) = value;
+
+#if (DDR_DIAG & DDR_DIAG_VERIFY_REGISTER_WRITE)
+  uint32_t read_back = ms_read_ddrc_reg(memshire, blk, reg);
+  if(read_back != value) {
+    Log_Write(LOG_LEVEL_ERROR, "DDR:[%d][txt]ms_write_ddrc_reg() write verification fails at register 0x%016lx (written 0x%08x, read back 0x%08x)\n",
+      memshire, reg, value, read_back);
+  }
+#endif // (DDR_DIAG & DDR_DIAG_VERIFY_REGISTER_WRITE)
 }
 
 void ms_write_both_ddrc_reg(uint32_t memshire, uint64_t reg, uint32_t value)
 {
   *(volatile uint32_t*) get_ddrc_address(memshire, 0, reg) = value;
   *(volatile uint32_t*) get_ddrc_address(memshire, 1, reg) = value;
+
+#if (DDR_DIAG & DDR_DIAG_VERIFY_REGISTER_WRITE)
+  uint32_t read_back0 = ms_read_ddrc_reg(memshire, 0, reg);
+  uint32_t read_back1 = ms_read_ddrc_reg(memshire, 1, reg);
+  if(read_back0 != value || read_back1 != value) {
+    Log_Write(LOG_LEVEL_ERROR, "DDR:[%d][txt]ms_write_both_ddrc_reg() write verification fails at register 0x%016lx (written 0x%08x, read back[0] 0x%08x, read back[1] 0x%08x)\n",
+      memshire, reg, value, read_back0, read_back1);
+  }
+#endif // (DDR_DIAG & DDR_DIAG_VERIFY_REGISTER_WRITE)
 }
 
 void ms_write_ddrc_addr(uint32_t memshire, uint64_t addr_in, uint32_t value)
 {
   *(volatile uint32_t*) get_ddrc_address(memshire, 0, addr_in) = value;
+
+#if (DDR_DIAG & DDR_DIAG_VERIFY_REGISTER_WRITE)
+  uint32_t read_back = ms_read_ddrc_reg(memshire, 0, addr_in);
+  if(read_back != value) {
+    Log_Write(LOG_LEVEL_ERROR, "DDR:[%d][txt]ms_write_ddrc_addr() write verification fails at register 0x%016lx (written 0x%08x, read back 0x%08x)\n",
+      memshire, addr_in, value, read_back);
+  }
+#endif // (DDR_DIAG & DDR_DIAG_VERIFY_REGISTER_WRITE)
 }
 
 uint32_t ms_poll_pll_reg(uint32_t memshire, uint64_t reg, uint32_t wait_value, uint32_t wait_mask, uint32_t timeout_tries)

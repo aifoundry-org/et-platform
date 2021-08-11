@@ -45,6 +45,22 @@
                    statements                                                      \
             }
 
+/*
+** Diagnostic macros
+*/
+#define DDR_DIAG                         (DDR_DIAG_DEBUG_INFO            | \
+                                          DDR_DIAG_MEMSHIRE_ID)
+#define DDR_DIAG_DEBUG_INFO              (0x01 << 0)
+#define DDR_DIAG_MEMSHIRE_ID             (0x01 << 1)
+#define DDR_DIAG_VERIFY_REGISTER_WRITE   (0x01 << 2)
+#define DDR_DIAG_VERIFY_SRAM_WRITE       (0x01 << 3)
+
+#if (DDR_DIAG & DDR_DIAG_MEMSHIRE_ID)
+#  define CHECK_MEMSHIRE_ID(memshire)    check_memshire_revision_id(memshire)
+#else
+#  define CHECK_MEMSHIRE_ID(memshire)
+#endif
+
 /**
  * @enum ddr_frequency_t
  * @brief Frequency enum defines for DDR memory
@@ -89,6 +105,13 @@ struct ddr_event_control_block
     uint32_t ce_threshold;          /**< Correctable error threshold. */
     dm_event_isr_callback event_cb; /**< Event callback handler. */
 };
+
+/*! \fn void check_memshire_revision_id(uint32_t memshire)
+    \brief This function prints out ms_memory_revision_id to debug print
+    \param memshire id of a specific memshire, 0-based
+    \return none
+*/
+void check_memshire_revision_id(uint32_t memshire);
 
 /*! \fn int configure_memshire_plls(DDR_MODE *ddr_mode)
     \brief This function initializes every memshire present in system. It internally
