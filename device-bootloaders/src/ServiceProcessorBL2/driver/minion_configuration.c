@@ -40,6 +40,7 @@
 
 #include "esr.h"
 #include "minion_configuration.h"
+#include "hal_minion_pll.h"
 
 /*!
  * @struct struct minion_event_control_block
@@ -94,42 +95,88 @@ uint8_t pll_freq_to_mode(int32_t freq)
    return 6; 
 }
 
-// Fixme: SW-8063  Replace with version from HAL
-static int pll_config(uint8_t shire_id)
+/************************************************************************
+*
+*   FUNCTION
+*
+*       get_highest_set_bit_offset
+*
+*   DESCRIPTION
+*
+*       This function returns highest set bit offset
+*
+*   INPUTS
+*
+*       shire_mask shires to be configured
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
 {
-    uint64_t reg_value;
-
-    /* Select 1 GHz from step_clock, Bits[2:0] = 3'b011. Bit 3 to '1' to go with DLL output */
-    write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, 2, 
-                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CTRL_CLOCKMUX_ADDRESS, 0xb, 0);
-
-    /* Auto-config register set dll_enable and get reset deasserted of the DLL */
-    reg_value = ETSOC_SHIRE_OTHER_ESR_SHIRE_DLL_AUTO_CONFIG_PCLK_SEL_SET(2) |
-                ETSOC_SHIRE_OTHER_ESR_SHIRE_DLL_AUTO_CONFIG_DLL_ENABLE_SET(1);
-    write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, 2, 
-                    ETSOC_SHIRE_OTHER_ESR_SHIRE_DLL_AUTO_CONFIG_ADDRESS, reg_value, 0);
-
-    /* Wait until DLL is locked to change clock mux */
-    while (!(read_esr_new(PP_MACHINE, shire_id, REGION_OTHER, 2, 
-                ETSOC_SHIRE_OTHER_ESR_SHIRE_DLL_READ_DATA_ADDRESS, 0) & 0x20000))
-    {
-      // Continue to poll till DLL is locked
-      // Need to implement timeout mechanism
-    } 
-   return 0;
+    return (uint8_t)(64 - __builtin_clzl(shire_mask));
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       minion_configure_plls_and_dlls
+*
+*   DESCRIPTION
+*
+*       This function configures minion shires DLL and PLL
+*
+*   INPUTS
+*
+*       shire_mask shires to be configured
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
 static int minion_configure_plls_and_dlls(uint64_t shire_mask)
 {
-    int status = MINION_PLL_DLL_CONFIG_ERROR;
-    for (uint8_t i = 0; i <= 32; i++)
+    int status = SUCCESS;
+    uint64_t dll_fail_mask = 0;
+    uint64_t pll_fail_mask = 0;
+    uint8_t num_shires;
+    if(0 != shire_mask)
+    {
+        num_shires = get_highest_set_bit_offset(shire_mask);
+    }
+    else
+    {
+        return MINION_INVALID_SHIRE_MASK;
+    }
+    for (uint8_t i = 0; i <= num_shires; i++)
     {
         if (shire_mask & 1) {
-          status = pll_config(i);
+            if(0 != dll_config(i))
+            {
+                status = MINION_PLL_DLL_CONFIG_ERROR;
+                dll_fail_mask = dll_fail_mask | (uint64_t)(1 << i);
+            }
+            SWITCH_CLOCK_MUX(i, SELECT_STEP_CLOCK)
+            if(0 != config_lvdpll_freq_quick(i, MODE_650MHz))
+            {
+                status = MINION_PLL_DLL_CONFIG_ERROR;
+                pll_fail_mask = pll_fail_mask | (uint64_t)(1 << i);
+            }
         }
         shire_mask >>= 1;
     }
-   return status;
+    if(status != SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "minion_configure_plls_and_dlls(): DLL failed mask %lu!\n",
+                    dll_fail_mask);
+        Log_Write(LOG_LEVEL_ERROR, "minion_configure_plls_and_dlls(): PLL failed mask %lu!\n",
+                    pll_fail_mask);
+    }
+    return status;
 }
 
 static int mm_get_error_count(struct mm_error_count_t *mm_error_count)
@@ -197,7 +244,16 @@ static void minion_error_update_count(uint8_t error_type)
 ***********************************************************************/
 int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask)
 {
-    for (uint8_t i = 0; i <= 32; i++)
+    uint8_t num_shires;
+    if(0 != shire_mask)
+    {
+        num_shires = get_highest_set_bit_offset(shire_mask);
+    }
+    else
+    {
+        return MINION_INVALID_SHIRE_MASK;
+    }
+    for (uint8_t i = 0; i <= num_shires; i++)
     {
         if (shire_mask & 1)
         {
@@ -555,8 +611,16 @@ uint64_t Minion_Read_ESR(uint32_t address)
 ***********************************************************************/
 int Minion_Write_ESR(uint32_t address, uint64_t data, uint64_t mmshire_mask)
 {
-
-    for (uint8_t i = 0; i <= 33; i++) {
+    uint8_t num_shires;
+    if(0 != mmshire_mask)
+    {
+        num_shires = get_highest_set_bit_offset(mmshire_mask);
+    }
+    else
+    {
+        return MINION_INVALID_SHIRE_MASK;
+    }
+    for (uint8_t i = 0; i <= num_shires; i++) {
         if (mmshire_mask & 1) {
                 volatile uint64_t *p = esr_address(PP_MACHINE, i, REGION_MINION, address);
                 *p = data;

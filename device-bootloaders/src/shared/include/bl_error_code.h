@@ -37,10 +37,11 @@
 #define MEMSHIRE_DDR_CONFIG_ERROR        -2002
 
 /*! \def Main::Minion Setup Error Return code  */
-#define MINION_STEP_CLOCK_CONFIGURE_ERROR -3000
-#define MINION_COLD_RESET_CONFIG_ERROR    -3001
-#define MINION_WARM_RESET_CONFIG_ERROR    -3002
-#define MINION_PLL_DLL_CONFIG_ERROR       -3003
+#define MINION_STEP_CLOCK_CONFIGURE_ERROR    -3000
+#define MINION_COLD_RESET_CONFIG_ERROR       -3001
+#define MINION_WARM_RESET_CONFIG_ERROR       -3002
+#define MINION_PLL_DLL_CONFIG_ERROR          -3003
+#define MINION_INVALID_SHIRE_MASK            -3004
 
 /*! \def Main::FW Load and Authenticate Setup Error Return code  */
 #define FW_SW_CERTS_LOAD_ERROR -4000
