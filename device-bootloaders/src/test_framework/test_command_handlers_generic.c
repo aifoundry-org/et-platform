@@ -1,14 +1,30 @@
 #include "tf.h"
-#include "bl2_firmware_update.h"
-#include "bl2_link_mgmt.h"
-#include "perf_mgmt.h"
 
+int8_t TF_Set_Entry_Point_Handler(void* test_cmd);
 int8_t SP_Fw_Version_Cmd_Handler(void* test_cmd);
 int8_t Echo_To_SP_Cmd_Handler(void* test_cmd);
 int8_t Move_Data_To_Device_Cmd_Handler(void* test_cmd);
 int8_t Move_Data_To_Host_Cmd_Handler(void* test_cmd);
-int8_t SP_PCIE_Retain_Phy_Cmd_Handler(const void* test_cmd);
-int8_t SP_Get_Module_ASIC_Freq_Cmd_Handler(const void* test_cmd);
+/* TODO: Dump Memory */
+/* TODO: Dump Registers */
+
+int8_t TF_Set_Entry_Point_Handler(void* test_cmd)
+{
+    struct tf_set_intercept_cmd_t* cmd = (struct tf_set_intercept_cmd_t*) test_cmd;
+    struct tf_set_intercept_rsp_t rsp;
+    uint8_t retval;
+
+    retval = TF_Set_Entry_Point(cmd->target_intercept);
+
+    rsp.rsp_hdr.id = TF_RSP_SET_INTERCEPT;
+    rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
+    rsp.rsp_hdr.payload_size =  TF_GET_PAYLOAD_SIZE(struct tf_set_intercept_rsp_t);
+    rsp.current_intercept = retval;
+
+    TF_Send_Response(&rsp, sizeof(struct tf_set_intercept_rsp_t));
+
+    return 0;
+}
 
 int8_t SP_Fw_Version_Cmd_Handler(void* test_cmd)
 {
@@ -101,47 +117,6 @@ int8_t Move_Data_To_Host_Cmd_Handler(void* test_cmd)
         (uint32_t)(sizeof(tf_rsp_hdr_t) +
         sizeof(uint32_t) +
         bytes_read));
-
-    return 0;
-}
-
-
-int8_t SP_PCIE_Retain_Phy_Cmd_Handler(const void* test_cmd)
-{
-    (void) test_cmd;
-    struct tf_rsp_sp_pcie_retain_phy_t rsp;
-
-    rsp.rsp_hdr.id = TF_RSP_SP_PCIE_RETAIN_PHY;
-    rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
-    rsp.rsp_hdr.payload_size =  TF_GET_PAYLOAD_SIZE(struct tf_rsp_sp_pcie_retain_phy_t);
-    rsp.status = pcie_retrain_phy();
-
-    TF_Send_Response(&rsp, sizeof(struct tf_rsp_sp_pcie_retain_phy_t));
-
-    return 0;
-}
-
-int8_t SP_Get_Module_ASIC_Freq_Cmd_Handler(const void* test_cmd)
-{
-    (void) test_cmd;
-    struct asic_frequencies_t asic_frequencies;
-    struct tf_rsp_get_module_asic_freq_t rsp = {0};
-
-    rsp.rsp_hdr.id = TF_RSP_GET_MODULE_ASIC_FREQ;
-    rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
-    rsp.rsp_hdr.payload_size =  TF_GET_PAYLOAD_SIZE(struct tf_rsp_get_module_asic_freq_t);
-
-    if(0 == get_module_asic_frequencies(&asic_frequencies))
-    {
-        rsp.minion_shire_mhz = asic_frequencies.minion_shire_mhz;
-        rsp.noc_mhz = asic_frequencies.noc_mhz;
-        rsp.mem_shire_mhz = asic_frequencies.mem_shire_mhz;
-        rsp.ddr_mhz = asic_frequencies.ddr_mhz;
-        rsp.pcie_shire_mhz = asic_frequencies.pcie_shire_mhz;
-        rsp.io_shire_mhz = asic_frequencies.io_shire_mhz;
-    }
-
-    TF_Send_Response(&rsp, sizeof(struct tf_rsp_get_module_asic_freq_t));
 
     return 0;
 }

@@ -3,8 +3,14 @@
 #include "serial.h"
 #include "hwinc/hal_device.h"
 
+/* Globals */
 static char Input_Cmd_Buffer[TF_MAX_CMD_SIZE];
 static char Output_Rsp_Buffer[TF_MAX_RSP_SIZE];
+
+/* Initialize to earliest interception point in BL1 */
+/* TODO: This can be updated to TF_DEFAULT_ENTRY once
+BL1 host tests are updated to use set intercept command */
+static uint8_t TF_Interception_Point = TF_BL1_ENTRY;
 
 extern int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd);
 
@@ -28,12 +34,34 @@ uint32_t byte_copy(char* src, char* dst, uint32_t size)
     return retval;
 }
 
-int8_t TF_Wait_And_Process_TF_Cmds(void)
+uint8_t TF_Set_Entry_Point(uint8_t intercept)
+{
+    uint8_t retval = TF_DEFAULT_ENTRY;
+
+    if((intercept > TF_DEFAULT_ENTRY) && (intercept <= TF_BL2_ENTRY_FOR_SP_MM))
+    {
+        TF_Interception_Point = retval = intercept;
+    }
+
+    return retval;
+}
+
+uint8_t TF_Get_Entry_Point(void)
+{
+    return TF_Interception_Point;
+}
+
+int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 {
     char c;
     char *p_buff = &Input_Cmd_Buffer[0];
     void *p_hdr=0;
     struct header_t cmd_hdr;
+
+    if(intercept != TF_Interception_Point)
+    {
+        return 0;
+    }
 
     for(;;)
     {

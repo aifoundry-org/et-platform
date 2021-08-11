@@ -8,7 +8,8 @@ target_include_directories(test_framework_core
 target_sources(test_framework_core
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/tf/tf.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_commands.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_command_definitions.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_command_handlers_generic.c
 )
 
 target_link_libraries(test_framework_core
@@ -33,8 +34,8 @@ target_include_directories(test_framework
 target_sources(test_framework
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/tf/tf.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_commands.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/tf_generic_tests.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_command_definitions.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_command_handlers_generic.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_mm_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_mem_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_minion_tests.c
@@ -45,6 +46,7 @@ target_sources(test_framework
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_spio_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_asset_tracking_tests.c
     ${CMAKE_CURRENT_SOURCE_DIR}/tf_pmic_tests.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/tf_sp_tests.c
 )
 
 target_link_libraries(test_framework

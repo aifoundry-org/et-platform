@@ -2,6 +2,7 @@
 #include "tf.h"
 
 /* Extern prototypes for TF command handlers */
+extern int8_t TF_Set_Entry_Point_Handler(void* test_cmd);
 extern int8_t SP_Fw_Version_Cmd_Handler(void* test_cmd);
 extern int8_t MM_Cmd_Shell_Debug_Print_Cmd_Handler(void* test_cmd);
 extern int8_t Echo_To_SP_Cmd_Handler(void* test_cmd);
@@ -111,7 +112,7 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
 // 1
     SP_Fw_Version_Cmd_Handler,
 // 2
-    Unregistered_Handler,
+    TF_Set_Entry_Point_Handler,
 // 3
     Echo_To_SP_Cmd_Handler,
 // 4
@@ -232,9 +233,9 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
 // 61
     PMIC_Module_Power_Cmd_Handler,
 // 62
-    PMIC_Module_Voltage_Cmd_Handler, 
+    PMIC_Module_Voltage_Cmd_Handler,
 // 63
-    PMIC_Module_Uptime_Cmd_Handler, 
+    PMIC_Module_Uptime_Cmd_Handler,
 // 64
     SP_PCIE_Retain_Phy_Cmd_Handler,
 // 65

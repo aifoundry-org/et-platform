@@ -1,4 +1,4 @@
-#include "config/mgmt_build_config.h" 
+#include "config/mgmt_build_config.h"
 #include "serial.h"
 #include "interrupt.h"
 #include "dummy_isr.h"
@@ -106,9 +106,15 @@ static void taskMain(void *pvParameters)
     configure_pshire_pll(6);
     PCIe_init(false /*expect_link_down*/);
 #else
-    #if !TEST_FRAMEWORK /* Do not initialize PCIe for TF */
-    // In cases where BootROM is executed, PCIe link is expected to be up
-    PCIe_init(true /*expect_link_up*/);
+    #if !TEST_FRAMEWORK
+        // If not built for TF initialize PCIe
+        PCIe_init(true /*expect_link_up*/);
+    #else
+        // If build is for TF skip PCIe initilize, except if
+        // TF_Entry_Point is set to TF_BL2_ENTRY_FOR_DM_WITH_PCIE
+        if(TF_Get_Entry_Point() == TF_BL2_ENTRY_FOR_DM_WITH_PCIE) {
+            PCIe_init(true /*expect_link_up*/);
+        }
     #endif
 #endif
 
@@ -118,13 +124,26 @@ static void taskMain(void *pvParameters)
 
     // Initialize Host to Service Processor Interface
     #if !TEST_FRAMEWORK
-    status = SP_Host_Iface_Init();
-    ASSERT_FATAL(status == STATUS_SUCCESS, "SP Host Interface Initialization failed!")
+        status = SP_Host_Iface_Init();
+        ASSERT_FATAL(status == STATUS_SUCCESS,
+            "SP Host Interface Initialization failed!")
+    #else
+        // If build is for TF skip Host to SP interface initilization,
+        // except if TF_Entry_Point is set to TF_BL2_ENTRY_FOR_DM_WITH_PCIE
+        if(TF_Get_Entry_Point() == TF_BL2_ENTRY_FOR_DM_WITH_PCIE) {
+            // Initialize Host->SP interface
+            status = SP_Host_Iface_Init();
+            ASSERT_FATAL(status == STATUS_SUCCESS,
+                "SP Host Interface Initialization failed!")
+            // Launch Host->SP Command Handler
+            launch_host_sp_command_handler();
+        }
     #endif
 
     // Initialize Service Processor to Master Minion FW interface
     status = MM_Iface_Init();
-    ASSERT_FATAL(status == STATUS_SUCCESS, "SP to Master Minion FW Interface Initialization failed!")
+    ASSERT_FATAL(status == STATUS_SUCCESS,
+        "SP to Master Minion FW Interface Initialization failed!")
 
     /* Initialize the DIRs */
     DIR_Init();
@@ -146,13 +165,22 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "flashfs_drv_init() failed!")
 #endif
 
+    // TF Hook for testing of Device Management services only
+    // or for Device Management Services with PCIe enabled
+#if TEST_FRAMEWORK
+    // Control does not return from call below
+    // if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_DM ..
+    TF_Wait_And_Process_TF_Cmds(TF_BL2_ENTRY_FOR_DM);
+    TF_Wait_And_Process_TF_Cmds(TF_BL2_ENTRY_FOR_DM_WITH_PCIE);
+#endif
+
     // Setup MemShire/DDR
     status = configure_memshire();
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_memshire() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
 
-    /* Setup Compute Minions Shire Clocks and bring them out of Reset
-       Switch all Minion to use Step Clock from IO Shire @ 650 Mhz (Mode 3) */
+    // Setup Compute Minions Shire Clocks and bring them out of Reset
+    // Switch all Minion to use Step Clock from IO Shire @ 650 Mhz (Mode 3)
     status = Minion_Configure_Minion_Clock_Reset(minion_shires_mask, 3);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Enable Compute Minion failed!")
 
@@ -192,7 +220,8 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to read master minion shire ID!")
     // If ID Value wasn't burned into fuse, use default value
     if (mm_id == 0xff){
-       Log_Write(LOG_LEVEL_WARNING, "Master shire ID was not found in the OTP, using default value of 32!\n");
+       Log_Write(LOG_LEVEL_WARNING,
+            "Master shire ID was not found in the OTP, using default value of 32!\n");
        mm_id = 32;
     }
 
@@ -202,10 +231,10 @@ static void taskMain(void *pvParameters)
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MM_FW_LAUNCHED);
 
-#if (TEST_FRAMEWORK)
-    Log_Write(LOG_LEVEL_INFO, "TF SW bring up ...\r\n");
-    /* Control does not return from call below for now .. */
-    TF_Wait_And_Process_TF_Cmds();
+#if TEST_FRAMEWORK
+    // Control does not return from call below
+    // if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_SP_MM ..
+    TF_Wait_And_Process_TF_Cmds(TF_BL2_ENTRY_FOR_SP_MM);
 #endif
 
     // Program ATUs here
@@ -348,6 +377,12 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 
     Log_Init(LOG_LEVEL_WARNING);
     Trace_Init_SP(NULL);
+
+    #if TEST_FRAMEWORK
+    // Control does not return from call below
+    // if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_HW ..
+    TF_Wait_And_Process_TF_Cmds(TF_BL2_ENTRY_FOR_HW);
+    #endif
 
     // Initialize Splash screen
     Log_Write(LOG_LEVEL_CRITICAL, "\n** SP BL2 STARTED **\r\n");
