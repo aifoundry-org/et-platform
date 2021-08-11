@@ -14,10 +14,8 @@
 
     Public interfaces:
         Log_Init
-        Log_Set_Level
-        Log_Get_Level
-        Log_Write
-        Log_Write_String
+        __Log_Write
+        __Log_Write_String
 */
 /***********************************************************************/
 #include "services/log.h"
@@ -29,25 +27,11 @@
 #include <stddef.h>
 #include "sync.h"
 
-/*
- * Log control block for current logging information. 
- */
-typedef struct log_cb {
-    union {
-        struct {
-            uint8_t  current_log_level;
-            uint8_t  current_log_interface;
-        };
-        uint16_t raw_log_info;
-    };
-} log_cb_t;
-
-/*! \var log_level_t Log_CB
-    \brief Global variable that maintains the current log information
+/*! \var log_interface_t Log_Interface
+    \brief Global variable that maintains the current log interface
     \warning Not thread safe!
 */
-static log_cb_t Log_CB __attribute__((aligned(64))) = 
-        {.current_log_level = LOG_LEVEL_WARNING, .current_log_interface = LOG_DUMP_TO_UART};
+static log_interface_t Log_Interface __attribute__((aligned(64))) = LOG_DUMP_TO_UART;
 
 /************************************************************************
 *
@@ -61,68 +45,17 @@ static log_cb_t Log_CB __attribute__((aligned(64))) =
 *
 *   INPUTS
 *
-*       log_level_t   log level to set
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-void Log_Init(log_level_t level)
-{
-    /* Init console lock to released state */
-    init_global_spinlock((spinlock_t*)FW_GLOBAL_UART_LOCK_ADDR, 0);
-
-    /* Initialize the log level */
-    Log_Set_Level(level);
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Log_Set_Level
-*
-*   DESCRIPTION
-*
-*       Set logging level
-*
-*   INPUTS
-*
-*       log_level_t   log level to set
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-void Log_Set_Level(log_level_t level)
-{
-    atomic_store_local_8(&Log_CB.current_log_level, level);
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Log_Get_Level
-*
-*   DESCRIPTION
-*
-*       Get logging level
-*
-*   INPUTS
-*
 *       none
 *
 *   OUTPUTS
 *
-*       log_level_t    returns the log level
+*       None
 *
 ***********************************************************************/
-log_level_t Log_Get_Level(void)
+void Log_Init()
 {
-    return atomic_load_local_8(&Log_CB.current_log_level);
+    /* Init console lock to released state */
+    init_global_spinlock((spinlock_t*)FW_GLOBAL_UART_LOCK_ADDR, 0);
 }
 
 /************************************************************************
@@ -146,7 +79,7 @@ log_level_t Log_Get_Level(void)
 ***********************************************************************/
 void Log_Set_Interface(log_interface_t interface)
 {
-    atomic_store_local_8(&Log_CB.current_log_interface, interface);
+    atomic_store_local_8(&Log_Interface, interface);
 }
 
 /************************************************************************
@@ -170,14 +103,14 @@ void Log_Set_Interface(log_interface_t interface)
 ***********************************************************************/
 log_interface_t Log_Get_Interface(void)
 {
-    return atomic_load_local_8(&Log_CB.current_log_interface);
+    return atomic_load_local_8(&Log_Interface);
 }
 
 /************************************************************************
 *
 *   FUNCTION
 *
-*       Log_Write
+*       __Log_Write
 *
 *   DESCRIPTION
 *
@@ -185,7 +118,6 @@ log_interface_t Log_Get_Interface(void)
 *
 *   INPUTS
 *
-*       log_level_t    log level
 *       const chat*    format specifier
 *       ...            variable argument list
 *
@@ -194,39 +126,29 @@ log_interface_t Log_Get_Interface(void)
 *       int32_t        bytes written
 *
 ***********************************************************************/
-int32_t Log_Write(log_level_t level, const char *const fmt, ...)
+int32_t __Log_Write(const char *const fmt, ...)
 {
     char buff[128];
     va_list va;
-    int32_t bytes_written=0;
-    log_cb_t log_cb;
-    log_cb.raw_log_info = atomic_load_local_16(&Log_CB.raw_log_info);
+    int32_t bytes_written = 0;
 
     /* Dump the log message over current log interface. */
-    if (log_cb.current_log_interface == LOG_DUMP_TO_TRACE)
+    if (atomic_load_local_8(&Log_Interface) == LOG_DUMP_TO_TRACE)
     {
         /* TODO: Use Trace_Format_String() when Trace common library has support/alternative
            of libc_nano to process va_list string formatting. Also, remove log_level check 
            from here, as trace library does that internally .*/
-        if(CHECK_STRING_FILTER(Trace_Get_MM_CB(), level))
-        {
-            va_start(va, fmt);
-            vsnprintf(buff, sizeof(buff), fmt, va);
+        va_start(va, fmt);
+        vsnprintf(buff, sizeof(buff), fmt, va);
 
-            Trace_String(level, Trace_Get_MM_CB(), buff);
+        Trace_String((enum trace_string_event)CURRENT_LOG_LEVEL, Trace_Get_MM_CB(), buff);
 
-            /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string 
-            type message. */
-            bytes_written = TRACE_STRING_MAX_SIZE;
-        }
+        /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
+        type message. */
+        bytes_written = TRACE_STRING_MAX_SIZE;
     }
     else
     {
-        if (level > log_cb.current_log_level) 
-        {
-            return 0;
-        }
-
         va_start(va, fmt);
         vsnprintf(buff, sizeof(buff), fmt, va);
 
@@ -242,7 +164,7 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 *
 *   FUNCTION
 *
-*       Log_Write_String
+*       __Log_Write_String
 *
 *   DESCRIPTION
 *
@@ -250,7 +172,6 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 *
 *   INPUTS
 *
-*       log_level_t    log level
 *       char*          pointer to string
 *       size_t         length of string
 *
@@ -259,16 +180,14 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 *       int32_t        bytes written
 *
 ***********************************************************************/
-int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
+int32_t __Log_Write_String(const char *str, size_t length)
 {
     int32_t bytes_written = 0;
-    log_cb_t log_cb;
-    log_cb.raw_log_info = atomic_load_local_16(&Log_CB.raw_log_info);
 
     /* Dump the log message over current log interface. */
-    if (log_cb.current_log_interface == LOG_DUMP_TO_TRACE)
+    if (atomic_load_local_8(&Log_Interface) == LOG_DUMP_TO_TRACE)
     {
-        Trace_String(level, Trace_Get_MM_CB(), str);
+        Trace_String((enum trace_string_event)CURRENT_LOG_LEVEL, Trace_Get_MM_CB(), str);
 
         /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string 
            type message. */
@@ -276,11 +195,6 @@ int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
     }
     else
     {
-        if (level > log_cb.current_log_level) 
-        {
-            return 0;
-        }
-
         acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
         bytes_written = SERIAL_write(UART0, str, (int)length);
         release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
