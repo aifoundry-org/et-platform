@@ -140,6 +140,12 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_noc() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED);
 
+#if !(FAST_BOOT || TEST_FRAMEWORK)
+    // Initialize Flash service
+    status = flashfs_drv_init();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "flashfs_drv_init() failed!")
+#endif
+
     // Setup MemShire/DDR
     status = configure_memshire();
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_memshire() failed!")
@@ -161,10 +167,6 @@ static void taskMain(void *pvParameters)
     }
 
 #if !(FAST_BOOT || TEST_FRAMEWORK)
-    // Initialize Flash service
-    status = flashfs_drv_init();
-    ASSERT_FATAL(status == STATUS_SUCCESS, "flashfs_drv_init() failed!")
-
     // Extract Minion FW from Flash, authenticate and load to DDR
     status = Minion_Load_Authenticate_Firmware();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to load Minion Firmware!")
