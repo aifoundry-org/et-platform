@@ -37,6 +37,66 @@ enum error_type {
 	UNCORRETABLE,
 };
 
+struct asic_frequencies {
+	u32 minion_shire_mhz;
+	u32 noc_mhz;
+	u32 mem_shire_mhz;
+	u32 ddr_mhz;
+	u32 pcie_shire_mhz;
+	u32 io_shire_mhz;
+} __packed;
+
+struct dram_bw {
+	u32 read_req_sec;
+	u32 write_req_sec;
+} __packed;
+
+struct max_dram_bw {
+	u8 max_bw_rd_req_sec;
+	u8 max_bw_wr_req_sec;
+	u8 pad[6];
+} __packed;
+
+struct module_uptime {
+	u16 day;
+	u8 hours;
+	u8 mins;
+	u8 pad[4];
+} __packed;
+
+struct module_voltage {
+	u8 ddr;
+	u8 l2_cache;
+	u8 maxion;
+	u8 minion;
+	u8 pcie;
+	u8 noc;
+	u8 pcie_logic;
+	u8 vddqlp;
+	u8 vddq;
+	u8 pad[7];
+} __packed;
+
+typedef u8 power_state_e;
+
+#define SP_GPR_REGISTERS		28
+#define SP_CSR_REGISTERS		4
+#define SP_NUM_REGISTERS		(SP_GPR_REGISTERS + SP_CSR_REGISTERS)
+#define SP_EXCEPTION_STACK_FRAME_SIZE	(sizeof(u64) * SP_GPR_REGISTERS)
+#define SP_EXCEPTION_CSRS_FRAME_SIZE	(sizeof(u64) * 4)
+#define SP_EXCEPTION_FRAME_SIZE		(SP_EXCEPTION_STACK_FRAME_SIZE +       \
+					SP_EXCEPTION_CSRS_FRAME_SIZE)
+#define SP_PERF_GLOBALS_SIZE		(sizeof(struct asic_frequencies) +     \
+					sizeof(struct dram_bw) +               \
+					sizeof(struct max_dram_bw) +           \
+					sizeof(u32) + sizeof(u64))
+#define SP_POWER_GLOBALS_SIZE		(sizeof(power_state_e) +               \
+					sizeof(u8) + (sizeof(u8) * 3) +        \
+					sizeof(struct module_uptime) +         \
+					sizeof(struct module_voltage) +        \
+					sizeof(u64) + sizeof(u64))
+#define SP_GLOBALS_SIZE		(SP_PERF_GLOBALS_SIZE + SP_POWER_GLOBALS_SIZE)
+
 #define EVENT_CLASS_MASK	0x0003
 #define EVENT_COUNT_MASK	0x3FFF
 
@@ -89,14 +149,6 @@ enum error_type {
 #define MM_DMW_ERROR			4
 #define MM_KW_ERROR			5
 
-#define SP_GPR_REGISTERS			28
-#define SP_CSR_REGISTERS			4
-#define SP_EXCEPTION_STACK_FRAME_SIZE           (sizeof(uint64_t)*SP_GPR_REGISTERS)
-#define SP_EXCEPTION_CSRS_FRAME_SIZE            (sizeof(uint64_t)*4)
-#define SP_EXCEPTION_FRAME_SIZE                 (SP_EXCEPTION_STACK_FRAME_SIZE + \
-                                                    SP_EXCEPTION_CSRS_FRAME_SIZE)
-#define SP_NUM_REGISTERS                        (SP_GPR_REGISTERS + SP_CSR_REGISTERS)
-
 #define GET_ESR_SC_ERR_LOG_INFO_V_BIT(reg)		\
 	((reg)  & 0x0000000000000001ULL)
 #define GET_ESR_SC_ERR_LOG_INFO_M_BIT(reg)		\
@@ -131,7 +183,7 @@ struct event_dbg_msg {
 	char *syndrome;
 };
 
-#define ET_EVENT_SYNDROME_LEN			1024
+#define ET_EVENT_SYNDROME_LEN			840
 
 static inline void et_print_event(struct pci_dev *pdev,
 				  struct event_dbg_msg *dbg_msg) {

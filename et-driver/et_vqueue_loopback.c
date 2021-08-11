@@ -153,13 +153,6 @@ struct module_power_t {
 	u8 pad[7];
 } __packed;
 
-struct module_uptime_t {
-	u16 day;
-	u8 hours;
-	u8 mins;
-	u8 pad[4];
-} __packed;
-
 struct max_temperature_t {
 	u8 max_temperature_c;
 	u8 pad[7];
@@ -168,13 +161,6 @@ struct max_temperature_t {
 struct max_ecc_count_t {
 	u32 count;
 	u32 pad;
-} __packed;
-
-struct max_dram_bw_t {
-	u8 max_bw_rd_req_sec;
-	u8 max_bw_wr_req_sec;
-	u8 pad[6];
-
 } __packed;
 
 struct ecc_error_count_t {
@@ -195,22 +181,6 @@ struct dram_bw_counter_t {
 
 } __packed;
 
-struct asic_frequencies_t {
-	u32 minion_shire_mhz;
-	u32 noc_mhz;
-	u32 mem_shire_mhz;
-	u32 ddr_mhz;
-	u32 pcie_shire_mhz;
-	u32 io_shire_mhz;
-
-} __packed;
-
-struct dram_bw_t {
-	u32 read_req_sec;
-	u32 write_req_sec;
-
-} __packed;
-
 struct percentage_cap_t {
 	u32 pct_cap;
 	u32 pad;
@@ -220,20 +190,6 @@ struct percentage_cap_t {
 struct mm_error_count_t {
 	u32 hang_count;
 	u32 exception_count;
-
-} __packed;
-
-struct module_voltage_t {
-	u8 ddr;
-	u8 l2_cache;
-	u8 maxion;
-	u8 minion;
-	u8 pcie;
-	u8 noc;
-	u8 pcie_logic;
-	u8 vddqlp;
-	u8 vddq;
-	u8 pad[7];
 
 } __packed;
 
@@ -337,7 +293,7 @@ struct device_mgmt_module_power_rsp_t {
  */
 struct device_mgmt_module_voltage_rsp_t {
 	struct dev_mgmt_rsp_header_t rsp_hdr;
-	struct module_voltage_t module_voltage;
+	struct module_voltage module_voltage;
 } __packed;
 
 /*
@@ -345,7 +301,7 @@ struct device_mgmt_module_voltage_rsp_t {
  */
 struct device_mgmt_module_uptime_rsp_t {
 	struct dev_mgmt_rsp_header_t rsp_hdr;
-	struct module_uptime_t module_uptime;
+	struct module_uptime module_uptime;
 } __packed;
 
 /*
@@ -369,7 +325,7 @@ struct device_mgmt_max_memory_error_rsp_t {
  */
 struct device_mgmt_max_dram_bw_rsp_t {
 	struct dev_mgmt_rsp_header_t rsp_hdr;
-	struct max_dram_bw_t max_dram_bw;
+	struct max_dram_bw max_dram_bw;
 } __packed;
 
 /*
@@ -401,7 +357,7 @@ struct device_mgmt_dram_bw_counter_rsp_t {
  */
 struct device_mgmt_asic_frequencies_rsp_t {
 	struct dev_mgmt_rsp_header_t rsp_hdr;
-	struct asic_frequencies_t asic_frequency;
+	struct asic_frequencies asic_frequency;
 } __packed;
 
 /*
@@ -409,7 +365,7 @@ struct device_mgmt_asic_frequencies_rsp_t {
  */
 struct device_mgmt_dram_bw_rsp_t {
 	struct dev_mgmt_rsp_header_t rsp_hdr;
-	struct dram_bw_t dram_bw; ///
+	struct dram_bw dram_bw; ///
 } __packed;
 
 /*
