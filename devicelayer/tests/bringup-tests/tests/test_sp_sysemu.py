@@ -19,6 +19,18 @@ def test_env_initialize():
     global dut_fifo_iface
     dut_fifo_iface = TargetFifo("run/sp_uart1_tx", "run/sp_uart1_rx", tf_spec)
     dut_fifo_iface.open()
+    #Set device TF interception point to TF_BL2_ENTRY_FOR_SP_MM
+    print('TF interception point..')
+    tf_interception_points = tf_spec.data["sp_tf_interception_points"]
+    #Initialize command params
+    tf_device_rt_intercept = tf_interception_points["TF_BL2_ENTRY_FOR_SP_MM"]
+    #tf_device_rt_intercept = 5
+    #Instantiate test command
+    command = tf_spec.command("TF_CMD_SET_INTERCEPT", "SP", tf_device_rt_intercept)
+    #Issue test command
+    response = dut_fifo_iface.execute_test(command)
+    #validate response using relevant assertions
+    assert response["current_intercept"] == tf_device_rt_intercept
     #tf_spec.view_json()
 
 #Example test with 1 command arg, and 1 payload arg

@@ -24,8 +24,30 @@ def test_env_initialize():
     global TestHelpers
     TestHelpers = TfTestHelpers()
     time.sleep(1) #give time for MM to boot up
+    #Set device TF interception point to TF_BL2_ENTRY_FOR_SP_MM
+    print('TF interception point..')
+    tf_interception_points = tf_spec.data["sp_tf_interception_points"]
+    #Initialize command params
+    tf_device_rt_intercept = tf_interception_points["TF_BL2_ENTRY_FOR_SP_MM"]
+    #tf_device_rt_intercept = 5
+    #Instantiate test command
+    command = tf_spec.command("TF_CMD_SET_INTERCEPT", "SP", tf_device_rt_intercept)
+    #Issue test command
+    response = dut_fifo_iface.execute_test(command)
+    #validate response using relevant assertions
+    assert response["current_intercept"] == tf_device_rt_intercept
+    #tf_spec.view_json()
 
-#Example test with 1 command arg, and 1 payload arg
+#Validate mm heart beat to assess if MM is alive
+def test_mm_heart_beat():
+    print('Testing for MM heart beat..')
+    cmd = tf_spec.command("TF_CMD_GET_MM_HEARTBEAT", "SP")
+    response = dut_fifo_iface.execute_test(cmd, wait_for_response_secs = 2)
+    if(response["heartbeat_count"] == 0xFFFFFFFFFFFFFFFF):
+        print("SP BL2 lacks heart beat functionality at this time")
+    assert response["heartbeat_count"] != 0
+
+#Validate echo to mm to determine if MM is up to support echo response, and validation SP to MM bi-directional comms
 def test_echo_to_mm():
     print('Testing echo to MM..')
     expected_payload = 0xDEADBEEF
@@ -35,7 +57,7 @@ def test_echo_to_mm():
     response = dut_fifo_iface.execute_test(sp_cmd, wait_for_response_secs = 2)
     assert response["device_cmd_start_ts"] != 0
 
-#Example test with no command args, and 3 payload args
+#Validate expected MM firmware version
 def test_fw_ver_to_mm():
     print('Testing MM FW version..')
     firmware_type = 0 #Master Minion FW
@@ -48,6 +70,7 @@ def test_fw_ver_to_mm():
     assert response["minor"] == 0x0
     assert response["patch"] == 0x0
 
+#Validate ability to launch an empty kernel on MM
 def test_kernel_launch_to_mm():
     print('Testing MM kernel launch..')
 
