@@ -45,7 +45,7 @@ int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd)
     void *p_mm_cmd_size;
     uint32_t mm_cmd_size = 0;
 
-    struct tf_mm_rsp_shell_rsp_t mm_shell_rsp;
+    struct tf_rsp_mm_cmd_shell_t mm_shell_rsp;
 
     p_mm_cmd_base = (void *)((char*)test_cmd + sizeof(tf_cmd_hdr_t) + sizeof(uint32_t));
     p_mm_cmd_size = (void *)((char*)test_cmd + sizeof(tf_cmd_hdr_t));
@@ -61,10 +61,10 @@ int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd)
         mm_shell_rsp.rsp_hdr.id = TF_RSP_MM_CMD_SHELL;
         mm_shell_rsp.rsp_hdr.flags = 2;
         mm_shell_rsp.rsp_hdr.payload_size = (uint32_t)sizeof(uint32_t) + sp_rsp_size;
-        mm_shell_rsp.size = sp_rsp_size;
+        mm_shell_rsp.mm_rsp_size = sp_rsp_size;
 
         const char* src = (char*)(sp_rsp_buff);
-        char* dst = (char*)(&mm_shell_rsp.data);
+        char* dst = (char*)(&mm_shell_rsp.mm_rsp_data);
 
         while(sp_rsp_size--)
         {
@@ -72,14 +72,14 @@ int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd)
             dst++; src++;
         }
 
-        TF_Send_Response(&mm_shell_rsp, (uint32_t)(sizeof(tf_rsp_hdr_t) + sizeof(uint32_t) + mm_shell_rsp.size));
+        TF_Send_Response(&mm_shell_rsp, (uint32_t)(sizeof(tf_rsp_hdr_t) + sizeof(uint32_t) + mm_shell_rsp.mm_rsp_size));
     }
     else
     {
         mm_shell_rsp.rsp_hdr.id = TF_RSP_MM_CMD_SHELL;
         mm_shell_rsp.rsp_hdr.flags = 2;
         mm_shell_rsp.rsp_hdr.payload_size = 0;
-        mm_shell_rsp.size = 0;
+        mm_shell_rsp.mm_rsp_size = 0;
 
         TF_Send_Response(&mm_shell_rsp, (uint32_t)(sizeof(tf_rsp_hdr_t) + sizeof(uint32_t)));
     }

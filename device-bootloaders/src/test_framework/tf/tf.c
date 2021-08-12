@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "tf.h"
-#include "tf_protocol.h"
 #include "serial.h"
 #include "hwinc/hal_device.h"
 

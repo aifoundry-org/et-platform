@@ -23,6 +23,7 @@ cmake_policy(SET CMP0076 NEW)
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(signedImageFormat REQUIRED)
 find_package(deviceApi REQUIRED)
+find_package(tf-protocol REQUIRED)
 find_package(EsperantoFlashTool CONFIG REQUIRED)
 find_package(etsoc_hal REQUIRED)
 

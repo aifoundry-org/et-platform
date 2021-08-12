@@ -49,6 +49,7 @@ target_sources(test_framework
 
 target_link_libraries(test_framework
   PUBLIC
+    tf-protocol::tf-protocol
     EsperantoDeviceMinionRuntime::sp_firmware_helpers
     deviceFirmware::device_serial
     FreeRTOS::FreeRTOS
