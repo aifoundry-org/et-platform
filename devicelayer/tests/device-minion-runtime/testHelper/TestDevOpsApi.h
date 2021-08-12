@@ -133,8 +133,9 @@ struct trace_buffer_std_header_t {
 } __attribute__((packed));
 
 struct trace_entry_header_t {
-  uint64_t cycle; // Current cycle
-  uint16_t type;  // One of enum trace_type_e
+    uint64_t cycle;   /**< Current cycle */
+    uint16_t type;    /**< One of enum trace_type_e */
+    uint8_t  pad[6];  /**< To keep natural alignment for memory operations. */
 } __attribute__((packed));
 
 struct trace_entry_header_mm_t {
