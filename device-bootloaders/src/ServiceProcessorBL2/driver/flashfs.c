@@ -72,7 +72,7 @@
 */
 #define PAGE_PROGRAM_TIMEOUT 2000
 
-/*! @union value_uu  
+/*! @union value_uu
     \brief Use to represent the smallest chunk of the Flash memory
 */
 union
@@ -224,6 +224,13 @@ static int flash_fs_scan_regions(uint32_t partition_size,
             case ESPERANTO_FLASH_REGION_ID_MASTER_MINION:
             case ESPERANTO_FLASH_REGION_ID_WORKER_MINION:
             case ESPERANTO_FLASH_REGION_ID_MAXION_BL1:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_800MHZ:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_933MHZ:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_1067MHZ:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_800MHZ:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_933MHZ:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_1067MHZ:
                 break;
             default:
                 Log_Write(LOG_LEVEL_WARNING, "flash_fs_scan_regions: ignoring region %u.\n", n);
@@ -281,6 +288,27 @@ static int flash_fs_scan_regions(uint32_t partition_size,
                 break;
             case ESPERANTO_FLASH_REGION_ID_MAXION_BL1:
                 partition_info->maxion_bl1_region_index = n;
+                break;
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_800MHZ:
+                partition_info->dram_training_payload_800mhz_region_index = n;
+                break;
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_933MHZ:
+                partition_info->dram_training_payload_933mhz_region_index = n;
+                break;
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_1067MHZ:
+                partition_info->dram_training_payload_1067mhz_region_index = n;
+                break;
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D:
+                partition_info->dram_training_2d_region_index = n;
+                break;
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_800MHZ:
+                partition_info->dram_training_2d_payload_800mhz_region_index = n;
+                break;
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_933MHZ:
+                partition_info->dram_training_2d_payload_933mhz_region_index = n;
+                break;
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_1067MHZ:
+                partition_info->dram_training_2d_payload_1067mhz_region_index = n;
                 break;
             default:
                 MESSAGE_ERROR("flash_fs_scan_regions: invalid region id: %u!\n",
@@ -551,6 +579,48 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id,
             region_index =
                 sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                             .maxion_bl1_region_index;
+            break;
+        case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_800MHZ:
+            file_info = &(sg_flash_fs_bl2_info.dram_training_payload_800mhz_file_info);
+            region_index =
+                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
+                            .dram_training_payload_800mhz_region_index;
+            break;
+        case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_933MHZ:
+            file_info = &(sg_flash_fs_bl2_info.dram_training_payload_933mhz_file_info);
+            region_index =
+                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
+                            .dram_training_payload_933mhz_region_index;
+            break;
+        case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_1067MHZ:
+            file_info = &(sg_flash_fs_bl2_info.dram_training_payload_1067mhz_file_info);
+            region_index =
+                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
+                            .dram_training_payload_1067mhz_region_index;
+            break;
+        case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D:
+            file_info = &(sg_flash_fs_bl2_info.dram_training_2d_file_info);
+            region_index =
+                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
+                            .dram_training_2d_region_index;
+            break;
+        case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_800MHZ:
+            file_info = &(sg_flash_fs_bl2_info.dram_training_2d_payload_800mhz_file_info);
+            region_index =
+                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
+                            .dram_training_2d_payload_800mhz_region_index;
+            break;
+        case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_933MHZ:
+            file_info = &(sg_flash_fs_bl2_info.dram_training_2d_payload_933mhz_file_info);
+            region_index =
+                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
+                            .dram_training_2d_payload_933mhz_region_index;
+            break;
+        case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_1067MHZ:
+            file_info = &(sg_flash_fs_bl2_info.dram_training_2d_payload_1067mhz_file_info);
+            region_index =
+                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
+                            .dram_training_2d_payload_1067mhz_region_index;
             break;
         default:
             return ERROR_SPI_FLASH_INVALID_REGION_ID;
