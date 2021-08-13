@@ -223,6 +223,32 @@ int sp_otp_get_neighborhood_status_nh128_nh135_other(
     return 0;
 }
 
+int sp_otp_get_shire_speed(uint8_t shire_num, uint8_t *speed)
+{
+    uint32_t otp_index;
+    uint32_t word;
+
+    if (!gs_is_otp_available)
+    {
+        return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
+    }
+
+    if (speed == NULL)
+    {
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    otp_index = (uint8_t)(SP_OTP_INDEX_SHIRE_SPEED + (shire_num / 8));
+
+    if (0 != sp_otp_read(otp_index, &word)) {
+        return ERROR_SP_OTP_OTP_READ;
+    }
+
+    *speed = (word >> ((shire_num % 8) * 4)) & 0xF; 
+
+    return 0;
+}
+
 int sp_otp_get_pll_configuration_data(OTP_PLL_CONFIGURATION_OVERRIDE_t *table, uint32_t table_size,
                                       uint32_t *count)
 {

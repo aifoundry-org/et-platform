@@ -62,4 +62,12 @@ int otp_get_chip_revision(char *chip_rev);
 */
 int otp_get_master_shire_id(uint8_t *mm_id);
 
+/*! \fn int otp_get_shire_speed(uint8_t shire_num, uint8_t *speed)
+    \brief This function reads Shire Speed from OTP memory
+    \param shire_num Index of Shire
+    \param speed Pointer to speed variable
+    \returns Status indicating success or negative error
+*/
+int otp_get_shire_speed(uint8_t shire_num, uint8_t *speed);
+
 #endif

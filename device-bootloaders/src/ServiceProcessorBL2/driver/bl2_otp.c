@@ -266,3 +266,32 @@ int otp_get_master_shire_id(uint8_t *mm_id)
 
     return status;
 }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       otp_get_shire_speed
+*
+*   DESCRIPTION
+*
+*       This function reads Shire Speed from OTP memory
+*
+*   INPUTS
+*
+*       shire_num   Index of Shire
+*       *speed    Pointer to speed variable
+*
+*   OUTPUTS
+*
+*       int          Return status
+*
+***********************************************************************/
+int otp_get_shire_speed(uint8_t shire_num, uint8_t *speed)
+{
+    int status;
+
+    status = sp_otp_get_shire_speed(shire_num, speed);
+
+    return status;
+}

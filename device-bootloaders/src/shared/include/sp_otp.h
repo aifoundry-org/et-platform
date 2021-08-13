@@ -24,6 +24,7 @@ int sp_otp_get_neighborhood_status_mask(uint32_t index, uint32_t *value);
 int sp_otp_get_neighborhood_status_nh128_nh135_other(
     OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_t *status);
 
+int sp_otp_get_shire_speed(uint8_t shire_num, uint8_t *speed);
 int sp_otp_get_pll_configuration_data(OTP_PLL_CONFIGURATION_OVERRIDE_t *table, uint32_t table_size,
                                       uint32_t *count);
 int sp_otp_get_pll_configuration_delay(OTP_PLL_CONFIGURATION_DELAY_t *config_delay);
