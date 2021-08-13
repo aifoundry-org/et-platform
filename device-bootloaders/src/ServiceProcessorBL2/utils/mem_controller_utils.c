@@ -547,8 +547,135 @@ void ms_wait_for_training_2d(uint32_t memshire, uint32_t train_poll_max_iteratio
   wait_for_training_internal(TRAINING_2D, memshire, train_poll_max_iterations, train_poll_iteration_delay);
 }
 
+//
+// Read location in PHY RAM.
+// It is assumed that the address has the leading "5"
+//
+// reference $REPOROOT/dv/tests/memshire/tcl_tests/tcl_scripts/lib/ms_initlib.tcl
+static uint32_t ms_read_phy_ram(uint32_t memshire, const uint64_t addr)
+{
+  const uint64_t LPDDR_PHY_BASE = R_SHIRE_LPDDR_BASEADDR + 0x0002000000;
+  volatile const uint32_t *fulladdr = (uint32_t*) (LPDDR_PHY_BASE | (((memshire & 0x7) << 26) | (addr << 2)));
+  uint32_t value = *fulladdr;
+  Log_Write(LOG_LEVEL_DEBUG, "DDRC_REG (S%d) read 0x%08x from physical RAM address 0x%010lx", memshire, value, addr);
+  return value;
+}
+
+// reference $REPOROOT/dv/tests/memshire/tcl_tests/tcl_scripts/lib/ms_initlib.tcl
+static uint32_t read_and_set_max_txdqdly(uint32_t curr_max, uint32_t memshire, uint32_t controller, uint64_t regname)
+{
+  uint32_t value;
+
+  value = ms_read_ddrc_reg(memshire, controller, regname);
+  return (value > curr_max ? value : curr_max);
+}
+
+// chA/chB: channel0/1
+// reference $REPOROOT/dv/tests/memshire/tcl_tests/tcl_scripts/lib/ms_initlib.tcl
+static void update_DFITMG2_rd2wr(uint32_t memshire, uint8_t channel)
+{
+  // get these addresses from mnPmuSramMsgBlock_lpddr4.h for both 1D/2D chA & chB
+  const uint32_t CDD_ChX_RW_0_0[2] = {
+    0x54015,
+    0x5402f
+  };
+
+  uint32_t cdd_chX_rw_0_0_raw = ms_read_phy_ram(memshire, CDD_ChX_RW_0_0[channel]);
+
+  // important to convert both into 8 bits signed integer to represent a correct negtive value
+  // variables need to be int to do arithmetic later
+  int cdd_chX_rw_0_0_lo = (int8_t)(cdd_chX_rw_0_0_raw & 0xff);
+  int cdd_chX_rw_0_0_hi = (int8_t)((cdd_chX_rw_0_0_raw >> 8) & 0xff);
+
+  // taking abs() on both values
+  if(cdd_chX_rw_0_0_lo < 0)
+    cdd_chX_rw_0_0_lo *= -1;
+  if(cdd_chX_rw_0_0_hi < 0)
+    cdd_chX_rw_0_0_hi *= -1;
+
+  uint32_t cdd_chX_rw_0_0 =
+    (uint32_t)((cdd_chX_rw_0_0_lo > cdd_chX_rw_0_0_hi) ? cdd_chX_rw_0_0_lo : cdd_chX_rw_0_0_hi);
+
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : cdd_chX_rw_0_0_raw is 0x%08x cdd_chX_rw_0_0 is 0x%02x",
+    memshire, channel, cdd_chX_rw_0_0_raw, cdd_chX_rw_0_0);
+
+  // rd2wr is bits 13:8 of the DRAMTMG2 register
+  uint32_t curr_dramtmg2 = ms_read_ddrc_reg(memshire, 0, DRAMTMG2);
+  uint32_t curr_rd2wr = (curr_dramtmg2 >> 8) & 0x3f;
+  uint32_t new_rd2wr = curr_rd2wr + (((cdd_chX_rw_0_0 + 1) & 0xff) >> 1);
+  uint32_t new_dramtmg2 = (curr_dramtmg2 & 0xffffc0ff) | ((new_rd2wr & 0x3f) << 8);
+
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : current DRAMTMG2 is 0x%08x", memshire, channel, curr_dramtmg2);
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : current rd2wr is    0x%08x", memshire, channel, curr_rd2wr);
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : new     rd2wr is    0x%08x", memshire, channel, new_rd2wr);
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : new     DRAMTMG2 is 0x%08x", memshire, channel, new_dramtmg2);
+
+  ms_write_ddrc_reg(memshire, channel, DRAMTMG2, new_dramtmg2);
+}
+
+//
+// Update DDR controller registers based on traning data from the PHY
+//
+// reference $REPOROOT/dv/tests/memshire/tcl_tests/tcl_scripts/lib/ms_initlib.tcl
 void post_train_update_regs(uint32_t memshire)
 {
-  // suppress compilation warning
-  (void) memshire;
+  // make PHY CSRs accessable from the APB and turn on the clock
+  ms_write_ddrc_reg(memshire, 2, APBONLY0_MicroContMuxSel, 0x00000000);
+  ms_write_ddrc_reg(memshire, 2, DRTUB0_UcclkHclkEnables,  0x00000003);
+  ms_read_ddrc_reg(memshire, 2, DRTUB0_UcclkHclkEnables);  // make sure writes are done
+
+  // ######################################################################################
+  // # update DFITMG1.dfi_t_wrdata_delay based on Trained_TxDqsDly
+  // ######################################################################################
+  uint32_t max_txdqdly = 0;
+  uint32_t max_txdqdly_ui;
+
+  max_txdqdly = read_and_set_max_txdqdly(max_txdqdly, memshire, 2, DBYTE0_TxDqsDlyTg0_u0_p0);
+  max_txdqdly = read_and_set_max_txdqdly(max_txdqdly, memshire, 2, DBYTE0_TxDqsDlyTg0_u1_p0);
+  max_txdqdly = read_and_set_max_txdqdly(max_txdqdly, memshire, 2, DBYTE1_TxDqsDlyTg0_u0_p0);
+  max_txdqdly = read_and_set_max_txdqdly(max_txdqdly, memshire, 2, DBYTE1_TxDqsDlyTg0_u1_p0);
+  max_txdqdly = read_and_set_max_txdqdly(max_txdqdly, memshire, 2, DBYTE2_TxDqsDlyTg0_u0_p0);
+  max_txdqdly = read_and_set_max_txdqdly(max_txdqdly, memshire, 2, DBYTE2_TxDqsDlyTg0_u1_p0);
+  max_txdqdly = read_and_set_max_txdqdly(max_txdqdly, memshire, 2, DBYTE3_TxDqsDlyTg0_u0_p0);
+  max_txdqdly = read_and_set_max_txdqdly(max_txdqdly, memshire, 2, DBYTE3_TxDqsDlyTg0_u1_p0);
+
+  uint32_t course = (max_txdqdly >> 6) & 0xf;         // bits [9:6] is coarse (1 UI)
+  uint32_t fine = max_txdqdly & 0x1f;                 // bits [4:0] is fine   (1/32 of a UI)
+
+  if (fine > 0)
+    max_txdqdly_ui = course + 1;
+  else
+    max_txdqdly_ui = course;
+
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]max_txdqdly is 0x%08x  max_txdqdly_ui is 0x%08x",
+    memshire, max_txdqdly, max_txdqdly_ui);
+
+  // dfi_t_wrdata_delay is bits 20:16 of the DFITMG1 register
+  // read current value of DFITMG1 (from ctrl 0)
+  uint32_t curr_dfitmg1 = ms_read_ddrc_reg(memshire, 0, DFITMG1);
+
+  uint32_t curr_txdqdly_dficlk = (curr_dfitmg1 >> 16) & 0x1f;
+  uint32_t new_txdqdly_dficlk = curr_txdqdly_dficlk + ((max_txdqdly_ui + 1) >> 1);   // +1 to implement ceil
+
+  // merge in new value of tphy_wrdata_delay
+  uint32_t new_dfitmg1 = (curr_dfitmg1 & 0xffe0ffff) | ((new_txdqdly_dficlk & 0x1f) << 16);
+
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]curr_txdqdly_dficlk is 0x%08x new_txdqdly_dficlk is 0x%08x",
+    memshire, curr_txdqdly_dficlk, new_txdqdly_dficlk);
+
+  // write new value back to both controllers
+  ms_write_both_ddrc_reg(memshire, DFITMG1, new_dfitmg1);
+
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]current DFITMG1 is 0x%08x new DFITMG1 is 0x%08x",
+    memshire, curr_dfitmg1, new_dfitmg1);
+
+  // ######################################################################################
+  // # update DFITMG2.rd2wr based on CDD_ChA/B_RW_0_0
+  // ######################################################################################
+  update_DFITMG2_rd2wr(memshire, 0);
+  update_DFITMG2_rd2wr(memshire, 1);
+
+  // turn off the clocks now
+  ms_write_ddrc_reg(memshire, 2, APBONLY0_MicroContMuxSel, 0x00000001);
+  ms_write_ddrc_reg(memshire, 2, DRTUB0_UcclkHclkEnables,  0x00000002);
 }
