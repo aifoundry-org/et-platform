@@ -238,12 +238,12 @@ static void taskMain(void *pvParameters)
     // Initialize DM sampling task
     init_dm_sampling_task();
 
-    /* Redirect the log messages to trace buffer after initialization is done */
-    Log_Set_Interface(LOG_DUMP_TO_TRACE);
-
     /* Inform Host Device is Ready */
     Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
+
+    /* Redirect the log messages to trace buffer after initialization is done */
+    Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
     while (1) {
         Log_Write(LOG_LEVEL_CRITICAL, "SP Alive..\r\n");
