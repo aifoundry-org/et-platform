@@ -37,6 +37,16 @@
 #define TF_NUM_COMMANDS                  << cgh.command_id(cgh.commands(get_last=True)) - cgh.command_id(cgh.commands(get_first=True)) >>
 #define TF_NUM_RESPONSES                 << cgh.response_id(cgh.responses(get_last=True)) - cgh.response_id(cgh.responses(get_first=True)) >>
 
+/* Interception points */
+/*! \enum interception_points_t
+    \brief Enum for interception points in TF
+*/
+enum interception_points_t {
+<%- for point in cgh.interception_points() %>
+    << point | upper >> = << cgh.interception_points_id(point) >>,
+<%- endfor %>
+};
+
 /* << cgh.api_name>> command IDs */
 
 /*! \typedef tf_cmd_t

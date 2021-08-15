@@ -48,6 +48,22 @@ class TFProtocolCodeGeneratorHelper(object):
         res = m.hexdigest()
         return res[-17:-1]
 
+    def interception_points(self):
+        """Return the list of defined interception points for TF
+
+        Returns:
+           list[dict]: List of defined inteception points
+        """
+        return self.spec_data['sp_tf_interception_points']
+
+    def interception_points_id(self, point):
+        """Return the ID of the inteception point
+
+        Returns:
+           id: ID of the inteception point
+        """
+        return self.interception_points()[point]
+
     def cmd_rsp_header(self):
         """Return the list of cmd/rsp header fields
 
