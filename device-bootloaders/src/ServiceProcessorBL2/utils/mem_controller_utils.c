@@ -239,9 +239,9 @@ static const char* get_training_status_text(uint8_t major_msg)
 static void log_training_error(training_stage stage, uint32_t memshire, uint8_t major_msg)
 {
   if(stage == TRAINING_1D)
-    Log_Write(LOG_LEVEL_DEBUG, "DDR TRAIN (S%d) received DDRC PHY message 0x%02x (%s)", memshire+232, major_msg, get_training_status_text(major_msg));
+    Log_Write(LOG_LEVEL_DEBUG, "DDR TRAIN (S%d) received DDRC PHY message 0x%02x (%s)\n", memshire+232, major_msg, get_training_status_text(major_msg));
   else
-    Log_Write(LOG_LEVEL_DEBUG, "DDR TRAIN 2d (S%d) received DDRC PHY message 0x%02x (%s)", memshire+232, major_msg, get_training_status_text(major_msg));
+    Log_Write(LOG_LEVEL_DEBUG, "DDR TRAIN 2d (S%d) received DDRC PHY message 0x%02x (%s)\n", memshire+232, major_msg, get_training_status_text(major_msg));
 }
 
 #define LOG_TRAINING(stage, memshire, major_msg)    log_training_error(stage, memshire, major_msg)
@@ -274,12 +274,12 @@ static void get_streaming_messages(uint32_t memshire)
   uint16_t count;
 
   mail = get_mail(memshire);
-  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][sms]0x%08x", memshire, mail);
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][sms]0x%08x\n", memshire, mail);
 
   count = mail & 0xffff;
   while(count-- > 0) {
     mail = get_mail(memshire);
-    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][smd]0x%08x", memshire, mail);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][smd]0x%08x\n", memshire, mail);
   }
 }
 
@@ -289,7 +289,7 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
   uint8_t number_of_shire_completed;
   uint8_t shire_completed[NUMBER_OF_MEMSHIRE] = { 0 };
 
-  Log_Write(LOG_LEVEL_DEBUG, "DDR:[0][txt]Wait for training");
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[0][txt]Wait for training\n");
 
   // memshire is not define outside, use it as a local variable
   memshire = 0;
@@ -314,7 +314,7 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
     ms_poll_ddrc_reg(memshire, 2, APBONLY0_UctShadowRegs, 0x00000001, 0x1, 100, 1);               // wait for handshake
     ms_write_ddrc_reg(memshire, 2, APBONLY0_DctWriteProt, 0x00000001);                            // ack handshake
 
-    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][mms]0x%08x", memshire, major_msg);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][mms]0x%08x\n", memshire, major_msg);
     LOG_TRAINING(stage, memshire, major_msg);
 
     if(major_msg == 0x08) {
@@ -323,13 +323,13 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire, 
     }
     else if(major_msg == 0x7) {
       // mark the memshire as completed on success(0x7).
-      Log_Write(LOG_LEVEL_CRITICAL, "DDR:[%d][txt]Training success.", memshire);
+      Log_Write(LOG_LEVEL_CRITICAL, "DDR:[%d][txt]Training success\n", memshire);
       shire_completed[memshire] = 1;
       ++number_of_shire_completed;
     }
     else if(major_msg == 0xff || major_msg == 0x0b) {
       // mark the memshire as completed on fail(0xff/0x0b).
-      Log_Write(LOG_LEVEL_ERROR, "DDR:[%d][txt]Training failure!", memshire);
+      Log_Write(LOG_LEVEL_ERROR, "DDR:[%d][txt]Training failure!\n", memshire);
       shire_completed[memshire] = 1;
       ++number_of_shire_completed;
     }
@@ -501,7 +501,7 @@ void ms_ddr_phy_1d_train_from_file(uint32_t mem_config, uint32_t memshire)
       region_id = ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_1067MHZ;
       break;
     default:
-      Log_Write(LOG_LEVEL_ERROR, "DDR:[0][txt]Unrecongnized mem_config = %d", mem_config);
+      Log_Write(LOG_LEVEL_ERROR, "DDR:[0][txt]Unrecongnized mem_config = %d\n", mem_config);
       return;
   }
 
@@ -532,7 +532,7 @@ void ms_ddr_phy_2d_train_from_file(uint32_t mem_config, uint32_t memshire)
       region_id = ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_1067MHZ;
       break;
     default:
-      Log_Write(LOG_LEVEL_ERROR, "DDR:[0][txt]Unrecongnized mem_config = %d", mem_config);
+      Log_Write(LOG_LEVEL_ERROR, "DDR:[0][txt]Unrecongnized mem_config = %d\n", mem_config);
       return;
   }
 
@@ -557,7 +557,7 @@ static uint32_t ms_read_phy_ram(uint32_t memshire, const uint64_t addr)
   const uint64_t LPDDR_PHY_BASE = R_SHIRE_LPDDR_BASEADDR + 0x0002000000;
   volatile const uint32_t *fulladdr = (uint32_t*) (LPDDR_PHY_BASE | (((memshire & 0x7) << 26) | (addr << 2)));
   uint32_t value = *fulladdr;
-  Log_Write(LOG_LEVEL_DEBUG, "DDRC_REG (S%d) read 0x%08x from physical RAM address 0x%010lx", memshire, value, addr);
+  Log_Write(LOG_LEVEL_DEBUG, "DDRC_REG (S%d) read 0x%08x from physical RAM address 0x%010lx\n", memshire, value, addr);
   return value;
 }
 
@@ -596,7 +596,7 @@ static void update_DFITMG2_rd2wr(uint32_t memshire, uint8_t channel)
   uint32_t cdd_chX_rw_0_0 =
     (uint32_t)((cdd_chX_rw_0_0_lo > cdd_chX_rw_0_0_hi) ? cdd_chX_rw_0_0_lo : cdd_chX_rw_0_0_hi);
 
-  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : cdd_chX_rw_0_0_raw is 0x%08x cdd_chX_rw_0_0 is 0x%02x",
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : cdd_chX_rw_0_0_raw is 0x%08x cdd_chX_rw_0_0 is 0x%02x\n",
     memshire, channel, cdd_chX_rw_0_0_raw, cdd_chX_rw_0_0);
 
   // rd2wr is bits 13:8 of the DRAMTMG2 register
@@ -605,10 +605,10 @@ static void update_DFITMG2_rd2wr(uint32_t memshire, uint8_t channel)
   uint32_t new_rd2wr = curr_rd2wr + (((cdd_chX_rw_0_0 + 1) & 0xff) >> 1);
   uint32_t new_dramtmg2 = (curr_dramtmg2 & 0xffffc0ff) | ((new_rd2wr & 0x3f) << 8);
 
-  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : current DRAMTMG2 is 0x%08x", memshire, channel, curr_dramtmg2);
-  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : current rd2wr is    0x%08x", memshire, channel, curr_rd2wr);
-  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : new     rd2wr is    0x%08x", memshire, channel, new_rd2wr);
-  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : new     DRAMTMG2 is 0x%08x", memshire, channel, new_dramtmg2);
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : current DRAMTMG2 is 0x%08x\n", memshire, channel, curr_dramtmg2);
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : current rd2wr is    0x%08x\n", memshire, channel, curr_rd2wr);
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : new     rd2wr is    0x%08x\n", memshire, channel, new_rd2wr);
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Channel %d : new     DRAMTMG2 is 0x%08x\n", memshire, channel, new_dramtmg2);
 
   ms_write_ddrc_reg(memshire, channel, DRAMTMG2, new_dramtmg2);
 }
@@ -647,7 +647,7 @@ void post_train_update_regs(uint32_t memshire)
   else
     max_txdqdly_ui = course;
 
-  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]max_txdqdly is 0x%08x  max_txdqdly_ui is 0x%08x",
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]max_txdqdly is 0x%08x  max_txdqdly_ui is 0x%08x\n",
     memshire, max_txdqdly, max_txdqdly_ui);
 
   // dfi_t_wrdata_delay is bits 20:16 of the DFITMG1 register
@@ -660,13 +660,13 @@ void post_train_update_regs(uint32_t memshire)
   // merge in new value of tphy_wrdata_delay
   uint32_t new_dfitmg1 = (curr_dfitmg1 & 0xffe0ffff) | ((new_txdqdly_dficlk & 0x1f) << 16);
 
-  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]curr_txdqdly_dficlk is 0x%08x new_txdqdly_dficlk is 0x%08x",
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]curr_txdqdly_dficlk is 0x%08x new_txdqdly_dficlk is 0x%08x\n",
     memshire, curr_txdqdly_dficlk, new_txdqdly_dficlk);
 
   // write new value back to both controllers
   ms_write_both_ddrc_reg(memshire, DFITMG1, new_dfitmg1);
 
-  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]current DFITMG1 is 0x%08x new DFITMG1 is 0x%08x",
+  Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]current DFITMG1 is 0x%08x new DFITMG1 is 0x%08x\n",
     memshire, curr_dfitmg1, new_dfitmg1);
 
   // ######################################################################################
