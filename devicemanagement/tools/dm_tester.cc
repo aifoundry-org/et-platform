@@ -59,7 +59,7 @@ public:
       if (!(error = dlerror())) {
         return getDM;
       }
-      DV_LOG(FATAL) << "error: " << error << std::endl;
+      DV_LOG(ERROR) << "error: " << error << std::endl;
     }
     return (getDM_t)0;
   }
@@ -67,14 +67,14 @@ public:
   int verifyDMLib() {
 
     if (!(devLayer_.get()) || devLayer_.get() == nullptr) {
-      DV_LOG(FATAL) << "Device Layer pointer is null!" << std::endl;
+      DV_LOG(ERROR) << "Device Layer pointer is null!" << std::endl;
       return -EAGAIN;
     }
 
     dmi = getInstance();
 
     if (!dmi) {
-      DV_LOG(FATAL) << "Device Management instance is null!" << std::endl;
+      DV_LOG(ERROR) << "Device Management instance is null!" << std::endl;
       return -EAGAIN;
     }
   }
@@ -247,7 +247,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_MODULE_POWER_STATE: {
     if (!power_state_flag) {
-      DV_LOG(FATAL) << "Aborting, --powerstate was not defined" << std::endl;
+      DV_LOG(ERROR) << "Aborting, --powerstate was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(power_state_e);
@@ -276,7 +276,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL: {
     if (!tdp_level_flag) {
-      DV_LOG(FATAL) << "Aborting, --tdplevel was not defined" << std::endl;
+      DV_LOG(ERROR) << "Aborting, --tdplevel was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(uint8_t);
@@ -306,7 +306,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS: {
     if (!thresholds_flag) {
-      DV_LOG(FATAL) << "Aborting, --thresholds was not defined" << std::endl;
+      DV_LOG(ERROR) << "Aborting, --thresholds was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(temperature_threshold_t);
@@ -465,7 +465,7 @@ int verifyService() {
   case DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT:
   case DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT: {
     if (!mem_count_flag) {
-      DV_LOG(FATAL) << "Aborting, --memcount was not defined" << std::endl;
+      DV_LOG(ERROR) << "Aborting, --memcount was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(uint8_t);
@@ -481,7 +481,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_PCIE_RESET: {
     if (!pcie_reset_flag) {
-      DV_LOG(FATAL) << "Aborting, --pciereset was not defined" << std::endl;
+      DV_LOG(ERROR) << "Aborting, --pciereset was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(pcie_reset_e);
@@ -549,7 +549,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED: {
     if (!pcie_link_speed_flag) {
-      DV_LOG(FATAL) << "Aborting, --pciespeed was not defined" << std::endl;
+      DV_LOG(ERROR) << "Aborting, --pciespeed was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(pcie_link_speed_e);
@@ -565,7 +565,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH: {
     if (!pcie_lane_width_flag) {
-      DV_LOG(FATAL) << "Aborting, --pciewidth was not defined" << std::endl;
+      DV_LOG(ERROR) << "Aborting, --pciewidth was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(pcie_lane_w_split_e);
@@ -786,7 +786,7 @@ int verifyService() {
   } break;
   
   default:
-    DV_LOG(FATAL) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
+    DV_LOG(ERROR) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
     return -EINVAL;
     break;
   }
@@ -797,7 +797,7 @@ bool validDigitsOnly() {
   std::regex re("^[0-9]+$");
   std::smatch m;
   if (!std::regex_search(str_optarg, m, re)) {
-    DV_LOG(FATAL) << "Aborting, argument: " << str_optarg << " is not valid. It contains more than just digits"
+    DV_LOG(ERROR) << "Aborting, argument: " << str_optarg << " is not valid. It contains more than just digits"
                   << std::endl;
     return false;
   }
@@ -810,7 +810,7 @@ bool validCommand() {
   std::regex re("^[a-zA-Z_]+$");
   std::smatch m;
   if (!std::regex_search(str_optarg, m, re)) {
-    DV_LOG(FATAL) << "Aborting, command: " << str_optarg << " is not valid ( ^[a-zA-Z_]+$ )" << std::endl;
+    DV_LOG(ERROR) << "Aborting, command: " << str_optarg << " is not valid ( ^[a-zA-Z_]+$ )" << std::endl;
     return false;
   }
 
@@ -822,7 +822,7 @@ bool validCommand() {
     return true;
   }
 
-  DV_LOG(FATAL) << "Aborting, command: " << str_optarg << " not found" << std::endl;
+  DV_LOG(ERROR) << "Aborting, command: " << str_optarg << " not found" << std::endl;
   return false;
 }
 
@@ -837,7 +837,7 @@ bool validCode() {
   auto tmp_optarg = std::strtoul(optarg, &end, 10);
 
   if (end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(FATAL) << "Aborting, command: " << optarg << " is not valid" << std::endl;
+    DV_LOG(ERROR) << "Aborting, command: " << optarg << " is not valid" << std::endl;
     return false;
   }
 
@@ -849,7 +849,7 @@ bool validCode() {
     }
   }
 
-  DV_LOG(FATAL) << "Aborting, command: " << optarg << " not found" << std::endl;
+  DV_LOG(ERROR) << "Aborting, command: " << optarg << " not found" << std::endl;
   return false;
 }
 
@@ -864,7 +864,7 @@ bool validMemCount() {
   auto count = std::strtoul(optarg, &end, 10);
 
   if (count > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(FATAL) << "Aborting, argument: " << optarg << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
+    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
     return false;
   }
 
@@ -878,7 +878,7 @@ bool validNode() {
   std::regex re("^[0-5]{1}$");
   std::smatch m;
   if (!std::regex_search(str_optarg, m, re)) {
-    DV_LOG(FATAL) << "Aborting, node: " << str_optarg << " is not valid ( ^[0-5]{1}$ )" << std::endl;
+    DV_LOG(ERROR) << "Aborting, node: " << str_optarg << " is not valid ( ^[0-5]{1}$ )" << std::endl;
     return false;
   }
 
@@ -888,7 +888,7 @@ bool validNode() {
   node = std::strtoul(optarg, &end, 10);
 
   if (node > 5 || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(FATAL) << "Aborting, argument: " << optarg << " is not a valid device node ( 0-5 )" << std::endl;
+    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not a valid device node ( 0-5 )" << std::endl;
     return false;
   }
 
@@ -906,7 +906,7 @@ bool validPowerState() {
   auto state = std::strtoul(optarg, &end, 10);
 
   if (state > 3 || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(FATAL) << "Aborting, argument: " << optarg << " is not a valid power state ( 0-3 )" << std::endl;
+    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not a valid power state ( 0-3 )" << std::endl;
     return false;
   }
 
@@ -926,7 +926,7 @@ bool validLaneWidth() {
   pcie_lane_width = std::strtoul(optarg, &end, 10);
 
   if (pcie_lane_width > 1 || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(FATAL) << "Aborting, argument: " << optarg << " is not a valid pcie lane width ( 0-1 )" << std::endl;
+    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not a valid pcie lane width ( 0-1 )" << std::endl;
     return false;
   }
 
@@ -944,7 +944,7 @@ bool validLinkSpeed() {
   pcie_link_speed = std::strtoul(optarg, &end, 10);
 
   if (pcie_link_speed > 1 || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(FATAL) << "Aborting, argument: " << optarg << " is not a valid pcie link speed ( 0-1 )" << std::endl;
+    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not a valid pcie link speed ( 0-1 )" << std::endl;
     return false;
   }
 
@@ -962,7 +962,7 @@ bool validReset() {
   pcie_reset = std::strtoul(optarg, &end, 10);
 
   if (pcie_reset > 2 || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(FATAL) << "Aborting, argument: " << optarg << " is not a valid pcie reset type ( 0-2 )" << std::endl;
+    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not a valid pcie reset type ( 0-2 )" << std::endl;
     return false;
   }
 
@@ -982,7 +982,7 @@ bool validTDPLevel() {
   auto level = std::strtoul(optarg, &end, 10);
 
   if (level > TDP_LEVEL_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(FATAL) << "Aborting, argument: " << optarg << " is not valid tdp level ( 0-40 )" << std::endl;
+    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not valid tdp level ( 0-40 )" << std::endl;
     return false;
   }
 
@@ -996,7 +996,7 @@ bool validThresholds() {
   std::regex re("^[0-9]+,[0-9]+$");
   std::smatch m;
   if (!std::regex_search(str_optarg, m, re)) {
-    DV_LOG(FATAL) << "Aborting, argument: " << str_optarg << " is not valid ( ^[0-9]+,[0-9]+$ )" << std::endl;
+    DV_LOG(ERROR) << "Aborting, argument: " << str_optarg << " is not valid ( ^[0-9]+,[0-9]+$ )" << std::endl;
     return false;
   }
 
@@ -1008,7 +1008,7 @@ bool validThresholds() {
   auto lo = std::strtoul(str_optarg.substr(0, pos).c_str(), &end, 10);
 
   if (lo > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(FATAL) << "Aborting, argument: " << lo << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
+    DV_LOG(ERROR) << "Aborting, argument: " << lo << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
     return false;
   }
 
@@ -1030,7 +1030,7 @@ bool validTimeout() {
   timeout = std::strtoul(optarg, &end, 10);
 
   if (end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(FATAL) << "Aborting, argument: " << optarg << " is not valid ( 0 - " << ULONG_MAX << " )" << std::endl;
+    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not valid ( 0 - " << ULONG_MAX << " )" << std::endl;
     return false;
   }
 
@@ -1386,19 +1386,19 @@ int main(int argc, char** argv) {
   }
 
   if (!cmd_flag && !code_flag) {
-    DV_LOG(FATAL) << "Aborting, must provide a command or code" << std::endl;
+    DV_LOG(ERROR) << "Aborting, must provide a command or code" << std::endl;
     printUsage(argv[0]);
     return -EINVAL;
   }
 
   if (!node_flag) {
-    DV_LOG(FATAL) << "Aborting, must provide a device node" << std::endl;
+    DV_LOG(ERROR) << "Aborting, must provide a device node" << std::endl;
     printUsage(argv[0]);
     return -EINVAL;
   }
 
   if (!timeout_flag) {
-    DV_LOG(FATAL) << "Aborting, must provide a timeout value" << std::endl;
+    DV_LOG(ERROR) << "Aborting, must provide a timeout value" << std::endl;
     printUsage(argv[0]);
     return -EINVAL;
   }
