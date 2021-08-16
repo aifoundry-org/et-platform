@@ -25,11 +25,12 @@ include(CompilerSanitizers)
 include(CoverageSupport)
 
 option(BUILD_TESTS "Enable/disable building tests" ON)
+option(BUILD_TOOLS "Enable/disable building tools" ON)
 option(BUILD_DOCS "Enable/disable building documentation" ON)
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
-option(ENABLE_SANITIZER_ADDRESS "" ON)
-option(ENABLE_SANITIZER_LEAK "" ON)
-option(ENABLE_SANITIZER_UNDEFINED_BEHAVIOR "" ON)
+option(ENABLE_SANITIZER_ADDRESS "" OFF)
+option(ENABLE_SANITIZER_LEAK "" OFF)
+option(ENABLE_SANITIZER_UNDEFINED_BEHAVIOR "" OFF)
 option(ENABLE_SANITIZER_THREAD "" OFF)
 option(ENABLE_SANITIZER_MEMORY "" OFF)
 option(DISABLE_SANITY_CHECKS "Disable completely sanity checks" OFF)
@@ -139,6 +140,12 @@ if (BUILD_DOCS)
     add_subdirectory(docs)
 endif()
 
+
+## Tools
+if (BUILD_TOOLS)
+    add_subdirectory(tools)
+endif()
+
 ## tests
 if (BUILD_TESTS)
     find_package(GTest CONFIG REQUIRED)
@@ -146,6 +153,8 @@ if (BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+
+
 
 
 ##### Package
