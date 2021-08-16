@@ -34,15 +34,18 @@
 
 #define FOR_EACH_MEMSHIRE(statements)                                              \
             {                                                                      \
-                for(memshire = 0;memshire < NUMBER_OF_MEMSHIRE;++memshire)         \
+                for(memshire = 0;memshire < NUMBER_OF_MEMSHIRE;++memshire) {       \
                    statements                                                      \
+                }                                                                  \
             }
 #define FOR_EACH_MEMSHIRE_EVEN_FIRST(statements)                                   \
             {                                                                      \
-                for(memshire = 0;memshire < NUMBER_OF_MEMSHIRE;memshire += 2)      \
+                for(memshire = 0;memshire < NUMBER_OF_MEMSHIRE;memshire += 2) {    \
                    statements                                                      \
-                for(memshire = 1;memshire < NUMBER_OF_MEMSHIRE;memshire += 2)      \
+                }                                                                  \
+                for(memshire = 1;memshire < NUMBER_OF_MEMSHIRE;memshire += 2) {    \
                    statements                                                      \
+                }                                                                  \
             }
 
 /*
