@@ -58,6 +58,7 @@ int8_t PMIC_Module_Voltage_Cmd_Handler(const void* test_cmd)
         rsp.maxion_voltage = module_voltage.maxion;
         rsp.minion_voltage = module_voltage.minion;
         rsp.noc_voltage = module_voltage.noc;
+        rsp.pcie_voltage = module_voltage.pcie;
         rsp.pcie_logic_voltage = module_voltage.pcie_logic;
         rsp.vddqlp_voltage = module_voltage.vddqlp;
         rsp.vddq_voltage = module_voltage.vddq;
