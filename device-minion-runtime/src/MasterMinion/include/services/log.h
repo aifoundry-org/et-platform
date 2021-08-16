@@ -22,13 +22,15 @@
 #include "device_minion_runtime_build_configuration.h"
 
 #if defined(DEVICE_MINION_RUNTIME_BUILD_RELEASE)
-    #define CURRENT_LOG_LEVEL LOG_LEVEL_ERROR
+    #if TEST_FRAMEWORK == 1
+        #define CURRENT_LOG_LEVEL LOG_LEVEL_DEBUG
+    #else
+        #define CURRENT_LOG_LEVEL LOG_LEVEL_ERROR
+    #endif
 #elif defined(DEVICE_MINION_RUNTIME_BUILD_DEBUG)
     #define CURRENT_LOG_LEVEL LOG_LEVEL_DEBUG
 #elif defined(DEVICE_MINION_RUNTIME_BUILD_INFO)
     #define CURRENT_LOG_LEVEL LOG_LEVEL_INFO
-#else
-    #define CURRENT_LOG_LEVEL LOG_LEVEL_WARNING
 #endif
 
 /*! \fn void Log_Init(void)
