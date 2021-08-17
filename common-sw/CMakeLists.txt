@@ -26,6 +26,7 @@ include(CompilerWarnings)
 
 
 add_subdirectory(logging)
+add_subdirectory(threadPool)
 add_subdirectory(debug)
 
 
