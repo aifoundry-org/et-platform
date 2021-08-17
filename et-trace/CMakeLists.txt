@@ -11,30 +11,35 @@
 cmake_minimum_required(VERSION 3.14)
 project(deviceTrace LANGUAGES C)
 
-option(DTRACE_TEST "Build device_trace tests" OFF)
+option(ET_TRACE_TEST "Build device_trace tests" OFF)
 
-add_library(device_trace_headers INTERFACE)
-add_library(deviceTrace::headers ALIAS device_trace_headers)
-target_include_directories(device_trace_headers
+add_library(device_trace INTERFACE)
+add_library(deviceTrace::device_trace ALIAS device_trace)
+target_include_directories(device_trace
   INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/device_trace>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw>
 )
 
-if (DTRACE_TEST)
+if (ET_TRACE_TEST)
   message(STATUS "Building device_trace tests")
   enable_testing()
   add_subdirectory(tests)
 endif()
 
-install(TARGETS device_trace_headers
-    EXPORT deviceTraceTargets
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+install(TARGETS device_trace
+  EXPORT deviceTraceTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT device_trace
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT device_trace
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT device_trace
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw COMPONENT device_trace
 )
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw COMPONENT device_trace
+)
+
 install(EXPORT deviceTraceTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceTrace
-    NAMESPACE deviceTrace::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceTrace
+  NAMESPACE deviceTrace::
 )
