@@ -18,8 +18,6 @@ extern uint64_t reg_hpmcounter8;
 
 void etsoc_reset(void); /* Reset regs to 0 */
 
-#define get_hart_id() reg_mhartid
-
 #ifdef __cplusplus
 }
 #endif

@@ -2,20 +2,20 @@
 
 #include "mock_etsoc.h"
 
-static uint64_t et_trace_get_counter(int id)
+#include <et-trace/layout.h>
+
+static uint64_t et_trace_get_counter(pmc_counter_e id)
 {
     switch (id) {
-    case 3:
-        return reg_hpmcounter3;
-    case 4:
+    case PMC_COUNTER_HPMCOUNTER4:
         return reg_hpmcounter4;
-    case 5:
+    case PMC_COUNTER_HPMCOUNTER5:
         return reg_hpmcounter5;
-    case 6:
+    case PMC_COUNTER_HPMCOUNTER6:
         return reg_hpmcounter6;
-    case 7:
+    case PMC_COUNTER_HPMCOUNTER7:
         return reg_hpmcounter7;
-    case 8:
+    case PMC_COUNTER_HPMCOUNTER8:
         return reg_hpmcounter8;
     default:
         return 0;
@@ -23,17 +23,12 @@ static uint64_t et_trace_get_counter(int id)
 }
 
 #ifdef MASTER_MINION
-#define ET_TRACE_MESSAGE_HEADER(msg, id)                                 \
-    {                                                                    \
-        ET_TRACE_WRITE(64, msg->header.cycle, PMU_Get_hpmcounter3()); \
-        ET_TRACE_WRITE(32, msg->header.hart_id, get_hart_id());       \
-        ET_TRACE_WRITE(16, msg->header.type, id);                     \
-    }
+#define ET_TRACE_WITH_HART_ID
 #endif
 
-// Extranous semicolon because of reasons
-#define ET_TRACE_GET_TIMESTAMP(out)       (out = reg_hpmcounter3)
-#define ET_TRACE_GET_HPM_COUNTER(id, out) (out = et_trace_get_counter(id))
+#define ET_TRACE_GET_TIMESTAMP()     reg_hpmcounter3
+#define ET_TRACE_GET_HPM_COUNTER(id) et_trace_get_counter(id)
+#define ET_TRACE_GET_HART_ID()       reg_mhartid
 
 #define ET_TRACE_ENCODE_IMPL
 #include <et-trace/encode.h>
