@@ -85,12 +85,6 @@ int32_t __Log_Write_String(const char *str, size_t length);
 #define Log_Write_String(level, str, length) \
     do { if (level <= CURRENT_LOG_LEVEL) __Log_Write_String(str, length); } while(0)
 
-/* TODO: Redefining the shared header signiture with code convention conformant
-definitions, log.h is used by many components, remove this redifinition
-once the shared log.h is made conformant to code convention */
-#define log_write       Log_Write
-#define log_write_str   Log_Write_String
-
 #define ASSERT_LOG(log_level,msg,expr) \
     do { if (!(expr)) Log_Write(log_level,"%s || File:%s Line:%d\r\n", msg, __FILE__, __LINE__); } while(0)
 

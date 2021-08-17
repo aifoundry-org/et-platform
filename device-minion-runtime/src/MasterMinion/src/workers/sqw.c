@@ -392,7 +392,6 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         /* Verify that the tail value read from memory is equal to previous tail value */
         if(tail_prev != VQ_Get_Tail_Offset(&vq_cached))
         {
-            /* TODO: Send an async event to host to inform about this fatal error */
             Log_Write(LOG_LEVEL_ERROR,
             "SQW:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
             tail_prev, VQ_Get_Tail_Offset(&vq_cached));

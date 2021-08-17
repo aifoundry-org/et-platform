@@ -720,7 +720,7 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
         /* Construct and transmit command response */
         rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
         rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(cmd->command_info.cmd_hdr.msg_id + 1U);
-        /* TODO: SW-7137: Add dma_readlist_cmd handling
+        /* TODO: SW-9022: Add dma_readlist_cmd handling
         rsp.response_info.rsp_hdr.msg_id =
             DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP */
         rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
@@ -889,7 +889,7 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
         /* Construct and transit command response */
         rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
         rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(cmd->command_info.cmd_hdr.msg_id + 1U);
-        /* TODO: SW-7137: Add dma_writelist_cmd handling
+        /* TODO: SW-9022: Add dma_writelist_cmd handling
         rsp.response_info.rsp_hdr.msg_id =
             DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP */
         rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);

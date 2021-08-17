@@ -136,7 +136,6 @@ void PLIC_RegisterHandler(uint32_t intID, uint32_t priority,
 ***********************************************************************/
 void PLIC_UnregisterHandler(uint32_t intID)
 {
-    // TODO FIXME target enumeration is a mystery, t0 is wrong
     plic_disable_interrupt(
         (volatile uint32_t *const)
         (R_PU_PLIC_BASEADDR + PU_PLIC_PRIORITY_0_ADDRESS),

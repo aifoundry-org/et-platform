@@ -158,9 +158,6 @@ int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id, uint8_t
     int8_t status = DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL;
     bool read_chan_reserved = false;
 
-    /* TODO: SW-4450: Setup timer here with DMAW_FIND_IDLE_CH_TIMEOUT value.
-    Register DMAW_Read_Ch_Search_Timeout_Callback with payload as sqw_idx */
-
     /* Try to find idle channel until timeout occurs */
     do
     {
@@ -177,7 +174,6 @@ int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id, uint8_t
                 status = STATUS_SUCCESS;
                 read_chan_reserved = true;
                 break;
-                /* TODO: SW-4450: Cancel timer */
             }
         }
     } while(!read_chan_reserved && (atomic_load_local_8(&DMAW_Read_CB.chan_search_timeout_flag[sqw_idx]) == 0U));
@@ -220,9 +216,6 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8
     int8_t status = DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL;
     bool write_chan_reserved = false;
 
-    /* TODO: SW-4450: Setup timer here with DMAW_FIND_IDLE_CH_TIMEOUT value.
-    Register DMAW_Write_Ch_Search_Timeout_Callback with payload as sqw_idx */
-
     /* Try to find idle channel until timeout occurs */
     do
     {
@@ -239,7 +232,6 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8
                 status = STATUS_SUCCESS;
                 write_chan_reserved = true;
                 break;
-                /* TODO: SW-4450: Cancel timer */
             }
         }
     } while(!write_chan_reserved && (atomic_load_local_8(&DMAW_Write_CB.chan_search_timeout_flag[sqw_idx]) == 0U));
@@ -294,7 +286,7 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
     chan_status.channel_state = DMA_CHAN_STATE_IN_USE;
     chan_status.sw_timer_idx = sw_timer_idx;
 
-    /* TODO: SW-7137: To be removed */
+    /* TODO: SW-9022: To be removed */
     uint16_t t_msg_id = cmd->command_info.cmd_hdr.msg_id;
     atomic_store_local_16(
         &DMAW_Read_CB.chan_status_cb[read_chan_id].msg_id, t_msg_id);
@@ -409,7 +401,7 @@ int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
     chan_status.channel_state = DMA_CHAN_STATE_IN_USE;
     chan_status.sw_timer_idx = sw_timer_idx;
 
-    /* TODO: SW-7137: To be removed */
+    /* TODO: SW-9022: To be removed */
     uint16_t t_msg_id = cmd->command_info.cmd_hdr.msg_id;
     atomic_store_local_16(
         &DMAW_Write_CB.chan_status_cb[write_chan_id].msg_id, t_msg_id);
@@ -567,7 +559,7 @@ struct device_ops_data_write_rsp_t *write_rsp)
     bool dma_read_done = false;
     bool dma_read_aborted = false;
     int8_t status = STATUS_SUCCESS;
-    uint16_t msg_id; /* TODO: SW-7137: To be removed */
+    uint16_t msg_id; /* TODO: SW-9022: To be removed */
 
     dma_read_status = dma_get_read_int_status();
     dma_read_done = dma_check_read_done(read_chan, dma_read_status);
@@ -608,7 +600,7 @@ struct device_ops_data_write_rsp_t *write_rsp)
                         read_chan_status.tag_id);
         }
 
-        /* TODO: SW-7137: To be removed */
+        /* TODO: SW-9022: To be removed */
         msg_id = atomic_load_local_16(
             &DMAW_Read_CB.chan_status_cb[read_chan].msg_id);
 
@@ -636,7 +628,7 @@ struct device_ops_data_write_rsp_t *write_rsp)
             sizeof(struct device_ops_data_write_rsp_t) - sizeof(struct cmn_header_t);
         write_rsp->response_info.rsp_hdr.tag_id = read_chan_status.tag_id;
         write_rsp->response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
-        /* TODO: SW-7137 To be enabled back
+        /* TODO: SW-9022 To be enabled back
         write_rsp->response_info.rsp_hdr.msg_id =
             DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP */
         write_rsp->device_cmd_start_ts = dma_rd_cycles.cmd_start_cycles;
@@ -688,7 +680,7 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
     exec_cycles_t dma_read_cycles;
     int8_t status = STATUS_SUCCESS;
     DMA_STATUS_e dma_status = DMA_OPERATION_SUCCESS;
-    uint16_t msg_id; /* TODO: SW-7137: To be removed */
+    uint16_t msg_id; /* TODO: SW-9022: To be removed */
 
     /* Abort the channel */
     dma_status = dma_abort_read(read_chan);
@@ -700,7 +692,7 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
         dma_configure_read(read_chan);
     }
 
-    /* TODO: SW-7137: To be removed */
+    /* TODO: SW-9022: To be removed */
     msg_id = atomic_load_local_16(
         &DMAW_Read_CB.chan_status_cb[read_chan].msg_id);
 
@@ -731,7 +723,7 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
         sizeof(struct device_ops_data_write_rsp_t) - sizeof(struct cmn_header_t);
     write_rsp->response_info.rsp_hdr.tag_id = read_chan_status.tag_id;
     write_rsp->response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
-    /* TODO: SW-7137 To be enabled back
+    /* TODO: SW-9022 To be enabled back
     write_rsp->response_info.rsp_hdr.msg_id =
         DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP */
     write_rsp->device_cmd_start_ts = dma_read_cycles.cmd_start_cycles;
@@ -785,7 +777,7 @@ static inline void process_dma_write_chan_in_use(dma_write_chan_id_e write_chan,
     exec_cycles_t dma_write_cycles;
     dma_channel_status_t write_chan_status;
     int8_t status = STATUS_SUCCESS;
-    uint16_t msg_id; /* TODO: SW-7137: To be removed */
+    uint16_t msg_id; /* TODO: SW-9022: To be removed */
 
     dma_write_status = dma_get_write_int_status();
     dma_write_done = dma_check_write_done(write_chan, dma_write_status);
@@ -824,7 +816,7 @@ static inline void process_dma_write_chan_in_use(dma_write_chan_id_e write_chan,
                 write_chan_status.sqw_idx, write_chan_status.tag_id, CMD_STATUS_ABORTED)
         }
 
-        /* TODO: SW-7137: To be removed */
+        /* TODO: SW-9022: To be removed */
         msg_id = atomic_load_local_16(
             &DMAW_Write_CB.chan_status_cb[write_chan].msg_id);
 
@@ -852,7 +844,7 @@ static inline void process_dma_write_chan_in_use(dma_write_chan_id_e write_chan,
             sizeof(struct device_ops_data_read_rsp_t) - sizeof(struct cmn_header_t);
         read_rsp->response_info.rsp_hdr.tag_id = write_chan_status.tag_id;
         read_rsp->response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
-        /* TODO: SW-7137 To be enabled back
+        /* TODO: SW-9022 To be enabled back
         read_rsp->response_info.rsp_hdr.msg_id =
             DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP */
         read_rsp->device_cmd_start_ts = dma_write_cycles.cmd_start_cycles;
@@ -906,7 +898,7 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
     exec_cycles_t dma_write_cycles;
     int8_t status = STATUS_SUCCESS;
     DMA_STATUS_e dma_write_status = DMA_OPERATION_SUCCESS;
-    uint16_t msg_id; /* TODO: SW-7137: To be removed */
+    uint16_t msg_id; /* TODO: SW-9022: To be removed */
 
     /* Abort the channel */
     dma_write_status = dma_abort_write(write_chan);
@@ -918,7 +910,7 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
         dma_configure_write(write_chan);
     }
 
-    /* TODO: SW-7137: To be removed */
+    /* TODO: SW-9022: To be removed */
     msg_id = atomic_load_local_16(
         &DMAW_Write_CB.chan_status_cb[write_chan].msg_id);
 
@@ -949,7 +941,7 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
         sizeof(struct device_ops_data_read_rsp_t) - sizeof(struct cmn_header_t);
     read_rsp->response_info.rsp_hdr.tag_id = write_chan_status.tag_id;
     read_rsp->response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
-    /* TODO: SW-7137 To be enabled back
+    /* TODO: SW-9022 To be enabled back
     read_rsp->response_info.rsp_hdr.msg_id =
         DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP */
     read_rsp->device_cmd_start_ts = dma_write_cycles.cmd_start_cycles;

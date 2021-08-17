@@ -43,7 +43,6 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
         src/services/host_cmd_hdlr.c
         src/services/cm_iface.c
         src/services/sp_iface.c
-        src/services/sp_cmd_hdlr.c
         src/services/sw_timer.c
         src/services/trace.c
         ${SHARED_SRC_DIR}/etsoc_memory.c

@@ -159,8 +159,6 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
             // this needs to be revised. Data out of log_tensor may be off
             *(log_tensor + hart_id * 8) = pmc_data;
         }
-        /* TODO: TRACE_perfctr(LOG_LEVELS_INFO, i+1, pmc_data) THAT'S NOT THE PLACE TO DO IT.
-            SHOULD BE DONE IN U-MODE BY USING mcounteren and scounteren */
     }
 
     // SC PMCs
@@ -177,8 +175,6 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
             if (log_tensor) {
                 *(log_tensor + (shire_id * 64 + neigh_id * 16 + NEIGH_HART_SC + i- 1)* 8) = pmc_data;
             }
-            /* TODO: TRACE_perfctr(LOG_LEVELS_INFO, i+1, pmc_data) THAT'S NOT THE PLACE TO DO IT.
-               SHOULD BE DONE IN U-MODE BY USING mcounteren and scounteren */
         }
     }
 
@@ -196,8 +192,6 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
             if (log_tensor) {
                 *(log_tensor + (shire_id * 64 + (neigh_id - 3 + i)* 16 + (hart_id & 0xF)) * 8) = pmc_data;
             }
-            /* TODO: TRACE_perfctr(LOG_LEVELS_INFO, i+1, pmc_data) THAT'S NOT THE PLACE TO DO IT.
-               SHOULD BE DONE IN U-MODE BY USING mcounteren and scounteren */
         }
     }
 

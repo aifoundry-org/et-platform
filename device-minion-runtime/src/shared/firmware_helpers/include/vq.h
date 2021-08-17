@@ -84,7 +84,6 @@ int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size);
     \brief Pops a command from a virtual queue.
     \param vq_cb Pointer to virtual queue control block.
     \param rx_buff Pointer to rx command buffer.
-    Caller shall use MM_CMD_MAX_SIZE to allocate rx_buff
     \return The size of the command in bytes, zero for no data
     or negative error code.
 */

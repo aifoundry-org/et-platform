@@ -125,10 +125,6 @@ enum mm2sp_fw_type {
     MM2SP_WORKER_MINION_FW = 2
 };
 
-/* TODO: We should invent a new cmd and rsp header for the mrt messages
-the device api cmd and rsp headers being used now have some redundant
-fields */
-
 /*********************************
     MM to SP Command Structures
 **********************************/
