@@ -24,6 +24,7 @@ static int randint(int a, int b)
 
 static void write_queue(struct trace_control_block_t *cb, struct trace_event_cmd_status_t *queue)
 {
+    static int trans_id = 0;
     switch (queue->cmd_status) {
     case CMD_STATUS_WAIT_BARRIER:
         queue->cmd_status = CMD_STATUS_RECEIVED;
@@ -47,8 +48,8 @@ static void write_queue(struct trace_control_block_t *cb, struct trace_event_cmd
     }
     default:
         queue->cmd_status = rand() & 1 ? CMD_STATUS_WAIT_BARRIER : CMD_STATUS_RECEIVED;
-        queue->mesg_id = randint(1, 4);
-        queue->trans_id = randint(1, 4);
+        queue->mesg_id = randint(512, 536);
+        queue->trans_id = ++trans_id;
         break;
     }
 
@@ -97,9 +98,7 @@ int main(int argc, const char **argv)
     struct trace_event_cmd_status_t queues[n_queues] = {};
     for (int i = 0; i < n_queues; ++i) {
         queues[i].queue_slot_id = i;
-        queues[i].cmd_status = CMD_STATUS_WAIT_BARRIER;
-        queues[i].trans_id = randint(1, 4);
-        queues[i].mesg_id = randint(1, 4);
+        queues[i].cmd_status = CMD_STATUS_SUCCEEDED;
     }
 
     printf("-- populating trace buffer\n");
