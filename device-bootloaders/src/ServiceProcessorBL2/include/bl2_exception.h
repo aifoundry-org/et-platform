@@ -46,12 +46,12 @@
 */
 void bl2_exception_entry(const void *stack_frame);
 
-/*! \fn void bl2_exception_entry(stack_frame)
+/*! \fn uint8_t *bl2_dump_stack_frame(void)
     \brief Dumps system stack frame from ISR context
     \param none
-    \returns none
+    \returns Pointer to region in trace buffer reserved for exception stack entry
 */
-void bl2_dump_stack_frame(void);
+uint8_t *bl2_dump_stack_frame(void);
 
 /*! \fn void SP_Exception_Event(uint64_t buf)
     \brief Send exception event to host

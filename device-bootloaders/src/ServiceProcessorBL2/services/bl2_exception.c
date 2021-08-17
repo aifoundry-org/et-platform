@@ -152,14 +152,14 @@ __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
 *
 *   OUTPUTS
 *
-*       None
+*       Pointer to region in trace buffer reserved for exception stack entry
 *
 ***********************************************************************/
-void bl2_dump_stack_frame(void)
+uint8_t *bl2_dump_stack_frame(void)
 {
     uint64_t stack_frame;
     uint8_t *trace_buf = SP_Exception_Trace_Buffer_Reserve();
-    trace_buf += sizeof(struct trace_entry_header_t);
+    uint8_t *trace_data_ptr = trace_buf + sizeof(struct trace_entry_header_t);
 
     /* For dumping the stack frame outside of exception context such as
         wdog interrupt, the stack is assumed to be present in the a7 register.
@@ -167,9 +167,11 @@ void bl2_dump_stack_frame(void)
         the driver ISR handler.
     */
     asm volatile("mv %0, a7" : "=r"(stack_frame));
-    dump_stack_frame((void *)stack_frame, (void *)trace_buf);
-    trace_buf += SP_EXCEPTION_STACK_FRAME_SIZE;
-    dump_csrs((void *)trace_buf);
+    dump_stack_frame((void *)stack_frame, (void *)trace_data_ptr);
+    trace_data_ptr += SP_EXCEPTION_STACK_FRAME_SIZE;
+    dump_csrs((void *)trace_data_ptr);
+
+    return trace_buf;
 }
 
 /************************************************************************
