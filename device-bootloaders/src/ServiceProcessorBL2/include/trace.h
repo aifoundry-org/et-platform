@@ -55,4 +55,19 @@ uint32_t Trace_Get_SP_Buffer(void);
     \return None.
 */
 void Trace_Process_CMD(tag_id_t tag_id, msg_id_t msg_id, void *buffer);
+
+/*! \fn Trace_Process_Control_Cmd(void *buffer)
+    \brief This function processes trace commands from host, to enable/disable
+            the  trace for Service Processor.
+    \return None.
+*/
+void Trace_Process_Control_Cmd(void *buffer);
+
+/*! \fn Trace_Process_Config_Cmd(void *buffer)
+    \brief This function processes trace commands from host, to specify Event and
+            filter mask the  trace for Service Processor.
+    \return None.
+*/
+void Trace_Process_Config_Cmd(void *buffer);
+
 #endif

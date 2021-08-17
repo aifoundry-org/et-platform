@@ -35,7 +35,7 @@ struct trace_control_block_t SP_Trace_CB;
 static void Trace_Run_Control(trace_enable_e state);
 static void Trace_Configure(uint32_t event_mask, uint32_t filter_mask);
 
-static void trace_process_control_cmd(void *buffer)
+void Trace_Process_Control_Cmd(void *buffer)
 {
     struct device_mgmt_trace_run_control_cmd_t *dm_cmd =
         (struct device_mgmt_trace_run_control_cmd_t *)buffer;
@@ -85,13 +85,13 @@ static void send_trace_control_response(tag_id_t tag_id, msg_id_t msg_id, uint64
     }
 }
 
-static void trace_process_config_cmd(void *buffer)
+void Trace_Process_Config_Cmd(void *buffer)
 {
     struct device_mgmt_trace_config_cmd_t *dm_cmd =
         (struct device_mgmt_trace_config_cmd_t *)buffer;
 
     Trace_Configure(dm_cmd->event_mask, dm_cmd->filter_mask);
-          Log_Write(LOG_LEVEL_DEBUG,
+          Log_Write(LOG_LEVEL_INFO,
                             "TRACE_CONFIG:SP:Trace Event/Filter Mask set.\r\n");
 }
 
@@ -284,7 +284,7 @@ void Trace_Process_CMD(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
         case DM_CMD_SET_DM_TRACE_RUN_CONTROL:
 
             /* process trace control command */
-            trace_process_control_cmd((void *)buffer);
+            Trace_Process_Control_Cmd(buffer);
 
             /* send response for trace control command */
             send_trace_control_response(tag_id, msg_id, req_start_time);
@@ -293,7 +293,7 @@ void Trace_Process_CMD(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
         case DM_CMD_SET_DM_TRACE_CONFIG:
 
             /* process trace config command */
-            trace_process_config_cmd((void *)buffer);
+            Trace_Process_Config_Cmd(buffer);
 
             /* send response for trace config command */
             send_trace_config_response(tag_id, msg_id, req_start_time);

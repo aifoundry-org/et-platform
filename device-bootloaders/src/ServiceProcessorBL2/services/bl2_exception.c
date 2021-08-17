@@ -100,6 +100,8 @@ __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
 
     SP_Exception_Event(trace_buf_offset);
 
+    Log_Write(LOG_LEVEL_CRITICAL, "SP Spining in Exception handler..\r\n");
+
     /* No recovery for now - spin forever */
     while (1)
         ;

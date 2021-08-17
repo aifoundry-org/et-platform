@@ -85,6 +85,12 @@ extern int8_t PMIC_Module_Power_Cmd_Handler(void* test_cmd);
 extern int8_t PMIC_Module_Voltage_Cmd_Handler(void* test_cmd);
 extern int8_t PMIC_Module_Uptime_Cmd_Handler(void* test_cmd);
 
+/* SP Trace Tests*/
+extern int8_t Sp_Trace_Run_Control_Cmd_Handler(void* test_cmd);
+extern int8_t Sp_Trace_Run_Config_Cmd_Handler(void* test_cmd);
+extern int8_t Sp_Trace_Get_Info_Cmd_Handler(void* test_cmd);
+extern int8_t Sp_Trace_Get_Buffer_Cmd_Handler(void* test_cmd);
+
 #endif  // !TF_CORE
 
 /* Unregistered Handler */
@@ -329,5 +335,13 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
     MM_Cmd_Shell_Debug_Print_Cmd_Handler,
 // 109
     SP_Cmd_Get_MM_Heartbeat_Handler,
+// 110
+    Sp_Trace_Run_Control_Cmd_Handler,
+// 111
+    Sp_Trace_Run_Config_Cmd_Handler,
+// 112
+    Sp_Trace_Get_Info_Cmd_Handler,
+// 113
+    Sp_Trace_Get_Buffer_Cmd_Handler,
 #endif  // !TF_CORE
 };

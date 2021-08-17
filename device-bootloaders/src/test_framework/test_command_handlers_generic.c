@@ -98,35 +98,21 @@ int8_t Move_Data_To_Device_Cmd_Handler(void* test_cmd)
     return 0;
 }
 
-static struct tf_rsp_move_data_to_host_t   read_rsp;
-
 int8_t Move_Data_To_Host_Cmd_Handler(void* test_cmd)
 {
     const struct tf_cmd_move_data_to_host_t  *cmd =
         (const struct tf_cmd_move_data_to_host_t  *)test_cmd;
+    struct tf_rsp_move_data_to_host_t rsp;
 
-    const char* src = (char*)cmd->src_addr;
-    uint32_t size = cmd->size;
-    char* dst = (char*)read_rsp.data;
-    uint32_t bytes_read = 0;
+    rsp.rsp_hdr.id = TF_RSP_MOVE_DATA_TO_HOST;
+    rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
+    rsp.rsp_hdr.payload_size =
+        (uint32_t)(sizeof(uint32_t) + cmd->size );
+    rsp.bytes_read = cmd->size;
 
-    while(size) {
-        *dst = *src;
-        dst++;src++;
-        size--;
-        bytes_read++;
-    }
-
-    read_rsp.rsp_hdr.id = TF_RSP_MOVE_DATA_TO_HOST;
-    read_rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
-    read_rsp.rsp_hdr.payload_size =
-        (uint32_t)(sizeof(uint32_t) + bytes_read );
-    read_rsp.bytes_read = bytes_read;
-
-    TF_Send_Response(&read_rsp,
-        (uint32_t)(sizeof(tf_rsp_hdr_t) +
-        sizeof(uint32_t) +
-        bytes_read));
+    TF_Send_Response_With_Payload(&rsp,
+        (uint32_t) (sizeof(tf_rsp_hdr_t) + sizeof(uint32_t)),
+        (void*) cmd->src_addr, rsp.bytes_read);
 
     return 0;
 }

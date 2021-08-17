@@ -2,6 +2,7 @@
 #include "tf.h"
 #include "serial.h"
 #include "hwinc/hal_device.h"
+#include <string.h>
 
 /* Globals */
 static char Input_Cmd_Buffer[TF_MAX_CMD_SIZE];
@@ -98,24 +99,77 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
     return 0;
 }
 
-int8_t TF_Send_Response(void* rsp, uint32_t rsp_size)
+static void fill_rsp_buffer(uint32_t *buf_size, void *buffer,
+    uint32_t rsp_size)
 {
-    char* p_rsp = &Output_Rsp_Buffer[0];
+    uint32_t start_idx = TF_MAX_RSP_SIZE - *buf_size;
+    char* src_buff = buffer;
+    char* p_rsp = &Output_Rsp_Buffer[start_idx];
+
+    while(rsp_size)
+    {
+        if (rsp_size > *buf_size)
+        {
+            memcpy(p_rsp, src_buff, *buf_size);
+            SERIAL_write(UART1, &Output_Rsp_Buffer[0], TF_MAX_RSP_SIZE);
+
+            src_buff += *buf_size;
+            p_rsp = &Output_Rsp_Buffer[0];
+            rsp_size -= *buf_size;
+            *buf_size = TF_MAX_RSP_SIZE;
+        }
+        else
+        {
+            memcpy(p_rsp, src_buff, rsp_size);
+            p_rsp += rsp_size;
+            *buf_size -= rsp_size;
+            rsp_size -= rsp_size;
+        }
+    }
+
+    if (*buf_size == 0)
+        *buf_size = TF_MAX_RSP_SIZE;
+}
+
+int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
+    void *additional_rsp, uint32_t additional_rsp_size)
+{
     uint32_t magic=0xA5A5A5A5;
-    uint32_t size=0;
+    uint32_t buf_size = TF_MAX_RSP_SIZE;
 
-    *p_rsp = TF_CMD_START;
-    p_rsp++; size++;
-    byte_copy(p_rsp, rsp, rsp_size);
-    p_rsp += rsp_size; size += rsp_size;
+    Output_Rsp_Buffer[0] = TF_CMD_START;
+    buf_size--;
+
+    fill_rsp_buffer(&buf_size, rsp, rsp_size);
+
+    if (additional_rsp_size)
+    {
+        fill_rsp_buffer(&buf_size, additional_rsp, additional_rsp_size);
+    }
+
+    // Append END and CHECKSUM delimiter
+    if (buf_size < TF_CHECKSUM_SIZE + 2)
+    {
+        SERIAL_write(UART1, &Output_Rsp_Buffer[0], (int)(TF_MAX_RSP_SIZE - buf_size));
+        buf_size = TF_MAX_RSP_SIZE;
+    }
+
+    char* p_rsp = &Output_Rsp_Buffer[TF_MAX_RSP_SIZE - buf_size];
     *p_rsp = TF_CMD_END;
-    p_rsp++;size++;
-    byte_copy(p_rsp, (char*)&magic, TF_CHECKSUM_SIZE);
-    p_rsp += TF_CHECKSUM_SIZE;size += TF_CHECKSUM_SIZE;
+    p_rsp++;
+    buf_size--;
+    memcpy(p_rsp, (char*)&magic, TF_CHECKSUM_SIZE);
+    p_rsp += TF_CHECKSUM_SIZE;
+    buf_size -= TF_CHECKSUM_SIZE;
     *p_rsp = TF_CHECKSUM_END;
-    size++;
-
-    SERIAL_write(UART1, &Output_Rsp_Buffer[0], (int)size);
+    buf_size--;
+    SERIAL_write(UART1, &Output_Rsp_Buffer[0], (int)(TF_MAX_RSP_SIZE - buf_size));
 
     return 0;
 }
+
+int8_t TF_Send_Response(void* rsp, uint32_t rsp_size)
+{
+    return TF_Send_Response_With_Payload(rsp, rsp_size, NULL, 0);
+}
+

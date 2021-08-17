@@ -648,7 +648,7 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type)
         rv = -1;
         goto DONE;
     }
-    Log_Write(LOG_LEVEL_ERROR, "Loaded %s header...\n", image_name);
+    Log_Write(LOG_LEVEL_INFO, "Loaded %s header...\n", image_name);
 
     if (0 != verify_image_file_header(image_type, image_file_header, image_file_size)) 
     {
@@ -656,7 +656,7 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type)
         rv = -1;
         goto DONE;
     }
-    Log_Write(LOG_LEVEL_ERROR, "Verified %s header...\n", image_name);
+    Log_Write(LOG_LEVEL_INFO, "Verified %s header...\n", image_name);
 
     if (0 != load_image_code_and_data(region_id, image_file_header)) 
     {
@@ -665,7 +665,7 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type)
         goto DONE;
     }
 
-    Log_Write(LOG_LEVEL_ERROR, "load_firmware: Loaded %s firmware.\n", image_name);
+    Log_Write(LOG_LEVEL_CRITICAL, "load_firmware: Loaded %s firmware.\n", image_name);
     rv = 0;
 
 DONE:

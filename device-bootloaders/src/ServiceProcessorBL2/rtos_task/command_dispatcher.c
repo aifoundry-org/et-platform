@@ -122,6 +122,8 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
         tag_id = hdr->cmd_hdr.tag_id;
         msg_id = hdr->cmd_hdr.msg_id;
 
+        Log_Write(LOG_LEVEL_INFO, "pc_vq_process_pending_command TagID: %d MsgID:%d\r\n",tag_id, msg_id);
+
         /* Process new message */
         switch (msg_id)
         {
