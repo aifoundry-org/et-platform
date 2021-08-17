@@ -211,11 +211,11 @@ void Dispatcher_Launch(uint32_t hart_id)
         "MM->SP Heartbeat init failure.");
 
     /* Master Minion boot is completed, now redirect logs to Trace. */
-    Log_Write(LOG_LEVEL_CRITICAL, "Dispatcher:Direct logging to trace\r\n");
+    Log_Write(LOG_LEVEL_INFO, "Dispatcher:Direct logging to trace\r\n");
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
     /* TODO:To be removed when Runtime/Glow has migrated to Traces */
-    Log_Write(LOG_LEVEL_CRITICAL, "Dispatcher:Direct logging to UART\r\n");
+    Log_Write(LOG_LEVEL_INFO, "Dispatcher:Direct logging to UART\r\n");
     Log_Set_Interface(LOG_DUMP_TO_UART);
 
     /* Mark Master Minion Status as Ready */
