@@ -1,6 +1,6 @@
 add_library(dtrace_test common/mock_etsoc.c common/user_args.c)
 
-add_library(dtrace_impl_mm common/et_trace.c common/mock_atomics.c)
+add_library(dtrace_impl_mm common/et_trace.c)
 target_compile_definitions(dtrace_impl_mm PUBLIC MASTER_MINION)
 target_link_libraries(dtrace_impl_mm PUBLIC deviceTrace::device_trace)
 
