@@ -4,9 +4,6 @@ obj-m += esperanto.o
 
 ifeq (, $(findstring PCIE_LOOPBACK_DRIVER, $(EXTRA_CFLAGS)))
 esperanto-y := et_io.o et_fw_update.o et_circbuffer.o et_event_handler.o et_vqueue.o et_dma.o et_pci_dev.o et-soc1-pcie.o
-ifneq (, $(findstring ENABLE_DRIVER_TESTS, $(EXTRA_CFLAGS)))
-esperanto-y += et_test.o
-endif
 else
 esperanto-y := et_io_loopback.o et_fw_update.o et_circbuffer_loopback.o et_event_handler.o et_vqueue_loopback.o et_dma.o et_pci_dev.o et-soc1-pcie_loopback.o
 endif

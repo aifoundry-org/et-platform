@@ -35,10 +35,6 @@
 #include "et_pci_dev.h"
 #include "et_vqueue.h"
 
-#ifdef ENABLE_DRIVER_TESTS
-#include "et_test.h"
-#endif
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Esperanto <esperanto@gmail.com or admin@esperanto.com>");
 MODULE_DESCRIPTION("PCIe device driver for esperanto soc-1");
@@ -81,7 +77,6 @@ static u8 get_index(void)
 	return index;
 }
 
-#ifndef ENABLE_DRIVER_TESTS
 static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 {
 	__poll_t mask = 0;
@@ -123,7 +118,6 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 
 	return mask;
 }
-#endif
 
 static long
 esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
@@ -282,11 +276,6 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			&ops->sq_pptr[sq_idx]->vq_common->waitqueue);
 
 		return 0;
-
-#ifdef ENABLE_DRIVER_TESTS
-	case ETSOC1_IOCTL_TEST_VQ:
-		return test_virtqueue(et_dev, (u16)arg);
-#endif
 
 	default:
 		pr_err("%s: unknown cmd: 0x%x\n", __func__, cmd);
@@ -694,9 +683,7 @@ static int esperanto_pcie_mgmt_release(struct inode *inode, struct file *fp)
 // clang-format off
 static const struct file_operations et_pcie_ops_fops = {
 	.owner			= THIS_MODULE,
-#ifndef ENABLE_DRIVER_TESTS
 	.poll			= esperanto_pcie_ops_poll,
-#endif
 	.unlocked_ioctl		= esperanto_pcie_ops_ioctl,
 	.mmap			= esperanto_pcie_ops_mmap,
 	.open			= esperanto_pcie_ops_open,
