@@ -10,6 +10,53 @@
  *
  ***********************************************************************/
 
+/***********************************************************************
+ * et-trace/layout.h
+ * Describes the basic layout of Esperanto device traces.
+ *
+ *
+ * USAGE
+ *
+ * Simply include the header file:
+ *
+ *     #include <et-trace/layout.h>
+ *
+ * This file only defines data structures and constants.
+ *
+ *
+ * ABOUT
+ *
+ * From a high-level the layout of a trace buffer is as follows:
+ *
+ *   +--------------+   +--------+---------+   +--------+---------+
+ *   | Trace Header | - | Header | Payload | - | Header | Payload | - ...
+ *   +--------------+   +--------+---------+   +--------+---------+
+ *                           Entry #1               Entry #2
+ *
+ * The trace buffer header contains general information about the
+ * contents of the buffer. This includes:
+ *  - the type of trace buffer (Master Minion, Compute Minion, Service Processor),
+ *  - the number of valid bytes in the buffer (i.e.: size), and
+ *  - a magic header to identify the validity of the trace.
+ *
+ * Entries have a variable size, depending on the type of their payload.
+ * Each entry consists of a header with common fields, such as:
+ *  - the type of payload (string, power_status, ...),
+ *  - the timestamp this entry was collected, and
+ *  - the hart_id, if applicable.
+ *
+ * The format of the payload depends on the type of data allocated.
+ *
+ *
+ * NOTES
+ *
+ *  - All data structures here are defined as packed 
+ *  - In a few instances extra padding bytes are added to account
+ *    for cache alignment / atomic operations
+ *
+ ***********************************************************************/
+
+
 #ifndef ET_TRACE_LAYOUT_H
 #define ET_TRACE_LAYOUT_H
 
@@ -18,8 +65,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// Note: This header should be auto-generated
 
 /*! \def TRACE_STRING_MAX_SIZE
     \brief Max size of string to log into Trace string message.

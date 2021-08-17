@@ -10,6 +10,38 @@
  *
  ***********************************************************************/
 
+/***********************************************************************
+ * et-trace/decode.h
+ * Decode interface for Esperanto device traces.
+ *
+ *
+ * USAGE
+ *
+ * In a *single* source file, put:
+ *
+ *     #define ET_TRACE_DECODE_IMPL
+ *     #include <et-trace/decode.h>
+ *
+ * Other source files can include et-trace/decode.h as normal.
+ *
+ *
+ * ABOUT
+ *
+ * This file provides an interface to decode device traces
+ * stored in a linear memory buffer. The trace buffer should
+ * be well formatted, according to the layout in et-trace/layout.h.
+ *
+ * The main way to access the contents of a given trace buffer
+ * is by iterating over its entries:
+ *
+ *     struct trace_buffer_std_header_t* trace_buf = ...;
+ *     struct trace_entry_header_t* entry = NULL;
+ *     while ((entry = Trace_Decode(trace_buf, entry))) {
+ *        .. process entry here ..
+ *     }
+ *
+ ***********************************************************************/
+
 #ifndef ET_TRACE_DECODE_H
 #define ET_TRACE_DECODE_H
 
@@ -41,14 +73,6 @@ struct trace_buffer_std_header_t;
  *
  ***********************************************************************/
 void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev);
-
-/*
- * Implement Trace_Decode by defining ET_TRACE_DECODE_IMPL
- * in a *single* source file before including the header, i.e.:
- *
- *     #define ET_TRACE_DECODE_IMPL
- *     #include <ET_TRACE_decode.h>
- */
 
 #ifdef ET_TRACE_DECODE_IMPL
 

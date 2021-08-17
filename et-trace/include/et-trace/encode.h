@@ -10,23 +10,113 @@
  *
  ***********************************************************************/
 
-/*! \file et-trace/encode.h
-    \brief A C header that implements the Trace services for device side.
-
-    Public interfaces:
-        Trace_Init
-        Trace_String
-        Trace_Format_String
-        Trace_PMC_All_Counters
-        Trace_PMC_Counter
-        Trace_Value_u64
-        Trace_Value_u32
-        Trace_Value_u16
-        Trace_Value_u8
-        Trace_Value_float
-        Trace_Memory
-*/
-/***********************************************************************/
+/***********************************************************************
+ * et-trace/encode.h
+ * Encode interface for Esperanto device traces.
+ *
+ *
+ * USAGE
+ *
+ * In a *single* source file, put:
+ *
+ *     #define ET_TRACE_ENCODE_IMPL
+ *     #include <et-trace/encode.h>
+ *
+ * Other source files can include et-trace/encode.h as normal.
+ *
+ * Most of the underlying primitives can be overwritten
+ * with custom implementation (see CUSTOMIZING)
+ *
+ *
+ * ABOUT
+ *
+ * This file provides the basic interface for primitive
+ * data types that can be saved to a device trace.
+ *
+ * Public interfaces:
+ *     Trace_Init
+ *     Trace_String
+ *     Trace_Format_String
+ *     Trace_PMC_All_Counters
+ *     Trace_PMC_Counter
+ *     Trace_Value_u64
+ *     Trace_Value_u32
+ *     Trace_Value_u16
+ *     Trace_Value_u8
+ *     Trace_Value_float
+ *     Trace_Memory
+ *
+ * The trace buffer itself is accessed via a control block.
+ * This data structure has to be filled with a pointer to the 
+ * memory buffer that allocates the trace buffer.
+ *
+ * This is the basic way of initializing the trace buffer:
+ *
+ *     // This depends on your use case
+ *     struct trace_buffer_std_header_t* buf = ...;
+ *     size_t trace_size       = ...;
+ *     trace_type_e trace_type = ...;
+ *
+ *     struct trace_control_block_t* cb = ...;
+ *
+ *     // Basic settings (in this case enable everything)
+ *     struct trace_init_info_t info;
+ *     info.shire_mask  = 0xFFFFFFFF;  
+ *     info.thread_mask = 0xFFFFFFFF;
+ *     info.event_mask  = TRACE_EVENT_ENABLE_ALL;
+ *     info.filter_mask = TRACE_FILTER_ENABLE_ALL;
+ *     info.threshold   = trace_size;
+ *
+ *     // Initialize the control block
+ *     cb->size_per_hart = trace_size;
+ *     cb->base_per_hart = (uint64_t)trace_buf;
+ *     cb->offset_per_hart = sizeof(struct trace_buffer_std_header_t);
+ *     Trace_Init(&info, cb, TRACE_STD_HEADER);
+ *
+ *     // Setup the trace buffer itself
+ *     ET_TRACE_WRITE(32, buf->magic_header, TRACE_MAGIC_HEADER);
+ *     ET_TRACE_WRITE(32, buf->data_size, sizeof(struct trace_buffer_std_header_t));
+ *     ET_TRACE_WRITE(16, buf->type, trace_type);
+ *
+ *
+ * After performing writes to the trace buffer, you'll need
+ * to update its size, i.e. the number of valid bytes it contains.
+ * This is usually done when this memory region is evicted:
+ *
+ *     ET_TRACE_WRITE(32, buf->data_size, cb->offset_per_hart);
+ *
+ *
+ * CUSTOMIZING
+ *
+ * The following are primitives that are used by the encoder implementation.
+ * You can define custom implementations, for instance to perform reads/writes
+ * via atomic operations, or to provide different implementations for underlying
+ * hardware features depending on their availability.
+ *
+ *     // Memory operations
+ *     ET_TRACE_READ(Size, Location)          Reads <size> bits from variable <location>
+ *     ET_TRACE_WRITE(Size, Location, Value)  Writes <value> of <size> bits to <location>
+ *     ET_TRACE_WRITE_FLOAT(Location, Value)  Writes FP <value> to variable <location>
+ *
+ *     // Hardware features
+ *     ET_TRACE_GET_TIMESTAMP()           Returns current cycle time
+ *     ET_TRACE_GET_HART_ID()             Returns ID of executing hart
+ *     ET_TRACE_GET_HPM_COUNTER(Counter)  Returns sampled value of <counter>
+ *
+ * You can also customize the information that is written to trace entry headers.
+ * This allows you to omit unused values for optimization purposes.
+ *
+ *     ET_TRACE_MESSAGE_HEADER(Entry, Type)
+ *       Write information to header of <entry> that contains payload of <type>
+ * 
+ * By default the hart_id is not written to the trace entry header.
+ * You can change this behavior by defining `ET_TRACE_WITH_HART_ID`:
+ *
+ *     #define ET_TRACE_ENCODE_IMPL
+ *     #define ET_TRACE_WITH_HART_ID
+ *     #include <et-trace/encode.h>
+ *
+ ***********************************************************************/
 
 #ifndef ET_TRACE_ENCODE_H
 #define ET_TRACE_ENCODE_H
@@ -149,17 +239,6 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
 void Trace_Power_Status(struct trace_control_block_t *cb,
                         const struct trace_event_power_status_t *cmd_data);
 
-/*
- * Implement Trace encode functions by defining ET_TRACE_ENCODER_IMPL
- * in a *single* source file before including the header, i.e.:
- *
- *     #define ET_TRACE_ENCODER_IMPL
- *     #include "et_trace.h>
- *
- * Note: The implementation of Trace_Decode changes depending on
- *       whether `MASTER_MINION` is set or not (see device_trace_types.h)
- */
-
 #ifdef ET_TRACE_ENCODE_IMPL
 
 #include <stdarg.h>
@@ -175,8 +254,8 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 #define ET_TRACE_WRITE(size, loc, val) (loc = val)
 #endif
 
-#ifndef ET_TRACE_WRITE_F
-#define ET_TRACE_WRITE_F(loc, val) (loc = val)
+#ifndef ET_TRACE_WRITE_FLOAT
+#define ET_TRACE_WRITE_FLOAT(loc, val) (loc = val)
 #endif
 
 #ifndef ET_TRACE_MEM_CPY
@@ -737,7 +816,7 @@ void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float val
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_FLOAT)
 
         ET_TRACE_WRITE(32, entry->tag, tag);
-        ET_TRACE_WRITE_F(entry->value, value);
+        ET_TRACE_WRITE_FLOAT(entry->value, value);
     }
 }
 
