@@ -160,8 +160,8 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 #include <stdio.h>
 #include <string.h>
 
-#define ET_TRACE_GENERIC_HEADER(msg, id)    {ET_TRACE_WRITE(64, msg->header.generic.cycle, PMU_Get_hpmcounter3());\
-                                            ET_TRACE_WRITE(16, msg->header.generic.type, id);}
+#define ET_TRACE_GENERIC_HEADER(msg, id)    {ET_TRACE_WRITE(64, msg->header.cycle, PMU_Get_hpmcounter3());\
+                                            ET_TRACE_WRITE(16, msg->header.type, id);}
 
 /* Check if Trace is enabled for given control block. */
 #define IS_TRACE_ENABLED(cb)            (ET_TRACE_READ(8, cb->enable) == TRACE_ENABLE)

@@ -25,9 +25,9 @@ static uint64_t et_trace_get_counter(int id)
 #ifdef MASTER_MINION
 #define ET_TRACE_MESSAGE_HEADER(msg, id)                                 \
     {                                                                    \
-        ET_TRACE_WRITE(64, msg->header.mm.cycle, PMU_Get_hpmcounter3()); \
-        ET_TRACE_WRITE(32, msg->header.mm.hart_id, get_hart_id());       \
-        ET_TRACE_WRITE(16, msg->header.mm.type, id);                     \
+        ET_TRACE_WRITE(64, msg->header.cycle, PMU_Get_hpmcounter3()); \
+        ET_TRACE_WRITE(32, msg->header.hart_id, get_hart_id());       \
+        ET_TRACE_WRITE(16, msg->header.type, id);                     \
     }
 #endif
 

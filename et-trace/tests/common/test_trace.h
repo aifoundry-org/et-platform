@@ -45,10 +45,4 @@ void test_trace_destroy(struct trace_buffer_std_header_t *buf)
     free(buf);
 }
 
-#ifdef MASTER_MINION
-#define ENTRY_HEADER(ent) ent->header.mm
-#else
-#define ENTRY_HEADER(ent) ent->header.generic
-#endif
-
 #endif

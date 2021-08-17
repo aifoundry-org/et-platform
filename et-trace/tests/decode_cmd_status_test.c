@@ -66,7 +66,7 @@ int main(int argc, const char **argv)
             entry = Trace_Decode(buf, entry);
             if (!entry)
                 break;
-            CHECK_EQ(ENTRY_HEADER(entry).type, TRACE_TYPE_CMD_STATUS);
+            CHECK_EQ(entry->header.type, TRACE_TYPE_CMD_STATUS);
             CHECK_EQ(entry->cmd.mesg_id, i);
             CHECK_EQ(entry->cmd.queue_slot_id, i + 1);
             CHECK_EQ(entry->cmd.trans_id, i + 2);

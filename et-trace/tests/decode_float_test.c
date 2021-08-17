@@ -56,7 +56,7 @@ int main(int argc, const char **argv)
             entry = Trace_Decode(buf, entry);
             if (!entry)
                 break;
-            CHECK_EQ(ENTRY_HEADER(entry).type, TRACE_TYPE_VALUE_FLOAT);
+            CHECK_EQ(entry->header.type, TRACE_TYPE_VALUE_FLOAT);
             CHECK_EQ(entry->tag, test_tag);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat"

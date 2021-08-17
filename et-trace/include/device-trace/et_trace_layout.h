@@ -128,35 +128,14 @@ struct trace_buffer_std_header_t {
     uint8_t  pad[6];        /**< Padding for Cache alignment. */
 } __attribute__((packed));
 
-/*! \struct trace_entry_header_mm_t
-    \brief This Trace packet entry header is for Master Minion.
-*/
-struct trace_entry_header_mm_t {
-    uint64_t cycle;   /**< Current cycle */
-    uint32_t hart_id; /**< Hart ID of the Hart which is logging Trace */
-    uint16_t type;    /**< One of enum trace_type_e */
-    uint8_t  pad[2];  /**< Cache Alignment for MM as it uses atomic operations. */
-} __attribute__((packed));
-
-/*! \struct trace_entry_header_generic_t
-    \brief This Trace packet entry header is a generic implementation. In general,
-           this should be used until unless specific requirements needs other packer header.
-*/
-struct trace_entry_header_generic_t {
-    uint64_t cycle;   /**< Current cycle */
-    uint16_t type;    /**< One of enum trace_type_e */
-    uint8_t  pad[6];  /**< To keep natural alignment for memory operations. */
-} __attribute__((packed));
-
 /*! \struct trace_entry_header_t
-    \brief This Trace packet entry header it includes different implementation of headers
-           in a union. So user must know what implementation names it needs to access.
+    \brief Information common for different entry types.
 */
 struct trace_entry_header_t {
-    union {
-        struct trace_entry_header_generic_t generic;
-        struct trace_entry_header_mm_t mm;
-    };
+    uint64_t cycle;   /**< Current cycle */
+    uint32_t hart_id; /**< (optional) Hart ID of the Hart which is logging Trace */
+    uint16_t type;    /**< One of enum trace_type_e */
+    uint8_t  pad[2];  /**< Cache Alignment for MM as it uses atomic operations. */
 } __attribute__((packed));
 
 /*! \struct trace_pmc_counter_t

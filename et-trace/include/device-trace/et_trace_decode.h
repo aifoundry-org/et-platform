@@ -75,14 +75,12 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
     if (prev < (void *)tb)
         return NULL;
 
-    struct trace_entry_header_t *prev_entry = (struct trace_entry_header_t *)prev;
-    const uint16_t entry_type = tb->type == TRACE_MM_BUFFER ? prev_entry->mm.type :
-                                                              prev_entry->generic.type;
+    const uint16_t entry_type = ((struct trace_entry_header_t *)prev)->type;
     size_t payload_size;
 
 #define ET_TRACE_PAYLOAD_SIZE(E, S) \
-    case TRACE_TYPE_##E:                \
-        payload_size = S;               \
+    case TRACE_TYPE_##E:            \
+        payload_size = S;           \
         break;
 
     /* Get payload size depending on entry type */

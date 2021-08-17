@@ -88,7 +88,7 @@ int main(int argc, const char **argv)
             entry = Trace_Decode(buf, entry);
             if (!entry)
                 break;
-            CHECK_EQ(ENTRY_HEADER(entry).type, TRACE_TYPE_POWER_STATUS);
+            CHECK_EQ(entry->header.type, TRACE_TYPE_POWER_STATUS);
             check_random_power_status(&entry->power);
             ++i;
         }

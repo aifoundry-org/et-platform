@@ -40,7 +40,7 @@ static void write_random_entry(struct trace_control_block_t *cb)
 }
 
 #ifdef MASTER_MINION
-#define CHECK_HARTID(entry, hartid) CHECK_EQ(ENTRY_HEADER(entry).hart_id, hartid)
+#define CHECK_HARTID(entry, hartid) CHECK_EQ(entry->header.hart_id, hartid)
 #else
 #define CHECK_HARTID(entry, hartid) (void)hartid
 #endif
@@ -53,7 +53,7 @@ static void write_random_entry(struct trace_control_block_t *cb)
         uint16_t tag = rand() & 0xffff;                                            \
         type value = rand() & 0xff;                                                \
         CHECK_HARTID(entry, mhartid);                                              \
-        CHECK_EQ(ENTRY_HEADER(entry).cycle, reg_hpmcounter3);                            \
+        CHECK_EQ(entry->header.cycle, reg_hpmcounter3);                            \
         CHECK_EQ(entry->tag, tag);                                                 \
         CHECK_EQ(entry->value, value);                                             \
     }
