@@ -190,10 +190,21 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 #define ET_TRACE_GET_HPM_COUNTER(counter) 0
 #endif
 
+#ifndef ET_TRACE_GET_HART_ID
+#define ET_TRACE_GET_HART_ID() 0
+#endif
+
+#ifdef ET_TRACE_WITH_HART_ID
+#define ET_TRACE_WRITE_HART_ID(msg) ET_TRACE_WRITE(32, msg->header.hart_id, ET_TRACE_GET_HART_ID())
+#else
+#define ET_TRACE_WRITE_HART_ID(msg)
+#endif
+
 #ifndef ET_TRACE_MESSAGE_HEADER
 #define ET_TRACE_MESSAGE_HEADER(msg, id)                                 \
     {                                                                    \
         ET_TRACE_WRITE(64, msg->header.cycle, ET_TRACE_GET_TIMESTAMP()); \
+        ET_TRACE_WRITE_HART_ID(msg);                                     \
         ET_TRACE_WRITE(16, msg->header.type, id);                        \
     }
 #endif
