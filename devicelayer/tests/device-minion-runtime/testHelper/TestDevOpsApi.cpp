@@ -251,21 +251,21 @@ void TestDevOpsApi::executeSync() {
 
 void TestDevOpsApi::execute(bool isAsync) {
   int deviceCount = getDevicesCount();
-
-  std::ofstream logfile;
-  if (FLAGS_enable_trace_dump) {
-    TEST_VLOG(1) << "Trace data is available at " << fs::current_path() / FLAGS_trace_logfile;
-    logfile.open(FLAGS_trace_logfile, std::ios_base::app);
-    logfile << "\n\n"
-            << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() << "."
-            << ::testing::UnitTest::GetInstance()->current_test_info()->name() << std::endl;
-    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-      controlTraceLogging(deviceIdx, true /* to trace buffer */, true /* Reset trace buffer. */);
-    }
-    logfile.close();
-  }
-
+  auto totalTimeout = execTimeout_ + std::chrono::seconds(25);
+  auto end = Clock::now() + totalTimeout;
   invalidRsps_.clear();
+
+  // If in last test device stopped responding, then wait first for device
+  // to be online before starting test execution.
+  auto devicesAlive = readLastTestStatus();
+  if (!devicesAlive) {
+    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+      if (!isDeviceAlive(deviceIdx, end - Clock::now())) {
+        return;
+      }
+    }
+    devicesAlive = true;
+  }
 
   TEST_VLOG(0) << "Test execution started...";
   isAsync ? executeAsync() : executeSync();
@@ -275,9 +275,31 @@ void TestDevOpsApi::execute(bool isAsync) {
 
   cleanUpExecution();
 
-  for (int deviceIdx = 0; FLAGS_enable_trace_dump && deviceIdx < deviceCount; deviceIdx++) {
-    extractAndPrintTraceData(deviceIdx);
+  if (!FLAGS_enable_trace_dump) {
+    writeCurrentTestStatus(!HasFailure());
+    return;
   }
+  TEST_VLOG(1) << "Trace data is available at " << fs::current_path() / FLAGS_trace_logfile;
+  std::ofstream logfile;
+  logfile.open(FLAGS_trace_logfile, std::ios_base::app);
+  logfile << "\n\n"
+          << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() << "."
+          << ::testing::UnitTest::GetInstance()->current_test_info()->name() << std::endl;
+  logfile.close();
+
+  // if execution has failed and device has stopped responding then there is no use of sending
+  // trace data pull command or clear trace buffer so that trace buffer can be pull in later
+  // test executions when device is back online
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    if (HasFailure() && !isDeviceAlive(deviceIdx, end - Clock::now())) {
+      devicesAlive = false;
+      TEST_VLOG(1) << "Device not responding, unable to pull trace data!";
+      break;
+    }
+    extractAndPrintTraceData(deviceIdx, end - Clock::now());
+    controlTraceLogging(deviceIdx, true /* default trace buffer */, true /* Reset trace buffer. */, end - Clock::now());
+  }
+  writeCurrentTestStatus(devicesAlive);
 }
 
 void TestDevOpsApi::cleanUpExecution() {
@@ -438,6 +460,8 @@ TestDevOpsApi::PopRspResult TestDevOpsApi::popRsp(int deviceIdx) {
 
   if (devOpsApiCmd->getCmdStatus() != CmdStatus::CMD_SUCCESSFUL) {
     TEST_VLOG(0) << devOpsApiCmd->printSummary();
+  } else {
+    TEST_VLOG(1) << devOpsApiCmd->printSummary();
   }
 
   if (devOpsApiCmd->getCmdStatus() == CmdStatus::CMD_RSP_DUPLICATE) {
@@ -861,7 +885,29 @@ bool TestDevOpsApi::printCMTraceSingleHartData(unsigned char* hartDataPtr, uint3
   return validStringEventFound;
 }
 
-void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
+bool TestDevOpsApi::isDeviceAlive(int deviceIdx, TimeDuration timeout) {
+  // if we are able to receive echo response in given timeout on all queues of given device then it will be
+  // considered alive
+  auto start = Clock::now();
+  auto end = start + timeout;
+  auto queueCount = getSqCount(deviceIdx);
+  for (int queueIdx = 0; queueIdx < queueCount; queueIdx++) {
+    std::vector<CmdTag> cmds;
+    cmds.push_back(IDevOpsApiCmd::createCmd<EchoCmd>(device_ops_api::CMD_FLAGS_BARRIER_ENABLE));
+    auto stream = std::make_shared<Stream>(deviceIdx, queueIdx, std::move(cmds));
+    dispatchStreamSync(stream, end - Clock::now());
+
+    if (std::count_if(stream->cmds_.begin(), stream->cmds_.end(), [](auto tagId) {
+          return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_SUCCESSFUL;
+        }) != stream->cmds_.size()) {
+      return false;
+    }
+    cmds.clear();
+  }
+  return true;
+}
+
+void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx, TimeDuration timeout) {
   const size_t mmBufSize = 1024 * 1024;
   const size_t cmBufSize = CM_SIZE_PER_HART * WORKER_HART_COUNT;
   auto rdBufMem = allocDmaBuffer(deviceIdx, mmBufSize + cmBufSize, false /* read buffer */);
@@ -876,7 +922,7 @@ void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
     &rdNode, 1 /* single node */, device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE));
 
   auto stream = std::make_shared<Stream>(deviceIdx, 0 /* queueIdx */, std::move(cmds));
-  dispatchStreamSync(stream, std::chrono::seconds(10));
+  dispatchStreamSync(stream, timeout);
 
   if (std::count_if(stream->cmds_.begin(), stream->cmds_.end(), [](auto tagId) {
         return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_SUCCESSFUL;
@@ -891,7 +937,7 @@ void TestDevOpsApi::extractAndPrintTraceData(int deviceIdx) {
   freeDmaBuffer(rdBufMem);
 }
 
-void TestDevOpsApi::controlTraceLogging(int deviceIdx, bool toTraceBuf, bool resetTraceBuf) {
+void TestDevOpsApi::controlTraceLogging(int deviceIdx, bool toTraceBuf, bool resetTraceBuf, TimeDuration timeout) {
   std::vector<CmdTag> cmds;
 
   uint32_t control = device_ops_api::TRACE_RT_CONTROL_ENABLE_TRACE;
@@ -906,7 +952,7 @@ void TestDevOpsApi::controlTraceLogging(int deviceIdx, bool toTraceBuf, bool res
     control, device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS));
 
   auto stream = std::make_shared<Stream>(deviceIdx, 0 /* queueIdx */, std::move(cmds));
-  dispatchStreamSync(stream, std::chrono::seconds(10));
+  dispatchStreamSync(stream, timeout);
 
   if (std::count_if(stream->cmds_.begin(), stream->cmds_.end(), [](auto tagId) {
         return IDevOpsApiCmd::getDevOpsApiCmd(tagId)->getCmdStatus() == CmdStatus::CMD_SUCCESSFUL;

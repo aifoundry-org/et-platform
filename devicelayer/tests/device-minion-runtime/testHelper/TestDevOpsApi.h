@@ -233,11 +233,12 @@ protected:
   PopRspResult popRsp(int deviceIdx);
   void printErrorContext(int queueId, const std::byte* buffer, uint64_t shireMask, CmdTag tagId) const;
 
-  void controlTraceLogging(int deviceIdx, bool toTraceBuf, bool resetTraceBuf);
+  void controlTraceLogging(int deviceIdx, bool toTraceBuf, bool resetTraceBuf,
+                           TimeDuration timeout = std::chrono::seconds(10));
   bool printMMTraceData(unsigned char* traceBuf, size_t bufSize) const;
   bool printCMTraceData(unsigned char* traceBuf, size_t bufSize, uint64_t shire_mask, uint64_t hart_mask) const;
   bool printCMTraceSingleHartData(unsigned char* hartDataPtr, uint32_t cmHartID, size_t dataSize) const;
-  void extractAndPrintTraceData(int deviceIdx);
+  void extractAndPrintTraceData(int deviceIdx, TimeDuration timeout = std::chrono::seconds(10));
 
   inline int getDevicesCount() {
     return devLayer_->getDevicesCount();
@@ -333,17 +334,42 @@ private:
     std::vector<CmdTag> cmds_;
   };
 
+  inline bool readLastTestStatus() const {
+    bool devicesAlive = true;
+
+    // Read last test status
+    std::ifstream lastTestStatus;
+    lastTestStatus.open("lastTestStatus.txt");
+    std::string line;
+    while (std::getline(lastTestStatus, line)) {
+      if (line.find("DEVICES_NOT_RESPONDING") != std::string::npos) {
+        devicesAlive = false;
+        break;
+      }
+    }
+    lastTestStatus.close();
+    return devicesAlive;
+  }
+
+  inline void writeCurrentTestStatus(bool devicesRunning) const {
+    std::ofstream lastTestStatus;
+    lastTestStatus.open("lastTestStatus.txt");
+    devicesRunning ? lastTestStatus << "DEVICES_RUNNING" : lastTestStatus << "DEVICES_NOT_RESPONDING";
+    lastTestStatus.close();
+  }
+
   void waitForSqAvailability(int deviceIdx, int queueIdx);
+  void waitForCqAvailability(int deviceIdx, TimeDuration timeout);
   void dispatchStreamAsync(const std::shared_ptr<Stream>& stream);
   void fExecutor(int deviceIdx, int queueIdx);
   void fListener(int deviceIdx);
   void executeAsync();
 
-  void waitForCqAvailability(int deviceIdx, TimeDuration timeout);
   void dispatchStreamSync(const std::shared_ptr<Stream>& stream, TimeDuration timeout);
   void executeSyncPerDevice(int deviceIdx);
   void executeSync();
 
+  bool isDeviceAlive(int deviceIdx, TimeDuration timeout);
   size_t handleStreamReTransmission(CmdTag tagId);
   void printCmdExecutionSummary();
   void cleanUpExecution();
