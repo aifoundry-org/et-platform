@@ -192,11 +192,11 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 #endif
 
 #ifndef ET_TRACE_GET_TIMESTAMP
-#define ET_TRACE_GET_TIMESTAMP(time)            (time+=1);
+#define ET_TRACE_GET_TIMESTAMP(time)            (time+=1)
 #endif
 
 #ifndef ET_TRACE_GET_HPM_COUNTER
-#define ET_TRACE_GET_HPM_COUNTER(counter_index, ret_val) (ret_val = counter_index);
+#define ET_TRACE_GET_HPM_COUNTER(counter_index, ret_val) (ret_val = counter_index)
 #endif
 
 union trace_header_u {
@@ -214,7 +214,7 @@ union trace_header_u {
 static inline uint64_t PMU_Get_hpmcounter3(void)
 {
     uint64_t val = 0;
-    ET_TRACE_GET_TIMESTAMP(val)
+    ET_TRACE_GET_TIMESTAMP(val);
     return val;
 }
 
@@ -223,19 +223,19 @@ static inline uint64_t PMU_Get_Counter(pmc_counter_e counter)
     uint64_t val;
     switch (counter) {
     case PMC_COUNTER_HPMCOUNTER4:
-        ET_TRACE_GET_HPM_COUNTER(4, val)
+        ET_TRACE_GET_HPM_COUNTER(4, val);
         break;
     case PMC_COUNTER_HPMCOUNTER5:
-        ET_TRACE_GET_HPM_COUNTER(5, val)
+        ET_TRACE_GET_HPM_COUNTER(5, val);
         break;
     case PMC_COUNTER_HPMCOUNTER6:
-        ET_TRACE_GET_HPM_COUNTER(6, val)
+        ET_TRACE_GET_HPM_COUNTER(6, val);
         break;
     case PMC_COUNTER_HPMCOUNTER7:
-        ET_TRACE_GET_HPM_COUNTER(7, val)
+        ET_TRACE_GET_HPM_COUNTER(7, val);
         break;
     case PMC_COUNTER_HPMCOUNTER8:
-        ET_TRACE_GET_HPM_COUNTER(8, val)
+        ET_TRACE_GET_HPM_COUNTER(8, val);
         break;
     default:
         val = 0;

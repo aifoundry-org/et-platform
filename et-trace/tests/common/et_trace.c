@@ -32,8 +32,8 @@ static uint64_t et_trace_get_counter(int id)
 #endif
 
 // Extranous semicolon because of reasons
-#define ET_TRACE_GET_TIMESTAMP(out)       (out = reg_hpmcounter3);
-#define ET_TRACE_GET_HPM_COUNTER(id, out) (out = et_trace_get_counter(id));
+#define ET_TRACE_GET_TIMESTAMP(out)       (out = reg_hpmcounter3)
+#define ET_TRACE_GET_HPM_COUNTER(id, out) (out = et_trace_get_counter(id))
 
 #define ET_TRACE_ENCODER_IMPL
 #include <device-trace/et_trace.h>
