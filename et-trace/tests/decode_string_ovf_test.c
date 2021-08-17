@@ -6,10 +6,10 @@
 
 #include <stdlib.h>
 
-#define DEVICE_TRACE_DECODE_IMPL
-#include <device_trace.h>
-#include <device_trace_decode.h>
-#include <device_trace_types.h>
+#define ET_TRACE_DECODE_IMPL
+#include <device-trace/et_trace.h>
+#include <device-trace/et_trace_decode.h>
+#include <device-trace/et_trace_layout.h>
 
 #include "common/test_trace.h"
 #include "common/test_macros.h"
@@ -59,7 +59,7 @@ int main(int argc, const char **argv)
             entry = Trace_Decode(buf, entry);
             if (!entry)
                 break;
-            CHECK_EQ(entry->header.type, TRACE_TYPE_STRING);
+            CHECK_EQ(ENTRY_HEADER(entry).type, TRACE_TYPE_STRING);
             CHECK_STRNEQ(entry->string, test_str, 64);
             ++i;
         }

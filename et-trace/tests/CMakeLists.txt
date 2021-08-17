@@ -1,11 +1,10 @@
 add_library(dtrace_test common/mock_etsoc.c common/user_args.c)
 
-add_library(dtrace_impl_mm common/device_trace.c common/mock_atomics.c)
+add_library(dtrace_impl_mm common/et_trace.c common/mock_atomics.c)
 target_compile_definitions(dtrace_impl_mm PUBLIC MASTER_MINION)
-target_compile_options(dtrace_impl_mm PRIVATE "-Wno-address-of-packed-member")
 target_link_libraries(dtrace_impl_mm PUBLIC deviceTrace::headers)
 
-add_library(dtrace_impl common/device_trace.c)
+add_library(dtrace_impl common/et_trace.c)
 target_link_libraries(dtrace_impl PUBLIC deviceTrace::headers)
 
 macro(add_dtrace_test name)

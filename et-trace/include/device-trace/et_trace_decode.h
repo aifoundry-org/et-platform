@@ -10,8 +10,8 @@
  *
  ***********************************************************************/
 
-#ifndef DEVICE_TRACE_DECODE_H
-#define DEVICE_TRACE_DECODE_H
+#ifndef ET_TRACE_DECODE_H
+#define ET_TRACE_DECODE_H
 
 struct trace_buffer_std_header_t;
 
@@ -43,19 +43,16 @@ struct trace_buffer_std_header_t;
 void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev);
 
 /*
- * Implement Trace_Decode by defining DEVICE_TRACE_DECODE_IMPL
+ * Implement Trace_Decode by defining ET_TRACE_DECODE_IMPL
  * in a *single* source file before including the header, i.e.:
  *
- *     #define DEVICE_TRACE_DECODE_IMPL
- *     #include <device_trace_decode.h>
- *
- * Note: The implementation of Trace_Decode changes depending on
- *       whether `MASTER_MINION` is set or not (see device_trace_types.h)
+ *     #define ET_TRACE_DECODE_IMPL
+ *     #include <ET_TRACE_decode.h>
  */
 
-#ifdef DEVICE_TRACE_DECODE_IMPL
+#ifdef ET_TRACE_DECODE_IMPL
 
-#include <device_trace_types.h>
+#include <device-trace/et_trace_layout.h>
 
 void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
 {
@@ -78,38 +75,40 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
     if (prev < (void *)tb)
         return NULL;
 
-    const uint16_t entry_type = ((struct trace_entry_header_t *)prev)->type;
+    struct trace_entry_header_t *prev_entry = (struct trace_entry_header_t *)prev;
+    const uint16_t entry_type = tb->type == TRACE_MM_BUFFER ? prev_entry->mm.type :
+                                                              prev_entry->generic.type;
     size_t payload_size;
 
-#define DEVICE_TRACE_PAYLOAD_SIZE(E, S) \
+#define ET_TRACE_PAYLOAD_SIZE(E, S) \
     case TRACE_TYPE_##E:                \
         payload_size = S;               \
         break;
 
     /* Get payload size depending on entry type */
     switch (entry_type) {
-        DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U8, sizeof(struct trace_value_u8_t))
-        DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U16, sizeof(struct trace_value_u16_t))
-        DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U32, sizeof(struct trace_value_u32_t))
-        DEVICE_TRACE_PAYLOAD_SIZE(VALUE_U64, sizeof(struct trace_value_u64_t))
-        DEVICE_TRACE_PAYLOAD_SIZE(VALUE_FLOAT, sizeof(struct trace_value_float_t))
-        DEVICE_TRACE_PAYLOAD_SIZE(STRING, sizeof(struct trace_string_t))
-        DEVICE_TRACE_PAYLOAD_SIZE(PMC_COUNTER, sizeof(struct trace_pmc_counter_t))
-        DEVICE_TRACE_PAYLOAD_SIZE(PMC_ALL_COUNTERS, sizeof(struct trace_pmc_counter_t) * 7)
+        ET_TRACE_PAYLOAD_SIZE(VALUE_U8, sizeof(struct trace_value_u8_t))
+        ET_TRACE_PAYLOAD_SIZE(VALUE_U16, sizeof(struct trace_value_u16_t))
+        ET_TRACE_PAYLOAD_SIZE(VALUE_U32, sizeof(struct trace_value_u32_t))
+        ET_TRACE_PAYLOAD_SIZE(VALUE_U64, sizeof(struct trace_value_u64_t))
+        ET_TRACE_PAYLOAD_SIZE(VALUE_FLOAT, sizeof(struct trace_value_float_t))
+        ET_TRACE_PAYLOAD_SIZE(STRING, sizeof(struct trace_string_t))
+        ET_TRACE_PAYLOAD_SIZE(PMC_COUNTER, sizeof(struct trace_pmc_counter_t))
+        ET_TRACE_PAYLOAD_SIZE(PMC_ALL_COUNTERS, sizeof(struct trace_pmc_counter_t) * 7)
     case TRACE_TYPE_MEMORY: {
         payload_size = sizeof(struct trace_entry_header_t) + sizeof(uint64_t) /* src_addr */
                        + sizeof(uint64_t) /* size */
                        + ((struct trace_memory_t *)prev)->size;
         break;
     }
-        DEVICE_TRACE_PAYLOAD_SIZE(EXCEPTION, 0)
-        DEVICE_TRACE_PAYLOAD_SIZE(CMD_STATUS, sizeof(struct trace_cmd_status_t))
-        DEVICE_TRACE_PAYLOAD_SIZE(POWER_STATUS, sizeof(struct trace_power_status_t))
+        ET_TRACE_PAYLOAD_SIZE(EXCEPTION, 0)
+        ET_TRACE_PAYLOAD_SIZE(CMD_STATUS, sizeof(struct trace_cmd_status_t))
+        ET_TRACE_PAYLOAD_SIZE(POWER_STATUS, sizeof(struct trace_power_status_t))
     default:
         return NULL;
     }
 
-#undef DEVICE_TRACE_PAYLOAD_SIZE
+#undef ET_TRACE_PAYLOAD_SIZE
 
     if (payload_size == 0)
         return NULL;
@@ -124,6 +123,6 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
     return next;
 }
 
-#endif /* DEVICE_TRACE_DECODE_IMPL */
+#endif /* ET_TRACE_DECODE_IMPL */
 
-#endif /* DEVICE_TRACE_TYPES_H */
+#endif /* ET_TRACE_TYPES_H */

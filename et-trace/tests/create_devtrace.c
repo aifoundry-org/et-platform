@@ -8,10 +8,8 @@
 
 #include <stdlib.h>
 
-#define DEVICE_TRACE_DECODE_IMPL
-#include "common/device_trace.h"
-#include <device_trace_decode.h>
-#include <device_trace_types.h>
+#include <device-trace/et_trace.h>
+#include <device-trace/et_trace_layout.h>
 
 #include "common/test_trace.h"
 #include "common/test_macros.h"
@@ -24,7 +22,7 @@ static int randint(int a, int b)
     return a + (rand() % d);
 }
 
-static void write_queue(struct trace_control_block_t *cb, struct trace_cmd_status_internal_t *queue)
+static void write_queue(struct trace_control_block_t *cb, struct trace_event_cmd_status_t *queue)
 {
     switch (queue->cmd_status) {
     case CMD_STATUS_WAIT_BARRIER:
@@ -70,7 +68,7 @@ static void write_counter(struct trace_control_block_t *cb)
 
 static void write_power(struct trace_control_block_t *cb)
 {
-    struct trace_power_event_status_t power_data = {
+    struct trace_event_power_status_t power_data = {
         .throttle_state = randint(1, 10),
         .power_state = randint(1, 10),
         .current_power = randint(200, 400),
@@ -96,7 +94,7 @@ int main(int argc, const char **argv)
     struct trace_control_block_t cb = { 0 };
     struct trace_buffer_std_header_t *buf = test_trace_create(&cb, trace_size);
 
-    struct trace_cmd_status_internal_t queues[n_queues] = {};
+    struct trace_event_cmd_status_t queues[n_queues] = {};
     for (int i = 0; i < n_queues; ++i) {
         queues[i].queue_slot_id = i;
         queues[i].cmd_status = CMD_STATUS_WAIT_BARRIER;

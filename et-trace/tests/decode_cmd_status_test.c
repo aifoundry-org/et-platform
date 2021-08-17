@@ -6,10 +6,10 @@
 
 #include <stdlib.h>
 
-#define DEVICE_TRACE_DECODE_IMPL
-#include <device_trace.h>
-#include <device_trace_decode.h>
-#include <device_trace_types.h>
+#define ET_TRACE_DECODE_IMPL
+#include <device-trace/et_trace.h>
+#include <device-trace/et_trace_decode.h>
+#include <device-trace/et_trace_layout.h>
 
 #include "common/test_trace.h"
 #include "common/test_macros.h"
@@ -18,7 +18,7 @@
 static void trace_log_cmd_status(struct trace_control_block_t *cb, uint16_t message_id,
                                  uint8_t sqw_idx, uint16_t tag_id, uint8_t status)
 {
-    struct trace_cmd_status_internal_t cmd_data = {
+    struct trace_event_cmd_status_t cmd_data = {
         .queue_slot_id = sqw_idx,
         .mesg_id = message_id,
         .trans_id = tag_id,
@@ -66,7 +66,7 @@ int main(int argc, const char **argv)
             entry = Trace_Decode(buf, entry);
             if (!entry)
                 break;
-            CHECK_EQ(entry->header.type, TRACE_TYPE_CMD_STATUS);
+            CHECK_EQ(ENTRY_HEADER(entry).type, TRACE_TYPE_CMD_STATUS);
             CHECK_EQ(entry->cmd.mesg_id, i);
             CHECK_EQ(entry->cmd.queue_slot_id, i + 1);
             CHECK_EQ(entry->cmd.trans_id, i + 2);
