@@ -40,12 +40,12 @@ extern "C" {
 /*
  * Get the Shire mask form Hart ID using Harts per Shire information.
  */
-#define GET_SHIRE_MASK(hart_id)     (1UL << ((hart_id) / 64U))
+#define TRACE_SHIRE_MASK(hart_id)     (1UL << ((hart_id) / 64U))
 
 /*
  * Get Hart mask form Hart ID using Harts per Shire information.
  */
-#define GET_HART_MASK(hart_id)      (1UL << ((hart_id) % 64U))
+#define TRACE_HART_MASK(hart_id)      (1UL << ((hart_id) % 64U))
 
 /*
  * Trace event masks.
