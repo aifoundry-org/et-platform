@@ -31,7 +31,6 @@ def test_env_initialize():
     tf_interception_points = tf_spec.data["sp_tf_interception_points"]
     #Initialize command params
     tf_device_rt_intercept = tf_interception_points["TF_BL2_ENTRY_FOR_SP_MM"]
-    #tf_device_rt_intercept = 5
     #Instantiate test command
     command = tf_spec.command("TF_CMD_SET_INTERCEPT", "SP", tf_device_rt_intercept)
     #Issue test command

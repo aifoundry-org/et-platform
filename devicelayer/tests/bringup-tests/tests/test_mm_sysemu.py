@@ -29,7 +29,6 @@ def test_env_initialize():
     tf_interception_points = tf_spec.data["sp_tf_interception_points"]
     #Initialize command params
     tf_device_rt_intercept = tf_interception_points["TF_BL2_ENTRY_FOR_SP_MM"]
-    #tf_device_rt_intercept = 5
     #Instantiate test command
     command = tf_spec.command("TF_CMD_SET_INTERCEPT", "SP", tf_device_rt_intercept)
     #Issue test command
@@ -71,52 +70,70 @@ def test_fw_ver_to_mm():
     assert response["patch"] == 0x0
 
 #Validate ability to launch an empty kernel on MM
+kernels =  {
+    "kernel_launch_empty_kernel":"empty.elf",
+    "kernel_launch_exception_kernel": "exception.elf"
+    #"kernel_launch_exception_kernel": "hang.elf"
+}
 def test_kernel_launch_to_mm():
-    print('Testing MM kernel launch..')
 
-    ###############
-    # Find kernel #
-    ###############
-    kernel_name = 'empty.elf'
-    kernel_path = TestHelpers.kernel_get_path(kernel_name)
+    print('\n Starting kernel testing that validates kernel launch on CMs')
 
-    #################
-    # Read ELF Info #
-    #################
-    kernel_data, kernel_segment_offset = TestHelpers.kernel_read_elf_data(kernel_path)
+    for key in kernels:
 
-    #############################
-    # Load ELF to device memory #
-    #############################
-    # kernelfile is the file which has been seeked to the loadable section to device. Copy the data
-    # from this offset (size: filesize) to device address
-    kernel_device_load_addr = 0x0000008101000000 + kernel_segment_offset
+        print('\n Testing:' + key)
 
-    print('loading kernel data..')
-    device_addr = kernel_device_load_addr
-    test_data = kernel_data
-    test_data_len = len(test_data)
-    command = tf_spec.command("TF_CMD_MOVE_DATA_TO_DEVICE", "SP", device_addr, test_data_len, test_data)
-    response = dut_fifo_iface.execute_test(command)
-    assert response["bytes_written"] == test_data_len
+        ###############
+        # Find kernel #
+        ###############
+        kernel_name = kernels[key]
+        kernel_path = TestHelpers.kernel_get_path(kernel_name)
 
-    ###################################
-    # Construct kernel launch command #
-    ###################################
-    code_start_address = kernel_device_load_addr
-    pointer_to_args = 0 #No args
-    exception_buffer = 0 #No exception buffer
-    shire_mask = 0x1FFFFFFFF
-    kernel_trace_buffer = 0 #No tracing
-    argument_payload = 0
-    mm_cmd = tf_spec.command("TF_CMD_MM_KERNEL_LAUNCH", "MM", code_start_address, pointer_to_args, exception_buffer, shire_mask, kernel_trace_buffer, argument_payload)
-    mm_cmd_len = len(mm_cmd)
-    sp_cmd = tf_spec.command("TF_CMD_MM_CMD_SHELL", "SP", mm_cmd_len, mm_cmd)
-    print("Kernel launch command to DUT")
-    response = dut_fifo_iface.execute_test(sp_cmd)
-    print("DUT response from kernel launch")
-    tf_spec.prettyprint(response)
-    assert response["status"] == 0
+        #################
+        # Read ELF Info #
+        #################
+        kernel_data, kernel_segment_offset = TestHelpers.kernel_read_elf_data(kernel_path)
+
+        #############################
+        # Load ELF to device memory #
+        #############################
+        # kernelfile is the file which has been seeked to the loadable section to device. Copy the data
+        # from this offset (size: filesize) to device address
+        kernel_device_load_addr = 0x0000008101000000 + kernel_segment_offset
+
+        print('loading kernel data..')
+        device_addr = kernel_device_load_addr
+        test_data = kernel_data
+        test_data_len = len(test_data)
+        command = tf_spec.command("TF_CMD_MOVE_DATA_TO_DEVICE", "SP", device_addr, test_data_len, test_data)
+        response = dut_fifo_iface.execute_test(command)
+        assert response["bytes_written"] == test_data_len
+
+        ###################################
+        # Construct kernel launch command #
+        ###################################
+        code_start_address = kernel_device_load_addr
+        pointer_to_args = 0 #No args
+        exception_buffer = 0 #No exception buffer
+        shire_mask = 0x1FFFFFFFF
+        kernel_trace_buffer = 0 #No tracing
+        argument_payload = 0
+        mm_cmd = tf_spec.command("TF_CMD_MM_KERNEL_LAUNCH", "MM", code_start_address, pointer_to_args, exception_buffer, shire_mask, kernel_trace_buffer, argument_payload)
+        mm_cmd_len = len(mm_cmd)
+        sp_cmd = tf_spec.command("TF_CMD_MM_CMD_SHELL", "SP", mm_cmd_len, mm_cmd)
+        print("Kernel launch command to DUT")
+        response = dut_fifo_iface.execute_test(sp_cmd)
+        print("DUT response from kernel launch")
+        tf_spec.prettyprint(response)
+
+        ####################
+        # Validate results #
+        ####################
+        if kernels[key] == "empty.elf":
+            assert response["status"] == 0
+
+        if kernels[key] == "exception.elf":
+            assert response["status"] != 0
 
 def test_env_finalize():
     dut_fifo_iface.close()
