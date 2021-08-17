@@ -33,7 +33,7 @@ using Clock = std::chrono::system_clock;
 using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
 
-#define DM_SERVICE_REQUEST_TIMEOUT 70000
+#define DM_SERVICE_REQUEST_TIMEOUT 100000
 
 DEFINE_bool(loopback_driver, false, "Run on loopback driver");
 

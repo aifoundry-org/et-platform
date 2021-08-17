@@ -199,7 +199,6 @@ int verifyService() {
     DV_LOG(INFO) << "DDR Memory Size: " << (std::stoi (output_buff,nullptr,10)) / 1024 << "GB" << std::endl;
   }break;
 
-#ifdef TARGET_PCIE
   case DM_CMD::DM_CMD_GET_ASIC_CHIP_REVISION: {
     const uint32_t output_size = sizeof(asset_info_t);
     char output_buff[output_size] = {0};
@@ -217,7 +216,7 @@ int verifyService() {
     }
 
   } break;
-#endif
+
   case DM_CMD::DM_CMD_GET_MODULE_POWER_STATE: {
     const uint32_t output_size = sizeof(power_state_e);
     char output_buff[output_size] = {0};
@@ -320,7 +319,6 @@ int verifyService() {
     }
   } break;
 
-#ifdef TARGET_PCIE
   case DM_CMD::DM_CMD_GET_MODULE_CURRENT_TEMPERATURE: {
     const uint32_t output_size = sizeof(current_temperature_t);
     char output_buff[output_size] = {0};
@@ -332,7 +330,6 @@ int verifyService() {
     current_temperature_t* cur_temp = (current_temperature_t*)output_buff;
     DV_LOG(INFO) << "Current Temperature Output: " << +cur_temp->temperature_c << " c" << std::endl;
   } break;
-#endif
 
   case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES: {
     const uint32_t output_size = sizeof(residency_t);
@@ -346,7 +343,6 @@ int verifyService() {
     DV_LOG(INFO) << "Residency Throttle States Output: " << residency->average << " us" << std::endl;
   } break;
 
-#ifdef TARGET_PCIE
   case DM_CMD::DM_CMD_GET_MODULE_POWER: {
     const uint32_t output_size = sizeof(module_power_t);
     char output_buff[output_size] = {0};
@@ -360,9 +356,7 @@ int verifyService() {
     power = (module_power->power >> 2) + (module_power->power & 0x03)*0.25;
     DV_LOG(INFO) << "Module Power Output: " << +power << " W" << std::endl;
   } break;
-#endif
 
-#ifdef TARGET_PCIE
   #define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER) \
      (BASE + REG_VALUE*MULTIPLIER)
 
@@ -397,7 +391,6 @@ int verifyService() {
     DV_LOG(INFO) << "Module Voltage VDDQ: " << +voltage << " mV" << std::endl;
 
   } break;
-#endif
 
   case DM_CMD::DM_CMD_GET_MODULE_UPTIME: {
     const uint32_t output_size = sizeof(module_uptime_t);
