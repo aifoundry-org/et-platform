@@ -182,56 +182,21 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 #define ET_TRACE_MEM_CPY(dest, src, size) memcpy(dest, src, size)
 #endif
 
-#ifndef ET_TRACE_MESSAGE_HEADER
-#define ET_TRACE_MESSAGE_HEADER(msg, id)                              \
-    {                                                                 \
-        ET_TRACE_WRITE(64, msg->header.cycle, PMU_Get_hpmcounter3()); \
-        ET_TRACE_WRITE(16, msg->header.type, id);                     \
-    }
-#endif
-
 #ifndef ET_TRACE_GET_TIMESTAMP
-#define ET_TRACE_GET_TIMESTAMP(loc) (loc += 1)
+#define ET_TRACE_GET_TIMESTAMP() 0
 #endif
 
 #ifndef ET_TRACE_GET_HPM_COUNTER
-#define ET_TRACE_GET_HPM_COUNTER(counter, loc) (loc = counter)
+#define ET_TRACE_GET_HPM_COUNTER(counter) 0
 #endif
 
-/* Mock: This counter should return the current cycle time.
- * Here we simply increment a static value. */
-static inline uint64_t PMU_Get_hpmcounter3(void)
-{
-    uint64_t val = 0;
-    ET_TRACE_GET_TIMESTAMP(val);
-    return val;
-}
-
-static inline uint64_t PMU_Get_Counter(pmc_counter_e counter)
-{
-    uint64_t val;
-    switch (counter) {
-    case PMC_COUNTER_HPMCOUNTER4:
-        ET_TRACE_GET_HPM_COUNTER(4, val);
-        break;
-    case PMC_COUNTER_HPMCOUNTER5:
-        ET_TRACE_GET_HPM_COUNTER(5, val);
-        break;
-    case PMC_COUNTER_HPMCOUNTER6:
-        ET_TRACE_GET_HPM_COUNTER(6, val);
-        break;
-    case PMC_COUNTER_HPMCOUNTER7:
-        ET_TRACE_GET_HPM_COUNTER(7, val);
-        break;
-    case PMC_COUNTER_HPMCOUNTER8:
-        ET_TRACE_GET_HPM_COUNTER(8, val);
-        break;
-    default:
-        val = 0;
-        break;
+#ifndef ET_TRACE_MESSAGE_HEADER
+#define ET_TRACE_MESSAGE_HEADER(msg, id)                                 \
+    {                                                                    \
+        ET_TRACE_WRITE(64, msg->header.cycle, ET_TRACE_GET_TIMESTAMP()); \
+        ET_TRACE_WRITE(16, msg->header.type, id);                        \
     }
-    return val;
-}
+#endif
 
 /* Check if Trace is enabled for given control block. */
 inline static bool trace_is_enabled(const struct trace_control_block_t *cb)
@@ -595,7 +560,7 @@ void Trace_PMC_Counter(struct trace_control_block_t *cb, pmc_counter_e counter)
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_PMC_COUNTER)
 
-        ET_TRACE_WRITE(64, entry->value, PMU_Get_Counter(counter));
+        ET_TRACE_WRITE(64, entry->value, ET_TRACE_GET_HPM_COUNTER(counter));
     }
 }
 
