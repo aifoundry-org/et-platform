@@ -167,15 +167,15 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 
 /* Check if user has provided implementation of optional its own primitives, if not then use default. */
 #ifndef ET_TRACE_READ
-#define ET_TRACE_READ(size, addr) (addr)
+#define ET_TRACE_READ(size, loc) (loc)
 #endif
 
 #ifndef ET_TRACE_WRITE
-#define ET_TRACE_WRITE(size, addr, val) (addr = val)
+#define ET_TRACE_WRITE(size, loc, val) (loc = val)
 #endif
 
 #ifndef ET_TRACE_WRITE_F
-#define ET_TRACE_WRITE_F(addr, val) (addr = val)
+#define ET_TRACE_WRITE_F(loc, val) (loc = val)
 #endif
 
 #ifndef ET_TRACE_MEM_CPY
@@ -191,11 +191,11 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 #endif
 
 #ifndef ET_TRACE_GET_TIMESTAMP
-#define ET_TRACE_GET_TIMESTAMP(time) (time += 1)
+#define ET_TRACE_GET_TIMESTAMP(loc) (loc += 1)
 #endif
 
 #ifndef ET_TRACE_GET_HPM_COUNTER
-#define ET_TRACE_GET_HPM_COUNTER(counter_index, ret_val) (ret_val = counter_index)
+#define ET_TRACE_GET_HPM_COUNTER(counter, loc) (loc = counter)
 #endif
 
 /* Mock: This counter should return the current cycle time.
