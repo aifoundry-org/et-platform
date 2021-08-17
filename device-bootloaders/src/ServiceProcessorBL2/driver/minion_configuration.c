@@ -144,12 +144,7 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode, boo
     uint64_t dll_fail_mask = 0;
     uint64_t pll_fail_mask = 0;
     uint8_t num_shires;
-    uint32_t clock_type = SELECT_STEP_CLOCK;
-
-    if(!use_step_clock)
-    {
-       clock_type = SELECT_PLL_CLOCK_0;
-    }
+    uint32_t clock_type = use_step_clock ? SELECT_STEP_CLOCK: SELECT_PLL_CLOCK_0;
 
     if(0 != shire_mask)
     {

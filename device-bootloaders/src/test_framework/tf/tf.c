@@ -99,11 +99,11 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
     return 0;
 }
 
-static void fill_rsp_buffer(uint32_t *buf_size, void *buffer,
+static void fill_rsp_buffer(uint32_t *buf_size, const void *buffer,
     uint32_t rsp_size)
 {
     uint32_t start_idx = TF_MAX_RSP_SIZE - *buf_size;
-    char* src_buff = buffer;
+    const char* src_buff = buffer;
     char* p_rsp = &Output_Rsp_Buffer[start_idx];
 
     while(rsp_size)
