@@ -1,5 +1,5 @@
-#ifndef DEVICE_TRACE_TYPES_H
-#define DEVICE_TRACE_TYPES_H
+#ifndef ET_TRACE_LAYOUT_H
+#define ET_TRACE_LAYOUT_H
 
 #include <stdint.h>
 
@@ -229,4 +229,4 @@ TRACE_SCALAR_TYPE_DEF(float, float, 0)
 }
 #endif
 
-#endif
+#endif /* ET_TRACE_LAYOUT_H */

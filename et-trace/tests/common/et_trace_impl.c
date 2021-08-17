@@ -35,5 +35,8 @@ static uint64_t et_trace_get_counter(int id)
 #define ET_TRACE_GET_TIMESTAMP(out)       (out = reg_hpmcounter3)
 #define ET_TRACE_GET_HPM_COUNTER(id, out) (out = et_trace_get_counter(id))
 
-#define ET_TRACE_ENCODER_IMPL
-#include <device-trace/et_trace.h>
+#define ET_TRACE_ENCODE_IMPL
+#include <et-trace/encode.h>
+
+#define ET_TRACE_DECODE_IMPL
+#include <et-trace/decode.h>

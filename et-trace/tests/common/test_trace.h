@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 
-#include <device-trace/et_trace.h>
+#include <et-trace/layout.h>
 
 struct trace_buffer_std_header_t *test_trace_create(struct trace_control_block_t *cb, size_t size)
 {

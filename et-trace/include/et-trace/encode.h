@@ -9,7 +9,7 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-/*! \file device_trace.h
+/*! \file et-trace/encode.h
     \brief A C header that implements the Trace services for device side.
 
     Public interfaces:
@@ -27,11 +27,11 @@
 */
 /***********************************************************************/
 
-#ifndef DEVICE_TRACE_H
-#define DEVICE_TRACE_H
+#ifndef ET_TRACE_ENCODE_H
+#define ET_TRACE_ENCODE_H
 
 #include <stdbool.h>
-#include "et_trace_layout.h"
+#include "layout.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -159,7 +159,7 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
  *       whether `MASTER_MINION` is set or not (see device_trace_types.h)
  */
 
-#ifdef ET_TRACE_ENCODER_IMPL
+#ifdef ET_TRACE_ENCODE_IMPL
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -807,10 +807,10 @@ void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint16_t
     }
 }
 
-#endif
+#endif /* ET_TRACE_ENCODE_IMPL */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* ET_TRACE_ENCODE_H */

@@ -9,13 +9,13 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.14)
-project(deviceTrace LANGUAGES C)
+project(esperantoTrace LANGUAGES C)
 
-option(ET_TRACE_TEST "Build device_trace tests" OFF)
+option(ET_TRACE_TEST "Build et-trace tests" OFF)
 
-add_library(device_trace INTERFACE)
-add_library(deviceTrace::device_trace ALIAS device_trace)
-target_include_directories(device_trace
+add_library(et_trace INTERFACE)
+add_library(esperantoTrace::et_trace ALIAS et_trace)
+target_include_directories(et_trace
   INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw>
@@ -27,19 +27,19 @@ if (ET_TRACE_TEST)
   add_subdirectory(tests)
 endif()
 
-install(TARGETS device_trace
-  EXPORT deviceTraceTargets
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT device_trace
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT device_trace
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT device_trace
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw COMPONENT device_trace
+install(TARGETS et_trace
+  EXPORT esperantoTraceTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT et_trace
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT et_trace
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT et_trace
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw COMPONENT et_trace
 )
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw COMPONENT device_trace
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw COMPONENT et_trace
 )
 
-install(EXPORT deviceTraceTargets
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceTrace
-  NAMESPACE deviceTrace::
+install(EXPORT esperantoTraceTargets
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/esperantoTrace
+  NAMESPACE esperantoTrace::
 )

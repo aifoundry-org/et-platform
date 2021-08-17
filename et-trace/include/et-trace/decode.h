@@ -52,7 +52,7 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev);
 
 #ifdef ET_TRACE_DECODE_IMPL
 
-#include <device-trace/et_trace_layout.h>
+#include "layout.h"
 
 void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
 {
@@ -94,9 +94,10 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
         ET_TRACE_PAYLOAD_SIZE(PMC_COUNTER, sizeof(struct trace_pmc_counter_t))
         ET_TRACE_PAYLOAD_SIZE(PMC_ALL_COUNTERS, sizeof(struct trace_pmc_counter_t) * 7)
     case TRACE_TYPE_MEMORY: {
-        payload_size = sizeof(struct trace_entry_header_t) + sizeof(uint64_t) /* src_addr */
-                       + sizeof(uint64_t) /* size */
-                       + ((struct trace_memory_t *)prev)->size;
+        payload_size = sizeof(struct trace_entry_header_t)      /* header*/
+                       + sizeof(uint64_t)                       /* src_addr */
+                       + sizeof(uint64_t)                       /* size */
+                       + ((struct trace_memory_t *)prev)->size; /* data */
         break;
     }
         ET_TRACE_PAYLOAD_SIZE(EXCEPTION, 0)
@@ -123,4 +124,4 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
 
 #endif /* ET_TRACE_DECODE_IMPL */
 
-#endif /* ET_TRACE_TYPES_H */
+#endif /* ET_TRACE_DECODE_H */

@@ -6,10 +6,9 @@
 
 #include <stdlib.h>
 
-#define ET_TRACE_DECODE_IMPL
-#include <device-trace/et_trace.h>
-#include <device-trace/et_trace_decode.h>
-#include <device-trace/et_trace_layout.h>
+#include <et-trace/encode.h>
+#include <et-trace/decode.h>
+#include <et-trace/layout.h>
 
 #include "common/test_trace.h"
 #include "common/test_macros.h"

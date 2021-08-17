@@ -8,8 +8,8 @@
 
 #include <stdlib.h>
 
-#include <device-trace/et_trace.h>
-#include <device-trace/et_trace_layout.h>
+#include <et-trace/encode.h>
+#include <et-trace/layout.h>
 
 #include "common/test_trace.h"
 #include "common/test_macros.h"
