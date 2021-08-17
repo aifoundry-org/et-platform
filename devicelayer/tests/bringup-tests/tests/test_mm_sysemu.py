@@ -42,7 +42,7 @@ def test_env_initialize():
 def test_mm_heart_beat():
     print('Testing for MM heart beat..')
     cmd = tf_spec.command("TF_CMD_GET_MM_HEARTBEAT", "SP")
-    response = dut_fifo_iface.execute_test(cmd, wait_for_response_secs = 2)
+    response = dut_fifo_iface.execute_test(cmd)
     if(response["heartbeat_count"] == 0xFFFFFFFFFFFFFFFF):
         print("SP BL2 lacks heart beat functionality at this time")
     assert response["heartbeat_count"] != 0
@@ -54,7 +54,7 @@ def test_echo_to_mm():
     mm_cmd = tf_spec.command("TF_CMD_MM_ECHO", "MM", expected_payload)
     mm_cmd_len = len(mm_cmd)
     sp_cmd = tf_spec.command("TF_CMD_MM_CMD_SHELL", "SP", mm_cmd_len, mm_cmd)
-    response = dut_fifo_iface.execute_test(sp_cmd, wait_for_response_secs = 2)
+    response = dut_fifo_iface.execute_test(sp_cmd)
     assert response["device_cmd_start_ts"] != 0
 
 #Validate expected MM firmware version
@@ -64,7 +64,7 @@ def test_fw_ver_to_mm():
     mm_cmd = tf_spec.command("TF_CMD_MM_FW_VERSION", "MM", firmware_type)
     mm_cmd_len = len(mm_cmd)
     sp_cmd = tf_spec.command("TF_CMD_MM_CMD_SHELL", "SP", mm_cmd_len, mm_cmd)
-    response = dut_fifo_iface.execute_test(sp_cmd, wait_for_response_secs = 2)
+    response = dut_fifo_iface.execute_test(sp_cmd)
     assert response["type"] == firmware_type
     assert response["major"] == 0x0
     assert response["minor"] == 0x0
@@ -113,7 +113,7 @@ def test_kernel_launch_to_mm():
     mm_cmd_len = len(mm_cmd)
     sp_cmd = tf_spec.command("TF_CMD_MM_CMD_SHELL", "SP", mm_cmd_len, mm_cmd)
     print("Kernel launch command to DUT")
-    response = dut_fifo_iface.execute_test(sp_cmd, wait_for_response_secs = 4)
+    response = dut_fifo_iface.execute_test(sp_cmd)
     print("DUT response from kernel launch")
     tf_spec.prettyprint(response)
     assert response["status"] == 0

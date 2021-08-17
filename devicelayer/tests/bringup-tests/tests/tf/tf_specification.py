@@ -97,10 +97,15 @@ class TfSpecification:
             idx = end_idx
             for arg in payload_args:
                 start_idx = idx
-                if(payload_args[arg] == "unknown_bytes"):
+                arg_val = payload_args[arg]
+                if arg_val == "unknown_bytes" and mm_rsp_shell == True:
+                    processed_rsp = self.response_process_shell_payload(raw_rsp, start_idx, processed_rsp["mm_rsp_size"])
+                elif arg_val == "flexible_bytes" and "bytes_read" in payload_args:
+                    end_idx = start_idx + processed_rsp["bytes_read"]
+                    processed_rsp[arg] = int.from_bytes(raw_rsp[start_idx:end_idx], "little")
+                    idx = idx + (end_idx - start_idx)
+                elif arg_val == "flexible_bytes" or arg_val == "unknown_bytes":
                     processed_rsp[arg] = "This is variable sized data."
-                    if mm_rsp_shell == True:
-                        processed_rsp = self.response_process_shell_payload(raw_rsp, start_idx, processed_rsp["mm_rsp_size"])
                 else:
                     end_idx = start_idx + ctypes[payload_args[arg]]
                     processed_rsp[arg] = int.from_bytes(raw_rsp[start_idx:end_idx],"little")
