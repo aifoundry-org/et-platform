@@ -207,15 +207,6 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 #define ET_TRACE_GET_HPM_COUNTER(counter_index, ret_val) (ret_val = counter_index)
 #endif
 
-union trace_header_u {
-    struct {
-        uint32_t hart_id; // Hart ID of the Hart which is logging Trace
-        uint16_t type;    // One of enum trace_type_e
-        uint8_t pad[2];
-    };
-    uint64_t header_raw;
-};
-
 /* Mock: This counter should return the current cycle time.
  * Here we simply increment a static value. */
 static inline uint64_t PMU_Get_hpmcounter3(void)
