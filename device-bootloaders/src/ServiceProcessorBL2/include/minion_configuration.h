@@ -88,13 +88,15 @@ int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask);
 */
 int Minion_Enable_Master_Shire_Threads(uint8_t mm_id);
 
-/*! \fn int Minion_Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t mode)
+/*! \fn int Minion_Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t mode, uint8_t lvdpll_mode, bool use_step_clock)
     \brief This function configures the Minion PLLs to Step Clock, and bring them out of reset. 
     \param  minion_shires_mask Shire Mask to enable
-    \param  mode Frequency mode to bring up Minions
+    \param  hdpll_mode Frequency mode to bring up Minions (Step Clock)
+    \param  lvdpll_mode Frequency mode to enable the internal LVDPLL of each Shire
+    \param  to enable Minion to use Step clock
     \return The function call status, pass/fail.
 */
-int Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t mode);
+int Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t hdpll_mode, uint8_t lvdpll_mode, bool use_step_clock);
 
 /*! \fn uint64_t Minion_Get_Active_Compute_Minion_Mask(void)
     \brief This function gets the active compute shire mask

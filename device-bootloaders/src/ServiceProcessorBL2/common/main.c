@@ -186,9 +186,8 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_memshire() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
 
-    /* Setup Compute Minions Shire Clocks and bring them out of Reset
-    Switch all Minion to use Step Clock from IO Shire @ 650 Mhz (Mode 3) */
-    status = Minion_Configure_Minion_Clock_Reset(minion_shires_mask, 3);
+    /* Setup Compute Minions Shire Clocks and bring them out of Reset */
+    status = Minion_Configure_Minion_Clock_Reset(minion_shires_mask, 3 /*HDPLL-650 Mhz*/, 3 /*LVDPLL-650 Mhz*/, true /*Use Step Clock*/);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Enable Compute Minion failed!")
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);

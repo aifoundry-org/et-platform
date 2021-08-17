@@ -138,12 +138,19 @@ static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-static int minion_configure_plls_and_dlls(uint64_t shire_mask)
+static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode, bool use_step_clock)
 {
     int status = SUCCESS;
     uint64_t dll_fail_mask = 0;
     uint64_t pll_fail_mask = 0;
     uint8_t num_shires;
+    uint32_t clock_type = SELECT_STEP_CLOCK;
+
+    if(!use_step_clock)
+    {
+       clock_type = SELECT_PLL_CLOCK_0;
+    }
+
     if(0 != shire_mask)
     {
         num_shires = get_highest_set_bit_offset(shire_mask);
@@ -160,8 +167,8 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask)
                 status = MINION_PLL_DLL_CONFIG_ERROR;
                 dll_fail_mask = dll_fail_mask | (uint64_t)(1 << i);
             }
-            SWITCH_CLOCK_MUX(i, SELECT_STEP_CLOCK)
-            if(0 != config_lvdpll_freq_quick(i, MODE_650MHz))
+            SWITCH_CLOCK_MUX(i, clock_type)
+            if(0 != config_lvdpll_freq_quick(i, mode))
             {
                 status = MINION_PLL_DLL_CONFIG_ERROR;
                 pll_fail_mask = pll_fail_mask | (uint64_t)(1 << i);
@@ -396,14 +403,14 @@ int Minion_Program_Step_Clock_PLL(uint8_t mode)
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-int Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t mode )
+int Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t hdpll_mode, uint8_t lvdpll_mode, bool use_step_clock)
 {
 
     /* TODO: Update Minion Voltage if neccesary
       Minion_Shire_Voltage_Update(voltage);
     */
     /* Configure Minon Step clock to 650 Mhz */
-    if (0 != Minion_Program_Step_Clock_PLL(mode)) {
+    if (0 != Minion_Program_Step_Clock_PLL(hdpll_mode)) {
         Log_Write(LOG_LEVEL_ERROR, "configure_sp_pll_4() failed!\n");
         return MINION_STEP_CLOCK_CONFIGURE_ERROR;
     }
@@ -418,7 +425,7 @@ int Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t mod
         return MINION_WARM_RESET_CONFIG_ERROR ;
     }
 
-    if (0 != minion_configure_plls_and_dlls(minion_shires_mask)) {
+    if (0 != minion_configure_plls_and_dlls(minion_shires_mask, lvdpll_mode, use_step_clock)) {
         Log_Write(LOG_LEVEL_ERROR, "minion_configure_plls_and_dlls() failed!\n");
         return MINION_PLL_DLL_CONFIG_ERROR;
     }

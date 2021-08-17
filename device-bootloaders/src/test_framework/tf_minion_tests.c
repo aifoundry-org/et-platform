@@ -56,7 +56,7 @@ int8_t Minion_Shire_Enable_Cmd_Handler(void* test_cmd)
     cmd_rsp_hdr.rsp_hdr.payload_size = TF_GET_PAYLOAD_SIZE(struct tf_rsp_minion_shire_enable_t);
 
     printf("\n** Sh EN id %lx mode %x **\r\n", cmd->shire_mask, cmd->pll4_mode);
-    cmd_rsp_hdr.status = (uint32_t)Minion_Configure_Minion_Clock_Reset(cmd->shire_mask, cmd->pll4_mode);
+    cmd_rsp_hdr.status = (uint32_t)Minion_Configure_Minion_Clock_Reset(cmd->shire_mask, cmd->pll4_mode, cmd->pll4_mode, false);
     // enable the neighborhoods
     cmd_rsp_hdr.status |= (uint32_t)Minion_Enable_Shire_Cache_and_Neighborhoods(cmd->shire_mask);
     printf("\n** Sh EN done **\r\n");
