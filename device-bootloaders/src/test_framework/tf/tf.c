@@ -35,9 +35,9 @@ uint32_t byte_copy(char* src, char* dst, uint32_t size)
 
 uint8_t TF_Set_Entry_Point(uint8_t intercept)
 {
-    uint8_t retval = TF_DEFAULT_ENTRY;
+    uint8_t retval = TF_Get_Entry_Point();
 
-    if((intercept > TF_DEFAULT_ENTRY) && (intercept <= TF_BL2_ENTRY_FOR_SP_MM))
+    if((intercept > retval) && (intercept <= TF_BL2_ENTRY_FOR_SP_MM))
     {
         TF_Interception_Point = retval = intercept;
     }
@@ -90,7 +90,7 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 
         rtn_arg = TF_Test_Cmd_Handler[cmd_hdr.id](p_hdr);
 
-        if(rtn_arg == TF_EXIT_FROM_TF_LOOP)
+        if(rtn_arg == TF_EXIT_FROM_TF_LOOP && cmd_hdr.id == TF_CMD_SET_INTERCEPT)
         {
             break;
         }

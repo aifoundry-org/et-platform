@@ -13,8 +13,10 @@ int8_t TF_Set_Entry_Point_Handler(void* test_cmd)
     const struct tf_cmd_set_intercept_t* cmd = (struct tf_cmd_set_intercept_t*) test_cmd;
     struct tf_rsp_set_intercept_t rsp;
     uint8_t retval;
+    uint8_t orig_val;
     int8_t rtn_arg;
 
+    orig_val = TF_Get_Entry_Point();
     retval = TF_Set_Entry_Point(cmd->target_intercept);
 
     rsp.rsp_hdr.id = TF_RSP_SET_INTERCEPT;
@@ -24,7 +26,7 @@ int8_t TF_Set_Entry_Point_Handler(void* test_cmd)
 
     TF_Send_Response(&rsp, sizeof(struct tf_rsp_set_intercept_t));
 
-    if (retval !=0)
+    if (retval != TF_DEFAULT_ENTRY && retval > orig_val)
     {
         rtn_arg = TF_EXIT_FROM_TF_LOOP;
     }
