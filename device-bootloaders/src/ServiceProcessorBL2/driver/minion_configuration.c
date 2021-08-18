@@ -144,7 +144,6 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode, boo
     uint64_t dll_fail_mask = 0;
     uint64_t pll_fail_mask = 0;
     uint8_t num_shires;
-    uint32_t clock_type = use_step_clock ? SELECT_STEP_CLOCK: SELECT_PLL_CLOCK_0;
 
     if(0 != shire_mask)
     {
@@ -157,16 +156,21 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode, boo
     for (uint8_t i = 0; i <= num_shires; i++)
     {
         if (shire_mask & 1) {
+            SWITCH_CLOCK_MUX(i, SELECT_REF_CLOCK)
             if(0 != dll_config(i))
             {
                 status = MINION_PLL_DLL_CONFIG_ERROR;
                 dll_fail_mask = dll_fail_mask | (uint64_t)(1 << i);
             }
-            SWITCH_CLOCK_MUX(i, clock_type)
+            SWITCH_CLOCK_MUX(i, SELECT_STEP_CLOCK)
             if(0 != config_lvdpll_freq_quick(i, mode))
             {
                 status = MINION_PLL_DLL_CONFIG_ERROR;
                 pll_fail_mask = pll_fail_mask | (uint64_t)(1 << i);
+            }
+            if(!use_step_clock)
+            {
+                SWITCH_CLOCK_MUX(i, SELECT_PLL_CLOCK_0)
             }
         }
         shire_mask >>= 1;
