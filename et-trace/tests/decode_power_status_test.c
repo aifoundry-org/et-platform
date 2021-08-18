@@ -1,15 +1,14 @@
 /*
- * Test: decode_power_status_test
+ * Test: decoder_power_status_test
  * Fills a trace with random power status updates.
- * This trace is then read and decoded.
+ * This trace is then read and decoderd.
  */
 
 #include <stdlib.h>
 
-#define DEVICE_TRACE_DECODE_IMPL
-#include <device_trace.h>
-#include <device_trace_decode.h>
-#include <device_trace_types.h>
+#include <et-trace/encoder.h>
+#include <et-trace/decoder.h>
+#include <et-trace/layout.h>
 
 #include "common/test_trace.h"
 #include "common/test_macros.h"
@@ -20,7 +19,7 @@
 
 static void write_random_power_status(struct trace_control_block_t *cb)
 {
-    struct trace_power_event_status_t power_data = {
+    struct trace_event_power_status_t power_data = {
         .throttle_state = rand_u8(),
         .power_state = rand_u8(),
         .current_power = rand_u8(),
@@ -31,7 +30,7 @@ static void write_random_power_status(struct trace_control_block_t *cb)
     Trace_Power_Status(cb, &power_data);
 }
 
-static void check_random_power_status(const struct trace_power_event_status_t *pwr)
+static void check_random_power_status(const struct trace_event_power_status_t *pwr)
 {
     uint8_t throttle_state = rand_u8();
     uint8_t power_state = rand_u8();
@@ -80,7 +79,7 @@ int main(int argc, const char **argv)
 
     srand(uargs.seed); /* Reset random seed */
 
-    { /* Decode trace buffer */
+    { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
         struct trace_power_status_t *entry = NULL;
         uint64_t i = 0;
@@ -89,7 +88,7 @@ int main(int argc, const char **argv)
             if (!entry)
                 break;
             CHECK_EQ(entry->header.type, TRACE_TYPE_POWER_STATUS);
-            check_random_power_status(&entry->cmd);
+            check_random_power_status(&entry->power);
             ++i;
         }
         CHECK_EQ(i, n_entries);

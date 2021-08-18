@@ -1,15 +1,14 @@
 /*
- * Test: decode_cmd_status_test
+ * Test: decoder_cmd_status_test
  * Fills a trace with cmd status updates.
- * This trace is then read and decoded.
+ * This trace is then read and decoderd.
  */
 
 #include <stdlib.h>
 
-#define DEVICE_TRACE_DECODE_IMPL
-#include <device_trace.h>
-#include <device_trace_decode.h>
-#include <device_trace_types.h>
+#include <et-trace/encoder.h>
+#include <et-trace/decoder.h>
+#include <et-trace/layout.h>
 
 #include "common/test_trace.h"
 #include "common/test_macros.h"
@@ -18,7 +17,7 @@
 static void trace_log_cmd_status(struct trace_control_block_t *cb, uint16_t message_id,
                                  uint8_t sqw_idx, uint16_t tag_id, uint8_t status)
 {
-    struct trace_cmd_status_internal_t cmd_data = {
+    struct trace_event_cmd_status_t cmd_data = {
         .queue_slot_id = sqw_idx,
         .mesg_id = message_id,
         .trans_id = tag_id,
@@ -58,7 +57,7 @@ int main(int argc, const char **argv)
         }
     }
 
-    { /* Decode trace buffer */
+    { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
         struct trace_cmd_status_t *entry = NULL;
         uint64_t i = 0;

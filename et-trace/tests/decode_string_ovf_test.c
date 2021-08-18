@@ -1,15 +1,14 @@
 /*
- * Test: decode_string_ovf
+ * Test: decoder_string_ovf
  * Fill the device trace with n_entries strings.
  * The test string is larger than the allocated buffer (rest should be ignored).
  */
 
 #include <stdlib.h>
 
-#define DEVICE_TRACE_DECODE_IMPL
-#include <device_trace.h>
-#include <device_trace_decode.h>
-#include <device_trace_types.h>
+#include <et-trace/encoder.h>
+#include <et-trace/decoder.h>
+#include <et-trace/layout.h>
 
 #include "common/test_trace.h"
 #include "common/test_macros.h"
@@ -51,7 +50,7 @@ int main(int argc, const char **argv)
         }
     }
 
-    { /* Decode trace buffer */
+    { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
         struct trace_string_t *entry = NULL;
         uint64_t i = 0;

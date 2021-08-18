@@ -8,33 +8,74 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.14)
-project(deviceTrace LANGUAGES C)
+cmake_minimum_required(VERSION 3.5)
+project(esperantoTrace
+  VERSION 0.1.0
+  DESCRIPTION "Esperanto device traces"
+  LANGUAGES C)
 
-option(DTRACE_TEST "Build device_trace tests" OFF)
+option(ET_TRACE_TEST "Build et-trace tests" OFF)
 
-add_library(device_trace_headers INTERFACE)
-add_library(deviceTrace::headers ALIAS device_trace_headers)
-target_include_directories(device_trace_headers
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+#---------------
+# Trace library
+#---------------
+
+add_library(et_trace INTERFACE)
+add_library(esperantoTrace::et_trace ALIAS et_trace)
+target_include_directories(et_trace
   INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/device_trace>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto>
 )
 
-if (DTRACE_TEST)
-  message(STATUS "Building device_trace tests")
+if (ET_TRACE_TEST)
+  message(STATUS "Building et-trace tests")
   enable_testing()
   add_subdirectory(tests)
 endif()
 
-install(TARGETS device_trace_headers
-    EXPORT deviceTraceTargets
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+#-------------------
+# Configure package 
+#-------------------
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/esperantoTraceConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/esperantoTraceConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/esperantoTrace
 )
-install(EXPORT deviceTraceTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceTrace
-    NAMESPACE deviceTrace::
+
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/esperantoTraceConfigVersion.cmake
+    VERSION ${VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+#-----------------
+# Install targets
+#-----------------
+
+install(TARGETS et_trace
+  EXPORT esperantoTraceTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto
+)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto COMPONENT et_trace
+)
+
+install(EXPORT esperantoTraceTargets
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/esperantoTrace
+  NAMESPACE esperantoTrace::
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/esperantoTraceConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/esperantoTraceConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/esperantoTrace
 )

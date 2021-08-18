@@ -5,10 +5,9 @@
 
 #include <stdlib.h>
 
-#define DEVICE_TRACE_DECODE_IMPL
-#include <device_trace.h>
-#include <device_trace_decode.h>
-#include <device_trace_types.h>
+#include <et-trace/encoder.h>
+#include <et-trace/decoder.h>
+#include <et-trace/layout.h>
 
 #include "common/test_trace.h"
 #include "common/test_macros.h"
@@ -52,7 +51,7 @@ int main(int argc, const char **argv)
     srand(uargs.seed);
     etsoc_reset();
 
-    { /* Decode trace buffer */
+    { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
         /*TODO Update entry type */
         struct trace_entry_header_t *entry = NULL;
@@ -61,7 +60,7 @@ int main(int argc, const char **argv)
             entry = Trace_Decode(buf, entry);
             if (!entry)
                 break;
-            /* TODO Check decoded entry, e.g.: */
+            /* TODO Check decoderd entry, e.g.: */
             /* CHECK_EQ(entry->cycle, i); */
             ++i;
         }

@@ -1,15 +1,14 @@
 /*
- * Test: decode_string_test
+ * Test: decoder_string_test
  * Fills a trace with n_entries strings.
- * This trace is then read and decoded.
+ * This trace is then read and decoderd.
  */
 
 #include <stdlib.h>
 
-#define DEVICE_TRACE_DECODE_IMPL
-#include <device_trace.h>
-#include <device_trace_decode.h>
-#include <device_trace_types.h>
+#include <et-trace/encoder.h>
+#include <et-trace/decoder.h>
+#include <et-trace/layout.h>
 
 #include "common/test_trace.h"
 #include "common/test_macros.h"
@@ -48,7 +47,7 @@ int main(int argc, const char **argv)
         }
     }
 
-    { /* Decode trace buffer */
+    { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
         struct trace_string_t *entry = NULL;
         uint64_t i = 0;
