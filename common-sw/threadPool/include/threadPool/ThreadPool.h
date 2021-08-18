@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
+#include "function2.hpp"
 #include <condition_variable>
 #include <cstddef>
 #include <functional>
@@ -19,7 +20,7 @@ namespace threadPool {
 
 class ThreadPool {
 public:
-  using Task = std::function<void()>;
+  using Task = fu2::unique_function<void()>;
   explicit ThreadPool(size_t numThreads);
   void pushTask(Task task);
   ~ThreadPool();

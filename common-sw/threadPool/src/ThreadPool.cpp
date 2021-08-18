@@ -56,7 +56,7 @@ void ThreadPool::workerFunc() {
       condVar_.wait(lock, [this] { return !(running_ && tasks_.empty()); });
     } else {
       TP_VLOG(HIGH) << "Executing task.";
-      auto task = tasks_.back();
+      auto task = std::move(tasks_.back());
       tasks_.pop_back();
       lock.unlock();
       task();
