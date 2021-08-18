@@ -28,7 +28,7 @@ add_library(esperantoTrace::et_trace ALIAS et_trace)
 target_include_directories(et_trace
   INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto>
 )
 
 if (ET_TRACE_TEST)
