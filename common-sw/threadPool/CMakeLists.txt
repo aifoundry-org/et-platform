@@ -29,7 +29,7 @@ target_include_directories(threadPool
 target_link_libraries(threadPool PUBLIC logging)
 
 set_target_properties(threadPool PROPERTIES
-  PUBLIC_HEADER "include/threadPool/ThreadPool.h"
+  PUBLIC_HEADER "include/threadPool/ThreadPool.h;include/threadPool/function2.hpp"
 )
 set_target_properties(threadPool PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
