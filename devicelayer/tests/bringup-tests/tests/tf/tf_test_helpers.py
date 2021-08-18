@@ -1,10 +1,39 @@
 import os
 from elftools.elf.elffile import ELFFile
 
+from tf.test_env import TfEnv
+from tf.test_env import TF_SPEC
+from tf.tf_specification import TfSpecification
+from tf.tf_target_fifo import TargetFifo
+
 class TfTestHelpers:
-    def __init__(self, *args):
-        #initialize JTAG target specific instance
-        print("Initializing TF tests helper object...")
+    def __init__(self, iface):
+        self.iface_name = iface
+        if self.iface_name == "sim":
+            print("Initializing TF tests helper object for SysEmu...")
+            os.system("cd ..")
+            self.env = TfEnv(self.iface_name)
+            self.tf_spec = TfSpecification(TF_SPEC)
+            self.dut_iface = TargetFifo("run/sp_uart1_tx", "run/sp_uart1_rx", self.tf_spec)
+            self.dut_iface.open()
+
+    def set_intercept_point(self, intercept):
+        print("Setting TF interception '" + intercept + "' point ..")
+        tf_interception_points = self.tf_spec.data["sp_tf_interception_points"]
+        # Initialize command params
+        tf_device_rt_intercept = tf_interception_points[intercept]
+        command = self.tf_spec.command("TF_CMD_SET_INTERCEPT", "SP", tf_device_rt_intercept)
+        # Issue test command
+        response = self.dut_iface.execute_test(command)
+        return response
+
+    def teardown_iface(self):
+        if self.iface_name == 'sim':
+            self.dut_iface.close()
+            self.env.finalize(self.iface_name)
+
+        print('Tear down environment')
+
     def kernel_get_path(self, kernel_name):
         kernels_root_dir = os.path.abspath(__file__ + "/../../../../../../../") + str('/device-software/')
         print('Kernels root directory:' + kernels_root_dir)
