@@ -43,14 +43,6 @@ constexpr auto kNumErrorContexts = 2080;
 constexpr auto kExceptionBufferSize = sizeof(ErrorContext) * kNumErrorContexts;
 } // namespace
 
-RuntimeImp::~RuntimeImp() {
-  RT_LOG(INFO) << "Destroying runtime";
-  for (auto& t : threadsToJoin_) {
-    t.join();
-  }
-  responseReceiver_.reset();
-}
-
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
   : deviceLayer_(deviceLayer) {
   for (int i = 0; i < deviceLayer_->getDevicesCount(); ++i) {
@@ -213,13 +205,11 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
     // TODO: It can be copied in background and return control to the user. Future work.
     std::copy(h_src, h_src + size, tmpBuffer.getPtr());
 
-    // TODO: There are more efficient ways of achieving this. Future work.
-    auto t = std::thread([this, evt, tmpBuffer = std::move(tmpBuffer)]() mutable {
+    threadPool_.pushTask([this, evt, tmpBuffer = std::move(tmpBuffer)]() mutable {
       // wait till the command is acked
       waitForEvent(evt);
       // when exiting, tmpBuffer will be deallocated
     });
-    t.detach();
   }
   cmd.size = static_cast<uint32_t>(size);
 
@@ -229,6 +219,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
   if (barrier)
     cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
   sendCommandMasterMinion(streamInfo.vq_, streamInfo.device_, cmd, lock, true);
+
   profileEvent.setEventId(evt);
   Sync(evt);
   return evt;
@@ -270,13 +261,12 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
     cmd.dst_host_virt_addr = cmd.dst_host_phy_addr = reinterpret_cast<uint64_t>(tmpBuffer.getPtr());
     sendCommandMasterMinion(streamInfo.vq_, streamInfo.device_, cmd, lock, true);
 
-    // TODO: There are many ways to optimize this, future work.
     // replace the event (because we need to do the copy before dispatching the final event to the user)
     auto memcpyEvt = evt;
     evt = eventManager_.getNextId();
     streamManager_.addEvent(stream, evt);
 
-    auto t = std::thread([this, memcpyEvt, size, evt, h_dst, tmpBuffer = std::move(tmpBuffer)]() mutable {
+    threadPool_.pushTask([this, memcpyEvt, size, evt, h_dst, tmpBuffer = std::move(tmpBuffer)]() mutable {
       // first wait till the copy ends
       waitForEvent(memcpyEvt);
       // copy results to user buffer
@@ -285,7 +275,6 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
       // dispatch the event
       eventManager_.dispatch(evt);
     });
-    t.detach();
   }
 
   profileEvent.setEventId(evt);
@@ -322,8 +311,7 @@ void RuntimeImp::setOnStreamErrorsCallback(StreamErrorCallback callback) {
 }
 
 void RuntimeImp::processResponseError(DeviceErrorCode errorCode, EventId event) {
-  std::lock_guard lock(mutex_);
-  auto t = std::thread([this, errorCode, event] {
+  threadPool_.pushTask([this, errorCode, event] {
     // here we have to check if there is an associated errorbuffer with the event; if so, copy the buffer from
     // devicebuffer into dmabuffer; then do the callback
     StreamError streamError(errorCode);
@@ -345,7 +333,6 @@ void RuntimeImp::processResponseError(DeviceErrorCode errorCode, EventId event) 
     streamManager_.removeEvent(event);
     eventManager_.dispatch(event);
   });
-  threadsToJoin_.emplace_back(std::move(t));
 }
 
 void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
@@ -526,12 +513,12 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
 
   sendCommandMasterMinion(streamInfo.vq_, streamInfo.device_, cmd, lock, true);
 
-  // TODO: There are many ways to optimize this, future work.
   // replace the event (because we need to do the copy before dispatching the final event to the user)
   auto memcpyEvt = evt;
   evt = eventManager_.getNextId();
   streamManager_.addEvent(stream, evt);
-  auto t = std::thread([this, memcpyEvt, dmaPtr = deviceTracing.dmaBuffer_.getPtr(), mmOut = deviceTracing.mmOutput_,
+
+  threadPool_.pushTask([this, memcpyEvt, dmaPtr = deviceTracing.dmaBuffer_.getPtr(), mmOut = deviceTracing.mmOutput_,
                         cmOut = deviceTracing.cmOutput_, evt]() mutable {
     // first wait till the copy ends
     waitForEvent(memcpyEvt);
@@ -546,7 +533,6 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
     streamManager_.removeEvent(evt);
     eventManager_.dispatch(evt);
   });
-  t.detach();
 
   Sync(evt);
   return evt;

@@ -20,19 +20,16 @@
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 #include <algorithm>
-#include <mutex>
-#include <thread>
+#include <hostUtils/threadPool/ThreadPool.h>
 #include <type_traits>
 #include <unordered_map>
 
-using namespace std::chrono_literals;
 namespace rt {
 class ExecutionContextCache;
 class MemoryManager;
 class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
 public:
-  RuntimeImp(dev::IDeviceLayer* deviceLayer);
-  ~RuntimeImp();
+  explicit RuntimeImp(dev::IDeviceLayer* deviceLayer);
 
   std::vector<DeviceId> getDevices() override;
 
@@ -159,7 +156,6 @@ private:
   profiling::ProfilerImp profiler_;
   std::unique_ptr<ExecutionContextCache> executionContextCache_;
   std::unique_ptr<ResponseReceiver> responseReceiver_;
-  // TODO refactor this shit... these are the response threads which must be waited at some point
-  std::vector<std::thread> threadsToJoin_;
+  threadPool::ThreadPool threadPool_{8};
 };
 } // namespace rt

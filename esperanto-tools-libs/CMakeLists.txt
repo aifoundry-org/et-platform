@@ -107,6 +107,7 @@ target_link_libraries(etrt_obj
         deviceApi::deviceApi
         deviceLayer::deviceLayer
         hostUtils::logging
+        hostUtils::threadPool
         elfio::elfio
 )
 
