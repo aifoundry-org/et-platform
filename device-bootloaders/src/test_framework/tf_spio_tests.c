@@ -217,7 +217,6 @@ int8_t SPIO_PLL_Program_Cmd_Handler(void* test_cmd)
     cmd_rsp_hdr.rsp_hdr.payload_size = TF_GET_PAYLOAD_SIZE(struct tf_rsp_spio_pll_program_t);
     printf("\n** SPIOPLL mode = %d **\r\n", cmd->cmd_payload);
     cmd_rsp_hdr.status = (uint32_t)configure_sp_pll_0(cmd->cmd_payload);
-    cmd_rsp_hdr.status = 0;
     printf("\n** SPIOPLL done **\r\n");
     TF_Send_Response(&cmd_rsp_hdr, sizeof(struct tf_rsp_spio_pll_program_t));
 

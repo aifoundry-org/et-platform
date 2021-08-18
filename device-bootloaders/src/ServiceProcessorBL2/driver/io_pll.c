@@ -159,8 +159,8 @@ FOUND_CONFIG_DATA:
         register_value = gs_hpdpll_settings[pll_settings_index].values[entry_index];
         pll_registers[register_index] = register_value;
     }
- 
-    *target_freq = 
+
+    *target_freq =
         FREQUENCY_HZ_TO_MHZ(gs_hpdpll_settings[pll_settings_index].output_frequency);
 
     /* Update PLL registers */
@@ -252,13 +252,20 @@ int configure_sp_pll_0(uint8_t mode)
 {
     int rv;
 
+    rv = clock_manager_pll_bypass(PLL_ID_SP_PLL_0, true);
+    if (0 != rv)
+    {
+        goto ERROR;
+    }
+
     rv = configure_pll((uint32_t *)R_SP_PLL0_BASEADDR, mode, &gs_sp_pll_0_frequency);
     if (0 != rv)
     {
         goto ERROR;
     }
 
-    if (0 != clock_manager_pll_bypass(PLL_ID_SP_PLL_0, false))
+    rv = clock_manager_pll_bypass(PLL_ID_SP_PLL_0, false);
+    if (0 != rv)
     {
         goto ERROR;
     }
@@ -274,10 +281,48 @@ ERROR:
 }
 
 
+int configure_sp_pll_1(uint8_t mode)
+{
+    int rv;
+
+    rv = clock_manager_pll_bypass(PLL_ID_SP_PLL_1, true);
+    if (0 != rv)
+    {
+        goto ERROR;
+    }
+
+    rv = configure_pll((uint32_t *)R_SP_PLL1_BASEADDR, mode, &gs_sp_pll_1_frequency);
+    if (0 != rv)
+    {
+        goto ERROR;
+    }
+
+    rv = clock_manager_pll_bypass(PLL_ID_SP_PLL_1, false);
+    if (0 != rv)
+    {
+        goto ERROR;
+    }
+
+    return 0;
+
+ERROR:
+    clock_manager_pll_bypass(PLL_ID_SP_PLL_1, true);
+    configure_pll_off((uint32_t *)R_SP_PLL1_BASEADDR);
+    gs_sp_pll_0_frequency = 100;
+
+    return rv;
+}
+
 
 int configure_sp_pll_2(uint8_t mode)
 {
     int rv;
+
+    rv = clock_manager_pll_bypass(PLL_ID_SP_PLL_2, true);
+    if (0 != rv)
+    {
+        goto ERROR;
+    }
 
     rv = configure_pll((uint32_t *)R_SP_PLL2_BASEADDR, mode, &gs_sp_pll_2_frequency);
     if (0 != rv)
@@ -285,7 +330,8 @@ int configure_sp_pll_2(uint8_t mode)
         goto ERROR;
     }
 
-    if (0 != clock_manager_pll_bypass(PLL_ID_SP_PLL_2, false))
+    rv = clock_manager_pll_bypass(PLL_ID_SP_PLL_2, false);
+    if (0 != rv)
     {
         goto ERROR;
     }
@@ -304,13 +350,20 @@ int configure_sp_pll_4(uint8_t mode)
 {
     int rv;
 
+    rv = clock_manager_pll_bypass(PLL_ID_SP_PLL_4, true);
+    if (0 != rv)
+    {
+        goto ERROR;
+    }
+
     rv = configure_pll((uint32_t *)R_SP_PLL4_BASEADDR, mode, &gs_sp_pll_4_frequency);
     if (0 != rv)
     {
         goto ERROR;
     }
 
-    if (0 != clock_manager_pll_bypass(PLL_ID_SP_PLL_4, false))
+    rv = clock_manager_pll_bypass(PLL_ID_SP_PLL_4, false);
+    if (0 != rv)
     {
         goto ERROR;
     }
@@ -330,13 +383,20 @@ int configure_pshire_pll(const uint8_t mode)
 
     int rv;
 
+    rv = clock_manager_pll_bypass(PLL_ID_PSHIRE, true);
+    if (0 != rv)
+    {
+        goto ERROR;
+    }
+
     rv = configure_pll((uint32_t *)R_PCIE_PLLP0_BASEADDR, mode, &gs_pcie_pll_0_frequency);
     if (0 != rv)
     {
         goto ERROR;
     }
 
-    if (0 != clock_manager_pll_bypass(PLL_ID_PSHIRE, false))
+    rv = clock_manager_pll_bypass(PLL_ID_PSHIRE, false);
+    if (0 != rv)
     {
         goto ERROR;
     }
@@ -355,13 +415,20 @@ int configure_maxion_pll_core(uint8_t mode)
 {
     int rv;
 
-    rv = configure_pll((uint32_t *)R_SP_PLLMX0_BASEADDR, mode, &gs_maxion_pll_core_frequency);
-    if (0 != rv) 
+    rv = clock_manager_pll_bypass(PLL_ID_MAXION_CORE, true);
+    if (0 != rv)
     {
         goto ERROR;
     }
 
-    if (0 != clock_manager_pll_bypass(PLL_ID_MAXION_CORE, false)) 
+    rv = configure_pll((uint32_t *)R_SP_PLLMX0_BASEADDR, mode, &gs_maxion_pll_core_frequency);
+    if (0 != rv)
+    {
+        goto ERROR;
+    }
+
+    rv = clock_manager_pll_bypass(PLL_ID_MAXION_CORE, false);
+    if (0 != rv)
     {
         goto ERROR;
     }
@@ -380,13 +447,20 @@ int configure_maxion_pll_uncore(uint8_t mode)
 {
     int rv;
 
-    rv = configure_pll((uint32_t *)R_SP_PLLMX1_BASEADDR, mode, &gs_maxion_pll_uncore_frequency);
-    if (0 != rv) 
+    rv = clock_manager_pll_bypass(PLL_ID_MAXION_UNCORE, true);
+    if (0 != rv)
     {
         goto ERROR;
     }
 
-    if (0 != clock_manager_pll_bypass(PLL_ID_MAXION_UNCORE, false)) 
+    rv = configure_pll((uint32_t *)R_SP_PLLMX1_BASEADDR, mode, &gs_maxion_pll_uncore_frequency);
+    if (0 != rv)
+    {
+        goto ERROR;
+    }
+
+    rv = clock_manager_pll_bypass(PLL_ID_MAXION_UNCORE, false);
+    if (0 != rv)
     {
         goto ERROR;
     }
@@ -427,7 +501,7 @@ int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency)
             return 0;
         case PLL_ID_MAXION_CORE:
             *frequency = gs_maxion_pll_core_frequency;
-            return 0;    
+            return 0;
         case PLL_ID_MAXION_UNCORE:
             *frequency = gs_maxion_pll_uncore_frequency;
             return 0;
