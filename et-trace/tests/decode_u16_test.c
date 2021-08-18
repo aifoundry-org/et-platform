@@ -1,13 +1,13 @@
 /*
- * Test: decode_u16
+ * Test: decoder_u16
  * Fills a trace with n_entries u16 values.
- * This trace is then read and decoded.
+ * This trace is then read and decoderd.
  */
 
 #include <stdlib.h>
 
-#include <et-trace/encode.h>
-#include <et-trace/decode.h>
+#include <et-trace/encoder.h>
+#include <et-trace/decoder.h>
 #include <et-trace/layout.h>
 
 #include "common/test_trace.h"

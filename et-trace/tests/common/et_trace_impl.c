@@ -30,8 +30,8 @@ static uint64_t et_trace_get_counter(pmc_counter_e id)
 #define ET_TRACE_GET_HPM_COUNTER(id) et_trace_get_counter(id)
 #define ET_TRACE_GET_HART_ID()       reg_mhartid
 
-#define ET_TRACE_ENCODE_IMPL
-#include <et-trace/encode.h>
+#define ET_TRACE_ENCODER_IMPL
+#include <et-trace/encoder.h>
 
-#define ET_TRACE_DECODE_IMPL
-#include <et-trace/decode.h>
+#define ET_TRACE_DECODER_IMPL
+#include <et-trace/decoder.h>

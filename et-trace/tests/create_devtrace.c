@@ -8,7 +8,7 @@
 
 #include <stdlib.h>
 
-#include <et-trace/encode.h>
+#include <et-trace/encoder.h>
 #include <et-trace/layout.h>
 
 #include "common/test_trace.h"

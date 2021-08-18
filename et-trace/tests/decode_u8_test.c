@@ -1,13 +1,13 @@
 /*
- * Test: decode_u8
+ * Test: decoder_u8
  * Fills a trace with n_entries u8 values.
- * This trace is then read and decoded.
+ * This trace is then read and decoderd.
  */
 
 #include <stdlib.h>
 
-#include <et-trace/encode.h>
-#include <et-trace/decode.h>
+#include <et-trace/encoder.h>
+#include <et-trace/decoder.h>
 #include <et-trace/layout.h>
 
 #include "common/test_trace.h"

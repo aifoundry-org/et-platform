@@ -1,13 +1,13 @@
 /*
- * Test: decode_string_fmt
+ * Test: decoder_string_fmt
  * Fills a trace with n_entries formatted strings.
- * This trace is then read and decoded.
+ * This trace is then read and decoderd.
  */
 
 #include <stdlib.h>
 
-#include <et-trace/encode.h>
-#include <et-trace/decode.h>
+#include <et-trace/encoder.h>
+#include <et-trace/decoder.h>
 #include <et-trace/layout.h>
 
 #include "common/test_trace.h"
@@ -46,7 +46,7 @@ int main(int argc, const char **argv)
         }
     }
 
-    { /* Decode trace buffer */
+    { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
         struct trace_string_t *entry = NULL;
         char expected_str[TRACE_STRING_MAX_SIZE];

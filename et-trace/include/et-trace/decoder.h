@@ -11,7 +11,7 @@
  ***********************************************************************/
 
 /***********************************************************************
- * et-trace/decode.h
+ * et-trace/decoder.h
  * Decode interface for Esperanto device traces.
  *
  *
@@ -19,15 +19,15 @@
  *
  * In a *single* source file, put:
  *
- *     #define ET_TRACE_DECODE_IMPL
- *     #include <et-trace/decode.h>
+ *     #define ET_TRACE_DECODER_IMPL
+ *     #include <et-trace/decoder.h>
  *
- * Other source files can include et-trace/decode.h as normal.
+ * Other source files can include et-trace/decoder.h as normal.
  *
  *
  * ABOUT
  *
- * This file provides an interface to decode device traces
+ * This file provides an interface to decoder device traces
  * stored in a linear memory buffer. The trace buffer should
  * be well formatted, according to the layout in et-trace/layout.h.
  *
@@ -42,8 +42,8 @@
  *
  ***********************************************************************/
 
-#ifndef ET_TRACE_DECODE_H
-#define ET_TRACE_DECODE_H
+#ifndef ET_TRACE_DECODER_H
+#define ET_TRACE_DECODER_H
 
 struct trace_buffer_std_header_t;
 
@@ -55,7 +55,7 @@ struct trace_buffer_std_header_t;
  *
  *   DESCRIPTION
  *
- *       This function decodes a trace buffer one entry at a time.
+ *       This function decoders a trace buffer one entry at a time.
  *
  *   INPUTS
  *
@@ -69,12 +69,12 @@ struct trace_buffer_std_header_t;
  *              NULL if the end of the trace buffer has been reached.
  *              Note: This is a void* to support both trace_entry_ext_t
  *              and trace_entry_t types depending on the trace type.
- *              On decode errors or wrong inputs, the function returns NULL.
+ *              On decoder errors or wrong inputs, the function returns NULL.
  *
  ***********************************************************************/
 void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev);
 
-#ifdef ET_TRACE_DECODE_IMPL
+#ifdef ET_TRACE_DECODER_IMPL
 
 #include "layout.h"
 
@@ -146,6 +146,6 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
     return next;
 }
 
-#endif /* ET_TRACE_DECODE_IMPL */
+#endif /* ET_TRACE_DECODER_IMPL */
 
-#endif /* ET_TRACE_DECODE_H */
+#endif /* ET_TRACE_DECODER_H */

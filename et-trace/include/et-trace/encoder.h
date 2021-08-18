@@ -11,7 +11,7 @@
  ***********************************************************************/
 
 /***********************************************************************
- * et-trace/encode.h
+ * et-trace/encoder.h
  * Encode interface for Esperanto device traces.
  *
  *
@@ -19,10 +19,10 @@
  *
  * In a *single* source file, put:
  *
- *     #define ET_TRACE_ENCODE_IMPL
- *     #include <et-trace/encode.h>
+ *     #define ET_TRACE_ENCODER_IMPL
+ *     #include <et-trace/encoder.h>
  *
- * Other source files can include et-trace/encode.h as normal.
+ * Other source files can include et-trace/encoder.h as normal.
  *
  * Most of the underlying primitives can be overwritten
  * with custom implementation (see CUSTOMIZING)
@@ -88,7 +88,7 @@
  *
  * CUSTOMIZING
  *
- * The following are primitives that are used by the encoder implementation.
+ * The following are primitives that are used by the encoderr implementation.
  * You can define custom implementations, for instance to perform reads/writes
  * via atomic operations, or to provide different implementations for underlying
  * hardware features depending on their availability.
@@ -112,14 +112,14 @@
  * By default the hart_id is not written to the trace entry header.
  * You can change this behavior by defining `ET_TRACE_WITH_HART_ID`:
  *
- *     #define ET_TRACE_ENCODE_IMPL
+ *     #define ET_TRACE_ENCODER_IMPL
  *     #define ET_TRACE_WITH_HART_ID
- *     #include <et-trace/encode.h>
+ *     #include <et-trace/encoder.h>
  *
  ***********************************************************************/
 
-#ifndef ET_TRACE_ENCODE_H
-#define ET_TRACE_ENCODE_H
+#ifndef ET_TRACE_ENCODER_H
+#define ET_TRACE_ENCODER_H
 
 #include <stdbool.h>
 #include "layout.h"
@@ -239,7 +239,7 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
 void Trace_Power_Status(struct trace_control_block_t *cb,
                         const struct trace_event_power_status_t *cmd_data);
 
-#ifdef ET_TRACE_ENCODE_IMPL
+#ifdef ET_TRACE_ENCODER_IMPL
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -859,10 +859,10 @@ void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint16_t
     }
 }
 
-#endif /* ET_TRACE_ENCODE_IMPL */
+#endif /* ET_TRACE_ENCODER_IMPL */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* ET_TRACE_ENCODE_H */
+#endif /* ET_TRACE_ENCODER_H */
