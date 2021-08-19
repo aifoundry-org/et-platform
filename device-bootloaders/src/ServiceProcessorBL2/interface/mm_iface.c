@@ -207,7 +207,7 @@ int32_t MM_Iface_Send_Echo_Cmd(void)
                 ((rsp.msg_hdr.msg_id == SP2MM_RSP_ECHO) && (cmd.payload == rsp.payload)))
             {
                 status = SUCCESS;
-                Log_Write(LOG_LEVEL_ERROR, "SP2MM:ECHO:Response: %x\r\n", rsp.payload);
+                Log_Write(LOG_LEVEL_CRITICAL, "SP2MM:ECHO:Response: %x\r\n", rsp.payload);
             }
             else
             {
@@ -357,7 +357,7 @@ int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff)
 {
     if(SP_MM_Iface_Verify_Tail(SP_SQ) == SP_MM_IFACE_ERROR_VQ_BAD_TAIL)
     {
-        Log_Write(LOG_LEVEL_ERROR,
+        Log_Write(LOG_LEVEL_WARNING,
         "MM_Iface_Pop_Cmd_From_MM2SP_SQ:FATAL_ERROR:Tail Mismatch! Using cached value as fallback mechanism\r\n");
     }
 

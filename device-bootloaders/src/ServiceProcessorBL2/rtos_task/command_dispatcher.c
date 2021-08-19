@@ -233,7 +233,7 @@ static void pc_vq_task(void *pvParameters)
         if(tail_prev != VQ_Get_Tail_Offset(&vq_cached))
         {
             /* If this condition occurs, there's definitely some corruption in VQs */
-            Log_Write(LOG_LEVEL_ERROR,
+            Log_Write(LOG_LEVEL_WARNING,
             "pc_vq_task:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
             tail_prev, VQ_Get_Tail_Offset(&vq_cached));
 

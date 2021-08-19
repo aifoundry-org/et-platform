@@ -271,7 +271,7 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
             SP_Host_CQ.vqueue.circbuff_cb->head_offset = SP_Host_CQ.circ_buff_local.head_offset;
 
             /* If this condition occurs, there's definitely some corruption in VQs */
-            Log_Write(LOG_LEVEL_ERROR,
+            Log_Write(LOG_LEVEL_WARNING,
             "SP_Host_Iface_CQ_Push_Cmd:FATAL_ERROR:Tail Mismatch:Local: %ld, Shared Memory: %ld Using local value as fallback mechanism\r\n",
             local_head_offset, reference_head_offset);
         }

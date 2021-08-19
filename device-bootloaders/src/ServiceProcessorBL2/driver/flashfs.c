@@ -947,7 +947,7 @@ int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk
         return ERROR_SPI_FLASH_NO_VALID_PARTITION;
     }
 
-    Log_Write(LOG_LEVEL_ERROR, "passive partition address:%x  partition size:%x  buffer:%lx  buffer_size:%x!\n",
+    Log_Write(LOG_LEVEL_INFO, "passive partition address:%x  partition size:%x  buffer:%lx  buffer_size:%x!\n",
            passive_partition_address, partition_size, (uint64_t)buffer, (uint32_t)buffer_size);
 
     if (0 != flash_fs_erase_partition(passive_partition_address, partition_size))
@@ -1028,7 +1028,7 @@ int flash_fs_get_boot_counters(uint32_t *attempted_boot_counter, uint32_t *compl
     *completed_boot_counter = count_zero_bits(
         partition_info->boot_counters_region_data.ull + ULL_PER_PAGE / 2, ULL_PER_PAGE / 2);
 
-    Log_Write(LOG_LEVEL_ERROR, "attempted_boot_counter: %d  completed_boot_counter:%d\n", *attempted_boot_counter,
+    Log_Write(LOG_LEVEL_CRITICAL, "attempted_boot_counter: %d  completed_boot_counter:%d\n", *attempted_boot_counter,
            *completed_boot_counter);
 
     return 0;
@@ -1085,9 +1085,6 @@ int flash_fs_increment_completed_boot_count(void)
                          .regions_table[region_index]
                          .region_offset *
                      FLASH_PAGE_SIZE;
-
-    /*Log_Write(LOG_LEVEL_ERROR, "partition address: %x, region_index: %x, region_address: %x\n", partition_address,
-           region_index, region_address); */
 
     counter_data_address = (uint32_t)(partition_address + region_address);
 
@@ -1225,7 +1222,7 @@ int flash_fs_swap_primary_boot_partition(void)
         return ERROR_SPI_FLASH_PP_FAILED;
     }
 
-    Log_Write(LOG_LEVEL_ERROR, "flash_fs_swap_primary_boot_partition: priority counters updated!\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "flash_fs_swap_primary_boot_partition: priority counters updated!\n");
 
     return 0;
 }

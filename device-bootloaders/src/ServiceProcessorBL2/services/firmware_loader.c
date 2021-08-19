@@ -205,7 +205,7 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
             Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: image certificate is not valid!\n");
             return -1;
         } else {
-            Log_Write(LOG_LEVEL_ERROR, "Image certificate OK!\n");
+            Log_Write(LOG_LEVEL_INFO, "Image certificate OK!\n");
         }
     }
 
@@ -290,7 +290,7 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
         } 
         else 
         {
-            Log_Write(LOG_LEVEL_ERROR, "firmware signature is OK!\n");
+            Log_Write(LOG_LEVEL_INFO, "firmware signature is OK!\n");
         }
     }
 
@@ -303,7 +303,7 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
     if (image_file_header->info.image_info_and_signaure.info.public_info.revocation_counter <
         monotonic_counter) 
     {
-        Log_Write(LOG_LEVEL_ERROR, "image version below %u!\n", monotonic_counter);
+        Log_Write(LOG_LEVEL_ERROR, "Failed: image version below %u!\n", monotonic_counter);
         return -1;
     }
 

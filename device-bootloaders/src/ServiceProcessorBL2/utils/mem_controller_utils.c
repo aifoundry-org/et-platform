@@ -77,7 +77,7 @@ static uint32_t load_raw_image(ESPERANTO_FLASH_REGION_ID_t region_id, void *buff
       image_name = "DDR_TRAINING_2D_1067_D";
       break;
     default:
-      Log_Write(LOG_LEVEL_ERROR, "load_raw_image: unrecongnized region id %d\n", region_id);
+      Log_Write(LOG_LEVEL_ERROR, "load_raw_image: Invalid region id %d\n", region_id);
       return 0;
   }
   Log_Write(LOG_LEVEL_INFO, "load_raw_image: Loading %s firmware\n", image_name);

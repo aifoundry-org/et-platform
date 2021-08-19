@@ -40,7 +40,7 @@ static bool gs_ignore_signatures;
 
 static void dump_sha512(const uint8_t hash[512 / 8])
 {
-    Log_Write(LOG_LEVEL_ERROR, "%02x%02x%02x%02x%02x%02x..%02x%02x%02x%02x%02x%02x\n", hash[0], hash[1], hash[2],
+    Log_Write(LOG_LEVEL_INFO, "%02x%02x%02x%02x%02x%02x..%02x%02x%02x%02x%02x%02x\n", hash[0], hash[1], hash[2],
            hash[3], hash[4], hash[5], hash[58], hash[59], hash[60], hash[61], hash[62], hash[63]);
 }
 
@@ -354,7 +354,7 @@ static int verify_sw_certificates_chain(const ESPERANTO_CERTIFICATE_t sw_certifi
         Log_Write(LOG_LEVEL_ERROR, "verify_sw_certificates_chain: Invalid SW ROOT CA certificate!\n");
         return -1;
     }
-    Log_Write(LOG_LEVEL_ERROR, "SW ROOT CA Certificate OK!\n");
+    Log_Write(LOG_LEVEL_INFO, "SW ROOT CA Certificate OK!\n");
     if (0 != verify_certificate(&sw_certificates[1], &sw_certificates[0],
                                 ESPERANTO_CERTIFICATE_DESIGNATION_ISSUING_CA)) 
     {

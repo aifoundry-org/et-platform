@@ -138,7 +138,7 @@ void PCIe_init(bool expect_link_up)
         }
         else
         {
-            Log_Write(LOG_LEVEL_ERROR, "Warning: PCIe link not properly inited, trying again...\r\n");
+            Log_Write(LOG_LEVEL_WARNING, "Warning: PCIe link not properly inited, trying again...\r\n");
         }
     }
 
