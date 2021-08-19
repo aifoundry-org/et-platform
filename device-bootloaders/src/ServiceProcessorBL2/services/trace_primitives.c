@@ -9,17 +9,25 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-/*! \file device_trace_access_primitives.H
-    \brief A C header file that has generic implemenation of Trace memory
+/*! \file trace_primitives.c
+    \brief A C file that has generic implemenation of Trace memory
            access primitives. All memory operations are normal operations
            without any special access primitive.
 */
 /***********************************************************************/
 
-#ifndef TRACE_SP_PRIMITIVES_H
-#define TRACE_SP_PRIMITIVES_H
+#include <stdint.h>
+static inline uint64_t et_trace_get_timestamp(void);
 
 /* TODO: Provide timer API for SP to get timestamp. */
-#define ET_TRACE_GET_TIMESTAMP(ret_val)      (ret_val+=1);
+#define ET_TRACE_GET_TIMESTAMP() et_trace_get_timestamp()
 
-#endif
+#define ET_TRACE_ENCODER_IMPL
+#include <et-trace/encoder.h>
+
+/* Increment a static variable */
+static inline uint64_t et_trace_get_timestamp()
+{
+    static uint64_t time = 0;
+    return ++time;
+}

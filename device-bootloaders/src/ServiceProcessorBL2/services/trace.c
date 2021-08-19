@@ -23,8 +23,6 @@
 #include <string.h>
 #include "config/mgmt_build_config.h"
 
-#define ET_TRACE_ENCODER_IMPL
-#include "trace_sp_primitives.h"
 #include "trace.h"
 
 /*

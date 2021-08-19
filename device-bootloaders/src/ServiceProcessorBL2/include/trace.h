@@ -18,7 +18,7 @@
 
 #include "dm.h"
 #include "dm_event_def.h"
-#include "device-trace/et_trace.h"
+#include <et-trace/encoder.h>
 #include "sp_host_iface.h"
 #include "log.h"
 

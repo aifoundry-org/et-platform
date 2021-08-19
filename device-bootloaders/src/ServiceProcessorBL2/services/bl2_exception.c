@@ -20,8 +20,7 @@
 #include "bl2_exception.h"
 #include "portmacro.h"
 
-#define ET_TRACE_ENCODER_IMPL
-#include <et_trace.h>
+#include <et-trace/encoder.h>
 
 /* Local functions */
 static void dump_stack_frame(const void *stack_frame, void *trace_buf);
@@ -75,8 +74,8 @@ uint8_t *SP_Exception_Trace_Buffer_Reserve(void)
         sizeof(struct trace_entry_header_t) + SP_EXCEPTION_FRAME_SIZE + SP_GLOBALS_SIZE;
     uint8_t *exception_entry_ptr = Trace_Buffer_Reserve(Trace_Get_SP_CB(), exception_entry_size);
     struct trace_entry_header_t *entry_header = (struct trace_entry_header_t *)exception_entry_ptr;
-    entry_header->generic.cycle = timer_get_ticks_count();
-    entry_header->generic.type = TRACE_TYPE_EXCEPTION;
+    entry_header->cycle = timer_get_ticks_count();
+    entry_header->type = TRACE_TYPE_EXCEPTION;
     return exception_entry_ptr;
 }
 

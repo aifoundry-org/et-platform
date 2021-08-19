@@ -26,6 +26,7 @@ find_package(deviceApi REQUIRED)
 find_package(tf-protocol REQUIRED)
 find_package(EsperantoFlashTool CONFIG REQUIRED)
 find_package(etsoc_hal REQUIRED)
+find_package(esperantoTrace REQUIRED)
 
 # Providers for third-party dependencies (gRPC_*_PROVIDER properties):
 # "module": build the dependency using sources from git submodule under external

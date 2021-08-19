@@ -91,6 +91,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         ${CMAKE_CURRENT_SOURCE_DIR}/services/perf_mgmt.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/thermal_pwr_mgmt.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/trace.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/services/trace_primitives.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/log.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/bl2_exception.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/bl2_scratch_buffer.c
@@ -117,7 +118,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
             deviceFirmware::device_serial
             FreeRTOS::FreeRTOS
             $<${TEST_FRAMEWORK}:test_framework>
-            EsperantoDeviceMinionRuntime::device_trace
+            esperantoTrace::et_trace
     )
 
     target_report_riscv_size(${TARGET_NAME}.elf)
@@ -153,5 +154,5 @@ target_link_libraries(BL2_driver
         EsperantoDeviceMinionRuntime::sp_firmware_helpers
         deviceFirmware::device_serial
         FreeRTOS::FreeRTOS
-        EsperantoDeviceMinionRuntime::device_trace
+        esperantoTrace::et_trace
 )
