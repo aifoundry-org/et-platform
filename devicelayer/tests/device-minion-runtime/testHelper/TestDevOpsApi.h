@@ -19,6 +19,8 @@
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logger.h>
+#include <esperanto/et-trace/layout.h>
+#include <esperanto/et-trace/decoder.h>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
@@ -67,8 +69,6 @@ const uint64_t kCacheLineSize = 64;
 constexpr uint32_t CM_SIZE_PER_HART = 4096;
 constexpr uint32_t WORKER_HART_COUNT = 2080;
 constexpr uint32_t MM_BASE_ID = 2048;
-constexpr uint32_t TRACE_STRING_MAX_SIZE = 64;
-constexpr uint32_t TRACE_MAGIC_HEADER = 0x76543210;
 constexpr uint64_t MM_SHIRE_MASK = (0x1ULL << 32);
 constexpr uint64_t HART_ID = 0x1;
 constexpr uint32_t TRACE_STRING_FILTER = 0x1;
@@ -94,50 +94,6 @@ extern "C" {
               ((shire_mask & GET_SHIRE_MASK(hart_id)) &&               \
                (thread_mask & GET_HART_MASK(hart_id)))
 
-enum trace_type_e {
-  TRACE_TYPE_STRING,
-  TRACE_TYPE_PMC_COUNTER,
-  TRACE_TYPE_PMC_ALL_COUNTERS,
-  TRACE_TYPE_VALUE_U64,
-  TRACE_TYPE_VALUE_U32,
-  TRACE_TYPE_VALUE_U16,
-  TRACE_TYPE_VALUE_U8,
-  TRACE_TYPE_VALUE_FLOAT,
-  TRACE_TYPE_MEMORY,
-  TRACE_TYPE_EXCEPTION,
-  TRACE_TYPE_CMD_STATUS
-};
-
-enum trace_buffer_type_e { TRACE_MM_BUFFER, TRACE_CM_BUFFER, TRACE_SP_BUFFER };
-
-typedef uint8_t trace_cmd_status_e;
-
-enum trace_cmd_status {
-  CMD_STATUS_RECEIVED,    /**< Command is popped/received from submission Queue. */
-  CMD_STATUS_VALIDATED,   /**< Command is validted. Means command has all required paramters. */
-  CMD_STATUS_EXECUTING,   /**< Command is submitted for execution to respective component of device. */
-  CMD_STATUS_FAILED,      /**< Command completed with a failure. */
-  CMD_STATUS_ABORTED,     /**< Command is aborted. */
-  CMD_STATUS_SUCCEEDED,   /**< Command completed successfully. */
-};
-
-struct trace_buffer_size_header_t {
-  uint32_t data_size;
-} __attribute__((packed));
-
-struct trace_buffer_std_header_t {
-  uint32_t magic_header;
-  uint32_t data_size;
-  uint16_t type;
-  uint8_t pad[6];
-} __attribute__((packed));
-
-struct trace_entry_header_t {
-    uint64_t cycle;   /**< Current cycle */
-    uint16_t type;    /**< One of enum trace_type_e */
-    uint8_t  pad[6];  /**< To keep natural alignment for memory operations. */
-} __attribute__((packed));
-
 struct trace_entry_header_mm_t {
   uint64_t cycle;   // Current cycle
   uint32_t hart_id; // Hart ID of the Hart which is logging Trace
@@ -153,19 +109,6 @@ struct cm_trace_string_t {
 struct mm_trace_string_t {
   struct trace_entry_header_mm_t mm_header;
   char dataString[64];
-} __attribute__((packed));
-
-struct trace_event_cmd_status_t {
-  union{
-    struct{
-      uint16_t mesg_id;               /**< Command message ID */
-      trace_cmd_status_e cmd_status;  /**< Command execution status, One of enum trace_cmd_status */
-      uint8_t queue_slot_id;          /**< Submission Queue ID from which command is popped */
-      uint16_t trans_id;              /**< transaction ID of command e.g. Tag ID. */
-      uint8_t reserved[2];            /**< Reserved */
-    }__attribute__((packed));
-    uint64_t raw_cmd;
-  };
 } __attribute__((packed));
 
 struct mm_trace_cmd_status_t {

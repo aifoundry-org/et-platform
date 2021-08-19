@@ -32,6 +32,7 @@ class DeviceLayerConan(ConanFile):
         "sw-sysemu/0.2.0",
         "hostUtils/0.1.0",
         "linuxDriver/0.1.0",
+        "esperantoTrace/0.1.0",
         "boost/1.72.0"
     ]
     build_requires = "cmake-modules/[>=0.4.1 <1.0.0]"
