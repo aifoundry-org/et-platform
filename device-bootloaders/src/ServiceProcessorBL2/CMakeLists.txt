@@ -15,6 +15,7 @@ set(FILE_REVISION_NUMBER 1)
 add_subdirectory(include)
 
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/common/sections.ld)
+set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/bl_layout.ld)
 set(ZEBU_TARGET SP_RAM)
 
 # BL2 build variants

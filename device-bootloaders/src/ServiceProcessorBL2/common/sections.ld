@@ -9,24 +9,16 @@
 *-------------------------------------------------------------------------
 */
 
+INCLUDE bl_layout.ld
+
 ENTRY(bl2_entry)
-
-RAM_BASE_ADDR = 0x40400000;
-
-RAM_SIZE = 896K; /* limit Service Processor BL2 RAM to 896 KB, because the last 128K is used by BL1 */
-
-CODE_SIZE = 512K;
-DATA_SIZE = RAM_SIZE - CODE_SIZE;
-
-CODE_BASE_ADDR = RAM_BASE_ADDR;
-DATA_BASE_ADDR = CODE_BASE_ADDR + CODE_SIZE;
 
 STACK_SIZE = 0x4000;
 
 MEMORY
 {
-    CODE (rx)  : org = CODE_BASE_ADDR, l = CODE_SIZE
-    DATA (!rx) : org = DATA_BASE_ADDR, l = DATA_SIZE
+    CODE (rx)  : org = BL2_CODE_REGION_BASE, l = BL2_CODE_REGION_SIZE
+    DATA (!rx) : org = BL2_DATA_REGION_BASE, l = BL2_DATA_REGION_SIZE
 }
 
 SECTIONS
@@ -118,7 +110,7 @@ SECTIONS
     heap (NOLOAD) : ALIGN(8)
     {
         __heap_start = .;
-        __heap_end = RAM_BASE_ADDR + RAM_SIZE - .;
+        __heap_end = BL2_RAM_BASE_ADDR + BL2_RAM_SIZE - .;
     } > DATA
 }
 

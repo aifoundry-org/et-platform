@@ -9,18 +9,14 @@
 *-------------------------------------------------------------------------
 */
 
+INCLUDE bl_layout.ld
+
 ENTRY(bl1_entry)
-
-CODE_BASE_ADDR = 0x404E0000;
-DATA_BASE_ADDR = 0x404F0000;
-
-CODE_SIZE = 64K; /* limit Service Processor BL1 code to 64 KB */
-DATA_SIZE = 64K; /* limit Service Processor BL1 zero-initialized data and stack to 64 KB */
 
 MEMORY
 {
-    CODE (rx)  : org = CODE_BASE_ADDR, l = CODE_SIZE
-    DATA (!rx) : org = DATA_BASE_ADDR, l = DATA_SIZE
+    CODE (rx)  : org = BL1_CODE_REGION_BASE, l = BL1_CODE_REGION_SIZE
+    DATA (!rx) : org = BL1_DATA_REGION_BASE, l = BL1_DATA_REGION_SIZE
 }
 
 SECTIONS

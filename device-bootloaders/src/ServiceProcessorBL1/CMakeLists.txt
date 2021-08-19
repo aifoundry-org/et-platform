@@ -4,6 +4,7 @@ set(FILE_REVISION_NUMBER 1)
 
 set(TARGET_NAME ServiceProcessorBL1)
 set(LINKER_SCRIPT src/bl1_sections.ld)
+set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/bl_layout.ld)
 set(TEST_FRAMEWORK 0)
 
 add_subdirectory(include)
