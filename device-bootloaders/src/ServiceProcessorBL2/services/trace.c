@@ -24,6 +24,7 @@
 #include "config/mgmt_build_config.h"
 
 #include "trace.h"
+#include "bl2_scratch_buffer.h"
 
 /*
  * Service Processor Trace control block.
@@ -135,11 +136,22 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     if (sp_init_info == NULL)
     {
         /* Populate default Trace configurations for Service Processor. */
+
+#if TEST_FRAMEWORK
+        /* The scratch pad buffer is also used by the BL2 to hold the DDR firmware.
+           During the DDR init the logging to trace buffer is disabled and therefore
+           it should not cause any problem. log is redirected to trace buffer after init
+           is complete.
+        */
+        void *trace_buff = get_scratch_buffer(&sp_init_info_l.buffer_size);
+        sp_init_info_l.buffer = (uint64_t)trace_buff;
+#else
         sp_init_info_l.buffer        = SP_TRACE_BUFFER_BASE;
         sp_init_info_l.buffer_size   = SP_TRACE_BUFFER_SIZE;
+#endif
         sp_init_info_l.event_mask    = TRACE_EVENT_STRING;
         sp_init_info_l.filter_mask   = TRACE_EVENT_STRING_WARNING;
-        sp_init_info_l.threshold     = SP_TRACE_BUFFER_SIZE;
+        sp_init_info_l.threshold     = sp_init_info_l.buffer_size;
     }
     else
     {
@@ -147,8 +159,8 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     }
 
     /* Common buffer for all SP HART. */
-    SP_Trace_CB.size_per_hart = SP_TRACE_BUFFER_SIZE;
-    SP_Trace_CB.base_per_hart = SP_TRACE_BUFFER_BASE;
+    SP_Trace_CB.size_per_hart = sp_init_info_l.buffer_size;
+    SP_Trace_CB.base_per_hart = sp_init_info_l.buffer;
 
     /* Initialize Trace for each all Harts in Service Processor. */
     Trace_Init(&sp_init_info_l, &SP_Trace_CB, TRACE_STD_HEADER);
