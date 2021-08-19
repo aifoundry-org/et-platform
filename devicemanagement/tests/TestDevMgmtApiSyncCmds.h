@@ -23,6 +23,8 @@
 #define DM_VLOG(severity) ET_VLOG(DM, severity)
 
 DECLARE_bool(loopback_driver);
+DECLARE_string(trace_logfile);
+DECLARE_bool(enable_trace_dump);
 
 void testSerial(device_management::DeviceManagement& dm, uint32_t deviceIdx, uint32_t index, uint32_t timeout,
                 int* result);
@@ -30,7 +32,8 @@ void testSerial(device_management::DeviceManagement& dm, uint32_t deviceIdx, uin
 class TestDevMgmtApiSyncCmds : public ::testing::Test {
 protected:
   device_management::getDM_t getInstance();
-
+  bool printSpTraceData(const unsigned char*, size_t) const;
+  void extractAndPrintTraceData(int);
   void getModuleManufactureName_1_1(bool singleDevice);
   void getModulePartNumber_1_2(bool singleDevice);
   void getModuleSerialNumber_1_3(bool singleDevice);

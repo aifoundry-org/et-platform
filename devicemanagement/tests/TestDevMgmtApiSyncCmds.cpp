@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <experimental/filesystem>
 #include <fcntl.h>
+#include <fstream>
 #include <glog/logging.h>
 #include <iostream>
 #include <string>
@@ -36,6 +37,9 @@ using TimeDuration = Clock::duration;
 #define DM_SERVICE_REQUEST_TIMEOUT 100000
 
 DEFINE_bool(loopback_driver, false, "Run on loopback driver");
+DEFINE_string(trace_logfile, "DeviceSpTrace.log", "File where SP trace data will be dumped");
+DEFINE_bool(enable_trace_dump, FLAGS_loopback_driver ? false : true,
+            "Enable SP trace dump to file specified by flag: trace_logfile, otherwise on UART");
 
 #define FORMAT_VERSION(major, minor, revision) ((major << 24) | (minor << 16) | (revision << 8))
 
@@ -66,6 +70,96 @@ getDM_t TestDevMgmtApiSyncCmds::getInstance() {
   return (getDM_t)0;
 }
 
+bool TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, size_t bufSize) const {
+  std::stringstream logs;
+  std::ofstream logfile;
+  if (FLAGS_enable_trace_dump) {
+    logfile.open(FLAGS_trace_logfile, std::ios_base::app);
+    logfile << "\n\n"
+            << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() << "."
+            << ::testing::UnitTest::GetInstance()->current_test_info()->name() << std::endl;
+  }
+
+#if SW_8496
+  // Get Trace buffer header
+  auto traceHeader = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf);
+  size_t dataSize = (traceHeader->data_size > sizeof(struct trace_buffer_std_header_t))
+                      ? traceHeader->data_size - sizeof(struct trace_buffer_std_header_t)
+                      : 0;
+
+  // Check if it is valid SP Trace buffer.
+  if ((traceHeader->magic_header != TRACE_MAGIC_HEADER) || (traceHeader->type != TRACE_SP_BUFFER) ||
+      ((dataSize + sizeof(struct trace_buffer_std_header_t)) > bufSize)) {
+    DM_LOG(ERROR) << "Invalid SP Trace Buffer!";
+    return false;
+  }
+#else
+  size_t dataSize = bufSize - sizeof(struct trace_buffer_std_header_t);
+#endif
+  std::array<char, TRACE_STRING_MAX_SIZE + 1> stringLog;
+  // Get size from Trace buffer header
+  auto traceData = traceBuf + sizeof(struct trace_buffer_std_header_t);
+  auto packetHeader = templ::bit_cast<trace_entry_header_t*>(traceData);
+  const trace_string_t* tracePacketString;
+
+  bool validEventFound = false;
+  size_t dataPopped = 0;
+
+  while (dataPopped < dataSize) {
+    if (packetHeader->generic.type == TRACE_TYPE_STRING) {
+      tracePacketString = templ::bit_cast<trace_string_t*>(traceData + dataPopped);
+      strncpy(stringLog.data(), tracePacketString->string, TRACE_STRING_MAX_SIZE);
+      stringLog[TRACE_STRING_MAX_SIZE] = '\0';
+      logs << "Timestamp:" << tracePacketString->header.generic.cycle << " :" << stringLog.data() << std::endl;
+      dataPopped += sizeof(struct trace_string_t);
+      validEventFound = true;
+    } else if (packetHeader->generic.type == TRACE_TYPE_EXCEPTION) {
+      dataPopped += sizeof(struct trace_entry_header_t) + SP_EXCEPTION_FRAME_SIZE + SP_GLOBALS_SIZE;
+      logs << "Timestamp:" << packetHeader->generic.cycle << std::endl;
+      validEventFound = true;
+    } else {
+      // TODO: SW_8496 : currently we are using full size of trace buffer.
+      // Once SW-8496 is implemented, size in header should be used and
+      // error message should be thrown in case header contains invalid type.
+      DM_LOG(WARNING) << "Unable to process type: [" << packetHeader->generic.type << "] in trace entry header!";
+      break;
+    }
+    packetHeader = templ::bit_cast<trace_entry_header_t*>(traceData + dataPopped);
+  }
+  if (FLAGS_enable_trace_dump) {
+    logfile << logs.str();
+    logfile.close();
+  } else {
+    DM_LOG(INFO) << logs.str();
+  }
+
+  return validEventFound;
+}
+
+void TestDevMgmtApiSyncCmds::extractAndPrintTraceData(int deviceIdx) {
+  if (!FLAGS_enable_trace_dump || FLAGS_loopback_driver) {
+    return;
+  }
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+  std::vector<std::byte> response;
+
+  if (deviceIdx >= dm.getDevicesCount()) {
+    DM_LOG(ERROR) << "Device index passed: " << deviceIdx
+                  << " is greater that max device index: " << (dm.getDevicesCount() - 1);
+  }
+
+  if (dm.getTraceBufferServiceProcessor(deviceIdx, response, DM_SERVICE_REQUEST_TIMEOUT) !=
+      device_mgmt_api::DM_STATUS_SUCCESS) {
+    DM_LOG(INFO) << "Unable to get SP trace buffer for device: " << deviceIdx << ". Disabling Trace.";
+    FLAGS_enable_trace_dump = false;
+  }
+
+  if (!printSpTraceData(reinterpret_cast<unsigned char*>(response.data()), response.size()))
+    DM_LOG(INFO) << "No SP trace event found!";
+}
+
 void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
@@ -80,17 +174,27 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1(bool singleDevice) {
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       printf("output_buff: %.*s\n", output_size, output_buff);
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
-      ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -110,10 +214,14 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber_1_2(bool singleDevice) {
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -122,7 +230,11 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber_1_2(bool singleDevice) {
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-      ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -142,10 +254,14 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber_1_3(bool singleDevice) {
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_SERIAL_NUMBER, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_SERIAL_NUMBER, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -154,7 +270,11 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber_1_3(bool singleDevice) {
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-      ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -175,10 +295,14 @@ void TestDevMgmtApiSyncCmds::getASICChipRevision_1_4(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_CHIP_REVISION, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_CHIP_REVISION, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -187,7 +311,11 @@ void TestDevMgmtApiSyncCmds::getASICChipRevision_1_4(bool singleDevice) {
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-      ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -208,10 +336,14 @@ void TestDevMgmtApiSyncCmds::getModulePCIENumPortsMaxSpeed_1_5(bool singleDevice
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED, nullptr,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED, nullptr,
                                 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -220,7 +352,11 @@ void TestDevMgmtApiSyncCmds::getModulePCIENumPortsMaxSpeed_1_5(bool singleDevice
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-      ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -241,10 +377,14 @@ void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB_1_6(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_SIZE_MB, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_SIZE_MB, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -253,7 +393,11 @@ void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB_1_6(bool singleDevice) {
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-      ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -274,9 +418,13 @@ void TestDevMgmtApiSyncCmds::getModuleRevision_1_7(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_REVISION, nullptr, 0, output_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_REVISION, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -285,7 +433,11 @@ void TestDevMgmtApiSyncCmds::getModuleRevision_1_7(bool singleDevice) {
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-      ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -306,10 +458,14 @@ void TestDevMgmtApiSyncCmds::getModuleFormFactor_1_8(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FORM_FACTOR, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FORM_FACTOR, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -318,7 +474,11 @@ void TestDevMgmtApiSyncCmds::getModuleFormFactor_1_8(bool singleDevice) {
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-      ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -338,10 +498,14 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber_1_9(bool singleDevi
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER,
                                 nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -350,7 +514,11 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber_1_9(bool singleDevi
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-      ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -370,10 +538,14 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryType_1_10(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -382,7 +554,11 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryType_1_10(bool singleDevice) {
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-      ASSERT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -403,29 +579,44 @@ void TestDevMgmtApiSyncCmds::setAndGetModulePowerState_1_11(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, input_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, input_buff,
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
 
     const uint32_t get_output_size = sizeof(device_mgmt_api::power_state_e);
     char get_output_buff[get_output_size] = {0};
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_POWER_STATE, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_POWER_STATE, nullptr, 0,
                                 get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       uint8_t powerstate = get_output_buff[0];
-      ASSERT_EQ(powerstate, device_mgmt_api::POWER_STATE_MANAGED_POWER);
+      EXPECT_EQ(powerstate, device_mgmt_api::POWER_STATE_MANAGED_POWER);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -447,28 +638,44 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel_1_12(bool singleDevic
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, input_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, input_buff,
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
 
     const uint32_t get_output_size = sizeof(uint8_t);
     char get_output_buff[get_output_size] = {0};
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_STATIC_TDP_LEVEL, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_STATIC_TDP_LEVEL, nullptr, 0,
                                 get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       uint8_t tdp_level = get_output_buff[0];
-      ASSERT_EQ(tdp_level, DM_TDP_LEVEL);
+      EXPECT_EQ(tdp_level, DM_TDP_LEVEL);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -489,30 +696,45 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13(bool singl
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ(set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ(set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
 
     const uint32_t get_output_size = sizeof(device_mgmt_api::temperature_threshold_t);
     char get_output_buff[get_output_size] = {0};
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS, nullptr,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS, nullptr,
                                 0, get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       device_mgmt_api::temperature_threshold_t* temperature_threshold =
         (device_mgmt_api::temperature_threshold_t*)get_output_buff;
-      ASSERT_EQ(temperature_threshold->sw_temperature_c, 56);
+      EXPECT_EQ(temperature_threshold->sw_temperature_c, 56);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -531,10 +753,14 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14(bool singleDev
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES,
                                 input_buff, input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
@@ -562,9 +788,13 @@ void TestDevMgmtApiSyncCmds::getModuleUptime_1_15(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_UPTIME, nullptr, 0, output_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_UPTIME, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
@@ -589,9 +819,13 @@ void TestDevMgmtApiSyncCmds::getModulePower_1_16(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_POWER, nullptr, 0, output_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_POWER, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Note: Module power could vary. So there cannot be expected value for Module power in the test
@@ -602,7 +836,11 @@ void TestDevMgmtApiSyncCmds::getModulePower_1_16(bool singleDevice) {
       auto power = (module_power->power >> 2) + (module_power->power & 0x03) * 0.25;
       printf("Module power (in Watts): %.3f \n", power);
 
-      ASSERT_NE(module_power->power, 0);
+      EXPECT_NE(module_power->power, 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -621,9 +859,13 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage_1_17(bool singleDevice) {
     auto dev_latency = std::make_unique<uint64_t>();
     uint32_t voltage;
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_VOLTAGE, nullptr, 0, output_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_VOLTAGE, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -634,7 +876,11 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage_1_17(bool singleDevice) {
       voltage = 250 + (module_voltage->minion * 5);
       printf("Minion Shire Module Voltage (in millivolts): %d\n", voltage);
 
-      ASSERT_NE(module_voltage->minion, 0);
+      EXPECT_NE(module_voltage->minion, 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -652,10 +898,14 @@ void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature_1_18(bool singleDevice)
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_CURRENT_TEMPERATURE, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_CURRENT_TEMPERATURE, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -664,7 +914,11 @@ void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature_1_18(bool singleDevice)
 
       printf(" Module current temperature (in C): %d\r\n", cur_temp->temperature_c);
 
-      ASSERT_NE(cur_temp->temperature_c, 0);
+      EXPECT_NE(cur_temp->temperature_c, 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -682,10 +936,14 @@ void TestDevMgmtApiSyncCmds::getModuleMaxTemperature_1_19(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_TEMPERATURE, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_TEMPERATURE, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
@@ -711,10 +969,14 @@ void TestDevMgmtApiSyncCmds::getModuleMaxMemoryErrors_1_20(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MAX_MEMORY_ERROR, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MAX_MEMORY_ERROR, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
@@ -740,10 +1002,14 @@ void TestDevMgmtApiSyncCmds::getModuleMaxDDRBW_1_21(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_DDR_BW, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_DDR_BW, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -762,10 +1028,14 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState_1_22(bool singleDevice
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES,
                                 input_buff, input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
@@ -798,15 +1068,23 @@ void TestDevMgmtApiSyncCmds::setAndGetDDRECCThresholdCount_1_23(bool singleDevic
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, input_buff, input_size,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, input_buff, input_size,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -827,15 +1105,23 @@ void TestDevMgmtApiSyncCmds::setAndGetSRAMECCThresholdCount_1_24(bool singleDevi
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, input_buff, input_size,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, input_buff, input_size,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -856,15 +1142,23 @@ void TestDevMgmtApiSyncCmds::setAndGetPCIEECCThresholdCount_1_25(bool singleDevi
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, input_buff, input_size,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, input_buff, input_size,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -882,18 +1176,26 @@ void TestDevMgmtApiSyncCmds::getPCIEECCUECCCount_1_26(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PCIE_ECC_UECC, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PCIE_ECC_UECC, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       device_mgmt_api::errors_count_t* errors_count = (device_mgmt_api::errors_count_t*)output_buff;
 
-      ASSERT_EQ(errors_count->ecc, 0);
-      ASSERT_EQ(errors_count->uecc, 0);
+      EXPECT_EQ(errors_count->ecc, 0);
+      EXPECT_EQ(errors_count->uecc, 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -911,18 +1213,26 @@ void TestDevMgmtApiSyncCmds::getDDRECCUECCCount_1_27(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_DDR_ECC_UECC, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_DDR_ECC_UECC, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       device_mgmt_api::errors_count_t* errors_count = (device_mgmt_api::errors_count_t*)output_buff;
 
-      ASSERT_EQ(errors_count->ecc, 0);
-      ASSERT_EQ(errors_count->uecc, 0);
+      EXPECT_EQ(errors_count->ecc, 0);
+      EXPECT_EQ(errors_count->uecc, 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -940,18 +1250,26 @@ void TestDevMgmtApiSyncCmds::getSRAMECCUECCCount_1_28(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_SRAM_ECC_UECC, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_SRAM_ECC_UECC, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       device_mgmt_api::errors_count_t* errors_count = (device_mgmt_api::errors_count_t*)output_buff;
 
-      ASSERT_EQ(errors_count->ecc, 0);
-      ASSERT_EQ(errors_count->uecc, 0);
+      EXPECT_EQ(errors_count->ecc, 0);
+      EXPECT_EQ(errors_count->uecc, 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -969,10 +1287,14 @@ void TestDevMgmtApiSyncCmds::getDDRBWCounter_1_29(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_DDR_BW_COUNTER, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_DDR_BW_COUNTER, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -994,15 +1316,23 @@ void TestDevMgmtApiSyncCmds::setPCIELinkSpeed_1_30(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED, input_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED, input_buff,
                                 input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -1024,15 +1354,23 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidth_1_31(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff, input_size,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff, input_size,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -1054,15 +1392,23 @@ void TestDevMgmtApiSyncCmds::setPCIERetrainPhy_1_32(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_RETRAIN_PHY, input_buff, input_size,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_RETRAIN_PHY, input_buff, input_size,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -1079,10 +1425,14 @@ void TestDevMgmtApiSyncCmds::getASICFrequencies_1_33(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1099,9 +1449,13 @@ void TestDevMgmtApiSyncCmds::getDRAMBW_1_34(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, nullptr, 0, output_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1118,10 +1472,14 @@ void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilization_1_35(bool singleDevice) 
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1139,15 +1497,23 @@ void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilization_1_36(bool singleD
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -1165,14 +1531,22 @@ void TestDevMgmtApiSyncCmds::getASICUtilization_1_37(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, nullptr, 0, output_buff,
+    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -1190,14 +1564,22 @@ void TestDevMgmtApiSyncCmds::getASICStalls_1_38(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, nullptr, 0, output_buff,
+    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -1215,14 +1597,22 @@ void TestDevMgmtApiSyncCmds::getASICLatency_1_39(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, nullptr, 0, output_buff,
+    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -1239,9 +1629,13 @@ void TestDevMgmtApiSyncCmds::getMMErrorCount_1_40(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MM_ERROR_COUNT, nullptr, 0, output_buff,
+    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MM_ERROR_COUNT, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1260,14 +1654,22 @@ void TestDevMgmtApiSyncCmds::getFWBootstatus_1_41(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS, nullptr, 0, output_buff,
+    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing and validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ(output_buff[0], 0);
+      EXPECT_EQ(output_buff[0], 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -1284,10 +1686,14 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision_1_42(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing and validation if loopback driver
@@ -1296,11 +1702,15 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision_1_42(bool singleDevice) {
 
       device_mgmt_api::firmware_version_t* firmware_versions = (device_mgmt_api::firmware_version_t*)output_buff;
 
-      ASSERT_EQ(firmware_versions->bl1_v, FORMAT_VERSION(0, 0, 1));
-      ASSERT_EQ(firmware_versions->bl2_v, FORMAT_VERSION(0, 0, 1));
-      ASSERT_EQ(firmware_versions->mm_v, FORMAT_VERSION(3, 17, 3));
-      ASSERT_EQ(firmware_versions->wm_v, FORMAT_VERSION(3, 17, 3));
-      ASSERT_EQ(firmware_versions->machm_v, FORMAT_VERSION(3, 17, 3));
+      EXPECT_EQ(firmware_versions->bl1_v, FORMAT_VERSION(0, 0, 1));
+      EXPECT_EQ(firmware_versions->bl2_v, FORMAT_VERSION(0, 0, 1));
+      EXPECT_EQ(firmware_versions->mm_v, FORMAT_VERSION(3, 17, 3));
+      EXPECT_EQ(firmware_versions->wm_v, FORMAT_VERSION(3, 17, 3));
+      EXPECT_EQ(firmware_versions->machm_v, FORMAT_VERSION(3, 17, 3));
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -1326,9 +1736,13 @@ void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode_1_43(bool singleDevice) {
     second.join();
     third.join();
 
-    ASSERT_EQ(*res1, device_mgmt_api::DM_STATUS_SUCCESS);
-    ASSERT_EQ(*res2, -EAGAIN);
-    ASSERT_EQ(*res3, device_mgmt_api::DM_STATUS_SUCCESS);
+    EXPECT_EQ(*res1, device_mgmt_api::DM_STATUS_SUCCESS);
+    EXPECT_EQ(*res2, -EAGAIN);
+    EXPECT_EQ(*res3, device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
   }
 }
 
@@ -1367,10 +1781,14 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DEVICE_ERROR_EVENTS, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DEVICE_ERROR_EVENTS, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -1379,7 +1797,11 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
       return;
     }
 
-    ASSERT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+    EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
 
     DM_LOG(INFO) << "Response received from device, wait for printing\n";
     sleep(10);
@@ -1410,7 +1832,11 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
     close(fd);
 
     // all events should match once
-    ASSERT_EQ(result, max_err_types);
+    EXPECT_EQ(result, max_err_types);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
   }
 }
 
@@ -1427,37 +1853,42 @@ void TestDevMgmtApiSyncCmds::isUnsupportedService_1_45(bool singleDevice) {
     auto dev_latency = std::make_unique<uint64_t>();
 
     // Invalid device node
-    ASSERT_EQ(dm.serviceRequest(deviceIdx + 66, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx + 66, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
     // Invalid command code
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, 99999, nullptr, 0, output_buff, output_size, hst_latency.get(),
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, 99999, nullptr, 0, output_buff, output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
     // Invalid input_buffer
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
     // Invalid output_buffer
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0, nullptr,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0, nullptr,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
     // Invalid host latency
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
                                 output_buff, output_size, nullptr, dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
     // Invalid device latency
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), nullptr, DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
     DM_LOG(INFO) << "Service Requests Completed for Device: " << deviceIdx;
+
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
   }
 }
 
@@ -1477,10 +1908,14 @@ void TestDevMgmtApiSyncCmds::setSpRootCertificate_1_46(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT, SP_CRT_512_V002, 1,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT, SP_CRT_512_V002, 1,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT * 20),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -1488,7 +1923,11 @@ void TestDevMgmtApiSyncCmds::setSpRootCertificate_1_46(bool singleDevice) {
       char expected[output_size] = {0};
       strncpy(expected, "0", output_size);
 
-      ASSERT_EQ(strncmp(output_buff, expected, output_size), 0);
+      EXPECT_EQ(strncmp(output_buff, expected, output_size), 0);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -1509,15 +1948,23 @@ void TestDevMgmtApiSyncCmds::setTraceControl_1_47(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff,
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -1540,16 +1987,24 @@ void TestDevMgmtApiSyncCmds::setTraceConfigure_1_48(bool singleDevice, uint32_t 
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG,
                                 reinterpret_cast<const char*>(input_buff), input_size * sizeof(uint32_t),
                                 set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
-      ASSERT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+      if (HasFailure()) {
+        extractAndPrintTraceData(deviceIdx);
+        return;
+      }
     }
   }
 }
@@ -1561,48 +2016,20 @@ void TestDevMgmtApiSyncCmds::getTraceBuffer_1_49(bool singleDevice) {
   DeviceManagement& dm = (*dmi)(devLayer_.get());
   std::vector<std::byte> response;
 
+  // Skip validation if loopback driver
+  if (FLAGS_loopback_driver) {
+    DM_LOG(INFO) << "Get Trace Buffer is not supported on loopback driver";
+    return;
+  }
+
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    ASSERT_EQ(dm.getTraceBufferServiceProcessor(deviceIdx, response, DM_SERVICE_REQUEST_TIMEOUT),
+    EXPECT_EQ(dm.getTraceBufferServiceProcessor(deviceIdx, response, DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
-    // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
-      bool validStringEventFound = false;
-#if SW_8496
-      // Get Trace buffer header
-      auto traceHeader = templ::bit_cast<trace_buffer_std_header_t*>(response.data());
-      // TODO: enable after SW-8496
-      // Check if it is valid SP Trace buffer.
-      if ((traceHeader->magic_header != TRACE_MAGIC_HEADER) || (traceHeader->type != TRACE_SP_BUFFER) ||
-          ((traceHeader->data_size) > response.size())) {
-        DM_LOG(ERROR) << "Invalid SP Trace Buffer!";
-        break;
-      }
-      // Get size from Trace buffer header
-      size_t dataSize = traceHeader->data_size - sizeof(struct trace_buffer_std_header_t);
-#endif
-      size_t dataSize = response.size() - sizeof(struct trace_buffer_std_header_t);
-      auto traceBuf = response.data() + sizeof(struct trace_buffer_std_header_t);
-      auto dataPtr = templ::bit_cast<trace_string_t*>(traceBuf);
-      char stringLog[TRACE_STRING_MAX_SIZE + 1]; // NOSONAR this is required for SP trace buffer parsing.
-      size_t dataPopped = 0;
-      DM_LOG(INFO) << "Printing trace buffer:";
-      while (dataPopped < dataSize) {
-        if ((dataPtr->header.type == TRACE_TYPE_STRING) && (dataPtr->dataString[0] != '\0')) {
-          strncpy(&stringLog[0], dataPtr->dataString, TRACE_STRING_MAX_SIZE);
-          stringLog[TRACE_STRING_MAX_SIZE] = '\0';
-          std::cout << stringLog << std::endl;
-          dataPtr++;
-          dataPopped += sizeof(struct trace_string_t);
-          validStringEventFound = true;
-        } else {
-          break;
-        }
-      }
-      ASSERT_EQ(validStringEventFound, true);
-    }
+    EXPECT_TRUE(printSpTraceData(reinterpret_cast<unsigned char*>(response.data()), response.size()))
+      << "No SP trace event found!" << std::endl;
   }
 }
 
@@ -1622,10 +2049,14 @@ void TestDevMgmtApiSyncCmds::setModulePowerStateRange_1_50(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, input_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, input_buff,
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1646,10 +2077,14 @@ void TestDevMgmtApiSyncCmds::setModuleSetTemperatureThresholdRange_1_51(bool sin
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1669,10 +2104,14 @@ void TestDevMgmtApiSyncCmds::setModuleStaticTDPLevelRange_1_52(bool singleDevice
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, input_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, input_buff,
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1694,10 +2133,14 @@ void TestDevMgmtApiSyncCmds::setPCIEMaxLinkSpeedRange_1_53(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED, input_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED, input_buff,
                                 input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1719,10 +2162,14 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidthRange_1_54(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff, input_size,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff, input_size,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1743,10 +2190,14 @@ void TestDevMgmtApiSyncCmds::setModulePowerStateRangeInvalidInputSize_1_55(bool 
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, input_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, input_buff,
                                 0 /* Invalid size*/, set_output_buff, set_output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1765,10 +2216,14 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputSize_1_56(bool
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
                                 output_buff, 0 /*Invalid output size*/, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1787,10 +2242,14 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceNode_1_57(bool
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    ASSERT_EQ(dm.serviceRequest(deviceIdx + 250, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx + 250, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr,
                                 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1808,10 +2267,14 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidHostLatency_1_58(boo
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     char output_buff[output_size] = {0};
     auto dev_latency = std::make_unique<uint64_t>();
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
                                 output_buff, output_size, nullptr /*nullptr for invalid testing*/, dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1829,10 +2292,14 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceLatency_1_59(b
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), nullptr /*nullptr for invalid testing*/,
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1850,10 +2317,14 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputBuffer_1_60(bo
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
                                 nullptr /*nullptr instaed of output buffer*/, output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1872,10 +2343,14 @@ void TestDevMgmtApiSyncCmds::setModulePowerStateRangeInvalidInputBuffer_1_61(boo
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE,
                                 nullptr /*Nullptr instead of input buffer*/, input_size, set_output_buff,
                                 set_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }

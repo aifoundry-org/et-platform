@@ -8,6 +8,8 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
+#include "etTraceLayout.h"
+
 // A namespace containing template for `bit_cast`. To be removed when `bit_cast` will be available
 namespace templ {
 template <class To, class From>
@@ -24,44 +26,56 @@ bit_cast(const From& src) noexcept {
 }
 } // namespace templ
 
-/* TODO: All trace packet information should be in common files
-         for both Host and Device usage. */
-constexpr uint32_t TRACE_STRING_MAX_SIZE = 64;
-constexpr uint32_t TRACE_MAGIC_HEADER = 0x76543210;
-
-extern "C" {
-enum trace_type_e {
-  TRACE_TYPE_STRING,
-  TRACE_TYPE_PMC_COUNTER,
-  TRACE_TYPE_PMC_ALL_COUNTERS,
-  TRACE_TYPE_VALUE_U64,
-  TRACE_TYPE_VALUE_U32,
-  TRACE_TYPE_VALUE_U16,
-  TRACE_TYPE_VALUE_U8,
-  TRACE_TYPE_VALUE_FLOAT
-};
-
-enum trace_buffer_type_e { TRACE_MM_BUFFER, TRACE_CM_BUFFER, TRACE_SP_BUFFER };
-
-struct trace_buffer_size_header_t {
-  uint32_t data_size;
+struct asic_frequencies_t {
+  uint32_t minion_shire_mhz;
+  uint32_t noc_mhz;
+  uint32_t mem_shire_mhz;
+  uint32_t ddr_mhz;
+  uint32_t pcie_shire_mhz;
+  uint32_t io_shire_mhz;
 } __attribute__((packed));
 
-struct trace_buffer_std_header_t {
-  uint32_t magic_header;
-  uint32_t data_size;
-  uint16_t type;
+struct dram_bw_t {
+  uint32_t read_req_sec;
+  uint32_t write_req_sec;
+} __attribute__((packed));
+
+struct max_dram_bw_t {
+  uint8_t max_bw_rd_req_sec;
+  uint8_t max_bw_wr_req_sec;
   uint8_t pad[6];
 } __attribute__((packed));
 
-struct trace_entry_header_t {
-  uint64_t cycle; // Current cycle
-  uint16_t type;  // One of enum trace_type_e
-  uint8_t  pad[6];  /**< To keep natural alignment for memory operations. */
+struct module_uptime_t {
+  uint16_t day;
+  uint8_t hours;
+  uint8_t mins;
+  uint8_t pad[4];
 } __attribute__((packed));
 
-struct trace_string_t {
-  struct trace_entry_header_t header;
-  char dataString[64];
+struct module_voltage_t {
+  uint8_t ddr;
+  uint8_t l2_cache;
+  uint8_t maxion;
+  uint8_t minion;
+  uint8_t pcie;
+  uint8_t noc;
+  uint8_t pcie_logic;
+  uint8_t vddqlp;
+  uint8_t vddq;
+  uint8_t pad[7];
 } __attribute__((packed));
-}
+
+typedef uint8_t power_state_e;
+
+#define SP_NUM_REGISTERS (32)
+#define SP_EXCEPTION_STACK_FRAME_SIZE (sizeof(uint64_t) * 28)
+#define SP_EXCEPTION_CSRS_FRAME_SIZE (sizeof(uint64_t) * 4)
+#define SP_EXCEPTION_FRAME_SIZE (SP_EXCEPTION_STACK_FRAME_SIZE + SP_EXCEPTION_CSRS_FRAME_SIZE)
+#define SP_PERF_GLOBALS_SIZE                                                                                           \
+  (sizeof(struct asic_frequencies_t) + sizeof(struct dram_bw_t) + sizeof(struct max_dram_bw_t) + sizeof(uint32_t) +    \
+   sizeof(uint64_t))
+#define SP_POWER_GLOBALS_SIZE                                                                                          \
+  (sizeof(power_state_e) + sizeof(uint8_t) + (sizeof(uint8_t) * 3) + sizeof(struct module_uptime_t) +                  \
+   sizeof(struct module_voltage_t) + sizeof(uint64_t) + sizeof(uint64_t))
+#define SP_GLOBALS_SIZE (SP_PERF_GLOBALS_SIZE + SP_POWER_GLOBALS_SIZE)
