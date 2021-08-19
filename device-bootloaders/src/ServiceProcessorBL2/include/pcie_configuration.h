@@ -206,4 +206,11 @@ int Pshire_NOC_update_routing_table(void);
 */
 int PCIe_Phy_Firmware_Update (const uint64_t* image);
 
+/*! \fn int PCIE_Init_Status(void)
+    \brief Interface to find pcie initialization status
+    \param None
+    \returns Status indicating success or negative error
+*/
+int PCIE_Init_Status(void);
+
 #endif

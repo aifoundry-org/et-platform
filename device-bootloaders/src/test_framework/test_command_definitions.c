@@ -42,6 +42,7 @@ extern int8_t PCIE_PSHIRE_Init_Cmd_Handler(void* test_cmd);
 extern int8_t PCIE_PSHIRE_Voltage_Update_Cmd_Handler(void* test_cmd);
 extern int8_t PCIE_PSHIRE_PLL_Program_Cmd_Handler(void* test_cmd);
 extern int8_t PCIE_PSHIRE_NOC_Update_Routing_Table_Cmd_Handler(void* test_cmd);
+extern int8_t Get_Pcie_Init_Status(void* test_cmd);
 /* NOC Tests */
 extern int8_t NOC_Voltage_update_Cmd_Handler(void* test_cmd);
 extern int8_t NOC_PLL_Program_Cmd_Handler(void* test_cmd);
@@ -248,7 +249,7 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
 // 65
     SP_Get_Module_ASIC_Freq_Cmd_Handler,
 // 66
-    Unregistered_Handler, // Future HW Use
+    Get_Pcie_Init_Status,
 // 67
     Unregistered_Handler, // Future HW Use
 // 68
