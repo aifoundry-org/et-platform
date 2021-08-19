@@ -98,7 +98,7 @@ struct __attribute__((__packed__)) << struct | lower >>_t {
     <%- if type == 'unknown_bytes' %>
     char << arg >>[TF_MAX_CMD_SIZE];
     <%- elif type == 'flexible_bytes' %>
-    char* << arg >>;
+    char << arg >>[];
     <%- else %>
     << type >> << arg >>;
     <%- endif %>
@@ -119,7 +119,7 @@ struct __attribute__((__packed__)) << struct | lower >>_t {
     <%- if type == 'unknown_bytes' %>
     char << arg >>[TF_MAX_RSP_SIZE];
     <%- elif type == 'flexible_bytes' %>
-    char* << arg >>;
+    char << arg >>[];
     <%- else %>
     << type >> << arg >>;
     <%- endif %>

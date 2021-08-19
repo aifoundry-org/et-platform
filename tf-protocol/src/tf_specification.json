@@ -99,6 +99,7 @@
         "TF_CMD_PMIC_MODULE_UPTIME": 63,
         "TF_CMD_SP_PCIE_RETAIN_PHY": 64,
         "TF_CMD_GET_MODULE_ASIC_FREQ": 65,
+        "TF_CMD_GET_PCIE_INIT_STATUS": 66,
         "TF_CMD_AT_MANUFACTURER_NAME": 97,
         "TF_CMD_AT_PART_NUMBER": 98,
         "TF_CMD_AT_SERIAL_NUMBER": 99,
@@ -187,6 +188,7 @@
         "TF_RSP_PMIC_MODULE_UPTIME": 319,
         "TF_RSP_SP_PCIE_RETAIN_PHY": 320,
         "TF_RSP_GET_MODULE_ASIC_FREQ": 321,
+        "TF_RSP_GET_PCIE_INIT_STATUS": 322,
         "TF_RSP_AT_MANUFACTURER_NAME": 353,
         "TF_RSP_AT_PART_NUMBER": 354,
         "TF_RSP_AT_SERIAL_NUMBER": 355,
@@ -476,6 +478,11 @@
             "payload_args": {}
         },
         "TF_CMD_GET_MODULE_ASIC_FREQ": {
+            "flags": 1,
+            "payload_size": 0,
+            "payload_args": {}
+        },
+	"TF_CMD_GET_PCIE_INIT_STATUS": {
             "flags": 1,
             "payload_size": 0,
             "payload_args": {}
@@ -803,6 +810,13 @@
                 "ddr_mhz": "uint32_t",
                 "pcie_shire_mhz": "uint32_t",
                 "io_shire_mhz": "uint32_t"
+            }
+        },
+	"TF_RSP_GET_PCIE_INIT_STATUS": {
+            "flags": 2,
+            "payload_size": 4,
+            "payload_args": {
+                "status": "int32_t"
             }
         },
         "TF_RSP_GET_MM_HEARTBEAT": {
