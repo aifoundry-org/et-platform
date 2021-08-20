@@ -44,6 +44,12 @@ int32_t NOC_Configure(uint8_t mode)
         reconfig_noc_4_east_memshires
         reconfig_noc_2_east_memshires
         reconfig_noc_1_east_memshires
+
+        reconfig_noc_16_minshires
+        reconfig_noc_8_minshires
+        reconfig_noc_4_minshires
+        reconfig_noc_2_minshires
+        reconfig_noc_1_minshires
     */
     CSR_SLAM_TABLE *reconfig_table_ptr = CSR_SLAM_TABLE_PTR_NULL;
     if(reconfig_table_ptr != CSR_SLAM_TABLE_PTR_NULL)
