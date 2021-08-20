@@ -16,18 +16,10 @@
 */
 /***********************************************************************/
 
-#include <stdint.h>
-static inline uint64_t et_trace_get_timestamp(void);
+#include "bl2_timer.h"
 
-/* TODO: Provide timer API for SP to get timestamp. */
-#define ET_TRACE_GET_TIMESTAMP() et_trace_get_timestamp()
+#define ET_TRACE_GET_TIMESTAMP() timer_get_ticks_count()
 
 #define ET_TRACE_ENCODER_IMPL
 #include <et-trace/encoder.h>
 
-/* Increment a static variable */
-static inline uint64_t et_trace_get_timestamp()
-{
-    static uint64_t time = 0;
-    return ++time;
-}
