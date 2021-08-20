@@ -57,6 +57,9 @@ public:
   }
 
 private:
+  PageManager(const PageManager&) = delete;
+  PageManager(PageManager&&) noexcept;
+
   // it could be improved, but actually the number of pages is so small that it's not worth it. Everything should be
   // cached
   void updateMaxSize();
@@ -68,7 +71,9 @@ private:
   std::byte* memory_;
 };
 PageManager::~PageManager() {
-  deallocator_(memory_);
+  if (memory_) {
+    deallocator_(memory_);
+  }
 }
 PageManager::PageManager(const Allocator& allocator, const Deallocator& deallocator)
   : allocator_{allocator}
@@ -76,37 +81,46 @@ PageManager::PageManager(const Allocator& allocator, const Deallocator& dealloca
   memory_ = allocator(kNumPages * kPageSize);
 }
 
-PageGroup PageManager::alloc(size_t size) {
-  if (size == 0) {
-    throw Exception("Error trying to allocate size 0");
-  }
-  if (size > maxSize_) {
-    std::stringstream ss;
-    ss << "Error trying to allocate size " << std::hex << size << " when max size is: " << maxSize_;
-    throw Exception(ss.str());
-  }
-  auto numPages = (size + kPageSize - 1) / kPageSize;
-  auto index = 0U;
-
-  // find a good spot to allocate the pagegroup. Simple greddy algorithm
-  for (auto freePages = 0U; freePages < numPages; ++index) {
-    if (!busyPages_.test(index)) {
-      freePages++;
-    } else {
-      freePages = 0;
-    }
-  }
-  // now the range corresponding to the alloc is [index-numPages, index). Mark as busy these pages
-  for (auto i = index - numPages; i < index; ++i) {
-    busyPages_.set(i);
-  }
-
-  // recalculate maxSize
-  updateMaxSize();
-
-  // now return the PageGroup
-  return PageGroup(this, static_cast<uint16_t>(index - numPages), static_cast<uint16_t>(index - 1));
+PageManager::PageManager(PageManager&& other) noexcept
+  : allocator_(other.allocator_)
+  , deallocator_(other.deallocator_)
+  , busyPages_(other.busyPages_)
+  , maxSize_(other.maxSize_)
+  , memory_(other.memory_) {
+  other.memory_ = nullptr;
 }
+
+  PageGroup PageManager::alloc(size_t size) {
+    if (size == 0) {
+      throw Exception("Error trying to allocate size 0");
+    }
+    if (size > maxSize_) {
+      std::stringstream ss;
+      ss << "Error trying to allocate size " << std::hex << size << " when max size is: " << maxSize_;
+      throw Exception(ss.str());
+    }
+    auto numPages = (size + kPageSize - 1) / kPageSize;
+    auto index = 0U;
+
+    // find a good spot to allocate the pagegroup. Simple greddy algorithm
+    for (auto freePages = 0U; freePages < numPages; ++index) {
+      if (!busyPages_.test(index)) {
+        freePages++;
+      } else {
+        freePages = 0;
+      }
+    }
+    // now the range corresponding to the alloc is [index-numPages, index). Mark as busy these pages
+    for (auto i = index - numPages; i < index; ++i) {
+      busyPages_.set(i);
+    }
+
+    // recalculate maxSize
+    updateMaxSize();
+
+    // now return the PageGroup
+    return PageGroup(this, static_cast<uint16_t>(index - numPages), static_cast<uint16_t>(index - 1));
+  }
 
 void PageManager::updateMaxSize() {
   maxSize_ = 0;
