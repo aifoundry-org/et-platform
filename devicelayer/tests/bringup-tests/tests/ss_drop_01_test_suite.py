@@ -50,7 +50,6 @@ def test_sp_get_buffer_with_base():
     print("SP Trace Base Addr: " + hex(base))
     print("SP Trace Offset: " + hex(offset))
     print("Sp Trace Size: " + hex(size))
-    assert size == 4096
 
     # Get trace for given offset and base address
     response = dut_fifo_iface.execute_test(sp_trace_helper.get_trace_buffer_for_offset_cmd(base, offset))
