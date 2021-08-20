@@ -24,15 +24,38 @@
 #include "device-common/atomic.h"
 #include "device-common/cacheops.h"
 #include "device-common/hart.h"
+#include "device-common/hpm_counter.h"
 #include "layout.h"
 #include "config/mm_config.h"
 #include "services/log.h"
 #include "common_trace_defs.h"
 #include "etsoc_memory.h"
 
+static inline void et_trace_write_float(void *addr, float value);
+
+#define ET_TRACE_WITH_HART_ID
+#define ET_TRACE_GET_HPM_COUNTER(id)      hpm_read_counter(id)
+#define ET_TRACE_GET_TIMESTAMP()          hpm_read_counter3()
+#define ET_TRACE_GET_HART_ID()            get_hart_id()
+#define ET_TRACE_READ(size, loc)          atomic_load_local_##size(&(loc))
+#define ET_TRACE_WRITE(size, loc, value)  atomic_store_local_##size(&(loc), (value))
+#define ET_TRACE_WRITE_FLOAT(loc, value)  et_trace_write_float(&(loc), (value))
+#define ET_TRACE_MEM_CPY(dest, src, size) ETSOC_Memory_Write_Local_Atomic(src, dest, size)
+
 #define ET_TRACE_ENCODER_IMPL
-#include "services/trace_mm_primitives.h"
 #include "services/trace.h"
+
+union data_u32_f {
+    uint32_t value_u32;
+    float value_f;
+};
+
+static inline void et_trace_write_float(void *addr, float value)
+{
+    union data_u32_f data;
+    data.value_f = value;
+    atomic_store_local_32(addr, data.value_u32);
+}
 
 /*! \def MM_DEFAULT_THREAD_MASK
     \brief Default masks to enable Trace for Dispatcher, SQ Worker (SQW),

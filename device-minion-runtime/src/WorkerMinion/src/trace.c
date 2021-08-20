@@ -31,8 +31,12 @@
 #include "device-common/cacheops.h"
 #include "common_trace_defs.h"
 
+#include "device-common/hpm_counter.h"
+
 #define ET_TRACE_ENCODER_IMPL
-#include "trace_cm_primitives.h"
+#define ET_TRACE_GET_TIMESTAMP()     hpm_read_counter3()
+#define ET_TRACE_GET_HPM_COUNTER(id) hpm_read_counter(id)
+
 #include "trace.h"
 
 #ifndef __ASSEMBLER__
@@ -54,8 +58,8 @@ typedef struct cm_trace_control_block {
 /*! \def CHECK_HART_TRACE_ENABLED
     \brief Check if Trace is enabled for given Hart.
 */
-#define CHECK_HART_TRACE_ENABLED(init, id)     ((init.shire_mask & GET_SHIRE_MASK(hart_id)) && \
-                                             (init.thread_mask & GET_HART_MASK(hart_id)))
+#define CHECK_HART_TRACE_ENABLED(init, id)     ((init.shire_mask & TRACE_SHIRE_MASK(hart_id)) && \
+                                             (init.thread_mask & TRACE_HART_MASK(hart_id)))
 
 /*! \def CM_BASE_HART_ID
     \brief CM Base HART ID.

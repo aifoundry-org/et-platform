@@ -23,6 +23,7 @@ class DeviceMinionRuntimeConan(ConanFile):
 
     requires = [
         "deviceApi/0.1.0",
+        "esperantoTrace/0.1.0",
         "signedImageFormat/1.0" 
     ]
 
@@ -73,18 +74,6 @@ class DeviceMinionRuntimeConan(ConanFile):
 
         self.cpp_info.components["device_common"].includedirs = ["include", etfw_includedir, os.path.join(etfw_includedir, "device-common")]
 
-        self.cpp_info.components["device_trace"].includedirs = ["include", etfw_includedir, os.path.join(etfw_includedir, "device_trace")]
-        self.cpp_info.components["device_trace"].libdirs = [etfw_libdir]
-        self.cpp_info.components["device_trace"].libs = ["device_trace"]
-        self.cpp_info.components["device_trace"].defines = ["-DSP_OR_COMPUTE_MINION=1"]
-        self.cpp_info.components["device_trace"].requires = ["device_common"]
-
-        self.cpp_info.components["device_trace_mm"].includedirs = ["include", etfw_includedir, os.path.join(etfw_includedir, "device_trace")]
-        self.cpp_info.components["device_trace_mm"].libdirs = [etfw_libdir]
-        self.cpp_info.components["device_trace_mm"].libs = ["device_trace_mm"]
-        self.cpp_info.components["device_trace_mm"].defines = ["-DMASTER_MINION=1"]
-        self.cpp_info.components["device_trace_mm"].requires = ["device_common"]
-
         self.cpp_info.components["sp_firmware_helpers"].includedirs = ["include", etfw_includedir, os.path.join(etfw_includedir, "firmware_helpers")]
         self.cpp_info.components["sp_firmware_helpers"].libs = ["sp_firmware_helpers"]
         self.cpp_info.components["sp_firmware_helpers"].libdirs = [etfw_libdir]
@@ -98,6 +87,6 @@ class DeviceMinionRuntimeConan(ConanFile):
         self.cpp_info.components["MachineMinion"].bindirs = [os.path.join(etfw_libdir, "MachineMinion")]
         self.cpp_info.components["MachineMinion"].requires = ["device_configuration"]
         self.cpp_info.components["MasterMinion"].bindirs = [os.path.join(etfw_libdir, "MasterMinion")]
-        self.cpp_info.components["MasterMinion"].requires = ["deviceApi::deviceApi", "device_trace_mm", "device_common", "device_configuration"]
+        self.cpp_info.components["MasterMinion"].requires = ["deviceApi::deviceApi", "esperantoTrace::et_trace", "device_common", "device_configuration"]
         self.cpp_info.components["WorkerMinion"].bindirs = [os.path.join(etfw_libdir, "WorkerMinion")]
-        self.cpp_info.components["WorkerMinion"].requires = ["deviceApi::deviceApi", "device_configuration"]
+        self.cpp_info.components["WorkerMinion"].requires = ["deviceApi::deviceApi", "esperantoTrace::et_trace", "device_configuration"]

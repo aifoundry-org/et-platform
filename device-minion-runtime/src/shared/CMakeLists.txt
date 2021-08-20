@@ -10,5 +10,4 @@
 
 add_subdirectory(device_configuration)
 add_subdirectory(device_common)
-add_subdirectory(device_trace)
 add_subdirectory(firmware_helpers)

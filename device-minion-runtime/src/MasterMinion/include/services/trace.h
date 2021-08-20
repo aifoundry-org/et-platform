@@ -16,7 +16,7 @@
 #ifndef MM_TRACE_H
 #define MM_TRACE_H
 
-#include "device-trace/et_trace.h"
+#include <et-trace/encoder.h>
 
 /**************************/
 /* MM Trace Status Codes  */

@@ -44,7 +44,7 @@ target_link_libraries(WorkerMinion.elf
         deviceFirmware::device_configuration
 )
 
-target_link_libraries(WorkerMinion.elf PUBLIC deviceFirmware::device_trace)
+target_link_libraries(WorkerMinion.elf PUBLIC esperantoTrace::et_trace)
 
 install(TARGETS WorkerMinion.elf
     EXPORT EsperantoDeviceMinionRuntimeTargets
