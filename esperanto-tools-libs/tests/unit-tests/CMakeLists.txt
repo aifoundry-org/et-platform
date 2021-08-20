@@ -9,11 +9,12 @@
 #------------------------------------------------------------------------------
 
 set(TEST_LIST
-  utest_memory_manager.cpp:""
-  utest_streams_lifecycle.cpp:""
-  utest_event_manager.cpp:""
+  test_memory_manager.cpp:""
+  test_streams_lifecycle.cpp:""
+  test_event_manager.cpp:""
   benchmark.cpp:""
   other.cpp:""
-  )
+  test_page_manager.cpp:""
+)
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;LABELS;SYSEMU;TIMEOUT;180")

@@ -28,7 +28,7 @@ constexpr auto kNumTriesBeforePolling = 20;
 
 void ResponseReceiver::threadFunction() {
   // Max ioctl size is 14b
-  constexpr uint32_t kMaxMsgSize = (1ul << 14) - 1;
+  constexpr uint32_t kMaxMsgSize = (1UL << 14) - 1;
 
   std::vector<std::byte> buffer(kMaxMsgSize);
 

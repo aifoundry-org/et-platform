@@ -70,8 +70,8 @@ add_library(etrt_obj OBJECT
     src/ExecutionContextCache.cpp
     src/ResponseReceiver.cpp
     src/KernelLaunch.cpp
-    src/DmaBufferManager.cpp
-    src/DmaBuffer.cpp
+    src/dma/DmaBufferManager.cpp
+    src/dma/DmaBuffer.cpp
     src/ProfileEvent.cpp
     src/StreamManager.cpp
     src/Types.cpp

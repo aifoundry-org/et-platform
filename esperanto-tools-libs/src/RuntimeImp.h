@@ -10,13 +10,13 @@
 
 #pragma once
 
-#include "DmaBufferManager.h"
 #include "EventManager.h"
 #include "MemoryManager.h"
 #include "ProfilerImp.h"
 #include "ResponseReceiver.h"
 #include "StreamManager.h"
 #include "Utils.h"
+#include "dma/DmaBufferManager.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 #include <algorithm>

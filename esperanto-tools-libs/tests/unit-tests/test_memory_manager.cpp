@@ -44,7 +44,7 @@ TEST(MemoryManager, compress_and_uncompress) {
     for (auto minAllocation : {1U << 10, 1U << 11, 1U << 13}) {
       for (auto size : {1UL, 3UL, 12UL, 15UL}) {
         auto ptr = size * minAllocation + baseAddr;
-        auto mm = MemoryManager(baseAddr, 1ul << 40, minAllocation);
+        auto mm = MemoryManager(baseAddr, 1UL << 40, minAllocation);
         auto compressed = mm.compressPointer(reinterpret_cast<std::byte*>(ptr));
         EXPECT_LE(compressed, ptr);
         auto uncompressed = mm.uncompressPointer(compressed);
@@ -201,52 +201,50 @@ std::ostream& operator<<(std::ostream& os, const FreeChunk& chunk) {
 } // namespace rt
 
 TEST(MemoryManager, addChunk) {
-  auto totalRam = 1ul << 34;
+  auto totalRam = 1UL << 34;
   for (auto baseAddr : {0UL, 1UL << 13, 1UL << 20}) {
     for (auto minAllocation : {1U << 10, 1U << 11, 1U << 13}) {
       auto chunk1 = FreeChunk{1234, 10};
       auto chunk2 = FreeChunk{2000, 20};
       auto chunk3 = FreeChunk{5000, 30};
-      {
-        auto mm = MemoryManager(baseAddr, totalRam, minAllocation);
-        mm.free_.clear();
-        mm.addChunk(chunk1);
-        EXPECT_EQ(mm.free_.front(), chunk1);
-        mm.addChunk(chunk2);
-        EXPECT_EQ(mm.free_.front(), chunk1);
-        EXPECT_EQ(mm.free_.back(), chunk2);
-        mm.addChunk(chunk3);
-        EXPECT_EQ(mm.free_.front(), chunk1);
-        EXPECT_EQ(mm.free_.back(), chunk3);
-        EXPECT_EQ(mm.free_.size(), 3);
+      auto mm = MemoryManager(baseAddr, totalRam, minAllocation);
+      mm.free_.clear();
+      mm.addChunk(chunk1);
+      EXPECT_EQ(mm.free_.front(), chunk1);
+      mm.addChunk(chunk2);
+      EXPECT_EQ(mm.free_.front(), chunk1);
+      EXPECT_EQ(mm.free_.back(), chunk2);
+      mm.addChunk(chunk3);
+      EXPECT_EQ(mm.free_.front(), chunk1);
+      EXPECT_EQ(mm.free_.back(), chunk3);
+      EXPECT_EQ(mm.free_.size(), 3);
 
-        // add a chunk which should merge with first chunk
-        auto addSize = 100u;
-        mm.addChunk({chunk1.startAddress_ + chunk1.size_, addSize});
-        EXPECT_EQ(mm.free_.size(), 3);
-        EXPECT_EQ(mm.free_.front().size_, chunk1.size_ + addSize);
+      // add a chunk which should merge with first chunk
+      auto addSize = 100u;
+      mm.addChunk({chunk1.startAddress_ + chunk1.size_, addSize});
+      EXPECT_EQ(mm.free_.size(), 3);
+      EXPECT_EQ(mm.free_.front().size_, chunk1.size_ + addSize);
 
-        // add a chunk which should be put next to chunk2
-        mm.addChunk({chunk2.startAddress_ + chunk2.size_ + 1, addSize});
-        EXPECT_EQ(mm.free_.size(), 4);
-        EXPECT_EQ(mm.free_[2].size_, addSize);
-        EXPECT_EQ(mm.free_[2].startAddress_, chunk2.startAddress_ + chunk2.size_ + 1);
+      // add a chunk which should be put next to chunk2
+      mm.addChunk({chunk2.startAddress_ + chunk2.size_ + 1, addSize});
+      EXPECT_EQ(mm.free_.size(), 4);
+      EXPECT_EQ(mm.free_[2].size_, addSize);
+      EXPECT_EQ(mm.free_[2].startAddress_, chunk2.startAddress_ + chunk2.size_ + 1);
 
-        auto addedAddress = 6000u;
-        // add a chunk which should be put after last chunk
-        mm.addChunk({chunk3.startAddress_ + addedAddress, addSize});
-        EXPECT_EQ(mm.free_.size(), 5);
-        EXPECT_EQ(mm.free_.back().size_, addSize);
-        EXPECT_EQ(mm.free_.back().startAddress_, chunk3.startAddress_ + 6000);
+      auto addedAddress = 6000u;
+      // add a chunk which should be put after last chunk
+      mm.addChunk({chunk3.startAddress_ + addedAddress, addSize});
+      EXPECT_EQ(mm.free_.size(), 5);
+      EXPECT_EQ(mm.free_.back().size_, addSize);
+      EXPECT_EQ(mm.free_.back().startAddress_, chunk3.startAddress_ + 6000);
 
-        // add a chunk which should reduce the number of chunks in 1 (filling the gap between last and the one before)
-        auto newChunkAddr = chunk3.startAddress_ + chunk3.size_;
-        mm.addChunk({chunk3.startAddress_ + chunk3.size_, mm.free_.back().startAddress_ - newChunkAddr});
-        EXPECT_EQ(mm.free_.size(), 4);
-        auto b = mm.free_.back();
-        EXPECT_EQ(b.startAddress_, chunk3.startAddress_);
-        EXPECT_EQ(b.size_, addedAddress + addSize);
-      }
+      // add a chunk which should reduce the number of chunks in 1 (filling the gap between last and the one before)
+      auto newChunkAddr = chunk3.startAddress_ + chunk3.size_;
+      mm.addChunk({chunk3.startAddress_ + chunk3.size_, mm.free_.back().startAddress_ - newChunkAddr});
+      EXPECT_EQ(mm.free_.size(), 4);
+      auto b = mm.free_.back();
+      EXPECT_EQ(b.startAddress_, chunk3.startAddress_);
+      EXPECT_EQ(b.size_, addedAddress + addSize);
     }
   }
 }
