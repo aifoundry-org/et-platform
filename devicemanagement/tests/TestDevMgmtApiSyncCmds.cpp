@@ -106,22 +106,22 @@ bool TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, siz
   size_t dataPopped = 0;
 
   while (dataPopped < dataSize) {
-    if (packetHeader->generic.type == TRACE_TYPE_STRING) {
+    if (packetHeader->type == TRACE_TYPE_STRING) {
       tracePacketString = templ::bit_cast<trace_string_t*>(traceData + dataPopped);
       strncpy(stringLog.data(), tracePacketString->string, TRACE_STRING_MAX_SIZE);
       stringLog[TRACE_STRING_MAX_SIZE] = '\0';
-      logs << "Timestamp:" << tracePacketString->header.generic.cycle << " :" << stringLog.data() << std::endl;
+      logs << "Timestamp:" << tracePacketString->header.cycle << " :" << stringLog.data() << std::endl;
       dataPopped += sizeof(struct trace_string_t);
       validEventFound = true;
-    } else if (packetHeader->generic.type == TRACE_TYPE_EXCEPTION) {
+    } else if (packetHeader->type == TRACE_TYPE_EXCEPTION) {
       dataPopped += sizeof(struct trace_entry_header_t) + SP_EXCEPTION_FRAME_SIZE + SP_GLOBALS_SIZE;
-      logs << "Timestamp:" << packetHeader->generic.cycle << std::endl;
+      logs << "Timestamp:" << packetHeader->cycle << std::endl;
       validEventFound = true;
     } else {
       // TODO: SW_8496 : currently we are using full size of trace buffer.
       // Once SW-8496 is implemented, size in header should be used and
       // error message should be thrown in case header contains invalid type.
-      DM_LOG(WARNING) << "Unable to process type: [" << packetHeader->generic.type << "] in trace entry header!";
+      DM_LOG(WARNING) << "Unable to process type: [" << packetHeader->type << "] in trace entry header!";
       break;
     }
     packetHeader = templ::bit_cast<trace_entry_header_t*>(traceData + dataPopped);

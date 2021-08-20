@@ -8,7 +8,8 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
-#include "etTraceLayout.h"
+#include <esperanto/et-trace/layout.h>
+#include <esperanto/et-trace/decoder.h>
 
 // A namespace containing template for `bit_cast`. To be removed when `bit_cast` will be available
 namespace templ {
