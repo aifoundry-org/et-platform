@@ -72,6 +72,7 @@ add_library(etrt_obj OBJECT
     src/KernelLaunch.cpp
     src/dma/DmaBufferManager.cpp
     src/dma/DmaBuffer.cpp
+    src/dma/HostBufferManager.cpp
     src/ProfileEvent.cpp
     src/StreamManager.cpp
     src/Types.cpp

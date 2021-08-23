@@ -14,7 +14,7 @@ set(TEST_LIST
   test_event_manager.cpp:""
   benchmark.cpp:""
   other.cpp:""
-  test_page_manager.cpp:""
+  test_host_buffer_manager.cpp:""
 )
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;LABELS;SYSEMU;TIMEOUT;180")
