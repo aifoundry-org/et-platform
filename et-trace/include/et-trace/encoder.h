@@ -47,7 +47,7 @@
  *     Trace_Memory
  *
  * The trace buffer itself is accessed via a control block.
- * This data structure has to be filled with a pointer to the 
+ * This data structure has to be filled with a pointer to the
  * memory buffer that allocates the trace buffer.
  *
  * This is the basic way of initializing the trace buffer:
@@ -61,7 +61,7 @@
  *
  *     // Basic settings (in this case enable everything)
  *     struct trace_init_info_t info;
- *     info.shire_mask  = 0xFFFFFFFF;  
+ *     info.shire_mask  = 0xFFFFFFFF;
  *     info.thread_mask = 0xFFFFFFFF;
  *     info.event_mask  = TRACE_EVENT_ENABLE_ALL;
  *     info.filter_mask = TRACE_FILTER_ENABLE_ALL;
@@ -74,28 +74,34 @@
  *     Trace_Init(&info, cb, TRACE_STD_HEADER);
  *
  *     // Setup the trace buffer itself
- *     ET_TRACE_WRITE(32, buf->magic_header, TRACE_MAGIC_HEADER);
- *     ET_TRACE_WRITE(32, buf->data_size, sizeof(struct trace_buffer_std_header_t));
- *     ET_TRACE_WRITE(16, buf->type, trace_type);
+ *     ET_TRACE_WRITE_U32(buf->magic_header, TRACE_MAGIC_HEADER);
+ *     ET_TRACE_WRITE_U32(buf->data_size, sizeof(struct trace_buffer_std_header_t));
+ *     ET_TRACE_WRITE_U16(buf->type, trace_type);
  *
  *
  * After performing writes to the trace buffer, you'll need
  * to update its size, i.e. the number of valid bytes it contains.
  * This is usually done when this memory region is evicted:
  *
- *     ET_TRACE_WRITE(32, buf->data_size, cb->offset_per_hart);
+ *     ET_TRACE_WRITE_U32(buf->data_size, cb->offset_per_hart);
  *
  *
  * CUSTOMIZING
  *
- * The following are primitives that are used by the encoderr implementation.
+ * The following are primitives that are used by the encoder implementation.
  * You can define custom implementations, for instance to perform reads/writes
  * via atomic operations, or to provide different implementations for underlying
  * hardware features depending on their availability.
  *
  *     // Memory operations
- *     ET_TRACE_READ(Size, Location)          Reads <size> bits from variable <location>
- *     ET_TRACE_WRITE(Size, Location, Value)  Writes <value> of <size> bits to <location>
+ *     ET_TRACE_READ_U8(Location)             Reads unsigned char from variable <location>
+ *     ET_TRACE_READ_U16(Location)            Reads unsigned short int from variable <location>
+ *     ET_TRACE_READ_U32(Location)            Reads unsigned int from variable <location>
+ *     ET_TRACE_READ_U64(Location)            Reads unsigned long int  from variable <location>
+ *     ET_TRACE_WRITE_U8(Location, Value)     Writes unsigned char to <location>
+ *     ET_TRACE_WRITE_U16(Location, Value)    Writes unsigned short int to <location>
+ *     ET_TRACE_WRITE_U32(Location, Value)    Writes unsigned int to <location>
+ *     ET_TRACE_WRITE_U64(Location, Value)    Writes unsigned long int to <location>
  *     ET_TRACE_WRITE_FLOAT(Location, Value)  Writes FP <value> to variable <location>
  *
  *     // Hardware features
@@ -108,7 +114,7 @@
  *
  *     ET_TRACE_MESSAGE_HEADER(Entry, Type)
  *       Write information to header of <entry> that contains payload of <type>
- * 
+ *
  * By default the hart_id is not written to the trace entry header.
  * You can change this behavior by defining `ET_TRACE_WITH_HART_ID`:
  *
@@ -246,12 +252,36 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 #include <string.h>
 
 /* Check if user has provided implementation of optional its own primitives, if not then use default. */
-#ifndef ET_TRACE_READ
-#define ET_TRACE_READ(size, loc) (loc)
+#ifndef ET_TRACE_READ_U8
+#define ET_TRACE_READ_U8(var)          (var)
 #endif
 
-#ifndef ET_TRACE_WRITE
-#define ET_TRACE_WRITE(size, loc, val) (loc = val)
+#ifndef ET_TRACE_READ_U16
+#define ET_TRACE_READ_U16(var)         (var)
+#endif
+
+#ifndef ET_TRACE_READ_U32
+#define ET_TRACE_READ_U32(var)         (var)
+#endif
+
+#ifndef ET_TRACE_READ_U64
+#define ET_TRACE_READ_U64(var)         (var)
+#endif
+
+#ifndef ET_TRACE_WRITE_U8
+#define ET_TRACE_WRITE_U8(var, val)    (var = val)
+#endif
+
+#ifndef ET_TRACE_WRITE_U16
+#define ET_TRACE_WRITE_U16(var, val)   (var = val)
+#endif
+
+#ifndef ET_TRACE_WRITE_U32
+#define ET_TRACE_WRITE_U32(var, val)   (var = val)
+#endif
+
+#ifndef ET_TRACE_WRITE_U64
+#define ET_TRACE_WRITE_U64(var, val)   (var = val)
 #endif
 
 #ifndef ET_TRACE_WRITE_FLOAT
@@ -275,7 +305,7 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 #endif
 
 #ifdef ET_TRACE_WITH_HART_ID
-#define ET_TRACE_WRITE_HART_ID(msg) ET_TRACE_WRITE(32, msg->header.hart_id, ET_TRACE_GET_HART_ID())
+#define ET_TRACE_WRITE_HART_ID(msg) ET_TRACE_WRITE_U32(msg->header.hart_id, ET_TRACE_GET_HART_ID())
 #else
 #define ET_TRACE_WRITE_HART_ID(msg)
 #endif
@@ -283,24 +313,24 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 #ifndef ET_TRACE_MESSAGE_HEADER
 #define ET_TRACE_MESSAGE_HEADER(msg, id)                                 \
     {                                                                    \
-        ET_TRACE_WRITE(64, msg->header.cycle, ET_TRACE_GET_TIMESTAMP()); \
+        ET_TRACE_WRITE_U64(msg->header.cycle, ET_TRACE_GET_TIMESTAMP()); \
         ET_TRACE_WRITE_HART_ID(msg);                                     \
-        ET_TRACE_WRITE(16, msg->header.type, id);                        \
+        ET_TRACE_WRITE_U16(msg->header.type, id);                        \
     }
 #endif
 
 /* Check if Trace is enabled for given control block. */
 inline static bool trace_is_enabled(const struct trace_control_block_t *cb)
 {
-    return ET_TRACE_READ(8, cb->enable) == TRACE_ENABLE;
+    return ET_TRACE_READ_U8(cb->enable) == TRACE_ENABLE;
 }
 
 /* Check if Trace String log level is enabled for given control block. */
 inline static bool trace_is_str_enabled(const struct trace_control_block_t *cb,
                                         trace_string_event_e log_level)
 {
-    return (trace_is_enabled(cb) && (ET_TRACE_READ(32, cb->event_mask) & TRACE_EVENT_STRING) &&
-            ((ET_TRACE_READ(32, cb->filter_mask) & TRACE_FILTER_STRING_MASK) >= log_level));
+    return (trace_is_enabled(cb) && (ET_TRACE_READ_U32(cb->event_mask) & TRACE_EVENT_STRING) &&
+            ((ET_TRACE_READ_U32(cb->filter_mask) & TRACE_FILTER_STRING_MASK) >= log_level));
 }
 
 /************************************************************************
@@ -327,7 +357,7 @@ inline static bool trace_is_str_enabled(const struct trace_control_block_t *cb,
 ***********************************************************************/
 inline static bool trace_check_buffer_full(const struct trace_control_block_t *cb, uint64_t size)
 {
-    if ((ET_TRACE_READ(32, cb->offset_per_hart) + size) > ET_TRACE_READ(32, cb->size_per_hart)) {
+    if ((ET_TRACE_READ_U32(cb->offset_per_hart) + size) > ET_TRACE_READ_U32(cb->size_per_hart)) {
         return true;
     } else {
         return false;
@@ -361,8 +391,8 @@ inline static bool trace_check_buffer_full(const struct trace_control_block_t *c
 inline static bool trace_check_buffer_threshold(const struct trace_control_block_t *cb,
                                                 uint64_t size, uint32_t *current_offset)
 {
-    *current_offset = ET_TRACE_READ(32, cb->offset_per_hart);
-    if ((*current_offset + size) > ET_TRACE_READ(32, cb->threshold)) {
+    *current_offset = ET_TRACE_READ_U32(cb->offset_per_hart);
+    if ((*current_offset + size) > ET_TRACE_READ_U32(cb->threshold)) {
         return true;
     } else {
         return false;
@@ -408,15 +438,15 @@ void *Trace_Buffer_Reserve(struct trace_control_block_t *cb, uint64_t size)
         /* Check if Trace buffer is filled upto threshold. Then do reset the buffer. */
         if (trace_check_buffer_full(cb, size)) {
             /* Reset buffer. */
-            current_offset = (ET_TRACE_READ(8, cb->header) == TRACE_STD_HEADER) ?
+            current_offset = (ET_TRACE_READ_U8(cb->header) == TRACE_STD_HEADER) ?
                                  sizeof(struct trace_buffer_std_header_t) :
                                  sizeof(struct trace_buffer_size_header_t);
         }
     }
 
     /* Update offset. */
-    ET_TRACE_WRITE(32, cb->offset_per_hart, (uint32_t)(current_offset + size));
-    head = (void *)(ET_TRACE_READ(64, cb->base_per_hart) + current_offset);
+    ET_TRACE_WRITE_U32(cb->offset_per_hart, (uint32_t)(current_offset + size));
+    head = (void *)(ET_TRACE_READ_U64(cb->base_per_hart) + current_offset);
 
     return head;
 }
@@ -562,7 +592,7 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
     struct trace_cmd_status_t *entry = Trace_Buffer_Reserve(cb, sizeof(*entry));
 
     ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_CMD_STATUS)
-    ET_TRACE_WRITE(64, entry->cmd.raw_cmd, cmd_data->raw_cmd);
+    ET_TRACE_WRITE_U64(entry->cmd.raw_cmd, cmd_data->raw_cmd);
 }
 
 /* NB: This is still missing from the device-minion-runtime */
@@ -592,7 +622,7 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
     struct trace_power_status_t *entry = Trace_Buffer_Reserve(cb, sizeof(*entry));
 
     ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_POWER_STATUS)
-    ET_TRACE_WRITE(64, entry->power.raw_cmd, pwr_data->raw_cmd);
+    ET_TRACE_WRITE_U64(entry->power.raw_cmd, pwr_data->raw_cmd);
 }
 
 /************************************************************************
@@ -651,7 +681,7 @@ void Trace_PMC_Counter(struct trace_control_block_t *cb, pmc_counter_e counter)
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_PMC_COUNTER)
 
-        ET_TRACE_WRITE(64, entry->value, ET_TRACE_GET_HPM_COUNTER(counter));
+        ET_TRACE_WRITE_U64(entry->value, ET_TRACE_GET_HPM_COUNTER(counter));
     }
 }
 
@@ -683,8 +713,8 @@ void Trace_Value_u64(struct trace_control_block_t *cb, uint32_t tag, uint64_t va
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U64)
 
-        ET_TRACE_WRITE(32, entry->tag, tag);
-        ET_TRACE_WRITE(64, entry->value, value);
+        ET_TRACE_WRITE_U32(entry->tag, tag);
+        ET_TRACE_WRITE_U64(entry->value, value);
     }
 }
 
@@ -716,8 +746,8 @@ void Trace_Value_u32(struct trace_control_block_t *cb, uint32_t tag, uint32_t va
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U32)
 
-        ET_TRACE_WRITE(32, entry->tag, tag);
-        ET_TRACE_WRITE(32, entry->value, value);
+        ET_TRACE_WRITE_U32(entry->tag, tag);
+        ET_TRACE_WRITE_U32(entry->value, value);
     }
 }
 
@@ -749,8 +779,8 @@ void Trace_Value_u16(struct trace_control_block_t *cb, uint32_t tag, uint16_t va
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U16)
 
-        ET_TRACE_WRITE(32, entry->tag, tag);
-        ET_TRACE_WRITE(16, entry->value, value);
+        ET_TRACE_WRITE_U32(entry->tag, tag);
+        ET_TRACE_WRITE_U16(entry->value, value);
     }
 }
 
@@ -782,8 +812,8 @@ void Trace_Value_u8(struct trace_control_block_t *cb, uint32_t tag, uint8_t valu
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U8)
 
-        ET_TRACE_WRITE(32, entry->tag, tag);
-        ET_TRACE_WRITE(8, entry->value, value);
+        ET_TRACE_WRITE_U32(entry->tag, tag);
+        ET_TRACE_WRITE_U8(entry->value, value);
     }
 }
 
@@ -815,7 +845,7 @@ void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float val
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_FLOAT)
 
-        ET_TRACE_WRITE(32, entry->tag, tag);
+        ET_TRACE_WRITE_U32(entry->tag, tag);
         ET_TRACE_WRITE_FLOAT(entry->value, value);
     }
 }
@@ -849,8 +879,8 @@ void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint16_t
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_MEMORY)
 
-        ET_TRACE_WRITE(64, entry->src_addr, (uint64_t)(src));
-        ET_TRACE_WRITE(64, entry->size, (uint64_t)(num_cache_line * 8));
+        ET_TRACE_WRITE_U64(entry->src_addr, (uint64_t)(src));
+        ET_TRACE_WRITE_U64(entry->size, (uint64_t)(num_cache_line * 8));
 
         for (uint16_t index = 0; index < num_cache_line; index++) {
             ET_TRACE_MEM_CPY(&entry->data[index * 64], src, 64);
