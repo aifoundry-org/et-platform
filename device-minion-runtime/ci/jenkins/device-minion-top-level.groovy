@@ -154,6 +154,46 @@ pipeline {
         }
         stage('PARALLEL1') {
           parallel {
+            stage('FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU') {
+              steps {
+                script {
+                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
+                    build job:
+                      'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev',
+                      propagate: true,
+                      parameters: [
+                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
+                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                      ]
+                  }
+                  else {
+                    sh 'echo Skipping job because it passed'
+                  }
+                }
+              }
+            }
+            stage('FIRMWARE_TESTS_ZEBU_BEMU') {
+              steps {
+                script {
+                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/firmware-tests-zebu-bemu \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
+                    build job:
+                      'sw-platform/system-sw-integration/pipelines/firmware-tests-zebu-bemu',
+                      propagate: true,
+                      parameters: [
+                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
+                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                      ]
+                  }
+                  else {
+                    sh 'echo Skipping job because it passed'
+                  }
+                }
+              }
+            }
             stage('JOB_CODE_QUALITY') {
               steps {
                 script {
@@ -166,46 +206,6 @@ pipeline {
                         string(name: 'GITLAB_SOURCE_BRANCH', value: "${env.gitlabSourceBranch}"),
                         string(name: 'GITLAB_TARGET_BRANCH', value: "${env.gitlabTargetBranch}"),
                         string(name: 'GITLAB_MR_ID', value: "${env.gitlabMergeRequestIid}"),
-                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
-                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                      ]
-                  }
-                  else {
-                    sh 'echo Skipping job because it passed'
-                  }
-                }
-              }
-            }
-            stage('JOB_DEVICE_LAYER_SYSEMU') {
-              steps {
-                script {
-                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
-                    build job:
-                      'sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests',
-                      propagate: true,
-                      parameters: [
-                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
-                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                      ]
-                  }
-                  else {
-                    sh 'echo Skipping job because it passed'
-                  }
-                }
-              }
-            }
-            stage('JOB_DEVICE_LAYER_ZEBU') {
-              steps {
-                script {
-                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
-                    build job:
-                      'sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests',
-                      propagate: true,
-                      parameters: [
-                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
                         string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
                         booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
                         string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")

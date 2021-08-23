@@ -32,17 +32,17 @@ stages:
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
     exec_after: [DSL_JOB]
 
-  JOB_DEVICE_LAYER_ZEBU:
+  FIRMWARE_TESTS_ZEBU_BEMU:
     cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-ops-zebu-tests
+      - job: sw-platform/system-sw-integration/pipelines/firmware-tests-zebu-bemu
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
     exec_after: [CHECK_IN]
 
-  JOB_DEVICE_LAYER_SYSEMU:
+  FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU:
     cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests
+      - job: sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
