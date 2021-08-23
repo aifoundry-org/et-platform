@@ -33,12 +33,19 @@
 
 static inline void et_trace_write_float(void *addr, float value);
 
-#define ET_TRACE_WITH_HART_ID
 #define ET_TRACE_GET_HPM_COUNTER(id)      hpm_read_counter(id)
 #define ET_TRACE_GET_TIMESTAMP()          hpm_read_counter3()
 #define ET_TRACE_GET_HART_ID()            get_hart_id()
-#define ET_TRACE_READ(size, loc)          atomic_load_local_##size(&(loc))
-#define ET_TRACE_WRITE(size, loc, value)  atomic_store_local_##size(&(loc), (value))
+
+/* Master Minion Trace memory access primitives. */
+#define ET_TRACE_READ_U8(addr)            atomic_load_local_8(&addr)
+#define ET_TRACE_READ_U16(addr)           atomic_load_local_16(&addr)
+#define ET_TRACE_READ_U32(addr)           atomic_load_local_32(&addr)
+#define ET_TRACE_READ_U64(addr)           atomic_load_local_64(&addr)
+#define ET_TRACE_WRITE_U8(addr, value)    atomic_store_local_8(&addr, value)
+#define ET_TRACE_WRITE_U16(addr, value)   atomic_store_local_16(&addr, value)
+#define ET_TRACE_WRITE_U32(addr, value)   atomic_store_local_32(&addr, value)
+#define ET_TRACE_WRITE_U64(addr, value)   atomic_store_local_64(&addr, value)
 #define ET_TRACE_WRITE_FLOAT(loc, value)  et_trace_write_float(&(loc), (value))
 #define ET_TRACE_MEM_CPY(dest, src, size) ETSOC_Memory_Write_Local_Atomic(src, dest, size)
 
