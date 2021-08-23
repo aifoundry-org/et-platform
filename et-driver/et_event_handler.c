@@ -497,6 +497,9 @@ int et_handle_device_event(struct et_cqueue *cq,
 		dbg_msg.desc = "SP Runtime Error";
 		parse_runtime_error_syndrome(event_msg, &dbg_msg);
 		break;
+	case DEV_MGMT_API_MID_SP_WATCHDOG_RESET_EVENT:
+		dbg_msg.desc = "SP rebooted due to watchdog timeout";
+		break;
 	default:
 		dbg_msg.desc = "Un-Supported Event MSG ID";
 		dev_err(&pdev->dev,
