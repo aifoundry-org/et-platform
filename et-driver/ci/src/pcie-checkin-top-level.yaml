@@ -42,16 +42,18 @@ stages:
           TIMEOUT: "1"
     exec_before: [r"JOB_.*"]
     exec_after: ['DSL_JOB']
-  JOB_OPS_PCIE_SYSEMU:
+
+  DM_TESTS_RECOVERY_MODE_PCIE_SYSEMU:
     cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests
+      - job: sw-platform/virtual-platform/pipelines/dm-tests-recovery-mode-pcie-sysemu-1dev
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
     exec_after: ['CLANG_CHECK']
-  JOB_MGMT_PCIE_SYSEMU:
+
+  FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU:
     cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-management-checkin-tests
+      - job: sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"

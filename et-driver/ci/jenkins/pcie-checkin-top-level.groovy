@@ -158,12 +158,12 @@ pipeline {
         }
         stage('PARALLEL1') {
           parallel {
-            stage('JOB_MGMT_PCIE_SYSEMU') {
+            stage('DM_TESTS_RECOVERY_MODE_PCIE_SYSEMU') {
               steps {
                 script {
-                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-management-checkin-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}" + '" }\'') != 0) {
+                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/virtual-platform/pipelines/dm-tests-recovery-mode-pcie-sysemu-1dev \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}" + '" }\'') != 0) {
                     build job:
-                      'sw-platform/system-sw-integration/pipelines/device-management-checkin-tests',
+                      'sw-platform/virtual-platform/pipelines/dm-tests-recovery-mode-pcie-sysemu-1dev',
                       propagate: true,
                       parameters: [
                         string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
@@ -178,12 +178,12 @@ pipeline {
                 }
               }
             }
-            stage('JOB_OPS_PCIE_SYSEMU') {
+            stage('FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU') {
               steps {
                 script {
-                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}" + '" }\'') != 0) {
+                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}" + '" }\'') != 0) {
                     build job:
-                      'sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests',
+                      'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev',
                       propagate: true,
                       parameters: [
                         string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
