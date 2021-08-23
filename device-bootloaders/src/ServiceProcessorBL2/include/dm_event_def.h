@@ -55,6 +55,7 @@ enum event_ids {
     SP_RUNTIME_EXCEPT,     /** < SP runtime exception event */
     SP_RUNTIME_HANG,       /** < SP runtime hang event */
     SP_RUNTIME_ERROR,      /** < SP runtime error event */
+    SP_WATCHDOG_RESET,     /** < Watchdog reset event */
     MAX_ERROR_EVENT = 512, /**< Max limit for error IDs. */
 };
 

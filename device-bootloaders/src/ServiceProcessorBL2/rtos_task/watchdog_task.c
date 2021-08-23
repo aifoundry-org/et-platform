@@ -65,6 +65,27 @@ static void watchdog_task_entry(void *pvParameter)
     const TickType_t frequency =
                      pdMS_TO_TICKS((WDOG_DEFAULT_TIMEOUT_MSEC * 80) / 100);
 
+    /* obtain reste cause form PMIC to determine if it was
+       watchdog reset */
+    uint8_t reset_cause = 0;
+
+    if (0 != pmic_get_reset_cause(&reset_cause))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "watchdog_task_entry: Cannot retrieve reset cause from PMIC.\n");
+    }
+    else
+    {
+        /* if it was a watchdog reset then inform host using watchdog event */
+        if(PMIC_I2C_RESET_CAUSE_WDT_GET(reset_cause))
+        {
+            struct event_message_t message;
+            /* add details in message header and fill payload */
+            FILL_EVENT_HEADER(&message.header, SP_WATCHDOG_RESET, sizeof(struct event_message_t))
+            FILL_EVENT_PAYLOAD(&message.payload, WARNING, 0, timer_get_ticks_count(), reset_cause)
+            wdog_timeout_callback(CORRECTABLE, &message);
+        }
+    }
+
     /* Initialise the xLastWakeTime variable with the current time. */
     TickType_t last_wake_time = xTaskGetTickCount();
 
