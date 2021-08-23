@@ -13,27 +13,4 @@ include(GoogleTest)
 
 enable_testing()
 
-find_package(EsperantoDeviceMinionRuntime REQUIRED)
-find_package(EsperantoBootLoader REQUIRED)
-
-get_property(BOOTROM_TRAMPOLINE_TO_BL2_ELF TARGET EsperantoBootLoader::BootromTrampolineToBL2.elf PROPERTY LOCATION)
-get_property(BL2_ELF TARGET EsperantoBootLoader::ServiceProcessorBL2_fast-boot.elf PROPERTY LOCATION)
-get_property(BL2_ELF_TF TARGET EsperantoBootLoader::ServiceProcessorBL2_testframework.elf PROPERTY LOCATION)
-get_property(MASTER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MasterMinion.elf PROPERTY LOCATION)
-get_property(MASTER_MINION_ELF_TF TARGET EsperantoDeviceMinionRuntime::MasterMinionTF.elf PROPERTY LOCATION)
-get_property(MACHINE_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MachineMinion.elf PROPERTY LOCATION)
-get_property(WORKER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinion.elf PROPERTY LOCATION)
-
-configure_file(Autogen.h.in Autogen.h)
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-
 add_subdirectory(integration)
-add_subdirectory(device-bootloaders)
-add_subdirectory(device-minion-runtime)
-add_subdirectory(bringup-tests)
-
-
-install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/Autogen.h
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/device-layer
-)

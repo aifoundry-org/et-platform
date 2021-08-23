@@ -20,22 +20,14 @@ parameters:
     default_value: true
 
 stages:
-  JOB_DEVICELAYER:
+  FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU:
     cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests
+      - job: sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"
           PYTEST_RETRIES: "0"
 
-  JOB_DEVICELAYER_SYSEMU_TF:
-    cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-layer-sysemu-tf-tests
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"
-          PYTEST_RETRIES: "0"
-  
   JOB_CODE_QUALITY:
     cmds:
       - job: sw-platform/code-analysis/deviceLayer-sonarqube
@@ -48,4 +40,3 @@ stages:
             raw_cmd: '"${env.gitlabTargetBranch}"'
           GITLAB_MR_ID: 
             raw_cmd: '"${env.gitlabMergeRequestIid}"'
-

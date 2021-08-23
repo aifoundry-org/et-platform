@@ -108,6 +108,27 @@ pipeline {
                 sh 'if [ ! -z \"${gitlabTargetBranch}\" ] ; then git fetch && git merge origin/$gitlabTargetBranch | grep Already && ( echo \"Branch is up to date with target branch proceeding...\" && exit 0 ) || ( echo \"Merge request is out of date with respect to target branch. Please, rebase it and re-submit merge request\" && exit 1 ); else echo \"Skipping branch up to date check as environment variable gitlabTargetBranch is not defined!\" ; fi'
               }
             }
+            stage('FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU') {
+              steps {
+                script {
+                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}" + '" }\'') != 0) {
+                    build job:
+                      'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev',
+                      propagate: true,
+                      parameters: [
+                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"),
+                        string(name: 'PYTEST_RETRIES', value: '0'),
+                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                      ]
+                  }
+                  else {
+                    sh 'echo Skipping job because it passed'
+                  }
+                }
+              }
+            }
           }
         }
         stage('DSL_JOB') {
@@ -131,71 +152,25 @@ pipeline {
             }
           }
         }
-        stage('PARALLEL1') {
-          parallel {
-            stage('JOB_CODE_QUALITY') {
-              steps {
-                script {
-                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/code-analysis/deviceLayer-sonarqube \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}" + '" }\'') != 0) {
-                    build job:
-                      'sw-platform/code-analysis/deviceLayer-sonarqube',
-                      propagate: true,
-                      parameters: [
-                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"),
-                        string(name: 'GITLAB_SOURCE_BRANCH', value: "${env.gitlabSourceBranch}"),
-                        string(name: 'GITLAB_TARGET_BRANCH', value: "${env.gitlabTargetBranch}"),
-                        string(name: 'GITLAB_MR_ID', value: "${env.gitlabMergeRequestIid}"),
-                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                      ]
-                  }
-                  else {
-                    sh 'echo Skipping job because it passed'
-                  }
-                }
+        stage('JOB_CODE_QUALITY') {
+          steps {
+            script {
+              if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/code-analysis/deviceLayer-sonarqube \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}" + '" }\'') != 0) {
+                build job:
+                  'sw-platform/code-analysis/deviceLayer-sonarqube',
+                  propagate: true,
+                  parameters: [
+                    string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                    string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"),
+                    string(name: 'GITLAB_SOURCE_BRANCH', value: "${env.gitlabSourceBranch}"),
+                    string(name: 'GITLAB_TARGET_BRANCH', value: "${env.gitlabTargetBranch}"),
+                    string(name: 'GITLAB_MR_ID', value: "${env.gitlabMergeRequestIid}"),
+                    booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                    string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                  ]
               }
-            }
-            stage('JOB_DEVICELAYER') {
-              steps {
-                script {
-                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}" + '" }\'') != 0) {
-                    build job:
-                      'sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests',
-                      propagate: true,
-                      parameters: [
-                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"),
-                        string(name: 'PYTEST_RETRIES', value: '0'),
-                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                      ]
-                  }
-                  else {
-                    sh 'echo Skipping job because it passed'
-                  }
-                }
-              }
-            }
-            stage('JOB_DEVICELAYER_SYSEMU_TF') {
-              steps {
-                script {
-                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-layer-sysemu-tf-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}" + '" }\'') != 0) {
-                    build job:
-                      'sw-platform/system-sw-integration/pipelines/device-layer-sysemu-tf-tests',
-                      propagate: true,
-                      parameters: [
-                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"),
-                        string(name: 'PYTEST_RETRIES', value: '0'),
-                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                      ]
-                  }
-                  else {
-                    sh 'echo Skipping job because it passed'
-                  }
-                }
+              else {
+                sh 'echo Skipping job because it passed'
               }
             }
           }

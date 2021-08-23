@@ -63,7 +63,6 @@ find_package(linuxDriver REQUIRED)
 find_package(sw-sysemu REQUIRED)
 find_package(hostUtils REQUIRED)
 find_package(Boost REQUIRED)
-find_package(esperantoTrace REQUIRED)
 
 add_library(deviceLayer
     src/DeviceLayer.cpp
