@@ -71,6 +71,15 @@ Enums:
         Value: 4
       - Name: TRACE
         Value: 5
+  - Name: dev_ops_api_abort_response
+    Type: uint32_t
+    Values:
+      - Name: SUCCESS
+        Value: 0
+      - Name : ERROR
+        Value : 1
+      - Name : INVALID_TAG_ID
+        Value : 2
   - Name: dev_ops_api_kernel_launch_response
     Type: uint32_t
     Values:
@@ -289,6 +298,30 @@ Messages :
       - Name: device_cmd_start_ts
         Description: Report of the time stamp (in uS) when the command got popped out of the Submission Queue.
         Type: uint64_t
+#-------------------------------------------------------------------------------
+  - Name: device_ops_abort_cmd
+    Description: Command to abort a currently pipelined command in the device
+    Type: Command
+    PairedMessage: device_ops_abort_rsp
+    Fields:
+      - Name: tag_id
+        Description: Tag ID of the pipelined command the we want to abort
+        Type: uint16_t
+      - Name: pad[6]
+        Description: Padding for alignment
+        Type: uint8_t
+  - Name: device_ops_abort_rsp
+    Description: Response to an abort request
+    PairedMessage: device_ops_abort_cmd
+    Type: Response
+    Fields:
+      - Name: status
+        Description: Abort status
+        Type: enum
+        Enum: dev_ops_api_abort_response
+      - Name: pad[4]
+        Description: Padding for alignment
+        Type: uint8_t
 #-------------------------------------------------------------------------------
 # Kernel Execution Commands and Responses
 #-------------------------------------------------------------------------------
