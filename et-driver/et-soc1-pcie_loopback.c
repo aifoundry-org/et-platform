@@ -55,6 +55,18 @@ static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{}
 };
 
+/*
+ * DIR discovery timeout in seconds for mgmt/ops nodes, if set to 0, checks
+ * DIR status only once and returns immediately if not ready.
+ *
+ * TODO: Remove these params in production after bringup
+ */
+static uint mgmt_discovery_timeout = 0;
+module_param(mgmt_discovery_timeout, uint, 0);
+
+static uint ops_discovery_timeout = 0;
+module_param(ops_discovery_timeout, uint, 0);
+
 static DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
 
 static u8 get_index(void)
