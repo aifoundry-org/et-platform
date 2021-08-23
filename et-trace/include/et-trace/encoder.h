@@ -185,7 +185,7 @@ typedef uint8_t trace_string_event_e;
 /*
  * Trace string events filters.
  */
-enum trace_string_event_e {
+enum trace_string_event {
     TRACE_EVENT_STRING_CRITICAL = 0,
     TRACE_EVENT_STRING_ERROR = 1,
     TRACE_EVENT_STRING_WARNING = 2,

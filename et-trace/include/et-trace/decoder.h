@@ -78,6 +78,8 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev);
 
 #include "layout.h"
 
+#include <stdlib.h>
+
 void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
 {
     if (tb == NULL)
