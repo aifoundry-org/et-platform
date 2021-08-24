@@ -77,6 +77,7 @@
  * @brief Enum of supported virtual queue types
  */
 typedef enum {
+    SQ_HP,
     SQ,
     CQ
 } vq_type_t;

@@ -15,12 +15,12 @@
 
     Public interfaces:
         Host_Command_Handler
+        Host_HP_Command_Handler
 */
 /***********************************************************************/
 #include "services/host_cmd_hdlr.h"
 #include "services/host_iface.h"
 #include "services/log.h"
-#include "services/sw_timer.h"
 #include "services/trace.h"
 #include "services/cm_iface.h"
 #include "services/sp_iface.h"
@@ -28,6 +28,7 @@
 #include "workers/cw.h"
 #include "workers/dmaw.h"
 #include "workers/sqw.h"
+#include "workers/sqw_hp.h"
 #include "config/mm_config.h"
 #include "pmu.h"
 #include "device-common/cacheops.h"
@@ -40,6 +41,87 @@
            are set only one transfer will be done which is the first one.
 */
 #define TRACE_NODE_INDEX    0
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       abort_cmd_handler
+*
+*   DESCRIPTION
+*
+*       Process host abort command, and transmit response.
+*
+*   INPUTS
+*
+*       command_buffer   Buffer containing command to process
+*       sqw_hp_idx       HP Submission queue index
+*
+*   OUTPUTS
+*
+*       int8_t           Successful status or error code.
+*
+***********************************************************************/
+static inline int8_t abort_cmd_handler(void* command_buffer, uint8_t sqw_hp_idx)
+{
+    const struct device_ops_abort_cmd_t *cmd = (struct device_ops_abort_cmd_t *)command_buffer;
+    struct device_ops_abort_rsp_t rsp;
+    int8_t status = STATUS_SUCCESS;
+
+    Log_Write(LOG_LEVEL_DEBUG,
+        "SQ_HP[%d] abort_cmd_handler:Processing:ABORT_CMD\r\n", sqw_hp_idx);
+
+    /* Construct and transmit response */
+    rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
+    rsp.response_info.rsp_hdr.msg_id =
+        DEV_OPS_API_MID_DEVICE_OPS_ABORT_RSP;
+    rsp.response_info.rsp_hdr.size =
+        sizeof(struct device_ops_abort_rsp_t) - sizeof(struct cmn_header_t);
+
+    /* TODO: tag_id based abort needs to be implemented */
+
+    /* Commands abort will be done in 3 phases:
+    1. Abort any pending commands in a particular SQ
+    2. Abort any dispatched DMA read/write commands for the particular SQ
+    3. Abort any dispatched Kernel command for the particular SQ */
+
+    /* Blocking call that aborts all pending commands in the paired normal SQ */
+    SQW_Abort_All_Pending_Commands(sqw_hp_idx);
+
+    /* Blocking call that aborts all DMA read channels */
+    DMAW_Abort_All_Dispatched_Read_Channels(sqw_hp_idx);
+
+    /* Blocking call that aborts all DMA write channels */
+    DMAW_Abort_All_Dispatched_Write_Channels(sqw_hp_idx);
+
+    /* Blocking call that aborts all dispatched kernels */
+    KW_Abort_All_Dispatched_Kernels(sqw_hp_idx);
+
+    /* Inform SP about the commands being aborted */
+    SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_CMDS_ABORTED);
+
+    status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+
+    if(status == STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_DEBUG,
+            "SQ_HP[%d] abort_cmd_handler:Pushed:ABORT response:tag_id=%x->Host_CQ\r\n",
+            sqw_hp_idx, rsp.response_info.rsp_hdr.tag_id);
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+            "SQ_HP[%d] abort_cmd_handler:Tag_ID=%u:HostIface:Push:Failed\r\n",
+            sqw_hp_idx, cmd->command_info.cmd_hdr.tag_id);
+
+        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+    }
+
+    /* Decrement the SQW HP count */
+    SQW_HP_Decrement_Command_Count(sqw_hp_idx);
+
+    return status;
+}
 
 /************************************************************************
 *
@@ -76,9 +158,18 @@ static inline int8_t compatibility_cmd_handler(void* command_buffer, uint8_t sqw
         DEV_OPS_API_MID_DEVICE_OPS_API_COMPATIBILITY_RSP;
     rsp.response_info.rsp_hdr.size =
         sizeof(struct device_ops_api_compatibility_rsp_t) - sizeof(struct cmn_header_t);
-    rsp.major = DEVICE_OPS_API_MAJOR;
-    rsp.minor = DEVICE_OPS_API_MINOR;
-    rsp.patch = DEVICE_OPS_API_PATCH;
+
+    /* Get the SQW state to check for command abort */
+    if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
+    {
+        /* TODO: Need abort state for this command's response */
+    }
+    else
+    {
+        rsp.major = DEVICE_OPS_API_MAJOR;
+        rsp.minor = DEVICE_OPS_API_MINOR;
+        rsp.patch = DEVICE_OPS_API_PATCH;
+    }
 
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 
@@ -137,27 +228,37 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
     rsp.response_info.rsp_hdr.msg_id =
         DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP;
 
-    if (cmd->firmware_type == DEV_OPS_FW_TYPE_MASTER_MINION_FW)
+    /* Get the SQW state to check for command abort */
+    if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
-        fw_type = MM2SP_MASTER_MINION_FW;
-        rsp.type = DEV_OPS_FW_TYPE_MASTER_MINION_FW;
+        /* TODO: Need abort state for this command's response */
+        status = HOST_CMD_STATUS_ABORTED;
     }
-    else if (cmd->firmware_type == DEV_OPS_FW_TYPE_MACHINE_MINION_FW)
+
+    if (status == STATUS_SUCCESS)
     {
-        fw_type = MM2SP_MACHINE_MINION_FW;
-        rsp.type = DEV_OPS_FW_TYPE_MACHINE_MINION_FW;
-    }
-    else if (cmd->firmware_type == DEV_OPS_FW_TYPE_WORKER_MINION_FW)
-    {
-        fw_type = MM2SP_WORKER_MINION_FW;
-        rsp.type = DEV_OPS_FW_TYPE_WORKER_MINION_FW;
-    }
-    else
-    {
-        Log_Write(LOG_LEVEL_ERROR,
-            "SQ[%d] HostCommandHandler:FW_VERSION_CMD:Invalid FW type received from host\r\n",
-            sqw_idx);
-        status = GENERAL_ERROR;
+        if (cmd->firmware_type == DEV_OPS_FW_TYPE_MASTER_MINION_FW)
+        {
+            fw_type = MM2SP_MASTER_MINION_FW;
+            rsp.type = DEV_OPS_FW_TYPE_MASTER_MINION_FW;
+        }
+        else if (cmd->firmware_type == DEV_OPS_FW_TYPE_MACHINE_MINION_FW)
+        {
+            fw_type = MM2SP_MACHINE_MINION_FW;
+            rsp.type = DEV_OPS_FW_TYPE_MACHINE_MINION_FW;
+        }
+        else if (cmd->firmware_type == DEV_OPS_FW_TYPE_WORKER_MINION_FW)
+        {
+            fw_type = MM2SP_WORKER_MINION_FW;
+            rsp.type = DEV_OPS_FW_TYPE_WORKER_MINION_FW;
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                "SQ[%d] HostCommandHandler:FW_VERSION_CMD:Invalid FW type received from host\r\n",
+                sqw_idx);
+            status = GENERAL_ERROR;
+        }
     }
 
     if(status == STATUS_SUCCESS)
@@ -247,7 +348,18 @@ static inline int8_t echo_cmd_handler(void* command_buffer, uint8_t sqw_idx,
     rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
     rsp.response_info.rsp_hdr.msg_id =
         DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP;
-    rsp.device_cmd_start_ts = start_cycles;
+
+    /* Get the SQW state to check for command abort */
+    if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
+    {
+        /* TODO: Need abort state for this command's response */
+        status = HOST_CMD_STATUS_ABORTED;
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        rsp.device_cmd_start_ts = start_cycles;
+    }
 
 #if TEST_FRAMEWORK
     /* For SP2MM command response, we need to provide the total size = header + payload */
@@ -309,7 +421,8 @@ static inline int8_t kernel_launch_cmd_handler(void* command_buffer, uint8_t sqw
     struct device_ops_kernel_launch_rsp_t rsp;
     uint8_t kw_idx;
     exec_cycles_t cycles;
-    int8_t status = STATUS_SUCCESS;
+    int8_t status = GENERAL_ERROR;
+    int8_t abort_status = STATUS_SUCCESS;
 
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ[%d] HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n", sqw_idx);
@@ -317,8 +430,17 @@ static inline int8_t kernel_launch_cmd_handler(void* command_buffer, uint8_t sqw
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
-    /* Blocking call to launch kernel */
-    status = KW_Dispatch_Kernel_Launch_Cmd(cmd, sqw_idx, &kw_idx);
+    /* Get the SQW state to check for command abort */
+    if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
+    {
+        abort_status = HOST_CMD_STATUS_ABORTED;
+    }
+
+    if(abort_status == STATUS_SUCCESS)
+    {
+        /* Blocking call to launch kernel */
+        status = KW_Dispatch_Kernel_Launch_Cmd(cmd, sqw_idx, &kw_idx);
+    }
 
     /* Compute Wait Cycles (cycles the command waits to launch on Compute Minions)
         Snapshot current cycle */
@@ -365,6 +487,11 @@ static inline int8_t kernel_launch_cmd_handler(void* command_buffer, uint8_t sqw
         else if (status == KW_ERROR_KERNEL_INVLD_ARGS_SIZE)
         {
             rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_PAYLOAD_SIZE;
+        }
+        else if ((status == KW_ABORTED_KERNEL_SLOT_SEARCH) ||
+            (status == KW_ABORTED_KERNEL_SHIRES_SEARCH) || (abort_status == HOST_CMD_STATUS_ABORTED))
+        {
+            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
         }
         else
         {
@@ -429,13 +556,23 @@ static inline int8_t kernel_abort_cmd_handler(void* command_buffer, uint8_t sqw_
     struct device_ops_kernel_abort_cmd_t *cmd =
         (struct device_ops_kernel_abort_cmd_t *)command_buffer;
     struct device_ops_kernel_abort_rsp_t rsp;
-    int8_t status = STATUS_SUCCESS;
+    int8_t status = GENERAL_ERROR;
+    int8_t abort_status = STATUS_SUCCESS;
 
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ[%d] HostCommandHandler:Processing:KERNEL_ABORT_CMD\r\n", sqw_idx);
 
-    /* Dispatch kernel abort command */
-    status = KW_Dispatch_Kernel_Abort_Cmd(cmd, sqw_idx);
+    /* Get the SQW state to check for command abort */
+    if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
+    {
+        abort_status = HOST_CMD_STATUS_ABORTED;
+    }
+
+    if(abort_status == STATUS_SUCCESS)
+    {
+        /* Dispatch kernel abort command */
+        status = KW_Dispatch_Kernel_Abort_Cmd(cmd, sqw_idx);
+    }
 
     if(status != STATUS_SUCCESS)
     {
@@ -451,7 +588,12 @@ static inline int8_t kernel_abort_cmd_handler(void* command_buffer, uint8_t sqw_
             sizeof(struct device_ops_kernel_abort_rsp_t) - sizeof(struct cmn_header_t);
 
         /* Populate the error type response */
-        if ((status == KW_ERROR_KERNEL_SLOT_NOT_FOUND) ||
+        if (abort_status == HOST_CMD_STATUS_ABORTED)
+        {
+            /* TODO: Need abort response type in device-api */
+            rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR;
+        }
+        else if ((status == KW_ERROR_KERNEL_SLOT_NOT_FOUND) ||
             (status == KW_ERROR_KERNEL_SLOT_NOT_USED))
         {
             rsp.status =
@@ -609,12 +751,12 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
     struct device_ops_dma_readlist_rsp_t rsp;
     dma_flags_e dma_flag;
     dma_write_chan_id_e chan = DMA_CHAN_ID_WRITE_INVALID;
-    int8_t status = STATUS_SUCCESS;
+    int8_t status = GENERAL_ERROR;
+    int8_t abort_status = STATUS_SUCCESS;
     uint64_t total_dma_size = 0;
-    uint8_t dma_xfer_count;
+    uint8_t dma_xfer_count = 0;
     uint8_t loop_cnt;
     exec_cycles_t cycles;
-    int8_t sw_timer_idx = -1;
 
     /* Design Notes: Note a DMA write command from host will
     trigger the implementation to configure a DMA read channel
@@ -627,24 +769,33 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD, sqw_idx,
                 cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
-    /* Check if no special flag is set. */
-    if((cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF) ||
-        (cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF))
+    /* Get the SQW state to check for command abort */
+    if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
-        dma_xfer_count = 1;
-        dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
-        status = dma_readlist_cmd_process_trace_flags(cmd);
-    }
-    else
-    {
-        dma_flag = DMA_NORMAL;
-       /* Get number of transfer commands in the list, based on message payload length. */
-        dma_xfer_count = (uint8_t)(cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
-                                    sizeof(struct dma_read_node);
+        abort_status = HOST_CMD_STATUS_ABORTED;
     }
 
+    if(abort_status == STATUS_SUCCESS)
+    {
+        /* Check if no special flag is set. */
+        if((cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF) ||
+            (cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF))
+        {
+            dma_xfer_count = 1;
+            dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
+            status = dma_readlist_cmd_process_trace_flags(cmd);
+        }
+        else
+        {
+            dma_flag = DMA_NORMAL;
+            /* Get number of transfer commands in the list, based on message payload length. */
+            dma_xfer_count = (uint8_t)(cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
+                                        sizeof(struct dma_read_node);
+            status = STATUS_SUCCESS;
+        }
+    }
 
-    if (status == STATUS_SUCCESS)
+    if(status == STATUS_SUCCESS)
     {
         /* Obtain the next available DMA write channel */
         status = DMAW_Write_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
@@ -672,28 +823,9 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
         cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
         cycles.exec_start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
-        /* Create timeout for DMA_Write command to complete */
-        uint8_t timeout_factor = (uint8_t)CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(cmd->command_info.cmd_hdr.flags);
-        sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Write_Set_Abort_Status, chan,
-           DMA_TRANSFER_TIMEOUT((timeout_factor > 0) ? timeout_factor : 1));
-
-        if(sw_timer_idx >= 0)
-        {
-            /* Initiate DMA write transfer */
-            status = DMAW_Write_Trigger_Transfer(chan, cmd, dma_xfer_count,
-                sqw_idx, &cycles, (uint8_t)sw_timer_idx, dma_flag);
-
-            if(status != STATUS_SUCCESS)
-            {
-                /* Free the registered SW Timeout */
-                SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
-            }
-        }
-        else
-        {
-            Log_Write(LOG_LEVEL_ERROR,
-                "HostCommandHandler:CreateTimeout:Failed\r\n");
-        }
+        /* Initiate DMA write transfer */
+        status = DMAW_Write_Trigger_Transfer(chan, cmd, dma_xfer_count,
+            sqw_idx, &cycles, dma_flag);
     }
 
     if(status != STATUS_SUCCESS)
@@ -731,20 +863,22 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
         rsp.device_cmd_execute_dur = 0U;
 
         /* Populate the error type response */
-        switch (status)
+        if ((status == DMAW_ABORTED_IDLE_CHANNEL_SEARCH) ||
+            (abort_status == HOST_CMD_STATUS_ABORTED))
         {
-            case DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL:
-                rsp.status = DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE;
-                break;
-            case DMA_ERROR_INVALID_ADDRESS:
-                rsp.status = DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS;
-                break;
-            case DMA_ERROR_OUT_OF_BOUNDS:
-                rsp.status = DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE;
-                break;
-            default:
-                rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
-                break;
+            rsp.status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
+        }
+        else if(status == DMA_ERROR_INVALID_ADDRESS)
+        {
+            rsp.status = DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS;
+        }
+        else if(status == DMA_ERROR_OUT_OF_BOUNDS)
+        {
+            rsp.status = DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE;
+        }
+        else
+        {
+            rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
         }
 
         Log_Write(LOG_LEVEL_DEBUG,
@@ -794,11 +928,11 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
         (struct device_ops_dma_writelist_cmd_t *)command_buffer;
     struct device_ops_dma_writelist_rsp_t rsp;
     dma_read_chan_id_e chan = DMA_CHAN_ID_READ_INVALID;
-    uint64_t total_dma_size=0;
-    uint8_t dma_xfer_count;
+    uint64_t total_dma_size = 0;
+    uint8_t dma_xfer_count = 0;
     uint8_t loop_cnt;
-    int8_t status = STATUS_SUCCESS;
-    int8_t sw_timer_idx = -1;
+    int8_t status = GENERAL_ERROR;
+    int8_t abort_status = STATUS_SUCCESS;
     exec_cycles_t cycles;
 
     /* Design Notes: Note a DMA write command from host will trigger
@@ -811,12 +945,21 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD, sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
-    /* Get number of transfer commands in the list, based on message payload length. */
-    dma_xfer_count = (uint8_t)(cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
-                                sizeof(struct dma_write_node);
+    /* Get the SQW state to check for command abort */
+    if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
+    {
+        abort_status = HOST_CMD_STATUS_ABORTED;
+    }
 
-    /* Obtain the next available DMA read channel */
-    status = DMAW_Read_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
+    if(abort_status == STATUS_SUCCESS)
+    {
+        /* Get number of transfer commands in the list, based on message payload length. */
+        dma_xfer_count = (uint8_t)(cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
+                                    sizeof(struct dma_write_node);
+
+        /* Obtain the next available DMA read channel */
+        status = DMAW_Read_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
+    }
 
     if(status == STATUS_SUCCESS)
     {
@@ -842,28 +985,8 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
         cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
         cycles.exec_start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
 
-        /* Create timeout for DMA_Read command to complete */
-        uint8_t timeout_factor = (uint8_t)CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(cmd->command_info.cmd_hdr.flags);
-        sw_timer_idx = SW_Timer_Create_Timeout(&DMAW_Read_Set_Abort_Status, chan,
-           DMA_TRANSFER_TIMEOUT((timeout_factor > 0) ? timeout_factor : 1));
-
-        if(sw_timer_idx >= 0)
-        {
-            /* Initiate DMA read transfer */
-            status = DMAW_Read_Trigger_Transfer(chan, cmd, dma_xfer_count,
-                sqw_idx, &cycles, (uint8_t)sw_timer_idx);
-
-            if(status != STATUS_SUCCESS)
-            {
-                /* Free the registered SW Timeout */
-                SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
-            }
-        }
-        else
-        {
-            Log_Write(LOG_LEVEL_ERROR, "HostCommandHandler:Tag_ID=%u:CreateTimeout:Failed\r\n",
-                cmd->command_info.cmd_hdr.tag_id);
-        }
+        /* Initiate DMA read transfer */
+        status = DMAW_Read_Trigger_Transfer(chan, cmd, dma_xfer_count, sqw_idx, &cycles);
     }
 
     if(status != STATUS_SUCCESS)
@@ -900,9 +1023,10 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
         rsp.device_cmd_execute_dur = 0U;
 
         /* Populate the error type response */
-        if (status == DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL)
+        if ((status == DMAW_ABORTED_IDLE_CHANNEL_SEARCH) ||
+            (abort_status == HOST_CMD_STATUS_ABORTED))
         {
-            rsp.status = DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE;
+            rsp.status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
         }
         else if(status == DMA_ERROR_INVALID_ADDRESS)
         {
@@ -965,14 +1089,20 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
     Log_Write(LOG_LEVEL_DEBUG,
         "HostCommandHandler:Processing:TRACE_RT_CONTROL_CMD\r\n");
 
+    /* Get the SQW state to check for command abort */
+    if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
+    {
+        status = HOST_CMD_STATUS_ABORTED;
+    }
+
     /* Check if RT Component is MM Trace. */
-    if(cmd->rt_type & TRACE_RT_CTRL_MM)
+    if((status == STATUS_SUCCESS) && (cmd->rt_type & TRACE_RT_CTRL_MM))
     {
         Trace_RT_Control_MM(cmd->control);
     }
 
     /* Check if RT Component is CM Trace. */
-    if(cmd->rt_type & TRACE_RT_CTRL_CM)
+    if((status == STATUS_SUCCESS) && (cmd->rt_type & TRACE_RT_CTRL_CM))
     {
         mm_to_cm_message_trace_rt_control_t cm_msg;
         cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
@@ -987,7 +1117,7 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
         }
         else
         {
-           /* Send command to CM RT to disable Trace and evict Trace buffer. */
+            /* Send command to CM RT to disable Trace and evict Trace buffer. */
             status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t*)&cm_msg);
         }
 
@@ -1006,7 +1136,12 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
     rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
 
     /* Populate the response status */
-    if(!((cmd->rt_type & TRACE_RT_CTRL_MM) || (cmd->rt_type & TRACE_RT_CTRL_CM)))
+    if(status == HOST_CMD_STATUS_ABORTED)
+    {
+        /* TODO: Need abort response in device-api */
+        rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_CM_RT_CTRL_ERROR;
+    }
+    else if(!((cmd->rt_type & TRACE_RT_CTRL_MM) || (cmd->rt_type & TRACE_RT_CTRL_CM)))
     {
         rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_RT_TYPE;
     }
@@ -1073,8 +1208,15 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
         "HostCmdHdlr:TID:%u:TRACE_CONFIG:Shire:%lx:Thread:%lx\r\n",
         cmd->command_info.cmd_hdr.tag_id, cmd->shire_mask, cmd->thread_mask);
 
+    /* Get the SQW state to check for command abort */
+    if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
+    {
+        status = HOST_CMD_STATUS_ABORTED;
+    }
+
     /* Check if MM Trace needs to configured. */
-    if(TRACE_CONFIG_CHECK_MM_HART(cmd->shire_mask, cmd->thread_mask))
+    if((status == STATUS_SUCCESS) &&
+        (TRACE_CONFIG_CHECK_MM_HART(cmd->shire_mask, cmd->thread_mask)))
     {
         struct trace_init_info_t mm_trace_init = {.shire_mask = MM_SHIRE_MASK, .thread_mask= MM_HART_MASK,
             .filter_mask = cmd->filter_mask,
@@ -1086,7 +1228,8 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
     }
 
     /* Check if CM Trace needs to configured. */
-    if(TRACE_CONFIG_CHECK_CM_HART(cmd->shire_mask, cmd->thread_mask))
+    if((status == STATUS_SUCCESS) &&
+        (TRACE_CONFIG_CHECK_CM_HART(cmd->shire_mask, cmd->thread_mask)))
     {
         Log_Write(LOG_LEVEL_DEBUG,
             "HostCmdHdlr:TID:%u:TRACE_CONFIG: Configure CM.\r\n",
@@ -1125,6 +1268,11 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
     rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
 
     /* Populate the response status */
+    if(status == HOST_CMD_STATUS_ABORTED)
+    {
+        /* TODO: Need abort response in device-api */
+        rsp.status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;
+    }
     if((cmd->shire_mask & MM_SHIRE_MASK) && (!(cmd->thread_mask & MM_HART_MASK)))
     {
         rsp.status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_THREAD_MASK;
@@ -1227,6 +1375,46 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr:Tag_ID=%u:UnsupportedCmd\r\n",
                       hdr->cmd_hdr.tag_id);
             status = -1;
+            break;
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Host_HP_Command_Handler
+*
+*   DESCRIPTION
+*
+*       Process host high priority command, and transmit response as needed
+*
+*   INPUTS
+*
+*       command_buffer   Buffer containing command to process
+*       sqw_hp_idx       HP Submission queue index
+*
+*   OUTPUTS
+*
+*       int8_t           Successful status or error code.
+*
+***********************************************************************/
+int8_t Host_HP_Command_Handler(void* command_buffer, uint8_t sqw_hp_idx)
+{
+    int8_t status = STATUS_SUCCESS;
+    const struct cmd_header_t *hdr = command_buffer;
+
+    switch (hdr->cmd_hdr.msg_id)
+    {
+        case DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD:
+            status = abort_cmd_handler(command_buffer, sqw_hp_idx);
+            break;
+        default:
+            Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr_HP:Tag_ID=%u:UnsupportedCmd\r\n",
+                      hdr->cmd_hdr.tag_id);
+            status = GENERAL_ERROR;
             break;
     }
 

@@ -30,10 +30,21 @@
 #include "services/host_cmd_hdlr.h"
 #include "services/log.h"
 #include "workers/sqw.h"
+#include "workers/sqw_hp.h"
 #include "drivers/plic.h"
 #include "vq.h"
 #include "pcie_int.h"
 #include "hal_device.h"
+
+/*! \struct host_iface_sqs_hp_cb_t
+    \brief Host interface control block that manages
+    high priority submissions queues
+*/
+typedef struct host_iface_sqs_hp_cb_ {
+    uint32_t vqueues_base;
+    uint32_t per_vqueue_size;
+    vq_cb_t vqueues[MM_SQ_HP_COUNT];
+} host_iface_sqs_hp_cb_t;
 
 /*! \struct host_iface_sqs_cb_t
     \brief Host interface control block that manages
@@ -55,6 +66,13 @@ typedef struct host_iface_cqs_cb_ {
     spinlock_t vqueue_locks[MM_CQ_COUNT];
     vq_cb_t vqueues[MM_CQ_COUNT];
 } host_iface_cqs_cb_t;
+
+/*! \var host_iface_sqs_hp_cb_t Host_SQs_HP
+    \brief Global Host to MM high priority submission
+    queues interface
+    \warning Not thread safe!
+*/
+static host_iface_sqs_hp_cb_t Host_SQs_HP __attribute__((aligned(64))) = {0};
 
 /*! \var host_iface_sqs_cb_t Host_SQs
     \brief Global Host to MM submission
@@ -112,7 +130,8 @@ static void host_iface_rxisr(uint32_t intID)
 *
 *   DESCRIPTION
 *
-*       Initiliaze SQs used by Host to post commands to MM
+*       Initiliaze normal and high priority SQs used by Host to post
+*       commands to MM
 *
 *   INPUTS
 *
@@ -131,18 +150,49 @@ int8_t Host_Iface_SQs_Init(void)
     /* TODO: Need to decide the base address for memory
     (32-bit or 64-bit) based on memory type. */
 
-    /* Initialize the Submission vqueues control block
+    /* Initialize High Priority Submission vqueues control block
     based on build configuration mm_config.h */
-    temp = (((uint64_t)MM_SQ_SIZE << 32) | MM_SQS_BASE_ADDRESS);
-    atomic_store_local_64((uint64_t*)&Host_SQs, temp);
+    temp = ((MM_SQ_HP_SIZE << 32) | MM_SQS_HP_BASE_ADDRESS);
+    atomic_store_local_64((uint64_t*)&Host_SQs_HP, temp);
 
-    for (uint32_t i = 0; (i < MM_SQ_COUNT) &&
-        (status == STATUS_SUCCESS); i++)
+    for (uint32_t i = 0; (i < MM_SQ_HP_COUNT); i++)
     {
-        /* Initialize the SQ circular buffer */
-        status = VQ_Init(&Host_SQs.vqueues[i],
-            VQ_CIRCBUFF_BASE_ADDR(MM_SQS_BASE_ADDRESS, i, MM_SQ_SIZE),
-            MM_SQ_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE);
+        /* Initialize the High Priority SQ circular buffer */
+        status = VQ_Init(&Host_SQs_HP.vqueues[i],
+            VQ_CIRCBUFF_BASE_ADDR(MM_SQS_HP_BASE_ADDRESS, i, MM_SQ_HP_SIZE),
+            MM_SQ_HP_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE);
+
+        /* Check for error */
+        if (status != STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                "ERROR: Unable to initialize Host to MM HP SQs. (Error code: %d)\r\n", status);
+            break;
+        }
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        /* Initialize the Submission vqueues control block
+        based on build configuration mm_config.h */
+        temp = ((MM_SQ_SIZE << 32) | MM_SQS_BASE_ADDRESS);
+        atomic_store_local_64((uint64_t*)&Host_SQs, temp);
+
+        for (uint32_t i = 0; (i < MM_SQ_COUNT); i++)
+        {
+            /* Initialize the SQ circular buffer */
+            status = VQ_Init(&Host_SQs.vqueues[i],
+                VQ_CIRCBUFF_BASE_ADDR(MM_SQS_BASE_ADDRESS, i, MM_SQ_SIZE),
+                MM_SQ_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE);
+
+            /* Check for error */
+            if (status != STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_ERROR,
+                    "ERROR: Unable to initialize Host to MM SQs. (Error code: %d)\r\n", status);
+                break;
+            }
+        }
     }
 
     if (status == STATUS_SUCCESS)
@@ -152,12 +202,6 @@ int8_t Host_Iface_SQs_Init(void)
         to any of the submission vqueues */
         PLIC_RegisterHandler(PU_PLIC_PCIE_MESSAGE_INTR_ID, HIFACE_INT_PRIORITY,
             host_iface_rxisr);
-    }
-    else
-    {
-        Log_Write(LOG_LEVEL_ERROR,
-            "ERROR: Unable to initialize Host to MM SQs. (Error code: %d)\r\n",
-            status);
     }
 
     return status;
@@ -195,10 +239,14 @@ vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id)
     {
         retval = &Host_CQs.vqueues[vq_id];
     }
+    else if(vq_type == SQ_HP)
+    {
+        retval = &Host_SQs_HP.vqueues[vq_id];
+    }
     else
     {
         Log_Write(LOG_LEVEL_ERROR,
-            "HostIface:ERROR:Obtaining VQ base address, badvq_id: %d\r\n",
+            "HostIface:ERROR:Obtaining VQ base address, bad vq_id: %d\r\n",
             vq_id);
     }
 
@@ -516,6 +564,26 @@ void Host_Iface_Processing(void)
         {
             Log_Write(LOG_LEVEL_DEBUG,
                 "HostIfaceProcessing:NoData:SQ_IDX:%d\r\n", sq_id);
+        }
+    }
+
+    /* Scan all HP SQs for available command */
+    for (sq_id = 0; sq_id < MM_SQ_HP_COUNT; sq_id++)
+    {
+        status = VQ_Data_Avail(&Host_SQs_HP.vqueues[sq_id]);
+
+        if(status == true)
+        {
+            Log_Write(LOG_LEVEL_DEBUG,
+                "HostIfaceProcessing:Notifying:SQW_HP_IDX:%d\r\n", sq_id);
+
+            /* Dispatch work to HP SQ Worker associated with this HP SQ */
+            SQW_HP_Notify(sq_id);
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_DEBUG,
+                "HostIfaceProcessing:NoData:SQ_HP_IDX:%d\r\n", sq_id);
         }
     }
 

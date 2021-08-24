@@ -29,7 +29,7 @@
     \brief A macro that provides the maximum HART ID the DMAW is configued
     to execute on.
 */
-#define  DMAW_MAX_HART_ID      DMAW_BASE_HART_ID + (DMAW_NUM * WORKER_HART_FACTOR)
+#define  DMAW_MAX_HART_ID      DMAW_BASE_HART_ID + (DMAW_NUM * HARTS_PER_MINION)
 
 /*! \def DMAW_FOR_READ
     \brief A macro that provides HART ID for the DMAW that processes
@@ -41,27 +41,17 @@
     \brief A macro that provides HART ID for the DMAW that processes
     DMA write commands
 */
-#define  DMAW_FOR_WRITE        DMAW_FOR_READ + WORKER_HART_FACTOR
+#define  DMAW_FOR_WRITE        DMAW_FOR_READ + HARTS_PER_MINION
 
 /*! \def DMAW_ERROR_GENERAL
     \brief DMA Worker - General error. DMA Stack error codes start from -10.
 */
 #define DMAW_ERROR_GENERAL                  -10
 
-/*! \def DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL
-    \brief DMA Worker - Find DMA idle channel timeoeut error
+/*! \def DMAW_ABORTED_IDLE_CHANNEL_SEARCH
+    \brief DMA Worker - Find DMA idle channel aborted
 */
-#define DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL -11
-
-/*! \def TIMEOUT_DMAW_FIND_IDLE_CH
-    \brief Timeout value (per 10s) for finding DMA idle channel
-*/
-#define TIMEOUT_DMAW_FIND_IDLE_CH             10U
-
-/*! \def DMA_TRANSFER_TIMEOUT(x)
-    \brief Timeout value (per 1s) for DMA
-*/
-#define DMA_TRANSFER_TIMEOUT(x)             (x * 100U)                  
+#define DMAW_ABORTED_IDLE_CHANNEL_SEARCH    -11
 
 /*! \enum dma_chan_state_e
     \brief Enum that provides the state of a DMA channel
@@ -84,7 +74,7 @@ typedef struct dma_channel_status {
             uint32_t channel_state; /* channel state indicated by dma_chan_state_e */
             uint16_t tag_id; /* tag_id for the transaction associated with the channel */
             uint8_t  sqw_idx; /* SQW idx that submitted this command */
-            uint8_t  sw_timer_idx; /* Index of SW Timer used for timeout */
+            uint8_t  reserved; /* Reserved for future use */
         };
         uint64_t raw_u64;
     };
@@ -139,12 +129,11 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8
     \param xfer_count Number of transfer nodes in command.
     \param sqw_idx SQW ID
     \param cycles Pointer to latency cycles struct
-    \param sw_timer_idx Index of SW Timer used for timeout
     \return Status success or error
 */
 int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
     const struct device_ops_dma_writelist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
-    exec_cycles_t *cycles, uint8_t sw_timer_idx);
+    const exec_cycles_t *cycles);
 
 /*! \fn int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e chan_id,
     const struct device_ops_dma_readlist_cmd_t *cmd, uint16_t xfer_count, uint8_t sqw_idx,
@@ -156,37 +145,25 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
     \param xfer_count Number of transfer nodes in command.
     \param sqw_idx SQW ID
     \param cycles Pointer to latency cycles struct
-    \param sw_timer_idx Index of SW Timer used for timeout
     \param flags DMA flag to set a specific DMA action.
     \return Status success or error
 */
 int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e chan_id,
     const struct device_ops_dma_readlist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
-    exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags);
+    const exec_cycles_t *cycles, dma_flags_e flags);
 
-/*! \fn void DMAW_Read_Ch_Search_Timeout_Callback(uint8_t sqw_idx)
-    \brief Callback for read channel search timeout
-    \param sqw_idx Index of the submission queue worker
+/*! \fn void DMAW_Abort_All_Dispatched_Write_Channels(uint8_t sqw_idx)
+    \brief Blocking call to abort all DMA write channels
+    \param sqw_idx SQW ID
+    \return None
 */
-void DMAW_Read_Ch_Search_Timeout_Callback(uint8_t sqw_idx);
+void DMAW_Abort_All_Dispatched_Write_Channels(uint8_t sqw_idx);
 
-/*! \fn void DMAW_Write_Ch_Search_Timeout_Callback(uint8_t sqw_idx)
-    \brief Callback for write channel search timeout
-    \param sqw_idx Index of the submission queue worker
+/*! \fn void DMAW_Abort_All_Dispatched_Read_Channels(uint8_t sqw_idx)
+    \brief Blocking call to abort all DMA read channels
+    \param sqw_idx SQW ID
+    \return None
 */
-void DMAW_Write_Ch_Search_Timeout_Callback(uint8_t sqw_idx);
-/*! \fn void DMAW_Read_Set_Abort_Status(uint8_t read_chan)
-    \brief Sets the status of DMA's read channel to abort it
-    \param read_chan DMA read channel index
-    \return none
-*/
-void DMAW_Read_Set_Abort_Status(uint8_t read_chan);
-
-/*! \fn DMAW_Write_Set_Abort_Status(uint8_t write_chan)
-    \brief Sets the status of DMA's write channel to abort it
-    \param write_chan DMA write channel index
-    \return none
-*/
-void DMAW_Write_Set_Abort_Status(uint8_t write_chan);
+void DMAW_Abort_All_Dispatched_Read_Channels(uint8_t sqw_idx);
 
 #endif /* DMAW_DEFS_H */

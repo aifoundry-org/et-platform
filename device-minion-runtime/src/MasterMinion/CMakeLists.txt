@@ -31,6 +31,7 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
         src/dispatcher/dispatcher.c
         src/workers/spw.c
         src/workers/sqw.c
+        src/workers/sqw_hp.c
         src/workers/dmaw.c
         src/workers/kw.c
         src/workers/cw.c

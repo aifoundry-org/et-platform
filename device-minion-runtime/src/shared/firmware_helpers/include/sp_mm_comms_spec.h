@@ -42,7 +42,10 @@ enum mm2sp_mm_recoverable_error_code_e {
     MM_MM2CM_CMD_ERROR                = -13,
     MM_CM2MM_CMD_ERROR                = -14,
     MM_CM2MM_KERNEL_LAUNCH_ERROR      = -15,
-    MM_CM2MM_KERNEL_EXCEPTION_ERROR   = -16
+    MM_CM2MM_KERNEL_EXCEPTION_ERROR   = -16,
+    MM_SQ_HP_PROCESSING_ERROR         = -17,
+    MM_SQ_HP_BUFFER_ALIGNMENT_ERROR   = -18,
+    MM_SQ_CMDS_ABORTED                = -19
 };
 
 typedef int16_t mm2sp_sp_recoverable_error_code_e;

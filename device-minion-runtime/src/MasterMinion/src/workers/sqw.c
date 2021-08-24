@@ -33,38 +33,38 @@
         SQW_Launch
         SQW_Decrement_Command_Count
         SQW_Increment_Command_Count
+        SQW_Abort_All_Pending_Commands
+        SQW_Get_State
 */
 /***********************************************************************/
 #include "workers/sqw.h"
 #include "services/log.h"
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
-#include "services/sw_timer.h"
 #include "services/trace.h"
 #include <esperanto/device-apis/device_apis_message_types.h>
 #include "pmu.h"
 #include "etsoc_memory.h"
 #include "services/sp_iface.h"
 
-/*! \typedef sqw_cmds_barrier_t
-    \brief Submission Queue Worker Commands Barrier Control Block structure
+/*! \typedef sqw_cmds_status_t
+    \brief Submission Queue Worker Commands status Control Block structure
 */
-typedef struct sqw_cmds_barrier_ {
+typedef struct sqw_cmds_status_ {
     union {
         struct {
             int32_t cmds_count;
-            uint8_t timeout_flag;
-            uint8_t reserved[3];
+            uint32_t state;
         };
         uint64_t raw_u64;
     };
-} sqw_cmds_barrier_t;
+} sqw_cmds_status_t;
 
 /*! \typedef sqw_cb_t
     \brief Submission Queue Worker Control Block structure
 */
 typedef struct sqw_cb_ {
-    sqw_cmds_barrier_t  sqw_barrier[MM_SQ_COUNT];
+    sqw_cmds_status_t   sqw_status[MM_SQ_COUNT];
     local_fcc_flag_t    sqw_fcc_flags[MM_SQ_COUNT];
 } sqw_cb_t;
 
@@ -87,58 +87,38 @@ static sqw_cb_t SQW_CB __attribute__((aligned(64))) = {0};
 *   INPUTS
 *
 *       sqw_idx        Submission Queue Index
-*       timeout_factor Timeout scale factor
 *
 *   OUTPUTS
 *
-*       None
+*       int8_t         Success or error code
 *
 ***********************************************************************/
-static inline void sqw_command_barrier(uint8_t sqw_idx, uint8_t timeout_factor)
+static inline int8_t sqw_command_barrier(uint8_t sqw_idx)
 {
-    int8_t sw_timer_idx;
-    sqw_cmds_barrier_t cmds_barrier;
+    sqw_cmds_status_t cmds_status;
+    int8_t status = STATUS_SUCCESS;
 
-    Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:Command Barrier\r\n",sqw_idx);
+    Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:Command Barrier\r\n", sqw_idx);
 
-    /* Create timeout for kernel_launch command to complete */
-    sw_timer_idx = SW_Timer_Create_Timeout(&SQW_Command_Barrier_Timeout_Cb,
-        sqw_idx, TIMEOUT_SQW_BARRIER(timeout_factor));
+    cmds_status.raw_u64 = atomic_load_local_64(&SQW_CB.sqw_status[sqw_idx].raw_u64);
+    Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:Outstanding Cmd Cnt: %d\r\n", sqw_idx,
+        (uint32_t)cmds_status.cmds_count);
 
-    /* If there is no timeout slot, we will skip the timeout registeration */
-    if(sw_timer_idx < 0)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "SQW: Unable to register SQW barrier timeout!\r\n");
-    }
-
-    cmds_barrier.raw_u64 = atomic_load_local_64(&SQW_CB.sqw_barrier[sqw_idx].raw_u64);
-    Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:Outstanding Cmd Cnt: %d\r\n",sqw_idx, (uint32_t)cmds_barrier.cmds_count);
-
-    /* Spin-wait until the commands count is zero or timeout has occured */
+    /* Spin-wait until the commands count is zero */
     do
     {
-        cmds_barrier.raw_u64 = atomic_load_local_64(&SQW_CB.sqw_barrier[sqw_idx].raw_u64);
+        cmds_status.raw_u64 = atomic_load_local_64(&SQW_CB.sqw_status[sqw_idx].raw_u64);
         asm volatile("fence\n" ::: "memory");
-    } while (((uint32_t)cmds_barrier.cmds_count != 0U) && (cmds_barrier.timeout_flag == 0));
+    } while (((uint32_t)cmds_status.cmds_count != 0U) && (cmds_status.state == SQW_STATE_BUSY));
 
-    if(sw_timer_idx >= 0)
+    /* check for barrier abort flag */
+    if (cmds_status.state == SQW_STATE_ABORTED)
     {
-        /* Free the registered SW Timeout slot */
-        SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
-
-        /* Check for timeout status */
-        if(cmds_barrier.timeout_flag != 0)
-        {
-            /* Reset the timeout flag */
-            atomic_store_local_8(&SQW_CB.sqw_barrier[sqw_idx].timeout_flag, 0);
-            Log_Write(LOG_LEVEL_ERROR,
-                "SQW: Command Barrier timeout abort! Unpredictable behaviour of next command.\r\n");
-
-            /* TODO: Send asynchronous event back to host to indicate barrier timeout. */
-
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CMD_BARRIER_TIMEOUT_ERROR);
-        }
+        status = SQW_STATUS_BARRIER_ABORTED;
+        Log_Write(LOG_LEVEL_ERROR, "SQW[%d]:Barrier aborted!\r\n", sqw_idx);
     }
+
+    return status;
 }
 
 /************************************************************************
@@ -167,7 +147,7 @@ void SQW_Init(void)
     {
         local_fcc_flag_init(&SQW_CB.sqw_fcc_flags[i]);
 
-        atomic_store_local_64(&SQW_CB.sqw_barrier[i].raw_u64, 0U);
+        atomic_store_local_64(&SQW_CB.sqw_status[i].raw_u64, 0U);
     }
 
     return;
@@ -194,15 +174,15 @@ void SQW_Init(void)
 ***********************************************************************/
 void SQW_Notify(uint8_t sqw_idx)
 {
-    uint32_t minion = (uint32_t)SQW_WORKER_0 + (sqw_idx / (2 / WORKER_HART_FACTOR));
-    uint32_t thread = sqw_idx % (2 / WORKER_HART_FACTOR);
+    /* Uses even Harts always */
+    uint32_t minion = SQW_WORKER_0 + sqw_idx;
 
-    Log_Write(LOG_LEVEL_DEBUG, "Notifying:SQW:minion=%d:thread=%d\r\n", minion, thread);
+    Log_Write(LOG_LEVEL_DEBUG, "Notifying:SQW:minion=%d:thread=%d\r\n", minion, SQW_THREAD_ID);
 
     /* TODO: Future improvements: 1. To use IPIs.
     2. Improve FCC to address security concerns. */
     local_fcc_flag_notify_no_ack(&SQW_CB.sqw_fcc_flags[sqw_idx],
-        minion, thread);
+        minion, SQW_THREAD_ID);
 
     return;
 }
@@ -237,9 +217,9 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
 {
     uint8_t *cmd_buff = (uint8_t*)(MM_SQ_PREFETCHED_BUFFER_BASEADDR + sqw_idx * MM_SQ_SIZE_MAX);
     const struct cmd_header_t *cmd_hdr;
-    int32_t pop_ret_val;
-    int8_t status = STATUS_SUCCESS;
     uint32_t cmd_buff_idx = 0;
+    int32_t pop_ret_val;
+    int8_t status;
 
     /* Create a shadow copy of data from SQ to L2 SCP */
     status = VQ_Prefetch_Buffer(vq_cached, vq_used_space, shared_mem_ptr, cmd_buff);
@@ -249,11 +229,12 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
 
     if(status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ pop_optimized failed:%d\r\n",
+        Log_Write(LOG_LEVEL_ERROR, "SQW:ERROR:VQ prefetch buffer failed:%d\r\n",
             status);
         return;
     }
 
+    /* Process the commands buffer. */
     while(cmd_buff_idx < vq_used_space)
     {
         /* Process commands from L2 SCP prefetched copy */
@@ -275,14 +256,7 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
                 TRACE_LOG_CMD_STATUS(cmd_hdr->cmd_hdr.msg_id, (uint8_t)sqw_idx,
                                      cmd_hdr->cmd_hdr.tag_id, CMD_STATUS_WAIT_BARRIER);
 
-                /* Extract the cmd timeout factor */
-                uint8_t timeout_factor =
-                    (uint8_t)CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(cmd_hdr->cmd_hdr.flags);
-
-                /* Assign default factor of 1 if no timeout scale factor was provided in cmd */
-                timeout_factor = ((timeout_factor > 0) ? timeout_factor : 1);
-
-                sqw_command_barrier((uint8_t)sqw_idx, timeout_factor);
+                sqw_command_barrier((uint8_t)sqw_idx);
             }
 
             /* Increment the SQW command count.
@@ -291,6 +265,7 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
             takes to process a command. */
             SQW_Increment_Command_Count((uint8_t)sqw_idx);
 
+            /* Handle the command processing */
             status = Host_Command_Handler(&cmd_buff[cmd_buff_idx],
                 (uint8_t)sqw_idx, start_cycles);
 
@@ -375,8 +350,14 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
 
     while(1)
     {
+        /* Update the SQW state to idle */
+        atomic_store_local_32(&SQW_CB.sqw_status[sqw_idx].state, SQW_STATE_IDLE);
+
         /* Wait for SQ Worker notification from Dispatcher */
         local_fcc_flag_wait(&SQW_CB.sqw_fcc_flags[sqw_idx]);
+
+        /* Update the SQW state to busy */
+        atomic_store_local_32(&SQW_CB.sqw_status[sqw_idx].state, SQW_STATE_BUSY);
 
         /* Get current minion cycle */
         start_cycles = PMC_Get_Current_Cycles();
@@ -444,7 +425,7 @@ void SQW_Decrement_Command_Count(uint8_t sqw_idx)
 {
     /* Decrement commands count being processed by current SQW */
     int32_t original_val =
-        atomic_add_signed_local_32(&SQW_CB.sqw_barrier[sqw_idx].cmds_count, -1);
+        atomic_add_signed_local_32(&SQW_CB.sqw_status[sqw_idx].cmds_count, -1);
 
     if ((original_val - 1) < 0)
     {
@@ -480,7 +461,7 @@ void SQW_Increment_Command_Count(uint8_t sqw_idx)
 {
     /* Increment commands count being processed by current SQW */
     int32_t original_val =
-        atomic_add_signed_local_32(&SQW_CB.sqw_barrier[sqw_idx].cmds_count, 1);
+        atomic_add_signed_local_32(&SQW_CB.sqw_status[sqw_idx].cmds_count, 1);
 
     Log_Write(LOG_LEVEL_DEBUG, "SQW[%d] Increment:Command Count: %d\r\n", sqw_idx, original_val + 1);
 }
@@ -489,11 +470,12 @@ void SQW_Increment_Command_Count(uint8_t sqw_idx)
 *
 *   FUNCTION
 *
-*       SQW_Command_Barrier_Timeout_Cb
+*       SQW_Abort_All_Pending_Commands
 *
 *   DESCRIPTION
 *
-*       SQW Commands barrier timeout callback.
+*       Blocking function that aborts each in progress SQ and waits until
+*       the state is back to idle.
 *
 *   INPUTS
 *
@@ -504,8 +486,48 @@ void SQW_Increment_Command_Count(uint8_t sqw_idx)
 *       None
 *
 ***********************************************************************/
-void SQW_Command_Barrier_Timeout_Cb(uint8_t sqw_idx)
+void SQW_Abort_All_Pending_Commands(uint8_t sqw_idx)
 {
-    /* Set the timeout flag */
-    atomic_store_local_8(&SQW_CB.sqw_barrier[sqw_idx].timeout_flag, 1);
+    uint32_t old_state;
+
+    Log_Write(LOG_LEVEL_DEBUG, "SQW: Abort all pending commands\r\n");
+
+    /* Traverse SQ and check for state. If busy, set abort state
+    and wait for it to be idle. This would guarantee
+    that all pending commadns in SQ are aborted. */
+    old_state = atomic_compare_and_exchange_local_32(&SQW_CB.sqw_status[sqw_idx].state,
+        SQW_STATE_BUSY, SQW_STATE_ABORTED);
+
+    if (old_state == SQW_STATE_BUSY)
+    {
+        /* Spin-wait until all the SQW state is idle */
+        do
+        {
+            asm volatile("fence\n" ::: "memory");
+        } while (atomic_load_local_32(&SQW_CB.sqw_status[sqw_idx].state) != SQW_STATE_IDLE);
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       SQW_Get_State
+*
+*   DESCRIPTION
+*
+*       Function that returns the state of a submission queue worker
+*
+*   INPUTS
+*
+*       sqw_idx     Submission Queue Worker index
+*
+*   OUTPUTS
+*
+*       sqw_state_e State of the SQW
+*
+***********************************************************************/
+sqw_state_e SQW_Get_State(uint8_t sqw_idx)
+{
+    return atomic_load_local_32(&SQW_CB.sqw_status[sqw_idx].state);
 }

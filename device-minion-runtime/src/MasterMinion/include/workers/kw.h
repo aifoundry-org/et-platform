@@ -27,7 +27,7 @@
     \brief A macro that provides the maximum HART ID the KW is configued
     to execute on.
 */
-#define     KW_MAX_HART_ID      (KW_BASE_HART_ID + (KW_NUM * WORKER_HART_FACTOR))
+#define     KW_MAX_HART_ID      (KW_BASE_HART_ID + (KW_NUM * HARTS_PER_MINION))
 
 /*! \def KW_WORKER_0
     \brief A macro that provdies the minion index of the first Kernel
@@ -40,10 +40,10 @@
 */
 #define KW_ERROR_GENERAL                 -1
 
-/*! \def KW_ERROR_KERNEL_SLOT_UNAVAILABLE
-    \brief Kernel Worker - Kernel slot not available error
+/*! \def KW_ABORTED_KERNEL_SLOT_SEARCH
+    \brief Kernel Worker - Kernel slot search aborted
 */
-#define KW_ERROR_KERNEL_SLOT_UNAVAILABLE -2
+#define KW_ABORTED_KERNEL_SLOT_SEARCH    -2
 
 /*! \def KW_ERROR_KERNEL_SLOT_NOT_USED
     \brief Kernel Worker - Kernel used slot not found error
@@ -85,33 +85,17 @@
 */
 #define KW_ERROR_KERNEL_INVLD_SHIRE_MASK -10
 
+/*! \def KW_ABORTED_KERNEL_SHIRES_SEARCH
+    \brief Kernel Worker - Kernel shires search aborted
+*/
+#define KW_ABORTED_KERNEL_SHIRES_SEARCH  -11
+
 /* Timeouts */
-
-/*! \def KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR
-    \brief This macro provides the base timeout factor for all kernel launch related
-    timeouts.
-*/
-#define KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR 240U /* On Zebu, this timeout comes out to be 7200 seconds */
-
-/*! \def KERNEL_LAUNCH_TIMEOUT(x)
-    \brief Timeout value for kernel launch
-*/
-#define KERNEL_LAUNCH_TIMEOUT(x)         (x * KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR)
-
-/*! \def KERNEL_SLOT_SEARCH_TIMEOUT(x)
-    \brief Timeout value for finding kernel free slot
-*/
-#define KERNEL_SLOT_SEARCH_TIMEOUT(x)    (x * (KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR + 5U))
-
-/*! \def KERNEL_FREE_SHIRES_TIMEOUT
-    \brief Timeout value for waiting for the shires to get free
-*/
-#define KERNEL_FREE_SHIRES_TIMEOUT(x)    (x * (KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR + 5U))
 
 /*! \def KERNEL_ABORT_WAIT_TIMEOUT
     \brief Timeout value for waiting for kernel abort to be issued from MM.
 */
-#define KERNEL_ABORT_WAIT_TIMEOUT        KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR
+#define KERNEL_ABORT_WAIT_TIMEOUT        10
 
 /*! \enum kernel_state_e
     \brief Enum that provides the state of a kernel
@@ -168,5 +152,12 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
 */
 int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
     uint8_t sqw_idx);
+
+/*! \fn void KW_Abort_All_Dispatched_Kernels(void)
+    \brief Sets the status of each kernel to abort and notifies the KW
+    \param sqw_idx Submission worker queue index
+    \return none
+*/
+void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx);
 
 #endif /* KW_DEFS_H */

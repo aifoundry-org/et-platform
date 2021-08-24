@@ -36,6 +36,7 @@
 #include "config/dir_regs.h"
 #include "dispatcher/dispatcher.h"
 #include "workers/sqw.h"
+#include "workers/sqw_hp.h"
 #include "workers/kw.h"
 #include "workers/dmaw.h"
 #include "workers/cw.h"
@@ -171,6 +172,8 @@ void Dispatcher_Launch(uint32_t hart_id)
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_CM_WORKERS_INITIALIZED);
 
     /* Initialize Master Shire Workers */
+    Log_Write(LOG_LEVEL_INFO, "Dispatcher:SQW_HP_Init\r\n");
+    SQW_HP_Init();
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:SQW_Init\r\n");
     SQW_Init();
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:KW_Init\r\n");

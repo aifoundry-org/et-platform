@@ -22,7 +22,10 @@
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 
-
+/*! \def HOST_CMD_STATUS_ABORTED
+    \brief Host command handler - Command aborted
+*/
+#define HOST_CMD_STATUS_ABORTED   -1
 
 /*! \fn int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
         uint64_t start_cycles)
@@ -34,5 +37,13 @@
 */
 int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
     uint64_t start_cycles);
+
+/*! \fn int8_t Host_HP_Command_Handler(void* command_buffer, uint8_t sqw_hp_idx)
+    \brief Interface to handle host side high priority commands
+    \param command_buffer pointer to command buffer
+    \param sqw_hp_idx index of hp submission queue worker
+    \return status success or negative error code
+*/
+int8_t Host_HP_Command_Handler(void* command_buffer, uint8_t sqw_hp_idx);
 
 #endif /* HOST_CMD_HDLR_H */

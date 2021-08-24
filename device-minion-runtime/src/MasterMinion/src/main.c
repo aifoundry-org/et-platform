@@ -26,6 +26,7 @@
 #include "dispatcher/dispatcher.h"
 #include "workers/spw.h"
 #include "workers/sqw.h"
+#include "workers/sqw_hp.h"
 #include "workers/kw.h"
 #include "workers/dmaw.h"
 #include "services/log.h"
@@ -33,10 +34,10 @@
 #include "device-common/atomic.h"
 #include "riscv_encoding.h"
 
-/*! \def HART_PARITY(x)
+/*! \def EVEN_HART(x)
     \brief Macro to check the even or odd parity of the hart
 */
-#define HART_PARITY(x)  (x % WORKER_HART_FACTOR == 0)
+#define EVEN_HART(x)  (x % 2 == 0)
 
 /*! \var spinlock_t Launch_Wait
     \brief Spinlock used to let the FW workers continue.
@@ -80,22 +81,29 @@ void main(void)
         local_spinwait_wait(&Launch_Wait, 1, 0);
         SPW_Launch(hart_id);
     }
-    else if ((hart_id >= SQW_BASE_HART_ID) &&
-            (hart_id < SQW_MAX_HART_ID) && HART_PARITY(hart_id))
+    else if ((hart_id >= SQW_HP_BASE_HART_ID) &&
+            (hart_id < SQW_HP_MAX_HART_ID) && !EVEN_HART(hart_id))
     {
         /* Spin wait till dispatcher initialization is complete */
         local_spinwait_wait(&Launch_Wait, 1, 0);
-        SQW_Launch(hart_id, (hart_id - SQW_BASE_HART_ID) / WORKER_HART_FACTOR);
+        SQW_HP_Launch(hart_id, (hart_id - SQW_HP_BASE_HART_ID) / HARTS_PER_MINION);
+    }
+    else if ((hart_id >= SQW_BASE_HART_ID) &&
+            (hart_id < SQW_MAX_HART_ID) && EVEN_HART(hart_id))
+    {
+        /* Spin wait till dispatcher initialization is complete */
+        local_spinwait_wait(&Launch_Wait, 1, 0);
+        SQW_Launch(hart_id, (hart_id - SQW_BASE_HART_ID) / HARTS_PER_MINION);
     }
     else if ((hart_id >= KW_BASE_HART_ID) &&
-            (hart_id < KW_MAX_HART_ID) && HART_PARITY(hart_id))
+            (hart_id < KW_MAX_HART_ID) && EVEN_HART(hart_id))
     {
         /* Spin wait till dispatcher initialization is complete */
         local_spinwait_wait(&Launch_Wait, 1, 0);
-        KW_Launch(hart_id, (hart_id - KW_BASE_HART_ID) / WORKER_HART_FACTOR);
+        KW_Launch(hart_id, (hart_id - KW_BASE_HART_ID) / HARTS_PER_MINION);
     }
     else if ((hart_id >= DMAW_BASE_HART_ID) &&
-            (hart_id < DMAW_MAX_HART_ID) && HART_PARITY(hart_id))
+            (hart_id < DMAW_MAX_HART_ID) && EVEN_HART(hart_id))
     {
         /* Spin wait till dispatcher initialization is complete */
         local_spinwait_wait(&Launch_Wait, 1, 0);

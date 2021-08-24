@@ -26,6 +26,7 @@
         KW_Launch
         KW_Dispatch_Kernel_Launch_Cmd
         KW_Dispatch_Kernel_Abort_Cmd
+        KW_Abort_All_Dispatched_Kernels
 */
 /***********************************************************************/
 #include    "device-common/atomic.h"
@@ -62,11 +63,10 @@
 typedef struct kernel_instance_ {
     uint32_t kernel_state;
     tag_id_t launch_tag_id;
-    uint16_t sqw_idx;
+    uint8_t sqw_idx;
+    uint8_t pad;
     exec_cycles_t kw_cycles;
     uint64_t kernel_shire_mask;
-    uint8_t sw_timer_idx;
-    uint8_t pad[7];
 } kernel_instance_t;
 
 /*! \typedef kw_cb_t
@@ -78,7 +78,6 @@ typedef struct kw_cb_ {
     fcc_sync_cb_t       host2kw[MM_MAX_PARALLEL_KERNELS];
     spinlock_t          resource_lock;
     kernel_instance_t   kernels[MM_MAX_PARALLEL_KERNELS];
-    uint32_t            resource_timeout_flag[SQW_NUM];
     uint32_t            abort_wait_timeout_flag[SQW_NUM];
 } kw_cb_t;
 
@@ -119,80 +118,6 @@ static inline bool kw_check_address_bounds(uint64_t dev_address, bool is_optiona
 *
 *   FUNCTION
 *
-*       kw_set_abort_status_cb
-*
-*   DESCRIPTION
-*
-*       Sets the status of a kernel to abort and notifies the KW
-*
-*   INPUTS
-*
-*       kw_idx    ID of the kernel worker
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-static void kw_set_abort_status_cb(uint8_t kw_idx)
-{
-    /* Free the registered SW Timeout slot */
-    SW_Timer_Cancel_Timeout(atomic_load_local_8(&KW_CB.kernels[kw_idx].sw_timer_idx));
-
-    atomic_store_local_32(&KW_CB.kernels[kw_idx].kernel_state, KERNEL_STATE_ABORTING);
-
-    /* Trigger IPI to KW */
-    syscall(SYSCALL_IPI_TRIGGER_INT,
-        1ULL << ((KW_BASE_HART_ID + (kw_idx * WORKER_HART_FACTOR)) % 64), MASTER_SHIRE, 0);
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       kw_create_kernel_launch_timer
-*
-*   DESCRIPTION
-*
-*       Registers a timer with kernel launch
-*
-*   INPUTS
-*
-*       slot_index     ID of the kernel worker
-*       timeout_factor Timeout scale factor
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-static inline void kw_create_kernel_launch_timer(uint8_t slot_index, uint8_t timeout_factor)
-{
-    int8_t sw_timer_idx = -1;
-
-    /* Create timeout for kernel_launch command to complete */
-    sw_timer_idx = SW_Timer_Create_Timeout(&kw_set_abort_status_cb, slot_index,
-        KERNEL_LAUNCH_TIMEOUT(timeout_factor));
-    if(sw_timer_idx >= 0)
-    {
-        /* Save the SW timer index */
-        atomic_store_local_8(&KW_CB.kernels[slot_index].sw_timer_idx,
-            (uint8_t)sw_timer_idx);
-    }
-    else
-    {
-        /* If the SW timer creating fails, we would still return success to the caller
-        since the kernel has already launched and we want that kernel to complete so
-        that we don't end up having unpredictable behaviors in next kernel runs */
-        Log_Write(LOG_LEVEL_ERROR,
-            "KW:ERROR:Kernel launch timeout creation:Failed\r\n");
-    }
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
 *       kernel_abort_wait_timeout_callback
 *
 *   DESCRIPTION
@@ -212,31 +137,6 @@ static void kernel_abort_wait_timeout_callback(uint8_t sqw_idx)
 {
     /* Set the kernel abort wait timeout flag */
     atomic_store_local_32(&KW_CB.abort_wait_timeout_flag[sqw_idx], 1U);
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       kernel_acquire_resource_timeout_callback
-*
-*   DESCRIPTION
-*
-*       Callback for kernel free resource search timeout
-*
-*   INPUTS
-*
-*       sqw_idx    Submission queue index
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-static void kernel_acquire_resource_timeout_callback(uint8_t sqw_idx)
-{
-    /* Set the kernel slot timeout flag */
-    atomic_store_local_32(&KW_CB.resource_timeout_flag[sqw_idx], 1U);
 }
 
 /************************************************************************
@@ -371,31 +271,20 @@ static int8_t kw_find_used_kernel_slot(uint16_t launch_tag_id, uint8_t *slot)
 *   INPUTS
 *
 *       sqw_idx             Submission queue index
-*       timeout_factor      Timeout scale factor
 *       slot_index          Index of available KW
+*       kernel              Pointer to kernel slot
 *
 *   OUTPUTS
 *
-*       kernel_instance_t*  Reference to kernel instance
+*       int8_t              status success or error
 *
 ***********************************************************************/
-static kernel_instance_t* kw_reserve_kernel_slot(uint8_t sqw_idx, uint8_t timeout_factor,
-    uint8_t *slot_index)
+static int8_t kw_reserve_kernel_slot(uint8_t sqw_idx, uint8_t *slot_index,
+    kernel_instance_t** kernel)
 {
-    kernel_instance_t* kernel = 0;
-    int8_t sw_timer_idx;
+    int8_t status = STATUS_SUCCESS;
+    sqw_state_e sqw_state;
     bool slot_reserved = false;
-
-    /* Create timeout to wait for free kernel slot */
-    sw_timer_idx = SW_Timer_Create_Timeout(&kernel_acquire_resource_timeout_callback, sqw_idx,
-        KERNEL_SLOT_SEARCH_TIMEOUT(timeout_factor));
-
-    if(sw_timer_idx < 0)
-    {
-        Log_Write(LOG_LEVEL_ERROR,
-            "KW: Unable to register kernel reserve slot timeout!\r\n");
-        return kernel;
-    }
 
     do
     {
@@ -406,24 +295,29 @@ static kernel_instance_t* kw_reserve_kernel_slot(uint8_t sqw_idx, uint8_t timeou
                 (&KW_CB.kernels[i].kernel_state, KERNEL_STATE_UN_USED, KERNEL_STATE_IN_USE)
                 == KERNEL_STATE_UN_USED)
             {
-                kernel = &KW_CB.kernels[i];
+                *kernel = &KW_CB.kernels[i];
                 *slot_index = i;
                 slot_reserved = true;
             }
         }
-    } while (!slot_reserved &&
-        (atomic_compare_and_exchange_local_32(&KW_CB.resource_timeout_flag[sqw_idx], 1, 0) == 0U));
+        /* Read the SQW state */
+        sqw_state = SQW_Get_State(sqw_idx);
+    } while (!slot_reserved && (sqw_state != SQW_STATE_ABORTED));
 
-    /* Free the registered SW Timeout slot */
-    SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
-
-    /* If timeout occurs then report this event to SP. */
-    if(!slot_reserved)
+    /* Verify SQW state */
+    if(sqw_state == SQW_STATE_ABORTED)
     {
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_SLOT_ERROR);
+        status = KW_ABORTED_KERNEL_SLOT_SEARCH;
+        Log_Write(LOG_LEVEL_ERROR, "KW:ABORTED:kernel slot search\r\n");
+
+        /* Unreserve the slot */
+        if(slot_reserved)
+        {
+            atomic_store_local_32(&KW_CB.kernels[*slot_index].kernel_state, KERNEL_STATE_UN_USED);
+        }
     }
 
-    return kernel;
+    return status;
 }
 
 /************************************************************************
@@ -465,19 +359,16 @@ static void kw_unreserve_kernel_slot(kernel_instance_t* kernel)
 *
 *       sqw_idx         Submission queue index
 *       req_shire_mask  Shire mask of compute minions to be marked in-use
-*       timeout_factor  Timeout scale factor
 *
 *   OUTPUTS
 *
 *       int8_t          status success or error
 *
 ***********************************************************************/
-static int8_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask,
-    uint8_t timeout_factor)
+static int8_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask)
 {
     int8_t status;
-    int8_t sw_timer_idx;
-    bool timeout = false;
+    sqw_state_e sqw_state;
 
     /* Verify the shire mask */
     if (req_shire_mask == 0)
@@ -488,56 +379,43 @@ static int8_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask,
     /* Acquire the lock */
     acquire_local_spinlock(&KW_CB.resource_lock);
 
-    /* Create timeout for waiting for free shires for kernel */
-    sw_timer_idx = SW_Timer_Create_Timeout(&kernel_acquire_resource_timeout_callback, sqw_idx,
-        KERNEL_FREE_SHIRES_TIMEOUT(timeout_factor));
-
-    if(sw_timer_idx < 0)
+    /* Find and wait for the requested shire mask to get free */
+    do
     {
-        Log_Write(LOG_LEVEL_ERROR,
-            "KW: Unable to register timeout for waiting for shires to get free!\r\n");
-        status = KW_ERROR_GENERAL;
+        /* Check the required shires are available and ready */
+        status = CW_Check_Shires_Available_And_Free(req_shire_mask);
+
+        /* Read the SQW state */
+        sqw_state = SQW_Get_State(sqw_idx);
+    } while ((status != STATUS_SUCCESS) && (status != CW_SHIRE_UNAVAILABLE)
+        && (sqw_state != SQW_STATE_ABORTED));
+
+    if((status == STATUS_SUCCESS) && (sqw_state != SQW_STATE_ABORTED))
+    {
+        /* Mark the shires as busy */
+        CW_Update_Shire_State(req_shire_mask, CW_SHIRE_STATE_BUSY);
+
+        /* Release the lock */
+        release_local_spinlock(&KW_CB.resource_lock);
     }
     else
     {
-        /* Find and wait for the requested shire mask to get free */
-        do
+        /* Release the lock */
+        release_local_spinlock(&KW_CB.resource_lock);
+
+        /* Verify SQW state */
+        if(sqw_state == SQW_STATE_ABORTED)
         {
-            /* Check the required shires are available and ready */
-            status = CW_Check_Shires_Available_And_Free(req_shire_mask);
-
-            if(atomic_compare_and_exchange_local_32(&KW_CB.resource_timeout_flag[sqw_idx], 1, 0) == 0U)
-            {
-                timeout = true;
-            }
-        } while ((status != STATUS_SUCCESS) && (!timeout));
-
-        /* Free the registered SW Timeout slot */
-        SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
-
-        if(status == STATUS_SUCCESS)
-        {
-            /* Mark the shires as busy */
-            CW_Update_Shire_State(req_shire_mask, CW_SHIRE_STATE_BUSY);
+            status = KW_ABORTED_KERNEL_SHIRES_SEARCH;
+            Log_Write(LOG_LEVEL_ERROR, "KW:ABORTED:kernel shires search\r\n");
         }
         else
         {
             status = KW_ERROR_KERNEL_SHIRES_NOT_READY;
-
-            /* If timeout occurs then report this event to SP. */
-            if(timeout)
-            {
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_TIMEOUT_ERROR);
-            }
-            else
-            {
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_SLOT_ERROR);
-            }
+            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:kernel shires unavailable\r\n");
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_SLOT_ERROR);
         }
     }
-
-    /* Release the lock */
-    release_local_spinlock(&KW_CB.resource_lock);
 
     return status;
 }
@@ -595,14 +473,6 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     kernel_instance_t *kernel = 0;
     int8_t status = KW_ERROR_KERNEL_INVALID_ADDRESS;
     uint8_t slot_index;
-    uint8_t timeout_factor;
-
-    /* Extract the timeout factor for kernel launch related timeouts */
-    timeout_factor =
-        (uint8_t)CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(cmd->command_info.cmd_hdr.flags);
-
-    /* Assign default factor of 1 if no timeout scale factor was provided in cmd */
-    timeout_factor = ((timeout_factor > 0) ? timeout_factor : 1);
 
     /* Verify address bounds
        kernel start address (not optional)
@@ -615,13 +485,13 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     {
         /* First we allocate resources needed for the kernel launch */
         /* Reserve a slot for the kernel */
-        kernel = kw_reserve_kernel_slot(sqw_idx, timeout_factor, &slot_index);
+        status = kw_reserve_kernel_slot(sqw_idx, &slot_index, &kernel);
 
-        if(kernel)
+        if(status == STATUS_SUCCESS)
         {
             /* Reserve compute shires needed for the requested
             kernel launch */
-            status = kw_reserve_kernel_shires(sqw_idx, cmd->shire_mask, timeout_factor);
+            status = kw_reserve_kernel_shires(sqw_idx, cmd->shire_mask);
 
             if(status == STATUS_SUCCESS)
             {
@@ -631,13 +501,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
             {
                 /* Make reserved kernel slot available again */
                 kw_unreserve_kernel_slot(kernel);
-                Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:kernel shires unavailable\r\n");
             }
-        }
-        else
-        {
-            status = KW_ERROR_KERNEL_SLOT_UNAVAILABLE;
-            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:kernel slot unavailable\r\n");
         }
     }
 
@@ -667,7 +531,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
     {
         /* Populate the tag_id and sqw_idx for KW */
         atomic_store_local_16(&kernel->launch_tag_id, cmd->command_info.cmd_hdr.tag_id);
-        atomic_store_local_16(&kernel->sqw_idx, sqw_idx);
+        atomic_store_local_8(&kernel->sqw_idx, sqw_idx);
 
         /* Populate the kernel launch params */
         mm_to_cm_message_kernel_launch_t launch_args = {0};
@@ -703,8 +567,6 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
 
         if (status == STATUS_SUCCESS)
         {
-            /* Register SW timer */
-            kw_create_kernel_launch_timer(slot_index,timeout_factor);
             *kw_idx = slot_index;
         }
         else
@@ -818,6 +680,52 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
 
     return status;
 }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       KW_Abort_All_Dispatched_Kernels
+*
+*   DESCRIPTION
+*
+*       Blocking function call that sets the status of each kernel to
+*       abort and notifies the KW
+*
+*   INPUTS
+*
+*       sqw_idx     Submission Queue Worker index
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
+{
+    /* Traverse all kernel slots and abort them */
+    for(uint8_t kw_idx = 0; kw_idx < MM_MAX_PARALLEL_KERNELS; kw_idx++)
+    {
+        /* Check if this kernel slot is used by the given sqw_idx
+        and kernel slot is in use, then abort it */
+        if((atomic_load_local_8(&KW_CB.kernels[kw_idx].sqw_idx) == sqw_idx) &&
+            (atomic_compare_and_exchange_local_32(&KW_CB.kernels[kw_idx].kernel_state,
+            KERNEL_STATE_IN_USE, KERNEL_STATE_ABORTING) == KERNEL_STATE_IN_USE))
+        {
+            /* Trigger IPI to KW */
+            syscall(SYSCALL_IPI_TRIGGER_INT,
+                1ULL << ((KW_BASE_HART_ID + (kw_idx * HARTS_PER_MINION)) % 64),
+                MASTER_SHIRE, 0);
+
+            /* Spin-wait until all the KW state is idle */
+            do
+            {
+                asm volatile("fence\n" ::: "memory");
+            } while (atomic_load_local_32(&KW_CB.kernels[kw_idx].kernel_state) != KERNEL_STATE_UN_USED);
+        }
+    }
+}
+
 /************************************************************************
 *
 *   FUNCTION
@@ -886,11 +794,10 @@ void KW_Init(void)
 ***********************************************************************/
 void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 {
-    uint32_t minion = KW_WORKER_0 + (kw_idx / (2 / WORKER_HART_FACTOR));
-    uint32_t thread = kw_idx % (2 / WORKER_HART_FACTOR);
+    uint32_t minion = KW_WORKER_0 + kw_idx;
 
     Log_Write(LOG_LEVEL_DEBUG, "Notifying:KW:minion=%d:thread=%d\r\n",
-        minion, thread);
+        minion, KW_THREAD_ID);
 
     atomic_store_local_64((void*)&KW_CB.kernels[kw_idx].kw_cycles.cmd_start_cycles,
                           cycle->cmd_start_cycles);
@@ -899,7 +806,7 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
                           cycle->raw_u64);
 
     global_fcc_notify(atomic_load_local_8(&KW_CB.host2kw[kw_idx].fcc_id),
-        &KW_CB.host2kw[kw_idx].fcc_flag, minion, thread);
+        &KW_CB.host2kw[kw_idx].fcc_flag, minion, KW_THREAD_ID);
 
     return;
 }
@@ -1109,16 +1016,11 @@ static inline uint32_t kw_get_kernel_launch_completion_status(uint32_t kernel_st
     uint32_t status;
 
     /* These checks below are in order of priority */
-    if(kernel_state == KERNEL_STATE_ABORTED_BY_HOST)
+    if((kernel_state == KERNEL_STATE_ABORTED_BY_HOST) ||
+        (kernel_state == KERNEL_STATE_ABORTING))
     {
         /* Update the kernel launch response to indicate that it was aborted by host */
         status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
-
-    }
-    else if(kernel_state == KERNEL_STATE_ABORTING)
-    {
-        /* Update the kernel launch response to indicate that it was aborted by device */
-        status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
 
     }
     else if(status_internal->cw_exception)
@@ -1243,13 +1145,6 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         /* Read the kernel state to detect abort by host */
         kernel_state = atomic_load_local_32(&kernel->kernel_state);
 
-        /* Cancel the command timeout (if needed) */
-        if(kernel_state != KERNEL_STATE_ABORTING)
-        {
-            /* Free the registered SW Timeout slot */
-            SW_Timer_Cancel_Timeout(atomic_load_local_8(&kernel->sw_timer_idx));
-        }
-
         /* Read the execution cycles info */
         cycles.cmd_start_cycles = atomic_load_local_64(&kernel->kw_cycles.cmd_start_cycles);
         cycles.raw_u64 = atomic_load_local_64(&kernel->kw_cycles.raw_u64);
@@ -1263,7 +1158,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         launch_rsp.device_cmd_wait_dur = cycles.wait_cycles;
         launch_rsp.device_cmd_execute_dur = (PMC_GET_LATENCY(cycles.exec_start_cycles) & 0xFFFFFFFF);
 
-        local_sqw_idx = (uint8_t)atomic_load_local_16(&kernel->sqw_idx);
+        local_sqw_idx = atomic_load_local_8(&kernel->sqw_idx);
 
         /* Get completion status of kernel launch. */
         launch_rsp.status = kw_get_kernel_launch_completion_status(kernel_state, &status_internal);

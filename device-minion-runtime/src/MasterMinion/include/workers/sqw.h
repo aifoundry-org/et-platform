@@ -29,7 +29,7 @@
     \brief A macro that provides the maximum HART ID the SQW is configued
     to execute on.
 */
-#define     SQW_MAX_HART_ID      (SQW_BASE_HART_ID + (SQW_NUM * WORKER_HART_FACTOR))
+#define     SQW_MAX_HART_ID      (SQW_BASE_HART_ID + (SQW_NUM * HARTS_PER_MINION))
 
 /*! \def SQW_WORKER_0
     \brief A macro that provdies the minion index of the first Submission
@@ -37,12 +37,19 @@
 */
 #define     SQW_WORKER_0         ((SQW_BASE_HART_ID - MM_BASE_ID) / HARTS_PER_MINION)
 
-/*! \def TIMEOUT_SQW_BARRIER(x)
-    \brief Timeout value for SQW commands barrier.
-    Keep the barrier timeout a higher value since the barrier is
-    supposed to block and if it blocks indefinitely, timeout will occur.
+/*! \def SQW_STATUS_BARRIER_ABORTED
+    \brief A macro that provide the status code for barrier abort
 */
-#define TIMEOUT_SQW_BARRIER(x)   (x * (KERNEL_LAUNCH_TIMEOUT_BASE_FACTOR + 10U))
+#define     SQW_STATUS_BARRIER_ABORTED     -1
+
+/*! \enum sqw_state_e
+    \brief Enum that provides the state of a SQW
+*/
+typedef enum {
+    SQW_STATE_IDLE = 0,
+    SQW_STATE_BUSY,
+    SQW_STATE_ABORTED
+} sqw_state_e;
 
 /*! \fn void SQW_Init(void)
     \brief Initialize resources used by the Submission Queue Worker
@@ -79,11 +86,19 @@ void SQW_Decrement_Command_Count(uint8_t sqw_idx);
 */
 void SQW_Increment_Command_Count(uint8_t sqw_idx);
 
-/*! \fn void SQW_Command_Barrier_Timeout_Cb(uint8_t sqw_idx)
-    \brief Callback for SQW command barrier timeout
+/*! \fn void SQW_Abort_All_Pending_Commands(void)
+    \brief Blocking function that aborts each in progress SQ and waits until
+    the state is back to idle.
     \param sqw_idx Submission Queue Worker index
     \return none
 */
-void SQW_Command_Barrier_Timeout_Cb(uint8_t sqw_idx);
+void SQW_Abort_All_Pending_Commands(uint8_t sqw_idx);
+
+/*! \fn sqw_state_e SQW_Get_State(uint8_t sqw_idx)
+    \brief Returns the state of a SQW
+    \param sqw_idx Submission Queue Worker index
+    \return State of SQW
+*/
+sqw_state_e SQW_Get_State(uint8_t sqw_idx);
 
 #endif /* SQW_DEFS_H */

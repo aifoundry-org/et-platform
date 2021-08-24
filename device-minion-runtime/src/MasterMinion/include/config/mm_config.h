@@ -185,17 +185,23 @@
 */
 #define MM_SQ_MAX_SUPPORTED 4
 
+/*! \def MM_SQ_HP_SIZE
+    \brief A macro that provides size of the Master Minion
+    high priority submission queue. All HP submision queues will be of same size.
+*/
+#define MM_SQ_HP_SIZE       0x40UL
+
+/*! \def MM_SQ_HP_COUNT
+    \brief A macro that provides the Master Minion high priority submission queue
+    count
+*/
+#define MM_SQ_HP_COUNT      MM_SQ_COUNT
+
 /*! \def MM_SQ_SIZE
     \brief A macro that provides size of the Master Minion
     submission queue. All submision queues will be of same size.
 */
-#define MM_SQ_SIZE          (MM_VQ_SIZE - (MM_CQ_SIZE * MM_CQ_COUNT)) / MM_SQ_COUNT
-
-/*! \def MM_SQ_HP_INDEX
-    \brief A macro that provides the Master Minion high priority
-    submission queue index
-*/
-#define MM_SQ_HP_INDEX      0
+#define MM_SQ_SIZE          (MM_VQ_SIZE - (MM_SQ_HP_SIZE * MM_SQ_HP_COUNT) - (MM_CQ_SIZE * MM_CQ_COUNT)) / MM_SQ_COUNT
 
 /*! \def MM_SQ_MEM_TYPE
     \brief A macro that provides the memory type for MM submission queues
@@ -205,18 +211,31 @@
 */
 #define MM_SQ_MEM_TYPE      UNCACHED
 
+/*! \def MM_SQ_HP_OFFSET
+    \brief A macro that provides the PCI BAR region offset relative to
+    MM_VQ_BAR using which the Master Minion high priority submission queues can be accessed
+*/
+#define MM_SQ_HP_OFFSET        (MM_SQ_OFFSET + (MM_SQ_COUNT * MM_SQ_SIZE))
+
+/*! \def MM_SQS_BASE_ADDRESS
+    \brief A macro that provides the Master Minion's 32 bit base address
+    for high priority submission queues from 64 bit DRAM base, or 32 bit absolute
+    address in SRAM
+*/
+#define MM_SQS_HP_BASE_ADDRESS (MM_SQS_BASE_ADDRESS + (MM_SQ_COUNT * MM_SQ_SIZE))
+
 /*! \def MM_CQS_BASE_ADDRESS
     \brief A macro that provides the Master Minion's base address
     for completion queues from 64 bit DRAM base, or 32 bit absolute
     address in SRAM
 */
-#define MM_CQS_BASE_ADDRESS (MM_SQS_BASE_ADDRESS + (MM_SQ_COUNT * MM_SQ_SIZE))
+#define MM_CQS_BASE_ADDRESS (MM_SQS_HP_BASE_ADDRESS + (MM_SQ_HP_COUNT * MM_SQ_HP_SIZE))
 
 /*! \def MM_CQ_OFFSET
     \brief A macro that provides the PCI BAR region offset relative to
     MM_VQ_BAR using which the Master Minion completion queues can be accessed
 */
-#define MM_CQ_OFFSET        (MM_SQ_OFFSET + (MM_SQ_COUNT * MM_SQ_SIZE))
+#define MM_CQ_OFFSET        (MM_SQ_HP_OFFSET + (MM_SQ_HP_COUNT * MM_SQ_HP_SIZE))
 
 /*! \def MM_CQ_SIZE
     \brief A macro that provides size of the Master Minion
@@ -271,24 +290,6 @@
 /* Definitions for MM dispatcher, and workers - SQW, KW, DMAW, CQW */
 /*******************************************************************/
 
-/*! \def WORKER_HARTS_EVEN
-    \brief Macro to switch between even or odd Harts for MM Workers.
-    If this macro is defined, MM will use even Harts for its workers and vice versa.
-*/
-#define WORKER_HARTS_EVEN
-
-#ifdef WORKER_HARTS_EVEN
-/*! \def WORKER_HART_FACTOR
-    \brief Divider for the caclulations performed on even Harts
-*/
-#define WORKER_HART_FACTOR 2U
-#else
-/*! \def WORKER_HART_FACTOR
-    \brief Divider for the caclulations performed on odd Harts
-*/
-#define WORKER_HART_FACTOR 1U
-#endif
-
 /*! \def MM_BASE_ID
     \brief Base HART ID for the Master Minion
 */
@@ -323,13 +324,41 @@
 
 /*! \def SQW_BASE_HART_ID
     \brief Base HART ID for the Submission Queue Worker
+    Note that SQ workers use even harts of the same Minion.
+    \warning DO NOT MODIFY!
 */
 #define SQW_BASE_HART_ID         2050U
+
+/*! \def SQW_THREAD_ID
+    \brief Thread ID for the Submission Queue Worker
+    Note that SQ workers use even thread of the same Minion.
+    \warning DO NOT MODIFY!
+*/
+#define SQW_THREAD_ID            0U
 
 /*! \def SQW_NUM
     \brief Number of Submission Queue Workers
 */
 #define SQW_NUM                  MM_SQ_COUNT
+
+/*! \def SQW_HP_BASE_HART_ID
+    \brief Base HART ID for the High Priority Submission Queue Worker.
+    Note that high priority workers use odd harts of the same Minion.
+    \warning DO NOT MODIFY!
+*/
+#define SQW_HP_BASE_HART_ID      SQW_BASE_HART_ID
+
+/*! \def SQW_HP_THREAD_ID
+    \brief Thread ID for the High Priority Submission Queue Worker
+    Note that SQ workers use odd thread of the same Minion.
+    \warning DO NOT MODIFY!
+*/
+#define SQW_HP_THREAD_ID         1U
+
+/*! \def SQW_HP_NUM
+    \brief Number of High Priority Submission Queue Workers
+*/
+#define SQW_HP_NUM               MM_SQ_HP_COUNT
 
 /*! \def KW_BASE_HART_ID
     \brief Base HART ID for the Kernel Worker
@@ -340,6 +369,13 @@
     \brief Base HART number in Master Shire for the kernel workers
 */
 #define KW_MS_BASE_HART          (KW_BASE_HART_ID - MM_BASE_ID)
+
+/*! \def KW_THREAD_ID
+    \brief Thread ID for the Kernel Worker
+    Note that KW workers use even thread of the same Minion.
+    \warning DO NOT MODIFY!
+*/
+#define KW_THREAD_ID             0U
 
 /*! \def KW_NUM
     \brief Number of Kernel Workers
@@ -365,16 +401,20 @@
 static_assert((MM_DEV_INTF_BASE_ADDR + MM_DEV_INTF_SIZE - 1) < MM_SQS_BASE_ADDRESS,
     "DIRs and SQs base address overlapping.");
 
-/* Ensure that DIRs and MM SQs base address don't overlap */
-static_assert((MM_SQS_BASE_ADDRESS + (MM_SQ_COUNT * MM_SQ_SIZE) - 1) < MM_CQS_BASE_ADDRESS,
-    "SQs and CQs base address overlapping.");
+/* Ensure that MM SQs and MM HP SQs base address don't overlap */
+static_assert((MM_SQS_BASE_ADDRESS + (MM_SQ_COUNT * MM_SQ_SIZE) - 1) < MM_SQS_HP_BASE_ADDRESS,
+    "MM SQs and MM HP SQs base address overlapping.");
+
+/* Ensure that MM HP SQs and MM CQs base address don't overlap */
+static_assert((MM_SQS_HP_BASE_ADDRESS + (MM_SQ_HP_COUNT * MM_SQ_HP_SIZE) - 1) < MM_CQS_BASE_ADDRESS,
+    "MM HP SQs and MM CQs base address overlapping.");
 
 /* Ensure that MM SQs are within limits */
 static_assert(MM_SQ_COUNT <= MM_SQ_MAX_SUPPORTED,
     "Number of MM Submission Queues not within limits.");
 
-/* Ensure that MM SQs and CQs size is within limits */
-static_assert(((MM_SQ_COUNT * MM_SQ_SIZE) + (MM_CQ_COUNT * MM_CQ_SIZE)) <= MM_VQ_SIZE,
+/* Ensure that MM SQs, HP SQs and CQs size is within limits */
+static_assert(((MM_SQ_COUNT * MM_SQ_SIZE) + (MM_SQ_HP_COUNT * MM_SQ_HP_SIZE) + (MM_CQ_COUNT * MM_CQ_SIZE)) <= MM_VQ_SIZE,
     "MM VQs size not within limits.");
 
 /* Ensure that SPW Hart ID is unique */

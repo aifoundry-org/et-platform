@@ -162,6 +162,9 @@ typedef struct __attribute__((__packed__)) MM_DEV_INTF_VQ_ATTR {
     uint8_t int_trg_size;
     uint8_t int_id;
     uint16_t attributes_size;
+    uint32_t sq_hp_offset;
+    uint16_t sq_hp_count;
+    uint16_t per_sq_hp_size;
 } MM_DEV_INTF_VQ_ATTR_s;
 
 /*! \struct MM_DEV_INTF_GENERIC_ATTR
@@ -196,9 +199,9 @@ typedef struct __attribute__((__packed__)) MM_DEV_INTF_REG {
 /************************/
 #ifndef __ASSEMBLER__
 
-/* Ensure that MM SQs are within limits */
+/* Ensure that MM DIRs are within limits */
 static_assert(sizeof(MM_DEV_INTF_REG_s) <= MM_DEV_INTF_SIZE,
-    "DIRs size is not within allowed limits.");
+    "MM DIRs size is not within allowed limits.");
 
 #endif /* __ASSEMBLER__ */
 

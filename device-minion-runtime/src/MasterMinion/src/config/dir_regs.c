@@ -97,6 +97,9 @@ void DIR_Init(void)
     Gbl_MM_DIRs->vq_attr.sq_offset = MM_SQ_OFFSET;
     Gbl_MM_DIRs->vq_attr.sq_count = MM_SQ_COUNT;
     Gbl_MM_DIRs->vq_attr.per_sq_size = MM_SQ_SIZE;
+    Gbl_MM_DIRs->vq_attr.sq_hp_offset = MM_SQ_HP_OFFSET;
+    Gbl_MM_DIRs->vq_attr.sq_hp_count = MM_SQ_HP_COUNT;
+    Gbl_MM_DIRs->vq_attr.per_sq_hp_size = MM_SQ_HP_SIZE;
     Gbl_MM_DIRs->vq_attr.cq_offset = MM_CQ_OFFSET;
     Gbl_MM_DIRs->vq_attr.cq_count = MM_CQ_COUNT;
     Gbl_MM_DIRs->vq_attr.per_cq_size = MM_CQ_SIZE;

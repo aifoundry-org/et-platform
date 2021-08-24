@@ -32,6 +32,8 @@
         DMAW_Read_Trigger_Transfer
         DMAW_Write_Trigger_Transfer
         DMAW_Launch
+        DMAW_Abort_All_Dispatched_Read_Channels
+        DMAW_Abort_All_Dispatched_Write_Channels
 */
 /***********************************************************************/
 #include    "workers/dmaw.h"
@@ -39,7 +41,6 @@
 #include    "services/log.h"
 #include    "services/host_iface.h"
 #include    "services/sp_iface.h"
-#include    "services/sw_timer.h"
 #include    "services/trace.h"
 #include    "pmu.h"
 #include    "sync.h"
@@ -49,7 +50,6 @@
     Used to maintain DMA Worker Read related resources.
 */
 typedef struct dmaw_read_cb {
-    uint8_t                 chan_search_timeout_flag[SQW_NUM];
     dma_channel_status_cb_t chan_status_cb[PCIE_DMA_RD_CHANNEL_COUNT];
 } dmaw_read_cb_t;
 
@@ -58,7 +58,6 @@ typedef struct dmaw_read_cb {
     Used to maintain DMA Worker Write related resources.
 */
 typedef struct dmaw_write_cb {
-    uint8_t                 chan_search_timeout_flag[SQW_NUM];
     dma_channel_status_cb_t chan_status_cb[PCIE_DMA_WRT_CHANNEL_COUNT];
 } dmaw_write_cb_t;
 
@@ -104,15 +103,6 @@ void DMAW_Init(void)
     chan_status.sqw_idx = 0;
     chan_status.channel_state = DMA_CHAN_STATE_IDLE;
 
-    for(int i = 0; i < SQW_NUM; i++)
-    {
-        /* Reset the read channel timeout flag */
-        atomic_store_local_8(&DMAW_Read_CB.chan_search_timeout_flag[i], 0U);
-
-        /* Reset the write channel timeout flag */
-        atomic_store_local_8(&DMAW_Write_CB.chan_search_timeout_flag[i], 0U);
-    }
-
     /* Initialize DMA Read channel status */
     for(int i = 0; i < PCIE_DMA_RD_CHANNEL_COUNT; i++)
     {
@@ -155,10 +145,11 @@ void DMAW_Init(void)
 ***********************************************************************/
 int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id, uint8_t sqw_idx)
 {
-    int8_t status = DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL;
+    int8_t status = STATUS_SUCCESS;
     bool read_chan_reserved = false;
+    sqw_state_e sqw_state;
 
-    /* Try to find idle channel until timeout occurs */
+    /* Try to find idle channel until aborted */
     do
     {
         /* Find the idle channel and reserve it */
@@ -171,21 +162,28 @@ int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id, uint8_t
             {
                 /* Return the DMA channel ID */
                 *chan_id = ch;
-                status = STATUS_SUCCESS;
                 read_chan_reserved = true;
                 break;
             }
         }
-    } while(!read_chan_reserved && (atomic_load_local_8(&DMAW_Read_CB.chan_search_timeout_flag[sqw_idx]) == 0U));
 
-    /* If timeout occurs then report this event to SP. */
-    if(!read_chan_reserved)
+        /* Read the SQW state */
+        sqw_state = SQW_Get_State(sqw_idx);
+    } while(!read_chan_reserved && (sqw_state != SQW_STATE_ABORTED));
+
+    /* Verify SQW state */
+    if(sqw_state == SQW_STATE_ABORTED)
     {
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_DMA_TIMEOUT_ERROR);
-    }
+        status = DMAW_ABORTED_IDLE_CHANNEL_SEARCH;
+        Log_Write(LOG_LEVEL_ERROR, "DMAW:ABORTED:Idle read channel search\r\n");
 
-    /* Reset the timeout flag */
-    atomic_store_local_8(&DMAW_Read_CB.chan_search_timeout_flag[sqw_idx], 0U);
+        /* Unreserve the channel */
+        if(read_chan_reserved)
+        {
+            atomic_store_local_32(&DMAW_Read_CB.chan_status_cb[*chan_id].status.channel_state,
+                DMA_CHAN_STATE_IDLE);
+        }
+    }
 
     return status;
 }
@@ -213,10 +211,11 @@ int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id, uint8_t
 ***********************************************************************/
 int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8_t sqw_idx)
 {
-    int8_t status = DMAW_ERROR_TIMEOUT_FIND_IDLE_CHANNEL;
+    int8_t status = STATUS_SUCCESS;
     bool write_chan_reserved = false;
+    sqw_state_e sqw_state;
 
-    /* Try to find idle channel until timeout occurs */
+    /* Try to find idle channel until aborted */
     do
     {
         /* Find the idle channel and reserve it */
@@ -229,21 +228,27 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8
             {
                 /* Return the DMA channel ID */
                 *chan_id = ch;
-                status = STATUS_SUCCESS;
                 write_chan_reserved = true;
                 break;
             }
         }
-    } while(!write_chan_reserved && (atomic_load_local_8(&DMAW_Write_CB.chan_search_timeout_flag[sqw_idx]) == 0U));
+        /* Read the SQW state */
+        sqw_state = SQW_Get_State(sqw_idx);
+    } while(!write_chan_reserved && (sqw_state != SQW_STATE_ABORTED));
 
-    /* If timeout occurs then report this event to SP. */
-    if(!write_chan_reserved)
+    /* Verify SQW state */
+    if(sqw_state == SQW_STATE_ABORTED)
     {
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_DMA_TIMEOUT_ERROR);
-    }
+        status = DMAW_ABORTED_IDLE_CHANNEL_SEARCH;
+        Log_Write(LOG_LEVEL_ERROR, "DMAW:ABORTED:Idle write channel search\r\n");
 
-    /* Reset the timeout flag */
-    atomic_store_local_8(&DMAW_Write_CB.chan_search_timeout_flag[sqw_idx], 0U);
+        /* Unreserve the channel */
+        if(write_chan_reserved)
+        {
+            atomic_store_local_32(&DMAW_Write_CB.chan_status_cb[*chan_id].status.channel_state,
+                DMA_CHAN_STATE_IDLE);
+        }
+    }
 
     return status;
 }
@@ -266,7 +271,6 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8
 *       xfer_count      Number of transfer nodes in command.
 *       sqw_idx         SQW ID
 *       cycles          Pointer to latency cycles struct
-*       sw_timer_idx    Index of SW Timer used for timeout
 *
 *   OUTPUTS
 *
@@ -274,17 +278,16 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8
 *
 ***********************************************************************/
 int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
-    const struct device_ops_dma_writelist_cmd_t *cmd,
-    uint8_t xfer_count, uint8_t sqw_idx, exec_cycles_t *cycles, uint8_t sw_timer_idx)
+    const struct device_ops_dma_writelist_cmd_t *cmd, uint8_t xfer_count,
+    uint8_t sqw_idx, const exec_cycles_t *cycles)
 {
-    int8_t status=DMA_OPERATION_SUCCESS;
+    int8_t status = DMA_OPERATION_SUCCESS;
     dma_channel_status_t chan_status;
 
     /* Set tag ID, set channel state to active, set SQW Index */
     chan_status.tag_id = cmd->command_info.cmd_hdr.tag_id;
     chan_status.sqw_idx = sqw_idx;
     chan_status.channel_state = DMA_CHAN_STATE_IN_USE;
-    chan_status.sw_timer_idx = sw_timer_idx;
 
     /* TODO: SW-9022: To be removed */
     uint16_t t_msg_id = cmd->command_info.cmd_hdr.msg_id;
@@ -379,27 +382,24 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
 *       xfer_count      Number of transfer nodes in command.
 *       sqw_idx         SQW ID
 *       cycles          Pointer to latency cycles struct
-*       sw_timer_idx    Index of SW Timer used for timeout
 *       flags           DMA flag to set a specific DMA action.
 *
 *   OUTPUTS
 *
-*       int8_t     status success or error
+*       int8_t          status success or error
 *
 ***********************************************************************/
 int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
-    const struct device_ops_dma_readlist_cmd_t *cmd,
-    uint8_t xfer_count, uint8_t sqw_idx, exec_cycles_t *cycles, uint8_t sw_timer_idx,
-    dma_flags_e flags)
+    const struct device_ops_dma_readlist_cmd_t *cmd, uint8_t xfer_count,
+    uint8_t sqw_idx, const exec_cycles_t *cycles, dma_flags_e flags)
 {
-    int8_t status=DMA_OPERATION_SUCCESS;
+    int8_t status = DMA_OPERATION_SUCCESS;
     dma_channel_status_t chan_status;
 
     /* Set tag ID, set channel state to active, set SQW Index */
     chan_status.tag_id = cmd->command_info.cmd_hdr.tag_id;
     chan_status.sqw_idx = sqw_idx;
     chan_status.channel_state = DMA_CHAN_STATE_IN_USE;
-    chan_status.sw_timer_idx = sw_timer_idx;
 
     /* TODO: SW-9022: To be removed */
     uint16_t t_msg_id = cmd->command_info.cmd_hdr.msg_id;
@@ -482,56 +482,6 @@ int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
 *
 *   FUNCTION
 *
-*       DMAW_Read_Ch_Search_Timeout_Callback
-*
-*   DESCRIPTION
-*
-*       Callback for read channel search timeout
-*
-*   INPUTS
-*
-*       sqw_idx    Submission queue index
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-void DMAW_Read_Ch_Search_Timeout_Callback(uint8_t sqw_idx)
-{
-    /* Set the read channel timeout flag */
-    atomic_store_local_8(&DMAW_Read_CB.chan_search_timeout_flag[sqw_idx], 1U);
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       DMAW_Write_Ch_Search_Timeout_Callback
-*
-*   DESCRIPTION
-*
-*       Callback for write channel search timeout
-*
-*   INPUTS
-*
-*       sqw_idx    Submission queue index
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-void DMAW_Write_Ch_Search_Timeout_Callback(uint8_t sqw_idx)
-{
-    /* Set the write channel timeout flag */
-    atomic_store_local_8(&DMAW_Write_CB.chan_search_timeout_flag[sqw_idx], 1U);
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
 *       process_dma_read_chan_in_use
 *
 *   DESCRIPTION
@@ -551,7 +501,7 @@ void DMAW_Write_Ch_Search_Timeout_Callback(uint8_t sqw_idx)
 *
 ***********************************************************************/
 static inline void process_dma_read_chan_in_use(dma_read_chan_id_e read_chan,
-struct device_ops_data_write_rsp_t *write_rsp)
+    struct device_ops_data_write_rsp_t *write_rsp)
 {
     dma_channel_status_t read_chan_status;
     exec_cycles_t dma_rd_cycles;
@@ -573,9 +523,6 @@ struct device_ops_data_write_rsp_t *write_rsp)
         /* Read the channel status from CB */
         read_chan_status.raw_u64 = atomic_load_local_64(
             &DMAW_Read_CB.chan_status_cb[read_chan].status.raw_u64);
-
-        /* Free the registered SW Timeout slot */
-        SW_Timer_Cancel_Timeout(read_chan_status.sw_timer_idx);
 
         if(dma_read_done)
         {
@@ -718,7 +665,7 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
     SQW_Decrement_Command_Count(read_chan_status.sqw_idx);
 
     /* Create and transmit DMA command response */
-    write_rsp->status = DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG;
+    write_rsp->status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
     write_rsp->response_info.rsp_hdr.size =
         sizeof(struct device_ops_data_write_rsp_t) - sizeof(struct cmn_header_t);
     write_rsp->response_info.rsp_hdr.tag_id = read_chan_status.tag_id;
@@ -791,9 +738,6 @@ static inline void process_dma_write_chan_in_use(dma_write_chan_id_e write_chan,
         /* Read the channel status from CB */
         write_chan_status.raw_u64 = atomic_load_local_64(
             &DMAW_Write_CB.chan_status_cb[write_chan].status.raw_u64);
-
-        /* Free the registered SW Timeout slot */
-        SW_Timer_Cancel_Timeout(write_chan_status.sw_timer_idx);
 
         if(dma_write_done)
         {
@@ -936,7 +880,7 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
     SQW_Decrement_Command_Count(write_chan_status.sqw_idx);
 
     /* Create and transmit DMA command response */
-    read_rsp->status = DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG;
+    read_rsp->status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
     read_rsp->response_info.rsp_hdr.size =
         sizeof(struct device_ops_data_read_rsp_t) - sizeof(struct cmn_header_t);
     read_rsp->response_info.rsp_hdr.tag_id = write_chan_status.tag_id;
@@ -1134,58 +1078,103 @@ void DMAW_Launch(uint32_t hart_id)
 *
 *   FUNCTION
 *
-*       DMAW_Read_Set_Abort_Status
+*       DMAW_Abort_All_Dispatched_Read_Channels
 *
 *   DESCRIPTION
 *
-*       Sets the status of DMA read channel to abort it
+*       Blocking function call that sets the status of each DMA read
+*       channel to abort and waits until the channel is idle
 *
 *   INPUTS
 *
-*       uint8_t   DMA read channel index
+*       sqw_idx     Submission Queue Worker index
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void DMAW_Read_Set_Abort_Status(uint8_t read_chan)
+void DMAW_Abort_All_Dispatched_Read_Channels(uint8_t sqw_idx)
 {
-    /* Free the registered SW Timeout slot */
-    SW_Timer_Cancel_Timeout(atomic_load_local_8(
-        &DMAW_Read_CB.chan_status_cb[read_chan].status.sw_timer_idx));
+    /* Traverse all read channels and abort them */
+    for(uint8_t read_chan = 0; read_chan < PCIE_DMA_RD_CHANNEL_COUNT; read_chan++)
+    {
+        /* Spin-wait if DMA channel state is reserved.
+        Reserved channel needs to transition to Idle or in use before we can abort it */
+        do
+        {
+            asm volatile("fence\n" ::: "memory");
+        } while (
+            atomic_load_local_32(&DMAW_Read_CB.chan_status_cb[read_chan].status.channel_state)
+            == DMA_CHAN_STATE_RESERVED);
 
-    atomic_store_local_32
-        (&DMAW_Read_CB.chan_status_cb[read_chan].status.channel_state,
-        DMA_CHAN_STATE_ABORTING);
+        /* Check if this channel is dispatched by the given sqw_idx and
+        DMA channel is in use, then abort it */
+        if((atomic_load_local_8(&DMAW_Read_CB.chan_status_cb[read_chan].status.sqw_idx) == sqw_idx) &&
+            atomic_compare_and_exchange_local_32(
+            &DMAW_Read_CB.chan_status_cb[read_chan].status.channel_state, DMA_CHAN_STATE_IN_USE,
+            DMA_CHAN_STATE_ABORTING) == DMA_CHAN_STATE_IN_USE)
+        {
+            /* Spin-wait until the DMA state is idle */
+            do
+            {
+                asm volatile("fence\n" ::: "memory");
+            } while (
+                atomic_load_local_32(&DMAW_Read_CB.chan_status_cb[read_chan].status.channel_state)
+                != DMA_CHAN_STATE_IDLE);
+        }
+    }
 }
 
 /************************************************************************
 *
 *   FUNCTION
 *
-*       DMAW_Write_Set_Abort_Status
+*       DMAW_Abort_All_Dispatched_Write_Channels
 *
 *   DESCRIPTION
 *
-*       Sets the status of DMA write channel to abort it
+*       Blocking function call that sets the status of each DMA write
+*       channel to abort which was dispatched by the given SQW and waits
+*       until the channel is idle.
 *
 *   INPUTS
 *
-*       uint8_t   DMA write channel index
+*       sqw_idx     Submission Queue Worker index
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void DMAW_Write_Set_Abort_Status(uint8_t write_chan)
+void DMAW_Abort_All_Dispatched_Write_Channels(uint8_t sqw_idx)
 {
-    /* Free the registered SW Timeout slot */
-    SW_Timer_Cancel_Timeout(atomic_load_local_8(
-        &DMAW_Write_CB.chan_status_cb[write_chan].status.sw_timer_idx));
+    /* Traverse all write channels and abort them */
+    for(uint8_t write_chan = 0; write_chan < PCIE_DMA_WRT_CHANNEL_COUNT; write_chan++)
+    {
+        /* Spin-wait if DMA channel state is reserved.
+        Reserved channel needs to transition to Idle or in use before we can abort it */
+        do
+        {
+            asm volatile("fence\n" ::: "memory");
+        } while (
+            atomic_load_local_32(&DMAW_Write_CB.chan_status_cb[write_chan].status.channel_state)
+            == DMA_CHAN_STATE_RESERVED);
 
-    atomic_store_local_32
-        (&DMAW_Write_CB.chan_status_cb[write_chan].status.channel_state,
-        DMA_CHAN_STATE_ABORTING);
+        /* Check if this channel is dispatched by the given sqw_idx and
+        DMA channel is in use, then abort it */
+        if((atomic_load_local_8(&DMAW_Write_CB.chan_status_cb[write_chan].status.sqw_idx) == sqw_idx) &&
+            (atomic_compare_and_exchange_local_32(
+            &DMAW_Write_CB.chan_status_cb[write_chan].status.channel_state, DMA_CHAN_STATE_IN_USE,
+            DMA_CHAN_STATE_ABORTING) == DMA_CHAN_STATE_IN_USE))
+        {
+            /* Spin-wait until the DMA state is idle */
+            do
+            {
+                asm volatile("fence\n" ::: "memory");
+            } while (
+                atomic_load_local_32(&DMAW_Write_CB.chan_status_cb[write_chan].status.channel_state)
+                != DMA_CHAN_STATE_IDLE);
+        }
+    }
 }
