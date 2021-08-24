@@ -859,14 +859,14 @@
     "tf_mm_device_api_cmd_ids": {
         "TF_CMD_MM_FW_VERSION": 515,
         "TF_CMD_MM_ECHO": 517,
-        "TF_CMD_MM_KERNEL_LAUNCH": 519
+        "TF_CMD_MM_KERNEL_LAUNCH": 521
     },
     "tf_mm_device_api_rsp_ids.description": "TF can tunnel device-api ops responses from MM, so these ids should be aligned with device-api response ids",
     "tf_mm_device_api_rsp_ids.instruction": "To add a new mm device-api command, a new entry should be added to tf_mm_device_api_cmd_id",
     "tf_mm_device_api_rsp_ids": {
         "TF_RSP_MM_FW_VERSION": 516,
         "TF_RSP_MM_ECHO": 518,
-        "TF_RSP_MM_KERNEL_LAUNCH": 520
+        "TF_RSP_MM_KERNEL_LAUNCH": 522
     },
     "tf_mm_device_api_cmd_hdr": {
         "size": "uint16_t",
