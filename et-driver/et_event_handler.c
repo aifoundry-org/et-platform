@@ -405,30 +405,21 @@ parse_runtime_error_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		event_msg->event_syndrome[1]);
 }
 
-int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
+int et_handle_device_event(struct et_cqueue *cq,
+			   struct device_mgmt_event_msg_t *event_msg)
 {
 	char syndrome_str[ET_EVENT_SYNDROME_LEN];
 	struct pci_dev *pdev;
 	struct event_dbg_msg dbg_msg;
-	struct device_mgmt_event_msg_t event_msg;
 	int rv;
 
-	if (!cq || !hdr)
+	if (!cq || !event_msg)
 		return -EINVAL;
 
-	memcpy((u8 *)&event_msg.event_info, (u8 *)hdr, sizeof(*hdr));
-
-	if (!et_circbuffer_pop(&cq->cb,
-			       cq->cb_mem,
-			       (u8 *)&event_msg + sizeof(*hdr),
-			       hdr->size - sizeof(*hdr),
-			       ET_CB_SYNC_FOR_DEVICE))
-		return -EAGAIN;
-
-	rv = hdr->size;
+	rv = event_msg->event_info.size;
 	pdev = cq->vq_common->pdev;
 
-	switch (event_msg.class_count & EVENT_CLASS_MASK) {
+	switch (event_msg->class_count & EVENT_CLASS_MASK) {
 	case ECLASS_INFO:
 		dbg_msg.level = LEVEL_INFO;
 		break;
@@ -447,70 +438,70 @@ int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr)
 		break;
 	}
 
-	dbg_msg.count = (event_msg.class_count >> 2) & EVENT_COUNT_MASK;
+	dbg_msg.count = (event_msg->class_count >> 2) & EVENT_COUNT_MASK;
 
 	syndrome_str[0] = '\0';
 	dbg_msg.syndrome = syndrome_str;
 
-	switch (event_msg.event_info.msg_id) {
+	switch (event_msg->event_info.msg_id) {
 	case DEV_MGMT_API_MID_PCIE_CE_EVENT:
 		dbg_msg.desc = "PCIe Correctable Error";
-		parse_pcie_syndrome(&event_msg, &dbg_msg);
+		parse_pcie_syndrome(event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_PCIE_UCE_EVENT:
 		dbg_msg.desc = "PCIe Un-Correctable Error";
-		parse_pcie_syndrome(&event_msg, &dbg_msg);
+		parse_pcie_syndrome(event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_DRAM_CE_EVENT:
 		dbg_msg.desc = "DRAM Correctable Error";
-		parse_dram_syndrome(&event_msg, &dbg_msg);
+		parse_dram_syndrome(event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_DRAM_UCE_EVENT:
 		dbg_msg.desc = "DRAM Un-Correctable Error";
-		parse_dram_syndrome(&event_msg, &dbg_msg);
+		parse_dram_syndrome(event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_SRAM_CE_EVENT:
 		dbg_msg.desc = "SRAM Correctable Error";
-		parse_sram_syndrome(&event_msg, &dbg_msg);
+		parse_sram_syndrome(event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_SRAM_UCE_EVENT:
 		dbg_msg.desc = "SRAM Un-Correctable Error";
-		parse_sram_syndrome(&event_msg, &dbg_msg);
+		parse_sram_syndrome(event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_THERMAL_LOW_EVENT:
 		dbg_msg.desc = "Temperature Overshoot Warning";
-		parse_thermal_syndrome(&event_msg, &dbg_msg);
+		parse_thermal_syndrome(event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_PMIC_ERROR_EVENT:
 		dbg_msg.desc = "Power Management IC Errors";
-		parse_pmic_syndrome(&event_msg, &dbg_msg);
+		parse_pmic_syndrome(event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_CM_ETH_EVENT:
 		dbg_msg.desc = "Compute Minion Exception";
-		parse_cm_err_syndrome(&event_msg, &dbg_msg);
+		parse_cm_err_syndrome(event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_CM_HTH_EVENT:
 		dbg_msg.desc = "Compute Minion Hang";
-		parse_cm_err_syndrome(&event_msg, &dbg_msg);
+		parse_cm_err_syndrome(event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_THROTTLE_TIME_EVENT:
 		dbg_msg.desc = "Thermal Throttling Error";
-		parse_throttling_syndrome(&event_msg, &dbg_msg);
+		parse_throttling_syndrome(event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_SP_RUNTIME_EXCEPTION_EVENT:
 	case DEV_MGMT_API_MID_SP_RUNTIME_HANG_EVENT:
 		dbg_msg.desc = "SP Runtime Exception";
-		parse_sp_runtime_syndrome(&event_msg, &dbg_msg, cq);
+		parse_sp_runtime_syndrome(event_msg, &dbg_msg, cq);
 		break;
 	case DEV_MGMT_API_MID_SP_RUNTIME_ERROR_EVENT:
 		dbg_msg.desc = "SP Runtime Error";
-		parse_runtime_error_syndrome(&event_msg, &dbg_msg);
+		parse_runtime_error_syndrome(event_msg, &dbg_msg);
 		break;
 	default:
 		dbg_msg.desc = "Un-Supported Event MSG ID";
 		dev_err(&pdev->dev,
 			"Event MSG ID [%d] is invalid\n",
-			event_msg.event_info.msg_id);
+			event_msg->event_info.msg_id);
 		rv = -EINVAL;
 		break;
 	}

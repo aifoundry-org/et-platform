@@ -1969,10 +1969,9 @@ update_sq_bitmap:
 
 	if (et_circbuffer_free(&sq->cb) < atomic_read(&sq->sq_threshold)) {
 		clear_bit(sq->index, sq->vq_common->sq_bitmap);
-		mutex_unlock(&sq->vq_common->sq_bitmap_mutex);
-
 		wake_up_interruptible(&sq->vq_common->waitqueue);
 	}
+
 	mutex_unlock(&sq->vq_common->sq_bitmap_mutex);
 
 	return rv;
@@ -2177,10 +2176,9 @@ update_cq_bitmap:
 
 	if (!et_cqueue_msg_available(cq)) {
 		clear_bit(cq->index, cq->vq_common->cq_bitmap);
-		mutex_unlock(&cq->vq_common->cq_bitmap_mutex);
-
 		wake_up_interruptible(&cq->vq_common->waitqueue);
 	}
+
 	mutex_unlock(&cq->vq_common->cq_bitmap_mutex);
 
 	return rv;
@@ -2190,6 +2188,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 {
 	struct cmn_header_t header;
 	struct et_msg_node *msg_node;
+	struct device_mgmt_event_msg_t mgmt_event;
 	ssize_t rv;
 
 	mutex_lock(&cq->pop_mutex);
@@ -2210,10 +2209,25 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	if (!header.size)
 		panic("CQ corrupt: invalid size");
 
+	// Check if this is a mgmt event, handle accordingly
 	if (header.msg_id >= DEV_MGMT_API_MID_EVENTS_BEGIN &&
 	    header.msg_id <= DEV_MGMT_API_MID_EVENTS_END) {
-		rv = et_handle_device_event(cq, &header);
+		memcpy((u8 *)&mgmt_event.event_info,
+		       (u8 *)&header,
+		       sizeof(header));
+
+		if (!et_circbuffer_pop(&cq->cb,
+				       cq->cb_mem,
+				       (u8 *)(&mgmt_event + sizeof(header)),
+				       header.size - sizeof(header),
+				       ET_CB_SYNC_FOR_DEVICE)) {
+			rv = -EAGAIN;
+			goto error_unlock_mutex;
+		}
 		mutex_unlock(&cq->pop_mutex);
+
+		rv = et_handle_device_event(cq, &mgmt_event);
+
 		return rv;
 	}
 

@@ -195,7 +195,8 @@ static inline void et_print_event(struct pci_dev *pdev,
 		 dbg_msg->syndrome);
 }
 
-int et_handle_device_event(struct et_cqueue *cq, struct cmn_header_t *hdr);
+int et_handle_device_event(struct et_cqueue *cq,
+			   struct device_mgmt_event_msg_t *event_msg);
 
 // clang-format on
 
