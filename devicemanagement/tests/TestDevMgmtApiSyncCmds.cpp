@@ -563,40 +563,15 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryType_1_10(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::setAndGetModulePowerState_1_11(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModulePowerState_1_11(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
-    const char input_buff[input_size] = {device_mgmt_api::POWER_STATE_MANAGED_POWER};
-
-    const uint32_t set_output_size = sizeof(uint8_t);
-    char set_output_buff[set_output_size] = {0};
-
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, input_buff,
-                                input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
-              device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-
-    // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
-      EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
-    }
 
     const uint32_t get_output_size = sizeof(device_mgmt_api::power_state_e);
     char get_output_buff[get_output_size] = {0};
@@ -609,10 +584,45 @@ void TestDevMgmtApiSyncCmds::setAndGetModulePowerState_1_11(bool singleDevice) {
       extractAndPrintTraceData(deviceIdx);
       return;
     }
+
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       uint8_t powerstate = get_output_buff[0];
-      EXPECT_EQ(powerstate, device_mgmt_api::POWER_STATE_MANAGED_POWER);
+      // Note: Module's Power State could vary. So there cannot be expected value for Power State in the test
+      printf("Module's Power State: %d\n", powerstate);
+    }
+  }
+}
+
+void TestDevMgmtApiSyncCmds::setModuleActivePowerManagement_1_62(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = sizeof(device_mgmt_api::active_power_management_e);
+    const char input_buff[input_size] = {device_mgmt_api::ACTIVE_POWER_MANAGEMENT_TURN_ON};
+
+    const uint32_t set_output_size = sizeof(uint8_t);
+    char set_output_buff[set_output_size] = {0};
+
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, input_buff,
+                                input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+
+    // Skip validation if loopback driver
+    if (!FLAGS_loopback_driver) {
+      EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
       if (HasFailure()) {
         extractAndPrintTraceData(deviceIdx);
         return;
@@ -1864,7 +1874,7 @@ void TestDevMgmtApiSyncCmds::isUnsupportedService_1_45(bool singleDevice) {
               -EINVAL);
 
     // Invalid input_buffer
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, nullptr, 0,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
@@ -2033,15 +2043,15 @@ void TestDevMgmtApiSyncCmds::getTraceBuffer_1_49(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::setModulePowerStateRange_1_50(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRange_1_50(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
-    const char input_buff[input_size] = {9}; // Invalid power state
+    const uint32_t input_size = sizeof(device_mgmt_api::active_power_management_e);
+    const char input_buff[input_size] = {9}; // Invalid active power management
 
     const uint32_t set_output_size = sizeof(uint8_t);
     char set_output_buff[set_output_size] = {0};
@@ -2049,7 +2059,7 @@ void TestDevMgmtApiSyncCmds::setModulePowerStateRange_1_50(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, input_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, input_buff,
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
@@ -2174,15 +2184,15 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidthRange_1_54(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::setModulePowerStateRangeInvalidInputSize_1_55(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputSize_1_55(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
-    const char input_buff[input_size] = {device_mgmt_api::POWER_STATE_MANAGED_POWER};
+    const uint32_t input_size = sizeof(device_mgmt_api::active_power_management_e);
+    const char input_buff[input_size] = {device_mgmt_api::ACTIVE_POWER_MANAGEMENT_TURN_ON};
 
     const uint32_t set_output_size = sizeof(uint8_t);
     char set_output_buff[set_output_size] = {0};
@@ -2190,7 +2200,7 @@ void TestDevMgmtApiSyncCmds::setModulePowerStateRangeInvalidInputSize_1_55(bool 
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE, input_buff,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, input_buff,
                                 0 /* Invalid size*/, set_output_buff, set_output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
@@ -2329,21 +2339,21 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputBuffer_1_60(bo
   }
 }
 
-void TestDevMgmtApiSyncCmds::setModulePowerStateRangeInvalidInputBuffer_1_61(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputBuffer_1_61(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
+    const uint32_t input_size = sizeof(device_mgmt_api::active_power_management_e);
     const uint32_t set_output_size = sizeof(uint8_t);
     char set_output_buff[set_output_size] = {0};
 
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE,
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
                                 nullptr /*Nullptr instead of input buffer*/, input_size, set_output_buff,
                                 set_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);

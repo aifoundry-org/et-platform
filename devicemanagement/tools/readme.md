@@ -2,7 +2,7 @@
 
 ## Sysemu
 
-### Usage: dm-tester -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nlotemp,nhitemp]
+### Usage: dm-tester -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nlotemp,nhitemp]
 
         -o, --code=ncode
                 Command by ID (see below)
@@ -31,7 +31,7 @@
                         28: DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES
                         25: DM_CMD_SET_MODULE_STATIC_TDP_LEVEL
                         24: DM_CMD_GET_MODULE_STATIC_TDP_LEVEL
-                        23: DM_CMD_SET_MODULE_POWER_STATE
+                        23: DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT
                         21: DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS
                         20: DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS
                         19: DM_CMD_SET_FIRMWARE_VALID
@@ -96,16 +96,14 @@
                 Ex. dm-tester -o 38 -c 0
                 Ex. dm-tester -m DM_CMD_SET_SRAM_ECC_COUNT -c 0
 
-        -p, --powerstate=npower
-                Set power state:
+        -p, --active_pwr_mgmt=active_pwr_m
+                Set active power management:
 
-                        3: POWER_STATE_INVALID
-                        2: POWER_STATE_LOWEST
-                        1: POWER_STATE_REDUCED
-                        0: POWER_STATE_FULL
+                        1: ACTIVE_POWER_MANAGEMENT_TURN_ON
+                        0: ACTIVE_POWER_MANAGEMENT_TURN_OFF
 
                 Ex. dm-tester -o 23 -p 0
-                Ex. dm-tester -m DM_CMD_SET_MODULE_POWER_STATE -p 0
+                Ex. dm-tester -m DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT -p 0
 
         -r, --pciereset=nreset
                 Set reset type:
@@ -155,4 +153,4 @@
 
 ## Zebu
 
-### Usage: dm-tester -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nlotemp,nhitemp]
+### Usage: dm-tester -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nlotemp,nhitemp]

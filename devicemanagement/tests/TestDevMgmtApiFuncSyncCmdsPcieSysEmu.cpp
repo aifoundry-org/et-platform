@@ -65,8 +65,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleMemoryType_1_10) {
 }
 
 // Thermal and Power
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setAndGetModulePowerState_1_11) {
-  setAndGetModulePowerState_1_11(false /* single device */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModulePowerState_1_11) {
+  getModulePowerState_1_11(false /* single device */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setAndGetModuleStaticTDPLevel_1_12) {
@@ -196,8 +196,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getTraceBuffer_1_49) {
                          device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModulePowerStateRange_1_50) {
-  setModulePowerStateRange_1_50(false /* Multiple Devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModuleActivePowerManagementRange_1_50) {
+  setModuleActivePowerManagementRange_1_50(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModuleSetTemperatureThresholdRange_1_51) {
@@ -208,8 +208,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModuleStaticTDPLevelRange_1_52) 
   setModuleStaticTDPLevelRange_1_52(false /* Multiple Devices */);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModulePowerStateRangeInvalidInputSize_1_55) {
-  setModulePowerStateRangeInvalidInputSize_1_55(false /* Multiple Devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModuleActivePowerManagementRangeInvalidInputSize_1_55) {
+  setModuleActivePowerManagementRangeInvalidInputSize_1_55(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleManufactureNameInvalidOutputSize_1_56) {
@@ -232,8 +232,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleManufactureNameInvalidOutp
   getModuleManufactureNameInvalidOutputBuffer_1_60(false /* Multiple Devices */);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModulePowerStateRangeInvalidInputBuffer_1_61) {
-  setModulePowerStateRangeInvalidInputBuffer_1_61(false /* Multiple Devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModuleActivePowerManagementRangeInvalidInputBuffer_1_61) {
+  setModuleActivePowerManagementRangeInvalidInputBuffer_1_61(false /* Multiple Devices */);
 }
 
 // retrieve MM FW error counts. This test should be run last so that we are

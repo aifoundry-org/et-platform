@@ -193,8 +193,8 @@ bool DeviceManagement::isValidTdpLevel(const char* input_buff) {
   return false;
 }
 
-bool DeviceManagement::isValidPowerState(const char* input_buff) {
-  for (auto it = powerStateTable.begin(); it != powerStateTable.end(); ++it) {
+bool DeviceManagement::isValidActivePowerManagement(const char* input_buff) {
+  for (auto it = activePowerManagementTable.begin(); it != activePowerManagementTable.end(); ++it) {
     if (it->second == *input_buff) {
       return true;
     }
@@ -231,8 +231,8 @@ bool DeviceManagement::isValidPcieLaneWidth(const char* input_buff) {
 bool DeviceManagement::isInputBufferValid(uint32_t cmd_code, const char* input_buff) {
   bool ret;
   switch (cmd_code) {
-    case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE:
-      ret = isValidPowerState(input_buff);
+    case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT:
+      ret = isValidActivePowerManagement(input_buff);
       break;
     case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS:
       ret = isValidTemperature(input_buff);
