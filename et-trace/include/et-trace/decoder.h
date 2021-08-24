@@ -45,6 +45,10 @@
 #ifndef ET_TRACE_DECODER_H
 #define ET_TRACE_DECODER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct trace_buffer_std_header_t;
 
 /***********************************************************************
@@ -149,5 +153,9 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
 }
 
 #endif /* ET_TRACE_DECODER_IMPL */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ET_TRACE_DECODER_H */
