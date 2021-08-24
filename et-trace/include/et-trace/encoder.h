@@ -519,7 +519,8 @@ void Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_
 void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *cb, const char *str)
 {
     if (trace_is_str_enabled(cb, log_level)) {
-        struct trace_string_t *entry = Trace_Buffer_Reserve(cb, sizeof(*entry));
+        struct trace_string_t *entry =
+            (struct trace_string_t *)Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_STRING)
 
@@ -556,7 +557,8 @@ void Trace_Format_String(trace_string_event_e log_level, struct trace_control_bl
 {
     if (trace_is_str_enabled(cb, log_level)) {
         va_list args;
-        struct trace_string_t *entry = Trace_Buffer_Reserve(cb, sizeof(*entry));
+        struct trace_string_t *entry =
+            (struct trace_string_t *)Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_STRING)
 
@@ -589,7 +591,8 @@ void Trace_Format_String(trace_string_event_e log_level, struct trace_control_bl
 void Trace_Cmd_Status(struct trace_control_block_t *cb,
                       const struct trace_event_cmd_status_t *cmd_data)
 {
-    struct trace_cmd_status_t *entry = Trace_Buffer_Reserve(cb, sizeof(*entry));
+    struct trace_cmd_status_t *entry =
+        (struct trace_cmd_status_t *)Trace_Buffer_Reserve(cb, sizeof(*entry));
 
     ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_CMD_STATUS)
     ET_TRACE_WRITE_U64(entry->cmd.raw_cmd, cmd_data->raw_cmd);
@@ -619,7 +622,8 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
 void Trace_Power_Status(struct trace_control_block_t *cb,
                         const struct trace_event_power_status_t *pwr_data)
 {
-    struct trace_power_status_t *entry = Trace_Buffer_Reserve(cb, sizeof(*entry));
+    struct trace_power_status_t *entry =
+        (struct trace_power_status_t *)Trace_Buffer_Reserve(cb, sizeof(*entry));
 
     ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_POWER_STATUS)
     ET_TRACE_WRITE_U64(entry->power.raw_cmd, pwr_data->raw_cmd);
@@ -677,7 +681,8 @@ void Trace_PMC_All_Counters(struct trace_control_block_t *cb)
 void Trace_PMC_Counter(struct trace_control_block_t *cb, pmc_counter_e counter)
 {
     if (trace_is_enabled(cb)) {
-        struct trace_pmc_counter_t *entry = Trace_Buffer_Reserve(cb, sizeof(*entry));
+        struct trace_pmc_counter_t *entry =
+            (struct trace_pmc_counter_t *)Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_PMC_COUNTER)
 
@@ -709,7 +714,8 @@ void Trace_PMC_Counter(struct trace_control_block_t *cb, pmc_counter_e counter)
 void Trace_Value_u64(struct trace_control_block_t *cb, uint32_t tag, uint64_t value)
 {
     if (trace_is_enabled(cb)) {
-        struct trace_value_u64_t *entry = Trace_Buffer_Reserve(cb, sizeof(*entry));
+        struct trace_value_u64_t *entry =
+            (struct trace_value_u64_t *)Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U64)
 
@@ -742,7 +748,8 @@ void Trace_Value_u64(struct trace_control_block_t *cb, uint32_t tag, uint64_t va
 void Trace_Value_u32(struct trace_control_block_t *cb, uint32_t tag, uint32_t value)
 {
     if (trace_is_enabled(cb)) {
-        struct trace_value_u32_t *entry = Trace_Buffer_Reserve(cb, sizeof(*entry));
+        struct trace_value_u32_t *entry =
+            (struct trace_value_u32_t *)Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U32)
 
@@ -775,7 +782,8 @@ void Trace_Value_u32(struct trace_control_block_t *cb, uint32_t tag, uint32_t va
 void Trace_Value_u16(struct trace_control_block_t *cb, uint32_t tag, uint16_t value)
 {
     if (trace_is_enabled(cb)) {
-        struct trace_value_u16_t *entry = Trace_Buffer_Reserve(cb, sizeof(*entry));
+        struct trace_value_u16_t *entry =
+            (struct trace_value_u16_t *)Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U16)
 
@@ -808,7 +816,8 @@ void Trace_Value_u16(struct trace_control_block_t *cb, uint32_t tag, uint16_t va
 void Trace_Value_u8(struct trace_control_block_t *cb, uint32_t tag, uint8_t value)
 {
     if (trace_is_enabled(cb)) {
-        struct trace_value_u8_t *entry = Trace_Buffer_Reserve(cb, sizeof(*entry));
+        struct trace_value_u8_t *entry =
+            (struct trace_value_u8_t *)Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_U8)
 
@@ -841,7 +850,8 @@ void Trace_Value_u8(struct trace_control_block_t *cb, uint32_t tag, uint8_t valu
 void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float value)
 {
     if (trace_is_enabled(cb)) {
-        struct trace_value_float_t *entry = Trace_Buffer_Reserve(cb, sizeof(*entry));
+        struct trace_value_float_t *entry =
+            (struct trace_value_float_t *)Trace_Buffer_Reserve(cb, sizeof(*entry));
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_VALUE_FLOAT)
 
@@ -874,8 +884,8 @@ void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float val
 void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint16_t num_cache_line)
 {
     if (trace_is_enabled(cb)) {
-        struct trace_memory_t *entry =
-            Trace_Buffer_Reserve(cb, sizeof(*entry) + (uint32_t)(num_cache_line * 8));
+        struct trace_memory_t *entry = (struct trace_memory_t *)Trace_Buffer_Reserve(
+            cb, sizeof(*entry) + (uint32_t)(num_cache_line * 8));
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_MEMORY)
 
