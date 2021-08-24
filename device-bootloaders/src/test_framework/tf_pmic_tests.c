@@ -33,7 +33,7 @@ int8_t PMIC_Module_Power_Cmd_Handler(void* test_cmd)
     rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
     rsp.rsp_hdr.payload_size = TF_GET_PAYLOAD_SIZE(rsp);
 
-    pmic_read_soc_power(&rsp.mod_power);
+    pmic_read_instantenous_soc_power(&rsp.mod_power);
 
     TF_Send_Response(&rsp, sizeof(rsp));
 

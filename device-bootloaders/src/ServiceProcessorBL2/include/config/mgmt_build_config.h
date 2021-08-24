@@ -281,27 +281,45 @@
 /*! \def TEMP_THRESHOLD_HI
     \brief A macro that provides pmic temperature threshold value
 */
-#define TEMP_THRESHOLD_HI         80
+#define TEMP_THRESHOLD_HW_CATASTROPHIC    80
 
 /*! \def TEMP_THRESHOLD_LO
     \brief A macro that provides early indication temperature threshold value
 */
-#define TEMP_THRESHOLD_LO         70
+#define TEMP_THRESHOLD_SW_MANAGED         70
 
-/*! \def POWER_THRESHOLD_HI
-    \brief A macro that provides power threshold value
+/*! \def POWER_THRESHOLD_HW_CATASTROPHIC
+    \brief A macro that provides power threshold value.
+*          This power threshold will be written to PMIC and PMIC will be expected
+*          to raise the interrupt if power goes beyond this threshold.
+*          Following M.2 spec.
 */
-#define POWER_THRESHOLD_HI        40
+#define POWER_THRESHOLD_HW_CATASTROPHIC   40
 
-/*! \def POWER_THRESHOLD_LO
-    \brief A macro that provides early indication power threshold value
+/*! \def POWER_THRESHOLD_SW_MANAGED
+    \brief A macro that provides early indication power threshold value.
+*          This power threshold will be set as initial value for SW power managing.
+*          Following M.2 spec.
 */
-#define POWER_THRESHOLD_LO        25
+#define POWER_THRESHOLD_SW_MANAGED        25
+
+/*! \def SAFE_POWER_THRESHOLD
+    \brief A macro that provides safe power threshold value.
+*          When catastrophic overpower or overtemperature occures ETSOC will go bellow
+*          this power threshold.
+*          Following M.2 spec.
+*/
+#define SAFE_POWER_THRESHOLD              12
 
 /*! \def SAFE_STATE_FREQUENCY
     \brief A macro that provides safe state frequency
 */
 #define SAFE_STATE_FREQUENCY      400
+
+/*! \def POWER_SCALE_FACTOR
+    \brief A macro that provides power scale factor in percentages.
+*/
+#define POWER_SCALE_FACTOR        10
 
 /*! \def DELTA_TEMP_UPDATE_PERIOD
     \brief A macro that provides dTj/dt - time(uS) for Junction temperature to be updated
@@ -309,6 +327,10 @@
 */
 #define DELTA_TEMP_UPDATE_PERIOD  1000
 
+/*! \def DELTA_POWER_UPDATE_PERIOD
+    \brief A macro that provides power update period
+*/
+#define DELTA_POWER_UPDATE_PERIOD  100
 
 /*! \def RT_ERROR_THRESHOLD
     \brief Predefined runtime error threshold.

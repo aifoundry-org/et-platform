@@ -76,7 +76,6 @@ struct soc_power_reg_t
     uint8_t module_tdp_level;
     uint8_t soc_temperature;
     uint8_t soc_power;
-    uint8_t power_scale_factor;
     uint8_t max_temp;
     struct temperature_threshold_t temperature_threshold;
     struct module_uptime_t module_uptime;
@@ -87,6 +86,7 @@ struct soc_power_reg_t
     struct residency_t power_low_residency;
     dm_event_isr_callback event_cb;
     power_throttle_state_e power_throttle_state;
+    uint8_t active_power_management;
 };
 
 volatile struct soc_power_reg_t *get_soc_power_reg(void)
@@ -173,11 +173,22 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
     Log_Write(LOG_LEVEL_CRITICAL, "\t minimum = %lu\n",       \
               soc_power_reg->RESIDENCY_TYPE.minimum);
 
-/*! \def TDP_LEVEL_SAFE_GUARD
-    \brief TDP level safe guard, (power_scale_factor)% above TDP level
+/*! \def MAX_POWER_THRESHOLD_GUARDBAND(tdp)
+    \brief TDP guard band, (power_scale_factor)% above TDP level,
+*          It is the margin above TDP level to allow Power management to
+*          move up and down.
 */
-#define TDP_LEVEL_SAFE_GUARD \
-    ((tdp_level_mW * (100 + (get_soc_power_reg()->power_scale_factor))) / 100)
+#define MAX_POWER_THRESHOLD_GUARDBAND(tdp) \
+    ((tdp * (100 + POWER_SCALE_FACTOR)) / 100)
+
+/*! \def GET_POWER_STATE(power_mW)
+    \brief Depending on given power returns current power state.
+*/
+#define GET_POWER_STATE(power_mW, tdp)                     \
+    (power_mW > MAX_POWER_THRESHOLD_GUARDBAND(tdp)) ?      \
+    POWER_STATE_MAX_POWER :                                \
+    (power_mW > SAFE_POWER_THRESHOLD) ?                    \
+    POWER_STATE_MANAGED_POWER : POWER_STATE_SAFE_POWER
 
 /************************************************************************
 *
@@ -211,6 +222,32 @@ int update_module_power_state(power_state_e state)
 
     get_soc_power_reg()->module_power_state = state;
     power_state_change_time = timer_get_ticks_count();
+
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       set_module_active_power_management
+*
+*   DESCRIPTION
+*
+*       This function sets Active Power Management of the module.
+*
+*   INPUTS
+*
+*       active_power_management_e
+*
+*   OUTPUTS
+*
+*       int                 Return status
+*
+***********************************************************************/
+int set_module_active_power_management(active_power_management_e state)
+{
+    get_soc_power_reg()->active_power_management = state;
 
     return 0;
 }
@@ -261,7 +298,7 @@ int get_module_power_state(power_state_e *power_state)
 ***********************************************************************/
 int update_module_tdp_level(uint8_t tdp)
 {
-    if (tdp > POWER_THRESHOLD_HI)
+    if (tdp > POWER_THRESHOLD_HW_CATASTROPHIC)
     {
         Log_Write(LOG_LEVEL_ERROR, "SW TDP can not be over HW power threshold!\n");
         return THERMAL_PWR_MGMT_INVALID_TDP_LEVEL;
@@ -399,8 +436,9 @@ int update_module_current_temperature(void)
     if ((get_soc_power_reg()->soc_temperature) > (temperature_threshold.sw_temperature_c))
     {
         /* Switch power throttle state only if we are currently in lower priority throttle
-        state */
-        if (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_THERMAL_DOWN)
+        state and Active Power Management is enabled*/
+        if ((get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_THERMAL_DOWN) &&
+            (get_soc_power_reg()->active_power_management))
         {
             /* Do the thermal throttling */
             get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_DOWN;
@@ -489,7 +527,7 @@ int update_module_soc_power(void)
     int32_t soc_pwr_mW;
     int32_t tdp_level_mW;
 
-    if (0 != pmic_read_soc_power(&soc_pwr))
+    if (0 != pmic_read_average_soc_power(&soc_pwr))
     {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get soc power\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
@@ -500,34 +538,26 @@ int update_module_soc_power(void)
     }
 
     soc_pwr_mW = Power_Convert_Hex_to_mW(soc_pwr);
-    tdp_level_mW = Power_Convert_Hex_to_mW(get_soc_power_reg()->module_tdp_level);
+    /* module_tdp_level is in Watts, converting to miliWatts */
+    tdp_level_mW = get_soc_power_reg()->module_tdp_level * 1000;
 
-    if ((soc_pwr_mW > TDP_LEVEL_SAFE_GUARD) &&
-        (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_POWER_DOWN))
+    /* Update the power state */
+    update_module_power_state(GET_POWER_STATE(soc_pwr_mW, tdp_level_mW));
+   
+    if ((soc_pwr_mW > MAX_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
+        (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_POWER_DOWN) &&
+        (get_soc_power_reg()->active_power_management))
     {
-        /* Update the power state */
-        if (get_soc_power_reg()->module_power_state != POWER_STATE_MAX_POWER &&
-            get_soc_power_reg()->module_power_state != POWER_STATE_SAFE_POWER)
-        {
-            update_module_power_state(POWER_STATE_MAX_POWER);
-        }
-
         /* Do the power throttling down */
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_DOWN;
         xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
     }
-    else
-    {
-        /* Update the power state */
-        if (get_soc_power_reg()->module_power_state != POWER_STATE_MANAGED_POWER &&
-            get_soc_power_reg()->module_power_state != POWER_STATE_SAFE_POWER)
-        {
-            update_module_power_state(POWER_STATE_MANAGED_POWER);
-        }
-    }
 
+    /* Switch power throttle state only if we are currently in lower priority throttle
+        state and Active Power Management is enabled*/
     if ((soc_pwr_mW < tdp_level_mW) &&
-        (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_POWER_UP))
+        (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_POWER_UP) &&
+        (get_soc_power_reg()->active_power_management))
     {
         /* Do the power throttling up */
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_UP;
@@ -1029,8 +1059,11 @@ int set_power_event_cb(dm_event_isr_callback event_cb)
 int init_thermal_pwr_mgmt_service(void)
 {
     int status = 0;
+    uint32_t freq;
 
     get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
+
+    get_soc_power_reg()->active_power_management = ACTIVE_POWER_MANAGEMENT_TURN_OFF;
 
     /* Create the power management task - use for throttling and DVFS */
     g_pm_handle = xTaskCreateStatic(thermal_power_task_entry, "TT_TASK", TT_TASK_STACK_SIZE, NULL,
@@ -1041,11 +1074,13 @@ int init_thermal_pwr_mgmt_service(void)
         status = THERMAL_PWR_MGMT_TASK_CREATION_FAILED;
     }
 
-    /* Suspend till Host enables this Device to Dynamically Manage Power */
-    vTaskSuspend(g_pm_handle);
-
     /* Set default parameters */
-    status = update_module_temperature_threshold(TEMP_THRESHOLD_LO);
+    status = update_module_temperature_threshold(TEMP_THRESHOLD_SW_MANAGED);
+
+    if (!status)
+    {
+        status = update_module_tdp_level(POWER_THRESHOLD_SW_MANAGED);
+    }
 
     if (!status)
     {
@@ -1054,12 +1089,17 @@ int init_thermal_pwr_mgmt_service(void)
 
     if (!status)
     {
-        status = update_module_tdp_level(POWER_THRESHOLD_LO);
+        status = pmic_thermal_pwr_cb_init(pmic_isr_callback);
     }
 
-    if (!status)
+    if(0 != get_pll_frequency(PLL_ID_SP_PLL_4, &freq))
     {
-        status = pmic_thermal_pwr_cb_init(pmic_isr_callback);
+        Log_Write(LOG_LEVEL_ERROR, "Failed to get Minion Step Clock frequency!");
+        return ERROR_PERF_MGMT_FAILED_TO_GET_FREQ;
+    }
+    else
+    {
+        Update_Minion_Frequency_Global_Reg((int32_t)freq);
     }
  
     return status;
@@ -1185,7 +1225,7 @@ static int increase_minion_operating_point(int32_t delta_power, struct trace_eve
 static int go_to_safe_state(power_state_e power_state, power_throttle_state_e throttle_state)
 {
     uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
-    uint8_t current_power = 0;
+    uint8_t average_power = 0;
     struct trace_event_power_status_t power_status =  { 0 };
     int32_t new_voltage = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY);
 
@@ -1218,14 +1258,8 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
 
     Update_Minion_Frequency_Global_Reg(SAFE_STATE_FREQUENCY);
 
-    /* Update the power state */
-    if (get_soc_power_reg()->module_power_state != POWER_STATE_SAFE_POWER)
-    {
-        update_module_power_state(POWER_STATE_SAFE_POWER);
-    }
-
      /* Get the current power */
-     if (0 != pmic_read_soc_power(&current_power))
+     if (0 != pmic_read_average_soc_power(&average_power))
      {
          Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
      }
@@ -1236,7 +1270,7 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
     }
 
     FILL_POWER_STATUS(power_status, throttle_state, power_state,
-                      current_power, current_temperature,
+                      average_power, current_temperature,
                       (uint16_t)SAFE_STATE_FREQUENCY, (uint16_t)new_voltage)
 
     Trace_Power_Status(Trace_Get_SP_CB(), &power_status);
@@ -1268,8 +1302,8 @@ void power_throttling(power_throttle_state_e throttle_state)
     uint64_t start_time;
     uint64_t end_time;
     uint8_t current_temperature = 0;
-    uint8_t current_power = 0;
-    int32_t current_power_mW;
+    uint8_t average_power = 0;
+    int32_t average_power_mW;
     int32_t tdp_level_mW;
     int32_t delta_power_mW;
     uint8_t throttle_condition_met = 0;
@@ -1288,13 +1322,14 @@ void power_throttling(power_throttle_state_e throttle_state)
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc temperature\r\n");
     }
 
-    if (0 != pmic_read_soc_power(&current_power))
+    if (0 != pmic_read_average_soc_power(&average_power))
     {
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
     }
 
-    current_power_mW = Power_Convert_Hex_to_mW(current_power);
-    tdp_level_mW = Power_Convert_Hex_to_mW(get_soc_power_reg()->module_tdp_level);
+    average_power_mW = Power_Convert_Hex_to_mW(average_power);
+    /* module_tdp_level is in Watts, converting to miliWatts */
+    tdp_level_mW = get_soc_power_reg()->module_tdp_level * 1000;
 
     while (!throttle_condition_met &&
            (get_soc_power_reg()->power_throttle_state <= throttle_state))
@@ -1303,16 +1338,16 @@ void power_throttling(power_throttle_state_e throttle_state)
         switch (throttle_state)
         {
             case POWER_THROTTLE_STATE_POWER_UP: {
-                delta_power_mW = ((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
+                delta_power_mW = ((average_power_mW * (POWER_SCALE_FACTOR)) / 100);
                 FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state,
-                                  current_power, current_temperature, 0, 0)
+                                  average_power, current_temperature, 0, 0)
                 increase_minion_operating_point(delta_power_mW, &power_status);
                 break;
             }
             case POWER_THROTTLE_STATE_POWER_DOWN: {
-                delta_power_mW = ((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
+                delta_power_mW = ((average_power_mW * (POWER_SCALE_FACTOR)) / 100);
                 FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state,
-                                  current_power, current_temperature, 0, 0)
+                                  average_power, current_temperature, 0, 0)
                 reduce_minion_operating_point(delta_power_mW, &power_status);
                 break;
             }
@@ -1325,20 +1360,20 @@ void power_throttling(power_throttle_state_e throttle_state)
         }
 
         /* TODO: What should be this delay? */
-        vTaskDelay(pdMS_TO_TICKS(DELTA_TEMP_UPDATE_PERIOD));
+        vTaskDelay(pdMS_TO_TICKS(DELTA_POWER_UPDATE_PERIOD));
 
         /* Get the current power */
-        if (0 != pmic_read_soc_power(&current_power))
+        if (0 != pmic_read_average_soc_power(&average_power))
         {
             Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
         }
-        current_power_mW = Power_Convert_Hex_to_mW(current_power);
+        average_power_mW = Power_Convert_Hex_to_mW(average_power);
 
         /* Check if throttle condition is met */
         switch (throttle_state)
         {
             case POWER_THROTTLE_STATE_POWER_UP: {
-                if (current_power_mW > tdp_level_mW)
+                if (average_power_mW > tdp_level_mW)
                 {
                     throttle_condition_met = 1;
                 }
@@ -1346,7 +1381,7 @@ void power_throttling(power_throttle_state_e throttle_state)
             }
             case POWER_THROTTLE_STATE_POWER_DOWN:
             case POWER_THROTTLE_STATE_POWER_SAFE: {
-                if (current_power_mW < TDP_LEVEL_SAFE_GUARD)
+                if (average_power_mW < MAX_POWER_THRESHOLD_GUARDBAND(tdp_level_mW))
                 {
                     throttle_condition_met = 1;
                 }
@@ -1360,7 +1395,7 @@ void power_throttling(power_throttle_state_e throttle_state)
 
     end_time = timer_get_ticks_count();
 
-    if (get_soc_power_reg()->power_throttle_state == throttle_state)
+    if (get_soc_power_reg()->power_throttle_state <= throttle_state)
     {
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
     }
@@ -1400,8 +1435,8 @@ void thermal_throttling(power_throttle_state_e throttle_state)
     uint64_t end_time;
     uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
     struct event_message_t message;
-    uint8_t current_power = 0;
-    int32_t current_power_mW;
+    uint8_t average_power = 0;
+    int32_t average_power_mW;
     int32_t delta_power_mW;
     struct trace_event_power_status_t power_status = { 0 };
 
@@ -1425,17 +1460,17 @@ void thermal_throttling(power_throttle_state_e throttle_state)
         {
             case POWER_THROTTLE_STATE_THERMAL_DOWN: {
                 /* Get the current power */
-                if (0 != pmic_read_soc_power(&current_power))
+                if (0 != pmic_read_average_soc_power(&average_power))
                 {
                     Log_Write(LOG_LEVEL_ERROR,
                               "thermal pwr mgmt svc error: failed to get soc power\r\n");
                 }
 
-                current_power_mW = Power_Convert_Hex_to_mW(current_power);
-                delta_power_mW = ((current_power_mW * (get_soc_power_reg()->power_scale_factor)) / 100);
+                average_power_mW = Power_Convert_Hex_to_mW(average_power);
+                delta_power_mW = ((average_power_mW * (POWER_SCALE_FACTOR)) / 100);
 
                 FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state,
-                                  current_power, current_temperature, 0, 0)
+                                  average_power, current_temperature, 0, 0)
                 /* Program the new operating point  */
                 reduce_minion_operating_point(delta_power_mW, &power_status);
                 break;
@@ -1460,7 +1495,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
 
     end_time = timer_get_ticks_count();
 
-    if (get_soc_power_reg()->power_throttle_state == POWER_THROTTLE_STATE_THERMAL_DOWN)
+    if (get_soc_power_reg()->power_throttle_state <= throttle_state)
     {
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_IDLE;
     }
@@ -1498,12 +1533,13 @@ void thermal_power_task_entry(void *pvParameter)
 
     while (1)
     {
-        if (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_POWER_UP)
+        while (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_POWER_UP)
         {
             xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
         }
 
-        Log_Write(LOG_LEVEL_INFO, "Received PMIC event: %s\n", __func__);
+        Log_Write(LOG_LEVEL_INFO, "POWER THROTTLING:%d\n", 
+                            get_soc_power_reg()->power_throttle_state);
 
         switch (get_soc_power_reg()->power_throttle_state)
         {
@@ -1558,7 +1594,7 @@ void thermal_power_task_entry(void *pvParameter)
 static void pmic_isr_callback(enum error_type type, struct event_message_t *msg)
 {
     (void)type;
-    //NOSONAR BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
     if(PMIC_I2C_INT_CTRL_OV_TEMP_GET(msg->payload.syndrome[0]))
     {
@@ -1569,10 +1605,10 @@ static void pmic_isr_callback(enum error_type type, struct event_message_t *msg)
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_SAFE;
     }
 
-    //NOSONAR xTaskNotifyFromISR(g_pm_handle, (uint32_t)msg->header.msg_id, eSetValueWithOverwrite,
-    //NOSONAR                   &xHigherPriorityTaskWoken);
+    xTaskNotifyFromISR(g_pm_handle, (uint32_t)msg->header.msg_id, eSetValueWithOverwrite,
+                       &xHigherPriorityTaskWoken);
 
-    //NOSONAR portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 /************************************************************************

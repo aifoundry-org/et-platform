@@ -130,12 +130,12 @@ int pmic_set_temperature_threshold(uint8_t temp_limit);
 */
 int pmic_get_temperature(uint8_t *sys_temp);
 
-/*! \fn int pmic_read_soc_power(uint8_t* soc_pwr)
+/*! \fn int pmic_read_instantenous_soc_power(uint8_t* soc_pwr)
     \brief This function returns soc input power.
     \param soc_pwr - value of Input Power (binary encoded).
     \return The function call status, pass/fail.
 */
-int pmic_read_soc_power(uint8_t *soc_pwr);
+int pmic_read_instantenous_soc_power(uint8_t *soc_pwr);
 
 /*! \fn int pmic_enable_etsoc_reset_after_perst(void)
     \brief This function enables a PERST event to also reset the ET-SOC.
@@ -288,12 +288,12 @@ int pmic_force_perst(void);
 */
 int pmic_reset_wdog_timer(void);
 
-/*! \fn int pmic_get_average_soc_power(uint8_t* avg_power)
+/*! \fn int pmic_read_average_soc_power(uint8_t* avg_power)
     \brief This function gets Average Power.
     \param avg_power - value of Average Power (binary encoded).
     \return The function call status, pass/fail.
 */
-int pmic_get_average_soc_power(uint8_t *avg_power);
+int pmic_read_average_soc_power(uint8_t *avg_power);
 
 /*! \fn int I2C_PMIC_Initialize(uint8_t i2c_id)
     \brief This function initializes PMIC

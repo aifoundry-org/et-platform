@@ -77,19 +77,11 @@ static void pwr_svc_get_module_power_state(uint16_t tag, uint64_t req_start_time
 *
 *   FUNCTION
 *
-*       pwr_svc_set_module_power_state
+*       pwr_svc_set_module_active_power_management
 *
 *   DESCRIPTION
 *
-*       This function set the Power state of the System to function at. The
-*       table depicts the different Power states.
-*       *******************************
-*       | Type    | Level | Perf      |
-*       *******************************
-*       | Full    | D0    |  Max      |
-*       | Reduced | D1    | Managed   |
-*       | Lowest  | D3    | Ref Clock |
-*       *******************************
+*       This function set the Active Power Management on or off.
 *
 *   INPUTS
 *
@@ -101,29 +93,29 @@ static void pwr_svc_get_module_power_state(uint16_t tag, uint64_t req_start_time
 *       None
 *
 ***********************************************************************/
-// TODO: Remove this function and posibility to update power state from outside,
-//        it is handled internaly
-static void pwr_svc_set_module_power_state(uint16_t tag, uint64_t req_start_time,
-                                           power_state_e state)
+static void pwr_svc_set_module_active_power_management(uint16_t tag, uint64_t req_start_time,
+                                           active_power_management_e state)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
     int32_t status;
 
-    status = update_module_power_state(state);
+    status = set_module_active_power_management(state);
 
     if (0 != status)
     {
-        Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error: update_module_power_state()\r\n");
+        Log_Write(LOG_LEVEL_ERROR,
+                    " thermal pwr mgmt error: set_module_active_power_management()\r\n");
     }
 
-    FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_MODULE_POWER_STATE,
+    FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
                     timer_get_ticks_count() - req_start_time, status);
 
     dm_rsp.payload = status;
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t)))
     {
-        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_set_module_power_state: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR,
+                    "pwr_svc_set_module_active_power_management: Cqueue push error!\n");
     }
 }
 
@@ -628,6 +620,37 @@ static void pwr_svc_get_module_uptime(uint16_t tag, uint64_t req_start_time)
 *
 *   FUNCTION
 *
+*       pwr_svc_set_module_active_pwr_mgmt
+*
+*   DESCRIPTION
+*
+*       This function sets Active Power Management
+*
+*   INPUTS
+*
+*       tag_id            Tag id
+*       req_start_time    Time stamp when the request was received by the Command
+*                         Dispatcher
+*       buffer            Command input buffer
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void pwr_svc_set_module_active_pwr_mgmt(tag_id_t tag_id, uint64_t req_start_time,
+                                                void *buffer)
+{
+    const struct device_mgmt_active_power_management_cmd_t *active_power_management_cmd =
+                (struct device_mgmt_active_power_management_cmd_t *)buffer;
+    pwr_svc_set_module_active_power_management(tag_id, req_start_time,
+                active_power_management_cmd->pwr_management);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       thermal_power_monitoring_process
 *
 *   DESCRIPTION
@@ -656,10 +679,8 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
             pwr_svc_get_module_power_state(tag_id, req_start_time);
             break;
         }
-        case DM_CMD_SET_MODULE_POWER_STATE: {
-            struct device_mgmt_power_state_cmd_t *power_state_cmd =
-                (struct device_mgmt_power_state_cmd_t *)buffer;
-            pwr_svc_set_module_power_state(tag_id, req_start_time, power_state_cmd->pwr_state);
+        case DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT: {
+            pwr_svc_set_module_active_pwr_mgmt(tag_id, req_start_time, buffer);
             break;
         }
         case DM_CMD_GET_MODULE_STATIC_TDP_LEVEL: {

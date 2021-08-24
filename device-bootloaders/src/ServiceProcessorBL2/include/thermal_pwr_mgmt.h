@@ -41,6 +41,13 @@
 */
 volatile struct soc_power_reg_t *get_soc_power_reg(void);
 
+/*! \fn int set_module_active_power_management(active_power_management_e state)
+    \brief Interface to update the module Active Power Management.
+    \param state   PActive Power Management
+    \returns Status indicating success or negative error
+*/
+int set_module_active_power_management(active_power_management_e state);
+
 /*! \fn int update_module_power_state(power_state_e state)
     \brief Interface to update the module power state.
     \param state   Power state

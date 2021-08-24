@@ -26,7 +26,7 @@
         pmic_get_temperature_threshold
         pmic_set_temperature_threshold
         pmic_get_temperature
-        pmic_read_soc_power
+        pmic_read_instantenous_soc_power
         pmic_enable_etsoc_reset_after_perst
         pmic_disable_etsoc_reset_after_perst
         pmic_get_reset_cause
@@ -47,7 +47,7 @@
         pmic_force_reset
         pmic_force_perst
         pmic_reset_wdog_timer
-        pmic_get_average_soc_power
+        pmic_read_average_soc_power
         I2C_PMIC_Initialize
         I2C_PMIC_Read
         I2C_PMIC_Write
@@ -286,6 +286,12 @@ void setup_pmic(void)
         MESSAGE_ERROR("PMIC connection failed to establish link\n");
     }
 
+    /* Set temperature threshold values */
+    pmic_set_temperature_threshold(TEMP_THRESHOLD_HW_CATASTROPHIC);
+
+    /* Set power threshold values */
+    pmic_set_tdp_threshold(POWER_THRESHOLD_HW_CATASTROPHIC << 2);
+
     /* Enable all PMIC interrupts */
     if (0 != pmic_set_int_config(ENABLE_ALL_PMIC_INTERRUPTS))
     {
@@ -305,12 +311,6 @@ void setup_pmic(void)
     }
 
     INT_enableInterrupt(SPIO_PLIC_GPIO_INTR, 1, pmic_error_isr);
-
-    /* Set temperature threshold values */
-    pmic_set_temperature_threshold(TEMP_THRESHOLD_HI);
-
-    /* Set power threshold values */
-    pmic_set_tdp_threshold(POWER_THRESHOLD_HI << 2);
 
     Log_Write(LOG_LEVEL_INFO, "PMIC connection establish\n");
 }
@@ -419,9 +419,15 @@ void pmic_error_isr(void)
     struct event_message_t message;
     uint8_t reg_value = 0;
 
-    gpio_clear_interrupt(GPIO_CONTROLLER_ID_SPIO, PMIC_GPIO_INT_PIN_NUMBER);
+    if ( 0!= gpio_clear_interrupt(GPIO_CONTROLLER_ID_SPIO, PMIC_GPIO_INT_PIN_NUMBER))
+    {
+        MESSAGE_ERROR("GPIO int clear failed!");
+    }
 
-    pmic_get_int_cause(&int_cause);
+    if (0 != pmic_get_int_cause(&int_cause))
+    {
+        MESSAGE_ERROR("PMIC read failed!");
+    }
 
     /* Call thermal power callback */
 
@@ -449,7 +455,7 @@ void pmic_error_isr(void)
 
     if (PMIC_I2C_INT_CTRL_OV_POWER_GET(int_cause))
     {
-        if (0 != pmic_read_soc_power(&reg_value))
+        if (0 != pmic_read_instantenous_soc_power(&reg_value))
         {
             MESSAGE_ERROR("PMIC read failed!");
         }
@@ -756,7 +762,7 @@ int pmic_get_temperature(uint8_t *sys_temp)
 *
 *   FUNCTION
 *
-*       pmic_read_soc_power
+*       pmic_read_instantenous_soc_power
 *
 *   DESCRIPTION
 *
@@ -772,7 +778,7 @@ int pmic_get_temperature(uint8_t *sys_temp)
 *
 ***********************************************************************/
 
-int pmic_read_soc_power(uint8_t *soc_pwr)
+int pmic_read_instantenous_soc_power(uint8_t *soc_pwr)
 {
     return (get_pmic_reg(PMIC_I2C_INPUT_POWER_ADDRESS, soc_pwr));
 }
@@ -1577,7 +1583,7 @@ int pmic_reset_wdog_timer(void)
 *
 ***********************************************************************/
 
-int pmic_get_average_soc_power(uint8_t *avg_power)
+int pmic_read_average_soc_power(uint8_t *avg_power)
 {
     return (get_pmic_reg(PMIC_I2C_AVERAGE_PWR_ADDRESS, avg_power));
 }

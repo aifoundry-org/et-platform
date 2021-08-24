@@ -225,10 +225,6 @@ void Update_Minion_Frequency_Global_Reg(int32_t new_freq)
 int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies)
 {
     uint32_t freq;
-
-    //NOSONAR FIXME: DVFS will keep get_soc_perf_reg()->asic_frequency.minion_shire_mhz up to date,
-    //NOSONAR initial value will be set upon SW-8063 resolution after which this comment will be deleted
-    //NOSONAR get_soc_perf_reg()->asic_frequency.minion_shire_mhz = 800;
     
     if(0 != get_pll_frequency(PLL_ID_SP_PLL_2, &freq))
     {
