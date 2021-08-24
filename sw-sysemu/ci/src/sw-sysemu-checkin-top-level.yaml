@@ -16,24 +16,16 @@ parameters:
     default_value: "sw-sysemu"
 
 stages:
+  FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU:
+    cmds:
+      - job: sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"
+
   JOB_RUNTIME:
     cmds:
       - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"
-
-  JOB_DEVICE_MANAGEMENT:
-    cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-management-checkin-tests/
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"
-          PYTEST_RETRIES: "2"
-
-  JOB_DEVICE_LAYER:
-    cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-layer-checkin-tests/
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"
