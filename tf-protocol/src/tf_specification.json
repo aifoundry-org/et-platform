@@ -779,6 +779,7 @@
                 "maxion_voltage": "uint8_t",
                 "minion_voltage": "uint8_t",
                 "noc_voltage": "uint8_t",
+                "pcie_voltage": "uint8_t", 
                 "pcie_logic_voltage": "uint8_t",
                 "vddqlp_voltage": "uint8_t",
                 "vddq_voltage": "uint8_t"
