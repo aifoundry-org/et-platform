@@ -22,7 +22,6 @@
 *       MM_Iface_MM_Command_Shell
 *       MM_Iface_Send_Echo_Cmd
 *       MM_Iface_Get_DRAM_BW
-*       MM_Iface_Update_MM_Heartbeat
 *       MM_Iface_Pop_Cmd_From_MM2SP_SQ
 *       MM_Iface_Init
 *
@@ -36,12 +35,6 @@
 #include "semphr.h"
 #include "bl_error_code.h"
 #include "config/mgmt_build_config.h"
-
-typedef struct mm_iface_cb_ {
-    bool mm_wd_initialized;
-} mm_iface_cb_t;
-
-static mm_iface_cb_t mm_iface_cb_g __attribute__((aligned(64))) = {0};
 
 static void mm2sp_notification_isr(void);
 static SemaphoreHandle_t mm_cmd_lock = NULL;
@@ -298,44 +291,6 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
 *
 *   FUNCTION
 *
-*       MM_Iface_Update_MM_Heartbeat
-*
-*   DESCRIPTION
-*
-*       This function updates and checks the MM heartbeat for its
-*       correctness.
-*
-*   INPUTS
-*
-*       None
-*
-*   OUTPUTS
-*
-*       int8_t  Success or error code.
-*
-***********************************************************************/
-int8_t MM_Iface_Update_MM_Heartbeat(void)
-{
-    int8_t status = STATUS_SUCCESS;
-
-    /* First time we get a heartbeat, we register watchdog timer */
-    if (!mm_iface_cb_g.mm_wd_initialized)
-    {
-        /* TODO: SW-8081: Watchdog initialization here. Also register a callback to reset MM FW */
-        mm_iface_cb_g.mm_wd_initialized = true;
-    }
-    else
-    {
-        /* TODO: SW-8081: Re-kick the watchdog timer here */
-    }
-
-    return status;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
 *       MM_Iface_Pop_Cmd_From_MM2SP_SQ
 *
 *   DESCRIPTION
@@ -393,12 +348,6 @@ int8_t MM_Iface_Init(void)
 
     /* Initialize the interface */
     status = SP_MM_Iface_Init();
-
-    if (status == STATUS_SUCCESS)
-    {
-        /* Reset MM heartbeat WD init flag */
-        mm_iface_cb_g.mm_wd_initialized = false;
-    }
 
     /* Register interrupt handler */
     INT_enableInterrupt(SPIO_PLIC_MBOX_MMIN_INTR, 1,

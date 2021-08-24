@@ -25,7 +25,9 @@
         Minion_State_Init
         Minion_State_MM_Iface_Get_Active_Shire_Mask
         Minion_State_Host_Iface_Process_Request
-        Minion_State_MM_Error_Handler
+        Minion_State_MM_Heartbeat_Handler
+        Minion_State_Get_MM_Heartbeat_Count
+        Minion_State_MM_Error_Handlers
         Minion_State_Error_Control_Init
         Minion_State_Error_Control_Deinit
         Minion_State_Set_Exception_Error_Threshold
@@ -47,12 +49,14 @@
  * @brief Minion error event mgmt control block
  */
 struct minion_event_control_block {
+    uint64_t mm_heartbeat_count; /**< counter to track MM heartbeat. */
     uint32_t except_count;       /**< Exception error count. */
     uint32_t hang_count;         /**< Hang error count. */
     uint32_t except_threshold;   /**< Exception error count threshold. */
     uint32_t hang_threshold;     /**< Hang error count threshold. */
     uint64_t active_shire_mask;  /**< active shire number mask. */
     dm_event_isr_callback event_cb; /**< Event callback handler. */
+    bool     mm_watchdog_initialized; /**< Track state of mm watchdog. */
 };
 
 /* The driver can populate this structure with the defaults that will be used during the init
@@ -92,7 +96,7 @@ uint8_t pll_freq_to_mode(int32_t freq)
 {
 //NOSONAR TODO: Need to add Freq to mode convertion equation
    (void) freq;
-   return 6; 
+   return 6;
 }
 
 /************************************************************************
@@ -339,17 +343,17 @@ int Minion_Shire_Update_Voltage( uint8_t voltage)
 *
 *   INPUTS
 *
-*       freq            Target Minion Frequency 
+*       freq            Target Minion Frequency
 *
 *   OUTPUTS
 *
-*       voltage          Target Minion Voltage 
+*       voltage          Target Minion Voltage
 *
 ***********************************************************************/
 int Minion_Get_Voltage_Given_Freq(int32_t target_frequency)
 {
     int target_voltage = THRESHOLD_VOLTAGE + (target_frequency * DeltaVolt_per_DeltaFreq);
-     
+
     return target_voltage;
 }
 
@@ -761,7 +765,7 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
             if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_mm_state_rsp_t))) {
                   Log_Write(LOG_LEVEL_ERROR, "Minion_State_Host_Iface_Process_Request: Cqueue push error!\n");
             }
-        } 
+        }
     }
 }
 /************************************************************************
@@ -803,13 +807,74 @@ void Minion_State_MM_Error_Handler(int32_t error_code)
 *
 *   FUNCTION
 *
+*       Minion_State_MM_Heartbeat_Handler
+*
+*   DESCRIPTION
+*
+*       Increment MM heartbeat
+*
+*   INPUTS
+*
+*       None.
+*
+*   OUTPUTS
+*
+*       None.
+*
+***********************************************************************/
+void Minion_State_MM_Heartbeat_Handler(void)
+{
+
+    /* First time we get a heartbeat, we register watchdog timer */
+    if (!event_control_block.mm_watchdog_initialized)
+    {
+        /* TODO: SW-8081: Watchdog initialization here. Also register a callback to reset MM FW */
+        event_control_block.mm_watchdog_initialized = true;
+    }
+    else
+    {
+        /* TODO: SW-8081: Re-kick the watchdog timer here */
+    }
+
+    /* Increment mm heartbeat counter */
+    event_control_block.mm_heartbeat_count++;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_State_Get_MM_Heartbeat_Count
+*
+*   DESCRIPTION
+*
+*       Get MM heartbeat
+*
+*   INPUTS
+*
+*       None.
+*
+*   OUTPUTS
+*
+*       uint64_t    MM heartbeat count
+*
+***********************************************************************/
+uint64_t Minion_State_Get_MM_Heartbeat_Count(void)
+{
+    return event_control_block.mm_heartbeat_count;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       Minion_State_Error_Control_Init
 *
 *   DESCRIPTION
 *
 *       This function initializes the Minion error control subsystem, including
-        programming the default error thresholds, enabling the error interrupts
-        and setting up globals.
+*       programming the default error thresholds, enabling the error interrupts
+*       and setting up globals.
 *
 *   INPUTS
 *
@@ -824,6 +889,10 @@ int32_t Minion_State_Error_Control_Init(dm_event_isr_callback event_cb)
 {
     /* register event callback */
     event_control_block.event_cb = event_cb;
+
+    /* Zeroize MM heartbeat count */
+    event_control_block.mm_heartbeat_count = 0;
+    event_control_block.mm_watchdog_initialized = false;
 
     /* Set default counters to zero. */
     event_control_block.except_count = 0;

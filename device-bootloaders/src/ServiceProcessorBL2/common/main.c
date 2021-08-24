@@ -275,6 +275,17 @@ static void taskMain(void *pvParameters)
     // Initialize DM sampling task
     init_dm_sampling_task();
 
+    if(Minion_State_Get_MM_Heartbeat_Count() == 0)
+    {
+        /* Warn, MM is not ready */
+        Log_Write(LOG_LEVEL_WARNING, "MM not ready, SP has not received MM heartbeat!\r\n");
+    }
+    else
+    {
+        /* Warn, MM heartbeat alive */
+        Log_Write(LOG_LEVEL_CRITICAL, "MM heartbeat alive!\r\n");
+    }
+
     /* Inform Host Device is Ready */
     Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);

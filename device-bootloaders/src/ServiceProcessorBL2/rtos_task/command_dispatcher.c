@@ -397,14 +397,14 @@ static void mm2sp_report_error_event_handler(const void *cmd_buffer)
 static void mm2sp_heartbeat_event_handler(const void *cmd_buffer)
 {
     (void)cmd_buffer;
-    /* TODO: SW-8081: Register watchdog timer for MM->SP heartbeats in MM_Iface_Update_MM_Heartbeat().
-    Whenever a heatbeat is received from MM, SP will reset WD timer. If the heartbeat is not
-    received within specified time interval of SP WD timer (error threshold of timer should
-    be incorporated), SP detects a MM hang and resets the MM FW with taking approriate measures */
-    if(0 != MM_Iface_Update_MM_Heartbeat())
-    {
-        Log_Write(LOG_LEVEL_ERROR, "MM2SP:MM Heartbeat update error!\r\n");
-    }
+
+    /* TODO: SW-8081: Register watchdog timer for MM->SP heartbeat. Whenever a heatbeat is
+    received from MM, SP will reset WD timer. If the heartbeat is no received within specified
+    time interval of SP WD timer (error threshold of timer should be incorporated), SP detects
+    a MM hang and resets the MM FW with taking approriate measures */
+
+    /* Increment MM heartbeat count */
+    Minion_State_MM_Heartbeat_Handler();
 }
 
 static void mm_cmd_hdlr_task(void *pvParameters)

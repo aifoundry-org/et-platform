@@ -67,7 +67,7 @@ int Minion_Get_Voltage_Given_Freq(int32_t target_frequency);
 int Minion_Program_Step_Clock_PLL(uint8_t mode);
 
 /*! \fn uint8_t pll_freq_to_mode(int32_t freq)
-    \brief This function returns the mode for a given 
+    \brief This function returns the mode for a given
            frequency
     \param frequency
     \return corresponding mode
@@ -89,7 +89,7 @@ int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask);
 int Minion_Enable_Master_Shire_Threads(uint8_t mm_id);
 
 /*! \fn int Minion_Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t mode, uint8_t lvdpll_mode, bool use_step_clock)
-    \brief This function configures the Minion PLLs to Step Clock, and bring them out of reset. 
+    \brief This function configures the Minion PLLs to Step Clock, and bring them out of reset.
     \param  minion_shires_mask Shire Mask to enable
     \param  hdpll_mode Frequency mode to bring up Minions (Step Clock)
     \param  lvdpll_mode Frequency mode to enable the internal LVDPLL of each Shire
@@ -151,7 +151,7 @@ int Minion_Write_ESR(uint32_t address, uint64_t data, uint64_t mmshire_mask);
 */
 int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args);
 
-/*! \brief Sets the active Shire Mask global 
+/*! \brief Sets the active Shire Mask global
     \param active_shire_mask Mask of active Shires
     \returns none
 */
@@ -177,6 +177,20 @@ uint64_t Minion_State_MM_Iface_Get_Active_Shire_Mask(void);
     \returns none
 */
 void Minion_State_MM_Error_Handler(int32_t msg_id);
+
+/*! \fn void Minion_State_MM_Heartbeat_Handler(void)
+    \brief Increment MM heartbeat.
+    \param none
+    \returns none
+*/
+void Minion_State_MM_Heartbeat_Handler(void);
+
+/*! \fn uint64_t Minion_State_Get_MM_Heartbeat_Count(void)
+    \brief Get MM heartbeat count.
+    \param none
+    \returns none
+*/
+uint64_t Minion_State_Get_MM_Heartbeat_Count(void);
 
 /*! \fn int32_t Minion_State_Error_Control_Init(dm_event_isr_callback event_cb)
     \brief This function initializes the Minion error control subsystem, including
