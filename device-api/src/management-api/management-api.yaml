@@ -67,7 +67,7 @@ Modules:
           Value: 21
         - Name: GET_MODULE_POWER_STATE
           Value: 22
-        - Name: SET_MODULE_POWER_STATE
+        - Name: SET_MODULE_ACTIVE_POWER_MANAGEMENT
           Value: 23
         - Name: GET_MODULE_STATIC_TDP_LEVEL
           Value: 24
@@ -278,6 +278,16 @@ Modules:
           Value: 5
         - Name: THERMAL_SAFE
           Value: 6
+    - Name: active_power_management
+      Description: Power Management of the ETSOC
+      Type: uint8_t
+      Values:
+        - Name: TURN_OFF
+          Value: 0
+        - Name: TURN_ON
+          Value: 1
+        - Name: INVALID
+          Value: 2
 
   Structs:
     - Name: asset_info_t
@@ -661,6 +671,26 @@ Modules:
         - Name: pad[7]
           Description: Padding for alignment
           Type: uint8_t
+    - Name: device_mgmt_active_power_management_cmd
+      Description:  Command to set active power management on or off
+      Type: Command
+      PairedMessage: device_mgmt_active_power_management_rsp
+      Fields:
+        - Name: pwr_management
+          Description: Power Management on or off
+          Type: enum
+          Enum: active_power_management
+        - Name: pad[7]
+          Description: Padding for alignment
+          Type: uint8_t
+    - Name: device_mgmt_active_power_management_rsp
+      Type: Response
+      Description: Response for active power management command
+      PairedMessage: device_mgmt_active_power_management_cmd
+      Fields:
+        - Name: dummy
+          Description: Dummy field.
+          Type: uint64_t
     - Name: device_mgmt_tdp_level_cmd
       Description:  Command to request TDL Level
       Type: Command
