@@ -17,7 +17,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctype.h>
-#include <device-layer/Autogen.h>
 #include <device-layer/IDeviceLayer.h>
 #include <dlfcn.h>
 #include <experimental/filesystem>

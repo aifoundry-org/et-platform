@@ -8,8 +8,8 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
+#include "Autogen.h"
 #include "TestDevMgmtApiSyncCmds.h"
-#include <device-layer/Autogen.h>
 #include <dlfcn.h>
 #include <experimental/filesystem>
 #include <glog/logging.h>
