@@ -51,12 +51,6 @@ public:
     // Launch Sysemu through IDevice Abstraction
     devLayer_ = IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
   }
-
-  void TearDown() override {
-    if (handle_ != nullptr) {
-      dlclose(handle_);
-    }
-  }
 };
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleManufactureName_1_1) {

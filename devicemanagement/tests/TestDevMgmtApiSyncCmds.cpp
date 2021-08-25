@@ -57,7 +57,7 @@ void testSerial(DeviceManagement& dm, uint32_t deviceIdx, uint32_t index, uint32
                               output_buff, output_size, hst_latency.get(), dev_latency.get(), timeout);
 }
 
-getDM_t TestDevMgmtApiSyncCmds::getInstance() {
+device_management::getDM_t TestDevMgmtApiSyncCmds::getInstance() {
   const char* error;
 
   if (handle_) {
@@ -70,62 +70,40 @@ getDM_t TestDevMgmtApiSyncCmds::getInstance() {
   return (getDM_t)0;
 }
 
-bool TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, size_t bufSize) const {
+bool TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, size_t bufSize)  {
   std::stringstream logs;
   std::ofstream logfile;
+  bool validEventFound = false;
+
   if (FLAGS_enable_trace_dump) {
     logfile.open(FLAGS_trace_logfile, std::ios_base::app);
     logfile << "\n\n"
             << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() << "."
             << ::testing::UnitTest::GetInstance()->current_test_info()->name() << std::endl;
   }
-
-#if SW_8496
-  // Get Trace buffer header
-  auto traceHeader = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf);
-  size_t dataSize = (traceHeader->data_size > sizeof(struct trace_buffer_std_header_t))
-                      ? traceHeader->data_size - sizeof(struct trace_buffer_std_header_t)
-                      : 0;
-
-  // Check if it is valid SP Trace buffer.
-  if ((traceHeader->magic_header != TRACE_MAGIC_HEADER) || (traceHeader->type != TRACE_SP_BUFFER) ||
-      ((dataSize + sizeof(struct trace_buffer_std_header_t)) > bufSize)) {
-    DM_LOG(ERROR) << "Invalid SP Trace Buffer!";
-    return false;
-  }
-#else
-  size_t dataSize = bufSize - sizeof(struct trace_buffer_std_header_t);
-#endif
-  std::array<char, TRACE_STRING_MAX_SIZE + 1> stringLog;
-  // Get size from Trace buffer header
-  auto traceData = traceBuf + sizeof(struct trace_buffer_std_header_t);
-  auto packetHeader = templ::bit_cast<trace_entry_header_t*>(traceData);
   const trace_string_t* tracePacketString;
+  std::array<char, TRACE_STRING_MAX_SIZE + 1> stringLog;
+  struct trace_entry_header_t* entry = NULL;
 
-  bool validEventFound = false;
-  size_t dataPopped = 0;
-
-  while (dataPopped < dataSize) {
-    if (packetHeader->type == TRACE_TYPE_STRING) {
-      tracePacketString = templ::bit_cast<trace_string_t*>(traceData + dataPopped);
-      strncpy(stringLog.data(), tracePacketString->string, TRACE_STRING_MAX_SIZE);
-      stringLog[TRACE_STRING_MAX_SIZE] = '\0';
-      logs << "Timestamp:" << tracePacketString->header.cycle << " :" << stringLog.data() << std::endl;
-      dataPopped += sizeof(struct trace_string_t);
+  while (entry =(struct trace_entry_header_t*) Trace_Decode((struct trace_buffer_std_header_t *)traceBuf, (void*)entry)) {
+    if (entry->type == TRACE_TYPE_STRING) {
+        tracePacketString = templ::bit_cast<trace_string_t*>(entry);
+        strncpy(stringLog.data(), tracePacketString->string, TRACE_STRING_MAX_SIZE);
+        stringLog[TRACE_STRING_MAX_SIZE] = '\0';
+        logs << "Timestamp:" << tracePacketString->header.cycle << " :" << stringLog.data() << std::endl;
+        validEventFound = true;
+    } else if (entry->type == TRACE_TYPE_EXCEPTION) {
+      logs << "Timestamp:" << entry->cycle << std::endl;
       validEventFound = true;
-    } else if (packetHeader->type == TRACE_TYPE_EXCEPTION) {
-      dataPopped += sizeof(struct trace_entry_header_t) + SP_EXCEPTION_FRAME_SIZE + SP_GLOBALS_SIZE;
-      logs << "Timestamp:" << packetHeader->cycle << std::endl;
+    } else if (entry->type == TRACE_TYPE_POWER_STATUS) {
+      logs << "Timestamp:" << entry->cycle << std::endl;
       validEventFound = true;
     } else {
-      // TODO: SW_8496 : currently we are using full size of trace buffer.
-      // Once SW-8496 is implemented, size in header should be used and
-      // error message should be thrown in case header contains invalid type.
-      DM_LOG(WARNING) << "Unable to process type: [" << packetHeader->type << "] in trace entry header!";
+      DM_LOG(WARNING) << "Unable to process type: [" << entry->type << "] in trace entry header!";
       break;
     }
-    packetHeader = templ::bit_cast<trace_entry_header_t*>(traceData + dataPopped);
-  }
+}
+
   if (FLAGS_enable_trace_dump) {
     logfile << logs.str();
     logfile.close();
@@ -179,10 +157,6 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
 
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -191,10 +165,6 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1(bool singleDevice) {
       printf("output_buff: %.*s\n", output_size, output_buff);
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
       EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -218,10 +188,7 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber_1_2(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -231,10 +198,6 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber_1_2(bool singleDevice) {
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
       EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -258,10 +221,7 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber_1_3(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -271,10 +231,6 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber_1_3(bool singleDevice) {
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
       EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -299,10 +255,6 @@ void TestDevMgmtApiSyncCmds::getASICChipRevision_1_4(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -312,10 +264,6 @@ void TestDevMgmtApiSyncCmds::getASICChipRevision_1_4(bool singleDevice) {
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
       EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -340,10 +288,6 @@ void TestDevMgmtApiSyncCmds::getModulePCIENumPortsMaxSpeed_1_5(bool singleDevice
                                 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -353,10 +297,6 @@ void TestDevMgmtApiSyncCmds::getModulePCIENumPortsMaxSpeed_1_5(bool singleDevice
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
       EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -381,10 +321,6 @@ void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB_1_6(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -394,10 +330,6 @@ void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB_1_6(bool singleDevice) {
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
       EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -421,10 +353,7 @@ void TestDevMgmtApiSyncCmds::getModuleRevision_1_7(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_REVISION, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -434,10 +363,7 @@ void TestDevMgmtApiSyncCmds::getModuleRevision_1_7(bool singleDevice) {
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
       EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
+
     }
   }
 }
@@ -462,10 +388,7 @@ void TestDevMgmtApiSyncCmds::getModuleFormFactor_1_8(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -475,10 +398,6 @@ void TestDevMgmtApiSyncCmds::getModuleFormFactor_1_8(bool singleDevice) {
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
       EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -502,10 +421,6 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber_1_9(bool singleDevi
                                 nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -515,10 +430,6 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber_1_9(bool singleDevi
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
       EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -542,10 +453,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryType_1_10(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -555,10 +463,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryType_1_10(bool singleDevice) {
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
       EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
+
     }
   }
 }
@@ -580,10 +485,6 @@ void TestDevMgmtApiSyncCmds::getModulePowerState_1_11(bool singleDevice) {
                                 get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
@@ -614,32 +515,11 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagement_1_62(bool singleDevi
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
-
-    const uint32_t set_input_size = sizeof(device_mgmt_api::active_power_management_e);
-    const char set_input_buff[set_input_size] = {device_mgmt_api::ACTIVE_POWER_MANAGEMENT_TURN_OFF};
-
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, set_input_buff,
-                                set_input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
-              device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
-
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -665,18 +545,10 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel_1_12(bool singleDevic
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
 
     const uint32_t get_output_size = sizeof(uint8_t);
@@ -687,18 +559,11 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel_1_12(bool singleDevic
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       uint8_t tdp_level = get_output_buff[0];
       EXPECT_EQ(tdp_level, DM_TDP_LEVEL);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -723,17 +588,10 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13(bool singl
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ(set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
 
     const uint32_t get_output_size = sizeof(device_mgmt_api::temperature_threshold_t);
@@ -743,10 +601,6 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13(bool singl
                                 0, get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -754,10 +608,6 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13(bool singl
       device_mgmt_api::temperature_threshold_t* temperature_threshold =
         (device_mgmt_api::temperature_threshold_t*)get_output_buff;
       EXPECT_EQ(temperature_threshold->sw_temperature_c, 56);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -780,10 +630,6 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14(bool singleDev
                                 input_buff, input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
@@ -814,10 +660,6 @@ void TestDevMgmtApiSyncCmds::getModuleUptime_1_15(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_UPTIME, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
@@ -845,10 +687,7 @@ void TestDevMgmtApiSyncCmds::getModulePower_1_16(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_POWER, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Note: Module power could vary. So there cannot be expected value for Module power in the test
@@ -860,10 +699,6 @@ void TestDevMgmtApiSyncCmds::getModulePower_1_16(bool singleDevice) {
       printf("Module power (in Watts): %.3f \n", power);
 
       EXPECT_NE(module_power->power, 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -885,10 +720,6 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage_1_17(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_VOLTAGE, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -900,10 +731,6 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage_1_17(bool singleDevice) {
       printf("Minion Shire Module Voltage (in millivolts): %d\n", voltage);
 
       EXPECT_NE(module_voltage->minion, 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -925,10 +752,6 @@ void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature_1_18(bool singleDevice)
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -938,10 +761,6 @@ void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature_1_18(bool singleDevice)
       printf(" Module current temperature (in C): %d\r\n", cur_temp->temperature_c);
 
       EXPECT_NE(cur_temp->temperature_c, 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -963,10 +782,7 @@ void TestDevMgmtApiSyncCmds::getModuleMaxTemperature_1_19(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
@@ -996,10 +812,7 @@ void TestDevMgmtApiSyncCmds::getModuleMaxMemoryErrors_1_20(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
@@ -1029,10 +842,6 @@ void TestDevMgmtApiSyncCmds::getModuleMaxDDRBW_1_21(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1055,10 +864,6 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState_1_22(bool singleDevice
                                 input_buff, input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
@@ -1095,19 +900,11 @@ void TestDevMgmtApiSyncCmds::setAndGetDDRECCThresholdCount_1_23(bool singleDevic
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1132,19 +929,11 @@ void TestDevMgmtApiSyncCmds::setAndGetSRAMECCThresholdCount_1_24(bool singleDevi
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1169,19 +958,11 @@ void TestDevMgmtApiSyncCmds::setAndGetPCIEECCThresholdCount_1_25(bool singleDevi
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1203,10 +984,7 @@ void TestDevMgmtApiSyncCmds::getPCIEECCUECCCount_1_26(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -1215,10 +993,6 @@ void TestDevMgmtApiSyncCmds::getPCIEECCUECCCount_1_26(bool singleDevice) {
 
       EXPECT_EQ(errors_count->ecc, 0);
       EXPECT_EQ(errors_count->uecc, 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1240,10 +1014,6 @@ void TestDevMgmtApiSyncCmds::getDDRECCUECCCount_1_27(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -1252,10 +1022,6 @@ void TestDevMgmtApiSyncCmds::getDDRECCUECCCount_1_27(bool singleDevice) {
 
       EXPECT_EQ(errors_count->ecc, 0);
       EXPECT_EQ(errors_count->uecc, 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1277,10 +1043,6 @@ void TestDevMgmtApiSyncCmds::getSRAMECCUECCCount_1_28(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -1289,10 +1051,6 @@ void TestDevMgmtApiSyncCmds::getSRAMECCUECCCount_1_28(bool singleDevice) {
 
       EXPECT_EQ(errors_count->ecc, 0);
       EXPECT_EQ(errors_count->uecc, 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1314,10 +1072,6 @@ void TestDevMgmtApiSyncCmds::getDDRBWCounter_1_29(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1343,19 +1097,11 @@ void TestDevMgmtApiSyncCmds::setPCIELinkSpeed_1_30(bool singleDevice) {
                                 input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1381,19 +1127,11 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidth_1_31(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1419,19 +1157,12 @@ void TestDevMgmtApiSyncCmds::setPCIERetrainPhy_1_32(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1452,10 +1183,6 @@ void TestDevMgmtApiSyncCmds::getASICFrequencies_1_33(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1475,10 +1202,6 @@ void TestDevMgmtApiSyncCmds::getDRAMBW_1_34(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1499,10 +1222,6 @@ void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilization_1_35(bool singleDevice) 
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1524,19 +1243,11 @@ void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilization_1_36(bool singleD
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1557,19 +1268,11 @@ void TestDevMgmtApiSyncCmds::getASICUtilization_1_37(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1590,19 +1293,11 @@ void TestDevMgmtApiSyncCmds::getASICStalls_1_38(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1623,19 +1318,11 @@ void TestDevMgmtApiSyncCmds::getASICLatency_1_39(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1655,10 +1342,6 @@ void TestDevMgmtApiSyncCmds::getMMErrorCount_1_40(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MM_ERROR_COUNT, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -1680,19 +1363,11 @@ void TestDevMgmtApiSyncCmds::getFWBootstatus_1_41(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing and validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ(output_buff[0], 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1713,10 +1388,6 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision_1_42(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing and validation if loopback driver
@@ -1730,10 +1401,6 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision_1_42(bool singleDevice) {
       EXPECT_EQ(firmware_versions->mm_v, FORMAT_VERSION(3, 17, 3));
       EXPECT_EQ(firmware_versions->wm_v, FORMAT_VERSION(3, 17, 3));
       EXPECT_EQ(firmware_versions->machm_v, FORMAT_VERSION(3, 17, 3));
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1762,10 +1429,6 @@ void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode_1_43(bool singleDevice) {
     EXPECT_EQ(*res1, device_mgmt_api::DM_STATUS_SUCCESS);
     EXPECT_EQ(*res2, -EAGAIN);
     EXPECT_EQ(*res3, device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
   }
 }
 
@@ -1807,10 +1470,6 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -1820,10 +1479,6 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
     }
 
     EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
 
     DM_LOG(INFO) << "Response received from device, wait for printing\n";
     sleep(10);
@@ -1855,10 +1510,6 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
 
     // all events should match once
     EXPECT_EQ(result, max_err_types);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
   }
 }
 
@@ -1907,10 +1558,6 @@ void TestDevMgmtApiSyncCmds::isUnsupportedService_1_45(bool singleDevice) {
               -EINVAL);
     DM_LOG(INFO) << "Service Requests Completed for Device: " << deviceIdx;
 
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
   }
 }
 
@@ -1934,10 +1581,6 @@ void TestDevMgmtApiSyncCmds::setSpRootCertificate_1_46(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT * 20),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -1946,10 +1589,6 @@ void TestDevMgmtApiSyncCmds::setSpRootCertificate_1_46(bool singleDevice) {
       strncpy(expected, "0", output_size);
 
       EXPECT_EQ(strncmp(output_buff, expected, output_size), 0);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -1974,19 +1613,12 @@ void TestDevMgmtApiSyncCmds::setTraceControl_1_47(bool singleDevice) {
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -2014,19 +1646,12 @@ void TestDevMgmtApiSyncCmds::setTraceConfigure_1_48(bool singleDevice, uint32_t 
                                 set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (!FLAGS_loopback_driver) {
       EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
-      if (HasFailure()) {
-        extractAndPrintTraceData(deviceIdx);
-        return;
-      }
     }
   }
 }
@@ -2103,10 +1728,6 @@ void TestDevMgmtApiSyncCmds::setModuleSetTemperatureThresholdRange_1_51(bool sin
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -2130,10 +1751,6 @@ void TestDevMgmtApiSyncCmds::setModuleStaticTDPLevelRange_1_52(bool singleDevice
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -2159,10 +1776,6 @@ void TestDevMgmtApiSyncCmds::setPCIEMaxLinkSpeedRange_1_53(bool singleDevice) {
                                 input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -2188,10 +1801,6 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidthRange_1_54(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -2242,10 +1851,6 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputSize_1_56(bool
                                 output_buff, 0 /*Invalid output size*/, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -2268,10 +1873,6 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceNode_1_57(bool
                                 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -2293,10 +1894,6 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidHostLatency_1_58(boo
                                 output_buff, output_size, nullptr /*nullptr for invalid testing*/, dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -2318,10 +1915,6 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceLatency_1_59(b
                                 output_buff, output_size, hst_latency.get(), nullptr /*nullptr for invalid testing*/,
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -2343,10 +1936,6 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputBuffer_1_60(bo
                                 nullptr /*nullptr instaed of output buffer*/, output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -2369,10 +1958,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputBuff
                                 nullptr /*Nullptr instead of input buffer*/, input_size, set_output_buff,
                                 set_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    if (HasFailure()) {
-      extractAndPrintTraceData(deviceIdx);
-      return;
-    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }

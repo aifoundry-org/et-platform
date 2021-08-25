@@ -18,6 +18,12 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+
+#include <dlfcn.h>
+
+using namespace dev;
+using namespace device_management;
+
 #define DM_LOG(severity) ET_LOG(DM, severity)
 #define DM_DLOG(severity) ET_DLOG(DM, severity)
 #define DM_VLOG(severity) ET_VLOG(DM, severity)
@@ -31,9 +37,6 @@ void testSerial(device_management::DeviceManagement& dm, uint32_t deviceIdx, uin
 
 class TestDevMgmtApiSyncCmds : public ::testing::Test {
 protected:
-  device_management::getDM_t getInstance();
-  bool printSpTraceData(const unsigned char*, size_t) const;
-  void extractAndPrintTraceData(int);
   void getModuleManufactureName_1_1(bool singleDevice);
   void getModulePartNumber_1_2(bool singleDevice);
   void getModuleSerialNumber_1_3(bool singleDevice);
@@ -98,8 +101,42 @@ protected:
   void getModuleManufactureNameInvalidOutputBuffer_1_60(bool singleDevice);
   void setModuleActivePowerManagementRangeInvalidInputBuffer_1_61(bool singleDevice);
   void setModuleActivePowerManagement_1_62(bool singleDevice);
-  void* handle_ = nullptr;
-  std::unique_ptr<IDeviceLayer> devLayer_;
+  void TearDown() override {
+    if (HasFailure()) {
+      getDM_t dmi = getInstance();
+      DeviceManagement& dm = (*dmi)(devLayer_.get());
+      auto deviceCount =  dm.getDevicesCount();
+      /* Dump the trace data for test case failure */
+      for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+        extractAndPrintTraceData(deviceIdx);
+      }
+    }
+  }
+
+public :
+  inline static  void* handle_ = NULL;
+  inline static std::unique_ptr<IDeviceLayer> devLayer_ = NULL;
+  static device_management::getDM_t getInstance();
+  static bool printSpTraceData(const unsigned char*, size_t);
+  static void extractAndPrintTraceData(int);
+
+  static void SetUpTestCase() {
+    handle_ = dlopen("libDM.so", RTLD_LAZY);
+    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
+  }
+
+  static void TearDownTestSuite() {
+    getDM_t dmi = getInstance();
+    DeviceManagement& dm = (*dmi)(devLayer_.get());
+    auto deviceCount =  dm.getDevicesCount();
+    /* Dump the trace data at the end of test suite execution */
+    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+      extractAndPrintTraceData(deviceIdx);
+    }
+    if (handle_ != nullptr) {
+     dlclose(handle_);
+    }
+  }
 };
 
 #endif // TEST_DEVICE_M_H

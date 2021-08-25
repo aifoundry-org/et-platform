@@ -9,6 +9,8 @@
  *-------------------------------------------------------------------------*/
 
 #include <esperanto/et-trace/layout.h>
+
+#define ET_TRACE_DECODER_IMPL
 #include <esperanto/et-trace/decoder.h>
 
 // A namespace containing template for `bit_cast`. To be removed when `bit_cast` will be available

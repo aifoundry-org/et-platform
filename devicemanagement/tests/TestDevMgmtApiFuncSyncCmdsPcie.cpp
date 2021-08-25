@@ -14,16 +14,11 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-class TestDevMgmtApiFuncSyncCmdsPcie : public TestDevMgmtApiSyncCmds {
-public:
-  void SetUp() override {
-    handle_ = dlopen("libDM.so", RTLD_LAZY);
-    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
-  }
 
+class TestDevMgmtApiFuncSyncCmdsPcie : public TestDevMgmtApiSyncCmds {
   void TearDown() override {
-    if (handle_ != nullptr) {
-      dlclose(handle_);
+    if (HasFailure()) {
+     TestDevMgmtApiSyncCmds::TearDown();
     }
   }
 };
