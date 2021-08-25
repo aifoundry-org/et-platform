@@ -1023,7 +1023,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         break;
     case CSR_TENSOR_COOP:
         require_feature_ml_on_thread0();
-        val &= 0x0000000000FFFF0FULL;
+        val &= 0xfff1f;
         tensor_coop_write(cpu, val);
         break;
     case CSR_TENSOR_MASK:
@@ -1078,10 +1078,13 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
     case CSR_FCC:
         require_feature_ml();
         cpu.fcc_cnt = val % 2;
+        LOG_HART(DEBUG, cpu, "\tfcc%" PRIu64 " : %" PRIu16, val % 2, cpu.fcc[val % 2]);
 #ifdef SYS_EMU
         // If you are not going to block decrement it
-        if (cpu.fcc[val % 2] != 0)
+        if (cpu.fcc[val % 2] != 0) {
             cpu.fcc[val % 2]--;
+            LOG_HART(DEBUG, cpu, "\tfcc%" PRIu64 " = %" PRIu16, val % 2, cpu.fcc[val % 2]);
+        }
 #else
         // block if no credits, else decrement
         if (cpu.fcc[val % 2] == 0 ) {
@@ -1089,6 +1092,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
             throw std::domain_error("FCC write with no credits");
         } else {
             cpu.fcc[val % 2]--;
+            LOG_HART(DEBUG, cpu, "\tfcc%" PRIu64 " = %" PRIu16, val % 2, cpu.fcc[val % 2]);
         }
 #endif
         break;
