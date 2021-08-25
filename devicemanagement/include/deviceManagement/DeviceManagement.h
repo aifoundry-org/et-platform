@@ -52,7 +52,7 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS", device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS},
   {"DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS", device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS},
   {"DM_CMD_GET_MODULE_POWER_STATE", device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_POWER_STATE},
-  {"DM_CMD_SET_MODULE_POWER_STATE", device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_POWER_STATE},
+  {"DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT", device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT},
   {"DM_CMD_GET_MODULE_STATIC_TDP_LEVEL", device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_STATIC_TDP_LEVEL},
   {"DM_CMD_SET_MODULE_STATIC_TDP_LEVEL", device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL},
   {"DM_CMD_GET_MODULE_CURRENT_TEMPERATURE", device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_CURRENT_TEMPERATURE},
@@ -88,12 +88,10 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_SET_DM_TRACE_RUN_CONTROL", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL},
   {"DM_CMD_SET_DM_TRACE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG}};
 
-static std::unordered_map<std::string, device_mgmt_api::POWER_STATE> const powerStateTable = {
-  {"POWER_STATE_MAX_POWER", device_mgmt_api::POWER_STATE::POWER_STATE_MAX_POWER},
-  {"POWER_STATE_MANAGED_POWER", device_mgmt_api::POWER_STATE::POWER_STATE_MANAGED_POWER},
-  {"POWER_STATE_SAFE_POWER", device_mgmt_api::POWER_STATE::POWER_STATE_SAFE_POWER},
-  {"POWER_STATE_LOW_POWER", device_mgmt_api::POWER_STATE::POWER_STATE_LOW_POWER},
-  {"POWER_STATE_INVALID", device_mgmt_api::POWER_STATE::POWER_STATE_INVALID}};
+static std::unordered_map<std::string, device_mgmt_api::ACTIVE_POWER_MANAGEMENT> const activePowerManagementTable = {
+  {"ACTIVE_POWER_MANAGEMENT_TURN_OFF", device_mgmt_api::ACTIVE_POWER_MANAGEMENT::ACTIVE_POWER_MANAGEMENT_TURN_OFF},
+  {"ACTIVE_POWER_MANAGEMENT_TURN_ON", device_mgmt_api::ACTIVE_POWER_MANAGEMENT::ACTIVE_POWER_MANAGEMENT_TURN_ON},
+  {"ACTIVE_POWER_MANAGEMENT_INVALID", device_mgmt_api::ACTIVE_POWER_MANAGEMENT::ACTIVE_POWER_MANAGEMENT_INVALID}};
 
 static std::unordered_map<std::string, device_mgmt_api::PCIE_RESET> const pcieResetTable = {
   {"PCIE_RESET_FLR", device_mgmt_api::PCIE_RESET::PCIE_RESET_FLR},
@@ -199,12 +197,12 @@ private:
   /// @return Command code table iterator
   itCmd isValidCommand(uint32_t cmd_code);
 
-  /// @brief Determine if power satate is a valid
+  /// @brief Determine if Active Power Management is a valid
   ///
   /// @param[in] input_buff  Input buffer to check
   ///
-  /// @return True if power state is valid
-  bool isValidPowerState(const char* input_buff);
+  /// @return True if Active Power Management is valid
+  bool isValidActivePowerManagement(const char* input_buff);
 
   /// @brief Determine if TDP is a valid
   ///

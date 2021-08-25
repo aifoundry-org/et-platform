@@ -97,8 +97,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleMemoryType_1_10) {
 }
 
 // Thermal and Power
-TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setAndGetModulePowerState_1_11) {
-  setAndGetModulePowerState_1_11(false /* Multiple Devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModulePowerState_1_11) {
+  getModulePowerState_1_11(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setAndGetModuleStaticTDPLevel_1_12) {
@@ -175,6 +175,10 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setPCIERetrainPhy_1_32) {
   setPCIERetrainPhy_1_32(false /* Multiple Devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setModuleActivePowerManagement_1_62) {
+  setModuleActivePowerManagement_1_62(false /* Multiple Devices */);
+}
+
 // Performance
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getASICFrequencies_1_33) {
   getASICFrequencies_1_33(false /* Multiple Devices */);
@@ -232,8 +236,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getMMErrorCount_1_40) {
   getMMErrorCount_1_40(false /* Multiple Devices */);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setModulePowerStateRange_1_50) {
-  setModulePowerStateRange_1_50(false /* Multiple Devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setModuleActivePowerManagementRange_1_50) {
+  setModuleActivePowerManagementRange_1_50(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setModuleSetTemperatureThresholdRange_1_51) {
@@ -252,8 +256,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setPCIELaneWidthRange_1_54) {
   setPCIELaneWidthRange_1_54(false /* Multiple Devices */);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setModulePowerStateRangeInvalidInputSize_1_55) {
-  setModulePowerStateRangeInvalidInputSize_1_55(false /* Multiple Devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setModuleActivePowerManagementRangeInvalidInputSize_1_55) {
+  setModuleActivePowerManagementRangeInvalidInputSize_1_55(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleManufactureNameInvalidOutputSize_1_56) {
@@ -276,8 +280,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, getModuleManufactureNameInvalidOutputBu
   getModuleManufactureNameInvalidOutputBuffer_1_60(false /* Multiple Devices */);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setModulePowerStateRangeInvalidInputBuffer_1_61) {
-  setModulePowerStateRangeInvalidInputBuffer_1_61(false /* Multiple Devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsSysEmu, setModuleActivePowerManagementRangeInvalidInputBuffer_1_61) {
+  setModuleActivePowerManagementRangeInvalidInputBuffer_1_61(false /* Multiple Devices */);
 }
 
 int main(int argc, char** argv) {

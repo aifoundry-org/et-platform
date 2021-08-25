@@ -69,8 +69,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMemoryType_1_10) {
 }
 
 // Thermal and Power
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setAndGetModulePowerState_1_11) {
-  setAndGetModulePowerState_1_11(false /* Multiple devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModulePowerState_1_11) {
+  getModulePowerState_1_11(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setAndGetModuleStaticTDPLevel_1_12) {
@@ -181,6 +181,10 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIELaneWidth_1_31) {
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIERetrainPhy_1_32) {
   setPCIERetrainPhy_1_32(false /* Multiple devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setModuleActivePowerManagement_1_62) {
+  setModuleActivePowerManagement_1_62(false /* Multiple devices */);
 }
 
 // Performance
@@ -397,8 +401,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getTraceBuffer_1_49) {
                          device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setModulePowerStateRange_1_50) {
-  setModulePowerStateRange_1_50(false /* Multiple Devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setModuleActivePowerManagementRange_1_50) {
+  setModuleActivePowerManagementRange_1_50(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setModuleSetTemperatureThresholdRange_1_51) {
@@ -409,8 +413,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setModuleStaticTDPLevelRange_1_52) {
   setModuleStaticTDPLevelRange_1_52(false /* Multiple Devices */);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setModulePowerStateRangeInvalidInputSize_1_55) {
-  setModulePowerStateRangeInvalidInputSize_1_55(false /* Multiple Devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setModuleActivePowerManagementRangeInvalidInputSize_1_55) {
+  setModuleActivePowerManagementRangeInvalidInputSize_1_55(false /* Multiple Devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleManufactureNameInvalidOutputSize_1_56) {
@@ -433,8 +437,8 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleManufactureNameInvalidOutputBuff
   getModuleManufactureNameInvalidOutputBuffer_1_60(false /* Multiple Devices */);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setModulePowerStateRangeInvalidInputBuffer_1_61) {
-  setModulePowerStateRangeInvalidInputBuffer_1_61(false /* Multiple Devices */);
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setModuleActivePowerManagementRangeInvalidInputBuffer_1_61) {
+  setModuleActivePowerManagementRangeInvalidInputBuffer_1_61(false /* Multiple Devices */);
 }
 
 int main(int argc, char** argv) {

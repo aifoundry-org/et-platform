@@ -96,7 +96,7 @@ static uint32_t timeout = 70000;
 static bool timeout_flag = true;
 
 static power_state_e power_state;
-static bool power_state_flag = false;
+static bool active_power_management_flag = false;
 
 static uint8_t tdp_level;
 static bool tdp_level_flag = false;
@@ -243,13 +243,13 @@ int verifyService() {
     DV_LOG(INFO) << "Power State Output: " << power_state << std::endl;
   } break;
 
-  case DM_CMD::DM_CMD_SET_MODULE_POWER_STATE: {
-    if (!power_state_flag) {
-      DV_LOG(ERROR) << "Aborting, --powerstate was not defined" << std::endl;
+  case DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT: {
+    if (!active_power_management_flag) {
+      DV_LOG(ERROR) << "Aborting, --active_pwr_mgmt was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(power_state_e);
-    const char input_buff[input_size] = {(char)power_state}; // bounds check prevents issues with narrowing
+    const char input_buff[input_size] = {(char)active_power_management_flag}; // bounds check prevents issues with narrowing
 
     const uint32_t output_size = sizeof(uint32_t);
     char output_buff[output_size] = {0};
@@ -331,10 +331,13 @@ int verifyService() {
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES: {
+    const uint32_t input_size = sizeof(device_mgmt_api::power_throttle_state_e);
+    const char input_buff[input_size] = {device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP};
+
     const uint32_t output_size = sizeof(residency_t);
     char output_buff[output_size] = {0};
 
-    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+    if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
 
@@ -887,7 +890,7 @@ bool validNode() {
   return true;
 }
 
-bool validPowerState() {
+bool validActivePowerManagement() {
   if (!validDigitsOnly()) {
     return false;
   }
@@ -897,8 +900,8 @@ bool validPowerState() {
 
   auto state = std::strtoul(optarg, &end, 10);
 
-  if (state > 3 || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not a valid power state ( 0-3 )" << std::endl;
+  if (state > 1 || end == optarg || *end != '\0' || errno != 0) {
+    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not a valid active power management ( 0-1 )" << std::endl;
     return false;
   }
 
@@ -1034,7 +1037,7 @@ static struct option long_options[] = {{"code", required_argument, 0, 'o'},
                                        {"help", no_argument, 0, 'h'},
                                        {"memcount", required_argument, 0, 'c'},
                                        {"node", required_argument, 0, 'n'},
-                                       {"powerstate", required_argument, 0, 'p'},
+                                       {"active_pwr_mgmt", required_argument, 0, 'p'},
                                        {"pciereset", required_argument, 0, 'r'},
                                        {"pciespeed", required_argument, 0, 's'},
                                        {"pciewidth", required_argument, 0, 'w'},
@@ -1137,24 +1140,24 @@ void printMemCount(char* argv) {
             << " -" << (char)long_options[3].val << " 0" << std::endl;
 }
 
-void printPowerState(char* argv) {
+void printActivePowerManagement(char* argv) {
   std::cout << std::endl;
   std::cout << "\t"
-            << "-" << (char)long_options[5].val << ", --" << long_options[5].name << "=npower" << std::endl;
+            << "-" << (char)long_options[5].val << ", --" << long_options[5].name << "=active_pwr_m" << std::endl;
   std::cout << "\t\t"
-            << "Set power state:" << std::endl;
+            << "Set active power management:" << std::endl;
   std::cout << std::endl;
 
-  for (auto const& [key, val] : powerStateTable) {
+  for (auto const& [key, val] : activePowerManagementTable) {
     std::cout << "\t\t\t" << val << ": " << key << std::endl;
   }
 
   std::cout << std::endl;
   std::cout << "\t\t"
-            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_MODULE_POWER_STATE
+            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT
             << " -" << (char)long_options[5].val << " 0" << std::endl;
   std::cout << "\t\t"
-            << "Ex. " << argv << " -" << (char)long_options[1].val << " DM_CMD_SET_MODULE_POWER_STATE"
+            << "Ex. " << argv << " -" << (char)long_options[1].val << " SET_MODULE_ACTIVE_POWER_MANAGEMENT"
             << " -" << (char)long_options[5].val << " 0" << std::endl;
 }
 
@@ -1265,7 +1268,7 @@ void printUsage(char* argv) {
   printTimeout(argv);
   printHelp(argv);
   printMemCount(argv);
-  printPowerState(argv);
+  printActivePowerManagement(argv);
   printPCIEReset(argv);
   printPCIELinkSpeed(argv);
   printPCIELaneWidth(argv);
@@ -1327,7 +1330,7 @@ int main(int argc, char** argv) {
       break;
 
     case 'p':
-      if (!(power_state_flag = validPowerState())) {
+      if (!(active_power_management_flag = validActivePowerManagement())) {
         return -EINVAL;
       }
       break;
