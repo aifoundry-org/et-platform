@@ -45,15 +45,15 @@ namespace bemu {
 } while (0)
 
 #define LOG_REG(str, n) do { \
-    if (n != 0) \
-        LOG_HART(DEBUG, cpu, "\tx%d " str " 0x%" PRIx64, n, cpu.xregs[n]); \
+    if ((n) != 0) \
+        LOG_HART(DEBUG, cpu, "\tx%d " str " 0x%" PRIx64, (n), cpu.xregs[n]); \
 } while (0)
 
 #define LOG_FREG(str, n) \
     LOG_HART(DEBUG, cpu, "\tf%d " str " {" \
         " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
         " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
-        " }", n, \
+        " }", (n), \
         cpu.fregs[n].u32[0], cpu.fregs[n].u32[1], \
         cpu.fregs[n].u32[2], cpu.fregs[n].u32[3], \
         cpu.fregs[n].u32[4], cpu.fregs[n].u32[5], \
@@ -63,22 +63,22 @@ namespace bemu {
     LOG_HART(DEBUG, cpu, "\tc%d " str " {" \
         " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
         " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
-        " }", n, \
+        " }", (n), \
         cpu.core->tenc[n].u32[0], cpu.core->tenc[n].u32[1], \
         cpu.core->tenc[n].u32[2], cpu.core->tenc[n].u32[3], \
         cpu.core->tenc[n].u32[4], cpu.core->tenc[n].u32[5], \
         cpu.core->tenc[n].u32[6], cpu.core->tenc[n].u32[7])
 
 #define LOG_MREG(str, n) \
-    LOG_HART(DEBUG, cpu, "\tm%d " str " 0x%02lx", n, cpu.mregs[n].to_ulong())
+    LOG_HART(DEBUG, cpu, "\tm%d " str " 0x%02lx", (n), cpu.mregs[n].to_ulong())
 
 #define LOG_SCP(str, row, col) \
     LOG_HART(DEBUG, cpu, "\t%s[%d] " str " {" \
         " %d:0x%08" PRIx32 " %d:0x%08" PRIx32 " %d:0x%08" PRIx32 " %d:0x%08" PRIx32 \
         " %d:0x%08" PRIx32 " %d:0x%08" PRIx32 " %d:0x%08" PRIx32 " %d:0x%08" PRIx32 \
         " }", \
-        (row >= L1_SCP_ENTRIES) ? "TenB" : "SCP", \
-        (row >= L1_SCP_ENTRIES) ? (row - L1_SCP_ENTRIES) : row, \
+        ((row) >= L1_SCP_ENTRIES) ? "TenB" : "SCP", \
+        ((row) >= L1_SCP_ENTRIES) ? ((row) - L1_SCP_ENTRIES) : (row), \
         (col)+0, cpu.core->scp[row].u32[(col)+0], (col)+1, cpu.core->scp[row].u32[(col)+1], \
         (col)+2, cpu.core->scp[row].u32[(col)+2], (col)+3, cpu.core->scp[row].u32[(col)+3], \
         (col)+4, cpu.core->scp[row].u32[(col)+4], (col)+5, cpu.core->scp[row].u32[(col)+5], \
@@ -91,8 +91,8 @@ namespace bemu {
         " 8:0x%08" PRIx32 " 9:0x%08" PRIx32 " 10:0x%08" PRIx32 " 11:0x%08" PRIx32 \
         " 12:0x%08" PRIx32 " 13:0x%08" PRIx32 " 14:0x%08" PRIx32 " 15:0x%08" PRIx32 \
         " }", \
-        (row >= L1_SCP_ENTRIES) ? "TenB" : "SCP", \
-        (row >= L1_SCP_ENTRIES) ? (row - L1_SCP_ENTRIES) : row, \
+        ((row) >= L1_SCP_ENTRIES) ? "TenB" : "SCP", \
+        ((row) >= L1_SCP_ENTRIES) ? ((row) - L1_SCP_ENTRIES) : (row), \
         cpu.core->scp[row].u32[0], cpu.core->scp[row].u32[1], cpu.core->scp[row].u32[2], cpu.core->scp[row].u32[3], \
         cpu.core->scp[row].u32[4], cpu.core->scp[row].u32[5], cpu.core->scp[row].u32[6], cpu.core->scp[row].u32[7], \
         cpu.core->scp[row].u32[8], cpu.core->scp[row].u32[9], cpu.core->scp[row].u32[10], cpu.core->scp[row].u32[11], \
@@ -100,19 +100,19 @@ namespace bemu {
 
 #define LOG_SCP_32x1(str, row, col) \
     LOG_HART(DEBUG, cpu, "\t%s[%d] " str " { %d:0x%08" PRIx32 " }", \
-        (row >= L1_SCP_ENTRIES) ? "TenB" : "SCP", \
-        (row >= L1_SCP_ENTRIES) ? (row - L1_SCP_ENTRIES) : row, \
-        col, cpu.core->scp[row].u32[col])
+        ((row) >= L1_SCP_ENTRIES) ? "TenB" : "SCP", \
+        ((row) >= L1_SCP_ENTRIES) ? ((row) - L1_SCP_ENTRIES) : (row), \
+        (col), cpu.core->scp[row].u32[col])
 
 #define LOG_FREG_HART(cpu, str, n) \
-    LOG_HART(DEBUG, cpu, "\tf%d " str " {" \
+    LOG_HART(DEBUG, (cpu), "\tf%d " str " {" \
         " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
         " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
-        " }", n, \
-        cpu.fregs[n].u32[0], cpu.fregs[n].u32[1], \
-        cpu.fregs[n].u32[2], cpu.fregs[n].u32[3], \
-        cpu.fregs[n].u32[4], cpu.fregs[n].u32[5], \
-        cpu.fregs[n].u32[6], cpu.fregs[n].u32[7])
+        " }", (n), \
+        (cpu).fregs[n].u32[0], (cpu).fregs[n].u32[1], \
+        (cpu).fregs[n].u32[2], (cpu).fregs[n].u32[3], \
+        (cpu).fregs[n].u32[4], (cpu).fregs[n].u32[5], \
+        (cpu).fregs[n].u32[6], (cpu).fregs[n].u32[7])
 
 #define LOG_FFLAGS(str, n) \
     LOG_HART(DEBUG, cpu, "\tfflags " str " 0x%" PRIx32, uint32_t(n))
@@ -124,13 +124,13 @@ namespace bemu {
     LOG_HART(DEBUG, cpu, "\tgsc_progress " str " %u", unsigned(cpu.gsc_progress))
 
 #define LOG_MEMWRITE(size, addr, value) \
-   LOG_HART(DEBUG, cpu, "\tMEM%zu[0x%" PRIx64 "] = 0x%llx", std::size_t(size) , addr, static_cast<unsigned long long>(value))
+   LOG_HART(DEBUG, cpu, "\tMEM%zu[0x%" PRIx64 "] = 0x%llx", std::size_t(size) , (addr), static_cast<unsigned long long>(value))
 
 #define LOG_MEMWRITE128(addr, ptr) \
    LOG_HART(DEBUG, cpu, "\tMEM128[0x%" PRIx64 "] = {" \
        " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
-       " }", addr, \
-       ptr[0], ptr[1], ptr[2], ptr[3])
+       " }", (addr), \
+       (ptr)[0], (ptr)[1], (ptr)[2], (ptr)[3])
 
 #define LOG_MEMWRITE512(addr, ptr) \
    LOG_HART(DEBUG, cpu, "\tMEM512[0x%" PRIx64 "] = {" \
@@ -138,23 +138,23 @@ namespace bemu {
        " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
        " 8:0x%08" PRIx32 " 9:0x%08" PRIx32 " 10:0x%08" PRIx32 " 11:0x%08" PRIx32 \
        " 12:0x%08" PRIx32 " 13:0x%08" PRIx32 " 14:0x%08" PRIx32 " 15:0x%08" PRIx32 \
-       " }", addr, \
-       ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7], \
-       ptr[8], ptr[9], ptr[10], ptr[11], ptr[12], ptr[13], ptr[14], ptr[15])
+       " }", (addr), \
+       (ptr)[0], (ptr)[1], (ptr)[2], (ptr)[3], (ptr)[4], (ptr)[5], (ptr)[6], (ptr)[7], \
+       (ptr)[8], (ptr)[9], (ptr)[10], (ptr)[11], (ptr)[12], (ptr)[13], (ptr)[14], (ptr)[15])
 
 #define LOG_MEMREAD(size, addr, value) \
-   LOG_HART(DEBUG, cpu, "\tMEM%zu[0x%" PRIx64 "] : 0x%llx", std::size_t(size), addr, static_cast<unsigned long long>(value))
+   LOG_HART(DEBUG, cpu, "\tMEM%zu[0x%" PRIx64 "] : 0x%llx", std::size_t(size), (addr), static_cast<unsigned long long>(value))
 
 #define LOG_MEMREAD128(addr, ptr) \
    LOG_HART(DEBUG, cpu, "\tMEM128[0x%" PRIx64 "] : {" \
        " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
-       " }", addr, ptr[0], ptr[1], ptr[2], ptr[3])
+       " }", (addr), (ptr)[0], (ptr)[1], (ptr)[2], (ptr)[3])
 
 #define LOG_MEMREAD256(addr, ptr) \
    LOG_HART(DEBUG, cpu, "\tMEM256[0x%" PRIx64 "] : {" \
        " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
        " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
-       " }", addr, ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7])
+       " }", (addr), (ptr)[0], (ptr)[1], (ptr)[2], (ptr)[3], (ptr)[4], (ptr)[5], (ptr)[6], (ptr)[7])
 
 #define LOG_MEMREAD512(addr, ptr) \
    LOG_HART(DEBUG, cpu, "\tMEM512[0x%" PRIx64 "] : {" \
@@ -162,9 +162,9 @@ namespace bemu {
        " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
        " 8:0x%08" PRIx32 " 9:0x%08" PRIx32 " 10:0x%08" PRIx32 " 11:0x%08" PRIx32 \
        " 12:0x%08" PRIx32 " 13:0x%08" PRIx32 " 14:0x%08" PRIx32 " 15:0x%08" PRIx32 \
-       " }", addr, \
-       ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7], \
-       ptr[8], ptr[9], ptr[10], ptr[11], ptr[12], ptr[13], ptr[14], ptr[15])
+       " }", (addr), \
+       (ptr)[0], (ptr)[1], (ptr)[2], (ptr)[3], (ptr)[4], (ptr)[5], (ptr)[6], (ptr)[7], \
+       (ptr)[8], (ptr)[9], (ptr)[10], (ptr)[11], (ptr)[12], (ptr)[13], (ptr)[14], (ptr)[15])
 
 #define LOG_PRV(str, value) \
     LOG_HART(DEBUG, cpu, "\tprv " str " %c", "USHM"[int(value) % 4])
@@ -311,14 +311,14 @@ inline mreg_t mkmask(unsigned len) {
 
 
 #define WRITE_REG(n, expr, late) do { \
-    if (n != 0) { \
+    if ((n) != 0) { \
         cpu.xregs[n] = (expr); \
         LOG_REG("=", n); \
     } \
     if (late) \
-        notify_xreg_late_write(cpu, n, cpu.xregs[n]); \
+        notify_xreg_late_write(cpu, (n), cpu.xregs[n]); \
     else \
-        notify_xreg_write(cpu, n, cpu.xregs[n]); \
+        notify_xreg_write(cpu, (n), cpu.xregs[n]); \
 } while (0)
 
 
@@ -340,7 +340,7 @@ inline mreg_t mkmask(unsigned len) {
     cpu.mregs[n] = (expr); \
     LOG_MREG("=", n); \
     dirty_fp_state(); \
-    notify_mreg_write(cpu, n, cpu.mregs[n]); \
+    notify_mreg_write(cpu, (n), cpu.mregs[n]); \
 } while (0)
 
 
@@ -608,11 +608,11 @@ inline void set_fp_exceptions(Hart& cpu)
 // Disassemble instruction, and input operands
 
 #define DISASM_NOARG(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name, PRVNAME); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name, PRVNAME, cpu.pc, cpu.inst.bits); \
 } while (0)
 
 #define DISASM_RD_ALLMASK(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name, PRVNAME); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name, PRVNAME, cpu.pc, cpu.inst.bits); \
     LOG_MREG(":", 0); \
     LOG_MREG(":", 1); \
     LOG_MREG(":", 2); \
@@ -624,140 +624,140 @@ inline void set_fp_exceptions(Hart& cpu)
 } while (0)
 
 #define DISASM_RS1_RS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,x%d", PRVNAME, cpu.inst.rs1(), cpu.inst.rs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,x%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rs1(), cpu.inst.rs2()); \
     LOG_REG(":", cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
 } while (0)
 
 #define DISASM_RS1_RS2_BIMM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,x%d,%" PRId64, PRVNAME, cpu.inst.rs1(), cpu.inst.rs2(), BIMM); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,x%d,%" PRId64, PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rs1(), cpu.inst.rs2(), BIMM); \
     LOG_REG(":", cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
 } while (0)
 
 #define DISASM_RD_JIMM(name) \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64, PRVNAME, cpu.inst.rd(), JIMM)
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64, PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), JIMM)
 
 #define DISASM_RD_RS1_IIMM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,x%d,%" PRId64, PRVNAME, cpu.inst.rd(), cpu.inst.rs1(), IIMM); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,x%d,%" PRId64, PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.rs1(), IIMM); \
     LOG_REG(":", cpu.inst.rs1()); \
 } while (0)
 
 #define DISASM_RD_CSR_RS1(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%s,x%d", PRVNAME, cpu.inst.rd(), csr_name(cpu.inst.csrimm()), cpu.inst.rs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%s,x%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), csr_name(cpu.inst.csrimm()), cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs1()); \
 } while (0)
 
 #define DISASM_RD_CSR_UIMM5(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%s,0x%" PRIx64, PRVNAME, cpu.inst.rd(), csr_name(cpu.inst.csrimm()), cpu.inst.uimm5()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%s,0x%" PRIx64, PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), csr_name(cpu.inst.csrimm()), cpu.inst.uimm5()); \
 } while (0)
 
 #define DISASM_RD_RS1_RS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,x%d,x%d", PRVNAME, cpu.inst.rd(), cpu.inst.rs1(), cpu.inst.rs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,x%d,x%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.rs1(), cpu.inst.rs2()); \
     LOG_REG(":", cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
 } while (0)
 
 #define DISASM_RD_RS1_SHAMT5(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,x%d,0x%x", PRVNAME, cpu.inst.rd(), cpu.inst.rs1(), SHAMT5); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,x%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.rs1(), SHAMT5); \
     LOG_REG(":", cpu.inst.rs1()); \
 } while (0)
 
 #define DISASM_RD_RS1_SHAMT6(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,x%d,0x%x", PRVNAME, cpu.inst.rd(), cpu.inst.rs1(), SHAMT6); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,x%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.rs1(), SHAMT6); \
     LOG_REG(":", cpu.inst.rs1()); \
 } while (0)
 
 #define DISASM_RD_UIMM(name) \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,0x%x", PRVNAME, cpu.inst.rd(), unsigned((UIMM>>12) & 0xFFFFF))
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), unsigned((UIMM>>12) & 0xFFFFF))
 
 #define DISASM_RS1(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d", PRVNAME, cpu.inst.rs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs1()); \
 } while (0)
 
 #define DISASM_MD_FS1(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " m%d,f%d", PRVNAME, cpu.inst.md(), cpu.inst.fs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " m%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.md(), cpu.inst.fs1()); \
     LOG_FREG(":", cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_MD_FS1_FS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " m%d,f%d,f%d", PRVNAME, cpu.inst.md(), cpu.inst.fs1(), cpu.inst.fs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " m%d,f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.md(), cpu.inst.fs1(), cpu.inst.fs2()); \
     LOG_FREG(":", cpu.inst.fs1()); \
     LOG_FREG(":", cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_MD_MS1(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " m%d,m%d", PRVNAME, cpu.inst.md(), cpu.inst.ms1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " m%d,m%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.md(), cpu.inst.ms1()); \
     LOG_MREG(":", cpu.inst.ms1()); \
 } while (0)
 
 #define DISASM_MD_MS1_MS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " m%d,m%d,m%d", PRVNAME, cpu.inst.md(), cpu.inst.ms1(), cpu.inst.ms2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " m%d,m%d,m%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.md(), cpu.inst.ms1(), cpu.inst.ms2()); \
     LOG_MREG(":", cpu.inst.ms1()); \
     LOG_MREG(":", cpu.inst.ms2()); \
 } while (0)
 
 #define DISASM_MD_RS1_UIMM8(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " m%d,x%d,0x%x", PRVNAME, cpu.inst.md(), cpu.inst.rs1(), UIMM8); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " m%d,x%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.md(), cpu.inst.rs1(), UIMM8); \
     LOG_REG(":", cpu.inst.rs1()); \
 } while (0)
 
 #define DISASM_RD_MS1(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,m%d", PRVNAME, cpu.inst.rd(), cpu.inst.ms1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,m%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.ms1()); \
     LOG_MREG(":", cpu.inst.ms1()); \
 } while (0)
 
 #define DISASM_RD_MS1_MS2_UMSK4(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,m%d,m%d,0x%x", PRVNAME, cpu.inst.rd(), cpu.inst.ms1(), cpu.inst.ms2(), UMSK4); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,m%d,m%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.ms1(), cpu.inst.ms2(), UMSK4); \
     LOG_MREG(":", cpu.inst.ms1()); \
     LOG_MREG(":", cpu.inst.ms2()); \
 } while (0)
 
 #define DISASM_FD_F32IMM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,0x%x", PRVNAME, cpu.inst.fd(), F32IMM); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), F32IMM); \
 } while (0)
 
 #define DISASM_FD_FS1(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d", PRVNAME, cpu.inst.fd(), cpu.inst.fs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1()); \
     LOG_FREG(":", cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_FS1_FRM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d", PRVNAME, cpu.inst.fd(), cpu.inst.fs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1()); \
     LOG_FRM(":", true); \
     LOG_FREG(":", cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d,f%d", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2()); \
     LOG_FREG(":", cpu.inst.fs1()); \
     LOG_FREG(":", cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2_FRM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d,f%d", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2()); \
     LOG_FRM(":", true); \
     LOG_FREG(":", cpu.inst.fs1()); \
     LOG_FREG(":", cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_FDS0_FS1_FS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d,f%d", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2()); \
     LOG_FREG(":", cpu.inst.fd()); \
     LOG_FREG(":", cpu.inst.fs1()); \
     LOG_FREG(":", cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2_FS3(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d,f%d,f%d", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2(), cpu.inst.fs3()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2(), cpu.inst.fs3()); \
     LOG_FREG(":", cpu.inst.fs1()); \
     LOG_FREG(":", cpu.inst.fs2()); \
     LOG_FREG(":", cpu.inst.fs3()); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2_FS3_RM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d,f%d,f%d,%s", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2(), cpu.inst.fs3(), RMNAME); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,f%d,f%d,%s", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2(), cpu.inst.fs3(), RMNAME); \
     LOG_FRM(":", RMDYN); \
     LOG_FREG(":", cpu.inst.fs1()); \
     LOG_FREG(":", cpu.inst.fs2()); \
@@ -765,137 +765,137 @@ inline void set_fp_exceptions(Hart& cpu)
 } while (0)
 
 #define DISASM_FD_FS1_FS2_RM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d,f%d,%s", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2(), RMNAME); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,f%d,%s", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2(), RMNAME); \
     LOG_FRM(":", RMDYN); \
     LOG_FREG(":", cpu.inst.fs1()); \
     LOG_FREG(":", cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_FD_FS1_RM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d,%s", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), RMNAME); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,%s", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), RMNAME); \
     LOG_FRM(":", RMDYN); \
     LOG_FREG(":", cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_FS1_UIMM8(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d,0x%x", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), UIMM8); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), UIMM8); \
     LOG_FREG(":", cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_FS1_VIMM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d,%d", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), VIMM); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), VIMM); \
     LOG_FREG(":", cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_FS1_UVIMM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d,0x%x", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), VIMM); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), VIMM); \
     LOG_FREG(":", cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_FS1_SHAMT5(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d,0x%x", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), SHAMT5); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), SHAMT5); \
     LOG_FREG(":", cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_I32IMM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,%d", PRVNAME, cpu.inst.fd(), I32IMM); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), I32IMM); \
 } while (0)
 
 #define DISASM_FD_RS1(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,x%d", PRVNAME, cpu.inst.fd(), cpu.inst.rs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,x%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs1()); \
 } while (0)
 
 #define DISASM_FD_RS1_RM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,x%d,%s", PRVNAME, cpu.inst.fd(), cpu.inst.rs1(), RMNAME); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,x%d,%s", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.rs1(), RMNAME); \
     LOG_FRM(":", RMDYN); \
     LOG_REG(":", cpu.inst.rs1()); \
 } while (0)
 
 #define DISASM_RD_FS1(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,f%d", PRVNAME, cpu.inst.rd(), cpu.inst.fs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.fs1()); \
     LOG_FREG(":", cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_RD_FS1_FS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,f%d,f%d", PRVNAME, cpu.inst.rd(), cpu.inst.fs1(), cpu.inst.fs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.fs1(), cpu.inst.fs2()); \
     LOG_FREG(":", cpu.inst.fs1()); \
     LOG_FREG(":", cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_RD_FS1_RM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,f%d,%s", PRVNAME, cpu.inst.rd(), cpu.inst.fs1(), RMNAME); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,f%d,%s", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.fs1(), RMNAME); \
     LOG_FRM(":", RMDYN); \
     LOG_FREG(":", cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_RD_FS1_UIMM3(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,f%d,0x%x", PRVNAME, cpu.inst.rd(), cpu.inst.fs1(), UIMM3); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,f%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.fs1(), UIMM3); \
     LOG_FREG(":", cpu.inst.fs1()); \
 } while (0)
 
 
 #define DISASM_LOAD_RD_RS1_IIMM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64 "(x%d)", PRVNAME, cpu.inst.rd(), IIMM, cpu.inst.rs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), IIMM, cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs1()); \
 } while (0)
 
 #define DISASM_STORE_RS2_RS1(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,(x%d)", PRVNAME, cpu.inst.rs2(), cpu.inst.rs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rs2(), cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
 } while (0)
 
 #define DISASM_STORE_RS2_RS1_SIMM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64 "(x%d)", PRVNAME, cpu.inst.rs2(), SIMM, cpu.inst.rs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rs2(), SIMM, cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
 } while (0)
 
 #define DISASM_AMO_RD_RS1_RS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,x%d,(x%d)", PRVNAME, cpu.inst.rd(), cpu.inst.rs2(), cpu.inst.rs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,x%d,(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.rs2(), cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
 } while (0)
 
 #define DISASM_LOAD_FD_RS1(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,(x%d)", PRVNAME, cpu.inst.fd(), cpu.inst.rs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs1()); \
 } while (0)
 
 #define DISASM_LOAD_FD_RS1_IIMM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,%" PRId64 "(x%d)", PRVNAME, cpu.inst.fd(), IIMM, cpu.inst.rs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,%" PRId64 "(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), IIMM, cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs1()); \
 } while (0)
 
 #define DISASM_STORE_FD_RS1(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,(x%d)", PRVNAME, cpu.inst.fd(), cpu.inst.rs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.rs1()); \
     LOG_FREG(":", cpu.inst.fd()); \
     LOG_REG(":", cpu.inst.rs1()); \
 } while (0)
 
 #define DISASM_STORE_FS2_RS1_SIMM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,%" PRId64 "(x%d)", PRVNAME, cpu.inst.fs2(), SIMM, cpu.inst.rs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,%" PRId64 "(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fs2(), SIMM, cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs1()); \
     LOG_FREG(":", cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_GATHER_FD_FS1_RS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d(x%d)", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.rs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.rs2()); \
     LOG_FREG(":", cpu.inst.fs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
     LOG_MREG(":", 0); \
 } while (0)
 
 #define DISASM_GATHER_FD_RS1_RS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,x%d(x%d)", PRVNAME, cpu.inst.fd(), cpu.inst.rs1(), cpu.inst.rs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,x%d(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.rs1(), cpu.inst.rs2()); \
     LOG_REG(":", cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
     LOG_MREG(":", 0); \
 } while (0)
 
 #define DISASM_SCATTER_FD_FS1_RS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d(x%d)", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.rs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.rs2()); \
     LOG_FREG(":", cpu.inst.fd()); \
     LOG_FREG(":", cpu.inst.fs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
@@ -903,7 +903,7 @@ inline void set_fp_exceptions(Hart& cpu)
 } while (0)
 
 #define DISASM_SCATTER_FD_RS1_RS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,x%d(x%d)", PRVNAME, cpu.inst.fd(), cpu.inst.rs1(), cpu.inst.rs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,x%d(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.rs1(), cpu.inst.rs2()); \
     LOG_FREG(":", cpu.inst.fd()); \
     LOG_REG(":", cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
@@ -911,7 +911,7 @@ inline void set_fp_exceptions(Hart& cpu)
 } while (0)
 
 #define DISASM_AMO_FD_FS1_RS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " f%d,f%d(x%d)", PRVNAME, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.rs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.rs2()); \
     LOG_FREG(":", cpu.inst.fd()); \
     LOG_FREG(":", cpu.inst.fs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
@@ -920,115 +920,115 @@ inline void set_fp_exceptions(Hart& cpu)
 
 
 #define C_DISASM_JIMM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " %" PRId64, PRVNAME, C_JIMM); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " %" PRId64, PRVNAME, cpu.pc, cpu.inst.bits, C_JIMM); \
 } while (0)
 
 #define C_DISASM_RS1(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d", PRVNAME, cpu.inst.rvc_rs1()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1()); \
     LOG_REG(":", cpu.inst.rvc_rs1()); \
 } while (0)
 
 #define C_DISASM_RS1P_BIMM(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64, PRVNAME, cpu.inst.rvc_rs1p(), C_BIMM); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64, PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1p(), C_BIMM); \
     LOG_REG(":", cpu.inst.rvc_rs1p()); \
 } while (0)
 
 #define C_DISASM_RS1_IMM6(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64, PRVNAME, cpu.inst.rvc_rs1(), C_IMM6); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64, PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1(), C_IMM6); \
 } while (0)
 
 #define C_DISASM_RS1_NZIMMLUI(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64, PRVNAME, cpu.inst.rvc_rs1(), C_NZIMMLUI); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64, PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1(), C_NZIMMLUI); \
     LOG_REG(":", cpu.inst.rvc_rs1()); \
 } while (0)
 
 #define C_DISASM_RDS1_IMM6(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64, PRVNAME, cpu.inst.rvc_rs1(), C_IMM6); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64, PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1(), C_IMM6); \
     LOG_REG(":", cpu.inst.rvc_rs1()); \
 } while (0)
 
 #define C_DISASM_NZIMMADDI16SP(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x2,%" PRId64, PRVNAME, C_NZIMMADDI16SP); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x2,%" PRId64, PRVNAME, cpu.pc, cpu.inst.bits, C_NZIMMADDI16SP); \
     LOG_REG(":", 2); \
 } while (0)
 
 #define C_DISASM_RS2P_NZUIMMADDI4SPN(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,x2,%" PRId64, PRVNAME, cpu.inst.rvc_rs2p(), C_NZUIMMADDI4SPN); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,x2,%" PRId64, PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs2p(), C_NZUIMMADDI4SPN); \
     LOG_REG(":", 2); \
 } while (0)
 
 #define C_DISASM_RDS1_SHAMT(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,0x%x", PRVNAME, cpu.inst.rvc_rs1(), C_SHAMT); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1(), C_SHAMT); \
     LOG_REG(":", cpu.inst.rvc_rs1()); \
 } while (0)
 
 #define C_DISASM_RDS1P_SHAMT(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,0x%x", PRVNAME, cpu.inst.rvc_rs1p(), C_SHAMT); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1p(), C_SHAMT); \
     LOG_REG(":", cpu.inst.rvc_rs1p()); \
 } while (0)
 
 #define C_DISASM_RDS1P_IMM6(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64, PRVNAME, cpu.inst.rvc_rs1p(), C_IMM6); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64, PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1p(), C_IMM6); \
     LOG_REG(":", cpu.inst.rvc_rs1p()); \
 } while (0)
 
 #define C_DISASM_RS1_RS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,x%d", PRVNAME, cpu.inst.rvc_rs1(), cpu.inst.rvc_rs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,x%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1(), cpu.inst.rvc_rs2()); \
     LOG_REG(":", cpu.inst.rvc_rs2()); \
 } while (0)
 
 #define C_DISASM_RDS1_RS2(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,x%d", PRVNAME, cpu.inst.rvc_rs1(), cpu.inst.rvc_rs2()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,x%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1(), cpu.inst.rvc_rs2()); \
     LOG_REG(":", cpu.inst.rvc_rs1()); \
     LOG_REG(":", cpu.inst.rvc_rs2()); \
 } while (0)
 
 #define C_DISASM_RDS1P_RS2P(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,x%d", PRVNAME, cpu.inst.rvc_rs1p(), cpu.inst.rvc_rs2p()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,x%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1p(), cpu.inst.rvc_rs2p()); \
     LOG_REG(":", cpu.inst.rvc_rs1p()); \
     LOG_REG(":", cpu.inst.rvc_rs2p()); \
 } while (0)
 
 #define C_DISASM_LOAD_LDSP(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64 "(x2)", PRVNAME, cpu.inst.rvc_rs1(), C_IMMLDSP); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x2)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1(), C_IMMLDSP); \
     LOG_REG(":", 2); \
 } while (0)
 
 #define C_DISASM_LOAD_LWSP(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64 "(x2)", PRVNAME, cpu.inst.rvc_rs1(), C_IMMLWSP); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x2)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1(), C_IMMLWSP); \
     LOG_REG(":", 2); \
 } while (0)
 
 #define C_DISASM_STORE_SDSP(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64 "(x2)", PRVNAME, cpu.inst.rvc_rs1(), C_IMMSDSP); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x2)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1(), C_IMMSDSP); \
     LOG_REG(":", 2); \
     LOG_REG(":", cpu.inst.rvc_rs2()); \
 } while (0)
 
 #define C_DISASM_STORE_SWSP(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64 "(x2)", PRVNAME, cpu.inst.rvc_rs1(), C_IMMSWSP); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x2)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1(), C_IMMSWSP); \
     LOG_REG(":", 2); \
     LOG_REG(":", cpu.inst.rvc_rs2()); \
 } while (0)
 
 #define C_DISASM_LOAD_RS2P_RS1P_IMMLSD(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64 "(x%d)", PRVNAME, cpu.inst.rvc_rs2p(), C_IMMLSD, cpu.inst.rvc_rs1p()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs2p(), C_IMMLSD, cpu.inst.rvc_rs1p()); \
     LOG_REG(":", cpu.inst.rvc_rs1p()); \
 } while (0)
 
 #define C_DISASM_LOAD_RS2P_RS1P_IMMLSW(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64 "(x%d)", PRVNAME, cpu.inst.rvc_rs2p(), C_IMMLSW, cpu.inst.rvc_rs1p()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs2p(), C_IMMLSW, cpu.inst.rvc_rs1p()); \
     LOG_REG(":", cpu.inst.rvc_rs1p()); \
 } while (0)
 
 #define C_DISASM_STORE_RS2P_RS1P_IMMLSD(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64 "(x%d)", PRVNAME, cpu.inst.rvc_rs2p(), C_IMMLSD, cpu.inst.rvc_rs1p()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs2p(), C_IMMLSD, cpu.inst.rvc_rs1p()); \
     LOG_REG(":", cpu.inst.rvc_rs1p()); \
     LOG_REG(":", cpu.inst.rvc_rs2p()); \
 } while (0)
 
 #define C_DISASM_STORE_RS2P_RS1P_IMMLSW(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): " name " x%d,%" PRId64 "(x%d)", PRVNAME, cpu.inst.rvc_rs2p(), C_IMMLSW, cpu.inst.rvc_rs1p()); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs2p(), C_IMMLSW, cpu.inst.rvc_rs1p()); \
     LOG_REG(":", cpu.inst.rvc_rs1p()); \
     LOG_REG(":", cpu.inst.rvc_rs2p()); \
 } while (0)

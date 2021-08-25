@@ -340,8 +340,9 @@ void System::write_fcc_credinc(int index, uint64_t shire, uint64_t minion_mask)
 
         unsigned thread = thread0 + minion * EMU_THREADS_PER_MINION;
         cpu[thread].fcc[counter]++;
-        LOG_HART(DEBUG, cpu[thread], "\tfcc = 0x%" PRIx64,
-                 (uint64_t(cpu[thread].fcc[1]) << 16) + uint64_t(cpu[thread].fcc[0]));
+        LOG_HART(DEBUG, cpu[thread],
+                 "\tReceiving credits: fcc0 = 0x%" PRIx16 ", fcc1 = 0x%" PRIx16,
+                 cpu[thread].fcc[0], cpu[thread].fcc[1]);
 #ifndef SYS_EMU
         // wake up waiting threads (only for checker, not sysemu)
         if (cpu[thread].fcc_wait) {

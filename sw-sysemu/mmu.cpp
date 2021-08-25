@@ -824,24 +824,24 @@ uint32_t mmu_fetch(Hart& cpu, uint64_t vaddr)
         // 2B-aligned fetch
         uint16_t low = *reinterpret_cast<const uint16_t*>(&cpu.fetch_cache[vaddr & 31]);
         if ((low & 3) != 3) {
-            LOG_HART(DEBUG, cpu, "Fetched compressed instruction from PC 0x%" PRIx64 ": 0x%04x", vaddr, low);
+            //LOG_HART(DEBUG, cpu, "Fetched compressed instruction from PC 0x%" PRIx64 ": 0x%04x", vaddr, low);
             return low;
         }
         vaddr += 2;
         ensure_fetch_cache(cpu, vaddr);
         uint16_t high = *reinterpret_cast<const uint16_t*>(&cpu.fetch_cache[vaddr & 31]);
         uint32_t bits = uint32_t(low) + (uint32_t(high) << 16);
-        LOG_HART(DEBUG, cpu, "Fetched instruction from PC 0x%" PRIx64 ": 0x%08x", vaddr, bits);
+        //LOG_HART(DEBUG, cpu, "Fetched instruction from PC 0x%" PRIx64 ": 0x%08x", vaddr, bits);
         return bits;
     }
     // 4B-aligned fetch
     uint32_t bits = *reinterpret_cast<const uint32_t*>(&cpu.fetch_cache[vaddr & 31]);
     if ((bits & 3) != 3) {
         uint16_t low = uint16_t(bits);
-        LOG_HART(DEBUG, cpu, "Fetched compressed instruction from PC 0x%" PRIx64 ": 0x%04x", vaddr, low);
+        //LOG_HART(DEBUG, cpu, "Fetched compressed instruction from PC 0x%" PRIx64 ": 0x%04x", vaddr, low);
         return low;
     }
-    LOG_HART(DEBUG, cpu, "Fetched instruction from PC 0x%" PRIx64 ": 0x%08x", vaddr, bits);
+    //LOG_HART(DEBUG, cpu, "Fetched instruction from PC 0x%" PRIx64 ": 0x%08x", vaddr, bits);
     return bits;
 }
 
