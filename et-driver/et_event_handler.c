@@ -275,10 +275,10 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 
 	entry_header = (struct trace_entry_header *)trace_data;
 
-	if (entry_header->generic.type != TRACE_TYPE_EXCEPTION) {
+	if (entry_header->type != TRACE_TYPE_EXCEPTION) {
 		dev_err(&pdev->dev,
 			"Invalid type: %d in SP trace entry header\n",
-			entry_header->generic.type);
+			entry_header->type);
 		goto error_free_trace_buf;
 	}
 
@@ -296,7 +296,7 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	snprintf(value_str,
 		 VALUE_STR_MAX_LEN,
 		 "Cycles    : 0x%llX\n",
-		 entry_header->generic.cycle);
+		 entry_header->cycle);
 	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
 	    ET_EVENT_SYNDROME_LEN) {
 		dev_err(&pdev->dev, "Syndrome string out of space\n");
