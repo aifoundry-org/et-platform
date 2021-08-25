@@ -172,6 +172,7 @@ static void taskMain(void *pvParameters)
 #if TEST_FRAMEWORK
     // Control does not return from call below
     // if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_DM ..
+    Trace_Init_SP(NULL);
     Log_Write(LOG_LEVEL_INFO, "Entering TF_BL2_ENTRY_FOR_DM intercept\r\n");
     TF_Wait_And_Process_TF_Cmds(TF_BL2_ENTRY_FOR_DM);
     Log_Write(LOG_LEVEL_INFO, "Fall thru TF_BL2_ENTRY_FOR_DM intercept\r\n");
@@ -238,9 +239,9 @@ static void taskMain(void *pvParameters)
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MM_FW_LAUNCHED);
 
 #if TEST_FRAMEWORK
-    // Control does not return from call below
-    // if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_SP_MM ..
     Log_Write(LOG_LEVEL_INFO, "Entering TF_BL2_ENTRY_FOR_SP_MM intercept.\r\n");
+    /* Control does not return from call below */
+    /* if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_SP_MM .. */
     TF_Wait_And_Process_TF_Cmds(TF_BL2_ENTRY_FOR_SP_MM);
     Log_Write(LOG_LEVEL_INFO, "Fall thru TF_BL2_ENTRY_FOR_SP_MM intercept\r\n");
 #endif
@@ -290,6 +291,7 @@ static void taskMain(void *pvParameters)
     Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
 
+    Trace_Init_SP(NULL);
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
@@ -395,7 +397,6 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     SERIAL_init(PU_UART1);
 
     Log_Init(LOG_LEVEL_WARNING);
-    Trace_Init_SP(NULL);
 
 #if TEST_FRAMEWORK
     // Control does not return from call below

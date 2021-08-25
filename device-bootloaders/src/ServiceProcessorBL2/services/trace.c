@@ -164,6 +164,19 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
 
     /* Initialize Trace for each all Harts in Service Processor. */
     Trace_Init(&sp_init_info_l, &SP_Trace_CB, TRACE_STD_HEADER);
+
+    /* Initialize trace buffer header. */
+    struct trace_buffer_std_header_t *trace_header =
+        (struct trace_buffer_std_header_t *)SP_Trace_CB.base_per_hart;
+
+    /* Put the buffer type */
+    trace_header->type = TRACE_SP_BUFFER;
+
+    /* Put the MAJIC. */
+    trace_header->magic_header = TRACE_MAGIC_HEADER;
+
+    /* Put the buffer size. */
+    trace_header->data_size = SP_Trace_CB.size_per_hart;
 }
 
 /************************************************************************
