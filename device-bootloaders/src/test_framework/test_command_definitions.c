@@ -86,11 +86,15 @@ extern int8_t PMIC_Module_Power_Cmd_Handler(void* test_cmd);
 extern int8_t PMIC_Module_Voltage_Cmd_Handler(void* test_cmd);
 extern int8_t PMIC_Module_Uptime_Cmd_Handler(void* test_cmd);
 
-/* SP Trace Tests*/
+/* Trace Tests*/
 extern int8_t Sp_Trace_Run_Control_Cmd_Handler(void* test_cmd);
 extern int8_t Sp_Trace_Run_Config_Cmd_Handler(void* test_cmd);
 extern int8_t Sp_Trace_Get_Info_Cmd_Handler(void* test_cmd);
 extern int8_t Sp_Trace_Get_Buffer_Cmd_Handler(void* test_cmd);
+extern int8_t MM_Trace_Get_Info_Cmd_Handler(void* test_cmd);
+extern int8_t MM_Trace_Get_Buffer_Cmd_Handler(void* test_cmd);
+extern int8_t CM_Trace_Get_Info_Cmd_Handler(void* test_cmd);
+extern int8_t CM_Trace_Get_Buffer_Cmd_Handler(void* test_cmd);
 
 #endif  // !TF_CORE
 
@@ -344,5 +348,13 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
     Sp_Trace_Get_Info_Cmd_Handler,
 // 113
     Sp_Trace_Get_Buffer_Cmd_Handler,
+// 114
+    MM_Trace_Get_Info_Cmd_Handler,
+// 115
+    MM_Trace_Get_Buffer_Cmd_Handler,
+// 116
+    CM_Trace_Get_Info_Cmd_Handler,
+// 117
+    CM_Trace_Get_Buffer_Cmd_Handler,
 #endif  // !TF_CORE
 };
