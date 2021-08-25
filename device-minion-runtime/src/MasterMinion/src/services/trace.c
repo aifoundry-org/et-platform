@@ -390,7 +390,9 @@ uint32_t Trace_Evict_Buffer_MM(void)
 *
 *   DESCRIPTION
 *
-*       This function enables/disables Trace for Master Minion.
+*       This function enables/disables Trace for Master Minion. If its
+*       Trace disable command then it will also evict the Trace buffer
+*       to L3 Cache.
 *
 *   INPUTS
 *
@@ -404,4 +406,9 @@ uint32_t Trace_Evict_Buffer_MM(void)
 void Trace_Set_Enable_MM(trace_enable_e control)
 {
     atomic_store_local_8(&(MM_Trace_CB.cb.enable), control);
+
+    if (control == TRACE_DISABLE)
+    {
+        Trace_Evict_Buffer_MM();
+    }
 }

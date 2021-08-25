@@ -659,7 +659,7 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
         if((cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE)) &&
         (cm_shire_mask & CW_Get_Booted_Shires()) == cm_shire_mask)
         {
-            /* Disable MM Trace.*/
+            /* Disable and Evict MM Trace.*/
             Trace_Set_Enable_MM(TRACE_DISABLE);
 
             mm_to_cm_message_trace_buffer_evict_t cm_msg =
@@ -668,8 +668,6 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
 
             /* Send command to CM RT to disable Trace and evict Trace buffer. */
             status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t*)&cm_msg);
-
-            Trace_Evict_Buffer_MM();
 
             cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = MM_TRACE_BUFFER_BASE;
         }
@@ -683,10 +681,8 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
     {
         if(cmd->list[TRACE_NODE_INDEX].size <= MM_TRACE_BUFFER_SIZE)
         {
-            /* Disable MM Trace.*/
+            /* Disable and Evict MM Trace.*/
             Trace_Set_Enable_MM(TRACE_DISABLE);
-
-            Trace_Evict_Buffer_MM();
 
             cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = MM_TRACE_BUFFER_BASE;
         }
@@ -1160,7 +1156,14 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
         "HostCommandHandler:Pushing:TRACE_RT_CONTROL_RSP:tag_id=%x->Host_CQ\r\n",
         rsp.response_info.rsp_hdr.tag_id);
 
+#if TEST_FRAMEWORK
+    /* For SP2MM command response, we need to provide the total size = header + payload */
+    rsp.response_info.rsp_hdr.size = sizeof(struct device_ops_trace_rt_control_rsp_t);
+    status = SP_Iface_Push_Rsp_To_SP2MM_CQ(&rsp, sizeof(rsp));
+#else
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+#endif
+
 
     if(status != STATUS_SUCCESS)
     {
@@ -1169,8 +1172,10 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
 
+#if !TEST_FRAMEWORK
     /* Decrement commands count being processed by given SQW */
     SQW_Decrement_Command_Count(sqw_idx);
+#endif
 
     return status;
 }
@@ -1291,8 +1296,13 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
     Log_Write(LOG_LEVEL_DEBUG,
         "HostCmdHdlr:Pushing:TRACE_RT_CONFIG_RSP:tag_id=%x:Host_CQ\r\n",
         rsp.response_info.rsp_hdr.tag_id);
-
+#if TEST_FRAMEWORK
+    /* For SP2MM command response, we need to provide the total size = header + payload */
+    rsp.response_info.rsp_hdr.size = sizeof(struct device_ops_trace_rt_config_rsp_t);
+    status = SP_Iface_Push_Rsp_To_SP2MM_CQ(&rsp, sizeof(rsp));
+#else
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+#endif
 
     if(status != STATUS_SUCCESS)
     {
@@ -1300,9 +1310,10 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
                         cmd->command_info.cmd_hdr.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
-
+#if !TEST_FRAMEWORK
     /* Decrement commands count being processed by given SQW */
     SQW_Decrement_Command_Count(sqw_idx);
+#endif
 
     return status;
 }

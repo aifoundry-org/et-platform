@@ -270,6 +270,8 @@ void Trace_RT_Control_CM(uint32_t control)
 *   DESCRIPTION
 *
 *       This function enables/disables Trace for Compute Minnion
+*       If its Trace disable command then it will also evict the Trace buffer
+*       to L3 Cache.
 *
 *   INPUTS
 *
@@ -283,6 +285,11 @@ void Trace_RT_Control_CM(uint32_t control)
 void Trace_Set_Enable_CM(trace_enable_e control)
 {
     CM_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb.enable = control;
+
+    if (control == TRACE_DISABLE)
+    {
+        Trace_Evict_CM_Buffer();
+    }
 }
 
 /************************************************************************
