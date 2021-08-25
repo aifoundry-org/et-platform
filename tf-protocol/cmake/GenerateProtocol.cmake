@@ -74,6 +74,7 @@ function(jinja_generate_tf_protocol SRCS HDRS)
                   --output   ${GENERATED_FILE}
             DEPENDS ${JINJA_GENERATE_TF_PROTOCOL_CODEGEN_DIR}/tf_codegen.py
                     ${JINJA_TEMPLATE}
+                    ${TF_SPEC_FILE}
         )
         list(APPEND GENERATED_FILES ${GENERATED_FILE})
     endforeach()
