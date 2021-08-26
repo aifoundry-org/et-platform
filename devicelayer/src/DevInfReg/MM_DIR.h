@@ -80,6 +80,9 @@ typedef struct __attribute__((__packed__)) MM_DEV_INTF_VQ_ATTR {
     uint8_t int_trg_size;
     uint8_t int_id;
     uint16_t attributes_size;
+    uint32_t sq_hp_offset;
+    uint16_t sq_hp_count;
+    uint16_t per_sq_hp_size;
 } MM_DEV_INTF_VQ_ATTR_s;
 
 /*! \struct MM_DEV_INTF_GENERIC_ATTR
