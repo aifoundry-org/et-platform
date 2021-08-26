@@ -54,7 +54,7 @@ int main(int argc, const char **argv)
     { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
         /*TODO Update entry type */
-        struct trace_entry_header_t *entry = NULL;
+        const struct trace_entry_header_t *entry = NULL;
         int i = 0;
         while (1) {
             entry = Trace_Decode(buf, entry);

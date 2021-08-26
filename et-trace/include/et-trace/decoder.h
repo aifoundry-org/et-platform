@@ -45,6 +45,10 @@
 #ifndef ET_TRACE_DECODER_H
 #define ET_TRACE_DECODER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct trace_buffer_std_header_t;
 
 /***********************************************************************
@@ -72,7 +76,7 @@ struct trace_buffer_std_header_t;
  *              On decoder errors or wrong inputs, the function returns NULL.
  *
  ***********************************************************************/
-void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev);
+const void *Trace_Decode(const struct trace_buffer_std_header_t *tb, const void *prev);
 
 #ifdef ET_TRACE_DECODER_IMPL
 
@@ -80,7 +84,7 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev);
 
 #include <stdlib.h>
 
-void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
+const void *Trace_Decode(const struct trace_buffer_std_header_t *tb, const void *prev)
 {
     if (tb == NULL)
         return NULL;
@@ -98,10 +102,10 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
     }
 
     /* Invalid prev entry */
-    if (prev < (void *)tb)
+    if (prev < (const void *)tb)
         return NULL;
 
-    const uint16_t entry_type = ((struct trace_entry_header_t *)prev)->type;
+    const uint16_t entry_type = ((const struct trace_entry_header_t *)prev)->type;
     size_t payload_size;
 
 #define ET_TRACE_PAYLOAD_SIZE(E, S) \
@@ -138,10 +142,10 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
     if (payload_size == 0)
         return NULL;
 
-    void *next = (uint8_t *)prev + payload_size;
+    const void *next = (const uint8_t *)prev + payload_size;
 
     /* End of buffer? */
-    const size_t cur_size = (uint8_t *)next - (uint8_t *)tb;
+    const size_t cur_size = (const uint8_t *)next - (const uint8_t *)tb;
     if (cur_size >= buffer_size)
         return NULL;
 
@@ -149,5 +153,9 @@ void *Trace_Decode(struct trace_buffer_std_header_t *tb, void *prev)
 }
 
 #endif /* ET_TRACE_DECODER_IMPL */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ET_TRACE_DECODER_H */
