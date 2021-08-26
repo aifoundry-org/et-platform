@@ -50,7 +50,7 @@ int main(int argc, const char **argv)
     srand(uargs.seed);
     {
         printf("-- decoding trace buffer\n");
-        struct trace_pmc_counter_t *entry = NULL;
+        const struct trace_pmc_counter_t *entry = NULL;
         uint64_t i = 0;
         while (1) {
             int next_counter = i % n_counters;

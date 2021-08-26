@@ -49,7 +49,7 @@ int main(int argc, const char **argv)
     srand(uargs.seed);
     {
         printf("-- decoding trace buffer\n");
-        struct trace_value_u32_t *entry = NULL;
+        const struct trace_value_u32_t *entry = NULL;
         uint64_t i = 0;
         while (1) {
             entry = Trace_Decode(buf, entry);

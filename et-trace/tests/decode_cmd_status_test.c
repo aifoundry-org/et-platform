@@ -59,7 +59,7 @@ int main(int argc, const char **argv)
 
     { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
-        struct trace_cmd_status_t *entry = NULL;
+        const struct trace_cmd_status_t *entry = NULL;
         uint64_t i = 0;
         while (1) {
             entry = Trace_Decode(buf, entry);
