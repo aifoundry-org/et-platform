@@ -178,6 +178,26 @@ pipeline {
                 }
               }
             }
+            stage('FIRMWARE_AND_DM_TESTS_PCIE_LOOPBACK') {
+              steps {
+                script {
+                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-loopback-1dev \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}" + '" }\'') != 0) {
+                    build job:
+                      'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-loopback-1dev',
+                      propagate: true,
+                      parameters: [
+                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"),
+                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                      ]
+                  }
+                  else {
+                    sh 'echo Skipping job because it passed'
+                  }
+                }
+              }
+            }
             stage('FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU') {
               steps {
                 script {
