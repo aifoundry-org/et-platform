@@ -2218,7 +2218,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 
 		if (!et_circbuffer_pop(&cq->cb,
 				       cq->cb_mem,
-				       (u8 *)(&mgmt_event + sizeof(header)),
+				       (u8 *)&mgmt_event + sizeof(header),
 				       header.size - sizeof(header),
 				       ET_CB_SYNC_FOR_DEVICE)) {
 			rv = -EAGAIN;

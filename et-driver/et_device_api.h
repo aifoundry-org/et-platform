@@ -231,6 +231,6 @@ struct device_mgmt_event_msg_t {
 	struct cmn_header_t event_info;
 	u16 class_count; // event class[1:0] and error count[15:2]
 	u64 event_syndrome[2]; // hardware defined event syndrome
-} __packed;
+} __packed __aligned(8);
 
 #endif // ET_DEVICE_API_H

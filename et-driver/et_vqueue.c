@@ -848,8 +848,11 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	// If the size is invalid, the message buffer is corrupt and the
 	// system is in a bad state. This should never happen.
 	// TODO: Add some recovery mechanism
-	if (!header.size)
-		panic("CQ corrupt: invalid size");
+	if (!header.size) {
+		pr_err("CQ corrupt: invalid size");
+		rv = -ENOTRECOVERABLE;
+		goto error_unlock_mutex;
+	}
 
 	// Check if this is a mgmt event, handle accordingly
 	if (header.msg_id >= DEV_MGMT_API_MID_EVENTS_BEGIN &&
@@ -860,7 +863,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 
 		if (!et_circbuffer_pop(&cq->cb,
 				       cq->cb_mem,
-				       (u8 *)(&mgmt_event + sizeof(header)),
+				       (u8 *)&mgmt_event + sizeof(header),
 				       header.size - sizeof(header),
 				       ET_CB_SYNC_FOR_DEVICE)) {
 			rv = -EAGAIN;
