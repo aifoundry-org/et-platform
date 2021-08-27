@@ -618,6 +618,19 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagement_1_62(bool singleDevi
       extractAndPrintTraceData(deviceIdx);
       return;
     }
+
+    const uint32_t set_input_size = sizeof(device_mgmt_api::active_power_management_e);
+    const char set_input_buff[set_input_size] = {device_mgmt_api::ACTIVE_POWER_MANAGEMENT_TURN_OFF};
+
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, set_input_buff,
+                                set_input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    if (HasFailure()) {
+      extractAndPrintTraceData(deviceIdx);
+      return;
+    }
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
@@ -1762,14 +1775,13 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
   ssize_t size = 0;
   int result = 0;
   int mode = O_RDONLY | O_NONBLOCK;
-  const int max_err_types = 13;
+  const int max_err_types = 11;
   std::string line;
   std::string err_types[max_err_types] = {
     "PCIe Correctable Error",        "PCIe Un-Correctable Error",  "DRAM Correctable Error",
     "DRAM Un-Correctable Error",     "SRAM Correctable Error",     "SRAM Un-Correctable Error",
-    "Temperature Overshoot Warning", "Power Management IC Errors", "Thermal Throttling Error",
-    "Compute Minion Exception",      "Compute Minion Hang",        "SP Runtime Error",
-    "SP Runtime Exception"};
+    "Power Management IC Errors",    "Compute Minion Exception",   "Compute Minion Hang",
+    "SP Runtime Error",              "SP Runtime Exception"};
 
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
