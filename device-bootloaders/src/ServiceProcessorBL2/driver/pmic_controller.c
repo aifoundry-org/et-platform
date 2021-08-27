@@ -361,7 +361,7 @@ int32_t pmic_error_control_init(dm_event_isr_callback event_cb)
 *
 ***********************************************************************/
 
-int32_t pmic_thermal_pwr_cb_init(dm_event_isr_callback event_cb)
+int32_t pmic_thermal_pwr_cb_init(dm_pmic_isr_callback event_cb)
 {
     event_control_block.thermal_pwr_event_cb = event_cb;
     return 0;
@@ -429,20 +429,12 @@ void pmic_error_isr(void)
         MESSAGE_ERROR("PMIC read failed!");
     }
 
-    /* Call thermal power callback */
-
-    if (PMIC_I2C_INT_CTRL_OV_TEMP_GET(int_cause) ||
-        PMIC_I2C_INT_CTRL_OV_POWER_GET(int_cause))
-    {
-        FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, int_cause, reg_value)
-        event_control_block.thermal_pwr_event_cb(UNCORRECTABLE, &message);
-    }
-
     /* Generate PMIC Error */
 
     if (PMIC_I2C_INT_CTRL_OV_TEMP_GET(int_cause))
     {
+        event_control_block.thermal_pwr_event_cb(int_cause);
+
         if (0 != pmic_get_temperature(&reg_value))
         {
             MESSAGE_ERROR("PMIC read failed!");
@@ -455,6 +447,8 @@ void pmic_error_isr(void)
 
     if (PMIC_I2C_INT_CTRL_OV_POWER_GET(int_cause))
     {
+        event_control_block.thermal_pwr_event_cb(int_cause);
+
         if (0 != pmic_read_instantenous_soc_power(&reg_value))
         {
             MESSAGE_ERROR("PMIC read failed!");

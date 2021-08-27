@@ -60,7 +60,7 @@ static StackType_t g_pm_task[TT_TASK_STACK_SIZE];
 static StaticTask_t g_staticTask_ptr;
 
 /* The PMIC isr callback function, called from PMIC isr. */
-static void pmic_isr_callback(enum error_type type, struct event_message_t *msg);
+static void pmic_isr_callback(uint8_t int_cause);
 
 /* The variable used to track power states change time. */
 static uint64_t power_state_change_time = 0;
@@ -413,7 +413,6 @@ int update_module_current_temperature(void)
 {
     int status = 0;
     uint8_t temperature;
-    struct event_message_t message;
     struct temperature_threshold_t temperature_threshold;
 
     if (0 != pmic_get_temperature(&temperature))
@@ -433,34 +432,15 @@ int update_module_current_temperature(void)
 
     get_module_temperature_threshold(&temperature_threshold);
 
-    if ((get_soc_power_reg()->soc_temperature) > (temperature_threshold.sw_temperature_c))
-    {
-        /* Switch power throttle state only if we are currently in lower priority throttle
+    /* Switch power throttle state only if we are currently in lower priority throttle
         state and Active Power Management is enabled*/
-        if ((get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_THERMAL_DOWN) &&
-            (get_soc_power_reg()->active_power_management))
-        {
-            /* Do the thermal throttling */
-            get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_DOWN;
-            xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
-        }
-
-        /* add details in message header and fill payload */
-        FILL_EVENT_HEADER(&message.header, THERMAL_LOW,
-                          sizeof(struct event_message_t) - sizeof(struct cmn_header_t));
-
-        FILL_EVENT_PAYLOAD(&message.payload, WARNING, 0, get_soc_power_reg()->soc_temperature, 0);
-
-        if (0 != get_soc_power_reg()->event_cb)
-        {
-            /* call the callback function and post message */
-            get_soc_power_reg()->event_cb(UNCORRECTABLE, &message);
-        }
-        else
-        {
-            MESSAGE_ERROR("thermal pwr mgmt svc error: event_cb is not initialized\r\n");
-            status = THERMAL_PWR_MGMT_EVENT_NOT_INITIALIZED;
-        }
+    if ((get_soc_power_reg()->soc_temperature) > (temperature_threshold.sw_temperature_c) &&
+        (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_THERMAL_DOWN) &&
+        (get_soc_power_reg()->active_power_management))
+    {
+        /* Do the thermal throttling */
+        get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_DOWN;
+        xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
     }
 
     return status;
@@ -1454,7 +1434,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
     }
 
     while ((current_temperature > get_soc_power_reg()->temperature_threshold.sw_temperature_c) &&
-           (get_soc_power_reg()->power_throttle_state <= POWER_THROTTLE_STATE_THERMAL_DOWN))
+           (get_soc_power_reg()->power_throttle_state <= throttle_state))
     {
         switch (throttle_state)
         {
@@ -1500,7 +1480,10 @@ void thermal_throttling(power_throttle_state_e throttle_state)
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_IDLE;
     }
 
-    SEND_THROTTLE_EVENT(THROTTLE_TIME);
+    if(throttle_state == POWER_THROTTLE_STATE_THERMAL_SAFE)
+    {
+        SEND_THROTTLE_EVENT(THROTTLE_TIME);
+    }
 
     /* Update the throttle time here */
     update_module_throttle_time(POWER_THROTTLE_STATE_THERMAL_DOWN, end_time - start_time);
@@ -1543,24 +1526,24 @@ void thermal_power_task_entry(void *pvParameter)
 
         switch (get_soc_power_reg()->power_throttle_state)
         {
-            case POWER_THROTTLE_STATE_POWER_UP: {
-                power_throttling(POWER_THROTTLE_STATE_POWER_UP);
-                break;
-            }
-            case POWER_THROTTLE_STATE_POWER_DOWN: {
-                power_throttling(POWER_THROTTLE_STATE_POWER_DOWN);
-                break;
-            }
-            case POWER_THROTTLE_STATE_THERMAL_DOWN: {
-                thermal_throttling(POWER_THROTTLE_STATE_THERMAL_DOWN);
+            case POWER_THROTTLE_STATE_THERMAL_SAFE: {
+                thermal_throttling(POWER_THROTTLE_STATE_THERMAL_SAFE);
                 break;
             }
             case POWER_THROTTLE_STATE_POWER_SAFE: {
                 power_throttling(POWER_THROTTLE_STATE_POWER_SAFE);
                 break;
             }
-            case POWER_THROTTLE_STATE_THERMAL_SAFE: {
-                thermal_throttling(POWER_THROTTLE_STATE_THERMAL_SAFE);
+            case POWER_THROTTLE_STATE_THERMAL_DOWN: {
+                thermal_throttling(POWER_THROTTLE_STATE_THERMAL_DOWN);
+                break;
+            }
+            case POWER_THROTTLE_STATE_POWER_DOWN: {
+                power_throttling(POWER_THROTTLE_STATE_POWER_DOWN);
+                break;
+            }
+            case POWER_THROTTLE_STATE_POWER_UP: {
+                power_throttling(POWER_THROTTLE_STATE_POWER_UP);
                 break;
             }
             default: {
@@ -1591,21 +1574,20 @@ void thermal_power_task_entry(void *pvParameter)
 *       void                       none
 *
 ***********************************************************************/
-static void pmic_isr_callback(enum error_type type, struct event_message_t *msg)
+static void pmic_isr_callback(uint8_t int_cause)
 {
-    (void)type;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-    if(PMIC_I2C_INT_CTRL_OV_TEMP_GET(msg->payload.syndrome[0]))
+    if(PMIC_I2C_INT_CTRL_OV_TEMP_GET(int_cause))
     {
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_SAFE;
     }
-    else if(PMIC_I2C_INT_CTRL_OV_POWER_GET(msg->payload.syndrome[0]))
+    else if(PMIC_I2C_INT_CTRL_OV_POWER_GET(int_cause))
     {
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_SAFE;
     }
 
-    xTaskNotifyFromISR(g_pm_handle, (uint32_t)msg->header.msg_id, eSetValueWithOverwrite,
+    xTaskNotifyFromISR(g_pm_handle, (uint32_t)int_cause, eSetValueWithOverwrite,
                        &xHigherPriorityTaskWoken);
 
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);

@@ -64,20 +64,9 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
     FILL_EVENT_PAYLOAD(&message.payload, FATAL, 100, 1, 0)
     sram_event_callback(UNCORRECTABLE, &message);
 
-    /* Generate Low Temperature Error */
-    FILL_EVENT_HEADER(&message.header, THERMAL_LOW, sizeof(struct event_message_t))
-    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1, 50, 0)
-    power_event_callback(UNCORRECTABLE, &message);
-
     /* Generate PMIC Error */
     FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
     FILL_EVENT_PAYLOAD(&message.payload, FATAL, 33, 0xFF, 0xC35A)
-    power_event_callback(UNCORRECTABLE, &message);
-
-    /* Generate Thermal Throttling Error */
-    // NOSONAR TODO: Add events for all throttle states
-    FILL_EVENT_HEADER(&message.header, THROTTLE_TIME, sizeof(struct event_message_t))
-    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 65, 5000, 0)
     power_event_callback(UNCORRECTABLE, &message);
 
     /* Generate Minion Exception threshold Error */
