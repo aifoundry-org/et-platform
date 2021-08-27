@@ -13,26 +13,6 @@ static uint8_t TF_Interception_Point = TF_DEFAULT_ENTRY;
 
 extern int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd);
 
-uint32_t byte_copy(char* src, char* dst, uint32_t size);
-
-uint32_t byte_copy(char* src, char* dst, uint32_t size)
-{
-    uint32_t retval=0;
-    char *p_src=src;
-    char *p_dst=dst;
-
-    while(size--)
-    {
-        *p_src = *p_dst;
-        retval++;
-
-        p_src++;
-        p_dst++;
-    }
-
-    return retval;
-}
-
 uint8_t TF_Set_Entry_Point(uint8_t intercept)
 {
     uint8_t retval = TF_Get_Entry_Point();
@@ -53,10 +33,12 @@ uint8_t TF_Get_Entry_Point(void)
 int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 {
     char c;
-    char *p_buff = &Input_Cmd_Buffer[0];
+    char *p_buff;
+    uint32_t size;
     void *p_hdr=0;
     struct header_t cmd_hdr;
     int8_t rtn_arg;
+    uint32_t magic=TF_CHECKSUM;
 
     /* First entry unconditionally hook-in */
     /* Subsequent entries fall thru if current intercept
@@ -71,7 +53,9 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 
     for(;;)
     {
-        do
+        p_buff = &Input_Cmd_Buffer[0];
+        size = 0;
+        while(true)
         {
             SERIAL_getchar(UART1, &c);
 
@@ -82,11 +66,20 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 
             *p_buff = c;
             p_buff++;
+            size++;
 
-        } while (c != TF_CHECKSUM_END);
+            // Validate command end and checksum delimiters
+            if (c == TF_CHECKSUM_END && size >= TF_CHECKSUM_TOTAL_SIZE
+                && (Input_Cmd_Buffer[size - TF_CMD_END_POSITION] == TF_CMD_END)
+                && (memcmp(&Input_Cmd_Buffer[size - TF_CHECKSUM_POSITION],
+                    (char*) &magic, TF_CHECKSUM_SIZE) == 0))
+            {
+                break;
+            }
 
-        byte_copy((char*)&cmd_hdr, (char*)p_hdr,
-            sizeof(struct header_t));
+        }
+
+        memcpy((char*)&cmd_hdr, (char*)p_hdr, sizeof(struct header_t));
 
         rtn_arg = TF_Test_Cmd_Handler[cmd_hdr.id](p_hdr);
 
@@ -134,7 +127,7 @@ static void fill_rsp_buffer(uint32_t *buf_size, const void *buffer,
 int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
     void *additional_rsp, uint32_t additional_rsp_size)
 {
-    uint32_t magic=0xA5A5A5A5;
+    uint32_t magic = TF_CHECKSUM;
     uint32_t buf_size = TF_MAX_RSP_SIZE;
 
     Output_Rsp_Buffer[0] = TF_CMD_START;

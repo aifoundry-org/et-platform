@@ -78,25 +78,18 @@ int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd)
     if(status == 0)
     {
         mm_shell_rsp.rsp_hdr.id = TF_RSP_MM_CMD_SHELL;
-        mm_shell_rsp.rsp_hdr.flags = 2;
+        mm_shell_rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
         mm_shell_rsp.rsp_hdr.payload_size = (uint32_t)sizeof(uint32_t) + sp_rsp_size;
         mm_shell_rsp.mm_rsp_size = sp_rsp_size;
 
-        const char* src = (char*)(sp_rsp_buff);
-        char* dst = (char*)(&mm_shell_rsp.mm_rsp_data);
-
-        while(sp_rsp_size--)
-        {
-            *dst = *src;
-            dst++; src++;
-        }
-
-        TF_Send_Response(&mm_shell_rsp, (uint32_t)(sizeof(tf_rsp_hdr_t) + sizeof(uint32_t) + mm_shell_rsp.mm_rsp_size));
+        TF_Send_Response_With_Payload(&mm_shell_rsp,
+            (uint32_t) (sizeof(tf_rsp_hdr_t) + sizeof(uint32_t)),
+                &sp_rsp_buff[0], mm_shell_rsp.mm_rsp_size);
     }
     else
     {
         mm_shell_rsp.rsp_hdr.id = TF_RSP_MM_CMD_SHELL;
-        mm_shell_rsp.rsp_hdr.flags = 2;
+        mm_shell_rsp.rsp_hdr.flags = TF_RSP_ONLY;
         mm_shell_rsp.rsp_hdr.payload_size = 0;
         mm_shell_rsp.mm_rsp_size = 0;
 
