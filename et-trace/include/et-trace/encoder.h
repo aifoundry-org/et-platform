@@ -301,13 +301,9 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 #endif
 
 #ifndef ET_TRACE_GET_HART_ID
-#define ET_TRACE_GET_HART_ID() 0
-#endif
-
-#ifdef ET_TRACE_WITH_HART_ID
-#define ET_TRACE_WRITE_HART_ID(msg) ET_TRACE_WRITE_U32(msg->header.hart_id, ET_TRACE_GET_HART_ID())
-#else
 #define ET_TRACE_WRITE_HART_ID(msg)
+#else
+#define ET_TRACE_WRITE_HART_ID(msg) ET_TRACE_WRITE_U32(msg->header.hart_id, ET_TRACE_GET_HART_ID())
 #endif
 
 #ifndef ET_TRACE_MESSAGE_HEADER
