@@ -239,7 +239,8 @@ DevicePcie::~DevicePcie() {
   }
 }
 
-bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma) {
+bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma,
+                                         bool isHighPriority) {
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
@@ -257,6 +258,9 @@ bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* comma
   cmdInfo.flags = 0;
   if (isDma) {
     cmdInfo.flags |= CMD_DESC_FLAG_DMA;
+  }
+  if (isHighPriority) {
+    cmdInfo.flags |= CMD_DESC_FLAG_HIGH_PRIORITY;
   }
   return wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_PUSH_SQ, &cmdInfo);
 }

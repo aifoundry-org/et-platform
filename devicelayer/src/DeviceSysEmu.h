@@ -38,7 +38,8 @@ public:
   ~DeviceSysEmu();
 
   // IDeviceAsync
-  bool sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma) override;
+  bool sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma,
+                               bool isHighPriority) override;
   void setSqThresholdMasterMinion(int device, int sqIdx, uint32_t bytesNeeded) override;
   void waitForEpollEventsMasterMinion(int device, uint64_t& sqBitmap, bool& cqAvailable,
                                       std::chrono::seconds timeout = std::chrono::seconds(10)) override;

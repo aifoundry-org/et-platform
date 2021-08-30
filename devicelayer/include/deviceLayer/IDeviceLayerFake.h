@@ -27,7 +27,7 @@ class IDeviceLayerFake : public IDeviceLayer {
   std::mutex spMutex_;
 
 public:
-  bool sendCommandMasterMinion(int, int, std::byte* command, size_t, bool) override {
+  bool sendCommandMasterMinion(int, int, std::byte* command, size_t, bool, bool) override {
     std::lock_guard<std::mutex> lock(mmMutex_);
     auto cmd = reinterpret_cast<cmn_header_t*>(command);
     rsp_header_t rsp;

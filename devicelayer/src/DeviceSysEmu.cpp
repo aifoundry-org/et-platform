@@ -185,7 +185,7 @@ bool DeviceSysEmu::sendCommand(QueueInfo& queueInfo, std::byte* command, size_t 
   return true;
 }
 
-bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, size_t commandSize, bool) {
+bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, size_t commandSize, bool, bool) {
   auto sq_idx = static_cast<uint32_t>(sqIdx);
   if (sq_idx >= submissionQueuesMM_.size()) {
     throw Exception("Invalid queue");
