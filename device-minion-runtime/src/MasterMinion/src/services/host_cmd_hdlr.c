@@ -590,8 +590,7 @@ static inline int8_t kernel_abort_cmd_handler(void* command_buffer, uint8_t sqw_
         /* Populate the error type response */
         if (abort_status == HOST_CMD_STATUS_ABORTED)
         {
-            /* TODO: Need abort response type in device-api */
-            rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR;
+            rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_HOST_ABORTED;
         }
         else if ((status == KW_ERROR_KERNEL_SLOT_NOT_FOUND) ||
             (status == KW_ERROR_KERNEL_SLOT_NOT_USED))
@@ -866,7 +865,7 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
         if ((status == DMAW_ABORTED_IDLE_CHANNEL_SEARCH) ||
             (abort_status == HOST_CMD_STATUS_ABORTED))
         {
-            rsp.status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
+            rsp.status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;
         }
         else if(status == DMA_ERROR_INVALID_ADDRESS)
         {
@@ -1026,7 +1025,7 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
         if ((status == DMAW_ABORTED_IDLE_CHANNEL_SEARCH) ||
             (abort_status == HOST_CMD_STATUS_ABORTED))
         {
-            rsp.status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
+            rsp.status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;
         }
         else if(status == DMA_ERROR_INVALID_ADDRESS)
         {
@@ -1138,8 +1137,7 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
     /* Populate the response status */
     if(status == HOST_CMD_STATUS_ABORTED)
     {
-        /* TODO: Need abort response in device-api */
-        rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_CM_RT_CTRL_ERROR;
+        rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_HOST_ABORTED;
     }
     else if(!((cmd->rt_type & TRACE_RT_CTRL_MM) || (cmd->rt_type & TRACE_RT_CTRL_CM)))
     {
@@ -1270,8 +1268,7 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
     /* Populate the response status */
     if(status == HOST_CMD_STATUS_ABORTED)
     {
-        /* TODO: Need abort response in device-api */
-        rsp.status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;
+        rsp.status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_HOST_ABORTED;
     }
     if((cmd->shire_mask & MM_SHIRE_MASK) && (!(cmd->thread_mask & MM_HART_MASK)))
     {
@@ -1308,6 +1305,57 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
     SQW_Decrement_Command_Count(sqw_idx);
 
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       device_unsupported_cmd_event_handler
+*
+*   DESCRIPTION
+*
+*       Constructs unsupported command error event for host and pushes to
+*       CQ.
+*
+*   INPUTS
+*
+*       command_buffer   Buffer containing command info
+*       sqw_idx          Submission queue index (normal or HP)
+*
+*   OUTPUTS
+*
+*       None.
+*
+***********************************************************************/
+static inline void device_unsupported_cmd_event_handler(void* command_buffer, uint8_t sqw_idx)
+{
+    const struct cmn_header_t *cmd_header = (struct cmn_header_t *)command_buffer;
+    struct device_ops_device_fw_error_t event;
+    int8_t status;
+
+    /* Fill the event */
+    event.event_info.event_hdr.tag_id = cmd_header->tag_id;
+    event.event_info.event_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_ERROR;
+    event.error_type = DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND;
+
+    /* Push the event to CQ */
+    status = Host_Iface_CQ_Push_Cmd(0, &event, sizeof(event));
+
+    if(status == STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_DEBUG,
+            "SQ[%d] fw_error_event:Pushed:Async error event:tag_id=%x->Host_CQ\r\n",
+            sqw_idx, event.event_info.event_hdr.tag_id);
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+            "SQ[%d] fw_error_event:Tag_ID=%u:HostIface:Push:Failed\r\n",
+            sqw_idx, event.event_info.event_hdr.tag_id);
+
+        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+    }
 }
 
 /************************************************************************
@@ -1369,12 +1417,16 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
             status = trace_rt_config_cmd_handler(command_buffer, sqw_idx);
             break;
         default:
+            Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr:Tag_ID=%u:UnsupportedCmd\r\n",
+                      hdr->cmd_hdr.tag_id);
+
+            /* TODO: Send unsupported command error event to host
+            Requires updates to PCIe kernel driver/userspace test */
+
             /* Decrement commands count being processed by given SQW */
             SQW_Decrement_Command_Count(sqw_idx);
 
-            Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr:Tag_ID=%u:UnsupportedCmd\r\n",
-                      hdr->cmd_hdr.tag_id);
-            status = -1;
+            status = GENERAL_ERROR;
             break;
     }
 
@@ -1414,6 +1466,13 @@ int8_t Host_HP_Command_Handler(void* command_buffer, uint8_t sqw_hp_idx)
         default:
             Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr_HP:Tag_ID=%u:UnsupportedCmd\r\n",
                       hdr->cmd_hdr.tag_id);
+
+            /* Send unsupported command error event to host */
+            device_unsupported_cmd_event_handler(command_buffer, sqw_hp_idx);
+
+            /* Decrement commands count being processed by given HP SQW */
+            SQW_HP_Decrement_Command_Count(sqw_hp_idx);
+
             status = GENERAL_ERROR;
             break;
     }

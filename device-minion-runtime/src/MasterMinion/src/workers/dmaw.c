@@ -665,7 +665,7 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
     SQW_Decrement_Command_Count(read_chan_status.sqw_idx);
 
     /* Create and transmit DMA command response */
-    write_rsp->status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
+    write_rsp->status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;
     write_rsp->response_info.rsp_hdr.size =
         sizeof(struct device_ops_data_write_rsp_t) - sizeof(struct cmn_header_t);
     write_rsp->response_info.rsp_hdr.tag_id = read_chan_status.tag_id;
@@ -880,7 +880,7 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
     SQW_Decrement_Command_Count(write_chan_status.sqw_idx);
 
     /* Create and transmit DMA command response */
-    read_rsp->status = DEV_OPS_API_DMA_RESPONSE_ABORTED;
+    read_rsp->status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;
     read_rsp->response_info.rsp_hdr.size =
         sizeof(struct device_ops_data_read_rsp_t) - sizeof(struct cmn_header_t);
     read_rsp->response_info.rsp_hdr.tag_id = write_chan_status.tag_id;

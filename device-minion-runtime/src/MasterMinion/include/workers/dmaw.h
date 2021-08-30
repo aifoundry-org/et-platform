@@ -44,14 +44,14 @@
 #define  DMAW_FOR_WRITE        DMAW_FOR_READ + HARTS_PER_MINION
 
 /*! \def DMAW_ERROR_GENERAL
-    \brief DMA Worker - General error. DMA Stack error codes start from -10.
+    \brief DMA Worker - General error.
 */
-#define DMAW_ERROR_GENERAL                  -10
+#define DMAW_ERROR_GENERAL                  -1
 
 /*! \def DMAW_ABORTED_IDLE_CHANNEL_SEARCH
     \brief DMA Worker - Find DMA idle channel aborted
 */
-#define DMAW_ABORTED_IDLE_CHANNEL_SEARCH    -11
+#define DMAW_ABORTED_IDLE_CHANNEL_SEARCH    -2
 
 /*! \enum dma_chan_state_e
     \brief Enum that provides the state of a DMA channel
