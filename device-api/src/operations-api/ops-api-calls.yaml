@@ -136,7 +136,7 @@ Enums:
     Values:
       - Name: NONE
         Value: 0
-      - Name: ASYNC_ERROR_0
+      - Name: UNSUPPORTED_COMMAND
         Value: 1
   - Name: dev_ops_fw_type
     Type: uint8_t

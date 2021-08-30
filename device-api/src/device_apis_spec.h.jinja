@@ -47,11 +47,6 @@
 */
 #define DEVICE_OPS_DMA_LIST_NODES_MAX             4
 
-/*! \def DEVICE_OPS_CMD_FLAGS_TIMEOUT_SCALE(flags, value)
-    \brief Timeout Scale factor override for a command execution
-*/
-#define DEVICE_OPS_CMD_FLAGS_TIMEOUT_SCALE(flags, value) (((value & 0xf) <<'<<'>> 5) | flag)
-
 /* Device << cgh.api_name >> API Enumerations */
 <% for enum in cgh.enums() -%>
 

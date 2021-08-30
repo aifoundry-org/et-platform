@@ -39,10 +39,7 @@ struct cmn_header_t {
                                                - 01 MEM_OPS_MMFW_TRACE
                                                - 10 MEM_OPS_CMFW_TRACE
                                                - 11 MEM_OPS_{MM+CM}_TRACE
-                                           Bit [4] - Flush L3 prior to launching Kernel on Compute Minions 
-                                           Bit [5:8] - Scale factor for Command (Note today only DMA/Kernel) Execution timeout 
-                                                       is supported. The scale will be multiplied with the base period-> 100 mS. 
-                                                       So example if 300 mS is required, Scale[8:5] = 0x3 */
+                                           Bit [4] - Flush L3 prior to launching Kernel on Compute Minions */
 } __attribute__((packed, aligned(8)));
 
 /*! \struct cmd_header_t
@@ -83,9 +80,7 @@ struct dev_mgmt_rsp_header_t {
     \brief Event header for all events from the device to the host
 */
 struct evt_header_t {
-    uint16_t size;        /**< size of the event message */
-    uint16_t event_id;    /**< unique ID to differentiate event class(enum) from host */
-    uint8_t pad[4];       /**< Padding to make it align to 64-bits */
+    struct cmn_header_t event_hdr;     /**< Event common header */
 } __attribute__((packed, aligned(8)));
 
 #endif // ET_DEVICE_APIS_MESSAGE_TYPES_H
