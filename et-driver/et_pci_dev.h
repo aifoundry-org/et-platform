@@ -1,13 +1,14 @@
 #ifndef __ET_PCI_DEV_H
 #define __ET_PCI_DEV_H
 
-#include "et_vqueue.h"
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+
+#include "et_vqueue.h"
 
 // clang-format off
 enum et_iomem_r {
@@ -36,12 +37,20 @@ struct et_mapped_region {
 	u64 size;
 };
 
+enum et_msi_vec_idx {
+	ET_MGMT_VEC_IDX = 0,
+	ET_OPS_VEC_IDX,
+	ET_MAX_MSI_VECS
+};
+
 struct et_ops_dev {
 	struct miscdevice misc_ops_dev;
 	bool is_ops_open;
 	spinlock_t ops_open_lock;	/* serializes access to is_ops_open */
 	void __iomem *dir;
 	struct et_mapped_region regions[OPS_MEM_REGION_TYPE_NUM];
+	struct et_ops_dir_vqueue dir_vq;
+	struct et_squeue **hpsq_pptr;
 	struct et_squeue **sq_pptr;
 	struct et_cqueue **cq_pptr;
 	struct et_vq_common vq_common;
@@ -55,6 +64,7 @@ struct et_mgmt_dev {
 	spinlock_t mgmt_open_lock;	/* serializes access to is_mgmt_open */
 	void __iomem *dir;
 	struct et_mapped_region regions[MGMT_MEM_REGION_TYPE_NUM];
+	struct et_mgmt_dir_vqueue dir_vq;
 	struct et_squeue **sq_pptr;
 	struct et_cqueue **cq_pptr;
 	struct et_vq_common vq_common;
@@ -68,8 +78,6 @@ struct et_pci_dev {
 	struct pci_dev *pdev;
 	struct et_ops_dev ops;
 	struct et_mgmt_dev mgmt;
-	u8 num_irq_vecs;
-	u8 used_irq_vecs;
 };
 
 // clang-format on

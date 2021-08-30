@@ -36,7 +36,7 @@
  ******************************************************************************
  *      DIR General Attributes		(struct et_mgmt/ops_dir_header)	      *
  ******************************************************************************
- *      DIR Virtual Queue Attributes	(struct et_dir_vqueue)		      *
+ *      DIR Virtual Queue Attributes	(struct et_mgmt/ops_dir_vqueue)	      *
  ******************************************************************************
  *      DIR Memory Region 0		(struct et_dir_mem_region)	      *
  ******************************************************************************
@@ -126,22 +126,6 @@ struct et_dir_mem_region {
 } __packed;
 
 /*
- * Holds the information of Device Virtual Queues.
- */
-struct et_dir_vqueue {
-	u32 sq_offset;
-	u16 sq_count;
-	u16 per_sq_size;
-	u32 cq_offset;
-	u16 cq_count;
-	u16 per_cq_size;
-	u32 intrpt_trg_offset;
-	u8 intrpt_trg_size;
-	u8 intrpt_id;
-	u16 attributes_size;
-} __packed;
-
-/*
  * Values representing Mgmt Device Boot status.
  */
 enum et_mgmt_boot_status {
@@ -172,6 +156,22 @@ enum et_mgmt_mem_region_type {
 	MGMT_MEM_REGION_TYPE_SPFW_TRACE,
 	MGMT_MEM_REGION_TYPE_NUM
 };
+
+/*
+ * Holds the information of Mgmt Device Virtual Queues.
+ */
+struct et_mgmt_dir_vqueue {
+	u32 sq_offset;
+	u16 sq_count;
+	u16 sq_size;
+	u32 cq_offset;
+	u16 cq_count;
+	u16 cq_size;
+	u32 intrpt_trg_offset;
+	u8 intrpt_trg_size;
+	u8 intrpt_id;
+	u16 attributes_size;
+} __packed;
 
 /*
  * Holds the general information of Mgmt Device Interface Registers.
@@ -216,6 +216,25 @@ enum et_ops_mem_region_type {
 };
 
 /*
+ * Holds the information of Ops Device Virtual Queues.
+ */
+struct et_ops_dir_vqueue {
+	u32 sq_offset;
+	u16 sq_count;
+	u16 sq_size;
+	u32 cq_offset;
+	u16 cq_count;
+	u16 cq_size;
+	u32 intrpt_trg_offset;
+	u8 intrpt_trg_size;
+	u8 intrpt_id;
+	u16 attributes_size;
+	u32 hpsq_offset;
+	u16 hpsq_count;
+	u16 hpsq_size;
+} __packed;
+
+/*
  * Holds the general information of Ops Device Interface Registers.
  */
 struct et_ops_dir_header {
@@ -228,123 +247,152 @@ struct et_ops_dir_header {
 	u32 crc32;
 } __packed;
 
-#define MAX_LEN 64
-
-static inline bool valid_vq_region(struct et_dir_vqueue *vq_region,
-				   bool is_mgmt,
-				   char *syndrome,
-				   size_t len)
+static inline bool valid_mgmt_vq_region(struct et_mgmt_dir_vqueue *vq_region,
+					char *err_str,
+					size_t len)
 {
-	char *syndrome_str;
-	bool rv;
+	bool rv = true;
 
-	if (!vq_region) {
-		strcat(syndrome, "");
+	if (!err_str || !len)
 		return false;
-	}
 
-	if (!syndrome || !len) {
-		strcat(syndrome, "");
+	err_str[0] = '\0';
+
+	if (!vq_region)
 		return false;
-	}
 
-	syndrome_str = kmalloc(len, GFP_KERNEL);
-	if (!syndrome_str) {
-		strcat(syndrome, "");
-		return false;
-	}
-
-	syndrome_str[0] = '\0';
-	rv = true;
-
-	if (is_mgmt)
-		strcat(syndrome_str, "\nDevice: Mgmt\n");
-	else
-		strcat(syndrome_str, "\nDevice: Ops\n");
-
-	strcat(syndrome_str, "Region: VQ Region\n");
+	strlcat(err_str, "\nDevice: Mgmt\nRegion: VQ Region\n", len);
 
 	if (!vq_region->sq_count) {
-		strcat(syndrome_str, "VQ SQ count is 0\n");
+		strlcat(err_str, "SQ count is 0\n", len);
 		rv = false;
 	}
 
-	if (!vq_region->per_sq_size) {
-		strcat(syndrome_str, "VQ SQ size is 0\n");
+	if (!vq_region->sq_size) {
+		strlcat(err_str, "SQ size is 0\n", len);
 		rv = false;
 	}
 
 	if (!vq_region->cq_count) {
-		strcat(syndrome_str, "VQ CQ count is 0\n");
+		strlcat(err_str, "CQ count is 0\n", len);
 		rv = false;
 	}
 
-	if (!vq_region->per_cq_size) {
-		strcat(syndrome_str, "VQ CQ size is 0\n");
+	if (!vq_region->cq_size) {
+		strlcat(err_str, "CQ size is 0\n", len);
 		rv = false;
 	}
 
 	if (!vq_region->intrpt_trg_size) {
-		strcat(syndrome_str, "VQ Interrupt trigger size is 0\n");
+		strlcat(err_str, "VQ Interrupt trigger size is 0\n", len);
 		rv = false;
 	}
 
 	if (!vq_region->attributes_size) {
-		strcat(syndrome_str, "VQ Attributes size is 0\n");
+		strlcat(err_str, "VQ Attributes size is 0\n", len);
 		rv = false;
 	}
 
-	if (!rv)
-		memcpy(syndrome, syndrome_str, strlen(syndrome_str) + 1);
+	if (rv)
+		err_str[0] = '\0';
 
-	kfree(syndrome_str);
+	return rv;
+}
+
+static inline bool valid_ops_vq_region(struct et_ops_dir_vqueue *vq_region,
+				       char *err_str,
+				       size_t len)
+{
+	bool rv = true;
+
+	if (!err_str || !len)
+		return false;
+
+	err_str[0] = '\0';
+
+	if (!vq_region)
+		return false;
+
+	strlcat(err_str, "\nDevice: Ops\nRegion: VQ Region\n", len);
+
+	if (!vq_region->sq_count) {
+		strlcat(err_str, "SQ count is 0\n", len);
+		rv = false;
+	}
+
+	if (!vq_region->sq_size) {
+		strlcat(err_str, "SQ size is 0\n", len);
+		rv = false;
+	}
+
+	if (!vq_region->hpsq_count) {
+		strlcat(err_str, "HP SQ count is 0\n", len);
+		rv = false;
+	}
+
+	if (!vq_region->hpsq_size) {
+		strlcat(err_str, "HP SQ size is 0\n", len);
+		rv = false;
+	}
+
+	if (!vq_region->cq_count) {
+		strlcat(err_str, "CQ count is 0\n", len);
+		rv = false;
+	}
+
+	if (!vq_region->cq_size) {
+		strlcat(err_str, "CQ size is 0\n", len);
+		rv = false;
+	}
+
+	if (!vq_region->intrpt_trg_size) {
+		strlcat(err_str, "VQ Interrupt trigger size is 0\n", len);
+		rv = false;
+	}
+
+	if (!vq_region->attributes_size) {
+		strlcat(err_str, "VQ Attributes size is 0\n", len);
+		rv = false;
+	}
+
+	if (rv)
+		err_str[0] = '\0';
+
 	return rv;
 }
 
 static inline bool valid_mem_region(struct et_dir_mem_region *region,
 				    bool is_mgmt,
-				    char *syndrome,
+				    char *err_str,
 				    size_t len)
 {
-	char *syndrome_str;
-	char err_str[MAX_LEN];
-	bool rv;
+	char reg_type_str[8];
+	bool rv = true;
 
-	if (!region) {
-		strcat(syndrome, "");
+	if (!err_str || !len)
 		return false;
-	}
 
-	if (!syndrome || !len) {
-		strcat(syndrome, "");
+	err_str[0] = '\0';
+
+	if (!region)
 		return false;
-	}
-
-	syndrome_str = kmalloc(len, GFP_KERNEL);
-	if (!syndrome_str) {
-		strcat(syndrome, "");
-		return false;
-	}
-
-	syndrome_str[0] = '\0';
-	rv = true;
 
 	if (is_mgmt)
-		strcat(syndrome_str, "\nDevice: Mgmt\n");
+		strlcat(err_str, "\nDevice: Mgmt\n", len);
 	else
-		strcat(syndrome_str, "\nDevice: Ops\n");
+		strlcat(err_str, "\nDevice: Ops\n", len);
 
 	if (!region->bar_size) {
-		strcat(syndrome_str, "BAR size is 0\n");
+		strlcat(err_str, "BAR size is 0\n", len);
 		rv = false;
 	}
 
 	if (!region->attributes_size) {
-		strcat(syndrome_str, "Attributes size is 0\n");
+		strlcat(err_str, "Attributes size is 0\n", len);
 		rv = false;
 	}
 
-	snprintf(err_str, MAX_LEN, "%d\n", region->type);
+	snprintf(reg_type_str, sizeof(reg_type_str), "%d\n", region->type);
 	if (is_mgmt) {
 		switch (region->type) {
 		case MGMT_MEM_REGION_TYPE_VQ_BUFFER:
@@ -357,9 +405,10 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 				    MEM_REGION_NODE_ACCESSIBLE_NONE ||
 			    region->access.dma_align !=
 				    MEM_REGION_DMA_ALIGNMENT_NONE) {
-				strcat(syndrome_str,
-				       "Incorrect access for region: ");
-				strcat(syndrome_str, err_str);
+				strlcat(err_str,
+					"Incorrect access for region: ",
+					len);
+				strlcat(err_str, reg_type_str, len);
 				rv = false;
 			}
 			break;
@@ -372,16 +421,17 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 				    MEM_REGION_NODE_ACCESSIBLE_MGMT ||
 			    region->access.dma_align !=
 				    MEM_REGION_DMA_ALIGNMENT_NONE) {
-				strcat(syndrome_str,
-				       "Incorrect access for region: ");
-				strcat(syndrome_str, err_str);
+				strlcat(err_str,
+					"Incorrect access for region: ",
+					len);
+				strlcat(err_str, reg_type_str, len);
 				rv = false;
 			}
 			break;
 
 		default:
-			strcat(syndrome_str, "Incorrect region type: ");
-			strcat(syndrome_str, err_str);
+			strlcat(err_str, "Incorrect region type: ", len);
+			strlcat(err_str, reg_type_str, len);
 			rv = false;
 			break;
 		}
@@ -397,9 +447,10 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 				    MEM_REGION_NODE_ACCESSIBLE_NONE ||
 			    region->access.dma_align !=
 				    MEM_REGION_DMA_ALIGNMENT_NONE) {
-				strcat(syndrome_str,
-				       "Incorrect access for region: ");
-				strcat(syndrome_str, err_str);
+				strlcat(err_str,
+					"Incorrect access for region: ",
+					len);
+				strlcat(err_str, reg_type_str, len);
 				rv = false;
 			}
 			break;
@@ -412,31 +463,32 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 				    MEM_REGION_NODE_ACCESSIBLE_OPS ||
 			    region->access.dma_align !=
 				    MEM_REGION_DMA_ALIGNMENT_64BIT) {
-				strcat(syndrome_str,
-				       "Incorrect access for region: ");
-				strcat(syndrome_str, err_str);
+				strlcat(err_str,
+					"Incorrect access for region: ",
+					len);
+				strlcat(err_str, reg_type_str, len);
 				rv = false;
 			}
 			// Check dev_address compulsory field
 			if (!region->dev_address) {
-				strcat(syndrome_str,
-				       "Device Base Address is 0 for region: ");
-				strcat(syndrome_str, err_str);
+				strlcat(err_str,
+					"Device Base Address is 0 for region: ",
+					len);
+				strlcat(err_str, reg_type_str, len);
 				rv = false;
 			}
 			break;
 		default:
-			strcat(syndrome_str, "Incorrect region type: ");
-			strcat(syndrome_str, err_str);
+			strlcat(err_str, "Incorrect region type: ", len);
+			strlcat(err_str, reg_type_str, len);
 			rv = false;
 			break;
 		}
 	}
 
-	if (!rv)
-		memcpy(syndrome, syndrome_str, strlen(syndrome_str) + 1);
+	if (rv)
+		err_str[0] = '\0';
 
-	kfree(syndrome_str);
 	return rv;
 }
 

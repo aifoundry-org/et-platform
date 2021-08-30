@@ -99,19 +99,17 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 
 	// Update sq_bitmap for all SQs, set corresponding bit when space
 	// available is more than threshold
-	for (i = 0; i < ops->vq_common.dir_vq.sq_count; i++)
+	for (i = 0; i < ops->dir_vq.sq_count; i++)
 		et_squeue_event_available(ops->sq_pptr[i]);
 
 	mutex_unlock(&ops->vq_common.sq_bitmap_mutex);
 
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
-	if (!bitmap_empty(ops->vq_common.sq_bitmap,
-			  ops->vq_common.dir_vq.sq_count))
+	if (!bitmap_empty(ops->vq_common.sq_bitmap, ops->dir_vq.sq_count))
 		mask |= EPOLLOUT;
 
 	// Generate EPOLLIN event if any CQ msg is saved for userspace
-	if (!bitmap_empty(ops->vq_common.cq_bitmap,
-			  ops->vq_common.dir_vq.cq_count))
+	if (!bitmap_empty(ops->vq_common.cq_bitmap, ops->dir_vq.cq_count))
 		mask |= EPOLLIN;
 
 	mutex_unlock(&ops->vq_common.cq_bitmap_mutex);
@@ -177,17 +175,14 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
 		if (size >= sizeof(u16) &&
-		    copy_to_user(usr_arg,
-				 &ops->vq_common.dir_vq.sq_count,
-				 size)) {
+		    copy_to_user(usr_arg, &ops->dir_vq.sq_count, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_COUNT: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE:
-		max_size = ops->vq_common.dir_vq.per_sq_size -
-			   sizeof(struct et_circbuffer);
+		max_size = ops->dir_vq.sq_size - sizeof(struct et_circbuffer);
 		if (size >= sizeof(u16) &&
 		    copy_to_user(usr_arg, &max_size, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE: failed to copy to user\n");
@@ -199,32 +194,50 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&cmd_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (cmd_info.sq_index >=
-			    et_dev->ops.vq_common.dir_vq.sq_count ||
-		    !cmd_info.cmd || !cmd_info.size)
+		if (!cmd_info.cmd || !cmd_info.size)
 			return -EINVAL;
 
-		if (cmd_info.flags & CMD_DESC_FLAG_DMA) {
-			return et_dma_move_data(
+		if (cmd_info.flags & CMD_DESC_FLAG_DMA &&
+		    cmd_info.flags & CMD_DESC_FLAG_HIGH_PRIORITY) {
+			return -EINVAL;
+		}
+
+		if (cmd_info.flags & CMD_DESC_FLAG_HIGH_PRIORITY) {
+			if (cmd_info.sq_index >= et_dev->ops.dir_vq.hpsq_count)
+				return -EINVAL;
+
+			return et_squeue_copy_from_user(
 				et_dev,
+				false /* ops_dev */,
+				true /* high priority SQ */,
 				cmd_info.sq_index,
 				(char __user __force *)cmd_info.cmd,
 				cmd_info.size);
 		} else {
-			return et_squeue_copy_from_user(
-				et_dev,
-				false /* ops_dev */,
-				cmd_info.sq_index,
-				(char __user __force *)cmd_info.cmd,
-				cmd_info.size);
+			if (cmd_info.sq_index >= et_dev->ops.dir_vq.sq_count)
+				return -EINVAL;
+
+			if (cmd_info.flags & CMD_DESC_FLAG_DMA)
+				return et_dma_move_data(
+					et_dev,
+					cmd_info.sq_index,
+					(char __user __force *)cmd_info.cmd,
+					cmd_info.size);
+			else
+				return et_squeue_copy_from_user(
+					et_dev,
+					false /* ops_dev */,
+					false /* normal SQ */,
+					cmd_info.sq_index,
+					(char __user __force *)cmd_info.cmd,
+					cmd_info.size);
 		}
 
 	case ETSOC1_IOCTL_POP_CQ:
 		if (copy_from_user(&rsp_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (rsp_info.cq_index >=
-			    et_dev->ops.vq_common.dir_vq.cq_count ||
+		if (rsp_info.cq_index >= et_dev->ops.dir_vq.cq_count ||
 		    !rsp_info.rsp || !rsp_info.size)
 			return -EINVAL;
 
@@ -255,11 +268,10 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&sq_threshold_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (sq_threshold_info.sq_index >=
-			    et_dev->ops.vq_common.dir_vq.sq_count ||
+		if (sq_threshold_info.sq_index >= et_dev->ops.dir_vq.sq_count ||
 		    !sq_threshold_info.bytes_needed ||
 		    sq_threshold_info.bytes_needed >
-			    (ops->vq_common.dir_vq.per_sq_size -
+			    (ops->dir_vq.sq_size -
 			     sizeof(struct et_circbuffer)))
 			return -EINVAL;
 
@@ -308,19 +320,17 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 
 	// Update sq_bitmap for all SQs, set corresponding bit when space
 	// available is more than threshold
-	for (i = 0; i < mgmt->vq_common.dir_vq.sq_count; i++)
+	for (i = 0; i < mgmt->dir_vq.sq_count; i++)
 		et_squeue_event_available(mgmt->sq_pptr[i]);
 
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
-	if (!bitmap_empty(mgmt->vq_common.sq_bitmap,
-			  mgmt->vq_common.dir_vq.sq_count))
+	if (!bitmap_empty(mgmt->vq_common.sq_bitmap, mgmt->dir_vq.sq_count))
 		mask |= EPOLLOUT;
 
 	mutex_unlock(&mgmt->vq_common.sq_bitmap_mutex);
 
 	// Generate EPOLLIN event if any CQ msg list has message for userspace
-	if (!bitmap_empty(mgmt->vq_common.cq_bitmap,
-			  mgmt->vq_common.dir_vq.cq_count))
+	if (!bitmap_empty(mgmt->vq_common.cq_bitmap, mgmt->dir_vq.cq_count))
 		mask |= EPOLLIN;
 
 	mutex_unlock(&mgmt->vq_common.cq_bitmap_mutex);
@@ -474,17 +484,14 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
 		if (size >= sizeof(u16) &&
-		    copy_to_user(usr_arg,
-				 &mgmt->vq_common.dir_vq.sq_count,
-				 size)) {
+		    copy_to_user(usr_arg, &mgmt->dir_vq.sq_count, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_COUNT: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE:
-		max_size = mgmt->vq_common.dir_vq.per_sq_size -
-			   sizeof(struct et_circbuffer);
+		max_size = mgmt->dir_vq.sq_size - sizeof(struct et_circbuffer);
 		if (size >= sizeof(u16) &&
 		    copy_to_user(usr_arg, &max_size, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE: failed to copy to user\n");
@@ -504,28 +511,28 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&cmd_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (cmd_info.sq_index >=
-			    et_dev->mgmt.vq_common.dir_vq.sq_count ||
+		if (cmd_info.flags &
+		    (CMD_DESC_FLAG_DMA | CMD_DESC_FLAG_HIGH_PRIORITY)) {
+			return -EINVAL;
+		}
+
+		if (cmd_info.sq_index >= et_dev->mgmt.dir_vq.sq_count ||
 		    !cmd_info.cmd || !cmd_info.size)
 			return -EINVAL;
 
-		if (cmd_info.flags & CMD_DESC_FLAG_DMA) {
-			return -EINVAL;
-		} else {
-			return et_squeue_copy_from_user(
-				et_dev,
-				true /* mgmt_dev */,
-				cmd_info.sq_index,
-				(char __user __force *)cmd_info.cmd,
-				cmd_info.size);
-		}
+		return et_squeue_copy_from_user(
+			et_dev,
+			true /* mgmt_dev */,
+			false /* normal SQ */,
+			cmd_info.sq_index,
+			(char __user __force *)cmd_info.cmd,
+			cmd_info.size);
 
 	case ETSOC1_IOCTL_POP_CQ:
 		if (copy_from_user(&rsp_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (rsp_info.cq_index >=
-			    et_dev->mgmt.vq_common.dir_vq.cq_count ||
+		if (rsp_info.cq_index >= et_dev->mgmt.dir_vq.cq_count ||
 		    !rsp_info.rsp || !rsp_info.size)
 			return -EINVAL;
 
@@ -557,10 +564,10 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 
 		if (sq_threshold_info.sq_index >=
-			    et_dev->mgmt.vq_common.dir_vq.sq_count ||
+			    et_dev->mgmt.dir_vq.sq_count ||
 		    !sq_threshold_info.bytes_needed ||
 		    sq_threshold_info.bytes_needed >
-			    (mgmt->vq_common.dir_vq.per_sq_size -
+			    (mgmt->dir_vq.sq_size -
 			     sizeof(struct et_circbuffer)))
 			return -EINVAL;
 
@@ -717,9 +724,6 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 		dev_err(&pdev->dev, "get index failed\n");
 		return -ENODEV;
 	}
-
-	et_dev->num_irq_vecs = 0;
-	et_dev->used_irq_vecs = 0;
 
 	return 0;
 }
@@ -951,7 +955,7 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	size_t section_size, dir_size, regs_size;
 	struct et_mgmt_dir_header __iomem *dir_mgmt_mem;
 	struct et_mgmt_dir_header *dir_mgmt;
-	struct et_dir_vqueue *dir_vq;
+	struct et_mgmt_dir_vqueue *dir_vq_mgmt;
 	int rv, i;
 	u32 crc32_result;
 	struct event_dbg_msg dbg_msg;
@@ -1088,26 +1092,10 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	dir_pos += section_size;
 
 	/*
-	 * Save vqueue information from DIRs
+	 * Parse and save vqueue information from DIRs
 	 */
-	dir_vq = (struct et_dir_vqueue *)dir_pos;
-	if (!valid_vq_region(dir_vq,
-			     true,
-			     dbg_msg.syndrome,
-			     ET_EVENT_SYNDROME_LEN)) {
-		if (strcmp(dbg_msg.syndrome, "") == 0) {
-			dev_err(&et_dev->pdev->dev,
-				"Mgmt: Failed to check DIR VQ region validity!");
-		} else {
-			dbg_msg.level = LEVEL_FATAL;
-			dbg_msg.desc = "DIRs compulsory field(s) not set!";
-			et_print_event(et_dev->pdev, &dbg_msg);
-		}
-		rv = -EINVAL;
-		goto error_free_dir_data;
-	}
-
-	section_size = dir_vq->attributes_size;
+	dir_vq_mgmt = (struct et_mgmt_dir_vqueue *)dir_pos;
+	section_size = dir_vq_mgmt->attributes_size;
 
 	// End of region check
 	if (dir_pos + section_size > dir_data + dir_size) {
@@ -1122,28 +1110,43 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	}
 
 	// Attributes size check
-	if (section_size > sizeof(*dir_vq)) {
+	if (section_size > sizeof(*dir_vq_mgmt)) {
 		dbg_msg.level = LEVEL_WARN;
 		dbg_msg.desc =
 			"DIR region has extra attributes, skipping extra attributes";
 		sprintf(dbg_msg.syndrome,
 			"\nDevice: Mgmt\nRegion: VQ Region\nSize: (expected: %zu < discovered: %zu)\n",
-			sizeof(*dir_vq),
+			sizeof(*dir_vq_mgmt),
 			section_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
-	} else if (section_size < sizeof(*dir_vq)) {
+	} else if (section_size < sizeof(*dir_vq_mgmt)) {
 		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc = "DIR region does not have enough attributes!";
 		sprintf(dbg_msg.syndrome,
 			"\nDevice: Mgmt\nRegion: VQ Region\nSize: (expected: %zu > discovered: %zu)\n",
-			sizeof(*dir_vq),
+			sizeof(*dir_vq_mgmt),
 			section_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EINVAL;
 		goto error_free_dir_data;
 	}
 
-	memcpy(&et_dev->mgmt.vq_common.dir_vq, (u8 *)dir_vq, sizeof(*dir_vq));
+	if (!valid_mgmt_vq_region(dir_vq_mgmt,
+				  dbg_msg.syndrome,
+				  ET_EVENT_SYNDROME_LEN)) {
+		if (strcmp(dbg_msg.syndrome, "") == 0) {
+			dev_err(&et_dev->pdev->dev,
+				"Mgmt: Failed to check DIR VQ region validity!");
+		} else {
+			dbg_msg.level = LEVEL_FATAL;
+			dbg_msg.desc = "DIRs compulsory field(s) not set!";
+			et_print_event(et_dev->pdev, &dbg_msg);
+		}
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
+
+	memcpy(&et_dev->mgmt.dir_vq, (u8 *)dir_vq_mgmt, sizeof(*dir_vq_mgmt));
 
 	dir_pos += section_size;
 
@@ -1244,7 +1247,7 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	size_t section_size, dir_size, regs_size;
 	struct et_ops_dir_header __iomem *dir_ops_mem;
 	struct et_ops_dir_header *dir_ops;
-	struct et_dir_vqueue *dir_vq;
+	struct et_ops_dir_vqueue *dir_vq_ops;
 	int rv, i;
 	u32 crc32_result;
 	struct event_dbg_msg dbg_msg;
@@ -1382,26 +1385,10 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	dir_pos += section_size;
 
 	/*
-	 * Save vqueue information from DIRs
+	 * Parse and save vqueue information from DIRs
 	 */
-	dir_vq = (struct et_dir_vqueue *)dir_pos;
-	if (!valid_vq_region(dir_vq,
-			     false,
-			     dbg_msg.syndrome,
-			     ET_EVENT_SYNDROME_LEN)) {
-		if (strcmp(dbg_msg.syndrome, "") == 0) {
-			dev_err(&et_dev->pdev->dev,
-				"Ops: Failed to check DIR VQ region validity!");
-		} else {
-			dbg_msg.level = LEVEL_FATAL;
-			dbg_msg.desc = "DIRs compulsory field(s) not set!";
-			et_print_event(et_dev->pdev, &dbg_msg);
-		}
-		rv = -EINVAL;
-		goto error_free_dir_data;
-	}
-
-	section_size = dir_vq->attributes_size;
+	dir_vq_ops = (struct et_ops_dir_vqueue *)dir_pos;
+	section_size = dir_vq_ops->attributes_size;
 
 	// End of region check
 	if (dir_pos + section_size > dir_data + dir_size) {
@@ -1416,28 +1403,43 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	}
 
 	// Attributes size check
-	if (section_size > sizeof(*dir_vq)) {
+	if (section_size > sizeof(*dir_vq_ops)) {
 		dbg_msg.level = LEVEL_WARN;
 		dbg_msg.desc =
 			"DIR region has extra attributes, skipping extra attributes";
 		sprintf(dbg_msg.syndrome,
 			"\nDevice: Ops\nRegion: VQ Region\nSize: (expected: %zu < discovered: %zu)\n",
-			sizeof(*dir_vq),
+			sizeof(*dir_vq_ops),
 			section_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
-	} else if (section_size < sizeof(*dir_vq)) {
+	} else if (section_size < sizeof(*dir_vq_ops)) {
 		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc = "DIR region does not have enough attributes!";
 		sprintf(dbg_msg.syndrome,
 			"\nDevice: Ops\nRegion: VQ Region\nSize: (expected: %zu > discovered: %zu)\n",
-			sizeof(*dir_vq),
+			sizeof(*dir_vq_ops),
 			section_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EINVAL;
 		goto error_free_dir_data;
 	}
 
-	memcpy(&et_dev->ops.vq_common.dir_vq, (u8 *)dir_vq, sizeof(*dir_vq));
+	if (!valid_ops_vq_region(dir_vq_ops,
+				 dbg_msg.syndrome,
+				 ET_EVENT_SYNDROME_LEN)) {
+		if (strcmp(dbg_msg.syndrome, "") == 0) {
+			dev_err(&et_dev->pdev->dev,
+				"Ops: Failed to check DIR VQ region validity!");
+		} else {
+			dbg_msg.level = LEVEL_FATAL;
+			dbg_msg.desc = "DIRs compulsory field(s) not set!";
+			et_print_event(et_dev->pdev, &dbg_msg);
+		}
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
+
+	memcpy(&et_dev->ops.dir_vq, (u8 *)dir_vq_ops, sizeof(*dir_vq_ops));
 
 	dir_pos += section_size;
 
@@ -1567,15 +1569,14 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 	//  - Vector[0] - Mgmt VQ (both SQ & CQ)
 	// Device Operations:
 	//  - Vector[1] - Ops VQ (both SQ & CQ)
-	et_dev->num_irq_vecs = 2;
 	rv = pci_alloc_irq_vectors(pdev,
-				   et_dev->num_irq_vecs,
-				   et_dev->num_irq_vecs,
+				   ET_MAX_MSI_VECS,
+				   ET_MAX_MSI_VECS,
 				   PCI_IRQ_MSI);
-	if (rv != et_dev->num_irq_vecs) {
+	if (rv != ET_MAX_MSI_VECS) {
 		dev_err(&pdev->dev,
-			"msi vectors %d alloc failed\n",
-			et_dev->num_irq_vecs);
+			"msi vectors=%d alloc failed\n",
+			ET_MAX_MSI_VECS);
 		goto error_clear_master;
 	}
 

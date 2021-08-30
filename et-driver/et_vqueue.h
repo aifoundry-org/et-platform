@@ -14,7 +14,6 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/rbtree.h>
-#include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
@@ -24,13 +23,6 @@
 #include "et_device_api.h"
 
 #define ET_MAX_QUEUES 64
-
-/*
- * We'll have a 300 sec timeout, just to cater for zebu as well. The DMA
- * commands take a lot of time and ideally this should be commandline
- * configurable.
- */
-#define ET_MSG_TIMEOUT (300 * HZ)
 
 struct et_pci_dev;
 
@@ -43,33 +35,35 @@ struct et_msg_node {
 };
 
 struct et_vq_common {
-	struct et_dir_vqueue dir_vq;
+	u16 sq_count;
+	u16 hpsq_count;
 	DECLARE_BITMAP(sq_bitmap, ET_MAX_QUEUES);
 	struct mutex sq_bitmap_mutex;
+
+	u16 cq_count;
 	DECLARE_BITMAP(cq_bitmap, ET_MAX_QUEUES);
 	struct mutex cq_bitmap_mutex;
+
+	u8 intrpt_id;
+	u8 intrpt_trg_size;
 	void __iomem *intrpt_addr;
+
 	struct workqueue_struct *workqueue;
 	wait_queue_head_t waitqueue;
 	bool aborting;
 	spinlock_t abort_lock;		/* serializes access to aborting */
 	struct pci_dev *pdev;
-	u8 vec_idx_offset;
 	struct et_mapped_region *trace_region;
-	struct timer_list msg_timeout_timer;
-	bool msg_timer_running;
-	spinlock_t msg_timer_lock;	/* serializes timer modifications */
-	u16 host_timedout_errs;
 };
 
 struct et_squeue {
 	u16 index;
+	bool is_hpsq;
 	struct et_circbuffer __iomem *cb_mem;
 	struct et_circbuffer cb;	/* local copy */
 	struct mutex push_mutex;	/* serializes access to cb */
 	atomic_t sq_threshold;
 	struct et_vq_common *vq_common;
-	atomic_t msg_count;
 };
 
 // clang-format on
@@ -77,6 +71,7 @@ struct et_squeue {
 ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count);
 ssize_t et_squeue_copy_from_user(struct et_pci_dev *et_dev,
 				 bool is_mgmt,
+				 bool is_hpsq,
 				 u16 sq_index,
 				 const char __user *ubuf,
 				 size_t count);
@@ -93,7 +88,6 @@ struct et_cqueue {
 	struct list_head msg_list;
 	struct mutex msg_list_mutex;	/* serializes access to msg_list */
 	struct work_struct isr_work;
-	atomic_t msg_count;
 };
 
 // clang-format on

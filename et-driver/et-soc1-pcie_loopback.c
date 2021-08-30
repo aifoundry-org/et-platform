@@ -102,19 +102,17 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 
 	// Update sq_bitmap for all SQs, set corresponding bit when space
 	// available is more than threshold
-	for (i = 0; i < ops->vq_common.dir_vq.sq_count; i++)
+	for (i = 0; i < ops->dir_vq.sq_count; i++)
 		et_squeue_event_available(ops->sq_pptr[i]);
 
 	mutex_unlock(&ops->vq_common.sq_bitmap_mutex);
 
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
-	if (!bitmap_empty(ops->vq_common.sq_bitmap,
-			  ops->vq_common.dir_vq.sq_count))
+	if (!bitmap_empty(ops->vq_common.sq_bitmap, ops->dir_vq.sq_count))
 		mask |= EPOLLOUT;
 
 	// Generate EPOLLIN event if any CQ msg is saved for userspace
-	if (!bitmap_empty(ops->vq_common.cq_bitmap,
-			  ops->vq_common.dir_vq.cq_count))
+	if (!bitmap_empty(ops->vq_common.cq_bitmap, ops->dir_vq.cq_count))
 		mask |= EPOLLIN;
 
 	mutex_unlock(&ops->vq_common.cq_bitmap_mutex);
@@ -180,17 +178,14 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
 		if (size >= sizeof(u16) &&
-		    copy_to_user(usr_arg,
-				 &ops->vq_common.dir_vq.sq_count,
-				 size)) {
+		    copy_to_user(usr_arg, &ops->dir_vq.sq_count, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_COUNT: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE:
-		max_size = ops->vq_common.dir_vq.per_sq_size -
-			   sizeof(struct et_circbuffer);
+		max_size = ops->dir_vq.sq_size - sizeof(struct et_circbuffer);
 		if (size >= sizeof(u16) &&
 		    copy_to_user(usr_arg, &max_size, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE: failed to copy to user\n");
@@ -202,32 +197,50 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&cmd_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (cmd_info.sq_index >=
-			    et_dev->ops.vq_common.dir_vq.sq_count ||
-		    !cmd_info.cmd || !cmd_info.size)
+		if (!cmd_info.cmd || !cmd_info.size)
 			return -EINVAL;
 
-		if (cmd_info.flags & CMD_DESC_FLAG_DMA) {
-			return et_dma_move_data(
+		if (cmd_info.flags & CMD_DESC_FLAG_DMA &&
+		    cmd_info.flags & CMD_DESC_FLAG_HIGH_PRIORITY) {
+			return -EINVAL;
+		}
+
+		if (cmd_info.flags & CMD_DESC_FLAG_HIGH_PRIORITY) {
+			if (cmd_info.sq_index >= et_dev->ops.dir_vq.hpsq_count)
+				return -EINVAL;
+
+			return et_squeue_copy_from_user(
 				et_dev,
+				false /* ops_dev */,
+				true /* high priority SQ */,
 				cmd_info.sq_index,
 				(char __user __force *)cmd_info.cmd,
 				cmd_info.size);
 		} else {
-			return et_squeue_copy_from_user(
-				et_dev,
-				false /* ops_dev */,
-				cmd_info.sq_index,
-				(char __user __force *)cmd_info.cmd,
-				cmd_info.size);
+			if (cmd_info.sq_index >= et_dev->ops.dir_vq.sq_count)
+				return -EINVAL;
+
+			if (cmd_info.flags & CMD_DESC_FLAG_DMA)
+				return et_dma_move_data(
+					et_dev,
+					cmd_info.sq_index,
+					(char __user __force *)cmd_info.cmd,
+					cmd_info.size);
+			else
+				return et_squeue_copy_from_user(
+					et_dev,
+					false /* ops_dev */,
+					false /* normal SQ */,
+					cmd_info.sq_index,
+					(char __user __force *)cmd_info.cmd,
+					cmd_info.size);
 		}
 
 	case ETSOC1_IOCTL_POP_CQ:
 		if (copy_from_user(&rsp_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (rsp_info.cq_index >=
-			    et_dev->ops.vq_common.dir_vq.cq_count ||
+		if (rsp_info.cq_index >= et_dev->ops.dir_vq.cq_count ||
 		    !rsp_info.rsp || !rsp_info.size)
 			return -EINVAL;
 
@@ -258,11 +271,10 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&sq_threshold_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (sq_threshold_info.sq_index >=
-			    et_dev->ops.vq_common.dir_vq.sq_count ||
+		if (sq_threshold_info.sq_index >= et_dev->ops.dir_vq.sq_count ||
 		    !sq_threshold_info.bytes_needed ||
 		    sq_threshold_info.bytes_needed >
-			    (ops->vq_common.dir_vq.per_sq_size -
+			    (ops->dir_vq.sq_size -
 			     sizeof(struct et_circbuffer)))
 			return -EINVAL;
 
@@ -311,19 +323,17 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 
 	// Update sq_bitmap for all SQs, set corresponding bit when space
 	// available is more than threshold
-	for (i = 0; i < mgmt->vq_common.dir_vq.sq_count; i++)
+	for (i = 0; i < mgmt->dir_vq.sq_count; i++)
 		et_squeue_event_available(mgmt->sq_pptr[i]);
 
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
-	if (!bitmap_empty(mgmt->vq_common.sq_bitmap,
-			  mgmt->vq_common.dir_vq.sq_count))
+	if (!bitmap_empty(mgmt->vq_common.sq_bitmap, mgmt->dir_vq.sq_count))
 		mask |= EPOLLOUT;
 
 	mutex_unlock(&mgmt->vq_common.sq_bitmap_mutex);
 
 	// Generate EPOLLIN event if any CQ msg list has message for userspace
-	if (!bitmap_empty(mgmt->vq_common.cq_bitmap,
-			  mgmt->vq_common.dir_vq.cq_count))
+	if (!bitmap_empty(mgmt->vq_common.cq_bitmap, mgmt->dir_vq.cq_count))
 		mask |= EPOLLIN;
 
 	mutex_unlock(&mgmt->vq_common.cq_bitmap_mutex);
@@ -479,17 +489,14 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
 		if (size >= sizeof(u16) &&
-		    copy_to_user(usr_arg,
-				 &mgmt->vq_common.dir_vq.sq_count,
-				 size)) {
+		    copy_to_user(usr_arg, &mgmt->dir_vq.sq_count, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_COUNT: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE:
-		max_size = mgmt->vq_common.dir_vq.per_sq_size -
-			   sizeof(struct et_circbuffer);
+		max_size = mgmt->dir_vq.sq_size - sizeof(struct et_circbuffer);
 		if (size >= sizeof(u16) &&
 		    copy_to_user(usr_arg, &max_size, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE: failed to copy to user\n");
@@ -509,28 +516,28 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&cmd_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (cmd_info.sq_index >=
-			    et_dev->mgmt.vq_common.dir_vq.sq_count ||
+		if (cmd_info.flags &
+		    (CMD_DESC_FLAG_DMA | CMD_DESC_FLAG_HIGH_PRIORITY)) {
+			return -EINVAL;
+		}
+
+		if (cmd_info.sq_index >= et_dev->mgmt.dir_vq.sq_count ||
 		    !cmd_info.cmd || !cmd_info.size)
 			return -EINVAL;
 
-		if (cmd_info.flags & CMD_DESC_FLAG_DMA) {
-			return -EINVAL;
-		} else {
-			return et_squeue_copy_from_user(
-				et_dev,
-				true /* mgmt_dev */,
-				cmd_info.sq_index,
-				(char __user __force *)cmd_info.cmd,
-				cmd_info.size);
-		}
+		return et_squeue_copy_from_user(
+			et_dev,
+			true /* mgmt_dev */,
+			false /* normal SQ */,
+			cmd_info.sq_index,
+			(char __user __force *)cmd_info.cmd,
+			cmd_info.size);
 
 	case ETSOC1_IOCTL_POP_CQ:
 		if (copy_from_user(&rsp_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (rsp_info.cq_index >=
-			    et_dev->mgmt.vq_common.dir_vq.cq_count ||
+		if (rsp_info.cq_index >= et_dev->mgmt.dir_vq.cq_count ||
 		    !rsp_info.rsp || !rsp_info.size)
 			return -EINVAL;
 
@@ -562,10 +569,10 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 
 		if (sq_threshold_info.sq_index >=
-			    et_dev->mgmt.vq_common.dir_vq.sq_count ||
+			    et_dev->mgmt.dir_vq.sq_count ||
 		    !sq_threshold_info.bytes_needed ||
 		    sq_threshold_info.bytes_needed >
-			    (mgmt->vq_common.dir_vq.per_sq_size -
+			    (mgmt->dir_vq.sq_size -
 			     sizeof(struct et_circbuffer)))
 			return -EINVAL;
 
@@ -715,25 +722,23 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	spin_lock_init(&et_dev->mgmt.mgmt_open_lock);
 
 	et_dev->mgmt.minion_shires = 0;
-	et_dev->mgmt.vq_common.dir_vq.sq_count = 1;
-	et_dev->mgmt.vq_common.dir_vq.per_sq_size = 0x700UL;
-	et_dev->mgmt.vq_common.dir_vq.sq_offset = 0;
-	et_dev->mgmt.vq_common.dir_vq.cq_count = 1;
-	et_dev->mgmt.vq_common.dir_vq.per_cq_size = 0x700UL;
-	et_dev->mgmt.vq_common.dir_vq.cq_offset =
-		et_dev->mgmt.vq_common.dir_vq.sq_offset +
-		et_dev->mgmt.vq_common.dir_vq.sq_count *
-			et_dev->mgmt.vq_common.dir_vq.per_sq_size;
+	et_dev->mgmt.dir_vq.sq_count = 1;
+	et_dev->mgmt.dir_vq.sq_size = 0x700UL;
+	et_dev->mgmt.dir_vq.sq_offset = 0;
+	et_dev->mgmt.dir_vq.cq_count = 1;
+	et_dev->mgmt.dir_vq.cq_size = 0x700UL;
+	et_dev->mgmt.dir_vq.cq_offset =
+		et_dev->mgmt.dir_vq.sq_offset +
+		et_dev->mgmt.dir_vq.sq_count * et_dev->mgmt.dir_vq.sq_size;
 
 	region = &et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER];
 	region->is_valid = true;
 	region->access.priv_mode = MEM_REGION_PRIVILEGE_MODE_KERNEL;
 	region->access.node_access = MEM_REGION_NODE_ACCESSIBLE_NONE;
 	region->access.dma_align = MEM_REGION_DMA_ALIGNMENT_NONE;
-	region->size = et_dev->mgmt.vq_common.dir_vq.sq_count *
-			       et_dev->mgmt.vq_common.dir_vq.per_sq_size +
-		       et_dev->mgmt.vq_common.dir_vq.cq_count *
-			       et_dev->mgmt.vq_common.dir_vq.per_cq_size;
+	region->size =
+		et_dev->mgmt.dir_vq.sq_count * et_dev->mgmt.dir_vq.sq_size +
+		et_dev->mgmt.dir_vq.cq_count * et_dev->mgmt.dir_vq.cq_size;
 	region->mapped_baseaddr =
 		(void __iomem __force *)kzalloc(region->size, GFP_KERNEL);
 
@@ -806,15 +811,19 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	mutex_init(&et_dev->ops.dma_rbtree_mutex);
 	et_dev->ops.dma_rbtree = RB_ROOT;
 
-	et_dev->ops.vq_common.dir_vq.sq_count = 2;
-	et_dev->ops.vq_common.dir_vq.per_sq_size = 0x400UL;
-	et_dev->ops.vq_common.dir_vq.sq_offset = 0;
-	et_dev->ops.vq_common.dir_vq.cq_count = 1;
-	et_dev->ops.vq_common.dir_vq.per_cq_size = 0x600UL;
-	et_dev->ops.vq_common.dir_vq.cq_offset =
-		et_dev->ops.vq_common.dir_vq.sq_offset +
-		et_dev->ops.vq_common.dir_vq.sq_count *
-			et_dev->ops.vq_common.dir_vq.per_sq_size;
+	et_dev->ops.dir_vq.sq_count = 2;
+	et_dev->ops.dir_vq.sq_size = 0x400UL;
+	et_dev->ops.dir_vq.sq_offset = 0;
+	et_dev->ops.dir_vq.hpsq_count = 2;
+	et_dev->ops.dir_vq.hpsq_size = 0x100UL;
+	et_dev->ops.dir_vq.hpsq_offset =
+		et_dev->ops.dir_vq.sq_offset +
+		et_dev->ops.dir_vq.sq_count * et_dev->ops.dir_vq.sq_size;
+	et_dev->ops.dir_vq.cq_count = 1;
+	et_dev->ops.dir_vq.cq_size = 0x600UL;
+	et_dev->ops.dir_vq.cq_offset =
+		et_dev->ops.dir_vq.hpsq_offset +
+		et_dev->ops.dir_vq.hpsq_count * et_dev->ops.dir_vq.hpsq_size;
 
 	// Initialize VQ_BUFFER region
 	region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
@@ -822,10 +831,10 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	region->access.priv_mode = MEM_REGION_PRIVILEGE_MODE_KERNEL;
 	region->access.node_access = MEM_REGION_NODE_ACCESSIBLE_NONE;
 	region->access.dma_align = MEM_REGION_DMA_ALIGNMENT_NONE;
-	region->size = et_dev->ops.vq_common.dir_vq.sq_count *
-			       et_dev->ops.vq_common.dir_vq.per_sq_size +
-		       et_dev->ops.vq_common.dir_vq.cq_count *
-			       et_dev->ops.vq_common.dir_vq.per_cq_size;
+	region->size =
+		et_dev->ops.dir_vq.sq_count * et_dev->ops.dir_vq.sq_size +
+		et_dev->ops.dir_vq.hpsq_count * et_dev->ops.dir_vq.hpsq_size +
+		et_dev->ops.dir_vq.cq_count * et_dev->ops.dir_vq.cq_size;
 	region->mapped_baseaddr =
 		(void __iomem __force *)kzalloc(region->size, GFP_KERNEL);
 

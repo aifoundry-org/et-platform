@@ -5,7 +5,10 @@
 #include <linux/types.h>
 
 #define ESPERANTO_PCIE_IOCTL_MAGIC 0xE7
-#define CMD_DESC_FLAG_DMA	   (0x1U)
+
+// These flags are valid for Ops Device only
+#define CMD_DESC_FLAG_DMA	    (0x1U)
+#define CMD_DESC_FLAG_HIGH_PRIORITY (0x2U)
 
 struct fw_update_desc {
 	void *ubuf;
