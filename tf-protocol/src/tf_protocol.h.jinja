@@ -18,21 +18,12 @@
 /* command/payload format */
 /* -----$<command header 64 bytes><payload..>#<checksum>% -----*/
 
-/* Protocol delimiters and size parameters */
-#define TF_CMD_START                    0x24    /* ASCII-$ */
-#define TF_CMD_END                      0x23    /* ASCII-# */
-#define TF_CHECKSUM_END                 0x25    /* ASCII-% */
-#define TF_CHECKSUM_SIZE                4       /* Bytes */
-#define TF_MAX_CMD_SIZE                 4096    /* Total size of test command + payload */
-#define TF_MAX_RSP_SIZE                 4096    /* Total size of test command + payload */
+/* TF protocol parameters*/
+<%- for parameter in cgh.tf_protocol_parameters() %>
+<%- set value = '{}{:x}'.format('0x', cgh.tf_protocol_parameters_id(parameter)) %>
+<< '{} {:<35} {}'.format('#define', parameter, value) >>
+<%- endfor %>
 
-/* Command and response flags */
-#define TF_CMD_ONLY                     (0x01 <<'<<'>> 0)
-#define TF_CMD_WITH_PAYLOAD             (0x01 <<'<<'>> 1)
-#define TF_CMD_WITH_PAYLOAD_NEXT        (0x01 <<'<<'>> 2)
-#define TF_RSP_ONLY                     (0x01 <<'<<'>> 3)
-#define TF_RSP_WITH_PAYLOAD             (0x01 <<'<<'>> 4)
-#define TF_RSP_WITH_PAYLOAD_NEXT        (0x01 <<'<<'>> 5)
 
 #define TF_NUM_COMMANDS                  << cgh.command_id(cgh.commands(get_last=True)) - cgh.command_id(cgh.commands(get_first=True)) >>
 #define TF_NUM_RESPONSES                 << cgh.response_id(cgh.responses(get_last=True)) - cgh.response_id(cgh.responses(get_first=True)) >>
@@ -95,9 +86,7 @@ struct __attribute__((__packed__)) << struct | lower >>_t {
     tf_cmd_hdr_t cmd_hdr;
   <%- for arg in cgh.cmd_struct_args(struct) -%>
     <%- set type = cgh.cmd_struct_args_type(struct, arg) %>
-    <%- if type == 'unknown_bytes' %>
-    char << arg >>[TF_MAX_CMD_SIZE];
-    <%- elif type == 'flexible_bytes' %>
+    <%- if type == 'flexible_bytes' %>
     char << arg >>[];
     <%- else %>
     << type >> << arg >>;
@@ -116,9 +105,7 @@ struct __attribute__((__packed__)) << struct | lower >>_t {
     tf_rsp_hdr_t rsp_hdr;
   <%- for arg in cgh.rsp_struct_args(struct) -%>
     <%- set type = cgh.rsp_struct_args_type(struct, arg) %>
-    <%- if type == 'unknown_bytes' %>
-    char << arg >>[TF_MAX_RSP_SIZE];
-    <%- elif type == 'flexible_bytes' %>
+    <%- if type == 'flexible_bytes' %>
     char << arg >>[];
     <%- else %>
     << type >> << arg >>;

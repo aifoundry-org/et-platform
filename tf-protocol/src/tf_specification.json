@@ -4,23 +4,28 @@
     "description": "Test command response specification used for Silicon  Bringup test Framework (TF)",
     "protocol.description": "<name,value> tuples used as protocol params for serial and fifo DUT iface",
     "tf_protocol": {
-        "overhead": 7,
-        "body_start": 36,
-        "body_end": 35,
-        "crc_end": 37,
-        "command_only": 1,
-        "command_with_payload": 2,
-        "command_with_payload_next": 4,
-        "response_only": 8,
-        "response_with_payload": 16,
-        "response_with_payload_next": 32,
-        "header_size": 8,
-        "hdr_id_bytes": 2,
-        "hdr_flags_bytes": 2,
-        "hdr_payloadSize_bytes": 4,
-        "id_idx": 1,
-        "flags_idx": 3,
-        "payload_size_idx": 5
+        "TF_CMD_START": 36,
+        "TF_CMD_END": 35,
+        "TF_CHECKSUM_END": 37,
+        "TF_CHECKSUM": 2779096485,
+        "TF_CHECKSUM_SIZE": 4,
+        "TF_CHECKSUM_POSITION": 5,
+        "TF_CMD_END_POSITION": 6,
+        "TF_CHECKSUM_TOTAL_SIZE": 7,
+        "TF_MAX_CMD_SIZE": 4096,
+        "TF_MAX_RSP_SIZE": 4096,
+        "TF_CMD_ONLY": 1,
+        "TF_CMD_WITH_PAYLOAD": 2,
+        "TF_CMD_WITH_PAYLOAD_NEXT": 4,
+        "TF_RSP_ONLY": 8,
+        "TF_RSP_WITH_PAYLOAD": 16,
+        "TF_RSP_WITH_PAYLOAD_NEXT": 32,
+        "TF_HEADER_ID_BYTES": 2,
+        "TF_HEADER_FLAGS_BYTES": 2,
+        "TF_HEADER_PLAYLOADSIZE_BYTES": 4,
+        "TF_ID_IDX": 1,
+        "TF_FLAGS_IDX": 3,
+        "TF_PLAYLOAD_SIZE_IDX": 5
     },
     "sp_tf_interception_points": {
         "TF_DEFAULT_ENTRY": 0,
@@ -218,7 +223,6 @@
         "int16_t": 2,
         "int32_t": 4,
         "int64_t": 8,
-        "unknown_bytes": -1,
         "flexible_bytes": -1
     },
     "tf_cmd_rsp_hdr": {
@@ -259,7 +263,7 @@
             "payload_args": {
                 "dst_addr": "uint64_t",
                 "size": "uint32_t",
-                "data": "unknown_bytes"
+                "data": "flexible_bytes"
             }
         },
         "TF_CMD_MOVE_DATA_TO_HOST": {
@@ -399,7 +403,7 @@
             "payload_size": 256,
             "payload_args": {
                 "mm_cmd_size": "uint32_t",
-                "mm_cmd_data": "unknown_bytes"
+                "mm_cmd_data": "flexible_bytes"
             }
         },
         "TF_CMD_AT_MANUFACTURER_NAME": {
@@ -683,7 +687,7 @@
             "payload_size": 256,
             "payload_args": {
                 "mm_rsp_size": "uint32_t",
-                "mm_rsp_data": "unknown_bytes"
+                "mm_rsp_data": "flexible_bytes"
             }
         },
         "TF_RSP_AT_MANUFACTURER_NAME": {
