@@ -172,7 +172,6 @@ static void taskMain(void *pvParameters)
 #if TEST_FRAMEWORK
     // Control does not return from call below
     // if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_DM ..
-    Trace_Init_SP(NULL);
     Log_Write(LOG_LEVEL_INFO, "Entering TF_BL2_ENTRY_FOR_DM intercept\r\n");
     TF_Wait_And_Process_TF_Cmds(TF_BL2_ENTRY_FOR_DM);
     Log_Write(LOG_LEVEL_INFO, "Fall thru TF_BL2_ENTRY_FOR_DM intercept\r\n");
@@ -401,6 +400,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 #if TEST_FRAMEWORK
     // Control does not return from call below
     // if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_HW ..
+    Trace_Init_SP(NULL);
     Log_Set_Level(LOG_LEVEL_INFO);
     Log_Write(LOG_LEVEL_INFO, "Entering TF_DEFAULT_ENTRY intercept. Waiting for host to set interception point.\r\n");
     TF_Wait_And_Process_TF_Cmds(TF_DEFAULT_ENTRY);
