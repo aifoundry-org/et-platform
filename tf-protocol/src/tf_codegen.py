@@ -48,6 +48,22 @@ class TFProtocolCodeGeneratorHelper(object):
         res = m.hexdigest()
         return res[-17:-1]
 
+    def tf_protocol_parameters(self):
+        """Return the list of defined TF protocol parameters
+
+        Returns:
+           list[dict]: List of defined TF protocol parameters
+        """
+        return self.spec_data['tf_protocol']
+
+    def tf_protocol_parameters_id(self, parameter):
+        """Return the ID of the TF protocol parameters
+
+        Returns:
+           id: ID of the TF protocol parameters
+        """
+        return self.tf_protocol_parameters()[parameter]
+
     def interception_points(self):
         """Return the list of defined interception points for TF
 
