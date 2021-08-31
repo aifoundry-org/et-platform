@@ -18,9 +18,14 @@ using namespace dev;
 using namespace device_management;
 
 class TestDevMgmtApiFuncSyncCmdsPcieSysEmu : public TestDevMgmtApiSyncCmds {
-    void TearDown() override {
-    if (HasFailure()) {
-     TestDevMgmtApiSyncCmds::TearDown();
+  void SetUp() override {
+    handle_ = dlopen("libDM.so", RTLD_LAZY);
+    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
+  }
+  void TearDown() override {
+    extractAndPrintTraceData();
+     if (handle_ != nullptr) {
+       dlclose(handle_);
     }
   }
 };

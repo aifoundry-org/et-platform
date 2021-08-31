@@ -18,9 +18,14 @@ using namespace dev;
 using namespace device_management;
 
 class TestDevMgmtApiFuncSyncCmdsPcieFullBoot : public TestDevMgmtApiSyncCmds {
+  void SetUp() override {
+    handle_ = dlopen("libDM.so", RTLD_LAZY);
+    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
+  }
   void TearDown() override {
-    if (HasFailure()) {
-     TestDevMgmtApiSyncCmds::TearDown();
+    extractAndPrintTraceData();
+     if (handle_ != nullptr) {
+       dlclose(handle_);
     }
   }
 };

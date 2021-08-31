@@ -16,11 +16,17 @@
 
 
 class TestDevMgmtApiFuncSyncCmdsPcie : public TestDevMgmtApiSyncCmds {
+  void SetUp() override {
+    handle_ = dlopen("libDM.so", RTLD_LAZY);
+    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
+  }
   void TearDown() override {
-    if (HasFailure()) {
-     TestDevMgmtApiSyncCmds::TearDown();
+    extractAndPrintTraceData();
+     if (handle_ != nullptr) {
+       dlclose(handle_);
     }
   }
+
 };
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleManufactureName_1_1) {
