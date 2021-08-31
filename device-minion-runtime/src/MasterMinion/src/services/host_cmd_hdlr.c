@@ -97,8 +97,8 @@ static inline int8_t abort_cmd_handler(void* command_buffer, uint8_t sqw_hp_idx)
     /* Blocking call that aborts all dispatched kernels */
     KW_Abort_All_Dispatched_Kernels(sqw_hp_idx);
 
-    /* Inform SP about the commands being aborted */
-    SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_CMDS_ABORTED);
+    /* Set the abort command status */
+    rsp.status = DEV_OPS_API_ABORT_RESPONSE_SUCCESS;
 
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 
