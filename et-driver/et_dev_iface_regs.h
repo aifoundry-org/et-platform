@@ -174,6 +174,24 @@ struct et_mgmt_dir_vqueue {
 } __packed;
 
 /*
+ * Holds the general information of ETSoC1 Device, discovered through Mgmt
+ * Device Interface Registers.
+ */
+// clang-format off
+struct et_mgmt_dir_dev_config {
+	u8 form_factor;		/* PCIE or M.2 */
+	u8 tdp;			/* in Watts */
+	u8 total_l3_size;	/* in MB */
+	u8 total_l2_size;	/* in MB */
+	u8 total_scp_size;	/* in MB */
+	u8 cache_line_size;	/* in Bytes */
+	u16 minion_boot_freq;	/* in MHz */
+	u32 cm_shire_mask;	/* Active Compute Shires Mask */
+	u8 reserved[4];
+} __packed;
+// clang-format on
+
+/*
  * Holds the general information of Mgmt Device Interface Registers.
  */
 struct et_mgmt_dir_header {

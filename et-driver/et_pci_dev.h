@@ -8,6 +8,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
+#include "et_ioctl.h"
 #include "et_vqueue.h"
 
 // clang-format off
@@ -76,6 +77,7 @@ struct et_pci_dev {
 	u8 dev_index;
 	bool is_recovery_mode;
 	struct pci_dev *pdev;
+	struct dev_config cfg;
 	struct et_ops_dev ops;
 	struct et_mgmt_dev mgmt;
 };

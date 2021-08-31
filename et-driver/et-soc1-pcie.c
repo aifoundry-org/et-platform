@@ -190,6 +190,14 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		}
 		return 0;
 
+	case ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION:
+		if (size >= sizeof(et_dev->cfg) &&
+		    copy_to_user(usr_arg, &et_dev->cfg, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION: failed to copy to user\n");
+			return -EFAULT;
+		}
+		return 0;
+
 	case ETSOC1_IOCTL_PUSH_SQ:
 		if (copy_from_user(&cmd_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
@@ -449,8 +457,8 @@ error_dma_free_coherent:
 static long
 esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
-	struct et_mgmt_dev *mgmt;
 	struct et_pci_dev *et_dev;
+	struct et_mgmt_dev *mgmt;
 	struct cmd_desc cmd_info;
 	struct rsp_desc rsp_info;
 	struct sq_threshold sq_threshold_info;
@@ -499,11 +507,11 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		}
 		return 0;
 
-	case ETSOC1_IOCTL_GET_ACTIVE_SHIRE:
-		if (size >= sizeof(u64) &&
-		    copy_to_user(usr_arg, &mgmt->minion_shires, size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_GET_ACTIVE_SHIRE: failed to copy to user\n");
-			return -ENOMEM;
+	case ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION:
+		if (size >= sizeof(et_dev->cfg) &&
+		    copy_to_user(usr_arg, &et_dev->cfg, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION: failed to copy to user\n");
+			return -EFAULT;
 		}
 		return 0;
 
@@ -1087,7 +1095,15 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 		goto error_free_dir_data;
 	}
 
-	et_dev->mgmt.minion_shires = dir_mgmt->minion_shire_mask;
+	// TODO: Discover device configuration from DIRs
+	et_dev->cfg.form_factor = DEV_CONFIG_FORM_FACTOR_PCIE;
+	et_dev->cfg.tdp = 25;
+	et_dev->cfg.total_l3_size = 32;
+	et_dev->cfg.total_l2_size = 64;
+	et_dev->cfg.total_scp_size = 80;
+	et_dev->cfg.cache_line_size = 64;
+	et_dev->cfg.minion_boot_freq = 650;
+	et_dev->cfg.cm_shire_mask = dir_mgmt->minion_shire_mask;
 
 	dir_pos += section_size;
 

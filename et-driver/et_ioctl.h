@@ -10,6 +10,11 @@
 #define CMD_DESC_FLAG_DMA	    (0x1U)
 #define CMD_DESC_FLAG_HIGH_PRIORITY (0x2U)
 
+#define DEV_CONFIG_FORM_FACTOR_PCIE (0x1U)
+#define DEV_CONFIG_FORM_FACTOR_M_2  (0x2U)
+
+// clang-format off
+
 struct fw_update_desc {
 	void *ubuf;
 	__u64 size;
@@ -40,6 +45,19 @@ struct dram_info {
 	__u16 align_in_bits;
 };
 
+struct dev_config {
+	__u8 form_factor;	/* PCIE or M.2 */
+	__u8 tdp;		/* in Watts */
+	__u8 total_l3_size;	/* in MB */
+	__u8 total_l2_size;	/* in MB */
+	__u8 total_scp_size;	/* in MB */
+	__u8 cache_line_size;	/* in Bytes */
+	__u16 minion_boot_freq;	/* in MHz */
+	__u32 cm_shire_mask;	/* Active Compute Shires Mask */
+};
+
+// clang-format on
+
 #define ETSOC1_IOCTL_GET_USER_DRAM_INFO                                        \
 	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 1, struct dram_info)
 
@@ -51,7 +69,8 @@ struct dram_info {
 #define ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE                                       \
 	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 4, __u16)
 
-#define ETSOC1_IOCTL_GET_ACTIVE_SHIRE _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 5, __u64)
+#define ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION                                  \
+	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 5, struct dev_config)
 
 #define ETSOC1_IOCTL_PUSH_SQ                                                   \
 	_IOW(ESPERANTO_PCIE_IOCTL_MAGIC, 6, struct cmd_desc)
