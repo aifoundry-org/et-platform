@@ -83,9 +83,9 @@ bool TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, siz
   }
   const trace_string_t* tracePacketString;
   std::array<char, TRACE_STRING_MAX_SIZE + 1> stringLog;
-  struct trace_entry_header_t* entry = NULL;
+  const struct trace_entry_header_t* entry = NULL;
 
-  while (entry =(struct trace_entry_header_t*) Trace_Decode((struct trace_buffer_std_header_t *)traceBuf, (void*)entry)) {
+  while (entry = Trace_Decode((struct trace_buffer_std_header_t *)traceBuf, entry)) {
     if (entry->type == TRACE_TYPE_STRING) {
         tracePacketString = templ::bit_cast<trace_string_t*>(entry);
         strncpy(stringLog.data(), tracePacketString->string, TRACE_STRING_MAX_SIZE);
