@@ -227,13 +227,16 @@ int verifyService() {
 
     switch(POWER_STATE(*output_buff)) {
       case 0:
-        strncpy(power_state,"POWER_STATE_FULL", sizeof(power_state));
+        strncpy(power_state,"POWER_STATE_MAX_POWER", sizeof(power_state));
         break;
       case 1:
-        strncpy(power_state,"POWER_STATE_REDUCED", sizeof(power_state));
+        strncpy(power_state,"POWER_STATE_MANAGED_POWER", sizeof(power_state));
         break;
       case 2:
-        strncpy(power_state,"POWER_STATE_LOWESET", sizeof(power_state));
+        strncpy(power_state,"POWER_STATE_SAFE_POWER", sizeof(power_state));
+        break;
+      case 3:
+        strncpy(power_state,"POWER_STATE_LOW_POWER", sizeof(power_state));
         break;
       default:
         DV_LOG(INFO) << "Invalid power state: "  << std::endl;
@@ -269,7 +272,7 @@ int verifyService() {
     }
 
     tdp_level = (uint8_t)output_buff[0];
-    DV_LOG(INFO) << "TDP Level Output: " << tdp_level << std::endl;
+    DV_LOG(INFO) << "TDP Level Output: " << +tdp_level << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL: {
@@ -298,7 +301,7 @@ int verifyService() {
     }
 
     temperature_threshold_t* temperature_threshold = (temperature_threshold_t*)output_buff;
-    DV_LOG(INFO) << "Low Temperature Threshold Output: " << +temperature_threshold->sw_temperature_c << " c"
+    DV_LOG(INFO) << "SW Managed Temperature Threshold Output: " << +temperature_threshold->sw_temperature_c << " c"
                  << std::endl;
   } break;
 
@@ -331,18 +334,31 @@ int verifyService() {
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES: {
-    const uint32_t input_size = sizeof(device_mgmt_api::power_throttle_state_e);
-    const char input_buff[input_size] = {device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP};
+    std::string throttle_state_name[7] = {
+    "POWER_THROTTLE_STATE_POWER_IDLE",      "POWER_THROTTLE_STATE_THERMAL_IDLE",
+    "POWER_THROTTLE_STATE_POWER_UP",        "POWER_THROTTLE_STATE_POWER_DOWN",
+    "POWER_THROTTLE_STATE_THERMAL_DOWN",    "POWER_THROTTLE_STATE_POWER_SAFE",
+    "POWER_THROTTLE_STATE_THERMAL_SAFE"};
+    for(device_mgmt_api::power_throttle_state_e throttle_state = device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP;
+        throttle_state <= device_mgmt_api::POWER_THROTTLE_STATE_THERMAL_SAFE;
+        throttle_state++) {
+      const uint32_t input_size = sizeof(device_mgmt_api::power_throttle_state_e);
+      const char input_buff[input_size] = {throttle_state};
 
-    const uint32_t output_size = sizeof(residency_t);
-    char output_buff[output_size] = {0};
+      const uint32_t output_size = sizeof(residency_t);
+      char output_buff[output_size] = {0};
 
-    if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
-      return ret;
+      if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+        return ret;
+      }
+
+      residency_t* residency = (residency_t*)output_buff;
+      DV_LOG(INFO) << "throttle_residency " << throttle_state_name[throttle_state] << "(in usecs):" << std::endl;
+      DV_LOG(INFO) << "cumulative: " << residency->cumulative << std::endl;
+      DV_LOG(INFO) << "average: " << residency->average << std::endl;
+      DV_LOG(INFO) << "maximum: " << residency->maximum << std::endl;
+      DV_LOG(INFO) << "minimum: " << residency->minimum << std::endl;
     }
-
-    residency_t* residency = (residency_t*)output_buff;
-    DV_LOG(INFO) << "Residency Throttle States Output: " << residency->average << " us" << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_POWER: {
@@ -386,11 +402,6 @@ int verifyService() {
     voltage = BIN2VOLTAGE(module_voltage->noc, 250, 5);
     DV_LOG(INFO) << "Module Voltage NOC: " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(module_voltage->pcie_logic, 600, 6);
-    DV_LOG(INFO) << "Module Voltage PCIE_LOGIC: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(module_voltage->vddqlp, 250, 10);
-    DV_LOG(INFO) << "Module Voltage VDDQLP: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(module_voltage->vddq, 250, 10);
-    DV_LOG(INFO) << "Module Voltage VDDQ: " << +voltage << " mV" << std::endl;
 
   } break;
 
@@ -445,15 +456,29 @@ int verifyService() {
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES: {
-    const uint32_t output_size = sizeof(residency_t);
-    char output_buff[output_size] = {0};
+    std::string power_state_name[4] = {
+    "POWER_STATE_MAX_POWER",      "POWER_STATE_MANAGED_POWER",
+    "POWER_STATE_SAFE_POWER",        "POWER_STATE_LOW_POWER"};
+    for (device_mgmt_api::power_state_e power_state = device_mgmt_api::POWER_STATE_MAX_POWER;
+          power_state <= device_mgmt_api::POWER_STATE_SAFE_POWER;
+          power_state++) {
+      const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
+      const char input_buff[input_size] = {power_state};
 
-    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
-      return ret;
+      const uint32_t output_size = sizeof(residency_t);
+      char output_buff[output_size] = {0};
+
+      if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+        return ret;
+      }
+
+      residency_t* residency = (residency_t*)output_buff;
+      DV_LOG(INFO) << "power_residency " << power_state_name[power_state] << "(in usecs):" << std::endl;
+      DV_LOG(INFO) << "cumulative: " << residency->cumulative << std::endl;
+      DV_LOG(INFO) << "average: " << residency->average << std::endl;
+      DV_LOG(INFO) << "maximum: " << residency->maximum << std::endl;
+      DV_LOG(INFO) << "minimum: " << residency->minimum << std::endl;
     }
-
-    residency_t* residency = (residency_t*)output_buff;
-    DV_LOG(INFO) << "Max throttle time Output: " << residency->average << " us" << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_SET_DDR_ECC_COUNT:
@@ -597,7 +622,6 @@ int verifyService() {
     asic_frequencies_t* asic_frequencies = (asic_frequencies_t*)output_buff;
     DV_LOG(INFO) << "ASIC Frequency Minion Shire: " << asic_frequencies->minion_shire_mhz << " Mhz" << std::endl;
     DV_LOG(INFO) << "ASIC Frequency NOC: " << asic_frequencies->noc_mhz << " Mhz" << std::endl;
-    DV_LOG(INFO) << "ASIC Frequency Mem Shire:: " << asic_frequencies->mem_shire_mhz << " Mhz" << std::endl;
     DV_LOG(INFO) << "ASIC Frequency DDR: " << asic_frequencies->ddr_mhz << " Mhz" << std::endl;
     DV_LOG(INFO) << "ASIC Frequency PCIE Shire: " << asic_frequencies->pcie_shire_mhz << " Mhz" << std::endl;
     DV_LOG(INFO) << "ASIC Frequency IO Shire: " << asic_frequencies->io_shire_mhz << " Mhz" << std::endl;
@@ -987,20 +1011,14 @@ bool validTDPLevel() {
 }
 
 bool validThresholds() {
-  std::string str_optarg = std::string(optarg);
-  std::regex re("^[0-9]+,[0-9]+$");
-  std::smatch m;
-  if (!std::regex_search(str_optarg, m, re)) {
-    DV_LOG(ERROR) << "Aborting, argument: " << str_optarg << " is not valid ( ^[0-9]+,[0-9]+$ )" << std::endl;
+  if (!validDigitsOnly()) {
     return false;
   }
-
-  std::size_t pos = str_optarg.find(",");
 
   char* end;
   errno = 0;
 
-  auto lo = std::strtoul(str_optarg.substr(0, pos).c_str(), &end, 10);
+  auto lo = std::strtoul(optarg, &end, 10);
 
   if (lo > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
     DV_LOG(ERROR) << "Aborting, argument: " << lo << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
@@ -1244,23 +1262,23 @@ void printTDPLevel(char* argv) {
 void printThresholds(char* argv) {
   std::cout << std::endl;
   std::cout << "\t"
-            << "-" << (char)long_options[10].val << ", --" << long_options[10].name << "=nlotemp,nhitemp" << std::endl;
+            << "-" << (char)long_options[10].val << ", --" << long_options[10].name << "=nswtemp" << std::endl;
   std::cout << "\t\t"
-            << "Set temperature thresholds (low,high)" << std::endl;
+            << "Set temperature thresholds (sw)" << std::endl;
   std::cout << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[0].val << " "
-            << DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS << " -" << (char)long_options[10].val << " 80,100"
+            << DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS << " -" << (char)long_options[10].val << " 80"
             << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[1].val << " DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS"
-            << " -" << (char)long_options[10].val << " 80,100" << std::endl;
+            << " -" << (char)long_options[10].val << " 80" << std::endl;
 }
 
 void printUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "Usage: " << argv << " -o ncode | -m command [-n node] [-u nmsecs] [-h]"
-            << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nlotemp,nhitemp]"
+            << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp]"
             << std::endl;
   printCode(argv);
   printCommand(argv);

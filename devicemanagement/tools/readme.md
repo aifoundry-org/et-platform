@@ -2,7 +2,7 @@
 
 ## Sysemu
 
-### Usage: dm-tester -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nlotemp,nhitemp]
+### Usage: dm-tester -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp]
 
         -o, --code=ncode
                 Command by ID (see below)
@@ -134,23 +134,19 @@
                 Ex. dm-tester -m DM_CMD_SET_PCIE_LANE_WIDTH -w 0
 
         -t, --tdplevel=nlevel
-                Set TDP level:
+                Set TDP level in Watts:
 
-                        4: TDP_LEVEL_INVALID
-                        0: TDP_LEVEL_ONE
-                        1: TDP_LEVEL_TWO
-                        2: TDP_LEVEL_THREE
-                        3: TDP_LEVEL_FOUR
+                        0 < tdp level < 40
 
                 Ex. dm-tester -o 25 -t 0
-                Ex. dm-tester -m DM_CMD_SET_MODULE_STATIC_TDP_LEVEL -t 0
+                Ex. dm-tester -m DM_CMD_SET_MODULE_STATIC_TDP_LEVEL -t 25
 
-        -e, --thresholds=nlotemp,nhitemp
-                Set temperature thresholds (low,high)
+        -e, --thresholds=nswtemp
+                Set temperature thresholds (software threshold)
 
-                Ex. dm-tester -o 21 -e 80,100
-                Ex. dm-tester -m DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS -e 80,100
+                Ex. dm-tester -o 21 -e 80
+                Ex. dm-tester -m DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS -e 80
 
 ## Zebu
 
-### Usage: dm-tester -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nlotemp,nhitemp]
+### Usage: dm-tester -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp]
