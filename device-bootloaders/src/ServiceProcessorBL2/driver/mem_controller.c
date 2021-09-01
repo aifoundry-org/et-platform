@@ -301,6 +301,8 @@ int32_t configure_memshire(void)
         Log_Write(LOG_LEVEL_ERROR, "ddr_config() failed!\n");
         return MEMSHIRE_DDR_CONFIG_ERROR;
     }
+    Log_Write(LOG_LEVEL_INFO, "DRAM ready.\n");
+#endif
     if(ddr_mode.frequency == DDR_FREQUENCY_800MHZ) {
         ddr_frequency = 800;
     }
@@ -310,8 +312,7 @@ int32_t configure_memshire(void)
     else if(ddr_mode.frequency == DDR_FREQUENCY_1066MHZ) {
         ddr_frequency = 1066;
     }
-    Log_Write(LOG_LEVEL_INFO, "DRAM ready.\n");
-#endif
+
    return SUCCESS;
 }
 

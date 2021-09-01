@@ -187,7 +187,7 @@ static void taskMain(void *pvParameters)
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
 
     /* Setup Compute Minions Shire Clocks and bring them out of Reset */
-    status = Minion_Configure_Minion_Clock_Reset(minion_shires_mask, 3 /*HDPLL-650 Mhz*/, 3 /*LVDPLL-650 Mhz*/, true /*Use Step Clock*/);
+    status = Minion_Configure_Minion_Clock_Reset(minion_shires_mask, 44 /*HDPLL-650 Mhz*/, 15 /*LVDPLL-650 Mhz*/, true /*Use Step Clock*/);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Enable Compute Minion failed!")
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);
@@ -372,9 +372,9 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     fake_bl1_data.service_processor_bl1_version = SERVICE_PROCESSOR_BL1_DATA_VERSION;
     fake_bl1_data.service_processor_rom_version = 0xDEADBEEF;
     fake_bl1_data.sp_gpio_pins = 0;
-    fake_bl1_data.sp_pll0_frequency = 0;
-    fake_bl1_data.sp_pll1_frequency = 0;
-    fake_bl1_data.pcie_pll0_frequency = 0;
+    fake_bl1_data.sp_pll0_frequency = 1000;
+    fake_bl1_data.sp_pll1_frequency = 2000;
+    fake_bl1_data.pcie_pll0_frequency = 1010;
     fake_bl1_data.timer_raw_ticks_before_pll_turned_on = 0;
     fake_bl1_data.vaultip_coid_set = 0;
     fake_bl1_data.spi_controller_rx_baudrate_divider = 0;
