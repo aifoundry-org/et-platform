@@ -616,31 +616,40 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14(bool singleDev
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  std::string throttle_state_name[7] = {
+    "POWER_THROTTLE_STATE_POWER_IDLE",      "POWER_THROTTLE_STATE_THERMAL_IDLE",
+    "POWER_THROTTLE_STATE_POWER_UP",        "POWER_THROTTLE_STATE_POWER_DOWN",
+    "POWER_THROTTLE_STATE_THERMAL_DOWN",    "POWER_THROTTLE_STATE_POWER_SAFE",
+    "POWER_THROTTLE_STATE_THERMAL_SAFE"};
 
   const uint32_t output_size = sizeof(device_mgmt_api::residency_t);
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(device_mgmt_api::power_throttle_state_e);
-    const char input_buff[input_size] = {device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP};
-    char output_buff[output_size] = {0};
-    auto hst_latency = std::make_unique<uint32_t>();
-    auto dev_latency = std::make_unique<uint64_t>();
+    for(device_mgmt_api::power_throttle_state_e throttle_state = device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP;
+        throttle_state <= device_mgmt_api::POWER_THROTTLE_STATE_THERMAL_SAFE;
+        throttle_state++) {
+      const uint32_t input_size = sizeof(device_mgmt_api::power_throttle_state_e);
+      const char input_buff[input_size] = {throttle_state};
+      char output_buff[output_size] = {0};
+      auto hst_latency = std::make_unique<uint32_t>();
+      auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES,
+      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES,
                                 input_buff, input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+      DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
-    // Skip printing if loopback driver
-    if (!FLAGS_loopback_driver) {
-      // Note: Throttle time could vary. So there cannot be expected value for throttle time in the test
-      device_mgmt_api::residency_t* residency = (device_mgmt_api::residency_t*)output_buff;
-      printf("throttle_residency (in usecs):\n");
-      printf("\tcumulative: %d\n", residency->cumulative);
-      printf("\taverage: %d\n", residency->average);
-      printf("\tmaximum: %d\n", residency->maximum);
-      printf("\tminimum: %d\n", residency->minimum);
+      // Skip printing if loopback driver
+      if (!FLAGS_loopback_driver) {
+        // Note: Throttle time could vary. So there cannot be expected value for throttle time in the test
+        device_mgmt_api::residency_t* residency = (device_mgmt_api::residency_t*)output_buff;
+        printf("throttle_residency %s (in usecs):\n", throttle_state_name[throttle_state]);
+        printf("\tcumulative: %d\n", residency->cumulative);
+        printf("\taverage: %d\n", residency->average);
+        printf("\tmaximum: %d\n", residency->maximum);
+        printf("\tminimum: %d\n", residency->minimum);
+      }
     }
   }
 }
@@ -850,31 +859,38 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState_1_22(bool singleDevice
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  std::string power_state_name[4] = {
+    "POWER_STATE_MAX_POWER",      "POWER_STATE_MANAGED_POWER",
+    "POWER_STATE_SAFE_POWER",        "POWER_STATE_LOW_POWER"};
 
   const uint32_t output_size = sizeof(device_mgmt_api::residency_t);
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
-    const char input_buff[input_size] = {device_mgmt_api::POWER_STATE_MANAGED_POWER};
-    char output_buff[output_size] = {0};
-    auto hst_latency = std::make_unique<uint32_t>();
-    auto dev_latency = std::make_unique<uint64_t>();
+    for (device_mgmt_api::power_state_e power_state = device_mgmt_api::POWER_STATE_MAX_POWER;
+          power_state <= device_mgmt_api::POWER_STATE_SAFE_POWER;
+          power_state++) {
+      const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
+      const char input_buff[input_size] = {power_state};
+      char output_buff[output_size] = {0};
+      auto hst_latency = std::make_unique<uint32_t>();
+      auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES,
+      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES,
                                 input_buff, input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+      DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
-    // Skip printing if loopback driver
-    if (!FLAGS_loopback_driver) {
-      // Note: Throttle time could vary. So there cannot be expected value for throttle time in the test
-      device_mgmt_api::residency_t* residency = (device_mgmt_api::residency_t*)output_buff;
-      printf("throttle_residency (in usecs):\n");
-      printf("\tcumulative: %d\n", residency->cumulative);
-      printf("\taverage: %d\n", residency->average);
-      printf("\tmaximum: %d\n", residency->maximum);
-      printf("\tminimum: %d\n", residency->minimum);
+      // Skip printing if loopback driver
+      if (!FLAGS_loopback_driver) {
+        // Note: Throttle time could vary. So there cannot be expected value for throttle time in the test
+        device_mgmt_api::residency_t* residency = (device_mgmt_api::residency_t*)output_buff;
+        printf("power_residency %s (in usecs):\n", power_state_name[power_state]);
+        printf("\tcumulative: %d\n", residency->cumulative);
+        printf("\taverage: %d\n", residency->average);
+        printf("\tmaximum: %d\n", residency->maximum);
+        printf("\tminimum: %d\n", residency->minimum);
+      }
     }
   }
 }
