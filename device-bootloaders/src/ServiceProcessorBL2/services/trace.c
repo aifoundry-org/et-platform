@@ -39,8 +39,19 @@ void Trace_Process_Control_Cmd(void *buffer)
     struct device_mgmt_trace_run_control_cmd_t *dm_cmd =
         (struct device_mgmt_trace_run_control_cmd_t *)buffer;
 
+    struct trace_buffer_std_header_t *trace_header =
+        (struct trace_buffer_std_header_t *)SP_Trace_CB.base_per_hart;
+
+    /* Check flag to reset trace buffer. */
+    if (dm_cmd->control & TRACE_CONTROL_RESET_TRACEBUF)
+    {
+        /* Reset the trace buffer */
+        trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
+        SP_Trace_CB.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
+    }
+
     /* Check flag to Enable/Disable Trace. */
-    if (dm_cmd->control & SP_TRACE_ENABLE)
+    if (dm_cmd->control & TRACE_CONTROL_TRACE_ENABLE)
     {
         Trace_Run_Control(TRACE_ENABLE);
         Log_Write(LOG_LEVEL_INFO,
@@ -48,12 +59,15 @@ void Trace_Process_Control_Cmd(void *buffer)
     }
     else
     {
+        trace_header -> data_size = SP_Trace_CB.offset_per_hart;
         Trace_Run_Control(TRACE_DISABLE);
+        //NOSONAR TODO: https://esperantotech.atlassian.net/browse/SW-9220
+        //NOSONAR evict(to_Mem, (void *)SP_Trace_CB.base_per_hart, SP_Trace_CB.offset_per_hart);
         Log_Write(LOG_LEVEL_INFO,
                             "TRACE_RT_CONTROL:SP:Trace Disabled.\r\n");
     }
 
-    if (dm_cmd->control & SP_TRACE_UART_ENABLE)
+    if (dm_cmd->control & TRACE_CONTROL_TRACE_UART_ENABLE)
     {
         Log_Set_Interface(LOG_DUMP_TO_UART);
         Log_Write(LOG_LEVEL_INFO,
@@ -64,7 +78,6 @@ void Trace_Process_Control_Cmd(void *buffer)
         Log_Set_Interface(LOG_DUMP_TO_TRACE);
         Log_Write(LOG_LEVEL_INFO,
                 "TRACE_RT_CONTROL:SP:Logs redirected to Trace buffer\r\n");
-
     }
 }
 
@@ -136,7 +149,6 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     if (sp_init_info == NULL)
     {
         /* Populate default Trace configurations for Service Processor. */
-
 #if TEST_FRAMEWORK
         /* The scratch pad buffer is also used by the BL2 to hold the DDR firmware.
            During the DDR init the logging to trace buffer is disabled and therefore
@@ -176,7 +188,7 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     trace_header->magic_header = TRACE_MAGIC_HEADER;
 
     /* Put the buffer size. */
-    trace_header->data_size = SP_Trace_CB.size_per_hart;
+    trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
 }
 
 /************************************************************************
@@ -275,9 +287,10 @@ static void Trace_Run_Control(trace_enable_e state)
 ***********************************************************************/
 static void Trace_Configure(uint32_t event_mask, uint32_t filter_mask)
 {
-       SP_Trace_CB.event_mask = event_mask;
-       SP_Trace_CB.filter_mask = filter_mask;
+    SP_Trace_CB.event_mask = event_mask;
+    SP_Trace_CB.filter_mask = filter_mask;
 }
+
 /************************************************************************
 *
 *   FUNCTION
