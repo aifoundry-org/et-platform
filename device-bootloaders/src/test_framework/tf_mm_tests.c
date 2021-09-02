@@ -2,6 +2,8 @@
 #include "mm_iface.h"
 #include "log.h"
 
+#include "minion_configuration.h"
+
 int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd);
 int8_t MM_Cmd_Shell_Debug_Print_Cmd_Handler(void* test_cmd);
 int8_t SP_Cmd_Get_MM_Heartbeat_Handler(void* test_cmd);
@@ -46,7 +48,7 @@ int8_t SP_Cmd_Get_MM_Heartbeat_Handler(void* test_cmd)
     rsp.rsp_hdr.id = TF_RSP_GET_MM_HEARTBEAT;
     rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
     rsp.rsp_hdr.payload_size =  TF_GET_PAYLOAD_SIZE(struct tf_rsp_get_mm_heartbeat_t);
-    rsp.heartbeat_count = 0xFFFFFFFFFFFFFFFF;
+    rsp.heartbeat_count = Minion_State_Get_MM_Heartbeat_Count();
 
     /* Implement logic to fetch heartbeat when heartbeat support becomes available */
 
