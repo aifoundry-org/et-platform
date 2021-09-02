@@ -1,0 +1,29 @@
+stages:
+  - test
+
+test:system_pkg_manager:
+  stage: test
+  tags:
+    - docker
+  image: ubuntu:latest
+  variables:
+    DEBIAN_FRONTEND: noninteractive
+  parallel:
+    matrix:
+      - COMPILER: [ gcc ]
+        COMPILER_VERSION: [ 8 ]
+        BUILD_TYPE: [ Release, Debug ]
+  before_script:
+    - echo -e "\e[0Ksection_start:`date +%s`:install_system_deps_section\r\e[0KInstall system dependencies"
+    - apt-get update -qq
+    - apt-get install -qq -y --no-install-recommends ninja-build build-essential gcc-${COMPILER_VERSION} g++-${COMPILER_VERSION} cmake
+    - echo -e "\e[0Ksection_end:`date +%s`:install_system_deps_section\r\e[0K"
+
+    - echo -e "\e[0Ksection_start:`date +%s`:prepare_build_dir_section\r\e[0KPrepare build directory"
+    - mkdir build
+    - cd build
+    - echo -e "\e[0Ksection_end:`date +%s`:prepare_build_dir_section\r\e[0K"
+  script:
+    - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DET_TRACE_TEST=ON -G Ninja ..
+    - ninja
+    - ctest --verbose

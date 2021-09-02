@@ -95,7 +95,7 @@ int main(int argc, const char **argv)
     struct trace_control_block_t cb = { 0 };
     struct trace_buffer_std_header_t *buf = test_trace_create(&cb, trace_size);
 
-    struct trace_event_cmd_status_t queues[n_queues] = {};
+    struct trace_event_cmd_status_t queues[n_queues];
     for (int i = 0; i < n_queues; ++i) {
         queues[i].queue_slot_id = i;
         queues[i].cmd_status = CMD_STATUS_SUCCEEDED;
