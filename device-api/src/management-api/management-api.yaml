@@ -234,6 +234,8 @@ Modules:
           Value: 3
         - Name: TRACE_UART_DISABLE
           Value: 1
+        - Name: RESET_TRACEBUF
+          Value: 4
     - Name: trace_configure
       Description: Trace enable/disable and UART log
       Type: uint32_t
