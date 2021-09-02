@@ -24,7 +24,7 @@ test:system_pkg_manager:
     - cd build
     - echo -e "\e[0Ksection_end:`date +%s`:prepare_build_dir_section\r\e[0K"
   script:
-    - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -G Ninja ..
+    - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DET_TRACE_TEST=ON -G Ninja ..
     - ninja
     - ctest --verbose
   allow_failure: true
