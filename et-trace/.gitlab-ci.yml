@@ -27,4 +27,3 @@ test:system_pkg_manager:
     - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DET_TRACE_TEST=ON -G Ninja ..
     - ninja
     - ctest --verbose
-  allow_failure: true
