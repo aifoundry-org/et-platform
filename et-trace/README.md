@@ -1,15 +1,16 @@
-# Device Trace
+# esperantoTrace
 
-Header-only for device_trace layout and related operations.
+Header-only for et-trace (device trace) layout and related operations.
 This library is shared between the device (ET-SOC) and the host machine.
 
 Project layout:
 
-    device_trace/
+    et-trace/
     ├── include/                    Public header files
-    │   ├── device_trace.h          Encode interface (mainly for the device)
-    │   ├── device_trace_decode.h   Decode interface (mainly for the host)
-    │   └── device_trace_types.h    Type definitions (shared)
+    │   └── et-trace/               Directory where public header files live (Users will `include <et-trace/*.h>`)
+    │       ├── encoder.h           Encode interface (mainly for the device)
+    │       ├── decoder.h           Decode interface (mainly for the host)
+    │       └── layout.h            Type definitions (shared)
     └── tests/                      Unit-level tests
         └── common/                 Common test utilities
 
@@ -19,6 +20,6 @@ For more information see [include/device_trace_types.h](include/device_trace_typ
 To get started:
 
     mkdir build && cd build
-    cmake -DDTRACE_TEST=ON ..
+    cmake -DET_TRACE_TEST=ON ..
     make
     ctest
