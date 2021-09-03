@@ -27,11 +27,16 @@ ThreadPool::ThreadPool(size_t numThreads)
 }
 
 void ThreadPool::pushTask(Task task) {
-  TP_VLOG(HIGH) << "Pushing a new task into threadpool " << std::hex << this;
-  std::unique_lock lock(mutex_);
-  tasks_.emplace_back(std::move(task));
-  lock.unlock();
-  condVar_.notify_one();
+  if (threads_.empty()) {
+    TP_VLOG(MID) << "Running thread pool with no threads (debugging), so execute the task directly";
+    task();
+  } else {
+    TP_VLOG(MID) << "Pushing a new task into threadpool " << std::hex << this;
+    std::unique_lock lock(mutex_);
+    tasks_.emplace_back(std::move(task));
+    lock.unlock();
+    condVar_.notify_one();
+  }
 }
 
 ThreadPool::~ThreadPool() {
@@ -45,17 +50,17 @@ ThreadPool::~ThreadPool() {
   for (auto& t : threads_) {
     t.join();
   }
-  TP_VLOG(HIGH) << "Threadpool " << std::hex << this << " destroyed.";
+  TP_VLOG(LOW) << "Threadpool " << std::hex << this << " destroyed.";
 }
 
 void ThreadPool::workerFunc() {
   while (running_) {
     std::unique_lock lock(mutex_);
     if (tasks_.empty()) {
-      TP_VLOG(HIGH) << "No tasks to execute, waiting for next task.";
+      TP_VLOG(MID) << "No tasks to execute, waiting for next task.";
       condVar_.wait(lock, [this] { return !(running_ && tasks_.empty()); });
     } else {
-      TP_VLOG(HIGH) << "Executing task.";
+      TP_VLOG(MID) << "Executing task.";
       auto task = std::move(tasks_.back());
       tasks_.pop_back();
       lock.unlock();
