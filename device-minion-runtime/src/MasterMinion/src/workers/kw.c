@@ -721,7 +721,7 @@ void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
             do
             {
                 asm volatile("fence\n" ::: "memory");
-            } while (atomic_load_local_32(&KW_CB.kernels[kw_idx].kernel_state) != KERNEL_STATE_UN_USED);
+            } while (atomic_load_local_32(&KW_CB.kernels[kw_idx].kernel_state) == KERNEL_STATE_ABORTING);
         }
     }
 }
