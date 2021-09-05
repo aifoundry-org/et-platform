@@ -92,13 +92,6 @@ static uint64_t g_active_shire_mask = 0;
 
 /*==================== Function Separator =============================*/
 
-uint8_t pll_freq_to_mode(int32_t freq)
-{
-//NOSONAR TODO: Need to add Freq to mode convertion equation
-   (void) freq;
-   return 6;
-}
-
 /************************************************************************
 *
 *   FUNCTION
@@ -271,7 +264,7 @@ int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask)
             const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(i) |
                                     ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(1) |
                                     ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(0xF);
-            write_esr_new(PP_MACHINE, i, REGION_OTHER, 2,
+            write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
                             ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
         }
         shire_mask >>= 1;
@@ -301,8 +294,8 @@ int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask)
 int Minion_Enable_Master_Shire_Threads(uint8_t mm_id)
 {
     /* Enable only Device Runtime Management thread on Master Shire */
-    write_esr_new(PP_MACHINE, mm_id, REGION_OTHER, 2, ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_ADDRESS,
-                    ~(MM_RT_THREADS), 0);
+    write_esr_new(PP_MACHINE, mm_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                    ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_ADDRESS, ~(MM_RT_THREADS), 0);
     return 0;
 }
 
@@ -552,20 +545,20 @@ int Minion_Load_Authenticate_Firmware(void)
 *
 *   INPUTS
 *
-*       Frequency mode to bring up Minions
+*       Frequency to bring up Minions
 *
 *   OUTPUTS
 *
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-int Minion_Shire_Update_PLL_Freq(uint8_t mode)
+int Minion_Shire_Update_PLL_Freq(uint32_t freq)
 {
     struct sp2mm_update_freq_cmd_t cmd;
 
     cmd.msg_hdr.msg_id = SP2MM_CMD_UPDATE_FREQ;
     cmd.msg_hdr.msg_size = sizeof(struct sp2mm_update_freq_cmd_t);
-    cmd.freq = mode;
+    cmd.freq = freq;
 
     MM_Iface_Push_Cmd_To_SP2MM_SQ(&cmd, sizeof(cmd));
 

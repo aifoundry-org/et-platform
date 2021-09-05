@@ -1112,7 +1112,7 @@ static int reduce_minion_operating_point(int32_t delta_power, struct trace_event
     int32_t delta_freq = delta_power * DP_per_Mhz;
     int32_t new_freq = Get_Minion_Frequency() - delta_freq;
 
-    if (0 != Minion_Shire_Update_PLL_Freq(pll_freq_to_mode(new_freq)))
+    if (0 != Minion_Shire_Update_PLL_Freq((uint32_t)new_freq))
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
         return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
@@ -1166,7 +1166,7 @@ static int increase_minion_operating_point(int32_t delta_power, struct trace_eve
         //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
     }
 
-    if (0 != Minion_Shire_Update_PLL_Freq(pll_freq_to_mode(new_freq)))
+    if (0 != Minion_Shire_Update_PLL_Freq((uint32_t)new_freq))
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
         return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
@@ -1211,7 +1211,7 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
 
     if (SAFE_STATE_FREQUENCY < Get_Minion_Frequency())
     {
-        if (0 != Minion_Shire_Update_PLL_Freq(pll_freq_to_mode(SAFE_STATE_FREQUENCY)))
+        if (0 != Minion_Shire_Update_PLL_Freq(SAFE_STATE_FREQUENCY))
         {
             Log_Write(LOG_LEVEL_ERROR, "Failed to go to safe state!\n");
             return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
@@ -1229,7 +1229,7 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
             //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
         }
 
-        if (0 != Minion_Shire_Update_PLL_Freq(pll_freq_to_mode(SAFE_STATE_FREQUENCY)))
+        if (0 != Minion_Shire_Update_PLL_Freq(SAFE_STATE_FREQUENCY))
         {
             Log_Write(LOG_LEVEL_ERROR, "Failed to go to safe state!\n");
             return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;

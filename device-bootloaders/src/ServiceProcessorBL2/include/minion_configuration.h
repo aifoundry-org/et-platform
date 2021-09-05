@@ -115,14 +115,14 @@ uint64_t Minion_Get_Active_Compute_Minion_Mask(void);
 */
 int Minion_Load_Authenticate_Firmware(void);
 
-/*! \fn int Minion_Shire_Update_PLL_Freq(uint8_t mode)
+/*! \fn int Minion_Shire_Update_PLL_Freq(uint32_t freq)
     \brief This function supports updating the Minion
            Shire PLL dynamically without stoppong the
            cores
-    \param  mode value of the freq(in mode) to updated to
+    \param  freq value of the freq to updated to
     \return The function call status, pass/fail.
 */
-int Minion_Shire_Update_PLL_Freq(uint8_t mode);
+int Minion_Shire_Update_PLL_Freq(uint32_t freq);
 
 /*! \fn uint64_t Minion_Read_ESR(uint32_t address)
     \brief This function supports reading a Minion Shire
