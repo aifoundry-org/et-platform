@@ -94,13 +94,15 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
 
     install(TARGETS ${MM_BUILD_VARIANT}.elf
         EXPORT EsperantoDeviceMinionRuntimeTargets
-        RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw/${MM_BUILD_VARIANT}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw/MasterMinion
         COMPONENT master-minion
     )
 
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${MM_BUILD_VARIANT}.lst
-                ${CMAKE_CURRENT_BINARY_DIR}/${MM_BUILD_VARIANT}.map
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw/${MM_BUILD_VARIANT}
+    install(FILES 
+        ${CMAKE_CURRENT_BINARY_DIR}/${MM_BUILD_VARIANT}.lst
+        ${CMAKE_CURRENT_BINARY_DIR}/${MM_BUILD_VARIANT}.map
+        ${CMAKE_CURRENT_BINARY_DIR}/${MM_BUILD_VARIANT}.bin
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw/MasterMinion
         COMPONENT master-minion
     )
 endforeach()
