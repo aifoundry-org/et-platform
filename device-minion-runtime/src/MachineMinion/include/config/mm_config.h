@@ -48,4 +48,29 @@
 */
 #define MM_COMPUTE_THREADS 0xFFFF0000U
 
+/*! \def MM_DVFS_NORMALIZATION_OFF
+    \brief Master Minion DVFS with PLL normalization off.
+*          According to Movellus once we normalize PLL clock at higher frequency,
+*          we can switch to lower frequency with normalization off.
+*          Lock is faster achieved then.
+*/
+#define MM_DVFS_NORMALIZATION_OFF   0
+
+/*! \def MM_DVFS_USE_FCW
+    \brief Use FCW sequence for DVFS.
+*          Reprogramming PLL by changing just a few FCW regs with pre-calculated values.
+*/
+#define MM_DVFS_USE_FCW           0
+
+/*! \def MM_DVFS_POLL_FOR_LOCK
+    \brief Poll for PLL lock.
+*          Poll lock bit or just wait some predefined time.
+*/
+#define MM_DVFS_POLL_FOR_LOCK     1
+
+/*! \def INITIAL_MINION_FREQ
+    \brief Initial Minion PLL frequency
+*/
+#define INITIAL_MINION_FREQ       650
+
 #endif /* __MM_CONFIG_H__ */

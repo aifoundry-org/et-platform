@@ -34,6 +34,7 @@ target_link_libraries(MachineMinion.elf
     PRIVATE
         deviceFirmware::firmware_helpers_interface
         deviceFirmware::firmware_helpers_serial
+        etsoc_hal::etsoc_hal
     PRIVATE
         deviceFirmware::device_configuration
 )

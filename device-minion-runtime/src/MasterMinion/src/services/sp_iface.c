@@ -269,7 +269,9 @@ static int8_t sp_command_handler(void* cmd_buffer)
                 ":msg_size:",hdr->msg_size,
                 ":payload", update_active_freq_cmd->freq,"\r\n");
 
-            /* Implement functionality here .. */
+            /* Update Compute Workers frequency */
+            syscall(SYSCALL_UPDATE_MINION_PLL_FREQUENCY, update_active_freq_cmd->freq, 0, 0);
+
             break;
         }
         case SP2MM_CMD_TEARDOWN_MM:

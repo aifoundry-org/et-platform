@@ -18,3 +18,6 @@
 //    Program PLL to mode - all Minion programmed to same mode
 //    Enable Minion Cores - Pull Minion Cores out of Reset
 int64_t configure_compute_minion(uint64_t shire_mask, uint64_t pll_mode);
+
+// Update Minion PLL frequency - all Minion programmed to same frequency
+int64_t dynamic_minion_pll_frequency_update(uint64_t freq);

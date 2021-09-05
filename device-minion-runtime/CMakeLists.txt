@@ -55,6 +55,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 find_package(deviceApi REQUIRED)
 find_package(signedImageFormat REQUIRED)
 find_package(esperantoTrace REQUIRED)
+find_package(etsoc_hal REQUIRED)
 
 ########## Documentation #####################################
 
