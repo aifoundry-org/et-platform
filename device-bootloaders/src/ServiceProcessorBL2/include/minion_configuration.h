@@ -36,9 +36,25 @@
  * @brief Enum defining event/error type
  */
 enum minion_error_type {
-    EXCEPTION,
-    HANG,
+    CM_USER_KERNEL_ERROR = 0,
+    CM_RUNTIME_ERROR,
+    MM_DISPATCHER_ERROR,
+    MM_SQW_ERROR,
+    MM_DMAW_ERROR,
+    MM_KW_ERROR,
+    MM_RUNTIME_HANG_ERROR,
+    MM_UNDEFINED_ERROR
 };
+
+/*! \def MINION_HANG_ERROR_THRESHOLD
+    \brief Minion hang errors threshold
+*/
+#define MINION_HANG_ERROR_THRESHOLD   1
+
+/*! \def MINION_EXCEPT_ERROR_THRESHOLD
+    \brief Minion exception errors threshold
+*/
+#define MINION_EXCEPT_ERROR_THRESHOLD 1
 
 /*! \fn int Minion_Shire_Update_Voltage( uint8_t voltage)
     \brief This function provide support to update the Minion

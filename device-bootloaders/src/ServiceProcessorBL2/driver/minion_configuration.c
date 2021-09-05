@@ -64,6 +64,26 @@ struct minion_event_control_block {
 
 static struct minion_event_control_block event_control_block __attribute__((section(".data")));
 
+/* Macro to increment exception error counter and send event to host */
+#define MINION_EXCEPT_ERROR_EVENT_HANDLE(error_type, error_code)                   \
+    /* Update error count */                                                       \
+    if(++event_control_block.except_count > event_control_block.except_threshold)  \
+    {                                                                              \
+        struct event_message_t message;                                            \
+                                                                                   \
+        /* Reset the errors counter */                                             \
+        event_control_block.except_count = 0;                                      \
+                                                                                   \
+        /* Add details in message header and fill payload */                       \
+        FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH,                       \
+                            sizeof(struct event_message_t))                        \
+        FILL_EVENT_PAYLOAD(&message.payload, WARNING,                              \
+            event_control_block.except_count, error_type, (uint32_t)error_code)    \
+                                                                                   \
+        /* Call the callback function and post message */                          \
+        event_control_block.event_cb(CORRECTABLE, &message);                       \
+    }
+
 /* This Threashold voltage would need to be extracted from OTP */
 #define THRESHOLD_VOLTAGE 400
 
@@ -187,43 +207,6 @@ static int mm_get_error_count(struct mm_error_count_t *mm_error_count)
     mm_error_count->hang_count = event_control_block.hang_count;
     mm_error_count->exception_count = event_control_block.except_count;
     return 0;
-}
-
-static void minion_error_update_count(uint8_t error_type)
-{
-    struct event_message_t message;
-
-    switch (error_type)
-    {
-        case EXCEPTION:
-            if(++event_control_block.except_count > event_control_block.except_threshold) {
-
-                /* add details in message header and fill payload */
-                FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH,
-                                    sizeof(struct event_message_t))
-                FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1024, 1, 0)
-
-                /* call the callback function and post message */
-                event_control_block.event_cb(CORRECTABLE, &message);
-            }
-            break;
-
-        case HANG:
-            if(++event_control_block.hang_count > event_control_block.hang_threshold) {
-
-                /* add details in message header and fill payload */
-                FILL_EVENT_HEADER(&message.header, MINION_HANG_TH,
-                                    sizeof(struct event_message_t))
-                FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1020, 1, 0)
-
-                /* call the callback function and post message */
-                event_control_block.event_cb(CORRECTABLE, &message);
-            }
-            break;
-
-        default:
-            break;
-        }
 }
 
 /************************************************************************
@@ -761,6 +744,7 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
         }
     }
 }
+
 /************************************************************************
 *
 *   FUNCTION
@@ -782,17 +766,51 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
 ***********************************************************************/
 void Minion_State_MM_Error_Handler(int32_t error_code)
 {
-    switch (error_code) {
-        case MM_HANG_ERROR: {
-            /* update error count for Hang type */
-            minion_error_update_count(HANG);
+    switch (error_code)
+    {
+        case MM_HANG_ERROR:
+            /* Update error count for Hang type */
+            if(++event_control_block.hang_count > event_control_block.hang_threshold)
+            {
+                struct event_message_t message;
+
+                /* Reset the hang counter */
+                event_control_block.hang_count = 0;
+
+                /* Add details in message header and fill payload */
+                FILL_EVENT_HEADER(&message.header, MINION_HANG_TH,
+                                    sizeof(struct event_message_t))
+                FILL_EVENT_PAYLOAD(&message.payload, WARNING,
+                    event_control_block.hang_count, MM_RUNTIME_HANG_ERROR, (uint32_t)error_code)
+
+                /* Call the callback function and post message */
+                event_control_block.event_cb(CORRECTABLE, &message);
+            }
             break;
-        }
-        default:{
-            /* update error count for Exception type */
-            minion_error_update_count(EXCEPTION);
+
+        case MM_DMA_ERRORS_END ... MM_DMA_ERRORS_START:
+            MINION_EXCEPT_ERROR_EVENT_HANDLE(MM_DMAW_ERROR, error_code)
             break;
-        }
+
+        case MM_KW_ERRORS_END ... MM_KW_ERRORS_START:
+            MINION_EXCEPT_ERROR_EVENT_HANDLE(MM_KW_ERROR, error_code)
+            break;
+
+        case MM_SQW_ERRORS_END ... MM_SQW_ERRORS_START:
+            MINION_EXCEPT_ERROR_EVENT_HANDLE(MM_SQW_ERROR, error_code)
+            break;
+
+        case MM_CM_RUNTIME_ERRORS_END ... MM_CM_RUNTIME_ERRORS_START:
+            MINION_EXCEPT_ERROR_EVENT_HANDLE(CM_RUNTIME_ERROR, error_code)
+            break;
+
+        case MM_DISPATCHER_ERROR_END ... MM_DISPATCHER_ERROR_START:
+            MINION_EXCEPT_ERROR_EVENT_HANDLE(MM_DISPATCHER_ERROR, error_code)
+            break;
+
+        default:
+            MINION_EXCEPT_ERROR_EVENT_HANDLE(MM_UNDEFINED_ERROR, error_code)
+            break;
     }
 }
 
@@ -891,9 +909,9 @@ int32_t Minion_State_Error_Control_Init(dm_event_isr_callback event_cb)
     event_control_block.except_count = 0;
     event_control_block.hang_count = 0;
 
-    /* set default thershold values */
-    event_control_block.except_threshold = 5;
-    event_control_block.hang_threshold = 1;
+    /* Set default threshold values */
+    event_control_block.except_threshold = MINION_EXCEPT_ERROR_THRESHOLD;
+    event_control_block.hang_threshold = MINION_HANG_ERROR_THRESHOLD;
 
     return 0;
 }

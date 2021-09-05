@@ -96,10 +96,10 @@ struct event_message_t
     (header)->msg_id = id;                \
     (header)->size = sz;
 
-#define FILL_EVENT_PAYLOAD(payload, class, count, syndrome1, syndrome2) \
-    (payload)->class_count = (((count)&EVENT_ERROR_COUNT_MASK) << 2) |  \
-                             ((class) & EVENT_CLASS_MASK);              \
-    (payload)->syndrome[0] = (syndrome1);                               \
+#define FILL_EVENT_PAYLOAD(payload, class, count, syndrome1, syndrome2)            \
+    (payload)->class_count = ((uint16_t)(((count)&EVENT_ERROR_COUNT_MASK) << 2) |  \
+                             ((class) & EVENT_CLASS_MASK));                        \
+    (payload)->syndrome[0] = (syndrome1);                                          \
     (payload)->syndrome[1] = (syndrome2);
 
 #define EVENT_PAYLOAD_GET_EVENT_CLASS(payload) (((payload)->class_count) & EVENT_ERROR_CLASS_MASK)
