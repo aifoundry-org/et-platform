@@ -12,28 +12,26 @@
 
 #include <cstddef>
 #include <memory>
+
 namespace rt {
-class DmaBufferManager;
-struct DmaBufferImp;
-
-class DmaBuffer {
-
+/// \brief This class wraps a buffer which is suitable to perform a Dma operation without having to stage the memory in
+/// an intermediate kernel buffer; thus enabling the zero-copy
+class IDmaBuffer {
 public:
-  const std::byte* getPtr() const;
-  std::byte* getPtr();
-  bool containsAddr(const std::byte* address) const;
-  size_t getSize() const;
+  /// \brief Returns the associated memory pointer where the user can read or write to.
+  ///
+  /// @returns a pointer to the allocated memory
+  ///
+  virtual std::byte* getPtr() const = 0;
 
-  explicit DmaBuffer(std::unique_ptr<DmaBufferImp> impl, DmaBufferManager* dmaBufferManager);
-  ~DmaBuffer();
+  /// \brief Returns the size of the allocated memory.
+  ///
+  /// @returns size of the allocated memory.
+  ///
+  virtual size_t getSize() const = 0;
 
-  DmaBuffer(DmaBuffer&&) noexcept;
-  DmaBuffer& operator=(DmaBuffer&&) noexcept;
-  DmaBuffer(const DmaBuffer&) = delete;
-  DmaBuffer& operator=(const DmaBuffer&) = delete;
-
-private:
-  std::unique_ptr<DmaBufferImp> impl_;
-  DmaBufferManager* dmaBufferManager_;
+  /// \brief virtual dtor
+  virtual ~IDmaBuffer() = default;
 };
+
 } // namespace rt

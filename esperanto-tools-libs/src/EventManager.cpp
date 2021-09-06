@@ -22,12 +22,12 @@ EventId EventManager::getNextId() {
   std::lock_guard lock(mutex_);
   auto res = EventId{nextEventId_++};
   onflyEvents_.emplace(res);
-  RT_VLOG(HIGH) << "Last event id: " << static_cast<int>(res);
+  RT_VLOG(LOW) << "Last event id: " << static_cast<int>(res);
   return res;
 }
 
 void EventManager::dispatch(EventId event) {
-  RT_VLOG(HIGH) << "Dispatching event " << static_cast<int>(event);
+  RT_VLOG(LOW) << "Dispatching event " << static_cast<int>(event);
   std::unique_lock lock(mutex_);
   if (onflyEvents_.erase(event) != 1) {
 
@@ -35,7 +35,7 @@ void EventManager::dispatch(EventId event) {
     for (auto& e : onflyEvents_) {
       ss << static_cast<int>(e) << " ";
     }
-    RT_VLOG(HIGH) << "Events on-fly: " << ss.str();
+    RT_VLOG(LOW) << "Events on-fly: " << ss.str();
 
     throw Exception("Couldn't dispatch event: " + std::to_string(static_cast<int>(event)) +
                     ". Perhaps it was already dispatched?");

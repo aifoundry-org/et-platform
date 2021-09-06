@@ -63,14 +63,14 @@ TEST_F(RuntimeBenchmark, DMA_transactions) {
   // sendDmas(1e6, stream_, runtime_);
   // sendDmas(1e4, stream_, runtime_);
   sendDmas(1e3, stream_, runtime_);
-  // sendDmas(1e6, stream_, runtime_);
+  // sendDmas(2, stream_, runtime_);
 }
 
 void sendH2D_K_D2H(int iterations, StreamId stream, KernelId kernel, RuntimePtr& runtime, bool sync_on_each_iter) {
   RT_LOG(INFO) << "Submitting " << iterations
                << " HostToDevice DMA + Kernel + DeviceToHost DMA. Syncing on each iteration? "
                << (sync_on_each_iter ? "True" : "False");
-  static std::array<std::byte, 128> args;
+  static std::array<std::byte, 64> args;
   const size_t transferSize = 16;
   static std::array<std::byte, transferSize> dummyBuffer;
   for (int i = 0; i < iterations; ++i) {

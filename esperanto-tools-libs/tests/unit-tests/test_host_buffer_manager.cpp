@@ -7,6 +7,7 @@
 // in accordance with the terms and conditions stipulated in the
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
+#include <device-layer/IDeviceLayerFake.h>
 #pragma GCC diagnostic push
 #ifdef __clang__
 #pragma GCC diagnostic ignored "-Wkeyword-macro"
@@ -16,7 +17,7 @@
 #include "dma/HostBufferManager.h"
 #undef private
 
-#include "runtime/Types.h"
+#include "runtime/IRuntime.h"
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logging.h>
@@ -28,57 +29,58 @@ using namespace rt;
 class HostBufferManagerF : public ::testing::Test {
 public:
   void SetUp() override {
-    hm_ = std::make_unique<HostBuffer>(allocator_, deallocator_);
-    hbm_ = std::make_unique<HostBufferManager>(allocator_, deallocator_, numInitialBuffers);
+    runtime_ = IRuntime::create(&deviceLayer_);
+    hbm_ = std::make_unique<HostBufferManager>(runtime_.get(), DeviceId{0});
+    hb_ = std::make_unique<HostBuffer>(runtime_->allocateDmaBuffer(DeviceId{0}, 1024, true));
   }
   void TearDown() override {
     EXPECT_NO_THROW({ allocations_.clear(); });
-    ASSERT_EQ(hm_->getMaxSize(), rt::kPageSize * rt::kNumPages);
+    ASSERT_EQ(hb_->getMaxSize(), rt::kPageSize * rt::kNumPages);
     for (const auto& hm : hbm_->hostBuffers_) {
       ASSERT_EQ(hm->getMaxSize(), rt::kPageSize * rt::kNumPages);
     }
   }
-  HostBuffer::Allocator allocator_ = [](size_t size) { return reinterpret_cast<std::byte*>(malloc(size)); };
-  HostBuffer::Deallocator deallocator_ = [](std::byte* ptr) { return free(ptr); };
-  uint32_t numInitialBuffers = 4;
-  std::unique_ptr<HostBuffer> hm_;
+  dev::IDeviceLayerFake deviceLayer_;
+  rt::RuntimePtr runtime_;
+  std::unique_ptr<HostBuffer> hb_;
   std::vector<HostAllocation> allocations_;
   std::unique_ptr<HostBufferManager> hbm_;
+  uint32_t numInitialBuffers = 4;
 };
 
 TEST_F(HostBufferManagerF, simple) {
-  EXPECT_THROW({ hm_->alloc(0); }, rt::Exception);
-  EXPECT_THROW({ hm_->alloc(rt::kNumPages * kPageSize + 1); }, rt::Exception);
-  EXPECT_NO_THROW({ hm_->alloc(rt::kNumPages * kPageSize); });
+  EXPECT_THROW({ hb_->alloc(0); }, rt::Exception);
+  EXPECT_THROW({ hb_->alloc(rt::kNumPages * kPageSize + 1); }, rt::Exception);
+  EXPECT_NO_THROW({ hb_->alloc(rt::kNumPages * kPageSize); });
 }
 
 TEST_F(HostBufferManagerF, alloc_all_pages) {
   EXPECT_NO_THROW({
     for (int i = 0; i < rt::kNumPages; ++i) {
-      allocations_.emplace_back(hm_->alloc(rt::kPageSize));
+      allocations_.emplace_back(hb_->alloc(rt::kPageSize));
     }
   });
-  EXPECT_THROW({ allocations_.emplace_back(hm_->alloc(1)); }, rt::Exception);
+  EXPECT_THROW({ allocations_.emplace_back(hb_->alloc(1)); }, rt::Exception);
   allocations_.pop_back();
-  EXPECT_NO_THROW({ allocations_.emplace_back(hm_->alloc(1)); });
+  EXPECT_NO_THROW({ allocations_.emplace_back(hb_->alloc(1)); });
 }
 
 TEST_F(HostBufferManagerF, alloc_free_loop) {
   std::default_random_engine e1(12389);
   for (int i = 0; i < 100000; ++i) {
-    auto freeSpace = hm_->getMaxSize();
+    auto freeSpace = hb_->getMaxSize();
     if (freeSpace == 0) { // if no freeSpace, then free a random allocation
       auto rndIndex = std::uniform_int_distribution<long>{0, static_cast<long>(allocations_.size()) - 1}(e1);
       auto toBeDestroyed = begin(allocations_) + rndIndex;
       allocations_.erase(toBeDestroyed);
-      freeSpace = hm_->getMaxSize();
+      freeSpace = hb_->getMaxSize();
       ASSERT_GT(freeSpace, 0);
     }
     std::uniform_int_distribution<size_t> uniform_dist(1U, freeSpace);
     auto size = uniform_dist(e1);
-    allocations_.emplace_back(hm_->alloc(size));
+    allocations_.emplace_back(hb_->alloc(size));
     auto oldFreeSpace = freeSpace;
-    freeSpace = hm_->getMaxSize();
+    freeSpace = hb_->getMaxSize();
     ASSERT_GT(oldFreeSpace, freeSpace);
   }
 }

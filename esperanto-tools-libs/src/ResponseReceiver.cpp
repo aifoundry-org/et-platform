@@ -42,10 +42,10 @@ void ResponseReceiver::threadFunction() {
       std::shuffle(begin(devicesToCheck), end(devicesToCheck), gen);
       for (auto dev : devicesToCheck) {
         while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
-          RT_VLOG(HIGH) << "Got response from deviceId: " << dev;
+          RT_VLOG(LOW) << "Got response from deviceId: " << dev;
           responsesCount++;
           receiverServices_->onResponseReceived(buffer);
-          RT_VLOG(HIGH) << "Response processed";
+          RT_VLOG(LOW) << "Response processed";
         }
       }
     }

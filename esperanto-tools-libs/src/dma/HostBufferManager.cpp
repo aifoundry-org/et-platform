@@ -8,23 +8,20 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #include "HostBufferManager.h"
-#include "runtime/Types.h"
+#include "Utils.h"
+#include "runtime/IRuntime.h"
 #include <sstream>
 
 using namespace rt;
 
 HostBuffer::~HostBuffer() {
-  if (memory_) {
-    deallocator_(memory_);
+  if (dmaBuffer_) {
+    RT_VLOG(MID) << "Destroying hostBuffer with dmaBuffer " << std::hex << dmaBuffer_.get();
   }
-}
-HostBuffer::HostBuffer(const Allocator& allocator, const Deallocator& deallocator)
-  : allocator_{allocator}
-  , deallocator_{deallocator} {
-  memory_ = allocator_(kNumPages * kPageSize);
 }
 
 HostAllocation HostBuffer::alloc(size_t size) {
+  std::lock_guard lock(mutex_);
   if (size == 0) {
     throw Exception("Error trying to allocate size 0");
   }
@@ -33,7 +30,6 @@ HostAllocation HostBuffer::alloc(size_t size) {
     ss << "Error trying to allocate size " << std::hex << size << " when max size is: " << maxSize_;
     throw Exception(ss.str());
   }
-  std::lock_guard lock(mutex_);
   auto numPages = (size + kPageSize - 1) / kPageSize;
   auto index = 0U;
 
@@ -54,7 +50,7 @@ HostAllocation HostBuffer::alloc(size_t size) {
   updateMaxSize();
 
   // now return the PageGroup
-  return HostAllocation(this, static_cast<uint16_t>(index - numPages), static_cast<uint16_t>(index - 1));
+  return HostAllocation(this, size, static_cast<uint16_t>(index - numPages), static_cast<uint16_t>(index - 1));
 }
 
 void HostBuffer::updateMaxSize() {
@@ -90,12 +86,9 @@ std::byte* HostAllocation::getPtr() const {
   return parent_->getBaseAddress() + (firstPage_ * kPageSize);
 }
 
-size_t HostAllocation::getSize() const {
-  return static_cast<size_t>(lastPage_ - firstPage_ + 1) * kPageSize;
-}
-
 HostAllocation::HostAllocation(HostAllocation&& other) noexcept
   : parent_(other.parent_)
+  , size_(other.size_)
   , firstPage_(other.firstPage_)
   , lastPage_(other.lastPage_) {
   other.parent_ = nullptr;
@@ -106,24 +99,24 @@ HostAllocation& HostAllocation::operator=(HostAllocation&& other) noexcept {
     parent_->free(this);
   }
   parent_ = other.parent_;
+  size_ = other.size_;
   firstPage_ = other.firstPage_;
   lastPage_ = other.lastPage_;
   other.parent_ = nullptr;
   return *this;
 }
 
-HostBufferManager::HostBufferManager(const Allocator& allocator, const Deallocator& deallocator,
-                                     uint32_t numBuffersInitially)
-  : allocator_(allocator)
-  , deallocator_(deallocator) {
+HostBufferManager::HostBufferManager(IRuntime* runtime, DeviceId device, uint32_t numBuffersInitially)
+  : runtime_(runtime)
+  , device_(device) {
   for (auto i = 0U; i < numBuffersInitially; ++i) {
-    hostBuffers_.emplace_back(std::make_unique<HostBuffer>(allocator_, deallocator_));
+    hostBuffers_.emplace_back(
+      std::make_unique<HostBuffer>(runtime_->allocateDmaBuffer(device_, kPageSize * kNumPages, true)));
   }
 }
 
 std::vector<HostAllocation> HostBufferManager::alloc(size_t size) {
   size_t remainingSize = size;
-  std::lock_guard lock(mutex_);
   std::vector<HostAllocation> result;
 
   auto doAllocate = [&result](auto& hostBuffer, auto& remSize) {
@@ -142,12 +135,15 @@ std::vector<HostAllocation> HostBufferManager::alloc(size_t size) {
       doAllocate(hb, remainingSize);
     }
   }
-
   // if there is still no enough memory, we need to allocate more buffers
-  for (auto numBuffers = (remainingSize + kPageSize - 1) / kPageSize; numBuffers > 0; --numBuffers) {
-    auto hb = std::make_unique<HostBuffer>(allocator_, deallocator_);
+  while (remainingSize > 0) {
+    auto hb = std::make_unique<HostBuffer>(runtime_->allocateDmaBuffer(device_, kPageSize * kNumPages, true));
     doAllocate(hb, remainingSize);
     hostBuffers_.emplace_back(std::move(hb));
   }
   return result;
+}
+
+HostBufferManager::~HostBufferManager() {
+  RT_VLOG(MID) << "Destroying host buffer manager";
 }

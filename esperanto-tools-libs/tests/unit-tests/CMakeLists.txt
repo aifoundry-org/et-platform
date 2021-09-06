@@ -15,6 +15,7 @@ set(TEST_LIST
   benchmark.cpp:""
   other.cpp:""
   test_host_buffer_manager.cpp:""
+  KernelLaunchFake.cpp:""
 )
 
-create_test_targets("${TEST_LIST}" "LABELS;Generic;LABELS;SYSEMU;TIMEOUT;180")
+create_test_targets("${TEST_LIST}" "LABELS;Generic;LABELS;SYSEMU;TIMEOUT;300")

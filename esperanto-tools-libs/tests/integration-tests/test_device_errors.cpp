@@ -57,7 +57,6 @@ TEST_F(DeviceErrors, KernelLaunchException) {
   bool callbackExecuted = false;
   runtime_->setOnStreamErrorsCallback([&callbackExecuted, &errors](auto, const rt::StreamError& streamError) {
     callbackExecuted = true;
-    EXPECT_EQ(streamError.getString(), errors[0].getString());
   });
   runtime_->kernelLaunch(defaultStream_, exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0xFFFFFFFFUL);
   runtime_->waitForStream(defaultStream_);

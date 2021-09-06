@@ -238,7 +238,7 @@ public:
   ///
   /// @returns DmaBuffer which can be used to avoid unnecessary staging memory copies; enabling "zero-copy".
   ///
-  virtual DmaBuffer allocateDmaBuffer(DeviceId device, size_t size, bool writeable) = 0;
+  virtual std::unique_ptr<IDmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) = 0;
 
   /// \brief Setup the device for getting master minion and compute minion traces. Tracing is done using internal
   /// buffers which, if overflow, they will overwrite the start of the buffer. In the future there will be a mechanism

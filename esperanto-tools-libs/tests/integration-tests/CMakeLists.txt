@@ -15,4 +15,4 @@ set(INTEGRATION_TEST_LIST
   test_profiler.cpp:"--kernels_dir ${KERNELS_DIR}"
   test_device_errors.cpp:""
   )
-create_test_targets("${INTEGRATION_TEST_LIST}" "LABELS;Generic;LABELS;SYSEMU;TIMEOUT;120")
+create_test_targets("${INTEGRATION_TEST_LIST}" "LABELS;Generic;LABELS;SYSEMU;TIMEOUT;300")

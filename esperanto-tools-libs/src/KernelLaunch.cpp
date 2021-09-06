@@ -17,6 +17,7 @@
 #include <cstdio>
 #include <device-layer/IDeviceLayer.h>
 #include <elfio/elfio.hpp>
+#include <esperanto/device-apis/device_apis_message_types.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
 #include <sstream>
@@ -51,15 +52,14 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
   }
 
   // TODO: SW-7615 - Allocation/extraction of U mode Kernel Trace buffer
-  std::array<std::byte, sizeof(device_ops_api::device_ops_kernel_launch_cmd_t) + kMaxSizeKernelEmbeddingParameters>
-    cmdBase;
+  std::vector<std::byte> cmdBase(sizeof(device_ops_api::device_ops_kernel_launch_cmd_t) +
+                                 kMaxSizeKernelEmbeddingParameters);
   memset(cmdBase.data(), 0, sizeof(cmdBase));
 
   auto cmdPtr = reinterpret_cast<device_ops_api::device_ops_kernel_launch_cmd_t*>(cmdBase.data());
 
-  ExecutionContextCache::Buffer* pBuffer = nullptr;
+  auto pBuffer = executionContextCache_->allocBuffer(kernel->deviceId_);
   if (kernel_args_size > 0) {
-    pBuffer = executionContextCache_->allocBuffer(kernel->deviceId_);
     if (kernel_args_size <= kMaxSizeKernelEmbeddingParameters) {
       std::copy(kernel_args, kernel_args + kernel_args_size, reinterpret_cast<std::byte*>(cmdPtr->argument_payload));
     } else {
@@ -71,13 +71,15 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
   }
   auto event = eventManager_.getNextId();
   streamManager_.addEvent(streamId, event);
-  if (kernel_args_size > 0) {
-    executionContextCache_->reserveBuffer(event, pBuffer);
-  }
+  executionContextCache_->reserveBuffer(event, pBuffer);
 
   cmdPtr->command_info.cmd_hdr.tag_id = static_cast<uint16_t>(event);
   cmdPtr->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
-  cmdPtr->command_info.cmd_hdr.size = sizeof(cmdBase);
+  cmdPtr->command_info.cmd_hdr.size = sizeof(device_ops_api::device_ops_kernel_launch_cmd_t);
+  if (kernel_args_size <= kMaxSizeKernelEmbeddingParameters) {
+    auto size = cmdPtr->command_info.cmd_hdr.size + kernel_args_size;
+    cmdPtr->command_info.cmd_hdr.size = static_cast<msg_size_t>(size);
+  }
   cmdPtr->command_info.cmd_hdr.flags = 0;
   if (barrier) {
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
@@ -86,6 +88,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3;
   }
 
+  cmdPtr->exception_buffer = reinterpret_cast<uint64_t>(pBuffer->getExceptionContextPtr());
   cmdPtr->code_start_address = kernel->getEntryAddress();
   cmdPtr->pointer_to_args = kernel_args_size > 0 ? reinterpret_cast<uint64_t>(pBuffer->getParametersPtr()) : 0;
   cmdPtr->shire_mask = shire_mask;
@@ -93,7 +96,8 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
   RT_VLOG(LOW) << "Pushing kernel Launch Command on SQ: " << streamInfo.vq_ << " Tag id: " << std::hex
                << cmdPtr->command_info.cmd_hdr.tag_id << ", parameters: " << cmdPtr->pointer_to_args
                << ", PC: " << cmdPtr->code_start_address << ", shire_mask: " << shire_mask;
-  sendCommandMasterMinion(streamInfo.vq_, streamInfo.device_, cmdBase, lock);
+  auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
+  commandSender.send(Command{cmdBase, commandSender, false, true});
   profileEvent.setEventId(event);
 
   Sync(event);

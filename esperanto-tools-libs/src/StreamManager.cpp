@@ -11,7 +11,9 @@
 #include "StreamManager.h"
 #include "Utils.h"
 #include "runtime/IRuntime.h"
+#include "runtime/Types.h"
 #include <g3log/loglevels.hpp>
+#include <iterator>
 #include <mutex>
 #include <type_traits>
 using namespace rt;
@@ -59,7 +61,11 @@ void StreamManager::addDevice(DeviceId device, int queueCount) {
 
 void StreamManager::addEvent(StreamId stream, EventId event) {
   std::lock_guard lock(mutex_);
-  find(streams_, stream)->second.submittedEvents_.emplace(event);
+  auto [it, result] = find(streams_, stream)->second.submittedEvents_.emplace(event);
+  unused(it);
+  if (!result) {
+    throw Exception("Trying to add an event that already exists in the stream");
+  }
 }
 
 void StreamManager::removeEvent(EventId event) {
@@ -73,13 +79,13 @@ void StreamManager::removeEvent(EventId event) {
                   << ". Perhaps the associated Stream was already destroyed";
 }
 
-std::optional<EventId> StreamManager::getLastEvent(StreamId stream) const {
+std::vector<EventId> StreamManager::getLiveEvents(StreamId stream) const {
   std::lock_guard lock(mutex_);
   auto& events = find(streams_, stream)->second.submittedEvents_;
-  if (!events.empty()) {
-    return *rbegin(events);
-  }
-  return {};
+  std::vector<EventId> res;
+  res.reserve(events.size());
+  std::copy(begin(events), end(events), std::back_inserter(res));
+  return res;
 }
 
 bool StreamManager::executeCallback(EventId eventId, const StreamError& error) {

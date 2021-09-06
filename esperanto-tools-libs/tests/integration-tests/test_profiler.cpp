@@ -119,8 +119,11 @@ TEST(Profiler, add_2_vectors_profiling) {
   }
   runtime->memcpyDeviceToHost(stream, bufResult, reinterpret_cast<std::byte*>(resultFromDevice.data()), bufferSize);
   runtime->waitForStream(stream);
+  LOG(INFO) << "After wait for stream";
   profiler->stop();
+  LOG(INFO) << "After stopping profiler";
   runtime.reset();
+  LOG(INFO) << "After resetting runtime";
   EXPECT_EQ(resultFromDevice, vResult);
 
   // take the string from the serialization and deserialize it to check everything is in place

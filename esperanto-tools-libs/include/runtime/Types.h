@@ -19,7 +19,7 @@
 
 namespace rt {
 /// \brief Forward declaration of \ref DmaBuffer
-class DmaBuffer;
+class IDmaBuffer;
 
 /// \brief Forward declaration of \ref IProfiler
 class IProfiler;

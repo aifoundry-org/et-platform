@@ -8,7 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #include "BenchmarkerImp.h"
-#include "runtime/DmaBuffer.h"
+#include "runtime/IDmaBuffer.h"
 #include "runtime/Types.h"
 #include <chrono>
 #include <fstream>
@@ -58,8 +58,8 @@ BenchmarkerImp::BenchmarkerImp(dev::IDeviceLayer* deviceLayer, const std::string
 BenchmarkerImp::Results BenchmarkerImp::run(Options options) {
   // allocate buffers
   std::vector<std::byte> hH2DBuffer, hD2HBuffer;
-  std::optional<DmaBuffer> pDmaBufferH2D;
-  std::optional<DmaBuffer> pDmaBufferD2H;
+  std::unique_ptr<IDmaBuffer> pDmaBufferH2D;
+  std::unique_ptr<IDmaBuffer> pDmaBufferD2H;
   auto dmaBufferD2H = runtime_->allocateDmaBuffer(device_, options.numBytesPerTransferD2H, true);
   std::byte* hH2D = nullptr;
   std::byte* hD2H = nullptr;
@@ -92,7 +92,7 @@ BenchmarkerImp::Results BenchmarkerImp::run(Options options) {
 
   auto start = std::chrono::high_resolution_clock::now();
   for (int i = 0; i < options.numThreads; ++i) {
-    futures.emplace_back(std::async(std::launch::async, [options, hH2D, hD2H, &hD2HBuffer, wlPerThread, this] {
+    futures.emplace_back(std::async(std::launch::async, [options, hH2D, hD2H, wlPerThread, this] {
       auto stream = runtime_->createStream(device_);
       for (int i = 0; i < wlPerThread; ++i) {
         if (dH2DBuffer_) {

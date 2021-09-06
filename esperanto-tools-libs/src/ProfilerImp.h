@@ -46,11 +46,11 @@ public:
   }
 
   void record(const ProfileEvent& event) {
+    std::lock_guard lock{mutex_};
     std::visit(
-      [&event, this](auto&& archive) {
+      [&event](auto&& archive) {
         using T = std::decay_t<decltype(archive)>;
         if constexpr (!std::is_same_v<T, std::monostate>) {
-          std::lock_guard lock{mutex_};
           archive(event);
         }
       },

@@ -21,8 +21,9 @@ TEST(BenchmarkerTool, fake) {
   options.numBytesPerTransferD2H = 4 * (1 << 20);
   options.numBytesPerTransferH2D = 4 * (1 << 20);
   options.numCyclesPerKernel = 1000;
-  options.numWorkloads = 10000;
+  options.numWorkloads = 1000;
   options.numThreads = 8;
+  options.useDmaBuffers = false;
   runBenchmarker(&deviceLayer, options);
 }
 

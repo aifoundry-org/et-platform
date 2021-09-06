@@ -10,13 +10,15 @@
 
 #pragma once
 
+#include "CommandSender.h"
 #include "EventManager.h"
 #include "MemoryManager.h"
 #include "ProfilerImp.h"
 #include "ResponseReceiver.h"
 #include "StreamManager.h"
 #include "Utils.h"
-#include "dma/DmaBufferManager.h"
+#include "dma/HostBufferManager.h"
+#include "runtime/IDmaBuffer.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 #include <algorithm>
@@ -51,7 +53,7 @@ public:
   bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) override;
   bool waitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) override;
 
-  DmaBuffer allocateDmaBuffer(DeviceId device, size_t size, bool writeable) final;
+  std::unique_ptr<IDmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) final;
 
   EventId setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
                              uint32_t filterMask, bool barrier) override;
@@ -72,6 +74,9 @@ public:
   void onResponseReceived(const std::vector<std::byte>& response) override;
 
   void setMemoryManagerDebugMode(DeviceId device, bool enable);
+
+  // this method is a helper to call eventManager dispatch and streamManager removeEvent
+  void dispatch(EventId event);
 
 private:
   struct Kernel {
@@ -95,13 +100,25 @@ private:
     uint64_t entryPoint_;
   };
 
+  struct MemcpyOp {
+    enum class Direction { H2D, D2H };
+    Direction direction_;
+    std::vector<HostAllocation> hostMemory_;
+    std::vector<std::byte*> deviceMemory_;
+    std::vector<size_t> sizes_;
+  };
+
   struct DeviceFwTracing {
-    DmaBuffer dmaBuffer_;
+    std::unique_ptr<IDmaBuffer> dmaBuffer_;
     std::ostream* mmOutput_;
     std::ostream* cmOutput_;
   };
 
   void processResponseError(DeviceErrorCode errorCode, EventId event);
+
+  uint64_t getCommandSenderIdx(int deviceId, int sqIdx) const {
+    return (static_cast<uint64_t>(deviceId) << 32ULL) + static_cast<uint64_t>(sqIdx);
+  }
 
   inline void Sync([[maybe_unused]] EventId e) {
 #ifdef RUNTIME_SYNCHRONOUS_MODE
@@ -110,52 +127,25 @@ private:
 #endif
   }
 
+  mutable std::recursive_mutex mutex_;
+  profiling::ProfilerImp profiler_;
   dev::IDeviceLayer* deviceLayer_;
   std::vector<DeviceId> devices_;
-  std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
-  std::unordered_map<DeviceId, std::unique_ptr<DmaBufferManager>> dmaBufferManagers_;
-  std::unordered_map<DeviceId, DeviceFwTracing> deviceTracing_;
-
   EventManager eventManager_;
   StreamManager streamManager_;
-
-  template <typename Command, typename Lock>
-  void sendCommandMasterMinion(int sqIdx, int deviceId, Command& command, Lock& lock, bool isDma = false) {
-    bool done = false;
-    while (!done) {
-      done = deviceLayer_->sendCommandMasterMinion(deviceId, sqIdx, reinterpret_cast<std::byte*>(&command),
-                                                   sizeof(command), isDma);
-      if (!done) {
-        lock.unlock();
-        RT_LOG(INFO) << "Submission queue " << sqIdx
-                     << " is full. Can't send command now, blocking the thread till an event has been dispatched.";
-        if (!streamManager_.hasEventsOnFly(DeviceId{deviceId}))
-          throw Exception("Submission queue is full but there are not on-fly events. There could be a firmware bug.");
-        uint64_t sq_bitmap;
-        bool cq_available;
-        deviceLayer_->waitForEpollEventsMasterMinion(deviceId, sq_bitmap, cq_available, std::chrono::seconds(1));
-        if (sq_bitmap & (1UL << sqIdx)) {
-          RT_LOG(WARNING) << "Submission queue " << sqIdx
-                          << " is still unavailable after waitForEpoll, trying again nevertheless";
-        } else {
-          RT_VLOG(LOW) << "Submission queue " << sqIdx << " available.";
-        }
-        lock.lock();
-      }
-    }
-  }
+  std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
+  std::unordered_map<DeviceId, HostBufferManager> hostBufferManagers_;
+  std::unordered_map<KernelId, std::unique_ptr<Kernel>> kernels_;
+  std::unordered_map<DeviceId, DeviceFwTracing> deviceTracing_;
+  std::unique_ptr<ExecutionContextCache> executionContextCache_;
+  std::unordered_map<uint64_t, CommandSender> commandSenders_;
 
   // using unique_ptr to not have to deal with elfio mess (the class is not friendly with modern c++)
-  std::unordered_map<KernelId, std::unique_ptr<Kernel>> kernels_;
 
   int nextKernelId_ = 0;
-  int nextStreamId_ = 0;
 
-  mutable std::recursive_mutex mutex_;
-
-  profiling::ProfilerImp profiler_;
-  std::unique_ptr<ExecutionContextCache> executionContextCache_;
+  threadPool::ThreadPool nonblockableThreadPool_{8};
+  threadPool::ThreadPool blockableThreadPool_{8};
   std::unique_ptr<ResponseReceiver> responseReceiver_;
-  threadPool::ThreadPool threadPool_{8};
 };
 } // namespace rt

@@ -8,8 +8,11 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
+#include "runtime/IDmaBuffer.h"
+#include "runtime/Types.h"
 #include <bitset>
 #include <cstddef>
+#include <device-layer/IDeviceLayer.h>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -21,31 +24,35 @@ constexpr auto kPageSize = 1U << 20;
 class HostBuffer;
 class HostAllocation {
 public:
-  HostAllocation(HostBuffer* parent, uint16_t firstPage, uint16_t lastPage)
+  HostAllocation(HostBuffer* parent, size_t size, uint16_t firstPage, uint16_t lastPage)
     : parent_(parent)
+    , size_(size)
     , firstPage_(firstPage)
     , lastPage_(lastPage) {
   }
   std::byte* getPtr() const;
-  size_t getSize() const;
+  size_t getSize() const {
+    return size_;
+  }
   HostAllocation(HostAllocation&&) noexcept;
   HostAllocation& operator=(HostAllocation&&) noexcept;
   ~HostAllocation();
 
   HostBuffer* parent_;
+  size_t size_;
   uint16_t firstPage_;
   uint16_t lastPage_;
 
 private:
   HostAllocation(const HostAllocation&) = delete;
+  HostAllocation& operator=(const HostAllocation&) = delete;
 };
 
 class HostBuffer {
 public:
-  using Allocator = std::function<std::byte*(size_t)>;
-  using Deallocator = std::function<void(std::byte*)>;
-  HostBuffer(const Allocator& allocator, const Deallocator& deallocator);
-  ~HostBuffer();
+  explicit HostBuffer(std::unique_ptr<IDmaBuffer> dmaBuffer)
+    : dmaBuffer_(std::move(dmaBuffer)) {
+  }
   void free(const HostAllocation* p);
 
   HostAllocation alloc(size_t size);
@@ -56,35 +63,32 @@ public:
   }
 
   std::byte* getBaseAddress() const {
-    return memory_;
+    return dmaBuffer_->getPtr();
   }
+  ~HostBuffer();
 
 private:
-  HostBuffer(const HostBuffer&) = delete;
   // it could be improved, but actually the number of buffers is so small that it's not worth it.
   void updateMaxSize();
+
   static_assert(kNumPages % 2 == 0, "kNumPages should be pow2");
+
   std::bitset<kNumPages> busyPages_;
   size_t maxSize_ = kNumPages * kPageSize; // this value will be kept calculated always
+  std::unique_ptr<IDmaBuffer> dmaBuffer_;
   mutable std::mutex mutex_;
-  const Allocator& allocator_;
-  const Deallocator& deallocator_;
-  std::byte* memory_;
 };
 
 class HostBufferManager {
 public:
-  using Allocator = HostBuffer::Allocator;
-  using Deallocator = HostBuffer::Deallocator;
-
-  HostBufferManager(const Allocator& allocator, const Deallocator& deallocator, uint32_t numBuffersInitially = 4);
+  HostBufferManager(IRuntime* runtime, DeviceId device, uint32_t numBuffersInitially = 4);
   std::vector<HostAllocation> alloc(size_t size);
+  ~HostBufferManager();
 
 private:
-  Allocator allocator_;
-  Deallocator deallocator_;
   std::vector<std::unique_ptr<HostBuffer>> hostBuffers_;
-  std::mutex mutex_;
+  IRuntime* runtime_;
+  DeviceId device_;
 };
 
 } // namespace rt
