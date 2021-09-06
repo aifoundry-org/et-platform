@@ -584,17 +584,6 @@ int sys_emu::main_internal() {
     // cases, a hart will issue a 'wfi' to "go to sleep" instead of signaling
     // an end-of-execution to the simulator. So here we consider all harts
     // that are only waiting for an interrupt to be nonexistent.
-    if (chip.has_active_harts()) {
-        auto current_hart = chip.sleeping.begin();
-        while (current_hart != chip.sleeping.end()) {
-            auto hart = current_hart++;
-            if (hart->waits == bemu::Hart::Waiting::interrupt) {
-                hart->become_nonexistent();
-            } else if (hart->is_waiting()) {
-                chip.sleeping.push_back(*hart);
-            }
-        }
-    }
     if (chip.has_sleeping_harts()) {
         auto current_hart = chip.sleeping.begin();
         while (current_hart != chip.sleeping.end()) {
