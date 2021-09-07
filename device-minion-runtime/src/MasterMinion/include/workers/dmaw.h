@@ -86,8 +86,9 @@ typedef struct dma_channel_status {
 */
 typedef struct dma_channel_status_cb {
     dma_channel_status_t status; /* Holds the attributes related to a channel's status */
+    exec_cycles_t        dmaw_cycles; /* Cycles associated with the transaction */
     uint16_t             msg_id; /* TODO: To be removed, temporary field for dmalist cmds */
-    exec_cycles_t        dmaw_cycles; /* Cycles associated with the transaction*/
+    uint8_t              pad[6]; /* Padding for alignment */
 } dma_channel_status_cb_t;
 
 /*! \fn void DMAW_Init(void)

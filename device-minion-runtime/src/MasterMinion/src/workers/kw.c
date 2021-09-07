@@ -630,6 +630,10 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
             /* Set the kernel abort message */
             message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
 
+            /* Command status trace log */
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
+
             /* Blocking call that blocks till all shires ack */
             status = CM_Iface_Multicast_Send(
                 atomic_load_local_64(&KW_CB.kernels[slot_index].kernel_shire_mask),
@@ -717,7 +721,7 @@ void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
                 1ULL << ((KW_BASE_HART_ID + (kw_idx * HARTS_PER_MINION)) % 64),
                 MASTER_SHIRE, 0);
 
-            /* Spin-wait until all the KW state is idle */
+            /* Spin-wait if the KW state is aborting */
             do
             {
                 asm volatile("fence\n" ::: "memory");
@@ -1122,7 +1126,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                 (atomic_load_local_32(&kernel->kernel_state) == KERNEL_STATE_ABORTING))
             {
                 timeout_abort_serviced = true;
-                Log_Write(LOG_LEVEL_ERROR, "Aborting:KW:kw_idx=%d\r\n", kw_idx);
+                Log_Write(LOG_LEVEL_ERROR, "KW:Aborting:kw_idx=%d\r\n", kw_idx);
 
                 /* Multicast abort to shires associated with current kernel slot
                 This abort should forcefully abort all the shires involved in
@@ -1183,8 +1187,22 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
         if(status == STATUS_SUCCESS)
         {
-            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD,
-                local_sqw_idx, launch_rsp.response_info.rsp_hdr.tag_id, CMD_STATUS_SUCCEEDED);
+            /* Log to command status to trace */
+            if(launch_rsp.status == DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED)
+            {
+                TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD,
+                    local_sqw_idx, launch_rsp.response_info.rsp_hdr.tag_id, CMD_STATUS_SUCCEEDED);
+            }
+            else if(launch_rsp.status == DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED)
+            {
+                TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD,
+                    local_sqw_idx, launch_rsp.response_info.rsp_hdr.tag_id, CMD_STATUS_ABORTED);
+            }
+            else
+            {
+                TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD,
+                    local_sqw_idx, launch_rsp.response_info.rsp_hdr.tag_id, CMD_STATUS_FAILED);
+            }
 
             Log_Write(LOG_LEVEL_DEBUG, "KW:CQ_Push:KERNEL_LAUNCH_CMD_RSP:tag_id=%x\r\n",
                 launch_rsp.response_info.rsp_hdr.tag_id);

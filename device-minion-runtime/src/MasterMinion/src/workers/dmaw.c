@@ -324,10 +324,12 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
 
     if(status == DMA_OPERATION_SUCCESS)
     {
-        dma_start_read(read_chan_id);
+        /* Log the command state in trace */
+        TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
 
-        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD, sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
+        /* Start the DMA channel */
+        dma_start_read(read_chan_id);
 
         /* Update cycles value into the Global Channel Status data structure */
         atomic_store_local_64(
@@ -343,9 +345,6 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
     }
     else
     {
-        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD, sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
-
         /* Release the DMA resources */
         chan_status.tag_id = 0;
         chan_status.sqw_idx = 0;
@@ -436,10 +435,12 @@ int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
 
     if(status == DMA_OPERATION_SUCCESS)
     {
-        dma_start_write(write_chan_id);
+        /* Log the command state in trace */
+        TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
 
-        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD, sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
+        /* Start the DMA channel */
+        dma_start_write(write_chan_id);
 
         /* Update cycles value into the Global Channel Status data structure */
         atomic_store_local_64(
@@ -457,9 +458,6 @@ int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
     }
     else
     {
-        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD, sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
-
         /* Release the DMA resources */
         chan_status.tag_id = 0;
         chan_status.sqw_idx = 0;
@@ -529,9 +527,6 @@ static inline void process_dma_read_chan_in_use(dma_read_chan_id_e read_chan,
             /* DMA transfer complete, clear interrupt status */
             dma_clear_read_done(read_chan);
             write_rsp->status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
-
-            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD,
-                read_chan_status.sqw_idx, read_chan_status.tag_id, CMD_STATUS_SUCCEEDED)
             Log_Write(LOG_LEVEL_DEBUG,"DMAW: Read Transfer Completed\r\n");
         }
         else
@@ -540,9 +535,6 @@ static inline void process_dma_read_chan_in_use(dma_read_chan_id_e read_chan,
             dma_clear_read_abort(read_chan);
             dma_configure_read(read_chan);
             write_rsp->status = DEV_OPS_API_DMA_RESPONSE_ERROR;
-
-            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD,
-                read_chan_status.sqw_idx, read_chan_status.tag_id, CMD_STATUS_ABORTED)
             Log_Write(LOG_LEVEL_ERROR,"DMAW:Tag_ID=%u:Read Transfer Aborted\r\n",
                         read_chan_status.tag_id);
         }
@@ -591,9 +583,25 @@ static inline void process_dma_read_chan_in_use(dma_read_chan_id_e read_chan,
 
         if(status != STATUS_SUCCESS)
         {
+            TRACE_LOG_CMD_STATUS(msg_id, read_chan_status.sqw_idx, read_chan_status.tag_id,
+                CMD_STATUS_FAILED)
             Log_Write(LOG_LEVEL_ERROR, "DMAW:Tag_ID=%u:HostIface:Push:Failed\r\n",
                         read_chan_status.tag_id);
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+        }
+        else
+        {
+            /* Log command status to trace */
+            if(write_rsp->status == DEV_OPS_API_DMA_RESPONSE_COMPLETE)
+            {
+                TRACE_LOG_CMD_STATUS(msg_id, read_chan_status.sqw_idx, read_chan_status.tag_id,
+                    CMD_STATUS_SUCCEEDED)
+            }
+            else
+            {
+                TRACE_LOG_CMD_STATUS(msg_id, read_chan_status.sqw_idx, read_chan_status.tag_id,
+                    CMD_STATUS_FAILED)
+            }
         }
     }
 }
@@ -682,11 +690,17 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
 
     if(status == STATUS_SUCCESS)
     {
+        /* Log command status to trace */
+        TRACE_LOG_CMD_STATUS(msg_id, read_chan_status.sqw_idx, read_chan_status.tag_id,
+            CMD_STATUS_ABORTED)
+
         Log_Write(LOG_LEVEL_DEBUG,
             "DMAW:Pushed:DATA_WRITE_CMD_RSP->Host_CQ\r\n");
     }
     else
     {
+        TRACE_LOG_CMD_STATUS(msg_id, read_chan_status.sqw_idx, read_chan_status.tag_id,
+            CMD_STATUS_FAILED)
         Log_Write(LOG_LEVEL_ERROR, "DMAW:Tag_ID=%u:HostIface:Push:Failed\r\n",
                     read_chan_status.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
@@ -745,8 +759,6 @@ static inline void process_dma_write_chan_in_use(dma_write_chan_id_e write_chan,
             dma_clear_write_done(write_chan);
             read_rsp->status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
             Log_Write(LOG_LEVEL_DEBUG,"DMAW: Write Transfer Completed\r\n");
-            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD,
-                write_chan_status.sqw_idx, write_chan_status.tag_id, CMD_STATUS_SUCCEEDED)
         }
         else
         {
@@ -756,8 +768,6 @@ static inline void process_dma_write_chan_in_use(dma_write_chan_id_e write_chan,
             read_rsp->status = DEV_OPS_API_DMA_RESPONSE_ERROR;
             Log_Write(LOG_LEVEL_ERROR,"DMAW:Tag_ID=%u:Write Transfer Aborted\r\n",
                         write_chan_status.tag_id);
-            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD,
-                write_chan_status.sqw_idx, write_chan_status.tag_id, CMD_STATUS_ABORTED)
         }
 
         /* TODO: SW-9022: To be removed */
@@ -800,12 +810,26 @@ static inline void process_dma_write_chan_in_use(dma_write_chan_id_e write_chan,
 
         if(status == STATUS_SUCCESS)
         {
+            /* Log command status to trace */
+            if(read_rsp->status == DEV_OPS_API_DMA_RESPONSE_COMPLETE)
+            {
+                TRACE_LOG_CMD_STATUS(msg_id, write_chan_status.sqw_idx, write_chan_status.tag_id,
+                    CMD_STATUS_SUCCEEDED)
+            }
+            else
+            {
+                TRACE_LOG_CMD_STATUS(msg_id, write_chan_status.sqw_idx, write_chan_status.tag_id,
+                    CMD_STATUS_FAILED)
+            }
+
             Log_Write(LOG_LEVEL_DEBUG,
                 "DMAW:Pushed:DATA_READ_CMD_RSP:tag_id=%x->Host_CQ\r\n",
                 read_rsp->response_info.rsp_hdr.tag_id);
         }
         else
         {
+            TRACE_LOG_CMD_STATUS(msg_id, write_chan_status.sqw_idx, write_chan_status.tag_id,
+                CMD_STATUS_FAILED)
             Log_Write(LOG_LEVEL_ERROR, "DMAW:Tag_ID=%u:HostIface:Push:Failed\r\n",
                         write_chan_status.tag_id);
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
@@ -897,11 +921,15 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
 
     if(status == STATUS_SUCCESS)
     {
+        TRACE_LOG_CMD_STATUS(msg_id, write_chan_status.sqw_idx, write_chan_status.tag_id,
+            CMD_STATUS_ABORTED)
         Log_Write(LOG_LEVEL_DEBUG,
             "DMAW:Pushed:DATA_WRITE_CMD_RSP->Host_CQ\r\n");
     }
     else
     {
+        TRACE_LOG_CMD_STATUS(msg_id, write_chan_status.sqw_idx, write_chan_status.tag_id,
+            CMD_STATUS_FAILED)
         Log_Write(LOG_LEVEL_ERROR, "DMAW:Tag_ID=%u:HostIface:Push:Failed\r\n",
                     write_chan_status.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
@@ -952,7 +980,7 @@ __attribute__((noreturn)) static inline void dmaw_launch_read_worker(uint32_t ha
             }
             else if (read_chan_state == DMA_CHAN_STATE_ABORTING)
             {
-                Log_Write(LOG_LEVEL_ERROR, "DMAW:%d:Timeout:read_chan_aborting:%d\r\n",
+                Log_Write(LOG_LEVEL_ERROR, "DMAW:%d:read_chan_aborting:%d\r\n",
                     hart_id, read_ch_index);
 
                 process_dma_read_chan_aborting(read_ch_index, &write_rsp);
@@ -1003,7 +1031,7 @@ __attribute__((noreturn)) static inline void dmaw_launch_write_worker(uint32_t h
             }
             else if (write_chan_state == DMA_CHAN_STATE_ABORTING)
             {
-                Log_Write(LOG_LEVEL_ERROR, "DMAW:%d:Timeout:write_chan_aborting:%d\r\n",
+                Log_Write(LOG_LEVEL_ERROR, "DMAW:%d:write_chan_aborting:%d\r\n",
                     hart_id, write_ch_index);
 
                 process_dma_write_chan_aborting(write_ch_index, &read_rsp);
@@ -1115,13 +1143,13 @@ void DMAW_Abort_All_Dispatched_Read_Channels(uint8_t sqw_idx)
             &DMAW_Read_CB.chan_status_cb[read_chan].status.channel_state, DMA_CHAN_STATE_IN_USE,
             DMA_CHAN_STATE_ABORTING) == DMA_CHAN_STATE_IN_USE)
         {
-            /* Spin-wait until the DMA state is idle */
+            /* Spin-wait if the DMA state is aborting */
             do
             {
                 asm volatile("fence\n" ::: "memory");
             } while (
                 atomic_load_local_32(&DMAW_Read_CB.chan_status_cb[read_chan].status.channel_state)
-                != DMA_CHAN_STATE_IDLE);
+                == DMA_CHAN_STATE_ABORTING);
         }
     }
 }
@@ -1168,13 +1196,13 @@ void DMAW_Abort_All_Dispatched_Write_Channels(uint8_t sqw_idx)
             &DMAW_Write_CB.chan_status_cb[write_chan].status.channel_state, DMA_CHAN_STATE_IN_USE,
             DMA_CHAN_STATE_ABORTING) == DMA_CHAN_STATE_IN_USE))
         {
-            /* Spin-wait until the DMA state is idle */
+            /* Spin-wait if the DMA state is aborting */
             do
             {
                 asm volatile("fence\n" ::: "memory");
             } while (
                 atomic_load_local_32(&DMAW_Write_CB.chan_status_cb[write_chan].status.channel_state)
-                != DMA_CHAN_STATE_IDLE);
+                == DMA_CHAN_STATE_ABORTING);
         }
     }
 }

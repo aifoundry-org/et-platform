@@ -490,8 +490,6 @@ void SQW_Abort_All_Pending_Commands(uint8_t sqw_idx)
 {
     uint32_t old_state;
 
-    Log_Write(LOG_LEVEL_DEBUG, "SQW: Abort all pending commands\r\n");
-
     /* Traverse SQ and check for state. If busy, set abort state
     and wait for it to be idle. This would guarantee
     that all pending commadns in SQ are aborted. */
@@ -500,11 +498,13 @@ void SQW_Abort_All_Pending_Commands(uint8_t sqw_idx)
 
     if (old_state == SQW_STATE_BUSY)
     {
-        /* Spin-wait until all the SQW state is idle */
+        Log_Write(LOG_LEVEL_ERROR, "SQW[%d]: Abort all pending commands\r\n", sqw_idx);
+
+        /* Spin-wait if the SQW state is aborted */
         do
         {
             asm volatile("fence\n" ::: "memory");
-        } while (atomic_load_local_32(&SQW_CB.sqw_status[sqw_idx].state) != SQW_STATE_IDLE);
+        } while (atomic_load_local_32(&SQW_CB.sqw_status[sqw_idx].state) == SQW_STATE_ABORTED);
     }
 }
 

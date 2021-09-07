@@ -68,6 +68,9 @@ static inline int8_t abort_cmd_handler(void* command_buffer, uint8_t sqw_hp_idx)
     struct device_ops_abort_rsp_t rsp;
     int8_t status = STATUS_SUCCESS;
 
+    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD, sqw_hp_idx,
+        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
+
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ_HP[%d] abort_cmd_handler:Processing:ABORT_CMD\r\n", sqw_hp_idx);
 
@@ -77,6 +80,9 @@ static inline int8_t abort_cmd_handler(void* command_buffer, uint8_t sqw_hp_idx)
         DEV_OPS_API_MID_DEVICE_OPS_ABORT_RSP;
     rsp.response_info.rsp_hdr.size =
         sizeof(struct device_ops_abort_rsp_t) - sizeof(struct cmn_header_t);
+
+    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD, sqw_hp_idx,
+        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
 
     /* TODO: tag_id based abort needs to be implemented */
 
@@ -104,12 +110,18 @@ static inline int8_t abort_cmd_handler(void* command_buffer, uint8_t sqw_hp_idx)
 
     if(status == STATUS_SUCCESS)
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD, sqw_hp_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
+
         Log_Write(LOG_LEVEL_DEBUG,
             "SQ_HP[%d] abort_cmd_handler:Pushed:ABORT response:tag_id=%x->Host_CQ\r\n",
             sqw_hp_idx, rsp.response_info.rsp_hdr.tag_id);
     }
     else
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD, sqw_hp_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+
         Log_Write(LOG_LEVEL_ERROR,
             "SQ_HP[%d] abort_cmd_handler:Tag_ID=%u:HostIface:Push:Failed\r\n",
             sqw_hp_idx, cmd->command_info.cmd_hdr.tag_id);
@@ -148,6 +160,10 @@ static inline int8_t compatibility_cmd_handler(void* command_buffer, uint8_t sqw
     const struct device_ops_echo_cmd_t *cmd = (struct device_ops_echo_cmd_t *)command_buffer;
     struct device_ops_api_compatibility_rsp_t rsp;
     int8_t status = STATUS_SUCCESS;
+    int8_t abort_status = STATUS_SUCCESS;
+
+    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
+        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ[%d] HostCommandHandler:Processing:API_COMPATIBILITY_CMD\r\n",sqw_idx);
@@ -163,9 +179,13 @@ static inline int8_t compatibility_cmd_handler(void* command_buffer, uint8_t sqw
     if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
         /* TODO: Need abort state for this command's response */
+        abort_status = HOST_CMD_STATUS_ABORTED;
     }
     else
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
+
         rsp.major = DEVICE_OPS_API_MAJOR;
         rsp.minor = DEVICE_OPS_API_MINOR;
         rsp.patch = DEVICE_OPS_API_PATCH;
@@ -175,12 +195,27 @@ static inline int8_t compatibility_cmd_handler(void* command_buffer, uint8_t sqw
 
     if(status == STATUS_SUCCESS)
     {
+        /* Check for abort status for trace logging */
+        if(abort_status == HOST_CMD_STATUS_ABORTED)
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
+        }
+        else
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
+        }
+
         Log_Write(LOG_LEVEL_DEBUG,
             "SQ[%d] HostCommandHandler:Pushed:API_COMPATIBILITY_CMD_RSP:tag_id=%x->Host_CQ\r\n",
             sqw_idx, rsp.response_info.rsp_hdr.tag_id);
     }
     else
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+
         Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
                     sqw_idx, cmd->command_info.cmd_hdr.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
@@ -218,7 +253,11 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
         (struct device_ops_device_fw_version_cmd_t *)command_buffer;
     struct device_ops_fw_version_rsp_t rsp = { 0 };
     int8_t status = STATUS_SUCCESS;
+    int8_t abort_status = STATUS_SUCCESS;
     mm2sp_fw_type_e fw_type = 0;
+
+    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
+        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ[%d] HostCommandHandler:Processing:FW_VERSION_CMD\r\n", sqw_idx);
@@ -232,11 +271,14 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
     if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
         /* TODO: Need abort state for this command's response */
-        status = HOST_CMD_STATUS_ABORTED;
+        abort_status = status = HOST_CMD_STATUS_ABORTED;
     }
 
     if (status == STATUS_SUCCESS)
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
+
         if (cmd->firmware_type == DEV_OPS_FW_TYPE_MASTER_MINION_FW)
         {
             fw_type = MM2SP_MASTER_MINION_FW;
@@ -293,12 +335,27 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
 
     if(status == STATUS_SUCCESS)
     {
+        /* Check for abort status for trace logging */
+        if(abort_status == HOST_CMD_STATUS_ABORTED)
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
+        }
+        else
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
+        }
+
         Log_Write(LOG_LEVEL_DEBUG,
             "SQ [%d] HostCommandHandler:CQ_Push:FW_VERSION_CMD_RSP:tag_id=%x\r\n",
             sqw_idx, rsp.response_info.rsp_hdr.tag_id);
     }
     else
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+
         Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCommandHandler:Tag_ID=%u:CQ_Push:Failed\r\n",
                                     sqw_idx, cmd->command_info.cmd_hdr.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
@@ -340,6 +397,10 @@ static inline int8_t echo_cmd_handler(void* command_buffer, uint8_t sqw_idx,
         (struct device_ops_echo_cmd_t *)command_buffer;
     struct device_ops_echo_rsp_t rsp;
     int8_t status = STATUS_SUCCESS;
+    int8_t abort_status = STATUS_SUCCESS;
+
+    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD, sqw_idx,
+        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ[%d] HostCommandHandler:Processing:ECHO_CMD\r\n", sqw_idx);
@@ -353,11 +414,13 @@ static inline int8_t echo_cmd_handler(void* command_buffer, uint8_t sqw_idx,
     if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
         /* TODO: Need abort state for this command's response */
-        status = HOST_CMD_STATUS_ABORTED;
+        abort_status = status = HOST_CMD_STATUS_ABORTED;
     }
 
     if (status == STATUS_SUCCESS)
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
         rsp.device_cmd_start_ts = start_cycles;
     }
 
@@ -373,12 +436,27 @@ static inline int8_t echo_cmd_handler(void* command_buffer, uint8_t sqw_idx,
 
     if(status == STATUS_SUCCESS)
     {
+        /* Check for abort status for trace logging */
+        if(abort_status == HOST_CMD_STATUS_ABORTED)
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
+        }
+        else
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
+        }
+
         Log_Write(LOG_LEVEL_DEBUG,
             "SQ[%d] HostCommandHandler:CQ_Push:ECHO_CMD_RSP:tag_id=%x\r\n",
             sqw_idx, rsp.response_info.rsp_hdr.tag_id);
     }
     else
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+
         Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCommandHandler:Tag_ID=%u:CQ_Push:Failed\r\n",
                     sqw_idx, cmd->command_info.cmd_hdr.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
@@ -424,11 +502,11 @@ static inline int8_t kernel_launch_cmd_handler(void* command_buffer, uint8_t sqw
     int8_t status = GENERAL_ERROR;
     int8_t abort_status = STATUS_SUCCESS;
 
-    Log_Write(LOG_LEVEL_DEBUG,
-        "SQ[%d] HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n", sqw_idx);
-
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
+
+    Log_Write(LOG_LEVEL_DEBUG,
+        "SQ[%d] HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n", sqw_idx);
 
     /* Get the SQW state to check for command abort */
     if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
@@ -507,6 +585,18 @@ static inline int8_t kernel_launch_cmd_handler(void* command_buffer, uint8_t sqw
             sizeof(struct device_ops_kernel_launch_rsp_t) - sizeof(struct cmn_header_t);
         status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 #endif
+        /* Check for abort status for trace logging.
+        Since we are in failure path, we will ignore CQ push status for logging to trace. */
+        if(rsp.status == DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED)
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
+        }
+        else
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+        }
 
         if(status == STATUS_SUCCESS)
         {
@@ -559,6 +649,9 @@ static inline int8_t kernel_abort_cmd_handler(void* command_buffer, uint8_t sqw_
     int8_t status = GENERAL_ERROR;
     int8_t abort_status = STATUS_SUCCESS;
 
+    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD, sqw_idx,
+        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
+
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ[%d] HostCommandHandler:Processing:KERNEL_ABORT_CMD\r\n", sqw_idx);
 
@@ -604,6 +697,19 @@ static inline int8_t kernel_abort_cmd_handler(void* command_buffer, uint8_t sqw_
         }
 
         status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+
+        /* Check for abort status for trace logging.
+        Since we are in failure path, we will ignore CQ push status for logging to trace. */
+        if(rsp.status == DEV_OPS_API_KERNEL_ABORT_RESPONSE_HOST_ABORTED)
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
+        }
+        else
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+        }
 
         if(status == STATUS_SUCCESS)
         {
@@ -753,6 +859,9 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
     uint8_t loop_cnt;
     exec_cycles_t cycles;
 
+    TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
+        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
+
     /* Design Notes: Note a DMA write command from host will
     trigger the implementation to configure a DMA read channel
     on device to move data from host to device, similarly a read
@@ -760,9 +869,6 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
     a DMA write channel on device to move data from device to host */
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ[%d] HostCommandHandler:Processing:DATA_READ_CMD\r\n", sqw_idx);
-
-    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD, sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
     /* Get the SQW state to check for command abort */
     if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
@@ -825,9 +931,6 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
 
     if(status != STATUS_SUCCESS)
     {
-        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD, sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
-
         Log_Write(LOG_LEVEL_ERROR,
             "SQ[%d]:TID:%u:HostCmdHdlr:DMARead:Fail:%d\r\n",
                 sqw_idx, cmd->command_info.cmd_hdr.tag_id, status);
@@ -882,12 +985,26 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
 
         status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 
+        /* Check for abort status for trace logging.
+        Since we are in failure path, we will ignore CQ push status for logging to trace. */
+        if(rsp.status == DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED)
+        {
+            TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
+        }
+        else
+        {
+            TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+        }
+
         if(status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR, "HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
                               cmd->command_info.cmd_hdr.tag_id);
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
         }
+
         /* Decrement commands count being processed by given SQW */
         SQW_Decrement_Command_Count(sqw_idx);
     }
@@ -930,6 +1047,9 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
     int8_t abort_status = STATUS_SUCCESS;
     exec_cycles_t cycles;
 
+    TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
+        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
+
     /* Design Notes: Note a DMA write command from host will trigger
     the implementation to configure a DMA read channel on device to move
     data from host to device, similarly a read command from host will
@@ -937,8 +1057,6 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
     to move data from device to host */
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ[%d] HostCommandHandler:Processing:DATA_WRITE_CMD\r\n", sqw_idx);
-    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD, sqw_idx,
-            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
     /* Get the SQW state to check for command abort */
     if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
@@ -986,9 +1104,6 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
 
     if(status != STATUS_SUCCESS)
     {
-        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD, sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
-
         Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr:DMAWrite:TID:%u:Fail:%d\r\n",
                   cmd->command_info.cmd_hdr.tag_id, status);
 
@@ -1033,6 +1148,19 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
         }
 
         status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+
+        /* Check for abort status for trace logging.
+        Since we are in failure path, we will ignore CQ push status for logging to trace. */
+        if(rsp.status == DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED)
+        {
+            TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
+        }
+        else
+        {
+            TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+        }
 
         if(status == STATUS_SUCCESS)
         {
@@ -1081,6 +1209,9 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
     struct device_ops_trace_rt_control_rsp_t rsp;
     int8_t status = STATUS_SUCCESS;
 
+    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD, sqw_idx,
+        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
+
     Log_Write(LOG_LEVEL_DEBUG,
         "HostCommandHandler:Processing:TRACE_RT_CONTROL_CMD\r\n");
 
@@ -1088,6 +1219,11 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
     if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
         status = HOST_CMD_STATUS_ABORTED;
+    }
+    else
+    {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
     }
 
     /* Check if RT Component is MM Trace. */
@@ -1164,12 +1300,32 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 #endif
 
-
     if(status != STATUS_SUCCESS)
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
         Log_Write(LOG_LEVEL_ERROR, "HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
                         cmd->command_info.cmd_hdr.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+    }
+    else
+    {
+        /* Check for abort status for trace logging. */
+        if(rsp.status == DEV_OPS_TRACE_RT_CONTROL_RESPONSE_HOST_ABORTED)
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
+        }
+        else if(rsp.status == DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS)
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
+        }
+        else
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+        }
     }
 
 #if !TEST_FRAMEWORK
@@ -1207,6 +1363,9 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
     struct device_ops_trace_rt_config_rsp_t rsp;
     int8_t status = STATUS_SUCCESS;
 
+    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD, sqw_idx,
+        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
+
     Log_Write(LOG_LEVEL_DEBUG,
         "HostCmdHdlr:TID:%u:TRACE_CONFIG:Shire:%lx:Thread:%lx\r\n",
         cmd->command_info.cmd_hdr.tag_id, cmd->shire_mask, cmd->thread_mask);
@@ -1216,45 +1375,48 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
     {
         status = HOST_CMD_STATUS_ABORTED;
     }
-
-    /* Check if MM Trace needs to configured. */
-    if((status == STATUS_SUCCESS) &&
-        (TRACE_CONFIG_CHECK_MM_HART(cmd->shire_mask, cmd->thread_mask)))
+    else
     {
-        struct trace_init_info_t mm_trace_init = {.shire_mask = MM_SHIRE_MASK, .thread_mask= MM_HART_MASK,
-            .filter_mask = cmd->filter_mask,
-            .event_mask  = cmd->event_mask, .threshold   = MM_TRACE_BUFFER_SIZE};
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
 
-        /* Configure MM Trace. */
-        Trace_Init_MM(&mm_trace_init);
-        Trace_String(TRACE_EVENT_STRING_CRITICAL, Trace_Get_MM_CB(), "MM:TRACE_RT_CONFIG:Done!!");
-    }
-
-    /* Check if CM Trace needs to configured. */
-    if((status == STATUS_SUCCESS) &&
-        (TRACE_CONFIG_CHECK_CM_HART(cmd->shire_mask, cmd->thread_mask)))
-    {
-        Log_Write(LOG_LEVEL_DEBUG,
-            "HostCmdHdlr:TID:%u:TRACE_CONFIG: Configure CM.\r\n",
-            cmd->command_info.cmd_hdr.tag_id);
-
-        mm_to_cm_message_trace_rt_config_t cm_msg;
-        cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE;
-        cm_msg.shire_mask = cmd->shire_mask;
-        cm_msg.thread_mask = cmd->thread_mask;
-        cm_msg.filter_mask = cmd->filter_mask;
-        cm_msg.event_mask = cmd->event_mask;
-        cm_msg.threshold = cmd->threshold;
-
-        uint64_t cm_shire_mask = cmd->shire_mask & CM_SHIRE_MASK;
-
-        if((cm_shire_mask & CW_Get_Booted_Shires()) != cm_shire_mask)
+        /* Check if MM Trace needs to configured. */
+        if(TRACE_CONFIG_CHECK_MM_HART(cmd->shire_mask, cmd->thread_mask))
         {
-            status = INVALID_CM_SHIRE_MASK;
+            struct trace_init_info_t mm_trace_init = {.shire_mask = MM_SHIRE_MASK, .thread_mask= MM_HART_MASK,
+                .filter_mask = cmd->filter_mask,
+                .event_mask  = cmd->event_mask, .threshold   = MM_TRACE_BUFFER_SIZE};
+
+            /* Configure MM Trace. */
+            Trace_Init_MM(&mm_trace_init);
+            Trace_String(TRACE_EVENT_STRING_CRITICAL, Trace_Get_MM_CB(), "MM:TRACE_RT_CONFIG:Done!!");
         }
-        else
+
+        /* Check if CM Trace needs to configured. */
+        if(TRACE_CONFIG_CHECK_CM_HART(cmd->shire_mask, cmd->thread_mask))
         {
-            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t*)&cm_msg);
+            Log_Write(LOG_LEVEL_DEBUG,
+                "HostCmdHdlr:TID:%u:TRACE_CONFIG: Configure CM.\r\n",
+                cmd->command_info.cmd_hdr.tag_id);
+
+            uint64_t cm_shire_mask = cmd->shire_mask & CM_SHIRE_MASK;
+
+            if((cm_shire_mask & CW_Get_Booted_Shires()) == cm_shire_mask)
+            {
+                mm_to_cm_message_trace_rt_config_t cm_msg;
+                cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE;
+                cm_msg.shire_mask = cmd->shire_mask;
+                cm_msg.thread_mask = cmd->thread_mask;
+                cm_msg.filter_mask = cmd->filter_mask;
+                cm_msg.event_mask = cmd->event_mask;
+                cm_msg.threshold = cmd->threshold;
+
+                status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t*)&cm_msg);
+            }
+            else
+            {
+                status = INVALID_CM_SHIRE_MASK;
+            }
 
             if(status == STATUS_SUCCESS)
             {
@@ -1296,6 +1458,7 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
     Log_Write(LOG_LEVEL_DEBUG,
         "HostCmdHdlr:Pushing:TRACE_RT_CONFIG_RSP:tag_id=%x:Host_CQ\r\n",
         rsp.response_info.rsp_hdr.tag_id);
+
 #if TEST_FRAMEWORK
     /* For SP2MM command response, we need to provide the total size = header + payload */
     rsp.response_info.rsp_hdr.size = sizeof(struct device_ops_trace_rt_config_rsp_t);
@@ -1306,10 +1469,29 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
 
     if(status != STATUS_SUCCESS)
     {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
         Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr:Tag_ID=%u:HostIface:Push:Failed\r\n",
                         cmd->command_info.cmd_hdr.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
+    /* Check for abort status for trace logging. */
+    else if(rsp.status == DEV_OPS_TRACE_RT_CONFIG_RESPONSE_HOST_ABORTED)
+    {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
+    }
+    else if(rsp.status == DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS)
+    {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
+    }
+    else
+    {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD, sqw_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+    }
+
 #if !TEST_FRAMEWORK
     /* Decrement commands count being processed by given SQW */
     SQW_Decrement_Command_Count(sqw_idx);

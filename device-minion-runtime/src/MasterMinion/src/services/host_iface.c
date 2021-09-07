@@ -414,8 +414,9 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
     {
         /* Push the response to circular buffer */
         status = VQ_Push(&Host_CQs.vqueues[cq_id], p_cmd, cmd_size);
-        if(status != STATUS_SUCCESS){
-            Log_Write(LOG_LEVEL_ERROR, "CQ[%d] push failed: error:%d \n",cq_id, status);
+        if(status != STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_WARNING, "CQ[%d] push warning: status code: %d\n", cq_id, status);
         }
     } while(status == CIRCBUFF_ERROR_FULL);
 
