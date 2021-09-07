@@ -88,6 +88,50 @@ TEST_F(TestMemcpy, SimpleMemcpy) {
   ASSERT_EQ(random_trash, result);
 }
 
+TEST_F(TestMemcpy, 4GbMemcpy) {
+  using ValueType = uint32_t;
+  std::mt19937 gen(std::random_device{}());
+
+  auto dev = devices_[0];
+  auto stream = runtime_->createStream(dev);
+  auto desiredSize = 1ULL << 32;
+
+  struct RandomData {
+    ValueType value;
+    ValueType position;
+  };
+  auto numValues = 500U;
+  std::vector<RandomData> rd(numValues);
+  // alloc memory in device
+  auto d_buffer = runtime_->mallocDevice(dev, desiredSize);
+  std::vector<ValueType> h_buffer(desiredSize / sizeof(ValueType));
+  std::uniform_int_distribution<ValueType> dis(0, static_cast<ValueType>(h_buffer.size()-1));
+
+  for (auto i = 0U; i < numValues; ++i) {
+    rd.emplace_back(RandomData{dis(gen), dis(gen)});
+  }
+  for (auto v : rd) {
+    h_buffer[v.position] = v.value;
+  }
+
+  // copy from host to device and from device to result buffer host; check they are equal
+  runtime_->memcpyHostToDevice(stream, reinterpret_cast<std::byte*>(h_buffer.data()), d_buffer, desiredSize);
+
+  //wait for stream to put 0s in the previously filled data before copying from device
+  runtime_->waitForStream(stream);
+
+  for (auto v: rd) {
+    h_buffer[v.position] = 0U;
+  }
+
+  runtime_->memcpyDeviceToHost(stream, d_buffer, reinterpret_cast<std::byte*>(h_buffer.data()), desiredSize);
+  runtime_->waitForStream(stream);
+
+  for (auto v: rd) {
+    EXPECT_EQ(h_buffer[v.position], v.value);
+  }
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
