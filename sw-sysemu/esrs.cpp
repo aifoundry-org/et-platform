@@ -78,6 +78,12 @@ unsigned get_msg_port_write_width(const Hart&, unsigned);
 #define THREAD(hart)    ((hart) % EMU_THREADS_PER_MINION)
 
 
+static unsigned shire_index(unsigned shireid)
+{
+    return (shireid == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shireid;
+}
+
+
 static uint64_t legalize_esr_address(const Agent& agent, uint64_t addr)
 {
     uint64_t shire = addr & ESR_REGION_SHIRE_MASK;
@@ -471,11 +477,11 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
         case ESR_UC_CONFIG:
             return shire_other_esrs[shire].uc_config;
         case ESR_ICACHE_UPREFETCH:
-            return read_icache_prefetch(PRV_U, shire);
+            return read_icache_prefetch(Privilege::U, shire);
         case ESR_ICACHE_SPREFETCH:
-            return read_icache_prefetch(PRV_S, shire);
+            return read_icache_prefetch(Privilege::S, shire);
         case ESR_ICACHE_MPREFETCH:
-            return read_icache_prefetch(PRV_M, shire);
+            return read_icache_prefetch(Privilege::M, shire);
         case ESR_CLK_GATE_CTRL:
             return shire_other_esrs[shire].clk_gate_ctrl;
         case ESR_SHIRE_CHANNEL_ECO_CTL:
@@ -727,21 +733,17 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                 break;
             case ESR_SC_IDX_COP_SM_CTL:
 #ifdef SYS_EMU
-                if(SYS_EMU_PTR->get_mem_check())
-                {
+                if (SYS_EMU_PTR->get_mem_check()) {
                     // Doing a CB drain
-                    if((value & 1) && (((value >> 8) & 0xF) == 10))
-                    {
+                    if ((value & 1) && (((value >> 8) & 0xF) == 10)) {
                         SYS_EMU_PTR->get_mem_checker().cb_drain(shire, b);
                     }
                     // Doing an L2 flush
-                    else if((value & 1) && (((value >> 8) & 0xF) == 2))
-                    {
+                    else if ((value & 1) && (((value >> 8) & 0xF) == 2)) {
                         SYS_EMU_PTR->get_mem_checker().l2_flush(shire, b);
                     }
                     // Doing an L2 evict
-                    else if((value & 1) && (((value >> 8) & 0xF) == 3))
-                    {
+                    else if ((value & 1) && (((value >> 8) & 0xF) == 3)) {
                         SYS_EMU_PTR->get_mem_checker().l2_evict(shire, b);
                     }
                 }
@@ -825,11 +827,9 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                 break;
             case ESR_SC_IDX_COP_SM_CTL_USER:
 #ifdef SYS_EMU
-                if(SYS_EMU_PTR->get_mem_check())
-                {
+                if (SYS_EMU_PTR->get_mem_check()) {
                     // Doing a CB drain
-                    if((value & 1) && (((value >> 8) & 0xF) == 10))
-                    {
+                    if ((value & 1) && (((value >> 8) & 0xF) == 10)) {
                         SYS_EMU_PTR->get_mem_checker().cb_drain(shire, b);
                     }
                 }
@@ -905,7 +905,7 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
         case ESR_IPI_REDIRECT_TRIGGER:
             LOG_AGENT(DEBUG, agent, "S%u:ipi_redirect_trigger = 0x%" PRIx64, SHIREID(shire), value);
             if (shire != EMU_IO_SHIRE_SP) {
-                send_ipi_redirect_to_threads(shire, value);
+                send_ipi_redirect(shire, value);
             }
             return;
         case ESR_IPI_REDIRECT_FILTER:
@@ -918,12 +918,12 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
             LOG_AGENT(DEBUG, agent, "S%u:ipi_trigger = 0x%" PRIx64,
                       SHIREID(shire), shire_other_esrs[shire].ipi_trigger);
             if (shire != EMU_IO_SHIRE_SP) {
-                raise_software_interrupt(shire, value);
+                raise_machine_software_interrupt(shire, value);
             }
             return;
         case ESR_IPI_TRIGGER_CLEAR:
             LOG_AGENT(DEBUG, agent, "S%u:ipi_trigger_clear = 0x%" PRIx64, SHIREID(shire), value);
-            clear_software_interrupt(shire, value);
+            clear_machine_software_interrupt(shire, value);
             return;
         case ESR_FCC_CREDINC_0:
             LOG_AGENT(DEBUG, agent, "S%u:fcc_credinc_0 = 0x%" PRIx64, SHIREID(shire), value);
@@ -1076,15 +1076,15 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
             return;
         case ESR_ICACHE_UPREFETCH:
             LOG_AGENT(DEBUG, agent, "S%u:icache_uprefetch = 0x%" PRIx64, SHIREID(shire), value);
-            write_icache_prefetch(PRV_U, shire, value);
+            write_icache_prefetch(Privilege::U, shire, value);
             return;
         case ESR_ICACHE_SPREFETCH:
             LOG_AGENT(DEBUG, agent, "S%u:icache_sprefetch = 0x%" PRIx64, SHIREID(shire), value);
-            write_icache_prefetch(PRV_S, shire, value);
+            write_icache_prefetch(Privilege::S, shire, value);
             return;
         case ESR_ICACHE_MPREFETCH:
             LOG_AGENT(DEBUG, agent, "S%u:icache_mprefetch = 0x%" PRIx64, SHIREID(shire), value);
-            write_icache_prefetch(PRV_M, shire, value);
+            write_icache_prefetch(Privilege::M, shire, value);
             return;
         case ESR_CLK_GATE_CTRL:
             shire_other_esrs[shire].clk_gate_ctrl = uint16_t(value & 0x7ff);
@@ -1137,15 +1137,14 @@ void System::write_minion_feature(unsigned shire, uint8_t value)
 }
 
 
-void System::write_icache_prefetch(int /*privilege*/, unsigned shire, uint64_t value)
+void System::write_icache_prefetch(Privilege /*privilege*/, unsigned shire, uint64_t value)
 {
     assert(shire <= EMU_MASTER_SHIRE);
 #ifdef SYS_EMU
     (void)(shire);
     (void)(value);
 #else
-    if (!shire_other_esrs[shire].icache_prefetch_active)
-    {
+    if (!shire_other_esrs[shire].icache_prefetch_active) {
         bool active = ((value >> 48) & 0xF) && shire_other_esrs[shire].shire_coop_mode;
         shire_other_esrs[shire].icache_prefetch_active = active;
     }
@@ -1153,7 +1152,7 @@ void System::write_icache_prefetch(int /*privilege*/, unsigned shire, uint64_t v
 }
 
 
-uint64_t System::read_icache_prefetch(int /*privilege*/, unsigned shire) const
+uint64_t System::read_icache_prefetch(Privilege /*privilege*/, unsigned shire) const
 {
     (void) shire;
     assert(shire <= EMU_MASTER_SHIRE);

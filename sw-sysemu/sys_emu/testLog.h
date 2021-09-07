@@ -31,7 +31,7 @@ bool simEnded();
 class testLog
 {
 public:
- 
+
  testLog(const std::string &name = "", logLevel logLvl = LOG_INFO):
   name_(name), outputStream_(&std::cout)
   {
@@ -41,9 +41,9 @@ public:
     if (!logLevelsSet_) setLogLevels();
     setLogLevel(logLvl);
   }
-  void setOutputStream(std::ostream* output) 
+  void setOutputStream(std::ostream* output)
   {
-    outputStream_ = output;  
+    outputStream_ = output;
   }
 
   testLog(const testLog&) = delete;

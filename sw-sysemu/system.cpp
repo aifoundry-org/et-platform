@@ -16,7 +16,7 @@
 #include "elfio/elfio.hpp"
 #include "emu_gio.h"
 #include "system.h"
-#include "insns/tensor_error.h"
+#include "insn_util.h"
 #ifdef SYS_EMU
 #include "sys_emu.h"
 #endif
@@ -28,9 +28,9 @@ namespace bemu {
 void configure_port(Hart&, unsigned, uint32_t);
 
 
-void System::init(system_version_t ver)
+void System::init(Stepping ver)
 {
-    sysver = ver;
+    stepping = ver;
     m_emu_done = false;
 
     // Init memory
@@ -44,18 +44,24 @@ void System::init(system_version_t ver)
         unsigned cid = tid / EMU_THREADS_PER_MINION;
         cpu[tid].core = &core[cid];
         cpu[tid].chip = this;
+        // Do this here so that logging messages can show the correct hartid
+        cpu[tid].mhartid = (tid == EMU_IO_SHIRE_SP_THREAD)
+            ? IO_SHIRE_SP_HARTID
+            : tid;
     }
 }
 
 
-void System::reset_esrs_for_shire(unsigned shireid)
+void System::reset_shire_state(unsigned shireid)
 {
-    unsigned shire = shire_index(shireid);
+    unsigned shire = (shireid == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shireid;
     unsigned neigh_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_NEIGH_PER_SHIRE;
 
     for (unsigned neigh = 0; neigh < neigh_count; ++neigh) {
         unsigned idx = EMU_NEIGH_PER_SHIRE*shire + neigh;
         neigh_esrs[idx].reset();
+        coop_tloads[idx][0].fill(Coop_tload_state{});
+        coop_tloads[idx][1].fill(Coop_tload_state{});
     }
     shire_cache_esrs[shire].reset();
     shire_other_esrs[shire].reset(shireid);
@@ -76,6 +82,9 @@ void System::reset_esrs_for_shire(unsigned shireid)
 
 void System::reset_hart(unsigned thread)
 {
+    // Waiting reasons
+    cpu[thread].waits = Hart::Waiting::none;
+
     // Register files
     cpu[thread].xregs[x0] = 0;
 
@@ -84,7 +93,7 @@ void System::reset_hart(unsigned thread)
     cpu[thread].npc = 0;
 
     // Currently executing instruction
-    cpu[thread].inst = insn_t { 0, 0 };
+    cpu[thread].inst = Instruction { 0, 0 };
 
     // Fetch buffer
     cpu[thread].fetch_pc = -1;
@@ -103,9 +112,6 @@ void System::reset_hart(unsigned thread)
     cpu[thread].mip = 0;
     cpu[thread].tdata1 = 0x20C0000000000000ULL;
     // TODO: cpu[thread].dcsr <= xdebugver=1, prv=3;
-    cpu[thread].mhartid = (thread == EMU_IO_SHIRE_SP_THREAD)
-                        ? IO_SHIRE_SP_HARTID
-                        : thread;
 
     // Esperanto control and status registers
     cpu[thread].minstmask = 0;
@@ -119,136 +125,230 @@ void System::reset_hart(unsigned thread)
     }
 
     // Other hart internal (microarchitectural or hidden) state
-    cpu[thread].prv = PRV_M;
+    cpu[thread].prv = Privilege::M;
     cpu[thread].debug_mode = false;
     cpu[thread].ext_seip = 0;
-    cpu[thread].mtvec_is_set = false;
-    cpu[thread].stvec_is_set = false;
-    cpu[thread].fcc_wait = false;
-    cpu[thread].fcc_cnt = 0;
 
     // Pre-computed state to improve simulation speed
     cpu[thread].break_on_load = false;
     cpu[thread].break_on_store = false;
     cpu[thread].break_on_fetch = false;
 
-    // Reset tensor operation state machines
-    cpu[thread].wait.state = Hart::Wait::State::Idle;
-    cpu[thread].txload.fill(0xFFFFFFFFFFFFFFFFULL);
-    cpu[thread].shadow_txload.fill(0xFFFFFFFFFFFFFFFFULL);
-
     // Reset core-shared state
-    cpu[thread].core->matp = 0;
-    cpu[thread].core->menable_shadows = 0;
-    cpu[thread].core->excl_mode = 0;
-    cpu[thread].core->mcache_control = 0;
-    cpu[thread].core->ucache_control = 0x200;
-    for (auto& set : cpu[thread].core->scp_lock) {
-        set.fill(false);
+    if ((thread % EMU_THREADS_PER_MINION) == 0) {
+        cpu[thread].core->matp = 0;
+        cpu[thread].core->menable_shadows = 0;
+        cpu[thread].core->excl_mode = 0;
+        cpu[thread].core->mcache_control = 0;
+        cpu[thread].core->ucache_control = 0x200;
+        for (auto& set : cpu[thread].core->scp_lock) {
+            set.fill(false);
+        }
+
+        cpu[thread].core->reduce.state = TReduce::State::idle;
+        cpu[thread].core->reduce.hart = &cpu[thread];
+        cpu[thread].core->tmul.state = TMul::State::idle;
+        cpu[thread].core->tquant.state = TQuant::State::idle;
+
+        for (auto& tload : cpu[thread].core->tload) {
+            tload.state = TLoad::State::idle;
+            tload.paired = false;
+        }
+        cpu[thread].core->tqueue.clear();
+    }
+}
+
+
+void System::raise_machine_timer_interrupt(unsigned shire)
+{
+    if (shire == IO_SHIRE_ID) {
+        shire = EMU_IO_SHIRE_SP;
     }
 
-    // Reset core-shared tensor operation state machines
-    cpu[thread].core->reduce.count = 0;
-    cpu[thread].core->reduce.state = Core::Reduce::State::Idle;
-    cpu[thread].core->txquant = 0xFFFFFFFFFFFFFFFFULL;
-    cpu[thread].core->shadow_txquant = 0xFFFFFFFFFFFFFFFFULL;
-    cpu[thread].core->txfma = 0xFFFFFFFFFFFFFFFFULL;
-    cpu[thread].core->shadow_txfma = 0xFFFFFFFFFFFFFFFFULL;
-    cpu[thread].core->tensor_op.fill(Core::Tensor::None);
-    cpu[thread].core->tensorload_setupb_topair = false;
+    unsigned begin_hart = shire * EMU_THREADS_PER_SHIRE;
+    unsigned hart_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+    unsigned end_hart   = begin_hart + hart_count;
+
+    uint32_t mtime_target = (shire == EMU_IO_SHIRE_SP)
+        ? 1
+        : shire_other_esrs[shire].mtime_local_target;
+
+    for (unsigned thread = begin_hart; thread < end_hart; ++thread) {
+        if (!cpu[thread].is_nonexistent()) {
+            unsigned minion = thread / EMU_THREADS_PER_MINION;
+            if ((mtime_target >> minion) & 1) {
+                cpu[thread].raise_interrupt(MACHINE_TIMER_INTERRUPT);
+            }
+        }
+    }
 }
 
 
-void System::raise_timer_interrupt(uint64_t shire_mask)
+void System::clear_machine_timer_interrupt(unsigned shire)
 {
-#ifdef SYS_EMU
-    emu()->raise_timer_interrupt(shire_mask);
-#else
-    (void) shire_mask;
-#endif
+    if (shire == IO_SHIRE_ID) {
+        shire = EMU_IO_SHIRE_SP;
+    }
+
+    unsigned begin_hart = shire * EMU_THREADS_PER_SHIRE;
+    unsigned hart_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+    unsigned end_hart   = begin_hart + hart_count;
+
+    uint32_t mtime_target = (shire == EMU_IO_SHIRE_SP)
+        ? 1
+        : shire_other_esrs[shire].mtime_local_target;
+
+    for (unsigned thread = begin_hart; thread < end_hart; ++thread) {
+        if (!cpu[thread].is_nonexistent()) {
+            unsigned minion = thread / EMU_THREADS_PER_MINION;
+            if ((mtime_target >> minion) & 1) {
+                cpu[thread].clear_interrupt(MACHINE_TIMER_INTERRUPT);
+            }
+        }
+    }
 }
 
 
-void System::clear_timer_interrupt(uint64_t shire_mask)
+void System::raise_machine_external_interrupt(unsigned shire)
 {
-#ifdef SYS_EMU
-    emu()->clear_timer_interrupt(shire_mask);
-#else
-    (void) shire_mask;
-#endif
+    if (shire == IO_SHIRE_ID) {
+        shire = EMU_IO_SHIRE_SP;
+    }
+
+    unsigned begin_hart = shire * EMU_THREADS_PER_SHIRE;
+    unsigned hart_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+    unsigned end_hart   = begin_hart + hart_count;
+
+    for (unsigned thread = begin_hart; thread < end_hart; ++thread) {
+        if (!cpu[thread].is_nonexistent()) {
+            cpu[thread].raise_interrupt(MACHINE_EXTERNAL_INTERRUPT);
+        }
+    }
 }
 
 
-void System::raise_external_interrupt(unsigned shire)
+void System::clear_machine_external_interrupt(unsigned shire)
 {
-#ifdef SYS_EMU
-    emu()->raise_external_interrupt(shire);
-#else
-    (void) shire;
-#endif
+    if (shire == IO_SHIRE_ID) {
+        shire = EMU_IO_SHIRE_SP;
+    }
+
+    unsigned begin_hart = shire * EMU_THREADS_PER_SHIRE;
+    unsigned hart_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+    unsigned end_hart   = begin_hart + hart_count;
+
+    for (unsigned thread = begin_hart; thread < end_hart; ++thread) {
+        if (!cpu[thread].is_nonexistent()) {
+            cpu[thread].clear_interrupt(MACHINE_EXTERNAL_INTERRUPT);
+        }
+    }
 }
 
 
-void System::clear_external_interrupt(unsigned shire)
+void System::raise_supervisor_external_interrupt(unsigned shire)
 {
-#ifdef SYS_EMU
-    emu()->clear_external_interrupt(shire);
-#else
-    (void) shire;
-#endif
+    if (shire == IO_SHIRE_ID) {
+        shire = EMU_IO_SHIRE_SP;
+    }
+
+    unsigned begin_hart = shire * EMU_THREADS_PER_SHIRE;
+    unsigned hart_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+    unsigned end_hart   = begin_hart + hart_count;
+
+    for (unsigned thread = begin_hart; thread < end_hart; ++thread) {
+        if (!cpu[thread].is_nonexistent()) {
+            cpu[thread].raise_interrupt(SUPERVISOR_EXTERNAL_INTERRUPT);
+        }
+    }
 }
 
 
-void System::raise_external_supervisor_interrupt(unsigned shire)
+void System::clear_supervisor_external_interrupt(unsigned shire)
 {
-#ifdef SYS_EMU
-    emu()->raise_external_supervisor_interrupt(shire);
-#else
-    (void) shire;
-#endif
+    if (shire == IO_SHIRE_ID) {
+        shire = EMU_IO_SHIRE_SP;
+    }
+
+    unsigned begin_hart = shire * EMU_THREADS_PER_SHIRE;
+    unsigned hart_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+    unsigned end_hart   = begin_hart + hart_count;
+
+    for (unsigned thread = begin_hart; thread < end_hart; ++thread) {
+        if (!cpu[thread].is_nonexistent()) {
+            cpu[thread].clear_interrupt(SUPERVISOR_EXTERNAL_INTERRUPT);
+        }
+    }
 }
 
 
-void System::clear_external_supervisor_interrupt(unsigned shire)
+void System::raise_machine_software_interrupt(unsigned shire, uint64_t thread_mask)
 {
-#ifdef SYS_EMU
-    emu()->clear_external_supervisor_interrupt(shire);
-#else
-    (void) shire;
-#endif
+    if (shire == IO_SHIRE_ID) {
+        shire = EMU_IO_SHIRE_SP;
+    }
+
+    unsigned begin_hart = shire * EMU_THREADS_PER_SHIRE;
+    unsigned hart_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+    unsigned end_hart   = begin_hart + hart_count;
+
+    for (unsigned thread = begin_hart; thread < end_hart; ++thread) {
+        if (((thread_mask >> thread) & 1) && !cpu[thread].is_nonexistent()) {
+            cpu[thread].raise_interrupt(MACHINE_SOFTWARE_INTERRUPT);
+        }
+    }
 }
 
 
-void System::raise_software_interrupt(unsigned shire, uint64_t thread_mask)
+void System::clear_machine_software_interrupt(unsigned shire, uint64_t thread_mask)
 {
-#ifdef SYS_EMU
-    emu()->raise_software_interrupt(shire, thread_mask);
-#else
-    (void) shire;
-    (void) thread_mask;
-#endif
+    if (shire == IO_SHIRE_ID) {
+        shire = EMU_IO_SHIRE_SP;
+    }
+
+    unsigned begin_hart = shire * EMU_THREADS_PER_SHIRE;
+    unsigned hart_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+    unsigned end_hart   = begin_hart + hart_count;
+
+    for (unsigned thread = begin_hart; thread < end_hart; ++thread) {
+        if (((thread_mask >> thread) & 1) && !cpu[thread].is_nonexistent()) {
+            cpu[thread].clear_interrupt(MACHINE_SOFTWARE_INTERRUPT);
+        }
+    }
 }
 
 
-void System::clear_software_interrupt(unsigned shire, uint64_t thread_mask)
+void System::send_ipi_redirect(unsigned shire, uint64_t thread_mask)
 {
-#ifdef SYS_EMU
-    emu()->clear_software_interrupt(shire, thread_mask);
-#else
-    (void) shire;
-    (void) thread_mask;
-#endif
-}
+    if ((shire == IO_SHIRE_ID) || (shire == EMU_IO_SHIRE_SP)) {
+        throw std::runtime_error("IPI redirect to Service Processor");
+    }
 
+    // Only harts enabled by IPI_REDIRECT_FILTER should receive the signal
+    thread_mask &= shire_other_esrs[shire].ipi_redirect_filter;
 
-void System::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
-{
-#ifdef SYS_EMU
-    emu()->send_ipi_redirect_to_threads(shire, thread_mask);
-#else
-    (void) shire;
-    (void) thread_mask;
-#endif
+    unsigned begin_hart = shire * EMU_THREADS_PER_SHIRE;
+
+    for (unsigned t = 0; t < EMU_THREADS_PER_SHIRE; ++t) {
+        if (((thread_mask >> t) & 1) == 0) {
+            continue;
+        }
+
+        unsigned thread = begin_hart + t;
+        if (cpu[thread].is_nonexistent() || cpu[thread].is_unavailable()) {
+            continue;
+        }
+
+        if (cpu[thread].is_waiting(Hart::Waiting::interrupt)
+            && cpu[thread].prv == Privilege::U)
+        {
+            unsigned neigh = thread / EMU_THREADS_PER_NEIGH;
+            uint64_t target_pc = neigh_esrs[neigh].ipi_redirect_pc;
+            cpu[thread].pc = cpu[thread].npc = target_pc;
+            cpu[thread].stop_waiting(Hart::Waiting::interrupt);
+        } else {
+            cpu[thread].raise_interrupt(BAD_IPI_REDIRECT_INTERRUPT);
+        }
+    }
 }
 
 
@@ -325,70 +425,84 @@ void System::notify_iatu_ctrl_2_reg_write(int pcie_id, uint32_t iatu, uint32_t v
 }
 
 
-void System::write_fcc_credinc(int index, uint64_t shire, uint64_t minion_mask)
+void System::write_fcc_credinc(unsigned index, uint64_t shire, uint64_t minion_mask)
 {
-    if (shire == EMU_IO_SHIRE_SP)
+    if (shire == EMU_IO_SHIRE_SP) {
         throw std::runtime_error("write_fcc_credinc_N for IOShire");
+    }
 
     const unsigned thread_in_minion = index / 2;
     const unsigned thread0 = thread_in_minion + shire * EMU_THREADS_PER_SHIRE;
     const unsigned counter = index % 2;
 
     for (int minion = 0; minion < EMU_MINIONS_PER_SHIRE; ++minion) {
-        if (~minion_mask & (1ull << minion))
+        if (~minion_mask & (1ull << minion)) {
             continue;
-
-        unsigned thread = thread0 + minion * EMU_THREADS_PER_MINION;
-        cpu[thread].fcc[counter]++;
-        LOG_HART(DEBUG, cpu[thread], "\tfcc = 0x%" PRIx64,
-                 (uint64_t(cpu[thread].fcc[1]) << 16) + uint64_t(cpu[thread].fcc[0]));
-#ifndef SYS_EMU
-        // wake up waiting threads (only for checker, not sysemu)
-        if (cpu[thread].fcc_wait) {
-            cpu[thread].fcc_wait = false;
-            m_minions_to_awake.push(thread / EMU_THREADS_PER_MINION);
         }
-#endif
-        //check for overflow
-        if (cpu[thread].fcc[counter] == 0)
+        unsigned thread = thread0 + minion * EMU_THREADS_PER_MINION;
+        if (cpu[thread].is_nonexistent()) {
+            continue;
+        }
+        // Increment credict counter and check for overflow
+        cpu[thread].fcc[counter]++;
+        if (cpu[thread].fcc[counter] == 0) {
             update_tensor_error(cpu[thread], 1 << 3);
+        }
+        LOG_HART(DEBUG, cpu[thread],
+                 "\tReceiving credits: fcc0 = 0x%" PRIx16 ", fcc1 = 0x%" PRIx16,
+                 cpu[thread].fcc[0], cpu[thread].fcc[1]);
+        // Resume waiting harts
+        if (counter == 0) {
+            cpu[thread].stop_waiting(Hart::Waiting::credit0);
+        } else  {
+            cpu[thread].stop_waiting(Hart::Waiting::credit1);
+        }
     }
-
-#ifdef SYS_EMU
-    emu()->fcc_to_threads(shire, thread_in_minion, minion_mask, counter);
-#endif
 }
 
 
 void System::recalculate_thread0_enable(unsigned shire)
 {
     uint32_t value = shire_other_esrs[shire].thread0_disable;
+
     unsigned mcount = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
     for (unsigned m = 0; m < mcount; ++m) {
         unsigned thread = shire * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION;
-        cpu[thread].enabled = !((value >> m) & 1);
+        if (!cpu[thread].is_nonexistent()) {
+            if ((value >> m) & 1) {
+                cpu[thread].become_unavailable();
+            }
+            else if (cpu[thread].is_unavailable()) {
+                // FIXME: check if we should halt-on-reset!
+                cpu[thread].start_running();
+            }
+        }
     }
-#ifdef SYS_EMU
-    emu()->recalculate_thread_disable(shire);
-#endif
 }
 
 
 void System::recalculate_thread1_enable(unsigned shire)
 {
-    if (shire == EMU_IO_SHIRE_SP)
+    if (shire == EMU_IO_SHIRE_SP) {
         return;
+    }
 
     uint32_t value = (shire_other_esrs[shire].minion_feature & 0x10)
             ? 0xffffffff
             : shire_other_esrs[shire].thread1_disable;
+
     for (unsigned m = 0; m < EMU_MINIONS_PER_SHIRE; ++m) {
         unsigned thread = shire * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + 1;
-        cpu[thread].enabled = !((value >> m) & 1);
+        if (!cpu[thread].is_nonexistent()) {
+            if ((value >> m) & 1) {
+                cpu[thread].become_unavailable();
+            }
+            else if (cpu[thread].is_unavailable()) {
+                // FIXME: check if we should halt-on-reset!
+                cpu[thread].start_running();
+            }
+        }
     }
-#ifdef SYS_EMU
-    emu()->recalculate_thread_disable(shire);
-#endif
 }
 
 
