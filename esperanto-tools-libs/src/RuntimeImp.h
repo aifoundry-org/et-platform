@@ -35,7 +35,7 @@ public:
 
   std::vector<DeviceId> getDevices() override;
 
-  KernelId loadCode(DeviceId device, const std::byte* elf, size_t elf_size) override;
+  LoadCodeResult loadCode(StreamId stream, const std::byte* elf, size_t elf_size) override;
   void unloadCode(KernelId kernel) override;
 
   std::byte* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) override;

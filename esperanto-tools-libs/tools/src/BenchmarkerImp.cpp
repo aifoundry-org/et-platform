@@ -51,8 +51,10 @@ BenchmarkerImp::BenchmarkerImp(dev::IDeviceLayer* deviceLayer, const std::string
   auto devices = runtime_->getDevices();
   CHECK(!devices.empty()) << "No devices";
   device_ = devices.front();
+  defaultStream_ = runtime_->createStream(device_);
   auto kernelContent = readFile(jumpLoopLoc);
-  jumpLoop_ = runtime_->loadCode(device_, kernelContent.data(), kernelContent.size());
+  jumpLoop_ = runtime_->loadCode(defaultStream_, kernelContent.data(), kernelContent.size()).kernel_;
+  runtime_->waitForStream(defaultStream_);
 }
 
 BenchmarkerImp::Results BenchmarkerImp::run(Options options) {

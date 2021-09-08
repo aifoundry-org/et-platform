@@ -78,12 +78,14 @@ std::vector<DeviceId> RuntimeImp::getDevices() {
   return devices_;
 }
 
-KernelId RuntimeImp::loadCode(DeviceId device, const std::byte* data, size_t size) {
-  ScopedProfileEvent profileEvent(Class::LoadCode, profiler_, device);
+LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size_t size) {
+  ScopedProfileEvent profileEvent(Class::LoadCode, profiler_, stream);
   std::unique_lock lock(mutex_);
 
+  auto stInfo = streamManager_.getStreamInfo(stream);
+
   // allocate a buffer in the device to load the code
-  auto deviceBuffer = mallocDevice(device, size, kCacheLineSize);
+  auto deviceBuffer = mallocDevice(DeviceId{stInfo.device_}, size, kCacheLineSize);
 
   auto memStream = std::istringstream(std::string(reinterpret_cast<const char*>(data), size), std::ios::binary);
   ELFIO::elfio elf;
@@ -97,7 +99,8 @@ KernelId RuntimeImp::loadCode(DeviceId device, const std::byte* data, size_t siz
   bool basePhysicalAddressCalculated = false;
   auto entry = elf.get_entry();
 
-  auto sstream = createStream(device);
+  std::vector<EventId> events;
+
   for (auto&& segment : elf.segments) {
     if (segment->get_type() & PT_LOAD) {
       auto offset = segment->get_offset();
@@ -111,14 +114,15 @@ KernelId RuntimeImp::loadCode(DeviceId device, const std::byte* data, size_t siz
       RT_VLOG(LOW) << "Found segment: " << segment->get_index() << std::hex << " Offset: 0x" << offset
                    << " Physical Address: 0x" << loadAddress << " Mem Size: 0x" << memSize << " Copying to address: 0x"
                    << addr << " Entry: 0x" << entry << "\n";
-      memcpyHostToDevice(sstream, data + offset, reinterpret_cast<std::byte*>(addr), memSize, false);
+      events.emplace_back(
+        memcpyHostToDevice(stream, data + offset, reinterpret_cast<std::byte*>(addr), memSize, false));
     }
   }
   if (!basePhysicalAddressCalculated) {
     throw Exception("Error calculating kernel entrypoint");
   }
 
-  auto kernel = std::make_unique<Kernel>(device, deviceBuffer, entry - basePhysicalAddress);
+  auto kernel = std::make_unique<Kernel>(DeviceId{stInfo.device_}, deviceBuffer, entry - basePhysicalAddress);
 
   // store the ref
   auto kernelId = static_cast<KernelId>(nextKernelId_++);
@@ -127,10 +131,24 @@ KernelId RuntimeImp::loadCode(DeviceId device, const std::byte* data, size_t siz
     throw Exception("Can't create kernel");
   }
   kernels_.emplace(kernelId, std::move(kernel));
+
+  // fill the struct results
+  LoadCodeResult loadCodeResult;
+  loadCodeResult.loadAddress_ = deviceBuffer;
+  loadCodeResult.kernel_ = kernelId;
+  if (events.size() == 1) {
+    loadCodeResult.event_ = events.back();
+  } else {
+    loadCodeResult.event_ = eventManager_.getNextId();
+    blockableThreadPool_.pushTask([this, evt = loadCodeResult.event_, eventsToWait = std::move(events)] {
+      for (auto e : eventsToWait) {
+        waitForEvent(e);
+      }
+      eventManager_.dispatch(evt);
+    });
+  }
   lock.unlock();
-  waitForStream(sstream);
-  destroyStream(sstream);
-  return kernelId;
+  return loadCodeResult;
 }
 
 void RuntimeImp::unloadCode(KernelId kernel) {

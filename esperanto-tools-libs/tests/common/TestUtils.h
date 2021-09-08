@@ -47,7 +47,7 @@ public:
     auto kernelContent = readFile(std::string{KERNELS_DIR} + "/" + kernel_name);
     EXPECT_FALSE(kernelContent.empty());
     EXPECT_TRUE(devices_.size() > deviceIdx);
-    return runtime_->loadCode(devices_[deviceIdx], kernelContent.data(), kernelContent.size());
+    return runtime_->loadCode(defaultStream_, kernelContent.data(), kernelContent.size()).kernel_;
   }
   void TearDown() override {
     runtime_->destroyStream(defaultStream_);

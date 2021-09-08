@@ -8,6 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
+#include <cstddef>
 #include <functional>
 #include <hostUtils/debug/StackException.h>
 #include <memory>
@@ -110,6 +111,12 @@ using StreamErrorCallback = std::function<void(EventId, const StreamError&)>;
 constexpr auto kCacheLineSize = 64U; // TODO This should not be here, it should be
                                      // in a header with project-wide constants
 
+/// \brief This struct will contain the results of calling a loadCode function
+struct LoadCodeResult {
+  EventId event_;          /// < event to wait for the loadCode is complete
+  KernelId kernel_;        /// < kernelId associated to the loadCode, to be used in later kernelLaunch(es)
+  std::byte* loadAddress_; /// < this is the device physical address where the kernel was loaded (decided by runtime)
+};
 } // namespace rt
 
 namespace std {

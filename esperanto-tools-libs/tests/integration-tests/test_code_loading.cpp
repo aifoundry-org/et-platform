@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "RuntimeImp.h"
+#include "TestUtils.h"
 #include "Utils.h"
 #include "common/Constants.h"
 #include "device-layer/IDeviceLayer.h"
@@ -24,79 +25,63 @@
 namespace fs = std::experimental::filesystem;
 
 namespace {
-constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
-constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
 
 class TestCodeLoading : public ::testing::Test {
 public:
   void SetUp() override {
-    emu::SysEmuOptions sysEmuOptions;
-    sysEmuOptions.bootromTrampolineToBL2ElfPath = BOOTROM_TRAMPOLINE_TO_BL2_ELF;
-    sysEmuOptions.spBL2ElfPath = BL2_ELF;
-    sysEmuOptions.machineMinionElfPath = MACHINE_MINION_ELF;
-    sysEmuOptions.masterMinionElfPath = MASTER_MINION_ELF;
-    sysEmuOptions.workerMinionElfPath = WORKER_MINION_ELF;
-    sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
-    sysEmuOptions.runDir = std::experimental::filesystem::current_path();
-    sysEmuOptions.maxCycles = kSysEmuMaxCycles;
-    sysEmuOptions.minionShiresMask = kSysEmuMinionShiresMask;
-    sysEmuOptions.puUart0Path = sysEmuOptions.runDir + "/pu_uart0_tx.log";
-    sysEmuOptions.puUart1Path = sysEmuOptions.runDir + "/pu_uart1_tx.log";
-    sysEmuOptions.spUart0Path = sysEmuOptions.runDir + "/spio_uart0_tx.log";
-    sysEmuOptions.spUart1Path = sysEmuOptions.runDir + "/spio_uart1_tx.log";
-    sysEmuOptions.startGdb = false;
-
-    deviceLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
+    deviceLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
     runtime_ = rt::IRuntime::create(deviceLayer_.get());
     devices_ = runtime_->getDevices();
+    stream_ = runtime_->createStream(devices_[0]);
     ASSERT_GE(devices_.size(), 1);
     auto elf_file = std::ifstream((fs::path(KERNELS_DIR) / fs::path("add_vector.elf")).string(), std::ios::in | std::ios::binary);
     ASSERT_TRUE(elf_file.is_open());
     elf_file.seekg(0, std::ios::end);
     auto size = elf_file.tellg();
     ASSERT_GT(size, 0);
-    convolutionContent_.resize(static_cast<unsigned long>(size));
+    addVectorContent_.resize(static_cast<unsigned long>(size));
     elf_file.seekg(0);
-    elf_file.read(reinterpret_cast<char*>(convolutionContent_.data()), size);
+    elf_file.read(reinterpret_cast<char*>(addVectorContent_.data()), size);
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
     imp->setMemoryManagerDebugMode(devices_[0], true);
   }
 
   void TearDown() override {
+    runtime_->waitForStream(stream_);
+    runtime_->destroyStream(stream_);
     runtime_.reset();
   }
 
   std::unique_ptr<dev::IDeviceLayer> deviceLayer_;
   rt::RuntimePtr runtime_;
-  std::vector<std::byte> convolutionContent_;
   std::vector<rt::DeviceId> devices_;
+  std::vector<std::byte> addVectorContent_;
+  rt::StreamId stream_;
 };
 
 // Load and removal of a single kernel.
 TEST_F(TestCodeLoading, LoadKernel) {
 
-  rt::KernelId kernel{0};
-  EXPECT_NO_THROW(kernel =
-                    runtime_->loadCode(devices_.front(), convolutionContent_.data(), convolutionContent_.size()));
-  EXPECT_NO_THROW(runtime_->unloadCode(kernel));
+  rt::LoadCodeResult loadCodeResult = runtime_->loadCode(stream_, addVectorContent_.data(), addVectorContent_.size());
+  EXPECT_NO_THROW(runtime_->unloadCode(loadCodeResult.kernel_));
   // if we unload again the same kernel we should expect to throw an exception
-  EXPECT_THROW(runtime_->unloadCode(kernel), rt::Exception);
+  EXPECT_THROW(runtime_->unloadCode(loadCodeResult.kernel_), rt::Exception);
 }
 
 TEST_F(TestCodeLoading, MultipleLoads) {
-  std::vector<rt::KernelId> kernels;
+  std::vector<rt::LoadCodeResult> loadCodeResults;
 
   RT_LOG(INFO) << "Loading 100 kernels";
   for (int i = 0; i < 100; ++i) {
-    EXPECT_NO_THROW(kernels.emplace_back(
-      runtime_->loadCode(devices_.front(), convolutionContent_.data(), convolutionContent_.size())));
+    EXPECT_NO_THROW(
+      loadCodeResults.emplace_back(runtime_->loadCode(stream_, addVectorContent_.data(), addVectorContent_.size())));
   }
-  for (auto it = begin(kernels) + 1; it != end(kernels); ++it) {
-    EXPECT_LT(static_cast<uint32_t>(*(it - 1)), static_cast<uint32_t>(*it));
+  for (auto it = begin(loadCodeResults) + 1; it != end(loadCodeResults); ++it) {
+    EXPECT_LT(static_cast<uint32_t>((it - 1)->kernel_), static_cast<uint32_t>(it->kernel_));
   }
   RT_LOG(INFO) << "Unloading 100 kernels";
-  for (auto kernel : kernels) {
-    EXPECT_NO_THROW(runtime_->unloadCode(kernel));
+  for (auto lcr : loadCodeResults) {
+    EXPECT_NO_THROW(runtime_->unloadCode(lcr.kernel_));
   }
 }
 

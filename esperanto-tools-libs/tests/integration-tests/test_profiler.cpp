@@ -10,12 +10,13 @@
 
 #include "common/Constants.h"
 
+#include "RuntimeImp.h"
+#include "TestUtils.h"
 #include "runtime/IProfileEvent.h"
 #include "runtime/IProfiler.h"
 #include "runtime/IRuntime.h"
-#include "RuntimeImp.h"
-#include <hostUtils/logging/Logging.h>
 #include <device-layer/IDeviceLayer.h>
+#include <hostUtils/logging/Logging.h>
 
 #include <cereal/archives/binary.hpp>
 #include <cereal/archives/json.hpp>
@@ -50,23 +51,7 @@ TEST(Profiler, add_2_vectors_profiling) {
   std::vector<std::byte> kernelContent(static_cast<unsigned long>(size));
   kernel_file.read(reinterpret_cast<char*>(kernelContent.data()), size);
 
-  emu::SysEmuOptions sysEmuOptions;
-  sysEmuOptions.bootromTrampolineToBL2ElfPath = BOOTROM_TRAMPOLINE_TO_BL2_ELF;
-  sysEmuOptions.spBL2ElfPath = BL2_ELF;
-  sysEmuOptions.machineMinionElfPath = MACHINE_MINION_ELF;
-  sysEmuOptions.masterMinionElfPath = MASTER_MINION_ELF;
-  sysEmuOptions.workerMinionElfPath = WORKER_MINION_ELF;
-  sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
-  sysEmuOptions.runDir = std::experimental::filesystem::current_path();
-  sysEmuOptions.maxCycles = kSysEmuMaxCycles;
-  sysEmuOptions.minionShiresMask = kSysEmuMinionShiresMask;
-  sysEmuOptions.puUart0Path = sysEmuOptions.runDir + "/pu_uart0_tx.log";
-  sysEmuOptions.puUart1Path = sysEmuOptions.runDir + "/pu_uart1_tx.log";
-  sysEmuOptions.spUart0Path = sysEmuOptions.runDir + "/spio_uart0_tx.log";
-  sysEmuOptions.spUart1Path = sysEmuOptions.runDir + "/spio_uart1_tx.log";
-  sysEmuOptions.startGdb = false;
-
-  auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
+  auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
   auto runtime = rt::IRuntime::create(deviceLayer.get());
   
 
@@ -80,8 +65,6 @@ TEST(Profiler, add_2_vectors_profiling) {
   auto imp = static_cast<rt::RuntimeImp*>(runtime.get());
   imp->setMemoryManagerDebugMode(dev, true);
 
-  auto kernelId = runtime->loadCode(dev, kernelContent.data(), kernelContent.size());
-  
   std::mt19937 gen(std::random_device{}());
   std::uniform_int_distribution dis;
 
@@ -98,6 +81,7 @@ TEST(Profiler, add_2_vectors_profiling) {
   auto bufResult = runtime->mallocDevice(devices[0], bufferSize);
 
   auto stream = runtime->createStream(dev);
+  auto kernelId = runtime->loadCode(stream, kernelContent.data(), kernelContent.size()).kernel_;
   runtime->memcpyHostToDevice(stream, reinterpret_cast<std::byte*>(vA.data()), bufA, bufferSize);
   runtime->memcpyHostToDevice(stream, reinterpret_cast<std::byte*>(vB.data()), bufB, bufferSize);
 

@@ -49,23 +49,6 @@ public:
   ///
   virtual std::vector<DeviceId> getDevices() = 0;
 
-  /// \brief Loads an elf into the device. The caller will provide a byte code
-  /// containing the elf representation and its size. Host memory.
-  ///
-  /// @param[in] device handler indicating which device to upload the elf
-  /// @param[in] elf a pointer to host memory containing the elf bytes
-  /// @param[in] elf_size the elf size
-  ///
-  /// @returns a kernel handler which will identify the uploaded code
-  ///
-  virtual KernelId loadCode(DeviceId device, const std::byte* elf, size_t elf_size) = 0;
-  /// \brief Unloads a previously loaded elf code, identified by the kernel
-  /// handler
-  ///
-  /// @param[in] kernel a handler to the code that must be unloaded
-  ///
-  virtual void unloadCode(KernelId kernel) = 0;
-
   /// \brief Allocates memory in the device, returns a device memory pointer.
   /// One can't use this pointer directly from the host, this pointer is
   /// intended to be used for memory operations between the host and the device.
@@ -107,6 +90,25 @@ public:
   ///
   ///
   virtual void destroyStream(StreamId stream) = 0;
+
+  /// \brief Loads an elf into the device. The caller will provide a byte code
+  /// containing the elf representation and its size. Host memory.
+  /// @param[in] stream handler indicating the stream used for the kernel loading.
+  /// @param[in] elf a pointer to host memory containing the elf bytes
+  /// @param[in] elf_size the elf size
+  ///
+  /// @returns a \ref LoadCodeResult with the EventId to sync with (if needed), the kernelId to utilize in later
+  /// kernelLaunch and the kernel load address.
+  ///
+
+  virtual LoadCodeResult loadCode(StreamId stream, const std::byte* elf, size_t elf_size) = 0;
+
+  /// \brief Unloads a previously loaded elf code, identified by the kernel
+  /// handler
+  ///
+  /// @param[in] kernel a handler to the code that must be unloaded
+  ///
+  virtual void unloadCode(KernelId kernel) = 0;
 
   /// \brief Queues a execution work into a stream. The work is identified by
   /// the kernel handler, which has been previously loaded into the device which

@@ -29,6 +29,7 @@ private:
   std::byte* dD2HBuffer_ = nullptr;
   DeviceId device_;
   RuntimePtr runtime_;
+  StreamId defaultStream_;
   KernelId jumpLoop_;
 };
 } // namespace rt

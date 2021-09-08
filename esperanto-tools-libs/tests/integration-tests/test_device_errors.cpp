@@ -55,9 +55,7 @@ TEST_F(DeviceErrors, KernelLaunchException) {
   EXPECT_EQ(errors.size(), 1UL);
   RT_LOG(logging::VLOG_HIGH) << "";
   bool callbackExecuted = false;
-  runtime_->setOnStreamErrorsCallback([&callbackExecuted](auto, const rt::StreamError&) {
-    callbackExecuted = true;
-  });
+  runtime_->setOnStreamErrorsCallback([&callbackExecuted](auto, const rt::StreamError&) { callbackExecuted = true; });
   runtime_->kernelLaunch(defaultStream_, exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0xFFFFFFFFUL);
   runtime_->waitForStream(defaultStream_);
   RT_LOG(INFO) << "This is expected, part of the test. Stream error message: \n" << errors[0].getString();
