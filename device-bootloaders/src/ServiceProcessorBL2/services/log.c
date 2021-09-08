@@ -34,7 +34,7 @@
 #include "dm_event_def.h"
 #include "config/mgmt_build_config.h"
 
-static void update_runtime_error_count(void);
+static void generate_runtime_error_event(uint32_t error_count);
 
 /*
  * Log control block for current logging information.
@@ -61,6 +61,7 @@ static log_cb_t Log_CB __attribute__((aligned(64))) = { .current_log_level = LOG
 
 static SemaphoreHandle_t Log_Mutex = NULL;
 static StaticSemaphore_t Log_Mutex_Buffer;
+static uint32_t RT_Error_Count = 0;
 
 /*! \def CHECK_STRING_FILTER
     \brief This checks if trace string log level is enabled to log the given level.
@@ -96,6 +97,9 @@ void Log_Init(log_level_t level)
         Log_Write(LOG_LEVEL_ERROR, "Log Mutex creation failed!\n");
         return;
     }
+
+    /* Reset the error count */
+    RT_Error_Count = 0;
 
     /* Initialize the log level */
     Log_Set_Level(level);
@@ -259,12 +263,8 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
 {
     int32_t bytes_written = 0;
+    uint32_t error_count = 0;
     (void)length;
-
-    if (Log_Mutex && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
-    {
-        xSemaphoreTake(Log_Mutex, portMAX_DELAY);
-    }
 
     /* Dump the log message over current log interface. */
     if (Log_CB.current_log_interface == LOG_DUMP_TO_TRACE)
@@ -274,24 +274,61 @@ int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
         /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
            type message. */
         bytes_written = TRACE_STRING_MAX_SIZE;
+
+        /* Check if severity of message is error or above */
+        if (level == LOG_LEVEL_ERROR)
+        {
+            /* Acquire the Mutex */
+            if (Log_Mutex && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+            {
+                xSemaphoreTake(Log_Mutex, portMAX_DELAY);
+            }
+
+            /* Increment the error count */
+            error_count = ++RT_Error_Count;
+
+            /* Release the Mutex */
+            if (Log_Mutex && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+            {
+                xSemaphoreGive(Log_Mutex);
+            }
+        }
     }
     else
     {
-        if (level <= Log_CB.current_log_level)
+        /* Verify the logging level */
+        if (level > Log_CB.current_log_level)
         {
-            bytes_written = printf("%s", str);
+            return 0;
+        }
+
+        /* Acquire the Mutex */
+        if (Log_Mutex && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+        {
+            xSemaphoreTake(Log_Mutex, portMAX_DELAY);
+        }
+
+        /* Write the data to console */
+        bytes_written = printf("%s", str);
+
+        /* Check if severity of message is error or above */
+        if (level == LOG_LEVEL_ERROR)
+        {
+            /* Increment the error count */
+            error_count = ++RT_Error_Count;
+        }
+
+        /* Release the Mutex */
+        if (Log_Mutex && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+        {
+            xSemaphoreGive(Log_Mutex);
         }
     }
 
-    /* Check if severity of message is error or above */
-    if (level == LOG_LEVEL_ERROR)
+    /* Check if the error_count was updated. */
+    if (error_count)
     {
-        update_runtime_error_count();
-    }
-
-    if (Log_Mutex && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
-    {
-        xSemaphoreGive(Log_Mutex);
+        generate_runtime_error_event(error_count);
     }
 
     return bytes_written;
@@ -301,28 +338,24 @@ int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
 *
 *   FUNCTION
 *
-*       update_runtime_error_count
+*       generate_runtime_error_event
 *
 *   DESCRIPTION
 *
-*       This function updates runtime error count and send an event to host when the
-*       errors count exceeds the predefined threshold.
+*       This function sends an event to host when the runtime errors count
+*       exceeds the predefined threshold.
 *
 *   INPUTS
 *
-*       none
+*       error_count    Count for the number of errors
 *
 *   OUTPUTS
 *
 *       none
 *
 ***********************************************************************/
-static void update_runtime_error_count(void)
+static void generate_runtime_error_event(uint32_t error_count)
 {
-    static uint32_t rt_error_count = 0;
-    uint32_t error_count;
-    error_count = ++rt_error_count;
-
     /* Check if the error threshold has reached */
     if (error_count > RT_ERROR_THRESHOLD)
     {
@@ -339,7 +372,7 @@ static void update_runtime_error_count(void)
         /* Send the event message to the host */
         if (0 != SP_Host_Iface_CQ_Push_Cmd((void *)&message, sizeof(message)))
         {
-            Log_Write(LOG_LEVEL_WARNING, "update_runtime_error_count :  push to CQ failed!\n");
+            Log_Write(LOG_LEVEL_WARNING, "generate_runtime_error_event :  push to CQ failed!\n");
         }
     }
 }

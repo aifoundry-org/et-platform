@@ -10,29 +10,73 @@
 *
 ************************************************************************/
 /*! \file trace.c
-    \brief A C module that implements the Trace services
+    \brief A C module that implements the SP Trace services. This file
+    also provides the required primitives for trace Encoder.
 
     Public interfaces:
         Trace_Init_SP
         Trace_Get_SP_CB
+        Trace_Get_SP_Buffer
+        Trace_Run_Control
+        Trace_Configure
+        Trace_Process_CMD
 
 */
 /***********************************************************************/
 
-#include "log.h"
-#include <string.h>
 #include "config/mgmt_build_config.h"
-
-#include "trace.h"
 #include "bl2_scratch_buffer.h"
+#include "bl2_timer.h"
+#include "FreeRTOS.h"
+#include "portmacro.h"
+#include "semphr.h"
+#include "task.h"
+#include <string.h>
+
+/* Encoder function prototypes */
+static inline void et_trace_buffer_lock_acquire(void);
+static inline void et_trace_buffer_lock_release(void);
+
+/* Master Minion trace buffer locks */
+#define ET_TRACE_BUFFER_LOCK_ACQUIRE      et_trace_buffer_lock_acquire();
+#define ET_TRACE_BUFFER_LOCK_RELEASE      et_trace_buffer_lock_release();
+
+#define ET_TRACE_GET_TIMESTAMP()          timer_get_ticks_count()
+
+/* Define for Encoder */
+#define ET_TRACE_ENCODER_IMPL
+#include "trace.h"
 
 /*
  * Service Processor Trace control block.
  */
 struct trace_control_block_t SP_Trace_CB;
 
+/* Trace buffer lock */
+static SemaphoreHandle_t Trace_Mutex_Handle = NULL;
+static StaticSemaphore_t Trace_Mutex_Buffer;
+
 static void Trace_Run_Control(trace_enable_e state);
 static void Trace_Configure(uint32_t event_mask, uint32_t filter_mask);
+
+/* Trace buffer locking routines */
+static inline void et_trace_buffer_lock_acquire(void)
+{
+    /* Acquire the Mutex */
+    if (Trace_Mutex_Handle && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+    {
+        xSemaphoreTake(Trace_Mutex_Handle, portMAX_DELAY);
+    }
+}
+
+static inline void et_trace_buffer_lock_release(void)
+{
+    /* Release the Mutex */
+    if (Trace_Mutex_Handle && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+    {
+        xSemaphoreGive(Trace_Mutex_Handle);
+    }
+}
 
 void Trace_Process_Control_Cmd(void *buffer)
 {
@@ -122,6 +166,7 @@ static void send_trace_config_response(tag_id_t tag_id, msg_id_t msg_id, uint64_
         Log_Write(LOG_LEVEL_ERROR, "send_trace_config_response: Cqueue push error!\n");
     }
 }
+
 /************************************************************************
 *
 *   FUNCTION
@@ -144,6 +189,15 @@ static void send_trace_config_response(tag_id_t tag_id, msg_id_t msg_id, uint64_
 void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
 {
     struct trace_init_info_t sp_init_info_l;
+
+    /* Init the trace buffer lock to released state */
+    Trace_Mutex_Handle = xSemaphoreCreateMutexStatic(&Trace_Mutex_Buffer);
+
+    if (!Trace_Mutex_Handle)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Trace buffer Mutex creation failed!\n");
+        return;
+    }
 
     /* If init information is NULL then do default initialization. */
     if (sp_init_info == NULL)
