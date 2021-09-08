@@ -156,7 +156,7 @@ void dcache_evict_flush_vaddr(Hart& cpu, bool evict, uint64_t value)
                 LOG_HART(DEBUG, cpu, "\tDoing %s: 0x%016" PRIx64 " (0x%016" PRIx64 "), DestLevel: %d",
                          evict ? "EvictVA" : "FlushVA", vaddr, paddr, dest);
             }
-            catch (const Exception& t) {
+            catch (const Exception&) {
                 LOG_HART(DEBUG, cpu, "\t%s: 0x%016" PRIx64 ", DestLevel: %d generated exception (suppressed)",
                          evict ? "EvictVA" : "FlushVA", vaddr, dest);
                 update_tensor_error(cpu, 1 << 7);
@@ -306,7 +306,7 @@ void dcache_lock_vaddr(Hart& cpu, uint64_t value)
                 LOG_MEMWRITE512(paddr, tmp.u32);
                 LOG_HART(DEBUG, cpu, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
             }
-            catch (const Exception& t) {
+            catch (const Exception&) {
                 // Stop the operation if there is an exception
                 LOG_HART(DEBUG, cpu, "\tLockVA 0x%016" PRIx64 " generated exception (suppressed)", vaddr);
                 update_tensor_error(cpu, 1 << 7);
@@ -340,7 +340,7 @@ void dcache_unlock_vaddr(Hart& cpu, uint64_t value)
                 uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, CacheOp_Unlock);
                 LOG_HART(DEBUG, cpu, "\tDoing UnlockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
             }
-            catch (const Exception& t) {
+            catch (const Exception&) {
                 // Stop the operation if there is an exception
                 LOG_HART(DEBUG, cpu, "\tUnlockVA: 0x%016" PRIx64 " generated exception (suppressed)", vaddr);
                 update_tensor_error(cpu, 1 << 7);

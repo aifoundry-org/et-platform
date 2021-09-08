@@ -81,7 +81,7 @@ struct Efuse : public MemoryRegion {
 
     void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
-protected:
+private:
     std::array<uint32_t, EFUSE_SIZE_BYTES / sizeof(uint32_t)> storage{};
 };
 

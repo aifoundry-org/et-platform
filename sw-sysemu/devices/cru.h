@@ -31,32 +31,18 @@ struct Cru : public MemoryRegion {
     };
 
     void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
-        uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
-
         LOG_AGENT(DEBUG, agent, "Cru::read(pos=0x%llx)", pos);
-
-        if (n != 4)
+        if (n != 4) {
             throw memory_error(first() + pos);
-
-        switch (pos) {
-        case RESET_MANAGER_RM_STATUS2_ADDRESS:
-            // Return: OTP (UDR) properly loaded
-            *result32 = 0;
-            break;
-        default:
-            *result32 = 0;
-            break;
         }
+        *reinterpret_cast<uint32_t*>(result) = 0;
     }
 
-    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
-        const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
-        (void) source32;
-
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer) override {
         LOG_AGENT(DEBUG, agent, "Cru::write(pos=0x%llx)", pos);
-
-        if (n != 4)
+        if (n != 4) {
             throw memory_error(first() + pos);
+        }
     }
 
     void init(const Agent&, size_type, size_type, const_pointer) override {
