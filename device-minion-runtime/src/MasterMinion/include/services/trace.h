@@ -17,6 +17,7 @@
 #define MM_TRACE_H
 
 #include <et-trace/encoder.h>
+#include "message_types.h"
 
 /**************************/
 /* MM Trace Status Codes  */
@@ -61,21 +62,12 @@ uint64_t Trace_Get_CM_Shire_Mask(void);
 */
 uint64_t Trace_Get_CM_Thread_Mask(void);
 
-/*! \fn void Trace_Set_CM_Shire_Mask(uint64_t shire_mask)
-    \brief This function sets shire mask of Compute Minions for which
-           Trace is enabled.
-    \param shire_mask CM Shire Mask.
-    \return None
+/*! \fn int8_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg)
+    \brief This function configures CM RT tracing
+    \param config_msg Pointer to CM config message info
+    \return Success or failure.
 */
-void Trace_Set_CM_Shire_Mask(uint64_t shire_mask);
-
-/*! \fn void Trace_Set_CM_Thread_Mask(uint64_t thread_mask)
-    \brief This function sets Thread mask of Compute Minions for which
-           Trace is enabled.
-    \param thread_mask CM Thread Mask.
-    \return None
-*/
-void Trace_Set_CM_Thread_Mask(uint64_t thread_mask);
+int8_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg);
 
 /*! \fn void Trace_RT_Control_MM(uint32_t control)
     \brief This function updates control of MM Trace runtime.

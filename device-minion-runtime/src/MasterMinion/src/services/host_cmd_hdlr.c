@@ -1411,17 +1411,11 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
                 cm_msg.event_mask = cmd->event_mask;
                 cm_msg.threshold = cmd->threshold;
 
-                status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t*)&cm_msg);
+                status = Trace_Configure_CM_RT(&cm_msg);
             }
             else
             {
                 status = INVALID_CM_SHIRE_MASK;
-            }
-
-            if(status == STATUS_SUCCESS)
-            {
-                Trace_Set_CM_Shire_Mask(cmd->shire_mask & CM_SHIRE_MASK);
-                Trace_Set_CM_Thread_Mask(cmd->thread_mask);
             }
         }
     }

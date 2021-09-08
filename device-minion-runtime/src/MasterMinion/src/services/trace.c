@@ -15,23 +15,34 @@
     Public interfaces:
         Trace_Init_MM
         Trace_Get_MM_CB
+        Trace_Get_CM_Shire_Mask
+        Trace_Get_CM_Thread_Mask
+        Trace_Configure_CM_RT
+        Trace_RT_Control_MM
+        Trace_Evict_Buffer_MM
+        Trace_Set_Enable_MM
 
 */
 /***********************************************************************/
 
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
 #include <esperanto/device-apis/device_apis_trace_types.h>
+#include "config/mm_config.h"
 #include "device-common/atomic.h"
 #include "device-common/cacheops.h"
 #include "device-common/hart.h"
 #include "device-common/hpm_counter.h"
-#include "layout.h"
-#include "config/mm_config.h"
+#include "services/cm_iface.h"
 #include "services/log.h"
 #include "common_trace_defs.h"
 #include "etsoc_memory.h"
+#include "layout.h"
+#include "sync.h"
 
+/* Encoder function prototypes */
 static inline void et_trace_write_float(void *addr, float value);
+static inline void et_trace_buffer_lock_acquire(void);
+static inline void et_trace_buffer_lock_release(void);
 
 #define ET_TRACE_GET_HPM_COUNTER(id)      hpm_read_counter(id)
 #define ET_TRACE_GET_TIMESTAMP()          hpm_read_counter3()
@@ -48,6 +59,10 @@ static inline void et_trace_write_float(void *addr, float value);
 #define ET_TRACE_WRITE_U64(addr, value)   atomic_store_local_64(&addr, value)
 #define ET_TRACE_WRITE_FLOAT(loc, value)  et_trace_write_float(&(loc), (value))
 #define ET_TRACE_MEM_CPY(dest, src, size) ETSOC_Memory_Write_Local_Atomic(src, dest, size)
+
+/* Master Minion trace buffer locks */
+#define ET_TRACE_BUFFER_LOCK_ACQUIRE      et_trace_buffer_lock_acquire();
+#define ET_TRACE_BUFFER_LOCK_RELEASE      et_trace_buffer_lock_release();
 
 #define ET_TRACE_ENCODER_IMPL
 #include "services/trace.h"
@@ -81,12 +96,26 @@ typedef struct mm_trace_control_block {
     struct trace_control_block_t cb; /**!< Common Trace library control block. */
     uint64_t cm_shire_mask;          /**!< Compute Minion Shire mask to fetch Trace data from CM. */
     uint64_t cm_thread_mask;         /**!< Compute Minion Shire mask to fetch Trace data from CM. */
+    spinlock_t trace_buffer_lock;    /**!< Lock to serialize the trace buffer address reservation in encoder */
 } __attribute__((aligned(64))) mm_trace_control_block_t;
 
 /* A local Trace control block for all Master Minions. */
 static mm_trace_control_block_t MM_Trace_CB =
                 {.cb = {0}, .cm_shire_mask = CM_DEFAULT_TRACE_SHIRE_MASK,
                  .cm_thread_mask = CM_DEFAULT_TRACE_THREAD_MASK};
+
+/* Trace buffer locking routines */
+static inline void et_trace_buffer_lock_acquire(void)
+{
+    /* Acquire the lock */
+    acquire_local_spinlock(&MM_Trace_CB.trace_buffer_lock);
+}
+
+static inline void et_trace_buffer_lock_release(void)
+{
+    /* Acquire the lock */
+    release_local_spinlock(&MM_Trace_CB.trace_buffer_lock);
+}
 
 /************************************************************************
 *
@@ -145,6 +174,9 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
 
     if(internal_status == STATUS_SUCCESS)
     {
+        /* Initialize the spinlock */
+        init_local_spinlock(&MM_Trace_CB.trace_buffer_lock, 0);
+
         /* Common buffer for all MM Harts. */
         MM_Trace_CB.cb.size_per_hart = MM_TRACE_BUFFER_SIZE;
         MM_Trace_CB.cb.base_per_hart = MM_TRACE_BUFFER_BASE;
@@ -245,50 +277,38 @@ uint64_t Trace_Get_CM_Thread_Mask(void)
 *
 *   FUNCTION
 *
-*       Trace_Set_CM_Shire_Mask
+*       Trace_Configure_CM_RT
 *
 *   DESCRIPTION
 *
-*       This function sets shire mask of Compute Minions for which
-*       Trace is enabled.
+*       This function configures the CM runtime tracing by sending a MM to
+*       CM message.
 *
 *   INPUTS
 *
-*       uint64_t    CM Shire Mask.
+*       config_msg    Pointer to CM config message info
 *
 *   OUTPUTS
 *
-*       None
+*       int8_t        status success or error
 *
 ***********************************************************************/
-void Trace_Set_CM_Shire_Mask(uint64_t shire_mask)
+int8_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg)
 {
-    atomic_store_local_64(&MM_Trace_CB.cm_shire_mask, shire_mask);
-}
+    int8_t status;
+    uint64_t cm_shire_mask = config_msg->shire_mask & CM_SHIRE_MASK;
 
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Trace_Set_CM_Thread_Mask
-*
-*   DESCRIPTION
-*
-*       This function sets thread mask of Compute Minions for which
-*       Trace is enabled.
-*
-*   INPUTS
-*
-*       uint64_t    CM Thread Mask.
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-void Trace_Set_CM_Thread_Mask(uint64_t thread_mask)
-{
-    atomic_store_local_64(&MM_Trace_CB.cm_thread_mask, thread_mask);
+    /* Transmit the message to Compute Minions */
+    status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t*)config_msg);
+
+    /* Save the configured values in MM CB */
+    if(status == STATUS_SUCCESS)
+    {
+        atomic_store_local_64(&MM_Trace_CB.cm_shire_mask, cm_shire_mask);
+        atomic_store_local_64(&MM_Trace_CB.cm_thread_mask, config_msg->thread_mask);
+    }
+
+    return status;
 }
 
 /************************************************************************
