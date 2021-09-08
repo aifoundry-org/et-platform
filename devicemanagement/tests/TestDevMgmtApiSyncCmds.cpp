@@ -75,6 +75,7 @@ void TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, siz
   std::ofstream logFileBin;
   std::ofstream logFileText;
   std::stringstream logs;
+  bool fileExists = false;
 
   // return for loopback driver
   if (FLAGS_loopback_driver) {
@@ -82,14 +83,23 @@ void TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, siz
     return;
   }
 
+  fileExists = std::experimental::filesystem::exists(FLAGS_trace_logfile_bin);
+
   logFileBin.open(FLAGS_trace_logfile_bin, std::ios_base::app | std::ios_base::binary);
   if(!logFileBin.is_open()) {
     DM_LOG(ERROR) << "Cannot open bin trace file";
     return;
   }
 
-  /* Dump the trace buffer in bin format */
-  logFileBin.write((const char *)traceBuf, ((struct trace_buffer_std_header_t *)traceBuf)->data_size);
+  if(fileExists) {
+    /* Dump the trace buffer in bin format - no header */
+    logFileBin.write((const char *)traceBuf + sizeof(struct trace_buffer_std_header_t),
+                     ((struct trace_buffer_std_header_t *)traceBuf)->data_size - sizeof(struct trace_buffer_std_header_t) );
+  } else {
+    /* Dump the trace buffer in bin format including header */
+    logFileBin.write((const char *)traceBuf, ((struct trace_buffer_std_header_t *)traceBuf)->data_size);
+  }
+
   logFileBin.close();
 
   logFileText.open(FLAGS_trace_logfile_txt, std::ios_base::app);
