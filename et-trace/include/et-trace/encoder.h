@@ -104,6 +104,10 @@
  *     ET_TRACE_WRITE_U64(Location, Value)    Writes unsigned long int to <location>
  *     ET_TRACE_WRITE_FLOAT(Location, Value)  Writes FP <value> to variable <location>
  *
+ *     // Buffer locking (must be defined in pair)
+ *     ET_TRACE_BUFFER_LOCK_ACQUIRE       Acquires the lock for a shared trace buffer
+ *     ET_TRACE_BUFFER_LOCK_RELEASE       Releases the lock for a shared trace bufer
+ *
  *     // Hardware features
  *     ET_TRACE_GET_TIMESTAMP()           Returns current cycle time
  *     ET_TRACE_GET_HART_ID()             Returns ID of executing hart
@@ -315,6 +319,15 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
     }
 #endif
 
+#if defined(ET_TRACE_BUFFER_LOCK_ACQUIRE) && !defined(ET_TRACE_BUFFER_LOCK_RELEASE)
+#error "Trace buffer locks must be defined in pair. ET_TRACE_BUFFER_LOCK_RELEASE not defined!"
+#elif !defined(ET_TRACE_BUFFER_LOCK_ACQUIRE) && defined(ET_TRACE_BUFFER_LOCK_RELEASE)
+#error "Trace buffer locks must be defined in pair. ET_TRACE_BUFFER_LOCK_ACQUIRE not defined!"
+#elif !defined(ET_TRACE_BUFFER_LOCK_ACQUIRE) && !defined(ET_TRACE_BUFFER_LOCK_RELEASE)
+#define ET_TRACE_BUFFER_LOCK_ACQUIRE /* Do nothing */
+#define ET_TRACE_BUFFER_LOCK_RELEASE /* Do nothing */
+#endif
+
 /* Check if Trace is enabled for given control block. */
 inline static bool trace_is_enabled(const struct trace_control_block_t *cb)
 {
@@ -344,6 +357,7 @@ inline static bool trace_is_str_enabled(const struct trace_control_block_t *cb,
 *
 *       trace_control_block_t   Trace control block.
 *       uint64_t                Size of buffer to be reserved.
+*       uint32_t                Value of current offset of trace.
 *
 *   OUTPUTS
 *
@@ -351,9 +365,10 @@ inline static bool trace_is_str_enabled(const struct trace_control_block_t *cb,
 *                               False: Buffer is not full yet.
 *
 ***********************************************************************/
-inline static bool trace_check_buffer_full(const struct trace_control_block_t *cb, uint64_t size)
+inline static bool trace_check_buffer_full(const struct trace_control_block_t *cb, uint64_t size,
+                                           uint32_t current_offset)
 {
-    if ((ET_TRACE_READ_U32(cb->offset_per_hart) + size) > ET_TRACE_READ_U32(cb->size_per_hart)) {
+    if ((current_offset + size) > ET_TRACE_READ_U32(cb->size_per_hart)) {
         return true;
     } else {
         return false;
@@ -374,7 +389,7 @@ inline static bool trace_check_buffer_full(const struct trace_control_block_t *c
 *
 *       trace_control_block_t   Trace control block.
 *       uint64_t                Size of buffer to be reserved.
-*       uint32_t                Pointer to return current offest in buffer.
+*       uint32_t                Value of current offset of trace.
 *                               NOTE: this offset does not include new
 *                               reserved buffer size.
 *
@@ -385,10 +400,9 @@ inline static bool trace_check_buffer_full(const struct trace_control_block_t *c
 *
 ***********************************************************************/
 inline static bool trace_check_buffer_threshold(const struct trace_control_block_t *cb,
-                                                uint64_t size, uint32_t *current_offset)
+                                                uint64_t size, uint32_t current_offset)
 {
-    *current_offset = ET_TRACE_READ_U32(cb->offset_per_hart);
-    if ((*current_offset + size) > ET_TRACE_READ_U32(cb->threshold)) {
+    if ((current_offset + size) > ET_TRACE_READ_U32(cb->threshold)) {
         return true;
     } else {
         return false;
@@ -420,10 +434,16 @@ inline static bool trace_check_buffer_threshold(const struct trace_control_block
 void *Trace_Buffer_Reserve(struct trace_control_block_t *cb, uint64_t size)
 {
     void *head;
-    uint32_t current_offset = 0;
+    uint32_t current_offset;
+
+    /* Acquire the lock */
+    ET_TRACE_BUFFER_LOCK_ACQUIRE
+
+    /* Read the current offset value of trace buffer */
+    current_offset = ET_TRACE_READ_U32(cb->offset_per_hart);
 
     /* Check if Trace buffer is filled upto threshold. */
-    if (trace_check_buffer_threshold(cb, size, &current_offset)) {
+    if (trace_check_buffer_threshold(cb, size, current_offset)) {
         /* Check if host needs to be notified about reaching buffer threshold limit.
            This notification is only needed once when it reaches threshold for the first time,
            so this checks if we just reached threshold by including current data size.
@@ -432,7 +452,7 @@ void *Trace_Buffer_Reserve(struct trace_control_block_t *cb, uint64_t size)
            syscall(SYSCALL_TRACE_BUFFER_THRESHOLD_HIT) */
 
         /* Check if Trace buffer is filled upto threshold. Then do reset the buffer. */
-        if (trace_check_buffer_full(cb, size)) {
+        if (trace_check_buffer_full(cb, size, current_offset)) {
             /* Reset buffer. */
             current_offset = (ET_TRACE_READ_U8(cb->header) == TRACE_STD_HEADER) ?
                                  sizeof(struct trace_buffer_std_header_t) :
@@ -442,6 +462,11 @@ void *Trace_Buffer_Reserve(struct trace_control_block_t *cb, uint64_t size)
 
     /* Update offset. */
     ET_TRACE_WRITE_U32(cb->offset_per_hart, (uint32_t)(current_offset + size));
+
+    /* Release the lock */
+    ET_TRACE_BUFFER_LOCK_RELEASE
+
+    /* Update the head pointer to write to */
     head = (void *)(ET_TRACE_READ_U64(cb->base_per_hart) + current_offset);
 
     return head;
