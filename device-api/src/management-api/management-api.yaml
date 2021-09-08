@@ -231,9 +231,9 @@ Modules:
         - Name: TRACE_DISABLE
           Value: 0
         - Name: TRACE_UART_ENABLE
-          Value: 3
+          Value: 2
         - Name: TRACE_UART_DISABLE
-          Value: 1
+          Value: 0
         - Name: RESET_TRACEBUF
           Value: 4
     - Name: trace_configure
