@@ -965,7 +965,6 @@ void tensor_quant_execute(Hart& cpu)
                     break;
                 default:
                     throw std::runtime_error("Illegal TensorQuant transform!");
-                    break;
                 }
 
                 // Notify the checker
