@@ -62,7 +62,7 @@ public:
   void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) override;
   void freeDmaBuffer(void* dmaBuffer) override;
   bool getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) override;
-  DeviceInfo getDeviceInfo(int device) override;
+  DeviceConfig getDeviceConfig(int device) override;
 
 private:
   struct QueueInfo {

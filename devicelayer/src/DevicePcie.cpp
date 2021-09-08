@@ -8,7 +8,6 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #include "DevicePcie.h"
-#include "DummyDeviceInfo.h"
 #include "Utils.h"
 #include <cassert>
 #include <cstring>
@@ -39,10 +38,10 @@ int countDeviceNodes(bool isMngmt) {
 unsigned long getCmaFreeMem() {
   std::string token;
   std::ifstream file("/proc/meminfo");
-  while(file >> token) {
-    if(token == "CmaFree:") {
+  while (file >> token) {
+    if (token == "CmaFree:") {
       unsigned long memInKB;
-      if(file >> memInKB) {
+      if (file >> memInKB) {
         // Return mem in bytes
         return memInKB * 1024;
       } else {
@@ -170,7 +169,7 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
 
   for (int i = 0; i < mngmtDevCount; ++i) {
     DevInfo deviceInfo;
-
+    std::stringstream logs;
     if (mngmtEnabled_) {
       char path[32];
       std::snprintf(path, sizeof(path), "/dev/et%d_mgmt", i);
@@ -185,8 +184,8 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
 
       deviceInfo.epFdMgmt_ = openAndConfigEpoll(deviceInfo.fdMgmt_);
 
-      DV_LOG(INFO) << "PCIe target mgmt opened: \"" << path << "\""
-                   << "\nSP VQ Maximum message size: " << deviceInfo.mmSqMaxMsgSize_ << std::endl;
+      logs << "\nPCIe target mgmt opened: \"" << path << "\""
+           << "\nSP VQ Maximum message size: " << deviceInfo.mmSqMaxMsgSize_ << std::endl;
     }
     if (opsEnabled_) {
       char path[32];
@@ -202,14 +201,34 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
 
       deviceInfo.epFdOps_ = openAndConfigEpoll(deviceInfo.fdOps_);
 
-      DV_LOG(INFO) << "PCIe target ops opened: \"" << path << "\""
-                   << "\nDRAM base: 0x" << std::hex << deviceInfo.userDram_.base << "\nDRAM size: 0x" << std::hex
-                   << deviceInfo.userDram_.size << "\nDRAM alignment: " << std::dec << deviceInfo.userDram_.align_in_bits
-                   << "bits"
-                   << "\nMM SQ count: " << deviceInfo.mmSqCount_
-                   << "\nMM VQ Maximum message size: " << deviceInfo.mmSqMaxMsgSize_ << std::endl;
+      logs << "\nPCIe target ops opened: \"" << path << "\""
+           << "\nDRAM base: 0x" << std::hex << deviceInfo.userDram_.base << "\nDRAM size: 0x" << std::hex
+           << deviceInfo.userDram_.size << "\nDRAM alignment: " << std::dec << deviceInfo.userDram_.align_in_bits
+           << "bits"
+           << "\nMM SQ count: " << deviceInfo.mmSqCount_
+           << "\nMM VQ Maximum message size: " << deviceInfo.mmSqMaxMsgSize_ << std::endl;
     }
+
+    dev_config cfg;
+    wrap_ioctl(mngmtEnabled_ ? deviceInfo.fdMgmt_ : deviceInfo.fdOps_, ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION, &cfg);
+    deviceInfo.cfg_ = DeviceConfig{cfg.form_factor == DEV_CONFIG_FORM_FACTOR_PCIE ? DeviceConfig::FormFactor::PCIE
+                                                                                  : DeviceConfig::FormFactor::M2,
+                                   cfg.tdp,
+                                   cfg.minion_boot_freq,
+                                   cfg.total_l3_size,
+                                   cfg.total_l2_size,
+                                   cfg.total_scp_size,
+                                   cfg.cache_line_size,
+                                   cfg.cm_shire_mask};
+
+    logs << "TDP: " << deviceInfo.cfg_.tdp_ << "W\nMinion boot frequency: " << deviceInfo.cfg_.minionBootFrequency_
+         << "MHz\nL3 size: " << deviceInfo.cfg_.totalL3Size_ << "MB\nL2 size: " << deviceInfo.cfg_.totalL2Size_
+         << "MB\nScratch pad size: " << deviceInfo.cfg_.totalScratchPadSize_
+         << "MB\nCache line size: " << deviceInfo.cfg_.cacheLineSize_ << "B\nCM active shire mask: 0x" << std::hex
+         << deviceInfo.cfg_.computeMinionShireMask_ << std::endl;
+
     devices_.emplace_back(deviceInfo);
+    DV_LOG(INFO) << logs.str();
   }
 }
 
@@ -463,8 +482,10 @@ void DevicePcie::freeDmaBuffer(void* dmaBuffer) {
   dmaBuffers_.erase(it);
 }
 
-DeviceInfo DevicePcie::getDeviceInfo(int device) {
-  unused(device);
-  return getDeviceInfoDummy();
+DeviceConfig DevicePcie::getDeviceConfig(int device) {
+  if (device >= static_cast<int>(devices_.size())) {
+    throw Exception("Invalid device");
+  }
+  return devices_[static_cast<uint32_t>(device)].cfg_;
 }
 } // namespace dev

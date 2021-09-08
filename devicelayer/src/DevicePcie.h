@@ -44,11 +44,12 @@ public:
   uint64_t getDramBaseAddress() const override;
   void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) override;
   void freeDmaBuffer(void* dmaBuffer) override;
-  DeviceInfo getDeviceInfo(int device) override;
+  DeviceConfig getDeviceConfig(int device) override;
 
 private:
   struct DevInfo {
     dram_info userDram_;
+    DeviceConfig cfg_;
     uint32_t spTraceRegionSize_;
     uint16_t mmSqCount_;
     uint16_t spSqMaxMsgSize_;

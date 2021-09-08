@@ -158,8 +158,8 @@ public:
   bool getTraceBufferServiceProcessor(int, std::vector<std::byte>&) override {
     return false;
   }
-  DeviceInfo getDeviceInfo(int) override {
-    return DeviceInfo{};
+  DeviceConfig getDeviceConfig(int) override {
+    return DeviceConfig{};
   }
 };
 

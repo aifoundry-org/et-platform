@@ -37,9 +37,9 @@
 /// @{
 namespace dev {
 
-/// \brief This struct contains hardware information
-struct DeviceInfo {
-  enum class FormFactor { PCIE };
+/// \brief This struct contains device configured information
+struct DeviceConfig {
+  enum class FormFactor { PCIE, M2 };
   FormFactor formFactor_;           ///< device form factor
   uint16_t tdp_;                    ///< TDP in Watts
   uint16_t minionBootFrequency_;    ///< minion boot frequency in Mhz
@@ -227,11 +227,11 @@ public:
   ///
   virtual void freeDmaBuffer(void* dmaBuffer) = 0;
 
-  /// \brief returns a \ref DeviceInfo struct containing device hardware details
+  /// \brief returns a \ref DeviceConfig struct containing device configured details
   ///
   /// @param[in] device the device which will be queried
   ///
-  virtual DeviceInfo getDeviceInfo(int device) = 0;
+  virtual DeviceConfig getDeviceConfig(int device) = 0;
 };
 
 class IDeviceLayer : public IDeviceAsync, public IDeviceSync {

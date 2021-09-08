@@ -8,7 +8,6 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #include "DeviceSysEmu.h"
-#include "DummyDeviceInfo.h"
 #include "SysEmuHostListener.h"
 #include "Utils.h"
 #include <boost/crc.hpp>
@@ -539,7 +538,14 @@ void DeviceSysEmu::freeDmaBuffer(void* dmaBuffer) {
   free(dmaBuffer);
 }
 
-DeviceInfo DeviceSysEmu::getDeviceInfo(int device) {
+DeviceConfig DeviceSysEmu::getDeviceConfig(int device) {
   unused(device);
-  return getDeviceInfoDummy();
+  return DeviceConfig{DeviceConfig::FormFactor::PCIE,
+                      25,
+                      650,
+                      32,
+                      16,
+                      80,
+                      64,
+                      static_cast<uint32_t>(spInfo_.generic_attr.minion_shires_mask)};
 }
