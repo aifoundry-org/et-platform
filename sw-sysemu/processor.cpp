@@ -24,10 +24,10 @@
 namespace bemu {
 
 // Instruction execution function
-typedef void (*insn_exec_funct_t)(Hart&);
+using insn_exec_funct_t = void (*)(Hart&);
 
 // Instruction decode function
-typedef insn_exec_funct_t (*insn_decode_func_t)(uint32_t, uint16_t&);
+using insn_decode_func_t = insn_exec_funct_t (*)(uint32_t, uint16_t&);
 
 
 // -----------------------------------------------------------------------------

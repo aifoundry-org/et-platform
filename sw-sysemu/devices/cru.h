@@ -21,10 +21,10 @@ namespace bemu {
 
 template<unsigned long long Base, unsigned long long N>
 struct Cru : public MemoryRegion {
-    typedef typename MemoryRegion::addr_type      addr_type;
-    typedef typename MemoryRegion::size_type      size_type;
-    typedef typename MemoryRegion::pointer        pointer;
-    typedef typename MemoryRegion::const_pointer  const_pointer;
+    using addr_type     = typename MemoryRegion::addr_type;
+    using size_type     = typename MemoryRegion::size_type;
+    using pointer       = typename MemoryRegion::pointer;
+    using const_pointer = typename MemoryRegion::const_pointer;
 
     enum : unsigned {
         RESET_MANAGER_RM_STATUS2_ADDRESS = 0x254u

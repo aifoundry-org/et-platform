@@ -32,7 +32,7 @@ namespace bemu {
 //
 // A bitmask with 1-bit per Minion of a shire
 //
-typedef std::bitset<EMU_MINIONS_PER_SHIRE>  Coop_minion_mask;
+using Coop_minion_mask  = std::bitset<EMU_MINIONS_PER_SHIRE>;
 
 
 //
@@ -48,7 +48,7 @@ struct Coop_tload_state {
 //
 // Cooperative tensor load tracking logic; indexed by [tenb][coopid]
 //
-typedef std::array<std::array<Coop_tload_state, 32>, 2> Coop_tload_table;
+using Coop_tload_table  = std::array<std::array<Coop_tload_state, 32>, 2>;
 
 
 //==------------------------------------------------------------------------==//
@@ -60,8 +60,8 @@ typedef std::array<std::array<Coop_tload_state, 32>, 2> Coop_tload_table;
 class System {
 public:
     // ----- Types -----
-    typedef std::array<std::array<uint64_t, EMU_THREADS_PER_MINION>, 6> neigh_pmu_counters_t;
-    typedef std::array<std::array<uint8_t, EMU_THREADS_PER_NEIGH>, 6> neigh_pmu_events_t;
+    using neigh_pmu_counters_t  = std::array<std::array<uint64_t, EMU_THREADS_PER_MINION>, 6>;
+    using neigh_pmu_events_t    = std::array<std::array<uint8_t, EMU_THREADS_PER_NEIGH>, 6>;
 
     using msg_func_t = std::function<void(unsigned)>;
     using hart_mask_t = std::bitset<EMU_NUM_THREADS>;
