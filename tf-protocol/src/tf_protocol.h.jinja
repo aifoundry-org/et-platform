@@ -1,0 +1,117 @@
+/*------------------------------------------------------------------------------
+ * Copyright (C) 2021, Esperanto Technologies Inc.
+ * The copyright to the computer program(s) herein is the
+ * property of Esperanto Technologies, Inc. All Rights Reserved.
+ * The program(s) may be used and/or copied only with
+ * the written permission of Esperanto Technologies and
+ * in accordance with the terms and conditions stipulated in the
+ * agreement/contract under which the program(s) have been supplied.
+ ------------------------------------------------------------------------------ */
+
+/* WARNING: this file is auto-generated do not edit directly */
+
+#ifndef ET_<< cgh.c_api_name | upper >>_H
+#define ET_<< cgh.c_api_name | upper >>_H
+
+#include <stdint.h>
+
+/* command/payload format */
+/* -----$<command header 64 bytes><payload..>#<checksum>% -----*/
+
+/* TF protocol parameters*/
+<%- for parameter in cgh.tf_protocol_parameters() %>
+<%- set value = '{}{:x}'.format('0x', cgh.tf_protocol_parameters_id(parameter)) %>
+<< '{} {:<35} {}'.format('#define', parameter, value) >>
+<%- endfor %>
+
+
+#define TF_NUM_COMMANDS                  << cgh.command_id(cgh.commands(get_last=True)) - cgh.command_id(cgh.commands(get_first=True)) >>
+#define TF_NUM_RESPONSES                 << cgh.response_id(cgh.responses(get_last=True)) - cgh.response_id(cgh.responses(get_first=True)) >>
+
+/* Interception points */
+/*! \enum interception_points_t
+    \brief Enum for interception points in TF
+*/
+enum interception_points_t {
+<%- for point in cgh.interception_points() %>
+    << point | upper >> = << cgh.interception_points_id(point) >>,
+<%- endfor %>
+};
+
+/* << cgh.api_name>> command IDs */
+
+/*! \typedef tf_cmd_t
+    \brief << cgh.commands_description() >>
+*/
+typedef enum {
+<%- for command in cgh.commands() %>
+    << command | upper >> = << cgh.command_id(command) >>,
+<%- endfor %>
+} tf_cmd_t;
+
+/* << cgh.api_name>> response IDs */
+
+/*! \typedef tf_rsp_t
+    \brief << cgh.responses_description() >>
+*/
+typedef enum {
+<%- for response in cgh.responses() %>
+    << response | upper >> = << cgh.response_id(response) >>,
+<%- endfor %>
+} tf_rsp_t;
+
+
+/*! \struct header_t
+    \brief Header for every command and response exchange between device and host
+*/
+struct __attribute__((__packed__)) header_t {
+  <%- for arg in cgh.cmd_rsp_header() %>
+    << cgh.cmd_rsp_header_arg_type(arg) >> << arg >>;
+  <%- endfor %>
+};
+
+typedef struct header_t tf_cmd_hdr_t;
+typedef struct header_t tf_rsp_hdr_t;
+
+#define TF_GET_PAYLOAD_SIZE(cmd_struct)  (sizeof(cmd_struct)-sizeof(struct header_t))
+
+
+/* << cgh.api_name>> Command Structures */
+
+<% for struct in cgh.cmd_structs() -%>
+/*! \struct << struct | lower >>_t
+    \brief Structure for << struct | lower >>
+*/
+struct __attribute__((__packed__)) << struct | lower >>_t {
+    tf_cmd_hdr_t cmd_hdr;
+  <%- for arg in cgh.cmd_struct_args(struct) -%>
+    <%- set type = cgh.cmd_struct_args_type(struct, arg) %>
+    <%- if type == 'flexible_bytes' %>
+    char << arg >>[];
+    <%- else %>
+    << type >> << arg >>;
+    <%- endif %>
+  <%- endfor %>
+};
+
+<% endfor %>
+/* << cgh.api_name>> Response Structures */
+
+<% for struct in cgh.rsp_structs() -%>
+/*! \struct << struct | lower >>_t
+    \brief Structure for << struct | lower >>
+*/
+struct __attribute__((__packed__)) << struct | lower >>_t {
+    tf_rsp_hdr_t rsp_hdr;
+  <%- for arg in cgh.rsp_struct_args(struct) -%>
+    <%- set type = cgh.rsp_struct_args_type(struct, arg) %>
+    <%- if type == 'flexible_bytes' %>
+    char << arg >>[];
+    <%- else %>
+    << type >> << arg >>;
+    <%- endif %>
+  <%- endfor %>
+};
+
+<% endfor %>
+#endif /* ET_<< cgh.c_api_name | upper >>_H */
