@@ -45,7 +45,8 @@ constexpr auto kExceptionBufferSize = sizeof(ErrorContext) * kNumErrorContexts;
 
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
   : deviceLayer_(deviceLayer) {
-  for (int i = 0; i < deviceLayer_->getDevicesCount(); ++i) {
+  auto devicesCount = deviceLayer_->getDevicesCount();
+  for (int i = 0; i < devicesCount; ++i) {
     auto id = DeviceId{i};
     devices_.emplace_back(id);
     auto sqCount = deviceLayer->getSubmissionQueuesCount(i);
@@ -63,10 +64,10 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
     hostBufferManagers_.try_emplace(d, this, d);
     deviceTracing_.try_emplace(d, DeviceFwTracing{allocateDmaBuffer(d, kTracingFwBufferSize, false), nullptr, nullptr});
   }
+  responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
   // Allocate 1MB for exception buffer and 1024B for kernel parameters
   executionContextCache_ =
     std::make_unique<ExecutionContextCache>(this, 5, align(kExceptionBufferSize + kBlockSize, kBlockSize));
-  responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
 }
 
 std::vector<DeviceId> RuntimeImp::getDevices() {

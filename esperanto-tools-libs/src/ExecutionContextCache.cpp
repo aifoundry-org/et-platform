@@ -45,16 +45,25 @@ ExecutionContextCache::~ExecutionContextCache() {
 ExecutionContextCache::ExecutionContextCache(IRuntime* runtime, int initialFreeListSize, int bufferSize)
   : runtime_(runtime)
   , bufferSize_(bufferSize) {
-  auto devices = runtime->getDevices();
+  auto devices = runtime_->getDevices();
+  // TODO: see SW-9219, we fill these buffers with trash until this is properly handled
+  std::vector<std::byte> trash;
+  std::fill_n(std::back_inserter(trash), bufferSize, std::byte{0xCD});
   for (auto dev : devices) {
+    auto st = runtime_->createStream(dev);
     auto [it, res] = freeBuffers_.try_emplace(dev, std::vector<Buffer*>{});
     (void)res;
     assert(res);
     auto&& list = it->second;
     for (int i = 0; i < initialFreeListSize; ++i) {
       buffers_.emplace_back(std::make_unique<Buffer>(dev, runtime_, bufferSize_));
-      list.emplace_back(buffers_.back().get());
+      auto bufferPtr = buffers_.back().get();
+      // TODO: see SW-9219, we fill these buffers with trash until this is properly handled
+      runtime_->memcpyHostToDevice(st, trash.data(), bufferPtr->deviceBuffer_, static_cast<size_t>(bufferSize));
+      list.emplace_back(bufferPtr);
     }
+    runtime_->waitForStream(st);
+    runtime_->destroyStream(st);
   }
 }
 
