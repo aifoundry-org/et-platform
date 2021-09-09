@@ -1092,8 +1092,8 @@ int flash_fs_increment_completed_boot_count(void)
                  &increment_offset, &bit_offset,
                  sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                          .boot_counters_region_data.ull +
-                     FLASH_PAGE_SIZE / 2,
-                 FLASH_PAGE_SIZE / 2))
+                     ULL_PER_PAGE / 2,
+                 ULL_PER_PAGE / 2))
     {
         MESSAGE_ERROR("flash_fs_increment_completed_boot_counter: \
                         attempted counter region is full!\n");
