@@ -1040,6 +1040,8 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	et_ioread(dir_mgmt_mem, 0, dir_data, dir_size);
 	dir_pos = dir_data;
 
+	et_print_mgmt_dir(&et_dev->pdev->dev, dir_data, dir_size);
+
 	/*
 	 * Parse and save DIR general attributes from DIR header
 	 */
@@ -1342,6 +1344,8 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	// Read complete DIRs from device memory
 	et_ioread(dir_ops_mem, 0, dir_data, dir_size);
 	dir_pos = dir_data;
+
+	et_print_ops_dir(&et_dev->pdev->dev, dir_data, dir_size);
 
 	/*
 	 * Parse and save DIR general attributes from DIR header

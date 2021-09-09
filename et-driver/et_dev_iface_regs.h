@@ -25,8 +25,8 @@
 #ifndef __ET_DEV_IFACE_REGS_H__
 #define __ET_DEV_IFACE_REGS_H__
 
+#include <linux/dev_printk.h>
 #include <linux/slab.h>
-
 /*
  * The structure arrangment of DIRs is same for both Mgmt and Ops devices. Mgmt
  * and Ops device have their separate DIRs.
@@ -205,6 +205,123 @@ struct et_mgmt_dir_header {
 	u32 crc32;
 } __packed;
 
+struct et_mgmt_dir {
+	struct et_mgmt_dir_header header;
+	struct et_mgmt_dir_vqueue vqueue;
+	struct et_dir_mem_region mem_region[];
+} __packed;
+
+static inline void
+et_print_mgmt_dir(struct device *dev, u8 *dir_data, size_t dir_size)
+{
+	int i = 0;
+	size_t remaining_size;
+	struct et_mgmt_dir *mgmt_dir;
+
+	if (!dir_data || !dir_size)
+		return;
+
+	mgmt_dir = (struct et_mgmt_dir *)dir_data;
+
+	dev_dbg(dev, "Mgmt DIRs Header\n");
+	dev_dbg(dev,
+		"Version                 : 0x%x\n",
+		mgmt_dir->header.version);
+	dev_dbg(dev,
+		"Total Size              : 0x%x\n",
+		mgmt_dir->header.total_size);
+	dev_dbg(dev,
+		"Attributes Size         : 0x%x\n",
+		mgmt_dir->header.attributes_size);
+	dev_dbg(dev,
+		"Number of Regions       : 0x%x\n",
+		mgmt_dir->header.num_regions);
+	dev_dbg(dev,
+		"Minion Shire Mask       : 0x%llx\n",
+		mgmt_dir->header.minion_shire_mask);
+	dev_dbg(dev,
+		"Reserved[0]             : 0x%x\n",
+		mgmt_dir->header.reserved[0]);
+	dev_dbg(dev,
+		"Reserved[1]             : 0x%x\n",
+		mgmt_dir->header.reserved[1]);
+	dev_dbg(dev,
+		"Status                  : 0x%x\n",
+		mgmt_dir->header.status);
+	dev_dbg(dev,
+		"CRC32                   : 0x%x\n\n",
+		mgmt_dir->header.crc32);
+	dev_dbg(dev, "Mgmt DIRs Vqueue\n");
+	dev_dbg(dev,
+		"SQ Offset               : 0x%x\n",
+		mgmt_dir->vqueue.sq_offset);
+	dev_dbg(dev,
+		"SQ Count                : 0x%x\n",
+		mgmt_dir->vqueue.sq_count);
+	dev_dbg(dev,
+		"SQ Size                 : 0x%x\n",
+		mgmt_dir->vqueue.sq_size);
+	dev_dbg(dev,
+		"CQ Offset               : 0x%x\n",
+		mgmt_dir->vqueue.cq_offset);
+	dev_dbg(dev,
+		"CQ Count                : 0x%x\n",
+		mgmt_dir->vqueue.cq_count);
+	dev_dbg(dev,
+		"CQ Size                 : 0x%x\n",
+		mgmt_dir->vqueue.cq_size);
+	dev_dbg(dev,
+		"Interrupt Trigger Offset: 0x%x\n",
+		mgmt_dir->vqueue.intrpt_trg_offset);
+	dev_dbg(dev,
+		"Interrupt Trigger Size  : 0x%x\n",
+		mgmt_dir->vqueue.intrpt_trg_size);
+	dev_dbg(dev,
+		"Interrupt ID            : 0x%x\n",
+		mgmt_dir->vqueue.intrpt_id);
+	dev_dbg(dev,
+		"Attributes Size         : 0x%x\n\n",
+		mgmt_dir->vqueue.attributes_size);
+
+	remaining_size = dir_size - sizeof(struct et_mgmt_dir_header) -
+			 sizeof(struct et_mgmt_dir_vqueue);
+	while (remaining_size > 0) {
+		dev_dbg(dev, "Mgmt DIRs Memory Region[%d]\n", i);
+		dev_dbg(dev,
+			"Type                    : 0x%x",
+			mgmt_dir->mem_region[i].type);
+		dev_dbg(dev,
+			"BAR                     : 0x%x\n",
+			mgmt_dir->mem_region[i].bar);
+		dev_dbg(dev,
+			"Attributes Size         : 0x%x\n",
+			mgmt_dir->mem_region[i].attributes_size);
+		dev_dbg(dev,
+			"Access (Privilege mode) : 0x%x\n",
+			mgmt_dir->mem_region[i].access.priv_mode);
+		dev_dbg(dev,
+			"Access (Node access)    : 0x%x\n",
+			mgmt_dir->mem_region[i].access.node_access);
+		dev_dbg(dev,
+			"Access (DMA Alignment)  : 0x%x\n",
+			mgmt_dir->mem_region[i].access.dma_align);
+		dev_dbg(dev,
+			"Access (Reserved)       : 0x%x\n",
+			mgmt_dir->mem_region[i].access.reserved);
+		dev_dbg(dev,
+			"BAR Offset              : %llx\n",
+			mgmt_dir->mem_region[i].bar_offset);
+		dev_dbg(dev,
+			"BAR Size                : %llx\n",
+			mgmt_dir->mem_region[i].bar_size);
+		dev_dbg(dev,
+			"Dev Address             : %llx\n\n",
+			mgmt_dir->mem_region[i].dev_address);
+		remaining_size -= sizeof(struct et_dir_mem_region);
+		i++;
+	}
+}
+
 /*
  * Values representing Ops Device Boot status.
  */
@@ -264,6 +381,129 @@ struct et_ops_dir_header {
 	s16 status;
 	u32 crc32;
 } __packed;
+
+struct et_ops_dir {
+	struct et_ops_dir_header header;
+	struct et_ops_dir_vqueue vqueue;
+	struct et_dir_mem_region mem_region[];
+} __packed;
+
+static inline void
+et_print_ops_dir(struct device *dev, u8 *dir_data, size_t dir_size)
+{
+	int i = 0;
+	size_t remaining_size;
+	struct et_ops_dir *ops_dir;
+
+	if (!dir_data || !dir_size)
+		return;
+
+	ops_dir = (struct et_ops_dir *)dir_data;
+
+	dev_dbg(dev, "Ops DIRs Header\n");
+	dev_dbg(dev,
+		"Version                 : 0x%x\n",
+		ops_dir->header.version);
+	dev_dbg(dev,
+		"Total Size              : 0x%x\n",
+		ops_dir->header.total_size);
+	dev_dbg(dev,
+		"Attributes Size         : 0x%x\n",
+		ops_dir->header.attributes_size);
+	dev_dbg(dev,
+		"Number of Regions       : 0x%x\n",
+		ops_dir->header.num_regions);
+	dev_dbg(dev,
+		"Reserved[0]             : 0x%x\n",
+		ops_dir->header.reserved[0]);
+	dev_dbg(dev,
+		"Reserved[1]             : 0x%x\n",
+		ops_dir->header.reserved[1]);
+	dev_dbg(dev,
+		"Status                  : 0x%x\n",
+		ops_dir->header.status);
+	dev_dbg(dev,
+		"CRC32                   : 0x%x\n\n",
+		ops_dir->header.crc32);
+	dev_dbg(dev, "Ops DIRs Vqueue\n");
+	dev_dbg(dev,
+		"SQ Offset               : 0x%x\n",
+		ops_dir->vqueue.sq_offset);
+	dev_dbg(dev,
+		"SQ Count                : 0x%x\n",
+		ops_dir->vqueue.sq_count);
+	dev_dbg(dev,
+		"SQ Size                 : 0x%x\n",
+		ops_dir->vqueue.sq_size);
+	dev_dbg(dev,
+		"CQ Offset               : 0x%x\n",
+		ops_dir->vqueue.cq_offset);
+	dev_dbg(dev,
+		"CQ Count                : 0x%x\n",
+		ops_dir->vqueue.cq_count);
+	dev_dbg(dev,
+		"CQ Size                 : 0x%x\n",
+		ops_dir->vqueue.cq_size);
+	dev_dbg(dev,
+		"Interrupt Trigger Offset: 0x%x\n",
+		ops_dir->vqueue.intrpt_trg_offset);
+	dev_dbg(dev,
+		"Interrupt Trigger Size  : 0x%x\n",
+		ops_dir->vqueue.intrpt_trg_size);
+	dev_dbg(dev,
+		"Interrupt ID            : 0x%x\n",
+		ops_dir->vqueue.intrpt_id);
+	dev_dbg(dev,
+		"Attributes Size         : 0x%x\n",
+		ops_dir->vqueue.attributes_size);
+	dev_dbg(dev,
+		"HP SQ Offset            : 0x%x\n",
+		ops_dir->vqueue.hpsq_offset);
+	dev_dbg(dev,
+		"HP SQ Count             : 0x%x\n",
+		ops_dir->vqueue.hpsq_count);
+	dev_dbg(dev,
+		"HP SQ Size              : 0x%x\n\n",
+		ops_dir->vqueue.hpsq_size);
+
+	remaining_size = dir_size - sizeof(struct et_ops_dir_header) -
+			 sizeof(struct et_ops_dir_vqueue);
+	while (remaining_size > 0) {
+		dev_dbg(dev, "Ops DIRs Memory Region[%d]\n", i);
+		dev_dbg(dev,
+			"Type                    : 0x%x",
+			ops_dir->mem_region[i].type);
+		dev_dbg(dev,
+			"BAR                     : 0x%x\n",
+			ops_dir->mem_region[i].bar);
+		dev_dbg(dev,
+			"Attributes Size         : 0x%x\n",
+			ops_dir->mem_region[i].attributes_size);
+		dev_dbg(dev,
+			"Access (Privilege mode) : 0x%x\n",
+			ops_dir->mem_region[i].access.priv_mode);
+		dev_dbg(dev,
+			"Access (Node access)    : 0x%x\n",
+			ops_dir->mem_region[i].access.node_access);
+		dev_dbg(dev,
+			"Access (DMA Alignment)  : 0x%x\n",
+			ops_dir->mem_region[i].access.dma_align);
+		dev_dbg(dev,
+			"Access (Reserved)       : 0x%x\n",
+			ops_dir->mem_region[i].access.reserved);
+		dev_dbg(dev,
+			"BAR Offset              : %llx\n",
+			ops_dir->mem_region[i].bar_offset);
+		dev_dbg(dev,
+			"BAR Size                : %llx\n",
+			ops_dir->mem_region[i].bar_size);
+		dev_dbg(dev,
+			"Dev Address             : %llx\n\n",
+			ops_dir->mem_region[i].dev_address);
+		remaining_size -= sizeof(struct et_dir_mem_region);
+		i++;
+	}
+}
 
 static inline bool valid_mgmt_vq_region(struct et_mgmt_dir_vqueue *vq_region,
 					char *err_str,
