@@ -18,7 +18,7 @@
 #include <inttypes.h>
 #endif
 
-#include "device-common/utils.h"
+#include "utils.h"
 
 enum cop_dest {
    to_L1  = 0x0ULL,
