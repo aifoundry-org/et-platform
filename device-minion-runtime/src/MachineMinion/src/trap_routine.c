@@ -1,8 +1,21 @@
+/*-------------------------------------------------------------------------
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------
+*/
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
-#include "riscv_encoding.h"
-#include "device-common/hart.h"
+
+/* minion_bl.lib */
+#include "etsoc/isa/riscv_encoding.h"
+#include "etsoc/isa/hart.h"
 
 extern int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 

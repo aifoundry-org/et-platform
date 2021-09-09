@@ -10,13 +10,18 @@
 *-------------------------------------------------------------------------
 */
 
-#include "device-common/esr_defines.h"
-#include <hwinc/etsoc_shire_other_esr.h>
-#include "esr.h"
-#include "config/mm_config.h"
-#include "broadcast.h"
+/* minion_rt.lib */
 #include "minion_cfg.h"
+#include "config/mm_config.h"
+
+/* minion_bl.lib */
+#include "etsoc/isa/esr_defines.h"
+#include "transports/mm_cm_iface/broadcast.h"
+
+/* etsoc_hal.lib */
+#include <hwinc/etsoc_shire_other_esr.h>
 #include <hwinc/minion_lvdpll_program.h>
+#include "esr.h"
 
 static uint64_t booted_shire_mask = 0;
 static uint64_t minion_current_freq = 0;
@@ -42,11 +47,11 @@ static int64_t minion_configure_cold_boot_pll(uint64_t shire_mask, uint64_t pll_
 #else
     (void)pll_mode;
     /* Switch to LVDPLL output */
-    broadcast(0xc, shire_mask, PRV_M, ESR_SHIRE_REGION, ESR_SHIRE_SHIRE_CTRL_CLOCKMUX_REGNO); 
+    broadcast(0xc, shire_mask, PRV_M, ESR_SHIRE_REGION, ESR_SHIRE_SHIRE_CTRL_CLOCKMUX_REGNO);
 #endif
 
     booted_shire_mask = shire_mask;
-    minion_current_freq = INITIAL_MINION_FREQ; 
+    minion_current_freq = INITIAL_MINION_FREQ;
 
     return 0;
 }

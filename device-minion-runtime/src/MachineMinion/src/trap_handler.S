@@ -1,6 +1,20 @@
-#include "device-common/esr_defines.h"
+/*-------------------------------------------------------------------------
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------
+*/
+
+/* minion_rt.lib */
 #include "syscall_internal.h"
-#include "riscv_encoding.h"
+
+/* minion_bl.lib */
+#include "etsoc/isa/esr_defines.h"
+#include "etsoc/isa/riscv_encoding.h"
 
 .section .text, "ax", @progbits /* TODO FIXME move to M +RX page sections */
 

@@ -1,19 +1,35 @@
-#include "syscall_internal.h"
-#include "broadcast.h"
-#include "device-common/cacheops.h"
-#include "device-common/esr_defines.h"
-#include "device-common/fcc.h"
-#include "device-common/flb.h"
-#include "hal_device.h"
-#include "device-common/hart.h"
-#include "layout.h"
-#include "printf.h"
-#include "shire_cache.h"
-#include "pmu.h"
-#include "minion_cfg.h"
+/*-------------------------------------------------------------------------
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------
+*/
 
 #include <stdint.h>
 #include <stdbool.h>
+
+/* minion_bl.lib */
+#include "etsoc/isa/cacheops.h"
+#include "etsoc/isa/esr_defines.h"
+#include "etsoc/isa/fcc.h"
+#include "etsoc/isa/flb.h"
+#include "etsoc/isa/hart.h"
+#include "etsoc/hal/pmu.h"
+#include "transports/mm_cm_iface/broadcast.h"
+
+/* etsoc_hal */
+#include "hwinc/hal_device.h"
+
+/* minion_rt.lib */
+#include "layout.h"
+#include "syscall_internal.h"
+#include "shire_cache.h"
+#include "minion_cfg.h"
+
 
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 

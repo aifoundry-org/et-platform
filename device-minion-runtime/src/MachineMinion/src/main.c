@@ -1,12 +1,15 @@
-#include "device-common/esr_defines.h"
-#include "device-common/fcc.h"
-#include "device-common/flb.h"
-#include "device-common/hart.h"
-#include "layout.h"
-#include "pmu.h"
-#include "sync.h"
-
 #include <stdint.h>
+
+/* minion_rt.lib */
+#include "layout.h"
+
+/* minion_bl.lib */
+#include "etsoc/isa/esr_defines.h"
+#include "etsoc/isa/fcc.h"
+#include "etsoc/isa/flb.h"
+#include "etsoc/isa/hart.h"
+#include "etsoc/isa/sync.h"
+#include "etsoc/hal/pmu.h"
 
 static inline void initialize_scp(void)
 {

@@ -20,22 +20,25 @@ add_riscv_executable(MachineMinion
     src/pmu.c
     src/minion_cfg.c
     src/build_configuration.c
-    ${SHARED_SRC_DIR}/print_exception.c
-    ${SHARED_SRC_DIR}/broadcast.c
 )
+
+#External libs header paths - etsoc_hal.lib, minion-bl.lib
 target_include_directories(MachineMinion.elf
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    PRIVATE 
-        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/include>
+        ${CMAKE_INSTALL_PREFIX}/include/esperanto-fw/etsoc_hal
 )
+
+#include minion-bl lib and include paths
+include(${CMAKE_INSTALL_PREFIX}/lib/cmake/et-common-libs/minion-bl/minion-blTargets.cmake)
+include_directories(${CMAKE_INSTALL_PREFIX}/minion-bl/include)
+
 target_link_libraries(MachineMinion.elf
     PRIVATE
-        deviceFirmware::firmware_helpers_interface
-        deviceFirmware::firmware_helpers_serial
+        minion-bl-lib::minion-bl
         etsoc_hal::etsoc_hal
     PRIVATE
+        deviceFirmware::firmware_helpers_interface
         deviceFirmware::device_configuration
 )
 
