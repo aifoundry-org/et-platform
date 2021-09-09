@@ -195,22 +195,44 @@ static void parse_cm_err_syndrome(struct device_mgmt_event_msg_t *event_msg,
 {
 	switch (event_msg->event_syndrome[0]) {
 	case CM_USER_KERNEL_ERROR:
-		strcat(dbg_msg->syndrome, "CM User Kernel Error\n");
+		sprintf(dbg_msg->syndrome,
+			"CM User Kernel Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
 		break;
 	case CM_RUNTIME_ERROR:
-		strcat(dbg_msg->syndrome, "CM Runtime Error\n");
+		sprintf(dbg_msg->syndrome,
+			"CM Runtime Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
 		break;
 	case MM_DISPATCHER_ERROR:
-		strcat(dbg_msg->syndrome, "MM Dispatcher Error\n");
+		sprintf(dbg_msg->syndrome,
+			"MM Dispatcher Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
 		break;
 	case MM_SQW_ERROR:
-		strcat(dbg_msg->syndrome, "MM SQW Error\n");
+		sprintf(dbg_msg->syndrome,
+			"MM SQW Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
 		break;
-	case MM_DMW_ERROR:
-		strcat(dbg_msg->syndrome, "MM DMW Error\n");
+	case MM_DMAW_ERROR:
+		sprintf(dbg_msg->syndrome,
+			"MM DMAW Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
 		break;
 	case MM_KW_ERROR:
-		strcat(dbg_msg->syndrome, "MM KW Error\n");
+		sprintf(dbg_msg->syndrome,
+			"MM KW Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	case MM_RUNTIME_HANG_ERROR:
+		sprintf(dbg_msg->syndrome,
+			"MM Runtime Hang (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	default:
+		sprintf(dbg_msg->syndrome,
+			"Undefined Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
 		break;
 	}
 }
