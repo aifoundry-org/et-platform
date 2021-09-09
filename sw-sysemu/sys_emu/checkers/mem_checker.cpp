@@ -996,10 +996,8 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
         break;
     case bemu::Mem_Access_Fetch: // Load instruction from memory. This must not be included in the directory. Do nothing
         return true;
-        break;
     case bemu::Mem_Access_PTW:     // Page table walker access. Must not be invoked. Fail if so.
         throw std::invalid_argument("unexpected operation PTW");
-        break;
     }
 
     // Adjusts the size based on mask

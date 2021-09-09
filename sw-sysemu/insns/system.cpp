@@ -47,9 +47,9 @@ void insn_ecall(Hart& cpu)
     DISASM_NOARG("ecall");
 
     switch (PRV) {
-    case Privilege::U: throw trap_user_ecall(); break;
-    case Privilege::S: throw trap_supervisor_ecall(); break;
-    case Privilege::M: throw trap_machine_ecall(); break;
+    case Privilege::U: throw trap_user_ecall();
+    case Privilege::S: throw trap_supervisor_ecall();
+    case Privilege::M: throw trap_machine_ecall();
     }
 }
 

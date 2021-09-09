@@ -40,11 +40,11 @@ struct PLIC_Interrupt_Target {
 template <unsigned long long Base, size_t N, size_t S, size_t T>
 struct PLIC : public MemoryRegion
 {
-    typedef typename MemoryRegion::addr_type      addr_type;
-    typedef typename MemoryRegion::size_type      size_type;
-    typedef typename MemoryRegion::value_type     value_type;
-    typedef typename MemoryRegion::pointer        pointer;
-    typedef typename MemoryRegion::const_pointer  const_pointer;
+    using addr_type     = typename MemoryRegion::addr_type;
+    using size_type     = typename MemoryRegion::size_type;
+    using value_type    = typename MemoryRegion::value_type;
+    using pointer       = typename MemoryRegion::pointer;
+    using const_pointer = typename MemoryRegion::const_pointer;
 
     #define PLIC_PRIORITY_MASK   7
     #define PLIC_THRESHOLD_MASK  7

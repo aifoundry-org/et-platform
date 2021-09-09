@@ -92,11 +92,11 @@ List_hook::splice(List_hook* first, List_hook* last) noexcept
 
 template<class T, List_hook T::* member>
 struct List_iterator {
-    typedef std::ptrdiff_t                    difference_type;
-    typedef std::bidirectional_iterator_tag   iterator_category;
-    typedef T                                 value_type;
-    typedef T*                                pointer;
-    typedef T&                                reference;
+    using difference_type   = std::ptrdiff_t;
+    using iterator_category = std::bidirectional_iterator_tag;
+    using value_type        = T;
+    using pointer           = T*;
+    using reference         = T&;
 
     List_iterator(const List_iterator&) noexcept = default;
 
@@ -166,11 +166,11 @@ struct List_iterator {
 
 template<class T, List_hook T::* member>
 struct List_const_iterator {
-    typedef std::ptrdiff_t                    difference_type;
-    typedef std::bidirectional_iterator_tag   iterator_category;
-    typedef T                                 value_type;
-    typedef const T*                          pointer;
-    typedef const T&                          reference;
+    using difference_type     = std::ptrdiff_t;
+    using iterator_category   = std::bidirectional_iterator_tag;
+    using value_type          = T;
+    using pointer             = const T*;
+    using reference           = const T&;
 
     List_const_iterator(const List_const_iterator&) noexcept = default;
 
@@ -247,17 +247,17 @@ struct List_const_iterator {
 template<class T, List_hook T::* member>
 class List {
 public:
-    typedef T                                       value_type;
-    typedef T*                                      pointer;
-    typedef const T*                                const_pointer;
-    typedef T&                                      reference;
-    typedef const T&                                const_reference;
-    typedef List_iterator<T, member>                iterator;
-    typedef List_const_iterator<T, member>          const_iterator;
-    typedef std::reverse_iterator<const_iterator>   const_reverse_iterator;
-    typedef std::reverse_iterator<iterator>         reverse_iterator;
-    typedef std::size_t                             size_type;
-    typedef std::ptrdiff_t                          difference_type;
+    using value_type              = T;
+    using pointer                 = T*;
+    using const_pointer           = const T*;
+    using reference               = T&;
+    using const_reference         = const T&;
+    using iterator                = List_iterator<T, member>;
+    using const_iterator          = List_const_iterator<T, member>;
+    using const_reverse_iterator  = std::reverse_iterator<const_iterator>;
+    using reverse_iterator        = std::reverse_iterator<iterator>;
+    using size_type               = std::size_t;
+    using difference_type         = std::ptrdiff_t;
 
     // Constructors
 

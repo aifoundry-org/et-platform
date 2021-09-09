@@ -382,7 +382,6 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
     case CSR_HPMCOUNTER30:
     case CSR_HPMCOUNTER31:
         throw trap_illegal_instruction(cpu.inst.bits);
-        break;
     case CSR_MVENDORID:
         val = CSR_VENDOR_ID;
         break;
@@ -896,7 +895,6 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
     case CSR_MIMPID:
     case CSR_MHARTID:
         throw trap_illegal_instruction(cpu.inst.bits);
-        break;
         // ----- Esperanto registers -------------------------------------
     case CSR_MATP: // Shared register
         // do not write the register if it is locked (L==1)

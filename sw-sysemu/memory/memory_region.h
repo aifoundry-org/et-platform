@@ -21,12 +21,12 @@ namespace bemu {
 
 struct MemoryRegion
 {
-    typedef unsigned long long    addr_type;
-    typedef unsigned long long    size_type;
-    typedef unsigned char         value_type;
-    typedef value_type            reset_value_type[MEM_RESET_PATTERN_SIZE];
-    typedef value_type*           pointer;
-    typedef const value_type*     const_pointer;
+    using addr_type         = unsigned long long;
+    using size_type         = unsigned long long;
+    using value_type        = unsigned char;
+    using reset_value_type  = value_type[MEM_RESET_PATTERN_SIZE];
+    using pointer           = value_type*;
+    using const_pointer     = const value_type*;
 
     virtual ~MemoryRegion() {}
 

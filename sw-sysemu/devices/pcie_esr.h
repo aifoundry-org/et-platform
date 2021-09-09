@@ -21,11 +21,11 @@ namespace bemu {
 
 template<unsigned long long Base, unsigned long long N>
 struct PcieEsr : public MemoryRegion {
-    typedef typename MemoryRegion::addr_type      addr_type;
-    typedef typename MemoryRegion::size_type      size_type;
-    typedef typename MemoryRegion::value_type     value_type;
-    typedef typename MemoryRegion::pointer        pointer;
-    typedef typename MemoryRegion::const_pointer  const_pointer;
+    using addr_type     = typename MemoryRegion::addr_type;
+    using size_type     = typename MemoryRegion::size_type;
+    using value_type    = typename MemoryRegion::value_type;
+    using pointer       = typename MemoryRegion::pointer;
+    using const_pointer = typename MemoryRegion::const_pointer;
 
     enum : unsigned long long {
         PSHIRE_CTRL  = 0x00,
