@@ -24,6 +24,9 @@ include(GNUInstallDirs)
 # Build and install Compute Minion User Mode libs
 include(cm_umode.cmake)
 
+# Build and install Minion Bootloader lib
+include(minion_bl.cmake)
+
 # Build and install Compute Minion Supervisory Mode libs
 #include(cm_smode.cmake)
 
