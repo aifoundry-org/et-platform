@@ -393,7 +393,15 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             sqw_process_waiting_commands(sqw_idx, &vq_cached, vq_shared, start_cycles,
                 shared_mem_ptr, vq_used_space);
 
-            /* Re-calculate the total number of bytes available in the VQ */
+            /* In case of SQW aborted state, we need to read the shared copy of head and tail
+            again to make sure that all the commands in VQ are processed and aborted. */
+            if(atomic_load_local_32(&SQW_CB.sqw_status[sqw_idx].state) == SQW_STATE_ABORTED)
+            {
+                /* Refresh the cached VQ CB - Get updated head and tail values */
+                VQ_Get_Head_And_Tail(vq_shared, &vq_cached);
+            }
+
+            /* Re-calculate the total number of bytes available in the cached VQ copy */
             vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
         }
     } /* loop forever */
