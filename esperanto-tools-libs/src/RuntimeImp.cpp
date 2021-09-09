@@ -41,6 +41,7 @@ constexpr int kEnableTracingBit = 1 << 0;
 constexpr int kResetTraceBufferAddressBit = 1 << 2; // Reset Trace buffer point to device side Trace Buffer base address
 constexpr auto kNumErrorContexts = 2080;
 constexpr auto kExceptionBufferSize = sizeof(ErrorContext) * kNumErrorContexts;
+constexpr auto kNumExecutionCacheBuffers = 5; // initial number of execution cache buffers
 } // namespace
 
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
@@ -65,9 +66,9 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
     deviceTracing_.try_emplace(d, DeviceFwTracing{allocateDmaBuffer(d, kTracingFwBufferSize, false), nullptr, nullptr});
   }
   responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
-  // Allocate 1MB for exception buffer and 1024B for kernel parameters
-  executionContextCache_ =
-    std::make_unique<ExecutionContextCache>(this, 5, align(kExceptionBufferSize + kBlockSize, kBlockSize));
+  // Allocate 1024KB for kernel parameters and the rest for exception buffer
+  executionContextCache_ = std::make_unique<ExecutionContextCache>(
+    this, kNumExecutionCacheBuffers, align(kExceptionBufferSize + kBlockSize, kBlockSize));
 }
 
 std::vector<DeviceId> RuntimeImp::getDevices() {
