@@ -31,7 +31,8 @@ constexpr auto kMaxSizeKernelEmbeddingParameters = DEVICE_OPS_KERNEL_LAUNCH_ARGS
 }
 
 EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std::byte* kernel_args,
-                                 size_t kernel_args_size, uint64_t shire_mask, bool barrier, bool flushL3) {
+                                 size_t kernel_args_size, uint64_t shire_mask, bool barrier, bool flushL3,
+                                 std::byte* userTraceBuffer) {
   std::unique_lock lock(mutex_);
   const auto& kernel = find(kernels_, kernelId)->second;
   ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId, kernelId, kernel->getLoadAddress());
@@ -88,6 +89,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3;
   }
 
+  cmdPtr->kernel_trace_buffer = reinterpret_cast<uint64_t>(userTraceBuffer);
   cmdPtr->exception_buffer = reinterpret_cast<uint64_t>(pBuffer->getExceptionContextPtr());
   cmdPtr->code_start_address = kernel->getEntryAddress();
   cmdPtr->pointer_to_args = kernel_args_size > 0 ? reinterpret_cast<uint64_t>(pBuffer->getParametersPtr()) : 0;

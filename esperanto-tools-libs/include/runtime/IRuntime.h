@@ -129,12 +129,17 @@ public:
   /// issued into this stream finish (a barrier). Usually the kernel launch must be postponed till some previous
   /// memory operations end, hence the default value is true.
   /// @param[in] flushL3 this parameter indicates if the L3 should be flushed before the kernel execution starts.
+  /// @param[in] userTraceBuffer this parameter can be null or point to a device buffer (previously allocated with \ref
+  /// mallocDevice). If the pointer is not null, then the firmware will utilize this buffer to fill-up user trace data.
+  /// This buffer must be of size 4KB * num_harts (4KB*2080). We will provide later on an API to allocate the buffer
+  /// with the size required.
   ///
   /// @returns EventId is a handler of an event which can be waited for
   /// (waitForEventId) to syncrhonize when the kernel ends the execution
   ///
   virtual EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                               uint64_t shire_mask, bool barrier = true, bool flushL3 = false) = 0;
+                               uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
+                               std::byte* userTraceBuffer = nullptr) = 0;
 
   /// \brief Queues a memcpy operation from host memory to device memory. The
   /// device memory must be previously allocated by a mallocDevice.
