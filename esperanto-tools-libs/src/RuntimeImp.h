@@ -61,6 +61,8 @@ public:
 
   EventId stopDeviceTracing(StreamId stream, bool barrier) override;
 
+  EventId abortCommand(EventId commandId) override;
+
   IProfiler* getProfiler() override {
     return &profiler_;
   }

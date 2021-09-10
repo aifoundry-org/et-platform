@@ -24,8 +24,10 @@
 #include <elfio/elfio.hpp>
 
 #include <chrono>
+#include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 #include <memory>
 #include <sstream>
+#include <thread>
 #include <type_traits>
 
 using namespace rt;
@@ -224,7 +226,6 @@ void RuntimeImp::processResponseError(DeviceErrorCode errorCode, EventId event) 
       // the callback was not set, so add the error to the error list
       streamManager_.addError(event, std::move(streamError));
     }
-    // release the buffer
     dispatch(event);
   });
 }
@@ -256,6 +257,15 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on DMA read: " << r->status << ". Tag id: " << static_cast<int>(eventId);
+      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
+    }
+    break;
+  }
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ABORT_RSP: {
+    auto r = reinterpret_cast<const device_ops_api::device_ops_abort_rsp_t*>(response.data());
+    if (r->status != device_ops_api::DEV_OPS_API_ABORT_RESPONSE_SUCCESS) {
+      responseWasOk = false;
+      RT_LOG(WARNING) << "Error on abort command: " << r->status << ". Tag id: " << static_cast<int>(eventId);
       processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
     }
     break;
@@ -452,6 +462,31 @@ std::vector<int> RuntimeImp::getDevicesWithEventsOnFly() const {
 
 std::vector<StreamError> RuntimeImp::retrieveStreamErrors(StreamId stream) {
   return streamManager_.retrieveErrors(stream);
+}
+
+EventId RuntimeImp::abortCommand(EventId commandId) {
+  using namespace std::chrono_literals;
+  auto stInfo = streamManager_.getStreamInfo(commandId);
+  auto evt = eventManager_.getNextId();
+  if (!stInfo) {
+    RT_LOG(WARNING) << "Trying to abort a command which was already finished. Runtime won't do anything.";
+    dispatch(evt);
+  } else {
+    device_ops_api::device_ops_abort_cmd_t cmd;
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.tag_id = static_cast<uint16_t>(commandId);
+    cmd.command_info.cmd_hdr.size = sizeof(cmd);
+    cmd.command_info.cmd_hdr.flags = device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
+    cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD;
+    cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
+    // check what device contains that eventid
+    while (!deviceLayer_->sendCommandMasterMinion(stInfo->device_, stInfo->vq_, reinterpret_cast<std::byte*>(&cmd),
+                                                  sizeof(cmd), false, true)) {
+      RT_LOG(WARNING) << "Trying to abort a command but special HPSQ is full. Retrying...";
+      std::this_thread::sleep_for(1ms);
+    }
+  }
+  return evt;
 }
 
 void RuntimeImp::dispatch(EventId event) {

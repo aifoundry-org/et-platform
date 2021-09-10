@@ -23,6 +23,17 @@ Stream::Info StreamManager::getStreamInfo(StreamId stream) const {
   return find(streams_, stream)->second.info_;
 }
 
+std::optional<Stream::Info> StreamManager::getStreamInfo(EventId event) const {
+  std::lock_guard lock(mutex_);
+  for (auto& [id, stream] : streams_) {
+    unused(id);
+    if (stream.submittedEvents_.find(event) != end(stream.submittedEvents_)) {
+      return stream.info_;
+    }
+  }
+  return {};
+}
+
 StreamId StreamManager::createStream(DeviceId device) {
   std::lock_guard lock(mutex_);
   auto vq = queueHelper_.nextQueue(device);

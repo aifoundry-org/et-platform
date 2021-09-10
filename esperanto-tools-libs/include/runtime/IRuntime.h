@@ -291,6 +291,18 @@ public:
   ///
   virtual EventId stopDeviceTracing(StreamId stream, bool barrier = true) = 0;
 
+  /// \brief Instructs the device to abort given command.
+  /// NOTE: as per current firmware implementation, aborting a command will have undesirable side effects on the rest of
+  /// the submitted commands to the same virtual queue. So, after aborting a command it could potentially affect the
+  /// rest of the executions
+  ///
+  /// @param[in] commandId indicates the command's eventId to abort
+  ///
+  /// @returns EventId is a handler of the abort command itself which can be waited for (waitForEventId) to synchronize.
+  ///
+
+  virtual EventId abortCommand(EventId commandId) = 0;
+
   ///
   /// \brief Factory method to instantiate a IRuntime implementation
   ///
