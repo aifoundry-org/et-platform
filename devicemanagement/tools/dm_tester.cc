@@ -25,6 +25,7 @@
 #include <regex>
 #include <unistd.h>
 #include <glog/logging.h>
+#include <exception>
 
 namespace fs = std::experimental::filesystem;
 
@@ -58,7 +59,7 @@ public:
       if (!(error = dlerror())) {
         return getDM;
       }
-      DV_LOG(ERROR) << "error: " << error << std::endl;
+      DV_LOG(ERROR) << "error:" << error << std::endl;
     }
     return (getDM_t)0;
   }
@@ -76,6 +77,8 @@ public:
       DV_LOG(ERROR) << "Device Management instance is null!" << std::endl;
       return -EAGAIN;
     }
+
+   return 0;
   }
 
   void* handle_;
@@ -121,7 +124,8 @@ int runService(const char* input_buff, const uint32_t input_size, char* output_b
   static DMLib dml;
   int ret;
 
-  if (!(ret = dml.verifyDMLib())) {
+  if (ret = dml.verifyDMLib()) {
+    DV_LOG(ERROR) << "Failed to verify the DM lib: " << ret << std::endl; 
     return ret;
   }
   DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
@@ -154,7 +158,7 @@ int verifyService() {
   case DM_CMD::DM_CMD_GET_MODULE_FORM_FACTOR:
   case DM_CMD::DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
   case DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE: {
-    const uint32_t output_size = sizeof(asset_info_t);
+    const uint32_t output_size = sizeof(struct asset_info_t);
     char output_buff[output_size] = {0};
 
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
@@ -167,7 +171,7 @@ int verifyService() {
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED: {
-    const uint32_t output_size = sizeof(asset_info_t);
+    const uint32_t output_size = sizeof(struct asset_info_t);
     char output_buff[output_size] = {0};
     char pcie_speed[32];
 
@@ -175,20 +179,26 @@ int verifyService() {
       return ret;
     }
 
-    switch (std::stoi(output_buff,nullptr,10)) {
+    try 
+    {
+      switch (std::stoi(output_buff,nullptr,10)) {
       case 2:strncpy(pcie_speed, "PCIE_GEN1", sizeof(pcie_speed)); break;
       case 5:strncpy(pcie_speed, "PCIE_GEN2", sizeof(pcie_speed)); break;
       case 8:strncpy(pcie_speed, "PCIE_GEN3", sizeof(pcie_speed)); break;
       case 16:strncpy(pcie_speed, "PCIE_GEN4", sizeof(pcie_speed)); break;
       case 32:strncpy(pcie_speed, "PCIE_GEN5", sizeof(pcie_speed)); break;
-    }
+      }  
+    } catch (const std::invalid_argument& ia) {
+     DV_LOG(INFO) <<ia.what()<< "Invalid resposne from the device= " << output_buff << std::endl;
+     return -EINVAL;
+   }
 
 
     DV_LOG(INFO) << "PCIE Speed: " << pcie_speed << std::endl;
   }break;
 
   case DM_CMD::DM_CMD_GET_MODULE_MEMORY_SIZE_MB: {
-    const uint32_t output_size = sizeof(asset_info_t);
+    const uint32_t output_size = sizeof(struct asset_info_t);
     char output_buff[output_size] = {0};
 
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
@@ -199,7 +209,7 @@ int verifyService() {
   }break;
 
   case DM_CMD::DM_CMD_GET_ASIC_CHIP_REVISION: {
-    const uint32_t output_size = sizeof(asset_info_t);
+    const uint32_t output_size = sizeof(struct asset_info_t);
     char output_buff[output_size] = {0};
 
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
@@ -212,6 +222,7 @@ int verifyService() {
     }
     catch (const std::invalid_argument& ia) {
 	     DV_LOG(INFO) << "Invalid response from device: " << ia.what() << '\n';
+    return -EINVAL;
     }
 
   } break;
@@ -801,6 +812,7 @@ int verifyService() {
     }
     catch (const std::invalid_argument& ia) {
 	     DV_LOG(INFO) << "Invalid response from device: " << ia.what() << '\n';
+    return -EINVAL;
     }
   } break;
   
