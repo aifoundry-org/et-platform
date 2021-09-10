@@ -367,7 +367,7 @@
 // Vault IP
 #define VAULTIP_DRIVER_TASK_PRIORITY       1
 #define VAULTIP_DRIVER_TASK_STACK_SIZE  4096
-// Flash File System 
+// Flash File System
 #define FLASHFS_DRIVER_TASK_PRIORITY       1
 #define FLASHFS_DRIVER_TASK_STACK_SIZE  4096
 

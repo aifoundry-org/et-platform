@@ -23,12 +23,12 @@
 #include <et-trace/encoder.h>
 
 /* Local functions */
-static void dump_stack_frame(const void *stack_frame, void *trace_buf);
-static void dump_csrs(void *buf);
+static void dump_stack_frame_and_csrs(const void *stack_frame,
+    struct dev_context_registers_t *context);
 static void *dump_perf_globals_trace(void *buf);
 static void dump_power_globals_trace(void *buf);
 
-/*! \def DUMP_THROTTLE_RESIDENCY(THROTTLE_STATE) 
+/*! \def DUMP_THROTTLE_RESIDENCY(THROTTLE_STATE)
     \brief Dumps throttle residency to memory
 */
 #define DUMP_THROTTLE_RESIDENCY(THROTTLE_STATE)                    \
@@ -38,7 +38,7 @@ static void dump_power_globals_trace(void *buf);
         trace_buf += sizeof(uint64_t);                             \
     }
 
-/*! \def DUMP_POWER_RESIDENCY(POWER_STATE) 
+/*! \def DUMP_POWER_RESIDENCY(POWER_STATE)
     \brief Dumps power residency to memory
 */
 #define DUMP_POWER_RESIDENCY(POWER_STATE)                          \
@@ -52,44 +52,13 @@ static void dump_power_globals_trace(void *buf);
 *
 *   FUNCTION
 *
-*       SP_Exception_Trace_Buffer_Reserve
-*
-*   DESCRIPTION
-*
-*       This function reserves region for SP exception in SP trace buffer.
-*
-*   INPUTS
-*
-*       None
-*
-*   OUTPUTS
-*
-*       uint8_t*    Pointer to region in trace buffer reserved for
-*                   exception entry.
-*
-***********************************************************************/
-uint8_t *SP_Exception_Trace_Buffer_Reserve(void)
-{
-    uint64_t exception_entry_size =
-        sizeof(struct trace_entry_header_t) + SP_EXCEPTION_FRAME_SIZE + SP_GLOBALS_SIZE;
-    uint8_t *exception_entry_ptr = Trace_Buffer_Reserve(Trace_Get_SP_CB(), exception_entry_size);
-    struct trace_entry_header_t *entry_header = (struct trace_entry_header_t *)exception_entry_ptr;
-    entry_header->cycle = timer_get_ticks_count();
-    entry_header->type = TRACE_TYPE_EXCEPTION;
-    return exception_entry_ptr;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
 *       bl2_exception_entry
 *
 *   DESCRIPTION
 *
-*       High level exception handler - dumps the system state to trace buffer or console
-*       in case of exceptions.
-
+*       High level exception handler - dumps the system state to trace
+*       buffer or console in case of exceptions.
+*
 *   INPUTS
 *
 *       stack_frame    Pointer to stack frame
@@ -101,31 +70,26 @@ uint8_t *SP_Exception_Trace_Buffer_Reserve(void)
 ***********************************************************************/
 __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
 {
+    struct dev_context_registers_t context = {0};
+    struct trace_control_block_t *trace_cb = Trace_Get_SP_CB();
+    uint8_t *trace_buf;
+
     /* Disable global interrupts - no nested exceptions */
     portDISABLE_INTERRUPTS();
 
-    uint8_t *trace_buf = SP_Exception_Trace_Buffer_Reserve();
-    uint8_t *trace_data_ptr = trace_buf + sizeof(struct trace_entry_header_t);
+    /* Dump the arch and chip specific registers. No chip registers are
+    currently saved in the context switch code. */
+    dump_stack_frame_and_csrs(stack_frame, &context);
 
-    /* Dump the arch and chip sepcifc registers. No chip registers are currently saved
-        in the context switch code.
-    */
-    dump_stack_frame(stack_frame, (void *)trace_data_ptr);
+    /* Log the execution stack event to trace */
+    trace_buf = Trace_Execution_Stack(trace_cb, &context);
 
-    trace_data_ptr += SP_EXCEPTION_STACK_FRAME_SIZE;
+    /* Generate exception event for host */
+    SP_Exception_Event(SP_TRACE_GET_ENTRY_OFFSET(trace_buf, trace_cb));
 
-    /* Dump the important CSRs */
-    dump_csrs((void *)trace_data_ptr);
-
-    trace_data_ptr += SP_EXCEPTION_CSRS_FRAME_SIZE;
-
-    /* Dump the globals for performance service */
-    trace_data_ptr = dump_perf_globals_trace((void *)trace_data_ptr);
-
-    /* Dump the globals for power and thermal service */
-    dump_power_globals_trace((void *)trace_data_ptr);
-
-    SP_Exception_Event(SP_TRACE_GET_ENTRY_OFFSET(trace_buf, Trace_Get_SP_CB()));
+    /* TODO: Need to dump global using Trace_Custom_Event() */
+    (void)dump_perf_globals_trace;
+    (void)dump_power_globals_trace;
 
     Log_Write(LOG_LEVEL_CRITICAL, "SP Spining in Exception handler..\r\n");
 
@@ -156,9 +120,9 @@ __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
 ***********************************************************************/
 uint8_t *bl2_dump_stack_frame(void)
 {
+    struct dev_context_registers_t context = {0};
     uint64_t stack_frame;
-    uint8_t *trace_buf = SP_Exception_Trace_Buffer_Reserve();
-    uint8_t *trace_data_ptr = trace_buf + sizeof(struct trace_entry_header_t);
+    uint8_t *trace_buf;
 
     /* For dumping the stack frame outside of exception context such as
         wdog interrupt, the stack is assumed to be present in the a7 register.
@@ -166,9 +130,12 @@ uint8_t *bl2_dump_stack_frame(void)
         the driver ISR handler.
     */
     asm volatile("mv %0, a7" : "=r"(stack_frame));
-    dump_stack_frame((void *)stack_frame, (void *)trace_data_ptr);
-    trace_data_ptr += SP_EXCEPTION_STACK_FRAME_SIZE;
-    dump_csrs((void *)trace_data_ptr);
+
+    /* Dump the context */
+    dump_stack_frame_and_csrs((void*)stack_frame, &context);
+
+    /* Log the execution stack event to trace */
+    trace_buf = Trace_Execution_Stack(Trace_Get_SP_CB(), &context);
 
     return trace_buf;
 }
@@ -177,24 +144,26 @@ uint8_t *bl2_dump_stack_frame(void)
 *
 *   FUNCTION
 *
-*       bl2_exception_entry
+*       dump_stack_frame_and_csrs
 *
 *   DESCRIPTION
 *
-*       This function dumps the stack frame state to trace buffer or console.
+*       This function dumps the stack frame state and CSRs to trace buffer
+*       or console.
 *
 *   INPUTS
 *
 *       stack_frame    Pointer to stack frame
+*       context        Pointer to context registers structure
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-static void dump_stack_frame(const void *stack_frame, void *buf)
+static void dump_stack_frame_and_csrs(const void *stack_frame,
+    struct dev_context_registers_t *context)
 {
-    uint64_t *trace_buf = (uint64_t *)buf;
     const uint64_t *stack_pointer = (const uint64_t *)stack_frame;
 
     /* Dump the stack frame - for stack frame defintion,
@@ -203,50 +172,23 @@ static void dump_stack_frame(const void *stack_frame, void *buf)
     /* Move the stack pointer to x1 saved location */
     stack_pointer++;
 
-    /* dum stack frame on trace buffer */
-    memcpy(trace_buf, stack_pointer, SP_EXCEPTION_STACK_FRAME_SIZE);
-}
+    /* Save x1 first */
+    context->gpr[0] = *stack_pointer;
 
-/************************************************************************
-*
-*   FUNCTION
-*
-*       dump_csrs
-*
-*   DESCRIPTION
-*
-*       This function dumps CSRs to trace-buffer/console
-*
-*   INPUTS
-*
-*       None
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-static void dump_csrs(void *buf)
-{
-    uint64_t *trace_buf = (uint64_t *)buf;
-    uint64_t mcause_reg;
-    uint64_t mstatus_reg;
-    uint64_t mepc_reg;
-    uint64_t mtval_reg;
+    /* Move the stack pointer to x5 saved location */
+    stack_pointer++;
 
+    /* Dump x5 to x31 to specified context structure */
+    memcpy((void*)&context->gpr[4], stack_pointer,
+        SP_EXCEPTION_STACK_FRAME_SIZE - (sizeof(uint64_t) * 1));
+
+    /* Dump CSRs to the specified context structure */
     asm volatile("csrr %0, mcause\n"
                  "csrr %1, mstatus\n"
                  "csrr %2, mepc\n"
                  "csrr %3, mtval"
-                 : "=r"(mcause_reg), "=r"(mstatus_reg), "=r"(mepc_reg), "=r"(mtval_reg));
-
-    /* log above reterived registers to trace */
-    *trace_buf++ = mepc_reg;
-    *trace_buf++ = mstatus_reg;
-    *trace_buf++ = mtval_reg;
-    *trace_buf++ = mcause_reg;
-
-    return;
+                 : "=r"(context->cause), "=r"(context->status),
+                   "=r"(context->epc), "=r"(context->tval));
 }
 
 /************************************************************************
@@ -393,24 +335,24 @@ static void dump_power_globals_trace(void *buf)
 *
 *   INPUTS
 *
-*       buf                   trace buffer
+*       trace_buffer_offset    Offset in trace buffer
 *
 *   OUTPUTS
 *
-*       void                       none
+*       None
 *
 ***********************************************************************/
-void SP_Exception_Event(uint64_t buf)
+void SP_Exception_Event(uint64_t trace_buffer_offset)
 {
     struct event_message_t message;
 
     /* add details in message header and fill payload */
     FILL_EVENT_HEADER(&message.header, SP_RUNTIME_EXCEPT, sizeof(struct event_message_t))
-    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, timer_get_ticks_count(), buf)
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, timer_get_ticks_count(), trace_buffer_offset)
 
     /* Post message to the queue */
     if (0 != SP_Host_Iface_CQ_Push_Cmd((void *)&message, sizeof(message)))
     {
-        Log_Write(LOG_LEVEL_ERROR, "exception_event :  push to CQ failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "SP_Exception_Event: push to CQ failed!\n");
     }
 }

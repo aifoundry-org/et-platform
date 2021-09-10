@@ -22,12 +22,14 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
 {
     struct event_message_t message;
     uint64_t req_start_time = timer_get_ticks_count();
+    uint8_t *trace_buf;
+    struct dev_context_registers_t context;
 
-    uint8_t *trace_buf = SP_Exception_Trace_Buffer_Reserve();
-    uint8_t *trace_data_ptr = trace_buf + sizeof(struct trace_entry_header_t);
+    /* Copy dummy data */
+    memset((void*)&context, 0xa5, sizeof(context));
 
-    /* fill in dummy data to trace buffer */
-    memset(trace_data_ptr, 0xa5, SP_EXCEPTION_FRAME_SIZE + SP_GLOBALS_SIZE);
+    /* Log the execution stack event to trace */
+    trace_buf = Trace_Execution_Stack(Trace_Get_SP_CB(), &context);
 
     /* Generate SP Runtime Exception */
     FILL_EVENT_HEADER(&message.header, SP_RUNTIME_EXCEPT, sizeof(struct event_message_t))
@@ -77,7 +79,7 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
 
     /* Generate Minion hang threshold Error */
     FILL_EVENT_HEADER(&message.header, MINION_HANG_TH, sizeof(struct event_message_t))
-    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 80, MM_KW_ERROR, (uint32_t)MM_KERNEL_LAUNCH_ERROR)
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 80, MM_RUNTIME_HANG_ERROR, (uint32_t)MM_HANG_ERROR)
     minion_event_callback(UNCORRECTABLE, &message);
 
     /* Generate runtime error */
