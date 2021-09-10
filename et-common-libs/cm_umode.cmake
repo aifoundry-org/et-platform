@@ -55,6 +55,12 @@ target_include_directories(cm-umode
         $<INSTALL_INTERFACE:${CM_UMODE_INSTALL_PREFIX}/include>
 )
 
+target_compile_options(cm-umode
+    PRIVATE
+        -Wall
+        $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
+)
+
 #This macro preserves the driectory structure as defined by the
 #CM UMODE listing above
 MACRO(InstallHdrsWithDirStruct HEADER_LIST)

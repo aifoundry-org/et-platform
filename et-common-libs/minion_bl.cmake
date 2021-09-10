@@ -59,6 +59,13 @@ target_include_directories(minion-bl
         $<INSTALL_INTERFACE:${MINION_BL_INSTALL_PREFIX}/include>
 )
 
+target_compile_options(minion-bl
+    PRIVATE
+        -Wall
+        $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
+)
+
+
 #################################################
 #Install and export minion-bl library and headers
 #################################################

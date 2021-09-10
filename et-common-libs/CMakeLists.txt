@@ -19,6 +19,8 @@ project(
     DESCRIPTION "ET Accelerator API, a header and library exposed to CM usermode"
 )
 
+option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
+
 include(GNUInstallDirs)
 
 # Build and install Compute Minion User Mode libs
