@@ -61,6 +61,10 @@ TEST_F(KernelLaunchF, simple) {
   sendH2D_K_D2H(1, 64, 1024);
 }
 
+TEST_F(KernelLaunchF, embedKernelArgs) {
+  sendH2D_K_D2H(1, 16, 1024);
+}
+
 TEST_F(KernelLaunchF, largerKernelArgs) {
   sendH2D_K_D2H(1, 128, 1024);
 }
