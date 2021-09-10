@@ -81,6 +81,11 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
             $<$<BOOL:${ENABLE_CMD_EXECUTION_TRACE}>: MM_ENABLE_CMD_EXECUTION_TRACE>
 
     )
+    target_compile_options(${MM_BUILD_VARIANT}.elf
+        PRIVATE
+            -Wall
+            $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
+    )
     target_link_libraries(${MM_BUILD_VARIANT}.elf
         PUBLIC
             esperantoTrace::et_trace

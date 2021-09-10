@@ -36,6 +36,11 @@ target_include_directories(WorkerMinion.elf
     PRIVATE 
         $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/include>
 )
+target_compile_options(WorkerMinion.elf
+    PRIVATE
+        -Wall
+        $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
+)
 target_link_libraries(WorkerMinion.elf
     PRIVATE
         deviceApi::deviceApi

@@ -29,6 +29,9 @@ option(ENABLE_REPORT_GLOBAL_FLAGS "Wether global flags should be shown when conf
 option(DEVICE_MINION_RUNTIME_DEPRECATED "Enable deprecated functionality" ON)
 option(BUILD_DOC "Build documentation" ON)
 
+option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
+include(CompilerWarnings)
+
 set(DOCUMENTATION_INSTALL_DIR  "${CMAKE_INSTALL_PREFIX}" CACHE STRING "Documentation installation path")
 
 if(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
