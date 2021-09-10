@@ -72,35 +72,55 @@ getDM_t TestDevMgmtApiSyncCmds::getInstance() {
 }
 
 void TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, size_t bufSize)  {
-  std::ofstream logFileBin;
   std::ofstream logFileText;
   std::stringstream logs;
-  bool fileExists = false;
 
   // return for loopback driver
   if (FLAGS_loopback_driver) {
     DM_LOG(INFO) << "Get Trace Buffer is not supported on loopback driver";
     return;
   }
+ const struct trace_entry_header_t* entry =
+    Trace_Decode(templ::bit_cast<trace_buffer_std_header_t*>(traceBuf), nullptr);
 
-  fileExists = std::experimental::filesystem::exists(FLAGS_trace_logfile_bin);
+  if (entry) {
+    std::ofstream rawTrace(FLAGS_trace_logfile_bin, std::ofstream::binary | std::ios_base::in | std::ios_base::out);
 
-  logFileBin.open(FLAGS_trace_logfile_bin, std::ios_base::app | std::ios_base::binary);
-  if(!logFileBin.is_open()) {
-    DM_LOG(ERROR) << "Cannot open bin trace file";
-    return;
+    struct trace_buffer_std_header_t* traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf);
+    bool update_size = true;
+
+    if (rawTrace.fail()) {
+      // Raw Trace file does not exist, create new file.
+      rawTrace.open(FLAGS_trace_logfile_bin, std::ofstream::binary);
+      rawTrace.write(templ::bit_cast<char*>(traceHdr), sizeof(trace_buffer_std_header_t));
+      update_size = false;
+    } else {
+      // move cursor at the end of file to append the existing file.
+      rawTrace.seekp(0, std::ios_base::end);
+    }
+
+    // Dump raw Trace events into file (without trace header)
+    rawTrace.write(templ::bit_cast<char*>(entry), (traceHdr->data_size - sizeof(trace_buffer_std_header_t)));
+
+    if (update_size) {
+      // If we are appending data into existing file then update data size in raw trace header.
+      uint32_t raw_size = 0;
+      std::ifstream readHdr(FLAGS_trace_logfile_bin);
+
+      // Get data existing data size in raw binary
+      readHdr.seekg(sizeof(uint32_t), std::ios_base::beg);
+      readHdr.read(templ::bit_cast<char*>(&raw_size), sizeof(uint32_t));
+      readHdr.close();
+
+      // Update data size
+      raw_size = raw_size + (traceHdr->data_size - sizeof(trace_buffer_std_header_t));
+      rawTrace.seekp(sizeof(uint32_t), std::ios_base::beg);
+      rawTrace.write(templ::bit_cast<char*>(&raw_size), sizeof(uint32_t));
+    }
+
+    rawTrace.close();
   }
 
-  if(fileExists) {
-    /* Dump the trace buffer in bin format - no header */
-    logFileBin.write((const char *)traceBuf + sizeof(struct trace_buffer_std_header_t),
-                     ((struct trace_buffer_std_header_t *)traceBuf)->data_size - sizeof(struct trace_buffer_std_header_t) );
-  } else {
-    /* Dump the trace buffer in bin format including header */
-    logFileBin.write((const char *)traceBuf, ((struct trace_buffer_std_header_t *)traceBuf)->data_size);
-  }
-
-  logFileBin.close();
 
   logFileText.open(FLAGS_trace_logfile_txt, std::ios_base::app);
 
@@ -115,8 +135,7 @@ void TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, siz
 
   const trace_string_t* tracePacketString;
   std::array<char, TRACE_STRING_MAX_SIZE + 1> stringLog;
-  const struct trace_entry_header_t* entry = NULL;
-
+  entry = NULL;
   // Decode only string type of packets
   while (entry = Trace_Decode((struct trace_buffer_std_header_t*)traceBuf, entry)) {
     if (entry->type == TRACE_TYPE_STRING) {
