@@ -120,11 +120,6 @@ macro(add_riscv_executable TARGET_NAME)
     # putting libraries in CMAKE_EXE_LINKER_FLAGS is too early
     target_link_libraries(${ELF_FILE} c m gcc)
 
-    if (TRACE_ENABLED)
-      # Link trace library if tracing is enabled
-      target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device-mrt-trace)
-    endif()
-
     # Pass -L{$SHARED_INC_DIR} to linker so linker scripts can INCLUDE shared defines
     target_link_directories(${ELF_FILE} PRIVATE ${SHARED_INC_DIR})
 

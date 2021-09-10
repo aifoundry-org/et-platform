@@ -19,6 +19,7 @@ set(GCC_SYSROOT_PATH /esperanto/minion CACHE STRING "Path to the gcc riscv toolc
 
 # First step as the artifacts of this package are consumed by the toolchain script
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
+find_package(esperantoTrace REQUIRED)
 
 # Must set CMAKE_TOOLCHAIN_FILE before project() is called
 set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
@@ -88,6 +89,9 @@ macro(test_kernel)
   set(EXPORT_NAME EsperantoTestKernelsTargets)
 
   target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device_common et-common-libs::cm-umode)
+
+  # Link trace library if tracing is enabled
+  target_link_libraries(${TARGET_NAME}.elf esperantoTrace::et_trace)
 
   install(TARGETS ${TARGET_NAME}.elf
     EXPORT ${EXPORT_NAME}
@@ -169,8 +173,8 @@ add_subdirectory("add_vector")
 add_subdirectory("cm_umode_test")
 add_subdirectory("memset")
 add_subdirectory("beef")
-# Trace tests disabled for now until we have the new Tracing lib
-#add_subdirectory("trace")
+add_subdirectory("trace")
+# Old Trace tests disabled for now until we update them to use new Tracing lib
 #add_subdirectory("trace_ring_buffer")
 add_subdirectory("crc32")
 add_subdirectory("empty")
