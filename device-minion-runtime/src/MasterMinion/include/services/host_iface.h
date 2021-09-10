@@ -31,11 +31,6 @@
 */
 #define CMD_HEADER_FLAG_BARRIER             (1 << 0)
 
-/*! \def CMD_HEADER_FLAG_KERNEL_TRACE_BUF
-    \brief Host Command flag for Kernel U-mode trace buffer.
-*/
-#define CMD_HEADER_FLAG_KERNEL_TRACE_BUF    (1 << 1)
-
 /*! \def CMD_HEADER_FLAG_MM_TRACE_BUF
     \brief Host Command flag for MM Trace Buffer.
 */

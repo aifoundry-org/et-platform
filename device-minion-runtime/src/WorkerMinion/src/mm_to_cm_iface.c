@@ -150,7 +150,7 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
             kernel.pointer_to_args      = launch->kernel.pointer_to_args;
             kernel.shire_mask           = launch->kernel.shire_mask;
             kernel.exception_buffer     = launch->kernel.exception_buffer;
-            kernel.trace_buffer         = launch->kernel.trace_buffer;
+            kernel.pointer_to_trace_cfg = launch->kernel.pointer_to_trace_cfg;
 
             uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
             rv = launch_kernel(kernel, kernel_stack_addr);

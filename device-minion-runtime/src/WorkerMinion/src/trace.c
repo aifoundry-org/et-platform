@@ -34,6 +34,7 @@
 #include "device-common/hpm_counter.h"
 
 #define ET_TRACE_ENCODER_IMPL
+#define ET_TRACE_GET_HART_ID()       get_hart_id()
 #define ET_TRACE_GET_TIMESTAMP()     hpm_read_counter3()
 #define ET_TRACE_GET_HPM_COUNTER(id) hpm_read_counter(id)
 
@@ -149,7 +150,7 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
         CM_TRACE_CB[hart_cb_index].cb.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
 
         /* Evict the Trace buffer standard header which is part of Base Hart's buffer.
-           It is required, even if tracing is disabled ofr base because it contain buffer
+           It is required, even if tracing is disabled for base because it contain buffer
            validation data as part of trace buffer standard header. */
         Trace_Evict_CM_Buffer();
     }

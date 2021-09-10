@@ -86,7 +86,7 @@ typedef struct {
     uint64_t pointer_to_args;
     uint64_t shire_mask;
     uint64_t exception_buffer;
-    uint64_t trace_buffer;
+    uint64_t pointer_to_trace_cfg;
     uint8_t kw_base_id;
     uint8_t slot_index;
     uint8_t flags;

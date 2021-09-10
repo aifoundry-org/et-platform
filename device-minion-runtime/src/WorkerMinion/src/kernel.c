@@ -284,7 +284,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
         "sd    x30, 30 * 8( sp )   \n"
         "sd    x31, 31 * 8( sp )   \n"
         "mv    x10, %[k_param_a0]  \n" // a0 = kernel.pointer_to_args
-        "mv    x11, %[k_param_a1]  \n" // a1 = kernel.trace_buffer
+        "mv    x11, %[k_param_a1]  \n" // a1 = kernel.pointer_to_trace_cfg
         "mv    x12, %[k_param_a2]  \n" // a2 = UNUSED
         "mv    x13, %[k_param_a3]  \n" // a3 = UNUSED
         "sd    sp, %[firmware_sp]  \n" // save sp to supervisor stack SP region (sscratch + 8)
@@ -367,7 +367,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
           [k_stack_addr]  "r"(kernel_stack_addr),
           [k_entry]       "r"(kernel.code_start_address),
           [k_param_a0]    "r"(kernel.pointer_to_args),
-          [k_param_a1]    "r"(kernel.trace_buffer),
+          [k_param_a1]    "r"(kernel.pointer_to_trace_cfg),
           [k_param_a2]    "r"(0), /* Unused for now */
           [k_param_a3]    "r"(0)  /* Unused for now */
     );

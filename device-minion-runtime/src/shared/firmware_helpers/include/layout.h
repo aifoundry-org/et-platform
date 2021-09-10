@@ -197,7 +197,11 @@ correspoding Flash partition to take affect. */
 #define CM_TRACE_BUFFER_BASE              (MM_TRACE_BUFFER_BASE + MM_TRACE_BUFFER_SIZE)
 /* Default 4KB fixed buffer size per Hart for all Compute Worker Harts. It must be 64 byte aligned. */
 #define CM_TRACE_BUFFER_SIZE_PER_HART     0x1000
-#define CM_TRACE_BUFFER_SIZE              (CM_TRACE_BUFFER_SIZE_PER_HART * (NUM_COMPUTE_SHIRES * HARTS_PER_SHIRE + MASTER_SHIRE_COMPUTE_HARTS))
+#define CM_TRACE_BUFFER_SIZE              (CM_TRACE_BUFFER_SIZE_PER_HART * CM_HART_COUNT)
+
+/* NOTE: Keep it's value in sync with device-software/et-common-libs/src/trace/trace_umode.c */
+#define CM_UMODE_TRACE_CB_BASEADDR        CACHE_LINE_ALIGN(CM_TRACE_BUFFER_BASE + CM_TRACE_BUFFER_SIZE)
+#define CM_UMODE_TRACE_CB_SIZE            (TRACE_CB_MAX_SIZE * CM_HART_COUNT)
 
 /* Reserved area for DDR low memory sub regions */
 #define LOW_MEM_SUB_REGIONS_BASE          LOW_MEMORY_SUBREGION_BASE
@@ -241,7 +245,7 @@ static_assert((CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR + CM_MM_IFACE_UNICAST_LOCKS_S
               "S-stack / message buffer region collision");
 
 /* Ensure that DDR low memory sub regions dont cross the define limit */
-static_assert((CM_TRACE_BUFFER_BASE + CM_TRACE_BUFFER_SIZE) < (LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE),
+static_assert((CM_UMODE_TRACE_CB_BASEADDR + CM_UMODE_TRACE_CB_SIZE) < (LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE),
               "DDR low memory sub regions crossing limits");
 
 /* Ensure that DDR low memory regions dont overlap U-mode kernels entry */
