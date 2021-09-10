@@ -1486,9 +1486,9 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision_1_42(bool singleDevice) {
 
       EXPECT_EQ(firmware_versions->bl1_v, FORMAT_VERSION(0, 0, 1));
       EXPECT_EQ(firmware_versions->bl2_v, FORMAT_VERSION(0, 0, 1));
-      EXPECT_EQ(firmware_versions->mm_v, FORMAT_VERSION(3, 17, 3));
-      EXPECT_EQ(firmware_versions->wm_v, FORMAT_VERSION(3, 17, 3));
-      EXPECT_EQ(firmware_versions->machm_v, FORMAT_VERSION(3, 17, 3));
+      EXPECT_EQ(firmware_versions->mm_v, FORMAT_VERSION(0, 0, 1));
+      EXPECT_EQ(firmware_versions->wm_v, FORMAT_VERSION(0, 0, 1));
+      EXPECT_EQ(firmware_versions->machm_v, FORMAT_VERSION(0, 0, 1));
     }
   }
 }
