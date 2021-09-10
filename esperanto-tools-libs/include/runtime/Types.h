@@ -47,7 +47,7 @@ class Exception : public dbg::StackException {
 
 /// \brief This is the device kernel error context which is a result of a running kernel terminating on a abnormal state
 /// (exception / abort)
-struct ErrorContext {
+struct __attribute__((packed, aligned(64))) ErrorContext {
   uint64_t type_;   ///< 0: compute hang, 1: U-mode exception, 2: system abort, 3: self abort, 4: kernel execution error
   uint64_t cycle_;  ///< The cycle as sampled from the system counters at the point where the event type has happened.
                     ///< Its accurate to within 100 cycles.
@@ -56,7 +56,7 @@ struct ErrorContext {
   uint64_t mstatus_;             ///< Device status register
   uint64_t mtval_;               ///< Device bad address or instruction
   uint64_t mcause_;              ///< Device trap cause
-  uint64_t userDefinedError_;    ///< User defined error (Depending on the Type)
+  int64_t userDefinedError_;     ///< User defined error (Depending on the Type)
   std::array<uint64_t, 31> gpr_; ///< RiscV ABI, corresponds to x1-x31 registers
 };
 
