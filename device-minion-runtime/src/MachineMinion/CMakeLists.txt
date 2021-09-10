@@ -42,6 +42,9 @@ target_link_libraries(MachineMinion.elf
         deviceFirmware::device_configuration
 )
 
+target_report_riscv_size(MachineMinion.elf)
+target_report_riscv_elf_file_header(MachineMinion.elf)
+
 install(TARGETS MachineMinion.elf
     EXPORT EsperantoDeviceMinionRuntimeTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw/MachineMinion

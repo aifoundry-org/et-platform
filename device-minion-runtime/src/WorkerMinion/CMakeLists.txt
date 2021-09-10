@@ -46,6 +46,9 @@ target_link_libraries(WorkerMinion.elf
 
 target_link_libraries(WorkerMinion.elf PUBLIC esperantoTrace::et_trace)
 
+target_report_riscv_size(WorkerMinion.elf)
+target_report_riscv_elf_file_header(WorkerMinion.elf)
+
 install(TARGETS WorkerMinion.elf
     EXPORT EsperantoDeviceMinionRuntimeTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR}/esperanto-fw/WorkerMinion
