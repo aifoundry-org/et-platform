@@ -20,6 +20,11 @@ include(DeviceUtils)
 include(GNUInstallDirs)
 cmake_policy(SET CMP0076 NEW)
 
+option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
+if(ENABLE_WARNINGS_AS_ERRORS)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+endif()
+
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(signedImageFormat REQUIRED)
 find_package(deviceApi REQUIRED)
