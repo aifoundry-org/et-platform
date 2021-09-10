@@ -50,7 +50,7 @@
  *
  * NOTES
  *
- *  - All data structures here are defined as packed 
+ *  - All data structures here are defined as packed
  *  - In a few instances extra padding bytes are added to account
  *    for cache alignment / atomic operations
  *
@@ -120,7 +120,8 @@ enum trace_type {
     TRACE_TYPE_MEMORY,
     TRACE_TYPE_EXCEPTION,
     TRACE_TYPE_CMD_STATUS,
-    TRACE_TYPE_POWER_STATUS
+    TRACE_TYPE_POWER_STATUS,
+    TRACE_TYPE_CUSTOM_EVENT
 };
 
 /*! \typedef trace_cmd_status_e
@@ -266,6 +267,35 @@ struct trace_memory_t {
     uint64_t src_addr;
     uint64_t size;
     uint8_t data[];
+} __attribute__((packed));
+
+/*! \struct dev_context_registers_t
+    \brief A structure containing the device context registers.
+*/
+struct dev_context_registers_t {
+    uint64_t epc;
+    uint64_t tval;
+    uint64_t status;
+    uint64_t cause;
+    uint64_t gpr[31]; /* x1 to x31 */
+} __attribute__((packed));
+
+/*! \struct trace_execution_stack_t
+    \brief A Trace packet strucure for logging the execution stack of device registers.
+*/
+struct trace_execution_stack_t {
+    struct trace_entry_header_t header;
+    struct dev_context_registers_t registers;
+} __attribute__((packed));
+
+/*! \struct trace_custom_event_t
+    \brief A Trace packet strucure for logging a custom event in trace buffer.
+*/
+struct trace_custom_event_t {
+    struct trace_entry_header_t header;
+    uint32_t custom_type;
+    uint32_t payload_size;
+    uint8_t payload[]; /* flexible array */
 } __attribute__((packed));
 
 #define TRACE_SCALAR_TYPE_DEF(suffix, c_type, pad_count) \

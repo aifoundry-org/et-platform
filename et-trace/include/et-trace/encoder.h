@@ -248,6 +248,10 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
                       const struct trace_event_cmd_status_t *cmd_data);
 void Trace_Power_Status(struct trace_control_block_t *cb,
                         const struct trace_event_power_status_t *cmd_data);
+void *Trace_Execution_Stack(struct trace_control_block_t *cb,
+                            const struct dev_context_registers_t *regs);
+void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
+                         const uint8_t *payload, uint32_t payload_size);
 
 #ifdef ET_TRACE_ENCODER_IMPL
 
@@ -340,6 +344,13 @@ inline static bool trace_is_str_enabled(const struct trace_control_block_t *cb,
 {
     return (trace_is_enabled(cb) && (ET_TRACE_READ_U32(cb->event_mask) & TRACE_EVENT_STRING) &&
             ((ET_TRACE_READ_U32(cb->filter_mask) & TRACE_FILTER_STRING_MASK) >= log_level));
+}
+
+inline static uint32_t trace_get_header_size(const struct trace_control_block_t *cb)
+{
+    return (ET_TRACE_READ_U8(cb->header) == TRACE_STD_HEADER) ?
+                        sizeof(struct trace_buffer_std_header_t) :
+                        sizeof(struct trace_buffer_size_header_t);
 }
 
 /************************************************************************
@@ -454,9 +465,7 @@ void *Trace_Buffer_Reserve(struct trace_control_block_t *cb, uint64_t size)
         /* Check if Trace buffer is filled upto threshold. Then do reset the buffer. */
         if (trace_check_buffer_full(cb, size, current_offset)) {
             /* Reset buffer. */
-            current_offset = (ET_TRACE_READ_U8(cb->header) == TRACE_STD_HEADER) ?
-                                 sizeof(struct trace_buffer_std_header_t) :
-                                 sizeof(struct trace_buffer_size_header_t);
+            current_offset = trace_get_header_size(cb);
         }
     }
 
@@ -918,6 +927,83 @@ void Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint16_t
             src += 64;
         }
     }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Execution_Stack
+*
+*   DESCRIPTION
+*
+*       A function to log device execution stack in case of runtime exception.
+*
+*   INPUTS
+*
+*       trace_control_block_t     Trace control block of logging Thread/Hart.
+*       regs                      Pointer to filled device context registers.
+*
+*   OUTPUTS
+*
+*       Pointer to starting address of event
+*
+************************************************************************/
+void *Trace_Execution_Stack(struct trace_control_block_t *cb,
+                            const struct dev_context_registers_t *regs)
+{
+    struct trace_execution_stack_t *entry = NULL;
+
+    if (trace_is_enabled(cb)) {
+        entry = (struct trace_execution_stack_t *)Trace_Buffer_Reserve(cb, sizeof(*entry));
+
+        ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_EXCEPTION)
+        ET_TRACE_MEM_CPY(&entry->registers, regs, sizeof(struct dev_context_registers_t));
+    }
+
+    return (void*)entry;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Custom_Event
+*
+*   DESCRIPTION
+*
+*       A function to log a custom event in trace buffer.
+*
+*   INPUTS
+*
+*       trace_control_block_t     Trace control block of logging Thread/Hart.
+*       custom_type               ID of the custom event
+*       payload                   Pointer to payload
+*       payload_size              Size of the payload of custom event
+*
+*   OUTPUTS
+*
+*       Pointer to starting address of event
+*
+************************************************************************/
+void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
+                         const uint8_t *payload, uint32_t payload_size)
+{
+    struct trace_custom_event_t *entry = NULL;
+
+    /* Check if trace is enabled and the payload size is less than the total buffer size */
+    if (trace_is_enabled(cb) &&
+        (payload_size < (ET_TRACE_READ_U32(cb->size_per_hart) - trace_get_header_size(cb)))) {
+        /* Reserve the trace buffer */
+        entry = (struct trace_custom_event_t *)Trace_Buffer_Reserve(cb, sizeof(*entry) + payload_size);
+
+        ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_CUSTOM_EVENT)
+        ET_TRACE_WRITE_U32(entry->custom_type, custom_type);
+        ET_TRACE_WRITE_U32(entry->payload_size, payload_size);
+        ET_TRACE_MEM_CPY(entry->payload, payload, payload_size);
+    }
+
+    return (void*)entry;
 }
 
 #endif /* ET_TRACE_ENCODER_IMPL */
