@@ -19,7 +19,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "io.h"
-#include "etsoc_hal/inc/DWC_pcie_dbi_cpcie_usp_4x8.h"
+#include "hwinc/pcie0_dbi_slv.h"
 #include "pcie_device.h"
 
 #define PCIE_DMA_RD_CHANNEL_COUNT   4
@@ -209,7 +209,7 @@ int8_t dma_abort_write(dma_write_chan_id_e chan);
 */
 static inline uint32_t dma_get_read_int_status(void)
 {
-    return ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_ADDRESS);
+    return ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_ADDRESS);
 }
 
 /*! \fn static inline uint32_t dma_get_write_int_status(void)
@@ -218,7 +218,7 @@ static inline uint32_t dma_get_read_int_status(void)
 */
 static inline uint32_t dma_get_write_int_status(void)
 {
-    return ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_ADDRESS);
+    return ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_ADDRESS);
 }
 
 /*! \fn static inline bool dma_check_read_done(dma_read_chan_id_e chan, uint32_t read_int_status)
@@ -230,7 +230,7 @@ static inline uint32_t dma_get_write_int_status(void)
 static inline bool dma_check_read_done(dma_read_chan_id_e chan, uint32_t read_int_status)
 {
     uint32_t done_status =
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_RD_DONE_INT_STATUS_GET(
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_RD_DONE_INT_STATUS_GET(
                 read_int_status);
     return (done_status & (1U << chan)) != 0;
 }
@@ -244,7 +244,7 @@ static inline bool dma_check_read_done(dma_read_chan_id_e chan, uint32_t read_in
 static inline bool dma_check_write_done(dma_write_chan_id_e chan, uint32_t write_int_status)
 {
     uint32_t done_status =
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_WR_DONE_INT_STATUS_GET(
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_WR_DONE_INT_STATUS_GET(
                 write_int_status);
     return (done_status & (1U << chan)) != 0;
 }
@@ -258,7 +258,7 @@ static inline bool dma_check_write_done(dma_write_chan_id_e chan, uint32_t write
 static inline bool dma_check_read_abort(dma_read_chan_id_e chan, uint32_t read_int_status)
 {
     uint32_t abort_status =
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_RD_ABORT_INT_STATUS_GET(
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_RD_ABORT_INT_STATUS_GET(
                 read_int_status);
     return (abort_status & (1U << chan)) != 0;
 }
@@ -272,7 +272,7 @@ static inline bool dma_check_read_abort(dma_read_chan_id_e chan, uint32_t read_i
 static inline bool dma_check_write_abort(dma_write_chan_id_e chan, uint32_t write_int_status)
 {
     uint32_t abort_status =
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_WR_ABORT_INT_STATUS_GET(
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_WR_ABORT_INT_STATUS_GET(
                 write_int_status);
     return (abort_status & (1U << chan )) != 0;
 }

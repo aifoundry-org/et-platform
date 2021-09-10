@@ -21,8 +21,8 @@
 /***********************************************************************/
 #include "drivers/plic.h"
 #include "io.h"
-#include "etsoc_hal/inc/hal_device.h"
-#include "etsoc_hal/inc/pu_plic.h"
+#include "hwinc/hal_device.h"
+#include "hwinc/pu_plic.h"
 
 #include <stddef.h>
 

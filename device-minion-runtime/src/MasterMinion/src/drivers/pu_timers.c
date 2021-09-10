@@ -23,9 +23,9 @@
 #include "drivers/plic.h"
 #include "io.h"
 #include "device-common/atomic.h"
-#include "etsoc_hal/inc/pu_timers.h"
-#include "etsoc_hal/inc/hal_device.h"
-#include "etsoc_hal/inc/pu_plic.h"
+#include "hwinc/pu_timer.h"
+#include "hwinc/hal_device.h"
+#include "hwinc/pu_plic.h"
 #include "services/log.h"
 
 #include <stddef.h>
@@ -40,12 +40,12 @@
 */
 static inline void PU_Timer_Enable(uint32_t timeout_value)
 {
-    iowrite32(R_PU_TIMER_BASEADDR + PU_DW_APB_TIMERS_TIMER1LOADCOUNT_OFFSET, timeout_value);
-    iowrite32(R_PU_TIMER_BASEADDR + PU_DW_APB_TIMERS_TIMER1CONTROLREG_OFFSET,
-              PU_DW_APB_TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_SET
-                  (PU_DW_APB_TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_TIMER_ENABLE_ENABLED) |
-              PU_DW_APB_TIMERS_TIMER1CONTROLREG_TIMER_MODE_SET
-                  (PU_DW_APB_TIMERS_TIMER1CONTROLREG_TIMER_MODE_TIMER_MODE_USER_DEFINED));
+    iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1LOADCOUNT_OFFSET, timeout_value);
+    iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1CONTROLREG_OFFSET,
+                    TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_SET
+                    (TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_TIMER_ENABLE_ENABLED) |
+                    TIMERS_TIMER1CONTROLREG_TIMER_MODE_SET
+                    (TIMERS_TIMER1CONTROLREG_TIMER_MODE_TIMER_MODE_USER_DEFINED));
 }
 
 /*! \fn PU_Timer_Disable
@@ -53,9 +53,9 @@ static inline void PU_Timer_Enable(uint32_t timeout_value)
 */
 static inline void PU_Timer_Disable(void)
 {
-    iowrite32(R_PU_TIMER_BASEADDR + PU_DW_APB_TIMERS_TIMER1CONTROLREG_OFFSET,
-              PU_DW_APB_TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_SET
-                  (PU_DW_APB_TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_TIMER_ENABLE_DISABLE));
+    iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1CONTROLREG_OFFSET,
+                    TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_SET
+                    (TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_TIMER_ENABLE_DISABLE));
 }
 
 /*! \fn PU_Timer_Interrupt_Clear
@@ -63,7 +63,7 @@ static inline void PU_Timer_Disable(void)
 */
 void PU_Timer_Interrupt_Clear(void)
 {
-    ioread32(R_PU_TIMER_BASEADDR + PU_DW_APB_TIMERS_TIMER1EOI_OFFSET);
+    ioread32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1EOI_OFFSET);
 }
 
 /************************************************************************
@@ -117,7 +117,7 @@ void PU_Timer_Init(void (*timeout_callback_fn)(void), uint32_t timeout)
 ***********************************************************************/
 uint32_t PU_Timer_Get_Current_Value(void)
 {
-   return ioread32(R_PU_TIMER_BASEADDR + PU_DW_APB_TIMERS_TIMER1CURRENTVAL_ADDRESS);
+   return ioread32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1CURRENTVAL_ADDRESS);
 }
 
 /************************************************************************

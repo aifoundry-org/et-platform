@@ -25,16 +25,16 @@
            Strides between write Channels
 */
 #define WR_DMA_REG_CHANNEL_STRIDE                                                \
-    (PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_1_ADDRESS - \
-     PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS)
+    (PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_1_ADDRESS - \
+     PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS)
 
 /*! \def RD_DMA_REG_CHANNEL_STRIDE
     \brief DMA registers are replicated per Channel. THis macro to calculates
            Strides between read Channels
 */
 #define RD_DMA_REG_CHANNEL_STRIDE                                                \
-    (PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_1_ADDRESS - \
-     PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_ADDRESS)
+    (PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_1_ADDRESS - \
+     PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_ADDRESS)
 
 /*! \def DMA_READ_CHAN_GET_LL_BASE
     \brief It returns DMA link list base address for specified DMA read channel.
@@ -389,22 +389,22 @@ int8_t dma_configure_read(dma_read_chan_id_e chan)
     }
 
     read_engine_en =
-        ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_ADDRESS);
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_ADDRESS);
 
     /* Global enable for DMA reads */
     read_engine_en =
-        PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_DMA_READ_ENGINE_MODIFY(
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_DMA_READ_ENGINE_MODIFY(
             read_engine_en, 1);
 
-    iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_ADDRESS,
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_ADDRESS,
               read_engine_en);
 
     transfer_list_low_addr = (uint32_t)(DMA_READ_CHAN_GET_LL_BASE(chan) & 0xFFFFFFFF);
     transfer_list_high_addr = (uint32_t)(DMA_READ_CHAN_GET_LL_BASE(chan) >> 32);
 
-    iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_0_ADDRESS
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_LOW_OFF_RDCH_0_ADDRESS
                     + (chan * RD_DMA_REG_CHANNEL_STRIDE), transfer_list_low_addr);
-    iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_0_ADDRESS
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_HIGH_OFF_RDCH_0_ADDRESS
                     + (chan * RD_DMA_REG_CHANNEL_STRIDE), transfer_list_high_addr);
 
     return DMA_OPERATION_SUCCESS;
@@ -443,22 +443,22 @@ int8_t dma_configure_write(dma_write_chan_id_e chan)
     }
 
     write_engine_en =
-        ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_ADDRESS);
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_ADDRESS);
 
     /* Global enable for DMA writes */
     write_engine_en =
-        PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_DMA_WRITE_ENGINE_MODIFY(
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_DMA_WRITE_ENGINE_MODIFY(
             write_engine_en, 1);
 
-    iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_ADDRESS,
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_ADDRESS,
               write_engine_en);
 
     transfer_list_low_addr = (uint32_t)(DMA_WRITE_CHAN_GET_LL_BASE(chan) & 0xFFFFFFFF);
     transfer_list_high_addr = (uint32_t)(DMA_WRITE_CHAN_GET_LL_BASE(chan) >> 32);
 
-    iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_0_ADDRESS
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_LOW_OFF_WRCH_0_ADDRESS
                     + (chan * WR_DMA_REG_CHANNEL_STRIDE), transfer_list_low_addr);
-    iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_0_ADDRESS
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_LLP_HIGH_OFF_WRCH_0_ADDRESS
                     + (chan * WR_DMA_REG_CHANNEL_STRIDE), transfer_list_high_addr);
 
     return DMA_OPERATION_SUCCESS;
@@ -491,16 +491,16 @@ int8_t dma_start_read(dma_read_chan_id_e chan)
     {
         /* Use linked list mode. All of the control 1 registers have the same layout. */
         control1 =
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_CCS_SET(1) |
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_LLE_SET(1) |
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_DMA_MEM_TYPE_SET(1);
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_CCS_SET(1) |
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_LLE_SET(1) |
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_DMA_MEM_TYPE_SET(1);
 
-        iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_ADDRESS
+        iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_ADDRESS
                         + (chan * RD_DMA_REG_CHANNEL_STRIDE), control1);
 
         /* Ring the doorbell. This prefetches the first transfer list element and enables
         DMA to begin very quickly once started. */
-        iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_ADDRESS,
+        iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_ADDRESS,
                   chan);
     }
     else
@@ -539,16 +539,16 @@ int8_t dma_start_write(dma_write_chan_id_e chan)
     {
         /* Use linked list mode. All of the control 1 registers have the same layout. */
         control1 =
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_CCS_SET(1) |
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_LLE_SET(1) |
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_DMA_MEM_TYPE_SET(1);
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_CCS_SET(1) |
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_LLE_SET(1) |
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_DMA_MEM_TYPE_SET(1);
 
-        iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS
+        iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS
                         + (chan * WR_DMA_REG_CHANNEL_STRIDE), control1);
 
         /* Ring the doorbell. This prefetches the first transfer list element and enables
         DMA to begin very quickly once started. */
-        iowrite32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS,
+        iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS,
                   chan);
     }
     else
@@ -584,8 +584,8 @@ void dma_clear_read_done(dma_read_chan_id_e chan)
     if (IS_DMA_READ_CHAN_VALID(chan))
     {
         iowrite32(
-            PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_ADDRESS,
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_RD_DONE_INT_CLEAR_SET(
+            PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_ADDRESS,
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_RD_DONE_INT_CLEAR_SET(
                 (1U << chan) & 0xF));
     }
     else
@@ -618,8 +618,8 @@ void dma_clear_write_done(dma_write_chan_id_e chan)
     if (IS_DMA_WRITE_CHAN_VALID(chan))
     {
         iowrite32(
-            PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_ADDRESS,
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_WR_DONE_INT_CLEAR_SET(
+            PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_ADDRESS,
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_WR_DONE_INT_CLEAR_SET(
                 (1U << (chan)) & 0xF));
     }
     else
@@ -654,8 +654,8 @@ int8_t dma_clear_read_abort(dma_read_chan_id_e chan)
     if (IS_DMA_READ_CHAN_VALID(chan))
     {
         iowrite32(
-            PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_ADDRESS,
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_RD_ABORT_INT_CLEAR_SET(
+            PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_ADDRESS,
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_CLEAR_OFF_RD_ABORT_INT_CLEAR_SET(
                 (1U << chan) & 0xF));
     }
     else
@@ -693,8 +693,8 @@ int8_t dma_clear_write_abort(dma_write_chan_id_e chan)
     if (IS_DMA_WRITE_CHAN_VALID(chan))
     {
         iowrite32(
-            PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_ADDRESS,
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_WR_ABORT_INT_CLEAR_SET(
+            PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_ADDRESS,
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_CLEAR_OFF_WR_ABORT_INT_CLEAR_SET(
                 (1U << (chan)) & 0xF));
     }
     else
@@ -735,22 +735,22 @@ int8_t dma_abort_read(dma_read_chan_id_e chan)
     }
 
     /* Get the DMA error status DMA of respective channel */
-    uint32_t dma_error_stat_low   = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_DMA_CAP_DMA_READ_ERR_STATUS_LOW_OFF_ADDRESS);
-    uint32_t dma_error_stat_high  = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_DMA_CAP_DMA_READ_ERR_STATUS_HIGH_OFF_ADDRESS);
+    uint32_t dma_error_stat_low   = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_DMA_CAP_DMA_READ_ERR_STATUS_LOW_OFF_ADDRESS);
+    uint32_t dma_error_stat_high  = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_DMA_CAP_DMA_READ_ERR_STATUS_HIGH_OFF_ADDRESS);
     Log_Write(LOG_LEVEL_ERROR, "DMA Read channel (%d) Error Status: %d(LOW) %d(HIGH)\r\n", chan, dma_error_stat_low, dma_error_stat_high);
 
     /* Get the control1 register of the respective channel */
     uint32_t control1 =
-             ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_ADDRESS
+             ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_ADDRESS
                             + (chan * RD_DMA_REG_CHANNEL_STRIDE));
 
     /* If the respective channel is running, abort it */
-    if (1 == PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_CS_GET(control1))
+    if (1 == PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_CS_GET(control1))
     {
         uint32_t dma_abort = (uint32_t)(chan |
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_RD_STOP_FIELD_MASK);
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_RD_STOP_FIELD_MASK);
         iowrite32(
-            PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_ADDRESS, dma_abort);
+            PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_DOORBELL_OFF_ADDRESS, dma_abort);
     }
 
     return DMA_OPERATION_SUCCESS;
@@ -785,21 +785,21 @@ int8_t dma_abort_write(dma_write_chan_id_e chan)
     }
 
     /* Get the DMA error status DMA of respective channel */
-    uint32_t dma_error_stat  = ioread32(PCIE0 + PE0_DWC_PCIE_CTL_DBI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ERR_STATUS_OFF_ADDRESS);
+    uint32_t dma_error_stat  = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ERR_STATUS_OFF_ADDRESS);
     Log_Write(LOG_LEVEL_ERROR, "DMA Write channel (%d) Error Status: %d \r\n", chan, dma_error_stat);
 
     /* Get the control1 register of the respective channel */
     uint32_t control1 =
-            ioread32(PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS
+            ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_WRCH_0_ADDRESS
                            + (chan * WR_DMA_REG_CHANNEL_STRIDE));
 
     /* If the respective channel is running, abort it */
-    if (1 == PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_CS_GET(control1))
+    if (1 == PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_CH_CONTROL1_OFF_RDCH_0_CS_GET(control1))
     {
         uint32_t dma_abort = (uint32_t)(chan |
-            PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_WR_STOP_FIELD_MASK);
+            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_WR_STOP_FIELD_MASK);
         iowrite32(
-            PCIE0 + PE0_DWC_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS, dma_abort);
+            PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_DOORBELL_OFF_ADDRESS, dma_abort);
     }
 
     return DMA_OPERATION_SUCCESS;

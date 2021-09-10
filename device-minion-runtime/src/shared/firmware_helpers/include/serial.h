@@ -2,7 +2,7 @@
 #define SERIAL_H
 
 #include <stdint.h>
-#include "etsoc_hal/inc/hal_device.h"
+#include "hwinc/hal_device.h"
 
 #define UART0 R_PU_UART_BASEADDR
 #define UART1 R_PU_UART1_BASEADDR

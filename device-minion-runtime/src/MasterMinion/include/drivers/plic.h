@@ -18,7 +18,7 @@
 #define PLIC_H
 
 #include <stdint.h>
-#include "etsoc_hal/inc/pu_plic_intr_device.h"
+#include "hwinc/pu_plic_intr_device.h"
 
 /*! \fn void PLIC_Init(void)
     \brief Initialize PLIC driver
