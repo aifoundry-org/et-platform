@@ -350,14 +350,11 @@ Messages :
       - Name: shire_mask
         Description: BitMask indicating Compute Shires that is used to execute a given Kernel
         Type : uint64_t
-      - Name: kernel_trace_buffer
-        Description: Pointer to Host Runtime allocation Trace buffer (optional)
+      - Name: pointer_to_trace_cfg
+        Description: Pointer to the Trace configuration (optional).
         Type : uint64_t
       - Name: argument_payload[]
-        Description: |-
-                These are user provided values and can go up to 64 bytes
-                            Device will copy this to the pointer_to_args address
-                            User will update the Size in the header to reflect the actual size of this payload
+        Description: These are optional payload that can go up to 128 bytes
         Type : uint64_t
   - Name: device_ops_kernel_launch_rsp
     Description: Response and result of a kernel launch on the device
