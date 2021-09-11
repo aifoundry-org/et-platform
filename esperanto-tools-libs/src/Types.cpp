@@ -51,7 +51,7 @@ std::string StreamError::getString() const {
       ss << "\n\ttrap cause: 0x" << ctx.mcause_;
       ss << "\n\tuser defined error: 0x" << ctx.userDefinedError_;
       ss << "\n\tGPR registers (x1-x31): [";
-      for (auto j = 0UL; j < ctx.gpr_.size(); ++j) {
+      for (auto j = 0UL; j < (ctx.gpr_.size()-1); ++j) {
         ss << "\n\t\t0x" << ctx.gpr_[j];
       }
       ss << "]\n}";

@@ -62,15 +62,13 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
   auto cmdPtr = reinterpret_cast<device_ops_api::device_ops_kernel_launch_cmd_t*>(cmdBase.data());
 
   auto pBuffer = executionContextCache_->allocBuffer(kernel->deviceId_);
-  if (kernel_args_size > 0) {
-    if (kernel_args_size <= kMaxSizeKernelEmbeddingParameters) {
+  if ( optionalArgSize > 0) {
       std::copy(kernel_args, kernel_args + kernel_args_size, reinterpret_cast<std::byte*>(cmdPtr->argument_payload));
-    } else {
+  } else {
       barrier = true; // we must wait for parameters, so barrier is true if parameters
       // stage parameters in host buffer
       std::copy(kernel_args, kernel_args + kernel_args_size, begin(pBuffer->hostBuffer_));
       memcpyHostToDevice(streamId, pBuffer->hostBuffer_.data(), pBuffer->getParametersPtr(), kernel_args_size, false);
-    }
   }
   auto event = eventManager_.getNextId();
   streamManager_.addEvent(streamId, event);
@@ -79,8 +77,8 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
   cmdPtr->command_info.cmd_hdr.tag_id = static_cast<uint16_t>(event);
   cmdPtr->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;
   cmdPtr->command_info.cmd_hdr.size = sizeof(device_ops_api::device_ops_kernel_launch_cmd_t);
-  if (kernel_args_size <= kMaxSizeKernelEmbeddingParameters) {
-    auto size = cmdPtr->command_info.cmd_hdr.size + kernel_args_size;
+  if (optionalArgSize > 0) {
+    auto size = cmdPtr->command_info.cmd_hdr.size + optionalArgSize;
     cmdPtr->command_info.cmd_hdr.size = static_cast<msg_size_t>(size);
   }
   cmdPtr->command_info.cmd_hdr.flags = 0;
@@ -94,7 +92,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
   cmdPtr->kernel_trace_buffer = reinterpret_cast<uint64_t>(userTraceBuffer);
   cmdPtr->exception_buffer = reinterpret_cast<uint64_t>(pBuffer->getExceptionContextPtr());
   cmdPtr->code_start_address = kernel->getEntryAddress();
-  cmdPtr->pointer_to_args = kernel_args_size > 0 ? reinterpret_cast<uint64_t>(pBuffer->getParametersPtr()) : 0;
+  cmdPtr->pointer_to_args =  reinterpret_cast<uint64_t>(pBuffer->getParametersPtr());
   cmdPtr->shire_mask = shire_mask;
 
   RT_VLOG(LOW) << "Pushing kernel Launch Command on SQ: " << streamInfo.vq_ << " Tag id: " << std::hex
