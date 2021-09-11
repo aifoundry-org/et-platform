@@ -15,6 +15,8 @@
 #ifndef DEVICE_TRACE_TYPES_H
 #define DEVICE_TRACE_TYPES_H
 
+#define DEV_GPR_REGISTERS 31
+
 /*
  * Trace packet types.
  */
@@ -29,6 +31,26 @@ struct trace_entry_header {
 	u32 hart_id; /* Hart ID of the Hart which is logging Trace */
 	u16 type; /* One of enum trace_type */
 	u8 pad[2]; /* To keep natural alignment for memory operations. */
+} __packed;
+
+/*
+ * This struct contains the device context registers.
+ * These are internal values populated when trace_execution_stack is received.
+ */
+struct dev_context_registers {
+	u64 epc;
+	u64 tval;
+	u64 status;
+	u64 cause;
+	u64 gpr[DEV_GPR_REGISTERS]; /* x1 to x31 */
+} __packed;
+
+/*
+ * Trace event containing the execution stack of device in case of exception.
+ */
+struct trace_execution_stack {
+	struct trace_entry_header header;
+	struct dev_context_registers registers;
 } __packed;
 
 #endif

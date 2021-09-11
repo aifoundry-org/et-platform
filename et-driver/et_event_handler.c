@@ -253,13 +253,11 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	char value_str[VALUE_STR_MAX_LEN];
 	u16 idx = 0;
 	void *trace_buf;
-	u8 *trace_data;
 	struct pci_dev *pdev;
 	void __iomem *trace_addr;
 	struct et_mapped_region *trace_region;
-	u64 trace_buf_size = sizeof(struct trace_entry_header) +
-			     SP_EXCEPTION_FRAME_SIZE + SP_GLOBALS_SIZE;
-	struct trace_entry_header *entry_header;
+	u64 trace_buf_size = sizeof(struct trace_execution_stack);
+	struct trace_execution_stack *trace_stack;
 
 	trace_region = cq->vq_common->trace_region;
 	pdev = cq->vq_common->pdev;
@@ -283,8 +281,7 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		return;
 	}
 
-	trace_data = (u8 *)trace_buf;
-	trace_data[trace_buf_size] = '\0';
+	trace_stack = (struct trace_execution_stack *)trace_buf;
 
 	/* Get the Device Trace base address */
 	trace_addr = (u8 __iomem *)trace_region->mapped_baseaddr;
@@ -292,15 +289,13 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	/* Read the Device Trace buffer (Base + Offset(from Syndrome) */
 	et_ioread(trace_addr,
 		  event_msg->event_syndrome[1],
-		  (u8 *)trace_data,
+		  (u8 *)trace_stack,
 		  trace_buf_size);
 
-	entry_header = (struct trace_entry_header *)trace_data;
-
-	if (entry_header->type != TRACE_TYPE_EXCEPTION) {
+	if (trace_stack->header.type != TRACE_TYPE_EXCEPTION) {
 		dev_err(&pdev->dev,
 			"Invalid type: %d in SP trace entry header\n",
-			entry_header->type);
+			trace_stack->header.type);
 		goto error_free_trace_buf;
 	}
 
@@ -311,105 +306,83 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		goto error_free_trace_buf;
 	}
 
-	/*
-	 * Print SP timer ticks count and GPRs - GPRs are stored in
-	 * trace buffer starting from x1 then x5 to x31
-	 */
+	/* Print SP timer ticks count */
 	snprintf(value_str,
 		 VALUE_STR_MAX_LEN,
 		 "Cycles    : 0x%llX\n",
-		 entry_header->cycle);
+		 trace_stack->header.cycle);
 	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
 	    ET_EVENT_SYNDROME_LEN) {
 		dev_err(&pdev->dev, "Syndrome string out of space\n");
 		goto error_free_trace_buf;
-	}
-
-	trace_data += sizeof(struct trace_entry_header);
-
-	snprintf(value_str,
-		 VALUE_STR_MAX_LEN,
-		 "x1 : 0x%llX\n",
-		 *(u64 *)trace_data++);
-	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
-	    ET_EVENT_SYNDROME_LEN) {
-		dev_err(&pdev->dev, "Syndrome string out of space\n");
-		goto error_free_trace_buf;
-	}
-
-	for (idx = 1; idx < SP_GPR_REGISTERS; idx++) {
-		snprintf(value_str,
-			 VALUE_STR_MAX_LEN,
-			 "x%-2d: 0x%llX\n",
-			 idx + 4,
-			 *(u64 *)trace_data++);
-		if (strlcat(dbg_msg->syndrome,
-			    value_str,
-			    ET_EVENT_SYNDROME_LEN) >= ET_EVENT_SYNDROME_LEN) {
-			dev_err(&pdev->dev, "Syndrome string out of space\n");
-			goto error_free_trace_buf;
-		}
-		if (trace_data >= (u8 *)trace_buf + trace_buf_size) {
-			dev_err(&pdev->dev,
-				"Reached end of SP trace buffer, exiting syndrome parsing!\n");
-			goto error_free_trace_buf;
-		}
 	}
 
 	/* print CSRs (mepc, mstatus, mtval, mcause) */
 	snprintf(value_str,
 		 VALUE_STR_MAX_LEN,
 		 "mepc   : 0x%llX\n",
-		 *(u64 *)trace_data++);
+		 trace_stack->registers.epc);
 	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
 	    ET_EVENT_SYNDROME_LEN) {
 		dev_err(&pdev->dev, "Syndrome string out of space\n");
-		goto error_free_trace_buf;
-	}
-	if (trace_data >= (u8 *)trace_buf + trace_buf_size) {
-		dev_err(&pdev->dev,
-			"Reached end of SP trace buffer, exiting syndrome parsing!\n");
 		goto error_free_trace_buf;
 	}
 
 	snprintf(value_str,
 		 VALUE_STR_MAX_LEN,
 		 "mstatus: 0x%llX\n",
-		 *(u64 *)trace_data++);
+		 trace_stack->registers.status);
 	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
 	    ET_EVENT_SYNDROME_LEN) {
 		dev_err(&pdev->dev, "Syndrome string out of space\n");
-		goto error_free_trace_buf;
-	}
-	if (trace_data >= (u8 *)trace_buf + trace_buf_size) {
-		dev_err(&pdev->dev,
-			"Reached end of SP trace buffer, exiting syndrome parsing!\n");
 		goto error_free_trace_buf;
 	}
 
 	snprintf(value_str,
 		 VALUE_STR_MAX_LEN,
 		 "mtval  : 0x%llX\n",
-		 *(u64 *)trace_data++);
+		 trace_stack->registers.tval);
 	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
 	    ET_EVENT_SYNDROME_LEN) {
 		dev_err(&pdev->dev, "Syndrome string out of space\n");
-		goto error_free_trace_buf;
-	}
-	if (trace_data >= (u8 *)trace_buf + trace_buf_size) {
-		dev_err(&pdev->dev,
-			"Reached end of SP trace buffer, exiting syndrome parsing!\n");
 		goto error_free_trace_buf;
 	}
 
 	snprintf(value_str,
 		 VALUE_STR_MAX_LEN,
 		 "mcause : 0x%llX\n",
-		 *(u64 *)trace_data);
+		 trace_stack->registers.cause);
 	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
 	    ET_EVENT_SYNDROME_LEN) {
 		dev_err(&pdev->dev, "Syndrome string out of space\n");
 		goto error_free_trace_buf;
+	}
+
+	/*
+	 * Print SP GPRs - GPRs are stored in trace
+	 * buffer starting from x1 then x5 to x31
+	 */
+	snprintf(value_str,
+		 VALUE_STR_MAX_LEN,
+		 "x1 : 0x%llX\n",
+		 trace_stack->registers.gpr[0]);
+	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
+	    ET_EVENT_SYNDROME_LEN) {
+		dev_err(&pdev->dev, "Syndrome string out of space\n");
+		goto error_free_trace_buf;
+	}
+	for (idx = 4; idx < DEV_GPR_REGISTERS; idx++) {
+		snprintf(value_str,
+			 VALUE_STR_MAX_LEN,
+			 "x%-2d: 0x%llX\n",
+			 idx + 1,
+			 trace_stack->registers.gpr[idx]);
+		if (strlcat(dbg_msg->syndrome,
+			    value_str,
+			    ET_EVENT_SYNDROME_LEN) >= ET_EVENT_SYNDROME_LEN) {
+			dev_err(&pdev->dev, "Syndrome string out of space\n");
+			goto error_free_trace_buf;
+		}
 	}
 
 error_free_trace_buf:

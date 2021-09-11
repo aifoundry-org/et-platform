@@ -79,13 +79,6 @@ struct module_voltage {
 
 typedef u8 power_state_e;
 
-#define SP_GPR_REGISTERS		28
-#define SP_CSR_REGISTERS		4
-#define SP_NUM_REGISTERS		(SP_GPR_REGISTERS + SP_CSR_REGISTERS)
-#define SP_EXCEPTION_STACK_FRAME_SIZE	(sizeof(u64) * SP_GPR_REGISTERS)
-#define SP_EXCEPTION_CSRS_FRAME_SIZE	(sizeof(u64) * 4)
-#define SP_EXCEPTION_FRAME_SIZE		(SP_EXCEPTION_STACK_FRAME_SIZE +       \
-					SP_EXCEPTION_CSRS_FRAME_SIZE)
 #define SP_PERF_GLOBALS_SIZE		(sizeof(struct asic_frequencies) +     \
 					sizeof(struct dram_bw) +               \
 					sizeof(struct max_dram_bw) +           \
@@ -184,7 +177,7 @@ struct event_dbg_msg {
 	char *syndrome;
 };
 
-#define ET_EVENT_SYNDROME_LEN			840
+#define ET_EVENT_SYNDROME_LEN			960
 
 static inline void et_print_event(struct pci_dev *pdev,
 				  struct event_dbg_msg *dbg_msg) {
