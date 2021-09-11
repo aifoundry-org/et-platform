@@ -107,7 +107,8 @@ enum mm_sp_msg_e {
     MM2SP_RSP_GET_CM_BOOT_FREQ,
     MM2SP_EVENT_REPORT_ERROR, /* this is more flexible, the payload now can report error codes in a scalable fashion */
     MM2SP_EVENT_HEARTBEAT,
-    MM2SP_CMD_RESET_MINION
+    MM2SP_CMD_RESET_MINION,
+    MM2SP_RSP_RESET_MINION
 };
 
 /*! \enum sp_mm_msg_e
@@ -210,6 +211,22 @@ struct mm2sp_report_error_event_t {
   struct dev_cmd_hdr_t  msg_hdr;
   uint16_t error_type;
   int16_t error_code;
+};
+
+/*! \struct mm2sp_reset_minion_cmd_t
+    \brief MM to SP Minion Reset command structure
+*/
+struct mm2sp_reset_minion_cmd_t {
+  struct dev_cmd_hdr_t  msg_hdr;
+  uint64_t shire_mask;
+};
+
+/*! \struct mm2sp_reset_minion_rsp_t
+    \brief MM to SP Reset Minion response strutcure 
+*/
+struct mm2sp_reset_minion_rsp_t {
+  struct dev_cmd_hdr_t  msg_hdr;
+  int32_t  results;
 };
 
 /*! \struct mm2sp_heartbeat_event_t
