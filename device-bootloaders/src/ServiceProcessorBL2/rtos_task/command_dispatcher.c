@@ -375,14 +375,33 @@ static void mm2sp_get_cm_boot_freq_cmd_handler(const void *cmd_buffer)
 
 static void mm2sp_minion_reset_handler(const void *cmd_buffer)
 {
-    (void)cmd_buffer;
+    const struct mm2sp_reset_minion_cmd_t *cmd = cmd_buffer;
+    struct mm2sp_reset_minion_rsp_t rsp;
 
     Log_Write(LOG_LEVEL_INFO, "MM2SP_CMD_MINION_RESET: \n");
 
-    /* Reset Minions Threads */
-    if (0 != Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask()))
+    uint64_t available_shires = Minion_State_MM_Iface_Get_Active_Shire_Mask();
+
+    /* Make sure the Shire Mask sent was valid and then issue the MM reset */
+    if (((cmd->shire_mask & available_shires) != cmd->shire_mask) || 
+        (0 != Minion_Reset_Threads(cmd->shire_mask)))
     {
         Log_Write(LOG_LEVEL_ERROR, "MM2SP_CMD_MINION_RESET: Unable to Reset Shires!\n");
+        rsp.results = -1;
+    } 
+    else 
+    {
+        /* Return success */
+        rsp.results = 0;
+    }
+
+    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_RESET_MINION,
+    sizeof(struct mm2sp_reset_minion_rsp_t),
+    cmd->msg_hdr.issuing_hart_id)
+
+    if(0 != MM_Iface_Push_Rsp_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Rsp_To_MM2SP_CQ: Cqueue push error!\n");
     }
 }
 
