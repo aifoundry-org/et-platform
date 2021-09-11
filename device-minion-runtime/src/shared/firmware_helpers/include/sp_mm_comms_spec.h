@@ -101,12 +101,13 @@ enum mm_sp_msg_e {
     MM2SP_RSP_ECHO,
     MM2SP_CMD_GET_ACTIVE_SHIRE_MASK,
     MM2SP_RSP_GET_ACTIVE_SHIRE_MASK,
-    MM2SP_CMD_GET_CM_BOOT_FREQ,
-    MM2SP_RSP_GET_CM_BOOT_FREQ,
     MM2SP_CMD_GET_FW_VERSION,
     MM2SP_RSP_GET_FW_VERSION,
+    MM2SP_CMD_GET_CM_BOOT_FREQ,
+    MM2SP_RSP_GET_CM_BOOT_FREQ,
     MM2SP_EVENT_REPORT_ERROR, /* this is more flexible, the payload now can report error codes in a scalable fashion */
-    MM2SP_EVENT_HEARTBEAT
+    MM2SP_EVENT_HEARTBEAT,
+    MM2SP_CMD_RESET_MINION
 };
 
 /*! \enum sp_mm_msg_e
