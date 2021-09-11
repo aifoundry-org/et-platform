@@ -12,6 +12,7 @@
 
     Public interfaces:
         Minion_Enable_Neighborhoods
+        Minion_Reset_Threads
         Minion_Enable_Master_Shire_Threads
         Minion_Shire_Update_Voltage
         Minion_Program_Step_Clock_PLL
@@ -37,6 +38,7 @@
 */
 /***********************************************************************/
 #include <stdio.h>
+#include "usdelay.h"
 
 #include <hwinc/etsoc_shire_other_esr.h>
 
@@ -281,6 +283,63 @@ int Minion_Enable_Master_Shire_Threads(uint8_t mm_id)
                     ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_ADDRESS, ~(MM_RT_THREADS), 0);
     return 0;
 }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Reset_Threads
+*
+*   DESCRIPTION
+*
+*       This function resets the Minion Shire threads.
+*
+*   INPUTS
+*
+*       minion_shires_mask Minion Shire Mask
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int Minion_Reset_Threads(uint64_t minion_shires_mask)
+{
+    uint8_t num_shires;
+    if(0 != minion_shires_mask)
+    {
+        num_shires = get_highest_set_bit_offset(minion_shires_mask);
+    }
+    else
+    {
+        return MINION_INVALID_SHIRE_MASK;
+    }
+    for (uint8_t shire_id = 0; shire_id <= num_shires; shire_id++)
+    {
+        if (minion_shires_mask & 1)
+        {
+            /* Disable all threads in this Shire */
+            write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                    ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_ADDRESS, 0xFFFFFFFF, 1);
+            write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                    ETSOC_SHIRE_OTHER_ESR_THREAD1_DISABLE_ADDRESS, 0xFFFFFFFF, 1);
+
+            /* Wait for 1 microSecond */
+            usdelay(1);
+
+            /* Enable all threads in this Shire */
+            write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                    ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_ADDRESS, 0xFFFFFFFF, 0);
+            write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                    ETSOC_SHIRE_OTHER_ESR_THREAD1_DISABLE_ADDRESS, 0xFFFFFFFF, 0);
+        }
+        minion_shires_mask >>= 1;
+    }
+    return 0;
+}
+
+
+
 
 /************************************************************************
 *

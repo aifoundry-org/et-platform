@@ -373,6 +373,19 @@ static void mm2sp_get_cm_boot_freq_cmd_handler(const void *cmd_buffer)
     }
 }
 
+static void mm2sp_minion_reset_handler(const void *cmd_buffer)
+{
+    (void)cmd_buffer;
+
+    Log_Write(LOG_LEVEL_INFO, "MM2SP_CMD_MINION_RESET: \n");
+
+    /* Reset Minions Threads */
+    if (0 != Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask()))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MM2SP_CMD_MINION_RESET: Unable to Reset Shires!\n");
+    }
+}
+
 static void mm2sp_report_error_event_handler(const void *cmd_buffer)
 {
     const struct mm2sp_report_error_event_t *event = cmd_buffer;
@@ -464,6 +477,10 @@ static void mm_cmd_hdlr_task(void *pvParameters)
 
                 case MM2SP_EVENT_HEARTBEAT:
                     mm2sp_heartbeat_event_handler(buffer);
+                    break;
+
+              case MM2SP_CMD_RESET_MINION:
+                    mm2sp_minion_reset_handler(buffer);
                     break;
 
                 default:
