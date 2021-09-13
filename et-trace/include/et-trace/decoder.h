@@ -140,9 +140,16 @@ static inline const struct trace_entry_header_t *get_next_trace_event(const stru
                        + ((struct trace_memory_t *)packet)->size; /* data */
         break;
     }
-        ET_TRACE_PAYLOAD_SIZE(EXCEPTION, 353) //TODO :Temporary size for SP exception. Will be updated with CM/MM Exception consolidation
+        ET_TRACE_PAYLOAD_SIZE(EXCEPTION, sizeof(struct trace_execution_stack_t))
         ET_TRACE_PAYLOAD_SIZE(CMD_STATUS, sizeof(struct trace_cmd_status_t))
         ET_TRACE_PAYLOAD_SIZE(POWER_STATUS, sizeof(struct trace_power_status_t))
+    case TRACE_TYPE_CUSTOM_EVENT: {
+        payload_size = sizeof(struct trace_entry_header_t)      /* header */
+                       + sizeof(uint32_t)                       /* custom_type */
+                       + sizeof(uint32_t)                       /* payload_size */
+                       + ((struct trace_custom_event_t *)packet)->payload_size; /* payload */
+        break;
+    }
     default:
         return NULL;
     }

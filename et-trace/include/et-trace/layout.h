@@ -77,6 +77,11 @@ extern "C" {
 */
 #define TRACE_MAGIC_HEADER 0x76543210
 
+/*! \def TRACE_DEV_CONTEXT_GPRS
+    \brief Macro that represents the total number of GPRs in device context.
+*/
+#define TRACE_DEV_CONTEXT_GPRS 31
+
 /*! \typedef trace_buffer_type_e
     \brief Trace buffer type either MM, CM, SP etc.
 */
@@ -277,7 +282,7 @@ struct dev_context_registers_t {
     uint64_t tval;
     uint64_t status;
     uint64_t cause;
-    uint64_t gpr[31]; /* x1 to x31 */
+    uint64_t gpr[TRACE_DEV_CONTEXT_GPRS]; /* x1 to x31 */
 } __attribute__((packed));
 
 /*! \struct trace_execution_stack_t
