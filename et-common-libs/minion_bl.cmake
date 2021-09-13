@@ -93,7 +93,8 @@ install(
 #TODO: Could be improved and made more flexible by exporting a package
 install(
     EXPORT minion-blTargets
-    NAMESPACE minion-bl-lib::
+    NAMESPACE et-common-libs::
     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/et-common-libs/minion-bl
+    COMPONENT minion-bl
 )
 

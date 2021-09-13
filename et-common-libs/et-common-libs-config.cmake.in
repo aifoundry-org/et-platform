@@ -1,0 +1,33 @@
+#------------------------------------------------------------------------------
+# Copyright (C) 2021, Esperanto Technologies Inc.
+# The copyright to the computer program(s) herein is the
+# property of Esperanto Technologies, Inc. All Rights Reserved.
+# The program(s) may be used and/or copied only with
+# the written permission of Esperanto Technologies and
+# in accordance with the terms and conditions stipulated in the
+# agreement/contract under which the program(s) have been supplied.
+#------------------------------------------------------------------------------
+
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(etsoc_hal REQUIRED)
+
+set(_supported_components cm-umode minion-bl)
+
+# Find all components if user does not cherry-pick components
+if (NOT et-common-libs_FIND_COMPONENTS)
+    set(et-common-libs_FIND_COMPONENTS ${_supported_components})
+endif()
+
+# find components
+foreach(_component ${et-common-libs_FIND_COMPONENTS})
+    if (NOT ${_component} IN_LIST _supported_components)
+        set(et-common-libs_FOUND False)
+        set(et-common-libs_NOT_FOUND_MESSAGE "Unsupported component: ${_component}")
+    endif()
+    include(${CMAKE_CURRENT_LIST_DIR}/${_component}/${_component}Targets.cmake)
+    set(et-common-libs_${_component}_FOUND True)
+endforeach()
+
+check_required_components(et-common-libs)

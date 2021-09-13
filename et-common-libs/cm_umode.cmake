@@ -46,6 +46,7 @@ add_library(cm-umode STATIC
     src/etsoc/common/utils.c
     #TODO:others to come ..
 )
+add_library(et-common-libs::cm-umode ALIAS cm-umode)
 
 set_target_properties(cm-umode PROPERTIES LINKER_LANGUAGE C)
 
@@ -88,7 +89,8 @@ install(
 #TODO: Could be improved and made more flexible by exporting a package
 install(
     EXPORT cm-umodeTargets
-    NAMESPACE cm-umode-lib::
-    DESTINATION ${CM_UMODE_INSTALL_PREFIX}/cmake/cm-umode-libs
+    NAMESPACE et-common-libs::
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/et-common-libs/cm-umode
+    COMPONENT cm-umode
 )
 

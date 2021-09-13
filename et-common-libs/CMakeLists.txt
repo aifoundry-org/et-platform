@@ -43,3 +43,25 @@ include(minion_bl.cmake)
 
 # Build and install Service Processor libs
 #include(sp.cmake)
+
+
+# Install 
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/et-common-libs-config.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/et-common-libs-config.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/et-common-libs
+)
+
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/et-common-libs-config-version.cmake
+    VERSION ${CMAKE_PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/et-common-libs-config.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/et-common-libs-config-version.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/et-common-libs
+)
