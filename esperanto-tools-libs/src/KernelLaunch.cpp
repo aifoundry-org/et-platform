@@ -54,7 +54,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
 
   // TODO: SW-7615 - Allocation/extraction of U mode Kernel Trace buffer
   auto optionalArgSize = ((kernel_args_size > 0) && (kernel_args_size <= kMaxSizeKernelEmbeddingParameters)) ? kernel_args_size : 0;
-  
+
   std::vector<std::byte> cmdBase(sizeof(device_ops_api::device_ops_kernel_launch_cmd_t) + optionalArgSize);
 
   memset(cmdBase.data(), 0, sizeof(cmdBase));
@@ -89,7 +89,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3;
   }
 
-  cmdPtr->kernel_trace_buffer = reinterpret_cast<uint64_t>(userTraceBuffer);
+  cmdPtr->pointer_to_trace_cfg = reinterpret_cast<uint64_t>(userTraceBuffer);
   cmdPtr->exception_buffer = reinterpret_cast<uint64_t>(pBuffer->getExceptionContextPtr());
   cmdPtr->code_start_address = kernel->getEntryAddress();
   cmdPtr->pointer_to_args =  reinterpret_cast<uint64_t>(pBuffer->getParametersPtr());
