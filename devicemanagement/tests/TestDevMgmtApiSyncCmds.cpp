@@ -71,7 +71,7 @@ getDM_t TestDevMgmtApiSyncCmds::getInstance() {
   return (getDM_t)0;
 }
 
-void TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, size_t bufSize)  {
+void TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, size_t bufSize) {
   std::ofstream logFileText;
   std::stringstream logs;
 
@@ -80,7 +80,7 @@ void TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, siz
     DM_LOG(INFO) << "Get Trace Buffer is not supported on loopback driver";
     return;
   }
- const struct trace_entry_header_t* entry =
+  const struct trace_entry_header_t* entry =
     Trace_Decode(templ::bit_cast<trace_buffer_std_header_t*>(traceBuf), nullptr);
 
   if (entry) {
@@ -121,7 +121,6 @@ void TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, siz
     rawTrace.close();
   }
 
-
   logFileText.open(FLAGS_trace_logfile_txt, std::ios_base::app);
 
   if (!logFileText.is_open()) {
@@ -130,32 +129,32 @@ void TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, siz
   }
 
   logFileText << "\n\n"
-          << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() << "."
-          << ::testing::UnitTest::GetInstance()->current_test_info()->name() << std::endl;
+              << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() << "."
+              << ::testing::UnitTest::GetInstance()->current_test_info()->name() << std::endl;
 
   const trace_string_t* tracePacketString;
   std::array<char, TRACE_STRING_MAX_SIZE + 1> stringLog;
   entry = NULL;
-  // Decode only string type of packets
+  // Decode only string and exception type of packets
   while (entry = Trace_Decode((struct trace_buffer_std_header_t*)traceBuf, entry)) {
     if (entry->type == TRACE_TYPE_STRING) {
-        tracePacketString = templ::bit_cast<trace_string_t*>(entry);
-        strncpy(stringLog.data(), tracePacketString->string, TRACE_STRING_MAX_SIZE);
-        stringLog[TRACE_STRING_MAX_SIZE] = '\0';
-        logs << "Timestamp:" << tracePacketString->header.cycle << " :" << stringLog.data() << std::endl;
-    } else if ( entry->type == TRACE_TYPE_EXCEPTION) {
-      logs << "Timestamp:" << entry->cycle << std::endl;
-      uint64_t *stack_ptr = templ::bit_cast<uint64_t*>(entry+1);
-      logs << "x1 = 0x" <<std::hex<< *stack_ptr++ << std::endl;
-      /* Log x5-x31,x2-x4 are not preserved */
-      for (int idx = 5; idx < 32; idx++)
-      {
-          logs << "x"<<std::dec<<idx<<" = " <<"0x"<<std::hex <<*stack_ptr++ << std::endl;
+      tracePacketString = templ::bit_cast<trace_string_t*>(entry);
+      strncpy(stringLog.data(), tracePacketString->string, TRACE_STRING_MAX_SIZE);
+      stringLog[TRACE_STRING_MAX_SIZE] = '\0';
+      logs << "Timestamp:" << tracePacketString->header.cycle << " :" << stringLog.data() << std::endl;
+    } else if (entry->type == TRACE_TYPE_EXCEPTION) {
+      const trace_execution_stack_t* tracePacketExecStack = templ::bit_cast<trace_execution_stack_t*>(entry);
+      logs << "Timestamp:" << tracePacketExecStack->header.cycle << std::endl;
+      logs << "mepc = 0x" << std::hex << tracePacketExecStack->registers.epc << std::endl;
+      logs << "mtval = 0x" << std::hex << tracePacketExecStack->registers.tval << std::endl;
+      logs << "mstatus = 0x" << std::hex << tracePacketExecStack->registers.status << std::endl;
+      logs << "mcause = 0x" << std::hex << tracePacketExecStack->registers.cause << std::endl;
+      logs << "x1 = 0x" << std::hex << tracePacketExecStack->registers.gpr[0] << std::endl;
+      /* Log x5-x31, x2-x4 are not preserved */
+      for (int idx = 4; idx < TRACE_DEV_CONTEXT_GPRS; idx++) {
+        logs << "x" << std::dec << idx + 1 << " = "
+             << "0x" << std::hex << tracePacketExecStack->registers.gpr[idx] << std::endl;
       }
-      logs << "mepc = 0x" <<std::hex<<*stack_ptr++ << std::endl;
-      logs << "mstatus = 0x" <<std::hex<<*stack_ptr++ << std::endl;
-      logs << "mval = 0x" <<std::hex<<*stack_ptr++ << std::endl;
-      logs << "mcause = 0x" <<std::hex<< *stack_ptr++ << std::endl;
     }
   }
 
@@ -174,7 +173,7 @@ void TestDevMgmtApiSyncCmds::extractAndPrintTraceData(void) {
   auto deviceCount = dm.getDevicesCount();
   if (HasFailure() || FLAGS_enable_trace_dump) {
     for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-      input_size= sizeof(device_mgmt_api::trace_control_e);
+      input_size = sizeof(device_mgmt_api::trace_control_e);
       char input_buff[input_size] = {device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE};
 
       set_output_size = sizeof(uint8_t);
@@ -186,29 +185,27 @@ void TestDevMgmtApiSyncCmds::extractAndPrintTraceData(void) {
       EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff,
                                   input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                   DM_SERVICE_REQUEST_TIMEOUT),
-                                  device_mgmt_api::DM_STATUS_SUCCESS);
+                device_mgmt_api::DM_STATUS_SUCCESS);
 
       DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
-
       if (dm.getTraceBufferServiceProcessor(deviceIdx, response, DM_SERVICE_REQUEST_TIMEOUT) !=
-        device_mgmt_api::DM_STATUS_SUCCESS) {
+          device_mgmt_api::DM_STATUS_SUCCESS) {
         DM_LOG(INFO) << "Unable to get SP trace buffer for device: " << deviceIdx << ". Disabling Trace.";
       } else {
         printSpTraceData(reinterpret_cast<unsigned char*>(response.data()), response.size());
       }
 
-      char input_buff_[input_size] = {device_mgmt_api::TRACE_CONTROL_RESET_TRACEBUF | device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE};
+      char input_buff_[input_size] = {device_mgmt_api::TRACE_CONTROL_RESET_TRACEBUF |
+                                      device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE};
 
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL ,input_buff_,
+      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff_,
                                   input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                   DM_SERVICE_REQUEST_TIMEOUT),
-                                  device_mgmt_api::DM_STATUS_SUCCESS);
+                device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
-
-
 
 void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1(bool singleDevice) {
   getDM_t dmi = getInstance();
@@ -228,7 +225,6 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-
 
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -435,7 +431,6 @@ void TestDevMgmtApiSyncCmds::getModuleRevision_1_7(bool singleDevice) {
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
       EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
-
     }
   }
 }
@@ -535,7 +530,6 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryType_1_10(bool singleDevice) {
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
       EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
-
     }
   }
 }
@@ -583,9 +577,9 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagement_1_62(bool singleDevi
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, input_buff,
-                                input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
+                                input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -688,18 +682,16 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14(bool singleDev
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
-  std::string throttle_state_name[7] = {
-    "POWER_THROTTLE_STATE_POWER_IDLE",      "POWER_THROTTLE_STATE_THERMAL_IDLE",
-    "POWER_THROTTLE_STATE_POWER_UP",        "POWER_THROTTLE_STATE_POWER_DOWN",
-    "POWER_THROTTLE_STATE_THERMAL_DOWN",    "POWER_THROTTLE_STATE_POWER_SAFE",
-    "POWER_THROTTLE_STATE_THERMAL_SAFE"};
+  std::string throttle_state_name[7] = {"POWER_THROTTLE_STATE_POWER_IDLE",   "POWER_THROTTLE_STATE_THERMAL_IDLE",
+                                        "POWER_THROTTLE_STATE_POWER_UP",     "POWER_THROTTLE_STATE_POWER_DOWN",
+                                        "POWER_THROTTLE_STATE_THERMAL_DOWN", "POWER_THROTTLE_STATE_POWER_SAFE",
+                                        "POWER_THROTTLE_STATE_THERMAL_SAFE"};
 
   const uint32_t output_size = sizeof(device_mgmt_api::residency_t);
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    for(device_mgmt_api::power_throttle_state_e throttle_state = device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP;
-        throttle_state <= device_mgmt_api::POWER_THROTTLE_STATE_THERMAL_SAFE;
-        throttle_state++) {
+    for (device_mgmt_api::power_throttle_state_e throttle_state = device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP;
+         throttle_state <= device_mgmt_api::POWER_THROTTLE_STATE_THERMAL_SAFE; throttle_state++) {
       const uint32_t input_size = sizeof(device_mgmt_api::power_throttle_state_e);
       const char input_buff[input_size] = {throttle_state};
       char output_buff[output_size] = {0};
@@ -707,9 +699,9 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14(bool singleDev
       auto dev_latency = std::make_unique<uint64_t>();
 
       EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES,
-                                input_buff, input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
-              device_mgmt_api::DM_STATUS_SUCCESS);
+                                  input_buff, input_size, output_buff, output_size, hst_latency.get(),
+                                  dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                device_mgmt_api::DM_STATUS_SUCCESS);
       DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
       // Skip printing if loopback driver
@@ -931,16 +923,14 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState_1_22(bool singleDevice
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
-  std::string power_state_name[4] = {
-    "POWER_STATE_MAX_POWER",      "POWER_STATE_MANAGED_POWER",
-    "POWER_STATE_SAFE_POWER",        "POWER_STATE_LOW_POWER"};
+  std::string power_state_name[4] = {"POWER_STATE_MAX_POWER", "POWER_STATE_MANAGED_POWER", "POWER_STATE_SAFE_POWER",
+                                     "POWER_STATE_LOW_POWER"};
 
   const uint32_t output_size = sizeof(device_mgmt_api::residency_t);
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     for (device_mgmt_api::power_state_e power_state = device_mgmt_api::POWER_STATE_MAX_POWER;
-          power_state <= device_mgmt_api::POWER_STATE_SAFE_POWER;
-          power_state++) {
+         power_state <= device_mgmt_api::POWER_STATE_SAFE_POWER; power_state++) {
       const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
       const char input_buff[input_size] = {power_state};
       char output_buff[output_size] = {0};
@@ -948,9 +938,9 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState_1_22(bool singleDevice
       auto dev_latency = std::make_unique<uint64_t>();
 
       EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES,
-                                input_buff, input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
-              device_mgmt_api::DM_STATUS_SUCCESS);
+                                  input_buff, input_size, output_buff, output_size, hst_latency.get(),
+                                  dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                device_mgmt_api::DM_STATUS_SUCCESS);
       DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
       // Skip printing if loopback driver
@@ -1529,10 +1519,9 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
   const int max_err_types = 11;
   std::string line;
   std::string err_types[max_err_types] = {
-    "PCIe Correctable Error",        "PCIe Un-Correctable Error",  "DRAM Correctable Error",
-    "DRAM Un-Correctable Error",     "SRAM Correctable Error",     "SRAM Un-Correctable Error",
-    "Power Management IC Errors",    "Compute Minion Exception",   "Compute Minion Hang",
-    "SP Runtime Error",              "SP Runtime Exception"};
+    "PCIe Correctable Error", "PCIe Un-Correctable Error", "DRAM Correctable Error",     "DRAM Un-Correctable Error",
+    "SRAM Correctable Error", "SRAM Un-Correctable Error", "Power Management IC Errors", "Compute Minion Exception",
+    "Compute Minion Hang",    "SP Runtime Error",          "SP Runtime Exception"};
 
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
@@ -1625,8 +1614,8 @@ void TestDevMgmtApiSyncCmds::isUnsupportedService_1_45(bool singleDevice) {
               -EINVAL);
 
     // Invalid input_buffer
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, nullptr, 0,
-                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, nullptr,
+                                0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
@@ -1645,7 +1634,6 @@ void TestDevMgmtApiSyncCmds::isUnsupportedService_1_45(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), nullptr, DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
     DM_LOG(INFO) << "Service Requests Completed for Device: " << deviceIdx;
-
   }
 }
 
@@ -1753,7 +1741,6 @@ void TestDevMgmtApiSyncCmds::getTraceBuffer_1_49(bool singleDevice) {
   bool validEventFound = false;
   const struct trace_entry_header_t* entry = NULL;
 
-
   // Skip validation if loopback driver
   if (FLAGS_loopback_driver) {
     DM_LOG(INFO) << "Get Trace Buffer is not supported on loopback driver";
@@ -1766,18 +1753,16 @@ void TestDevMgmtApiSyncCmds::getTraceBuffer_1_49(bool singleDevice) {
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
-    while (entry = Trace_Decode(reinterpret_cast<struct trace_buffer_std_header_t *>(response.data()), entry)) {
-      if (entry->type == TRACE_TYPE_STRING ||
-          entry->type == TRACE_TYPE_EXCEPTION ||
-          entry->type == TRACE_TYPE_POWER_STATUS ) {
-          validEventFound = true;
+    while (entry = Trace_Decode(reinterpret_cast<struct trace_buffer_std_header_t*>(response.data()), entry)) {
+      if (entry->type == TRACE_TYPE_STRING || entry->type == TRACE_TYPE_EXCEPTION ||
+          entry->type == TRACE_TYPE_POWER_STATUS) {
+        validEventFound = true;
         break;
       }
     }
     validEventFound = true;
-    EXPECT_TRUE(validEventFound)
-        << "No SP trace event found!" << std::endl;
-    validEventFound =  false;
+    EXPECT_TRUE(validEventFound) << "No SP trace event found!" << std::endl;
+    validEventFound = false;
   }
 }
 
@@ -1797,9 +1782,9 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRange_1_50(bool singl
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, input_buff,
-                                input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
+                                input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -1918,8 +1903,8 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputSize
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, input_buff,
-                                0 /* Invalid size*/, set_output_buff, set_output_size, hst_latency.get(),
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
+                                input_buff, 0 /* Invalid size*/, set_output_buff, set_output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
