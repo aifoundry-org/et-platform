@@ -21,6 +21,9 @@ project(
 
 option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
 
+# Find the required packages
+find_package(esperantoTrace REQUIRED)
+
 include(GNUInstallDirs)
 
 # Build and install Compute Minion User Mode libs
@@ -45,7 +48,7 @@ include(minion_bl.cmake)
 #include(sp.cmake)
 
 
-# Install 
+# Install
 include(CMakePackageConfigHelpers)
 
 configure_package_config_file(

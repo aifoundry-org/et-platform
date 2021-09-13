@@ -12,6 +12,7 @@
 
 include(CMakeFindDependencyMacro)
 find_dependency(etsoc_hal REQUIRED)
+find_dependency(esperantoTrace REQUIRED)
 
 set(_supported_components cm-umode minion-bl)
 

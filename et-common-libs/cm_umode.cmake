@@ -25,6 +25,8 @@ set(CM_UMODE_HDRS
     include/etsoc/isa/utils.h
     #Floating point operations
     include/float/Float16.h
+    # Trace Header
+    include/trace/trace_umode.h
     #TODO:others to come ..
 )
 
@@ -44,10 +46,12 @@ set(CM_UMODE_LIB_HDRS
 add_library(cm-umode STATIC
     src/etsoc/hal/pmu.c
     src/etsoc/common/utils.c
+    src/trace/trace_umode.c
     #TODO:others to come ..
 )
 add_library(et-common-libs::cm-umode ALIAS cm-umode)
 
+target_link_libraries(cm-umode PUBLIC esperantoTrace::et_trace)
 set_target_properties(cm-umode PROPERTIES LINKER_LANGUAGE C)
 
 target_include_directories(cm-umode

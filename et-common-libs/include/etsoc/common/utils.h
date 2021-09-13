@@ -13,6 +13,13 @@
 #define _COMMON_UTILS_H_
 
 #include <stddef.h>
+#include "trace/trace_umode.h"
+
+/*! \def et_printf(fmt)
+    \brief Write a log with va_list style args
+    \param fmt format specifier
+*/
+#define et_printf(fmt)      __et_printf(fmt)
 
 /*! \fn void *et_memset(void *s, int c, size_t n)
     \brief Copies the character c to the first n characters of the string pointed argument s.
