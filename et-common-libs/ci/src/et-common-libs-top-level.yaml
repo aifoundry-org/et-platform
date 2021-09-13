@@ -32,6 +32,20 @@ stages:
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"
     exec_after: [DSL_JOB]
 
+  JOB_CODE_QUALITY:
+    cmds:
+      - job: sw-platform/code-analysis/et-common-libs-sonarqube
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          GITLAB_SOURCE_BRANCH:
+            raw_cmd: '"${env.gitlabSourceBranch}"'
+          GITLAB_TARGET_BRANCH: 
+            raw_cmd: '"${env.gitlabTargetBranch}"'
+          GITLAB_MR_ID: 
+            raw_cmd: '"${env.gitlabMergeRequestIid}"'
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"
+    exec_after: [CHECK_IN]
+  
   FIRMWARE_TESTS_ZEBU_BEMU:
     cmds:
       - job: sw-platform/system-sw-integration/pipelines/firmware-tests-zebu-bemu

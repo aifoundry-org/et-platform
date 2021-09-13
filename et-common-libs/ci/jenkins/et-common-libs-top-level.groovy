@@ -242,6 +242,30 @@ pipeline {
                 }
               }
             }
+            stage('JOB_CODE_QUALITY') {
+              steps {
+                script {
+                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/code-analysis/et-common-libs-sonarqube', COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}")) {
+                    script {
+                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}", JOB_NAME: 'sw-platform/code-analysis/et-common-libs-sonarqube')
+                      build job:
+                        'sw-platform/code-analysis/et-common-libs-sonarqube',
+                        propagate: true,
+                        parameters: [
+                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                          string(name: 'GITLAB_SOURCE_BRANCH', value: "${env.gitlabSourceBranch}"),
+                          string(name: 'GITLAB_TARGET_BRANCH', value: "${env.gitlabTargetBranch}"),
+                          string(name: 'GITLAB_MR_ID', value: "${env.gitlabMergeRequestIid}"),
+                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"),
+                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
+                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                        ]
+                    }
+                  }
+                }
+              }
+            }
             stage('JOB_RUNTIME') {
               steps {
                 script {
