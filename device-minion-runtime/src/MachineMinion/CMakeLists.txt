@@ -11,9 +11,6 @@
 set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 
-#include minion-bl lib and include paths
-include(${CMAKE_INSTALL_PREFIX}/lib/cmake/et-common-libs/minion-bl/minion-blTargets.cmake) # FIXME: THIS BREAKS ENCAPSULATION
-
 add_riscv_executable(MachineMinion
     src/boot.S
     src/trap_handler.S
@@ -41,7 +38,7 @@ target_compile_options(MachineMinion.elf
 )
 target_link_libraries(MachineMinion.elf
     PRIVATE
-        minion-bl-lib::minion-bl
+        et-common-libs::minion-bl
         etsoc_hal::etsoc_hal
     PRIVATE
         deviceFirmware::firmware_helpers_interface
