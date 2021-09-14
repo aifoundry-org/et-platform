@@ -67,6 +67,13 @@ typedef uint8_t cw_shire_state_t;
 */
 int8_t CW_Init(void);
 
+/*! \fn int8_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
+    \brief Receives boot messages from the compute shires
+    \param shire_mask Shires to wait for
+    \return Status success or error
+*/
+int8_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask);
+
 /*! \fn void CW_Process_CM_SMode_Messages(void)
     \brief CW helper to process messages from CM firmware
     running in S Mode. Used by dispatcher to handle

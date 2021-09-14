@@ -17,6 +17,7 @@
         SP_Iface_Init
         SP_Iface_Processing
         SP_Iface_Get_Shire_Mask
+        SP_Iface_Reset_Minion
         SP_Iface_Get_Boot_Freq
         SP_Iface_Report_Error
 */
@@ -474,6 +475,97 @@ int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask)
         }
         else
         {
+            status = SP_IFACE_SP2MM_RSP_POP_FAILED;
+            Log_Write(LOG_LEVEL_ERROR,
+                "ERROR: Received a notification from SP with no data\r\n");
+        }
+    }
+
+    /* Release the lock */
+    release_local_spinlock(&SP_SQ_CB.vq_lock);
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       SP_Iface_Reset_Minion
+*
+*   DESCRIPTION
+*
+*       A blocking call to reset the Minions.
+*
+*   INPUTS
+*
+*       shire_mask  the mask of the shires to reset
+*
+*   OUTPUTS
+*
+*       int8_t      status success or failure of Interface initialization
+*
+***********************************************************************/
+int8_t SP_Iface_Reset_Minion(uint64_t shire_mask)
+{
+    static uint8_t rsp_buff[64] __attribute__((aligned(64))) = { 0 };
+    const struct dev_cmd_hdr_t *hdr;
+    uint64_t rsp_length = 0;
+    struct mm2sp_reset_minion_cmd_t cmd;
+    int8_t status = STATUS_SUCCESS;
+
+    Log_Write(LOG_LEVEL_DEBUG, "MM2SP:SP_Iface_Reset_Minion.\r\n");
+
+    /* Initialize command header */
+    SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, MM2SP_CMD_RESET_MINION,
+        sizeof(struct mm2sp_reset_minion_cmd_t),
+        (int32_t) get_hart_id())
+
+    cmd.shire_mask = shire_mask;
+
+    /* Acquire the lock. Multiple threads can call this function. */
+    acquire_local_spinlock(&SP_SQ_CB.vq_lock);
+
+    /* Send command to Service Processor */
+    status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&cmd, sizeof(cmd));
+
+    if(status == STATUS_SUCCESS)
+    {
+        /* Wait for response from Service Processor */
+        status = wait_for_response_from_service_processor();
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing command to MM to SP SQ\r\n");
+    }
+
+    if(status == STATUS_SUCCESS)
+    {
+        /* Pop response from MM to SP completion queue */
+        rsp_length = (uint64_t) SP_Iface_Pop_Rsp_From_MM2SP_CQ(&rsp_buff[0]);
+
+        /* Process response and fetch shire mask */
+        if(rsp_length != 0)
+        {
+            Log_Write(LOG_LEVEL_DEBUG,
+                "SP2MM:received response of size %ld bytes.\r\n", rsp_length);
+
+            hdr = (void*)rsp_buff;
+            if(hdr->msg_id == MM2SP_RSP_RESET_MINION)
+            {
+                const struct mm2sp_reset_minion_rsp_t *rsp = (void *)rsp_buff;
+                status = (int8_t)rsp->results;
+            }
+            else
+            {
+                status = SP_IFACE_INVALID_RSP_ID;
+                Log_Write(LOG_LEVEL_ERROR,
+                    "ERROR: Received unexpected response from SP\r\n");
+            }
+        }
+        else
+        {
+            status = SP_IFACE_SP2MM_RSP_POP_FAILED;
             Log_Write(LOG_LEVEL_ERROR,
                 "ERROR: Received a notification from SP with no data\r\n");
         }
@@ -563,6 +655,7 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
         }
         else
         {
+            status = SP_IFACE_SP2MM_RSP_POP_FAILED;
             Log_Write(LOG_LEVEL_ERROR,
                 "ERROR: Received a notification from SP and no data\r\n");
         }
@@ -659,6 +752,7 @@ int8_t SP_Iface_Get_Fw_Version(mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t 
         }
         else
         {
+            status = SP_IFACE_SP2MM_RSP_POP_FAILED;
             Log_Write(LOG_LEVEL_ERROR,
                 "ERROR: Received a notification from SP with no data\r\n");
         }

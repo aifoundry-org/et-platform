@@ -60,7 +60,17 @@
 /*! \def SP_IFACE_SP2MM_CMD_POP_FAILED
     \brief SP iface error code - SP2MM cmd pop failure
 */
-#define SP_IFACE_SP2MM_CMD_POP_FAILED      -6
+#define SP_IFACE_SP2MM_CMD_POP_FAILED     -6
+
+/*! \def SP_IFACE_SP2MM_RSP_POP_FAILED
+    \brief SP iface error code - SP2MM rsp pop failure
+*/
+#define SP_IFACE_SP2MM_RSP_POP_FAILED     -7
+
+/*! \def SP_IFACE_INVALID_RSP_ID
+    \brief SP iface error code - Invalid response ID
+*/
+#define SP_IFACE_INVALID_RSP_ID           -8
 
 /*! \fn int8_t SP_Iface_Init(void)
     \brief Initialize Mm interface to Service Processor (SP)
@@ -120,6 +130,13 @@ int8_t SP_Iface_Processing(void);
     \return Status indicating success or negative error
 */
 int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask);
+
+/*! \fn int8_t SP_Iface_Reset_Minion(uint64_t shire_mask)
+    \brief A blocking API to reset the Minions.
+    \param shire_mask Mask of the shires to reset.
+    \return Status indicating success or negative error
+*/
+int8_t SP_Iface_Reset_Minion(uint64_t shire_mask);
 
 /*! \fn int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
     \brief A blocking API to obtain compute minin boot frequency from service processor

@@ -56,7 +56,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         {
             internal_execution_context_t context = {.scause = scause, .sepc = sepc,
                 .sstatus = sstatus, .stval = stval, .regs = reg};
-        
+
             log_write(LOG_LEVEL_CRITICAL,
                 "H%04" PRId64 ": Worker U-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n",
                 hart_id, scause, sepc, stval);

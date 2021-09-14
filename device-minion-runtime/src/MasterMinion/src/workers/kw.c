@@ -902,10 +902,31 @@ static inline int8_t kw_cm_to_mm_kernel_force_abort(uint64_t kernel_shire_mask,
 
         if(reset_on_failure)
         {
-            /* TODO: SW-6569: Send cmd to SP to reset the shires involved in kernel launch.
-            After reset, we will respond back to host with abort status */
             Log_Write(LOG_LEVEL_ERROR,
                 "KW:MM->CM:Abort hanged, doing reset of shires.status:%d\r\n", status);
+
+            /* Get the mask for available shires in the device */
+            uint64_t available_shires = CW_Get_Physically_Enabled_Shires();
+            int8_t reset_status;
+
+            /* Send cmd to SP to reset all the available shires */
+            /* TODO: We are sending MM shire to reset as well, hence all MM Minions
+            will reset. This needs to be fixed on SP side. SP needs to check for
+            MM shire and only reset sync Minions. */
+            reset_status = SP_Iface_Reset_Minion(available_shires);
+
+            if(reset_status == STATUS_SUCCESS)
+            {
+                /* Wait for all shires to boot up */
+                reset_status = CW_Wait_For_Compute_Minions_Boot(available_shires);
+            }
+
+            if(reset_status != STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_ERROR,
+                    "KW: Unable to reset all the available shires in device (status: %d)\r\n",
+                    reset_status);
+            }
         }
     }
 
@@ -1182,7 +1203,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                 /* Multicast abort to shires associated with current kernel slot
                 This abort should forcefully abort all the shires involved in
                 kernel launch and if it times out as well, do a reset of the shires. */
-                kw_cm_to_mm_kernel_force_abort(kernel_shire_mask, true);
+                status_internal.status = kw_cm_to_mm_kernel_force_abort(kernel_shire_mask, true);
             }
             else
             {

@@ -21,6 +21,7 @@
 
     Public interfaces:
         CW_Init
+        CW_Wait_For_Compute_Minions_Boot
         CW_Process_CM_SMode_Messages
         CW_Update_Shire_State
         CW_Check_Shires_Available_And_Ready
@@ -137,12 +138,12 @@ static inline uint64_t cw_get_booted_shires(void)
         {
             case CM_TO_MM_MESSAGE_ID_NONE:
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "Dispatcher:CW_Init:MESSAGE_ID_NONE\r\n");
+                    "CW_Init:MESSAGE_ID_NONE\r\n");
                 break;
 
             case CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY:
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "Dispatcher:CW_Init:MESSAGE_ID_SHIRE_READY S%d\r\n",
+                    "CW_Init:MESSAGE_ID_SHIRE_READY S%d\r\n",
                     shire_ready->shire_id);
 
                 /* Update the booted shire mask */
@@ -151,7 +152,7 @@ static inline uint64_t cw_get_booted_shires(void)
 
             default:
                 Log_Write(LOG_LEVEL_ERROR,
-                    "Dispatcher:CW_Init:Unknown message id = 0x%x\r\n",
+                    "CW_Init:Unknown message id = 0x%x\r\n",
                     message.header.id);
                 break;
         }
@@ -181,13 +182,8 @@ static inline uint64_t cw_get_booted_shires(void)
 ***********************************************************************/
 int8_t CW_Init(void)
 {
-    uint64_t sip;
     uint64_t shire_mask = 0;
-    uint64_t booted_shires_mask = 0ULL;
     int8_t status = STATUS_SUCCESS;
-    int8_t sw_timer_idx;
-    uint8_t thread_id = get_hart_id() & (HARTS_PER_SHIRE - 1);
-    bool exit_loop = false;
 
     /* Obtain the number of shires to be used from SP and initialize the CW control block */
     status = SP_Iface_Get_Shire_Mask(&shire_mask);
@@ -198,25 +194,65 @@ int8_t CW_Init(void)
 
     Log_Write(LOG_LEVEL_DEBUG, "CW_Init:Shire mask from SP: 0x%lx\r\n", shire_mask);
 
+    /* Set the bit for MM shire sync Minions */
+    shire_mask = MASK_SET_BIT(shire_mask, MASTER_SHIRE);
+
     /* Initialize Global CW_CB */
     atomic_store_local_64(&CW_CB.physically_avail_shires_mask,
         shire_mask);
-    atomic_store_local_64(&CW_CB.booted_shires_mask, 0ULL);
-
-    atomic_store_local_64(&CW_CB.shire_state, 0ULL);
-
-    /* Create timeout to wait for all Compute Workers to boot up */
-    sw_timer_idx = SW_Timer_Create_Timeout(&cw_set_init_timeout_cb, thread_id,
-        CW_INIT_TIMEOUT);
-
-    if(sw_timer_idx < 0)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "CW: Unable to register CW init timeout!\r\n");
-        return CW_ERROR_GENERAL;
-    }
 
     /* Bring up Compute Workers */
     syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, shire_mask, 0x1u, 0);
+
+    /* Wait for all workers to be initialized */
+    status = CW_Wait_For_Compute_Minions_Boot(shire_mask);
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       CW_Wait_For_Compute_Minions_Boot
+*
+*   DESCRIPTION
+*
+*       This functions waits for boot messages from given shires in the
+*       shire_mask
+*
+*   INPUTS
+*
+*       shire_mask    Mask of the shire to wait for
+*
+*   OUTPUTS
+*
+*       int8_t        status success or failure
+*
+***********************************************************************/
+int8_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
+{
+    bool exit_loop = false;
+    uint64_t booted_shires_mask = 0ULL;
+    int8_t status = STATUS_SUCCESS;
+    uint64_t sip;
+    int8_t sw_timer_idx;
+
+    Log_Write(LOG_LEVEL_DEBUG, "CW: CW_Wait_For_Compute_Minions_Boot\r\n");
+
+    /* Reset booted shires mask and their state */
+    atomic_store_local_64(&CW_CB.booted_shires_mask, 0ULL);
+    atomic_store_local_64(&CW_CB.shire_state, 0ULL);
+
+    /* Create timeout to wait for all Compute Workers to boot up */
+    sw_timer_idx = SW_Timer_Create_Timeout(&cw_set_init_timeout_cb,
+        (get_hart_id() & (HARTS_PER_SHIRE - 1)), CW_INIT_TIMEOUT);
+
+    if(sw_timer_idx < 0)
+    {
+        Log_Write(LOG_LEVEL_WARNING,
+            "CW: Unable to register CW init timeout! It may not recover in case of hang\r\n");
+    }
 
     /* Wait for all workers to be initialized */
     while(!exit_loop)
@@ -236,7 +272,7 @@ int8_t CW_Init(void)
             if(atomic_compare_and_exchange_local_32(&CW_CB.timeout_flag, 1, 0) == 1)
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "CW_Int: Timed-out waiting for rsp from compute workers!\r\n");
+                    "CW: Timed-out waiting for rsp from compute workers!\r\n");
                 status = CW_ERROR_INIT_TIMEOUT;
                 exit_loop = true;
             }
@@ -260,8 +296,11 @@ int8_t CW_Init(void)
         }
     }
 
-    /* Free the registered SW Timeout slot */
-    SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
+    if(sw_timer_idx >= 0)
+    {
+        /* Free the registered SW Timeout slot */
+        SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
+    }
 
     return status;
 }
@@ -305,7 +344,7 @@ void CW_Process_CM_SMode_Messages(void)
         {
             case CM_TO_MM_MESSAGE_ID_NONE:
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "Dispatcher:CM_TO_MM:MESSAGE_ID_NONE\r\n");
+                    "CW:CM_TO_MM:MESSAGE_ID_NONE\r\n");
                 break;
 
             case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION:
@@ -314,7 +353,7 @@ void CW_Process_CM_SMode_Messages(void)
                     (cm_to_mm_message_exception_t *)&message;
 
                 Log_Write(LOG_LEVEL_CRITICAL,
-                    "Dispatcher:CM_TO_MM:MESSAGE_ID_FW_EXCEPTION from H%ld\r\n",
+                    "CW:CM_TO_MM:MESSAGE_ID_FW_EXCEPTION from H%ld\r\n",
                     exception->hart_id);
 
                 /* TODO: SW-6569: CW FW exception received.
@@ -328,14 +367,14 @@ void CW_Process_CM_SMode_Messages(void)
                     (cm_to_mm_message_fw_error_t *)&message;
 
                 Log_Write(LOG_LEVEL_CRITICAL,
-                    "Dispatcher:CM_TO_MM:MESSAGE_ID_FW_ERROR from H%ld: Error_code: %d\r\n",
+                    "CW:CM_TO_MM:MESSAGE_ID_FW_ERROR from H%ld: Error_code: %d\r\n",
                     error->hart_id, error->error_code);
 
                 break;
             }
             default:
                 Log_Write(LOG_LEVEL_CRITICAL,
-                    "Dispatcher:CM_TO_MM:Unknown message id = 0x%x\r\n",
+                    "CW:CM_TO_MM:Unknown message id = 0x%x\r\n",
                     message.header.id);
                 break;
         }
