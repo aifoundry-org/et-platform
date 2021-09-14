@@ -25,6 +25,9 @@ set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
 
 project(EsperantoTestKernelsLoader VERSION 0.1.0 LANGUAGES C ASM)
 
+
+find_package(et-common-libs REQUIRED COMPONENTS cm-umode)
+
 ### Add package information
 include(CMakePackageConfigHelpers)
 
@@ -80,17 +83,11 @@ macro(test_kernel)
   include_directories(${SHARED_INC_DIRS})
   include_directories(${SHARED_KERNEL_INC_DIR})
 
-###############
-#include cm-umode lib and include paths
- include(${CMAKE_INSTALL_PREFIX}/cm-umode/cmake/cm-umode-libs/cm-umodeTargets.cmake)
- include_directories(${CMAKE_INSTALL_PREFIX}/cm-umode/include)
-###############
-
   add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
   set(EXPORT_NAME EsperantoTestKernelsTargets)
 
-  target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device_common cm-umode-lib::cm-umode)
+  target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device_common et-common-libs::cm-umode)
 
   install(TARGETS ${TARGET_NAME}.elf
     EXPORT ${EXPORT_NAME}
