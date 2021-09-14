@@ -185,7 +185,7 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
       deviceInfo.epFdMgmt_ = openAndConfigEpoll(deviceInfo.fdMgmt_);
 
       logs << "\nPCIe target mgmt opened: \"" << path << "\""
-           << "\nSP VQ Maximum message size: " << deviceInfo.mmSqMaxMsgSize_ << std::endl;
+           << "\nSP VQ Maximum message size: " << deviceInfo.spSqMaxMsgSize_ << std::endl;
     }
     if (opsEnabled_) {
       char path[32];
