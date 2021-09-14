@@ -1031,8 +1031,11 @@ static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t 
                    if it was not previously aborted by host.
                    Multicast abort to shires associated with current kernel slot
                    excluding the shire which took an exception */
-                status_internal->status = kw_cm_to_mm_kernel_force_abort(
-                    MASK_RESET_BIT(kernel_shire_mask, exception->shire_id), false);
+                uint64_t shire_mask = MASK_RESET_BIT(kernel_shire_mask, exception->shire_id);
+                if(shire_mask > 0)
+                {
+                    status_internal->status = kw_cm_to_mm_kernel_force_abort(shire_mask, false);
+                }
             }
 
             if (!status_internal->cw_exception)
