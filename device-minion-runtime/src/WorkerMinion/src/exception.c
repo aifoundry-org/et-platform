@@ -9,8 +9,10 @@
 #include "cm_mm_defines.h"
 #include "riscv_encoding.h"
 #include "syscall_internal.h"
-#include <stdbool.h>
+#include "trace.h"
 #include <inttypes.h>
+#include <stdbool.h>
+#include <string.h>
 
 void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const reg);
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,
@@ -27,30 +29,33 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
     asm volatile("csrr %0, sstatus" : "=r"(sstatus));
     user_mode = ((sstatus & 0x100U) >> 8U) == 0;
 
-    /* Get the kernel exception buffer */
-    uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
-
+    /* S-mode exception */
     if (!user_mode)
     {
-        /* If the kernel exception buffer is available */
-        if(exception_buffer != 0)
-        {
-            internal_execution_context_t context = {.scause = scause, .sepc = sepc,
-                .sstatus = sstatus, .stval = stval, .regs = reg};
+        struct dev_context_registers_t context = {.epc = sepc, .tval = stval,
+            .status = sstatus, .cause = scause};
 
-            /* Save the execution context in the buffer provided */
-            CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
-                CM_CONTEXT_TYPE_SMODE_EXCEPTION, hart_id, &context);
-        }
+        /* Copy all the GPRs except x0 (hardwired to zero) */
+        memcpy(context.gpr, &reg[1], sizeof(uint64_t) * TRACE_DEV_CONTEXT_GPRS);
+
+        /* Log the execution stack event to trace */
+        Trace_Execution_Stack(Trace_Get_CM_CB(), &context);
 
         log_write(LOG_LEVEL_CRITICAL,
             "H%04" PRId64 ": Worker S-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n",
             hart_id, scause, sepc, stval);
 
-        send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
+        /* Send MM exception message once. MM will reset the CMs */
+        if(kernel_launch_set_global_abort_flag())
+        {
+            send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
+        }
     }
     else /* U-mode exception */
     {
+        /* Get the kernel exception buffer */
+        uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
+
         /* If the kernel exception buffer is available */
         if(exception_buffer != 0)
         {

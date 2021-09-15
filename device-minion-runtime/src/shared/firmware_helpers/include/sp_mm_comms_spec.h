@@ -53,6 +53,7 @@ enum mm2sp_mm_recoverable_error_code_e {
     MM_CM2MM_CMD_ERROR                = -64,
     MM_CM2MM_KERNEL_LAUNCH_ERROR      = -65,
     MM_CM2MM_KERNEL_EXCEPTION_ERROR   = -66,
+    MM_CM_RUNTIME_EXCEPTION_ERROR     = -67,
     MM_CM_RUNTIME_ERRORS_END          = -79,
     /* Dispatcher error codes */
     MM_DISPATCHER_ERROR_START         = -80,
@@ -74,7 +75,7 @@ enum mm2sp_sp_recoverable_error_code_e {
     MM_SERIAL_INIT_ERROR         = -5,
     MM_CQ_INIT_ERROR             = -6,
     MM_SQ_INIT_ERROR             = -7,
-    MM_UNHANDLED_EXCEPTION       = -8
+    MM_RUNTIME_EXCEPTION         = -8
 };
 
 typedef uint16_t mm2sp_error_type_e;
@@ -222,7 +223,7 @@ struct mm2sp_reset_minion_cmd_t {
 };
 
 /*! \struct mm2sp_reset_minion_rsp_t
-    \brief MM to SP Reset Minion response strutcure 
+    \brief MM to SP Reset Minion response strutcure
 */
 struct mm2sp_reset_minion_rsp_t {
   struct dev_cmd_hdr_t  msg_hdr;

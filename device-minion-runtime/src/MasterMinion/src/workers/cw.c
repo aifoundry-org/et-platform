@@ -323,7 +323,7 @@ int8_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
 *
 *   OUTPUTS
 *
-*       int8_t              status success or failure
+*       None
 *
 ***********************************************************************/
 void CW_Process_CM_SMode_Messages(void)
@@ -356,8 +356,31 @@ void CW_Process_CM_SMode_Messages(void)
                     "CW:CM_TO_MM:MESSAGE_ID_FW_EXCEPTION from H%ld\r\n",
                     exception->hart_id);
 
-                /* TODO: SW-6569: CW FW exception received.
-                Decode exception and reset the FW */
+                /* Report SP of CM FW exception */
+                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RUNTIME_EXCEPTION_ERROR);
+
+                /* Get the mask for available shires in the device */
+                uint64_t available_shires = CW_Get_Physically_Enabled_Shires();
+                int8_t reset_status;
+
+                /* Send cmd to SP to reset all the available shires */
+                /* TODO: We are sending MM shire to reset as well, hence all MM Minions
+                will reset. This needs to be fixed on SP side. SP needs to check for
+                MM shire and only reset sync Minions. */
+                reset_status = SP_Iface_Reset_Minion(available_shires);
+
+                if(reset_status == STATUS_SUCCESS)
+                {
+                    /* Wait for all shires to boot up */
+                    reset_status = CW_Wait_For_Compute_Minions_Boot(available_shires);
+                }
+
+                if(reset_status != STATUS_SUCCESS)
+                {
+                    Log_Write(LOG_LEVEL_ERROR,
+                        "CW: Unable to reset all the available shires in device (status: %d)\r\n",
+                        reset_status);
+                }
 
                 break;
             }
