@@ -44,12 +44,6 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         log_write(LOG_LEVEL_CRITICAL,
             "H%04" PRId64 ": Worker S-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n",
             hart_id, scause, sepc, stval);
-
-        /* Send MM exception message once. MM will reset the CMs */
-        if(kernel_launch_set_global_abort_flag())
-        {
-            send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
-        }
     }
     else /* U-mode exception */
     {
@@ -72,6 +66,14 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         }
     }
 
+    /* Only send kernel launch exception message once to MM. */
+    if(kernel_launch_set_global_abort_flag())
+    {
+        /* Sends exception message to MM */
+        send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
+    }
+
+#if 0 /* TODO: See the posibility of optimizing exceptions using self abort */
     /* First hart in the shire that took exception will do a self abort
     and send IPI to other harts in the shire to abort as well
     NOTE: The harts in U-mode will trap only on IPI. Harts that will enter exception handler
@@ -89,6 +91,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         /* Send the IPI to all other Harts in this shire */
         syscall(SYSCALL_IPI_TRIGGER_INT, MASK_RESET_BIT(0xFFFFFFFFFFFFFFFFu, hart_id % 64), shire_id, 0);
     }
+#endif
 
     return_from_kernel(KERNEL_ERROR_EXCEPTION);
 }

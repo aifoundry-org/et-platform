@@ -960,6 +960,7 @@ static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t 
 {
     cm_iface_message_t message;
     int8_t status;
+    (void)kernel;
 
     /* In case of kernel exception response, we need to acquire the CM->MM unicast
     lock to make sure that the access to buffers is serialized */
@@ -1022,21 +1023,6 @@ static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t 
             Log_Write(LOG_LEVEL_DEBUG,
                 "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%" PRId32 "\r\n",
                 exception->shire_id);
-
-            /* First time we get an exception: abort kernel */
-            if((atomic_load_local_32(&kernel->kernel_state) != KERNEL_STATE_ABORTED_BY_HOST) &&
-                (!status_internal->cw_exception))
-            {
-                /* Only update the kernel state to exception and send abort
-                   if it was not previously aborted by host.
-                   Multicast abort to shires associated with current kernel slot
-                   excluding the shire which took an exception */
-                uint64_t shire_mask = MASK_RESET_BIT(kernel_shire_mask, exception->shire_id);
-                if(shire_mask > 0)
-                {
-                    status_internal->status = kw_cm_to_mm_kernel_force_abort(shire_mask, false);
-                }
-            }
 
             if (!status_internal->cw_exception)
             {

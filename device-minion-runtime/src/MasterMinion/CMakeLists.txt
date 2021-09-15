@@ -17,7 +17,7 @@ set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 
 # Enable this option by default since we require this for understanding performance
-set(ENABLE_CMD_EXECUTION_TRACE 1)
+set(ENABLE_CMD_EXECUTION_TRACE 0)
 
 # MM build variants
 foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
@@ -107,7 +107,7 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
         COMPONENT master-minion
     )
 
-    install(FILES 
+    install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/${MM_BUILD_VARIANT}.lst
         ${CMAKE_CURRENT_BINARY_DIR}/${MM_BUILD_VARIANT}.map
         ${CMAKE_CURRENT_BINARY_DIR}/${MM_BUILD_VARIANT}.bin
