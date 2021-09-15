@@ -965,14 +965,16 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
             cpu.core->ucache_control = val;
             cpu.core->mcache_control = val & 3;
             if (~val & 2) {
-                if (cpu.core->tload[0].state == TLoad::State::waiting_coop
-                    || cpu.core->tload[1].state == TLoad::State::waiting_coop)
+                if (cpu.core->tload_a[0].state == TLoad::State::waiting_coop
+                    || cpu.core->tload_a[1].state == TLoad::State::waiting_coop
+                    || cpu.core->tload_b.state == TLoad::State::waiting_coop)
                 {
                     throw std::runtime_error("csrset() disables L1SCP while "
                                              "coop tensor loads are active");
                 }
-                cpu.core->tload[0].state = TLoad::State::idle;
-                cpu.core->tload[1].state = TLoad::State::idle;
+                cpu.core->tload_a[0].state = TLoad::State::idle;
+                cpu.core->tload_a[1].state = TLoad::State::idle;
+                cpu.core->tload_b.state = TLoad::State::idle;
             }
         }
         val &= 3;

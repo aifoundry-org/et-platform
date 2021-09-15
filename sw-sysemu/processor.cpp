@@ -1473,8 +1473,9 @@ void Hart::notify_pmu_minion_event(uint8_t event)
 void Hart::become_nonexistent()
 {
     if (mhartid % EMU_THREADS_PER_MINION == 0) {
-        core->tload[0].state = TLoad::State::idle;
-        core->tload[1].state = TLoad::State::idle;
+        core->tload_a[0].state = TLoad::State::idle;
+        core->tload_a[1].state = TLoad::State::idle;
+        core->tload_b.state = TLoad::State::idle;
         core->tmul.state = TMul::State::idle;
         core->tquant.state = TQuant::State::idle;
         core->reduce.state = TReduce::State::idle;
@@ -1496,8 +1497,9 @@ void Hart::become_unavailable()
             LOG_HART(WARN, *this, "%s",
                      "Stopping a hart with an active coprocessor!");
         }
-        core->tload[0].state = TLoad::State::idle;
-        core->tload[1].state = TLoad::State::idle;
+        core->tload_a[0].state = TLoad::State::idle;
+        core->tload_a[1].state = TLoad::State::idle;
+        core->tload_b.state = TLoad::State::idle;
         core->tmul.state = TMul::State::idle;
         core->tquant.state = TQuant::State::idle;
         core->reduce.state = TReduce::State::idle;
