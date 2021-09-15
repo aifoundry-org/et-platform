@@ -80,13 +80,13 @@ typedef enum {
 } mm_to_cm_message_id_e;
 
 #define KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH (1u << 0)
+#define KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE (1u << 1)
 
 typedef struct {
     uint64_t code_start_address;
     uint64_t pointer_to_args;
     uint64_t shire_mask;
     uint64_t exception_buffer;
-    uint64_t pointer_to_trace_cfg;
     uint8_t kw_base_id;
     uint8_t slot_index;
     uint8_t flags;

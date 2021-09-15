@@ -15,6 +15,7 @@
 #include "printf.h"
 #include "sync.h"
 #include "syscall_internal.h"
+#include "trace.h"
 
 #include <stdbool.h>
 #include <inttypes.h>
@@ -284,7 +285,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
         "sd    x30, 30 * 8( sp )   \n"
         "sd    x31, 31 * 8( sp )   \n"
         "mv    x10, %[k_param_a0]  \n" // a0 = kernel.pointer_to_args
-        "mv    x11, %[k_param_a1]  \n" // a1 = kernel.pointer_to_trace_cfg
+        "mv    x11, %[k_param_a1]  \n" // a1 = UNUSED
         "mv    x12, %[k_param_a2]  \n" // a2 = UNUSED
         "mv    x13, %[k_param_a3]  \n" // a3 = UNUSED
         "sd    sp, %[firmware_sp]  \n" // save sp to supervisor stack SP region (sscratch + 8)
@@ -367,7 +368,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
           [k_stack_addr]  "r"(kernel_stack_addr),
           [k_entry]       "r"(kernel.code_start_address),
           [k_param_a0]    "r"(kernel.pointer_to_args),
-          [k_param_a1]    "r"(kernel.pointer_to_trace_cfg),
+          [k_param_a1]    "r"(0),
           [k_param_a2]    "r"(0), /* Unused for now */
           [k_param_a3]    "r"(0)  /* Unused for now */
     );
@@ -384,6 +385,18 @@ static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel)
     const uint64_t hart_id = get_hart_id();
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
     const uint64_t first_worker = (shire_id == MASTER_SHIRE) ? 32 : 0;
+
+    /* Check if Trace is enabled */
+    if (kernel->flags & KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
+    {
+        /* Initialize Trace for CM UMode. */
+        Trace_Init_UMode((struct trace_init_info_t *)(uintptr_t)CM_UMODE_TRACE_CFG_BASEADDR);
+    }
+    else
+    {
+        /* Initialize the Trace in default config. By default UMode Trace is disabled. */
+        Trace_Init_UMode(NULL);
+    }
 
     // First core in each neighborhood resets the PMC counter 3
     if ((hart_id % 16 == 0) || (hart_id % 16 == 1)) {
@@ -503,6 +516,13 @@ static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *k
     uint64_t prev_completed_threads;
     uint64_t prev_shire_mask;
     int8_t status;
+
+    /* Update Trace buffer header if Trace was enabled. */
+    if (kernel->flags & KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
+    {
+        /* TODO: SW-9308: Once this is done, remove this update to Trace header. */
+        Trace_Update_UMode_Buffer_Header();
+    }
 
     /* Reset the launched bit for the current thread */
     kernel_info_reset_launched_thread(shire_id, thread_id);

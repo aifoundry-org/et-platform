@@ -31,6 +31,12 @@
 */
 #define CMD_HEADER_FLAG_BARRIER             (1 << 0)
 
+/*! \def CMD_HEADER_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE
+    \brief Host Command flag for to Enable Kernel Trace.
+    NOTE: This flag set means that Trace config info is present in command payload.
+*/
+#define CMD_HEADER_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE    (1 << 1)
+
 /*! \def CMD_HEADER_FLAG_MM_TRACE_BUF
     \brief Host Command flag for MM Trace Buffer.
 */

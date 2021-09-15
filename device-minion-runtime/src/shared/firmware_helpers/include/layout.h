@@ -199,8 +199,13 @@ correspoding Flash partition to take affect. */
 #define CM_TRACE_BUFFER_SIZE_PER_HART     0x1000
 #define CM_TRACE_BUFFER_SIZE              (CM_TRACE_BUFFER_SIZE_PER_HART * CM_HART_COUNT)
 
-/* NOTE: Keep it's value in sync with device-software/et-common-libs/src/trace/trace_umode.c */
-#define CM_UMODE_TRACE_CB_BASEADDR        CACHE_LINE_ALIGN(CM_TRACE_BUFFER_BASE + CM_TRACE_BUFFER_SIZE)
+/* CM UMode Trace config region. */
+#define CM_UMODE_TRACE_CFG_BASEADDR       CACHE_LINE_ALIGN(CM_TRACE_BUFFER_BASE + CM_TRACE_BUFFER_SIZE)
+#define CM_UMODE_TRACE_CFG_SIZE           64
+
+/* NOTE: Keep it's value in sync with device-software/et-common-libs/src/trace/trace_umode.c
+         This region should be in non-Host managed UMode region. */
+#define CM_UMODE_TRACE_CB_BASEADDR        CACHE_LINE_ALIGN(CM_UMODE_TRACE_CFG_BASEADDR + CM_UMODE_TRACE_CFG_SIZE)
 #define CM_UMODE_TRACE_CB_SIZE            (TRACE_CB_MAX_SIZE * CM_HART_COUNT)
 
 /* Reserved area for DDR low memory sub regions */

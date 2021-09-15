@@ -475,20 +475,31 @@ static inline int8_t process_kernel_launch_cmd_payload(struct device_ops_kernel_
     int8_t status = STATUS_SUCCESS;
 
     /* Check if Trace config are present in optional command payload. */
-    if(cmd->pointer_to_trace_cfg != 0)
+    if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
     {
         Log_Write(LOG_LEVEL_DEBUG, "KW:INFO: Trace Optional Payload present!\r\n");
         if((args_size >= sizeof(struct trace_init_info_t)) &&
             (args_size <= DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX))
         {
-            /* Copy the Trace configs from command payload to provided address
-                NOTE: Trace configs are always present at the beginning of the payload
-                and its size is fixed.*/
-            ETSOC_MEM_COPY_AND_EVICT((void*)(uintptr_t)cmd->pointer_to_trace_cfg,
-                (void*)payload, sizeof(struct trace_init_info_t), to_L3)
+            struct trace_init_info_t *trace_config = (struct trace_init_info_t *)(uintptr_t)payload;
 
-            args_size -= sizeof(struct trace_init_info_t);
-            payload += sizeof(struct trace_init_info_t);
+            if (IS_ALIGNED(trace_config->buffer, CACHE_LINE_SIZE) && IS_ALIGNED(trace_config->buffer_size, CACHE_LINE_SIZE))
+            {
+                /* Copy the Trace configs from command payload to provided address
+                    NOTE: Trace configs are always present at the beginning of the payload
+                    and its size is fixed.*/
+                ETSOC_MEM_COPY_AND_EVICT((void*)(uintptr_t)CM_UMODE_TRACE_CFG_BASEADDR,
+                    (void*)payload, sizeof(struct trace_init_info_t), to_L3)
+
+
+                args_size -= sizeof(struct trace_init_info_t);
+                payload += sizeof(struct trace_init_info_t);
+            }
+            else
+            {
+                status = KW_ERROR_KERNEL_INVALID_ADDRESS;
+                Log_Write(LOG_LEVEL_ERROR, "KW:ERROR: Invalid UMode Trace Buffer\r\n");
+            }
         }
         else
         {
@@ -552,8 +563,7 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
        different addresses provided in the command could be optional address. */
     if(kw_check_address_bounds(cmd->code_start_address, false) &&
        kw_check_address_bounds(cmd->pointer_to_args, true) &&
-       kw_check_address_bounds(cmd->exception_buffer, true) &&
-       kw_check_address_bounds(cmd->pointer_to_trace_cfg, true))
+       kw_check_address_bounds(cmd->exception_buffer, true))
     {
         /* First we allocate resources needed for the kernel launch */
         /* Reserve a slot for the kernel */
@@ -598,12 +608,16 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         launch_args.kernel.pointer_to_args = cmd->pointer_to_args;
         launch_args.kernel.shire_mask = cmd->shire_mask;
         launch_args.kernel.exception_buffer = cmd->exception_buffer;
-        launch_args.kernel.pointer_to_trace_cfg = cmd->pointer_to_trace_cfg;
 
         /* If the flag bit flush L3 is set */
         if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_KERNEL_FLUSH_L3)
         {
             launch_args.kernel.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
+        }
+
+        if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
+        {
+            launch_args.kernel.flags |= KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE;
         }
 
         /* Reset the L2 SCP kernel launched flag for the acquired kernel worker slot */

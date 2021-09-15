@@ -54,4 +54,19 @@ void Trace_RT_Control_CM(uint32_t control);
 */
 void Trace_Set_Enable_CM(trace_enable_e control);
 
+/*! \fn void Trace_Init_UMode(const struct trace_init_info_t *init_info)
+    \brief This function initializes Trace for a single Compute Hart.
+           All Harts can call this function to Enable/Dsiable its Trace.
+           Shire and Thread decides if Trace need to be enabled or disabled for caller Hart.
+    \param init_info Pointer to Trace init information.
+    \return Success or Error code.
+*/
+void Trace_Init_UMode(const struct trace_init_info_t *init_info);
+
+/*! \fn void Trace_Update_UMode_Buffer_Header(void)
+    \brief Update buffer header to reflect data size in buffer
+    \return None
+*/
+void Trace_Update_UMode_Buffer_Header(void);
+
 #endif
