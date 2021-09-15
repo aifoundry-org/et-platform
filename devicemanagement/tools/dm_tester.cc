@@ -125,7 +125,7 @@ int runService(const char* input_buff, const uint32_t input_size, char* output_b
   int ret;
 
   if (ret = dml.verifyDMLib()) {
-    DV_LOG(ERROR) << "Failed to verify the DM lib: " << ret << std::endl; 
+    DV_LOG(ERROR) << "Failed to verify the DM lib: " << ret << std::endl;
     return ret;
   }
   DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
@@ -179,7 +179,7 @@ int verifyService() {
       return ret;
     }
 
-    try 
+    try
     {
       switch (std::stoi(output_buff,nullptr,10)) {
       case 2:strncpy(pcie_speed, "PCIE_GEN1", sizeof(pcie_speed)); break;
@@ -187,7 +187,7 @@ int verifyService() {
       case 8:strncpy(pcie_speed, "PCIE_GEN3", sizeof(pcie_speed)); break;
       case 16:strncpy(pcie_speed, "PCIE_GEN4", sizeof(pcie_speed)); break;
       case 32:strncpy(pcie_speed, "PCIE_GEN5", sizeof(pcie_speed)); break;
-      }  
+      }
     } catch (const std::invalid_argument& ia) {
      DV_LOG(INFO) <<ia.what()<< "Invalid resposne from the device= " << output_buff << std::endl;
      return -EINVAL;
@@ -215,7 +215,7 @@ int verifyService() {
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-    
+
     try{
        std::string str_output = std::string(output_buff, output_size);
        DV_LOG(INFO) << "ASIC Revision: " << std::stoi (str_output,nullptr,16) << std::endl;
@@ -292,7 +292,7 @@ int verifyService() {
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(uint8_t);
-    const char input_buff[input_size] = 
+    const char input_buff[input_size] =
                                 {(char)tdp_level}; // bounds check prevents issues with narrowing
 
     const uint32_t output_size = sizeof(uint32_t);
@@ -738,7 +738,7 @@ int verifyService() {
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-    
+
     device_mgmt_api::firmware_version_t* firmware_versions = (device_mgmt_api::firmware_version_t*)output_buff;
 
     uint32_t versions = firmware_versions->bl1_v;
@@ -758,9 +758,9 @@ int verifyService() {
 
     versions = firmware_versions->machm_v;
     DV_LOG(INFO) << "Machine Minion versions: Major: " << (versions >> 24)
-        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;  
+        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;
 
-  } break;          
+  } break;
 
   case DM_CMD::DM_CMD_SET_FIRMWARE_VERSION_COUNTER: {
     const uint32_t input_size = sizeof(uint256_t);
@@ -784,7 +784,7 @@ int verifyService() {
     if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-  } break; 
+  } break;
 
   case DM_CMD::DM_CMD_SET_SW_BOOT_ROOT_CERT: {
     const uint32_t input_size = sizeof(uint512_t);
@@ -796,7 +796,7 @@ int verifyService() {
     if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-  } break; 
+  } break;
 
   case DM_CMD::DM_CMD_GET_FUSED_PUBLIC_KEYS: {
     const uint32_t output_size = sizeof(uint256_t);
@@ -805,7 +805,7 @@ int verifyService() {
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-    
+
     try{
        std::string str_output = std::string(output_buff, output_size);
        DV_LOG(INFO) << "Public keys: " << std::stoi (str_output,nullptr,16) << std::endl;
@@ -815,12 +815,14 @@ int verifyService() {
     return -EINVAL;
     }
   } break;
-  
+
   default:
     DV_LOG(ERROR) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
     return -EINVAL;
     break;
   }
+
+  return ret;
 }
 
 bool validDigitsOnly() {
