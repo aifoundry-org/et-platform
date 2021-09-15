@@ -97,7 +97,10 @@ static void taskMain(void *pvParameters)
     setbuf(stdout, NULL);
 
     // Establish connection to PMIC
+    struct module_voltage_t module_voltage ={0};
     setup_pmic();
+    // Read all Voltage Rails
+    get_module_voltage(&module_voltage);
 
 #if FAST_BOOT
     // In cases where BootROM is bypass, initialize PCIe link
@@ -379,11 +382,6 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     fake_bl1_data.vaultip_coid_set = 0;
     fake_bl1_data.spi_controller_rx_baudrate_divider = 0;
     fake_bl1_data.spi_controller_tx_baudrate_divider = 0;
-    // fake_bl1_data.flash_fs_bl1_info bypassed
-    // fake_bl1_data.pcie_config_header bypassed
-    // fake_bl1_data.sp_certificates[2] bypassed
-    // fake_bl1_data.sp_bl1_header bypassed
-    // fake_bl1_data.sp_bl2_header bypassed
     bl1_data = &fake_bl1_data;
 
     // In cases where production BootROM is skipped, initializes SPIO UART0

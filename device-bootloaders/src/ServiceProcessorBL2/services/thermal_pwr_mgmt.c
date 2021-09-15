@@ -604,6 +604,9 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.ddr = voltage;
+        Log_Write(LOG_LEVEL_INFO,
+              "get_module_voltage: DDR Voltage: %d\r\n", voltage);
+
     }
 
     if (0 != pmic_get_voltage(L2CACHE, &voltage))
@@ -614,6 +617,8 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.l2_cache = voltage;
+        Log_Write(LOG_LEVEL_INFO,
+              "get_module_voltage: L2 Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(MAXION, &voltage))
@@ -624,6 +629,8 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.maxion = voltage;
+        Log_Write(LOG_LEVEL_INFO,
+              "get_module_voltage: Maxion Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(MINION, &voltage))
@@ -634,6 +641,8 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.minion = voltage;
+        Log_Write(LOG_LEVEL_INFO,
+              "get_module_voltage: Minion Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(PCIE, &voltage))
@@ -644,6 +653,8 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.pcie = voltage;
+        Log_Write(LOG_LEVEL_INFO,
+              "get_module_voltage: PCIE Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(NOC, &voltage))
@@ -654,6 +665,8 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.noc = voltage;
+        Log_Write(LOG_LEVEL_INFO,
+              "get_module_voltage: NOC Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(PCIE_LOGIC, &voltage))
@@ -664,6 +677,8 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.pcie_logic = voltage;
+        Log_Write(LOG_LEVEL_INFO,
+              "get_module_voltage: PCIE Subsystem Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(VDDQLP, &voltage))
@@ -674,6 +689,8 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.vddqlp = voltage;
+        Log_Write(LOG_LEVEL_INFO,
+              "get_module_voltage: VDDQ LP Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(VDDQ, &voltage))
@@ -684,6 +701,8 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.vddq = voltage;
+        Log_Write(LOG_LEVEL_INFO,
+              "get_module_voltage: VDDQ Voltage: %d\r\n", voltage);
     }
 
     *module_voltage = get_soc_power_reg()->module_voltage;

@@ -202,12 +202,6 @@ static void pcie_init_caps_list(void)
 {
     uint32_t misc_control;
 
-    /* Init capabilities list. The compiled-in, default capabilities list looks like this:
-      HEAD (0x34) -> Power Mgmt (0x40) -> MSI (0x50) -> PCIe (0x70) -> MSI-X (0xB0) -> NULL
-
-      For now, the Linux host driver is not implementing the power management API,
-      so don't advertise the power management capability. */
-
     /* The config registers are protected by a write-enable bit */
     misc_control =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
@@ -217,9 +211,11 @@ static void pcie_init_caps_list(void)
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               misc_control);
 
-    /* Make HEAD point to MSI cap, skipping Power Mgmt Cap */
+    /* Init capabilities list. The compiled-in, default capabilities list looks like this:
+      HEAD (0x34) -> Power Mgmt (0x40) -> MSI (0x50) -> PCIe (0x70) -> MSI-X (0xB0) -> NULL*/
+
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_PCI_CAP_PTR_REG_ADDRESS,
-              PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_PCI_CAP_PTR_REG_CAP_POINTER_SET(0x50));
+              PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_PCI_CAP_PTR_REG_CAP_POINTER_SET(0x40));
 
     misc_control =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
