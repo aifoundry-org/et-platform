@@ -277,6 +277,7 @@ enum : freg {
 #define SPIO_PLIC_PSHIRE_PCIE0_EDMA0_INTR_ID 96
 #define SPIO_PLIC_MBOX_MMIN_INTR_ID          114
 #define SPIO_PLIC_MBOX_HOST_INTR_ID          115
+#define SPIO_PLIC_GPIO_INTR_ID               122
 
 // PCIe
 #define ETSOC_CX_ATU_NUM_INBOUND_REGIONS 32
