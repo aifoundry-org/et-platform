@@ -23,6 +23,7 @@ SECTIONS
 {
     .text : ALIGN(128)
     {
+        __code_start = .;
         *(SORT_BY_ALIGNMENT(.text) SORT_BY_ALIGNMENT(.text.*) SORT_BY_ALIGNMENT(.gnu.linkonce.t.*))
     } > CODE
 
