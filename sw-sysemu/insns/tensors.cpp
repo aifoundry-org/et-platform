@@ -260,6 +260,21 @@ static Coop_minion_mask coop_tload_minion_mask(uint32_t tcoop)
 #endif
 
 
+#ifdef SYS_EMU
+static TLoad& coop_tload_find_partner(Hart& hart, const TLoad& tload)
+{
+    const auto is_coop_partner = [&tload](const TLoad& other) {
+        return (other.state == TLoad::State::waiting_coop) && (other.tcoop == tload.tcoop);
+    };
+    auto it = std::find_if(hart.core->tload_a.begin(), hart.core->tload_a.end(), is_coop_partner);
+    if (it == hart.core->tload_a.end()) {
+        throw std::runtime_error("unable to match cooperative tensor_loads");
+    }
+    return *it;
+}
+#endif
+
+
 void tensor_load_start(Hart& cpu, uint64_t control)
 {
     uint64_t stride  = X31 & 0xFFFFFFFFFFC0ULL;
@@ -280,7 +295,7 @@ void tensor_load_start(Hart& cpu, uint64_t control)
         cmd   = tload_cmd_load;
     }
 
-    TLoad& tload = cpu.core->tload[tenb];
+    TLoad& tload = tenb ? cpu.core->tload_b : cpu.core->tload_a[id];
 
     if (tload.state != TLoad::State::idle) {
         // tload[0] should wait for previous tload[0] to finish, but
@@ -410,24 +425,27 @@ void tensor_load_start(Hart& cpu, uint64_t control)
                     continue;
                 }
                 Hart& hart = cpu.chip->cpu[hart0 + m * EMU_THREADS_PER_MINION];
-                assert(hart.core->tload[tenb].state == TLoad::State::waiting_coop);
-                hart.core->tload[tenb].state = TLoad::State::ready;
+                auto& other_tload = tenb ? hart.core->tload_b
+                                         : coop_tload_find_partner(hart, tload);
+                assert(other_tload.state == TLoad::State::waiting_coop);
+                other_tload.state = TLoad::State::ready;
             }
         }
     } else {
-        tensor_load_execute(cpu, tenb);
+        tensor_load_execute(cpu, id, tenb);
     }
 #elif !defined(ZSIM)
     // CoSim lets the DUT handle synchronization; for now stay of the way
     tload.state = TLoad::State::ready;
-    tensor_load_execute(cpu, tenb);
+    tensor_load_execute(cpu, id, tenb);
 #endif
 }
 
 
-void tensor_load_execute(Hart& cpu, bool tenb)
+void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
 {
-    TLoad& tload = cpu.core->tload[int(tenb)];
+    assert(tlid == 0 || tlid == 1);
+    TLoad& tload = tenb ? cpu.core->tload_b : cpu.core->tload_a[tlid];
 
     if (tload.state != TLoad::State::ready) {
         throw std::runtime_error("tensor_load_execute() called while "
@@ -446,6 +464,8 @@ void tensor_load_execute(Hart& cpu, bool tenb)
     unsigned boffset = (tload.value >>  4) & 0x03;
     int      rows    = ((tload.value     ) & 0xF) + 1;
     int      adj     = 0;
+
+    assert(tenb || tlid == id);
 
     if (tenb) {
         // TenB is modelled as an extension to the SCP (these entries are not
@@ -1491,10 +1511,10 @@ void tensor_fma_execute(Hart& cpu)
 #endif
     cpu.core->tmul.state = TMul::State::idle;
     cpu.stop_waiting(Hart::Waiting::tfma);
-    if (cpu.core->tload[1].paired) {
+    if (cpu.core->tload_b.paired) {
         // Paired txfma; complete previous load to tenb
-        cpu.core->tload[1].state = TLoad::State::idle;
-        cpu.core->tload[1].paired = false;
+        cpu.core->tload_b.state = TLoad::State::idle;
+        cpu.core->tload_b.paired = false;
         cpu.stop_waiting(Hart::Waiting::tload_tenb);
     }
 
@@ -1564,12 +1584,12 @@ void tensor_fma_start(Hart& cpu, uint64_t control)
     }
 
     // Unpair the last TensorLoadSetupB
-    bool load_tenb = (cpu.core->tload[1].state != TLoad::State::idle);
-    bool wait_tenb = (cpu.core->tload[1].state == TLoad::State::waiting_coop);
-    int  brows_tenb = (cpu.core->tload[1].value & 0xF) + 1;
+    bool load_tenb = (cpu.core->tload_b.state != TLoad::State::idle);
+    bool wait_tenb = (cpu.core->tload_b.state == TLoad::State::waiting_coop);
+    int  brows_tenb = (cpu.core->tload_b.value & 0xF) + 1;
 
     if (load_tenb) {
-        cpu.core->tload[1].paired = tenb;
+        cpu.core->tload_b.paired = tenb;
     }
 
     cpu.core->tmul.value = control;
@@ -1613,7 +1633,7 @@ void tensor_fma_start(Hart& cpu, uint64_t control)
                                      "cooperative tensor load to tenb");
         }
         // Non-paired txfma; cancel previous load to tenb
-        cpu.core->tload[1].state = TLoad::State::idle;
+        cpu.core->tload_b.state = TLoad::State::idle;
         cpu.stop_waiting(Hart::Waiting::tload_tenb);
     }
 
@@ -1955,17 +1975,17 @@ void tensor_wait_start(Hart& cpu, uint64_t value)
     switch (what) {
     case Hart::Waiting::tload_0:
         if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
-            && (cpu.core->tload[0].state != TLoad::State::idle)
-            && ((cpu.core->tload[0].stride & 1) == 0))
+            && (cpu.core->tload_a[0].state != TLoad::State::idle))
         {
+            assert((cpu.core->tload_a[0].stride & 1) == 0);
             cpu.start_waiting(what);
         }
         break;
     case Hart::Waiting::tload_1:
         if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
-            && (cpu.core->tload[0].state != TLoad::State::idle)
-            && ((cpu.core->tload[0].stride & 1) == 1))
+            && (cpu.core->tload_a[1].state != TLoad::State::idle))
         {
+            assert((cpu.core->tload_a[1].stride & 1) == 1);
             cpu.start_waiting(what);
         }
         break;

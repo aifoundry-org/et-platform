@@ -150,10 +150,13 @@ void System::reset_hart(unsigned thread)
         cpu[thread].core->tmul.state = TMul::State::idle;
         cpu[thread].core->tquant.state = TQuant::State::idle;
 
-        for (auto& tload : cpu[thread].core->tload) {
-            tload.state = TLoad::State::idle;
-            tload.paired = false;
-        }
+        cpu[thread].core->tload_a[0].state = TLoad::State::idle;
+        cpu[thread].core->tload_a[0].paired = false;
+        cpu[thread].core->tload_a[1].state = TLoad::State::idle;
+        cpu[thread].core->tload_a[1].paired = false;
+        cpu[thread].core->tload_b.state = TLoad::State::idle;
+        cpu[thread].core->tload_b.paired = false;
+
         cpu[thread].core->tqueue.clear();
     }
 }

@@ -208,7 +208,8 @@ struct Core {
     TReduce     reduce;
 
     // Tensor execution ports
-    std::array<TLoad, 2>  tload;
+    std::array<TLoad, 2>  tload_a;
+    TLoad                 tload_b;
     TQueue                tqueue;
 };
 
@@ -574,11 +575,14 @@ inline void Hart::async_execute()
     if (mhartid % EMU_THREADS_PER_MINION != 0) {
         return;
     }
-    if (core->tload[0].state == TLoad::State::ready) {
-        tensor_load_execute(*this, false);
+    if (core->tload_a[0].state == TLoad::State::ready) {
+        tensor_load_execute(*this, 0, false);
     }
-    if (core->tload[1].state == TLoad::State::ready) {
-        tensor_load_execute(*this, true);
+    if (core->tload_a[1].state == TLoad::State::ready) {
+        tensor_load_execute(*this, 1, false);
+    }
+    if (core->tload_b.state == TLoad::State::ready) {
+        tensor_load_execute(*this, 0, true);
     }
     switch (core->tqueue.front()) {
     case TQueue::Instruction::none:
@@ -670,8 +674,9 @@ inline bool Hart::is_waiting(Waiting what) const
 inline bool Hart::has_active_coprocessor() const
 {
     return ((mhartid % EMU_THREADS_PER_MINION) == 0)
-        && ((core->tload[0].state != TLoad::State::idle)
-            || (core->tload[1].state != TLoad::State::idle)
+        && ((core->tload_a[0].state != TLoad::State::idle)
+            || (core->tload_a[1].state != TLoad::State::idle)
+            || (core->tload_b.state != TLoad::State::idle)
             || (core->tmul.state != TMul::State::idle)
             || (core->tquant.state != TQuant::State::idle)
             || (core->reduce.state != TReduce::State::idle));
