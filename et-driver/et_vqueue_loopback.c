@@ -193,6 +193,46 @@ struct mm_error_count_t {
 
 } __packed;
 
+struct asic_frequencies {
+	u32 minion_shire_mhz;
+	u32 noc_mhz;
+	u32 mem_shire_mhz;
+	u32 ddr_mhz;
+	u32 pcie_shire_mhz;
+	u32 io_shire_mhz;
+} __packed;
+
+struct dram_bw {
+	u32 read_req_sec;
+	u32 write_req_sec;
+} __packed;
+
+struct max_dram_bw {
+	u8 max_bw_rd_req_sec;
+	u8 max_bw_wr_req_sec;
+	u8 pad[6];
+} __packed;
+
+struct module_uptime {
+	u16 day;
+	u8 hours;
+	u8 mins;
+	u8 pad[4];
+} __packed;
+
+struct module_voltage {
+	u8 ddr;
+	u8 l2_cache;
+	u8 maxion;
+	u8 minion;
+	u8 pcie;
+	u8 noc;
+	u8 pcie_logic;
+	u8 vddqlp;
+	u8 vddq;
+	u8 pad[7];
+} __packed;
+
 typedef u8 power_state_e;
 typedef u8 tdp_level_e;
 

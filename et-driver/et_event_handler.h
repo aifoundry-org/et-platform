@@ -37,59 +37,6 @@ enum error_type {
 	UNCORRETABLE,
 };
 
-struct asic_frequencies {
-	u32 minion_shire_mhz;
-	u32 noc_mhz;
-	u32 mem_shire_mhz;
-	u32 ddr_mhz;
-	u32 pcie_shire_mhz;
-	u32 io_shire_mhz;
-} __packed;
-
-struct dram_bw {
-	u32 read_req_sec;
-	u32 write_req_sec;
-} __packed;
-
-struct max_dram_bw {
-	u8 max_bw_rd_req_sec;
-	u8 max_bw_wr_req_sec;
-	u8 pad[6];
-} __packed;
-
-struct module_uptime {
-	u16 day;
-	u8 hours;
-	u8 mins;
-	u8 pad[4];
-} __packed;
-
-struct module_voltage {
-	u8 ddr;
-	u8 l2_cache;
-	u8 maxion;
-	u8 minion;
-	u8 pcie;
-	u8 noc;
-	u8 pcie_logic;
-	u8 vddqlp;
-	u8 vddq;
-	u8 pad[7];
-} __packed;
-
-typedef u8 power_state_e;
-
-#define SP_PERF_GLOBALS_SIZE		(sizeof(struct asic_frequencies) +     \
-					sizeof(struct dram_bw) +               \
-					sizeof(struct max_dram_bw) +           \
-					sizeof(u32) + sizeof(u64))
-#define SP_POWER_GLOBALS_SIZE		(sizeof(power_state_e) +               \
-					sizeof(u8) + (sizeof(u8) * 3) +        \
-					sizeof(struct module_uptime) +         \
-					sizeof(struct module_voltage) +        \
-					sizeof(u64) + sizeof(u64))
-#define SP_GLOBALS_SIZE		(SP_PERF_GLOBALS_SIZE + SP_POWER_GLOBALS_SIZE)
-
 #define EVENT_CLASS_MASK	0x0003
 #define EVENT_COUNT_MASK	0x3FFF
 
