@@ -29,6 +29,17 @@
 #define SP_TRACE_ENABLE         (1U << 0)
 #define SP_TRACE_UART_ENABLE    (1U << 1)
 
+/*
+ * SP Trace custom event IDs
+*/
+enum {
+    SP_TRACE_CUSTOM_ID_START = 0,
+    SP_TRACE_CUSTOM_ID_PERF_GLOBALS,
+    SP_TRACE_CUSTOM_ID_POWER_GLOBALS,
+    SP_TRACE_CUSTOM_ID_POWER_STATES_GLOBALS,
+    SP_TRACE_CUSTOM_ID_COUNT
+} sp_trace_custom_id;
+
 /*! \def SP_TRACE_GET_ENTRY_OFFSET(addr)
     \brief Returns offset of addr from SP trace buffer base.
 */

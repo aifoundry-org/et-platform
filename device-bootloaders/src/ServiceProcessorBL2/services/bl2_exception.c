@@ -25,28 +25,25 @@
 /* Local functions */
 static void dump_stack_frame_and_csrs(const void *stack_frame,
     struct dev_context_registers_t *context);
-static void *dump_perf_globals_trace(void *buf);
-static void dump_power_globals_trace(void *buf);
+static void dump_perf_globals_trace(void);
+static void dump_power_globals_trace(void);
+static void dump_power_states_globals_trace(void);
 
-/*! \def DUMP_THROTTLE_RESIDENCY(THROTTLE_STATE)
+/*! \def DUMP_THROTTLE_RESIDENCY(throttle_state, residency_struct, buff_ptr, buff_idx)
     \brief Dumps throttle residency to memory
 */
-#define DUMP_THROTTLE_RESIDENCY(THROTTLE_STATE)                    \
-    if (0 != get_throttle_residency(THROTTLE_STATE, &residency))   \
-    {                                                              \
-        memcpy(trace_buf, &residency, sizeof(struct residency_t)); \
-        trace_buf += sizeof(uint64_t);                             \
-    }
+#define DUMP_THROTTLE_RESIDENCY(throttle_state, residency_struct, buff_ptr, buff_idx) \
+    get_throttle_residency(throttle_state, &residency_struct);                        \
+    memcpy(buff_ptr, &residency_struct, sizeof(residency_struct));                    \
+    buff_idx += sizeof(residency_struct);
 
-/*! \def DUMP_POWER_RESIDENCY(POWER_STATE)
+/*! \def DUMP_POWER_RESIDENCY(power_state, residency_struct, buff_ptr, buff_idx)
     \brief Dumps power residency to memory
 */
-#define DUMP_POWER_RESIDENCY(POWER_STATE)                          \
-    if (0 != get_power_residency(POWER_STATE, &residency))         \
-    {                                                              \
-        memcpy(trace_buf, &residency, sizeof(struct residency_t)); \
-        trace_buf += sizeof(uint64_t);                             \
-    }
+#define DUMP_POWER_RESIDENCY(power_state, residency_struct, buff_ptr, buff_idx)       \
+    get_power_residency(power_state, &residency_struct);                              \
+    memcpy(buff_ptr, &residency_struct, sizeof(residency_struct));                    \
+    buff_idx += sizeof(residency_struct);
 
 /************************************************************************
 *
@@ -87,9 +84,10 @@ __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
     /* Generate exception event for host */
     SP_Exception_Event(SP_TRACE_GET_ENTRY_OFFSET(trace_buf, trace_cb));
 
-    /* TODO: Need to dump global using Trace_Custom_Event() */
-    (void)dump_perf_globals_trace;
-    (void)dump_power_globals_trace;
+    /* Dump performance and power globals to trace */
+    dump_perf_globals_trace();
+    dump_power_globals_trace();
+    dump_power_states_globals_trace();
 
     Log_Write(LOG_LEVEL_CRITICAL, "SP Spining in Exception handler..\r\n");
 
@@ -203,48 +201,50 @@ static void dump_stack_frame_and_csrs(const void *stack_frame,
 *
 *   INPUTS
 *
-*       trace buffer
+*       None
 *
 *   OUTPUTS
 *
 *       none
 *
 ***********************************************************************/
-static void *dump_perf_globals_trace(void *buf)
+static void dump_perf_globals_trace(void)
 {
-    uint64_t *trace_buf = (uint64_t *)buf;
-    struct asic_frequencies_t asic_frequencies;
-    struct dram_bw_t dram_bw;
-    struct max_dram_bw_t max_dram_bw;
+    struct asic_frequencies_t asic_frequencies = { 0 };
+    struct dram_bw_t dram_bw = { 0 };
+    struct max_dram_bw_t max_dram_bw = { 0 };
     uint32_t pct_cap = 0;
     uint64_t last_ts = 0;
+    uint8_t data_buff[SP_PERF_GLOBALS_SIZE];
+    uint64_t buff_idx = 0;
 
-    if (0 != get_module_asic_frequencies(&asic_frequencies))
-    {
-        memcpy(trace_buf, &asic_frequencies, sizeof(struct asic_frequencies_t));
-        trace_buf += sizeof(struct asic_frequencies_t);
-    }
-    if (0 != get_module_dram_bw(&dram_bw))
-    {
-        memcpy(trace_buf, &dram_bw, sizeof(struct dram_bw_t));
-        trace_buf += sizeof(struct dram_bw_t);
-    }
-    if (0 != get_module_max_dram_bw(&max_dram_bw))
-    {
-        memcpy(trace_buf, &max_dram_bw, sizeof(struct max_dram_bw_t));
-        trace_buf += sizeof(struct max_dram_bw_t);
-    }
-    if (0 != get_dram_capacity_percent(&pct_cap))
-    {
-        *trace_buf = pct_cap;
-        trace_buf += sizeof(pct_cap);
-    }
-    if (0 != get_last_update_ts(&last_ts))
-    {
-        *trace_buf++ = last_ts;
-    }
+    /* Read the value and copy it to buffer */
+    get_module_asic_frequencies(&asic_frequencies);
+    memcpy(&data_buff[buff_idx], &asic_frequencies, sizeof(struct asic_frequencies_t));
+    buff_idx += sizeof(struct asic_frequencies_t);
 
-    return (void *)trace_buf;
+    /* Read the value and copy it to buffer */
+    get_module_dram_bw(&dram_bw);
+    memcpy(&data_buff[buff_idx], &dram_bw, sizeof(struct dram_bw_t));
+    buff_idx += sizeof(struct dram_bw_t);
+
+    /* Read the value and copy it to buffer */
+    get_module_max_dram_bw(&max_dram_bw);
+    memcpy(&data_buff[buff_idx], &max_dram_bw, sizeof(struct max_dram_bw_t));
+    buff_idx += sizeof(struct max_dram_bw_t);
+
+    /* Read the value and copy it to buffer */
+    get_dram_capacity_percent(&pct_cap);
+    memcpy(&data_buff[buff_idx], &pct_cap, sizeof(uint32_t));
+    buff_idx += sizeof(uint32_t);
+
+    /* Read the value and copy it to buffer */
+    get_last_update_ts(&last_ts);
+    memcpy(&data_buff[buff_idx], &last_ts, sizeof(uint64_t));
+
+    /* Dump the data to trace using SP custom event */
+    Trace_Custom_Event(Trace_Get_SP_CB(), SP_TRACE_CUSTOM_ID_PERF_GLOBALS,
+        data_buff, SP_PERF_GLOBALS_SIZE);
 }
 
 /************************************************************************
@@ -259,68 +259,103 @@ static void *dump_perf_globals_trace(void *buf)
 *
 *   INPUTS
 *
-*       trace buffer
+*       None
 *
 *   OUTPUTS
 *
-*       void                       none
+*       None
 *
 ***********************************************************************/
-static void dump_power_globals_trace(void *buf)
+static void dump_power_globals_trace(void)
 {
-    uint8_t *trace_buf = (uint8_t *)buf;
     struct module_uptime_t module_uptime = { 0 };
     struct module_voltage_t module_voltage = { 0 };
     power_state_e power_state = 0;
     uint8_t tdp_level = 0;
-    struct residency_t residency = { 0, 0, 0, 0 };
     uint8_t temp = 0;
+    uint8_t data_buff[SP_POWER_GLOBALS_SIZE];
+    uint64_t buff_idx = 0;
 
-    if (0 != get_module_power_state(&power_state))
-    {
-        *trace_buf++ = power_state;
-    }
-    if (0 != get_module_tdp_level(&tdp_level))
-    {
-        *trace_buf++ = tdp_level;
-    }
-    if (0 != get_module_current_temperature(&temp))
-    {
-        *trace_buf++ = temp;
-    }
+    /* Read the value and copy it to buffer */
+    get_module_power_state(&power_state);
+    memcpy(&data_buff[buff_idx], &power_state, sizeof(power_state_e));
+    buff_idx += sizeof(power_state_e);
 
-    if (0 != get_module_soc_power(&temp))
-    {
-        *trace_buf++ = temp;
-    }
+    /* Read the value and copy it to buffer */
+    get_module_tdp_level(&tdp_level);
+    data_buff[buff_idx] = tdp_level;
+    buff_idx += sizeof(uint8_t);
 
-    if (0 != get_soc_max_temperature(&temp))
-    {
-        *trace_buf++ = temp;
-    }
+    /* Read the value and copy it to buffer */
+    get_module_current_temperature(&temp);
+    data_buff[buff_idx] = temp;
+    buff_idx += sizeof(uint8_t);
 
-    if (0 != get_module_uptime(&module_uptime))
-    {
-        memcpy(trace_buf, &module_uptime, sizeof(struct module_uptime_t));
-        trace_buf += sizeof(struct module_uptime_t);
-    }
+    /* Read the value and copy it to buffer */
+    get_module_soc_power(&temp);
+    data_buff[buff_idx] = temp;
+    buff_idx += sizeof(uint8_t);
 
-    if (0 != get_module_voltage(&module_voltage))
-    {
-        memcpy(trace_buf, &module_voltage, sizeof(struct module_voltage_t));
-        trace_buf += sizeof(struct module_voltage_t);
-    }
+    /* Read the value and copy it to buffer */
+    get_soc_max_temperature(&temp);
+    data_buff[buff_idx] = temp;
+    buff_idx += sizeof(uint8_t);
 
-    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_UP)
-    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_DOWN)
-    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_THERMAL_DOWN)
-    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_SAFE)
-    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_THERMAL_SAFE)
+    /* Read the value and copy it to buffer */
+    get_module_uptime(&module_uptime);
+    memcpy(&data_buff[buff_idx], &module_uptime, sizeof(struct module_uptime_t));
+    buff_idx += sizeof(struct module_uptime_t);
 
-    DUMP_POWER_RESIDENCY(POWER_STATE_MAX_POWER)
-    DUMP_POWER_RESIDENCY(POWER_STATE_MANAGED_POWER)
-    DUMP_POWER_RESIDENCY(POWER_STATE_SAFE_POWER)
-    DUMP_POWER_RESIDENCY(POWER_STATE_LOW_POWER)
+    /* Read the value and copy it to buffer */
+    get_module_voltage(&module_voltage);
+    memcpy(&data_buff[buff_idx], &module_voltage, sizeof(struct module_voltage_t));
+
+    /* Dump the data to trace using SP custom event */
+    Trace_Custom_Event(Trace_Get_SP_CB(), SP_TRACE_CUSTOM_ID_POWER_GLOBALS,
+        data_buff, SP_POWER_GLOBALS_SIZE);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dump_power_states_globals_trace
+*
+*   DESCRIPTION
+*
+*       Dumps important power states globals to trace buffer
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void dump_power_states_globals_trace(void)
+{
+    struct residency_t residency = { 0, 0, 0, 0 };
+    uint8_t data_buff[SP_POWER_STATES_GLOBALS_SIZE];
+    uint64_t buff_idx = 0;
+
+    /* Read the value and copy it to buffer */
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_UP, residency, &data_buff[buff_idx], buff_idx)
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_DOWN, residency, &data_buff[buff_idx], buff_idx)
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_THERMAL_DOWN, residency, &data_buff[buff_idx], buff_idx)
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_SAFE, residency, &data_buff[buff_idx], buff_idx)
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_THERMAL_SAFE, residency, &data_buff[buff_idx], buff_idx)
+
+    /* Read the value and copy it to buffer */
+    DUMP_POWER_RESIDENCY(POWER_STATE_MAX_POWER, residency, &data_buff[buff_idx], buff_idx)
+    DUMP_POWER_RESIDENCY(POWER_STATE_MANAGED_POWER, residency, &data_buff[buff_idx], buff_idx)
+    DUMP_POWER_RESIDENCY(POWER_STATE_SAFE_POWER, residency, &data_buff[buff_idx], buff_idx)
+    DUMP_POWER_RESIDENCY(POWER_STATE_LOW_POWER, residency, &data_buff[buff_idx], buff_idx)
+
+    /* Dump the data to trace using SP custom event */
+    Trace_Custom_Event(Trace_Get_SP_CB(), SP_TRACE_CUSTOM_ID_POWER_STATES_GLOBALS,
+        data_buff, SP_POWER_STATES_GLOBALS_SIZE);
 }
 
 /************************************************************************
