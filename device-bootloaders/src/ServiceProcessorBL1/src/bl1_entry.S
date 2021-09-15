@@ -15,6 +15,7 @@
 
 .global bl1_entry
 
+.align 3
 bl1_entry:
     # initialize global pointer
 .option push
