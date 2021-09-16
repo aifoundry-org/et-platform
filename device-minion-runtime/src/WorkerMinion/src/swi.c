@@ -38,7 +38,7 @@ void swi_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const
                 CM_CONTEXT_TYPE_SYSTEM_ABORT, get_hart_id(), &context);
         }
 
-        return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);
+        return_from_kernel(0, KERNEL_RETURN_SYSTEM_ABORT);
     }
     else
     {

@@ -216,11 +216,12 @@ static inline void kernel_info_set_attributes(uint32_t shire_id,
 
 static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel);
 static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *kernel,
-    int64_t kernel_ret_val);
+    int64_t return_value, uint64_t return_type);
 
 int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_stack_addr)
 {
     uint64_t *firmware_sp;
+    uint64_t return_type;
     int64_t return_value;
     uint64_t tensor_error;
     bool kernel_last_thread;
@@ -360,9 +361,11 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
         "sret                      \n" /* ret to kernel.code_start_address in user mode */
         "1:                        \n" /* firmware context resumes from here via return_from_kernel() */
         "mv    %[return_value], a0 \n" /* collect kernel return value */
+        "mv    %[return_type],  a1 \n" /* collect kernel return type */
         "csrr  %[tensor_error], tensor_error \n" /* collect tensor_error */
         : [firmware_sp]  "=m"(*firmware_sp),
           [return_value] "=r"(return_value),
+          [return_type]  "=r"(return_type),
           [tensor_error] "=r"(tensor_error)
         : [k_ret_addr]    "r"(0),
           [k_stack_addr]  "r"(kernel_stack_addr),
@@ -374,7 +377,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
     );
 
     /* Do post kernel launch cleanup */
-    kernel_launch_post_cleanup(&kernel, return_value);
+    kernel_launch_post_cleanup(&kernel, return_value, return_type);
 
     return return_value;
 }
@@ -506,15 +509,14 @@ static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel)
     asm volatile("fence");
 }
 
-static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *kernel, int64_t kernel_ret_val)
+static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *kernel,
+    int64_t return_value, uint64_t return_type)
 {
     const uint32_t shire_id = get_shire_id();
     const uint64_t thread_id = get_hart_id() & (HARTS_PER_SHIRE - 1);
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
     const uint64_t thread_mask = (shire_id == MASTER_SHIRE) ? 0xFFFFFFFF00000000U : 0xFFFFFFFFFFFFFFFFU;
-    uint64_t prev_completed_threads;
-    uint64_t prev_shire_mask;
     int8_t status;
 
     /* Update Trace buffer header if Trace was enabled. */
@@ -527,25 +529,28 @@ static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *k
     /* Reset the launched bit for the current thread */
     kernel_info_reset_launched_thread(shire_id, thread_id);
 
-    /* Kernel error handling for MM, Save the kernel error code from any hart */
-    if (kernel_ret_val < KERNEL_COMPLETE_STATUS_SUCCESS)
+    /* Kernel user error handling. If the return type is not success,
+    set the kernel launch status as error */
+    if (return_type != KERNEL_RETURN_SUCCESS)
     {
         /* Save the kernel launch status for sending response to MM */
         kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
     }
-
-    /* Last thread to reach here decrements the kernel launch shire count */
-    prev_completed_threads = kernel_info_set_thread_completed(shire_id, thread_id);
-    if ((prev_completed_threads | (1ULL << thread_id)) == thread_mask)
+    /* If the return type is success but kernel return value is not success,
+    save the error code in u-mode error context buffer (if available) */
+    else if ((return_type == KERNEL_RETURN_SUCCESS) && (return_value < KERNEL_COMPLETE_STATUS_SUCCESS))
     {
-        /* Get the kernel exception buffer */
-        uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
+        /* Save the kernel launch status for sending response to MM */
+        kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
 
-        /* If the kernel exception buffer is available */
-        if (exception_buffer != 0)
+        /* Get the kernel error buffer */
+        uint64_t error_buffer = kernel_info_get_exception_buffer(shire_id);
+
+        /* If the kernel error buffer is available */
+        if (error_buffer != 0)
         {
-            CM_To_MM_Save_Kernel_Error((execution_context_t *)exception_buffer,
-                get_hart_id(), kernel_ret_val);
+            CM_To_MM_Save_Kernel_Error((execution_context_t *)error_buffer,
+                get_hart_id(), return_value);
         }
     }
 
@@ -574,11 +579,12 @@ static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *k
 
     syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, thread_count, 0, 0);
 
-    /* Check if messages need to be sent to MM */
+    /* Last thread to reach here check for kernel launch completion */
+    uint64_t prev_completed_threads = kernel_info_set_thread_completed(shire_id, thread_id);
     if ((prev_completed_threads | (1ULL << thread_id)) == thread_mask)
     {
         /* Decrement the kernel launch shire count */
-        prev_shire_mask = kernel_launch_reset_shire_mask(shire_id);
+        uint64_t prev_shire_mask = kernel_launch_reset_shire_mask(shire_id);
 
         /* Last shire in kernel launch sends a complete message to MM */
         if((prev_shire_mask & ~(1ULL << shire_id)) == 0)

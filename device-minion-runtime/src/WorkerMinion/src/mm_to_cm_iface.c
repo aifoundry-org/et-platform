@@ -186,7 +186,7 @@ static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
                     CM_CONTEXT_TYPE_SYSTEM_ABORT, hart, context);
             }
 
-            return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);
+            return_from_kernel(0, KERNEL_RETURN_SYSTEM_ABORT);
         }
         break;
     }

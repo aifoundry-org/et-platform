@@ -93,7 +93,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
     }
 #endif
 
-    return_from_kernel(KERNEL_ERROR_EXCEPTION);
+    return_from_kernel(0, KERNEL_RETURN_EXCEPTION);
 }
 
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,

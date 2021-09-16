@@ -39,7 +39,12 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
             ret = syscall(SYSCALL_EVICT_L1_INT, arg1, arg2, arg3);
             break;
         case SYSCALL_RETURN_FROM_KERNEL:
-            ret = return_from_kernel((int64_t)arg1);
+            /* Dump U-mode context in case of kernel self abort */
+            if(arg2 == KERNEL_RETURN_SELF_ABORT)
+            {
+                kernel_self_abort_save_context();
+            }
+            ret = return_from_kernel((int64_t)arg1, arg2);
             break;
         default:
             ret = SYSCALL_INVALID_ID;

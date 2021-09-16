@@ -1,7 +1,7 @@
+#include "cm_to_mm_iface.h"
 #include "device-common/hart.h"
 #include "kernel.h"
 #include "kernel_return.h"
-#include "kernel_error.h"
 #include "log.h"
 #include "mm_to_cm_iface.h"
 #include <inttypes.h>
@@ -9,10 +9,11 @@
 /* Restores firmware context and resumes execution in launch_kernel()
 Called from machine context by M-mode trap handler (e.g. if the kernel takes an exception)
 and by firmware (e.g. normal kernel completion, kernel abort) */
-int64_t return_from_kernel(int64_t return_value)
+int64_t return_from_kernel(int64_t return_value, uint64_t return_type)
 {
     const uint64_t thread_id = get_hart_id() & 63;
     uint64_t prev_returned = kernel_info_set_thread_returned( get_shire_id(), thread_id);
+    (void)return_type; /* To avoid compiler warning */
 
     /* A Hart in specific kernel launch can only pass through return_from_kernel once */
     if(!((prev_returned >> thread_id) & 1))
@@ -27,7 +28,7 @@ int64_t return_from_kernel(int64_t return_value)
         {
             // Switch to firmware stack
             // restore context from stack
-            asm volatile("li    x1, 0x120         \n" // bitmask to set sstatus SPP and SPIE
+            asm volatile("li    x1, 0x120        \n" // bitmask to set sstatus SPP and SPIE
                         "csrs  sstatus, x1       \n" // set sstatus SPP and SPIE
                         "ld    sp, %0            \n" // load sp from supervisor stack SP region
                         "sd    zero, %0          \n" // clear supervisor stack SP region
@@ -40,7 +41,7 @@ int64_t return_from_kernel(int64_t return_value)
                         "ld    x8,  8  * 8( sp ) \n"
                         "ld    x9,  9  * 8( sp ) \n"
                         // Leave return_value from kernel in a0
-                        "ld    x11, 11 * 8( sp ) \n"
+                        "mv    x11, %[return_type] \n" // use a1 to save the return type
                         "ld    x12, 12 * 8( sp ) \n"
                         "ld    x13, 13 * 8( sp ) \n"
                         "ld    x14, 14 * 8( sp ) \n"
@@ -63,15 +64,51 @@ int64_t return_from_kernel(int64_t return_value)
                         "ld    x31, 31 * 8( sp ) \n"
                         "addi  sp, sp, (32 * 8)  \n"
                         "ret                     \n"
-                        : "+m"(*firmware_sp));
+                        : "+m"(*firmware_sp)
+                        : [return_type]  "r"(return_type)
+            );
 
             return return_value;
         }
         else
         {
-            return KERNEL_LAUNCH_ERROR_NO_SAVED_CONTEXT;
+            /* No saved context. This should not ideally happen */
+            return -1;
         }
     }
 
     return return_value;
+}
+
+/* Must only be used from environment call context */
+void kernel_self_abort_save_context(void)
+{
+    /* Get the kernel exception buffer */
+    uint64_t exception_buffer = kernel_info_get_exception_buffer(get_shire_id());
+
+    /* If the kernel exception buffer is available */
+    if(exception_buffer != 0)
+    {
+        internal_execution_context_t context;
+        uint64_t stack_frame;
+
+        /* Dump S-mode CSRs */
+        asm volatile("csrr %0, scause\n"
+                    "csrr %1, sstatus\n"
+                    "csrr %2, sepc\n"
+                    "csrr %3, stval"
+                    : "=r"(context.scause), "=r"(context.sstatus),
+                    "=r"(context.sepc), "=r"(context.stval));
+
+        /* For dumping the stack frame from an environment call, the stack is assumed
+        to be present in the s1 register. The trap handler saves the sp in the s1 and
+        it is preserved till we reach this point. */
+        asm volatile("mv %0, s1" : "=r"(stack_frame));
+
+        context.regs = (uint64_t *)stack_frame;
+
+        /* Save the execution context in the buffer */
+        CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
+            CM_CONTEXT_TYPE_SELF_ABORT, get_hart_id(), &context);
+    }
 }

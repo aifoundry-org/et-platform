@@ -71,6 +71,7 @@ handle_exception:
 test_if_environment_call:
     li    t2, EXCEPTION_ENVIRONMENT_CALL_FROM_U_MODE
     bne   t2, t0, is_exception          /* Not an environment call, so some other exception. */
+    mv    s1, sp                        /* Save SP here to print stack dump for critical calls */
     jal   syscall_handler               /* Environment call */
     sd    a0, 10 * 8(sp)                /* Update a0 in saved context with environment call return value */
     j     processed_source

@@ -1,9 +1,0 @@
-#ifndef KERNEL_ERROR_H
-#define KERNEL_ERROR_H
-
-#define KERNEL_SUCCESS                       0LL
-#define KERNEL_LAUNCH_ERROR_ABORTED          -1000LL
-#define KERNEL_LAUNCH_ERROR_NO_SAVED_CONTEXT -1001LL
-#define KERNEL_ERROR_EXCEPTION               -1002LL
-
-#endif

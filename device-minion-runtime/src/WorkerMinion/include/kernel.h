@@ -16,7 +16,6 @@
 #ifndef KERNEL_H
 #define KERNEL_H
 
-#include "kernel_error.h"
 #include "kernel_return.h"
 #include "message_types.h"
 
