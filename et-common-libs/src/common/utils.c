@@ -55,8 +55,7 @@ size_t et_strlen(const char *str)
 
 __attribute__((noreturn)) void et_abort(void)
 {
-  /* TODO: Need to differentiate from self abort and normal kernel execution exit */
-  syscall(SYSCALL_RETURN_FROM_KERNEL, (uint64_t)-1, 0, 0);
+  syscall(SYSCALL_RETURN_FROM_KERNEL, 0, KERNEL_RETURN_SELF_ABORT, 0);
 
   /* Should never get here */
   while (1) {
