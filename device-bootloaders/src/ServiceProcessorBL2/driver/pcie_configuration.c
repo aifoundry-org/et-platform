@@ -353,24 +353,6 @@ static void pcie_init_link(void)
     iowrite32(
         PCIE_CUST_SS + DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_FSM_TRACK_1_ADDRESS,
         0xCC);
-        /*TODO in "PCIe Initialization Sequence" doc, this comes before polling CDM_IN_REST.
-           Matching order from DV code. */
-
-    /* Enable Fast Link Mode - Trains link faster for simulation/emulation
-     Note: The PCIe transactor (Phy replacement) in ZeBu requires this to be set. */
-    tmp = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_PORT_LINK_CTRL_OFF_ADDRESS);
-    tmp = PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_PORT_LINK_CTRL_OFF_FAST_LINK_MODE_MODIFY(
-        tmp, 1); /* TODO: should this be disabled in production? */
-    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_PORT_LINK_CTRL_OFF_ADDRESS, tmp);
-
-    /* When FAST_LINK_MODE is on, scale LTSSM timer x1024 */
-    tmp = ioread32(PCIE0 +
-                   PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_TIMER_CTRL_MAX_FUNC_NUM_OFF_ADDRESS);
-    tmp =
-        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_TIMER_CTRL_MAX_FUNC_NUM_OFF_FAST_LINK_SCALING_FACTOR_MODIFY(
-            tmp, 0);
-    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_TIMER_CTRL_MAX_FUNC_NUM_OFF_ADDRESS,
-              tmp);
 
     /* Configure PCIe LTSSM phase 2 equalization behavior.
        All values below provided by James Yu 2019-06-19 */
