@@ -13,6 +13,7 @@ _start:
     # bss not allowed, no init
     call  main
 
+    li    a2, KERNEL_RETURN_SUCCESS
     mv    a1, a0
     li    a0, SYSCALL_RETURN_FROM_KERNEL
     ecall

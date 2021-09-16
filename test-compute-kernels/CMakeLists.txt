@@ -169,6 +169,7 @@ macro(randomized_test)
 
 endmacro(randomized_test)
 
+add_subdirectory("abort")
 add_subdirectory("add_vector")
 add_subdirectory("cm_umode_test")
 add_subdirectory("memset")
