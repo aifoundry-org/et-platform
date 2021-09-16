@@ -13,11 +13,12 @@
 #define PCIE_INT_H
 
 #include <stdint.h>
-#include "etsoc_hal/inc/DWC_pcie_subsystem_custom.h"
-#include "etsoc_hal/inc/DWC_pcie_dbi_cpcie_usp_4x8.h"
-#include "etsoc_hal/inc/ns_noc_io_pcie_soc_ip.h"
-#include "etsoc_hal/inc/pshire_esr.h"
-#include "etsoc_hal/inc/hal_device.h"
+#include "hwinc/pcie_apb_subsys.h"
+#include "hwinc/pcie0_dbi_slv.h"
+#include "hwinc/sp_pshire_regbus.h"
+#include "hwinc/pcie_esr.h"
+#include "hwinc/pcie_nopciesr.h"
+#include "hwinc/hal_device.h"
 
 //There are two Synopsis PCIe controllers on the SoC. We are using only one of
 //them, as a PCIe gen 4.0 x8 endpoint (a.k.a. usp - upstream facing port).
