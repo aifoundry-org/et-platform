@@ -16,6 +16,7 @@ set(TEST_LIST
   other.cpp:""
   test_host_buffer_manager.cpp:""
   KernelLaunchFake.cpp:""
+  TestCommandSender.cpp:""
 )
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;LABELS;SYSEMU;TIMEOUT;300")
