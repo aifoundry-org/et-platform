@@ -36,6 +36,8 @@ public:
   // IDeviceSync
   int getDevicesCount() const override;
   int getSubmissionQueuesCount(int device) const override;
+  DeviceState getDeviceStateMasterMinion(int device) const override;
+  DeviceState getDeviceStateServiceProcessor(int device) const override;
   size_t getSubmissionQueueSizeMasterMinion(int device) const override;
   size_t getSubmissionQueueSizeServiceProcessor(int device) const override;
   bool getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) override;

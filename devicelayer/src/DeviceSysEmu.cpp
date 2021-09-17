@@ -79,6 +79,14 @@ int DeviceSysEmu::getSubmissionQueuesCount(int) const {
   return mmInfo_.vq_attr.sq_count;
 }
 
+DeviceState DeviceSysEmu::getDeviceStateMasterMinion(int) const {
+  return DeviceState::Ready;
+}
+
+DeviceState DeviceSysEmu::getDeviceStateServiceProcessor(int) const {
+  return DeviceState::Ready;
+}
+
 size_t DeviceSysEmu::getSubmissionQueueSizeMasterMinion(int) const {
   // Submission queue size discovered from DIRs is sum of actual circular buffer and
   // it's header. User of this function doesn't need to know the underlying details

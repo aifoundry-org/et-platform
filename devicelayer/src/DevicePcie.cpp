@@ -89,6 +89,26 @@ template <typename... Types> IoctlResult wrap_ioctl(int fd, unsigned long int re
   return {res};
 }
 
+DeviceState getDeviceState(int fd) {
+  uint32_t devState;
+  wrap_ioctl(fd, ETSOC1_IOCTL_GET_DEVICE_STATE, &devState);
+  DeviceState res;
+  switch (devState) {
+  case DEV_STATE_READY:
+    res = DeviceState::Ready;
+    break;
+  case DEV_STATE_PENDING_COMMANDS:
+    res = DeviceState::PendingCommands;
+    break;
+  case DEV_STATE_NOT_RESPONDING:
+    res = DeviceState::NotResponding;
+    break;
+  default:
+    res = DeviceState::Undefined;
+  }
+  return res;
+}
+
 constexpr int kMaxEpollEvents = 6;
 } // namespace
 
@@ -115,6 +135,26 @@ uint64_t DevicePcie::getDramBaseAddress() const {
 
 int DevicePcie::getDevicesCount() const {
   return static_cast<int>(devices_.size());
+}
+
+DeviceState DevicePcie::getDeviceStateMasterMinion(int device) const {
+  if (!opsEnabled_) {
+    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
+  }
+  if (device >= static_cast<int>(devices_.size())) {
+    throw Exception("Invalid device");
+  }
+  return getDeviceState(devices_[static_cast<unsigned long>(device)].fdOps_);
+}
+
+DeviceState DevicePcie::getDeviceStateServiceProcessor(int device) const {
+  if (!mngmtEnabled_) {
+    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
+  }
+  if (device >= static_cast<int>(devices_.size())) {
+    throw Exception("Invalid device");
+  }
+  return getDeviceState(devices_[static_cast<unsigned long>(device)].fdMgmt_);
 }
 
 int DevicePcie::getSubmissionQueuesCount(int device) const {

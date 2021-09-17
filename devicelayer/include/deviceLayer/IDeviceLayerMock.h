@@ -30,6 +30,8 @@ public:
   MOCK_CONST_METHOD1(getSubmissionQueuesCount, int(int device));
   MOCK_CONST_METHOD1(getSubmissionQueueSizeMasterMinion, size_t(int device));
   MOCK_CONST_METHOD1(getSubmissionQueueSizeServiceProcessor, size_t(int device));
+  MOCK_CONST_METHOD1(getDeviceStateMasterMinion, DeviceState(int device));
+  MOCK_CONST_METHOD1(getDeviceStateServiceProcessor, DeviceState(int device));
   MOCK_CONST_METHOD0(getDmaAlignment, int());
   MOCK_CONST_METHOD0(getDramSize, uint64_t());
   MOCK_CONST_METHOD0(getDramBaseAddress, uint64_t());

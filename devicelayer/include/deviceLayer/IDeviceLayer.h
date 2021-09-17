@@ -50,6 +50,9 @@ struct DeviceConfig {
   uint32_t computeMinionShireMask_; ///< mask which indicates what are the compute minion shires
 };
 
+/// \brief This enum contains possible device states
+enum class DeviceState { Ready, PendingCommands, NotResponding, Undefined };
+
 class Exception : public dbg::StackException {
   using dbg::StackException::StackException;
 };
@@ -166,6 +169,28 @@ public:
   /// @returns the number of virtual queues
   ///
   virtual int getSubmissionQueuesCount(int device) const = 0;
+
+  /// \brief Gets device state associated to given Master Minion device and returns enum DeviceState
+  /// If the caller didn't send any command in current session and received DeviceState::PendingCommands,
+  /// then caller may choose to reset the device by sending abort commands and discard any previous
+  /// responses. If received DeviceState::NotResponding, then caller should try to recover by sending
+  /// abort commands. Caller should be careful in polling on this method because it directly gets status
+  /// from device and hence can be expensive in I/O transactions with device.
+  ///
+  /// @returns enum DeviceState
+  ///
+  virtual DeviceState getDeviceStateMasterMinion(int device) const = 0;
+
+  /// \brief Gets device state associated to given Service Processor device and returns enum DeviceState
+  /// If the caller didn't send any command in current session and received DeviceState::PendingCommands,
+  /// then caller may choose to reset the device by sending abort commands and discard any previous
+  /// responses. If received DeviceState::NotResponding, then caller should try to recover by sending
+  /// abort commands. Caller should be careful in polling on this method because it directly gets status
+  /// from device and hence can be expensive in I/O transactions with device.
+  ///
+  /// @returns enum DeviceState
+  ///
+  virtual DeviceState getDeviceStateServiceProcessor(int device) const = 0;
 
   /// \brief Returns the submission queue buffer size in bytes associated to given device
   /// all submission queues on Master Minion are equal in size

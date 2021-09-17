@@ -126,6 +126,14 @@ public:
     return 1;
   };
 
+  DeviceState getDeviceStateMasterMinion(int) const override {
+    return DeviceState::Ready;
+  };
+
+  DeviceState getDeviceStateServiceProcessor(int) const override {
+    return DeviceState::Ready;
+  };
+
   int getSubmissionQueuesCount(int) const override {
     return 1;
   };
