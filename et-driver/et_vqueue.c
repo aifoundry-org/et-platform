@@ -685,6 +685,19 @@ bool et_squeue_event_available(struct et_squeue *sq)
 	return false;
 }
 
+bool et_squeue_empty(struct et_squeue *sq)
+{
+	if (!sq)
+		return false;
+
+	et_squeue_sync_cb_for_host(sq);
+
+	if (et_circbuffer_free(&sq->cb) < sq->cb.len)
+		return false;
+
+	return true;
+}
+
 static ssize_t free_dma_kernel_entry(struct et_pci_dev *et_dev,
 				     bool is_mgmt,
 				     struct et_msg_node *msg)

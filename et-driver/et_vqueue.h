@@ -76,6 +76,7 @@ ssize_t et_squeue_copy_from_user(struct et_pci_dev *et_dev,
 				 const char __user *ubuf,
 				 size_t count);
 bool et_squeue_event_available(struct et_squeue *sq);
+bool et_squeue_empty(struct et_squeue *sq);
 
 // clang-format off
 

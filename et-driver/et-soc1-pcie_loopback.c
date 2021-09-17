@@ -133,12 +133,35 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	u16 sq_idx;
 	size_t size;
 	u16 max_size;
+	u32 dev_state;
 
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
 	et_dev = container_of(ops, struct et_pci_dev, ops);
 	size = _IOC_SIZE(cmd);
 
 	switch (cmd) {
+	case ETSOC1_IOCTL_GET_DEVICE_STATE:
+		dev_state = DEV_STATE_READY;
+
+		// Check if any SQ has pending command(s)
+		mutex_lock(&ops->vq_common.sq_bitmap_mutex);
+		for (sq_idx = 0; sq_idx < ops->dir_vq.sq_count &&
+				 et_squeue_empty(ops->sq_pptr[sq_idx]);
+		     sq_idx++)
+			set_bit(sq_idx, ops->vq_common.sq_bitmap);
+		mutex_unlock(&ops->vq_common.sq_bitmap_mutex);
+
+		if (find_first_zero_bit(ops->vq_common.sq_bitmap,
+					ET_MAX_QUEUES) >= ops->dir_vq.sq_count)
+			dev_state = DEV_STATE_PENDING_COMMANDS;
+
+		if (size >= sizeof(u32) &&
+		    copy_to_user(usr_arg, &dev_state, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_DEVICE_STATE: failed to copy to user\n");
+			return -EFAULT;
+		}
+		return 0;
+
 	case ETSOC1_IOCTL_GET_USER_DRAM_INFO:
 		if (!ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].is_valid)
 			return -EINVAL;
@@ -474,6 +497,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	u16 sq_idx;
 	size_t size;
 	u16 max_size;
+	u32 dev_state;
 
 	mgmt = container_of(fp->private_data,
 			    struct et_mgmt_dev,
@@ -483,6 +507,28 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	size = _IOC_SIZE(cmd);
 
 	switch (cmd) {
+	case ETSOC1_IOCTL_GET_DEVICE_STATE:
+		dev_state = DEV_STATE_READY;
+
+		// Check if any SQ has pending command(s)
+		mutex_lock(&mgmt->vq_common.sq_bitmap_mutex);
+		for (sq_idx = 0; sq_idx < mgmt->dir_vq.sq_count &&
+				 et_squeue_empty(mgmt->sq_pptr[sq_idx]);
+		     sq_idx++)
+			set_bit(sq_idx, mgmt->vq_common.sq_bitmap);
+		mutex_unlock(&mgmt->vq_common.sq_bitmap_mutex);
+
+		if (find_first_zero_bit(mgmt->vq_common.sq_bitmap,
+					ET_MAX_QUEUES) >= mgmt->dir_vq.sq_count)
+			dev_state = DEV_STATE_PENDING_COMMANDS;
+
+		if (size >= sizeof(u32) &&
+		    copy_to_user(usr_arg, &dev_state, size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_DEVICE_STATE: failed to copy to user\n");
+			return -EFAULT;
+		}
+		return 0;
+
 	case ETSOC1_IOCTL_FW_UPDATE:
 		if (copy_from_user(&fw_update_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;

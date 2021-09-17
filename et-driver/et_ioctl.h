@@ -13,6 +13,10 @@
 #define DEV_CONFIG_FORM_FACTOR_PCIE (0x1U)
 #define DEV_CONFIG_FORM_FACTOR_M_2  (0x2U)
 
+#define DEV_STATE_READY		   (0U)
+#define DEV_STATE_PENDING_COMMANDS (0x1U)
+#define DEV_STATE_NOT_RESPONDING   (0x2U)
+
 // clang-format off
 
 struct fw_update_desc {
@@ -92,4 +96,7 @@ struct dev_config {
 
 #define ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER                          \
 	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 12, void *)
+
+#define ETSOC1_IOCTL_GET_DEVICE_STATE                                          \
+	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 13, __u32)
 #endif
