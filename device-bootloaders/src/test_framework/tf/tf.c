@@ -35,10 +35,11 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
     char c;
     char *p_buff;
     uint32_t size;
-    void *p_hdr=0;
+    void *p_hdr = 0;
     struct header_t cmd_hdr;
     int8_t rtn_arg;
-    uint32_t magic=TF_CHECKSUM;
+    uint32_t magic = TF_CHECKSUM;
+    bool cmd_start_found;
 
     /* First entry unconditionally hook-in */
     /* Subsequent entries fall thru if current intercept
@@ -55,13 +56,15 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
     {
         p_buff = &Input_Cmd_Buffer[0];
         size = 0;
+        cmd_start_found = false;
         while(true)
         {
             SERIAL_getchar(UART1, &c);
 
-            if(c == TF_CMD_START)
+            if(!cmd_start_found && (c == TF_CMD_START))
             {
                 p_hdr = (void*) (p_buff+1);
+                cmd_start_found = true;
             }
 
             *p_buff = c;
@@ -69,10 +72,9 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
             size++;
 
             // Validate command end and checksum delimiters
-            if (c == TF_CHECKSUM_END && size >= TF_CHECKSUM_TOTAL_SIZE
-                && (Input_Cmd_Buffer[size - TF_CMD_END_POSITION] == TF_CMD_END)
-                && (memcmp(&Input_Cmd_Buffer[size - TF_CHECKSUM_POSITION],
-                    (char*) &magic, TF_CHECKSUM_SIZE) == 0))
+            if (((c == TF_CHECKSUM_END) && (size >= TF_CHECKSUM_TOTAL_SIZE)) &&
+                (Input_Cmd_Buffer[size - TF_CMD_END_POSITION] == TF_CMD_END) &&
+                (memcmp(&Input_Cmd_Buffer[size - TF_CHECKSUM_POSITION], (char*)&magic, TF_CHECKSUM_SIZE) == 0))
             {
                 break;
             }
