@@ -1,5 +1,5 @@
 add_library(test_framework_core OBJECT)
-
+find_package(et-common-libs REQUIRED COMPONENTS sp-bl2)
 target_include_directories(test_framework_core
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include/
@@ -15,8 +15,8 @@ target_sources(test_framework_core
 target_link_libraries(test_framework_core
   PUBLIC
     tf-protocol::tf-protocol
-    EsperantoDeviceMinionRuntime::sp_firmware_helpers
     deviceFirmware::device_serial
+    et-common-libs::sp-bl2
 )
 
 target_compile_definitions(test_framework_core
@@ -56,6 +56,7 @@ target_link_libraries(test_framework
     tf-protocol::tf-protocol
     EsperantoDeviceMinionRuntime::sp_firmware_helpers
     deviceFirmware::device_serial
+    et-common-libs::sp-bl2
     FreeRTOS::FreeRTOS
     BL2_driver
 )

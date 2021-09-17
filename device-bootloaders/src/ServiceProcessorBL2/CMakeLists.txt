@@ -11,7 +11,7 @@
 set(FILE_VERSION_MAJOR 0)
 set(FILE_VERSION_MINOR 0)
 set(FILE_REVISION_NUMBER 1)
-
+find_package(et-common-libs REQUIRED COMPONENTS sp-bl2)
 add_subdirectory(include)
 
 set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/common/sections.ld)
@@ -113,7 +113,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
             deviceApi::deviceApi
             signedImageFormat::signedImageFormat
             etsoc_hal::etsoc_hal
-            EsperantoDeviceMinionRuntime::sp_firmware_helpers
+            et-common-libs::sp-bl2
             deviceFirmware::device_serial
             FreeRTOS::FreeRTOS
             $<${TEST_FRAMEWORK}:test_framework>

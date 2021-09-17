@@ -22,7 +22,7 @@
 /***********************************************************************/
 #include "log.h"
 #include "trace.h"
-#include "layout.h"
+#include "system/layout.h"
 #include <stddef.h>
 #include "FreeRTOS.h"
 #include "semphr.h"

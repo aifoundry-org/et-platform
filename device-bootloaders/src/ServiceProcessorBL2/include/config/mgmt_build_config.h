@@ -22,9 +22,9 @@
 #ifndef __MGMT_BUILD_CONFIG_H__
 #define __MGMT_BUILD_CONFIG_H__
 
-#include <common_defs.h>
+#include "etsoc/common/common_defs.h"
 #include "hwinc/hal_device.h"
-#include "layout.h"
+#include "system/layout.h"
 
 /************************************************/
 /*      - PC_SP secure mailbox layout (4K) -    */

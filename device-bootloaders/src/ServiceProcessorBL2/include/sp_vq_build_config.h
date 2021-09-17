@@ -12,7 +12,7 @@
 #define __SP_VQ_BUILD_CONFIG_H__
 
 #include "hwinc/hal_device.h"
-#include "common_defs.h"
+#include "etsoc/common/common_defs.h"
 /************************************************************************
 *
 *   DESCRIPTION

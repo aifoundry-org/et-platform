@@ -14,8 +14,8 @@
 
 #include <stdint.h>
 #include "dm_event_def.h"
-#include "esr_defines.h"
-#include "pcie_device.h"
+#include "etsoc/isa/esr_defines.h"
+#include "etsoc/drivers/pcie/pcie_int.h"
 #include "io.h"
 #include "bl2_sp_pll.h"
 #include "bl2_pmic_controller.h"

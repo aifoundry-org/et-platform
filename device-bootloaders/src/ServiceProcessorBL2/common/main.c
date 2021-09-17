@@ -2,7 +2,7 @@
 #include "serial.h"
 #include "interrupt.h"
 #include "dummy_isr.h"
-#include "minion_fw_boot_config.h"
+#include "config/minion_fw_boot_config.h"
 #include "pcie_init.h"
 
 #include "FreeRTOS.h"

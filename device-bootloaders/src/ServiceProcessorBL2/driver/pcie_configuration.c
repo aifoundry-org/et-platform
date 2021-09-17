@@ -15,8 +15,8 @@
 #include <stdio.h>
 #include "log.h"
 #include "io.h"
-#include "layout.h"
-#include "pcie_device.h"
+#include "system/layout.h"
+#include "etsoc/drivers/pcie/pcie_int.h"
 #include "pcie_configuration.h"
 
 #include "hwinc/sp_cru_reset.h"

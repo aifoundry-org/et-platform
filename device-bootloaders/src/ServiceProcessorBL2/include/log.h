@@ -18,7 +18,7 @@
 
 #include <stddef.h>
 #include <inttypes.h>
-#include "device-common/log_common.h"
+#include "etsoc/common/log_common.h"
 
 /*! \fn void Log_Init(void)
     \brief Initialize the logging component

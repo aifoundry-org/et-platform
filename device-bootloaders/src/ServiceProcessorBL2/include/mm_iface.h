@@ -21,8 +21,8 @@
 #ifndef MM_IFACE_H
 #define MM_IFACE_H
 
-#include "common_defs.h"
-#include "sp_mm_iface.h" /* header from shared/helper lib */
+#include "etsoc/common/common_defs.h"
+#include "transports/sp_mm_iface/sp_mm_iface.h" 
 #include "FreeRTOS.h"
 
 /*! \fn int8_t MM_Iface_Init(void)

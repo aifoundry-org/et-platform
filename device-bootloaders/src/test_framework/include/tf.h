@@ -1,7 +1,7 @@
 #ifndef TF_DEFS_H
 #define TF_DEFS_H
 
-#include "common_defs.h"
+#include "etsoc/common/common_defs.h"
 #include <esperanto/tf-protocol/tf_protocol.h>
 
 #define TF_EXIT_FROM_TF_LOOP    -1

@@ -21,8 +21,8 @@
 #ifndef SP_HOST_IFACE_DEFS_H
 #define SP_HOST_IFACE_DEFS_H
 
-#include "common_defs.h"
-#include "vq.h"
+#include "etsoc/common/common_defs.h"
+#include "transports/vq/vq.h"
 #include "sp_vq_build_config.h"
 
 /**

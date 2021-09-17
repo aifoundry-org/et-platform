@@ -9,11 +9,11 @@
 *-------------------------------------------------------------------------
 */
 
-#include "esr_defines.h"
+#include "etsoc/isa/esr_defines.h"
 #include "hwinc/hal_device.h"
 #include "config/mgmt_build_config.h"
 #include "interrupt.h"
-#include "pcie_int.h"
+#include "etsoc/drivers/pcie/pcie_int.h"
 #include "bl2_asset_trk.h"
 #include "bl2_firmware_update.h"
 #include "bl2_thermal_power_monitor.h"
@@ -29,7 +29,7 @@
 #include "sp_host_iface.h"
 
 #include "mm_iface.h"
-#include "sp_mm_comms_spec.h"
+#include "transports/mm_cm_iface/sp_mm_comms_spec.h"
 
 #include "FreeRTOS.h"
 #include "queue.h"

@@ -29,8 +29,8 @@
 #include <stdio.h>
 #include "log.h"
 #include "mm_iface.h"
-#include "sp_mm_comms_spec.h"
-#include "sp_mm_shared_config.h"
+#include "transports/mm_cm_iface/sp_mm_comms_spec.h"
+#include "config/sp_mm_shared_config.h"
 #include "interrupt.h"
 #include "semphr.h"
 #include "bl_error_code.h"
