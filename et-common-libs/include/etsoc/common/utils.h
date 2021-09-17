@@ -61,7 +61,7 @@ size_t et_strlen(const char *str);
     \brief Causes an abnormal end of the application and returns from kernel launch.
     \return None
 */
-void et_abort(void);
+__attribute__((noreturn)) void et_abort(void);
 
 /*! \def et_assert(expr)
     \brief A macro that allows diagnostic information to be written to the trace buffer

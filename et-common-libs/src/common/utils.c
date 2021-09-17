@@ -30,7 +30,8 @@ int et_memcmp(const void *s1, const void *s2, size_t n)
 {
   const char* p_s1 = s1;
   const char* p_s2 = s2;
-  unsigned char u1, u2;
+  unsigned char u1;
+  unsigned char u2;
 
   for (; n--; p_s1++, p_s2++) {
     u1 = *p_s1;
@@ -52,7 +53,7 @@ size_t et_strlen(const char *str)
   return (size_t)(s - str);
 }
 
-void et_abort(void)
+__attribute__((noreturn)) void et_abort(void)
 {
   /* TODO: Need to differentiate from self abort and normal kernel execution exit */
   syscall(SYSCALL_RETURN_FROM_KERNEL, (uint64_t)-1, 0, 0);

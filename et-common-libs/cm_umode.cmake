@@ -45,7 +45,7 @@ set(CM_UMODE_LIB_HDRS
 #the CM UMODE (Compute Minion User Mode) Library
 add_library(cm-umode STATIC
     src/etsoc/hal/pmu.c
-    src/etsoc/common/utils.c
+    src/common/utils.c
     src/trace/trace_umode.c
     #TODO:others to come ..
 )

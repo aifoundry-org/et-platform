@@ -29,6 +29,10 @@ include(GNUInstallDirs)
 # Build and install Compute Minion User Mode libs
 include(cm_umode.cmake)
 
+# Build and install SP Bootloader lib 
+
+include(sp_bl2.cmake)
+
 # Build and install Minion Bootloader lib
 include(minion_bl.cmake)
 

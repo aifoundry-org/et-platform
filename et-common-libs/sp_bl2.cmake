@@ -1,0 +1,106 @@
+########################
+# SP Boot Loader 2 Lib
+########################
+
+#SP Boot Loader requires etsoc_hal library
+find_package(etsoc_hal REQUIRED)
+
+#Install prefix for SP Bootloader library
+set(SP_BL2_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/esperanto-fw/lib/et-common-libs/sp-bl2)
+
+################################################
+# List the public interfaces and headers to be
+# exposed to SP Boot Loader
+################################################
+
+#Listing of header only public interfaces
+set(SP_BL2_HDRS
+    include/etsoc/common/print_exception.h
+    include/etsoc/common/printf.h
+    include/etsoc/common/log_common.h
+    include/etsoc/common/common_defs.h
+    include/etsoc/drivers/pcie/pcie_int.h
+    include/etsoc/hal/pmu.h
+    include/etsoc/isa/mem-access/etsoc_memory.h
+    include/transports/vq/vq.h
+    include/transports/circbuff/circbuff.h
+    include/transports/mm_cm_iface/sp_mm_comms_spec.h
+    include/transports/mm_cm_iface/message_types.h
+    include/transports/sp_mm_iface/sp_mm_iface.h
+    include/config/sp_mm_shared_config.h
+)
+
+#Listing of public headers that expose services provided by
+#the SP_BL2 (SP Bootloader 2 Library)
+set(SP_BL2_LIB_HDRS
+    include/transports/mm_cm_iface/broadcast.h
+    include/etsoc/drivers/serial/serial.h
+)
+
+#########################
+#Create SP-BL 2 library
+#########################
+
+#Listing of sources that implement services provided by
+#the SP_BL2 (SP Bootloader 2 Library)
+add_library(sp-bl2 STATIC
+    src/etsoc/hal/pcie/pcie_int.c
+    src/common/etsoc_memory.c
+    src/transports/circbuff/circbuff.c
+    src/transports/vq/vq.c
+    src/transports/sp_mm_iface/sp_mm_iface.c
+)
+add_library(et-common-libs::sp-bl2 ALIAS sp-bl2)
+target_compile_definitions(sp-bl2 PUBLIC -DSERVICE_PROCESSOR_BL2=1)
+set_target_properties(sp-bl2 PROPERTIES LINKER_LANGUAGE C)
+
+target_link_libraries(sp-bl2 
+    PUBLIC 
+        etsoc_hal::etsoc_hal
+)
+
+target_include_directories(sp-bl2
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${SP_BL2_INSTALL_PREFIX}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw>
+)
+
+target_compile_options(sp-bl2
+    PRIVATE
+        -Wall
+        $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
+)
+
+
+#################################################
+#Install and export sp-bl2 library and headers
+#################################################
+
+#This macro preserves the driectory structure as defined by the
+#SP_BL2 (SP Bootloader 2 Library)listing above
+macro(InstallHdrsWithDirStruct HEADER_LIST)
+    foreach(HEADER ${${HEADER_LIST}})
+    string(REGEX MATCH "(.*)[/\]" DIR ${HEADER})
+    install(FILES ${HEADER} DESTINATION ${SP_BL2_INSTALL_PREFIX}/${DIR})
+    endforeach(HEADER)
+endmacro(InstallHdrsWithDirStruct)
+
+InstallHdrsWithDirStruct(SP_BL2_HDRS)
+InstallHdrsWithDirStruct(SP_BL2_LIB_HDRS)
+
+install(
+    TARGETS sp-bl2
+    EXPORT sp-bl2Targets
+    LIBRARY DESTINATION ${SP_BL2_INSTALL_PREFIX}/lib
+    ARCHIVE DESTINATION ${SP_BL2_INSTALL_PREFIX}/lib
+    INCLUDES DESTINATION ${SP_BL2_INSTALL_PREFIX}/include
+)
+
+#TODO: Could be improved and made more flexible by exporting a package
+install(
+    EXPORT sp-bl2Targets
+    NAMESPACE et-common-libs::
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/et-common-libs/sp-bl2
+)
+
