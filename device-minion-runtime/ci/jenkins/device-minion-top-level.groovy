@@ -200,6 +200,26 @@ pipeline {
         }
         stage('PARALLEL1') {
           parallel {
+            stage('CLANG_CHECK') {
+              steps {
+                script {
+                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/system-sw-integration/pipelines/device-minion-runtime-clang-tests \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}" + '" }\'') != 0) {
+                    build job:
+                      'sw-platform/system-sw-integration/pipelines/device-minion-runtime-clang-tests',
+                      propagate: true,
+                      parameters: [
+                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"),
+                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                      ]
+                  }
+                  else {
+                    sh 'echo Skipping job because it passed'
+                  }
+                }
+              }
+            }
             stage('FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU') {
               steps {
                 script {

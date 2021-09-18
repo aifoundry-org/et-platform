@@ -70,3 +70,11 @@ stages:
             raw_cmd: '"${env.gitlabMergeRequestIid}"'
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
     exec_after: [CHECK_IN]
+
+  CLANG_CHECK:
+    cmds:
+      - job: sw-platform/system-sw-integration/pipelines/device-minion-runtime-clang-tests
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-minion-runtime:${BRANCH}"
+    exec_after: [CHECK_IN]
