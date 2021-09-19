@@ -97,10 +97,11 @@ static void taskMain(void *pvParameters)
     setbuf(stdout, NULL);
 
     // Establish connection to PMIC
-    struct module_voltage_t module_voltage ={0};
+    // NOSONAR struct module_voltage_t module_voltage ={0};
     setup_pmic();
     // Read all Voltage Rails
-    get_module_voltage(&module_voltage);
+    // Bug in PMIC FW preventing access to these registers
+    // NOSONAR get_module_voltage(&module_voltage);
 
 #if FAST_BOOT
     // In cases where BootROM is bypass, initialize PCIe link
