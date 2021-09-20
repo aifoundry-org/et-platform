@@ -976,34 +976,30 @@ static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t 
     int8_t status;
     (void)kernel;
 
-    /* In case of kernel exception response, we need to acquire the CM->MM unicast
-    lock to make sure that the access to buffers is serialized */
-    if (status_internal->cw_exception)
-    {
-        /* Acquire the unicast lock */
-        CM_Iface_Unicast_Acquire_Lock(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx);
+    Log_Write(LOG_LEVEL_DEBUG, "KW:Processing single msg from CM\r\n");
 
-        /* Receive the CM->MM message */
-        status = CM_Iface_Unicast_Receive(
-            CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
+    /* Acquire the unicast lock */
+    CM_Iface_Unicast_Acquire_Lock(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx);
 
-        /* Release the unicast lock */
-        CM_Iface_Unicast_Release_Lock(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx);
-    }
-    else
-    {
-        /* Receive the CM->MM message */
-        status = CM_Iface_Unicast_Receive(
-            CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
-    }
+    /* Receive the CM->MM message */
+    status = CM_Iface_Unicast_Receive(
+        CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
 
-    if ((status != STATUS_SUCCESS) && (status != CIRCBUFF_ERROR_BAD_LENGTH) &&
-        (status != CIRCBUFF_ERROR_EMPTY))
+    /* Release the unicast lock */
+    CM_Iface_Unicast_Release_Lock(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx);
+
+    if (status != STATUS_SUCCESS)
     {
         /* No more pending messages left */
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_CMD_ERROR);
-        Log_Write(LOG_LEVEL_ERROR,
-            "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
+        if ((status != CIRCBUFF_ERROR_BAD_LENGTH) &&
+            (status != CIRCBUFF_ERROR_EMPTY))
+        {
+            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_CMD_ERROR);
+            Log_Write(LOG_LEVEL_ERROR,
+                "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
+        }
+
+        Log_Write(LOG_LEVEL_WARNING, "KW:CM_To_MM: No pending msg\r\n");
 
         return;
     }
@@ -1064,6 +1060,8 @@ static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t 
             break;
 
         default:
+            Log_Write(LOG_LEVEL_ERROR,
+                "KW:from CW: Unexpected msg. ID: %d\r\n", message.header.id);
             break;
     }
 }

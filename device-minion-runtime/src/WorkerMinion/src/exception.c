@@ -67,7 +67,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
     }
 
     /* Only send kernel launch exception message once to MM. */
-    if(kernel_launch_set_global_abort_flag())
+    if(kernel_info_set_abort_flag(shire_id) && kernel_launch_set_global_abort_flag())
     {
         /* Sends exception message to MM */
         send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);

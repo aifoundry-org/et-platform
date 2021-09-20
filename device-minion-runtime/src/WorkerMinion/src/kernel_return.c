@@ -4,6 +4,7 @@
 #include "kernel_return.h"
 #include "log.h"
 #include "mm_to_cm_iface.h"
+#include "riscv_encoding.h"
 #include <inttypes.h>
 
 /* Restores firmware context and resumes execution in launch_kernel()
@@ -93,12 +94,10 @@ void kernel_self_abort_save_context(void)
         uint64_t stack_frame;
 
         /* Dump S-mode CSRs */
-        asm volatile("csrr %0, scause\n"
-                    "csrr %1, sstatus\n"
-                    "csrr %2, sepc\n"
-                    "csrr %3, stval"
-                    : "=r"(context.scause), "=r"(context.sstatus),
-                    "=r"(context.sepc), "=r"(context.stval));
+        CSR_READ_SCAUSE(context.scause)
+        CSR_READ_SSTATUS(context.sstatus)
+        CSR_READ_SEPC(context.sepc)
+        CSR_READ_STVAL(context.stval)
 
         /* For dumping the stack frame from an environment call, the stack is assumed
         to be present in the s1 register. The trap handler saves the sp in the s1 and
