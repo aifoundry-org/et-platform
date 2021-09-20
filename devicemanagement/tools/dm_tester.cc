@@ -799,16 +799,19 @@ int verifyService() {
   } break;
 
   case DM_CMD::DM_CMD_GET_FUSED_PUBLIC_KEYS: {
-    const uint32_t output_size = sizeof(uint256_t);
+    const uint32_t output_size = sizeof(device_mgmt_api::fused_public_keys_t);
     char output_buff[output_size] = {0};
 
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
 
+    device_mgmt_api::fused_public_keys_t* fused_public_key = (device_mgmt_api::fused_public_keys_t*)output_buff;
     try{
-       std::string str_output = std::string(output_buff, output_size);
-       DV_LOG(INFO) << "Public keys: " << std::stoi (str_output,nullptr,16) << std::endl;
+       DV_LOG(INFO) << "Public keys: " << std::endl;
+       for (int i = 0; i < output_size; ++i)
+          DV_LOG(INFO) << fused_public_key->keys[i] << " ";
+       DV_LOG(INFO) << std::endl;
     }
     catch (const std::invalid_argument& ia) {
 	     DV_LOG(INFO) << "Invalid response from device: " << ia.what() << '\n';
