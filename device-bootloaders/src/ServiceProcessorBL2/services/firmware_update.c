@@ -61,17 +61,32 @@ static void reset_etsoc(void)
 *
 *   INPUTS
 *
-*       None
+*       tag_id              Message tag ID
+*       req_start_time      Message start time
 *
 *   OUTPUTS
 *
-*       Public keys
+*       void
 *
 ***********************************************************************/
-static int32_t dm_svc_get_public_keys(void)
+static void dm_svc_get_public_keys(tag_id_t tag_id, uint64_t req_start_time)
 {
-     //TODO: Placeholder, needs implementation
-    return 0;
+    uint8_t                                   gs_sp_root_ca_hash[512/8];
+    uint32_t                                  hash_size;
+    struct device_mgmt_fused_pub_keys_rsp_t   dm_rsp = { 0 };
+
+    if (0 != crypto_load_public_key_hash_from_otp(VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH, gs_sp_root_ca_hash, sizeof(gs_sp_root_ca_hash), &hash_size)) {
+        Log_Write(LOG_LEVEL_WARNING,"SP ROOT CA HASH not found in OTP!\n");
+    }
+
+    FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_FUSED_PUBLIC_KEYS, timer_get_ticks_count() - req_start_time, DM_STATUS_SUCCESS)
+
+    // copy the root hash
+    memcpy(dm_rsp.fused_public_keys.keys, gs_sp_root_ca_hash, hash_size);
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_fused_pub_keys_rsp_t))) {
+        Log_Write(LOG_LEVEL_ERROR, "send_status_response: Cqueue push error!\n");
+    }    
 }
 
 /************************************************************************
@@ -656,8 +671,7 @@ void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *bu
     }
 
     case DM_CMD_GET_FUSED_PUBLIC_KEYS:
-        ret = dm_svc_get_public_keys();
-        send_status_response(tag_id, msg_id, req_start_time, ret);
+        dm_svc_get_public_keys(tag_id, req_start_time);
         break;
 
     case DM_CMD_RESET_ETSOC:
