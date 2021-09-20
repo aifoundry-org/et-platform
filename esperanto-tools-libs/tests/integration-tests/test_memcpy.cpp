@@ -101,7 +101,7 @@ TEST_F(TestMemcpy, 4GbMemcpy) {
     ValueType position;
   };
   auto numValues = 500U;
-  std::vector<RandomData> rd(numValues);
+  std::vector<RandomData> rd;
   // alloc memory in device
   auto d_buffer = runtime_->mallocDevice(dev, desiredSize);
   std::vector<ValueType> h_buffer(desiredSize / sizeof(ValueType));

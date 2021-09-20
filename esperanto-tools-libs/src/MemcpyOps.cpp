@@ -89,6 +89,7 @@ CommandsSentResult prepareAndSendCommands(MemcpyType memcpyType, bool barrierEna
     }
     auto& hostBuffer = stageBuffers[i];
     cmdBuilder.addOp(hostBuffer.ptr_, devicePtr + offset, hostBuffer.size_);
+    offset += hostBuffer.size_;
   }
 
   // add the last command

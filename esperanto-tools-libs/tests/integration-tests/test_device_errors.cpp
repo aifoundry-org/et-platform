@@ -55,7 +55,7 @@ TEST_F(DeviceErrors, KernelLaunchException) {
   EXPECT_EQ(errors.size(), 1UL);
   RT_LOG(logging::VLOG_HIGH) << "";
   bool callbackExecuted = false;
-  runtime_->setOnStreamErrorsCallback([&callbackExecuted, &errors](auto, const rt::StreamError& streamError) {
+  runtime_->setOnStreamErrorsCallback([&callbackExecuted](auto, const rt::StreamError&) {
     callbackExecuted = true;
   });
   runtime_->kernelLaunch(defaultStream_, exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0xFFFFFFFFUL);

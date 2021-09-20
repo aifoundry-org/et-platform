@@ -27,7 +27,7 @@ Command* CommandSender::send(Command command) {
   std::unique_lock lock(mutex_);
   commands_.emplace(std::move(command));
   auto res = &commands_.back();
-  RT_VLOG(MID) << "Addind command " << std::hex << res << " to the send queue. Enabled? "
+  RT_VLOG(MID) << "Adding command " << std::hex << res << " to the send queue. Enabled? "
                << (res->isEnabled_ ? "True" : "False");
   lock.unlock();
   condVar_.notify_one();
