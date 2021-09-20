@@ -104,13 +104,12 @@ static uint64_t legalize_esr_address(const Agent& agent, uint64_t addr)
 }
 
 
-static uint64_t decode_broadcast_esr_value(uint64_t value)
+static uint64_t decode_broadcast_esr_value(uint64_t pp, uint64_t value)
 {
-    uint64_t p = (value & ESR_BROADCAST_PROT_MASK) >> ESR_BROADCAST_PROT_SHIFT;
     uint64_t x = (value & ESR_BROADCAST_ESR_SREGION_MASK) >> ESR_BROADCAST_ESR_SREGION_MASK_SHIFT;
     uint64_t r = (value & ESR_BROADCAST_ESR_ADDR_MASK) >> ESR_BROADCAST_ESR_ADDR_SHIFT;
     return ESR_REGION_BASE
-            | (p << ESR_REGION_PROT_SHIFT)
+            | (pp << ESR_REGION_PROT_SHIFT)
             | (x << ESR_SREGION_EXT_SHIFT)
             | (r << 3);
 }
@@ -514,7 +513,7 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
         {
             uint64_t emask;
             uint64_t eaddr;
-            eaddr = decode_broadcast_esr_value(value);
+            eaddr = decode_broadcast_esr_value(PP(addr), value);
             if ((PP(eaddr) == 2) || (PP(eaddr) > PP(addr))) {
                 LOG_AGENT(WARN, agent, "Request %cbroadcast to %c-mode ESR", "uhsm"[PP(addr)], "UHSM"[PP(eaddr)]);
                 throw memory_error(addr);
