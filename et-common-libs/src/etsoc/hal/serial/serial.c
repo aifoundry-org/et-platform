@@ -114,6 +114,13 @@ int SERIAL_puts(uintptr_t uartRegs, const char *const string)
     return i;
 }
 
+// Spins until a character is obtained
+void SERIAL_getchar(uintptr_t uartRegs, char *c)
+{
+    while(UART_LSR_DR_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) != 1U);
+    *c = UART_RBR_RBR_RBR_GET(ioread32((uartRegs + UART_RBR_ADDRESS)));
+}
+
 static void set_baud_divisor(uintptr_t uartRegs, unsigned int baudRate, unsigned int clkFreq)
 {
     // See Synopsys DesignWare DW_apb_uart Databook 4.02a July 2018 section 2.4 Fractional Baud Rate Support

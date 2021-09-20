@@ -30,7 +30,7 @@ include(GNUInstallDirs)
 include(cm_umode.cmake)
 
 # Build and install SP Bootloader lib 
-
+include(sp_bl1.cmake)
 include(sp_bl2.cmake)
 
 # Build and install Minion Bootloader lib
