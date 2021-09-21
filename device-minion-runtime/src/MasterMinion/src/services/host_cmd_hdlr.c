@@ -42,6 +42,29 @@
 */
 #define TRACE_NODE_INDEX    0
 
+/*! \def DMA_TO_DEVICEAPI_STATUS 
+    \brief Helper macro to convert DMA Error to DEVICE API Errors
+*/
+#define DMA_TO_DEVICEAPI_STATUS(status, abort_status, ret_status)   \
+    if ((status == DMAW_ABORTED_IDLE_CHANNEL_SEARCH) ||             \
+        (abort_status == HOST_CMD_STATUS_ABORTED))                  \
+    {                                                               \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;         \
+    }                                                               \
+    else if(status == DMA_ERROR_INVALID_ADDRESS)                    \
+    {                                                               \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS;      \
+    }                                                               \
+    else if((status == DMA_ERROR_OUT_OF_BOUNDS) ||                  \
+           (status == DMA_ERROR_INVALID_XFER_COUNT))                \
+    {                                                               \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE;         \
+    }                                                               \
+    else                                                            \
+    {                                                               \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_ERROR;                \
+    }                                                               \
+
 /************************************************************************
 *
 *   FUNCTION
@@ -890,9 +913,12 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
         {
             dma_flag = DMA_NORMAL;
             /* Get number of transfer commands in the list, based on message payload length. */
-            dma_xfer_count = (uint8_t)(cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
-                                        sizeof(struct dma_read_node);
-            status = STATUS_SUCCESS;
+            dma_xfer_count = (uint8_t)((cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
+                                        sizeof(struct dma_read_node));
+
+            /* Ensure the size of Xfer is bigger than zero */
+            status =  ((dma_xfer_count > 0) && (dma_xfer_count <= DEVICE_OPS_DMA_LIST_NODES_MAX)) ? 
+                                                   STATUS_SUCCESS : DMA_ERROR_INVALID_XFER_COUNT;
         }
     }
 
@@ -961,23 +987,7 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
         rsp.device_cmd_execute_dur = 0U;
 
         /* Populate the error type response */
-        if ((status == DMAW_ABORTED_IDLE_CHANNEL_SEARCH) ||
-            (abort_status == HOST_CMD_STATUS_ABORTED))
-        {
-            rsp.status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;
-        }
-        else if(status == DMA_ERROR_INVALID_ADDRESS)
-        {
-            rsp.status = DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS;
-        }
-        else if(status == DMA_ERROR_OUT_OF_BOUNDS)
-        {
-            rsp.status = DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE;
-        }
-        else
-        {
-            rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
-        }
+        DMA_TO_DEVICEAPI_STATUS(status, abort_status, rsp.status)
 
         Log_Write(LOG_LEVEL_DEBUG,
             "HostCommandHandler:Pushing:DATA_READ_CMD_RSP:tag_id=%x->Host_CQ\r\n",
@@ -1067,11 +1077,15 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
     if(abort_status == STATUS_SUCCESS)
     {
         /* Get number of transfer commands in the list, based on message payload length. */
-        dma_xfer_count = (uint8_t)(cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
-                                    sizeof(struct dma_write_node);
+        dma_xfer_count = (uint8_t)((cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
+                                    sizeof(struct dma_write_node));
 
         /* Obtain the next available DMA read channel */
         status = DMAW_Read_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
+
+        /* Ensure the size of Xfer is bigger than zero */
+        status =  ((dma_xfer_count > 0) && (dma_xfer_count <= DEVICE_OPS_DMA_LIST_NODES_MAX)) ?
+                                                     status : DMA_ERROR_INVALID_XFER_COUNT;
     }
 
     if(status == STATUS_SUCCESS)
@@ -1133,19 +1147,7 @@ static inline int8_t dma_writelist_cmd_handler(void* command_buffer, uint8_t sqw
         rsp.device_cmd_execute_dur = 0U;
 
         /* Populate the error type response */
-        if ((status == DMAW_ABORTED_IDLE_CHANNEL_SEARCH) ||
-            (abort_status == HOST_CMD_STATUS_ABORTED))
-        {
-            rsp.status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;
-        }
-        else if(status == DMA_ERROR_INVALID_ADDRESS)
-        {
-            rsp.status = DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS;
-        }
-        else
-        {
-            rsp.status = DEV_OPS_API_DMA_RESPONSE_ERROR;
-        }
+        DMA_TO_DEVICEAPI_STATUS(status, abort_status, rsp.status)
 
         status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 

@@ -73,6 +73,7 @@ typedef uint8_t dma_write_chan_id_e;
     \brief Enum that provides the status of DMA APIs
 */
 typedef enum {
+    DMA_ERROR_INVALID_XFER_COUNT = -7,
     DMA_ERROR_CHANNEL_NOT_RUNNING = -6,
     DMA_ERROR_INVALID_PARAM = -5,
     DMA_ERROR_CHANNEL_NOT_AVAILABLE = -4,
