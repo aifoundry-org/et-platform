@@ -17,11 +17,12 @@
 #include <et-trace/encoder.h>
 
 /*! \fn void __et_printf(const char *fmt)
-    \brief This function log the string message into Trace, If Trace was
+    \brief This function logs the string message into Trace, If Trace was
            enabled for caller Hart.
            NOTE: CM UMode Trace is initialized by CM Runtime in SMode.
-    \param str String message
+    \param fmt String format specifier
+    \param ... Variable argument list
     \return None
 */
-void __et_printf(const char *str);
+void __et_printf(const char *fmt, ...);
 

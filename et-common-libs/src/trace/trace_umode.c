@@ -22,6 +22,7 @@
 #define ET_TRACE_ENCODER_IMPL
 #define ET_TRACE_GET_HART_ID()  get_hart_id()
 #include "etsoc/common/utils.h"
+#include "common/printf.h"
 
 /* NOTE: Keep it in sync with the memory map layout file in minion runtime. */
 #define CM_UMODE_TRACE_CB_BASEADDR  0x8100d21040
@@ -57,16 +58,22 @@ typedef struct umode_trace_control_block {
 *
 *   INPUTS
 *
-*       str     String data.
+*       fmt     String format specifier
+*       ...     Variable argument list
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void __et_printf(const char *str)
+void __et_printf(const char *fmt, ...)
 {
     struct trace_control_block_t *cb = &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb;
+    char data[TRACE_STRING_MAX_SIZE + 1];
+    va_list va;
+    va_start(va, fmt);
 
-    Trace_String(TRACE_EVENT_STRING_CRITICAL, cb, str);
+    vsnprintf(data, TRACE_STRING_MAX_SIZE, fmt, va);
+
+    Trace_String(TRACE_EVENT_STRING_CRITICAL, cb, data);
 }

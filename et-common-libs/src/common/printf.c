@@ -33,7 +33,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "printf.h"
+#include "common/printf.h"
 
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wsign-conversion"

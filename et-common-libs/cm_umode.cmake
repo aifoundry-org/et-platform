@@ -23,6 +23,7 @@ set(CM_UMODE_HDRS
     include/etsoc/isa/tensor.h
     include/etsoc/isa/tensors.h
     include/etsoc/isa/utils.h
+    include/common/printf.h
     #Floating point operations
     include/float/Float16.h
     # Trace Header
@@ -47,6 +48,7 @@ add_library(cm-umode STATIC
     src/etsoc/hal/pmu.c
     src/common/utils.c
     src/trace/trace_umode.c
+    src/common/printf.c
     #TODO:others to come ..
 )
 add_library(et-common-libs::cm-umode ALIAS cm-umode)

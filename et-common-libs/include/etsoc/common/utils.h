@@ -17,9 +17,10 @@
 
 /*! \def et_printf(fmt)
     \brief Write a log with va_list style args
-    \param fmt format specifier
+    \param fmt String format specifier
+    \param ... Variable argument list
 */
-#define et_printf(fmt)      __et_printf(fmt)
+#define et_printf(fmt, ...)      __et_printf(fmt, ##__VA_ARGS__)
 
 /*! \fn void *et_memset(void *s, int c, size_t n)
     \brief Copies the character c to the first n characters of the string pointed argument s.
