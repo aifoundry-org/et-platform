@@ -25,8 +25,6 @@ class EventManager;
 
 enum class MemcpyType { H2D, D2H };
 struct MemcpyCommandBuilder {
-  // this number comes from spec. But there should be a deviceApi constant to inform.
-  static constexpr auto kMaxEntries = 4;
 
   void addOp(const std::byte* hostAddr, const std::byte* deviceAddr, size_t size);
   void setTagId(rt::EventId eventId);

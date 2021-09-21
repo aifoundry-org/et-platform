@@ -29,7 +29,7 @@ static_assert(offsetof(dma_write_node, size) == offsetof(dma_read_node, size));
 namespace rt {
 
 void MemcpyCommandBuilder::addOp(const std::byte* hostAddr, const std::byte* deviceAddr, size_t size) {
-  RT_LOG_IF(FATAL, numEntries_ == kMaxEntries) << "Can't add more entries. Max number of entries is " << kMaxEntries;
+  RT_LOG_IF(FATAL, numEntries_ == DEVICE_OPS_DMA_LIST_NODES_MAX) << "Can't add more entries. Max number of entries is " << DEVICE_OPS_DMA_LIST_NODES_MAX;
   ++numEntries_;
   dma_write_node newNode;
   newNode.dst_device_phy_addr = reinterpret_cast<uint64_t>(deviceAddr);
@@ -48,7 +48,7 @@ void MemcpyCommandBuilder::setTagId(rt::EventId eventId) {
 }
 
 MemcpyCommandBuilder::MemcpyCommandBuilder(MemcpyType type, bool barrierEnabled) {
-  data_.reserve(sizeof(dma_write_node) * kMaxEntries + sizeof(device_ops_dma_readlist_cmd_t));
+  data_.reserve(sizeof(dma_write_node) * DEVICE_OPS_DMA_LIST_NODES_MAX + sizeof(device_ops_dma_readlist_cmd_t));
   data_.resize(sizeof(device_ops_dma_readlist_cmd_t));
   auto cmd = reinterpret_cast<device_ops_dma_readlist_cmd_t*>(data_.data());
   memset(cmd, 0, sizeof(*cmd));
@@ -84,7 +84,7 @@ CommandsSentResult prepareAndSendCommands(MemcpyType memcpyType, bool barrierEna
   setupTagId(cmdBuilder);
 
   for (auto i = 0UL, offset = 0UL, count = stageBuffers.size(); i < count; ++i) {
-    if (cmdBuilder.numEntries_ == MemcpyCommandBuilder::kMaxEntries) {
+    if (cmdBuilder.numEntries_ == DEVICE_OPS_DMA_LIST_NODES_MAX) {
       auto cmd = commandSender->send(Command{cmdBuilder.build(), *commandSender, true, enableCommands});
       res.commands_.emplace_back(cmd);
       cmdBuilder.clear();
