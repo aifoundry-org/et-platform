@@ -12,6 +12,7 @@
 #include <condition_variable>
 #include <cstddef>
 #include <device-layer/IDeviceLayer.h>
+#include <list>
 #include <mutex>
 #include <queue>
 #include <thread>

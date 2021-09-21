@@ -30,11 +30,14 @@ namespace rt {
 
 void MemcpyCommandBuilder::addOp(const std::byte* hostAddr, const std::byte* deviceAddr, size_t size) {
   RT_LOG_IF(FATAL, numEntries_ == kMaxEntries) << "Can't add more entries. Max number of entries is " << kMaxEntries;
+  ++numEntries_;
   dma_write_node newNode;
   newNode.dst_device_phy_addr = reinterpret_cast<uint64_t>(deviceAddr);
   newNode.src_host_virt_addr = newNode.src_host_phy_addr = reinterpret_cast<uint64_t>(hostAddr);
   newNode.size = static_cast<uint32_t>(size);
   auto ptr = reinterpret_cast<std::byte*>(&newNode);
+  RT_VLOG(MID) << "Adding copy host_addr: " << std::hex << hostAddr << " device_addr: " << deviceAddr
+               << " size: " << size;
   std::copy(ptr, ptr + sizeof(newNode), std::back_insert_iterator(data_));
 }
 
@@ -108,13 +111,13 @@ void doStagedCopyAndEnableCommands(threadPool::ThreadPool* threadPool, RuntimeIm
       auto sbPtr = stageBuffers[i].ptr_;
       auto size = stageBuffers[i].size_;
       if (type == MemcpyType::H2D) { // then the staged buffer is the dst
-        RT_VLOG(MID) << "Copying stage buffer from " << std::hex << hostPtr + offset << " to " << sbPtr
-                     << " size: " << size;
         memcpy(sbPtr, hostPtr + offset, size);
-      } else { // then the hostPtr is the dst
-        RT_VLOG(MID) << "Copying stage buffer from " << std::hex << sbPtr << " to " << hostPtr + offset
+        RT_VLOG(MID) << "Copied stage buffer from " << std::hex << hostPtr + offset << " to " << sbPtr
                      << " size: " << size;
+      } else { // then the hostPtr is the dst
         memcpy(hostPtr + offset, sbPtr, size);
+        RT_VLOG(MID) << "Copied stage buffer from " << std::hex << sbPtr << " to " << hostPtr + offset
+                     << " size: " << size;
       }
       offset += size;
     }
@@ -133,8 +136,6 @@ void doStagedCopyAndEnableCommands(threadPool::ThreadPool* threadPool, RuntimeIm
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
                                        bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_, stream);
-  RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
-               << " Host address: " << h_src << " Device address: " << d_dst << " Size: " << size;
 
   auto streamInfo = streamManager_.getStreamInfo(stream);
 
@@ -149,6 +150,8 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
   auto [commandEvents, commands] = prepareAndSendCommands(MemcpyType::H2D, barrier, stream, &streamManager_,
                                                           &eventManager_, stageBuffers, &commandSender, d_dst, false);
   auto evt = eventManager_.getNextId();
+  RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<int>(stream) << "EventId: " << static_cast<int>(evt)
+               << std::hex << " Host address: " << h_src << " Device address: " << d_dst << " Size: " << size;
   // now we can free the lock since the commands are already serialized into the commandSender queue
   lock.unlock();
   streamManager_.addEvent(stream, evt);
@@ -174,8 +177,6 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                        bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_, stream);
-  RT_VLOG(LOW) << "MemcpyDeviceToHost stream: " << static_cast<std::underlying_type_t<StreamId>>(stream) << std::hex
-               << " Host address: " << h_dst << " Device address: " << d_src << " Size: " << size;
 
   auto streamInfo = streamManager_.getStreamInfo(stream);
   std::unique_lock lock(mutex_);
@@ -189,6 +190,8 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
   auto [commandEvents, commands] = prepareAndSendCommands(MemcpyType::D2H, barrier, stream, &streamManager_,
                                                           &eventManager_, stageBuffers, &commandSender, d_src, true);
   auto evt = eventManager_.getNextId();
+  RT_VLOG(LOW) << "MemcpyDeviceToHost stream: " << static_cast<int>(stream) << "EventId: " << static_cast<int>(evt)
+               << std::hex << " Host address: " << h_dst << " Device address: " << d_src << " Size: " << size;
   // now we can free the lock since the commands are already serialized into the commandSender queue
   lock.unlock();
   streamManager_.addEvent(stream, evt);

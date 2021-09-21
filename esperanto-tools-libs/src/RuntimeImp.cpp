@@ -264,7 +264,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     evt.setDeviceCmdExecDur(rsp.device_cmd_execute_dur);
   };
 
-  RT_VLOG(MID) << "Response received eventId: " << std::hex << static_cast<int>(eventId)
+  RT_VLOG(MID) << "Response received eventId: " << static_cast<int>(eventId)
                << " Message Id: " << header->rsp_hdr.msg_id;
   bool responseWasOk = true;
   switch (header->rsp_hdr.msg_id) {

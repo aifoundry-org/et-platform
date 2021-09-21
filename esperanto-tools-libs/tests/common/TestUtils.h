@@ -41,6 +41,7 @@ public:
     imp->setMemoryManagerDebugMode(devices_[0], true);
     defaultDevice_ = devices_[0];
     defaultStream_ = runtime_->createStream(devices_[0]);
+    runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   }
 
   rt::KernelId loadKernel(const std::string& kernel_name, uint32_t deviceIdx = 0) {

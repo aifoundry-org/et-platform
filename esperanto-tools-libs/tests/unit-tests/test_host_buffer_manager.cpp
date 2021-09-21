@@ -35,9 +35,9 @@ public:
   }
   void TearDown() override {
     EXPECT_NO_THROW({ allocations_.clear(); });
-    ASSERT_EQ(hb_->getMaxSize(), rt::kPageSize * rt::kNumPages);
+    ASSERT_EQ(hb_->getMaxSize(), kPageSize * rt::kNumPages);
     for (const auto& hm : hbm_->hostBuffers_) {
-      ASSERT_EQ(hm->getMaxSize(), rt::kPageSize * rt::kNumPages);
+      ASSERT_EQ(hm->getMaxSize(), kPageSize * rt::kNumPages);
     }
   }
   dev::IDeviceLayerFake deviceLayer_;
@@ -57,7 +57,7 @@ TEST_F(HostBufferManagerF, simple) {
 TEST_F(HostBufferManagerF, alloc_all_pages) {
   EXPECT_NO_THROW({
     for (int i = 0; i < rt::kNumPages; ++i) {
-      allocations_.emplace_back(hb_->alloc(rt::kPageSize));
+      allocations_.emplace_back(hb_->alloc(kPageSize));
     }
   });
   EXPECT_THROW({ allocations_.emplace_back(hb_->alloc(1)); }, rt::Exception);
@@ -86,7 +86,7 @@ TEST_F(HostBufferManagerF, alloc_free_loop) {
 }
 
 TEST_F(HostBufferManagerF, alloc_more_than_1_buffer) {
-  auto allocSize = rt::kPageSize * rt::kNumPages * 3 / 2;
+  auto allocSize = static_cast<size_t>(kPageSize * rt::kNumPages * 3 / 2);
   auto allocations = hbm_->alloc(allocSize);
   EXPECT_EQ(allocations.size(), 2U);
   EXPECT_LE(allocSize, std::accumulate(begin(allocations), end(allocations), 0ULL,
@@ -102,8 +102,8 @@ TEST_F(HostBufferManagerF, alloc_more_than_1_buffer) {
   EXPECT_GT(hbm_->hostBuffers_[1]->getMaxSize(), 0U);
   allocations.emplace_back(std::move(otherAlloc[0]));
   allocations.clear();
-  EXPECT_EQ(hbm_->hostBuffers_[0]->getMaxSize(), rt::kPageSize * rt::kNumPages);
-  EXPECT_EQ(hbm_->hostBuffers_[1]->getMaxSize(), rt::kPageSize * rt::kNumPages);
+  EXPECT_EQ(hbm_->hostBuffers_[0]->getMaxSize(), kPageSize * rt::kNumPages);
+  EXPECT_EQ(hbm_->hostBuffers_[1]->getMaxSize(), kPageSize * rt::kNumPages);
   ASSERT_EQ(hbm_->hostBuffers_.size(), numInitialBuffers);
 }
 

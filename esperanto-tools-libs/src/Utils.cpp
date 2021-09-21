@@ -29,11 +29,11 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
     case DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_PAYLOAD_SIZE:
       return rt::DeviceErrorCode::KernelLaunchInvalidArgsPayloadSize;
     default:
-      RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP response code";
+      RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP response code: " << responseCode;
       return rt::DeviceErrorCode::Unknown;
     }
   case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP:
-    switch (responseType) {
+    switch (responseCode) {
     case DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR:
       return rt::DeviceErrorCode::KernelAbortError;
     case DEV_OPS_API_KERNEL_ABORT_RESPONSE_INVALID_TAG_ID:
@@ -41,14 +41,14 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
     case DEV_OPS_API_KERNEL_ABORT_RESPONSE_TIMEOUT_HANG:
       return rt::DeviceErrorCode::KernelAbortTimeoutHang;
     default:
-      RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP response code";
+      RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP response code: " << responseCode;
       return rt::DeviceErrorCode::Unknown;
     }
   case DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP:
   case DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP:
   case DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP:
   case DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP:
-    switch (responseType) {
+    switch (responseCode) {
     case DEV_OPS_API_DMA_RESPONSE_ERROR:
       return rt::DeviceErrorCode::DmaError;
     case DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE:
@@ -62,11 +62,11 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
     case DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE:
       return rt::DeviceErrorCode::DmaInvalidSize;
     default:
-      RT_LOG(WARNING) << "Unknown DEV_OPS_API_DMA_RESPONSE response code";
+      RT_LOG(WARNING) << "Unknown DEV_OPS_API_DMA_RESPONSE response code: " << responseCode;
       return rt::DeviceErrorCode::Unknown;
     }
   case DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_RSP:
-    switch (responseType) {
+    switch (responseCode) {
     case DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_SHIRE_MASK:
       return rt::DeviceErrorCode::TraceConfigBadShireMask;
     case DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_THREAD_MASK:
@@ -78,11 +78,11 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
     case DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR:
       return rt::DeviceErrorCode::TraceConfigError;
     default:
-      RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_RSP response code";
+      RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_RSP response code: " << responseCode;
       return rt::DeviceErrorCode::Unknown;
     }
   case DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP:
-    switch (responseType) {
+    switch (responseCode) {
     case DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_RT_TYPE:
       return rt::DeviceErrorCode::TraceControlBadRtType;
     case DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_CONTROL_MASK:
@@ -92,14 +92,14 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
     case DEV_OPS_TRACE_RT_CONTROL_RESPONSE_MM_RT_CTRL_ERROR:
       return rt::DeviceErrorCode::TraceControlMasterMinionRtCtrlError;
     default:
-      RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP response code";
+      RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP response code: " << responseCode;
       return rt::DeviceErrorCode::Unknown;
     }
   case DEV_OPS_API_MID_DEVICE_OPS_API_COMPATIBILITY_RSP:
   case DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP:
   case DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP:
   default:
-    RT_LOG(WARNING) << "Unknown errorcodes for this response";
+    RT_LOG(WARNING) << "Unknown errorcodes for this response: " << responseCode;
     return rt::DeviceErrorCode::Unknown;
   }
 }

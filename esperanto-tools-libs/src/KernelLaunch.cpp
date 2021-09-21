@@ -95,9 +95,10 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
   cmdPtr->pointer_to_args =  reinterpret_cast<uint64_t>(pBuffer->getParametersPtr());
   cmdPtr->shire_mask = shire_mask;
 
-  RT_VLOG(LOW) << "Pushing kernel Launch Command on SQ: " << streamInfo.vq_ << " Tag id: " << std::hex
-               << cmdPtr->command_info.cmd_hdr.tag_id << ", parameters: " << cmdPtr->pointer_to_args
-               << ", PC: " << cmdPtr->code_start_address << ", shire_mask: " << shire_mask;
+  RT_VLOG(LOW) << "Pushing kernel Launch Command on SQ: " << streamInfo.vq_
+               << " EventId: " << cmdPtr->command_info.cmd_hdr.tag_id << std::hex << ", parameters: 0x"
+               << cmdPtr->pointer_to_args << ", PC: 0x" << cmdPtr->code_start_address << ", shire_mask: 0x"
+               << shire_mask;
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
   commandSender.send(Command{cmdBase, commandSender, false, true});
   profileEvent.setEventId(event);

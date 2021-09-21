@@ -31,6 +31,7 @@ using namespace std::chrono;
 struct KernelLaunchF : Test {
   void SetUp() override {
     runtime_ = rt::IRuntime::create(&deviceLayer_);
+    runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
     device_ = runtime_->getDevices()[0];
     stream_ = runtime_->createStream(device_);
     auto rt = static_cast<RuntimeImp*>(runtime_.get());

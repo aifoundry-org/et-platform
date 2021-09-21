@@ -44,6 +44,9 @@ public:
 
     deviceLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
     runtime_ = rt::IRuntime::create(deviceLayer_.get());
+    // TODO: enable this again after this is in develop/runtime
+    // https://gitlab.esperanto.ai/software/device-minion-runtime/-/merge_requests/433
+    // runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
     devices_ = runtime_->getDevices();
     ASSERT_GE(devices_.size(), 1);
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
@@ -108,7 +111,8 @@ TEST_F(TestMemcpy, 4GbMemcpy) {
   std::uniform_int_distribution<ValueType> dis(0, static_cast<ValueType>(h_buffer.size()-1));
 
   for (auto i = 0U; i < numValues; ++i) {
-    rd.emplace_back(RandomData{dis(gen), dis(gen)});
+    auto data = RandomData{dis(gen), dis(gen)};
+    rd.emplace_back(data);
   }
   for (auto v : rd) {
     h_buffer[v.position] = v.value;

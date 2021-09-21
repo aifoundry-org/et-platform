@@ -44,6 +44,7 @@ public:
     elf_file.read(reinterpret_cast<char*>(addVectorContent_.data()), size);
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
     imp->setMemoryManagerDebugMode(devices_[0], true);
+    runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   }
 
   void TearDown() override {

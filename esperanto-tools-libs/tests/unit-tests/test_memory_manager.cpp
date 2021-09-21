@@ -75,6 +75,7 @@ TEST(MemoryManager, SW8673) {
   // test for three differents base address, given by the same device layer mock
   std::for_each(begin(values), end(values), [&](const auto&) {
     auto rt = IRuntime::create(&deviceLayer);
+    rt->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
     std::vector<std::byte*> allocated;
     for (auto alignment : {0x100000U, 0x10000U, 0x1000U, 0x200U}) {
       std::uniform_int_distribution<uint32_t> uniform_dist(1, alignment * 7);
@@ -107,6 +108,7 @@ TEST(MemoryManager, SW8240) {
   // shouldn't be possible to allocate a non multiple of alignment
   dev::IDeviceLayerFake deviceLayer;
   auto runtime = IRuntime::create(&deviceLayer);
+  runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto device = runtime->getDevices()[0];
   // now, it works because we are going through runtime
   auto ptr = runtime->mallocDevice(device, size);
@@ -121,6 +123,7 @@ TEST(MemoryManager, SW8240) {
 TEST(MemoryManager, SW8240_2) {
   dev::IDeviceLayerFake deviceLayer;
   auto runtime = IRuntime::create(&deviceLayer);
+  runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto device = runtime->getDevices()[0];
   auto rimp = static_cast<RuntimeImp*>(runtime.get());
   rimp->setMemoryManagerDebugMode(device, true);
@@ -149,6 +152,7 @@ TEST(MemoryManager, SW8240_2) {
 TEST(MemoryManager, SW8240_3) {
   dev::IDeviceLayerFake deviceLayer;
   auto runtime = IRuntime::create(&deviceLayer);
+  runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto device = runtime->getDevices()[0];
   auto rimp = static_cast<RuntimeImp*>(runtime.get());
   rimp->setMemoryManagerDebugMode(device, true);
@@ -161,6 +165,7 @@ TEST(MemoryManager, SW8240_3) {
 TEST(MemoryManager, SW8240_4) {
   dev::IDeviceLayerFake deviceLayer;
   auto runtime = IRuntime::create(&deviceLayer);
+  runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto device = runtime->getDevices()[0];
   auto rimp = static_cast<RuntimeImp*>(runtime.get());
   rimp->setMemoryManagerDebugMode(device, true);

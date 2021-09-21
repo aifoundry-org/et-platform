@@ -10,11 +10,21 @@
 #include "CommandSender.h"
 #include "Utils.h"
 #include <functional>
+#include <iomanip>
 #include <thread>
 using namespace rt;
 
 // TODO: remove this mutex once this is implemented https://esperantotech.atlassian.net/browse/SW-9102
 static std::mutex s_deviceLayerMutex_;
+
+std::string commandString(const std::vector<std::byte>& commandData) {
+  std::stringstream ss;
+  ss << "Sent command: 0x";
+  for (auto byte : commandData) {
+    ss << std::hex << std::setfill('0') << std::setw(2) << std::to_integer<int>(byte);
+  }
+  return ss.str();
+}
 
 CommandSender::CommandSender(dev::IDeviceLayer& deviceLayer, int deviceId, int sqIdx)
   : deviceLayer_(deviceLayer)
@@ -63,6 +73,7 @@ void CommandSender::runnerFunc() {
 
       if (deviceLayer_.sendCommandMasterMinion(deviceId_, sqIdx_, cmd.commandData_.data(), cmd.commandData_.size(),
                                                cmd.isDma_)) {
+        RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_);
         commands_.pop();
       } else {
         lock.unlock();

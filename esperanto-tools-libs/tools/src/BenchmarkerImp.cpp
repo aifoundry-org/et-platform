@@ -8,6 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #include "BenchmarkerImp.h"
+#include "../../src/Utils.h"
 #include "runtime/IDmaBuffer.h"
 #include "runtime/Types.h"
 #include <chrono>
@@ -23,7 +24,7 @@ inline std::vector<std::byte> readFile(const std::string& path) {
   auto iniF = file.tellg();
   file.seekg(0, std::ios::end);
   auto endF = file.tellg();
-  auto size = endF - iniF;
+  auto size = static_cast<uint32_t>(endF - iniF);
   file.seekg(0, std::ios::beg);
 
   std::vector<std::byte> fileContent(size);
@@ -48,6 +49,10 @@ BenchmarkerImp::BenchmarkerImp(dev::IDeviceLayer* deviceLayer, const std::string
   : deviceLayer_(std::move(deviceLayer)) {
   auto jumpLoopLoc = kernelsDirPath + "/jump_loop.elf";
   runtime_ = IRuntime::create(deviceLayer_);
+  runtime_->setOnStreamErrorsCallback([](auto eventId, const auto& streamError) {
+    RT_LOG(FATAL) << "Got device response error: " << static_cast<int>(eventId)
+                  << " error msg: " << streamError.getString();
+  });
   auto devices = runtime_->getDevices();
   CHECK(!devices.empty()) << "No devices";
   device_ = devices.front();
@@ -93,10 +98,10 @@ BenchmarkerImp::Results BenchmarkerImp::run(Options options) {
     << wlPerThread * options.numThreads;
 
   auto start = std::chrono::high_resolution_clock::now();
-  for (int i = 0; i < options.numThreads; ++i) {
+  for (auto i = 0U; i < options.numThreads; ++i) {
     futures.emplace_back(std::async(std::launch::async, [options, hH2D, hD2H, wlPerThread, this] {
       auto stream = runtime_->createStream(device_);
-      for (int i = 0; i < wlPerThread; ++i) {
+      for (auto i = 0U; i < wlPerThread; ++i) {
         if (dH2DBuffer_) {
           runtime_->memcpyHostToDevice(stream, hH2D, dH2DBuffer_, options.numBytesPerTransferH2D);
         }
@@ -119,7 +124,7 @@ BenchmarkerImp::Results BenchmarkerImp::run(Options options) {
   auto us = std::chrono::duration_cast<std::chrono::microseconds>(et);
   auto secs = us.count() / 1e6f;
   Results r;
-  int cmdPerWl;
+  uint32_t cmdPerWl;
   if (options.type == IBenchmarker::WorkloadType::H2D_D2H) {
     cmdPerWl = 2;
   } else if (options.type == IBenchmarker::WorkloadType::H2D_K_D2H) {

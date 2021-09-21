@@ -20,7 +20,7 @@
 
 namespace rt {
 constexpr auto kNumPages = 256;
-constexpr auto kPageSize = 1U << 20;
+constexpr auto kPageSize = 1 << 20;
 class HostBuffer;
 class HostAllocation {
 public:
@@ -52,6 +52,7 @@ class HostBuffer {
 public:
   explicit HostBuffer(std::unique_ptr<IDmaBuffer> dmaBuffer)
     : dmaBuffer_(std::move(dmaBuffer)) {
+    maxSize_ = kPageSize * kNumPages;
   }
   void free(const HostAllocation* p);
 
@@ -72,10 +73,9 @@ private:
   void updateMaxSize();
 
   static_assert(kNumPages % 2 == 0, "kNumPages should be pow2");
-
   std::bitset<kNumPages> busyPages_;
-  size_t maxSize_ = kNumPages * kPageSize; // this value will be kept calculated always
   std::unique_ptr<IDmaBuffer> dmaBuffer_;
+  size_t maxSize_ = kNumPages * kPageSize;
   mutable std::mutex mutex_;
 };
 

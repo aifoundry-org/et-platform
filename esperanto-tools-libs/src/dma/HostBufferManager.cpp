@@ -49,8 +49,13 @@ HostAllocation HostBuffer::alloc(size_t size) {
   // recalculate maxSize
   updateMaxSize();
 
+  auto hostAlloc =
+    HostAllocation(this, size, static_cast<uint16_t>(index - numPages), static_cast<uint16_t>(index - 1));
+  RT_VLOG(MID) << "Doing dma buffer allocation: [" << std::hex << hostAlloc.getPtr() << " - "
+               << hostAlloc.getPtr() + hostAlloc.getSize() << ")";
+
   // now return the PageGroup
-  return HostAllocation(this, size, static_cast<uint16_t>(index - numPages), static_cast<uint16_t>(index - 1));
+  return hostAlloc;
 }
 
 void HostBuffer::updateMaxSize() {
@@ -70,6 +75,8 @@ void HostBuffer::updateMaxSize() {
 
 void HostBuffer::free(const HostAllocation* p) {
   std::lock_guard lock(mutex_);
+  RT_VLOG(MID) << "Freeing dma buffer allocation: [" << std::hex << p->getPtr() << " - " << p->getPtr() + p->getSize()
+               << ")";
   for (auto i = p->firstPage_; i <= p->lastPage_; ++i) {
     busyPages_.set(i, false);
   }

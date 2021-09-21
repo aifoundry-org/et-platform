@@ -25,6 +25,8 @@ struct DeviceErrors : public Fixture {
   DeviceErrors() {
     auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
     init(std::move(deviceLayer));
+    // unset the callback because we don't want to fail on purpose, thats part of these tests
+    runtime_->setOnStreamErrorsCallback(nullptr);
     add_vector_kernel = loadKernel("add_vector.elf");
     exception_kernel = loadKernel("exception.elf");
   }

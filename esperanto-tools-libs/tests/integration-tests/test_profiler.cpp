@@ -84,7 +84,7 @@ TEST(Profiler, add_2_vectors_profiling) {
   auto kernelId = runtime->loadCode(stream, kernelContent.data(), kernelContent.size()).kernel_;
   runtime->memcpyHostToDevice(stream, reinterpret_cast<std::byte*>(vA.data()), bufA, bufferSize);
   runtime->memcpyHostToDevice(stream, reinterpret_cast<std::byte*>(vB.data()), bufB, bufferSize);
-
+  runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   struct Parameters {
     void* vA;
     void* vB;
