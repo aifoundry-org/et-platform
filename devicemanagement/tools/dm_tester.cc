@@ -119,6 +119,8 @@ static bool thresholds_flag = false;
 static uint8_t mem_count;
 static bool mem_count_flag = false;
 
+static std::string imagePath;
+
 int runService(const char* input_buff, const uint32_t input_size, char* output_buff, const uint32_t output_size) {
 
   static DMLib dml;
@@ -164,8 +166,8 @@ int verifyService() {
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-
-    std::string str_output = std::string(output_buff, output_size);
+    output_buff[output_size - 1] = '\0';
+    std::string str_output = std::string(output_buff);
 
     DV_LOG(INFO) << "Asset Output: " << str_output << std::endl;
   } break;
@@ -818,6 +820,9 @@ int verifyService() {
     }
   } break;
 
+  case DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE : {
+    return (runService(imagePath.c_str(), imagePath.length(), nullptr, 0));
+  } break;
   default:
     DV_LOG(ERROR) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
     return -EINVAL;
@@ -1066,6 +1071,16 @@ bool validTimeout() {
   return true;
 }
 
+bool validPath() {
+  if(!std::experimental::filesystem::exists(std::string(optarg))) {
+      DV_LOG(ERROR) << "The file doesn't exist" << std::string(optarg)<< std::endl;
+      return false;
+  }
+  imagePath.assign(std::string(optarg));
+
+  return true;
+}
+
 static struct option long_options[] = {{"code", required_argument, 0, 'o'},
                                        {"command", required_argument, 0, 'm'},
                                        {"help", no_argument, 0, 'h'},
@@ -1078,6 +1093,7 @@ static struct option long_options[] = {{"code", required_argument, 0, 'o'},
                                        {"tdplevel", required_argument, 0, 't'},
                                        {"thresholds", required_argument, 0, 'e'},
                                        {"timeout", required_argument, 0, 'u'},
+                                       {"imagepath", required_argument, 0, 'i'},
                                        {0, 0, 0, 0}};
 
 void printCode(char* argv) {
@@ -1291,10 +1307,26 @@ void printThresholds(char* argv) {
             << " -" << (char)long_options[10].val << " 80" << std::endl;
 }
 
+void printFWUpdate(char* argv) {
+  std::cout << std::endl;
+  std::cout << "\t"
+            << "-" << (char)long_options[12].val << ", --" << long_options[12].name << "=npath" << std::endl;
+  std::cout << "\t\t"
+            << "Set Firmware Update" << std::endl;
+  std::cout << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[0].val << " "
+            << DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE << " -" << (char)long_options[12].val << "path-to-flash-image"
+            << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[1].val << " DM_CMD_SET_FIRMWARE_UPDATE"
+            << " -" << (char)long_options[12].val << " path-to-flash-image" << std::endl;
+}
+
 void printUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "Usage: " << argv << " -o ncode | -m command [-n node] [-u nmsecs] [-h]"
-            << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp]"
+            << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp| -i npath]"
             << std::endl;
   printCode(argv);
   printCommand(argv);
@@ -1308,6 +1340,7 @@ void printUsage(char* argv) {
   printPCIELaneWidth(argv);
   printTDPLevel(argv);
   printThresholds(argv);
+  printFWUpdate(argv);
 }
 
 int main(int argc, char** argv) {
@@ -1319,7 +1352,7 @@ int main(int argc, char** argv) {
 
   while (1) {
 
-    c = getopt_long(argc, argv, "o:m:hc:n:p:r:s:w:t:e:u:", long_options, &option_index);
+    c = getopt_long(argc, argv, "o:m:hc:n:p:r:s:w:t:e:u:i:", long_options, &option_index);
 
     if (c == -1) {
       break;
@@ -1404,7 +1437,11 @@ int main(int argc, char** argv) {
         return -EINVAL;
       }
       break;
-
+    case 'i' :
+      if(!validPath()) {
+         return -EINVAL;
+      }
+      break;
     case '?':
       printUsage(argv[0]);
       return -EINVAL;
