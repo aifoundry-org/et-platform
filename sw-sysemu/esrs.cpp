@@ -514,10 +514,6 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
             uint64_t emask;
             uint64_t eaddr;
             eaddr = decode_broadcast_esr_value(PP(addr), value);
-            if ((PP(eaddr) == 2) || (PP(eaddr) > PP(addr))) {
-                LOG_AGENT(WARN, agent, "Request %cbroadcast to %c-mode ESR", "uhsm"[PP(addr)], "UHSM"[PP(eaddr)]);
-                throw memory_error(addr);
-            }
             LOG_AGENT(DEBUG, agent, "%cbroadcast = 0x%" PRIx64, "uhsm"[PP(addr)], value);
             emask = value & ESR_BROADCAST_ESR_SHIRE_MASK;
             while (emask) {
