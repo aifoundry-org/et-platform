@@ -51,14 +51,16 @@ TEST_F(DeviceErrors, KernelLaunchInvalidMask) {
 TEST_F(DeviceErrors, KernelLaunchException) {
   std::array<std::byte, 64> dummyArgs;
 
-  runtime_->kernelLaunch(defaultStream_, exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0xFFFFFFFFUL);
+  // Launch Kernel on all 32 Shires including Sync Minions
+  runtime_->kernelLaunch(defaultStream_, exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0x1FFFFFFFFUL);
   runtime_->waitForStream(defaultStream_);
   auto errors = runtime_->retrieveStreamErrors(defaultStream_);
   EXPECT_EQ(errors.size(), 1UL);
   RT_LOG(logging::VLOG_HIGH) << "";
   bool callbackExecuted = false;
   runtime_->setOnStreamErrorsCallback([&callbackExecuted](auto, const rt::StreamError&) { callbackExecuted = true; });
-  runtime_->kernelLaunch(defaultStream_, exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0xFFFFFFFFUL);
+  // Launch Kernel on all 32 Shires including Sync Minions
+  runtime_->kernelLaunch(defaultStream_, exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0x1FFFFFFFFUL);
   runtime_->waitForStream(defaultStream_);
   RT_LOG(INFO) << "This is expected, part of the test. Stream error message: \n" << errors[0].getString();
   EXPECT_TRUE(callbackExecuted);
