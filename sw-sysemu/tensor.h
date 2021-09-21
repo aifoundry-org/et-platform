@@ -15,6 +15,7 @@ void tensor_load_execute(Hart& cpu, int id, bool tenb);
 void tensor_quant_execute(Hart& cpu);
 void tensor_reduce_step(Hart& rcv_cpu, Hart& snd_cpu);
 void tensor_reduce_execute(Hart& cpu);
+void tensor_store_execute(Hart& cpu);
 
 
 } // namespace bemu

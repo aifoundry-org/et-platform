@@ -1024,46 +1024,168 @@ void tensor_quant_execute(Hart& cpu)
 
 // ----- TensorStore emulation -------------------------------------------------
 
+static void tensor_store_from_scp(Hart& cpu, uint64_t tstorereg)
+{
+    int      srcinc   = ((tstorereg & 0xC00000000000000CULL) >> 62) + 1; // Increment done to scratchpad source
+    int      scpstart =  (tstorereg & 0x3F00000000000000ULL) >> 56;      // Start scratchpad entry to store
+    int      rows     = ((tstorereg & 0x0078000000000000ULL) >> 51) + 1; // Number of rows to store
+    uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFC0ULL);     // Address where to store the results
+    int      src      = scpstart % L1_SCP_ENTRIES;
+
+    uint64_t stride   = sext<48>(X31 & 0x0000FFFFFFFFFFC0ULL);
+
+    LOG_REG(":", 31);
+    LOG_HART(DEBUG, cpu, "\tExecute TensorStoreFromScp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
+
+    notify_tensor_store(cpu, true, rows, 4, 1);
+
+    // Check if L1 SCP is enabled
+    if (cpu.core->mcache_control != 0x3) {
+        update_tensor_error(cpu, 1 << 4);
+        notify_tensor_store_error(cpu, 1 << 4);
+        return;
+    }
+
+    // For all the rows
+    for (int row = 0; row < rows; row++) {
+        assert(addr_is_size_aligned(addr, L1D_LINE_SIZE));
+        LOG_SCP_32x16(":", src);
+        try {
+            uint64_t vaddr = sextVA(addr + row * stride);
+            uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxStore);
+            cpu.chip->memory.write(cpu, paddr, L1D_LINE_SIZE, SCP[src].u32.data());
+            LOG_MEMWRITE512(paddr, SCP[src].u32);
+            for (int col=0; col < 16; col++) {
+                notify_tensor_store_write(cpu, paddr + col*4, SCP[src].u32[col]);
+            }
+            L1_SCP_CHECK_READ(cpu, src);
+        }
+        catch (const Exception&) {
+            update_tensor_error(cpu, 1 << 7);
+            notify_tensor_store_error(cpu, 1 << 7);
+            return;
+        }
+        catch (const memory_error&) {
+            cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
+        }
+        src = (src + srcinc) % L1_SCP_ENTRIES;
+    }
+}
+
+
 void tensor_store_start(Hart& cpu, uint64_t tstorereg)
 {
     uint64_t tstore_scp = (tstorereg >> 48) & 0x1;
 
+    if (tstore_scp) {
+        // If we execute a TensorStoreFromScp, we don't need to enqueue this operation
+        return tensor_store_from_scp(cpu, tstorereg);
+    }
+
+    if (cpu.core->tstore.state != TStore::State::idle) {
+        cpu.start_waiting(Hart::Waiting::tstore);
+        cpu.npc = cpu.pc;
+        throw instruction_restart();
+    }
+
+    int      srcinc   = ((tstorereg & 0xC00000000000000CULL) >> 62) + 1; // Increment done to register source
+    int      regstart =  (tstorereg & 0x3E00000000000000ULL) >> 57;      // Start register to store
+    int      cols     = ((tstorereg & 0x0180000000000000ULL) >> 55) + 1; // Number of register per col
+    int      rows     = ((tstorereg & 0x0078000000000000ULL) >> 51) + 1; // Number of rows to store
+    int      coop     = ((tstorereg & 0x0006000000000000ULL) >> 49) + 1; // Number of cooperative minions
+    uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFF0ULL);     // Address where to store the results
+
+    uint64_t stride   = sext<48>(X31 & 0x0000FFFFFFFFFFF0ULL);
+
+    LOG_REG(":", 31);
+    LOG_HART(DEBUG, cpu, "\tStart TensorStore with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
+        addr, stride, regstart, rows, cols, srcinc, coop);
+
+    // Check legal coop combination
+    // xs[50:49]/xs[56:55]
+    static const bool coop_comb[4*4] = {
+        true,  true,  false, true,
+        true,  true,  false, false,
+        false, false, false, false,
+        true,  false, false, false
+    };
+
+    if (!coop_comb[4*(coop-1)+(cols-1)]) {
+        update_tensor_error(cpu, 1 << 8);
+        notify_tensor_store_error(cpu, 1 << 8);
+        return;
+    }
+ 
+    // Cooperative tensor stores require the shire to be in cooperative mode
+    if (coop > 1) {
+        uint64_t shire = shire_index(cpu);
+        if (!cpu.chip->shire_other_esrs[shire].shire_coop_mode)
+            throw trap_illegal_instruction(cpu.inst.bits);
+    }
+
+    cpu.core->tstore.value  = tstorereg;
+    cpu.core->tstore.stride = stride;
+    cpu.core->tstore.state  = TStore::State::ready;
+#if defined(ZSIM) || defined (SYS_EMU)
+    cpu.core->tqueue.push(TQueue::Instruction::tstore);
+#else
+    tensor_store_execute(cpu);
+#endif
+}
+
+
+void tensor_store_execute(Hart& cpu)
+{
+    if (cpu.core->tstore.state == TStore::State::idle) {
+        throw std::runtime_error("tensor_store_execute() called while this "
+                                 "thread's TensorStore FSM is inactive");
+    }
+
+#if defined(ZSIM) || defined(SYS_EMU)
+    assert(cpu.core->tqueue.front() == TQueue::Instruction::tstore);
+    cpu.core->tqueue.pop();
+    if (cpu.core->tqueue.front() == TQueue::Instruction::reduce) {
+        cpu.core->reduce.state =
+            (cpu.core->reduce.state == TReduce::State::waiting_to_receive)
+            ? TReduce::State::ready_to_receive
+            : TReduce::State::ready_to_send;
+    }
+#endif
+    cpu.core->tstore.state = TStore::State::idle;
     cpu.stop_waiting(Hart::Waiting::tstore);
 
-    if (tstore_scp) {
-        int      srcinc   = ((tstorereg & 0xC00000000000000CULL) >> 62) + 1; // Increment done to scratchpad source
-        int      scpstart =  (tstorereg & 0x3F00000000000000ULL) >> 56;      // Start scratchpad entry to store
-        int      rows     = ((tstorereg & 0x0078000000000000ULL) >> 51) + 1; // Number of rows to store
-        uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFC0ULL);     // Address where to store the results
-        int      src      = scpstart % L1_SCP_ENTRIES;
+    const auto tstorereg = cpu.core->tstore.value;
 
-        uint64_t stride   = sext<48>(X31 & 0x0000FFFFFFFFFFC0ULL);
+    int      srcinc   = ((tstorereg & 0xC00000000000000CULL) >> 62) + 1; // Increment done to register source
+    int      regstart =  (tstorereg & 0x3E00000000000000ULL) >> 57;      // Start register to store
+    int      cols     = ((tstorereg & 0x0180000000000000ULL) >> 55) + 1; // Number of register per col
+    int      rows     = ((tstorereg & 0x0078000000000000ULL) >> 51) + 1; // Number of rows to store
+    int      coop     = ((tstorereg & 0x0006000000000000ULL) >> 49) + 1; // Number of cooperative minions
+    uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFF0ULL);     // Address where to store the results
 
-        LOG_REG(":", 31);
-        LOG_HART(DEBUG, cpu, "\tStart TensorStoreFromScp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
+    const auto stride = cpu.core->tstore.stride;
 
-        notify_tensor_store(cpu, true, rows, 4, 1);
+    notify_tensor_store(cpu, false, rows, cols, coop);
+ 
+    LOG_HART(DEBUG, cpu, "\tExecute TensorStore with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
+        addr, stride, regstart, rows, cols, srcinc, coop);
 
-        // Check if L1 SCP is enabled
-        if (cpu.core->mcache_control != 0x3) {
-            update_tensor_error(cpu, 1 << 4);
-            notify_tensor_store_error(cpu, 1 << 4);
-            return;
-        }
-
-        // For all the rows
-        for (int row = 0; row < rows; row++) {
-            assert(addr_is_size_aligned(addr, L1D_LINE_SIZE));
-            LOG_SCP_32x16(":", src);
+    // For all the rows
+    int src = regstart;
+    uint64_t mask = ~(16ull*cols - 1ull);
+    for (int row = 0; row < rows; row++) {
+        // For all the blocks of 128b
+        for (int col = 0; col < cols; col++) {
             try {
-                uint64_t vaddr = sextVA(addr + row * stride);
-                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxStore);
-                cpu.chip->memory.write(cpu, paddr, L1D_LINE_SIZE, SCP[src].u32.data());
-                LOG_MEMWRITE512(paddr, SCP[src].u32);
-                for (int col=0; col < 16; col++) {
-                    notify_tensor_store_write(cpu, paddr + col*4, SCP[src].u32[col]);
+                uint64_t vaddr = sextVA((addr + row * stride) & mask);
+                uint64_t paddr = mmu_translate(cpu, vaddr + col*16, 16, Mem_Access_TxStore);
+                if (!(col & 1)) LOG_FREG(":", src);
+                const uint32_t* ptr = &FREGS[src].u32[(col & 1) * 4];
+                cpu.chip->memory.write(cpu, paddr, 16, ptr);
+                LOG_MEMWRITE128(paddr, ptr);
+                for (int w=0; w < 4; w++) {
+                    notify_tensor_store_write(cpu, paddr + w*4, *(ptr+w));
                 }
-                L1_SCP_CHECK_READ(cpu, src);
             }
             catch (const Exception&) {
                 update_tensor_error(cpu, 1 << 7);
@@ -1073,76 +1195,10 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
             catch (const memory_error&) {
                 cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
             }
-            src = (src + srcinc) % L1_SCP_ENTRIES;
-        }
-    } else {
-        int      srcinc   = ((tstorereg & 0xC00000000000000CULL) >> 62) + 1; // Increment done to register source
-        int      regstart =  (tstorereg & 0x3E00000000000000ULL) >> 57;      // Start register to store
-        int      cols     = ((tstorereg & 0x0180000000000000ULL) >> 55) + 1; // Number of register per col
-        int      rows     = ((tstorereg & 0x0078000000000000ULL) >> 51) + 1; // Number of rows to store
-        int      coop     = ((tstorereg & 0x0006000000000000ULL) >> 49) + 1; // Number of cooperative minions
-        uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFF0ULL);     // Address where to store the results
-
-        uint64_t stride   = sext<48>(X31 & 0x0000FFFFFFFFFFF0ULL);
-
-        LOG_REG(":", 31);
-        LOG_HART(DEBUG, cpu, "\tStart TensorStore with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
-            addr, stride, regstart, rows, cols, srcinc, coop);
-
-        // Check legal coop combination
-        // xs[50:49]/xs[56:55]
-        static const bool coop_comb[4*4] = {
-            true,  true,  false, true,
-            true,  true,  false, false,
-            false, false, false, false,
-            true,  false, false, false
-        };
-
-        notify_tensor_store(cpu, false, rows, cols, coop);
-
-        if (!coop_comb[4*(coop-1)+(cols-1)]) {
-            update_tensor_error(cpu, 1 << 8);
-            notify_tensor_store_error(cpu, 1 << 8);
-            return;
-        }
-
-        // Cooperative tensor stores require the shire to be in cooperative mode
-        if (coop > 1) {
-            uint64_t shire = shire_index(cpu);
-            if (!cpu.chip->shire_other_esrs[shire].shire_coop_mode)
-                throw trap_illegal_instruction(cpu.inst.bits);
-        }
-
-        // For all the rows
-        int src = regstart;
-        uint64_t mask = ~(16ull*cols - 1ull);
-        for (int row = 0; row < rows; row++) {
-            // For all the blocks of 128b
-            for (int col = 0; col < cols; col++) {
-                try {
-                    uint64_t vaddr = sextVA((addr + row * stride) & mask);
-                    uint64_t paddr = mmu_translate(cpu, vaddr + col*16, 16, Mem_Access_TxStore);
-                    if (!(col & 1)) LOG_FREG(":", src);
-                    const uint32_t* ptr = &FREGS[src].u32[(col & 1) * 4];
-                    cpu.chip->memory.write(cpu, paddr, 16, ptr);
-                    LOG_MEMWRITE128(paddr, ptr);
-                    for (int w=0; w < 4; w++) {
-                        notify_tensor_store_write(cpu, paddr + w*4, *(ptr+w));
-                    }
-                }
-                catch (const Exception&) {
-                    update_tensor_error(cpu, 1 << 7);
-                    notify_tensor_store_error(cpu, 1 << 7);
-                    return;
-                }
-                catch (const memory_error&) {
-                    cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
-                }
-                // For 128b stores, move to next desired register immediately.
-                // For 256b and 512b stores, move to next desired register
-                // when 256b are written
-                if ((cols == 1) || (col & 1)) src = (src + srcinc) % NFREGS;
-            }
+            // For 128b stores, move to next desired register immediately.
+            // For 256b and 512b stores, move to next desired register
+            // when 256b are written
+            if ((cols == 1) || (col & 1)) src = (src + srcinc) % NFREGS;
         }
     }
 }
@@ -2006,6 +2062,13 @@ void tensor_wait_start(Hart& cpu, uint64_t value)
     case Hart::Waiting::tquant:
         if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
             && (cpu.core->tquant.state != TQuant::State::idle))
+        {
+            cpu.start_waiting(what);
+        }
+        break;
+    case Hart::Waiting::tstore:
+        if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
+            && (cpu.core->tstore.state != TStore::State::idle))
         {
             cpu.start_waiting(what);
         }

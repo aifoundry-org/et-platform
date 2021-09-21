@@ -125,55 +125,74 @@ struct TReduce {
 };
 
 
-// All tensor arithmetic instructions (fma, quant, and reduce) share the same
+struct TStore {
+    enum class State : uint8_t {
+        idle,      // nothing to do
+        ready,     // ready to execute
+    };
+
+    uint64_t value;  // CSR write value
+    uint64_t stride; // x31 stride value
+    State    state;  // FSM state
+};
+
+
+// The tfma, tquant, reduce, and tstore instructions share the same
 // issue port. There can be one pending instruction per FSM, but ready
 // instructions must execute in order.  So, we use an issue queue for holding
 // all the in-flight tensor arithmetic instructions.
 //
 struct TQueue {
+    using size_type = size_t;
+
     enum class Instruction : uint8_t {
         none,
         tfma,
         tquant,
         reduce,
+        tstore,
     };
 
     bool empty() const noexcept
-    { return m_elems[0] == Instruction::none; }
+    { return m_elems.front() == Instruction::none; }
 
     bool full() const noexcept
-    { return m_elems[2] != Instruction::none; }
+    { return m_elems.back() != Instruction::none; }
 
     Instruction front() const noexcept
-    { return m_elems[0]; }
+    { return m_elems.front(); }
+
+    constexpr size_type max_size() const noexcept
+    { return m_elems.size(); }
+
+    size_type size() const noexcept
+    {
+        for (auto i = max_size(); i > 0; --i) {
+            if (m_elems[i - 1] != Instruction::none) return i;
+        }
+        return 0;
+    }
 
     void push(Instruction value) noexcept
     {
-        if (m_elems[0] == Instruction::none) {
-            m_elems[0] = value;
-        } else if (m_elems[1] == Instruction::none) {
-            m_elems[1] = value;
-        } else if (m_elems[2] == Instruction::none) {
-            m_elems[2] = value;
-        }
+        assert(!full());
+        m_elems[size()] = value;
     }
 
     void pop() noexcept
     {
-        m_elems[0] = m_elems[1];
-        m_elems[1] = m_elems[2];
-        m_elems[2] = Instruction::none;
+        assert(!empty());
+        m_elems[0] = Instruction::none;
+        std::rotate(m_elems.begin(), m_elems.begin() + 1, m_elems.end());
     }
 
     void clear() noexcept
     {
-        m_elems[0] = Instruction::none;
-        m_elems[1] = Instruction::none;
-        m_elems[2] = Instruction::none;
+        std::fill(m_elems.begin(), m_elems.end(), Instruction::none);
     }
 
-    // for exposition only
-    std::array<Instruction, 3>  m_elems;
+private:
+    std::array<Instruction, 4>  m_elems;
 };
 
 
@@ -206,6 +225,7 @@ struct Core {
     TMul        tmul;
     TQuant      tquant;
     TReduce     reduce;
+    TStore      tstore;
 
     // Tensor execution ports
     std::array<TLoad, 2>  tload_a;
@@ -607,6 +627,11 @@ inline void Hart::async_execute()
             }
         }
         break;
+    case TQueue::Instruction::tstore:
+        if (core->tstore.state == TStore::State::ready) {
+            tensor_store_execute(*this);
+        }
+        break;
     }
 }
 
@@ -679,7 +704,8 @@ inline bool Hart::has_active_coprocessor() const
             || (core->tload_b.state != TLoad::State::idle)
             || (core->tmul.state != TMul::State::idle)
             || (core->tquant.state != TQuant::State::idle)
-            || (core->reduce.state != TReduce::State::idle));
+            || (core->reduce.state != TReduce::State::idle)
+            || (core->tstore.state != TStore::State::idle));
 }
 
 

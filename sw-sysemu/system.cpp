@@ -149,6 +149,7 @@ void System::reset_hart(unsigned thread)
         cpu[thread].core->reduce.hart = &cpu[thread];
         cpu[thread].core->tmul.state = TMul::State::idle;
         cpu[thread].core->tquant.state = TQuant::State::idle;
+        cpu[thread].core->tstore.state = TStore::State::idle;
 
         cpu[thread].core->tload_a[0].state = TLoad::State::idle;
         cpu[thread].core->tload_a[0].paired = false;
