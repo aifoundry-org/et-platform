@@ -814,8 +814,7 @@ int verifyService() {
        DV_LOG(INFO) << std::endl;
     }
     catch (const std::invalid_argument& ia) {
-	     DV_LOG(INFO) << "Invalid response from device: " << ia.what() << '\n';
-    return -EINVAL;
+       DV_LOG(INFO) << "SP ROOT HASH wasn't written to OTP " << '\n';
     }
   } break;
 
