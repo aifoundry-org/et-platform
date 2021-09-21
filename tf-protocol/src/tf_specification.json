@@ -35,6 +35,18 @@
         "TF_BL2_ENTRY_FOR_DM_WITH_PCIE": 4,
         "TF_BL2_ENTRY_FOR_SP_MM": 5
     },
+    "kernel_exceptions": [
+        "HANG ERROR",
+        "U-MODE EXCEPTION",
+        "S-MODE EXCEPTION",
+        "SYSTEM ABORT",
+        "SELF ABORT",
+        "USER KERNEL ERROR"
+    ],
+    "gprs": ["ra", "sp", "gp", "tp", "t0", "t1", "t2", "s0/fp", "s1", "a0", "a1",
+            "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3", "s4", "s5", "s6",
+            "s7", "s8", "s9", "sa", "sb", "t3", "t4", "t5", "t6"
+    ],
     "tf_sp_command_ids.description": "List of unique TF command names handled by SP and their associated id (HW TF commands from 0 - 69 and SW TF commands from 97 - 255)",
     "tf_sp_command_ids.instruction": "To add a new test, a new TF command ID should be added to tf_sp_command_ids, a corresponding response to tf_sp_response_ids",
     "tf_sp_command_ids": {
