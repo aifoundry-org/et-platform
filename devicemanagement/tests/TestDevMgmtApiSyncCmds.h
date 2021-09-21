@@ -29,7 +29,8 @@ using namespace device_management;
 #define DM_VLOG(severity) ET_VLOG(DM, severity)
 
 DECLARE_bool(loopback_driver);
-DECLARE_string(trace_logfile);
+DECLARE_string(trace_logfile_txt);
+DECLARE_string(trace_logfile_bin);
 DECLARE_bool(enable_trace_dump);
 
 void testSerial(device_management::DeviceManagement& dm, uint32_t deviceIdx, uint32_t index, uint32_t timeout,
@@ -37,6 +38,9 @@ void testSerial(device_management::DeviceManagement& dm, uint32_t deviceIdx, uin
 
 class TestDevMgmtApiSyncCmds : public ::testing::Test {
 protected:
+  device_management::getDM_t getInstance();
+  void printSpTraceData(const unsigned char*, size_t);
+  void extractAndPrintTraceData(void);
   void getModuleManufactureName_1_1(bool singleDevice);
   void getModulePartNumber_1_2(bool singleDevice);
   void getModuleSerialNumber_1_3(bool singleDevice);
@@ -76,11 +80,9 @@ protected:
   void getASICUtilization_1_37(bool singleDevice);
   void getASICStalls_1_38(bool singleDevice);
   void getASICLatency_1_39(bool singleDevice);
-
   void getMMErrorCount_1_40(bool singleDevice);
   void getFWBootstatus_1_41(bool singleDevice);
   void getModuleFWRevision_1_42(bool singleDevice);
-
   void serializeAccessMgmtNode_1_43(bool singleDevice);
   void getDeviceErrorEvents_1_44(bool singleDevice);
   void isUnsupportedService_1_45(bool singleDevice);
@@ -101,42 +103,8 @@ protected:
   void getModuleManufactureNameInvalidOutputBuffer_1_60(bool singleDevice);
   void setModuleActivePowerManagementRangeInvalidInputBuffer_1_61(bool singleDevice);
   void setModuleActivePowerManagement_1_62(bool singleDevice);
-  void TearDown() override {
-    if (HasFailure()) {
-      getDM_t dmi = getInstance();
-      DeviceManagement& dm = (*dmi)(devLayer_.get());
-      auto deviceCount =  dm.getDevicesCount();
-      /* Dump the trace data for test case failure */
-      for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-        extractAndPrintTraceData(deviceIdx);
-      }
-    }
-  }
-
-public :
-  inline static  void* handle_ = NULL;
-  inline static std::unique_ptr<IDeviceLayer> devLayer_ = NULL;
-  static device_management::getDM_t getInstance();
-  static bool printSpTraceData(const unsigned char*, size_t);
-  static void extractAndPrintTraceData(int);
-
-  static void SetUpTestCase() {
-    handle_ = dlopen("libDM.so", RTLD_LAZY);
-    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
-  }
-
-  static void TearDownTestSuite() {
-    getDM_t dmi = getInstance();
-    DeviceManagement& dm = (*dmi)(devLayer_.get());
-    auto deviceCount =  dm.getDevicesCount();
-    /* Dump the trace data at the end of test suite execution */
-    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-      extractAndPrintTraceData(deviceIdx);
-    }
-    if (handle_ != nullptr) {
-     dlclose(handle_);
-    }
-  }
+  void* handle_ = nullptr;
+  std::unique_ptr<IDeviceLayer> devLayer_;
 };
 
 #endif // TEST_DEVICE_M_H

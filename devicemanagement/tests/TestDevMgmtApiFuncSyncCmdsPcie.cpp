@@ -16,11 +16,17 @@
 
 
 class TestDevMgmtApiFuncSyncCmdsPcie : public TestDevMgmtApiSyncCmds {
+  void SetUp() override {
+    handle_ = dlopen("libDM.so", RTLD_LAZY);
+    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
+  }
   void TearDown() override {
-    if (HasFailure()) {
-     TestDevMgmtApiSyncCmds::TearDown();
+    extractAndPrintTraceData();
+     if (handle_ != nullptr) {
+       dlclose(handle_);
     }
   }
+
 };
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleManufactureName_1_1) {
@@ -220,9 +226,9 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, serializeAccessMgmtNode_1_43) {
   serializeAccessMgmtNode_1_43(false);
 }
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDeviceErrorEvents_1_44) {
-  getDeviceErrorEvents_1_44(false /* Multiple devices */);
-}
+//TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDeviceErrorEvents_1_44) {
+//  getDeviceErrorEvents_1_44(false /* Multiple devices */);
+//}
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, isUnsupportedService_1_45) {
   isUnsupportedService_1_45(false /* Multiple devices */);
