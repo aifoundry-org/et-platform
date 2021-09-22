@@ -13,6 +13,7 @@
 #define PCIE_INT_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "hwinc/pcie_apb_subsys.h"
 #include "hwinc/pcie0_dbi_slv.h"
 #include "hwinc/sp_pshire_regbus.h"
@@ -57,5 +58,8 @@
  * Returns 0 on success, negative on failure
  */
 int pcie_interrupt_host(uint32_t vec);
+void PCIe_release_pshire_from_reset(void);
+void PCIe_init(bool expect_link_up);
+void pcie_enable_link(void);
 
 #endif

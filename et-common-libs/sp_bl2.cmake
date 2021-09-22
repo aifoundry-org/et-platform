@@ -24,6 +24,7 @@ set(SP_BL2_HDRS
     include/etsoc/isa/atomic.h
     include/etsoc/isa/atomic-impl.h
     include/etsoc/isa/mem-access/etsoc_memory.h
+    include/etsoc/isa/mem-access/io.h
     include/etsoc/isa/cacheops.h
     include/etsoc/isa/esr_defines.h
     include/etsoc/isa/fcc.h
