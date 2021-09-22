@@ -824,7 +824,7 @@
                 "maxion_voltage": "uint8_t",
                 "minion_voltage": "uint8_t",
                 "noc_voltage": "uint8_t",
-                "pcie_voltage": "uint8_t", 
+                "pcie_voltage": "uint8_t",
                 "pcie_logic_voltage": "uint8_t",
                 "vddqlp_voltage": "uint8_t",
                 "vddq_voltage": "uint8_t"
@@ -990,7 +990,7 @@
                 "pointer_to_args": "uint64_t",
                 "exception_buffer": "uint64_t",
                 "shire_mask": "uint64_t",
-                "kernel_trace_buffer": "uint64_t",
+                "pointer_to_trace_cfg": "uint64_t",
                 "argument_payload": "uint64_t"
             }
         },
