@@ -2207,7 +2207,7 @@ bool et_squeue_empty(struct et_squeue *sq)
 
 	et_squeue_sync_cb_for_host(sq);
 
-	if (et_circbuffer_free(&sq->cb) < sq->cb.len)
+	if (et_circbuffer_used(&sq->cb) != 0)
 		return false;
 
 	return true;

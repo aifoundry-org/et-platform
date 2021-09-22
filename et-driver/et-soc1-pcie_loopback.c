@@ -141,19 +141,22 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case ETSOC1_IOCTL_GET_DEVICE_STATE:
+		// TODO: SW-8811: Implement device state with
+		// heart-beat mechanism. A corner case is possible
+		// here that single command sent that causes hang will
+		// not be detected because the command will be popped
+		// out of SQ by device and SQ will appear empty here.
 		dev_state = DEV_STATE_READY;
 
 		// Check if any SQ has pending command(s)
 		mutex_lock(&ops->vq_common.sq_bitmap_mutex);
-		for (sq_idx = 0; sq_idx < ops->dir_vq.sq_count &&
-				 et_squeue_empty(ops->sq_pptr[sq_idx]);
-		     sq_idx++)
-			set_bit(sq_idx, ops->vq_common.sq_bitmap);
+		for (sq_idx = 0; sq_idx < ops->dir_vq.sq_count; sq_idx++) {
+			if (!et_squeue_empty(ops->sq_pptr[sq_idx])) {
+				dev_state = DEV_STATE_PENDING_COMMANDS;
+				break;
+			}
+		}
 		mutex_unlock(&ops->vq_common.sq_bitmap_mutex);
-
-		if (find_first_zero_bit(ops->vq_common.sq_bitmap,
-					ET_MAX_QUEUES) >= ops->dir_vq.sq_count)
-			dev_state = DEV_STATE_PENDING_COMMANDS;
 
 		if (size >= sizeof(u32) &&
 		    copy_to_user(usr_arg, &dev_state, size)) {
@@ -508,19 +511,21 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case ETSOC1_IOCTL_GET_DEVICE_STATE:
+		// TODO: SW-8811: Implement device state with
+		// heart-beat mechanism. A corner case is possible
+		// here that single command sent that causes hang will
+		// not be detected because the command will be popped
+		// out of SQ by device and SQ will appear empty here.
 		dev_state = DEV_STATE_READY;
 
 		// Check if any SQ has pending command(s)
 		mutex_lock(&mgmt->vq_common.sq_bitmap_mutex);
-		for (sq_idx = 0; sq_idx < mgmt->dir_vq.sq_count &&
-				 et_squeue_empty(mgmt->sq_pptr[sq_idx]);
-		     sq_idx++)
-			set_bit(sq_idx, mgmt->vq_common.sq_bitmap);
-		mutex_unlock(&mgmt->vq_common.sq_bitmap_mutex);
-
-		if (find_first_zero_bit(mgmt->vq_common.sq_bitmap,
-					ET_MAX_QUEUES) >= mgmt->dir_vq.sq_count)
-			dev_state = DEV_STATE_PENDING_COMMANDS;
+		for (sq_idx = 0; sq_idx < mgmt->dir_vq.sq_count; sq_idx++) {
+			if (!et_squeue_empty(mgmt->sq_pptr[sq_idx])) {
+				dev_state = DEV_STATE_PENDING_COMMANDS;
+				break;
+			}
+		}
 
 		if (size >= sizeof(u32) &&
 		    copy_to_user(usr_arg, &dev_state, size)) {
