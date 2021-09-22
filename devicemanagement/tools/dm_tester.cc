@@ -25,6 +25,7 @@
 #include <regex>
 #include <unistd.h>
 #include <glog/logging.h>
+#include <exception>
 
 namespace fs = std::experimental::filesystem;
 
@@ -58,7 +59,7 @@ public:
       if (!(error = dlerror())) {
         return getDM;
       }
-      DV_LOG(ERROR) << "error: " << error << std::endl;
+      DV_LOG(ERROR) << "error:" << error << std::endl;
     }
     return (getDM_t)0;
   }
@@ -76,6 +77,8 @@ public:
       DV_LOG(ERROR) << "Device Management instance is null!" << std::endl;
       return -EAGAIN;
     }
+
+   return 0;
   }
 
   void* handle_;
@@ -121,7 +124,8 @@ int runService(const char* input_buff, const uint32_t input_size, char* output_b
   static DMLib dml;
   int ret;
 
-  if (!(ret = dml.verifyDMLib())) {
+  if (ret = dml.verifyDMLib()) {
+    DV_LOG(ERROR) << "Failed to verify the DM lib: " << ret << std::endl;
     return ret;
   }
   DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
@@ -154,7 +158,7 @@ int verifyService() {
   case DM_CMD::DM_CMD_GET_MODULE_FORM_FACTOR:
   case DM_CMD::DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
   case DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE: {
-    const uint32_t output_size = sizeof(asset_info_t);
+    const uint32_t output_size = sizeof(struct asset_info_t);
     char output_buff[output_size] = {0};
 
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
@@ -167,7 +171,7 @@ int verifyService() {
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED: {
-    const uint32_t output_size = sizeof(asset_info_t);
+    const uint32_t output_size = sizeof(struct asset_info_t);
     char output_buff[output_size] = {0};
     char pcie_speed[32];
 
@@ -175,20 +179,26 @@ int verifyService() {
       return ret;
     }
 
-    switch (std::stoi(output_buff,nullptr,10)) {
+    try
+    {
+      switch (std::stoi(output_buff,nullptr,10)) {
       case 2:strncpy(pcie_speed, "PCIE_GEN1", sizeof(pcie_speed)); break;
       case 5:strncpy(pcie_speed, "PCIE_GEN2", sizeof(pcie_speed)); break;
       case 8:strncpy(pcie_speed, "PCIE_GEN3", sizeof(pcie_speed)); break;
       case 16:strncpy(pcie_speed, "PCIE_GEN4", sizeof(pcie_speed)); break;
       case 32:strncpy(pcie_speed, "PCIE_GEN5", sizeof(pcie_speed)); break;
-    }
+      }
+    } catch (const std::invalid_argument& ia) {
+     DV_LOG(INFO) <<ia.what()<< "Invalid resposne from the device= " << output_buff << std::endl;
+     return -EINVAL;
+   }
 
 
     DV_LOG(INFO) << "PCIE Speed: " << pcie_speed << std::endl;
   }break;
 
   case DM_CMD::DM_CMD_GET_MODULE_MEMORY_SIZE_MB: {
-    const uint32_t output_size = sizeof(asset_info_t);
+    const uint32_t output_size = sizeof(struct asset_info_t);
     char output_buff[output_size] = {0};
 
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
@@ -199,19 +209,20 @@ int verifyService() {
   }break;
 
   case DM_CMD::DM_CMD_GET_ASIC_CHIP_REVISION: {
-    const uint32_t output_size = sizeof(asset_info_t);
+    const uint32_t output_size = sizeof(struct asset_info_t);
     char output_buff[output_size] = {0};
 
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-    
+
     try{
        std::string str_output = std::string(output_buff, output_size);
        DV_LOG(INFO) << "ASIC Revision: " << std::stoi (str_output,nullptr,16) << std::endl;
     }
     catch (const std::invalid_argument& ia) {
 	     DV_LOG(INFO) << "Invalid response from device: " << ia.what() << '\n';
+    return -EINVAL;
     }
 
   } break;
@@ -281,7 +292,7 @@ int verifyService() {
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(uint8_t);
-    const char input_buff[input_size] = 
+    const char input_buff[input_size] =
                                 {(char)tdp_level}; // bounds check prevents issues with narrowing
 
     const uint32_t output_size = sizeof(uint32_t);
@@ -727,7 +738,7 @@ int verifyService() {
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-    
+
     device_mgmt_api::firmware_version_t* firmware_versions = (device_mgmt_api::firmware_version_t*)output_buff;
 
     uint32_t versions = firmware_versions->bl1_v;
@@ -747,9 +758,9 @@ int verifyService() {
 
     versions = firmware_versions->machm_v;
     DV_LOG(INFO) << "Machine Minion versions: Major: " << (versions >> 24)
-        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;  
+        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;
 
-  } break;          
+  } break;
 
   case DM_CMD::DM_CMD_SET_FIRMWARE_VERSION_COUNTER: {
     const uint32_t input_size = sizeof(uint256_t);
@@ -773,7 +784,7 @@ int verifyService() {
     if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-  } break; 
+  } break;
 
   case DM_CMD::DM_CMD_SET_SW_BOOT_ROOT_CERT: {
     const uint32_t input_size = sizeof(uint512_t);
@@ -785,30 +796,35 @@ int verifyService() {
     if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-  } break; 
+  } break;
 
   case DM_CMD::DM_CMD_GET_FUSED_PUBLIC_KEYS: {
-    const uint32_t output_size = sizeof(uint256_t);
+    const uint32_t output_size = sizeof(device_mgmt_api::fused_public_keys_t);
     char output_buff[output_size] = {0};
 
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-    
+
+    device_mgmt_api::fused_public_keys_t* fused_public_key = (device_mgmt_api::fused_public_keys_t*)output_buff;
     try{
-       std::string str_output = std::string(output_buff, output_size);
-       DV_LOG(INFO) << "Public keys: " << std::stoi (str_output,nullptr,16) << std::endl;
+       DV_LOG(INFO) << "Public keys: " << std::endl;
+       for (int i = 0; i < output_size; ++i)
+          DV_LOG(INFO) << fused_public_key->keys[i] << " ";
+       DV_LOG(INFO) << std::endl;
     }
     catch (const std::invalid_argument& ia) {
-	     DV_LOG(INFO) << "Invalid response from device: " << ia.what() << '\n';
+       DV_LOG(INFO) << "SP ROOT HASH wasn't written to OTP " << '\n';
     }
   } break;
-  
+
   default:
     DV_LOG(ERROR) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
     return -EINVAL;
     break;
   }
+
+  return ret;
 }
 
 bool validDigitsOnly() {
