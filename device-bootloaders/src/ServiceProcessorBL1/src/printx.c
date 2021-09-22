@@ -745,7 +745,7 @@ static int print_to_serial(void *context, char c)
 {
     UNUSED_ARGUMENT(context);
 
-    SERIAL_write(UART0, &c, 1);
+    SERIAL_write(SP_UART0, &c, 1);
 
     return 0;
 }

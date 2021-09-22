@@ -386,13 +386,13 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     bl1_data = &fake_bl1_data;
 
     // In cases where production BootROM is skipped, initializes SPIO UART0
-    SERIAL_init(UART0);
+    SERIAL_init(SP_UART0);
 #endif
 
     // Initialize all UART and Trace support
-    SERIAL_init(UART1);
-    SERIAL_init(UART0);
-    SERIAL_init(UART1);
+    SERIAL_init(SP_UART1);
+    SERIAL_init(PU_UART0);
+    SERIAL_init(PU_UART1);
 
     Log_Init(LOG_LEVEL_WARNING);
 

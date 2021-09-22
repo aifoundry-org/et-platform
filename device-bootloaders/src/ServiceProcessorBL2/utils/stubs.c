@@ -68,7 +68,7 @@ void __env_unlock(void)
 
 int __attribute__((used)) _write(int file, char *ptr, int len)
 {
-    SERIAL_write(UART0, ptr, len);
+    SERIAL_write(SP_UART0, ptr, len);
     return len;
 }
 
