@@ -1,15 +1,15 @@
 #include "config/mgmt_build_config.h"
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 #include "interrupt.h"
 #include "dummy_isr.h"
 #include "config/minion_fw_boot_config.h"
-#include "pcie_init.h"
+#include "etsoc/drivers/pcie/pcie_int.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
 
 #include "cache_flush_ops.h"
-#include "io.h"
+#include "etsoc/isa/mem-access/io.h"
 #include "service_processor_ROM_data.h"
 #include "service_processor_BL1_data.h"
 #include "service_processor_BL2_data.h"
@@ -391,8 +391,8 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 
     // Initialize all UART and Trace support
     SERIAL_init(UART1);
-    SERIAL_init(PU_UART0);
-    SERIAL_init(PU_UART1);
+    SERIAL_init(UART0);
+    SERIAL_init(UART1);
 
     Log_Init(LOG_LEVEL_WARNING);
 

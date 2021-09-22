@@ -22,7 +22,7 @@
 
 #include <stdio.h>
 
-#include "io.h"
+#include "etsoc/isa/mem-access/io.h"
 #include "bl2_gpio_controller.h"
 #include "bl_error_code.h"
 #include "bl2_main.h"

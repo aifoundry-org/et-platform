@@ -1,4 +1,4 @@
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,7 +16,7 @@
 #include "bl1_crypto.h"
 #include "bl1_build_configuration.h"
 #include "sp_otp.h"
-#include "io.h"
+#include "etsoc/isa/mem-access/io.h"
 
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/hal_device.h"

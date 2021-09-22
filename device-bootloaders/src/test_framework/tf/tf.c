@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "tf.h"
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 #include "hwinc/hal_device.h"
 #include <string.h>
 

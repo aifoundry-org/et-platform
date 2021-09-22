@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "log.h"
-#include "io.h"
+#include "etsoc/isa/mem-access/io.h"
 #include "system/layout.h"
 #include "etsoc/drivers/pcie/pcie_int.h"
 #include "pcie_configuration.h"

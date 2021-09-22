@@ -7,7 +7,7 @@
 // See http://www.nadler.com/embedded/newlibAndFreeRTOS.html
 // lots of __attribute__((used)) because LTO is being overly-aggressive, hmm
 
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 
 #include "FreeRTOS.h"
 #include "task.h"

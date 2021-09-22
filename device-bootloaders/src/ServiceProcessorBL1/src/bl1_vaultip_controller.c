@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 #include "printx.h"
 #include "crc32.h"
 

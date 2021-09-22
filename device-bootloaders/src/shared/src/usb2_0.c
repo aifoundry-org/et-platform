@@ -18,7 +18,7 @@
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/sp_misc.h"
 #include "hwinc/sp_u0esr.h"
-#include "io.h"
+#include "etsoc/isa/mem-access/io.h"
 #include "log.h"
 #include "usb2_0.h"
 

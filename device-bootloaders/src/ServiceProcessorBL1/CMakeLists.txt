@@ -38,7 +38,8 @@ target_link_libraries(ServiceProcessorBL1.elf
     PRIVATE
         signedImageFormat::signedImageFormat
         etsoc_hal::etsoc_hal
-        deviceFirmware::device_serial
+        deviceFirmware::device_common
+        et-common-libs::sp-bl1
         $<${TEST_FRAMEWORK}:test_framework_core>
 )
 target_compile_definitions(ServiceProcessorBL1.elf

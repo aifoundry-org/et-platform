@@ -9,7 +9,7 @@
 *-------------------------------------------------------------------------
 */
 
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 #include "string.h"
 
 #include "printx.h"

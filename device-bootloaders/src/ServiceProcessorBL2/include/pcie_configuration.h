@@ -16,10 +16,10 @@
 #include "dm_event_def.h"
 #include "etsoc/isa/esr_defines.h"
 #include "etsoc/drivers/pcie/pcie_int.h"
-#include "io.h"
+#include "etsoc/isa/mem-access/io.h"
 #include "bl2_sp_pll.h"
 #include "bl2_pmic_controller.h"
-#include "pcie_init.h"
+#include "etsoc/drivers/pcie/pcie_int.h"
 
 /*! \def PCIE_GEN_1
     \brief PCIE gen 1 bit rates(GT/s) definition.

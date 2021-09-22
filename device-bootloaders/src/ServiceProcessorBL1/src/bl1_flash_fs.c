@@ -12,7 +12,7 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 #include "printx.h"
 #include "crc32.h"
 #include "bl1_spi_controller.h"

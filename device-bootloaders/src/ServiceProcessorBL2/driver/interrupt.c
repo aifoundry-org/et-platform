@@ -19,7 +19,7 @@
 /***********************************************************************/
 
 #include "interrupt.h"
-#include "io.h"
+#include "etsoc/isa/mem-access/io.h"
 #include "FreeRTOS.h"
 
 #include "task.h"

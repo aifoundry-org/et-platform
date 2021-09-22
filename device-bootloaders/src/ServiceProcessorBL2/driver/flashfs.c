@@ -39,7 +39,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include "log.h"
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 #include "crc32.h"
 #include "bl2_spi_controller.h"
 #include "bl2_spi_flash.h"

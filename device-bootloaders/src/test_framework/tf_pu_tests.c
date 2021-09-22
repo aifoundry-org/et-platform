@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 #include "tf.h"
 #include "bl2_sp_pll.h"
 

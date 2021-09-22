@@ -17,10 +17,10 @@
 */
 /***********************************************************************/
 
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 #include <stdio.h>
 #include "log.h"
-#include "io.h"
+#include "etsoc/isa/mem-access/io.h"
 #include "bl2_spi_controller.h"
 #include "spio_DW_apb_ssi_config.h"
 #include "bl2_main.h"

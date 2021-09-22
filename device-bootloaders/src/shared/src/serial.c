@@ -1,5 +1,5 @@
-#include "io.h"
-#include "serial.h"
+#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/drivers/serial/serial.h"
 #include "hwinc/sp_uart0.h"
 
 static void set_baud_divisor(uintptr_t uartRegs, unsigned int baudRate, unsigned int clkFreq);

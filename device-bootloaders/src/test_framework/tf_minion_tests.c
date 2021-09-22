@@ -1,6 +1,6 @@
 #include "tf.h"
 #include <stdio.h>
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 #include "esr.h"
 #include "bl2_sp_pll.h"
 #include "bl2_reset.h"

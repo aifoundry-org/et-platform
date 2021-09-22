@@ -10,7 +10,7 @@
 *
 ************************************************************************/
 #include <stdio.h>
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 #include "string.h"
 #include "bl2_spi_controller.h"
 #include "bl2_spi_flash.h"

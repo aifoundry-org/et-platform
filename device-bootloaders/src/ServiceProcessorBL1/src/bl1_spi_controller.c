@@ -9,9 +9,9 @@
 *-------------------------------------------------------------------------
 */
 
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 
-#include "io.h"
+#include "etsoc/isa/mem-access/io.h"
 #include "printx.h"
 #include "bl1_spi_controller.h"
 #include "hwinc/sp_spi0.h"

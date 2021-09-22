@@ -20,8 +20,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "io.h"
-#include "serial.h"
+#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/drivers/serial/serial.h"
 #include "crc32.h"
 #include "hal_vaultip_hw.h"
 #include "hal_vaultip_sw.h"

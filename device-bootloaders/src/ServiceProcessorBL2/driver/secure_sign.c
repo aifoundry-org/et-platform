@@ -19,7 +19,7 @@
 */
 /***********************************************************************/
 
-#include "serial.h"
+#include "etsoc/drivers/serial/serial.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
