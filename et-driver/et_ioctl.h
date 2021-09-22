@@ -7,15 +7,23 @@
 #define ESPERANTO_PCIE_IOCTL_MAGIC 0xE7
 
 // These flags are valid for Ops Device only
-#define CMD_DESC_FLAG_DMA	    (0x1U)
-#define CMD_DESC_FLAG_HIGH_PRIORITY (0x2U)
+enum cmd_desc_flag {
+	CMD_DESC_FLAG_NONE = 0,
+	CMD_DESC_FLAG_DMA,
+	CMD_DESC_FLAG_HIGH_PRIORITY
+};
 
-#define DEV_CONFIG_FORM_FACTOR_PCIE (0x1U)
-#define DEV_CONFIG_FORM_FACTOR_M_2  (0x2U)
+enum dev_config_form_factor {
+	DEV_CONFIG_FORM_FACTOR_NONE = 0,
+	DEV_CONFIG_FORM_FACTOR_PCIE,
+	DEV_CONFIG_FORM_FACTOR_M_2
+};
 
-#define DEV_STATE_READY		   (0U)
-#define DEV_STATE_PENDING_COMMANDS (0x1U)
-#define DEV_STATE_NOT_RESPONDING   (0x2U)
+enum dev_state {
+	DEV_STATE_READY = 0,
+	DEV_STATE_PENDING_COMMANDS,
+	DEV_STATE_NOT_RESPONDING
+};
 
 // clang-format off
 
