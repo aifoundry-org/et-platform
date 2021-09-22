@@ -226,9 +226,9 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, serializeAccessMgmtNode_1_43) {
   serializeAccessMgmtNode_1_43(false);
 }
 
-//TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDeviceErrorEvents_1_44) {
-//  getDeviceErrorEvents_1_44(false /* Multiple devices */);
-//}
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getDeviceErrorEvents_1_44) {
+  getDeviceErrorEvents_1_44(false /* Multiple devices */);
+}
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, isUnsupportedService_1_45) {
   isUnsupportedService_1_45(false /* Multiple devices */);
