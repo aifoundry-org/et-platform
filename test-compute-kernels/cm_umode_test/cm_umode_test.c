@@ -1,4 +1,4 @@
-#include "etsoc/isa/shire.h"
+#include "etsoc/isa/hart.h"
 #include "etsoc/isa/cacheops-umode.h"
 #include "etsoc/common/utils.h"
 
