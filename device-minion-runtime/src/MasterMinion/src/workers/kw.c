@@ -474,57 +474,48 @@ static inline int8_t process_kernel_launch_cmd_payload(struct device_ops_kernel_
     Log_Write(LOG_LEVEL_DEBUG, "KW: Kernel launch argument payload size: %ld\r\n", args_size);
     int8_t status = STATUS_SUCCESS;
 
+    if(args_size > DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX)
+    {
+       status = KW_ERROR_KERNEL_INVLD_ARGS_SIZE;
+       Log_Write(LOG_LEVEL_ERROR, "KW:ERROR: Violated Kernel Args Size: %ld > %d\r\n", args_size, DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX);
+    }   
+
     /* Check if Trace config are present in optional command payload. */
-    if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
+    if((status == STATUS_SUCCESS) && (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE))
     {
         Log_Write(LOG_LEVEL_DEBUG, "KW:INFO: Trace Optional Payload present!\r\n");
-        if((args_size >= sizeof(struct trace_init_info_t)) &&
-            (args_size <= DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX))
+        struct trace_init_info_t *trace_config = (struct trace_init_info_t *)(uintptr_t)payload;
+
+        if (IS_ALIGNED(trace_config->buffer, CACHE_LINE_SIZE) && IS_ALIGNED(trace_config->buffer_size, CACHE_LINE_SIZE) 
+            && args_size >= sizeof(struct trace_init_info_t))
         {
-            struct trace_init_info_t *trace_config = (struct trace_init_info_t *)(uintptr_t)payload;
+            /* Copy the Trace configs from command payload to provided address
+            NOTE: Trace configs are always present at the beginning of the payload
+                  and its size is fixed.*/
+            ETSOC_MEM_COPY_AND_EVICT((void*)(uintptr_t)CM_UMODE_TRACE_CFG_BASEADDR,
+                                     (void*)payload, sizeof(struct trace_init_info_t), to_L3)
 
-            if (IS_ALIGNED(trace_config->buffer, CACHE_LINE_SIZE) && IS_ALIGNED(trace_config->buffer_size, CACHE_LINE_SIZE))
-            {
-                /* Copy the Trace configs from command payload to provided address
-                    NOTE: Trace configs are always present at the beginning of the payload
-                    and its size is fixed.*/
-                ETSOC_MEM_COPY_AND_EVICT((void*)(uintptr_t)CM_UMODE_TRACE_CFG_BASEADDR,
-                    (void*)payload, sizeof(struct trace_init_info_t), to_L3)
-
-
-                args_size -= sizeof(struct trace_init_info_t);
-                payload += sizeof(struct trace_init_info_t);
-            }
-            else
-            {
-                status = KW_ERROR_KERNEL_INVALID_ADDRESS;
-                Log_Write(LOG_LEVEL_ERROR, "KW:ERROR: Invalid UMode Trace Buffer\r\n");
-            }
-        }
-        else
-        {
-            status = KW_ERROR_KERNEL_INVLD_ARGS_SIZE;
-            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR: Invalid Trace config payload size\r\n");
-        }
+            args_size -= sizeof(struct trace_init_info_t);
+            payload += sizeof(struct trace_init_info_t);
+         }
+         else
+         {
+             status = KW_ERROR_KERNEL_INVALID_ADDRESS;
+             Log_Write(LOG_LEVEL_ERROR, "KW:ERROR: Unaligned Trace Buffer: %ld ,Size: %d OR Args Size: %ld\r\n",
+                       trace_config->buffer, trace_config->buffer_size, args_size);
+         }
     }
 
     /* Check if Kernel arguments are present in optional command payload. */
-    if((status == STATUS_SUCCESS) && (cmd->pointer_to_args != 0))
+    if((status == STATUS_SUCCESS) && (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_KERNEL_LAUNCH_ARGS_EMBEDDED) 
+                                  && (cmd->pointer_to_args != 0))
     {
         Log_Write(LOG_LEVEL_DEBUG, "KW:INFO: Kernel Args Optional Payload present!\r\n");
-        if((args_size > 0) && (args_size <= DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX))
-        {
-            /* Copy the kernel arguments from command payload to provided address
-                NOTE: Kernel argument position depends upon other optional fields in payload,
-                if there is no other optional payload then all data in payload is kernel args. */
-            ETSOC_MEM_COPY_AND_EVICT((void*)(uintptr_t)cmd->pointer_to_args,
-                (void*)payload, args_size, to_L3)
-        }
-        else
-        {
-            status = KW_ERROR_KERNEL_INVLD_ARGS_SIZE;
-            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR: Invalid Kernel argument payload size\r\n");
-        }
+        /* Copy the kernel arguments from command payload to provided address
+           NOTE: Kernel argument position depends upon other optional fields in payload,
+                 if there is no other optional payload then all data in payload is kernel args. */
+        ETSOC_MEM_COPY_AND_EVICT((void*)(uintptr_t)cmd->pointer_to_args,
+                                 (void*)payload, args_size, to_L3)
     }
 
     return status;
@@ -610,12 +601,12 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd
         launch_args.kernel.exception_buffer = cmd->exception_buffer;
 
         /* If the flag bit flush L3 is set */
-        if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_KERNEL_FLUSH_L3)
+        if(cmd->command_info.cmd_hdr.flags & CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3)
         {
             launch_args.kernel.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
         }
 
-        if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
+        if(cmd->command_info.cmd_hdr.flags & CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
         {
             launch_args.kernel.flags |= KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE;
         }

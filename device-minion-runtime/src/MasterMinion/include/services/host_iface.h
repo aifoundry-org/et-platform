@@ -26,49 +26,6 @@
 #include "config/mm_config.h"
 #include "vq.h"
 
-/*! \def CMD_HEADER_FLAG_BARRIER
-    \brief Host Command flag for Barrier.
-*/
-#define CMD_HEADER_FLAG_BARRIER             (1 << 0)
-
-/*! \def CMD_HEADER_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE
-    \brief Host Command flag for to Enable Kernel Trace.
-    NOTE: This flag set means that Trace config info is present in command payload.
-*/
-#define CMD_HEADER_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE    (1 << 1)
-
-/*! \def CMD_HEADER_FLAG_MM_TRACE_BUF
-    \brief Host Command flag for MM Trace Buffer.
-*/
-#define CMD_HEADER_FLAG_MM_TRACE_BUF        (1 << 2)
-
-/*! \def CMD_HEADER_FLAG_CM_TRACE_BUF
-    \brief Host Command flag for CM Trace Buffer.
-*/
-#define CMD_HEADER_FLAG_CM_TRACE_BUF        (1 << 3)
-
-/*! \def CMD_HEADER_FLAG_KERNEL_FLUSH_L3
-    \brief Host Command flag for flushing L3 before a kernel launch.
-*/
-#define CMD_HEADER_FLAG_KERNEL_FLUSH_L3     (1 << 4)
-
-/*! \def CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(flags)
-    \brief Host Command flag to scale the timeout value from the base
-*/
-#define CMD_HEADER_FLAG_EXTRACT_TIMEOUT_FACTOR(flags) ((flags >> 5) & 0xF)
-
-/*! \def TRACE_RT_CTRL_MM
-    \brief Flag inside trace runtime control command for
-            Master Minion Trace component.
-*/
-#define TRACE_RT_CTRL_MM                    (1 << 0)
-
-/*! \def TRACE_RT_CTRL_CM
-    \brief Flag inside trace runtime control command for
-            Compute Minion Trace component.
-*/
-#define TRACE_RT_CTRL_CM                    (1 << 1)
-
 /*! \def HIFACE_INT_PRIORITY
     \brief Macro that provides the Host Interface interrupt priority.
 */

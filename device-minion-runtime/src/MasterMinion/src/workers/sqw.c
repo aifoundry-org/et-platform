@@ -251,7 +251,7 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
 
             /* If barrier flag is set, wait until all cmds are
             processed in the current SQ */
-            if(cmd_hdr->cmd_hdr.flags & CMD_HEADER_FLAG_BARRIER)
+            if(cmd_hdr->cmd_hdr.flags & CMD_FLAGS_BARRIER_ENABLE)
             {
                 TRACE_LOG_CMD_STATUS(cmd_hdr->cmd_hdr.msg_id, (uint8_t)sqw_idx,
                                      cmd_hdr->cmd_hdr.tag_id, CMD_STATUS_WAIT_BARRIER);
