@@ -106,8 +106,6 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
     cmdPtr->command_info.cmd_hdr.flags |= (1 << 5);
   }
 
-  // This will be removed once Device API has been updated
-  cmdPtr->pointer_to_trace_cfg = 0;
   cmdPtr->exception_buffer = reinterpret_cast<uint64_t>(pBuffer->getExceptionContextPtr());
   cmdPtr->code_start_address = kernel->getEntryAddress();
   cmdPtr->pointer_to_args = reinterpret_cast<uint64_t>(pBuffer->getParametersPtr());
