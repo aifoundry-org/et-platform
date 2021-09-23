@@ -8,6 +8,9 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
 */
+#ifndef _ETSOC_ISA_HART_H_
+#define _ETSOC_ISA_HART_H_
+
 
 #define THIS_SHIRE 0xFF
 
@@ -39,3 +42,5 @@ static inline unsigned int __attribute__((always_inline, const)) get_thread_id(v
 {
     return get_hart_id() & 1;
 }
+
+#endif /* _ETSOC_ISA_HART_H_ */

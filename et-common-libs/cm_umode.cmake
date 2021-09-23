@@ -14,13 +14,13 @@ set(CM_UMODE_HDRS
     # ETSOC ISA headers
     include/etsoc/isa/atomic.h
     include/etsoc/isa/atomic-impl.h
+    include/etsoc/isa/barriers.h
     include/etsoc/isa/cacheops-umode.h
+    include/etsoc/isa/esr_defines.h
     include/etsoc/isa/fcc.h
     include/etsoc/isa/flb.h
     include/etsoc/isa/hart.h
-    include/etsoc/isa/shire.h
     include/etsoc/isa/syscall.h
-    include/etsoc/isa/tensor.h
     include/etsoc/isa/tensors.h
     include/etsoc/isa/utils.h
     include/common/printf.h
