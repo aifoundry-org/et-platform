@@ -117,6 +117,18 @@ struct LoadCodeResult {
   KernelId kernel_;        /// < kernelId associated to the loadCode, to be used in later kernelLaunch(es)
   std::byte* loadAddress_; /// < this is the device physical address where the kernel was loaded (decided by runtime)
 };
+
+// NOTE: this is copied directly from device firmware "encoder.h"; we need to find a proper solution. So this will be in
+// a experimental status until everything is properly designed.
+struct UserTrace {
+  uint64_t buffer_;      /*!< Base address for Trace buffer. */
+  uint32_t buffer_size_; /*!< Total size of the Trace buffer. */
+  uint32_t threshold_;   /*!< Threshold for free memory in the buffer for each hart. */
+  uint64_t shireMask_;   /*!< Bit Mask of Shire to enable Trace Capture. */
+  uint64_t threadMask_;  /*!< Bit Mask of Thread within a Shire to enable Trace Capture. */
+  uint32_t eventMask_;   /*!< This is a bit mask, each bit corresponds to a specific Event to trace. */
+  uint32_t filterMask_;  /*!< This is a bit mask representing a list of filters for a given event to trace. */
+};
 } // namespace rt
 
 namespace std {
