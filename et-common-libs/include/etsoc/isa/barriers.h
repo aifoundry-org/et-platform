@@ -31,9 +31,6 @@ inline uint64_t __attribute__((always_inline)) shire_barrier(uint64_t flb, uint6
   uint64_t last = flbarrier(flb, thread_count - 1);
 
   if (last) {
-    uint64_t minion_id, thread_id;
-    minion_id = get_minion_id() & (SOC_MINIONS_PER_SHIRE - 1);
-    thread_id = get_thread_id();
     fcc_send(SHIRE_OWN, THREAD_0, fcc, minion_mask_t0);
     fcc_send(SHIRE_OWN, THREAD_1, fcc, minion_mask_t1);
   }

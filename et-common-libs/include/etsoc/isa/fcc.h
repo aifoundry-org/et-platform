@@ -5,7 +5,6 @@
 
 #include <stdint.h>
 
-#define THIS_SHIRE 0xFF
 #define THREAD_0   0
 #define THREAD_1   1
 

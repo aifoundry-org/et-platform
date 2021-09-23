@@ -24,8 +24,6 @@ set(CM_UMODE_HDRS
     include/etsoc/isa/tensors.h
     include/etsoc/isa/utils.h
     include/common/printf.h
-    #Floating point operations
-    include/float/Float16.h
     # Trace Header
     include/trace/trace_umode.h
     #TODO:others to come ..
