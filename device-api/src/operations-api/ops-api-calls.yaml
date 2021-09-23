@@ -56,6 +56,8 @@ Enums:
         Value: 8
       - Name: KERNEL_LAUNCH_FLUSH_L3
         Value: 16
+      - Name: KERNEL_LAUNCH_ARGS_EMBEDDED 
+        Value: 32
   - Name: log_levels
     Type: uint8_t
     Values:
