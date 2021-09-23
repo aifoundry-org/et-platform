@@ -17,7 +17,9 @@ set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 
 # Enable this option by default since we require this for understanding performance
-set(ENABLE_CMD_EXECUTION_TRACE 0)
+if (ENABLE_CMD_EXECUTION_TRACE)
+  set(ENABLE_CMD_EXECUTION_TRACE 1)
+endif()
 
 # MM build variants
 foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
