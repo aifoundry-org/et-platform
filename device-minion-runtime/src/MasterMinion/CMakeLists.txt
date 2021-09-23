@@ -16,11 +16,6 @@
 set(LINKER_SCRIPT src/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 
-# Enable this option by default since we require this for understanding performance
-if (ENABLE_CMD_EXECUTION_TRACE)
-  set(ENABLE_CMD_EXECUTION_TRACE 1)
-endif()
-
 # MM build variants
 foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
 
@@ -81,8 +76,7 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
             -DMM_VARIANT="${MM_BUILD_VARIANT}"
             -DTEST_FRAMEWORK=${TEST_FRAMEWORK}
         PRIVATE
-            -DMM_ENABLE_CMD_EXECUTION_TRACE=${ENABLE_CMD_EXECUTION_TRACE}
-
+            $<$<BOOL:${ENABLE_CMD_EXECUTION_TRACE}>:MM_ENABLE_CMD_EXECUTION_TRACE>
     )
     target_compile_options(${MM_BUILD_VARIANT}.elf
         PRIVATE
