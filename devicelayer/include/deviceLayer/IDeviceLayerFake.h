@@ -39,9 +39,6 @@ public:
     case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
       rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP;
       break;
-    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP:
-      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-      break;
     case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
       rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
       break;
@@ -50,6 +47,12 @@ public:
       break;
     case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD:
       rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
+      break;
+    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD:
+      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ABORT_RSP;
+      break;
+    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD:
+      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
       break;
     default:
       throw Exception("Please, add command with msg_id: " + std::to_string(cmd->msg_id));
