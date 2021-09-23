@@ -14,6 +14,7 @@
 
 #include <inttypes.h>
 
+#include "hart.h"
 #include "utils.h"
 #include "esr_defines.h"
 
@@ -23,7 +24,6 @@
 #define EXTERN_C
 #endif
 
-#define SOC_MINIONS_PER_SHIRE 32
 
 // Shire-only barrier using FLBs and FCCs
 inline uint64_t __attribute__((always_inline)) shire_barrier(uint64_t flb, uint64_t fcc, uint64_t thread_count, uint64_t minion_mask_t0, uint64_t minion_mask_t1)

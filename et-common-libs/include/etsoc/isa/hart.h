@@ -12,6 +12,8 @@
 #define _ETSOC_ISA_HART_H_
 
 
+#define SOC_MINIONS_PER_SHIRE 32
+
 #define THIS_SHIRE 0xFF
 
 static inline unsigned int __attribute__((always_inline, const)) get_hart_id(void)
