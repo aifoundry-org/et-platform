@@ -24,7 +24,17 @@
 #include "esr.h"
 
 static uint64_t booted_shire_mask = 0;
-static uint64_t minion_current_freq = 0;
+static uint16_t minion_current_freq = 0;
+//static uint16_t minion_norm_freq = 0;
+static uint8_t  minion_lvdpll_strap = 0;
+static uint8_t  num_shires = 0;
+
+// get_highest_set_bit_offset
+// This function returns highest set bit offset
+static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
+{
+    return (uint8_t)(64 - __builtin_clzl(shire_mask));
+}
 
 // get_highest_set_bit_offset
 // This function returns highest set bit offset
@@ -35,34 +45,38 @@ static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
 
 // Configure Minion PLL to specific mode. This uses the broadcast mechanism hence all Minions
 // will be programmed to the same frequency.
-static int64_t minion_configure_cold_boot_pll(uint64_t shire_mask, uint64_t pll_mode)
+static int64_t minion_configure_cold_boot_pll(uint64_t shire_mask, uint8_t lvdpll_strap)
 {
-#if MM_DVFS_NORMALIZATION_OFF == 1
-    int64_t status;
-    uint8_t num_shires;
+    minion_lvdpll_strap = lvdpll_strap;
 
     if(0 != shire_mask)
     {
         num_shires = get_highest_set_bit_offset(shire_mask);
     }
-    else
-    {
-        return -1;
-    }
-    status = pll_normalize_and_turn_of_normalization(shire_mask, num_shires);
+
+#if MM_DVFS_NORMALIZATION_OFF == 1
+    int64_t status;
+    uint8_t lvdpll_mode;
+    
+    // Normalize clock at 800MHz
+    lvdpll_mode = freq_to_mode(800, minion_lvdpll_strap);
+    status = pll_normalize_and_turn_of_normalization(lvdpll_mode, shire_mask, num_shires);
     if (status != 0)
     {
         return status;
     }
 
-    status = update_minion_pll_freq_quick(pll_mode, shire_mask, num_shires);
+    // Postdiv times normalization frequency gives oscilator frequency
+    minion_norm_freq = gs_lvdpll_settings[(lvdpll_mode-1)].values[14] * 800;
+
+    lvdpll_mode = freq_to_mode(INITIAL_MINION_FREQ, minion_lvdpll_strap);
+    status = update_minion_pll_freq_quick(lvdpll_mode, shire_mask, num_shires);
     if (status != 0)
     {
         return status;
     }
-    minion_current_freq = (uint64_t)mode_to_freq(pll_mode);
+    minion_current_freq = (uint64_t)mode_to_freq(lvdpll_mode, minion_lvdpll_strap);
 #else
-    (void)pll_mode;
     /* Switch to LVDPLL output */
     broadcast(0xc, shire_mask, PRV_M, ESR_SHIRE_REGION, ESR_SHIRE_SHIRE_CTRL_CLOCKMUX_REGNO);
     minion_current_freq = INITIAL_MINION_FREQ;
@@ -91,26 +105,16 @@ int64_t dynamic_minion_pll_frequency_update(uint64_t freq)
     }
 
 #if MM_DVFS_USE_FCW == 1
-    (void up_down);
-    status = dvfs_fcw_update_minion_pll_freq((uint16_t)freq, booted_shire_mask,
-                        num_shires, (uint16_t)minion_current_freq, MM_DVFS_POLL_FOR_LOCK);
-    if (status != 0)
-    {
-        return status;
-    }
+    status = dvfs_fcw_update_minion_pll_freq(freq, booted_shire_mask, num_shires,
+                minion_current_freq, minion_norm_freq, minion_lvdpll_strap, MM_DVFS_POLL_FOR_LOCK);
 #else
-    up_down = (freq > minion_current_freq) ? true : false;
-    status = dvfs_update_minion_pll_mode(freq_to_mode((uint32_t)freq, up_down),
+    status = dvfs_update_minion_pll_mode(freq_to_mode((uint16_t)freq, minion_lvdpll_strap),
                 booted_shire_mask, num_shires, MM_DVFS_POLL_FOR_LOCK);
-    if (status != 0)
-    {
-        return status;
-    }
 #endif
 
-    minion_current_freq = freq;
+    minion_current_freq = (uint16_t)freq;
 
-    return 0;
+    return status;
 }
 
 // Enable all Minion Threads which participate in Kernel Compute Execution
@@ -133,12 +137,12 @@ static int64_t enable_compute_threads(uint64_t shire_mask)
     return 0;
 }
 
-int64_t configure_compute_minion(uint64_t shire_mask, uint64_t pll_mode)
+int64_t configure_compute_minion(uint64_t shire_mask, uint64_t lvdpll_strap)
 {
     int64_t status;
     uint64_t cm_shire_mask = (shire_mask & CM_SHIRE_ID_MASK);
 
-    status = minion_configure_cold_boot_pll(cm_shire_mask, pll_mode);
+    status = minion_configure_cold_boot_pll(cm_shire_mask, (uint8_t)lvdpll_strap);
     if (status != 0)
         return status;
 

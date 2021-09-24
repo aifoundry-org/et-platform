@@ -66,7 +66,7 @@
     \brief Poll for PLL lock.
 *          Poll lock bit or just wait some predefined time.
 */
-#define MM_DVFS_POLL_FOR_LOCK     1
+#define MM_DVFS_POLL_FOR_LOCK     0
 
 /*! \def INITIAL_MINION_FREQ
     \brief Initial Minion PLL frequency

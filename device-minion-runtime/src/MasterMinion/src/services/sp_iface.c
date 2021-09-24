@@ -428,13 +428,14 @@ int8_t SP_Iface_Processing(void)
 *   INPUTS
 *
 *       shire_mask  reference to shire mask to be used as return arg
+*       lvdpll_trap  reference to lvdpll starp to be used as return arg
 *
 *   OUTPUTS
 *
 *       int8_t      status success or failure of Interface initialization
 *
 ***********************************************************************/
-int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask)
+int8_t SP_Iface_Get_Shire_Mask_And_Strap(uint64_t *shire_mask, uint8_t *lvdpll_strap)
 {
     static uint8_t rsp_buff[64] __attribute__((aligned(64))) = { 0 };
     struct dev_cmd_hdr_t *hdr;
@@ -481,6 +482,7 @@ int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask)
             {
                 const struct mm2sp_get_active_shire_mask_rsp_t *rsp = (void *)rsp_buff;
                 *shire_mask = rsp->active_shire_mask;
+                *lvdpll_strap = rsp->lvdpll_strap;
             }
             else
             {

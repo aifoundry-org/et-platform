@@ -130,7 +130,7 @@ int8_t SP_Iface_Processing(void);
     \param shire_mask Pointer to shire mask variable, as return arg.
     \return Status indicating success or negative error
 */
-int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask);
+int8_t SP_Iface_Get_Shire_Mask_And_Strap(uint64_t *shire_mask, uint8_t *lvdpl_strap);
 
 /*! \fn int8_t SP_Iface_Reset_Minion(uint64_t shire_mask)
     \brief A blocking API to reset the Minions.
