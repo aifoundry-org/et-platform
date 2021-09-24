@@ -26,19 +26,36 @@
 static uint64_t booted_shire_mask = 0;
 static uint64_t minion_current_freq = 0;
 
+// get_highest_set_bit_offset
+// This function returns highest set bit offset
+static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
+{
+    return (uint8_t)(64 - __builtin_clzl(shire_mask));
+}
+
 // Configure Minion PLL to specific mode. This uses the broadcast mechanism hence all Minions
 // will be programmed to the same frequency.
 static int64_t minion_configure_cold_boot_pll(uint64_t shire_mask, uint64_t pll_mode)
 {
 #if MM_DVFS_NORMALIZATION_OFF == 1
     int64_t status;
-    status = pll_normalize_and_turn_of_normalization(shire_mask);
+    uint8_t num_shires;
+
+    if(0 != shire_mask)
+    {
+        num_shires = get_highest_set_bit_offset(shire_mask);
+    }
+    else
+    {
+        return -1;
+    }
+    status = pll_normalize_and_turn_of_normalization(shire_mask, num_shires);
     if (status != 0)
     {
         return status;
     }
 
-    status = update_minion_pll_freq_quick(pll_mode, shire_mask);
+    status = update_minion_pll_freq_quick(pll_mode, shire_mask, num_shires);
     if (status != 0)
     {
         return status;
@@ -48,10 +65,10 @@ static int64_t minion_configure_cold_boot_pll(uint64_t shire_mask, uint64_t pll_
     (void)pll_mode;
     /* Switch to LVDPLL output */
     broadcast(0xc, shire_mask, PRV_M, ESR_SHIRE_REGION, ESR_SHIRE_SHIRE_CTRL_CLOCKMUX_REGNO);
+    minion_current_freq = INITIAL_MINION_FREQ;
 #endif
 
     booted_shire_mask = shire_mask;
-    minion_current_freq = INITIAL_MINION_FREQ;
 
     return 0;
 }
@@ -61,17 +78,30 @@ static int64_t minion_configure_cold_boot_pll(uint64_t shire_mask, uint64_t pll_
 int64_t dynamic_minion_pll_frequency_update(uint64_t freq)
 {
     int64_t status;
+    uint8_t num_shires;
+    bool up_down;
+
+    if(0 != booted_shire_mask)
+    {
+        num_shires = get_highest_set_bit_offset(booted_shire_mask);
+    }
+    else
+    {
+        return -1;
+    }
 
 #if MM_DVFS_USE_FCW == 1
-    status = dvfs_fcw_update_minion_pll_freq((uint16_t)freq,
-                booted_shire_mask, (uint16_t)minion_current_freq, MM_DVFS_POLL_FOR_LOCK);
+    (void up_down);
+    status = dvfs_fcw_update_minion_pll_freq((uint16_t)freq, booted_shire_mask,
+                        num_shires, (uint16_t)minion_current_freq, MM_DVFS_POLL_FOR_LOCK);
     if (status != 0)
     {
         return status;
     }
 #else
-    status = dvfs_update_minion_pll_mode(freq_to_mode((uint32_t)freq),
-                booted_shire_mask, MM_DVFS_POLL_FOR_LOCK);
+    up_down = (freq > minion_current_freq) ? true : false;
+    status = dvfs_update_minion_pll_mode(freq_to_mode((uint32_t)freq, up_down),
+                booted_shire_mask, num_shires, MM_DVFS_POLL_FOR_LOCK);
     if (status != 0)
     {
         return status;
