@@ -24,7 +24,7 @@
 /***********************************************************************/
 #include <stdio.h>
 #include "log.h"
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/io.h"
 #include <bl2_watchdog.h>
 #include <interrupt.h>
 #include <bl2_pmic_controller.h>

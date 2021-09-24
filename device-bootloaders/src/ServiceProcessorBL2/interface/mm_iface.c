@@ -29,8 +29,8 @@
 #include <stdio.h>
 #include "log.h"
 #include "mm_iface.h"
-#include "transports/mm_cm_iface/sp_mm_comms_spec.h"
-#include "config/sp_mm_shared_config.h"
+#include "transports/sp_mm_iface/sp_mm_comms_spec.h"
+#include "transports/sp_mm_iface/sp_mm_shared_config.h"
 #include "interrupt.h"
 #include "semphr.h"
 #include "bl_error_code.h"
@@ -54,7 +54,7 @@ static bool mm2sp_wait_for_response(bool enable_timeout)
     do
     {
         /* Check if response from MM is received. */
-        if(SP_MM_Iface_Data_Available(MM_CQ) == true)
+        if(SP_MM_Iface_Data_Available(MM_CQ, UNCACHED) == true)
         {
             return true;
         }
@@ -310,13 +310,13 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
 ***********************************************************************/
 int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff)
 {
-    if(SP_MM_Iface_Verify_Tail(SP_SQ) == SP_MM_IFACE_ERROR_VQ_BAD_TAIL)
+    if(SP_MM_Iface_Verify_Tail(SP_SQ, UNCACHED) == SP_MM_IFACE_ERROR_VQ_BAD_TAIL)
     {
         Log_Write(LOG_LEVEL_WARNING,
         "MM_Iface_Pop_Cmd_From_MM2SP_SQ:FATAL_ERROR:Tail Mismatch! Using cached value as fallback mechanism\r\n");
     }
 
-    return SP_MM_Iface_Pop(SP_SQ, rx_buff);
+    return SP_MM_Iface_Pop(SP_SQ, rx_buff, UNCACHED);
 }
 
 /************************************************************************
@@ -347,7 +347,7 @@ int8_t MM_Iface_Init(void)
     configASSERT( mm_cmd_lock );
 
     /* Initialize the interface */
-    status = SP_MM_Iface_Init();
+    status = SP_MM_Iface_Init(UNCACHED);
 
     /* Register interrupt handler */
     INT_enableInterrupt(SPIO_PLIC_MBOX_MMIN_INTR, 1,

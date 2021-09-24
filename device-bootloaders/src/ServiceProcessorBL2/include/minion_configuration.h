@@ -25,7 +25,7 @@
 #include "bl2_firmware_loader.h"
 #include "bl2_certificates.h"
 #include "bl_error_code.h"
-#include "transports/mm_cm_iface/sp_mm_comms_spec.h"
+#include "transports/sp_mm_iface/sp_mm_comms_spec.h"
 #include "mm_iface.h"
 #include "dm.h"
 #include "sp_host_iface.h"

@@ -67,7 +67,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/io.h"
 #include "bl2_i2c_driver.h"
 #include "bl2_gpio_controller.h"
 #include "bl2_pmic_controller.h"

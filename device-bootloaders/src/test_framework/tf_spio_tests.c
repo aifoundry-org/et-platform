@@ -2,7 +2,7 @@
 #include "etsoc/drivers/serial/serial.h"
 #include "tf.h"
 #include "bl2_sp_pll.h"
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/io.h"
 #include "bl2_spi_flash.h"
 
 int8_t SPIO_RAM_Read_Word_Cmd_Handler(void* test_cmd);

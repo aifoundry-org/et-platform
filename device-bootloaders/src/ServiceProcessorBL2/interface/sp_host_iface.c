@@ -277,7 +277,7 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
         }
 
         /* Push the command to circular buffer */
-        status = VQ_Push(&SP_Host_CQ.vqueue, p_cmd, cmd_size);
+        status = VQ_Push(&SP_Host_CQ.vqueue, p_cmd, cmd_size, UNCACHED);
 
         /* Get the updated head pointer in local copy */
         SP_Host_CQ.circ_buff_local.head_offset = VQ_Get_Head_Offset(&SP_Host_CQ.vqueue);
@@ -329,7 +329,7 @@ uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff)
     if (xSemaphoreTake(Host_SQ_Lock, (TickType_t)HOST_VQ_MAX_TIMEOUT ) == pdTRUE)
     {
         /* Pop the command from circular buffer */
-        pop_ret_val = VQ_Pop(&SP_Host_SQ.vqueue, rx_buff);
+        pop_ret_val = VQ_Pop(&SP_Host_SQ.vqueue, rx_buff, UNCACHED);
 
         xSemaphoreGive(Host_SQ_Lock);
     }

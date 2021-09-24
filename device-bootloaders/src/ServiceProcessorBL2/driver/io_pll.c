@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "bl_error_code.h"
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/io.h"
 #include "bl2_sp_pll.h"
 #include "bl2_main.h"
 

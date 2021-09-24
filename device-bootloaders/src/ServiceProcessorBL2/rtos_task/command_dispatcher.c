@@ -29,7 +29,7 @@
 #include "sp_host_iface.h"
 
 #include "mm_iface.h"
-#include "transports/mm_cm_iface/sp_mm_comms_spec.h"
+#include "transports/sp_mm_iface/sp_mm_comms_spec.h"
 
 #include "FreeRTOS.h"
 #include "queue.h"
@@ -227,7 +227,7 @@ static void pc_vq_task(void *pvParameters)
         tail_prev = VQ_Get_Tail_Offset(&vq_cached);
 
         /* Refresh the cached VQ CB - Get updated head and tail values from SRAM */
-        VQ_Get_Head_And_Tail(vq_shared, &vq_cached);
+        VQ_Get_Head_And_Tail(vq_shared, &vq_cached, UNCACHED);
 
         /* Verify that the tail value read from memory is equal to previous tail value */
         if(tail_prev != VQ_Get_Tail_Offset(&vq_cached))

@@ -13,6 +13,9 @@
 #include "tf.h"
 #include "trace.h"
 
+/* mm_rt_helpers */
+#include "system/layout.h"
+
 int8_t Sp_Trace_Run_Control_Cmd_Handler(const void* test_cmd);
 int8_t Sp_Trace_Run_Config_Cmd_Handler(const void* test_cmd);
 int8_t Sp_Trace_Get_Info_Cmd_Handler(const void* test_cmd);
