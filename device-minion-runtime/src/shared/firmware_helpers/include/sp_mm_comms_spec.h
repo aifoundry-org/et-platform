@@ -186,6 +186,7 @@ struct mm2sp_get_active_shire_mask_cmd_t {
 struct mm2sp_get_active_shire_mask_rsp_t {
   struct dev_cmd_hdr_t  msg_hdr;
   uint64_t  active_shire_mask;
+  uint8_t  lvdpll_strap;
 };
 
 /*! \struct mm2sp_get_cm_boot_freq_cmd_t
@@ -281,7 +282,7 @@ struct sp2mm_echo_rsp_t {
 */
 struct sp2mm_update_freq_cmd_t {
   struct dev_cmd_hdr_t  msg_hdr;
-  uint32_t  freq;
+  uint16_t  freq;
 };
 
 /*! \struct sp2mm_update_freq_rsp_t

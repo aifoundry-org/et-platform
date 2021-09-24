@@ -183,10 +183,11 @@ static inline uint64_t cw_get_booted_shires(void)
 int8_t CW_Init(void)
 {
     uint64_t shire_mask = 0;
+    uint8_t lvdpll_strap = 0;
     int8_t status = STATUS_SUCCESS;
 
     /* Obtain the number of shires to be used from SP and initialize the CW control block */
-    status = SP_Iface_Get_Shire_Mask(&shire_mask);
+    status = SP_Iface_Get_Shire_Mask_And_Strap(&shire_mask, &lvdpll_strap);
     if (status != STATUS_SUCCESS)
     {
         return status;
@@ -202,7 +203,7 @@ int8_t CW_Init(void)
         shire_mask);
 
     /* Bring up Compute Workers */
-    syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, shire_mask, 0x1u, 0);
+    syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, shire_mask, lvdpll_strap, 0);
 
     /* Wait for all workers to be initialized */
     status = CW_Wait_For_Compute_Minions_Boot(shire_mask);
