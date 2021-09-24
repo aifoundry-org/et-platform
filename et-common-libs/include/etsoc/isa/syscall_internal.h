@@ -2,7 +2,7 @@
 #define SYSCALL_INTERNAL_H
 
 #ifndef __ASSEMBLER__
-#include "syscall.h"
+#include "etsoc/isa/syscall.h"
 #endif
 
 #define SYSCALL_BROADCAST_INT               1

@@ -9,8 +9,9 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/io.h"
 #include "etsoc/drivers/pcie/pcie_int.h"
+#include "etsoc/drivers/pcie/pcie_device.h"
 #include "etsoc/isa/atomic.h"
 
 /*! \enum pcie_int_t
@@ -43,9 +44,7 @@ static pcie_cb_t PCIE_CB __attribute__((aligned(64))) = {0};
 
 static pcie_int_t pcie_get_int_type(void)
 {
-    uint32_t msi;
-    uint32_t msix;
-    uint32_t status;
+    uint32_t msi, msix, status;
 
     /* The PCI spec defines 3 different interrupt mechanisms. Per the PCI spec, the host system
     software will enable exactly one of them at a time. */
@@ -160,8 +159,7 @@ int pcie_interrupt_host(uint32_t vec)
         return -1;
     }
 
-    uint32_t msi_mask;
-    uint32_t tmp;
+    uint32_t msi_mask, tmp;
 
     /* Get the interrupt type supported from PCIE CB */
     switch (pcie_cb_get_int_type())

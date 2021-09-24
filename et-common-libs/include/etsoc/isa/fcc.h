@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "esr_defines.h"
+#include "etsoc/isa/esr_defines.h"
 
 #include <stdint.h>
 

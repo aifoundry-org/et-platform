@@ -18,16 +18,14 @@ extern "C" {
 
 #include <inttypes.h>
 
-#include "hart.h"
-#include "utils.h"
-#include "esr_defines.h"
+#include "etsoc/isa/utils.h"
+#include "etsoc/isa/esr_defines.h"
 
 #ifdef __cplusplus
 #define EXTERN_C extern "C"
 #else
 #define EXTERN_C
 #endif
-
 
 // Shire-only barrier using FLBs and FCCs
 inline uint64_t __attribute__((always_inline)) shire_barrier(uint64_t flb, uint64_t fcc, uint64_t thread_count, uint64_t minion_mask_t0, uint64_t minion_mask_t1)

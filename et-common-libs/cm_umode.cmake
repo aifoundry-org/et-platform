@@ -12,6 +12,7 @@ set(CM_UMODE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/cm-umode)
 #Listing of header only public interfaces
 set(CM_UMODE_HDRS
     # ETSOC ISA headers
+    include/common/printf.h
     include/etsoc/isa/atomic.h
     include/etsoc/isa/atomic-impl.h
     include/etsoc/isa/barriers.h
@@ -43,10 +44,10 @@ set(CM_UMODE_LIB_HDRS
 #Listing of sources that implement services provided by
 #the CM UMODE (Compute Minion User Mode) Library
 add_library(cm-umode STATIC
-    src/etsoc/hal/pmu.c
-    src/common/utils.c
-    src/trace/trace_umode.c
     src/common/printf.c
+    src/etsoc/common/utils.c
+    src/etsoc/drivers/pmu/pmu.c
+    src/trace/trace_umode.c
     src/common/printf_dummy.c
     src/libc_stub/stdlib.c
     src/libc_stub/string.c

@@ -22,10 +22,10 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "atomic.h"
-#include "fcc.h"
-#include "macros.h"
-#include "utils.h"
+#include "etsoc/isa/atomic.h"
+#include "etsoc/isa/fcc.h"
+#include "etsoc/isa/macros.h"
+#include "etsoc/isa/utils.h"
 
 #define CACHE_LINE_SIZE 64
 

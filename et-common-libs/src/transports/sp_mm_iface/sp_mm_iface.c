@@ -39,10 +39,10 @@
 */
 /***********************************************************************/
 #include "transports/sp_mm_iface/sp_mm_iface.h"
-#include "config/sp_mm_shared_config.h"
-#include "transports/mm_cm_iface/sp_mm_comms_spec.h"
+#include "transports/sp_mm_iface/sp_mm_shared_config.h"
+#include "transports/sp_mm_iface/sp_mm_comms_spec.h"
 #include "etsoc/isa/esr_defines.h"
-#include "etsoc_hal/inc/hal_device.h"
+#include "hwinc/hal_device.h"
 
 typedef struct sp_iface_cb_ {
     /* Shared copy globals */
@@ -135,137 +135,72 @@ static inline int8_t notify(uint8_t target, int32_t hart_id_to_notify)
 *
 *   INPUTS
 *
-*       none
+*       flags   access method to r/w virtual queues between SP and MM
 *
 *   OUTPUTS
 *
 *       status      success or error code
 *
 ***********************************************************************/
-int8_t SP_MM_Iface_Init(void)
+int8_t SP_MM_Iface_Init(uint8_t flags)
 {
     int8_t status = STATUS_SUCCESS;
 
-#if defined(MASTER_MINION)
+    uint64_t temp64 = 0;
 
-    uint64_t temp = 0;
-
-    temp = ((((uint64_t)SP2MM_SQ_SIZE) << 32) | ((uint64_t)SP2MM_SQ_BASE));
-    atomic_store_local_64((uint64_t*)&SP_SQueue, temp);
-    temp = (((uint64_t)(SP2MM_CQ_SIZE << 32)) | SP2MM_CQ_BASE);
-    atomic_store_local_64((uint64_t*)&SP_CQueue, temp);
+    temp64 = ((((uint64_t)SP2MM_SQ_SIZE) << 32) | ((uint64_t)SP2MM_SQ_BASE));
+    ETSOC_Memory_Write(&temp64, &SP_SQueue, sizeof(uint64_t), flags);
+    temp64 = (((uint64_t)(SP2MM_CQ_SIZE << 32)) | SP2MM_CQ_BASE);
+    ETSOC_Memory_Write(&temp64, &SP_CQueue, sizeof(uint64_t), flags);
 
     status = VQ_Init(&SP_SQueue.vqueue, SP_SQueue.vqueue_base,
-                        SP_SQueue.vqueue_size, 0, sizeof(cmd_size_t),
-                        SP2MM_SQ_MEM_TYPE);
+        SP_SQueue.vqueue_size, 0, sizeof(cmd_size_t), SP2MM_SQ_MEM_TYPE);
 
-    if (status == STATUS_SUCCESS)
+    if(status == STATUS_SUCCESS)
     {
         /* Make a copy of SP SQ Circular Buffer CB in shared SRAM to global variable */
-        ETSOC_Memory_Write_Local_Atomic(
-            (void*)(uintptr_t)atomic_load_local_64((uint64_t*)&SP_SQueue.vqueue.circbuff_cb),
-            &SP_SQueue.circ_buff_local,
-            sizeof(SP_SQueue.circ_buff_local));
+        ETSOC_Memory_Read(&SP_SQueue.vqueue.circbuff_cb, &temp64, sizeof(uint64_t), flags);
+        ETSOC_Memory_Write(&temp64, &SP_SQueue.circ_buff_local, sizeof(uint64_t), flags);
 
         status = VQ_Init(&SP_CQueue.vqueue, SP_CQueue.vqueue_base,
-                            SP_CQueue.vqueue_size, 0, sizeof(cmd_size_t),
-                            SP2MM_CQ_MEM_TYPE);
+            SP_CQueue.vqueue_size, 0, sizeof(cmd_size_t), SP2MM_CQ_MEM_TYPE);
     }
 
-    if (status == STATUS_SUCCESS)
+    if(status == STATUS_SUCCESS)
     {
         /* Make a copy of SP CQ Circular Buffer CB in shared SRAM to global variable */
-        ETSOC_Memory_Write_Local_Atomic(
-            (void*)(uintptr_t)atomic_load_local_64((uint64_t*)&SP_CQueue.vqueue.circbuff_cb),
-            &SP_CQueue.circ_buff_local,
-            sizeof(SP_CQueue.circ_buff_local));
+        ETSOC_Memory_Read(&SP_CQueue.vqueue.circbuff_cb, &temp64, sizeof(uint64_t), flags);
+        ETSOC_Memory_Write(&temp64, &SP_CQueue.circ_buff_local,
+            sizeof(SP_CQueue.circ_buff_local), flags);
 
-        temp = ((((uint64_t)MM2SP_SQ_SIZE) << 32) | ((uint64_t)MM2SP_SQ_BASE));
-        atomic_store_local_64((uint64_t*)&MM_SQueue, temp);
-        temp = (((uint64_t)(MM2SP_CQ_SIZE << 32)) | MM2SP_CQ_BASE);
-        atomic_store_local_64((uint64_t*)&MM_CQueue, temp);
+        temp64 = ((((uint64_t)MM2SP_SQ_SIZE) << 32) | ((uint64_t)MM2SP_SQ_BASE));
+        ETSOC_Memory_Write(&temp64, &MM_SQueue, sizeof(uint64_t), flags);
+        temp64 = (((uint64_t)(MM2SP_CQ_SIZE << 32)) | ((uint64_t)MM2SP_CQ_BASE));
+        ETSOC_Memory_Write(&temp64, &MM_CQueue, sizeof(uint64_t), flags);
 
         status = VQ_Init(&MM_SQueue.vqueue, MM_SQueue.vqueue_base,
-                            MM_SQueue.vqueue_size, 0, sizeof(cmd_size_t),
-                            MM2SP_SQ_MEM_TYPE);
+            MM_SQueue.vqueue_size, 0, sizeof(cmd_size_t), MM2SP_SQ_MEM_TYPE);
     }
 
-    if (status == STATUS_SUCCESS)
+    if(status == STATUS_SUCCESS)
     {
         /* Make a copy of MM SQ Circular Buffer CB in shared SRAM to global variable */
-        ETSOC_Memory_Write_Local_Atomic(
-            (void*)(uintptr_t)atomic_load_local_64((uint64_t*)&MM_SQueue.vqueue.circbuff_cb),
-            &MM_SQueue.circ_buff_local,
-            sizeof(MM_SQueue.circ_buff_local));
+        ETSOC_Memory_Read(&MM_SQueue.vqueue.circbuff_cb, &temp64, sizeof(uint64_t), flags);
+        ETSOC_Memory_Write(&temp64, &MM_SQueue.circ_buff_local,
+            sizeof(MM_SQueue.circ_buff_local), flags);
 
         status = VQ_Init(&MM_CQueue.vqueue, MM_CQueue.vqueue_base,
-                            MM_CQueue.vqueue_size, 0, sizeof(cmd_size_t),
-                            MM2SP_CQ_MEM_TYPE);
+            MM_CQueue.vqueue_size, 0, sizeof(cmd_size_t), MM2SP_CQ_MEM_TYPE);
     }
 
-    if (status == STATUS_SUCCESS)
+    if(status == STATUS_SUCCESS)
     {
         /* Make a copy of MM CQ Circular Buffer CB in shared SRAM to global variable */
-        ETSOC_Memory_Write_Local_Atomic(
-            (void*)(uintptr_t)atomic_load_local_64((uint64_t*)&MM_CQueue.vqueue.circbuff_cb),
-            &MM_CQueue.circ_buff_local,
-            sizeof(MM_CQueue.circ_buff_local));
+        ETSOC_Memory_Read(&MM_CQueue.vqueue.circbuff_cb, &temp64, sizeof(uint64_t), flags);
+        ETSOC_Memory_Write(&temp64, &MM_CQueue.circ_buff_local,
+            sizeof(MM_CQueue.circ_buff_local), flags);
+
     }
-
-#elif defined(SERVICE_PROCESSOR_BL2)
-
-    SP_SQueue.vqueue_base = SP2MM_SQ_BASE;
-    SP_SQueue.vqueue_size = SP2MM_SQ_SIZE;
-    SP_CQueue.vqueue_base = SP2MM_CQ_BASE;
-    SP_CQueue.vqueue_size = SP2MM_CQ_SIZE;
-    status = VQ_Init(&SP_SQueue.vqueue, SP_SQueue.vqueue_base,
-                        SP_SQueue.vqueue_size, 0, sizeof(cmd_size_t),
-                        SP2MM_SQ_MEM_TYPE);
-
-    if (status == STATUS_SUCCESS)
-    {
-        /* Make a copy of SP SQ Circular Buffer CB in shared SRAM to global variable */
-        memcpy(&SP_SQueue.circ_buff_local, SP_SQueue.vqueue.circbuff_cb,
-            sizeof(SP_SQueue.circ_buff_local));
-
-        status = VQ_Init(&SP_CQueue.vqueue, SP_CQueue.vqueue_base,
-                            SP_CQueue.vqueue_size, 0, sizeof(cmd_size_t),
-                            SP2MM_CQ_MEM_TYPE);
-    }
-
-    if (status == STATUS_SUCCESS)
-    {
-        /* Make a copy of SP CQ Circular Buffer CB in shared SRAM to global variable */
-        memcpy(&SP_CQueue.circ_buff_local, SP_CQueue.vqueue.circbuff_cb,
-            sizeof(SP_CQueue.circ_buff_local));
-
-        MM_SQueue.vqueue_base = MM2SP_SQ_BASE;
-        MM_SQueue.vqueue_size = MM2SP_SQ_SIZE;
-        MM_CQueue.vqueue_base = MM2SP_CQ_BASE;
-        MM_CQueue.vqueue_size = MM2SP_CQ_SIZE;
-        status = VQ_Init(&MM_SQueue.vqueue, MM_SQueue.vqueue_base,
-                            MM_SQueue.vqueue_size, 0, sizeof(cmd_size_t),
-                            MM2SP_SQ_MEM_TYPE);
-    }
-
-    if (status == STATUS_SUCCESS)
-    {
-        /* Make a copy of MM SQ Circular Buffer CB in shared SRAM to global variable */
-        memcpy(&MM_SQueue.circ_buff_local, MM_SQueue.vqueue.circbuff_cb,
-            sizeof(MM_SQueue.circ_buff_local));
-
-        status = VQ_Init(&MM_CQueue.vqueue, MM_CQueue.vqueue_base,
-                            MM_CQueue.vqueue_size, 0, sizeof(cmd_size_t),
-                            MM2SP_CQ_MEM_TYPE);
-    }
-
-    if (status == STATUS_SUCCESS)
-    {
-        /* Make a copy of MM CQ Circular Buffer CB in shared SRAM to global variable */
-        memcpy(&MM_CQueue.circ_buff_local, MM_CQueue.vqueue.circbuff_cb,
-            sizeof(MM_CQueue.circ_buff_local));
-    }
-#endif
 
     return status;
 }
@@ -285,13 +220,14 @@ int8_t SP_MM_Iface_Init(void)
 *       target  SP2MM_SQ, SP2MM_CQ, MM2SP_SQ, MM2SP_CQ
 *       p_cmd   reference to command to push to target
 *       cmd_size    size of command to be pushed to target
+*       flags       access method to r/w virtual queues between SP and MM
 *
 *   OUTPUTS
 *
 *       status      success or error code
 *
 ***********************************************************************/
-int8_t SP_MM_Iface_Push(uint8_t target, void* p_buff, uint32_t size)
+int8_t SP_MM_Iface_Push(uint8_t target, void* p_buff, uint32_t size, uint8_t flags)
 {
     vq_cb_t *p_vq_cb = 0;
     int8_t status = 0;
@@ -335,7 +271,7 @@ int8_t SP_MM_Iface_Push(uint8_t target, void* p_buff, uint32_t size)
 
     if(p_vq_cb != 0)
     {
-        status = VQ_Push(p_vq_cb, p_buff, size);
+        status = VQ_Push(p_vq_cb, p_buff, size, flags);
 
         if(!status)
         {
@@ -358,15 +294,16 @@ int8_t SP_MM_Iface_Push(uint8_t target, void* p_buff, uint32_t size)
 *
 *   INPUTS
 *
-*       target  SP2MM_SQ, SP2MM_CQ, MM2SP_SQ, MM2SP_CQ
+*       target      SP2MM_SQ, SP2MM_CQ, MM2SP_SQ, MM2SP_CQ
 *       rx_buffer   Caller provided buffer to copy popped message
+*       flags       access method to r/w virtual queues between SP and MM
 *
 *   OUTPUTS
 *
 *       status      success or error code
 *
 ***********************************************************************/
-int32_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff)
+int32_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff, uint8_t flags)
 {
     sp_mm_iface_cb_t *p_iface_cb = 0;
     int32_t retval = 0;
@@ -401,7 +338,7 @@ int32_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff)
 
     if(p_iface_cb != 0)
     {
-        retval = VQ_Pop(&p_iface_cb->vqueue, rx_buff);
+        retval = VQ_Pop(&p_iface_cb->vqueue, rx_buff, flags);
 
         /* For now, just update the local copy for SP SQ */
         if(target == SP_SQ)
@@ -429,13 +366,14 @@ int32_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff)
 *   INPUTS
 *
 *       target      target enum
+*       flags       access method to r/w virtual queues between SP and MM
 *
 *   OUTPUTS
 *
 *       status      success or error code
 *
 ***********************************************************************/
-bool SP_MM_Iface_Data_Available(uint8_t target)
+bool SP_MM_Iface_Data_Available(uint8_t target, uint8_t flags)
 {
     vq_cb_t *p_vq_cb = 0;
     bool result = false;
@@ -470,7 +408,7 @@ bool SP_MM_Iface_Data_Available(uint8_t target)
 
     if(p_vq_cb != 0)
     {
-        result = VQ_Data_Avail(p_vq_cb);
+        result = VQ_Data_Avail(p_vq_cb, flags);
     }
 
     return result;
@@ -489,13 +427,14 @@ bool SP_MM_Iface_Data_Available(uint8_t target)
 *   INPUTS
 *
 *       target  SP2MM_SQ, SP2MM_CQ, MM2SP_SQ, MM2SP_CQ
+*       flags   access method to r/w virtual queues between SP and MM
 *
 *   OUTPUTS
 *
 *       status      success or error code
 *
 ***********************************************************************/
-int8_t SP_MM_Iface_Verify_Tail(uint8_t target)
+int8_t SP_MM_Iface_Verify_Tail(uint8_t target, uint8_t flags)
 {
     sp_mm_iface_cb_t *p_iface_cb = 0;
     int8_t status = STATUS_SUCCESS;
@@ -526,20 +465,19 @@ int8_t SP_MM_Iface_Verify_Tail(uint8_t target)
     /* Verify that the tail value read from shared memory is equal to previous head value */
     if(status == STATUS_SUCCESS)
     {
-#if defined(MASTER_MINION)
-        uint64_t local_tail = Circbuffer_Get_Tail(&p_iface_cb->circ_buff_local, LOCAL_ATOMIC);
-        uint64_t shared_tail = Circbuffer_Get_Tail((circ_buff_cb_t*)(uintptr_t)
-            atomic_load_local_64((uint64_t*)&p_iface_cb->vqueue.circbuff_cb),
-            atomic_load_local_32(&p_iface_cb->vqueue.flags));
-#elif defined(SERVICE_PROCESSOR_BL2)
-        uint64_t local_tail = Circbuffer_Get_Tail(&p_iface_cb->circ_buff_local, UNCACHED);
-        uint64_t shared_tail = Circbuffer_Get_Tail(p_iface_cb->vqueue.circbuff_cb, p_iface_cb->vqueue.flags);
-#endif
+        uint64_t temp64 = 0;
+        uint32_t temp32 = 0;
+
+        ETSOC_Memory_Read(&p_iface_cb->vqueue.circbuff_cb, &temp64, sizeof(uint64_t), flags);
+        ETSOC_Memory_Read(&p_iface_cb->vqueue.flags, &temp32, sizeof(uint32_t), flags);
+
+        uint64_t local_tail = Circbuffer_Get_Tail(&p_iface_cb->circ_buff_local, flags);
+        uint64_t shared_tail = Circbuffer_Get_Tail((circ_buff_cb_t*)(uintptr_t)temp64, temp32);
 
         if(local_tail != shared_tail)
         {
             /* Fallback mechanism: use the cached copy of tail */
-            VQ_Set_Tail_Offset(&p_iface_cb->vqueue, local_tail);
+            VQ_Set_Tail_Offset(&p_iface_cb->vqueue, local_tail, flags);
 
             status = SP_MM_IFACE_ERROR_VQ_BAD_TAIL;
         }

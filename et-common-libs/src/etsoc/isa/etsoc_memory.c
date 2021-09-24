@@ -13,6 +13,8 @@
     \brief A C module that implements ETSOC memory access helper functions
 
     Public interfaces:
+        ETSOC_Memory_Read
+        ETSOC_Memory_Write
         ETSOC_Memory_Read_Uncacheable
         ETSOC_Memory_Write_Uncacheable
         ETSOC_Memory_Read_Local_Atomic
@@ -24,8 +26,8 @@
         ETSOC_Memory_Write_SCP
 */
 /***********************************************************************/
-#include "etsoc/isa/mem-access/etsoc_memory.h"
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/etsoc_memory.h"
+#include "etsoc/isa/io.h"
 #include "etsoc/isa/atomic.h"
 #ifdef MEM_DEBUG
 #include "../../../MasterMinion/include/services/log.h"
@@ -212,6 +214,102 @@ static inline void io_write_64(volatile uint64_t *addr, uint64_t val)
         --length;                                                                                   \
     }                                                                                               \
 })
+
+/*! \var void memory_read
+    \brief An array containing function pointers to ETSOC memory read functions.
+    \warning Not thread safe!
+*/
+int8_t (*memory_read[MEM_TYPES_COUNT])
+    (const void *src_ptr, void *dest_ptr, uint64_t length) __attribute__((aligned(64))) =
+    { ETSOC_Memory_Read_Local_Atomic, ETSOC_Memory_Read_Global_Atomic,
+      ETSOC_Memory_Read_Uncacheable, ETSOC_Memory_Read_Write_Cacheable,
+      ETSOC_Memory_Read_SCP };
+
+/*! \var void memory_write
+    \brief An array containing function pointers to ETSOC memory write functions.
+    \warning Not thread safe!
+*/
+int8_t (*memory_write[MEM_TYPES_COUNT])
+    (const void *src_ptr, void *dest_ptr, uint64_t length) __attribute__((aligned(64))) =
+    { ETSOC_Memory_Write_Local_Atomic, ETSOC_Memory_Write_Global_Atomic,
+      ETSOC_Memory_Write_Uncacheable, ETSOC_Memory_Read_Write_Cacheable,
+      ETSOC_Memory_Write_SCP };
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       ETSOC_Memory_Read
+*
+*   DESCRIPTION
+*
+*       Common API to read memory
+*
+*   INPUTS
+*
+*       src_ptr           Pointer to source address
+*       dest_ptr          Pointer to destination address
+*       size              size of data to be copied
+*       flags             ETSOC_MEM_TYPE that determines the memory
+*                         access method
+*
+*   OUTPUTS
+*
+*       int8_t            Returns successful status or error code.
+*
+***********************************************************************/
+int8_t ETSOC_Memory_Read(const void *src_ptr, void *dest_ptr,
+    uint64_t size, uint32_t flags)
+{
+    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
+
+    if(flags >= MEM_TYPES_COUNT)
+    {
+        status = ETSOC_MEM_ERROR_INVALID_PARAM;
+    }
+
+    status = (*memory_write[flags]) (src_ptr, dest_ptr, size);
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       ETSOC_Memory_Write
+*
+*   DESCRIPTION
+*
+*       Common API to write memory
+*
+*   INPUTS
+*
+*       src_ptr           Pointer to source address
+*       dest_ptr          Pointer to destination address
+*       size              Size in bytes to write
+*       flags             ETSOC_MEM_TYPE that determines the memory
+*                         access method
+*
+*   OUTPUTS
+*
+*       int8_t            Returns successful status or error code.
+*
+***********************************************************************/
+int8_t ETSOC_Memory_Write(const void *src_ptr, void *dest_ptr,
+    uint64_t size, uint32_t flags)
+{
+    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
+
+    if(flags >= MEM_TYPES_COUNT)
+    {
+        status = ETSOC_MEM_ERROR_INVALID_PARAM;
+    }
+
+    status = (*memory_read[flags]) (src_ptr, dest_ptr, size);
+
+    return status;
+}
 
 /************************************************************************
 *
@@ -475,6 +573,9 @@ int8_t ETSOC_Memory_Read_Write_Cacheable(const void *src_ptr, void *dest_ptr, ui
 ***********************************************************************/
 int8_t ETSOC_Memory_Read_SCP(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
+#if 0 /* TODO: Supressing these access methods since they use SCP macros
+from layout.h, this could be moved to etsoc_hal */
+
     /* Verify the shire index and address range of shire L2 SCP */
     if((ETSOC_SCP_GET_SHIRE_ID((uint64_t)src_ptr) < NUM_SHIRES) &&
         (ETSOC_SCP_GET_SHIRE_OFFSET((uint64_t)src_ptr) < ETSOC_SCP_GET_SHIRE_SIZE))
@@ -488,6 +589,13 @@ int8_t ETSOC_Memory_Read_SCP(const void *src_ptr, void *dest_ptr, uint64_t lengt
     {
         return ETSOC_MEM_ERROR_INVALID_PARAM;
     }
+#endif
+
+    (void) src_ptr;
+    (void) dest_ptr;
+    (void) length;
+
+    return ETSOC_MEM_ERROR_INVALID_PARAM;
 }
 
 /************************************************************************
@@ -514,6 +622,9 @@ int8_t ETSOC_Memory_Read_SCP(const void *src_ptr, void *dest_ptr, uint64_t lengt
 ***********************************************************************/
 int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
+#if 0 /* TODO: Supressing these access methods since they use SCP macros
+from layout.h, this could be moved to etsoc_hal */
+
     /* Verify the shire index and address range of shire L2 SCP */
     if((ETSOC_SCP_GET_SHIRE_ID((uint64_t)dest_ptr) < NUM_SHIRES) &&
         (ETSOC_SCP_GET_SHIRE_OFFSET((uint64_t)dest_ptr) < ETSOC_SCP_GET_SHIRE_SIZE))
@@ -527,4 +638,12 @@ int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t leng
     {
         return ETSOC_MEM_ERROR_INVALID_PARAM;
     }
+
+#endif
+
+    (void) src_ptr;
+    (void) dest_ptr;
+    (void) length;
+
+    return ETSOC_MEM_ERROR_INVALID_PARAM;
 }

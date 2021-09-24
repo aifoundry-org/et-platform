@@ -17,7 +17,6 @@
 #define ETSOC_MEMORY_DEFS_H_
 
 #include "etsoc/isa/cacheops.h"
-#include "system/layout.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -46,6 +45,26 @@ enum ETSOC_MEM_TYPES
 #define ETSOC_MEM_ERROR_INVALID_PARAM              -1
 
 /*********************/
+/*! \fn int8_t ETSOC_Memory_Read(void *src_ptr, void *dest_ptr, uint64_t length, uint8_t flags)
+    \brief Reads data from ETSOC uncacheable memory.
+    \param [in] src_ptr: Pointer to source data buffer.
+    \param [in] dest_ptr: Pointer to destination data buffer.
+    \param [in] length: Total length (in bytes) of the data that needs to be read.
+    \param [in] flags ETSOC_MEM_TYPE to use
+    \returns [out] return status.
+*/
+int8_t ETSOC_Memory_Read(const void *src_ptr, void *dest_ptr, uint64_t length, uint32_t flags);
+
+/*! \fn int8_t ETSOC_Memory_Write(void *src_ptr, void *dest_ptr, uint64_t length, uint8_t flags)
+    \brief Reads data from ETSOC uncacheable memory.
+    \param [in] src_ptr: Pointer to source data buffer.
+    \param [in] dest_ptr: Pointer to destination data buffer.
+    \param [in] length: Total length (in bytes) of the data that needs to be read.
+    \param [in] flags ETSOC_MEM_TYPE to use
+    \returns [out] return status.
+*/
+int8_t ETSOC_Memory_Write(const void *src_ptr, void *dest_ptr, uint64_t length, uint32_t flags);
+
 /*! \fn int8_t ETSOC_Memory_Read_Uncacheable(void *src_ptr, void *dest_ptr, uint64_t length)
     \brief Reads data from ETSOC uncacheable memory.
     \param [in] src_ptr: Pointer to source data buffer.

@@ -18,7 +18,7 @@
 #include <inttypes.h>
 #endif
 
-#include "utils.h"
+#include "etsoc/isa/utils.h"
 
 enum cop_dest {
    to_L1  = 0x0ULL,

@@ -34,6 +34,11 @@
     }
 #endif
 
+/*! \def MASK_SET_BIT(x, bit_num)
+    \brief A macro used to set a bit the provided bit mask
+*/
+#define MASK_SET_BIT(x, bit_num)  (x | (1ull << (bit_num)))
+
 /*! \def MASK_RESET_BIT(x, bit_num)
     \brief A macro used to reset a bit the provided bit mask
 */

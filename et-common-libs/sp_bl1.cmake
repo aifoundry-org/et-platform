@@ -14,7 +14,7 @@ set(SP_BL1_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/esperanto-fw/lib/et-common-lib
 ################################################
 #Listing of header only public interfaces
 set(SP_BL1_HDRS
-    include/etsoc/isa/mem-access/io.h
+    include/etsoc/isa/io.h
     include/etsoc/isa/atomic.h
     include/etsoc/isa/atomic-impl.h
     include/etsoc/isa/esr_defines.h
@@ -46,7 +46,7 @@ set(SP_BL1_LIB_HDRS
 #Listing of sources that implement services provided by
 #the SP_BL1 (Minion Bootloader) Library
 add_library(sp-bl1 STATIC
-    src/etsoc/hal/serial/serial.c
+    src/etsoc/drivers/serial/serial.c
 )
 
 set_target_properties(sp-bl1 PROPERTIES LINKER_LANGUAGE C)

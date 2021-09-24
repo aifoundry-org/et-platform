@@ -19,7 +19,7 @@
 */
 /***********************************************************************/
 
-#include "etsoc_hal/inc/hal_device.h"
+#include "hwinc/hal_device.h"
 
 /*! \def MM_BASE_HART_OFFSET
     \brief Master Minion base hart offset
