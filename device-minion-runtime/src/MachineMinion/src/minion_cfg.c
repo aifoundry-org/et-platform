@@ -43,6 +43,13 @@ static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
     return (uint8_t)(64 - __builtin_clzl(shire_mask));
 }
 
+// get_highest_set_bit_offset
+// This function returns highest set bit offset
+static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
+{
+    return (uint8_t)(64 - __builtin_clzl(shire_mask));
+}
+
 // Configure Minion PLL to specific mode. This uses the broadcast mechanism hence all Minions
 // will be programmed to the same frequency.
 static int64_t minion_configure_cold_boot_pll(uint64_t shire_mask, uint8_t lvdpll_strap)
