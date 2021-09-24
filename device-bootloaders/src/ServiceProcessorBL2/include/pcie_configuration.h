@@ -64,6 +64,14 @@ int32_t pcie_error_control_init(dm_event_isr_callback event_cb);
 
 int32_t pcie_error_control_deinit(void);
 
+/*! \fn int32_t pcie_enable_ce_interrupt(void)
+    \brief This function enables pcie correctable error interrupts.
+    \param none
+    \return Status indicating success or negative error
+*/
+
+int32_t pcie_enable_ce_interrupt(void);
+
 /*! \fn int32_t pcie_enable_uce_interrupt(void)
     \brief This function enables pcie uncorrectable error interrupts.
     \param none
@@ -194,14 +202,14 @@ int Pshire_PLL_Program(uint8_t frequency);
 
 /*! \fn int Pshire_NOC_update_routing_table(void)
     \brief Interface to update routing table
-    \param None 
+    \param None
     \returns Status indicating success or negative error
 */
 int Pshire_NOC_update_routing_table(void);
 
 /*! \fn int PCIe_Phy_Firmware_Update (const uint64_t* image)
     \brief Interface to update phy firmware
-    \param image pointer to firmware image 
+    \param image pointer to firmware image
     \returns Status indicating success or negative error
 */
 int PCIe_Phy_Firmware_Update (const uint64_t* image);

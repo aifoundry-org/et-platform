@@ -18,6 +18,8 @@
 #include "system/layout.h"
 #include "etsoc/drivers/pcie/pcie_int.h"
 #include "pcie_configuration.h"
+#include "config/mgmt_build_config.h"
+#include <interrupt.h>
 
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/hal_device.h"
@@ -29,6 +31,9 @@ static void pcie_init_ints(void);
 static void pcie_init_link(void);
 static void pcie_init_atus(void);
 static void pcie_wait_for_ints(void);
+static void pcie_error_isr(void);
+static void pcie_ce_error(void);
+static void pcie_uce_error(void);
 
 /*! \def BAR2_SIZE
     \brief BAR Sizes must be powers of 2 per the PCIe spec. Round up to next biggest power of 2.
@@ -43,33 +48,32 @@ static void pcie_wait_for_ints(void);
 /*! \def BAR_TYPE_64BIT
     \brief Define for 64-bit type
 */
-#define BAR_TYPE_64BIT   2
+#define BAR_TYPE_64BIT 2
 
 /*! \def BAR_ENABLE
     \brief BAr Enable mask
 */
-#define BAR_ENABLE       1
+#define BAR_ENABLE 1
 
 /*! \def BAR_DISABLE
     \brief BAR disable mask
 */
-#define BAR_DISABLE      0
+#define BAR_DISABLE 0
 
 /*! \def FB_MODE_FIGURE_OF_MERIT
     \brief Set FB MODE
 */
-#define FB_MODE_FIGURE_OF_MERIT  1
+#define FB_MODE_FIGURE_OF_MERIT 1
 
 /*! \def RATE_SHADOW_SEL_GEN4
     \brief RATE_SHADOW_SEL_GEN4
 */
-#define RATE_SHADOW_SEL_GEN4     1
+#define RATE_SHADOW_SEL_GEN4 1
 
 /*! \def SMLH_LTSSM_STATE_LINK_UP
     \brief Link up mask
 */
 #define SMLH_LTSSM_STATE_LINK_UP 0x11
-
 
 /*! \def MSI_ENABLED
     \brief  MSI enabled value */
@@ -91,9 +95,9 @@ static struct pcie_event_control_block event_control_block __attribute__((sectio
  */
 struct pcie_event_control_block
 {
-    uint32_t ce_count; /**< Correctable error count. */
-    uint32_t uce_count; /**< Un-Correctable error count. */
-    uint32_t ce_threshold; /**< Correctable error threshold. */
+    uint32_t ce_count;              /**< Correctable error count. */
+    uint32_t uce_count;             /**< Un-Correctable error count. */
+    uint32_t ce_threshold;          /**< Correctable error threshold. */
     dm_event_isr_callback event_cb; /**< Event callback handler. */
 };
 
@@ -104,7 +108,16 @@ static uint32_t PCIE_SPEED[5] = { PCIE_GEN_1, PCIE_GEN_2, PCIE_GEN_3, PCIE_GEN_4
 
 int32_t pcie_error_control_init(dm_event_isr_callback event_cb)
 {
+    event_control_block.ce_count = 0;
+    event_control_block.uce_count = 0;
+    event_control_block.ce_threshold = PCIE_CORR_ERROR_THRESHOLD;
     event_control_block.event_cb = event_cb;
+
+    pcie_enable_ce_interrupt();
+    pcie_enable_uce_interrupt();
+
+    INT_enableInterrupt(SPIO_PLIC_PSHIRE_PCIE0_ERR_INTR, 1, pcie_error_isr);
+
     return 0;
 }
 
@@ -138,7 +151,8 @@ void PCIe_init(bool expect_link_up)
         }
         else
         {
-            Log_Write(LOG_LEVEL_WARNING, "Warning: PCIe link not properly inited, trying again...\r\n");
+            Log_Write(LOG_LEVEL_WARNING,
+                      "Warning: PCIe link not properly inited, trying again...\r\n");
         }
     }
 
@@ -150,7 +164,6 @@ void PCIe_init(bool expect_link_up)
         pcie_init_ints();
         pcie_init_link();
     }
-
 }
 
 /*! \brief This is the last step to enable PCIe link so Host/Device can communicate.
@@ -168,7 +181,7 @@ void pcie_enable_link(void)
     tmp = ioread32(PCIE_CUST_SS +
                    DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
     Log_Write(LOG_LEVEL_CRITICAL, "PCIe link up at Gen %ld\r\n",
-           DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_RATE_GET(tmp) + 1);
+              DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_RATE_GET(tmp) + 1);
 }
 
 static void pcie_init_pshire(void)
@@ -207,7 +220,7 @@ static void pcie_init_caps_list(void)
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
     misc_control =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        misc_control, 1);
+            misc_control, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               misc_control);
 
@@ -219,7 +232,7 @@ static void pcie_init_caps_list(void)
 
     misc_control =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        misc_control, 0);
+            misc_control, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               misc_control);
 }
@@ -234,7 +247,7 @@ static void pcie_init_bars(void)
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
     misc_control =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        misc_control, 1);
+            misc_control, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               misc_control);
 
@@ -271,17 +284,15 @@ static void pcie_init_bars(void)
        2^(RESBAR_CTRL_REG_BAR_SIZE + 20) - set to 15 to get 32GB. */
     iowrite32(
         PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CTRL_REG_0_REG_ADDRESS,
-     PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CTRL_REG_0_REG_RESBAR_CTRL_REG_BAR_SIZE_SET(
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CTRL_REG_0_REG_RESBAR_CTRL_REG_BAR_SIZE_SET(
             15));
 
     /* BAR0 config (maps DRAM) */
     bar0 = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
-    bar0 =
-        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_MEM_IO_MODIFY(
-            bar0, BAR_IN_MEM_SPACE);
-    bar0 =
-        (uint32_t)PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_TYPE_MODIFY(
-            bar0, BAR_TYPE_64BIT);
+    bar0 = PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_MEM_IO_MODIFY(
+        bar0, BAR_IN_MEM_SPACE);
+    bar0 = (uint32_t)PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_TYPE_MODIFY(
+        bar0, BAR_TYPE_64BIT);
     bar0 =
         /* IMPORTANT: Many hosts do not tolerate > 1 gb BARs that are not prefetchable */
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_PREFETCH_MODIFY(bar0, 1);
@@ -290,9 +301,9 @@ static void pcie_init_bars(void)
     /* BAR2 config (maps registers) */
     bar2 = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_ADDRESS);
     bar2 = PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_BAR2_MEM_IO_MODIFY(
-                bar2, BAR_IN_MEM_SPACE);
+        bar2, BAR_IN_MEM_SPACE);
     bar2 = (uint32_t)PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_BAR2_TYPE_MODIFY(
-                bar2, BAR_TYPE_64BIT);
+        bar2, BAR_TYPE_64BIT);
 
     /* IMPORTANT - not prefetchable (registers with read side effects mapped here) */
     bar2 = PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_BAR2_PREFETCH_MODIFY(bar2, 0);
@@ -302,7 +313,7 @@ static void pcie_init_bars(void)
 
     misc_control =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-                misc_control, 0);
+            misc_control, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               misc_control);
 }
@@ -335,7 +346,8 @@ static void pcie_init_ints(void)
     msi_ctrl = (uint32_t)
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_PCI_MSI_MULTIPLE_MSG_EN_MODIFY(
             msi_ctrl, MSI_TWO_VECTORS);
-    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_ADDRESS,
+    iowrite32(PCIE0 +
+                  PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_ADDRESS,
               msi_ctrl);
     /* Close access to MSI Capability Register */
     misc_control =
@@ -350,9 +362,8 @@ static void pcie_init_link(void)
     uint32_t tmp;
 
     /*  Setup FSM tracker per Synopsis testbench */
-    iowrite32(
-        PCIE_CUST_SS + DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_FSM_TRACK_1_ADDRESS,
-        0xCC);
+    iowrite32(PCIE_CUST_SS + DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_FSM_TRACK_1_ADDRESS,
+              0xCC);
 
     /* Configure PCIe LTSSM phase 2 equalization behavior.
        All values below provided by James Yu 2019-06-19 */
@@ -385,8 +396,8 @@ static void pcie_init_link(void)
 
     /* By setting RATE_SHADOW_SEL; writes to GEN3_EQ_CONTROL_OFF actually configure Gen 4.0 */
     tmp = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_GEN3_RELATED_OFF_ADDRESS);
-    tmp =
-        (uint32_t)PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_GEN3_RELATED_OFF_RATE_SHADOW_SEL_MODIFY(
+    tmp = (uint32_t)
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_GEN3_RELATED_OFF_RATE_SHADOW_SEL_MODIFY(
             tmp, RATE_SHADOW_SEL_GEN4);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_GEN3_RELATED_OFF_ADDRESS, tmp);
 
@@ -407,7 +418,8 @@ static void pcie_init_link(void)
 
     /* Wait for link training to finish*/
     Log_Write(LOG_LEVEL_CRITICAL, "Link training...");
-    do {
+    do
+    {
         tmp = ioread32(PCIE_CUST_SS +
                        DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
     } while (DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_SMLH_LTSSM_STATE_GET(
@@ -417,54 +429,54 @@ static void pcie_init_link(void)
 /*! \def CONFIG_INBOUND_IATU
     \brief  See DWC_pcie_ctl_dm_databook section 3.10.11
             Since the regmap codegen does not make an array of iATU registers, parameterize with macros */
-#define CONFIG_INBOUND_IATU(num)                                                                                        \
-    static void config_inbound_iatu_##num(uint64_t baseAddr, uint64_t targetAddr, uint64_t size)                        \
-    {                                                                                                                   \
-        uint64_t limitAddr = baseAddr + size - 1;                                                                       \
-                                                                                                                        \
-        iowrite32(                                                                                                      \
-            PCIE0 +                                                                                                     \
+#define CONFIG_INBOUND_IATU(num)                                                                                           \
+    static void config_inbound_iatu_##num(uint64_t baseAddr, uint64_t targetAddr, uint64_t size)                           \
+    {                                                                                                                      \
+        uint64_t limitAddr = baseAddr + size - 1;                                                                          \
+                                                                                                                           \
+        iowrite32(                                                                                                         \
+            PCIE0 +                                                                                                        \
                 PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_ATU_CAP_IATU_REGION_CTRL_1_OFF_INBOUND_##num##_ADDRESS,                  \
             PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_ATU_CAP_IATU_REGION_CTRL_1_OFF_INBOUND_##num##_TYPE_SET(                     \
-                0) | /*Watch to TLPs with TYPE field 0 (mem space)*/                                                    \
+                0) | /*Watch to TLPs with TYPE field 0 (mem space)*/                                                       \
                 PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_ATU_CAP_IATU_REGION_CTRL_1_OFF_INBOUND_##num##_INCREASE_REGION_SIZE_SET( \
-                    1) /*Use the UPPR_LIMIT_ADDR reg*/                                                                  \
-        );                                                                                                              \
-                                                                                                                        \
-        iowrite32(                                                                                                      \
-            PCIE0 +                                                                                                     \
+                    1) /*Use the UPPR_LIMIT_ADDR reg*/                                                                     \
+        );                                                                                                                 \
+                                                                                                                           \
+        iowrite32(                                                                                                         \
+            PCIE0 +                                                                                                        \
                 PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_ATU_CAP_IATU_LWR_BASE_ADDR_OFF_INBOUND_##num##_ADDRESS,                  \
-            (uint32_t)baseAddr);                                                                                        \
-        iowrite32(                                                                                                      \
-            PCIE0 +                                                                                                     \
+            (uint32_t)baseAddr);                                                                                           \
+        iowrite32(                                                                                                         \
+            PCIE0 +                                                                                                        \
                 PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_ATU_CAP_IATU_UPPER_BASE_ADDR_OFF_INBOUND_##num##_ADDRESS,                \
-            (uint32_t)(baseAddr >> 32));                                                                                \
-                                                                                                                        \
-        iowrite32(                                                                                                      \
-            PCIE0 +                                                                                                     \
+            (uint32_t)(baseAddr >> 32));                                                                                   \
+                                                                                                                           \
+        iowrite32(                                                                                                         \
+            PCIE0 +                                                                                                        \
                 PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_ATU_CAP_IATU_LIMIT_ADDR_OFF_INBOUND_##num##_ADDRESS,                     \
-            (uint32_t)limitAddr);                                                                                       \
-        iowrite32(                                                                                                      \
-            PCIE0 +                                                                                                     \
+            (uint32_t)limitAddr);                                                                                          \
+        iowrite32(                                                                                                         \
+            PCIE0 +                                                                                                        \
                 PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_ATU_CAP_IATU_UPPR_LIMIT_ADDR_OFF_INBOUND_##num##_ADDRESS,                \
-            (uint32_t)(limitAddr >> 32));                                                                               \
-                                                                                                                        \
-        iowrite32(                                                                                                      \
-            PCIE0 +                                                                                                     \
+            (uint32_t)(limitAddr >> 32));                                                                                  \
+                                                                                                                           \
+        iowrite32(                                                                                                         \
+            PCIE0 +                                                                                                        \
                 PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_ATU_CAP_IATU_LWR_TARGET_ADDR_OFF_INBOUND_##num##_ADDRESS,                \
-            (uint32_t)targetAddr);                                                                                      \
-        iowrite32(                                                                                                      \
-            PCIE0 +                                                                                                     \
+            (uint32_t)targetAddr);                                                                                         \
+        iowrite32(                                                                                                         \
+            PCIE0 +                                                                                                        \
                 PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_ATU_CAP_IATU_UPPER_TARGET_ADDR_OFF_INBOUND_##num##_ADDRESS,              \
-            (uint32_t)(targetAddr >> 32));                                                                              \
-                                                                                                                        \
-        iowrite32(                                                                                                      \
-            PCIE0 +                                                                                                     \
+            (uint32_t)(targetAddr >> 32));                                                                                 \
+                                                                                                                           \
+        iowrite32(                                                                                                         \
+            PCIE0 +                                                                                                        \
                 PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_ATU_CAP_IATU_REGION_CTRL_2_OFF_INBOUND_##num##_ADDRESS,                  \
             PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_ATU_CAP_IATU_REGION_CTRL_2_OFF_INBOUND_##num##_MATCH_MODE_SET(               \
-                0) | /*Address match mode. Do NOT use BAR match mode.*/                                                 \
+                0) | /*Address match mode. Do NOT use BAR match mode.*/                                                    \
                 PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_ATU_CAP_IATU_REGION_CTRL_2_OFF_INBOUND_##num##_REGION_EN_SET(            \
-                    (uint32_t)1));                                                                                      \
+                    (uint32_t)1));                                                                                         \
     }
 
 CONFIG_INBOUND_IATU(0)
@@ -480,7 +492,7 @@ static void pcie_init_atus(void)
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
     miscControl1 =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        miscControl1, 1);
+            miscControl1, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               miscControl1);
 
@@ -498,21 +510,24 @@ static void pcie_init_atus(void)
     uint32_t status_command_reg;
     do
     {
-        status_command_reg =
-            ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_STATUS_COMMAND_REG_ADDRESS);
-    } while (PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_STATUS_COMMAND_REG_PCI_TYPE0_MEM_SPACE_EN_GET(
-                 status_command_reg) == 0);
+        status_command_reg = ioread32(
+            PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_STATUS_COMMAND_REG_ADDRESS);
+    } while (
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_STATUS_COMMAND_REG_PCI_TYPE0_MEM_SPACE_EN_GET(
+            status_command_reg) == 0);
     Log_Write(LOG_LEVEL_CRITICAL, " done\r\n");
 
     /* Setup BAR0
        Name        Host Addr       SoC Addr      Size   Notes
        R_L3_DRAM   BAR0 + 0x0000   0x8005000000  ~32G   SoC DRAM */
 
-    uint32_t bar0_lo = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
-    uint32_t bar0_hi = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR1_REG_ADDRESS);
+    uint32_t bar0_lo =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
+    uint32_t bar0_hi =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR1_REG_ADDRESS);
     uint64_t bar0 = ((uint64_t)bar0_hi << 32) | ((uint64_t)bar0_lo & 0xFFFFFFF0ULL);
 
-    config_inbound_iatu_0(bar0, /* baseAddr */
+    config_inbound_iatu_0(bar0,              /* baseAddr */
                           DRAM_MEMMAP_BEGIN, /* targetAddr */
                           DRAM_MEMMAP_SIZE); /* size */
 
@@ -529,26 +544,25 @@ static void pcie_init_atus(void)
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR3_REG_ADDRESS);
     uint64_t baseAddr = ((uint64_t)baseAddr_hi << 32) | ((uint64_t)baseAddr_lo & 0xFFFFFFF0ULL);
 
-    config_inbound_iatu_1(baseAddr,
-                          R_PU_MBOX_PC_MM_BASEADDR, /* targetAddr */
-                          R_PU_MBOX_PC_MM_SIZE); /* size */
+    config_inbound_iatu_1(baseAddr, R_PU_MBOX_PC_MM_BASEADDR, /* targetAddr */
+                          R_PU_MBOX_PC_MM_SIZE);              /* size */
 
     baseAddr += R_PU_MBOX_PC_MM_SIZE;
 
-    config_inbound_iatu_2(baseAddr,
-                          R_PU_MBOX_PC_SP_BASEADDR, /* targetAddr */
-                          R_PU_MBOX_PC_SP_SIZE); /* size */
+    config_inbound_iatu_2(baseAddr, R_PU_MBOX_PC_SP_BASEADDR, /* targetAddr */
+                          R_PU_MBOX_PC_SP_SIZE);              /* size */
 
     baseAddr += R_PU_MBOX_PC_SP_SIZE;
 
     config_inbound_iatu_3(baseAddr,
                           R_PU_TRG_PCIE_BASEADDR, //targetAddr
-                          R_PU_TRG_PCIE_SIZE); //size
+                          R_PU_TRG_PCIE_SIZE);    //size
 
     baseAddr += R_PU_TRG_PCIE_SIZE;
 
-    miscControl1 = PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        miscControl1, 0);
+    miscControl1 =
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
+            miscControl1, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               miscControl1);
 }
@@ -573,21 +587,81 @@ static void pcie_wait_for_ints(void)
 
 int32_t pcie_error_control_deinit(void)
 {
+    pcie_disable_ce_interrupt();
+    pcie_disable_uce_interrupt();
+
+    INT_disableInterrupt(SPIO_PLIC_PSHIRE_PCIE0_ERR_INTR);
+
+    return 0;
+}
+
+int32_t pcie_enable_ce_interrupt(void)
+{
+    uint32_t reg_val;
+
+    reg_val = ioread32(
+        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS);
+
+    iowrite32(
+        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS,
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_CORR_ERR_REPORT_EN_MODIFY(
+            reg_val, 0x1));
+
     return 0;
 }
 
 int32_t pcie_enable_uce_interrupt(void)
 {
+    uint32_t reg_val;
+
+    reg_val = ioread32(
+        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS);
+    reg_val =
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_NON_FATAL_ERR_REPORT_EN_MODIFY(
+            reg_val, 0x1);
+    reg_val =
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_FATAL_ERR_REPORT_EN_MODIFY(
+            reg_val, 0x1);
+
+    iowrite32(PCIE0 +
+                  PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS,
+              reg_val);
+
     return 0;
 }
 
 int32_t pcie_disable_ce_interrupt(void)
 {
+    uint32_t reg_val;
+
+    reg_val = ioread32(
+        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS);
+
+    iowrite32(
+        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS,
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_CORR_ERR_REPORT_EN_MODIFY(
+            reg_val, 0x0));
+
     return 0;
 }
 
 int32_t pcie_disable_uce_interrupt(void)
 {
+    uint32_t reg_val;
+
+    reg_val = ioread32(
+        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS);
+    reg_val =
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_NON_FATAL_ERR_REPORT_EN_MODIFY(
+            reg_val, 0x0);
+    reg_val =
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_FATAL_ERR_REPORT_EN_MODIFY(
+            reg_val, 0x0);
+
+    iowrite32(PCIE0 +
+                  PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS,
+              reg_val);
+
     return 0;
 }
 
@@ -612,19 +686,56 @@ int32_t pcie_get_uce_count(uint32_t *uce_count)
     return 0;
 }
 
-void pcie_error_threshold_isr(void)
+static void pcie_ce_error(void)
 {
     if (++event_control_block.ce_count > event_control_block.ce_threshold)
     {
         struct event_message_t message;
+        uint32_t error_status;
+
+        error_status =
+            ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_CORR_ERR_STATUS_OFF_ADDRESS);
 
         /* add details in message header and fill payload */
-        FILL_EVENT_HEADER(&message.header, PCIE_UCE,
-                          sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0)
+        FILL_EVENT_HEADER(&message.header, PCIE_CE, sizeof(struct event_message_t))
+        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, error_status, 0)
 
         /* call the callback function and post message */
         event_control_block.event_cb(CORRECTABLE, &message);
+    }
+}
+
+static void pcie_uce_error(void)
+{
+    struct event_message_t message;
+    uint32_t error_status;
+
+    error_status =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_UNCORR_ERR_STATUS_OFF_ADDRESS);
+
+    /* add details in message header and fill payload */
+    FILL_EVENT_HEADER(&message.header, PCIE_UCE, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, error_status, 0)
+
+    /* call the callback function and post message */
+    event_control_block.event_cb(UNCORRECTABLE, &message);
+}
+
+static void pcie_error_isr(void)
+{
+    uint32_t uce_error;
+
+    /* read the PCIE register to check if it is CE or UCE */
+    uce_error =
+        PCIE_ESR_PSHIRE_STAT_PCIE_UNC_ERROR_GET(ioread32(PCIE_ESR + PCIE_ESR_PSHIRE_STAT_ADDRESS));
+
+    if (uce_error)
+    {
+        pcie_uce_error();
+    }
+    else
+    {
+        pcie_ce_error();
     }
 }
 
@@ -701,7 +812,7 @@ int PShire_Voltage_Update(uint8_t voltage)
 
 int Pshire_PLL_Program(uint8_t mode)
 {
-    return  configure_pshire_pll(mode);
+    return configure_pshire_pll(mode);
 }
 
 int Pshire_NOC_update_routing_table(void)
@@ -710,7 +821,7 @@ int Pshire_NOC_update_routing_table(void)
     return 0;
 }
 
-int PCIe_Phy_Firmware_Update (const uint64_t* image)
+int PCIe_Phy_Firmware_Update(const uint64_t *image)
 {
     /* interface to initialize PCIe phy */
     (void)image;
@@ -721,11 +832,10 @@ int PCIE_Init_Status(void)
 {
     uint32_t ret;
     ret = ioread32(PCIE_CUST_SS +
-        DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
+                   DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
 
-    return DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_SMLH_LTSSM_STATE_GET(
-        ret) == SMLH_LTSSM_STATE_LINK_UP ? 0 : -1;
+    return DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_SMLH_LTSSM_STATE_GET(ret) ==
+                   SMLH_LTSSM_STATE_LINK_UP ?
+               0 :
+               -1;
 }
-
-
-
