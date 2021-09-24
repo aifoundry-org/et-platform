@@ -391,7 +391,7 @@ int8_t SP_Iface_Processing(void)
     }
     else if(cmd_length < 0)
     {
-        Log_Write(LOG_LEVEL_DEBUG,
+        Log_Write(LOG_LEVEL_ERROR,
             "SP_Iface_Processing:Failed: %" PRIi32 "\r\n", cmd_length);
         status = SP_IFACE_SP2MM_CMD_POP_FAILED;
     }
