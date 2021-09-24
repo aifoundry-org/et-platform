@@ -95,7 +95,7 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 }
 
 // TODO: This needs to updated once we have characterized in Silicon
-#define DP_per_Mhz 1
+#define DP_per_Mhz 15
 
 /*! \def FILL_POWER_STATUS(ptr, throttle_st, pwr_st, curr_pwr, curr_temp)
     \brief Help macro to fill up Power Status Struct
@@ -1128,7 +1128,7 @@ int init_thermal_pwr_mgmt_service(void)
 static int reduce_minion_operating_point(int32_t delta_power, struct trace_event_power_status_t *power_status)
 {
     /* Compute delta freq to compensate for delta Power */
-    int32_t delta_freq = delta_power * DP_per_Mhz;
+    int32_t delta_freq = (delta_power * DP_per_Mhz) / 1000;
     int32_t new_freq = Get_Minion_Frequency() - delta_freq;
 
     if (0 != Minion_Shire_Update_PLL_Freq((uint32_t)new_freq))
@@ -1176,7 +1176,7 @@ static int reduce_minion_operating_point(int32_t delta_power, struct trace_event
 static int increase_minion_operating_point(int32_t delta_power, struct trace_event_power_status_t *power_status)
 {
     /* Compute delta freq to compensate for delta Power */
-    int32_t delta_freq = delta_power * DP_per_Mhz;
+    int32_t delta_freq = (delta_power * DP_per_Mhz) / 1000;
     int32_t new_freq = Get_Minion_Frequency() + delta_freq;
 
     int32_t new_voltage = Minion_Get_Voltage_Given_Freq(new_freq);
