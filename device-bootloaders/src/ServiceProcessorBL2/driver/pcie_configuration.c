@@ -75,14 +75,34 @@ static void pcie_uce_error(void);
 */
 #define SMLH_LTSSM_STATE_LINK_UP 0x11
 
+/*! \def PCIE_GEN_3_SPEED
+    \brief PCIE GEN 3 max speed field value 8GT/s
+*/
+#define PCIE_GEN_3_SPEED         0x3
+
+/*! \def PCIE_GEN_4_SPEED
+    \brief PCIE GEN 4 max speed field value 16GT/s
+*/
+#define PCIE_GEN_4_SPEED         0x5
+
+/*! \def PCIE_LANE_WIDTH_X_4
+    \brief PCIE_LANE_WIDTH_X_4
+*/
+#define PCIE_LANE_WITH_X_4       0x4
+
+/*! \def PCIE_LANE_WIDTH_X_8
+    \brief PCIE_LANE_WIDTH_X_8
+*/
+#define PCIE_LANE_WITH_X_8       0x8
+
 /*! \def MSI_ENABLED
     \brief  MSI enabled value */
-#define MSI_ENABLED 0x1U
+#define MSI_ENABLED              0x1U
 
 /*! \def MSI_TWO_VECTORS
     \brief MSI two verctor enable
 */
-#define MSI_TWO_VECTORS 1
+#define MSI_TWO_VECTORS          1
 
 /* The driver can populate this structure with the defaults that will be used during the init
     phase.*/
@@ -741,25 +761,125 @@ static void pcie_error_isr(void)
 
 int32_t setup_pcie_gen3_link_speed(void)
 {
-    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
+    uint32_t link_capabilities_reg;
+    uint32_t misc_control;
+
+    /* The config registers are protected by a write-enable bit */
+    misc_control =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
+    misc_control =
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
+        misc_control, 1);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
+              misc_control);
+
+    link_capabilities_reg =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS);
+    link_capabilities_reg = (uint32_t)
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_PCIE_CAP_MAX_LINK_SPEED_MODIFY(
+            link_capabilities_reg, PCIE_GEN_3_SPEED);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS,
+              link_capabilities_reg);
+
+    misc_control =
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
+        misc_control, 0);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
+              misc_control);
+
     return 0;
 }
 
 int32_t setup_pcie_gen4_link_speed(void)
 {
-    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
+    uint32_t link_capabilities_reg;
+    uint32_t misc_control;
+
+    /* The config registers are protected by a write-enable bit */
+    misc_control =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
+    misc_control =
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
+        misc_control, 1);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
+              misc_control);
+
+    link_capabilities_reg =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS);
+    link_capabilities_reg = (uint32_t)
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_PCIE_CAP_MAX_LINK_SPEED_MODIFY(
+            link_capabilities_reg, PCIE_GEN_4_SPEED);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS,
+              link_capabilities_reg);
+
+    misc_control =
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
+        misc_control, 0);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
+              misc_control);
+
     return 0;
 }
 
 int32_t setup_pcie_lane_width_x4(void)
 {
-    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
+    uint32_t link_capabilities_reg;
+    uint32_t misc_control;
+
+    /* The config registers are protected by a write-enable bit */
+    misc_control =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
+    misc_control =
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
+        misc_control, 1);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
+              misc_control);
+
+    link_capabilities_reg =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS);
+    link_capabilities_reg = (uint32_t)
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_PCIE_CAP_MAX_LINK_WIDTH_MODIFY(
+            link_capabilities_reg, PCIE_LANE_WITH_X_4);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS,
+              link_capabilities_reg);
+
+    misc_control =
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
+        misc_control, 0);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
+              misc_control);
+
     return 0;
 }
 
 int32_t setup_pcie_lane_width_x8(void)
 {
-    /* TODO: https://esperantotech.atlassian.net/browse/SW-6607 */
+    uint32_t link_capabilities_reg;
+    uint32_t misc_control;
+
+    /* The config registers are protected by a write-enable bit */
+    misc_control =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
+    misc_control =
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
+        misc_control, 1);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
+              misc_control);
+
+    link_capabilities_reg =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS);
+    link_capabilities_reg = (uint32_t)
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_PCIE_CAP_MAX_LINK_WIDTH_MODIFY(
+            link_capabilities_reg, PCIE_LANE_WITH_X_8);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS,
+              link_capabilities_reg);
+
+    misc_control =
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
+        misc_control, 0);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
+              misc_control);
+
     return 0;
 }
 
