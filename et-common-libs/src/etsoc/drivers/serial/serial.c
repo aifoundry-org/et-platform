@@ -96,6 +96,13 @@ int SERIAL_write(uintptr_t uartRegs, const char *const string, int length)
     return i;
 }
 
+// Spins until a character is obtained
+void SERIAL_getchar(uintptr_t uartRegs, char *c)
+{
+    while(UART_LSR_DR_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) != 1U){};
+    *c = UART_RBR_RBR_RBR_GET(ioread32((uartRegs + UART_RBR_ADDRESS)));
+}
+
 // Blocks until the entire null-terminated string has been written to the fifo
 int SERIAL_puts(uintptr_t uartRegs, const char *const string)
 {
