@@ -8,12 +8,11 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
 */
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 
-/* minion_bl.lib */
+/* minion_bl */
 #include "etsoc/isa/riscv_encoding.h"
 #include "etsoc/isa/hart.h"
 

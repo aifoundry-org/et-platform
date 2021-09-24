@@ -26,15 +26,20 @@
         Host_Iface_CQs_Deinit
 */
 /***********************************************************************/
+/* mm_rt_svcs */
+#include "transports/vq/vq.h"
+#include "etsoc/drivers/pcie/pcie_int.h"
+
+/* etsoc_hal */
+#include "hwinc/hal_device.h"
+
+/* mm specific headers */
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/log.h"
 #include "workers/sqw.h"
 #include "workers/sqw_hp.h"
 #include "drivers/plic.h"
-#include "vq.h"
-#include "pcie_int.h"
-#include "hal_device.h"
 
 /*! \struct host_iface_sqs_hp_cb_t
     \brief Host interface control block that manages
@@ -348,7 +353,7 @@ uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id)
     /* Peek the command size to pop from SQ */
     VQ_Peek(&Host_SQs.vqueues[sq_id],
             (void *)&command_size, 0,
-            sizeof(cmd_size_t));
+            sizeof(cmd_size_t), LOCAL_ATOMIC);
 
     return command_size;
 }
@@ -413,7 +418,7 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
     do
     {
         /* Push the response to circular buffer */
-        status = VQ_Push(&Host_CQs.vqueues[cq_id], p_cmd, cmd_size);
+        status = VQ_Push(&Host_CQs.vqueues[cq_id], p_cmd, cmd_size, LOCAL_ATOMIC);
         if(status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_WARNING, "CQ[%d] push warning: status code: %d\n", cq_id, status);
@@ -474,7 +479,7 @@ int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
     int32_t pop_ret_val;
 
     /* Pop the command from circular buffer */
-    pop_ret_val = VQ_Pop(&Host_SQs.vqueues[sq_id], rx_buff);
+    pop_ret_val = VQ_Pop(&Host_SQs.vqueues[sq_id], rx_buff, LOCAL_ATOMIC);
 
     if (pop_ret_val < 0)
     {
@@ -510,7 +515,7 @@ int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
 void Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached)
 {
     /* Update tail value in VQ memory */
-    VQ_Set_Tail_Offset(sq_shared, VQ_Get_Tail_Offset(sq_cached));
+    VQ_Set_Tail_Offset(sq_shared, VQ_Get_Tail_Offset(sq_cached), LOCAL_ATOMIC);
 
     /* TODO: We need to send event to the host when 25% of space is avialable is SQ.
     Should be build time macro */
@@ -551,7 +556,7 @@ void Host_Iface_Processing(void)
     /* Scan all SQs for available command */
     for (sq_id = 0; sq_id < MM_SQ_COUNT; sq_id++)
     {
-        status = VQ_Data_Avail(&Host_SQs.vqueues[sq_id]);
+        status = VQ_Data_Avail(&Host_SQs.vqueues[sq_id], LOCAL_ATOMIC);
 
         if(status == true)
         {
@@ -571,7 +576,7 @@ void Host_Iface_Processing(void)
     /* Scan all HP SQs for available command */
     for (sq_id = 0; sq_id < MM_SQ_HP_COUNT; sq_id++)
     {
-        status = VQ_Data_Avail(&Host_SQs_HP.vqueues[sq_id]);
+        status = VQ_Data_Avail(&Host_SQs_HP.vqueues[sq_id], LOCAL_ATOMIC);
 
         if(status == true)
         {

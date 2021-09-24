@@ -16,8 +16,11 @@
 #ifndef MM_TRACE_H
 #define MM_TRACE_H
 
+/* et_trace */
 #include <et-trace/encoder.h>
-#include "message_types.h"
+
+/* mm_rt_svcs */
+#include "transports/mm_cm_iface/message_types.h"
 
 /**************************/
 /* MM Trace Status Codes  */

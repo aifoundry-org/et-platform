@@ -1,15 +1,15 @@
 #include <stdint.h>
 
-/* minion_rt.lib */
-#include "layout.h"
-
-/* minion_bl.lib */
+/* minion_bl */
 #include "etsoc/isa/esr_defines.h"
 #include "etsoc/isa/fcc.h"
 #include "etsoc/isa/flb.h"
 #include "etsoc/isa/hart.h"
 #include "etsoc/isa/sync.h"
 #include "etsoc/hal/pmu.h"
+
+/* minion_rt_helpers */
+#include "layout.h"
 
 static inline void initialize_scp(void)
 {

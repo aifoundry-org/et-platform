@@ -1,18 +1,22 @@
-#include "layout.h"
-#include "log.h"
-#include "device-common/macros.h"
-#include "common_defs.h"
-#include "kernel.h"
-#include "device-common/hart.h"
-#include "message_types.h"
-#include "cm_to_mm_iface.h"
-#include "cm_mm_defines.h"
-#include "riscv_encoding.h"
-#include "syscall_internal.h"
-#include "trace.h"
 #include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
+
+#include "etsoc/common/common_defs.h"
+#include "etsoc/isa/macros.h"
+#include "etsoc/isa/hart.h"
+#include "etsoc/isa/riscv_encoding.h"
+#include "etsoc/isa/sync.h"
+#include "transports/mm_cm_iface/message_types.h"
+
+#include "syscall_internal.h"
+#include "layout.h"
+
+#include "kernel.h"
+#include "cm_to_mm_iface.h"
+#include "cm_mm_defines.h"
+#include "trace.h"
+#include "log.h"
 
 void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const reg);
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,
@@ -103,6 +107,7 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     uint8_t kw_base_id;
     uint8_t slot_index;
     int8_t status;
+    spinlock_t *lock;
 
     /* Populate the exception message */
     message.shire_id  = shire_id;
@@ -137,14 +142,19 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
         message.header.id = CM_TO_MM_MESSAGE_ID_FW_EXCEPTION;
 
         /* Acquire the unicast lock */
-        CM_Iface_Unicast_Acquire_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
+        lock =
+            &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX];
+        acquire_global_spinlock(lock);
 
         /* Send exception message to dispatcher (Master shire Hart 0) */
         status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
             CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (cm_iface_message_t *)&message);
 
         /* Release the unicast lock */
-        CM_Iface_Unicast_Release_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
+        lock =
+            &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX];
+        release_global_spinlock(lock);
+
 
         if(status != STATUS_SUCCESS)
         {

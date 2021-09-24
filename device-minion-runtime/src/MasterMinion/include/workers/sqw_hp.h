@@ -18,11 +18,15 @@
 #ifndef SQW_HP_DEFS_H
 #define SQW_HP_DEFS_H
 
+/* mm_rt_svcs */
+#include "etsoc/common/common_defs.h"
+#include "etsoc/isa/sync.h"
+#include "etsoc/drivers/pmu/pmu.h"
+#include "transports/vq/vq.h"
+
+/* mm specific headers */
 #include "config/mm_config.h"
-#include "common_defs.h"
-#include "sync.h"
-#include "pmu.h"
-#include "vq.h"
+
 
 /*! \def SQW_MAX_HART_ID
     \brief A macro that provides the maximum HART ID the SQW HP is configued

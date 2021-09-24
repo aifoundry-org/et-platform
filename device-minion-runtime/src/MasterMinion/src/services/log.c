@@ -18,14 +18,20 @@
         __Log_Write_String
 */
 /***********************************************************************/
+#include <stddef.h>
+
+/* mm_rt_svcs */
+#include "etsoc/isa/atomic.h"
+#include "etsoc/isa/sync.h"
+
+/* mm_rt_helpers */
+#include "layout.h"
+
+/* mm specific headers */
 #include "services/log.h"
 #include "services/trace.h"
-#include "device-common/hart.h"
+#include "etsoc/isa/hart.h"
 #include "drivers/console.h"
-#include "device-common/atomic.h"
-#include "layout.h"
-#include <stddef.h>
-#include "sync.h"
 
 /*! \var log_interface_t Log_Interface
     \brief Global variable that maintains the current log interface
@@ -158,7 +164,7 @@ int32_t __Log_Write(const char *const fmt, ...)
         vsnprintf(buff, sizeof(buff), fmt, va);
 
         acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
-        bytes_written = SERIAL_puts(UART0, buff);
+        bytes_written = SERIAL_puts(PU_UART0, buff);
         release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
     }
 
@@ -201,7 +207,7 @@ int32_t __Log_Write_String(const char *str, size_t length)
     else
     {
         acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
-        bytes_written = SERIAL_write(UART0, str, (int)length);
+        bytes_written = SERIAL_write(PU_UART0, str, (int)length);
         release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
     }
 

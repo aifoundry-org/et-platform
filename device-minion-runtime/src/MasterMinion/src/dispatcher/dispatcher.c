@@ -33,6 +33,7 @@
         Field CM IPIs and dispatch handling of messages from CMs
 */
 /***********************************************************************/
+/* mm specific headers */
 #include "config/dir_regs.h"
 #include "dispatcher/dispatcher.h"
 #include "workers/sqw.h"
@@ -48,12 +49,14 @@
 #include "services/sw_timer.h"
 #include "services/trace.h"
 #include "drivers/plic.h"
-#include "serial.h"
-#include "message_types.h"
-#include "sync.h"
-#include "device-common/fcc.h"
-#include "pmu.h"
-#include "riscv_encoding.h"
+
+/* mm-rt-svcs (shared across minion rt) */
+#include "etsoc/isa/sync.h"
+#include "etsoc/isa/fcc.h"
+#include "etsoc/isa/riscv_encoding.h"
+#include "transports/mm_cm_iface/message_types.h"
+#include "etsoc/drivers/serial/serial.h"
+#include "etsoc/drivers/pmu/pmu.h"
 
 extern spinlock_t Launch_Wait;
 
@@ -118,7 +121,7 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     /* Initialize Serial Interface */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:SERIAL_init\r\n");
-    status = (int8_t)SERIAL_init(UART0);
+    status = (int8_t)SERIAL_init(PU_UART0);
     dispatcher_assert(status == STATUS_SUCCESS, MM_SERIAL_INIT_ERROR,
         "Serial init failure.");
 

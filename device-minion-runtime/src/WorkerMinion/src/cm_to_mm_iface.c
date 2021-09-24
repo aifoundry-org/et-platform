@@ -1,12 +1,15 @@
-#include "circbuff.h"
+#include <string.h>
+
+#include "etsoc/isa/etsoc_memory.h"
+#include "etsoc/isa/sync.h"
+#include "etsoc/isa/syscall.h"
+#include "transports/circbuff/circbuff.h"
+#include "etsoc/drivers/pmu/pmu.h"
+
 #include "cm_to_mm_iface.h"
 #include "mm_to_cm_iface.h"
-#include "etsoc_memory.h"
 #include "layout.h"
-#include "pmu.h"
-#include "sync.h"
 #include "syscall_internal.h"
-#include <string.h>
 
 int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx, const cm_iface_message_t *const message)
 {

@@ -28,20 +28,26 @@
         CW_Get_Physically_Enabled_Shires
 */
 /***********************************************************************/
-#include "device-common/atomic.h"
-#include "device-common/hart.h"
-#include "cm_mm_defines.h"
-#include "common_defs.h"
-#include "layout.h"
+/* mm_rt_svcs */
+#include "etsoc/common/common_defs.h"
+#include "etsoc/isa/atomic.h"
+#include "etsoc/isa/hart.h"
+#include "etsoc/isa/syscall.h"
+#include "etsoc/isa/riscv_encoding.h"
+#include "etsoc/isa/sync.h"
+#include "transports/mm_cm_iface/message_types.h"
+
+/* mm specific headers */
 #include "workers/cw.h"
 #include "services/cm_iface.h"
 #include "services/log.h"
 #include "services/sp_iface.h"
 #include "services/sw_timer.h"
-#include "device-common/syscall.h"
+
+/* m_rt_helpers */
+#include "layout.h"
 #include "syscall_internal.h"
-#include "message_types.h"
-#include "riscv_encoding.h"
+#include "cm_mm_defines.h"
 
 /*! \typedef cw_cb_t
     \brief Compute Worker control block.
@@ -116,12 +122,14 @@ static inline uint64_t cw_get_booted_shires(void)
         (const mm_to_cm_message_shire_ready_t *)&message;
     int8_t internal_status;
     uint64_t booted_shires_mask = 0ULL;
+    spinlock_t *lock;
 
     /* Processess messages from CM from CM > MM unicast circbuff */
     while(1)
     {
         /* Acquire the unicast lock */
-        CM_Iface_Unicast_Acquire_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
+        lock = &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_MASTER_HART_UNICAST_BUFF_IDX];
+        acquire_global_spinlock(lock);
 
         /* Unicast to dispatcher is slot 0 of unicast
         circular-buffers */
@@ -129,7 +137,9 @@ static inline uint64_t cw_get_booted_shires(void)
             (CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
 
         /* Release the unicast lock */
-        CM_Iface_Unicast_Release_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
+        lock =
+            &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_MASTER_HART_UNICAST_BUFF_IDX];
+        release_global_spinlock(lock);
 
         if (internal_status != STATUS_SUCCESS)
             break;

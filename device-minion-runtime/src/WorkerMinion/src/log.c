@@ -1,9 +1,9 @@
-#include "device-common/atomic.h"
+#include "etsoc/isa/atomic.h"
 #include "layout.h"
 #include "log.h"
-#include "printf.h"
-#include "serial.h"
-#include "sync.h"
+#include "common/printf.h"
+#include "etsoc/drivers/serial/serial.h"
+#include "etsoc/isa/sync.h"
 #include "trace.h"
 
 #include <stdarg.h>

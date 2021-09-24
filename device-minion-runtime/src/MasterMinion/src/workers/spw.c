@@ -18,11 +18,14 @@
 
 */
 /***********************************************************************/
+/* mm_rt_svcs */
+#include "etsoc/drivers/pmu/pmu.h"
+#include "etsoc/isa/riscv_encoding.h"
+
+/* mm specific headers */
 #include "workers/spw.h"
 #include "services/log.h"
 #include "services/sp_iface.h"
-#include "pmu.h"
-#include "riscv_encoding.h"
 
 /************************************************************************
 *

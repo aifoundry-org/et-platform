@@ -25,16 +25,13 @@ add_riscv_executable(WorkerMinion
     src/build_configuration.c
     src/log.c
     src/trace.c
-    ${SHARED_SRC_DIR}/circbuff.c
-    ${SHARED_SRC_DIR}/etsoc_memory.c
-    ${SHARED_SRC_DIR}/printf.c
 )
 target_include_directories(WorkerMinion.elf
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    PRIVATE 
-        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/include>
+    PRIVATE
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/minion_rt_helpers/include>
 )
 target_compile_options(WorkerMinion.elf
     PRIVATE
@@ -42,11 +39,13 @@ target_compile_options(WorkerMinion.elf
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 target_link_libraries(WorkerMinion.elf
-    PRIVATE
+    PUBLIC
         deviceApi::deviceApi
-        deviceFirmware::firmware_helpers_interface
-        deviceFirmware::firmware_helpers_serial
+        et-common-libs::cm-rt-svcs
+        esperantoTrace::et_trace
+    PRIVATE
         deviceFirmware::device_configuration
+        deviceFirmware::minion_rt_helpers_interface
 )
 
 target_link_libraries(WorkerMinion.elf PUBLIC esperantoTrace::et_trace)

@@ -37,14 +37,19 @@
         SQW_Get_State
 */
 /***********************************************************************/
+/* comon-api, device_ops_api */
+#include <esperanto/device-apis/device_apis_message_types.h>
+
+/* mm_rt_svcs */
+#include "etsoc/drivers/pmu/pmu.h"
+#include "etsoc/isa/etsoc_memory.h"
+
+/* mm specific headers */
 #include "workers/sqw.h"
 #include "services/log.h"
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/trace.h"
-#include <esperanto/device-apis/device_apis_message_types.h>
-#include "pmu.h"
-#include "etsoc_memory.h"
 #include "services/sp_iface.h"
 
 /*! \typedef sqw_cmds_status_t
@@ -372,7 +377,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         tail_prev = VQ_Get_Tail_Offset(&vq_cached);
 
         /* Refresh the cached VQ CB - Get updated head and tail values */
-        VQ_Get_Head_And_Tail(vq_shared, &vq_cached);
+        VQ_Get_Head_And_Tail(vq_shared, &vq_cached, LOCAL_ATOMIC);
 
         /* Verify that the tail value read from memory is equal to previous tail value */
         if(tail_prev != VQ_Get_Tail_Offset(&vq_cached))
@@ -402,7 +407,7 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
             if(atomic_load_local_32(&SQW_CB.sqw_status[sqw_idx].state) == SQW_STATE_ABORTED)
             {
                 /* Refresh the cached VQ CB - Get updated head and tail values */
-                VQ_Get_Head_And_Tail(vq_shared, &vq_cached);
+                VQ_Get_Head_And_Tail(vq_shared, &vq_cached, LOCAL_ATOMIC);
             }
 
             /* Re-calculate the total number of bytes available in the cached VQ copy */

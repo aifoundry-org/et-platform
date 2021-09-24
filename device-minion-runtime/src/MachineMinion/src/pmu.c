@@ -9,7 +9,7 @@
 *-------------------------------------------------------------------------
 */
 
-/* minion_bl.lib */
+/* minion_bl */
 #include "etsoc/isa/esr_defines.h"
 #include "etsoc/isa/hart.h"
 #include "etsoc/hal/pmu.h"

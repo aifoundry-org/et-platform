@@ -58,7 +58,7 @@ find_package(deviceApi REQUIRED)
 find_package(signedImageFormat REQUIRED)
 find_package(esperantoTrace REQUIRED)
 find_package(etsoc_hal REQUIRED)
-find_package(et-common-libs REQUIRED COMPONENTS minion-bl)
+find_package(et-common-libs REQUIRED COMPONENTS minion-bl mm-rt-svcs cm-rt-svcs)
 
 ########## Documentation #####################################
 

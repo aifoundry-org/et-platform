@@ -18,10 +18,15 @@
 #ifndef DMAW_DEFS_H
 #define DMAW_DEFS_H
 
-#include "common_defs.h"
-#include "sync.h"
-#include "vq.h"
+/* mm_rt_svcs */
+#include "etsoc/common/common_defs.h"
+#include "etsoc/isa/sync.h"
+#include "transports/vq/vq.h"
+
+/* mm specific svcs */
 #include "drivers/pcie_dma.h"
+
+/* common-api, device_ops_api */
 #include  <esperanto/device-apis/operations-api/device_ops_api_spec.h>
 #include  <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 

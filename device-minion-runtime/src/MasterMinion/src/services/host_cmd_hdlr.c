@@ -18,6 +18,11 @@
         Host_HP_Command_Handler
 */
 /***********************************************************************/
+/* mm_et_svcs */
+#include "etsoc/drivers/pmu/pmu.h"
+#include "etsoc/isa/cacheops.h"
+
+/* mm specific headers */
 #include "services/host_cmd_hdlr.h"
 #include "services/host_iface.h"
 #include "services/log.h"
@@ -30,9 +35,10 @@
 #include "workers/sqw.h"
 #include "workers/sqw_hp.h"
 #include "config/mm_config.h"
-#include "pmu.h"
-#include "device-common/cacheops.h"
+
+/* mm_rt_helpers */
 #include "layout.h"
+
 #include "common_trace_defs.h"
 
 /*! \def TRACE_NODE_INDEX

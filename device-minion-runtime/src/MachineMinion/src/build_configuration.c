@@ -9,7 +9,7 @@
 *-------------------------------------------------------------------------
 */
 
-/* minion_rt.lib */
+/* minion_rt_helpers */
 #include "device_minion_runtime_build_configuration.h"
 
 // the esperanto_sign_elf tool will search the elf binary for a

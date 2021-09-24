@@ -1,15 +1,18 @@
-#include "device_minion_runtime_build_configuration.h"
-#include "device-common/fcc.h"
-#include "device-common/flb.h"
-#include "device-common/hart.h"
+#include "etsoc/isa/fcc.h"
+#include "etsoc/isa/flb.h"
+#include "etsoc/isa/hart.h"
+#include "etsoc/isa/sync.h"
+#include "etsoc/isa/riscv_encoding.h"
+#include "transports/mm_cm_iface/message_types.h"
+#include "etsoc/drivers/pmu/pmu.h"
+
 #include "layout.h"
 #include "log.h"
-#include "message_types.h"
+
+#include "device_minion_runtime_build_configuration.h"
 #include "cm_mm_defines.h"
 #include "cm_to_mm_iface.h"
 #include "mm_to_cm_iface.h"
-#include "pmu.h"
-#include "riscv_encoding.h"
 #include "trace.h"
 
 #include <stdint.h>
@@ -20,6 +23,7 @@ void __attribute__((noreturn)) main(void)
 {
     bool result;
     int8_t status;
+    spinlock_t *lock;
 
     // Setup supervisor trap vector
     asm volatile("csrw  stvec, %0\n"
@@ -55,14 +59,16 @@ void __attribute__((noreturn)) main(void)
         };
 
         /* Acquire the unicast lock */
-        CM_Iface_Unicast_Acquire_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
+        lock = &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_MASTER_HART_UNICAST_BUFF_IDX];
+        acquire_global_spinlock(lock);
 
         // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
         status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
             CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (const cm_iface_message_t *)&message);
 
         /* Release the unicast lock */
-        CM_Iface_Unicast_Release_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
+        lock = &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_MASTER_HART_UNICAST_BUFF_IDX];
+        release_global_spinlock(lock);
 
         if(status != 0)
         {

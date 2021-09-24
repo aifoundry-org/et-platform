@@ -9,10 +9,10 @@
 *-------------------------------------------------------------------------
 */
 
-/* minion_rt.lib */
+/* minion_rt_helpers */
 #include "syscall_internal.h"
 
-/* minion_bl.lib */
+/* minion_bl */
 #include "etsoc/isa/esr_defines.h"
 #include "etsoc/isa/riscv_encoding.h"
 

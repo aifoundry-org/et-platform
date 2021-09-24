@@ -18,7 +18,7 @@
 
 #include "cm_mm_defines.h"
 #include "mm_to_cm_iface.h"
-#include "message_types.h"
+#include "transports/mm_cm_iface/message_types.h"
 
 /*! \fn int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx,
     const cm_iface_message_t *const message)

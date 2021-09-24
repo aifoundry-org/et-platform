@@ -17,8 +17,12 @@
         DIR_Set_Master_Minion_Status
 */
 /***********************************************************************/
+/* mm specific headers */
 #include "config/dir_regs.h"
 #include "config/mm_config.h"
+#include "services/log.h"
+
+/* mm-rt-svcs (shared across minion rt) */
 #include "layout.h"
 #include "services/log.h"
 

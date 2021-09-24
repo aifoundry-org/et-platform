@@ -1,9 +1,9 @@
 #include "cm_to_mm_iface.h"
-#include "device-common/hart.h"
+#include "etsoc/isa/hart.h"
 #include "kernel.h"
 #include "layout.h"
 #include "mm_to_cm_iface.h"
-#include "riscv_encoding.h"
+#include "etsoc/isa/riscv_encoding.h"
 
 void swi_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const reg);
 

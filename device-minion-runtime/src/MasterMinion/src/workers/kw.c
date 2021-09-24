@@ -29,8 +29,20 @@
         KW_Abort_All_Dispatched_Kernels
 */
 /***********************************************************************/
-#include    "device-common/atomic.h"
-#include    "common_defs.h"
+/* mm_rt_svcs */
+#include    "etsoc/isa/atomic.h"
+#include    "etsoc/common/common_defs.h"
+#include    "etsoc/isa/cacheops.h"
+#include    "etsoc/isa/riscv_encoding.h"
+#include    "etsoc/isa/sync.h"
+#include    "etsoc/isa/syscall.h"
+#include    "transports/circbuff/circbuff.h"
+#include    "transports/vq/vq.h"
+
+/* mm_rt_helpers */
+#include    "syscall_internal.h"
+
+/* mm specific headers */
 #include    "config/mm_config.h"
 #include    "services/host_iface.h"
 #include    "services/cm_iface.h"
@@ -41,13 +53,7 @@
 #include    "workers/cw.h"
 #include    "workers/kw.h"
 #include    "workers/sqw.h"
-#include    "device-common/cacheops.h"
-#include    "circbuff.h"
-#include    "riscv_encoding.h"
-#include    "sync.h"
-#include    "device-common/utils.h"
-#include    "vq.h"
-#include    "syscall_internal.h"
+
 
 /*! \def CM_KERNEL_LAUNCHED_FLAG
     \brief Macro that defines the flag for kernel launch status of CM side.
@@ -971,19 +977,25 @@ static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t 
 {
     cm_iface_message_t message;
     int8_t status;
+    spinlock_t *lock;
     (void)kernel;
 
     Log_Write(LOG_LEVEL_DEBUG, "KW:Processing single msg from CM\r\n");
 
     /* Acquire the unicast lock */
-    CM_Iface_Unicast_Acquire_Lock(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx);
+    lock =
+        &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx];
+    acquire_global_spinlock(lock);
 
     /* Receive the CM->MM message */
     status = CM_Iface_Unicast_Receive(
         CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
 
     /* Release the unicast lock */
-    CM_Iface_Unicast_Release_Lock(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx);
+    lock =
+        &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx];
+    release_global_spinlock(lock);
+
 
     if (status != STATUS_SUCCESS)
     {

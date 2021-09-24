@@ -1,24 +1,27 @@
-#include "device-common/cacheops.h"
-#include "cm_mm_defines.h"
-#include "common_defs.h"
-#include "kernel.h"
-#include "device-common/fcc.h"
-#include "device-common/flb.h"
-#include "device-common/hart.h"
-#include "etsoc_memory.h"
-#include "layout.h"
-#include "log.h"
-#include "device-common/macros.h"
-#include "message_types.h"
-#include "cm_to_mm_iface.h"
-#include "pmu.h"
-#include "printf.h"
-#include "sync.h"
-#include "syscall_internal.h"
-#include "trace.h"
-
 #include <stdbool.h>
 #include <inttypes.h>
+
+#include "common/printf.h"
+#include "etsoc/common/common_defs.h"
+#include "etsoc/isa/cacheops.h"
+#include "etsoc/isa/fcc.h"
+#include "etsoc/isa/flb.h"
+#include "etsoc/isa/hart.h"
+#include "etsoc/isa/sync.h"
+#include "etsoc/isa/etsoc_memory.h"
+#include "etsoc/isa/macros.h"
+#include "etsoc/isa/syscall.h"
+#include "etsoc/drivers/pmu/pmu.h"
+#include "transports/mm_cm_iface/message_types.h"
+
+#include "syscall_internal.h"
+#include "cm_mm_defines.h"
+#include "layout.h"
+#include "log.h"
+
+#include "kernel.h"
+#include "cm_to_mm_iface.h"
+#include "trace.h"
 
 #define CM_KERNEL_LAUNCHED_FLAG ((cm_kernel_launched_flag_t *)CM_KERNEL_LAUNCHED_FLAG_BASEADDR)
 
@@ -518,6 +521,7 @@ static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *k
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
     const uint64_t thread_mask = (shire_id == MASTER_SHIRE) ? 0xFFFFFFFF00000000U : 0xFFFFFFFFFFFFFFFFU;
     int8_t status;
+    spinlock_t *lock;
 
     /* Update Trace buffer header if Trace was enabled. */
     if (kernel->flags & KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
@@ -600,8 +604,9 @@ static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *k
             if(msg.status < KERNEL_COMPLETE_STATUS_SUCCESS)
             {
                 /* Acquire the unicast lock */
-                CM_Iface_Unicast_Acquire_Lock(
-                    (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index));
+                lock =
+                    &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index)];
+                acquire_global_spinlock(lock);
 
                 status = CM_To_MM_Iface_Unicast_Send(
                     (uint64_t)(kernel->kw_base_id + kernel->slot_index),
@@ -609,8 +614,10 @@ static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *k
                     (cm_iface_message_t *)&msg);
 
                 /* Release the unicast lock */
-                CM_Iface_Unicast_Release_Lock(
-                    (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index));
+                lock =
+                    &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index)];
+                release_global_spinlock(lock);
+
             }
             else
             {

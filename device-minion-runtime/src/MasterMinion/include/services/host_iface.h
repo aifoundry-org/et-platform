@@ -22,9 +22,12 @@
 #ifndef HOST_IFACE_DEFS_H
 #define HOST_IFACE_DEFS_H
 
-#include "common_defs.h"
+/* mm_rt_svcs */
+#include "etsoc/common/common_defs.h"
+#include "transports/vq/vq.h"
+
+/* mm specific headers */
 #include "config/mm_config.h"
-#include "vq.h"
 
 /*! \def HIFACE_INT_PRIORITY
     \brief Macro that provides the Host Interface interrupt priority.

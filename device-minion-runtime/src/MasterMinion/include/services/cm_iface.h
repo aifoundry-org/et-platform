@@ -18,8 +18,11 @@
 #ifndef CM_IFACE_H
 #define CM_IFACE_H
 
+/* mm_rt_svcs */
+#include "transports/mm_cm_iface/message_types.h"
+
+/* mm_rt_helpers */
 #include "cm_mm_defines.h"
-#include "message_types.h"
 
 /*! \def TIMEOUT_MM_CM_MSG(x)
     \brief Timeout value (10s) for MM->CM messages

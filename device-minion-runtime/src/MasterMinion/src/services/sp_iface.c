@@ -22,17 +22,24 @@
         SP_Iface_Report_Error
 */
 /***********************************************************************/
-#include "sync.h"
-#include "syscall_internal.h"
-#include "layout.h"
-#include "device-common/hart.h"
-#include "riscv_encoding.h"
+/* mm_rt_svcs */
+#include "etsoc/isa/sync.h"
+#include "etsoc/isa/hart.h"
+#include "etsoc/isa/riscv_encoding.h"
+#include "etsoc/isa/syscall.h"
+#include "etsoc/drivers/pmu/pmu.h"
+#include "transports/sp_mm_iface/sp_mm_comms_spec.h"
+
+/* mm specific headers */
 #include "services/sp_iface.h"
 #include "services/sw_timer.h"
 #include "services/log.h"
-#include "sp_mm_comms_spec.h"
 #include "services/host_cmd_hdlr.h"
-#include "pmu.h"
+
+/* mm_rt_helpers */
+#include "syscall_internal.h"
+#include "layout.h"
+
 
 /*! \struct sp_iface_sq_cb_t
     \brief SP interface control block that manages
@@ -334,7 +341,7 @@ int8_t SP_Iface_Init(void)
 {
     int8_t status;
 
-    status = SP_MM_Iface_Init();
+    status = SP_MM_Iface_Init(LOCAL_ATOMIC);
 
     if (status == STATUS_SUCCESS)
     {

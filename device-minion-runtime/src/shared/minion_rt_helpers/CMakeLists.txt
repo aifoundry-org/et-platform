@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# Copyright (C) 2019, Esperanto Technologies Inc.
+# Copyright (C) 2021, Esperanto Technologies Inc.
 # The copyright to the computer program(s) herein is the
 # property of Esperanto Technologies, Inc. All Rights Reserved.
 # The program(s) may be used and/or copied only with
@@ -8,4 +8,10 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-#add_subdirectory(traces)
+add_library(minion_rt INTERFACE)
+add_library(deviceFirmware::minion_rt_helpers_interface ALIAS minion_rt)
+target_include_directories(minion_rt
+    INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw>
+)

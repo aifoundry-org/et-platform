@@ -22,13 +22,18 @@
         SQW_HP_Increment_Command_Count
 */
 /***********************************************************************/
+/* common-api, device_ops_api */
+#include <esperanto/device-apis/device_apis_message_types.h>
+
+/* mm_rt_svcs */
+#include "etsoc/isa/etsoc_memory.h"
+
+/* mm specific headers */
 #include "workers/sqw_hp.h"
 #include "services/log.h"
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/trace.h"
-#include <esperanto/device-apis/device_apis_message_types.h>
-#include "etsoc_memory.h"
 #include "services/sp_iface.h"
 
 /*! \typedef sqw_hp_cb_t
@@ -304,7 +309,7 @@ __attribute__((noreturn)) void SQW_HP_Launch(uint32_t hart_id, uint32_t sqw_hp_i
         hp_tail_prev = VQ_Get_Tail_Offset(&hp_vq_cached);
 
         /* Refresh the cached VQ CB - Get updated head and tail values */
-        VQ_Get_Head_And_Tail(hp_vq_shared, &hp_vq_cached);
+        VQ_Get_Head_And_Tail(hp_vq_shared, &hp_vq_cached, LOCAL_ATOMIC);
 
         /* Verify that the tail value read from memory is equal to previous tail value */
         if(hp_tail_prev != VQ_Get_Tail_Offset(&hp_vq_cached))

@@ -1,4 +1,7 @@
-#include "device-common/macros.h"
+/* mm_rt_svcs */
+#include "etsoc/isa/macros.h"
+
+/* mm specific headers */
 #include "services/log.h"
 #include "services/sp_iface.h"
 #include "services/trace.h"
