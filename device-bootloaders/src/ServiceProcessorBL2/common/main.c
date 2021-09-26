@@ -2,7 +2,6 @@
 #include "etsoc/drivers/serial/serial.h"
 #include "interrupt.h"
 #include "dummy_isr.h"
-#include "config/minion_fw_boot_config.h"
 #include "etsoc/drivers/pcie/pcie_int.h"
 
 #include "FreeRTOS.h"
