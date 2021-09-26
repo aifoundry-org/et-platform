@@ -13,18 +13,23 @@ set(CM_UMODE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/cm-umode)
 set(CM_UMODE_HDRS
     # ETSOC ISA headers
     include/common/printf.h
+    include/etsoc/common/log_common.h
     include/etsoc/isa/atomic.h
     include/etsoc/isa/atomic-impl.h
     include/etsoc/isa/barriers.h
+    include/etsoc/isa/cacheops.h
     include/etsoc/isa/cacheops-umode.h
     include/etsoc/isa/esr_defines.h
     include/etsoc/isa/fcc.h
     include/etsoc/isa/flb.h
     include/etsoc/isa/hart.h
+    include/etsoc/isa/shire.h
     include/etsoc/isa/syscall.h
+    include/etsoc/isa/tensor.h
     include/etsoc/isa/tensors.h
     include/etsoc/isa/utils.h
     include/common/printf.h
+    include/etsoc/isa/macros.h
     # Trace Header
     include/trace/trace_umode.h
     #TODO:others to come ..

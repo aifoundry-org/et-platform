@@ -37,6 +37,13 @@ extern "C" {
 #define SYSCALL_SUCCESS                  0
 #define SYSCALL_INVALID_ID              -1
 
+/* Kernel return types. Must be kept synced with FW.
+TODO: Need a separate header for it? */
+#define KERNEL_RETURN_SUCCESS            0
+#define KERNEL_RETURN_SELF_ABORT         1
+#define KERNEL_RETURN_SYSTEM_ABORT       2
+#define KERNEL_RETURN_EXCEPTION          3
+
 #ifndef __ASSEMBLER__
 
 #include <stdint.h>
