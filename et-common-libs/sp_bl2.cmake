@@ -38,7 +38,6 @@ set(SP_BL2_HDRS
     include/system/layout.h
     include/system/layout.ld
     include/system/etsoc_ddr_region_map.h
-    include/config/minion_fw_boot_config.h
 )
 
 #Listing of public headers that expose services provided by
