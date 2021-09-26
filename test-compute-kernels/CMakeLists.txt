@@ -37,12 +37,19 @@ set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
 set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
 
+#get_property(DEVICE_COMMON_INCLUDE_PATH
+#  TARGET EsperantoDeviceMinionRuntime::device_common
+#  PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+
+#include_directories(${DEVICE_COMMON_INCLUDE_PATH})
+#include_directories(${DEVICE_COMMON_INCLUDE_PATH}/etsoc_hal)
+
 get_property(DEVICE_COMMON_INCLUDE_PATH
-  TARGET EsperantoDeviceMinionRuntime::device_common
+  TARGET et-common-libs::cm-umode
   PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 
-include_directories(${DEVICE_COMMON_INCLUDE_PATH})
-include_directories(${DEVICE_COMMON_INCLUDE_PATH}/etsoc_hal)
+#include_directories(${DEVICE_COMMON_INCLUDE_PATH})
+#include_directories(${DEVICE_COMMON_INCLUDE_PATH}/etsoc_hal)
 
 set(SHARED_INC_DIR ${PROJECT_SOURCE_DIR}/shared/include)
 
@@ -88,7 +95,8 @@ macro(test_kernel)
 
   set(EXPORT_NAME EsperantoTestKernelsTargets)
 
-  target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device_common et-common-libs::cm-umode)
+  #target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device_common et-common-libs::cm-umode)
+  target_link_libraries(${TARGET_NAME}.elf et-common-libs::cm-umode)
 
   # Link trace library if tracing is enabled
   target_link_libraries(${TARGET_NAME}.elf esperantoTrace::et_trace)
@@ -154,7 +162,8 @@ macro(randomized_test)
     target_include_directories(${TARGET_NAME}.elf PRIVATE ${TEST_BUILD_FOLDER}/include)
     add_dependencies(${TARGET_NAME}.elf ${TEST_NAME}-gen-files)
 
-    target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device_common)
+    #target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device_common)
+    target_link_libraries(${TARGET_NAME}.elf et-common-libs::cm-umode)
 
     set(EXPORT_NAME esperanto-fw-targets)
 

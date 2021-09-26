@@ -1,8 +1,8 @@
-#include "hart.h"
-#include "cacheops.h"
+#include "etsoc/isa/hart.h"
+#include "etsoc/isa/cacheops.h"
 #include "common.h"
 #include "log.h"
-#include "macros.h"
+#include "etsoc/isa/macros.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>

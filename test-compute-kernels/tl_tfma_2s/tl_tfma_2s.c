@@ -10,16 +10,15 @@
  */
 
 #include <stdint.h>
-#include "hart.h"
-#include "macros.h"
+#include "etsoc/isa/hart.h"
+#include "etsoc/isa/macros.h"
+#include "etsoc/isa/cacheops.h"
+#include "etsoc/isa/tensor.h"
+#include "etsoc/isa/fcc.h"
+#include "etsoc/isa/flb.h"
+#include "etsoc/isa/esr_defines.h"
 #include "vpu.h"
-#include "cacheops.h"
-#include "tensor.h"
 #include "common.h"
-#include "fcc.h"
-#include "flb.h"
-
-#include "esr_defines.h"
 #include "crc32.h"
 #include "log.h"
 #include "sync_minions.h"

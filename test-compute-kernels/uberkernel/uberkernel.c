@@ -2,12 +2,12 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#include "cacheops.h"
+#include "etsoc/isa/cacheops.h"
 #include "common_code.h"
-#include "hart.h"
+#include "etsoc/isa/hart.h"
 
-#include "macros.h"
-#include "tensor.h"
+#include "etsoc/isa/macros.h"
+#include "etsoc/isa/tensor.h"
 
 #define N_CREDITS_TO_ACT_PREF 3
 

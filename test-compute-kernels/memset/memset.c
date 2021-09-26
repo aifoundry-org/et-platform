@@ -1,5 +1,5 @@
 
-#include "shire.h"
+#include "etsoc/isa/shire.h"
 
 typedef struct {
   int* a;

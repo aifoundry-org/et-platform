@@ -1,9 +1,8 @@
-#include "hart.h"
-#include "lfsr.h"
-
-
 #include <stddef.h>
 #include <stdint.h>
+
+#include "etsoc/isa/hart.h"
+#include "lfsr.h"
 
 typedef struct {
   uint64_t* data_ptr;

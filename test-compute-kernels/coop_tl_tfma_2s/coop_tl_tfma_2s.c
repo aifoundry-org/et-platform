@@ -10,17 +10,17 @@
  */
 
 #include <stdint.h>
-#include "cacheops.h"
+#include "etsoc/isa/cacheops.h"
+#include "etsoc/isa/esr_defines.h"
+#include "etsoc/isa/fcc.h"
+#include "etsoc/isa/flb.h"
+#include "etsoc/isa/hart.h"
+#include "etsoc/isa/macros.h"
+#include "etsoc/isa/tensor.h"
 #include "common.h"
 #include "crc32.h"
-#include "esr_defines.h"
-#include "fcc.h"
-#include "flb.h"
-#include "hart.h"
 #include "log.h"
-#include "macros.h"
 #include "sync_minions.h"
-#include "tensor.h"
 #include "vpu.h"
 
 #define TSTORE_FLB 0

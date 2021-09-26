@@ -1,8 +1,8 @@
 #ifndef SYNC_MINIONS_H
 #define SYNC_MINIONS_H
 
-#include "fcc.h"
-#include "flb.h"
+#include "etsoc/isa/fcc.h"
+#include "etsoc/isa/flb.h"
 
 #define ALL_BANKS_MASK 0xFUL;
 #define OPCODE_FLUSH_CB 0x0A01UL;
@@ -17,7 +17,7 @@ static inline void drain_scb(uint64_t shire_id, uint64_t minion_id, uint64_t flb
     uint64_t barrier_result;
     WAIT_FLB(32, flb_id, barrier_result);
     if (barrier_result == 1) {
-        
+
         // The last minion to reach this barrier flushes the CB and sends a credit to all others to continue
         // Having more than one minions flush the CB at the same time may end up in having one of the flushes
         // dropped by the shire cache
@@ -27,7 +27,7 @@ static inline void drain_scb(uint64_t shire_id, uint64_t minion_id, uint64_t flb
         store((uint64_t) cb_flush_addr, flush_cb_opcode);
 
         __asm__ __volatile__ ("fence\n");
-        
+
 	// You will need to poll each bank separately and make sure flushing has completed before you proceed
         uint64_t cb_busy = 0;
         while (cb_busy != 0x4) {
@@ -38,13 +38,13 @@ static inline void drain_scb(uint64_t shire_id, uint64_t minion_id, uint64_t flb
             }
             cb_busy = cb_busy_bank[0] | cb_busy_bank[1] | cb_busy_bank[2] | cb_busy_bank[3];
         }
-        
+
 	// Flushing is done send a credit to other minions
         uint64_t target_min_mask = 0xFFFFFFFFUL;
         target_min_mask = target_min_mask & (~(1ULL << (minion_id & 0x1f)));
-        SEND_FCC(shire_id, 0, 0, target_min_mask);        
-    } 
-    
+        SEND_FCC(shire_id, 0, 0, target_min_mask);
+    }
+
     // If you are not the last minion to reach barrier, wait for a credit.
     else {
         WAIT_FCC(0);

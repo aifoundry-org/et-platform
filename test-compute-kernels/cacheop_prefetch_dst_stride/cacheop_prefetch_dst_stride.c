@@ -1,6 +1,6 @@
 
-#include "hart.h"
-#include "cacheops.h"
+#include "etsoc/isa/hart.h"
+#include "etsoc/isa/cacheops.h"
 #include "common.h"
 #include "log.h"
 

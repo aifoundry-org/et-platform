@@ -11,14 +11,14 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "hart.h"
-#include "macros.h"
+#include "etsoc/isa/hart.h"
+#include "etsoc/isa/macros.h"
 #include "common.h"
 
 #include "log.h"
-#include "cacheops.h"
-#include "fcc.h"
-#include "flb.h"
+#include "etsoc/isa/cacheops.h"
+#include "etsoc/isa/fcc.h"
+#include "etsoc/isa/flb.h"
 #include "sync_minions.h"
 #include "markers.h"
 

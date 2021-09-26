@@ -1,15 +1,14 @@
-#include "hart.h"
-
-#include "fcc.h"
-#include "flb.h"
-#include "log.h"
-#include "lfsr.h"
-#include "syscall.h"
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <inttypes.h>
+
+#include "etsoc/isa/hart.h"
+#include "etsoc/isa/fcc.h"
+#include "etsoc/isa/flb.h"
+#include "etsoc/isa/syscall.h"
+#include "log.h"
+#include "lfsr.h"
 
 #pragma GCC optimize ("-O3")
 

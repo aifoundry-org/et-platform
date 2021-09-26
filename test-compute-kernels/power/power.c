@@ -1,11 +1,10 @@
-#include "fcc.h"
-#include "flb.h"
-#include "hart.h"
-
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "etsoc/isa/fcc.h"
+#include "etsoc/isa/flb.h"
+#include "etsoc/isa/hart.h"
 
 static void prefetch_thread(uint64_t cycles);
 static void compute_thread(uint64_t cycles);

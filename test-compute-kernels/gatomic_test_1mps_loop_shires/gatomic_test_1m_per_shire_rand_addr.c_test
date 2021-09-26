@@ -1,6 +1,6 @@
 
-#include "hart.h"
-#include "atomic.h"
+#include "etsoc/isa/hart.h"
+#include "etsoc/isa/atomic.h"
 #include "common.h"
 #include "log.h"
 
@@ -9,12 +9,12 @@
 
 #define BASE_ADDR_FOR_THIS_TEST  0x8105000040ULL
 
-#define POLYNOMIAL_BIT 0x000008016ULL 
+#define POLYNOMIAL_BIT 0x000008016ULL
 #define LFSR_SHIFTS_PER_READ 16
 
 static inline uint64_t generate_random_address(uint64_t lfsr) __attribute((always_inline));
 
-       
+
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
     const uint64_t hart_id = get_hart_id();
@@ -25,13 +25,13 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     if (hart_id == 0 || hart_id == 64 || hart_id == 128 || hart_id == 192 || hart_id == 256 || hart_id == 320 || hart_id == 384 || hart_id == 448 || hart_id == 512 || hart_id == 576 || hart_id == 640 || hart_id == 704 || hart_id == 768 || hart_id == 832 || hart_id == 896 || hart_id == 960 || hart_id == 1024 || hart_id == 1088 || hart_id == 1152 || hart_id == 1216 || hart_id == 1280 || hart_id == 1344 || hart_id == 1408 || hart_id == 1472 || hart_id == 1536 || hart_id == 1600 || hart_id == 1664 || hart_id == 1728 || hart_id == 1792 || hart_id == 1856 || hart_id == 1920 || hart_id == 1984) {
       for(int i=0;i<10;i++) {
           lfsr = generate_random_address(lfsr);
-          lfsr_use = lfsr & 0xFFF8; 
+          lfsr_use = lfsr & 0xFFF8;
           long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | lfsr_use;
-          volatile uint64_t* atomic_addr = (uint64_t*)shire_addr; 
+          volatile uint64_t* atomic_addr = (uint64_t*)shire_addr;
           atomic_add(atomic_addr,0x1);
           result = atomic_read(atomic_addr);
-      } 
-      return 0; 
+      }
+      return 0;
     }
     else {
        return 0;
@@ -81,5 +81,5 @@ uint64_t generate_random_address(uint64_t lfsr)
         lfsr ^= (polynomial & (uint64_t)mask);
 #endif
     }
-    return lfsr;  
+    return lfsr;
 }

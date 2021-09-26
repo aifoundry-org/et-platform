@@ -1,4 +1,4 @@
-#include "shire.h"
+#include "etsoc/isa/shire.h"
 
 inline int min(int a, int b) { return a < b ? a : b; }
 

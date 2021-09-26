@@ -1,6 +1,5 @@
-#include "log.h"
-
 #include <stddef.h>
+#include "log.h"
 
 static log_level_t current_log_level = LOG_LEVEL_WARNING;
 
