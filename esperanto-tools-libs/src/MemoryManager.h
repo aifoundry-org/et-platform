@@ -16,7 +16,7 @@
 #include <map>
 #include <vector>
 namespace rt {
-constexpr auto kBlockSize = 1024U;
+constexpr auto kBlockSize = 4096U;
 
 class MemoryManager {
 public:

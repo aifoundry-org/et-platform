@@ -285,7 +285,7 @@ TEST(MemoryManager, malloc_free_basic) {
 
 TEST(MemoryManager, malloc_free_holes) {
   auto totalRam = 1UL << 34;
-  auto mm = MemoryManager(1 << 10, totalRam);
+  auto mm = MemoryManager(1 << 12, totalRam);
   mm.setDebugMode(true);
 
   EXPECT_THROW({ mm.malloc(totalRam + 1024, 1024); }, Exception);

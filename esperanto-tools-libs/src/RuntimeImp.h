@@ -33,48 +33,47 @@ class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
 public:
   explicit RuntimeImp(dev::IDeviceLayer* deviceLayer);
 
-  std::vector<DeviceId> getDevices() override;
+  std::vector<DeviceId> getDevices() final;
 
-  LoadCodeResult loadCode(StreamId stream, const std::byte* elf, size_t elf_size) override;
-  void unloadCode(KernelId kernel) override;
+  LoadCodeResult loadCode(StreamId stream, const std::byte* elf, size_t elf_size) final;
+  void unloadCode(KernelId kernel) final;
 
-  std::byte* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) override;
-  void freeDevice(DeviceId device, std::byte* buffer) override;
+  std::byte* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) final;
+  void freeDevice(DeviceId device, std::byte* buffer) final;
 
-  StreamId createStream(DeviceId device) override;
-  void destroyStream(StreamId stream) override;
+  StreamId createStream(DeviceId device) final;
+  void destroyStream(StreamId stream) final;
 
   EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                       uint64_t shire_mask, std::optional<UserTrace> userTraceConfig, bool barrier,
-                       bool flushL3) override;
+                       uint64_t shire_mask, std::optional<UserTrace> userTraceConfig, bool barrier, bool flushL3) final;
 
-  EventId memcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) override;
-  EventId memcpyDeviceToHost(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) override;
+  EventId memcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) final;
+  EventId memcpyDeviceToHost(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) final;
 
-  bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) override;
-  bool waitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) override;
+  bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) final;
+  bool waitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) final;
 
   std::unique_ptr<IDmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) final;
 
   EventId setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
-                             uint32_t filterMask, bool barrier) override;
-  EventId startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput, bool barrier) override;
+                             uint32_t filterMask, bool barrier) final;
+  EventId startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput, bool barrier) final;
 
-  EventId stopDeviceTracing(StreamId stream, bool barrier) override;
+  EventId stopDeviceTracing(StreamId stream, bool barrier) final;
 
-  EventId abortCommand(EventId commandId) override;
+  EventId abortCommand(EventId commandId) final;
 
-  IProfiler* getProfiler() override {
+  IProfiler* getProfiler() final {
     return &profiler_;
   }
 
-  void setOnStreamErrorsCallback(StreamErrorCallback callback) override;
+  void setOnStreamErrorsCallback(StreamErrorCallback callback) final;
 
-  std::vector<StreamError> retrieveStreamErrors(StreamId stream) override;
+  std::vector<StreamError> retrieveStreamErrors(StreamId stream) final;
 
   // IResponseServices
-  std::vector<int> getDevicesWithEventsOnFly() const override;
-  void onResponseReceived(const std::vector<std::byte>& response) override;
+  std::vector<int> getDevicesWithEventsOnFly() const final;
+  void onResponseReceived(const std::vector<std::byte>& response) final;
 
   void setMemoryManagerDebugMode(DeviceId device, bool enable);
 
@@ -82,6 +81,7 @@ public:
   void dispatch(EventId event);
 
 private:
+  void checkDevice(int device) override;
   struct Kernel {
     Kernel(DeviceId deviceId, std::byte* deviceBuffer, uint64_t entryPoint)
       : deviceId_(deviceId)

@@ -32,6 +32,16 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
       RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP response code: " << responseCode;
       return rt::DeviceErrorCode::Unknown;
     }
+  case DEV_OPS_API_MID_DEVICE_OPS_ABORT_RSP:
+    switch (responseCode) {
+    case DEV_OPS_API_ABORT_RESPONSE_ERROR:
+      return rt::DeviceErrorCode::AbortError;
+    case DEV_OPS_API_ABORT_RESPONSE_INVALID_TAG_ID:
+      return rt::DeviceErrorCode::AbortInvalidTagId;
+    default:
+      RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_ABORT_RSP response code: " << responseCode;
+      return rt::DeviceErrorCode::Unknown;
+    }
   case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP:
     switch (responseCode) {
     case DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR:
@@ -40,6 +50,8 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
       return rt::DeviceErrorCode::KernelAbortInvalidTagId;
     case DEV_OPS_API_KERNEL_ABORT_RESPONSE_TIMEOUT_HANG:
       return rt::DeviceErrorCode::KernelAbortTimeoutHang;
+    case DEV_OPS_API_KERNEL_ABORT_RESPONSE_HOST_ABORTED:
+      return rt::DeviceErrorCode::KernelAbortHostAborted;
     default:
       RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP response code: " << responseCode;
       return rt::DeviceErrorCode::Unknown;

@@ -22,11 +22,12 @@
 using namespace rt;
 using namespace std::chrono_literals;
 namespace {
-constexpr auto kPollingInterval = 10us;
-constexpr auto kNumTriesBeforePolling = 20;
+constexpr auto kResponsePollingInterval = 10us;
+constexpr auto kResponseNumTriesBeforePolling = 20;
+constexpr auto kCheckDevicesInterval = 5s;
 }
 
-void ResponseReceiver::threadFunction() {
+void ResponseReceiver::checkResponses() {
   // Max ioctl size is 14b
   constexpr uint32_t kMaxMsgSize = (1UL << 14) - 1;
 
@@ -37,7 +38,7 @@ void ResponseReceiver::threadFunction() {
 
   while (run_) {
     int responsesCount = 0;
-    for (int i = 0; i < kNumTriesBeforePolling; ++i) {
+    for (int i = 0; i < kResponseNumTriesBeforePolling; ++i) {
       auto devicesToCheck = receiverServices_->getDevicesWithEventsOnFly();
       std::shuffle(begin(devicesToCheck), end(devicesToCheck), gen);
       for (auto dev : devicesToCheck) {
@@ -50,7 +51,17 @@ void ResponseReceiver::threadFunction() {
       }
     }
     if (responsesCount == 0) {
-      std::this_thread::sleep_for(kPollingInterval);
+      std::this_thread::sleep_for(kResponsePollingInterval);
+    }
+  }
+}
+
+void ResponseReceiver::checkDevices() {
+  auto devices = deviceLayer_->getDevicesCount();
+  while (run_) {
+    std::this_thread::sleep_for(kCheckDevicesInterval);
+    for (int i = 0; i < devices; ++i) {
+      receiverServices_->checkDevice(i);
     }
   }
 }
@@ -59,12 +70,14 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
   : deviceLayer_(deviceLayer)
   , receiverServices_(receiverServices) {
 
-  receiver_ = std::thread(std::bind(&ResponseReceiver::threadFunction, this));
+  receiver_ = std::thread(std::bind(&ResponseReceiver::checkResponses, this));
+  deviceChecker_ = std::thread(std::bind(&ResponseReceiver::checkDevices, this));
 }
 
 ResponseReceiver::~ResponseReceiver() {
   RT_LOG(INFO) << "Destroying response receiver";
   run_ = false;
   receiver_.join();
+  deviceChecker_.join();
   RT_LOG(INFO) << "Response receiver destroyed";
 }

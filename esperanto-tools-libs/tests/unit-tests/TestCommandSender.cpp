@@ -37,7 +37,7 @@ TEST(CommandSender, checkConsistency) {
   dev::IDeviceLayerFake deviceLayer;
   CommandSender cs(deviceLayer, 0, 0);
   for (tag_id_t i = 0; i < numCommands; ++i) {
-    header->tag_id = i + 1;
+    header->tag_id = i + short{1};
     commands.emplace_back(cs.send(Command{commandData, cs}));
   }
   // no command is enabled now, so a call to receiveResponseMasterMinion should return false

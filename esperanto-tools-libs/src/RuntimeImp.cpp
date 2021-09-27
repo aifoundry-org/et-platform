@@ -62,7 +62,7 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
   auto dramSize = deviceLayer_->getDramSize();
   RT_LOG(INFO) << std::hex << "Runtime initialization. Dram base addr: " << dramBaseAddress
                << " Dram size: " << dramSize;
-  for (auto&& d : devices_) {
+  for (auto& d : devices_) {
     memoryManagers_.try_emplace(d, dramBaseAddress, dramSize, kBlockSize);
     hostBufferManagers_.try_emplace(d, this, d);
     deviceTracing_.try_emplace(d, DeviceFwTracing{allocateDmaBuffer(d, kTracingFwBufferSize, false), nullptr, nullptr});
@@ -71,6 +71,13 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
   // Allocate 1024KB for kernel parameters and the rest for exception buffer
   executionContextCache_ = std::make_unique<ExecutionContextCache>(
     this, kNumExecutionCacheBuffers, align(kExceptionBufferSize + kBlockSize, kBlockSize));
+
+  // initialization sequence, need to send abort command to ensure the device is in a proper state
+  for (int d = 0; d < devicesCount; ++d) {
+    RT_LOG(INFO) << "Initializing device: " << d;
+    checkDevice(d);
+    RT_LOG(INFO) << "Device: " << d << " initialized.";
+  }
 }
 
 std::vector<DeviceId> RuntimeImp::getDevices() {
@@ -268,6 +275,14 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
                << " Message Id: " << header->rsp_hdr.msg_id;
   bool responseWasOk = true;
   switch (header->rsp_hdr.msg_id) {
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP:
+    if (auto r = reinterpret_cast<const device_ops_api::device_ops_kernel_abort_rsp_t*>(response.data());
+        r->status != device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS) {
+      responseWasOk = false;
+      RT_LOG(WARNING) << "Error on kernel abort: " << r->status << ". Tag id: " << static_cast<int>(eventId);
+      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
+    }
+    break;
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP:
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_read_rsp_t*>(response.data());
@@ -279,15 +294,14 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     }
     break;
   }
-  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ABORT_RSP: {
-    auto r = reinterpret_cast<const device_ops_api::device_ops_abort_rsp_t*>(response.data());
-    if (r->status != device_ops_api::DEV_OPS_API_ABORT_RESPONSE_SUCCESS) {
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ABORT_RSP:
+    if (auto r = reinterpret_cast<const device_ops_api::device_ops_abort_rsp_t*>(response.data());
+        r->status != device_ops_api::DEV_OPS_API_ABORT_RESPONSE_SUCCESS) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on abort command: " << r->status << ". Tag id: " << static_cast<int>(eventId);
       processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
     }
     break;
-  }
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP:
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_write_rsp_t*>(response.data());
@@ -312,26 +326,24 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     }
     break;
   }
-  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_RSP: {
-    auto r = reinterpret_cast<const device_ops_api::device_ops_trace_rt_config_rsp_t*>(response.data());
-    if (r->status != device_ops_api::DEV_OPS_TRACE_RT_CONFIG_RESPONSE::DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS) {
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_RSP:
+    if (auto r = reinterpret_cast<const device_ops_api::device_ops_trace_rt_config_rsp_t*>(response.data());
+        r->status != device_ops_api::DEV_OPS_TRACE_RT_CONFIG_RESPONSE::DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on firmware trace configure: " << r->status
                       << ". Tag id: " << static_cast<int>(eventId);
       processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
     }
     break;
-  }
-  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP: {
-    auto r = reinterpret_cast<const device_ops_api::device_ops_trace_rt_control_rsp_t*>(response.data());
-    if (r->status != device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS) {
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP:
+    if (auto r = reinterpret_cast<const device_ops_api::device_ops_trace_rt_control_rsp_t*>(response.data());
+        r->status != device_ops_api::DEV_OPS_TRACE_RT_CONTROL_RESPONSE::DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on firmware trace control (start/stop): " << r->status
                       << ". Tag id: " << static_cast<int>(eventId);
       processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
     }
     break;
-  }
   default:
     RT_LOG(WARNING) << "Unknown response msg id: " << header->rsp_hdr.msg_id;
     break;
@@ -495,7 +507,7 @@ EventId RuntimeImp::abortCommand(EventId commandId) {
     cmd.tag_id = static_cast<uint16_t>(commandId);
     cmd.command_info.cmd_hdr.size = sizeof(cmd);
     cmd.command_info.cmd_hdr.flags = device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
-    cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD;
+    cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD;
     cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
     // check what device contains that eventid
     while (!deviceLayer_->sendCommandMasterMinion(stInfo->device_, stInfo->vq_, reinterpret_cast<std::byte*>(&cmd),
@@ -510,4 +522,21 @@ EventId RuntimeImp::abortCommand(EventId commandId) {
 void RuntimeImp::dispatch(EventId event) {
   streamManager_.removeEvent(event);
   eventManager_.dispatch(event);
+}
+
+void RuntimeImp::checkDevice(int device) {
+  auto state = deviceLayer_->getDeviceStateMasterMinion(device);
+  if (state != dev::DeviceState::Ready) {
+    RT_LOG(WARNING) << "Device " << device << " is not ready. Current state: " << static_cast<int>(state)
+                    << ". Runtime will issue abort command to all SQs of that device.";
+    for (auto sq = 0, sqCount = deviceLayer_->getSubmissionQueuesCount(device); sq < sqCount; ++sq) {
+      auto st = createStream(DeviceId{device});
+      auto fakeEvt = eventManager_.getNextId();
+      streamManager_.addEvent(st, fakeEvt);
+      abortCommand(fakeEvt);
+      dispatch(fakeEvt);
+      waitForStream(st);
+      destroyStream(st);
+    }
+  }
 }

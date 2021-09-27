@@ -73,6 +73,10 @@ enum class DeviceErrorCode {
   KernelAbortError,
   KernelAbortInvalidTagId,
   KernelAbortTimeoutHang,
+  KernelAbortHostAborted,
+
+  AbortError,
+  AbortInvalidTagId,
 
   DmaError,
   DmaTimeoutIdleChannelUnavailable,
