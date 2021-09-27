@@ -478,7 +478,7 @@ static inline int8_t process_kernel_launch_cmd_payload(struct device_ops_kernel_
     {
        status = KW_ERROR_KERNEL_INVLD_ARGS_SIZE;
        Log_Write(LOG_LEVEL_ERROR, "KW:ERROR: Violated Kernel Args Size: %ld > %d\r\n", args_size, DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX);
-    }   
+    }
 
     /* Check if Trace config are present in optional command payload. */
     if((status == STATUS_SUCCESS) && (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE))
@@ -486,7 +486,7 @@ static inline int8_t process_kernel_launch_cmd_payload(struct device_ops_kernel_
         Log_Write(LOG_LEVEL_DEBUG, "KW:INFO: Trace Optional Payload present!\r\n");
         struct trace_init_info_t *trace_config = (struct trace_init_info_t *)(uintptr_t)payload;
 
-        if (IS_ALIGNED(trace_config->buffer, CACHE_LINE_SIZE) && IS_ALIGNED(trace_config->buffer_size, CACHE_LINE_SIZE) 
+        if (IS_ALIGNED(trace_config->buffer, CACHE_LINE_SIZE) && IS_ALIGNED(trace_config->buffer_size, CACHE_LINE_SIZE)
             && args_size >= sizeof(struct trace_init_info_t))
         {
             /* Copy the Trace configs from command payload to provided address
@@ -507,7 +507,7 @@ static inline int8_t process_kernel_launch_cmd_payload(struct device_ops_kernel_
     }
 
     /* Check if Kernel arguments are present in optional command payload. */
-    if((status == STATUS_SUCCESS) && (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_KERNEL_LAUNCH_ARGS_EMBEDDED) 
+    if((status == STATUS_SUCCESS) && (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_KERNEL_LAUNCH_ARGS_EMBEDDED)
                                   && (cmd->pointer_to_args != 0))
     {
         Log_Write(LOG_LEVEL_DEBUG, "KW:INFO: Kernel Args Optional Payload present!\r\n");
@@ -763,6 +763,8 @@ int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
 ***********************************************************************/
 void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
 {
+    Log_Write(LOG_LEVEL_DEBUG, "KW:SQ=%d: Abort all kernels\r\n", sqw_idx);
+
     /* Traverse all kernel slots and abort them */
     for(uint8_t kw_idx = 0; kw_idx < MM_MAX_PARALLEL_KERNELS; kw_idx++)
     {
@@ -772,6 +774,8 @@ void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
             (atomic_compare_and_exchange_local_32(&KW_CB.kernels[kw_idx].kernel_state,
             KERNEL_STATE_IN_USE, KERNEL_STATE_ABORTING) == KERNEL_STATE_IN_USE))
         {
+            Log_Write(LOG_LEVEL_DEBUG, "KW:SQ=%d: Aborting KW=%d\r\n", sqw_idx, kw_idx);
+
             /* Trigger IPI to KW */
             syscall(SYSCALL_IPI_TRIGGER_INT,
                 1ULL << ((KW_BASE_HART_ID + (kw_idx * HARTS_PER_MINION)) % 64),
@@ -782,6 +786,8 @@ void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
             {
                 asm volatile("fence\n" ::: "memory");
             } while (atomic_load_local_32(&KW_CB.kernels[kw_idx].kernel_state) == KERNEL_STATE_ABORTING);
+
+            Log_Write(LOG_LEVEL_DEBUG, "KW:SQ=%d: Aborted KW=%d\r\n", sqw_idx, kw_idx);
         }
     }
 }

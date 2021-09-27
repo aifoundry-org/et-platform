@@ -42,7 +42,7 @@
 */
 #define TRACE_NODE_INDEX    0
 
-/*! \def DMA_TO_DEVICEAPI_STATUS 
+/*! \def DMA_TO_DEVICEAPI_STATUS
     \brief Helper macro to convert DMA Error to DEVICE API Errors
 */
 #define DMA_TO_DEVICEAPI_STATUS(status, abort_status, ret_status)   \
@@ -125,6 +125,9 @@ static inline int8_t abort_cmd_handler(void* command_buffer, uint8_t sqw_hp_idx)
 
     /* Blocking call that aborts all dispatched kernels */
     KW_Abort_All_Dispatched_Kernels(sqw_hp_idx);
+
+    Log_Write(LOG_LEVEL_DEBUG,
+        "SQ_HP[%d] abort_cmd_handler:ABORT_CMD processing complete\r\n", sqw_hp_idx);
 
     /* Set the abort command status */
     rsp.status = DEV_OPS_API_ABORT_RESPONSE_SUCCESS;
@@ -418,7 +421,7 @@ static inline int8_t echo_cmd_handler(void* command_buffer, uint8_t sqw_idx,
 {
     const struct device_ops_echo_cmd_t *cmd =
         (struct device_ops_echo_cmd_t *)command_buffer;
-    struct device_ops_echo_rsp_t rsp;
+    struct device_ops_echo_rsp_t rsp = { 0 };
     int8_t status = STATUS_SUCCESS;
     int8_t abort_status = STATUS_SUCCESS;
 
@@ -917,7 +920,7 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
                                         sizeof(struct dma_read_node));
 
             /* Ensure the size of Xfer is bigger than zero */
-            status =  ((dma_xfer_count > 0) && (dma_xfer_count <= DEVICE_OPS_DMA_LIST_NODES_MAX)) ? 
+            status =  ((dma_xfer_count > 0) && (dma_xfer_count <= DEVICE_OPS_DMA_LIST_NODES_MAX)) ?
                                                    STATUS_SUCCESS : DMA_ERROR_INVALID_XFER_COUNT;
         }
     }

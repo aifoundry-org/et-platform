@@ -1124,6 +1124,8 @@ void DMAW_Launch(uint32_t hart_id)
 ***********************************************************************/
 void DMAW_Abort_All_Dispatched_Read_Channels(uint8_t sqw_idx)
 {
+    Log_Write(LOG_LEVEL_DEBUG, "DMAW:SQ=%d: Abort all DMA read channels\r\n", sqw_idx);
+
     /* Traverse all read channels and abort them */
     for(uint8_t read_chan = 0; read_chan < PCIE_DMA_RD_CHANNEL_COUNT; read_chan++)
     {
@@ -1143,6 +1145,9 @@ void DMAW_Abort_All_Dispatched_Read_Channels(uint8_t sqw_idx)
             &DMAW_Read_CB.chan_status_cb[read_chan].status.channel_state, DMA_CHAN_STATE_IN_USE,
             DMA_CHAN_STATE_ABORTING) == DMA_CHAN_STATE_IN_USE)
         {
+            Log_Write(LOG_LEVEL_DEBUG,
+                "DMAW:SQ=%d:chan=%d: Aborting DMA read channel\r\n", sqw_idx, read_chan);
+
             /* Spin-wait if the DMA state is aborting */
             do
             {
@@ -1150,6 +1155,9 @@ void DMAW_Abort_All_Dispatched_Read_Channels(uint8_t sqw_idx)
             } while (
                 atomic_load_local_32(&DMAW_Read_CB.chan_status_cb[read_chan].status.channel_state)
                 == DMA_CHAN_STATE_ABORTING);
+
+            Log_Write(LOG_LEVEL_DEBUG,
+                "DMAW:SQ=%d:chan=%d: Aborted DMA read channel\r\n", sqw_idx, read_chan);
         }
     }
 }
@@ -1177,6 +1185,8 @@ void DMAW_Abort_All_Dispatched_Read_Channels(uint8_t sqw_idx)
 ***********************************************************************/
 void DMAW_Abort_All_Dispatched_Write_Channels(uint8_t sqw_idx)
 {
+    Log_Write(LOG_LEVEL_DEBUG, "DMAW:SQ=%d: Abort all DMA write channels\r\n", sqw_idx);
+
     /* Traverse all write channels and abort them */
     for(uint8_t write_chan = 0; write_chan < PCIE_DMA_WRT_CHANNEL_COUNT; write_chan++)
     {
@@ -1196,6 +1206,9 @@ void DMAW_Abort_All_Dispatched_Write_Channels(uint8_t sqw_idx)
             &DMAW_Write_CB.chan_status_cb[write_chan].status.channel_state, DMA_CHAN_STATE_IN_USE,
             DMA_CHAN_STATE_ABORTING) == DMA_CHAN_STATE_IN_USE))
         {
+            Log_Write(LOG_LEVEL_DEBUG,
+                "DMAW:SQ=%d:chan=%d: Aborting DMA write channel\r\n", sqw_idx, write_chan);
+
             /* Spin-wait if the DMA state is aborting */
             do
             {
@@ -1203,6 +1216,9 @@ void DMAW_Abort_All_Dispatched_Write_Channels(uint8_t sqw_idx)
             } while (
                 atomic_load_local_32(&DMAW_Write_CB.chan_status_cb[write_chan].status.channel_state)
                 == DMA_CHAN_STATE_ABORTING);
+
+            Log_Write(LOG_LEVEL_DEBUG,
+                "DMAW:SQ=%d:chan=%d: Aborted DMA write channel\r\n", sqw_idx, write_chan);
         }
     }
 }
