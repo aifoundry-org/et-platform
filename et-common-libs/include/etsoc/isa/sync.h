@@ -24,6 +24,7 @@
 #include <stdbool.h>
 #include "etsoc/isa/atomic.h"
 #include "etsoc/isa/fcc.h"
+#include "etsoc/isa/hart.h"
 #include "etsoc/isa/macros.h"
 #include "etsoc/isa/utils.h"
 
