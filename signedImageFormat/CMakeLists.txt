@@ -6,11 +6,9 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(GNUInstallDirs)
 
 option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
-include(CompilerWarnings)
 
 add_library(signedImageFormat INTERFACE)
 add_library(signedImageFormat::signedImageFormat ALIAS signedImageFormat)
-target_set_project_warnings(signedImageFormat)
 target_include_directories(signedImageFormat
     INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
