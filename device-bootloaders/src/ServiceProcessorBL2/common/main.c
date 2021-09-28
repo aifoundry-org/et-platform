@@ -349,10 +349,8 @@ static int initialize_bl2_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     memcpy(&(g_service_processor_bl2_data.sp_bl2_header), &(bl1_data->sp_bl2_header),
            sizeof(bl1_data->sp_bl2_header));
 
-#if !(FAST_BOOT || TEST_FRAMEWORK)
     // Initialize BL2 Flash File-System by copy content from BL1 Flash info
     flash_fs_init(&g_service_processor_bl2_data.flash_fs_bl2_info, &bl1_data->flash_fs_bl1_info);
-#endif
 
     return 0;
 }
@@ -370,6 +368,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     setbuf(stdout, NULL);
 
 #if FAST_BOOT || TEST_FRAMEWORK
+
     // In cases where BL1 is skipped, generate fake BL1-data
     static SERVICE_PROCESSOR_BL1_DATA_t fake_bl1_data;
     fake_bl1_data.service_processor_bl1_data_size = sizeof(fake_bl1_data);
@@ -383,6 +382,12 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     fake_bl1_data.vaultip_coid_set = 0;
     fake_bl1_data.spi_controller_rx_baudrate_divider = 0;
     fake_bl1_data.spi_controller_tx_baudrate_divider = 0;
+    fake_bl1_data.flash_fs_bl1_info.flash_id_u32 = SPI_FLASH_ON_PACKAGE;
+    fake_bl1_data.flash_fs_bl1_info.flash_size = 0x100000;
+    fake_bl1_data.flash_fs_bl1_info.active_partition = 0;
+    fake_bl1_data.flash_fs_bl1_info.partition_info[fake_bl1_data.flash_fs_bl1_info.active_partition]
+        .partition_valid = true;
+
     bl1_data = &fake_bl1_data;
 
     // In cases where production BootROM is skipped, initializes SPIO UART0
