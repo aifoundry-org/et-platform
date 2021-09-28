@@ -59,7 +59,7 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
         PRIVATE
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/shared/minion_rt_helpers/include>
+            $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/minion_rt_helpers/include>
     )
     target_compile_definitions(${MM_BUILD_VARIANT}.elf
         PUBLIC
@@ -81,7 +81,6 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
             etsoc_hal::etsoc_hal
             et-common-libs::mm-rt-svcs
         PRIVATE
-            deviceFirmware::device_configuration
             deviceFirmware::minion_rt_helpers_interface
     )
 

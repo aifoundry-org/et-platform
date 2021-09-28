@@ -44,7 +44,6 @@ target_link_libraries(WorkerMinion.elf
         et-common-libs::cm-rt-svcs
         esperantoTrace::et_trace
     PRIVATE
-        deviceFirmware::device_configuration
         deviceFirmware::minion_rt_helpers_interface
 )
 
