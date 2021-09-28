@@ -29,6 +29,7 @@
 #include "etsoc/isa/etsoc_memory.h"
 #include "etsoc/isa/io.h"
 #include "etsoc/isa/atomic.h"
+#include "system/layout.h"
 #ifdef MEM_DEBUG
 #include "../../../MasterMinion/include/services/log.h"
 #endif
@@ -268,7 +269,7 @@ int8_t ETSOC_Memory_Read(const void *src_ptr, void *dest_ptr,
         status = ETSOC_MEM_ERROR_INVALID_PARAM;
     }
 
-    status = (*memory_write[flags]) (src_ptr, dest_ptr, size);
+    status = (*memory_read[flags]) (src_ptr, dest_ptr, size);
 
     return status;
 }
@@ -306,7 +307,7 @@ int8_t ETSOC_Memory_Write(const void *src_ptr, void *dest_ptr,
         status = ETSOC_MEM_ERROR_INVALID_PARAM;
     }
 
-    status = (*memory_read[flags]) (src_ptr, dest_ptr, size);
+    status = (*memory_write[flags]) (src_ptr, dest_ptr, size);
 
     return status;
 }
@@ -573,8 +574,8 @@ int8_t ETSOC_Memory_Read_Write_Cacheable(const void *src_ptr, void *dest_ptr, ui
 ***********************************************************************/
 int8_t ETSOC_Memory_Read_SCP(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
-#if 0 /* TODO: Supressing these access methods since they use SCP macros
-from layout.h, this could be moved to etsoc_hal */
+    /* TODO: Supressing these access methods since they use SCP macros
+    from layout.h, this could be moved to etsoc_hal */
 
     /* Verify the shire index and address range of shire L2 SCP */
     if((ETSOC_SCP_GET_SHIRE_ID((uint64_t)src_ptr) < NUM_SHIRES) &&
@@ -589,11 +590,6 @@ from layout.h, this could be moved to etsoc_hal */
     {
         return ETSOC_MEM_ERROR_INVALID_PARAM;
     }
-#endif
-
-    (void) src_ptr;
-    (void) dest_ptr;
-    (void) length;
 
     return ETSOC_MEM_ERROR_INVALID_PARAM;
 }
@@ -622,8 +618,8 @@ from layout.h, this could be moved to etsoc_hal */
 ***********************************************************************/
 int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
-#if 0 /* TODO: Supressing these access methods since they use SCP macros
-from layout.h, this could be moved to etsoc_hal */
+    /* TODO: Supressing these access methods since they use SCP macros
+    from layout.h, this could be moved to etsoc_hal */
 
     /* Verify the shire index and address range of shire L2 SCP */
     if((ETSOC_SCP_GET_SHIRE_ID((uint64_t)dest_ptr) < NUM_SHIRES) &&
@@ -638,12 +634,6 @@ from layout.h, this could be moved to etsoc_hal */
     {
         return ETSOC_MEM_ERROR_INVALID_PARAM;
     }
-
-#endif
-
-    (void) src_ptr;
-    (void) dest_ptr;
-    (void) length;
 
     return ETSOC_MEM_ERROR_INVALID_PARAM;
 }

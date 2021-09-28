@@ -212,7 +212,7 @@ static inline void Circbuffer_Set_Tail(circ_buff_cb_t *restrict dest_circ_buff_c
     uint64_t tail_val, uint32_t flags)
 {
     /* Write the circular buffer CB from memory */
-    ETSOC_Memory_Read((void*)&tail_val, (void*)&dest_circ_buff_cb_ptr->tail_offset,
+    ETSOC_Memory_Write((void*)&tail_val, (void*)&dest_circ_buff_cb_ptr->tail_offset,
         sizeof(tail_val), flags & 0xFF);
 }
 
@@ -243,7 +243,7 @@ static inline void Circbuffer_Set_Head(circ_buff_cb_t *restrict dest_circ_buff_c
     uint64_t head_val, uint32_t flags)
 {
     /* Write the circular buffer CB from memory */
-    ETSOC_Memory_Read(&head_val, &dest_circ_buff_cb_ptr->head_offset,
+    ETSOC_Memory_Write(&head_val, &dest_circ_buff_cb_ptr->head_offset,
         sizeof(head_val), flags & 0xFF);
 }
 
