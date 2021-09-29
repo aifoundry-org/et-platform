@@ -140,7 +140,7 @@ int flash_fs_increment_attempted_boot_count(void);
     \param size - size of the name
     \return The function call status, pass/fail.
 */
-int flash_fs_get_manufacturer_name(char *mfg_name, size_t size);
+int flash_fs_get_manufacturer_name(char *mfg_name);
 
 /*! \fn int flash_fs_get_part_number(char *part_number, size_t size)
     \brief This function returns ET-SOC part number.
@@ -148,7 +148,7 @@ int flash_fs_get_manufacturer_name(char *mfg_name, size_t size);
     \param size - size of part number
     \return The function call status, pass/fail.
 */
-int flash_fs_get_part_number(char *part_number, size_t size);
+int flash_fs_get_part_number(char *part_number);
 
 /*! \fn int flash_fs_get_serial_number(char *ser_number, size_t size)
     \brief This function returns ET-SOC serial number.
@@ -156,7 +156,7 @@ int flash_fs_get_part_number(char *part_number, size_t size);
     \param size - size of the serial number
     \return The function call status, pass/fail.
 */
-int flash_fs_get_serial_number(char *ser_number, size_t size);
+int flash_fs_get_serial_number(char *ser_number);
 
 /*! \fn int flash_fs_get_module_rev(char *module_rev, size_t size)
     \brief This function returns ET-SOC module revision.
@@ -164,7 +164,7 @@ int flash_fs_get_serial_number(char *ser_number, size_t size);
     \param size - size of the revision
     \return The function call status, pass/fail.
 */
-int flash_fs_get_module_rev(char *module_rev, size_t size);
+int flash_fs_get_module_rev(char *module_rev);
 
 /*! \fn int flash_fs_get_memory_size(char *mem_size, size_t size)
     \brief This function returns ET-SOC memory size.
@@ -172,7 +172,7 @@ int flash_fs_get_module_rev(char *module_rev, size_t size);
     \param size - size of the memory
     \return The function call status, pass/fail.
 */
-int flash_fs_get_memory_size(char *mem_size, size_t size);
+int flash_fs_get_memory_size(char *mem_size);
 
 /*! \fn int flash_fs_get_form_factor(char *form_factor, size_t size)
     \brief This function returns ET-SOC form factor (PCIe or Dual M.2).
@@ -180,7 +180,7 @@ int flash_fs_get_memory_size(char *mem_size, size_t size);
     \param size - size of the form factor
     \return The function call status, pass/fail.
 */
-int flash_fs_get_form_factor(char *form_factor, size_t size);
+int flash_fs_get_form_factor(char *form_factor);
 
 
 #endif

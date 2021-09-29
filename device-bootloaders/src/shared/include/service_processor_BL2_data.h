@@ -7,7 +7,6 @@
 #include "esperanto_flash_image.h"
 
 #include "esperanto_signed_image_format/executable_image.h"
-#include "asset_config_info.h"
 
 #include "service_processor_ROM_data.h"
 #include "service_processor_BL1_data.h"
@@ -56,6 +55,28 @@ typedef struct ESPERANTO_PARTITION_BL2_INFO_s {
     bool partition_valid; // if true, no errors were encountered when scanning the partition
 } ESPERANTO_PARTITION_BL2_INFO_t;
 
+/* Esperanto flash config data */
+typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_DATA {
+    char        manuf_name[16];
+    uint32_t    part_num;
+    uint64_t    serial_num;                 
+    uint8_t     mem_size;
+    uint32_t    module_rev;
+    uint8_t     form_factor;
+    uint8_t     padding[30];
+} ESPERANTO_CONFIG_DATA_t;
+
+static_assert(64 == sizeof(ESPERANTO_CONFIG_DATA_t), "sizeof(ESPERANTO_CONFIG_DATA_t) is not 64!");
+
+/* Esperanto flash config header */
+typedef struct ESPERANTO_CONFIG_HEADER {
+    uint32_t tag;
+    uint32_t version;
+    uint64_t hash;                 
+} ESPERANTO_CONFIG_HEADER_t;
+
+static_assert(16 == sizeof(ESPERANTO_CONFIG_HEADER_t), "sizeof(ESPERANTO_CONFIG_HEADER_t) is not 16!");
+
 typedef struct FLASH_FS_BL2_INFO_s {
     union {
         SPI_FLASH_ID_t flash_id;
@@ -68,7 +89,8 @@ typedef struct FLASH_FS_BL2_INFO_s {
     uint32_t configuration_region_address;
     // @cabul: Need to add file_info for this if we want to use flash_fs_read_file
 
-    asset_config_info_t asset_config_info;
+    ESPERANTO_CONFIG_HEADER_t asset_config_header;
+    ESPERANTO_CONFIG_DATA_t   asset_config_data;
 
     ESPERANATO_FILE_INFO_t pcie_config_file_info;
     ESPERANATO_FILE_INFO_t vaultip_firmware_file_info;

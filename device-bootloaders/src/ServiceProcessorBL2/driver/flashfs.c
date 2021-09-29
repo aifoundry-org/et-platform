@@ -15,7 +15,7 @@
 
     Public interfaces:
         flash_fs_init
-        flash_fs_get_config_data
+        flash_fs_preload_config_data
         flash_fs_get_config_data
         flash_fs_get_file_size
         flash_fs_read_file
@@ -44,10 +44,10 @@
 #include "bl2_spi_controller.h"
 #include "bl2_spi_flash.h"
 #include "bl2_flash_fs.h"
+#include "bl2_vaultip_driver.h"
 #include "jedec_sfdp.h"
 #include "bl2_main.h"
 #include "bl_error_code.h"
-#include "asset_track_layout.h"
 
 #pragma GCC push_options
 /* #pragma GCC optimize ("O2") */
@@ -440,6 +440,7 @@ static int flash_fs_preload_config_data(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
 
     // @cabul: Copied from flash_fs_load_file_info
     uint32_t partition_address;
+    uint32_t config_data_address = 0;
     // Get partition address based on active partition
     if (0 == flash_fs_bl2_info->active_partition) {
         partition_address = 0;
@@ -450,40 +451,39 @@ static int flash_fs_preload_config_data(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
     }
 
     uint32_t region_address = flash_fs_bl2_info->configuration_region_address;
-    uint32_t config_data_address = partition_address + region_address;
 
-    asset_config_header_t header = {0};
+    //TODO: Skiping image header at the moment. We need to implement secure certificate and header checks if VIP enabled
+    config_data_address = partition_address + region_address + (uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t);
+
+    ESPERANTO_CONFIG_HEADER_t header = {0};
 
     if (0 != spi_flash_normal_read(flash_fs_bl2_info->flash_id,
                                    config_data_address,
                                    (uint8_t*)&header,
-                                   sizeof(asset_config_header_t))) {
+                                   sizeof(ESPERANTO_CONFIG_HEADER_t))) {
         MESSAGE_ERROR("flash_fs_preload_config_data: failed to read asset config header!\n");
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
     }
 
-    printf("asset_config_header.tag:     0x%08x\n", header.tag);
-    printf("asset_config_header.version: 0x%08x\n", header.version);
-    printf("asset_config_header.hash:    0x%016lx\n", header.hash);
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_header.tag:     0x%08x\n", header.tag);
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_header.version: 0x%08x\n", header.version);
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_header.hash:    0x%016lx\n", header.hash);
 
     if (0 != spi_flash_normal_read(flash_fs_bl2_info->flash_id,
-                                   config_data_address + (uint32_t)sizeof(asset_config_header_t),
-                                   (uint8_t*)&(flash_fs_bl2_info->asset_config_info),
-                                   sizeof(asset_config_info_t))) {
+                                   config_data_address + (uint32_t)sizeof(ESPERANTO_CONFIG_HEADER_t),
+                                   (uint8_t*)&(flash_fs_bl2_info->asset_config_data),
+                                   sizeof(ESPERANTO_CONFIG_DATA_t))) {
         MESSAGE_ERROR("flash_fs_preload_config_data: failed to read asset config data!\n");
-        memset(&(flash_fs_bl2_info->asset_config_info), 0, sizeof(asset_config_info_t));
+        memset(&(flash_fs_bl2_info->asset_config_data), 0, sizeof(ESPERANTO_CONFIG_DATA_t));
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
     }
 
-    printf("asset_config_info.part_num:    0x%08x\n", flash_fs_bl2_info->asset_config_info.part_num);
-    printf("asset_config_info.serial_num:  0x%016lx\n", flash_fs_bl2_info->asset_config_info.serial_num);
-    printf("asset_config_info.mem_size:    0x%02x\n", flash_fs_bl2_info->asset_config_info.mem_size);
-    printf("asset_config_info.module_rev:  0x%08x\n", flash_fs_bl2_info->asset_config_info.module_rev);
-    printf("asset_config_info.form_factor: 0x%02x\n", flash_fs_bl2_info->asset_config_info.form_factor);
-
-    // @cabul: This should be encrypted so we either have to
-    //  a) implement this as a file and use flash_fs_read_file
-    //  b) unencrypt the data here..
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.manuf_name:  %s\n",       flash_fs_bl2_info->asset_config_data.manuf_name);
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.part_num:    0x%08x\n",   flash_fs_bl2_info->asset_config_data.part_num);
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.serial_num:  0x%016lx\n", flash_fs_bl2_info->asset_config_data.serial_num);
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.mem_size:    0x%02x\n",   flash_fs_bl2_info->asset_config_data.mem_size);
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.module_rev:  0x%08x\n",   flash_fs_bl2_info->asset_config_data.module_rev);
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.form_factor: 0x%02x\n",   flash_fs_bl2_info->asset_config_data.form_factor);
 
     return 0;
 }
@@ -1280,38 +1280,6 @@ int flash_fs_increment_completed_boot_count(void)
 *
 *   FUNCTION
 *
-*       flash_fs_get_config_data
-*
-*   DESCRIPTION
-*
-*       This function returns ET-SOC configuration data.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       buffer        Pointer to buffer which will hold config data
-*
-***********************************************************************/
-
-int flash_fs_get_config_data(void* buffer)
-{
-    if (NULL == buffer) {
-        MESSAGE_ERROR("flash_fs_get_config_data: buffer points to null\n");
-        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
-    }
-    // Since config data is preloaded we can simply copy it here
-    // @cabul: manufacturer name missing..?
-    memcpy(buffer, &(sg_flash_fs_bl2_info->asset_config_info), sizeof(asset_config_info_t));
-    return 0;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
 *       flash_fs_swap_primary_boot_partition
 *
 *   DESCRIPTION
@@ -1417,6 +1385,37 @@ int flash_fs_swap_primary_boot_partition(void)
 *
 *   FUNCTION
 *
+*       flash_fs_get_config_data
+*
+*   DESCRIPTION
+*
+*       This function returns ET-SOC configuration data.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       buffer        Pointer to buffer which will hold config data
+*
+***********************************************************************/
+
+int flash_fs_get_config_data(void* buffer)
+{
+    if (NULL == buffer) {
+        MESSAGE_ERROR("flash_fs_get_config_data: buffer points to null\n");
+        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
+    }
+    // Since config data is preloaded we can simply copy it here
+    memcpy(buffer, &(sg_flash_fs_bl2_info.asset_config_data), sizeof(ESPERANTO_CONFIG_DATA_t));
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       flash_fs_get_manufacturer_name
 *
 *   DESCRIPTION
@@ -1433,11 +1432,10 @@ int flash_fs_swap_primary_boot_partition(void)
 *
 ***********************************************************************/
 
-int flash_fs_get_manufacturer_name(char *mfg_name, size_t size)
+int flash_fs_get_manufacturer_name(char *mfg_name)
 {
-    /* TODO: https://esperantotech.atlassian.net/browse/SW-4327 */
-    char name[] = "Esperan";
-    snprintf(mfg_name, size, "%s", name);
+    memcpy(mfg_name, &(sg_flash_fs_bl2_info.asset_config_data.manuf_name),
+           sizeof(sg_flash_fs_bl2_info.asset_config_data.manuf_name));
 
     return 0;
 }
@@ -1462,14 +1460,10 @@ int flash_fs_get_manufacturer_name(char *mfg_name, size_t size)
 *
 ***********************************************************************/
 
-int flash_fs_get_part_number(char *part_number, size_t size)
+int flash_fs_get_part_number(char *part_number)
 {
-    if (sg_flash_fs_bl2_info == NULL) {
-        printf("flash_fs_get_part_number: asset config info not initialized!\n");
-        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
-    }
-    memcpy(part_number, &(sg_flash_fs_bl2_info->asset_config_info.part_num),
-           ASSET_CONFIG_PART_NUM_SIZE);
+    memcpy(part_number, &(sg_flash_fs_bl2_info.asset_config_data.part_num),
+           sizeof(sg_flash_fs_bl2_info.asset_config_data.part_num));
     return 0;
 }
 
@@ -1493,14 +1487,10 @@ int flash_fs_get_part_number(char *part_number, size_t size)
 *
 ***********************************************************************/
 
-int flash_fs_get_serial_number(char *ser_number, size_t size)
+int flash_fs_get_serial_number(char *ser_number)
 {
-    if (sg_flash_fs_bl2_info == NULL) {
-        printf("flash_fs_get_serial_number: asset config info not initialized!\n");
-        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
-    }
-    memcpy(ser_number, &(sg_flash_fs_bl2_info->asset_config_info.serial_num),
-           ASSET_CONFIG_SERIAL_NUM_SIZE);
+    memcpy(ser_number, &(sg_flash_fs_bl2_info.asset_config_data.serial_num),
+           sizeof(sg_flash_fs_bl2_info.asset_config_data.serial_num));
     return 0;
 }
 
@@ -1524,14 +1514,10 @@ int flash_fs_get_serial_number(char *ser_number, size_t size)
 *
 ***********************************************************************/
 
-int flash_fs_get_module_rev(char *module_rev, size_t size)
+int flash_fs_get_module_rev(char *module_rev)
 {
-    if (sg_flash_fs_bl2_info == NULL) {
-        printf("flash_fs_get_module_rev: asset config info not initialized!\n");
-        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
-    }
-    memcpy(module_rev, &(sg_flash_fs_bl2_info->asset_config_info.module_rev),
-           ASSET_CONFIG_MODULE_REV_SIZE);
+    memcpy(module_rev, &(sg_flash_fs_bl2_info.asset_config_data.module_rev),
+           sizeof(sg_flash_fs_bl2_info.asset_config_data.module_rev));
     return 0;
 }
 
@@ -1555,14 +1541,11 @@ int flash_fs_get_module_rev(char *module_rev, size_t size)
 *
 ***********************************************************************/
 
-int flash_fs_get_memory_size(char *mem_size, size_t size)
+int flash_fs_get_memory_size(char *mem_size)
 {
-    if (sg_flash_fs_bl2_info == NULL) {
-        printf("flash_fs_get_memory_size: asset config info not initialized!\n");
-        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
-    }
-    memcpy(mem_size, &(sg_flash_fs_bl2_info->asset_config_info.mem_size),
-           ASSET_CONFIG_MEM_SIZE_SIZE);
+    
+    memcpy(mem_size, &(sg_flash_fs_bl2_info.asset_config_data.mem_size),
+           sizeof(sg_flash_fs_bl2_info.asset_config_data.mem_size));
     return 0;
 }
 
@@ -1586,14 +1569,11 @@ int flash_fs_get_memory_size(char *mem_size, size_t size)
 *
 ***********************************************************************/
 
-int flash_fs_get_form_factor(char *form_factor, size_t size)
+int flash_fs_get_form_factor(char *form_factor)
 {
-    if (sg_flash_fs_bl2_info == NULL) {
-        printf("flash_fs_get_form_factor: asset config info not initialized!\n");
-        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
-    }
-    memcpy(form_factor, &(sg_flash_fs_bl2_info->asset_config_info.form_factor),
-           ASSET_CONFIG_FORM_FACTOR_SIZE);
+    
+    memcpy(form_factor, &(sg_flash_fs_bl2_info.asset_config_data.form_factor),
+           sizeof(sg_flash_fs_bl2_info.asset_config_data.form_factor));
     return 0;
 }
 

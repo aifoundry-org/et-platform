@@ -142,6 +142,9 @@ int flash_fs_init(FLASH_FS_BL1_INFO_t *restrict flash_fs_bl1_info,
 {
     uint32_t n;
     uint32_t partition_size;
+    uint32_t region_index;
+    uint32_t region_address;
+    uint32_t region_size;
 
     if (NULL == flash_fs_bl1_info || NULL == flash_fs_rom_info) {
         printx("flash_fs_init: invalid arguments!\n");
@@ -163,8 +166,14 @@ int flash_fs_init(FLASH_FS_BL1_INFO_t *restrict flash_fs_bl1_info,
     flash_fs_bl1_info->flash_size = flash_fs_rom_info->flash_size;
     flash_fs_bl1_info->active_partition = flash_fs_rom_info->active_partition;
     flash_fs_bl1_info->other_partition_valid = flash_fs_rom_info->other_partition_valid;
-    flash_fs_bl1_info->configuration_region_address =
-        flash_fs_rom_info->configuration_region_address;
+
+    region_index = flash_fs_rom_info->partition_info[flash_fs_rom_info->active_partition].configuration_data_region_index ;
+    region_address = flash_fs_rom_info->partition_info[flash_fs_rom_info->active_partition].regions_table[region_index].region_offset * FLASH_PAGE_SIZE;
+    region_size = flash_fs_rom_info->partition_info[flash_fs_rom_info->active_partition].regions_table[region_index].region_reserved_size * FLASH_PAGE_SIZE;
+    printx("region_index configuration data is 0x%08x \n", region_index);
+    printx("region_address configuration data is 0x%08x \n", region_address);
+    printx("region_size configuration data is 0x%08x \n", region_size);
+    flash_fs_bl1_info->configuration_region_address = region_address;
     flash_fs_bl1_info->pcie_config_file_info = flash_fs_rom_info->pcie_config_file_info;
     flash_fs_bl1_info->vaultip_firmware_file_info = flash_fs_rom_info->vaultip_firmware_file_info;
     flash_fs_bl1_info->sp_certificates_file_info = flash_fs_rom_info->sp_certificates_file_info;
