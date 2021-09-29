@@ -21,9 +21,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#if defined(MASTER_MINION)
 /*! \def ASSERT(cond, log)
-    \brief A blocking assertion macro with serial log for Master Minion runtime
+    \brief A blocking assertion macro with serial log
 */
 #define ASSERT(cond, log)                                                          \
     if (!(cond))                                                                   \
@@ -32,7 +31,6 @@
         "Assertion failed on line %d in %s: %s\r\n", __LINE__, __FUNCTION__, log); \
         while(1);                                                                  \
     }
-#endif
 
 /*! \def MASK_SET_BIT(x, bit_num)
     \brief A macro used to set a bit the provided bit mask

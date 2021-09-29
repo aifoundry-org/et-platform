@@ -15,9 +15,8 @@ set(SP_BL2_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/esperanto-fw/lib/et-common-lib
 
 #Listing of header only public interfaces
 set(SP_BL2_HDRS
-    include/etsoc/common/print_exception.h
-    include/etsoc/common/log_common.h
     include/etsoc/common/common_defs.h
+    include/etsoc/common/log_common.h
     include/etsoc/common/utils.h
     include/etsoc/drivers/pcie/pcie_int.h
     include/etsoc/drivers/pmu/pmu.h
@@ -36,14 +35,12 @@ set(SP_BL2_HDRS
     include/transports/sp_mm_iface/sp_mm_iface.h
     include/transports/sp_mm_iface/sp_mm_shared_config.h
     include/system/layout.h
-    include/system/layout.ld
     include/system/etsoc_ddr_region_map.h
 )
 
 #Listing of public headers that expose services provided by
 #the SP_BL2 (SP Bootloader 2 Library)
 set(SP_BL2_LIB_HDRS
-    include/transports/mm_cm_iface/broadcast.h
     include/etsoc/drivers/serial/serial.h
 )
 
