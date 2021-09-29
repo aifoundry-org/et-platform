@@ -57,7 +57,7 @@
  * to determine the number of vectors.
  * Returns 0 on success, negative on failure
  */
-int pcie_interrupt_host(uint32_t vec);
+int pcie_interrupt_host(uint32_t vec, uint32_t flags);
 void PCIe_release_pshire_from_reset(void);
 void PCIe_init(bool expect_link_up);
 void pcie_enable_link(void);

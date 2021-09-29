@@ -128,11 +128,11 @@ inline int64_t __attribute__((always_inline)) cache_ops_priv_cache_invalidate(ui
 //   This function invalidates the L1 of the minion core to the desired cache destination level.
 //   The user can optionally use the tensor mask to decide which sets to evict.
 //
-inline int64_t __attribute__((always_inline)) cache_ops_priv_evict_l1(uint64_t use_tmask,
-    uint64_t dest_level)
-{
-    return syscall(SYSCALL_CACHE_OPS_EVICT_L1, use_tmask, dest_level, 0);
-}
+// inline int64_t __attribute__((always_inline)) cache_ops_priv_evict_l1(uint64_t use_tmask,
+//     uint64_t dest_level)
+// {
+//     return syscall(SYSCALL_CACHE_OPS_EVICT_L1, use_tmask, dest_level, 0);
+// }
 
 //-------------------------------------------------------------------------------------------------
 //   Instructions available to U-Mode, S-Mode, and M-Mode

@@ -64,11 +64,12 @@ typedef struct iface_cb_ {
     \param vq_size Size of each submission queue in bytes.
     \param cmd_size_peek_offset Base offset to be used for peek.
     \param cmd_size_peek_length Length of command should be peeked.
-    \param flags Memory type to drive access attributes.
+    \param vq_flags Memory type to drive access attributes of VQ.
+    \param mem_flags Memory type to drive access attributes.
     \return Status indicating success or negative error code
 */
 int8_t VQ_Init(vq_cb_t* vq_cb, uint64_t vq_base, uint32_t vq_size,
-    uint16_t cmd_size_peek_offset, uint16_t cmd_size_peek_length, uint32_t flags);
+    uint16_t cmd_size_peek_offset, uint16_t cmd_size_peek_length, uint32_t vq_flags, uint32_t mem_flags);
 
 /*! \fn int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size)
     \brief Push the command to circular buffer associated with

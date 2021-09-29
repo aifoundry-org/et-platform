@@ -262,16 +262,14 @@ int8_t (*memory_write[MEM_TYPES_COUNT])
 int8_t ETSOC_Memory_Read(const void *src_ptr, void *dest_ptr,
     uint64_t size, uint32_t flags)
 {
-    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
-
     if(flags >= MEM_TYPES_COUNT)
     {
-        status = ETSOC_MEM_ERROR_INVALID_PARAM;
+        return ETSOC_MEM_ERROR_INVALID_PARAM;
     }
-
-    status = (*memory_read[flags]) (src_ptr, dest_ptr, size);
-
-    return status;
+    else
+    {
+        return (*memory_read[flags]) (src_ptr, dest_ptr, size);
+    }
 }
 
 /************************************************************************
@@ -300,16 +298,14 @@ int8_t ETSOC_Memory_Read(const void *src_ptr, void *dest_ptr,
 int8_t ETSOC_Memory_Write(const void *src_ptr, void *dest_ptr,
     uint64_t size, uint32_t flags)
 {
-    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
-
     if(flags >= MEM_TYPES_COUNT)
     {
-        status = ETSOC_MEM_ERROR_INVALID_PARAM;
+        return ETSOC_MEM_ERROR_INVALID_PARAM;
     }
-
-    status = (*memory_write[flags]) (src_ptr, dest_ptr, size);
-
-    return status;
+    else
+    {
+        return (*memory_write[flags]) (src_ptr, dest_ptr, size);
+    }
 }
 
 /************************************************************************
@@ -590,8 +586,6 @@ int8_t ETSOC_Memory_Read_SCP(const void *src_ptr, void *dest_ptr, uint64_t lengt
     {
         return ETSOC_MEM_ERROR_INVALID_PARAM;
     }
-
-    return ETSOC_MEM_ERROR_INVALID_PARAM;
 }
 
 /************************************************************************
@@ -634,6 +628,4 @@ int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t leng
     {
         return ETSOC_MEM_ERROR_INVALID_PARAM;
     }
-
-    return ETSOC_MEM_ERROR_INVALID_PARAM;
 }

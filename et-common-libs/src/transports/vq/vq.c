@@ -46,33 +46,35 @@
 *
 *   INPUTS
 *
+*       vq_cb        Pointer to virtual queue control block
 *       vq_base      Virtual queue base address
 *       vq_size      Virtual queue size
+*       peek_offset  Base offset to peek everytime in VQ access
+*       peek_length  Length of data to peek in VQ
+*       vq_flags     VQ access flags
+*       mem_flags    User memory access flags
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size,
-        uint16_t peek_offset, uint16_t peek_length, uint32_t flags)
+int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size, uint16_t peek_offset,
+    uint16_t peek_length, uint32_t vq_flags, uint32_t mem_flags)
 {
     int8_t status = -1;
     uint64_t temp64 = 0;
-    uint32_t temp32 = 0;
 
     ETSOC_Memory_Write(&vq_base, &vq_cb->circbuff_cb, sizeof(uint64_t),
-        flags);
+        mem_flags);
 
-    temp64 = (((uint64_t)flags << 32) | ((uint32_t)peek_length << 16) |
+    temp64 = (((uint64_t)vq_flags << 32) | ((uint32_t)peek_length << 16) |
         peek_offset);
     ETSOC_Memory_Write(&temp64, &vq_cb->cmd_size_peek_offset,
-        sizeof(uint64_t), flags);
-
-    ETSOC_Memory_Read(&vq_cb->flags, &temp32, sizeof(uint32_t), flags);
+        sizeof(uint64_t), mem_flags);
 
     status = Circbuffer_Init((circ_buff_cb_t*)vq_base,
-        (uint32_t)(vq_size - sizeof(circ_buff_cb_t)), temp32);
+        (uint32_t)(vq_size - sizeof(circ_buff_cb_t)), vq_flags);
 
     return status;
 }

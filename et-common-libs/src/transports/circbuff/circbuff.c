@@ -120,6 +120,7 @@ int8_t Circbuffer_Push(circ_buff_cb_t *  const circ_buff_cb_ptr,
                 (void*)&circ_buff_cb_ptr->buffer_ptr[circ_buff.head_offset],
                 bytes_till_end, flags);
 
+            circ_buff.head_offset = 0;
             src_length -= bytes_till_end;
             src_u8 += bytes_till_end;
         }
