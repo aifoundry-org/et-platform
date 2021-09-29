@@ -20,7 +20,7 @@ set(SP_BL2_HDRS
     include/etsoc/common/common_defs.h
     include/etsoc/common/utils.h
     include/etsoc/drivers/pcie/pcie_int.h
-    include/etsoc/hal/pmu.h
+    include/etsoc/drivers/pmu/pmu.h
     include/etsoc/isa/atomic.h
     include/etsoc/isa/atomic-impl.h
     include/etsoc/isa/etsoc_memory.h

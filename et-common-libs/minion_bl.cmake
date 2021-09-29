@@ -15,6 +15,7 @@ set(MINION_BL_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/minion-bl)
 
 #Listing of header only public interfaces
 set(MINION_BL_HDRS
+    include/etsoc/drivers/pmu/pmu.h
     include/etsoc/isa/atomic.h
     include/etsoc/isa/atomic-impl.h
     include/etsoc/isa/esr_defines.h
@@ -25,12 +26,10 @@ set(MINION_BL_HDRS
     include/etsoc/isa/sync.h
     include/etsoc/isa/cacheops.h
     include/etsoc/isa/syscall.h
-    include/etsoc/isa/syscall_internal.h
     include/etsoc/isa/riscv_encoding.h
     include/etsoc/isa/utils.h
-    include/etsoc/hal/pmu.h
-    include/system/layout.h
     include/system/etsoc_ddr_region_map.h
+    include/system/layout.h
 )
 
 #Listing of public headers that expose services provided by

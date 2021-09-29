@@ -23,9 +23,7 @@ set(CM_UMODE_HDRS
     include/etsoc/isa/fcc.h
     include/etsoc/isa/flb.h
     include/etsoc/isa/hart.h
-    include/etsoc/isa/shire.h
     include/etsoc/isa/syscall.h
-    include/etsoc/isa/tensor.h
     include/etsoc/isa/tensors.h
     include/etsoc/isa/utils.h
     include/common/printf.h
@@ -38,8 +36,8 @@ set(CM_UMODE_HDRS
 #Listing of public headers that expose services provided by
 #the CM UMODE (Compute Minion User Mode) Library
 set(CM_UMODE_LIB_HDRS
-    include/etsoc/hal/pmu.h
     include/etsoc/common/utils.h
+    include/etsoc/drivers/pmu/pmu.h
     #TODO:others to come ..
 )
 

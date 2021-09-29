@@ -14,6 +14,7 @@ set(SP_BL1_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/esperanto-fw/lib/et-common-lib
 ################################################
 #Listing of header only public interfaces
 set(SP_BL1_HDRS
+    include/etsoc/drivers/pmu/pmu.h
     include/etsoc/isa/io.h
     include/etsoc/isa/atomic.h
     include/etsoc/isa/atomic-impl.h
@@ -24,11 +25,8 @@ set(SP_BL1_HDRS
     include/etsoc/isa/hart.h
     include/etsoc/isa/sync.h
     include/etsoc/isa/cacheops.h
-    include/etsoc/isa/syscall.h
-    include/etsoc/isa/syscall_internal.h
     include/etsoc/isa/riscv_encoding.h
     include/etsoc/isa/utils.h
-    include/etsoc/hal/pmu.h
     include/system/layout.h
     include/system/etsoc_ddr_region_map.h
 )
