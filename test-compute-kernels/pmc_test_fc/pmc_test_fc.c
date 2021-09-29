@@ -11,7 +11,7 @@
 #include "etsoc/isa/macros.h"
 #include "sync_minions.h"
 #include "etsoc/isa/syscall.h"
-#include "etsoc/isa/tensor.h"
+#include "etsoc/isa/tensors.h"
 #include "vpu.h"
 
 // This test uses kernel tl_tfma_reduce_2s.

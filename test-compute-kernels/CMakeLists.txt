@@ -20,12 +20,12 @@ set(GCC_SYSROOT_PATH /esperanto/minion CACHE STRING "Path to the gcc riscv toolc
 # First step as the artifacts of this package are consumed by the toolchain script
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(esperantoTrace REQUIRED)
+find_package(etsoc_hal REQUIRED)
 
 # Must set CMAKE_TOOLCHAIN_FILE before project() is called
 set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
 
 project(EsperantoTestKernelsLoader VERSION 0.1.0 LANGUAGES C ASM)
-
 
 find_package(et-common-libs REQUIRED COMPONENTS cm-umode)
 
@@ -37,22 +37,11 @@ set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
 set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
 
-#get_property(DEVICE_COMMON_INCLUDE_PATH
-#  TARGET EsperantoDeviceMinionRuntime::device_common
-#  PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
-
-#include_directories(${DEVICE_COMMON_INCLUDE_PATH})
-#include_directories(${DEVICE_COMMON_INCLUDE_PATH}/etsoc_hal)
-
 get_property(DEVICE_COMMON_INCLUDE_PATH
   TARGET et-common-libs::cm-umode
   PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 
-#include_directories(${DEVICE_COMMON_INCLUDE_PATH})
-#include_directories(${DEVICE_COMMON_INCLUDE_PATH}/etsoc_hal)
-
 set(SHARED_INC_DIR ${PROJECT_SOURCE_DIR}/shared/include)
-
 
 get_filename_component(SHARED_KERNEL_SRC_DIR "shared" ABSOLUTE)
 get_filename_component(SHARED_KERNEL_INC_DIR "shared/include" ABSOLUTE)
@@ -95,11 +84,10 @@ macro(test_kernel)
 
   set(EXPORT_NAME EsperantoTestKernelsTargets)
 
-  #target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device_common et-common-libs::cm-umode)
-  target_link_libraries(${TARGET_NAME}.elf et-common-libs::cm-umode)
-
-  # Link trace library if tracing is enabled
-  target_link_libraries(${TARGET_NAME}.elf esperantoTrace::et_trace)
+  target_link_libraries(${TARGET_NAME}.elf
+    et-common-libs::cm-umode
+    esperantoTrace::et_trace
+    )
 
   install(TARGETS ${TARGET_NAME}.elf
     EXPORT ${EXPORT_NAME}
@@ -162,7 +150,6 @@ macro(randomized_test)
     target_include_directories(${TARGET_NAME}.elf PRIVATE ${TEST_BUILD_FOLDER}/include)
     add_dependencies(${TARGET_NAME}.elf ${TEST_NAME}-gen-files)
 
-    #target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::device_common)
     target_link_libraries(${TARGET_NAME}.elf et-common-libs::cm-umode)
 
     set(EXPORT_NAME esperanto-fw-targets)

@@ -16,7 +16,7 @@
 #include "etsoc/isa/flb.h"
 #include "etsoc/isa/hart.h"
 #include "etsoc/isa/macros.h"
-#include "etsoc/isa/tensor.h"
+#include "etsoc/isa/tensors.h"
 #include "common.h"
 #include "crc32.h"
 #include "log.h"
