@@ -13,12 +13,12 @@
 #include <stdbool.h>
 
 /* minion_bl */
+#include "etsoc/drivers/pmu/pmu.h"
 #include "etsoc/isa/cacheops.h"
 #include "etsoc/isa/esr_defines.h"
 #include "etsoc/isa/fcc.h"
 #include "etsoc/isa/flb.h"
 #include "etsoc/isa/hart.h"
-#include "etsoc/hal/pmu.h"
 #include "transports/mm_cm_iface/broadcast.h"
 
 /* etsoc_hal */
