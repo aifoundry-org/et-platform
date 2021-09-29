@@ -15,9 +15,9 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <random>
 #include <thread>
 #include <utility>
-#include <random>
 
 using namespace rt;
 using namespace std::chrono_literals;
@@ -25,7 +25,7 @@ namespace {
 constexpr auto kResponsePollingInterval = 10us;
 constexpr auto kResponseNumTriesBeforePolling = 20;
 constexpr auto kCheckDevicesInterval = 5s;
-}
+} // namespace
 
 void ResponseReceiver::checkResponses() {
   // Max ioctl size is 14b

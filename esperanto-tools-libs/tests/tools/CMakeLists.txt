@@ -13,10 +13,10 @@ set(TEST_LIST
   benchmarkDeviceLayerSysEmu.cpp:""
 )
 
-create_test_targets("${TEST_LIST}" "LABELS;Generic;LABELS;Unittest;TIMEOUT;120")
+create_test_targets("${TEST_LIST}" "LABELS;Generic;LABELS;Unittest;TIMEOUT;120" "ut_")
 
 
-foreach(TARGET benchmarkDeviceLayerSysEmu;benchmarkDeviceLayerFake)
+foreach(TARGET ut_benchmarkDeviceLayerSysEmu;ut_benchmarkDeviceLayerFake)
   target_link_libraries(${TARGET}
   PRIVATE
     runtimeTools::benchmarker

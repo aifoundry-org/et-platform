@@ -12,4 +12,4 @@ set(LOOPBACK_TESTS
     MemcpyLoopback.cpp:""
   )
 
-create_test_targets("${LOOPBACK_TESTS}" "LABELS;LOOPBACK;TIMEOUT;300")
+create_test_targets("${LOOPBACK_TESTS}" "LABELS;Pcie;LABELS;Loopback;TIMEOUT;300" "pcie_")

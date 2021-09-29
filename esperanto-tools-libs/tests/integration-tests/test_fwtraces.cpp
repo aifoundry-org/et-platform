@@ -73,6 +73,7 @@ TEST_F(FwTracesTest, CM_MM_Traces) {
 } // namespace
 
 int main(int argc, char** argv) {
+  Fixture::sPcieMode = IsPcie(argc, argv);
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

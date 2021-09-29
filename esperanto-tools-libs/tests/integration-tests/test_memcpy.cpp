@@ -8,58 +8,23 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "runtime/IRuntime.h"
-
 #include "RuntimeImp.h"
+#include "TestUtils.h"
 #include "common/Constants.h"
 #include <device-layer/IDeviceLayer.h>
-#include <experimental/filesystem>
-#include <fstream>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logger.h>
-#include <ios>
 #include <random>
 
 namespace {
-constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
-constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
-class TestMemcpy : public ::testing::Test {
+class TestMemcpy : public Fixture {
 public:
-  void SetUp() override {
-    emu::SysEmuOptions sysEmuOptions;
-    sysEmuOptions.bootromTrampolineToBL2ElfPath = BOOTROM_TRAMPOLINE_TO_BL2_ELF;
-    sysEmuOptions.spBL2ElfPath = BL2_ELF;
-    sysEmuOptions.machineMinionElfPath = MACHINE_MINION_ELF;
-    sysEmuOptions.masterMinionElfPath = MASTER_MINION_ELF;
-    sysEmuOptions.workerMinionElfPath = WORKER_MINION_ELF;
-    sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
-    sysEmuOptions.runDir = std::experimental::filesystem::current_path();
-    sysEmuOptions.maxCycles = kSysEmuMaxCycles;
-    sysEmuOptions.minionShiresMask = kSysEmuMinionShiresMask;
-    sysEmuOptions.puUart0Path = sysEmuOptions.runDir + "/pu_uart0_tx.log";
-    sysEmuOptions.puUart1Path = sysEmuOptions.runDir + "/pu_uart1_tx.log";
-    sysEmuOptions.spUart0Path = sysEmuOptions.runDir + "/spio_uart0_tx.log";
-    sysEmuOptions.spUart1Path = sysEmuOptions.runDir + "/spio_uart1_tx.log";
-    sysEmuOptions.startGdb = false;
-
-    deviceLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(sysEmuOptions);
-    runtime_ = rt::IRuntime::create(deviceLayer_.get());
-    // TODO: enable this again after this is in develop/runtime
-    // https://gitlab.esperanto.ai/software/device-minion-runtime/-/merge_requests/433
-    // runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
-    devices_ = runtime_->getDevices();
-    ASSERT_GE(devices_.size(), 1);
+  TestMemcpy() {
+    auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
+    init(std::move(deviceLayer));
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
     imp->setMemoryManagerDebugMode(devices_[0], true);
   }
-
-  void TearDown() override {
-    runtime_.reset();
-  }
-
-  rt::RuntimePtr runtime_;
-  std::unique_ptr<dev::IDeviceLayer> deviceLayer_;
-  std::vector<rt::DeviceId> devices_;
 };
 
 // Load and removal of a single kernel.
@@ -139,7 +104,7 @@ TEST_F(TestMemcpy, 4GbMemcpy) {
 } // namespace
 
 int main(int argc, char** argv) {
-  logging::LoggerDefault logger_;
+  Fixture::sPcieMode = IsPcie(argc, argv);
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

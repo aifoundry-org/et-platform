@@ -19,4 +19,4 @@ set(TEST_LIST
   TestCommandSender.cpp:""
 )
 
-create_test_targets("${TEST_LIST}" "LABELS;Generic;LABELS;SYSEMU;TIMEOUT;300")
+create_test_targets("${TEST_LIST}" "LABELS;Generic;LABELS;Sysemu;LABELS;Unittest;TIMEOUT;300" "ut_")

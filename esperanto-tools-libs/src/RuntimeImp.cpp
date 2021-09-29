@@ -241,8 +241,8 @@ void RuntimeImp::processResponseError(DeviceErrorCode errorCode, EventId event) 
       // do the copy
       auto st = createStream(buffer->device_);
       auto errorContexts = std::vector<ErrorContext>(kNumErrorContexts);
-      auto e  = memcpyDeviceToHost(st, buffer->getExceptionContextPtr(), reinterpret_cast<std::byte*>(errorContexts.data()),
-                         kExceptionBufferSize, false);
+      auto e = memcpyDeviceToHost(st, buffer->getExceptionContextPtr(),
+                                  reinterpret_cast<std::byte*>(errorContexts.data()), kExceptionBufferSize, false);
       waitForEvent(e);
       streamError.errorContext_.emplace(std::move(errorContexts));
       executionContextCache_->releaseBuffer(event);

@@ -72,10 +72,11 @@ endmacro()
 ##     to emulate tuples where the first element of the tuple is the test source file
 ##     and the send element is any additional test arguments
 ##  TEST_LABEL String with the list of labels to apply to the test
-function(create_test_targets TEST_LIST TEST_PROPERTIES)
+function(create_test_targets TEST_LIST TEST_PROPERTIES PREFIX_TARGET_NAME)
   foreach(TEST_INFO ${TEST_LIST})
     string(REPLACE ":" ";" TMP_LIST ${TEST_INFO})
     list(GET TMP_LIST 0 TEST_FILE)
+    
     message("Test source: " ${TEST_FILE})
     list(GET TMP_LIST 1 TEST_ARGS)
     # Remove the quotes from the string that we have passed otherwise they
@@ -88,7 +89,7 @@ function(create_test_targets TEST_LIST TEST_PROPERTIES)
     string(REPLACE " " ";" TEST_ARGS "${TEST_ARGS}")
     # message("Test args: " ${TEST_ARGS})
     get_filename_component(TEST_TARGET ${TEST_FILE} NAME_WE)
-
+    set(TEST_TARGET "${PREFIX_TARGET_NAME}${TEST_TARGET}")
     build_test_binary(
       TARGET ${TEST_TARGET}
       SOURCES ${TEST_FILE}
@@ -96,7 +97,7 @@ function(create_test_targets TEST_LIST TEST_PROPERTIES)
 
     gtest_discover_tests(${TEST_PREFIX} ${TEST_TARGET}
       EXTRA_ARGS ${TEST_ARGS}
-      TEST_PREFIX runtime:
+      TEST_PREFIX runtime:${PREFIX_TARGET_NAME}
       PROPERTIES ${TEST_PROPERTIES}
       TEST_LIST DISCOVERED_TESTS
       )

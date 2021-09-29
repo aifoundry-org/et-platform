@@ -9,10 +9,23 @@
 #------------------------------------------------------------------------------
 
 set(INTEGRATION_TEST_LIST
-  test_code_loading.cpp:"--kernels_dir ${KERNELS_DIR}"
+  test_code_loading.cpp:""
   test_fwtraces.cpp:""
   test_memcpy.cpp:""
-  test_profiler.cpp:"--kernels_dir ${KERNELS_DIR}"
+  test_profiler.cpp:""
   test_device_errors.cpp:""
   )
-create_test_targets("${INTEGRATION_TEST_LIST}" "LABELS;Generic;LABELS;SYSEMU;TIMEOUT;300")
+create_test_targets("${INTEGRATION_TEST_LIST}" "LABELS;Generic;LABELS;Sysemu;TIMEOUT;300" "it_")
+
+
+set(PCIE_TEST_LIST
+  test_code_loading.cpp:"--mode=pcie"
+  test_fwtraces.cpp:"--mode=pcie"
+  test_memcpy.cpp:"--mode=pcie"
+  test_device_errors.cpp:"--mode=pcie"
+  )
+
+create_test_targets("${PCIE_TEST_LIST}" "LABELS;Pcie;TIMEOUT;300" "pcie_")
+
+
+configure_file(invoke-pcie-loopback-tests.sh.in ${CMAKE_CURRENT_BINARY_DIR}/tests/invoke-pcie-loopback-tests.sh)

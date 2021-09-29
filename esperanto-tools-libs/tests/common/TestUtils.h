@@ -2,15 +2,14 @@
 #include "runtime/Types.h"
 #include <common/Constants.h>
 #include <device-layer/IDeviceLayer.h>
+#include <experimental/filesystem>
+#include <fstream>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logger.h>
+#include <random>
 #include <runtime/IRuntime.h>
 #include <sw-sysemu/SysEmuOptions.h>
-
-#include <experimental/filesystem>
-#include <fstream>
-#include <random>
 
 inline std::vector<std::byte> readFile(const std::string& path) {
   auto file = std::ifstream(path, std::ios_base::binary);
@@ -34,7 +33,12 @@ inline std::vector<std::byte> readFile(const std::string& path) {
 class Fixture : public testing::Test {
 public:
   void init(std::unique_ptr<dev::IDeviceLayer> deviceLayer) {
-    deviceLayer_ = std::move(deviceLayer);
+    if (sPcieMode) {
+      RT_LOG(INFO) << "Running tests in PCIE mode; overriding given deviceLayer";
+      deviceLayer_ = dev::IDeviceLayer::createPcieDeviceLayer();
+    } else {
+      deviceLayer_ = std::move(deviceLayer);
+    }
     runtime_ = rt::IRuntime::create(deviceLayer_.get());
     devices_ = runtime_->getDevices();
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
@@ -53,6 +57,8 @@ public:
   void TearDown() override {
     runtime_->destroyStream(defaultStream_);
   }
+
+  inline static bool sPcieMode = false;
 
 protected:
   logging::LoggerDefault loggerDefault_;
@@ -134,4 +140,13 @@ inline void run_stress_mem(rt::IRuntime* runtime, size_t bytes, uint32_t transac
   for (auto& t : threads_) {
     t.join();
   }
+}
+
+inline bool IsPcie(int argc, char* argv[]) {
+  for (auto i = 1; i < argc; ++i) {
+    if (std::string{argv[i]} == "--mode=pcie") {
+      return true;
+    }
+  }
+  return false;
 }

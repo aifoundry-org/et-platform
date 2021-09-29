@@ -1,0 +1,58 @@
+#!/bin/bash
+
+#------------------------------------------------------------------------------
+# Copyright (C) 2021, Esperanto Technologies Inc.
+# The copyright to the computer program(s) herein is the
+# property of Esperanto Technologies, Inc. All Rights Reserved.
+# The program(s) may be used and/or copied only with
+# the written permission of Esperanto Technologies and
+# in accordance with the terms and conditions stipulated in the
+# agreement/contract under which the program(s) have been supplied.
+#------------------------------------------------------------------------------
+
+set -x
+
+PROJECT_DIR=`echo "@PROJECT_BINARY_DIR@" | sed 's/build.*/build/'`
+cd $PROJECT_DIR
+
+
+## Clear the kmemleaks buffer so we get a clean run
+sudo bash -c "echo clear > /sys/kernel/debug/kmemleak"
+
+DEFAULT_LEVELS=$(cat /proc/sys/kernel/printk)
+sudo su -c "sudo echo "6" > /proc/sys/kernel/printk"
+
+exit_on_fail()
+{
+    if [ $1 -ne 0 ]; then
+        sudo su -c "echo \"$DEFAULT_LEVELS\" > /proc/sys/kernel/printk"
+        exit $1
+    fi
+}
+
+## Load driver
+cd $PROJECT_DIR/host-software/linuxDriver/tests
+sudo ctest -T Start -T Test -R "load-driver" -V --no-compress-output
+exit_on_fail $?
+
+## Run PCIE driver dedicated tests
+cd $PROJECT_DIR/host-software/linuxDriver/tests
+sudo ctest -T Start -T Test -L "LOOPBACK" -V --no-compress-output
+exit_on_fail $?
+
+# Run the runtime tests
+cd $PROJECT_DIR/host-software/runtime
+sudo ctest -L "Pcie" -V --no-compress-output
+exit_on_fail $?
+
+# Issue a kmemleak scan and check the buffer for issues
+FAILURE_FOUND=0
+sudo bash -c "echo scan > /sys/kernel/debug/kmemleak"
+if [ -s /sys/kernel/debug/kmemleak ]; then
+    let "FAILURE_FOUND+=1"
+    sudo cp -f /sys/kernel/debug/kmemleak $PROJECT_DIR
+fi
+
+sudo su -c "echo \"$DEFAULT_LEVELS\" > /proc/sys/kernel/printk"
+
+exit $FAILURE_FOUND
