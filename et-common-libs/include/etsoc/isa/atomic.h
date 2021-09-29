@@ -1,6 +1,10 @@
 #ifndef ATOMIC_H
 #define ATOMIC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 static inline uint8_t  atomic_load_local_8(volatile const uint8_t *address);
@@ -70,5 +74,9 @@ static inline uint32_t atomic_compare_and_exchange_global_32(volatile uint32_t *
 static inline uint64_t atomic_compare_and_exchange_global_64(volatile uint64_t *address, uint64_t expected, uint64_t desired);
 
 #include "atomic-impl.h"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

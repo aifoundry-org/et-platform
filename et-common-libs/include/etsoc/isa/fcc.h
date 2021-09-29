@@ -1,6 +1,10 @@
 #ifndef FCC_H
 #define FCC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "esr_defines.h"
 
 #include <stdint.h>
@@ -49,5 +53,9 @@ static inline void init_fcc(fcc_t fcc)
         wait_fcc(fcc);
     }
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // FCC_H

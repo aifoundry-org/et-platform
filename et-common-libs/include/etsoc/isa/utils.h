@@ -12,6 +12,10 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <inttypes.h>
 
 #include "esr_defines.h"
@@ -243,6 +247,10 @@ inline __attribute__((always_inline)) void riscv_fence(void)
 {
   __asm__ __volatile__ ( "fence\n");
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

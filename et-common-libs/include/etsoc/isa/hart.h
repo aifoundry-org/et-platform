@@ -11,6 +11,9 @@
 #ifndef _ETSOC_ISA_HART_H_
 #define _ETSOC_ISA_HART_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define SOC_MINIONS_PER_SHIRE 32
 
@@ -44,5 +47,9 @@ static inline unsigned int __attribute__((always_inline, const)) get_thread_id(v
 {
     return get_hart_id() & 1;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _ETSOC_ISA_HART_H_ */

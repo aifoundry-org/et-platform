@@ -13,6 +13,11 @@
 #ifndef __PMU_H__
 #define __PMU_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #include "etsoc/isa/esr_defines.h"
 // PMU support: Defines and basic API
 
@@ -398,5 +403,10 @@ static inline uint64_t PMC_Get_Current_Cycles(void)  {
     minus start_cycle(argument)
 */
 #define PMC_GET_LATENCY(x) (uint32_t)(PMC_Get_Current_Cycles() - x)
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

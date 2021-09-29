@@ -1,6 +1,10 @@
 #ifndef FLB_H
 #define FLB_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "esr_defines.h"
 
 #include <stdint.h>
@@ -17,5 +21,9 @@
         const uint64_t val = ((threads - 1U) << 5U) + barrier;        \
         asm volatile("csrrw %0, flb0, %1" : "=r"(result) : "r"(val)); \
     } while (0)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // FLB_H

@@ -12,6 +12,10 @@
 #ifndef _COMMON_UTILS_H_
 #define _COMMON_UTILS_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stddef.h>
 #include "trace/trace_umode.h"
 
@@ -82,5 +86,9 @@ __attribute__((noreturn)) void et_abort(void);
     {                                                                   \
         (void)(expr);                                                   \
     }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _COMMON_UTILS_H_ */

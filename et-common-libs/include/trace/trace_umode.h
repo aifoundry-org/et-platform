@@ -14,6 +14,13 @@
 */
 /***********************************************************************/
 
+#ifndef TRACE_UMODE_H
+#define TRACE_UMODE_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <et-trace/encoder.h>
 
 /*! \fn void __et_printf(const char *fmt)
@@ -26,3 +33,8 @@
 */
 void __et_printf(const char *fmt, ...);
 
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* TRACE_UMODE_H */

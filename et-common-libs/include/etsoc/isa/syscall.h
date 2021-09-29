@@ -1,6 +1,10 @@
 #ifndef SYSCALL_H
 #define SYSCALL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* SYSCALL IDs for syscalls from U-Mode */
 /* Range (0-127) dedicated for syscalls allowed from U-Mode */
 #define SYSCALL_UMODE_THRESHOLD         0
@@ -47,6 +51,10 @@ static inline __attribute__((always_inline)) int64_t syscall(uint64_t syscall, u
     return (int64_t)a0;
 }
 
+#endif /* __ASSEMBLER__ */
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif // SYSCALL_H

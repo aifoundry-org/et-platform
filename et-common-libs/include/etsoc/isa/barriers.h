@@ -12,6 +12,10 @@
 #ifndef _BARRIERS_H_
 #define _BARRIERS_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <inttypes.h>
 
 #include "hart.h"
@@ -38,6 +42,10 @@ inline uint64_t __attribute__((always_inline)) shire_barrier(uint64_t flb, uint6
 
   return last;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

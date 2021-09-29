@@ -12,6 +12,10 @@
 #ifndef _ESR_DEFINES_H_
 #define _ESR_DEFINES_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef __ASSEMBLER__
 
 #include <inttypes.h>
@@ -29,7 +33,7 @@ typedef enum { esr_access_RO, esr_access_RW, esr_access_INVALID } esr_access_t;
 
 typedef uint64_t esr_address_t;
 
-#endif
+#endif /* __ASSEMBLER__ */
 
 #define PRV_U 0
 #define PRV_S 1ull
@@ -892,5 +896,9 @@ typedef uint64_t esr_address_t;
 // Thread defines
 #define THREAD_0 0
 #define THREAD_1 1
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

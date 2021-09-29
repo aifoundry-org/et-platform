@@ -12,6 +12,10 @@
 #ifndef __CACHEOPS_UMODE_H
 #define __CACHEOPS_UMODE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "utils.h"
 #include "syscall.h"
 
@@ -347,5 +351,9 @@ inline void __attribute__((always_inline)) cache_ops_cb_drain(uint64_t drain_shi
         state = (*sc_idx_cop_sm_ctl_addr >> 24) & 0xFF;
     } while (state != 4);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // ! __CACHEOPS_UMODE_H

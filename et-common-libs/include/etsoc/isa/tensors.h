@@ -12,6 +12,10 @@
 #ifndef __TENSORS_H
 #define __TENSORS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define QUANT_LAST_TRANS 0
 #define QUANT_INT32_TO_FP32 1
 #define QUANT_FP32_TO_INT32 2
@@ -509,5 +513,9 @@ inline uint64_t __attribute__((always_inline)) get_tensor_mask()
 #define fsw_ps(fd, ptr) do { \
     __asm__ volatile("fsw.ps f" #fd ", (%0)" :: "r"(ptr) : "memory"); \
 } while (0)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // ! __TENSORS_H
