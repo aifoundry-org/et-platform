@@ -1,7 +1,12 @@
 #include "etsoc/common/utils.h"
 #include "etsoc/isa/syscall.h"
 
-void *et_memset(void *s, int c, size_t n)
+#define inhibit_loop_to_libcall \
+    __attribute__ ((__optimize__ ("-fno-tree-loop-distribute-patterns")))
+
+void*
+inhibit_loop_to_libcall
+et_memset(void *s, int c, size_t n)
 {
   unsigned char *p = s;
 
@@ -12,7 +17,9 @@ void *et_memset(void *s, int c, size_t n)
   return s;
 }
 
-void *et_memcpy(void *dest, const void *src, size_t n)
+void *
+inhibit_loop_to_libcall
+et_memcpy(void *dest, const void *src, size_t n)
 {
   const char *s = src;
   char *d = dest;
@@ -25,7 +32,9 @@ void *et_memcpy(void *dest, const void *src, size_t n)
   return dest;
 }
 
-int et_memcmp(const void *s1, const void *s2, size_t n)
+int 
+inhibit_loop_to_libcall
+et_memcmp(const void *s1, const void *s2, size_t n)
 {
   const char* p_s1 = s1;
   const char* p_s2 = s2;
@@ -42,7 +51,9 @@ int et_memcmp(const void *s1, const void *s2, size_t n)
   return 0;
 }
 
-size_t et_strlen(const char *str)
+size_t
+inhibit_loop_to_libcall
+et_strlen(const char *str)
 {
   const char *s = str;
 
