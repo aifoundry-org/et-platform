@@ -1240,12 +1240,17 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
     /* Check if RT Component is MM Trace. */
     if((status == STATUS_SUCCESS) && (cmd->rt_type & TRACE_RT_TYPE_MM))
     {
+        Log_Write(LOG_LEVEL_DEBUG,
+            "HostCommandHandler:TRACE_RT_CONTROL_CMD:MM RT control\r\n");
         Trace_RT_Control_MM(cmd->control);
     }
 
     /* Check if RT Component is CM Trace. */
     if((status == STATUS_SUCCESS) && (cmd->rt_type & TRACE_RT_TYPE_CM))
     {
+        Log_Write(LOG_LEVEL_DEBUG,
+            "HostCommandHandler:TRACE_RT_CONTROL_CMD:CM RT control\r\n");
+
         mm_to_cm_message_trace_rt_control_t cm_msg;
         cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
         cm_msg.cm_control = cmd->control;

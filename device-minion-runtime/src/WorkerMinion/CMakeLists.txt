@@ -47,8 +47,6 @@ target_link_libraries(WorkerMinion.elf
         deviceFirmware::minion_rt_helpers_interface
 )
 
-target_link_libraries(WorkerMinion.elf PUBLIC esperantoTrace::et_trace)
-
 target_report_riscv_size(WorkerMinion.elf)
 target_report_riscv_elf_file_header(WorkerMinion.elf)
 

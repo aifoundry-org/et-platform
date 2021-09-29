@@ -9,6 +9,3 @@
 #------------------------------------------------------------------------------
 
 add_subdirectory(minion_rt_helpers)
-#add_subdirectory(device_configuration)
-#add_subdirectory(device_common)
-#add_subdirectory(firmware_helpers)

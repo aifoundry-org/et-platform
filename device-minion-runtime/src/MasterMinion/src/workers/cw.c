@@ -137,8 +137,6 @@ static inline uint64_t cw_get_booted_shires(void)
             (CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
 
         /* Release the unicast lock */
-        lock =
-            &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_MASTER_HART_UNICAST_BUFF_IDX];
         release_global_spinlock(lock);
 
         if (internal_status != STATUS_SUCCESS)

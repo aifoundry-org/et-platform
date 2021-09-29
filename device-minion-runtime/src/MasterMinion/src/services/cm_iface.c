@@ -184,6 +184,9 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
     uint64_t sip;
     broadcast_message_ctrl_t msg_control;
 
+    Log_Write(LOG_LEVEL_DEBUG,
+        "CM_Iface_Multicast_Send:Sending multicast msg\r\n");
+
     /* Verify the shire mask */
     if(dest_shire_mask == 0)
     {

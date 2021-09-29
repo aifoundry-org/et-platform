@@ -165,7 +165,7 @@ int8_t Host_Iface_SQs_Init(void)
         /* Initialize the High Priority SQ circular buffer */
         status = VQ_Init(&Host_SQs_HP.vqueues[i],
             VQ_CIRCBUFF_BASE_ADDR(MM_SQS_HP_BASE_ADDRESS, i, MM_SQ_HP_SIZE),
-            MM_SQ_HP_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE);
+            MM_SQ_HP_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE, LOCAL_ATOMIC);
 
         /* Check for error */
         if (status != STATUS_SUCCESS)
@@ -188,7 +188,7 @@ int8_t Host_Iface_SQs_Init(void)
             /* Initialize the SQ circular buffer */
             status = VQ_Init(&Host_SQs.vqueues[i],
                 VQ_CIRCBUFF_BASE_ADDR(MM_SQS_BASE_ADDRESS, i, MM_SQ_SIZE),
-                MM_SQ_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE);
+                MM_SQ_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE, LOCAL_ATOMIC);
 
             /* Check for error */
             if (status != STATUS_SUCCESS)
@@ -296,7 +296,7 @@ int8_t Host_Iface_CQs_Init(void)
         /* Initialize the CQ circular buffer */
         status = VQ_Init(&Host_CQs.vqueues[i],
             VQ_CIRCBUFF_BASE_ADDR(MM_CQS_BASE_ADDRESS, i, MM_CQ_SIZE),
-            MM_CQ_SIZE, 0, sizeof(cmd_size_t), MM_CQ_MEM_TYPE);
+            MM_CQ_SIZE, 0, sizeof(cmd_size_t), MM_CQ_MEM_TYPE, LOCAL_ATOMIC);
     }
 
     return status;
@@ -429,7 +429,7 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
     {
         asm volatile("fence");
         /* TODO: Using MSI idx 0 for single CQ model */
-        status = (int8_t)pcie_interrupt_host(1);
+        status = (int8_t)pcie_interrupt_host(1, LOCAL_ATOMIC);
 
         /* Release the lock */
         release_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
@@ -520,7 +520,7 @@ void Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached)
     /* TODO: We need to send event to the host when 25% of space is avialable is SQ.
     Should be build time macro */
     /* TODO: Use seperate MSI for notifiying host that SQ has freed up space */
-    (void)pcie_interrupt_host(1);
+    (void)pcie_interrupt_host(1, LOCAL_ATOMIC);
 }
 
 /************************************************************************

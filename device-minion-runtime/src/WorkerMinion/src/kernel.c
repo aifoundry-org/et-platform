@@ -605,7 +605,7 @@ static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *k
             {
                 /* Acquire the unicast lock */
                 lock =
-                    &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index)];
+                    &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index];
                 acquire_global_spinlock(lock);
 
                 status = CM_To_MM_Iface_Unicast_Send(
@@ -614,10 +614,7 @@ static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *k
                     (cm_iface_message_t *)&msg);
 
                 /* Release the unicast lock */
-                lock =
-                    &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index)];
                 release_global_spinlock(lock);
-
             }
             else
             {

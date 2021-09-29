@@ -18,8 +18,6 @@
 #define CM_TO_MM_DEFS_H
 
 #include <stdio.h>
-//#include "sync.h"
-//#include "layout.h"
 
 /*! \def CM_MM_MASTER_HART_DISPATCHER_IDX
     \brief A macro that provides the index of the hart within master shire
@@ -56,7 +54,6 @@
 typedef enum {
     CM_CONTEXT_TYPE_HANG = 0,
     CM_CONTEXT_TYPE_UMODE_EXCEPTION,
-    CM_CONTEXT_TYPE_SMODE_EXCEPTION,
     CM_CONTEXT_TYPE_SYSTEM_ABORT,
     CM_CONTEXT_TYPE_SELF_ABORT,
     CM_CONTEXT_TYPE_USER_KERNEL_ERROR
@@ -88,27 +85,5 @@ typedef struct {
         uint8_t raw[64];
     };
 } __attribute__((aligned(64))) cm_kernel_launched_flag_t;
-
-#if 0
-/*! \fn static inline void CM_Iface_Unicast_Acquire_Lock(uint64_t cb_idx)
-    \brief Function to acquire the global unicast lock.
-    \param cb_idx Index of the unicast buffer
-*/
-static inline void CM_Iface_Unicast_Acquire_Lock(uint64_t cb_idx)
-{
-    spinlock_t *lock = &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[cb_idx];
-    acquire_global_spinlock(lock);
-}
-
-/*! \fn static inline void CM_Iface_Unicast_Release_Lock(uint64_t cb_idx)
-    \brief Function to release the global unicast lock.
-    \param cb_idx Index of the unicast buffer
-*/
-static inline void CM_Iface_Unicast_Release_Lock(uint64_t cb_idx)
-{
-    spinlock_t *lock = &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[cb_idx];
-    release_global_spinlock(lock);
-}
-#endif
 
 #endif

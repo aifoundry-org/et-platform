@@ -977,14 +977,13 @@ static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t 
 {
     cm_iface_message_t message;
     int8_t status;
-    spinlock_t *lock;
+    spinlock_t *lock =
+        &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx];
     (void)kernel;
 
     Log_Write(LOG_LEVEL_DEBUG, "KW:Processing single msg from CM\r\n");
 
     /* Acquire the unicast lock */
-    lock =
-        &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx];
     acquire_global_spinlock(lock);
 
     /* Receive the CM->MM message */
@@ -992,10 +991,7 @@ static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t 
         CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
 
     /* Release the unicast lock */
-    lock =
-        &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx];
     release_global_spinlock(lock);
-
 
     if (status != STATUS_SUCCESS)
     {
