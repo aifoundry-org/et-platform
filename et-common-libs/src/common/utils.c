@@ -3,11 +3,10 @@
 
 void *et_memset(void *s, int c, size_t n)
 {
-  int *p = s;
+  unsigned char *p = s;
 
-  while (n) {
-    *p++ = c;
-    n--;
+  while (n-- > 0) {
+    *p++ = (char)c;
   }
 
   return s;
