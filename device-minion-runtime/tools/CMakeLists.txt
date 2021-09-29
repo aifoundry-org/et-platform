@@ -8,4 +8,4 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-#add_subdirectory(traces)
+add_subdirectory(traces)
