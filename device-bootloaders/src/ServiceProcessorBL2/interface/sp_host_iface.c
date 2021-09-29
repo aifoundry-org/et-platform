@@ -154,10 +154,9 @@ int8_t SP_Host_Iface_SQ_Init(void)
     SP_Host_SQ.vqueue_size = SP_SQ_SIZE;
 
     /* Initialize the SQ circular buffer */
-    status = VQ_Init(&SP_Host_SQ.vqueue,
-                      SP_Host_SQ.vqueue_base,
-                      SP_Host_SQ.vqueue_size,
-                      0,sizeof(cmd_size_t),SP_SQ_MEM_TYPE);
+    status = VQ_Init(&SP_Host_SQ.vqueue, SP_Host_SQ.vqueue_base,
+        SP_Host_SQ.vqueue_size, 0, sizeof(cmd_size_t), SP_SQ_MEM_TYPE,
+        UNCACHED);
 
     if (status == STATUS_SUCCESS)
     {
@@ -201,10 +200,9 @@ int8_t SP_Host_Iface_CQ_Init(void)
     SP_Host_CQ.vqueue_size = SP_CQ_SIZE;
 
     /* Initialize the SQ circular buffer */
-    status = VQ_Init(&SP_Host_CQ.vqueue,
-                      SP_Host_CQ.vqueue_base,
-                      SP_Host_CQ.vqueue_size,
-                      0,sizeof(cmd_size_t),SP_CQ_MEM_TYPE);
+    status = VQ_Init(&SP_Host_CQ.vqueue, SP_Host_CQ.vqueue_base,
+        SP_Host_CQ.vqueue_size, 0, sizeof(cmd_size_t), SP_CQ_MEM_TYPE,
+        UNCACHED);
 
     /* Populate data in local copy globals */
     if(status == STATUS_SUCCESS)
@@ -284,7 +282,7 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
 
         if(status == STATUS_SUCCESS)
         {
-            pcie_interrupt_host(SP_CQ_NOTIFY_VECTOR);
+            pcie_interrupt_host(SP_CQ_NOTIFY_VECTOR, UNCACHED);
         }
 
         xSemaphoreGive(Host_CQ_Lock);

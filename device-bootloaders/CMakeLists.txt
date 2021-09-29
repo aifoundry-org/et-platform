@@ -32,7 +32,7 @@ find_package(tf-protocol REQUIRED)
 find_package(EsperantoFlashTool CONFIG REQUIRED)
 find_package(etsoc_hal REQUIRED)
 find_package(esperantoTrace REQUIRED)
-find_package(et-common-libs REQUIRED COMPONENTS sp-bl1 sp-bl2 mm-rt-svcs)
+find_package(et-common-libs REQUIRED COMPONENTS sp-bl1 sp-bl2)
 
 # Providers for third-party dependencies (gRPC_*_PROVIDER properties):
 # "module": build the dependency using sources from git submodule under external
