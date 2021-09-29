@@ -26,6 +26,7 @@
 
 static void pcie_init_pshire(void);
 static void pcie_init_caps_list(void);
+static void pcie_init_error_cap(void);
 static void pcie_init_bars(void);
 static void pcie_init_ints(void);
 static void pcie_init_link(void);
@@ -133,9 +134,6 @@ int32_t pcie_error_control_init(dm_event_isr_callback event_cb)
     event_control_block.ce_threshold = PCIE_CORR_ERROR_THRESHOLD;
     event_control_block.event_cb = event_cb;
 
-    pcie_enable_ce_interrupt();
-    pcie_enable_uce_interrupt();
-
     INT_enableInterrupt(SPIO_PLIC_PSHIRE_PCIE0_ERR_INTR, 1, pcie_error_isr);
 
     return 0;
@@ -180,6 +178,7 @@ void PCIe_init(bool expect_link_up)
     {
         pcie_init_pshire();
         pcie_init_caps_list();
+        pcie_init_error_cap();
         pcie_init_bars();
         pcie_init_ints();
         pcie_init_link();
@@ -233,16 +232,16 @@ static void pcie_init_pshire(void)
 
 static void pcie_init_caps_list(void)
 {
-    uint32_t misc_control;
+    uint32_t miscControl;
 
     /* The config registers are protected by a write-enable bit */
-    misc_control =
+    miscControl =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-            misc_control, 1);
+            miscControl, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
 
     /* Init capabilities list. The compiled-in, default capabilities list looks like this:
       HEAD (0x34) -> Power Mgmt (0x40) -> MSI (0x50) -> PCIe (0x70) -> MSI-X (0xB0) -> NULL*/
@@ -250,26 +249,72 @@ static void pcie_init_caps_list(void)
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_PCI_CAP_PTR_REG_ADDRESS,
               PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_PCI_CAP_PTR_REG_CAP_POINTER_SET(0x40));
 
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-            misc_control, 0);
+            miscControl, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
+}
+
+static void pcie_init_error_cap(void)
+{
+    uint32_t miscControl;
+    uint32_t reg_val;
+
+    /* The config registers are protected by a write-enable bit */
+    miscControl =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
+    miscControl =
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
+            miscControl, 1);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
+              miscControl);
+
+    /* Enable Error Capability Path */
+    reg_val = ioread32(
+        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS);
+
+    /* Enable Correctable Errors Capability*/
+    iowrite32(
+        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS,
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_CORR_ERR_REPORT_EN_MODIFY(
+            reg_val, 0x1));
+
+    /* Enable UnCorrectable Errors Capability*/
+    reg_val =
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_NON_FATAL_ERR_REPORT_EN_MODIFY(
+            reg_val, 0x1);
+    reg_val =
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_FATAL_ERR_REPORT_EN_MODIFY(
+            reg_val, 0x1);
+
+    /* Wrte to Capability Register */
+    iowrite32(PCIE0 +
+                  PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS,
+              reg_val);
+
+    /* Close access to Config Registers*/
+    miscControl =
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
+            miscControl, 0);
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
+              miscControl);
+
 }
 
 static void pcie_init_bars(void)
 {
     uint32_t bar0, bar2;
-    uint32_t misc_control;
+    uint32_t miscControl;
 
     /* The BAR config registers are protected by a write-enable bit */
-    misc_control =
+    miscControl =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-            misc_control, 1);
+            miscControl, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
 
     /* When BARs are used in 64-bit mode, BAR1 becomes the high 32-bits of BAR0, and so on
        (BAR3 for BAR2, BAR5 for BAR4) */
@@ -331,26 +376,26 @@ static void pcie_init_bars(void)
 
     /* Wait to init iATUs until BAR addresses are assigned - see PCIe_initATUs. */
 
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-            misc_control, 0);
+            miscControl, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
 }
 
 static void pcie_init_ints(void)
 {
-    uint32_t misc_control;
+    uint32_t miscControl;
     uint32_t msi_ctrl;
 
     /* Open access to MSI Capability Register */
-    misc_control =
+    miscControl =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-            misc_control, 1);
+            miscControl, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
 
     /* Configure MSI */
     msi_ctrl = ioread32(
@@ -370,11 +415,11 @@ static void pcie_init_ints(void)
                   PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_ADDRESS,
               msi_ctrl);
     /* Close access to MSI Capability Register */
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-            misc_control, 0);
+            miscControl, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
 }
 
 static void pcie_init_link(void)
@@ -607,80 +652,7 @@ static void pcie_wait_for_ints(void)
 
 int32_t pcie_error_control_deinit(void)
 {
-    pcie_disable_ce_interrupt();
-    pcie_disable_uce_interrupt();
-
     INT_disableInterrupt(SPIO_PLIC_PSHIRE_PCIE0_ERR_INTR);
-
-    return 0;
-}
-
-int32_t pcie_enable_ce_interrupt(void)
-{
-    uint32_t reg_val;
-
-    reg_val = ioread32(
-        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS);
-
-    iowrite32(
-        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS,
-        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_CORR_ERR_REPORT_EN_MODIFY(
-            reg_val, 0x1));
-
-    return 0;
-}
-
-int32_t pcie_enable_uce_interrupt(void)
-{
-    uint32_t reg_val;
-
-    reg_val = ioread32(
-        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS);
-    reg_val =
-        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_NON_FATAL_ERR_REPORT_EN_MODIFY(
-            reg_val, 0x1);
-    reg_val =
-        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_FATAL_ERR_REPORT_EN_MODIFY(
-            reg_val, 0x1);
-
-    iowrite32(PCIE0 +
-                  PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS,
-              reg_val);
-
-    return 0;
-}
-
-int32_t pcie_disable_ce_interrupt(void)
-{
-    uint32_t reg_val;
-
-    reg_val = ioread32(
-        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS);
-
-    iowrite32(
-        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS,
-        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_CORR_ERR_REPORT_EN_MODIFY(
-            reg_val, 0x0));
-
-    return 0;
-}
-
-int32_t pcie_disable_uce_interrupt(void)
-{
-    uint32_t reg_val;
-
-    reg_val = ioread32(
-        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS);
-    reg_val =
-        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_NON_FATAL_ERR_REPORT_EN_MODIFY(
-            reg_val, 0x0);
-    reg_val =
-        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_FATAL_ERR_REPORT_EN_MODIFY(
-            reg_val, 0x0);
-
-    iowrite32(PCIE0 +
-                  PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS,
-              reg_val);
 
     return 0;
 }
@@ -762,16 +734,16 @@ static void pcie_error_isr(void)
 int32_t setup_pcie_gen3_link_speed(void)
 {
     uint32_t link_capabilities_reg;
-    uint32_t misc_control;
+    uint32_t miscControl;
 
     /* The config registers are protected by a write-enable bit */
-    misc_control =
+    miscControl =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        misc_control, 1);
+        miscControl, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
 
     link_capabilities_reg =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS);
@@ -781,11 +753,11 @@ int32_t setup_pcie_gen3_link_speed(void)
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS,
               link_capabilities_reg);
 
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        misc_control, 0);
+        miscControl, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
 
     return 0;
 }
@@ -793,16 +765,16 @@ int32_t setup_pcie_gen3_link_speed(void)
 int32_t setup_pcie_gen4_link_speed(void)
 {
     uint32_t link_capabilities_reg;
-    uint32_t misc_control;
+    uint32_t miscControl;
 
     /* The config registers are protected by a write-enable bit */
-    misc_control =
+    miscControl =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        misc_control, 1);
+        miscControl, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
 
     link_capabilities_reg =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS);
@@ -812,11 +784,11 @@ int32_t setup_pcie_gen4_link_speed(void)
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS,
               link_capabilities_reg);
 
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        misc_control, 0);
+        miscControl, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
 
     return 0;
 }
@@ -824,16 +796,16 @@ int32_t setup_pcie_gen4_link_speed(void)
 int32_t setup_pcie_lane_width_x4(void)
 {
     uint32_t link_capabilities_reg;
-    uint32_t misc_control;
+    uint32_t miscControl;
 
     /* The config registers are protected by a write-enable bit */
-    misc_control =
+    miscControl =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        misc_control, 1);
+        miscControl, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
 
     link_capabilities_reg =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS);
@@ -843,11 +815,11 @@ int32_t setup_pcie_lane_width_x4(void)
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS,
               link_capabilities_reg);
 
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        misc_control, 0);
+        miscControl, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
 
     return 0;
 }
@@ -855,16 +827,16 @@ int32_t setup_pcie_lane_width_x4(void)
 int32_t setup_pcie_lane_width_x8(void)
 {
     uint32_t link_capabilities_reg;
-    uint32_t misc_control;
+    uint32_t miscControl;
 
     /* The config registers are protected by a write-enable bit */
-    misc_control =
+    miscControl =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        misc_control, 1);
+        miscControl, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
 
     link_capabilities_reg =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS);
@@ -874,11 +846,11 @@ int32_t setup_pcie_lane_width_x8(void)
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_LINK_CAPABILITIES_REG_ADDRESS,
               link_capabilities_reg);
 
-    misc_control =
+    miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        misc_control, 0);
+        miscControl, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
-              misc_control);
+              miscControl);
 
     return 0;
 }
