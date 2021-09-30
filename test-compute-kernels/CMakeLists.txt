@@ -216,6 +216,7 @@ add_subdirectory("load_lat")
 add_subdirectory("write_bw")
 add_subdirectory("prefetch_bw")
 add_subdirectory("jump_loop")
+add_subdirectory("mlp")
 
 # Trace tests disabled for now until we have the new Tracing lib
 #add_subdirectory("pmc_test_2s")
