@@ -19,8 +19,8 @@
 */
 /***********************************************************************/
 /* mm_et_svcs */
-#include "etsoc/drivers/pmu/pmu.h"
-#include "etsoc/isa/cacheops.h"
+#include <etsoc/drivers/pmu/pmu.h>
+#include <etsoc/isa/cacheops.h>
 
 /* mm specific headers */
 #include "services/host_cmd_hdlr.h"

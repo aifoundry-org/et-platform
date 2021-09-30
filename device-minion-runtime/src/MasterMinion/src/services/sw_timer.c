@@ -25,7 +25,7 @@
 */
 /***********************************************************************/
 /* mm_rt_svcs */
-#include "etsoc/isa/sync.h"
+#include <etsoc/isa/sync.h>
 
 /* mm specific headers */
 #include "services/log.h"

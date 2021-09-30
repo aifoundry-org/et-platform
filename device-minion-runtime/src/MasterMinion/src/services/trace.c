@@ -30,12 +30,12 @@
 #include <esperanto/device-apis/device_apis_trace_types.h>
 
 /* mm_rt_svcs */
-#include "etsoc/isa/atomic.h"
-#include "etsoc/isa/cacheops.h"
-#include "etsoc/isa/hart.h"
-#include "etsoc/isa/hpm_counter.h"
-#include "etsoc/isa/etsoc_memory.h"
-#include "etsoc/isa/sync.h"
+#include <etsoc/isa/atomic.h>
+#include <etsoc/isa/cacheops.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/hpm_counter.h>
+#include <etsoc/isa/etsoc_memory.h>
+#include <etsoc/isa/sync.h>
 
 /* mm specific headers */
 #include "config/mm_config.h"

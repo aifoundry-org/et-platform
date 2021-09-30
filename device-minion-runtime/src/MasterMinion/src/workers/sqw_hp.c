@@ -26,7 +26,7 @@
 #include <esperanto/device-apis/device_apis_message_types.h>
 
 /* mm_rt_svcs */
-#include "etsoc/isa/etsoc_memory.h"
+#include <etsoc/isa/etsoc_memory.h>
 
 /* mm specific headers */
 #include "workers/sqw_hp.h"

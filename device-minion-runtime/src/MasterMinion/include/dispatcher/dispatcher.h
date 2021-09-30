@@ -18,7 +18,7 @@
 #define DISPATCHER_DEFS_H
 
 /* mm_rt_svcs */
-#include "etsoc/common/common_defs.h"
+#include <etsoc/common/common_defs.h>
 
 /* mm specific headers */
 #include "config/mm_config.h"

@@ -19,7 +19,7 @@
 #define HOST_CMD_HDLR_H
 
 /* mm_rt_svcs */
-#include "etsoc/common/common_defs.h"
+#include <etsoc/common/common_defs.h>
 
 /* common-api, device_ops_api */
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>

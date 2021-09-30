@@ -19,8 +19,8 @@
 */
 /***********************************************************************/
 /* mm_rt_svcs */
-#include "etsoc/drivers/pmu/pmu.h"
-#include "etsoc/isa/riscv_encoding.h"
+#include <etsoc/drivers/pmu/pmu.h>
+#include <etsoc/isa/riscv_encoding.h>
 
 /* mm specific headers */
 #include "workers/spw.h"

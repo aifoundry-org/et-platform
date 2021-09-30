@@ -1,7 +1,7 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include "etsoc/common/log_common.h"
+#include <etsoc/common/log_common.h>
 
 #include <stdint.h>
 #include <stdio.h>

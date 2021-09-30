@@ -1,7 +1,7 @@
 #include <inttypes.h>
 
-#include "etsoc/isa/hart.h"
-#include "etsoc/isa/riscv_encoding.h"
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/riscv_encoding.h>
 
 #include "mm_to_cm_iface.h"
 #include "cm_to_mm_iface.h"

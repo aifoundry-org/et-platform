@@ -15,8 +15,8 @@
 #include "config/mm_config.h"
 
 /* minion_bl */
-#include "etsoc/isa/esr_defines.h"
-#include "transports/mm_cm_iface/broadcast.h"
+#include <etsoc/isa/esr_defines.h>
+#include <transports/mm_cm_iface/broadcast.h>
 
 /* etsoc_hal */
 #include <hwinc/etsoc_shire_other_esr.h>

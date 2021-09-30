@@ -37,8 +37,8 @@
 */
 /***********************************************************************/
 /* mm_rt_svcs */
-#include    "etsoc/drivers/pmu/pmu.h"
-#include    "etsoc/isa/sync.h"
+#include    <etsoc/drivers/pmu/pmu.h>
+#include    <etsoc/isa/sync.h>
 
 /* mm specific headers */
 #include    "workers/dmaw.h"

@@ -29,13 +29,13 @@
 */
 /***********************************************************************/
 /* mm_rt_svcs */
-#include "etsoc/common/common_defs.h"
-#include "etsoc/isa/atomic.h"
-#include "etsoc/isa/hart.h"
-#include "etsoc/isa/syscall.h"
-#include "etsoc/isa/riscv_encoding.h"
-#include "etsoc/isa/sync.h"
-#include "transports/mm_cm_iface/message_types.h"
+#include <etsoc/common/common_defs.h>
+#include <etsoc/isa/atomic.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/syscall.h>
+#include <etsoc/isa/riscv_encoding.h>
+#include <etsoc/isa/sync.h>
+#include <transports/mm_cm_iface/message_types.h>
 
 /* mm specific headers */
 #include "workers/cw.h"

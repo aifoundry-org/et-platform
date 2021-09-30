@@ -51,12 +51,12 @@
 #include "drivers/plic.h"
 
 /* mm-rt-svcs (shared across minion rt) */
-#include "etsoc/isa/sync.h"
-#include "etsoc/isa/fcc.h"
-#include "etsoc/isa/riscv_encoding.h"
-#include "transports/mm_cm_iface/message_types.h"
-#include "etsoc/drivers/serial/serial.h"
-#include "etsoc/drivers/pmu/pmu.h"
+#include <etsoc/isa/sync.h>
+#include <etsoc/isa/fcc.h>
+#include <etsoc/isa/riscv_encoding.h>
+#include <transports/mm_cm_iface/message_types.h>
+#include <etsoc/drivers/serial/serial.h>
+#include <etsoc/drivers/pmu/pmu.h>
 
 extern spinlock_t Launch_Wait;
 

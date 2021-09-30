@@ -9,7 +9,7 @@
 #include "services/trace.h"
 
 /* mm-rt-svcs */
-#include "etsoc/isa/etsoc_memory.h"
+#include <etsoc/isa/etsoc_memory.h>
 
 /* mm-rt-helpers */
 #include "layout.h"

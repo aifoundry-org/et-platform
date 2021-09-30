@@ -19,9 +19,9 @@
 #define DMAW_DEFS_H
 
 /* mm_rt_svcs */
-#include "etsoc/common/common_defs.h"
-#include "etsoc/isa/sync.h"
-#include "transports/vq/vq.h"
+#include <etsoc/common/common_defs.h>
+#include <etsoc/isa/sync.h>
+#include <transports/vq/vq.h>
 
 /* mm specific svcs */
 #include "drivers/pcie_dma.h"

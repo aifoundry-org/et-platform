@@ -1,14 +1,15 @@
-#include "etsoc/isa/atomic.h"
-#include "layout.h"
-#include "log.h"
-#include "common/printf.h"
-#include "etsoc/drivers/serial/serial.h"
-#include "etsoc/isa/sync.h"
-#include "trace.h"
-
 #include <stdarg.h>
 #include <stddef.h>
 #include <string.h>
+
+#include <etsoc/isa/atomic.h>
+#include <common/printf.h>
+#include <etsoc/drivers/serial/serial.h>
+#include <etsoc/isa/sync.h>
+
+#include "layout.h"
+#include "log.h"
+#include "trace.h"
 
 /*! \def CHECK_STRING_FILTER
     \brief This checks if trace string log level is enabled to log the given level.

@@ -19,9 +19,9 @@
 #define SP_IFACE_DEFS_H
 
 /* mm_rt_svcs */
-#include "etsoc/common/common_defs.h"
-#include "transports/sp_mm_iface/sp_mm_iface.h" /* header from shared/helper lib */
-#include "transports/sp_mm_iface/sp_mm_comms_spec.h"
+#include <etsoc/common/common_defs.h>
+#include <transports/sp_mm_iface/sp_mm_iface.h> /* header from shared/helper lib */
+#include <transports/sp_mm_iface/sp_mm_comms_spec.h>
 
 /*! \def TIMEOUT_SP_IFACE_RESPONSE(x)
     \brief Timeout value (per 100ms) for SP response wait

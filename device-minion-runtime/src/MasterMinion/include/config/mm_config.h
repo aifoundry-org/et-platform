@@ -33,8 +33,8 @@
 #define __MM_CONFIG_H__
 
 /* mm_rt_svcs */
-#include "etsoc/common/common_defs.h"
-#include "transports/sp_mm_iface/sp_mm_shared_config.h"
+#include <etsoc/common/common_defs.h>
+#include <transports/sp_mm_iface/sp_mm_shared_config.h>
 
 /* etsoc_hal */
 #include "hwinc/hal_device.h"

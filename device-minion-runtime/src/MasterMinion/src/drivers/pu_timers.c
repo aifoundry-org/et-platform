@@ -22,13 +22,13 @@
 #include <stddef.h>
 
 /* mm_rt_svcs */
-#include "etsoc/isa/io.h"
-#include "etsoc/isa/atomic.h"
+#include <etsoc/isa/io.h>
+#include <etsoc/isa/atomic.h>
 
 /* etsoc_hal */
-#include "hwinc/pu_timer.h"
-#include "hwinc/hal_device.h"
-#include "hwinc/pu_plic.h"
+#include <hwinc/pu_timer.h>
+#include <hwinc/hal_device.h>
+#include <hwinc/pu_plic.h>
 
 /* mm specific headers */
 #include "services/log.h"
@@ -113,10 +113,10 @@ void PU_Timer_Init(void (*timeout_callback_fn)(void), uint32_t timeout)
 *
 *   INPUTS
 *
-*       void 
+*       void
 *
 *   OUTPUTS
-*     
+*
 *       uint32_t Remaining value
 *
 ***********************************************************************/
@@ -138,7 +138,7 @@ uint32_t PU_Timer_Get_Current_Value(void)
 *   INPUTS
 *
 *       None
-*    
+*
 *   OUTPUTS
 *
 *       None

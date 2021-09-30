@@ -20,8 +20,8 @@
 #include <stdbool.h>
 
 /* mm_rt_svcs */
-#include "etsoc/isa/io.h"
-#include "etsoc/drivers/pcie/pcie_device.h"
+#include <etsoc/isa/io.h>
+#include <etsoc/drivers/pcie/pcie_device.h>
 
 /* etsoc_hal */
 #include "hwinc/pcie0_dbi_slv.h"

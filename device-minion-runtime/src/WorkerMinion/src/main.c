@@ -1,10 +1,10 @@
-#include "etsoc/isa/fcc.h"
-#include "etsoc/isa/flb.h"
-#include "etsoc/isa/hart.h"
-#include "etsoc/isa/sync.h"
-#include "etsoc/isa/riscv_encoding.h"
-#include "transports/mm_cm_iface/message_types.h"
-#include "etsoc/drivers/pmu/pmu.h"
+#include <etsoc/isa/fcc.h>
+#include <etsoc/isa/flb.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/sync.h>
+#include <etsoc/isa/riscv_encoding.h>
+#include <transports/mm_cm_iface/message_types.h>
+#include <etsoc/drivers/pmu/pmu.h>
 
 #include "layout.h"
 #include "log.h"

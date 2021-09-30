@@ -9,7 +9,6 @@
 #------------------------------------------------------------------------------
 
 get_filename_component(SHARED_INC_DIR "shared/minion_rt_helpers/include" ABSOLUTE)
-set(SHARED_INC_DIRS ${SHARED_INC_DIR})
 
 add_subdirectory(shared)
 add_subdirectory(MachineMinion)

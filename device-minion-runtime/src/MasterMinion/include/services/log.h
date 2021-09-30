@@ -20,7 +20,7 @@
 #include <inttypes.h>
 
 /* mm_rt_svcs */
-#include "etsoc/common/log_common.h"
+#include <etsoc/common/log_common.h>
 
 /* mm specific headers */
 #include "device_minion_runtime_build_configuration.h"

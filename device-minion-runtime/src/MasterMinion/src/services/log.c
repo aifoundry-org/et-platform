@@ -21,8 +21,9 @@
 #include <stddef.h>
 
 /* mm_rt_svcs */
-#include "etsoc/isa/atomic.h"
-#include "etsoc/isa/sync.h"
+#include <etsoc/isa/atomic.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/sync.h>
 
 /* mm_rt_helpers */
 #include "layout.h"
@@ -30,7 +31,6 @@
 /* mm specific headers */
 #include "services/log.h"
 #include "services/trace.h"
-#include "etsoc/isa/hart.h"
 #include "drivers/console.h"
 
 /*! \var log_interface_t Log_Interface

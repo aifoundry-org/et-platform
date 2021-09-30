@@ -24,14 +24,14 @@
 #include <esperanto/device-apis/device_apis_trace_types.h>
 #include <stddef.h>
 #include <inttypes.h>
-#include "etsoc/isa/etsoc_memory.h"
-#include "log.h"
-#include "etsoc/isa/hart.h"
-#include "layout.h"
-#include "etsoc/isa/cacheops.h"
-#include "common_trace_defs.h"
+#include <etsoc/isa/etsoc_memory.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/cacheops.h>
+#include <etsoc/isa/hpm_counter.h>
 
-#include "etsoc/isa/hpm_counter.h"
+#include "log.h"
+#include "layout.h"
+#include "common_trace_defs.h"
 
 #define ET_TRACE_ENCODER_IMPL
 #define ET_TRACE_GET_HART_ID()       get_hart_id()

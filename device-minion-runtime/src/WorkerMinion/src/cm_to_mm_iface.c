@@ -1,10 +1,10 @@
 #include <string.h>
 
-#include "etsoc/isa/etsoc_memory.h"
-#include "etsoc/isa/sync.h"
-#include "etsoc/isa/syscall.h"
-#include "transports/circbuff/circbuff.h"
-#include "etsoc/drivers/pmu/pmu.h"
+#include <etsoc/isa/etsoc_memory.h>
+#include <etsoc/isa/sync.h>
+#include <etsoc/isa/syscall.h>
+#include <transports/circbuff/circbuff.h>
+#include <etsoc/drivers/pmu/pmu.h>
 
 #include "cm_to_mm_iface.h"
 #include "mm_to_cm_iface.h"

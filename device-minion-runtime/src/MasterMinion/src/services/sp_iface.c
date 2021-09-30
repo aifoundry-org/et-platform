@@ -23,12 +23,12 @@
 */
 /***********************************************************************/
 /* mm_rt_svcs */
-#include "etsoc/isa/sync.h"
-#include "etsoc/isa/hart.h"
-#include "etsoc/isa/riscv_encoding.h"
-#include "etsoc/isa/syscall.h"
-#include "etsoc/drivers/pmu/pmu.h"
-#include "transports/sp_mm_iface/sp_mm_comms_spec.h"
+#include <etsoc/isa/sync.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/riscv_encoding.h>
+#include <etsoc/isa/syscall.h>
+#include <etsoc/drivers/pmu/pmu.h>
+#include <transports/sp_mm_iface/sp_mm_comms_spec.h>
 
 /* mm specific headers */
 #include "services/sp_iface.h"

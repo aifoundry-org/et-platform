@@ -23,16 +23,16 @@
 #include <stdbool.h>
 
 /* mm_rt_svcs */
-#include "etsoc/isa/atomic.h"
-#include "etsoc/isa/esr_defines.h"
-#include "etsoc/isa/fcc.h"
-#include "etsoc/isa/flb.h"
-#include "etsoc/isa/hart.h"
-#include "etsoc/isa/riscv_encoding.h"
-#include "etsoc/isa/sync.h"
-#include "etsoc/isa/syscall.h"
-#include "transports/mm_cm_iface/broadcast.h"
-#include "transports/circbuff/circbuff.h"
+#include <etsoc/isa/atomic.h>
+#include <etsoc/isa/esr_defines.h>
+#include <etsoc/isa/fcc.h>
+#include <etsoc/isa/flb.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/riscv_encoding.h>
+#include <etsoc/isa/sync.h>
+#include <etsoc/isa/syscall.h>
+#include <transports/mm_cm_iface/broadcast.h>
+#include <transports/circbuff/circbuff.h>
 
 /* mm specific headers */
 #include "config/mm_config.h"

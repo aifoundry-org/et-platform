@@ -1,5 +1,5 @@
 /* mm_rt_svcs */
-#include "etsoc/isa/macros.h"
+#include <etsoc/isa/macros.h>
 
 /* mm specific headers */
 #include "services/log.h"
