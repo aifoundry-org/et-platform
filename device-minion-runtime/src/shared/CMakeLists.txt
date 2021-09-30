@@ -8,6 +8,4 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-# TODO: Remove device_common once DNN lib has shifted to et-common-libs
-add_subdirectory(device_common)
 add_subdirectory(minion_rt_helpers)
