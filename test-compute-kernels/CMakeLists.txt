@@ -20,7 +20,6 @@ set(GCC_SYSROOT_PATH /esperanto/minion CACHE STRING "Path to the gcc riscv toolc
 # First step as the artifacts of this package are consumed by the toolchain script
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(esperantoTrace REQUIRED)
-find_package(etsoc_hal REQUIRED)
 
 # Must set CMAKE_TOOLCHAIN_FILE before project() is called
 set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
