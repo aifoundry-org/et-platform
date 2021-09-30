@@ -46,6 +46,14 @@ stages:
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"
     exec_after: [CHECK_IN]
   
+  SW_PLATFORM_BASIC_INTEGRATION:
+    cmds:
+      - job: sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"
+    exec_after: [CHECK_IN]
+
   FIRMWARE_TESTS_ZEBU_BEMU:
     cmds:
       - job: sw-platform/system-sw-integration/pipelines/firmware-tests-zebu-bemu

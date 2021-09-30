@@ -287,6 +287,27 @@ pipeline {
                 }
               }
             }
+            stage('SW_PLATFORM_BASIC_INTEGRATION') {
+              steps {
+                script {
+                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration', COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}")) {
+                    script {
+                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}", JOB_NAME: 'sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration')
+                      build job:
+                        'sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration',
+                        propagate: true,
+                        parameters: [
+                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"),
+                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
+                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                        ]
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
