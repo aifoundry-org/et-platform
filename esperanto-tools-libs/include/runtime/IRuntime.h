@@ -140,8 +140,8 @@ public:
   /// (waitForEventId) to syncrhonize when the kernel ends the execution
   ///
   virtual EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                               uint64_t shire_mask, std::optional<UserTrace> userTraceConfig = std::nullopt,
-                               bool barrier = true, bool flushL3 = false) = 0;
+                               uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
+                               std::optional<UserTrace> userTraceConfig = std::nullopt) = 0;
 
   /// \brief Queues a memcpy operation from host memory to device memory. The
   /// device memory must be previously allocated by a mallocDevice.

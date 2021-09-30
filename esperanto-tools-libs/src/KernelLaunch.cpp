@@ -28,8 +28,8 @@ using namespace rt;
 using namespace rt::profiling;
 
 EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std::byte* kernel_args,
-                                 size_t kernel_args_size, uint64_t shire_mask, std::optional<UserTrace> userTraceConfig,
-                                 bool barrier, bool flushL3) {
+                                 size_t kernel_args_size, uint64_t shire_mask, bool barrier, bool flushL3,
+                                 std::optional<UserTrace> userTraceConfig) {
   std::unique_lock lock(mutex_);
   const auto& kernel = find(kernels_, kernelId)->second;
   ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId, kernelId, kernel->getLoadAddress());
