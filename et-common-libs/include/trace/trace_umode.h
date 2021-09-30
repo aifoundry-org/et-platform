@@ -21,8 +21,6 @@
 extern "C" {
 #endif
 
-#include <et-trace/encoder.h>
-
 /*! \fn void __et_printf(const char *fmt)
     \brief This function logs the string message into Trace, If Trace was
            enabled for caller Hart.
