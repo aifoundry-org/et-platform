@@ -8,7 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.13)
 project(deviceMinionRuntime VERSION 0.0.1 LANGUAGES C ASM)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
