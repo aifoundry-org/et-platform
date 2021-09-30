@@ -86,7 +86,7 @@ static void dm_svc_get_public_keys(tag_id_t tag_id, uint64_t req_start_time)
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_fused_pub_keys_rsp_t))) {
         Log_Write(LOG_LEVEL_ERROR, "send_status_response: Cqueue push error!\n");
-    }    
+    }
 }
 
 /************************************************************************
@@ -326,7 +326,7 @@ static int32_t dm_svc_update_sp_boot_root_certificate_hash(
 *
 *   DESCRIPTION
 *
-*       This is a helper function for sending device response to host interface 
+*       This is a helper function for sending device response to host interface
 *
 *   INPUTS
 *
@@ -388,16 +388,41 @@ static int32_t dm_svc_firmware_update(void)
     if (0 != flash_fs_update_partition((void *)DEVICE_FW_UPDATE_REGION_BASE,
                                        DEVICE_FW_UPDATE_REGION_SIZE,
                                        SPI_FLASH_WRITES_256B_CHUNK_SIZE)) {
-        MESSAGE_ERROR("flash_fs_update_partition: failed to write data!\n");
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_update_partition: failed to write data!\n");
         return DEVICE_FW_FLASH_UPDATE_ERROR;
     } else {
         Log_Write(LOG_LEVEL_INFO, "flash partition has been updated with new image!\n");
     }
 
+#ifdef VALIDATE_FW_WRITE
+    /* Read back the image data written into flash and compare with the
+        the data present in the DDR - ensure data is written correctly to
+        flash.
+    */
+    const uint8_t *ddr_data = (const uint8_t * )DEVICE_FW_UPDATE_REGION_BASE;
+    uint8_t flash_data[SPI_FLASH_WRITES_256B_CHUNK_SIZE];
+
+    for (uint32_t i = 0; i < DEVICE_FW_UPDATE_REGION_SIZE;
+                    i = i + SPI_FLASH_WRITES_256B_CHUNK_SIZE) {
+        /* Read data from flash passive partition */
+        if ( 0 != flash_fs_read(false, flash_data, SPI_FLASH_WRITES_256B_CHUNK_SIZE, i)) {
+            Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: Data validation failed!\n");
+            return DEVICE_FW_FLASH_UPDATE_ERROR;
+        }
+
+        /* Compare with the image data in the DDR */
+        if(memcmp((const void *)(ddr_data + i), (const void *) flash_data,
+                                SPI_FLASH_WRITES_256B_CHUNK_SIZE)) {
+            Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: Data validation failed!\n");
+            return DEVICE_FW_FLASH_UPDATE_ERROR;
+        }
+    }
+#endif
+
     // Swap the priority counter of the partitions. so bootrom will choose
     // the partition with an updated image
     if (0 != flash_fs_swap_primary_boot_partition()) {
-        MESSAGE_ERROR("flash_fs_swap_primary_boot_partition: Update priority counter failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_swap_primary_boot_partition: Update priority counter failed!\n");
         return DEVICE_FW_FLASH_PRIORITY_COUNTER_SWAP_ERROR;
     }
 
