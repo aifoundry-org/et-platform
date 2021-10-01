@@ -26,17 +26,11 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         case SYSCALL_CACHE_OPS_INVALIDATE:
             ret = syscall(SYSCALL_CACHE_OPS_INVALIDATE_INT, arg1, arg2, arg3);
             break;
-        case SYSCALL_CACHE_CONTROL:
-            ret = syscall(SYSCALL_CACHE_CONTROL_INT, arg1, arg2, arg3);
-            break;
-        case SYSCALL_FLUSH_L3:
-            ret = syscall(SYSCALL_FLUSH_L3_INT, arg1, arg2, arg3);
+        case SYSCALL_CACHE_OPS_EVICT_L1:
+            ret = syscall(SYSCALL_CACHE_OPS_EVICT_L1_INT, arg1, arg2, arg3);
             break;
         case SYSCALL_SHIRE_CACHE_BANK_OP:
             ret = syscall(SYSCALL_SHIRE_CACHE_BANK_OP_INT, arg1, arg2, arg3);
-            break;
-        case SYSCALL_EVICT_L1:
-            ret = syscall(SYSCALL_EVICT_L1_INT, arg1, arg2, arg3);
             break;
         case SYSCALL_RETURN_FROM_KERNEL:
             /* Dump U-mode context in case of kernel self abort */
@@ -45,6 +39,12 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
                 kernel_self_abort_save_context();
             }
             ret = return_from_kernel((int64_t)arg1, arg2);
+            break;
+        case SYSCALL_CACHE_CONTROL:
+            ret = syscall(SYSCALL_CACHE_CONTROL_INT, arg1, arg2, arg3);
+            break;
+        case SYSCALL_FLUSH_L3:
+            ret = syscall(SYSCALL_FLUSH_L3_INT, arg1, arg2, arg3);
             break;
         default:
             ret = SYSCALL_INVALID_ID;

@@ -251,7 +251,7 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
 
             /* If barrier flag is set, wait until all cmds are
             processed in the current SQ */
-            if(cmd_hdr->cmd_hdr.flags & CMD_HEADER_FLAG_BARRIER)
+            if(cmd_hdr->cmd_hdr.flags & CMD_FLAGS_BARRIER_ENABLE)
             {
                 TRACE_LOG_CMD_STATUS(cmd_hdr->cmd_hdr.msg_id, (uint8_t)sqw_idx,
                                      cmd_hdr->cmd_hdr.tag_id, CMD_STATUS_WAIT_BARRIER);
@@ -353,11 +353,15 @@ void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
         /* Update the SQW state to idle */
         atomic_store_local_32(&SQW_CB.sqw_status[sqw_idx].state, SQW_STATE_IDLE);
 
+        Log_Write(LOG_LEVEL_DEBUG, "SQW:IDX=%d:State Idle\r\n", sqw_idx);
+
         /* Wait for SQ Worker notification from Dispatcher */
         local_fcc_flag_wait(&SQW_CB.sqw_fcc_flags[sqw_idx]);
 
         /* Update the SQW state to busy */
         atomic_store_local_32(&SQW_CB.sqw_status[sqw_idx].state, SQW_STATE_BUSY);
+
+        Log_Write(LOG_LEVEL_DEBUG, "SQW:IDX=%d:State Busy\r\n", sqw_idx);
 
         /* Get current minion cycle */
         start_cycles = PMC_Get_Current_Cycles();
@@ -498,6 +502,8 @@ void SQW_Abort_All_Pending_Commands(uint8_t sqw_idx)
 {
     uint32_t old_state;
 
+    Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]: Abort all pending commands\r\n", sqw_idx);
+
     /* Traverse SQ and check for state. If busy, set abort state
     and wait for it to be idle. This would guarantee
     that all pending commadns in SQ are aborted. */
@@ -506,13 +512,15 @@ void SQW_Abort_All_Pending_Commands(uint8_t sqw_idx)
 
     if (old_state == SQW_STATE_BUSY)
     {
-        Log_Write(LOG_LEVEL_ERROR, "SQW[%d]: Abort all pending commands\r\n", sqw_idx);
+        Log_Write(LOG_LEVEL_ERROR, "SQW[%d]: Aborting all pending commands\r\n", sqw_idx);
 
         /* Spin-wait if the SQW state is aborted */
         do
         {
             asm volatile("fence\n" ::: "memory");
         } while (atomic_load_local_32(&SQW_CB.sqw_status[sqw_idx].state) == SQW_STATE_ABORTED);
+
+        Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]: Aborted all pending commands\r\n", sqw_idx);
     }
 }
 

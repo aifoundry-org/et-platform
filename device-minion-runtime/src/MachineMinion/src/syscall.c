@@ -98,9 +98,6 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
     case SYSCALL_SHIRE_CACHE_BANK_OP_INT:
         ret = shire_cache_bank_op_with_params(arg1, arg2, arg3);
         break;
-    case SYSCALL_EVICT_L1_INT:
-        ret = evict_l1(arg1, arg2);
-        break;
     case SYSCALL_CONFIGURE_PMCS_INT:
         ret = configure_pmcs(arg1, arg2);
         break;
@@ -130,6 +127,9 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         break;
     case SYSCALL_CACHE_OPS_INVALIDATE_INT:
         cache_ops_cache_invalidate(arg1);
+        break;
+    case SYSCALL_CACHE_OPS_EVICT_L1_INT:
+        ret = evict_l1(arg1, arg2);
         break;
     default:
         ret = SYSCALL_INVALID_ID;

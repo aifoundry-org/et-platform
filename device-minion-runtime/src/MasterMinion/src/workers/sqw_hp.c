@@ -199,7 +199,7 @@ static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t 
 
             /* If barrier flag is set, wait until all cmds are
             processed in the current HP SQ */
-            if(hp_cmd_hdr->cmd_hdr.flags & CMD_HEADER_FLAG_BARRIER)
+            if(hp_cmd_hdr->cmd_hdr.flags & CMD_FLAGS_BARRIER_ENABLE)
             {
                 TRACE_LOG_CMD_STATUS(hp_cmd_hdr->cmd_hdr.msg_id, (uint8_t)sqw_hp_idx,
                                      hp_cmd_hdr->cmd_hdr.tag_id, CMD_STATUS_WAIT_BARRIER);

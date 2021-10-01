@@ -42,7 +42,7 @@
 */
 #define TRACE_NODE_INDEX    0
 
-/*! \def DMA_TO_DEVICEAPI_STATUS 
+/*! \def DMA_TO_DEVICEAPI_STATUS
     \brief Helper macro to convert DMA Error to DEVICE API Errors
 */
 #define DMA_TO_DEVICEAPI_STATUS(status, abort_status, ret_status)   \
@@ -125,6 +125,9 @@ static inline int8_t abort_cmd_handler(void* command_buffer, uint8_t sqw_hp_idx)
 
     /* Blocking call that aborts all dispatched kernels */
     KW_Abort_All_Dispatched_Kernels(sqw_hp_idx);
+
+    Log_Write(LOG_LEVEL_DEBUG,
+        "SQ_HP[%d] abort_cmd_handler:ABORT_CMD processing complete\r\n", sqw_hp_idx);
 
     /* Set the abort command status */
     rsp.status = DEV_OPS_API_ABORT_RESPONSE_SUCCESS;
@@ -418,7 +421,7 @@ static inline int8_t echo_cmd_handler(void* command_buffer, uint8_t sqw_idx,
 {
     const struct device_ops_echo_cmd_t *cmd =
         (struct device_ops_echo_cmd_t *)command_buffer;
-    struct device_ops_echo_rsp_t rsp;
+    struct device_ops_echo_rsp_t rsp = { 0 };
     int8_t status = STATUS_SUCCESS;
     int8_t abort_status = STATUS_SUCCESS;
 
@@ -780,8 +783,8 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
     uint64_t cm_shire_mask;
 
     /* If flags are set to extract both MM and CM Trace buffers. */
-    if((cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF) &&
-    (cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF))
+    if((cmd->command_info.cmd_hdr.flags & CMD_FLAGS_MMFW_TRACEBUF) &&
+    (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_CMFW_TRACEBUF))
     {
         cm_shire_mask = Trace_Get_CM_Shire_Mask();
 
@@ -806,7 +809,7 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
         }
     }
     /* Check if flag is set to extract MM Trace buffer. */
-    else if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF)
+    else if(cmd->command_info.cmd_hdr.flags & CMD_FLAGS_MMFW_TRACEBUF)
     {
         if(cmd->list[TRACE_NODE_INDEX].size <= MM_TRACE_BUFFER_SIZE)
         {
@@ -821,7 +824,7 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
         }
     }
     /* Check if flag is set to extract CM Trace buffer. */
-    else if(cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF)
+    else if(cmd->command_info.cmd_hdr.flags & CMD_FLAGS_CMFW_TRACEBUF)
     {
         cm_shire_mask = Trace_Get_CM_Shire_Mask ();
 
@@ -902,8 +905,8 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
     if(abort_status == STATUS_SUCCESS)
     {
         /* Check if no special flag is set. */
-        if((cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_MM_TRACE_BUF) ||
-            (cmd->command_info.cmd_hdr.flags & CMD_HEADER_FLAG_CM_TRACE_BUF))
+        if((cmd->command_info.cmd_hdr.flags & CMD_FLAGS_MMFW_TRACEBUF) ||
+            (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_CMFW_TRACEBUF))
         {
             dma_xfer_count = 1;
             dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
@@ -917,7 +920,7 @@ static inline int8_t dma_readlist_cmd_handler(void* command_buffer, uint8_t sqw_
                                         sizeof(struct dma_read_node));
 
             /* Ensure the size of Xfer is bigger than zero */
-            status =  ((dma_xfer_count > 0) && (dma_xfer_count <= DEVICE_OPS_DMA_LIST_NODES_MAX)) ? 
+            status =  ((dma_xfer_count > 0) && (dma_xfer_count <= DEVICE_OPS_DMA_LIST_NODES_MAX)) ?
                                                    STATUS_SUCCESS : DMA_ERROR_INVALID_XFER_COUNT;
         }
     }
@@ -1229,13 +1232,13 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
     }
 
     /* Check if RT Component is MM Trace. */
-    if((status == STATUS_SUCCESS) && (cmd->rt_type & TRACE_RT_CTRL_MM))
+    if((status == STATUS_SUCCESS) && (cmd->rt_type & TRACE_RT_TYPE_MM))
     {
         Trace_RT_Control_MM(cmd->control);
     }
 
     /* Check if RT Component is CM Trace. */
-    if((status == STATUS_SUCCESS) && (cmd->rt_type & TRACE_RT_CTRL_CM))
+    if((status == STATUS_SUCCESS) && (cmd->rt_type & TRACE_RT_TYPE_CM))
     {
         mm_to_cm_message_trace_rt_control_t cm_msg;
         cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
@@ -1273,7 +1276,7 @@ static inline int8_t trace_rt_control_cmd_handler(void* command_buffer, uint8_t 
     {
         rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_HOST_ABORTED;
     }
-    else if(!((cmd->rt_type & TRACE_RT_CTRL_MM) || (cmd->rt_type & TRACE_RT_CTRL_CM)))
+    else if(!((cmd->rt_type & TRACE_RT_TYPE_MM) || (cmd->rt_type & TRACE_RT_TYPE_CM)))
     {
         rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_RT_TYPE;
     }
