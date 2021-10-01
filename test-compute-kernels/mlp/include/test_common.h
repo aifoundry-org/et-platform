@@ -7,7 +7,6 @@
 // Firmware
 //#include "fw_ecalls.h"
 //Local
-#include "utils.h"
 
 // L2 SCP regions (32,768 entries):
 //  - 4096 entries for activation prefetch (4 buffers per minion x 16 cachelines per minion x 8 minions x 7 iterations)
@@ -21,7 +20,9 @@
 #define L2_SCP_ACTIVATION_SOURCE_SIZE   2048
 #define L2_SCP_RESULT_OFFSET            (L2_SCP_ACTIVATION_SOURCE_OFFSET+L2_SCP_ACTIVATION_SOURCE_SIZE)
 #define L2_SCP_RESULT_SIZE              1024
-#define L2_SCP_WEIGHT_MEM_OFFSET        (L2_SCP_RESULT_OFFSET+L2_SCP_RESULT_SIZE)
+#define L2_SCP_WEIGHT_PREF_OFFSET       (L2_SCP_RESULT_OFFSET+L2_SCP_RESULT_SIZE)
+#define L2_SCP_WEIGHT_PREF_SIZE         4096
+#define L2_SCP_WEIGHT_MEM_OFFSET        (L2_SCP_WEIGHT_PREF_OFFSET+L2_SCP_WEIGHT_PREF_SIZE)
 
 // Helper thread masks
 #define COMPUTE_THREADS           0xFFFFFFFFULL

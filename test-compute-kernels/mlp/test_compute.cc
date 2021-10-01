@@ -4,12 +4,14 @@
 #include "test_compute_pass0.h"
 #include "test_compute_pass1.h"
 #include "test_compute_pass2.h"
-#include "utils.h"
 #include "test_filter_data.h"
 #include "test_act_data.h"
+#include "cacheops.h"
+
+void init_l2_scp(uint32_t shire_id, uint32_t minion_id);
 
 // Initializes the L2 scp
-static inline void init_l2_scp(uint32_t shire_id, uint32_t minion_id)
+void init_l2_scp(uint32_t shire_id, uint32_t minion_id)
 {
     // Each minion writes 1024 CL, to write a total of 2MBytes of L2Scp
     uint64_t l2_scp_addr = (uint64_t volatile) 0x0080000000UL + (shire_id << 23) + (minion_id * 1024 * 64);
@@ -97,6 +99,18 @@ static inline void init_l2_scp(uint32_t shire_id, uint32_t minion_id)
       : "t0", "t1", "t2", "x31"
     );
 
+    // Local barrier amongst compute threads
+    uint64_t barrier = (31 << 5);
+    uint64_t last = 0;
+    __asm__ __volatile__("csrrw %[last], 0x820, %[barrier]" : [last] "=r"(last) : [barrier] "r" (barrier));
+    
+    // Drain 4 banks
+    if (last) {
+      for (uint64_t i = 0; i < 4; i++) {
+        cb_drain(shire_id, i);
+      }
+    }
+
     // Global barrier (harts, flb to use, source shire id, fcc to sync minions)
     global_barrier_starter(32, 0, shire_id, 0);
 
@@ -148,6 +162,21 @@ void test_compute(uint32_t shire_id, uint32_t minion_id)
         "test_compute_end_point:\n"
         ".global test_compute_end_point\n"
     );
+
+    volatile float buffer[8];
+
+    __asm__ __volatile__ (
+        "fsw.ps f0, 0(%[buffer])"
+      :
+      : [buffer] "r" (buffer)
+      : "f0"
+    );
+
+    if (minion_id == 0) {
+        for (int i = 0; i < 8; i++) {
+            et_printf("%i => %f\n", i, (double) buffer[i]);
+        }
+    }
 }
 
 

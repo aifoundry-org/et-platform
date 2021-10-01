@@ -61,7 +61,7 @@
         "or     x7, %[l2_scp_dest_entry], %[tensor_a_init]\n" // Merge source with l2 scp dest
         "addi   x7, x7, 15\n"                                 // 16 cachelines worth of prefetching
         // TensorWait ID for TensorLoadL2Scp
-        "li     x4, 4\n"
+        "li     x4, 2\n"
         // TensorLoadL2Scp stride
         "addi   x31, %[tensor_load_l2scp_stride], 0x0\n"
         // Prefetches to wait before doing a tensor wait

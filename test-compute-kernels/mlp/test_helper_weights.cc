@@ -45,6 +45,7 @@ void test_helper_weights(uint32_t shire_id, uint32_t minion_id)
     // 3 passes
     test_helper_weights_pass0(shire_id, minion_id);
     test_helper_weights_pass1(shire_id, minion_id);
+    test_helper_weights_pass2(shire_id, minion_id);
 
      __asm__ __volatile__ (
         "test_helper_weights_end_point:\n"

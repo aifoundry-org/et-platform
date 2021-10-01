@@ -35,19 +35,7 @@
         if (before_fcc_consume)
             fcc_consume((uint64_t) before_fcc_reg);
 
-        //// Drain the coalescing buffer of shire cache bank
-        //// 1. Write the CB invalidate (assumes FSM always available)
-        //volatile uint64_t *sc_idx_cop_sm_ctl_addr = (uint64_t *)
-        //    ESR_CACHE((uint64_t) drain_shire, (uint64_t) drain_bank, (uint64_t) SC_IDX_COP_SM_CTL_USER);
-
-        //*sc_idx_cop_sm_ctl_addr = (1 << 0) | // Go bit = 1
-        //                          (10 << 8); // Opcode = CB_Inv (Coalescing buffer invalidate)
-
-        //// 2. Checks done
-        //uint64_t state;
-        //do {
-        //    state = (*sc_idx_cop_sm_ctl_addr >> 24) & 0xFF;
-        //} while (state != 4);
+        cb_drain(shire_id, bank);
 
         // Wait until all the other C.B. drainer threads are done
         if (after_flb)

@@ -6,7 +6,6 @@
 
 // Local
 #include "test_common.h"
-#include "utils.h"
 
 void test_helper_code_pass2(uint32_t shire_id, uint32_t minion_id);
 

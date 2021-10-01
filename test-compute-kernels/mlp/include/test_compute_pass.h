@@ -26,7 +26,7 @@
 
     // C col offset computation
     // Within a shire, each minion pair advances 16 cols
-    uint64_t  cColInitMinion = (minion_id / 2) * 16;
+    uint64_t  cColInitMinion = ((minion_id / 2) & 0x3) * 16;
     // Each pair of consecutive shires work with same B section
     // Each pair moves 64 columns
     uint64_t  cColInitShire = (shire_id / 2) * 64;
@@ -47,7 +47,7 @@
     // Offset where the L2 weights are prefetched
     // Offset depending where the section of each minion is prefetched
     uint64_t  tensor_b_scp_chunk = (minion_id & 1) + ((minion_id & 0x6) >> 1) * 2;
-    uint64_t  tensor_b_init = (uint64_t volatile) 0x0080000000UL + (shire_id << 23) + (L2_SCP_WEIGHT_MEM_OFFSET << 6) + tensor_b_scp_chunk * 256 * 64;
+    uint64_t  tensor_b_init = (uint64_t volatile) 0x0080000000UL + (shire_id << 23) + (L2_SCP_WEIGHT_PREF_OFFSET << 6) + tensor_b_scp_chunk * 256 * 64;
 
     // Result is stored in the L2 SCP using the "linear" region
 #if N_SHIRES_COMPUTE == 32
