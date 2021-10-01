@@ -22,9 +22,8 @@
 #include <random>
 
 struct DeviceErrors : public Fixture {
-  DeviceErrors() {
-    auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
-    init(std::move(deviceLayer));
+  void SetUp() override {
+    Fixture::SetUp();
     // unset the callback because we don't want to fail on purpose, thats part of these tests
     runtime_->setOnStreamErrorsCallback(nullptr);
     add_vector_kernel = loadKernel("add_vector.elf");
@@ -67,7 +66,7 @@ TEST_F(DeviceErrors, KernelLaunchException) {
 }
 
 int main(int argc, char** argv) {
-  Fixture::sPcieMode = IsPcie(argc, argv);
+  Fixture::sMode = IsPcie(argc, argv) ? Fixture::Mode::PCIE : Fixture::Mode::SYSEMU;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

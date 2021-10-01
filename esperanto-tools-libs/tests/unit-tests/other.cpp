@@ -14,16 +14,7 @@
 #include <device-layer/IDeviceLayerFake.h>
 using namespace rt;
 
-namespace {
-class TestFixture : public ::Fixture {
-public:
-  explicit TestFixture() {
-    init(std::make_unique<dev::IDeviceLayerFake>());
-  }
-};
-}
-
-TEST_F(TestFixture, checkStackTraceException)  {
+TEST_F(Fixture, checkStackTraceException) {
   //run a kernelLaunch with bad parameters to check for the exception
   try {
     runtime_->kernelLaunch(StreamId{7}, KernelId{8}, nullptr, 0, 0);
@@ -32,8 +23,8 @@ TEST_F(TestFixture, checkStackTraceException)  {
   }
 }
 
-
 int main(int argc, char** argv) {
+  Fixture::sMode = Fixture::Mode::FAKE;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

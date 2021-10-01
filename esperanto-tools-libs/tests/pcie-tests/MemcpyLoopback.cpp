@@ -14,20 +14,12 @@
 #include <device-layer/IDeviceLayer.h>
 using namespace rt;
 
-namespace {
-class TestFixture : public ::Fixture {
-public:
-  explicit TestFixture() {
-    init(dev::IDeviceLayer::createPcieDeviceLayer());
-  }
-};
-} // namespace
-
-TEST_F(TestFixture, memcpy_64B_5_EXEC_1_ST_20_TH) {
+TEST_F(Fixture, memcpy_64B_5_EXEC_1_ST_20_TH) {
   run_stress_mem(runtime_.get(), 64, 5, 1, 20, false);
 }
 
 int main(int argc, char** argv) {
+  Fixture::sMode = Fixture::Mode::PCIE;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

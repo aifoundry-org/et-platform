@@ -27,9 +27,8 @@ namespace fs = std::experimental::filesystem;
 namespace {
 
 struct TestCodeLoading : public Fixture {
-  TestCodeLoading() {
-    auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
-    init(std::move(deviceLayer));
+  void SetUp() override {
+    Fixture::SetUp();
     // unset the callback because we don't want to fail on purpose, thats part of these tests
     runtime_->setOnStreamErrorsCallback(nullptr);
   }
@@ -37,7 +36,6 @@ struct TestCodeLoading : public Fixture {
 
 // Load and removal of a single kernel.
 TEST_F(TestCodeLoading, LoadKernel) {
-
   auto kernel = loadKernel("add_vector.elf");
   runtime_->waitForStream(defaultStream_);
   runtime_->unloadCode(kernel);
@@ -66,7 +64,7 @@ TEST_F(TestCodeLoading, MultipleLoads) {
 } // namespace
 
 int main(int argc, char** argv) {
-  Fixture::sPcieMode = IsPcie(argc, argv);
+  Fixture::sMode = IsPcie(argc, argv) ? Fixture::Mode::PCIE : Fixture::Mode::SYSEMU;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

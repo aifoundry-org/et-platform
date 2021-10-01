@@ -35,11 +35,6 @@ cd $PROJECT_DIR/host-software/linuxDriver/tests
 sudo ctest -T Start -T Test -R "load-driver" -V --no-compress-output
 exit_on_fail $?
 
-## Run PCIE driver dedicated tests
-cd $PROJECT_DIR/host-software/linuxDriver/tests
-sudo ctest -T Start -T Test -L "LOOPBACK" -V --no-compress-output
-exit_on_fail $?
-
 # Run the runtime tests
 cd $PROJECT_DIR/host-software/runtime
 sudo ctest -L "Pcie" -V --no-compress-output

@@ -2,6 +2,7 @@
 #include "runtime/Types.h"
 #include <common/Constants.h>
 #include <device-layer/IDeviceLayer.h>
+#include <device-layer/IDeviceLayerFake.h>
 #include <experimental/filesystem>
 #include <fstream>
 #include <gmock/gmock.h>
@@ -10,64 +11,6 @@
 #include <random>
 #include <runtime/IRuntime.h>
 #include <sw-sysemu/SysEmuOptions.h>
-
-inline std::vector<std::byte> readFile(const std::string& path) {
-  auto file = std::ifstream(path, std::ios_base::binary);
-  EXPECT_TRUE(file.is_open());
-  if (!file.is_open()) {
-    return {};
-  }
-  auto iniF = file.tellg();
-  file.seekg(0, std::ios::end);
-  auto endF = file.tellg();
-  auto size = endF - iniF;
-  file.seekg(0, std::ios::beg);
-
-  std::vector<std::byte> fileContent(static_cast<uint32_t>(size));
-  file.read(reinterpret_cast<char*>(fileContent.data()), size);
-  return fileContent;
-}
-
-/* derive this class with mocked / non-mocked DeviceLayer. Intented to be instantiated in google test parameterized
- * tests (TEST_P) */
-class Fixture : public testing::Test {
-public:
-  void init(std::unique_ptr<dev::IDeviceLayer> deviceLayer) {
-    if (sPcieMode) {
-      RT_LOG(INFO) << "Running tests in PCIE mode; overriding given deviceLayer";
-      deviceLayer_ = dev::IDeviceLayer::createPcieDeviceLayer();
-    } else {
-      deviceLayer_ = std::move(deviceLayer);
-    }
-    runtime_ = rt::IRuntime::create(deviceLayer_.get());
-    devices_ = runtime_->getDevices();
-    auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
-    imp->setMemoryManagerDebugMode(devices_[0], true);
-    defaultDevice_ = devices_[0];
-    defaultStream_ = runtime_->createStream(devices_[0]);
-    runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
-  }
-
-  rt::KernelId loadKernel(const std::string& kernel_name, uint32_t deviceIdx = 0) {
-    auto kernelContent = readFile(std::string{KERNELS_DIR} + "/" + kernel_name);
-    EXPECT_FALSE(kernelContent.empty());
-    EXPECT_TRUE(devices_.size() > deviceIdx);
-    return runtime_->loadCode(defaultStream_, kernelContent.data(), kernelContent.size()).kernel_;
-  }
-  void TearDown() override {
-    runtime_->destroyStream(defaultStream_);
-  }
-
-  inline static bool sPcieMode = false;
-
-protected:
-  logging::LoggerDefault loggerDefault_;
-  std::unique_ptr<dev::IDeviceLayer> deviceLayer_;
-  rt::RuntimePtr runtime_;
-  std::vector<rt::DeviceId> devices_;
-  rt::DeviceId defaultDevice_;
-  rt::StreamId defaultStream_;
-};
 
 inline auto getDefaultOptions() {
   constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
@@ -90,6 +33,74 @@ inline auto getDefaultOptions() {
   sysEmuOptions.startGdb = false;
   return sysEmuOptions;
 }
+
+inline std::vector<std::byte> readFile(const std::string& path) {
+  auto file = std::ifstream(path, std::ios_base::binary);
+  EXPECT_TRUE(file.is_open());
+  if (!file.is_open()) {
+    return {};
+  }
+  auto iniF = file.tellg();
+  file.seekg(0, std::ios::end);
+  auto endF = file.tellg();
+  auto size = endF - iniF;
+  file.seekg(0, std::ios::beg);
+
+  std::vector<std::byte> fileContent(static_cast<uint32_t>(size));
+  file.read(reinterpret_cast<char*>(fileContent.data()), size);
+  return fileContent;
+}
+
+class Fixture : public testing::Test {
+public:
+  enum class Mode { PCIE, SYSEMU, FAKE };
+
+  void SetUp() override {
+    switch (sMode) {
+    case Mode::PCIE:
+      RT_LOG(INFO) << "Running tests with PCIE deviceLayer";
+      deviceLayer_ = dev::IDeviceLayer::createPcieDeviceLayer();
+      break;
+    case Mode::SYSEMU:
+      RT_LOG(INFO) << "Running tests with SYSEMU deviceLayer";
+      deviceLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
+      break;
+    case Mode::FAKE:
+      RT_LOG(INFO) << "Running tests with FAKE deviceLayer";
+      deviceLayer_ = std::make_unique<dev::IDeviceLayerFake>();
+    }
+    runtime_ = rt::IRuntime::create(deviceLayer_.get());
+    devices_ = runtime_->getDevices();
+    auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
+    imp->setMemoryManagerDebugMode(devices_[0], true);
+    defaultDevice_ = devices_[0];
+    defaultStream_ = runtime_->createStream(devices_[0]);
+    runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
+  }
+  void TearDown() override {
+    runtime_->destroyStream(defaultStream_);
+    runtime_.reset();
+    deviceLayer_.reset();
+  }
+
+  rt::KernelId loadKernel(const std::string& kernel_name, uint32_t deviceIdx = 0) {
+    auto kernelContent = readFile(std::string{KERNELS_DIR} + "/" + kernel_name);
+    EXPECT_FALSE(kernelContent.empty());
+    EXPECT_TRUE(devices_.size() > deviceIdx);
+    return runtime_->loadCode(defaultStream_, kernelContent.data(), kernelContent.size()).kernel_;
+  }
+
+  inline static Mode sMode = Mode::SYSEMU;
+
+protected:
+  logging::LoggerDefault loggerDefault_;
+  std::unique_ptr<dev::IDeviceLayer> deviceLayer_;
+  rt::RuntimePtr runtime_;
+  std::vector<rt::DeviceId> devices_;
+  rt::DeviceId defaultDevice_;
+  rt::StreamId defaultStream_;
+};
+
 template <typename TContainer> void randomize(TContainer& container, int init, int end) {
   std::mt19937 gen(std::random_device{}());
   std::uniform_int_distribution dis(init, end);

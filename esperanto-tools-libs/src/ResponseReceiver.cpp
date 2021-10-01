@@ -36,7 +36,7 @@ void ResponseReceiver::checkResponses() {
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  while (run_) {
+  while (runReceiver_) {
     int responsesCount = 0;
     for (int i = 0; i < kResponseNumTriesBeforePolling; ++i) {
       auto devicesToCheck = receiverServices_->getDevicesWithEventsOnFly();
@@ -58,7 +58,7 @@ void ResponseReceiver::checkResponses() {
 
 void ResponseReceiver::checkDevices() {
   auto devices = deviceLayer_->getDevicesCount();
-  while (run_) {
+  while (runDeviceChecker_) {
     std::this_thread::sleep_for(kCheckDevicesInterval);
     for (int i = 0; i < devices; ++i) {
       receiverServices_->checkDevice(i);
@@ -76,8 +76,9 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
 
 ResponseReceiver::~ResponseReceiver() {
   RT_LOG(INFO) << "Destroying response receiver";
-  run_ = false;
-  receiver_.join();
+  runDeviceChecker_ = false;
   deviceChecker_.join();
+  runReceiver_ = false;
+  receiver_.join();
   RT_LOG(INFO) << "Response receiver destroyed";
 }

@@ -14,15 +14,7 @@
 
 using namespace testing;
 
-
-class SysEmu: public Fixture {
-public:
-  SysEmu() {
-    auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
-    init(std::move(deviceLayer));
-  }
-};
-
+class SysEmu : public Fixture {};
 
 TEST_F(SysEmu, 1KB_1_memcpys_1stream_20thread) {
   run_stress_mem(runtime_.get(), 1<<10, 1, 1, 20);
@@ -94,5 +86,6 @@ TEST_F(SysEmu, 1KB_2_memcpys_2stream_1thread) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
+  Fixture::sMode = Fixture::Mode::SYSEMU;
   return RUN_ALL_TESTS();
 }

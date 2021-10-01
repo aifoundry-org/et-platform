@@ -46,6 +46,11 @@ constexpr auto kExceptionBufferSize = sizeof(ErrorContext) * kNumErrorContexts;
 constexpr auto kNumExecutionCacheBuffers = 5; // initial number of execution cache buffers
 } // namespace
 
+RuntimeImp::~RuntimeImp() {
+  running_ = false;
+  responseReceiver_.reset();
+}
+
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
   : deviceLayer_(deviceLayer) {
   auto devicesCount = deviceLayer_->getDevicesCount();
@@ -78,6 +83,7 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
     checkDevice(d);
     RT_LOG(INFO) << "Device: " << d << " initialized.";
   }
+  eventManager_.setThrowOnMissingEvent(true);
 }
 
 std::vector<DeviceId> RuntimeImp::getDevices() {
@@ -526,6 +532,9 @@ void RuntimeImp::dispatch(EventId event) {
 
 void RuntimeImp::checkDevice(int device) {
   auto state = deviceLayer_->getDeviceStateMasterMinion(device);
+  if (running_ && state == dev::DeviceState::PendingCommands) {
+    return;
+  }
   if (state != dev::DeviceState::Ready) {
     RT_LOG(WARNING) << "Device " << device << " is not ready. Current state: " << static_cast<int>(state)
                     << ". Runtime will issue abort command to all SQs of that device.";

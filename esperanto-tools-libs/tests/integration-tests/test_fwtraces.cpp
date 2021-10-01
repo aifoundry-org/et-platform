@@ -22,12 +22,7 @@
 
 namespace {
 
-struct FwTracesTest : public Fixture {
-  FwTracesTest() {
-    auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
-    init(std::move(deviceLayer));
-  }
-};
+struct FwTracesTest : public Fixture {};
 // Load and removal of a single kernel.
 TEST_F(FwTracesTest, CM_MM_Traces) {
   std::mt19937 gen(std::random_device{}());
@@ -73,7 +68,7 @@ TEST_F(FwTracesTest, CM_MM_Traces) {
 } // namespace
 
 int main(int argc, char** argv) {
-  Fixture::sPcieMode = IsPcie(argc, argv);
+  Fixture::sMode = IsPcie(argc, argv) ? Fixture::Mode::PCIE : Fixture::Mode::SYSEMU;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

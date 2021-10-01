@@ -80,6 +80,8 @@ public:
   // this method is a helper to call eventManager dispatch and streamManager removeEvent
   void dispatch(EventId event);
 
+  ~RuntimeImp();
+
 private:
   void checkDevice(int device) override;
   struct Kernel {
@@ -150,5 +152,6 @@ private:
   threadPool::ThreadPool nonblockableThreadPool_{8};
   threadPool::ThreadPool blockableThreadPool_{8};
   std::unique_ptr<ResponseReceiver> responseReceiver_;
+  bool running_ = false;
 };
 } // namespace rt

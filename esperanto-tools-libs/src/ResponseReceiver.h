@@ -34,7 +34,8 @@ private:
 
   std::thread receiver_;
   std::thread deviceChecker_;
-  std::atomic<bool> run_ = true;
+  bool runDeviceChecker_ = true;
+  bool runReceiver_ = true;
   dev::IDeviceLayer* deviceLayer_;
   IReceiverServices* receiverServices_;
 };

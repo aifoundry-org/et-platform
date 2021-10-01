@@ -24,6 +24,9 @@ public:
   void dispatch(EventId event);
   // returns false if the timeout is reached; true otherwise
   bool blockUntilDispatched(EventId event, std::chrono::milliseconds timeout);
+  void setThrowOnMissingEvent(bool value) {
+    throwOnMissingEvent_ = value;
+  }
 
 private:
 
@@ -55,6 +58,7 @@ private:
   bool isDispatched(EventId event) const;
 
   mutable std::mutex mutex_;
+  bool throwOnMissingEvent_ = false;
   std::set<EventId> onflyEvents_;
   std::unordered_map<EventId, std::unique_ptr<Semaphore>> blockedThreads_;
   std::underlying_type_t<EventId> nextEventId_ = 0;

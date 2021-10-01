@@ -75,6 +75,7 @@ TEST_F(EventManagerF, simple) {
   EXPECT_FALSE(em_.isDispatched(ev));
   em_.dispatch(ev);
   EXPECT_TRUE(em_.isDispatched(ev));
+  em_.setThrowOnMissingEvent(true);
 
   // we can't dispatch an event that its not onfly
   EXPECT_THROW(em_.dispatch(ev), Exception);

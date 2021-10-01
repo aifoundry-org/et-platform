@@ -32,13 +32,17 @@ void EventManager::dispatch(EventId event) {
   if (onflyEvents_.erase(event) != 1) {
 
     std::stringstream ss;
+    ss << "Couldn't dispatch event: " << static_cast<int>(event)
+       << ". Perhaps it was already dispatched?. Events on-fly: ";
     for (auto& e : onflyEvents_) {
       ss << static_cast<int>(e) << " ";
     }
-    RT_VLOG(LOW) << "Events on-fly: " << ss.str();
-
-    throw Exception("Couldn't dispatch event: " + std::to_string(static_cast<int>(event)) +
-                    ". Perhaps it was already dispatched?");
+    if (throwOnMissingEvent_) {
+      throw Exception("Couldn't dispatch event: " + std::to_string(static_cast<int>(event)) +
+                      ". Perhaps it was already dispatched?");
+    } else {
+      RT_LOG(WARNING) << ss.str();
+    }
   }
 
   auto it = blockedThreads_.find(event);

@@ -32,9 +32,8 @@ bool areEqual(int one, int other, int index, int thread, int stream) {
 }
 class SysEmu : public Fixture {
 public:
-  SysEmu() {
-    auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
-    init(std::move(deviceLayer));
+  void SetUp() override {
+    Fixture::SetUp();
     kernel_ = loadKernel("add_vector.elf");
   }
   void stressKernelThreadFunc(rt::DeviceId dev, uint32_t num_streams, uint32_t num_executions, uint32_t elems,
@@ -151,6 +150,7 @@ TEST_F(SysEmu, 64_ele_1_exe_1_st_100_th) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
+  Fixture::sMode = Fixture::Mode::SYSEMU;
   g3::log_levels::disable(DEBUG);
   return RUN_ALL_TESTS();
 }

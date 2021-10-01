@@ -19,9 +19,8 @@
 namespace {
 class TestMemcpy : public Fixture {
 public:
-  TestMemcpy() {
-    auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
-    init(std::move(deviceLayer));
+  void SetUp() override {
+    Fixture::SetUp();
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
     imp->setMemoryManagerDebugMode(devices_[0], true);
   }
@@ -104,7 +103,7 @@ TEST_F(TestMemcpy, 4GbMemcpy) {
 } // namespace
 
 int main(int argc, char** argv) {
-  Fixture::sPcieMode = IsPcie(argc, argv);
+  Fixture::sMode = IsPcie(argc, argv) ? Fixture::Mode::PCIE : Fixture::Mode::SYSEMU;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
