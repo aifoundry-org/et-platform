@@ -161,7 +161,11 @@ static void taskMain(void *pvParameters)
     Log_Write(LOG_LEVEL_CRITICAL, "time: %lu\n", timer_get_ticks_count());
 
     // Setup NOC
-    status = NOC_Configure(5); /* Configure NOC to 400 Mhz */
+    uint8_t hpdpll_strap_pins;
+    uint8_t noc_pll_mode;
+    hpdpll_strap_pins = get_hpdpll_strap_value();
+    noc_pll_mode = (hpdpll_strap_pins == 0) ? 5 : (hpdpll_strap_pins == 1) ? 11 : 17;
+    status = NOC_Configure(noc_pll_mode); /* Configure NOC to 400 Mhz */
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_noc() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED);
 
@@ -191,7 +195,13 @@ static void taskMain(void *pvParameters)
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
 
     /* Setup Compute Minions Shire Clocks and bring them out of Reset */
-    status = Minion_Configure_Minion_Clock_Reset(minion_shires_mask, 44 /*HDPLL-650 Mhz*/, 15 /*LVDPLL-650 Mhz*/, true /*Use Step Clock*/);
+    uint8_t lvdpll_strap_pins;
+    uint8_t hpdpll_mode;
+    uint8_t lvdpll_mode;
+    lvdpll_strap_pins = get_lvdpll_strap_value();
+    hpdpll_mode = (hpdpll_strap_pins == 0) ? 44 : (hpdpll_strap_pins == 1) ? 45 : 46; /*HDPLL-650 Mhz*/
+    lvdpll_mode = (lvdpll_strap_pins == 0) ? 15 : (lvdpll_strap_pins == 1) ? 60 : 105; /*LVPLL-650 Mhz*/
+    status = Minion_Configure_Minion_Clock_Reset(minion_shires_mask, hpdpll_mode, lvdpll_mode, true /*Use Step Clock*/);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Enable Compute Minion failed!")
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);

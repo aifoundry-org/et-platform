@@ -60,4 +60,18 @@ void pcie_reset_flr(void);
 */
 void pcie_reset_warm(void);
 
+/*! \fn uint32_t get_hpdpll_strap_value(void)
+    \brief This function reads HPDPLL starp value
+    \param None 
+    \return HPDPLL strap value
+*/
+uint8_t get_hpdpll_strap_value(void);
+
+/*! \fn uint32_t get_lvdpll_strap_value(void)
+    \brief This function reads LVDPLL starp value
+    \param None 
+    \return LVDPLL strap value
+*/
+uint8_t get_lvdpll_strap_value(void);
+
 #endif

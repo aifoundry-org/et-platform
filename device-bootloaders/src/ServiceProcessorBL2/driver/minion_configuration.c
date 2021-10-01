@@ -182,7 +182,7 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode, boo
                 dll_fail_mask = dll_fail_mask | (uint64_t)(1 << i);
             }
             SWITCH_CLOCK_MUX(i, SELECT_STEP_CLOCK)
-            if(0 != config_lvdpll_freq_quick(i, mode))
+            if(0 != config_lvdpll_freq_full(i, mode))
             {
                 status = MINION_PLL_DLL_CONFIG_ERROR;
                 pll_fail_mask = pll_fail_mask | (uint64_t)(1 << i);
@@ -594,7 +594,7 @@ int Minion_Load_Authenticate_Firmware(void)
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-int Minion_Shire_Update_PLL_Freq(uint32_t freq)
+int Minion_Shire_Update_PLL_Freq(uint16_t freq)
 {
     struct sp2mm_update_freq_cmd_t cmd;
 
