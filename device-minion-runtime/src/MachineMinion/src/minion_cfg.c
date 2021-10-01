@@ -25,7 +25,7 @@
 
 static uint64_t booted_shire_mask = 0;
 static uint16_t minion_current_freq = 0;
-//static uint16_t minion_norm_freq = 0;
+static uint16_t minion_norm_freq = 0;
 static uint8_t  minion_lvdpll_strap = 0;
 static uint8_t  num_shires = 0;
 
@@ -73,6 +73,7 @@ static int64_t minion_configure_cold_boot_pll(uint64_t shire_mask, uint8_t lvdpl
     /* Switch to LVDPLL output */
     broadcast(0xc, shire_mask, PRV_M, ESR_SHIRE_REGION, ESR_SHIRE_SHIRE_CTRL_CLOCKMUX_REGNO);
     minion_current_freq = INITIAL_MINION_FREQ;
+    minion_norm_freq = INITIAL_MINION_FREQ;
 #endif
 
     booted_shire_mask = shire_mask;
