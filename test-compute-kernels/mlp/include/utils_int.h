@@ -14,7 +14,7 @@
 
 #include <inttypes.h>
 
-#include "esr_defines.h"
+#include <etsoc/isa/esr_defines.h>
 
 #ifdef __cplusplus
 #define EXTERN_C extern "C"

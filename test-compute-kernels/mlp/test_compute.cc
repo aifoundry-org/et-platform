@@ -6,7 +6,7 @@
 #include "test_compute_pass2.h"
 #include "test_filter_data.h"
 #include "test_act_data.h"
-#include "cacheops.h"
+#include <etsoc/isa/cacheops.h>
 
 void init_l2_scp(uint32_t shire_id, uint32_t minion_id);
 
@@ -103,7 +103,7 @@ void init_l2_scp(uint32_t shire_id, uint32_t minion_id)
     uint64_t barrier = (31 << 5);
     uint64_t last = 0;
     __asm__ __volatile__("csrrw %[last], 0x820, %[barrier]" : [last] "=r"(last) : [barrier] "r" (barrier));
-    
+
     // Drain 4 banks
     if (last) {
       for (uint64_t i = 0; i < 4; i++) {
@@ -145,7 +145,7 @@ void test_compute(uint32_t shire_id, uint32_t minion_id)
 
     __asm__ __volatile__ (
         "test_compute_start_point:\n"
-        "csrwi 0x89f, 0x1a\n"      
+        "csrwi 0x89f, 0x1a\n"
         ".global test_compute_start_point\n"
     );
 
