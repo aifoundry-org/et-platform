@@ -69,10 +69,9 @@ extern int8_t (*memory_write[MEM_TYPES_COUNT])
     \param [in] flags ETSOC_MEM_TYPE to use
     \returns [out] return status.
 */
-static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Read(const void *src_ptr,
-    void *dest_ptr, uint64_t size, uint32_t flags)
-{
-    return (*memory_read[flags]) (src_ptr, dest_ptr, size);
+#define ETSOC_Memory_Read(src_ptr, dest_ptr, size, flags)    \
+{                                                            \
+    (*memory_read[flags]) (src_ptr, dest_ptr, size);         \
 }
 
 /*! \fn int8_t ETSOC_Memory_Write(void *src_ptr, void *dest_ptr, uint64_t length, uint8_t flags)
@@ -83,10 +82,9 @@ static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Read(const void
     \param [in] flags ETSOC_MEM_TYPE to use
     \returns [out] return status.
 */
-static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Write(const void *src_ptr,
-    void *dest_ptr, uint64_t size, uint32_t flags)
-{
-    return (*memory_write[flags]) (src_ptr, dest_ptr, size);
+#define ETSOC_Memory_Write(src_ptr, dest_ptr, size, flags)    \
+{                                                             \
+    (*memory_write[flags]) (src_ptr, dest_ptr, size);         \
 }
 
 /*! \fn int8_t ETSOC_Memory_Read_Uncacheable(void *src_ptr, void *dest_ptr, uint64_t length)
@@ -213,7 +211,7 @@ int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t leng
     ETSOC_MEM_EVICT(src_addr, size, cache_dest)
 
 /* Temporary macro to generate body of memory access functions */
-#define ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, size, flags, status) \
+#define ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, size, flags)         \
     switch (flags)                                                     \
     {                                                                  \
     case LOCAL_ATOMIC:                                                 \
@@ -229,15 +227,14 @@ int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t leng
         *dest_ptr = *src_ptr;                                          \
         break;                                                         \
     case L2_SCP:                                                       \
-        status = ETSOC_Memory_Read_SCP(src_ptr, dest_ptr, (size / 8)); \
+        ETSOC_Memory_Read_SCP(src_ptr, dest_ptr, (size / 8));          \
         break;                                                         \
     default:                                                           \
-        status = ETSOC_MEM_ERROR_INVALID_PARAM;                        \
         break;                                                         \
     }
 
 /* Temporary macro to generate body of memory access functions */
-#define ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, size, flags, status)\
+#define ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, size, flags)        \
     switch (flags)                                                     \
     {                                                                  \
     case LOCAL_ATOMIC:                                                 \
@@ -253,95 +250,54 @@ int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t leng
         *dest_ptr = *src_ptr;                                          \
         break;                                                         \
     case L2_SCP:                                                       \
-        status = ETSOC_Memory_Write_SCP(src_ptr, dest_ptr, (size / 8));\
+        ETSOC_Memory_Write_SCP(src_ptr, dest_ptr, (size / 8));         \
         break;                                                         \
     default:                                                           \
-        status = ETSOC_MEM_ERROR_INVALID_PARAM;                        \
         break;                                                         \
     }
 
-static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Read_8(const uint8_t *src_ptr,
-    uint8_t *dest_ptr, uint32_t flags)
-{
-    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
-
-    ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, 8, flags, status)
-
-    return status;
+#define ETSOC_Memory_Read_8(src_ptr, dest_ptr, flags)                  \
+{                                                                      \
+    ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, 8, flags)                \
 }
 
-static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Read_16(const uint16_t *src_ptr,
-    uint16_t *dest_ptr, uint32_t flags)
-{
-    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
-
-    ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, 16, flags, status)
-
-    return status;
+#define ETSOC_Memory_Read_16(src_ptr, dest_ptr, flags)                 \
+{                                                                      \
+    ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, 16, flags)               \
 }
 
-static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Read_32(const uint32_t *src_ptr,
-    uint32_t *dest_ptr, uint32_t flags)
-{
-    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
-
-    ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, 32, flags, status)
-
-    return status;
+#define ETSOC_Memory_Read_32(src_ptr, dest_ptr, flags)                 \
+{                                                                      \
+    ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, 32, flags)               \
 }
 
-static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Read_64(const uint64_t *src_ptr,
-    uint64_t *dest_ptr, uint32_t flags)
-{
-    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
-
-    ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, 64, flags, status)
-
-    return status;
+#define ETSOC_Memory_Read_64(src_ptr, dest_ptr, flags)                 \
+{                                                                      \
+    ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, 64, flags)               \
 }
 
-static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Write_8(const uint8_t *src_ptr,
-    uint8_t *dest_ptr, uint32_t flags)
-{
-    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
-
-    ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, 8, flags, status)
-
-    return status;
+#define ETSOC_Memory_Write_8(src_ptr, dest_ptr, flags)                 \
+{                                                                      \
+    ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, 8, flags)               \
 }
 
-static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Write_16(const uint16_t *src_ptr,
-    uint16_t *dest_ptr, uint32_t flags)
-{
-    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
+#define ETSOC_Memory_Write_16(src_ptr, dest_ptr, flags)                \
+{                                                                      \
+    ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, 16, flags)              \
+}                                                                      \
 
-    ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, 16, flags, status)
-
-    return status;
+#define ETSOC_Memory_Write_32(src_ptr, dest_ptr, flags)                \
+{                                                                      \
+    ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, 32, flags)              \
 }
 
-static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Write_32(const uint32_t *src_ptr,
-    uint32_t *dest_ptr, uint32_t flags)
-{
-    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
-
-    ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, 32, flags, status)
-
-    return status;
-}
-
-static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Write_64(const uint64_t *src_ptr,
-    uint64_t *dest_ptr, uint32_t flags)
-{
-    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
-
-    ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, 64, flags, status)
-
-    return status;
+#define ETSOC_Memory_Write_64(src_ptr, dest_ptr, flags)                \
+{                                                                      \
+    ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, 64, flags)              \
 }
 
 /* Remove temporary defines */
-#undef ETSOC_ALIGNED_MEM_READ
-#undef ETSOC_ALIGNED_MEM_WRITE
+// #undef ETSOC_ALIGNED_MEM_READ
+// #undef ETSOC_ALIGNED_MEM_WRITE
 
 #endif /* ETSOC_MEMORY_DEFS_H_ */
