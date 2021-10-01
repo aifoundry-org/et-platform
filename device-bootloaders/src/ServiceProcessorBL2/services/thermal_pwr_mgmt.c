@@ -44,6 +44,7 @@
 #include "task.h"
 #include "bl2_main.h"
 #include "bl_error_code.h"
+#include "hwinc/minion_lvdpll_program.h"
 
 struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
 
@@ -1131,7 +1132,12 @@ static int reduce_minion_operating_point(int32_t delta_power, struct trace_event
     int32_t delta_freq = (delta_power * DP_per_Mhz) / 1000;
     int32_t new_freq = Get_Minion_Frequency() - delta_freq;
 
-    if (0 != Minion_Shire_Update_PLL_Freq((uint32_t)new_freq))
+    /* If we are using modes round down frequency to be multiple of 25 */
+#if USE_FCW_FOR_LVDPLL == 0
+    new_freq = (new_freq / 25) * 25;
+#endif
+
+    if (0 != Minion_Shire_Update_PLL_Freq((uint16_t)new_freq))
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
         return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
@@ -1179,13 +1185,18 @@ static int increase_minion_operating_point(int32_t delta_power, struct trace_eve
     int32_t delta_freq = (delta_power * DP_per_Mhz) / 1000;
     int32_t new_freq = Get_Minion_Frequency() + delta_freq;
 
+    /* If we are using modes round up frequency to be multiple of 25 */
+#if USE_FCW_FOR_LVDPLL == 0
+    new_freq = ((new_freq + 24) / 25) * 25;
+#endif
+
     int32_t new_voltage = Minion_Get_Voltage_Given_Freq(new_freq);
     if (new_voltage != get_soc_power_reg()->module_voltage.minion)
     {
         //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
     }
 
-    if (0 != Minion_Shire_Update_PLL_Freq((uint32_t)new_freq))
+    if (0 != Minion_Shire_Update_PLL_Freq((uint16_t)new_freq))
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
         return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;

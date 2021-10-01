@@ -150,7 +150,7 @@ int Minion_Load_Authenticate_Firmware(void);
     \param  freq value of the freq to updated to
     \return The function call status, pass/fail.
 */
-int Minion_Shire_Update_PLL_Freq(uint32_t freq);
+int Minion_Shire_Update_PLL_Freq(uint16_t freq);
 
 /*! \fn uint64_t Minion_Read_ESR(uint32_t address)
     \brief This function supports reading a Minion Shire

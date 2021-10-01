@@ -38,18 +38,21 @@ static uint32_t ddr_frequency;
 int configure_memshire_plls(const DDR_MODE *ddr_mode)
 {
     uint8_t pll_mode;
+    uint8_t strap_pins;
+
+    strap_pins = get_hpdpll_strap_value();
 
     /* [PLL Mode Spreadsheet]
     https://docs.google.com/spreadsheets/d/0B45kZDfsf1VrbE5QOW1LZ1Zoc0VmWXRyMDJQMDViLUM2NGMw/ */
 
     if(ddr_mode->frequency == DDR_FREQUENCY_800MHZ) {
-        pll_mode = 50;
+        pll_mode = (strap_pins == 0) ? 50 : (strap_pins == 1) ? 51 : 52;
     }
     else if(ddr_mode->frequency == DDR_FREQUENCY_933MHZ) {
-        pll_mode = 28;
+        pll_mode = (strap_pins == 0) ? 28 : (strap_pins == 1) ? 29 : 30;
     }
     else if(ddr_mode->frequency == DDR_FREQUENCY_1066MHZ) {
-        pll_mode = 19;
+        pll_mode = (strap_pins == 0) ? 19 : (strap_pins == 1) ? 20 : 21;
     }
     else {
         return -1;

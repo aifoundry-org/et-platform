@@ -293,6 +293,7 @@ static void mm2sp_get_active_shire_mask_cmd_handler(const void *cmd_buffer)
     cmd->msg_hdr.issuing_hart_id)
 
     rsp.active_shire_mask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
+    rsp.lvdpll_strap = get_lvdpll_strap_value();
 
     if(0 != MM_Iface_Push_Rsp_To_MM2SP_CQ((void*)&rsp, sizeof(rsp)))
     {

@@ -20,6 +20,7 @@
 #include "pcie_configuration.h"
 #include "config/mgmt_build_config.h"
 #include <interrupt.h>
+#include "bl2_reset.h"
 
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/hal_device.h"
@@ -881,9 +882,13 @@ int pcie_get_speed(char *pcie_speed)
 
 int PShire_Initialize(void)
 {
+    uint8_t strap_pins;
+    uint8_t pll_mode;
     PCIe_release_pshire_from_reset();
     /*Configure PShire PLL to 1010 Mhz */
-    configure_pshire_pll(6);
+    strap_pins = get_hpdpll_strap_value();
+    pll_mode = (strap_pins == 0) ? 6 : (strap_pins == 1) ? 12 : 18;
+    configure_pshire_pll(pll_mode);
     return 0;
 }
 

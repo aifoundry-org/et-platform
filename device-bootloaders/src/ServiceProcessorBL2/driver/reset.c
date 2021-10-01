@@ -61,8 +61,8 @@ int release_minions_from_warm_reset(void)
 
 void release_etsoc_reset(void)
 {
-   Log_Write(LOG_LEVEL_INFO, "Reseting ETSOC\n");
-   iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_SYS_RESET_CTRL_ADDRESS,
+    Log_Write(LOG_LEVEL_INFO, "Reseting ETSOC\n");
+    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_SYS_RESET_CTRL_ADDRESS,
              RESET_MANAGER_RM_SYS_RESET_CTRL_ENABLE_SET(0x1));
 }
 
@@ -74,4 +74,18 @@ void pcie_reset_flr(void)
 void  pcie_reset_warm(void)
 {
   /* TODO: https://esperantotech.atlassian.net/browse/SW-6606 */
+}
+
+uint8_t get_hpdpll_strap_value(void)
+{
+    uint32_t rm_status2;
+    rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
+    return (uint8_t)(RESET_MANAGER_RM_STATUS2_STRAP_IN_GET(rm_status2) & 0x3u);
+}
+
+uint8_t get_lvdpll_strap_value(void)
+{
+    uint32_t rm_status2;
+    rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
+    return (uint8_t)((RESET_MANAGER_RM_STATUS2_STRAP_IN_GET(rm_status2) >> 2) & 0x3u);
 }

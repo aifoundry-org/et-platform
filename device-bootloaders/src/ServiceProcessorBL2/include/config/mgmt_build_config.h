@@ -327,6 +327,11 @@
 */
 #define DELTA_TEMP_UPDATE_PERIOD  1000
 
+/*! \def USE_FCW_FOR_LVDPLL
+    \brief A macro that provides are we using FCW sequence for LVDPLL programming
+*/
+#define USE_FCW_FOR_LVDPLL        0
+
 /*! \def DELTA_POWER_UPDATE_PERIOD
     \brief A macro that provides power update period
 */
