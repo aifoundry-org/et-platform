@@ -167,7 +167,18 @@ static void taskMain(void *pvParameters)
     uint8_t hpdpll_strap_pins;
     uint8_t noc_pll_mode;
     hpdpll_strap_pins = get_hpdpll_strap_value();
-    noc_pll_mode = (hpdpll_strap_pins == 0) ? 5 : (hpdpll_strap_pins == 1) ? 11 : 17;
+    if (hpdpll_strap_pins == 0)
+    {
+        noc_pll_mode = 5; /*HPDPLL-500 Mhz*/
+    }
+    else if (hpdpll_strap_pins == 1)
+    {
+        noc_pll_mode = 11; /*HPDPLL-500 Mhz*/
+    }
+    else
+    {
+        noc_pll_mode = 17; /*HPDPLL-500 Mhz*/
+    }
     status = NOC_Configure(noc_pll_mode); /* Configure NOC to 400 Mhz */
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_noc() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED);
@@ -202,8 +213,33 @@ static void taskMain(void *pvParameters)
     uint8_t hpdpll_mode;
     uint8_t lvdpll_mode;
     lvdpll_strap_pins = get_lvdpll_strap_value();
-    hpdpll_mode = (hpdpll_strap_pins == 0) ? 44 : (hpdpll_strap_pins == 1) ? 45 : 46; /*HDPLL-650 Mhz*/
-    lvdpll_mode = (lvdpll_strap_pins == 0) ? 15 : (lvdpll_strap_pins == 1) ? 60 : 105; /*LVPLL-650 Mhz*/
+    
+    if (hpdpll_strap_pins == 0) 
+    {
+        hpdpll_mode = 44; /*HPDPLL-650 Mhz*/
+    }
+    else if (hpdpll_strap_pins == 1)
+    {
+        hpdpll_mode = 45; /*HPDPLL-650 Mhz*/
+    }
+    else
+    {
+        hpdpll_mode = 46; /*HPDPLL-650 Mhz*/
+    }
+
+    if (lvdpll_strap_pins == 0) 
+    {
+        lvdpll_mode = 44; /*LVDPLL-650 Mhz*/
+    }
+    else if (lvdpll_strap_pins == 1)
+    {
+        lvdpll_mode = 45; /*LVDPLL-650 Mhz*/
+    }
+    else
+    {
+        lvdpll_mode = 46; /*LVDPLL-650 Mhz*/
+    }
+
     status = Minion_Configure_Minion_Clock_Reset(minion_shires_mask, hpdpll_mode, lvdpll_mode, true /*Use Step Clock*/);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Enable Compute Minion failed!")
 

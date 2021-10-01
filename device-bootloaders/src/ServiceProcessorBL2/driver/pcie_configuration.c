@@ -882,12 +882,23 @@ int pcie_get_speed(char *pcie_speed)
 
 int PShire_Initialize(void)
 {
-    uint8_t strap_pins;
+    uint8_t hpdpll_strap_pins;
     uint8_t pll_mode;
     PCIe_release_pshire_from_reset();
     /*Configure PShire PLL to 1010 Mhz */
-    strap_pins = get_hpdpll_strap_value();
-    pll_mode = (strap_pins == 0) ? 6 : (strap_pins == 1) ? 12 : 18;
+    hpdpll_strap_pins = get_hpdpll_strap_value();
+    if (hpdpll_strap_pins == 0) 
+    {
+        pll_mode = 6; /*HPDPLL-1010 Mhz*/
+    }
+    else if (hpdpll_strap_pins == 1)
+    {
+        pll_mode = 12; /*HPDPLL-1010 Mhz*/
+    }
+    else
+    {
+        pll_mode = 18; /*HPDPLL-1010 Mhz*/
+    }
     configure_pshire_pll(pll_mode);
     return 0;
 }
