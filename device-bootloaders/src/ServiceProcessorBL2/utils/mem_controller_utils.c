@@ -11,7 +11,7 @@
 ************************************************************************/
 
 #include <stdint.h>
-#include "usdelay.h"
+#include "delays.h"
 #include "log.h"
 
 #include "bl2_scratch_buffer.h"

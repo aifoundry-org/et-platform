@@ -13,7 +13,7 @@
 #define __BL2_SP_MEMSHIRE_PLL__
 
 #include "hwinc/hpdpll_modes_config.h"
-#include "usdelay.h"
+#include "delays.h"
 
 #define MEMSHIRE_PLL_CONFIG_BASE 0x61000000
 
@@ -187,7 +187,7 @@ static int program_memshire_pll(uint8_t ms_num, uint8_t mode, uint32_t* target_f
     {
         return -1;
     }
-    
+
     for (int i = 0; i < gs_hpdpll_settings[(uint32_t)(mode - 1)].count; i++)
     {
         register_index = gs_hpdpll_settings[mode - 1].offsets[i];
@@ -261,7 +261,7 @@ static int program_memshire_pll(uint8_t ms_num, uint8_t mode, uint32_t* target_f
         }
     }
 
-    *target_freq = 
+    *target_freq =
         FREQUENCY_HZ_TO_MHZ(gs_hpdpll_settings[(mode - 1)].output_frequency);
 
     return 0;

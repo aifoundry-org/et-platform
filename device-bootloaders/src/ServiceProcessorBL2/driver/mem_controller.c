@@ -32,7 +32,7 @@
 #include "bl2_sp_memshire_pll.h"
 #include "dm_event_control.h"
 #include "hal_ddr_init.h"
-#include "usdelay.h"
+#include "delays.h"
 
 /*! \def SPIO_PLIC
 */

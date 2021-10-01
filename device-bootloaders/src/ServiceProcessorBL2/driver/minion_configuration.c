@@ -39,7 +39,7 @@
 */
 /***********************************************************************/
 #include <stdio.h>
-#include "usdelay.h"
+#include "delays.h"
 
 #include <hwinc/etsoc_shire_other_esr.h>
 #include <hwinc/etsoc_shire_cache_esr.h>

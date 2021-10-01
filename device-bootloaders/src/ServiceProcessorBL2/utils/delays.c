@@ -11,17 +11,42 @@
 ************************************************************************/
 
 #include <stdint.h>
-#include "usdelay.h"
+#include "delays.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "bl2_timer.h"
+
 /*
 ** Implementation for us delay
-** This function should only be called after vTaskStartScheduler()
+** This functions waits for RVTimer in a CPU tight loop
 */
-int usdelay(uint32_t usec)
+void usdelay(uint32_t usec)
 {
-  vTaskDelay(usec/portTICK_PERIOD_MS/1000);
-  return 0;
+  uint64_t target_tick;
+
+  if(usec == 0)
+    return;
+
+  target_tick = timer_get_ticks_count() + usec;
+  while(timer_get_ticks_count() < target_tick)
+    ;
+}
+
+/*
+** Implementation for ms delay
+** This function uses
+**   vTaskDelay() after FreeRTOS scheduler is up (task yield)
+**   usdelay() before FreeRTOS scheduler is up (cpu spin-loop)
+*/
+void msdelay(uint32_t msec)
+{
+  if(msec == 0)
+    return;
+
+  if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
+    vTaskDelay(msec/portTICK_PERIOD_MS);
+  else
+    usdelay(msec*1000);
 }

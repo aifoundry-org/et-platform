@@ -30,7 +30,7 @@
 #include "bl2_main.h"
 #include "bl2_timer.h"
 #include "interrupt.h"
-#include "usdelay.h"
+#include "delays.h"
 
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/sp_cru.h"
@@ -256,6 +256,16 @@ static int clock_manager_set_pll_lock_int_enable(PLL_ID_t pll, bool inth_enable)
                                                                         (inth_enable ? 1 : 0));
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS, reg_value);
             break;
+        case PLL_ID_INVALID:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_SP_PLL_3:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_MAXION_CORE:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_MAXION_UNCORE:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_PSHIRE:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
         default:
             return ERROR_SP_PLL_INVALID_PLL_ID;
     }
@@ -293,6 +303,16 @@ static int clock_manager_set_pll_loss_int_enable(PLL_ID_t pll, bool inth_enable)
                                                                         (inth_enable ? 1 : 0));
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS, reg_value);
             break;
+        case PLL_ID_INVALID:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_SP_PLL_3:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_MAXION_CORE:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_MAXION_UNCORE:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_PSHIRE:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
         default:
             return ERROR_SP_PLL_INVALID_PLL_ID;
     }
@@ -316,6 +336,16 @@ static int clock_manager_get_pll_status(PLL_ID_t pll, uint32_t *cm_pll_status)
         case PLL_ID_SP_PLL_4:
             *cm_pll_status = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_STATUS_ADDRESS);
             break;
+        case PLL_ID_INVALID:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_SP_PLL_3:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_MAXION_CORE:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_MAXION_UNCORE:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_PSHIRE:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
         default:
             return ERROR_SP_PLL_INVALID_PLL_ID;
     }
@@ -339,6 +369,16 @@ static int clock_manager_clear_pll_status(PLL_ID_t pll)
         case PLL_ID_SP_PLL_4:
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_STATUS_ADDRESS, 0);
             break;
+        case PLL_ID_INVALID:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_SP_PLL_3:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_MAXION_CORE:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_MAXION_UNCORE:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+        case PLL_ID_PSHIRE:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
         default:
             return ERROR_SP_PLL_INVALID_PLL_ID;
     }
@@ -389,6 +429,10 @@ void spio_pll_clear_lock_monitor(PLL_ID_t pll)
         case PLL_ID_MAXION_UNCORE:
             clear_lock_monitor((uint32_t *)R_SP_PLLMX1_BASEADDR);
             break;
+        case PLL_ID_INVALID:
+            break;
+        case PLL_ID_SP_PLL_3:
+            break;
         default:
             break;
     }
@@ -413,6 +457,10 @@ uint32_t spio_pll_get_lock_monitor(PLL_ID_t pll)
             return get_lock_monitor((uint32_t *)R_SP_PLLMX0_BASEADDR);
         case PLL_ID_MAXION_UNCORE:
             return get_lock_monitor((uint32_t *)R_SP_PLLMX1_BASEADDR);
+        case PLL_ID_INVALID:
+            return 0;
+        case PLL_ID_SP_PLL_3:
+            return 0;
         default:
             return 0;
     }
@@ -622,7 +670,9 @@ static int clock_manager_pll_bypass(PLL_ID_t pll, bool bypass_enable)
                    CLOCK_MANAGER_CM_MAX_PLL_SEL_SET(bypass_enable? 0 : 1));
             break;
         case PLL_ID_SP_PLL_3:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
         case PLL_ID_INVALID:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
         default:
             return ERROR_SP_PLL_INVALID_PLL_ID;
     }
@@ -913,7 +963,9 @@ int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency)
             *frequency = gs_maxion_pll_uncore_frequency;
             return 0;
         case PLL_ID_SP_PLL_3:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
         case PLL_ID_INVALID:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
         default:
             return ERROR_SP_PLL_INVALID_PLL_ID;
     }
