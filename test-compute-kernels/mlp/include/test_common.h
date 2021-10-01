@@ -6,7 +6,6 @@
 
 // Firmware
 //#include "fw_ecalls.h"
-//Local
 
 // L2 SCP regions (32,768 entries):
 //  - 4096 entries for activation prefetch (4 buffers per minion x 16 cachelines per minion x 8 minions x 7 iterations)

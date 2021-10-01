@@ -166,7 +166,8 @@ void test_compute(uint32_t shire_id, uint32_t minion_id)
     volatile float buffer[8];
 
     __asm__ __volatile__ (
-        "fsw.ps f0, 0(%[buffer])"
+        "fcvt.ps.f16 f0, f0\n"
+        "fsw.ps f0, 0(%[buffer])\n"
       :
       : [buffer] "r" (buffer)
       : "f0"
