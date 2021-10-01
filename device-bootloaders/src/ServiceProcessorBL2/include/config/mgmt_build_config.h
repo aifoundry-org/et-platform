@@ -342,6 +342,11 @@
 */
 #define RT_ERROR_THRESHOLD  0
 
+/*! \def PCIE_CORR_ERROR_THRESHOLD
+    \brief Predefined threshold for PCIE correctable errors.
+*/
+#define PCIE_CORR_ERROR_THRESHOLD  32
+
 /************************
   RTOS Task Properties
  ************************/

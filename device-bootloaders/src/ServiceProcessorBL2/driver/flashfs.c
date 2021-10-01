@@ -957,7 +957,7 @@ int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk
     }
 
     if (0 !=
-        flash_fs_write_partition(passive_partition_address, buffer, partition_size, chunk_size))
+        flash_fs_write_partition(passive_partition_address, buffer, (uint32_t)buffer_size, chunk_size))
     {
         MESSAGE_ERROR("flash_fs_write_file: failed to write data  passive partition address:%x  \
             buffer:%lx  buffer_size:%x!\n",
