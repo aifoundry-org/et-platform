@@ -300,6 +300,10 @@ void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
 #define ET_TRACE_MEM_CPY(dest, src, size) memcpy(dest, src, size)
 #endif
 
+#ifndef ET_TRACE_STRLEN
+#define ET_TRACE_STRLEN(str) strlen(str)
+#endif
+
 #ifndef ET_TRACE_GET_TIMESTAMP
 #define ET_TRACE_GET_TIMESTAMP() 0
 #endif
@@ -555,7 +559,7 @@ void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_STRING)
 
         ET_TRACE_MEM_CPY(entry->string, str,
-                         ((strlen(str) < TRACE_STRING_MAX_SIZE) ? (strlen(str) + 1) :
+                         ((ET_TRACE_STRLEN(str) < TRACE_STRING_MAX_SIZE) ? (ET_TRACE_STRLEN(str) + 1) :
                                                                   TRACE_STRING_MAX_SIZE));
     }
 }
