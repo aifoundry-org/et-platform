@@ -61,6 +61,7 @@ target_include_directories(minion-bl
 target_compile_options(minion-bl
     PRIVATE
         -Wall
+        -fno-strict-aliasing
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 

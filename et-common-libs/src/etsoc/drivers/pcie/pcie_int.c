@@ -113,7 +113,7 @@ static inline pcie_int_t pcie_cb_get_int_type(uint32_t flags)
 {
     uint32_t temp32 = 0;
 
-    ETSOC_Memory_Read_32(&PCIE_CB.int_type, &temp32, flags);
+    ETSOC_Memory_Read_32(&PCIE_CB.int_type, &temp32, flags)
 
     return temp32;
 }
@@ -122,7 +122,7 @@ static inline uint32_t pcie_cb_get_int_vecs(uint32_t flags)
 {
     uint32_t temp32 = 0;
 
-    ETSOC_Memory_Read_32(&PCIE_CB.int_vecs, &temp32, flags);
+    ETSOC_Memory_Read_32(&PCIE_CB.int_vecs, &temp32, flags)
 
     return temp32;
 }
@@ -130,11 +130,11 @@ static inline uint32_t pcie_cb_get_int_vecs(uint32_t flags)
 static void pcie_cb_init(uint32_t flags)
 {
     uint32_t temp32 = pcie_get_int_type();
-    ETSOC_Memory_Write_32(&temp32, &PCIE_CB.int_type, flags);
+    ETSOC_Memory_Write_32(&temp32, &PCIE_CB.int_type, flags)
     temp32 = pcie_get_int_vecs(temp32);
-    ETSOC_Memory_Write_32(&temp32, &PCIE_CB.int_vecs, flags);
+    ETSOC_Memory_Write_32(&temp32, &PCIE_CB.int_vecs, flags)
     temp32 = 1;
-    ETSOC_Memory_Write_32(&temp32, &PCIE_CB.initialized, flags);
+    ETSOC_Memory_Write_32(&temp32, &PCIE_CB.initialized, flags)
 }
 
 int pcie_interrupt_host(uint32_t vec, uint32_t flags)
@@ -142,7 +142,7 @@ int pcie_interrupt_host(uint32_t vec, uint32_t flags)
     /* The first time this function is called, only then initialize the PCIE CB */
     uint32_t temp32 = 0;
 
-    ETSOC_Memory_Read_32(&PCIE_CB.initialized, &temp32, flags);
+    ETSOC_Memory_Read_32(&PCIE_CB.initialized, &temp32, flags)
     if(temp32 == 0)
     {
         pcie_cb_init(flags);

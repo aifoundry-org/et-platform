@@ -80,7 +80,7 @@ int8_t VQ_Init(vq_cb_t* vq_cb, uint64_t vq_base, uint32_t vq_size,
     \param flags ETSOC_MEM_TYPE to use
     \return Status indicating success or negative error code.
 */
-int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size, uint32_t flags);
+int8_t VQ_Push(vq_cb_t* vq_cb, const void* data, uint32_t data_size, uint32_t flags);
 
 /*! \fn int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
     \brief Pops a command from a virtual queue.
@@ -182,8 +182,8 @@ static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val, ui
     uint64_t temp64 = 0;
     uint32_t temp32 = 0;
 
-    ETSOC_Memory_Read_64((uint64_t*)&dest_vq_cb->circbuff_cb, &temp64, flags);
-    ETSOC_Memory_Read_32(&dest_vq_cb->flags, &temp32, flags);
+    ETSOC_Memory_Read_64((uint64_t*)&dest_vq_cb->circbuff_cb, &temp64, flags)
+    ETSOC_Memory_Read_32(&dest_vq_cb->flags, &temp32, flags)
     Circbuffer_Set_Tail((circ_buff_cb_t*)(uintptr_t)temp64, tail_val, temp32);
 }
 
@@ -197,8 +197,8 @@ static inline void VQ_Set_Head_Offset(vq_cb_t* dest_vq_cb, uint64_t head_val, ui
     uint64_t temp64 = 0;
     uint32_t temp32 = 0;
 
-    ETSOC_Memory_Read_64((uint64_t*)&dest_vq_cb->circbuff_cb, &temp64, flags);
-    ETSOC_Memory_Read_32(&dest_vq_cb->flags, &temp32, flags);
+    ETSOC_Memory_Read_64((uint64_t*)&dest_vq_cb->circbuff_cb, &temp64, flags)
+    ETSOC_Memory_Read_32(&dest_vq_cb->flags, &temp32, flags)
 
     Circbuffer_Set_Head((circ_buff_cb_t*)(uintptr_t)temp64, head_val, temp32);
 }
@@ -212,7 +212,7 @@ static inline void VQ_Get_Head_And_Tail(vq_cb_t* src_vq_cb, vq_cb_t* dest_vq_cb,
 {
     uint64_t temp64 = 0;
 
-    ETSOC_Memory_Read_64((uint64_t*)&src_vq_cb->circbuff_cb, &temp64, flags);
+    ETSOC_Memory_Read_64((uint64_t*)&src_vq_cb->circbuff_cb, &temp64, flags)
     Circbuffer_Get_Head_Tail((circ_buff_cb_t*)(uintptr_t)temp64,
         dest_vq_cb->circbuff_cb, dest_vq_cb->flags);
 }

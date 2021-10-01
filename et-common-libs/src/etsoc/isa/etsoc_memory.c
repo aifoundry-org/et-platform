@@ -13,8 +13,6 @@
     \brief A C module that implements ETSOC memory access helper functions
 
     Public interfaces:
-        ETSOC_Memory_Read
-        ETSOC_Memory_Write
         ETSOC_Memory_Read_Uncacheable
         ETSOC_Memory_Write_Uncacheable
         ETSOC_Memory_Read_Local_Atomic

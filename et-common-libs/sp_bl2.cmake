@@ -77,6 +77,7 @@ target_include_directories(sp-bl2
 target_compile_options(sp-bl2
     PRIVATE
         -Wall
+        -fno-strict-aliasing
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 

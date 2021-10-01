@@ -82,6 +82,7 @@ target_include_directories(mm-rt-svcs
 target_compile_options(mm-rt-svcs
     PRIVATE
         -Wall
+        -fno-strict-aliasing
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 

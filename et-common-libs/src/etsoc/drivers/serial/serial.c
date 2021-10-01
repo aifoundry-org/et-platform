@@ -87,8 +87,7 @@ int SERIAL_write(uintptr_t uartRegs, const char *const string, int length)
            (IER[7] set to one and FCR[0] set to one respectively), the functionality is
            switched to indicate the transmitter FIFO is full, and no longer controls THRE
            interrupts, which are then controlled by the FCR[5:4] threshold setting. */
-        while (UART_LSR_THRE_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) == 1U) {
-        }
+        while (UART_LSR_THRE_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) == 1U);
 
         /* Write characters to be transmitted to transmit FIFO by writing to THR */
         iowrite32(uartRegs + UART_RBR_THR_ADDRESS, UART_RBR_THR_THR_SET(string[i]));
@@ -99,7 +98,7 @@ int SERIAL_write(uintptr_t uartRegs, const char *const string, int length)
 // Spins until a character is obtained
 void SERIAL_getchar(uintptr_t uartRegs, char *c)
 {
-    while(UART_LSR_DR_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) != 1U){};
+    while(UART_LSR_DR_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) != 1U);
     *c = UART_RBR_RBR_RBR_GET(ioread32((uartRegs + UART_RBR_ADDRESS)));
 }
 
@@ -112,8 +111,7 @@ int SERIAL_puts(uintptr_t uartRegs, const char *const string)
            (IER[7] set to one and FCR[0] set to one respectively), the functionality is
            switched to indicate the transmitter FIFO is full, and no longer controls THRE
            interrupts, which are then controlled by the FCR[5:4] threshold setting. */
-        while (UART_LSR_THRE_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) == 1U) {
-        }
+        while (UART_LSR_THRE_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) == 1U);
 
         /* Write characters to be transmitted to transmit FIFO by writing to THR */
         iowrite32(uartRegs + UART_RBR_THR_ADDRESS, UART_RBR_THR_THR_SET(string[i]));

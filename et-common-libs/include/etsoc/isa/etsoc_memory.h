@@ -210,7 +210,6 @@ int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t leng
     memset(src_addr, data, size);                                           \
     ETSOC_MEM_EVICT(src_addr, size, cache_dest)
 
-/* Temporary macro to generate body of memory access functions */
 #define ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, size, flags)         \
     switch (flags)                                                     \
     {                                                                  \
@@ -224,7 +223,7 @@ int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t leng
         *dest_ptr = ioread##size((uintptr_t)src_ptr);                  \
         break;                                                         \
     case CACHED:                                                       \
-        *dest_ptr = *src_ptr;                                          \
+        *(dest_ptr) = *(src_ptr);                                      \
         break;                                                         \
     case L2_SCP:                                                       \
         ETSOC_Memory_Read_SCP(src_ptr, dest_ptr, (size / 8));          \
@@ -233,7 +232,6 @@ int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t leng
         break;                                                         \
     }
 
-/* Temporary macro to generate body of memory access functions */
 #define ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, size, flags)        \
     switch (flags)                                                     \
     {                                                                  \
@@ -247,7 +245,7 @@ int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t leng
         iowrite##size((uintptr_t)dest_ptr, *src_ptr);                  \
         break;                                                         \
     case CACHED:                                                       \
-        *dest_ptr = *src_ptr;                                          \
+        *(dest_ptr) = *(src_ptr);                                      \
         break;                                                         \
     case L2_SCP:                                                       \
         ETSOC_Memory_Write_SCP(src_ptr, dest_ptr, (size / 8));         \
@@ -295,9 +293,5 @@ int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t leng
 {                                                                      \
     ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, 64, flags)              \
 }
-
-/* Remove temporary defines */
-// #undef ETSOC_ALIGNED_MEM_READ
-// #undef ETSOC_ALIGNED_MEM_WRITE
 
 #endif /* ETSOC_MEMORY_DEFS_H_ */

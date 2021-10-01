@@ -55,7 +55,7 @@ int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint64_t buffer_length,
     circ_buff.length = buffer_length;
 
     /* Write the circular buffer CB to memory */
-    ETSOC_Memory_Write(&circ_buff, circ_buff_cb_ptr, sizeof(circ_buff), flags);
+    ETSOC_Memory_Write(&circ_buff, circ_buff_cb_ptr, sizeof(circ_buff), flags)
 
     return CIRCBUFF_OPERATION_SUCCESS;
 }
@@ -92,7 +92,7 @@ int8_t Circbuffer_Push(circ_buff_cb_t *  const circ_buff_cb_ptr,
     circ_buff_cb_t circ_buff __attribute__((aligned(64)));
 
     /* Read the circular buffer CB from memory */
-    ETSOC_Memory_Read(circ_buff_cb_ptr, &circ_buff, sizeof(circ_buff), flags);
+    ETSOC_Memory_Read(circ_buff_cb_ptr, &circ_buff, sizeof(circ_buff), flags)
 
     /* Verify the available space in circular buffer */
     if (Circbuffer_Get_Avail_Space(&circ_buff, CIRCBUFF_FLAG_NO_READ) >= src_length)
@@ -118,7 +118,7 @@ int8_t Circbuffer_Push(circ_buff_cb_t *  const circ_buff_cb_ptr,
 
             ETSOC_Memory_Write(src_u8,
                 (void*)&circ_buff_cb_ptr->buffer_ptr[circ_buff.head_offset],
-                bytes_till_end, flags);
+                bytes_till_end, flags)
 
             circ_buff.head_offset = 0;
             src_length -= bytes_till_end;
@@ -127,12 +127,11 @@ int8_t Circbuffer_Push(circ_buff_cb_t *  const circ_buff_cb_ptr,
 
         ETSOC_Memory_Write(src_u8,
             (void*)&circ_buff_cb_ptr->buffer_ptr[circ_buff.head_offset],
-            src_length, flags);
+            src_length, flags)
         circ_buff.head_offset = (circ_buff.head_offset + src_length) % circ_buff.length;
 
         /* Update the head offset */
-        ETSOC_Memory_Write((void*)&(circ_buff.head_offset),
-            (void*)&circ_buff_cb_ptr->head_offset, sizeof(circ_buff.head_offset), flags);
+        ETSOC_Memory_Write_64(&(circ_buff.head_offset), &circ_buff_cb_ptr->head_offset, flags)
     }
 
     return status;
@@ -171,7 +170,7 @@ int8_t Circbuffer_Pop(circ_buff_cb_t *const circ_buff_cb_ptr,
     uint64_t used_space;
 
     /* Read the circular buffer CB from memory */
-    ETSOC_Memory_Read(circ_buff_cb_ptr, &circ_buff, sizeof(circ_buff), flags);
+    ETSOC_Memory_Read(circ_buff_cb_ptr, &circ_buff, sizeof(circ_buff), flags)
 
     /* Get the used space in circular buffer */
     used_space = Circbuffer_Get_Used_Space(&circ_buff, CIRCBUFF_FLAG_NO_READ);
@@ -206,19 +205,18 @@ int8_t Circbuffer_Pop(circ_buff_cb_t *const circ_buff_cb_ptr,
             uint64_t bytes_till_end = circ_buff.length - circ_buff.tail_offset;
 
             ETSOC_Memory_Read((void*)&circ_buff_cb_ptr->buffer_ptr[circ_buff.tail_offset],
-                dest_u8, bytes_till_end, flags);
+                dest_u8, bytes_till_end, flags)
             circ_buff.tail_offset = 0;
             dest_length -= bytes_till_end;
             dest_u8 += bytes_till_end;
         }
 
         ETSOC_Memory_Read((void*)&circ_buff_cb_ptr->buffer_ptr[circ_buff.tail_offset],
-            dest_u8, dest_length, flags);
+            dest_u8, dest_length, flags)
         circ_buff.tail_offset = (circ_buff.tail_offset + dest_length) % circ_buff.length;
 
         /* Update the tail offset */
-        ETSOC_Memory_Write((void*)&(circ_buff.tail_offset),
-            (void*)&circ_buff_cb_ptr->tail_offset, sizeof(circ_buff.tail_offset), flags);
+        ETSOC_Memory_Write_64(&(circ_buff.tail_offset), &circ_buff_cb_ptr->tail_offset, flags)
     }
 
     return status;
@@ -272,14 +270,14 @@ int8_t Circbuffer_Read(circ_buff_cb_t *const circ_buff_cb_ptr,
             uint64_t bytes_till_end = circ_buff_cb_ptr->length - circ_buff_cb_ptr->tail_offset;
 
             ETSOC_Memory_Read(src_u8 + circ_buff_cb_ptr->tail_offset,
-                dest_u8, bytes_till_end, flags);
+                dest_u8, bytes_till_end, flags)
             circ_buff_cb_ptr->tail_offset = 0;
             dest_length -= bytes_till_end;
             dest_u8 += bytes_till_end;
         }
 
         ETSOC_Memory_Read(src_u8 + circ_buff_cb_ptr->tail_offset,
-            dest_u8, dest_length, flags);
+            dest_u8, dest_length, flags)
 
         /* Update tail offset value */
         circ_buff_cb_ptr->tail_offset =
@@ -323,7 +321,7 @@ int8_t Circbuffer_Peek(circ_buff_cb_t *const circ_buff_cb_ptr,
     uint64_t used_space;
 
     /* Read the circular buffer CB from memory */
-    ETSOC_Memory_Read(circ_buff_cb_ptr, &circ_buff, sizeof(circ_buff), flags);
+    ETSOC_Memory_Read(circ_buff_cb_ptr, &circ_buff, sizeof(circ_buff), flags)
 
     /* Get the used space in circular buffer */
     used_space = Circbuffer_Get_Used_Space(&circ_buff, CIRCBUFF_FLAG_NO_READ);
@@ -358,7 +356,7 @@ int8_t Circbuffer_Peek(circ_buff_cb_t *const circ_buff_cb_ptr,
             uint64_t bytes_till_end = circ_buff.length - (circ_buff.tail_offset + peek_offset);
 
             ETSOC_Memory_Read((void*)&circ_buff_cb_ptr->buffer_ptr[circ_buff.tail_offset + peek_offset],
-                dest_u8, bytes_till_end, flags);
+                dest_u8, bytes_till_end, flags)
             circ_buff.tail_offset = 0;
             peek_offset = 0;
             peek_length -= bytes_till_end;
@@ -366,7 +364,7 @@ int8_t Circbuffer_Peek(circ_buff_cb_t *const circ_buff_cb_ptr,
         }
 
         ETSOC_Memory_Read((void*)&circ_buff_cb_ptr->buffer_ptr[circ_buff.tail_offset + peek_offset],
-            dest_u8, peek_length, flags);
+            dest_u8, peek_length, flags)
     }
 
     return status;

@@ -126,7 +126,7 @@ static inline uint64_t Circbuffer_Get_Avail_Space(const circ_buff_cb_t *circ_buf
         circ_buff_cb_t circ_buff __attribute__((aligned(8)));
 
         /* Read the circular buffer CB from memory */
-        ETSOC_Memory_Read(circ_buff_ptr, &circ_buff, sizeof(circ_buff), flags);
+        ETSOC_Memory_Read(circ_buff_ptr, &circ_buff, sizeof(circ_buff), flags)
 
         return ((circ_buff.head_offset >= circ_buff.tail_offset) ?
                         (circ_buff.length - 1) - (circ_buff.head_offset - circ_buff.tail_offset) :
@@ -156,7 +156,7 @@ static inline uint64_t Circbuffer_Get_Used_Space(const circ_buff_cb_t *circ_buff
         circ_buff_cb_t circ_buff __attribute__((aligned(8)));
 
         /* Read the circular buffer CB from memory */
-        ETSOC_Memory_Read(circ_buff_ptr, &circ_buff, sizeof(circ_buff), flags);
+        ETSOC_Memory_Read(circ_buff_ptr, &circ_buff, sizeof(circ_buff), flags)
 
         return ((circ_buff.head_offset >= circ_buff.tail_offset) ?
                 circ_buff.head_offset - circ_buff.tail_offset :
@@ -171,18 +171,18 @@ static inline uint64_t Circbuffer_Get_Used_Space(const circ_buff_cb_t *circ_buff
 }
 
 /*! \fn static inline void Circbuffer_Get_Head_Tail(circ_buff_cb_t *const src_circ_buff_cb_ptr,
-    circ_buff_cb_t *restrict dest_circ_buff_cb_ptr, uint32_t flags)
+    circ_buff_cb_t *dest_circ_buff_cb_ptr, uint32_t flags)
     \brief Returns the head and tail offsets in destination circular buffer CB.
     \param [in] src_circ_buff_cb_ptr: Pointer to source circular buffer control block.
     \param [in] dest_circ_buff_cb_ptr: Pointer to destination circular buffer control block.
     \param [in] flags: Indicates memory access type
 */
 static inline void Circbuffer_Get_Head_Tail(const circ_buff_cb_t *src_circ_buff_cb_ptr,
-    circ_buff_cb_t *restrict dest_circ_buff_cb_ptr, uint32_t flags)
+    circ_buff_cb_t *dest_circ_buff_cb_ptr, uint32_t flags)
 {
     /* Read the circular buffer CB from memory */
     ETSOC_Memory_Read(src_circ_buff_cb_ptr, dest_circ_buff_cb_ptr,
-        sizeof(((circ_buff_cb_t*)0)->head_offset) + sizeof(((circ_buff_cb_t*)0)->tail_offset), flags);
+        sizeof(((circ_buff_cb_t*)0)->head_offset) + sizeof(((circ_buff_cb_t*)0)->tail_offset), flags)
 }
 
 /*! \fn static inline uint64_t Circbuffer_Get_Tail(const circ_buff_cb_t *circ_buff_cb_ptr,
@@ -193,26 +193,26 @@ static inline void Circbuffer_Get_Head_Tail(const circ_buff_cb_t *src_circ_buff_
 */
 static inline uint64_t Circbuffer_Get_Tail(const circ_buff_cb_t *circ_buff_cb_ptr, uint32_t flags)
 {
-    uint64_t tail;
+    uint64_t tail = 0;
 
     /* Read the circular buffer CB from memory */
-    ETSOC_Memory_Read_64(&circ_buff_cb_ptr->tail_offset, &tail, flags);
+    ETSOC_Memory_Read_64(&circ_buff_cb_ptr->tail_offset, &tail, flags)
 
     return tail;
 }
 
-/*! \fn static inline void Circbuffer_Set_Tail(circ_buff_cb_t *restrict dest_circ_buff_cb_ptr,
+/*! \fn static inline void Circbuffer_Set_Tail(circ_buff_cb_t *dest_circ_buff_cb_ptr,
     uint64_t tail_val, uint32_t flags)
     \brief Sets the tail offset value in provided destination circular buffer CB.
     \param [in] dest_circ_buff_cb_ptr: Pointer to destination circular buffer control block.
     \param [in] tail_val: Value of tail offset to write.
     \param [in] flags: Indicates memory access type
 */
-static inline void Circbuffer_Set_Tail(circ_buff_cb_t *restrict dest_circ_buff_cb_ptr,
+static inline void Circbuffer_Set_Tail(circ_buff_cb_t *dest_circ_buff_cb_ptr,
     uint64_t tail_val, uint32_t flags)
 {
     /* Write the circular buffer CB from memory */
-    ETSOC_Memory_Write_64(&tail_val, &dest_circ_buff_cb_ptr->tail_offset, flags);
+    ETSOC_Memory_Write_64(&tail_val, &dest_circ_buff_cb_ptr->tail_offset, flags)
 }
 
 /*! \fn static inline uint64_t Circbuffer_Get_Head(const circ_buff_cb_t *circ_buff_cb_ptr,
@@ -223,26 +223,26 @@ static inline void Circbuffer_Set_Tail(circ_buff_cb_t *restrict dest_circ_buff_c
 */
 static inline uint64_t Circbuffer_Get_Head(const circ_buff_cb_t *circ_buff_cb_ptr, uint32_t flags)
 {
-    uint64_t head;
+    uint64_t head = 0;
 
     /* Read the circular buffer CB from memory */
-    ETSOC_Memory_Read_64(&circ_buff_cb_ptr->head_offset, &head, flags);
+    ETSOC_Memory_Read_64(&circ_buff_cb_ptr->head_offset, &head, flags)
 
     return head;
 }
 
-/*! \fn static inline void Circbuffer_Set_Head(circ_buff_cb_t *restrict dest_circ_buff_cb_ptr,
+/*! \fn static inline void Circbuffer_Set_Head(circ_buff_cb_t *dest_circ_buff_cb_ptr,
     uint64_t head_val, uint32_t flags)
     \brief Sets the head offset value in provided destination circular buffer CB.
     \param [in] dest_circ_buff_cb_ptr: Pointer to destination circular buffer control block.
     \param [in] head_val: Value of head offset to write.
     \param [in] flags: Indicates memory access type
 */
-static inline void Circbuffer_Set_Head(circ_buff_cb_t *restrict dest_circ_buff_cb_ptr,
+static inline void Circbuffer_Set_Head(circ_buff_cb_t *dest_circ_buff_cb_ptr,
     uint64_t head_val, uint32_t flags)
 {
     /* Write the circular buffer CB from memory */
-    ETSOC_Memory_Write_64(&head_val, &dest_circ_buff_cb_ptr->head_offset, flags);
+    ETSOC_Memory_Write_64(&head_val, &dest_circ_buff_cb_ptr->head_offset, flags)
 }
 
 #endif /* CIRCBUFF_H */

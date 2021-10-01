@@ -148,10 +148,10 @@ int8_t SP_MM_Iface_Init(uint8_t flags)
 
     uint64_t temp64 = 0;
 
-    temp64 = ((((uint64_t)SP2MM_SQ_SIZE) << 32) | ((uint64_t)SP2MM_SQ_BASE));
-    ETSOC_Memory_Write_64(&temp64, (uint64_t*)&SP_SQueue, flags);
-    temp64 = (((uint64_t)(SP2MM_CQ_SIZE << 32)) | SP2MM_CQ_BASE);
-    ETSOC_Memory_Write_64(&temp64, (uint64_t*)&SP_CQueue, flags);
+    temp64 = ((SP2MM_SQ_SIZE << 32) | SP2MM_SQ_BASE);
+    ETSOC_Memory_Write_64(&temp64, (uint64_t*)&SP_SQueue, flags)
+    temp64 = ((SP2MM_CQ_SIZE << 32) | SP2MM_CQ_BASE);
+    ETSOC_Memory_Write_64(&temp64, (uint64_t*)&SP_CQueue, flags)
 
     status = VQ_Init(&SP_SQueue.vqueue, SP_SQueue.vqueue_base,
         SP_SQueue.vqueue_size, 0, sizeof(cmd_size_t), SP2MM_SQ_MEM_TYPE, flags);
@@ -159,8 +159,8 @@ int8_t SP_MM_Iface_Init(uint8_t flags)
     if(status == STATUS_SUCCESS)
     {
         /* Make a copy of SP SQ Circular Buffer CB in shared SRAM to global variable */
-        ETSOC_Memory_Read_64((uint64_t*)&SP_SQueue.vqueue.circbuff_cb, &temp64, flags);
-        ETSOC_Memory_Write_64(&temp64, (uint64_t*)(void*)&SP_SQueue.circ_buff_local, flags);
+        ETSOC_Memory_Read_64((uint64_t*)&SP_SQueue.vqueue.circbuff_cb, &temp64, flags)
+        ETSOC_Memory_Write_64(&temp64, (uint64_t*)(void*)&SP_SQueue.circ_buff_local, flags)
 
         status = VQ_Init(&SP_CQueue.vqueue, SP_CQueue.vqueue_base,
             SP_CQueue.vqueue_size, 0, sizeof(cmd_size_t), SP2MM_CQ_MEM_TYPE, flags);
@@ -169,13 +169,13 @@ int8_t SP_MM_Iface_Init(uint8_t flags)
     if(status == STATUS_SUCCESS)
     {
         /* Make a copy of SP CQ Circular Buffer CB in shared SRAM to global variable */
-        ETSOC_Memory_Read_64((uint64_t*)&SP_CQueue.vqueue.circbuff_cb, &temp64, flags);
-        ETSOC_Memory_Write_64(&temp64, (uint64_t*)(void*)&SP_CQueue.circ_buff_local, flags);
+        ETSOC_Memory_Read_64((uint64_t*)&SP_CQueue.vqueue.circbuff_cb, &temp64, flags)
+        ETSOC_Memory_Write_64(&temp64, (uint64_t*)(void*)&SP_CQueue.circ_buff_local, flags)
 
-        temp64 = ((((uint64_t)MM2SP_SQ_SIZE) << 32) | ((uint64_t)MM2SP_SQ_BASE));
-        ETSOC_Memory_Write_64(&temp64, (uint64_t*)&MM_SQueue, flags);
-        temp64 = (((uint64_t)(MM2SP_CQ_SIZE << 32)) | ((uint64_t)MM2SP_CQ_BASE));
-        ETSOC_Memory_Write_64(&temp64, (uint64_t*)&MM_CQueue, flags);
+        temp64 = ((MM2SP_SQ_SIZE << 32) | MM2SP_SQ_BASE);
+        ETSOC_Memory_Write_64(&temp64, (uint64_t*)&MM_SQueue, flags)
+        temp64 = ((MM2SP_CQ_SIZE << 32) | MM2SP_CQ_BASE);
+        ETSOC_Memory_Write_64(&temp64, (uint64_t*)&MM_CQueue, flags)
 
         status = VQ_Init(&MM_SQueue.vqueue, MM_SQueue.vqueue_base,
             MM_SQueue.vqueue_size, 0, sizeof(cmd_size_t), MM2SP_SQ_MEM_TYPE, flags);
@@ -184,8 +184,8 @@ int8_t SP_MM_Iface_Init(uint8_t flags)
     if(status == STATUS_SUCCESS)
     {
         /* Make a copy of MM SQ Circular Buffer CB in shared SRAM to global variable */
-        ETSOC_Memory_Read_64((uint64_t*)&MM_SQueue.vqueue.circbuff_cb, &temp64, flags);
-        ETSOC_Memory_Write_64(&temp64, (uint64_t*)(void*)&MM_SQueue.circ_buff_local, flags);
+        ETSOC_Memory_Read_64((uint64_t*)&MM_SQueue.vqueue.circbuff_cb, &temp64, flags)
+        ETSOC_Memory_Write_64(&temp64, (uint64_t*)(void*)&MM_SQueue.circ_buff_local, flags)
 
         status = VQ_Init(&MM_CQueue.vqueue, MM_CQueue.vqueue_base,
             MM_CQueue.vqueue_size, 0, sizeof(cmd_size_t), MM2SP_CQ_MEM_TYPE, flags);
@@ -194,8 +194,8 @@ int8_t SP_MM_Iface_Init(uint8_t flags)
     if(status == STATUS_SUCCESS)
     {
         /* Make a copy of MM CQ Circular Buffer CB in shared SRAM to global variable */
-        ETSOC_Memory_Read_64((uint64_t*)&MM_CQueue.vqueue.circbuff_cb, &temp64, flags);
-        ETSOC_Memory_Write_64(&temp64, (uint64_t*)(void*)&MM_CQueue.circ_buff_local, flags);
+        ETSOC_Memory_Read_64((uint64_t*)&MM_CQueue.vqueue.circbuff_cb, &temp64, flags)
+        ETSOC_Memory_Write_64(&temp64, (uint64_t*)(void*)&MM_CQueue.circ_buff_local, flags)
 
     }
 
@@ -465,8 +465,8 @@ int8_t SP_MM_Iface_Verify_Tail(uint8_t target, uint8_t flags)
         uint64_t temp64 = 0;
         uint32_t temp32 = 0;
 
-        ETSOC_Memory_Read_64((uint64_t*)&p_iface_cb->vqueue.circbuff_cb, &temp64, flags);
-        ETSOC_Memory_Read_32(&p_iface_cb->vqueue.flags, &temp32, flags);
+        ETSOC_Memory_Read_64((uint64_t*)&p_iface_cb->vqueue.circbuff_cb, &temp64, flags)
+        ETSOC_Memory_Read_32(&p_iface_cb->vqueue.flags, &temp32, flags)
 
         uint64_t local_tail = Circbuffer_Get_Tail(&p_iface_cb->circ_buff_local, flags);
         uint64_t shared_tail = Circbuffer_Get_Tail((circ_buff_cb_t*)(uintptr_t)temp64, temp32);

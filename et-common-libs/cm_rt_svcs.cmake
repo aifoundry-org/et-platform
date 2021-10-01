@@ -24,6 +24,7 @@ set(CM_RT_SVCS_HDRS
     include/etsoc/isa/flb.h
     include/etsoc/isa/hart.h
     include/etsoc/isa/hpm_counter.h
+    include/etsoc/isa/io.h
     include/etsoc/isa/etsoc_memory.h
     include/etsoc/isa/macros.h
     include/etsoc/isa/cacheops.h
@@ -70,6 +71,7 @@ target_include_directories(cm-rt-svcs
 target_compile_options(cm-rt-svcs
     PRIVATE
         -Wall
+        -fno-strict-aliasing
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 
