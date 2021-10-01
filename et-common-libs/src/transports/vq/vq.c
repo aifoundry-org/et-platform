@@ -65,13 +65,11 @@ int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size, uint16_t peek
     int8_t status = -1;
     uint64_t temp64 = 0;
 
-    ETSOC_Memory_Write(&vq_base, &vq_cb->circbuff_cb, sizeof(uint64_t),
-        mem_flags);
+    ETSOC_Memory_Write_64(&vq_base, (uint64_t*)&vq_cb->circbuff_cb, mem_flags);
 
     temp64 = (((uint64_t)vq_flags << 32) | ((uint32_t)peek_length << 16) |
         peek_offset);
-    ETSOC_Memory_Write(&temp64, &vq_cb->cmd_size_peek_offset,
-        sizeof(uint64_t), mem_flags);
+    ETSOC_Memory_Write_64(&temp64, (uint64_t*)(void*)&vq_cb->cmd_size_peek_offset,  mem_flags);
 
     status = Circbuffer_Init((circ_buff_cb_t*)vq_base,
         (uint32_t)(vq_size - sizeof(circ_buff_cb_t)), vq_flags);
@@ -112,8 +110,8 @@ int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size, uint32_t flags)
         data, ":data_size:", data_size, "\r\n");
     #endif
 
-    ETSOC_Memory_Read(&vq_cb->circbuff_cb, &temp64, sizeof(uint64_t), flags);
-    ETSOC_Memory_Read(&vq_cb->flags, &temp32, sizeof(uint32_t), flags);
+    ETSOC_Memory_Read_64((uint64_t*)&vq_cb->circbuff_cb, &temp64, flags);
+    ETSOC_Memory_Read_32(&vq_cb->flags, &temp32, flags);
     status = Circbuffer_Push((circ_buff_cb_t*)(uintptr_t)temp64, data,
         data_size, temp32);
 
@@ -150,10 +148,8 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff, uint32_t flags)
     uint64_t temp_addr_64 = 0;
     uint64_t temp_val_64 = 0;
 
-    ETSOC_Memory_Read(&vq_cb->circbuff_cb, &temp_addr_64,
-        sizeof(uint64_t), flags);
-    ETSOC_Memory_Read(&vq_cb->cmd_size_peek_offset, &temp_val_64,
-        sizeof(uint64_t), flags);
+    ETSOC_Memory_Read_64((uint64_t*)&vq_cb->circbuff_cb, &temp_addr_64, flags);
+    ETSOC_Memory_Read_64((uint64_t*)(void*)&vq_cb->cmd_size_peek_offset, &temp_val_64, flags);
 
     return_val = Circbuffer_Peek((circ_buff_cb_t*)(uintptr_t)temp_addr_64,
         (void *)&command_size, (uint16_t)(temp_val_64 & 0xFFFF),
@@ -399,8 +395,8 @@ int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset,
     uint64_t temp64 = 0;
     uint32_t temp32 = 0;
 
-    ETSOC_Memory_Read(&vq_cb->circbuff_cb, &temp64, sizeof(uint64_t), flags);
-    ETSOC_Memory_Read(&vq_cb->flags, &temp32, sizeof(uint32_t), flags);
+    ETSOC_Memory_Read_64((uint64_t*)&vq_cb->circbuff_cb, &temp64, flags);
+    ETSOC_Memory_Read_32(&vq_cb->flags, &temp32, flags);
 
     status = Circbuffer_Peek((circ_buff_cb_t*)(uintptr_t)temp64,
         peek_buff, peek_offset, peek_length, temp32);
@@ -432,8 +428,8 @@ bool VQ_Data_Avail(vq_cb_t* vq_cb, uint32_t flags)
     uint64_t temp64 = 0;
     uint32_t temp32 = 0;
 
-    ETSOC_Memory_Read(&vq_cb->circbuff_cb, &temp64, sizeof(uint64_t), flags);
-    ETSOC_Memory_Read(&vq_cb->flags, &temp32, sizeof(uint32_t), flags);
+    ETSOC_Memory_Read_64((uint64_t*)&vq_cb->circbuff_cb, &temp64, flags);
+    ETSOC_Memory_Read_32(&vq_cb->flags, &temp32, flags);
 
     return (Circbuffer_Get_Used_Space((circ_buff_cb_t*)(uintptr_t)temp64,temp32) > 0);
 }

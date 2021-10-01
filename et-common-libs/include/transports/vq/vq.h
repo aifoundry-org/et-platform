@@ -182,8 +182,8 @@ static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val, ui
     uint64_t temp64 = 0;
     uint32_t temp32 = 0;
 
-    ETSOC_Memory_Read(&dest_vq_cb->circbuff_cb, &temp64, sizeof(uint64_t), flags);
-    ETSOC_Memory_Read(&dest_vq_cb->flags, &temp32, sizeof(uint32_t), flags);
+    ETSOC_Memory_Read_64((uint64_t*)&dest_vq_cb->circbuff_cb, &temp64, flags);
+    ETSOC_Memory_Read_32(&dest_vq_cb->flags, &temp32, flags);
     Circbuffer_Set_Tail((circ_buff_cb_t*)(uintptr_t)temp64, tail_val, temp32);
 }
 
@@ -197,8 +197,8 @@ static inline void VQ_Set_Head_Offset(vq_cb_t* dest_vq_cb, uint64_t head_val, ui
     uint64_t temp64 = 0;
     uint32_t temp32 = 0;
 
-    ETSOC_Memory_Read(&dest_vq_cb->circbuff_cb, &temp64, sizeof(uint64_t), flags);
-    ETSOC_Memory_Read(&dest_vq_cb->flags, &temp32, sizeof(uint32_t), flags);
+    ETSOC_Memory_Read_64((uint64_t*)&dest_vq_cb->circbuff_cb, &temp64, flags);
+    ETSOC_Memory_Read_32(&dest_vq_cb->flags, &temp32, flags);
 
     Circbuffer_Set_Head((circ_buff_cb_t*)(uintptr_t)temp64, head_val, temp32);
 }
@@ -212,7 +212,7 @@ static inline void VQ_Get_Head_And_Tail(vq_cb_t* src_vq_cb, vq_cb_t* dest_vq_cb,
 {
     uint64_t temp64 = 0;
 
-    ETSOC_Memory_Read(&src_vq_cb->circbuff_cb, &temp64, sizeof(uint64_t), flags);
+    ETSOC_Memory_Read_64((uint64_t*)&src_vq_cb->circbuff_cb, &temp64, flags);
     Circbuffer_Get_Head_Tail((circ_buff_cb_t*)(uintptr_t)temp64,
         dest_vq_cb->circbuff_cb, dest_vq_cb->flags);
 }

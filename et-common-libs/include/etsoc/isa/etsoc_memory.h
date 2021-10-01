@@ -17,6 +17,8 @@
 #define ETSOC_MEMORY_DEFS_H_
 
 #include "etsoc/isa/cacheops.h"
+#include "etsoc/isa/io.h"
+#include "etsoc/isa/atomic.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -44,26 +46,48 @@ enum ETSOC_MEM_TYPES
 */
 #define ETSOC_MEM_ERROR_INVALID_PARAM              -1
 
+/*! \var extern void memory_read
+    \brief An array containing function pointers to ETSOC memory read functions.
+    \warning Not thread safe!
+*/
+extern int8_t (*memory_read[MEM_TYPES_COUNT])
+    (const void *src_ptr, void *dest_ptr, uint64_t length);
+
+/*! \var extern void memory_write
+    \brief An array containing function pointers to ETSOC memory write functions.
+    \warning Not thread safe!
+*/
+extern int8_t (*memory_write[MEM_TYPES_COUNT])
+    (const void *src_ptr, void *dest_ptr, uint64_t length);
+
 /*********************/
 /*! \fn int8_t ETSOC_Memory_Read(void *src_ptr, void *dest_ptr, uint64_t length, uint8_t flags)
     \brief Reads data from ETSOC uncacheable memory.
     \param [in] src_ptr: Pointer to source data buffer.
     \param [in] dest_ptr: Pointer to destination data buffer.
-    \param [in] length: Total length (in bytes) of the data that needs to be read.
+    \param [in] size: Total length (in bytes) of the data that needs to be read.
     \param [in] flags ETSOC_MEM_TYPE to use
     \returns [out] return status.
 */
-int8_t ETSOC_Memory_Read(const void *src_ptr, void *dest_ptr, uint64_t length, uint32_t flags);
+static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Read(const void *src_ptr,
+    void *dest_ptr, uint64_t size, uint32_t flags)
+{
+    return (*memory_read[flags]) (src_ptr, dest_ptr, size);
+}
 
 /*! \fn int8_t ETSOC_Memory_Write(void *src_ptr, void *dest_ptr, uint64_t length, uint8_t flags)
     \brief Reads data from ETSOC uncacheable memory.
     \param [in] src_ptr: Pointer to source data buffer.
     \param [in] dest_ptr: Pointer to destination data buffer.
-    \param [in] length: Total length (in bytes) of the data that needs to be read.
+    \param [in] size: Total length (in bytes) of the data that needs to be read.
     \param [in] flags ETSOC_MEM_TYPE to use
     \returns [out] return status.
 */
-int8_t ETSOC_Memory_Write(const void *src_ptr, void *dest_ptr, uint64_t length, uint32_t flags);
+static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Write(const void *src_ptr,
+    void *dest_ptr, uint64_t size, uint32_t flags)
+{
+    return (*memory_write[flags]) (src_ptr, dest_ptr, size);
+}
 
 /*! \fn int8_t ETSOC_Memory_Read_Uncacheable(void *src_ptr, void *dest_ptr, uint64_t length)
     \brief Reads data from ETSOC uncacheable memory.
@@ -187,5 +211,137 @@ int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t leng
 #define ETSOC_MEM_SET_AND_EVICT(src_addr, data, size, cache_dest)           \
     memset(src_addr, data, size);                                           \
     ETSOC_MEM_EVICT(src_addr, size, cache_dest)
+
+/* Temporary macro to generate body of memory access functions */
+#define ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, size, flags, status) \
+    switch (flags)                                                     \
+    {                                                                  \
+    case LOCAL_ATOMIC:                                                 \
+        *dest_ptr = atomic_load_local_##size(src_ptr);                 \
+        break;                                                         \
+    case GLOBAL_ATOMIC:                                                \
+        *dest_ptr = atomic_load_global_##size(src_ptr);                \
+        break;                                                         \
+    case UNCACHED:                                                     \
+        *dest_ptr = ioread##size((uintptr_t)src_ptr);                  \
+        break;                                                         \
+    case CACHED:                                                       \
+        *dest_ptr = *src_ptr;                                          \
+        break;                                                         \
+    case L2_SCP:                                                       \
+        status = ETSOC_Memory_Read_SCP(src_ptr, dest_ptr, (size / 8)); \
+        break;                                                         \
+    default:                                                           \
+        status = ETSOC_MEM_ERROR_INVALID_PARAM;                        \
+        break;                                                         \
+    }
+
+/* Temporary macro to generate body of memory access functions */
+#define ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, size, flags, status)\
+    switch (flags)                                                     \
+    {                                                                  \
+    case LOCAL_ATOMIC:                                                 \
+        atomic_store_local_##size(dest_ptr, *src_ptr);                 \
+        break;                                                         \
+    case GLOBAL_ATOMIC:                                                \
+        atomic_store_global_##size(dest_ptr, *src_ptr);                \
+        break;                                                         \
+    case UNCACHED:                                                     \
+        iowrite##size((uintptr_t)dest_ptr, *src_ptr);                  \
+        break;                                                         \
+    case CACHED:                                                       \
+        *dest_ptr = *src_ptr;                                          \
+        break;                                                         \
+    case L2_SCP:                                                       \
+        status = ETSOC_Memory_Write_SCP(src_ptr, dest_ptr, (size / 8));\
+        break;                                                         \
+    default:                                                           \
+        status = ETSOC_MEM_ERROR_INVALID_PARAM;                        \
+        break;                                                         \
+    }
+
+static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Read_8(const uint8_t *src_ptr,
+    uint8_t *dest_ptr, uint32_t flags)
+{
+    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
+
+    ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, 8, flags, status)
+
+    return status;
+}
+
+static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Read_16(const uint16_t *src_ptr,
+    uint16_t *dest_ptr, uint32_t flags)
+{
+    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
+
+    ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, 16, flags, status)
+
+    return status;
+}
+
+static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Read_32(const uint32_t *src_ptr,
+    uint32_t *dest_ptr, uint32_t flags)
+{
+    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
+
+    ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, 32, flags, status)
+
+    return status;
+}
+
+static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Read_64(const uint64_t *src_ptr,
+    uint64_t *dest_ptr, uint32_t flags)
+{
+    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
+
+    ETSOC_ALIGNED_MEM_READ(src_ptr, dest_ptr, 64, flags, status)
+
+    return status;
+}
+
+static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Write_8(const uint8_t *src_ptr,
+    uint8_t *dest_ptr, uint32_t flags)
+{
+    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
+
+    ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, 8, flags, status)
+
+    return status;
+}
+
+static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Write_16(const uint16_t *src_ptr,
+    uint16_t *dest_ptr, uint32_t flags)
+{
+    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
+
+    ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, 16, flags, status)
+
+    return status;
+}
+
+static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Write_32(const uint32_t *src_ptr,
+    uint32_t *dest_ptr, uint32_t flags)
+{
+    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
+
+    ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, 32, flags, status)
+
+    return status;
+}
+
+static inline int8_t __attribute__((always_inline)) ETSOC_Memory_Write_64(const uint64_t *src_ptr,
+    uint64_t *dest_ptr, uint32_t flags)
+{
+    int8_t status = ETSOC_MEM_OPERATION_SUCCESS;
+
+    ETSOC_ALIGNED_MEM_WRITE(src_ptr, dest_ptr, 64, flags, status)
+
+    return status;
+}
+
+/* Remove temporary defines */
+#undef ETSOC_ALIGNED_MEM_READ
+#undef ETSOC_ALIGNED_MEM_WRITE
 
 #endif /* ETSOC_MEMORY_DEFS_H_ */
