@@ -155,8 +155,7 @@ int8_t SP_Host_Iface_SQ_Init(void)
 
     /* Initialize the SQ circular buffer */
     status = VQ_Init(&SP_Host_SQ.vqueue, SP_Host_SQ.vqueue_base,
-        SP_Host_SQ.vqueue_size, 0, sizeof(cmd_size_t), SP_SQ_MEM_TYPE,
-        UNCACHED);
+        SP_Host_SQ.vqueue_size, 0, sizeof(cmd_size_t), SP_SQ_MEM_TYPE);
 
     if (status == STATUS_SUCCESS)
     {
@@ -201,8 +200,7 @@ int8_t SP_Host_Iface_CQ_Init(void)
 
     /* Initialize the SQ circular buffer */
     status = VQ_Init(&SP_Host_CQ.vqueue, SP_Host_CQ.vqueue_base,
-        SP_Host_CQ.vqueue_size, 0, sizeof(cmd_size_t), SP_CQ_MEM_TYPE,
-        UNCACHED);
+        SP_Host_CQ.vqueue_size, 0, sizeof(cmd_size_t), SP_CQ_MEM_TYPE);
 
     /* Populate data in local copy globals */
     if(status == STATUS_SUCCESS)
@@ -275,14 +273,14 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
         }
 
         /* Push the command to circular buffer */
-        status = VQ_Push(&SP_Host_CQ.vqueue, p_cmd, cmd_size, UNCACHED);
+        status = VQ_Push(&SP_Host_CQ.vqueue, p_cmd, cmd_size);
 
         /* Get the updated head pointer in local copy */
         SP_Host_CQ.circ_buff_local.head_offset = VQ_Get_Head_Offset(&SP_Host_CQ.vqueue);
 
         if(status == STATUS_SUCCESS)
         {
-            pcie_interrupt_host(SP_CQ_NOTIFY_VECTOR, UNCACHED);
+            pcie_interrupt_host(SP_CQ_NOTIFY_VECTOR);
         }
 
         xSemaphoreGive(Host_CQ_Lock);
@@ -327,7 +325,7 @@ uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff)
     if (xSemaphoreTake(Host_SQ_Lock, (TickType_t)HOST_VQ_MAX_TIMEOUT ) == pdTRUE)
     {
         /* Pop the command from circular buffer */
-        pop_ret_val = VQ_Pop(&SP_Host_SQ.vqueue, rx_buff, UNCACHED);
+        pop_ret_val = VQ_Pop(&SP_Host_SQ.vqueue, rx_buff);
 
         xSemaphoreGive(Host_SQ_Lock);
     }

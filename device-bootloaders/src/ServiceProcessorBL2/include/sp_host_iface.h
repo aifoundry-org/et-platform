@@ -89,7 +89,7 @@ vq_cb_t* SP_Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type);
 static inline void SP_Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached)
 {
     /* Update tail value in VQ memory */
-    VQ_Set_Tail_Offset(sq_shared, VQ_Get_Tail_Offset(sq_cached), UNCACHED);
+    VQ_Set_Tail_Offset(sq_shared, VQ_Get_Tail_Offset(sq_cached));
 }
 
 #endif /* SP_HOST_IFACE_DEFS_H */

@@ -22,7 +22,7 @@
 #define MM_IFACE_H
 
 #include "etsoc/common/common_defs.h"
-#include "transports/sp_mm_iface/sp_mm_iface.h" 
+#include "transports/sp_mm_iface/sp_mm_iface.h"
 #include "FreeRTOS.h"
 
 /*! \fn int8_t MM_Iface_Init(void)
@@ -67,7 +67,7 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw);
     \return Status indicating success or negative error
 */
 #define MM_Iface_Push_Cmd_To_SP2MM_SQ(p_cmd, cmd_size)   \
-        SP_MM_Iface_Push(MM_SQ, p_cmd, cmd_size, UNCACHED)
+        SP_MM_Iface_Push(MM_SQ, p_cmd, cmd_size)
 
 /*! \fn int8_t MM_Iface_Pop_Rsp_From_SP2MM_CQ(void* rx_buff)
     \brief Pop response from to Service Processor (SP) to Master Minion (MM)
@@ -76,7 +76,7 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw);
     \return Status indicating success or negative error
 */
 #define MM_Iface_Pop_Rsp_From_SP2MM_CQ(rx_buff)          \
-        SP_MM_Iface_Pop(MM_CQ, rx_buff, UNCACHED)
+        SP_MM_Iface_Pop(MM_CQ, rx_buff)
 
 /*! \fn int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff)
     \brief Pop command from Master Minion (MM) to Service Processor (SP)
@@ -94,6 +94,6 @@ int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff);
     \return Status indicating success or negative error
 */
 #define MM_Iface_Push_Rsp_To_MM2SP_CQ(p_cmd, cmd_size)    \
-        SP_MM_Iface_Push(SP_CQ, p_cmd, cmd_size, UNCACHED)
+        SP_MM_Iface_Push(SP_CQ, p_cmd, cmd_size)
 
 #endif

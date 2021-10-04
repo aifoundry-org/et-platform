@@ -227,7 +227,7 @@ static void pc_vq_task(void *pvParameters)
         tail_prev = VQ_Get_Tail_Offset(&vq_cached);
 
         /* Refresh the cached VQ CB - Get updated head and tail values from SRAM */
-        VQ_Get_Head_And_Tail(vq_shared, &vq_cached, UNCACHED);
+        VQ_Get_Head_And_Tail(vq_shared, &vq_cached);
 
         /* Verify that the tail value read from memory is equal to previous tail value */
         if(tail_prev != VQ_Get_Tail_Offset(&vq_cached))
@@ -383,13 +383,13 @@ static void mm2sp_minion_reset_handler(const void *cmd_buffer)
     uint64_t available_shires = Minion_State_MM_Iface_Get_Active_Shire_Mask();
 
     /* Make sure the Shire Mask sent was valid and then issue the MM reset */
-    if (((cmd->shire_mask & available_shires) != cmd->shire_mask) || 
+    if (((cmd->shire_mask & available_shires) != cmd->shire_mask) ||
         (0 != Minion_Reset_Threads(cmd->shire_mask)))
     {
         Log_Write(LOG_LEVEL_ERROR, "MM2SP_CMD_MINION_RESET: Unable to Reset Shires!\n");
         rsp.results = -1;
-    } 
-    else 
+    }
+    else
     {
         /* Return success */
         rsp.results = 0;
