@@ -1,5 +1,6 @@
 from conans import ConanFile, tools
 from conan.tools.cmake import CMake, CMakeToolchain
+import os
 
 class DeviceApiConan(ConanFile):
     name = "deviceApi"
@@ -34,3 +35,6 @@ class DeviceApiConan(ConanFile):
         
     def package_id(self):
         self.info.header_only()
+    
+    def package_info(self):
+        self.cpp_info.includedirs.append(os.path.join("include", "esperanto"))
