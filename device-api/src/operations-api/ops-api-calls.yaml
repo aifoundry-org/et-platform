@@ -56,7 +56,7 @@ Enums:
         Value: 8
       - Name: KERNEL_LAUNCH_FLUSH_L3
         Value: 16
-      - Name: KERNEL_LAUNCH_ARGS_EMBEDDED 
+      - Name: KERNEL_LAUNCH_ARGS_EMBEDDED
         Value: 32
   - Name: log_levels
     Type: uint8_t
@@ -351,9 +351,6 @@ Messages :
         Type : uint64_t
       - Name: shire_mask
         Description: BitMask indicating Compute Shires that is used to execute a given Kernel
-        Type : uint64_t
-      - Name: pointer_to_trace_cfg
-        Description: Pointer to the Trace configuration (optional).
         Type : uint64_t
       - Name: argument_payload[]
         Description: These are optional payload that can go up to 128 bytes
