@@ -309,7 +309,7 @@ __attribute__((noreturn)) void SQW_HP_Launch(uint32_t hart_id, uint32_t sqw_hp_i
         hp_tail_prev = VQ_Get_Tail_Offset(&hp_vq_cached);
 
         /* Refresh the cached VQ CB - Get updated head and tail values */
-        VQ_Get_Head_And_Tail(hp_vq_shared, &hp_vq_cached, LOCAL_ATOMIC);
+        VQ_Get_Head_And_Tail(hp_vq_shared, &hp_vq_cached);
 
         /* Verify that the tail value read from memory is equal to previous tail value */
         if(hp_tail_prev != VQ_Get_Tail_Offset(&hp_vq_cached))

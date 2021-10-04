@@ -165,7 +165,7 @@ int8_t Host_Iface_SQs_Init(void)
         /* Initialize the High Priority SQ circular buffer */
         status = VQ_Init(&Host_SQs_HP.vqueues[i],
             VQ_CIRCBUFF_BASE_ADDR(MM_SQS_HP_BASE_ADDRESS, i, MM_SQ_HP_SIZE),
-            MM_SQ_HP_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE, LOCAL_ATOMIC);
+            MM_SQ_HP_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE);
 
         /* Check for error */
         if (status != STATUS_SUCCESS)
@@ -188,7 +188,7 @@ int8_t Host_Iface_SQs_Init(void)
             /* Initialize the SQ circular buffer */
             status = VQ_Init(&Host_SQs.vqueues[i],
                 VQ_CIRCBUFF_BASE_ADDR(MM_SQS_BASE_ADDRESS, i, MM_SQ_SIZE),
-                MM_SQ_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE, LOCAL_ATOMIC);
+                MM_SQ_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE);
 
             /* Check for error */
             if (status != STATUS_SUCCESS)
@@ -296,7 +296,7 @@ int8_t Host_Iface_CQs_Init(void)
         /* Initialize the CQ circular buffer */
         status = VQ_Init(&Host_CQs.vqueues[i],
             VQ_CIRCBUFF_BASE_ADDR(MM_CQS_BASE_ADDRESS, i, MM_CQ_SIZE),
-            MM_CQ_SIZE, 0, sizeof(cmd_size_t), MM_CQ_MEM_TYPE, LOCAL_ATOMIC);
+            MM_CQ_SIZE, 0, sizeof(cmd_size_t), MM_CQ_MEM_TYPE);
     }
 
     return status;
@@ -353,7 +353,7 @@ uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id)
     /* Peek the command size to pop from SQ */
     VQ_Peek(&Host_SQs.vqueues[sq_id],
             (void *)&command_size, 0,
-            sizeof(cmd_size_t), LOCAL_ATOMIC);
+            sizeof(cmd_size_t));
 
     return command_size;
 }
@@ -418,7 +418,7 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
     do
     {
         /* Push the response to circular buffer */
-        status = VQ_Push(&Host_CQs.vqueues[cq_id], p_cmd, cmd_size, LOCAL_ATOMIC);
+        status = VQ_Push(&Host_CQs.vqueues[cq_id], p_cmd, cmd_size);
         if(status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_WARNING, "CQ[%d] push warning: status code: %d\n", cq_id, status);
@@ -429,7 +429,7 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
     {
         asm volatile("fence");
         /* TODO: Using MSI idx 0 for single CQ model */
-        status = (int8_t)pcie_interrupt_host(1, LOCAL_ATOMIC);
+        status = (int8_t)pcie_interrupt_host(1);
 
         /* Release the lock */
         release_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
@@ -479,7 +479,7 @@ int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
     int32_t pop_ret_val;
 
     /* Pop the command from circular buffer */
-    pop_ret_val = VQ_Pop(&Host_SQs.vqueues[sq_id], rx_buff, LOCAL_ATOMIC);
+    pop_ret_val = VQ_Pop(&Host_SQs.vqueues[sq_id], rx_buff);
 
     if (pop_ret_val < 0)
     {
@@ -515,12 +515,12 @@ int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
 void Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached)
 {
     /* Update tail value in VQ memory */
-    VQ_Set_Tail_Offset(sq_shared, VQ_Get_Tail_Offset(sq_cached), LOCAL_ATOMIC);
+    VQ_Set_Tail_Offset(sq_shared, VQ_Get_Tail_Offset(sq_cached));
 
     /* TODO: We need to send event to the host when 25% of space is avialable is SQ.
     Should be build time macro */
     /* TODO: Use seperate MSI for notifiying host that SQ has freed up space */
-    (void)pcie_interrupt_host(1, LOCAL_ATOMIC);
+    (void)pcie_interrupt_host(1);
 }
 
 /************************************************************************
@@ -556,7 +556,7 @@ void Host_Iface_Processing(void)
     /* Scan all SQs for available command */
     for (sq_id = 0; sq_id < MM_SQ_COUNT; sq_id++)
     {
-        status = VQ_Data_Avail(&Host_SQs.vqueues[sq_id], LOCAL_ATOMIC);
+        status = VQ_Data_Avail(&Host_SQs.vqueues[sq_id]);
 
         if(status == true)
         {
@@ -576,7 +576,7 @@ void Host_Iface_Processing(void)
     /* Scan all HP SQs for available command */
     for (sq_id = 0; sq_id < MM_SQ_HP_COUNT; sq_id++)
     {
-        status = VQ_Data_Avail(&Host_SQs_HP.vqueues[sq_id], LOCAL_ATOMIC);
+        status = VQ_Data_Avail(&Host_SQs_HP.vqueues[sq_id]);
 
         if(status == true)
         {

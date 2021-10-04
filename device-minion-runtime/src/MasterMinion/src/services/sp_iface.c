@@ -341,7 +341,7 @@ int8_t SP_Iface_Init(void)
 {
     int8_t status;
 
-    status = SP_MM_Iface_Init(LOCAL_ATOMIC);
+    status = SP_MM_Iface_Init();
 
     if (status == STATUS_SUCCESS)
     {
