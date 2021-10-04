@@ -59,44 +59,39 @@ enum sp_mm_target_t {
 
 /*! \fn int8_t SP_MM_Iface_Init(void)
     \brief SP to MM interface initialization
-    \param flags access method to r/w virtual queues between SP and MM
     \return Status indicating success or negative error
 */
-int8_t SP_MM_Iface_Init(uint8_t flags);
+int8_t SP_MM_Iface_Init(void);
 
 /*! \fn int8_t SP_MM_Iface_Push(uint8_t target, void* p_cmd, uint32_t cmd_size)
     \brief Push command to specified SP to MM interface target
     \param target target SP to MM interface
     \param p_cmd reference to command to push
     \param cmd_size size of command to push
-    \param flags access method to r/w virtual queues between SP and MM
     \return Status indicating success or negative error
 */
-int8_t SP_MM_Iface_Push(uint8_t target, void* p_buff, uint32_t size, uint8_t flags);
+int8_t SP_MM_Iface_Push(uint8_t target, void* p_buff, uint32_t size);
 
 /*! \fn int32_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff)
     \brief Pop command from specified SP to MM interface target
     \param target target SP to MM interface
     \param rx_buff Buffer to receive popped command or response message
-    \param flags access method to r/w virtual queues between SP and MM
     \return Status indicating success or negative error
 */
-int32_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff, uint8_t flags);
+int32_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff);
 
 /*! \fn bool SP_MM_Iface_Data_Available(uint8_t target)
     \brief Check if data is available on the specified SP to MM interface target
     \param target target SP to MM interface
-    \param flags access method to r/w virtual queues between SP and MM
     \return Boolean indicating status
 */
-bool SP_MM_Iface_Data_Available(uint8_t target, uint8_t flags);
+bool SP_MM_Iface_Data_Available(uint8_t target);
 
 /*! \fn int8_t SP_MM_Iface_Verify_Tail(uint8_t target)
     \brief Check if the tail of a VQ matches the shared and local copy
     \param target target SP to MM interface
-    \param flags access method to r/w virtual queues between SP and MM
     \return success or error code
 */
-int8_t SP_MM_Iface_Verify_Tail(uint8_t target, uint8_t flags);
+int8_t SP_MM_Iface_Verify_Tail(uint8_t target);
 
 #endif /* __SP_MM_IFACE_H__ */

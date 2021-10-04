@@ -21,6 +21,7 @@
 
 #include "etsoc/common/common_defs.h"
 #include "etsoc/isa/atomic.h"
+#include "etsoc/isa/etsoc_rt_memory.h"
 #include "transports/circbuff/circbuff.h"
 
 /**
@@ -65,11 +66,10 @@ typedef struct iface_cb_ {
     \param cmd_size_peek_offset Base offset to be used for peek.
     \param cmd_size_peek_length Length of command should be peeked.
     \param vq_flags Memory type to drive access attributes of VQ.
-    \param mem_flags Memory type to drive access attributes.
     \return Status indicating success or negative error code
 */
 int8_t VQ_Init(vq_cb_t* vq_cb, uint64_t vq_base, uint32_t vq_size,
-    uint16_t cmd_size_peek_offset, uint16_t cmd_size_peek_length, uint32_t vq_flags, uint32_t mem_flags);
+    uint16_t cmd_size_peek_offset, uint16_t cmd_size_peek_length, uint32_t vq_flags);
 
 /*! \fn int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size)
     \brief Push the command to circular buffer associated with
@@ -77,20 +77,18 @@ int8_t VQ_Init(vq_cb_t* vq_cb, uint64_t vq_base, uint32_t vq_size,
     \param vq_cb Pointer to virtual queue control block.
     \param data Pointer to data buffer.
     \param data_size Size of the data tp push in bytes.
-    \param flags ETSOC_MEM_TYPE to use
     \return Status indicating success or negative error code.
 */
-int8_t VQ_Push(vq_cb_t* vq_cb, const void* data, uint32_t data_size, uint32_t flags);
+int8_t VQ_Push(vq_cb_t* vq_cb, const void* data, uint32_t data_size);
 
 /*! \fn int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
     \brief Pops a command from a virtual queue.
     \param vq_cb Pointer to virtual queue control block.
     \param rx_buff Pointer to rx command buffer.
-    \param flags ETSOC_MEM_TYPE to use
     \return The size of the command in bytes, zero for no data
     or negative error code.
 */
-int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff, uint32_t flags);
+int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff);
 
 /*! \fn int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint32_t vq_used_space,
     void *const shared_mem_ptr, void* rx_buff)
@@ -132,19 +130,17 @@ int32_t VQ_Process_Command(void* cmds_buff, uint64_t buffer_size, uint32_t buffe
     \brief Peek into a segment in the virtual queue
     \param peek_buff Pointer to peek buffer.
     \param peek_length Length of bytes to peek.
-    \param flags ETSOC_MEM_TYPE to use
     \return Status indicating sucess or negative error
 */
 int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset,
-        uint16_t peek_length, uint32_t flags);
+        uint16_t peek_length);
 
 /*! \fn bool VQ_Data_Avail(vq_cb_t* vq_cb)
     \brief Check if data available in VQ
     \param vq_cb Pointer to virtual queue control block.
-    \param flags ETSOC_MEM_TYPE to use
     \return Boolean indicating data available to process
 */
-bool VQ_Data_Avail(vq_cb_t* vq_cb, uint32_t flags);
+bool VQ_Data_Avail(vq_cb_t* vq_cb);
 
 /*! \fn int8_t VQ_Deinit(void)
     \brief Deinitializes the virtual queues.
@@ -177,14 +173,11 @@ static inline uint64_t VQ_Get_Head_Offset(const vq_cb_t* vq_cb)
     \param dest_vq_cb Pointer to destination virtual queue control block.
     \param tail_val Value of tail to set
 */
-static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val, uint32_t flags)
+static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val)
 {
-    uint64_t temp64 = 0;
-    uint32_t temp32 = 0;
-
-    ETSOC_Memory_Read_64((uint64_t*)&dest_vq_cb->circbuff_cb, &temp64, flags)
-    ETSOC_Memory_Read_32(&dest_vq_cb->flags, &temp32, flags)
-    Circbuffer_Set_Tail((circ_buff_cb_t*)(uintptr_t)temp64, tail_val, temp32);
+    Circbuffer_Set_Tail((circ_buff_cb_t*)(uintptr_t)
+        ETSOC_RT_MEM_READ_64((uint64_t*)&dest_vq_cb->circbuff_cb),
+        tail_val, ETSOC_RT_MEM_READ_32(&dest_vq_cb->flags));
 }
 
 /*! \fn static inline void VQ_Set_Head_Offset(vq_cb_t* dest_vq_cb, uint64_t head_val)
@@ -192,15 +185,11 @@ static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val, ui
     \param dest_vq_cb Pointer to destination virtual queue control block.
     \param head_val Value of head to set
 */
-static inline void VQ_Set_Head_Offset(vq_cb_t* dest_vq_cb, uint64_t head_val, uint32_t flags)
+static inline void VQ_Set_Head_Offset(vq_cb_t* dest_vq_cb, uint64_t head_val)
 {
-    uint64_t temp64 = 0;
-    uint32_t temp32 = 0;
-
-    ETSOC_Memory_Read_64((uint64_t*)&dest_vq_cb->circbuff_cb, &temp64, flags)
-    ETSOC_Memory_Read_32(&dest_vq_cb->flags, &temp32, flags)
-
-    Circbuffer_Set_Head((circ_buff_cb_t*)(uintptr_t)temp64, head_val, temp32);
+    Circbuffer_Set_Head((circ_buff_cb_t*)(uintptr_t)
+        ETSOC_RT_MEM_READ_64((uint64_t*)&dest_vq_cb->circbuff_cb),
+        head_val, ETSOC_RT_MEM_READ_32(&dest_vq_cb->flags));
 }
 
 /*! \fn static inline void VQ_Get_Head_And_Tail(vq_cb_t* src_vq_cb, vq_cb_t* dest_vq_cb)
@@ -208,12 +197,10 @@ static inline void VQ_Set_Head_Offset(vq_cb_t* dest_vq_cb, uint64_t head_val, ui
     \param src_vq_cb Pointer to source virtual queue control block.
     \param dest_vq_cb Pointer to destination virtual queue control block.
 */
-static inline void VQ_Get_Head_And_Tail(vq_cb_t* src_vq_cb, vq_cb_t* dest_vq_cb, uint32_t flags)
+static inline void VQ_Get_Head_And_Tail(vq_cb_t* src_vq_cb, vq_cb_t* dest_vq_cb)
 {
-    uint64_t temp64 = 0;
-
-    ETSOC_Memory_Read_64((uint64_t*)&src_vq_cb->circbuff_cb, &temp64, flags)
-    Circbuffer_Get_Head_Tail((circ_buff_cb_t*)(uintptr_t)temp64,
+    Circbuffer_Get_Head_Tail((circ_buff_cb_t*)(uintptr_t)
+        ETSOC_RT_MEM_READ_64((uint64_t*)&src_vq_cb->circbuff_cb),
         dest_vq_cb->circbuff_cb, dest_vq_cb->flags);
 }
 

@@ -13,7 +13,7 @@
 #include "etsoc/drivers/pcie/pcie_int.h"
 #include "etsoc/drivers/pcie/pcie_device.h"
 #include "etsoc/isa/atomic.h"
-#include "etsoc/isa/etsoc_memory.h"
+#include "etsoc/isa/etsoc_rt_memory.h"
 
 /*! \enum pcie_int_t
     \brief Enum which specifies the PCI interrupt types
@@ -109,47 +109,36 @@ static uint32_t pcie_get_int_vecs(pcie_int_t int_type)
     }
 }
 
-static inline pcie_int_t pcie_cb_get_int_type(uint32_t flags)
+static inline pcie_int_t pcie_cb_get_int_type(void)
 {
-    uint32_t temp32 = 0;
-
-    ETSOC_Memory_Read_32(&PCIE_CB.int_type, &temp32, flags)
-
-    return temp32;
+    return ETSOC_RT_MEM_READ_32(&PCIE_CB.int_type);
 }
 
-static inline uint32_t pcie_cb_get_int_vecs(uint32_t flags)
+static inline uint32_t pcie_cb_get_int_vecs(void)
 {
-    uint32_t temp32 = 0;
-
-    ETSOC_Memory_Read_32(&PCIE_CB.int_vecs, &temp32, flags)
-
-    return temp32;
+    return ETSOC_RT_MEM_READ_32(&PCIE_CB.int_vecs);
 }
 
-static void pcie_cb_init(uint32_t flags)
+static void pcie_cb_init(void)
 {
     uint32_t temp32 = pcie_get_int_type();
-    ETSOC_Memory_Write_32(&temp32, &PCIE_CB.int_type, flags)
+    ETSOC_RT_MEM_WRITE_32(&PCIE_CB.int_type, temp32);
     temp32 = pcie_get_int_vecs(temp32);
-    ETSOC_Memory_Write_32(&temp32, &PCIE_CB.int_vecs, flags)
+    ETSOC_RT_MEM_WRITE_32(&PCIE_CB.int_vecs, temp32);
     temp32 = 1;
-    ETSOC_Memory_Write_32(&temp32, &PCIE_CB.initialized, flags)
+    ETSOC_RT_MEM_WRITE_32(&PCIE_CB.initialized, temp32);
 }
 
-int pcie_interrupt_host(uint32_t vec, uint32_t flags)
+int pcie_interrupt_host(uint32_t vec)
 {
     /* The first time this function is called, only then initialize the PCIE CB */
-    uint32_t temp32 = 0;
-
-    ETSOC_Memory_Read_32(&PCIE_CB.initialized, &temp32, flags)
-    if(temp32 == 0)
+    if(ETSOC_RT_MEM_READ_32(&PCIE_CB.initialized) == 0)
     {
-        pcie_cb_init(flags);
+        pcie_cb_init();
     }
 
     /* Get and verify the number of interrupt vector from PCIE CB */
-    if (vec >= pcie_cb_get_int_vecs(flags))
+    if (vec >= pcie_cb_get_int_vecs())
     {
         return -1;
     }
@@ -157,7 +146,7 @@ int pcie_interrupt_host(uint32_t vec, uint32_t flags)
     uint32_t msi_mask, tmp;
 
     /* Get the interrupt type supported from PCIE CB */
-    switch (pcie_cb_get_int_type(flags))
+    switch (pcie_cb_get_int_type())
     {
     case pcie_int_msi:
         msi_mask = 1U << vec;

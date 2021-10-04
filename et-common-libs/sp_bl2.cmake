@@ -42,6 +42,7 @@ set(SP_BL2_HDRS
 #the SP_BL2 (SP Bootloader 2 Library)
 set(SP_BL2_LIB_HDRS
     include/etsoc/drivers/serial/serial.h
+    include/etsoc/isa/etsoc_rt_memory.h
 )
 
 #########################
@@ -81,6 +82,10 @@ target_compile_options(sp-bl2
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 
+target_compile_definitions(sp-bl2
+    PUBLIC
+        -DSP_RT=1
+)
 
 #################################################
 #Install and export sp-bl2 library and headers

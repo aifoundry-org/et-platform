@@ -42,6 +42,7 @@ set(MM_RT_SVCS_LIB_HDRS
     include/etsoc/drivers/pcie/pcie_int.h
     include/etsoc/drivers/pcie/pcie_device.h
     include/etsoc/drivers/pmu/pmu.h
+    include/etsoc/isa/etsoc_rt_memory.h
     include/transports/circbuff/circbuff.h
     include/transports/vq/vq.h
     include/transports/mm_cm_iface/broadcast.h
@@ -86,6 +87,10 @@ target_compile_options(mm-rt-svcs
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 
+target_compile_definitions(mm-rt-svcs
+    PUBLIC
+        -DMM_RT=1
+)
 
 ###################################################
 #Install and export mmm-rt-svcs library and headers

@@ -52,7 +52,6 @@
 *       peek_offset  Base offset to peek everytime in VQ access
 *       peek_length  Length of data to peek in VQ
 *       vq_flags     VQ access flags
-*       mem_flags    User memory access flags
 *
 *   OUTPUTS
 *
@@ -60,16 +59,16 @@
 *
 ***********************************************************************/
 int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size, uint16_t peek_offset,
-    uint16_t peek_length, uint32_t vq_flags, uint32_t mem_flags)
+    uint16_t peek_length, uint32_t vq_flags)
 {
-    int8_t status = -1;
+    int8_t status;
     uint64_t temp64 = 0;
 
-    ETSOC_Memory_Write_64(&vq_base, (uint64_t*)&vq_cb->circbuff_cb, mem_flags)
+    ETSOC_RT_MEM_WRITE_64((uint64_t*)&vq_cb->circbuff_cb, vq_base);
 
     temp64 = (((uint64_t)vq_flags << 32) | ((uint32_t)peek_length << 16) |
         peek_offset);
-    ETSOC_Memory_Write_64(&temp64, (uint64_t*)(void*)&vq_cb->cmd_size_peek_offset,  mem_flags)
+    ETSOC_RT_MEM_WRITE_64((uint64_t*)(void*)&vq_cb->cmd_size_peek_offset, temp64);
 
     status = Circbuffer_Init((circ_buff_cb_t*)vq_base,
         (uint32_t)(vq_size - sizeof(circ_buff_cb_t)), vq_flags);
@@ -98,11 +97,9 @@ int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size, uint16_t peek
 *       int8_t    status of virtual queue push operation
 *
 ***********************************************************************/
-int8_t VQ_Push(vq_cb_t* vq_cb, const void* data, uint32_t data_size, uint32_t flags)
+int8_t VQ_Push(vq_cb_t* vq_cb, const void* data, uint32_t data_size)
 {
-    int8_t status = -1;
-    uint64_t temp64 = 0;
-    uint32_t temp32 = 0;
+    int8_t status;
 
     #ifdef VQ_DEBUG_LOG
     Log_Write(LOG_LEVEL_DEBUG, "%s%p%s%p%s%d%s",
@@ -110,10 +107,9 @@ int8_t VQ_Push(vq_cb_t* vq_cb, const void* data, uint32_t data_size, uint32_t fl
         data, ":data_size:", data_size, "\r\n");
     #endif
 
-    ETSOC_Memory_Read_64((uint64_t*)&vq_cb->circbuff_cb, &temp64, flags)
-    ETSOC_Memory_Read_32(&vq_cb->flags, &temp32, flags)
-    status = Circbuffer_Push((circ_buff_cb_t*)temp64, data,
-        data_size, temp32);
+    status = Circbuffer_Push((circ_buff_cb_t*)(uintptr_t)
+        ETSOC_RT_MEM_READ_64((uint64_t*)&vq_cb->circbuff_cb),
+        data, data_size, ETSOC_RT_MEM_READ_32(&vq_cb->flags));
 
     return status;
 }
@@ -140,16 +136,13 @@ int8_t VQ_Push(vq_cb_t* vq_cb, const void* data, uint32_t data_size, uint32_t fl
 *                  Positive value - Number of bytes popped
 *
 ***********************************************************************/
-int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff, uint32_t flags)
+int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
 {
     int32_t return_val;
     cmd_size_t command_size;
 
-    uint64_t temp_addr_64 = 0;
-    uint64_t temp_val_64 = 0;
-
-    ETSOC_Memory_Read_64((uint64_t*)&vq_cb->circbuff_cb, &temp_addr_64, flags)
-    ETSOC_Memory_Read_64((uint64_t*)(void*)&vq_cb->cmd_size_peek_offset, &temp_val_64, flags)
+    uint64_t temp_addr_64 = ETSOC_RT_MEM_READ_64((uint64_t*)&vq_cb->circbuff_cb);
+    uint64_t temp_val_64 = ETSOC_RT_MEM_READ_64((uint64_t*)(void*)&vq_cb->cmd_size_peek_offset);
 
     return_val = Circbuffer_Peek((circ_buff_cb_t*)temp_addr_64,
         (void *)&command_size, (uint16_t)(temp_val_64 & 0xFFFF),
@@ -389,17 +382,13 @@ int32_t VQ_Process_Command(void* cmds_buff, uint64_t buffer_size, uint32_t buffe
 *
 ***********************************************************************/
 int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset,
-    uint16_t peek_length, uint32_t flags)
+    uint16_t peek_length)
 {
-    int8_t status = -1;
-    uint64_t temp64 = 0;
-    uint32_t temp32 = 0;
+    int8_t status;
 
-    ETSOC_Memory_Read_64((uint64_t*)&vq_cb->circbuff_cb, &temp64, flags)
-    ETSOC_Memory_Read_32(&vq_cb->flags, &temp32, flags)
-
-    status = Circbuffer_Peek((circ_buff_cb_t*)temp64,
-        peek_buff, peek_offset, peek_length, temp32);
+    status = Circbuffer_Peek((circ_buff_cb_t*)(uintptr_t)
+        ETSOC_RT_MEM_READ_64((uint64_t*)&vq_cb->circbuff_cb),
+        peek_buff, peek_offset, peek_length, ETSOC_RT_MEM_READ_32(&vq_cb->flags));
 
     return status;
 }
@@ -423,15 +412,11 @@ int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset,
 *       bool      Boolean indicating presence of data to process.
 *
 ***********************************************************************/
-bool VQ_Data_Avail(vq_cb_t* vq_cb, uint32_t flags)
+bool VQ_Data_Avail(vq_cb_t* vq_cb)
 {
-    uint64_t temp64 = 0;
-    uint32_t temp32 = 0;
-
-    ETSOC_Memory_Read_64((uint64_t*)&vq_cb->circbuff_cb, &temp64, flags)
-    ETSOC_Memory_Read_32(&vq_cb->flags, &temp32, flags)
-
-    return (Circbuffer_Get_Used_Space((circ_buff_cb_t*)temp64, temp32) > 0);
+    return (Circbuffer_Get_Used_Space((circ_buff_cb_t*)(uintptr_t)
+        ETSOC_RT_MEM_READ_64((uint64_t*)&vq_cb->circbuff_cb),
+        ETSOC_RT_MEM_READ_32(&vq_cb->flags)) > 0);
 }
 
 /************************************************************************
