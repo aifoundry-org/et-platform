@@ -129,6 +129,7 @@ log_interface_t Log_Get_Interface(void)
 *
 *   INPUTS
 *
+*       log_level_e    Log level for the current log
 *       const chat*    format specifier
 *       ...            variable argument list
 *
@@ -137,7 +138,7 @@ log_interface_t Log_Get_Interface(void)
 *       int32_t        bytes written
 *
 ***********************************************************************/
-int32_t __Log_Write(const char *const fmt, ...)
+int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
 {
     char buff[128];
     va_list va;
@@ -152,7 +153,7 @@ int32_t __Log_Write(const char *const fmt, ...)
         va_start(va, fmt);
         vsnprintf(buff, sizeof(buff), fmt, va);
 
-        Trace_String((trace_string_event_e)CURRENT_LOG_LEVEL, Trace_Get_MM_CB(), buff);
+        Trace_String((trace_string_event_e)level, Trace_Get_MM_CB(), buff);
 
         /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
         type message. */
@@ -183,6 +184,7 @@ int32_t __Log_Write(const char *const fmt, ...)
 *
 *   INPUTS
 *
+*       log_level_e    Log level for the current log
 *       char*          pointer to string
 *       size_t         length of string
 *
@@ -191,14 +193,14 @@ int32_t __Log_Write(const char *const fmt, ...)
 *       int32_t        bytes written
 *
 ***********************************************************************/
-int32_t __Log_Write_String(const char *str, size_t length)
+int32_t __Log_Write_String(log_level_e level, const char *str, size_t length)
 {
     int32_t bytes_written = 0;
 
     /* Dump the log message over current log interface. */
     if (atomic_load_local_8(&Log_Interface) == LOG_DUMP_TO_TRACE)
     {
-        Trace_String((trace_string_event_e)CURRENT_LOG_LEVEL, Trace_Get_MM_CB(), str);
+        Trace_String((trace_string_event_e)level, Trace_Get_MM_CB(), str);
 
         /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
            type message. */
