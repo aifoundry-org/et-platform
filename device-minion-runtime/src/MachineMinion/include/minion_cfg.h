@@ -23,3 +23,6 @@ int64_t configure_compute_minion(uint64_t shire_mask, uint64_t lvdpll_strap);
 
 // Update Minion PLL frequency - all Minion programmed to same frequency
 int64_t dynamic_minion_pll_frequency_update(uint64_t freq);
+
+// Get PLL conf global
+volatile struct pll_conf_reg_t *get_pll_conf_reg(void);
