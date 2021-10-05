@@ -104,6 +104,8 @@ protected:
   void setModuleActivePowerManagementRangeInvalidInputBuffer_1_61(bool singleDevice);
   void setModuleActivePowerManagement_1_62(bool singleDevice);
   void updateFirmwareImage_1_63(bool singleDevice);
+  void setPCIELinkSpeedToInvalidLinkSpeed_1_64(bool singleDevice);
+  void setPCIELaneWidthToInvalidLaneWidth_1_65(bool singleDevice);
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
 };

@@ -2071,3 +2071,53 @@ void TestDevMgmtApiSyncCmds::updateFirmwareImage_1_63(bool singleDevice) {
     }
   }
 }
+
+void TestDevMgmtApiSyncCmds::setPCIELinkSpeedToInvalidLinkSpeed_1_64(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = sizeof(device_mgmt_api::pcie_link_speed_e);
+    const char input_buff[input_size] = {54}; // Invalid link speed
+
+    // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
+    const uint32_t output_size = sizeof(uint32_t);
+    char output_buff[output_size] = {0};
+
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED, input_buff,
+                                input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+                                -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::setPCIELaneWidthToInvalidLaneWidth_1_65(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = sizeof(device_mgmt_api::pcie_lane_w_split_e);
+    const char input_buff[input_size] = {86}; // Invalid lane width
+
+    // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
+    const uint32_t output_size = sizeof(uint32_t);
+    char output_buff[output_size] = {0};
+
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff, input_size,
+                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+                                -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}

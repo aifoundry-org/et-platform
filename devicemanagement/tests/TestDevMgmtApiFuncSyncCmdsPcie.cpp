@@ -303,6 +303,15 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setModuleActivePowerManagementRangeInvali
   setModuleActivePowerManagementRangeInvalidInputBuffer_1_61(false /* Multiple Devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIELinkSpeedToInvalidLinkSpeed_1_64) {
+  setPCIELinkSpeedToInvalidLinkSpeed_1_64(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIELaneWidthToInvalidLaneWidth_1_65) {
+  setPCIELaneWidthToInvalidLaneWidth_1_65(false /* Multiple Devices */);
+}
+
+
 int main(int argc, char** argv) {
   logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);
