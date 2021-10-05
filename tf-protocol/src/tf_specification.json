@@ -1019,20 +1019,24 @@
     "tf_mm_device_api_rsp_spec": {
         "TF_RSP_MM_FW_VERSION": {
             "flags": 2,
-            "payload_size": 8,
+            "payload_size": 16,
             "payload_args": {
+                "status": "uint32_t",
                 "major": "uint16_t",
                 "minor": "uint16_t",
                 "patch": "uint16_t",
                 "type": "uint8_t",
-                "pad": "uint8_t"
+                "pad1": "uint32_t",
+                "pad2": "uint8_t"
             }
         },
         "TF_RSP_MM_ECHO": {
             "flags": 2,
-            "payload_size": 8,
+            "payload_size": 16,
             "payload_args": {
-                "device_cmd_start_ts": "uint64_t"
+                "device_cmd_start_ts": "uint64_t",
+                "status": "uint32_t",
+                "pad1": "uint32_t"
             }
         },
         "TF_RSP_MM_KERNEL_LAUNCH": {
@@ -1051,7 +1055,7 @@
             "payload_size": 8,
             "payload_args": {
                 "status": "uint32_t",
-	        "pad": "uint32_t"
+	            "pad": "uint32_t"
             }
         },
 	"TF_RSP_MM_TRACE_RT_CONTROL": {
@@ -1059,7 +1063,7 @@
             "payload_size": 8,
             "payload_args": {
                 "status": "uint32_t",
-	        "pad": "uint32_t"
+	            "pad": "uint32_t"
             }
         }
     }
