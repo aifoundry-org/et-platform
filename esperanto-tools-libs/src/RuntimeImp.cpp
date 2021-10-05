@@ -84,6 +84,7 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
     RT_LOG(INFO) << "Device: " << d << " initialized.";
   }
   eventManager_.setThrowOnMissingEvent(true);
+  running_ = true;
 }
 
 std::vector<DeviceId> RuntimeImp::getDevices() {
