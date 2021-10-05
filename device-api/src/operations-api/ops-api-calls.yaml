@@ -133,6 +133,39 @@ Enums:
         Value: 5
       - Name: INVALID_SIZE
         Value: 6
+  - Name: dev_ops_api_echo_response
+    Type: uint32_t
+    Values:
+      - Name: SUCCESS
+        Value: 0
+      - Name: HOST_ABORTED
+        Value: 1
+  - Name: dev_ops_api_fw_version_response
+    Type: uint32_t
+    Values:
+      - Name: SUCCESS
+        Value: 0
+      - Name: BAD_FW_TYPE
+        Value: 1
+      - Name: NOT_AVAILABLE
+        Value: 2
+      - Name: HOST_ABORTED
+        Value: 3
+  - Name: dev_ops_api_compatibility_response
+    Type: uint32_t
+    Values:
+      - Name: SUCCESS
+        Value: 0
+      - Name: INCOMPATIBLE_MAJOR
+        Value: 1
+      - Name: INCOMPATIBLE_MINOR
+        Value: 2
+      - Name: INCOMPATIBLE_PATCH
+        Value: 3
+      - Name: BAD_FW_TYPE
+        Value: 4
+      - Name: HOST_ABORTED
+        Value: 5
   - Name: dev_ops_api_error_type
     Type: uint32_t
     Values:
@@ -245,6 +278,10 @@ Messages :
     Description: Return the version implemented by the target
     PairedMessage: check_device_ops_api_compatibility_cmd
     Fields:
+      - Name: status
+        Description: Compatibility status
+        Type: enum
+        Enum: dev_ops_api_compatibility_response
       - Name: major
         Description: Sem Version Major
         Type: uint16_t
@@ -254,7 +291,7 @@ Messages :
       - Name: patch
         Description: Sem Version Patch
         Type: uint16_t
-      - Name: pad[2]
+      - Name: pad[6]
         Description: Padding for alignment
         Type: uint8_t
 #-------------------------------------------------------------------------------
@@ -275,6 +312,10 @@ Messages :
     Description: Return the device fw version for the requested type
     PairedMessage: device_ops_device_fw_version_cmd
     Fields:
+      - Name: status
+        Description: Firmware version status
+        Type: enum
+        Enum: dev_ops_api_fw_version_response
       - Name: major
         Description: Sem Version Major
         Type: uint16_t
@@ -288,7 +329,7 @@ Messages :
         Description: Device firmware type
         Type: enum
         Enum: dev_ops_fw_type
-      - Name: pad
+      - Name: pad[5]
         Description: Padding for alignment
         Type: uint8_t
 #-------------------------------------------------------------------------------
@@ -308,6 +349,13 @@ Messages :
       - Name: device_cmd_start_ts
         Description: Report of the time stamp (in uS) when the command got popped out of the Submission Queue.
         Type: uint64_t
+      - Name: status
+        Description: Echo command status
+        Type: enum
+        Enum: dev_ops_api_echo_response
+      - Name: pad[4]
+        Description: Padding for alignment
+        Type: uint8_t
 #-------------------------------------------------------------------------------
   - Name: device_ops_abort_cmd
     Description: Command to abort a currently pipelined command in the device
