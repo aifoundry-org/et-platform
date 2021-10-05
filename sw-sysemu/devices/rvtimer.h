@@ -54,11 +54,7 @@ struct RVTimer
         mtimecmp = val;
         interrupt = (mtime >= mtimecmp);
         if (had_interrupt && !interrupt) {
-            for (unsigned shire = 0; shire < EMU_NUM_SHIRES; ++shire) {
-                if ((interrupt_shire_mask >> shire) & 1) {
-                    agent.chip->clear_machine_timer_interrupt(shire);
-                }
-            }
+            agent.chip->clear_timer_interrupt(interrupt_shire_mask);
         }
     }
 
@@ -66,11 +62,7 @@ struct RVTimer
     {
         if (++mtime >= mtimecmp) {
             if (!interrupt) {
-                for (unsigned shire = 0; shire < EMU_NUM_SHIRES; ++shire) {
-                    if ((interrupt_shire_mask >> shire) & 1) {
-                        agent.chip->raise_machine_timer_interrupt(shire);
-                    }
-                }
+                agent.chip->raise_timer_interrupt(interrupt_shire_mask);
                 interrupt = true;
             }
         }

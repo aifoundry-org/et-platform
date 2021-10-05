@@ -47,9 +47,9 @@ void insn_ecall(Hart& cpu)
     DISASM_NOARG("ecall");
 
     switch (PRV) {
-    case Privilege::U: throw trap_user_ecall();
-    case Privilege::S: throw trap_supervisor_ecall();
-    case Privilege::M: throw trap_machine_ecall();
+    case PRV_U: throw trap_user_ecall(); break;
+    case PRV_S: throw trap_supervisor_ecall(); break;
+    case PRV_M: throw trap_machine_ecall(); break;
     }
 }
 
@@ -58,7 +58,7 @@ void insn_mret(Hart& cpu)
 {
     DISASM_NOARG("mret");
 
-    if (PRV != Privilege::M)
+    if (PRV != PRV_M)
         throw trap_illegal_instruction(cpu.inst.bits);
 
     // Invalidate the fetch buffer when changing VM mode or permissions
@@ -67,7 +67,7 @@ void insn_mret(Hart& cpu)
     // Take mpie and mpp
     uint64_t mstatus = cpu.mstatus;
     uint64_t mpie = (mstatus >> 7) & 0x1;
-    Privilege mpp = Privilege((mstatus >> 11) & 0x3);
+    prv_t    mpp = prv_t((mstatus >> 11) & 0x3);
 
     // Set mie = mpie, mpie = 1, mpp = U (0)
     mstatus = (mstatus & 0xFFFFFFFFFFFFE777ULL) | (mpie << 3) | (1 << 7);
@@ -95,9 +95,9 @@ void insn_sret(Hart& cpu)
 {
     DISASM_NOARG("sret");
 
-    Privilege curprv = PRV;
+    uint64_t curprv = PRV;
     uint64_t mstatus = cpu.mstatus;
-    if (curprv == Privilege::U || (curprv == Privilege::S && (((mstatus >> 22) & 1) == 1)))
+    if (curprv == PRV_U || (curprv == PRV_S && (((mstatus >> 22) & 1) == 1)))
         throw trap_illegal_instruction(cpu.inst.bits);
 
     // Invalidate the fetch buffer when changing VM mode or permissions
@@ -105,7 +105,7 @@ void insn_sret(Hart& cpu)
 
     // Take spie and spp
     uint64_t spie = (mstatus >> 5) & 0x1;
-    Privilege spp = Privilege((mstatus >> 8) & 0x1);
+    prv_t    spp = prv_t((mstatus >> 8) & 0x1);
 
     // Clean sie, spie and spp
     // Set sie = spie, spie = 1, spp = U (0)
@@ -126,21 +126,10 @@ void insn_wfi(Hart& cpu)
 {
     DISASM_NOARG("wfi");
 
-    Privilege curprv = PRV;
+    uint64_t curprv = PRV;
     uint64_t mstatus = cpu.mstatus;
-
-    if (curprv == Privilege::U || (curprv == Privilege::S && (((mstatus >> 21) & 1) == 1))) {
+    if (curprv == PRV_U || (curprv == PRV_S && (((mstatus >> 21) & 1) == 1)))
         throw trap_illegal_instruction(cpu.inst.bits);
-    }
-
-    // WFI will not go to sleep in exclusive mode or when there are pending
-    // interrupts, even when they are globally disabled (but they will ignore
-    // pending interrupts if they are locally disabled).
-    if (!cpu.core->excl_mode) {
-        if (((cpu.mip | cpu.ext_seip) & cpu.mie) == 0) {
-            cpu.start_waiting(Hart::Waiting::interrupt);
-        }
-    }
 }
 
 

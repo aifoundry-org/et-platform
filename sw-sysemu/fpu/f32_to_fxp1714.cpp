@@ -21,7 +21,7 @@ int32_t f32_to_fxp1714(float32_t a)
     ui32_f32 uA;
     ui32_f32 uB;
     uint_fast32_t uiA;
-
+    
     uA.f = a;
     uiA = uA.ui;
 

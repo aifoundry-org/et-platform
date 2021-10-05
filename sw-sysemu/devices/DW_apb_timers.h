@@ -23,10 +23,10 @@ namespace bemu {
 
 template<unsigned long long Base, unsigned long long N>
 struct DW_apb_timers : public MemoryRegion {
-    using addr_type     = typename MemoryRegion::addr_type;
-    using size_type     = typename MemoryRegion::size_type;
-    using pointer       = typename MemoryRegion::pointer;
-    using const_pointer = typename MemoryRegion::const_pointer;
+    typedef typename MemoryRegion::addr_type      addr_type;
+    typedef typename MemoryRegion::size_type      size_type;
+    typedef typename MemoryRegion::pointer        pointer;
+    typedef typename MemoryRegion::const_pointer  const_pointer;
 
     static_assert(N == 4_KiB, "bemu::DW_apb_timers has illegal size");
 

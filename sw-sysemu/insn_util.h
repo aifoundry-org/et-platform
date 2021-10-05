@@ -33,7 +33,7 @@ namespace bemu {
 // -----------------------------------------------------------------------------
 // Log operands
 
-#define PRVNAME ("USHM"[static_cast<int>(cpu.prv)])
+#define PRVNAME ("USHM"[cpu.prv])
 
 #define RMDYN   (RM==7)
 #define RMNAME  (&"rne\0rtz\0rdn\0rup\0rmm\0rm5\0rm6\0dyn"[RM * 4])
@@ -170,22 +170,13 @@ namespace bemu {
     LOG_HART(DEBUG, cpu, "\tprv " str " %c", "USHM"[int(value) % 4])
 
 #define LOG_MSTATUS(str, value) \
-    LOG_HART(DEBUG, cpu, "\tmstatus " str " 0x%" PRIx64, (value))
+    LOG_HART(DEBUG, cpu, "\tmstatus " str " 0x%" PRIx64, value)
+
+#define LOG_CSR(str, index, value) \
+    LOG_HART(DEBUG, cpu, "\t%s " str " 0x%" PRIx64, csr_name(index), value)
 
 #define LOG_TENSOR_MASK(str) \
     LOG_HART(DEBUG, cpu, "\ttensor_mask " str " 0x%lx", cpu.tensor_mask.to_ulong())
-
-#define LOG_TENSOR_COOP(str) \
-    LOG_HART(DEBUG, cpu, "\ttensor_coop " str " 0x%" PRIx32 " (neighs:0x%x minions:0x%02x group:%d)", \
-             cpu.tensor_coop, (cpu.tensor_coop >> 16) & 0xf, (cpu.tensor_coop >> 8) & 0xff, cpu.tensor_coop & 0x1f)
-
-#define LOG_CSR(str, index, value) do { \
-    if ((index) == CSR_TENSOR_COOP) { \
-        LOG_TENSOR_COOP(str); \
-    } else { \
-        LOG_HART(DEBUG, cpu, "\t%s " str " 0x%" PRIx64, csr_name(index), (value)); \
-    } \
-} while (0)
 
 
 // -----------------------------------------------------------------------------
@@ -253,50 +244,18 @@ namespace bemu {
 #define PRV     cpu.prv
 
 
-inline void update_tensor_error(Hart& cpu, uint16_t value)
-{
-    cpu.tensor_error |= value;
-    if (value) {
-        LOG_HART(DEBUG, cpu, "\ttensor_error = 0x%04" PRIx16 " (0x%04" PRIx16 ")",
-                 cpu.tensor_error, value);
-    }
-}
-
-
 inline void set_rounding_mode(Hart& cpu, uint_fast8_t value) {
-    if (value == 7) {
+    if (value == 7)
         value = cpu.frm();
-    }
-    if (value > 4) {
+    if (value > 4)
         throw trap_illegal_instruction(cpu.inst.bits);
-    }
     softfloat_roundingMode = value;
 }
 
 
-#define require_fp_enabled() do { \
+#define require_fp_active() do { \
     if ((cpu.mstatus & 0x6000ULL) == 0) \
         throw trap_illegal_instruction(cpu.inst.bits); \
-} while (0)
-
-
-#define require_fp_active() do { \
-    require_fp_enabled(); \
-    if ((cpu.core->tqueue.front() != TQueue::Instruction::none) \
-        && ((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)) \
-    { \
-        if (cpu.core->tmul.state != TMul::State::idle) { \
-            cpu.start_waiting(Hart::Waiting::tfma); \
-        } \
-        if (cpu.core->tquant.state != TQuant::State::idle) { \
-            cpu.start_waiting(Hart::Waiting::tquant); \
-        } \
-        if (cpu.core->reduce.state != TReduce::State::idle) { \
-            cpu.start_waiting(Hart::Waiting::reduce); \
-        } \
-        cpu.npc = cpu.pc; \
-        throw instruction_restart(); \
-    } \
 } while (0)
 
 
@@ -433,7 +392,7 @@ inline mreg_t mkmask(unsigned len) {
             try { \
                 expr; \
             } \
-            catch (const Trap&) { \
+            catch (const trap_t&) { \
                 cpu.gsc_progress = e; \
                 LOG_GSC_PROGRESS("="); \
                 notify_gsc_progress(cpu, e); \
@@ -460,7 +419,7 @@ inline mreg_t mkmask(unsigned len) {
                 FD.u32[e] = fpu::UI32(expr); \
                 dirty = true; \
             } \
-            catch (const Trap&) { \
+            catch (const trap_t&) { \
                 cpu.gsc_progress = e; \
                 LOG_GSC_PROGRESS("="); \
                 notify_gsc_progress(cpu, e); \
@@ -527,7 +486,7 @@ inline mreg_t mkmask(unsigned len) {
                 FD.u32[e] = fpu::UI32(expr); \
                 dirty = true; \
             } \
-            catch (const Trap&) { \
+            catch (const trap_t&) { \
                 cpu.gsc_progress = e; \
                 LOG_GSC_PROGRESS("="); \
                 notify_gsc_progress(cpu, e); \
@@ -565,7 +524,7 @@ inline mreg_t mkmask(unsigned len) {
                 FD.u32[e] = fpu::UI32(expr); \
                 dirty = true; \
             } \
-            catch (const Trap&) { \
+            catch (const trap_t&) { \
                 cpu.gsc_progress = e; \
                 LOG_GSC_PROGRESS("="); \
                 notify_gsc_progress(cpu, e); \

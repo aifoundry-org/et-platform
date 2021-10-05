@@ -216,7 +216,7 @@ bool sys_emu::process_dbg_cmd(std::string cmd) {
       try {
         printf("CSR[%d][0x%x] = 0x%" PRIx64 "\n", thid, offset & 0xfff, thread_get_csr(thid, offset & 0xfff));
       }
-      catch (const bemu::Trap&) {
+      catch (const bemu::trap_t&) {
         printf("Unrecognized CSR register\n");
       }
    } else if ((command[0] == "m") || (command[0] == "mdump")) {

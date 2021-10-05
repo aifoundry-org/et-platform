@@ -20,20 +20,20 @@ namespace bemu {
 
 template<typename Tp, size_t N>
 struct lazy_array {
-    using array_type            = std::array<Tp,N>;
-    using array_pointer         = std::unique_ptr<array_type>;
+    typedef std::array<Tp,N>              array_type;
+    typedef std::unique_ptr<array_type>   array_pointer;
 
-    using value_type            = typename array_type::value_type;
-    using reference             = typename array_type::reference;
-    using const_reference       = typename array_type::const_reference;
-    using pointer               = typename array_type::pointer;
-    using const_pointer         = typename array_type::const_pointer;
-    using iterator              = typename array_type::iterator;
-    using const_iterator        = typename array_type::const_iterator;
-    using reverse_iterator      = typename array_type::reverse_iterator;
-    using const_reverse_iterator = typename array_type::const_reverse_iterator;
-    using size_type             = typename array_type::size_type;
-    using difference_type       = typename array_type::difference_type;
+    typedef typename array_type::value_type             value_type;
+    typedef typename array_type::reference              reference;
+    typedef typename array_type::const_reference        const_reference;
+    typedef typename array_type::pointer                pointer;
+    typedef typename array_type::const_pointer          const_pointer;
+    typedef typename array_type::iterator               iterator;
+    typedef typename array_type::const_iterator         const_iterator;
+    typedef typename array_type::reverse_iterator       reverse_iterator;
+    typedef typename array_type::const_reverse_iterator const_reverse_iterator;
+    typedef typename array_type::size_type              size_type;
+    typedef typename array_type::difference_type        difference_type;
 
     void allocate() {
         p.reset(new array_type);
@@ -90,7 +90,7 @@ struct lazy_array {
       for ( size_t i = 0 ; i < N ; i++)
         (*p)[i] = val[i % size];
     }
-
+  
     void swap(lazy_array& other) noexcept { p->swap(other); }
 
     // Members

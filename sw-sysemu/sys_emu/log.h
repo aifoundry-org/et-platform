@@ -16,6 +16,7 @@
 
 
 // There is no checker so we make this an empty interface
+inline void clearlogstate() {}
 inline void notify_pc_update(const bemu::Hart&, uint64_t) {}
 inline void notify_xreg_write(const bemu::Hart&, uint8_t, uint64_t) {}
 inline void notify_xreg_late_write(const bemu::Hart&, uint8_t, uint64_t) {}

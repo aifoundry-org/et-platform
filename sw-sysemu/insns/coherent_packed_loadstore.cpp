@@ -146,7 +146,7 @@ void insn_fswg_ps(Hart& cpu)
     DISASM_STORE_FD_RS1("fswg.ps");
     LOG_MREG(":", 0);
     mreg_t msk;
-    if (cpu.chip->stepping == System::Stepping::A0) {
+    if (cpu.chip->sysver == system_version_t::ETSOC1_A0) {
         msk = mreg_t(-1);
         if (msk != M0) {
             LOG_HART(WARN, cpu, "%s", "fswg.ps with m0 not all 1s is UNDEFINED behavior");
@@ -164,7 +164,7 @@ void insn_fswl_ps(Hart& cpu)
     DISASM_STORE_FD_RS1("fswl.ps");
     LOG_MREG(":", 0);
     mreg_t msk;
-    if (cpu.chip->stepping == System::Stepping::A0) {
+    if (cpu.chip->sysver == system_version_t::ETSOC1_A0) {
         msk = mreg_t(-1);
         if (msk != M0) {
             LOG_HART(WARN, cpu, "%s", "fswl.ps with m0 not all 1s is UNDEFINED behavior");

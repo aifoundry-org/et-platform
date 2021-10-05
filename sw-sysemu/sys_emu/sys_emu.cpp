@@ -39,36 +39,218 @@
 #include "processor.h"
 #include "profiling.h"
 #include "sys_emu.h"
+#include "tensor.h"
 #ifdef HAVE_BACKTRACE
 #include "crash_handler.h"
 #endif
 
 
-static inline bool
-multithreading_is_disabled(const bemu::System& chip, unsigned shire)
+////////////////////////////////////////////////////////////////////////////////
+// Helper methods
+////////////////////////////////////////////////////////////////////////////////
+
+static inline bool multithreading_is_disabled(const bemu::System& soc, unsigned shire)
 {
-    return chip.shire_other_esrs[shire].minion_feature & 0x10;
+    return soc.shire_other_esrs[shire].minion_feature & 0x10;
 }
 
-static void
-halt_all_threads(bemu::System& chip)
+static inline bool thread_in_reduce_send(const bemu::Hart& cpu)
 {
-    // FIXME: How do we halt waiting harts?
-    for (auto& hart : chip.active) {
-       hart.enter_debug_mode();
-    }
-    for (auto& hart : chip.awaking) {
-       hart.enter_debug_mode();
+    return ((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
+        && (cpu.core->reduce.state == bemu::Core::Reduce::State::Send);
+}
+
+static inline bool thread_in_reduce_recv(const bemu::Hart& cpu)
+{
+    return ((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
+        && (cpu.core->reduce.state == bemu::Core::Reduce::State::Recv);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Sends an FCC to the desired minions specified in thread mask to the 1st or
+// second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire
+// of thread_src
+////////////////////////////////////////////////////////////////////////////////
+
+void
+sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest)
+{
+    assert(thread_dest < 2);
+    assert(cnt_dest < 2);
+    for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
+    {
+        // Skip disabled minion
+        if (((cmd_options.minions_en >> m) & 1) == 0) continue;
+
+        if ((thread_mask >> m) & 1)
+        {
+            int thread_id = shire_id * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + thread_dest;
+            assert(thread_id < EMU_NUM_THREADS);
+            LOG_AGENT(DEBUG, chip.cpu[thread_id], "Receiving FCC%u write", thread_dest*2 + cnt_dest);
+
+            auto thread = std::find(fcc_wait_threads[cnt_dest].begin(),
+                                    fcc_wait_threads[cnt_dest].end(),
+                                    thread_id);
+            // Checks if is already awaken
+            if(thread == fcc_wait_threads[cnt_dest].end())
+            {
+                // Pushes to pending FCC
+                pending_fcc[thread_id][cnt_dest]++;
+            }
+            // Otherwise wakes up thread
+            else
+            {
+                if (!thread_is_active(thread_id) || thread_is_disabled(thread_id)) {
+                    LOG_AGENT(DEBUG, chip.cpu[thread_id], "Disabled thread received FCC%u", thread_dest*2 + cnt_dest);
+                } else {
+                    LOG_AGENT(DEBUG, chip.cpu[thread_id], "Waking up due to received FCC%u", thread_dest*2 + cnt_dest);
+                    running_threads.push_back(thread_id);
+                }
+                fcc_wait_threads[cnt_dest].erase(thread);
+                --chip.cpu[thread_id].fcc[cnt_dest];
+            }
+        }
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Unblock a thread waiting for a message when the message is written to the
+// thread's L1SCP
+////////////////////////////////////////////////////////////////////////////////
+
+void
+sys_emu::msg_to_thread(unsigned thread_id)
+{
+    thread_id = bemu::hart_index(chip.cpu[thread_id]);
+    auto thread = std::find(port_wait_threads.begin(), port_wait_threads.end(), thread_id);
+    LOG_AGENT(INFO, agent, "Message to thread %i", thread_id);
+    // Checks if in port wait state
+    if(thread != port_wait_threads.end())
+    {
+        if (!thread_is_active(thread_id) || thread_is_disabled(thread_id)) {
+            LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Disabled thread received msg");
+        } else {
+            LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Waking up due msg");
+            running_threads.push_back(thread_id);
+        }
+        port_wait_threads.erase(thread);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Send IPI_REDIRECT or IPI (or clear pending IPIs) to the minions specified in
+// thread mask of the specified shire id.
+////////////////////////////////////////////////////////////////////////////////
+
+void
+sys_emu::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
+{
+    if ((shire == IO_SHIRE_ID) || (shire == EMU_IO_SHIRE_SP))
+        throw std::runtime_error("IPI_REDIRECT to SvcProc");
+
+    // Get IPI_REDIRECT_FILTER ESR for the shire
+    uint64_t ipi_redirect_filter = chip.shire_other_esrs[shire].ipi_redirect_filter;
+
+    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire;
+    for(unsigned t = 0; t < EMU_THREADS_PER_SHIRE; t++)
+    {
+        // If both IPI_REDIRECT_TRIGGER and IPI_REDIRECT_FILTER has bit set
+        if(((thread_mask >> t) & 1) && ((ipi_redirect_filter >> t) & 1))
+        {
+            // Get PC
+            unsigned tid = thread0 + t;
+            unsigned neigh = tid / EMU_THREADS_PER_NEIGH;
+            uint64_t new_pc = chip.neigh_esrs[neigh].ipi_redirect_pc;
+            LOG_AGENT(DEBUG, chip.cpu[tid], "Receiving IPI_REDIRECT to %llx", (long long unsigned int) new_pc);
+            // If thread sleeping, wakes up and changes PC
+            if(!thread_is_running(tid))
+            {
+                if (!thread_is_active(tid) || thread_is_disabled(tid)) {
+                    LOG_AGENT(DEBUG, chip.cpu[tid], "%s", "Disabled thread received IPI_REDIRECT");
+                } else {
+                    LOG_AGENT(DEBUG, chip.cpu[tid], "%s", "Waking up due to IPI_REDIRECT");
+                    running_threads.push_back(tid);
+                    thread_set_pc(tid, new_pc);
+                }
+            }
+            // Otherwise IPI is dropped
+            else
+            {
+                LOG_AGENT(DEBUG, chip.cpu[tid], "%s", "WARNING => IPI_REDIRECT dropped");
+            }
+        }
+    }
+}
+
+void
+sys_emu::raise_interrupt_wakeup_check(unsigned thread_id)
+{
+    // WFI/stall don't require the global interrupt bits in mstatus to be enabled
+    uint64_t xip = (chip.cpu[thread_id].mip | chip.cpu[thread_id].ext_seip) & chip.cpu[thread_id].mie;
+    if (xip) {
+        bool trap = false;
+
+        // If it was waiting in a WFI or stall, wake it up
+        auto wfi_stall_it = std::find(wfi_stall_wait_threads.begin(),
+                                wfi_stall_wait_threads.end(),
+                                thread_id);
+        if (wfi_stall_it != wfi_stall_wait_threads.end()) {
+            LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Waking up thread");
+            wfi_stall_wait_threads.erase(wfi_stall_it);
+            running_threads.push_back(thread_id);
+            return;
+        }
+
+        // Otherwise, if there's a trap, catch it and wakeup the thread
+        try {
+            chip.cpu[thread_id].check_pending_interrupts();
+        } catch (const bemu::trap_t& t) {
+            trap = true;
+        }
+
+        if (trap) {
+            LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Waking up thread");
+            running_threads.push_back(thread_id);
+
+            // If it was waiting for an FCC, remove it from the list
+            for (auto &fcc_wait_it: fcc_wait_threads) {
+                auto th = std::find(fcc_wait_it.begin(),
+                                    fcc_wait_it.end(),
+                                    thread_id);
+                if (th != fcc_wait_it.end())
+                    fcc_wait_it.erase(th);
+            }
+        }
+    }
+}
 
 void
 sys_emu::raise_timer_interrupt(uint64_t shire_mask)
 {
-    for (int shire = 0; shire < EMU_NUM_SHIRES; ++shire) {
-        if ((shire_mask >> shire) & 1) {
-            chip.raise_machine_timer_interrupt(shire);
+    for (int s = 0; s < EMU_NUM_SHIRES; s++) {
+        if (!(shire_mask & (1ULL << s)))
+            continue;
+
+        unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
+        unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
+        uint32_t target = (s == EMU_IO_SHIRE_SP ? 1 : chip.shire_other_esrs[s].mtime_local_target);
+
+        for (unsigned m = 0; m < shire_minion_count; m++) {
+            if (!(target & (1ULL << m)))
+                continue;
+
+            for (unsigned ii = 0; ii < minion_thread_count; ii++) {
+                int thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
+                LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Receiving Machine timer interrupt");
+                bemu::raise_timer_interrupt(chip.cpu[thread_id]);
+
+                if (!thread_is_active(thread_id) || thread_is_disabled(thread_id))
+                    continue;
+
+                // Check if the thread has to be awakened
+                if (!thread_is_running(thread_id))
+                    raise_interrupt_wakeup_check(thread_id);
+            }
         }
     }
 }
@@ -76,9 +258,21 @@ sys_emu::raise_timer_interrupt(uint64_t shire_mask)
 void
 sys_emu::clear_timer_interrupt(uint64_t shire_mask)
 {
-    for (int shire = 0; shire < EMU_NUM_SHIRES; ++shire) {
-        if ((shire_mask >> shire) & 1) {
-            chip.clear_machine_timer_interrupt(shire);
+    for (int s = 0; s < EMU_NUM_SHIRES; s++) {
+        if (!(shire_mask & (1ULL << s)))
+            continue;
+
+        unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
+        unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
+        uint32_t target = (s == EMU_IO_SHIRE_SP ? 1 : chip.shire_other_esrs[s].mtime_local_target);
+
+        for (unsigned m = 0; m < shire_minion_count; m++) {
+            if (target & (1ULL << m)) {
+                for (unsigned ii = 0; ii < minion_thread_count; ii++) {
+                    int thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
+                    bemu::clear_timer_interrupt(chip.cpu[thread_id]);
+                }
+            }
         }
     }
 }
@@ -86,73 +280,440 @@ sys_emu::clear_timer_interrupt(uint64_t shire_mask)
 void
 sys_emu::raise_software_interrupt(unsigned shire, uint64_t thread_mask)
 {
-    chip.raise_machine_software_interrupt(shire, thread_mask);
+    if (shire == IO_SHIRE_ID)
+        shire = EMU_IO_SHIRE_SP;
+
+    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire;
+    unsigned shire_thread_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
+
+    // Write mip.msip to all selected threads
+    for (unsigned t = 0; t < shire_thread_count; ++t) {
+        if (!(thread_mask & (1ull << t)))
+            continue;
+
+        unsigned thread_id = thread0 + t;
+        if (!thread_is_active(thread_id) || thread_is_disabled(thread_id)) {
+            LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Disabled thread received IPI");
+            continue;
+        }
+
+        LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Receiving IPI");
+        bemu::raise_software_interrupt(chip.cpu[thread_id]);
+
+        // Check if the thread has to be awakened
+        if (!thread_is_running(thread_id))
+            raise_interrupt_wakeup_check(thread_id);
+    }
 }
 
 void
 sys_emu::clear_software_interrupt(unsigned shire, uint64_t thread_mask)
 {
-    chip.clear_machine_software_interrupt(shire, thread_mask);
+    if (shire == IO_SHIRE_ID)
+        shire = EMU_IO_SHIRE_SP;
+
+    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire;
+    unsigned shire_thread_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
+
+    // Clear mip.msip to all selected threads
+    for (unsigned t = 0; t < shire_thread_count; ++t)
+    {
+        if ((thread_mask >> t) & 1)
+        {
+            unsigned thread_id = thread0 + t;
+            bemu::clear_software_interrupt(chip.cpu[thread_id]);
+        }
+    }
 }
 
 void
 sys_emu::raise_external_interrupt(unsigned shire)
 {
-    chip.raise_machine_external_interrupt(shire);
+    if (shire == IO_SHIRE_ID)
+        shire = EMU_IO_SHIRE_SP;
+
+    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire;
+    unsigned shire_thread_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
+
+    // Write mip.meip to all the threads of the shire
+    for (unsigned t = 0; t < shire_thread_count; ++t)
+    {
+        unsigned thread_id = thread0 + t;
+        LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Receiving Machine external interrupt");
+        bemu::raise_external_machine_interrupt(chip.cpu[thread_id]);
+
+        if (!thread_is_active(thread_id) || thread_is_disabled(thread_id))
+            continue;
+
+        // Check if the thread has to be awakened
+        if (!thread_is_running(thread_id))
+            raise_interrupt_wakeup_check(thread_id);
+    }
 }
 
 void
 sys_emu::clear_external_interrupt(unsigned shire)
 {
-    chip.clear_machine_external_interrupt(shire);
+    if (shire == IO_SHIRE_ID)
+        shire = EMU_IO_SHIRE_SP;
+
+    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire;
+    unsigned shire_thread_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
+
+    // Clear mip.meip to all the threads of the shire
+    for (unsigned t = 0; t < shire_thread_count; ++t)
+    {
+        unsigned thread_id = thread0 + t;
+        bemu::clear_external_machine_interrupt(chip.cpu[thread_id]);
+    }
 }
 
 void
-sys_emu::raise_external_supervisor_interrupt(unsigned shire)
+sys_emu::raise_external_supervisor_interrupt(unsigned shire_id)
 {
-    chip.raise_supervisor_external_interrupt(shire);
+    unsigned thread0 =
+        EMU_THREADS_PER_SHIRE
+        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+
+    unsigned shire_thread_count =
+        (shire_id == IO_SHIRE_ID ? 1 : EMU_THREADS_PER_SHIRE);
+
+    // Write external seip to all the threads of the shire
+    for (unsigned t = 0; t < shire_thread_count; ++t)
+    {
+        unsigned thread_id = thread0 + t;
+        LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Receiving Supervisor external interrupt");
+        bemu::raise_external_supervisor_interrupt(chip.cpu[thread_id]);
+
+        if (!thread_is_active(thread_id) || thread_is_disabled(thread_id))
+            continue;
+
+        // Check if the thread has to be awakened
+        if (!thread_is_running(thread_id))
+            raise_interrupt_wakeup_check(thread_id);
+    }
 }
 
 void
-sys_emu::clear_external_supervisor_interrupt(unsigned shire)
+sys_emu::clear_external_supervisor_interrupt(unsigned shire_id)
 {
-    chip.clear_supervisor_external_interrupt(shire);
+    unsigned thread0 =
+        EMU_THREADS_PER_SHIRE
+        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+
+    unsigned shire_thread_count =
+        (shire_id == IO_SHIRE_ID ? 1 : EMU_THREADS_PER_SHIRE);
+
+    // Clear external seip to all the threads of the shire
+    for (unsigned t = 0; t < shire_thread_count; ++t)
+    {
+        unsigned thread_id = thread0 + t;
+        bemu::clear_external_supervisor_interrupt(chip.cpu[thread_id]);
+    }
 }
 
 void
 sys_emu::evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask)
 {
-    switch (subopcode) {
+    switch (subopcode)
+    {
     case ET_DIAG_IRQ_INJ_MEI:
-        for (unsigned shire = 0; shire < EMU_NUM_SHIRES; ++shire) {
-            if ((shire_mask >> shire) & 1) {
-                if (raise) {
-                    raise_external_interrupt(shire);
-                } else {
-                    clear_external_interrupt(shire);
-                }
-            }
+        for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
+            if (!(shire_mask & (1ULL << s)))
+                continue;
+            if (raise)
+                sys_emu::raise_external_interrupt(s);
+            else
+                sys_emu::clear_external_interrupt(s);
         }
         break;
     case ET_DIAG_IRQ_INJ_SEI:
-        for (unsigned shire = 0; shire < EMU_NUM_SHIRES; ++shire) {
-            if ((shire_mask >> shire) & 1) {
-                if (raise) {
-                    raise_external_supervisor_interrupt(shire);
-                } else {
-                    clear_external_supervisor_interrupt(shire);
-                }
-            }
+        for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
+            if (!(shire_mask & (1ULL << s)))
+                continue;
+            if (raise)
+                sys_emu::raise_external_supervisor_interrupt(s);
+            else
+                sys_emu::clear_external_supervisor_interrupt(s);
         }
         break;
     case ET_DIAG_IRQ_INJ_TI:
-        if (raise) {
-            raise_timer_interrupt(shire_mask);
-        } else {
-            clear_timer_interrupt(shire_mask);
-        }
+        if (raise)
+            sys_emu::raise_timer_interrupt(shire_mask);
+        else
+            sys_emu::clear_timer_interrupt(shire_mask);
         break;
     }
+}
+
+void
+sys_emu::shire_enable_threads(unsigned shire_id, uint32_t thread0_disable, uint32_t thread1_disable)
+{
+    if (shire_id == IO_SHIRE_ID)
+        shire_id = EMU_IO_SHIRE_SP;
+
+    chip.write_thread0_disable(shire_id, thread0_disable);
+    chip.write_thread1_disable(shire_id, thread1_disable);
+
+    recalculate_thread_disable(shire_id);
+}
+
+void
+sys_emu::recalculate_thread_disable(unsigned shire_id)
+{
+    if (shire_id == IO_SHIRE_ID)
+        shire_id = EMU_IO_SHIRE_SP;
+
+    unsigned thread_count = (shire_id == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
+
+    for (unsigned t = 0; t < thread_count; ++t) {
+        unsigned thread_id = t + EMU_THREADS_PER_SHIRE * shire_id;
+        if (!thread_is_active(thread_id))
+            continue;
+        if (chip.cpu[thread_id].enabled && !thread_is_running(thread_id)) {
+            auto wfi_stall_it = std::find(wfi_stall_wait_threads.begin(), wfi_stall_wait_threads.end(), thread_id);
+            if (wfi_stall_it != wfi_stall_wait_threads.end())
+                continue;
+
+            auto port_it = std::find(port_wait_threads.begin(), port_wait_threads.end(), thread_id);
+            if (port_it != port_wait_threads.end())
+                continue;
+
+            bool waits_for_fcc = false;
+            for (auto &fcc_wait_it: fcc_wait_threads) {
+                auto th = std::find(fcc_wait_it.begin(), fcc_wait_it.end(), thread_id);
+                if (th != fcc_wait_it.end()) {
+                    waits_for_fcc = true;
+                    break;
+                }
+            }
+            if (waits_for_fcc)
+                continue;
+
+            running_threads.push_back(thread_id);
+        } else if (!chip.cpu[thread_id].enabled) {
+            auto wfi_stall_it = std::find(wfi_stall_wait_threads.begin(), wfi_stall_wait_threads.end(), thread_id);
+            if (wfi_stall_it != wfi_stall_wait_threads.end()) {
+                wfi_stall_wait_threads.erase(wfi_stall_it);
+                continue;
+            }
+
+            auto port_it = std::find(port_wait_threads.begin(), port_wait_threads.end(), thread_id);
+            if (port_it != port_wait_threads.end()) {
+                port_wait_threads.erase(port_it);
+                continue;
+            }
+
+            bool waited_for_fcc = false;
+            for (auto &fcc_wait_it: fcc_wait_threads) {
+                auto th = std::find(fcc_wait_it.begin(), fcc_wait_it.end(), thread_id);
+                if (th != fcc_wait_it.end()) {
+                    fcc_wait_it.erase(th);
+                    waited_for_fcc = true;
+                    break;
+                }
+            }
+            if (waited_for_fcc)
+                continue;
+
+            auto it = std::find(running_threads.begin(), running_threads.end(), thread_id);
+            if (it != running_threads.end()) {
+                running_threads.erase(it);
+            }
+        }
+    }
+}
+
+void
+sys_emu::coop_tload_add(uint32_t thread_id, bool tenb, uint32_t id, uint32_t coop_id, uint32_t min_mask, uint32_t neigh_mask)
+{
+    sys_emu_coop_tload coop_tload;
+
+    coop_tload.tenb       = tenb;
+    coop_tload.id         = id;
+    coop_tload.coop_id    = coop_id;
+    coop_tload.min_mask   = min_mask;
+    coop_tload.neigh_mask = neigh_mask;
+    coop_tload_pending_list[thread_id].push_back(coop_tload);
+}
+
+// Returns the thread id of the cooperating minion for a tensor load
+uint32_t
+sys_emu::coop_tload_get_thread_id(uint32_t thread_id, uint32_t neigh, uint32_t min)
+{
+    uint32_t other_thread_id = 0;
+    uint32_t shire_id = thread_id / EMU_THREADS_PER_SHIRE;
+    other_thread_id = shire_id * EMU_THREADS_PER_SHIRE + (neigh * EMU_MINIONS_PER_NEIGH + min) * EMU_THREADS_PER_MINION;
+    return other_thread_id;
+}
+
+// Returns if the cooperative tloads are present in other threads
+bool
+sys_emu::coop_tload_all_present(uint32_t thread_id, const sys_emu_coop_tload & coop_tload, uint32_t & requested_mask, uint32_t & present_mask)
+{
+    bool all_present = true;
+
+    // For all the neighs
+    for(uint32_t neigh = 0; neigh < EMU_NEIGH_PER_SHIRE; neigh++)
+    {
+        // Skip check if not enabled
+        if(((coop_tload.neigh_mask >> neigh) & 0x1) == 0) continue;
+
+        // For all the minions
+        for(uint32_t min = 0; min < EMU_MINIONS_PER_NEIGH; min++)
+        {
+            // Skip check if not enabled
+            if(((coop_tload.min_mask >> min) & 0x1) == 0) continue;
+
+            // Updates requested mask
+            requested_mask |= 1 << (min + neigh * EMU_MINIONS_PER_NEIGH);
+
+            // Gets the thread id of the cooperating thread
+            uint32_t coop_thread_id = coop_tload_get_thread_id(thread_id, neigh, min);
+
+            // Looks for first tload coop going to same tenb
+            uint8_t state = 0;
+            auto it_coop = coop_tload_pending_list[coop_thread_id].begin();
+            while((state == 0) && (it_coop != coop_tload_pending_list[coop_thread_id].end()))
+            {
+                //printf("COOP: %i => checking id %i vs id %i of thread %i\n", thread_id, coop_tload.coop_id, it_coop->coop_id, coop_thread_id);
+                // Coming from same TLoad FSM
+                if(it_coop->tenb == coop_tload.tenb)
+                {
+                    if(it_coop->coop_id != coop_tload.coop_id) state = 2; // Found entry, different coop_id => TODO: this is a SW bug
+                    else                                       state = 1; // Found entry, same coop_id
+                }
+                else it_coop++;
+            }
+
+            // If no tload found from same unit and same coop_id, then not ready
+            if(state != 1)
+            {
+                all_present = false;
+            }
+            else
+            {
+                present_mask |= 1 << (min + neigh * EMU_MINIONS_PER_NEIGH);
+            }
+        }
+    }
+
+    return all_present;
+}
+
+// Marks as done the cooperating tensor loads
+void
+sys_emu::coop_tload_mark_done(uint32_t thread_id, const sys_emu_coop_tload & coop_tload)
+{
+    // For all the neighs
+    for(uint32_t neigh = 0; neigh < EMU_NEIGH_PER_SHIRE; neigh++)
+    {
+        // Skip check if not enabled
+        if(((coop_tload.neigh_mask >> neigh) & 0x1) == 0) continue;
+
+        // For all the minions
+        for(uint32_t min = 0; min < EMU_MINIONS_PER_NEIGH; min++)
+        {
+            // Skip check if not enabled
+            if(((coop_tload.min_mask >> min) & 0x1) == 0) continue;
+
+            // Gets the thread id of the cooperating thread
+            uint32_t coop_thread_id = coop_tload_get_thread_id(thread_id, neigh, min);
+
+            // Do not remove himself
+            if(coop_thread_id == thread_id) continue;
+
+            // Looks for first tload coop going to same tenb
+            uint8_t state = 0;
+            auto it_coop = coop_tload_pending_list[coop_thread_id].begin();
+            while((state == 0) && (it_coop != coop_tload_pending_list[coop_thread_id].end()))
+            {
+                // Coming from same TLoad FSM
+                if(it_coop->tenb == coop_tload.tenb)
+                {
+                    if(it_coop->coop_id != coop_tload.coop_id) state = 2; // Found entry, different coop_id => TODO: this is a SW bug
+                    // Found entry, remove it
+                    else
+                    {
+                        coop_tload_pending_list[coop_thread_id].erase(it_coop);
+                        state = 1;
+                    }
+                }
+                else it_coop++;
+            }
+        }
+    }
+}
+
+// Checks if all cooperative tensor loads with id id for a specific thread id are done
+bool
+sys_emu::coop_tload_check(uint32_t thread_id, bool tenb, uint32_t id, uint32_t & requested_mask, uint32_t & present_mask)
+{
+    // Returns true if thread_id has all tloads resolved with id id
+    bool resolved = true;
+
+    // Clears the mask bits
+    requested_mask = 0;
+    present_mask   = 0;
+
+    //printf("COOP: %i => coop_tload_check: tenb %i, id %i\n", thread_id, tenb, id);
+
+    // First we need to distinguesh between tloads to TENB or not
+    // Second, for non TENB, as there's a single FSM and it executes
+    // in order, we need to check which is the last tload with the checked
+    // id. Then, all the older tloads regardless of their id need to be
+    // checked, as the FSM is in order
+
+    auto last_tload = coop_tload_pending_list[thread_id].begin();
+    if(tenb)
+    {
+        last_tload = coop_tload_pending_list[thread_id].end();
+    }
+    else
+    {
+        auto it = coop_tload_pending_list[thread_id].begin();
+        while(it != coop_tload_pending_list[thread_id].end())
+        {
+            if(!it->tenb && (it->id == id))
+            {
+                last_tload = it;
+            }
+            it++;
+        }
+    }
+
+    // We need to check all the tloads from the same FSM (tenb or not tenb)
+    // For all the pending coop tloads
+    bool last = false;
+    auto it = coop_tload_pending_list[thread_id].begin();
+    while(!last && (it != coop_tload_pending_list[thread_id].end()))
+    {
+        // Mark this is the last required checked
+        last = (it == last_tload);
+        // Ignores entry if different tenb
+        if(it->tenb != tenb)
+        {
+            //printf("COOP: %i => coop_tload_check skip to check: id %i, coop_id %i, neigh %01x, min %02x\n", thread_id, it->id, it->coop_id, it->neigh_mask, it->min_mask);
+            it++;
+            continue;
+        }
+        //printf("COOP: %i => coop_tload_check need to check: id %i, neigh %01x, min %02x\n", thread_id, it->coop_id, it->neigh_mask, it->min_mask);
+
+        // Gets if all tloads are present
+        bool all_present = coop_tload_all_present(thread_id, * it, requested_mask, present_mask);
+        if(all_present)
+        {
+            coop_tload_mark_done(thread_id, * it);
+            it = coop_tload_pending_list[thread_id].erase(it);
+        }
+        else
+        {
+            // Not all done
+            return false;
+        }
+    }
+
+    return resolved;
 }
 
 void
@@ -197,6 +758,17 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
 
     // Reset the SoC
     emu_cycle = 0;
+    running_threads.clear();
+    wfi_stall_wait_threads.clear();
+    for (auto &item : fcc_wait_threads) {
+        item.clear();
+    }
+    port_wait_threads.clear();
+    active_threads.reset();
+    bzero(pending_fcc, sizeof(pending_fcc));
+    for (auto &item : coop_tload_pending_list) {
+        item.clear();
+    }
     mem_check = cmd_options.mem_check;
     mem_checker_ = mem_checker{&chip};
     mem_checker_.log_addr = cmd_options.mem_checker_log_addr;
@@ -227,9 +799,13 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     }
 #endif
 
+
     // Init emu
-    chip.init(bemu::System::Stepping::A0);
+    chip.init(bemu::system_version_t::ETSOC1_A0);
     memcpy(&chip.memory_reset_value, &cmd_options.mem_reset, MEM_RESET_PATTERN_SIZE);
+
+    // Callbacks for port writes
+    chip.set_msg_funcs([this](unsigned tid) { msg_to_thread(tid); });
 
     // Parses the ELF files and memory description
     for (const auto &elf: cmd_options.elf_files) {
@@ -357,63 +933,58 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     }
 
     for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
-        unsigned shire_minion_count =
-                (s == EMU_IO_SHIRE_SP) ? 1 : EMU_MINIONS_PER_SHIRE;
+        chip.reset_esrs_for_shire(s);
 
-        unsigned shire_thread_count =
-                (s == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+        // Skip disabled shire
+        if (((cmd_options.shires_en >> s) & 1) == 0)
+            continue;
 
         bool disable_multithreading =
                 !cmd_options.second_thread || multithreading_is_disabled(chip, s);
 
         unsigned minion_thread_count =
-                (disable_multithreading || (s == EMU_IO_SHIRE_SP)) ? 1 : EMU_THREADS_PER_MINION;
+                disable_multithreading ? 1 : EMU_THREADS_PER_MINION;
 
-        uint64_t reset_pc =
-            (s == EMU_IO_SHIRE_SP) ? cmd_options.sp_reset_pc : cmd_options.reset_pc;
-
-        bool skip_shire = (((cmd_options.shires_en >> s) & 1) == 0);
-
-        // Set simulating harts
-        for (unsigned t = 0; t < shire_thread_count; ++t) {
-            unsigned m   = t / EMU_THREADS_PER_MINION;
-            unsigned tid = s * EMU_THREADS_PER_SHIRE + t;
-
-            bool skip_minion = (((cmd_options.minions_en >> m) & 1) == 0);
-            bool skip_hart   = (t % EMU_THREADS_PER_MINION) >= minion_thread_count;
-
-            if (skip_shire || skip_minion || skip_hart) {
-                chip.cpu[tid].become_nonexistent();
-                continue;
-            }
-
-            // FIXME: We should set the minion_boot neighborhood ESR and make
-            // reset_hart() set the PC value from minion_boot.
-            chip.reset_hart(tid);
-            chip.cpu[tid].become_unavailable();
-            thread_set_pc(tid, reset_pc);
-
-            // FIXME: Why is this here? Shouldn't SW set this?
-            chip.cpu[tid].mregs[bemu::m0].set();
-        }
+        unsigned shire_minion_count =
+                (s == EMU_IO_SHIRE_SP) ? 1 : EMU_MINIONS_PER_SHIRE;
 
         // Calculate mask of which Minions of the Shire to enable
         uint32_t enable_minion_mask = cmd_options.minions_en & ((1ull << shire_minion_count) - 1);
         if (((s == EMU_IO_SHIRE_SP) && cmd_options.sp_dis) ||
-            ((s != EMU_IO_SHIRE_SP) && cmd_options.mins_dis) ||
-            skip_shire)
-        {
+            ((s != EMU_IO_SHIRE_SP) && cmd_options.mins_dis)) {
             enable_minion_mask = 0;
         }
 
-        chip.reset_shire_state(s);
+        chip.write_thread0_disable(s, ~enable_minion_mask);
         if (disable_multithreading) {
-            if (s != EMU_IO_SHIRE_SP) {
-                chip.shire_other_esrs[s].minion_feature |= 0x10;
+            chip.write_thread1_disable(s, 0xffffffff);
+        } else {
+            chip.write_thread1_disable(s, ~enable_minion_mask);
+        }
+
+        // For all the minions
+        for (unsigned m = 0; m < shire_minion_count; m++) {
+            // Skip disabled minion
+            if (((cmd_options.minions_en >> m) & 1) == 0)
+                continue;
+
+            // Inits threads
+            for (unsigned t = 0; t < minion_thread_count; t++) {
+                unsigned tid = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + t;
+                chip.reset_hart(tid);
+                chip.cpu[tid].mregs[bemu::m0].set();
+                thread_set_pc(tid, (s == EMU_IO_SHIRE_SP) ? cmd_options.sp_reset_pc : cmd_options.reset_pc);
+
+                // Puts thread id in the active list
+                activate_thread(tid);
+                if (((s == EMU_IO_SHIRE_SP) && !cmd_options.sp_dis) ||
+                    ((s != EMU_IO_SHIRE_SP) && !cmd_options.mins_dis)) {
+                    LOG_AGENT(DEBUG, chip.cpu[tid], "%s", "Resetting");
+                    assert(!thread_is_disabled(tid));
+                    running_threads.push_back(tid);
+                }
             }
         }
-        chip.write_thread0_disable(s, ~enable_minion_mask);
-        chip.write_thread1_disable(s, ~enable_minion_mask);
     }
 
     // Initialize xregs passed to command line
@@ -443,18 +1014,21 @@ int sys_emu::main_internal() {
     LOG_AGENT(INFO, agent, "%s", "Starting emulation");
 
     double total_time = 0.0;
-    const auto start_time = std::chrono::high_resolution_clock::now();
+    const auto begin_time = std::chrono::high_resolution_clock::now();
 
     // While there are active threads or the network emulator is still not done
-    while (!chip.get_emu_done()
-           && (emu_cycle < cmd_options.max_cycles)
-           && (chip.has_active_harts()
-               || (chip.has_sleeping_harts()
-                   && ((api_listener != nullptr)
-                       || chip.pu_rvtimer_is_active()
-                       || chip.spio_rvtimer_is_active()))
-               || (cmd_options.gdb
-                   && (gdbstub_get_status() != GDBSTUB_STATUS_NOT_INITIALIZED))))
+    while(  (chip.emu_done() == false)
+         && (   !running_threads.empty()
+             || !fcc_wait_threads[0].empty()
+             || !fcc_wait_threads[1].empty()
+             || !port_wait_threads.empty()
+             ||  chip.pu_rvtimer_is_active()
+             ||  chip.spio_rvtimer_is_active()
+             || (api_listener != nullptr)
+             || (cmd_options.gdb && (gdbstub_get_status() != GDBSTUB_STATUS_NOT_INITIALIZED))
+            )
+         && (emu_cycle < cmd_options.max_cycles)
+    )
     {
 #ifdef SYSEMU_DEBUG
         if (cmd_options.debug)
@@ -483,33 +1057,80 @@ int sys_emu::main_internal() {
         // Update peripherals/devices
         chip.tick_peripherals(emu_cycle);
 
-        chip.active.splice(chip.active.cend(), chip.awaking);
+        auto thread = running_threads.begin();
 
-        auto current_hart = chip.active.begin();
-        while (current_hart != chip.active.end()) {
-            auto hart = current_hart++;
-            auto thread_id = hart_index(*hart);
+        while(thread != running_threads.end())
+        {
+            auto thread_id = * thread;
 
-            // This should happen even if the hart is sleeping or blocked
-            hart->async_execute();
-
-            if (hart->is_blocked()) {
-                // Fetch and interrupts are blocked because another hart of
-                // this core is in exclusive mode
+            // lazily erase disabled threads from the active thread list
+            if (!thread_is_active(thread_id) || thread_is_disabled(thread_id))
+            {
+                thread = running_threads.erase(thread);
+                LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Disabling thread");
                 continue;
             }
 
-            try {
-                hart->check_pending_interrupts();
-                if (!hart->is_waiting()) {
-                    // Gets instruction and sets state
-                    hart->fetch();
+            if (chip.thread_is_blocked(thread_id))
+            {
+                ++thread;
+                continue;
+            }
+
+            try
+            {
+                // Gets instruction and sets state
+                clearlogstate();
+                chip.cpu[thread_id].check_pending_interrupts();
+                // In case of reduce, we need to make sure that the other
+                // thread is also in reduce state before we complete execution
+                if (thread_in_reduce_send(chip.cpu[thread_id]))
+                {
+                    LOG_AGENT(DEBUG, chip.cpu[thread_id], "Waiting to send data to H%u", chip.cpu[thread_id].core->reduce.thread);
+                    ++thread;
+                }
+                else if (thread_in_reduce_recv(chip.cpu[thread_id]))
+                {
+                    unsigned other_thread = chip.cpu[thread_id].core->reduce.thread;
+                    // If pairing minion is in ready to send, consume the data
+                    if (thread_in_reduce_send(chip.cpu[other_thread]) && (chip.cpu[other_thread].core->reduce.thread == thread_id))
+                    {
+                        bemu::tensor_reduce_execute(chip.cpu[thread_id]);
+                    }
+                    else
+                    {
+                        LOG_AGENT(DEBUG, chip.cpu[thread_id], "Waiting to receive data from H%u", other_thread);
+                    }
+                    ++thread;
+                }
+                else if (chip.cpu[thread_id].wait.state != bemu::Hart::Wait::State::Idle)
+                {
+                    if (chip.cpu[thread_id].wait.state == bemu::Hart::Wait::State::WaitReady)
+                    {
+                        bemu::tensor_wait_execute(chip.cpu[thread_id]);
+                    }
+                    else if (chip.cpu[thread_id].wait.state == bemu::Hart::Wait::State::Wait)
+                    {
+                        LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Rechecking TensorWait state");
+                        bemu::tensor_wait_start(chip.cpu[thread_id], chip.cpu[thread_id].wait.value);
+                    }
+                    else if (chip.cpu[thread_id].wait.state == bemu::Hart::Wait::State::TxFMA)
+                    {
+                        LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Rechecking TensorFMA state");
+                        bemu::tensor_fma_execute(chip.cpu[thread_id]);
+                    }
+                    ++thread;
+                }
+                else
+                {
+                    // Executes the instruction
+                    chip.cpu[thread_id].fetch();
 
                     // Check for breakpoints
                     if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) && breakpoint_exists(thread_get_pc(thread_id))) {
-                        LOG_AGENT(DEBUG, *hart, "Hit breakpoint at address 0x%" PRIx64, thread_get_pc(thread_id));
+                        LOG_AGENT(DEBUG, chip.cpu[thread_id], "Hit breakpoint at address 0x%" PRIx64, thread_get_pc(thread_id));
                         gdbstub_signal_break(thread_id);
-                        halt_all_threads(chip);
+                        running_threads.clear();
                         break;
                     }
 
@@ -527,148 +1148,146 @@ int sys_emu::main_internal() {
                         get_logger().setLogLevel(LOG_INFO);
                     }
 
-                    // Executes the instruction
-                    hart->execute();
-                    hart->notify_pmu_minion_event(PMU_MINION_EVENT_RETIRED_INST0 + (thread_id & 1));
-                    hart->advance_pc();
+                    chip.cpu[thread_id].execute();
+
+                    chip.cpu[thread_id].notify_pmu_minion_event(PMU_MINION_EVENT_RETIRED_INST0 + (thread_id & 1));
+
+                    if (chip.cpu[thread_id].get_msg_port_stall(0))
+                    {
+                        thread = running_threads.erase(thread);
+                        port_wait_threads.push_back(thread_id);
+                        if (thread == running_threads.end()) break;
+                    }
+                    else
+                    {
+                        if (chip.cpu[thread_id].inst.is_fcc_write())
+                        {
+                            unsigned cnt = chip.cpu[thread_id].fcc_cnt;
+                            int old_thread = *thread;
+
+                            // Checks if there's a pending FCC and wakes up thread again
+                            if (pending_fcc[old_thread][cnt]==0)
+                            {
+                                LOG_AGENT(DEBUG, chip.cpu[thread_id], "Going to sleep (FCC%u)", 2*(thread_id & 1) + cnt);
+                                thread = running_threads.erase(thread);
+                                fcc_wait_threads[cnt].push_back(thread_id);
+                            }
+                            else
+                            {
+                                pending_fcc[old_thread][cnt]--;
+                            }
+                        }
+                        else if (chip.cpu[thread_id].inst.is_wfi())
+                        {
+                            if (chip.cpu[thread_id].core->excl_mode) {
+                                LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Not going to sleep (WFI) because exclusive mode");
+                            } else {
+                                LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Going to sleep (WFI)");
+                                wfi_stall_wait_threads.push_back(thread_id);
+                                thread = running_threads.erase(thread);
+                                raise_interrupt_wakeup_check(thread_id);
+                            }
+                        }
+                        else if (chip.cpu[thread_id].inst.is_stall_write())
+                        {
+                            if (chip.cpu[thread_id].core->excl_mode) {
+                                LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Not going to sleep (STALL) because exclusive mode");
+                            } else {
+                                LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Going to sleep (STALL)");
+                                wfi_stall_wait_threads.push_back(thread_id);
+                                thread = running_threads.erase(thread);
+                                raise_interrupt_wakeup_check(thread_id);
+                            }
+                        }
+                        else
+                        {
+                            ++thread;
+                        }
+                        chip.cpu[thread_id].advance_pc();
+                    }
                 }
             }
-            catch (const bemu::Trap& t) {
-                uint64_t old_pc = hart->pc;
-                hart->take_trap(t);
-                hart->advance_pc();
-                if (hart->pc == old_pc) {
-                    LOG_AGENT(FTL, *hart, "Trapping to the same address that "
-                              "caused a trap (0x%" PRIx64 "). Avoiding "
-                              "infinite trap recursion.", hart->pc);
+            catch (const bemu::trap_t& t)
+            {
+                uint64_t old_pc = thread_get_pc(thread_id);
+                chip.cpu[thread_id].take_trap(t);
+                chip.cpu[thread_id].advance_pc();
+                if (thread_get_pc(thread_id) == old_pc)
+                {
+                    LOG_AGENT(FTL, chip.cpu[thread_id],
+                              "Trapping to the same address that caused a trap (0x%" PRIx64
+                              "). Avoiding infinite trap recursion.",
+                              thread_get_pc(thread_id));
                 }
+                ++thread;
             }
-            catch (const bemu::instruction_restart) {
-                LOG_AGENT(DEBUG, *hart, "%s", "Instruction killed and will be restarted");
+            catch (const bemu::memory_error& e)
+            {
+                chip.cpu[thread_id].advance_pc();
+                bemu::raise_bus_error_interrupt(chip.cpu[thread_id], e.addr);
+                ++thread;
             }
-            catch (const bemu::memory_error& e) {
-                hart->advance_pc();
-                hart->raise_interrupt(BUS_ERROR_INTERRUPT, e.addr);
-            }
-            catch (const std::exception& e) {
-                LOG_AGENT(FTL, *hart, "%s", e.what());
+            catch (const std::exception& e)
+            {
+                LOG_AGENT(FTL, chip.cpu[thread_id], "%s", e.what());
             }
 
             // Check for single-step mode
             if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) && single_step[thread_id]) {
-                LOG_AGENT(DEBUG, *hart, "%s", "Single-step done");
+                LOG_AGENT(DEBUG, chip.cpu[thread_id], "%s", "Single-step done");
                 gdbstub_signal_break(thread_id);
                 single_step[thread_id] = false;
-                halt_all_threads(chip);
+                running_threads.clear();
                 break;
             }
         }
 
-        ++emu_cycle;
+        emu_cycle++;
     }
 
-    const auto elapsed = std::chrono::high_resolution_clock::now() - start_time;
-    total_time +=
-        std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count();
+    const auto end_time = std::chrono::high_resolution_clock::now();
+    total_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - begin_time).count();
 
-    LOG_AGENT(INFO, agent, "Emulation performance: %lf cycles/sec (%"
-              PRIu64 " cycles / %lf sec)",
-              1e3 * double(emu_cycle) / total_time,
-              emu_cycle,
-              total_time * 1e-9);
+    LOG_AGENT(INFO, agent, "Emulation performance: %lf cycles/sec (%" PRIu64 " cycles / %lf sec)",
+                 1e3 * double(emu_cycle) / total_time,
+                 emu_cycle,
+                 total_time*1e-9);
 
-    // Awaking harts are active harts at this point...
-    chip.active.splice(chip.active.cend(), chip.awaking);
+    if (emu_cycle == cmd_options.max_cycles)
+    {
+       // Dumps awaken threads
+       LOG_AGENT(INFO, agent, "%s", "Dumping awaken threads:");
+       auto thread = running_threads.begin();
+       while(thread != running_threads.end())
+       {
+          auto thread_id = * thread;
+          LOG_AGENT(INFO, agent, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, thread_get_pc(thread_id));
+          thread++;
+       }
 
-    // Convert active/sleeping lists to running/waiting lists. Also, in some
-    // cases, a hart will issue a 'wfi' to "go to sleep" instead of signaling
-    // an end-of-execution to the simulator. So here we consider all harts
-    // that are only waiting for an interrupt to be nonexistent.
-    if (chip.has_sleeping_harts()) {
-        auto current_hart = chip.sleeping.begin();
-        while (current_hart != chip.sleeping.end()) {
-            auto hart = current_hart++;
-            if (hart->waits == bemu::Hart::Waiting::interrupt) {
-                hart->become_nonexistent();
-            } else if (!hart->is_waiting()) {
-                chip.active.push_back(*hart);
-            }
-        }
-    }
+       // Dumps FCC wait threads
+       for (int i = 0; i < 2; ++i)
+       {
+           LOG_AGENT(INFO, agent, "Dumping FCC%d wait threads:", i);
+           thread = fcc_wait_threads[i].begin();
+           while(thread != fcc_wait_threads[i].end())
+           {
+               auto thread_id = * thread;
+               LOG_AGENT(INFO, agent, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, thread_get_pc(thread_id));
+               thread++;
+           }
+       }
 
-    if ((emu_cycle == cmd_options.max_cycles) && chip.has_active_harts()) {
-        LOG_AGENT(INFO, agent, "%s", "Running harts:");
-        for (const auto& hart : chip.active) {
-            LOG_AGENT(INFO, agent, "\tThread %u, PC: 0x%" PRIx64,
-                      hart.mhartid, hart.pc);
-        }
-    }
-
-    if (!chip.get_emu_done() && chip.has_sleeping_harts()) {
-        LOG_AGENT(INFO, agent, "%s", "Waiting harts:");
-        for (const auto& hart : chip.sleeping) {
-            char waitreasons[1024];
-            int pos = 0;
-            waitreasons[0] = '\0';
-            if (hart.is_waiting(bemu::Hart::Waiting::tload_0)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " tload_0");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::tload_1)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " tload_1");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::tload_L2_0)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " tload_L2_0");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::tload_L2_1)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " tload_L2_1");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::prefetch_0)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " prefetch_0");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::prefetch_1)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " prefetch_1");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::cacheop)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " cacheop");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::tfma)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " tfma");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::tstore)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " tstore");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::reduce)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " reduce");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::tquant)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " tquant");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::interrupt)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " interrupt");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::message)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " messsage");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::credit0)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " fcc0");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::credit1)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " fcc1");
-            }
-            if (hart.is_waiting(bemu::Hart::Waiting::tload_tenb)) {
-                pos += snprintf(&waitreasons[pos], 1023-pos, " tload_tenb");
-            }
-            waitreasons[pos] = waitreasons[1023] = '\0';
-            LOG_AGENT(INFO, agent, "\tThread H%u, PC: 0x%" PRIx64 " waits for%s",
-                      hart.mhartid, hart.pc, pos ? waitreasons : " nothing");
-        }
-    }
-
-    if (emu_cycle == cmd_options.max_cycles) {
-        LOG_AGENT(ERR, agent, "Error, max cycles reached (%" SCNd64 ")",
-                  cmd_options.max_cycles);
-    } else if (!chip.get_emu_done() && chip.has_sleeping_harts()) {
-        LOG_AGENT(ERR, agent, "%s", "Error, sleeping harts found");
+       // Dumps Port wait threads
+       LOG_AGENT(INFO, agent, "%s", "Dumping port wait threads:");
+       thread = port_wait_threads.begin();
+       while(thread != port_wait_threads.end())
+       {
+          auto thread_id = * thread;
+          LOG_AGENT(INFO, agent, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, thread_get_pc(thread_id));
+          thread++;
+       }
+       LOG_AGENT(ERR, agent, "Error, max cycles reached (%" SCNd64 ")", cmd_options.max_cycles);
     }
     LOG_AGENT(INFO, agent, "%s", "Finishing emulation");
 
@@ -676,40 +1295,36 @@ int sys_emu::main_internal() {
         gdbstub_fini();
 
     // Dumping
-    for (const auto& dump: cmd_options.dump_at_end) {
-        bemu::dump_data(chip.memory, agent,
-                        dump.file.c_str(), dump.addr, dump.size);
-    }
+    for (auto &dump: cmd_options.dump_at_end)
+        bemu::dump_data(chip.memory, agent, dump.file.c_str(), dump.addr, dump.size);
 
-    if (!cmd_options.dump_mem.empty()) {
-        bemu::dump_data(chip.memory, agent,
-                        cmd_options.dump_mem.c_str(), chip.memory.first(),
-                        (chip.memory.last() - chip.memory.first()) + 1);
-    }
-    if (!cmd_options.pu_uart0_rx_file.empty()) {
+    if(!cmd_options.dump_mem.empty())
+        bemu::dump_data(chip.memory, agent, cmd_options.dump_mem.c_str(), chip.memory.first(), (chip.memory.last() - chip.memory.first()) + 1);
+
+    if(!cmd_options.pu_uart0_rx_file.empty())
         close(chip.pu_uart0_get_rx_fd());
-    }
-    if (!cmd_options.pu_uart1_rx_file.empty()) {
+
+    if(!cmd_options.pu_uart1_rx_file.empty())
         close(chip.pu_uart1_get_rx_fd());
-    }
-    if (!cmd_options.spio_uart0_rx_file.empty()) {
+
+    if(!cmd_options.spio_uart0_rx_file.empty())
         close(chip.spio_uart0_get_rx_fd());
-    }
-    if (!cmd_options.spio_uart1_rx_file.empty()) {
+
+    if(!cmd_options.spio_uart1_rx_file.empty())
         close(chip.spio_uart1_get_rx_fd());
-    }
-    if (!cmd_options.pu_uart0_tx_file.empty()) {
+
+    if(!cmd_options.pu_uart0_tx_file.empty())
         close(chip.pu_uart0_get_tx_fd());
-    }
-    if (!cmd_options.pu_uart1_tx_file.empty()) {
+
+    if(!cmd_options.pu_uart1_tx_file.empty())
         close(chip.pu_uart1_get_tx_fd());
-    }
-    if (!cmd_options.spio_uart0_tx_file.empty()) {
+
+    if(!cmd_options.spio_uart0_tx_file.empty())
         close(chip.spio_uart0_get_tx_fd());
-    }
-    if (!cmd_options.spio_uart1_tx_file.empty()) {
+
+    if(!cmd_options.spio_uart1_tx_file.empty())
         close(chip.spio_uart1_get_tx_fd());
-    }
+
 #ifdef SYSEMU_PROFILING
     if (!cmd_options.dump_prof_file.empty()) {
         profiling_flush();

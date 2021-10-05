@@ -52,14 +52,14 @@ class l2_scp_checker : public bemu::Agent
       uint32_t line;
       uint32_t id;
     };
-
+    
     // L2 Scp status
     enum class l2_scp_status
     {
       Fill,
       Valid
     };
-
+    
     struct shire_scp_info_t
     {
       l2_scp_status                 l2_scp_line_status[L2_SCP_ENTRIES];  // Status of all the L2 scp entries

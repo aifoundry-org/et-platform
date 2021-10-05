@@ -15,61 +15,32 @@
 #include <cstdint>
 #include <array>
 #include <vector>
-#include <bitset>
+#include <queue>
 
-#include "support/intrusive/list.h"
-#include "memory/main_memory.h"
 #include "emu_defines.h"
 #include "esrs.h"
 #include "processor.h"
+#include "memory/main_memory.h"
 #include "testLog.h"
 
+#ifdef SYS_EMU
 class sys_emu;
+#endif
 
 namespace bemu {
 
 
 //
-// A bitmask with 1-bit per Minion of a shire
+// An ET-SoC system
 //
-using Coop_minion_mask  = std::bitset<EMU_MINIONS_PER_SHIRE>;
-
-
-//
-// An entry in the cooperative tensor load table. `pending` is only valid
-// for the leader. When `all` is empty the entry is unused.
-//
-struct Coop_tload_state {
-    Coop_minion_mask  all;      // Bitmask of all harts cooperating
-    Coop_minion_mask  pending;  // Bitmask of pending cooperating harts
-};
-
-
-//
-// Cooperative tensor load tracking logic; indexed by [tenb][coopid]
-//
-using Coop_tload_table  = std::array<std::array<Coop_tload_state, 32>, 2>;
-
-
-//==------------------------------------------------------------------------==//
-//
-// An ET-SoC-1 system
-//
-//==------------------------------------------------------------------------==//
-
 class System {
 public:
     // ----- Types -----
-    using neigh_pmu_counters_t  = std::array<std::array<uint64_t, EMU_THREADS_PER_MINION>, 6>;
-    using neigh_pmu_events_t    = std::array<std::array<uint8_t, EMU_THREADS_PER_NEIGH>, 6>;
+    typedef std::array<std::array<uint64_t, EMU_THREADS_PER_MINION>, 6> neigh_pmu_counters_t;
+    typedef std::array<std::array<uint8_t, EMU_THREADS_PER_NEIGH>, 6> neigh_pmu_events_t;
 
     using msg_func_t = std::function<void(unsigned)>;
     using hart_mask_t = std::bitset<EMU_NUM_THREADS>;
-
-    enum class Stepping {
-        unknown,
-        A0,
-    };
 
     struct msg_port_write_t {
         uint32_t source_thread;
@@ -85,41 +56,40 @@ public:
     // ----- Public system methods -----
 
     // Configure the emulation environment
-    void init(Stepping);
+    void init(system_version_t);
 
     // Preload memory
     void load_elf(const char* filename);
     void load_raw(const char* filename, unsigned long long addr);
 
     // Reset state
-    void reset_shire_state(unsigned shireid);
+    void reset_esrs_for_shire(unsigned shireid);
     void reset_hart(unsigned thread);
 
+    // Hart state manipulation
+    bool thread_is_blocked(unsigned thread) const;
     uint64_t get_csr(unsigned thread, uint16_t cnum);
     void set_csr(unsigned thread, uint16_t cnum, uint64_t data);
 
     // Simulation control
-    bool get_emu_done() const;
+    bool emu_done() const;
     void set_emu_done(bool value);
-
-    bool has_active_harts() const;
-    bool has_sleeping_harts() const;
-    bool has_available_harts() const;
+    void emu_set_done();
 
     // Interrupts
     void pu_plic_interrupt_pending_set(uint32_t source_id);
     void pu_plic_interrupt_pending_clear(uint32_t source_id);
     void sp_plic_interrupt_pending_set(uint32_t source_id);
     void sp_plic_interrupt_pending_clear(uint32_t source_id);
-    void raise_machine_timer_interrupt(unsigned shire);
-    void clear_machine_timer_interrupt(unsigned shire);
-    void raise_machine_external_interrupt(unsigned shire);
-    void clear_machine_external_interrupt(unsigned shire);
-    void raise_supervisor_external_interrupt(unsigned shire);
-    void clear_supervisor_external_interrupt(unsigned shire);
-    void raise_machine_software_interrupt(unsigned shire, uint64_t thread_mask);
-    void clear_machine_software_interrupt(unsigned shire, uint64_t thread_mask);
-    void send_ipi_redirect(unsigned shire, uint64_t thread_mask);
+    void raise_timer_interrupt(uint64_t shire_mask);
+    void clear_timer_interrupt(uint64_t shire_mask);
+    void raise_external_interrupt(unsigned shire);
+    void clear_external_interrupt(unsigned shire);
+    void raise_external_supervisor_interrupt(unsigned shire);
+    void clear_external_supervisor_interrupt(unsigned shire);
+    void raise_software_interrupt(unsigned shire, uint64_t thread_mask);
+    void clear_software_interrupt(unsigned shire, uint64_t thread_mask);
+    void send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask);
 
     // Device/Host interface
     bool raise_host_interrupt(uint32_t bitmap);
@@ -161,8 +131,8 @@ public:
     void write_thread1_disable(unsigned shire, uint32_t value);
     void write_minion_feature(unsigned shire, uint8_t value);
 
-    void write_icache_prefetch(Privilege privilege, unsigned shire, uint64_t val);
-    uint64_t read_icache_prefetch(Privilege privilege, unsigned shire) const;
+    void write_icache_prefetch(int privilege, unsigned shire, uint64_t val);
+    uint64_t read_icache_prefetch(int privilege, unsigned shire) const;
     void finish_icache_prefetch(unsigned shire);
 
     // Message ports
@@ -171,66 +141,53 @@ public:
     void write_msg_port_data(unsigned target_thread, unsigned port, unsigned source_thread, uint32_t* data);
     void commit_msg_port_data(unsigned target_thread, unsigned port, unsigned source_thread);
 
-    void set_emu(sys_emu* emu) noexcept;
-    sys_emu* emu() const noexcept;
+    // Checker interface
+    std::queue<uint32_t>& get_minions_to_awake();
+
+#ifdef SYS_EMU
+    void set_emu(sys_emu* emu) { m_emu = emu; }
+    sys_emu* emu() const noexcept {
+        assert(m_emu && "sys_emu not linked with system");
+        return m_emu;
+    }
+#endif
 
     uint64_t emu_cycle() const noexcept;
 
     // ----- Public system state -----
 
     // Configuration
-    Stepping stepping = Stepping::unknown;
+    system_version_t sysver {system_version_t::UNKNOWN};
 
     // Harts and cores
     std::array<Hart, EMU_NUM_THREADS>  cpu {};
     std::array<Core, EMU_NUM_MINIONS>  core {};
 
-    // `active` holds all harts in the running state that arehave actions to
-    // peform. This includes harts that can execute RISC-V instruction (i.e.,
-    // non-waiting, and non-blocked), or harts that are executing coprocessor
-    // instructions (i.e., the associated coprocessor is not idle, even though
-    // the hart may be blocked or waiting).
-    //
-    // `sleeping` holds all harts in the running state that have no actions to
-    // perform. This includes harts that cannot execute RISC-V instruction
-    // (i.e., waiting or blocked) and either do not have an associated
-    // coprocessor or the coprocessor is idle.
-    //
-    // `awaking` holds all harts previously in the `waiting` list that must be
-    // moved to the `running` list.
-    intrusive::List<Hart, &Hart::links> active;
-    intrusive::List<Hart, &Hart::links> awaking;
-    intrusive::List<Hart, &Hart::links> sleeping;
-
     // Main memory
-    MainMemory                                memory {};
-    typename MemoryRegion::reset_value_type   memory_reset_value {};
+    MainMemory memory {};
+    typename MemoryRegion::reset_value_type memory_reset_value {};
 
     // Performance monitoring counters
-    std::array<neigh_pmu_counters_t, EMU_NUM_NEIGHS>  neigh_pmu_counters {};
-    std::array<neigh_pmu_events_t, EMU_NUM_NEIGHS>    neigh_pmu_events {};
-
-    // Cooperative tensor load tracking
-    std::array<Coop_tload_table, EMU_NUM_NEIGHS>    coop_tloads {};
+    std::array<neigh_pmu_counters_t, EMU_NUM_NEIGHS> neigh_pmu_counters {};
+    std::array<neigh_pmu_events_t, EMU_NUM_NEIGHS> neigh_pmu_events {};
 
     // System registers
-    std::array<neigh_esrs_t, EMU_NUM_NEIGHS>        neigh_esrs {};
-    std::array<shire_cache_esrs_t, EMU_NUM_SHIRES>  shire_cache_esrs {};
-    std::array<shire_other_esrs_t, EMU_NUM_SHIRES>  shire_other_esrs {};
-    std::array<broadcast_esrs_t, EMU_NUM_SHIRES>    broadcast_esrs {};
+    std::array<neigh_esrs_t, EMU_NUM_NEIGHS>       neigh_esrs {};
+    std::array<shire_cache_esrs_t, EMU_NUM_SHIRES> shire_cache_esrs {};
+    std::array<shire_other_esrs_t, EMU_NUM_SHIRES> shire_other_esrs {};
+    std::array<broadcast_esrs_t, EMU_NUM_SHIRES>   broadcast_esrs {};
 
     // Logging
-    testLog     log {"EMU", LOG_INFO}; // Consider making this a "plugin"
+    testLog     log{"EMU", LOG_INFO}; // Consider making this a "plugin"
     hart_mask_t log_thread;
 
-    // System agent
-    Noagent   noagent {this, "SYSTEM"};
+    Noagent noagent{this, "SYSTEM"};
 
 private:
     // ----- Private system methods -----
 
     // System registers
-    void write_fcc_credinc(unsigned index, uint64_t shire, uint64_t minion_mask);
+    void write_fcc_credinc(int index, uint64_t shire, uint64_t minion_mask);
     void recalculate_thread0_enable(unsigned shire);
     void recalculate_thread1_enable(unsigned shire);
 
@@ -247,11 +204,16 @@ private:
     std::array<std::vector<msg_port_write_t>, EMU_NUM_SHIRES> msg_port_pending_writes {};
     msg_func_t msg_to_thread = nullptr;
 
+    // Only for the checker: list of minions to awake when an FCC is written
+    std::queue<uint32_t> m_minions_to_awake;
+
+#ifdef SYS_EMU
     sys_emu* m_emu = nullptr;
+#endif
 };
 
 
-inline bool System::get_emu_done() const
+inline bool System::emu_done() const
 {
     return m_emu_done;
 }
@@ -263,21 +225,16 @@ inline void System::set_emu_done(bool value)
 }
 
 
-inline bool System::has_active_harts() const
+inline void System::emu_set_done()
 {
-    return !active.empty() || !awaking.empty();
+    m_emu_done = true;
 }
 
 
-inline bool System::has_sleeping_harts() const
+inline bool System::thread_is_blocked(unsigned thread) const
 {
-    return !sleeping.empty();
-}
-
-
-inline bool System::has_available_harts() const
-{
-    return has_active_harts() || has_sleeping_harts();
+    unsigned other_excl = 1 + ((~thread & 1) << 1);
+    return cpu[thread].core->excl_mode == other_excl;
 }
 
 
@@ -429,17 +386,9 @@ inline void System::set_delayed_msg_port_write(bool what)
     msg_port_delayed_write = what;
 }
 
-
-inline void System::set_emu(sys_emu* emu) noexcept
+inline std::queue<uint32_t>& System::get_minions_to_awake()
 {
-    m_emu = emu;
-}
-
-
-inline sys_emu* System::emu() const noexcept
-{
-    assert(m_emu && "sys_emu not linked with system");
-    return m_emu;
+    return m_minions_to_awake;
 }
 
 

@@ -71,14 +71,16 @@ void dcache_lock_paddr(Hart&, uint64_t);
 void dcache_unlock_set_way(Hart&, uint64_t);
 
 // Tensor extension
-void tensor_fma_start(Hart&, uint64_t);
+void tensor_coop_write(Hart&, uint64_t);
+void tensor_fma16a32_start(Hart&, uint64_t);
+void tensor_fma32_start(Hart&, uint64_t);
+void tensor_ima8a32_start(Hart&, uint64_t);
 void tensor_load_l2_start(Hart&, uint64_t);
 void tensor_load_start(Hart&, uint64_t);
 void tensor_mask_update(Hart&);
 void tensor_quant_start(Hart&, uint64_t);
 void tensor_reduce_start(Hart&, uint64_t);
 void tensor_store_start(Hart&, uint64_t);
-void tensor_wait_start(Hart&, uint64_t);
 
 
 static const char* csr_name(uint16_t num)
@@ -105,13 +107,13 @@ static const char* csr_name(uint16_t num)
 
 static inline void check_csr_privilege(const Hart& cpu, uint16_t csr)
 {
-    Privilege curprv = PRV;
-    Privilege csrprv = Privilege((csr >> 8) & 3);
+    int curprv = PRV;
+    int csrprv = (csr >> 8) & 3;
 
     if (csrprv > curprv)
         throw trap_illegal_instruction(cpu.inst.bits);
 
-    if ((csr == CSR_SATP) && (curprv == Privilege::S) && ((cpu.mstatus >> 20) & 1))
+    if ((csr == CSR_SATP) && (curprv == PRV_S) && ((cpu.mstatus >> 20) & 1))
         throw trap_illegal_instruction(cpu.inst.bits);
 }
 
@@ -121,11 +123,11 @@ static void check_counter_is_enabled(const Hart& cpu, int n)
     uint64_t enabled = (cpu.mcounteren & (1 << n));
 
     switch (PRV) {
-    case Privilege::U:
+    case PRV_U:
         if ((cpu.scounteren & enabled) == 0)
             throw trap_illegal_instruction(cpu.inst.bits);
         break;
-    case Privilege::S:
+    case PRV_S:
         if (enabled == 0)
             throw trap_illegal_instruction(cpu.inst.bits);
         break;
@@ -164,15 +166,15 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
 
     switch (csr) {
     case CSR_FFLAGS:
-        require_fp_enabled();
+        require_fp_active();
         val = cpu.fcsr & 0x8000001f;
         break;
     case CSR_FRM:
-        require_fp_enabled();
+        require_fp_active();
         val = (cpu.fcsr >> 5) & 0x7;
         break;
     case CSR_FCSR:
-        require_fp_enabled();
+        require_fp_active();
         val = cpu.fcsr;
         break;
     case CSR_SSTATUS:
@@ -382,6 +384,7 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
     case CSR_HPMCOUNTER30:
     case CSR_HPMCOUNTER31:
         throw trap_illegal_instruction(cpu.inst.bits);
+        break;
     case CSR_MVENDORID:
         val = CSR_VENDOR_ID;
         break;
@@ -537,7 +540,7 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
         val = read_port_head(cpu, csr - CSR_PORTHEADNB0, false);
         break;
     case CSR_HARTID:
-        if (PRV != Privilege::M && (cpu.core->menable_shadows & 1) == 0) {
+        if (PRV != PRV_M && (cpu.core->menable_shadows & 1) == 0) {
             throw trap_illegal_instruction(cpu.inst.bits);
         }
         val = cpu.mhartid;
@@ -560,7 +563,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
 
     switch (csr) {
     case CSR_FFLAGS:
-        require_fp_enabled();
+        require_fp_active();
         val = (cpu.fcsr & 0x000000E0) | (val & 0x8000001F);
         cpu.fcsr = val;
         dirty_fp_state();
@@ -568,7 +571,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         val &= 0x8000001f;
         break;
     case CSR_FRM:
-        require_fp_enabled();
+        require_fp_active();
         val = (cpu.fcsr & 0x8000001F) | ((val & 0x7) << 5);
         cpu.fcsr = val;
         dirty_fp_state();
@@ -576,7 +579,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         val = (val >> 5) & 0x7;
         break;
     case CSR_FCSR:
-        require_fp_enabled();
+        require_fp_active();
         val &= 0x800000FF;
         cpu.fcsr = val;
         dirty_fp_state();
@@ -613,6 +616,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
     case CSR_STVEC:
         val = sextVA(val & ~0xFFEULL);
         cpu.stvec = val;
+        cpu.stvec_is_set = true;
         break;
     case CSR_SCOUNTEREN:
         val &= 0x1FF;
@@ -700,6 +704,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
     case CSR_MTVEC:
         val = sextVA(val & ~0xFFEULL);
         cpu.mtvec = val;
+        cpu.mtvec_is_set = true;
         break;
     case CSR_MCOUNTEREN:
         val &= 0x1FF;
@@ -895,6 +900,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
     case CSR_MIMPID:
     case CSR_MHARTID:
         throw trap_illegal_instruction(cpu.inst.bits);
+        break;
         // ----- Esperanto registers -------------------------------------
     case CSR_MATP: // Shared register
         // do not write the register if it is locked (L==1)
@@ -964,16 +970,8 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
             dcache_change_mode(cpu, val);
             cpu.core->ucache_control = val;
             cpu.core->mcache_control = val & 3;
-            if (~val & 2) {
-                if (cpu.core->tload[0].state == TLoad::State::waiting_coop
-                    || cpu.core->tload[1].state == TLoad::State::waiting_coop)
-                {
-                    throw std::runtime_error("csrset() disables L1SCP while "
-                                             "coop tensor loads are active");
-                }
-                cpu.core->tload[0].state = TLoad::State::idle;
-                cpu.core->tload[1].state = TLoad::State::idle;
-            }
+            if (~val & 2)
+                cpu.core->tensorload_setupb_topair = false;
         }
         val &= 3;
 #ifdef SYS_EMU
@@ -1003,7 +1001,13 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         break;
     case CSR_TENSOR_FMA:
         require_feature_ml_on_thread0();
-        tensor_fma_start(cpu, val);
+        switch ((val >> 1) & 0x7)
+        {
+        case  0: tensor_fma32_start(cpu, val); break;
+        case  1: tensor_fma16a32_start(cpu, val); break;
+        case  3: tensor_ima8a32_start(cpu, val); break;
+        default: throw trap_illegal_instruction(cpu.inst.bits); break;
+        }
         break;
     case CSR_TENSOR_CONV_SIZE:
         require_feature_ml();
@@ -1020,7 +1024,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
     case CSR_TENSOR_COOP:
         require_feature_ml_on_thread0();
         val &= 0xfff1f;
-        cpu.tensor_coop = val;
+        tensor_coop_write(cpu, val);
         break;
     case CSR_TENSOR_MASK:
         require_feature_ml();
@@ -1073,33 +1077,28 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         // CSR_FLB is modelled outside this fuction!
     case CSR_FCC:
         require_feature_ml();
-        // Block if no credits, else decrement
-        val &= 1;
-        LOG_HART(DEBUG, cpu, "\tfcc%" PRIu64 " : %" PRIu16, val, cpu.fcc[val]);
-        if (cpu.fcc[val] == 0) {
-            cpu.npc = cpu.pc;
-            if (val == 0) {
-                cpu.start_waiting(Hart::Waiting::credit0);
-            } else {
-                cpu.start_waiting(Hart::Waiting::credit1);
-            }
-            throw instruction_restart();
-        } else {
-            --cpu.fcc[val];
+        cpu.fcc_cnt = val % 2;
+        LOG_HART(DEBUG, cpu, "\tfcc%" PRIu64 " : %" PRIu16, val % 2, cpu.fcc[val % 2]);
+#ifdef SYS_EMU
+        // If you are not going to block decrement it
+        if (cpu.fcc[val % 2] != 0) {
+            cpu.fcc[val % 2]--;
+            LOG_HART(DEBUG, cpu, "\tfcc%" PRIu64 " = %" PRIu16, val % 2, cpu.fcc[val % 2]);
         }
-        LOG_HART(DEBUG, cpu, "\tfcc%" PRIu64 " = %" PRIu16, val, cpu.fcc[val]);
+#else
+        // block if no credits, else decrement
+        if (cpu.fcc[val % 2] == 0 ) {
+            cpu.fcc_wait = true;
+            throw std::domain_error("FCC write with no credits");
+        } else {
+            cpu.fcc[val % 2]--;
+            LOG_HART(DEBUG, cpu, "\tfcc%" PRIu64 " = %" PRIu16, val % 2, cpu.fcc[val % 2]);
+        }
+#endif
         break;
     case CSR_STALL:
         require_feature_ml();
-        // Writing 'stall' will not put the hart to sleep in exclusive mode or
-        // when there are pending interrupts, even when they are globally
-        // disabled (but pending interrupts will be ignored if they are
-        // locally disabled).
-        if (!cpu.core->excl_mode) {
-            if (((cpu.mip | cpu.ext_seip) & cpu.mie) == 0) {
-                cpu.start_waiting(Hart::Waiting::interrupt);
-            }
-        }
+        // FIXME: Do something here?
         break;
     case CSR_TENSOR_WAIT:
         tensor_wait_start(cpu, val);
@@ -1134,7 +1133,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         switch (val) {
         case 0x1FEED000:
             LOG_AGENT(INFO, cpu, "%s", "Signal end test with PASS");
-            cpu.become_unavailable();
+            SYS_EMU_PTR->deactivate_thread(hart_index(cpu));
             break;
         case 0x50BAD000:
             LOG_AGENT(INFO, cpu, "%s", "Signal end test with FAIL");
@@ -1391,7 +1390,7 @@ uint64_t System::get_csr(unsigned thread, uint16_t csr)
     uint64_t retval = 0;
     try {
         retval = csrget(cpu[thread], csr);
-    } catch (const Trap&) {
+    } catch (const trap_t&) {
         /* do nothing */
     }
     return retval;
@@ -1402,7 +1401,7 @@ void System::set_csr(unsigned thread, uint16_t csr, uint64_t value)
 {
     try {
         csrset(cpu[thread], csr, value);
-    } catch (const Trap&) {
+    } catch (const trap_t&) {
         /* do nothing */
     }
 }
