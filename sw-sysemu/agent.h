@@ -27,8 +27,8 @@ struct Agent {
     virtual std::string name() const = 0;
     uint64_t emu_cycle() const noexcept;
 
-    explicit Agent(System* chip=nullptr) : chip(chip) {}
-    virtual ~Agent() = default;
+    Agent(System* chip=nullptr) : chip(chip) {}
+    virtual ~Agent() {}
 
     System* chip;
 };

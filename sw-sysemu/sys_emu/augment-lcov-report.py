@@ -26,13 +26,13 @@ def GetEmuCpp():
     for line in lines:
 
         line = line.rstrip()
-
+        
         if re.match(r'^SF:.*/emu.cpp', line):
             enable = True
 
         if enable:
             emucpp.append(line)
-
+        
         if re.match(r'^end_of_record', line):
             enable = False
 
@@ -64,7 +64,7 @@ def GetCSRCoverage():
 
     emucpp = GetEmuCpp()
     (cov, nc) = GetLineCoverage(emucpp)
-
+    
     with open("./emu.cpp", "r") as f:
         lines = f.readlines()
 
@@ -72,22 +72,22 @@ def GetCSRCoverage():
     case_val = []
     case_enable = False
     csr_status = {}
-
+    
     (cov_read_count, cov_write_count) = (0, 0)
     (nc_read_count, nc_write_count) = (0, 0)
 
     for idx, line in enumerate(lines):
 
         line = line.rstrip()
-
+        
         if case_enable:
-
+        
             # Track CSR status for every case label
-
+            
             for v in case_val:
                 if v not in csr_status:
                     csr_status[v] = {'nc_read': False, 'nc_write': False, 'cov_read': False, 'cov_write': False}
-
+                    
                 if idx in nc:
                     if set_enable:
                         csr_status[v]['nc_write'] += True
@@ -106,23 +106,23 @@ def GetCSRCoverage():
                         cov_read_count += 1
                     case_val = []
                     case_enable = False
-
+                    
             if re.match(r'^\s*break', line):
                 case_val = []
                 case_enable = False
-
+                    
         # Detect end of get/set function
-
+        
         if re.match(r'^}', line):
             set_enable = False
             get_enable = False
 
         # Detect start of csrset function
-
+        
         if re.match(r'^.*csrset\(', line):
             set_enable = True
             get_enable = False
-
+            
         if set_enable:
             # Store all case labels for the block
             m = re.match(r'^\s*case\s+(\D\S+)\s*:', line)
@@ -131,7 +131,7 @@ def GetCSRCoverage():
                 case_val.append(m.group(1))
 
         # Detect start of csrget function
-
+        
         if re.match(r'^.*csrget\(', line):
             set_enable = False
             get_enable = True
@@ -189,9 +189,9 @@ def UpdateCoverageReport(csr_status, cov_read_count, cov_write_count, nc_read_co
                     tmp = re.sub(r'<td>True</td>', '<td bgcolor="#00FF00">True</td>', tmp)
                     tmp = re.sub(r'<td>False</td>', '<td bgcolor="#FF0000"><font color="white">False</font></td>', tmp)
                     f.write(tmp)
-
+                    
                 f.write('</table>')
-
+                
             f.write(line)
 
 

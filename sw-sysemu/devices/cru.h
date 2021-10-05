@@ -21,28 +21,42 @@ namespace bemu {
 
 template<unsigned long long Base, unsigned long long N>
 struct Cru : public MemoryRegion {
-    using addr_type     = typename MemoryRegion::addr_type;
-    using size_type     = typename MemoryRegion::size_type;
-    using pointer       = typename MemoryRegion::pointer;
-    using const_pointer = typename MemoryRegion::const_pointer;
+    typedef typename MemoryRegion::addr_type      addr_type;
+    typedef typename MemoryRegion::size_type      size_type;
+    typedef typename MemoryRegion::pointer        pointer;
+    typedef typename MemoryRegion::const_pointer  const_pointer;
 
     enum : unsigned {
         RESET_MANAGER_RM_STATUS2_ADDRESS = 0x254u
     };
 
     void read(const Agent& agent, size_type pos, size_type n, pointer result) override {
+        uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
+
         LOG_AGENT(DEBUG, agent, "Cru::read(pos=0x%llx)", pos);
-        if (n != 4) {
+
+        if (n != 4)
             throw memory_error(first() + pos);
+
+        switch (pos) {
+        case RESET_MANAGER_RM_STATUS2_ADDRESS:
+            // Return: OTP (UDR) properly loaded
+            *result32 = 0;
+            break;
+        default:
+            *result32 = 0;
+            break;
         }
-        *reinterpret_cast<uint32_t*>(result) = 0;
     }
 
-    void write(const Agent& agent, size_type pos, size_type n, const_pointer) override {
+    void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
+        const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
+        (void) source32;
+
         LOG_AGENT(DEBUG, agent, "Cru::write(pos=0x%llx)", pos);
-        if (n != 4) {
+
+        if (n != 4)
             throw memory_error(first() + pos);
-        }
     }
 
     void init(const Agent&, size_type, size_type, const_pointer) override {

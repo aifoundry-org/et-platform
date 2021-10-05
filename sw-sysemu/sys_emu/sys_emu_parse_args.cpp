@@ -107,8 +107,7 @@ std::tuple<bool, struct sys_emu_cmd_options>
 sys_emu::parse_command_line_arguments(int argc, char* argv[])
 {
     sys_emu_cmd_options cmd_options;
-    int opt;
-    int index = 0;
+    int opt, index;
     uint64_t dump_at_end_addr = 0, dump_at_end_size = 0;
     uint64_t dump_at_pc_pc, dump_at_pc_addr, dump_at_pc_size;
 

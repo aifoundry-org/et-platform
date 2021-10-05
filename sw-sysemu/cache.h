@@ -31,7 +31,7 @@
 namespace bemu {
 
 
-using cache_line_t = Packed<L1D_LINE_SIZE*8>;
+typedef Packed<L1D_LINE_SIZE*8> cache_line_t;
 
 
 // Map logical scratchpad lines (0->47) to L1 cache lines (0->64).

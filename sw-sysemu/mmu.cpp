@@ -40,13 +40,13 @@ namespace bemu {
 //------------------------------------------------------------------------------
 // Exceptions
 
-static inline Privilege effective_execution_mode(const Hart& cpu, mem_access_type macc)
+static inline int effective_execution_mode(const Hart& cpu, mem_access_type macc)
 {
     // Read mstatus
-    const uint64_t  mstatus = cpu.mstatus;
-    const int       mprv    = (mstatus >> MSTATUS_MPRV) & 0x1;
-    const Privilege mpp     = Privilege((mstatus >> MSTATUS_MPP ) & 0x3);
-    const Privilege prv     = cpu.prv;
+    const uint64_t mstatus = cpu.mstatus;
+    const int      mprv    = (mstatus >> MSTATUS_MPRV) & 0x1;
+    const int      mpp     = (mstatus >> MSTATUS_MPP ) & 0x3;
+    const int      prv     = cpu.prv;
     return (macc == Mem_Access_Fetch) ? prv : (mprv ? mpp : prv);
 }
 
@@ -277,7 +277,7 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
                 throw memory_error(addr);
             }
             if (ts_tl_co) {
-                if (cpu.chip->stepping == System::Stepping::A0) {
+                if (cpu.chip->sysver == system_version_t::ETSOC1_A0) {
                     // NB: On ET-SoC-1 A0 the PMA does not catch this case
                     // which leads to undefined behavior.
                     LOG_HART(WARN, cpu, "CacheOp to uncacheable addr 0x%016"
@@ -303,21 +303,21 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
         if (mprot & MPROT_ENABLE_SECURE_MEMORY) {
             if (paddr_is_dram_mcode(addr)) {
                 if (!spio && (data_access_is_write(macc)
-                              || (effective_execution_mode(cpu, macc) != Privilege::M)))
+                              || (effective_execution_mode(cpu, macc) != PRV_M)))
                     throw_access_fault(vaddr, macc);
             }
             else if (paddr_is_dram_mdata(addr)) {
-                if (!spio && (effective_execution_mode(cpu, macc) != Privilege::M))
+                if (!spio && (effective_execution_mode(cpu, macc) != PRV_M))
                     throw_access_fault(vaddr, macc);
             }
             else if (paddr_is_dram_scode(addr)) {
                 if (!spio && (data_access_is_write(macc)
-                              ? (effective_execution_mode(cpu, macc) != Privilege::M)
-                              : (effective_execution_mode(cpu, macc) == Privilege::U)))
+                              ? (effective_execution_mode(cpu, macc) != PRV_M)
+                              : (effective_execution_mode(cpu, macc) == PRV_U)))
                     throw_access_fault(vaddr, macc);
             }
             else if (paddr_is_dram_sdata(addr)) {
-                if (!spio && (effective_execution_mode(cpu, macc) == Privilege::U))
+                if (!spio && (effective_execution_mode(cpu, macc) == PRV_U))
                     throw_access_fault(vaddr, macc);
             }
             else if (paddr_is_dram_osbox(addr)) {
@@ -329,7 +329,7 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
             }
         } else {
             if (paddr_is_dram_mbox(addr)) {
-                if (!spio && (effective_execution_mode(cpu, macc) != Privilege::M))
+                if (!spio && (effective_execution_mode(cpu, macc) != PRV_M))
                     throw_access_fault(vaddr, macc);
             }
             else if (paddr_is_dram_sbox(addr)) {
@@ -387,41 +387,41 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
             || ts_tl_co
             || (size != 8)
             || !addr_is_size_aligned(addr, size)
-            || (PP(addr) > static_cast<int>(effective_execution_mode(cpu, macc)))
+            || (PP(addr) > effective_execution_mode(cpu, macc))
             || (PP(addr) == 2 && !spio))
             throw_access_fault(vaddr, macc);
         return addr;
     }
 
     if (paddr_is_sp_space(addr)) {
-        Privilege mode = effective_execution_mode(cpu, macc);
+        int mode = effective_execution_mode(cpu, macc);
         if (!spio
             || amo
             || (ts_tl_co && !paddr_is_sp_cacheable(addr))
-            || (paddr_is_sp_sram_code(addr) && data_access_is_write(macc) && (mode != Privilege::M))
-            || (paddr_is_sp_sram_data(addr) && (mode == Privilege::U))
+            || (paddr_is_sp_sram_code(addr) && data_access_is_write(macc) && (mode != PRV_M))
+            || (paddr_is_sp_sram_data(addr) && (mode == PRV_U))
             || (!paddr_is_sp_cacheable(addr) && !addr_is_size_aligned(addr, size)))
             throw_access_fault(vaddr, macc);
         return addr;
     }
 
     if (paddr_is_io_space(addr)) {
-        int io_mode = MPROT_IO_ACCESS_MODE(cpu.chip->neigh_esrs[neigh_index(cpu)].mprot);
+        uint8_t mprot = cpu.chip->neigh_esrs[neigh_index(cpu)].mprot;
         if (amo
             || ts_tl_co
             || !addr_is_size_aligned(addr, size)
-            || (!spio && ((io_mode == 0x2)
-                          || (static_cast<int>(effective_execution_mode(cpu, macc)) < io_mode))))
+            || (!spio && ((MPROT_IO_ACCESS_MODE(mprot) == 0x2)
+                          || (effective_execution_mode(cpu, macc) < MPROT_IO_ACCESS_MODE(mprot)))))
             throw_access_fault(vaddr, macc);
         return addr;
     }
 
     if (paddr_is_pcie_space(addr)) {
-        int pcie_no_access = cpu.chip->neigh_esrs[neigh_index(cpu)].mprot & MPROT_DISABLE_PCIE_ACCESS;
+        uint8_t mprot = cpu.chip->neigh_esrs[neigh_index(cpu)].mprot;
         if (amo
             || ts_tl_co
             || !addr_is_size_aligned(addr, size)
-            || (!spio && pcie_no_access))
+            || (!spio && (mprot & MPROT_DISABLE_PCIE_ACCESS)))
             throw_access_fault(vaddr, macc);
         return addr;
     }
@@ -444,14 +444,14 @@ static uint64_t pma_check_fetch_access(const Hart& cpu, uint64_t vaddr,
 
         if (mprot & MPROT_ENABLE_SECURE_MEMORY) {
             if (paddr_is_dram_mcode(addr)) {
-                if (effective_execution_mode(cpu, Mem_Access_Fetch) != Privilege::M)
+                if (effective_execution_mode(cpu, Mem_Access_Fetch) != PRV_M)
                     throw_access_fault(vaddr, Mem_Access_Fetch);
             }
             else if (paddr_is_dram_mdata(addr)) {
                 throw_access_fault(vaddr, Mem_Access_Fetch);
             }
             else if (paddr_is_dram_scode(addr)) {
-                if (effective_execution_mode(cpu, Mem_Access_Fetch) != Privilege::S)
+                if (effective_execution_mode(cpu, Mem_Access_Fetch) != PRV_S)
                     throw_access_fault(vaddr, Mem_Access_Fetch);
             }
             else if (paddr_is_dram_sdata(addr)) {
@@ -459,16 +459,16 @@ static uint64_t pma_check_fetch_access(const Hart& cpu, uint64_t vaddr,
             }
             else if (paddr_is_dram_osbox(addr)) {
                 if ((mprot & MPROT_DISABLE_OSBOX_ACCESS) ||
-                    (effective_execution_mode(cpu, Mem_Access_Fetch) != Privilege::U))
+                    (effective_execution_mode(cpu, Mem_Access_Fetch) != PRV_U))
                     throw_access_fault(vaddr, Mem_Access_Fetch);
             }
             else if ((addr >= pma_dram_limit(spio, mprot)) ||
-                     (effective_execution_mode(cpu, Mem_Access_Fetch) != Privilege::U)) {
+                     (effective_execution_mode(cpu, Mem_Access_Fetch) != PRV_U)) {
                 throw_access_fault(vaddr, Mem_Access_Fetch);
             }
         } else {
             if (paddr_is_dram_mbox(addr)) {
-                if (effective_execution_mode(cpu, Mem_Access_Fetch) != Privilege::M)
+                if (effective_execution_mode(cpu, Mem_Access_Fetch) != PRV_M)
                     throw_access_fault(vaddr, Mem_Access_Fetch);
             }
             else if (paddr_is_dram_sbox(addr)) {
@@ -506,13 +506,13 @@ static uint64_t pma_check_fetch_access(const Hart& cpu, uint64_t vaddr,
     }
 
     if (paddr_is_sp_sram_code(addr)) {
-        if (!spio || (effective_execution_mode(cpu, Mem_Access_Fetch) == Privilege::U))
+        if (!spio || (effective_execution_mode(cpu, Mem_Access_Fetch) == PRV_U))
             throw_access_fault(vaddr, Mem_Access_Fetch);
         return addr;
     }
 
     if (paddr_is_sp_sram_data(addr)) {
-        if (!spio || (effective_execution_mode(cpu, Mem_Access_Fetch) != Privilege::M))
+        if (!spio || (effective_execution_mode(cpu, Mem_Access_Fetch) != PRV_M))
             throw_access_fault(vaddr, Mem_Access_Fetch);
         return addr;
     }
@@ -538,11 +538,11 @@ static uint64_t pma_check_ptw_access(const Hart& cpu, uint64_t vaddr,
                     throw_access_fault(vaddr, macc);
             }
             else if (paddr_is_dram_mdata(addr)) {
-                if (!spio && (effective_execution_mode(cpu, macc) != Privilege::M))
+                if (!spio && (effective_execution_mode(cpu, macc) != PRV_M))
                     throw_access_fault(vaddr, macc);
             }
             else if (paddr_is_dram_scode(addr)) {
-                if (!spio && (effective_execution_mode(cpu, macc) != Privilege::M))
+                if (!spio && (effective_execution_mode(cpu, macc) != PRV_M))
                     throw_access_fault(vaddr, macc);
             }
             else if (paddr_is_dram_osbox(addr)) {
@@ -554,7 +554,7 @@ static uint64_t pma_check_ptw_access(const Hart& cpu, uint64_t vaddr,
             }
         } else {
             if (paddr_is_dram_mbox(addr)) {
-                if (!spio && (effective_execution_mode(cpu, macc) != Privilege::M))
+                if (!spio && (effective_execution_mode(cpu, macc) != PRV_M))
                     throw_access_fault(vaddr, macc);
             }
             else if (paddr_is_dram_sbox(addr)) {
@@ -595,11 +595,11 @@ static uint64_t vmemtranslate(const Hart& cpu, uint64_t vaddr, size_t size,
     const int      sum     = (mstatus >> MSTATUS_SUM ) & 0x1;
 
     // Calculate effective privilege level
-    const Privilege curprv = effective_execution_mode(cpu, macc);
+    const int curprv = effective_execution_mode(cpu, macc);
 
     // Read matp/satp
     // NB: Sv39/Mv39, Sv48/Mv48, etc. have the same behavior and encoding
-    const uint64_t atp = (curprv == Privilege::M)
+    const uint64_t atp = (curprv == PRV_M)
             ? cpu.core->matp
             : cpu.core->satp;
     const uint64_t atp_mode = (atp >> 60) & 0xF;
@@ -718,8 +718,8 @@ static uint64_t vmemtranslate(const Hart& cpu, uint64_t vaddr, size_t size,
     case Mem_Access_TxLoadL2Scp:
     case Mem_Access_Prefetch:
         if (!(pte_r || (mxr && pte_x))
-            || ((curprv == Privilege::U) && !pte_u)
-            || ((curprv == Privilege::S) && pte_u && !sum))
+            || ((curprv == PRV_U) && !pte_u)
+            || ((curprv == PRV_S) && pte_u && !sum))
             throw_page_fault(vaddr, macc);
         break;
     case Mem_Access_Store:
@@ -730,14 +730,14 @@ static uint64_t vmemtranslate(const Hart& cpu, uint64_t vaddr, size_t size,
     case Mem_Access_AtomicG:
     case Mem_Access_CacheOp:
         if (!pte_w
-            || ((curprv == Privilege::U) && !pte_u)
-            || ((curprv == Privilege::S) && pte_u && !sum))
+            || ((curprv == PRV_U) && !pte_u)
+            || ((curprv == PRV_S) && pte_u && !sum))
             throw_page_fault(vaddr, macc);
         break;
     case Mem_Access_Fetch:
         if (!pte_x
-            || ((curprv == Privilege::U) && !pte_u)
-            || ((curprv == Privilege::S) && pte_u))
+            || ((curprv == PRV_U) && !pte_u)
+            || ((curprv == PRV_S) && pte_u))
             throw_page_fault(vaddr, macc);
         break;
     case Mem_Access_PTW:

@@ -24,10 +24,10 @@
 namespace bemu {
 
 // Instruction execution function
-using insn_exec_funct_t = void (*)(Hart&);
+typedef void (*insn_exec_funct_t)(Hart&);
 
 // Instruction decode function
-using insn_decode_func_t = insn_exec_funct_t (*)(uint32_t, uint16_t&);
+typedef insn_exec_funct_t (*insn_decode_func_t)(uint32_t, uint16_t&);
 
 
 // -----------------------------------------------------------------------------
@@ -49,7 +49,7 @@ static insn_exec_funct_t dec_load(uint32_t bits, uint16_t& flags)
         /* 111 */ insn_reserved
     };
     unsigned funct3 = (bits >> 12) & 7;
-    flags |= Instruction::flag_LOAD;
+    flags |= insn_t::flag_LOAD;
     return functab[funct3];
 }
 
@@ -58,8 +58,8 @@ static insn_exec_funct_t dec_load_fp(uint32_t bits, uint16_t& flags)
 {
     unsigned funct3 = (bits >> 12) & 7;
     switch (funct3) {
-    case 0x2: flags |= Instruction::flag_LOAD; return insn_flw;
-    case 0x5: flags |= Instruction::flag_LOAD; return insn_flq2;
+    case 0x2: flags |= insn_t::flag_LOAD; return insn_flw;
+    case 0x5: flags |= insn_t::flag_LOAD; return insn_flq2;
     default : return insn_reserved;
     }
 }
@@ -89,7 +89,7 @@ static insn_exec_funct_t dec_custom0(uint32_t bits,
               }
     case 0x2: return insn_flw_ps;
     case 0x3: return insn_fbcx_ps;
-    case 0x4: flags |= Instruction::flag_CMO;
+    case 0x4: flags |= insn_t::flag_CMO;
               switch (funct7) {
               case 0x03: return insn_famoaddl_pi;
               case 0x07: return insn_famoswapl_pi;
@@ -116,7 +116,7 @@ static insn_exec_funct_t dec_custom0(uint32_t bits,
               default  : return insn_reserved;
               }
     case 0x6: return insn_fsw_ps;
-    case 0x7: flags |= Instruction::flag_CMO;
+    case 0x7: flags |= insn_t::flag_CMO;
               switch (funct7) {
               case 0x08: return (bits & 0x01f00000) ? insn_reserved : insn_flwl_ps; // rs2==0
               case 0x09: return (bits & 0x01f00000) ? insn_reserved : insn_flwg_ps; // rs2==0
@@ -253,7 +253,7 @@ static insn_exec_funct_t dec_amo(uint32_t bits __attribute__((unused)),
     unsigned funct3 = (bits >> 12) & 7;
     unsigned funct5 = (bits >> 27);
     switch (funct3) {
-    case 0x2: flags |= Instruction::flag_CMO;
+    case 0x2: flags |= insn_t::flag_CMO;
               switch (funct5) {
               case 0x00: return insn_amoadd_w;
               case 0x01: return insn_amoswap_w;
@@ -268,7 +268,7 @@ static insn_exec_funct_t dec_amo(uint32_t bits __attribute__((unused)),
               case 0x1c: return insn_amomaxu_w;
               default  : return insn_reserved;
               }
-    case 0x3: flags |= Instruction::flag_CMO;
+    case 0x3: flags |= insn_t::flag_CMO;
               switch (funct5) {
               case 0x00: return insn_amoadd_d;
               case 0x01: return insn_amoswap_d;
@@ -395,7 +395,7 @@ static insn_exec_funct_t dec_op_32(uint32_t bits,
               default  : return insn_reserved;
               }
     case 0x1: return (funct7 == 0) ? insn_sllw : insn_reserved;
-    case 0x2: flags |= Instruction::flag_CMO;
+    case 0x2: flags |= insn_t::flag_CMO;
               switch (funct7) {
               case 0x00: return insn_amoaddl_w;
               case 0x01: return insn_amoaddg_w;
@@ -419,7 +419,7 @@ static insn_exec_funct_t dec_op_32(uint32_t bits,
               case 0x79: return insn_amocmpswapg_w;
               default  : return insn_reserved;
               }
-    case 0x3: flags |= Instruction::flag_CMO;
+    case 0x3: flags |= insn_t::flag_CMO;
               switch (funct7) {
               case 0x00: return insn_amoaddl_d;
               case 0x01: return insn_amoaddg_d;
@@ -680,7 +680,7 @@ static insn_exec_funct_t dec_system(uint32_t bits, uint16_t& flags)
         //case 0x002: return (rd | rs1) ? insn_reserved : insn_uret;
         case 0x102: return (rd | rs1) ? insn_reserved : insn_sret;
         case 0x302: return (rd | rs1) ? insn_reserved : insn_mret;
-        case 0x105: return (rd | rs1) ? insn_reserved : insn_wfi;
+        case 0x105: flags |= insn_t::flag_WFI; return (rd | rs1) ? insn_reserved : insn_wfi;
         }
         if ((imm12 >= 0x120) && (imm12 <= 0x13f) && (rd == 0)) {
             return insn_sfence_vma;
@@ -690,24 +690,27 @@ static insn_exec_funct_t dec_system(uint32_t bits, uint16_t& flags)
     if ((funct3 == 1) || (funct3 == 5)) {
         // csrrw, csrrwi
         if (rd) {
-            flags |= Instruction::flag_CSR_READ;
+            flags |= insn_t::flag_CSR_READ;
         }
-        flags |= Instruction::flag_CSR_WRITE;
+        flags |= insn_t::flag_CSR_WRITE;
     }
     else if (funct3 != 4) {
         // csrs, csrc, csrsi, csrci
         if (rs1) {
-            flags |= Instruction::flag_CSR_WRITE;
+            flags |= insn_t::flag_CSR_WRITE;
         }
-        flags |= Instruction::flag_CSR_READ;
+        flags |= insn_t::flag_CSR_READ;
     }
     switch (imm12) {
-    case 0x800 : flags |= Instruction::flag_REDUCE; break;
-    case 0x801 : flags |= Instruction::flag_TENSOR_FMA; break;
-    case 0x806 : flags |= Instruction::flag_TENSOR_QUANT; break;
-    case 0x820 : flags |= Instruction::flag_FLB; break;
-    case 0x83f : flags |= Instruction::flag_TENSOR_LOAD; break;
-    case 0x87f : flags |= Instruction::flag_TENSOR_STORE; break;
+    case 0x800 : flags |= insn_t::flag_REDUCE; break;
+    case 0x801 : flags |= insn_t::flag_TENSOR_FMA; break;
+    case 0x806 : flags |= insn_t::flag_TENSOR_QUANT; break;
+    case 0x820 : flags |= insn_t::flag_FLB; break;
+    case 0x821 : flags |= insn_t::flag_FCC; break;
+    case 0x822 : flags |= insn_t::flag_STALL; break;
+    case 0x830 : flags |= insn_t::flag_TENSOR_WAIT; break;
+    case 0x83f : flags |= insn_t::flag_TENSOR_LOAD; break;
+    case 0x87f : flags |= insn_t::flag_TENSOR_STORE; break;
     }
     return functab[funct3];
 }
@@ -722,8 +725,7 @@ static insn_exec_funct_t dec_reserved2(uint32_t bits,
 }
 
 
-static insn_exec_funct_t dec_custom3(uint32_t bits,
-                                     uint16_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_custom3(uint32_t bits, uint16_t& flags)
 {
     unsigned funct3 = (bits >> 12) & 7;
     unsigned funct7 = (bits >> 25);
@@ -806,7 +808,7 @@ static insn_exec_funct_t dec_custom3(uint32_t bits,
                case 0x02: return (funct3 == 0) ? insn_ffrc_ps : insn_reserved;
                case 0x03: return (funct3 == 0) ? insn_flog_ps : insn_reserved;
                case 0x04: return (funct3 == 0) ? insn_fexp_ps : insn_reserved;
-               case 0x06: return (funct3 == 0) ? insn_fsin_ps : insn_reserved;
+               case 0x06: flags |= insn_t::flag_1ULP; return (funct3 == 0) ? insn_fsin_ps : insn_reserved;
                case 0x07: return (funct3 == 0) ? insn_frcp_ps : insn_reserved;
                case 0x08: return (funct3 == 0) ? insn_frsq_ps : insn_reserved;
                default  : return insn_reserved;
@@ -929,7 +931,7 @@ static insn_exec_funct_t dec_c_fld(uint32_t bits __attribute__((unused)),
 static insn_exec_funct_t dec_c_lw(uint32_t bits __attribute__((unused)),
                                   uint16_t& flags)
 {
-    flags |= Instruction::flag_LOAD;
+    flags |= insn_t::flag_LOAD;
     return insn_c_lw;
 }
 
@@ -937,7 +939,7 @@ static insn_exec_funct_t dec_c_lw(uint32_t bits __attribute__((unused)),
 static insn_exec_funct_t dec_c_ld(uint32_t bits __attribute__((unused)),
                                   uint16_t& flags)
 {
-    flags |= Instruction::flag_LOAD;
+    flags |= insn_t::flag_LOAD;
     return insn_c_ld;
 }
 
@@ -1066,7 +1068,7 @@ static insn_exec_funct_t dec_c_fldsp(uint32_t bits __attribute__((unused)),
 static insn_exec_funct_t dec_c_lwsp(uint32_t bits, uint16_t& flags)
 {
     uint16_t rs1_rd = (bits >> 7) & 31;
-    flags |= Instruction::flag_LOAD;
+    flags |= insn_t::flag_LOAD;
     return (rs1_rd == 0) ? insn_c_reserved : insn_c_lwsp;
 }
 
@@ -1074,7 +1076,7 @@ static insn_exec_funct_t dec_c_lwsp(uint32_t bits, uint16_t& flags)
 static insn_exec_funct_t dec_c_ldsp(uint32_t bits, uint16_t& flags)
 {
     uint16_t rs1_rd = (bits >> 7) & 31;
-    flags |= Instruction::flag_LOAD;
+    flags |= insn_t::flag_LOAD;
     return (rs1_rd == 0) ? insn_c_reserved : insn_c_ldsp;
 }
 
@@ -1157,7 +1159,7 @@ static const insn_decode_func_t functab16b[32] = {
 // decode tables only visible to this file...
 uintptr_t decode(uint32_t bits)
 {
-    Instruction inst = { bits, 0 };
+    insn_t inst = { bits, 0 };
     insn_exec_funct_t exec_fn = nullptr;
 
     if ((inst.bits & 0x3) == 0x3) {
@@ -1202,7 +1204,7 @@ static void trap_to_smode(Hart& cpu, uint64_t cause, uint64_t val)
 {
     bool interrupt = (cause & 0x8000000000000000ULL);
     int code = (cause & 63);
-    assert(cpu.prv <= Privilege::S);
+    assert(cpu.prv <= PRV_S);
 
 #ifdef SYS_EMU
     if (cpu.chip->emu()->get_display_trap_info()) {
@@ -1213,24 +1215,20 @@ static void trap_to_smode(Hart& cpu, uint64_t cause, uint64_t val)
         LOG_HART(DEBUG, cpu, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
     }
 
-    // If checking against RTL, after clearing, the correspoding MIP bit will
-    // be set again to 1 if the pending bit was not really cleared in the RTL
-    // just before entering the interrupt again.
-    //
+    // if checking against RTL, clear the correspoding MIP bit it will be set
+    // to 1 again if the pending bit was not really cleared just before
+    // entering the interrupt again
     // TODO: you won't be able to read the MIP CSR from code or you'll get
     // checker errors (you would have errors if the interrupt is cleared by a
-    // memory mapped store).
+    // memory mapped store)
 #ifndef SYS_EMU
     if (interrupt) {
-        if (code == SUPERVISOR_EXTERNAL_INTERRUPT) {
-            // Clear external supervisor interrupt
-            if (cpu.ext_seip & (1ull << code)) {
-                LOG_HART(DEBUG, cpu, "%s", "\tClearing external supervisor interrupt");
-            }
-            cpu.ext_seip &= ~(1ull << code);
-        } else {
-            cpu.mip &= ~(1ull << code);
+        // Clear external supervisor interrupt
+        if (code == 0x9 && !(cpu.mip & 0x200)) {
+            clear_external_supervisor_interrupt(cpu);
+            LOG_HART(DEBUG, cpu, "%s", "\tClearing external supervisor interrupt");
         }
+        cpu.mip &= ~(1ull<<code);
     }
 #endif
 
@@ -1238,13 +1236,19 @@ static void trap_to_smode(Hart& cpu, uint64_t cause, uint64_t val)
     uint64_t mstatus = cpu.mstatus;
     uint64_t sie = (mstatus >> 1) & 0x1;
     // Set spie = sie, sie = 0, spp = prv
-    cpu.mstatus = (mstatus & 0xFFFFFFFFFFFFFEDDULL) | (static_cast<uint64_t>(cpu.prv) << 8) | (sie << 5);
+    cpu.mstatus = (mstatus & 0xFFFFFFFFFFFFFEDDULL) | (cpu.prv << 8) | (sie << 5);
     // Set scause, stval and sepc
     cpu.scause = cause & 0x800000000000001FULL;
     cpu.stval = sextVA(val);
     cpu.sepc = sextVA(cpu.pc & ~1ULL);
     // Jump to stvec
-    cpu.set_prv(Privilege::S);
+    cpu.set_prv(PRV_S);
+
+    // Throw an error if no one ever set stvec otherwise we'll enter an
+    // infinite loop of illegal instruction exceptions
+    if (cpu.stvec_is_set == false) {
+        LOG_HART(WARN, cpu, "%s", "Trap vector has never been set. Can't take exception properly");
+    }
 
     // compute address where to jump to
     uint64_t tvec = cpu.stvec;
@@ -1264,7 +1268,7 @@ static void trap_to_mmode(Hart& cpu, uint64_t cause, uint64_t val)
     int code = (cause & 63);
 
     // Check if we should deletegate the trap to S-mode
-    if ((cpu.prv < Privilege::M) && ((interrupt ? cpu.mideleg : cpu.medeleg) & (1ull<<code))) {
+    if ((cpu.prv < PRV_M) && ((interrupt ? cpu.mideleg : cpu.medeleg) & (1ull<<code))) {
         trap_to_smode(cpu, cause, val);
         return;
     }
@@ -1277,14 +1281,10 @@ static void trap_to_mmode(Hart& cpu, uint64_t cause, uint64_t val)
     // memory mapped store)
 #ifndef SYS_EMU
     if (interrupt) {
-        if (code == SUPERVISOR_EXTERNAL_INTERRUPT) {
-            // Clear external supervisor interrupt
-            if (cpu.ext_seip & (1ull << code)) {
-                LOG_HART(DEBUG, cpu, "%s", "\tClearing external supervisor interrupt");
-            }
-            cpu.ext_seip &= ~(1ull << code);
-        } else {
-            cpu.mip &= ~(1ull << code);
+        cpu.mip &= ~(1ull<<code);
+        // Clear external supervisor interrupt
+        if (cause == 9 && !(cpu.mip & 0x200)) {
+            clear_external_supervisor_interrupt(cpu);
         }
     }
 #endif
@@ -1302,13 +1302,19 @@ static void trap_to_mmode(Hart& cpu, uint64_t cause, uint64_t val)
     uint64_t mstatus = cpu.mstatus;
     uint64_t mie = (mstatus >> 3) & 0x1;
     // Set mpie = mie, mie = 0, mpp = prv
-    cpu.mstatus = (mstatus & 0xFFFFFFFFFFFFE777ULL) | (static_cast<uint64_t>(cpu.prv) << 11) | (mie << 7);
+    cpu.mstatus = (mstatus & 0xFFFFFFFFFFFFE777ULL) | (cpu.prv << 11) | (mie << 7);
     // Set mcause, mtval and mepc
     cpu.mcause = cause & 0x800000000000001FULL;
     cpu.mtval = sextVA(val);
     cpu.mepc = sextVA(cpu.pc & ~1ULL);
     // Jump to mtvec
-    cpu.set_prv(Privilege::M);
+    cpu.set_prv(PRV_M);
+
+    // Throw an error if no one ever set mtvec otherwise we'll enter an
+    // infinite loop of illegal instruction exceptions
+    if (cpu.mtvec_is_set == false) {
+        LOG_HART(WARN, cpu, "%s", "Trap vector has never been set. Doesn't smell good...");
+    }
 
     // compute address where to jump to
     uint64_t tvec = cpu.mtvec;
@@ -1322,7 +1328,7 @@ static void trap_to_mmode(Hart& cpu, uint64_t cause, uint64_t val)
 }
 
 
-void Hart::take_trap(const Trap& t)
+void Hart::take_trap(const trap_t& t)
 {
     // Invalidate the fetch buffer when changing VM mode or permissions
     fetch_pc = -1;
@@ -1331,128 +1337,6 @@ void Hart::take_trap(const Trap& t)
 }
 
 
-void Hart::raise_interrupt(int cause, uint64_t data)
-{
-    switch (cause) {
-    case USER_SOFTWARE_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Raising user software interrupt");
-        break;
-    case SUPERVISOR_SOFTWARE_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Raising supervisor software interrupt");
-        break;
-    case MACHINE_SOFTWARE_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Raising machine software interrupt");
-        break;
-    case USER_TIMER_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Raising user timer interrupt");
-        break;
-    case SUPERVISOR_TIMER_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Raising supervisor timer interrupt");
-        break;
-    case MACHINE_TIMER_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Raising machine timer interrupt");
-        break;
-    case USER_EXTERNAL_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Raising user external interrupt");
-        break;
-    case SUPERVISOR_EXTERNAL_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Raising supervisor external interrupt");
-        break;
-    case MACHINE_EXTERNAL_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Raising machine external interrupt");
-        break;
-    case BAD_IPI_REDIRECT_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Raising bad IPI redirect interrupt");
-        break;
-    case ICACHE_ECC_COUNTER_OVERFLOW_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Raising instruction ECC counter overflow interrupt");
-        break;
-    case BUS_ERROR_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Raising bus error interrupt");
-        break;
-    default:
-        LOG_HART(DEBUG, *this, "Raising unknown interrupt (cause = %d)", cause);
-        break;
-    }
-
-    if (cause == SUPERVISOR_EXTERNAL_INTERRUPT) {
-        ext_seip |= (1ULL << cause);
-    } else {
-        mip |= (1ULL << cause);
-        if (cause == BUS_ERROR_INTERRUPT) {
-            mbusaddr = zextPA(data);
-        }
-    }
-
-    // If there are no locally enabled pending interrupts, or the hart is in
-    // exclusive mode, then the hart should not react to the interrupt.
-    uint64_t xip = (mip | ext_seip) & mie;
-    if (!xip || core->excl_mode) {
-        return;
-    }
-
-    stop_waiting(Waiting::interrupt);
-}
-
-
-void Hart::clear_interrupt(int cause)
-{
-    switch (cause) {
-    case USER_SOFTWARE_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Clearing user software interrupt");
-        break;
-    case SUPERVISOR_SOFTWARE_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Clearing supervisor software interrupt");
-        break;
-    case MACHINE_SOFTWARE_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Clearing machine software interrupt");
-        break;
-    case USER_TIMER_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Clearing user timer interrupt");
-        break;
-    case SUPERVISOR_TIMER_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Clearing supervisor timer interrupt");
-        break;
-    case MACHINE_TIMER_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Clearing machine timer interrupt");
-        break;
-    case USER_EXTERNAL_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Clearing user external interrupt");
-        break;
-    case SUPERVISOR_EXTERNAL_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Clearing supervisor external interrupt");
-        break;
-    case MACHINE_EXTERNAL_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Clearing machine external interrupt");
-        break;
-    case BAD_IPI_REDIRECT_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Clearing bad IPI redirect interrupt");
-        break;
-    case ICACHE_ECC_COUNTER_OVERFLOW_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Clearing instruction ECC counter overflow interrupt");
-        break;
-    case BUS_ERROR_INTERRUPT:
-        LOG_HART(DEBUG, *this, "%s", "Clearing bus error interrupt");
-        break;
-    default:
-        LOG_HART(DEBUG, *this, "Clearing unknown interrupt (cause = %d)", cause);
-        break;
-    }
-
-    if (cause == SUPERVISOR_EXTERNAL_INTERRUPT) {
-        ext_seip &= ~(1ULL << cause);
-    } else {
-        mip &= ~(1ULL << cause);
-    }
-}
-
-
-// -----------------------------------------------------------------------------
-//
-// Performance monitoring
-//
-// -----------------------------------------------------------------------------
-
 void Hart::notify_pmu_minion_event(uint8_t event)
 {
     // The first four counters count Minion-related events
@@ -1460,239 +1344,6 @@ void Hart::notify_pmu_minion_event(uint8_t event)
         if (chip->neigh_pmu_events[neigh_index(*this)][i][mhartid % EMU_THREADS_PER_MINION] == event) {
             ++chip->neigh_pmu_counters[neigh_index(*this)][i][mhartid % EMU_THREADS_PER_MINION];
         }
-    }
-}
-
-
-// -----------------------------------------------------------------------------
-//
-// Manage hart state
-//
-// -----------------------------------------------------------------------------
-
-void Hart::become_nonexistent()
-{
-    if (mhartid % EMU_THREADS_PER_MINION == 0) {
-        core->tload[0].state = TLoad::State::idle;
-        core->tload[1].state = TLoad::State::idle;
-        core->tmul.state = TMul::State::idle;
-        core->tquant.state = TQuant::State::idle;
-        core->reduce.state = TReduce::State::idle;
-        core->tqueue.clear();
-    }
-    waits = Waiting::none;
-    state = State::nonexistent;
-    links.unlink();
-}
-
-
-void Hart::become_unavailable()
-{
-    if (is_active() || is_sleeping()) {
-        LOG_HART(DEBUG, *this, "%s", "Become unavailable");
-    }
-    if (mhartid % EMU_THREADS_PER_MINION == 0) {
-        if (has_active_coprocessor()) {
-            LOG_HART(WARN, *this, "%s",
-                     "Stopping a hart with an active coprocessor!");
-        }
-        core->tload[0].state = TLoad::State::idle;
-        core->tload[1].state = TLoad::State::idle;
-        core->tmul.state = TMul::State::idle;
-        core->tquant.state = TQuant::State::idle;
-        core->reduce.state = TReduce::State::idle;
-        core->tqueue.clear();
-    }
-    waits = Waiting::none;
-    state = State::unavailable;
-    links.unlink();
-}
-
-
-void Hart::start_running()
-{
-    if (is_running()) {
-        return;
-    }
-    LOG_HART(DEBUG, *this, "%s", "Start running");
-    debug_mode = false;
-    if (is_active() || is_sleeping()) {
-        return;
-    }
-    if (!is_waiting() || has_active_coprocessor()) {
-        chip->awaking.push_back(*this);
-        state = State::active;
-    } else {
-        chip->sleeping.push_back(*this);
-        state = State::sleeping;
-    }
-}
-
-
-void Hart::enter_debug_mode()
-{
-    if (is_halted()) {
-        return;
-    }
-    LOG_HART(DEBUG, *this, "%s", "Halt execution");
-    debug_mode = true;
-    if (is_active() || is_sleeping()) {
-        return;
-    }
-    if (!is_waiting() || has_active_coprocessor()) {
-        chip->awaking.push_back(*this);
-        state = State::active;
-    } else {
-        chip->sleeping.push_back(*this);
-        state = State::sleeping;
-    }
-}
-
-
-void Hart::start_waiting(Waiting what)
-{
-    assert(is_active() || is_sleeping());
-    if ((what == Waiting::none) || is_waiting(what)) {
-        return;
-    }
-    switch (what) {
-    case Waiting::none:
-        /* do nothing */
-        break;
-    case Waiting::tload_0:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for TensorLoad(id=0)");
-        break;
-    case Waiting::tload_1:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for TensorLoad(id=1)");
-        break;
-    case Waiting::tload_L2_0:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for TensorLoadL2(id=0)");
-        break;
-    case Waiting::tload_L2_1:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for TensorLoadL2(id=1)");
-        break;
-    case Waiting::prefetch_0:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for Prefetch(id=0)");
-        break;
-    case Waiting::prefetch_1:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for Prefetch(id=1)");
-        break;
-    case Waiting::cacheop:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for CacheOp");
-        break;
-    case Waiting::tfma:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for TensorFMA");
-        break;
-    case Waiting::tstore:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for TensorStore");
-        break;
-    case Waiting::reduce:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for tensor reduce");
-        break;
-    case Waiting::tquant:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for TensorQuant");
-        break;
-    case Waiting::interrupt:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for interrupt");
-        break;
-    case Waiting::message:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for message");
-        break;
-    case Waiting::credit0:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for FCC0");
-        break;
-    case Waiting::credit1:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for FCC1");
-        break;
-    case Waiting::tload_tenb:
-        LOG_HART(DEBUG, *this, "%s", "\tStart waiting for TensorLoad to TenB");
-        break;
-    }
-    waits |= what;
-    maybe_sleep();
-}
-
-
-void Hart::stop_waiting(Waiting what)
-{
-    if ((what == Waiting::none) || !is_waiting(what)) {
-        return;
-    }
-    switch (what) {
-    case Waiting::none:
-        /* do nothing */
-        break;
-    case Waiting::tload_0:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for TensorLoad(id=0)");
-        break;
-    case Waiting::tload_1:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for TensorLoad(id=1)");
-        break;
-    case Waiting::tload_L2_0:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for TensorLoadL2(id=0)");
-        break;
-    case Waiting::tload_L2_1:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for TensorLoadL2(id=1)");
-        break;
-    case Waiting::prefetch_0:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for Prefetch(id=0)");
-        break;
-    case Waiting::prefetch_1:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for Prefetch(id=1)");
-        break;
-    case Waiting::cacheop:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for CacheOp");
-        break;
-    case Waiting::tfma:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for TensorFMA");
-        break;
-    case Waiting::tstore:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for TensorStore");
-        break;
-    case Waiting::reduce:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for tensor reduce");
-        break;
-    case Waiting::tquant:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for TensorQuant");
-        break;
-    case Waiting::interrupt:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for interrupt");
-        break;
-    case Waiting::message:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for message");
-        break;
-    case Waiting::credit0:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for FCC0");
-        break;
-    case Waiting::credit1:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for FCC1");
-        break;
-    case Waiting::tload_tenb:
-        LOG_HART(DEBUG, *this, "%s", "\tStop waiting for TensorLoad to TenB");
-        break;
-    }
-    waits &= ~what;
-    maybe_wakeup();
-}
-
-
-void Hart::maybe_sleep()
-{
-    if (!is_sleeping() && is_waiting() && !has_active_coprocessor()) {
-        assert(is_active());
-        chip->sleeping.push_back(*this);
-        state = State::sleeping;
-        LOG_HART(DEBUG, *this, "%s", "Going to sleep");
-    }
-}
-
-
-void Hart::maybe_wakeup()
-{
-    if (!is_active() && (!is_waiting() || has_active_coprocessor())) {
-        chip->awaking.push_back(*this);
-        state = State::active;
-        LOG_HART(DEBUG, *this, "%s", "Waking up");
     }
 }
 

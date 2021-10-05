@@ -21,11 +21,11 @@ namespace bemu {
 
 template<unsigned long long Base, unsigned long long N, int id>
 struct PLL : public MemoryRegion {
-    using addr_type     = typename MemoryRegion::addr_type;
-    using size_type     = typename MemoryRegion::size_type;
-    using value_type    = typename MemoryRegion::value_type;
-    using pointer       = typename MemoryRegion::pointer;
-    using const_pointer = typename MemoryRegion::const_pointer;
+    typedef typename MemoryRegion::addr_type      addr_type;
+    typedef typename MemoryRegion::size_type      size_type;
+    typedef typename MemoryRegion::value_type     value_type;
+    typedef typename MemoryRegion::pointer        pointer;
+    typedef typename MemoryRegion::const_pointer  const_pointer;
 
     enum : unsigned long long {
         PLL_REG_INDEX_REG_LOCK_DETECT_STATUS = 0xE4 // Register 0x39
