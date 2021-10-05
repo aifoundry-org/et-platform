@@ -63,14 +63,14 @@ enum sp_mm_target_t {
 */
 int8_t SP_MM_Iface_Init(void);
 
-/*! \fn int8_t SP_MM_Iface_Push(uint8_t target, void* p_cmd, uint32_t cmd_size)
+/*! \fn int8_t SP_MM_Iface_Push(uint8_t target, const void* p_buff, uint32_t size)
     \brief Push command to specified SP to MM interface target
     \param target target SP to MM interface
     \param p_cmd reference to command to push
     \param cmd_size size of command to push
     \return Status indicating success or negative error
 */
-int8_t SP_MM_Iface_Push(uint8_t target, void* p_buff, uint32_t size);
+int8_t SP_MM_Iface_Push(uint8_t target, const void* p_buff, uint32_t size);
 
 /*! \fn int32_t SP_MM_Iface_Pop(uint8_t target, void* rx_buff)
     \brief Pop command from specified SP to MM interface target

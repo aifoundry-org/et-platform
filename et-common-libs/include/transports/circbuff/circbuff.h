@@ -193,7 +193,7 @@ static inline void Circbuffer_Get_Head_Tail(const circ_buff_cb_t *src_circ_buff_
 */
 static inline uint64_t Circbuffer_Get_Tail(const circ_buff_cb_t *circ_buff_cb_ptr, uint32_t flags)
 {
-    uint64_t tail;
+    uint64_t tail = 0;
 
     /* Read the circular buffer CB from memory */
     ETSOC_Memory_Read_64(&circ_buff_cb_ptr->tail_offset, &tail, flags)
@@ -223,7 +223,7 @@ static inline void Circbuffer_Set_Tail(circ_buff_cb_t *dest_circ_buff_cb_ptr,
 */
 static inline uint64_t Circbuffer_Get_Head(const circ_buff_cb_t *circ_buff_cb_ptr, uint32_t flags)
 {
-    uint64_t head;
+    uint64_t head = 0;
 
     /* Read the circular buffer CB from memory */
     ETSOC_Memory_Read_64(&circ_buff_cb_ptr->head_offset, &head, flags)

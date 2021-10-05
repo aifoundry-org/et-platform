@@ -215,15 +215,15 @@ int8_t SP_MM_Iface_Init(void)
 *   INPUTS
 *
 *       target  SP2MM_SQ, SP2MM_CQ, MM2SP_SQ, MM2SP_CQ
-*       p_cmd   reference to command to push to target
-*       cmd_size    size of command to be pushed to target
+*       p_buff   reference to command to push to target
+*       size    size of command to be pushed to target
 *
 *   OUTPUTS
 *
 *       status      success or error code
 *
 ***********************************************************************/
-int8_t SP_MM_Iface_Push(uint8_t target, void* p_buff, uint32_t size)
+int8_t SP_MM_Iface_Push(uint8_t target, const void* p_buff, uint32_t size)
 {
     vq_cb_t *p_vq_cb = 0;
     int8_t status = 0;
