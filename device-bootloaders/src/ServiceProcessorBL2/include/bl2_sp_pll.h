@@ -145,4 +145,11 @@ int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency);
 int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
              uint32_t pcie_pll_0_frequency);
 
+/*! \fn void pll_lock_loss_isr(void)
+    \brief This is interrupt handler for CRU interrupt
+    \param None 
+    \return None
+*/
+void pll_lock_loss_isr(void);
+
 #endif
