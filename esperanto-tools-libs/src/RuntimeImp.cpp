@@ -127,6 +127,7 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
       if (!basePhysicalAddressCalculated) {
         basePhysicalAddress = loadAddress - offset;
         basePhysicalAddressCalculated = true;
+        profileEvent.setLoadAddress(reinterpret_cast<uint64_t>(deviceBuffer)-basePhysicalAddress);
       }
       RT_VLOG(LOW) << "Found segment: " << segment->get_index() << std::hex << " Offset: 0x" << offset
                    << " Physical Address: 0x" << loadAddress << " Mem Size: 0x" << memSize << " Copying to address: 0x"
@@ -143,6 +144,7 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
 
   // store the ref
   auto kernelId = static_cast<KernelId>(nextKernelId_++);
+  profileEvent.setKernelId(kernelId);
   auto it = kernels_.find(kernelId);
   if (it != end(kernels_)) {
     throw Exception("Can't create kernel");

@@ -65,6 +65,14 @@ public:
     event_.setEvent(event);
   }
 
+  void setLoadAddress(uint64_t address) {
+    event_.setLoadAddress(address);
+  }
+
+  void setKernelId(KernelId kernelId) {
+    event_.setKernelId(std::move(kernelId));
+  }
+
   ~ScopedProfileEvent() {
     event_.setTimeStamp();
     event_.type_ = Type::End;
