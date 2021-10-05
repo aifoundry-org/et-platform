@@ -122,14 +122,12 @@ static inline uint64_t cw_get_booted_shires(void)
         (const mm_to_cm_message_shire_ready_t *)&message;
     int8_t internal_status;
     uint64_t booted_shires_mask = 0ULL;
-    spinlock_t *lock;
 
     /* Processess messages from CM from CM > MM unicast circbuff */
     while(1)
     {
         /* Acquire the unicast lock */
-        lock = &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_MASTER_HART_UNICAST_BUFF_IDX];
-        acquire_global_spinlock(lock);
+        CM_Iface_Unicast_Acquire_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
 
         /* Unicast to dispatcher is slot 0 of unicast
         circular-buffers */
@@ -137,7 +135,7 @@ static inline uint64_t cw_get_booted_shires(void)
             (CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
 
         /* Release the unicast lock */
-        release_global_spinlock(lock);
+        CM_Iface_Unicast_Release_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
 
         if (internal_status != STATUS_SUCCESS)
             break;

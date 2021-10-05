@@ -521,7 +521,6 @@ static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *k
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
     const uint64_t thread_mask = (shire_id == MASTER_SHIRE) ? 0xFFFFFFFF00000000U : 0xFFFFFFFFFFFFFFFFU;
     int8_t status;
-    spinlock_t *lock;
 
     /* Update Trace buffer header if Trace was enabled. */
     if (kernel->flags & KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
@@ -604,9 +603,7 @@ static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *k
             if(msg.status < KERNEL_COMPLETE_STATUS_SUCCESS)
             {
                 /* Acquire the unicast lock */
-                lock =
-                    &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index];
-                acquire_global_spinlock(lock);
+                CM_Iface_Unicast_Acquire_Lock(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index);
 
                 status = CM_To_MM_Iface_Unicast_Send(
                     (uint64_t)(kernel->kw_base_id + kernel->slot_index),
@@ -614,7 +611,7 @@ static void kernel_launch_post_cleanup(const mm_to_cm_message_kernel_params_t *k
                     (cm_iface_message_t *)&msg);
 
                 /* Release the unicast lock */
-                release_global_spinlock(lock);
+                CM_Iface_Unicast_Release_Lock(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index);
             }
             else
             {

@@ -107,7 +107,6 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     uint8_t kw_base_id;
     uint8_t slot_index;
     int8_t status;
-    spinlock_t *lock;
 
     /* Populate the exception message */
     message.shire_id  = shire_id;
@@ -142,16 +141,14 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
         message.header.id = CM_TO_MM_MESSAGE_ID_FW_EXCEPTION;
 
         /* Acquire the unicast lock */
-        lock =
-            &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_MASTER_HART_UNICAST_BUFF_IDX];
-        acquire_global_spinlock(lock);
+        CM_Iface_Unicast_Acquire_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
 
         /* Send exception message to dispatcher (Master shire Hart 0) */
         status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
             CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (cm_iface_message_t *)&message);
 
         /* Release the unicast lock */
-        release_global_spinlock(lock);
+        CM_Iface_Unicast_Release_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
 
         if(status != STATUS_SUCCESS)
         {

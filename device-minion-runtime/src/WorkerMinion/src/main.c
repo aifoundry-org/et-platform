@@ -23,7 +23,6 @@ void __attribute__((noreturn)) main(void)
 {
     bool result;
     int8_t status;
-    spinlock_t *lock;
 
     // Setup supervisor trap vector
     asm volatile("csrw  stvec, %0\n"
@@ -59,15 +58,14 @@ void __attribute__((noreturn)) main(void)
         };
 
         /* Acquire the unicast lock */
-        lock = &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[CM_MM_MASTER_HART_UNICAST_BUFF_IDX];
-        acquire_global_spinlock(lock);
+        CM_Iface_Unicast_Acquire_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
 
         // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
         status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
             CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (const cm_iface_message_t *)&message);
 
         /* Release the unicast lock */
-        release_global_spinlock(lock);
+        CM_Iface_Unicast_Release_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
 
         if(status != 0)
         {
