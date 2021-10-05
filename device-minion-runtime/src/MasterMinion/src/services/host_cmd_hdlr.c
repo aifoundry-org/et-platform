@@ -189,10 +189,10 @@ static inline int8_t abort_cmd_handler(void* command_buffer, uint8_t sqw_hp_idx)
 ***********************************************************************/
 static inline int8_t compatibility_cmd_handler(void* command_buffer, uint8_t sqw_idx)
 {
-    const struct device_ops_echo_cmd_t *cmd = (struct device_ops_echo_cmd_t *)command_buffer;
+    const struct check_device_ops_api_compatibility_cmd_t *cmd =
+        (struct check_device_ops_api_compatibility_cmd_t *)command_buffer;
     struct device_ops_api_compatibility_rsp_t rsp;
     int8_t status = STATUS_SUCCESS;
-    int8_t abort_status = STATUS_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -206,12 +206,12 @@ static inline int8_t compatibility_cmd_handler(void* command_buffer, uint8_t sqw
         DEV_OPS_API_MID_DEVICE_OPS_API_COMPATIBILITY_RSP;
     rsp.response_info.rsp_hdr.size =
         sizeof(struct device_ops_api_compatibility_rsp_t) - sizeof(struct cmn_header_t);
+    rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_SUCCESS;
 
     /* Get the SQW state to check for command abort */
     if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
-        /* TODO: Need abort state for this command's response */
-        abort_status = HOST_CMD_STATUS_ABORTED;
+        rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_HOST_ABORTED;
     }
     else
     {
@@ -221,14 +221,33 @@ static inline int8_t compatibility_cmd_handler(void* command_buffer, uint8_t sqw
         rsp.major = DEVICE_OPS_API_MAJOR;
         rsp.minor = DEVICE_OPS_API_MINOR;
         rsp.patch = DEVICE_OPS_API_PATCH;
+
+        /* Validate if Host software version is compatible with the device software */
+        if(cmd->major != DEVICE_OPS_API_MAJOR)
+        {
+            rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_MAJOR;
+        }
+        else if (cmd->minor != DEVICE_OPS_API_MINOR)
+        {
+            rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_MINOR;
+        }
+        else if (cmd->patch != DEVICE_OPS_API_PATCH)
+        {
+            rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_PATCH;
+        }
     }
 
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 
     if(status == STATUS_SUCCESS)
     {
-        /* Check for abort status for trace logging */
-        if(abort_status == HOST_CMD_STATUS_ABORTED)
+        /* Check for command status for trace logging */
+        if(rsp.status == DEV_OPS_API_COMPATIBILITY_RESPONSE_SUCCESS)
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
+        }
+        else if(rsp.status == DEV_OPS_API_COMPATIBILITY_RESPONSE_HOST_ABORTED)
         {
             TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
                 cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
@@ -236,7 +255,7 @@ static inline int8_t compatibility_cmd_handler(void* command_buffer, uint8_t sqw
         else
         {
             TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
         }
 
         Log_Write(LOG_LEVEL_DEBUG,
@@ -285,7 +304,6 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
         (struct device_ops_device_fw_version_cmd_t *)command_buffer;
     struct device_ops_fw_version_rsp_t rsp = { 0 };
     int8_t status = STATUS_SUCCESS;
-    int8_t abort_status = STATUS_SUCCESS;
     mm2sp_fw_type_e fw_type = 0;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
@@ -298,15 +316,14 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
     rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
     rsp.response_info.rsp_hdr.msg_id =
         DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP;
+    rsp.status = DEV_OPS_API_FW_VERSION_RESPONSE_SUCCESS;
 
     /* Get the SQW state to check for command abort */
     if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
-        /* TODO: Need abort state for this command's response */
-        abort_status = status = HOST_CMD_STATUS_ABORTED;
+        rsp.status = DEV_OPS_API_FW_VERSION_RESPONSE_HOST_ABORTED;
     }
-
-    if (status == STATUS_SUCCESS)
+    else
     {
         TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
@@ -331,26 +348,29 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
             Log_Write(LOG_LEVEL_ERROR,
                 "SQ[%d] HostCommandHandler:FW_VERSION_CMD:Invalid FW type received from host\r\n",
                 sqw_idx);
+            rsp.status = DEV_OPS_API_FW_VERSION_RESPONSE_BAD_FW_TYPE;
             status = GENERAL_ERROR;
         }
-    }
 
-    if(status == STATUS_SUCCESS)
-    {
-        /* Request SP for FW version */
-        status = SP_Iface_Get_Fw_Version(fw_type, (uint8_t*)&rsp.major, (uint8_t*)&rsp.minor,
-            (uint8_t*)&rsp.patch);
-
-        if(status != STATUS_SUCCESS)
+        if(status == STATUS_SUCCESS)
         {
-            /* Reset values */
-            rsp.major = 0;
-            rsp.minor = 0;
-            rsp.patch = 0;
+            /* Request SP for FW version */
+            status = SP_Iface_Get_Fw_Version(fw_type, (uint8_t*)&rsp.major, (uint8_t*)&rsp.minor,
+                (uint8_t*)&rsp.patch);
 
-            Log_Write(LOG_LEVEL_ERROR,
-                "SQ[%d] HostCommandHandler:FW_VERSION_CMD:Request to SP failed:%d\r\n",
-                sqw_idx, status);
+            if(status != STATUS_SUCCESS)
+            {
+                rsp.status = DEV_OPS_API_FW_VERSION_RESPONSE_NOT_AVAILABLE;
+
+                /* Reset values */
+                rsp.major = 0;
+                rsp.minor = 0;
+                rsp.patch = 0;
+
+                Log_Write(LOG_LEVEL_ERROR,
+                    "SQ[%d] HostCommandHandler:FW_VERSION_CMD:Request to SP failed:%d\r\n",
+                    sqw_idx, status);
+            }
         }
     }
 
@@ -368,7 +388,12 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
     if(status == STATUS_SUCCESS)
     {
         /* Check for abort status for trace logging */
-        if(abort_status == HOST_CMD_STATUS_ABORTED)
+        if(rsp.status == DEV_OPS_API_FW_VERSION_RESPONSE_SUCCESS)
+        {
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
+        }
+        else if(rsp.status == DEV_OPS_API_FW_VERSION_RESPONSE_HOST_ABORTED)
         {
             TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
                 cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
@@ -376,11 +401,10 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
         else
         {
             TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
         }
 
-        Log_Write(LOG_LEVEL_DEBUG,
-            "SQ [%d] HostCommandHandler:CQ_Push:FW_VERSION_CMD_RSP:tag_id=%x\r\n",
+        Log_Write(LOG_LEVEL_DEBUG, "SQ[%d]:HostCmdHdlr:CQ_Push:FW_VERSION_CMD_RSP:tag_id=%x\r\n",
             sqw_idx, rsp.response_info.rsp_hdr.tag_id);
     }
     else
@@ -388,7 +412,7 @@ static inline int8_t fw_version_cmd_handler(void* command_buffer, uint8_t sqw_id
         TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
 
-        Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCommandHandler:Tag_ID=%u:CQ_Push:Failed\r\n",
+        Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCmdHdlr:Tag_ID=%u:CQ_Push:Failed\r\n",
                                     sqw_idx, cmd->command_info.cmd_hdr.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
@@ -429,7 +453,6 @@ static inline int8_t echo_cmd_handler(void* command_buffer, uint8_t sqw_idx,
         (struct device_ops_echo_cmd_t *)command_buffer;
     struct device_ops_echo_rsp_t rsp = { 0 };
     int8_t status = STATUS_SUCCESS;
-    int8_t abort_status = STATUS_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -439,17 +462,15 @@ static inline int8_t echo_cmd_handler(void* command_buffer, uint8_t sqw_idx,
 
     /* Construct and transmit response */
     rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
-    rsp.response_info.rsp_hdr.msg_id =
-        DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP;
+    rsp.response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP;
+    rsp.status = DEV_OPS_API_ECHO_RESPONSE_SUCCESS;
 
     /* Get the SQW state to check for command abort */
     if(SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
-        /* TODO: Need abort state for this command's response */
-        abort_status = status = HOST_CMD_STATUS_ABORTED;
+        rsp.status = DEV_OPS_API_ECHO_RESPONSE_HOST_ABORTED;
     }
-
-    if (status == STATUS_SUCCESS)
+    else
     {
         TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD, sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
@@ -469,7 +490,7 @@ static inline int8_t echo_cmd_handler(void* command_buffer, uint8_t sqw_idx,
     if(status == STATUS_SUCCESS)
     {
         /* Check for abort status for trace logging */
-        if(abort_status == HOST_CMD_STATUS_ABORTED)
+        if(rsp.status == DEV_OPS_API_ECHO_RESPONSE_HOST_ABORTED)
         {
             TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD, sqw_idx,
                 cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
