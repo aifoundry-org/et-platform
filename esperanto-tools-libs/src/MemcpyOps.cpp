@@ -204,10 +204,14 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
     for (auto e : eventsToWait) {
       waitForEvent(e);
     }
-    RT_VLOG(MID) << "Memcpy D2H do the copy from stage buffers to final (user) buffers.";
-    doStagedCopyAndEnableCommands(&nonblockableThreadPool_, this, h_dst, stageBuffers, {}, evt, MemcpyType::D2H);
-    // this wait for event is only to hold stageBuffers enough time to finish the staged copy
-    waitForEvent(evt);
+    if (running_) {
+      RT_VLOG(MID) << "Memcpy D2H do the copy from stage buffers to final (user) buffers.";
+      doStagedCopyAndEnableCommands(&nonblockableThreadPool_, this, h_dst, stageBuffers, {}, evt, MemcpyType::D2H);
+      // this wait for event is only to hold stageBuffers enough time to finish the staged copy
+      waitForEvent(evt);
+    } else {
+      RT_LOG(WARNING) << "Memcpy D2H didn't end because runtime was stopped before.";
+    }
     RT_VLOG(MID) << "Memcpy D2H completely finished, releasing resources.";
     stageBuffers.clear();
     RT_VLOG(MID) << "Resources released";

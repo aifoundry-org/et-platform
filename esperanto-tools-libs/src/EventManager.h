@@ -27,6 +27,7 @@ public:
   void setThrowOnMissingEvent(bool value) {
     throwOnMissingEvent_ = value;
   }
+  ~EventManager();
 
 private:
 

@@ -14,6 +14,7 @@ set(INTEGRATION_TEST_LIST
   test_memcpy.cpp:""
   test_profiler.cpp:""
   test_device_errors.cpp:""
+  test_dma_errors.cpp:""
   )
 create_test_targets("${INTEGRATION_TEST_LIST}" "LABELS;Generic;LABELS;Sysemu;TIMEOUT;300" "it_")
 
@@ -23,6 +24,7 @@ set(PCIE_TEST_LIST
   test_fwtraces.cpp:"--mode=pcie"
   test_memcpy.cpp:"--mode=pcie"
   test_device_errors.cpp:"--mode=pcie"
+  test_dma_errors.cpp:"--mode=pcie"
   )
 
 create_test_targets("${PCIE_TEST_LIST}" "LABELS;Pcie;TIMEOUT;300" "pcie_")

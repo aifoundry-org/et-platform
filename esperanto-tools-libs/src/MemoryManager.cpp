@@ -78,11 +78,13 @@ void MemoryManager::sanityCheck() const {
     dbg::Check(alloc.second > 0, "Invalid allocation: " + getAllocationStr(alloc));
   }
   // check there are no overlapping allocations
-  for (auto current = begin(allocated_), next = std::next(current);
-       current != end(allocated_) && next != end(allocated_); ++current, ++next) {
-    dbg::Check(current->first + current->second <= next->first,
-               "Allocation overlap! \n\tAllocation 1: " + getAllocationStr(*current) +
-                 " \n\tAllocation 2: " + std::to_string(next->first) + " size: " + std::to_string(next->second));
+  for (auto current = begin(allocated_); current != end(allocated_); ++current) {
+    auto next = std::next(current);
+    if (next != end(allocated_)) {
+      dbg::Check(current->first + current->second <= next->first,
+                 "Allocation overlap! \n\tAllocation 1: " + getAllocationStr(*current) +
+                   " \n\tAllocation 2: " + std::to_string(next->first) + " size: " + std::to_string(next->second));
+    }
   }
 
   // check there are not collisions between allocations and free list

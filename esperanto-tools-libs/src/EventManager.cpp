@@ -15,6 +15,7 @@
 #include <cassert>
 #include <condition_variable>
 #include <mutex>
+#include <thread>
 
 using namespace rt;
 
@@ -77,4 +78,19 @@ bool EventManager::blockUntilDispatched(EventId event, std::chrono::milliseconds
     blockedThreads_.erase(event);
   }
   return res;
+}
+EventManager::~EventManager() {
+  using namespace std::chrono_literals;
+  std::unique_lock lock(mutex_);
+  for (auto& [event, semaphore] : blockedThreads_) {
+    RT_LOG(WARNING)
+      << "Destroying eventmanager with non-dispatched events. Notifying all threads that where waiting for event "
+      << static_cast<int>(event);
+    semaphore->notifyAll();
+  }
+  lock.unlock();
+  // while until threads have remove the events
+  while (!blockedThreads_.empty()) {
+    std::this_thread::sleep_for(1ms);
+  }
 }

@@ -47,8 +47,10 @@ constexpr auto kNumExecutionCacheBuffers = 5; // initial number of execution cac
 } // namespace
 
 RuntimeImp::~RuntimeImp() {
+  for (auto d : devices_) {
+    setMemoryManagerDebugMode(d, false);
+  }
   running_ = false;
-  responseReceiver_.reset();
 }
 
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
@@ -73,9 +75,6 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
     deviceTracing_.try_emplace(d, DeviceFwTracing{allocateDmaBuffer(d, kTracingFwBufferSize, false), nullptr, nullptr});
   }
   responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
-  // Allocate 1024KB for kernel parameters and the rest for exception buffer
-  executionContextCache_ = std::make_unique<ExecutionContextCache>(
-    this, kNumExecutionCacheBuffers, align(kExceptionBufferSize + kBlockSize, kBlockSize));
 
   // initialization sequence, need to send abort command to ensure the device is in a proper state
   for (int d = 0; d < devicesCount; ++d) {
@@ -85,6 +84,9 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
   }
   eventManager_.setThrowOnMissingEvent(true);
   running_ = true;
+  executionContextCache_ = std::make_unique<ExecutionContextCache>(
+    this, kNumExecutionCacheBuffers, align(kExceptionBufferSize + kBlockSize, kBlockSize));
+  RT_LOG(INFO) << "Runtime initialized.";
 }
 
 std::vector<DeviceId> RuntimeImp::getDevices() {
@@ -217,6 +219,11 @@ void RuntimeImp::destroyStream(StreamId stream) {
 
 bool RuntimeImp::waitForEvent(EventId event, std::chrono::seconds timeout) {
   ScopedProfileEvent profileEvent(Class::WaitForEvent, profiler_, event);
+  if (!running_) {
+    RT_LOG(WARNING) << "Trying to wait for an event but runtime is not running anymore, returning.";
+    return true;
+  }
+
   RT_VLOG(LOW) << "Waiting for event " << static_cast<int>(event) << " to be dispatched.";
   auto res = eventManager_.blockUntilDispatched(event, timeout);
   RT_VLOG(LOW) << "Finished wait for event " << static_cast<int>(event) << " timed out? " << (res ? "false" : "true");
@@ -527,6 +534,11 @@ EventId RuntimeImp::abortCommand(EventId commandId) {
 }
 
 void RuntimeImp::dispatch(EventId event) {
+  if (!running_) {
+    RT_LOG(WARNING) << "Trying to dispatch an event but runtime is not running. Ignoring the dispatch."
+                    << static_cast<int>(event);
+    return;
+  }
   streamManager_.removeEvent(event);
   eventManager_.dispatch(event);
 }

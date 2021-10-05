@@ -136,7 +136,6 @@ private:
   profiling::ProfilerImp profiler_;
   dev::IDeviceLayer* deviceLayer_;
   std::vector<DeviceId> devices_;
-  EventManager eventManager_;
   StreamManager streamManager_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
   std::unordered_map<DeviceId, HostBufferManager> hostBufferManagers_;
@@ -149,9 +148,10 @@ private:
 
   int nextKernelId_ = 0;
 
-  threadPool::ThreadPool nonblockableThreadPool_{8};
-  threadPool::ThreadPool blockableThreadPool_{8};
   std::unique_ptr<ResponseReceiver> responseReceiver_;
+  threadPool::ThreadPool blockableThreadPool_{8};
+  EventManager eventManager_;
+  threadPool::ThreadPool nonblockableThreadPool_{8};
   bool running_ = false;
 };
 } // namespace rt

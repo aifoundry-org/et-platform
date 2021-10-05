@@ -100,6 +100,7 @@ public:
   /// @returns a \ref LoadCodeResult with the EventId to sync with (if needed), the kernelId to utilize in later
   /// kernelLaunch and the kernel load address.
   ///
+  /// NOTE: remember to not deallocate the elf memory \param elf until the EventId from \ref LoadCodeResult is completed
 
   virtual LoadCodeResult loadCode(StreamId stream, const std::byte* elf, size_t elf_size) = 0;
 
@@ -160,6 +161,8 @@ public:
   /// @returns EventId is a handler of an event which can be waited for
   /// (waitForEventId) to synchronize when the memcpy ends
   ///
+  /// NOTE: the host memory pointer must be kept alive until the operation has completely ended in device.
+  ///
   virtual EventId memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
                                      bool barrier = false) = 0;
   /// \brief Queues a memcpy operation from device memory to host memory. The
@@ -180,6 +183,8 @@ public:
   ///
   /// @returns EventId is a handler of an event which can be waited for
   /// (waitForEventId) to synchronize when the memcpy ends
+  ///
+  /// NOTE: the host memory pointer must be kept alive until the operation has completely ended in device.
   ///
   virtual EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                      bool barrier = true) = 0;
