@@ -152,4 +152,11 @@ int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
 */
 void pll_lock_loss_isr(void);
 
+/*! \fn void enable_spio_pll_lock_loss_interrupt(void)
+    \brief Setup and enable SPIO PLLs lock loss interrupt
+    \param None 
+    \return None
+*/
+void enable_spio_pll_lock_loss_interrupt(void);
+
 #endif

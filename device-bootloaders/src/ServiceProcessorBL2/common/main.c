@@ -297,6 +297,9 @@ static void taskMain(void *pvParameters)
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
+    /* Enable SPIO PLLs lock loss interrupt */
+    enable_spio_pll_lock_loss_interrupt();
+
     while (1) {
         Log_Write(LOG_LEVEL_CRITICAL, "SP Alive..\r\n");
         // Print SP Hearbeat
