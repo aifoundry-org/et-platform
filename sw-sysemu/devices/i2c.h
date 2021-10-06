@@ -109,9 +109,10 @@ protected:
             average_power += rand() % 5;
             result = average_power << 2;
             // If Power is over HW Threshold, send interrupt to ET SOC
-            if(average_power > 40) {
-                agent.chip->sp_plic_interrupt_pending_set(plic_source);
-            }
+            // 
+            // TODO: if(average_power > 40) {
+            // TODO: agent.chip->sp_plic_interrupt_pending_set(plic_source);
+            // TODO: }
             // Reset the Power if above an arbitrary threshold
             average_power = (average_power < 50) ? average_power : 10;
             break;
@@ -119,15 +120,15 @@ protected:
             current_temp += rand() % 5;
             result = current_temp;
             // If Temperature is over HW Threshold, send interrupt to ET SOC
-            if(current_temp > 80) {
-                agent.chip->sp_plic_interrupt_pending_set(plic_source);
-            }
+            // TODO: if(current_temp > 80) {
+            // TODO:    agent.chip->sp_plic_interrupt_pending_set(plic_source);
+            // TODO: }
             current_temp = (current_temp < 85) ? current_temp : 25;
             break;
         case PMIC_INT_CAUSE_ADDR:
             // Provide the respective Int Cause
             result = (current_temp > 80) ? 1: (( average_power > 40) ? 2: 0);
-            agent.chip->sp_plic_interrupt_pending_clear(plic_source);
+            // TODO: agent.chip->sp_plic_interrupt_pending_clear(plic_source);
             break;
         default: 
             result = 0;
