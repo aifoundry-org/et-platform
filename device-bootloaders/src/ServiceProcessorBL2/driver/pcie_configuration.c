@@ -274,11 +274,13 @@ static void pcie_init_error_cap(void)
     reg_val = ioread32(
         PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS);
 
+    reg_val =
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_CORR_ERR_REPORT_EN_MODIFY(
+            reg_val, 0x1);
+
     /* Enable Correctable Errors Capability*/
     iowrite32(
-        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS,
-        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_PCIE_CAP_CORR_ERR_REPORT_EN_MODIFY(
-            reg_val, 0x1));
+        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS, reg_val);
 
     /* Enable UnCorrectable Errors Capability*/
     reg_val =
