@@ -37,7 +37,8 @@ std::optional<Stream::Info> StreamManager::getStreamInfo(EventId event) const {
 StreamId StreamManager::createStream(DeviceId device) {
   std::lock_guard lock(mutex_);
   auto vq = queueHelper_.nextQueue(device);
-  auto [it, res] = streams_.try_emplace(StreamId{nextStreamId_++}, Stream{device, vq});
+  auto id = StreamId{nextStreamId_++};
+  auto [it, res] = streams_.try_emplace(id, Stream{device, vq, id});
   if (!res) {
     throw Exception("Error creating stream in device " +
                     std::to_string(static_cast<std::underlying_type<DeviceId>::type>(device)));

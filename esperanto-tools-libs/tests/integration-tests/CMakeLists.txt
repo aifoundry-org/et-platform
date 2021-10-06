@@ -25,6 +25,7 @@ set(PCIE_TEST_LIST
   test_memcpy.cpp:"--mode=pcie"
   test_device_errors.cpp:"--mode=pcie"
   test_dma_errors.cpp:"--mode=pcie"
+  test_abort.cpp:"--mode=pcie"
   )
 
 create_test_targets("${PCIE_TEST_LIST}" "LABELS;Pcie;TIMEOUT;300" "pcie_")

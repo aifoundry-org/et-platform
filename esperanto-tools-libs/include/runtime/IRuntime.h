@@ -310,6 +310,17 @@ public:
 
   virtual EventId abortCommand(EventId commandId) = 0;
 
+  /// \brief Instructs the device to abort all outstanding commands on a given stream. This will affect to all commands
+  /// previously issued to given stream, later commands will execute normally. NOTE: as per current firmware
+  /// implementation, aborting a command will have undesirable side effects on the rest of the submitted commands to the
+  /// same virtual queue. So, after aborting a command it could potentially affect the rest of the executions.
+  ///
+  /// @param[in] streamId indicates the stream to abort commands
+  ///
+  /// @returns EventId is a handler of the abortStream which can be waited for (waitForEventId) to synchronize.
+
+  virtual EventId abortStream(StreamId streamId) = 0;
+
   ///
   /// \brief Factory method to instantiate a IRuntime implementation
   ///

@@ -19,8 +19,8 @@
 namespace rt {
 struct Stream {
   static_assert(sizeof(std::underlying_type<DeviceId>::type) <= sizeof(int));
-  Stream(DeviceId deviceId, int vq)
-    : info_{static_cast<int>(deviceId), vq} {
+  Stream(DeviceId deviceId, int vq, StreamId id)
+    : info_{static_cast<int>(deviceId), vq, id} {
   }
   ~Stream() {
     RT_LOG_IF(WARNING, !submittedEvents_.empty()) << "Destroying stream with pending events";
@@ -30,6 +30,7 @@ struct Stream {
   struct Info {
     int device_;
     int vq_;
+    StreamId id_;
   } info_;
   std::vector<StreamError> errors_;
 };

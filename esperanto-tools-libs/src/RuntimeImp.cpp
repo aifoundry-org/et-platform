@@ -12,6 +12,7 @@
 #include "ExecutionContextCache.h"
 #include "MemoryManager.h"
 #include "ScopedProfileEvent.h"
+#include "StreamManager.h"
 #include "dma/DmaBufferImp.h"
 
 #include "runtime/IRuntime.h"
@@ -529,8 +530,25 @@ EventId RuntimeImp::abortCommand(EventId commandId) {
       RT_LOG(WARNING) << "Trying to abort a command but special HPSQ is full. Retrying...";
       std::this_thread::sleep_for(1ms);
     }
+    streamManager_.addEvent(stInfo->id_, evt);
   }
   return evt;
+}
+
+EventId RuntimeImp::abortStream(StreamId streamId) {
+  auto events = streamManager_.getLiveEvents(streamId);
+  if (events.empty()) {
+    RT_LOG(WARNING) << "Trying to abort stream " << static_cast<int>(streamId) << " but it had no outstanding events.";
+    auto evt = eventManager_.getNextId();
+    eventManager_.dispatch(evt);
+    return evt;
+  } else {
+    auto lastEvt = EventId{};
+    for (auto e : events) {
+      lastEvt = abortCommand(e);
+    }
+    return lastEvt;
+  }
 }
 
 void RuntimeImp::dispatch(EventId event) {

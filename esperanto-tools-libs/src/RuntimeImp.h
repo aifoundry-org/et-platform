@@ -63,6 +63,8 @@ public:
 
   EventId abortCommand(EventId commandId) final;
 
+  EventId abortStream(StreamId streamId) final;
+
   IProfiler* getProfiler() final {
     return &profiler_;
   }
