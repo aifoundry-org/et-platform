@@ -984,13 +984,12 @@
         },
         "TF_CMD_MM_KERNEL_LAUNCH": {
             "flags": 2,
-            "payload_size": 48,
+            "payload_size": 40,
             "payload_args": {
                 "code_start_address": "uint64_t",
                 "pointer_to_args": "uint64_t",
                 "exception_buffer": "uint64_t",
                 "shire_mask": "uint64_t",
-                "pointer_to_trace_cfg": "uint64_t",
                 "argument_payload": "uint64_t"
             }
         },
