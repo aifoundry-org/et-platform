@@ -137,6 +137,9 @@ uint32_t get_input_clock_index(void)
     return RESET_MANAGER_RM_STATUS2_STRAP_IN_GET(rm_status2);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wswitch-enum"
+
 static int clock_manager_set_pll_lock_int_enable(PLL_ID_t pll, bool inth_enable)
 {
     uint32_t reg_value;
@@ -167,11 +170,6 @@ static int clock_manager_set_pll_lock_int_enable(PLL_ID_t pll, bool inth_enable)
                                                                         (inth_enable ? 1 : 0));
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS, reg_value);
             break;
-        case PLL_ID_PSHIRE:
-        case PLL_ID_MAXION_CORE:
-        case PLL_ID_MAXION_UNCORE:
-        case PLL_ID_SP_PLL_3:
-        case PLL_ID_INVALID:
         default:
             return ERROR_SP_PLL_INVALID_PLL_ID;
     }
@@ -209,11 +207,6 @@ static int clock_manager_set_pll_loss_int_enable(PLL_ID_t pll, bool inth_enable)
                                                                         (inth_enable ? 1 : 0));
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS, reg_value);
             break;
-        case PLL_ID_PSHIRE:
-        case PLL_ID_MAXION_CORE:
-        case PLL_ID_MAXION_UNCORE:
-        case PLL_ID_SP_PLL_3:
-        case PLL_ID_INVALID:
         default:
             return ERROR_SP_PLL_INVALID_PLL_ID;
     }
@@ -237,11 +230,6 @@ static int clock_manager_get_pll_status(PLL_ID_t pll, uint32_t *cm_pll_status)
         case PLL_ID_SP_PLL_4:
             *cm_pll_status = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_STATUS_ADDRESS);
             break;
-        case PLL_ID_PSHIRE:
-        case PLL_ID_MAXION_CORE:
-        case PLL_ID_MAXION_UNCORE:
-        case PLL_ID_SP_PLL_3:
-        case PLL_ID_INVALID:
         default:
             return ERROR_SP_PLL_INVALID_PLL_ID;
     }
@@ -265,17 +253,14 @@ static int clock_manager_clear_pll_status(PLL_ID_t pll)
         case PLL_ID_SP_PLL_4:
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_STATUS_ADDRESS, 0);
             break;
-        case PLL_ID_PSHIRE:
-        case PLL_ID_MAXION_CORE:
-        case PLL_ID_MAXION_UNCORE:
-        case PLL_ID_SP_PLL_3:
-        case PLL_ID_INVALID:
         default:
             return ERROR_SP_PLL_INVALID_PLL_ID;
     }
 
     return 0;
 }
+
+#pragma GCC diagnostic pop
 
 static int configure_pll_off(volatile uint32_t *pll_registers)
 {
