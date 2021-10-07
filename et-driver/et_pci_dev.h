@@ -36,6 +36,8 @@ struct et_mapped_region {
 	void __iomem *mapped_baseaddr;
 	u64 soc_addr;
 	u64 size;
+	u32 dma_max_element_size;
+	u16 dma_max_num_of_element;
 };
 
 enum et_msi_vec_idx {

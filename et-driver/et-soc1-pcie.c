@@ -170,8 +170,10 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].soc_addr;
 		user_dram.size =
 			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].size;
-		// TODO SW-8645: Discover from DIRs
-		user_dram.dma_max_elem_size = BIT(27); /* 128MB */
+		user_dram.dma_max_elem_size =
+			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]
+				.access.dma_element_size *
+			MEM_REGION_DMA_ELEMENT_STEP_SIZE;
 
 		switch (ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]
 				.access.dma_align) {

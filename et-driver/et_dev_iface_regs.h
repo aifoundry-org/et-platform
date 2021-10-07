@@ -72,6 +72,12 @@
 #define MEM_REGION_DMA_ALIGNMENT_64BIT (0x3)
 
 /*
+ * Macro to define increment size for DMA element. Size is provided in the
+ * increment of 32 MBytes.
+ */
+
+#define MEM_REGION_DMA_ELEMENT_STEP_SIZE (32 * 1024 * 1024)
+/*
  * Holds the information memory region access attributes
  */
 struct et_dir_reg_access {
@@ -109,7 +115,26 @@ struct et_dir_reg_access {
 	 */
 	u32 dma_align : 2; /* bit 3-4 */
 
-	u32 reserved : 27;
+	/*
+	 * Description:
+	 * dma_element_count: Indicates number of elements in DMA list.
+	 * 0000 - Not applicable
+	 * 0001 - 1 element
+	 * 0010 - 2 elements
+	 */
+	u32 dma_element_count : 4; /* bit 5-8 */
+
+	/*
+	 * Description:
+	 * dma_element_size: Indicates DMA element size.
+	 * 00000000 - Not applicable
+	 * 00000001 - 32 MB
+	 * 00000010 - 64 MB, step size of 32 MB
+	 * 00000011 - 96 MB
+	 * 10000000 - 4096 MB (Maximum size ET-SOC1 supports in a DMA descriptor)
+	 */
+	u32 dma_element_size : 8; /* bit 9-16 */
+	u32 reserved : 15;
 } __packed;
 
 /*
