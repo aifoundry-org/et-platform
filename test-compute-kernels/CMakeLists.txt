@@ -173,6 +173,7 @@ add_subdirectory("trace")
 # Old Trace tests disabled for now until we update them to use new Tracing lib
 #add_subdirectory("trace_ring_buffer")
 add_subdirectory("crc32")
+add_subdirectory("echo")
 add_subdirectory("empty")
 add_subdirectory("error")
 add_subdirectory("exception")
