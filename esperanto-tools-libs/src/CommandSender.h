@@ -12,6 +12,7 @@
 #include <condition_variable>
 #include <cstddef>
 #include <device-layer/IDeviceLayer.h>
+#include <functional>
 #include <list>
 #include <mutex>
 #include <queue>
@@ -29,12 +30,14 @@ struct Command {
 class CommandSender {
 
 public:
+  using CommandSentCallback = std::function<void(Command*)>;
   explicit CommandSender(dev::IDeviceLayer& deviceLayer, int deviceId, int sqIdx);
   ~CommandSender();
   // returns a pointer to the recently inserted Command. This is useful, for example to change the isEnabled_ flag if
   // needed. We are using a deque to store the commands, and we only pop and emplace; so references won't be invalidated
   Command* send(Command command);
   void enable(Command& command);
+  void setOnCommandSentCallback(CommandSentCallback callback);
 
 private:
   CommandSender(const CommandSender&) = delete;
@@ -48,6 +51,7 @@ private:
   std::thread runner_;
   std::condition_variable condVar_;
   dev::IDeviceLayer& deviceLayer_;
+  CommandSentCallback callback_;
   int deviceId_;
   int sqIdx_;
   bool running_ = true;

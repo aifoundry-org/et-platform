@@ -15,8 +15,11 @@
 #include <device-layer/IDeviceLayer.h>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logger.h>
+#include <mutex>
 #include <random>
-
+#include <thread>
+using namespace rt;
+using namespace std::chrono_literals;
 namespace {
 class TestAbort : public Fixture {
 public:
@@ -24,7 +27,11 @@ public:
     Fixture::SetUp();
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
     imp->setMemoryManagerDebugMode(devices_[0], true);
+    kernelHang_ = loadKernel("hang.elf");
+    runtime_->waitForStream(defaultStream_);
   }
+  std::array<std::byte, 32> fakeArgs_;
+  KernelId kernelHang_;
 };
 } // namespace
 TEST_F(TestAbort, abortCommand) {
@@ -32,16 +39,29 @@ TEST_F(TestAbort, abortCommand) {
     RT_LOG(WARNING) << "Abort Command is not supported in sysemu. Returning.";
     FAIL();
   }
-  std::array<std::byte, 1024> hostMem;
+
   bool errorReported = false;
-  auto dst = runtime_->mallocDevice(defaultDevice_, hostMem.size());
+
   runtime_->setOnStreamErrorsCallback([&errorReported](rt::EventId, const rt::StreamError& error) {
-    ASSERT_EQ(error.errorCode_, rt::DeviceErrorCode::DmaAborted);
+    ASSERT_EQ(error.errorCode_, rt::DeviceErrorCode::KernelLaunchHostAborted);
     errorReported = true;
   });
-  auto evt = runtime_->memcpyHostToDevice(defaultStream_, hostMem.data(), dst, hostMem.size());
-  runtime_->abortCommand(evt);
-  runtime_->waitForStream(defaultStream_);
+  auto rimp = static_cast<rt::RuntimeImp*>(runtime_.get());
+  bool done = false;
+  rimp->setSentCommandCallback(defaultDevice_, [this, &done](rt::Command* cmd) {
+    RT_LOG(INFO) << "Command sent: " << cmd << ". Now aborting stream.";
+    runtime_->abortStream(defaultStream_);
+    RT_LOG(INFO) << "Waiting for stream to finish.";
+    runtime_->waitForStream(defaultStream_);
+    done = true;
+  });
+  RT_LOG(INFO) << "Sending kernel launch which will be aborted later";
+  runtime_->kernelLaunch(defaultStream_, kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1FFFFFFFFUL);
+  while (!done) {
+    RT_LOG(INFO) << "Not done yet, waiting. Error reported? " << errorReported;
+    std::this_thread::sleep_for(1s);
+  }
+
   ASSERT_TRUE(errorReported);
   ASSERT_EQ(deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(defaultDevice_)), dev::DeviceState::Ready);
 }
@@ -51,21 +71,37 @@ TEST_F(TestAbort, abortStream) {
     RT_LOG(WARNING) << "Abort Stream is not supported in sysemu. Returning.";
     FAIL();
   }
+  RT_LOG(WARNING) << "Disabling this test until SW-9617 is implemented.";
+  return;
   auto eventsReported = std::set<rt::EventId>{};
   runtime_->setOnStreamErrorsCallback([&eventsReported](rt::EventId event, const rt::StreamError& error) {
-    ASSERT_EQ(error.errorCode_, rt::DeviceErrorCode::DmaAborted);
+    ASSERT_EQ(error.errorCode_, rt::DeviceErrorCode::KernelLaunchHostAborted);
     eventsReported.emplace(event);
   });
 
-  std::array<std::byte, 1024> hostMem;
   // then lets queue several memcpy commands
-  auto dst = runtime_->mallocDevice(defaultDevice_, hostMem.size());
   auto eventsSubmitted = std::set<rt::EventId>{};
+  auto rimp = static_cast<rt::RuntimeImp*>(runtime_.get());
+  bool done = false;
+  rimp->setSentCommandCallback(defaultDevice_, [this, &done](rt::Command* cmd) {
+    static std::once_flag s_flag;
+    RT_LOG(INFO) << "Inside sent command callback";
+    std::call_once(s_flag, [this, &done, cmd] {
+      RT_LOG(INFO) << "Command sent: " << cmd << ". Now aborting stream.";
+      runtime_->abortStream(defaultStream_);
+      RT_LOG(INFO) << "Waiting for stream to finish.";
+      runtime_->waitForStream(defaultStream_);
+      done = true;
+    });
+  });
   for (int i = 0; i < 10; ++i) {
-    eventsSubmitted.emplace(runtime_->memcpyHostToDevice(defaultStream_, hostMem.data(), dst, hostMem.size()));
+    eventsSubmitted.emplace(
+      runtime_->kernelLaunch(defaultStream_, kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1FFFFFFFFUL));
   }
-  runtime_->abortStream(defaultStream_);
-  runtime_->waitForStream(defaultStream_);
+  while (!done) {
+    RT_LOG(INFO) << "Not done yet, waiting.";
+    std::this_thread::sleep_for(1s);
+  }
   ASSERT_EQ(eventsReported, eventsSubmitted);
 }
 

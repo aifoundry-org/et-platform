@@ -32,7 +32,10 @@ CommandSender::CommandSender(dev::IDeviceLayer& deviceLayer, int deviceId, int s
   , sqIdx_(sqIdx) {
   runner_ = std::thread{std::bind(&CommandSender::runnerFunc, this)};
 }
-
+void CommandSender::setOnCommandSentCallback(CommandSentCallback callback) {
+  std::lock_guard lock(mutex_);
+  callback_ = std::move(callback);
+}
 Command* CommandSender::send(Command command) {
   std::unique_lock lock(mutex_);
   commands_.emplace(std::move(command));
@@ -74,6 +77,9 @@ void CommandSender::runnerFunc() {
       if (deviceLayer_.sendCommandMasterMinion(deviceId_, sqIdx_, cmd.commandData_.data(), cmd.commandData_.size(),
                                                cmd.isDma_)) {
         RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_);
+        if (callback_) {
+          callback_(&cmd);
+        }
         commands_.pop();
       } else {
         lock.unlock();

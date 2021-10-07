@@ -37,7 +37,7 @@ exit_on_fail $?
 
 # Run the runtime tests
 cd $PROJECT_DIR/host-software/runtime
-sudo ctest -L "Pcie" -V --no-compress-output
+ET_VLOG=0 ctest -L "Pcie" -V --no-compress-output
 exit_on_fail $?
 
 # Issue a kmemleak scan and check the buffer for issues

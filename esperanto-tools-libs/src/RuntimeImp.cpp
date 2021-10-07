@@ -255,13 +255,16 @@ void RuntimeImp::processResponseError(DeviceErrorCode errorCode, EventId event) 
     // devicebuffer into dmabuffer; then do the callback
     StreamError streamError(errorCode);
     if (auto buffer = executionContextCache_->getReservedBuffer(event); buffer != nullptr) {
-      // do the copy
-      auto st = createStream(buffer->device_);
-      auto errorContexts = std::vector<ErrorContext>(kNumErrorContexts);
-      auto e = memcpyDeviceToHost(st, buffer->getExceptionContextPtr(),
-                                  reinterpret_cast<std::byte*>(errorContexts.data()), kExceptionBufferSize, false);
-      waitForEvent(e);
-      streamError.errorContext_.emplace(std::move(errorContexts));
+      // TODO remove this when ticket https://esperantotech.atlassian.net/browse/SW-9617 is fixed
+      if (errorCode != DeviceErrorCode::KernelLaunchHostAborted) {
+        // do the copy
+        auto st = createStream(buffer->device_);
+        auto errorContexts = std::vector<ErrorContext>(kNumErrorContexts);
+        auto e = memcpyDeviceToHost(st, buffer->getExceptionContextPtr(),
+                                    reinterpret_cast<std::byte*>(errorContexts.data()), kExceptionBufferSize, false);
+        waitForEvent(e);
+        streamError.errorContext_.emplace(std::move(errorContexts));
+      }
       executionContextCache_->releaseBuffer(event);
     }
     if (!streamManager_.executeCallback(event, streamError)) {
@@ -497,6 +500,15 @@ void RuntimeImp::setMemoryManagerDebugMode(DeviceId device, bool enable) {
   find(memoryManagers_, device)->second.setDebugMode(enable);
 }
 
+void RuntimeImp::setSentCommandCallback(DeviceId device, CommandSender::CommandSentCallback callback) {
+  auto deviceInt = static_cast<int>(device);
+  auto sqCount = deviceLayer_->getSubmissionQueuesCount(deviceInt);
+  for (auto sq = 0; sq < sqCount; ++sq) {
+    auto& cs = find(commandSenders_, getCommandSenderIdx(deviceInt, sq))->second;
+    cs.setOnCommandSentCallback(callback);
+  }
+}
+
 std::vector<int> RuntimeImp::getDevicesWithEventsOnFly() const {
   std::vector<int> result;
   std::for_each(begin(devices_), end(devices_), [this, &result](const auto& device) {
@@ -546,9 +558,26 @@ EventId RuntimeImp::abortStream(StreamId streamId) {
     return evt;
   } else {
     auto lastEvt = EventId{};
+    /* TODO
     for (auto e : events) {
       lastEvt = abortCommand(e);
-    }
+    }*/
+    // until this ticket get resolved, we need to abort just one command:
+    // https://esperantotech.atlassian.net/browse/SW-9617
+    lastEvt = abortCommand(events.back());
+    RT_VLOG(LOW) << "Abort command event: " << static_cast<int>(lastEvt);
+    /*blockableThreadPool_.pushTask([this, lastEvt] {
+      RT_LOG(INFO) << "Waiting till abort command has been processed";
+      auto stInfo = streamManager_.getStreamInfo(lastEvt);
+      waitForEvent(lastEvt);
+      RT_LOG(INFO) << "Dispatching all runnning events after abort command. To be removed after fixing SW-9617";
+      auto events = streamManager_.getLiveEvents(stInfo->id_);
+      eventManager_.setThrowOnMissingEvent(false);
+      for (auto e : events) {
+        dispatch(e);
+      }
+      eventManager_.setThrowOnMissingEvent(true);
+    });*/
     return lastEvt;
   }
 }
@@ -569,6 +598,7 @@ void RuntimeImp::checkDevice(int device) {
     return;
   }
   if (state != dev::DeviceState::Ready) {
+    running_ = true; // we need to start running to allow dispatch and waitForStream to work properly
     RT_LOG(WARNING) << "Device " << device << " is not ready. Current state: " << static_cast<int>(state)
                     << ". Runtime will issue abort command to all SQs of that device.";
     for (auto sq = 0, sqCount = deviceLayer_->getSubmissionQueuesCount(device); sq < sqCount; ++sq) {

@@ -77,12 +77,14 @@ public:
   std::vector<int> getDevicesWithEventsOnFly() const final;
   void onResponseReceived(const std::vector<std::byte>& response) final;
 
-  void setMemoryManagerDebugMode(DeviceId device, bool enable);
-
   // this method is a helper to call eventManager dispatch and streamManager removeEvent
   void dispatch(EventId event);
 
   ~RuntimeImp();
+
+  // these methods are intended for debugging, internal use only
+  void setMemoryManagerDebugMode(DeviceId device, bool enable);
+  void setSentCommandCallback(DeviceId device, CommandSender::CommandSentCallback callback);
 
 private:
   void checkDevice(int device) override;

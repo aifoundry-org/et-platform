@@ -302,6 +302,8 @@ public:
   /// NOTE: as per current firmware implementation, aborting a command will have undesirable side effects on the rest of
   /// the submitted commands to the same virtual queue. So, after aborting a command it could potentially affect the
   /// rest of the executions
+  /// BUG: individual memcpyHostToDevice and memcpyDeviceToHost commands can not be aborted individually right now. The
+  /// could be aborted through \ref abortStream.
   ///
   /// @param[in] commandId indicates the command's eventId to abort
   ///
