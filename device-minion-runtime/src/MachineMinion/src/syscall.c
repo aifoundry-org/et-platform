@@ -17,8 +17,8 @@
 #include <etsoc/isa/cacheops.h>
 #include <etsoc/isa/esr_defines.h>
 #include <etsoc/isa/fcc.h>
-#include <etsoc/isa/flb.h>
 #include <etsoc/isa/hart.h>
+#include <etsoc/isa/sync.h>
 #include <transports/mm_cm_iface/broadcast.h>
 
 /* etsoc_hal */
@@ -30,6 +30,8 @@
 #include "shire_cache.h"
 #include "minion_cfg.h"
 
+/* Global variable to cleanup threads in post kernel launch phase */
+static spinlock_t Kernel_Launch_Thread_Cleanup[NUM_SHIRES] = { 0 };
 
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 
@@ -298,19 +300,21 @@ static int64_t pre_kernel_setup(uint64_t thread1_enable_mask, uint64_t first_wor
 // to avoid the overhead of making multiple syscalls
 static int64_t post_kernel_cleanup(uint64_t thread_count)
 {
-    bool result;
+    const uint32_t shire_id = get_shire_id();
 
-    // Thread 0 in each minion evicts L1
-    if (get_thread_id() == 0) {
+    /* Thread 0 in each minion evicts L1 */
+    if (get_thread_id() == 0)
+    {
         evict_l1(0, to_L2);
     }
 
-    // Wait for all L1 evicts to complete before evicting L2
-    WAIT_FLB(thread_count, 30, result);
+    /* Last thread in shire evicts L2. A full L2 evict includes flushing the coalescing buffer */
+    if (atomic_add_local_32(&Kernel_Launch_Thread_Cleanup[shire_id].flag, 1U) == (thread_count - 1))
+    {
+        /* Reset the thread counter */
+        init_local_spinlock(&Kernel_Launch_Thread_Cleanup[shire_id], 0);
 
-    // Last thread in shire to join barrier evicts L2
-    // A full L2 evict includes flushing the coalescing buffer
-    if (result) {
+        /* Evict L2 */
         evict_l2();
     }
 
