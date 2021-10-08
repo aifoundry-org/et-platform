@@ -164,6 +164,21 @@ enum pmc_counter {
     PMC_COUNTER_MEMSHIRE_FOO
 };
 
+/*
+ * Global tracing information used to initialize Trace.
+ */
+struct trace_init_info_t {
+    uint64_t buffer;      /*!< Base address for Trace buffer. */
+    uint32_t buffer_size; /*!< Total size of the Trace buffer. */
+    uint32_t threshold;   /*!< Threshold for free memory in the buffer for each hart. */
+    uint64_t shire_mask;  /*!< Bit Mask of Shire to enable Trace Capture. */
+    uint64_t thread_mask; /*!< Bit Mask of Thread within a Shire to enable Trace Capture. */
+    uint32_t
+        event_mask; /*!< This is a bit mask, each bit corresponds to a specific Event to trace. */
+    uint32_t
+        filter_mask; /*!< This is a bit mask representing a list of filters for a given event to trace. */
+};
+
 /*! \struct trace_buffer_size_header_t
     \brief Trace buffer header (resides at the beggining of the buffer).
            It contains size of valid data in that buffer.

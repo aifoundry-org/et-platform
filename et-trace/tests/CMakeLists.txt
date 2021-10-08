@@ -1,19 +1,24 @@
 add_library(et_trace_test common/mock_etsoc.c common/user_args.c)
 
 add_library(et_trace_impl_mm common/et_trace_impl.c)
+target_compile_options(et_trace_impl_mm PUBLIC -Wall)
 target_compile_definitions(et_trace_impl_mm PUBLIC MASTER_MINION)
 target_link_libraries(et_trace_impl_mm PUBLIC et_trace)
 
 add_library(et_trace_impl common/et_trace_impl.c)
+target_compile_options(et_trace_impl PUBLIC -Wall)
 target_link_libraries(et_trace_impl PUBLIC et_trace)
 
 macro(add_et_trace_test name)
   add_executable(${name}_mm ${name}.c)
   target_link_libraries(${name}_mm PRIVATE et_trace_impl_mm et_trace_test)
+  target_compile_options(${name}_mm PRIVATE -Wall)
   target_compile_definitions(${name}_mm PRIVATE MASTER_MINION)
 
   add_executable(${name} ${name}.c)
   target_link_libraries(${name} PRIVATE et_trace_impl et_trace_test)
+
+  target_compile_options(${name} PRIVATE -Wall)
 
   add_test(NAME ${name}_mm COMMAND ${name}_mm)
   add_test(NAME ${name} COMMAND ${name})
@@ -34,3 +39,4 @@ add_et_trace_test(decode_mixed_test)
 add_et_trace_test(create_devtrace)
 add_et_trace_test(decode_execution_stack_test)
 add_et_trace_test(decode_custom_event_test)
+add_et_trace_test(trace_min_buffer_test)
