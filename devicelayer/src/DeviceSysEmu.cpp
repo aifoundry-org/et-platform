@@ -537,6 +537,9 @@ void DeviceSysEmu::setupMasterMinion() {
 }
 
 void* DeviceSysEmu::allocDmaBuffer(int, size_t sizeInBytes, bool) {
+  if (sizeInBytes > getFreeCmaMemory()) {
+    throw Exception("Not enough CMA memory");
+  }
   auto res = malloc(sizeInBytes);
   if (!res) {
     throw Exception("Error allocating memory buffer");
@@ -551,8 +554,7 @@ void DeviceSysEmu::freeDmaBuffer(void* dmaBuffer) {
   free(dmaBuffer);
 }
 
-DeviceConfig DeviceSysEmu::getDeviceConfig(int device) {
-  unused(device);
+DeviceConfig DeviceSysEmu::getDeviceConfig(int) {
   return DeviceConfig{DeviceConfig::FormFactor::PCIE,
                       25,
                       650,
@@ -561,4 +563,8 @@ DeviceConfig DeviceSysEmu::getDeviceConfig(int device) {
                       80,
                       64,
                       static_cast<uint32_t>(spInfo_.generic_attr.minion_shires_mask)};
+}
+
+size_t DeviceSysEmu::getFreeCmaMemory() const {
+  return 1ULL << 30; // default free memory 1 GiB
 }

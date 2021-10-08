@@ -48,6 +48,7 @@ public:
   void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) override;
   void freeDmaBuffer(void* dmaBuffer) override;
   DeviceConfig getDeviceConfig(int device) override;
+  size_t getFreeCmaMemory() const override;
 
 private:
   struct DevInfo {

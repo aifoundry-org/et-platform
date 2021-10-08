@@ -175,6 +175,9 @@ public:
   int updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) override {
     return 0;
   }
+  size_t getFreeCmaMemory() const override {
+    return 1ULL << 30;
+  }
 };
 
 } // namespace dev

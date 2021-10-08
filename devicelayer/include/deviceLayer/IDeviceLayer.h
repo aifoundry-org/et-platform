@@ -266,6 +266,12 @@ public:
   /// @param[in] device the device which will be queried
   ///
   virtual DeviceConfig getDeviceConfig(int device) = 0;
+
+  /// \brief returns the available CMA memory in the system. That memory is allocated using \ref allocDmaBuffer
+  ///
+  /// @returns the size in bytes of allocatable CMA memory
+  ///
+  virtual size_t getFreeCmaMemory() const = 0;
 };
 
 class IDeviceLayer : public IDeviceAsync, public IDeviceSync {

@@ -26,7 +26,6 @@ using namespace dev;
 using namespace std::string_literals;
 namespace fs = std::experimental::filesystem;
 
-namespace dev {
 namespace {
 int countDeviceNodes(bool isMngmt) {
   auto it = fs::directory_iterator("/dev");
@@ -111,6 +110,11 @@ DeviceState getDeviceState(int fd) {
 
 constexpr int kMaxEpollEvents = 6;
 } // namespace
+namespace dev {
+
+size_t DevicePcie::getFreeCmaMemory() const {
+  return getCmaFreeMem();
+}
 
 int DevicePcie::getDmaAlignment() const {
   if (!opsEnabled_) {
