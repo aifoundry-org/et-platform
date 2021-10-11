@@ -19,8 +19,9 @@
 #define TP_LOG_IF(severity, condition) ET_LOG_IF(THREADPOOL, severity, condition)
 
 using namespace threadPool;
-ThreadPool::ThreadPool(size_t numThreads)
-  : running_(true) {
+ThreadPool::ThreadPool(size_t numThreads, bool resizable)
+  : running_(true)
+  , resizable_(resizable) {
   for (auto i = 0U; i < numThreads; ++i) {
     threads_.emplace_back(std::bind(&ThreadPool::workerFunc, this));
   }
@@ -33,6 +34,11 @@ void ThreadPool::pushTask(Task task) {
   } else {
     TP_VLOG(MID) << "Pushing a new task into threadpool " << std::hex << this;
     std::unique_lock lock(mutex_);
+    if (resizable_ && !tasks_.empty()) {
+      TP_VLOG(MID) << "All threads busy, adding a new thread to the resizable thread pool. Prev num threads: "
+                   << threads_.size();
+      threads_.emplace_back(std::bind(&ThreadPool::workerFunc, this));
+    }
     tasks_.emplace_back(std::move(task));
     lock.unlock();
     condVar_.notify_one();

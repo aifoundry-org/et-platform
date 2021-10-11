@@ -21,7 +21,8 @@ namespace threadPool {
 class ThreadPool {
 public:
   using Task = fu2::unique_function<void()>;
-  explicit ThreadPool(size_t numThreads);
+  // if resizable, the threadpool will automatically grow if all threads are busy when pushing a new task
+  explicit ThreadPool(size_t numThreads, bool resizable = false);
   void pushTask(Task task);
   ~ThreadPool();
 
@@ -29,6 +30,7 @@ private:
   void workerFunc();
   std::mutex mutex_;
   bool running_;
+  bool resizable_;
   std::condition_variable condVar_;
   std::vector<Task> tasks_;
   std::vector<std::thread> threads_;
