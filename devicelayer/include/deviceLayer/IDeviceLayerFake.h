@@ -12,15 +12,14 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <cstring>
-#include <esperanto/device-apis/device_apis_message_types.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <mutex>
 #include <queue>
 #include <string>
 namespace dev {
 class IDeviceLayerFake : public IDeviceLayer {
-  std::queue<rsp_header_t> responsesMasterMinion_;
-  std::queue<dev_mgmt_rsp_header_t> responsesServiceProcessor_;
+  std::queue<device_ops_api::rsp_header_t> responsesMasterMinion_;
+  std::queue<device_ops_api::dev_mgmt_rsp_header_t> responsesServiceProcessor_;
   std::condition_variable cvMm_;
   std::condition_variable cvSp_;
   std::mutex mmMutex_;
@@ -29,8 +28,8 @@ class IDeviceLayerFake : public IDeviceLayer {
 public:
   bool sendCommandMasterMinion(int, int, std::byte* command, size_t, bool, bool) override {
     std::lock_guard<std::mutex> lock(mmMutex_);
-    auto cmd = reinterpret_cast<cmn_header_t*>(command);
-    rsp_header_t rsp;
+    auto cmd = reinterpret_cast<device_ops_api::cmn_header_t*>(command);
+    device_ops_api::rsp_header_t rsp;
     rsp.rsp_hdr.tag_id = cmd->tag_id;
     switch (cmd->msg_id) {
     case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD:
@@ -82,8 +81,8 @@ public:
     }
 
     if (!responsesMasterMinion_.empty()) {
-      response.resize(sizeof(rsp_header_t));
-      std::memcpy(response.data(), &responsesMasterMinion_.front(), sizeof(rsp_header_t));
+      response.resize(sizeof(device_ops_api::rsp_header_t));
+      std::memcpy(response.data(), &responsesMasterMinion_.front(), sizeof(device_ops_api::rsp_header_t));
       responsesMasterMinion_.pop();
       return true;
     }
@@ -95,8 +94,8 @@ public:
     while (!lock.try_lock()) {
       // spin-lock
     }
-    auto cmd = reinterpret_cast<cmn_header_t*>(command);
-    dev_mgmt_rsp_header_t rsp;
+    auto cmd = reinterpret_cast<device_ops_api::cmn_header_t*>(command);
+    device_ops_api::dev_mgmt_rsp_header_t rsp;
     rsp.rsp_hdr.tag_id = cmd->tag_id;
     responsesServiceProcessor_.push(rsp);
     return true;
@@ -117,8 +116,8 @@ public:
       // spin-lock
     }
     if (!responsesServiceProcessor_.empty()) {
-      response.resize(sizeof(rsp_header_t));
-      std::memcpy(response.data(), &responsesServiceProcessor_.front(), sizeof(rsp_header_t));
+      response.resize(sizeof(device_ops_api::rsp_header_t));
+      std::memcpy(response.data(), &responsesServiceProcessor_.front(), sizeof(device_ops_api::rsp_header_t));
       responsesServiceProcessor_.pop();
       return true;
     }
