@@ -4,6 +4,13 @@
 
 #include "minion_configuration.h"
 
+struct mm_hdr_template {
+    uint16_t size;
+    uint16_t tag_id;
+    uint16_t msg_id;
+    uint16_t flags;
+};
+
 int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd);
 int8_t MM_Cmd_Shell_Debug_Print_Cmd_Handler(void* test_cmd);
 int8_t SP_Cmd_Get_MM_Heartbeat_Handler(void* test_cmd);
@@ -11,14 +18,6 @@ int8_t SP_Cmd_Get_MM_Heartbeat_Handler(void* test_cmd);
 int8_t MM_Cmd_Shell_Debug_Print_Cmd_Handler(void* test_cmd)
 {
     const tf_cmd_hdr_t *cmd_hdr = test_cmd;
-
-    struct mm_hdr_template {
-        uint16_t size;
-        uint16_t tag_id;
-        uint16_t msg_id;
-        uint16_t flags;
-    };
-
     const struct mm_hdr_template *mm_cmd_hdr =
         (void *)((char*)test_cmd + sizeof(tf_cmd_hdr_t) + sizeof(uint32_t));
 
@@ -65,6 +64,7 @@ int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd)
     void *p_mm_cmd_base;
     void *p_mm_cmd_size;
     uint32_t mm_cmd_size = 0;
+    uint8_t num_of_rsp = 1;
 
     struct tf_rsp_mm_cmd_shell_t mm_shell_rsp;
 
@@ -74,11 +74,24 @@ int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd)
 
     Log_Write(LOG_LEVEL_INFO, "Host2SP:MM_Cmd_Shell_Handler.\r\n");
 
+    const struct mm_hdr_template *mm_cmd_hdr = p_mm_cmd_base;
+
+    /* In case of abort command, we should receive two responses. One for old command
+    and one for abort command response. */
+    if(mm_cmd_hdr->msg_id == TF_CMD_MM_ABORT)
+    {
+        Log_Write(LOG_LEVEL_INFO,
+            "Host2SP:MM_Cmd_Shell_Handler:Abort command: waiting for two responses\r\n");
+        num_of_rsp = 2;
+    }
+
     status = MM_Iface_MM_Command_Shell(p_mm_cmd_base, mm_cmd_size,
-        &sp_rsp_buff[0], &sp_rsp_size);
+        &sp_rsp_buff[0], &sp_rsp_size, num_of_rsp);
 
     if(status == 0)
     {
+        Log_Write(LOG_LEVEL_INFO, "MM_Cmd_Shell_Cmd_Handler:SUCCESS:sp_rsp_size=%d\r\n", sp_rsp_size);
+
         mm_shell_rsp.rsp_hdr.id = TF_RSP_MM_CMD_SHELL;
         mm_shell_rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
         mm_shell_rsp.rsp_hdr.payload_size = (uint32_t)sizeof(uint32_t) + sp_rsp_size;
@@ -90,6 +103,8 @@ int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd)
     }
     else
     {
+        Log_Write(LOG_LEVEL_INFO, "MM_Cmd_Shell_Cmd_Handler:ERROR:code:%d\r\n", status);
+
         mm_shell_rsp.rsp_hdr.id = TF_RSP_MM_CMD_SHELL;
         mm_shell_rsp.rsp_hdr.flags = TF_RSP_ONLY;
         mm_shell_rsp.rsp_hdr.payload_size = sizeof(uint32_t);

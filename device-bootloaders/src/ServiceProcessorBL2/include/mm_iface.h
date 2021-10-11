@@ -41,14 +41,19 @@ int8_t MM_Iface_Init(void);
 int32_t MM_Iface_Send_Echo_Cmd(void);
 
 /*! \fn int32_t MM_Iface_MM_Command_Shell(void* cmd, uint32_t cmd_size,
-    char* rsp, uint32_t *rsp_size)
+    char* rsp, uint32_t *rsp_size, uint8_t num_of_rsp)
     \brief This interface receives TF command shell command, sends
     encapsulatedMM command to MM FW, wait and receive response from
     MM FW, wrap MM response in TF response shell, and return response.
+    \param cmd Pointer to MM device-api command
+    \param cmd_size Size of MM device-api command
+    \param rsp Pointer to receive the command's response
+    \param rsp_size Size of reponse received
+    \param num_of_rsp Number of responses to expect
     \return Status indicating success or negative error
 */
 int32_t MM_Iface_MM_Command_Shell(void* cmd, uint32_t cmd_size,
-    char* rsp, uint32_t *rsp_size);
+    char* rsp, uint32_t *rsp_size, uint8_t num_of_rsp);
 
 /*! \fn int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
     \brief This sends Get DRAM BW command to Master Minion. It is a blocking call
