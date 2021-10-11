@@ -105,10 +105,9 @@ static inline int8_t abort_cmd_handler(void* command_buffer, uint8_t sqw_hp_idx)
 
     /* Construct and transmit response */
     rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
-    rsp.response_info.rsp_hdr.msg_id =
-        DEV_OPS_API_MID_DEVICE_OPS_ABORT_RSP;
-    rsp.response_info.rsp_hdr.size =
-        sizeof(struct device_ops_abort_rsp_t) - sizeof(struct cmn_header_t);
+    rsp.response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_ABORT_RSP;
+    /* Set the abort command status */
+    rsp.status = DEV_OPS_API_ABORT_RESPONSE_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD, sqw_hp_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
@@ -135,10 +134,15 @@ static inline int8_t abort_cmd_handler(void* command_buffer, uint8_t sqw_hp_idx)
     Log_Write(LOG_LEVEL_DEBUG,
         "SQ_HP[%d] abort_cmd_handler:ABORT_CMD processing complete\r\n", sqw_hp_idx);
 
-    /* Set the abort command status */
-    rsp.status = DEV_OPS_API_ABORT_RESPONSE_SUCCESS;
-
+#if TEST_FRAMEWORK
+    /* For SP2MM command response, we need to provide the total size = header + payload */
+    rsp.response_info.rsp_hdr.size = sizeof(struct device_ops_abort_rsp_t);
+    status = SP_Iface_Push_Rsp_To_SP2MM_CQ(&rsp, sizeof(rsp));
+#else
+    rsp.response_info.rsp_hdr.size =
+        sizeof(struct device_ops_abort_rsp_t) - sizeof(struct cmn_header_t);
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+#endif
 
     if(status == STATUS_SUCCESS)
     {
@@ -160,10 +164,10 @@ static inline int8_t abort_cmd_handler(void* command_buffer, uint8_t sqw_hp_idx)
 
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
-
+#if !TEST_FRAMEWORK
     /* Decrement the SQW HP count */
     SQW_HP_Decrement_Command_Count(sqw_hp_idx);
-
+#endif
     return status;
 }
 

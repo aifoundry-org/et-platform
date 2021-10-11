@@ -201,12 +201,21 @@ static int8_t wait_for_response_from_service_processor(void)
 static int8_t tf_command_handler(void* cmd_buffer)
 {
     int8_t status = STATUS_SUCCESS;
+    const struct cmd_header_t *hdr = cmd_buffer;
 
     Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:TF_Command_Handler. \r\n");
 
-    /* Process command and pass current minion cycle
-    For TF, assume the SQW index as zero. */
-    status = Host_Command_Handler(cmd_buffer, 0, PMC_Get_Current_Cycles());
+    /* Check for abort command */
+    if (hdr->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD)
+    {
+        status = Host_HP_Command_Handler(cmd_buffer, 0);
+    }
+    else
+    {
+        /* Process command and pass current minion cycle
+        For TF, assume the SQW index as zero. */
+        status = Host_Command_Handler(cmd_buffer, 0, PMC_Get_Current_Cycles());
+    }
 
     return status;
 }
