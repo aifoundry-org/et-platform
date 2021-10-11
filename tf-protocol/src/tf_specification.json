@@ -12,6 +12,7 @@
         "TF_CHECKSUM_POSITION": 5,
         "TF_CMD_END_POSITION": 6,
         "TF_CHECKSUM_TOTAL_SIZE": 7,
+        "TF_RESERVE_CMD_HEADER_SPACE": 64,
         "TF_MAX_CMD_SIZE": 4096,
         "TF_MAX_RSP_SIZE": 4096,
         "TF_CMD_ONLY": 1,
@@ -36,9 +37,8 @@
         "TF_BL2_ENTRY_FOR_SP_MM": 5
     },
     "kernel_exceptions": [
-        "HANG ERROR",
+        "HANG",
         "U-MODE EXCEPTION",
-        "S-MODE EXCEPTION",
         "SYSTEM ABORT",
         "SELF ABORT",
         "USER KERNEL ERROR"
@@ -967,6 +967,7 @@
     "tf_mm_device_api_cmd_ids": {
         "TF_CMD_MM_FW_VERSION": 515,
         "TF_CMD_MM_ECHO": 517,
+        "TF_CMD_MM_ABORT": 519,
         "TF_CMD_MM_KERNEL_LAUNCH": 521,
         "TF_CMD_MM_TRACE_RT_CONFIG": 533,
         "TF_CMD_MM_TRACE_RT_CONTROL": 535
@@ -976,6 +977,7 @@
     "tf_mm_device_api_rsp_ids": {
         "TF_RSP_MM_FW_VERSION": 516,
         "TF_RSP_MM_ECHO": 518,
+        "TF_RSP_MM_ABORT": 520,
         "TF_RSP_MM_KERNEL_LAUNCH": 522,
         "TF_RSP_MM_TRACE_RT_CONFIG": 534,
         "TF_RSP_MM_TRACE_RT_CONTROL": 536
@@ -1007,6 +1009,15 @@
             "payload_size": 8,
             "payload_args": {
                 "dummy": "uint64_t"
+            }
+        },
+        "TF_CMD_MM_ABORT": {
+            "flags": 2,
+            "payload_size": 8,
+            "payload_args": {
+                "tag_id": "uint16_t",
+	            "pad16" : "uint16_t",
+	            "pad32" : "uint32_t"
             }
         },
         "TF_CMD_MM_KERNEL_LAUNCH": {
@@ -1064,6 +1075,14 @@
                 "device_cmd_start_ts": "uint64_t",
                 "status": "uint32_t",
                 "pad1": "uint32_t"
+            }
+        },
+        "TF_RSP_MM_ABORT": {
+            "flags": 2,
+            "payload_size": 8,
+            "payload_args": {
+                "status": "uint32_t",
+	            "pad": "uint32_t"
             }
         },
         "TF_RSP_MM_KERNEL_LAUNCH": {
