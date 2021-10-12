@@ -30,16 +30,20 @@ uint8_t TF_Get_Entry_Point(void)
     return TF_Interception_Point;
 }
 
+
+#define TF_CMD_HDR_BYTES    (TF_HEADER_ID_BYTES + TF_HEADER_FLAGS_BYTES + TF_HEADER_PLAYLOADSIZE_BYTES)
+
 int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 {
-    char c;
-    char *p_buff;
-    uint32_t size;
-    void *p_hdr = 0;
-    struct header_t cmd_hdr;
-    int8_t rtn_arg;
-    uint32_t magic = TF_CHECKSUM;
-    bool cmd_start_found;
+    char            c;
+    int8_t          rtn_arg;
+    char            *p_buff;
+    uint32_t        bytes_received;
+    uint32_t        cmd_bytes_received;
+    struct header_t tf_cmd_hdr;
+    struct header_t *p_tf_cmd_hdr;
+    bool            tf_prot_start_found=false;
+    bool            tf_cmd_size_available=false;
 
     /* First entry unconditionally hook-in */
     /* Subsequent entries fall thru if current intercept
@@ -55,37 +59,68 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
     for(;;)
     {
         p_buff = &Input_Cmd_Buffer[0];
-        size = 0;
-        cmd_start_found = false;
+        p_tf_cmd_hdr = (void*)&Input_Cmd_Buffer[0];
+        bytes_received = 0;
+        cmd_bytes_received = 0;
+        tf_prot_start_found = false;
+        tf_cmd_size_available = false;
+
+        printf("Getting into TF RX loop \r\n");
+
+        printf("command received\r\n");
         while(true)
         {
             SERIAL_getchar(SP_UART1, &c);
 
-            if(!cmd_start_found && (c == TF_CMD_START))
+            if((c == TF_CMD_START) && (!tf_prot_start_found))
             {
-                p_hdr = (void*) (p_buff+1);
-                cmd_start_found = true;
+                tf_prot_start_found = true;
             }
-
-            *p_buff = c;
-            p_buff++;
-            size++;
-
-            // Validate command end and checksum delimiters
-            if (((c == TF_CHECKSUM_END) && (size >= TF_CHECKSUM_TOTAL_SIZE)) &&
-                (Input_Cmd_Buffer[size - TF_CMD_END_POSITION] == TF_CMD_END) &&
-                (memcmp(&Input_Cmd_Buffer[size - TF_CHECKSUM_POSITION], (char*)&magic, TF_CHECKSUM_SIZE) == 0))
+            else
             {
-                break;
-            }
+                *p_buff = c;
 
+                printf("0x");
+                printf("%02X", *p_buff);
+                printf("%s", ",");
+
+                p_buff++;
+                bytes_received++;
+
+                if(bytes_received == TF_CMD_HDR_BYTES)
+                {
+
+                    memcpy(&tf_cmd_hdr, p_tf_cmd_hdr, sizeof(tf_cmd_hdr));
+                    printf("\r\n");
+                    printf("command_id = %d\r\n", tf_cmd_hdr.id);
+                    printf("command_flags = %d\r\n", tf_cmd_hdr.flags);
+                    printf("command_size = %d\r\n", tf_cmd_hdr.payload_size);
+                    tf_cmd_size_available = true;
+                }
+
+                if(tf_cmd_size_available)
+                {
+                    cmd_bytes_received++;
+
+                    if(cmd_bytes_received == (tf_cmd_hdr.payload_size + TF_CHECKSUM_SIZE))
+                    {
+                        printf("command fully received, size = %d \r\n", cmd_bytes_received);
+                        tf_prot_start_found = false;
+                        tf_cmd_size_available = false;
+                        bytes_received = 0;
+                        cmd_bytes_received = 0;
+                        p_buff = &Input_Cmd_Buffer[0];
+                        p_tf_cmd_hdr = (void*)&Input_Cmd_Buffer[0];
+                        break;
+                    }
+                }
+            }
         }
 
-        memcpy((char*)&cmd_hdr, (char*)p_hdr, sizeof(struct header_t));
 
-        rtn_arg = TF_Test_Cmd_Handler[cmd_hdr.id](p_hdr);
+        rtn_arg = TF_Test_Cmd_Handler[tf_cmd_hdr.id](p_tf_cmd_hdr);
 
-        if(rtn_arg == TF_EXIT_FROM_TF_LOOP && cmd_hdr.id == TF_CMD_SET_INTERCEPT)
+        if(rtn_arg == TF_EXIT_FROM_TF_LOOP && tf_cmd_hdr.id == TF_CMD_SET_INTERCEPT)
         {
             break;
         }
@@ -93,6 +128,7 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 
     return 0;
 }
+
 
 static void fill_rsp_buffer(uint32_t *buf_size, const void *buffer,
     uint32_t rsp_size)
@@ -129,8 +165,12 @@ static void fill_rsp_buffer(uint32_t *buf_size, const void *buffer,
 int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
     void *additional_rsp, uint32_t additional_rsp_size)
 {
-    uint32_t magic = TF_CHECKSUM;
+    uint32_t checksum = 0;
     uint32_t buf_size = TF_MAX_RSP_SIZE;
+    uint32_t bytes_to_transmit=0;
+    char* p_rsp = &Output_Rsp_Buffer[0];
+
+    printf("Response being tyransmitted\r\n");
 
     Output_Rsp_Buffer[0] = TF_CMD_START;
     buf_size--;
@@ -142,23 +182,40 @@ int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
         fill_rsp_buffer(&buf_size, additional_rsp, additional_rsp_size);
     }
 
-    // Append END and CHECKSUM delimiter
-    if (buf_size < TF_CHECKSUM_SIZE + 2)
-    {
-        SERIAL_write(SP_UART1, &Output_Rsp_Buffer[0], (int)(TF_MAX_RSP_SIZE - buf_size));
-        buf_size = TF_MAX_RSP_SIZE;
-    }
+    bytes_to_transmit = (TF_MAX_RSP_SIZE - buf_size);
 
-    char* p_rsp = &Output_Rsp_Buffer[TF_MAX_RSP_SIZE - buf_size];
-    *p_rsp = TF_CMD_END;
-    p_rsp++;
-    buf_size--;
-    memcpy(p_rsp, (char*)&magic, TF_CHECKSUM_SIZE);
-    p_rsp += TF_CHECKSUM_SIZE;
-    buf_size -= TF_CHECKSUM_SIZE;
-    *p_rsp = TF_CHECKSUM_END;
-    buf_size--;
-    SERIAL_write(SP_UART1, &Output_Rsp_Buffer[0], (int)(TF_MAX_RSP_SIZE - buf_size));
+    if(bytes_to_transmit <= TF_MAX_RSP_SIZE)
+    {
+        for(uint32_t i = 0; i < bytes_to_transmit; i++)
+        {
+            checksum += *p_rsp;
+            p_rsp++;
+        }
+
+        /* Add checksum to response */
+        fill_rsp_buffer(&buf_size, &checksum, 4);
+        bytes_to_transmit += 4;
+
+#if 1
+        p_rsp = &Output_Rsp_Buffer[0];
+        for(uint32_t i =0; i < bytes_to_transmit; i++)
+        {
+            printf("0x");
+            printf("%02X", *p_rsp);
+            printf("%s", ",");
+
+            p_rsp++;
+        }
+        printf("\r\n");
+#endif
+
+        SERIAL_write(SP_UART1, &Output_Rsp_Buffer[0], (int)bytes_to_transmit);
+    }
+    else
+    {
+        printf("ERROR: TF protocol error: Host trying to move data greater than supported 4K byte size \r\n");
+        while(1);
+    }
 
     return 0;
 }
