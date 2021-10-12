@@ -13,9 +13,9 @@
 #include <stddef.h>
 #include "etsoc/isa/hart.h"
 #include "etsoc/isa/macros.h"
+#include "etsoc/common/utils.h"
 #include "common.h"
 
-#include "log.h"
 #include "etsoc/isa/cacheops.h"
 #include "etsoc/isa/fcc.h"
 #include "etsoc/isa/flb.h"
@@ -65,7 +65,7 @@ int64_t main(const Parameters *const kernel_params_ptr) {
   volatile uint64_t *out_data = kernel_params_ptr->out_data;
 
   if (num_minions > 1024) {
-    log_write(LOG_LEVEL_CRITICAL, "Number of minions should be <= 1024");
+    et_printf("Number of minions should be <= 1024");
     return -1;
   }
 

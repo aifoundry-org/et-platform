@@ -2,8 +2,8 @@
 #include <stddef.h>
 #include "etsoc/isa/hart.h"
 #include "etsoc/isa/atomic.h"
+#include "etsoc/common/utils.h"
 #include "common.h"
-#include "log.h"
 
 #define BASE_ADDR_FOR_THIS_TEST  0x8105000040ULL
 #define POLYNOMIAL_BIT 0x000008016ULL
@@ -19,7 +19,7 @@ typedef struct {
 int64_t main(const Parameters* const kernel_params_ptr) {
   if ((kernel_params_ptr == NULL)) {
     // Bad arguments
-    log_write(LOG_LEVEL_CRITICAL, "Programming returing due to error\n");
+    et_printf("Programming returing due to error\n");
     return -1;
   }
 
@@ -33,7 +33,7 @@ int64_t main(const Parameters* const kernel_params_ptr) {
 
   for (int i = 0; i < N; i++) {
     lfsr = generate_random_address(lfsr);
-    lfsr_use = lfsr & 0xFFF8;  // log_write(LOG_LEVEL_CRITICAL, "Minion 0 a:
+    lfsr_use = lfsr & 0xFFF8;  // et_printf("Minion 0 a:
                                // lfsr_use is %x\n",lfsr_use);
     long unsigned int shire_addr = BASE_ADDR_FOR_THIS_TEST | lfsr_use;
     volatile uint64_t* atomic_addr = (uint64_t*)shire_addr;

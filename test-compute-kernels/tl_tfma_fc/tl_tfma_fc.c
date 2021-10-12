@@ -20,7 +20,6 @@
 #include "vpu.h"
 #include "common.h"
 #include "crc32.h"
-#include "log.h"
 #include "sync_minions.h"
 
 #define TSTORE_FLB 0
@@ -173,8 +172,7 @@ int64_t main(const Parameters *const kernel_params_ptr) {
   unsigned long functional_error = get_tensor_error();
 
   if (functional_error != 0) {
-    log_write(LOG_LEVEL_CRITICAL,
-              "Tensor error, shire %lu, minion %lu , error value: %x\n",
+    et_printf("Tensor error, shire %lu, minion %lu , error value: %x\n",
               shire_id, minion_id, functional_error);
     return -1;
   }

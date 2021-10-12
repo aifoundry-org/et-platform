@@ -14,9 +14,9 @@
 #include <stdbool.h>
 #include "etsoc/isa/hart.h"
 #include "etsoc/isa/macros.h"
+#include "etsoc/common/utils.h"
 #include "common.h"
 
-#include "log.h"
 #include "etsoc/isa/cacheops.h"
 #include "markers.h"
 
@@ -69,7 +69,7 @@ int64_t main(const Parameters *const kernel_params_ptr) {
   volatile uint64_t *out_data = kernel_params_ptr->out_data;
 
   if (active_minion_id > 1023) {
-    log_write(LOG_LEVEL_CRITICAL, "Active minion id should be  < 1024");
+    et_printf("Active minion id should be  < 1024");
     return -1;
   }
 

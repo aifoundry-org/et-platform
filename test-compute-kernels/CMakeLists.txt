@@ -48,7 +48,6 @@ get_filename_component(SCRIPTS_KERNEL_DIR "scripts" ABSOLUTE)
 
 list(APPEND COMMON_KERNEL_SRC_FILES
   ${SHARED_KERNEL_SRC_DIR}/crt.S
-  ${SHARED_KERNEL_SRC_DIR}/src/log.c
   )
 
 # Helper function for creating different instances of randomized tests

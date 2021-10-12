@@ -7,7 +7,6 @@
 #include "etsoc/isa/fcc.h"
 #include "etsoc/isa/flb.h"
 #include "etsoc/isa/hart.h"
-#include "log.h"
 #include "etsoc/isa/macros.h"
 #include "sync_minions.h"
 #include "etsoc/isa/syscall.h"
@@ -293,8 +292,7 @@ int64_t main(const Parameters *const kernel_params_ptr) {
   unsigned long functional_error = get_tensor_error();
 
   if (functional_error != 0) {
-    log_write(LOG_LEVEL_CRITICAL,
-              "Tensor error, shire %lu, minion %lu , error value: %x\n",
+    et_printf("Tensor error, shire %lu, minion %lu , error value: %x\n",
               shire_id, minion_id, functional_error);
     return -1;
   }

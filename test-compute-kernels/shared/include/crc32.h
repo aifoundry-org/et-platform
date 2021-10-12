@@ -3,8 +3,7 @@
 #define CRC32_H
 
 #include <stdint.h>
-#include "log.h"
-
+#include "etsoc/common/utils.h"
 //static const uint32_t crc32polynomial = 0xEDB88320;                                                                                                                                                                                                                                                                                                                
 
 // table generated from generate_crc32_tables()
@@ -360,7 +359,7 @@ static inline void generate_crc(uint64_t output_data_addr, uint64_t shire_id, ui
     uint32_t *crc_ptr = (uint32_t*)(output_data_addr + total_data + shire_id * 64);
     *crc_ptr = crc;
     if (dump_crc == 1) {
-	log_write(LOG_LEVEL_CRITICAL, "Shire %lu, CRC value %x\n", shire_id, crc);
+	et_printf("Shire %lu, CRC value %x\n", shire_id, crc);
     }
 }
 

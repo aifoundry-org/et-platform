@@ -1,8 +1,8 @@
 
 #include "etsoc/isa/hart.h"
 #include "etsoc/isa/cacheops.h"
+#include "etsoc/common/utils.h"
 #include "common.h"
-#include "log.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -21,7 +21,7 @@ typedef struct {
 int64_t main(const Parameters* const kernel_params_ptr) {
   if ((kernel_params_ptr == NULL)) {
     // Bad arguments
-    log_write(LOG_LEVEL_CRITICAL, "Programming returing due to error\n");
+    et_printf("Programming returing due to error\n");
     return -1;
   }
 

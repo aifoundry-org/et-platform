@@ -7,7 +7,7 @@
 #include "etsoc/isa/fcc.h"
 #include "etsoc/isa/flb.h"
 #include "etsoc/isa/syscall.h"
-#include "log.h"
+#include "etsoc/common/utils.h"
 #include "lfsr.h"
 
 #pragma GCC optimize ("-O3")
@@ -54,7 +54,7 @@ int64_t main(uint64_t* cycles) {
     uint64_t elapsed_time_us = ((uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0) - start_timestamp) / 40;
     uint64_t mb_per_s = (bytes * 1000000) / (elapsed_time_us * 1024 * 1024);
 
-    log_write(LOG_LEVEL_INFO, "%" PRIu64 "us %" PRIu64 "MB/s", elapsed_time_us, mb_per_s);
+    et_printf("%" PRIu64 "us %" PRIu64 "MB/s", elapsed_time_us, mb_per_s);
 
     return 0;
 }
@@ -96,7 +96,7 @@ void random_dram_tensor_loads(uint64_t cycles)
         lfsr = update_lfsr(lfsr);
 
 #ifdef LOG_ADDRESSES
-        log_write(LOG_LEVEL_INFO, "%010" PRIx64, lfsr);
+        et_printf("%010" PRIx64, lfsr);
 #endif
 
         register uint64_t tensor_1_load = tensor_1_mask | lfsr;

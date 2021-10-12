@@ -1,5 +1,5 @@
 #include "etsoc/isa/hart.h"
-#include "log.h"
+#include "etsoc/common/utils.h"
 
 #include <stdint.h>
 
@@ -7,7 +7,7 @@ int64_t main(void)
 {
     if (get_hart_id() == 42)
     {
-        log_write(LOG_LEVEL_CRITICAL, "hello world");
+        et_printf("hello world");
     }
 
     return 0;
