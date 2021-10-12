@@ -65,6 +65,24 @@ int32_t sram_get_uce_count(uint32_t *uce_count)
     return 0;
 }
 
+uint16_t Cache_Control_SCP_size(void)
+{
+    /* get L3 scp size */
+    return 0;
+}
+
+uint16_t Cache_Control_L2_size(void)
+{
+    /* get L2 cache size */
+    return 0;
+}
+
+uint16_t Cache_Control_L3_size(void)
+{
+    /* get L3 cache size */
+    return 0;
+}
+
 void sram_error_threshold_isr(void)
 {
     /* TODO: This is just an example implementation.

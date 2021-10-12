@@ -25,6 +25,10 @@
 *
 ***********************************************************************/
 #include "config/mgmt_dir_regs.h"
+#include "minion_configuration.h"
+#include "bl2_cache_control.h"
+#include "thermal_pwr_mgmt.h"
+#include "perf_mgmt.h"
 #include "crc32.h"
 
 /*! \var Gbl_SP_DIRs
@@ -62,6 +66,14 @@ void DIR_Init(void)
     Gbl_SP_DIRs->generic_attr.total_size = sizeof(SP_DEV_INTF_REG_s);
     Gbl_SP_DIRs->generic_attr.attributes_size = sizeof(SP_DEV_INTF_GENERIC_ATTR_s);
     Gbl_SP_DIRs->generic_attr.num_mem_regions = SP_DEV_INTF_MEM_REGION_TYPE_NUM;
+    Gbl_SP_DIRs->generic_attr.minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
+    Gbl_SP_DIRs->generic_attr.form_factor = SP_DEV_CONFIG_FORM_FACTOR_PCIE;
+    Gbl_SP_DIRs->generic_attr.minion_boot_freq = (uint32_t)Get_Minion_Frequency();
+    Gbl_SP_DIRs->generic_attr.l3_size = Cache_Control_L3_size();
+    Gbl_SP_DIRs->generic_attr.l2_size = Cache_Control_L2_size();
+    Gbl_SP_DIRs->generic_attr.scp_size = Cache_Control_SCP_size();
+    Gbl_SP_DIRs->generic_attr.cache_line_size = CACHE_LINE_SIZE;
+    get_module_tdp_level((uint8_t *)&Gbl_SP_DIRs->generic_attr.device_tdp);
 
     /* Populate the SP VQs attributes */
     Gbl_SP_DIRs->vq_attr.sq_offset = SP_SQ_OFFSET;
@@ -185,28 +197,4 @@ void DIR_Set_Service_Processor_Status(int16_t status)
       // Add Magic marker to know when to load PCIE Driver
       ISSUE_MAGIC_MARKER();
     }
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       DIR_Set_Minion_Shires
-*
-*   DESCRIPTION
-*
-*       Set the avaialble minion shires
-*
-*   INPUTS
-*
-*       uint64_t     minion_shires
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-void DIR_Set_Minion_Shires(uint64_t minion_shires)
-{
-    Gbl_SP_DIRs->generic_attr.minion_shires_mask = minion_shires;
 }
