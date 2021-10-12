@@ -75,8 +75,8 @@
  * Macro to define increment size for DMA element. Size is provided in the
  * increment of 32 MBytes.
  */
-
 #define MEM_REGION_DMA_ELEMENT_STEP_SIZE (32 * 1024 * 1024)
+
 /*
  * Holds the information memory region access attributes
  */
@@ -117,23 +117,32 @@ struct et_dir_reg_access {
 
 	/*
 	 * Description:
-	 * dma_element_count: Indicates number of elements in DMA list.
-	 * 0000 - Not applicable
-	 * 0001 - 1 element
-	 * 0010 - 2 elements
+	 *
+	 *	dma_elem_count: Indicates number of elements in DMA list
+	 *
+	 * 	Not applicable:		0x0
+	 *	1 element:		0x1
+	 *	2 elements:		0x2
+	 *	...
+	 *	15 elements		0xf
 	 */
-	u32 dma_element_count : 4; /* bit 5-8 */
+	u32 dma_elem_count : 4; /* bit 5-8 */
 
 	/*
 	 * Description:
-	 * dma_element_size: Indicates DMA element size.
-	 * 00000000 - Not applicable
-	 * 00000001 - 32 MB
-	 * 00000010 - 64 MB, step size of 32 MB
-	 * 00000011 - 96 MB
-	 * 10000000 - 4096 MB (Maximum size ET-SOC1 supports in a DMA descriptor)
+	 *
+	 * 	dma_elem_size: Indicates DMA element size in steps of 32MB
+	 *
+	 * 	Not applicable:		0x00
+	 *	32MB			0x01
+	 *	64MB			0x02
+	 *	96MB			0x03
+	 *	...
+	 *	4096MB			0x80
+	 *
+	 *	NOTE: 4GB is maximum size that can be transferred per element
 	 */
-	u32 dma_element_size : 8; /* bit 9-16 */
+	u32 dma_elem_size : 8; /* bit 9-16 */
 	u32 reserved : 15;
 } __packed;
 

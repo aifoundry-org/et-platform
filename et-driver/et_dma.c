@@ -416,6 +416,21 @@ ssize_t et_dma_writelist_to_device(struct et_pci_dev *et_dev,
 			return rv;
 		}
 
+		if (cmd->list[node_num].size >
+		    et_dev->ops.regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]
+				    .access.dma_elem_size *
+			    MEM_REGION_DMA_ELEMENT_STEP_SIZE) {
+			dev_err(&et_dev->pdev->dev,
+				"writelist[%u].size out of bound (0x%x/0x%x)!",
+				node_num,
+				cmd->list[node_num].size,
+				et_dev->ops.regions
+						[OPS_MEM_REGION_TYPE_HOST_MANAGED]
+							.access.dma_elem_size *
+					MEM_REGION_DMA_ELEMENT_STEP_SIZE);
+			return rv;
+		}
+
 		if (cmd->list[node_num].src_host_virt_addr +
 			    cmd->list[node_num].size >
 		    vma->vm_end) {
@@ -491,13 +506,18 @@ ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev,
 			return rv;
 		}
 
-		// TODO SW-8645: Discover from DIRs
-		if (cmd->list[node_num].size > BIT(27) /* 128MB */) {
+		if (cmd->list[node_num].size >
+		    et_dev->ops.regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]
+				    .access.dma_elem_size *
+			    MEM_REGION_DMA_ELEMENT_STEP_SIZE) {
 			dev_err(&et_dev->pdev->dev,
-				"readlist[%u].size out of bound (0x%x/0x%zx)!",
+				"readlist[%u].size out of bound (0x%x/0x%x)!",
 				node_num,
 				cmd->list[node_num].size,
-				BIT(27));
+				et_dev->ops.regions
+						[OPS_MEM_REGION_TYPE_HOST_MANAGED]
+							.access.dma_elem_size *
+					MEM_REGION_DMA_ELEMENT_STEP_SIZE);
 			return rv;
 		}
 

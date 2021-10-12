@@ -172,8 +172,11 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].size;
 		user_dram.dma_max_elem_size =
 			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]
-				.access.dma_element_size *
+				.access.dma_elem_size *
 			MEM_REGION_DMA_ELEMENT_STEP_SIZE;
+		user_dram.dma_max_elem_count =
+			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]
+				.access.dma_elem_count;
 
 		switch (ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]
 				.access.dma_align) {
