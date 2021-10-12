@@ -150,9 +150,9 @@ struct et_dir_reg_access {
  * Holds the information of Device interface memory region.
  */
 struct et_dir_mem_region {
+	u16 attributes_size;
 	u8 type;
 	u8 bar;
-	u16 attributes_size;
 	struct et_dir_reg_access access;
 	u64 bar_offset;
 	u64 bar_size;
@@ -195,48 +195,37 @@ enum et_mgmt_mem_region_type {
  * Holds the information of Mgmt Device Virtual Queues.
  */
 struct et_mgmt_dir_vqueue {
+	u16 attributes_size;
+	u8 intrpt_trg_size;
+	u8 intrpt_id;
+	u32 intrpt_trg_offset;
 	u32 sq_offset;
 	u16 sq_count;
 	u16 sq_size;
 	u32 cq_offset;
 	u16 cq_count;
 	u16 cq_size;
-	u32 intrpt_trg_offset;
-	u8 intrpt_trg_size;
-	u8 intrpt_id;
-	u16 attributes_size;
 } __packed;
-
-/*
- * Holds the general information of ETSoC1 Device, discovered through Mgmt
- * Device Interface Registers.
- */
-// clang-format off
-struct et_mgmt_dir_dev_config {
-	u8 form_factor;		/* PCIE or M.2 */
-	u8 tdp;			/* in Watts */
-	u8 total_l3_size;	/* in MB */
-	u8 total_l2_size;	/* in MB */
-	u8 total_scp_size;	/* in MB */
-	u8 cache_line_size;	/* in Bytes */
-	u16 minion_boot_freq;	/* in MHz */
-	u32 cm_shire_mask;	/* Active Compute Shires Mask */
-	u8 reserved[4];
-} __packed;
-// clang-format on
 
 /*
  * Holds the general information of Mgmt Device Interface Registers.
  */
 struct et_mgmt_dir_header {
+	u16 attributes_size;
 	u16 version;
 	u16 total_size;
-	u16 attributes_size;
 	u16 num_regions;
 	u64 minion_shire_mask;
-	u8 reserved[2];
-	s16 status;
+	u32 minion_boot_freq;
 	u32 crc32;
+	s16 status;
+	u16 form_factor;
+	u16 device_tdp;
+	u16 l3_size;
+	u16 l2_size;
+	u16 scp_size;
+	u16 cache_line_size;
+	u8 reserved[2];
 } __packed;
 
 struct et_mgmt_dir {
@@ -274,17 +263,38 @@ et_print_mgmt_dir(struct device *dev, u8 *dir_data, size_t dir_size)
 		"Minion Shire Mask       : 0x%llx\n",
 		mgmt_dir->header.minion_shire_mask);
 	dev_dbg(dev,
-		"Reserved[0]             : 0x%x\n",
-		mgmt_dir->header.reserved[0]);
-	dev_dbg(dev,
-		"Reserved[1]             : 0x%x\n",
-		mgmt_dir->header.reserved[1]);
-	dev_dbg(dev,
 		"Status                  : 0x%x\n",
 		mgmt_dir->header.status);
 	dev_dbg(dev,
 		"CRC32                   : 0x%x\n\n",
 		mgmt_dir->header.crc32);
+	dev_dbg(dev,
+		"form_factor             : 0x%x\n",
+		mgmt_dir->header.form_factor);
+	dev_dbg(dev,
+		"device_tdp              : 0x%x\n",
+		mgmt_dir->header.device_tdp);
+	dev_dbg(dev,
+		"minion_boot_freq        : 0x%x\n",
+		mgmt_dir->header.minion_boot_freq);
+	dev_dbg(dev,
+		"l3_size                 : 0x%x\n",
+		mgmt_dir->header.l3_size);
+	dev_dbg(dev,
+		"l2_size                 : 0x%x\n",
+		mgmt_dir->header.l2_size);
+	dev_dbg(dev,
+		"scp_size                : 0x%x\n",
+		mgmt_dir->header.scp_size);
+	dev_dbg(dev,
+		"cache_line_size         : 0x%x\n",
+		mgmt_dir->header.cache_line_size);
+	dev_dbg(dev,
+		"Reserved[0]             : 0x%x\n",
+		mgmt_dir->header.reserved[0]);
+	dev_dbg(dev,
+		"Reserved[1]             : 0x%x\n",
+		mgmt_dir->header.reserved[1]);
 	dev_dbg(dev, "Mgmt DIRs Vqueue\n");
 	dev_dbg(dev,
 		"SQ Offset               : 0x%x\n",
@@ -388,16 +398,16 @@ enum et_ops_mem_region_type {
  * Holds the information of Ops Device Virtual Queues.
  */
 struct et_ops_dir_vqueue {
+	u16 attributes_size;
+	u8 intrpt_trg_size;
+	u8 intrpt_id;
+	u32 intrpt_trg_offset;
 	u32 sq_offset;
 	u16 sq_count;
 	u16 sq_size;
 	u32 cq_offset;
 	u16 cq_count;
 	u16 cq_size;
-	u32 intrpt_trg_offset;
-	u8 intrpt_trg_size;
-	u8 intrpt_id;
-	u16 attributes_size;
 	u32 hpsq_offset;
 	u16 hpsq_count;
 	u16 hpsq_size;
@@ -407,13 +417,13 @@ struct et_ops_dir_vqueue {
  * Holds the general information of Ops Device Interface Registers.
  */
 struct et_ops_dir_header {
+	u16 attributes_size;
 	u16 version;
 	u16 total_size;
-	u16 attributes_size;
 	u16 num_regions;
-	u8 reserved[2];
 	s16 status;
 	u32 crc32;
+	u8 reserved[2];
 } __packed;
 
 struct et_ops_dir {

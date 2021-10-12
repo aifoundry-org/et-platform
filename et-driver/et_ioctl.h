@@ -57,15 +57,15 @@ struct dram_info {
 	__u16 dma_max_elem_count;
 	__u16 align_in_bits;
 };
-
+//todo update
 struct dev_config {
-	__u8 form_factor;	/* PCIE or M.2 */
-	__u8 tdp;		/* in Watts */
-	__u8 total_l3_size;	/* in MB */
-	__u8 total_l2_size;	/* in MB */
-	__u8 total_scp_size;	/* in MB */
-	__u8 cache_line_size;	/* in Bytes */
-	__u16 minion_boot_freq;	/* in MHz */
+	__u16 form_factor;	/* PCIE or M.2 */
+	__u16 tdp;		/* in Watts */
+	__u16 total_l3_size;	/* in MB */
+	__u16 total_l2_size;	/* in MB */
+	__u16 total_scp_size;	/* in MB */
+	__u16 cache_line_size;	/* in Bytes */
+	__u32 minion_boot_freq;	/* in MHz */
 	__u32 cm_shire_mask;	/* Active Compute Shires Mask */
 };
 
