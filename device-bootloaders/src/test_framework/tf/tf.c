@@ -116,6 +116,7 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
             }
         }
 
+        /* Invoke the command handler based on ID */
         rtn_arg = TF_Test_Cmd_Handler[tf_cmd_hdr.id](p_tf_cmd_hdr);
 
         if(rtn_arg == TF_EXIT_FROM_TF_LOOP && tf_cmd_hdr.id == TF_CMD_SET_INTERCEPT)
@@ -168,6 +169,9 @@ int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
     uint32_t bytes_to_transmit=0;
     char* p_rsp = &Output_Rsp_Buffer[0];
 
+    /* Clear the output buffer */
+    memset(Output_Rsp_Buffer, 0, TF_MAX_RSP_SIZE);
+
     printf("Response being tyransmitted\r\n");
 
     Output_Rsp_Buffer[0] = TF_CMD_START;
@@ -189,6 +193,8 @@ int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
             checksum += *p_rsp;
             p_rsp++;
         }
+
+        printf("Response Checksum: %d\r\n", checksum);
 
         /* Add checksum to response */
         fill_rsp_buffer(&buf_size, &checksum, 4);

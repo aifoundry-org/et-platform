@@ -92,7 +92,7 @@ int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd)
     {
         mm_shell_rsp.rsp_hdr.id = TF_RSP_MM_CMD_SHELL;
         mm_shell_rsp.rsp_hdr.flags = TF_RSP_ONLY;
-        mm_shell_rsp.rsp_hdr.payload_size = 0;
+        mm_shell_rsp.rsp_hdr.payload_size = sizeof(uint32_t);
         mm_shell_rsp.mm_rsp_size = 0;
 
         TF_Send_Response(&mm_shell_rsp, (uint32_t)(sizeof(tf_rsp_hdr_t) + sizeof(uint32_t)));
