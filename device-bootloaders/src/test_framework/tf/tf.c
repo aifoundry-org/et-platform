@@ -65,6 +65,9 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
         tf_prot_start_found = false;
         tf_cmd_size_available = false;
 
+        memset(&Input_Cmd_Buffer[0], 0, TF_MAX_CMD_SIZE);
+
+
         printf("Getting into TF RX loop \r\n");
 
         printf("command received\r\n");
@@ -109,7 +112,7 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
                         tf_cmd_size_available = false;
                         bytes_received = 0;
                         cmd_bytes_received = 0;
-                        p_buff = &Input_Cmd_Buffer[0];
+                        p_buff = (void*)&Input_Cmd_Buffer[0];
                         p_tf_cmd_hdr = (void*)&Input_Cmd_Buffer[0];
                         break;
                     }
