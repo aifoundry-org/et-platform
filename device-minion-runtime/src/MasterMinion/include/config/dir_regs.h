@@ -158,9 +158,9 @@ enum MM_DEV_INTF_MEM_REGION_TYPE_e {
     \warning Must be 64-bit aligned.
 */
 typedef struct __attribute__((__packed__)) MM_DEV_INTF_MEM_REGION_ATTR {
+    uint16_t attributes_size;
     uint8_t type;
     uint8_t bar;
-    uint16_t attributes_size;
     uint32_t access_attr;
     uint64_t bar_offset;
     uint64_t bar_size;
@@ -172,16 +172,16 @@ typedef struct __attribute__((__packed__)) MM_DEV_INTF_MEM_REGION_ATTR {
     \warning Must be 64-bit aligned.
 */
 typedef struct __attribute__((__packed__)) MM_DEV_INTF_VQ_ATTR {
+    uint16_t attributes_size;
+    uint8_t int_trg_size;
+    uint8_t int_id;
+    uint32_t int_trg_offset;
     uint32_t sq_offset;
     uint16_t sq_count;
     uint16_t per_sq_size;
     uint32_t cq_offset;
     uint16_t cq_count;
     uint16_t per_cq_size;
-    uint32_t int_trg_offset;
-    uint8_t int_trg_size;
-    uint8_t int_id;
-    uint16_t attributes_size;
     uint32_t sq_hp_offset;
     uint16_t sq_hp_count;
     uint16_t per_sq_hp_size;
@@ -192,13 +192,13 @@ typedef struct __attribute__((__packed__)) MM_DEV_INTF_VQ_ATTR {
     \warning Must be 64-bit aligned.
 */
 typedef struct __attribute__((__packed__)) MM_DEV_INTF_GENERIC_ATTR {
+    uint16_t attributes_size;
     uint16_t version;
     uint16_t total_size;
-    uint16_t attributes_size;
     uint16_t num_mem_regions;
-    uint8_t reserved[2];
     int16_t status;
     uint32_t crc32;
+    uint8_t reserved[2];
 } MM_DEV_INTF_GENERIC_ATTR_s;
 
 /*! \struct MM_DEV_INTF_REG
