@@ -45,6 +45,8 @@
 #include "esr.h"
 #include "minion_configuration.h"
 #include "hal_minion_pll.h"
+#include "FreeRTOS.h"
+#include "timers.h"
 
 /*!
  * @struct struct minion_event_control_block
@@ -65,6 +67,10 @@ struct minion_event_control_block {
     phase.*/
 
 static struct minion_event_control_block event_control_block __attribute__((section(".data")));
+
+/* Globals for SW timer */
+static TimerHandle_t MM_HeartBeat_Timer;
+static StaticTimer_t MM_Timer_Buffer;
 
 /* Macro to increment exception error counter and send event to host */
 #define MINION_EXCEPT_ERROR_EVENT_HANDLE(error_type, error_code)                   \
@@ -209,6 +215,42 @@ static int mm_get_error_count(struct mm_error_count_t *mm_error_count)
     mm_error_count->hang_count = event_control_block.hang_count;
     mm_error_count->exception_count = event_control_block.except_count;
     return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       MM_HeartBeat_Timer_Cb
+*
+*   DESCRIPTION
+*
+*       Timer callback function
+*
+*   INPUTS
+*
+*       pxTimer     Timer handle
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void MM_HeartBeat_Timer_Cb(xTimerHandle pxTimer)
+{
+    Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer expired\n", __func__);
+
+    /* Stop the timer */
+    if (pdPASS != xTimerStop(pxTimer, 0))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer stop failed\n", __func__);
+    }
+
+    /* Reset minion threads */
+    if (0 != Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask()))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s : MM thread reset failed\n", __func__);
+    }
 }
 
 /************************************************************************
@@ -900,10 +942,19 @@ void Minion_State_MM_Heartbeat_Handler(void)
     {
         /* TODO: SW-8081: Watchdog initialization here. Also register a callback to reset MM FW */
         event_control_block.mm_watchdog_initialized = true;
+        if (xTimerStart(MM_HeartBeat_Timer, 0) != pdPASS)
+        {
+            /* The start command was not executed successfully - Log Error */
+            Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer start failed\n", __func__);
+        }
     }
     else
     {
-        /* TODO: SW-8081: Re-kick the watchdog timer here */
+        if( xTimerReset( MM_HeartBeat_Timer, 0 ) != pdPASS )
+        {
+            /* The reset command was not executed successfully - Log Error */
+            Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer reset failed\n", __func__);
+        }
     }
 
     /* Increment mm heartbeat counter */
@@ -1102,4 +1153,42 @@ int32_t Minion_State_Get_Hang_Error_Count(uint32_t *err_count)
     /* get hang errors count */
     *err_count = event_control_block.hang_count;
     return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       MM_Init_HeartBeat_Watchdog
+*
+*   DESCRIPTION
+*
+*      This function creates watchdog timer for MM  heartbeat.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       status   Status indicating success or negative error
+*
+***********************************************************************/
+int8_t MM_Init_HeartBeat_Watchdog(void)
+{
+    int8_t status = 0;
+
+    MM_HeartBeat_Timer = xTimerCreateStatic("MM_HEARTBEAT",
+                                pdMS_TO_TICKS(MM_HEARTBEAT_TIMEOUT_MSEC),
+                                pdFALSE,
+                                (void*)0,
+                                MM_HeartBeat_Timer_Cb,
+                                &MM_Timer_Buffer);
+    if (!MM_HeartBeat_Timer)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer creation failed\n", __func__);
+        status = -MM_UNDEFINED_ERROR;
+    }
+
+    return status;
 }

@@ -56,6 +56,11 @@ enum minion_error_type {
 */
 #define MINION_EXCEPT_ERROR_THRESHOLD 1
 
+/*! \def MM_HEARTBEAT_TIMEOUT_MSEC
+    \brief MM  heartbeat timeout period
+*/
+#define MM_HEARTBEAT_TIMEOUT_MSEC    10000
+
 /*! \fn int Minion_Shire_Update_Voltage( uint8_t voltage)
     \brief This function provide support to update the Minion
            Shire Power Rails
@@ -104,7 +109,7 @@ int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask);
 */
 int Minion_Enable_Master_Shire_Threads(uint8_t mm_id);
 
-/*! \fn int Minion_Reset_Threads(uint64_t minion_shires_mask)  
+/*! \fn int Minion_Reset_Threads(uint64_t minion_shires_mask)
     \brief This function resets the Minion Shire threads
     \param minion_shires_mask Minion Shire Mask
     \return The function call status, pass/fail.
@@ -264,5 +269,12 @@ int32_t Minion_State_Get_Exception_Error_Count(uint32_t *err_count);
 */
 
 int32_t Minion_State_Get_Hang_Error_Count(uint32_t *err_count);
+
+/*! \fn int8_t MM_Init_HeartBeat_Watchdog(void)
+    \brief This function creates watchdog timer for MM  heartbeat
+    \param NONE
+    \return Status indicating success or negative error
+*/
+int8_t MM_Init_HeartBeat_Watchdog(void);
 
 #endif

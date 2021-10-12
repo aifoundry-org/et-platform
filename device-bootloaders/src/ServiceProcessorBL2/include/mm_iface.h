@@ -23,6 +23,7 @@
 
 #include "etsoc/common/common_defs.h"
 #include "transports/sp_mm_iface/sp_mm_iface.h"
+#include "minion_configuration.h"
 #include "FreeRTOS.h"
 
 /*! \fn int8_t MM_Iface_Init(void)

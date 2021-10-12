@@ -372,10 +372,20 @@ int8_t MM_Iface_Init(void)
 
     /* Initialize the interface */
     status = SP_MM_Iface_Init();
+    if (status == STATUS_SUCCESS)
+    {
+        status = MM_Init_HeartBeat_Watchdog();
+    }
 
-    /* Register interrupt handler */
-    INT_enableInterrupt(SPIO_PLIC_MBOX_MMIN_INTR, 1,
-        mm2sp_notification_isr);
-
+    if (status == STATUS_SUCCESS)
+    {
+        /* Register interrupt handler */
+        INT_enableInterrupt(SPIO_PLIC_MBOX_MMIN_INTR, 1,
+            mm2sp_notification_isr);
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s :  MM Interface initialization failed\n", __func__);
+    }
     return status;
 }
