@@ -116,7 +116,6 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
             }
         }
 
-        /* Invoke the command handler based on ID */
         rtn_arg = TF_Test_Cmd_Handler[tf_cmd_hdr.id](p_tf_cmd_hdr);
 
         if(rtn_arg == TF_EXIT_FROM_TF_LOOP && tf_cmd_hdr.id == TF_CMD_SET_INTERCEPT)
@@ -206,7 +205,6 @@ int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
             p_rsp++;
         }
         printf("\nlength of total response: %d\r\n", bytes_to_transmit);
-        printf("\r\n");
 #endif
 
         SERIAL_write(SP_UART1, &Output_Rsp_Buffer[0], (int)bytes_to_transmit);
