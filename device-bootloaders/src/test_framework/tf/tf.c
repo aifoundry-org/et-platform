@@ -40,7 +40,7 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
     char            *p_buff;
     uint32_t        bytes_received;
     uint32_t        cmd_bytes_received;
-    struct header_t tf_cmd_hdr;
+    struct header_t tf_cmd_hdr = {0};
     struct header_t *p_tf_cmd_hdr;
     bool            tf_prot_start_found=false;
     bool            tf_cmd_size_available=false;
@@ -65,8 +65,8 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
         tf_prot_start_found = false;
         tf_cmd_size_available = false;
 
+        /* Clear the command input buffer */
         memset(&Input_Cmd_Buffer[0], 0, TF_MAX_CMD_SIZE);
-
 
         printf("Getting into TF RX loop \r\n");
 
@@ -75,8 +75,10 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
         {
             SERIAL_getchar(SP_UART1, &c);
 
-            if((c == TF_CMD_START) && (!tf_prot_start_found))
+            /* Look for the command start delimeter */
+            if((!tf_prot_start_found) && (c == TF_CMD_START))
             {
+                printf("command start delimeter received\r\n");
                 tf_prot_start_found = true;
             }
             else
@@ -90,9 +92,9 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
                 p_buff++;
                 bytes_received++;
 
+                /* Look for the command header bytes (exclusing the command start delimeter) */
                 if(bytes_received == TF_CMD_HDR_BYTES)
                 {
-
                     memcpy(&tf_cmd_hdr, p_tf_cmd_hdr, sizeof(tf_cmd_hdr));
                     printf("\r\n");
                     printf("command_id = %d\r\n", tf_cmd_hdr.id);
@@ -100,27 +102,21 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
                     printf("command_size = %d\r\n", tf_cmd_hdr.payload_size);
                     tf_cmd_size_available = true;
                 }
-
-                if(tf_cmd_size_available)
+                else if(tf_cmd_size_available)
                 {
+                    /* Receiving the command payload */
                     cmd_bytes_received++;
 
                     if(cmd_bytes_received == (tf_cmd_hdr.payload_size + TF_CHECKSUM_SIZE))
                     {
                         printf("command fully received, size = %d \r\n", cmd_bytes_received);
-                        tf_prot_start_found = false;
-                        tf_cmd_size_available = false;
-                        bytes_received = 0;
-                        cmd_bytes_received = 0;
-                        p_buff = (void*)&Input_Cmd_Buffer[0];
-                        p_tf_cmd_hdr = (void*)&Input_Cmd_Buffer[0];
                         break;
                     }
                 }
             }
         }
 
-
+        /* Invoke the command handler based on ID */
         rtn_arg = TF_Test_Cmd_Handler[tf_cmd_hdr.id](p_tf_cmd_hdr);
 
         if(rtn_arg == TF_EXIT_FROM_TF_LOOP && tf_cmd_hdr.id == TF_CMD_SET_INTERCEPT)
@@ -209,6 +205,7 @@ int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
 
             p_rsp++;
         }
+        printf("\nlength of total response: %d\r\n", bytes_to_transmit);
         printf("\r\n");
 #endif
 
