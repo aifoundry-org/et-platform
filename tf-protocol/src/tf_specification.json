@@ -332,7 +332,7 @@
         },
         "TF_CMD_MINION_SHIRE_ENABLE": {
             "flags": 2,
-            "payload_size": 8,
+            "payload_size": 9,
             "payload_args": {
                 "shire_mask": "uint64_t",
                 "pll4_mode": "uint8_t"
@@ -634,7 +634,7 @@
         },
         "TF_RSP_MOVE_DATA_TO_HOST": {
             "flags": 2,
-            "payload_size": 1073741824,
+            "payload_size": 4,
             "payload_args": {
                 "bytes_read": "uint32_t",
                 "data_ptr": "flexible_bytes"
@@ -753,7 +753,7 @@
         },
         "TF_RSP_MM_CMD_SHELL": {
             "flags": 2,
-            "payload_size": 256,
+            "payload_size": 4,
             "payload_args": {
                 "mm_rsp_size": "uint32_t",
                 "mm_rsp_data": "flexible_bytes"
@@ -845,7 +845,7 @@
         },
         "TF_RSP_PMIC_MODULE_VOLTAGE": {
             "flags": 2,
-            "payload_size": 8,
+            "payload_size": 9,
             "payload_args": {
                 "ddr_voltage": "uint8_t",
                 "l2_cache_voltage": "uint8_t",
@@ -869,7 +869,7 @@
         },
         "TF_RSP_SP_PCIE_RETAIN_PHY": {
             "flags": 2,
-            "payload_size": 1,
+            "payload_size": 4,
             "payload_args": {
                 "status": "int32_t"
             }
@@ -894,7 +894,7 @@
             }
         },
         "TF_RSP_GET_MM_HEARTBEAT": {
-            "flags": 1,
+            "flags": 2,
             "payload_size": 8,
             "payload_args": {
                 "heartbeat_count": "uint64_t"
@@ -921,7 +921,7 @@
         },
         "TF_RSP_SP_TRACE_GET_BUFFER": {
             "flags": 2,
-            "payload_size": 1073741824,
+            "payload_size": 4,
             "payload_args": {
                 "bytes_read": "uint32_t",
                 "data_ptr": "flexible_bytes"
@@ -938,7 +938,7 @@
         },
         "TF_RSP_MM_TRACE_GET_BUFFER": {
             "flags": 2,
-            "payload_size": 1073741824,
+            "payload_size": 4,
             "payload_args": {
                 "bytes_read": "uint32_t",
                 "data_ptr": "flexible_bytes"
@@ -955,7 +955,7 @@
         },
         "TF_RSP_CM_TRACE_GET_BUFFER": {
             "flags": 2,
-            "payload_size": 1073741824,
+            "payload_size": 4,
             "payload_args": {
                 "bytes_read": "uint32_t",
                 "data_ptr": "flexible_bytes"
