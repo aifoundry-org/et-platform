@@ -4,6 +4,8 @@
 #include "hwinc/hal_device.h"
 #include <string.h>
 
+//#define TF_DEBUG
+
 /* Globals */
 static char Input_Cmd_Buffer[TF_MAX_CMD_SIZE];
 static char Output_Rsp_Buffer[TF_MAX_RSP_SIZE];
@@ -40,8 +42,9 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
     char            *p_buff;
     uint32_t        bytes_received;
     uint32_t        cmd_bytes_received;
+    uint32_t        computed_checksum = 0;
+    uint32_t        rcvd_checksum = 0;
     struct header_t tf_cmd_hdr = {0};
-    struct header_t *p_tf_cmd_hdr;
     bool            tf_prot_start_found=false;
     bool            tf_cmd_size_available=false;
 
@@ -59,9 +62,9 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
     for(;;)
     {
         p_buff = &Input_Cmd_Buffer[0];
-        p_tf_cmd_hdr = (void*)&Input_Cmd_Buffer[0];
         bytes_received = 0;
         cmd_bytes_received = 0;
+        computed_checksum = 0;
         tf_prot_start_found = false;
         tf_cmd_size_available = false;
 
@@ -78,28 +81,35 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
             /* Look for the command start delimeter */
             if((!tf_prot_start_found) && (c == TF_CMD_START))
             {
-                printf("command start delimeter received\r\n");
+#ifdef  TF_DEBUG
+                printf("Command start delimeter ($) received\r\n");
+#endif
+                computed_checksum += (uint8_t)c;
                 tf_prot_start_found = true;
             }
             else
             {
                 *p_buff = c;
+                computed_checksum += *p_buff;
 
+#ifdef  TF_DEBUG
                 printf("0x");
                 printf("%02X", *p_buff);
                 printf("%s", ",");
-
+#endif
                 p_buff++;
                 bytes_received++;
 
                 /* Look for the command header bytes (exclusing the command start delimeter) */
                 if(bytes_received == TF_CMD_HDR_BYTES)
                 {
-                    memcpy(&tf_cmd_hdr, p_tf_cmd_hdr, sizeof(tf_cmd_hdr));
+                    memcpy(&tf_cmd_hdr, &Input_Cmd_Buffer[0], sizeof(tf_cmd_hdr));
+#ifdef  TF_DEBUG
                     printf("\r\n");
-                    printf("command_id = %d\r\n", tf_cmd_hdr.id);
-                    printf("command_flags = %d\r\n", tf_cmd_hdr.flags);
-                    printf("command_size = %d\r\n", tf_cmd_hdr.payload_size);
+                    printf("tf_cmd_hdr.id = %d\r\n", tf_cmd_hdr.id);
+                    printf("tf_cmd_hdr.flags = %d\r\n", tf_cmd_hdr.flags);
+                    printf("tf_cmd_hdr.payload_size = %d\r\n", tf_cmd_hdr.payload_size);
+#endif
                     tf_cmd_size_available = true;
                 }
                 else if(tf_cmd_size_available)
@@ -109,15 +119,48 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 
                     if(cmd_bytes_received == (tf_cmd_hdr.payload_size + TF_CHECKSUM_SIZE))
                     {
-                        printf("command fully received, size = %d \r\n", cmd_bytes_received);
+#ifdef  TF_DEBUG
+                        printf("\r\nCommand fully received, size = %d \r\n", cmd_bytes_received);
+#endif
+                        /* Verify checksum */
+                        const uint8_t* p = (uint8_t*)(&Input_Cmd_Buffer[0] + TF_CMD_HDR_BYTES + tf_cmd_hdr.payload_size);
+                        rcvd_checksum = (uint32_t)(p[0] + (p[1] << 8) + (p[2] << 16) + (p[3] << 24));
+
+                        /* subtract the received checksum from checksum for full command length (incl checksum) */
+                        computed_checksum -= p[0];
+                        computed_checksum -= p[1];
+                        computed_checksum -= p[2];
+                        computed_checksum -= p[3];
+
+#ifdef  TF_DEBUG
+                        printf("bytes_received:%d\r\n", bytes_received);
+                        printf("rcvd_checksum:%d \r\n",rcvd_checksum);
+                        printf("computed_checksum:%d \r\n",computed_checksum);
+#endif
+                        if(computed_checksum == rcvd_checksum)
+                        {
+                            printf("Received command, command checksum passed\r\n");
+                        }
+                        else
+                        {
+                            printf("Received command, command checksum failed\r\n");
+                        }
+
+                        /* Command processed, break */
                         break;
                     }
                 }
             }
+#ifdef  TF_DEBUG
+            else
+            {
+                printf("Unknown data byte: 0x%02X\r\n", c);
+            }
+#endif
         }
 
         /* Invoke the command handler based on ID */
-        rtn_arg = TF_Test_Cmd_Handler[tf_cmd_hdr.id](p_tf_cmd_hdr);
+        rtn_arg = TF_Test_Cmd_Handler[tf_cmd_hdr.id]((struct header_t *)&Input_Cmd_Buffer[0]);
 
         if(rtn_arg == TF_EXIT_FROM_TF_LOOP && tf_cmd_hdr.id == TF_CMD_SET_INTERCEPT)
         {
@@ -169,18 +212,22 @@ int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
     uint32_t bytes_to_transmit=0;
     char* p_rsp = &Output_Rsp_Buffer[0];
 
-    /* Clear the output buffer */
-    memset(Output_Rsp_Buffer, 0, TF_MAX_RSP_SIZE);
-
-    printf("Response being tyransmitted\r\n");
-
+#ifdef  TF_DEBUG
+    printf("Response being transmitted\r\n");
+#endif
     Output_Rsp_Buffer[0] = TF_CMD_START;
     buf_size--;
 
+#ifdef  TF_DEBUG
+    printf("Response:fill_buffer:rsp_size:%d\r\n", rsp_size);
+#endif
     fill_rsp_buffer(&buf_size, rsp, rsp_size);
 
     if (additional_rsp_size)
     {
+#ifdef  TF_DEBUG
+        printf("AdditionalResponse:fill_buffer:additional_rsp_size:%d\r\n", additional_rsp_size);
+#endif
         fill_rsp_buffer(&buf_size, additional_rsp, additional_rsp_size);
     }
 
@@ -193,14 +240,14 @@ int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
             checksum += *p_rsp;
             p_rsp++;
         }
-
+#ifdef  TF_DEBUG
         printf("Response Checksum: %d\r\n", checksum);
-
+#endif
         /* Add checksum to response */
         fill_rsp_buffer(&buf_size, &checksum, 4);
         bytes_to_transmit += 4;
 
-#if 1
+#ifdef  TF_DEBUG
         p_rsp = &Output_Rsp_Buffer[0];
         for(uint32_t i =0; i < bytes_to_transmit; i++)
         {
@@ -211,6 +258,7 @@ int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
             p_rsp++;
         }
         printf("\nlength of total response: %d\r\n", bytes_to_transmit);
+        printf("\r\n");
 #endif
 
         SERIAL_write(SP_UART1, &Output_Rsp_Buffer[0], (int)bytes_to_transmit);
