@@ -7,6 +7,7 @@
 //#define TF_DEBUG
 
 /* Globals */
+
 static char Input_Cmd_Buffer[TF_MAX_CMD_SIZE];
 static char Output_Rsp_Buffer[TF_MAX_RSP_SIZE];
 
@@ -71,9 +72,11 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
         /* Clear the command input buffer */
         memset(&Input_Cmd_Buffer[0], 0, TF_MAX_CMD_SIZE);
 
+#ifdef  TF_DEBUG
         printf("Getting into TF RX loop \r\n");
 
         printf("command received\r\n");
+#endif
         while(true)
         {
             SERIAL_getchar(SP_UART1, &c);
@@ -137,11 +140,7 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
                         printf("rcvd_checksum:%d \r\n",rcvd_checksum);
                         printf("computed_checksum:%d \r\n",computed_checksum);
 #endif
-                        if(computed_checksum == rcvd_checksum)
-                        {
-                            printf("Received command, command checksum passed\r\n");
-                        }
-                        else
+                        if(computed_checksum != rcvd_checksum)
                         {
                             printf("Received command, command checksum failed\r\n");
                         }
