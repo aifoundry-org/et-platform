@@ -75,11 +75,10 @@ __attribute__((noreturn)) void et_abort(void);
 #define et_assert(expr)                                                 \
     if (!(expr))                                                        \
     {                                                                   \
-        /* TODO: Log the failure to trace buffer (if available)         \
-        printf("Assertion \"%s\" failed: file \"%s\", line %d%s%s\n",   \
+        et_printf("Assertion \"%s\" failed: file \"%s\", line %d%s%s\n",\
                 expr, __FILE__, __LINE__,                               \
                 __FUNCTION__ ? ", function: " : "",                     \
-                __FUNCTION__ ? __FUNCTION__ : ""); */                   \
+                __FUNCTION__ ? __FUNCTION__ : "");                      \
         et_abort();                                                     \
     }                                                                   \
     else                                                                \
