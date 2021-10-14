@@ -106,11 +106,11 @@ int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd)
         Log_Write(LOG_LEVEL_INFO, "MM_Cmd_Shell_Cmd_Handler:ERROR:code:%d\r\n", status);
 
         mm_shell_rsp.rsp_hdr.id = TF_RSP_MM_CMD_SHELL;
-        mm_shell_rsp.rsp_hdr.flags = TF_RSP_ONLY;
-        mm_shell_rsp.rsp_hdr.payload_size = sizeof(uint32_t);
+        mm_shell_rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
+        mm_shell_rsp.rsp_hdr.payload_size = TF_GET_PAYLOAD_SIZE(struct tf_rsp_mm_cmd_shell_t);
         mm_shell_rsp.mm_rsp_size = 0;
 
-        TF_Send_Response(&mm_shell_rsp, (uint32_t)(sizeof(tf_rsp_hdr_t) + sizeof(uint32_t)));
+        TF_Send_Response(&mm_shell_rsp, sizeof(mm_shell_rsp));
     }
 
     return 0;
