@@ -83,18 +83,19 @@ TEST_F(TestAbort, abortStream) {
   auto eventsSubmitted = std::set<rt::EventId>{};
   auto rimp = static_cast<rt::RuntimeImp*>(runtime_.get());
   bool done = false;
-  rimp->setSentCommandCallback(defaultDevice_, [this, &done](rt::Command* cmd) {
-    static std::once_flag s_flag;
-    RT_LOG(INFO) << "Inside sent command callback";
-    std::call_once(s_flag, [this, &done, cmd] {
-      RT_LOG(INFO) << "Command sent: " << cmd << ". Now aborting stream.";
+  auto commandsSent = 0U;
+  auto commandsToSend = 10U;
+  rimp->setSentCommandCallback(defaultDevice_, [this, &done, &commandsSent, commandsToSend](rt::Command* cmd) {
+    commandsSent++;
+    if (commandsSent == commandsToSend) {
+      RT_LOG(INFO) << "All commands sent. Now aborting stream.";
       runtime_->abortStream(defaultStream_);
       RT_LOG(INFO) << "Waiting for stream to finish.";
       runtime_->waitForStream(defaultStream_);
       done = true;
-    });
+    };
   });
-  for (int i = 0; i < 10; ++i) {
+  for (auto i = 0U; i < commandsToSend; ++i) {
     eventsSubmitted.emplace(
       runtime_->kernelLaunch(defaultStream_, kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1FFFFFFFFUL));
   }
