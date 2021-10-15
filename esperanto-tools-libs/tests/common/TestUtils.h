@@ -1,3 +1,12 @@
+//******************************************************************************
+// Copyright (C) 2021, Esperanto Technologies Inc.
+// The copyright to the computer program(s) herein is the
+// property of Esperanto Technologies, Inc. All Rights Reserved.
+// The program(s) may be used and/or copied only with
+// the written permission of Esperanto Technologies and
+// in accordance with the terms and conditions stipulated in the
+// agreement/contract under which the program(s) have been supplied.
+//------------------------------------------------------------------------------
 #include "RuntimeImp.h"
 #include "runtime/Types.h"
 #include <common/Constants.h>
@@ -87,7 +96,9 @@ public:
     auto kernelContent = readFile(std::string{KERNELS_DIR} + "/" + kernel_name);
     EXPECT_FALSE(kernelContent.empty());
     EXPECT_TRUE(devices_.size() > deviceIdx);
-    return runtime_->loadCode(defaultStream_, kernelContent.data(), kernelContent.size()).kernel_;
+    auto res = runtime_->loadCode(defaultStream_, kernelContent.data(), kernelContent.size());
+    std::thread([res, this, kernelContent = std::move(kernelContent)] { runtime_->waitForEvent(res.event_); }).detach();
+    return res.kernel_;
   }
 
   inline static Mode sMode = Mode::SYSEMU;

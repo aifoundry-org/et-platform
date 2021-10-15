@@ -49,6 +49,10 @@ public:
 
   EventId memcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) final;
   EventId memcpyDeviceToHost(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) final;
+  EventId memcpyHostToDevice(StreamId stream, const IDmaBuffer* src, std::byte* dst, size_t size,
+                             bool barrier) override;
+  EventId memcpyDeviceToHost(StreamId stream, const std::byte* src, IDmaBuffer* dst, size_t size,
+                             bool barrier) override;
 
   bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) final;
   bool waitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) final;
@@ -141,8 +145,8 @@ private:
   dev::IDeviceLayer* deviceLayer_;
   std::vector<DeviceId> devices_;
   StreamManager streamManager_;
+  std::unique_ptr<HostBufferManager> hostBufferManager_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
-  std::unordered_map<DeviceId, HostBufferManager> hostBufferManagers_;
   std::unordered_map<KernelId, std::unique_ptr<Kernel>> kernels_;
   std::unordered_map<DeviceId, DeviceFwTracing> deviceTracing_;
   std::unique_ptr<ExecutionContextCache> executionContextCache_;
@@ -153,7 +157,7 @@ private:
   int nextKernelId_ = 0;
 
   std::unique_ptr<ResponseReceiver> responseReceiver_;
-  threadPool::ThreadPool blockableThreadPool_{8};
+  threadPool::ThreadPool blockableThreadPool_{1, true};
   EventManager eventManager_;
   threadPool::ThreadPool nonblockableThreadPool_{8};
   bool running_ = false;

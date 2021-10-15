@@ -23,23 +23,18 @@ class IDeviceLayer;
 
 /// \defgroup runtime_api Runtime API
 ///
-/// The runtime API provides different services to the et-soc devices, allowing
-/// the user to manage device memory (see mallocDeviceId and freeDeviceId), load
-/// executable elfs into the device (see loadCode and unloadCode) and execute
-/// workloads in an asynchronous fashion. These workloads typically consist on
-/// copying memory from the host to the device (see memcpyHostToDeviceId),
-/// launching a kernel (see kernelLaunch) and getting the results back from the
-/// device to the host (see  memcpyDeviceIdToHost) Different workloads can be run
-/// asynchronously and potentially in parallel, using streams. Every operation
-/// is asynchronous, there are also primitives to allow synchronization between
+/// The runtime API provides different services to the et-soc devices, allowing the user to manage device memory (see
+/// mallocDeviceId and freeDeviceId), load executable elfs into the device (see loadCode and unloadCode) and execute
+/// workloads in an asynchronous fashion. These workloads typically consist on copying memory from the host to the
+/// device (see memcpyHostToDeviceId), launching a kernel (see kernelLaunch) and getting the results back from the
+/// device to the host (see  memcpyDeviceIdToHost) Different workloads can be run asynchronously and potentially in
+/// parallel, using streams. Every operation is asynchronous, there are also primitives to allow synchronization between
 /// the host and the device (see waitForEventId and streamFlush)
-///
 ///
 /// @{
 namespace rt {
-/// \brief Facade Runtime interface declaration, all runtime interactions should
-/// be made using this interface. There is a static method \ref create to make
-/// runtime instances (factory method)
+/// \brief Facade Runtime interface declaration, all runtime interactions should be made using this interface. There is
+/// a static method \ref create to make runtime instances (factory method)
 ///
 class IRuntime {
 public:
@@ -49,15 +44,12 @@ public:
   ///
   virtual std::vector<DeviceId> getDevices() = 0;
 
-  /// \brief Allocates memory in the device, returns a device memory pointer.
-  /// One can't use this pointer directly from the host, this pointer is
-  /// intended to be used for memory operations between the host and the device.
+  /// \brief Allocates memory in the device, returns a device memory pointer. One can't use this pointer directly from
+  /// the host, this pointer is intended to be used for memory operations between the host and the device.
   ///
-  /// @param[in] device handler indicating in which device to allocate the
-  /// memory
+  /// @param[in] device handler indicating in which device to allocate the memory
   /// @param[in] size indicates the memory allocation size in bytes
-  /// @param[in] alignment indicates the required alignment for memory
-  /// allocation, defaults to device cache line size
+  /// @param[in] alignment indicates the required alignment for memory allocation, defaults to device cache line size
   ///
   /// @returns a device memory pointer
   ///
@@ -72,13 +64,11 @@ public:
   ///
   virtual void freeDevice(DeviceId device, std::byte* buffer) = 0;
 
-  /// \brief Creates a new stream and associates it to the given device.
-  /// A stream is an abstraction of a "pipeline" where you can push operations
-  /// (mem copies or kernel launches) and enforce the dependencies between these
+  /// \brief Creates a new stream and associates it to the given device. A stream is an abstraction of a "pipeline"
+  /// where you can push operations (mem copies or kernel launches) and enforce the dependencies between these
   /// operations
   ///
-  /// @param[in] device handler indicating in which device to associate the
-  /// stream
+  /// @param[in] device handler indicating in which device to associate the stream
   ///
   /// @returns a stream handler
   ///
@@ -91,8 +81,8 @@ public:
   ///
   virtual void destroyStream(StreamId stream) = 0;
 
-  /// \brief Loads an elf into the device. The caller will provide a byte code
-  /// containing the elf representation and its size. Host memory.
+  /// \brief Loads an elf into the device. The caller will provide a byte code containing the elf representation and its
+  /// size. Host memory.
   /// @param[in] stream handler indicating the stream used for the kernel loading.
   /// @param[in] elf a pointer to host memory containing the elf bytes
   /// @param[in] elf_size the elf size
@@ -101,97 +91,121 @@ public:
   /// kernelLaunch and the kernel load address.
   ///
   /// NOTE: remember to not deallocate the elf memory \param elf until the EventId from \ref LoadCodeResult is completed
-
   virtual LoadCodeResult loadCode(StreamId stream, const std::byte* elf, size_t elf_size) = 0;
 
-  /// \brief Unloads a previously loaded elf code, identified by the kernel
-  /// handler
+  /// \brief Unloads a previously loaded elf code, identified by the kernel handler
   ///
   /// @param[in] kernel a handler to the code that must be unloaded
   ///
   virtual void unloadCode(KernelId kernel) = 0;
 
-  /// \brief Queues a execution work into a stream. The work is identified by
-  /// the kernel handler, which has been previously loaded into the device which
-  /// is associated to the stream. The parameters of the kernel are given by
-  /// kernel_args and kernel_args_size; these parameters will be copied from the
-  /// host memory to the device memory by the runtime. The firmware will load
-  /// these parameters into RA register, the kernel code should cast this register to the expected types.
-  /// The kernel execution is always asynchronous.
+  /// \brief Queues a execution work into a stream. The work is identified by the kernel handler, which has been
+  /// previously loaded into the device which is associated to the stream. The parameters of the kernel are given by
+  /// kernel_args and kernel_args_size; these parameters will be copied from the host memory to the device memory by the
+  /// runtime. The firmware will load these parameters into RA register, the kernel code should cast this register to
+  /// the expected types. The kernel execution is always asynchronous.
   ///
-  /// @param[in] stream handler indicating in which stream the kernel will be
-  /// executed. The kernel code have to be registered into the device associated
-  /// to the stream previously.
-  /// @param[in] kernel handler which indicate what code to execute in the
-  /// device.
-  /// @param[in] kernel_args buffer containing all the parameters to be copied
-  /// to the device memory prior to the code execution
+  /// @param[in] stream handler indicating in which stream the kernel will be executed. The kernel code have to be
+  /// registered into the device associated to the stream previously.
+  /// @param[in] kernel handler which indicate what code to execute in the device.
+  /// @param[in] kernel_args buffer containing all the parameters to be copied to the device memory prior to the code
+  /// execution
   /// @param[in] kernel_args_size size of the kernel_args buffer
   /// @param[in] shire_mask indicates in what shires the kernel will be executed
   /// @param[in] barrier this parameter indicates if the kernel execution should be postponed till all previous works
   /// issued into this stream finish (a barrier). Usually the kernel launch must be postponed till some previous
   /// memory operations end, hence the default value is true.
   /// @param[in] flushL3 this parameter indicates if the L3 should be flushed before the kernel execution starts.
-  /// @param[in] userTraceBuffer this parameter can be null or point to a device buffer (previously allocated with \ref
-  /// mallocDevice). If the pointer is not null, then the firmware will utilize this buffer to fill-up user trace data.
-  /// This buffer must be of size 4KB * num_harts (4KB*2080). We will provide later on an API to allocate the buffer
-  /// with the size required.
+  /// @param[in] userTraceBuffer this parameter can be null or point to a device buffer (previously allocated with
+  /// \ref mallocDevice). If the pointer is not null, then the firmware will utilize this buffer to fill-up user trace
+  /// data. This buffer must be of size 4KB * num_harts (4KB*2080). We will provide later on an API to allocate the
+  /// buffer with the size required.
   ///
-  /// @returns EventId is a handler of an event which can be waited for
-  /// (waitForEventId) to syncrhonize when the kernel ends the execution
+  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to syncrhonize when the kernel
+  /// ends the execution.
   ///
   virtual EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
                                uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
                                std::optional<UserTrace> userTraceConfig = std::nullopt) = 0;
 
-  /// \brief Queues a memcpy operation from host memory to device memory. The
-  /// device memory must be previously allocated by a mallocDevice.
+  /// \brief Queues a memcpy operation from host memory to device memory. The device memory must be previously allocated
+  /// by a mallocDevice.
   ///
-  /// @param[in] stream handler indicating in which stream to queue the memcpy
-  /// operation
+  /// @param[in] stream handler indicating in which stream to queue the memcpy operation
   /// @param[in] h_src host memory buffer to copy from
   /// @param[in] d_dst device memory buffer to copy to
   /// @param[in] size indicates the size of the memcpy
-  /// @param[in] barrier this parameter indicates if the memcpy operation should
-  /// be postponed till all previous works issued into this stream finish (a
-  /// barrier). Usually the memcpies from host to device can run in parallel,
-  /// hence the default value is false All memcpy operations are always
-  /// asynchronous.
+  /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
+  /// issued into this stream finish (a barrier). Usually the memcpies from host to device can run in parallel, hence
+  /// the default value is false All memcpy operations are always asynchronous.
   ///
-  /// @returns EventId is a handler of an event which can be waited for
-  /// (waitForEventId) to synchronize when the memcpy ends
+  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
+  /// ends.
   ///
   /// NOTE: the host memory pointer must be kept alive until the operation has completely ended in device.
   ///
   virtual EventId memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
                                      bool barrier = false) = 0;
-  /// \brief Queues a memcpy operation from device memory to host memory. The
-  /// device memory must be a valid region previously allocated by a
-  /// mallocDevice; the host memory must be a previously allocated memory in the
-  /// host by the conventional means (for example the heap)
+
+  /// \brief Queues a memcpy operation from device memory to host memory. The device memory must be a valid region
+  /// previously allocated by a mallocDevice; the host memory must be a previously allocated memory in the host by the
+  /// conventional means (for example the heap)
   ///
-  /// @param[in] stream handler indicating in which stream to queue the memcpy
-  /// operation
+  /// @param[in] stream handler indicating in which stream to queue the memcpy operation
   /// @param[in] d_src device memory buffer to copy from
   /// @param[in] h_dst host memory buffer to copy to
   /// @param[in] size indicates the size of the memcpy
-  /// @param[in] barrier this parameter indicates if the memcpy operation should
-  /// be postponed till all previous works issued into this stream finish (a
-  /// barrier). Usually the memcpies from device to host must wait till a
-  /// previous kernel execution finishes, hence the default value is true All
-  /// memcpy operations are always asynchronous.
+  /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
+  /// issued into this stream finish (a barrier). Usually the memcpies from device to host must wait till a previous
+  /// kernel execution finishes, hence the default value is true All memcpy operations are always asynchronous.
   ///
-  /// @returns EventId is a handler of an event which can be waited for
-  /// (waitForEventId) to synchronize when the memcpy ends
+  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
+  /// ends.
   ///
   /// NOTE: the host memory pointer must be kept alive until the operation has completely ended in device.
   ///
   virtual EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                      bool barrier = true) = 0;
 
-  /// \brief This will block the caller thread until the given event is
-  /// dispatched or the timeout is reached. This primitive allows to synchronize with the device
-  /// execution.
+  /// \brief Queues a memcpy operation from host memory to device memory. The device memory must be previously allocated
+  /// by a mallocDevice. This version is faster because it utilizes DMABuffer, so avoid one extra copy.
+  ///
+  /// @param[in] stream handler indicating in which stream to queue the memcpy operation
+  /// @param[in] h_src host memmory source dmaBuffer previously allocated with \ref allocateDmaBuffer
+  /// @param[in] d_dst device memory buffer to copy to
+  /// @param[in] size indicates the size of the memcpy
+  /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
+  /// issued into this stream finish (a barrier). Usually the memcpies from host to device can run in parallel, hence
+  /// the default value is false All memcpy operations are always asynchronous.
+  ///
+  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
+  /// ends.
+  ///
+  virtual EventId memcpyHostToDevice(StreamId stream, const IDmaBuffer* h_src, std::byte* d_dst, size_t size,
+                                     bool barrier = false) = 0;
+
+  /// \brief Queues a memcpy operation from device memory to host memory. The device memory must be a valid region
+  /// previously allocated by a mallocDevice; the host memory must be a previously allocated memory in the host by the
+  /// conventional means (for example the heap). This version is faster because it utilizes DMABuffer, so avoid one
+  /// extra copy.
+  ///
+  /// @param[in] stream handler indicating in which stream to queue the memcpy
+  /// operation
+  /// @param[in] d_src device memory buffer to copy from
+  /// @param[in] h_dst host memory destination dmaBuffer previously allocated with \ref allocateDmaBuffer
+  /// @param[in] size indicates the size of the memcpy
+  /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
+  /// issued into this stream finish (a barrier). Usually the memcpies from device to host must wait till a previous
+  /// kernel execution finishes, hence the default value is true All memcpy operations are always asynchronous.
+  ///
+  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
+  /// ends.
+  ///
+  virtual EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, IDmaBuffer* h_dst, size_t size,
+                                     bool barrier = true) = 0;
+
+  /// \brief This will block the caller thread until the given event is dispatched or the timeout is reached. This
+  /// primitive allows to synchronize with the device execution.
   ///
   /// @param[in] event is the event to wait for, result of a memcpy operation or a
   /// kernel launch.
@@ -201,9 +215,8 @@ public:
   ///
   virtual bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) = 0;
 
-  /// \brief This will block the caller thread until all commands issued to the
-  /// given stream finish or if the timeout is reached. This primitive allows to synchronize with the device
-  /// execution.
+  /// \brief This will block the caller thread until all commands issued to the given stream finish or if the timeout is
+  /// reached. This primitive allows to synchronize with the device execution.
   ///
   /// @param[in] stream this is the stream to synchronize with.
   /// @param[in] timeout is the number of seconds to wait till aborting the wait.
@@ -229,8 +242,7 @@ public:
   ///
   virtual void setOnStreamErrorsCallback(StreamErrorCallback callback) = 0;
 
-  /// \brief Virtual Destructor to enable polymorphic release of the runtime
-  /// instances
+  /// \brief Virtual Destructor to enable polymorphic release of the runtime instances
   virtual ~IRuntime() = default;
 
   /// \brief Returns a pointer to the profiler interface; don't delete/free this pointer since this is owned by the
@@ -309,7 +321,6 @@ public:
   ///
   /// @returns EventId is a handler of the abort command itself which can be waited for (waitForEventId) to synchronize.
   ///
-
   virtual EventId abortCommand(EventId commandId) = 0;
 
   /// \brief Instructs the device to abort all outstanding commands on a given stream. This will affect to all commands
@@ -320,7 +331,6 @@ public:
   /// @param[in] streamId indicates the stream to abort commands
   ///
   /// @returns EventId is a handler of the abortStream which can be waited for (waitForEventId) to synchronize.
-
   virtual EventId abortStream(StreamId streamId) = 0;
 
   ///

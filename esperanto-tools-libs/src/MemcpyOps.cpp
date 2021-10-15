@@ -11,6 +11,7 @@
 #include "MemcpyOps.h"
 #include "RuntimeImp.h"
 #include "ScopedProfileEvent.h"
+#include "runtime/Types.h"
 #include <esperanto/device-apis/device_apis_message_types.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
@@ -36,7 +37,7 @@ void MemcpyCommandBuilder::addOp(const std::byte* hostAddr, const std::byte* dev
   newNode.src_host_virt_addr = newNode.src_host_phy_addr = reinterpret_cast<uint64_t>(hostAddr);
   newNode.size = static_cast<uint32_t>(size);
   auto ptr = reinterpret_cast<std::byte*>(&newNode);
-  RT_VLOG(MID) << "Adding copy host_addr: " << std::hex << hostAddr << " device_addr: " << deviceAddr
+  RT_VLOG(MID) << "Adding copy host_addr: " << std::hex << hostAddr << " device_addr: " << deviceAddr << std::dec
                << " size: " << size;
   std::copy(ptr, ptr + sizeof(newNode), std::back_insert_iterator(data_));
 }
@@ -72,7 +73,7 @@ void MemcpyCommandBuilder::clear() {
 CommandsSentResult prepareAndSendCommands(MemcpyType memcpyType, bool barrierEnabled, StreamId stream,
                                           StreamManager* streamManager, EventManager* eventManager,
                                           const std::vector<DmaBufferInfo>& stageBuffers, CommandSender* commandSender,
-                                          const std::byte* devicePtr, bool enableCommands) {
+                                          const std::byte* devicePtr, bool enableCommands, size_t maxSize) {
   CommandsSentResult res;
   auto setupTagId = [stream, streamManager, eventManager, commandEvents = &res.events_](auto& builder) {
     auto evt = eventManager->getNextId();
@@ -81,45 +82,67 @@ CommandsSentResult prepareAndSendCommands(MemcpyType memcpyType, bool barrierEna
     commandEvents->emplace_back(evt);
   };
   MemcpyCommandBuilder cmdBuilder{memcpyType, barrierEnabled};
-  setupTagId(cmdBuilder);
+  auto totalSize = 0UL;
 
   for (auto i = 0UL, offset = 0UL, count = stageBuffers.size(); i < count; ++i) {
     if (cmdBuilder.numEntries_ == DEVICE_OPS_DMA_LIST_NODES_MAX) {
+      setupTagId(cmdBuilder);
       auto cmd = commandSender->send(Command{cmdBuilder.build(), *commandSender, true, enableCommands});
       res.commands_.emplace_back(cmd);
       cmdBuilder.clear();
-      setupTagId(cmdBuilder);
     }
-    auto& hostBuffer = stageBuffers[i];
-    cmdBuilder.addOp(hostBuffer.ptr_, devicePtr + offset, hostBuffer.size_);
-    offset += hostBuffer.size_;
+    auto ptr = stageBuffers[i].ptr_;
+    auto size = stageBuffers[i].size_;
+    totalSize += size;
+    if (totalSize > maxSize) {
+      size -= (totalSize - maxSize);
+    }
+    if (size > 0) {
+      cmdBuilder.addOp(ptr, devicePtr + offset, size);
+      offset += size;
+    }
+    if (totalSize > maxSize)
+      break;
   }
 
   // add the last command
-  auto cmd = commandSender->send(Command{cmdBuilder.build(), *commandSender, true, enableCommands});
-  res.commands_.emplace_back(cmd);
+  if (cmdBuilder.numEntries_ > 0) {
+    setupTagId(cmdBuilder);
+    auto cmd = commandSender->send(Command{cmdBuilder.build(), *commandSender, true, enableCommands});
+    res.commands_.emplace_back(cmd);
+  }
   return res;
 }
 
 // perform a staged copy, enable all commands after the copy in the passed vector and finally trigger the given event
 void doStagedCopyAndEnableCommands(threadPool::ThreadPool* threadPool, RuntimeImp* runtime, std::byte* hostPtr,
-                                   std::vector<DmaBufferInfo> stageBuffers, std::vector<Command*> commands,
-                                   std::optional<EventId> syncEvent, MemcpyType type) {
+                                   const std::vector<DmaBufferInfo>& stageBuffers, std::vector<Command*> commands,
+                                   std::optional<EventId> syncEvent, MemcpyType type, size_t maxSize) {
   auto task = [runtime, hostPtr, stageBuffers = std::move(stageBuffers), commands = std::move(commands), syncEvent,
-               type] {
-    for (auto i = 0UL, offset = 0UL, count = stageBuffers.size(); i < count; ++i) {
+               type, maxSize] {
+    for (auto i = 0UL, offset = 0UL, count = stageBuffers.size(), currentSize = 0UL; i < count && currentSize < maxSize;
+         ++i) {
       auto sbPtr = stageBuffers[i].ptr_;
       auto size = stageBuffers[i].size_;
-      if (type == MemcpyType::H2D) { // then the staged buffer is the dst
-        memcpy(sbPtr, hostPtr + offset, size);
-        RT_VLOG(MID) << "Copied stage buffer from " << std::hex << hostPtr + offset << " to " << sbPtr
-                     << " size: " << size;
-      } else { // then the hostPtr is the dst
-        memcpy(hostPtr + offset, sbPtr, size);
-        RT_VLOG(MID) << "Copied stage buffer from " << std::hex << sbPtr << " to " << hostPtr + offset
-                     << " size: " << size;
+
+      currentSize += size;
+      if (currentSize > maxSize) {
+        size -= currentSize - maxSize;
       }
-      offset += size;
+      if (size > 0) {
+        RT_VLOG(HIGH) << ">>> " << std::hex << (type == MemcpyType::H2D ? "H2D" : "D2H") << " offset: " << offset
+                      << " hostPtr: " << hostPtr << " size: " << size;
+        if (type == MemcpyType::H2D) {           // then the staged buffer is the dst
+          memcpy(sbPtr, hostPtr + offset, size); // aqui esta llegando un valor negativo
+          RT_VLOG(MID) << "Copied stage buffer from " << std::hex << hostPtr + offset << " to " << sbPtr
+                       << " size: " << size;
+        } else { // then the hostPtr is the dst
+          memcpy(hostPtr + offset, sbPtr, size);
+          RT_VLOG(MID) << "Copied stage buffer from " << std::hex << sbPtr << " to " << hostPtr + offset
+                       << " size: " << size;
+        }
+        offset += size;
+      }
     }
     for (auto c : commands) {
       c->enable();
@@ -137,18 +160,33 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
                                        bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_, stream);
 
-  auto streamInfo = streamManager_.getStreamInfo(stream);
+  auto streamInfo = streamManager_.getStreamInfo(stream); // NOSONAR
 
   // this lock must be mantained until all commands have been sent to the commandSender, to gaurantee the ordering.
-  std::unique_lock lock(mutex_);
-  auto& hbm = find(hostBufferManagers_, DeviceId{streamInfo.device_})->second;
-  auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-  auto hostBuffers = hbm.alloc(size);
+  std::unique_lock lock(mutex_); // NOSONAR
+  auto& commandSender =
+    find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second; // NOSONAR
+  // here check the max allocatable size. If it doesnt fit, do it in several commands stages
 
-  auto stageBuffers = getDmaBufferInfo(hostBuffers);
+  auto maxSize = hostBufferManager_->getMaxAllocSize() + deviceLayer_->getFreeCmaMemory() / 2; // NOSONAR
+  auto numIters = (size + maxSize - 1) / maxSize;                                              // NOSONAR
 
-  auto [commandEvents, commands] = prepareAndSendCommands(MemcpyType::H2D, barrier, stream, &streamManager_,
-                                                          &eventManager_, stageBuffers, &commandSender, d_dst, false);
+  auto cmaSize = std::min(size, maxSize);                // NOSONAR
+  auto hostBuffers = hostBufferManager_->alloc(cmaSize); // NOSONAR
+  auto stageBuffers = getDmaBufferInfo(hostBuffers);     // NOSONAR
+  std::vector<CommandsSentResult> commandsSendResult;    // NOSONAR
+
+  for (auto i = 0U; i < numIters; ++i) { // NOSONAR
+    auto offset = i * cmaSize;           // NOSONAR
+    auto hostBufferSize = cmaSize;       // NOSONAR
+    // last iter need to adapt the size
+    if (i == numIters - 1) {          // NOSONAR
+      hostBufferSize = size - offset; // NOSONAR
+    }                                 // NOSONAR
+    commandsSendResult.emplace_back(prepareAndSendCommands(MemcpyType::H2D, barrier, stream, &streamManager_,
+                                                           &eventManager_, stageBuffers, &commandSender, d_dst + offset,
+                                                           false, hostBufferSize));
+  }
   auto evt = eventManager_.getNextId();
   RT_VLOG(LOW) << "MemcpyHostToDevice stream: " << static_cast<int>(stream) << "EventId: " << static_cast<int>(evt)
                << std::hex << " Host address: " << h_src << " Device address: " << d_dst << " Size: " << size;
@@ -156,21 +194,81 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
   lock.unlock();
   streamManager_.addEvent(stream, evt);
 
-  doStagedCopyAndEnableCommands(&nonblockableThreadPool_, this, const_cast<std::byte*>(h_src), std::move(stageBuffers),
-                                std::move(commands), std::nullopt, MemcpyType::H2D);
+  std::vector<EventId> waitEvents;
+  for (auto i = 0UL, count = commandsSendResult.size(); i < count; ++i) {
+    blockableThreadPool_.pushTask([this, waitEvents, cmaSize, totalSize = size, numIter = i, h_src, stageBuffers,
+                                   commands = commandsSendResult[i].commands_] {
+      auto hSrc = h_src + numIter * cmaSize;
+      auto currentSize = cmaSize;
+      if (((numIter + 1) * cmaSize) > totalSize) {
+        currentSize -= ((numIter + 1) * cmaSize) - totalSize;
+      }
+
+      // wait for all previous events to finish
+      for (auto e : waitEvents) {
+        waitForEvent(e);
+      }
+      if (currentSize > 0) {
+        // when all finished, then do the copy and enable commands
+        doStagedCopyAndEnableCommands(&nonblockableThreadPool_, this, const_cast<std::byte*>(hSrc), stageBuffers,
+                                      commands, std::nullopt, MemcpyType::H2D, currentSize);
+      }
+    });
+    waitEvents = commandsSendResult[i].events_;
+  }
 
   // now, add a new task to wait for all the commands and trigger the sync event
-  blockableThreadPool_.pushTask([this, evt, eventsToWait = std::move(commandEvents),
-                                 hostBuffers = std::move(hostBuffers)] {
-    RT_VLOG(MID) << "Waiting for events (" << eventsToWait.size() << ") to complete before dispatching event "
-                 << static_cast<int>(evt);
-    for (auto e : eventsToWait) {
-      waitForEvent(e);
-    }
-    dispatch(evt);
-  });
+  blockableThreadPool_.pushTask(
+    [this, evt, eventsToWait = std::move(waitEvents), hostBuffers = std::move(hostBuffers)] {
+      RT_VLOG(MID) << "Waiting for events (" << eventsToWait.size() << ") to complete before dispatching event "
+                   << static_cast<int>(evt);
+      for (auto e : eventsToWait) {
+        waitForEvent(e);
+      }
+      dispatch(evt);
+    });
   profileEvent.setEventId(evt);
   Sync(evt);
+  return evt;
+}
+
+EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const IDmaBuffer* h_src, std::byte* d_dst, size_t size,
+                                       bool barrier) {
+  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_, stream);
+  if (size > h_src->getSize()) {
+    throw Exception("Trying to do a memcpy host to device using a dma buffer shorter than required size.");
+  }
+  auto streamInfo = streamManager_.getStreamInfo(stream);
+  MemcpyCommandBuilder cmdBuilder{MemcpyType::H2D, barrier};
+  cmdBuilder.addOp(h_src->getPtr(), d_dst, size);
+  auto evt = eventManager_.getNextId();
+  cmdBuilder.setTagId(evt);
+  RT_VLOG(LOW) << "MemcpyHostToDevice (DMABuffer) stream: " << static_cast<int>(stream)
+               << "EventId: " << static_cast<int>(evt) << std::hex << " Host address: " << h_src->getPtr()
+               << " Device address: " << d_dst << " Size: " << size;
+  auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
+  streamManager_.addEvent(stream, evt);
+  commandSender.send(Command{cmdBuilder.build(), commandSender, true, true});
+  return evt;
+}
+
+EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, IDmaBuffer* h_dst, size_t size,
+                                       bool barrier) {
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_, stream);
+  if (size > h_dst->getSize()) {
+    throw Exception("Trying to do a memcpy device to host using a dma buffer shorter than required size.");
+  }
+  auto streamInfo = streamManager_.getStreamInfo(stream);
+  MemcpyCommandBuilder cmdBuilder{MemcpyType::D2H, barrier};
+  cmdBuilder.addOp(h_dst->getPtr(), d_src, size);
+  auto evt = eventManager_.getNextId();
+  cmdBuilder.setTagId(evt);
+  RT_VLOG(LOW) << "MemcpyDeviceToHost (DMABuffer) stream: " << static_cast<int>(stream)
+               << "EventId: " << static_cast<int>(evt) << std::hex << " Host address: " << d_src
+               << " Device address: " << h_dst->getPtr() << std::dec << " Size: " << size;
+  auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
+  streamManager_.addEvent(stream, evt);
+  commandSender.send(Command{cmdBuilder.build(), commandSender, true, true});
   return evt;
 }
 
@@ -180,15 +278,27 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
 
   auto streamInfo = streamManager_.getStreamInfo(stream);
   std::unique_lock lock(mutex_);
-  auto& hbm = find(hostBufferManagers_, DeviceId{streamInfo.device_})->second;
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-  auto hostBuffers = hbm.alloc(size);
 
+  auto maxSize = hostBufferManager_->getMaxAllocSize() + deviceLayer_->getFreeCmaMemory() / 2;
+  auto numIters = (size + maxSize - 1) / maxSize;
+
+  auto cmaSize = std::min(size, maxSize);
+  auto hostBuffers = hostBufferManager_->alloc(cmaSize);
   auto stageBuffers = getDmaBufferInfo(hostBuffers);
+  std::vector<CommandsSentResult> commandsSendResult;
 
-  // first stage the copy into the stageBuffers
-  auto [commandEvents, commands] = prepareAndSendCommands(MemcpyType::D2H, barrier, stream, &streamManager_,
-                                                          &eventManager_, stageBuffers, &commandSender, d_src, true);
+  for (auto i = 0U; i < numIters; ++i) {
+    auto offset = i * cmaSize;
+    auto hostBufferSize = cmaSize;
+    // last iter need to adapt the size
+    if (i == numIters - 1) {
+      hostBufferSize = size - offset;
+    }
+    commandsSendResult.emplace_back(prepareAndSendCommands(
+      MemcpyType::D2H, barrier, stream, &streamManager_, &eventManager_, stageBuffers, &commandSender, d_src + offset,
+      i == 0, hostBufferSize)); // enable by default only on first iteration
+  }
   auto evt = eventManager_.getNextId();
   RT_VLOG(LOW) << "MemcpyDeviceToHost stream: " << static_cast<int>(stream) << "EventId: " << static_cast<int>(evt)
                << std::hex << " Host address: " << h_dst << " Device address: " << d_src << " Size: " << size;
@@ -196,25 +306,47 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
   lock.unlock();
   streamManager_.addEvent(stream, evt);
 
-  // now, add a new task to wait for all the commands, make the final copy and trigger the sync event
-  blockableThreadPool_.pushTask([this, h_dst, evt, eventsToWait = std::move(commandEvents),
-                                 hostBuffers = std::move(hostBuffers),
-                                 stageBuffers = std::move(stageBuffers)]() mutable {
-    RT_VLOG(MID) << "Memcpy D2H waiting till copy is done from device to stage buffers.";
-    for (auto e : eventsToWait) {
-      waitForEvent(e);
-    }
-    if (running_) {
-      RT_VLOG(MID) << "Memcpy D2H do the copy from stage buffers to final (user) buffers.";
-      doStagedCopyAndEnableCommands(&nonblockableThreadPool_, this, h_dst, stageBuffers, {}, evt, MemcpyType::D2H);
-      // this wait for event is only to hold stageBuffers enough time to finish the staged copy
-      waitForEvent(evt);
-    } else {
-      RT_LOG(WARNING) << "Memcpy D2H didn't end because runtime was stopped before.";
-    }
+  for (auto i = 0UL, count = commandsSendResult.size(); i < count; ++i) {
+    blockableThreadPool_.pushTask(
+      [this, hDst = h_dst + i * cmaSize, stageBuffers, i, cmaSize, totalSize = size, commandsSendResult, count, evt] {
+        // first wait for all previous events to finish
+        auto& eventsToWait = commandsSendResult[i].events_;
+        for (auto e : eventsToWait) {
+          waitForEvent(e);
+        }
+
+        if (running_) {
+          auto currentSize = cmaSize;
+          RT_VLOG(MID) << "Memcpy D2H do the copy from stage buffers to final (user) buffers.";
+          // on all iterations but last, we need to enable the next commands
+          // when all finished, then do the copy and enable commands for the next iteration
+          std::vector<Command*> commands{};
+          std::optional<EventId> evtToSync;
+          if (i != count - 1) {
+            commands = commandsSendResult[i + 1].commands_;
+          } else {
+            evtToSync = evt;
+            // adjust final copy size buffer
+            currentSize -= (cmaSize * count) - totalSize;
+          }
+          if (currentSize > 0) {
+            doStagedCopyAndEnableCommands(&nonblockableThreadPool_, this, hDst, stageBuffers, std::move(commands),
+                                          evtToSync, MemcpyType::D2H, currentSize);
+          } else {
+            assert(evtToSync);
+            dispatch(*evtToSync);
+          }
+        } else {
+          RT_LOG(WARNING) << "Memcpy D2H didn't end because runtime was stopped before.";
+        }
+      });
+  }
+
+  // now, add a new task to wait for all the commands and trigger the sync event
+  blockableThreadPool_.pushTask([this, evt, hostBuffers = std::move(hostBuffers)] {
+    RT_VLOG(MID) << "Waiting for event (" << static_cast<int>(evt) << ") to complete and free the stage buffers.";
+    waitForEvent(evt);
     RT_VLOG(MID) << "Memcpy D2H completely finished, releasing resources.";
-    stageBuffers.clear();
-    RT_VLOG(MID) << "Resources released";
   });
   profileEvent.setEventId(evt);
   Sync(evt);

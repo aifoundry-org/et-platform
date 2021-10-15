@@ -31,11 +31,6 @@
 
 namespace fs = std::experimental::filesystem;
 
-namespace {
-constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
-constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
-} // namespace
-
 namespace rt::tests {
 
 TEST(Profiler, add_2_vectors_profiling) {

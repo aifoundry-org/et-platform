@@ -15,6 +15,7 @@
 #include "StreamManager.h"
 #include "dma/DmaBufferImp.h"
 
+#include "dma/HostBufferManager.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 
@@ -27,6 +28,7 @@
 #include <chrono>
 #include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 #include <memory>
+#include <mutex>
 #include <sstream>
 #include <thread>
 #include <type_traits>
@@ -57,6 +59,7 @@ RuntimeImp::~RuntimeImp() {
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
   : deviceLayer_(deviceLayer) {
   auto devicesCount = deviceLayer_->getDevicesCount();
+  CHECK(devicesCount > 0);
   for (int i = 0; i < devicesCount; ++i) {
     auto id = DeviceId{i};
     devices_.emplace_back(id);
@@ -66,13 +69,13 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
       commandSenders_.try_emplace(getCommandSenderIdx(i, sq), *deviceLayer_, i, sq);
     }
   }
+  hostBufferManager_ = std::make_unique<HostBufferManager>(this, devices_[0]);
   auto dramBaseAddress = deviceLayer_->getDramBaseAddress();
   auto dramSize = deviceLayer_->getDramSize();
   RT_LOG(INFO) << std::hex << "Runtime initialization. Dram base addr: " << dramBaseAddress
                << " Dram size: " << dramSize;
   for (auto& d : devices_) {
     memoryManagers_.try_emplace(d, dramBaseAddress, dramSize, kBlockSize);
-    hostBufferManagers_.try_emplace(d, this, d);
     deviceTracing_.try_emplace(d, DeviceFwTracing{allocateDmaBuffer(d, kTracingFwBufferSize, false), nullptr, nullptr});
   }
   responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
@@ -97,7 +100,7 @@ std::vector<DeviceId> RuntimeImp::getDevices() {
 
 LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size_t size) {
   ScopedProfileEvent profileEvent(Class::LoadCode, profiler_, stream);
-  std::unique_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
 
   auto stInfo = streamManager_.getStreamInfo(stream);
 
@@ -166,7 +169,6 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
       eventManager_.dispatch(evt);
     });
   }
-  lock.unlock();
   return loadCodeResult;
 }
 
@@ -566,18 +568,6 @@ EventId RuntimeImp::abortStream(StreamId streamId) {
     // https://esperantotech.atlassian.net/browse/SW-9617
     lastEvt = abortCommand(events.back());
     RT_VLOG(LOW) << "Abort command event: " << static_cast<int>(lastEvt);
-    /*blockableThreadPool_.pushTask([this, lastEvt] {
-      RT_LOG(INFO) << "Waiting till abort command has been processed";
-      auto stInfo = streamManager_.getStreamInfo(lastEvt);
-      waitForEvent(lastEvt);
-      RT_LOG(INFO) << "Dispatching all runnning events after abort command. To be removed after fixing SW-9617";
-      auto events = streamManager_.getLiveEvents(stInfo->id_);
-      eventManager_.setThrowOnMissingEvent(false);
-      for (auto e : events) {
-        dispatch(e);
-      }
-      eventManager_.setThrowOnMissingEvent(true);
-    });*/
     return lastEvt;
   }
 }

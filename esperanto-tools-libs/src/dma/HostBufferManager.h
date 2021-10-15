@@ -13,6 +13,7 @@
 #include <bitset>
 #include <cstddef>
 #include <device-layer/IDeviceLayer.h>
+#include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -20,7 +21,7 @@
 
 namespace rt {
 constexpr auto kNumPages = 256;
-constexpr auto kPageSize = 1 << 20;
+constexpr auto kPageSize = (1 << (7 + 20)) / kNumPages;
 class HostBuffer;
 class HostAllocation {
 public:
@@ -83,6 +84,7 @@ class HostBufferManager {
 public:
   HostBufferManager(IRuntime* runtime, DeviceId device, uint32_t numBuffersInitially = 4);
   std::vector<HostAllocation> alloc(size_t size);
+  size_t getMaxAllocSize() const;
   ~HostBufferManager();
 
 private:

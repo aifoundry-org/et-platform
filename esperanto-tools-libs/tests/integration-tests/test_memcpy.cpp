@@ -55,6 +55,42 @@ TEST_F(TestMemcpy, SimpleMemcpy) {
   ASSERT_EQ(random_trash, result);
 }
 
+// Load and removal of a single kernel.
+TEST_F(TestMemcpy, SimpleMemcpyDmaBuffer) {
+  std::mt19937 gen(std::random_device{}());
+  std::uniform_int_distribution dis;
+
+  auto numElems = 1024 * 1024 * 10U;
+  auto dev = devices_[0];
+  auto stream = runtime_->createStream(dev);
+  auto random_trash = runtime_->allocateDmaBuffer(dev, numElems * sizeof(int), true);
+
+  auto ptr = reinterpret_cast<int*>(random_trash->getPtr());
+  for (auto i = 0U; i < numElems; ++i) {
+    ptr[i] = dis(gen);
+  }
+
+  // alloc memory in device
+  auto sizeBytes = random_trash->getSize();
+  auto d_buffer = runtime_->mallocDevice(dev, sizeBytes);
+
+  // copy from host to device and from device to result buffer host; check they are equal
+  runtime_->memcpyHostToDevice(stream, random_trash.get(), d_buffer, sizeBytes);
+  auto result = runtime_->allocateDmaBuffer(dev, numElems * sizeof(int), true);
+  ASSERT_NE(random_trash, result);
+
+  runtime_->memcpyDeviceToHost(stream, d_buffer, result.get(), sizeBytes);
+  runtime_->waitForStream(stream);
+
+  // check only the bytes copied, a dmabuffer could hold larger buffers (in that case there would be random trash at the
+  // end)
+  auto expectedPtr = reinterpret_cast<int*>(random_trash->getPtr());
+  auto actualResult = reinterpret_cast<int*>(result->getPtr());
+  for (auto i = 0U; i < numElems; ++i) {
+    ASSERT_EQ(expectedPtr[i], actualResult[i]) << "value number " << i << " is not equal.";
+  }
+}
+
 TEST_F(TestMemcpy, 4GbMemcpy) {
   using ValueType = uint32_t;
   std::mt19937 gen(std::random_device{}());

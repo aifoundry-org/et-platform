@@ -89,7 +89,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
   cmdPtr->command_info.cmd_hdr.size = sizeof(device_ops_api::device_ops_kernel_launch_cmd_t);
   if (optionalArgSize > 0) {
     auto size = cmdPtr->command_info.cmd_hdr.size + optionalArgSize;
-    cmdPtr->command_info.cmd_hdr.size = static_cast<msg_size_t>(size);
+    cmdPtr->command_info.cmd_hdr.size = static_cast<device_ops_api::msg_size_t>(size);
   }
   cmdPtr->command_info.cmd_hdr.flags = 0;
   if (barrier) {

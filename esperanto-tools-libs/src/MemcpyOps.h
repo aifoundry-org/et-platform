@@ -61,9 +61,9 @@ inline std::vector<DmaBufferInfo> getDmaBufferInfo(const std::vector<HostAllocat
 CommandsSentResult prepareAndSendCommands(MemcpyType memcpyType, bool barrierEnabled, StreamId stream,
                                           StreamManager* streamManager, EventManager* eventManager,
                                           const std::vector<DmaBufferInfo>& stageBuffers, CommandSender* commandSender,
-                                          const std::byte* devicePtr, bool enableCommands);
+                                          const std::byte* devicePtr, bool enableCommands, size_t maxSize);
 
 void doStagedCopyAndEnableCommands(threadPool::ThreadPool* threadPool, EventManager* eventManager, std::byte* hostPtr,
                                    std::vector<DmaBufferInfo> stageBuffers, std::vector<Command*> commands,
-                                   std::optional<EventId> syncEvent, MemcpyType type);
+                                   std::optional<EventId> syncEvent, MemcpyType type, size_t maxSize);
 } // namespace rt

@@ -10,6 +10,7 @@
 #include "HostBufferManager.h"
 #include "Utils.h"
 #include "runtime/IRuntime.h"
+#include <numeric>
 #include <sstream>
 
 using namespace rt;
@@ -136,9 +137,9 @@ std::vector<HostAllocation> HostBufferManager::alloc(size_t size) {
   for (auto it = begin(hostBuffers_); it != end(hostBuffers_) && remainingSize > 0; ++it) {
     auto& hb = *it;
     if (hb->getMaxSize() > 0) {
-      // since nobody can alloc at this time (because of the mutex), there is no risk to DECREASE the getMaxSize. It
-      // could increase tho, if someone did free a HostAllocation between this call and the allocation call itself. But
-      // that does not break this operation.
+      // since nobody can alloc at this time (because of the runtime mutex), there is no risk to DECREASE the
+      // getMaxSize. It could increase tho, if someone did free a HostAllocation between this call and the allocation
+      // call itself. But that does not break this operation.
       doAllocate(hb, remainingSize);
     }
   }
@@ -149,6 +150,11 @@ std::vector<HostAllocation> HostBufferManager::alloc(size_t size) {
     hostBuffers_.emplace_back(std::move(hb));
   }
   return result;
+}
+
+size_t HostBufferManager::getMaxAllocSize() const {
+  return std::accumulate(begin(hostBuffers_), end(hostBuffers_), 0U,
+                         [](size_t acum, const auto& hb) { return acum + hb->getMaxSize(); });
 }
 
 HostBufferManager::~HostBufferManager() {
