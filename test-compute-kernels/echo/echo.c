@@ -1,6 +1,6 @@
 #include "etsoc/isa/hart.h"
 
-#define INPUT_DATA 1024
+#define INPUT_DATA 0x4000 /* 16 KB */
 
 typedef struct {
     char input[INPUT_DATA];
