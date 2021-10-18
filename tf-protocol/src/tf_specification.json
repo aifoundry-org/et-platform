@@ -581,9 +581,11 @@
             "payload_args": {}
         },
         "TF_CMD_CM_TRACE_GET_INFO": {
-            "flags": 1,
-            "payload_size": 0,
-            "payload_args": {}
+            "flags": 2,
+            "payload_size": 4,
+            "payload_args": {
+                "buffer_id": "uint32_t"
+            }
         },
         "TF_CMD_CM_TRACE_GET_BUFFER": {
             "flags": 1,
