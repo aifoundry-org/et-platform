@@ -196,10 +196,18 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
         struct trace_buffer_std_header_t *trace_header =
             (struct trace_buffer_std_header_t *)MM_TRACE_BUFFER_BASE;
 
-        atomic_store_local_32(&(trace_header->magic_header), TRACE_MAGIC_HEADER);
-        atomic_store_local_32(&trace_header->data_size,
-                            sizeof(struct trace_buffer_std_header_t));
-        atomic_store_local_16(&(trace_header->type), TRACE_MM_BUFFER);
+
+        /* Update trace buffer header for buffer partitioning information.
+           One common buffer is used by all Harts to log Tracing. */
+        struct trace_buffer_std_header_t buf_header = {.magic_header = TRACE_MAGIC_HEADER,
+            .type = TRACE_MM_BUFFER, .data_size = sizeof(struct trace_buffer_std_header_t),
+            .sub_buffer_size = MM_TRACE_BUFFER_SIZE, .sub_buffer_count = 1};
+
+        buf_header.version.major = TRACE_VERSION_MAJOR;
+        buf_header.version.minor = TRACE_VERSION_MINOR;
+        buf_header.version.patch = TRACE_VERSION_PATCH;
+
+        ETSOC_MEM_COPY_AND_EVICT((void *)trace_header, (void *)&buf_header, sizeof(struct trace_buffer_std_header_t), to_L3)
     }
 
     /* Evict an updated control block to L2 memory. */

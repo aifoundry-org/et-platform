@@ -181,6 +181,16 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
         trace_header->type = TRACE_CM_BUFFER;
         trace_header->data_size = 0;
 
+        /* Update trace buffer header for buffer partitioning information.
+           Buffer is divided equally among all CM Harts, with fixed size per Hart. */
+        trace_header->sub_buffer_count = (uint16_t)CM_HART_COUNT;
+        trace_header->sub_buffer_size = CM_TRACE_BUFFER_SIZE_PER_HART;
+
+        /* populate Trace layout version in Header. */
+        trace_header->version.major = TRACE_VERSION_MAJOR;
+        trace_header->version.minor = TRACE_VERSION_MINOR;
+        trace_header->version.patch = TRACE_VERSION_PATCH;
+
         /* Set the default offset */
         CM_TRACE_CB[hart_cb_index].cb.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
 
@@ -437,6 +447,15 @@ void Trace_Init_UMode(const struct trace_init_info_t *init_info)
         trace_header->magic_header = TRACE_MAGIC_HEADER;
         trace_header->type = TRACE_CM_UMODE_BUFFER;
         trace_header->data_size = 0;
+
+        /* Update trace buffer header for buffer partitioning information. Buffer is divided equally among all Trace enabled Harts. */
+        trace_header->sub_buffer_count = (uint16_t)GET_TRACE_ENABLED_HART_COUNT(init_info->shire_mask, init_info->thread_mask);
+        trace_header->sub_buffer_size = cb->size_per_hart;
+
+        /* populate Trace layout version in Header. */
+        trace_header->version.major = TRACE_VERSION_MAJOR;
+        trace_header->version.minor = TRACE_VERSION_MINOR;
+        trace_header->version.patch = TRACE_VERSION_PATCH;
 
         /* Set the default offset */
         cb->offset_per_hart = sizeof(struct trace_buffer_std_header_t);
