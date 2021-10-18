@@ -59,8 +59,9 @@ struct trace_buffer_std_header_t;
  *
  *   DESCRIPTION
  *
- *       This function decodes a trace sub buffer (with trace standard header)
- *       one entry at a time.
+ *       This function decodes a trace buffer (with trace standard header)
+ *       one entry at a time. If buffer has has sub-buffer partitions,
+ *       this function decode those sub-buffers as well.
  *
  *   INPUTS
  *
@@ -115,6 +116,14 @@ const struct trace_entry_header_t *Trace_Decode_Sub(const struct trace_buffer_si
 
 #include <stdlib.h>
 
+static inline bool check_trace_layout_version(const struct trace_version_t *buf_version)
+{
+    /* Check if Trace layout version of given buffer is supported by decoder or not. */
+    return (buf_version->major == TRACE_VERSION_MAJOR) &&
+           (buf_version->minor == TRACE_VERSION_MINOR) &&
+           (buf_version->patch == TRACE_VERSION_PATCH);
+}
+
 static inline const struct trace_entry_header_t *get_next_trace_event(const struct trace_entry_header_t *packet)
 {
     size_t payload_size = 0;
@@ -162,34 +171,102 @@ static inline const struct trace_entry_header_t *get_next_trace_event(const stru
     return ((struct trace_entry_header_t *)((const uint8_t *)packet + payload_size));
 }
 
+/*! \fn decode_next_valid_sub_buffer
+    \brief This function traverse sub-buffer after given buffer index.
+           It return first entry if of first sub-buffer which has valid data.
+           If no processding sub-buffers has valid data, then it returns NULL.
+*/
+static inline const struct trace_entry_header_t *decode_next_valid_sub_buffer(
+    const struct trace_buffer_std_header_t *tb,
+    uint16_t buf_index)
+{
+    struct trace_buffer_size_header_t *base = NULL;
+    struct trace_entry_header_t *next = NULL;
+    /* */
+    for (size_t i = (buf_index + 1); i < (tb->sub_buffer_count - 1); i++)
+    {
+        /* Get the base of Nth sub buffer */
+        base = (struct trace_buffer_size_header_t *)((uint64_t)tb +
+                (uint64_t)(i * tb->sub_buffer_size));
+
+        /* Check if this buffer has any trace data in it. */
+        if (base->data_size > sizeof(struct trace_buffer_size_header_t))
+        {
+            /* Found data in this sub-buffer, return first packet of this sub-buffer. */
+            next = (struct trace_entry_header_t *)(base+1);
+            break;
+        }
+    }
+
+    return next;
+}
+
 const struct trace_entry_header_t *Trace_Decode(const struct trace_buffer_std_header_t *tb,
                 const struct trace_entry_header_t *prev)
 {
     if (tb == NULL)
         return NULL;
 
-    const size_t buffer_size = tb->data_size;
+    size_t payload_size = tb->data_size;
+    uint64_t base_addr = (uint64_t) tb;
+    uint16_t buf_index = 0;
 
     if (prev == NULL) {
         /* Check if valid trace buffer */
-        if (tb->magic_header != TRACE_MAGIC_HEADER)
+        if ((tb->magic_header != TRACE_MAGIC_HEADER) || !(check_trace_layout_version(&tb->version)))
+        {
             return NULL;
-        if (buffer_size <= sizeof(struct trace_buffer_std_header_t))
+        }
+        else if (payload_size > sizeof(struct trace_buffer_std_header_t))
+        {
+            /* First entry */
+            return (struct trace_entry_header_t *)(tb + 1);
+        }
+        else if (tb->sub_buffer_count > 1)
+        {
+            /* First buffer do not have any data, check data in next sub-buffers */
+            return decode_next_valid_sub_buffer(tb, buf_index);
+        }
+        else
+        {
             return NULL;
-        /* First entry */
-        return (struct trace_entry_header_t *)(tb + 1);
+        }
+    }
+    else if (prev < (const void *)tb)
+    {
+        /* Invalid prev entry */
+        return NULL;
+    }
+    else if (tb->sub_buffer_count > 1)
+    {
+        buf_index = ((uint64_t)prev - (uint64_t)tb)  / tb->sub_buffer_size;
+        /* Previous event node lies in sub buffer? */
+        if ((buf_index > 0) && (buf_index < tb->sub_buffer_count))
+        {
+            struct trace_buffer_size_header_t *base = (struct trace_buffer_size_header_t *)((uint64_t)tb +
+                        (uint64_t)(buf_index * tb->sub_buffer_size));
+            payload_size = base->data_size;
+            base_addr = (uint64_t) base;
+        }
     }
 
-    /* Invalid prev entry */
-    if (prev < (const void *)tb)
-        return NULL;
+    /* Get next trace event. */
+    const struct trace_entry_header_t *next = get_next_trace_event(prev);
 
-    const struct trace_entry_header_t *next = get_next_trace_event(prev);;
-
-    /* End of buffer? */
-    const size_t cur_size = (const uint8_t *)next - (const uint8_t *)tb;
-    if (cur_size >= buffer_size)
-        return NULL;
+    /* End of buffer current buffer? */
+    const size_t cur_size = (uint64_t)next - base_addr;
+    if (cur_size >= payload_size)
+    {
+        if (tb->sub_buffer_count > 1)
+        {
+            /* There is no more data in current buffer, get next sub-buffer which has data. */
+            next = decode_next_valid_sub_buffer(tb, buf_index);
+        }
+        else
+        {
+            return NULL;
+        }
+    }
 
     return next;
 }

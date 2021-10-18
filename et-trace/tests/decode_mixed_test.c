@@ -83,7 +83,6 @@ static void check_random_entry(const void *entry)
 int main(int argc, const char **argv)
 {
     static const size_t trace_size = 4096 * 4;
-    static const uint32_t test_tag = 0x5AD;
     static const int n_entries = 10;
 
     struct user_args uargs;

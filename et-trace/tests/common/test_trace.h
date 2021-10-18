@@ -26,6 +26,11 @@ struct trace_buffer_std_header_t *test_trace_create(struct trace_control_block_t
 
     buf->magic_header = TRACE_MAGIC_HEADER;
     buf->data_size = sizeof(struct trace_buffer_std_header_t);
+    buf->sub_buffer_count = 1;
+    buf->sub_buffer_size = size;
+    buf->version.major = TRACE_VERSION_MAJOR;
+    buf->version.minor = TRACE_VERSION_MINOR;
+    buf->version.patch = TRACE_VERSION_PATCH;
 #ifdef MASTER_MINION
     buf->type = TRACE_MM_BUFFER;
 #else

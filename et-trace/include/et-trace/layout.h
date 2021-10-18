@@ -77,6 +77,21 @@ extern "C" {
 */
 #define TRACE_MAGIC_HEADER 0x76543210
 
+/*! \def TRACE_VERSION_MAJOR
+    \brief This is Trace layout version (major).
+*/
+#define TRACE_VERSION_MAJOR 0
+
+/*! \def TRACE_VERSION_MINOR
+    \brief This is Trace layout version (minor).
+*/
+#define TRACE_VERSION_MINOR 1
+
+/*! \def TRACE_VERSION_PATCH
+    \brief This is Trace layout version (patch).
+*/
+#define TRACE_VERSION_PATCH 0
+
 /*! \def TRACE_DEV_CONTEXT_GPRS
     \brief Macro that represents the total number of GPRs in device context.
 */
@@ -165,6 +180,15 @@ enum pmc_counter {
 };
 
 /*
+ * Trace Layout version.
+ */
+struct trace_version_t {
+    uint16_t major;
+    uint16_t minor;
+    uint16_t patch;
+} __attribute__((packed));
+
+/*
  * Global tracing information used to initialize Trace.
  */
 struct trace_init_info_t {
@@ -195,10 +219,14 @@ struct trace_buffer_size_header_t {
            not matter if it divided into sub-buffers or not
 */
 struct trace_buffer_std_header_t {
-    uint32_t magic_header; /**< Esperanto magic header. */
-    uint32_t data_size;    /**< Data in the buffer. */
-    uint16_t type;         /**< Buffer type one of enum trace_buffer_type_e. */
-    uint8_t pad[6];        /**< Padding for Cache alignment. */
+    uint32_t magic_header;          /**< Esperanto magic header. */
+    struct trace_version_t version; /**< Trace Layout version Major, Minor, and Patch */
+    uint16_t type;                  /**< Buffer type one of enum trace_buffer_type_e. */
+    uint32_t data_size;             /**< Data size after trace buffer standard header. It does not include data
+                                         in sub-buffers (if present) */
+    uint32_t sub_buffer_size;       /**< Size of one partition on Trace buffer, All partitions must be equal in size. */
+    uint16_t sub_buffer_count;      /**< Number of Trace buffer partitions. */
+    uint8_t pad[2];
 } __attribute__((packed));
 
 /*! \struct trace_entry_header_t
