@@ -43,6 +43,7 @@ constexpr auto kTracingFwMmSize = 4 * (1 << 20);
 constexpr auto kTracingFwCmSize = 1 * (1 << 20);
 constexpr auto kTracingFwBufferSize = kTracingFwCmSize + kTracingFwMmSize;
 constexpr int kEnableTracingBit = 1 << 0;
+constexpr int kTraceRtControlLogToUart = 1 << 1;
 constexpr int kResetTraceBufferAddressBit = 1 << 2; // Reset Trace buffer point to device side Trace Buffer base address
 constexpr auto kNumErrorContexts = 2080;
 constexpr auto kExceptionBufferSize = sizeof(ErrorContext) * kNumErrorContexts;
@@ -452,10 +453,10 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
 
   std::vector<std::byte> cmd(sizeof(device_ops_api::device_ops_data_read_cmd_t));
   auto cmdPtr = reinterpret_cast<device_ops_api::device_ops_data_read_cmd_t*>(cmd.data());
-  std::memset(cmdPtr, 0, sizeof(cmd));
+  std::memset(cmdPtr, 0, cmd.size());
   cmdPtr->command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
   cmdPtr->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD;
-  cmdPtr->command_info.cmd_hdr.size = sizeof(cmd);
+  cmdPtr->command_info.cmd_hdr.size = static_cast<device_ops_api::msg_size_t>(cmd.size());
   if (barrier) {
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
   }
@@ -467,6 +468,7 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_CMFW_TRACEBUF;
     cmdPtr->size += kTracingFwCmSize;
   }
+  RT_VLOG(LOW) << "Retrieving device traces. Size: " << std::hex << cmdPtr->size;
   cmdPtr->dst_host_virt_addr = cmdPtr->dst_host_phy_addr =
     reinterpret_cast<uint64_t>(deviceTracing.dmaBuffer_->getPtr());
 

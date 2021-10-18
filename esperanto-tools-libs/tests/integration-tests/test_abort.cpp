@@ -71,8 +71,6 @@ TEST_F(TestAbort, abortStream) {
     RT_LOG(WARNING) << "Abort Stream is not supported in sysemu. Returning.";
     FAIL();
   }
-  RT_LOG(WARNING) << "Disabling this test until SW-9617 is implemented.";
-  return;
   auto eventsReported = std::set<rt::EventId>{};
   runtime_->setOnStreamErrorsCallback([&eventsReported](rt::EventId event, const rt::StreamError& error) {
     ASSERT_EQ(error.errorCode_, rt::DeviceErrorCode::KernelLaunchHostAborted);
@@ -85,7 +83,7 @@ TEST_F(TestAbort, abortStream) {
   bool done = false;
   auto commandsSent = 0U;
   auto commandsToSend = 10U;
-  rimp->setSentCommandCallback(defaultDevice_, [this, &done, &commandsSent, commandsToSend](rt::Command* cmd) {
+  rimp->setSentCommandCallback(defaultDevice_, [this, &done, &commandsSent, commandsToSend](rt::Command*) {
     commandsSent++;
     if (commandsSent == commandsToSend) {
       RT_LOG(INFO) << "All commands sent. Now aborting stream.";
