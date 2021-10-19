@@ -886,7 +886,6 @@ int pcie_get_speed(char *pcie_speed)
 int PShire_Initialize(void)
 {
     uint8_t hpdpll_strap_pins;
-    uint8_t pll_mode;
     PCIe_release_pshire_from_reset();
     /*Configure PShire PLL to 1010 Mhz */
     hpdpll_strap_pins = get_hpdpll_strap_value();
