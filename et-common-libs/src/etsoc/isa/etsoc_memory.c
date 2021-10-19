@@ -24,9 +24,10 @@
         ETSOC_Memory_Write_SCP
 */
 /***********************************************************************/
-#include "etsoc/isa/mem-access/etsoc_memory.h"
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/etsoc_memory.h"
+#include "etsoc/isa/io.h"
 #include "etsoc/isa/atomic.h"
+#include "system/layout.h"
 #ifdef MEM_DEBUG
 #include "../../../MasterMinion/include/services/log.h"
 #endif
@@ -212,6 +213,26 @@ static inline void io_write_64(volatile uint64_t *addr, uint64_t val)
         --length;                                                                                   \
     }                                                                                               \
 })
+
+/*! \var void memory_read
+    \brief An array containing function pointers to ETSOC memory read functions.
+    \warning Not thread safe!
+*/
+int8_t (*memory_read[MEM_TYPES_COUNT])
+    (const void *src_ptr, void *dest_ptr, uint64_t length) __attribute__((aligned(64))) =
+    { ETSOC_Memory_Read_Local_Atomic, ETSOC_Memory_Read_Global_Atomic,
+      ETSOC_Memory_Read_Uncacheable, ETSOC_Memory_Read_Write_Cacheable,
+      ETSOC_Memory_Read_SCP };
+
+/*! \var void memory_write
+    \brief An array containing function pointers to ETSOC memory write functions.
+    \warning Not thread safe!
+*/
+int8_t (*memory_write[MEM_TYPES_COUNT])
+    (const void *src_ptr, void *dest_ptr, uint64_t length) __attribute__((aligned(64))) =
+    { ETSOC_Memory_Write_Local_Atomic, ETSOC_Memory_Write_Global_Atomic,
+      ETSOC_Memory_Write_Uncacheable, ETSOC_Memory_Read_Write_Cacheable,
+      ETSOC_Memory_Write_SCP };
 
 /************************************************************************
 *
@@ -475,6 +496,9 @@ int8_t ETSOC_Memory_Read_Write_Cacheable(const void *src_ptr, void *dest_ptr, ui
 ***********************************************************************/
 int8_t ETSOC_Memory_Read_SCP(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
+    /* TODO: Supressing these access methods since they use SCP macros
+    from layout.h, this could be moved to etsoc_hal */
+
     /* Verify the shire index and address range of shire L2 SCP */
     if((ETSOC_SCP_GET_SHIRE_ID((uint64_t)src_ptr) < NUM_SHIRES) &&
         (ETSOC_SCP_GET_SHIRE_OFFSET((uint64_t)src_ptr) < ETSOC_SCP_GET_SHIRE_SIZE))
@@ -514,6 +538,9 @@ int8_t ETSOC_Memory_Read_SCP(const void *src_ptr, void *dest_ptr, uint64_t lengt
 ***********************************************************************/
 int8_t ETSOC_Memory_Write_SCP(const void *src_ptr, void *dest_ptr, uint64_t length)
 {
+    /* TODO: Supressing these access methods since they use SCP macros
+    from layout.h, this could be moved to etsoc_hal */
+
     /* Verify the shire index and address range of shire L2 SCP */
     if((ETSOC_SCP_GET_SHIRE_ID((uint64_t)dest_ptr) < NUM_SHIRES) &&
         (ETSOC_SCP_GET_SHIRE_OFFSET((uint64_t)dest_ptr) < ETSOC_SCP_GET_SHIRE_SIZE))

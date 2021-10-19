@@ -1,5 +1,5 @@
-#ifndef LOG_LEVEL_H
-#define LOG_LEVEL_H
+#ifndef _LOG_COMMON_H_
+#define _LOG_COMMON_H_
 
 #include <stdint.h>
 
@@ -33,4 +33,4 @@ typedef enum {
     LOG_LEVEL_TRACE = 5
 } log_level_e;
 
-#endif
+#endif /* _LOG_COMMON_H_ */

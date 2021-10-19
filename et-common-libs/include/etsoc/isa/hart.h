@@ -19,13 +19,15 @@ extern "C" {
 
 #define THIS_SHIRE 0xFF
 
+#include <stdint.h>
+
 static inline unsigned int __attribute__((always_inline, const)) get_hart_id(void)
 {
-    unsigned int ret;
+    uint64_t ret;
 
     __asm__ __volatile__("csrr %0, hartid" : "=r"(ret));
 
-    return ret;
+    return (unsigned int)ret;
 }
 
 static inline unsigned int __attribute__((always_inline, const)) get_shire_id(void)

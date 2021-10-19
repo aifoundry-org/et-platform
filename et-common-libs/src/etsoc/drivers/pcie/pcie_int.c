@@ -9,9 +9,11 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/io.h"
 #include "etsoc/drivers/pcie/pcie_int.h"
+#include "etsoc/drivers/pcie/pcie_device.h"
 #include "etsoc/isa/atomic.h"
+#include "etsoc/isa/etsoc_rt_memory.h"
 
 /*! \enum pcie_int_t
     \brief Enum which specifies the PCI interrupt types
@@ -111,45 +113,28 @@ static uint32_t pcie_get_int_vecs(pcie_int_t int_type)
 
 static inline pcie_int_t pcie_cb_get_int_type(void)
 {
-#if defined(MASTER_MINION)
-    return atomic_load_local_32(&PCIE_CB.int_type);
-#else
-    return PCIE_CB.int_type;
-#endif
+    return ETSOC_RT_MEM_READ_32(&PCIE_CB.int_type);
 }
 
 static inline uint32_t pcie_cb_get_int_vecs(void)
 {
-#if defined(MASTER_MINION)
-    return atomic_load_local_32(&PCIE_CB.int_vecs);
-#else
-    return PCIE_CB.int_vecs;
-#endif
+    return ETSOC_RT_MEM_READ_32(&PCIE_CB.int_vecs);
 }
 
 static void pcie_cb_init(void)
 {
-    pcie_int_t int_type = pcie_get_int_type();
-
-#if defined(MASTER_MINION)
-   atomic_store_local_32(&PCIE_CB.int_type, int_type);
-   atomic_store_local_32(&PCIE_CB.int_vecs, pcie_get_int_vecs(int_type));
-   atomic_store_local_32(&PCIE_CB.initialized, 1U);
-#else
-   PCIE_CB.int_type = int_type;
-   PCIE_CB.int_vecs = pcie_get_int_vecs(int_type);
-   PCIE_CB.initialized = 0x1U;
-#endif
+    uint32_t temp32 = pcie_get_int_type();
+    ETSOC_RT_MEM_WRITE_32(&PCIE_CB.int_type, temp32);
+    temp32 = pcie_get_int_vecs(temp32);
+    ETSOC_RT_MEM_WRITE_32(&PCIE_CB.int_vecs, temp32);
+    temp32 = 1;
+    ETSOC_RT_MEM_WRITE_32(&PCIE_CB.initialized, temp32);
 }
 
 int pcie_interrupt_host(uint32_t vec)
 {
     /* The first time this function is called, only then initialize the PCIE CB */
-#if defined(MASTER_MINION)
-    if (atomic_load_local_32(&PCIE_CB.initialized) == 0U)
-#else
-    if(PCIE_CB.initialized == 0)
-#endif
+    if(ETSOC_RT_MEM_READ_32(&PCIE_CB.initialized) == 0)
     {
         pcie_cb_init();
     }

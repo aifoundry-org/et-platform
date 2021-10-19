@@ -26,30 +26,21 @@ find_package(esperantoTrace REQUIRED)
 
 include(GNUInstallDirs)
 
-# Build and install Compute Minion User Mode libs
-include(cm_umode.cmake)
-
 # Build and install SP Bootloader lib 
 include(sp_bl1.cmake)
 include(sp_bl2.cmake)
 
-# Build and install Minion Bootloader lib
+# Build and install Compute Minion User Mode libs
+include(cm_umode.cmake)
+
+# Build and install Minion Bootloader lib for m-mode
 include(minion_bl.cmake)
 
-# Build and install Compute Minion Supervisory Mode libs
-#include(cm_smode.cmake)
+# Build and install Master Minion Run Time Services lib
+include(mm_rt_svcs.cmake)
 
-# Build and install Compute Minion Machine Mode libs
-#include(cm_mmode.cmake)
-
-# Build and install Master Minion Supervisory Mode libs
-#include(mm_smode.cmake)
-
-# Build and install Master Minion Machine Mode libs
-#include(mm_mmode.cmake)
-
-# Build and install Service Processor libs
-#include(sp.cmake)
+# Build and install Compute Minion Run Time Services lib
+include(cm_rt_svcs.cmake)
 
 
 # Install

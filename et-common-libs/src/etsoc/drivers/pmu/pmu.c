@@ -11,7 +11,7 @@
 
 #include "etsoc/isa/esr_defines.h"
 #include "etsoc/isa/hart.h"
-#include "etsoc/hal/pmu.h"
+#include "etsoc/drivers/pmu/pmu.h"
 
 // Configure PMCs
 // reset_counters is a boolean that determines whether we reset / start counters after the configuration

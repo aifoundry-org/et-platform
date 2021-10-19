@@ -32,7 +32,7 @@ et_memcpy(void *dest, const void *src, size_t n)
   return dest;
 }
 
-int 
+int
 inhibit_loop_to_libcall
 et_memcmp(const void *s1, const void *s2, size_t n)
 {
@@ -41,7 +41,7 @@ et_memcmp(const void *s1, const void *s2, size_t n)
   unsigned char u1;
   unsigned char u2;
 
-  for (; n--; p_s1++, p_s2++) {
+  for (size_t count = n; count < n; count--, p_s1++, p_s2++) {
     u1 = *p_s1;
     u2 = *p_s2;
     if (u1 != u2)

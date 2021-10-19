@@ -39,6 +39,7 @@ extern "C" {
 #define TENSOR_REDUCE_OP_FGET 8
 
 #define TENSOR_LOAD_WAIT_0 0
+#define TENSOR_LOAD_WAIT_1 1
 #define TENSOR_FMA_WAIT 7
 #define TENSOR_STORE_WAIT 8
 #define TENSOR_REDUCE_WAIT 9
@@ -55,8 +56,10 @@ extern "C" {
 
 #if defined(__cplusplus) && (__cplusplus >= 201103L)
 #include <cinttypes>
+#include <cstdbool>
 #else
 #include <inttypes.h>
+#include <stdbool.h>
 #endif
 
 typedef enum {
@@ -70,6 +73,17 @@ typedef enum {
    IMIN = 0x7ULL,
    FGET = 0x8ULL
 } reduce_transform_t;
+
+//-------------------------------------------------------------------------------------------------
+//
+// FUNCTION tensorWait
+//
+//   Tensor wait instruction, input parameter defines what the wait is for
+//
+inline __attribute__((always_inline)) void tensor_wait(long id)
+{
+    __asm__ __volatile__(" csrw 0x830, %[id]\n" : : [id] "r"(id) : "memory");
+}
 
 inline void __attribute__((always_inline)) tensor_load (bool     use_tmask,
                                                         bool     use_coop,
@@ -432,23 +446,10 @@ inline void __attribute__((always_inline)) tensor_mask(uint64_t zeros, uint64_t 
          );
 }
 
-inline void __attribute__((always_inline)) tensor_coop(uint64_t neigh_mask, uint64_t minion_mask, uint64_t coop_id)
+inline void __attribute__((always_inline)) tensor_coop(uint64_t val)
 {
-   uint64_t warl = 0;
-   uint64_t csr_enc = ((warl        & 0xFFFFFFFFFFF) << 20) |
-                      ((neigh_mask  & 0xFF         ) << 16) |
-                      ((minion_mask & 0xFF         ) <<  8) |
-                      ((warl        & 0x7          ) <<  6) |
-                      ((coop_id     & 0x1F         ) <<  0);
-
-   __asm__ __volatile__ (
-         "csrw 0x804, %[csr_enc]\n"
-         :
-         : [csr_enc] "r" (csr_enc)
-         :
-         );
+    __asm__ __volatile__("csrw 0x804, %[val]\n" : : [val] "r"(val) :);
 }
-
 
 inline void __attribute__((always_inline)) convolution_ctrl(uint64_t row_start, uint64_t col_start)
 {

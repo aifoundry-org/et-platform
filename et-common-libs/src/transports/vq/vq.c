@@ -46,58 +46,32 @@
 *
 *   INPUTS
 *
+*       vq_cb        Pointer to virtual queue control block
 *       vq_base      Virtual queue base address
 *       vq_size      Virtual queue size
+*       peek_offset  Base offset to peek everytime in VQ access
+*       peek_length  Length of data to peek in VQ
+*       vq_flags     VQ access flags
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size,
-        uint16_t peek_offset, uint16_t peek_length, uint32_t flags)
+int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size, uint16_t peek_offset,
+    uint16_t peek_length, uint32_t vq_flags)
 {
-    int8_t status = -1;
+    int8_t status;
+    uint64_t temp64 = 0;
 
-    /* Use local atomic stores for Master Minion */
-#if defined(MASTER_MINION)
-    uint64_t temp = 0;
+    ETSOC_RT_MEM_WRITE_64((uint64_t*)&vq_cb->circbuff_cb, vq_base);
 
-    /* Initialize the virtual queue control block */
-    atomic_store_local_64((uint64_t*)&vq_cb->circbuff_cb,
-        (uint64_t)vq_base);
-
-    temp = (((uint64_t)flags << 32) |
-        ((uint32_t)peek_length << 16) |
+    temp64 = (((uint64_t)vq_flags << 32) | ((uint32_t)peek_length << 16) |
         peek_offset);
-    atomic_store_local_64((uint64_t*)(void*)&vq_cb->cmd_size_peek_offset,
-        temp);
+    ETSOC_RT_MEM_WRITE_64((uint64_t*)(void*)&vq_cb->cmd_size_peek_offset, temp64);
 
-    /* Initialize the circular buffer in shared memory */
     status = Circbuffer_Init((circ_buff_cb_t*)vq_base,
-        (uint32_t)(vq_size - sizeof(circ_buff_cb_t)),
-        atomic_load_local_32(&vq_cb->flags));
-
-#elif defined(SERVICE_PROCESSOR_BL2)
-    /* Initialize the virtual queue control block */
-    vq_cb->circbuff_cb = (circ_buff_cb_t*) vq_base;
-    vq_cb->cmd_size_peek_offset = peek_offset;
-    vq_cb->cmd_size_peek_length = peek_length;
-    vq_cb->flags = flags;
-
-    /* Initialize the SQ circular buffer */
-    status = Circbuffer_Init(vq_cb->circbuff_cb,
-        (uint32_t)(vq_size - sizeof(circ_buff_cb_t)), vq_cb->flags);
-
-#else
-    /* Unused variables */
-    (void)vq_cb;
-    (void)vq_base;
-    (void)vq_size;
-    (void)peek_offset;
-    (void)peek_length;
-    (void)flags;
-#endif
+        (uint32_t)(vq_size - sizeof(circ_buff_cb_t)), vq_flags);
 
     return status;
 }
@@ -123,9 +97,9 @@ int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size,
 *       int8_t    status of virtual queue push operation
 *
 ***********************************************************************/
-int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size)
+int8_t VQ_Push(vq_cb_t* vq_cb, const void* data, uint32_t data_size)
 {
-    int8_t status = -1;
+    int8_t status;
 
     #ifdef VQ_DEBUG_LOG
     Log_Write(LOG_LEVEL_DEBUG, "%s%p%s%p%s%d%s",
@@ -133,22 +107,9 @@ int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size)
         data, ":data_size:", data_size, "\r\n");
     #endif
 
-    /* Use local atomic load/stores for Master Minion */
-#if defined(MASTER_MINION)
     status = Circbuffer_Push((circ_buff_cb_t*)(uintptr_t)
-        atomic_load_local_64((uint64_t*)(void*)&vq_cb->circbuff_cb), data,
-        data_size, atomic_load_local_32(&vq_cb->flags));
-
-#elif defined(SERVICE_PROCESSOR_BL2)
-    status = Circbuffer_Push(vq_cb->circbuff_cb, data,
-        data_size, vq_cb->flags);
-
-#else
-    /* Unused variables */
-    (void)vq_cb;
-    (void)data;
-    (void)data_size;
-#endif
+        ETSOC_RT_MEM_READ_64((uint64_t*)&vq_cb->circbuff_cb),
+        data, data_size, ETSOC_RT_MEM_READ_32(&vq_cb->flags));
 
     return status;
 }
@@ -180,34 +141,13 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
     int32_t return_val;
     cmd_size_t command_size;
 
-    /* Use local atomic load/stores for Master Minion */
-#if defined(MASTER_MINION)
-    uint64_t temp_addr;
-    uint64_t temp_vals;
+    uint64_t temp_addr_64 = ETSOC_RT_MEM_READ_64((uint64_t*)&vq_cb->circbuff_cb);
+    uint64_t temp_val_64 = ETSOC_RT_MEM_READ_64((uint64_t*)(void*)&vq_cb->cmd_size_peek_offset);
 
-    /* Load the required variables */
-    temp_addr =
-        atomic_load_local_64((uint64_t*)(void*)&vq_cb->circbuff_cb);
-    temp_vals =
-        atomic_load_local_64((uint64_t*)(void*)&vq_cb->cmd_size_peek_offset);
-
-    /* Peek the command size to pop from SQ */
-    return_val = Circbuffer_Peek((circ_buff_cb_t*)(uintptr_t)temp_addr,
-        (void *)&command_size, (uint16_t)(temp_vals & 0xFFFF),
-        (uint16_t)((temp_vals >> 16) & 0xFFFF),
-        (uint32_t)(temp_vals >> 32));
-
-#elif defined(SERVICE_PROCESSOR_BL2)
-    /* Peek the command size to pop from SQ */
-    return_val = Circbuffer_Peek(vq_cb->circbuff_cb, (void *)&command_size,
-        vq_cb->cmd_size_peek_offset, vq_cb->cmd_size_peek_length,
-        vq_cb->flags);
-
-#else
-    /* Unused variables */
-    (void)vq_cb;
-    (void)rx_buff;
-#endif
+    return_val = Circbuffer_Peek((circ_buff_cb_t*)temp_addr_64,
+        (void *)&command_size, (uint16_t)(temp_val_64 & 0xFFFF),
+        (uint16_t)((temp_val_64 >> 16) & 0xFFFF),
+        (uint32_t)(temp_val_64 >> 32));
 
     if (return_val == STATUS_SUCCESS)
     {
@@ -216,19 +156,13 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
             "VQ_Pop:src_addr:", vq_cb->circbuff_cb, ":dst_addr:",
             rx_buff, ":data_size:", command_size, "\r\n");
         #endif
+
         if (command_size > 0)
         {
-            /* Use local atomic load/stores for Master Minion */
-#if defined(MASTER_MINION)
             /* Pop the command from circular buffer */
-            return_val = Circbuffer_Pop((circ_buff_cb_t*)(uintptr_t)temp_addr,
-                rx_buff, command_size, (uint32_t)(temp_vals >> 32));
+            return_val = Circbuffer_Pop((circ_buff_cb_t*)temp_addr_64,
+                rx_buff, command_size, (uint32_t)(temp_val_64 >> 32));
 
-#elif defined(SERVICE_PROCESSOR_BL2)
-            /* Pop the command from circular buffer */
-            return_val = Circbuffer_Pop(vq_cb->circbuff_cb, rx_buff,
-                command_size, vq_cb->flags);
-#endif
             if (return_val == STATUS_SUCCESS)
             {
                 return_val = command_size;
@@ -302,7 +236,8 @@ int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
         {
             /* Pop the command payload from circular buffer */
             return_val = Circbuffer_Read(vq_cb->circbuff_cb, shared_mem_ptr,
-                ((uint8_t*)rx_buff) + DEVICE_CMD_HEADER_SIZE, payload_size, vq_cb->flags);
+                ((uint8_t*)rx_buff) + DEVICE_CMD_HEADER_SIZE,
+                payload_size, vq_cb->flags);
 
             /* Populate the popped size */
             if (return_val == STATUS_SUCCESS)
@@ -449,26 +384,11 @@ int32_t VQ_Process_Command(void* cmds_buff, uint64_t buffer_size, uint32_t buffe
 int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset,
     uint16_t peek_length)
 {
-    int8_t status = -1;
+    int8_t status;
 
-    /* Use local atomic load/stores for Master Minion */
-#if defined(MASTER_MINION)
     status = Circbuffer_Peek((circ_buff_cb_t*)(uintptr_t)
-        atomic_load_local_64((uint64_t*)(void*)&vq_cb->circbuff_cb),
-        peek_buff, peek_offset, peek_length,
-        atomic_load_local_32(&vq_cb->flags));
-
-#elif defined(SERVICE_PROCESSOR_BL2)
-    status = Circbuffer_Peek(vq_cb->circbuff_cb, peek_buff,
-                peek_offset, peek_length, vq_cb->flags);
-
-#else
-    /* Unused variables */
-    (void)vq_cb;
-    (void)peek_buff;
-    (void)peek_offset;
-    (void)peek_length;
-#endif
+        ETSOC_RT_MEM_READ_64((uint64_t*)&vq_cb->circbuff_cb),
+        peek_buff, peek_offset, peek_length, ETSOC_RT_MEM_READ_32(&vq_cb->flags));
 
     return status;
 }
@@ -494,22 +414,9 @@ int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset,
 ***********************************************************************/
 bool VQ_Data_Avail(vq_cb_t* vq_cb)
 {
-    /* Use local atomic load/stores for Master Minion */
-#if defined(MASTER_MINION)
     return (Circbuffer_Get_Used_Space((circ_buff_cb_t*)(uintptr_t)
-            atomic_load_local_64((uint64_t*)(void*)&vq_cb->circbuff_cb),
-            atomic_load_local_32(&vq_cb->flags)) > 0);
-
-#elif defined(SERVICE_PROCESSOR_BL2)
-    return (Circbuffer_Get_Used_Space(vq_cb->circbuff_cb,
-            vq_cb->flags) > 0);
-
-#else
-    /* Unused variables */
-    (void)vq_cb;
-
-    return false;
-#endif
+        ETSOC_RT_MEM_READ_64((uint64_t*)&vq_cb->circbuff_cb),
+        ETSOC_RT_MEM_READ_32(&vq_cb->flags)) > 0);
 }
 
 /************************************************************************

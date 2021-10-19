@@ -15,37 +15,34 @@ set(SP_BL2_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/esperanto-fw/lib/et-common-lib
 
 #Listing of header only public interfaces
 set(SP_BL2_HDRS
-    include/etsoc/common/print_exception.h
-    include/etsoc/common/log_common.h
     include/etsoc/common/common_defs.h
+    include/etsoc/common/log_common.h
     include/etsoc/common/utils.h
     include/etsoc/drivers/pcie/pcie_int.h
-    include/etsoc/hal/pmu.h
+    include/etsoc/drivers/pmu/pmu.h
     include/etsoc/isa/atomic.h
     include/etsoc/isa/atomic-impl.h
-    include/etsoc/isa/mem-access/etsoc_memory.h
-    include/etsoc/isa/mem-access/io.h
+    include/etsoc/isa/etsoc_memory.h
+    include/etsoc/isa/io.h
     include/etsoc/isa/cacheops.h
     include/etsoc/isa/esr_defines.h
     include/etsoc/isa/fcc.h
     include/etsoc/isa/utils.h
     include/transports/vq/vq.h
     include/transports/circbuff/circbuff.h
-    include/transports/mm_cm_iface/sp_mm_comms_spec.h
+    include/transports/sp_mm_iface/sp_mm_comms_spec.h
     include/transports/mm_cm_iface/message_types.h
     include/transports/sp_mm_iface/sp_mm_iface.h
-    include/config/sp_mm_shared_config.h
+    include/transports/sp_mm_iface/sp_mm_shared_config.h
     include/system/layout.h
-    include/system/layout.ld
     include/system/etsoc_ddr_region_map.h
-    include/config/minion_fw_boot_config.h
 )
 
 #Listing of public headers that expose services provided by
 #the SP_BL2 (SP Bootloader 2 Library)
 set(SP_BL2_LIB_HDRS
-    include/transports/mm_cm_iface/broadcast.h
     include/etsoc/drivers/serial/serial.h
+    include/etsoc/isa/etsoc_rt_memory.h
 )
 
 #########################
@@ -55,18 +52,18 @@ set(SP_BL2_LIB_HDRS
 #Listing of sources that implement services provided by
 #the SP_BL2 (SP Bootloader 2 Library)
 add_library(sp-bl2 STATIC
-    src/common/etsoc_memory.c
+    src/etsoc/isa/etsoc_memory.c
+    src/etsoc/drivers/pcie/pcie_int.c
     src/transports/circbuff/circbuff.c
     src/transports/vq/vq.c
     src/transports/sp_mm_iface/sp_mm_iface.c
-    src/etsoc/hal/pcie/pcie_int.c
 )
 add_library(et-common-libs::sp-bl2 ALIAS sp-bl2)
 target_compile_definitions(sp-bl2 PUBLIC -DSERVICE_PROCESSOR_BL2=1)
 set_target_properties(sp-bl2 PROPERTIES LINKER_LANGUAGE C)
 
-target_link_libraries(sp-bl2 
-    PUBLIC 
+target_link_libraries(sp-bl2
+    PUBLIC
         etsoc_hal::etsoc_hal
         esperantoTrace::et_trace
 )
@@ -81,9 +78,14 @@ target_include_directories(sp-bl2
 target_compile_options(sp-bl2
     PRIVATE
         -Wall
+        -fno-strict-aliasing
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 
+target_compile_definitions(sp-bl2
+    PUBLIC
+        -DSP_RT=1
+)
 
 #################################################
 #Install and export sp-bl2 library and headers

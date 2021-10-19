@@ -1,5 +1,5 @@
 #include "etsoc/drivers/serial/serial.h"
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/io.h"
 
 #include "etsoc_hal/inc/DW_apb_uart.h"
 
@@ -87,26 +87,7 @@ int SERIAL_write(uintptr_t uartRegs, const char *const string, int length)
            (IER[7] set to one and FCR[0] set to one respectively), the functionality is
            switched to indicate the transmitter FIFO is full, and no longer controls THRE
            interrupts, which are then controlled by the FCR[5:4] threshold setting. */
-        while (UART_LSR_THRE_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) == 1U) {
-        }
-
-        /* Write characters to be transmitted to transmit FIFO by writing to THR */
-        iowrite32(uartRegs + UART_RBR_THR_ADDRESS, UART_RBR_THR_THR_SET(string[i]));
-    }
-    return i;
-}
-
-// Blocks until the entire null-terminated string has been written to the fifo
-int SERIAL_puts(uintptr_t uartRegs, const char *const string)
-{
-    int i;
-    for (i = 0; string[i]; i++) {
-        /* if THRE_MODE_USER == Enabled AND FIFO_MODE != NONE and both modes are active
-           (IER[7] set to one and FCR[0] set to one respectively), the functionality is
-           switched to indicate the transmitter FIFO is full, and no longer controls THRE
-           interrupts, which are then controlled by the FCR[5:4] threshold setting. */
-        while (UART_LSR_THRE_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) == 1U) {
-        }
+        while (UART_LSR_THRE_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) == 1U);
 
         /* Write characters to be transmitted to transmit FIFO by writing to THR */
         iowrite32(uartRegs + UART_RBR_THR_ADDRESS, UART_RBR_THR_THR_SET(string[i]));
@@ -119,6 +100,23 @@ void SERIAL_getchar(uintptr_t uartRegs, char *c)
 {
     while(UART_LSR_DR_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) != 1U);
     *c = UART_RBR_RBR_RBR_GET(ioread32((uartRegs + UART_RBR_ADDRESS)));
+}
+
+// Blocks until the entire null-terminated string has been written to the fifo
+int SERIAL_puts(uintptr_t uartRegs, const char *const string)
+{
+    int i;
+    for (i = 0; string[i]; i++) {
+        /* if THRE_MODE_USER == Enabled AND FIFO_MODE != NONE and both modes are active
+           (IER[7] set to one and FCR[0] set to one respectively), the functionality is
+           switched to indicate the transmitter FIFO is full, and no longer controls THRE
+           interrupts, which are then controlled by the FCR[5:4] threshold setting. */
+        while (UART_LSR_THRE_GET(ioread32(uartRegs + UART_LSR_ADDRESS)) == 1U);
+
+        /* Write characters to be transmitted to transmit FIFO by writing to THR */
+        iowrite32(uartRegs + UART_RBR_THR_ADDRESS, UART_RBR_THR_THR_SET(string[i]));
+    }
+    return i;
 }
 
 static void set_baud_divisor(uintptr_t uartRegs, unsigned int baudRate, unsigned int clkFreq)

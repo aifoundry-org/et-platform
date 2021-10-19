@@ -14,7 +14,7 @@ include(CMakeFindDependencyMacro)
 find_dependency(etsoc_hal REQUIRED)
 find_dependency(esperantoTrace REQUIRED)
 
-set(_supported_components cm-umode minion-bl sp-bl1 sp-bl2) 
+set(_supported_components cm-umode minion-bl mm-rt-svcs cm-rt-svcs sp-bl1 sp-bl2)
 
 # Find all components if user does not cherry-pick components
 if (NOT et-common-libs_FIND_COMPONENTS)

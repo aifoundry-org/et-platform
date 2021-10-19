@@ -14,15 +14,20 @@
 */
 /***********************************************************************/
 
-#include <stddef.h>
-#include <inttypes.h>
-#include "etsoc/isa/hart.h"
-#include <et-trace/layout.h>
 
-#define ET_TRACE_ENCODER_IMPL
+#include "etsoc/isa/hart.h"
+
+#define ET_TRACE_MEM_CPY(dest, src, size) et_memcpy(dest, src, size)
+#define ET_TRACE_STRLEN(str) et_strlen(str)
 #define ET_TRACE_GET_HART_ID()  get_hart_id()
+#define ET_TRACE_ENCODER_IMPL
 #include "etsoc/common/utils.h"
 #include "common/printf.h"
+
+#include <et-trace/encoder.h>
+
+#include <stdarg.h>
+#include <stdio.h>
 
 /* NOTE: Keep it in sync with the memory map layout file in minion runtime. */
 #define CM_UMODE_TRACE_CB_BASEADDR  0x8100d21040

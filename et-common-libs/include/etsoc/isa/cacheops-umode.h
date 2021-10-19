@@ -16,8 +16,8 @@
 extern "C" {
 #endif
 
-#include "utils.h"
-#include "syscall.h"
+#include "etsoc/isa/utils.h"
+#include "etsoc/isa/syscall.h"
 
 enum cop_dest {
    to_L1  = 0x0ULL,

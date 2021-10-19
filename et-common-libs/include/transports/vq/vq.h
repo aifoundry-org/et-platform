@@ -20,8 +20,9 @@
 #define __VQ_H__
 
 #include "etsoc/common/common_defs.h"
-#include "transports/circbuff/circbuff.h"
 #include "etsoc/isa/atomic.h"
+#include "etsoc/isa/etsoc_rt_memory.h"
+#include "transports/circbuff/circbuff.h"
 
 /**
  * @brief Macros for Virtual Queues related error codes.
@@ -64,11 +65,11 @@ typedef struct iface_cb_ {
     \param vq_size Size of each submission queue in bytes.
     \param cmd_size_peek_offset Base offset to be used for peek.
     \param cmd_size_peek_length Length of command should be peeked.
-    \param flags Memory type to drive access attributes.
+    \param vq_flags Memory type to drive access attributes of VQ.
     \return Status indicating success or negative error code
 */
 int8_t VQ_Init(vq_cb_t* vq_cb, uint64_t vq_base, uint32_t vq_size,
-    uint16_t cmd_size_peek_offset, uint16_t cmd_size_peek_length, uint32_t flags);
+    uint16_t cmd_size_peek_offset, uint16_t cmd_size_peek_length, uint32_t vq_flags);
 
 /*! \fn int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size)
     \brief Push the command to circular buffer associated with
@@ -78,7 +79,7 @@ int8_t VQ_Init(vq_cb_t* vq_cb, uint64_t vq_base, uint32_t vq_size,
     \param data_size Size of the data tp push in bytes.
     \return Status indicating success or negative error code.
 */
-int8_t VQ_Push(vq_cb_t* vq_cb, void* data, uint32_t data_size);
+int8_t VQ_Push(vq_cb_t* vq_cb, const void* data, uint32_t data_size);
 
 /*! \fn int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
     \brief Pops a command from a virtual queue.
@@ -174,13 +175,9 @@ static inline uint64_t VQ_Get_Head_Offset(const vq_cb_t* vq_cb)
 */
 static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val)
 {
-#if defined(MASTER_MINION)
     Circbuffer_Set_Tail((circ_buff_cb_t*)(uintptr_t)
-        atomic_load_local_64((uint64_t*)(void*)&dest_vq_cb->circbuff_cb), tail_val,
-        atomic_load_local_32(&dest_vq_cb->flags));
-#else
-    Circbuffer_Set_Tail(dest_vq_cb->circbuff_cb, tail_val, dest_vq_cb->flags);
-#endif
+        ETSOC_RT_MEM_READ_64((uint64_t*)&dest_vq_cb->circbuff_cb),
+        tail_val, ETSOC_RT_MEM_READ_32(&dest_vq_cb->flags));
 }
 
 /*! \fn static inline void VQ_Set_Head_Offset(vq_cb_t* dest_vq_cb, uint64_t head_val)
@@ -190,13 +187,9 @@ static inline void VQ_Set_Tail_Offset(vq_cb_t* dest_vq_cb, uint64_t tail_val)
 */
 static inline void VQ_Set_Head_Offset(vq_cb_t* dest_vq_cb, uint64_t head_val)
 {
-#if defined(MASTER_MINION)
     Circbuffer_Set_Head((circ_buff_cb_t*)(uintptr_t)
-        atomic_load_local_64((uint64_t*)&dest_vq_cb->circbuff_cb), head_val,
-        atomic_load_local_32(&dest_vq_cb->flags));
-#else
-    Circbuffer_Set_Head(dest_vq_cb->circbuff_cb, head_val, dest_vq_cb->flags);
-#endif
+        ETSOC_RT_MEM_READ_64((uint64_t*)&dest_vq_cb->circbuff_cb),
+        head_val, ETSOC_RT_MEM_READ_32(&dest_vq_cb->flags));
 }
 
 /*! \fn static inline void VQ_Get_Head_And_Tail(vq_cb_t* src_vq_cb, vq_cb_t* dest_vq_cb)
@@ -206,12 +199,8 @@ static inline void VQ_Set_Head_Offset(vq_cb_t* dest_vq_cb, uint64_t head_val)
 */
 static inline void VQ_Get_Head_And_Tail(vq_cb_t* src_vq_cb, vq_cb_t* dest_vq_cb)
 {
-    Circbuffer_Get_Head_Tail(
-#if defined(MASTER_MINION)
-        (circ_buff_cb_t*)(uintptr_t)atomic_load_local_64((uint64_t*)&src_vq_cb->circbuff_cb),
-#else
-        src_vq_cb->circbuff_cb,
-#endif
+    Circbuffer_Get_Head_Tail((circ_buff_cb_t*)(uintptr_t)
+        ETSOC_RT_MEM_READ_64((uint64_t*)&src_vq_cb->circbuff_cb),
         dest_vq_cb->circbuff_cb, dest_vq_cb->flags);
 }
 

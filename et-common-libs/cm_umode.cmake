@@ -12,9 +12,11 @@ set(CM_UMODE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/cm-umode)
 #Listing of header only public interfaces
 set(CM_UMODE_HDRS
     # ETSOC ISA headers
+    include/etsoc/common/log_common.h
     include/etsoc/isa/atomic.h
     include/etsoc/isa/atomic-impl.h
     include/etsoc/isa/barriers.h
+    include/etsoc/isa/cacheops.h
     include/etsoc/isa/cacheops-umode.h
     include/etsoc/isa/esr_defines.h
     include/etsoc/isa/fcc.h
@@ -23,18 +25,15 @@ set(CM_UMODE_HDRS
     include/etsoc/isa/syscall.h
     include/etsoc/isa/tensors.h
     include/etsoc/isa/utils.h
-    include/common/printf.h
-    # Trace Header
+    include/etsoc/isa/macros.h
     include/trace/trace_umode.h
-    #TODO:others to come ..
 )
 
 #Listing of public headers that expose services provided by
 #the CM UMODE (Compute Minion User Mode) Library
 set(CM_UMODE_LIB_HDRS
-    include/etsoc/hal/pmu.h
     include/etsoc/common/utils.h
-    #TODO:others to come ..
+    include/etsoc/drivers/pmu/pmu.h
 )
 
 ########################
@@ -43,37 +42,40 @@ set(CM_UMODE_LIB_HDRS
 #Listing of sources that implement services provided by
 #the CM UMODE (Compute Minion User Mode) Library
 add_library(cm-umode STATIC
-    src/etsoc/hal/pmu.c
-    src/common/utils.c
-    src/trace/trace_umode.c
     src/common/printf.c
-    #TODO:others to come ..
+    src/etsoc/common/utils.c
+    src/etsoc/drivers/pmu/pmu.c
+    src/trace/trace_umode.c
+    src/common/printf_dummy.c
+    src/libc_stub/stdlib.c
+    src/libc_stub/string.c
 )
 add_library(et-common-libs::cm-umode ALIAS cm-umode)
-
-target_link_libraries(cm-umode PUBLIC esperantoTrace::et_trace)
-set_target_properties(cm-umode PROPERTIES LINKER_LANGUAGE C)
-
 target_include_directories(cm-umode
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CM_UMODE_INSTALL_PREFIX}/include>
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/src/libc_stub
 )
-
 target_compile_options(cm-umode
     PRIVATE
         -Wall
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
+target_link_libraries(cm-umode
+    PUBLIC
+        esperantoTrace::et_trace
+)
 
 #This macro preserves the driectory structure as defined by the
 #CM UMODE listing above
-MACRO(InstallHdrsWithDirStruct HEADER_LIST)
-    FOREACH(HEADER ${${HEADER_LIST}})
-    STRING(REGEX MATCH "(.*)[/\]" DIR ${HEADER})
-    INSTALL(FILES ${HEADER} DESTINATION ${CM_UMODE_INSTALL_PREFIX}/${DIR})
-    ENDFOREACH(HEADER)
-ENDMACRO(InstallHdrsWithDirStruct)
+macro(InstallHdrsWithDirStruct HEADER_LIST)
+    foreach(HEADER ${${HEADER_LIST}})
+        string(REGEX MATCH "(.*)[/\]" DIR ${HEADER})
+        install(FILES ${HEADER} DESTINATION ${CM_UMODE_INSTALL_PREFIX}/${DIR})
+    endforeach(HEADER)
+endmacro(InstallHdrsWithDirStruct)
 
 InstallHdrsWithDirStruct(CM_UMODE_HDRS)
 InstallHdrsWithDirStruct(CM_UMODE_LIB_HDRS)
