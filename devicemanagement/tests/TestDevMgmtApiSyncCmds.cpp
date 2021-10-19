@@ -215,7 +215,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1(bool singleDevice) {
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
-  strncpy(expected, "Esperan", output_size);
+  strncpy(expected, "Esperanto", output_size);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -243,9 +243,8 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber_1_2(bool singleDevice) {
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
-  char expected[output_size] = {0};
-  strncpy(expected, "ETPART1", output_size);
+  const uint32_t output_size = 4;
+  char expected[output_size] = {0x63, 0x56, 0x34, 0x11};
   printf("expected: %.*s\n", output_size, expected);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
@@ -276,9 +275,8 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber_1_3(bool singleDevice) {
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
-  char expected[output_size] = {0};
-  strncpy(expected, "ETSER_1", output_size);
+  const uint32_t output_size = 4;
+  unsigned char expected[output_size] = {0x78, 0x56, 0x34, 0x12};
   printf("expected: %.*s\n", output_size, expected);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
@@ -299,7 +297,7 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber_1_3(bool singleDevice) {
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      EXPECT_EQ(memcmp(asset_info->asset, expected, output_size), 0);
     }
   }
 }
@@ -375,9 +373,8 @@ void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB_1_6(bool singleDevice) {
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
-  char expected[output_size] = {0};
-  strncpy(expected, "16384", output_size);
+  const uint32_t output_size = 1; 
+  char expected[output_size] = {16};
   printf("expected: %.*s\n", output_size, expected);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
@@ -408,9 +405,8 @@ void TestDevMgmtApiSyncCmds::getModuleRevision_1_7(bool singleDevice) {
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
-  char expected[output_size] = {0};
-  strncpy(expected, "1", output_size);
+  const uint32_t output_size = 4;
+  unsigned char expected[output_size] = {0x44, 0xab, 0x11, 0x22};
   printf("expected: %.*s\n", output_size, expected);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
@@ -431,7 +427,7 @@ void TestDevMgmtApiSyncCmds::getModuleRevision_1_7(bool singleDevice) {
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      EXPECT_EQ(memcmp(asset_info->asset, expected, output_size), 0);
     }
   }
 }
@@ -441,9 +437,8 @@ void TestDevMgmtApiSyncCmds::getModuleFormFactor_1_8(bool singleDevice) {
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
-  char expected[output_size] = {0};
-  strncpy(expected, "Dual_M2", output_size);
+  const uint32_t output_size = 1;
+  char expected[output_size] = {1};
   printf("expected: %.*s\n", output_size, expected);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();

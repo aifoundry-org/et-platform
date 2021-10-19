@@ -29,36 +29,12 @@ class TestDevMgmtApiFuncSyncCmdsPcie : public TestDevMgmtApiSyncCmds {
 
 };
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleManufactureName_1_1) {
-  getModuleManufactureName_1_1(false /* Multiple devices */);
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModulePartNumber_1_2) {
-  getModulePartNumber_1_2(false /* Multiple devices */);
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleSerialNumber_1_3) {
-  getModuleSerialNumber_1_3(false /* Multiple devices */);
-}
-
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getASICChipRevision_1_4) {
   getASICChipRevision_1_4(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModulePCIENumPortsMaxSpeed_1_5) {
   getModulePCIENumPortsMaxSpeed_1_5(false /* Multiple devices */);
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMemorySizeMB_1_6) {
-  getModuleMemorySizeMB_1_6(false /* Multiple devices */);
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleRevision_1_7) {
-  getModuleRevision_1_7(false /* Multiple devices */);
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleFormFactor_1_8) {
-  getModuleFormFactor_1_8(false /* Multiple devices */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getModuleMemoryVendorPartNumber_1_9) {

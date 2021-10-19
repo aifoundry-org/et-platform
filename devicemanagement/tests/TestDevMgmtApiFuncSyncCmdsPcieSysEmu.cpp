@@ -30,32 +30,8 @@ class TestDevMgmtApiFuncSyncCmdsPcieSysEmu : public TestDevMgmtApiSyncCmds {
   }
 };
 
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleManufactureName_1_1) {
-  getModuleManufactureName_1_1(false /* single device */);
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModulePartNumber_1_2) {
-  getModulePartNumber_1_2(false /* single device */);
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleSerialNumber_1_3) {
-  getModuleSerialNumber_1_3(false /* single device */);
-}
-
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModulePCIENumPortsMaxSpeed_1_5) {
   getModulePCIENumPortsMaxSpeed_1_5(false /* single device */);
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleMemorySizeMB_1_6) {
-  getModuleMemorySizeMB_1_6(false /* single device */);
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleRevision_1_7) {
-  getModuleRevision_1_7(false /* single device */);
-}
-
-TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleFormFactor_1_8) {
-  getModuleFormFactor_1_8(false /* single device */);
 }
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getModuleMemoryVendorPartNumber_1_9) {
