@@ -18,8 +18,11 @@
 #ifndef SPW_DEFS_H
 #define SPW_DEFS_H
 
+/* mm_rt_svcs*/
+#include <etsoc/common/common_defs.h>
+
+/* mm specific headers */
 #include "config/mm_config.h"
-#include "common_defs.h"
 
 /*! \fn void SPW_Launch(uint32_t hart_id)
     \brief Launch the Service Processor Queue Worker

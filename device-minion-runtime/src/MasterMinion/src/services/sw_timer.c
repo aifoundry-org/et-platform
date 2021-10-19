@@ -24,10 +24,13 @@
         SW_Timer_Processing
 */
 /***********************************************************************/
+/* mm_rt_svcs */
+#include <etsoc/isa/sync.h>
+
+/* mm specific headers */
 #include "services/log.h"
 #include "services/sw_timer.h"
 #include "drivers/pu_timers.h"
-#include "sync.h"
 
 /*! \struct cmd_timeout_instance_
     \brief Holds the information to register a timeout

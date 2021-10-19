@@ -16,14 +16,15 @@
         Console_Putchar
 */
 /***********************************************************************/
-
+/* mm specific headers */
 #include "drivers/console.h"
+
 /************************************************************************
 *
 *   FUNCTION
 *
 *       Console_Putchar
-*  
+*
 *   DESCRIPTION
 *
 *       Writes a character to serial port
@@ -39,5 +40,5 @@
 ***********************************************************************/
 void Console_Putchar(char character)
 {
-    SERIAL_write(UART0, &character, 1);
+    SERIAL_write(PU_UART0, &character, 1);
 }

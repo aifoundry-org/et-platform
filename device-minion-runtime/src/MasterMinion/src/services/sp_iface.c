@@ -22,17 +22,24 @@
         SP_Iface_Report_Error
 */
 /***********************************************************************/
-#include "sync.h"
-#include "syscall_internal.h"
-#include "layout.h"
-#include "device-common/hart.h"
-#include "riscv_encoding.h"
+/* mm_rt_svcs */
+#include <etsoc/isa/sync.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/riscv_encoding.h>
+#include <etsoc/isa/syscall.h>
+#include <etsoc/drivers/pmu/pmu.h>
+#include <transports/sp_mm_iface/sp_mm_comms_spec.h>
+
+/* mm specific headers */
 #include "services/sp_iface.h"
 #include "services/sw_timer.h"
 #include "services/log.h"
-#include "sp_mm_comms_spec.h"
 #include "services/host_cmd_hdlr.h"
-#include "pmu.h"
+
+/* mm_rt_helpers */
+#include "syscall_internal.h"
+#include "layout.h"
+
 
 /*! \struct sp_iface_sq_cb_t
     \brief SP interface control block that manages
@@ -194,12 +201,21 @@ static int8_t wait_for_response_from_service_processor(void)
 static int8_t tf_command_handler(void* cmd_buffer)
 {
     int8_t status = STATUS_SUCCESS;
+    const struct cmd_header_t *hdr = cmd_buffer;
 
     Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:TF_Command_Handler. \r\n");
 
-    /* Process command and pass current minion cycle
-    For TF, assume the SQW index as zero. */
-    status = Host_Command_Handler(cmd_buffer, 0, PMC_Get_Current_Cycles());
+    /* Check for abort command */
+    if (hdr->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD)
+    {
+        status = Host_HP_Command_Handler(cmd_buffer, 0);
+    }
+    else
+    {
+        /* Process command and pass current minion cycle
+        For TF, assume the SQW index as zero. */
+        status = Host_Command_Handler(cmd_buffer, 0, PMC_Get_Current_Cycles());
+    }
 
     return status;
 }

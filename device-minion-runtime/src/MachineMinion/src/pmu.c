@@ -9,10 +9,10 @@
 *-------------------------------------------------------------------------
 */
 
-/* minion_bl.lib */
-#include "etsoc/isa/esr_defines.h"
-#include "etsoc/isa/hart.h"
-#include "etsoc/hal/pmu.h"
+/* minion_bl */
+#include <etsoc/drivers/pmu/pmu.h>
+#include <etsoc/isa/esr_defines.h>
+#include <etsoc/isa/hart.h>
 
 // Configure PMCs
 // reset_counters is a boolean that determines whether we reset / start counters after the configuration

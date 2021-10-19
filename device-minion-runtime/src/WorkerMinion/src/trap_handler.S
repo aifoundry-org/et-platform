@@ -1,4 +1,4 @@
-#include "riscv_encoding.h"
+#include <etsoc/isa/riscv_encoding.h>
 
 .section .text, "ax", @progbits /* TODO FIXME move to S +RX page sections */
 .global trap_handler

@@ -18,9 +18,13 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "io.h"
+
+/* mm_rt_svcs */
+#include <etsoc/isa/io.h>
+#include <etsoc/drivers/pcie/pcie_device.h>
+
+/* etsoc_hal */
 #include "hwinc/pcie0_dbi_slv.h"
-#include "pcie_device.h"
 
 #define PCIE_DMA_RD_CHANNEL_COUNT   4
 #define PCIE_DMA_WRT_CHANNEL_COUNT  4

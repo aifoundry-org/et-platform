@@ -44,15 +44,6 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
         src/services/sp_iface.c
         src/services/sw_timer.c
         src/services/trace.c
-        ${SHARED_SRC_DIR}/etsoc_memory.c
-        ${SHARED_SRC_DIR}/printf.c
-        ${SHARED_SRC_DIR}/putchar.c
-        ${SHARED_SRC_DIR}/print_exception.c
-        ${SHARED_SRC_DIR}/pcie_int.c
-        ${SHARED_SRC_DIR}/broadcast.c
-        ${SHARED_SRC_DIR}/circbuff.c
-        ${SHARED_SRC_DIR}/vq.c
-        ${SHARED_SRC_DIR}/sp_mm_iface.c
     )
 
     if (MM_BUILD_VARIANT STREQUAL "MasterMinionTF")
@@ -68,7 +59,7 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
         PRIVATE
-            $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/include>
+            $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/minion_rt_helpers/include>
     )
     target_compile_definitions(${MM_BUILD_VARIANT}.elf
         PUBLIC
@@ -88,10 +79,9 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
             esperantoTrace::et_trace
             deviceApi::deviceApi
             etsoc_hal::etsoc_hal
-            deviceFirmware::device_common
-            deviceFirmware::firmware_helpers_serial
+            et-common-libs::mm-rt-svcs
         PRIVATE
-            deviceFirmware::device_configuration
+            deviceFirmware::minion_rt_helpers_interface
     )
 
    target_report_riscv_size(${MM_BUILD_VARIANT}.elf)

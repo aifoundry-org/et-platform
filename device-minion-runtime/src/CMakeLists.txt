@@ -8,9 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-get_filename_component(SHARED_SRC_DIR "shared/firmware_helpers/src" ABSOLUTE)
-get_filename_component(SHARED_INC_DIR "shared/firmware_helpers/include" ABSOLUTE)
-set(SHARED_INC_DIRS ${SHARED_INC_DIR} ${SHARED_INC_DIR}/device-common ${SHARED_HAL_DIR})
+get_filename_component(SHARED_INC_DIR "shared/minion_rt_helpers/include" ABSOLUTE)
 
 add_subdirectory(shared)
 add_subdirectory(MachineMinion)

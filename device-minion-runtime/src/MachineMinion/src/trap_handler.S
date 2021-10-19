@@ -9,12 +9,12 @@
 *-------------------------------------------------------------------------
 */
 
-/* minion_rt.lib */
+/* minion_rt_helpers */
 #include "syscall_internal.h"
 
-/* minion_bl.lib */
-#include "etsoc/isa/esr_defines.h"
-#include "etsoc/isa/riscv_encoding.h"
+/* minion_bl */
+#include <etsoc/isa/esr_defines.h>
+#include <etsoc/isa/riscv_encoding.h>
 
 .section .text, "ax", @progbits /* TODO FIXME move to M +RX page sections */
 

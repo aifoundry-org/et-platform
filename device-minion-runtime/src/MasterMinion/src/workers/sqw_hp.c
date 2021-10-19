@@ -22,13 +22,18 @@
         SQW_HP_Increment_Command_Count
 */
 /***********************************************************************/
+/* common-api, device_ops_api */
+#include <esperanto/device-apis/device_apis_message_types.h>
+
+/* mm_rt_svcs */
+#include <etsoc/isa/etsoc_memory.h>
+
+/* mm specific headers */
 #include "workers/sqw_hp.h"
 #include "services/log.h"
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/trace.h"
-#include <esperanto/device-apis/device_apis_message_types.h>
-#include "etsoc_memory.h"
 #include "services/sp_iface.h"
 
 /*! \typedef sqw_hp_cb_t

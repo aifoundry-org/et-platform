@@ -10,7 +10,11 @@
 
 try_compile(CHECK_RESULT ${CMAKE_BINARY_DIR}
     SOURCES ${PROJECT_SOURCE_DIR}/cmake/checks/mm_config_values.c
-    CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${PROJECT_SOURCE_DIR}/src/MasterMinion/include;${PROJECT_SOURCE_DIR}/src/shared/firmware_helpers/include"
+    CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=\
+        ${PROJECT_SOURCE_DIR}/src/MasterMinion/include;\
+        ${PROJECT_SOURCE_DIR}/src/shared/minion_rt_helpers/include;\
+        ${CMAKE_SYSROOT}/include/esperanto-fw/etsoc_hal;\
+        ${CMAKE_SYSROOT}/mm-rt-svcs/include"
     OUTPUT_VARIABLE MM_CONFIG_VALUES_CHECK_OUTPUT
 )
 

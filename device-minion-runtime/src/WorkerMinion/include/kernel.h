@@ -17,7 +17,7 @@
 #define KERNEL_H
 
 #include "kernel_return.h"
-#include "message_types.h"
+#include "transports/mm_cm_iface/message_types.h"
 
 #include <stdint.h>
 #include <stdbool.h>

@@ -27,6 +27,7 @@ target_include_directories(MachineMinion.elf
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/minion_rt_helpers/include>
         ${CMAKE_INSTALL_PREFIX}/include/esperanto-fw/etsoc_hal # FIXME: THIS BREAKS ENCAPSULATION
         ${CMAKE_INSTALL_PREFIX}/minion-bl/include              # FIXME: THIS BREAKS ENCAPSULATION
 )
@@ -36,13 +37,12 @@ target_compile_options(MachineMinion.elf
         -Wall
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
+
 target_link_libraries(MachineMinion.elf
     PRIVATE
         et-common-libs::minion-bl
         etsoc_hal::etsoc_hal
-    PRIVATE
-        deviceFirmware::firmware_helpers_interface
-        deviceFirmware::device_configuration
+        deviceFirmware::minion_rt_helpers_interface
 )
 
 target_report_riscv_size(MachineMinion.elf)

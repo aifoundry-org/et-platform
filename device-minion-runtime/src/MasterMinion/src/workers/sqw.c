@@ -37,14 +37,19 @@
         SQW_Get_State
 */
 /***********************************************************************/
+/* comon-api, device_ops_api */
+#include <esperanto/device-apis/device_apis_message_types.h>
+
+/* mm_rt_svcs */
+#include <etsoc/drivers/pmu/pmu.h>
+#include <etsoc/isa/etsoc_memory.h>
+
+/* mm specific headers */
 #include "workers/sqw.h"
 #include "services/log.h"
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/trace.h"
-#include <esperanto/device-apis/device_apis_message_types.h>
-#include "pmu.h"
-#include "etsoc_memory.h"
 #include "services/sp_iface.h"
 
 /*! \typedef sqw_cmds_status_t

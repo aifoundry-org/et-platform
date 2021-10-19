@@ -17,8 +17,12 @@
         DIR_Set_Master_Minion_Status
 */
 /***********************************************************************/
+/* mm specific headers */
 #include "config/dir_regs.h"
 #include "config/mm_config.h"
+#include "services/log.h"
+
+/* mm-rt-svcs (shared across minion rt) */
 #include "layout.h"
 #include "services/log.h"
 
@@ -178,7 +182,9 @@ void DIR_Init(void)
     Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED]
         .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_USER) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_OPS) |
-        MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_64_BIT);
+        MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_64_BIT)  |
+        MEM_REGION_DMA_ELEMENT_COUNT_SET(MEM_REGION_DMA_ELEMENT_COUNT) |
+        MEM_REGION_DMA_ELEMENT_SIZE_SET(MEM_REGION_DMA_ELEMENT_SIZE);
 
     /* Calculate CRC32 of the DIRs excluding generic attributes
     NOTE: CRC32 checksum should be calculated at the end */

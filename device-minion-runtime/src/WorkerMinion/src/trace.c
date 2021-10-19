@@ -24,14 +24,14 @@
 #include <esperanto/device-apis/device_apis_trace_types.h>
 #include <stddef.h>
 #include <inttypes.h>
-#include "etsoc_memory.h"
-#include "log.h"
-#include "device-common/hart.h"
-#include "layout.h"
-#include "device-common/cacheops.h"
-#include "common_trace_defs.h"
+#include <etsoc/isa/etsoc_memory.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/cacheops.h>
+#include <etsoc/isa/hpm_counter.h>
 
-#include "device-common/hpm_counter.h"
+#include "log.h"
+#include "layout.h"
+#include "common_trace_defs.h"
 
 #define ET_TRACE_ENCODER_IMPL
 #define ET_TRACE_GET_HART_ID()       get_hart_id()
@@ -418,7 +418,8 @@ void Trace_Init_UMode(const struct trace_init_info_t *init_info)
     if (cb->size_per_hart % CACHE_LINE_SIZE != 0)
     {
         cb->size_per_hart = cb->size_per_hart - (cb->size_per_hart % CACHE_LINE_SIZE);
-        /* TODO: in the last buffer add all remaining buffer size, if it is unused due to cache alignment.*/
+        /* TODO: Since per Hart buffer size is Cache-line aligned. If we have free cache lines left due to enforcing said alignment.
+            Then append those free cache lines in last Hart's buffer. */
     }
 
     /* Buffer settings for current Hart. */

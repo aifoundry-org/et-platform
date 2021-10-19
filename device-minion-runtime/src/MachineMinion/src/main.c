@@ -1,15 +1,41 @@
+/***********************************************************************
+*
+* Copyright (C) 2021 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************
+
+************************************************************************
+*
+*   DESCRIPTION
+*
+*       This file consists the main method that serves as the entry
+*       point for the the c runtime.
+*
+*   FUNCTIONS
+*
+*       main
+*
+***********************************************************************/
 #include <stdint.h>
 
-/* minion_rt.lib */
+/* minion_bl */
+#include <etsoc/drivers/pmu/pmu.h>
+#include <etsoc/isa/esr_defines.h>
+#include <etsoc/isa/fcc.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/sync.h>
+
+/* minion_rt_helpers */
 #include "layout.h"
 
-/* minion_bl.lib */
-#include "etsoc/isa/esr_defines.h"
-#include "etsoc/isa/fcc.h"
-#include "etsoc/isa/flb.h"
-#include "etsoc/isa/hart.h"
-#include "etsoc/isa/sync.h"
-#include "etsoc/hal/pmu.h"
+/* Global variable to keep track of Machine Minions boot */
+static spinlock_t MM_Thread_Boot_Counter[NUM_SHIRES] = { 0 };
 
 static inline void initialize_scp(void)
 {
@@ -97,7 +123,6 @@ void __attribute__((noreturn)) main(void)
         ((get_minion_id() & 0x1F) < 16)) { // Master shire non-sync minions (lower 16)
         const uint64_t *const master_entry = (uint64_t *)FW_MASTER_SMODE_ENTRY;
         const uint32_t minion_mask = 0xFFFFU;
-        bool result;
 
         // First HART in each neighborhood
         if (get_hart_id() % 16 == 0) {
@@ -116,12 +141,15 @@ void __attribute__((noreturn)) main(void)
             }
             *mprot_ptr = mprot;
 
-            // Wait for MPROT config on all 2 non-sync neighborhoods to complete before any thread can continue.
-            WAIT_FLB(2, 31, result);
+            /* Wait for MPROT config on all 2 non-sync neighborhoods
+            to complete before any thread can continue. */
+            if (atomic_add_local_32(&MM_Thread_Boot_Counter[MASTER_SHIRE].flag, 1U) == 1)
+            {
+                /* Reset the thread boot counter */
+                init_local_spinlock(&MM_Thread_Boot_Counter[MASTER_SHIRE], 0);
 
-            if (result) {
-                // Last neighborhood to configure MPROT sends FCC0 to all HARTs (other than sync-minions) in this shire
-                // minion thread1s aren't enabled yet, so send FCC0 to 16 thread0s.
+                /* Last neighborhood to configure MPROT sends FCC0 to all HARTs (other than sync-minions)
+                in this shire minion thread1s aren't enabled yet, so send FCC0 to 16 thread0s. */
                 SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, minion_mask);
             }
         }

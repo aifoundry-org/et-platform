@@ -18,8 +18,10 @@
 #ifndef KW_DEFS_H
 #define KW_DEFS_H
 
+/* mm specific headers */
 #include "config/mm_config.h"
 
+/* common-api, device_ops_api */
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 

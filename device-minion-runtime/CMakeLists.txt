@@ -8,7 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.13)
 project(deviceMinionRuntime VERSION 0.0.1 LANGUAGES C ASM)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -58,7 +58,7 @@ find_package(deviceApi REQUIRED)
 find_package(signedImageFormat REQUIRED)
 find_package(esperantoTrace REQUIRED)
 find_package(etsoc_hal REQUIRED)
-find_package(et-common-libs REQUIRED COMPONENTS minion-bl)
+find_package(et-common-libs REQUIRED COMPONENTS minion-bl mm-rt-svcs cm-rt-svcs)
 
 ########## Documentation #####################################
 
@@ -74,7 +74,6 @@ endif()
 
 ############################ FW build Rules ############### ####################
 
-add_subdirectory(external)
 add_subdirectory(src)
 add_subdirectory(scripts)
 add_subdirectory(tools)

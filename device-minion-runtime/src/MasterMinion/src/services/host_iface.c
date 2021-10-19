@@ -26,15 +26,20 @@
         Host_Iface_CQs_Deinit
 */
 /***********************************************************************/
+/* mm_rt_svcs */
+#include <transports/vq/vq.h>
+#include <etsoc/drivers/pcie/pcie_int.h>
+
+/* etsoc_hal */
+#include "hwinc/hal_device.h"
+
+/* mm specific headers */
 #include "services/host_iface.h"
 #include "services/host_cmd_hdlr.h"
 #include "services/log.h"
 #include "workers/sqw.h"
 #include "workers/sqw_hp.h"
 #include "drivers/plic.h"
-#include "vq.h"
-#include "pcie_int.h"
-#include "hal_device.h"
 
 /*! \struct host_iface_sqs_hp_cb_t
     \brief Host interface control block that manages

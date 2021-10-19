@@ -18,7 +18,11 @@
 
 #include <stddef.h>
 #include <inttypes.h>
-#include "device-common/log_common.h"
+
+/* mm_rt_svcs */
+#include <etsoc/common/log_common.h>
+
+/* mm specific headers */
 #include "device_minion_runtime_build_configuration.h"
 
 #if defined(DEVICE_MINION_RUNTIME_BUILD_RELEASE)
@@ -53,19 +57,21 @@ log_interface_t Log_Get_Interface(void);
 
 /*! \fn int32_t __Log_Write(const char *const fmt, ...)
     \brief Write a log with va_list style args without any restriction by log level
+    \param level Log level for the current log
     \param fmt format specifier
     \param ... variable list
     \return Bytes written
 */
-int32_t __Log_Write(const char *const fmt, ...) __attribute__((format(printf, 1, 2)));
+int32_t __Log_Write(log_level_e level, const char *const fmt, ...) __attribute__((format(printf, 2, 3)));
 
 /*! \fn int32_t Log_Write_String(const char *str, size_t length)
     \brief Write a string log without any restriction by log level
+    \param level Log level for the current log
     \param str Pointer to a string
     \param length Length of string
     \return bytes written
 */
-int32_t __Log_Write_String(const char *str, size_t length);
+int32_t __Log_Write_String(log_level_e level, const char *str, size_t length);
 
 /*! \fn int32_t Log_Write(log_level_t level, const char *const fmt, ...)
     \brief Write a log with va_list style args
@@ -75,7 +81,7 @@ int32_t __Log_Write_String(const char *str, size_t length);
     \return Bytes written
 */
 #define Log_Write(level, fmt, ...) \
-    do { if (level <= CURRENT_LOG_LEVEL) __Log_Write(fmt, ##__VA_ARGS__); } while(0)
+    do { if (level <= CURRENT_LOG_LEVEL) __Log_Write(level, fmt, ##__VA_ARGS__); } while(0)
 
 /*! \fn int32_t Log_Write_String(const char *str, size_t length)
     \brief Write a string log
@@ -85,7 +91,7 @@ int32_t __Log_Write_String(const char *str, size_t length);
     \return bytes written
 */
 #define Log_Write_String(level, str, length) \
-    do { if (level <= CURRENT_LOG_LEVEL) __Log_Write_String(str, length); } while(0)
+    do { if (level <= CURRENT_LOG_LEVEL) __Log_Write_String(level, str, length); } while(0)
 
 #define ASSERT_LOG(log_level,msg,expr) \
     do { if (!(expr)) Log_Write(log_level,"%s || File:%s Line:%d\r\n", msg, __FILE__, __LINE__); } while(0)

@@ -18,14 +18,20 @@
         __Log_Write_String
 */
 /***********************************************************************/
+#include <stddef.h>
+
+/* mm_rt_svcs */
+#include <etsoc/isa/atomic.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/sync.h>
+
+/* mm_rt_helpers */
+#include "layout.h"
+
+/* mm specific headers */
 #include "services/log.h"
 #include "services/trace.h"
-#include "device-common/hart.h"
 #include "drivers/console.h"
-#include "device-common/atomic.h"
-#include "layout.h"
-#include <stddef.h>
-#include "sync.h"
 
 /*! \var log_interface_t Log_Interface
     \brief Global variable that maintains the current log interface
@@ -123,6 +129,7 @@ log_interface_t Log_Get_Interface(void)
 *
 *   INPUTS
 *
+*       log_level_e    Log level for the current log
 *       const chat*    format specifier
 *       ...            variable argument list
 *
@@ -131,7 +138,7 @@ log_interface_t Log_Get_Interface(void)
 *       int32_t        bytes written
 *
 ***********************************************************************/
-int32_t __Log_Write(const char *const fmt, ...)
+int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
 {
     char buff[128];
     va_list va;
@@ -146,7 +153,7 @@ int32_t __Log_Write(const char *const fmt, ...)
         va_start(va, fmt);
         vsnprintf(buff, sizeof(buff), fmt, va);
 
-        Trace_String((trace_string_event_e)CURRENT_LOG_LEVEL, Trace_Get_MM_CB(), buff);
+        Trace_String((trace_string_event_e)level, Trace_Get_MM_CB(), buff);
 
         /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
         type message. */
@@ -158,7 +165,7 @@ int32_t __Log_Write(const char *const fmt, ...)
         vsnprintf(buff, sizeof(buff), fmt, va);
 
         acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
-        bytes_written = SERIAL_puts(UART0, buff);
+        bytes_written = SERIAL_puts(PU_UART0, buff);
         release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
     }
 
@@ -177,6 +184,7 @@ int32_t __Log_Write(const char *const fmt, ...)
 *
 *   INPUTS
 *
+*       log_level_e    Log level for the current log
 *       char*          pointer to string
 *       size_t         length of string
 *
@@ -185,14 +193,14 @@ int32_t __Log_Write(const char *const fmt, ...)
 *       int32_t        bytes written
 *
 ***********************************************************************/
-int32_t __Log_Write_String(const char *str, size_t length)
+int32_t __Log_Write_String(log_level_e level, const char *str, size_t length)
 {
     int32_t bytes_written = 0;
 
     /* Dump the log message over current log interface. */
     if (atomic_load_local_8(&Log_Interface) == LOG_DUMP_TO_TRACE)
     {
-        Trace_String((trace_string_event_e)CURRENT_LOG_LEVEL, Trace_Get_MM_CB(), str);
+        Trace_String((trace_string_event_e)level, Trace_Get_MM_CB(), str);
 
         /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
            type message. */
@@ -201,7 +209,7 @@ int32_t __Log_Write_String(const char *str, size_t length)
     else
     {
         acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
-        bytes_written = SERIAL_write(UART0, str, (int)length);
+        bytes_written = SERIAL_write(PU_UART0, str, (int)length);
         release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
     }
 

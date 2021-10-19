@@ -22,7 +22,13 @@
 *       main
 *
 ***********************************************************************/
-#include "common_defs.h"
+/* mm_rt_svcs */
+#include <etsoc/common/common_defs.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/atomic.h>
+#include <etsoc/isa/riscv_encoding.h>
+
+/* mm specific headers */
 #include "dispatcher/dispatcher.h"
 #include "workers/spw.h"
 #include "workers/sqw.h"
@@ -30,9 +36,7 @@
 #include "workers/kw.h"
 #include "workers/dmaw.h"
 #include "services/log.h"
-#include "device-common/hart.h"
-#include "device-common/atomic.h"
-#include "riscv_encoding.h"
+
 
 /*! \def EVEN_HART(x)
     \brief Macro to check the even or odd parity of the hart

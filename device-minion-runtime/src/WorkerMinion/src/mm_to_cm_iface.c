@@ -1,17 +1,21 @@
-#include "cm_to_mm_iface.h"
-#include "etsoc_memory.h"
-#include "device-common/flb.h"
-#include "device-common/cacheops.h"
-#include "device-common/hart.h"
-#include "kernel.h"
-#include "layout.h"
-#include "log.h"
-#include "message_types.h"
+#include <etsoc/isa/etsoc_memory.h>
+#include <etsoc/isa/flb.h>
+#include <etsoc/isa/cacheops.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/riscv_encoding.h>
+#include <etsoc/isa/sync.h>
+#include <etsoc/isa/syscall.h>
+#include <transports/mm_cm_iface/message_types.h>
+
 #include "mm_to_cm_iface.h"
-#include "riscv_encoding.h"
-#include "sync.h"
-#include "syscall_internal.h"
+#include "cm_to_mm_iface.h"
+#include "kernel.h"
+#include "log.h"
 #include "trace.h"
+
+#include "syscall_internal.h"
+#include "layout.h"
+
 
 typedef struct {
     cm_iface_message_number_t number;

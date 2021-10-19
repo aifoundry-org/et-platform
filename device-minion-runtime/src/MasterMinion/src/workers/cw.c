@@ -28,20 +28,26 @@
         CW_Get_Physically_Enabled_Shires
 */
 /***********************************************************************/
-#include "device-common/atomic.h"
-#include "device-common/hart.h"
-#include "cm_mm_defines.h"
-#include "common_defs.h"
-#include "layout.h"
+/* mm_rt_svcs */
+#include <etsoc/common/common_defs.h>
+#include <etsoc/isa/atomic.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/syscall.h>
+#include <etsoc/isa/riscv_encoding.h>
+#include <etsoc/isa/sync.h>
+#include <transports/mm_cm_iface/message_types.h>
+
+/* mm specific headers */
 #include "workers/cw.h"
 #include "services/cm_iface.h"
 #include "services/log.h"
 #include "services/sp_iface.h"
 #include "services/sw_timer.h"
-#include "device-common/syscall.h"
+
+/* m_rt_helpers */
+#include "layout.h"
 #include "syscall_internal.h"
-#include "message_types.h"
-#include "riscv_encoding.h"
+#include "cm_mm_defines.h"
 
 /*! \typedef cw_cb_t
     \brief Compute Worker control block.

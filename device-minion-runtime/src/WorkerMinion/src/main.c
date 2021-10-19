@@ -1,25 +1,55 @@
-#include "device_minion_runtime_build_configuration.h"
-#include "device-common/fcc.h"
-#include "device-common/flb.h"
-#include "device-common/hart.h"
+/***********************************************************************
+*
+* Copyright (C) 2021 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************
+
+************************************************************************
+*
+*   DESCRIPTION
+*
+*       This file consists the main method that serves as the entry
+*       point for the the c runtime.
+*
+*   FUNCTIONS
+*
+*       main
+*
+***********************************************************************/
+#include <etsoc/isa/fcc.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/sync.h>
+#include <etsoc/isa/riscv_encoding.h>
+#include <transports/mm_cm_iface/message_types.h>
+#include <etsoc/drivers/pmu/pmu.h>
+
 #include "layout.h"
 #include "log.h"
-#include "message_types.h"
+
+#include "device_minion_runtime_build_configuration.h"
 #include "cm_mm_defines.h"
 #include "cm_to_mm_iface.h"
 #include "mm_to_cm_iface.h"
-#include "pmu.h"
-#include "riscv_encoding.h"
 #include "trace.h"
 
 #include <stdint.h>
+
+/* Global variable to keep track of Compute Minions boot */
+static spinlock_t CM_Thread_Boot_Counter[NUM_SHIRES] = { 0 };
 
 extern void trap_handler(void);
 
 void __attribute__((noreturn)) main(void)
 {
-    bool result;
     int8_t status;
+    const uint32_t shire_id = get_shire_id();
+    const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
 
     // Setup supervisor trap vector
     asm volatile("csrw  stvec, %0\n"
@@ -37,21 +67,19 @@ void __attribute__((noreturn)) main(void)
     asm volatile("csrw scounteren, %0\n"
         : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
 
-    const uint64_t shire_id = get_shire_id();
-    const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
-
     /* Initialize Trace with default configurations. */
     Trace_Init_CM(NULL);
-
     Trace_String(TRACE_EVENT_STRING_CRITICAL, Trace_Get_CM_CB(), "Trace Initialized!!\n");
 
-    WAIT_FLB(thread_count, 31, result);
+    /* Last thread in a shire sends shire ready message to Master Minion */
+    if (atomic_add_local_32(&CM_Thread_Boot_Counter[shire_id].flag, 1U) == (thread_count - 1))
+    {
+        /* Reset the thread boot counter */
+        init_local_spinlock(&CM_Thread_Boot_Counter[shire_id], 0);
 
-    // Last thread to join barrier sends ready message to master
-    if (result) {
         const mm_to_cm_message_shire_ready_t message = {
             .header.id = CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY,
-            .shire_id = get_shire_id()
+            .shire_id = shire_id
         };
 
         /* Acquire the unicast lock */

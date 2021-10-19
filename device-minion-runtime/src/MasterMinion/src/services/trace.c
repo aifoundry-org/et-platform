@@ -25,19 +25,27 @@
 */
 /***********************************************************************/
 
+/* common-api, device_ops_api */
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
 #include <esperanto/device-apis/device_apis_trace_types.h>
+
+/* mm_rt_svcs */
+#include <etsoc/isa/atomic.h>
+#include <etsoc/isa/cacheops.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/hpm_counter.h>
+#include <etsoc/isa/etsoc_memory.h>
+#include <etsoc/isa/sync.h>
+
+/* mm specific headers */
 #include "config/mm_config.h"
-#include "device-common/atomic.h"
-#include "device-common/cacheops.h"
-#include "device-common/hart.h"
-#include "device-common/hpm_counter.h"
 #include "services/cm_iface.h"
 #include "services/log.h"
-#include "common_trace_defs.h"
-#include "etsoc_memory.h"
+
+/* mm_rt_helpers */
 #include "layout.h"
-#include "sync.h"
+
+#include "common_trace_defs.h"
 
 /* Encoder function prototypes */
 static inline void et_trace_write_float(void *addr, float value);

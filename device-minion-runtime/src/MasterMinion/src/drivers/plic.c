@@ -19,12 +19,17 @@
         PLIC_Dispatch
 */
 /***********************************************************************/
-#include "drivers/plic.h"
-#include "io.h"
+#include <stddef.h>
+
+/* mm_rt_svcs */
+#include <etsoc/isa/io.h>
+
+/* etsoc_hal */
 #include "hwinc/hal_device.h"
 #include "hwinc/pu_plic.h"
 
-#include <stddef.h>
+/* mm specific headers */
+#include "drivers/plic.h"
 
 /*! \var void (*handlerTable[PU_PLIC_INTR_SRC_CNT])(uint32_t intID)
     \brief Global PLIC Handler Table

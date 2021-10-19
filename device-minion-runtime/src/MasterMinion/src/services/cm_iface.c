@@ -20,23 +20,30 @@
         CM_Iface_Unicast_Receive
 */
 /***********************************************************************/
-#include "cm_mm_defines.h"
+#include <stdbool.h>
+
+/* mm_rt_svcs */
+#include <etsoc/isa/atomic.h>
+#include <etsoc/isa/esr_defines.h>
+#include <etsoc/isa/fcc.h>
+#include <etsoc/isa/flb.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/riscv_encoding.h>
+#include <etsoc/isa/sync.h>
+#include <etsoc/isa/syscall.h>
+#include <transports/mm_cm_iface/broadcast.h>
+#include <transports/circbuff/circbuff.h>
+
+/* mm specific headers */
 #include "config/mm_config.h"
 #include "services/log.h"
 #include "services/cm_iface.h"
 #include "services/sw_timer.h"
-#include "device-common/atomic.h"
-#include "broadcast.h"
-#include "circbuff.h"
-#include "device-common/esr_defines.h"
-#include "device-common/fcc.h"
-#include "device-common/flb.h"
-#include "device-common/hart.h"
+
+/* mm_rt_helpers */
 #include "layout.h"
-#include "riscv_encoding.h"
-#include "sync.h"
 #include "syscall_internal.h"
-#include <stdbool.h>
+#include "cm_mm_defines.h"
 
 /* master -> worker */
 #define mm_to_cm_broadcast_message_buffer_ptr \
@@ -176,6 +183,9 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
     uint32_t timeout_flag = 0;
     uint64_t sip;
     broadcast_message_ctrl_t msg_control;
+
+    Log_Write(LOG_LEVEL_DEBUG,
+        "CM_Iface_Multicast_Send:Sending multicast msg\r\n");
 
     /* Verify the shire mask */
     if(dest_shire_mask == 0)

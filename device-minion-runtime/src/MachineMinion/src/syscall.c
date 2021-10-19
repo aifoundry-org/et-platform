@@ -12,24 +12,26 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* minion_bl.lib */
-#include "etsoc/isa/cacheops.h"
-#include "etsoc/isa/esr_defines.h"
-#include "etsoc/isa/fcc.h"
-#include "etsoc/isa/flb.h"
-#include "etsoc/isa/hart.h"
-#include "etsoc/hal/pmu.h"
-#include "transports/mm_cm_iface/broadcast.h"
+/* minion_bl */
+#include <etsoc/drivers/pmu/pmu.h>
+#include <etsoc/isa/cacheops.h>
+#include <etsoc/isa/esr_defines.h>
+#include <etsoc/isa/fcc.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/sync.h>
+#include <transports/mm_cm_iface/broadcast.h>
 
 /* etsoc_hal */
 #include "hwinc/hal_device.h"
 
-/* minion_rt.lib */
+/* minion_rt_helpers */
 #include "layout.h"
 #include "syscall_internal.h"
 #include "shire_cache.h"
 #include "minion_cfg.h"
 
+/* Global variable to cleanup threads in post kernel launch phase */
+static spinlock_t Kernel_Launch_Thread_Cleanup[NUM_SHIRES] = { 0 };
 
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 
@@ -64,7 +66,7 @@ static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en);
 
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
 {
-    int64_t ret = SYSCALL_SUCCESS;
+    int64_t ret = SYSCALL_INTERNAL_SUCCESS;
     volatile const uint64_t *const mtime_reg =
         (volatile const uint64_t *const)(R_PU_RVTIM_BASEADDR);
 
@@ -132,7 +134,7 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         ret = evict_l1(arg1, arg2);
         break;
     default:
-        ret = SYSCALL_INVALID_ID;
+        ret = SYSCALL_INTERNAL_INVALID_ID;
         break;
     }
 
@@ -267,7 +269,7 @@ static int64_t enable_thread1(uint64_t disable_mask, uint64_t enable_mask)
         (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, THREAD1_DISABLE);
     *disable_thread1_ptr = (*disable_thread1_ptr & ~enable_mask) | disable_mask;
 
-    return SYSCALL_SUCCESS;
+    return SYSCALL_INTERNAL_SUCCESS;
 }
 
 // All the M-mode only work that needs to be done before a kernel launch
@@ -291,30 +293,32 @@ static int64_t pre_kernel_setup(uint64_t thread1_enable_mask, uint64_t first_wor
         asm volatile("csrw cache_invalidate, 1");
     }
 
-    return SYSCALL_SUCCESS;
+    return SYSCALL_INTERNAL_SUCCESS;
 }
 
 // All the M-mode only work that needs to be done after a kernel returns
 // to avoid the overhead of making multiple syscalls
 static int64_t post_kernel_cleanup(uint64_t thread_count)
 {
-    bool result;
+    const uint32_t shire_id = get_shire_id();
 
-    // Thread 0 in each minion evicts L1
-    if (get_thread_id() == 0) {
+    /* Thread 0 in each minion evicts L1 */
+    if (get_thread_id() == 0)
+    {
         evict_l1(0, to_L2);
     }
 
-    // Wait for all L1 evicts to complete before evicting L2
-    WAIT_FLB(thread_count, 30, result);
+    /* Last thread in shire evicts L2. A full L2 evict includes flushing the coalescing buffer */
+    if (atomic_add_local_32(&Kernel_Launch_Thread_Cleanup[shire_id].flag, 1U) == (thread_count - 1))
+    {
+        /* Reset the thread counter */
+        init_local_spinlock(&Kernel_Launch_Thread_Cleanup[shire_id], 0);
 
-    // Last thread in shire to join barrier evicts L2
-    // A full L2 evict includes flushing the coalescing buffer
-    if (result) {
+        /* Evict L2 */
         evict_l2();
     }
 
-    return SYSCALL_SUCCESS;
+    return SYSCALL_INTERNAL_SUCCESS;
 }
 
 static inline void unlock_required_sw(void)
@@ -466,7 +470,7 @@ static int64_t evict_l2(void)
     sc_idx_cop_sm_ctl_all_banks_go(THIS_SHIRE, SC_CACHEOP_OPCODE_L2_EVICT); // Evict all L2 indexes
     sc_idx_cop_sm_ctl_all_banks_wait_idle(THIS_SHIRE);
 
-    return SYSCALL_SUCCESS;
+    return SYSCALL_INTERNAL_SUCCESS;
 }
 
 static int64_t flush_l3(void)
@@ -475,7 +479,7 @@ static int64_t flush_l3(void)
     sc_idx_cop_sm_ctl_all_banks_go(THIS_SHIRE, SC_CACHEOP_OPCODE_L3_FLUSH); // Flush all L3 indexes
     sc_idx_cop_sm_ctl_all_banks_wait_idle(THIS_SHIRE);
 
-    return SYSCALL_SUCCESS;
+    return SYSCALL_INTERNAL_SUCCESS;
 }
 
 static int64_t evict_l3(void)
@@ -484,7 +488,7 @@ static int64_t evict_l3(void)
     sc_idx_cop_sm_ctl_all_banks_go(THIS_SHIRE, SC_CACHEOP_OPCODE_L3_EVICT); // Evict all L3 indexes
     sc_idx_cop_sm_ctl_all_banks_wait_idle(THIS_SHIRE);
 
-    return SYSCALL_SUCCESS;
+    return SYSCALL_INTERNAL_SUCCESS;
 }
 
 static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op)
@@ -496,7 +500,7 @@ static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, ui
     case SC_CACHEOP_OPCODE_L3_EVICT:
     case SC_CACHEOP_OPCODE_CB_INV:
         sc_cache_bank_op(shire, bank, op);
-        return SYSCALL_SUCCESS;
+        return SYSCALL_INTERNAL_SUCCESS;
     default:
         return -1;
     }
@@ -578,5 +582,5 @@ static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en)
     // Release the hold of the processor
     excl_mode(0);
 
-    return SYSCALL_SUCCESS;
+    return SYSCALL_INTERNAL_SUCCESS;
 }

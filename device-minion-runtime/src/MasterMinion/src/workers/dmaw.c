@@ -36,14 +36,18 @@
         DMAW_Abort_All_Dispatched_Write_Channels
 */
 /***********************************************************************/
+/* mm_rt_svcs */
+#include    <etsoc/drivers/pmu/pmu.h>
+#include    <etsoc/isa/sync.h>
+
+/* mm specific headers */
 #include    "workers/dmaw.h"
 #include    "workers/sqw.h"
 #include    "services/log.h"
 #include    "services/host_iface.h"
 #include    "services/sp_iface.h"
 #include    "services/trace.h"
-#include    "pmu.h"
-#include    "sync.h"
+
 
 /*! \struct dmaw_read_cb_t
     \brief DMA Worker Read Control Block structure.

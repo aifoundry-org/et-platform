@@ -101,6 +101,26 @@
 */
 #define MEM_REGION_DMA_ALIGNMENT_64_BIT  0x3
 
+/*! \def MEM_REGION_DMA_ELEMENT_COUNT_SET(x)
+    \brief Macro that sets the DMA element count
+*/
+#define MEM_REGION_DMA_ELEMENT_COUNT_SET(x)  (((x) & 0xF) << 5)
+
+/*! \def MEM_REGION_DMA_ELEMENT_COUNT_SET(x)
+    \brief Macro that sets the DMA element size
+*/
+#define MEM_REGION_DMA_ELEMENT_SIZE_SET(x)  (((x) & 0xFF) << 9)
+
+/*! \def MEM_REGION_DMA_ELEMENT_SIZE
+    \brief Macro for DMA element size
+*/
+#define MEM_REGION_DMA_ELEMENT_SIZE          4
+
+/*! \def MEM_REGION_DMA_ELEMENT_COUNT
+    \brief Macro for element count in DMA list
+*/
+#define MEM_REGION_DMA_ELEMENT_COUNT         8
+
 /***************************/
 /* MM DIRs data structures */
 /***************************/

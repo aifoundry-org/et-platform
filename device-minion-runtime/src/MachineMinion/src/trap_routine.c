@@ -8,14 +8,13 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------
 */
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 
-/* minion_bl.lib */
-#include "etsoc/isa/riscv_encoding.h"
-#include "etsoc/isa/hart.h"
+/* minion_bl */
+#include <etsoc/isa/riscv_encoding.h>
+#include <etsoc/isa/hart.h>
 
 extern int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 

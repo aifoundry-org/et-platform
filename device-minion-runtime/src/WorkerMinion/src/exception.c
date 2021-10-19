@@ -1,18 +1,22 @@
-#include "layout.h"
-#include "log.h"
-#include "device-common/macros.h"
-#include "common_defs.h"
-#include "kernel.h"
-#include "device-common/hart.h"
-#include "message_types.h"
-#include "cm_to_mm_iface.h"
-#include "cm_mm_defines.h"
-#include "riscv_encoding.h"
-#include "syscall_internal.h"
-#include "trace.h"
 #include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
+
+#include <etsoc/common/common_defs.h>
+#include <etsoc/isa/macros.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/riscv_encoding.h>
+#include <etsoc/isa/sync.h>
+#include <transports/mm_cm_iface/message_types.h>
+
+#include "syscall_internal.h"
+#include "layout.h"
+
+#include "kernel.h"
+#include "cm_to_mm_iface.h"
+#include "cm_mm_defines.h"
+#include "trace.h"
+#include "log.h"
 
 void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const reg);
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,

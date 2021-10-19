@@ -29,8 +29,20 @@
         KW_Abort_All_Dispatched_Kernels
 */
 /***********************************************************************/
-#include    "device-common/atomic.h"
-#include    "common_defs.h"
+/* mm_rt_svcs */
+#include    <etsoc/isa/atomic.h>
+#include    <etsoc/common/common_defs.h>
+#include    <etsoc/isa/cacheops.h>
+#include    <etsoc/isa/riscv_encoding.h>
+#include    <etsoc/isa/sync.h>
+#include    <etsoc/isa/syscall.h>
+#include    <transports/circbuff/circbuff.h>
+#include    <transports/vq/vq.h>
+
+/* mm_rt_helpers */
+#include    "syscall_internal.h"
+
+/* mm specific headers */
 #include    "config/mm_config.h"
 #include    "services/host_iface.h"
 #include    "services/cm_iface.h"
@@ -41,13 +53,7 @@
 #include    "workers/cw.h"
 #include    "workers/kw.h"
 #include    "workers/sqw.h"
-#include    "device-common/cacheops.h"
-#include    "circbuff.h"
-#include    "riscv_encoding.h"
-#include    "sync.h"
-#include    "device-common/utils.h"
-#include    "vq.h"
-#include    "syscall_internal.h"
+
 
 /*! \def CM_KERNEL_LAUNCHED_FLAG
     \brief Macro that defines the flag for kernel launch status of CM side.

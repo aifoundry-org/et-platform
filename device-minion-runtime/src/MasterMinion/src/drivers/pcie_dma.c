@@ -1,13 +1,18 @@
-#include "etsoc_memory.h"
-#include "drivers/pcie_dma.h"
-#include "drivers/pcie_dma_ll.h"
-#include "layout.h"
-#include "services/log.h"
-#include "services/trace.h"
-
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
+
+/* mm specific headers */
+#include "drivers/pcie_dma.h"
+#include "drivers/pcie_dma_ll.h"
+#include "services/log.h"
+#include "services/trace.h"
+
+/* mm-rt-svcs */
+#include <etsoc/isa/etsoc_memory.h>
+
+/* mm-rt-helpers */
+#include "layout.h"
 
 /* Cycle Bit */
 #define CTRL_CB 0x01
