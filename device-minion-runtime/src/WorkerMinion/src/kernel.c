@@ -489,6 +489,10 @@ static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel)
             "or    %1, %0, %1             \n" // Set address of tensorLoad to tensor_zeros
             "csrw  tensor_load, %1        \n"
             "csrwi tensor_wait, 0         \n"
+            "li    %1, 0x040000000000000F \n" // Load 16 lines to L1SP lines 32-47
+            "or    %1, %0, %1             \n" // Set address of tensorLoad to tensor_zeros
+            "csrw  tensor_load, %1        \n"
+            "csrwi tensor_wait, 0         \n"
             "li    %1, 0x01FF800000610007 \n" // 16x16 TenC = 16x64 A in L1 SP lines 0-15 * 64x16 B in L1SP lines 16-31
             "csrw  tensor_fma, %1         \n"
             "csrwi tensor_wait, 7         \n"
