@@ -501,6 +501,7 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
     }
 
     memcpy(&sg_flash_fs_bl2_info, flash_fs_bl2_info, sizeof(FLASH_FS_BL2_INFO_t));
+
     return 0;
 }
 
@@ -963,6 +964,79 @@ int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk
             buffer:%lx  buffer_size:%x!\n",
                       passive_partition_address, (uint64_t)buffer, (uint32_t)buffer_size);
         return ERROR_SPI_FLASH_PARTITION_PROGRAM_FAILED;
+    }
+
+    return 0;
+}
+
+
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_read
+*
+*   DESCRIPTION
+*
+*       This function reads the data from given flash partition.
+*
+*   INPUTS
+*
+*       active                 read from active partition
+*       buffer                 data to be read
+*       chunk_size             size of data to be read from flash at the time (up to 256B)
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+int flash_fs_read(bool active, void *buffer, uint32_t chunk_size, uint32_t offset)
+{
+    uint32_t partition_address;
+
+    if (SPI_FLASH_PAGE_SIZE < chunk_size)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: invalid chunk_size!\n");
+        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
+    }
+
+    if (active)
+    {
+        /* Check if the partition 0 is active */
+        if (sg_flash_fs_bl2_info.active_partition == 0)
+        {
+            partition_address = 0;
+        }
+        else /* Second partition (1) is active */
+        {
+            partition_address = sg_flash_fs_bl2_info.flash_size / 2;
+        }
+    }
+    else
+    {
+        if (sg_flash_fs_bl2_info.active_partition == 0)
+        {
+            /* Partition 0 is active which means the passive partition is partition 1,
+                use its address */
+            partition_address = sg_flash_fs_bl2_info.flash_size / 2;
+        }
+        else
+        {
+            partition_address = 0;
+        }
+    }
+
+    Log_Write(LOG_LEVEL_INFO, "Read from partition address:%x  buffer:%lx  chunk_size:%x!\n",
+           partition_address, (uint64_t)buffer, chunk_size);
+
+    /* Read the data from the partition */
+    if (0 != SPI_Flash_Read_Page(sg_flash_fs_bl2_info.flash_id, partition_address + offset,
+                                     buffer, chunk_size))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: failed to read data!\n");
+        return ERROR_SPI_FLASH_PP_FAILED;
     }
 
     return 0;

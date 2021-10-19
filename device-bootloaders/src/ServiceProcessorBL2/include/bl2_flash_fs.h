@@ -91,6 +91,15 @@ int flash_fs_erase_partition(uint32_t partition_address, uint32_t partition_size
 */
 int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk_size);
 
+/*! \fn int flash_fs_read(bool active, void *buffer, uint64_t buffer_size, uint32_t chunk_size)
+    \brief This function reads the data from give flash partition
+    \param active - true for active partition else false
+    \param buffer - data to be written
+    \param chunk_size - size of data to be written to flash at the time (up to 256B)
+    \return The function call status, pass/fail.
+*/
+int flash_fs_read(bool active, void *buffer, uint32_t chunk_size, uint32_t offset);
+
 /*! \fn int flash_fs_swap_primary_boot_partition(void)
     \brief This function updates boot priority counters by deleting
 *       active and inactive boot counter designator area and writing
@@ -172,5 +181,6 @@ int flash_fs_get_memory_size(char *mem_size, size_t size);
     \return The function call status, pass/fail.
 */
 int flash_fs_get_form_factor(char *form_factor, size_t size);
+
 
 #endif

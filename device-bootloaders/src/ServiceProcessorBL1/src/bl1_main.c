@@ -16,7 +16,7 @@
 #include "bl1_crypto.h"
 #include "bl1_build_configuration.h"
 #include "sp_otp.h"
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/io.h"
 
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/hal_device.h"

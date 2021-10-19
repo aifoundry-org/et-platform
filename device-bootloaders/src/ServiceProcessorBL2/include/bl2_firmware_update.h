@@ -54,6 +54,10 @@ enum DEVICE_FW_UPDATE_STATUS {
 */
 #define DEVICE_FW_UPDATE_REGION_BASE 0x8005120000ULL
 
+/*! \def VALIDATE_FW_WRITE
+    \brief  Validates the firmware written to the flash memory
+*/
+#define VALIDATE_FW_WRITE
 
 /*! \def FORMAT_VERSION
     \brief Macro for formatting FW version. It will be of the format:  Major[1 byte].[Minor 1 byte].[Revision 1 byte].[NULL].

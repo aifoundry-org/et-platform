@@ -1,5 +1,6 @@
 #include "tf.h"
 
+
 int8_t TF_Set_Entry_Point_Handler(void* test_cmd);
 int8_t SP_Fw_Version_Cmd_Handler(void* test_cmd);
 int8_t Echo_To_SP_Cmd_Handler(void* test_cmd);
@@ -77,7 +78,7 @@ int8_t Move_Data_To_Device_Cmd_Handler(void* test_cmd)
     struct tf_rsp_move_data_to_device_t rsp;
 
     char* dst = (char*)cmd->dst_addr;
-    const char* src = (char*)cmd->data;
+    char* src = (char*)cmd->data;
     uint32_t size = cmd->size;
     uint32_t bytes_written = 0;
 

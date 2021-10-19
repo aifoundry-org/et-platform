@@ -25,9 +25,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "bl_error_code.h"
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/io.h"
 #include "bl2_sp_pll.h"
 #include "bl2_main.h"
+#include "interrupt.h"
 
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/sp_cru.h"
@@ -85,6 +86,39 @@
 */
 #define FREQUENCY_HZ_TO_MHZ(x) ((x) / 1000000u)
 
+/*! \def PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID)
+    \brief Disiables lock interrupt, clears status and enables loss interrupt
+*/
+#define PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID)                 \
+    clock_manager_set_pll_lock_int_enable(PLL_ID, false);    \
+    clock_manager_clear_pll_status(PLL_ID);                  \
+    clock_manager_set_pll_loss_int_enable(PLL_ID, true);
+
+/*! \def PLL_LOSS_INT_DIS_LOCK_INT_EN(PLL_ID)
+    \brief Disiables loss interrupt, clears status and enables lock interrupt
+*/
+#define PLL_LOSS_INT_DIS_LOCK_INT_EN(PLL_ID)                 \
+    clock_manager_set_pll_loss_int_enable(PLL_ID, false);    \
+    clock_manager_clear_pll_status(PLL_ID);                  \
+    clock_manager_set_pll_lock_int_enable(PLL_ID, true);
+
+/*! \def CHECK_AND_HANDLE_PLL_STATUS(PLL_ID, REG_MACRO, PLL_TO_PRINT)
+    \brief Disiables loss interrupt, clears status and enables lock interrupt
+*/
+#define CHECK_AND_HANDLE_PLL_STATUS(PLL_ID, REG_MACRO, PLL_COUNTER, PLL_TO_PRINT)     \
+    clock_manager_get_pll_status(PLL_ID, &cm_pll_status);                             \
+    if ( REG_MACRO(cm_pll_status) )                                                   \
+    {                                                                                 \
+        PLL_LOSS_INT_DIS_LOCK_INT_EN(PLL_ID)                                          \
+        PLL_COUNTER++;                                                                \
+        Log_Write(LOG_LEVEL_WARNING, "%s has lost lock, lock loss count = %d\r\n",    \
+                    PLL_TO_PRINT, PLL_COUNTER);                                       \
+    }                                                                                 \
+    else                                                                              \
+    {                                                                                 \
+        PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID)                                          \
+    }
+
 static uint32_t gs_sp_pll_0_frequency;
 static uint32_t gs_sp_pll_1_frequency;
 static uint32_t gs_sp_pll_2_frequency;
@@ -92,12 +126,141 @@ static uint32_t gs_sp_pll_4_frequency;
 static uint32_t gs_pcie_pll_0_frequency;
 static uint32_t gs_maxion_pll_core_frequency;
 static uint32_t gs_maxion_pll_uncore_frequency;
+static uint32_t cm_pll_0_lock_loss_count = 0;
+static uint32_t cm_pll_1_lock_loss_count = 0;
+static uint32_t cm_pll_2_lock_loss_count = 0;
+static uint32_t cm_pll_4_lock_loss_count = 0;
 
 uint32_t get_input_clock_index(void)
 {
     uint32_t rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
     return RESET_MANAGER_RM_STATUS2_STRAP_IN_GET(rm_status2);
 }
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wswitch-enum"
+
+static int clock_manager_set_pll_lock_int_enable(PLL_ID_t pll, bool inth_enable)
+{
+    uint32_t reg_value;
+
+    switch (pll)
+    {
+        case PLL_ID_SP_PLL_0:
+            reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL0_CTRL_ADDRESS);
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL0_CTRL_LOCKINTR_EN_MODIFY(reg_value, 
+                                                                        (inth_enable ? 1 : 0));
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL0_CTRL_ADDRESS, reg_value);
+            break;
+        case PLL_ID_SP_PLL_1:
+            reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL1_CTRL_ADDRESS);
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL1_CTRL_LOCKINTR_EN_MODIFY(reg_value, 
+                                                                        (inth_enable ? 1 : 0));
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL1_CTRL_ADDRESS, reg_value);
+            break;
+        case PLL_ID_SP_PLL_2:
+            reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL2_CTRL_ADDRESS);
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL2_CTRL_LOCKINTR_EN_MODIFY(reg_value, 
+                                                                        (inth_enable ? 1 : 0));
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL2_CTRL_ADDRESS, reg_value);
+            break;
+        case PLL_ID_SP_PLL_4:
+            reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS);
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL4_CTRL_LOCKINTR_EN_MODIFY(reg_value, 
+                                                                        (inth_enable ? 1 : 0));
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS, reg_value);
+            break;
+        default:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+    }
+
+    return 0;
+}
+
+static int clock_manager_set_pll_loss_int_enable(PLL_ID_t pll, bool inth_enable)
+{
+    uint32_t reg_value;
+
+    switch (pll)
+    {
+        case PLL_ID_SP_PLL_0:
+            reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL0_CTRL_ADDRESS);
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL0_CTRL_LOSSINTR_EN_MODIFY(reg_value, 
+                                                                        (inth_enable ? 1 : 0));
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL0_CTRL_ADDRESS, reg_value);
+            break;
+        case PLL_ID_SP_PLL_1:
+            reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL1_CTRL_ADDRESS);
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL1_CTRL_LOSSINTR_EN_MODIFY(reg_value, 
+                                                                        (inth_enable ? 1 : 0));
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL1_CTRL_ADDRESS, reg_value);
+            break;
+        case PLL_ID_SP_PLL_2:
+            reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL2_CTRL_ADDRESS);
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL2_CTRL_LOSSINTR_EN_MODIFY(reg_value, 
+                                                                        (inth_enable ? 1 : 0));
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL2_CTRL_ADDRESS, reg_value);
+            break;
+        case PLL_ID_SP_PLL_4:
+            reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS);
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL4_CTRL_LOSSINTR_EN_MODIFY(reg_value, 
+                                                                        (inth_enable ? 1 : 0));
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS, reg_value);
+            break;
+        default:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+    }
+
+    return 0;
+}
+
+static int clock_manager_get_pll_status(PLL_ID_t pll, uint32_t *cm_pll_status)
+{
+    switch (pll)
+    {
+        case PLL_ID_SP_PLL_0:
+            *cm_pll_status = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL0_STATUS_ADDRESS);
+            break;
+        case PLL_ID_SP_PLL_1:
+            *cm_pll_status = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL1_STATUS_ADDRESS);
+            break;
+        case PLL_ID_SP_PLL_2:
+            *cm_pll_status = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL2_STATUS_ADDRESS);
+            break;
+        case PLL_ID_SP_PLL_4:
+            *cm_pll_status = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_STATUS_ADDRESS);
+            break;
+        default:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+    }
+
+    return 0;
+}
+
+static int clock_manager_clear_pll_status(PLL_ID_t pll)
+{
+    switch (pll)
+    {
+        case PLL_ID_SP_PLL_0:
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL0_STATUS_ADDRESS, 0);
+            break;
+        case PLL_ID_SP_PLL_1:
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL1_STATUS_ADDRESS, 0);
+            break;
+        case PLL_ID_SP_PLL_2:
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL2_STATUS_ADDRESS, 0);
+            break;
+        case PLL_ID_SP_PLL_4:
+            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_STATUS_ADDRESS, 0);
+            break;
+        default:
+            return ERROR_SP_PLL_INVALID_PLL_ID;
+    }
+
+    return 0;
+}
+
+#pragma GCC diagnostic pop
 
 static int configure_pll_off(volatile uint32_t *pll_registers)
 {
@@ -270,6 +433,8 @@ int configure_sp_pll_0(uint8_t mode)
         goto ERROR;
     }
 
+    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_0)
+
     return 0;
 
 ERROR:
@@ -302,6 +467,8 @@ int configure_sp_pll_1(uint8_t mode)
     {
         goto ERROR;
     }
+
+    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_1)
 
     return 0;
 
@@ -336,6 +503,8 @@ int configure_sp_pll_2(uint8_t mode)
         goto ERROR;
     }
 
+    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_2)
+
     return 0;
 
 ERROR:
@@ -367,6 +536,8 @@ int configure_sp_pll_4(uint8_t mode)
     {
         goto ERROR;
     }
+
+    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_4)
 
     return 0;
 
@@ -512,6 +683,32 @@ int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency)
     }
 }
 
+void pll_lock_loss_isr(void)
+{
+    uint32_t cm_pll_status = 0;
+    
+    // Check PLL0 status
+    CHECK_AND_HANDLE_PLL_STATUS(PLL_ID_SP_PLL_0, CLOCK_MANAGER_CM_PLL0_STATUS_LOSS_GET,
+                                cm_pll_0_lock_loss_count, "PLL0_SPIO")
+
+    // Check PLL1 status
+    CHECK_AND_HANDLE_PLL_STATUS(PLL_ID_SP_PLL_1, CLOCK_MANAGER_CM_PLL1_STATUS_LOSS_GET,
+                                cm_pll_1_lock_loss_count, "PLL1_PU")
+
+    // Check PLL2 status
+    CHECK_AND_HANDLE_PLL_STATUS(PLL_ID_SP_PLL_2, CLOCK_MANAGER_CM_PLL2_STATUS_LOSS_GET,
+                                cm_pll_2_lock_loss_count, "PLL2_NOC")
+
+    // Check PLL3 status
+    CHECK_AND_HANDLE_PLL_STATUS(PLL_ID_SP_PLL_4, CLOCK_MANAGER_CM_PLL4_STATUS_LOSS_GET,
+                                cm_pll_4_lock_loss_count, "PLL4_MIN_STEP")
+}
+
+void enable_spio_pll_lock_loss_interrupt(void)
+{
+    INT_enableInterrupt(SPIO_PLIC_CRU_INTR_ID, 1, pll_lock_loss_isr);
+}
+
 int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
              uint32_t pcie_pll_0_frequency)
 {
@@ -520,5 +717,10 @@ int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
     gs_sp_pll_2_frequency = 0;
     gs_sp_pll_4_frequency = 0;
     gs_pcie_pll_0_frequency = pcie_pll_0_frequency;
+
+    /* PLL0 and PLL1 are programmed during Bootrom, now just enabling lock loss interrupt */
+    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_0)
+    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_1)
+
     return 0;
 }

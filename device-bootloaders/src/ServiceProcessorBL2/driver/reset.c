@@ -27,7 +27,7 @@
 /***********************************************************************/
 #include <stdio.h>
 #include "log.h"
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/io.h"
 #include "bl2_reset.h"
 
 #include "hwinc/sp_cru.h"

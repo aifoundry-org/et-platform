@@ -2,14 +2,13 @@
 #include "etsoc/drivers/serial/serial.h"
 #include "interrupt.h"
 #include "dummy_isr.h"
-#include "config/minion_fw_boot_config.h"
 #include "etsoc/drivers/pcie/pcie_int.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
 
 #include "cache_flush_ops.h"
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/io.h"
 #include "service_processor_ROM_data.h"
 #include "service_processor_BL1_data.h"
 #include "service_processor_BL2_data.h"
@@ -314,6 +313,9 @@ static void taskMain(void *pvParameters)
     Trace_Init_SP(NULL);
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
+
+    /* Enable SPIO PLLs lock loss interrupt */
+    enable_spio_pll_lock_loss_interrupt();
 
     while (1) {
         Log_Write(LOG_LEVEL_CRITICAL, "SP Alive..\r\n");

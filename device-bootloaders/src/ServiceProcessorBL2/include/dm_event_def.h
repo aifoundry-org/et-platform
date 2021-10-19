@@ -20,7 +20,7 @@
 
 #include <stdint.h>
 #include "dm.h"
-#include "transports/mm_cm_iface/sp_mm_comms_spec.h"
+#include "transports/sp_mm_iface/sp_mm_comms_spec.h"
 
 /*!
  * @enum enum event_class

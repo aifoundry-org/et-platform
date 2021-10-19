@@ -20,7 +20,7 @@
 #include <stdint.h>
 //#include "sp_otp.h"
 #include "bl_error_code.h"
-#include "etsoc/isa/mem-access/io.h"
+#include "etsoc/isa/io.h"
 
 #include "hwinc/hal_device.h"
 #include "hwinc/sp_cru_reset.h"
