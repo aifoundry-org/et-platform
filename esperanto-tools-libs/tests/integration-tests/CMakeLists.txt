@@ -31,4 +31,4 @@ set(PCIE_TEST_LIST
 create_test_targets("${PCIE_TEST_LIST}" "LABELS;Pcie;TIMEOUT;300" "pcie_")
 
 
-configure_file(invoke-pcie-loopback-tests.sh.in ${CMAKE_CURRENT_BINARY_DIR}/tests/invoke-pcie-loopback-tests.sh)
+configure_file(invoke-pcie-tests.sh.in ${CMAKE_CURRENT_BINARY_DIR}/tests/invoke-pcie-tests.sh)
