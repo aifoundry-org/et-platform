@@ -10,6 +10,9 @@
 *
 ************************************************************************/
 #include "bl2_cache_control.h"
+#include <hwinc/etsoc_shire_cache_esr.h>
+#include <hwinc/etsoc_shire_other_esr.h>
+#include "esr.h"
 
 /* The driver can populate this structure with the defaults that will be used during the init
     phase.*/
@@ -81,5 +84,114 @@ void sram_error_threshold_isr(void)
             /* call the callback function and post message */
             event_control_block.event_cb(CORRECTABLE, &message);
     }
+
+}
+
+static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
+{
+    return (uint8_t)(64 - __builtin_clzl(shire_mask));
+}
+
+int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size,
+                                    uint64_t shire_mask)
+{
+    uint64_t scp_ctl_value;
+    uint64_t l2_ctl_value;
+    uint64_t l3_ctl_value;
+    uint8_t num_of_shires;
+    uint16_t set_base;
+    uint16_t set_size;
+    uint16_t set_mask;
+    uint16_t tag_mask;
+    uint8_t high_bit;
+
+    if((uint32_t)(scp_size + l2_size + l3_size) > SC_BANK_SIZE)
+    {
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    if(0 != shire_mask)
+    {
+        num_of_shires = get_highest_set_bit_offset(shire_mask);
+    }
+    else
+    {
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    if(((scp_size % 2) != 0) || ((l2_size % 2) != 0) || ((l3_size % 2) != 0))
+    {
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    if(l2_size < 0x40u)
+    {
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    /* SCP calculation */
+    set_base = 0;
+    set_size = scp_size;
+    high_bit = get_highest_set_bit_offset((uint64_t)scp_size);
+    set_mask = (uint16_t)((0x1u << high_bit) - 0x1u);
+    tag_mask = ((0x1u << high_bit) == scp_size ) ? (uint16_t)((0x1u << high_bit) - 0x1u) :
+                                                   (uint16_t)((0x1u << (high_bit - 0x1u)) - 0x1u);
+
+    scp_ctl_value =
+        ETSOC_SHIRE_CACHE_ESR_SC_SCP_CACHE_CTL_ESR_SC_SCP_SET_BASE_SET(set_base) |
+        ETSOC_SHIRE_CACHE_ESR_SC_SCP_CACHE_CTL_ESR_SC_SCP_SET_SIZE_SET(set_size) |
+        ETSOC_SHIRE_CACHE_ESR_SC_SCP_CACHE_CTL_ESR_SC_SCP_SET_MASK_SET(set_mask) |
+        ETSOC_SHIRE_CACHE_ESR_SC_SCP_CACHE_CTL_ESR_SC_SCP_TAG_MASK_SET(tag_mask);
+
+
+    /* L2 calculation */
+    set_base = scp_size;
+    set_size = l2_size;
+    high_bit = get_highest_set_bit_offset((uint64_t)l2_size);
+    set_mask = (uint16_t)((0x1u << high_bit) - 0x1u);
+    tag_mask = ((0x1u << high_bit) == l2_size ) ? (uint16_t)((0x1u << high_bit) - 0x1u) :
+                                                  (uint16_t)((0x1u << (high_bit - 0x1u)) - 0x1u);
+
+    l2_ctl_value =
+        ETSOC_SHIRE_CACHE_ESR_SC_L2_CACHE_CTL_ESR_SC_L2_SET_BASE_SET(set_base) |
+        ETSOC_SHIRE_CACHE_ESR_SC_L2_CACHE_CTL_ESR_SC_L2_SET_SIZE_SET(set_size) |
+        ETSOC_SHIRE_CACHE_ESR_SC_L2_CACHE_CTL_ESR_SC_L2_SET_MASK_SET(set_mask) |
+        ETSOC_SHIRE_CACHE_ESR_SC_L2_CACHE_CTL_ESR_SC_L2_TAG_MASK_SET(tag_mask);
+
+    /* L3 calculation */
+    set_base = (uint16_t)(scp_size + l2_size);
+    set_size = l3_size;
+    high_bit = get_highest_set_bit_offset((uint64_t)l3_size);
+    set_mask = (uint16_t)((0x1u << high_bit) - 0x1u);
+    tag_mask = ((0x1u << high_bit) == l3_size ) ? (uint16_t)((0x1u << high_bit) - 0x1u) :
+                                                  (uint16_t)((0x1u << (high_bit - 0x1u)) - 0x1u);
+
+    l3_ctl_value =
+        ETSOC_SHIRE_CACHE_ESR_SC_L3_CACHE_CTL_ESR_SC_L3_SET_BASE_SET(set_base) |
+        ETSOC_SHIRE_CACHE_ESR_SC_L3_CACHE_CTL_ESR_SC_L3_SET_SIZE_SET(set_size) |
+        ETSOC_SHIRE_CACHE_ESR_SC_L3_CACHE_CTL_ESR_SC_L3_SET_MASK_SET(set_mask) |
+        ETSOC_SHIRE_CACHE_ESR_SC_L3_CACHE_CTL_ESR_SC_L3_TAG_MASK_SET(tag_mask);
+
+    /* Set shire cache configuration */
+    for(uint8_t i=0; i<=num_of_shires; i++)
+    {
+        if (shire_mask & 1)
+        {
+            /* Set scp cache ctrl */
+            write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+                ETSOC_SHIRE_CACHE_ESR_SC_SCP_CACHE_CTL_ADDRESS, scp_ctl_value, SC_BANK_BROADCAST);
+
+            /* Set l2 cache ctrl */
+            write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+                ETSOC_SHIRE_CACHE_ESR_SC_L2_CACHE_CTL_ADDRESS, l2_ctl_value, SC_BANK_BROADCAST);
+
+            /* Set l3 cache ctrl */
+            write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+                ETSOC_SHIRE_CACHE_ESR_SC_L3_CACHE_CTL_ADDRESS, l3_ctl_value, SC_BANK_BROADCAST);
+        }
+        shire_mask >>= 1;
+    }
+
+    return 0;
 
 }

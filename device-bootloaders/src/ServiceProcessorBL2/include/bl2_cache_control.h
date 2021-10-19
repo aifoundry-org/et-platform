@@ -14,6 +14,7 @@
 
 #include <stdint.h>
 #include "dm_event_def.h"
+#include "bl_error_code.h"
 
 /*!
  * @struct struct sram_event_control_block
@@ -26,6 +27,16 @@ struct sram_event_control_block
     uint32_t ce_threshold;          /**< Correctable error threshold. */
     dm_event_isr_callback event_cb; /**< Event callback handler. */
 };
+
+/*! \def SC_BANK_BROADCAST
+    \brief Shire cache bank broadcast ID
+*/
+#define SC_BANK_BROADCAST 0xFu
+
+/*! \def SC_BANK_SIZE
+    \brief Shire cache bank size (1MB)
+*/
+#define SC_BANK_SIZE 0x400u
 
 int32_t sram_error_control_init(dm_event_isr_callback event_cb);
 
@@ -86,5 +97,22 @@ int32_t sram_get_ce_count(uint32_t *ce_count);
 int32_t sram_get_uce_count(uint32_t *uce_count);
 
 void sram_error_threshold_isr(void);  //TODO: WILL BE MADE STATIC FUNCION WITH ACTUAL ISR IMPLEMENTATION
+
+/*! \fn int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size,
+*                                    uint64_t shire_mask)
+    \brief This function sets cache configuration.
+*          Configuration is per cache bank (1MB), and all banks are configured the same.
+*          Following constraint must be followed:
+*             - (scp_size + l2_size + l3_size) <= 0x400
+*             - scp_size, l2_size and l3_size must be multiple of 2
+*             - if l2_size !=0 then l2_size >= 0x40
+    \param scp_size scratchpad size
+    \param l2_size l2 cache size
+    \param l3_size l3 cache size
+    \param shire_mask shire_mask
+    \return Status indicating success or negative error
+*/
+int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size,
+                                    uint64_t shire_mask);
 
 #endif
