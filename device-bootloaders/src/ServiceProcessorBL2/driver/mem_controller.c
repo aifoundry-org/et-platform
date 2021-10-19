@@ -34,6 +34,12 @@
 
 static uint32_t memshire_frequency;
 static uint32_t ddr_frequency;
+/* MEMSHIRE PLL frequency modes (795MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
+static uint8_t min_lvdpll_mode_795MHz[3] = {50, 51, 52};
+/* MEMSHIRE PLL frequency modes (933MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
+static uint8_t min_lvdpll_mode_933MHz[3] = {28, 29, 30};
+/* MEMSHIRE PLL frequency modes (1066MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
+static uint8_t min_lvdpll_mode_1066MHz[3] = {19, 20, 21};
 
 int configure_memshire_plls(const DDR_MODE *ddr_mode)
 {
@@ -46,46 +52,13 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode)
     https://docs.google.com/spreadsheets/d/0B45kZDfsf1VrbE5QOW1LZ1Zoc0VmWXRyMDJQMDViLUM2NGMw/ */
 
     if(ddr_mode->frequency == DDR_FREQUENCY_800MHZ) {
-        if (hpdpll_strap_pins == 0) 
-        {
-            pll_mode = 50; /*HPDPLL-795 Mhz*/
-        }
-        else if (hpdpll_strap_pins == 1)
-        {
-            pll_mode = 51; /*HPDPLL-795 Mhz*/
-        }
-        else
-        {
-            pll_mode = 52; /*HPDPLL-795 Mhz*/
-        }
+        pll_mode = min_lvdpll_mode_795MHz[hpdpll_strap_pins];
     }
     else if(ddr_mode->frequency == DDR_FREQUENCY_933MHZ) {
-        if (hpdpll_strap_pins == 0) 
-        {
-            pll_mode = 28; /*HPDPLL-933 Mhz*/
-        }
-        else if (hpdpll_strap_pins == 1)
-        {
-            pll_mode = 29; /*HPDPLL-933 Mhz*/
-        }
-        else
-        {
-            pll_mode = 30; /*HPDPLL-933 Mhz*/
-        }
+        pll_mode = min_lvdpll_mode_933MHz[hpdpll_strap_pins];
     }
     else if(ddr_mode->frequency == DDR_FREQUENCY_1066MHZ) {
-        if (hpdpll_strap_pins == 0) 
-        {
-            pll_mode = 19; /*HPDPLL-1066 Mhz*/
-        }
-        else if (hpdpll_strap_pins == 1)
-        {
-            pll_mode = 20; /*HPDPLL-1066 Mhz*/
-        }
-        else
-        {
-            pll_mode = 21; /*HPDPLL-1066 Mhz*/
-        }
+        pll_mode = min_lvdpll_mode_1066MHz[hpdpll_strap_pins];
     }
     else {
         return -1;
