@@ -111,6 +111,9 @@ static void pcie_uce_error(void);
 
 static struct pcie_event_control_block event_control_block __attribute__((section(".data")));
 
+/* MEMSHIRE PLL frequency modes (1010MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
+static uint8_t pcie_pll_mode[3] = {6, 12, 18};
+
 /*!
  * @struct struct pcie_event_control_block
  * @brief PCIE driver error mgmt control block
@@ -885,19 +888,7 @@ int PShire_Initialize(void)
     PCIe_release_pshire_from_reset();
     /*Configure PShire PLL to 1010 Mhz */
     hpdpll_strap_pins = get_hpdpll_strap_value();
-    if (hpdpll_strap_pins == 0) 
-    {
-        pll_mode = 6; /*HPDPLL-1010 Mhz*/
-    }
-    else if (hpdpll_strap_pins == 1)
-    {
-        pll_mode = 12; /*HPDPLL-1010 Mhz*/
-    }
-    else
-    {
-        pll_mode = 18; /*HPDPLL-1010 Mhz*/
-    }
-    configure_pshire_pll(pll_mode);
+    configure_pshire_pll(pcie_pll_mode[hpdpll_strap_pins]);
     return 0;
 }
 

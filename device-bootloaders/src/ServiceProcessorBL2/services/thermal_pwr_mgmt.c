@@ -1132,9 +1132,9 @@ static int reduce_minion_operating_point(int32_t delta_power, struct trace_event
     int32_t delta_freq = (delta_power * DP_per_Mhz) / 1000;
     int32_t new_freq = Get_Minion_Frequency() - delta_freq;
 
-    /* If we are using modes round down frequency to be multiple of 25 */
+    /* If we are using modes round frequency to be multiple of MODE_FREQUENCY_STEP_SIZE */
 #if USE_FCW_FOR_LVDPLL == 0
-    new_freq = (new_freq / 25) * 25;
+    new_freq = ((new_freq + (MODE_FREQUENCY_STEP_SIZE / 2)) / MODE_FREQUENCY_STEP_SIZE) * MODE_FREQUENCY_STEP_SIZE;
 #endif
 
     if (0 != Minion_Shire_Update_PLL_Freq((uint16_t)new_freq))
@@ -1185,9 +1185,9 @@ static int increase_minion_operating_point(int32_t delta_power, struct trace_eve
     int32_t delta_freq = (delta_power * DP_per_Mhz) / 1000;
     int32_t new_freq = Get_Minion_Frequency() + delta_freq;
 
-    /* If we are using modes round up frequency to be multiple of 25 */
+    /* If we are using modes round frequency to be multiple of MODE_FREQUENCY_STEP_SIZE */
 #if USE_FCW_FOR_LVDPLL == 0
-    new_freq = ((new_freq + 24) / 25) * 25;
+    new_freq = ((new_freq + (MODE_FREQUENCY_STEP_SIZE / 2)) / MODE_FREQUENCY_STEP_SIZE) * MODE_FREQUENCY_STEP_SIZE;
 #endif
 
     int32_t new_voltage = Minion_Get_Voltage_Given_Freq(new_freq);
