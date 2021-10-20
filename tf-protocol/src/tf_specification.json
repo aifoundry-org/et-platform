@@ -449,8 +449,9 @@
         },
         "TF_CMD_MM_CMD_SHELL": {
             "flags": 2,
-            "payload_size": 4,
+            "payload_size": 8,
             "payload_args": {
+                "mm_cmd_timeout_ms": "uint32_t",
                 "mm_cmd_size": "uint32_t",
                 "mm_cmd_data": "flexible_bytes"
             }
