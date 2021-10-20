@@ -18,6 +18,7 @@
 #include "system/layout.h"
 #include "etsoc/drivers/pcie/pcie_int.h"
 #include "pcie_configuration.h"
+#include "bl2_reset.h"
 #include "config/mgmt_build_config.h"
 #include <interrupt.h>
 #include "bl2_reset.h"
