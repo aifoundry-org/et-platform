@@ -225,6 +225,9 @@ static void taskMain(void *pvParameters)
     status = Minion_Enable_Shire_Cache_and_Neighborhoods(minion_shires_mask);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to enable minion neighborhoods!")
 
+    /* Initialize the Cache Size DIRs */
+    DIR_Cache_Size_Init();
+
     // Extract Master Minion Shire ID from Fuses
     status = otp_get_master_shire_id(&mm_id);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to read master minion shire ID!")

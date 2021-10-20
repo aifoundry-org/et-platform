@@ -43,6 +43,11 @@ struct sram_event_control_block
 */
 #define SC_BANK_SIZE 0x400u
 
+/*! \def SC_BANK_NUM
+    \brief Number of banks in shire cache
+*/
+#define SC_BANK_NUM 4
+
 int32_t sram_error_control_init(dm_event_isr_callback event_cb);
 
 /*! \fn int32_t sram_error_control_deinit(void)
@@ -101,29 +106,29 @@ int32_t sram_get_ce_count(uint32_t *ce_count);
 
 int32_t sram_get_uce_count(uint32_t *uce_count);
 
-/*! \fn uint16_t Cache_Control_SCP_size(void)
-    \brief This function provides SCP size
-    \param none
-    \return L3 size
+/*! \fn uint16_t Cache_Control_SCP_size(uint64_t shire_mask)
+    \brief This function provides SCP size (MB)
+    \param shire_mask Active shire mask
+    \return SCP size in MegaBytes
 */
 
-uint16_t Cache_Control_SCP_size(void);
+uint16_t Cache_Control_SCP_size(uint64_t shire_mask);
 
-/*! \fn uint16_t Cache_Control_L2_size(void)
-    \brief This function provides L2 size
-    \param none
-    \return L3 size
+/*! \fn uint16_t Cache_Control_L2_size(uint64_t shire_mask)
+    \brief This function provides L2 size (MB)
+    \param shire_mask Active shire mask
+    \return L2 size in MegaBytes
 */
 
-uint16_t Cache_Control_L2_size(void);
+uint16_t Cache_Control_L2_size(uint64_t shire_mask);
 
-/*! \fn uint16_t Cache_Control_L3_size(void)
-    \brief This function provides L3 cache size
-    \param none
-    \return L3 size
+/*! \fn uint16_t Cache_Control_L3_size(uint64_t shire_mask)
+    \brief This function provides L3 cache size (MB)
+    \param shire_mask Active shire mask
+    \return L3 size in MegaBytes
 */
 
-uint16_t Cache_Control_L3_size(void);
+uint16_t Cache_Control_L3_size(uint64_t shire_mask);
 
 void sram_error_threshold_isr(void);  //TODO: WILL BE MADE STATIC FUNCION WITH ACTUAL ISR IMPLEMENTATION
 
