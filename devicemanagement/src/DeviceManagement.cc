@@ -161,17 +161,16 @@ int DeviceManagement::processHashFile(const char* filePath, std::vector<unsigned
   return 0;
 }
 
-int DeviceManagement::getTraceBufferServiceProcessor(const uint32_t device_node, std::vector<std::byte>& response,
+int DeviceManagement::getTraceBufferServiceProcessor(const uint32_t device_node, TraceBufferType trace_type, std::vector<std::byte>& response,
                                                      uint32_t timeout) {
   if (!isValidDeviceNode(device_node)) {
     return -EINVAL;
   }
 
   auto lockable = getDevice(device_node);
-
   if (lockable->devGuard.try_lock_for(std::chrono::milliseconds(timeout))) {
     const std::lock_guard<std::timed_mutex> lock(lockable->devGuard, std::adopt_lock_t());
-    devLayer_->getTraceBufferServiceProcessor(lockable->idx, response);
+    devLayer_->getTraceBufferServiceProcessor(lockable->idx, trace_type, response);
     return 0;
   }
 

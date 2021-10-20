@@ -190,7 +190,7 @@ void TestDevMgmtApiSyncCmds::extractAndPrintTraceData(void) {
 
       DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
-      if (dm.getTraceBufferServiceProcessor(deviceIdx, response, DM_SERVICE_REQUEST_TIMEOUT) !=
+      if (dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response, DM_SERVICE_REQUEST_TIMEOUT) !=
           device_mgmt_api::DM_STATUS_SUCCESS) {
         DM_LOG(INFO) << "Unable to get SP trace buffer for device: " << deviceIdx << ". Disabling Trace.";
       } else {
@@ -1745,7 +1745,7 @@ void TestDevMgmtApiSyncCmds::getTraceBuffer_1_49(bool singleDevice) {
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    EXPECT_EQ(dm.getTraceBufferServiceProcessor(deviceIdx, response, DM_SERVICE_REQUEST_TIMEOUT),
+    EXPECT_EQ(dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response, DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 

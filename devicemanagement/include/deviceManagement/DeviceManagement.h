@@ -164,7 +164,8 @@ public:
   /// to receive a message.
   ///
   /// @return Zero if the call was succesfull.
-  int getTraceBufferServiceProcessor(const uint32_t device_node, std::vector<std::byte>& response, uint32_t timeout);
+  int getTraceBufferServiceProcessor(const uint32_t device_node, TraceBufferType buf_type,
+                                     std::vector<std::byte>& response, uint32_t timeout);
 
 private:
   /// @brief DeviceManagement constructors
