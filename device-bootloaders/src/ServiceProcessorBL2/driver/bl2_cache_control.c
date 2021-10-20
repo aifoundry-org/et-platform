@@ -14,9 +14,20 @@
 #include <hwinc/etsoc_shire_other_esr.h>
 #include "esr.h"
 
+/*! \def KB_to_MB(size)
+    \brief Converts kilobytes to megabytes.
+*/
+#define KB_to_MB(size) \
+    (size / 1024)
+
 /* The driver can populate this structure with the defaults that will be used during the init
     phase.*/
 static struct sram_event_control_block  event_control_block __attribute__((section(".data")));
+
+static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
+{
+    return (uint8_t)(64 - __builtin_clzl(shire_mask));
+}
 
 int32_t sram_error_control_init(dm_event_isr_callback event_cb)
 {
@@ -65,22 +76,88 @@ int32_t sram_get_uce_count(uint32_t *uce_count)
     return 0;
 }
 
-uint16_t Cache_Control_SCP_size(void)
-{
-    /* get L3 scp size */
-    return 0;
+uint16_t Cache_Control_SCP_size(uint64_t shire_mask)
+{  
+    uint64_t scp_cache_ctrl;
+    uint16_t bank_scp_size;
+    uint8_t  highest_shire_id;
+    uint8_t  num_of_active_shires;
+
+    if(0 != shire_mask)
+    {
+        highest_shire_id = get_highest_set_bit_offset(shire_mask);
+    }
+    else
+    {
+        return 0;
+    }
+
+    /* All cache banks are configured the same accross the chip, so we are reading
+       bank 0 scp cache control register just from one shire */
+    scp_cache_ctrl = read_esr_new(PP_MACHINE, highest_shire_id, REGION_OTHER,
+                ESR_OTHER_SUBREGION_CACHE, ETSOC_SHIRE_CACHE_ESR_SC_SCP_CACHE_CTL_ADDRESS, 0);
+
+    bank_scp_size = ETSOC_SHIRE_CACHE_ESR_SC_SCP_CACHE_CTL_ESR_SC_SCP_SET_SIZE_GET(scp_cache_ctrl);
+
+    num_of_active_shires = (uint8_t)__builtin_popcountll(shire_mask);
+
+    return (uint16_t)KB_to_MB(num_of_active_shires * SC_BANK_NUM * bank_scp_size);
 }
 
-uint16_t Cache_Control_L2_size(void)
+uint16_t Cache_Control_L2_size(uint64_t shire_mask)
 {
-    /* get L2 cache size */
-    return 0;
+    uint64_t l2_cache_ctrl;
+    uint16_t bank_l2_size;
+    uint8_t  highest_shire_id;
+    uint8_t  num_of_active_shires;
+
+    if(0 != shire_mask)
+    {
+        highest_shire_id = get_highest_set_bit_offset(shire_mask);
+    }
+    else
+    {
+        return 0;
+    }
+
+    /* All cache banks are configured the same accross the chip, so we are reading
+       bank 0 l2 cache control register just from one shire */
+    l2_cache_ctrl = read_esr_new(PP_MACHINE, highest_shire_id, REGION_OTHER,
+                ESR_OTHER_SUBREGION_CACHE, ETSOC_SHIRE_CACHE_ESR_SC_L2_CACHE_CTL_ADDRESS, 0);
+
+    bank_l2_size = ETSOC_SHIRE_CACHE_ESR_SC_L2_CACHE_CTL_ESR_SC_L2_SET_SIZE_GET(l2_cache_ctrl);
+
+    num_of_active_shires = (uint8_t)__builtin_popcountll(shire_mask);
+
+    return (uint16_t)KB_to_MB(num_of_active_shires * SC_BANK_NUM * bank_l2_size);
 }
 
-uint16_t Cache_Control_L3_size(void)
+uint16_t Cache_Control_L3_size(uint64_t shire_mask)
 {
-    /* get L3 cache size */
-    return 0;
+    uint64_t l3_cache_ctrl;
+    uint16_t bank_l3_size;
+    uint8_t  highest_shire_id;
+    uint8_t  num_of_active_shires;
+
+    if(0 != shire_mask)
+    {
+        highest_shire_id = get_highest_set_bit_offset(shire_mask);
+    }
+    else
+    {
+        return 0;
+    }
+
+    /* All cache banks are configured the same accross the chip, so we are reading
+       bank 0 l3 cache control register just from one shire */
+    l3_cache_ctrl = read_esr_new(PP_MACHINE, highest_shire_id, REGION_OTHER,
+                ESR_OTHER_SUBREGION_CACHE, ETSOC_SHIRE_CACHE_ESR_SC_L3_CACHE_CTL_ADDRESS, 0);
+
+    bank_l3_size = ETSOC_SHIRE_CACHE_ESR_SC_L3_CACHE_CTL_ESR_SC_L3_SET_SIZE_GET(l3_cache_ctrl);
+
+    num_of_active_shires = (uint8_t)__builtin_popcountll(shire_mask);
+
+    return (uint16_t)KB_to_MB(num_of_active_shires * SC_BANK_NUM * bank_l3_size);
 }
 
 void sram_error_threshold_isr(void)
@@ -103,11 +180,6 @@ void sram_error_threshold_isr(void)
             event_control_block.event_cb(CORRECTABLE, &message);
     }
 
-}
-
-static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
-{
-    return (uint8_t)(64 - __builtin_clzl(shire_mask));
 }
 
 int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size,

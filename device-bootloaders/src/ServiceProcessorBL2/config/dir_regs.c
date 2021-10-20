@@ -69,9 +69,12 @@ void DIR_Init(void)
     Gbl_SP_DIRs->generic_attr.minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
     Gbl_SP_DIRs->generic_attr.form_factor = SP_DEV_CONFIG_FORM_FACTOR_PCIE;
     Gbl_SP_DIRs->generic_attr.minion_boot_freq = (uint32_t)Get_Minion_Frequency();
-    Gbl_SP_DIRs->generic_attr.l3_size = Cache_Control_L3_size();
-    Gbl_SP_DIRs->generic_attr.l2_size = Cache_Control_L2_size();
-    Gbl_SP_DIRs->generic_attr.scp_size = Cache_Control_SCP_size();
+    Gbl_SP_DIRs->generic_attr.l3_size =
+                            Cache_Control_L3_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask);
+    Gbl_SP_DIRs->generic_attr.l2_size =
+                            Cache_Control_L2_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask);
+    Gbl_SP_DIRs->generic_attr.scp_size =
+                            Cache_Control_SCP_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask);
     Gbl_SP_DIRs->generic_attr.cache_line_size = CACHE_LINE_SIZE;
     get_module_tdp_level((uint8_t *)&Gbl_SP_DIRs->generic_attr.device_tdp);
 
