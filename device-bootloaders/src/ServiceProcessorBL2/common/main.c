@@ -165,9 +165,6 @@ static void taskMain(void *pvParameters)
 
     /* Initialize the DIRs */
     DIR_Init();
-
-    /* Populate DIR with General Device Attributes */
-    DIR_Set_Minion_Shires(minion_shires_mask);
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_VQ_READY);
 
     Log_Write(LOG_LEVEL_CRITICAL, "time: %lu\n", timer_get_ticks_count());

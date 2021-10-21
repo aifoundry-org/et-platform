@@ -16,6 +16,11 @@
 #include "dm_event_def.h"
 #include "bl_error_code.h"
 
+/*! \def CACHE_LINE_SIZE
+    \brief Macro representing the 64-byte cache line size
+*/
+#define CACHE_LINE_SIZE                   64
+
 /*!
  * @struct struct sram_event_control_block
  * @brief SRAM driver error mgmt control block
@@ -95,6 +100,30 @@ int32_t sram_get_ce_count(uint32_t *ce_count);
 */
 
 int32_t sram_get_uce_count(uint32_t *uce_count);
+
+/*! \fn uint16_t Cache_Control_SCP_size(void)
+    \brief This function provides SCP size
+    \param none
+    \return L3 size
+*/
+
+uint16_t Cache_Control_SCP_size(void);
+
+/*! \fn uint16_t Cache_Control_L2_size(void)
+    \brief This function provides L2 size
+    \param none
+    \return L3 size
+*/
+
+uint16_t Cache_Control_L2_size(void);
+
+/*! \fn uint16_t Cache_Control_L3_size(void)
+    \brief This function provides L3 cache size
+    \param none
+    \return L3 size
+*/
+
+uint16_t Cache_Control_L3_size(void);
 
 void sram_error_threshold_isr(void);  //TODO: WILL BE MADE STATIC FUNCION WITH ACTUAL ISR IMPLEMENTATION
 

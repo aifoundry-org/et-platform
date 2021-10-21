@@ -147,14 +147,23 @@ enum SP_DEV_INTF_MEM_REGION_TYPE_e {
     SP_DEV_INTF_MEM_REGION_TYPE_NUM
 };
 
+/*! \enum SP_DEV_INTF_form_factor
+    \brief Values representing the available types of
+    memory regions supported by the Service Processor
+*/
+enum SP_DEV_INTF_FORM_FACTOR_e {
+	SP_DEV_CONFIG_FORM_FACTOR_PCIE = 1,
+	SP_DEV_CONFIG_FORM_FACTOR_M_2
+};
+
 /*! \struct SP_DEV_INTF_MEM_REGION_ATTR
     \brief Holds the information of Service Processor interface memory region.
     \warning Must be 64-bit aligned.
 */
 typedef struct __attribute__((__packed__)) SP_DEV_INTF_MEM_REGION_ATTR {
+    uint16_t attributes_size;
     uint8_t type;
     uint8_t bar;
-    uint16_t attributes_size;
     uint32_t access_attr;
     uint64_t bar_offset;
     uint64_t bar_size;
@@ -166,16 +175,16 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_MEM_REGION_ATTR {
     \warning Must be 64-bit aligned.
 */
 typedef struct __attribute__((__packed__)) SP_DEV_INTF_VQ_ATTR {
+    uint16_t attributes_size;
+    uint8_t int_trg_size;
+    uint8_t int_id;
+    uint32_t int_trg_offset;
     uint32_t sq_offset;
     uint16_t sq_count;
     uint16_t per_sq_size;
     uint32_t cq_offset;
     uint16_t cq_count;
     uint16_t per_cq_size;
-    uint32_t int_trg_offset;
-    uint8_t int_trg_size;
-    uint8_t int_id;
-    uint16_t attributes_size;
 } SP_DEV_INTF_VQ_ATTR_s;
 
 /*! \struct SP_DEV_INTF_GENERIC_ATTR
@@ -183,15 +192,23 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_VQ_ATTR {
     \warning Must be 64-bit aligned.
 */
 typedef struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR {
+    uint16_t attributes_size;
     uint16_t version;
     uint16_t total_size;
-    uint16_t attributes_size;
     uint16_t num_mem_regions;
     uint64_t minion_shires_mask;
-    uint8_t reserved[2];
-    int16_t status;
+    uint32_t minion_boot_freq;
     uint32_t crc32;
+    int16_t  status;
+    uint16_t form_factor;
+    uint16_t device_tdp;
+    uint16_t l3_size;
+    uint16_t l2_size;
+    uint16_t scp_size;
+    uint16_t cache_line_size;
+    uint8_t reserved[2];
 } SP_DEV_INTF_GENERIC_ATTR_s;
+
 
 /*! \struct SP_DEV_INTF_REG
     \brief Service Processor DIRs which will be used to public device capability to Host.
@@ -232,11 +249,5 @@ void DIR_Init(void);
     \param status Value of DIRs status field
 */
 void DIR_Set_Service_Processor_Status(int16_t status);
-
-/*! \fn void DIR_Set_Minion_Shires(uint64_t minion_shires)
-    \brief Set the available minion shires in system
-    \param minion_shires Available minion shires mask value
-*/
-void DIR_Set_Minion_Shires(uint64_t minion_shires);
 
 #endif /* MGMT_DIR_REGS_H */
