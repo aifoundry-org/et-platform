@@ -71,9 +71,8 @@ typedef struct trace_umode_control_block {
 /*! \def CHECK_HART_TRACE_ENABLED
     \brief Check if Trace is enabled for given Hart.
 */
-#define CHECK_HART_TRACE_ENABLED(init, id)          \
-    (((init)->shire_mask & TRACE_SHIRE_MASK(id)) && \
-        ((init)->thread_mask & TRACE_HART_MASK(id)))
+#define CHECK_HART_TRACE_ENABLED(init, id) \
+    (((init)->shire_mask & TRACE_SHIRE_MASK(id)) && ((init)->thread_mask & TRACE_HART_MASK(id)))
 
 /*! \def CM_BASE_HART_ID
     \brief CM Base HART ID.

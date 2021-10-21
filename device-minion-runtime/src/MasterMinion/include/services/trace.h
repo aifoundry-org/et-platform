@@ -28,14 +28,18 @@
 /**************************/
 /* MM Trace Status Codes  */
 /**************************/
-#define INVALID_TRACE_INIT_INFO       -10
-#define INVALID_CM_SHIRE_MASK         -11
+#define INVALID_TRACE_INIT_INFO -10
+#define INVALID_CM_SHIRE_MASK   -11
 
 #ifdef MM_ENABLE_CMD_EXECUTION_TRACE
-#define TRACE_LOG_CMD_STATUS(message_id, sqw_idx, tag_id, status)                       \
-            {   struct trace_event_cmd_status_t cmd_data = {.queue_slot_id=sqw_idx,  \
-                    .mesg_id = message_id, .trans_id = tag_id, .cmd_status = status};   \
-                Trace_Cmd_Status(Trace_Get_MM_CB(), &cmd_data); }
+#define TRACE_LOG_CMD_STATUS(message_id, sqw_idx, tag_id, status)              \
+    {                                                                          \
+        struct trace_event_cmd_status_t cmd_data = { .queue_slot_id = sqw_idx, \
+            .mesg_id = message_id,                                             \
+            .trans_id = tag_id,                                                \
+            .cmd_status = status };                                            \
+        Trace_Cmd_Status(Trace_Get_MM_CB(), &cmd_data);                        \
+    }
 #else
 #define TRACE_LOG_CMD_STATUS(message_id, sqw_idx, tag_id, status)
 #endif
@@ -43,25 +47,25 @@
 /*! \def CM_SHIRE_MASK
     \brief Shire mask of Compute Workers.
 */
-#define CM_SHIRE_MASK    0xFFFFFFFFULL
+#define CM_SHIRE_MASK 0xFFFFFFFFULL
 
 /*! \def CW_IN_MM_SHIRE
     \brief Computer worker HART index in MM Shire.
 */
-#define CW_IN_MM_SHIRE   0xFFFFFFFF00000000ULL
+#define CW_IN_MM_SHIRE 0xFFFFFFFF00000000ULL
 
 /*! \def TRACE_CONFIG_CHECK_MM_HART
     \brief Helper macro to check if given shire and thread masks contains any MM HART.
 */
-#define TRACE_CONFIG_CHECK_MM_HART(shire_mask, thread_mask)                             \
-                    (shire_mask & MM_SHIRE_MASK) && (thread_mask & MM_HART_MASK)
+#define TRACE_CONFIG_CHECK_MM_HART(shire_mask, thread_mask) \
+    (shire_mask & MM_SHIRE_MASK) && (thread_mask & MM_HART_MASK)
 
 /*! \def TRACE_CONFIG_CHECK_CM_HART
     \brief Helper macro to check if given shire and thread masks contains any CM HART.
 */
-#define TRACE_CONFIG_CHECK_CM_HART(shire_mask, thread_mask)                             \
-                    (((shire_mask & CM_SHIRE_MASK) && (thread_mask & MM_HART_MASK)) ||  \
-                    ((shire_mask & MM_SHIRE_MASK) && (thread_mask & CW_IN_MM_SHIRE)))
+#define TRACE_CONFIG_CHECK_CM_HART(shire_mask, thread_mask)            \
+    (((shire_mask & CM_SHIRE_MASK) && (thread_mask & MM_HART_MASK)) || \
+        ((shire_mask & MM_SHIRE_MASK) && (thread_mask & CW_IN_MM_SHIRE)))
 
 /*! \fn void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
     \brief This function initializes Trace for all harts in Master Minion
@@ -75,7 +79,7 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info);
     \brief This function return Trace control block for given Hart ID.
     \return Pointer to the Trace control block for caller Hart.
 */
-struct trace_control_block_t* Trace_Get_MM_CB(void);
+struct trace_control_block_t *Trace_Get_MM_CB(void);
 
 /*! \fn uint64_t Trace_Get_CM_Shire_Mask(void)
     \brief This function returns shire mask of Compute Minions for which
@@ -118,6 +122,5 @@ uint32_t Trace_Evict_Buffer_MM(void);
     \return None
 */
 void Trace_Set_Enable_MM(trace_enable_e control);
-
 
 #endif
