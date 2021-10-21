@@ -45,7 +45,7 @@ static void mm2sp_notification_isr(void)
     Log_Write(LOG_LEVEL_INFO, "Received SP_MM_Iface interrupt notification from MM..");
 }
 
-static bool mm2sp_wait_for_response(bool enable_timeout)
+static bool mm2sp_wait_for_response(uint32_t timeout_ms)
 {
     bool wait_for_rsp = true;
     uint64_t milliseconds_elapsed = 0;
@@ -67,24 +67,24 @@ static bool mm2sp_wait_for_response(bool enable_timeout)
         }
 
         /* If timeout was enabled */
-        if(enable_timeout)
+        if(timeout_ms)
         {
-            wait_for_rsp = milliseconds_elapsed < SP2MM_CMD_TIMEOUT;
+            wait_for_rsp = milliseconds_elapsed < timeout_ms;
         }
     } while(wait_for_rsp);
 
     return false;
 }
 
-static inline int32_t mm_command_handler_shell_process_rsp(char* rsp, uint32_t *rsp_size)
+static inline int32_t mm_command_handler_shell_process_rsp(char* rsp, uint32_t *rsp_size, uint32_t timeout_ms)
 {
     int32_t retval = SUCCESS;
 
     Log_Write(LOG_LEVEL_INFO,
         "SP2MM:MM_Iface_MM_Command_Shell: Waiting on response...\r\n");
 
-    /* Wait for response from MM with default timeout. */
-    if(mm2sp_wait_for_response(true))
+    /* Wait for response from MM with timeout. */
+    if(mm2sp_wait_for_response(timeout_ms))
     {
         /* Get response from MM. */
         retval = MM_Iface_Pop_Rsp_From_SP2MM_CQ(rsp);
@@ -131,6 +131,7 @@ static inline int32_t mm_command_handler_shell_process_rsp(char* rsp, uint32_t *
 *       cmd_size    Size of MM device-api command
 *       rsp         Pointer to receive the command's response
 *       rsp_size    Size of reponse received
+*       timeout_ms  Timeout for the MM command's response
 *       num_of_rsp  Number of responses to expect
 *
 *   OUTPUTS
@@ -139,7 +140,7 @@ static inline int32_t mm_command_handler_shell_process_rsp(char* rsp, uint32_t *
 *
 ***********************************************************************/
 int32_t MM_Iface_MM_Command_Shell(void* cmd, uint32_t cmd_size,
-    char* rsp, uint32_t *rsp_size, uint8_t num_of_rsp)
+    char* rsp, uint32_t *rsp_size, uint32_t timeout_ms, uint8_t num_of_rsp)
 {
     int32_t retval = SUCCESS;
 
@@ -158,7 +159,7 @@ int32_t MM_Iface_MM_Command_Shell(void* cmd, uint32_t cmd_size,
         while(num_of_rsp--)
         {
             /* Process the response */
-            retval = mm_command_handler_shell_process_rsp(rsp, rsp_size);
+            retval = mm_command_handler_shell_process_rsp(rsp, rsp_size, timeout_ms);
         }
 
         xSemaphoreGive(mm_cmd_lock);
@@ -215,7 +216,7 @@ int32_t MM_Iface_Send_Echo_Cmd(void)
         }
 
         /* Wait for response from MM with default timeout. */
-        if(mm2sp_wait_for_response(true))
+        if(mm2sp_wait_for_response(SP2MM_CMD_TIMEOUT))
         {
             /* Get response from MM. */
             status = MM_Iface_Pop_Rsp_From_SP2MM_CQ(&rsp);
@@ -283,7 +284,7 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
         }
 
         /* Wait for response from MM with default timeout. */
-        if(mm2sp_wait_for_response(true))
+        if(mm2sp_wait_for_response(SP2MM_CMD_TIMEOUT))
         {
             /* Get response from MM. */
             status = MM_Iface_Pop_Rsp_From_SP2MM_CQ(&rsp);

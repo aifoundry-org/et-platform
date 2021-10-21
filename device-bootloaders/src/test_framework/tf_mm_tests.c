@@ -58,23 +58,17 @@ int8_t SP_Cmd_Get_MM_Heartbeat_Handler(void* test_cmd)
 
 int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd)
 {
+    struct tf_cmd_mm_cmd_shell_t *mm_shell_cmd =
+        (struct tf_cmd_mm_cmd_shell_t *) test_cmd;
+    struct tf_rsp_mm_cmd_shell_t mm_shell_rsp;
+    const struct mm_hdr_template *mm_cmd_hdr = (void*)mm_shell_cmd->mm_cmd_data;
     char sp_rsp_buff[256];
     uint32_t sp_rsp_size = 0;
     int32_t status = 0;
-    void *p_mm_cmd_base;
-    void *p_mm_cmd_size;
-    uint32_t mm_cmd_size = 0;
     uint8_t num_of_rsp = 1;
 
-    struct tf_rsp_mm_cmd_shell_t mm_shell_rsp;
-
-    p_mm_cmd_base = (void *)((char*)test_cmd + sizeof(tf_cmd_hdr_t) + sizeof(uint32_t));
-    p_mm_cmd_size = (void *)((char*)test_cmd + sizeof(tf_cmd_hdr_t));
-    mm_cmd_size = (uint32_t)*((uint16_t*)p_mm_cmd_size);
-
-    Log_Write(LOG_LEVEL_INFO, "Host2SP:MM_Cmd_Shell_Handler.\r\n");
-
-    const struct mm_hdr_template *mm_cmd_hdr = p_mm_cmd_base;
+    Log_Write(LOG_LEVEL_INFO, "Host2SP:MM_Cmd_Shell_Cmd_Handler.\r\n");
+    Log_Write(LOG_LEVEL_INFO, "Host2SP:MM_Cmd_Shell_Cmd_Handler:Timeout: %d\r\n", mm_shell_cmd->mm_cmd_timeout_ms);
 
     /* In case of abort command, we should receive two responses. One for old command
     and one for abort command response. */
@@ -85,8 +79,8 @@ int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd)
         num_of_rsp = 2;
     }
 
-    status = MM_Iface_MM_Command_Shell(p_mm_cmd_base, mm_cmd_size,
-        &sp_rsp_buff[0], &sp_rsp_size, num_of_rsp);
+    status = MM_Iface_MM_Command_Shell(mm_shell_cmd->mm_cmd_data, mm_shell_cmd->mm_cmd_size,
+        &sp_rsp_buff[0], &sp_rsp_size, mm_shell_cmd->mm_cmd_timeout_ms, num_of_rsp);
 
     if(status == 0)
     {
@@ -94,11 +88,10 @@ int8_t MM_Cmd_Shell_Cmd_Handler(void* test_cmd)
 
         mm_shell_rsp.rsp_hdr.id = TF_RSP_MM_CMD_SHELL;
         mm_shell_rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
-        mm_shell_rsp.rsp_hdr.payload_size = (uint32_t)sizeof(uint32_t) + sp_rsp_size;
+        mm_shell_rsp.rsp_hdr.payload_size = (uint32_t)TF_GET_PAYLOAD_SIZE(struct tf_rsp_mm_cmd_shell_t) + sp_rsp_size;
         mm_shell_rsp.mm_rsp_size = sp_rsp_size;
 
-        TF_Send_Response_With_Payload(&mm_shell_rsp,
-            (uint32_t) (sizeof(tf_rsp_hdr_t) + sizeof(uint32_t)),
+        TF_Send_Response_With_Payload(&mm_shell_rsp, sizeof(mm_shell_rsp),
                 &sp_rsp_buff[0], mm_shell_rsp.mm_rsp_size);
     }
     else
