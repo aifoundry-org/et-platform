@@ -40,7 +40,6 @@
 #include "syscall_internal.h"
 #include "layout.h"
 
-
 /*! \struct sp_iface_sq_cb_t
     \brief SP interface control block that manages
     submission queue
@@ -55,10 +54,10 @@ typedef struct sp_iface_sq_cb_ {
     queue interface
     \warning Not thread safe!
 */
-static sp_iface_sq_cb_t SP_SQ_CB __attribute__((aligned(64))) = {0};
+static sp_iface_sq_cb_t SP_SQ_CB __attribute__((aligned(64))) = { 0 };
 
 /* Local prototypes */
-static int8_t sp_command_handler(void* cmd_buffer);
+static int8_t sp_command_handler(void *cmd_buffer);
 static int8_t wait_for_response_from_service_processor(void);
 
 /************************************************************************
@@ -80,15 +79,14 @@ static void sp_iface_mm_heartbeat_cb(uint8_t param)
 
     /* Initialize event header */
     SP_MM_IFACE_INIT_MSG_HDR(&event.msg_hdr, MM2SP_EVENT_HEARTBEAT,
-        sizeof(struct mm2sp_heartbeat_event_t),
-        (int32_t) get_hart_id())
+        sizeof(struct mm2sp_heartbeat_event_t), (int32_t)get_hart_id())
 
     /* Acquire the lock. Multiple threads can call this function. */
     acquire_local_spinlock(&SP_SQ_CB.vq_lock);
 
     /* Send event to Service Processor */
     status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&event, sizeof(event));
-    if((status != STATUS_SUCCESS) && (status != CIRCBUFF_ERROR_FULL))
+    if ((status != STATUS_SUCCESS) && (status != CIRCBUFF_ERROR_FULL))
     {
         Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing event to MM to SP SQ\r\n");
     }
@@ -135,21 +133,19 @@ static int8_t wait_for_response_from_service_processor(void)
     int8_t status = STATUS_SUCCESS;
 
     /* Create timeout for SP response */
-    sw_timer_idx = SW_Timer_Create_Timeout(
-        &sp_iface_sp_response_timeout_cb, (get_hart_id() & (HARTS_PER_SHIRE - 1)),
-        TIMEOUT_SP_IFACE_RESPONSE(5));
+    sw_timer_idx = SW_Timer_Create_Timeout(&sp_iface_sp_response_timeout_cb,
+        (get_hart_id() & (HARTS_PER_SHIRE - 1)), TIMEOUT_SP_IFACE_RESPONSE(5));
 
     /* If the timer was successfully registered */
-    if(sw_timer_idx < 0)
+    if (sw_timer_idx < 0)
     {
-        Log_Write(LOG_LEVEL_ERROR,
-            "ERROR: Unable to register SP response timeout!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "ERROR: Unable to register SP response timeout!\r\n");
         return SP_IFACE_TIMER_REGISTER_FAILED;
     }
 
     Log_Write(LOG_LEVEL_DEBUG, "Waiting on SP\r\n");
 
-    while(1)
+    while (1)
     {
         /* Wait for an interrupt */
         asm volatile("wfi");
@@ -157,10 +153,9 @@ static int8_t wait_for_response_from_service_processor(void)
         /* Read pending interrupts */
         SUPERVISOR_PENDING_INTERRUPTS(sip);
 
-        Log_Write(LOG_LEVEL_DEBUG,
-            "Waiting on SP: received an interrupt 0x%" PRIx64 "\r\n", sip);
+        Log_Write(LOG_LEVEL_DEBUG, "Waiting on SP: received an interrupt 0x%" PRIx64 "\r\n", sip);
 
-        if(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
+        if (sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
         {
             /* Clear IPI pending interrupt */
             asm volatile("csrc sip, %0" : : "r"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
@@ -172,8 +167,7 @@ static int8_t wait_for_response_from_service_processor(void)
             if (atomic_compare_and_exchange_local_32(&SP_SQ_CB.timeout_flag, 1, 0) == 1)
             {
                 status = SP_IFACE_SP_RSP_TIMEDOUT;
-                Log_Write(LOG_LEVEL_ERROR,
-                    "Error:Timed-out waiting for response from SP\r\n");
+                Log_Write(LOG_LEVEL_ERROR, "Error:Timed-out waiting for response from SP\r\n");
             }
             break;
         }
@@ -198,7 +192,7 @@ static int8_t wait_for_response_from_service_processor(void)
 *       Simply tunnel command to MM command handler
 *
 ***********************************************************************/
-static int8_t tf_command_handler(void* cmd_buffer)
+static int8_t tf_command_handler(void *cmd_buffer)
 {
     int8_t status = STATUS_SUCCESS;
     const struct cmd_header_t *hdr = cmd_buffer;
@@ -232,93 +226,76 @@ static int8_t tf_command_handler(void* cmd_buffer)
 *       commands
 *
 ***********************************************************************/
-static int8_t sp_command_handler(void* cmd_buffer)
+static int8_t sp_command_handler(void *cmd_buffer)
 {
     int8_t status = STATUS_SUCCESS;
     const struct dev_cmd_hdr_t *hdr = cmd_buffer;
 
     Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:SP_Command_Handler:hdr:%s%d%s%d%s",
-            ":msg_id:",hdr->msg_id,
-            ":msg_size:",hdr->msg_size, "\r\n");
+        ":msg_id:", hdr->msg_id, ":msg_size:", hdr->msg_size, "\r\n");
 
     switch (hdr->msg_id)
     {
-        case SP2MM_CMD_ECHO:
-        {
-            const struct sp2mm_echo_cmd_t *echo_cmd = (const void*) hdr;
+        case SP2MM_CMD_ECHO: {
+            const struct sp2mm_echo_cmd_t *echo_cmd = (const void *)hdr;
             struct sp2mm_echo_rsp_t rsp;
 
-            Log_Write(LOG_LEVEL_DEBUG,
-                    "SP_Command_Handler:Echo:%s%d%s%d%s0x%x%s",
-                    ":msg_id:",hdr->msg_id,
-                    ":msg_size:",hdr->msg_size,
-                    ":payload", echo_cmd->payload,"\r\n");
+            Log_Write(LOG_LEVEL_DEBUG, "SP_Command_Handler:Echo:%s%d%s%d%s0x%x%s",
+                ":msg_id:", hdr->msg_id, ":msg_size:", hdr->msg_size, ":payload", echo_cmd->payload,
+                "\r\n");
 
             /* Initialize response header */
-            SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, SP2MM_RSP_ECHO,
-                sizeof(struct sp2mm_echo_rsp_t),
+            SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, SP2MM_RSP_ECHO, sizeof(struct sp2mm_echo_rsp_t),
                 echo_cmd->msg_hdr.issuing_hart_id)
 
             rsp.payload = echo_cmd->payload;
 
-            status = SP_Iface_Push_Rsp_To_SP2MM_CQ((void*)&rsp, sizeof(rsp));
-            if(status == STATUS_SUCCESS)
+            status = SP_Iface_Push_Rsp_To_SP2MM_CQ((void *)&rsp, sizeof(rsp));
+            if (status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG,
                     "MM2SP:RSP:SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push success!\r\n");
             }
             else
             {
-                Log_Write(LOG_LEVEL_ERROR,
-                    "SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push error!\r\n");
+                Log_Write(LOG_LEVEL_ERROR, "SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push error!\r\n");
             }
 
             break;
         }
-        case SP2MM_CMD_UPDATE_FREQ:
-        {
-            const struct sp2mm_update_freq_cmd_t *update_active_freq_cmd =
-                (const void*) hdr;
+        case SP2MM_CMD_UPDATE_FREQ: {
+            const struct sp2mm_update_freq_cmd_t *update_active_freq_cmd = (const void *)hdr;
 
             Log_Write(LOG_LEVEL_DEBUG,
                 "SP2MM:CMD:SP_Command_Handler:UpdateActiveFreq:%s%d%s%d%s0x%x%s",
-                ":msg_id:",hdr->msg_id,
-                ":msg_size:",hdr->msg_size,
-                ":payload", update_active_freq_cmd->freq,"\r\n");
+                ":msg_id:", hdr->msg_id, ":msg_size:", hdr->msg_size, ":payload",
+                update_active_freq_cmd->freq, "\r\n");
 
             /* Update Compute Workers frequency */
             syscall(SYSCALL_UPDATE_MINION_PLL_FREQUENCY, update_active_freq_cmd->freq, 0, 0);
 
             break;
         }
-        case SP2MM_CMD_TEARDOWN_MM:
-        {
+        case SP2MM_CMD_TEARDOWN_MM: {
             /* struct sp2mm_teardown_mm_cmd_t *teardown_mm_cmd = (const void*) hdr */
 
-            Log_Write(LOG_LEVEL_DEBUG,
-                "SP2MM:CMD:SP_Command_Handler:TearDownMM:%s%d%s%d%s",
-                ":msg_id:",hdr->msg_id,
-                ":msg_size:",hdr->msg_size, "\r\n");
+            Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:SP_Command_Handler:TearDownMM:%s%d%s%d%s",
+                ":msg_id:", hdr->msg_id, ":msg_size:", hdr->msg_size, "\r\n");
 
             /* Implement functionality here .. */
             break;
         }
-        case SP2MM_CMD_QUIESCE_TRAFFIC:
-        {
+        case SP2MM_CMD_QUIESCE_TRAFFIC: {
             /* struct sp2mm_quiesce_traffic_cmd_t *quiese_traffic_cmd = (const void*) hdr */
 
-            Log_Write(LOG_LEVEL_DEBUG,
-                "SP2MM:CMD:SP_Command_Handler:QuieseTraffic:%s%d%s%d%s",
-                ":msg_id:",hdr->msg_id,
-                ":msg_size:",hdr->msg_size, "\r\n");
+            Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:SP_Command_Handler:QuieseTraffic:%s%d%s%d%s",
+                ":msg_id:", hdr->msg_id, ":msg_size:", hdr->msg_size, "\r\n");
 
             /* Implement functionality here .. */
             break;
         }
-        default:
-        {
-            Log_Write(LOG_LEVEL_ERROR,
-                "SP_Command_Handler:UnsupportedCommandID.\r\n");
+        default: {
+            Log_Write(LOG_LEVEL_ERROR, "SP_Command_Handler:UnsupportedCommandID.\r\n");
 
             break;
         }
@@ -393,10 +370,9 @@ int8_t SP_Iface_Processing(void)
     hence pop a single command from the virtual queue */
     cmd_length = SP_Iface_Pop_Cmd_From_SP2MM_SQ(&cmd_buff[0]);
 
-    if(cmd_length > 0)
+    if (cmd_length > 0)
     {
-        Log_Write(LOG_LEVEL_DEBUG,
-            "SP_Iface_Processing:cmd_length: 0x%" PRIx32 "\r\n", cmd_length);
+        Log_Write(LOG_LEVEL_DEBUG, "SP_Iface_Processing:cmd_length: 0x%" PRIx32 "\r\n", cmd_length);
 #if TEST_FRAMEWORK
         status = tf_command_handler(cmd_buff);
         (void)&sp_command_handler;
@@ -405,10 +381,9 @@ int8_t SP_Iface_Processing(void)
         (void)&tf_command_handler;
 #endif
     }
-    else if(cmd_length < 0)
+    else if (cmd_length < 0)
     {
-        Log_Write(LOG_LEVEL_ERROR,
-            "SP_Iface_Processing:Failed: %" PRIi32 "\r\n", cmd_length);
+        Log_Write(LOG_LEVEL_ERROR, "SP_Iface_Processing:Failed: %" PRIi32 "\r\n", cmd_length);
         status = SP_IFACE_SP2MM_CMD_POP_FAILED;
     }
 
@@ -447,8 +422,7 @@ int8_t SP_Iface_Get_Shire_Mask_And_Strap(uint64_t *shire_mask, uint8_t *lvdpll_s
 
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, MM2SP_CMD_GET_ACTIVE_SHIRE_MASK,
-        sizeof(struct mm2sp_get_active_shire_mask_cmd_t),
-        (int32_t) get_hart_id())
+        sizeof(struct mm2sp_get_active_shire_mask_cmd_t), (int32_t)get_hart_id())
 
     /* Acquire the lock. Multiple threads can call this function. */
     acquire_local_spinlock(&SP_SQ_CB.vq_lock);
@@ -456,7 +430,7 @@ int8_t SP_Iface_Get_Shire_Mask_And_Strap(uint64_t *shire_mask, uint8_t *lvdpll_s
     /* Send command to Service Processor */
     status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&cmd, sizeof(cmd));
 
-    if(status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Wait for response from Service Processor */
         status = wait_for_response_from_service_processor();
@@ -466,19 +440,19 @@ int8_t SP_Iface_Get_Shire_Mask_And_Strap(uint64_t *shire_mask, uint8_t *lvdpll_s
         Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing command to MM to SP SQ\r\n");
     }
 
-    if(status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Pop response from MM to SP completion queue */
-        rsp_length = (uint64_t) SP_Iface_Pop_Rsp_From_MM2SP_CQ(&rsp_buff[0]);
+        rsp_length = (uint64_t)SP_Iface_Pop_Rsp_From_MM2SP_CQ(&rsp_buff[0]);
 
         /* Process response and fetch shire mask */
-        if(rsp_length != 0)
+        if (rsp_length != 0)
         {
-            Log_Write(LOG_LEVEL_DEBUG,
-                "SP2MM:received response of size %ld bytes.\r\n", rsp_length);
+            Log_Write(
+                LOG_LEVEL_DEBUG, "SP2MM:received response of size %ld bytes.\r\n", rsp_length);
 
-            hdr = (void*)rsp_buff;
-            if(hdr->msg_id == MM2SP_RSP_GET_ACTIVE_SHIRE_MASK)
+            hdr = (void *)rsp_buff;
+            if (hdr->msg_id == MM2SP_RSP_GET_ACTIVE_SHIRE_MASK)
             {
                 const struct mm2sp_get_active_shire_mask_rsp_t *rsp = (void *)rsp_buff;
                 *shire_mask = rsp->active_shire_mask;
@@ -494,8 +468,7 @@ int8_t SP_Iface_Get_Shire_Mask_And_Strap(uint64_t *shire_mask, uint8_t *lvdpll_s
         else
         {
             status = SP_IFACE_SP2MM_RSP_POP_FAILED;
-            Log_Write(LOG_LEVEL_ERROR,
-                "ERROR: Received a notification from SP with no data\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "ERROR: Received a notification from SP with no data\r\n");
         }
     }
 
@@ -536,8 +509,7 @@ int8_t SP_Iface_Reset_Minion(uint64_t shire_mask)
 
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, MM2SP_CMD_RESET_MINION,
-        sizeof(struct mm2sp_reset_minion_cmd_t),
-        (int32_t) get_hart_id())
+        sizeof(struct mm2sp_reset_minion_cmd_t), (int32_t)get_hart_id())
 
     cmd.shire_mask = shire_mask;
 
@@ -547,7 +519,7 @@ int8_t SP_Iface_Reset_Minion(uint64_t shire_mask)
     /* Send command to Service Processor */
     status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&cmd, sizeof(cmd));
 
-    if(status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Wait for response from Service Processor */
         status = wait_for_response_from_service_processor();
@@ -557,19 +529,19 @@ int8_t SP_Iface_Reset_Minion(uint64_t shire_mask)
         Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing command to MM to SP SQ\r\n");
     }
 
-    if(status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Pop response from MM to SP completion queue */
-        rsp_length = (uint64_t) SP_Iface_Pop_Rsp_From_MM2SP_CQ(&rsp_buff[0]);
+        rsp_length = (uint64_t)SP_Iface_Pop_Rsp_From_MM2SP_CQ(&rsp_buff[0]);
 
         /* Process response and fetch shire mask */
-        if(rsp_length != 0)
+        if (rsp_length != 0)
         {
-            Log_Write(LOG_LEVEL_DEBUG,
-                "SP2MM:received response of size %ld bytes.\r\n", rsp_length);
+            Log_Write(
+                LOG_LEVEL_DEBUG, "SP2MM:received response of size %ld bytes.\r\n", rsp_length);
 
-            hdr = (void*)rsp_buff;
-            if(hdr->msg_id == MM2SP_RSP_RESET_MINION)
+            hdr = (void *)rsp_buff;
+            if (hdr->msg_id == MM2SP_RSP_RESET_MINION)
             {
                 const struct mm2sp_reset_minion_rsp_t *rsp = (void *)rsp_buff;
                 status = (int8_t)rsp->results;
@@ -577,15 +549,13 @@ int8_t SP_Iface_Reset_Minion(uint64_t shire_mask)
             else
             {
                 status = SP_IFACE_INVALID_RSP_ID;
-                Log_Write(LOG_LEVEL_ERROR,
-                    "ERROR: Received unexpected response from SP\r\n");
+                Log_Write(LOG_LEVEL_ERROR, "ERROR: Received unexpected response from SP\r\n");
             }
         }
         else
         {
             status = SP_IFACE_SP2MM_RSP_POP_FAILED;
-            Log_Write(LOG_LEVEL_ERROR,
-                "ERROR: Received a notification from SP with no data\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "ERROR: Received a notification from SP with no data\r\n");
         }
     }
 
@@ -625,11 +595,9 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
 
     Log_Write(LOG_LEVEL_DEBUG, "MM2SP:SP_Iface_Get_Boot_Freq.\r\n");
 
-
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, MM2SP_CMD_GET_CM_BOOT_FREQ,
-        sizeof(struct mm2sp_get_cm_boot_freq_cmd_t),
-        (int32_t) get_hart_id())
+        sizeof(struct mm2sp_get_cm_boot_freq_cmd_t), (int32_t)get_hart_id())
 
     /* Acquire the lock. Multiple threads can call this function. */
     acquire_local_spinlock(&SP_SQ_CB.vq_lock);
@@ -637,7 +605,7 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
     /* Send command to Service Processor */
     status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&cmd, sizeof(cmd));
 
-    if(status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Wait for response from Service Processor */
         status = wait_for_response_from_service_processor();
@@ -647,19 +615,19 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
         Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing command to MM to SP SQ\r\n");
     }
 
-    if(status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Pop response from MM to SP completion queue */
-        rsp_length = (uint64_t) SP_Iface_Pop_Rsp_From_MM2SP_CQ(&rsp_buff[0]);
+        rsp_length = (uint64_t)SP_Iface_Pop_Rsp_From_MM2SP_CQ(&rsp_buff[0]);
 
         /* Process response and fetch boot frequency */
-        if(rsp_length != 0)
+        if (rsp_length != 0)
         {
-            Log_Write(LOG_LEVEL_DEBUG,
-                "SP2MM:received response of size %ld bytes.\r\n", rsp_length);
+            Log_Write(
+                LOG_LEVEL_DEBUG, "SP2MM:received response of size %ld bytes.\r\n", rsp_length);
 
-            hdr = (void*)rsp_buff;
-            if(hdr->msg_id == MM2SP_RSP_GET_CM_BOOT_FREQ)
+            hdr = (void *)rsp_buff;
+            if (hdr->msg_id == MM2SP_RSP_GET_CM_BOOT_FREQ)
             {
                 const struct mm2sp_get_cm_boot_freq_rsp_t *rsp = (void *)rsp_buff;
                 *boot_freq = rsp->cm_boot_freq;
@@ -674,8 +642,7 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
         else
         {
             status = SP_IFACE_SP2MM_RSP_POP_FAILED;
-            Log_Write(LOG_LEVEL_ERROR,
-                "ERROR: Received a notification from SP and no data\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "ERROR: Received a notification from SP and no data\r\n");
         }
     }
 
@@ -707,8 +674,8 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
 *       int8_t      status success or failure of Interface initialization
 *
 ***********************************************************************/
-int8_t SP_Iface_Get_Fw_Version(mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t *minor,
-    uint8_t *revision)
+int8_t SP_Iface_Get_Fw_Version(
+    mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t *minor, uint8_t *revision)
 {
     uint8_t rsp_buff[64] __attribute__((aligned(64))) = { 0 };
     const struct dev_cmd_hdr_t *hdr;
@@ -723,8 +690,7 @@ int8_t SP_Iface_Get_Fw_Version(mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t 
 
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, MM2SP_CMD_GET_FW_VERSION,
-        sizeof(struct mm2sp_get_fw_version_t),
-        (int32_t) get_hart_id())
+        sizeof(struct mm2sp_get_fw_version_t), (int32_t)get_hart_id())
 
     /* Acquire the lock. Multiple threads can call this function. */
     acquire_local_spinlock(&SP_SQ_CB.vq_lock);
@@ -732,7 +698,7 @@ int8_t SP_Iface_Get_Fw_Version(mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t 
     /* Send command to Service Processor */
     status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&cmd, sizeof(cmd));
 
-    if(status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Wait for response from Service Processor */
         status = wait_for_response_from_service_processor();
@@ -742,19 +708,19 @@ int8_t SP_Iface_Get_Fw_Version(mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t 
         Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing command to MM to SP SQ\r\n");
     }
 
-    if(status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Pop response from MM to SP completion queue */
-        rsp_length = (uint64_t) SP_Iface_Pop_Rsp_From_MM2SP_CQ(&rsp_buff[0]);
+        rsp_length = (uint64_t)SP_Iface_Pop_Rsp_From_MM2SP_CQ(&rsp_buff[0]);
 
         /* Process response and fetch shire mask */
-        if(rsp_length != 0)
+        if (rsp_length != 0)
         {
-            Log_Write(LOG_LEVEL_DEBUG,
-                "SP2MM:received response of size %ld bytes.\r\n", rsp_length);
+            Log_Write(
+                LOG_LEVEL_DEBUG, "SP2MM:received response of size %ld bytes.\r\n", rsp_length);
 
-            hdr = (void*)rsp_buff;
-            if(hdr->msg_id == MM2SP_RSP_GET_FW_VERSION)
+            hdr = (void *)rsp_buff;
+            if (hdr->msg_id == MM2SP_RSP_GET_FW_VERSION)
             {
                 const struct mm2sp_get_fw_version_rsp_t *rsp = (void *)rsp_buff;
                 *major = rsp->major;
@@ -771,8 +737,7 @@ int8_t SP_Iface_Get_Fw_Version(mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t 
         else
         {
             status = SP_IFACE_SP2MM_RSP_POP_FAILED;
-            Log_Write(LOG_LEVEL_ERROR,
-                "ERROR: Received a notification from SP with no data\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "ERROR: Received a notification from SP with no data\r\n");
         }
     }
 
@@ -809,8 +774,7 @@ int8_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code)
 
     /* Initialize event header */
     SP_MM_IFACE_INIT_MSG_HDR(&event.msg_hdr, MM2SP_EVENT_REPORT_ERROR,
-        sizeof(struct mm2sp_report_error_event_t),
-        (int32_t) get_hart_id())
+        sizeof(struct mm2sp_report_error_event_t), (int32_t)get_hart_id())
     event.error_type = error_type;
     event.error_code = error_code;
 
@@ -819,7 +783,7 @@ int8_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code)
 
     /* Send event to Service Processor */
     status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&event, sizeof(event));
-    if(status != STATUS_SUCCESS)
+    if (status != STATUS_SUCCESS)
     {
         Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing event to MM to SP SQ\r\n");
     }
@@ -857,15 +821,14 @@ int8_t SP_Iface_Setup_MM_HeartBeat(void)
 
     /* Create timer for MM heartbeat */
     /* TODO: Fine tune the heartbeat interval */
-    sw_timer_idx = SW_Timer_Create_Timeout(&sp_iface_mm_heartbeat_cb, 0,
-        SP_IFACE_MM_HEARTBEAT_INTERVAL(100));
+    sw_timer_idx =
+        SW_Timer_Create_Timeout(&sp_iface_mm_heartbeat_cb, 0, SP_IFACE_MM_HEARTBEAT_INTERVAL(100));
 
     /* If the timer was not successfully registered */
-    if(sw_timer_idx < 0)
+    if (sw_timer_idx < 0)
     {
         status = SP_IFACE_TIMER_REGISTER_FAILED;
-        Log_Write(LOG_LEVEL_ERROR,
-            "ERROR: Unable to register MM->SP Heartbeat Timer!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "ERROR: Unable to register MM->SP Heartbeat Timer!\r\n");
     }
 
     return status;

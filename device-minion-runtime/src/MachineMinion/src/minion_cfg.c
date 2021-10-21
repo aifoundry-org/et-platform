@@ -23,7 +23,7 @@
 #include <hwinc/minion_lvdpll_program.h>
 #include "esr.h"
 
-struct pll_conf_reg_t pll_conf_reg __attribute__((section(".data")));
+struct pll_conf_reg_t pll_conf_reg __attribute__((section(".data"))) __attribute__((aligned(64)));
 
 struct pll_conf_reg_t {
     uint64_t booted_shire_mask;

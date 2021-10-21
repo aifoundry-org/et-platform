@@ -26,52 +26,52 @@
 /*! \def TIMEOUT_SP_IFACE_RESPONSE(x)
     \brief Timeout value (per 100ms) for SP response wait
 */
-#define TIMEOUT_SP_IFACE_RESPONSE(x)       (x * 2U)
+#define TIMEOUT_SP_IFACE_RESPONSE(x) (x * 2U)
 
 /*! \def SP_IFACE_MM_HEARTBEAT_INTERVAL(x)
     \brief Periodic Interval value after which a heartbeat is sent to SP
 */
-#define SP_IFACE_MM_HEARTBEAT_INTERVAL(x)   (x * 1U)
+#define SP_IFACE_MM_HEARTBEAT_INTERVAL(x) (x * 1U)
 
 /*! \def SP_IFACE_INVALID_SHIRE_MASK
     \brief SP iface error code - Invalid shire mask
 */
-#define SP_IFACE_INVALID_SHIRE_MASK       -1
+#define SP_IFACE_INVALID_SHIRE_MASK -1
 
 /*! \def SP_IFACE_INVALID_BOOT_FREQ
     \brief SP iface error code - Invalid boot frequency
 */
-#define SP_IFACE_INVALID_BOOT_FREQ        -2
+#define SP_IFACE_INVALID_BOOT_FREQ -2
 
 /*! \def SP_IFACE_TIMER_REGISTER_FAILED
     \brief SP iface error code - Timer resgistration failure
 */
-#define SP_IFACE_TIMER_REGISTER_FAILED    -3
+#define SP_IFACE_TIMER_REGISTER_FAILED -3
 
 /*! \def SP_IFACE_SP_RSP_TIMEDOUT
     \brief SP iface error code - SP response timeout occurred
 */
-#define SP_IFACE_SP_RSP_TIMEDOUT          -4
+#define SP_IFACE_SP_RSP_TIMEDOUT -4
 
 /*! \def SP_IFACE_INVALID_FW_VERSION
     \brief SP iface error code - Invalid fw version
 */
-#define SP_IFACE_INVALID_FW_VERSION       -5
+#define SP_IFACE_INVALID_FW_VERSION -5
 
 /*! \def SP_IFACE_SP2MM_CMD_POP_FAILED
     \brief SP iface error code - SP2MM cmd pop failure
 */
-#define SP_IFACE_SP2MM_CMD_POP_FAILED     -6
+#define SP_IFACE_SP2MM_CMD_POP_FAILED -6
 
 /*! \def SP_IFACE_SP2MM_RSP_POP_FAILED
     \brief SP iface error code - SP2MM rsp pop failure
 */
-#define SP_IFACE_SP2MM_RSP_POP_FAILED     -7
+#define SP_IFACE_SP2MM_RSP_POP_FAILED -7
 
 /*! \def SP_IFACE_INVALID_RSP_ID
     \brief SP iface error code - Invalid response ID
 */
-#define SP_IFACE_INVALID_RSP_ID           -8
+#define SP_IFACE_INVALID_RSP_ID -8
 
 /*! \fn int8_t SP_Iface_Init(void)
     \brief Initialize Mm interface to Service Processor (SP)
@@ -86,8 +86,7 @@ int8_t SP_Iface_Init(void);
     \param cmd_size Size of command
     \return Status indicating success or negative error
 */
-#define SP_Iface_Push_Cmd_To_MM2SP_SQ(p_cmd, cmd_size)   \
-    SP_MM_Iface_Push(SP_SQ, p_cmd, cmd_size)
+#define SP_Iface_Push_Cmd_To_MM2SP_SQ(p_cmd, cmd_size) SP_MM_Iface_Push(SP_SQ, p_cmd, cmd_size)
 
 /*! \fn int8_t SP_Iface_Pop_Cmd_From_MM2SP_CQ(void* rx_buff)
     \brief Pop response from to Master Minion (MM) to Service Processor (SP)
@@ -95,8 +94,7 @@ int8_t SP_Iface_Init(void);
     \param rx_buff Buffer to receive response popped
     \return Status indicating success or negative error
 */
-#define SP_Iface_Pop_Rsp_From_MM2SP_CQ(rx_buff)   \
-    SP_MM_Iface_Pop(SP_CQ, rx_buff)
+#define SP_Iface_Pop_Rsp_From_MM2SP_CQ(rx_buff) SP_MM_Iface_Pop(SP_CQ, rx_buff)
 
 /*! \fn int8_t SP_Iface_Push_Rsp_To_SP2MM_CQ(void* p_cmd, uint32_t cmd_size)
     \brief Push command to Service Processor (SP) to Master Minion (MM)
@@ -105,8 +103,7 @@ int8_t SP_Iface_Init(void);
     \param cmd_size Size of command
     \return Status indicating success or negative error
 */
-#define SP_Iface_Push_Rsp_To_SP2MM_CQ(p_cmd, cmd_size)   \
-    SP_MM_Iface_Push(MM_CQ, p_cmd, cmd_size)
+#define SP_Iface_Push_Rsp_To_SP2MM_CQ(p_cmd, cmd_size) SP_MM_Iface_Push(MM_CQ, p_cmd, cmd_size)
 
 /*! \fn int8_t SP_Iface_Pop_Cmd_From_SP2MM_SQ(void* rx_buff)
     \brief Pop response from to Service Processor (SP) to Master Minion (MM)
@@ -114,8 +111,7 @@ int8_t SP_Iface_Init(void);
     \param rx_buff Buffer to receive response popped
     \return Status indicating success or negative error
 */
-#define SP_Iface_Pop_Cmd_From_SP2MM_SQ(rx_buff)   \
-    SP_MM_Iface_Pop(MM_SQ, rx_buff)
+#define SP_Iface_Pop_Cmd_From_SP2MM_SQ(rx_buff) SP_MM_Iface_Pop(MM_SQ, rx_buff)
 
 /*! \fn void SP_Iface_Processing(void)
     \brief An API to process messages from SP on receiving
@@ -155,8 +151,8 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq);
     \param revision Pointer to variable where revision version is stored
     \return Status indicating success or negative error
 */
-int8_t SP_Iface_Get_Fw_Version(mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t *minor,
-    uint8_t *revision);
+int8_t SP_Iface_Get_Fw_Version(
+    mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t *minor, uint8_t *revision);
 
 /*! \fn int8_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code)
     \brief A non-blocking API to report Master Minion error codes to Service Processor

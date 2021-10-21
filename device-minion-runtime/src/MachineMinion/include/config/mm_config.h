@@ -27,7 +27,7 @@
 /*! \def MM_HART_MASK
     \brief Master Minion Hart mask
 */
-#define MM_HART_MASK             (0xFFFFFFFFUL)
+#define MM_HART_MASK (0xFFFFFFFFUL)
 
 /*! \def CM_SHIRE_ID_MASK
     \brief Virtual Compute Shire NOC ID Mask
@@ -51,6 +51,6 @@
 /*! \def INITIAL_MINION_FREQ
     \brief Initial Minion PLL frequency programmed by SP
 */
-#define INITIAL_MINION_FREQ       650
+#define INITIAL_MINION_FREQ 650
 
 #endif /* __MM_CONFIG_H__ */

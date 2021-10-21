@@ -54,7 +54,7 @@
     Consists data structures to manage shire state of shires that play
     the role of compute workers
 */
-typedef struct cw_cb_t_{
+typedef struct cw_cb_t_ {
     uint64_t physically_avail_shires_mask;
     uint64_t booted_shires_mask;
     uint64_t shire_state;
@@ -65,7 +65,7 @@ typedef struct cw_cb_t_{
     \brief Global Compute Worker Control Block
     \warning Not thread safe!
 */
-static cw_cb_t CW_CB __attribute__((aligned(64))) = {0};
+static cw_cb_t CW_CB __attribute__((aligned(64))) = { 0 };
 
 /************************************************************************
 *
@@ -124,15 +124,14 @@ static inline uint64_t cw_get_booted_shires(void)
     uint64_t booted_shires_mask = 0ULL;
 
     /* Processess messages from CM from CM > MM unicast circbuff */
-    while(1)
+    while (1)
     {
         /* Acquire the unicast lock */
         CM_Iface_Unicast_Acquire_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
 
         /* Unicast to dispatcher is slot 0 of unicast
         circular-buffers */
-        internal_status = CM_Iface_Unicast_Receive
-            (CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
+        internal_status = CM_Iface_Unicast_Receive(CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
 
         /* Release the unicast lock */
         CM_Iface_Unicast_Release_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
@@ -143,13 +142,11 @@ static inline uint64_t cw_get_booted_shires(void)
         switch (message.header.id)
         {
             case CM_TO_MM_MESSAGE_ID_NONE:
-                Log_Write(LOG_LEVEL_DEBUG,
-                    "CW_Init:MESSAGE_ID_NONE\r\n");
+                Log_Write(LOG_LEVEL_DEBUG, "CW_Init:MESSAGE_ID_NONE\r\n");
                 break;
 
             case CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY:
-                Log_Write(LOG_LEVEL_DEBUG,
-                    "CW_Init:MESSAGE_ID_SHIRE_READY S%d\r\n",
+                Log_Write(LOG_LEVEL_DEBUG, "CW_Init:MESSAGE_ID_SHIRE_READY S%d\r\n",
                     shire_ready->shire_id);
 
                 /* Update the booted shire mask */
@@ -157,9 +154,8 @@ static inline uint64_t cw_get_booted_shires(void)
                 break;
 
             default:
-                Log_Write(LOG_LEVEL_ERROR,
-                    "CW_Init:Unknown message id = 0x%x\r\n",
-                    message.header.id);
+                Log_Write(
+                    LOG_LEVEL_ERROR, "CW_Init:Unknown message id = 0x%x\r\n", message.header.id);
                 break;
         }
     }
@@ -205,8 +201,7 @@ int8_t CW_Init(void)
     shire_mask = MASK_SET_BIT(shire_mask, MASTER_SHIRE);
 
     /* Initialize Global CW_CB */
-    atomic_store_local_64(&CW_CB.physically_avail_shires_mask,
-        shire_mask);
+    atomic_store_local_64(&CW_CB.physically_avail_shires_mask, shire_mask);
 
     /* Bring up Compute Workers */
     syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, shire_mask, lvdpll_strap, 0);
@@ -252,17 +247,17 @@ int8_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
     atomic_store_local_64(&CW_CB.shire_state, 0ULL);
 
     /* Create timeout to wait for all Compute Workers to boot up */
-    sw_timer_idx = SW_Timer_Create_Timeout(&cw_set_init_timeout_cb,
-        (get_hart_id() & (HARTS_PER_SHIRE - 1)), CW_INIT_TIMEOUT);
+    sw_timer_idx = SW_Timer_Create_Timeout(
+        &cw_set_init_timeout_cb, (get_hart_id() & (HARTS_PER_SHIRE - 1)), CW_INIT_TIMEOUT);
 
-    if(sw_timer_idx < 0)
+    if (sw_timer_idx < 0)
     {
         Log_Write(LOG_LEVEL_WARNING,
             "CW: Unable to register CW init timeout! It may not recover in case of hang\r\n");
     }
 
     /* Wait for all workers to be initialized */
-    while(!exit_loop)
+    while (!exit_loop)
     {
         /* Wait for an interrupt */
         asm volatile("wfi");
@@ -270,16 +265,16 @@ int8_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
         /* Read pending interrupts */
         SUPERVISOR_PENDING_INTERRUPTS(sip);
 
-        if(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
+        if (sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
         {
             /* Clear IPI pending interrupt */
             asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
             /* Check for SW timer timeout */
-            if(atomic_compare_and_exchange_local_32(&CW_CB.timeout_flag, 1, 0) == 1)
+            if (atomic_compare_and_exchange_local_32(&CW_CB.timeout_flag, 1, 0) == 1)
             {
-                Log_Write(LOG_LEVEL_ERROR,
-                    "CW: Timed-out waiting for rsp from compute workers!\r\n");
+                Log_Write(
+                    LOG_LEVEL_ERROR, "CW: Timed-out waiting for rsp from compute workers!\r\n");
                 status = CW_ERROR_INIT_TIMEOUT;
                 exit_loop = true;
             }
@@ -296,14 +291,14 @@ int8_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
         }
 
         /* Break loop if all compute minions are booted and ready */
-        if((status == STATUS_SUCCESS) && ((booted_shires_mask & shire_mask) == shire_mask))
+        if ((status == STATUS_SUCCESS) && ((booted_shires_mask & shire_mask) == shire_mask))
         {
             atomic_store_local_64(&CW_CB.booted_shires_mask, booted_shires_mask);
             exit_loop = true;
         }
     }
 
-    if(sw_timer_idx >= 0)
+    if (sw_timer_idx >= 0)
     {
         /* Free the registered SW Timeout slot */
         SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
@@ -336,13 +331,13 @@ int8_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
 void CW_Process_CM_SMode_Messages(void)
 {
     /* Processes messages from CM from CM > MM unicast circbuff */
-    while(1)
+    while (1)
     {
         cm_iface_message_t message;
 
         /* Get the message from unicast buffer */
-        if (CM_Iface_Unicast_Receive
-            (CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message) != STATUS_SUCCESS)
+        if (CM_Iface_Unicast_Receive(CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message) !=
+            STATUS_SUCCESS)
         {
             break;
         }
@@ -350,17 +345,14 @@ void CW_Process_CM_SMode_Messages(void)
         switch (message.header.id)
         {
             case CM_TO_MM_MESSAGE_ID_NONE:
-                Log_Write(LOG_LEVEL_DEBUG,
-                    "CW:CM_TO_MM:MESSAGE_ID_NONE\r\n");
+                Log_Write(LOG_LEVEL_DEBUG, "CW:CM_TO_MM:MESSAGE_ID_NONE\r\n");
                 break;
 
-            case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION:
-            {
+            case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION: {
                 const cm_to_mm_message_exception_t *exception =
                     (cm_to_mm_message_exception_t *)&message;
 
-                Log_Write(LOG_LEVEL_CRITICAL,
-                    "CW:CM_TO_MM:MESSAGE_ID_FW_EXCEPTION from H%ld\r\n",
+                Log_Write(LOG_LEVEL_CRITICAL, "CW:CM_TO_MM:MESSAGE_ID_FW_EXCEPTION from H%ld\r\n",
                     exception->hart_id);
 
                 /* Report SP of CM FW exception */
@@ -376,13 +368,13 @@ void CW_Process_CM_SMode_Messages(void)
                 MM shire and only reset sync Minions. */
                 reset_status = SP_Iface_Reset_Minion(available_shires);
 
-                if(reset_status == STATUS_SUCCESS)
+                if (reset_status == STATUS_SUCCESS)
                 {
                     /* Wait for all shires to boot up */
                     reset_status = CW_Wait_For_Compute_Minions_Boot(available_shires);
                 }
 
-                if(reset_status != STATUS_SUCCESS)
+                if (reset_status != STATUS_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_ERROR,
                         "CW: Unable to reset all the available shires in device (status: %d)\r\n",
@@ -391,20 +383,17 @@ void CW_Process_CM_SMode_Messages(void)
 
                 break;
             }
-            case CM_TO_MM_MESSAGE_ID_FW_ERROR:
-            {
-                const cm_to_mm_message_fw_error_t *error =
-                    (cm_to_mm_message_fw_error_t *)&message;
+            case CM_TO_MM_MESSAGE_ID_FW_ERROR: {
+                const cm_to_mm_message_fw_error_t *error = (cm_to_mm_message_fw_error_t *)&message;
 
                 Log_Write(LOG_LEVEL_CRITICAL,
-                    "CW:CM_TO_MM:MESSAGE_ID_FW_ERROR from H%ld: Error_code: %d\r\n",
-                    error->hart_id, error->error_code);
+                    "CW:CM_TO_MM:MESSAGE_ID_FW_ERROR from H%ld: Error_code: %d\r\n", error->hart_id,
+                    error->error_code);
 
                 break;
             }
             default:
-                Log_Write(LOG_LEVEL_CRITICAL,
-                    "CW:CM_TO_MM:Unknown message id = 0x%x\r\n",
+                Log_Write(LOG_LEVEL_CRITICAL, "CW:CM_TO_MM:Unknown message id = 0x%x\r\n",
                     message.header.id);
                 break;
         }
@@ -515,12 +504,11 @@ int8_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask)
     int8_t status = CW_SHIRES_NOT_FREE;
 
     /* Verify if all the given shires are booted */
-    if((atomic_load_local_64(&CW_CB.booted_shires_mask) &
-        shire_mask) == shire_mask)
+    if ((atomic_load_local_64(&CW_CB.booted_shires_mask) & shire_mask) == shire_mask)
     {
         /* Shire state definition is 0 if free else 1 if busy */
         /* Hence flips status to compare with Requested Shire Mask */
-        if((~atomic_load_local_64(&CW_CB.shire_state) & shire_mask) == shire_mask)
+        if ((~atomic_load_local_64(&CW_CB.shire_state) & shire_mask) == shire_mask)
         {
             status = STATUS_SUCCESS;
         }
