@@ -45,8 +45,6 @@
 /* mm_rt_helpers */
 #include "layout.h"
 
-#include "common_trace_defs.h"
-
 /* Encoder function prototypes */
 static inline void et_trace_write_float(void *addr, float value);
 static inline void et_trace_buffer_lock_acquire(void);
@@ -312,15 +310,14 @@ uint64_t Trace_Get_CM_Thread_Mask(void)
 int8_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg)
 {
     int8_t status;
-    uint64_t cm_shire_mask = config_msg->shire_mask & CM_SHIRE_MASK;
 
     /* Transmit the message to Compute Minions */
-    status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)config_msg);
+    status = CM_Iface_Multicast_Send(config_msg->shire_mask, (cm_iface_message_t*)config_msg);
 
     /* Save the configured values in MM CB */
     if (status == STATUS_SUCCESS)
     {
-        atomic_store_local_64(&MM_Trace_CB.cm_shire_mask, cm_shire_mask);
+        atomic_store_local_64(&MM_Trace_CB.cm_shire_mask, config_msg->shire_mask);
         atomic_store_local_64(&MM_Trace_CB.cm_thread_mask, config_msg->thread_mask);
     }
 

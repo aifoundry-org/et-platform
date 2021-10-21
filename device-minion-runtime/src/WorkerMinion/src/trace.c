@@ -31,7 +31,6 @@
 
 #include "log.h"
 #include "layout.h"
-#include "common_trace_defs.h"
 
 #define ET_TRACE_ENCODER_IMPL
 #define ET_TRACE_GET_HART_ID()       get_hart_id()
@@ -72,9 +71,9 @@ typedef struct trace_umode_control_block {
 /*! \def CHECK_HART_TRACE_ENABLED
     \brief Check if Trace is enabled for given Hart.
 */
-#define CHECK_HART_TRACE_ENABLED(init, id)               \
-    (((init)->shire_mask & TRACE_SHIRE_MASK(hart_id)) && \
-        ((init)->thread_mask & TRACE_HART_MASK(hart_id)))
+#define CHECK_HART_TRACE_ENABLED(init, id)          \
+    (((init)->shire_mask & TRACE_SHIRE_MASK(id)) && \
+        ((init)->thread_mask & TRACE_HART_MASK(id)))
 
 /*! \def CM_BASE_HART_ID
     \brief CM Base HART ID.
@@ -181,7 +180,7 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
 
         trace_header->magic_header = TRACE_MAGIC_HEADER;
         trace_header->type = TRACE_CM_BUFFER;
-        trace_header->data_size = 0;
+        trace_header->data_size = sizeof(struct trace_buffer_size_header_t);
 
         /* Update trace buffer header for buffer partitioning information.
            Buffer is divided equally among all CM Harts, with fixed size per Hart. */
@@ -206,7 +205,7 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
         struct trace_buffer_size_header_t *size_header =
             (struct trace_buffer_size_header_t *)CM_TRACE_CB[hart_cb_index].cb.base_per_hart;
 
-        size_header->data_size = 0;
+        size_header->data_size = sizeof(struct trace_buffer_size_header_t);
 
         /* Set the default offset */
         CM_TRACE_CB[hart_cb_index].cb.offset_per_hart = sizeof(struct trace_buffer_size_header_t);

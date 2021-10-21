@@ -39,8 +39,6 @@
 /* mm_rt_helpers */
 #include "layout.h"
 
-#include "common_trace_defs.h"
-
 /*! \def TRACE_NODE_INDEX
     \brief Default trace node index in DMA list command when flag is set to extract Trace buffers.
            As flags are per command, not per transfer in the command, that is why when Trace flags
@@ -1440,9 +1438,7 @@ static inline int8_t trace_rt_config_cmd_handler(void* command_buffer, uint8_t s
                 "HostCmdHdlr:TID:%u:TRACE_CONFIG: Configure CM.\r\n",
                 cmd->command_info.cmd_hdr.tag_id);
 
-            uint64_t cm_shire_mask = cmd->shire_mask & CM_SHIRE_MASK;
-
-            if((cm_shire_mask & CW_Get_Booted_Shires()) == cm_shire_mask)
+            if((cmd->shire_mask & CW_Get_Booted_Shires()) == cmd->shire_mask)
             {
                 mm_to_cm_message_trace_rt_config_t cm_msg;
                 cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE;

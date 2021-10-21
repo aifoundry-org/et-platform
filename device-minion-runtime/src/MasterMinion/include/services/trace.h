@@ -20,7 +20,10 @@
 #include <et-trace/encoder.h>
 
 /* mm_rt_svcs */
-#include "transports/mm_cm_iface/message_types.h"
+#include <transports/mm_cm_iface/message_types.h>
+
+/* Internal headers */
+#include "config/mm_config.h"
 
 /**************************/
 /* MM Trace Status Codes  */
@@ -36,6 +39,29 @@
 #else
 #define TRACE_LOG_CMD_STATUS(message_id, sqw_idx, tag_id, status)
 #endif
+
+/*! \def CM_SHIRE_MASK
+    \brief Shire mask of Compute Workers.
+*/
+#define CM_SHIRE_MASK    0xFFFFFFFFULL
+
+/*! \def CW_IN_MM_SHIRE
+    \brief Computer worker HART index in MM Shire.
+*/
+#define CW_IN_MM_SHIRE   0xFFFFFFFF00000000ULL
+
+/*! \def TRACE_CONFIG_CHECK_MM_HART
+    \brief Helper macro to check if given shire and thread masks contains any MM HART.
+*/
+#define TRACE_CONFIG_CHECK_MM_HART(shire_mask, thread_mask)                             \
+                    (shire_mask & MM_SHIRE_MASK) && (thread_mask & MM_HART_MASK)
+
+/*! \def TRACE_CONFIG_CHECK_CM_HART
+    \brief Helper macro to check if given shire and thread masks contains any CM HART.
+*/
+#define TRACE_CONFIG_CHECK_CM_HART(shire_mask, thread_mask)                             \
+                    (((shire_mask & CM_SHIRE_MASK) && (thread_mask & MM_HART_MASK)) ||  \
+                    ((shire_mask & MM_SHIRE_MASK) && (thread_mask & CW_IN_MM_SHIRE)))
 
 /*! \fn void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
     \brief This function initializes Trace for all harts in Master Minion
