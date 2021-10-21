@@ -121,16 +121,6 @@ struct sys_emu_cmd_options {
 #endif
 };
 
-struct sys_emu_coop_tload
-{
-    bool     tenb;
-    uint32_t id;
-    uint32_t coop_id;
-    uint32_t min_mask;
-    uint32_t neigh_mask;
-};
-
-
 class api_communicate;
 
 // Driver for a bemu::System instance
@@ -154,10 +144,6 @@ public:
     uint64_t thread_get_csr(int thread_id, int csr) { return chip.get_csr(thread_id, csr); }
     void thread_set_csr(int thread_id, int csr, uint32_t data) { chip.set_csr(thread_id, csr, data); }
 
-    void fcc_to_threads(unsigned shire_id, unsigned thread_dest,
-                               uint64_t thread_mask, unsigned cnt_dest);
-    void msg_to_thread(unsigned thread_id);
-    void send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask);
     void raise_timer_interrupt(uint64_t shire_mask);
     void clear_timer_interrupt(uint64_t shire_mask);
     void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask);
@@ -167,19 +153,14 @@ public:
     void raise_external_supervisor_interrupt(unsigned shire_id);
     void clear_external_supervisor_interrupt(unsigned shire_id);
     void evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask);
-    void shire_enable_threads(unsigned shire_id, uint32_t thread0_disable, uint32_t thread1_disable);
-    void recalculate_thread_disable(unsigned shire_id);
     int main_internal();
 
     uint64_t get_emu_cycle()  { return emu_cycle; }
 
-    bool thread_is_disabled(unsigned thread) { return !chip.cpu[thread].enabled; }
-
-    void activate_thread(int thread_id) { active_threads[thread_id] = true; }
-    void deactivate_thread(int thread_id) { active_threads[thread_id] = false; }
-    bool thread_is_active(int thread_id) { return active_threads[thread_id]; }
-
     // gdbstub needs these
+    bool thread_exists(unsigned thread) { return !chip.cpu[thread].is_nonexistent(); }
+    bool thread_is_unavailable(unsigned thread) { return chip.cpu[thread].is_unavailable(); }
+    void thread_set_running(unsigned thread) { chip.cpu[thread].start_running(); }
     void thread_read_memory(int thread, uint64_t addr, uint64_t size, uint8_t* buffer) {
         chip.memory.read(chip.cpu[thread], addr, size, buffer);
     }
@@ -189,17 +170,6 @@ public:
 
     // PCIe DMA needs this
     bemu::MainMemory& get_memory() { return chip.memory; }
-
-    // Returns whether a thread is running (not sleeping/waiting)
-    bool thread_is_running(int thread_id) { return contains(running_threads, thread_id); }
-    void thread_set_running(int thread_id) {
-        if (thread_is_active(thread_id) &&
-            /* && !thread_is_disabled(thread_id) && */
-            !contains(running_threads, thread_id)) {
-            running_threads.push_back(thread_id);
-        }
-    }
-    int running_threads_count() { return running_threads.size(); }
 
     void thread_set_single_step(int thread_id) { single_step[thread_id] = true; }
 
@@ -212,12 +182,6 @@ public:
     bool get_flb_check() { return flb_check; }
     flb_checker& get_flb_checker() { return flb_checker_; }
     bool get_display_trap_info() { return cmd_options.display_trap_info; }
-
-    void coop_tload_add(uint32_t thread_id, bool tenb, uint32_t id, uint32_t coop_id, uint32_t min_mask, uint32_t neigh_mask);
-    bool coop_tload_check(uint32_t thread_id, bool tenb, uint32_t id, uint32_t & requested_mask, uint32_t & present_mask);
-    bool coop_tload_all_present(uint32_t thread_id, const sys_emu_coop_tload & coop_tload, uint32_t & requested_mask, uint32_t & present_mask);
-    void coop_tload_mark_done(uint32_t thread_id, const sys_emu_coop_tload & coop_tload);
-    uint32_t coop_tload_get_thread_id(uint32_t thread_id, uint32_t neigh, uint32_t min);
 
     void breakpoint_insert(uint64_t addr);
     void breakpoint_remove(uint64_t addr);
@@ -236,9 +200,6 @@ protected:
     static inline bool contains(_container _C, const _Ty& _Val) {
         return std::find(_C.begin(), _C.end(), _Val) != _C.end();
     }
-
-    // Checks if a sleeping thread (FCC, WFI, stall) has to wake up when receiving an interrupt
-    void raise_interrupt_wakeup_check(unsigned thread_id);
 
 private:
 
@@ -271,13 +232,6 @@ private:
 
     std::ofstream   log_file;
     uint64_t        emu_cycle = 0;
-    std::list<int>  running_threads; // List of running threads
-    std::list<int>  wfi_stall_wait_threads; // List of threads waiting in a WFI or stall
-    std::list<int>  fcc_wait_threads[EMU_NUM_FCC_COUNTERS_PER_THREAD]; // List of threads waiting for an FCC
-    std::list<int>  port_wait_threads; // List of threads waiting for a port write
-    std::bitset<EMU_NUM_THREADS> active_threads; // List of threads being simulated
-    uint16_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
-    std::list<sys_emu_coop_tload> coop_tload_pending_list[EMU_NUM_THREADS];                      // List of pending cooperative tloads per thread
     bool            mem_check = false;
     mem_checker     mem_checker_{&chip};
     bool            l1_scp_check = false;

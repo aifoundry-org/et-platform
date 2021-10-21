@@ -65,20 +65,11 @@ enum : unsigned {
 };
 
 
-typedef Packed<VLEN>        freg_t;
-typedef std::bitset<MLEN>   mreg_t;
+using freg_t = Packed<VLEN>;
+using mreg_t = std::bitset<MLEN>;
 
 
 static_assert(VLEN == 256, "Only 256-bit vectors supported");
-
-
-// -----------------------------------------------------------------------------
-// Privilege levels
-enum prv_t : uint8_t {
-    PRV_U = 0,
-    PRV_S = 1,
-    PRV_M = 3
-};
 
 
 } // namespace bemu

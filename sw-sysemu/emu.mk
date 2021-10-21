@@ -23,8 +23,6 @@ emu_hdrs := \
 	insn.h \
 	insn_func.h \
 	insn_util.h \
-	insns/tensor_error.h \
-	lazy_array.h \
 	literals.h \
 	memmap.h \
 	memory/dense_region.h \
@@ -38,6 +36,9 @@ emu_hdrs := \
 	mmu.h \
 	processor.h \
 	state.h \
+	support/intrusive/detail/member_pointer.h \
+	support/intrusive/list.h \
+	support/lazy_array.h \
 	sysreg_error.h \
 	system.h \
 	tensor.h \
@@ -80,5 +81,4 @@ emu_cpp_srcs := \
 	mmu.cpp \
 	msgport.cpp \
 	processor.cpp \
-	system.cpp \
-	traps.cpp
+	system.cpp

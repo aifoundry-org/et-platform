@@ -76,7 +76,6 @@ add_library(sysemu
     msgport.cpp
     processor.cpp
     system.cpp
-    traps.cpp
     $<$<BOOL:${PROFILING}>:sys_emu/profiling.cpp>
     $<$<BOOL:${BACKTRACE}>:sys_emu/crash_handler.cpp>
 )

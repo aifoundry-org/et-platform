@@ -22,7 +22,6 @@
 #include "mmu.h"
 #include "system.h"
 #include "tensor.h"
-#include "tensor_error.h"
 #include "traps.h"
 #include "utility.h"
 #ifdef SYS_EMU
@@ -54,13 +53,81 @@
         } \
     } while (0)
 #else
-    #define L1_SCP_CHECK_FILL(cpu, idx, id)  do { } while (0)
+    #define L1_SCP_CHECK_FILL(cpu, idx, id)  do { (void)id; } while (0)
     #define L1_SCP_CHECK_READ(cpu, idx)      do { } while (0)
     #define L2_SCP_CHECK_FILL(cpu, idx, id, addr) do { } while (0)
 #endif
 
 
 namespace bemu {
+
+
+// Tensor reduce constants
+enum : uint8_t {
+    reduce_function_fadd            = 0,
+    reduce_function_reserved_1      = 1,
+    reduce_function_fmax            = 2,
+    reduce_function_fmin            = 3,
+    reduce_function_add             = 4,
+    reduce_function_reserved_5      = 5,
+    reduce_function_max             = 6,
+    reduce_function_min             = 7,
+    reduce_function_move            = 8,
+    reduce_function_reserved_9      = 9,
+    reduce_function_reserved_10     = 10,
+    reduce_function_reserved_11     = 11,
+    reduce_function_reserved_12     = 12,
+    reduce_function_reserved_13     = 13,
+    reduce_function_reserved_14     = 14,
+    reduce_function_reserved_15     = 15,
+};
+
+
+// Tensor load constants
+enum {
+    tload_cmd_load          = 0,
+    tload_cmd_interleave8   = 1,
+    tload_cmd_interleave16  = 2,
+    tload_cmd_reserved_3    = 3,
+    tload_cmd_reserved_4    = 4,
+    tload_cmd_transpose8    = 5,
+    tload_cmd_transpose16   = 6,
+    tload_cmd_transpose32   = 7,
+};
+
+
+// Tensor fma constants
+enum {
+    tfma_type_fp32   = 0,
+    tfma_type_fp16   = 1,
+    tfma_type_rsvd_2 = 2,
+    tfma_type_int8   = 3,
+    tfma_type_rsvd_4 = 4,
+    tfma_type_rsvd_5 = 5,
+    tfma_type_rsvd_6 = 6,
+    tfma_type_rsvd_7 = 7,
+};
+
+
+// Tensor quant constants
+enum {
+    tquant_funct_last          = 0,
+    tquant_funct_int32_to_fp32 = 1,
+    tquant_funct_fp32_to_int32 = 2,
+    tquant_funct_int32_relu    = 3,
+    tquant_funct_int32_add_row = 4,
+    tquant_funct_int32_add_col = 5,
+    tquant_funct_fp32_mul_row  = 6,
+    tquant_funct_fp32_mul_col  = 7,
+    tquant_funct_sat_int8      = 8,
+    tquant_funct_sat_uint8     = 9,
+    tquant_funct_pack_128      = 10,
+    tquant_funct_reserved_11   = 11,
+    tquant_funct_reserved_12   = 12,
+    tquant_funct_reserved_13   = 13,
+    tquant_funct_reserved_14   = 14,
+    tquant_funct_reserved_15   = 15,
+};
 
 
 static const char* get_rounding_mode(const Hart& cpu, int mode)
@@ -72,16 +139,7 @@ static const char* get_rounding_mode(const Hart& cpu, int mode)
         "dyn(rmm)", "dyn(res5)", "dyn(res6)", "dyn(res7)",
     };
 
-    return rmnames[(mode == rmdyn) ? (8 + cpu.frm()) : (mode & 7)];
-}
-
-
-static const char* get_reduce_state(Core::Reduce::State state)
-{
-    static const char* stnames[] = {
-        "Idle", "Send", "Recv"
-    };
-    return stnames[static_cast<uint8_t>(state)];
+    return rmnames[(mode == 7) ? (8 + cpu.frm()) : (mode & 7)];
 }
 
 
@@ -138,117 +196,230 @@ void tensor_mask_update(Hart& cpu)
     int rowstart = int16_t((tconvctrlreg >> 32) & 0xFFFF);
     int colstart = int16_t((tconvctrlreg >>  0) & 0xFFFF);
 
-    for (int i = 0; i < 16; ++i, rowstart += srow, colstart += scol)
-    {
-        if ((rowstart >= 0) && (rowstart < nrow) && (colstart >= 0) && (colstart < ncol))
-        {
-            LOG_HART(DEBUG, cpu, "TensorMask[%d] pass for row: %d, col: %d, nrow: %d, ncol %d",
-                i, rowstart, colstart, nrow, ncol);
-            tmask_value |= (1u << i);
-        }
-        else
-        {
-            LOG_HART(DEBUG, cpu, "TensorMask[%d] skip for row: %d, col: %d, nrow: %d, ncol %d",
-                i, rowstart, colstart, nrow, ncol);
-        }
+    for (int i = 0; i < 16; ++i) {
+        unsigned bit = !!((rowstart >= 0) && (rowstart < nrow)
+                          && (colstart >= 0) && (colstart < ncol));
+        tmask_value |= (bit << i);
+        rowstart += srow;
+        colstart += scol;
     }
     cpu.tensor_mask = tmask_value;
     LOG_TENSOR_MASK("=");
 }
 
 
-void tensor_coop_write(Hart& cpu, uint64_t value)
-{
-    uint32_t neigh_mask  = (value >> 16) & 0xF;
-    uint32_t minion_mask = (value >>  8) & 0xFF;
-    uint32_t coop_id     = (value >>  0) & 0x1F;
-    cpu.tensor_coop = neigh_mask << 16
-                    | minion_mask << 8
-                    | coop_id;
-    // TODO: implement functionality checking the addresses and tcoop of every use of Tensor Load
-    LOG_HART(DEBUG, cpu, "\tSetting Tensor Cooperation: coopneighmask=%02X, coopminmask=%02X, coopid=%d", neigh_mask, minion_mask, coop_id);
-}
-
-
 // ----- TensorLoad emulation --------------------------------------------------
+
+#ifdef SYS_EMU
+static int coop_tload_leader_neigh(uint64_t paddr, uint8_t neighmask)
+{
+    switch ((paddr >> 6) & 0x3) {
+    case 0:
+        if (neighmask & 1) return 0;
+        if (neighmask & 8) return 3;
+        if (neighmask & 2) return 1;
+        return 2;
+    case 1:
+        if (neighmask & 2) return 1;
+        if (neighmask & 1) return 0;
+        if (neighmask & 4) return 2;
+        return 3;
+    case 2:
+        if (neighmask & 4) return 2;
+        if (neighmask & 2) return 1;
+        if (neighmask & 8) return 3;
+        return 0;
+    case 3:
+        if (neighmask & 8) return 3;
+        if (neighmask & 4) return 2;
+        if (neighmask & 1) return 0;
+        return 1;
+    }
+    return -1;
+}
+#endif
+
+
+#ifdef SYS_EMU
+static Coop_minion_mask coop_tload_minion_mask(uint32_t tcoop)
+{
+    uint8_t          neighs_in_shire  = (tcoop >> 16) & 0xF;
+    Coop_minion_mask minions_in_neigh = (tcoop >>  8) & 0xFF;
+    Coop_minion_mask minions_in_shire = 0;
+
+    while (neighs_in_shire) {
+        if ((neighs_in_shire & 1) != 0) {
+            minions_in_shire |= minions_in_neigh;
+        }
+        minions_in_neigh <<= EMU_MINIONS_PER_NEIGH;
+        neighs_in_shire >>= 1;
+    }
+
+    return minions_in_shire;
+}
+#endif
+
 
 void tensor_load_start(Hart& cpu, uint64_t control)
 {
     uint64_t stride  = X31 & 0xFFFFFFFFFFC0ULL;
     int      id      = X31 & 1;
 
-    int      tm                 = (control >> 63) & 0x1;
-    int      use_coop           = (control >> 62) & 0x1;
-    int      trans              = (control >> 59) & 0x7;
-    int      dst                = (control >> 53) & 0x3F;
-    int      tenb               = (control >> 52) & 0x1;
-    uint64_t addr               = sext<48>(control & 0xFFFFFFFFFFC0ULL);
-    int      boffset            = (control >>  4) & 0x03;
-    int      rows               = ((control      ) & 0xF) + 1;
+    bool     msk     = (control >> 63) & 0x1;
+    bool     coop    = (control >> 62) & 0x1;
+    int      cmd     = (control >> 59) & 0x7;
+    int      start   = (control >> 53) & 0x3F;
+    int      tenb    = (control >> 52) & 0x1;
+    uint64_t addr    = sext<48>(control & 0xFFFFFFFFFFC0ULL);
+    unsigned boffset = (control >>  4) & 0x03;
+    int      rows    = ((control     ) & 0xF) + 1;
 
-    LOG_REG(":", 31);
-    LOG_HART(DEBUG, cpu, "\tStart TensorLoad with tm: %d, use_coop: %d, trans: %d, dst: %d, "
-        "tenb: %d, addr: 0x%" PRIx64 ", boffset: %d, rows: %d, stride: 0x%" PRIx64 ", id: %d",
-        tm, use_coop, trans, dst, tenb, addr, boffset, rows, stride, id);
+    if (tenb != 0) {
+        start = 0;
+        msk   = false;
+        cmd   = tload_cmd_load;
+    }
 
-#ifdef ZSIM
-    bool txload_busy = (cpu.txload[int(tenb)] != 0xFFFFFFFFFFFFFFFFULL);
-    if (txload_busy) {
-        if (cpu.shadow_txload[int(tenb)] != 0xFFFFFFFFFFFFFFFFULL)
-            throw std::runtime_error("tensor_load_start() called while "
-                                     "this thread's TensorLoad FSM is active");
+    TLoad& tload = cpu.core->tload[tenb];
+
+    if (tload.state != TLoad::State::idle) {
+        // tload[0] should wait for previous tload[0] to finish, but
+        // tload[1] should wait only if previous tload[1] is paired, otherwise
+        // it can proceed (by canceling the previous tload[1]).
+        if (!tenb || tload.paired) {
+            if (tenb) {
+                cpu.start_waiting(Hart::Waiting::tload_tenb);
+            } else if (id == 0) {
+                cpu.start_waiting(Hart::Waiting::tload_0);
+            } else {
+                cpu.start_waiting(Hart::Waiting::tload_1);
+            }
+            cpu.npc = cpu.pc;
+            throw instruction_restart();
+        }
+        if (tload.state == TLoad::State::waiting_coop) {
+            // back-to-back loads to tenb are fine, but not if the first one
+            // is cooperative!
+            throw std::runtime_error("tensor_load_start() called while there "
+                                     "is an active cooperative tensor load "
+                                     "to tenb");
+        }
+        tload.state = TLoad::State::idle;
+        tload.paired = false;
     }
-#else
-    if (cpu.txload[int(tenb)] != 0xFFFFFFFFFFFFFFFFULL) {
-        throw std::runtime_error("tensor_load_start() called while "
-                                 "this thread's TensorLoad FSM is active");
-    }
-#endif
 
     // Cooperative tensor loads require the shire to be in cooperative mode
-    if (use_coop) {
-        uint64_t shire = shire_index(cpu);
-        if (!cpu.chip->shire_other_esrs[shire].shire_coop_mode)
+    if (coop) {
+        auto shire = shire_index(cpu);
+        if (!cpu.chip->shire_other_esrs[shire].shire_coop_mode) {
             throw trap_illegal_instruction(cpu.inst.bits);
+        }
     }
 
-    // Check if SCP is enabled
+    // Check if L1SCP is enabled
     if (cpu.core->mcache_control != 0x3) {
-        LOG_HART(WARN, cpu, "%s", "\tTensorLoad with SCP disabled!!");
+        LOG_HART(WARN, cpu, "%s", "\tTensorLoad with L1SCP disabled!!");
         update_tensor_error(cpu, 1 << 4);
         return;
     }
 
-    if (tenb) {
-        cpu.core->tensorload_setupb_topair = true;
-        cpu.core->tensorload_setupb_numlines = rows;
-    }
-    else if ((trans == 0x3) || (trans == 0x4)) {
-        // Invalid transformation
+    // Check for invalid transformation
+    if ((cmd == tload_cmd_reserved_3) || (cmd == tload_cmd_reserved_4)) {
         LOG_HART(WARN, cpu, "%s", "\tTensorLoad with illegal transform!!");
         update_tensor_error(cpu, 1 << 1);
         return;
     }
-    else if ((trans >= 0x5) && (trans <= 0x7)) {
-        int size = 1 << ((trans & 0x3) - 1);
-        if (size != 1 && size != 2 && size != 4) {
-            LOG_HART(WARN, cpu, "\tTensorLoad element size (%d) not valid!", size);
-            update_tensor_error(cpu, 1 << 1);
-            return;
-        }
+
+    LOG_REG(":", 31);
+    LOG_HART(DEBUG, cpu, "\tStart TensorLoad with msk: %d, coop: %d, cmd: %d, "
+             "start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: %u, rows: %d, "
+             "stride: 0x%" PRIx64 ", id: %d", int(msk), int(coop), cmd, start,
+             tenb, addr, boffset, rows, stride, id);
+
+    tload.value  = control;
+    tload.stride = X31;
+    tload.paired = false;
+
+    if (msk) {
+        LOG_TENSOR_MASK(":");
+        tload.tmask = cpu.tensor_mask;
+    } else {
+        tload.tmask = 0xffff;
     }
 
-#ifdef ZSIM
-    if (txload_busy) {
-        cpu.shadow_txload[int(tenb)] = control;
-        cpu.shadow_txstride[int(tenb)] = X31;
+    if (coop) {
+        LOG_TENSOR_COOP(":");
+        tload.tcoop = cpu.tensor_coop;
+        tload.state = TLoad::State::waiting_coop;
     } else {
-        cpu.txload[int(tenb)] = control;
-        cpu.txstride[int(tenb)] = X31;
+        tload.tcoop = 0;
+        tload.state = TLoad::State::ready;
     }
-#else
-    cpu.txload[int(tenb)] = control;
-    cpu.txstride[int(tenb)] = X31;
+
+#if defined(SYS_EMU)
+    // Update cooperative state
+    if (coop) {
+        unsigned neigh0 = shire_index(cpu) * EMU_NEIGH_PER_SHIRE;
+
+        unsigned neighs = (tload.tcoop >> 16) & 0xF;
+        unsigned group  = tload.tcoop % 32;
+        unsigned leader = coop_tload_leader_neigh(addr, neighs);
+        auto     all    = coop_tload_minion_mask(tload.tcoop);
+
+        unsigned minion = core_index(cpu) % EMU_MINIONS_PER_SHIRE;
+        auto     pending = all;
+
+        // Install an entry in every cooperating neighborhood
+        pending[minion] = false;
+
+        for (unsigned n = 0; n < EMU_NEIGH_PER_SHIRE; ++n) {
+            if (((neighs >> n) & 1) == 0) {
+                continue;
+            }
+            auto& entry = cpu.chip->coop_tloads[neigh0 + n][tenb][group];
+            if (entry.all.none()) {
+                entry.all = entry.pending = all;
+            }
+            if (entry.all != all) {
+                throw std::runtime_error("tensor_load_start() with coop group "
+                                         "already in use");
+            }
+            if (n == leader) {
+                entry.pending &= pending;
+                pending = entry.pending;
+            }
+        }
+
+        LOG_HART(DEBUG, cpu,
+                 "\tLeader-neigh: %d, minion-mask=0x%08lx, pending-mask=0x%lx",
+                 leader, all.to_ulong(), pending.to_ulong());
+
+        if (pending.none()) {
+            // Clear every cooperating neighborhood entry
+            for (unsigned n = 0; n < EMU_NEIGH_PER_SHIRE; ++n) {
+                if (((neighs >> n) & 1) == 1) {
+                    auto& entry = cpu.chip->coop_tloads[neigh0 + n][tenb][group];
+                    entry.all.reset();
+                }
+            }
+
+            // Wake-up cooperating harts
+            unsigned hart0 = shire_index(cpu) * EMU_THREADS_PER_SHIRE;
+            for (unsigned m = 0; m < EMU_MINIONS_PER_SHIRE; ++m) {
+                if (all[m] == false) {
+                    continue;
+                }
+                Hart& hart = cpu.chip->cpu[hart0 + m * EMU_THREADS_PER_MINION];
+                assert(hart.core->tload[tenb].state == TLoad::State::waiting_coop);
+                hart.core->tload[tenb].state = TLoad::State::ready;
+            }
+        }
+    } else {
+        tensor_load_execute(cpu, tenb);
+    }
+#elif !defined(ZSIM)
+    // CoSim lets the DUT handle synchronization; for now stay of the way
+    tload.state = TLoad::State::ready;
     tensor_load_execute(cpu, tenb);
 #endif
 }
@@ -256,63 +427,67 @@ void tensor_load_start(Hart& cpu, uint64_t control)
 
 void tensor_load_execute(Hart& cpu, bool tenb)
 {
-    uint64_t txload = cpu.txload[int(tenb)];
-    uint64_t stride = cpu.txstride[int(tenb)] & 0xFFFFFFFFFFC0ULL;
-    int      id     = cpu.txstride[int(tenb)] & 1;
+    TLoad& tload = cpu.core->tload[int(tenb)];
 
-    int      tm       = (txload >> 63) & 0x1;
-    int      use_coop = (txload >> 62) & 0x1;
-    int      trans    = (txload >> 59) & 0x7;
-    int      dst      = (txload >> 53) & 0x3F;
-    uint64_t addr     = sext<48>(txload & 0xFFFFFFFFFFC0ULL);
-    int      boffset  = (txload >>  4) & 0x03;
-    int      rows     = ((txload     ) & 0xF) + 1;
-
-    assert(int(tenb) == int((txload >> 52) & 0x1));
-
-    LOG_HART(DEBUG, cpu, "\tExecute TensorLoad with tm: %d, use_coop: %d, trans: %d, dst: %d, "
-        "tenb: %d, addr: 0x%" PRIx64 ", boffset: %d, rows: %d, stride: 0x%" PRIx64 ", id: %d",
-        tm, use_coop, trans, dst, tenb, addr, boffset, rows, stride, id);
-
-    if (txload == 0xFFFFFFFFFFFFFFFFULL) {
+    if (tload.state != TLoad::State::ready) {
         throw std::runtime_error("tensor_load_execute() called while "
                                  "this thread's TensorLoad FSM is inactive");
     }
 
-#ifdef SYS_EMU
-    // Logs tensorload coop info
-    if(use_coop)
-    {
-        uint32_t thread = hart_index(cpu);
-        uint32_t requested_mask;
-        uint32_t present_mask;
-        SYS_EMU_PTR->coop_tload_add(thread, tenb, tenb ? 0 : id, cpu.tensor_coop & 0xF, (cpu.tensor_coop >> 8) & 0xFF, cpu.tensor_coop >> 16);
-        SYS_EMU_PTR->coop_tload_check(thread, false, id, requested_mask, present_mask);
-    }
-#endif
+    assert(int(tenb) == int((tload.value >> 52) & 0x1));
 
-    int adj = 0;
-    if (tenb)
-    {
+    uint64_t stride  = tload.stride & 0xFFFFFFFFFFC0ULL;
+    int      id      = tload.stride & 1;
+    bool     msk     = (tload.value >> 63) & 0x1;
+    bool     coop    = (tload.value >> 62) & 0x1;
+    int      cmd     = (tload.value >> 59) & 0x7;
+    int      start   = (tload.value >> 53) & 0x3F;
+    uint64_t addr    = sext<48>(tload.value & 0xFFFFFFFFFFC0ULL);
+    unsigned boffset = (tload.value >>  4) & 0x03;
+    int      rows    = ((tload.value     ) & 0xF) + 1;
+    int      adj     = 0;
+
+    if (tenb) {
         // TenB is modelled as an extension to the SCP (these entries are not
         // accessible otherwise)
-        dst = 0;
-        adj = L1_SCP_ENTRIES;
-        trans = 0x0;
-        tm = 0;
+        start = 0;
+        adj   = L1_SCP_ENTRIES;
+        cmd   = tload_cmd_load;
+        msk   = false;
+
+        // Tensor load to TenB stays in 'loading' state until the paired
+        // (future) txfma executes. Here we must signal said txfma that we are
+        // ready so it can become ready too.
+        tload.state = TLoad::State::loading;
+        if (tload.paired && cpu.core->tmul.state == TMul::State::waiting_tenb) {
+            cpu.core->tmul.state = TMul::State::ready;
+        }
+    } else {
+        assert(tload.paired == false);
+        tload.state = TLoad::State::idle;
+        if (id == 0) {
+            cpu.stop_waiting(Hart::Waiting::tload_0);
+        } else {
+            cpu.stop_waiting(Hart::Waiting::tload_1);
+        }
     }
 
-    notify_tensor_load(cpu, trans, tenb, adj + (dst % L1_SCP_ENTRIES), tm ? cpu.tensor_mask.to_ulong() : 0xFFFF);
+    notify_tensor_load(cpu, cmd, tenb, adj + (start % L1_SCP_ENTRIES),
+                       tload.tmask.to_ulong());
 
-    //NO TRANS
-    if (trans == 0x00)
-    {
-        LOG_HART(DEBUG, cpu, "%s", "\tTensorLoad: No transformation");
-        for (int i = 0; i < rows; ++i)
-        {
-            if (!tm || cpu.tensor_mask[i])
-            {
-                int idx = adj + ((dst + i) % L1_SCP_ENTRIES);
+    std::array<cache_line_t, L1D_LINE_SIZE> tmp;
+    std::bitset<L1D_LINE_SIZE>              okay;
+
+    switch (cmd) {
+    case tload_cmd_load:
+        LOG_HART(DEBUG, cpu, "Execute TensorLoad with msk: %d, coop: %d, "
+                 "start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: %u, "
+                 "rows: %d, stride: 0x%" PRIx64 ", id: %d, tmask: 0x%lx",
+                 int(msk), int(coop), start, tenb, addr, boffset, rows,
+                 stride, id, tload.tmask.to_ulong());
+        for (int i = 0; i < rows; ++i) {
+            if (!msk || tload.tmask[i]) {
+                int idx = adj + ((start + i) % L1_SCP_ENTRIES);
                 try {
                     uint64_t vaddr = sextVA(addr + i*stride);
                     assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
@@ -322,33 +497,31 @@ void tensor_load_execute(Hart& cpu, bool tenb)
                     LOG_SCP_32x16("=", idx);
                     L1_SCP_CHECK_FILL(cpu, idx, id);
                 }
-                catch (const sync_trap_t&) {
+                catch (const Exception&) {
                     update_tensor_error(cpu, 1 << 7);
-                    goto tensor_load_execute_done;
+                    return;
                 }
                 catch (const memory_error&) {
-                    raise_bus_error_interrupt(cpu, 0);
+                    cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
                     continue;
                 }
                 notify_tensor_load_scp_write(cpu, i, &SCP[idx].u64[0]);
             }
         }
-    }
-    //INTERLEAVE8
-    else if (trans == 0x01)
-    {
-        LOG_HART(DEBUG, cpu, "%s", "\tTensorLoad: Interleave8");
+        break;
+    case tload_cmd_interleave8:
         boffset *= 16;
-        LOG_HART(DEBUG, cpu, "\t#rows:%d - size:%d - start:%d - elements:%d - boffset:%d", rows, 1, boffset, 4, boffset/16);
-        for (int i = 0; i < rows; ++i)
-        {
-            if (!tm || cpu.tensor_mask[i])
-            {
+        LOG_HART(DEBUG, cpu, "Execute TensorLoadInterleave8 with msk: %d, "
+                 "coop: %d, start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: "
+                 "%u, rows: %d, stride: 0x%" PRIx64 ", id: %d, tmask: 0x%lx",
+                 int(msk), int(coop), start, tenb, addr, boffset, rows,
+                 stride, id, tload.tmask.to_ulong());
+        for (int i = 0; i < rows; ++i) {
+            if (!msk || tload.tmask[i]) {
                 bool dirty = false;
-                int idx = adj + ((dst + i) % L1_SCP_ENTRIES);
+                int idx = adj + ((start + i) % L1_SCP_ENTRIES);
                 L1_SCP_CHECK_FILL(cpu, idx, id);
-                for (int r = 0; r < 4; ++r)
-                {
+                for (int r = 0; r < 4; ++r) {
                     try {
                         Packed<128> tmp;
                         uint64_t vaddr = sextVA(addr + boffset + (4*i+r)*stride);
@@ -356,42 +529,40 @@ void tensor_load_execute(Hart& cpu, bool tenb)
                         uint64_t paddr = mmu_translate(cpu, vaddr, 16, Mem_Access_TxLoad);
                         cpu.chip->memory.read(cpu, paddr, 16, tmp.u32.data());
                         LOG_MEMREAD128(paddr, tmp.u32);
-                        for (int c = 0; c < 16; ++c)
+                        for (int c = 0; c < 16; ++c) {
                             SCP[idx].u8[c*4 + r] = tmp.u8[c];
+                        }
                     }
-                    catch (const sync_trap_t&) {
+                    catch (const Exception&) {
                         update_tensor_error(cpu, 1 << 7);
-                        goto tensor_load_execute_done;
+                        return;
                     }
                     catch (const memory_error&) {
-                        raise_bus_error_interrupt(cpu, 0);
+                        cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
                         continue;
                     }
                     dirty = true;
                 }
-                if (dirty)
-                {
+                if (dirty) {
                     notify_tensor_load_scp_write(cpu, i, &SCP[idx].u64[0]);
                     LOG_SCP_32x16("=", idx);
                 }
             }
         }
-    }
-    //INTERLEAVE16
-    else if (trans == 0x02)
-    {
-        LOG_HART(DEBUG, cpu, "%s", "\tTensorLoad: Interleave16");
+        break;
+    case tload_cmd_interleave16:
         boffset = (boffset & 0x2) * 16;
-        LOG_HART(DEBUG, cpu, "\t#rows:%d - size:%d - start:%d - elements:%d - boffset:%d", rows, 1, boffset, 4, boffset/16);
-        for (int i = 0; i < rows; ++i)
-        {
-            if (!tm || cpu.tensor_mask[i])
-            {
+        LOG_HART(DEBUG, cpu, "Execute TensorLoadInterleave16 with msk: %d, "
+                 "coop: %d, start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: "
+                 "%u, rows: %d, stride: 0x%" PRIx64 ", id: %d, tmask: 0x%lx",
+                 int(msk), int(coop), start, tenb, addr, boffset, rows,
+                 stride, id, tload.tmask.to_ulong());
+        for (int i = 0; i < rows; ++i) {
+            if (!msk || tload.tmask[i]) {
                 bool dirty = false;
-                int idx = adj + ((dst + i) % L1_SCP_ENTRIES);
+                int idx = adj + ((start + i) % L1_SCP_ENTRIES);
                 L1_SCP_CHECK_FILL(cpu, idx, id);
-                for (int r = 0; r < 2; ++r)
-                {
+                for (int r = 0; r < 2; ++r) {
                     try {
                         Packed<256> tmp;
                         uint64_t vaddr = sextVA(addr + boffset + (2*i+r)*stride);
@@ -399,39 +570,36 @@ void tensor_load_execute(Hart& cpu, bool tenb)
                         uint64_t paddr = mmu_translate(cpu, vaddr, 32, Mem_Access_TxLoad);
                         cpu.chip->memory.read(cpu, paddr, 32, tmp.u32.data());
                         LOG_MEMREAD256(paddr, tmp.u32);
-                        for (int c = 0; c < 16; ++c)
+                        for (int c = 0; c < 16; ++c) {
                             SCP[idx].u16[c*2 + r] = tmp.u16[c];
+                        }
                     }
-                    catch (const sync_trap_t&) {
+                    catch (const Exception&) {
                         update_tensor_error(cpu, 1 << 7);
-                        goto tensor_load_execute_done;
+                        return;
                     }
                     catch (const memory_error&) {
-                        raise_bus_error_interrupt(cpu, 0);
+                        cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
                         continue;
                     }
                     dirty = true;
                 }
-                if (dirty)
-                {
+                if (dirty) {
                     notify_tensor_load_scp_write(cpu, i, &SCP[idx].u64[0]);
                     LOG_SCP_32x16("=", idx);
                 }
             }
         }
-    }
-    //TRANSPOSE
-    else if (trans == 0x05 || trans == 0x06 || trans==0x07)
-    {
-        cache_line_t tmp[64];
-        uint64_t okay = 0;
-        int size = (trans & 0x03);
-        int offset = (trans == 0x7) ? 0 : ((trans == 0x5) ? (boffset*16) : ((boffset & 0x2) * 16));
-        int elements = L1D_LINE_SIZE >> (size-1);
-        size = 1 << (size-1);
-        LOG_HART(DEBUG, cpu, "\tTensorLoad: Transpose - elements:%d size:%d offset:%d", elements, size, offset);
-        for (int j = 0; j < elements; ++j)
-        {
+        break;
+    case tload_cmd_transpose8:
+        boffset *= 16;
+        LOG_HART(DEBUG, cpu, "Execute TensorLoadTranspose8 with msk: %d, "
+                 "coop: %d, start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: "
+                 "%u, rows: %d, stride: 0x%" PRIx64 ", id: %d, tmask: 0x%lx",
+                 int(msk), int(coop), start, tenb, addr, boffset, rows,
+                 stride, id, tload.tmask.to_ulong());
+        okay.reset();
+        for (int j = 0; j < L1D_LINE_SIZE; ++j) {
             uint64_t vaddr = sextVA(addr + j*stride);
             assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
             try {
@@ -439,44 +607,104 @@ void tensor_load_execute(Hart& cpu, bool tenb)
                 cpu.chip->memory.read(cpu, paddr, L1D_LINE_SIZE, tmp[j].u32.data());
                 LOG_MEMREAD512(paddr, tmp[j].u32);
             }
-            catch (const sync_trap_t&) {
+            catch (const Exception&) {
                 update_tensor_error(cpu, 1 << 7);
-                goto tensor_load_execute_done;
+                return;
             }
             catch (const memory_error&) {
-                raise_bus_error_interrupt(cpu, 0);
+                cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
                 continue;
             }
-            okay |= 1ull << j;
+            okay[j] = true;
         }
-        for (int i = 0; i < rows; ++i)
-        {
-            if (((okay >> i) & 1) && (!tm || cpu.tensor_mask[i]))
-            {
-                int idx = adj + ((dst + i) % L1_SCP_ENTRIES);
+        for (int i = 0; i < rows; ++i) {
+            if (okay[i] && (!msk || tload.tmask[i])) {
+                int idx = adj + ((start + i) % L1_SCP_ENTRIES);
                 L1_SCP_CHECK_FILL(cpu, idx, id);
-                for (int j = 0; j < elements; ++j)
-                {
-                    switch (size) {
-                    case 4: SCP[idx].u32[j] = tmp[j].u32[i+offset/4]; break;
-                    case 2: SCP[idx].u16[j] = tmp[j].u16[i+offset/2]; break;
-                    case 1: SCP[idx].u8[j] = tmp[j].u8[i+offset]; break;
-                    }
+                for (int j = 0; j < L1D_LINE_SIZE; ++j) {
+                    SCP[idx].u8[j] = tmp[j].u8[i + boffset];
                 }
                 notify_tensor_load_scp_write(cpu, i, &SCP[idx].u64[0]);
                 LOG_SCP_32x16("=", idx);
             }
         }
+        break;
+    case tload_cmd_transpose16:
+        boffset = (boffset & 0x2) * 8;
+        LOG_HART(DEBUG, cpu, "Execute TensorLoadTranspose16 with msk: %d, "
+                 "coop: %d, start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: "
+                 "%u, rows: %d, stride: 0x%" PRIx64 ", id: %d, tmask: 0x%lx",
+                 int(msk), int(coop), start, tenb, addr, boffset, rows,
+                 stride, id, tload.tmask.to_ulong());
+        okay.reset();
+        for (int j = 0; j < (L1D_LINE_SIZE / 2); ++j) {
+            uint64_t vaddr = sextVA(addr + j*stride);
+            assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
+            try {
+                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad);
+                cpu.chip->memory.read(cpu, paddr, L1D_LINE_SIZE, tmp[j].u32.data());
+                LOG_MEMREAD512(paddr, tmp[j].u32);
+            }
+            catch (const Exception&) {
+                update_tensor_error(cpu, 1 << 7);
+                return;
+            }
+            catch (const memory_error&) {
+                cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
+                continue;
+            }
+            okay[j] = true;
+        }
+        for (int i = 0; i < rows; ++i) {
+            if (okay[i] && (!msk || tload.tmask[i])) {
+                int idx = adj + ((start + i) % L1_SCP_ENTRIES);
+                L1_SCP_CHECK_FILL(cpu, idx, id);
+                for (int j = 0; j < L1D_LINE_SIZE / 2; ++j) {
+                    SCP[idx].u16[j] = tmp[j].u16[i + boffset];
+                }
+                notify_tensor_load_scp_write(cpu, i, &SCP[idx].u64[0]);
+                LOG_SCP_32x16("=", idx);
+            }
+        }
+        break;
+    case tload_cmd_transpose32:
+        LOG_HART(DEBUG, cpu, "Execute TensorLoadTranspose32 with msk: %d, "
+                 "coop: %d, start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: "
+                 "%u, rows: %d, stride: 0x%" PRIx64 ", id: %d, tmask: 0x%lx",
+                 int(msk), int(coop), start, tenb, addr, boffset, rows,
+                 stride, id, tload.tmask.to_ulong());
+        okay.reset();
+        for (int j = 0; j < (L1D_LINE_SIZE / 4); ++j) {
+            uint64_t vaddr = sextVA(addr + j*stride);
+            assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
+            try {
+                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad);
+                cpu.chip->memory.read(cpu, paddr, L1D_LINE_SIZE, tmp[j].u32.data());
+                LOG_MEMREAD512(paddr, tmp[j].u32);
+            }
+            catch (const Exception&) {
+                update_tensor_error(cpu, 1 << 7);
+                return;
+            }
+            catch (const memory_error&) {
+                cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
+                continue;
+            }
+            okay[j] = true;
+        }
+        for (int i = 0; i < rows; ++i) {
+            if (okay[i] && (!msk || tload.tmask[i])) {
+                int idx = adj + ((start + i) % L1_SCP_ENTRIES);
+                L1_SCP_CHECK_FILL(cpu, idx, id);
+                for (int j = 0; j < L1D_LINE_SIZE / 4; ++j) {
+                    SCP[idx].u32[j] = tmp[j].u32[i/*+ boffset==0*/];
+                }
+                notify_tensor_load_scp_write(cpu, i, &SCP[idx].u64[0]);
+                LOG_SCP_32x16("=", idx);
+            }
+        }
+        break;
     }
-
-tensor_load_execute_done:
-    cpu.txload[int(tenb)] = 0xFFFFFFFFFFFFFFFFULL;
-#ifdef ZSIM
-    if (cpu.shadow_txload[int(tenb)] != 0xFFFFFFFFFFFFFFFFULL) {
-        std::swap(cpu.txload[int(tenb)], cpu.shadow_txload[int(tenb)]);
-        std::swap(cpu.txstride[int(tenb)], cpu.shadow_txstride[int(tenb)]);
-    }
-#endif
 }
 
 
@@ -497,11 +725,15 @@ void tensor_load_l2_start(Hart& cpu, uint64_t control)
     LOG_HART(DEBUG, cpu, "TensorLoadL2SCP: rows:%d - tm:%d - dst:%d - addr:0x%" PRIx64 " - stride: 0x%" PRIx64 " - id: %d",
         rows, tm, dst, addr, stride, id);
 
+    if (id == 0) {
+        cpu.stop_waiting(Hart::Waiting::tload_L2_0);
+    } else {
+        cpu.stop_waiting(Hart::Waiting::tload_L2_1);
+    }
+
     uint64_t shire = cpu.shireid();
-    for (int i = 0; i < rows; ++i)
-    {
-        if (!tm || cpu.tensor_mask[i])
-        {
+    for (int i = 0; i < rows; ++i) {
+        if (!tm || cpu.tensor_mask[i]) {
             uint64_t l2scp_addr = L2_SCP_BASE + shire * L2_SCP_OFFSET + ((dst + i) * L1D_LINE_SIZE);
             uint64_t vaddr = sextVA(addr + i*stride);
             assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
@@ -514,12 +746,12 @@ void tensor_load_l2_start(Hart& cpu, uint64_t control)
                 LOG_MEMWRITE512(l2scp_addr, tmp.u32);
                 L2_SCP_CHECK_FILL(cpu, dst + i, id, vaddr);
             }
-            catch (const sync_trap_t&) {
+            catch (const Exception&) {
                 update_tensor_error(cpu, 1 << 7);
                 return;
             }
             catch (const memory_error&) {
-                raise_bus_error_interrupt(cpu, 0);
+                cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
             }
         }
     }
@@ -530,51 +762,47 @@ void tensor_load_l2_start(Hart& cpu, uint64_t control)
 
 void tensor_quant_start(Hart& cpu, uint64_t value)
 {
-    unsigned fstart = (value >> 57) & 0x1F;
-    unsigned ncols  = (value >> 55) & 0x3;
-    unsigned nrows  = (value >> 51) & 0xF;
-    unsigned line   = (value >> 45) & 0x3F;
+    unsigned freg  = (value >> 57) & 0x1F;
+    unsigned acols = (value >> 55) & 0x3;
+    unsigned arows = (value >> 51) & 0xF;
+    unsigned start = (value >> 45) & 0x3F;
 
-    ncols = (ncols + 1) * 4;
-    nrows = nrows + 1;
-    line = line % L1_SCP_ENTRIES;
+    acols = (acols + 1) * 4;
+    arows = arows + 1;
+    start = start% L1_SCP_ENTRIES;
 
-    LOG_HART(DEBUG, cpu, "\tStart TensorQuant with line: %u, rows: %u, cols: %u, regstart: %u, frm: %s",
-        line, nrows, ncols, fstart, get_rounding_mode(cpu, FRM));
-
-#ifdef ZSIM
-    bool txquant_busy = (cpu.core->txquant != 0xFFFFFFFFFFFFFFFFULL);
-    if (txquant_busy) {
-        if (cpu.core->shadow_txquant != 0xFFFFFFFFFFFFFFFFULL)
-            throw std::runtime_error("tensor_quant_start() called while "
-                                     "this thread's TensorQuant FSM is active");
+    if (cpu.core->tquant.state != TQuant::State::idle) {
+        cpu.start_waiting(Hart::Waiting::tquant);
+        cpu.npc = cpu.pc;
+        throw instruction_restart();
     }
-#else
-    if (cpu.core->txquant != 0xFFFFFFFFFFFFFFFFULL) {
-        throw std::runtime_error("tensor_quant_start() called while "
-                                 "this thread's TensorQuant FSM is active");
-    }
-#endif
 
     // TensorQuant raises illegal instruction exception when rounding mode is
     // invalid even if the transforms do not use FRM.
     set_rounding_mode(cpu, FRM);
 
+    LOG_HART(DEBUG, cpu, "\tStart TensorQuant with start %u, arows: %u, "
+             "acols: %u, freg: %u, frm: %s", start, arows, acols, freg,
+             get_rounding_mode(cpu, FRM));
+
     // If a transformation needs the scratchpad, and the scratchpad is
     // disabled, then we set tensor_error and do nothing.
-    for (int trans = 0; trans < TQUANT_MAX_TRANS; trans++) {
-        int funct = (value >> (trans*4)) & 0xF;
-        if (!funct) {
+    for (int trans = 0; trans < TQUANT_MAX_TRANS; ++trans) {
+        int funct = (value >> (trans * 4)) & 0xF;
+        if (funct == tquant_funct_last) {
             if (trans == 0) {
                 // Nothing to do, don't activate the state machine
                 return;
             }
             break;
         }
-        if ((funct >= 4) && (funct <= 7) &&
-            (cpu.core->mcache_control != 0x3)) {
-            LOG_HART(DEBUG, cpu, "\tTransformation %d is %s but scratchpad is disabled",
-                trans, get_quant_transform(funct));
+        if ((funct >= tquant_funct_int32_add_row)
+            && (funct <= tquant_funct_fp32_mul_col)
+            && (cpu.core->mcache_control != 0x3))
+        {
+            LOG_HART(DEBUG, cpu,
+                     "\tTransformation %d is %s but L1SCP is disabled",
+                     trans, get_quant_transform(funct));
             update_tensor_error(cpu, 1 << 4);
             // Error, don't activate the state machine
             return;
@@ -582,16 +810,12 @@ void tensor_quant_start(Hart& cpu, uint64_t value)
     }
 
     // Activate the state machine
-#ifdef ZSIM
-    if (txquant_busy) {
-        cpu.core->shadow_txquant = value;
-    } else {
-        cpu.core->txquant = value;
-        auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::Quant);
-        assert(enq_ret);
-    }
+    cpu.core->tquant.value = value;
+    cpu.core->tquant.frm   = FRM;
+    cpu.core->tquant.state = TQuant::State::ready;
+#if defined(ZSIM) || defined(SYS_EMU)
+    cpu.core->tqueue.push(TQueue::Instruction::tquant);
 #else
-    cpu.core->txquant = value;
     tensor_quant_execute(cpu);
 #endif
 }
@@ -599,51 +823,48 @@ void tensor_quant_start(Hart& cpu, uint64_t value)
 
 void tensor_quant_execute(Hart& cpu)
 {
-    uint64_t quant = cpu.core->txquant;
-    unsigned fstart = (quant >> 57) & 0x1F;
-    unsigned ncols  = (quant >> 55) & 0x3;
-    unsigned nrows  = (quant >> 51) & 0xF;
-    unsigned line   = (quant >> 45) & 0x3F;
-
-#ifdef ZSIM
-    if (cpu.core->active_tensor_op() != Core::Tensor::Quant) {
+    if (cpu.core->tquant.state == TQuant::State::idle) {
         throw std::runtime_error("tensor_quant_execute() called while this "
                                  "thread's TensorQuant FSM is inactive");
     }
-#else
-    if (cpu.core->txquant == 0xFFFFFFFFFFFFFFFFULL) {
-        throw std::runtime_error("tensor_quant_execute() called while this "
-                                 "thread's TensorQuant FSM is inactive");
-    }
-#endif
 
-    ncols = (ncols + 1) * 4;
-    nrows = nrows + 1;
-    line = line % L1_SCP_ENTRIES;
+    uint64_t quant = cpu.core->tquant.value;
+    unsigned freg  = (quant >> 57) & 0x1F;
+    unsigned acols = (quant >> 55) & 0x3;
+    unsigned arows = (quant >> 51) & 0xF;
+    unsigned start = (quant >> 45) & 0x3F;
 
-    LOG_HART(DEBUG, cpu, "\tExecute TensorQuant with line: %u, rows: %u, cols: %u, regstart: %u, frm: %s",
-        line, nrows, ncols, fstart, get_rounding_mode(cpu, FRM));
+    acols = (acols + 1) * 4;
+    arows = arows + 1;
+    start = start % L1_SCP_ENTRIES;
 
-    set_rounding_mode(cpu, FRM);
+    LOG_HART(DEBUG, cpu, "Execute TensorQuant with start: %u, arows: %u, "
+             "acols: %u, freg: %u, frm: %s", start, arows, acols, freg,
+             get_rounding_mode(cpu, cpu.core->tquant.frm));
+
+    set_rounding_mode(cpu, cpu.core->tquant.frm);
 
     for (unsigned trans = 0; trans < TQUANT_MAX_TRANS; ++trans) {
-        unsigned funct = (quant >> (trans*4)) & 0xF;
-        LOG_HART(DEBUG, cpu, "\tTransformation %d: %s", trans, get_quant_transform(funct));
-        if (!funct) {
+        unsigned funct = (quant >> (trans * 4)) & 0xF;
+        LOG_HART(DEBUG, cpu, "\tTransformation %d: %s",
+                 trans, get_quant_transform(funct));
+        if (funct == tquant_funct_last) {
             break;
         }
+        bool pack128 = (funct == tquant_funct_pack_128);
+
         // PACK_128B RTL operates on even registers first, and then on odd
         // registers, so it generates two writes to the destination register
         // when a row spans a vector.
-        notify_tensor_quant_new_transform(cpu, (funct == 10) && (ncols > VLENW));
+        notify_tensor_quant_new_transform(cpu, pack128 && (acols > VLENW));
 
-        for (unsigned row = 0; row < nrows; ++row) {
-            for (unsigned col = 0; col < ncols; col += VLENW) {
-                unsigned nelem = std::min(ncols - col, unsigned(VLENW));
-                unsigned fs1 = (fstart + row*2 + col/VLENW) % NFREGS;
-                unsigned fd = (funct == 10) ? ((fstart + row*2) % NFREGS) : fs1;
+        for (unsigned row = 0; row < arows; ++row) {
+            for (unsigned col = 0; col < acols; col += VLENW) {
+                unsigned nelem = std::min(acols - col, unsigned(VLENW));
+                unsigned fs1 = (freg + row*2 + col/VLENW) % NFREGS;
+                unsigned fd = pack128 ? ((freg + row*2) % NFREGS) : fs1;
                 switch (funct) {
-                case 1: // INT32_TO_FP32
+                case tquant_funct_int32_to_fp32:
                     LOG_FREG(":", fd);
                     for (unsigned e = 0; e < nelem; ++e) {
                         FREGS[fd].f32[e] = fpu::i32_to_f32(FREGS[fd].i32[e]);
@@ -652,7 +873,7 @@ void tensor_quant_execute(Hart& cpu)
                     set_fp_exceptions(cpu);
                     dirty_fp_state();
                     break;
-                case 2: // FP32_TO_INT32
+                case tquant_funct_fp32_to_int32:
                     LOG_FREG(":", fd);
                     for (unsigned e = 0; e < nelem; ++e) {
                         FREGS[fd].i32[e] = fpu::f32_to_i32(FREGS[fd].f32[e]);
@@ -661,108 +882,123 @@ void tensor_quant_execute(Hart& cpu)
                     set_fp_exceptions(cpu);
                     dirty_fp_state();
                     break;
-                case 3: // INT32_RELU
+                case tquant_funct_int32_relu:
                     LOG_FREG(":", fd);
                     for (unsigned e = 0; e < nelem; ++e) {
-                        FREGS[fd].i32[e] = std::max(int32_t(0), FREGS[fd].i32[e]);
+                        FREGS[fd].i32[e] = std::max(int32_t(0),
+                                                    FREGS[fd].i32[e]);
                     }
                     LOG_FREG("=", fd);
                     dirty_fp_state();
                     break;
-                case 4: // INT32_ADD_ROW
-                    LOG_SCP(":", line, col);
+                case tquant_funct_int32_add_row:
+                    LOG_SCP(":", start, col);
                     LOG_FREG(":", fd);
                     for (unsigned e = 0; e < nelem; ++e) {
-                        FREGS[fd].i32[e] = FREGS[fd].i32[e] + SCP[line].i32[col+e];
+                        FREGS[fd].i32[e] = FREGS[fd].i32[e]
+                                         + SCP[start].i32[col+e];
                     }
-                    L1_SCP_CHECK_READ(cpu, line);
+                    L1_SCP_CHECK_READ(cpu, start);
                     LOG_FREG("=", fd);
                     dirty_fp_state();
                     break;
-                case 5: // INT32_ADD_COL
-                    LOG_SCP_32x1(":", line, row);
+                case tquant_funct_int32_add_col:
+                    LOG_SCP_32x1(":", start, row);
                     LOG_FREG(":", fd);
                     for (unsigned e = 0; e < nelem; ++e) {
-                        FREGS[fd].i32[e] = FREGS[fd].i32[e] + SCP[line].i32[row];
+                        FREGS[fd].i32[e] = FREGS[fd].i32[e]
+                                         + SCP[start].i32[row];
                     }
-                    L1_SCP_CHECK_READ(cpu, line);
+                    L1_SCP_CHECK_READ(cpu, start);
                     LOG_FREG("=", fd);
                     dirty_fp_state();
                     break;
-                case 6: // FP32_MUL_ROW
-                    LOG_SCP(":", line, col);
+                case tquant_funct_fp32_mul_row:
+                    LOG_SCP(":", start, col);
                     LOG_FREG(":", fd);
                     for (unsigned e = 0; e < nelem; ++e) {
-                        FREGS[fd].f32[e] = fpu::f32_mul(FREGS[fd].f32[e], SCP[line].f32[col+e]);
+                        FREGS[fd].f32[e] = fpu::f32_mul(FREGS[fd].f32[e],
+                                                        SCP[start].f32[col+e]);
                     }
-                    L1_SCP_CHECK_READ(cpu, line);
-                    LOG_FREG("=", fd);
-                    set_fp_exceptions(cpu);
-                    dirty_fp_state();
-                    break;
-                case 7: // FP32_MUL_COL
-                    LOG_SCP_32x1(":", line, row);
-                    LOG_FREG(":", fd);
-                    for (unsigned e = 0; e < nelem; ++e) {
-                        FREGS[fd].f32[e] = fpu::f32_mul(FREGS[fd].f32[e], SCP[line].f32[row]);
-                    }
-                    L1_SCP_CHECK_READ(cpu, line);
+                    L1_SCP_CHECK_READ(cpu, start);
                     LOG_FREG("=", fd);
                     set_fp_exceptions(cpu);
                     dirty_fp_state();
                     break;
-                case 8: // SATINT8
+                case tquant_funct_fp32_mul_col:
+                    LOG_SCP_32x1(":", start, row);
                     LOG_FREG(":", fd);
                     for (unsigned e = 0; e < nelem; ++e) {
-                        FREGS[fd].i32[e] = std::min(int32_t(127), std::max(int32_t(-128), FREGS[fd].i32[e])) & 0xFF;
+                        FREGS[fd].f32[e] = fpu::f32_mul(FREGS[fd].f32[e],
+                                                        SCP[start].f32[row]);
+                    }
+                    L1_SCP_CHECK_READ(cpu, start);
+                    LOG_FREG("=", fd);
+                    set_fp_exceptions(cpu);
+                    dirty_fp_state();
+                    break;
+                case tquant_funct_sat_int8:
+                    LOG_FREG(":", fd);
+                    for (unsigned e = 0; e < nelem; ++e) {
+                        int32_t tmp = std::max(int32_t(-128), FREGS[fd].i32[e]);
+                        FREGS[fd].i32[e] = std::min(int32_t(127), tmp) & 0xFF;
                     }
                     LOG_FREG("=", fd);
                     dirty_fp_state();
                     break;
-                case 9: // SATUINT8
+                case tquant_funct_sat_uint8:
                     LOG_FREG(":", fd);
                     for (unsigned e = 0; e < nelem; ++e) {
-                        FREGS[fd].i32[e] = std::min(int32_t(255), std::max(int32_t(0), FREGS[fd].i32[e])) & 0xFF;
+                        int32_t tmp = std::max(int32_t(0), FREGS[fd].i32[e]);
+                        FREGS[fd].i32[e] = std::min(int32_t(255), tmp) & 0xFF;
                     }
                     LOG_FREG("=", fd);
                     dirty_fp_state();
                     break;
-                case 10: // PACK_128B
+                case tquant_funct_pack_128:
                     LOG_FREG(":", fd);
                     for (unsigned e = 0; e < nelem; ++e) {
-                        FREGS[fd].u8[col+e] = uint8_t(FREGS[fs1].u32[e]);
+                        FREGS[fd].u8[col + e] = uint8_t(FREGS[fs1].u32[e]);
                     }
                     LOG_FREG("=", fd);
                     dirty_fp_state();
                     break;
                 default:
                     throw std::runtime_error("Illegal TensorQuant transform!");
-                    break;
                 }
 
                 // Notify the checker
-                if (funct == 10) {
-                    notify_tensor_quant_write(cpu, trans, fd, mkmask(nelem/4) << (col/4), FREGS[fd]);
+                if (pack128) {
+                    notify_tensor_quant_write(cpu, trans, fd,
+                                              mkmask(nelem/4) << (col/4),
+                                              FREGS[fd]);
                 } else {
-                    notify_tensor_quant_write(cpu, trans, fd, mkmask(nelem), FREGS[fd]);
+                    notify_tensor_quant_write(cpu, trans, fd,
+                                              mkmask(nelem),
+                                              FREGS[fd]);
                 }
             }
         }
 
-        if ((funct >= 4) && (funct <= 7)) {
-            line = (line + 1) % L1_SCP_ENTRIES;
+        if ((funct >= tquant_funct_int32_add_row)
+            && (funct <= tquant_funct_fp32_mul_col))
+        {
+            start = (start + 1) % L1_SCP_ENTRIES;
         }
     }
-    cpu.core->txquant = 0xFFFFFFFFFFFFFFFFULL;
-#ifdef ZSIM
-    auto deq_ret = cpu.core->dequeue_tensor_op();
-    assert(deq_ret == Core::Tensor::Quant);
-    if (cpu.core->shadow_txquant != 0xFFFFFFFFFFFFFFFFULL) {
-        std::swap(cpu.core->txquant, cpu.core->shadow_txquant);
-        auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::Quant);
-        assert(enq_ret);
+
+#if defined(ZSIM) || defined(SYS_EMU)
+    assert(cpu.core->tqueue.front() == TQueue::Instruction::tquant);
+    cpu.core->tqueue.pop();
+    if (cpu.core->tqueue.front() == TQueue::Instruction::reduce) {
+        cpu.core->reduce.state =
+            (cpu.core->reduce.state == TReduce::State::waiting_to_receive)
+            ? TReduce::State::ready_to_receive
+            : TReduce::State::ready_to_send;
     }
 #endif
+    cpu.core->tquant.state = TQuant::State::idle;
+    cpu.stop_waiting(Hart::Waiting::tquant);
 }
 
 
@@ -772,8 +1008,9 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
 {
     uint64_t tstore_scp = (tstorereg >> 48) & 0x1;
 
-    if (tstore_scp)
-    {
+    cpu.stop_waiting(Hart::Waiting::tstore);
+
+    if (tstore_scp) {
         int      srcinc   = ((tstorereg & 0xC00000000000000CULL) >> 62) + 1; // Increment done to scratchpad source
         int      scpstart =  (tstorereg & 0x3F00000000000000ULL) >> 56;      // Start scratchpad entry to store
         int      rows     = ((tstorereg & 0x0078000000000000ULL) >> 51) + 1; // Number of rows to store
@@ -788,16 +1025,14 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
         notify_tensor_store(cpu, true, rows, 4, 1);
 
         // Check if L1 SCP is enabled
-        if (cpu.core->mcache_control != 0x3)
-        {
+        if (cpu.core->mcache_control != 0x3) {
             update_tensor_error(cpu, 1 << 4);
             notify_tensor_store_error(cpu, 1 << 4);
             return;
         }
 
         // For all the rows
-        for (int row = 0; row < rows; row++)
-        {
+        for (int row = 0; row < rows; row++) {
             assert(addr_is_size_aligned(addr, L1D_LINE_SIZE));
             LOG_SCP_32x16(":", src);
             try {
@@ -810,19 +1045,17 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
                 }
                 L1_SCP_CHECK_READ(cpu, src);
             }
-            catch (const sync_trap_t&) {
+            catch (const Exception&) {
                 update_tensor_error(cpu, 1 << 7);
                 notify_tensor_store_error(cpu, 1 << 7);
                 return;
             }
             catch (const memory_error&) {
-                raise_bus_error_interrupt(cpu, 0);
+                cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
             }
             src = (src + srcinc) % L1_SCP_ENTRIES;
         }
-    }
-    else
-    {
+    } else {
         int      srcinc   = ((tstorereg & 0xC00000000000000CULL) >> 62) + 1; // Increment done to register source
         int      regstart =  (tstorereg & 0x3E00000000000000ULL) >> 57;      // Start register to store
         int      cols     = ((tstorereg & 0x0180000000000000ULL) >> 55) + 1; // Number of register per col
@@ -847,16 +1080,14 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
 
         notify_tensor_store(cpu, false, rows, cols, coop);
 
-        if (!coop_comb[4*(coop-1)+(cols-1)])
-        {
+        if (!coop_comb[4*(coop-1)+(cols-1)]) {
             update_tensor_error(cpu, 1 << 8);
             notify_tensor_store_error(cpu, 1 << 8);
             return;
         }
 
         // Cooperative tensor stores require the shire to be in cooperative mode
-        if (coop > 1)
-        {
+        if (coop > 1) {
             uint64_t shire = shire_index(cpu);
             if (!cpu.chip->shire_other_esrs[shire].shire_coop_mode)
                 throw trap_illegal_instruction(cpu.inst.bits);
@@ -865,11 +1096,9 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
         // For all the rows
         int src = regstart;
         uint64_t mask = ~(16ull*cols - 1ull);
-        for (int row = 0; row < rows; row++)
-        {
+        for (int row = 0; row < rows; row++) {
             // For all the blocks of 128b
-            for (int col = 0; col < cols; col++)
-            {
+            for (int col = 0; col < cols; col++) {
                 try {
                     uint64_t vaddr = sextVA((addr + row * stride) & mask);
                     uint64_t paddr = mmu_translate(cpu, vaddr + col*16, 16, Mem_Access_TxStore);
@@ -881,13 +1110,13 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
                         notify_tensor_store_write(cpu, paddr + w*4, *(ptr+w));
                     }
                 }
-                catch (const sync_trap_t&) {
+                catch (const Exception&) {
                     update_tensor_error(cpu, 1 << 7);
                     notify_tensor_store_error(cpu, 1 << 7);
                     return;
                 }
                 catch (const memory_error&) {
-                    raise_bus_error_interrupt(cpu, 0);
+                    cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
                 }
                 // For 128b stores, move to next desired register immediately.
                 // For 256b and 512b stores, move to next desired register
@@ -903,53 +1132,32 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
 
 static void tensor_fma32_execute(Hart& cpu)
 {
-    bool usemsk     = (cpu.core->txfma >> 63) & 0x1;
-    int  bcols      = (cpu.core->txfma >> 55) & 0x3;
-    int  arows      = (cpu.core->txfma >> 51) & 0xF;
-    int  acols      = (cpu.core->txfma >> 47) & 0xF;
-    int  aoffset    = (cpu.core->txfma >> 43) & 0xF;
-    bool tenb       = (cpu.core->txfma >> 20) & 0x1;
-    int  bstart     = (cpu.core->txfma >> 12) & 0x3F;
-    int  astart     = (cpu.core->txfma >>  4) & 0x3F;
-    bool first_pass = (cpu.core->txfma >>  0) & 1;
+    bool usemsk     = (cpu.core->tmul.value >> 63) & 0x1;
+    int  bcols      = (cpu.core->tmul.value >> 55) & 0x3;
+    int  arows      = (cpu.core->tmul.value >> 51) & 0xF;
+    int  acols      = (cpu.core->tmul.value >> 47) & 0xF;
+    int  aoffset    = (cpu.core->tmul.value >> 43) & 0xF;
+    bool tenb       = (cpu.core->tmul.value >> 20) & 0x1;
+    int  bstart     = (cpu.core->tmul.value >> 12) & 0x3F;
+    int  astart     = (cpu.core->tmul.value >>  4) & 0x3F;
+    bool first_pass = (cpu.core->tmul.value >>  0) & 1;
+    auto tmask      = cpu.core->tmul.tmask;
 
     bcols = (bcols + 1) * 4;
     arows = arows + 1;
     acols = acols + 1;
-
-#ifdef SYS_EMU
-    if(tenb)
-    {
-        uint32_t requested_mask;
-        uint32_t present_mask;
-        uint32_t thread = hart_index(cpu);
-        bool resolved = SYS_EMU_PTR->coop_tload_check(thread, true, 0, requested_mask, present_mask); // TENB
-        // If not resolved, put the thread to sleep
-        if(!resolved)
-        {
-            cpu.wait.state = Hart::Wait::State::TxFMA;
-            cpu.wait.value = 0; // Marks FMA32 for replay
-            LOG_HART(DEBUG, cpu, "TensorFMA32 TenB => minion cooperative mask: 0x%08X, minion ready mask: 0x%08x", requested_mask, present_mask);
-            return;
-        }
-        else
-        {
-            cpu.wait.state = Hart::Wait::State::Idle;
-        }
+    if (tenb) {
+        bstart = 0;
     }
-    else
-    {
-        cpu.wait.state = Hart::Wait::State::Idle;
-    }
-#endif
 
-    LOG_HART(DEBUG, cpu, "\tExecute TensorFMA32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
-        usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(cpu, FRM));
-    LOG_TENSOR_MASK(":");
+    LOG_HART(DEBUG, cpu, "Execute TensorFMA32 with msk: %d, bcols: %d, "
+             "arows: %d, acols: %d, aoffset: %d, tenb: %d, bstart: %d, "
+             "astart: %d, mul: %d, rm: %s, tmask: 0x%lx", usemsk, bcols,
+             arows, acols, aoffset, tenb, bstart, astart, first_pass,
+             get_rounding_mode(cpu, cpu.core->tmul.frm), tmask.to_ulong());
 
-    set_rounding_mode(cpu, FRM);
-    for (int k = 0; k < acols; ++k)
-    {
+    set_rounding_mode(cpu, cpu.core->tmul.frm);
+    for (int k = 0; k < acols; ++k) {
         notify_tensor_fma_new_pass(cpu);
 
         // Model TenB as an extension of the scratchpad
@@ -958,19 +1166,15 @@ static void tensor_fma32_execute(Hart& cpu)
         if (!tenb)
             L1_SCP_CHECK_READ(cpu, ((bstart+k)%L1_SCP_ENTRIES));
 
-        for (int i = 0; i < arows; ++i)
-        {
+        for (int i = 0; i < arows; ++i) {
             bool written[2] = { false, false };
 
             // Skip computation for this row
-            if (usemsk && !cpu.tensor_mask[i])
-            {
+            if (usemsk && !tmask[i]) {
                 // If first_pass is 1 and this is the first iteration we skip
                 // the computation but we still set f[i] to 0.0
-                if (first_pass && !k)
-                {
-                    for (int j = 0; j < bcols; ++j)
-                    {
+                if (first_pass && !k) {
+                    for (int j = 0; j < bcols; ++j) {
                         FREGS[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW] = 0;
                         notify_tensor_fma_write(cpu, 0, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, 0);
                         written[j/VLENW] = true;
@@ -988,25 +1192,20 @@ static void tensor_fma32_execute(Hart& cpu)
 
             // If first_pass is 1 and this is the first iteration we do FMUL
             // instead of FMA
-            if (first_pass && !k)
-            {
-                for (int j = 0; j < bcols; ++j)
-                {
+            if (first_pass && !k) {
+                for (int j = 0; j < bcols; ++j) {
                     float32_t b = tmpb.f32[j];
                     float32_t c = fpu::f32_mul(a, b);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW] = fpu::UI32(c);
                     notify_tensor_fma_write(cpu, k, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
                     written[j/VLENW] = true;
                 }
-            }
-            else
-            {
+            } else {
                 // If the product will be 0, we can skip the operation
                 if (fpu::UI32(a) == 0)
                     continue;
 
-                for (int j = 0; j < bcols; ++j)
-                {
+                for (int j = 0; j < bcols; ++j) {
                     float32_t b = tmpb.f32[j];
                     // If the product will be 0, we can skip the operation
                     if (fpu::UI32(b)==0)
@@ -1028,134 +1227,35 @@ static void tensor_fma32_execute(Hart& cpu)
 }
 
 
-void tensor_fma32_start(Hart& cpu, uint64_t tfmareg)
-{
-    bool usemsk     = (tfmareg >> 63) & 0x1;
-    int  bcols      = (tfmareg >> 55) & 0x3;
-    int  arows      = (tfmareg >> 51) & 0xF;
-    int  acols      = (tfmareg >> 47) & 0xF;
-    int  aoffset    = (tfmareg >> 43) & 0xF;
-    bool tenb       = (tfmareg >> 20) & 0x1;
-    int  bstart     = (tfmareg >> 12) & 0x3F;
-    int  astart     = (tfmareg >>  4) & 0x3F;
-    bool first_pass = (tfmareg >>  0) & 1;
-
-    bcols = (bcols + 1) * 4;
-    arows = arows + 1;
-    acols = acols + 1;
-
-    LOG_HART(DEBUG, cpu, "\tStart TensorFMA32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
-        usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(cpu, FRM));
-
-#ifdef ZSIM
-    bool txfma_busy = (cpu.core->txfma != 0xFFFFFFFFFFFFFFFFULL);
-    if (txfma_busy) {
-        if (cpu.core->shadow_txfma != 0xFFFFFFFFFFFFFFFFULL)
-            throw std::runtime_error("tensor_fma32_start() called while "
-                                     "this thread's TensorFMA FSM is active");
-    }
-#else
-    if (cpu.core->txfma != 0xFFFFFFFFFFFFFFFFULL) {
-        throw std::runtime_error("tensor_fma32_start() called while "
-                                 "this thread's TensorFMA FSM is active");
-    }
-#endif
-
-    // Illegal instruction exception has higher priority than other errors
-    set_rounding_mode(cpu, FRM);
-
-    // Unpair the last TensorLoadSetupB
-    bool load_tenb = cpu.core->tensorload_setupb_topair;
-    int  brows_tenb = cpu.core->tensorload_setupb_numlines;
-    cpu.core->tensorload_setupb_topair = false;
-
-    // tenb and no TensorLoadSetupB to pair, or tenb and incompatible
-    // rows/columns size, or not tenb and orphaned TensorLoadSetupB
-    if ((tenb && (!load_tenb || (brows_tenb != acols))) || (!tenb && load_tenb)) {
-        // If L1 SCP is disabled we should set multiple bits in tesnor_error
-        if (cpu.core->mcache_control != 3)
-            update_tensor_error(cpu, (1 << 4) | (1 << 6));
-        else
-            update_tensor_error(cpu, 1 << 6);
-        return;
-    }
-
-    // Check if L1 SCP is enabled
-    if (cpu.core->mcache_control != 3) {
-        update_tensor_error(cpu, 1 << 4);
-        return;
-    }
-
-#ifdef ZSIM
-    if (txfma_busy) {
-        cpu.core->shadow_txfma = tfmareg;
-    } else {
-        cpu.core->txfma = tfmareg;
-        auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::FMA);
-        assert(enq_ret);
-    }
-#elif SYS_EMU
-    cpu.core->txfma = tfmareg;
-    cpu.wait.state = Hart::Wait::State::TxFMA;
-#else
-    cpu.core->txfma = tfmareg;
-    tensor_fma32_execute(cpu);
-    cpu.core->txfma = 0xFFFFFFFFFFFFFFFFULL;
-#endif
-}
-
-
 static void tensor_fma16a32_execute(Hart& cpu)
 {
-    bool usemsk     = (cpu.core->txfma >> 63) & 0x1;
-    int  bcols      = (cpu.core->txfma >> 55) & 0x3;
-    int  arows      = (cpu.core->txfma >> 51) & 0xF;
-    int  acols      = (cpu.core->txfma >> 47) & 0xF;
-    int  aoffset    = (cpu.core->txfma >> 43) & 0xF;
-    bool tenb       = (cpu.core->txfma >> 20) & 0x1;
-    int  bstart     = (cpu.core->txfma >> 12) & 0x3F;
-    int  astart     = (cpu.core->txfma >>  4) & 0x3F;
-    bool first_pass = (cpu.core->txfma >>  0) & 1;
+    bool usemsk     = (cpu.core->tmul.value >> 63) & 0x1;
+    int  bcols      = (cpu.core->tmul.value >> 55) & 0x3;
+    int  arows      = (cpu.core->tmul.value >> 51) & 0xF;
+    int  acols      = (cpu.core->tmul.value >> 47) & 0xF;
+    int  aoffset    = (cpu.core->tmul.value >> 43) & 0xF;
+    bool tenb       = (cpu.core->tmul.value >> 20) & 0x1;
+    int  bstart     = (cpu.core->tmul.value >> 12) & 0x3F;
+    int  astart     = (cpu.core->tmul.value >>  4) & 0x3F;
+    bool first_pass = (cpu.core->tmul.value >>  0) & 1;
+    auto tmask      = cpu.core->tmul.tmask;
 
     bcols = (bcols + 1) * 4;
     arows = arows + 1;
     acols = (acols + 1) * 2;
     aoffset = aoffset * 2;
-
-#ifdef SYS_EMU
-    if(tenb)
-    {
-        uint32_t requested_mask;
-        uint32_t present_mask;
-        uint32_t thread = hart_index(cpu);
-        bool resolved = SYS_EMU_PTR->coop_tload_check(thread, true, 0, requested_mask, present_mask); // TENB
-        // If not resolved, put the thread to sleep
-        if(!resolved)
-        {
-            cpu.wait.state = Hart::Wait::State::TxFMA;
-            cpu.wait.value = 1; // Marks FMA16A32 for replay
-            LOG_HART(DEBUG, cpu, "TensorFMA16A32 TenB => minion cooperative mask: 0x%08X, minion ready mask: 0x%08x", requested_mask, present_mask);
-            return;
-        }
-        else
-        {
-            cpu.wait.state = Hart::Wait::State::Idle;
-        }
+    if (tenb) {
+        bstart = 0;
     }
-    else
-    {
-        cpu.wait.state = Hart::Wait::State::Idle;
-    }
-#endif
 
-    LOG_HART(DEBUG, cpu, "\tExecute TensorFMA16A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
-        usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, "rtz");
+    LOG_HART(DEBUG, cpu, "Execute TensorFMA16A32 with msk: %d, bcols: %d, "
+             "arows: %d, acols: %d, aoffset: %d, tenb: %d, bstart: %d, "
+             "astart: %d, mul: %d, rm: rtz, tmask: 0x%lx", usemsk, bcols,
+             arows, acols*2, aoffset*2, tenb, bstart, astart, first_pass,
+             tmask.to_ulong());
 
-    LOG_TENSOR_MASK(":");
-
-    set_rounding_mode(cpu, rtz);
-    for (int k = 0; k < acols; k += 2)
-    {
+    set_rounding_mode(cpu, softfloat_round_minMag);
+    for (int k = 0; k < acols; k += 2) {
         notify_tensor_fma_new_pass(cpu);
 
         // Model TenB as an extension of the scratchpad
@@ -1164,19 +1264,15 @@ static void tensor_fma16a32_execute(Hart& cpu)
         if (!tenb)
             L1_SCP_CHECK_READ(cpu, ((bstart+k/2)%L1_SCP_ENTRIES));
 
-        for (int i = 0; i < arows; ++i)
-        {
+        for (int i = 0; i < arows; ++i) {
             bool written[2] = { false, false };
 
             // Skip computation for this row
-            if (usemsk && !cpu.tensor_mask[i])
-            {
+            if (usemsk && !tmask[i]) {
                 // If first_pass is 1 and this is the first iteration we skip
                 // the computation but we still set f[i] to 0.0
-                if (first_pass && !k)
-                {
-                    for (int j = 0; j < bcols; ++j)
-                    {
+                if (first_pass && !k) {
+                    for (int j = 0; j < bcols; ++j) {
                         FREGS[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW] = 0;
                         notify_tensor_fma_write(cpu, 0, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, 0);
                         written[j/VLENW] = true;
@@ -1195,10 +1291,8 @@ static void tensor_fma16a32_execute(Hart& cpu)
 
             // If first_pass is 1 and this is the first iteration we do
             // a1*b1+a2*b2 instead of a1*b1+a2*b2+c0
-            if (first_pass && !k)
-            {
-                for (int j = 0; j < bcols; ++j)
-                {
+            if (first_pass && !k) {
+                for (int j = 0; j < bcols; ++j) {
                     float16_t b1 = tmpb.f16[2*j+0];
                     float16_t b2 = tmpb.f16[2*j+1];
                     float32_t c = fpu::f1632_mulAdd2(a1, b1, a2, b2);
@@ -1209,10 +1303,8 @@ static void tensor_fma16a32_execute(Hart& cpu)
             }
             // If all products will be 0, we can skip the operation. NB: The detection
             // is done at 32-bit granularity, not at element (16-bit) granularity.
-            else if ((fpu::UI16(a1) != 0) || (fpu::UI16(a2) != 0))
-            {
-                for (int j = 0; j < bcols; ++j)
-                {
+            else if ((fpu::UI16(a1) != 0) || (fpu::UI16(a2) != 0)) {
+                for (int j = 0; j < bcols; ++j) {
                     float16_t b1 = tmpb.f16[2*j+0];
                     float16_t b2 = tmpb.f16[2*j+1];
                     // If all products will be 0, we can skip the operation.
@@ -1237,137 +1329,37 @@ static void tensor_fma16a32_execute(Hart& cpu)
 }
 
 
-void tensor_fma16a32_start(Hart& cpu, uint64_t tfmareg)
-{
-    bool usemsk     = (tfmareg >> 63) & 0x1;
-    int  bcols      = (tfmareg >> 55) & 0x3;
-    int  arows      = (tfmareg >> 51) & 0xF;
-    int  acols      = (tfmareg >> 47) & 0xF;
-    int  aoffset    = (tfmareg >> 43) & 0xF;
-    bool tenb       = (tfmareg >> 20) & 0x1;
-    int  bstart     = (tfmareg >> 12) & 0x3F;
-    int  astart     = (tfmareg >>  4) & 0x3F;
-    bool first_pass = (tfmareg >>  0) & 1;
-
-    bcols = (bcols + 1) * 4;
-    arows = arows + 1;
-    acols = (acols + 1) * 2;
-    aoffset = aoffset * 2;
-
-    LOG_HART(DEBUG, cpu, "\tStart TensorFMA16A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
-        usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, "rtz");
-
-#ifdef ZSIM
-    bool txfma_busy = (cpu.core->txfma != 0xFFFFFFFFFFFFFFFFULL);
-    if (txfma_busy) {
-        if (cpu.core->shadow_txfma != 0xFFFFFFFFFFFFFFFFULL)
-            throw std::runtime_error("tensor_fma16a32_start() called while "
-                                     "this thread's TensorFMA FSM is active");
-    }
-#else
-    if (cpu.core->txfma != 0xFFFFFFFFFFFFFFFFULL) {
-        throw std::runtime_error("tensor_fma16a32_start() called while "
-                                 "this thread's TensorFMA FSM is active");
-    }
-#endif
-
-    // Unpair the last TensorLoadSetupB
-    bool load_tenb = cpu.core->tensorload_setupb_topair;
-    int  brows_tenb = 2 * cpu.core->tensorload_setupb_numlines;
-    cpu.core->tensorload_setupb_topair = false;
-
-    // tenb and no TensorLoadSetupB to pair, or tenb and incompatible
-    // combination of rows and columns length, or not tenb and orphaned
-    // TensorLoadSetupB
-    if ((tenb && (!load_tenb || (brows_tenb != acols))) || (!tenb && load_tenb)) {
-        // If L1 SCP is disabled we should set multiple bits in tesnor_error
-        if (cpu.core->mcache_control != 3)
-            update_tensor_error(cpu, (1 << 4) | (1 << 6));
-        else
-            update_tensor_error(cpu, 1 << 6);
-        return;
-    }
-
-    // Check if L1 SCP is enabled
-    if (cpu.core->mcache_control != 3) {
-        update_tensor_error(cpu, 1 << 4);
-        return;
-    }
-
-#ifdef ZSIM
-    if (txfma_busy) {
-        cpu.core->shadow_txfma = tfmareg;
-    } else {
-        cpu.core->txfma = tfmareg;
-        auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::FMA);
-        assert(enq_ret);
-    }
-#elif SYS_EMU
-    cpu.core->txfma = tfmareg;
-    cpu.wait.state = Hart::Wait::State::TxFMA;
-#else
-    cpu.core->txfma = tfmareg;
-    tensor_fma16a32_execute(cpu);
-    cpu.core->txfma = 0xFFFFFFFFFFFFFFFFULL;
-#endif
-}
-
-
 static void tensor_ima8a32_execute(Hart& cpu)
 {
-    bool usemsk     = (cpu.core->txfma >> 63) & 0x1;
-    int  bcols      = (cpu.core->txfma >> 55) & 0x3;
-    int  arows      = (cpu.core->txfma >> 51) & 0xF;
-    int  acols      = (cpu.core->txfma >> 47) & 0xF;
-    int  aoffset    = (cpu.core->txfma >> 43) & 0xF;
-    bool tenc2rf    = (cpu.core->txfma >> 23) & 0x1;
-    bool ub         = (cpu.core->txfma >> 22) & 0x1;
-    bool ua         = (cpu.core->txfma >> 21) & 0x1;
-    bool tenb       = (cpu.core->txfma >> 20) & 0x1;
-    int  bstart     = (cpu.core->txfma >> 12) & 0x3F;
-    int  astart     = (cpu.core->txfma >>  4) & 0x3F;
-    bool first_pass = (cpu.core->txfma >>  0) & 1;
+    bool usemsk     = (cpu.core->tmul.value >> 63) & 0x1;
+    int  bcols      = (cpu.core->tmul.value >> 55) & 0x3;
+    int  arows      = (cpu.core->tmul.value >> 51) & 0xF;
+    int  acols      = (cpu.core->tmul.value >> 47) & 0xF;
+    int  aoffset    = (cpu.core->tmul.value >> 43) & 0xF;
+    bool tenc2rf    = (cpu.core->tmul.value >> 23) & 0x1;
+    bool ub         = (cpu.core->tmul.value >> 22) & 0x1;
+    bool ua         = (cpu.core->tmul.value >> 21) & 0x1;
+    bool tenb       = (cpu.core->tmul.value >> 20) & 0x1;
+    int  bstart     = (cpu.core->tmul.value >> 12) & 0x3F;
+    int  astart     = (cpu.core->tmul.value >>  4) & 0x3F;
+    bool first_pass = (cpu.core->tmul.value >>  0) & 1;
+    auto tmask      = cpu.core->tmul.tmask;
 
     bcols = (bcols + 1) * 4;
     arows = arows + 1;
     acols = (acols + 1) * 4;
     aoffset = aoffset * 4;
-
-#ifdef SYS_EMU
-    if(tenb)
-    {
-        uint32_t requested_mask;
-        uint32_t present_mask;
-        uint32_t thread = hart_index(cpu);
-        bool resolved = SYS_EMU_PTR->coop_tload_check(thread, true, 0, requested_mask, present_mask); // TENB
-        // If not resolved, put the thread to sleep
-        if(!resolved)
-        {
-            cpu.wait.state = Hart::Wait::State::TxFMA;
-            cpu.wait.value = 3; // Marks IMA8A32 for replay
-            LOG_HART(DEBUG, cpu, "TensorIMA8A32 TenB => minion cooperative mask: 0x%08X, minion ready mask: 0x%08x", requested_mask, present_mask);
-            return;
-        }
-        else
-        {
-            cpu.wait.state = Hart::Wait::State::Idle;
-        }
+    if (tenb) {
+        bstart = 0;
     }
-    else
-    {
-        cpu.wait.state = Hart::Wait::State::Idle;
-    }
-#endif
 
-#ifdef ZSIM
-    LOG_HART(DEBUG, cpu, "\tExecute TensorIMA8A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc2rf: %d, tenb: %d, bstart: %d, astart: %d",
-        usemsk, aoffset, first_pass, bcols, acols, arows, ub, ua, tenc2rf, tenb, bstart, astart);
-#endif
+    LOG_HART(DEBUG, cpu, "Execute TensorIMA8A32 with msk: %d, bcols: %d, "
+             "arows: %d, acols: %d, aoffset: %d, dst: %d, ub: %d, ua: %d, "
+             "tenb: %d, bstart: %d, astart: %d mul: %d, tmask: 0x%lx", usemsk,
+             bcols, arows, acols*4, aoffset*4, tenc2rf, ub, ua, tenb, bstart,
+             astart, first_pass, tmask.to_ulong());
 
-    LOG_TENSOR_MASK(":");
-
-    for (int k = 0; k < acols; k += 4)
-    {
+    for (int k = 0; k < acols; k += 4) {
         notify_tensor_fma_new_pass(cpu);
 
         // Model TenB as an extension of the scratchpad
@@ -1379,19 +1371,15 @@ static void tensor_ima8a32_execute(Hart& cpu)
         bool write_freg = (tenc2rf && (k+4 == acols));
         freg_t* dst = write_freg ? FREGS.data() : TENC.data();
 
-        for (int i = 0; i < arows; ++i)
-        {
+        for (int i = 0; i < arows; ++i) {
             bool written[2] = { false, false };
 
             // We should skip computation for this row, but:
             // * if first_pass is set and this is the first iteration then we still set TenC to 0
             // * if tenc2rf is set and we are in the last pass then we must copy TenC to FREGS even for this row.
-            if (usemsk && !cpu.tensor_mask[i])
-            {
-                if (write_freg)
-                {
-                    for (int j = 0; j < bcols; ++j)
-                    {
+            if (usemsk && !tmask[i]) {
+                if (write_freg) {
+                    for (int j = 0; j < bcols; ++j) {
                         FREGS[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW] = (first_pass && !k) ? 0 : TENC[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW];
                         notify_tensor_fma_write(cpu, k/4, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW]);
                         written[j/VLENW] = true;
@@ -1399,10 +1387,8 @@ static void tensor_ima8a32_execute(Hart& cpu)
                     if (written[0]) LOG_FREG("=", i*TFMA_REGS_PER_ROW);
                     if (written[1]) LOG_FREG("=", i*TFMA_REGS_PER_ROW + 1);
                 }
-                else if (first_pass && !k)
-                {
-                    for (int j = 0; j < bcols; ++j)
-                    {
+                else if (first_pass && !k) {
+                    for (int j = 0; j < bcols; ++j) {
                         TENC[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW] = 0;
                         notify_tensor_fma_write(cpu, 0, false, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, TENC[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
                         written[j/VLENW] = true;
@@ -1415,8 +1401,7 @@ static void tensor_ima8a32_execute(Hart& cpu)
 
             // If first_pass is 1 and this is the first iteration we do
             // a1*b1+a2*b2+a3*b3+a4*b4 instead of c0+a1*b1+a2*b2+a3*b3+a4*b4
-            if (first_pass && !k)
-            {
+            if (first_pass && !k) {
 #define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].u8[(aoffset+k+(x)) % L1D_LINE_SIZE]
                 int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
                 int32_t a2 = ua ? ASRC(1) : sext8_2(ASRC(1));
@@ -1425,8 +1410,7 @@ static void tensor_ima8a32_execute(Hart& cpu)
 #undef ASRC
                 LOG_SCP_32x1(":", (astart+i) % L1_SCP_ENTRIES, ((aoffset+k) % L1D_LINE_SIZE) / 4);
                 L1_SCP_CHECK_READ(cpu, (astart+i) % L1_SCP_ENTRIES);
-                for (int j = 0; j < bcols; ++j)
-                {
+                for (int j = 0; j < bcols; ++j) {
 #define BSRC(x) tmpb.u8[j*4+(x)]
                     int32_t b1 = ub ? BSRC(0) : sext8_2(BSRC(0));
                     int32_t b2 = ub ? BSRC(1) : sext8_2(BSRC(1));
@@ -1442,16 +1426,14 @@ static void tensor_ima8a32_execute(Hart& cpu)
             // If all products are 0, we can skip the operation, except if TenC must
             // be copied to FREGS and this is the last iteration. NB: The detection
             // is done at 32-bit granularity, not at element (8-bit) granularity.
-            else if (write_freg || SCP[(astart+i) % L1_SCP_ENTRIES].u32[((aoffset+k)/4) % (L1D_LINE_SIZE/4)])
-            {
+            else if (write_freg || SCP[(astart+i) % L1_SCP_ENTRIES].u32[((aoffset+k)/4) % (L1D_LINE_SIZE/4)]) {
 #define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].u8[(aoffset+k+(x)) % L1D_LINE_SIZE]
                 int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
                 int32_t a2 = ua ? ASRC(1) : sext8_2(ASRC(1));
                 int32_t a3 = ua ? ASRC(2) : sext8_2(ASRC(2));
                 int32_t a4 = ua ? ASRC(3) : sext8_2(ASRC(3));
 #undef ASRC
-                for (int j = 0; j < bcols; ++j)
-                {
+                for (int j = 0; j < bcols; ++j) {
 #define BSRC(x) tmpb.u8[j*4+(x)]
                     int32_t b1 = ub ? BSRC(0) : sext8_2(BSRC(0));
                     int32_t b2 = ub ? BSRC(1) : sext8_2(BSRC(1));
@@ -1461,13 +1443,10 @@ static void tensor_ima8a32_execute(Hart& cpu)
                     // If all products are 0 for both column @j and column @j+8 or @j-8, we can skip the
                     // operation, except if TenC must be copied to FREGS and this is the last iteration.
                     // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity
-                    if (j >= 8)
-                    {
+                    if (j >= 8) {
                         if (!write_freg && (tmpb.u32[j] == 0) && (tmpb.u32[j-8] == 0))
                             continue;
-                    }
-                    else
-                    {
+                    } else {
                         if (!write_freg && (tmpb.u32[j] == 0) && ((j+8 >= bcols) || (tmpb.u32[j+8] == 0)))
                             continue;
                     }
@@ -1478,133 +1457,174 @@ static void tensor_ima8a32_execute(Hart& cpu)
                     written[j/VLENW] = true;
                 }
             }
-            if (write_freg)
-            {
+            if (write_freg) {
                 if (written[0]) LOG_FREG("=", i*TFMA_REGS_PER_ROW);
                 if (written[1]) LOG_FREG("=", i*TFMA_REGS_PER_ROW + 1);
-            }
-            else
-            {
+            } else {
                 if (written[0]) LOG_CREG("=", i*TFMA_REGS_PER_ROW);
                 if (written[1]) LOG_CREG("=", i*TFMA_REGS_PER_ROW + 1);
             }
         }
     }
-    if (tenc2rf)
+    if (tenc2rf) {
         dirty_fp_state();
-}
-
-
-void tensor_ima8a32_start(Hart& cpu, uint64_t tfmareg)
-{
-    bool usemsk     = (tfmareg >> 63) & 0x1;
-    int  bcols      = (tfmareg >> 55) & 0x3;
-    int  arows      = (tfmareg >> 51) & 0xF;
-    int  acols      = (tfmareg >> 47) & 0xF;
-    int  aoffset    = (tfmareg >> 43) & 0xF;
-    bool tenc2rf    = (tfmareg >> 23) & 0x1;
-    bool ub         = (tfmareg >> 22) & 0x1;
-    bool ua         = (tfmareg >> 21) & 0x1;
-    bool tenb       = (tfmareg >> 20) & 0x1;
-    int  bstart     = (tfmareg >> 12) & 0x3F;
-    int  astart     = (tfmareg >>  4) & 0x3F;
-    bool first_pass = (tfmareg >>  0) & 1;
-
-    bcols = (bcols + 1) * 4;
-    arows = arows + 1;
-    acols = (acols + 1) * 4;
-    aoffset = aoffset * 4;
-
-    LOG_HART(DEBUG, cpu, "\tStart TensorIMA8A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc2rf: %d, tenb: %d, bstart: %d, astart: %d",
-        usemsk, aoffset, first_pass, bcols, acols, arows, ub, ua, tenc2rf, tenb, bstart, astart);
-
-#ifdef ZSIM
-    bool txfma_busy = (cpu.core->txfma != 0xFFFFFFFFFFFFFFFFULL);
-    if (txfma_busy) {
-        if (cpu.core->shadow_txfma != 0xFFFFFFFFFFFFFFFFULL)
-            throw std::runtime_error("tensor_ima8a32_start() called while "
-                                     "this thread's TensorFMA FSM is active");
     }
-#else
-    if (cpu.core->txfma != 0xFFFFFFFFFFFFFFFFULL) {
-        throw std::runtime_error("tensor_ima8a32_start() called while "
-                                 "this thread's TensorFMA FSM is active");
-    }
-#endif
-
-    // Unpair the last TensorLoadSetupB
-    bool load_tenb = cpu.core->tensorload_setupb_topair;
-    int  brows_tenb = 4 * cpu.core->tensorload_setupb_numlines;
-    cpu.core->tensorload_setupb_topair = false;
-
-    // tenb and no TensorLoadSetupB to pair, or tenb and incompatible
-    // combination of rows and columns length, or not tenb and orphaned
-    // TensorLoadSetupB
-    if ((tenb && (!load_tenb || (brows_tenb != acols))) || (!tenb && load_tenb)) {
-        // If L1 SCP is disabled we should set multiple bits in tesnor_error
-        if (cpu.core->mcache_control != 3)
-            update_tensor_error(cpu, (1 << 4) | (1 << 6));
-        else
-            update_tensor_error(cpu, 1 << 6);
-        return;
-    }
-
-    // Check if L1 SCP is enabled
-    if (cpu.core->mcache_control != 3) {
-        update_tensor_error(cpu, 1 << 4);
-        return;
-    }
-
-#ifdef ZSIM
-    if (txfma_busy) {
-        cpu.core->shadow_txfma = tfmareg;
-    } else {
-        cpu.core->txfma = tfmareg;
-        auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::FMA);
-        assert(enq_ret);
-    }
-#elif SYS_EMU
-    cpu.core->txfma = tfmareg;
-    cpu.wait.state = Hart::Wait::State::TxFMA;
-#else
-    cpu.core->txfma = tfmareg;
-    tensor_ima8a32_execute(cpu);
-    cpu.core->txfma = 0xFFFFFFFFFFFFFFFFULL;
-#endif
 }
 
 
 void tensor_fma_execute(Hart& cpu)
 {
-#ifdef ZSIM
-    if (cpu.core->active_tensor_op() != Core::Tensor::FMA) {
-        throw std::runtime_error("tensor_fma_execute() called while "
-                                 "TensorFMA FSM is inactive");
-    }
-#else
-    if (cpu.core->txfma == 0xFFFFFFFFFFFFFFFFULL) {
+    if (cpu.core->tmul.state == TMul::State::idle) {
         throw std::runtime_error("tensor_fma_execute() called while "
                                  "this thread's TensorFMA FSM is inactive");
     }
+
+#if defined(ZSIM) || defined(SYS_EMU)
+    assert(cpu.core->tqueue.front() == TQueue::Instruction::tfma);
+    cpu.core->tqueue.pop();
+    if (cpu.core->tqueue.front() == TQueue::Instruction::reduce) {
+        cpu.core->reduce.state =
+            (cpu.core->reduce.state == TReduce::State::waiting_to_receive)
+            ? TReduce::State::ready_to_receive
+            : TReduce::State::ready_to_send;
+    }
 #endif
-    switch ((cpu.core->txfma >> 1) & 0x7)
-    {
-    case 0: tensor_fma32_execute(cpu); break;
-    case 1: tensor_fma16a32_execute(cpu); break;
-    case 3: tensor_ima8a32_execute(cpu); break;
-    default: throw std::runtime_error("Illegal tensor_fma configuration");
+    cpu.core->tmul.state = TMul::State::idle;
+    cpu.stop_waiting(Hart::Waiting::tfma);
+    if (cpu.core->tload[1].paired) {
+        // Paired txfma; complete previous load to tenb
+        cpu.core->tload[1].state = TLoad::State::idle;
+        cpu.core->tload[1].paired = false;
+        cpu.stop_waiting(Hart::Waiting::tload_tenb);
     }
-    if(cpu.wait.state != Hart::Wait::State::TxFMA) {
-        cpu.core->txfma = 0xFFFFFFFFFFFFFFFFULL;
+
+    switch ((cpu.core->tmul.value >> 1) & 0x7) {
+    case tfma_type_fp32: return tensor_fma32_execute(cpu);
+    case tfma_type_fp16: return tensor_fma16a32_execute(cpu);
+    case tfma_type_int8: return tensor_ima8a32_execute(cpu);
     }
-#ifdef ZSIM
-    auto deq_ret = cpu.core->dequeue_tensor_op();
-    assert(deq_ret == Core::Tensor::FMA);
-    if (cpu.core->shadow_txfma != 0xFFFFFFFFFFFFFFFFULL) {
-        std::swap(cpu.core->txfma, cpu.core->shadow_txfma);
-        auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::FMA);
-        assert(enq_ret);
+
+    throw std::runtime_error("tensor_fma_execute() with illegal type");
+}
+
+
+void tensor_fma_start(Hart& cpu, uint64_t control)
+{
+    bool msk     = (control >> 63) & 1;
+    int  bcols   = (control >> 55) & 3;
+    int  arows   = (control >> 51) & 0xF;
+    int  acols   = (control >> 47) & 0xF;
+    int  aoffset = (control >> 43) & 0xF;
+    bool dst     = (control >> 23) & 0x1;
+    bool ub      = (control >> 22) & 0x1;
+    bool ua      = (control >> 21) & 0x1;
+    bool tenb    = (control >> 20) & 1;
+    int  bstart  = (control >> 12) & 0x3F;
+    int  astart  = (control >>  4) & 0x3F;
+    int  type    = (control >>  1) & 7;
+    bool mul     = (control >>  0) & 1;
+
+    bcols = (bcols + 1) * 4;
+    arows = arows + 1;
+    acols = acols + 1;
+    if (tenb) {
+        bstart = 0;
     }
+
+    if (cpu.core->tmul.state != TMul::State::idle) {
+        cpu.start_waiting(Hart::Waiting::tfma);
+        cpu.npc = cpu.pc;
+        throw instruction_restart();
+    }
+
+    switch (type) {
+    case tfma_type_fp32:
+        // Illegal instruction exception has higher priority than other errors
+        set_rounding_mode(cpu, FRM);
+        LOG_HART(DEBUG, cpu, "\tStart TensorFMA32 with msk: %d, bcols: %d, "
+                 "arows: %d, acols: %d, aoffset: %d, tenb: %d, bstart: %d, "
+                 "astart: %d, mul: %d, rm: %s", msk, bcols, arows, acols,
+                 aoffset, tenb, bstart, astart, mul,
+                 get_rounding_mode(cpu, FRM));
+        break;
+    case tfma_type_fp16:
+        LOG_HART(DEBUG, cpu, "\tStart TensorFMA16A32 with msk: %d, bcols: %d, "
+                 "arows: %d, acols: %d, aoffset: %d, tenb: %d, bstart: %d, "
+                 "astart: %d, mul: %d, rm: rtz", msk, bcols, arows, acols*2,
+                 aoffset*2, tenb, bstart, astart, mul);
+        break;
+    case tfma_type_int8:
+        LOG_HART(DEBUG, cpu, "\tStart TensorIMA8A32 with msk: %d, bcols: %d, "
+                 "arows: %d, acols: %d, aoffset: %d, dst: %d, ub: %d, ua: %d, "
+                 "tenb: %d, bstart: %d, astart: %d mul: %d", msk, bcols, arows,
+                 acols*4, aoffset*4, dst, ub, ua, tenb, bstart, astart, mul);
+        break;
+    default:
+        throw trap_illegal_instruction(cpu.inst.bits);
+    }
+
+    // Unpair the last TensorLoadSetupB
+    bool load_tenb = (cpu.core->tload[1].state != TLoad::State::idle);
+    bool wait_tenb = (cpu.core->tload[1].state == TLoad::State::waiting_coop);
+    int  brows_tenb = (cpu.core->tload[1].value & 0xF) + 1;
+
+    if (load_tenb) {
+        cpu.core->tload[1].paired = tenb;
+    }
+
+    cpu.core->tmul.value = control;
+    cpu.core->tmul.frm = FRM;
+    if (msk) {
+        LOG_TENSOR_MASK(":");
+        cpu.core->tmul.tmask = cpu.tensor_mask;
+    } else {
+        cpu.core->tmul.tmask = 0xffff;
+    }
+
+    bool failed = false;
+
+    // tenb and no TensorLoadSetupB to pair, or tenb and incompatible
+    // rows/columns size, or not tenb and orphaned TensorLoadSetupB
+    if ((tenb && (!load_tenb || (brows_tenb != acols))) || (!tenb && load_tenb)) {
+        update_tensor_error(cpu, 1 << 6);
+        failed = true;
+    }
+
+    // Check if L1SCP is enabled
+    if (cpu.core->mcache_control != 3) {
+        update_tensor_error(cpu, 1 << 4);
+        failed = true;
+    }
+
+    if (wait_tenb) {
+        cpu.core->tmul.state = failed
+            ? TMul::State::idle
+            : (tenb ? TMul::State::waiting_tenb : TMul::State::ready);
+    } else {
+        cpu.core->tmul.state = failed
+            ? TMul::State::idle
+            : TMul::State::ready;
+    }
+
+    if (failed || !tenb) {
+        if (wait_tenb) {
+            // Canceling a cooperative tensor load will lead to problems!
+            throw std::runtime_error("tensor_fma_start() canceling a "
+                                     "cooperative tensor load to tenb");
+        }
+        // Non-paired txfma; cancel previous load to tenb
+        cpu.core->tload[1].state = TLoad::State::idle;
+        cpu.stop_waiting(Hart::Waiting::tload_tenb);
+    }
+
+    if (failed) {
+        return;
+    }
+
+#if defined(ZSIM) || defined(SYS_EMU)
+    cpu.core->tqueue.push(TQueue::Instruction::tfma);
+#else
+    tensor_fma_execute(cpu);
 #endif
 }
 
@@ -1613,295 +1633,316 @@ void tensor_fma_execute(Hart& cpu)
 
 void tensor_reduce_start(Hart& cpu, uint64_t value)
 {
+    enum class Command {
+        send = 0,
+        receive = 1,
+        broadcast = 2,
+        reduce = 3,
+    };
+
     static const char* reducecmd[4] = {
         "TensorSend", "TensorRecv",
         "TensorBroadcast", "TensorReduce"
     };
 
-    unsigned type      = value & 3;
-    unsigned level     = (value >> 3) & 0xF;
-    unsigned distance  = 1 << level;
-    unsigned minmask   = (1 << (level + 1)) - 1;
-    unsigned operation = (value >> 24) & 0xF;
+    if (cpu.core->reduce.state != TReduce::State::idle) {
+        cpu.start_waiting(Hart::Waiting::reduce);
+        cpu.npc = cpu.pc;
+        throw instruction_restart();
+    }
 
-    if ((cpu.core->reduce.state != Core::Reduce::State::Idle) &&
-        (cpu.core->reduce.state != Core::Reduce::State::Skip))
-        throw std::runtime_error("tensor_reduce_start() called while "
-                                 "this thread's TensorReduce FSM is active");
+    Command  command  = static_cast<Command>(value & 3);
+    unsigned height   = (value >> 3) & 0xF;
+    unsigned distance = 1 << height;
+    unsigned minmask  = (1 << (height + 1)) - 1;
+    unsigned minion   = core_index(cpu);
 
-    if ((type != 0) && (operation == 0)) {
+    TReduce& reduce = cpu.core->reduce;
+
+    reduce.freg  = (value >> 57) & 0x1F;
+    reduce.count = (value >> 16) & 0x7F;
+    reduce.funct = (value >> 24) & 0xF;
+    reduce.frm   = FRM;
+
+    if (command != Command::send
+        && reduce.funct == reduce_function_fadd)
+    {
         // TensorRecv, TensorBroadcast and TensorReduce should raise illegal
-        // instruction if the encoded operation is FADD and FRM does not hold
+        // instruction if the encoded function is FADD and FRM does not hold
         // a valid rounding mode
-        set_rounding_mode(cpu, FRM);
+        set_rounding_mode(cpu, reduce.frm);
     }
 
-    cpu.core->reduce.regid  = (value >> 57) & 0x1F;
-    cpu.core->reduce.count  = (value >> 16) & 0x7F;
-    cpu.core->reduce.optype = operation | (type << 4);
-
-    if (type == 0) {
-        cpu.core->reduce.state = Core::Reduce::State::Send;
-        cpu.core->reduce.thread = (value >> 2) & 0x3FFE;
-    } else if (type == 1) {
-        cpu.core->reduce.state = Core::Reduce::State::Recv;
-        cpu.core->reduce.thread = (value >> 2) & 0x3FFE;
-    } else if (type == 2) {
-        // Broadcast: compute sender/receiver using recursive halving
-        unsigned minion = core_index(cpu);
+    switch (command) {
+    case Command::send:
+        reduce.state = TReduce::State::waiting_to_send;
+        reduce.hart  = &cpu.chip->cpu[EMU_THREADS_PER_MINION * ((value >> 3) & 0x1FFF)];
+        break;
+    case Command::receive:
+        reduce.state = TReduce::State::waiting_to_receive;
+        reduce.hart  = &cpu.chip->cpu[EMU_THREADS_PER_MINION * ((value >> 3) & 0x1FFF)];
+        break;
+    case Command::broadcast:
         if ((minion & minmask) == distance) {
-            cpu.core->reduce.state = Core::Reduce::State::Recv;
-            cpu.core->reduce.thread = EMU_THREADS_PER_MINION * (minion - distance);
+            reduce.state = TReduce::State::waiting_to_receive;
+            reduce.hart  = &cpu.chip->cpu[EMU_THREADS_PER_MINION * (minion - distance)];
         } else if ((minion & minmask) == 0) {
-            cpu.core->reduce.state = Core::Reduce::State::Send;
-            cpu.core->reduce.thread = EMU_THREADS_PER_MINION * (minion + distance);
+            reduce.state = TReduce::State::waiting_to_send;
+            reduce.hart  = &cpu.chip->cpu[EMU_THREADS_PER_MINION * (minion + distance)];
         } else {
-            cpu.core->reduce.state = Core::Reduce::State::Skip;
+            reduce.state = TReduce::State::idle;
+            reduce.hart  = &cpu;
         }
-    } else {
-        // Reduce: compute sender/receiver using recursive halving
-        unsigned minion = core_index(cpu);
+        break;
+    case Command::reduce:
         if ((minion & minmask) == distance) {
-            cpu.core->reduce.state = Core::Reduce::State::Send;
-            cpu.core->reduce.thread = EMU_THREADS_PER_MINION * (minion - distance);
+            reduce.state = TReduce::State::waiting_to_send;
+            reduce.hart  = &cpu.chip->cpu[EMU_THREADS_PER_MINION * (minion - distance)];
         } else if ((minion & minmask) == 0) {
-            cpu.core->reduce.state = Core::Reduce::State::Recv;
-            cpu.core->reduce.thread = EMU_THREADS_PER_MINION * (minion + distance);
+            reduce.state = TReduce::State::waiting_to_receive;
+            reduce.hart  = &cpu.chip->cpu[EMU_THREADS_PER_MINION * (minion + distance)];
         } else {
-            cpu.core->reduce.state = Core::Reduce::State::Skip;
+            reduce.state = TReduce::State::idle;
+            reduce.hart  = &cpu;
         }
+        break;
     }
 
-    if (cpu.core->reduce.state == Core::Reduce::State::Skip) {
-        LOG_HART(DEBUG, cpu, "\t%s(skip) with level: %u, distance: %u, minmask: 0x%08u",
-            reducecmd[type], level, distance, minmask);
+    if (reduce.state == TReduce::State::idle) {
+        LOG_HART(DEBUG, cpu, "\t%s(skip) with height: %u, distance: %u",
+                 reducecmd[static_cast<int>(command)], height, distance);
         return;
     }
 
     // Sending and receiving from the same minion should fail immediately
-    if (cpu.core->reduce.thread == cpu.mhartid) {
-        cpu.core->reduce.state = Core::Reduce::State::Skip;
-        LOG_HART(DEBUG, cpu, "\t%s(error) other_thread: %u, start_reg: %u, num_reg: %u", reducecmd[type],
-            cpu.mhartid, cpu.core->reduce.regid, cpu.core->reduce.count);
+    if (reduce.hart == &cpu) {
+        reduce.state = TReduce::State::idle;
+        LOG_HART(DEBUG, cpu, "\t%s(fail) with partner: H%u, freg: %u, count: %u",
+                 reducecmd[static_cast<int>(command)],
+                 reduce.hart->mhartid, reduce.freg, reduce.count);
         update_tensor_error(cpu, 1 << 9);
         return;
     }
 
-    // Illegal operation on a receiving minion should fail immediately
-    if ((cpu.core->reduce.state == Core::Reduce::State::Recv) &&
-        (operation == 1 || operation == 5 || operation > 8))
-    {
-        cpu.core->reduce.state = Core::Reduce::State::Skip;
-        LOG_HART(DEBUG, cpu, "\t%s(error) illegal operation: %u", reducecmd[type], operation);
-        update_tensor_error(cpu, 1 << 9);
-        return;
+    // Illegal function on a receiving minion should fail immediately
+    if (reduce.state == TReduce::State::waiting_to_receive) {
+        if (reduce.funct == reduce_function_reserved_1
+            || reduce.funct == reduce_function_reserved_5
+            || reduce.funct >=  reduce_function_reserved_9)
+        {
+            reduce.state = TReduce::State::idle;
+            LOG_HART(DEBUG, cpu, "\t%s(fail) with function: %d",
+                     reducecmd[static_cast<int>(command)], int(reduce.funct));
+            update_tensor_error(cpu, 1 << 9);
+            return;
+        }
     }
 
     // Sending or receiving 0 registers means do nothing
     // NB: This check has lower priority than other errors because
     // tensor_error[9] should be set even when "count" == 0".
-    if (cpu.core->reduce.count == 0) {
-        cpu.core->reduce.state = Core::Reduce::State::Skip;
-        LOG_HART(DEBUG, cpu, "\t%s(skip) num_reg: 0", reducecmd[type]);
+    if (reduce.count == 0) {
+        reduce.state = TReduce::State::idle;
+        LOG_HART(DEBUG, cpu, "\t%s(skip) with count: 0",
+                 reducecmd[static_cast<int>(command)]);
         return;
     }
 
-    auto enq_ret = cpu.core->enqueue_tensor_op(Core::Tensor::Reduce);
-    assert(enq_ret);
-    (void) enq_ret;
+    LOG_HART(DEBUG, cpu, "\tStart %s(%s) with partner: H%u, freg: %u, "
+             "count: %u", reducecmd[static_cast<int>(command)],
+             ((reduce.state == TReduce::State::waiting_to_receive)
+              ? "recv" : "send"), reduce.hart->mhartid, reduce.freg,
+             reduce.count);
 
-    notify_tensor_reduce(cpu, cpu.core->reduce.state == Core::Reduce::State::Recv,
-                      cpu.core->reduce.regid, cpu.core->reduce.count);
+    notify_tensor_reduce(
+        cpu, reduce.state == TReduce::State::waiting_to_receive,
+        reduce.freg, reduce.count);
 
-#if !defined(SYS_EMU) && !defined(ZSIM)
-    tensor_reduce_execute(cpu);
+#if defined(ZSIM) || defined(SYS_EMU)
+    cpu.core->tqueue.push(TQueue::Instruction::reduce);
+    if (cpu.core->tqueue.front() == TQueue::Instruction::reduce) {
+        // If we are the head of the queue then we are actually ready to send
+        // and receive, not just waiting.
+        reduce.state = (reduce.state == TReduce::State::waiting_to_receive)
+            ? TReduce::State::ready_to_receive
+            : TReduce::State::ready_to_send;
+    }
+#else
+    if (reduce.state == TReduce::State::waiting_to_receive) {
+        reduce.state = TReduce::State::ready_to_receive;
+        // CoSim calls this when the receiver is scheduled
+        tensor_reduce_execute(cpu);
+    } else {
+        reduce.state = TReduce::State::ready_to_send;
+    }
 #endif
 }
 
 
 void tensor_reduce_step(Hart& rcv_cpu, Hart& snd_cpu)
 {
-    static const char* reducecmd[4] = {
-        "TensorSend", "TensorRecv",
-        "TensorBroadcast", "TensorReduce"
+#ifdef ZSIM
+    static const char* fnctnm[] = {
+        "fadd",   "rsvd1",  "fmax",   "fmin",
+        "add",    "rsvd5",  "max",    "min",
+        "move",   "rsvd9",  "rsvd10", "rsvd11",
+        "rsvd12", "rsvd13", "rsvd14", "rsvd15",
     };
+#endif
 
-    Core::Reduce& send = snd_cpu.core->reduce;
-    Core::Reduce& recv = rcv_cpu.core->reduce;
+    TReduce& send = snd_cpu.core->reduce;
+    TReduce& recv = rcv_cpu.core->reduce;
 
-    unsigned type = (recv.optype >> 4);
-
-    if (send.count-- == 0) {
-        throw std::runtime_error("Tensor reduce sender register count is 0");
+    if (--send.count == 0) {
+#if defined(ZSIM) || defined(SYS_EMU)
+        assert(snd_cpu.core->tqueue.front() == TQueue::Instruction::reduce);
+        snd_cpu.core->tqueue.pop();
+#endif
+        snd_cpu.core->reduce.state = TReduce::State::idle;
+        snd_cpu.stop_waiting(Hart::Waiting::reduce);
     }
-    if (!send.count) {
-        auto deq_ret = snd_cpu.core->dequeue_tensor_op();
-        assert(deq_ret == Core::Tensor::Reduce);
-        (void) deq_ret;
-        snd_cpu.core->reduce.state = Core::Reduce::State::Idle;
-    }
-    if (recv.count-- == 0) {
-        LOG_HART(WARN, rcv_cpu, "%s", "Mismatched tensor reduce register count");
-        send.regid = (send.regid + 1) % NFREGS;
-        recv.count = 0;
-        return;
-    }
-    if (!recv.count) {
-        auto deq_ret = rcv_cpu.core->dequeue_tensor_op();
-        assert(deq_ret == Core::Tensor::Reduce);
-        (void) deq_ret;
-        rcv_cpu.core->reduce.state = Core::Reduce::State::Idle;
+    if (--recv.count == 0) {
+#if defined(ZSIM) || defined(SYS_EMU)
+        assert(rcv_cpu.core->tqueue.front() == TQueue::Instruction::reduce);
+        rcv_cpu.core->tqueue.pop();
+#endif
+        rcv_cpu.core->reduce.state = TReduce::State::idle;
+        rcv_cpu.stop_waiting(Hart::Waiting::reduce);
     }
 
-    switch (recv.optype & 0xF) {
-    case 0: // fadd
-        set_rounding_mode(rcv_cpu, rcv_cpu.frm());
-        LOG_HART(DEBUG, rcv_cpu, "\t%s(recv) op=fadd sender=H%u rounding_mode=%s", reducecmd[type], snd_cpu.mhartid, get_rounding_mode(rcv_cpu, rcv_cpu.frm()));
-        LOG_FREG_HART(snd_cpu, "(othr) :", send.regid);
-        LOG_FREG_HART(rcv_cpu, "(this) :", recv.regid);
+#ifdef ZSIM
+    LOG_HART(DEBUG, rcv_cpu,
+             "\tTensor reduce step with sender=H%u funct=%s count=%u rmode=%s",
+             snd_cpu.mhartid, fnctnm[recv.funct], recv.count,
+             get_rounding_mode(rcv_cpu, 7));
+#endif
+
+    LOG_FREG_HART(snd_cpu, ":", send.freg);
+    if (recv.funct != reduce_function_move) {
+        LOG_FREG_HART(rcv_cpu, ":", recv.freg);
+    }
+    switch (recv.funct) {
+    case reduce_function_fadd:
+        set_rounding_mode(rcv_cpu, recv.frm);
         for (unsigned j = 0; j < VLENW; j++) {
-            rcv_cpu.fregs[recv.regid].f32[j] = fpu::f32_add(snd_cpu.fregs[send.regid].f32[j],
-                                                            rcv_cpu.fregs[recv.regid].f32[j]);
+            rcv_cpu.fregs[recv.freg].f32[j] =
+                fpu::f32_add(snd_cpu.fregs[send.freg].f32[j],
+                             rcv_cpu.fregs[recv.freg].f32[j]);
         }
-        LOG_FREG_HART(rcv_cpu, "(this) =", recv.regid);
         set_fp_exceptions(rcv_cpu);
         break;
-    case 2: // fmax
-        LOG_HART(DEBUG, rcv_cpu, "\t%s(recv) op=fmax sender=H%u", reducecmd[type], snd_cpu.mhartid);
-        LOG_FREG_HART(snd_cpu, "(othr) :", send.regid);
-        LOG_FREG_HART(rcv_cpu, "(this) :", recv.regid);
+    case reduce_function_fmax:
         for (unsigned j = 0; j < VLENW; j++) {
-            rcv_cpu.fregs[recv.regid].f32[j] = fpu::f32_maximumNumber(snd_cpu.fregs[send.regid].f32[j],
-                                                                      rcv_cpu.fregs[recv.regid].f32[j]);
+            rcv_cpu.fregs[recv.freg].f32[j] =
+                fpu::f32_maximumNumber(snd_cpu.fregs[send.freg].f32[j],
+                                       rcv_cpu.fregs[recv.freg].f32[j]);
         }
-        LOG_FREG_HART(rcv_cpu, "(this) =", recv.regid);
         set_fp_exceptions(rcv_cpu);
         break;
-    case 3: // fmin
-        LOG_HART(DEBUG, rcv_cpu, "\t%s(recv) op=fmin sender=H%u", reducecmd[type], snd_cpu.mhartid);
-        LOG_FREG_HART(snd_cpu, "(othr) :", send.regid);
-        LOG_FREG_HART(rcv_cpu, "(this) :", recv.regid);
+    case reduce_function_fmin:
         for (unsigned j = 0; j < VLENW; j++) {
-            rcv_cpu.fregs[recv.regid].f32[j] = fpu::f32_minimumNumber(snd_cpu.fregs[send.regid].f32[j],
-                                                                      rcv_cpu.fregs[recv.regid].f32[j]);
+            rcv_cpu.fregs[recv.freg].f32[j] =
+                fpu::f32_minimumNumber(snd_cpu.fregs[send.freg].f32[j],
+                                       rcv_cpu.fregs[recv.freg].f32[j]);
         }
-        LOG_FREG_HART(rcv_cpu, "(this) =", recv.regid);
         set_fp_exceptions(rcv_cpu);
         break;
-    case 4: // iadd
-        LOG_HART(DEBUG, rcv_cpu, "\t%s(recv) op=iadd sender=H%u", reducecmd[type], snd_cpu.mhartid);
-        LOG_FREG_HART(snd_cpu, "(othr) :", send.regid);
-        LOG_FREG_HART(rcv_cpu, "(this) :", recv.regid);
+    case reduce_function_add:
         for (unsigned j = 0; j < VLENW; j++) {
-            rcv_cpu.fregs[recv.regid].u32[j] = snd_cpu.fregs[send.regid].u32[j]
-                                             + rcv_cpu.fregs[recv.regid].u32[j];
+            rcv_cpu.fregs[recv.freg].u32[j] =
+                snd_cpu.fregs[send.freg].u32[j] +
+                rcv_cpu.fregs[recv.freg].u32[j];
         }
-        LOG_FREG_HART(rcv_cpu, "(this) =", recv.regid);
         break;
-    case 6: // imax
-        LOG_HART(DEBUG, rcv_cpu, "\t%s(recv) op=imax sender=H%u", reducecmd[type], snd_cpu.mhartid);
-        LOG_FREG_HART(snd_cpu, "(othr) :", send.regid);
-        LOG_FREG_HART(rcv_cpu, "(this) :", recv.regid);
+    case reduce_function_max:
         for (unsigned j = 0; j < VLENW; j++) {
-            rcv_cpu.fregs[recv.regid].i32[j] = std::max(snd_cpu.fregs[send.regid].i32[j],
-                                                        rcv_cpu.fregs[recv.regid].i32[j]);
+            rcv_cpu.fregs[recv.freg].i32[j] =
+                std::max(snd_cpu.fregs[send.freg].i32[j],
+                         rcv_cpu.fregs[recv.freg].i32[j]);
         }
-        LOG_FREG_HART(rcv_cpu, "(this) =", recv.regid);
         break;
-    case 7: // imin
-        LOG_HART(DEBUG, rcv_cpu, "\t%s(recv) op=imin sender=H%u", reducecmd[type], snd_cpu.mhartid);
-        LOG_FREG_HART(snd_cpu, "(othr) :", send.regid);
-        LOG_FREG_HART(rcv_cpu, "(this) :", recv.regid);
+    case reduce_function_min:
         for (unsigned j = 0; j < VLENW; j++) {
-            rcv_cpu.fregs[recv.regid].i32[j] = std::min(snd_cpu.fregs[send.regid].i32[j],
-                                                        rcv_cpu.fregs[recv.regid].i32[j]);
+            rcv_cpu.fregs[recv.freg].i32[j] =
+                std::min(snd_cpu.fregs[send.freg].i32[j],
+                         rcv_cpu.fregs[recv.freg].i32[j]);
         }
-        LOG_FREG_HART(rcv_cpu, "(this) =", recv.regid);
         break;
-    case 8: // fget
-        LOG_HART(DEBUG, rcv_cpu, "\t%s(recv) op=fget sender=H%u", reducecmd[type], snd_cpu.mhartid);
-        rcv_cpu.fregs[recv.regid] = snd_cpu.fregs[send.regid];
-        LOG_FREG_HART(snd_cpu, "(othr) :", send.regid);
-        LOG_FREG_HART(rcv_cpu, "(this) =", recv.regid);
+    case reduce_function_move:
+        rcv_cpu.fregs[recv.freg] = snd_cpu.fregs[send.freg];
         break;
     default:
-        throw std::runtime_error("TensorReduce with illegal operation code!");
+        throw std::runtime_error("Tensor reduce with illegal function code!");
     }
+    LOG_FREG_HART(rcv_cpu, "=", recv.freg);
     dirty_fp_state();
-    notify_tensor_reduce_write(rcv_cpu, recv.regid, rcv_cpu.fregs[recv.regid]);
+    notify_tensor_reduce_write(rcv_cpu, recv.freg, rcv_cpu.fregs[recv.freg]);
 
-    send.regid = (send.regid + 1) % NFREGS;
-    recv.regid = (recv.regid + 1) % NFREGS;
+    send.freg = (send.freg + 1) % NFREGS;
+    recv.freg = (recv.freg + 1) % NFREGS;
 }
 
 
-void tensor_reduce_execute(Hart& this_cpu)
+void tensor_reduce_execute(Hart& cpu)
 {
-    static const char* reducecmd[4] = {
-        "TensorSend", "TensorRecv",
-        "TensorBroadcast", "TensorReduce"
+#ifndef ZSIM
+    static const char* fnctnm[] = {
+        "fadd",   "rsvd1",  "fmax",   "fmin",
+        "add",    "rsvd5",  "max",    "min",
+        "move",   "rsvd9",  "rsvd10", "rsvd11",
+        "rsvd12", "rsvd13", "rsvd14", "rsvd15",
     };
+#endif
 
-    // Get information from receiver
-    unsigned other_thread   = this_cpu.core->reduce.thread;
-    unsigned this_start_reg = this_cpu.core->reduce.regid;
-    unsigned this_num_reg   = this_cpu.core->reduce.count;
-    unsigned type           = this_cpu.core->reduce.optype >> 4;
-
-    Hart& other_cpu = this_cpu.chip->cpu[other_thread];
-
-    if (this_cpu.core->reduce.state == Core::Reduce::State::Skip) {
+    if (cpu.core->reduce.state != TReduce::State::ready_to_receive) {
+        // Nothing to do for now
         return;
     }
-    if (this_cpu.core->active_tensor_op() != Core::Tensor::Reduce) {
-        throw std::runtime_error("tensor_reduce_execute() called while "
-                                 "this thread's TensorReduce FSM is inactive");
-    }
+
+    Hart& snd_cpu = *cpu.core->reduce.hart;
+
 #ifdef SYS_EMU
-    if (other_cpu.core->active_tensor_op() != Core::Tensor::Reduce) {
-        throw std::runtime_error("tensor_reduce_execute() called while "
-                                 "the other thread's TensorReduce FSM is inactive");
+    if (snd_cpu.core->reduce.state != TReduce::State::ready_to_send) {
+        // Receiver is ready, but sender is not ready yet...
+        return;
     }
 #endif
 
-    if (this_cpu.core->reduce.state != Core::Reduce::State::Recv) {
+    if (cpu.core->reduce.hart->mhartid != snd_cpu.mhartid
+        || snd_cpu.core->reduce.hart->mhartid != cpu.mhartid)
+    {
+        LOG_HART(WARN, cpu,
+                 "\tTensor reduce hart mismatch with sender=H%u receiver=H%u "
+                 "sender_partner=H%u receiver_partner=H%u",
+                 snd_cpu.mhartid, cpu.mhartid,
+                 snd_cpu.core->reduce.hart->mhartid,
+                 cpu.core->reduce.hart->mhartid);
 #ifndef SYS_EMU
-        if (this_cpu.core->reduce.state == Core::Reduce::State::Send) {
-            LOG_HART(DEBUG, this_cpu, "\t%s(send) receiver=H%u, start_reg=%u, num_reg=%u", reducecmd[type], other_thread, this_start_reg, this_num_reg);
-            for (unsigned i = 0; i < this_num_reg; ++i) {
-                unsigned this_op_reg = (i + this_start_reg) % NFREGS;
-                LOG_FREG_HART(this_cpu, "(this) :", this_op_reg);
-            }
-        }
+        throw std::runtime_error("Mismatched tensor reduce send/receive hart");
 #endif
-        if (this_cpu.core->reduce.state == Core::Reduce::State::Skip)
-            this_cpu.core->reduce.state = Core::Reduce::State::Idle;
         return;
     }
 
-    // Get information from sender
-    unsigned this_thread     = other_cpu.core->reduce.thread;
-    unsigned other_start_reg = other_cpu.core->reduce.regid;
-    unsigned other_num_reg   = other_cpu.core->reduce.count;
-
-    if (this_thread != this_cpu.mhartid) {
-        LOG_HART(WARN, this_cpu, "\t%s(recv) sender=H%u receiver=H%u sender_start_reg=%u sender_num_reg=%u sender_state=%s",
-            reducecmd[type], other_thread, this_thread, other_start_reg, other_num_reg, get_reduce_state(other_cpu.core->reduce.state));
-        throw std::runtime_error("Mismatched tensor reduce sender target minion");
-    }
-    if (other_cpu.core->reduce.state != Core::Reduce::State::Send) {
-        LOG_HART(WARN, this_cpu, "\t%s(recv) with sender=H%u receiver=H%u sender_start_reg=%u sender_num_reg=%u sender_state=%s",
-            reducecmd[type], other_thread, this_thread, other_start_reg, other_num_reg, get_reduce_state(other_cpu.core->reduce.state));
-        throw std::runtime_error("Mismatched tensor reduce sender state");
-    }
-    if (other_num_reg != this_num_reg) {
-        LOG_HART(WARN, this_cpu, "\t%s(recv) with sender=H%u receiver=H%u sender_start_reg=%u sender_num_reg=%u receiver_start_reg=%u receiver_num_reg=%u sender_state=%s",
-            reducecmd[type], other_thread, this_thread, other_start_reg, other_num_reg, this_start_reg, this_num_reg, get_reduce_state(other_cpu.core->reduce.state));
+    if (snd_cpu.core->reduce.count != cpu.core->reduce.count) {
+        LOG_HART(WARN, cpu,
+                 "\tTensor reduce count mismatch with sender=H%u receiver=H%u "
+                 "sender_count=%u receiver_count=%u",
+                 snd_cpu.mhartid, cpu.mhartid,
+                 snd_cpu.core->reduce.count, cpu.core->reduce.count);
+        throw std::runtime_error("Mismatched tensor reduce send/receive count");
     }
 
-    unsigned count = std::min(this_num_reg, other_num_reg);
-    while (count--)
-        tensor_reduce_step(this_cpu, other_cpu);
+#ifndef ZSIM
+    LOG_HART(DEBUG, cpu,
+             "Execute tensor reduce with sender=H%u funct=%s count=%u rmode=%s",
+             snd_cpu.mhartid, fnctnm[cpu.core->reduce.funct],
+             cpu.core->reduce.count,
+             get_rounding_mode(cpu, cpu.core->reduce.frm));
+#endif
+
+    while (cpu.core->reduce.count) {
+        tensor_reduce_step(cpu, snd_cpu);
+    }
 }
 
 
@@ -1910,75 +1951,50 @@ void tensor_reduce_execute(Hart& this_cpu)
 // Starts a tensor wait, checks for stall conditions
 void tensor_wait_start(Hart& cpu, uint64_t value)
 {
-    value = value & 0xF;
-    cpu.wait.id = value;
-    cpu.wait.value = value;
-    cpu.wait.state = Hart::Wait::State::WaitReady;
-#ifdef SYS_EMU
-    // TensorLoad
-    if (value < 2) {
-        uint64_t id = value & 0x1;
-        uint32_t requested_mask;
-        uint32_t present_mask;
-        uint32_t thread = hart_index(cpu);
-        bool resolved = SYS_EMU_PTR->coop_tload_check(thread, false, id, requested_mask, present_mask);
-        // If not resolved, put the thread to sleep
-        if (!resolved) {
-            cpu.wait.state = Hart::Wait::State::Wait;
-            LOG_HART(DEBUG, cpu, "TensorWait with id %i not ready => minion cooperative mask: 0x%08X, minion ready mask: 0x%08x", (int) id, requested_mask, present_mask);
+    Hart::Waiting what = static_cast<Hart::Waiting>(1 << (value & 15));
+    switch (what) {
+    case Hart::Waiting::tload_0:
+        if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
+            && (cpu.core->tload[0].state != TLoad::State::idle)
+            && ((cpu.core->tload[0].stride & 1) == 0))
+        {
+            cpu.start_waiting(what);
         }
+        break;
+    case Hart::Waiting::tload_1:
+        if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
+            && (cpu.core->tload[0].state != TLoad::State::idle)
+            && ((cpu.core->tload[0].stride & 1) == 1))
+        {
+            cpu.start_waiting(what);
+        }
+        break;
+    case Hart::Waiting::tfma:
+        if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
+            && (cpu.core->tmul.state != TMul::State::idle))
+        {
+            cpu.start_waiting(what);
+        }
+        break;
+    case Hart::Waiting::reduce:
+        if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
+            && (cpu.core->reduce.state != TReduce::State::idle))
+        {
+            cpu.start_waiting(what);
+        }
+        break;
+    case Hart::Waiting::tquant:
+        if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
+            && (cpu.core->tquant.state != TQuant::State::idle))
+        {
+            cpu.start_waiting(what);
+        }
+        break;
+    default:
+        // Nothing to wait for here...
+        break;
     }
-#if 0
-    // TensorLoad L2
-    else if(value < 4) {
-    }
-    // Prefetch
-    else if(value < 6) {
-    }
-    // CacheOp
-    else if(value == 6) {
-    }
-    // TensorFMA
-    else if(value == 7) {
-    }
-    // TensorStore
-    else if(value == 8) {
-    }
-    // TensorReduce
-    else if(value == 9) {
-    }
-    // TensorQuant
-    else if(value == 10) {
-    }
-#endif
-#endif
 
-    // Execute tensorwait right away for non sys_emu envs
-#ifndef SYS_EMU
-    tensor_wait_execute(cpu);
-#endif
-}
-
-
-// Actual execution of tensor wait
-void tensor_wait_execute(Hart& cpu)
-{
-#ifdef SYS_EMU
-    if(SYS_EMU_PTR->get_l1_scp_check())
-    {
-        uint32_t thread = hart_index(cpu);
-        // TensorWait TLoad Id0
-        if     ((cpu.wait.id) == 0) { SYS_EMU_PTR->get_l1_scp_checker().l1_scp_wait(thread, 0); }
-        else if((cpu.wait.id) == 1) { SYS_EMU_PTR->get_l1_scp_checker().l1_scp_wait(thread, 1); }
-    }
-    if(SYS_EMU_PTR->get_l2_scp_check())
-    {
-        uint32_t thread = hart_index(cpu);
-        if((cpu.wait.id) == 2) { SYS_EMU_PTR->get_l2_scp_checker().l2_scp_wait(thread, 0); }
-        else if((cpu.wait.id) == 3) { SYS_EMU_PTR->get_l2_scp_checker().l2_scp_wait(thread, 1); }
-    }
-#endif
-    cpu.wait.state = Hart::Wait::State::Idle;
     notify_tensor_error_value(cpu, cpu.tensor_error);
 }
 

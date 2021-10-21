@@ -41,6 +41,15 @@ void System::write_msg_port_data_to_scp(Hart& cpu, unsigned id, uint32_t *data, 
     base_addr += cpu.portctrl[id].wr_ptr << cpu.portctrl[id].logsize;
 
     cpu.portctrl[id].stall = false;
+    if (cpu.is_waiting(Hart::Waiting::message)) {
+        bool stall = false;
+        for (int i = 0; i < 4; ++i) {
+            stall = stall || cpu.portctrl[id].stall;
+        }
+        if (!stall) {
+            cpu.stop_waiting(Hart::Waiting::message);
+        }
+    }
 
     unsigned nwords = (1ULL << cpu.portctrl[id].logsize) / 4;
 
@@ -163,7 +172,7 @@ uint64_t read_port_base_address(const Hart& cpu, unsigned id)
 
 int64_t read_port_head(Hart& cpu, unsigned id, bool block)
 {
-    if (((cpu.prv == PRV_U) && !cpu.portctrl[id].umode) || !cpu.portctrl[id].enabled) {
+    if (((cpu.prv == Privilege::U) && !cpu.portctrl[id].umode) || !cpu.portctrl[id].enabled) {
         throw trap_illegal_instruction(cpu.inst.bits);
     }
 
@@ -173,15 +182,14 @@ int64_t read_port_head(Hart& cpu, unsigned id, bool block)
                  cpu.portctrl[id].wr_ptr,
                  cpu.portctrl[id].rd_ptr);
 
-        if (!block)
-            return -1;
-
-#ifdef SYS_EMU
-        // if in sysemu stop thread if no data for port.. comparing rd_ptr and wr_ptr
-        LOG_HART(DEBUG, cpu, "Stalling MSG_PORT (H%u p%u)", cpu.mhartid, id);
-        cpu.portctrl[id].stall = true;
-        return 0;
-#endif
+        if (block) {
+            LOG_HART(DEBUG, cpu, "Stalling MSG_PORT (H%u p%u)", cpu.mhartid, id);
+            cpu.portctrl[id].stall = true;
+            cpu.start_waiting(Hart::Waiting::message);
+            // we should retry the instruction after we receive a message
+            cpu.npc = cpu.pc;
+        }
+        return -1;
     }
 
     int32_t offset = cpu.portctrl[id].rd_ptr << cpu.portctrl[id].logsize;

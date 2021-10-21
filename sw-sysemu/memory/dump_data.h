@@ -23,8 +23,8 @@ template<typename Container>
 void dump_data(std::ostream& os, const Container& cont, std::size_t pos, std::size_t n,
                const typename Container::value_type& default_value)
 {
-    typedef typename Container::value_type value_type;
-    typedef typename Container::size_type size_type;
+    using value_type = typename Container::value_type;
+    using size_type  = typename Container::size_type;
 
     size_type m = (pos >= cont.size()) ? 0 : std::min(n, cont.size() - pos);
     if (m > 0) {
