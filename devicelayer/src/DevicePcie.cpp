@@ -15,6 +15,7 @@
 #include <experimental/filesystem>
 #include <fcntl.h>
 #include <fstream>
+#include <mutex>
 #include <regex>
 #include <stdio.h>
 #include <sys/epoll.h>
@@ -509,6 +510,7 @@ int DevicePcie::updateFirmwareImage(int device, std::vector<unsigned char>& fwIm
 }
 
 void* DevicePcie::allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) {
+  std::lock_guard lock(mutex_);
   if (device >= static_cast<int>(devices_.size())) {
     throw Exception("Invalid device");
   }
@@ -530,6 +532,7 @@ void* DevicePcie::allocDmaBuffer(int device, size_t sizeInBytes, bool writeable)
   return res;
 }
 void DevicePcie::freeDmaBuffer(void* dmaBuffer) {
+  std::lock_guard lock(mutex_);
   auto it = dmaBuffers_.find(dmaBuffer);
   if (it == end(dmaBuffers_)) {
     throw Exception("Can't free a non previously allocated DmaBuffer");

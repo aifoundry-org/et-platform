@@ -15,6 +15,7 @@
 #include <elfio/elfio.hpp>
 #include <experimental/filesystem>
 #include <future>
+#include <mutex>
 #include <stdio.h>
 #include <thread>
 
@@ -198,6 +199,7 @@ bool DeviceSysEmu::sendCommand(QueueInfo& queueInfo, std::byte* command, size_t 
 }
 
 bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, size_t commandSize, bool, bool) {
+  std::lock_guard lock(mutex_);
   auto sq_idx = static_cast<uint32_t>(sqIdx);
   if (sq_idx >= submissionQueuesMM_.size()) {
     throw Exception("Invalid queue");
@@ -218,6 +220,7 @@ bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, s
 }
 
 bool DeviceSysEmu::sendCommandServiceProcessor(int, std::byte* command, size_t commandSize) {
+  std::lock_guard lock(mutex_);
   bool clearEvent = true;
   auto res = sendCommand(submissionQueueSP_, command, commandSize, clearEvent);
   if (res) {
@@ -231,10 +234,9 @@ bool DeviceSysEmu::sendCommandServiceProcessor(int, std::byte* command, size_t c
   return res;
 }
 
-bool DeviceSysEmu::checkForEventEPOLLIN(QueueInfo& queueInfo) {
-  // EPOLLIN indicates the availability of read event i.e. completion queue
-  // is available for reads
-
+// EPOLLIN indicates the availability of read event i.e. completion queue
+// is available for reads
+bool DeviceSysEmu::checkForEventEPOLLIN(const QueueInfo& queueInfo) const {
   // Pull the latest state of buffer
   CircBuffCb cb;
   sysEmu_->mmioRead(queueInfo.bufferAddress_, sizeof(cb), reinterpret_cast<std::byte*>(&cb));
@@ -242,10 +244,9 @@ bool DeviceSysEmu::checkForEventEPOLLIN(QueueInfo& queueInfo) {
   return getUsedSpace(cb) > 0;
 }
 
-bool DeviceSysEmu::checkForEventEPOLLOUT(QueueInfo& queueInfo) {
-  // EPOLLOUT indicates the availability of write event i.e. submission queue
-  // is available for writes
-
+// EPOLLOUT indicates the availability of write event i.e. submission queue
+// is available for writes
+bool DeviceSysEmu::checkForEventEPOLLOUT(const QueueInfo& queueInfo) const {
   // Pull the latest state of buffer
   CircBuffCb cb;
   sysEmu_->mmioRead(queueInfo.bufferAddress_, sizeof(cb), reinterpret_cast<std::byte*>(&cb));
@@ -259,7 +260,7 @@ void DeviceSysEmu::waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool
   sq_bitmap = 0;
   cq_available = false;
 
-  auto lock = std::unique_lock<std::mutex>(interruptMutex_);
+  auto lock = std::unique_lock<std::mutex>(mutex_);
   interruptBlock_[1].wait_for(lock, timeout, [this, &sq_bitmap, &cq_available]() {
     if (!isRunning_)
       return true;
@@ -297,7 +298,7 @@ void DeviceSysEmu::waitForEpollEventsServiceProcessor(int, bool& sq_available, b
   sq_available = false;
   cq_available = false;
 
-  auto lock = std::unique_lock<std::mutex>(interruptMutex_);
+  auto lock = std::unique_lock<std::mutex>(mutex_);
   interruptBlock_[0].wait_for(lock, timeout, [this, &sq_available, &cq_available]() {
     if (!isRunning_) {
       return true;
@@ -322,6 +323,7 @@ void DeviceSysEmu::waitForEpollEventsServiceProcessor(int, bool& sq_available, b
 }
 
 void DeviceSysEmu::setSqThresholdMasterMinion(int, int idx, uint32_t bytesNeeded) {
+  std::lock_guard lock(mutex_);
   auto sqIdx = static_cast<uint32_t>(idx);
   if (!bytesNeeded || bytesNeeded > (submissionQueuesMM_[sqIdx].size_ - sizeof(CircBuffCb))) {
     throw Exception("Invalid value for bytesNeeded");
@@ -330,6 +332,7 @@ void DeviceSysEmu::setSqThresholdMasterMinion(int, int idx, uint32_t bytesNeeded
 }
 
 void DeviceSysEmu::setSqThresholdServiceProcessor(int, uint32_t bytesNeeded) {
+  std::lock_guard lock(mutex_);
   if (!bytesNeeded || bytesNeeded > (submissionQueueSP_.size_ - sizeof(CircBuffCb))) {
     throw Exception("Invalid value for bytesNeeded");
   }
@@ -396,6 +399,7 @@ bool DeviceSysEmu::receiveResponse(QueueInfo& queue, std::vector<std::byte>& res
 
 bool DeviceSysEmu::receiveResponseMasterMinion(int, std::vector<std::byte>& response) {
   DV_VLOG(HIGH) << "Start receiving response from Master Minion";
+  std::lock_guard lock(mutex_);
   bool clearEvent = true;
   auto tmp = receiveResponse(completionQueueMM_, response, clearEvent);
   if (clearEvent) {
@@ -407,6 +411,7 @@ bool DeviceSysEmu::receiveResponseMasterMinion(int, std::vector<std::byte>& resp
 
 bool DeviceSysEmu::receiveResponseServiceProcessor(int, std::vector<std::byte>& response) {
   DV_VLOG(HIGH) << "Start receiving response from Service Processor";
+  std::lock_guard lock(mutex_);
   bool clearEvent = true;
   auto tmp = receiveResponse(completionQueueSP_, response, clearEvent);
   if (clearEvent) {

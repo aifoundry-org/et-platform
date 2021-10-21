@@ -79,8 +79,8 @@ private:
   bool sendCommand(QueueInfo& queue, std::byte* command, size_t commandSize, bool& clearEvent);
   bool receiveResponse(QueueInfo& queue, std::vector<std::byte>& response, bool& clearEvent);
 
-  bool checkForEventEPOLLIN(QueueInfo& queueInfo);
-  bool checkForEventEPOLLOUT(QueueInfo& queueInfo);
+  bool checkForEventEPOLLIN(const QueueInfo& queueInfo) const;
+  bool checkForEventEPOLLOUT(const QueueInfo& queueInfo) const;
 
   void startHostMemoryAccessThread();
   void setupMasterMinion();
@@ -92,7 +92,7 @@ private:
 
   std::array<uint64_t, 8> barAddress_;
 
-  std::mutex interruptMutex_;
+  std::mutex mutex_;
   std::array<std::condition_variable, 32> interruptBlock_;
   std::thread interruptListener_;
 

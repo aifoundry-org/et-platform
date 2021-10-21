@@ -10,6 +10,7 @@
 #pragma once
 #include "deviceLayer/IDeviceLayer.h"
 #include <et_ioctl.h>
+#include <mutex>
 #include <unordered_map>
 
 namespace dev {
@@ -64,9 +65,12 @@ private:
     int epFdMgmt_;
   };
 
+  std::unordered_map<void*, size_t> dmaBuffers_;
+  std::vector<DevInfo> devices_;
+  // this mutex is only needed to keep the map of dmaBuffers, if at some point we decide we don't need them, we can
+  // remove the mutex
+  std::mutex mutex_;
   bool opsEnabled_;
   bool mngmtEnabled_;
-  std::vector<DevInfo> devices_;
-  std::unordered_map<void*, size_t> dmaBuffers_;
 };
 } // namespace dev
