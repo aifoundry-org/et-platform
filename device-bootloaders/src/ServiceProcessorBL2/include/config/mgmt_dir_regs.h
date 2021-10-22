@@ -250,4 +250,10 @@ void DIR_Init(void);
 */
 void DIR_Set_Service_Processor_Status(int16_t status);
 
+/*! \fn void DIR_Cache_Size_Init(void)
+    \brief Initialize Device Cache Size Registers
+    \param None
+*/
+void DIR_Cache_Size_Init(void);
+
 #endif /* MGMT_DIR_REGS_H */
