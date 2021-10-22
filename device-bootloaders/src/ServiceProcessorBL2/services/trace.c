@@ -103,7 +103,7 @@ void Trace_Process_Control_Cmd(void *buffer)
     }
     else
     {
-        trace_header -> data_size = SP_Trace_CB.offset_per_hart;
+        trace_header->data_size = SP_Trace_CB.offset_per_hart;
         Trace_Run_Control(TRACE_DISABLE);
         //NOSONAR TODO: https://esperantotech.atlassian.net/browse/SW-9220
         //NOSONAR evict(to_Mem, (void *)SP_Trace_CB.base_per_hart, SP_Trace_CB.offset_per_hart);
@@ -241,7 +241,16 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     /* Put the MAJIC. */
     trace_header->magic_header = TRACE_MAGIC_HEADER;
 
-    /* Put the buffer size. */
+    /* Put the buffer partitioning info for a single buffer. */
+    trace_header->sub_buffer_count = 1;
+    trace_header->sub_buffer_size = SP_TRACE_BUFFER_SIZE;
+
+    /* populate Trace layout version in Header. */
+    trace_header->version.major = TRACE_VERSION_MAJOR;
+    trace_header->version.minor = TRACE_VERSION_MINOR;
+    trace_header->version.patch = TRACE_VERSION_PATCH;
+
+    /* Put the data size. */
     trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
 }
 
