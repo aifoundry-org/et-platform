@@ -348,7 +348,8 @@ void CW_Process_CM_SMode_Messages(void)
                 Log_Write(LOG_LEVEL_DEBUG, "CW:CM_TO_MM:MESSAGE_ID_NONE\r\n");
                 break;
 
-            case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION: {
+            case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION:
+            {
                 const cm_to_mm_message_exception_t *exception =
                     (cm_to_mm_message_exception_t *)&message;
 
@@ -383,7 +384,8 @@ void CW_Process_CM_SMode_Messages(void)
 
                 break;
             }
-            case CM_TO_MM_MESSAGE_ID_FW_ERROR: {
+            case CM_TO_MM_MESSAGE_ID_FW_ERROR:
+            {
                 const cm_to_mm_message_fw_error_t *error = (cm_to_mm_message_fw_error_t *)&message;
 
                 Log_Write(LOG_LEVEL_CRITICAL,

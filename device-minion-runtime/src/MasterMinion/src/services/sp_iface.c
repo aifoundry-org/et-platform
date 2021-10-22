@@ -236,7 +236,8 @@ static int8_t sp_command_handler(void *cmd_buffer)
 
     switch (hdr->msg_id)
     {
-        case SP2MM_CMD_ECHO: {
+        case SP2MM_CMD_ECHO:
+        {
             const struct sp2mm_echo_cmd_t *echo_cmd = (const void *)hdr;
             struct sp2mm_echo_rsp_t rsp;
 
@@ -263,7 +264,8 @@ static int8_t sp_command_handler(void *cmd_buffer)
 
             break;
         }
-        case SP2MM_CMD_UPDATE_FREQ: {
+        case SP2MM_CMD_UPDATE_FREQ:
+        {
             const struct sp2mm_update_freq_cmd_t *update_active_freq_cmd = (const void *)hdr;
 
             Log_Write(LOG_LEVEL_DEBUG,
@@ -276,7 +278,8 @@ static int8_t sp_command_handler(void *cmd_buffer)
 
             break;
         }
-        case SP2MM_CMD_TEARDOWN_MM: {
+        case SP2MM_CMD_TEARDOWN_MM:
+        {
             /* struct sp2mm_teardown_mm_cmd_t *teardown_mm_cmd = (const void*) hdr */
 
             Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:SP_Command_Handler:TearDownMM:%s%d%s%d%s",
@@ -285,7 +288,8 @@ static int8_t sp_command_handler(void *cmd_buffer)
             /* Implement functionality here .. */
             break;
         }
-        case SP2MM_CMD_QUIESCE_TRAFFIC: {
+        case SP2MM_CMD_QUIESCE_TRAFFIC:
+        {
             /* struct sp2mm_quiesce_traffic_cmd_t *quiese_traffic_cmd = (const void*) hdr */
 
             Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:SP_Command_Handler:QuieseTraffic:%s%d%s%d%s",
@@ -294,7 +298,8 @@ static int8_t sp_command_handler(void *cmd_buffer)
             /* Implement functionality here .. */
             break;
         }
-        default: {
+        default:
+        {
             Log_Write(LOG_LEVEL_ERROR, "SP_Command_Handler:UnsupportedCommandID.\r\n");
 
             break;
