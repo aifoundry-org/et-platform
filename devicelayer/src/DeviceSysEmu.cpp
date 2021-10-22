@@ -22,6 +22,7 @@
 namespace fs = std::experimental::filesystem;
 
 using namespace dev;
+using namespace std::string_literals;
 
 namespace {
 enum VERBOSITY { LOW = 0, MID = 5, HIGH = 10 };
@@ -198,20 +199,23 @@ bool DeviceSysEmu::sendCommand(QueueInfo& queueInfo, std::byte* command, size_t 
   return true;
 }
 
-bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, size_t commandSize, bool, bool) {
+bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, size_t commandSize, bool,
+                                           bool isHighPriority) {
   std::lock_guard lock(mutex_);
   auto sq_idx = static_cast<uint32_t>(sqIdx);
-  if (sq_idx >= submissionQueuesMM_.size()) {
+  if (sq_idx >= (isHighPriority ? hpSubmissionQueuesMM_.size() : submissionQueuesMM_.size())) {
     throw Exception("Invalid queue");
   }
 
   bool clearEvent = true;
-  auto res = sendCommand(submissionQueuesMM_[sq_idx], command, commandSize, clearEvent);
+  auto res = sendCommand(isHighPriority ? hpSubmissionQueuesMM_[sq_idx] : submissionQueuesMM_[sq_idx], command,
+                         commandSize, clearEvent);
   if (res) {
     sysEmu_->raiseDevicePuPlicPcieMessageInterrupt();
   }
 
-  if (clearEvent) {
+  // No bitmap for high priority queues
+  if (clearEvent && !isHighPriority) {
     // clear corresponding bit
     mmSqBitmap_ &= ~(1U << sq_idx);
   }
@@ -496,25 +500,38 @@ void DeviceSysEmu::setupMasterMinion() {
       boost::crc_32_type crc32Result;
       crc32Result.process_bytes(
         &mmInfo_.vq_attr, static_cast<size_t>(mmInfo_.generic_attr.total_size - mmInfo_.generic_attr.attributes_size));
-      DV_DLOG(INFO) << "MM DIRs CRC32 Checksum => Memory: " << mmInfo_.generic_attr.crc32
-                    << " Calculated: " << crc32Result.checksum();
       if (mmInfo_.generic_attr.crc32 != crc32Result.checksum()) {
-        throw Exception("MM DIRs CRC32 Checksum failure!");
+        throw Exception("MM DIRs CRC32 Checksum mismatched! (received: " + std::to_string(mmInfo_.generic_attr.crc32) +
+                        " vs calculated: " + std::to_string(crc32Result.checksum()) + ")");
       }
 
       auto bar = mmInfo_.mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].bar;
       auto barOffset = mmInfo_.mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].bar_offset;
+      auto hpSqOffset = mmInfo_.vq_attr.sq_hp_offset;
+      auto hpSqCount = mmInfo_.vq_attr.sq_hp_count;
+      size_t hpSqSize = mmInfo_.vq_attr.per_sq_hp_size;
       auto sqOffset = mmInfo_.vq_attr.sq_offset;
       auto sqCount = mmInfo_.vq_attr.sq_count;
       size_t sqSize = mmInfo_.vq_attr.per_sq_size;
       auto cqOffset = mmInfo_.vq_attr.cq_offset;
       auto cqCount = mmInfo_.vq_attr.cq_count;
       size_t cqSize = mmInfo_.vq_attr.per_cq_size;
-      DV_DLOG(INFO) << "MM Virtual Queues Descriptor => "
-                    << "bar: " << static_cast<uint16_t>(bar) << " barOffset: " << barOffset << " sqOffset: " << sqOffset
-                    << " sqCount: " << sqCount << " sqSize: " << sqSize << " cqOffset: " << cqOffset
-                    << " cqCount: " << cqCount << " cqSize: " << cqSize;
-      // init VQs
+      DV_DLOG(INFO) << "MM Virtual Queues Descriptor =>"
+                    << "\nbar: " << static_cast<uint16_t>(bar) << " barOffset: " << barOffset
+                    << "\nhpSqOffset: " << hpSqOffset << " hpSqCount: " << hpSqCount << " hpSqSize: " << hpSqSize
+                    << "\nsqOffset: " << sqOffset << " sqCount: " << sqCount << " sqSize: " << sqSize
+                    << "\ncqOffset: " << cqOffset << " cqCount: " << cqCount << " cqSize: " << cqSize;
+      // init HP SQs
+      for (uint8_t hpSqIdx = 0; hpSqIdx < hpSqCount; ++hpSqIdx) {
+        QueueInfo hpSqInfo;
+        hpSqInfo.bufferAddress_ = barAddress_[bar] + barOffset + hpSqOffset + hpSqIdx * hpSqSize;
+        hpSqInfo.size_ = hpSqSize;
+        hpSqInfo.thresholdBytes_ = static_cast<uint32_t>(hpSqSize);
+        sysEmu_->mmioRead(hpSqInfo.bufferAddress_, sizeof(hpSqInfo.cb_), reinterpret_cast<std::byte*>(&hpSqInfo.cb_));
+        hpSubmissionQueuesMM_.emplace_back(hpSqInfo);
+      }
+
+      // init SQs
       for (uint8_t i = 0; i < sqCount; ++i) {
         QueueInfo sqInfo;
         sqInfo.bufferAddress_ = barAddress_[bar] + barOffset + sqOffset + i * sqSize;
@@ -524,14 +541,11 @@ void DeviceSysEmu::setupMasterMinion() {
         submissionQueuesMM_.emplace_back(sqInfo);
       }
 
-      DV_DLOG(INFO) << "MM Submission queues initialized!";
-
       // single completion queue model
       completionQueueMM_.bufferAddress_ = barAddress_[bar] + barOffset + cqOffset;
       completionQueueMM_.size_ = cqSize;
       sysEmu_->mmioRead(completionQueueMM_.bufferAddress_, sizeof(completionQueueMM_.cb_),
                         reinterpret_cast<std::byte*>(&completionQueueMM_.cb_));
-      DV_DLOG(INFO) << "MM Completion queue initialized!";
       return;
     } else if (status < 0) {
       throw Exception("MM DIRs and VQs discovery failed!");

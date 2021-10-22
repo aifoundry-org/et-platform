@@ -110,6 +110,7 @@ private:
 
   // TODO there should be a vector for each device ...
   std::vector<QueueInfo> submissionQueuesMM_;
+  std::vector<QueueInfo> hpSubmissionQueuesMM_;
   QueueInfo completionQueueMM_;
 
   QueueInfo submissionQueueSP_;
