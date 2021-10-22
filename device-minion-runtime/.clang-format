@@ -1,5 +1,5 @@
 ---
-Language:        Cpp  # Cpp can be used fo rboth C and C++ languages (Ref: https://clang.llvm.org/docs/ClangFormatStyleOptions.html)
+Language:        Cpp  # Cpp can be used for both C and C++ languages (Ref: https://clang.llvm.org/docs/ClangFormatStyleOptions.html)
 AccessModifierOffset: -4
 AlignAfterOpenBracket: false
 AlignConsecutiveAssignments: false
@@ -30,6 +30,7 @@ BraceWrapping:
   AfterStruct: false
   AfterUnion: false
   AfterExternBlock: false
+  AfterCaseLabel: true
   BeforeCatch: true
   BeforeElse: true
   IndentBraces: false
