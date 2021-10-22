@@ -45,16 +45,14 @@
 /* mm_rt_helpers */
 #include "layout.h"
 
-#include "common_trace_defs.h"
-
 /* Encoder function prototypes */
 static inline void et_trace_write_float(void *addr, float value);
 static inline void et_trace_buffer_lock_acquire(void);
 static inline void et_trace_buffer_lock_release(void);
 
-#define ET_TRACE_GET_HPM_COUNTER(id)      hpm_read_counter(id)
-#define ET_TRACE_GET_TIMESTAMP()          hpm_read_counter3()
-#define ET_TRACE_GET_HART_ID()            get_hart_id()
+#define ET_TRACE_GET_HPM_COUNTER(id) hpm_read_counter(id)
+#define ET_TRACE_GET_TIMESTAMP()     hpm_read_counter3()
+#define ET_TRACE_GET_HART_ID()       get_hart_id()
 
 /* Master Minion Trace memory access primitives. */
 #define ET_TRACE_READ_U8(addr)            atomic_load_local_8(&addr)
@@ -69,8 +67,8 @@ static inline void et_trace_buffer_lock_release(void);
 #define ET_TRACE_MEM_CPY(dest, src, size) ETSOC_Memory_Write_Local_Atomic(src, dest, size)
 
 /* Master Minion trace buffer locks */
-#define ET_TRACE_BUFFER_LOCK_ACQUIRE      et_trace_buffer_lock_acquire();
-#define ET_TRACE_BUFFER_LOCK_RELEASE      et_trace_buffer_lock_release();
+#define ET_TRACE_BUFFER_LOCK_ACQUIRE et_trace_buffer_lock_acquire();
+#define ET_TRACE_BUFFER_LOCK_RELEASE et_trace_buffer_lock_release();
 
 #define ET_TRACE_ENCODER_IMPL
 #include "services/trace.h"
@@ -91,11 +89,10 @@ static inline void et_trace_write_float(void *addr, float value)
     \brief Default masks to enable Trace for Dispatcher, SQ Worker (SQW),
         DMA Worker : Read & Write, and Kernel Worker (KW)
 */
-#define MM_DEFAULT_THREAD_MASK   ((1UL << (DISPATCHER_BASE_HART_ID - MM_BASE_ID)) |              \
-                                  (1UL << (DMAW_BASE_HART_ID - MM_BASE_ID)) |                    \
-                                  (1UL << (DMAW_BASE_HART_ID + HARTS_PER_MINION - MM_BASE_ID)) | \
-                                  (1UL << (SQW_BASE_HART_ID - MM_BASE_ID)) |                     \
-                                  (1UL << (KW_BASE_HART_ID - MM_BASE_ID)))
+#define MM_DEFAULT_THREAD_MASK                                                                     \
+    ((1UL << (DISPATCHER_BASE_HART_ID - MM_BASE_ID)) | (1UL << (DMAW_BASE_HART_ID - MM_BASE_ID)) | \
+        (1UL << (DMAW_BASE_HART_ID + HARTS_PER_MINION - MM_BASE_ID)) |                             \
+        (1UL << (SQW_BASE_HART_ID - MM_BASE_ID)) | (1UL << (KW_BASE_HART_ID - MM_BASE_ID)))
 
 /*
  * Master Minion Trace control block.
@@ -104,13 +101,14 @@ typedef struct mm_trace_control_block {
     struct trace_control_block_t cb; /**!< Common Trace library control block. */
     uint64_t cm_shire_mask;          /**!< Compute Minion Shire mask to fetch Trace data from CM. */
     uint64_t cm_thread_mask;         /**!< Compute Minion Shire mask to fetch Trace data from CM. */
-    spinlock_t trace_buffer_lock;    /**!< Lock to serialize the trace buffer address reservation in encoder */
+    spinlock_t
+        trace_buffer_lock; /**!< Lock to serialize the trace buffer address reservation in encoder */
 } __attribute__((aligned(64))) mm_trace_control_block_t;
 
 /* A local Trace control block for all Master Minions. */
-static mm_trace_control_block_t MM_Trace_CB =
-                {.cb = {0}, .cm_shire_mask = CM_DEFAULT_TRACE_SHIRE_MASK,
-                 .cm_thread_mask = CM_DEFAULT_TRACE_THREAD_MASK};
+static mm_trace_control_block_t MM_Trace_CB = { .cb = { 0 },
+    .cm_shire_mask = CM_DEFAULT_TRACE_SHIRE_MASK,
+    .cm_thread_mask = CM_DEFAULT_TRACE_THREAD_MASK };
 
 /* Trace buffer locking routines */
 static inline void et_trace_buffer_lock_acquire(void)
@@ -154,33 +152,33 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
     if (mm_init_info == NULL)
     {
         /* Populate default Trace configurations for Master Minion. */
-        hart_init_info.shire_mask    = MM_SHIRE_MASK;
-        hart_init_info.thread_mask   = MM_DEFAULT_THREAD_MASK;
-        hart_init_info.event_mask    = TRACE_EVENT_STRING;
-        hart_init_info.filter_mask   = TRACE_EVENT_STRING_INFO;
-        hart_init_info.threshold     = MM_TRACE_BUFFER_SIZE;
+        hart_init_info.shire_mask = MM_SHIRE_MASK;
+        hart_init_info.thread_mask = MM_DEFAULT_THREAD_MASK;
+        hart_init_info.event_mask = TRACE_EVENT_STRING;
+        hart_init_info.filter_mask = TRACE_EVENT_STRING_INFO;
+        hart_init_info.threshold = MM_TRACE_BUFFER_SIZE;
     }
     /* Check if shire mask is of Master Minion and atleast one thread is enabled. */
-    else if ((mm_init_info->shire_mask & MM_SHIRE_MASK) && (mm_init_info->thread_mask & MM_HART_MASK))
+    else if ((mm_init_info->shire_mask & MM_SHIRE_MASK) &&
+             (mm_init_info->thread_mask & MM_HART_MASK))
     {
         /* Populate given init information into per-thread Trace information structure. */
-        hart_init_info.shire_mask    = MM_SHIRE_MASK;
-        hart_init_info.thread_mask   = MM_HART_MASK;
-        hart_init_info.filter_mask   = mm_init_info->filter_mask;
-        hart_init_info.event_mask    = mm_init_info->event_mask;
-        hart_init_info.threshold     = mm_init_info->threshold;
+        hart_init_info.shire_mask = MM_SHIRE_MASK;
+        hart_init_info.thread_mask = MM_HART_MASK;
+        hart_init_info.filter_mask = mm_init_info->filter_mask;
+        hart_init_info.event_mask = mm_init_info->event_mask;
+        hart_init_info.threshold = mm_init_info->threshold;
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR,
-            "MM:TRACE_CONFIG:Invalid Init Info.\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "MM:TRACE_CONFIG:Invalid Init Info.\r\n");
         MM_Trace_CB.cb.enable = TRACE_DISABLE;
 
         /* Trace init information is invalid. */
         internal_status = INVALID_TRACE_INIT_INFO;
     }
 
-    if(internal_status == STATUS_SUCCESS)
+    if (internal_status == STATUS_SUCCESS)
     {
         /* Initialize the spinlock */
         init_local_spinlock(&MM_Trace_CB.trace_buffer_lock, 0);
@@ -196,10 +194,18 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
         struct trace_buffer_std_header_t *trace_header =
             (struct trace_buffer_std_header_t *)MM_TRACE_BUFFER_BASE;
 
-        atomic_store_local_32(&(trace_header->magic_header), TRACE_MAGIC_HEADER);
-        atomic_store_local_32(&trace_header->data_size,
-                            sizeof(struct trace_buffer_std_header_t));
-        atomic_store_local_16(&(trace_header->type), TRACE_MM_BUFFER);
+        /* Update trace buffer header for buffer layout version and partitioning information.
+           One common buffer is used by all Harts to log Tracing. */
+        trace_header->magic_header = TRACE_MAGIC_HEADER;
+        trace_header->type = TRACE_MM_BUFFER;
+        trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
+        trace_header->sub_buffer_size = MM_TRACE_BUFFER_SIZE;
+        trace_header->sub_buffer_count = 1;
+        trace_header->version.major = TRACE_VERSION_MAJOR;
+        trace_header->version.minor = TRACE_VERSION_MINOR;
+        trace_header->version.patch = TRACE_VERSION_PATCH;
+
+        ETSOC_MEM_EVICT((void *)trace_header, sizeof(struct trace_buffer_std_header_t), to_L3)
     }
 
     /* Evict an updated control block to L2 memory. */
@@ -226,7 +232,7 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
 *       trace_control_block_t Pointer to the Trace control block.
 *
 ***********************************************************************/
-struct trace_control_block_t* Trace_Get_MM_CB(void)
+struct trace_control_block_t *Trace_Get_MM_CB(void)
 {
     return &MM_Trace_CB.cb;
 }
@@ -304,15 +310,14 @@ uint64_t Trace_Get_CM_Thread_Mask(void)
 int8_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg)
 {
     int8_t status;
-    uint64_t cm_shire_mask = config_msg->shire_mask & CM_SHIRE_MASK;
 
     /* Transmit the message to Compute Minions */
-    status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t*)config_msg);
+    status = CM_Iface_Multicast_Send(config_msg->shire_mask, (cm_iface_message_t *)config_msg);
 
     /* Save the configured values in MM CB */
-    if(status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
-        atomic_store_local_64(&MM_Trace_CB.cm_shire_mask, cm_shire_mask);
+        atomic_store_local_64(&MM_Trace_CB.cm_shire_mask, config_msg->shire_mask);
         atomic_store_local_64(&MM_Trace_CB.cm_thread_mask, config_msg->thread_mask);
     }
 
@@ -343,36 +348,32 @@ void Trace_RT_Control_MM(uint32_t control)
     /* Check flag to reset Trace buffer. */
     if (control & TRACE_RT_CONTROL_RESET_TRACEBUF)
     {
-        atomic_store_local_32(&(MM_Trace_CB.cb.offset_per_hart),
-            sizeof(struct trace_buffer_std_header_t));
+        atomic_store_local_32(
+            &(MM_Trace_CB.cb.offset_per_hart), sizeof(struct trace_buffer_std_header_t));
     }
 
     /* Check flag to Enable/Disable Trace. */
     if (control & TRACE_RT_CONTROL_ENABLE_TRACE)
     {
         Trace_Set_Enable_MM(TRACE_ENABLE);
-        Log_Write(LOG_LEVEL_DEBUG,
-                "TRACE_RT_CONTROL:MM:Trace Enabled.\r\n");
+        Log_Write(LOG_LEVEL_DEBUG, "TRACE_RT_CONTROL:MM:Trace Enabled.\r\n");
     }
     else
     {
         Trace_Set_Enable_MM(TRACE_DISABLE);
-        Log_Write(LOG_LEVEL_DEBUG,
-                "TRACE_RT_CONTROL:MM:Trace Disabled.\r\n");
+        Log_Write(LOG_LEVEL_DEBUG, "TRACE_RT_CONTROL:MM:Trace Disabled.\r\n");
     }
 
     /* Check flag to redirect logs to Trace or UART. */
     if (control & TRACE_RT_CONTROL_LOG_TO_UART)
     {
         Log_Set_Interface(LOG_DUMP_TO_UART);
-        Log_Write(LOG_LEVEL_DEBUG,
-                "TRACE_RT_CONTROL:MM:Logs redirected to UART.\r\n");
+        Log_Write(LOG_LEVEL_DEBUG, "TRACE_RT_CONTROL:MM:Logs redirected to UART.\r\n");
     }
     else
     {
         Log_Set_Interface(LOG_DUMP_TO_TRACE);
-        Log_Write(LOG_LEVEL_DEBUG,
-                "TRACE_RT_CONTROL:MM:Logs redirected to Trace buffer.\r\n");
+        Log_Write(LOG_LEVEL_DEBUG, "TRACE_RT_CONTROL:MM:Logs redirected to Trace buffer.\r\n");
     }
 }
 

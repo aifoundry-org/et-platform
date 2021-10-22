@@ -31,7 +31,6 @@
 
 #include "log.h"
 #include "layout.h"
-#include "common_trace_defs.h"
 
 #define ET_TRACE_ENCODER_IMPL
 #define ET_TRACE_GET_HART_ID()       get_hart_id()
@@ -47,61 +46,62 @@
 /* Helper functions for bit operations. */
 static inline uint32_t get_set_bit_count(uint64_t mask);
 static inline uint32_t get_lsb_set_pos(uint64_t value);
-static inline uint32_t get_index_among_enabled_harts(uint64_t shire,
-    uint64_t thread, uint64_t hart_id);
+static inline uint32_t get_index_among_enabled_harts(
+    uint64_t shire, uint64_t thread, uint64_t hart_id);
 
 /*
  * Compute Minion Trace control block.
  */
 typedef struct trace_smode_control_block {
-    struct trace_control_block_t cb;    /*!< Common Trace library control block. */
+    struct trace_control_block_t cb; /*!< Common Trace library control block. */
 } __attribute__((aligned(64))) trace_smode_control_block_t;
 
 /*
  * Compute Minion UMode Trace control block.
  */
 typedef struct trace_umode_control_block {
-    struct trace_control_block_t cb;    /*!< Common Trace library control block. */
+    struct trace_control_block_t cb; /*!< Common Trace library control block. */
 } __attribute__((aligned(64))) trace_umode_control_block_t;
 
 /*! \def GET_CB_INDEX
     \brief Get CB index of current Hart in pre-allocated CB array.
 */
-#define GET_CB_INDEX(hart_id)       ((hart_id < 2048U)? hart_id: (hart_id - 32U))
+#define GET_CB_INDEX(hart_id) ((hart_id < 2048U) ? hart_id : (hart_id - 32U))
 
 /*! \def CHECK_HART_TRACE_ENABLED
     \brief Check if Trace is enabled for given Hart.
 */
-#define CHECK_HART_TRACE_ENABLED(init, id)     (((init)->shire_mask & TRACE_SHIRE_MASK(hart_id)) && \
-                                             ((init)->thread_mask & TRACE_HART_MASK(hart_id)))
+#define CHECK_HART_TRACE_ENABLED(init, id) \
+    (((init)->shire_mask & TRACE_SHIRE_MASK(id)) && ((init)->thread_mask & TRACE_HART_MASK(id)))
 
 /*! \def CM_BASE_HART_ID
     \brief CM Base HART ID.
 */
-#define CM_BASE_HART_ID     0
-#define CACHE_LINE_SIZE     64U
-#define MASK_64BIT          (~0x0UL)
+#define CM_BASE_HART_ID 0
+#define CACHE_LINE_SIZE 64U
+#define MASK_64BIT      (~0x0UL)
 
 /*! \def CM_TRACE_CB
     \brief A local Trace control block for a Compute Minion.
 */
-#define CM_TRACE_CB                 ((trace_smode_control_block_t*)FW_CM_TRACE_CB_BASEADDR)
+#define CM_TRACE_CB ((trace_smode_control_block_t *)FW_CM_TRACE_CB_BASEADDR)
 
 /*! \def CM_UMODE_TRACE_CB
     \brief A local Trace control block for a Compute Minion.
 */
-#define CM_UMODE_TRACE_CB         ((trace_umode_control_block_t*)CM_UMODE_TRACE_CB_BASEADDR)
+#define CM_UMODE_TRACE_CB ((trace_umode_control_block_t *)CM_UMODE_TRACE_CB_BASEADDR)
 
 /*! \def GET_TRACE_ENABLED_HART_COUNT
     \brief get number of Harts for which Trace is enabled.
 */
-#define GET_TRACE_ENABLED_HART_COUNT(shire, thread) (get_set_bit_count(shire) * get_set_bit_count(thread))
+#define GET_TRACE_ENABLED_HART_COUNT(shire, thread) \
+    (get_set_bit_count(shire) * get_set_bit_count(thread))
 
 /*! \def GET_FIRST_TRACE_ENABLED_HART_ID
     \brief Get the lowest (first) Hart ID for which Trace is enabled.
 */
-#define GET_FIRST_TRACE_ENABLED_HART_ID(shire, thread) (((get_lsb_set_pos(shire) - 1U) * HARTS_PER_SHIRE) + \
-                                                         (get_lsb_set_pos(thread) - 1U))
+#define GET_FIRST_TRACE_ENABLED_HART_ID(shire, thread) \
+    (((get_lsb_set_pos(shire) - 1U) * HARTS_PER_SHIRE) + (get_lsb_set_pos(thread) - 1U))
 
 /************************/
 /* Compile-time checks  */
@@ -110,11 +110,11 @@ typedef struct trace_umode_control_block {
 
 /* Ensure that CM FW trace control blocks dont cross the defined limit */
 static_assert(sizeof(trace_smode_control_block_t) <= TRACE_CB_MAX_SIZE,
-              "CM FW Trace control block size exceeding the size limit");
+    "CM FW Trace control block size exceeding the size limit");
 
 /* Ensure that CM UMode trace control blocks dont cross the defined limit */
 static_assert(sizeof(trace_umode_control_block_t) <= TRACE_CB_MAX_SIZE,
-              "CM UMode Trace control block size exceeding the size limit");
+    "CM UMode Trace control block size exceeding the size limit");
 
 #endif /* __ASSEMBLER__ */
 
@@ -149,37 +149,47 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
     if (cm_init_info == NULL)
     {
         /* Populate default Trace configurations for Compute Minion. */
-        hart_init_info.shire_mask    = CM_DEFAULT_TRACE_SHIRE_MASK;
-        hart_init_info.thread_mask   = CM_DEFAULT_TRACE_THREAD_MASK;
-        hart_init_info.event_mask    = TRACE_EVENT_STRING;
-        hart_init_info.filter_mask   = TRACE_EVENT_STRING_WARNING;
-        hart_init_info.threshold     = CM_TRACE_BUFFER_SIZE_PER_HART;
+        hart_init_info.shire_mask = CM_DEFAULT_TRACE_SHIRE_MASK;
+        hart_init_info.thread_mask = CM_DEFAULT_TRACE_THREAD_MASK;
+        hart_init_info.event_mask = TRACE_EVENT_STRING;
+        hart_init_info.filter_mask = TRACE_EVENT_STRING_WARNING;
+        hart_init_info.threshold = CM_TRACE_BUFFER_SIZE_PER_HART;
     }
     else
     {
         /* Populate given init information into per-thread Trace information structure. */
-        hart_init_info.shire_mask    = cm_init_info->shire_mask;
-        hart_init_info.thread_mask   = cm_init_info->thread_mask;
-        hart_init_info.filter_mask   = cm_init_info->filter_mask;
-        hart_init_info.event_mask    = cm_init_info->event_mask;
-        hart_init_info.threshold     = cm_init_info->threshold;
+        hart_init_info.shire_mask = cm_init_info->shire_mask;
+        hart_init_info.thread_mask = cm_init_info->thread_mask;
+        hart_init_info.filter_mask = cm_init_info->filter_mask;
+        hart_init_info.event_mask = cm_init_info->event_mask;
+        hart_init_info.threshold = cm_init_info->threshold;
     }
 
     /* Buffer settings for current Hart. */
-    CM_TRACE_CB[hart_cb_index].cb.base_per_hart = (CM_TRACE_BUFFER_BASE +
-                                        (hart_cb_index * CM_TRACE_BUFFER_SIZE_PER_HART));
+    CM_TRACE_CB[hart_cb_index].cb.base_per_hart =
+        (CM_TRACE_BUFFER_BASE + (hart_cb_index * CM_TRACE_BUFFER_SIZE_PER_HART));
     CM_TRACE_CB[hart_cb_index].cb.size_per_hart = CM_TRACE_BUFFER_SIZE_PER_HART;
 
     /* Initialize trace buffer header. First CM hart contains ET Trace header,
        rest of Harts contain only size of trace data in their header.*/
-    if(hart_id == CM_BASE_HART_ID)
+    if (hart_id == CM_BASE_HART_ID)
     {
         struct trace_buffer_std_header_t *trace_header =
             (struct trace_buffer_std_header_t *)CM_TRACE_BUFFER_BASE;
 
         trace_header->magic_header = TRACE_MAGIC_HEADER;
         trace_header->type = TRACE_CM_BUFFER;
-        trace_header->data_size = 0;
+        trace_header->data_size = sizeof(struct trace_buffer_size_header_t);
+
+        /* Update trace buffer header for buffer partitioning information.
+           Buffer is divided equally among all CM Harts, with fixed size per Hart. */
+        trace_header->sub_buffer_count = (uint16_t)CM_HART_COUNT;
+        trace_header->sub_buffer_size = CM_TRACE_BUFFER_SIZE_PER_HART;
+
+        /* populate Trace layout version in Header. */
+        trace_header->version.major = TRACE_VERSION_MAJOR;
+        trace_header->version.minor = TRACE_VERSION_MINOR;
+        trace_header->version.patch = TRACE_VERSION_PATCH;
 
         /* Set the default offset */
         CM_TRACE_CB[hart_cb_index].cb.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
@@ -194,7 +204,7 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
         struct trace_buffer_size_header_t *size_header =
             (struct trace_buffer_size_header_t *)CM_TRACE_CB[hart_cb_index].cb.base_per_hart;
 
-        size_header->data_size = 0;
+        size_header->data_size = sizeof(struct trace_buffer_size_header_t);
 
         /* Set the default offset */
         CM_TRACE_CB[hart_cb_index].cb.offset_per_hart = sizeof(struct trace_buffer_size_header_t);
@@ -203,7 +213,7 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
     /* Verify if the current shire and thread is enabled for tracing */
     if (CHECK_HART_TRACE_ENABLED(&hart_init_info, hart_id))
     {
-        if(hart_id == CM_BASE_HART_ID)
+        if (hart_id == CM_BASE_HART_ID)
         {
             /* Initialize Trace for current Hart in Compute Minion Shire. */
             Trace_Init(&hart_init_info, &CM_TRACE_CB[hart_cb_index].cb, TRACE_STD_HEADER);
@@ -244,7 +254,7 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
 *       trace_control_block_t   Pointer to the Trace control block.
 *
 ***********************************************************************/
-struct trace_control_block_t* Trace_Get_CM_CB(void)
+struct trace_control_block_t *Trace_Get_CM_CB(void)
 {
     return &CM_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb;
 }
@@ -271,10 +281,10 @@ struct trace_control_block_t* Trace_Get_CM_CB(void)
 ***********************************************************************/
 void Trace_RT_Control_CM(uint32_t control)
 {
-   /* Check flag to reset Trace buffer. */
+    /* Check flag to reset Trace buffer. */
     if (control & TRACE_RT_CONTROL_RESET_TRACEBUF)
     {
-        if(get_hart_id() == CM_BASE_HART_ID)
+        if (get_hart_id() == CM_BASE_HART_ID)
         {
             CM_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb.offset_per_hart =
                 sizeof(struct trace_buffer_std_header_t);
@@ -352,7 +362,7 @@ void Trace_Evict_CM_Buffer(void)
     uint32_t hart_cb_index = GET_CB_INDEX(get_hart_id());
 
     /* Populate data size in trace buffer header. */
-    if(get_hart_id() == CM_BASE_HART_ID)
+    if (get_hart_id() == CM_BASE_HART_ID)
     {
         struct trace_buffer_std_header_t *trace_header =
             (struct trace_buffer_std_header_t *)CM_TRACE_CB[hart_cb_index].cb.base_per_hart;
@@ -411,8 +421,9 @@ void Trace_Init_UMode(const struct trace_init_info_t *init_info)
     }
 
     /* Calculate size per Hart by diving total buffer equally among enabled Harts.*/
-    cb->size_per_hart = (init_info->buffer_size /
-                        GET_TRACE_ENABLED_HART_COUNT(init_info->shire_mask, init_info->thread_mask));
+    cb->size_per_hart =
+        (init_info->buffer_size /
+            GET_TRACE_ENABLED_HART_COUNT(init_info->shire_mask, init_info->thread_mask));
 
     /* Buffer size should be cache line aligned. */
     if (cb->size_per_hart % CACHE_LINE_SIZE != 0)
@@ -423,13 +434,13 @@ void Trace_Init_UMode(const struct trace_init_info_t *init_info)
     }
 
     /* Buffer settings for current Hart. */
-    cb->base_per_hart = (init_info->buffer +
-        (get_index_among_enabled_harts(init_info->shire_mask, init_info->thread_mask, hart_id) *
-        cb->size_per_hart));
+    cb->base_per_hart = (init_info->buffer + (get_index_among_enabled_harts(init_info->shire_mask,
+                                                  init_info->thread_mask, hart_id) *
+                                                 cb->size_per_hart));
 
-   /* Initialize Trace and set up buffer header. Among all enabled Harts, the first Compute hart's Buffer has
+    /* Initialize Trace and set up buffer header. Among all enabled Harts, the first Compute hart's Buffer has
       Trace standard header, rest of Harts has Trace size header.*/
-    if(hart_id == GET_FIRST_TRACE_ENABLED_HART_ID(init_info->shire_mask, init_info->thread_mask))
+    if (hart_id == GET_FIRST_TRACE_ENABLED_HART_ID(init_info->shire_mask, init_info->thread_mask))
     {
         struct trace_buffer_std_header_t *trace_header =
             (struct trace_buffer_std_header_t *)cb->base_per_hart;
@@ -437,6 +448,16 @@ void Trace_Init_UMode(const struct trace_init_info_t *init_info)
         trace_header->magic_header = TRACE_MAGIC_HEADER;
         trace_header->type = TRACE_CM_UMODE_BUFFER;
         trace_header->data_size = 0;
+
+        /* Update trace buffer header for buffer partitioning information. Buffer is divided equally among all Trace enabled Harts. */
+        trace_header->sub_buffer_count =
+            (uint16_t)GET_TRACE_ENABLED_HART_COUNT(init_info->shire_mask, init_info->thread_mask);
+        trace_header->sub_buffer_size = cb->size_per_hart;
+
+        /* populate Trace layout version in Header. */
+        trace_header->version.major = TRACE_VERSION_MAJOR;
+        trace_header->version.minor = TRACE_VERSION_MINOR;
+        trace_header->version.patch = TRACE_VERSION_PATCH;
 
         /* Set the default offset */
         cb->offset_per_hart = sizeof(struct trace_buffer_std_header_t);
@@ -523,19 +544,20 @@ void Trace_Update_UMode_Buffer_Header(void)
 *       uint32_t    Index of given Hart ID among all enabled Harts.
 *
 ***********************************************************************/
-static inline uint32_t get_index_among_enabled_harts(uint64_t shire, uint64_t thread, uint64_t hart_id)
+static inline uint32_t get_index_among_enabled_harts(
+    uint64_t shire, uint64_t thread, uint64_t hart_id)
 {
     uint32_t enabled_hart_index = 0;
     /* Get number of Harts enabled in lower shires.*/
-    uint64_t lower_shire = shire &  (~((MASK_64BIT) << get_lsb_set_pos(TRACE_SHIRE_MASK(hart_id))));
+    uint64_t lower_shire = shire & (~((MASK_64BIT) << get_lsb_set_pos(TRACE_SHIRE_MASK(hart_id))));
 
-    if(!((TRACE_SHIRE_MASK(hart_id) & 1) || (get_set_bit_count(lower_shire)) == 1))
+    if (!((TRACE_SHIRE_MASK(hart_id) & 1) || (get_set_bit_count(lower_shire)) == 1))
     {
         enabled_hart_index = (get_set_bit_count(lower_shire) - 1) * get_set_bit_count(thread);
     }
 
     /* Get number of lower Harts enabled in current shire.*/
-    uint64_t lower_thread = thread &  (~((MASK_64BIT) << get_lsb_set_pos(TRACE_HART_MASK(hart_id))));
+    uint64_t lower_thread = thread & (~((MASK_64BIT) << get_lsb_set_pos(TRACE_HART_MASK(hart_id))));
 
     enabled_hart_index += (get_set_bit_count(lower_thread) - 1);
 
@@ -593,7 +615,7 @@ static inline uint32_t get_set_bit_count(uint64_t mask)
 ***********************************************************************/
 static inline uint32_t get_lsb_set_pos(uint64_t value)
 {
-   uint32_t pos = 0;
+    uint32_t pos = 0;
 
     if (value != 0)
     {
@@ -604,5 +626,5 @@ static inline uint32_t get_lsb_set_pos(uint64_t value)
             ++pos;
         }
     }
-   return pos;
+    return pos;
 }
