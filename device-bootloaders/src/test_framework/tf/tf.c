@@ -43,8 +43,10 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
     char            *p_buff;
     uint32_t        bytes_received;
     uint32_t        cmd_bytes_received;
+#if TF_CONFIG_SW_CHECKSUM_ENABLE==1
     uint32_t        computed_checksum = 0;
     uint32_t        rcvd_checksum = 0;
+#endif
     struct header_t tf_cmd_hdr = {0};
     bool            tf_prot_start_found=false;
     bool            tf_cmd_size_available=false;
@@ -65,7 +67,9 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
         p_buff = &Input_Cmd_Buffer[0];
         bytes_received = 0;
         cmd_bytes_received = 0;
+#if TF_CONFIG_SW_CHECKSUM_ENABLE==1
         computed_checksum = 0;
+#endif
         tf_prot_start_found = false;
         tf_cmd_size_available = false;
 
@@ -74,8 +78,6 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 
 #ifdef  TF_DEBUG
         printf("Getting into TF RX loop \r\n");
-
-        printf("command received\r\n");
 #endif
         while(true)
         {
@@ -87,13 +89,17 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 #ifdef  TF_DEBUG
                 printf("Command start delimeter ($) received\r\n");
 #endif
+#if TF_CONFIG_SW_CHECKSUM_ENABLE==1
                 computed_checksum += (uint8_t)c;
+#endif
                 tf_prot_start_found = true;
             }
             else
             {
                 *p_buff = c;
+#if TF_CONFIG_SW_CHECKSUM_ENABLE==1
                 computed_checksum += *p_buff;
+#endif
 
 #ifdef  TF_DEBUG
                 printf("0x");
@@ -120,11 +126,13 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
                     /* Receiving the command payload */
                     cmd_bytes_received++;
 
+#if TF_CONFIG_SW_CHECKSUM_ENABLE==1
                     if(cmd_bytes_received == (tf_cmd_hdr.payload_size + TF_CHECKSUM_SIZE))
-                    {
-#ifdef  TF_DEBUG
-                        printf("\r\nCommand fully received, size = %d \r\n", cmd_bytes_received);
+#else
+                    if(cmd_bytes_received == tf_cmd_hdr.payload_size)
 #endif
+                    {
+#if TF_CONFIG_SW_CHECKSUM_ENABLE==1
                         /* Verify checksum */
                         const uint8_t* p = (uint8_t*)(&Input_Cmd_Buffer[0] + TF_CMD_HDR_BYTES + tf_cmd_hdr.payload_size);
                         rcvd_checksum = (uint32_t)(p[0] + (p[1] << 8) + (p[2] << 16) + (p[3] << 24));
@@ -134,8 +142,8 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
                         computed_checksum -= p[1];
                         computed_checksum -= p[2];
                         computed_checksum -= p[3];
-
 #ifdef  TF_DEBUG
+                        printf("\r\nCommand fully received, size = %d \r\n", cmd_bytes_received);
                         printf("bytes_received:%d\r\n", bytes_received);
                         printf("rcvd_checksum:%d \r\n",rcvd_checksum);
                         printf("computed_checksum:%d \r\n",computed_checksum);
@@ -144,18 +152,12 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
                         {
                             printf("Received command, command checksum failed\r\n");
                         }
-
+#endif
                         /* Command processed, break */
                         break;
                     }
                 }
             }
-#ifdef  TF_DEBUG
-            else
-            {
-                printf("Unknown data byte: 0x%02X\r\n", c);
-            }
-#endif
         }
 
         /* Invoke the command handler based on ID */
@@ -206,7 +208,7 @@ static void fill_rsp_buffer(uint32_t *buf_size, const void *buffer,
 int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
     void *additional_rsp, uint32_t additional_rsp_size)
 {
-#if TF_CONFIG_SW_CHECKSUM_ENABLE
+#if TF_CONFIG_SW_CHECKSUM_ENABLE==1
     uint32_t checksum = 0;
 #endif
     uint32_t buf_size = TF_MAX_RSP_SIZE;
@@ -236,7 +238,7 @@ int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
 
     if(bytes_to_transmit <= TF_MAX_RSP_SIZE)
     {
-#if TF_CONFIG_SW_CHECKSUM_ENABLE
+#if TF_CONFIG_SW_CHECKSUM_ENABLE==1
         for(uint32_t i = 0; i < bytes_to_transmit; i++)
         {
             checksum += *p_rsp;
