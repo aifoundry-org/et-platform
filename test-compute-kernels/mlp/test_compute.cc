@@ -122,8 +122,10 @@ void test_compute(uint32_t shire_id, uint32_t minion_id)
 {
     __asm__ __volatile__ ("mov.m.x m0, zero, 0xff /*255*/  \n");
 
-    // Initialize L2 Scp
-    init_l2_scp(shire_id, minion_id);
+    // Initialize L2 Scp for all except Shire 32
+    if(shire_id != 32) {
+        init_l2_scp(shire_id, minion_id);
+    }
 
     // Initial credit to wake up the threads to let them know L2 scp init is done
     // Acts as if sync minions sent it to FCC1
