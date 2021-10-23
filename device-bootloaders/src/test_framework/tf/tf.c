@@ -206,7 +206,9 @@ static void fill_rsp_buffer(uint32_t *buf_size, const void *buffer,
 int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
     void *additional_rsp, uint32_t additional_rsp_size)
 {
+#if TF_CONFIG_SW_CHECKSUM_ENABLE
     uint32_t checksum = 0;
+#endif
     uint32_t buf_size = TF_MAX_RSP_SIZE;
     uint32_t bytes_to_transmit=0;
     char* p_rsp = &Output_Rsp_Buffer[0];
@@ -234,19 +236,18 @@ int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
 
     if(bytes_to_transmit <= TF_MAX_RSP_SIZE)
     {
+#if TF_CONFIG_SW_CHECKSUM_ENABLE
         for(uint32_t i = 0; i < bytes_to_transmit; i++)
         {
             checksum += *p_rsp;
             p_rsp++;
         }
-#ifdef  TF_DEBUG
-        printf("Response Checksum: %d\r\n", checksum);
-#endif
         /* Add checksum to response */
         fill_rsp_buffer(&buf_size, &checksum, 4);
         bytes_to_transmit += 4;
 
 #ifdef  TF_DEBUG
+        printf("Response Checksum: %d\r\n", checksum);
         p_rsp = &Output_Rsp_Buffer[0];
         for(uint32_t i =0; i < bytes_to_transmit; i++)
         {
@@ -260,7 +261,9 @@ int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
         printf("\r\n");
 #endif
 
-        SERIAL_write(SP_UART1, &Output_Rsp_Buffer[0], (int)bytes_to_transmit);
+#endif
+        p_rsp = &Output_Rsp_Buffer[0];
+        SERIAL_write(SP_UART1, p_rsp, (int)bytes_to_transmit);
     }
     else
     {
