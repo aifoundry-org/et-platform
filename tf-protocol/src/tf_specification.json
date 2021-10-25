@@ -12,8 +12,9 @@
         "TF_CHECKSUM_POSITION": 5,
         "TF_CMD_END_POSITION": 6,
         "TF_CHECKSUM_TOTAL_SIZE": 7,
-        "TF_MAX_CMD_SIZE": 4096,
-        "TF_MAX_RSP_SIZE": 4096,
+        "TF_RESERVE_CMD_HEADER_SPACE": 64,
+        "TF_MAX_CMD_SIZE": 16384,
+        "TF_MAX_RSP_SIZE": 16384,
         "TF_CMD_ONLY": 1,
         "TF_CMD_WITH_PAYLOAD": 2,
         "TF_CMD_WITH_PAYLOAD_NEXT": 4,
@@ -36,16 +37,44 @@
         "TF_BL2_ENTRY_FOR_SP_MM": 5
     },
     "kernel_exceptions": [
-        "HANG ERROR",
+        "HANG",
         "U-MODE EXCEPTION",
-        "S-MODE EXCEPTION",
         "SYSTEM ABORT",
         "SELF ABORT",
         "USER KERNEL ERROR"
     ],
-    "gprs": ["ra", "sp", "gp", "tp", "t0", "t1", "t2", "s0/fp", "s1", "a0", "a1",
-            "a2", "a3", "a4", "a5", "a6", "a7", "s2", "s3", "s4", "s5", "s6",
-            "s7", "s8", "s9", "sa", "sb", "t3", "t4", "t5", "t6"
+    "gprs": [
+        "ra",
+        "sp",
+        "gp",
+        "tp",
+        "t0",
+        "t1",
+        "t2",
+        "s0/fp",
+        "s1",
+        "a0",
+        "a1",
+        "a2",
+        "a3",
+        "a4",
+        "a5",
+        "a6",
+        "a7",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "sa",
+        "sb",
+        "t3",
+        "t4",
+        "t5",
+        "t6"
     ],
     "tf_sp_command_ids.description": "List of unique TF command names handled by SP and their associated id (HW TF commands from 0 - 69 and SW TF commands from 97 - 255)",
     "tf_sp_command_ids.instruction": "To add a new test, a new TF command ID should be added to tf_sp_command_ids, a corresponding response to tf_sp_response_ids",
@@ -130,13 +159,13 @@
         "TF_CMD_MM_CMD_SHELL": 107,
         "TF_CMD_MM_CMD_SHELL_DEBUG_PRINT": 108,
         "TF_CMD_GET_MM_HEARTBEAT": 109,
-	"TF_CMD_SP_TRACE_RUN_CONTROL":110,
-	"TF_CMD_SP_TRACE_RUN_CONFIG":111,
-        "TF_CMD_SP_TRACE_GET_INFO":112,
-        "TF_CMD_SP_TRACE_GET_BUFFER":113,
-        "TF_CMD_MM_TRACE_GET_INFO":114,
+        "TF_CMD_SP_TRACE_RUN_CONTROL": 110,
+        "TF_CMD_SP_TRACE_RUN_CONFIG": 111,
+        "TF_CMD_SP_TRACE_GET_INFO": 112,
+        "TF_CMD_SP_TRACE_GET_BUFFER": 113,
+        "TF_CMD_MM_TRACE_GET_INFO": 114,
         "TF_CMD_MM_TRACE_GET_BUFFER": 115,
-        "TF_CMD_CM_TRACE_GET_INFO":116,
+        "TF_CMD_CM_TRACE_GET_INFO": 116,
         "TF_CMD_CM_TRACE_GET_BUFFER": 117,
         "TF_CMD_UNSUPPORTED": 118
     },
@@ -223,13 +252,13 @@
         "TF_RSP_MM_CMD_SHELL": 363,
         "TF_RSP_UNUSED3": 364,
         "TF_RSP_GET_MM_HEARTBEAT": 365,
-	"TF_RSP_SP_TRACE_RUN_CONTROL":366,
-        "TF_RSP_SP_TRACE_RUN_CONFIG":367,
-        "TF_RSP_SP_TRACE_GET_INFO":368,
-        "TF_RSP_SP_TRACE_GET_BUFFER":369,
-        "TF_RSP_MM_TRACE_GET_INFO":370,
+        "TF_RSP_SP_TRACE_RUN_CONTROL": 366,
+        "TF_RSP_SP_TRACE_RUN_CONFIG": 367,
+        "TF_RSP_SP_TRACE_GET_INFO": 368,
+        "TF_RSP_SP_TRACE_GET_BUFFER": 369,
+        "TF_RSP_MM_TRACE_GET_INFO": 370,
         "TF_RSP_MM_TRACE_GET_BUFFER": 371,
-        "TF_RSP_CM_TRACE_GET_INFO":372,
+        "TF_RSP_CM_TRACE_GET_INFO": 372,
         "TF_RSP_CM_TRACE_GET_BUFFER": 373,
         "TF_RSP_UNSUPPORTED": 374
     },
@@ -279,7 +308,7 @@
         },
         "TF_CMD_MOVE_DATA_TO_DEVICE": {
             "flags": 2,
-            "payload_size": 4194304,
+            "payload_size": 12,
             "payload_args": {
                 "dst_addr": "uint64_t",
                 "size": "uint32_t",
@@ -303,7 +332,7 @@
         },
         "TF_CMD_MINION_SHIRE_ENABLE": {
             "flags": 2,
-            "payload_size": 8,
+            "payload_size": 9,
             "payload_args": {
                 "shire_mask": "uint64_t",
                 "pll4_mode": "uint8_t"
@@ -420,8 +449,9 @@
         },
         "TF_CMD_MM_CMD_SHELL": {
             "flags": 2,
-            "payload_size": 256,
+            "payload_size": 8,
             "payload_args": {
+                "mm_cmd_timeout_ms": "uint32_t",
                 "mm_cmd_size": "uint32_t",
                 "mm_cmd_data": "flexible_bytes"
             }
@@ -506,7 +536,7 @@
             "payload_size": 0,
             "payload_args": {}
         },
-	"TF_CMD_GET_PCIE_INIT_STATUS": {
+        "TF_CMD_GET_PCIE_INIT_STATUS": {
             "flags": 1,
             "payload_size": 0,
             "payload_args": {}
@@ -516,7 +546,7 @@
             "payload_size": 0,
             "payload_args": {}
         },
-	"TF_CMD_SP_TRACE_RUN_CONFIG": {
+        "TF_CMD_SP_TRACE_RUN_CONFIG": {
             "flags": 2,
             "payload_size": 8,
             "payload_args": {
@@ -540,27 +570,28 @@
             "flags": 1,
             "payload_size": 0,
             "payload_args": {}
-	},
-	"TF_CMD_MM_TRACE_GET_INFO": {
+        },
+        "TF_CMD_MM_TRACE_GET_INFO": {
             "flags": 1,
             "payload_size": 0,
             "payload_args": {}
         },
-	"TF_CMD_MM_TRACE_GET_BUFFER": {
+        "TF_CMD_MM_TRACE_GET_BUFFER": {
             "flags": 1,
             "payload_size": 0,
             "payload_args": {}
         },
-	"TF_CMD_CM_TRACE_GET_INFO": {
-            "flags": 1,
-            "payload_size": 0,
-            "payload_args": {}
+        "TF_CMD_CM_TRACE_GET_INFO": {
+            "flags": 2,
+            "payload_size": 4,
+            "payload_args": {
+                "buffer_id": "uint32_t"
+            }
         },
-	"TF_CMD_CM_TRACE_GET_BUFFER": {
+        "TF_CMD_CM_TRACE_GET_BUFFER": {
             "flags": 1,
             "payload_size": 0,
             "payload_args": {}
-
         }
     },
     "tf_sp_rsp_spec.description": "Response bindings to be used by test writers to assert on results, this tells the test writer the expected format for response args",
@@ -606,7 +637,7 @@
         },
         "TF_RSP_MOVE_DATA_TO_HOST": {
             "flags": 2,
-            "payload_size": 1073741824,
+            "payload_size": 4,
             "payload_args": {
                 "bytes_read": "uint32_t",
                 "data_ptr": "flexible_bytes"
@@ -725,7 +756,7 @@
         },
         "TF_RSP_MM_CMD_SHELL": {
             "flags": 2,
-            "payload_size": 256,
+            "payload_size": 4,
             "payload_args": {
                 "mm_rsp_size": "uint32_t",
                 "mm_rsp_data": "flexible_bytes"
@@ -817,7 +848,7 @@
         },
         "TF_RSP_PMIC_MODULE_VOLTAGE": {
             "flags": 2,
-            "payload_size": 8,
+            "payload_size": 9,
             "payload_args": {
                 "ddr_voltage": "uint8_t",
                 "l2_cache_voltage": "uint8_t",
@@ -841,7 +872,7 @@
         },
         "TF_RSP_SP_PCIE_RETAIN_PHY": {
             "flags": 2,
-            "payload_size": 1,
+            "payload_size": 4,
             "payload_args": {
                 "status": "int32_t"
             }
@@ -858,7 +889,7 @@
                 "io_shire_mhz": "uint32_t"
             }
         },
-	"TF_RSP_GET_PCIE_INIT_STATUS": {
+        "TF_RSP_GET_PCIE_INIT_STATUS": {
             "flags": 2,
             "payload_size": 4,
             "payload_args": {
@@ -866,7 +897,7 @@
             }
         },
         "TF_RSP_GET_MM_HEARTBEAT": {
-            "flags": 1,
+            "flags": 2,
             "payload_size": 8,
             "payload_args": {
                 "heartbeat_count": "uint64_t"
@@ -893,12 +924,12 @@
         },
         "TF_RSP_SP_TRACE_GET_BUFFER": {
             "flags": 2,
-            "payload_size": 1073741824,
+            "payload_size": 4,
             "payload_args": {
                 "bytes_read": "uint32_t",
                 "data_ptr": "flexible_bytes"
             }
-	},
+        },
         "TF_RSP_MM_TRACE_GET_INFO": {
             "flags": 2,
             "payload_size": 16,
@@ -908,15 +939,15 @@
                 "offset": "uint32_t"
             }
         },
-	"TF_RSP_MM_TRACE_GET_BUFFER": {
+        "TF_RSP_MM_TRACE_GET_BUFFER": {
             "flags": 2,
-            "payload_size": 1073741824,
+            "payload_size": 4,
             "payload_args": {
                 "bytes_read": "uint32_t",
                 "data_ptr": "flexible_bytes"
             }
         },
-	"TF_RSP_CM_TRACE_GET_INFO": {
+        "TF_RSP_CM_TRACE_GET_INFO": {
             "flags": 2,
             "payload_size": 16,
             "payload_args": {
@@ -925,14 +956,13 @@
                 "offset": "uint32_t"
             }
         },
-	"TF_RSP_CM_TRACE_GET_BUFFER": {
+        "TF_RSP_CM_TRACE_GET_BUFFER": {
             "flags": 2,
-            "payload_size": 1073741824,
+            "payload_size": 4,
             "payload_args": {
                 "bytes_read": "uint32_t",
                 "data_ptr": "flexible_bytes"
             }
-
         }
     },
     "tf_mm_device_api_cmd_ids.description": "TF can tunnel device-api ops commands to MM, so these ids should be aligned with device-api command ids",
@@ -940,6 +970,7 @@
     "tf_mm_device_api_cmd_ids": {
         "TF_CMD_MM_FW_VERSION": 515,
         "TF_CMD_MM_ECHO": 517,
+        "TF_CMD_MM_ABORT": 519,
         "TF_CMD_MM_KERNEL_LAUNCH": 521,
         "TF_CMD_MM_TRACE_RT_CONFIG": 533,
         "TF_CMD_MM_TRACE_RT_CONTROL": 535
@@ -949,6 +980,7 @@
     "tf_mm_device_api_rsp_ids": {
         "TF_RSP_MM_FW_VERSION": 516,
         "TF_RSP_MM_ECHO": 518,
+        "TF_RSP_MM_ABORT": 520,
         "TF_RSP_MM_KERNEL_LAUNCH": 522,
         "TF_RSP_MM_TRACE_RT_CONFIG": 534,
         "TF_RSP_MM_TRACE_RT_CONTROL": 536
@@ -982,6 +1014,15 @@
                 "dummy": "uint64_t"
             }
         },
+        "TF_CMD_MM_ABORT": {
+            "flags": 2,
+            "payload_size": 8,
+            "payload_args": {
+                "tag_id": "uint16_t",
+	            "pad16" : "uint16_t",
+	            "pad32" : "uint32_t"
+            }
+        },
         "TF_CMD_MM_KERNEL_LAUNCH": {
             "flags": 2,
             "payload_size": 40,
@@ -993,7 +1034,7 @@
                 "argument_payload": "uint64_t"
             }
         },
-	"TF_CMD_MM_TRACE_RT_CONFIG": {
+        "TF_CMD_MM_TRACE_RT_CONFIG": {
             "flags": 2,
             "payload_size": 32,
             "payload_args": {
@@ -1002,10 +1043,10 @@
                 "event_mask": "uint32_t",
                 "filter_mask": "uint32_t",
                 "threshold": "uint32_t",
-	        "pad" : "uint32_t"
+                "pad": "uint32_t"
             }
         },
-	"TF_CMD_MM_TRACE_RT_CONTROL": {
+        "TF_CMD_MM_TRACE_RT_CONTROL": {
             "flags": 2,
             "payload_size": 8,
             "payload_args": {
@@ -1039,6 +1080,14 @@
                 "pad1": "uint32_t"
             }
         },
+        "TF_RSP_MM_ABORT": {
+            "flags": 2,
+            "payload_size": 8,
+            "payload_args": {
+                "status": "uint32_t",
+	            "pad": "uint32_t"
+            }
+        },
         "TF_RSP_MM_KERNEL_LAUNCH": {
             "flags": 2,
             "payload_size": 4,
@@ -1050,20 +1099,20 @@
                 "pad": "uint32_t"
             }
         },
-	"TF_RSP_MM_TRACE_RT_CONFIG": {
+        "TF_RSP_MM_TRACE_RT_CONFIG": {
             "flags": 2,
             "payload_size": 8,
             "payload_args": {
                 "status": "uint32_t",
-	            "pad": "uint32_t"
+                "pad": "uint32_t"
             }
         },
-	"TF_RSP_MM_TRACE_RT_CONTROL": {
+        "TF_RSP_MM_TRACE_RT_CONTROL": {
             "flags": 2,
             "payload_size": 8,
             "payload_args": {
                 "status": "uint32_t",
-	            "pad": "uint32_t"
+                "pad": "uint32_t"
             }
         }
     }
