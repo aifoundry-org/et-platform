@@ -28,6 +28,16 @@
 #define TF_NUM_COMMANDS                  << cgh.command_id(cgh.commands(get_last=True)) - cgh.command_id(cgh.commands(get_first=True)) >>
 #define TF_NUM_RESPONSES                 << cgh.response_id(cgh.responses(get_last=True)) - cgh.response_id(cgh.responses(get_first=True)) >>
 
+/* MM device-api commands supported */
+<%- for command in cgh.mm_dev_api_commands() %>
+#define << command | upper >> << cgh.mm_dev_api_command_id(command) >>
+<%- endfor %>
+
+/* MM device-api reponses supported */
+<%- for response in cgh.mm_dev_api_responses() %>
+#define << response | upper >> << cgh.mm_dev_api_response_id(response) >>
+<%- endfor %>
+
 /* Interception points */
 /*! \enum interception_points_t
     \brief Enum for interception points in TF
