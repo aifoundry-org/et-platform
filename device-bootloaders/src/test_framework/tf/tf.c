@@ -50,6 +50,7 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
     struct header_t tf_cmd_hdr = {0};
     bool            tf_prot_start_found=false;
     bool            tf_cmd_size_available=false;
+    bool            tf_receive_cmd_data=true;
 
     /* First entry unconditionally hook-in */
     /* Subsequent entries fall thru if current intercept
@@ -72,6 +73,7 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 #endif
         tf_prot_start_found = false;
         tf_cmd_size_available = false;
+        tf_receive_cmd_data = true;
 
         /* Clear the command input buffer */
         memset(&Input_Cmd_Buffer[0], 0, TF_MAX_CMD_SIZE);
@@ -79,7 +81,7 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 #ifdef  TF_DEBUG
         printf("Getting into TF RX loop \r\n");
 #endif
-        while(true)
+        while(tf_receive_cmd_data)
         {
             SERIAL_getchar(SP_UART1, &c);
 
@@ -119,7 +121,15 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
                     printf("tf_cmd_hdr.flags = %d\r\n", tf_cmd_hdr.flags);
                     printf("tf_cmd_hdr.payload_size = %d\r\n", tf_cmd_hdr.payload_size);
 #endif
-                    tf_cmd_size_available = true;
+
+                    if(tf_cmd_hdr.payload_size == 0)
+                    {
+                        tf_receive_cmd_data = false;
+                    }
+                    else
+                    {
+                        tf_cmd_size_available = true;
+                    }
                 }
                 else if(tf_cmd_size_available)
                 {
@@ -153,8 +163,8 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
                             printf("Received command, command checksum failed\r\n");
                         }
 #endif
-                        /* Command processed, break */
-                        break;
+                        /* Command processed */
+                        tf_receive_cmd_data = false;
                     }
                 }
             }
