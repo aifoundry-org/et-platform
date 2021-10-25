@@ -67,11 +67,11 @@ TEST(CommandSender, checkConsistency) {
   EXPECT_FALSE(deviceLayer.receiveResponseMasterMinion(0, response));
   EXPECT_EQ(rsp, reinterpret_cast<device_ops_api::rsp_header_t*>(response.data()));
 
-  // if we enable all, we should expect all tag_ids following
-  for (auto c : commands) {
-    c->enable();
+  // if we enable all (except first and last one since they were already enabled) we should expect all tag_ids following
+  for (auto i = 1U; i < numCommands - 1; ++i) {
+    commands[i]->enable();
   }
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
   for (auto i = 1; i < numCommands; ++i) {
     EXPECT_TRUE(deviceLayer.receiveResponseMasterMinion(0, response));
     EXPECT_EQ(rsp, reinterpret_cast<device_ops_api::rsp_header_t*>(response.data()));
