@@ -30,6 +30,9 @@ using insn_exec_funct_t = void (*)(Hart&);
 using insn_decode_func_t = insn_exec_funct_t (*)(uint32_t, uint16_t&);
 
 
+void tensor_wait_execute(Hart& cpu, Hart::Waiting what);
+
+
 // -----------------------------------------------------------------------------
 //
 // 32-bit instruction decoding
@@ -1673,6 +1676,12 @@ void Hart::stop_waiting(Waiting what)
         LOG_HART(DEBUG, *this, "%s", "\tStop waiting for TensorLoad to TenB");
         break;
     }
+
+    // Finish executing any outstanding TensorWait
+    if ((twait & what) != Waiting::none) {
+        tensor_wait_execute(*this, what);
+    }
+
     waits &= ~what;
     maybe_wakeup();
 }

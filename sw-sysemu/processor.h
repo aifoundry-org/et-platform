@@ -350,6 +350,7 @@ struct Hart : public Agent {
     // Hart state (disabled, running, etc.)
     State       state = State::unavailable;
     Waiting     waits = Waiting::none;
+    Waiting     twait = Waiting::none;
 
     // Next and previous hart in list of waiting/running harts
     intrusive::List_hook  links;
