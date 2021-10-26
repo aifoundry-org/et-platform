@@ -487,11 +487,6 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
     } else {
         assert(tload.paired == false);
         tload.state = TLoad::State::idle;
-        if (id == 0) {
-            cpu.stop_waiting(Hart::Waiting::tload_0);
-        } else {
-            cpu.stop_waiting(Hart::Waiting::tload_1);
-        }
     }
 
     notify_tensor_load(cpu, cmd, tenb, adj + (start % L1_SCP_ENTRIES),
@@ -521,7 +516,7 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
                 }
                 catch (const Exception&) {
                     update_tensor_error(cpu, 1 << 7);
-                    return;
+                    goto tload_exit;
                 }
                 catch (const memory_error&) {
                     cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
@@ -557,7 +552,7 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
                     }
                     catch (const Exception&) {
                         update_tensor_error(cpu, 1 << 7);
-                        return;
+                        goto tload_exit;
                     }
                     catch (const memory_error&) {
                         cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
@@ -598,7 +593,7 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
                     }
                     catch (const Exception&) {
                         update_tensor_error(cpu, 1 << 7);
-                        return;
+                        goto tload_exit;
                     }
                     catch (const memory_error&) {
                         cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
@@ -631,7 +626,7 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
             }
             catch (const Exception&) {
                 update_tensor_error(cpu, 1 << 7);
-                return;
+                goto tload_exit;
             }
             catch (const memory_error&) {
                 cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
@@ -669,7 +664,7 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
             }
             catch (const Exception&) {
                 update_tensor_error(cpu, 1 << 7);
-                return;
+                goto tload_exit;
             }
             catch (const memory_error&) {
                 cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
@@ -706,7 +701,7 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
             }
             catch (const Exception&) {
                 update_tensor_error(cpu, 1 << 7);
-                return;
+                goto tload_exit;
             }
             catch (const memory_error&) {
                 cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
@@ -726,6 +721,15 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
             }
         }
         break;
+    }
+
+tload_exit:
+    if (!tenb) {
+        if (id == 0) {
+            cpu.stop_waiting(Hart::Waiting::tload_0);
+        } else {
+            cpu.stop_waiting(Hart::Waiting::tload_1);
+        }
     }
 }
 
@@ -748,12 +752,6 @@ void tensor_load_l2_start(Hart& cpu, uint64_t control)
              "addr: 0x%" PRIx64 ", rows: %d, stride: 0x%" PRIx64 ", id: %d",
              msk, dst, addr, rows, stride, id);
 
-    if (id == 0) {
-        cpu.stop_waiting(Hart::Waiting::tload_L2_0);
-    } else {
-        cpu.stop_waiting(Hart::Waiting::tload_L2_1);
-    }
-
     uint64_t shire = cpu.shireid();
     for (int i = 0; i < rows; ++i) {
         if (!msk || cpu.tensor_mask[i]) {
@@ -771,12 +769,18 @@ void tensor_load_l2_start(Hart& cpu, uint64_t control)
             }
             catch (const Exception&) {
                 update_tensor_error(cpu, 1 << 7);
-                return;
+                break;
             }
             catch (const memory_error&) {
                 cpu.raise_interrupt(BUS_ERROR_INTERRUPT, 0);
             }
         }
+    }
+
+    if (id == 0) {
+        cpu.stop_waiting(Hart::Waiting::tload_L2_0);
+    } else {
+        cpu.stop_waiting(Hart::Waiting::tload_L2_1);
     }
 }
 
@@ -1161,7 +1165,7 @@ void tensor_store_execute(Hart& cpu)
     }
 #endif
     cpu.core->tstore.state = TStore::State::idle;
-    cpu.stop_waiting(Hart::Waiting::tstore);
+    cpu.stop_waiting(Hart::Waiting::tstore); // Note(cabul): Consider moving this to end of function
 
     const auto tstorereg = cpu.core->tstore.value;
 
@@ -2044,58 +2048,80 @@ void tensor_reduce_execute(Hart& cpu)
 
 // ----- TensorWait emulation ------------------------------------------------
 
-// Starts a tensor wait, checks for stall conditions
-void tensor_wait_start(Hart& cpu, uint64_t value)
+
+// Checks if the corresponding tensor FSM is idle.
+//
+//  - Only asynchronous operations can be non-idle
+//    (tload, tfma, reduce, tquant, tstore)
+//  - The rest is always considered idle
+static bool tensor_wait_check_idle(const Hart& cpu, Hart::Waiting what)
 {
-    Hart::Waiting what = static_cast<Hart::Waiting>(1 << (value & 15));
     switch (what) {
     case Hart::Waiting::tload_0:
-        if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
-            && (cpu.core->tload_a[0].state != TLoad::State::idle))
-        {
-            assert((cpu.core->tload_a[0].stride & 1) == 0);
-            cpu.start_waiting(what);
-        }
-        break;
+        return cpu.core->tload_a[0].state == TLoad::State::idle;
     case Hart::Waiting::tload_1:
-        if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
-            && (cpu.core->tload_a[1].state != TLoad::State::idle))
-        {
-            assert((cpu.core->tload_a[1].stride & 1) == 1);
-            cpu.start_waiting(what);
-        }
-        break;
+        return cpu.core->tload_a[1].state == TLoad::State::idle;
     case Hart::Waiting::tfma:
-        if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
-            && (cpu.core->tmul.state != TMul::State::idle))
-        {
-            cpu.start_waiting(what);
-        }
-        break;
+        return cpu.core->tmul.state == TMul::State::idle;
     case Hart::Waiting::reduce:
-        if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
-            && (cpu.core->reduce.state != TReduce::State::idle))
-        {
-            cpu.start_waiting(what);
-        }
-        break;
+        return cpu.core->reduce.state == TReduce::State::idle;
     case Hart::Waiting::tquant:
-        if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
-            && (cpu.core->tquant.state != TQuant::State::idle))
-        {
-            cpu.start_waiting(what);
-        }
-        break;
+        return cpu.core->tquant.state == TQuant::State::idle;
     case Hart::Waiting::tstore:
-        if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0)
-            && (cpu.core->tstore.state != TStore::State::idle))
-        {
-            cpu.start_waiting(what);
-        }
-        break;
+        return cpu.core->tstore.state == TStore::State::idle;
     default:
-        // Nothing to wait for here...
-        break;
+        return true;
+    }
+}
+
+
+// Executes a TensorWait.
+//
+// In the current model, a TensorWait "executes" once the hart
+// stops waiting for an event, that has been TensorWait'ed.
+// This notifies the checkers of the TensorWait.
+// The only reason the TensorWait is "asynchronous", is to
+// ensure the checkers see the correct order of operations.
+void tensor_wait_execute(Hart& cpu, Hart::Waiting what)
+{
+#ifdef SYS_EMU
+    if ((what == Hart::Waiting::tload_0 || what == Hart::Waiting::tload_1)
+        && SYS_EMU_PTR->get_l1_scp_check()) {
+        const auto thread = hart_index(cpu);
+        const auto id = what == Hart::Waiting::tload_0 ? 0 : 1;
+        SYS_EMU_PTR->get_l1_scp_checker().l1_scp_wait(thread, id);
+    }
+    if ((what == Hart::Waiting::tload_L2_0 || what == Hart::Waiting::tload_L2_1)
+        && SYS_EMU_PTR->get_l2_scp_check()) {
+        const auto thread = hart_index(cpu);
+        const auto id = what == Hart::Waiting::tload_L2_0 ? 0 : 1;
+        SYS_EMU_PTR->get_l2_scp_checker().l2_scp_wait(thread, id);
+    }
+#endif
+
+    cpu.twait &= ~what;
+}
+
+
+// Starts a TensorWait.
+//
+// If the corresponding FSM is currently idle, this behaves like a NOP.
+// Otherwise, the hart starts waiting for the given event.
+// At this point we also notify of any change to the tensor_error.
+void tensor_wait_start(Hart& cpu, uint64_t value)
+{
+    const auto what = static_cast<Hart::Waiting>(1 << (value & 15));
+    const auto idle = tensor_wait_check_idle(cpu, what);
+    if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0) ||
+        (what == Hart::Waiting::tload_L2_0 || what == Hart::Waiting::tload_L2_1)) {
+        if (idle) {
+            // Execute the tensor_wait already
+            tensor_wait_execute(cpu, what);
+        } else {
+            // Start waiting and mark the pending tensor_wait
+            cpu.start_waiting(what);
+            cpu.twait |= what;
+        }
     }
 
     notify_tensor_error_value(cpu, cpu.tensor_error);
