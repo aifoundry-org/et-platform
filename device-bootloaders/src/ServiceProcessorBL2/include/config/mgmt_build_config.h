@@ -118,6 +118,49 @@
 */
 #define SP_DEV_INTF_TRACE_BUFFER_SIZE              SP_TRACE_BUFFER_SIZE
 
+
+/* DDR Region 2 MM TRACE_BUFFER (BAR=0, Offset=0x401000, Size=1MB) */
+
+/*! \def SP_DEV_INTF_MM_TRACE_BUFFER_BAR
+    \brief A macro that provides the PCI BAR region using which
+    the Service Processor trace buffer space can be accessed
+*/
+#define SP_DEV_INTF_MM_TRACE_BUFFER_BAR               0
+
+/*! \def SP_DEV_INTF_TRACE_BUFFER_OFFSET
+    \brief A macro that provides the offset of Service Processor
+    trace buffer space on PCI BAR
+*/
+#define SP_DEV_INTF_MM_TRACE_BUFFER_OFFSET            (SP_DEV_INTF_TRACE_BUFFER_OFFSET + \
+                                                        SP_DEV_INTF_TRACE_BUFFER_SIZE)
+
+/*! \def SP_DEV_INTF_TRACE_BUFFER_SIZE
+    \brief A macro that provides the total size of Service Processor
+    trace buffer space on PCI BAR.
+*/
+#define SP_DEV_INTF_MM_TRACE_BUFFER_SIZE               MM_TRACE_BUFFER_SIZE
+
+/* DDR Region 2 CM TRACE_BUFFER (BAR=0, Offset=0x481000, Size=8MB) */
+
+/*! \def SP_DEV_INTF_CM_TRACE_BUFFER_BAR
+    \brief A macro that provides the PCI BAR region using which
+    the Service Processor trace buffer space can be accessed
+*/
+#define SP_DEV_INTF_CM_TRACE_BUFFER_BAR               0
+
+/*! \def SP_DEV_INTF_CM_TRACE_BUFFER_OFFSET
+    \brief A macro that provides the offset of Service Processor
+    trace buffer space on PCI BAR
+*/
+#define SP_DEV_INTF_CM_TRACE_BUFFER_OFFSET            (SP_DEV_INTF_MM_TRACE_BUFFER_OFFSET + \
+                                                        SP_DEV_INTF_MM_TRACE_BUFFER_SIZE)
+
+/*! \def SP_DEV_INTF_CM_TRACE_BUFFER_SIZE
+    \brief A macro that provides the total size of Service Processor
+    trace buffer space on PCI BAR.
+*/
+#define SP_DEV_INTF_CM_TRACE_BUFFER_SIZE               CM_TRACE_BUFFER_SIZE
+
 /* Interrupt Trigger Region (BAR=2, Offset=0x2000, Size=8KB) */
 
 /*! \def SP_DEV_INTF_INTERRUPT_TRG_REGION_BAR

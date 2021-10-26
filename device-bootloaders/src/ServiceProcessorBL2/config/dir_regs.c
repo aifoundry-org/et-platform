@@ -154,6 +154,42 @@ void DIR_Init(void)
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_NONE) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
+    /* Populate the MM FW Trace buffer memory region attributes */
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
+        .type = SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
+        .bar = SP_DEV_INTF_MM_TRACE_BUFFER_BAR;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
+        .bar_offset = SP_DEV_INTF_MM_TRACE_BUFFER_OFFSET;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
+        .bar_size = SP_DEV_INTF_MM_TRACE_BUFFER_SIZE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
+        .dev_address = 0U;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
+        .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
+        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
+        MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_NONE) |
+        MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
+
+    /* Populate the MM FW Trace buffer memory region attributes */
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
+        .type = SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
+        .bar = SP_DEV_INTF_CM_TRACE_BUFFER_BAR;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
+        .bar_offset = SP_DEV_INTF_CM_TRACE_BUFFER_OFFSET;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
+        .bar_size = SP_DEV_INTF_CM_TRACE_BUFFER_SIZE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
+        .dev_address = 0U;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
+        .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
+        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
+        MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_NONE) |
+        MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
+
     /* Calculate CRC32 of the DIRs excluding generic attributes
     NOTE: CRC32 checksum should be calculated at the end */
     crc32((void*)&Gbl_SP_DIRs->vq_attr,
