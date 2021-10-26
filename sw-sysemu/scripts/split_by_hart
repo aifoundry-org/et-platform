@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -eu
+
+die() { echo "$*" >&2; exit 1; }
+
+if [ $# -eq 0 ] || [ $1 == "-h" ] || [ $1 == "--help" ] ; then
+    echo "Usage: split_by_hart <log>.."
+    echo
+    echo "Split a sysemu log file by hart id."
+    echo "A new log file will be created for each hart in the log stream."
+    exit 0
+fi
+
+split_by() {
+    awk "match(\$0, /$1/){
+        what=substr(\$0, RSTART, RLENGTH);
+        print \$0 > \"$2.\"what;
+    }" $2
+}
+
+for file ; do
+    split_by 'H[0-9]*' $file
+done
