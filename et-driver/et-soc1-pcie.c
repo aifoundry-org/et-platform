@@ -46,6 +46,8 @@ MODULE_VERSION("1.0");
 #define ET_PCIE_SOC1_ID	       0xeb01
 #define ET_MAX_DEVS	       64
 
+#define MAX(a,b,c) (a>b?(a>c?a:c):(b>c?b:c))
+
 static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{ PCI_DEVICE(ET_PCIE_VENDOR_ID, ET_PCIE_TEST_DEVICE_ID) },
 	{ PCI_DEVICE(ET_PCIE_VENDOR_ID, ET_PCIE_SOC1_ID) },
@@ -494,6 +496,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	struct et_mgmt_dev *mgmt;
 	struct cmd_desc cmd_info;
 	struct rsp_desc rsp_info;
+	struct trace_desc trace_info;
 	struct sq_threshold sq_threshold_info;
 	struct fw_update_desc fw_update_info;
 	u32 trace_region_size;
@@ -666,14 +669,40 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		return 0;
 
 	case ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER:
-		if (!mgmt->regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE].is_valid)
+		if (copy_from_user(&trace_info, usr_arg, _IOC_SIZE(cmd)))
+			return -EINVAL;
+		if(trace_info.trace_type >= MGMT_MEM_REGION_TYPE_NUM)
+			return -EINVAL;
+
+		if (!mgmt->regions[trace_info.trace_type].is_valid)
 			return -EINVAL;
 
 		trace_region_start =
-			mgmt->regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE]
+			mgmt->regions[trace_info.trace_type]
 				.mapped_baseaddr;
 		trace_region_size =
-			mgmt->regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE].size;
+			mgmt->regions[trace_info.trace_type].size;
+
+		et_ioread(trace_region_start,
+			  0,
+			  mgmt->trace_buf,
+			  trace_region_size);
+
+		if (copy_to_user((char __user __force *)trace_info.buf, mgmt->trace_buf, trace_region_size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case ETSOC1_IOCTL_EXTRACT_MM_TRACE_BUFFER:
+		if (!mgmt->regions[MGMT_MEM_REGION_TYPE_MMFW_TRACE].is_valid)
+			return -EINVAL;
+
+		trace_region_start =
+			mgmt->regions[MGMT_MEM_REGION_TYPE_MMFW_TRACE]
+				.mapped_baseaddr;
+		trace_region_size =
+			mgmt->regions[MGMT_MEM_REGION_TYPE_MMFW_TRACE].size;
 
 		et_ioread(trace_region_start,
 			  0,
@@ -681,7 +710,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			  trace_region_size);
 
 		if (copy_to_user(usr_arg, mgmt->trace_buf, trace_region_size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER: failed to copy to user\n");
+			pr_err("ioctl: ETSOC1_IOCTL_EXTRACT_MM_TRACE_BUFFER: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
@@ -1278,10 +1307,15 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 
 	kfree(dir_data);
 
-	if (et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE].is_valid) {
+	/* Allocating buffer with largest size of trace regions so that it can be
+	   re-used without keep sperate buffer for each trace */
+	if ((et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE].is_valid) ||
+		(et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_MMFW_TRACE].is_valid) ||
+		(et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_CMFW_TRACE].is_valid)) {
 		et_dev->mgmt.trace_buf = kmalloc(
-			et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE]
-				.size,
+			MAX(et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE].size,
+				et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_MMFW_TRACE].size,
+				et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_CMFW_TRACE].size),
 			GFP_KERNEL);
 		if (!et_dev->mgmt.trace_buf) {
 			dev_err(&et_dev->pdev->dev,

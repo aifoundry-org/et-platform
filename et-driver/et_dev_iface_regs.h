@@ -188,6 +188,8 @@ enum et_mgmt_mem_region_type {
 	MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG,
 	MGMT_MEM_REGION_TYPE_SCRATCH,
 	MGMT_MEM_REGION_TYPE_SPFW_TRACE,
+	MGMT_MEM_REGION_TYPE_MMFW_TRACE,
+	MGMT_MEM_REGION_TYPE_CMFW_TRACE,
 	MGMT_MEM_REGION_TYPE_NUM
 };
 
@@ -779,6 +781,8 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 		case MGMT_MEM_REGION_TYPE_VQ_BUFFER:
 		case MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG:
 		case MGMT_MEM_REGION_TYPE_SPFW_TRACE:
+		case MGMT_MEM_REGION_TYPE_MMFW_TRACE:
+		case MGMT_MEM_REGION_TYPE_CMFW_TRACE:
 			// Attributes compatibility check
 			if (region->access.priv_mode !=
 				    MEM_REGION_PRIVILEGE_MODE_KERNEL ||

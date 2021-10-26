@@ -69,6 +69,11 @@ struct dev_config {
 	__u32 cm_shire_mask;	/* Active Compute Shires Mask */
 };
 
+struct trace_desc {
+	__u8 trace_type;
+	void *buf;
+};
+
 // clang-format on
 
 #define ETSOC1_IOCTL_GET_USER_DRAM_INFO                                        \
@@ -108,4 +113,8 @@ struct dev_config {
 
 #define ETSOC1_IOCTL_GET_DEVICE_STATE                                          \
 	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 13, __u32)
+
+#define ETSOC1_IOCTL_EXTRACT_MM_TRACE_BUFFER                                   \
+	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 14, void *)
+
 #endif

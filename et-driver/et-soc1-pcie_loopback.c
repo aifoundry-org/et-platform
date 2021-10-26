@@ -669,6 +669,13 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		}
 		return 0;
 
+	case ETSOC1_IOCTL_EXTRACT_MM_TRACE_BUFFER:
+		if (copy_to_user(usr_arg, mgmt->trace_buf, trace_region_size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_EXTRACT_MM_TRACE_BUFFER: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
 	default:
 		pr_err("%s: unknown cmd: 0x%x\n", __func__, cmd);
 		return -EINVAL;
