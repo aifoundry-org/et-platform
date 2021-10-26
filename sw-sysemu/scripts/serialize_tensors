@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+
+import re
+
+TENSOR = re.compile(r"""
+        (?P<cycle>\d+):\s+           # Cycle time
+        DEBUG\sEMU:\s+
+        \[
+            H(?P<hart>\d+)\s         # Hart ID
+            [SNCT:0-9]+
+        \]\s+
+        \((?P<tag>T[LSMRQ]-H\d+-\d+)\)\s+  # Tensor tag
+        (?P<status>(Start|Execute))  # Start/Execute
+        # """, re.X)
+
+
+class Logfile:
+    def __init__(self, lines):
+        self.lines = lines
+        self.pos = 0
+
+    @property
+    def eof(self): return self.pos >= len(self.lines)
+
+    @property
+    def cur_line(self): return self.lines[self.pos]
+
+    def print_line(self, fmt='{}'):
+        print(fmt.format(self.cur_line.rstrip()))
+
+    def next_line(self): self.pos += 1
+
+    def next_break(self, fmt=None):
+        tensor_error = False
+        while not self.eof:
+            if 'tensor_error = ' in self.cur_line: tensor_error = True
+            if 'I(' in self.cur_line: return tensor_error
+            if TENSOR.match(self.cur_line): return tensor_error
+            if fmt: self.print_line(fmt)
+            self.next_line()
+
+    def next_tensor(self, fmt=None):
+        while not self.eof:
+            match = TENSOR.match(self.cur_line)
+            if match: return match.groupdict()
+            if fmt: self.print_line(fmt)
+            self.next_line()
+
+    def search_execute(self, start):
+        while not self.eof:
+            tensor = self.next_tensor()
+            if not tensor: return
+            if tensor['status'] != 'Execute' \
+               or tensor['hart'] != start['hart'] \
+               or tensor['tag'] != start['tag']:
+                   self.next_line()
+                   continue
+            return tensor
+
+
+def parse_args(*args, **kwargs):
+    from argparse import ArgumentParser
+    from pathlib import Path
+    parser = ArgumentParser()
+    parser.add_argument('log', type=Path, help='SysEmu log file')
+    return parser.parse_args(*args, **kwargs)
+
+
+def main():
+    args = parse_args()
+    with open(args.log) as fp:
+        log = Logfile(fp.readlines())
+
+        while not log.eof:
+            tensor = log.next_tensor(fmt='{}')
+            if not tensor: break
+
+            if tensor['status'] == 'Execute':
+                log.next_line()
+                log.next_break(fmt=None) # Skip execute blob
+                continue
+
+            log.print_line()
+            log.next_line()
+
+            terror = log.next_break(fmt='{}')
+            if terror: continue # Tensor error => no execute
+
+            pos = log.pos
+            execute = log.search_execute(tensor)
+            if execute:
+                print(' |  ...')
+                log.print_line(fmt=' |  {}')
+                log.next_line()
+                log.next_break(fmt=' |  {}')
+                print(' |  ...')
+            log.pos = pos
+
+        while not log.eof:
+            log.print_line()
+            log.next_line()
+
+
+if __name__ == '__main__':
+    main()
