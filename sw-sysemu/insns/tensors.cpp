@@ -346,10 +346,12 @@ void tensor_load_start(Hart& cpu, uint64_t control)
     }
 
     LOG_REG(":", 31);
-    LOG_HART(DEBUG, cpu, "\tStart TensorLoad with msk: %d, coop: %d, cmd: %d, "
+
+    const auto uuid = (tload.uuid = ++(cpu.core->tensor_uuid));
+    LOG_HART(DEBUG, cpu, "\t(TL-H%u-%lu) Start TensorLoad with msk: %d, coop: %d, cmd: %d, "
              "start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: %u, rows: %d, "
-             "stride: 0x%" PRIx64 ", id: %d", int(msk), int(coop), cmd, start,
-             tenb, addr, boffset, rows, stride, id);
+             "stride: 0x%" PRIx64 ", id: %d", cpu.mhartid, uuid, int(msk), int(coop),
+             cmd, start, tenb, addr, boffset, rows, stride, id);
 
     tload.value  = control;
     tload.stride = X31;
@@ -500,11 +502,11 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
 
     switch (cmd) {
     case tload_cmd_load:
-        LOG_HART(DEBUG, cpu, "Execute TensorLoad with msk: %d, coop: %d, "
+        LOG_HART(DEBUG, cpu, "(TL-H%u-%lu) Execute TensorLoad with msk: %d, coop: %d, "
                  "start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: %u, "
                  "rows: %d, stride: 0x%" PRIx64 ", id: %d, tmask: 0x%lx",
-                 int(msk), int(coop), start, tenb, addr, boffset, rows,
-                 stride, id, tload.tmask.to_ulong());
+                 cpu.mhartid, tload.uuid, int(msk), int(coop), start, tenb, addr, boffset,
+                 rows, stride, id, tload.tmask.to_ulong());
         for (int i = 0; i < rows; ++i) {
             if (!msk || tload.tmask[i]) {
                 int idx = adj + ((start + i) % L1_SCP_ENTRIES);
@@ -531,11 +533,11 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
         break;
     case tload_cmd_interleave8:
         boffset *= 16;
-        LOG_HART(DEBUG, cpu, "Execute TensorLoadInterleave8 with msk: %d, "
+        LOG_HART(DEBUG, cpu, "(TL-H%u-%lu) Execute TensorLoadInterleave8 with msk: %d, "
                  "coop: %d, start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: "
                  "%u, rows: %d, stride: 0x%" PRIx64 ", id: %d, tmask: 0x%lx",
-                 int(msk), int(coop), start, tenb, addr, boffset, rows,
-                 stride, id, tload.tmask.to_ulong());
+                 cpu.mhartid, tload.uuid, int(msk), int(coop), start, tenb, addr, boffset,
+                 rows, stride, id, tload.tmask.to_ulong());
         for (int i = 0; i < rows; ++i) {
             if (!msk || tload.tmask[i]) {
                 bool dirty = false;
@@ -572,11 +574,11 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
         break;
     case tload_cmd_interleave16:
         boffset = (boffset & 0x2) * 16;
-        LOG_HART(DEBUG, cpu, "Execute TensorLoadInterleave16 with msk: %d, "
+        LOG_HART(DEBUG, cpu, "(TL-H%u-%lu) Execute TensorLoadInterleave16 with msk: %d, "
                  "coop: %d, start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: "
                  "%u, rows: %d, stride: 0x%" PRIx64 ", id: %d, tmask: 0x%lx",
-                 int(msk), int(coop), start, tenb, addr, boffset, rows,
-                 stride, id, tload.tmask.to_ulong());
+                 cpu.mhartid, tload.uuid, int(msk), int(coop), start, tenb, addr, boffset,
+                 rows, stride, id, tload.tmask.to_ulong());
         for (int i = 0; i < rows; ++i) {
             if (!msk || tload.tmask[i]) {
                 bool dirty = false;
@@ -613,11 +615,11 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
         break;
     case tload_cmd_transpose8:
         boffset *= 16;
-        LOG_HART(DEBUG, cpu, "Execute TensorLoadTranspose8 with msk: %d, "
+        LOG_HART(DEBUG, cpu, "(TL-H%u-%lu) Execute TensorLoadTranspose8 with msk: %d, "
                  "coop: %d, start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: "
                  "%u, rows: %d, stride: 0x%" PRIx64 ", id: %d, tmask: 0x%lx",
-                 int(msk), int(coop), start, tenb, addr, boffset, rows,
-                 stride, id, tload.tmask.to_ulong());
+                 cpu.mhartid, tload.uuid, int(msk), int(coop), start, tenb, addr, boffset,
+                 rows, stride, id, tload.tmask.to_ulong());
         okay.reset();
         for (int j = 0; j < L1D_LINE_SIZE; ++j) {
             uint64_t vaddr = sextVA(addr + j*stride);
@@ -651,11 +653,11 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
         break;
     case tload_cmd_transpose16:
         boffset = (boffset & 0x2) * 8;
-        LOG_HART(DEBUG, cpu, "Execute TensorLoadTranspose16 with msk: %d, "
+        LOG_HART(DEBUG, cpu, "(TL-H%u-%lu) Execute TensorLoadTranspose16 with msk: %d, "
                  "coop: %d, start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: "
                  "%u, rows: %d, stride: 0x%" PRIx64 ", id: %d, tmask: 0x%lx",
-                 int(msk), int(coop), start, tenb, addr, boffset, rows,
-                 stride, id, tload.tmask.to_ulong());
+                 cpu.mhartid, tload.uuid, int(msk), int(coop), start, tenb, addr, boffset,
+                 rows, stride, id, tload.tmask.to_ulong());
         okay.reset();
         for (int j = 0; j < (L1D_LINE_SIZE / 2); ++j) {
             uint64_t vaddr = sextVA(addr + j*stride);
@@ -688,11 +690,11 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
         }
         break;
     case tload_cmd_transpose32:
-        LOG_HART(DEBUG, cpu, "Execute TensorLoadTranspose32 with msk: %d, "
+        LOG_HART(DEBUG, cpu, "(TL-H%u-%lu) Execute TensorLoadTranspose32 with msk: %d, "
                  "coop: %d, start: %d, tenb: %d, addr: 0x%" PRIx64 ", boffset: "
                  "%u, rows: %d, stride: 0x%" PRIx64 ", id: %d, tmask: 0x%lx",
-                 int(msk), int(coop), start, tenb, addr, boffset, rows,
-                 stride, id, tload.tmask.to_ulong());
+                 cpu.mhartid, tload.uuid, int(msk), int(coop), start, tenb, addr, boffset,
+                 rows, stride, id, tload.tmask.to_ulong());
         okay.reset();
         for (int j = 0; j < (L1D_LINE_SIZE / 4); ++j) {
             uint64_t vaddr = sextVA(addr + j*stride);
@@ -801,8 +803,9 @@ void tensor_quant_start(Hart& cpu, uint64_t value)
     // invalid even if the transforms do not use FRM.
     set_rounding_mode(cpu, FRM);
 
-    LOG_HART(DEBUG, cpu, "\tStart TensorQuant with start %u, arows: %u, "
-             "acols: %u, freg: %u, frm: %s", start, arows, acols, freg,
+    const auto uuid = (cpu.core->tquant.uuid = ++(cpu.core->tensor_uuid));
+    LOG_HART(DEBUG, cpu, "\t(TQ-H%u-%lu) Start TensorQuant with start %u, arows: %u, "
+             "acols: %u, freg: %u, frm: %s", cpu.mhartid, uuid, start, arows, acols, freg,
              get_rounding_mode(cpu, FRM));
 
     // If a transformation needs the scratchpad, and the scratchpad is
@@ -858,8 +861,9 @@ void tensor_quant_execute(Hart& cpu)
     arows = arows + 1;
     start = start % L1_SCP_ENTRIES;
 
-    LOG_HART(DEBUG, cpu, "Execute TensorQuant with start: %u, arows: %u, "
-             "acols: %u, freg: %u, frm: %s", start, arows, acols, freg,
+    const auto uuid = cpu.core->tquant.uuid;
+    LOG_HART(DEBUG, cpu, "(TQ-H%u-%lu) Execute TensorQuant with start: %u, arows: %u, "
+             "acols: %u, freg: %u, frm: %s", cpu.mhartid, uuid, start, arows, acols, freg,
              get_rounding_mode(cpu, cpu.core->tquant.frm));
 
     set_rounding_mode(cpu, cpu.core->tquant.frm);
@@ -1035,7 +1039,7 @@ static void tensor_store_from_scp(Hart& cpu, uint64_t tstorereg)
     uint64_t stride   = sext<48>(X31 & 0x0000FFFFFFFFFFC0ULL);
 
     LOG_REG(":", 31);
-    LOG_HART(DEBUG, cpu, "\tExecute TensorStoreFromScp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
+    LOG_HART(DEBUG, cpu, "\tStart/Execute TensorStoreFromScp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
 
     notify_tensor_store(cpu, true, rows, 4, 1);
 
@@ -1098,8 +1102,12 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
     uint64_t stride   = sext<48>(X31 & 0x0000FFFFFFFFFFF0ULL);
 
     LOG_REG(":", 31);
-    LOG_HART(DEBUG, cpu, "\tStart TensorStore with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
-        addr, stride, regstart, rows, cols, srcinc, coop);
+
+    const auto uuid = (cpu.core->tstore.uuid = ++(cpu.core->tensor_uuid));
+    LOG_HART(DEBUG, cpu, "\t(TS-H%u-%lu) Start TensorStore with addr: %016" PRIx64 ", "
+             "stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, "
+             "srcinc: %d, coop: %d", cpu.mhartid, uuid, addr, stride, regstart, rows,
+             cols, srcinc, coop);
 
     // Check legal coop combination
     // xs[50:49]/xs[56:55]
@@ -1167,8 +1175,10 @@ void tensor_store_execute(Hart& cpu)
 
     notify_tensor_store(cpu, false, rows, cols, coop);
  
-    LOG_HART(DEBUG, cpu, "\tExecute TensorStore with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
-        addr, stride, regstart, rows, cols, srcinc, coop);
+    const auto uuid = cpu.core->tstore.uuid;
+    LOG_HART(DEBUG, cpu, "(TS-H%u-%lu) Execute TensorStore with addr: %016" PRIx64 ", "
+             "stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, "
+             "coop: %d", cpu.mhartid, uuid, addr, stride, regstart, rows, cols, srcinc, coop);
 
     // For all the rows
     int src = regstart;
@@ -1226,10 +1236,11 @@ static void tensor_fma32_execute(Hart& cpu)
         bstart = 0;
     }
 
-    LOG_HART(DEBUG, cpu, "Execute TensorFMA32 with msk: %d, bcols: %d, "
+    const auto uuid = cpu.core->tmul.uuid;
+    LOG_HART(DEBUG, cpu, "(TM-H%u-%lu) Execute TensorFMA32 with msk: %d, bcols: %d, "
              "arows: %d, acols: %d, aoffset: %d, tenb: %d, bstart: %d, "
-             "astart: %d, mul: %d, rm: %s, tmask: 0x%lx", usemsk, bcols,
-             arows, acols, aoffset, tenb, bstart, astart, first_pass,
+             "astart: %d, mul: %d, rm: %s, tmask: 0x%lx", cpu.mhartid, uuid, usemsk,
+             bcols, arows, acols, aoffset, tenb, bstart, astart, first_pass,
              get_rounding_mode(cpu, cpu.core->tmul.frm), tmask.to_ulong());
 
     set_rounding_mode(cpu, cpu.core->tmul.frm);
@@ -1324,10 +1335,11 @@ static void tensor_fma16a32_execute(Hart& cpu)
         bstart = 0;
     }
 
-    LOG_HART(DEBUG, cpu, "Execute TensorFMA16A32 with msk: %d, bcols: %d, "
+    const auto uuid = cpu.core->tmul.uuid;
+    LOG_HART(DEBUG, cpu, "(TM-H%u-%lu) Execute TensorFMA16A32 with msk: %d, bcols: %d, "
              "arows: %d, acols: %d, aoffset: %d, tenb: %d, bstart: %d, "
-             "astart: %d, mul: %d, rm: rtz, tmask: 0x%lx", usemsk, bcols,
-             arows, acols*2, aoffset*2, tenb, bstart, astart, first_pass,
+             "astart: %d, mul: %d, rm: rtz, tmask: 0x%lx", cpu.mhartid, uuid, usemsk,
+             bcols, arows, acols*2, aoffset*2, tenb, bstart, astart, first_pass,
              tmask.to_ulong());
 
     set_rounding_mode(cpu, softfloat_round_minMag);
@@ -1429,11 +1441,12 @@ static void tensor_ima8a32_execute(Hart& cpu)
         bstart = 0;
     }
 
-    LOG_HART(DEBUG, cpu, "Execute TensorIMA8A32 with msk: %d, bcols: %d, "
+    const auto uuid = cpu.core->tmul.uuid;
+    LOG_HART(DEBUG, cpu, "(TM-H%u-%lu) Execute TensorIMA8A32 with msk: %d, bcols: %d, "
              "arows: %d, acols: %d, aoffset: %d, dst: %d, ub: %d, ua: %d, "
-             "tenb: %d, bstart: %d, astart: %d mul: %d, tmask: 0x%lx", usemsk,
-             bcols, arows, acols*4, aoffset*4, tenc2rf, ub, ua, tenb, bstart,
-             astart, first_pass, tmask.to_ulong());
+             "tenb: %d, bstart: %d, astart: %d mul: %d, tmask: 0x%lx", cpu.mhartid, uuid,
+             usemsk, bcols, arows, acols*4, aoffset*4, tenc2rf, ub, ua, tenb,
+             bstart, astart, first_pass, tmask.to_ulong());
 
     for (int k = 0; k < acols; k += 4) {
         notify_tensor_fma_new_pass(cpu);
@@ -1613,27 +1626,29 @@ void tensor_fma_start(Hart& cpu, uint64_t control)
         throw instruction_restart();
     }
 
+    const auto uuid = (cpu.core->tmul.uuid = ++(cpu.core->tensor_uuid));
+
     switch (type) {
     case tfma_type_fp32:
         // Illegal instruction exception has higher priority than other errors
         set_rounding_mode(cpu, FRM);
-        LOG_HART(DEBUG, cpu, "\tStart TensorFMA32 with msk: %d, bcols: %d, "
+        LOG_HART(DEBUG, cpu, "\t(TM-H%u-%lu) Start TensorFMA32 with msk: %d, bcols: %d, "
                  "arows: %d, acols: %d, aoffset: %d, tenb: %d, bstart: %d, "
-                 "astart: %d, mul: %d, rm: %s", msk, bcols, arows, acols,
+                 "astart: %d, mul: %d, rm: %s", cpu.mhartid, uuid, msk, bcols, arows, acols,
                  aoffset, tenb, bstart, astart, mul,
                  get_rounding_mode(cpu, FRM));
         break;
     case tfma_type_fp16:
-        LOG_HART(DEBUG, cpu, "\tStart TensorFMA16A32 with msk: %d, bcols: %d, "
+        LOG_HART(DEBUG, cpu, "\t(TM-H%u-%lu) Start TensorFMA16A32 with msk: %d, bcols: %d, "
                  "arows: %d, acols: %d, aoffset: %d, tenb: %d, bstart: %d, "
-                 "astart: %d, mul: %d, rm: rtz", msk, bcols, arows, acols*2,
+                 "astart: %d, mul: %d, rm: rtz", cpu.mhartid, uuid, msk, bcols, arows, acols*2,
                  aoffset*2, tenb, bstart, astart, mul);
         break;
     case tfma_type_int8:
-        LOG_HART(DEBUG, cpu, "\tStart TensorIMA8A32 with msk: %d, bcols: %d, "
+        LOG_HART(DEBUG, cpu, "\t(TM-H%u-%lu) Start TensorIMA8A32 with msk: %d, bcols: %d, "
                  "arows: %d, acols: %d, aoffset: %d, dst: %d, ub: %d, ua: %d, "
-                 "tenb: %d, bstart: %d, astart: %d mul: %d", msk, bcols, arows,
-                 acols*4, aoffset*4, dst, ub, ua, tenb, bstart, astart, mul);
+                 "tenb: %d, bstart: %d, astart: %d mul: %d", cpu.mhartid, uuid, msk, bcols,
+                 arows, acols*4, aoffset*4, dst, ub, ua, tenb, bstart, astart, mul);
         break;
     default:
         throw trap_illegal_instruction(cpu.inst.bits);
@@ -1824,8 +1839,9 @@ void tensor_reduce_start(Hart& cpu, uint64_t value)
         return;
     }
 
-    LOG_HART(DEBUG, cpu, "\tStart %s(%s) with partner: H%u, freg: %u, "
-             "count: %u", reducecmd[static_cast<int>(command)],
+    const auto uuid = (reduce.uuid = ++(cpu.core->tensor_uuid));
+    LOG_HART(DEBUG, cpu, "\t(TR-H%u-%lu) Start %s(%s) with partner: H%u, freg: %u, "
+             "count: %u", cpu.mhartid, uuid, reducecmd[static_cast<int>(command)],
              ((reduce.state == TReduce::State::waiting_to_receive)
               ? "recv" : "send"), reduce.hart->mhartid, reduce.freg,
              reduce.count);
@@ -2009,8 +2025,10 @@ void tensor_reduce_execute(Hart& cpu)
     }
 
 #ifndef ZSIM
+    const auto uuid = cpu.core->reduce.uuid;
     LOG_HART(DEBUG, cpu,
-             "Execute tensor reduce with sender=H%u funct=%s count=%u rmode=%s",
+             "(TR-H%u-%lu) Execute tensor reduce with sender=H%u funct=%s count=%u rmode=%s",
+             cpu.mhartid, uuid,
              snd_cpu.mhartid, fnctnm[cpu.core->reduce.funct],
              cpu.core->reduce.count,
              get_rounding_mode(cpu, cpu.core->reduce.frm));
