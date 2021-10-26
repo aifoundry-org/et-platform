@@ -78,6 +78,15 @@
         "t5",
         "t6"
     ],
+    "TF_UMODE_TRACE_CONFIG_INFO": {
+        "buffer": "uint64_t",
+        "buffer_size": "uint32_t",
+        "threshold": "uint32_t",
+        "shire_mask": "uint64_t",
+        "thread_mask": "uint64_t",
+        "event_mask": "uint32_t",
+        "filter_mask": "uint32_t"
+    },
     "tf_sp_command_ids.description": "List of unique TF command names handled by SP and their associated id (HW TF commands from 0 - 69 and SW TF commands from 97 - 255)",
     "tf_sp_command_ids.instruction": "To add a new test, a new TF command ID should be added to tf_sp_command_ids, a corresponding response to tf_sp_response_ids",
     "tf_sp_command_ids": {
@@ -1027,13 +1036,13 @@
         },
         "TF_CMD_MM_KERNEL_LAUNCH": {
             "flags": 2,
-            "payload_size": 40,
+            "payload_size": 32,
             "payload_args": {
                 "code_start_address": "uint64_t",
                 "pointer_to_args": "uint64_t",
                 "exception_buffer": "uint64_t",
                 "shire_mask": "uint64_t",
-                "argument_payload": "uint64_t"
+                "argument_payload": "flexible_bytes"
             }
         },
         "TF_CMD_MM_TRACE_RT_CONFIG": {
