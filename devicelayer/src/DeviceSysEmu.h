@@ -63,7 +63,7 @@ public:
   uint64_t getDramBaseAddress() const override;
   void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) override;
   void freeDmaBuffer(void* dmaBuffer) override;
-  bool getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) override;
+  bool getTraceBufferServiceProcessor(int device, SP_TRACE_BUFFER_TYPE trace_type, std::vector<std::byte>& response) override;
   DeviceConfig getDeviceConfig(int device) override;
   int updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) override;
   size_t getFreeCmaMemory() const override;

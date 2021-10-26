@@ -483,7 +483,8 @@ bool DevicePcie::receiveResponseServiceProcessor(int device, std::vector<std::by
   return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_POP_CQ, &rspInfo);
 }
 
-bool DevicePcie::getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) {
+bool DevicePcie::getTraceBufferServiceProcessor(int device, SP_TRACE_BUFFER_TYPE trace_type, std::vector<std::byte>& response) {
+
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
   }
@@ -492,7 +493,15 @@ bool DevicePcie::getTraceBufferServiceProcessor(int device, std::vector<std::byt
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
   response.resize(deviceInfo.spTraceRegionSize_);
-  return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER, response.data());
+  if (trace_type == SP_TRACE_BUFFER) {
+    return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER, response.data());
+  }
+  else if (trace_type == MM_TRACE_BUFFER) {
+    return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_EXTRACT_MM_TRACE_BUFFER, response.data());
+  }
+  else {
+    throw Exception("Invalid Trace Buffer Type");
+  }
 }
 
 int DevicePcie::updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) {

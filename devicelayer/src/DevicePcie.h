@@ -41,7 +41,7 @@ public:
   DeviceState getDeviceStateServiceProcessor(int device) const override;
   size_t getSubmissionQueueSizeMasterMinion(int device) const override;
   size_t getSubmissionQueueSizeServiceProcessor(int device) const override;
-  bool getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) override;
+  bool getTraceBufferServiceProcessor(int device, SP_TRACE_BUFFER_TYPE trace_type, std::vector<std::byte>& response) override;
   int updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) override;
   int getDmaAlignment() const override;
   uint64_t getDramSize() const override;

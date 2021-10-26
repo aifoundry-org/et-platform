@@ -53,6 +53,9 @@ struct DeviceConfig {
 /// \brief This enum contains possible device states
 enum class DeviceState { Ready, PendingCommands, NotResponding, Undefined };
 
+/// \brief This enum contains possible trace buffer types to extract from SP
+enum SP_TRACE_BUFFER_TYPE { SP_TRACE_BUFFER, MM_TRACE_BUFFER, CM_TRACE_BUFFER };
+
 class Exception : public dbg::StackException {
   using dbg::StackException::StackException;
 };
@@ -212,7 +215,7 @@ public:
   ///
   /// @returns false if there was no response to be received
   ///
-  virtual bool getTraceBufferServiceProcessor(int device, std::vector<std::byte>& response) = 0;
+  virtual bool getTraceBufferServiceProcessor(int device, SP_TRACE_BUFFER_TYPE trace_type, std::vector<std::byte>& response) = 0;
 
   /// \brief Writes firmware image on DRAM of given device
   ///
