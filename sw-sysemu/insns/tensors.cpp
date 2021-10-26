@@ -737,15 +737,16 @@ void tensor_load_l2_start(Hart& cpu, uint64_t control)
     uint64_t stride  = X31 & 0xFFFFFFFFFFC0ULL;
     uint32_t id      = X31 & 1ULL;
 
-    int      tm      = (control >> 63) & 0x1;
+    int      msk     = (control >> 63) & 0x1;
     int      dst     = ((control >> 46) & 0x1FFFC)  + ((control >> 4)  & 0x3);
     uint64_t base    = control & 0xFFFFFFFFFFC0ULL;
     int      rows    = ((control     ) & 0xF) + 1;
     uint64_t addr    = sext<48>(base);
 
     LOG_REG(":", 31);
-    LOG_HART(DEBUG, cpu, "TensorLoadL2SCP: rows:%d - tm:%d - dst:%d - addr:0x%" PRIx64 " - stride: 0x%" PRIx64 " - id: %d",
-        rows, tm, dst, addr, stride, id);
+    LOG_HART(DEBUG, cpu, "\tStart/Execute TensorLoadL2SCP with msk:%d, start: %d, "
+             "addr: 0x%" PRIx64 ", rows: %d, stride: 0x%" PRIx64 ", id: %d",
+             msk, dst, addr, rows, stride, id);
 
     if (id == 0) {
         cpu.stop_waiting(Hart::Waiting::tload_L2_0);
@@ -755,7 +756,7 @@ void tensor_load_l2_start(Hart& cpu, uint64_t control)
 
     uint64_t shire = cpu.shireid();
     for (int i = 0; i < rows; ++i) {
-        if (!tm || cpu.tensor_mask[i]) {
+        if (!msk || cpu.tensor_mask[i]) {
             uint64_t l2scp_addr = L2_SCP_BASE + shire * L2_SCP_OFFSET + ((dst + i) * L1D_LINE_SIZE);
             uint64_t vaddr = sextVA(addr + i*stride);
             assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
@@ -1339,7 +1340,7 @@ static void tensor_fma16a32_execute(Hart& cpu)
     LOG_HART(DEBUG, cpu, "(TM-H%u-%lu) Execute TensorFMA16A32 with msk: %d, bcols: %d, "
              "arows: %d, acols: %d, aoffset: %d, tenb: %d, bstart: %d, "
              "astart: %d, mul: %d, rm: rtz, tmask: 0x%lx", cpu.mhartid, uuid, usemsk,
-             bcols, arows, acols*2, aoffset*2, tenb, bstart, astart, first_pass,
+             bcols, arows, acols, aoffset, tenb, bstart, astart, first_pass,
              tmask.to_ulong());
 
     set_rounding_mode(cpu, softfloat_round_minMag);
@@ -1445,7 +1446,7 @@ static void tensor_ima8a32_execute(Hart& cpu)
     LOG_HART(DEBUG, cpu, "(TM-H%u-%lu) Execute TensorIMA8A32 with msk: %d, bcols: %d, "
              "arows: %d, acols: %d, aoffset: %d, dst: %d, ub: %d, ua: %d, "
              "tenb: %d, bstart: %d, astart: %d mul: %d, tmask: 0x%lx", cpu.mhartid, uuid,
-             usemsk, bcols, arows, acols*4, aoffset*4, tenc2rf, ub, ua, tenb,
+             usemsk, bcols, arows, acols, aoffset, tenc2rf, ub, ua, tenb,
              bstart, astart, first_pass, tmask.to_ulong());
 
     for (int k = 0; k < acols; k += 4) {
@@ -1473,8 +1474,6 @@ static void tensor_ima8a32_execute(Hart& cpu)
                         notify_tensor_fma_write(cpu, k/4, true, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, FREGS[i*TFMA_REGS_PER_ROW + j/VLENW].u32[j%VLENW]);
                         written[j/VLENW] = true;
                     }
-                    if (written[0]) LOG_FREG("=", i*TFMA_REGS_PER_ROW);
-                    if (written[1]) LOG_FREG("=", i*TFMA_REGS_PER_ROW + 1);
                 }
                 else if (first_pass && !k) {
                     for (int j = 0; j < bcols; ++j) {
@@ -1482,15 +1481,12 @@ static void tensor_ima8a32_execute(Hart& cpu)
                         notify_tensor_fma_write(cpu, 0, false, i*TFMA_REGS_PER_ROW+j/VLENW, j%VLENW, TENC[i*TFMA_REGS_PER_ROW+j/VLENW].u32[j%VLENW]);
                         written[j/VLENW] = true;
                     }
-                    if (written[0]) LOG_CREG("=", i*TFMA_REGS_PER_ROW);
-                    if (written[1]) LOG_CREG("=", i*TFMA_REGS_PER_ROW + 1);
                 }
-                continue;
             }
 
             // If first_pass is 1 and this is the first iteration we do
             // a1*b1+a2*b2+a3*b3+a4*b4 instead of c0+a1*b1+a2*b2+a3*b3+a4*b4
-            if (first_pass && !k) {
+            else if (first_pass && !k) {
 #define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].u8[(aoffset+k+(x)) % L1D_LINE_SIZE]
                 int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
                 int32_t a2 = ua ? ASRC(1) : sext8_2(ASRC(1));
@@ -1512,6 +1508,7 @@ static void tensor_ima8a32_execute(Hart& cpu)
                     written[j/VLENW] = true;
                 }
             }
+
             // If all products are 0, we can skip the operation, except if TenC must
             // be copied to FREGS and this is the last iteration. NB: The detection
             // is done at 32-bit granularity, not at element (8-bit) granularity.
@@ -1522,6 +1519,10 @@ static void tensor_ima8a32_execute(Hart& cpu)
                 int32_t a3 = ua ? ASRC(2) : sext8_2(ASRC(2));
                 int32_t a4 = ua ? ASRC(3) : sext8_2(ASRC(3));
 #undef ASRC
+                LOG_SCP_32x1(":", (astart+i) % L1_SCP_ENTRIES, ((aoffset+k) % L1D_LINE_SIZE) / 4);
+                L1_SCP_CHECK_READ(cpu, (astart+i) % L1_SCP_ENTRIES);
+                LOG_CREG(":", i*TFMA_REGS_PER_ROW);
+                if (bcols > 1) LOG_CREG(":", i*TFMA_REGS_PER_ROW + 1);
                 for (int j = 0; j < bcols; ++j) {
 #define BSRC(x) tmpb.u8[j*4+(x)]
                     int32_t b1 = ub ? BSRC(0) : sext8_2(BSRC(0));
@@ -1546,6 +1547,7 @@ static void tensor_ima8a32_execute(Hart& cpu)
                     written[j/VLENW] = true;
                 }
             }
+
             if (write_freg) {
                 if (written[0]) LOG_FREG("=", i*TFMA_REGS_PER_ROW);
                 if (written[1]) LOG_FREG("=", i*TFMA_REGS_PER_ROW + 1);
