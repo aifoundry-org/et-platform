@@ -167,6 +167,7 @@ add_subdirectory("abort")
 add_subdirectory("add_vector")
 add_subdirectory("cm_umode_test")
 add_subdirectory("memset")
+add_subdirectory("bandwidth")
 add_subdirectory("beef")
 add_subdirectory("trace")
 # Old Trace tests disabled for now until we update them to use new Tracing lib
