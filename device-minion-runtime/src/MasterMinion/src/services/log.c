@@ -42,7 +42,8 @@ static log_interface_t Log_Interface __attribute__((aligned(64))) = LOG_DUMP_TO_
 /*! \def CHECK_STRING_FILTER
     \brief This checks if trace string log level is enabled to log the given level.
 */
-#define CHECK_STRING_FILTER(cb, log_level) ((atomic_load_local_32(&cb->filter_mask) & TRACE_FILTER_STRING_MASK) >= log_level)
+#define CHECK_STRING_FILTER(cb, log_level) \
+    ((atomic_load_local_32(&cb->filter_mask) & TRACE_FILTER_STRING_MASK) >= log_level)
 
 /************************************************************************
 *
@@ -66,7 +67,7 @@ static log_interface_t Log_Interface __attribute__((aligned(64))) = LOG_DUMP_TO_
 void Log_Init()
 {
     /* Init console lock to released state */
-    init_global_spinlock((spinlock_t*)FW_GLOBAL_UART_LOCK_ADDR, 0);
+    init_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR, 0);
 }
 
 /************************************************************************
@@ -158,6 +159,15 @@ int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
         /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
         type message. */
         bytes_written = TRACE_STRING_MAX_SIZE;
+#if MM_TRACE_EVICT_ENABLE
+        /* Evict trace buffer to L3 so that it can be access on host side for extraction
+           through IOCTL */
+        if (level <= LOG_TRACE_EVICT_LEVEL)
+        {
+            Trace_Evict_Buffer_MM();
+            Trace_Evict_CM_Buffer();
+        }
+#endif
     }
     else
     {
@@ -205,6 +215,15 @@ int32_t __Log_Write_String(log_level_e level, const char *str, size_t length)
         /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
            type message. */
         bytes_written = TRACE_STRING_MAX_SIZE;
+#if MM_TRACE_EVICT_ENABLE
+        /* Evict trace buffer to L3 so that it can be access on host side for extraction
+           through IOCTL */
+        if (level <= LOG_TRACE_EVICT_LEVEL)
+        {
+            Trace_Evict_Buffer_MM();
+            Trace_Evict_CM_Buffer();
+        }
+#endif
     }
     else
     {

@@ -26,15 +26,15 @@
 #include "device_minion_runtime_build_configuration.h"
 
 #if defined(DEVICE_MINION_RUNTIME_BUILD_RELEASE)
-    #if TEST_FRAMEWORK == 1
-        #define CURRENT_LOG_LEVEL LOG_LEVEL_DEBUG
-    #else
-        #define CURRENT_LOG_LEVEL LOG_LEVEL_ERROR
-    #endif
+#if TEST_FRAMEWORK == 1
+#define CURRENT_LOG_LEVEL LOG_LEVEL_DEBUG
+#else
+#define CURRENT_LOG_LEVEL LOG_LEVEL_ERROR
+#endif
 #elif defined(DEVICE_MINION_RUNTIME_BUILD_DEBUG)
-    #define CURRENT_LOG_LEVEL LOG_LEVEL_DEBUG
+#define CURRENT_LOG_LEVEL LOG_LEVEL_DEBUG
 #elif defined(DEVICE_MINION_RUNTIME_BUILD_INFO)
-    #define CURRENT_LOG_LEVEL LOG_LEVEL_INFO
+#define CURRENT_LOG_LEVEL LOG_LEVEL_INFO
 #endif
 
 /*! \fn void Log_Init(void)
@@ -62,7 +62,8 @@ log_interface_t Log_Get_Interface(void);
     \param ... variable list
     \return Bytes written
 */
-int32_t __Log_Write(log_level_e level, const char *const fmt, ...) __attribute__((format(printf, 2, 3)));
+int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
+    __attribute__((format(printf, 2, 3)));
 
 /*! \fn int32_t Log_Write_String(const char *str, size_t length)
     \brief Write a string log without any restriction by log level
@@ -80,8 +81,12 @@ int32_t __Log_Write_String(log_level_e level, const char *str, size_t length);
     \param ... variable list
     \return Bytes written
 */
-#define Log_Write(level, fmt, ...) \
-    do { if (level <= CURRENT_LOG_LEVEL) __Log_Write(level, fmt, ##__VA_ARGS__); } while(0)
+#define Log_Write(level, fmt, ...)                  \
+    do                                              \
+    {                                               \
+        if (level <= CURRENT_LOG_LEVEL)             \
+            __Log_Write(level, fmt, ##__VA_ARGS__); \
+    } while (0)
 
 /*! \fn int32_t Log_Write_String(const char *str, size_t length)
     \brief Write a string log
@@ -90,10 +95,21 @@ int32_t __Log_Write_String(log_level_e level, const char *str, size_t length);
     \param length Length of string
     \return bytes written
 */
-#define Log_Write_String(level, str, length) \
-    do { if (level <= CURRENT_LOG_LEVEL) __Log_Write_String(level, str, length); } while(0)
+#define Log_Write_String(level, str, length)        \
+    do                                              \
+    {                                               \
+        if (level <= CURRENT_LOG_LEVEL)             \
+            __Log_Write_String(level, str, length); \
+    } while (0)
 
-#define ASSERT_LOG(log_level,msg,expr) \
-    do { if (!(expr)) Log_Write(log_level,"%s || File:%s Line:%d\r\n", msg, __FILE__, __LINE__); } while(0)
+#define ASSERT_LOG(log_level, msg, expr)                                                \
+    do                                                                                  \
+    {                                                                                   \
+        if (!(expr))                                                                    \
+            Log_Write(log_level, "%s || File:%s Line:%d\r\n", msg, __FILE__, __LINE__); \
+    } while (0)
+
+/* Trace eviction level */
+#define LOG_TRACE_EVICT_LEVEL LOG_LEVEL_ERROR
 
 #endif /* LOG1_DEFS_H */
