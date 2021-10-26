@@ -78,6 +78,8 @@ struct TLoad {
     std::bitset<16> tmask;  // local tensor_mask value
     bool            paired; // only valid for loads to tenb
     State           state;  // FSM state
+
+    uint64_t uuid = 0;
 };
 
 
@@ -92,6 +94,8 @@ struct TMul {
     std::bitset<16> tmask;  // Local tensor_mask value
     uint8_t         frm;    // Rounding mode
     State           state;  // FSM state
+
+    uint64_t uuid = 0;
 };
 
 
@@ -104,6 +108,8 @@ struct TQuant {
     uint64_t  value;  // CSR write value
     uint8_t   frm;    // Rounding mode
     State     state;  // FSM state
+
+    uint64_t uuid = 0;
 };
 
 
@@ -122,6 +128,8 @@ struct TReduce {
     uint8_t   funct;  // receiver operation to perform
     uint8_t   frm;    // Rounding mode
     State     state;  // FSM state
+
+    uint64_t uuid = 0;
 };
 
 
@@ -134,6 +142,8 @@ struct TStore {
     uint64_t value;  // CSR write value
     uint64_t stride; // x31 stride value
     State    state;  // FSM state
+
+    uint64_t uuid = 0;
 };
 
 
@@ -220,6 +230,9 @@ struct Core {
     uint8_t     excl_mode;        // 1b
     uint8_t     mcache_control;   // 2b
     uint16_t    ucache_control;
+
+    // Unique ID to identify tensor ops in the log
+    uint64_t    tensor_uuid = 0;
 
     // Tensor arithmetic state machines
     TMul        tmul;
