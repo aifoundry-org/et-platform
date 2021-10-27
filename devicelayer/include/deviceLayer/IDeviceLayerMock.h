@@ -38,7 +38,7 @@ public:
   MOCK_CONST_METHOD0(getDevicesCount, int());
   MOCK_METHOD3(allocDmaBuffer, void*(int, size_t sizeInBytes, bool));
   MOCK_METHOD1(freeDmaBuffer, void(void*));
-  MOCK_METHOD3(getTraceBufferServiceProcessor, bool(int, SP_TRACE_BUFFER_TYPE, std::vector<std::byte>&));
+  MOCK_METHOD3(getTraceBufferServiceProcessor, bool(int, TraceBufferType, std::vector<std::byte>&));
   MOCK_METHOD1(getDeviceConfig, DeviceConfig(int));
   MOCK_METHOD2(updateFirmwareImage, int(int, std::vector<unsigned char>&));
   MOCK_CONST_METHOD0(getFreeCmaMemory, size_t());
