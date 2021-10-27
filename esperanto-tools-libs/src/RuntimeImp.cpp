@@ -16,6 +16,7 @@
 #include "dma/DmaBufferImp.h"
 
 #include "dma/HostBufferManager.h"
+#include "runtime/IDmaBuffer.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 
@@ -105,14 +106,26 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
 
   auto stInfo = streamManager_.getStreamInfo(stream);
 
-  // allocate a buffer in the device to load the code
-  auto deviceBuffer = mallocDevice(DeviceId{stInfo.device_}, size, kCacheLineSize);
-
   auto memStream = std::istringstream(std::string(reinterpret_cast<const char*>(data), size), std::ios::binary);
+
   ELFIO::elfio elf;
   if (!elf.load(memStream)) {
     throw Exception("Error parsing elf");
   }
+
+  auto extraSize = 0U;
+  for (auto& segment : elf.segments) {
+    if (segment->get_type() & PT_LOAD) {
+      auto fileSize = segment->get_file_size();
+      auto memSize = segment->get_memory_size();
+      extraSize += memSize - fileSize;
+    }
+  }
+
+  // we need to add all the diff between fileSize and memSize to the final size
+  // allocate a buffer in the device to load the code
+
+  auto deviceBuffer = mallocDevice(DeviceId{stInfo.device_}, size + extraSize, kCacheLineSize);
 
   // copy the execution code into the device
   // iterate over all the LOAD segments, writing them to device memory
@@ -121,23 +134,33 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
   auto entry = elf.get_entry();
 
   std::vector<EventId> events;
-
+  std::vector<std::unique_ptr<IDmaBuffer>> buffers;
   for (auto&& segment : elf.segments) {
     if (segment->get_type() & PT_LOAD) {
       auto offset = segment->get_offset();
       auto loadAddress = segment->get_physical_address();
+      auto fileSize = segment->get_file_size();
       auto memSize = segment->get_memory_size();
       auto addr = reinterpret_cast<uint64_t>(deviceBuffer) + offset;
+      CHECK(memSize >= fileSize);
       if (!basePhysicalAddressCalculated) {
         basePhysicalAddress = loadAddress - offset;
         basePhysicalAddressCalculated = true;
         profileEvent.setLoadAddress(reinterpret_cast<uint64_t>(deviceBuffer)-basePhysicalAddress);
       }
-      RT_VLOG(LOW) << "Found segment: " << segment->get_index() << std::hex << " Offset: 0x" << offset
-                   << " Physical Address: 0x" << loadAddress << " Mem Size: 0x" << memSize << " Copying to address: 0x"
-                   << addr << " Entry: 0x" << entry << "\n";
+      // allocate a dmabuffer to do the copy
+      buffers.emplace_back(allocateDmaBuffer(DeviceId{stInfo.device_}, memSize, true));
+      auto currentBuffer = buffers.back().get();
+      // first fill with fileSize
+      std::copy(data + offset, data + offset + fileSize, currentBuffer->getPtr());
+      if (memSize > fileSize) {
+        RT_VLOG(LOW) << "Memsize of segment " << segment->get_index() << " is larger than fileSize. Filling with 0s";
+        std::fill_n(reinterpret_cast<uint8_t*>(currentBuffer->getPtr()) + fileSize, memSize - fileSize, 0);
+      }
+      RT_VLOG(LOW) << "S: " << segment->get_index() << std::hex << " O: 0x" << offset << " PA: 0x" << loadAddress
+                   << " MS: 0x" << memSize << " FS: 0x" << fileSize << " @: 0x" << addr << " E: 0x" << entry << "\n";
       events.emplace_back(
-        memcpyHostToDevice(stream, data + offset, reinterpret_cast<std::byte*>(addr), memSize, false));
+        memcpyHostToDevice(stream, currentBuffer, reinterpret_cast<std::byte*>(addr), memSize, false));
     }
   }
   if (!basePhysicalAddressCalculated) {
@@ -170,6 +193,9 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
       eventManager_.dispatch(evt);
     });
   }
+  // add another thread to dispatch the buffers once the copy is done
+  blockableThreadPool_.pushTask(
+    [this, buffers = std::move(buffers), evt = loadCodeResult.event_] { waitForEvent(evt); });
   return loadCodeResult;
 }
 
