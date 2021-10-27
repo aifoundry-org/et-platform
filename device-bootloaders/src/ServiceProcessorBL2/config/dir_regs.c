@@ -172,7 +172,7 @@ void DIR_Init(void)
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_NONE) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
-    /* Populate the MM FW Trace buffer memory region attributes */
+    /* Populate the CM FW Trace buffer memory region attributes */
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
         .type = SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE;
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]

@@ -140,7 +140,7 @@
 */
 #define SP_DEV_INTF_MM_TRACE_BUFFER_SIZE               MM_TRACE_BUFFER_SIZE
 
-/* DDR Region 2 CM TRACE_BUFFER (BAR=0, Offset=0x481000, Size=8MB) */
+/* DDR Region 2 CM TRACE_BUFFER (BAR=0, Offset=0x501000, Size=8MB) */
 
 /*! \def SP_DEV_INTF_CM_TRACE_BUFFER_BAR
     \brief A macro that provides the PCI BAR region using which
