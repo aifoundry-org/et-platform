@@ -25,6 +25,13 @@ enum dev_state {
 	DEV_STATE_NOT_RESPONDING
 };
 
+enum trace_buffer_type {
+	TRACE_BUFFER_SP = 0,
+	TRACE_BUFFER_MM,
+	TRACE_BUFFER_CM,
+	TRACE_BUFFER_TYPE_NUM
+};
+
 // clang-format off
 
 struct fw_update_desc {
@@ -106,15 +113,12 @@ struct trace_desc {
 	_IOW(ESPERANTO_PCIE_IOCTL_MAGIC, 10, struct sq_threshold)
 
 #define ETSOC1_IOCTL_GET_DEVICE_MGMT_TRACE_BUFFER_SIZE                         \
-	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 11, __u32)
+	_IOW(ESPERANTO_PCIE_IOCTL_MAGIC, 11, __u8)
 
 #define ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER                          \
-	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 12, void *)
+	_IOWR(ESPERANTO_PCIE_IOCTL_MAGIC, 12, struct trace_desc)
 
 #define ETSOC1_IOCTL_GET_DEVICE_STATE                                          \
 	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 13, __u32)
-
-#define ETSOC1_IOCTL_EXTRACT_MM_TRACE_BUFFER                                   \
-	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 14, void *)
 
 #endif

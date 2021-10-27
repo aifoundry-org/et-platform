@@ -36,8 +36,6 @@ struct et_mapped_region {
 	void __iomem *mapped_baseaddr;
 	u64 soc_addr;
 	u64 size;
-	u32 dma_max_element_size;
-	u16 dma_max_num_of_element;
 };
 
 enum et_msi_vec_idx {
@@ -71,8 +69,6 @@ struct et_mgmt_dev {
 	struct et_squeue **sq_pptr;
 	struct et_cqueue **cq_pptr;
 	struct et_vq_common vq_common;
-	void *trace_buf;
-	u64 minion_shires;
 };
 
 struct et_pci_dev {

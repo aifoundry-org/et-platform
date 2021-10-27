@@ -432,6 +432,7 @@ enum et_ops_boot_status {
  */
 enum et_ops_mem_region_type {
 	OPS_MEM_REGION_TYPE_VQ_BUFFER = 0,
+	/* MMFW abd CMFW regions to be removed under SW-10017 */
 	OPS_MEM_REGION_TYPE_MMFW_TRACE,
 	OPS_MEM_REGION_TYPE_CMFW_TRACE,
 	OPS_MEM_REGION_TYPE_HOST_MANAGED,
@@ -815,7 +816,7 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 			break;
 
 		default:
-			strlcat(err_str, "Incorrect region type: ", len);
+			strlcat(err_str, "Incorrect MGMT region type: ", len);
 			strlcat(err_str, reg_type_str, len);
 			rv = false;
 			break;
@@ -864,7 +865,7 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 			}
 			break;
 		default:
-			strlcat(err_str, "Incorrect region type: ", len);
+			strlcat(err_str, "Incorrect OPS region type: ", len);
 			strlcat(err_str, reg_type_str, len);
 			rv = false;
 			break;
