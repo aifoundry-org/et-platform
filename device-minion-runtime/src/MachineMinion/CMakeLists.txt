@@ -17,7 +17,6 @@ add_riscv_executable(MachineMinion
     src/syscall.c
     src/trap_routine.c
     src/main.c
-    src/pmu.c
     src/minion_cfg.c
     src/build_configuration.c
 )

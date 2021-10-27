@@ -19,10 +19,16 @@
 /*******************************************************************/
 /* Definitions for MM Shire and its Harts                          */
 /*******************************************************************/
+
 /*! \def MM_SHIRE_ID
     \brief Virtual Master Minion Shire NOC ID
 */
 #define MM_SHIRE_ID 32
+
+/*! \def MM_DISPATCHER_HART_ID
+    \brief Master Minion dispatcher hart ID
+*/
+#define MM_DISPATCHER_HART_ID 2048
 
 /*! \def MM_HART_MASK
     \brief Master Minion Hart mask
@@ -37,7 +43,7 @@
 /*! \def MM_RT_THREADS
     \brief Define for Threads which participate in the Device Runtime FW management.
            Currently only lower 16 Minions (32 Harts) of the whole Minion Shire which
-           participate in the Device Runtime. 
+           participate in the Device Runtime.
 */
 #define MM_RT_THREADS 0x0000FFFFU
 

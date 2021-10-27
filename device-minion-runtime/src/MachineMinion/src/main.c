@@ -34,6 +34,9 @@
 /* minion_rt_helpers */
 #include "layout.h"
 
+/* Machine minion specific headers */
+#include "config/mm_config.h"
+
 /* Global variable to keep track of Machine Minions boot */
 static spinlock_t MM_Thread_Boot_Counter[NUM_SHIRES] = { 0 };
 
@@ -60,9 +63,56 @@ static inline void initialize_scp(void)
     );
 }
 
+static inline void mm_setup_default_pmcs(uint32_t hart_id)
+{
+    /* Enable counter in 1st core of the neighborhood only. */
+    if ((hart_id % 16 == 0) || (hart_id % 16 == 1))
+    {
+        /* Configure mhpmevent3 for each neighborhood to count cycles.
+        Enabling it for all cores will accumulate the cycles from all
+        the cores and won't give us any advantage */
+        pmu_core_event_configure(PMU_MHPMEVENT3, PMU_MINION_EVENT_CYCLES);
+
+        /* Configure mhpmevent7 for each neighborhood to count minion icache requests */
+        pmu_core_event_configure(PMU_MHPMEVENT7, PMU_NEIGH_EVENT_MINION_ICACHE_REQ);
+
+        /* Configure mhpmevent8 for each neighborhood to count icache etlink requests */
+        pmu_core_event_configure(PMU_MHPMEVENT8, PMU_NEIGH_EVENT_ICACHE_ETLINK_REQ);
+
+        /* A single hart each neighborhood configures SC PMCs */
+        if (hart_id % 16 == 0)
+        {
+            configure_sc_pmcs(PMU_SC_CTL_STATUS_MASK, PMU_SC_L2_READS, PMU_SC_MSG_SEND);
+        }
+    }
+
+    /* A single hart in shires 0-7 programs the PMCs of mem shires 0-7 */
+    if (((hart_id & 0xF) == NEIGH_HART_MS) && (get_shire_id() < 8) && (get_neighborhood_id() == 3))
+    {
+        configure_ms_pmcs(PMU_MS_CTL_STATUS_MASK, PMU_MS_MESH_READS, PMU_MS_MESH_WRITES, 0, 0);
+    }
+
+    /********************************************/
+    /* Every hart configures the counters below */
+    /********************************************/
+
+    /* Configure mhpmevent4 for each hart to count retired inst0 */
+    pmu_core_event_configure(PMU_MHPMEVENT4, PMU_MINION_EVENT_RETIRED_INST0);
+
+    /* Configure mhpmevent5 for each hart to count retired inst1 */
+    pmu_core_event_configure(PMU_MHPMEVENT5, PMU_MINION_EVENT_RETIRED_INST1);
+
+    /* Configure mhpmevent6 for each hart to count L2 miss req */
+    pmu_core_event_configure(PMU_MHPMEVENT6, PMU_MINION_EVENT_L2_MISS_REQ);
+
+    /* Reset the PMCs. Detatils of which hart resets which PMC can be found in PMU component */
+    reset_pmcs();
+}
+
 void __attribute__((noreturn)) main(void)
 {
     uint64_t temp;
+    uint32_t hart_id = get_hart_id();
 
     // "Upon reset, a hart's privilege mode is set to M. The mstatus fields MIE and MPRV are reset to 0.
     // The pc is set to an implementation-defined reset vector. The mcause register is set to a value
@@ -96,20 +146,16 @@ void __attribute__((noreturn)) main(void)
     asm volatile("csrw mcounteren, %0\n"
         : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
 
-    // Init global console lock
-    if (get_hart_id() == 2048) {
+    /* Init global console lock */
+    if (hart_id == MM_DISPATCHER_HART_ID)
+    {
         init_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR, 0);
     }
 
-    // Enable counter in 1st core of the neighbourhood only. Enabling it for all
-    // cores will accumulate the cycles from all the cores and won't give us any
-    // advantage
-    if (get_hart_id() % 16 == 0 || get_hart_id() % 16 == 1) {
-        // Configure mhpmevent3 for each neighborhood to count cycles
-        pmu_core_event_configure(PMU_MHPMEVENT3, PMU_MINION_EVENT_CYCLES);
-    }
+    /* Setup the default events for PMCs */
+    mm_setup_default_pmcs(hart_id);
 
-    if (get_hart_id() % 64 == 0) { // First HART every shire, master or worker
+    if (hart_id % 64 == 0) { // First HART every shire, master or worker
         // Block user-level PC redirection
         volatile uint64_t *const ipi_redirect_filter_ptr =
             (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, IPI_REDIRECT_FILTER);
@@ -125,7 +171,7 @@ void __attribute__((noreturn)) main(void)
         const uint32_t minion_mask = 0xFFFFU;
 
         // First HART in each neighborhood
-        if (get_hart_id() % 16 == 0) {
+        if (hart_id % 16 == 0) {
             const uint64_t neighborhood_id = get_neighborhood_id();
 
             volatile uint64_t *const mprot_ptr =
@@ -170,7 +216,7 @@ void __attribute__((noreturn)) main(void)
         const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
 
         // First HART in each neighborhood
-        if (get_hart_id() % 16 == 0) {
+        if (hart_id % 16 == 0) {
             const uint64_t neighborhood_id = get_neighborhood_id();
 
             volatile uint64_t *const mprot_ptr =
