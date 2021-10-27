@@ -45,6 +45,7 @@ set(MINION_BL_LIB_HDRS
 #Listing of sources that implement services provided by
 #the MINION_BL (Minion Bootloader) Library
 add_library(minion-bl STATIC
+    src/etsoc/drivers/pmu/pmu.c
     src/transports/mm_cm_iface/broadcast.c
 )
 

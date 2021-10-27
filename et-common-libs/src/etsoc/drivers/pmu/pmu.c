@@ -58,17 +58,11 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
                                  PMU_NEIGH_COUNTERS_PER_HART * 2;
     // We use 1 hart so that there is no race between configuration / resetting and sampling
     if (program_sc_harts) {
-        // Turn off clock gating so you count cycles and related events properly
-        volatile uint64_t *sc_reqq_ctl_esr = (uint64_t *)ESR_CACHE(shire_id, neigh_id, SC_REQQ_CTL);
-        *sc_reqq_ctl_esr |= (0x1ULL << 22);
-
         uint64_t ctl_status_cfg = *hart_sc_cfg_data;
         uint64_t pmc0_cfg = *(hart_sc_cfg_data+1);
         uint64_t pmc1_cfg = *(hart_sc_cfg_data+2);
-        ret = ret + pmu_shire_cache_event_configure(shire_id, neigh_id, 0, pmc0_cfg);
-        ret = ret + pmu_shire_cache_event_configure(shire_id, neigh_id, 1, pmc1_cfg);
-        // Set bits in ctl_status register that show whether we monitor events or resources.
-        pmu_shire_cache_counter_set(shire_id, neigh_id, ctl_status_cfg);
+
+        ret = ret + configure_sc_pmcs(ctl_status_cfg, pmc0_cfg, pmc1_cfg);
     }
 
     // Shire id's 0-7 just to simplify code initialize ms-id's 0-7.
@@ -76,21 +70,56 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
     // Currently last hart on neigh 3 of shires 0-7 programs memshire pref ctrl registers,
     // Use one hart to avoid races
     if (program_ms_harts) {
-
-        // First program the ctl_status register to the events you are going to measure
-        uint64_t *hart_ms_cfg_data = conf_buffer + PMU_EVENT_MEMSHIRE_OFFSET + shire_id * PMU_MS_COUNTERS_PER_MS;
-        pmu_memshire_event_set(shire_id, *hart_ms_cfg_data);
-
-        // Now set the PMC qual registers -- we can probably save 2 of the 4 writes in most cases
-        for (uint64_t i=0; i < 4; i++) {
-            hart_ms_cfg_data = conf_buffer + PMU_EVENT_MEMSHIRE_OFFSET + shire_id * PMU_MS_COUNTERS_PER_MS + i + 1;
-            ret = ret + pmu_memshire_event_configure(shire_id, i, *hart_ms_cfg_data);
-        }
+        uint64_t *ctl_status_cfg = conf_buffer + PMU_EVENT_MEMSHIRE_OFFSET + shire_id * PMU_MS_COUNTERS_PER_MS;
+        uint64_t *ddrc_perfmon_p0_qual = ctl_status_cfg + 1;
+        uint64_t *ddrc_perfmon_p1_qual = ctl_status_cfg + 2;
+        uint64_t *ddrc_perfmon_p0_qual2 = ctl_status_cfg + 3;
+        uint64_t *ddrc_perfmon_p1_qual2 = ctl_status_cfg + 4;
+        // program the values
+        ret = configure_ms_pmcs(*ctl_status_cfg, *ddrc_perfmon_p0_qual, *ddrc_perfmon_p1_qual, *ddrc_perfmon_p0_qual2, *ddrc_perfmon_p1_qual2);
     }
 
     if (reset_counters) {
         ret = ret + reset_pmcs();
     }
+
+    return ret;
+}
+
+// Must be called by only one hart in a neighborhood
+int64_t configure_sc_pmcs(uint64_t ctl_status_cfg, uint64_t pmc0_cfg, uint64_t pmc1_cfg)
+{
+    int64_t ret;
+    uint64_t hart_id = get_hart_id();
+    uint64_t neigh_id = (hart_id >> 4) & 0x3;
+    uint64_t shire_id = (hart_id >> 6) & 0x1F;
+
+    // Turn off clock gating so you count cycles and related events properly
+    volatile uint64_t *sc_reqq_ctl_esr = (uint64_t *)ESR_CACHE(shire_id, neigh_id, SC_REQQ_CTL);
+    *sc_reqq_ctl_esr |= (0x1ULL << 22);
+
+    ret = pmu_shire_cache_event_configure(shire_id, neigh_id, 0, pmc0_cfg);
+    ret = ret + pmu_shire_cache_event_configure(shire_id, neigh_id, 1, pmc1_cfg);
+    // Set bits in ctl_status register that show whether we monitor events or resources.
+    pmu_shire_cache_counter_set(shire_id, neigh_id, ctl_status_cfg);
+
+    return ret;
+}
+
+int64_t configure_ms_pmcs(uint64_t ctl_status_cfg, uint64_t ddrc_perfmon_p0_qual, uint64_t ddrc_perfmon_p1_qual,
+    uint64_t ddrc_perfmon_p0_qual2, uint64_t ddrc_perfmon_p1_qual2)
+{
+    int64_t ret;
+    uint64_t shire_id = get_shire_id();
+
+    // First program the ctl_status register to the events you are going to measure
+    pmu_memshire_event_set(shire_id, ctl_status_cfg);
+
+    // Now set the PMC qual registers
+    ret = pmu_memshire_event_configure(shire_id, 0, ddrc_perfmon_p0_qual);
+    ret = ret + pmu_memshire_event_configure(shire_id, 1, ddrc_perfmon_p1_qual);
+    ret = ret + pmu_memshire_event_configure(shire_id, 3, ddrc_perfmon_p0_qual2);
+    ret = ret + pmu_memshire_event_configure(shire_id, 4, ddrc_perfmon_p1_qual2);
 
     return ret;
 }

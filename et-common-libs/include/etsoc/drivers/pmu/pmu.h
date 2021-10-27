@@ -113,6 +113,40 @@ extern "C" {
 #define PMU_MINION_EVENT_TREDUCE_INST     27
 #define PMU_MINION_EVENT_TQUANT_INST      28
 
+// Neighborhood events
+#define PMU_NEIGH_EVENT_NONE                         0
+#define PMU_NEIGH_EVENT_MINION_ETLINK_REQ            1
+#define PMU_NEIGH_EVENT_MINION_ETLINK_RSP            2
+#define PMU_NEIGH_EVENT_COOP_LOAD_REQ                3
+#define PMU_NEIGH_EVENT_INTER_COOP_LOAD_REQ          4
+#define PMU_NEIGH_EVENT_COOP_LOAD_RSP                5
+#define PMU_NEIGH_EVENT_COOP_STORE_REQ               6
+#define PMU_NEIGH_EVENT_COOP_STORE_RSP               7
+#define PMU_NEIGH_EVENT_MINION_ICACHE_REQ            8
+#define PMU_NEIGH_EVENT_MINION_ICACHE_RSP            9
+#define PMU_NEIGH_EVENT_MINION_PTW_REQ               10
+#define PMU_NEIGH_EVENT_MINION_PTW_RSP               11
+#define PMU_NEIGH_EVENT_MINION_FLN_MSG               12
+#define PMU_NEIGH_EVENT_ICACHE_ETLINK_REQ            13
+#define PMU_NEIGH_EVENT_ICACHE_ETLINK_RSP            14
+#define PMU_NEIGH_EVENT_ICACHE_L1_SRAM_REQ           15
+#define PMU_NEIGH_EVENT_ICACHE_L1_SRAM_RSP           16
+#define PMU_NEIGH_EVENT_PTW_ETLINK_REQ               17
+#define PMU_NEIGH_EVENT_PTW_ETLINK_RSP               18
+#define PMU_NEIGH_EVENT_INTER_FIFO_PUSH_ETLINK_REQ   21
+#define PMU_NEIGH_EVENT_BANK_UC_FIFO_PUSH_ETLINK_REQ 22
+#define PMU_NEIGH_EVENT_SC_UC_ETLINK_RSP             23
+
+// SC default config values
+#define PMU_SC_CTL_STATUS_MASK 0x200100 /* Enables p0 and p1 counters in event mode 0 */
+#define PMU_SC_L2_READS        0x4250
+#define PMU_SC_MSG_SEND        0x4
+
+// MS default config values
+#define PMU_MS_CTL_STATUS_MASK 0xC00600
+#define PMU_MS_MESH_READS      0x00001FDULL
+#define PMU_MS_MESH_WRITES     0x00001FEULL
+
 // Indices of shire cache and memshire PMCs.
 #define PMU_SC_CYCLE_PMC 0
 #define PMU_SC_PMC0      1
@@ -253,16 +287,15 @@ static inline int64_t pmu_shire_cache_event_configure(uint64_t shire_id, uint64_
                                          uint64_t val)
 {
     uint64_t *sc_bank_qualevt_addr = 0;
-    int64_t ret = 0;
     if (evt_reg == 0) {
         sc_bank_qualevt_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_P0_QUAL);
     } else if (evt_reg == 1) {
         sc_bank_qualevt_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_P1_QUAL);
     } else {
-        ret = -1;
+        return -1;
     }
     *sc_bank_qualevt_addr = val;
-    return ret;
+    return 0;
 }
 
 // Set a shire cache PMC to a value
@@ -310,7 +343,6 @@ static inline uint64_t pmu_shire_cache_counter_sample(uint64_t shire_id, uint64_
 static inline int64_t pmu_memshire_event_configure(uint64_t ms_id, uint64_t evt_reg, uint64_t val)
 {
     uint64_t *ms_pmc_ctrl_addr = 0;
-    int64_t ret = 0;
     if (evt_reg == 0) {
         ms_pmc_ctrl_addr = (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_P0_QUAL);
     } else if (evt_reg == 1) {
@@ -320,10 +352,10 @@ static inline int64_t pmu_memshire_event_configure(uint64_t ms_id, uint64_t evt_
     } else if (evt_reg == 3) {
         ms_pmc_ctrl_addr = (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_P1_QUAL2);
     } else {
-        ret = -1;
+        return -1;
     }
     *ms_pmc_ctrl_addr = val;
-    return ret;
+    return 0;
 }
 
 // Set a memshire PMC to a value
@@ -372,6 +404,9 @@ static inline uint64_t pmu_memshire_event_sample(uint64_t ms_id, uint64_t pmc)
 
 // NOTE: THIS IS DEPRECATED
 int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_area_addr);
+int64_t configure_sc_pmcs(uint64_t ctl_status_cfg, uint64_t pmc0_cfg, uint64_t pmc1_cfg);
+int64_t configure_ms_pmcs(uint64_t ctl_status_cfg, uint64_t ddrc_perfmon_p0_qual, uint64_t ddrc_perfmon_p1_qual,
+    uint64_t ddrc_perfmon_p0_qual2, uint64_t ddrc_perfmon_p1_qual2);
 int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr);
 int64_t reset_pmcs(void);
 
