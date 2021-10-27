@@ -70,7 +70,9 @@ macro(test_kernel)
     )
 
   set(TARGET_NAME ${TEST_KERNEL_NAME})
-  set(LINKER_SCRIPT ${SHARED_KERNEL_SRC_DIR}/sections.ld)
+  if (NOT LINKER_SCRIPT)
+    set(LINKER_SCRIPT ${SHARED_KERNEL_SRC_DIR}/sections.ld)
+  endif()
   set(ZEBU_TARGET DDR_NEW)
   set(ZEBU_FILENAME memImage)
 
@@ -165,6 +167,7 @@ endmacro(randomized_test)
 
 add_subdirectory("abort")
 add_subdirectory("add_vector")
+add_subdirectory("bss") 
 add_subdirectory("cm_umode_test")
 add_subdirectory("memset")
 add_subdirectory("bandwidth")
