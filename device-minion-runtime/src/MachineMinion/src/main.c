@@ -43,24 +43,23 @@ static spinlock_t MM_Thread_Boot_Counter[NUM_SHIRES] = { 0 };
 static inline void initialize_scp(void)
 {
     /* setup cache op state machine to zero out the SCP region */
-    __asm__ __volatile__(
-        "li t0, 0x00000901\n"
+    __asm__ __volatile__("li t0, 0x00000901\n"
 
-        "li t1, 0x01c0300030\n"
-        "sd t0, 0(t1)\n"
+                         "li t1, 0x01c0300030\n"
+                         "sd t0, 0(t1)\n"
 
-        "li t1, 0x01c0302030\n"
-        "sd t0, 0(t1)\n"
+                         "li t1, 0x01c0302030\n"
+                         "sd t0, 0(t1)\n"
 
-        "li t1, 0x01c0304030\n"
-        "sd t0, 0(t1)\n"
+                         "li t1, 0x01c0304030\n"
+                         "sd t0, 0(t1)\n"
 
-        "li t1, 0x01c0306030\n"
-        "sd t0, 0(t1)\n"
+                         "li t1, 0x01c0306030\n"
+                         "sd t0, 0(t1)\n"
 
-        "fence iorw, iorw\n"
-            : :
-    );
+                         "fence iorw, iorw\n"
+                         :
+                         :);
 }
 
 static inline void mm_setup_default_pmcs(uint32_t hart_id)
@@ -143,8 +142,7 @@ void __attribute__((noreturn)) main(void)
         : "=&r"(temp));
 
     // Enable all available PMU counters to be sampled in S-mode
-    asm volatile("csrw mcounteren, %0\n"
-        : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
+    asm volatile("csrw mcounteren, %0\n" : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
 
     /* Init global console lock */
     if (hart_id == MM_DISPATCHER_HART_ID)
@@ -155,7 +153,9 @@ void __attribute__((noreturn)) main(void)
     /* Setup the default events for PMCs */
     mm_setup_default_pmcs(hart_id);
 
-    if (hart_id % 64 == 0) { // First HART every shire, master or worker
+    /* First HART every shire, master or worker */
+    if (hart_id % 64 == 0)
+    {
         // Block user-level PC redirection
         volatile uint64_t *const ipi_redirect_filter_ptr =
             (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, IPI_REDIRECT_FILTER);
@@ -165,13 +165,15 @@ void __attribute__((noreturn)) main(void)
         initialize_scp();
     }
 
-    if ((get_shire_id() == 32) &&
-        ((get_minion_id() & 0x1F) < 16)) { // Master shire non-sync minions (lower 16)
+    /* Master shire non-sync minions (lower 16) */
+    if ((get_shire_id() == 32) && ((get_minion_id() & 0x1F) < 16))
+    {
         const uint64_t *const master_entry = (uint64_t *)FW_MASTER_SMODE_ENTRY;
         const uint32_t minion_mask = 0xFFFFU;
 
         // First HART in each neighborhood
-        if (hart_id % 16 == 0) {
+        if (hart_id % 16 == 0)
+        {
             const uint64_t neighborhood_id = get_neighborhood_id();
 
             volatile uint64_t *const mprot_ptr =
@@ -181,7 +183,8 @@ void __attribute__((noreturn)) main(void)
             mprot &= ~0x4Fu;
             // Set secure memory permissions (M/S RX/RW regions), and allow I/O accesses at S-mode
             mprot |= 0x41;
-            if (neighborhood_id != 0) {
+            if (neighborhood_id != 0)
+            {
                 // For Neighborhoods 1-3 in master shire: disable access to PCI-E region
                 mprot |= 0x04;
             }
@@ -202,7 +205,8 @@ void __attribute__((noreturn)) main(void)
 
         // Only thread0s participate in the initial MRPOT config rendezvous
         // thread1s boot up later, long after MPROT has been configured per neighborhood
-        if (get_thread_id() == 0) {
+        if (get_thread_id() == 0)
+        {
             WAIT_FCC(0);
         }
 
@@ -211,12 +215,16 @@ void __attribute__((noreturn)) main(void)
                      "mret           \n" // return in S-mode
                      :
                      : "r"(master_entry));
-    } else { // Worker shire and Master shire sync-minions (upper 16)
+    }
+    else
+    {
+        // Worker shire and Master shire sync-minions (upper 16)
         const uint64_t *const worker_entry = (uint64_t *)FW_WORKER_SMODE_ENTRY;
         const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
 
         // First HART in each neighborhood
-        if (hart_id % 16 == 0) {
+        if (hart_id % 16 == 0)
+        {
             const uint64_t neighborhood_id = get_neighborhood_id();
 
             volatile uint64_t *const mprot_ptr =
@@ -234,7 +242,8 @@ void __attribute__((noreturn)) main(void)
 
         // Only thread0s participate in the initial MRPOT config rendezvous
         // thread1s boot up later, long after MPROT has been configured per neighborhood
-        if (get_thread_id() == 0) {
+        if (get_thread_id() == 0)
+        {
             WAIT_FCC(0);
         }
 
@@ -245,7 +254,8 @@ void __attribute__((noreturn)) main(void)
                      : "r"(worker_entry));
     }
 
-    while (1) {
+    while (1)
+    {
         // Should never get here
     }
 }
