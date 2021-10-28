@@ -256,4 +256,10 @@ void DIR_Set_Service_Processor_Status(int16_t status);
 */
 void DIR_Cache_Size_Init(void);
 
+/*! \fn void DIR_Generic_Attributes_Init(void)
+    \brief Populate the device generic attributes
+    \param None
+*/
+void DIR_Generic_Attributes_Init(void);
+
 #endif /* MGMT_DIR_REGS_H */

@@ -296,6 +296,9 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init thermal power management!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_PM_READY);
 
+    /* Populate the device generic attributes */
+    DIR_Generic_Attributes_Init();
+
     // Initialize DM sampling task
     init_dm_sampling_task();
 

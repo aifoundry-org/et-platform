@@ -68,9 +68,7 @@ void DIR_Init(void)
     Gbl_SP_DIRs->generic_attr.num_mem_regions = SP_DEV_INTF_MEM_REGION_TYPE_NUM;
     Gbl_SP_DIRs->generic_attr.minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
     Gbl_SP_DIRs->generic_attr.form_factor = SP_DEV_CONFIG_FORM_FACTOR_PCIE;
-    Gbl_SP_DIRs->generic_attr.minion_boot_freq = (uint32_t)Get_Minion_Frequency();
     Gbl_SP_DIRs->generic_attr.cache_line_size = CACHE_LINE_SIZE;
-    get_module_tdp_level((uint8_t *)&Gbl_SP_DIRs->generic_attr.device_tdp);
 
     /* Populate the SP VQs attributes */
     Gbl_SP_DIRs->vq_attr.sq_offset = SP_SQ_OFFSET;
@@ -224,6 +222,34 @@ void DIR_Cache_Size_Init(void)
                             Cache_Control_L2_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask);
     Gbl_SP_DIRs->generic_attr.scp_size =
                             Cache_Control_SCP_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask);
+
+    return;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       DIR_Generic_Attributes_Init
+*
+*   DESCRIPTION
+*
+*       Initialize Device Generic Attribute
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void DIR_Generic_Attributes_Init(void)
+{
+    /* Populate the device generic attributes */
+    Gbl_SP_DIRs->generic_attr.minion_boot_freq = (uint32_t)Get_Minion_Frequency();
+    get_module_tdp_level((uint8_t *)&Gbl_SP_DIRs->generic_attr.device_tdp);
 
     return;
 }
