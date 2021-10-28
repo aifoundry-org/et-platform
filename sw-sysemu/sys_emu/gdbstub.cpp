@@ -89,12 +89,18 @@ static inline uint32_t bswap32(uint64_t val)
     return __builtin_bswap32(val);
 }
 
-static inline int from_hex(char ch)
+static inline uint8_t from_hex(char ch)
 {
-    if ((ch >= 'a') && (ch <= 'f'))      return ch - 'a' + 10;
-    else if ((ch >= '0') && (ch <= '9')) return ch - '0';
-    else if ((ch >= 'A') && (ch <= 'F')) return ch - 'A' + 10;
-    return -1;
+    if ((ch >= '0') && (ch <= '9')) {
+        return ch - '0';
+    }
+    if ((ch >= 'a') && (ch <= 'f')) {
+        return ch - 'a' + 10;
+    }
+    if ((ch >= 'A') && (ch <= 'F')) {
+        return ch - 'A' + 10;
+    }
+    return 0xff;
 }
 
 static inline unsigned int to_hex(int digit)
@@ -222,12 +228,12 @@ static inline unsigned target_num_threads()
 /* Returns whether the thread is "physically present" */
 static inline bool target_thread_exists(int thread)
 {
-    return g_sys_emu->thread_is_active(to_target_thread(thread));
+    return g_sys_emu->thread_exists(to_target_thread(thread));
 }
 
 static inline bool target_thread_is_alive(int thread)
 {
-    return g_sys_emu->thread_is_active(to_target_thread(thread))
+    return !g_sys_emu->thread_is_unavailable(to_target_thread(thread))
         /* && !g_sys_emu->thread_is_running(to_target_thread(thread)) */ ;
 }
 
@@ -505,18 +511,22 @@ static ssize_t gdbstub_qxfer_send_object(const char *object, size_t object_size,
     if (offset == object_size) { /* Offset at the end, no more data to be read */
         rsp_send_packet("l");
         return 0;
-    } else if (offset > object_size) { /* Out of bounds */
+    }
+    if (offset > object_size) { /* Out of bounds */
         rsp_send_packet("E16"); /* EINVAL */
         return -EINVAL;
     }
 
-    if (offset + length > object_size) {
+    if (length > object_size - offset) {
         length = object_size - offset;
         resp = 'l';
     } else {
         resp = 'm'; /* More data to be read */
     }
 
+    if (length > GDBSTUB_MAX_PACKET_SIZE) {
+        length = GDBSTUB_MAX_PACKET_SIZE;
+    }
     reply[0] = resp;
     strncpy(&reply[1], object + offset, length);
     reply[length + 1] = '\0';
@@ -796,7 +806,7 @@ static void gdbstub_handle_thread_alive(const char *packet)
 
     thread_id = strtol(&packet[1], NULL, 16);
 
-    if (target_thread_is_alive(thread_id))
+    if (target_thread_exists(thread_id) && target_thread_is_alive(thread_id))
         rsp_send_packet("OK");
     else
         rsp_send_packet("E00");
@@ -804,10 +814,13 @@ static void gdbstub_handle_thread_alive(const char *packet)
 
 static inline void gdbstub_handle_vcont_action(char action, int thread)
 {
-    if (action == 's')
-        target_step(thread);
-    else if (action == 'c')
-        target_continue(thread);
+    if (target_thread_exists(thread)) {
+        if (action == 's') {
+            target_step(thread);
+        } else if (action == 'c') {
+            target_continue(thread);
+        }
+    }
 }
 
 static void gdbstub_handle_vcont(char *packet)
@@ -830,8 +843,9 @@ static void gdbstub_handle_vcont(char *packet)
         LOG_GDBSTUB(DEBUG, "vCont action %s, thread: %d", action, thread);
 
         if (thread == THREAD_ID_ALL_THREADS) {
-            for (unsigned id = 1; id <= target_num_threads(); id++)
+            for (unsigned id = 1; id <= target_num_threads(); id++) {
                 gdbstub_handle_vcont_action(*action, id);
+            }
         } else {
             gdbstub_handle_vcont_action(*action, thread);
         }

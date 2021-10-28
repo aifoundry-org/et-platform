@@ -22,10 +22,10 @@ namespace bemu {
 
 template<unsigned long long Base, unsigned long long N, int ID>
 struct I2c : public MemoryRegion {
-    typedef typename MemoryRegion::addr_type      addr_type;
-    typedef typename MemoryRegion::size_type      size_type;
-    typedef typename MemoryRegion::pointer        pointer;
-    typedef typename MemoryRegion::const_pointer  const_pointer;
+    using addr_type     = typename MemoryRegion::addr_type;
+    using size_type     = typename MemoryRegion::size_type;
+    using pointer       = typename MemoryRegion::pointer;
+    using const_pointer = typename MemoryRegion::const_pointer;
 
     enum : unsigned long long {
         I2C_IC_DATA_CMD = 0x10,
@@ -103,6 +103,9 @@ protected:
     uint32_t pmic_read(const Agent& agent, uint8_t reg_addr) {
         uint32_t result;
         uint32_t plic_source = SPIO_PLIC_GPIO_INTR_ID;
+
+        (void)agent;
+        (void)plic_source;
 
         switch (reg_addr) {
         case PMIC_AVG_POWER_ADDR:

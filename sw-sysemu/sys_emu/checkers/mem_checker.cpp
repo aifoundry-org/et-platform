@@ -318,7 +318,7 @@ bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, ui
 
     // Get timestamps
     uint64_t access_time_stamp = 0;
-    
+
     if(global_found)                                                    access_time_stamp = it_global->second.time_stamp;
     if(shire_found  && it_shire->second.l2 && (location != COH_GLOBAL)) access_time_stamp = it_shire->second.time_stamp;
     if(minion_found && (location == COH_MINION)) {
@@ -739,7 +739,7 @@ void mem_checker::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t s
 
             it_global->second.l2_dirty_shire_id = 255;
         }
-        
+
         // Checks if shire is present
         if(updated && is_shire_clean(it_shire))
         {
@@ -996,10 +996,8 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
         break;
     case bemu::Mem_Access_Fetch: // Load instruction from memory. This must not be included in the directory. Do nothing
         return true;
-        break;
     case bemu::Mem_Access_PTW:     // Page table walker access. Must not be invoked. Fail if so.
         throw std::invalid_argument("unexpected operation PTW");
-        break;
     }
 
     // Adjusts the size based on mask
@@ -1058,7 +1056,7 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
     if((operation & 2) && dirty_evict_va)
     {
         coherent = write(pc, addr & ~0x3FULL, location, shire_id, minion_id, thread_id, size, (addr & 0x30ULL) >> 4);
-        
+
         if(!coherent)
         {
             LOG_AGENT(FTL, *this, "\t(Coherency Write Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
@@ -1128,7 +1126,7 @@ void mem_checker::cb_drain(uint32_t shire_id, uint32_t cache_bank)
 
             if(all_clear)
                 it_global->second.cb_dirty = false;
-            
+
             dump_global(&it_global->second, "cb_drain", "update", addr, 0xFFFFFFFF);
 
             if(is_shire_clean(it_shire))

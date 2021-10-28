@@ -32,15 +32,19 @@ uint64_t write_flb(const Hart& cpu, uint64_t value)
     unsigned shire  = shire_index(cpu);
     unsigned oldval = cpu.chip->shire_other_esrs[shire].fast_local_barrier[barrier];
 
-    LOG_AGENT(DEBUG, cpu, "S%u:fast_local_barrier%u : 0x%x", unsigned(cpu.shireid()), barrier, oldval);
+    LOG_AGENT(DEBUG, cpu, "S%u:fast_local_barrier%u : %u (limit : %u)",
+              unsigned(cpu.shireid()), barrier, oldval, limit);
 
 #ifdef SYS_EMU
-    if (SYS_EMU_PTR->get_flb_check())
-        SYS_EMU_PTR->get_flb_checker().access(oldval, limit, barrier, hart_index(cpu));
+    if (SYS_EMU_PTR->get_flb_check()) {
+        SYS_EMU_PTR->get_flb_checker().access(oldval, limit,
+                                              barrier, hart_index(cpu));
+    }
 #endif
 
     unsigned newval = (oldval == limit) ? 0 : (oldval + 1);
-    LOG_AGENT(DEBUG, cpu, "S%u:fast_local_barrier%u = 0x%x", unsigned(cpu.shireid()), barrier, newval);
+    LOG_AGENT(DEBUG, cpu, "S%u:fast_local_barrier%u = %u",
+              unsigned(cpu.shireid()), barrier, newval);
     cpu.chip->shire_other_esrs[shire].fast_local_barrier[barrier] = newval;
     return (newval == 0);
 }

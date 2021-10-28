@@ -12,6 +12,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 
 ////////////////////////////////////////////////////////////////////////////////
 // Main function
@@ -30,6 +31,6 @@ int main(int argc, char * argv[])
         return EXIT_FAILURE;
     }
 
-    sys_emu emu(cmd_options);
-    return emu.main_internal();
+    std::unique_ptr<sys_emu> emu(new sys_emu(cmd_options));
+    return emu.get()->main_internal();
 }

@@ -266,7 +266,7 @@ float32_t f32_exp2(float32_t a)
 
       //used to be rm=RMM, but RTL is implementing rm=RTZ
     //uint32_t in_rev = ((in_shifted >> 1) + (in_shifted % 2)) % (1 << 24);
-    uint32_t in_rev = (in_shifted >> 1) % (1 << 24);    
+    uint32_t in_rev = (in_shifted >> 1) % (1 << 24);
 
     if(sign) {
         in_rev = ((~in_rev) + 1) % (1 << 24);
@@ -314,7 +314,7 @@ float32_t f32_exp2(float32_t a)
 
     uint64_t mul2 = fma1_part*x2; //Previously shifted 15 & cut 23, adjusted to 6 & 32 to match RTL
     uint64_t fma2 = mul2 + c0;
-    //printf("FMA1_part: 0x%016lx\n", fma1_part); 
+    //printf("FMA1_part: 0x%016lx\n", fma1_part);
     //printf("MUL2: 0x%016lx\tFMA2: 0x%016lx\n", mul2, fma2);
 
     uint32_t full_result = (fma2 >> 31) % (1 << 24); //Previously shifted 21, adjusted to 31 to match RTL

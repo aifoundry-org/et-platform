@@ -19,43 +19,200 @@
 #include <cstdint>
 #include <sstream>
 
+#include "support/intrusive/list.h"
 #include "agent.h"
 #include "cache.h"
 #include "emu_defines.h"
 #include "insn.h"
 #include "mmu.h"
 #include "state.h"
+#include "tensor.h"
 #include "traps.h"
 
 namespace bemu {
 
 
 //
+// Privilege levels
+//
+enum class Privilege {
+    U = 0,
+    S = 1,
+    M = 3
+};
+
+
+//
+// Trivial object thrown as exception for canceling and (maybe at a later
+// time) restarting the execution of an instruction
+//
+struct instruction_restart { };
+
+
+//
+// Forward declaration
+//
+struct Hart;
+
+
+//==------------------------------------------------------------------------==//
+//
+// Tensor coprocessor
+//
+//==------------------------------------------------------------------------==//
+
+struct TLoad {
+    enum class State : uint8_t {
+        idle,           // nothing to do
+        ready,          // ready to execute
+        loading,        // tenb loaded but waiting for txfma to pair
+        waiting_coop,   // waiting other co-operating harts
+    };
+
+    // FIXME: We also save all necessary bits for accessing the page table and
+    // PMA (mprv, mpp, prv, sum, mxr) but we don't save the satp register.
+
+    uint64_t        value;  // CSR write value
+    uint64_t        stride; // x31 value (stride + wait-id)
+    uint32_t        tcoop;  // local tensor_coop value
+    std::bitset<16> tmask;  // local tensor_mask value
+    bool            paired; // only valid for loads to tenb
+    State           state;  // FSM state
+
+    uint64_t uuid = 0;
+};
+
+
+struct TMul {
+    enum class State : uint8_t {
+        idle,           // nothing to do
+        ready,          // ready to execute
+        waiting_tenb,   // waiting for coop tensor load to tenb
+    };
+
+    uint64_t        value;  // CSR write value
+    std::bitset<16> tmask;  // Local tensor_mask value
+    uint8_t         frm;    // Rounding mode
+    State           state;  // FSM state
+
+    uint64_t uuid = 0;
+};
+
+
+struct TQuant {
+    enum class State : uint8_t {
+        idle,           // nothing to do
+        ready,          // ready to execute
+    };
+
+    uint64_t  value;  // CSR write value
+    uint8_t   frm;    // Rounding mode
+    State     state;  // FSM state
+
+    uint64_t uuid = 0;
+};
+
+
+struct TReduce {
+    enum class State : uint8_t {
+        idle,               // nothing to do
+        ready_to_send,      // sender ready
+        ready_to_receive,   // receiver ready
+        waiting_to_send,    // sender waiting for receiver
+        waiting_to_receive, // receiver waiting for sender
+    };
+
+    Hart*     hart;   // the target or source hart
+    uint8_t   freg;   // current register to send/receive
+    uint8_t   count;  // number of remaining registers to send/receive
+    uint8_t   funct;  // receiver operation to perform
+    uint8_t   frm;    // Rounding mode
+    State     state;  // FSM state
+
+    uint64_t uuid = 0;
+};
+
+
+struct TStore {
+    enum class State : uint8_t {
+        idle,      // nothing to do
+        ready,     // ready to execute
+    };
+
+    uint64_t value;  // CSR write value
+    uint64_t stride; // x31 stride value
+    State    state;  // FSM state
+
+    uint64_t uuid = 0;
+};
+
+
+// The tfma, tquant, reduce, and tstore instructions share the same
+// issue port. There can be one pending instruction per FSM, but ready
+// instructions must execute in order.  So, we use an issue queue for holding
+// all the in-flight tensor arithmetic instructions.
+//
+struct TQueue {
+    using size_type = size_t;
+
+    enum class Instruction : uint8_t {
+        none,
+        tfma,
+        tquant,
+        reduce,
+        tstore,
+    };
+
+    bool empty() const noexcept
+    { return m_elems.front() == Instruction::none; }
+
+    bool full() const noexcept
+    { return m_elems.back() != Instruction::none; }
+
+    Instruction front() const noexcept
+    { return m_elems.front(); }
+
+    constexpr size_type max_size() const noexcept
+    { return m_elems.size(); }
+
+    size_type size() const noexcept
+    {
+        for (auto i = max_size(); i > 0; --i) {
+            if (m_elems[i - 1] != Instruction::none) return i;
+        }
+        return 0;
+    }
+
+    void push(Instruction value) noexcept
+    {
+        assert(!full());
+        m_elems[size()] = value;
+    }
+
+    void pop() noexcept
+    {
+        assert(!empty());
+        m_elems[0] = Instruction::none;
+        std::rotate(m_elems.begin(), m_elems.begin() + 1, m_elems.end());
+    }
+
+    void clear() noexcept
+    {
+        std::fill(m_elems.begin(), m_elems.end(), Instruction::none);
+    }
+
+private:
+    std::array<Instruction, 4>  m_elems;
+};
+
+
+//==------------------------------------------------------------------------==//
+//
 // A processing core
 //
+//==------------------------------------------------------------------------==//
+
 struct Core {
-    // Tensor operations
-    enum class Tensor {
-        None,
-        Reduce,
-        Quant,
-        FMA
-    };
-
-    // Tensor reduction operation state machine
-    struct Reduce {
-        uint16_t thread;    // partner hart
-        uint8_t  regid;     // next register to send/receive
-        uint8_t  count;     // number of remaining registers to operate on
-        uint8_t  optype;    // arithmetic operation and reduction type
-        enum class State : uint8_t {
-            Idle = 0,
-            Send = 1,
-            Recv = 2,
-            Skip = 3
-        } state;
-    };
-
     // Only one TenC in the core
     std::array<freg_t,NFREGS>   tenc;
 
@@ -74,60 +231,31 @@ struct Core {
     uint8_t     mcache_control;   // 2b
     uint16_t    ucache_control;
 
-    // Tensor reduction operation state machine
-    Reduce reduce;
+    // Unique ID to identify tensor ops in the log
+    uint64_t    tensor_uuid = 0;
 
-    // Tensor quantization operation state machine
-    uint64_t txquant;
+    // Tensor arithmetic state machines
+    TMul        tmul;
+    TQuant      tquant;
+    TReduce     reduce;
+    TStore      tstore;
 
-    // NB: Due to pipelining a TensorQuant can start a few cycles before the
-    // last one finishes, but this case manifests only in ZSIM.
-    uint64_t shadow_txquant;
-
-    // Tensor FMA operation state machine
-    uint64_t txfma;
-
-    // NB: Due to pipelining a TensorFMA can start a few cycles before the
-    // last one finishes, but this case manifests only in ZSIM.
-    uint64_t shadow_txfma;
-
-    // Active tensor operation state machines
-    std::array<Tensor,3> tensor_op;
-
-    // Keep track of TensorLoadSetupB pairing
-    bool tensorload_setupb_topair;
-    int  tensorload_setupb_numlines;
-
-    bool enqueue_tensor_op(Tensor kind) {
-        for (unsigned i = 0; i < 3; ++i) {
-            if (tensor_op[i] == Tensor::None) {
-                tensor_op[i] = kind;
-                return true;
-            }
-            // Cannot have the same FSM twice in the list
-            assert(tensor_op[i] != kind);
-        }
-        return false;
-    }
-
-    Tensor dequeue_tensor_op() {
-        Tensor op = tensor_op[0];
-        tensor_op[0] = tensor_op[1];
-        tensor_op[1] = tensor_op[2];
-        tensor_op[2] = Tensor::None;
-        return op;
-    }
-
-    constexpr Tensor active_tensor_op() const {
-        return tensor_op[0];
-    }
+    // Tensor execution ports
+    std::array<TLoad, 2>  tload_a;
+    TLoad                 tload_b;
+    TQueue                tqueue;
 };
 
 
+//==------------------------------------------------------------------------==//
 //
 // A hardware thread
 //
+//==------------------------------------------------------------------------==//
+
 struct Hart : public Agent {
+    // ----- Types -----
+
     // Message port configuration
     struct Port {
         bool            enabled;
@@ -144,43 +272,98 @@ struct Hart : public Agent {
         std::bitset<16> oob_data;
     };
 
-    // Tensor wait operation state machine
-    struct Wait {
-        uint8_t  id;    // ID of the wait
-        uint64_t value; // Value used to do the tensor wait
-        enum class State : uint8_t {
-            Idle = 0,
-            Wait = 1,
-            WaitReady = 2,
-            TxFMA = 3
-        } state;
+    // Current thread state
+    enum class State {
+        nonexistent,        // Non-simulating
+        unavailable,        // Currently/temporarily unavailable
+        active,             // Has work to do
+        sleeping,           // Waiting
     };
+
+    // Stall reasons
+    enum class Waiting : uint32_t {
+        none        = 0,
+        // tensor_wait reasons
+        tload_0     = 1 << 0,
+        tload_1     = 1 << 1,
+        tload_L2_0  = 1 << 2,
+        tload_L2_1  = 1 << 3,
+        prefetch_0  = 1 << 4,
+        prefetch_1  = 1 << 5,
+        cacheop     = 1 << 6,
+        tfma        = 1 << 7,
+        tstore      = 1 << 8,
+        reduce      = 1 << 9,
+        tquant      = 1 << 10,
+        // 11-15 are reserved for tensor_wait
+        interrupt   = 1 << 16,
+        message     = 1 << 17,
+        credit0     = 1 << 18,
+        credit1     = 1 << 19,
+        // resource conflicts
+        tload_tenb  = 1 << 20,
+    };
+
+    // ----- Public methods -----
 
     long shireid() const;
     std::string name() const override;
 
     void advance_pc();
     void activate_breakpoints();
-    void set_prv(prv_t value);
+    void set_prv(Privilege value);
     void set_tdata1(uint64_t value);
     void check_pending_interrupts() const;
     void fetch();
+    void async_execute();
     void execute();
-    void take_trap(const trap_t&);
+    void take_trap(const Trap&);
+    void raise_interrupt(int cause, uint64_t data = 0);
+    void clear_interrupt(int cause);
     void notify_pmu_minion_event(uint8_t event);
 
-    // Message ports
-    bool get_msg_port_stall(unsigned port) const;
+    uint8_t frm() const;
+
+    bool is_blocked() const;
+
+    bool is_nonexistent() const;
+    bool is_unavailable() const;
+    bool is_halted() const;
+    bool is_running() const;
+    bool is_active() const;
+    bool is_sleeping() const;
+    bool is_waiting() const;
+    bool is_waiting(Waiting what) const;
+    bool has_active_coprocessor() const;
+
+    void become_nonexistent();
+    void become_unavailable();
+    void start_running();
+    void enter_debug_mode();
+    void start_waiting(Waiting what);
+    void stop_waiting(Waiting what);
+    void maybe_sleep();
+    void maybe_wakeup();
+
+    // ----- Public state -----
+
+    // Hart state (disabled, running, etc.)
+    State       state = State::unavailable;
+    Waiting     waits = Waiting::none;
+    Waiting     twait = Waiting::none;
+
+    // Next and previous hart in list of waiting/running harts
+    intrusive::List_hook  links;
 
     // Core that this hart belongs to
-    Core*  core;
+    Core*       core = nullptr;
 
     // Program counter
     uint64_t    pc;
     uint64_t    npc;
 
     // Instruction being executed
-    insn_t      inst;
+    Instruction inst;
 
     // Fetch buffer
     uint64_t              fetch_pc;
@@ -215,8 +398,6 @@ struct Hart : public Agent {
     // TODO: dcsr, dpc, dscratch
     uint16_t    mhartid;
 
-    uint8_t frm() const { return (fcsr >> 5) & 7; }
-
     // Esperanto control and status registers
     uint64_t    minstmask;        // 33b
     uint32_t    minstmatch;
@@ -238,34 +419,63 @@ struct Hart : public Agent {
     uint32_t    ext_seip;
 
     // Other hart internal (microarchitectural or hidden) state
-    prv_t       prv;
+    Privilege   prv;
     bool        debug_mode;
-    bool        fcc_wait;
-    uint8_t     fcc_cnt; // FIXME: Why do we need this?
 
     // Pre-computed state to improve simulation speed
     bool break_on_load;
     bool break_on_store;
     bool break_on_fetch;
-    bool enabled;
-    bool mtvec_is_set;  // for debugging of benchmarks
-    bool stvec_is_set;  // for debugging of benchmarks
-
-    // Tensor wait operation state machine
-    Wait wait;
-
-    // TensorLoad state machines
-    std::array<uint64_t,2> txload;
-    std::array<uint64_t,2> txstride;
-
-    // NB: Due to pipelining a TensorLoad can start a few cycles before the
-    // last one finishes, but this case manifests only in ZSIM.
-    std::array<uint64_t,2> shadow_txload;
-    std::array<uint64_t,2> shadow_txstride;
 
     // validation1 CSR emulation needs this
     std::ostringstream uart_stream;
 };
+
+
+inline Hart::Waiting operator~(Hart::Waiting rhs)
+{
+    using T = typename std::underlying_type<Hart::Waiting>::type;
+    return static_cast<Hart::Waiting>(~static_cast<T>(rhs));
+}
+
+
+inline Hart::Waiting operator&(Hart::Waiting lhs, Hart::Waiting rhs)
+{
+    using T = typename std::underlying_type<Hart::Waiting>::type;
+    return static_cast<Hart::Waiting>(static_cast<T>(lhs) & static_cast<T>(rhs));
+}
+
+
+inline Hart::Waiting operator|(Hart::Waiting lhs, Hart::Waiting rhs)
+{
+    using T = typename std::underlying_type<Hart::Waiting>::type;
+    return static_cast<Hart::Waiting>(static_cast<T>(lhs) | static_cast<T>(rhs));
+}
+
+
+inline Hart::Waiting operator^(Hart::Waiting lhs, Hart::Waiting rhs)
+{
+    using T = typename std::underlying_type<Hart::Waiting>::type;
+    return static_cast<Hart::Waiting>(static_cast<T>(lhs) ^ static_cast<T>(rhs));
+}
+
+
+inline Hart::Waiting& operator&=(Hart::Waiting& lhs, Hart::Waiting rhs)
+{
+    return lhs = lhs & rhs;
+}
+
+
+inline Hart::Waiting& operator|=(Hart::Waiting& lhs, Hart::Waiting rhs)
+{
+    return lhs = lhs | rhs;
+}
+
+
+inline Hart::Waiting& operator^=(Hart::Waiting& lhs, Hart::Waiting rhs)
+{
+    return lhs = lhs | rhs;
+}
 
 
 inline long Hart::shireid() const
@@ -298,14 +508,14 @@ inline void Hart::advance_pc()
 inline void Hart::activate_breakpoints()
 {
     uint64_t mcontrol = tdata1;
-    int priv = int(prv);
+    int priv = static_cast<int>(prv);
     break_on_load  = !(~mcontrol & ((8 << priv) | 1));
     break_on_store = !(~mcontrol & ((8 << priv) | 2));
     break_on_fetch = !(~mcontrol & ((8 << priv) | 4));
 }
 
 
-inline void Hart::set_prv(prv_t value)
+inline void Hart::set_prv(Privilege value)
 {
     prv = value;
     activate_breakpoints();
@@ -326,8 +536,9 @@ inline void Hart::check_pending_interrupts() const
     // receive interrupts
     uint_fast32_t xip = (mip | ext_seip) & mie;
 
-    if (!xip || core->excl_mode)
+    if (!xip || core->excl_mode) {
         return;
+    }
 
     // If there are any pending interrupts for the current privilege level
     // 'x', they are only taken if mstatus.xIE=1. If there are any pending
@@ -339,19 +550,21 @@ inline void Hart::check_pending_interrupts() const
     uint_fast32_t mie = mstatus & 8;
     uint_fast32_t sie = mstatus & 2;
     switch (prv) {
-        case PRV_M:
-            if (!mip || !mie)
-                return;
-            xip = mip;
-            break;
-        case PRV_S:
-            if (!mip && !sie)
-                return;
-            xip = mip | (sie ? sip : 0);
-            break;
-        default:
-            /* nothing */
-            break;
+    case Privilege::M:
+        if (!mip || !mie) {
+            return;
+        }
+        xip = mip;
+        break;
+    case Privilege::S:
+        if (!mip && !sie) {
+            return;
+        }
+        xip = mip | (sie ? sip : 0);
+        break;
+    case Privilege::U:
+        /* nothing */
+        break;
     }
 
     if (xip & (1 << MACHINE_EXTERNAL_INTERRUPT)) {
@@ -391,13 +604,126 @@ inline void Hart::fetch()
 }
 
 
-inline bool Hart::get_msg_port_stall(unsigned id) const
+inline void Hart::async_execute()
 {
-    return portctrl[id].stall;
+    if (mhartid % EMU_THREADS_PER_MINION != 0) {
+        return;
+    }
+    if (core->tload_a[0].state == TLoad::State::ready) {
+        tensor_load_execute(*this, 0, false);
+    }
+    if (core->tload_a[1].state == TLoad::State::ready) {
+        tensor_load_execute(*this, 1, false);
+    }
+    if (core->tload_b.state == TLoad::State::ready) {
+        tensor_load_execute(*this, 0, true);
+    }
+    switch (core->tqueue.front()) {
+    case TQueue::Instruction::none:
+        break;
+    case TQueue::Instruction::tfma:
+        if (core->tmul.state == TMul::State::ready) {
+            tensor_fma_execute(*this);
+        }
+        break;
+    case TQueue::Instruction::tquant:
+        if (core->tquant.state == TQuant::State::ready) {
+            tensor_quant_execute(*this);
+        }
+        break;
+    case TQueue::Instruction::reduce:
+        if (core->reduce.state == TReduce::State::ready_to_receive) {
+            auto& send = core->reduce.hart->core->reduce;
+            if (send.state == TReduce::State::ready_to_send) {
+                if (send.hart == this) {
+                    tensor_reduce_execute(*this);
+                }
+            }
+        }
+        break;
+    case TQueue::Instruction::tstore:
+        if (core->tstore.state == TStore::State::ready) {
+            tensor_store_execute(*this);
+        }
+        break;
+    }
 }
 
 
-inline uint64_t hart_index(const Hart& cpu)
+inline uint8_t Hart::frm() const
+{
+    return (fcsr >> 5) & 7;
+}
+
+
+inline bool Hart::is_blocked() const
+{
+    return core->excl_mode == 1 + ((~mhartid & 1) << 1);
+}
+
+
+inline bool Hart::is_nonexistent() const
+{
+    return state == State::nonexistent;
+}
+
+
+inline bool Hart::is_unavailable() const
+{
+    return state == State::unavailable;
+}
+
+
+inline bool Hart::is_halted() const
+{
+    return (state >= State::active) && debug_mode;
+}
+
+
+inline bool Hart::is_running() const
+{
+    return (state >= State::active) && !debug_mode;
+}
+
+
+inline bool Hart::is_active() const
+{
+    return state == State::active;
+}
+
+
+inline bool Hart::is_sleeping() const
+{
+    return state == State::sleeping;
+}
+
+
+inline bool Hart::is_waiting() const
+{
+    return waits != Waiting::none;
+}
+
+
+inline bool Hart::is_waiting(Waiting what) const
+{
+    return (waits & what) != Waiting::none;
+}
+
+
+inline bool Hart::has_active_coprocessor() const
+{
+    return ((mhartid % EMU_THREADS_PER_MINION) == 0)
+        && ((core->tload_a[0].state != TLoad::State::idle)
+            || (core->tload_a[1].state != TLoad::State::idle)
+            || (core->tload_b.state != TLoad::State::idle)
+            || (core->tmul.state != TMul::State::idle)
+            || (core->tquant.state != TQuant::State::idle)
+            || (core->reduce.state != TReduce::State::idle)
+            || (core->tstore.state != TStore::State::idle));
+}
+
+
+inline unsigned hart_index(const Hart& cpu)
 {
     return (cpu.mhartid == IO_SHIRE_SP_HARTID)
         ? EMU_IO_SHIRE_SP_THREAD
@@ -405,21 +731,21 @@ inline uint64_t hart_index(const Hart& cpu)
 }
 
 
-inline uint64_t core_index(const Hart& cpu)
+inline unsigned core_index(const Hart& cpu)
 {
     return hart_index(cpu) / EMU_THREADS_PER_MINION;
 }
 
 
-inline uint64_t neigh_index(const Hart& cpu)
+inline unsigned neigh_index(const Hart& cpu)
 {
     return hart_index(cpu) / EMU_THREADS_PER_NEIGH;
 }
 
 
-inline long shire_index(const Hart& cpu)
+inline unsigned shire_index(const Hart& cpu)
 {
-    return shire_index(cpu.shireid());
+    return hart_index(cpu) / EMU_THREADS_PER_SHIRE;
 }
 
 

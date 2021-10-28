@@ -13,7 +13,7 @@
 
 #include <algorithm>
 #include <array>
-#include "lazy_array.h"
+#include "support/lazy_array.h"
 #include "system.h"
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
@@ -25,13 +25,13 @@ template <unsigned long long Base, unsigned long long N, unsigned long long M,
           bool Writeable=true>
 struct ScratchRegion : public MemoryRegion
 {
-    typedef typename MemoryRegion::addr_type      addr_type;
-    typedef typename MemoryRegion::size_type      size_type;
-    typedef typename MemoryRegion::value_type     value_type;
-    typedef typename MemoryRegion::pointer        pointer;
-    typedef typename MemoryRegion::const_pointer  const_pointer;
-    typedef lazy_array<value_type,N>              bucket_type;
-    typedef std::array<bucket_type,M>             storage_type;
+    using addr_type     = typename MemoryRegion::addr_type;
+    using size_type     = typename MemoryRegion::size_type;
+    using value_type    = typename MemoryRegion::value_type;
+    using pointer       = typename MemoryRegion::pointer;
+    using const_pointer = typename MemoryRegion::const_pointer;
+    using bucket_type   = lazy_array<value_type,N>;
+    using storage_type  = std::array<bucket_type,M>;
 
     static_assert(!(Base % 8_KiB),
                   "bemu::ScratchRegion must be aligned to 8KiB");
