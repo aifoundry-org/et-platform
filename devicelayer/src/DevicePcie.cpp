@@ -259,11 +259,11 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
     deviceInfo.cfg_ = DeviceConfig{cfg.form_factor == DEV_CONFIG_FORM_FACTOR_PCIE ? DeviceConfig::FormFactor::PCIE
                                                                                   : DeviceConfig::FormFactor::M2,
                                    cfg.tdp,
-                                   cfg.minion_boot_freq,
                                    cfg.total_l3_size,
                                    cfg.total_l2_size,
                                    cfg.total_scp_size,
                                    cfg.cache_line_size,
+                                   cfg.minion_boot_freq,
                                    cfg.cm_shire_mask};
 
     logs << "TDP: " << deviceInfo.cfg_.tdp_ << "W\nMinion boot frequency: " << deviceInfo.cfg_.minionBootFrequency_

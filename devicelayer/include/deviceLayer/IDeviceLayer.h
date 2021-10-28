@@ -42,11 +42,11 @@ struct DeviceConfig {
   enum class FormFactor { PCIE, M2 };
   FormFactor formFactor_;           ///< device form factor
   uint16_t tdp_;                    ///< TDP in Watts
-  uint16_t minionBootFrequency_;    ///< minion boot frequency in Mhz
   uint16_t totalL3Size_;            ///< total size of L3 cache in MBytes
   uint16_t totalL2Size_;            ///< total size of L2 cache in MBytes
   uint16_t totalScratchPadSize_;    ///< total scratchpad size in MBytes
   uint16_t cacheLineSize_;          ///< chache line size, in Bytes
+  uint32_t minionBootFrequency_;    ///< minion boot frequency in Mhz
   uint32_t computeMinionShireMask_; ///< mask which indicates what are the compute minion shires
 };
 
