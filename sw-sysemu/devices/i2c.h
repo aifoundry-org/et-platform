@@ -104,6 +104,9 @@ protected:
         uint32_t result;
         uint32_t plic_source = SPIO_PLIC_GPIO_INTR_ID;
 
+        (void)agent;
+        (void)plic_source;
+
         switch (reg_addr) {
         case PMIC_AVG_POWER_ADDR:
             average_power += rand() % 5;
