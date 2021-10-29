@@ -229,7 +229,8 @@ void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *
                   const char *str);
 void Trace_Format_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
                          const char *format, ...);
-void Trace_PMC_All_Counters(struct trace_control_block_t *cb);
+void Trace_PMC_Counters_Compute(struct trace_control_block_t *cb);
+void Trace_PMC_Counters_Memory(struct trace_control_block_t *cb);
 void Trace_PMC_Counter(struct trace_control_block_t *cb, pmc_counter_e counter);
 void Trace_Value_u64(struct trace_control_block_t *cb, uint32_t tag, uint64_t value);
 void Trace_Value_u32(struct trace_control_block_t *cb, uint32_t tag, uint32_t value);
@@ -303,6 +304,14 @@ void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
 
 #ifndef ET_TRACE_GET_HPM_COUNTER
 #define ET_TRACE_GET_HPM_COUNTER(counter) 0
+#endif
+
+#ifndef ET_TRACE_GET_SHIRE_CACHE_COUNTER
+#define ET_TRACE_GET_SHIRE_CACHE_COUNTER(counter) 0
+#endif
+
+#ifndef ET_TRACE_GET_MEM_SHIRE_COUNTER
+#define ET_TRACE_GET_MEM_SHIRE_COUNTER(counter) 0
 #endif
 
 #ifndef ET_TRACE_GET_HART_ID
@@ -731,11 +740,11 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 *
 *   FUNCTION
 *
-*       Trace_PMC_All_Counters
+*       Trace_PMC_Counters_Compute
 *
 *   DESCRIPTION
 *
-*       A function to log all PMC counters.
+*       A function to log all Minion and Neighborhood PMC counters.
 *
 *   INPUTS
 *
@@ -746,13 +755,52 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
 *       None
 *
 ***********************************************************************/
-void Trace_PMC_All_Counters(struct trace_control_block_t *cb)
+void Trace_PMC_Counters_Compute(struct trace_control_block_t *cb)
 {
-    if (cb->enable == true) {
-        for (pmc_counter_e counter = PMC_COUNTER_HPMCOUNTER4; counter <= PMC_COUNTER_MEMSHIRE_FOO;
-             counter++) {
-            Trace_PMC_Counter(cb, counter);
-        }
+    if (trace_is_enabled(cb)) {
+        struct trace_pmc_counters_compute_t *entry =
+            (struct trace_pmc_counters_compute_t *)trace_buffer_reserve(cb, sizeof(*entry));
+
+        ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_PMC_COUNTERS_COMPUTE)
+        ET_TRACE_WRITE_U64(entry->hpmcounter3, ET_TRACE_GET_HPM_COUNTER(PMC_COUNTER_HPMCOUNTER3));
+        ET_TRACE_WRITE_U64(entry->hpmcounter4, ET_TRACE_GET_HPM_COUNTER(PMC_COUNTER_HPMCOUNTER4));
+        ET_TRACE_WRITE_U64(entry->hpmcounter5, ET_TRACE_GET_HPM_COUNTER(PMC_COUNTER_HPMCOUNTER5));
+        ET_TRACE_WRITE_U64(entry->hpmcounter6, ET_TRACE_GET_HPM_COUNTER(PMC_COUNTER_HPMCOUNTER6));
+        ET_TRACE_WRITE_U64(entry->hpmcounter7, ET_TRACE_GET_HPM_COUNTER(PMC_COUNTER_HPMCOUNTER7));
+        ET_TRACE_WRITE_U64(entry->hpmcounter8, ET_TRACE_GET_HPM_COUNTER(PMC_COUNTER_HPMCOUNTER8));
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_PMC_Counters_Memory
+*
+*   DESCRIPTION
+*
+*       A function to log all Shire-cache and Mem-shire PMC counters.
+*
+*   INPUTS
+*
+*       trace_control_block_t     Trace control block of logging Thread/Hart.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_PMC_Counters_Memory(struct trace_control_block_t *cb)
+{
+    if (trace_is_enabled(cb)) {
+        struct trace_pmc_counters_memory_t *entry =
+            (struct trace_pmc_counters_memory_t *)trace_buffer_reserve(cb, sizeof(*entry));
+
+        ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_PMC_COUNTERS_MEMORY)
+        ET_TRACE_WRITE_U64(entry->sc_pmc0, ET_TRACE_GET_SHIRE_CACHE_COUNTER(PMC_COUNTER_SHIRE_CACHE_1));
+        ET_TRACE_WRITE_U64(entry->sc_pmc1, ET_TRACE_GET_SHIRE_CACHE_COUNTER(PMC_COUNTER_SHIRE_CACHE_2));
+        ET_TRACE_WRITE_U64(entry->ms_pmc0, ET_TRACE_GET_MEM_SHIRE_COUNTER(PMC_COUNTER_MEMSHIRE_1));
+        ET_TRACE_WRITE_U64(entry->ms_pmc1, ET_TRACE_GET_MEM_SHIRE_COUNTER(PMC_COUNTER_MEMSHIRE_2));
     }
 }
 
@@ -783,8 +831,27 @@ void Trace_PMC_Counter(struct trace_control_block_t *cb, pmc_counter_e counter)
             (struct trace_pmc_counter_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_PMC_COUNTER)
+        ET_TRACE_WRITE_U8(entry->counter, counter);
 
-        ET_TRACE_WRITE_U64(entry->value, ET_TRACE_GET_HPM_COUNTER(counter));
+        switch(counter)
+        {
+            case PMC_COUNTER_SHIRE_CACHE_CYCLE:
+            case PMC_COUNTER_SHIRE_CACHE_1:
+            case PMC_COUNTER_SHIRE_CACHE_2:
+                /* Sample SC PMCs */
+                ET_TRACE_WRITE_U64(entry->value, ET_TRACE_GET_SHIRE_CACHE_COUNTER(counter - PMC_COUNTER_SHIRE_CACHE_CYCLE));
+                break;
+            case PMC_COUNTER_MEMSHIRE_CYCLE:
+            case PMC_COUNTER_MEMSHIRE_1:
+            case PMC_COUNTER_MEMSHIRE_2:
+                /* Sample memshire PMCs */
+                ET_TRACE_WRITE_U64(entry->value, ET_TRACE_GET_MEM_SHIRE_COUNTER(counter - PMC_COUNTER_MEMSHIRE_CYCLE));
+                break;
+            default:
+                /* Sample and log Minion and Neighborhood PMCs */
+                ET_TRACE_WRITE_U64(entry->value, ET_TRACE_GET_HPM_COUNTER(counter));
+                break;
+        }
     }
 }
 

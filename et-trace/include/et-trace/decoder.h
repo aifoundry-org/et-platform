@@ -141,7 +141,8 @@ static inline const struct trace_entry_header_t *get_next_trace_event(const stru
         ET_TRACE_PAYLOAD_SIZE(VALUE_FLOAT, sizeof(struct trace_value_float_t))
         ET_TRACE_PAYLOAD_SIZE(STRING, sizeof(struct trace_string_t))
         ET_TRACE_PAYLOAD_SIZE(PMC_COUNTER, sizeof(struct trace_pmc_counter_t))
-        ET_TRACE_PAYLOAD_SIZE(PMC_ALL_COUNTERS, sizeof(struct trace_pmc_counter_t) * 7)
+        ET_TRACE_PAYLOAD_SIZE(PMC_COUNTERS_COMPUTE, sizeof(struct trace_pmc_counters_compute_t))
+        ET_TRACE_PAYLOAD_SIZE(PMC_COUNTERS_MEMORY, sizeof(struct trace_pmc_counters_memory_t))
     case TRACE_TYPE_MEMORY: {
         payload_size = sizeof(struct trace_entry_header_t)      /* header*/
                        + sizeof(uint64_t)                       /* src_addr */

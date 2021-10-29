@@ -85,7 +85,7 @@ extern "C" {
 /*! \def TRACE_VERSION_MINOR
     \brief This is Trace layout version (minor).
 */
-#define TRACE_VERSION_MINOR 1
+#define TRACE_VERSION_MINOR 2
 
 /*! \def TRACE_VERSION_PATCH
     \brief This is Trace layout version (patch).
@@ -131,7 +131,8 @@ typedef uint16_t trace_type_e;
 enum trace_type {
     TRACE_TYPE_STRING,
     TRACE_TYPE_PMC_COUNTER,
-    TRACE_TYPE_PMC_ALL_COUNTERS,
+    TRACE_TYPE_PMC_COUNTERS_COMPUTE,
+    TRACE_TYPE_PMC_COUNTERS_MEMORY,
     TRACE_TYPE_VALUE_U64,
     TRACE_TYPE_VALUE_U32,
     TRACE_TYPE_VALUE_U16,
@@ -167,16 +168,25 @@ enum trace_cmd_status {
 typedef uint8_t pmc_counter_e;
 
 /*! \enum pmc_counter
-    \brief Counter type of log timestamp.
+    \brief PMC counters to sample and log in trace.
 */
 enum pmc_counter {
+    /* Minion and Neighborhood PMCs start. */
+    PMC_COUNTER_HPMCOUNTER3 = 0,
     PMC_COUNTER_HPMCOUNTER4,
     PMC_COUNTER_HPMCOUNTER5,
     PMC_COUNTER_HPMCOUNTER6,
     PMC_COUNTER_HPMCOUNTER7,
     PMC_COUNTER_HPMCOUNTER8,
-    PMC_COUNTER_SHIRE_CACHE_FOO,
-    PMC_COUNTER_MEMSHIRE_FOO
+    /* PMCs that are accessible only in priviledged mode */
+    /* Base of shire-cache PMCs */
+    PMC_COUNTER_SHIRE_CACHE_CYCLE,
+    PMC_COUNTER_SHIRE_CACHE_1,
+    PMC_COUNTER_SHIRE_CACHE_2,
+    /* Base of mem-shire PMCs */
+    PMC_COUNTER_MEMSHIRE_CYCLE,
+    PMC_COUNTER_MEMSHIRE_1,
+    PMC_COUNTER_MEMSHIRE_2
 };
 
 /*
@@ -237,6 +247,30 @@ struct trace_entry_header_t {
     uint32_t hart_id; /**< (optional) Hart ID of the Hart which is logging Trace */
     uint16_t type;    /**< One of enum trace_type_e */
     uint8_t pad[2];   /**< Cache Alignment for MM as it uses atomic operations. */
+} __attribute__((packed));
+
+/*! \struct trace_pmc_counters_compute_t
+    \brief A Trace packet strucure for all compute PMC counters.
+*/
+struct trace_pmc_counters_compute_t {
+    struct trace_entry_header_t header;
+    uint64_t hpmcounter3;
+    uint64_t hpmcounter4;
+    uint64_t hpmcounter5;
+    uint64_t hpmcounter6;
+    uint64_t hpmcounter7;
+    uint64_t hpmcounter8;
+} __attribute__((packed));
+
+/*! \struct trace_pmc_counters_memory_t
+    \brief A Trace packet strucure for all memory PMC counters.
+*/
+struct trace_pmc_counters_memory_t {
+    struct trace_entry_header_t header;
+    uint64_t sc_pmc0;
+    uint64_t sc_pmc1;
+    uint64_t ms_pmc0;
+    uint64_t ms_pmc1;
 } __attribute__((packed));
 
 /*! \struct trace_pmc_counter_t
