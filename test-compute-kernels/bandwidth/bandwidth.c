@@ -11,8 +11,9 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "etsoc/isa/hart.h"
-#include "etsoc/common/utils.h"
+#include <etsoc/common/utils.h>
+#include <etsoc/isa/hart.h>
+#include <trace/trace_umode.h>
 
 typedef struct {
   uint64_t base_addr;
@@ -26,6 +27,14 @@ int64_t main(const Parameters *const kernel_params_ptr)
   et_printf("Hart[%d]:Kernel Param:base_addr:%ld\r\n", get_hart_id(), kernel_params_ptr->base_addr);
   et_printf("Hart[%d]:Kernel Param:num_minions:%ld\r\n", get_hart_id(), kernel_params_ptr->num_minions);
   et_printf("Hart[%d]:Kernel Param:num_cache_lines:%ld\r\n", get_hart_id(), kernel_params_ptr->num_cache_lines);
+
+  /* Dump Minion and Neighborhood related PMCs
+  Only a single hart should ideally do this. */
+  et_trace_pmc_compute(62);
+
+  /* Dump shire-cache and mem-shire related PMCs
+  Only a single hart should ideally do this. */
+  et_trace_pmc_memory(63);
 
   return 0;
 }
