@@ -9,45 +9,42 @@
 * agreement/contract under which the program(s) have been supplied.
 *
 ************************************************************************/
-/*! \file trace.h
+/*! \file trace_umode.c
     \brief A C file that implements the Trace services for CM UMode.
 */
 /***********************************************************************/
 
-
+#include "etsoc/drivers/pmu/pmu.h"
 #include "etsoc/isa/hart.h"
+#include "etsoc/isa/syscall.h"
 
-#define ET_TRACE_MEM_CPY(dest, src, size) et_memcpy(dest, src, size)
-#define ET_TRACE_STRLEN(str) et_strlen(str)
-#define ET_TRACE_GET_HART_ID()  get_hart_id()
+static inline uint64_t trace_umode_sample_sc_pmc(uint64_t pmc)
+{
+    /* Sample the pmc */
+    return (uint64_t)syscall(SYSCALL_PMC_SC_SAMPLE, pmc, 0, 0);
+}
+
+static inline uint64_t trace_umode_sample_ms_pmc(uint64_t pmc)
+{
+    /* Sample the pmc */
+    return (uint64_t)syscall(SYSCALL_PMC_MS_SAMPLE, pmc, 0, 0);
+}
+
+#define ET_TRACE_MEM_CPY(dest, src, size)    et_memcpy(dest, src, size)
+#define ET_TRACE_STRLEN(str)                 et_strlen(str)
+#define ET_TRACE_GET_TIMESTAMP()             PMC_Get_Current_Cycles()
+#define ET_TRACE_GET_HPM_COUNTER(id)         pmu_core_counter_read_unpriv(id)
+#define ET_TRACE_GET_SHIRE_CACHE_COUNTER(id) trace_umode_sample_sc_pmc(id)
+#define ET_TRACE_GET_MEM_SHIRE_COUNTER(id)   trace_umode_sample_ms_pmc(id)
+#define ET_TRACE_GET_HART_ID()               get_hart_id()
 #define ET_TRACE_ENCODER_IMPL
+
 #include "etsoc/common/utils.h"
 #include "common/printf.h"
-
-#include <et-trace/encoder.h>
+#include "trace/trace_umode.h"
 
 #include <stdarg.h>
 #include <stdio.h>
-
-/* NOTE: Keep it in sync with the memory map layout file in minion runtime. */
-#define CM_UMODE_TRACE_CB_BASEADDR  0x8100d21040
-
-/*! \def GET_CB_INDEX
-    \brief Get CB index of current Hart in pre-allocated CB array.
-*/
-#define GET_CB_INDEX(hart_id)       ((hart_id < 2048U)? hart_id: (hart_id - 32U))
-
-/*! \def CM_UMODE_TRACE_CB
-    \brief A local Trace control block for a Compute Minion.
-*/
-#define CM_UMODE_TRACE_CB         ((umode_trace_control_block_t*)CM_UMODE_TRACE_CB_BASEADDR)
-
-/*
- * Compute Minion UMode Trace control block.
- */
-typedef struct umode_trace_control_block {
-    struct trace_control_block_t cb;    /*!< Common Trace library control block. */
-} __attribute__((aligned(64))) umode_trace_control_block_t;
 
 /************************************************************************
 *
@@ -73,12 +70,12 @@ typedef struct umode_trace_control_block {
 ***********************************************************************/
 void __et_printf(const char *fmt, ...)
 {
-    struct trace_control_block_t *cb = &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb;
     char data[TRACE_STRING_MAX_SIZE + 1];
     va_list va;
     va_start(va, fmt);
 
     vsnprintf(data, TRACE_STRING_MAX_SIZE, fmt, va);
 
-    Trace_String(TRACE_EVENT_STRING_CRITICAL, cb, data);
+    Trace_String(TRACE_EVENT_STRING_CRITICAL,
+        &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb, data);
 }

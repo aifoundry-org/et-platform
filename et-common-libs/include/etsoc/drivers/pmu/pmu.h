@@ -21,6 +21,17 @@ extern "C" {
 #include "etsoc/isa/esr_defines.h"
 // PMU support: Defines and basic API
 
+typedef uint8_t hpm_counter_e;
+
+enum hpm_counter {
+    HPM_COUNTER_3 = 0,
+    HPM_COUNTER_4,
+    HPM_COUNTER_5,
+    HPM_COUNTER_6,
+    HPM_COUNTER_7,
+    HPM_COUNTER_8
+};
+
 // ETSoC-1 PMU hardware
 #define PMU_FIRST_HPM      3
 #define PMU_LAST_CORE_HPM  6
@@ -75,10 +86,26 @@ extern "C" {
 // For the time we ignore overflows and disable interrupts.
 // This could be moved in the configuration buffer but we need to add support for
 // overflows, etc in the firmware in that case.
-#define PMU_SC_START_CTRL_VAL 0x00060033ULL
-#define PMU_SC_STOP_CTRL_VAL ~PMU_SC_START_CTRL_VAL
-#define PMU_MS_START_CTRL_VAL 0x00060033ULL
-#define PMU_MS_STOP_CTRL_VAL ~PMU_MS_START_CTRL_VAL
+#define PMU_SC_START_ALL_CTRL_VAL 0x00060033ULL
+#define PMU_SC_STOP_ALL_CTRL_VAL ~PMU_SC_START_ALL_CTRL_VAL
+#define PMU_MS_START_ALL_CTRL_VAL 0x00060033ULL
+#define PMU_MS_STOP_ALL_CTRL_VAL ~PMU_MS_START_ALL_CTRL_VAL
+
+#define PMU_SC_START_CYCLE_CNT_CTRL (0x1ULL << 0)
+#define PMU_SC_START_P0_CTRL        (0x1ULL << 4)
+#define PMU_SC_START_P1_CTRL        (0x1ULL << 17)
+
+#define PMU_SC_RESET_CYCLE_CNT_CTRL (0x2ULL << 0)
+#define PMU_SC_RESET_P0_CTRL        (0x2ULL << 4)
+#define PMU_SC_RESET_P1_CTRL        (0x2ULL << 17)
+
+#define PMU_MS_START_CYCLE_CNT_CTRL (0x1ULL << 0)
+#define PMU_MS_START_P0_CTRL        (0x1ULL << 4)
+#define PMU_MS_START_P1_CTRL        (0x1ULL << 17)
+
+#define PMU_MS_RESET_CYCLE_CNT_CTRL (0x2ULL << 0)
+#define PMU_MS_RESET_P0_CTRL        (0x2ULL << 4)
+#define PMU_MS_RESET_P1_CTRL        (0x2ULL << 17)
 
 // Events
 
@@ -240,9 +267,9 @@ static inline int64_t pmu_core_counter_write(uint64_t pmc, uint64_t val)
 
 #define pmu_core_counter_reset(pmc) pmu_core_counter_write(pmc, 0)
 
-// Read a core (minion and neighborhood) event counter
+// Read a core (minion and neighborhood) M-mode event counter
 // Return -1 on incorrect counter
-static inline uint64_t pmu_core_counter_read(uint64_t pmc)
+static inline uint64_t pmu_core_counter_read_priv(uint64_t pmc)
 {
     uint64_t val = 0;
     switch (pmc) {
@@ -282,6 +309,38 @@ static inline uint64_t pmu_core_counter_read(uint64_t pmc)
     return val;
 }
 
+/* Read a core (minion and neighborhood) U-mode and S-mode event counters */
+static inline uint64_t pmu_core_counter_read_unpriv(hpm_counter_e pmc)
+{
+    uint64_t value = 0;
+
+    switch (pmc)
+    {
+        case HPM_COUNTER_3:
+            __asm__ __volatile__("csrr %0, hpmcounter3\n" : "=r"(value));
+            break;
+        case HPM_COUNTER_4:
+            __asm__ __volatile__("csrr %0, hpmcounter4\n" : "=r"(value));
+            break;
+        case HPM_COUNTER_5:
+            __asm__ __volatile__("csrr %0, hpmcounter5\n" : "=r"(value));
+            break;
+        case HPM_COUNTER_6:
+            __asm__ __volatile__("csrr %0, hpmcounter6\n" : "=r"(value));
+            break;
+        case HPM_COUNTER_7:
+            __asm__ __volatile__("csrr %0, hpmcounter7\n" : "=r"(value));
+            break;
+        case HPM_COUNTER_8:
+            __asm__ __volatile__("csrr %0, hpmcounter8\n" : "=r"(value));
+            break;
+        default:
+            break;
+    }
+
+    return value;
+}
+
 // Configure an event for a shire cache perf counter
 static inline int64_t pmu_shire_cache_event_configure(uint64_t shire_id, uint64_t b, uint64_t evt_reg,
                                          uint64_t val)
@@ -305,20 +364,46 @@ static inline void pmu_shire_cache_counter_set(uint64_t shire_id, uint64_t b, ui
     *sc_bank_perfctrl_addr = val;
 }
 
-// Reset and start a shire cache PMC
-static inline void pmu_shire_cache_counter_reset(uint64_t shire_id, uint64_t b)
+// Reset a shire cache PMC
+static inline void pmu_shire_cache_counter_reset(uint64_t shire_id, uint64_t b, uint64_t pmc)
 {
     uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
     uint64_t init_val = *sc_bank_perfctrl_addr;
-    *sc_bank_perfctrl_addr = PMU_SC_START_CTRL_VAL | init_val;
+    if (pmc == PMU_SC_CYCLE_PMC) {
+        *sc_bank_perfctrl_addr = init_val | PMU_SC_RESET_CYCLE_CNT_CTRL;
+    } else if (pmc == PMU_SC_PMC0) {
+        *sc_bank_perfctrl_addr = init_val | PMU_SC_RESET_P0_CTRL;
+    } else if (pmc == PMU_SC_PMC1) {
+        *sc_bank_perfctrl_addr = init_val | PMU_SC_RESET_P1_CTRL;
+    }
+}
+
+// Start a shire cache PMC
+static inline void pmu_shire_cache_counter_start(uint64_t shire_id, uint64_t b, uint64_t pmc)
+{
+    uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
+    uint64_t init_val = *sc_bank_perfctrl_addr;
+    if (pmc == PMU_SC_CYCLE_PMC) {
+        *sc_bank_perfctrl_addr = init_val | PMU_SC_START_CYCLE_CNT_CTRL;
+    } else if (pmc == PMU_SC_PMC0) {
+        *sc_bank_perfctrl_addr = init_val | PMU_SC_START_P0_CTRL;
+    } else if (pmc == PMU_SC_PMC1) {
+        *sc_bank_perfctrl_addr = init_val | PMU_SC_START_P1_CTRL;
+    }
 }
 
 // Stop a shire cache PMC
-static inline void pmu_shire_cache_counter_stop(uint64_t shire_id, uint64_t b)
+static inline void pmu_shire_cache_counter_stop(uint64_t shire_id, uint64_t b, uint64_t pmc)
 {
     uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
     uint64_t init_val = *sc_bank_perfctrl_addr;
-    *sc_bank_perfctrl_addr = init_val & PMU_SC_STOP_CTRL_VAL;
+    if (pmc == PMU_SC_CYCLE_PMC) {
+        *sc_bank_perfctrl_addr = init_val & ~PMU_SC_START_CYCLE_CNT_CTRL;
+    } else if (pmc == PMU_SC_PMC0) {
+        *sc_bank_perfctrl_addr = init_val & ~PMU_SC_START_P0_CTRL;
+    } else if (pmc == PMU_SC_PMC1) {
+        *sc_bank_perfctrl_addr = init_val & ~PMU_SC_START_P1_CTRL;
+    }
 }
 
 // Read a shire cache PMC. Return -1 on incorrect counter
@@ -366,22 +451,49 @@ static inline void pmu_memshire_event_set(uint64_t ms_id, uint64_t val)
     *ms_perfctrl_addr = val;
 }
 
-// Reset and start a memshire PMC
-static inline void pmu_memshire_event_reset(uint64_t ms_id)
+// Reset a memshire PMC
+static inline void pmu_memshire_event_reset(uint64_t ms_id, uint64_t pmc)
 {
     uint64_t *ms_pmc_ctrl_addr =
         (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
     uint64_t init_val = *ms_pmc_ctrl_addr;
-    *ms_pmc_ctrl_addr = init_val | PMU_MS_START_CTRL_VAL;
+    if (pmc == PMU_MS_CYCLE_PMC) {
+        *ms_pmc_ctrl_addr = init_val | PMU_MS_RESET_CYCLE_CNT_CTRL;
+    } else if (pmc == PMU_MS_PMC0) {
+        *ms_pmc_ctrl_addr = init_val | PMU_MS_RESET_P0_CTRL;
+    } else if (pmc == PMU_MS_PMC1) {
+        *ms_pmc_ctrl_addr = init_val | PMU_MS_RESET_P1_CTRL;
+    }
+}
+
+// Start a memshire PMC
+static inline void pmu_memshire_event_start(uint64_t ms_id, uint64_t pmc)
+{
+    uint64_t *ms_pmc_ctrl_addr =
+        (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
+    uint64_t init_val = *ms_pmc_ctrl_addr;
+    if (pmc == PMU_MS_CYCLE_PMC) {
+        *ms_pmc_ctrl_addr = init_val | PMU_MS_START_CYCLE_CNT_CTRL;
+    } else if (pmc == PMU_MS_PMC0) {
+        *ms_pmc_ctrl_addr = init_val | PMU_MS_START_P0_CTRL;
+    } else if (pmc == PMU_MS_PMC1) {
+        *ms_pmc_ctrl_addr = init_val | PMU_MS_START_P1_CTRL;
+    }
 }
 
 // Stop a memshire PMC
-static inline void pmu_memshire_event_stop(uint64_t ms_id)
+static inline void pmu_memshire_event_stop(uint64_t ms_id, uint64_t pmc)
 {
     uint64_t *ms_pmc_ctrl_addr =
         (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
     uint64_t init_val = *ms_pmc_ctrl_addr;
-    *ms_pmc_ctrl_addr = init_val & PMU_MS_STOP_CTRL_VAL;
+    if (pmc == PMU_MS_CYCLE_PMC) {
+        *ms_pmc_ctrl_addr = init_val & ~PMU_MS_START_CYCLE_CNT_CTRL;
+    } else if (pmc == PMU_MS_PMC0) {
+        *ms_pmc_ctrl_addr = init_val & ~PMU_MS_START_P0_CTRL;
+    } else if (pmc == PMU_MS_PMC1) {
+        *ms_pmc_ctrl_addr = init_val & ~PMU_MS_START_P1_CTRL;
+    }
 }
 
 // Read a memshire PMC. Return -1 on incorrect counter
@@ -408,6 +520,8 @@ int64_t configure_sc_pmcs(uint64_t ctl_status_cfg, uint64_t pmc0_cfg, uint64_t p
 int64_t configure_ms_pmcs(uint64_t ctl_status_cfg, uint64_t ddrc_perfmon_p0_qual, uint64_t ddrc_perfmon_p1_qual,
     uint64_t ddrc_perfmon_p0_qual2, uint64_t ddrc_perfmon_p1_qual2);
 int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr);
+uint64_t sample_sc_pmcs(uint64_t pmc);
+uint64_t sample_ms_pmcs(uint64_t pmc);
 int64_t reset_pmcs(void);
 
 /*TODO: This time(cycles) stamping infrastructure does not account for
@@ -427,9 +541,7 @@ be improved */
 */
 static inline uint64_t PMC_Get_Current_Cycles(void)  {
     uint64_t val;
-    __asm__ __volatile__("csrr %[res], %[csr]\n" \
-                          : [res] "=r"(val)      \
-                          : [csr] "i"(PMU_HPMCOUNTER3)); \
+    __asm__ __volatile__("csrr %0, hpmcounter3\n" : "=r"(val));
     return val;
 }
 

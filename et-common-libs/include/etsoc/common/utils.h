@@ -17,7 +17,7 @@ extern "C" {
 #endif
 
 #include <stddef.h>
-#include "trace/trace_umode.h"
+#include "trace/trace_umode_intern.h"
 
 /*! \def et_printf(fmt)
     \brief Write a log with va_list style args

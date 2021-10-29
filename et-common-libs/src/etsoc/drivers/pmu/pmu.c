@@ -145,11 +145,15 @@ int64_t reset_pmcs(void)
     }
 
     if (reset_sc_harts) {
-        pmu_shire_cache_counter_reset(shire_id, neigh_id);
+        for (uint8_t pmc = 0; pmc < 3; pmc++) {
+            pmu_shire_cache_counter_reset(shire_id, neigh_id, pmc);
+        }
     }
 
     if (reset_ms_harts) {
-        pmu_memshire_event_reset(shire_id);
+        for (uint8_t pmc = 0; pmc < 3; pmc++) {
+            pmu_memshire_event_reset(shire_id, pmc);
+        }
     }
 
     return ret;
@@ -179,7 +183,7 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
     // TBD: To avoid reseting PMC3 that is used for timestamp, neigh_minion_id should be > 0
     // Right now we keep on reading these PMCs, but we do not have to
     if (neigh_minion_id < PMU_MINION_COUNTERS_PER_HART + PMU_NEIGH_COUNTERS_PER_HART) {
-        uint64_t pmc_data = pmu_core_counter_read(PMU_MHPMCOUNTER3 + neigh_minion_id);
+        uint64_t pmc_data = pmu_core_counter_read_priv(PMU_MHPMCOUNTER3 + neigh_minion_id);
         if (pmc_data == PMU_INCORRECT_COUNTER) {
             ret = ret - 1;
         }
@@ -194,10 +198,9 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
 
     // SC PMCs
     if (read_sc_harts) {
-        pmu_shire_cache_counter_stop(shire_id, neigh_id);
         // Read 3 SC bank counters, probably we can save the clock counter.
         for (uint64_t i=0; i < 3; i++) {
-            uint64_t pmc_data = pmu_shire_cache_counter_sample(shire_id, neigh_id, i);
+            uint64_t pmc_data = sample_sc_pmcs(i);
             if (pmc_data == PMU_INCORRECT_COUNTER) {
                ret = ret - 1;
             }
@@ -205,18 +208,15 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
             // this needs to be revised. Data out of log_tensor may be off
             if (log_tensor) {
                 *(log_tensor + (shire_id * 64 + neigh_id * 16 + NEIGH_HART_SC + i- 1)* 8) = pmc_data;
-            } else {
-                //TRACE_perfctr(LOG_LEVELS_INFO, i+1, pmc_data);  THAT'S NOT THE PLACE TO DO IT. SHOULD BE DONE IN U-MODE BY USING mcounteren and scounteren
             }
         }
     }
 
     // MS PMCs
     if (read_ms_harts) {
-        pmu_memshire_event_stop(shire_id);
         // Read the 3 MS pef counters -- probably we can save the clock counter read
         for (uint64_t i=0; i < 3; i++) {
-            uint64_t pmc_data = pmu_memshire_event_sample(shire_id, i);
+            uint64_t pmc_data = sample_ms_pmcs(i);
             if (pmc_data == PMU_INCORRECT_COUNTER) {
                 ret = ret - 1;
             }
@@ -224,8 +224,6 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
             // this needs to be revised. Data out of log_tensor may be off
             if (log_tensor) {
                 *(log_tensor + (shire_id * 64 + (neigh_id - 3 + i)* 16 + (hart_id & 0xF)) * 8) = pmc_data;
-            } else {
-                //TRACE_perfctr(LOG_LEVELS_INFO, i+1, pmc_data);  THAT'S NOT THE PLACE TO DO IT. SHOULD BE DONE IN U-MODE BY USING mcounteren and scounteren
             }
         }
     }
@@ -235,4 +233,39 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
     }
 
     return ret;
+}
+
+uint64_t sample_sc_pmcs(uint64_t pmc)
+{
+    uint64_t shire_id = get_shire_id();
+    uint64_t neigh_id = get_neighborhood_id();
+    uint64_t pmc_data = 0;
+
+    /* Stop the counter */
+    pmu_shire_cache_counter_stop(shire_id, neigh_id, pmc);
+
+    /* Sample the counter */
+    pmc_data = pmu_shire_cache_counter_sample(shire_id, neigh_id, pmc);
+
+    /* Start the counter */
+    pmu_shire_cache_counter_start(shire_id, neigh_id, pmc);
+
+    return pmc_data;
+}
+
+uint64_t sample_ms_pmcs(uint64_t pmc)
+{
+    uint64_t shire_id = get_shire_id();
+    uint64_t pmc_data = 0;
+
+    /* Stop the counter */
+    pmu_memshire_event_stop(shire_id, pmc);
+
+    /* Sample the counter */
+    pmc_data = pmu_memshire_event_sample(shire_id, pmc);
+
+    /* Start the counter */
+    pmu_memshire_event_start(shire_id, pmc);
+
+    return pmc_data;
 }
