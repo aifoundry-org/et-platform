@@ -66,6 +66,12 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         case SYSCALL_FLUSH_L3:
             ret = syscall(SYSCALL_FLUSH_L3_INT, arg1, arg2, arg3);
             break;
+        case SYSCALL_PMC_SC_SAMPLE:
+            ret = syscall(SYSCALL_PMC_SC_SAMPLE_INT, arg1, arg2, arg3);
+            break;
+        case SYSCALL_PMC_MS_SAMPLE:
+            ret = syscall(SYSCALL_PMC_MS_SAMPLE_INT, arg1, arg2, arg3);
+            break;
         default:
             ret = SYSCALL_INVALID_ID;
             break;

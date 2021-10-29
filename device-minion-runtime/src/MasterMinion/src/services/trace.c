@@ -30,10 +30,10 @@
 #include <esperanto/device-apis/device_apis_trace_types.h>
 
 /* mm_rt_svcs */
+#include <etsoc/drivers/pmu/pmu.h>
 #include <etsoc/isa/atomic.h>
 #include <etsoc/isa/cacheops.h>
 #include <etsoc/isa/hart.h>
-#include <etsoc/isa/hpm_counter.h>
 #include <etsoc/isa/etsoc_memory.h>
 #include <etsoc/isa/sync.h>
 
@@ -50,8 +50,8 @@ static inline void et_trace_write_float(void *addr, float value);
 static inline void et_trace_buffer_lock_acquire(void);
 static inline void et_trace_buffer_lock_release(void);
 
-#define ET_TRACE_GET_HPM_COUNTER(id) hpm_read_counter(id)
-#define ET_TRACE_GET_TIMESTAMP()     hpm_read_counter3()
+#define ET_TRACE_GET_HPM_COUNTER(id) pmu_core_counter_read_unpriv(id)
+#define ET_TRACE_GET_TIMESTAMP()     PMC_Get_Current_Cycles()
 #define ET_TRACE_GET_HART_ID()       get_hart_id()
 
 /* Master Minion Trace memory access primitives. */

@@ -24,18 +24,18 @@
 #include <esperanto/device-apis/device_apis_trace_types.h>
 #include <stddef.h>
 #include <inttypes.h>
+#include <etsoc/drivers/pmu/pmu.h>
 #include <etsoc/isa/etsoc_memory.h>
 #include <etsoc/isa/hart.h>
 #include <etsoc/isa/cacheops.h>
-#include <etsoc/isa/hpm_counter.h>
 
 #include "log.h"
 #include "layout.h"
 
-#define ET_TRACE_ENCODER_IMPL
 #define ET_TRACE_GET_HART_ID()       get_hart_id()
-#define ET_TRACE_GET_TIMESTAMP()     hpm_read_counter3()
-#define ET_TRACE_GET_HPM_COUNTER(id) hpm_read_counter(id)
+#define ET_TRACE_GET_TIMESTAMP()     PMC_Get_Current_Cycles()
+#define ET_TRACE_GET_HPM_COUNTER(id) pmu_core_counter_read_unpriv(id)
+#define ET_TRACE_ENCODER_IMPL
 
 #include "trace.h"
 

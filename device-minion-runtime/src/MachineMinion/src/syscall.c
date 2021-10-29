@@ -75,6 +75,7 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
      *   SYSCALL_BROADCAST_INT(uint64_t value, uint64_t shire_mask, uint64_t parameters)
      */
 
+<<<<<<< Updated upstream
     switch (number) {
     case SYSCALL_ENABLE_THREAD1_INT:
         ret = enable_thread1(arg1, arg2);
@@ -133,9 +134,85 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
     case SYSCALL_CACHE_OPS_EVICT_L1_INT:
         ret = evict_l1(arg1, arg2);
         break;
+    case SYSCALL_PMC_SC_SAMPLE_INT:
+        ret = (int64_t)sample_sc_pmcs(arg1, arg2);
+        break;
+    case SYSCALL_PMC_MS_SAMPLE_INT:
+        ret = (int64_t)sample_ms_pmcs(arg1, arg2);
+        break;
     default:
         ret = SYSCALL_INTERNAL_INVALID_ID;
         break;
+=======
+    switch (number)
+    {
+        case SYSCALL_ENABLE_THREAD1_INT:
+            ret = enable_thread1(arg1, arg2);
+            break;
+        case SYSCALL_PRE_KERNEL_SETUP_INT:
+            ret = pre_kernel_setup(arg1, arg2);
+            break;
+        case SYSCALL_POST_KERNEL_CLEANUP_INT:
+            ret = post_kernel_cleanup(arg1);
+            break;
+        case SYSCALL_GET_MTIME_INT:
+            ret = (int64_t)*mtime_reg;
+            break;
+        case SYSCALL_CACHE_CONTROL_INT:
+            ret = set_l1_cache_control(arg1, arg2);
+            break;
+        case SYSCALL_FLUSH_L3_INT:
+            ret = flush_l3();
+            break;
+        case SYSCALL_EVICT_L3_INT:
+            ret = evict_l3();
+            break;
+        case SYSCALL_SHIRE_CACHE_BANK_OP_INT:
+            ret = shire_cache_bank_op_with_params(arg1, arg2, arg3);
+            break;
+        case SYSCALL_CONFIGURE_PMCS_INT:
+            ret = configure_pmcs(arg1, arg2);
+            break;
+        case SYSCALL_SAMPLE_PMCS_INT:
+            ret = sample_pmcs(arg1, arg2);
+            break;
+        case SYSCALL_RESET_PMCS_INT:
+            ret = reset_pmcs();
+            break;
+        case SYSCALL_CONFIGURE_COMPUTE_MINION:
+            ret = configure_compute_minion(arg1, arg2);
+            break;
+        case SYSCALL_UPDATE_MINION_PLL_FREQUENCY:
+            ret = dynamic_minion_pll_frequency_update(arg1);
+            break;
+        case SYSCALL_CACHE_OPS_EVICT_SW_INT:
+            cache_ops_evict_sw(arg1);
+            break;
+        case SYSCALL_CACHE_OPS_FLUSH_SW_INT:
+            cache_ops_flush_sw(arg1);
+            break;
+        case SYSCALL_CACHE_OPS_LOCK_SW_INT:
+            cache_ops_lock_sw(arg1);
+            break;
+        case SYSCALL_CACHE_OPS_UNLOCK_SW_INT:
+            cache_ops_unlock_sw(arg1);
+            break;
+        case SYSCALL_CACHE_OPS_INVALIDATE_INT:
+            cache_ops_cache_invalidate(arg1);
+            break;
+        case SYSCALL_CACHE_OPS_EVICT_L1_INT:
+            ret = evict_l1(arg1, arg2);
+            break;
+        case SYSCALL_PMC_SC_SAMPLE_INT:
+            ret = (int64_t)sample_sc_pmcs(arg1);
+            break;
+        case SYSCALL_PMC_MS_SAMPLE_INT:
+            ret = (int64_t)sample_ms_pmcs(arg1);
+            break;
+        default:
+            ret = SYSCALL_INTERNAL_INVALID_ID;
+            break;
+>>>>>>> Stashed changes
     }
 
     return ret;
