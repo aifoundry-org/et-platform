@@ -48,8 +48,8 @@ static int64_t pre_kernel_setup(uint64_t hart_enable_mask, uint64_t first_worker
 static int64_t post_kernel_cleanup(uint64_t thread_count);
 
 static int64_t init_l1(void);
-static inline void evict_all_l1_ways(uint64_t use_tmask, uint64_t dest_level, uint64_t set,
-                                     uint64_t num_sets);
+static inline void evict_all_l1_ways(
+    uint64_t use_tmask, uint64_t dest_level, uint64_t set, uint64_t num_sets);
 static int64_t evict_l1(uint64_t use_tmask, uint64_t dest_level);
 
 static int64_t evict_l2(void);
@@ -58,10 +58,10 @@ static int64_t evict_l3(void);
 
 static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op);
 
-static inline void l1_shared_to_split(uint64_t scp_en, uint64_t cacheop_reprate,
-                                      uint64_t cacheop_max);
-static inline void l1_split_to_shared(uint64_t scp_enabled, uint64_t cacheop_reprate,
-                                      uint64_t cacheop_max);
+static inline void l1_shared_to_split(
+    uint64_t scp_en, uint64_t cacheop_reprate, uint64_t cacheop_max);
+static inline void l1_split_to_shared(
+    uint64_t scp_enabled, uint64_t cacheop_reprate, uint64_t cacheop_max);
 static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en);
 
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
@@ -75,75 +75,6 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
      *   SYSCALL_BROADCAST_INT(uint64_t value, uint64_t shire_mask, uint64_t parameters)
      */
 
-<<<<<<< Updated upstream
-    switch (number) {
-    case SYSCALL_ENABLE_THREAD1_INT:
-        ret = enable_thread1(arg1, arg2);
-        break;
-    case SYSCALL_PRE_KERNEL_SETUP_INT:
-        ret = pre_kernel_setup(arg1, arg2);
-        break;
-    case SYSCALL_POST_KERNEL_CLEANUP_INT:
-        ret = post_kernel_cleanup(arg1);
-        break;
-    case SYSCALL_GET_MTIME_INT:
-        ret = (int64_t)*mtime_reg;
-        break;
-    case SYSCALL_CACHE_CONTROL_INT:
-        ret = set_l1_cache_control(arg1, arg2);
-        break;
-    case SYSCALL_FLUSH_L3_INT:
-        ret = flush_l3();
-        break;
-    case SYSCALL_EVICT_L3_INT:
-        ret = evict_l3();
-        break;
-    case SYSCALL_SHIRE_CACHE_BANK_OP_INT:
-        ret = shire_cache_bank_op_with_params(arg1, arg2, arg3);
-        break;
-    case SYSCALL_CONFIGURE_PMCS_INT:
-        ret = configure_pmcs(arg1, arg2);
-        break;
-    case SYSCALL_SAMPLE_PMCS_INT:
-        ret = sample_pmcs(arg1, arg2);
-        break;
-    case SYSCALL_RESET_PMCS_INT:
-        ret = reset_pmcs();
-        break;
-    case SYSCALL_CONFIGURE_COMPUTE_MINION:
-        ret = configure_compute_minion(arg1, arg2);
-        break;
-    case SYSCALL_UPDATE_MINION_PLL_FREQUENCY:
-        ret = dynamic_minion_pll_frequency_update(arg1);
-        break;
-    case SYSCALL_CACHE_OPS_EVICT_SW_INT:
-        cache_ops_evict_sw(arg1);
-        break;
-    case SYSCALL_CACHE_OPS_FLUSH_SW_INT:
-        cache_ops_flush_sw(arg1);
-        break;
-    case SYSCALL_CACHE_OPS_LOCK_SW_INT:
-        cache_ops_lock_sw(arg1);
-        break;
-    case SYSCALL_CACHE_OPS_UNLOCK_SW_INT:
-        cache_ops_unlock_sw(arg1);
-        break;
-    case SYSCALL_CACHE_OPS_INVALIDATE_INT:
-        cache_ops_cache_invalidate(arg1);
-        break;
-    case SYSCALL_CACHE_OPS_EVICT_L1_INT:
-        ret = evict_l1(arg1, arg2);
-        break;
-    case SYSCALL_PMC_SC_SAMPLE_INT:
-        ret = (int64_t)sample_sc_pmcs(arg1, arg2);
-        break;
-    case SYSCALL_PMC_MS_SAMPLE_INT:
-        ret = (int64_t)sample_ms_pmcs(arg1, arg2);
-        break;
-    default:
-        ret = SYSCALL_INTERNAL_INVALID_ID;
-        break;
-=======
     switch (number)
     {
         case SYSCALL_ENABLE_THREAD1_INT:
@@ -212,7 +143,6 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         default:
             ret = SYSCALL_INTERNAL_INVALID_ID;
             break;
->>>>>>> Stashed changes
     }
 
     return ret;
@@ -239,7 +169,7 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
 ***********************************************************************/
 static void cache_ops_evict_sw(uint64_t csr_enc)
 {
-    __asm__ __volatile__ ( "csrw 0x7f9, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
+    __asm__ __volatile__("csrw 0x7f9, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc));
 }
 
 /************************************************************************
@@ -263,7 +193,7 @@ static void cache_ops_evict_sw(uint64_t csr_enc)
 ***********************************************************************/
 static void cache_ops_flush_sw(uint64_t csr_enc)
 {
-    __asm__ __volatile__ ( "csrw 0x7fb, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
+    __asm__ __volatile__("csrw 0x7fb, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc));
 }
 
 /************************************************************************
@@ -287,7 +217,7 @@ static void cache_ops_flush_sw(uint64_t csr_enc)
 ***********************************************************************/
 static void cache_ops_lock_sw(uint64_t csr_enc)
 {
-    __asm__ __volatile__ ( "csrw 0x7fd, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
+    __asm__ __volatile__("csrw 0x7fd, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc));
 }
 
 /************************************************************************
@@ -311,7 +241,7 @@ static void cache_ops_lock_sw(uint64_t csr_enc)
 ***********************************************************************/
 static void cache_ops_unlock_sw(uint64_t csr_enc)
 {
-    __asm__ __volatile__ ( "csrw 0x7ff, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
+    __asm__ __volatile__("csrw 0x7ff, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc));
 }
 
 /************************************************************************
@@ -335,7 +265,7 @@ static void cache_ops_unlock_sw(uint64_t csr_enc)
 ***********************************************************************/
 static void cache_ops_cache_invalidate(uint64_t csr_enc)
 {
-    __asm__ __volatile__ ( "csrw 0x7d0, %[csr_enc]\n" : : [csr_enc] "r" (csr_enc));
+    __asm__ __volatile__("csrw 0x7d0, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc));
 }
 
 // disable_mask is a bitmask to DISABLE a thread1: bit 0 = minion 0, bit 31 = minion 31
@@ -354,18 +284,21 @@ static int64_t enable_thread1(uint64_t disable_mask, uint64_t enable_mask)
 static int64_t pre_kernel_setup(uint64_t thread1_enable_mask, uint64_t first_worker)
 {
     // First worker HART in the shire
-    if ((get_hart_id() % 64U) == first_worker) {
+    if ((get_hart_id() % 64U) == first_worker)
+    {
         enable_thread1(0, thread1_enable_mask);
     }
 
     // Thread 0 in each minion
-    if (get_thread_id() == 0U) {
+    if (get_thread_id() == 0U)
+    {
         // Disable L1 split and scratchpad. Unlocks and evicts all lines.
         init_l1();
     }
 
     // First minion in each neighborhood
-    if (get_hart_id() % 8 == 0U) {
+    if (get_hart_id() % 8 == 0U)
+    {
         // Invalidate shared L1 I-cache
         asm volatile("csrw cache_invalidate, 1");
     }
@@ -401,8 +334,10 @@ static int64_t post_kernel_cleanup(uint64_t thread_count)
 static inline void unlock_required_sw(void)
 {
     /* Unlock sets 14-15: enabling scratchpad will reset sets 0-13 */
-    for (uint64_t set = 14; set < 16; set++) {
-        for (uint64_t way = 0; way < 4; way++) {
+    for (uint64_t set = 14; set < 16; set++)
+    {
+        for (uint64_t way = 0; way < 4; way++)
+        {
             unlock_sw(way, set);
         }
     }
@@ -419,11 +354,13 @@ static int64_t init_l1(void)
     excl_mode(1); // get exclusive access to the processor
 
     // If the cache is not in split mode with scratchpad enabled, change configuration to split mode with scratchpad enabled
-    if ((mcache_control_reg & 0x3) != 3) {
+    if ((mcache_control_reg & 0x3) != 3)
+    {
         bool allSetsReset = false;
 
         // If split isn't enabled, enable it
-        if ((mcache_control_reg & 0x3) == 0) {
+        if ((mcache_control_reg & 0x3) == 0)
+        {
             // Shared mode
             // Comments in PRM-8 section 1.1.1:
             // "Missing specification of what happens when going from shared to
@@ -439,14 +376,15 @@ static int64_t init_l1(void)
             FENCE
 
             mcache_control(1, 0, 0, 0); // Enable split mode
-            allSetsReset = true; // No need to subsequently unlock lines:
-                                 // enabling split mode reset all sets
+            allSetsReset = true;        // No need to subsequently unlock lines:
+                                        // enabling split mode reset all sets
         }
 
         mcache_control_reg = mcache_control_get();
 
         // If scratchpad isn't enabled, enable it
-        if ((mcache_control_reg & 0x3) == 1) {
+        if ((mcache_control_reg & 0x3) == 1)
+        {
             // Split mode with scratchpad disabled
             // PRM-8 section 1.1.1:
             // "When D1Split is 1 and the SCPEnable changes value (0->1 or 1->0),
@@ -470,11 +408,15 @@ static int64_t init_l1(void)
 
             mcache_control(1, 1, 0, 0); // Enable scratchpad
         }
-    } else {
+    }
+    else
+    {
         // Split mode with scratchpad enabled
         // Unlock sets 12-15 (12-13 for HART 0, 14-15 for HART1)
-        for (uint64_t set = 12; set < 16; set++) {
-            for (uint64_t way = 0; way < 4; way++) {
+        for (uint64_t set = 12; set < 16; set++)
+        {
+            for (uint64_t way = 0; way < 4; way++)
+            {
                 unlock_sw(way, set);
             }
         }
@@ -490,8 +432,8 @@ static int64_t init_l1(void)
 }
 
 // evict all 4 ways of a given group of L1 sets up to dest_level
-static inline void evict_all_l1_ways(uint64_t use_tmask, uint64_t dest_level, uint64_t set,
-                                     uint64_t num_sets)
+static inline void evict_all_l1_ways(
+    uint64_t use_tmask, uint64_t dest_level, uint64_t set, uint64_t num_sets)
 {
     evict_sw(use_tmask, dest_level, 0, set, num_sets);
     evict_sw(use_tmask, dest_level, 1, set, num_sets);
@@ -501,21 +443,27 @@ static inline void evict_all_l1_ways(uint64_t use_tmask, uint64_t dest_level, ui
 
 static int64_t evict_l1_all(uint64_t use_tmask, uint64_t dest_level)
 {
-    int64_t rv=0;
+    int64_t rv = 0;
     const uint64_t mcache_control_reg = mcache_control_get();
 
-    if ((mcache_control_reg & 0x3) == 3) {
+    if ((mcache_control_reg & 0x3) == 3)
+    {
         // Split mode with scratchpad enabled. Evict sets 12-15
         evict_all_l1_ways(use_tmask, dest_level, 12, 3);
-
-    } else if ((mcache_control_reg & 0x3) == 1) {
+    }
+    else if ((mcache_control_reg & 0x3) == 1)
+    {
         // Split mode with scratchpad disabled. Evict sets 0-7 and 14-15
         evict_all_l1_ways(use_tmask, dest_level, 0, 7);
         evict_all_l1_ways(use_tmask, dest_level, 14, 1);
-    } else if ((mcache_control_reg & 0x3) == 0) {
+    }
+    else if ((mcache_control_reg & 0x3) == 0)
+    {
         // Shared mode. Evict all sets 0-15
         evict_all_l1_ways(use_tmask, dest_level, 0, 15);
-    } else {
+    }
+    else
+    {
         rv = -1;
     }
 
@@ -570,22 +518,23 @@ static int64_t evict_l3(void)
 
 static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op)
 {
-    switch (op) {
-    case SC_CACHEOP_OPCODE_L2_FLUSH:
-    case SC_CACHEOP_OPCODE_L2_EVICT:
-    case SC_CACHEOP_OPCODE_L3_FLUSH:
-    case SC_CACHEOP_OPCODE_L3_EVICT:
-    case SC_CACHEOP_OPCODE_CB_INV:
-        sc_cache_bank_op(shire, bank, op);
-        return SYSCALL_INTERNAL_SUCCESS;
-    default:
-        return -1;
+    switch (op)
+    {
+        case SC_CACHEOP_OPCODE_L2_FLUSH:
+        case SC_CACHEOP_OPCODE_L2_EVICT:
+        case SC_CACHEOP_OPCODE_L3_FLUSH:
+        case SC_CACHEOP_OPCODE_L3_EVICT:
+        case SC_CACHEOP_OPCODE_CB_INV:
+            sc_cache_bank_op(shire, bank, op);
+            return SYSCALL_INTERNAL_SUCCESS;
+        default:
+            return -1;
     }
 }
 
 // change L1 configuration from Shared to Split, optionally with Scratchpad enabled
-static inline void l1_shared_to_split(uint64_t scp_en, uint64_t cacheop_reprate,
-                                      uint64_t cacheop_max)
+static inline void l1_shared_to_split(
+    uint64_t scp_en, uint64_t cacheop_reprate, uint64_t cacheop_max)
 {
     // Evict all cache lines from the L1 to L2
     evict_l1_all(0, to_L2);
@@ -596,7 +545,8 @@ static inline void l1_shared_to_split(uint64_t scp_en, uint64_t cacheop_reprate,
     // Change L1 Dcache to split mode
     mcache_control(1, 0, cacheop_reprate, cacheop_max);
 
-    if (scp_en) {
+    if (scp_en)
+    {
         // Wait for the L1 cache to change its configuration
         FENCE;
 
@@ -606,13 +556,16 @@ static inline void l1_shared_to_split(uint64_t scp_en, uint64_t cacheop_reprate,
 }
 
 // change L1 configuration from Split to Shared
-static inline void l1_split_to_shared(uint64_t scp_enabled, uint64_t cacheop_reprate,
-                                      uint64_t cacheop_max)
+static inline void l1_split_to_shared(
+    uint64_t scp_enabled, uint64_t cacheop_reprate, uint64_t cacheop_max)
 {
-    if (scp_enabled) {
+    if (scp_enabled)
+    {
         // Evict sets 12-15
         evict_all_l1_ways(0, to_L2, 12, 4);
-    } else {
+    }
+    else
+    {
         // Evict sets 0-7 and 14-15
         evict_all_l1_ways(0, to_L2, 0, 8);
         evict_all_l1_ways(0, to_L2, 14, 2);
@@ -631,7 +584,8 @@ static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en)
     uint64_t cur_split, cur_scp_en, cur_cacheop_reprate, cur_cacheop_max;
 
     // Can't enable the SCP without splitting
-    if (scp_en && !d1_split) {
+    if (scp_en && !d1_split)
+    {
         return -1;
     }
 
@@ -644,14 +598,19 @@ static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en)
     cur_cacheop_reprate = (mcache_control_reg >> 2) & 0x7;
     cur_cacheop_max = (mcache_control_reg >> 6) & 0x1F;
 
-    if (!cur_split) {
+    if (!cur_split)
+    {
         // It is shared and we want to split
-        if (d1_split) {
+        if (d1_split)
+        {
             l1_shared_to_split(scp_en, cur_cacheop_reprate, cur_cacheop_max);
         }
-    } else {
+    }
+    else
+    {
         // It is split (maybe with SCP on) and we want shared mode
-        if (!d1_split) {
+        if (!d1_split)
+        {
             l1_split_to_shared(cur_scp_en, cur_cacheop_reprate, cur_cacheop_max);
         }
     }
