@@ -37,7 +37,8 @@
  *     Trace_Init
  *     Trace_String
  *     Trace_Format_String
- *     Trace_PMC_All_Counters
+ *     Trace_PMC_Counters_Compute
+ *     Trace_PMC_Counters_Memory
  *     Trace_PMC_Counter
  *     Trace_Value_u64
  *     Trace_Value_u32
@@ -45,6 +46,10 @@
  *     Trace_Value_u8
  *     Trace_Value_float
  *     Trace_Memory
+ *     Trace_Cmd_Status
+ *     Trace_Power_Status
+ *     Trace_Execution_Stack
+ *     Trace_Custom_Event
  *
  * The trace buffer itself is accessed via a control block.
  * This data structure has to be filled with a pointer to the
@@ -237,7 +242,7 @@ void Trace_Value_u32(struct trace_control_block_t *cb, uint32_t tag, uint32_t va
 void Trace_Value_u16(struct trace_control_block_t *cb, uint32_t tag, uint16_t value);
 void Trace_Value_u8(struct trace_control_block_t *cb, uint32_t tag, uint8_t value);
 void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float value);
-void *Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint16_t num_cache_line);
+void *Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint32_t size);
 void Trace_Cmd_Status(struct trace_control_block_t *cb,
                       const struct trace_event_cmd_status_t *cmd_data);
 void Trace_Power_Status(struct trace_control_block_t *cb,
@@ -698,14 +703,15 @@ void Trace_Format_String(trace_string_event_e log_level, struct trace_control_bl
 void Trace_Cmd_Status(struct trace_control_block_t *cb,
                       const struct trace_event_cmd_status_t *cmd_data)
 {
-    struct trace_cmd_status_t *entry =
-        (struct trace_cmd_status_t *)trace_buffer_reserve(cb, sizeof(*entry));
+    if (trace_is_enabled(cb)) {
+        struct trace_cmd_status_t *entry =
+            (struct trace_cmd_status_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-    ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_CMD_STATUS)
-    ET_TRACE_WRITE_U64(entry->cmd.raw_cmd, cmd_data->raw_cmd);
+        ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_CMD_STATUS)
+        ET_TRACE_WRITE_U64(entry->cmd.raw_cmd, cmd_data->raw_cmd);
+    }
 }
 
-/* NB: This is still missing from the device-minion-runtime */
 /************************************************************************
 *
 *   FUNCTION
@@ -729,11 +735,13 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
 void Trace_Power_Status(struct trace_control_block_t *cb,
                         const struct trace_event_power_status_t *pwr_data)
 {
-    struct trace_power_status_t *entry =
-        (struct trace_power_status_t *)trace_buffer_reserve(cb, sizeof(*entry));
+    if (trace_is_enabled(cb)) {
+        struct trace_power_status_t *entry =
+            (struct trace_power_status_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-    ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_POWER_STATUS)
-    ET_TRACE_WRITE_U64(entry->power.raw_cmd, pwr_data->raw_cmd);
+        ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_POWER_STATUS)
+        ET_TRACE_WRITE_U64(entry->power.raw_cmd, pwr_data->raw_cmd);
+    }
 }
 
 /************************************************************************
@@ -1037,33 +1045,28 @@ void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float val
 *
 *   INPUTS
 *
-*       trace_control_block_t     Trace control block of logging Thread/Hart.
-*       uint8_t                   Pointer to memory.
-*       uint16_t                  Size of memory in term of cache lines..
+*       cb     Trace control block of logging Thread/Hart.
+*       src    Pointer to memory.
+*       size   Size of memory in bytes.
 *
 *   OUTPUTS
 *
 *       Pointer to starting address of event
 *
 ************************************************************************/
-void *Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint16_t num_cache_line)
+void *Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint32_t size)
 {
     struct trace_memory_t *entry = NULL;
 
     if (trace_is_enabled(cb) &&
-        ((num_cache_line * 8) <= (ET_TRACE_READ_U32(cb->size_per_hart) - trace_get_header_size(cb)))){
-        entry = (struct trace_memory_t *)trace_buffer_reserve(cb,
-                 sizeof(*entry) + (uint32_t)(num_cache_line * 8));
+        (size <= (ET_TRACE_READ_U32(cb->size_per_hart) - trace_get_header_size(cb)))) {
+        entry = (struct trace_memory_t *)trace_buffer_reserve(cb, sizeof(*entry) + size);
 
         ET_TRACE_MESSAGE_HEADER(entry, TRACE_TYPE_MEMORY)
 
         ET_TRACE_WRITE_U64(entry->src_addr, (uint64_t)(src));
-        ET_TRACE_WRITE_U64(entry->size, (uint64_t)(num_cache_line * 8));
-
-        for (uint16_t index = 0; index < num_cache_line; index++) {
-            ET_TRACE_MEM_CPY(&entry->data[index * 64], src, 64);
-            src += 64;
-        }
+        ET_TRACE_WRITE_U64(entry->size, size);
+        ET_TRACE_MEM_CPY(entry->data, src, size);
     }
 
     return (void*)entry;
@@ -1133,7 +1136,7 @@ void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
 
     /* Check if trace is enabled and the payload size is less than the total buffer size */
     if (trace_is_enabled(cb) &&
-        (payload_size < (ET_TRACE_READ_U32(cb->size_per_hart) - trace_get_header_size(cb)))) {
+        (payload_size <= (ET_TRACE_READ_U32(cb->size_per_hart) - trace_get_header_size(cb)))) {
         /* Reserve the trace buffer */
         entry = (struct trace_custom_event_t *)trace_buffer_reserve(cb, sizeof(*entry) + payload_size);
 
