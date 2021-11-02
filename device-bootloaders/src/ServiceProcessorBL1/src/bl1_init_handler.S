@@ -3,6 +3,7 @@
 .extern __stack_base
 .extern __data_end
 .extern __code_start
+.extern __code_end
 
 #ifndef STACK_SIZE_LOG2
 #define STACK_SIZE_LOG2 12
@@ -24,26 +25,14 @@ _init_handler:
 
     ################################################################
     # patch SRAM parity error bug if L1 is not enabled in BootROM
-init_after_bl1_data:
-    # zero out after .data/.sdata sections till end of the SRAM at 0x40500000
-    la   x26, __data_end
-    li   x27, 0x40500000
-    bge  x26, x27, after_bl1_data_loop_end
-1:  sw   x0,  0(x26)
-    addi x26, x26, 4
-    blt  x26, x27, 1b
-
-after_bl1_data_loop_end:
-
 init_area_before_rom_data:
     # zero out the area from start of SRAM at 0x40400000 till rom_data at 0x404003c0
     li   x26, 0x40400000
-    la   x27, 0x404003c0
+    li   x27, 0x404003c0
     bge  x26, x27, area_before_rom_data_loop_end
 1:  sw   x0,  0(x26)
     addi x26, x26, 4
     blt  x26, x27, 1b
-
 area_before_rom_data_loop_end:
 
 init_area_before_bl1:
@@ -54,8 +43,27 @@ init_area_before_bl1:
 1:  sw   x0,  0(x26)
     addi x26, x26, 4
     blt  x26, x27, 1b
-
 area_before_bl1_loop_end:
+
+init_after_bl1_code:
+    # zero out after all CODE sections till start of DATA sectons
+    la   x26, __code_end
+    la   x27, __data_start
+    bge  x26, x27, after_bl1_code_loop_end
+1:  sw   x0,  0(x26)
+    addi x26, x26, 4
+    blt  x26, x27, 1b
+after_bl1_code_loop_end:
+
+init_after_bl1_data:
+    # zero out after .data/.sdata sections till end of the SRAM at 0x40500000
+    la   x26, __data_end
+    li   x27, 0x40500000
+    bge  x26, x27, after_bl1_data_loop_end
+1:  sw   x0,  0(x26)
+    addi x26, x26, 4
+    blt  x26, x27, 1b
+after_bl1_data_loop_end:
 
 init_pu_sram_region1:
     # zero out the area of PU SRAM at 0x20004000 till 0x20040000
@@ -70,7 +78,6 @@ init_pu_sram_region1:
 1:  sw   x0,  0(x26)
     addi x26, x26, 4
     blt  x26, x27, 1b
-
 pu_sram_region1_loop_end:
 
 init_pu_sram_region2:
@@ -85,7 +92,6 @@ init_pu_sram_region2:
 1:  sw   x0,  0(x26)
     addi x26, x26, 4
     blt  x26, x27, 1b
-
 pu_sram_region2_loop_end:
     # patch end here
     ################################################################

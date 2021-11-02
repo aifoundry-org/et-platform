@@ -45,6 +45,7 @@ SECTIONS
     .sbss2 :
     {
         *(SORT_BY_ALIGNMENT(.sbss2) SORT_BY_ALIGNMENT(.sbss2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.sb2.*))
+        __code_end = .;
     } > CODE
 
     .data : ALIGN(128)
