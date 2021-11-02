@@ -17,6 +17,7 @@ extern "C" {
 #endif
 
 #include <stddef.h>
+#include "etsoc/drivers/pmu/pmu.h"
 #include "trace/trace_umode_intern.h"
 
 /*! \def et_printf(fmt)
@@ -85,6 +86,10 @@ __attribute__((noreturn)) void et_abort(void);
     {                                                                   \
         (void)(expr);                                                   \
     }
+
+#define et_get_timestamp()                      PMC_Get_Current_Cycles()
+
+#define et_get_delta_timestamp(prev_timestamp)  (PMC_Get_Current_Cycles() - prev_timestamp)
 
 #ifdef __cplusplus
 }

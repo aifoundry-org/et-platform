@@ -15,6 +15,7 @@
 /***********************************************************************/
 
 #include "etsoc/drivers/pmu/pmu.h"
+#include "etsoc/isa/etsoc_memory.h"
 #include "etsoc/isa/hart.h"
 #include "etsoc/isa/syscall.h"
 
@@ -78,4 +79,49 @@ void __et_printf(const char *fmt, ...)
 
     Trace_String(TRACE_EVENT_STRING_CRITICAL,
         &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb, data);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       et_trace_flush_buffer
+*
+*   DESCRIPTION
+*
+*       This function evicts the Trace buffer of caller Worker Hart.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void et_trace_flush_buffer(void)
+{
+    const struct trace_control_block_t *cb = &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb;
+
+    if (cb->enable == TRACE_ENABLE)
+    {
+        if (cb->header == TRACE_STD_HEADER)
+        {
+            struct trace_buffer_std_header_t *trace_header =
+                (struct trace_buffer_std_header_t *)cb->base_per_hart;
+
+            trace_header->data_size = cb->offset_per_hart;
+        }
+        else
+        {
+            struct trace_buffer_size_header_t *size_header =
+                (struct trace_buffer_size_header_t *)cb->base_per_hart;
+
+            size_header->data_size = cb->offset_per_hart;
+        }
+    }
+
+    /* Flush the buffer to L3. */
+    ETSOC_MEM_EVICT((uint64_t *)cb->base_per_hart, cb->offset_per_hart, to_L3)
 }
