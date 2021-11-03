@@ -23,6 +23,9 @@ typedef struct {
 
 int64_t main(const Parameters *const kernel_params_ptr)
 {
+  uint64_t start_ts = et_get_timestamp();
+  et_printf("Kernel start TS: %ld", start_ts);
+
   /* TODO: Define the body of the kernel */
   et_printf("Hart[%d]:Kernel Param:base_addr:%ld\r\n", get_hart_id(), kernel_params_ptr->base_addr);
   et_printf("Hart[%d]:Kernel Param:num_minions:%ld\r\n", get_hart_id(), kernel_params_ptr->num_minions);
@@ -35,6 +38,8 @@ int64_t main(const Parameters *const kernel_params_ptr)
   /* Dump shire-cache and mem-shire related PMCs
   Only a single hart should ideally do this. */
   et_trace_pmc_memory(63);
+
+  et_printf("Kernel execution duration: %ld", et_get_delta_timestamp(start_ts));
 
   return 0;
 }
