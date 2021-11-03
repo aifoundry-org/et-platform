@@ -847,7 +847,7 @@ uint32_t mmu_fetch(Hart& cpu, uint64_t vaddr)
 
 
 template<typename T>
-T mmu_load_impl(const Hart& cpu, uint64_t eaddr, mem_access_type macc)
+static T mmu_load_impl(const Hart& cpu, uint64_t eaddr, mem_access_type macc)
 {
     uint64_t vaddr = sextVA(eaddr);
     check_load_breakpoint(cpu, vaddr);
@@ -873,7 +873,7 @@ T mmu_load_impl(const Hart& cpu, uint64_t eaddr, mem_access_type macc)
 
 
 template<typename T>
-T mmu_aligned_load_impl(const Hart& cpu, uint64_t eaddr, mem_access_type macc)
+static T mmu_aligned_load_impl(const Hart& cpu, uint64_t eaddr, mem_access_type macc)
 {
     uint64_t vaddr = sextVA(eaddr);
     check_load_breakpoint(cpu, vaddr);
@@ -887,6 +887,18 @@ T mmu_aligned_load_impl(const Hart& cpu, uint64_t eaddr, mem_access_type macc)
     LOG_MEMREAD(CHAR_BIT*sizeof(T), paddr, value);
     notify_mem_read(cpu, true, sizeof(T), vaddr, paddr);
     return value;
+}
+
+
+template <size_t Nbytes>
+static uint64_t mmu_tensor_load_impl(const Hart& cpu, uint64_t eaddr, uint32_t* data, mem_access_type macc)
+{
+    uint64_t vaddr = sextVA(eaddr);
+    assert(addr_is_size_aligned(vaddr, Nbytes));
+    uint64_t paddr = vmemtranslate(cpu, vaddr, Nbytes, macc);
+    uint64_t addr = pma_check_data_access(cpu, vaddr, paddr, Nbytes, macc);
+    cpu.chip->memory.read(cpu, addr, Nbytes, data);
+    return paddr;
 }
 
 
@@ -925,6 +937,27 @@ uint16_t mmu_aligned_load16(const Hart& cpu, uint64_t eaddr, mem_access_type mac
 uint32_t mmu_aligned_load32(const Hart& cpu, uint64_t eaddr, mem_access_type macc)
 {
     return mmu_aligned_load_impl<uint32_t>(cpu, eaddr, macc);
+}
+
+
+void mmu_tensor_load128(const Hart& cpu, uint64_t eaddr, uint32_t* data, mem_access_type macc)
+{
+    uint64_t addr = mmu_tensor_load_impl<16>(cpu, eaddr, data, macc);
+    LOG_MEMREAD128(addr, data);
+}
+
+
+void mmu_tensor_load256(const Hart& cpu, uint64_t eaddr, uint32_t* data, mem_access_type macc)
+{
+    uint64_t addr = mmu_tensor_load_impl<32>(cpu, eaddr, data, macc);
+    LOG_MEMREAD256(addr, data);
+}
+
+
+void mmu_tensor_load512(const Hart& cpu, uint64_t eaddr, uint32_t* data, mem_access_type macc)
+{
+    uint64_t addr = mmu_tensor_load_impl<64>(cpu, eaddr, data, macc);
+    LOG_MEMREAD512(addr, data);
 }
 
 
@@ -1000,7 +1033,7 @@ void mmu_aligned_loadVLEN(const Hart& cpu, uint64_t eaddr, freg_t& data, mreg_t 
 
 
 template <typename T>
-void mmu_store_impl(const Hart& cpu, uint64_t eaddr, T data, mem_access_type macc)
+static void mmu_store_impl(const Hart& cpu, uint64_t eaddr, T data, mem_access_type macc)
 {
     uint64_t vaddr = sextVA(eaddr);
     check_store_breakpoint(cpu, vaddr);
@@ -1023,7 +1056,7 @@ void mmu_store_impl(const Hart& cpu, uint64_t eaddr, T data, mem_access_type mac
 
 
 template <typename T>
-void mmu_aligned_store_impl(const Hart& cpu, uint64_t eaddr, T data, mem_access_type macc)
+static void mmu_aligned_store_impl(const Hart& cpu, uint64_t eaddr, T data, mem_access_type macc)
 {
     uint64_t vaddr = sextVA(eaddr);
     check_store_breakpoint(cpu, vaddr);
@@ -1035,6 +1068,24 @@ void mmu_aligned_store_impl(const Hart& cpu, uint64_t eaddr, T data, mem_access_
     cpu.chip->memory.write(cpu, addr, sizeof(T), &data);
     LOG_MEMWRITE(CHAR_BIT*sizeof(T), paddr, data);
     notify_mem_write(cpu, true, sizeof(T), vaddr, paddr, data);
+}
+
+
+template <size_t Nbytes>
+static uint64_t mmu_tensor_store_impl(const Hart& cpu, uint64_t eaddr, const uint32_t* data, mem_access_type macc)
+{
+    uint64_t vaddr = sextVA(eaddr);
+    assert(addr_is_size_aligned(vaddr, Nbytes));
+    uint64_t paddr = vmemtranslate(cpu, vaddr, Nbytes, macc);
+    uint64_t addr = pma_check_data_access(cpu, vaddr, paddr, Nbytes, macc);
+    cpu.chip->memory.write(cpu, addr, Nbytes, data);
+    if (macc == Mem_Access_TxStore) {
+        static constexpr unsigned n_words = Nbytes / 4;
+        for (unsigned i = 0; i < n_words; ++i) {
+            notify_tensor_store_write(cpu, paddr + i * 4, data[i]);
+        }
+    }
+    return paddr;
 }
 
 
@@ -1073,6 +1124,27 @@ void mmu_aligned_store16(const Hart& cpu, uint64_t eaddr, uint16_t data, mem_acc
 void mmu_aligned_store32(const Hart& cpu, uint64_t eaddr, uint32_t data, mem_access_type macc)
 {
     mmu_aligned_store_impl<uint32_t>(cpu, eaddr, data, macc);
+}
+
+
+void mmu_tensor_store128(const Hart& cpu, uint64_t eaddr, const uint32_t* data, mem_access_type macc)
+{
+    uint64_t addr = mmu_tensor_store_impl<16>(cpu, eaddr, data, macc);
+    LOG_MEMWRITE128(addr, data);
+}
+
+
+void mmu_tensor_store256(const Hart& cpu, uint64_t eaddr, const uint32_t* data, mem_access_type macc)
+{
+    uint64_t addr = mmu_tensor_store_impl<32>(cpu, eaddr, data, macc);
+    LOG_MEMWRITE256(addr, data);
+}
+
+
+void mmu_tensor_store512(const Hart& cpu, uint64_t eaddr, const uint32_t* data, mem_access_type macc)
+{
+    uint64_t addr = mmu_tensor_store_impl<64>(cpu, eaddr, data, macc);
+    LOG_MEMWRITE512(addr, data);
 }
 
 
