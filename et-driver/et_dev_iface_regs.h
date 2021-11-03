@@ -234,12 +234,20 @@ struct et_mgmt_dir {
 	struct et_dir_mem_region mem_region[];
 } __packed;
 
-static inline void
-et_print_mgmt_dir(struct device *dev, u8 *dir_data, size_t dir_size)
+struct et_bar_addr_dbg {
+	u64 phys_addr;
+	void __iomem *mapped_baseaddr;
+};
+
+static inline void et_print_mgmt_dir(struct device *dev,
+				     u8 *dir_data,
+				     size_t dir_size,
+				     struct et_bar_addr_dbg *bar_addr_dbg)
 {
 	int i = 0;
 	size_t remaining_size;
 	struct et_mgmt_dir *mgmt_dir;
+	struct et_bar_addr_dbg *mgmt_bar_addr_dbg = bar_addr_dbg;
 
 	if (!dir_data || !dir_size)
 		return;
@@ -332,12 +340,6 @@ et_print_mgmt_dir(struct device *dev, u8 *dir_data, size_t dir_size)
 	while (remaining_size > 0) {
 		dev_dbg(dev, "Mgmt DIRs Memory Region[%d]\n", i);
 		dev_dbg(dev,
-			"Type                    : 0x%x",
-			mgmt_dir->mem_region[i].type);
-		dev_dbg(dev,
-			"BAR                     : 0x%x\n",
-			mgmt_dir->mem_region[i].bar);
-		dev_dbg(dev,
 			"Attributes Size         : 0x%x\n",
 			mgmt_dir->mem_region[i].attributes_size);
 		dev_dbg(dev,
@@ -352,17 +354,57 @@ et_print_mgmt_dir(struct device *dev, u8 *dir_data, size_t dir_size)
 		dev_dbg(dev,
 			"Access (Reserved)       : 0x%x\n",
 			mgmt_dir->mem_region[i].access.reserved);
+		switch (mgmt_dir->mem_region[i].type) {
+		case MGMT_MEM_REGION_TYPE_VQ_BUFFER:
+			dev_dbg(dev,
+				"Type                    : %d - VQ Buffer\n",
+				MGMT_MEM_REGION_TYPE_VQ_BUFFER);
+			break;
+		case MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG:
+			dev_dbg(dev,
+				"Type                    : %d - VQ INT TRG\n",
+				MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG);
+			break;
+		case MGMT_MEM_REGION_TYPE_SCRATCH:
+			dev_dbg(dev,
+				"Type                    : %d - Scratch\n",
+				MGMT_MEM_REGION_TYPE_SCRATCH);
+			break;
+		case MGMT_MEM_REGION_TYPE_SPFW_TRACE:
+			dev_dbg(dev,
+				"Type                    : %d - SP FW Trace\n",
+				MGMT_MEM_REGION_TYPE_SPFW_TRACE);
+			break;
+		default:
+			dev_dbg(dev,
+				"Type                    : Unknown region\n");
+		}
 		dev_dbg(dev,
-			"BAR Offset              : %llx\n",
+			"BAR                     : 0x%x\n",
+			mgmt_dir->mem_region[i].bar);
+		dev_dbg(dev,
+			"BAR Offset              : 0x%llx\n",
 			mgmt_dir->mem_region[i].bar_offset);
 		dev_dbg(dev,
-			"BAR Size                : %llx\n",
+			"BAR Size                : 0x%llx (%lld)",
+			mgmt_dir->mem_region[i].bar_size,
 			mgmt_dir->mem_region[i].bar_size);
 		dev_dbg(dev,
-			"Dev Address             : %llx\n\n",
-			mgmt_dir->mem_region[i].dev_address);
+			"BAR Region PhysAddr     : 0x%llx\n",
+			mgmt_bar_addr_dbg->phys_addr);
+		dev_dbg(dev,
+			"BAR Region Kern VirtAddr: 0x%px\n",
+			mgmt_bar_addr_dbg->mapped_baseaddr);
+		if (mgmt_dir->mem_region[i].dev_address == 0) {
+			dev_dbg(dev, "Dev Address             : N/A\n\n");
+		} else {
+			dev_dbg(dev,
+				"Dev Address             : 0x%llx\n\n",
+				mgmt_dir->mem_region[i].dev_address);
+		}
 		remaining_size -= sizeof(struct et_dir_mem_region);
 		i++;
+		mgmt_bar_addr_dbg++;
 	}
 }
 
@@ -432,12 +474,15 @@ struct et_ops_dir {
 	struct et_dir_mem_region mem_region[];
 } __packed;
 
-static inline void
-et_print_ops_dir(struct device *dev, u8 *dir_data, size_t dir_size)
+static inline void et_print_ops_dir(struct device *dev,
+				    u8 *dir_data,
+				    size_t dir_size,
+				    struct et_bar_addr_dbg *bar_addr_dbg)
 {
 	int i = 0;
 	size_t remaining_size;
 	struct et_ops_dir *ops_dir;
+	struct et_bar_addr_dbg *ops_bar_addr_dbg = bar_addr_dbg;
 
 	if (!dir_data || !dir_size)
 		return;
@@ -515,12 +560,6 @@ et_print_ops_dir(struct device *dev, u8 *dir_data, size_t dir_size)
 	while (remaining_size > 0) {
 		dev_dbg(dev, "Ops DIRs Memory Region[%d]\n", i);
 		dev_dbg(dev,
-			"Type                    : 0x%x",
-			ops_dir->mem_region[i].type);
-		dev_dbg(dev,
-			"BAR                     : 0x%x\n",
-			ops_dir->mem_region[i].bar);
-		dev_dbg(dev,
 			"Attributes Size         : 0x%x\n",
 			ops_dir->mem_region[i].attributes_size);
 		dev_dbg(dev,
@@ -535,17 +574,57 @@ et_print_ops_dir(struct device *dev, u8 *dir_data, size_t dir_size)
 		dev_dbg(dev,
 			"Access (Reserved)       : 0x%x\n",
 			ops_dir->mem_region[i].access.reserved);
+		switch (ops_dir->mem_region[i].type) {
+		case OPS_MEM_REGION_TYPE_VQ_BUFFER:
+			dev_dbg(dev,
+				"Type                    : %d - VQ Buffer\n",
+				OPS_MEM_REGION_TYPE_VQ_BUFFER);
+			break;
+		case OPS_MEM_REGION_TYPE_MMFW_TRACE:
+			dev_dbg(dev,
+				"Type                    : %d - MM FW Trace\n",
+				OPS_MEM_REGION_TYPE_MMFW_TRACE);
+			break;
+		case OPS_MEM_REGION_TYPE_CMFW_TRACE:
+			dev_dbg(dev,
+				"Type                    : %d - CM FW Trace\n",
+				OPS_MEM_REGION_TYPE_CMFW_TRACE);
+			break;
+		case OPS_MEM_REGION_TYPE_HOST_MANAGED:
+			dev_dbg(dev,
+				"Type                    : %d - Host Managed DRAM\n",
+				OPS_MEM_REGION_TYPE_HOST_MANAGED);
+			break;
+		default:
+			dev_dbg(dev,
+				"Type                    : Unknown region\n");
+		}
 		dev_dbg(dev,
-			"BAR Offset              : %llx\n",
+			"BAR                     : 0x%x\n",
+			ops_dir->mem_region[i].bar);
+		dev_dbg(dev,
+			"BAR Offset              : 0x%llx\n",
 			ops_dir->mem_region[i].bar_offset);
 		dev_dbg(dev,
-			"BAR Size                : %llx\n",
+			"BAR Size                : 0x%llx (%lld)",
+			ops_dir->mem_region[i].bar_size,
 			ops_dir->mem_region[i].bar_size);
 		dev_dbg(dev,
-			"Dev Address             : %llx\n\n",
-			ops_dir->mem_region[i].dev_address);
+			"BAR Region PhysAddr     : 0x%llx\n",
+			ops_bar_addr_dbg->phys_addr);
+		dev_dbg(dev,
+			"BAR Region Kern VirtAddr: 0x%px\n",
+			ops_bar_addr_dbg->mapped_baseaddr);
+		if (ops_dir->mem_region[i].dev_address == 0) {
+			dev_dbg(dev, "Dev Address             : N/A\n\n");
+		} else {
+			dev_dbg(dev,
+				"Dev Address             : 0x%llx\n\n",
+				ops_dir->mem_region[i].dev_address);
+		}
 		remaining_size -= sizeof(struct et_dir_mem_region);
 		i++;
+		ops_bar_addr_dbg++;
 	}
 }
 
