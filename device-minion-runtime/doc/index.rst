@@ -13,10 +13,9 @@ Welcome to Esperanto Minion Device Runtime's documentation!
    :caption: Contents:
 
    SystemArchitecture
-   sw-hw-interactions/SW-HW-Interactions
-   hight-level-flows/KernelExecution
    master-minion/MasterMinion
    worker-minion/WorkerMinion
+   machine-minion/MachineMinion
 
    api/EsperantoDeviceMinionRuntime_root
 

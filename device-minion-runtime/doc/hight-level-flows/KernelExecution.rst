@@ -1,2 +1,0 @@
-Kernel Execution and Dispatching
-================================
