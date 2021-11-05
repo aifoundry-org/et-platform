@@ -1,0 +1,94 @@
+stages:
+  - build
+  - package
+
+include:
+  - project: 'software/conan/conan-ci-pipelines-common'
+    file: 'conan-config.yaml'
+  - project: 'software/conan/conan-ci-pipelines-common'
+    file: 'build.yaml'
+  - project: 'software/conan/conan-ci-pipelines-common'
+    file: 'package.yaml'
+
+#### build
+
+build:system_pkg_manager:
+  stage: build
+  tags:
+    - docker
+  image: ubuntu:latest
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH'
+  variables:
+    DEBIAN_FRONTEND: noninteractive
+  parallel:
+    matrix:
+      - COMPILER: [ gcc ]
+        COMPILER_VERSION: [ 7 ]
+        BUILD_TYPE: [ Release, Debug ]
+        PROFILING: [ 1 ]
+        BACKTRACE: [ 1 ]
+  before_script:
+    - apt-get update -qq
+    - apt-get install -qq -y --no-install-recommends ninja-build build-essential gcc-${COMPILER_VERSION} g++-${COMPILER_VERSION} cmake libunwind-dev libgoogle-glog-dev
+    - mkdir build
+    - cd build
+  script:
+    - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DPROFILING=${PROFILING} -DBACKGRACE=${BACKTRACE} -G Ninja ..
+    - ninja
+  allow_failure: true
+
+build:conan:
+  stage: build
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH'
+  variables:
+    DOCKER_IMAGE: conanio/${COMPILER}
+  parallel:
+    matrix:
+      - COMPILER: [ gcc7 ]
+        BUILD_TYPE: [ Release, Debug ]
+        PROFILING: [ 'False', 'True' ]
+        BACKTRACE: [ 'False', 'True' ]
+      - COMPILER: [ clang10 ]
+        BUILD_TYPE: [ Release, Debug ]
+        PROFILING: [ 'False' ]
+        BACKTRACE: [ 'False' ]
+  script: 
+    # remove custom FindXXX.cmake modules when using conan 
+    - rm -rf ../cmake #TODO: remove cmake/ dir in the future
+    - conan install .. -s build_type=${BUILD_TYPE} -o sw-sysemu:profiling=${PROFILING} -o sw-sysemu:backtrace=${BACKTRACE} --build missing
+    - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DPROFILING=${PROFILING} -DBACKGRACE=${BACKTRACE} -G Ninja ..
+    - ninja
+
+#### package
+
+package:
+  stage: package
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /extract-etsoc-sysemu-$/
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH'
+  variables:
+    DOCKER_IMAGE: conanio/${COMPILER}${COMPILER_VERSION}
+    CONAN_STABLE_BRANCH_PATTERN: "develop/sw-sysemu"
+    CONAN_UPLOAD_FORCE: 0
+    CPT_SUMMARY_FILE: "cpt_summary_file.json"
+    CI_BUILD_REF_NAME: ${CI_COMMIT_REF_NAME}
+  parallel:
+    matrix:
+      - COMPILER: [ gcc ]
+        COMPILER_VERSION: [ 7 ]
+        CONAN_GCC_VERSIONS: [ 7 ]
+      - COMPILER: [ clang ]
+        COMPILER_VERSION: [ 10 ]
+        CONAN_CLANG_VERSIONS: [ 10 ]
+  script:
+    - echo ${CI_BUILD_REF_NAME}
+    - ./conan/ci/package.sh
+  artifacts:
+    paths:
+      - ${CPT_SUMMARY_FILE}
+    expire_in: 1 week
+
+
