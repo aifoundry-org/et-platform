@@ -37,14 +37,19 @@
 // SCP checks
 #ifdef SYS_EMU
     #define SYS_EMU_PTR cpu.chip->emu()
+    #define L1_SCP_CHECK_START(cpu, op, fp) do { \
+        if (SYS_EMU_PTR->get_l1_scp_check()) { \
+            SYS_EMU_PTR->get_l1_scp_checker().tensor_op_start(hart_index(cpu), op, fp); \
+        } \
+    } while (0)
     #define L1_SCP_CHECK_FILL(cpu, idx, id) do { \
         if (SYS_EMU_PTR->get_l1_scp_check()) { \
             SYS_EMU_PTR->get_l1_scp_checker().l1_scp_fill(hart_index(cpu), idx, id); \
         } \
     } while (0)
-    #define L1_SCP_CHECK_READ(cpu, idx) do { \
+    #define L1_SCP_CHECK_READ(cpu, idx, op) do { \
         if (SYS_EMU_PTR->get_l1_scp_check()) { \
-            SYS_EMU_PTR->get_l1_scp_checker().l1_scp_read(hart_index(cpu), idx); \
+            SYS_EMU_PTR->get_l1_scp_checker().l1_scp_read(hart_index(cpu), idx, op); \
         } \
     } while (0)
     #define L2_SCP_CHECK_FILL(cpu, idx, id, addr) do { \
@@ -53,8 +58,9 @@
         } \
     } while (0)
 #else
-    #define L1_SCP_CHECK_FILL(cpu, idx, id)  do { (void)id; } while (0)
-    #define L1_SCP_CHECK_READ(cpu, idx)      do { } while (0)
+    #define L1_SCP_CHECK_START(cpu, op, fp)       do { } while (0)
+    #define L1_SCP_CHECK_FILL(cpu, idx, id)       do { (void)id; } while (0)
+    #define L1_SCP_CHECK_READ(cpu, idx, op)       do { } while (0)
     #define L2_SCP_CHECK_FILL(cpu, idx, id, addr) do { } while (0)
 #endif
 
@@ -537,7 +543,6 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
             if (!msk || tload.tmask[i]) {
                 bool dirty = false;
                 int idx = adj + ((start + i) % L1_SCP_ENTRIES);
-                L1_SCP_CHECK_FILL(cpu, idx, id);
                 for (int r = 0; r < 4; ++r) {
                     try {
                         Packed<128> tmp;
@@ -564,6 +569,7 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
                     notify_tensor_load_scp_write(cpu, i, &SCP[idx].u64[0]);
                     LOG_SCP_32x16("=", idx);
                 }
+                L1_SCP_CHECK_FILL(cpu, idx, id);
             }
         }
         break;
@@ -578,7 +584,6 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
             if (!msk || tload.tmask[i]) {
                 bool dirty = false;
                 int idx = adj + ((start + i) % L1_SCP_ENTRIES);
-                L1_SCP_CHECK_FILL(cpu, idx, id);
                 for (int r = 0; r < 2; ++r) {
                     try {
                         Packed<256> tmp;
@@ -605,6 +610,7 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
                     notify_tensor_load_scp_write(cpu, i, &SCP[idx].u64[0]);
                     LOG_SCP_32x16("=", idx);
                 }
+                L1_SCP_CHECK_FILL(cpu, idx, id);
             }
         }
         break;
@@ -637,12 +643,12 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
         for (int i = 0; i < rows; ++i) {
             if (okay[i] && (!msk || tload.tmask[i])) {
                 int idx = adj + ((start + i) % L1_SCP_ENTRIES);
-                L1_SCP_CHECK_FILL(cpu, idx, id);
                 for (int j = 0; j < L1D_LINE_SIZE; ++j) {
                     SCP[idx].u8[j] = tmp[j].u8[i + boffset];
                 }
                 notify_tensor_load_scp_write(cpu, i, &SCP[idx].u64[0]);
                 LOG_SCP_32x16("=", idx);
+                L1_SCP_CHECK_FILL(cpu, idx, id);
             }
         }
         break;
@@ -675,12 +681,12 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
         for (int i = 0; i < rows; ++i) {
             if (okay[i] && (!msk || tload.tmask[i])) {
                 int idx = adj + ((start + i) % L1_SCP_ENTRIES);
-                L1_SCP_CHECK_FILL(cpu, idx, id);
                 for (int j = 0; j < L1D_LINE_SIZE / 2; ++j) {
                     SCP[idx].u16[j] = tmp[j].u16[i + boffset];
                 }
                 notify_tensor_load_scp_write(cpu, i, &SCP[idx].u64[0]);
                 LOG_SCP_32x16("=", idx);
+                L1_SCP_CHECK_FILL(cpu, idx, id);
             }
         }
         break;
@@ -712,12 +718,12 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
         for (int i = 0; i < rows; ++i) {
             if (okay[i] && (!msk || tload.tmask[i])) {
                 int idx = adj + ((start + i) % L1_SCP_ENTRIES);
-                L1_SCP_CHECK_FILL(cpu, idx, id);
                 for (int j = 0; j < L1D_LINE_SIZE / 4; ++j) {
                     SCP[idx].u32[j] = tmp[j].u32[i/*+ boffset==0*/];
                 }
                 notify_tensor_load_scp_write(cpu, i, &SCP[idx].u64[0]);
                 LOG_SCP_32x16("=", idx);
+                L1_SCP_CHECK_FILL(cpu, idx, id);
             }
         }
         break;
@@ -819,6 +825,9 @@ void tensor_quant_start(Hart& cpu, uint64_t value)
         int funct = (value >> (trans * 4)) & 0xF;
         if (funct == tquant_funct_last) {
             if (trans == 0) {
+                // Let's the checker know that the TensorQuant is starting, even if the instruction does nothing
+                L1_SCP_CHECK_START(cpu, tensor_op_type::TensorQuant, true);
+
                 // Nothing to do, don't activate the state machine
                 return;
             }
@@ -832,10 +841,17 @@ void tensor_quant_start(Hart& cpu, uint64_t value)
                      "\tTransformation %d is %s but L1SCP is disabled",
                      trans, get_quant_transform(funct));
             update_tensor_error(cpu, 1 << 4);
+
+            // Let's the checker know that the TensorQuant is starting, even if the instruction fails
+            L1_SCP_CHECK_START(cpu, tensor_op_type::TensorQuant, true);
+
             // Error, don't activate the state machine
             return;
         }
     }
+
+    // Let's the checker know that the TensorQuant is starting, even if the instruction does nothing
+    L1_SCP_CHECK_START(cpu, tensor_op_type::TensorQuant, true);
 
     // Activate the state machine
     cpu.core->tquant.value = value;
@@ -927,7 +943,7 @@ void tensor_quant_execute(Hart& cpu)
                         FREGS[fd].i32[e] = FREGS[fd].i32[e]
                                          + SCP[start].i32[col+e];
                     }
-                    L1_SCP_CHECK_READ(cpu, start);
+                    L1_SCP_CHECK_READ(cpu, start, tensor_op_type::TensorQuant);
                     LOG_FREG("=", fd);
                     dirty_fp_state();
                     break;
@@ -938,7 +954,7 @@ void tensor_quant_execute(Hart& cpu)
                         FREGS[fd].i32[e] = FREGS[fd].i32[e]
                                          + SCP[start].i32[row];
                     }
-                    L1_SCP_CHECK_READ(cpu, start);
+                    L1_SCP_CHECK_READ(cpu, start, tensor_op_type::TensorQuant);
                     LOG_FREG("=", fd);
                     dirty_fp_state();
                     break;
@@ -949,7 +965,7 @@ void tensor_quant_execute(Hart& cpu)
                         FREGS[fd].f32[e] = fpu::f32_mul(FREGS[fd].f32[e],
                                                         SCP[start].f32[col+e]);
                     }
-                    L1_SCP_CHECK_READ(cpu, start);
+                    L1_SCP_CHECK_READ(cpu, start, tensor_op_type::TensorQuant);
                     LOG_FREG("=", fd);
                     set_fp_exceptions(cpu);
                     dirty_fp_state();
@@ -961,7 +977,7 @@ void tensor_quant_execute(Hart& cpu)
                         FREGS[fd].f32[e] = fpu::f32_mul(FREGS[fd].f32[e],
                                                         SCP[start].f32[row]);
                     }
-                    L1_SCP_CHECK_READ(cpu, start);
+                    L1_SCP_CHECK_READ(cpu, start, tensor_op_type::TensorQuant);
                     LOG_FREG("=", fd);
                     set_fp_exceptions(cpu);
                     dirty_fp_state();
@@ -1042,7 +1058,7 @@ static void tensor_store_from_scp(Hart& cpu, uint64_t tstorereg)
     int      src      = scpstart % L1_SCP_ENTRIES;
 
     uint64_t stride   = sext<48>(X31 & 0x0000FFFFFFFFFFC0ULL);
-
+ 
     LOG_REG(":", 31);
     LOG_HART(DEBUG, cpu, "\tStart/Execute TensorStoreFromScp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
 
@@ -1067,7 +1083,7 @@ static void tensor_store_from_scp(Hart& cpu, uint64_t tstorereg)
             for (int col=0; col < 16; col++) {
                 notify_tensor_store_write(cpu, paddr + col*4, SCP[src].u32[col]);
             }
-            L1_SCP_CHECK_READ(cpu, src);
+            L1_SCP_CHECK_READ(cpu, src, tensor_op_type::TensorStore);
         }
         catch (const Exception&) {
             update_tensor_error(cpu, 1 << 7);
@@ -1087,6 +1103,8 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
     uint64_t tstore_scp = (tstorereg >> 48) & 0x1;
 
     if (tstore_scp) {
+        L1_SCP_CHECK_START(cpu, tensor_op_type::TensorStore, false);
+  
         // If we execute a TensorStoreFromScp, we don't need to enqueue this operation
         return tensor_store_from_scp(cpu, tstorereg);
     }
@@ -1105,6 +1123,8 @@ void tensor_store_start(Hart& cpu, uint64_t tstorereg)
     uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFF0ULL);     // Address where to store the results
 
     uint64_t stride   = sext<48>(X31 & 0x0000FFFFFFFFFFF0ULL);
+
+    L1_SCP_CHECK_START(cpu, tensor_op_type::TensorStore, true);
 
     LOG_REG(":", 31);
 
@@ -1165,7 +1185,6 @@ void tensor_store_execute(Hart& cpu)
     }
 #endif
     cpu.core->tstore.state = TStore::State::idle;
-    cpu.stop_waiting(Hart::Waiting::tstore); // Note(cabul): Consider moving this to end of function
 
     const auto tstorereg = cpu.core->tstore.value;
 
@@ -1216,6 +1235,9 @@ void tensor_store_execute(Hart& cpu)
             if ((cols == 1) || (col & 1)) src = (src + srcinc) % NFREGS;
         }
     }
+
+    // Need to notify the stop when it is done
+    cpu.stop_waiting(Hart::Waiting::tstore);
 }
 
 
@@ -1256,7 +1278,7 @@ static void tensor_fma32_execute(Hart& cpu)
         cache_line_t& tmpb = SCP[tenb ? (k+L1_SCP_ENTRIES) : ((bstart+k)%L1_SCP_ENTRIES)];
         LOG_SCP_32x16(":", tenb ? (k+L1_SCP_ENTRIES) : ((bstart+k)%L1_SCP_ENTRIES));
         if (!tenb)
-            L1_SCP_CHECK_READ(cpu, ((bstart+k)%L1_SCP_ENTRIES));
+            L1_SCP_CHECK_READ(cpu, ((bstart+k)%L1_SCP_ENTRIES), tensor_op_type::TensorFMA);
 
         for (int i = 0; i < arows; ++i) {
             bool written[2] = { false, false };
@@ -1279,7 +1301,7 @@ static void tensor_fma32_execute(Hart& cpu)
 
             uint32_t a_scp_entry = (astart+i) % L1_SCP_ENTRIES;
             float32_t a = SCP[a_scp_entry].f32[(aoffset+k) % (L1D_LINE_SIZE/4)];
-            L1_SCP_CHECK_READ(cpu, a_scp_entry);
+            L1_SCP_CHECK_READ(cpu, a_scp_entry, tensor_op_type::TensorFMA);
             LOG_SCP_32x1(":", a_scp_entry, ((aoffset+k) % (L1D_LINE_SIZE/4)));
 
             // If first_pass is 1 and this is the first iteration we do FMUL
@@ -1355,7 +1377,7 @@ static void tensor_fma16a32_execute(Hart& cpu)
         cache_line_t& tmpb = SCP[tenb ? ((k/2)+L1_SCP_ENTRIES) : ((bstart+k/2)%L1_SCP_ENTRIES)];
         LOG_SCP_32x16(":", tenb ? ((k/2)+L1_SCP_ENTRIES) : ((bstart+k/2)%L1_SCP_ENTRIES));
         if (!tenb)
-            L1_SCP_CHECK_READ(cpu, ((bstart+k/2)%L1_SCP_ENTRIES));
+            L1_SCP_CHECK_READ(cpu, ((bstart+k/2)%L1_SCP_ENTRIES), tensor_op_type::TensorFMA);
 
         for (int i = 0; i < arows; ++i) {
             bool written[2] = { false, false };
@@ -1380,7 +1402,7 @@ static void tensor_fma16a32_execute(Hart& cpu)
             float16_t a1 = SCP[a_scp_entry].f16[(aoffset+k+0) % (L1D_LINE_SIZE/2)];
             float16_t a2 = SCP[a_scp_entry].f16[(aoffset+k+1) % (L1D_LINE_SIZE/2)];
             LOG_SCP_32x1(":", a_scp_entry, ((aoffset+k+0) % (L1D_LINE_SIZE/2)) / 2);
-            L1_SCP_CHECK_READ(cpu, a_scp_entry);
+            L1_SCP_CHECK_READ(cpu, a_scp_entry, tensor_op_type::TensorFMA);
 
             // If first_pass is 1 and this is the first iteration we do
             // a1*b1+a2*b2 instead of a1*b1+a2*b2+c0
@@ -1421,7 +1443,6 @@ static void tensor_fma16a32_execute(Hart& cpu)
     dirty_fp_state();
 }
 
-
 static void tensor_ima8a32_execute(Hart& cpu)
 {
     bool usemsk     = (cpu.core->tmul.value >> 63) & 0x1;
@@ -1460,13 +1481,18 @@ static void tensor_ima8a32_execute(Hart& cpu)
         cache_line_t& tmpb = SCP[tenb ? ((k/4)+L1_SCP_ENTRIES) : ((bstart+k/4)%L1_SCP_ENTRIES)];
         LOG_SCP_32x16(":", tenb ? ((k/4)+L1_SCP_ENTRIES) : ((bstart+k/4)%L1_SCP_ENTRIES));
         if (!tenb)
-            L1_SCP_CHECK_READ(cpu, ((bstart+k/4)%L1_SCP_ENTRIES));
+            L1_SCP_CHECK_READ(cpu, ((bstart+k/4)%L1_SCP_ENTRIES), tensor_op_type::TensorFMA);
 
         bool write_freg = (tenc2rf && (k+4 == acols));
         freg_t* dst = write_freg ? FREGS.data() : TENC.data();
 
         for (int i = 0; i < arows; ++i) {
             bool written[2] = { false, false };
+
+            // Always reading the data from the A matrix except if masked
+            if (!usemsk || tmask[i]) {
+                L1_SCP_CHECK_READ(cpu, (astart+i) % L1_SCP_ENTRIES, tensor_op_type::TensorFMA);
+            }
 
             // We should skip computation for this row, but:
             // * if first_pass is set and this is the first iteration then we still set TenC to 0
@@ -1498,7 +1524,6 @@ static void tensor_ima8a32_execute(Hart& cpu)
                 int32_t a4 = ua ? ASRC(3) : sext8_2(ASRC(3));
 #undef ASRC
                 LOG_SCP_32x1(":", (astart+i) % L1_SCP_ENTRIES, ((aoffset+k) % L1D_LINE_SIZE) / 4);
-                L1_SCP_CHECK_READ(cpu, (astart+i) % L1_SCP_ENTRIES);
                 for (int j = 0; j < bcols; ++j) {
 #define BSRC(x) tmpb.u8[j*4+(x)]
                     int32_t b1 = ub ? BSRC(0) : sext8_2(BSRC(0));
@@ -1524,7 +1549,6 @@ static void tensor_ima8a32_execute(Hart& cpu)
                 int32_t a4 = ua ? ASRC(3) : sext8_2(ASRC(3));
 #undef ASRC
                 LOG_SCP_32x1(":", (astart+i) % L1_SCP_ENTRIES, ((aoffset+k) % L1D_LINE_SIZE) / 4);
-                L1_SCP_CHECK_READ(cpu, (astart+i) % L1_SCP_ENTRIES);
                 LOG_CREG(":", i*TFMA_REGS_PER_ROW);
                 if (bcols > 1) LOG_CREG(":", i*TFMA_REGS_PER_ROW + 1);
                 for (int j = 0; j < bcols; ++j) {
@@ -1585,7 +1609,6 @@ void tensor_fma_execute(Hart& cpu)
     }
 #endif
     cpu.core->tmul.state = TMul::State::idle;
-    cpu.stop_waiting(Hart::Waiting::tfma);
     if (cpu.core->tload_b.paired) {
         // Paired txfma; complete previous load to tenb
         cpu.core->tload_b.state = TLoad::State::idle;
@@ -1594,12 +1617,13 @@ void tensor_fma_execute(Hart& cpu)
     }
 
     switch ((cpu.core->tmul.value >> 1) & 0x7) {
-    case tfma_type_fp32: return tensor_fma32_execute(cpu);
-    case tfma_type_fp16: return tensor_fma16a32_execute(cpu);
-    case tfma_type_int8: return tensor_ima8a32_execute(cpu);
+    case tfma_type_fp32: tensor_fma32_execute(cpu); break;
+    case tfma_type_fp16: tensor_fma16a32_execute(cpu); break;
+    case tfma_type_int8: tensor_ima8a32_execute(cpu); break;
+    default:             throw std::runtime_error("tensor_fma_execute() with illegal type");
     }
-
-    throw std::runtime_error("tensor_fma_execute() with illegal type");
+    
+    cpu.stop_waiting(Hart::Waiting::tfma);
 }
 
 
@@ -1702,6 +1726,12 @@ void tensor_fma_start(Hart& cpu, uint64_t control)
             ? TMul::State::idle
             : TMul::State::ready;
     }
+
+    // Let's the checker know that the TensorFMA is starting, even if the instruction failed
+    // This is before the stop_waiting below on purpose
+    bool tenc2rf = (cpu.core->tmul.value >> 23) & 0x1;
+    (void)tenc2rf;
+    L1_SCP_CHECK_START(cpu, tensor_op_type::TensorFMA, tenc2rf || (type != tfma_type_int8));
 
     if (failed || !tenb) {
         if (wait_tenb) {
@@ -1818,6 +1848,10 @@ void tensor_reduce_start(Hart& cpu, uint64_t value)
                  reducecmd[static_cast<int>(command)],
                  reduce.hart->mhartid, reduce.freg, reduce.count);
         update_tensor_error(cpu, 1 << 9);
+
+        // Let's the checker know that the TensorReduce is starting, even if the instruction failed
+        L1_SCP_CHECK_START(cpu, tensor_op_type::TensorReduce, true);
+
         return;
     }
 
@@ -1831,6 +1865,10 @@ void tensor_reduce_start(Hart& cpu, uint64_t value)
             LOG_HART(DEBUG, cpu, "\t%s(fail) with function: %d",
                      reducecmd[static_cast<int>(command)], int(reduce.funct));
             update_tensor_error(cpu, 1 << 9);
+
+            // Let's the checker know that the TensorReduce is starting, even if the instruction failed
+            L1_SCP_CHECK_START(cpu, tensor_op_type::TensorReduce, true);
+
             return;
         }
     }
@@ -1842,6 +1880,10 @@ void tensor_reduce_start(Hart& cpu, uint64_t value)
         reduce.state = TReduce::State::idle;
         LOG_HART(DEBUG, cpu, "\t%s(skip) with count: 0",
                  reducecmd[static_cast<int>(command)]);
+
+        // Let's the checker know that the TensorReduce is starting, even if the instruction failed
+        L1_SCP_CHECK_START(cpu, tensor_op_type::TensorReduce, true);
+
         return;
     }
 
@@ -1855,6 +1897,9 @@ void tensor_reduce_start(Hart& cpu, uint64_t value)
     notify_tensor_reduce(
         cpu, reduce.state == TReduce::State::waiting_to_receive,
         reduce.freg, reduce.count);
+
+    // Let's the checker know that the TensorReduce is starting, even if the instruction failed
+    L1_SCP_CHECK_START(cpu, tensor_op_type::TensorReduce, true);
 
 #if defined(ZSIM) || defined(SYS_EMU)
     cpu.core->tqueue.push(TQueue::Instruction::reduce);
@@ -2085,11 +2130,10 @@ static bool tensor_wait_check_idle(const Hart& cpu, Hart::Waiting what)
 void tensor_wait_execute(Hart& cpu, Hart::Waiting what)
 {
 #ifdef SYS_EMU
-    if ((what == Hart::Waiting::tload_0 || what == Hart::Waiting::tload_1)
-        && SYS_EMU_PTR->get_l1_scp_check()) {
+    if (SYS_EMU_PTR->get_l1_scp_check()) {
         const auto thread = hart_index(cpu);
-        const auto id = what == Hart::Waiting::tload_0 ? 0 : 1;
-        SYS_EMU_PTR->get_l1_scp_checker().l1_scp_wait(thread, id);
+        // TensorWait propagation
+        SYS_EMU_PTR->get_l1_scp_checker().tensor_wait(thread, what);
     }
     if ((what == Hart::Waiting::tload_L2_0 || what == Hart::Waiting::tload_L2_1)
         && SYS_EMU_PTR->get_l2_scp_check()) {
