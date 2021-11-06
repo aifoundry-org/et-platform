@@ -202,6 +202,37 @@ class TFProtocolCodeGeneratorHelper(object):
         """
         return self.responses()[response]
 
+    def mm_dev_api_commands(self):
+        """Return the list of defined device api command types
+
+        Returns:
+           list[dict]: List of defined commands to be exchanged between SP and MM
+        """
+        return self.spec_data['tf_mm_device_api_cmd_ids']
+
+    def mm_dev_api_command_id(self, command):
+        """Return the ID of the device api command
+
+        Returns:
+           id: ID of the command
+        """
+        return self.mm_dev_api_commands()[command]
+
+    def mm_dev_api_responses(self):
+        """Return the list of defined device api response types
+
+        Returns:
+           list[dict]: List of defined responses to be exchanged between SP and MM
+        """
+        return self.spec_data['tf_mm_device_api_rsp_ids']
+
+    def mm_dev_api_response_id(self, response):
+        """Return the ID of the device api response
+
+        Returns:
+           id: ID of the response
+        """
+        return self.mm_dev_api_responses()[response]
 
 def gen_code(args):
     """Generate code form the input Jinja template
