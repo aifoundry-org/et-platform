@@ -56,6 +56,8 @@ struct SysEmuOptions {
   bool memcheck = true;
   /// \brief Enable L2scp checks 
   bool l2ScpCheck = true;
+  /// \brief Enable L1scp checks 
+  bool l1ScpCheck = true;
   /// \brief Defaults memory to this value
   uint32_t mem_reset32 = 0xDEADBEEF;
   /// \brief Hyperparameters to pass to SysEmu, might override default values
