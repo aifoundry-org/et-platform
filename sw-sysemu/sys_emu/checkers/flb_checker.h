@@ -11,12 +11,25 @@
 #ifndef _FLB_CHECKER_H_
 #define _FLB_CHECKER_H_
 
-#include <stdint.h>
-
+// Local
 #include "agent.h"
+#include "emu_defines.h"
+
+// STD
+#include <stdint.h>
+#include <vector>
 
 class flb_checker : public bemu::Agent
 {
+  struct flb_info_t
+  {
+      std::vector<uint32_t> alive_threads; // List of alive threads
+      uint32_t              limit;         // Limit for the fLB entry
+  };
+
+  private:
+    flb_info_t shire_flb_info[EMU_NUM_SHIRES][32];
+
   public:
     flb_checker(bemu::System* chip=nullptr) : bemu::Agent(chip) {}
 
@@ -33,7 +46,6 @@ class flb_checker : public bemu::Agent
     // Logging variables
     uint32_t log_shire = 64; // None by default
 
-  private:
 };
 
 #endif
