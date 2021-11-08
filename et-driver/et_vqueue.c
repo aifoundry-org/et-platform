@@ -253,7 +253,6 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
-	char irq_name[16];
 	ssize_t i, rv;
 	unsigned long vec_idx;
 	struct et_vq_common *vq_common;
@@ -274,7 +273,6 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 			      et_dev->mgmt.dir_vq.cq_offset;
 		cq_size = et_dev->mgmt.dir_vq.cq_size;
 		vec_idx = ET_MGMT_VEC_IDX;
-		snprintf(irq_name, sizeof(irq_name), "mgmt_irq%ld", vec_idx);
 	} else {
 		vq_common = &et_dev->ops.vq_common;
 		if (!et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER]
@@ -286,7 +284,6 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 			      et_dev->ops.dir_vq.cq_offset;
 		cq_size = et_dev->ops.dir_vq.cq_size;
 		vec_idx = ET_OPS_VEC_IDX;
-		snprintf(irq_name, sizeof(irq_name), "ops_irq%ld", vec_idx);
 	}
 
 	mem = kmalloc_array(vq_common->cq_count,
@@ -322,7 +319,11 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	rv = request_irq(pci_irq_vector(et_dev->pdev, vec_idx),
 			 et_pcie_isr,
 			 0,
-			 irq_name,
+			 devm_kasprintf(&et_dev->pdev->dev,
+					GFP_KERNEL,
+					"%s_irq%ld",
+					is_mgmt ? "mgmt" : "ops",
+					vec_idx),
 			 (void *)cq_pptr);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "request irq failed\n");
