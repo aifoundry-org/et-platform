@@ -73,6 +73,8 @@ TEST_F(TestDmaErrors, DmaOobPlusCommands) {
     defaultStream_ = runtime_->createStream(defaultDevice_);
     ASSERT_EQ(deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(defaultDevice_)), dev::DeviceState::Ready);
   }
+  // before ending we wait for all events to be finished
+  runtime_->waitForStream(defaultStream_);
 }
 
 int main(int argc, char** argv) {

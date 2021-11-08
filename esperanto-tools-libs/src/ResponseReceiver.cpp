@@ -25,6 +25,7 @@ namespace {
 constexpr auto kResponsePollingInterval = 10us;
 constexpr auto kResponseNumTriesBeforePolling = 20;
 constexpr auto kCheckDevicesInterval = 5s;
+constexpr auto kCheckDevicesPolling = 1ms;
 } // namespace
 
 void ResponseReceiver::checkResponses() {
@@ -58,11 +59,14 @@ void ResponseReceiver::checkResponses() {
 
 void ResponseReceiver::checkDevices() {
   auto devices = deviceLayer_->getDevicesCount();
+  auto lastCheck = std::chrono::high_resolution_clock::now() - kCheckDevicesInterval;
   while (runDeviceChecker_) {
-    std::this_thread::sleep_for(kCheckDevicesInterval);
-    for (int i = 0; i < devices; ++i) {
-      receiverServices_->checkDevice(i);
+    if (auto currentTime = std::chrono::high_resolution_clock::now(); currentTime + kCheckDevicesInterval > lastCheck) {
+      for (int i = 0; i < devices; ++i) {
+        receiverServices_->checkDevice(i);
+      }
     }
+    std::this_thread::sleep_for(kCheckDevicesPolling);
   }
 }
 
