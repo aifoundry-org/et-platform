@@ -51,12 +51,12 @@
 /*! \def DMAW_ERROR_GENERAL
     \brief DMA Worker - General error.
 */
-#define DMAW_ERROR_GENERAL                  -1
+#define DMAW_ERROR_GENERAL                  DMA_ERROR_END /* TODO: To be maintained properly in SW-9109 */
 
 /*! \def DMAW_ABORTED_IDLE_CHANNEL_SEARCH
     \brief DMA Worker - Find DMA idle channel aborted
 */
-#define DMAW_ABORTED_IDLE_CHANNEL_SEARCH    -2
+#define DMAW_ABORTED_IDLE_CHANNEL_SEARCH    (DMA_ERROR_END - 1)
 
 /*! \enum dma_chan_state_e
     \brief Enum that provides the state of a DMA channel
