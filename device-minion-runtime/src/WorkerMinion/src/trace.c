@@ -44,10 +44,10 @@
 #endif
 
 /* Helper functions for bit operations. */
-static inline uint32_t get_set_bit_count(uint64_t mask);
-static inline uint32_t get_lsb_set_pos(uint64_t value);
-static inline uint32_t get_index_among_enabled_harts(
-    uint64_t shire, uint64_t thread, uint64_t hart_id);
+static uint32_t get_set_bit_count(uint64_t mask);
+static uint32_t get_lsb_set_pos(uint64_t value);
+static uint32_t get_msb_set_pos(uint64_t value);
+static uint32_t get_index_among_enabled_harts(uint64_t shire, uint64_t thread, uint64_t hart_id);
 
 /*
  * Compute Minion Trace control block.
@@ -182,8 +182,12 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
         trace_header->data_size = sizeof(struct trace_buffer_size_header_t);
 
         /* Update trace buffer header for buffer partitioning information.
-           Buffer is divided equally among all CM Harts, with fixed size per Hart. */
-        trace_header->sub_buffer_count = (uint16_t)CM_HART_COUNT;
+           Update number of buffers based on Trace enabled Harts. */
+        trace_header->sub_buffer_count =
+            (uint16_t)(((get_msb_set_pos(hart_init_info.shire_mask) - 1U) * HARTS_PER_SHIRE) +
+                       (get_msb_set_pos(hart_init_info.thread_mask) - 1U));
+
+        /* Buffer is divided equally among all CM Harts, with fixed size per Hart. */
         trace_header->sub_buffer_size = CM_TRACE_BUFFER_SIZE_PER_HART;
 
         /* populate Trace layout version in Header. */
@@ -544,8 +548,7 @@ void Trace_Update_UMode_Buffer_Header(void)
 *       uint32_t    Index of given Hart ID among all enabled Harts.
 *
 ***********************************************************************/
-static inline uint32_t get_index_among_enabled_harts(
-    uint64_t shire, uint64_t thread, uint64_t hart_id)
+static uint32_t get_index_among_enabled_harts(uint64_t shire, uint64_t thread, uint64_t hart_id)
 {
     uint32_t enabled_hart_index = 0;
     /* Get number of Harts enabled in lower shires.*/
@@ -583,7 +586,7 @@ static inline uint32_t get_index_among_enabled_harts(
 *       uint32_t   Number of set bit in mask
 *
 ***********************************************************************/
-static inline uint32_t get_set_bit_count(uint64_t mask)
+static uint32_t get_set_bit_count(uint64_t mask)
 {
     uint32_t count = 0;
     while (mask)
@@ -610,10 +613,10 @@ static inline uint32_t get_set_bit_count(uint64_t mask)
 *
 *   OUTPUTS
 *
-*       uint32_t   Bit position od first set LSB. Zero means no bit was set.
+*       uint32_t   Bit position of first set LSB. Zero means no bit was set.
 *
 ***********************************************************************/
-static inline uint32_t get_lsb_set_pos(uint64_t value)
+static uint32_t get_lsb_set_pos(uint64_t value)
 {
     uint32_t pos = 0;
 
@@ -627,4 +630,36 @@ static inline uint32_t get_lsb_set_pos(uint64_t value)
         }
     }
     return pos;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       get_msb_set_pos
+*
+*   DESCRIPTION
+*
+*       Get the first most significat bit which is set in given mask.
+*
+*   INPUTS
+*
+*       mask       Bit mask.
+*
+*   OUTPUTS
+*
+*       uint32_t   Bit position of first set MSB. Zero means no bit was set.
+*
+***********************************************************************/
+static uint32_t get_msb_set_pos(uint64_t value)
+{
+    uint32_t msb_pos = 0;
+
+    while (value != 0)
+    {
+        value = value / 2;
+        msb_pos++;
+    }
+
+    return msb_pos;
 }
