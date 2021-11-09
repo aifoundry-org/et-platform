@@ -17,6 +17,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logger.h>
+#include <hostUtils/threadPool/ThreadPool.h>
 #include <random>
 #include <runtime/IRuntime.h>
 #include <sw-sysemu/SysEmuOptions.h>
@@ -85,8 +86,10 @@ public:
     defaultDevice_ = devices_[0];
     defaultStream_ = runtime_->createStream(devices_[0]);
     runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
+    tp_ = std::make_unique<threadPool::ThreadPool>(1, true);
   }
   void TearDown() override {
+    tp_.reset();
     runtime_->destroyStream(defaultStream_);
     runtime_.reset();
     deviceLayer_.reset();
@@ -97,7 +100,7 @@ public:
     EXPECT_FALSE(kernelContent.empty());
     EXPECT_TRUE(devices_.size() > deviceIdx);
     auto res = runtime_->loadCode(defaultStream_, kernelContent.data(), kernelContent.size());
-    std::thread([res, this, kernelContent = std::move(kernelContent)] { runtime_->waitForEvent(res.event_); }).detach();
+    tp_->pushTask([res, this, kernelContent = std::move(kernelContent)] { runtime_->waitForEvent(res.event_); });
     return res.kernel_;
   }
 
@@ -110,6 +113,7 @@ protected:
   std::vector<rt::DeviceId> devices_;
   rt::DeviceId defaultDevice_;
   rt::StreamId defaultStream_;
+  std::unique_ptr<threadPool::ThreadPool> tp_;
 };
 
 template <typename TContainer> void randomize(TContainer& container, int init, int end) {

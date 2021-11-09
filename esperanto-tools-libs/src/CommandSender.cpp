@@ -14,9 +14,6 @@
 #include <thread>
 using namespace rt;
 
-// TODO: remove this mutex once this is implemented https://esperantotech.atlassian.net/browse/SW-9102
-static std::mutex s_deviceLayerMutex_;
-
 std::string commandString(const std::vector<std::byte>& commandData) {
   std::stringstream ss;
   ss << "Sent command: 0x";
@@ -72,8 +69,6 @@ void CommandSender::runnerFunc() {
     std::unique_lock lock(mutex_);
     if (!commands_.empty() && commands_.front().isEnabled_) {
       auto& cmd = commands_.front();
-      std::unique_lock dlLock(s_deviceLayerMutex_);
-
       if (deviceLayer_.sendCommandMasterMinion(deviceId_, sqIdx_, cmd.commandData_.data(), cmd.commandData_.size(),
                                                cmd.isDma_)) {
         RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_);
@@ -83,7 +78,6 @@ void CommandSender::runnerFunc() {
         commands_.pop();
       } else {
         lock.unlock();
-        dlLock.unlock();
         RT_LOG(INFO) << "Submission queue " << sqIdx_
                      << " is full. Can't send command now, blocking the thread till an event has been dispatched.";
         uint64_t sq_bitmap;

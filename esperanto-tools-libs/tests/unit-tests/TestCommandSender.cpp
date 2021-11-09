@@ -52,30 +52,30 @@ TEST(CommandSender, checkConsistency) {
     if (deviceLayer.receiveResponseMasterMinion(0, response)) {
       break;
     } else {
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
   }
   // check that we indeed got a response
   ASSERT_FALSE(response.empty());
   // check the tag (should be 1)
   auto rsp = reinterpret_cast<device_ops_api::rsp_header_t*>(response.data());
-  EXPECT_EQ(rsp->rsp_hdr.tag_id, 1);
+  ASSERT_EQ(rsp->rsp_hdr.tag_id, 1);
 
   // if we enable the last one, it shouldnt produce anything
   commands.back()->enable();
-  std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  EXPECT_FALSE(deviceLayer.receiveResponseMasterMinion(0, response));
-  EXPECT_EQ(rsp, reinterpret_cast<device_ops_api::rsp_header_t*>(response.data()));
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  ASSERT_FALSE(deviceLayer.receiveResponseMasterMinion(0, response));
+  ASSERT_EQ(rsp, reinterpret_cast<device_ops_api::rsp_header_t*>(response.data()));
 
   // if we enable all (except first and last one since they were already enabled) we should expect all tag_ids following
   for (auto i = 1U; i < numCommands - 1; ++i) {
     commands[i]->enable();
   }
-  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   for (auto i = 1; i < numCommands; ++i) {
-    EXPECT_TRUE(deviceLayer.receiveResponseMasterMinion(0, response));
-    EXPECT_EQ(rsp, reinterpret_cast<device_ops_api::rsp_header_t*>(response.data()));
-    EXPECT_EQ(rsp->rsp_hdr.tag_id, i + 1);
+    ASSERT_TRUE(deviceLayer.receiveResponseMasterMinion(0, response));
+    ASSERT_EQ(rsp, reinterpret_cast<device_ops_api::rsp_header_t*>(response.data()));
+    ASSERT_EQ(rsp->rsp_hdr.tag_id, i + 1);
   }
 }
 

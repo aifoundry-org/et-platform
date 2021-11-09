@@ -182,20 +182,19 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
   LoadCodeResult loadCodeResult;
   loadCodeResult.loadAddress_ = deviceBuffer;
   loadCodeResult.kernel_ = kernelId;
-  if (events.size() == 1) {
-    loadCodeResult.event_ = events.back();
-  } else {
-    loadCodeResult.event_ = eventManager_.getNextId();
-    blockableThreadPool_.pushTask([this, evt = loadCodeResult.event_, eventsToWait = std::move(events)] {
+
+  loadCodeResult.event_ = eventManager_.getNextId();
+
+  // add another thread to dispatch the buffers once the copy is done
+  blockableThreadPool_.pushTask(
+    [this, buffers = std::move(buffers), evt = loadCodeResult.event_, eventsToWait = std::move(events)]() mutable {
       for (auto e : eventsToWait) {
         waitForEvent(e);
       }
+      buffers.clear();
+      RT_VLOG(LOW) << "Load code ended. Buffers released.";
       eventManager_.dispatch(evt);
     });
-  }
-  // add another thread to dispatch the buffers once the copy is done
-  blockableThreadPool_.pushTask(
-    [this, buffers = std::move(buffers), evt = loadCodeResult.event_] { waitForEvent(evt); });
   return loadCodeResult;
 }
 
