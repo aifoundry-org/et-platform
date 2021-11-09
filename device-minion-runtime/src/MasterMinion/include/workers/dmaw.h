@@ -27,36 +27,36 @@
 #include "drivers/pcie_dma.h"
 
 /* common-api, device_ops_api */
-#include  <esperanto/device-apis/operations-api/device_ops_api_spec.h>
-#include  <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
+#include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
+#include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 
 /*! \def DMAW_MAX_HART_ID
     \brief A macro that provides the maximum HART ID the DMAW is configued
     to execute on.
 */
-#define  DMAW_MAX_HART_ID      DMAW_BASE_HART_ID + (DMAW_NUM * HARTS_PER_MINION)
+#define DMAW_MAX_HART_ID DMAW_BASE_HART_ID + (DMAW_NUM * HARTS_PER_MINION)
 
 /*! \def DMAW_FOR_READ
     \brief A macro that provides HART ID for the DMAW that processes
     DMA read commands
 */
-#define  DMAW_FOR_READ         DMAW_BASE_HART_ID
+#define DMAW_FOR_READ DMAW_BASE_HART_ID
 
 /*! \def DMAW_FOR_WRITE
     \brief A macro that provides HART ID for the DMAW that processes
     DMA write commands
 */
-#define  DMAW_FOR_WRITE        DMAW_FOR_READ + HARTS_PER_MINION
+#define DMAW_FOR_WRITE DMAW_FOR_READ + HARTS_PER_MINION
 
 /*! \def DMAW_ERROR_GENERAL
     \brief DMA Worker - General error.
 */
-#define DMAW_ERROR_GENERAL                  DMA_ERROR_END /* TODO: To be maintained properly in SW-9109 */
+#define DMAW_ERROR_GENERAL DMA_ERROR_END /* TODO: To be maintained properly in SW-9109 */
 
 /*! \def DMAW_ABORTED_IDLE_CHANNEL_SEARCH
     \brief DMA Worker - Find DMA idle channel aborted
 */
-#define DMAW_ABORTED_IDLE_CHANNEL_SEARCH    (DMA_ERROR_END - 1)
+#define DMAW_ABORTED_IDLE_CHANNEL_SEARCH (DMA_ERROR_END - 1)
 
 /*! \enum dma_chan_state_e
     \brief Enum that provides the state of a DMA channel
@@ -77,9 +77,9 @@ typedef struct dma_channel_status {
     union {
         struct {
             uint32_t channel_state; /* channel state indicated by dma_chan_state_e */
-            uint16_t tag_id; /* tag_id for the transaction associated with the channel */
-            uint8_t  sqw_idx; /* SQW idx that submitted this command */
-            uint8_t  reserved; /* Reserved for future use */
+            uint16_t tag_id;        /* tag_id for the transaction associated with the channel */
+            uint8_t sqw_idx;        /* SQW idx that submitted this command */
+            uint8_t reserved;       /* Reserved for future use */
         };
         uint64_t raw_u64;
     };
@@ -91,9 +91,9 @@ typedef struct dma_channel_status {
 */
 typedef struct dma_channel_status_cb {
     dma_channel_status_t status; /* Holds the attributes related to a channel's status */
-    exec_cycles_t        dmaw_cycles; /* Cycles associated with the transaction */
-    uint16_t             msg_id; /* TODO: To be removed, temporary field for dmalist cmds */
-    uint8_t              pad[6]; /* Padding for alignment */
+    exec_cycles_t dmaw_cycles;   /* Cycles associated with the transaction */
+    uint16_t msg_id;             /* TODO: To be removed, temporary field for dmalist cmds */
+    uint8_t pad[6];              /* Padding for alignment */
 } dma_channel_status_cb_t;
 
 /*! \fn void DMAW_Init(void)
