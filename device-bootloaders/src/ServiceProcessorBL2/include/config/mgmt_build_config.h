@@ -48,14 +48,14 @@
     \brief Macro that provides the total allowed size of the SP DIRs
     at PC_SP Mailbox
 */
-#define SP_DEV_INTF_SIZE           0x100
+#define SP_DEV_INTF_SIZE           0x200
 
-/*! \def SP_DEV_INTF_SIZE
+/*! \def SP_INTERRUPT_TRG_REGION_BASE_ADDR
     \brief This is the region dedicated to device's MBOX triggers
 */
 #define SP_INTERRUPT_TRG_REGION_BASE_ADDR  R_PU_TRG_PCIE_BASEADDR
 
-/*! \def SP_DEV_INTF_SIZE
+/*! \def SP_INTERRUPT_TRG_REGION_SIZE
     \brief Total size of the region dedicated to device's MBOX triggers
 */
 #define SP_INTERRUPT_TRG_REGION_SIZE       R_PU_TRG_PCIE_SIZE
@@ -202,13 +202,13 @@
     \brief A macro that provides the PCI BAR region offset using which
     the Service Processor virtual queues can be accessed
 */
-#define SP_VQ_OFFSET       0x100UL
+#define SP_VQ_OFFSET       0x200UL
 
 /*! \def SP_SQ_OFFSET
     \brief A macro that provides the PCI BAR region offset relative to
     SP_VQ_BAR using which the Service Processor submission queues can be accessed
 */
-#define SP_SQ_OFFSET        0x0UL
+#define SP_SQ_OFFSET       0x0UL
 
 /*! \def SP_SQS_BASE_ADDR
     \brief A macro that provides the Service Processor's 32 bit base address
@@ -220,7 +220,7 @@
     \brief A macro that provides the total size for SP VQs (SQs + CQs)
     on PCI BAR.
 */
-#define SP_VQ_BAR_SIZE      0xF00UL
+#define SP_VQ_BAR_SIZE      0xE00UL
 
 /*! \def SP_SQ_COUNT
     \brief A macro that provides the Service Processor submission queue

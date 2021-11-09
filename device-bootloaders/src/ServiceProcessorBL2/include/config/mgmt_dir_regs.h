@@ -158,6 +158,28 @@ enum SP_DEV_INTF_FORM_FACTOR_e {
 	SP_DEV_CONFIG_FORM_FACTOR_M_2
 };
 
+/*! \enum SP_DEV_INTF_BAR0_SIZE_e
+    \brief Values representing the BAR0 sizes that can be configured
+*/
+enum SP_DEV_INTF_BAR0_SIZE_e {
+    SP_DEV_INTF_BAR0_SIZE_1GB = 0,
+    SP_DEV_INTF_BAR0_SIZE_2GB = 1,
+    /* Unused values for now */
+    SP_DEV_INTF_BAR0_SIZE_32GB = 31
+    /* Unused values for now */
+};
+
+/*! \enum SP_DEV_INTF_BAR2_SIZE_e
+    \brief Values representing the BAR2 sizes that can be configured
+*/
+enum SP_DEV_INTF_BAR2_SIZE_e {
+    SP_DEV_INTF_BAR2_SIZE_32KB = 0,
+    SP_DEV_INTF_BAR2_SIZE_64KB = 1,
+    /* Unused values for now */
+    SP_DEV_INTF_BAR2_SIZE_256KB = 7
+    /* Unused values for now */
+};
+
 /*! \struct SP_DEV_INTF_MEM_REGION_ATTR
     \brief Holds the information of Service Processor interface memory region.
     \warning Must be 64-bit aligned.
@@ -208,7 +230,9 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR {
     uint16_t l2_size;
     uint16_t scp_size;
     uint16_t cache_line_size;
-    uint8_t reserved[2];
+    uint16_t bar0_size;
+    uint16_t bar2_size;
+    uint8_t reserved[6];
 } SP_DEV_INTF_GENERIC_ATTR_s;
 
 
