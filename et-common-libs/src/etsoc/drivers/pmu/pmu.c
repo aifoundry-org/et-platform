@@ -118,8 +118,8 @@ int64_t configure_ms_pmcs(uint64_t ctl_status_cfg, uint64_t ddrc_perfmon_p0_qual
     // Now set the PMC qual registers
     ret = pmu_memshire_event_configure(shire_id, 0, ddrc_perfmon_p0_qual);
     ret = ret + pmu_memshire_event_configure(shire_id, 1, ddrc_perfmon_p1_qual);
-    ret = ret + pmu_memshire_event_configure(shire_id, 3, ddrc_perfmon_p0_qual2);
-    ret = ret + pmu_memshire_event_configure(shire_id, 4, ddrc_perfmon_p1_qual2);
+    ret = ret + pmu_memshire_event_configure(shire_id, 2, ddrc_perfmon_p0_qual2);
+    ret = ret + pmu_memshire_event_configure(shire_id, 3, ddrc_perfmon_p1_qual2);
 
     return ret;
 }
