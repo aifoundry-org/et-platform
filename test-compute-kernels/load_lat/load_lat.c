@@ -13,7 +13,6 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include "etsoc/isa/hart.h"
-#include "etsoc/isa/macros.h"
 #include "etsoc/common/utils.h"
 #include "common.h"
 

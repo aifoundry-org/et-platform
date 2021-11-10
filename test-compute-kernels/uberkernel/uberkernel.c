@@ -5,8 +5,6 @@
 #include "etsoc/isa/cacheops.h"
 #include "common_code.h"
 #include "etsoc/isa/hart.h"
-
-#include "etsoc/isa/macros.h"
 #include "etsoc/isa/tensors.h"
 
 #define N_CREDITS_TO_ACT_PREF 3

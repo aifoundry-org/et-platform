@@ -7,7 +7,6 @@
 #include "etsoc/isa/fcc.h"
 #include "etsoc/isa/flb.h"
 #include "etsoc/isa/hart.h"
-#include "etsoc/isa/macros.h"
 #include "sync_minions.h"
 #include "etsoc/isa/syscall.h"
 #include "etsoc/isa/tensors.h"

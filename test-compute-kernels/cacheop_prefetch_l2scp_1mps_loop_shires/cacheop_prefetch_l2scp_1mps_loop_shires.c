@@ -3,7 +3,6 @@
 #include "etsoc/common/utils.h"
 #include "common.h"
 #include "etsoc/isa/fcc.h"
-#include "etsoc/isa/macros.h"
 
 #include <stdint.h>
 #include <stddef.h>

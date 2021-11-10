@@ -2,7 +2,6 @@
 #include "etsoc/isa/cacheops.h"
 #include "etsoc/common/utils.h"
 #include "common.h"
-#include "etsoc/isa/macros.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
