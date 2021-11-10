@@ -150,7 +150,7 @@ TEST_F(SysEmu, 64_ele_1_exe_1_st_100_th) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-  Fixture::sMode = Fixture::Mode::SYSEMU;
+  Fixture::sMode = IsPcie(argc, argv) ? Fixture::Mode::PCIE : Fixture::Mode::SYSEMU;
   g3::log_levels::disable(DEBUG);
   return RUN_ALL_TESTS();
 }

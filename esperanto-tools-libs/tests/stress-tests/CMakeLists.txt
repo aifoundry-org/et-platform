@@ -13,4 +13,11 @@ set(TEST_LIST
   stress_kernel.cpp:""
   )
 
+set(PCIE_TEST_LIST
+  stress_mem.cpp:"--mode=pcie"
+  stress_kernel.cpp:"--mode=pcie"
+  )
+
 create_test_targets("${TEST_LIST}" "LABELS;Stress;LABELS;Generic;LABELS;Sysemu;TIMEOUT;300" "st_")
+
+create_test_targets("${PCIE_TEST_LIST}" "LABELS;Pcie;LABELS;Stress;TIMEOUT;300" "pcie_")

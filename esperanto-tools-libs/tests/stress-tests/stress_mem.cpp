@@ -86,6 +86,6 @@ TEST_F(SysEmu, 1KB_2_memcpys_2stream_1thread) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-  Fixture::sMode = Fixture::Mode::SYSEMU;
+  Fixture::sMode = IsPcie(argc, argv) ? Fixture::Mode::PCIE : Fixture::Mode::SYSEMU;
   return RUN_ALL_TESTS();
 }
