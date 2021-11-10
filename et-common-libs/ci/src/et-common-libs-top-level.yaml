@@ -39,13 +39,13 @@ stages:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           GITLAB_SOURCE_BRANCH:
             raw_cmd: '"${env.gitlabSourceBranch}"'
-          GITLAB_TARGET_BRANCH: 
+          GITLAB_TARGET_BRANCH:
             raw_cmd: '"${env.gitlabTargetBranch}"'
-          GITLAB_MR_ID: 
+          GITLAB_MR_ID:
             raw_cmd: '"${env.gitlabMergeRequestIid}"'
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"
     exec_after: [CHECK_IN]
-  
+
   SW_PLATFORM_BASIC_INTEGRATION:
     cmds:
       - job: sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration
@@ -73,6 +73,14 @@ stages:
   JOB_RUNTIME:
     cmds:
       - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"
+    exec_after: [CHECK_IN]
+
+  JOB_DEVICE_ARTIFACTS:
+    cmds:
+      - job: sw-platform/system-sw-integration/pipelines/device-software-build
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"
