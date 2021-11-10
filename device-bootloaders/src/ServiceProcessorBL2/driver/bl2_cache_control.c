@@ -20,64 +20,213 @@
 #define KB_to_MB(size) \
     (size / 1024)
 
-/* The driver can populate this structure with the defaults that will be used during the init
-    phase.*/
-static struct sram_event_control_block  event_control_block __attribute__((section(".data")));
+static void sram_error_threshold_isr(uint8_t, uint8_t, uint64_t);
+static void sram_error_uncorr_isr(uint8_t, uint8_t, uint64_t);
+static void sram_error_isr(void);
+
+/* The driver can populate this structure with the defaults that will be used
+   during the init phase.*/
+static struct sram_event_control_block event_control_block
+    __attribute__((section(".data")));
 
 static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
 {
     return (uint8_t)(63 - __builtin_clzl(shire_mask));
 }
 
-int32_t sram_error_control_init(dm_event_isr_callback event_cb)
-{
-    event_control_block.event_cb = event_cb;
-    return  0;
+int32_t sram_error_control_init(dm_event_isr_callback event_cb) {
+  uint64_t shire_mask;
+
+  event_control_block.ce_count = 0;
+  event_control_block.uce_count = 0;
+  event_control_block.ce_threshold = SRAM_CORR_ERROR_THRESHOLD;
+  event_control_block.event_cb = event_cb;
+
+  shire_mask = Minion_Get_Active_Compute_Minion_Mask();
+  sram_enable_uce_interrupt(shire_mask);
+  sram_enable_ce_interrupt(shire_mask);
+
+  return 0;
 }
 
-int32_t sram_error_control_deinit(void)
-{
-    return  0;
+int32_t sram_error_control_deinit(uint64_t shire_mask) {
+  sram_disable_ce_interrupt(shire_mask);
+  sram_disable_uce_interrupt(shire_mask);
+
+  return 0;
 }
 
-int32_t sram_enable_uce_interrupt(void)
-{
-    return  0;
+int32_t sram_enable_ce_interrupt(uint64_t shire_mask) {
+  uint8_t minshire;
+  uint64_t sc_esr;
+
+  FOR_EACH_MINSHIRE(
+      INT_enableInterrupt(SPIO_PLIC_MINSHIRE_ERR0_INTR + minshire, 1,
+                          sram_error_isr);
+      for (uint8_t bank = 0; bank < 4; bank++ ) {
+            sc_esr = read_esr_new(
+                PP_MACHINE, minshire, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+                ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_CTL_ADDRESS, bank);
+            sc_esr =
+                ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_CTL_ESR_SC_ERR_INTERRUPT_ENABLE_MODIFY(
+                sc_esr, 0x1);
+            write_esr_new(PP_MACHINE, minshire, REGION_OTHER,
+                    ESR_OTHER_SUBREGION_CACHE,
+                    ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_CTL_ADDRESS, sc_esr, bank);
+      } )
+
+  return 0;
 }
 
-int32_t sram_disable_ce_interrupt(void)
-{
-    return  0;
+int32_t sram_enable_uce_interrupt(uint64_t shire_mask) {
+  uint8_t minshire;
+  uint64_t sc_esr;
+
+  FOR_EACH_MINSHIRE(
+      INT_enableInterrupt(SPIO_PLIC_MINSHIRE_ERR0_INTR + minshire, 1,
+                          sram_error_isr);
+      for (uint8_t bank = 0; bank < 4; bank++) {
+          sc_esr = read_esr_new(
+              PP_MACHINE, minshire, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+              ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_CTL_ADDRESS, bank);
+          sc_esr =
+              ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_CTL_ESR_SC_ERR_INTERRUPT_ENABLE_MODIFY(
+                  sc_esr, 0x2);
+          write_esr_new(PP_MACHINE, minshire, REGION_OTHER,
+                        ESR_OTHER_SUBREGION_CACHE,
+                        ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_CTL_ADDRESS, sc_esr, bank);
+      })
+  return 0;
 }
 
-int32_t sram_disable_uce_interrupt(void)
-{
-    return  0;
+int32_t sram_disable_ce_interrupt(uint64_t shire_mask) {
+  uint8_t minshire;
+  uint64_t sc_esr;
+
+  FOR_EACH_MINSHIRE(
+      for (uint8_t bank = 0; bank < 4; bank++) {
+         sc_esr = read_esr_new(
+             PP_MACHINE, minshire, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+             ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_CTL_ADDRESS, bank);
+         sc_esr =
+             ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_CTL_ESR_SC_ERR_INTERRUPT_ENABLE_MODIFY(
+                 sc_esr, 0x0);
+         write_esr_new(PP_MACHINE, minshire, REGION_OTHER,
+                       ESR_OTHER_SUBREGION_CACHE,
+                       ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_CTL_ADDRESS, sc_esr, bank);
+      })
+  return 0;
 }
 
-int32_t sram_set_ce_threshold(uint32_t ce_threshold)
-{
-    /* set countable errors threshold */
-    event_control_block.ce_threshold = ce_threshold;
-    return 0;
+int32_t sram_disable_uce_interrupt(uint64_t shire_mask) {
+  uint8_t minshire;
+
+  FOR_EACH_MINSHIRE(
+      INT_disableInterrupt(SPIO_PLIC_MINSHIRE_ERR0_INTR + minshire);)
+  return 0;
 }
 
-int32_t sram_get_ce_count(uint32_t *ce_count)
-{
-    /* get correctable errors count */
-    *ce_count = event_control_block.ce_count;
-    return 0;
+int32_t sram_set_ce_threshold(uint32_t ce_threshold) {
+  /* set countable errors threshold */
+  event_control_block.ce_threshold = ce_threshold;
+  return 0;
 }
 
-int32_t sram_get_uce_count(uint32_t *uce_count)
-{
-    /* get un-correctable errors count */
-    *uce_count = event_control_block.uce_count;
-    return 0;
+int32_t sram_get_ce_count(uint32_t *ce_count) {
+  /* get correctable errors count */
+  *ce_count = event_control_block.ce_count;
+  return 0;
+}
+
+int32_t sram_get_uce_count(uint32_t *uce_count) {
+  /* get un-correctable errors count */
+  *uce_count = event_control_block.uce_count;
+  return 0;
+}
+
+static void sram_error_threshold_isr(uint8_t minshire, uint8_t bank,
+                                     uint64_t error_log_info) {
+  if (++event_control_block.ce_count > event_control_block.ce_threshold) {
+    struct event_message_t message;
+    uint64_t error_log_address;
+
+    /* Read PA associated with this error */
+    error_log_address = read_esr_new(
+        PP_MACHINE, minshire, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+        ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_ADDRESS_ADDRESS, bank);
+
+    /* add details in message header and fill payload */
+    FILL_EVENT_HEADER(&message.header, SRAM_CE, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, event_control_block.ce_count,
+                       error_log_info, error_log_address)
+
+    /* call the callback function and post message */
+    event_control_block.event_cb(CORRECTABLE, &message);
+  }
+}
+
+static void sram_error_uncorr_isr(uint8_t minshire, uint8_t bank, uint64_t error_log_info) {
+  struct event_message_t message;
+  uint64_t error_log_address;
+
+  event_control_block.uce_count++;
+
+  /* Read PA associated with this error */
+  error_log_address = read_esr_new(
+      PP_MACHINE, minshire, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+      ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_ADDRESS_ADDRESS, bank);
+
+  /* add details in message header and fill payload */
+  FILL_EVENT_HEADER(&message.header, SRAM_UCE, sizeof(struct event_message_t))
+  FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, event_control_block.uce_count,
+                     error_log_info, error_log_address)
+
+  /* call the callback function and post message */
+  event_control_block.event_cb(UNCORRECTABLE, &message);
+}
+
+static void sram_error_isr(void) {
+  uint8_t minshire = 0;
+  uint8_t bank;
+  uint64_t error_log_info;
+  uint32_t ulMaxID = ioread32(SPIO_PLIC + SPIO_PLIC_MAXID_T0_ADDRESS);
+
+  if ((ulMaxID >= SPIO_PLIC_MINSHIRE_ERR0_INTR) &&
+      (ulMaxID <= SPIO_PLIC_MINSHIRE_ERR33_INTR)) {
+    minshire = (uint8_t)(ulMaxID - SPIO_PLIC_MINSHIRE_ERR0_INTR);
+  } else {
+    Log_Write(LOG_LEVEL_CRITICAL, "Wrong interrupt handler");
+    return;
+  }
+
+  /* Extract error code (single or double bit error) from ERR_LOG_INFO ESR */
+  for (bank = 0; bank < 4; bank++) {
+     error_log_info = read_esr_new(
+         PP_MACHINE, minshire, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+         ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_INFO_ADDRESS, bank);
+     if (ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_INFO_ECC_SINGLE_DOUBLE_VALID_GET(error_log_info)) break;
+  }
+  uint64_t error_code =
+      ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_INFO_ECC_SINGLE_DOUBLE_CODE_GET(
+          error_log_info);
+
+  if (SINGLE_BIT_ECC == error_code) {
+    sram_error_threshold_isr(minshire, bank, error_log_info);
+  } else if (DOUBLE_BIT_ECC == error_code) {
+    sram_error_uncorr_isr(minshire, bank, error_log_info);
+  } else {
+    Log_Write(LOG_LEVEL_CRITICAL, "Unexpected error code.");
+  }
+
+  /* clear valid bit */
+  error_log_info =  ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_INFO_ECC_SINGLE_DOUBLE_VALID_MODIFY(error_log_info, 1);
+  write_esr_new(PP_MACHINE, minshire, REGION_OTHER,ESR_OTHER_SUBREGION_CACHE,
+                ETSOC_SHIRE_CACHE_ESR_SC_ERR_LOG_INFO_ADDRESS, error_log_info, bank);
+
 }
 
 uint16_t Cache_Control_SCP_size(uint64_t shire_mask)
-{  
+{
     uint64_t scp_cache_ctrl;
     uint16_t bank_scp_size;
     uint8_t  highest_shire_id;
@@ -158,28 +307,6 @@ uint16_t Cache_Control_L3_size(uint64_t shire_mask)
     num_of_active_shires = (uint8_t)__builtin_popcountll(shire_mask);
 
     return (uint16_t)KB_to_MB(num_of_active_shires * SC_BANK_NUM * bank_l3_size);
-}
-
-void sram_error_threshold_isr(void)
-{
-    /* TODO: This is just an example implementation.
-       The final driver implementation will read these values from the
-       hardware, create a message and invoke call back with message and error type as parameters.
-    */
-
-    if (++event_control_block.ce_count > event_control_block.ce_threshold) {
-
-            struct event_message_t message;
-
-            /* add details in message header and fill payload */
-            FILL_EVENT_HEADER(&message.header, SRAM_UCE,
-                    sizeof(struct event_message_t))
-            FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, 1, 0)
-
-            /* call the callback function and post message */
-            event_control_block.event_cb(CORRECTABLE, &message);
-    }
-
 }
 
 int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size,
@@ -283,5 +410,4 @@ int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3
     }
 
     return 0;
-
 }

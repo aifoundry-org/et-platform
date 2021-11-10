@@ -1,3 +1,4 @@
+
 /***********************************************************************
 *
 * Copyright (C) 2020 Esperanto Technologies Inc.
@@ -32,6 +33,12 @@
 #include "dm_event_control.h"
 #include "hal_ddr_init.h"
 
+/*! \def SPIO_PLIC
+*/
+#ifndef SPIO_PLIC
+#define SPIO_PLIC R_SP_PLIC_BASEADDR
+#endif
+
 static uint32_t memshire_frequency;
 static uint32_t ddr_frequency;
 /* MEMSHIRE PLL frequency modes (795MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
@@ -40,6 +47,9 @@ static uint8_t min_lvdpll_mode_795MHz[3] = {50, 51, 52};
 static uint8_t min_lvdpll_mode_933MHz[3] = {28, 29, 30};
 /* MEMSHIRE PLL frequency modes (1066MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
 static uint8_t min_lvdpll_mode_1066MHz[3] = {19, 20, 21};
+
+static void ddr_error_threshold_isr(void);
+static void ddr_error_crit_isr(void);
 
 int configure_memshire_plls(const DDR_MODE *ddr_mode)
 {
@@ -220,50 +230,178 @@ static struct ddr_event_control_block  event_control_block __attribute__((sectio
 
 int32_t ddr_error_control_init(dm_event_isr_callback event_cb)
 {
+    event_control_block.ce_count = 0;
+    event_control_block.uce_count = 0;
+    event_control_block.ce_threshold = DDR_CORR_ERROR_THRESHOLD;
     event_control_block.event_cb = event_cb;
+
+    ddr_enable_ce_interrupt();
+    ddr_enable_uce_interrupt();
+
     return  0;
 }
+
 int32_t ddr_error_control_deinit(void)
 {
+    ddr_disable_ce_interrupt();
+    ddr_disable_uce_interrupt();
+
+    return  0;
+}
+
+int32_t ddr_enable_ce_interrupt(void)
+{
+    uint32_t memshire;
+    uint64_t int_normal_en;
+
+    FOR_EACH_MEMSHIRE(
+        INT_enableInterrupt(SPIO_PLIC_MEMSHIRE_NORM_E0_INTR + memshire, 1, ddr_error_threshold_isr);
+
+        /* enable single bit error interrupt */
+        int_normal_en = ms_read_esr(memshire, ddrc_normal_int_en);
+        int_normal_en = int_normal_en | 0x03;
+        ms_write_esr(memshire, ddrc_normal_int_en, int_normal_en);
+    )
+
     return  0;
 }
 
 int32_t ddr_enable_uce_interrupt(void)
 {
+    uint32_t memshire;
+    uint64_t int_critical_en;
+
+    FOR_EACH_MEMSHIRE(
+        INT_enableInterrupt(SPIO_PLIC_MEMSHIRE_CRIT_E0_INTR + memshire, 1, ddr_error_crit_isr);
+
+        /* enable double bit error interrupt */
+        int_critical_en = ms_read_esr(memshire, ddrc_critical_int_en);
+        int_critical_en = int_critical_en | 0x180;
+        ms_write_esr(memshire, ddrc_critical_int_en, int_critical_en);
+    )
+
     return  0;
 }
 
 int32_t ddr_disable_ce_interrupt(void)
 {
+    uint32_t memshire;
+    uint64_t int_normal_en;
+
+    FOR_EACH_MEMSHIRE(
+        INT_disableInterrupt(SPIO_PLIC_MEMSHIRE_NORM_E0_INTR + memshire);
+        /* disable single bit error interrupt */
+        int_normal_en = ms_read_esr(memshire, ddrc_normal_int_en);
+        int_normal_en = int_normal_en & ~0x03ul;
+        ms_write_esr(memshire, ddrc_normal_int_en, int_normal_en);
+
+    )
+
     return  0;
 }
 
 int32_t ddr_disable_uce_interrupt(void)
 {
+    uint32_t memshire;
+    uint64_t int_critical_en;
+
+    FOR_EACH_MEMSHIRE(
+        INT_disableInterrupt(SPIO_PLIC_MEMSHIRE_CRIT_E0_INTR + memshire);
+
+        /* disable double bit error interrupt */
+        int_critical_en = ms_read_esr(memshire, ddrc_critical_int_en);
+        int_critical_en = int_critical_en & ~0x180ul;
+        ms_write_esr(memshire, ddrc_critical_int_en, int_critical_en);
+    )
+
     return  0;
 }
 
 int32_t ddr_set_ce_threshold(uint32_t ce_threshold)
 {
-    (void)ce_threshold;
+    event_control_block.ce_threshold = ce_threshold;
     return  0;
 }
 
 int32_t ddr_get_ce_count(uint32_t *ce_count)
 {
-    *ce_count = 0;
+    *ce_count = event_control_block.ce_count;
     return  0;
 }
 
 int32_t ddr_get_uce_count(uint32_t *uce_count)
 {
-    *uce_count = 0;
+    *uce_count = event_control_block.uce_count;
     return  0;
 }
 
-void ddr_error_threshold_isr(void)
+static void ddr_error_threshold_isr(void)
 {
+    uint32_t memshire;
+    uint32_t ulMaxID = ioread32(SPIO_PLIC + SPIO_PLIC_MAXID_T0_ADDRESS);
 
+    if ((ulMaxID >= SPIO_PLIC_MEMSHIRE_NORM_E0_INTR) &&
+            (ulMaxID <= SPIO_PLIC_MEMSHIRE_NORM_W3_INTR)) {
+        memshire = (uint8_t)(ulMaxID - SPIO_PLIC_MEMSHIRE_NORM_E0_INTR);
+    } else {
+        Log_Write(LOG_LEVEL_CRITICAL, "Wrong interrupt handler");
+        return;
+    }
+
+    if (++event_control_block.ce_count > event_control_block.ce_threshold)
+    {
+        struct event_message_t message;
+        uint64_t int_status;
+        uint64_t err_addres;
+        uint32_t mc_block;
+
+        /* read error info */
+        int_status = ms_read_esr(memshire, ddrc_int_status);
+        int_status = ((uint64_t)memshire << 32) | int_status;
+        mc_block = DDRC_INT_STATUS_ESR_MC0_ECC_CORRECTED_ERR_INTR_GET(int_status) ? 0 : 1;
+        err_addres = (uint64_t)ms_read_ddrc_reg(memshire, mc_block , ECCUADDR1) << 32 | ms_read_ddrc_reg(memshire, mc_block , ECCUADDR0);
+
+        /* add details in message header and fill payload */
+        FILL_EVENT_HEADER(&message.header, DRAM_CE, sizeof(struct event_message_t))
+        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, event_control_block.ce_count, int_status, err_addres)
+
+        /* call the callback function and post message */
+        event_control_block.event_cb(CORRECTABLE, &message);
+    }
+}
+
+static void ddr_error_crit_isr(void)
+{
+    struct event_message_t message;
+    uint64_t int_status;
+    uint32_t memshire;
+    uint64_t err_addres;
+    uint32_t mc_block;
+    uint32_t ulMaxID = ioread32(SPIO_PLIC + SPIO_PLIC_MAXID_T0_ADDRESS);
+
+    if ((ulMaxID >= SPIO_PLIC_MEMSHIRE_CRIT_E0_INTR) &&
+            (ulMaxID <= SPIO_PLIC_MEMSHIRE_CRIT_W3_INTR)) {
+        memshire = (uint8_t)(ulMaxID - SPIO_PLIC_MEMSHIRE_CRIT_E0_INTR);
+    } else {
+        Log_Write(LOG_LEVEL_CRITICAL, "Wrong interrupt handler");
+        return;
+    }
+
+    event_control_block.uce_count++;
+
+    /* read error info */
+    int_status = ms_read_esr(memshire, ddrc_int_status);
+    int_status = ((uint64_t)memshire << 32) | int_status;
+    mc_block = DDRC_INT_STATUS_ESR_MC0_ECC_UNCORRECTED_ERR_INTR_GET(int_status) ? 0 : 1;
+
+    err_addres = (uint64_t)ms_read_ddrc_reg(memshire, mc_block , ECCUADDR1) << 32 | ms_read_ddrc_reg(memshire, mc_block , ECCUADDR0);
+
+    /* add details in message header and fill payload */
+    FILL_EVENT_HEADER(&message.header, DRAM_UCE, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, event_control_block.uce_count, int_status, err_addres)
+
+    /* call the callback function and post message */
+    event_control_block.event_cb(UNCORRECTABLE, &message);
 }
 
 int ddr_get_memory_details(char *mem_detail)

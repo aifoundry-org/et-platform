@@ -23,10 +23,17 @@
 
 #include "hwinc/ms_reg_def.h"
 #include "hwinc/ddrc_reg_def.h"
+#include "hwinc/spio_plic_intr_device.h"
+#include "hwinc/sp_plic.h"
+#include "hwinc/sp_cru_reset.h"
+#include "hwinc/hal_device.h"
 #include "dm_event_def.h"
 #include "bl2_pmic_controller.h"
 #include "bl2_reset.h"
 #include "bl_error_code.h"
+#include "etsoc/isa/io.h"
+#include "config/mgmt_build_config.h"
+#include <interrupt.h>
 
 /*! \def NUMBER_OF_MEMSHIRE
 */
@@ -47,6 +54,15 @@
                    statements                                                      \
                 }                                                                  \
             }
+
+
+/*
+ * DDR Controller macros - temporary fix
+ */
+#define DDRC_INT_STATUS_ESR_MC0_ECC_CORRECTED_ERR_INTR_GET(x) \
+   (((x) & 0x0080u) >> 7)
+#define DDRC_INT_STATUS_ESR_MC0_ECC_UNCORRECTED_ERR_INTR_GET(x) \
+   ((x) & 0x0001u)
 
 /*
 ** Diagnostic macros
@@ -148,6 +164,13 @@ int32_t ddr_error_control_init(dm_event_isr_callback event_cb);
 */
 int32_t ddr_error_control_deinit(void);
 
+/*! \fn int32_t ddr_enable_ce_interrupt(void)
+    \brief This function enables ddr correctable error interrupts.
+    \param none
+    \return Status indicating success or negative error
+*/
+int32_t ddr_enable_ce_interrupt(void);
+
 /*! \fn int32_t ddr_enable_uce_interrupt(void)
     \brief This function enables ddr uncorrectable error interrupts.
     \param none
@@ -189,13 +212,6 @@ int32_t ddr_get_ce_count(uint32_t *ce_count);
     \return Status indicating success or negative error
 */
 int32_t ddr_get_uce_count(uint32_t *uce_count);
-
-/*! \fn void ddr_error_threshold_isr(void)
-    \brief This is error threshold isr
-    \param None
-*/
-
-void ddr_error_threshold_isr(void);  //TODO: WILL BE MADE STATIC FUNCION WITH ACTUAL ISR IMPLEMENTATION
 
 /*! \fn int ddr_get_memory_details(char *mem_detail)
     \brief This function get Memory vendor and part details

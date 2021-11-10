@@ -15,6 +15,40 @@
 #include <stdint.h>
 #include "dm_event_def.h"
 #include "bl_error_code.h"
+#include "config/mgmt_build_config.h"
+#include <interrupt.h>
+#include "etsoc/isa/io.h"
+#include "hwinc/etsoc_shire_cache_esr.h"
+#include "hwinc/sp_cru_reset.h"
+#include "hwinc/sp_plic.h"
+#include "hwinc/spio_plic_intr_device.h"
+#include "hwinc/hal_device.h"
+#include "esr.h"
+#include "minion_configuration.h"
+
+#define SINGLE_BIT_ECC 0
+#define DOUBLE_BIT_ECC 1
+
+/*! \def SPIO_PLIC
+*/
+#ifndef SPIO_PLIC
+#define SPIO_PLIC R_SP_PLIC_BASEADDR
+#endif
+
+
+/*! \def NUMBER_OF_MINSHIRE
+*/
+#define NUMBER_OF_MINSHIRE     33
+
+#define FOR_EACH_MINSHIRE(statements)                                              \
+            {                                                                      \
+                for(minshire = 0;minshire < NUMBER_OF_MINSHIRE;++minshire) {       \
+                   if (shire_mask & 1) {                                           \
+                      statements                                                   \
+                   }                                                               \
+                   shire_mask >>= 1;                                               \
+                }                                                                  \
+            }
 
 /*! \def CACHE_LINE_SIZE
     \brief Macro representing the 64-byte cache line size
@@ -50,37 +84,45 @@ struct sram_event_control_block
 
 int32_t sram_error_control_init(dm_event_isr_callback event_cb);
 
-/*! \fn int32_t sram_error_control_deinit(void)
+/*! \fn int32_t sram_error_control_deinit(uint64_t shire_mask)
     \brief This function cleans up the sram error control subsystem.
-    \param none
+    \param shire_mask Active shire mask
     \return Status indicating success or negative error
 */
 
-int32_t sram_error_control_deinit(void);
+int32_t sram_error_control_deinit(uint64_t shire_mask);
 
-/*! \fn int32_t sram_enable_uce_interrupt(void)
+/*! \fn int32_t sram_enable_ce_interrupt(uint64_t shire_mask)
+    \brief This function enables sram correctable error interrupts.
+    \param shire_mask Active shire mask
+    \return Status indicating success or negative error
+*/
+
+int32_t sram_enable_ce_interrupt(uint64_t shire_mask);
+
+/*! \fn int32_t sram_enable_uce_interrupt(uint64_t shire_mask)
     \brief This function enables sram uncorrectable error interrupts.
-    \param none
+    \param shire_mask Active shire mask
     \return Status indicating success or negative error
 */
 
-int32_t sram_enable_uce_interrupt(void);
+int32_t sram_enable_uce_interrupt(uint64_t shire_mask);
 
-/*! \fn int32_t sram_disable_ce_interrupt(void)
+/*! \fn int32_t sram_disable_ce_interrupt(uint64_t shire_mask)
     \brief This function dis-ables sram corretable error interrupts when threshold is exceeded.
-    \param none
+    \param shire_mask Active shire mask
     \return Status indicating success or negative error
 */
 
-int32_t sram_disable_ce_interrupt(void);
+int32_t sram_disable_ce_interrupt(uint64_t shire_mask);
 
-/*! \fn int32_t sram_disable_uce_interrupt(void)
+/*! \fn int32_t sram_disable_uce_interrupt(uint64_t shire_mask)
     \brief This function dis-ables sram un-corretable error interrupts
-    \param none
+    \param shire_mask Active shire mask
     \return Status indicating success or negative error
 */
 
-int32_t sram_disable_uce_interrupt(void);
+int32_t sram_disable_uce_interrupt(uint64_t shire_mask);
 
 /*! \fn int32_t sram_set_ce_threshold(uint32_t ce_threshold)
     \brief This function programs the sram correctable error threshold
@@ -130,7 +172,6 @@ uint16_t Cache_Control_L2_size(uint64_t shire_mask);
 
 uint16_t Cache_Control_L3_size(uint64_t shire_mask);
 
-void sram_error_threshold_isr(void);  //TODO: WILL BE MADE STATIC FUNCION WITH ACTUAL ISR IMPLEMENTATION
 
 /*! \fn int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size,
 *                                    uint64_t shire_mask)

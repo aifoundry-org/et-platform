@@ -695,9 +695,12 @@ static void pcie_ce_error(void)
         error_status =
             ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_CORR_ERR_STATUS_OFF_ADDRESS);
 
+        /* clear error register */
+        iowrite32(PCIE + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_CORR_ERR_STATUS_OFF_ADDRESS, error_status);
+
         /* add details in message header and fill payload */
         FILL_EVENT_HEADER(&message.header, PCIE_CE, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, error_status, 0)
+        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, event_control_block.ce_count, error_status, 0)
 
         /* call the callback function and post message */
         event_control_block.event_cb(CORRECTABLE, &message);
@@ -709,12 +712,17 @@ static void pcie_uce_error(void)
     struct event_message_t message;
     uint32_t error_status;
 
+    event_control_block.uce_count++;
+
     error_status =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_UNCORR_ERR_STATUS_OFF_ADDRESS);
 
+    /* clear error register */
+    iowrite32(PCIE + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_UNCORR_ERR_STATUS_OFF_ADDRESS, error_status);
+
     /* add details in message header and fill payload */
     FILL_EVENT_HEADER(&message.header, PCIE_UCE, sizeof(struct event_message_t))
-    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 1024, error_status, 0)
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, event_control_block.uce_count, error_status, 0)
 
     /* call the callback function and post message */
     event_control_block.event_cb(UNCORRECTABLE, &message);

@@ -390,6 +390,16 @@
 */
 #define PCIE_CORR_ERROR_THRESHOLD  32
 
+/*! \def DDR_CORR_ERROR_THRESHOLD
+    \brief Predefined threshold for DDR correctable errors.
+*/
+#define DDR_CORR_ERROR_THRESHOLD  32
+
+/*! \def SRAM_CORR_ERROR_THRESHOLD
+    \brief Predefined threshold for SRAM correctable errors.
+*/
+#define SRAM_CORR_ERROR_THRESHOLD  32
+
 /************************
   RTOS Task Properties
  ************************/
