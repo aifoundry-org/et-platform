@@ -1541,6 +1541,7 @@ static inline void device_unsupported_cmd_event_handler(void *command_buffer, ui
 
     /* Fill the event */
     event.event_info.event_hdr.tag_id = cmd_header->tag_id;
+    event.event_info.event_hdr.size = sizeof(event) - sizeof(struct cmn_header_t);
     event.event_info.event_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_ERROR;
     event.error_type = DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND;
 
