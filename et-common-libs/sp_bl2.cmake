@@ -5,8 +5,8 @@
 #SP Boot Loader requires etsoc_hal library
 find_package(etsoc_hal REQUIRED)
 
-#Install prefix for SP Bootloader library
-set(SP_BL2_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/esperanto-fw/lib/et-common-libs/sp-bl2)
+#Install prefix for SP Bootloader 2 library
+set(SP_BL2_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/sp-bl2)
 
 ################################################
 # List the public interfaces and headers to be

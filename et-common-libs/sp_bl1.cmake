@@ -1,12 +1,12 @@
-########################
-# Service Processor Boot Loader
-########################
+#################################
+# Service Processor Boot Loader 1
+#################################
 
 #Minion Boot Loader requires etsoc_hal library
 find_package(etsoc_hal REQUIRED)
 
-#Install prefix for Minion Bootloader library
-set(SP_BL1_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/esperanto-fw/lib/et-common-libs/sp-bl1)
+#Install prefix for Minion Bootloader 1 library
+set(SP_BL1_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/sp-bl1)
 
 ################################################
 # List the public interfaces and headers to be

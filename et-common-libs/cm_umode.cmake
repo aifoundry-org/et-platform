@@ -12,7 +12,6 @@ set(CM_UMODE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/cm-umode)
 #Listing of header only public interfaces
 set(CM_UMODE_HDRS
     # ETSOC ISA headers
-    include/etsoc/common/log_common.h
     include/etsoc/isa/atomic.h
     include/etsoc/isa/atomic-impl.h
     include/etsoc/isa/barriers.h
@@ -25,8 +24,8 @@ set(CM_UMODE_HDRS
     include/etsoc/isa/syscall.h
     include/etsoc/isa/tensors.h
     include/etsoc/isa/utils.h
-    include/etsoc/isa/macros.h
     include/trace/trace_umode.h
+    include/trace/trace_umode_cb.h
     include/trace/trace_umode_intern.h
 )
 
