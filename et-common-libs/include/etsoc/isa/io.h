@@ -61,6 +61,14 @@ static inline void iowrite64(uintptr_t addr, uint64_t val)
     asm volatile("sd %1, %0\n" : "=m"(*(volatile uint64_t *)addr) : "r"(val));
 }
 
+static inline void iormw32(uintptr_t addr, uint32_t modifier)
+{
+    uint32_t value;
+    asm volatile("lw %0, %1\n" : "=r"(value) : "m"(*(const volatile uint32_t *)addr));
+    value |= modifier;
+    asm volatile("sw %1, %0\n" : "=m"(*(volatile uint32_t *)addr) : "r"(value));
+}
+
 static inline void memcpy256(uintptr_t dest_addr, uintptr_t src_addr)
 {
     asm volatile(
