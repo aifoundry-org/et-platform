@@ -432,9 +432,6 @@ enum et_ops_boot_status {
  */
 enum et_ops_mem_region_type {
 	OPS_MEM_REGION_TYPE_VQ_BUFFER = 0,
-	/* MMFW abd CMFW regions to be removed under SW-10017 */
-	OPS_MEM_REGION_TYPE_MMFW_TRACE,
-	OPS_MEM_REGION_TYPE_CMFW_TRACE,
 	OPS_MEM_REGION_TYPE_HOST_MANAGED,
 	OPS_MEM_REGION_TYPE_NUM
 };
@@ -582,16 +579,6 @@ static inline void et_print_ops_dir(struct device *dev,
 			dev_dbg(dev,
 				"Type                    : %d - VQ Buffer\n",
 				OPS_MEM_REGION_TYPE_VQ_BUFFER);
-			break;
-		case OPS_MEM_REGION_TYPE_MMFW_TRACE:
-			dev_dbg(dev,
-				"Type                    : %d - MM FW Trace\n",
-				OPS_MEM_REGION_TYPE_MMFW_TRACE);
-			break;
-		case OPS_MEM_REGION_TYPE_CMFW_TRACE:
-			dev_dbg(dev,
-				"Type                    : %d - CM FW Trace\n",
-				OPS_MEM_REGION_TYPE_CMFW_TRACE);
 			break;
 		case OPS_MEM_REGION_TYPE_HOST_MANAGED:
 			dev_dbg(dev,
@@ -824,8 +811,6 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 	} else {
 		switch (region->type) {
 		case OPS_MEM_REGION_TYPE_VQ_BUFFER:
-		case OPS_MEM_REGION_TYPE_MMFW_TRACE:
-		case OPS_MEM_REGION_TYPE_CMFW_TRACE:
 			// Attributes compatibility check
 			if (region->access.priv_mode !=
 				    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
