@@ -25,6 +25,7 @@
 #include "bl2_vaultip_driver.h"
 #include "bl2_reset.h"
 #include "bl2_sp_pll.h"
+#include "bl2_pvt_controller.h"
 
 #include "noc_configuration.h"
 #include "minion_configuration.h"
@@ -312,6 +313,9 @@ static void taskMain(void *pvParameters)
         /* Warn, MM heartbeat alive */
         Log_Write(LOG_LEVEL_CRITICAL, "MM heartbeat alive!\r\n");
     }
+
+    /* Initialize and start continuous sampling on PVT sensors */
+    //NOSONAR pvt_init(); Uncomment upon SW-10128 resolution
 
     /* Inform Host Device is Ready */
     Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");

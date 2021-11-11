@@ -59,6 +59,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/vaultip_controller.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/gpio_controller.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/pmic_controller.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/driver/pvt_controller.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/reset.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/timer.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/flashfs.c
