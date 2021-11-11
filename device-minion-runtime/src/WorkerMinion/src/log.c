@@ -14,7 +14,8 @@
 /*! \def CHECK_STRING_FILTER
     \brief This checks if trace string log level is enabled to log the given level.
 */
-#define CHECK_STRING_FILTER(cb, log_level) ((cb->filter_mask & TRACE_FILTER_STRING_MASK) >= log_level)
+#define CHECK_STRING_FILTER(cb, log_level) \
+    ((cb->filter_mask & TRACE_FILTER_STRING_MASK) >= log_level)
 
 /************************************************************************
 *
@@ -39,12 +40,12 @@
 ***********************************************************************/
 int64_t log_write(log_level_t level, const char *const fmt, ...)
 {
-    int ret=0;
+    int ret = 0;
 
     /* TODO: Use Trace_Format_String() when Trace common library has support/alternative
         of libc_nano to process va_list string formatting. Also, remove log_level check
         from here, as trace library does that internally .*/
-    if(CHECK_STRING_FILTER(Trace_Get_CM_CB(), level))
+    if (CHECK_STRING_FILTER(Trace_Get_CM_CB(), level))
     {
         va_list va;
         char buff[128];
@@ -57,6 +58,14 @@ int64_t log_write(log_level_t level, const char *const fmt, ...)
         /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
         type message. */
         ret = TRACE_STRING_MAX_SIZE;
+#if defined(TRACE_EVICT_ENABLE)
+        /* Evict trace buffer to L3 so that it can be access on host side for extraction
+           through IOCTL */
+        if (level <= LOG_CM_TRACE_EVICT_LEVEL)
+        {
+            Trace_Evict_CM_Buffer();
+        }
+#endif
     }
 
     return ret;
@@ -87,6 +96,14 @@ int64_t log_write_str(log_level_t level, const char *str)
 {
     Trace_String(level, Trace_Get_CM_CB(), str);
 
+#if defined(TRACE_EVICT_ENABLE)
+    /* Evict trace buffer to L3 so that it can be access on host side for extraction
+           through IOCTL */
+    if (level <= LOG_CM_TRACE_EVICT_LEVEL)
+    {
+        Trace_Evict_CM_Buffer();
+    }
+#endif
     /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
         type message. */
     return TRACE_STRING_MAX_SIZE;

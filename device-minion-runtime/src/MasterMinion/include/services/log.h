@@ -109,7 +109,7 @@ int32_t __Log_Write_String(log_level_e level, const char *str, size_t length);
             Log_Write(log_level, "%s || File:%s Line:%d\r\n", msg, __FILE__, __LINE__); \
     } while (0)
 
-/* Trace eviction level */
-#define LOG_TRACE_EVICT_LEVEL LOG_LEVEL_ERROR
+/* MM Trace eviction level */
+#define LOG_MM_TRACE_EVICT_LEVEL LOG_LEVEL_ERROR
 
 #endif /* LOG1_DEFS_H */

@@ -6,6 +6,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
+/* MM Trace eviction level */
+#define LOG_CM_TRACE_EVICT_LEVEL LOG_LEVEL_ERROR
+
 /*! \fn int32_t log_write(log_level_t level, const char *const fmt, ...)
     \brief Write a log with va_list style args
     \param level Log level for the current log
