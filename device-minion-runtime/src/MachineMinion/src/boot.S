@@ -64,7 +64,6 @@ _start:
     addi x30, x0, 0
     addi x31, x0, 0
 
-#ifdef __riscv_flen
     fcvt.s.w f0,  x0
     fcvt.s.w f1,  x0
     fcvt.s.w f2,  x0
@@ -97,7 +96,6 @@ _start:
     fcvt.s.w f29, x0
     fcvt.s.w f30, x0
     fcvt.s.w f31, x0
-#endif
 
     # Initialize the global pointer
 .option push

@@ -327,7 +327,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
         "mv    x29, zero           \n"
         "mv    x30, zero           \n"
         "mv    x31, zero           \n"
-#ifdef __riscv_flen
+
         "fcvt.s.w f0,  x0          \n"
         "fcvt.s.w f1,  x0          \n"
         "fcvt.s.w f2,  x0          \n"
@@ -360,7 +360,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
         "fcvt.s.w f29, x0          \n"
         "fcvt.s.w f30, x0          \n"
         "fcvt.s.w f31, x0          \n"
-#endif
+
         "sret                      \n" /* ret to kernel.code_start_address in user mode */
         "1:                        \n" /* firmware context resumes from here via return_from_kernel() */
         "mv    %[return_value], a0 \n" /* collect kernel return value */
@@ -463,7 +463,8 @@ static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel)
 
     // Thread 0 in each minion
     if (get_thread_id() == 0) {
-        uint64_t temp, temp2;
+        uint64_t temp;
+        uint64_t temp2;
 
         // Perform a dummy TensorFMA to consume an unpaired TensorLoadSetupB, if any (rare)
         // If there isn't an unpaired TensorLoadSetupB (common case), this just generates a TensorError
@@ -500,14 +501,15 @@ static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel)
             : "m"(tensor_zeros[64])
             : "x31");
 
-        // Enables 8 lanes of FPU, clears m1-m7
-        asm volatile("li       %0, 0xFF \n" // m0=0xFF, m1-m7=0
-                     "mova.m.x %0       \n"
-                     : "=&r"(temp));
 
         // Ensure all cache evicts are complete
         WAIT_CACHEOPS
     }
+    uint64_t scratch;
+    // Enables 8 lanes of FPU, clears m1-m7
+    asm volatile("li       %0, 0xFF \n" // m0=0xFF, m1-m7=0
+                 "mova.m.x %0       \n"
+                 : "=&r"(scratch));
 
     // Clear floating point flags and set rounding mode to 0 (round near even)
     asm volatile("csrw fcsr, zero");
