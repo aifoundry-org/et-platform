@@ -113,7 +113,7 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
     throw Exception("Error parsing elf");
   }
 
-  auto extraSize = 0U;
+  auto extraSize = 0UL;
   for (auto& segment : elf.segments) {
     if (segment->get_type() & PT_LOAD) {
       auto fileSize = segment->get_file_size();
