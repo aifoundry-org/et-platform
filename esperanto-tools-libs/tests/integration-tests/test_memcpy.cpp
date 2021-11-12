@@ -91,13 +91,13 @@ TEST_F(TestMemcpy, SimpleMemcpyDmaBuffer) {
   }
 }
 
-TEST_F(TestMemcpy, 4GbMemcpy) {
+TEST_F(TestMemcpy, 2GbMemcpy) {
   using ValueType = uint32_t;
   std::mt19937 gen(std::random_device{}());
 
   auto dev = devices_[0];
   auto stream = runtime_->createStream(dev);
-  auto desiredSize = 1ULL << 32;
+  auto desiredSize = 1ULL << 31;
 
   struct RandomData {
     ValueType value;

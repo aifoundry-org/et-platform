@@ -30,7 +30,7 @@ bool areEqual(int one, int other, int index, int thread, int stream) {
   (void)stream;
   return one == other;
 }
-class SysEmu : public Fixture {
+class StressKernel : public Fixture {
 public:
   void SetUp() override {
     Fixture::SetUp();
@@ -94,8 +94,8 @@ public:
     auto dev = devices_[0];
 
     for (auto i = 0U; i < num_threads; ++i) {
-      threads.emplace_back(
-        std::bind(&SysEmu::stressKernelThreadFunc, this, dev, num_streams, num_executions, elems, check_results, i));
+      threads.emplace_back(std::bind(&StressKernel::stressKernelThreadFunc, this, dev, num_streams, num_executions,
+                                     elems, check_results, i));
     }
     for (auto& t : threads) {
       t.join();
@@ -104,47 +104,47 @@ public:
   rt::KernelId kernel_;
 };
 
-TEST_F(SysEmu, 256_ele_10_exe_10_st_2_th) {
+TEST_F(StressKernel, 256_ele_10_exe_10_st_2_th) {
   run_stress_kernel(1 << 8, 10, 10, 2);
 }
 
-TEST_F(SysEmu, 1024_ele_1_exe_1_st_1_th) {
+TEST_F(StressKernel, 1024_ele_1_exe_1_st_1_th) {
   run_stress_kernel(1 << 10, 1, 1, 1);
 }
 
-TEST_F(SysEmu, 1024_ele_1_exe_1_st_2_th) {
+TEST_F(StressKernel, 1024_ele_1_exe_1_st_2_th) {
   run_stress_kernel(1 << 10, 1, 1, 2);
 }
 
-TEST_F(SysEmu, 256_ele_10_exe_1_st_1_th) {
+TEST_F(StressKernel, 256_ele_10_exe_1_st_1_th) {
   run_stress_kernel(1 << 8, 10, 1, 1);
 }
 
-TEST_F(SysEmu, 1024_ele_100_exe_1_st_2_th) {
+TEST_F(StressKernel, 1024_ele_100_exe_1_st_2_th) {
   run_stress_kernel(1 << 10, 100, 1, 2);
 }
 
-TEST_F(SysEmu, 128_ele_1_exe_1_st_2_th) {
+TEST_F(StressKernel, 128_ele_1_exe_1_st_2_th) {
   run_stress_kernel(1 << 7, 1, 1, 2);
 }
 
-TEST_F(SysEmu, 64_ele_1_exe_1_st_20_th) {
+TEST_F(StressKernel, 64_ele_1_exe_1_st_20_th) {
   run_stress_kernel(1 << 6, 1, 1, 20);
 }
 
-TEST_F(SysEmu, 64_ele_1_exe_1_st_15_th) {
+TEST_F(StressKernel, 64_ele_1_exe_1_st_15_th) {
   run_stress_kernel(1 << 6, 1, 1, 15);
 }
 
-TEST_F(SysEmu, 64_ele_1_exe_1_st_25_th) {
+TEST_F(StressKernel, 64_ele_1_exe_1_st_25_th) {
   run_stress_kernel(1 << 6, 1, 1, 25);
 }
 
-TEST_F(SysEmu, 64_ele_1_exe_1_st_50_th) {
+TEST_F(StressKernel, 64_ele_1_exe_1_st_50_th) {
   run_stress_kernel(1 << 6, 1, 1, 50);
 }
 
-TEST_F(SysEmu, 64_ele_1_exe_1_st_100_th) {
+TEST_F(StressKernel, 64_ele_1_exe_1_st_100_th) {
   run_stress_kernel(1 << 6, 1, 1, 100);
 }
 
