@@ -20,7 +20,7 @@
 
 void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const reg);
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,
-                                   uint64_t hart_id, uint32_t shire_id, bool user_mode);
+    uint64_t hart_id, uint32_t shire_id, bool user_mode);
 
 /* Note: ecalls are handled in syscall_handler, and some U-mode exceptions are delegated to S-mode from M-mode */
 void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const reg)
@@ -36,8 +36,10 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
     /* S-mode exception */
     if (!user_mode)
     {
-        struct dev_context_registers_t context = {.epc = sepc, .tval = stval,
-            .status = sstatus, .cause = scause};
+        struct dev_context_registers_t context = { .epc = sepc,
+            .tval = stval,
+            .status = sstatus,
+            .cause = scause };
 
         /* Copy all the GPRs except x0 (hardwired to zero) */
         memcpy(context.gpr, &reg[1], sizeof(uint64_t) * TRACE_DEV_CONTEXT_GPRS);
@@ -46,7 +48,8 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         Trace_Execution_Stack(Trace_Get_CM_CB(), &context);
 
         log_write(LOG_LEVEL_CRITICAL,
-            "H%04" PRId64 ": Worker S-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n",
+            "H%04" PRId64 ": Worker S-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64
+            ", stval=0x%" PRIx64 "\n",
             hart_id, scause, sepc, stval);
     }
     else /* U-mode exception */
@@ -55,23 +58,27 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
 
         /* If the kernel exception buffer is available */
-        if(exception_buffer != 0)
+        if (exception_buffer != 0)
         {
-            internal_execution_context_t context = {.scause = scause, .sepc = sepc,
-                .sstatus = sstatus, .stval = stval, .regs = reg};
+            internal_execution_context_t context = { .scause = scause,
+                .sepc = sepc,
+                .sstatus = sstatus,
+                .stval = stval,
+                .regs = reg };
 
             log_write(LOG_LEVEL_CRITICAL,
-                "H%04" PRId64 ": Worker U-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n",
+                "H%04" PRId64 ": Worker U-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64
+                ", stval=0x%" PRIx64 "\n",
                 hart_id, scause, sepc, stval);
 
             /* Save the execution context in the buffer provided */
-            CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
+            CM_To_MM_Save_Execution_Context((execution_context_t *)exception_buffer,
                 CM_CONTEXT_TYPE_UMODE_EXCEPTION, hart_id, &context);
         }
     }
 
     /* Only send kernel launch exception message once to MM. */
-    if(kernel_launch_set_global_abort_flag())
+    if (kernel_launch_set_global_abort_flag())
     {
         /* Sends exception message to MM */
         send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
@@ -101,7 +108,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
 }
 
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,
-                                   uint64_t hart_id, uint32_t shire_id, bool user_mode)
+    uint64_t hart_id, uint32_t shire_id, bool user_mode)
 {
     cm_to_mm_message_exception_t message;
     uint8_t kw_base_id;
@@ -109,15 +116,15 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     int8_t status;
 
     /* Populate the exception message */
-    message.shire_id  = shire_id;
-    message.hart_id   = hart_id;
-    message.mcause    = mcause;
-    message.mepc      = mepc;
-    message.mtval     = mtval;
-    message.mstatus   = mstatus;
+    message.shire_id = shire_id;
+    message.hart_id = hart_id;
+    message.mcause = mcause;
+    message.mepc = mepc;
+    message.mtval = mtval;
+    message.mstatus = mstatus;
 
     /* If the exception is recoverable, inform kernel worker, else inform dispatcher */
-    if(user_mode)
+    if (user_mode)
     {
         message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION;
 
@@ -129,11 +136,11 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
             (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + slot_index),
             (cm_iface_message_t *)&message);
 
-        if(status != STATUS_SUCCESS)
+        if (status != STATUS_SUCCESS)
         {
             log_write(LOG_LEVEL_ERROR,
-                "H%04lld: CM->MM:U-mode_exceptionUnicast send failed! Error code: %d\n",
-                hart_id, status);
+                "H%04lld: CM->MM:U-mode_exceptionUnicast send failed! Error code: %d\n", hart_id,
+                status);
         }
     }
     else
@@ -150,12 +157,11 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
         /* Release the unicast lock */
         CM_Iface_Unicast_Release_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
 
-        if(status != STATUS_SUCCESS)
+        if (status != STATUS_SUCCESS)
         {
             log_write(LOG_LEVEL_ERROR,
-                "H%04lld: CM->MM:S-mode_exception:Unicast send failed! Error code: %d\n",
-                hart_id, status);
+                "H%04lld: CM->MM:S-mode_exception:Unicast send failed! Error code: %d\n", hart_id,
+                status);
         }
     }
 }
-
