@@ -8,13 +8,14 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
-#include "DeviceSysEmu.h"
 #include "DevicePcie.h"
+#include "DeviceSysEmuMulti.h"
 
 using namespace dev;
 
-std::unique_ptr<IDeviceLayer> IDeviceLayer::createSysEmuDeviceLayer(const emu::SysEmuOptions& options) {
-  return std::make_unique<DeviceSysEmu>(options);
+std::unique_ptr<IDeviceLayer> IDeviceLayer::createSysEmuDeviceLayer(const emu::SysEmuOptions& options,
+                                                                    uint8_t numDevices) {
+  return std::make_unique<DeviceSysEmuMulti>(options, numDevices);
 }
 
 std::unique_ptr<IDeviceLayer> IDeviceLayer::createPcieDeviceLayer(bool enableMasterMinion,

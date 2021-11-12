@@ -67,6 +67,7 @@ find_package(Boost REQUIRED)
 add_library(deviceLayer
     src/DeviceLayer.cpp
     src/DeviceSysEmu.cpp
+    src/DeviceSysEmuMulti.cpp
     src/DevicePcie.cpp
     src/SysEmuHostListener.cpp
 )

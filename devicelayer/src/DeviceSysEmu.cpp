@@ -576,11 +576,11 @@ void DeviceSysEmu::freeDmaBuffer(void* dmaBuffer) {
 DeviceConfig DeviceSysEmu::getDeviceConfig(int) {
   return DeviceConfig{DeviceConfig::FormFactor::PCIE,
                       25,
-                      650,
                       32,
                       16,
                       80,
                       64,
+                      650,
                       static_cast<uint32_t>(spInfo_.generic_attr.minion_shires_mask)};
 }
 

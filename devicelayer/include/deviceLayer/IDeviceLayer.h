@@ -54,7 +54,7 @@ struct DeviceConfig {
 enum class DeviceState { Ready, PendingCommands, NotResponding, Undefined };
 
 /// \brief This enum contains possible trace buffer types to extract from SP
-enum class TraceBufferType { TraceBufferSP = 0 , TraceBufferMM, TraceBufferCM, TraceBufferTypeNum };
+enum class TraceBufferType { TraceBufferSP = 0, TraceBufferMM, TraceBufferCM, TraceBufferTypeNum };
 
 class Exception : public dbg::StackException {
   using dbg::StackException::StackException;
@@ -215,7 +215,8 @@ public:
   ///
   /// @returns false if there was no response to be received
   ///
-  virtual bool getTraceBufferServiceProcessor(int device, TraceBufferType trace_type, std::vector<std::byte>& response) = 0;
+  virtual bool getTraceBufferServiceProcessor(int device, TraceBufferType trace_type,
+                                              std::vector<std::byte>& response) = 0;
   /// \brief Writes firmware image on DRAM of given device
   ///
   /// @param[in] device indicating which device's DRAM to be written.
@@ -280,9 +281,13 @@ class IDeviceLayer : public IDeviceAsync, public IDeviceSync {
 public:
   /// \brief Factory method to instantiate a IDeviceApi implementation, based on sysemu backend
   ///
+  /// @param[in] options this contains all sysemu parametrizable options see \ref emu::SysEmuOptions
+  /// @param[in] numDevices number of devices which one would like to emulate. Defaults to 1
+  ///
   /// @returns std::unique_ptr<IDeviceApi> is the IDeviceApi implementation
   ///
-  static std::unique_ptr<IDeviceLayer> createSysEmuDeviceLayer(const emu::SysEmuOptions& options);
+  static std::unique_ptr<IDeviceLayer> createSysEmuDeviceLayer(const emu::SysEmuOptions& options,
+                                                               uint8_t numDevices = 1);
 
   /// \brief Factory method to instantiate a IDeviceApi implementation, based on Pcie backend
   ///
