@@ -60,6 +60,32 @@
 */
 #define CM_KERNEL_LAUNCHED_FLAG ((cm_kernel_launched_flag_t *)CM_KERNEL_LAUNCHED_FLAG_BASEADDR)
 
+/*! \def KW_WAIT_AND_CLEAR_SW_INTERRUPT(enable)
+    \brief Macro used to wait and clear IPIs.
+*/
+#define KW_WAIT_AND_CLEAR_SW_INTERRUPT(enable)                                     \
+{                                                                                  \
+    if (enable)                                                                    \
+    {                                                                              \
+        uint64_t sip;                                                              \
+                                                                                   \
+        /* Wait for an interrupt */                                                \
+        asm volatile("wfi");                                                       \
+                                                                                   \
+        /* Read pending interrupts */                                              \
+        SUPERVISOR_PENDING_INTERRUPTS(sip);                                        \
+                                                                                   \
+        /* We are only interesed in IPIs */                                        \
+        if(!(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT)))                          \
+        {                                                                          \
+            continue;                                                              \
+        }                                                                          \
+                                                                                   \
+        /* Clear IPI pending interrupt */                                          \
+        asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT)); \
+    }                                                                              \
+}
+
 /*! \typedef kernel_instance_t
     \brief Kernel Instance Control Block structure.
     Kernel instance maintains information related to
@@ -909,6 +935,8 @@ static inline int8_t kw_cm_to_mm_kernel_force_abort(uint64_t kernel_shire_mask,
     cm_iface_message_t abort_msg = { .header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT };
     int8_t status;
 
+    Log_Write(LOG_LEVEL_DEBUG, "KW:MM->CM:Sending abort multicast msg.\r\n");
+
     /* Blocking call (with timeout) that blocks till all shires ack */
     status = CM_Iface_Multicast_Send(kernel_shire_mask, &abort_msg);
 
@@ -945,6 +973,10 @@ static inline int8_t kw_cm_to_mm_kernel_force_abort(uint64_t kernel_shire_mask,
                     reset_status);
             }
         }
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_DEBUG, "KW:MM->CM:Abort multicast complete.\r\n");
     }
 
     return status;
@@ -1099,27 +1131,32 @@ static inline uint32_t kw_get_kernel_launch_completion_status(uint32_t kernel_st
     if((kernel_state == KERNEL_STATE_ABORTED_BY_HOST) ||
         (kernel_state == KERNEL_STATE_ABORTING))
     {
-        /* Update the kernel launch response to indicate that it was aborted by host */
-        status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
-
+        /* Check for any errors */
+        if (status_internal->status != STATUS_SUCCESS)
+        {
+            /* Error was detected, update response */
+            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+        }
+        else
+        {
+            /* Update the kernel launch response to indicate that it was aborted by host */
+            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
+        }
     }
     else if(status_internal->cw_exception)
     {
         /* Exception was detected in kernel run, update response */
         status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION;
-
     }
     else if(status_internal->cw_error)
     {
         /* Error was detected in kernel run, update response */
         status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
-
     }
     else
     {
         /* Everything went normal, update response to kernel completed */
         status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED;
-
     }
 
     return status;
@@ -1146,7 +1183,7 @@ static inline uint32_t kw_get_kernel_launch_completion_status(uint32_t kernel_st
 ***********************************************************************/
 void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 {
-    uint64_t sip;
+    bool wait_for_ipi = true;
     bool timeout_abort_serviced;
     int8_t status;
     uint8_t local_sqw_idx;
@@ -1182,20 +1219,8 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         associated with the kernel launch */
         while(!status_internal.kernel_done && (status_internal.status == STATUS_SUCCESS))
         {
-            /* Wait for an interrupt */
-            asm volatile("wfi");
-
-            /* Read pending interrupts */
-            SUPERVISOR_PENDING_INTERRUPTS(sip);
-
-            /* We are only interesed in IPIs */
-            if(!(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT)))
-            {
-                continue;
-            }
-
-            /* Clear IPI pending interrupt */
-            asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
+            /* Wait and clear IPI */
+            KW_WAIT_AND_CLEAR_SW_INTERRUPT(wait_for_ipi)
 
             /* Check the kernel_state is set to abort after timeout */
             if((!timeout_abort_serviced) &&
@@ -1208,12 +1233,19 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                 This abort should forcefully abort all the shires involved in
                 kernel launch and if it times out as well, do a reset of the shires. */
                 status_internal.status = kw_cm_to_mm_kernel_force_abort(kernel_shire_mask, true);
+
+                /* Since we did a multicast to CMs in above call, being pessimistic here
+                and disabling the wait for IPI to make sure we don't miss any pending message. */
+                wait_for_ipi = false;
             }
             else
             {
                 /* Handle message from Compute Worker */
                 kw_cm_to_mm_process_single_message(kw_idx, kernel_shire_mask,
                     &status_internal, kernel);
+
+                /* Enable wait for IPI */
+                wait_for_ipi = true;
             }
         }
 
