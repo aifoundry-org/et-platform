@@ -121,6 +121,8 @@ Enums:
         Value: 0
       - Name: ERROR
         Value: 1
+      - Name: UNKNOWN_ERROR
+        Value: 1
       - Name: TIMEOUT_IDLE_CHANNEL_UNAVAILABLE
         Value: 2
       - Name: ABORTED
