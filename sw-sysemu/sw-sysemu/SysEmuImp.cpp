@@ -408,10 +408,26 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   opts.max_cycles = options.maxCycles;
   opts.gdb = options.startGdb;
 
+  /* Route PU UART0 output to log file */
   opts.pu_uart0_tx_file = options.puUart0Path.empty() ? options.runDir + "/" + "pu_uart0_tx.log" : options.puUart0Path;
-  opts.pu_uart1_tx_file = options.puUart1Path.empty() ? options.runDir + "/" + "pu_uart1_tx.log" : options.puUart1Path;
+  SE_LOG(ERROR) << "PU UART0 TX logfile path " << opts.pu_uart0_tx_file;
 
-  /* Initialize SP UART0 port based on FIFO retargeting selection from caller*/
+  /* Route PU UART 1 TX for FIFO if a valid FIFO path was provided by caller, else route to log file */
+  if (!options.puUart1FifoOutPath.empty()) {
+    opts.pu_uart1_tx_file = options.puUart1FifoOutPath;
+  } else {
+    opts.pu_uart1_tx_file =
+      options.puUart1Path.empty() ? options.runDir + "/" + "pu_uart1_tx.log" : options.puUart1Path;
+  }
+  SE_LOG(ERROR) << "PU UART1 TX FIFO path " << opts.pu_uart1_tx_file;
+
+  /* Route PU UART 1 RX for FIFO if a valid FIFO path was provided by caller */
+  if (!options.puUart1FifoInPath.empty()) {
+    opts.pu_uart1_rx_file = options.puUart1FifoInPath;
+    SE_LOG(ERROR) << "PU UART1 RX FIFO path " << opts.pu_uart1_tx_file;
+  }
+
+  /* Route SP UART 0 TX for FIFO if a valid FIFO path was provided by caller, else route to log file */
   if (!options.spUart0FifoOutPath.empty()) {
     opts.spio_uart0_tx_file = options.spUart0FifoOutPath;
     SE_LOG(INFO) << "SP TX FIFO path " << opts.spio_uart0_tx_file;
@@ -420,12 +436,13 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
       options.spUart0Path.empty() ? options.runDir + "/" + "spio_uart0_tx.log" : options.spUart0Path;
   }
 
+  /* Route SP UART 0 RX for FIFO if a valid FIFO path was provided by caller */
   if (!options.spUart0FifoInPath.empty()) {
     opts.spio_uart0_rx_file = options.spUart0FifoInPath;
     SE_LOG(INFO) << "SP RX FIFO path " << opts.spio_uart0_rx_file;
   }
 
-  /* Initialize SP UART1 port based on FIFO retargeting selection from caller*/
+  /* Route SP UART 1 TX for FIFO if a valid FIFO path was provided by caller, else route to log file */
   if (!options.spUart1FifoOutPath.empty()) {
     opts.spio_uart1_tx_file = options.spUart1FifoOutPath;
     SE_LOG(INFO) << "SP TX FIFO path " << opts.spio_uart1_tx_file;
@@ -434,6 +451,7 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
       options.spUart1Path.empty() ? options.runDir + "/" + "spio_uart1_tx.log" : options.spUart1Path;
   }
 
+  /* Route SP UART 0 TX for FIFO if a valid FIFO path was provided by caller */
   if (!options.spUart1FifoInPath.empty()) {
     opts.spio_uart1_rx_file = options.spUart1FifoInPath;
     SE_LOG(INFO) << "SP RX FIFO path " << opts.spio_uart1_rx_file;
