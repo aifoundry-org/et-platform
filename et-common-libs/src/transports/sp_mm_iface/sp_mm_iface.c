@@ -277,7 +277,60 @@ int8_t SP_MM_Iface_Push(uint8_t target, const void* p_buff, uint32_t size)
 
     return status;
 }
+/************************************************************************
+*
+*   FUNCTION
+*
+*       SP_MM_Iface_Get_VQ_Base_Addr
+*
+*   DESCRIPTION
+*
+*       Provides pointer to virtual queue control block
+*
+*   INPUTS
+*
+*       target      SP2MM_SQ, SP2MM_CQ, MM2SP_SQ, MM2SP_CQ
+*
+*   OUTPUTS
+*
+*       vq_cb_t     Pointer to VQ or NULL
+*
+***********************************************************************/
+vq_cb_t*  SP_MM_Iface_Get_VQ_Base_Addr(uint8_t target)
+{
 
+    vq_cb_t* vqueue;
+    switch (target)
+    {
+        case    SP_SQ:
+        {
+            vqueue = &SP_SQueue.vqueue;
+            break;
+        }
+        case    SP_CQ:
+        {
+            vqueue = &SP_CQueue.vqueue;
+            break;
+        }
+        case    MM_SQ:
+        {
+            vqueue = &MM_SQueue.vqueue;
+            break;
+        }
+        case    MM_CQ:
+        {
+            vqueue = &MM_CQueue.vqueue;
+            break;
+        }
+        default:
+        {
+            vqueue = NULL;
+            break;
+        }
+    }
+
+    return vqueue;
+}
 /************************************************************************
 *
 *   FUNCTION

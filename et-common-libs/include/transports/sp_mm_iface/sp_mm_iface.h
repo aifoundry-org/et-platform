@@ -57,6 +57,11 @@ enum sp_mm_target_t {
     MM_CQ /* For MM to submit responses to SP, Push from MM */
 };
 
+/*! \def SP_MM_VERIFY_VQ_TAIL
+    \brief Enables VQ tail pointer verification
+*/
+//#define SP_MM_VERIFY_VQ_TAIL
+
 /*! \fn int8_t SP_MM_Iface_Init(void)
     \brief SP to MM interface initialization
     \return Status indicating success or negative error
@@ -93,5 +98,13 @@ bool SP_MM_Iface_Data_Available(uint8_t target);
     \return success or error code
 */
 int8_t SP_MM_Iface_Verify_Tail(uint8_t target);
+
+
+/*! \fn vq_cb_t* SP_MM_Iface_Get_VQ_Base_Addr(uint8_t target)
+    \brief Provides pointer to virtual queue control block
+    \param target target SP to MM interface
+    \return Pointer to VQ or NULL
+*/
+vq_cb_t*  SP_MM_Iface_Get_VQ_Base_Addr(uint8_t target);
 
 #endif /* __SP_MM_IFACE_H__ */
