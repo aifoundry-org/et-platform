@@ -129,12 +129,14 @@ Enums:
         Value: 3
       - Name: HOST_ABORTED
         Value: 3
-      - Name: TIMEOUT_HANG
+      - Name: ERROR_ABORTED
         Value: 4
-      - Name: INVALID_ADDRESS
+      - Name: TIMEOUT_HANG
         Value: 5
-      - Name: INVALID_SIZE
+      - Name: INVALID_ADDRESS
         Value: 6
+      - Name: INVALID_SIZE
+        Value: 7
   - Name: dev_ops_api_echo_response
     Type: uint32_t
     Values:
