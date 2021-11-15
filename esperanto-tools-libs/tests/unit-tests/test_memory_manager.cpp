@@ -283,6 +283,25 @@ TEST(MemoryManager, malloc_free_basic) {
   }
 }
 
+TEST(MemoryManager, contiguous_bytes) {
+  auto totalRam = 1UL << 34;
+  auto mm = MemoryManager(1UL << 13, totalRam, kBlockSize);
+  ASSERT_EQ(mm.getFreeBytes(), mm.getFreeContiguousBytes());
+  ASSERT_EQ(mm.getFreeBytes(), totalRam);
+  auto alloc1 = mm.malloc(totalRam / 2, kBlockSize);
+  ASSERT_EQ(mm.getFreeBytes(), mm.getFreeContiguousBytes());
+  ASSERT_EQ(mm.getFreeBytes(), totalRam / 2);
+  auto alloc2 = mm.malloc(totalRam / 4, kBlockSize);
+  ASSERT_EQ(mm.getFreeBytes(), mm.getFreeContiguousBytes());
+  ASSERT_EQ(mm.getFreeBytes(), totalRam / 4);
+  mm.free(alloc1);
+  ASSERT_EQ(mm.getFreeBytes(), 3 * totalRam / 4);
+  ASSERT_EQ(mm.getFreeContiguousBytes(), totalRam / 2);
+  mm.free(alloc2);
+  ASSERT_EQ(mm.getFreeBytes(), mm.getFreeContiguousBytes());
+  ASSERT_EQ(mm.getFreeBytes(), totalRam);
+}
+
 TEST(MemoryManager, malloc_free_holes) {
   auto totalRam = 1UL << 34;
   auto mm = MemoryManager(1 << 12, totalRam);

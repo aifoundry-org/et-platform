@@ -62,6 +62,8 @@ void MemoryManager::sanityCheck() const {
     return std::string("Address: ") + std::to_string(allocation.first) + "Size: " + std::to_string(allocation.second);
   };
 
+  dbg::Check(getFreeContiguousBytes() <= getFreeBytes(),
+             std::string{"There are more contiguos free bytes than total free bytes!"});
   dbg::Check(std::is_sorted(begin(free_), end(free_)), std::string{"Free list is not sorted!"});
 
   // check all chunks have valid values
@@ -112,6 +114,17 @@ void MemoryManager::sanityCheck() const {
                std::to_string(totalMemoryBytes_) + ")");
   RT_LOG(INFO) << "Sanity check ended successfully";
 #endif
+}
+
+size_t MemoryManager::getFreeContiguousBytes() const {
+  if (free_.empty()) {
+    return 0UL;
+  }
+  auto it = std::max_element(begin(free_), end(free_),
+                             [](const auto& one, const auto& other) { return one.size_ < other.size_; });
+  auto blockSize = static_cast<size_t>(getBlockSize());
+  auto freeChunkBlocks = static_cast<size_t>(it->size_);
+  return blockSize * freeChunkBlocks;
 }
 
 size_t MemoryManager::getFreeBytes() const {

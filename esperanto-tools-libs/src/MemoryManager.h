@@ -31,6 +31,9 @@ public:
 
   size_t getFreeBytes() const;
 
+  // returns the max contiguos bytes
+  size_t getFreeContiguousBytes() const;
+
   size_t getAllocatedBytes() const;
 
   size_t getNumAllocations() const;
