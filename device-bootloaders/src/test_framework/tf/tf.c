@@ -6,6 +6,8 @@
 
 //#define TF_DEBUG
 
+#define TF_UART PU_UART1
+
 /* Globals */
 
 static char Input_Cmd_Buffer[TF_MAX_CMD_SIZE];
@@ -83,7 +85,7 @@ int8_t TF_Wait_And_Process_TF_Cmds(int8_t intercept)
 #endif
         while(tf_receive_cmd_data)
         {
-            SERIAL_getchar(SP_UART1, &c);
+            SERIAL_getchar(TF_UART, &c);
 
             /* Look for the command start delimeter */
             if((!tf_prot_start_found) && (c == TF_CMD_START))
@@ -195,7 +197,7 @@ static void fill_rsp_buffer(uint32_t *buf_size, const void *buffer,
         if (rsp_size > *buf_size)
         {
             memcpy(p_rsp, src_buff, *buf_size);
-            SERIAL_write(SP_UART1, &Output_Rsp_Buffer[0], TF_MAX_RSP_SIZE);
+            SERIAL_write(TF_UART, &Output_Rsp_Buffer[0], TF_MAX_RSP_SIZE);
 
             src_buff += *buf_size;
             p_rsp = &Output_Rsp_Buffer[0];
@@ -275,7 +277,7 @@ int8_t TF_Send_Response_With_Payload(void *rsp, uint32_t rsp_size,
 
 #endif
         p_rsp = &Output_Rsp_Buffer[0];
-        SERIAL_write(SP_UART1, p_rsp, (int)bytes_to_transmit);
+        SERIAL_write(TF_UART, p_rsp, (int)bytes_to_transmit);
     }
     else
     {
