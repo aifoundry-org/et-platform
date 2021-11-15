@@ -61,12 +61,14 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
   case DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP:
   case DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP:
     switch (responseCode) {
-    case DEV_OPS_API_DMA_RESPONSE_ERROR:
-      return rt::DeviceErrorCode::DmaError;
+    case DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR:
+      return rt::DeviceErrorCode::DmaUnknownError;
     case DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE:
       return rt::DeviceErrorCode::DmaTimeoutIdleChannelUnavailable;
     case DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED:
-      return rt::DeviceErrorCode::DmaAborted;
+      return rt::DeviceErrorCode::DmaHostAborted;
+    case DEV_OPS_API_DMA_RESPONSE_ERROR_ABORTED:
+      return rt::DeviceErrorCode::DmaErrorAborted;
     case DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG:
       return rt::DeviceErrorCode::DmaTimeoutHang;
     case DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS:

@@ -78,9 +78,10 @@ enum class DeviceErrorCode {
   AbortError,
   AbortInvalidTagId,
 
-  DmaError,
+  DmaUnknownError,
   DmaTimeoutIdleChannelUnavailable,
-  DmaAborted,
+  DmaHostAborted,
+  DmaErrorAborted,
   DmaTimeoutHang,
   DmaInvalidAddress,
   DmaInvalidSize,
