@@ -64,7 +64,7 @@
     }                                                                                              \
     else                                                                                           \
     {                                                                                              \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_ERROR;                                               \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
     }
 
 /************************************************************************

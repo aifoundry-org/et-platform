@@ -538,7 +538,7 @@ static inline void process_dma_read_chan_in_use(dma_read_chan_id_e read_chan,
             /* DMA transfer aborted, clear interrupt status */
             dma_clear_read_abort(read_chan);
             dma_configure_read(read_chan);
-            write_rsp->status = DEV_OPS_API_DMA_RESPONSE_ERROR;
+            write_rsp->status = DEV_OPS_API_DMA_RESPONSE_ERROR_ABORTED;
             Log_Write(LOG_LEVEL_ERROR,"DMAW:Tag_ID=%u:Read Transfer Aborted\r\n",
                         read_chan_status.tag_id);
         }
@@ -769,7 +769,7 @@ static inline void process_dma_write_chan_in_use(dma_write_chan_id_e write_chan,
             /* DMA transfer aborted, clear interrupt status */
             dma_clear_write_abort(write_chan);
             dma_configure_write(write_chan);
-            read_rsp->status = DEV_OPS_API_DMA_RESPONSE_ERROR;
+            read_rsp->status = DEV_OPS_API_DMA_RESPONSE_ERROR_ABORTED;
             Log_Write(LOG_LEVEL_ERROR,"DMAW:Tag_ID=%u:Write Transfer Aborted\r\n",
                         write_chan_status.tag_id);
         }
