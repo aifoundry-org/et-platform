@@ -129,7 +129,9 @@ enum sp_mm_msg_e {
     SP2MM_CMD_KERNEL_LAUNCH,
     SP2MM_RSP_KERNEL_LAUNCH,
     SP2MM_CMD_GET_DRAM_BW,
-    SP2MM_RSP_GET_DRAM_BW
+    SP2MM_RSP_GET_DRAM_BW,
+    SP2MM_CMD_MM_ABORT_ALL,
+    SP2MM_RSP_MM_ABORT_ALL
 };
 
 typedef uint8_t mm2sp_fw_type_e;
@@ -354,6 +356,21 @@ struct sp2mm_get_dram_bw_rsp_t {
   struct dev_cmd_hdr_t  msg_hdr;
   uint32_t  read_bw;
   uint32_t  write_bw;
+};
+
+/*! \struct sp2mm_mm_abort_all_cmd_t
+    \brief SP to MM command strutcure for abort command.
+*/
+struct sp2mm_mm_abort_all_cmd_t {
+  struct dev_cmd_hdr_t  msg_hdr;
+};
+
+/*! \struct sp2mm_mm_abort_all_rsp_t
+    \brief SP to MM response strutcure to abort command.
+*/
+struct sp2mm_mm_abort_all_rsp_t {
+  struct dev_cmd_hdr_t  msg_hdr;
+  int32_t  status; /* command status for mm abort */
 };
 
 /*! \def  MM2SP_CMD
