@@ -65,7 +65,7 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
       return rt::DeviceErrorCode::DmaError;
     case DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE:
       return rt::DeviceErrorCode::DmaTimeoutIdleChannelUnavailable;
-    case DEV_OPS_API_DMA_RESPONSE_ABORTED:
+    case DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED:
       return rt::DeviceErrorCode::DmaAborted;
     case DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG:
       return rt::DeviceErrorCode::DmaTimeoutHang;
