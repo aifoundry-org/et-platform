@@ -66,6 +66,12 @@ int32_t MM_Iface_MM_Command_Shell(void* cmd, uint32_t cmd_size,
 */
 int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw);
 
+/*! \fn int32_t MM_Iface_Send_Abort_All_Cmd(void)
+    \brief This sends Get Abort command to Master Minion Firmware.
+    \return Status indicating success or negative error
+*/
+int32_t MM_Iface_Send_Abort_All_Cmd(void);
+
 /*! \fn int8_t MM_Iface_Push_Cmd_To_SP2MM_SQ(void* p_cmd, uint32_t cmd_size)
     \brief Push command to Service Processor (SP) to Master Minion (MM)
     Submission Queue(SQ)

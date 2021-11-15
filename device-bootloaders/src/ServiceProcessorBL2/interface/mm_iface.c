@@ -316,6 +316,72 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
 *
 *   FUNCTION
 *
+*       MM_Iface_Send_Abort_All_Cmd
+*
+*   DESCRIPTION
+*
+*       This sends Get Abort command to Master Minion Firmware.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       int32_t  Success or error code.
+*
+***********************************************************************/
+int32_t MM_Iface_Send_Abort_All_Cmd(void)
+{
+    int32_t status = MM_IFACE_SP2MM_CMD_ERROR;
+    struct sp2mm_mm_abort_all_cmd_t cmd;
+    struct sp2mm_mm_abort_all_rsp_t rsp;
+
+    /* Initialize command header */
+    SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, SP2MM_CMD_MM_ABORT_ALL,
+    sizeof(struct sp2mm_mm_abort_all_cmd_t), SP2MM_CMD_NOTIFY_HART)
+
+    if(xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
+    {
+        /* Send command to MM. */
+        if(0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void*)&cmd, sizeof(cmd)))
+        {
+            Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
+            xSemaphoreGive(mm_cmd_lock);
+            return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
+        }
+
+        /* Wait for response from MM with default timeout. */
+        if(mm2sp_wait_for_response(SP2MM_CMD_TIMEOUT))
+        {
+            /* Get response from MM. */
+            status = MM_Iface_Pop_Rsp_From_SP2MM_CQ(&rsp);
+
+            if ((status > 0) &&
+                (rsp.msg_hdr.msg_id == SP2MM_RSP_MM_ABORT_ALL))
+            {
+                status = rsp.status;
+            }
+            else
+            {
+                status = MM_IFACE_SP2MM_INVALID_RESPONSE;
+            }
+        }
+
+        xSemaphoreGive(mm_cmd_lock);
+    }
+    else
+    {
+        return MM_IFACE_SP2MM_TIMEOUT_ERROR;
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       MM_Iface_Pop_Cmd_From_MM2SP_SQ
 *
 *   DESCRIPTION

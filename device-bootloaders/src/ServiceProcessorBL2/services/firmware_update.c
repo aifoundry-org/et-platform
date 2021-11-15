@@ -17,6 +17,7 @@
 /***********************************************************************/
 #include "bl2_build_configuration.h"
 #include "bl2_firmware_update.h"
+#include "mm_iface.h"
 
 #define SPI_FLASH_WRITES_256B_CHUNK_SIZE 256
 #define SPI_FLASH_WRITES_128B_CHUNK_SIZE 128
@@ -661,7 +662,11 @@ void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *bu
 
     switch (msg_id) {
     case DM_CMD_SET_FIRMWARE_UPDATE:
-        ret = dm_svc_firmware_update();
+        ret = MM_Iface_Send_Abort_All_Cmd();
+        if( ret == SUCCESS)
+        {
+            ret = dm_svc_firmware_update();
+        }
         send_status_response(tag_id, msg_id, req_start_time, ret);
         break;
 
