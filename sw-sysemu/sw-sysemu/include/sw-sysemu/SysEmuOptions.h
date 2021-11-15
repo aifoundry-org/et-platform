@@ -40,6 +40,10 @@ struct SysEmuOptions {
   std::string spUart0Path;
   /// \brief SysEmu SPIO UART1 TX log file
   std::string spUart1Path;
+  /// \brief SysEmu PU UART1 TX
+  std::string puUart1FifoOutPath; // To support for bring-up test framework
+  /// \brief SysEmu PU UART1 RX
+  std::string puUart1FifoInPath; // To support bring-up test framework
   /// \brief SysEmu SPIO UART0 TX
   std::string spUart0FifoOutPath; // To support for bring-up test framework
   /// \brief SysEmu SPIO UART0 RX
@@ -54,7 +58,7 @@ struct SysEmuOptions {
   std::string logFile = "sysemu.log";
   /// \brief Enable coherence memory checks in sysemu
   bool memcheck = true;
-  /// \brief Enable L2scp checks 
+  /// \brief Enable L2scp checks
   bool l2ScpCheck = true;
   /// \brief Enable L1scp checks 
   bool l1ScpCheck = true;
