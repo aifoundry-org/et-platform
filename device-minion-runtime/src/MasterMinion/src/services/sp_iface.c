@@ -39,6 +39,9 @@
 /* mm_rt_helpers */
 #include "syscall_internal.h"
 #include "layout.h"
+#include "workers/kw.h"
+#include "workers/dmaw.h"
+#include "workers/sqw.h"
 
 /*! \struct sp_iface_sq_cb_t
     \brief SP interface control block that manages
@@ -298,6 +301,51 @@ static int8_t sp_command_handler(void *cmd_buffer)
             /* Implement functionality here .. */
             break;
         }
+        case SP2MM_CMD_MM_ABORT_ALL:
+        {
+            struct sp2mm_mm_abort_all_rsp_t rsp;
+            Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:SP_Command_Handler:MM Abort:%s%d%s%d%s",
+                ":msg_id:", hdr->msg_id, ":msg_size:", hdr->msg_size, "\r\n");
+
+            /* Commands abort will be done in 3 phases:
+            1. Abort any pending commands in a particular SQ
+            2. Abort any dispatched DMA read/write commands for the particular SQ
+            3. Abort any dispatched Kernel command for the particular SQ 
+            abort all commands on all SQs */
+            for (uint8_t sq_idx = 0; sq_idx < MM_SQ_COUNT; sq_idx++)
+            {
+                /* Blocking call that aborts all pending commands in the paired normal SQ */
+                SQW_Abort_All_Pending_Commands(sq_idx);
+
+                /* Blocking call that aborts all DMA read channels */
+                DMAW_Abort_All_Dispatched_Read_Channels(sq_idx);
+
+                /* Blocking call that aborts all DMA write channels */
+                DMAW_Abort_All_Dispatched_Write_Channels(sq_idx);
+
+                /* Blocking call that aborts all dispatched kernels */
+                KW_Abort_All_Dispatched_Kernels(sq_idx);
+            }
+
+            /* Initialize response header */
+            SP_MM_IFACE_INIT_MSG_HDR(
+                &rsp.msg_hdr, SP2MM_RSP_MM_ABORT_ALL, sizeof(struct sp2mm_mm_abort_all_rsp_t), 0)
+
+            rsp.status = DEV_OPS_API_ABORT_RESPONSE_SUCCESS;
+
+            status = SP_Iface_Push_Rsp_To_SP2MM_CQ((void *)&rsp, sizeof(rsp));
+            if (status == STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "MM2SP:RSP:SP2MM_CMD_MM_ABORT_ALL:SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push success!\r\n");
+            }
+            else
+            {
+                Log_Write(LOG_LEVEL_ERROR,
+                    "SP2MM_CMD_MM_ABORT_ALL:SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push error!\r\n");
+            }
+        }
+        break;
         default:
         {
             Log_Write(LOG_LEVEL_ERROR, "SP_Command_Handler:UnsupportedCommandID.\r\n");
