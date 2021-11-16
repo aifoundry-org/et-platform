@@ -87,6 +87,8 @@ std::string std::to_string(rt::DeviceErrorCode e) {
     return "DmaUnknownError";
   case DeviceErrorCode::DmaTimeoutIdleChannelUnavailable:
     return "DmaTimeoutIdleChannelUnavailable";
+  case DeviceErrorCode::DmaAborted:
+    return "DmaAborted";
   case DeviceErrorCode::DmaHostAborted:
     return "DmaHostAborted";
   case DeviceErrorCode::DmaErrorAborted:

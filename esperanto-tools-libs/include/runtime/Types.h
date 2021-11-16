@@ -80,6 +80,7 @@ enum class DeviceErrorCode {
 
   DmaUnknownError,
   DmaTimeoutIdleChannelUnavailable,
+  DmaAborted, // todo: to be removed once the glow shifts to new error types
   DmaHostAborted,
   DmaErrorAborted,
   DmaTimeoutHang,

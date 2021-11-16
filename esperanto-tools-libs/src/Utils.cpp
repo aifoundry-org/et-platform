@@ -65,10 +65,15 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
       return rt::DeviceErrorCode::DmaUnknownError;
     case DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE:
       return rt::DeviceErrorCode::DmaTimeoutIdleChannelUnavailable;
+    /* todo: For now, DMA abort is being combined into one error type "DmaAborted".
+    Shift to DmaHostAborted and DmaErrorAborted once glow uses these types.
     case DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED:
       return rt::DeviceErrorCode::DmaHostAborted;
     case DEV_OPS_API_DMA_RESPONSE_ERROR_ABORTED:
-      return rt::DeviceErrorCode::DmaErrorAborted;
+      return rt::DeviceErrorCode::DmaErrorAborted; */
+    case DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED:
+    case DEV_OPS_API_DMA_RESPONSE_ERROR_ABORTED:
+      return rt::DeviceErrorCode::DmaAborted;
     case DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG:
       return rt::DeviceErrorCode::DmaTimeoutHang;
     case DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS:
