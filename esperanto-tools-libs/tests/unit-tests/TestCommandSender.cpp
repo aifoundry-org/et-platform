@@ -79,6 +79,44 @@ TEST(CommandSender, checkConsistency) {
   }
 }
 
+TEST(CommandSender, checkSendAfter) {
+  std::vector<std::byte> commandData(64);
+
+  auto header = reinterpret_cast<device_ops_api::cmn_header_t*>(commandData.data());
+  // dummy msg_id to make it work on deviceLayerFake
+  header->msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD;
+  auto numCommands = 100;
+  std::vector<Command*> commands;
+  dev::IDeviceLayerFake deviceLayer;
+  CommandSender cs(deviceLayer, 0, 0);
+  // first emplace commands with even tag_ids
+  for (device_ops_api::tag_id_t i = 0; i < numCommands / 2; ++i) {
+    header->tag_id = i * 2;
+    commands.emplace_back(cs.send(Command{commandData, cs}));
+  }
+  ASSERT_EQ(numCommands / 2, commands.size());
+  // now emplace commands with odd tag_ids
+  auto copyCommands = commands;
+  for (auto c : copyCommands) {
+    auto sentCommandHeader = reinterpret_cast<device_ops_api::cmn_header_t*>(c->commandData_.data());
+    header->tag_id = sentCommandHeader->tag_id + 1;
+    commands.emplace_back(cs.sendAfter(c, Command{commandData, cs}));
+  }
+
+  // lets enable all commands
+  for (auto c : commands) {
+    c->enable();
+  }
+  std::vector<std::byte> response;
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  for (auto i = 0; i < numCommands; ++i) {
+    ASSERT_TRUE(deviceLayer.receiveResponseMasterMinion(0, response));
+    auto rsp = reinterpret_cast<device_ops_api::rsp_header_t*>(response.data());
+    ASSERT_EQ(rsp->rsp_hdr.tag_id, i);
+  }
+}
+
 int main(int argc, char** argv) {
   logging::LoggerDefault logger_;
   testing::InitGoogleTest(&argc, argv);

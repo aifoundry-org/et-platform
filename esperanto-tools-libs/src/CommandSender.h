@@ -15,7 +15,6 @@
 #include <functional>
 #include <list>
 #include <mutex>
-#include <queue>
 #include <thread>
 #include <vector>
 
@@ -36,6 +35,9 @@ public:
   // returns a pointer to the recently inserted Command. This is useful, for example to change the isEnabled_ flag if
   // needed. We are using a deque to store the commands, and we only pop and emplace; so references won't be invalidated
   Command* send(Command command);
+  // sendAfter works similar to send, but receives an existing Command as a parameter; the new Command will be inserted
+  // after that existing command (so will be executed later)
+  Command* sendAfter(Command* existingCommand, Command command);
   void enable(Command& command);
   void setOnCommandSentCallback(CommandSentCallback callback);
 
@@ -47,7 +49,7 @@ private:
 
   void runnerFunc();
   std::mutex mutex_;
-  std::queue<Command> commands_;
+  std::list<Command> commands_;
   std::thread runner_;
   std::condition_variable condVar_;
   dev::IDeviceLayer& deviceLayer_;

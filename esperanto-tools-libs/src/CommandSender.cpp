@@ -35,13 +35,22 @@ void CommandSender::setOnCommandSentCallback(CommandSentCallback callback) {
 }
 Command* CommandSender::send(Command command) {
   std::unique_lock lock(mutex_);
-  commands_.emplace(std::move(command));
+  commands_.emplace_back(std::move(command));
   auto res = &commands_.back();
   RT_VLOG(MID) << "Adding command " << std::hex << res << " to the send queue. Enabled? "
                << (res->isEnabled_ ? "True" : "False");
   lock.unlock();
   condVar_.notify_one();
   return res;
+}
+
+Command* CommandSender::sendAfter(Command* existingCommand, Command command) {
+  std::lock_guard lock(mutex_);
+  auto it = std::find_if(begin(commands_), end(commands_), [=](const auto& elem) { return &elem == existingCommand; });
+  if (it == end(commands_)) {
+    throw Exception("Trying to send a command after a non-existing command");
+  }
+  return &*commands_.emplace(++it, std::move(command));
 }
 
 void Command::enable() {
@@ -75,7 +84,7 @@ void CommandSender::runnerFunc() {
         if (callback_) {
           callback_(&cmd);
         }
-        commands_.pop();
+        commands_.pop_front();
       } else {
         lock.unlock();
         RT_LOG(INFO) << "Submission queue " << sqIdx_
