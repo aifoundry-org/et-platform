@@ -52,6 +52,7 @@ public:
   bool receiveResponseServiceProcessor(int device, std::vector<std::byte>& response) override;
 
   // IDeviceSync
+  DmaInfo getDmaInfo() const override;
   int getDevicesCount() const override;
   int getSubmissionQueuesCount(int device) const override;
   DeviceState getDeviceStateMasterMinion(int device) const override;

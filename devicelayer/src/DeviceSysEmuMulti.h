@@ -46,6 +46,7 @@ public:
   DeviceConfig getDeviceConfig(int device) override;
   int updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) override;
   size_t getFreeCmaMemory() const override;
+  DmaInfo getDmaInfo() const override;
 
 private:
   DeviceSysEmu& getDevice(int device);

@@ -152,6 +152,13 @@ public:
     return 64;
   };
 
+  DmaInfo getDmaInfo() const override {
+    DmaInfo info;
+    info.maxElementCount_ = 4;
+    info.maxElementSize_ = 128 << 20;
+    return info;
+  }
+
   uint64_t getDramSize() const override {
     return 1UL << (10 + 10 + 10 + 4);
   };

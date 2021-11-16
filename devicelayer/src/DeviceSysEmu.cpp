@@ -39,6 +39,9 @@ constexpr auto kCommonHeaderSize = 8U;
 // This is the max possible size of the device API commands (DMA list with all 4 entries)
 constexpr auto kMMThresholdBytes = 136U;
 
+constexpr auto kDmaElemSize = 128 << 20;
+constexpr auto kDmaElemCount = 8;
+
 constexpr size_t getAvailSpace(const CircBuffCb& buffer) {
   auto head = buffer.head_offset;
   auto tail = buffer.tail_offset;
@@ -60,6 +63,13 @@ constexpr size_t getUsedSpace(const CircBuffCb& buffer) {
   }
 }
 } // namespace
+
+DmaInfo DeviceSysEmu::getDmaInfo() const {
+  DmaInfo dmaInfo;
+  dmaInfo.maxElementCount_ = kDmaElemCount;
+  dmaInfo.maxElementSize_ = kDmaElemSize;
+  return dmaInfo;
+}
 
 int DeviceSysEmu::getDmaAlignment() const {
   return kDmaAlignment;

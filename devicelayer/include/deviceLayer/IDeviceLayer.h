@@ -50,6 +50,12 @@ struct DeviceConfig {
   uint32_t computeMinionShireMask_; ///< mask which indicates what are the compute minion shires
 };
 
+/// \brief This struct contains the limitations / optimal DMA parameters.
+struct DmaInfo {
+  uint64_t maxElementSize_;  ///< maximum amount of memory that can be transfer per each DMA command entry
+  uint64_t maxElementCount_; ///< max number of DMA entries per DMA command
+};
+
 /// \brief This enum contains possible device states
 enum class DeviceState { Ready, PendingCommands, NotResponding, Undefined };
 
@@ -161,6 +167,12 @@ public:
 
 class IDeviceSync {
 public:
+  /// \brief Returns the DMA parameters
+  ///
+  /// @returns \ref DmaInfo contains the dma parameters
+  ///
+  virtual DmaInfo getDmaInfo() const = 0;
+
   /// \brief Returns the number of esperanto devices connected to the host
   ///
   /// @returns the number of devices

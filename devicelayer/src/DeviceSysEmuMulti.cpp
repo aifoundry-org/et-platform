@@ -28,6 +28,10 @@ const DeviceSysEmu& DeviceSysEmuMulti::getDevice(int device) const {
   return *devices_[dev];
 }
 
+DmaInfo DeviceSysEmuMulti::getDmaInfo() const {
+  return getDevice(0).getDmaInfo();
+}
+
 DeviceSysEmuMulti::DeviceSysEmuMulti(const emu::SysEmuOptions& options, int numDevices) {
   for (int i = 0; i < numDevices; ++i) {
     devices_.emplace_back(std::make_unique<DeviceSysEmu>(options));

@@ -137,7 +137,11 @@ uint64_t DevicePcie::getDramBaseAddress() const {
   }
   return devices_[0].userDram_.base;
 }
-
+DmaInfo DevicePcie::getDmaInfo() const {
+  DmaInfo dmaInfo;
+  dmaInfo.maxElementSize_ = devices_[0].userDram_.dma_max_elem_size;
+  dmaInfo.maxElementCount_ = devices_[0].userDram_.dma_max_elem_count;
+}
 int DevicePcie::getDevicesCount() const {
   return static_cast<int>(devices_.size());
 }

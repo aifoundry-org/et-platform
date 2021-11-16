@@ -42,5 +42,6 @@ public:
   MOCK_METHOD1(getDeviceConfig, DeviceConfig(int));
   MOCK_METHOD2(updateFirmwareImage, int(int, std::vector<unsigned char>&));
   MOCK_CONST_METHOD0(getFreeCmaMemory, size_t());
+  MOCK_CONST_METHOD0(getDmaInfo, DmaInfo());
 };
 } // namespace dev
