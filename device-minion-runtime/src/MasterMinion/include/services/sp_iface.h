@@ -113,13 +113,18 @@ int8_t SP_Iface_Init(void);
 */
 #define SP_Iface_Pop_Cmd_From_SP2MM_SQ(rx_buff) SP_MM_Iface_Pop(MM_SQ, rx_buff)
 
-/*! \fn void SP_Iface_Processing(void)
-    \brief An API to process messages from SP on receiving
-    1. MM2SP_CQ post notification
-    2. SP2MM SQ post notification
+/*! \fn void SP_Iface_Processing(vq_cb_t* vq_cached , vq_cb_t *vq_shared,
+    uint32_t vq_used_space, void *const shared_mem_ptr)
+    \brief Prefetches the data from a virtual queue.
+    \param vq_cached Pointer to cached virtual queue control block.
+    \param vq_shared Pointer to shared virtual queue control block.
+    \param shared_mem_ptr Pointer to the VQ shared memory buffer used as
+    circular buffer
+    \param vq_used_space Number of bytes used in VQ
     \return Status indicating success or negative error
 */
-int8_t SP_Iface_Processing(void);
+int8_t SP_Iface_Processing(
+    vq_cb_t *vq_cached, vq_cb_t *vq_shared, void *shared_mem_ptr, uint64_t vq_used_space);
 
 /*! \fn int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask)
     \brief A blocking API to obtain active compute shires mask from service processor

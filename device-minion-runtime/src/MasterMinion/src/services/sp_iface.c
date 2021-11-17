@@ -404,14 +404,18 @@ int8_t SP_Iface_Init(void)
 *
 *   INPUTS
 *
-*       None
+*       vq_cached      Pointer to cached virtual queue control block
+*       vq_shared      Pointer to shared virtual queue control block
+*       shared_mem_ptr Pointer to shared circular buffer pointer
+*       vq_used_space  Number of bytes available to pop
 *
 *   OUTPUTS
 *
 *       int8_t      status success or failure of Interface initialization
 *
 ***********************************************************************/
-int8_t SP_Iface_Processing(void)
+int8_t SP_Iface_Processing(
+    vq_cb_t *vq_cached, vq_cb_t *vq_shared, void *shared_mem_ptr, uint64_t vq_used_space)
 {
     static uint8_t cmd_buff[64] __attribute__((aligned(64))) = { 0 };
     int32_t cmd_length = 0;
@@ -419,9 +423,11 @@ int8_t SP_Iface_Processing(void)
 
     Log_Write(LOG_LEVEL_DEBUG, "SP_Iface_Processing..\r\n");
 
-    /* SP2MM commands are blocking, i.e, SP sends a single command only,
-    hence pop a single command from the virtual queue */
-    cmd_length = SP_Iface_Pop_Cmd_From_SP2MM_SQ(&cmd_buff[0]);
+    /* Create a shadow copy of data from SQ to L2 SCP */
+    cmd_length = VQ_Pop_Optimized(vq_cached, vq_used_space, shared_mem_ptr, cmd_buff);
+
+    /* Update tail value in VQ memory */
+    VQ_Set_Tail_Offset(vq_shared, VQ_Get_Tail_Offset(vq_cached));
 
     if (cmd_length > 0)
     {
