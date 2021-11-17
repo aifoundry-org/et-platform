@@ -446,6 +446,26 @@ static void mm_cmd_hdlr_task(void *pvParameters)
     uint8_t buffer[SP_MM_CQ_MAX_ELEMENT_SIZE] __attribute__((aligned(8))) = { 0 };
     const struct dev_cmd_hdr_t *hdr;
     int64_t cmd_length = 0;
+    circ_buff_cb_t circ_buff_cached __attribute__((aligned(64)));
+    void* shared_mem_ptr;
+    vq_cb_t vq_cached;
+    uint64_t tail_prev;
+
+    /* Declare a pointer to the VQ control block that is pointing to the VQ attributes in
+    global memory and the actual Circular Buffer CB in SRAM (which is shared with host) */
+    vq_cb_t *vq_shared = SP_MM_Iface_Get_VQ_Base_Addr(SP_SQ);
+
+    /* Make a copy of the VQ CB in global data to cached L1 stack variable */
+    memcpy(&vq_cached, vq_shared, sizeof(vq_cached));
+
+    /* Make a copy of the Circular Buffer CB in shared SRAM to cached L1 stack variable */
+    memcpy(&circ_buff_cached, vq_cached.circbuff_cb, sizeof(circ_buff_cached));
+
+    /* Save the shared memory pointer to data buffer */
+    shared_mem_ptr = (void*)vq_cached.circbuff_cb->buffer_ptr;
+
+    /* Update the local VQ CB to point to the cached L1 stack variable */
+    vq_cached.circbuff_cb = &circ_buff_cached;
 
     /* Disable buffering on stdout */
     setbuf(stdout, NULL);
@@ -459,16 +479,42 @@ static void mm_cmd_hdlr_task(void *pvParameters)
 
         Log_Write(LOG_LEVEL_INFO, "MM request received: %s\n",__func__);
 
-        /* Process as many new messages as possible */
-        while (1)
-        {
-            /* Pop a command from SP<->MM VQueue */
-            cmd_length = MM_Iface_Pop_Cmd_From_MM2SP_SQ(&buffer[0]);
+         /* Get the cached tail pointer */
+        tail_prev = VQ_Get_Tail_Offset(&vq_cached);
 
-            if(cmd_length == 0)
+        /* Refresh the cached VQ CB - Get updated head and tail values from SRAM */
+        VQ_Get_Head_And_Tail(vq_shared, &vq_cached);
+
+        /* Verify that the tail value read from memory is equal to previous tail value */
+        if(tail_prev != VQ_Get_Tail_Offset(&vq_cached))
+        {
+            /* If this condition occurs, there's definitely some corruption in VQs */
+            Log_Write(LOG_LEVEL_WARNING,
+            "pc_vq_task:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
+            tail_prev, VQ_Get_Tail_Offset(&vq_cached));
+
+            vq_cached.circbuff_cb->tail_offset = tail_prev;
+        }
+
+        /* Calculate the total number of bytes available in the VQ */
+        uint64_t vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
+
+        /* Process as many new messages as possible */
+        while (vq_used_space)
+        {
+            /* Pop a command from SP<->PC VQueue */
+            int32_t pop_ret_val =
+            VQ_Pop_Optimized(&vq_cached, vq_used_space, shared_mem_ptr, buffer);
+
+            if (pop_ret_val < 0)
             {
-                break;
+                 Log_Write(LOG_LEVEL_ERROR, "MM VQ pop failed: %s\n",__func__);
+                 break;
             }
+
+            /* Update tail value in VQ memory */
+            VQ_Set_Tail_Offset(vq_shared, VQ_Get_Tail_Offset(&vq_cached));
+            vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
 
             hdr = (void *)&buffer[0];
 

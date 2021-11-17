@@ -401,12 +401,13 @@ int32_t MM_Iface_Send_Abort_All_Cmd(void)
 ***********************************************************************/
 int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff)
 {
+#ifdef SP_MM_VERIFY_VQ_TAIL
     if(SP_MM_Iface_Verify_Tail(SP_SQ) == SP_MM_IFACE_ERROR_VQ_BAD_TAIL)
     {
         Log_Write(LOG_LEVEL_WARNING,
         "MM_Iface_Pop_Cmd_From_MM2SP_SQ:FATAL_ERROR:Tail Mismatch! Using cached value as fallback mechanism\r\n");
     }
-
+#endif
     return SP_MM_Iface_Pop(SP_SQ, rx_buff);
 }
 
