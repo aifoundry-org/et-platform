@@ -100,7 +100,56 @@ static void parse_pcie_syndrome(struct device_mgmt_event_msg_t *event_msg,
 static void parse_dram_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				struct event_dbg_msg *dbg_msg)
 {
-	/* Release 0.9.0 */
+	uint32_t memshire = GET_MEMSHIRE_BITS(event_msg->event_syndrome[0]);
+	uint32_t controller_id;
+	char value_str[VALUE_STR_MAX_LEN];
+
+	if (event_msg->event_info.msg_id == DEV_MGMT_API_MID_DRAM_CE_EVENT) {
+		if (event_msg->event_syndrome[0] &
+		    DRAM_MC1_ECC_CORRECTED_ERR_INT_MASK)
+			controller_id = 1;
+		if (event_msg->event_syndrome[0] &
+		    DRAM_MC0_ECC_CORRECTED_ERR_INT_MASK)
+			controller_id = 0;
+
+		snprintf(
+			value_str,
+			VALUE_STR_MAX_LEN,
+			"Memory controller %d correctable ECC error in Memshire %d\n",
+			controller_id,
+			memshire);
+		strcat(dbg_msg->syndrome, value_str);
+	}
+	if (event_msg->event_info.msg_id == DEV_MGMT_API_MID_DRAM_UCE_EVENT) {
+		if (event_msg->event_syndrome[0] &
+		    DRAM_MC1_ECC_UNCORRECTED_ERR_INT_MASK)
+			controller_id = 1;
+		if (event_msg->event_syndrome[0] &
+		    DRAM_MC0_ECC_UNCORRECTED_ERR_INT_MASK)
+			controller_id = 0;
+
+		snprintf(
+			value_str,
+			VALUE_STR_MAX_LEN,
+			"Memory controller %d uncorrectable ECC error in Memshire %d\n",
+			controller_id,
+			memshire);
+		strcat(dbg_msg->syndrome, value_str);
+	}
+
+	snprintf(
+		value_str,
+		VALUE_STR_MAX_LEN,
+		"Rank      : 0x%x\nRow       : 0x%x\nCID       : 0x%x\nBank Group: "
+		"0x%x\nBank      : 0x%x\nBlock     : 0x%x",
+		(int)GET_ECCADDR0_RANK_BITS(event_msg->event_syndrome[1]),
+		(int)GET_ECCADDR0_ROW_BITS(event_msg->event_syndrome[1]),
+		(int)GET_ECCADDR1_CID_BITS(event_msg->event_syndrome[1]),
+		(int)GET_ECCADDR1_BG_BITS(event_msg->event_syndrome[1]),
+		(int)GET_ECCADDR1_BANK_BITS(event_msg->event_syndrome[1]),
+		(int)GET_ECCADDR1_BLOCK_BITS(event_msg->event_syndrome[1]));
+
+	strcat(dbg_msg->syndrome, value_str);
 }
 
 static void parse_sram_syndrome(struct device_mgmt_event_msg_t *event_msg,
