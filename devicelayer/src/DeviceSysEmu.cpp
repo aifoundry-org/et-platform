@@ -64,7 +64,7 @@ constexpr size_t getUsedSpace(const CircBuffCb& buffer) {
 }
 } // namespace
 
-DmaInfo DeviceSysEmu::getDmaInfo() const {
+DmaInfo DeviceSysEmu::getDmaInfo(int) const {
   DmaInfo dmaInfo;
   dmaInfo.maxElementCount_ = kDmaElemCount;
   dmaInfo.maxElementSize_ = kDmaElemSize;

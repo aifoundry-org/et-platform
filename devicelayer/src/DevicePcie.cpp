@@ -137,10 +137,16 @@ uint64_t DevicePcie::getDramBaseAddress() const {
   }
   return devices_[0].userDram_.base;
 }
-DmaInfo DevicePcie::getDmaInfo() const {
+DmaInfo DevicePcie::getDmaInfo(int device) const {
+  if (!opsEnabled_) {
+    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
+  }
+  if (device >= static_cast<int>(devices_.size())) {
+    throw Exception("Invalid device");
+  }
   DmaInfo dmaInfo;
-  dmaInfo.maxElementSize_ = devices_[0].userDram_.dma_max_elem_size;
-  dmaInfo.maxElementCount_ = devices_[0].userDram_.dma_max_elem_count;
+  dmaInfo.maxElementSize_ = devices_[static_cast<unsigned long>(device)].userDram_.dma_max_elem_size;
+  dmaInfo.maxElementCount_ = devices_[static_cast<unsigned long>(device)].userDram_.dma_max_elem_count;
 }
 int DevicePcie::getDevicesCount() const {
   return static_cast<int>(devices_.size());

@@ -167,11 +167,13 @@ public:
 
 class IDeviceSync {
 public:
-  /// \brief Returns the DMA parameters
+  /// \brief Returns the DMA parameters.
   ///
-  /// @returns \ref DmaInfo contains the dma parameters
+  /// @param[in] device indicating which device to get the dma parameters from.
   ///
-  virtual DmaInfo getDmaInfo() const = 0;
+  /// @returns \ref DmaInfo contains the dma parameters.
+  ///
+  virtual DmaInfo getDmaInfo(int device) const = 0;
 
   /// \brief Returns the number of esperanto devices connected to the host
   ///

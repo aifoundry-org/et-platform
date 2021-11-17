@@ -28,8 +28,8 @@ const DeviceSysEmu& DeviceSysEmuMulti::getDevice(int device) const {
   return *devices_[dev];
 }
 
-DmaInfo DeviceSysEmuMulti::getDmaInfo() const {
-  return getDevice(0).getDmaInfo();
+DmaInfo DeviceSysEmuMulti::getDmaInfo(int device) const {
+  return getDevice(device).getDmaInfo(device);
 }
 
 DeviceSysEmuMulti::DeviceSysEmuMulti(const emu::SysEmuOptions& options, int numDevices) {

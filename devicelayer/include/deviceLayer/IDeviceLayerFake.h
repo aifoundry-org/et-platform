@@ -53,6 +53,12 @@ public:
     case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD:
       rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP;
       break;
+    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD:
+      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_RSP;
+      break;
+    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD:
+      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP;
+      break;
     default:
       throw Exception("Please, add command with msg_id: " + std::to_string(cmd->msg_id));
     }
@@ -152,7 +158,7 @@ public:
     return 64;
   };
 
-  DmaInfo getDmaInfo() const override {
+  DmaInfo getDmaInfo(int) const override {
     DmaInfo info;
     info.maxElementCount_ = 4;
     info.maxElementSize_ = 128 << 20;
