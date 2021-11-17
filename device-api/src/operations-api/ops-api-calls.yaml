@@ -119,14 +119,10 @@ Enums:
     Values:
       - Name: COMPLETE
         Value: 0
-      - Name: ERROR
-        Value: 1
       - Name: UNKNOWN_ERROR
         Value: 1
       - Name: TIMEOUT_IDLE_CHANNEL_UNAVAILABLE
         Value: 2
-      - Name: ABORTED
-        Value: 3
       - Name: HOST_ABORTED
         Value: 3
       - Name: ERROR_ABORTED
