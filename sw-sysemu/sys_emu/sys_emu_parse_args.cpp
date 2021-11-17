@@ -13,14 +13,6 @@
 #include "emu_gio.h"
 #include "sys_emu.h"
 
-extern uint64_t mem_checker_log_addr;
-extern uint32_t mem_checker_log_minion;
-extern uint32_t l1_scp_checker_log_minion;
-extern uint32_t l2_scp_checker_log_shire;
-extern uint32_t l2_scp_checker_log_line;
-extern uint32_t l2_scp_checker_log_minion;
-extern uint32_t flb_checker_log_shire;
-
 static const char * help_msg =
 "\n ET System Emulator\n\n\
      sys_emu [options]\n\n\
@@ -75,6 +67,9 @@ static const char * help_msg =
      -l2_scp_check_minion     Enables L2 SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
      -flb_check               Enables FLB checks\n\
      -flb_check_shire         Enables FLB check prints for a specific shire (default: 64 [64 => no shire, -1 => all shires])\n\
+     -tstore_check            Enables TensorStore checks\n\
+     -tstore_check_addr       Enables TensorStore check prints for a specific address (default: 0x1 [none])\n\
+     -tstore_check_thread     Enables TensorStore check prints for a specific thread (default: 4096 [4096 => no thread, -1 => all threads])\n\
      -gdb                     Start the GDB stub for remote debugging\n\
 "
 #ifdef SYSEMU_DEBUG
@@ -166,6 +161,9 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"l2_scp_check_minion",    required_argument, nullptr, 0},
         {"flb_check",              no_argument,       nullptr, 0},
         {"flb_check_shire",        required_argument, nullptr, 0},
+        {"tstore_check",           no_argument,       nullptr, 0},
+        {"tstore_check_addr",      required_argument, nullptr, 0},
+        {"tstore_check_thread",    required_argument, nullptr, 0},
         {"gdb",                    no_argument,       nullptr, 0},
         {"m",                      no_argument,       nullptr, 0},
 #ifdef SYSEMU_DEBUG
@@ -452,6 +450,18 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if (!strcmp(name, "flb_check_shire"))
         {
             cmd_options.flb_checker_log_shire = atoi(optarg);
+        }
+        else if (!strcmp(name, "tstore_check"))
+        {
+            cmd_options.tstore_check = true;
+        }
+        else if (!strcmp(name, "tstore_check_addr"))
+        {
+            sscanf(optarg, "%" PRIx64, &cmd_options.tstore_checker_log_addr);
+        }
+        else if (!strcmp(name, "tstore_check_thread"))
+        {
+            cmd_options.tstore_checker_log_thread = atoi(optarg);
         }
         else if (!strcmp(name, "gdb"))
         {

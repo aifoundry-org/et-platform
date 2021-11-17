@@ -1197,6 +1197,15 @@ void tensor_store_execute(Hart& cpu)
         }
     }
 
+#ifdef SYS_EMU
+    // After all the checks are done, report the TStore access, notice that TStores that
+    // are partially done due a tensor error won't be captured...
+    if (SYS_EMU_PTR->get_tstore_check() && (coop > 1)) {
+        SYS_EMU_PTR->get_tstore_checker().execute(hart_index(cpu), addr, stride, coop, rows, cols);
+        SYS_EMU_PTR->get_tstore_checker().check_and_drain(hart_index(cpu));
+    }
+#endif
+
     // Need to notify the stop when it is done
     cpu.stop_waiting(Hart::Waiting::tstore);
 }
