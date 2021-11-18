@@ -20,4 +20,4 @@ set(PCIE_TEST_LIST
 
 create_test_targets("${TEST_LIST}" "LABELS;Stress;LABELS;Generic;LABELS;Sysemu;TIMEOUT;300" "st_")
 
-create_test_targets("${PCIE_TEST_LIST}" "LABELS;Pcie;LABELS;Stress;TIMEOUT;300" "pcie_")
+create_test_targets("${PCIE_TEST_LIST}" "LABELS;Pcie;LABELS;Stress;TIMEOUT;600" "pcie_")
