@@ -227,7 +227,9 @@ struct et_mgmt_dir_header {
 	u16 l2_size;
 	u16 scp_size;
 	u16 cache_line_size;
-	u8 reserved[2];
+	u16 bar0_size;
+	u16 bar2_size;
+	u8 reserved[6];
 } __packed;
 
 struct et_mgmt_dir {

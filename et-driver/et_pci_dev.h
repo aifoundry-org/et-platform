@@ -2,6 +2,7 @@
 #define __ET_PCI_DEV_H
 
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
@@ -12,6 +13,15 @@
 #include "et_vqueue.h"
 
 // clang-format off
+struct et_bar_region {
+	struct list_head list;
+	bool is_mgmt;
+	u8 bar;
+	u8 region_type;
+	u64 region_start;
+	u64 region_end;
+};
+
 enum et_iomem_r {
 	IOMEM_R_DIR_OPS = 0,
 	IOMEM_R_DIR_MGMT,
@@ -78,6 +88,9 @@ struct et_pci_dev {
 	struct dev_config cfg;
 	struct et_ops_dev ops;
 	struct et_mgmt_dev mgmt;
+	struct list_head bar_region_list;
+	u64 bar0_size;
+	u64 bar2_size;
 };
 
 // clang-format on

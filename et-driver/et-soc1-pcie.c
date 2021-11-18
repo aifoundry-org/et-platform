@@ -21,6 +21,7 @@
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -862,7 +863,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 					 bool is_mgmt,
 					 u8 *regs_data,
 					 size_t regs_size,
-					 int num_discovered_regions)
+					 int regs_count)
 {
 	u8 *reg_pos = regs_data;
 	size_t section_size;
@@ -874,6 +875,8 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 	struct event_dbg_msg dbg_msg;
 	char syndrome_str[ET_EVENT_SYNDROME_LEN];
 	struct et_bar_addr_dbg *bar_addr_dbg;
+	struct et_bar_region *existing_node, *new_node;
+	struct list_head *node;
 
 	if (is_mgmt) {
 		regions = et_dev->mgmt.regions;
@@ -895,7 +898,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 		bar_addr_dbg = ops_bar_addr_dbg;
 
 	memset(regions, 0, num_reg_types * sizeof(*regions));
-	for (i = 0; i < num_discovered_regions; i++, reg_pos += section_size) {
+	for (i = 0; i < regs_count; i++, reg_pos += section_size) {
 		dir_mem_region = (struct et_dir_mem_region *)reg_pos;
 		section_size = dir_mem_region->attributes_size;
 
@@ -987,10 +990,77 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 			goto error_unmap_discovered_regions;
 		}
 
+		new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
+		if (!new_node) {
+			rv = -ENOMEM;
+			goto error_unmap_discovered_regions;
+		}
+
+		new_node->is_mgmt = is_mgmt;
+		new_node->bar = dir_mem_region->bar;
+		new_node->region_type = dir_mem_region->type;
+		new_node->region_start =
+			pci_resource_start(et_dev->pdev, dir_mem_region->bar) +
+			dir_mem_region->bar_offset;
+		new_node->region_end =
+			pci_resource_start(et_dev->pdev, dir_mem_region->bar) +
+			dir_mem_region->bar_offset + dir_mem_region->bar_size -
+			1;
+
+		if (new_node->region_end >
+		    pci_resource_end(et_dev->pdev, dir_mem_region->bar)) {
+			dbg_msg.level = LEVEL_FATAL;
+			sprintf(dbg_msg.desc,
+				"BAR[%d] overflow detected!",
+				dir_mem_region->bar);
+			sprintf(dbg_msg.syndrome,
+				"Requested region size: 0x%llx at offset: 0x%llx is more than available BAR[%d] length\n",
+				dir_mem_region->bar_size,
+				dir_mem_region->bar_offset,
+				dir_mem_region->bar);
+			et_print_event(et_dev->pdev, &dbg_msg);
+			rv = -EINVAL;
+			goto error_release_node_mem;
+		}
+
+		list_for_each (node, &et_dev->bar_region_list) {
+			existing_node =
+				list_entry(node, struct et_bar_region, list);
+			if (new_node->region_start >
+				    existing_node->region_end ||
+			    new_node->region_end <
+				    existing_node->region_start) {
+				continue;
+			} else {
+				dbg_msg.level = LEVEL_FATAL;
+				dbg_msg.desc =
+					"Requested BAR region overlaps existing BAR region!";
+				sprintf(dbg_msg.syndrome,
+					"\nExisting region info:\n\tNode         : %s\n\tBAR          : %d\n\tRegion Type  : %d\n\tRegion start : 0x%llx\n\tRegion end   : 0x%llx\nRequested region info:\n\tNode         : %s\n\tBAR          : %d\n\tRegion Type  : %d\n\tRegion start : 0x%llx\n\tRegion end   : 0x%llx\n",
+					existing_node->is_mgmt ? "Mgmt" : "Ops",
+					existing_node->bar,
+					existing_node->region_type,
+					existing_node->region_start,
+					existing_node->region_end,
+					new_node->is_mgmt ? "Mgmt" : "Ops",
+					new_node->bar,
+					new_node->region_type,
+					new_node->region_start,
+					new_node->region_end);
+				et_print_event(et_dev->pdev, &dbg_msg);
+				// TODO: Un-comment following lines once SW-10327 is fixed.
+				// Until then error won't be returned and only error event will be printed.
+				//rv = -EINVAL;
+				//goto error_release_node_mem;
+			}
+		}
+		list_add_tail(&new_node->list, &et_dev->bar_region_list);
+
 		// BAR mapping for the discovered region
 		bm_info.bar = dir_mem_region->bar;
 		bm_info.bar_offset = dir_mem_region->bar_offset;
 		bm_info.size = dir_mem_region->bar_size;
+
 		rv = et_map_bar(et_dev,
 				&bm_info,
 				&regions[dir_mem_region->type].mapped_baseaddr);
@@ -1002,7 +1072,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 				(is_mgmt) ? "Mgmt" : "Ops",
 				dir_mem_region->type);
 			et_print_event(et_dev->pdev, &dbg_msg);
-			goto error_unmap_discovered_regions;
+			goto error_release_node_mem;
 		}
 
 		bar_addr_dbg->phys_addr =
@@ -1043,7 +1113,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 				i);
 			et_print_event(et_dev->pdev, &dbg_msg);
 			rv = -EINVAL;
-			goto error_unmap_discovered_regions;
+			goto error_release_node_mem;
 		}
 	}
 
@@ -1061,6 +1131,9 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 	}
 
 	return (ssize_t)((u64)reg_pos - (u64)regs_data);
+
+error_release_node_mem:
+	kfree(new_node);
 
 error_unmap_discovered_regions:
 	et_unmap_discovered_regions(et_dev, is_mgmt);
@@ -1157,6 +1230,37 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	 */
 	dir_mgmt = (struct et_mgmt_dir_header *)dir_pos;
 	section_size = dir_mgmt->attributes_size;
+
+	et_dev->bar0_size = SZ_1G * (u64)(dir_mgmt->bar0_size + 1);
+	et_dev->bar2_size = SZ_32K * (dir_mgmt->bar2_size + 1);
+
+	// BAR0 size check
+	if (et_dev->bar0_size != pci_resource_len(et_dev->pdev, 0 /* BAR0 */)) {
+		dbg_msg.level = LEVEL_FATAL;
+		dbg_msg.desc =
+			"BAR0 size doesn't match BAR0 size exposed by DIRs!";
+		sprintf(dbg_msg.syndrome,
+			"BAR0 size detected by host: %llx\nBAR0 size exposed by DIRs: 0x%llx\n",
+			pci_resource_len(et_dev->pdev, 0),
+			et_dev->bar0_size);
+		et_print_event(et_dev->pdev, &dbg_msg);
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
+
+	// BAR2 size check
+	if (et_dev->bar2_size != pci_resource_len(et_dev->pdev, 2 /* BAR2 */)) {
+		dbg_msg.level = LEVEL_FATAL;
+		dbg_msg.desc =
+			"BAR2 size doesn't match BAR2 size exposed by DIRs!";
+		sprintf(dbg_msg.syndrome,
+			"BAR2 size detected by host: %llx\nBAR2 size exposed by DIRs: 0x%llx\n",
+			pci_resource_len(et_dev->pdev, 2),
+			et_dev->bar2_size);
+		et_print_event(et_dev->pdev, &dbg_msg);
+		rv = -EINVAL;
+		goto error_free_dir_data;
+	}
 
 	// End of region check
 	if (dir_pos + section_size > dir_data + dir_size) {
@@ -1671,6 +1775,18 @@ static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
 	clear_bit(dev_index, dev_bitmap);
 }
 
+static void et_destroy_region_list(struct et_pci_dev *et_dev)
+{
+	struct list_head *pos, *next;
+	struct et_bar_region *node;
+
+	list_for_each_safe (pos, next, &et_dev->bar_region_list) {
+		node = list_entry(pos, struct et_bar_region, list);
+		list_del(pos);
+		kfree(node);
+	}
+}
+
 static int esperanto_pcie_probe(struct pci_dev *pdev,
 				const struct pci_device_id *pci_id)
 {
@@ -1684,6 +1800,8 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "create_et_pci_dev failed\n");
 		return rv;
 	}
+
+	INIT_LIST_HEAD(&et_dev->bar_region_list);
 
 	rv = pci_enable_device_mem(pdev);
 	if (rv < 0) {
@@ -1741,6 +1859,8 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		et_dev->is_recovery_mode = false;
 	}
 
+	et_destroy_region_list(et_dev);
+
 	return rv;
 
 error_pci_release_regions:
@@ -1756,6 +1876,7 @@ error_disable_dev:
 	pci_disable_device(pdev);
 
 error_free_dev:
+	et_destroy_region_list(et_dev);
 	destroy_et_pci_dev(et_dev);
 	pci_set_drvdata(pdev, NULL);
 
