@@ -147,7 +147,9 @@ DmaInfo DevicePcie::getDmaInfo(int device) const {
   DmaInfo dmaInfo;
   dmaInfo.maxElementSize_ = devices_[static_cast<unsigned long>(device)].userDram_.dma_max_elem_size;
   dmaInfo.maxElementCount_ = devices_[static_cast<unsigned long>(device)].userDram_.dma_max_elem_count;
+  return dmaInfo;
 }
+
 int DevicePcie::getDevicesCount() const {
   return static_cast<int>(devices_.size());
 }
