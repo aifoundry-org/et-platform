@@ -140,6 +140,14 @@ void check_memshire_revision_id(uint32_t memshire);
 */
 int configure_memshire_plls(const DDR_MODE *ddr_mode);
 
+/*! \fn uint64_t ms_read_chip_reg(uint32_t memshire, uint32_t mr_num)
+    \brief This function reads value from DDR module registers
+    \param memshire is memshire number
+    \param mr_num is register address
+    \return Zero indicating success or non-zero for error
+*/
+uint64_t ms_read_chip_reg(uint32_t memshire, uint32_t mr_num);
+
 /*! \fn int ddr_config(DDR_MODE *ddr_mode)
     \brief This function initializes every memshire present in system. It internally
            calls ddr_init with memshire id
@@ -213,12 +221,12 @@ int32_t ddr_get_ce_count(uint32_t *ce_count);
 */
 int32_t ddr_get_uce_count(uint32_t *uce_count);
 
-/*! \fn int ddr_get_memory_details(char *mem_detail)
-    \brief This function get Memory vendor and part details
-    \param mem_detail pointer to variable to hold Memory detail value
+/*! \fn int ddr_get_memory_vendor_ID(char *vendor_ID)
+    \brief This function get Memory vendor ID
+    \param vendor_ID pointer to variable to hold Memory vendor ID
     \return Status indicating success or negative error
 */
-int ddr_get_memory_details(char *mem_detail);
+int ddr_get_memory_vendor_ID(char *vendor_ID);
 
 /*! \fn int ddr_get_memory_type(char *mem_type)
     \brief This function get Memory type details
@@ -226,6 +234,13 @@ int ddr_get_memory_details(char *mem_detail);
     \return Status indicating success or negative error
 */
 int ddr_get_memory_type(char *mem_type);
+
+/*! \fn int ddr_get_memory_size(char *mem_size)
+    \brief This function get Memory size
+    \param mem_type pointer to variable to hold memory size value
+    \return Status indicating success or negative error
+*/
+int ddr_get_memory_size(char *mem_size);
 
 /*! \fn int32_t configure_memshire(void)
     \brief This function configures the MemShire and DDR Controllers

@@ -32,6 +32,7 @@
 #include "bl2_sp_memshire_pll.h"
 #include "dm_event_control.h"
 #include "hal_ddr_init.h"
+#include "usdelay.h"
 
 /*! \def SPIO_PLIC
 */
@@ -50,6 +51,37 @@ static uint8_t min_lvdpll_mode_1066MHz[3] = {19, 20, 21};
 
 static void ddr_error_threshold_isr(void);
 static void ddr_error_crit_isr(void);
+
+#define MFG_ID     0x5
+#define MFG_CONFIG 0x8
+
+uint64_t ms_read_chip_reg(uint32_t memshire, uint32_t mr_num)
+{
+    uint64_t data;
+
+    // set mr_num in MRCTRL1 (DDR controller register)
+    ms_write_ddrc_reg(memshire, 2, MRCTRL1, mr_num << 8);
+
+    // set type = read in MRCTRL0 (DDR controller register)
+    ms_write_ddrc_reg(memshire, 2,  MRCTRL0, 0x1);
+
+    // setting bit 31 causes mrr to occur (Memshire register)
+    ms_write_ddrc_reg(memshire, 2, MRCTRL0, 0x80000001);
+
+    // wait for mrr u0 status to be set (Memshire register)
+    Log_Write(LOG_LEVEL_TRACE, "DDR:[%d]Reading from memory chip, register 0x%08x\n", memshire, mr_num);
+    data = ms_read_esr(memshire, ddrc_mrr_status) & 0x1;
+    while(data != 0x1) {
+        data = ms_read_esr(memshire, ddrc_mrr_status) & 0x1;
+        usdelay(10);
+    }
+
+    // read data from ddrc_u0_mrr_data (Memshire register)
+    data = ms_read_esr(memshire, ddrc_u0_mrr_data);
+    Log_Write(LOG_LEVEL_TRACE, "DDR:[%d]Reading from memory chip, read 0x%016lx\n", memshire, data);
+
+    return data;
+}
 
 int configure_memshire_plls(const DDR_MODE *ddr_mode)
 {
@@ -404,10 +436,12 @@ static void ddr_error_crit_isr(void)
     event_control_block.event_cb(UNCORRECTABLE, &message);
 }
 
-int ddr_get_memory_details(char *mem_detail)
+int ddr_get_memory_vendor_ID(char *vendor_ID)
 {
-    char name[] = "Unknown";
-    snprintf(mem_detail, 8, "%s", name);
+    uint64_t vendor_id_val;
+
+    vendor_id_val = ms_read_chip_reg(0, MFG_ID);
+    *vendor_ID = (char) vendor_id_val;
 
     return 0;
 }
@@ -416,6 +450,16 @@ int ddr_get_memory_type(char *mem_type)
 {
     char name[] = "LPDDR4X";
     snprintf(mem_type, 8, "%s", name);
+
+    return 0;
+}
+
+int ddr_get_memory_size(char *mem_size)
+{
+    uint64_t config_val;
+
+    config_val = ms_read_chip_reg(0, MFG_CONFIG);
+    *mem_size = (char) config_val;
 
     return 0;
 }

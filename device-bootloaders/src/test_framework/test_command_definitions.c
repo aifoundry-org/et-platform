@@ -77,7 +77,7 @@ extern int8_t Asset_Tracking_Chip_Revision_Cmd_Handler(void* test_cmd);
 extern int8_t Asset_Tracking_PCIe_Max_Speed_Cmd_Handler(void* test_cmd);
 extern int8_t Asset_Tracking_Module_Revision_Cmd_Handler(void* test_cmd);
 extern int8_t Asset_Tracking_Form_Factor_Cmd_Handler(void* test_cmd);
-extern int8_t Asset_Tracking_Memory_Details_Cmd_Handler(void* test_cmd);
+extern int8_t Asset_Tracking_Memory_Vendor_ID_Cmd_Handler(void* test_cmd);
 extern int8_t Asset_Tracking_Memory_Size_Cmd_Handler(void* test_cmd);
 extern int8_t Asset_Tracking_Memory_Type_Cmd_Handler(void* test_cmd);
 /* PMIC Tests */
@@ -329,7 +329,7 @@ int8_t (*TF_Test_Cmd_Handler[TF_NUM_COMMANDS])(void *test_cmd) =
 // 103
     Asset_Tracking_Form_Factor_Cmd_Handler,
 // 104
-    Asset_Tracking_Memory_Details_Cmd_Handler,
+    Asset_Tracking_Memory_Vendor_ID_Cmd_Handler,
 // 105
     Asset_Tracking_Memory_Size_Cmd_Handler,
 // 106

@@ -123,13 +123,13 @@ static int32_t asset_svc_getformfactor(char *form_factor)
     return status;
 }
 
-static int32_t asset_svc_getmemorydetails(char *mem_detail)
+static int32_t asset_svc_getmemoryvendorID(char *vendorID)
 {
     int32_t status;
 
     Log_Write(LOG_LEVEL_INFO, "Asset tracking request: %s\n",__func__);
 
-    status = get_memory_details(mem_detail);
+    status = get_memory_vendor_ID(vendorID);
 
     if (0 != status) {
         Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: %s\n",__func__);
@@ -239,7 +239,7 @@ void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id)
         ret = asset_svc_getformfactor(req_asset_info);
         break;
     case DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
-        ret = asset_svc_getmemorydetails(req_asset_info);
+        ret = asset_svc_getmemoryvendorID(req_asset_info);
         break;
     case DM_CMD_GET_MODULE_MEMORY_SIZE_MB:
         ret = asset_svc_getmemorysize(req_asset_info);

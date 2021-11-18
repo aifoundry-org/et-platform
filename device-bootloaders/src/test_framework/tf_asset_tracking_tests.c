@@ -8,7 +8,7 @@ int8_t Asset_Tracking_Chip_Revision_Cmd_Handler(void* test_cmd);
 int8_t Asset_Tracking_PCIe_Max_Speed_Cmd_Handler(void* test_cmd);
 int8_t Asset_Tracking_Module_Revision_Cmd_Handler(void* test_cmd);
 int8_t Asset_Tracking_Form_Factor_Cmd_Handler(void* test_cmd);
-int8_t Asset_Tracking_Memory_Details_Cmd_Handler(void* test_cmd);
+int8_t Asset_Tracking_Memory_Vendor_ID_Cmd_Handler(void* test_cmd);
 int8_t Asset_Tracking_Memory_Size_Cmd_Handler(void* test_cmd);
 int8_t Asset_Tracking_Memory_Type_Cmd_Handler(void* test_cmd);
 
@@ -124,16 +124,16 @@ int8_t Asset_Tracking_Form_Factor_Cmd_Handler(void* test_cmd)
     return 0;
 }
 
-int8_t Asset_Tracking_Memory_Details_Cmd_Handler(void* test_cmd)
+int8_t Asset_Tracking_Memory_Vendor_ID_Cmd_Handler(void* test_cmd)
 {
     (void) test_cmd;
-    struct tf_rsp_at_memory_details_t rsp = { 0 };
+    struct tf_rsp_at_memory_vendor_id_t rsp = { 0 };
 
-    rsp.rsp_hdr.id = TF_RSP_AT_MEMORY_DETAILS;
+    rsp.rsp_hdr.id = TF_RSP_AT_MEMORY_VENDOR_ID;
     rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
     rsp.rsp_hdr.payload_size = TF_GET_PAYLOAD_SIZE(rsp);
 
-    get_memory_details((char*)&rsp.mem_details);
+    get_memory_vendor_ID((char*)&rsp.vendor_id);
 
     TF_Send_Response(&rsp, sizeof(rsp));
 

@@ -63,14 +63,14 @@ int get_form_factor(char *form_factor)
     return flash_fs_get_form_factor(form_factor);
 }
 
-int get_memory_details(char *mem_detail)
+int get_memory_vendor_ID(char *vendor_ID)
 {
-    return ddr_get_memory_details(mem_detail);
+    return ddr_get_memory_vendor_ID(vendor_ID);
 }
 
 int get_memory_size(char *mem_size)
 {
-    return flash_fs_get_memory_size(mem_size);
+    return ddr_get_memory_size(mem_size);
 }
 
 int get_memory_type(char *mem_type)
