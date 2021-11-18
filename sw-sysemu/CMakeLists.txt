@@ -35,6 +35,7 @@ add_library(sysemu
     sys_emu/checkers/l1_scp_checker.cpp
     sys_emu/checkers/l2_scp_checker.cpp
     sys_emu/checkers/mem_checker.cpp
+    sys_emu/checkers/tstore_checker.cpp
     sys_emu/gdbstub.cpp
     sys_emu/sys_emu.cpp
     sys_emu/sys_emu_main.cpp

@@ -32,6 +32,7 @@
 #include "devices/shire_lpddr.h"
 #include "devices/spi.h"
 #include "devices/spio_rvtimer_region.h"
+#include "devices/pvtc.h"
 #endif
 
 namespace bemu {
@@ -59,6 +60,11 @@ struct SvcProcRegion : public MemoryRegion {
         sp_efuse_base        = 0x12026000,
         sp_cru_base          = 0x12028000,
         sp_rvtim_base        = 0x12100000,
+        pvtc0_base           = 0x14000000,
+        pvtc1_base           = 0x14010000,
+        pvtc2_base           = 0x14020000,
+        pvtc3_base           = 0x14030000,
+        pvtc4_base           = 0x14040000,
         sp_i2c1_base         = 0x14050000,
         sp_spi1_base         = 0x14051000,
         sp_uart1_base        = 0x14052000,
@@ -120,6 +126,11 @@ struct SvcProcRegion : public MemoryRegion {
     I2c           <sp_i2c1_base,     4_KiB, 1>   sp_i2c1{};
     Spi           <sp_spi1_base,     4_KiB, 1>   sp_spi1{};
     SpioRVTimerRegion <sp_rvtim_base,4_KiB>      sp_rvtim{};
+    PVTC          <pvtc0_base,       64_KiB, 0>  pvtc0{};
+    PVTC          <pvtc1_base,       64_KiB, 1>  pvtc1{};
+    PVTC          <pvtc2_base,       64_KiB, 2>  pvtc2{};
+    PVTC          <pvtc3_base,       64_KiB, 3>  pvtc3{};
+    PVTC          <pvtc4_base,       64_KiB, 4>  pvtc4{};
     PLL           <pll0_base,        4_KiB, 0>   pll0{};
     PLL           <pll1_base,        4_KiB, 1>   pll1{};
     PLL           <pll2_base,        4_KiB, 2>   pll2{};
@@ -147,7 +158,7 @@ protected:
 
     // These arrays must be sorted by region offset
 #ifdef SYS_EMU
-    std::array<MemoryRegion*,22> regions = {{
+    std::array<MemoryRegion*,27> regions = {{
         &sp_rom,
         &sp_sram,
         &sp_plic,
@@ -158,6 +169,11 @@ protected:
         &sp_efuse,
         &sp_cru,
         &sp_rvtim,
+        &pvtc0,
+        &pvtc1,
+        &pvtc2,
+        &pvtc3,
+        &pvtc4,
         &sp_i2c1,
         &sp_spi1,
         &spio_uart1,

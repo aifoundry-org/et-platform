@@ -29,7 +29,7 @@
 #include "checkers/l1_scp_checker.h"
 #include "checkers/l2_scp_checker.h"
 #include "checkers/mem_checker.h"
-
+#include "checkers/tstore_checker.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Defines
@@ -113,6 +113,9 @@ struct sys_emu_cmd_options {
     uint32_t    l2_scp_checker_log_minion    = 2048;
     bool        flb_check                    = false;
     uint32_t    flb_checker_log_shire        = 64;
+    bool        tstore_check                 = false;
+    uint64_t    tstore_checker_log_addr      = 1;
+    uint32_t    tstore_checker_log_thread    = 4096;
 #ifdef SYSEMU_PROFILING
     std::string dump_prof_file;
 #endif
@@ -181,6 +184,8 @@ public:
     l2_scp_checker& get_l2_scp_checker() { return l2_scp_checker_; }
     bool get_flb_check() { return flb_check; }
     flb_checker& get_flb_checker() { return flb_checker_; }
+    bool get_tstore_check() { return tstore_check; }
+    tstore_checker& get_tstore_checker() { return tstore_checker_; }
     bool get_display_trap_info() { return cmd_options.display_trap_info; }
 
     void breakpoint_insert(uint64_t addr);
@@ -240,6 +245,8 @@ private:
     l2_scp_checker  l2_scp_checker_{&chip};
     bool            flb_check = false;
     flb_checker     flb_checker_{&chip};
+    bool            tstore_check = false;
+    tstore_checker  tstore_checker_{&chip};
     std::unordered_set<uint64_t> breakpoints;
     std::bitset<EMU_NUM_THREADS> single_step;
 

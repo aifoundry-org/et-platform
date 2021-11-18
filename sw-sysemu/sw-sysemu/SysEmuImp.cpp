@@ -462,6 +462,7 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   opts.l2_scp_check = options.l2ScpCheck;
   opts.l1_scp_check = options.l1ScpCheck;
   opts.flb_check = options.flbCheck;
+  opts.tstore_check = options.tstoreCheck;
   opts.log_path = options.logFile;
 
   sysEmuThread_ = std::thread(runMain, opts, this, &sysEmuError_); // FIXME Passing `this` like this is dangerous..

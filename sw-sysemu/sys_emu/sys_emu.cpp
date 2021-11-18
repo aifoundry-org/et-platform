@@ -212,6 +212,10 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     flb_check = cmd_options.flb_check;
     flb_checker_ = flb_checker{&chip};
     flb_checker_.log_shire = cmd_options.flb_checker_log_shire;
+    tstore_check = cmd_options.tstore_check;
+    tstore_checker_ = tstore_checker{&chip};
+    tstore_checker_.log_addr = cmd_options.tstore_checker_log_addr;
+    tstore_checker_.log_thread = cmd_options.tstore_checker_log_thread;
     breakpoints.clear();
     single_step.reset();
 
@@ -670,6 +674,11 @@ int sys_emu::main_internal() {
     } else if (!chip.get_emu_done() && chip.has_sleeping_harts()) {
         LOG_AGENT(ERR, agent, "%s", "Error, sleeping harts found");
     }
+
+    // Checks that the tensor store are drained
+    if(tstore_check)
+        tstore_checker_.is_empty();
+
     LOG_AGENT(INFO, agent, "%s", "Finishing emulation");
 
     if (cmd_options.gdb)
