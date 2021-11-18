@@ -58,6 +58,18 @@ void mmu_aligned_store32   (const Hart& cpu, uint64_t eaddr, uint32_t data, mem_
 void mmu_aligned_storeVLEN (const Hart& cpu, uint64_t eaddr, const freg_t& data, mreg_t mask, mem_access_type macc);
 
 
+// MMU virtual memory read accesses for data from tensor operations
+void mmu_tensor_load128(const Hart& cpu, uint64_t eaddr, uint32_t* data, mem_access_type macc);
+void mmu_tensor_load256(const Hart& cpu, uint64_t eaddr, uint32_t* data, mem_access_type macc);
+void mmu_tensor_load512(const Hart& cpu, uint64_t eaddr, uint32_t* data, mem_access_type macc);
+
+
+// MMU virtual memory write accesses for data from tensor operations
+void mmu_tensor_store128(const Hart& cpu, uint64_t eaddr, const uint32_t* data, mem_access_type macc);
+void mmu_tensor_store256(const Hart& cpu, uint64_t eaddr, const uint32_t* data, mem_access_type macc);
+void mmu_tensor_store512(const Hart& cpu, uint64_t eaddr, const uint32_t* data, mem_access_type macc);
+
+
 // MMU global atomic memory accesses
 uint32_t mmu_global_atomic32(const Hart& cpu, uint64_t eaddr, uint32_t data,
                              std::function<uint32_t(uint32_t, uint32_t)> fn);

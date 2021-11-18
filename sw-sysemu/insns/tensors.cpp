@@ -512,11 +512,7 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
             if (!msk || tload.tmask[i]) {
                 int idx = adj + ((start + i) % L1_SCP_ENTRIES);
                 try {
-                    uint64_t vaddr = sextVA(addr + i*stride);
-                    assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
-                    uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad);
-                    cpu.chip->memory.read(cpu, paddr, L1D_LINE_SIZE, SCP[idx].u32.data());
-                    LOG_MEMREAD512(paddr, SCP[idx].u32.data());
+                    mmu_tensor_load512(cpu, addr + i*stride, SCP[idx].u32.data(), Mem_Access_TxLoad);
                     LOG_SCP_32x16("=", idx);
                     L1_SCP_CHECK_FILL(cpu, idx, id);
                 }
@@ -546,11 +542,7 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
                 for (int r = 0; r < 4; ++r) {
                     try {
                         Packed<128> tmp;
-                        uint64_t vaddr = sextVA(addr + boffset + (4*i+r)*stride);
-                        assert(addr_is_size_aligned(vaddr, 16));
-                        uint64_t paddr = mmu_translate(cpu, vaddr, 16, Mem_Access_TxLoad);
-                        cpu.chip->memory.read(cpu, paddr, 16, tmp.u32.data());
-                        LOG_MEMREAD128(paddr, tmp.u32);
+                        mmu_tensor_load128(cpu, addr + boffset + (4*i+r)*stride, tmp.u32.data(), Mem_Access_TxLoad);
                         for (int c = 0; c < 16; ++c) {
                             SCP[idx].u8[c*4 + r] = tmp.u8[c];
                         }
@@ -587,11 +579,7 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
                 for (int r = 0; r < 2; ++r) {
                     try {
                         Packed<256> tmp;
-                        uint64_t vaddr = sextVA(addr + boffset + (2*i+r)*stride);
-                        assert(addr_is_size_aligned(vaddr, 32));
-                        uint64_t paddr = mmu_translate(cpu, vaddr, 32, Mem_Access_TxLoad);
-                        cpu.chip->memory.read(cpu, paddr, 32, tmp.u32.data());
-                        LOG_MEMREAD256(paddr, tmp.u32);
+                        mmu_tensor_load256(cpu, addr + boffset + (2*i+r)*stride, tmp.u32.data(), Mem_Access_TxLoad);
                         for (int c = 0; c < 16; ++c) {
                             SCP[idx].u16[c*2 + r] = tmp.u16[c];
                         }
@@ -623,12 +611,8 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
                  rows, stride, id, tload.tmask.to_ulong());
         okay.reset();
         for (int j = 0; j < L1D_LINE_SIZE; ++j) {
-            uint64_t vaddr = sextVA(addr + j*stride);
-            assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
             try {
-                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad);
-                cpu.chip->memory.read(cpu, paddr, L1D_LINE_SIZE, tmp[j].u32.data());
-                LOG_MEMREAD512(paddr, tmp[j].u32);
+                mmu_tensor_load512(cpu, addr + j*stride, tmp[j].u32.data(), Mem_Access_TxLoad);
             }
             catch (const Exception&) {
                 update_tensor_error(cpu, 1 << 7);
@@ -661,12 +645,8 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
                  rows, stride, id, tload.tmask.to_ulong());
         okay.reset();
         for (int j = 0; j < (L1D_LINE_SIZE / 2); ++j) {
-            uint64_t vaddr = sextVA(addr + j*stride);
-            assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
             try {
-                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad);
-                cpu.chip->memory.read(cpu, paddr, L1D_LINE_SIZE, tmp[j].u32.data());
-                LOG_MEMREAD512(paddr, tmp[j].u32);
+                mmu_tensor_load512(cpu, addr + j*stride, tmp[j].u32.data(), Mem_Access_TxLoad);
             }
             catch (const Exception&) {
                 update_tensor_error(cpu, 1 << 7);
@@ -698,12 +678,8 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
                  rows, stride, id, tload.tmask.to_ulong());
         okay.reset();
         for (int j = 0; j < (L1D_LINE_SIZE / 4); ++j) {
-            uint64_t vaddr = sextVA(addr + j*stride);
-            assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
             try {
-                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad);
-                cpu.chip->memory.read(cpu, paddr, L1D_LINE_SIZE, tmp[j].u32.data());
-                LOG_MEMREAD512(paddr, tmp[j].u32);
+                mmu_tensor_load512(cpu, addr + j*stride, tmp[j].u32.data(), Mem_Access_TxLoad);
             }
             catch (const Exception&) {
                 update_tensor_error(cpu, 1 << 7);
@@ -762,13 +738,10 @@ void tensor_load_l2_start(Hart& cpu, uint64_t control)
     for (int i = 0; i < rows; ++i) {
         if (!msk || cpu.tensor_mask[i]) {
             uint64_t l2scp_addr = L2_SCP_BASE + shire * L2_SCP_OFFSET + ((dst + i) * L1D_LINE_SIZE);
-            uint64_t vaddr = sextVA(addr + i*stride);
-            assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
             try {
                 cache_line_t tmp;
-                uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxLoadL2Scp);
-                cpu.chip->memory.read(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
-                LOG_MEMREAD512(paddr, tmp.u32);
+                const uint64_t vaddr = sextVA(addr + i*stride);
+                mmu_tensor_load512(cpu, vaddr, tmp.u32.data(), Mem_Access_TxLoadL2Scp);
                 cpu.chip->memory.write(cpu, l2scp_addr, L1D_LINE_SIZE, tmp.u32.data());
                 LOG_MEMWRITE512(l2scp_addr, tmp.u32);
                 L2_SCP_CHECK_FILL(cpu, dst + i, id, vaddr);
@@ -1073,16 +1046,9 @@ static void tensor_store_from_scp(Hart& cpu, uint64_t tstorereg)
 
     // For all the rows
     for (int row = 0; row < rows; row++) {
-        assert(addr_is_size_aligned(addr, L1D_LINE_SIZE));
         LOG_SCP_32x16(":", src);
         try {
-            uint64_t vaddr = sextVA(addr + row * stride);
-            uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_TxStore);
-            cpu.chip->memory.write(cpu, paddr, L1D_LINE_SIZE, SCP[src].u32.data());
-            LOG_MEMWRITE512(paddr, SCP[src].u32);
-            for (int col=0; col < 16; col++) {
-                notify_tensor_store_write(cpu, paddr + col*4, SCP[src].u32[col]);
-            }
+            mmu_tensor_store512(cpu, addr + row*stride, SCP[src].u32.data(), Mem_Access_TxStore);
             L1_SCP_CHECK_READ(cpu, src, tensor_op_type::TensorStore);
         }
         catch (const Exception&) {
@@ -1211,15 +1177,10 @@ void tensor_store_execute(Hart& cpu)
         // For all the blocks of 128b
         for (int col = 0; col < cols; col++) {
             try {
-                uint64_t vaddr = sextVA((addr + row * stride) & mask);
-                uint64_t paddr = mmu_translate(cpu, vaddr + col*16, 16, Mem_Access_TxStore);
                 if (!(col & 1)) LOG_FREG(":", src);
                 const uint32_t* ptr = &FREGS[src].u32[(col & 1) * 4];
-                cpu.chip->memory.write(cpu, paddr, 16, ptr);
-                LOG_MEMWRITE128(paddr, ptr);
-                for (int w=0; w < 4; w++) {
-                    notify_tensor_store_write(cpu, paddr + w*4, *(ptr+w));
-                }
+                const uint64_t eaddr = (addr + row * stride) & mask;
+                mmu_tensor_store128(cpu, eaddr + col*16, ptr, Mem_Access_TxStore);
             }
             catch (const Exception&) {
                 update_tensor_error(cpu, 1 << 7);
