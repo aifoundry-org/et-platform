@@ -509,8 +509,8 @@ bool DevicePcie::getTraceBufferServiceProcessor(int device, TraceBufferType trac
   auto traceRegSize =  wrap_ioctl(deviceInfo.fdMgmt_,
                                                ETSOC1_IOCTL_GET_DEVICE_MGMT_TRACE_BUFFER_SIZE,
                                                &traceInfo.trace_type).rc_;
-  
-  response.resize(traceRegSize);
+
+  response.resize(static_cast<uint64_t>(traceRegSize));
   traceInfo.trace_type = static_cast<uint8_t>(trace_type);
   traceInfo.buf = response.data();
   return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER, &traceInfo);

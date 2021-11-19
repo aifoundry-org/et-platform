@@ -39,7 +39,7 @@ constexpr auto kCommonHeaderSize = 8U;
 // This is the max possible size of the device API commands (DMA list with all 4 entries)
 constexpr auto kMMThresholdBytes = 136U;
 
-constexpr auto kDmaElemSize = 128 << 20;
+constexpr auto kDmaElemSize = 32 << 20;
 constexpr auto kDmaElemCount = 8;
 
 constexpr size_t getAvailSpace(const CircBuffCb& buffer) {

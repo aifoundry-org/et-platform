@@ -161,7 +161,7 @@ public:
   DmaInfo getDmaInfo(int) const override {
     DmaInfo info;
     info.maxElementCount_ = 4;
-    info.maxElementSize_ = 128 << 20;
+    info.maxElementSize_ = 32 << 20;
     return info;
   }
 
