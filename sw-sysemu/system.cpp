@@ -165,6 +165,7 @@ void System::reset_hart(unsigned thread)
 
 void System::raise_machine_timer_interrupt(unsigned shire)
 {
+#ifdef SYS_EMU
     if (shire == IO_SHIRE_ID) {
         shire = EMU_IO_SHIRE_SP;
     }
@@ -185,11 +186,15 @@ void System::raise_machine_timer_interrupt(unsigned shire)
             }
         }
     }
+#else
+    (void) shire;
+#endif // SYS_EMU
 }
 
 
 void System::clear_machine_timer_interrupt(unsigned shire)
 {
+#ifdef SYS_EMU
     if (shire == IO_SHIRE_ID) {
         shire = EMU_IO_SHIRE_SP;
     }
@@ -210,11 +215,15 @@ void System::clear_machine_timer_interrupt(unsigned shire)
             }
         }
     }
+#else
+    (void) shire;
+#endif // SYS_EMU
 }
 
 
 void System::raise_machine_external_interrupt(unsigned shire)
 {
+#ifdef SYS_EMU
     if (shire == IO_SHIRE_ID) {
         shire = EMU_IO_SHIRE_SP;
     }
@@ -228,11 +237,15 @@ void System::raise_machine_external_interrupt(unsigned shire)
             cpu[thread].raise_interrupt(MACHINE_EXTERNAL_INTERRUPT);
         }
     }
+#else
+    (void) shire;
+#endif // SYS_EMU
 }
 
 
 void System::clear_machine_external_interrupt(unsigned shire)
 {
+#ifdef SYS_EMU
     if (shire == IO_SHIRE_ID) {
         shire = EMU_IO_SHIRE_SP;
     }
@@ -246,11 +259,15 @@ void System::clear_machine_external_interrupt(unsigned shire)
             cpu[thread].clear_interrupt(MACHINE_EXTERNAL_INTERRUPT);
         }
     }
+#else
+    (void) shire;
+#endif // SYS_EMU
 }
 
 
 void System::raise_supervisor_external_interrupt(unsigned shire)
 {
+#ifdef SYS_EMU
     if (shire == IO_SHIRE_ID) {
         shire = EMU_IO_SHIRE_SP;
     }
@@ -264,11 +281,15 @@ void System::raise_supervisor_external_interrupt(unsigned shire)
             cpu[thread].raise_interrupt(SUPERVISOR_EXTERNAL_INTERRUPT);
         }
     }
+#else
+    (void) shire;
+#endif // SYS_EMU
 }
 
 
 void System::clear_supervisor_external_interrupt(unsigned shire)
 {
+#ifdef SYS_EMU
     if (shire == IO_SHIRE_ID) {
         shire = EMU_IO_SHIRE_SP;
     }
@@ -282,11 +303,15 @@ void System::clear_supervisor_external_interrupt(unsigned shire)
             cpu[thread].clear_interrupt(SUPERVISOR_EXTERNAL_INTERRUPT);
         }
     }
+#else
+    (void) shire;
+#endif // SYS_EMU
 }
 
 
 void System::raise_machine_software_interrupt(unsigned shire, uint64_t thread_mask)
 {
+#ifdef SYS_EMU
     if (shire == IO_SHIRE_ID) {
         shire = EMU_IO_SHIRE_SP;
     }
@@ -300,11 +325,16 @@ void System::raise_machine_software_interrupt(unsigned shire, uint64_t thread_ma
             cpu[thread].raise_interrupt(MACHINE_SOFTWARE_INTERRUPT);
         }
     }
+#else
+    (void) shire;
+    (void) thread_mask;
+#endif // SYS_EMU
 }
 
 
 void System::clear_machine_software_interrupt(unsigned shire, uint64_t thread_mask)
 {
+#ifdef SYS_EMU
     if (shire == IO_SHIRE_ID) {
         shire = EMU_IO_SHIRE_SP;
     }
@@ -318,6 +348,10 @@ void System::clear_machine_software_interrupt(unsigned shire, uint64_t thread_ma
             cpu[thread].clear_interrupt(MACHINE_SOFTWARE_INTERRUPT);
         }
     }
+#else
+    (void) shire;
+    (void) thread_mask;
+#endif // SYS_EMU
 }
 
 
