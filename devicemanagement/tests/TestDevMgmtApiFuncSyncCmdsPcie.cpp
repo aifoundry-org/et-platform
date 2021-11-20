@@ -431,6 +431,90 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, testInvalidCmdCode_1_101) {
   testInvalidCmdCode_1_101(false /* Multiple Devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setDDRECCCountInvalidInputBuffer_1_102) {
+  setDDRECCCountInvalidInputBuffer_1_102(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setDDRECCCountInvalidInputSize_1_103) {
+  setDDRECCCountInvalidInputSize_1_103(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setDDRECCCountInvalidOutputSize_1_104) {
+  setDDRECCCountInvalidOutputSize_1_104(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setDDRECCCountInvalidDeviceNode_1_105) {
+  setDDRECCCountInvalidDeviceNode_1_105(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setDDRECCCountInvalidHostLatency_1_106) {
+  setDDRECCCountInvalidHostLatency_1_106(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setDDRECCCountInvalidDeviceLatency_1_107) {
+  setDDRECCCountInvalidDeviceLatency_1_107(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setDDRECCCountInvalidOutputBuffer_1_108) {
+  setDDRECCCountInvalidOutputBuffer_1_108(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIEECCCountInvalidInputBuffer_1_109) {
+  setPCIEECCCountInvalidInputBuffer_1_109(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIEECCountInvalidInputSize_1_110) {
+  setPCIEECCountInvalidInputSize_1_110(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIEECCountInvalidOutputSize_1_111) {
+  setPCIEECCountInvalidOutputSize_1_111(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIEECCountInvalidDeviceNode_1_112) {
+  setPCIEECCountInvalidDeviceNode_1_112(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIEECCountInvalidHostLatency_1_113) {
+  setPCIEECCountInvalidHostLatency_1_113(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIEECCountInvalidDeviceLatency_1_114) {
+  setPCIEECCountInvalidDeviceLatency_1_114(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setPCIEECCountInvalidOutputBuffer_1_115) {
+  setPCIEECCountInvalidOutputBuffer_1_115(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setSRAMECCCountInvalidInputBuffer_1_116) {
+  setSRAMECCCountInvalidInputBuffer_1_116(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setSRAMECCCountInvalidInputSize_1_117) {
+  setSRAMECCCountInvalidInputSize_1_117(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setSRAMECCountInvalidOutputSize_1_118) {
+  setSRAMECCountInvalidOutputSize_1_118(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setSRAMECCountInvalidDeviceNode_1_119) {
+  setSRAMECCountInvalidDeviceNode_1_119(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setSRAMECCountInvalidHostLatency_1_120) {
+  setSRAMECCountInvalidHostLatency_1_120(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setSRAMECCountInvalidDeviceLatency_1_121) {
+  setSRAMECCountInvalidDeviceLatency_1_121(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setSRAMECCountInvalidOutputBuffer_1_122) {
+  setSRAMECCountInvalidOutputBuffer_1_122(false /* Multiple Devices */);
+}
+
 int main(int argc, char** argv) {
   logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);

@@ -2373,3 +2373,131 @@ void TestDevMgmtApiSyncCmds::testInvalidCmdCode_1_101(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
+
+void TestDevMgmtApiSyncCmds::testInvalidInputBuffer(int32_t dmCmdType, bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = INPUT_SIZE_TEST;
+    const char *input_buff = nullptr; /*nullptr for invalid testing*/
+    
+    const uint32_t output_size = OUTPUT_SIZE_TEST;
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, input_buff, input_size,
+                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT), -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::testInvalidInputSize(int32_t dmCmdType, bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = INVALID_INPUT_SIZE;
+    const char input_buff[INPUT_SIZE_TEST] = {0};
+    
+    const uint32_t output_size = OUTPUT_SIZE_TEST;
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, input_buff, input_size,
+                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT), -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidInputBuffer_1_102(bool singleDevice) {
+  testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidInputSize_1_103(bool singleDevice) {
+  testInvalidInputSize(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidOutputSize_1_104(bool singleDevice) {
+  testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidDeviceNode_1_105(bool singleDevice) {
+  testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidHostLatency_1_106(bool singleDevice) {
+  testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidDeviceLatency_1_107(bool singleDevice) {
+  testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidOutputBuffer_1_108(bool singleDevice) {
+  testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCCountInvalidInputBuffer_1_109(bool singleDevice) {
+  testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidInputSize_1_110(bool singleDevice) {
+  testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidOutputSize_1_111(bool singleDevice) {
+  testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidDeviceNode_1_112(bool singleDevice) {
+  testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidHostLatency_1_113(bool singleDevice) {
+  testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidDeviceLatency_1_114(bool singleDevice) {
+  testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidOutputBuffer_1_115(bool singleDevice) {
+  testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCCountInvalidInputBuffer_1_116(bool singleDevice) {
+  testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCCountInvalidInputSize_1_117(bool singleDevice) {
+  testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidOutputSize_1_118(bool singleDevice) {
+  testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidDeviceNode_1_119(bool singleDevice) {
+  testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidHostLatency_1_120(bool singleDevice) {
+  testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidDeviceLatency_1_121(bool singleDevice) {
+  testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidOutputBuffer_1_122(bool singleDevice) {
+  testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}

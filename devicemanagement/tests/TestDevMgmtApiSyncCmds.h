@@ -29,8 +29,10 @@ using namespace device_management;
 #define DM_VLOG(severity) ET_VLOG(DM, severity)
 
 #define MAX_DEVICE_NODE (250)
+#define INPUT_SIZE_TEST (1)
 #define OUTPUT_SIZE_TEST (24)
 #define DM_CMD_INVALID (256)
+#define INVALID_INPUT_SIZE (0)
 #define INVALID_OUTPUT_SIZE (0)
 
 DECLARE_bool(loopback_driver);
@@ -152,6 +154,29 @@ protected:
   void getASICLatencyInvalidDeviceLatency_1_99(bool singleDevice);
   void getASICLatencyInvalidOutputBuffer_1_100(bool singleDevice);
   void testInvalidCmdCode_1_101(bool singleDevice);
+  void testInvalidInputBuffer(int32_t dmCmdType, bool singleDevice);
+  void testInvalidInputSize(int32_t dmCmdType, bool singleDevice);
+  void setDDRECCCountInvalidInputBuffer_1_102(bool singleDevice);
+  void setDDRECCCountInvalidInputSize_1_103(bool singleDevice);
+  void setDDRECCCountInvalidOutputSize_1_104(bool singleDevice);
+  void setDDRECCCountInvalidDeviceNode_1_105(bool singleDevice);
+  void setDDRECCCountInvalidHostLatency_1_106(bool singleDevice);
+  void setDDRECCCountInvalidDeviceLatency_1_107(bool singleDevice);
+  void setDDRECCCountInvalidOutputBuffer_1_108(bool singleDevice);
+  void setPCIEECCCountInvalidInputBuffer_1_109(bool singleDevice);
+  void setPCIEECCountInvalidInputSize_1_110(bool singleDevice);
+  void setPCIEECCountInvalidOutputSize_1_111(bool singleDevice);
+  void setPCIEECCountInvalidDeviceNode_1_112(bool singleDevice);
+  void setPCIEECCountInvalidHostLatency_1_113(bool singleDevice);
+  void setPCIEECCountInvalidDeviceLatency_1_114(bool singleDevice);
+  void setPCIEECCountInvalidOutputBuffer_1_115(bool singleDevice);
+  void setSRAMECCCountInvalidInputBuffer_1_116(bool singleDevice);
+  void setSRAMECCCountInvalidInputSize_1_117(bool singleDevice);
+  void setSRAMECCountInvalidOutputSize_1_118(bool singleDevice);
+  void setSRAMECCountInvalidDeviceNode_1_119(bool singleDevice);
+  void setSRAMECCountInvalidHostLatency_1_120(bool singleDevice);
+  void setSRAMECCountInvalidDeviceLatency_1_121(bool singleDevice);
+  void setSRAMECCountInvalidOutputBuffer_1_122(bool singleDevice);
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
 };
