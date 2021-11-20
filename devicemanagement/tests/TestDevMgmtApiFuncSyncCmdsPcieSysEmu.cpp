@@ -227,6 +227,150 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setPCIELaneWidthToInvalidLaneWidth_
   setPCIELaneWidthToInvalidLaneWidth_1_65(false /* Multiple Devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICFrequenciesInvalidOutputSize_1_66) {
+  getASICFrequenciesInvalidOutputSize_1_66(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICFrequenciesInvalidDeviceNode_1_67) {
+  getASICFrequenciesInvalidDeviceNode_1_67(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICFrequenciesInvalidHostLatency_1_68) {
+  getASICFrequenciesInvalidHostLatency_1_68(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICFrequenciesInvalidDeviceLatency_1_69) {
+  getASICFrequenciesInvalidDeviceLatency_1_69(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICFrequenciesInvalidOutputBuffer_1_70) {
+  getASICFrequenciesInvalidOutputBuffer_1_70(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDRAMBandwidthInvalidOutputSize_1_71) {
+  getDRAMBandwidthInvalidOutputSize_1_71(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDRAMBandwidthInvalidDeviceNode_1_72) {
+  getDRAMBandwidthInvalidDeviceNode_1_72(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDRAMBandwidthInvalidHostLatency_1_73) {
+  getDRAMBandwidthInvalidHostLatency_1_73(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDRAMBandwidthInvalidDeviceLatency_1_74) {
+  getDRAMBandwidthInvalidDeviceLatency_1_74(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDRAMBandwidthInvalidOutputBuffer_1_75) {
+  getDRAMBandwidthInvalidOutputBuffer_1_75(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDRAMCapacityUtilizationInvalidOutputSize_1_76) {
+  getDRAMCapacityUtilizationInvalidOutputSize_1_76(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDRAMCapacityUtilizationInvalidDeviceNode_1_77) {
+  getDRAMCapacityUtilizationInvalidDeviceNode_1_77(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDRAMCapacityUtilizationInvalidHostLatency_1_78) {
+  getDRAMCapacityUtilizationInvalidHostLatency_1_78(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDRAMCapacityUtilizationInvalidDeviceLatency_1_79) {
+  getDRAMCapacityUtilizationInvalidDeviceLatency_1_79(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getDRAMCapacityUtilizationInvalidOutputBuffer_1_80) {
+  getDRAMCapacityUtilizationInvalidOutputBuffer_1_80(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICPerCoreDatapathUtilizationInvalidOutputSize_1_81) {
+  getASICPerCoreDatapathUtilizationInvalidOutputSize_1_81(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICPerCoreDatapathUtilizationInvalidDeviceNode_1_82) {
+  getASICPerCoreDatapathUtilizationInvalidDeviceNode_1_82(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICPerCoreDatapathUtilizationInvalidHostLatency_1_83) {
+  getASICPerCoreDatapathUtilizationInvalidHostLatency_1_83(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICPerCoreDatapathUtilizationInvalidDeviceLatency_1_84) {
+  getASICPerCoreDatapathUtilizationInvalidDeviceLatency_1_84(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICPerCoreDatapathUtilizationInvalidOutputBuffer_1_85) {
+  getASICPerCoreDatapathUtilizationInvalidOutputBuffer_1_85(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICUtilizationInvalidOutputSize_1_86) {
+  getASICUtilizationInvalidOutputSize_1_86(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICUtilizationInvalidDeviceNode_1_87) {
+  getASICUtilizationInvalidDeviceNode_1_87(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICUtilizationInvalidHostLatency_1_88) {
+  getASICUtilizationInvalidHostLatency_1_88(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICUtilizationInvalidDeviceLatency_1_89) {
+  getASICUtilizationInvalidDeviceLatency_1_89(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICUtilizationInvalidOutputBuffer_1_90) {
+  getASICUtilizationInvalidOutputBuffer_1_90(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICStallsInvalidOutputSize_1_91) {
+  getASICStallsInvalidOutputSize_1_91(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICStallsInvalidDeviceNode_1_92) {
+  getASICStallsInvalidDeviceNode_1_92(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICStallsInvalidHostLatency_1_93) {
+  getASICStallsInvalidHostLatency_1_93(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICStallsInvalidDeviceLatency_1_94) {
+  getASICStallsInvalidDeviceLatency_1_94(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICStallsInvalidOutputBuffer_1_95) {
+  getASICStallsInvalidOutputBuffer_1_95(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICLatencyInvalidOutputSize_1_96) {
+  getASICLatencyInvalidOutputSize_1_96(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICLatencyInvalidDeviceNode_1_97) {
+  getASICLatencyInvalidDeviceNode_1_97(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICLatencyInvalidHostLatency_1_98) {
+  getASICLatencyInvalidHostLatency_1_98(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICLatencyInvalidDeviceLatency_1_99) {
+  getASICLatencyInvalidDeviceLatency_1_99(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getASICLatencyInvalidOutputBuffer_1_100) {
+  getASICLatencyInvalidOutputBuffer_1_100(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, testInvalidCmdCode_1_101) {
+  testInvalidCmdCode_1_101(false /* Multiple Devices */);
+}
+
 // retrieve MM FW error counts. This test should be run last so that we are
 // able to capture any errors in the previous test runs
 // Note after fix from: SW-8409, counters needs to adjusted to handle expected failures
