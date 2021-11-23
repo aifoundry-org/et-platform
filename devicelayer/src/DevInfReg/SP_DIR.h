@@ -23,6 +23,7 @@
 
 #include <cstdint>
 
+extern "C" {
 /*! \enum SP_DEV_INTF_SP_BOOT_STATUS_e
     \brief Values representing Service Processor Boot status
 */
@@ -59,7 +60,7 @@ enum SP_DEV_INTF_MEM_REGION_TYPE_e {
     \brief Holds the information of Service Processor interface memory region.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_MEM_REGION_ATTR {
+using SP_DEV_INTF_MEM_REGION_ATTR_s = struct __attribute__((__packed__)) SP_DEV_INTF_MEM_REGION_ATTR {
     uint16_t attributes_size;
     uint8_t type;
     uint8_t bar;
@@ -67,13 +68,13 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_MEM_REGION_ATTR {
     uint64_t bar_offset;
     uint64_t bar_size;
     uint64_t dev_address;
-} SP_DEV_INTF_MEM_REGION_ATTR_s;
+};
 
 /*! \struct SP_DEV_INTF_VQ_ATTR
     \brief Holds the information of Service Processor Virtual Queues.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_VQ_ATTR {
+using SP_DEV_INTF_VQ_ATTR_s = struct __attribute__((__packed__)) SP_DEV_INTF_VQ_ATTR {
     uint16_t attributes_size;
     uint8_t int_trg_size;
     uint8_t int_id;
@@ -84,13 +85,13 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_VQ_ATTR {
     uint32_t cq_offset;
     uint16_t cq_count;
     uint16_t per_cq_size;
-} SP_DEV_INTF_VQ_ATTR_s;
+};
 
 /*! \struct SP_DEV_INTF_GENERIC_ATTR
     \brief Holds the general information of Service Processor.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR {
+using SP_DEV_INTF_GENERIC_ATTR_s = struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR {
     uint16_t attributes_size;
     uint16_t version;
     uint16_t total_size;
@@ -105,18 +106,22 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR {
     uint16_t l2_size;
     uint16_t scp_size;
     uint16_t cache_line_size;
-    uint8_t reserved[2];
-} SP_DEV_INTF_GENERIC_ATTR_s;
+    uint16_t bar0_size;
+    uint16_t bar2_size;
+    uint8_t  reserved[6];
+};
 
 /*! \struct SP_DEV_INTF_REG
     \brief Service Processor DIRs which will be used to public device capability to Host.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_REG {
+using SP_DEV_INTF_REG = struct __attribute__((__packed__)) SP_DEV_INTF_REG {
     SP_DEV_INTF_GENERIC_ATTR_s generic_attr;
     SP_DEV_INTF_VQ_ATTR_s vq_attr;
     /* Memory regions can be extended by the FW. The host will read it as
     flexible array. Hence, always place this array at the end of structure.
     The count of this array is dictated by num_mem_regions */
     SP_DEV_INTF_MEM_REGION_ATTR_s mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_NUM];
-} SP_DEV_INTF_REG;
+};
+
+}
