@@ -164,7 +164,7 @@
         "TF_CMD_AT_PCIE_MAX_SPEED": 101,
         "TF_CMD_AT_MODULE_REVISION": 102,
         "TF_CMD_AT_FORM_FACTOR": 103,
-        "TF_CMD_AT_MEMORY_DETAILS": 104,
+        "TF_CMD_AT_MEMORY_VENDOR_ID": 104,
         "TF_CMD_AT_MEMORY_SIZE_MB": 105,
         "TF_CMD_AT_MEMORY_TYPE": 106,
         "TF_CMD_MM_CMD_SHELL": 107,
@@ -257,7 +257,7 @@
         "TF_RSP_AT_PCIE_MAX_SPEED": 357,
         "TF_RSP_AT_MODULE_REVISION": 358,
         "TF_RSP_AT_FORM_FACTOR": 359,
-        "TF_RSP_AT_MEMORY_DETAILS": 360,
+        "TF_RSP_AT_MEMORY_VENDOR_ID": 360,
         "TF_RSP_AT_MEMORY_SIZE_MB": 361,
         "TF_RSP_AT_MEMORY_TYPE": 362,
         "TF_RSP_MM_CMD_SHELL": 363,
@@ -502,7 +502,7 @@
             "payload_size": 0,
             "payload_args": {}
         },
-        "TF_CMD_AT_MEMORY_DETAILS": {
+        "TF_CMD_AT_MEMORY_VENDOR_ID": {
             "flags": 1,
             "payload_size": 0,
             "payload_args": {}
@@ -822,11 +822,11 @@
                 "form_factor": "uint64_t"
             }
         },
-        "TF_RSP_AT_MEMORY_DETAILS": {
+        "TF_RSP_AT_MEMORY_VENDOR_ID": {
             "flags": 2,
             "payload_size": 8,
             "payload_args": {
-                "mem_details": "uint64_t"
+                "vendor_id": "uint64_t"
             }
         },
         "TF_RSP_AT_MEMORY_SIZE_MB": {
