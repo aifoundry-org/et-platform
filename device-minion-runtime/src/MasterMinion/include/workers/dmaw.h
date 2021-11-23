@@ -58,6 +58,16 @@
 */
 #define DMAW_ABORTED_IDLE_CHANNEL_SEARCH (DMA_ERROR_END - 1)
 
+/*! \def DMAW_ERROR_INVALID_XFER_COUNT
+    \brief DMA Worker - DMA transfer count invalid
+*/
+#define DMAW_ERROR_INVALID_XFER_COUNT    (DMA_ERROR_END - 2)
+
+/*! \def DMAW_ERROR_INVALID_XFER_SIZE
+    \brief DMA Worker - DMA transfer size invalid
+*/
+#define DMAW_ERROR_INVALID_XFER_SIZE     (DMA_ERROR_END - 3)
+
 /*! \enum dma_chan_state_e
     \brief Enum that provides the state of a DMA channel
 */

@@ -111,6 +111,11 @@
 */
 #define MEM_REGION_DMA_ELEMENT_SIZE_SET(x)  (((x) & 0xFF) << 9)
 
+/*! \def MEM_REGION_DMA_ELEMENT_SIZE_STEP
+    \brief Macro which provides the step size of DMA element size in MBs
+*/
+#define MEM_REGION_DMA_ELEMENT_SIZE_STEP    32
+
 /*! \def MEM_REGION_DMA_ELEMENT_SIZE
     \brief Macro for DMA element size
 */

@@ -58,7 +58,8 @@
     {                                                                                              \
         ret_status = DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS;                                     \
     }                                                                                              \
-    else if ((status == DMA_ERROR_OUT_OF_BOUNDS) || (status == DMA_ERROR_INVALID_XFER_COUNT))      \
+    else if ((status == DMA_ERROR_OUT_OF_BOUNDS) || (status == DMA_ERROR_INVALID_XFER_COUNT) ||    \
+            (status == DMA_ERROR_INVALID_XFER_SIZE))                                               \
     {                                                                                              \
         ret_status = DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE;                                        \
     }                                                                                              \
@@ -935,17 +936,27 @@ static inline int8_t dma_readlist_cmd_handler(
             dma_xfer_count = (uint8_t)((cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
                                        sizeof(struct dma_read_node));
 
-            /* Ensure the size of Xfer is bigger than zero */
-            status = ((dma_xfer_count > 0) && (dma_xfer_count <= DEVICE_OPS_DMA_LIST_NODES_MAX)) ?
+            /* Ensure the count of Xfer is within limits */
+            status = ((dma_xfer_count > 0) && (dma_xfer_count <= MEM_REGION_DMA_ELEMENT_COUNT)) ?
                          STATUS_SUCCESS :
-                         DMA_ERROR_INVALID_XFER_COUNT;
-        }
-    }
+                         DMAW_ERROR_INVALID_XFER_COUNT;
 
-    if (status == STATUS_SUCCESS)
-    {
-        /* Obtain the next available DMA write channel */
-        status = DMAW_Write_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
+            uint32_t element_max_size = MEM_REGION_DMA_ELEMENT_SIZE * MEM_REGION_DMA_ELEMENT_SIZE_STEP * 1024 * 1024;
+
+            /* Ensure the size of Xfer is within limits */
+            for (loop_cnt = 0; (status == STATUS_SUCCESS) && (loop_cnt < dma_xfer_count); ++loop_cnt)
+            {
+                status = ((cmd->list[loop_cnt].size > 0) && (cmd->list[loop_cnt].size <= element_max_size)) ?
+                            STATUS_SUCCESS :
+                            DMAW_ERROR_INVALID_XFER_SIZE;
+            }
+        }
+
+        if (status == STATUS_SUCCESS)
+        {
+            /* Obtain the next available DMA write channel */
+            status = DMAW_Write_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
+        }
     }
 
     if (status == STATUS_SUCCESS)
@@ -1097,13 +1108,26 @@ static inline int8_t dma_writelist_cmd_handler(
         dma_xfer_count = (uint8_t)((cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
                                    sizeof(struct dma_write_node));
 
-        /* Obtain the next available DMA read channel */
-        status = DMAW_Read_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
+        /* Ensure the count of Xfer is within limits */
+        status = ((dma_xfer_count > 0) && (dma_xfer_count <= MEM_REGION_DMA_ELEMENT_COUNT)) ?
+                        STATUS_SUCCESS :
+                        DMAW_ERROR_INVALID_XFER_COUNT;
 
-        /* Ensure the size of Xfer is bigger than zero */
-        status = ((dma_xfer_count > 0) && (dma_xfer_count <= DEVICE_OPS_DMA_LIST_NODES_MAX)) ?
-                     status :
-                     DMA_ERROR_INVALID_XFER_COUNT;
+        uint32_t element_max_size = MEM_REGION_DMA_ELEMENT_SIZE * MEM_REGION_DMA_ELEMENT_SIZE_STEP * 1024 * 1024;
+
+        /* Ensure the size of Xfer is within limits */
+        for (loop_cnt = 0; (status == STATUS_SUCCESS) && (loop_cnt < dma_xfer_count); ++loop_cnt)
+        {
+            status = ((cmd->list[loop_cnt].size > 0) && (cmd->list[loop_cnt].size <= element_max_size)) ?
+                        STATUS_SUCCESS :
+                        DMAW_ERROR_INVALID_XFER_SIZE;
+        }
+
+        if (status == STATUS_SUCCESS)
+        {
+            /* Obtain the next available DMA read channel */
+            status = DMAW_Read_Find_Idle_Chan_And_Reserve(&chan, sqw_idx);
+        }
     }
 
     if (status == STATUS_SUCCESS)
