@@ -24,6 +24,7 @@
 #include <transports/vq/vq.h>
 
 /* mm specific svcs */
+#include "config/dir_regs.h"
 #include "drivers/pcie_dma.h"
 
 /* common-api, device_ops_api */
@@ -48,6 +49,12 @@
 */
 #define DMAW_FOR_WRITE DMAW_FOR_READ + HARTS_PER_MINION
 
+/*! \def DMAW_MAX_ELEMENT_SIZE
+    \brief A macro that provides the max size of a DMA node in bytes
+*/
+#define DMAW_MAX_ELEMENT_SIZE \
+    (MEM_REGION_DMA_ELEMENT_SIZE * MEM_REGION_DMA_ELEMENT_SIZE_STEP * 1024 * 1024)
+
 /*! \def DMAW_ERROR_GENERAL
     \brief DMA Worker - General error.
 */
@@ -61,12 +68,12 @@
 /*! \def DMAW_ERROR_INVALID_XFER_COUNT
     \brief DMA Worker - DMA transfer count invalid
 */
-#define DMAW_ERROR_INVALID_XFER_COUNT    (DMA_ERROR_END - 2)
+#define DMAW_ERROR_INVALID_XFER_COUNT (DMA_ERROR_END - 2)
 
 /*! \def DMAW_ERROR_INVALID_XFER_SIZE
     \brief DMA Worker - DMA transfer size invalid
 */
-#define DMAW_ERROR_INVALID_XFER_SIZE     (DMA_ERROR_END - 3)
+#define DMAW_ERROR_INVALID_XFER_SIZE (DMA_ERROR_END - 3)
 
 /*! \enum dma_chan_state_e
     \brief Enum that provides the state of a DMA channel

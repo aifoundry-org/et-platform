@@ -26,10 +26,9 @@
 /* etsoc_hal */
 #include "hwinc/pcie0_dbi_slv.h"
 
-#define PCIE_DMA_RD_CHANNEL_COUNT   4
-#define PCIE_DMA_WRT_CHANNEL_COUNT  4
-#define PCIE_DMA_CHANNEL_COUNT      (PCIE_DMA_RD_CHANNEL_COUNT + PCIE_DMA_WRT_CHANNEL_COUNT)
-
+#define PCIE_DMA_RD_CHANNEL_COUNT  4
+#define PCIE_DMA_WRT_CHANNEL_COUNT 4
+#define PCIE_DMA_CHANNEL_COUNT     (PCIE_DMA_RD_CHANNEL_COUNT + PCIE_DMA_WRT_CHANNEL_COUNT)
 
 /*! \enum dma_flags_e
     \brief Enum that provides DMA flag to set a specific DMA action.
@@ -43,10 +42,10 @@ typedef enum {
     \brief Enum that provides the ID for a DMA read channels
 */
 enum dma_read_chan_id {
-    DMA_CHAN_ID_READ_0       = 0,
-    DMA_CHAN_ID_READ_1       = 1,
-    DMA_CHAN_ID_READ_2       = 2,
-    DMA_CHAN_ID_READ_3       = 3,
+    DMA_CHAN_ID_READ_0 = 0,
+    DMA_CHAN_ID_READ_1 = 1,
+    DMA_CHAN_ID_READ_2 = 2,
+    DMA_CHAN_ID_READ_3 = 3,
     DMA_CHAN_ID_READ_INVALID = 4
 };
 
@@ -59,11 +58,11 @@ typedef uint8_t dma_read_chan_id_e;
 /*! \enum dma_write_chan_id
     \brief Enum that provides the ID for a DMA write channels
 */
-enum  dma_write_chan_id {
-    DMA_CHAN_ID_WRITE_0       = 0,
-    DMA_CHAN_ID_WRITE_1       = 1,
-    DMA_CHAN_ID_WRITE_2       = 2,
-    DMA_CHAN_ID_WRITE_3       = 3,
+enum dma_write_chan_id {
+    DMA_CHAN_ID_WRITE_0 = 0,
+    DMA_CHAN_ID_WRITE_1 = 1,
+    DMA_CHAN_ID_WRITE_2 = 2,
+    DMA_CHAN_ID_WRITE_3 = 3,
     DMA_CHAN_ID_WRITE_INVALID = 4
 };
 
@@ -115,8 +114,8 @@ int8_t dma_configure_write(dma_write_chan_id_e chan);
     \param local_interrupt Enable/Disable DMA local interrupt.
     \return Status success or error
 */
-int8_t dma_config_read_add_data_node(uint64_t src_addr, uint64_t dest_addr,
-    uint32_t size, dma_read_chan_id_e chan, uint32_t index, bool local_interrupt);
+int8_t dma_config_read_add_data_node(uint64_t src_addr, uint64_t dest_addr, uint32_t size,
+    dma_read_chan_id_e chan, uint32_t index, bool local_interrupt);
 
 /*! \fn int8_t dma_config_write_add_data_node(uint64_t src_addr, uint64_t dest_addr,
     uint32_t size, dma_write_chan_id_e chan, uint32_t index, dma_flags_e dma_flags,
@@ -132,9 +131,8 @@ int8_t dma_config_read_add_data_node(uint64_t src_addr, uint64_t dest_addr,
     \param local_interrupt Enable/Disable DMA local interrupt.
     \return Status success or error
 */
-int8_t dma_config_write_add_data_node(uint64_t src_addr, uint64_t dest_addr,
-    uint32_t size, dma_write_chan_id_e chan, uint32_t index, dma_flags_e dma_flags,
-    bool local_interrupt);
+int8_t dma_config_write_add_data_node(uint64_t src_addr, uint64_t dest_addr, uint32_t size,
+    dma_write_chan_id_e chan, uint32_t index, dma_flags_e dma_flags, bool local_interrupt);
 
 /*! \fn int8_t dma_config_read_add_link_node(dma_read_chan_id_e chan, uint32_t index)
     \brief This function adds a new link node in DMA transfer list.
@@ -214,7 +212,8 @@ int8_t dma_abort_write(dma_write_chan_id_e chan);
 */
 static inline uint32_t dma_get_read_int_status(void)
 {
-    return ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_ADDRESS);
+    return ioread32(
+        PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_ADDRESS);
 }
 
 /*! \fn static inline uint32_t dma_get_write_int_status(void)
@@ -223,7 +222,8 @@ static inline uint32_t dma_get_read_int_status(void)
 */
 static inline uint32_t dma_get_write_int_status(void)
 {
-    return ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_ADDRESS);
+    return ioread32(
+        PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_ADDRESS);
 }
 
 /*! \fn static inline bool dma_check_read_done(dma_read_chan_id_e chan, uint32_t read_int_status)
@@ -235,8 +235,8 @@ static inline uint32_t dma_get_write_int_status(void)
 static inline bool dma_check_read_done(dma_read_chan_id_e chan, uint32_t read_int_status)
 {
     uint32_t done_status =
-            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_RD_DONE_INT_STATUS_GET(
-                read_int_status);
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_RD_DONE_INT_STATUS_GET(
+            read_int_status);
     return (done_status & (1U << chan)) != 0;
 }
 
@@ -249,8 +249,8 @@ static inline bool dma_check_read_done(dma_read_chan_id_e chan, uint32_t read_in
 static inline bool dma_check_write_done(dma_write_chan_id_e chan, uint32_t write_int_status)
 {
     uint32_t done_status =
-            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_WR_DONE_INT_STATUS_GET(
-                write_int_status);
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_WR_DONE_INT_STATUS_GET(
+            write_int_status);
     return (done_status & (1U << chan)) != 0;
 }
 
@@ -263,8 +263,8 @@ static inline bool dma_check_write_done(dma_write_chan_id_e chan, uint32_t write
 static inline bool dma_check_read_abort(dma_read_chan_id_e chan, uint32_t read_int_status)
 {
     uint32_t abort_status =
-            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_RD_ABORT_INT_STATUS_GET(
-                read_int_status);
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_INT_STATUS_OFF_RD_ABORT_INT_STATUS_GET(
+            read_int_status);
     return (abort_status & (1U << chan)) != 0;
 }
 
@@ -277,9 +277,9 @@ static inline bool dma_check_read_abort(dma_read_chan_id_e chan, uint32_t read_i
 static inline bool dma_check_write_abort(dma_write_chan_id_e chan, uint32_t write_int_status)
 {
     uint32_t abort_status =
-            PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_WR_ABORT_INT_STATUS_GET(
-                write_int_status);
-    return (abort_status & (1U << chan )) != 0;
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_INT_STATUS_OFF_WR_ABORT_INT_STATUS_GET(
+            write_int_status);
+    return (abort_status & (1U << chan)) != 0;
 }
 
 #endif

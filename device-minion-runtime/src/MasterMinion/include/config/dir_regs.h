@@ -39,92 +39,92 @@
 /*! \def MEM_REGION_PRIVILEDGE_MODE_SET(x)
     \brief Macro that sets the priviledge mode for a memory region
 */
-#define MEM_REGION_PRIVILEDGE_MODE_SET(x)  (x & 0x00000001u)
+#define MEM_REGION_PRIVILEDGE_MODE_SET(x) (x & 0x00000001u)
 
 /*! \def MEM_REGION_PRIVILEDGE_MODE_KERNEL
     \brief Macro representing the kernel privileged mode value
 */
-#define MEM_REGION_PRIVILEDGE_MODE_KERNEL  0x0
+#define MEM_REGION_PRIVILEDGE_MODE_KERNEL 0x0
 
 /*! \def MEM_REGION_PRIVILEDGE_MODE_USER
     \brief MAcro representing the user privileged mode value
 */
-#define MEM_REGION_PRIVILEDGE_MODE_USER    0x1
+#define MEM_REGION_PRIVILEDGE_MODE_USER 0x1
 
 /*! \def MEM_REGION_NODE_ACCESSIBLE_SET(x)
     \brief Macro that sets the node accessibility for a memory region
 */
-#define MEM_REGION_NODE_ACCESSIBLE_SET(x)          (((x) << 1) & 0x00000006u)
+#define MEM_REGION_NODE_ACCESSIBLE_SET(x) (((x) << 1) & 0x00000006u)
 
 /*! \def MEM_REGION_NODE_ACCESSIBLE_NONE
     \brief Macro representing the not accessible node value
 */
-#define MEM_REGION_NODE_ACCESSIBLE_NONE            0x0
+#define MEM_REGION_NODE_ACCESSIBLE_NONE 0x0
 
 /*! \def MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT
     \brief Macro representing the management node value
 */
-#define MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT      0x1
+#define MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT 0x1
 
 /*! \def MEM_REGION_NODE_ACCESSIBLE_OPS
     \brief Macro representing the OPS node value
 */
-#define MEM_REGION_NODE_ACCESSIBLE_OPS             0x2
+#define MEM_REGION_NODE_ACCESSIBLE_OPS 0x2
 
 /*! \def MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS
     \brief Macro representing the management and OPS node value
 */
-#define MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS  0x3
+#define MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS 0x3
 
 /*! \def MEM_REGION_DMA_ALIGNMENT_SET(x)
     \brief Macro that sets the DMA alignment for a memory region
 */
-#define MEM_REGION_DMA_ALIGNMENT_SET(x)  (((x) << 3) & 0x00000018u)
+#define MEM_REGION_DMA_ALIGNMENT_SET(x) (((x) << 3) & 0x00000018u)
 
 /*! \def MEM_REGION_DMA_ALIGNMENT_NONE
     \brief Macro representing the none DMA alignment value
 */
-#define MEM_REGION_DMA_ALIGNMENT_NONE    0x0
+#define MEM_REGION_DMA_ALIGNMENT_NONE 0x0
 
 /*! \def MEM_REGION_DMA_ALIGNMENT_8_BIT
     \brief Macro representing the 8-bit DMA alignment value
 */
-#define MEM_REGION_DMA_ALIGNMENT_8_BIT   0x1
+#define MEM_REGION_DMA_ALIGNMENT_8_BIT 0x1
 
 /*! \def MEM_REGION_DMA_ALIGNMENT_32_BIT
     \brief Macro representing the 32-bit DMA alignment value
 */
-#define MEM_REGION_DMA_ALIGNMENT_32_BIT  0x2
+#define MEM_REGION_DMA_ALIGNMENT_32_BIT 0x2
 
 /*! \def MEM_REGION_DMA_ALIGNMENT_64_BIT
     \brief Macro representing the 64-bit DMA alignment value
 */
-#define MEM_REGION_DMA_ALIGNMENT_64_BIT  0x3
+#define MEM_REGION_DMA_ALIGNMENT_64_BIT 0x3
 
 /*! \def MEM_REGION_DMA_ELEMENT_COUNT_SET(x)
     \brief Macro that sets the DMA element count
 */
-#define MEM_REGION_DMA_ELEMENT_COUNT_SET(x)  (((x) & 0xF) << 5)
+#define MEM_REGION_DMA_ELEMENT_COUNT_SET(x) (((x)&0xF) << 5)
 
 /*! \def MEM_REGION_DMA_ELEMENT_COUNT_SET(x)
     \brief Macro that sets the DMA element size
 */
-#define MEM_REGION_DMA_ELEMENT_SIZE_SET(x)  (((x) & 0xFF) << 9)
+#define MEM_REGION_DMA_ELEMENT_SIZE_SET(x) (((x)&0xFF) << 9)
 
 /*! \def MEM_REGION_DMA_ELEMENT_SIZE_STEP
     \brief Macro which provides the step size of DMA element size in MBs
 */
-#define MEM_REGION_DMA_ELEMENT_SIZE_STEP    32
+#define MEM_REGION_DMA_ELEMENT_SIZE_STEP 32
 
 /*! \def MEM_REGION_DMA_ELEMENT_SIZE
     \brief Macro for DMA element size
 */
-#define MEM_REGION_DMA_ELEMENT_SIZE          4
+#define MEM_REGION_DMA_ELEMENT_SIZE 4
 
 /*! \def MEM_REGION_DMA_ELEMENT_COUNT
     \brief Macro for element count in DMA list
 */
-#define MEM_REGION_DMA_ELEMENT_COUNT         8
+#define MEM_REGION_DMA_ELEMENT_COUNT 8
 
 /***************************/
 /* MM DIRs data structures */
@@ -151,7 +151,7 @@ enum MM_DEV_INTF_MM_BOOT_STATUS_e {
     memory regions supported by the Master Minion.
 */
 enum MM_DEV_INTF_MEM_REGION_TYPE_e {
-    MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER = 0 ,
+    MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER = 0,
     MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED,
     MM_DEV_INTF_MEM_REGION_TYPE_NUM
 };
@@ -223,8 +223,8 @@ typedef struct __attribute__((__packed__)) MM_DEV_INTF_REG {
 #ifndef __ASSEMBLER__
 
 /* Ensure that MM DIRs are within limits */
-static_assert(sizeof(MM_DEV_INTF_REG_s) <= MM_DEV_INTF_SIZE,
-    "MM DIRs size is not within allowed limits.");
+static_assert(
+    sizeof(MM_DEV_INTF_REG_s) <= MM_DEV_INTF_SIZE, "MM DIRs size is not within allowed limits.");
 
 #endif /* __ASSEMBLER__ */
 

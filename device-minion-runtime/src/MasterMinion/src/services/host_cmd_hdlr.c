@@ -58,8 +58,8 @@
     {                                                                                              \
         ret_status = DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS;                                     \
     }                                                                                              \
-    else if ((status == DMA_ERROR_OUT_OF_BOUNDS) || (status == DMA_ERROR_INVALID_XFER_COUNT) ||    \
-            (status == DMA_ERROR_INVALID_XFER_SIZE))                                               \
+    else if ((status == DMA_ERROR_OUT_OF_BOUNDS) || (status == DMAW_ERROR_INVALID_XFER_COUNT) ||   \
+             (status == DMAW_ERROR_INVALID_XFER_SIZE))                                             \
     {                                                                                              \
         ret_status = DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE;                                        \
     }                                                                                              \
@@ -871,6 +871,52 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
 *
 *   FUNCTION
 *
+*       dma_readlist_cmd_verify_limits
+*
+*   DESCRIPTION
+*
+*       Function used to verify DMA command node count and size.
+*
+*   INPUTS
+*
+*       cmd               Buffer containing command to process
+*       dma_xfer_count    Pointer to dma nodes count
+*
+*   OUTPUTS
+*
+*       int8_t           Successful status or error code.
+*
+***********************************************************************/
+static inline int8_t dma_readlist_cmd_verify_limits(
+    const struct device_ops_dma_readlist_cmd_t *cmd, uint8_t *dma_xfer_count)
+{
+    int8_t status;
+
+    /* Get number of transfer commands in the read list, based on message payload length. */
+    *dma_xfer_count = (uint8_t)(
+        (cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) / sizeof(struct dma_read_node));
+
+    /* Ensure the count of Xfer is within limits */
+    status = ((*dma_xfer_count > 0) && (*dma_xfer_count <= MEM_REGION_DMA_ELEMENT_COUNT)) ?
+                 STATUS_SUCCESS :
+                 DMAW_ERROR_INVALID_XFER_COUNT;
+
+    /* Ensure the size of Xfer is within limits */
+    for (int loop_cnt = 0; (status == STATUS_SUCCESS) && (loop_cnt < *dma_xfer_count); ++loop_cnt)
+    {
+        status = ((cmd->list[loop_cnt].size > 0) &&
+                     (cmd->list[loop_cnt].size <= DMAW_MAX_ELEMENT_SIZE)) ?
+                     STATUS_SUCCESS :
+                     DMAW_ERROR_INVALID_XFER_SIZE;
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       dma_readlist_cmd_handler
 *
 *   DESCRIPTION
@@ -932,24 +978,9 @@ static inline int8_t dma_readlist_cmd_handler(
         else
         {
             dma_flag = DMA_NORMAL;
-            /* Get number of transfer commands in the list, based on message payload length. */
-            dma_xfer_count = (uint8_t)((cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
-                                       sizeof(struct dma_read_node));
 
-            /* Ensure the count of Xfer is within limits */
-            status = ((dma_xfer_count > 0) && (dma_xfer_count <= MEM_REGION_DMA_ELEMENT_COUNT)) ?
-                         STATUS_SUCCESS :
-                         DMAW_ERROR_INVALID_XFER_COUNT;
-
-            uint32_t element_max_size = MEM_REGION_DMA_ELEMENT_SIZE * MEM_REGION_DMA_ELEMENT_SIZE_STEP * 1024 * 1024;
-
-            /* Ensure the size of Xfer is within limits */
-            for (loop_cnt = 0; (status == STATUS_SUCCESS) && (loop_cnt < dma_xfer_count); ++loop_cnt)
-            {
-                status = ((cmd->list[loop_cnt].size > 0) && (cmd->list[loop_cnt].size <= element_max_size)) ?
-                            STATUS_SUCCESS :
-                            DMAW_ERROR_INVALID_XFER_SIZE;
-            }
+            /* Verify the dma count and size */
+            status = dma_readlist_cmd_verify_limits(cmd, &dma_xfer_count);
         }
 
         if (status == STATUS_SUCCESS)
@@ -1055,6 +1086,52 @@ static inline int8_t dma_readlist_cmd_handler(
 *
 *   FUNCTION
 *
+*       dma_writelist_cmd_verify_limits
+*
+*   DESCRIPTION
+*
+*       Function used to verify DMA command node count and size.
+*
+*   INPUTS
+*
+*       cmd               Buffer containing command to process
+*       dma_xfer_count    Pointer to dma nodes count
+*
+*   OUTPUTS
+*
+*       int8_t           Successful status or error code.
+*
+***********************************************************************/
+static inline int8_t dma_writelist_cmd_verify_limits(
+    const struct device_ops_dma_writelist_cmd_t *cmd, uint8_t *dma_xfer_count)
+{
+    int8_t status;
+
+    /* Get number of transfer commands in the write list, based on message payload length. */
+    *dma_xfer_count = (uint8_t)(
+        (cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) / sizeof(struct dma_write_node));
+
+    /* Ensure the count of Xfer is within limits */
+    status = ((*dma_xfer_count > 0) && (*dma_xfer_count <= MEM_REGION_DMA_ELEMENT_COUNT)) ?
+                 STATUS_SUCCESS :
+                 DMAW_ERROR_INVALID_XFER_COUNT;
+
+    /* Ensure the size of Xfer is within limits */
+    for (int loop_cnt = 0; (status == STATUS_SUCCESS) && (loop_cnt < *dma_xfer_count); ++loop_cnt)
+    {
+        status = ((cmd->list[loop_cnt].size > 0) &&
+                     (cmd->list[loop_cnt].size <= DMAW_MAX_ELEMENT_SIZE)) ?
+                     STATUS_SUCCESS :
+                     DMAW_ERROR_INVALID_XFER_SIZE;
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       dma_writelist_cmd_handler
 *
 *   DESCRIPTION
@@ -1104,24 +1181,8 @@ static inline int8_t dma_writelist_cmd_handler(
 
     if (abort_status == STATUS_SUCCESS)
     {
-        /* Get number of transfer commands in the list, based on message payload length. */
-        dma_xfer_count = (uint8_t)((cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
-                                   sizeof(struct dma_write_node));
-
-        /* Ensure the count of Xfer is within limits */
-        status = ((dma_xfer_count > 0) && (dma_xfer_count <= MEM_REGION_DMA_ELEMENT_COUNT)) ?
-                        STATUS_SUCCESS :
-                        DMAW_ERROR_INVALID_XFER_COUNT;
-
-        uint32_t element_max_size = MEM_REGION_DMA_ELEMENT_SIZE * MEM_REGION_DMA_ELEMENT_SIZE_STEP * 1024 * 1024;
-
-        /* Ensure the size of Xfer is within limits */
-        for (loop_cnt = 0; (status == STATUS_SUCCESS) && (loop_cnt < dma_xfer_count); ++loop_cnt)
-        {
-            status = ((cmd->list[loop_cnt].size > 0) && (cmd->list[loop_cnt].size <= element_max_size)) ?
-                        STATUS_SUCCESS :
-                        DMAW_ERROR_INVALID_XFER_SIZE;
-        }
+        /* Verify the dma count and size */
+        status = dma_writelist_cmd_verify_limits(cmd, &dma_xfer_count);
 
         if (status == STATUS_SUCCESS)
         {
