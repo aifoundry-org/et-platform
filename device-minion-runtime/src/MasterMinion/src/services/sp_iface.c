@@ -310,7 +310,7 @@ static int8_t sp_command_handler(void *cmd_buffer)
             /* Commands abort will be done in 3 phases:
             1. Abort any pending commands in a particular SQ
             2. Abort any dispatched DMA read/write commands for the particular SQ
-            3. Abort any dispatched Kernel command for the particular SQ 
+            3. Abort any dispatched Kernel command for the particular SQ
             abort all commands on all SQs */
             for (uint8_t sq_idx = 0; sq_idx < MM_SQ_COUNT; sq_idx++)
             {
@@ -575,17 +575,29 @@ int8_t SP_Iface_Reset_Minion(uint64_t shire_mask)
     /* Acquire the lock. Multiple threads can call this function. */
     acquire_local_spinlock(&SP_SQ_CB.vq_lock);
 
-    /* Send command to Service Processor */
-    status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&cmd, sizeof(cmd));
+    uint32_t start_time = SW_Timer_Get_Elapsed_Time();
 
-    if (status == STATUS_SUCCESS)
+    /* Wait for a timeout - required in cases when vq is drained due to multiple error
+       events, let the SP process all the outstanding events */
+    while (SW_Timer_Get_Elapsed_Time() - start_time < TIMEOUT_SP_IFACE_RESPONSE(50))
     {
-        /* Wait for response from Service Processor */
-        status = wait_for_response_from_service_processor();
-    }
-    else
-    {
-        Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing command to MM to SP SQ\r\n");
+        /* Send command to Service Processor */
+        status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&cmd, sizeof(cmd));
+
+        if (status == STATUS_SUCCESS)
+        {
+            /* Wait for response from Service Processor */
+            status = wait_for_response_from_service_processor();
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing command to MM to SP SQ\r\n");
+        }
+
+        if (status != CIRCBUFF_ERROR_FULL)
+        {
+            break;
+        }
     }
 
     if (status == STATUS_SUCCESS)
@@ -844,7 +856,7 @@ int8_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code)
     status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&event, sizeof(event));
     if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing event to MM to SP SQ\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing event to MM to SP SQ:%d\r\n", status);
     }
 
     /* Release the lock */
