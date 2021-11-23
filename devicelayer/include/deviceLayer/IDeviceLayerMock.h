@@ -8,10 +8,16 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
-#include "IDeviceLayer.h"
+
+#include "deviceLayer/IDeviceLayer.h"
+#include "deviceLayer/IDeviceLayerFake.h"
+
 #include <gmock/gmock.h>
 
+using ::testing::A;
+
 namespace dev {
+
 class IDeviceLayerMock : public IDeviceLayer {
 public:
   MOCK_METHOD6(sendCommandMasterMinion,
@@ -43,5 +49,93 @@ public:
   MOCK_METHOD2(updateFirmwareImage, int(int, std::vector<unsigned char>&));
   MOCK_CONST_METHOD0(getFreeCmaMemory, size_t());
   MOCK_CONST_METHOD1(getDmaInfo, DmaInfo(int));
+
+  void DelegateToFake() {
+    ON_CALL(*this, sendCommandMasterMinion).WillByDefault([this](int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma, bool isHighPriority) {
+      return fake_.sendCommandMasterMinion(device, sqIdx, command, commandSize, isDma, isHighPriority);
+    });
+    ON_CALL(*this, setSqThresholdMasterMinion).WillByDefault([this](int device, int sqIdx, uint32_t bytesNeeded) {
+      fake_.setSqThresholdMasterMinion(device, sqIdx, bytesNeeded);
+    });
+    ON_CALL(*this, waitForEpollEventsMasterMinion(A<int>(), A<uint64_t&>(), A<bool&>())).WillByDefault(
+      [this](int device, uint64_t& sq_bitmap, bool& cq_available) {
+      fake_.waitForEpollEventsMasterMinion(device, sq_bitmap, cq_available, std::chrono::seconds(1));
+    });
+    ON_CALL(*this, waitForEpollEventsMasterMinion(A<int>(), A<uint64_t&>(), A<bool&>(), A<std::chrono::seconds>())).WillByDefault(
+      [this](int device, uint64_t& sq_bitmap, bool& cq_available, std::chrono::seconds timeout) {
+      fake_.waitForEpollEventsMasterMinion(device, sq_bitmap, cq_available, timeout);
+    });
+    ON_CALL(*this, receiveResponseMasterMinion).WillByDefault([this](int device, std::vector<std::byte>& response) {
+      return fake_.receiveResponseMasterMinion(device, response);
+    });
+    ON_CALL(*this, sendCommandServiceProcessor).WillByDefault([this](int device, std::byte* command, size_t commandSize) {
+      return fake_.sendCommandServiceProcessor(device, command, commandSize);
+    });
+    ON_CALL(*this, setSqThresholdServiceProcessor).WillByDefault([this](int device, uint32_t bytesNeeded) {
+      fake_.setSqThresholdServiceProcessor(device, bytesNeeded);
+    });
+    ON_CALL(*this, waitForEpollEventsServiceProcessor(A<int>(), A<bool&>(), A<bool&>())).WillByDefault(
+      [this](int device, bool& sq_available, bool& cq_available) {
+      fake_.waitForEpollEventsServiceProcessor(device, sq_available, cq_available, std::chrono::seconds(1));
+    });
+    ON_CALL(*this, waitForEpollEventsServiceProcessor(A<int>(), A<bool&>(), A<bool&>(), A<std::chrono::seconds>())).WillByDefault(
+      [this](int device, bool& sq_available, bool& cq_available, std::chrono::seconds timeout) {
+      fake_.waitForEpollEventsServiceProcessor(device, sq_available, cq_available, timeout);
+    });
+    ON_CALL(*this, receiveResponseServiceProcessor).WillByDefault([this](int device, std::vector<std::byte>& response) {
+      return fake_.receiveResponseServiceProcessor(device, response);
+    });
+    ON_CALL(*this, getSubmissionQueuesCount).WillByDefault([this](int device) {
+      return fake_.getSubmissionQueuesCount(device);
+    });
+    ON_CALL(*this, getSubmissionQueueSizeMasterMinion).WillByDefault([this](int device) {
+      return fake_.getSubmissionQueueSizeMasterMinion(device); 
+    });
+    ON_CALL(*this, getSubmissionQueueSizeServiceProcessor).WillByDefault([this](int device) {
+      return fake_.getSubmissionQueueSizeServiceProcessor(device);
+    });
+    ON_CALL(*this, getDeviceStateMasterMinion).WillByDefault([this](int device) {
+      return fake_.getDeviceStateMasterMinion(device);
+    });
+    ON_CALL(*this, getDeviceStateServiceProcessor).WillByDefault([this](int device) {
+      return fake_.getDeviceStateServiceProcessor(device);
+    });
+    ON_CALL(*this, getDmaAlignment).WillByDefault([this]() {
+      return fake_.getDmaAlignment();
+    });
+    ON_CALL(*this, getDramSize).WillByDefault([this]() {
+      return fake_.getDramSize();
+    });
+    ON_CALL(*this, getDramBaseAddress).WillByDefault([this]() {
+      return fake_.getDramBaseAddress();
+    });
+    ON_CALL(*this, getDevicesCount).WillByDefault([this]() {
+      return fake_.getDevicesCount();
+    });
+    ON_CALL(*this, allocDmaBuffer).WillByDefault([this](int device, size_t sizeInBytes, bool writeable) {
+      return fake_.allocDmaBuffer(device, sizeInBytes, writeable);
+    });
+    ON_CALL(*this, freeDmaBuffer).WillByDefault([this](void* dmaBuffer) {
+      fake_.freeDmaBuffer(dmaBuffer);
+    });
+    ON_CALL(*this, getTraceBufferServiceProcessor).WillByDefault([this](int device, TraceBufferType trace_type, std::vector<std::byte>& response) {
+      return fake_.getTraceBufferServiceProcessor(device, trace_type, response);
+    });
+    ON_CALL(*this, getDeviceConfig).WillByDefault([this](int device) {
+      return fake_.getDeviceConfig(device);
+    });
+    ON_CALL(*this, updateFirmwareImage).WillByDefault([this](int device, std::vector<unsigned char>& fwImage) {
+      return fake_.updateFirmwareImage(device, fwImage);
+    });
+    ON_CALL(*this, getFreeCmaMemory).WillByDefault([this]() {
+      return fake_.getFreeCmaMemory();
+    });
+    ON_CALL(*this, getDmaInfo).WillByDefault([this](int device) {
+      return fake_.getDmaInfo(device);
+    });
+  }
+
+private:
+  IDeviceLayerFake fake_;
 };
 } // namespace dev

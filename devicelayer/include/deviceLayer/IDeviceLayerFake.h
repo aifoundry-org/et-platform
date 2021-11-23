@@ -8,7 +8,8 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
-#include "IDeviceLayer.h"
+#include "deviceLayer/IDeviceLayer.h"
+
 #include <condition_variable>
 #include <cstdlib>
 #include <cstring>
@@ -16,6 +17,7 @@
 #include <mutex>
 #include <queue>
 #include <string>
+
 namespace dev {
 class IDeviceLayerFake : public IDeviceLayer {
   std::queue<device_ops_api::rsp_header_t> responsesMasterMinion_;
