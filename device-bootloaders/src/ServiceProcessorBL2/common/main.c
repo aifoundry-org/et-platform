@@ -140,6 +140,9 @@ static void taskMain(void *pvParameters)
     minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
     Minion_Set_Active_Shire_Mask(minion_shires_mask);
 
+    /* Print PVT sampled values */
+    pvt_print_voltage_sampled_values(PVTC_PSHIRE);
+
     // Initialize Host to Service Processor Interface
 #if !TEST_FRAMEWORK
     status = SP_Host_Iface_Init();
@@ -177,6 +180,10 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_noc() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED);
 
+    /* Print PVT sampled values */
+    pvt_print_temperature_sampled_values(PVTC_IOSHIRE);
+    pvt_print_voltage_sampled_values(PVTC_IOSHIRE);
+
 #if !(FAST_BOOT || TEST_FRAMEWORK)
     // Initialize Flash service
     status = flashfs_drv_init();
@@ -201,6 +208,9 @@ static void taskMain(void *pvParameters)
     status = configure_memshire();
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_memshire() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
+
+    /* Print PVT sampled values */
+    pvt_print_voltage_sampled_values(PVTC_MEMSHIRE);
 
     /* Setup Compute Minions Shire Clocks and bring them out of Reset */
     uint8_t lvdpll_strap_pins;
@@ -314,8 +324,9 @@ static void taskMain(void *pvParameters)
         Log_Write(LOG_LEVEL_CRITICAL, "MM heartbeat alive!\r\n");
     }
 
-    /* Initialize and start continuous sampling on PVT sensors */
-    //NOSONAR pvt_init(); Uncomment upon SW-10128 resolution
+    /* Print PVT sampled values */
+    pvt_print_temperature_sampled_values(PVTC_MINION_SHIRE);
+    pvt_print_voltage_sampled_values(PVTC_MINION_SHIRE);
 
     /* Inform Host Device is Ready */
     Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");
@@ -430,6 +441,9 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     SERIAL_init(PU_UART1);
 
     Log_Init(LOG_LEVEL_WARNING);
+
+    /* Initialize and start continuous sampling on PVT sensors */
+    pvt_init();
 
 #if TEST_FRAMEWORK
     // Control does not return from call below

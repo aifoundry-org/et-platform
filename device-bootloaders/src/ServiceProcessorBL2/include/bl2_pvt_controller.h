@@ -242,8 +242,69 @@ typedef struct {
    uint16_t vdd_ext_analog;
 } ExtAnalog_VM_sample;
 
+/*! \enum shire_type_t
+    \brief Enums for shire types
+*/
+typedef enum pvtc_shire_type
+{
+    PVTC_IOSHIRE = 0,
+    PVTC_PSHIRE = 1,
+    PVTC_MEMSHIRE = 2,
+    PVTC_MINION_SHIRE = 3
+} pvtc_shire_type_t;
+
+/*! \enum pvtc_id_t
+    \brief Enums for pvtc id
+*/
+typedef enum pvtc_id
+{
+    PVTC_0 = 0,
+    PVTC_1,
+    PVTC_2,
+    PVTC_3,
+    PVTC_4
+} pvtc_id_t;
+
+/*! \enum pvtc_vm_id_t
+    \brief Enums for pvtc vm id
+*/
+typedef enum pvtc_vm_id
+{
+    VM_0 = 0,
+    VM_1 = 1,
+    VM_2 = 0,
+    VM_3 = 1,
+    VM_4 = 0,
+    VM_5 = 1,
+    VM_6 = 0,
+    VM_7 = 1
+} pvtc_vm_id_t;
+
+/*! \enum pvtc_vm_chan_id_t
+    \brief Enums for pvtc vm channel id
+*/
+typedef enum pvtc_vm_chan_id
+{
+    CHAN_0 = 0,
+    CHAN_1,
+    CHAN_2,
+    CHAN_3,
+    CHAN_4,
+    CHAN_5,
+    CHAN_6,
+    CHAN_7,
+    CHAN_8,
+    CHAN_9,
+    CHAN_10,
+    CHAN_11,
+    CHAN_12,
+    CHAN_13,
+    CHAN_14,
+    CHAN_15
+} pvtc_vm_chan_id_t;
+
 /*! \enum PVTC_MINSHIRE_e
-    \brief Enums fo MINSHIREs that are monitored by PVTC
+    \brief Enums for MINSHIREs that are monitored by PVTC
 */
 typedef enum pvtcMinshire
 {
@@ -286,7 +347,7 @@ typedef enum pvtcMinshire
 } PVTC_MINSHIRE_e;
 
 /*! \enum PVTC_MEMSHIRE_e
-    \brief Enums fo MEMSHIREs that are monitored by PVTC
+    \brief Enums for MEMSHIREs that are monitored by PVTC
 */
 typedef enum pvtcMemshire
 {
@@ -302,7 +363,7 @@ typedef enum pvtcMemshire
 } PVTC_MEMSHIRE_e;
 
 /*! \enum PVTC_EXT_ANALOG_e
-    \brief Enums fo MEMSHIREs that are monitored by PVTC
+    \brief Enums for MEMSHIREs that are monitored by PVTC
 */
 typedef enum pvtcExtAnalog
 {
@@ -497,5 +558,19 @@ int pvt_hilo_reset(void);
     \return none
 */
 void pvt_continuous_sample_run(void);
+
+/*! \fn void pvt_print_temperature_sampled_values(pvtc_shire_type_t shire_type)
+    \brief This function prints TS sampled values from sensors
+    \param shire_type Shire type to fetch values
+    \return none
+*/
+void pvt_print_temperature_sampled_values(pvtc_shire_type_t shire_type);
+
+/*! \fn void pvt_print_voltage_sampled_values(pvtc_shire_type_t shire_type)
+    \brief This function prints VM sampled values from sensors
+    \param shire_type Shire type to fetch values
+    \return none
+*/
+void pvt_print_voltage_sampled_values(pvtc_shire_type_t shire_type);
 
 #endif
