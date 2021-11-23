@@ -36,7 +36,7 @@
 /***************************************************/
 
 #define     SP2MM_SQ_BASE        R_PU_MBOX_MM_SP_BASEADDR
-#define     SP2MM_SQ_SIZE        0x200UL/* 512B */
+#define     SP2MM_SQ_SIZE        0x600UL/* 1536B */
 #define     SP2MM_SQ_MEM_TYPE    UNCACHED
 
 #define     SP2MM_CQ_BASE        (SP2MM_SQ_BASE + SP2MM_SQ_SIZE)
@@ -44,7 +44,7 @@
 #define     SP2MM_CQ_MEM_TYPE    UNCACHED
 
 #define     MM2SP_SQ_BASE        (SP2MM_CQ_BASE + SP2MM_CQ_SIZE)
-#define     MM2SP_SQ_SIZE        0x200UL/* 512B */
+#define     MM2SP_SQ_SIZE        0x600UL/* 1536B */
 #define     MM2SP_SQ_MEM_TYPE    UNCACHED
 
 #define     MM2SP_CQ_BASE        (MM2SP_SQ_BASE + MM2SP_SQ_SIZE)
