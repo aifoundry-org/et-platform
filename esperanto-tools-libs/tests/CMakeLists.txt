@@ -47,6 +47,7 @@ macro(build_test_binary)
             ${ETRT_OBJ_INCLUDE_DIRS}
         PRIVATE
             ${COMMON_DIR}
+            ${PROJECT_SOURCE_DIR}/tests
     )
 
     target_link_libraries(${TEST_TARGET}

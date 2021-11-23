@@ -36,6 +36,7 @@
 /// @{
 namespace rt {
 class RuntimeImp;
+class CommandSender;
 
 namespace tests {
 class ProfileEventDeserializationTest;
@@ -58,11 +59,16 @@ enum class Class {
   WaitForEvent,
   WaitForStream,
   DeviceCommand,
-  KernelTimestamps,
-  Pmc
+  Pmc,
+  CommandSent,
+  ResponseReceived,
+
+  COUNT
 };
+enum class ResponseType { DMARead, DMAWrite, Kernel, COUNT };
 Class class_from_string(const std::string& str);
 Type type_from_string(const std::string& str);
+ResponseType response_type_from_string(const std::string& str);
 
 class ScopedProfileEvent;
 
@@ -73,7 +79,7 @@ public:
   using Id = uint64_t;
   using Cycles = uint64_t;
   using TimePoint = std::chrono::time_point<std::chrono::steady_clock>;
-  using ExtraValues = std::variant<uint64_t, EventId, StreamId, DeviceId, KernelId>;
+  using ExtraValues = std::variant<uint64_t, EventId, StreamId, DeviceId, KernelId, ResponseType>;
   using ExtraMetadata = std::unordered_map<std::string, ExtraValues>;
 
   ProfileEvent() = default;
@@ -91,6 +97,7 @@ public:
   std::optional<StreamId> getStream() const;
   std::optional<DeviceId> getDeviceId() const;
   std::optional<KernelId> getKernelId() const;
+  std::optional<ResponseType> getResponseType() const;
   std::optional<uint64_t> getLoadAddress() const;
   std::optional<Cycles> getDeviceCmdStartTs() const;
   std::optional<Cycles> getDeviceCmdWaitDur() const;
@@ -108,6 +115,7 @@ protected:
   void setStream(StreamId stream);
   void setDeviceId(DeviceId deviceId);
   void setKernelId(KernelId kernelId);
+  void setResponseType(ResponseType rspType);
   void setLoadAddress(uint64_t loadAddress);
   void setDeviceCmdStartTs(uint64_t start_ts);
   void setDeviceCmdWaitDur(uint64_t wait_dur);
@@ -115,6 +123,7 @@ protected:
 
   friend ScopedProfileEvent;
   friend rt::RuntimeImp;
+  friend rt::CommandSender;
   friend rt::tests::ProfileEventDeserializationTest;
   template <class Archive> friend void load(Archive& ar, ProfileEvent& evt);
 
@@ -134,6 +143,7 @@ private:
 namespace rt::profiling {
 std::string getString(rt::profiling::Class cls);
 std::string getString(rt::profiling::Type type);
+std::string getString(rt::profiling::ResponseType rspType);
 
 template <typename Archive> void serialize(Archive& ar, rt::EventId& id) {
   ar(cereal::make_nvp("event_id", id));

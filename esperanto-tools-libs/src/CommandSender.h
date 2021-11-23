@@ -9,9 +9,14 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
+
+#include "ProfilerImp.h"
+#include "runtime/Types.h"
+
+#include <device-layer/IDeviceLayer.h>
+
 #include <condition_variable>
 #include <cstddef>
-#include <device-layer/IDeviceLayer.h>
 #include <functional>
 #include <list>
 #include <mutex>
@@ -23,14 +28,16 @@ struct Command {
   void enable();
   std::vector<std::byte> commandData_;
   class CommandSender& parent_;
+  EventId evt_;
   bool isDma_ = false;
   bool isEnabled_ = false;
 };
-class CommandSender {
 
+class CommandSender {
 public:
   using CommandSentCallback = std::function<void(Command*)>;
-  explicit CommandSender(dev::IDeviceLayer& deviceLayer, int deviceId, int sqIdx);
+  explicit CommandSender(dev::IDeviceLayer& deviceLayer, profiling::IProfilerRecorder& profiler, int deviceId,
+                         int sqIdx);
   ~CommandSender();
 
   // returns true if there is a higher prioritary command which is disabled.
@@ -62,6 +69,7 @@ private:
   std::thread runner_;
   std::condition_variable condVar_;
   dev::IDeviceLayer& deviceLayer_;
+  profiling::IProfilerRecorder& profiler_;
   CommandSentCallback callback_;
   int deviceId_;
   int sqIdx_;

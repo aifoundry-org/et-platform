@@ -33,8 +33,10 @@ template <typename List> std::string getCommandPtrs(List& commands) {
   return ss.str();
 }
 
-CommandSender::CommandSender(dev::IDeviceLayer& deviceLayer, int deviceId, int sqIdx)
+CommandSender::CommandSender(dev::IDeviceLayer& deviceLayer, profiling::IProfilerRecorder& profiler, int deviceId,
+                             int sqIdx)
   : deviceLayer_(deviceLayer)
+  , profiler_(profiler)
   , deviceId_(deviceId)
   , sqIdx_(sqIdx) {
   runner_ = std::thread{std::bind(&CommandSender::runnerFunc, this)};
@@ -120,6 +122,13 @@ void CommandSender::runnerFunc() {
       if (deviceLayer_.sendCommandMasterMinion(deviceId_, sqIdx_, cmd.commandData_.data(), cmd.commandData_.size(),
                                                cmd.isDma_)) {
         RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_);
+
+        profiling::ProfileEvent event(profiling::Type::Instant, profiling::Class::CommandSent);
+        event.setEvent(cmd.evt_);
+        event.setStream(StreamId(sqIdx_));
+        event.setDeviceId(DeviceId(deviceId_));
+        profiler_.record(event);
+
         if (callback_) {
           callback_(&cmd);
         }

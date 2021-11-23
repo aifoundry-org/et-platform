@@ -18,7 +18,7 @@ namespace rt::profiling {
 
 class ScopedProfileEvent {
 public:
-  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, StreamId streamId, KernelId kernelId,
+  explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, StreamId streamId, KernelId kernelId,
                               uint64_t loadAddress)
     : profiler_(profiler)
     , event_{Type::Start, cls} {
@@ -27,31 +27,31 @@ public:
     event_.setLoadAddress(loadAddress);
     init();
   }
-  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, KernelId kernelId)
+  explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, KernelId kernelId)
     : profiler_(profiler)
     , event_{Type::Start, cls} {
     event_.setKernelId(kernelId);
     init();
   }
-  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, DeviceId deviceId)
+  explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, DeviceId deviceId)
     : profiler_(profiler)
     , event_{Type::Start, cls} {
     event_.setDeviceId(deviceId);
     init();
   }
-  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, StreamId streamId)
+  explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, StreamId streamId)
     : profiler_(profiler)
     , event_{Type::Start, cls} {
     event_.setStream(streamId);
     init();
   }
-  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler, EventId eventId)
+  explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, EventId eventId)
     : profiler_(profiler)
     , event_{Type::Start, cls} {
     event_.setEvent(eventId);
     init();
   }
-  explicit ScopedProfileEvent(Class cls, ProfilerImp& profiler)
+  explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler)
     : profiler_(profiler)
     , event_{Type::Start, cls} {
     init();
@@ -87,7 +87,7 @@ public:
 
 private:
   inline static std::atomic<uint64_t> nextPairId_ = 0;
-  ProfilerImp& profiler_;
+  IProfilerRecorder& profiler_;
   ProfileEvent event_;
 };
 

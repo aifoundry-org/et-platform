@@ -35,7 +35,8 @@ TEST(CommandSender, checkConsistency) {
   auto numCommands = 3 * 1e4;
   std::vector<Command*> commands;
   dev::IDeviceLayerFake deviceLayer;
-  CommandSender cs(deviceLayer, 0, 0);
+  profiling::DummyProfiler profiler;
+  CommandSender cs(deviceLayer, profiler, 0, 0);
   for (device_ops_api::tag_id_t i = 0; i < numCommands; ++i) {
     header->tag_id = device_ops_api::tag_id_t(i + 1);
     commands.emplace_back(cs.send(Command{commandData, cs}));
@@ -88,7 +89,8 @@ TEST(CommandSender, checkSendBefore) {
   auto numCommands = 100;
   std::vector<Command*> commands;
   dev::IDeviceLayerFake deviceLayer;
-  CommandSender cs(deviceLayer, 0, 0);
+  profiling::DummyProfiler profiler;
+  CommandSender cs(deviceLayer, profiler, 0, 0);
   // first emplace commands with odd tag_ids
   for (device_ops_api::tag_id_t i = 0; i < numCommands / 2; ++i) {
     header->tag_id = device_ops_api::tag_id_t(i * 2 + 1);

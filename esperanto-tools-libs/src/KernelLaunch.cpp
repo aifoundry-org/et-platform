@@ -31,7 +31,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
                                  std::optional<UserTrace> userTraceConfig) {
   std::unique_lock lock(mutex_);
   const auto& kernel = find(kernels_, kernelId)->second;
-  ScopedProfileEvent profileEvent(Class::KernelLaunch, profiler_, streamId, kernelId, kernel->getLoadAddress());
+  ScopedProfileEvent profileEvent(Class::KernelLaunch, *profiler_, streamId, kernelId, kernel->getLoadAddress());
 
   if (kernel_args_size > kBlockSize) {
     char buffer[1024];
@@ -115,7 +115,7 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
                << cmdPtr->pointer_to_args << ", PC: 0x" << cmdPtr->code_start_address << ", shire_mask: 0x"
                << shire_mask;
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-  commandSender.send(Command{cmdBase, commandSender, false, true});
+  commandSender.send(Command{cmdBase, commandSender, event, false, true});
   profileEvent.setEventId(event);
 
   Sync(event);

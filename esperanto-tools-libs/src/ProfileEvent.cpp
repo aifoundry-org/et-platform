@@ -51,10 +51,12 @@ std::string getString(Class cls) {
     return "WaitForStream";
   case event::DeviceCommand:
     return "DeviceCommand";
-  case event::KernelTimestamps:
-    return "KernelTimestamps";
   case event::Pmc:
     return "Pmc";
+  case event::CommandSent:
+    return "CommandSent";
+  case event::ResponseReceived:
+    return "ResponseReceived";
   default:
     assert(false);
     return "Unknown class";
@@ -71,6 +73,20 @@ std::string getString(Type type) {
     return "Complete";
   case Type::Instant:
     return "Instant";
+  default:
+    assert(false);
+    return "Unknown type";
+  }
+}
+
+std::string getString(ResponseType rspType) {
+  switch (rspType) {
+  case ResponseType::DMARead:
+    return "DMA Read";
+  case ResponseType::DMAWrite:
+    return "DMA Write";
+  case ResponseType::Kernel:
+    return "Kernel";
   default:
     assert(false);
     return "Unknown type";
@@ -94,8 +110,11 @@ Class class_from_string(const std::string& str) {
     s_map[getString(Class::WaitForEvent)] = Class::WaitForEvent;
     s_map[getString(Class::WaitForStream)] = Class::WaitForStream;
     s_map[getString(Class::DeviceCommand)] = Class::DeviceCommand;
-    s_map[getString(Class::KernelTimestamps)] = Class::KernelTimestamps;
     s_map[getString(Class::Pmc)] = Class::Pmc;
+    s_map[getString(Class::CommandSent)] = Class::CommandSent;
+    s_map[getString(Class::ResponseReceived)] = Class::ResponseReceived;
+
+    assert(s_map.size() == static_cast<int>(Class::COUNT));
   });
 
   return s_map[str];
@@ -109,6 +128,19 @@ Type type_from_string(const std::string& str) {
     s_map[getString(Type::End)] = Type::End;
     s_map[getString(Type::Complete)] = Type::Complete;
     s_map[getString(Type::Instant)] = Type::Instant;
+  });
+  return s_map[str];
+}
+
+ResponseType response_type_from_string(const std::string& str) {
+  static std::once_flag s_once_flag;
+  static std::unordered_map<std::string, ResponseType> s_map;
+  std::call_once(s_once_flag, []() {
+    s_map[getString(ResponseType::DMARead)] = ResponseType::DMARead;
+    s_map[getString(ResponseType::DMAWrite)] = ResponseType::DMAWrite;
+    s_map[getString(ResponseType::Kernel)] = ResponseType::Kernel;
+
+    assert(s_map.size() == static_cast<int>(ResponseType::COUNT));
   });
   return s_map[str];
 }
@@ -157,6 +189,9 @@ std::optional<DeviceId> ProfileEvent::getDeviceId() const {
 }
 std::optional<KernelId> ProfileEvent::getKernelId() const {
   return getExtra<KernelId>("kernel_id");
+}
+std::optional<ResponseType> ProfileEvent::getResponseType() const {
+  return getExtra<ResponseType>("rsp_type");
 }
 std::optional<uint64_t> ProfileEvent::getLoadAddress() const {
   return getExtra<uint64_t>("load_address");
@@ -209,6 +244,10 @@ void ProfileEvent::setKernelId(KernelId kernelId) {
   addExtra("kernel_id", std::move(kernelId));
 }
 
+void ProfileEvent::setResponseType(ResponseType rspType) {
+  addExtra("rsp_type", rspType);
+}
+
 void ProfileEvent::setLoadAddress(uint64_t loadAddress) {
   addExtra("load_address", loadAddress);
 }
@@ -219,12 +258,10 @@ void ProfileEvent::setDeviceCmdStartTs(uint64_t start_ts) {
 
 void ProfileEvent::setDeviceCmdWaitDur(uint64_t wait_dur) {
   addExtra("device_cmd_wait_dur", wait_dur);
-  addExtra("cmd_wait_time", wait_dur);
 }
 
 void ProfileEvent::setDeviceCmdExecDur(uint64_t exec_dur) {
   addExtra("device_cmd_exec_dur", exec_dur);
-  addExtra("cmd_execution_time", exec_dur);
 }
 
 template <typename... Args> void ProfileEvent::addExtra(std::string name, Args&&... args) {

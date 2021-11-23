@@ -31,7 +31,7 @@ class ExecutionContextCache;
 class MemoryManager;
 class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
 public:
-  explicit RuntimeImp(dev::IDeviceLayer* deviceLayer);
+  explicit RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling::IProfilerRecorder> profiler);
 
   std::vector<DeviceId> getDevices() final;
 
@@ -70,7 +70,7 @@ public:
   EventId abortStream(StreamId streamId) final;
 
   IProfiler* getProfiler() final {
-    return &profiler_;
+    return profiler_.get();
   }
 
   void setOnStreamErrorsCallback(StreamErrorCallback callback) final;
@@ -133,9 +133,9 @@ private:
   }
 
   mutable std::recursive_mutex mutex_;
-  profiling::ProfilerImp profiler_;
   dev::IDeviceLayer* deviceLayer_;
   std::unique_ptr<CmaManager> cmaManager_;
+  std::unique_ptr<profiling::IProfilerRecorder> profiler_;
   std::vector<DeviceId> devices_;
   StreamManager streamManager_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;

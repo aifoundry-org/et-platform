@@ -80,7 +80,7 @@ void MemcpyCommandBuilder::clear() {
 
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
                                        bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_, stream);
+  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, *profiler_, stream);
   auto streamInfo = streamManager_.getStreamInfo(stream);
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
@@ -136,7 +136,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
         auto cmdEvt = eventManager_.getNextId();
         streamManager_.addEvent(stream, cmdEvt);
         builder.setTagId(cmdEvt);
-        cs.sendBefore(ghost, {builder.build(), cs, true, true});
+        cs.sendBefore(ghost, {builder.build(), cs, cmdEvt, true, true});
         builder.clear();
         cmdEvents.emplace_back(cmdEvt);
 
@@ -171,7 +171,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
 
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const IDmaBuffer* h_src, std::byte* d_dst, size_t size,
                                        bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, profiler_, stream);
+  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, *profiler_, stream);
   if (size > h_src->getSize()) {
     throw Exception("Trying to do a memcpy host to device using a dma buffer shorter than required size.");
   }
@@ -185,13 +185,13 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const IDmaBuffer* h_src,
                << " Device address: " << d_dst << " Size: " << size;
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
   streamManager_.addEvent(stream, evt);
-  commandSender.send(Command{cmdBuilder.build(), commandSender, true, true});
+  commandSender.send(Command{cmdBuilder.build(), commandSender, evt, true, true});
   return evt;
 }
 
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, IDmaBuffer* h_dst, size_t size,
                                        bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_, stream);
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream);
   if (size > h_dst->getSize()) {
     throw Exception("Trying to do a memcpy device to host using a dma buffer shorter than required size.");
   }
@@ -205,13 +205,14 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
                << " Device address: " << h_dst->getPtr() << std::dec << " Size: " << size;
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
   streamManager_.addEvent(stream, evt);
-  commandSender.send(Command{cmdBuilder.build(), commandSender, true, true});
+  commandSender.send(Command{cmdBuilder.build(), commandSender, evt, true, true});
   return evt;
 }
 
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                        bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, profiler_, stream);
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream);
+
   auto streamInfo = streamManager_.getStreamInfo(stream);
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
@@ -273,7 +274,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
         auto cmdEvt = eventManager_.getNextId();
         streamManager_.addEvent(stream, cmdEvt);
         builder.setTagId(cmdEvt);
-        cs.sendBefore(ghost, {builder.build(), cs, true, true});
+        cs.sendBefore(ghost, {builder.build(), cs, cmdEvt, true, true});
         builder.clear();
 
         // this extra event is needed to make sure we wait till the final copy between cma and user memory

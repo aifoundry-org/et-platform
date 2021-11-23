@@ -22,7 +22,27 @@
 
 namespace rt::profiling {
 
-class ProfilerImp : public IProfiler {
+class IProfilerRecorder : public IProfiler {
+public:
+  virtual void record(const ProfileEvent& event) = 0;
+};
+
+// Dummy implementation that does nothing (for performance measuring without traces)
+class DummyProfiler : public IProfilerRecorder {
+public:
+  void start(std::ostream&, OutputType) override {
+    // Intentionally unimplemented
+  }
+  void stop() override {
+    // Intentionally unimplemented
+  }
+  void record(const ProfileEvent&) override {
+    // Intentionally unimplemented
+  }
+};
+
+// Regluar implementation
+class ProfilerImp : public IProfilerRecorder {
 public:
   // IProfiler interface
   void start(std::ostream& outputStream, OutputType outputType) override {
@@ -45,7 +65,7 @@ public:
     archive_.emplace<std::monostate>();
   }
 
-  void record(const ProfileEvent& event) {
+  void record(const ProfileEvent& event) override {
     std::lock_guard lock{mutex_};
     std::visit(
       [&event](auto&& archive) {

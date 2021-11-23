@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------
- * Copyright (C) 2020, Esperanto Technologies Inc.
+ * Copyright (C) 2021, Esperanto Technologies Inc.
  * The copyright to the computer program(s) herein is the
  * property of Esperanto Technologies, Inc. All Rights Reserved.
  * The program(s) may be used and/or copied only with
@@ -8,12 +8,20 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
-#include "ProfilerImp.h"
-#include "RuntimeImp.h"
-#include "runtime/IRuntime.h"
+#pragma once
 
-namespace rt {
-RuntimePtr IRuntime::create(dev::IDeviceLayer* deviceLayer) {
-  return std::make_unique<RuntimeImp>(deviceLayer, std::make_unique<profiling::ProfilerImp>());
-}
-}
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+
+#include "ProfilerImp.h" // IProfilerRecorder
+
+namespace rt::profiling {
+
+class ProfilerMock : public IProfilerRecorder {
+public:
+  MOCK_METHOD2(start, void(std::ostream&, OutputType));
+  MOCK_METHOD0(stop, void());
+  MOCK_METHOD1(record, void(const ProfileEvent&));
+};
+
+} // namespace rt::profiling

@@ -59,8 +59,9 @@ RuntimeImp::~RuntimeImp() {
   running_ = false;
 }
 
-RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
-  : deviceLayer_(deviceLayer) {
+RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling::IProfilerRecorder> profiler)
+  : deviceLayer_{deviceLayer}
+  , profiler_{std::move(profiler)} {
   auto devicesCount = deviceLayer_->getDevicesCount();
   CHECK(devicesCount > 0);
   for (int i = 0; i < devicesCount; ++i) {
@@ -69,7 +70,7 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
     auto sqCount = deviceLayer->getSubmissionQueuesCount(i);
     streamManager_.addDevice(id, sqCount);
     for (int sq = 0; sq < sqCount; ++sq) {
-      commandSenders_.try_emplace(getCommandSenderIdx(i, sq), *deviceLayer_, i, sq);
+      commandSenders_.try_emplace(getCommandSenderIdx(i, sq), *deviceLayer_, *profiler_, i, sq);
     }
   }
   auto dramBaseAddress = deviceLayer_->getDramBaseAddress();
@@ -111,12 +112,12 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
 }
 
 std::vector<DeviceId> RuntimeImp::getDevices() {
-  ScopedProfileEvent profileEvent(Class::GetDevices, profiler_);
+  ScopedProfileEvent profileEvent(Class::GetDevices, *profiler_);
   return devices_;
 }
 
 LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size_t size) {
-  ScopedProfileEvent profileEvent(Class::LoadCode, profiler_, stream);
+  ScopedProfileEvent profileEvent(Class::LoadCode, *profiler_, stream);
   std::lock_guard lock(mutex_);
 
   auto stInfo = streamManager_.getStreamInfo(stream);
@@ -215,7 +216,7 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
 }
 
 void RuntimeImp::unloadCode(KernelId kernel) {
-  ScopedProfileEvent profileEvent(Class::UnloadCode, profiler_, kernel);
+  ScopedProfileEvent profileEvent(Class::UnloadCode, *profiler_, kernel);
   std::lock_guard lock(mutex_);
   auto it = find(kernels_, kernel);
   auto deviceId = it->second->deviceId_;
@@ -231,7 +232,7 @@ void RuntimeImp::unloadCode(KernelId kernel) {
 }
 
 std::byte* RuntimeImp::mallocDevice(DeviceId device, size_t size, uint32_t alignment) {
-  ScopedProfileEvent profileEvent(Class::MallocDevice, profiler_, device);
+  ScopedProfileEvent profileEvent(Class::MallocDevice, *profiler_, device);
   RT_LOG(INFO) << "Malloc requested device " << std::hex << static_cast<std::underlying_type_t<DeviceId>>(device)
                << " size: " << size << " alignment: " << alignment;
 
@@ -245,7 +246,7 @@ std::byte* RuntimeImp::mallocDevice(DeviceId device, size_t size, uint32_t align
 }
 
 void RuntimeImp::freeDevice(DeviceId device, std::byte* buffer) {
-  ScopedProfileEvent profileEvent(Class::FreeDevice, profiler_, device);
+  ScopedProfileEvent profileEvent(Class::FreeDevice, *profiler_, device);
   RT_LOG(INFO) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
                << " buffer address: " << std::hex << buffer;
   std::lock_guard lock(mutex_);
@@ -253,19 +254,19 @@ void RuntimeImp::freeDevice(DeviceId device, std::byte* buffer) {
 }
 
 StreamId RuntimeImp::createStream(DeviceId device) {
-  ScopedProfileEvent profileEvent(Class::CreateStream, profiler_, device);
+  ScopedProfileEvent profileEvent(Class::CreateStream, *profiler_, device);
   RT_LOG(INFO) << "Creating stream at device: " << static_cast<std::underlying_type_t<DeviceId>>(device);
   return streamManager_.createStream(device);
 }
 
 void RuntimeImp::destroyStream(StreamId stream) {
-  ScopedProfileEvent profileEvent(Class::DestroyStream, profiler_, stream);
+  ScopedProfileEvent profileEvent(Class::DestroyStream, *profiler_, stream);
   RT_LOG(INFO) << "Destroying stream: " << static_cast<std::underlying_type_t<StreamId>>(stream);
   streamManager_.destroyStream(stream);
 }
 
 bool RuntimeImp::waitForEvent(EventId event, std::chrono::seconds timeout) {
-  ScopedProfileEvent profileEvent(Class::WaitForEvent, profiler_, event);
+  ScopedProfileEvent profileEvent(Class::WaitForEvent, *profiler_, event);
   if (!running_) {
     RT_LOG(WARNING) << "Trying to wait for an event but runtime is not running anymore, returning.";
     return true;
@@ -278,7 +279,7 @@ bool RuntimeImp::waitForEvent(EventId event, std::chrono::seconds timeout) {
 }
 
 bool RuntimeImp::waitForStream(StreamId stream, std::chrono::seconds timeout) {
-  ScopedProfileEvent profileEvent(Class::WaitForStream, profiler_, stream);
+  ScopedProfileEvent profileEvent(Class::WaitForStream, *profiler_, stream);
   auto events = streamManager_.getLiveEvents(stream);
   for (auto e : events) {
     RT_VLOG(LOW) << "WaitForStream: Waiting for event " << static_cast<int>(e);
@@ -325,14 +326,16 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   auto header = reinterpret_cast<const device_ops_api::rsp_header_t*>(response.data());
   auto eventId = EventId{header->rsp_hdr.tag_id};
 
-  ProfileEvent event(Type::Instant, Class::KernelTimestamps);
-  event.setEvent(eventId);
-  auto fillEvent = [](ProfileEvent& evt, const auto& rsp) {
+  auto recordEvent = [](auto& profiler, const auto& rsp, const auto& evt, ResponseType rspT) {
     RT_VLOG(HIGH) << std::hex << " Start time: " << rsp.device_cmd_start_ts << " Wait time: " << rsp.device_cmd_wait_dur
                   << " Execution time: " << rsp.device_cmd_execute_dur;
-    evt.setDeviceCmdStartTs(rsp.device_cmd_start_ts);
-    evt.setDeviceCmdWaitDur(rsp.device_cmd_wait_dur);
-    evt.setDeviceCmdExecDur(rsp.device_cmd_execute_dur);
+    ProfileEvent event(Type::Instant, Class::ResponseReceived);
+    event.setEvent(evt);
+    event.setResponseType(rspT);
+    event.setDeviceCmdStartTs(rsp.device_cmd_start_ts);
+    event.setDeviceCmdWaitDur(rsp.device_cmd_wait_dur);
+    event.setDeviceCmdExecDur(rsp.device_cmd_execute_dur);
+    profiler.record(event);
   };
 
   RT_VLOG(MID) << "Response received eventId: " << static_cast<int>(eventId)
@@ -350,7 +353,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP:
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_read_rsp_t*>(response.data());
-    fillEvent(event, *r);
+    recordEvent(*profiler_, *r, eventId, ResponseType::DMARead);
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on DMA read: " << r->status << ". Tag id: " << static_cast<int>(eventId);
@@ -369,7 +372,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP:
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_data_write_rsp_t*>(response.data());
-    fillEvent(event, *r);
+    recordEvent(*profiler_, *r, eventId, ResponseType::DMAWrite);
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on DMA write: " << r->status << ". Tag id: " << static_cast<int>(eventId);
@@ -379,7 +382,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   }
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_kernel_launch_rsp_t*>(response.data());
-    fillEvent(event, *r);
+    recordEvent(*profiler_, *r, eventId, ResponseType::Kernel);
     if (r->status !=
         device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED) {
       responseWasOk = false;
@@ -412,7 +415,6 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     RT_LOG(WARNING) << "Unknown response msg id: " << header->rsp_hdr.msg_id;
     break;
   }
-  profiler_.record(event);
   // if response wasn't ok, then processResponseError will clean events
   if (responseWasOk) {
     dispatch(eventId);
@@ -445,7 +447,7 @@ EventId RuntimeImp::setupDeviceTracing(StreamId stream, uint32_t shireMask, uint
   if (barrier)
     cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-  commandSender.send(Command{cmdBase, commandSender, false, true});
+  commandSender.send(Command{cmdBase, commandSender, evt, false, true});
   Sync(evt);
   return evt;
 }
@@ -477,7 +479,7 @@ EventId RuntimeImp::startDeviceTracing(StreamId stream, std::ostream* mmOutput, 
   if (barrier)
     cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-  commandSender.send(Command{cmdBase, commandSender, false, true});
+  commandSender.send(Command{cmdBase, commandSender, evt, false, true});
   deviceTracing.cmOutput_ = cmOutput;
   deviceTracing.mmOutput_ = mmOutput;
   Sync(evt);
@@ -514,7 +516,7 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
     reinterpret_cast<uint64_t>(deviceTracing.dmaBuffer_->getPtr());
 
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-  commandSender.send(Command{cmd, commandSender, true, true});
+  commandSender.send(Command{cmd, commandSender, evt, true, true});
 
   // replace the event (because we need to do the copy before dispatching the final event to the user)
   auto memcpyEvt = evt;
