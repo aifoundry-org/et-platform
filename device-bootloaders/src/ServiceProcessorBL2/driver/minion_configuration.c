@@ -240,6 +240,8 @@ static void MM_HeartBeat_Timer_Cb(xTimerHandle pxTimer)
 {
     Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer expired\n", __func__);
 
+    Minion_State_MM_Error_Handler(MM_HANG_ERROR);
+
     /* Stop the timer */
     if (pdPASS != xTimerStop(pxTimer, 0))
     {
@@ -363,7 +365,7 @@ int Minion_Reset_Threads(uint64_t minion_shires_mask)
         if (minion_shires_mask & 1)
         {
             // Read current Shire Config value
-            uint64_t config = read_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE, 
+            uint64_t config = read_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
                                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
 
             // Disable Neighbourhood
