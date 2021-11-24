@@ -339,7 +339,7 @@ static inline void et_print_mgmt_dir(struct device *dev,
 
 	remaining_size = dir_size - sizeof(struct et_mgmt_dir_header) -
 			 sizeof(struct et_mgmt_dir_vqueue);
-	while (remaining_size > 0) {
+	while (remaining_size >= sizeof(struct et_dir_mem_region)) {
 		dev_dbg(dev, "Mgmt DIRs Memory Region[%d]\n", i);
 		dev_dbg(dev,
 			"Attributes Size         : 0x%x\n",
