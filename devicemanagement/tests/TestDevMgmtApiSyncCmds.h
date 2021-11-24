@@ -18,7 +18,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-
 #include <dlfcn.h>
 
 using namespace dev;
@@ -177,6 +176,11 @@ protected:
   void setSRAMECCountInvalidHostLatency_1_120(bool singleDevice);
   void setSRAMECCountInvalidDeviceLatency_1_121(bool singleDevice);
   void setSRAMECCountInvalidOutputBuffer_1_122(bool singleDevice);
+  void getHistoricalExtremeWithInvalidDeviceNode_1_123(bool singleDevice);
+  void getHistoricalExtremeWithInvalidHostLatency_1_124(bool singleDevice);
+  void getHistoricalExtremeWithInvalidDeviceLatency_1_125(bool singleDevice);
+  void getHistoricalExtremeWithInvalidOutputBuffer_1_126(bool singleDevice);
+  void getHistoricalExtremeWithInvalidOutputSize_1_127(bool singleDevice);
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
 };

@@ -14,7 +14,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-
 class TestDevMgmtApiFuncSyncCmdsPcie : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
@@ -22,11 +21,10 @@ class TestDevMgmtApiFuncSyncCmdsPcie : public TestDevMgmtApiSyncCmds {
   }
   void TearDown() override {
     extractAndPrintTraceData();
-     if (handle_ != nullptr) {
-       dlclose(handle_);
+    if (handle_ != nullptr) {
+      dlclose(handle_);
     }
   }
-
 };
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getASICChipRevision_1_4) {
@@ -513,6 +511,26 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setSRAMECCountInvalidDeviceLatency_1_121)
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, setSRAMECCountInvalidOutputBuffer_1_122) {
   setSRAMECCountInvalidOutputBuffer_1_122(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getHistoricalExtremeWithInvalidDeviceNode_1_123) {
+  getHistoricalExtremeWithInvalidDeviceNode_1_123(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getHistoricalExtremeWithInvalidHostLatency_1_124) {
+  getHistoricalExtremeWithInvalidHostLatency_1_124(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getHistoricalExtremeWithInvalidDeviceLatency_1_125) {
+  getHistoricalExtremeWithInvalidDeviceLatency_1_125(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getHistoricalExtremeWithInvalidOutputBuffer_1_126) {
+  getHistoricalExtremeWithInvalidOutputBuffer_1_126(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcie, getHistoricalExtremeWithInvalidOutputSize_1_127) {
+  getHistoricalExtremeWithInvalidOutputSize_1_127(false /* Multiple Devices */);
 }
 
 int main(int argc, char** argv) {

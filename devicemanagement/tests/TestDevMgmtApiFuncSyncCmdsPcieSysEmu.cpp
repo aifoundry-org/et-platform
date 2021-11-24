@@ -24,8 +24,8 @@ class TestDevMgmtApiFuncSyncCmdsPcieSysEmu : public TestDevMgmtApiSyncCmds {
   }
   void TearDown() override {
     extractAndPrintTraceData();
-     if (handle_ != nullptr) {
-       dlclose(handle_);
+    if (handle_ != nullptr) {
+      dlclose(handle_);
     }
   }
 };
@@ -215,7 +215,7 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setModuleActivePowerManagementRange
 }
 
 // Pending SysEMU pointer update. Stuck behind a modelling bug
-//TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, updateFirmwareImage_1_63) {
+// TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, updateFirmwareImage_1_63) {
 //  updateFirmwareImage_1_63(false);
 //}
 
@@ -453,6 +453,26 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setSRAMECCountInvalidDeviceLatency_
 
 TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setSRAMECCountInvalidOutputBuffer_1_122) {
   setSRAMECCountInvalidOutputBuffer_1_122(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getHistoricalExtremeWithInvalidDeviceNode_1_123) {
+  getHistoricalExtremeWithInvalidDeviceNode_1_123(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getHistoricalExtremeWithInvalidHostLatency_1_124) {
+  getHistoricalExtremeWithInvalidHostLatency_1_124(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getHistoricalExtremeWithInvalidDeviceLatency_1_125) {
+  getHistoricalExtremeWithInvalidDeviceLatency_1_125(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getHistoricalExtremeWithInvalidOutputBuffer_1_126) {
+  getHistoricalExtremeWithInvalidOutputBuffer_1_126(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getHistoricalExtremeWithInvalidOutputSize_1_127) {
+  getHistoricalExtremeWithInvalidOutputSize_1_127(false /* Multiple Devices */);
 }
 
 // retrieve MM FW error counts. This test should be run last so that we are
