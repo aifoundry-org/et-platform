@@ -249,7 +249,7 @@ static void MM_HeartBeat_Timer_Cb(xTimerHandle pxTimer)
     }
 
     /* Reset minion threads */
-    if (0 != Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask()))
+    if (0 != Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask(), true))
     {
         Log_Write(LOG_LEVEL_ERROR, "%s : MM thread reset failed\n", __func__);
     }
@@ -341,17 +341,20 @@ int Minion_Enable_Master_Shire_Threads(uint8_t mm_id)
 *   INPUTS
 *
 *       minion_shires_mask Minion Shire Mask
+*       include_mm Reset MM threads as well
 *
 *   OUTPUTS
 *
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-int Minion_Reset_Threads(uint64_t minion_shires_mask)
+int Minion_Reset_Threads(uint64_t minion_shires_mask, bool include_mm)
 {
     uint8_t num_shires;
+    uint64_t enable_neig_mask;
+    uint64_t disable_neig_mask;
 
-    if(0 != minion_shires_mask)
+    if (0 != minion_shires_mask)
     {
         num_shires = get_highest_set_bit_offset(minion_shires_mask);
     }
@@ -364,25 +367,41 @@ int Minion_Reset_Threads(uint64_t minion_shires_mask)
     {
         if (minion_shires_mask & 1)
         {
-            // Read current Shire Config value
-            uint64_t config = read_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+            /* Check if its a master shire */
+            if (!include_mm && shire_id == MM_MASTER_SHIRE_ID)
+            {
+                /* Only reset last 2 neighborhoods */
+                disable_neig_mask = 0x3;
+                enable_neig_mask = 0xc;
+            }
+            else
+            {
+                /* Reset all neighborhoods in a given shire */
+                disable_neig_mask = 0x0;
+                enable_neig_mask = 0xf;
+            }
+
+            /* Read current Shire Config value */
+            uint64_t config = read_esr_new(PP_MACHINE, shire_id, REGION_OTHER,
+                                           ESR_OTHER_SUBREGION_CACHE,
                                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
 
-            // Disable Neighbourhood
-            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, 0x0);
+            /* Disable Neighborhood */
+            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, disable_neig_mask);
             write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
-                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
+                          ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
 
-            // Enable Neighbourhood
-            config |= ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(0xF);
-            write_esr_new(PP_MACHINE, shire_id , REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
-                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
+            /* Enable Neighborhood */
+            config |= ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(enable_neig_mask);
+            write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                          ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
+
+            minion_shires_mask >>= 1;
         }
-        minion_shires_mask >>= 1;
     }
+
     return 0;
 }
-
 /************************************************************************
 *
 *   FUNCTION

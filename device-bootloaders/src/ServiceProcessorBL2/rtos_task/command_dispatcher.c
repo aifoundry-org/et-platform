@@ -385,7 +385,7 @@ static void mm2sp_minion_reset_handler(const void *cmd_buffer)
 
     /* Make sure the Shire Mask sent was valid and then issue the MM reset */
     if (((cmd->shire_mask & available_shires) != cmd->shire_mask) ||
-        (0 != Minion_Reset_Threads(cmd->shire_mask)))
+        (0 != Minion_Reset_Threads(cmd->shire_mask, false)))
     {
         Log_Write(LOG_LEVEL_ERROR, "MM2SP_CMD_MINION_RESET: Unable to Reset Shires!\n");
         rsp.results = -1;
@@ -418,7 +418,8 @@ static void mm2sp_report_error_event_handler(const void *cmd_buffer)
     }
     else if (event->error_type == SP_RECOVERABLE)
     {
-        /* Restart the Master Minion */
+        /* Restart the Compute Minions  everything */
+        Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask(), true);
     }
     else
     {
