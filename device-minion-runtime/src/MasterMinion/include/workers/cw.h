@@ -38,7 +38,7 @@ typedef uint8_t cw_shire_state_t;
 /*! \def CW_ERROR_GENERAL
     \brief Compute Worker - General error
 */
-#define CW_ERROR_GENERAL     -1
+#define CW_ERROR_GENERAL -1
 
 /*! \def CW_SHIRE_UNAVAILABLE
     \brief Compute Worker - Shires unavailable
@@ -48,7 +48,7 @@ typedef uint8_t cw_shire_state_t;
 /*! \def CW_SHIRES_NOT_FREE
     \brief Compute Worker - Shires not free
 */
-#define CW_SHIRES_NOT_FREE   -3
+#define CW_SHIRES_NOT_FREE -3
 
 /*! \def CW_ERROR_INIT_TIMEOUT
     \brief Compute Worker - Init timeout occured
@@ -58,7 +58,7 @@ typedef uint8_t cw_shire_state_t;
 /*! \def CW_INIT_TIMEOUT
     \brief Timeout value for Compute Workers initialization
 */
-#define CW_INIT_TIMEOUT      2U
+#define CW_INIT_TIMEOUT 2U
 
 /*! \fn int8_t CW_Init(void)
     \brief Initialize Compute Workers, used by dispatcher
@@ -110,5 +110,12 @@ uint64_t CW_Get_Physically_Enabled_Shires(void);
     \return Booted available shire mask
 */
 uint64_t CW_Get_Booted_Shires(void);
+
+/*! \fn uint64_t CW_CONFIGURE_COMPUTE_MINION(uint64_t shire_mask)
+    \brief Configure CW minions for warmboot
+    \param shire_mask Available shires
+    \return None
+*/
+void CW_Configure_Compute_Minion(uint64_t shire_mask);
 
 #endif /* CW_DEFS_H */

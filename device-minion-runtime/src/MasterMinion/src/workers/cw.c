@@ -371,6 +371,8 @@ void CW_Process_CM_SMode_Messages(void)
 
                 if (reset_status == STATUS_SUCCESS)
                 {
+                    syscall(SYSCALL_CONFIGURE_COMPUTE_MINION_WARM_RESET, available_shires, 0, 0);
+
                     /* Wait for all shires to boot up */
                     reset_status = CW_Wait_For_Compute_Minions_Boot(available_shires);
                 }
@@ -521,4 +523,9 @@ int8_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask)
     }
 
     return status;
+}
+
+void CW_Configure_Compute_Minion(uint64_t shire_mask)
+{
+    syscall(SYSCALL_CONFIGURE_COMPUTE_MINION_WARM_RESET, shire_mask, 0, 0);
 }

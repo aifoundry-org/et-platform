@@ -26,3 +26,8 @@ int64_t dynamic_minion_pll_frequency_update(uint64_t freq);
 
 // Get PLL conf global
 volatile struct pll_conf_reg_t *get_pll_conf_reg(void);
+
+// Configure Minion for warm boot scenarios :
+//    Program PLL to mode - all Minion programmed to same mode
+//    Enable Minion Cores - Pull Minion Cores out of Reset
+int64_t configure_compute_minion_warm_reset(uint64_t shire_mask);

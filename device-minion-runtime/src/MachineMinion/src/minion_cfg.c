@@ -133,3 +133,8 @@ int64_t configure_compute_minion(uint64_t shire_mask, uint64_t lvdpll_strap)
 
     return status;
 }
+
+int64_t configure_compute_minion_warm_reset(uint64_t shire_mask)
+{
+    return (enable_compute_threads(shire_mask & CM_SHIRE_ID_MASK));
+}

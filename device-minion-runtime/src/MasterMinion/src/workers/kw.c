@@ -946,13 +946,12 @@ static inline int8_t kw_cm_to_mm_kernel_force_abort(
             int8_t reset_status;
 
             /* Send cmd to SP to reset all the available shires */
-            /* TODO: We are sending MM shire to reset as well, hence all MM Minions
-            will reset. This needs to be fixed on SP side. SP needs to check for
-            MM shire and only reset sync Minions. */
             reset_status = SP_Iface_Reset_Minion(available_shires);
 
             if (reset_status == STATUS_SUCCESS)
             {
+                CW_Configure_Compute_Minion(available_shires);
+
                 /* Wait for all shires to boot up */
                 reset_status = CW_Wait_For_Compute_Minions_Boot(available_shires);
             }
