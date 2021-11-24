@@ -12,6 +12,7 @@
 #include "deviceLayer/IDeviceLayer.h"
 #include "deviceLayer/IDeviceLayerFake.h"
 
+#include <chrono>
 #include <gmock/gmock.h>
 
 using ::testing::A;
@@ -25,13 +26,13 @@ public:
   MOCK_METHOD3(setSqThresholdMasterMinion, void(int device, int sqIdx, uint32_t bytesNeeded));
   MOCK_METHOD3(waitForEpollEventsMasterMinion, void(int device, uint64_t& sq_bitmap, bool& cq_available));
   MOCK_METHOD4(waitForEpollEventsMasterMinion,
-               void(int device, uint64_t& sq_bitmap, bool& cq_available, std::chrono::seconds timeout));
+               void(int device, uint64_t& sq_bitmap, bool& cq_available, std::chrono::milliseconds timeout));
   MOCK_METHOD2(receiveResponseMasterMinion, bool(int device, std::vector<std::byte>& response));
   MOCK_METHOD3(sendCommandServiceProcessor, bool(int device, std::byte* command, size_t commandSize));
   MOCK_METHOD2(setSqThresholdServiceProcessor, void(int device, uint32_t bytesNeeded));
   MOCK_METHOD3(waitForEpollEventsServiceProcessor, void(int device, bool& sq_available, bool& cq_available));
   MOCK_METHOD4(waitForEpollEventsServiceProcessor,
-               void(int device, bool& sq_available, bool& cq_available, std::chrono::seconds timeout));
+               void(int device, bool& sq_available, bool& cq_available, std::chrono::milliseconds timeout));
   MOCK_METHOD2(receiveResponseServiceProcessor, bool(int device, std::vector<std::byte>& response));
   MOCK_CONST_METHOD1(getSubmissionQueuesCount, int(int device));
   MOCK_CONST_METHOD1(getSubmissionQueueSizeMasterMinion, size_t(int device));
@@ -61,10 +62,10 @@ public:
       [this](int device, uint64_t& sq_bitmap, bool& cq_available) {
       fake_.waitForEpollEventsMasterMinion(device, sq_bitmap, cq_available, std::chrono::seconds(1));
     });
-    ON_CALL(*this, waitForEpollEventsMasterMinion(A<int>(), A<uint64_t&>(), A<bool&>(), A<std::chrono::seconds>())).WillByDefault(
-      [this](int device, uint64_t& sq_bitmap, bool& cq_available, std::chrono::seconds timeout) {
-      fake_.waitForEpollEventsMasterMinion(device, sq_bitmap, cq_available, timeout);
-    });
+    ON_CALL(*this, waitForEpollEventsMasterMinion(A<int>(), A<uint64_t&>(), A<bool&>(), A<std::chrono::milliseconds>()))
+      .WillByDefault([this](int device, uint64_t& sq_bitmap, bool& cq_available, std::chrono::milliseconds timeout) {
+        fake_.waitForEpollEventsMasterMinion(device, sq_bitmap, cq_available, timeout);
+      });
     ON_CALL(*this, receiveResponseMasterMinion).WillByDefault([this](int device, std::vector<std::byte>& response) {
       return fake_.receiveResponseMasterMinion(device, response);
     });
@@ -78,10 +79,10 @@ public:
       [this](int device, bool& sq_available, bool& cq_available) {
       fake_.waitForEpollEventsServiceProcessor(device, sq_available, cq_available, std::chrono::seconds(1));
     });
-    ON_CALL(*this, waitForEpollEventsServiceProcessor(A<int>(), A<bool&>(), A<bool&>(), A<std::chrono::seconds>())).WillByDefault(
-      [this](int device, bool& sq_available, bool& cq_available, std::chrono::seconds timeout) {
-      fake_.waitForEpollEventsServiceProcessor(device, sq_available, cq_available, timeout);
-    });
+    ON_CALL(*this, waitForEpollEventsServiceProcessor(A<int>(), A<bool&>(), A<bool&>(), A<std::chrono::milliseconds>()))
+      .WillByDefault([this](int device, bool& sq_available, bool& cq_available, std::chrono::milliseconds timeout) {
+        fake_.waitForEpollEventsServiceProcessor(device, sq_available, cq_available, timeout);
+      });
     ON_CALL(*this, receiveResponseServiceProcessor).WillByDefault([this](int device, std::vector<std::byte>& response) {
       return fake_.receiveResponseServiceProcessor(device, response);
     });

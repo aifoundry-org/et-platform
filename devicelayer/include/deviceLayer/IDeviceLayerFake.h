@@ -9,7 +9,6 @@
  *-------------------------------------------------------------------------*/
 #pragma once
 #include "deviceLayer/IDeviceLayer.h"
-
 #include <condition_variable>
 #include <cstdlib>
 #include <cstring>
@@ -29,7 +28,10 @@ class IDeviceLayerFake : public IDeviceLayer {
 
 public:
   bool sendCommandMasterMinion(int, int, std::byte* command, size_t, bool, bool) override {
-    std::lock_guard<std::mutex> lock(mmMutex_);
+    std::unique_lock lock(mmMutex_, std::defer_lock);
+    while (!lock.try_lock()) {
+      // spin-lock
+    }
     auto cmd = reinterpret_cast<device_ops_api::cmn_header_t*>(command);
     device_ops_api::rsp_header_t rsp;
     rsp.rsp_hdr.tag_id = cmd->tag_id;
@@ -72,7 +74,7 @@ public:
   }
 
   void waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool& cq_available,
-                                      std::chrono::seconds timeout) override {
+                                      std::chrono::milliseconds timeout) override {
     std::unique_lock<std::mutex> lock(mmMutex_, std::defer_lock);
     while (!lock.try_lock()) {
       // spin-lock
@@ -112,7 +114,7 @@ public:
   void setSqThresholdServiceProcessor(int, uint32_t) override{};
 
   void waitForEpollEventsServiceProcessor(int, bool& sq_available, bool& cq_available,
-                                          std::chrono::seconds timeout) override {
+                                          std::chrono::milliseconds timeout) override {
     std::unique_lock lock(spMutex_);
     cvMm_.wait_for(lock, timeout, [this] { return !responsesServiceProcessor_.empty(); });
     sq_available = cq_available = true;
@@ -186,7 +188,7 @@ public:
   DeviceConfig getDeviceConfig(int) override {
     return DeviceConfig{};
   }
-  int updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) override {
+  int updateFirmwareImage(int, std::vector<unsigned char>&) override {
     return 0;
   }
   size_t getFreeCmaMemory() const override {

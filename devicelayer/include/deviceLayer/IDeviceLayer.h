@@ -103,7 +103,7 @@ public:
   /// @param[in] timeout the operation will be aborted if no event happen in given timeout
   ///
   virtual void waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap, bool& cq_available,
-                                              std::chrono::seconds timeout = std::chrono::seconds(10)) = 0;
+                                              std::chrono::milliseconds timeout = std::chrono::seconds(10)) = 0;
 
   /// \brief Receives a response from the device, a non-blocking interface. If the method returns false, the caller
   /// should try later when the queue has response available indicated by `waitForEpollEventsMasterMinion()`
@@ -147,7 +147,7 @@ public:
   /// @param[in] timeout the operation will be aborted if no event happen in given timeout
   ///
   virtual void waitForEpollEventsServiceProcessor(int device, bool& sq_available, bool& cq_available,
-                                                  std::chrono::seconds timeout = std::chrono::seconds(10)) = 0;
+                                                  std::chrono::milliseconds timeout = std::chrono::seconds(10)) = 0;
 
   /// \brief Receives a response from the device, a non-blocking interface. If the method returns false, the caller
   /// should try later when the queue has response available indicated by `waitForEpollEventsServiceProcessor()`

@@ -360,7 +360,7 @@ void DevicePcie::setSqThresholdMasterMinion(int device, int sqIdx, uint32_t byte
 }
 
 void DevicePcie::waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap, bool& cq_available,
-                                                std::chrono::seconds timeout) {
+                                                std::chrono::milliseconds timeout) {
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
@@ -371,9 +371,7 @@ void DevicePcie::waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap,
   sq_bitmap = 0;
   cq_available = false;
   epoll_event eventList[kMaxEpollEvents];
-  auto readyEvents =
-    epoll_wait(deviceInfo.epFdOps_, eventList, kMaxEpollEvents,
-               static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count()));
+  auto readyEvents = epoll_wait(deviceInfo.epFdOps_, eventList, kMaxEpollEvents, static_cast<int>(timeout.count()));
 
   if (readyEvents > 0) {
     for (int i = 0; i < readyEvents; i++) {
@@ -444,7 +442,7 @@ void DevicePcie::setSqThresholdServiceProcessor(int device, uint32_t bytesNeeded
 }
 
 void DevicePcie::waitForEpollEventsServiceProcessor(int device, bool& sq_available, bool& cq_available,
-                                                    std::chrono::seconds timeout) {
+                                                    std::chrono::milliseconds timeout) {
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
   }
@@ -457,8 +455,7 @@ void DevicePcie::waitForEpollEventsServiceProcessor(int device, bool& sq_availab
   epoll_event eventList[kMaxEpollEvents];
   int readyEvents;
 
-  readyEvents = epoll_wait(deviceInfo.epFdMgmt_, eventList, kMaxEpollEvents,
-                           static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count()));
+  readyEvents = epoll_wait(deviceInfo.epFdMgmt_, eventList, kMaxEpollEvents, static_cast<int>(timeout.count()));
   if (readyEvents > 0) {
     for (int i = 0; i < readyEvents; i++) {
       if (eventList[i].events & (EPOLLOUT | EPOLLIN)) {

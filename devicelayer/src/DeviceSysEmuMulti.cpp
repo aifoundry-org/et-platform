@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 #include "DeviceSysEmuMulti.h"
 #include "DeviceSysEmu.h"
+#include <chrono>
 
 using namespace dev;
 
@@ -47,7 +48,7 @@ void DeviceSysEmuMulti::setSqThresholdMasterMinion(int device, int sqIdx, uint32
   return getDevice(device).setSqThresholdMasterMinion(device, sqIdx, bytesNeeded);
 }
 void DeviceSysEmuMulti::waitForEpollEventsMasterMinion(int device, uint64_t& sqBitmap, bool& cqAvailable,
-                                                       std::chrono::seconds timeout) {
+                                                       std::chrono::milliseconds timeout) {
   return getDevice(device).waitForEpollEventsMasterMinion(device, sqBitmap, cqAvailable, timeout);
 }
 bool DeviceSysEmuMulti::receiveResponseMasterMinion(int device, std::vector<std::byte>& response) {
@@ -61,7 +62,7 @@ void DeviceSysEmuMulti::setSqThresholdServiceProcessor(int device, uint32_t byte
   return getDevice(device).setSqThresholdServiceProcessor(device, bytesNeeded);
 }
 void DeviceSysEmuMulti::waitForEpollEventsServiceProcessor(int device, bool& sqAvailable, bool& cqAvailable,
-                                                           std::chrono::seconds timeout) {
+                                                           std::chrono::milliseconds timeout) {
   return getDevice(device).waitForEpollEventsServiceProcessor(device, sqAvailable, cqAvailable, timeout);
 }
 bool DeviceSysEmuMulti::receiveResponseServiceProcessor(int device, std::vector<std::byte>& response) {

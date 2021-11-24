@@ -39,8 +39,8 @@ constexpr auto kCommonHeaderSize = 8U;
 // This is the max possible size of the device API commands (DMA list with all 4 entries)
 constexpr auto kMMThresholdBytes = 136U;
 
-constexpr auto kDmaElemSize = 32 << 20;
-constexpr auto kDmaElemCount = 8;
+constexpr auto kDmaElemSize = 64 << 20;
+constexpr auto kDmaElemCount = 4;
 
 constexpr size_t getAvailSpace(const CircBuffCb& buffer) {
   auto head = buffer.head_offset;
@@ -269,7 +269,7 @@ bool DeviceSysEmu::checkForEventEPOLLOUT(const QueueInfo& queueInfo) const {
 }
 
 void DeviceSysEmu::waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool& cq_available,
-                                                  std::chrono::seconds timeout) {
+                                                  std::chrono::milliseconds timeout) {
   DV_VLOG(HIGH) << "Waiting for interrupt from master minion";
   sq_bitmap = 0;
   cq_available = false;
@@ -306,7 +306,7 @@ void DeviceSysEmu::waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool
 }
 
 void DeviceSysEmu::waitForEpollEventsServiceProcessor(int, bool& sq_available, bool& cq_available,
-                                                      std::chrono::seconds timeout) {
+                                                      std::chrono::milliseconds timeout) {
   DV_VLOG(HIGH) << "Waiting for interrupt from service processor";
 
   sq_available = false;
