@@ -14,7 +14,6 @@ set(TEST_LIST
   test_event_manager.cpp:""
   benchmark.cpp:""
   other.cpp:""
-  test_host_buffer_manager.cpp:""
   KernelLaunchFake.cpp:""
   TestCommandSender.cpp:""
 )

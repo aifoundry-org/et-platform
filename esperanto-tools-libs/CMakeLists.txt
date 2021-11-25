@@ -72,7 +72,7 @@ add_library(etrt_obj OBJECT
     src/ResponseReceiver.cpp
     src/KernelLaunch.cpp
     src/MemcpyOps.cpp
-    src/dma/HostBufferManager.cpp
+    src/dma/CmaManager.cpp
     src/ProfileEvent.cpp
     src/StreamManager.cpp
     src/Types.cpp

@@ -32,12 +32,21 @@ public:
   using CommandSentCallback = std::function<void(Command*)>;
   explicit CommandSender(dev::IDeviceLayer& deviceLayer, int deviceId, int sqIdx);
   ~CommandSender();
+
+  // returns true if there is a higher prioritary command which is disabled.
+  bool IsThereAnyPreviousDisabledCommand(const Command* command) const;
+
   // returns a pointer to the recently inserted Command. This is useful, for example to change the isEnabled_ flag if
   // needed. We are using a deque to store the commands, and we only pop and emplace; so references won't be invalidated
   Command* send(Command command);
-  // sendAfter works similar to send, but receives an existing Command as a parameter; the new Command will be inserted
-  // after that existing command (so will be executed later)
-  Command* sendAfter(Command* existingCommand, Command command);
+
+  // sendBefore works similar to send, but receives an existing Command as a parameter; the new Command will be inserted
+  // before that existing command (so will be executed later)
+  Command* sendBefore(const Command* existingCommand, Command command);
+
+  // if the Command is not yet running, it will be removed from the queue
+  void cancel(const Command* command);
+
   void enable(Command& command);
   void setOnCommandSentCallback(CommandSentCallback callback);
 
@@ -48,7 +57,7 @@ private:
   CommandSender& operator=(CommandSender&&) = delete;
 
   void runnerFunc();
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   std::list<Command> commands_;
   std::thread runner_;
   std::condition_variable condVar_;

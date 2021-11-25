@@ -18,10 +18,10 @@
 TEST(BenchmarkerTool, fake) {
   dev::IDeviceLayerFake deviceLayer;
   rt::IBenchmarker::Options options;
-  options.numBytesPerTransferD2H = 4 * (1 << 20);
-  options.numBytesPerTransferH2D = 4 * (1 << 20);
+  options.numBytesPerTransferD2H = 4 << 20;
+  options.numBytesPerTransferH2D = 4 << 20;
   options.numCyclesPerKernel = 1000;
-  options.numWorkloads = 1000;
+  options.numWorkloads = 100;
   options.numThreads = 8;
   options.useDmaBuffers = false;
   runBenchmarker(&deviceLayer, options);

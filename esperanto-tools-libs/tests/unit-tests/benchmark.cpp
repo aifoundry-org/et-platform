@@ -77,7 +77,10 @@ void sendH2D_K_D2H(int iterations, StreamId stream, KernelId kernel, RuntimePtr&
   for (int i = 0; i < iterations; ++i) {
     runtime->memcpyHostToDevice(stream, dummyBuffer.data(), nullptr, transferSize);
     runtime->kernelLaunch(stream, kernel, args.data(), sizeof args, 0x3);
-    runtime->memcpyDeviceToHost(stream, nullptr, dummyBuffer.data(), transferSize);
+    auto e = runtime->memcpyDeviceToHost(stream, nullptr, dummyBuffer.data(), transferSize);
+    if (i % 100 == 0) {
+      RT_LOG(INFO) << "Iter " << i << " last event: " << static_cast<int>(e);
+    }
     if (sync_on_each_iter) {
       runtime->waitForStream(stream);
     }

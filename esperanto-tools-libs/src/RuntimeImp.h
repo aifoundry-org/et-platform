@@ -17,7 +17,7 @@
 #include "ResponseReceiver.h"
 #include "StreamManager.h"
 #include "Utils.h"
-#include "dma/HostBufferManager.h"
+#include "dma/CmaManager.h"
 #include "runtime/IDmaBuffer.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
@@ -113,14 +113,6 @@ private:
     uint64_t entryPoint_;
   };
 
-  struct MemcpyOp {
-    enum class Direction { H2D, D2H };
-    Direction direction_;
-    std::vector<HostAllocation> hostMemory_;
-    std::vector<std::byte*> deviceMemory_;
-    std::vector<size_t> sizes_;
-  };
-
   struct DeviceFwTracing {
     std::unique_ptr<IDmaBuffer> dmaBuffer_;
     std::ostream* mmOutput_;
@@ -143,9 +135,9 @@ private:
   mutable std::recursive_mutex mutex_;
   profiling::ProfilerImp profiler_;
   dev::IDeviceLayer* deviceLayer_;
+  std::unique_ptr<CmaManager> cmaManager_;
   std::vector<DeviceId> devices_;
   StreamManager streamManager_;
-  std::unique_ptr<HostBufferManager> hostBufferManager_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;
   std::unordered_map<KernelId, std::unique_ptr<Kernel>> kernels_;
   std::unordered_map<DeviceId, DeviceFwTracing> deviceTracing_;

@@ -15,6 +15,7 @@
 #include <cassert>
 #include <cmath>
 #include <functional>
+#include <g3log/loglevels.hpp>
 #include <hostUtils/debug/Check.h>
 #include <ios>
 #include <limits>
@@ -31,10 +32,17 @@ MemoryManager::MemoryManager(uint64_t dramBaseAddr, size_t totalMemoryBytes, uin
     throw Exception("BlockSize must be POT");
   }
   if (dramBaseAddr_ % (1U << blockSizeLog2_)) {
-    throw Exception("DramBaseAddr must be multiple of BlockSize");
+    auto dramBaseOffset = (1U << blockSizeLog2_) - dramBaseAddr_ % (1U << blockSizeLog2_);
+    dramBaseAddr_ += dramBaseOffset;
+    RT_LOG(WARNING) << "Base address is 0x" << std::hex << dramBaseAddr << " adding offset 0x" << dramBaseOffset
+                    << " to make it multiple of block size 0x" << blockSize;
+    totalMemoryBytes_ -= dramBaseOffset;
   }
   if (totalMemoryBytes_ % (1U << blockSizeLog2_)) {
-    throw Exception("TotalMemoryBytes must be multiple of BlockSize");
+    auto excessBytes = totalMemoryBytes_ % (1U << blockSizeLog2_);
+    RT_LOG(WARNING) << "Total memory bytes is 0x" << std::hex << totalMemoryBytes_ << " reducing it by 0x" << excessBytes
+                    << " to make it multiple of block size 0x" << blockSize;
+    totalMemoryBytes_ -= excessBytes;
   }
   if ((totalMemoryBytes_ >> blockSizeLog2_) > std::numeric_limits<uint32_t>::max()) {
     totalMemoryBytes_ = static_cast<uint64_t>(std::numeric_limits<uint32_t>::max()) << blockSizeLog2_;

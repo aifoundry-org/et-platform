@@ -13,9 +13,9 @@
 #include "MemoryManager.h"
 #include "ScopedProfileEvent.h"
 #include "StreamManager.h"
+#include "dma/CmaManager.h"
 #include "dma/DmaBufferImp.h"
 
-#include "dma/HostBufferManager.h"
 #include "runtime/IDmaBuffer.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
@@ -49,6 +49,7 @@ constexpr int kResetTraceBufferAddressBit = 1 << 2; // Reset Trace buffer point 
 constexpr auto kNumErrorContexts = 2080;
 constexpr auto kExceptionBufferSize = sizeof(ErrorContext) * kNumErrorContexts;
 constexpr auto kNumExecutionCacheBuffers = 5; // initial number of execution cache buffers
+constexpr auto kAllocFactorTotalMaxMemory = 2; // this will affect the size of memory we allocate for CMA
 } // namespace
 
 RuntimeImp::~RuntimeImp() {
@@ -71,15 +72,29 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer)
       commandSenders_.try_emplace(getCommandSenderIdx(i, sq), *deviceLayer_, i, sq);
     }
   }
-  hostBufferManager_ = std::make_unique<HostBufferManager>(this, devices_[0]);
   auto dramBaseAddress = deviceLayer_->getDramBaseAddress();
   auto dramSize = deviceLayer_->getDramSize();
   RT_LOG(INFO) << std::hex << "Runtime initialization. Dram base addr: " << dramBaseAddress
                << " Dram size: " << dramSize;
+
+  auto maxElementCount = 0UL;
+  auto totalElementSize = 0UL;
+
   for (auto& d : devices_) {
     memoryManagers_.try_emplace(d, dramBaseAddress, dramSize, kBlockSize);
     deviceTracing_.try_emplace(d, DeviceFwTracing{allocateDmaBuffer(d, kTracingFwBufferSize, false), nullptr, nullptr});
+    auto dmaInfo = deviceLayer_->getDmaInfo(static_cast<int>(d));
+    maxElementCount = std::max(maxElementCount, dmaInfo.maxElementCount_);
+    totalElementSize += dmaInfo.maxElementSize_;
   }
+  auto desiredCma = maxElementCount * totalElementSize * kAllocFactorTotalMaxMemory;
+  // use 80% of CMA as max
+  if (auto maxCma = deviceLayer_->getFreeCmaMemory() * 8 / 10; maxCma < desiredCma) {
+    RT_LOG(WARNING) << "Free CMA is not enough to fullfill runtime needs. DMA transfers could be slower.";
+    desiredCma = maxCma;
+  }
+  RT_LOG_IF(FATAL, desiredCma < 1024) << "Error: need at least 1024B of CMA to work";
+  cmaManager_ = std::make_unique<CmaManager>(*this, desiredCma);
   responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
 
   // initialization sequence, need to send abort command to ensure the device is in a proper state
@@ -184,6 +199,7 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
   loadCodeResult.kernel_ = kernelId;
 
   loadCodeResult.event_ = eventManager_.getNextId();
+  streamManager_.addEvent(stream, loadCodeResult.event_);
 
   // add another thread to dispatch the buffers once the copy is done
   blockableThreadPool_.pushTask(
@@ -193,7 +209,7 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
       }
       buffers.clear();
       RT_VLOG(LOW) << "Load code ended. Buffers released.";
-      eventManager_.dispatch(evt);
+      dispatch(evt);
     });
   return loadCodeResult;
 }

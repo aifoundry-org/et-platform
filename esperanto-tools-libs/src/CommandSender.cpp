@@ -11,6 +11,7 @@
 #include "Utils.h"
 #include <functional>
 #include <iomanip>
+#include <mutex>
 #include <thread>
 using namespace rt;
 
@@ -19,6 +20,15 @@ std::string commandString(const std::vector<std::byte>& commandData) {
   ss << "Sent command: 0x";
   for (auto byte : commandData) {
     ss << std::hex << std::setfill('0') << std::setw(2) << std::to_integer<int>(byte);
+  }
+  return ss.str();
+}
+
+template <typename List> std::string getCommandPtrs(List& commands) {
+  std::stringstream ss;
+  ss << "|";
+  for (auto it = begin(commands); it != end(commands); ++it) {
+    ss << std::hex << &*it << " enabled? " << (it->isEnabled_ ? "True" : "False") << "|";
   }
   return ss.str();
 }
@@ -37,20 +47,25 @@ Command* CommandSender::send(Command command) {
   std::unique_lock lock(mutex_);
   commands_.emplace_back(std::move(command));
   auto res = &commands_.back();
-  RT_VLOG(MID) << "Adding command " << std::hex << res << " to the send queue. Enabled? "
+  RT_VLOG(MID) << "Adding command (send) " << std::hex << res << " to the send list. Enabled? "
                << (res->isEnabled_ ? "True" : "False");
   lock.unlock();
   condVar_.notify_one();
   return res;
 }
 
-Command* CommandSender::sendAfter(Command* existingCommand, Command command) {
-  std::lock_guard lock(mutex_);
+Command* CommandSender::sendBefore(const Command* existingCommand, Command command) {
+  std::unique_lock lock(mutex_);
   auto it = std::find_if(begin(commands_), end(commands_), [=](const auto& elem) { return &elem == existingCommand; });
   if (it == end(commands_)) {
-    throw Exception("Trying to send a command after a non-existing command");
+    throw Exception("Trying to send a command before a non-existing command");
   }
-  return &*commands_.emplace(++it, std::move(command));
+  auto res = &*commands_.emplace(it, std::move(command));
+  RT_VLOG(MID) << "Adding command (sendBefore) " << std::hex << res << " to the send list. Enabled? "
+               << (res->isEnabled_ ? "True" : "False");
+  lock.unlock();
+  condVar_.notify_one();
+  return res;
 }
 
 void Command::enable() {
@@ -59,7 +74,6 @@ void Command::enable() {
 
 void CommandSender::enable(Command& command) {
   std::unique_lock lock(mutex_);
-  RT_VLOG(MID) << "Enabling command " << std::hex << &command;
   command.isEnabled_ = true;
   lock.unlock();
   condVar_.notify_one();
@@ -70,6 +84,31 @@ CommandSender::~CommandSender() {
   running_ = false;
   condVar_.notify_one();
   runner_.join();
+}
+
+bool CommandSender::IsThereAnyPreviousDisabledCommand(const Command* command) const {
+  std::lock_guard lock(mutex_);
+  auto it = std::find_if(begin(commands_), end(commands_), [=](const auto& elem) { return &elem == command; });
+  if (it == end(commands_)) {
+    throw Exception("Checking if there are previous disabled command for a command that does not exist");
+  }
+
+  for (auto current = begin(commands_); current != it; ++current) {
+    if (!current->isEnabled_) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void CommandSender::cancel(const Command* command) {
+  std::unique_lock lock(mutex_);
+  auto it = std::find_if(begin(commands_), end(commands_), [command](const auto& c) { return &c == command; });
+  if (it != end(commands_)) {
+    commands_.erase(it);
+    lock.unlock();
+    condVar_.notify_one();
+  }
 }
 
 void CommandSender::runnerFunc() {

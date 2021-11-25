@@ -37,7 +37,7 @@ TEST(CommandSender, checkConsistency) {
   dev::IDeviceLayerFake deviceLayer;
   CommandSender cs(deviceLayer, 0, 0);
   for (device_ops_api::tag_id_t i = 0; i < numCommands; ++i) {
-    header->tag_id = i + short{1};
+    header->tag_id = device_ops_api::tag_id_t(i + 1);
     commands.emplace_back(cs.send(Command{commandData, cs}));
   }
   // no command is enabled now, so a call to receiveResponseMasterMinion should return false
@@ -79,7 +79,7 @@ TEST(CommandSender, checkConsistency) {
   }
 }
 
-TEST(CommandSender, checkSendAfter) {
+TEST(CommandSender, checkSendBefore) {
   std::vector<std::byte> commandData(64);
 
   auto header = reinterpret_cast<device_ops_api::cmn_header_t*>(commandData.data());
@@ -89,18 +89,18 @@ TEST(CommandSender, checkSendAfter) {
   std::vector<Command*> commands;
   dev::IDeviceLayerFake deviceLayer;
   CommandSender cs(deviceLayer, 0, 0);
-  // first emplace commands with even tag_ids
+  // first emplace commands with odd tag_ids
   for (device_ops_api::tag_id_t i = 0; i < numCommands / 2; ++i) {
-    header->tag_id = i * 2;
+    header->tag_id = device_ops_api::tag_id_t(i * 2 + 1);
     commands.emplace_back(cs.send(Command{commandData, cs}));
   }
   ASSERT_EQ(numCommands / 2, commands.size());
-  // now emplace commands with odd tag_ids
+  // now emplace commands with even tag_ids
   auto copyCommands = commands;
   for (auto c : copyCommands) {
     auto sentCommandHeader = reinterpret_cast<device_ops_api::cmn_header_t*>(c->commandData_.data());
-    header->tag_id = sentCommandHeader->tag_id + 1;
-    commands.emplace_back(cs.sendAfter(c, Command{commandData, cs}));
+    header->tag_id = device_ops_api::tag_id_t(sentCommandHeader->tag_id - 1);
+    commands.emplace_back(cs.sendBefore(c, Command{commandData, cs}));
   }
 
   // lets enable all commands

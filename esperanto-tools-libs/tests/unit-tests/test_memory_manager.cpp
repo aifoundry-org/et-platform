@@ -34,8 +34,6 @@
 using namespace rt;
 
 TEST(MemoryManagerDeathTest, ctor_invariants) {
-  EXPECT_THROW({ auto mm = MemoryManager(3, 19872398); }, Exception);
-  EXPECT_THROW({ auto mm = MemoryManager(0, 19872398); }, Exception);
   EXPECT_THROW({ auto mm = MemoryManager(0, 2046, 1023); }, Exception);
 }
 

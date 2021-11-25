@@ -75,11 +75,11 @@ TEST_F(KernelLaunchF, largerKernelArgs_thousands_iters) {
 }
 
 TEST_F(KernelLaunchF, largeTransfer) {
-  sendH2D_K_D2H(10, 64, 512ULL * (1ULL << 20));
+  sendH2D_K_D2H(10, 64, 512ULL << 20);
 }
 
 TEST_F(KernelLaunchF, largeTransferAndLargeArgs) {
-  sendH2D_K_D2H(10, 128, 512ULL * (1ULL << 20));
+  sendH2D_K_D2H(10, 128, 512ULL << 20);
 }
 
 int main(int argc, char** argv) {
