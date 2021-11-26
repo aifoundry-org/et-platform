@@ -56,10 +56,6 @@ void SPW_Launch(uint32_t hart_id)
 
     Log_Write(LOG_LEVEL_INFO, "SPW:launched on H%d\r\n", hart_id);
 
-    /* Reset PMC cycles counter for all Harts
-    (can be even or odd depending upong hart ID) in the Neighbourhood */
-    PMC_RESET_CYCLES_COUNTER;
-
     /* Declare a pointer to the VQ control block that is pointing to the VQ attributes in
     global memory and the actual Circular Buffer CB in SRAM (which is shared with host) */
     vq_cb_t *spw_vq_shared = SP_MM_Iface_Get_VQ_Base_Addr(MM_SQ);

@@ -139,10 +139,6 @@ void Dispatcher_Launch(uint32_t hart_id)
         "Dispatcher:Setting DIR ready status, INTERRUPT_INITIALIZED\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_INTERRUPT_INITIALIZED);
 
-    /* Reset PMC cycles counter for all Harts
-    (can be even or odd depending upong hart ID) in the Neighbourhood */
-    PMC_RESET_CYCLES_COUNTER;
-
     /* Initialize the interface to compute minion */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:CM_Iface_Init\r\n");
     status = CM_Iface_Init();

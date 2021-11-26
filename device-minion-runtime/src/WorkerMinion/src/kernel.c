@@ -404,12 +404,6 @@ static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel)
         Trace_Init_UMode(NULL);
     }
 
-    // First core in each neighborhood resets the PMC counter 3
-    if ((hart_id % 16 == 0) || (hart_id % 16 == 1))
-    {
-        PMC_RESET_CYCLES_COUNTER;
-    }
-
     // Enable Thread 1, init L1, invalidate I-cache
     //   arg1 = enable all worker thread 1s of the shire
     //   arg2 = first worker hart of the shire

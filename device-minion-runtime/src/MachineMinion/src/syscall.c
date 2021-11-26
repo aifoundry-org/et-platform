@@ -303,6 +303,9 @@ static int64_t pre_kernel_setup(uint64_t thread1_enable_mask, uint64_t first_wor
         asm volatile("csrw cache_invalidate, 1");
     }
 
+    /* Reset the PMCs. Details of which hart resets which PMC can be found in PMU component */
+    reset_pmcs();
+
     return SYSCALL_INTERNAL_SUCCESS;
 }
 
