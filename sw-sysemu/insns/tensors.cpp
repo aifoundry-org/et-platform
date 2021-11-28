@@ -2124,7 +2124,9 @@ void tensor_wait_execute(Hart& cpu, Hart::Waiting what)
 // At this point we also notify of any change to the tensor_error.
 void tensor_wait_start(Hart& cpu, uint64_t value)
 {
-    const auto what = static_cast<Hart::Waiting>(1 << (value & 15));
+    const uint64_t event = value & 0xF;
+    if (event > 10) return; // Invalid events are treated as a NOP
+    const auto what = static_cast<Hart::Waiting>(1 << event);
     const auto idle = tensor_wait_check_idle(cpu, what);
     if (((cpu.mhartid % EMU_THREADS_PER_MINION) == 0) ||
         (what == Hart::Waiting::tload_L2_0 || what == Hart::Waiting::tload_L2_1)) {
