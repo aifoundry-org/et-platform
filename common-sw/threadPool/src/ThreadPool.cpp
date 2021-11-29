@@ -39,7 +39,7 @@ void ThreadPool::pushTask(Task task) {
                    << threads_.size();
       threads_.emplace_back(std::bind(&ThreadPool::workerFunc, this));
     }
-    tasks_.emplace_back(std::move(task));
+    tasks_.emplace(std::move(task));
     lock.unlock();
     condVar_.notify_one();
   }
@@ -48,7 +48,9 @@ void ThreadPool::pushTask(Task task) {
 ThreadPool::~ThreadPool() {
   TP_LOG(INFO) << "Destroying threadpool " << std::hex << this;
   std::unique_lock lock(mutex_);
-  tasks_.clear();
+  while (!tasks_.empty()) {
+    tasks_.pop();
+  }
   running_ = false;
   lock.unlock();
   condVar_.notify_all();
@@ -67,8 +69,8 @@ void ThreadPool::workerFunc() {
       condVar_.wait(lock, [this] { return !(running_ && tasks_.empty()); });
     } else {
       TP_VLOG(MID) << "Executing task.";
-      auto task = std::move(tasks_.back());
-      tasks_.pop_back();
+      auto task = std::move(tasks_.front());
+      tasks_.pop();
       lock.unlock();
       task();
     }
