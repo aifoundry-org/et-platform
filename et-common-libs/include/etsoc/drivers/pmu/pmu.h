@@ -530,11 +530,6 @@ with required wrap tracking and time scaling logic should be implemented.
 This will suffice for initial profiling needs for now, but this should
 be improved */
 
-/*! \def PMC_RESET_CYCLES_COUNTER
-    \brief A macro to reset PMC minion cycles counter
-*/
-#define PMC_RESET_CYCLES_COUNTER   (uint64_t)pmu_core_counter_reset(PMU_MHPMEVENT3)
-
 /*! \fn PMC_Get_Current_Cycles
     \brief A function to get current minion cycles based on PMC Counter 3 which
     setup by default to count the Minion cycles
