@@ -14,8 +14,8 @@
 #include <cstddef>
 #include <functional>
 #include <mutex>
+#include <queue>
 #include <thread>
-#include <vector>
 namespace threadPool {
 
 class ThreadPool {
@@ -32,7 +32,7 @@ private:
   bool running_;
   bool resizable_;
   std::condition_variable condVar_;
-  std::vector<Task> tasks_;
+  std::queue<Task> tasks_;
   std::vector<std::thread> threads_;
 };
 } // namespace threadPool
