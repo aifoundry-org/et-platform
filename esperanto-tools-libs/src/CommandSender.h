@@ -28,7 +28,7 @@ struct Command {
   void enable();
   std::vector<std::byte> commandData_;
   class CommandSender& parent_;
-  EventId evt_;
+  EventId eventId_;
   bool isDma_ = false;
   bool isEnabled_ = false;
 };
@@ -40,21 +40,16 @@ public:
                          int sqIdx);
   ~CommandSender();
 
-  // returns true if there is a higher prioritary command which is disabled.
-  bool IsThereAnyPreviousDisabledCommand(const Command* command) const;
+  std::optional<EventId> getTopPrioritaryCommand() const;
 
-  // returns a pointer to the recently inserted Command. This is useful, for example to change the isEnabled_ flag if
-  // needed. We are using a deque to store the commands, and we only pop and emplace; so references won't be invalidated
-  Command* send(Command command);
+  void send(Command command);
 
-  // sendBefore works similar to send, but receives an existing Command as a parameter; the new Command will be inserted
-  // before that existing command (so will be executed later)
-  Command* sendBefore(const Command* existingCommand, Command command);
+  void sendBefore(EventId existingCommand, Command command);
 
   // if the Command is not yet running, it will be removed from the queue
-  void cancel(const Command* command);
+  void cancel(EventId command);
 
-  void enable(Command& command);
+  void enable(EventId command);
   void setOnCommandSentCallback(CommandSentCallback callback);
 
 private:

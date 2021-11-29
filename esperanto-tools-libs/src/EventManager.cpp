@@ -19,6 +19,18 @@
 
 using namespace rt;
 
+void EventManager::addOnDispatchCallback(OnDispatchCallback callback) {
+  std::unique_lock lock(mutex_);
+  auto& events = callback.eventsWatched_;
+  events.erase(std::remove_if(begin(events), end(events), [this](EventId event) { return isDispatched(event); }),
+               end(events));
+  if (events.empty()) {
+    callbackExecutor_.pushTask(std::move(callback.callback_));
+  } else {
+    callbacks_.emplace_back(std::move(callback));
+  }
+}
+
 EventId EventManager::getNextId() {
   std::lock_guard lock(mutex_);
   auto res = EventId{nextEventId_++};
@@ -28,8 +40,8 @@ EventId EventManager::getNextId() {
 }
 
 void EventManager::dispatch(EventId event) {
-  RT_VLOG(LOW) << "Dispatching event " << static_cast<int>(event);
   std::unique_lock lock(mutex_);
+  RT_VLOG(LOW) << "Dispatching event " << static_cast<int>(event);
   if (onflyEvents_.erase(event) != 1) {
 
     std::stringstream ss;
@@ -45,9 +57,18 @@ void EventManager::dispatch(EventId event) {
       RT_LOG(WARNING) << ss.str();
     }
   }
+  for (auto it = begin(callbacks_); it != end(callbacks_);) {
+    auto& events = it->eventsWatched_;
+    events.erase(std::remove_if(begin(events), end(events), [event](EventId e) { return e == event; }), end(events));
+    if (events.empty()) {
+      callbackExecutor_.pushTask(std::move(it->callback_));
+      it = callbacks_.erase(it);
+    } else {
+      ++it;
+    }
+  }
 
-  auto it = blockedThreads_.find(event);
-  if (it != end(blockedThreads_)) {
+  if (auto it = blockedThreads_.find(event); it != end(blockedThreads_)) {
     lock.unlock();
     it->second->notifyAll();
   }

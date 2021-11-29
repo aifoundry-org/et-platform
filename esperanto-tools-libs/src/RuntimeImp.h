@@ -149,7 +149,7 @@ private:
   int nextKernelId_ = 0;
 
   std::unique_ptr<ResponseReceiver> responseReceiver_;
-  threadPool::ThreadPool blockableThreadPool_{1, true};
+  threadPool::ThreadPool blockableThreadPool_{8};
   EventManager eventManager_;
   threadPool::ThreadPool nonblockableThreadPool_{8};
   bool running_ = false;

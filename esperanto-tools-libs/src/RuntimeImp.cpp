@@ -203,15 +203,11 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
   streamManager_.addEvent(stream, loadCodeResult.event_);
 
   // add another thread to dispatch the buffers once the copy is done
-  blockableThreadPool_.pushTask(
-    [this, buffers = std::move(buffers), evt = loadCodeResult.event_, eventsToWait = std::move(events)]() mutable {
-      for (auto e : eventsToWait) {
-        waitForEvent(e);
-      }
-      buffers.clear();
-      RT_VLOG(LOW) << "Load code ended. Buffers released.";
-      dispatch(evt);
-    });
+  eventManager_.addOnDispatchCallback(
+    {std::move(events), [this, buffers = std::move(buffers), evt = loadCodeResult.event_] {
+       RT_VLOG(LOW) << "Load code ended. Buffers released.";
+       dispatch(evt);
+     }});
   return loadCodeResult;
 }
 
@@ -281,6 +277,11 @@ bool RuntimeImp::waitForEvent(EventId event, std::chrono::seconds timeout) {
 bool RuntimeImp::waitForStream(StreamId stream, std::chrono::seconds timeout) {
   ScopedProfileEvent profileEvent(Class::WaitForStream, *profiler_, stream);
   auto events = streamManager_.getLiveEvents(stream);
+  std::stringstream ss;
+  for (auto e : events) {
+    ss << static_cast<int>(e) << " ";
+  }
+  RT_VLOG(HIGH) << "WaitForStream: number of events to wait for: " << events.size() << ". Events: " << ss.str();
   for (auto e : events) {
     RT_VLOG(LOW) << "WaitForStream: Waiting for event " << static_cast<int>(e);
     if (!waitForEvent(e, timeout)) {

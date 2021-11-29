@@ -49,7 +49,6 @@ StreamId StreamManager::createStream(DeviceId device) {
 void StreamManager::destroyStream(StreamId stream) {
   std::lock_guard lock(mutex_);
   auto res = streams_.erase(stream);
-  RT_LOG_IF(WARNING, !res) << "Trying to destroy a non-existing stream.";
   if (!res) {
     throw Exception("Trying to destroy a non-existing stream.");
   }

@@ -54,7 +54,7 @@ ExecutionContextCache::ExecutionContextCache(IRuntime* runtime, int initialFreeL
     auto [it, res] = freeBuffers_.try_emplace(dev, std::vector<Buffer*>{});
     (void)res;
     assert(res);
-    auto&& list = it->second;
+    auto& list = it->second;
     for (int i = 0; i < initialFreeListSize; ++i) {
       buffers_.emplace_back(std::make_unique<Buffer>(dev, runtime_, bufferSize_));
       auto bufferPtr = buffers_.back().get();

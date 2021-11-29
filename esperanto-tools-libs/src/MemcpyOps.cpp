@@ -12,6 +12,7 @@
 #include "RuntimeImp.h"
 #include "ScopedProfileEvent.h"
 #include "runtime/Types.h"
+#include <algorithm>
 #include <chrono>
 #include <esperanto/device-apis/device_apis_message_types.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
@@ -33,8 +34,8 @@ static_assert(offsetof(dma_write_node, size) == offsetof(dma_read_node, size));
 
 namespace {
 constexpr auto kMinBytesPerEntry = 1024UL;
-constexpr auto kBytesReservedForPrioritaryCommands = 1UL << 20;
-}
+constexpr auto kBytesReservedForPrioritaryCommands = 256UL << 20;
+} // namespace
 
 namespace rt {
 
@@ -92,11 +93,10 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
   // start sending a "ghost" command which will be create the needed barrier in command sender until we have sent all
   // commands. This is needed because we don't know if we will have enough CMA memory to hold all commands with their
   // addresses and sizes in the queue or we will have to chunk them
+  commandSender.send(Command{{}, commandSender, evt});
+  RT_VLOG(HIGH) << "H2D: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  auto ghost = commandSender.send(Command{{}, commandSender});
-  RT_VLOG(HIGH) << "H2D: Added GHOST command: " << std::hex << ghost << " to CS " << &commandSender;
-
-  blockableThreadPool_.pushTask([this, size, barrier, d_dst, h_src, ghost, evt, stream, streamInfo] {
+  blockableThreadPool_.pushTask([this, size, barrier, d_dst, h_src, evt, stream, streamInfo] {
     std::vector<EventId> cmdEvents;
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto dmaInfo = deviceLayer_->getDmaInfo(streamInfo.device_);
@@ -106,7 +106,10 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
     while (pendingBytes > 0) {
       std::unique_lock lock(mutex_);
       auto freeSize = cmaManager_->getFreeBytes();
-      if (cs.IsThereAnyPreviousDisabledCommand(ghost)) {
+      auto topPrio = cs.getTopPrioritaryCommand();
+      if (topPrio && topPrio != evt) {
+        RT_VLOG(HIGH) << "I'm not top prio command. Me: " << static_cast<int>(evt)
+                      << " Top prio: " << static_cast<int>(topPrio.value());
         freeSize =
           (freeSize > kBytesReservedForPrioritaryCommands) ? (freeSize - kBytesReservedForPrioritaryCommands) : 0;
       }
@@ -136,34 +139,35 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
         auto cmdEvt = eventManager_.getNextId();
         streamManager_.addEvent(stream, cmdEvt);
         builder.setTagId(cmdEvt);
-        cs.sendBefore(ghost, {builder.build(), cs, cmdEvt, true, true});
+        cs.sendBefore(evt, {builder.build(), cs, cmdEvt, true, true});
         builder.clear();
         cmdEvents.emplace_back(cmdEvt);
 
         // add a thread which will free the cma memory
-        blockableThreadPool_.pushTask([this, cmdEvt, cmaPtr] {
-          waitForEvent(cmdEvt);
-          cmaManager_->free(cmaPtr);
-        });
+        eventManager_.addOnDispatchCallback({{cmdEvt}, [this, cmaPtr] { cmaManager_->free(cmaPtr); }});
       } else {
         lock.unlock();
-        uint64_t sq;
-        bool cq;
-        deviceLayer_->waitForEpollEventsMasterMinion(streamInfo.device_, sq, cq, std::chrono::milliseconds(1));
+        if (topPrio && topPrio != evt) {
+          RT_VLOG(LOW) << "H2D. Waiting for top prio command: " << static_cast<int>(topPrio.value());
+          waitForEvent(topPrio.value());
+        } else {
+          RT_VLOG(LOW) << "H2D. I'm top prio command (" << static_cast<int>(evt) << "); waiting for epoll. ";
+          uint64_t sq;
+          bool cq;
+          deviceLayer_->waitForEpollEventsMasterMinion(streamInfo.device_, sq, cq, std::chrono::milliseconds(1));
+        }
       }
     }
-    // a final thread will trigger the sync event
-    blockableThreadPool_.pushTask([this, cmdEvents, evt] {
-      for (auto e : cmdEvents) {
-        waitForEvent(e);
-      }
-      RT_VLOG(LOW) << "MemcpyH2D done, dispatching last event: " << static_cast<int>(evt);
-      dispatch(evt);
-    });
-    cs.cancel(ghost);
-    // remove the ghost
-  });
+    eventManager_.addOnDispatchCallback({cmdEvents, [this, evt] {
+                                           RT_VLOG(LOW)
+                                             << "MemcpyH2D done, dispatching last event: " << static_cast<int>(evt);
+                                           dispatch(evt);
+                                         }});
 
+    // remove the ghost
+    cs.cancel(evt);
+    RT_VLOG(HIGH) << "H2D: Cancelled GHOST command: " << static_cast<int>(evt);
+  });
   profileEvent.setEventId(evt);
   Sync(evt);
   return evt;
@@ -217,7 +221,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
   auto evt = eventManager_.getNextId();
-  RT_VLOG(LOW) << "MemcpyDeviceToHost stream: " << static_cast<int>(stream) << "EventId: " << static_cast<int>(evt)
+  RT_VLOG(LOW) << "MemcpyDeviceToHost stream: " << static_cast<int>(stream) << " EventId: " << static_cast<int>(evt)
                << std::hex << " Host address: " << h_dst << " Device address: " << d_src << " Size: " << size;
   streamManager_.addEvent(stream, evt);
 
@@ -225,10 +229,10 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
   // commands. This is needed because we don't know if we will have enough CMA memory to hold all commands with their
   // addresses and sizes in the queue or we will have to chunk them
 
-  auto ghost = commandSender.send(Command{{}, commandSender});
-  RT_VLOG(HIGH) << "D2H: Added GHOST command: " << std::hex << ghost << " to CS " << &commandSender;
+  commandSender.send(Command{{}, commandSender, evt});
+  RT_VLOG(HIGH) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  blockableThreadPool_.pushTask([this, stream, size, barrier, d_src, h_dst, ghost, evt, streamInfo] {
+  blockableThreadPool_.pushTask([this, stream, size, barrier, d_src, h_dst, evt, streamInfo] {
     std::vector<EventId> cmdEvents;
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto dmaInfo = deviceLayer_->getDmaInfo(streamInfo.device_);
@@ -238,9 +242,12 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
     while (pendingBytes > 0) {
       std::unique_lock lock(mutex_);
       auto freeSize = cmaManager_->getFreeBytes();
-      if (cs.IsThereAnyPreviousDisabledCommand(ghost)) {
+      auto topPrio = cs.getTopPrioritaryCommand();
+      if (topPrio && topPrio != evt) {
         freeSize =
           (freeSize > kBytesReservedForPrioritaryCommands) ? (freeSize - kBytesReservedForPrioritaryCommands) : 0;
+        RT_VLOG(MID) << "I'm not top prio command. Me: " << static_cast<int>(evt)
+                     << " Top prio: " << static_cast<int>(topPrio.value()) << " Max allocation bytes: " << freeSize;
       }
       if (freeSize > kMinBytesPerEntry) {
         struct FinalCopy {
@@ -274,7 +281,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
         auto cmdEvt = eventManager_.getNextId();
         streamManager_.addEvent(stream, cmdEvt);
         builder.setTagId(cmdEvt);
-        cs.sendBefore(ghost, {builder.build(), cs, cmdEvt, true, true});
+        cs.sendBefore(evt, {builder.build(), cs, cmdEvt, true, true});
         builder.clear();
 
         // this extra event is needed to make sure we wait till the final copy between cma and user memory
@@ -283,34 +290,36 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
         cmdEvents.emplace_back(syncCopyEvt);
 
         // add a thread which will free the cma memory
-        blockableThreadPool_.pushTask([this, cmdEvt, cmaPtr, cmdFinalCopies = std::move(cmdFinalCopies), syncCopyEvt] {
-          RT_VLOG(HIGH) << "DBG: waiting for event: " << static_cast<int>(cmdEvt);
-          waitForEvent(cmdEvt);
-          RT_VLOG(HIGH) << "DBG: after wait for event: " << static_cast<int>(cmdEvt);
-          for (auto& copy : cmdFinalCopies) {
-            memcpy(copy.dst, copy.src, copy.size);
-          }
-          RT_VLOG(HIGH) << "DBG: after final copies for event: " << static_cast<int>(cmdEvt);
-          cmaManager_->free(cmaPtr);
-          dispatch(syncCopyEvt);
-        });
+        eventManager_.addOnDispatchCallback(
+          {{cmdEvt}, [this, cmdEvt, cmaPtr, cmdFinalCopies = std::move(cmdFinalCopies), syncCopyEvt] {
+             for (auto& copy : cmdFinalCopies) {
+               memcpy(copy.dst, copy.src, copy.size);
+             }
+             RT_VLOG(HIGH) << "DBG: after final copies for event: " << static_cast<int>(cmdEvt);
+             cmaManager_->free(cmaPtr);
+             dispatch(syncCopyEvt);
+           }});
       } else {
         lock.unlock();
-        uint64_t sq;
-        bool cq;
-        deviceLayer_->waitForEpollEventsMasterMinion(streamInfo.device_, sq, cq, std::chrono::milliseconds(1));
+        if (topPrio && topPrio != evt) {
+          RT_VLOG(LOW) << "D2H. Waiting for top prio command: " << static_cast<int>(topPrio.value());
+          waitForEvent(topPrio.value());
+        } else {
+          RT_VLOG(LOW) << "D2H. I'm top prio command (" << static_cast<int>(evt) << "); waiting for epoll. ";
+          uint64_t sq;
+          bool cq;
+          deviceLayer_->waitForEpollEventsMasterMinion(streamInfo.device_, sq, cq, std::chrono::milliseconds(1));
+        }
       }
     }
-    // a final thread will trigger the sync event
-    blockableThreadPool_.pushTask([this, cmdEvents, evt] {
-      for (auto e : cmdEvents) {
-        waitForEvent(e);
-      }
-      RT_VLOG(LOW) << "MemcpyH2D done, dispatching last event: " << static_cast<int>(evt);
-      dispatch(evt);
-    });
+    eventManager_.addOnDispatchCallback({cmdEvents, [this, evt] {
+                                           RT_VLOG(LOW)
+                                             << "MemcpyD2H done, dispatching last event: " << static_cast<int>(evt);
+                                           dispatch(evt);
+                                         }});
     // remove the ghost
-    cs.cancel(ghost);
+    cs.cancel(evt);
+    RT_VLOG(HIGH) << "D2H: Cancelled GHOST command: " << static_cast<int>(evt);
   });
 
   profileEvent.setEventId(evt);

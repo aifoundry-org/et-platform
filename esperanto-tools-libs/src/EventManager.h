@@ -12,6 +12,9 @@
 
 #include "Utils.h"
 #include "runtime/IRuntime.h"
+#include <hostUtils/threadPool/ThreadPool.h>
+#include <hostUtils/threadPool/function2.hpp>
+
 #include <atomic>
 #include <condition_variable>
 #include <set>
@@ -20,6 +23,12 @@ namespace rt {
 
 class EventManager {
 public:
+  // the callback will be executed when eventsWatched have been dispatched (ie. does not exist on fly those elements)
+  struct OnDispatchCallback {
+    std::vector<EventId> eventsWatched_;
+    fu2::unique_function<void()> callback_;
+  };
+
   EventId getNextId();
   void dispatch(EventId event);
   // returns false if the timeout is reached; true otherwise
@@ -28,6 +37,12 @@ public:
     throwOnMissingEvent_ = value;
   }
   ~EventManager();
+
+  void addOnDispatchCallback(OnDispatchCallback callback);
+
+  // THIS CALL IS NOT THREADSAFE, this is called internally and could be called from a OnDispatchCallback safely, don't
+  // call it from other places
+  bool isDispatched(EventId event) const;
 
 private:
 
@@ -56,12 +71,12 @@ private:
     bool ready_ = false;
   };
 
-  bool isDispatched(EventId event) const;
-
   mutable std::mutex mutex_;
   bool throwOnMissingEvent_ = false;
   std::set<EventId> onflyEvents_;
+  std::vector<OnDispatchCallback> callbacks_;
   std::unordered_map<EventId, std::unique_ptr<Semaphore>> blockedThreads_;
   std::underlying_type_t<EventId> nextEventId_ = 0;
+  threadPool::ThreadPool callbackExecutor_{2};
 };
 } // namespace rt

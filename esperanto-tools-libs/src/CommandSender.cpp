@@ -12,6 +12,7 @@
 #include <functional>
 #include <iomanip>
 #include <mutex>
+#include <optional>
 #include <thread>
 using namespace rt;
 
@@ -45,38 +46,42 @@ void CommandSender::setOnCommandSentCallback(CommandSentCallback callback) {
   std::lock_guard lock(mutex_);
   callback_ = std::move(callback);
 }
-Command* CommandSender::send(Command command) {
+
+void CommandSender::send(Command command) {
   std::unique_lock lock(mutex_);
+  RT_VLOG(MID) << "Adding command (send) " << static_cast<int>(command.eventId_) << " to the send list. Enabled? "
+               << (command.isEnabled_ ? "True" : "False");
   commands_.emplace_back(std::move(command));
-  auto res = &commands_.back();
-  RT_VLOG(MID) << "Adding command (send) " << std::hex << res << " to the send list. Enabled? "
-               << (res->isEnabled_ ? "True" : "False");
   lock.unlock();
   condVar_.notify_one();
-  return res;
 }
 
-Command* CommandSender::sendBefore(const Command* existingCommand, Command command) {
+void CommandSender::sendBefore(EventId existingCommand, Command command) {
   std::unique_lock lock(mutex_);
-  auto it = std::find_if(begin(commands_), end(commands_), [=](const auto& elem) { return &elem == existingCommand; });
+  RT_VLOG(MID) << "Adding command (sendBefore) " << static_cast<int>(command.eventId_) << " to the send list. Enabled? "
+               << (command.isEnabled_ ? "True" : "False");
+  auto it = std::find_if(begin(commands_), end(commands_),
+                         [existingCommand](const Command& elem) { return elem.eventId_ == existingCommand; });
   if (it == end(commands_)) {
     throw Exception("Trying to send a command before a non-existing command");
   }
-  auto res = &*commands_.emplace(it, std::move(command));
-  RT_VLOG(MID) << "Adding command (sendBefore) " << std::hex << res << " to the send list. Enabled? "
-               << (res->isEnabled_ ? "True" : "False");
+  commands_.emplace(it, std::move(command));
   lock.unlock();
   condVar_.notify_one();
-  return res;
 }
 
 void Command::enable() {
-  parent_.enable(*this);
+  parent_.enable(eventId_);
 }
 
-void CommandSender::enable(Command& command) {
+void CommandSender::enable(EventId event) {
   std::unique_lock lock(mutex_);
-  command.isEnabled_ = true;
+  auto it =
+    std::find_if(begin(commands_), end(commands_), [event](const Command& elem) { return elem.eventId_ == event; });
+  if (it == end(commands_)) {
+    throw Exception("Trying to enable a non-existing command");
+  }
+  it->isEnabled_ = true;
   lock.unlock();
   condVar_.notify_one();
 }
@@ -88,28 +93,26 @@ CommandSender::~CommandSender() {
   runner_.join();
 }
 
-bool CommandSender::IsThereAnyPreviousDisabledCommand(const Command* command) const {
+std::optional<EventId> CommandSender::getTopPrioritaryCommand() const {
   std::lock_guard lock(mutex_);
-  auto it = std::find_if(begin(commands_), end(commands_), [=](const auto& elem) { return &elem == command; });
-  if (it == end(commands_)) {
-    throw Exception("Checking if there are previous disabled command for a command that does not exist");
+  auto it = std::find_if(begin(commands_), end(commands_), [](const auto& c) { return !c.isEnabled_; });
+  std::optional<EventId> result;
+  if (it != end(commands_)) {
+    result = it->eventId_;
   }
-
-  for (auto current = begin(commands_); current != it; ++current) {
-    if (!current->isEnabled_) {
-      return true;
-    }
-  }
-  return false;
+  return result;
 }
 
-void CommandSender::cancel(const Command* command) {
+void CommandSender::cancel(EventId event) {
   std::unique_lock lock(mutex_);
-  auto it = std::find_if(begin(commands_), end(commands_), [command](const auto& c) { return &c == command; });
+  auto it =
+    std::find_if(begin(commands_), end(commands_), [event](const Command& elem) { return elem.eventId_ == event; });
   if (it != end(commands_)) {
     commands_.erase(it);
     lock.unlock();
     condVar_.notify_one();
+  } else {
+    RT_LOG(WARNING) << "Trying to remove a command which doesnt exist.";
   }
 }
 
@@ -124,7 +127,7 @@ void CommandSender::runnerFunc() {
         RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_);
 
         profiling::ProfileEvent event(profiling::Type::Instant, profiling::Class::CommandSent);
-        event.setEvent(cmd.evt_);
+        event.setEvent(cmd.eventId_);
         event.setStream(StreamId(sqIdx_));
         event.setDeviceId(DeviceId(deviceId_));
         profiler_.record(event);
