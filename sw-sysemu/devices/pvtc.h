@@ -67,7 +67,57 @@ protected:
     enum {
         PVT_COMP_ID = 0x00,
         PVT_ID_NUM = 0x08,
-        PVT_TM_SCRATCH = 0x0C
+        PVT_TM_SCRATCH = 0x0C,
+        PVT_TS_00_SDIF_DONE = 0x0D4,
+        PVT_TS_00_SDIF_DATA = 0x0D8,
+        PVT_TS_01_SDIF_DONE = 0x114,
+        PVT_TS_01_SDIF_DATA = 0x118,
+        PVT_TS_02_SDIF_DONE = 0x154,
+        PVT_TS_02_SDIF_DATA = 0x158,
+        PVT_TS_03_SDIF_DONE = 0x194,
+        PVT_TS_03_SDIF_DATA = 0x198,
+        PVT_TS_04_SDIF_DONE = 0x1D4,
+        PVT_TS_04_SDIF_DATA = 0x1D8,
+        PVT_TS_05_SDIF_DONE = 0x214,
+        PVT_TS_05_SDIF_DATA = 0x218,
+        PVT_TS_06_SDIF_DONE = 0x254,
+        PVT_TS_06_SDIF_DATA = 0x258,
+        PVT_TS_07_SDIF_DONE = 0x294,
+        PVT_TS_07_SDIF_DATA = 0x298,
+        PVT_VM_00_SDIF_DONE = 0xa34,
+        PVT_VM_00_CH_00_SDIF_DATA = 0xa40,
+        PVT_VM_00_CH_01_SDIF_DATA = 0xa44,
+        PVT_VM_00_CH_02_SDIF_DATA = 0xa48,
+        PVT_VM_00_CH_03_SDIF_DATA = 0xa4C,
+        PVT_VM_00_CH_04_SDIF_DATA = 0xa50,
+        PVT_VM_00_CH_05_SDIF_DATA = 0xa54,
+        PVT_VM_00_CH_06_SDIF_DATA = 0xa58,
+        PVT_VM_00_CH_07_SDIF_DATA = 0xa5C,
+        PVT_VM_00_CH_08_SDIF_DATA = 0xa60,
+        PVT_VM_00_CH_09_SDIF_DATA = 0xa64,
+        PVT_VM_00_CH_10_SDIF_DATA = 0xa68,
+        PVT_VM_00_CH_11_SDIF_DATA = 0xa6C,
+        PVT_VM_00_CH_12_SDIF_DATA = 0xa70,
+        PVT_VM_00_CH_13_SDIF_DATA = 0xa74,
+        PVT_VM_00_CH_14_SDIF_DATA = 0xa78,
+        PVT_VM_00_CH_15_SDIF_DATA = 0xa7c,
+        PVT_VM_01_SDIF_DONE = 0xc34,
+        PVT_VM_01_CH_00_SDIF_DATA = 0xc40,
+        PVT_VM_01_CH_01_SDIF_DATA = 0xc44,
+        PVT_VM_01_CH_02_SDIF_DATA = 0xc48,
+        PVT_VM_01_CH_03_SDIF_DATA = 0xc4C,
+        PVT_VM_01_CH_04_SDIF_DATA = 0xc50,
+        PVT_VM_01_CH_05_SDIF_DATA = 0xc54,
+        PVT_VM_01_CH_06_SDIF_DATA = 0xc58,
+        PVT_VM_01_CH_07_SDIF_DATA = 0xc5C,
+        PVT_VM_01_CH_08_SDIF_DATA = 0xc60,
+        PVT_VM_01_CH_09_SDIF_DATA = 0xc64,
+        PVT_VM_01_CH_10_SDIF_DATA = 0xc68,
+        PVT_VM_01_CH_11_SDIF_DATA = 0xc6C,
+        PVT_VM_01_CH_12_SDIF_DATA = 0xc70,
+        PVT_VM_01_CH_13_SDIF_DATA = 0xc74,
+        PVT_VM_01_CH_14_SDIF_DATA = 0xc78,
+        PVT_VM_01_CH_15_SDIF_DATA = 0xc7c
     };
 
     uint32_t pvtc_tm_scratch = 0;
@@ -88,6 +138,56 @@ protected:
         case PVT_COMP_ID: return 0x9b487062ul;
         case PVT_ID_NUM: return ID;
         case PVT_TM_SCRATCH: return pvtc_tm_scratch;
+        case PVT_TS_00_SDIF_DONE:
+        case PVT_TS_01_SDIF_DONE:
+        case PVT_TS_02_SDIF_DONE:
+        case PVT_TS_03_SDIF_DONE:
+        case PVT_TS_04_SDIF_DONE:
+        case PVT_TS_05_SDIF_DONE:
+        case PVT_TS_06_SDIF_DONE:
+        case PVT_TS_07_SDIF_DONE:
+        case PVT_VM_00_SDIF_DONE:
+        case PVT_VM_01_SDIF_DONE: return 0x1u;
+        case PVT_TS_00_SDIF_DATA:
+        case PVT_TS_01_SDIF_DATA:
+        case PVT_TS_02_SDIF_DATA:
+        case PVT_TS_03_SDIF_DATA:
+        case PVT_TS_04_SDIF_DATA:
+        case PVT_TS_05_SDIF_DATA:
+        case PVT_TS_06_SDIF_DATA:
+        case PVT_TS_07_SDIF_DATA: return 0x0799u;
+        case PVT_VM_00_CH_00_SDIF_DATA:
+        case PVT_VM_00_CH_01_SDIF_DATA:
+        case PVT_VM_00_CH_02_SDIF_DATA:
+        case PVT_VM_00_CH_03_SDIF_DATA:
+        case PVT_VM_00_CH_04_SDIF_DATA:
+        case PVT_VM_00_CH_05_SDIF_DATA:
+        case PVT_VM_00_CH_06_SDIF_DATA:
+        case PVT_VM_00_CH_07_SDIF_DATA:
+        case PVT_VM_00_CH_08_SDIF_DATA:
+        case PVT_VM_00_CH_09_SDIF_DATA:
+        case PVT_VM_00_CH_10_SDIF_DATA:
+        case PVT_VM_00_CH_11_SDIF_DATA:
+        case PVT_VM_00_CH_12_SDIF_DATA:
+        case PVT_VM_00_CH_13_SDIF_DATA:
+        case PVT_VM_00_CH_14_SDIF_DATA:
+        case PVT_VM_00_CH_15_SDIF_DATA:
+        case PVT_VM_01_CH_00_SDIF_DATA:
+        case PVT_VM_01_CH_01_SDIF_DATA:
+        case PVT_VM_01_CH_02_SDIF_DATA:
+        case PVT_VM_01_CH_03_SDIF_DATA:
+        case PVT_VM_01_CH_04_SDIF_DATA:
+        case PVT_VM_01_CH_05_SDIF_DATA:
+        case PVT_VM_01_CH_06_SDIF_DATA:
+        case PVT_VM_01_CH_07_SDIF_DATA:
+        case PVT_VM_01_CH_08_SDIF_DATA:
+        case PVT_VM_01_CH_09_SDIF_DATA:
+        case PVT_VM_01_CH_10_SDIF_DATA:
+        case PVT_VM_01_CH_11_SDIF_DATA:
+        case PVT_VM_01_CH_12_SDIF_DATA:
+        case PVT_VM_01_CH_13_SDIF_DATA:
+        case PVT_VM_01_CH_14_SDIF_DATA:
+        case PVT_VM_01_CH_15_SDIF_DATA: return 0x1C39u;
         default: return 0;
         }
     }
