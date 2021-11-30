@@ -10,22 +10,25 @@
 
 #include "ExecutionContextCache.h"
 #include "MemoryManager.h"
+#include "RuntimeImp.h"
 #include "Utils.h"
+
 #include <algorithm>
 #include <cassert>
 #include <type_traits>
+
 using namespace rt;
 using Buffer = ExecutionContextCache::Buffer;
 
-Buffer::Buffer(DeviceId device, IRuntime* runtime, size_t size)
+Buffer::Buffer(DeviceId device, RuntimeImp* runtime, size_t size)
   : hostBuffer_(size)
   , device_(device)
   , runtime_(runtime) {
-  deviceBuffer_ = runtime->mallocDevice(device, size);
+  deviceBuffer_ = runtime->mallocDeviceWithoutProfiling(device, size);
 }
 
 Buffer::~Buffer() {
-  runtime_->freeDevice(device_, deviceBuffer_);
+  runtime_->freeDeviceWithoutProfiling(device_, deviceBuffer_);
 }
 
 ExecutionContextCache::~ExecutionContextCache() {
@@ -42,15 +45,15 @@ ExecutionContextCache::~ExecutionContextCache() {
   assert(allocBuffers_.empty());
 }
 
-ExecutionContextCache::ExecutionContextCache(IRuntime* runtime, int initialFreeListSize, int bufferSize)
+ExecutionContextCache::ExecutionContextCache(RuntimeImp* runtime, int initialFreeListSize, int bufferSize)
   : runtime_(runtime)
   , bufferSize_(bufferSize) {
-  auto devices = runtime_->getDevices();
+  auto devices = runtime_->getDevicesWithoutProfiling();
   // TODO: see SW-9219, we fill these buffers with trash until this is properly handled
   std::vector<std::byte> trash;
   std::fill_n(std::back_inserter(trash), bufferSize, std::byte{0xCD});
   for (auto dev : devices) {
-    auto st = runtime_->createStream(dev);
+    auto st = runtime_->createStreamWithoutProfiling(dev);
     auto [it, res] = freeBuffers_.try_emplace(dev, std::vector<Buffer*>{});
     (void)res;
     assert(res);
@@ -59,11 +62,12 @@ ExecutionContextCache::ExecutionContextCache(IRuntime* runtime, int initialFreeL
       buffers_.emplace_back(std::make_unique<Buffer>(dev, runtime_, bufferSize_));
       auto bufferPtr = buffers_.back().get();
       // TODO: see SW-9219, we fill these buffers with trash until this is properly handled
-      runtime_->memcpyHostToDevice(st, trash.data(), bufferPtr->deviceBuffer_, static_cast<size_t>(bufferSize));
+      runtime_->memcpyHostToDeviceWithoutProfiling(st, trash.data(), bufferPtr->deviceBuffer_,
+                                                   static_cast<size_t>(bufferSize), true);
       list.emplace_back(bufferPtr);
     }
-    runtime_->waitForStream(st);
-    runtime_->destroyStream(st);
+    runtime_->waitForStreamWithoutProfiling(st);
+    runtime_->destroyStreamWithoutProfiling(st);
   }
 }
 

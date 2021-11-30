@@ -77,7 +77,8 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
     barrier = true; // we must wait for parameters, so barrier is true if parameters
     // stage parameters in host buffer
     std::copy(kernel_args, kernel_args + kernel_args_size, begin(pBuffer->hostBuffer_));
-    memcpyHostToDevice(streamId, pBuffer->hostBuffer_.data(), pBuffer->getParametersPtr(), kernel_args_size, false);
+    memcpyHostToDeviceWithoutProfiling(streamId, pBuffer->hostBuffer_.data(), pBuffer->getParametersPtr(),
+                                       kernel_args_size, false);
   }
   auto event = eventManager_.getNextId();
   streamManager_.addEvent(streamId, event);

@@ -82,6 +82,13 @@ void MemcpyCommandBuilder::clear() {
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
                                        bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, *profiler_, stream);
+  auto eventId = memcpyHostToDeviceWithoutProfiling(stream, h_src, d_dst, size, barrier);
+  profileEvent.setEventId(eventId);
+  return eventId;
+}
+
+EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const std::byte* h_src, const std::byte* d_dst,
+                                                       size_t size, bool barrier) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
@@ -149,7 +156,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
         lock.unlock();
         if (topPrio && topPrio != evt) {
           RT_VLOG(LOW) << "H2D. Waiting for top prio command: " << static_cast<int>(topPrio.value());
-          waitForEvent(topPrio.value());
+          waitForEventWithoutProfiling(topPrio.value());
         } else {
           RT_VLOG(LOW) << "H2D. I'm top prio command (" << static_cast<int>(evt) << "); waiting for epoll. ";
           uint64_t sq;
@@ -168,7 +175,6 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
     cs.cancel(evt);
     RT_VLOG(HIGH) << "H2D: Cancelled GHOST command: " << static_cast<int>(evt);
   });
-  profileEvent.setEventId(evt);
   Sync(evt);
   return evt;
 }
@@ -176,6 +182,11 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const IDmaBuffer* h_src, std::byte* d_dst, size_t size,
                                        bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, *profiler_, stream);
+  return memcpyHostToDeviceWithoutProfiling(stream, h_src, d_dst, size, barrier);
+}
+
+EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const IDmaBuffer* h_src, const std::byte* d_dst,
+                                                       size_t size, bool barrier) {
   if (size > h_src->getSize()) {
     throw Exception("Trying to do a memcpy host to device using a dma buffer shorter than required size.");
   }
@@ -196,6 +207,11 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const IDmaBuffer* h_src,
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, IDmaBuffer* h_dst, size_t size,
                                        bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream);
+  return memcpyDeviceToHostWithoutProfiling(stream, d_src, h_dst, size, barrier);
+}
+
+EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const std::byte* d_src, const IDmaBuffer* h_dst,
+                                                       size_t size, bool barrier) {
   if (size > h_dst->getSize()) {
     throw Exception("Trying to do a memcpy device to host using a dma buffer shorter than required size.");
   }
@@ -216,7 +232,13 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                        bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream);
+  auto eventId = memcpyDeviceToHostWithoutProfiling(stream, d_src, h_dst, size, barrier);
+  profileEvent.setEventId(eventId);
+  return eventId;
+}
 
+EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const std::byte* d_src, std::byte* h_dst,
+                                                       size_t size, bool barrier) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
@@ -303,7 +325,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
         lock.unlock();
         if (topPrio && topPrio != evt) {
           RT_VLOG(LOW) << "D2H. Waiting for top prio command: " << static_cast<int>(topPrio.value());
-          waitForEvent(topPrio.value());
+          waitForEventWithoutProfiling(topPrio.value());
         } else {
           RT_VLOG(LOW) << "D2H. I'm top prio command (" << static_cast<int>(evt) << "); waiting for epoll. ";
           uint64_t sq;
@@ -322,7 +344,6 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
     RT_VLOG(HIGH) << "D2H: Cancelled GHOST command: " << static_cast<int>(evt);
   });
 
-  profileEvent.setEventId(evt);
   Sync(evt);
   return evt;
 }

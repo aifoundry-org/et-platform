@@ -113,6 +113,10 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling
 
 std::vector<DeviceId> RuntimeImp::getDevices() {
   ScopedProfileEvent profileEvent(Class::GetDevices, *profiler_);
+  return getDevicesWithoutProfiling();
+}
+
+std::vector<DeviceId> RuntimeImp::getDevicesWithoutProfiling() const {
   return devices_;
 }
 
@@ -141,7 +145,7 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
   // we need to add all the diff between fileSize and memSize to the final size
   // allocate a buffer in the device to load the code
 
-  auto deviceBuffer = mallocDevice(DeviceId{stInfo.device_}, size + extraSize, kCacheLineSize);
+  auto deviceBuffer = mallocDeviceWithoutProfiling(DeviceId{stInfo.device_}, size + extraSize, kCacheLineSize);
 
   // copy the execution code into the device
   // iterate over all the LOAD segments, writing them to device memory
@@ -176,7 +180,7 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
       RT_VLOG(LOW) << "S: " << segment->get_index() << std::hex << " O: 0x" << offset << " PA: 0x" << loadAddress
                    << " MS: 0x" << memSize << " FS: 0x" << fileSize << " @: 0x" << addr << " E: 0x" << entry << "\n";
       events.emplace_back(
-        memcpyHostToDevice(stream, currentBuffer, reinterpret_cast<std::byte*>(addr), memSize, false));
+        memcpyHostToDeviceWithoutProfiling(stream, currentBuffer, reinterpret_cast<std::byte*>(addr), memSize, false));
     }
   }
   if (!basePhysicalAddressCalculated) {
@@ -229,6 +233,10 @@ void RuntimeImp::unloadCode(KernelId kernel) {
 
 std::byte* RuntimeImp::mallocDevice(DeviceId device, size_t size, uint32_t alignment) {
   ScopedProfileEvent profileEvent(Class::MallocDevice, *profiler_, device);
+  return mallocDeviceWithoutProfiling(device, size, alignment);
+}
+
+std::byte* RuntimeImp::mallocDeviceWithoutProfiling(DeviceId device, size_t size, uint32_t alignment) {
   RT_LOG(INFO) << "Malloc requested device " << std::hex << static_cast<std::underlying_type_t<DeviceId>>(device)
                << " size: " << size << " alignment: " << alignment;
 
@@ -243,6 +251,10 @@ std::byte* RuntimeImp::mallocDevice(DeviceId device, size_t size, uint32_t align
 
 void RuntimeImp::freeDevice(DeviceId device, std::byte* buffer) {
   ScopedProfileEvent profileEvent(Class::FreeDevice, *profiler_, device);
+  freeDeviceWithoutProfiling(device, buffer);
+}
+void RuntimeImp::freeDeviceWithoutProfiling(DeviceId device, std::byte* buffer) {
+  ScopedProfileEvent profileEvent(Class::FreeDevice, *profiler_, device);
   RT_LOG(INFO) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
                << " buffer address: " << std::hex << buffer;
   std::lock_guard lock(mutex_);
@@ -251,18 +263,31 @@ void RuntimeImp::freeDevice(DeviceId device, std::byte* buffer) {
 
 StreamId RuntimeImp::createStream(DeviceId device) {
   ScopedProfileEvent profileEvent(Class::CreateStream, *profiler_, device);
+  return createStreamWithoutProfiling(device);
+}
+
+StreamId RuntimeImp::createStreamWithoutProfiling(DeviceId device) {
+  ScopedProfileEvent profileEvent(Class::CreateStream, *profiler_, device);
   RT_LOG(INFO) << "Creating stream at device: " << static_cast<std::underlying_type_t<DeviceId>>(device);
   return streamManager_.createStream(device);
 }
 
 void RuntimeImp::destroyStream(StreamId stream) {
   ScopedProfileEvent profileEvent(Class::DestroyStream, *profiler_, stream);
+  destroyStreamWithoutProfiling(stream);
+}
+
+void RuntimeImp::destroyStreamWithoutProfiling(StreamId stream) {
   RT_LOG(INFO) << "Destroying stream: " << static_cast<std::underlying_type_t<StreamId>>(stream);
   streamManager_.destroyStream(stream);
 }
 
 bool RuntimeImp::waitForEvent(EventId event, std::chrono::seconds timeout) {
   ScopedProfileEvent profileEvent(Class::WaitForEvent, *profiler_, event);
+  return waitForEventWithoutProfiling(event, timeout);
+}
+
+bool RuntimeImp::waitForEventWithoutProfiling(EventId event, std::chrono::seconds timeout) {
   if (!running_) {
     RT_LOG(WARNING) << "Trying to wait for an event but runtime is not running anymore, returning.";
     return true;
@@ -276,6 +301,10 @@ bool RuntimeImp::waitForEvent(EventId event, std::chrono::seconds timeout) {
 
 bool RuntimeImp::waitForStream(StreamId stream, std::chrono::seconds timeout) {
   ScopedProfileEvent profileEvent(Class::WaitForStream, *profiler_, stream);
+  return waitForStreamWithoutProfiling(stream, timeout);
+}
+
+bool RuntimeImp::waitForStreamWithoutProfiling(StreamId stream, std::chrono::seconds timeout) {
   auto events = streamManager_.getLiveEvents(stream);
   std::stringstream ss;
   for (auto e : events) {
@@ -284,7 +313,7 @@ bool RuntimeImp::waitForStream(StreamId stream, std::chrono::seconds timeout) {
   RT_VLOG(HIGH) << "WaitForStream: number of events to wait for: " << events.size() << ". Events: " << ss.str();
   for (auto e : events) {
     RT_VLOG(LOW) << "WaitForStream: Waiting for event " << static_cast<int>(e);
-    if (!waitForEvent(e, timeout)) {
+    if (!waitForEventWithoutProfiling(e, timeout)) {
       return false;
     }
   }
@@ -304,11 +333,11 @@ void RuntimeImp::processResponseError(DeviceErrorCode errorCode, EventId event) 
       // TODO remove this when ticket https://esperantotech.atlassian.net/browse/SW-9617 is fixed
       if (errorCode != DeviceErrorCode::KernelLaunchHostAborted) {
         // do the copy
-        auto st = createStream(buffer->device_);
+        auto st = createStreamWithoutProfiling(buffer->device_);
         auto errorContexts = std::vector<ErrorContext>(kNumErrorContexts);
         auto e = memcpyDeviceToHost(st, buffer->getExceptionContextPtr(),
                                     reinterpret_cast<std::byte*>(errorContexts.data()), kExceptionBufferSize, false);
-        waitForEvent(e);
+        waitForEventWithoutProfiling(e);
         streamError.errorContext_.emplace(std::move(errorContexts));
       }
       executionContextCache_->releaseBuffer(event);
@@ -527,7 +556,7 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
   blockableThreadPool_.pushTask([this, memcpyEvt, dmaPtr = deviceTracing.dmaBuffer_->getPtr(),
                                  mmOut = deviceTracing.mmOutput_, cmOut = deviceTracing.cmOutput_, evt]() mutable {
     // first wait till the copy ends
-    waitForEvent(memcpyEvt);
+    waitForEventWithoutProfiling(memcpyEvt);
 
     if (mmOut) {
       mmOut->write(reinterpret_cast<const char*>(dmaPtr), kTracingFwMmSize);
@@ -638,13 +667,13 @@ void RuntimeImp::checkDevice(int device) {
     RT_LOG(WARNING) << "Device " << device << " is not ready. Current state: " << static_cast<int>(state)
                     << ". Runtime will issue abort command to all SQs of that device.";
     for (auto sq = 0, sqCount = deviceLayer_->getSubmissionQueuesCount(device); sq < sqCount; ++sq) {
-      auto st = createStream(DeviceId{device});
+      auto st = createStreamWithoutProfiling(DeviceId{device});
       auto fakeEvt = eventManager_.getNextId();
       streamManager_.addEvent(st, fakeEvt);
       abortCommand(fakeEvt);
       dispatch(fakeEvt);
-      waitForStream(st);
-      destroyStream(st);
+      waitForStreamWithoutProfiling(st);
+      destroyStreamWithoutProfiling(st);
     }
   }
 }
