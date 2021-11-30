@@ -36,14 +36,14 @@ struct DeviceErrors : public Fixture {
 TEST_F(DeviceErrors, KernelLaunchInvalidMask) {
   std::array<std::byte, 64> dummyArgs;
 
-  runtime_->kernelLaunch(defaultStream_, add_vector_kernel, dummyArgs.data(), sizeof(dummyArgs), 0UL);
-  runtime_->waitForStream(defaultStream_);
-  auto errors = runtime_->retrieveStreamErrors(defaultStream_);
+  runtime_->kernelLaunch(defaultStreams_[0], add_vector_kernel, dummyArgs.data(), sizeof(dummyArgs), 0UL);
+  runtime_->waitForStream(defaultStreams_[0]);
+  auto errors = runtime_->retrieveStreamErrors(defaultStreams_[0]);
   EXPECT_EQ(errors.size(), 1UL);
   bool callbackExecuted = false;
   runtime_->setOnStreamErrorsCallback([&callbackExecuted](auto, const auto&) { callbackExecuted = true; });
-  runtime_->kernelLaunch(defaultStream_, add_vector_kernel, dummyArgs.data(), sizeof(dummyArgs), 0UL);
-  runtime_->waitForStream(defaultStream_);
+  runtime_->kernelLaunch(defaultStreams_[0], add_vector_kernel, dummyArgs.data(), sizeof(dummyArgs), 0UL);
+  runtime_->waitForStream(defaultStreams_[0]);
   EXPECT_TRUE(callbackExecuted);
 }
 
@@ -51,16 +51,16 @@ TEST_F(DeviceErrors, KernelLaunchException) {
   std::array<std::byte, 64> dummyArgs;
 
   // Launch Kernel on all 32 Shires including Sync Minions
-  runtime_->kernelLaunch(defaultStream_, exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0x1FFFFFFFFUL);
-  runtime_->waitForStream(defaultStream_);
-  auto errors = runtime_->retrieveStreamErrors(defaultStream_);
+  runtime_->kernelLaunch(defaultStreams_[0], exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0x1FFFFFFFFUL);
+  runtime_->waitForStream(defaultStreams_[0]);
+  auto errors = runtime_->retrieveStreamErrors(defaultStreams_[0]);
   EXPECT_EQ(errors.size(), 1UL);
   RT_LOG(logging::VLOG_HIGH) << "";
   bool callbackExecuted = false;
   runtime_->setOnStreamErrorsCallback([&callbackExecuted](auto, const rt::StreamError&) { callbackExecuted = true; });
   // Launch Kernel on all 32 Shires including Sync Minions
-  runtime_->kernelLaunch(defaultStream_, exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0x1FFFFFFFFUL);
-  runtime_->waitForStream(defaultStream_);
+  runtime_->kernelLaunch(defaultStreams_[0], exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0x1FFFFFFFFUL);
+  runtime_->waitForStream(defaultStreams_[0]);
   RT_LOG(INFO) << "This is expected, part of the test. Stream error message: \n" << errors[0].getString();
   EXPECT_TRUE(callbackExecuted);
 }

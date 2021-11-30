@@ -38,11 +38,11 @@ TEST_F(TestDmaErrors, DmaOob) {
     errorReported = true;
   });
   // let's produce a OOB access
-  runtime_->memcpyHostToDevice(defaultStream_, hostMem.data(), reinterpret_cast<std::byte*>(ramUpperLimit) - 512,
+  runtime_->memcpyHostToDevice(defaultStreams_[0], hostMem.data(), reinterpret_cast<std::byte*>(ramUpperLimit) - 512,
                                hostMem.size());
-  runtime_->waitForStream(defaultStream_);
+  runtime_->waitForStream(defaultStreams_[0]);
   ASSERT_TRUE(errorReported);
-  ASSERT_EQ(deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(defaultDevice_)), dev::DeviceState::Ready);
+  ASSERT_EQ(deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(devices_[0])), dev::DeviceState::Ready);
 }
 
 TEST_F(TestDmaErrors, DmaOobPlusCommands) {
@@ -56,12 +56,12 @@ TEST_F(TestDmaErrors, DmaOobPlusCommands) {
     errorReported = true;
   });
   // let's produce a OOB access
-  auto evt = runtime_->memcpyHostToDevice(defaultStream_, hostMem.data(),
+  auto evt = runtime_->memcpyHostToDevice(defaultStreams_[0], hostMem.data(),
                                           reinterpret_cast<std::byte*>(ramUpperLimit) - 512, hostMem.size());
   // then lets queue several memcpy commands
-  auto dst = runtime_->mallocDevice(defaultDevice_, hostMem.size());
+  auto dst = runtime_->mallocDevice(devices_[0], hostMem.size());
   for (int i = 0; i < 10; ++i) {
-    runtime_->memcpyHostToDevice(defaultStream_, hostMem.data(), dst, hostMem.size());
+    runtime_->memcpyHostToDevice(defaultStreams_[0], hostMem.data(), dst, hostMem.size());
   }
   runtime_->waitForEvent(evt);
   ASSERT_TRUE(errorReported);
@@ -70,11 +70,11 @@ TEST_F(TestDmaErrors, DmaOobPlusCommands) {
     // this part of the test can only be run in PCIE because sysemu always returns "ready" in DeviceState
     // reinstantiate the runtime and check the device is ready
     runtime_ = rt::IRuntime::create(deviceLayer_.get());
-    defaultStream_ = runtime_->createStream(defaultDevice_);
-    ASSERT_EQ(deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(defaultDevice_)), dev::DeviceState::Ready);
+    defaultStreams_[0] = runtime_->createStream(devices_[0]);
+    ASSERT_EQ(deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(devices_[0])), dev::DeviceState::Ready);
   }
   // before ending we wait for all events to be finished
-  runtime_->waitForStream(defaultStream_);
+  runtime_->waitForStream(defaultStreams_[0]);
 }
 
 int main(int argc, char** argv) {

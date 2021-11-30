@@ -28,7 +28,7 @@ public:
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
     imp->setMemoryManagerDebugMode(devices_[0], true);
     kernelHang_ = loadKernel("hang.elf");
-    runtime_->waitForStream(defaultStream_);
+    runtime_->waitForStream(defaultStreams_[0]);
   }
   std::array<std::byte, 32> fakeArgs_;
   KernelId kernelHang_;
@@ -48,22 +48,22 @@ TEST_F(TestAbort, abortCommand) {
   });
   auto rimp = static_cast<rt::RuntimeImp*>(runtime_.get());
   bool done = false;
-  rimp->setSentCommandCallback(defaultDevice_, [this, &done](rt::Command* cmd) {
+  rimp->setSentCommandCallback(devices_[0], [this, &done](rt::Command* cmd) {
     RT_LOG(INFO) << "Command sent: " << cmd << ". Now aborting stream.";
-    runtime_->abortStream(defaultStream_);
+    runtime_->abortStream(defaultStreams_[0]);
     RT_LOG(INFO) << "Waiting for stream to finish.";
-    runtime_->waitForStream(defaultStream_);
+    runtime_->waitForStream(defaultStreams_[0]);
     done = true;
   });
   RT_LOG(INFO) << "Sending kernel launch which will be aborted later";
-  runtime_->kernelLaunch(defaultStream_, kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1FFFFFFFFUL);
+  runtime_->kernelLaunch(defaultStreams_[0], kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1FFFFFFFFUL);
   while (!done) {
     RT_LOG(INFO) << "Not done yet, waiting. Error reported? " << errorReported;
     std::this_thread::sleep_for(1s);
   }
 
   ASSERT_TRUE(errorReported);
-  ASSERT_EQ(deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(defaultDevice_)), dev::DeviceState::Ready);
+  ASSERT_EQ(deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(devices_[0])), dev::DeviceState::Ready);
 }
 
 TEST_F(TestAbort, abortStream) {
@@ -83,19 +83,19 @@ TEST_F(TestAbort, abortStream) {
   bool done = false;
   auto commandsSent = 0U;
   auto commandsToSend = 10U;
-  rimp->setSentCommandCallback(defaultDevice_, [this, &done, &commandsSent, commandsToSend](rt::Command*) {
+  rimp->setSentCommandCallback(devices_[0], [this, &done, &commandsSent, commandsToSend](rt::Command*) {
     commandsSent++;
     if (commandsSent == commandsToSend) {
       RT_LOG(INFO) << "All commands sent. Now aborting stream.";
-      runtime_->abortStream(defaultStream_);
+      runtime_->abortStream(defaultStreams_[0]);
       RT_LOG(INFO) << "Waiting for stream to finish.";
-      runtime_->waitForStream(defaultStream_);
+      runtime_->waitForStream(defaultStreams_[0]);
       done = true;
     };
   });
   for (auto i = 0U; i < commandsToSend; ++i) {
     eventsSubmitted.emplace(
-      runtime_->kernelLaunch(defaultStream_, kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1FFFFFFFFUL));
+      runtime_->kernelLaunch(defaultStreams_[0], kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1FFFFFFFFUL));
   }
   while (!done) {
     RT_LOG(INFO) << "Not done yet, waiting.";

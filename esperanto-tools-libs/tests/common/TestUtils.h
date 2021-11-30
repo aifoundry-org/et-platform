@@ -73,7 +73,7 @@ public:
       break;
     case Mode::SYSEMU:
       RT_LOG(INFO) << "Running tests with SYSEMU deviceLayer";
-      deviceLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
+      deviceLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions(), sNumDevices);
       break;
     case Mode::FAKE:
       RT_LOG(INFO) << "Running tests with FAKE deviceLayer";
@@ -82,16 +82,25 @@ public:
     runtime_ = rt::IRuntime::create(deviceLayer_.get());
     devices_ = runtime_->getDevices();
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
-    imp->setMemoryManagerDebugMode(devices_[0], true);
-    defaultDevice_ = devices_[0];
-    defaultStream_ = runtime_->createStream(devices_[0]);
+
+    for (auto i = 0U; i < static_cast<uint32_t>(deviceLayer_->getDevicesCount()); ++i) {
+      imp->setMemoryManagerDebugMode(devices_[i], true);
+      defaultStreams_.emplace_back(runtime_->createStream(devices_[i]));
+    }
+
     runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
     tp_ = std::make_unique<threadPool::ThreadPool>(1, true);
   }
+
   void TearDown() override {
+    for (auto s : defaultStreams_) {
+      runtime_->waitForStream(s);
+      runtime_->destroyStream(s);
+    }
     tp_.reset();
-    runtime_->destroyStream(defaultStream_);
     runtime_.reset();
+    defaultStreams_.clear();
+    devices_.clear();
     deviceLayer_.reset();
   }
 
@@ -99,20 +108,21 @@ public:
     auto kernelContent = readFile(std::string{KERNELS_DIR} + "/" + kernel_name);
     EXPECT_FALSE(kernelContent.empty());
     EXPECT_TRUE(devices_.size() > deviceIdx);
-    auto res = runtime_->loadCode(defaultStream_, kernelContent.data(), kernelContent.size());
+    auto tempStream = runtime_->createStream(rt::DeviceId(deviceIdx));
+    auto res = runtime_->loadCode(tempStream, kernelContent.data(), kernelContent.size());
     tp_->pushTask([res, this, kernelContent = std::move(kernelContent)] { runtime_->waitForEvent(res.event_); });
     return res.kernel_;
   }
 
   inline static Mode sMode = Mode::SYSEMU;
+  inline static uint8_t sNumDevices = 1;
 
 protected:
   logging::LoggerDefault loggerDefault_;
   std::unique_ptr<dev::IDeviceLayer> deviceLayer_;
   rt::RuntimePtr runtime_;
   std::vector<rt::DeviceId> devices_;
-  rt::DeviceId defaultDevice_;
-  rt::StreamId defaultStream_;
+  std::vector<rt::StreamId> defaultStreams_;
   std::unique_ptr<threadPool::ThreadPool> tp_;
 };
 
@@ -124,8 +134,10 @@ template <typename TContainer> void randomize(TContainer& container, int init, i
   }
 }
 
-void stressMemThreadFunc(rt::IRuntime* runtime, uint32_t streams, uint32_t transactions, size_t bytes, bool check_results) {
-  auto dev = runtime->getDevices()[0];
+void stressMemThreadFunc(rt::IRuntime* runtime, uint32_t streams, uint32_t transactions, size_t bytes,
+                         bool check_results, size_t deviceId) {
+  ASSERT_LT(deviceId, runtime->getDevices().size());
+  auto dev = runtime->getDevices()[deviceId];
   std::vector<rt::StreamId> streams_(streams);
   std::vector<std::vector<std::byte>> host_src(transactions);
   std::vector<std::vector<std::byte>> host_dst(transactions);
@@ -152,16 +164,17 @@ void stressMemThreadFunc(rt::IRuntime* runtime, uint32_t streams, uint32_t trans
       }
     }
     runtime->destroyStream(streams_[j]);
-  }    
+  }
 }
 
 inline void run_stress_mem(rt::IRuntime* runtime, size_t bytes, uint32_t transactions, uint32_t streams,
-                           uint32_t threads, bool check_results = true) {
+                           uint32_t threads, bool check_results = true, size_t deviceId = 0) {
   std::vector<std::thread> threads_;
   using namespace testing;
 
   for (auto i = 0U; i < threads; ++i) {
-    threads_.emplace_back(std::bind(stressMemThreadFunc, runtime, streams, transactions, bytes, check_results));
+    threads_.emplace_back(
+      std::bind(stressMemThreadFunc, runtime, streams, transactions, bytes, check_results, deviceId));
   }
   for (auto& t : threads_) {
     t.join();

@@ -84,6 +84,31 @@ TEST_F(StressMem, 1KB_2_memcpys_2stream_1thread) {
   run_stress_mem(runtime_.get(), 1<<10, 2, 2, 1);
 }
 
+TEST_F(StressMem, 1KB_50_memcpys_10stream_2thread_8dev) {
+  if (sMode == Mode::PCIE) {
+    RT_LOG(INFO) << "This multi device test is not design to be run on PCIE, skipping it.";
+    return;
+  }
+  decltype(sNumDevices) oldNumDevices = sNumDevices;
+  try {
+    TearDown();
+    sNumDevices = 8;
+    SetUp();
+    std::vector<std::future<void>> futs;
+    for (auto i = 0U; i < 8; ++i) {
+      futs.emplace_back(
+        std::async(std::launch::async, [this, i] { run_stress_mem(runtime_.get(), 1 << 10, 50, 10, 2, true, i); }));
+    }
+    for (auto& f : futs) {
+      f.get();
+    }
+    sNumDevices = oldNumDevices;
+  } catch (const std::exception& e) {
+    sNumDevices = oldNumDevices;
+    FAIL() << e.what();
+  }
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   StressMem::sMode = IsPcie(argc, argv) ? StressMem::Mode::PCIE : StressMem::Mode::SYSEMU;

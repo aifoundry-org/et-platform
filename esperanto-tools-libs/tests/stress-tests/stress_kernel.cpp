@@ -10,7 +10,9 @@
 #include "TestUtils.h"
 #include <algorithm>
 #include <device-layer/IDeviceLayerMock.h>
+#include <future>
 #include <g3log/loglevels.hpp>
+#include <gtest/gtest.h>
 #include <limits>
 #include <thread>
 
@@ -34,7 +36,10 @@ class StressKernel : public Fixture {
 public:
   void SetUp() override {
     Fixture::SetUp();
-    kernel_ = loadKernel("add_vector.elf");
+    kernels_.clear();
+    for (auto i = 0U; i < static_cast<uint32_t>(deviceLayer_->getDevicesCount()); ++i) {
+      kernels_.emplace_back(loadKernel("add_vector.elf", i));
+    }
   }
   void stressKernelThreadFunc(rt::DeviceId dev, uint32_t num_streams, uint32_t num_executions, uint32_t elems,
                               bool check_results, int thread_num) const {
@@ -68,7 +73,8 @@ public:
           void* dst;
           int elements;
         } params{dev_mem_src1[idx], dev_mem_src2[idx], dev_mem_dst[idx], static_cast<int>(elems)};
-        runtime_->kernelLaunch(streams_[j], kernel_, reinterpret_cast<std::byte*>(&params), sizeof(params), 0x1);
+        runtime_->kernelLaunch(streams_[j], kernels_[static_cast<uint32_t>(dev)], reinterpret_cast<std::byte*>(&params),
+                               sizeof(params), 0x1);
         runtime_->memcpyDeviceToHost(streams_[j], dev_mem_dst[idx], reinterpret_cast<std::byte*>(host_dst[idx].data()),
                                      elems * sizeof(int));
       }
@@ -89,9 +95,10 @@ public:
     };
   }
   void run_stress_kernel(size_t elems, uint32_t num_executions, uint32_t num_streams, uint32_t num_threads,
-                         bool check_results = true) const {
+                         bool check_results = true, size_t deviceId = 0) const {
     std::vector<std::thread> threads;
-    auto dev = devices_[0];
+    ASSERT_TRUE(deviceId < devices_.size());
+    auto dev = devices_[deviceId];
 
     for (auto i = 0U; i < num_threads; ++i) {
       threads.emplace_back(std::bind(&StressKernel::stressKernelThreadFunc, this, dev, num_streams, num_executions,
@@ -101,7 +108,7 @@ public:
       t.join();
     }
   }
-  rt::KernelId kernel_;
+  std::vector<rt::KernelId> kernels_;
 };
 
 TEST_F(StressKernel, 256_ele_10_exe_10_st_2_th) {
@@ -146,6 +153,30 @@ TEST_F(StressKernel, 64_ele_1_exe_1_st_50_th) {
 
 TEST_F(StressKernel, 64_ele_1_exe_1_st_100_th) {
   run_stress_kernel(1 << 6, 1, 1, 100);
+}
+
+TEST_F(StressKernel, 256_ele_10_exe_10_st_2_th_8_dev) {
+  if (sMode == Mode::PCIE) {
+    RT_LOG(INFO) << "This multi device test is not design to be run on PCIE, skipping it.";
+    return;
+  }
+  decltype(sNumDevices) oldNumDevices = sNumDevices;
+  try {
+    TearDown();
+    sNumDevices = 8;
+    SetUp();
+    std::vector<std::future<void>> futs;
+    for (auto i = 0U; i < 8; ++i) {
+      futs.emplace_back(std::async(std::launch::async, [this, i] { run_stress_kernel(1 << 8, 10, 10, 2, true, i); }));
+    }
+    for (auto& f : futs) {
+      f.get();
+    }
+    sNumDevices = oldNumDevices;
+  } catch (const std::exception& e) {
+    sNumDevices = oldNumDevices;
+    FAIL() << e.what();
+  }
 }
 
 int main(int argc, char** argv) {

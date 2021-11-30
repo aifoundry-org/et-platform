@@ -37,7 +37,7 @@ struct TestCodeLoading : public Fixture {
 // Load and removal of a single kernel.
 TEST_F(TestCodeLoading, LoadKernel) {
   auto kernel = loadKernel("add_vector.elf");
-  runtime_->waitForStream(defaultStream_);
+  runtime_->waitForStream(defaultStreams_[0]);
   runtime_->unloadCode(kernel);
   // if we unload again the same kernel we should expect to throw an exception
   EXPECT_THROW(runtime_->unloadCode(kernel), rt::Exception);
@@ -50,9 +50,9 @@ TEST_F(TestCodeLoading, KernelWithBss) {
   auto hSrc1 = std::vector<int>(numElems);
   auto hSrc2 = std::vector<int>(numElems);
   auto hDst = std::vector<int>(numElems);
-  auto dSrc1 = runtime_->mallocDevice(defaultDevice_, numElems * sizeof(int));
-  auto dSrc2 = runtime_->mallocDevice(defaultDevice_, numElems * sizeof(int));
-  auto dDst = runtime_->mallocDevice(defaultDevice_, numElems * sizeof(int));
+  auto dSrc1 = runtime_->mallocDevice(devices_[0], numElems * sizeof(int));
+  auto dSrc2 = runtime_->mallocDevice(devices_[0], numElems * sizeof(int));
+  auto dDst = runtime_->mallocDevice(devices_[0], numElems * sizeof(int));
   randomize(hSrc1, std::numeric_limits<int>::lowest(), std::numeric_limits<int>::max());
   randomize(hSrc2, std::numeric_limits<int>::lowest(), std::numeric_limits<int>::max());
 
@@ -62,17 +62,18 @@ TEST_F(TestCodeLoading, KernelWithBss) {
     void* dst;
     int elements;
   } params{dSrc1, dSrc2, dDst, static_cast<int>(numElems)};
-  runtime_->memcpyHostToDevice(defaultStream_, reinterpret_cast<std::byte*>(hSrc1.data()), dSrc1,
+  runtime_->memcpyHostToDevice(defaultStreams_[0], reinterpret_cast<std::byte*>(hSrc1.data()), dSrc1,
                                numElems * sizeof(int));
-  runtime_->memcpyHostToDevice(defaultStream_, reinterpret_cast<std::byte*>(hSrc2.data()), dSrc2,
+  runtime_->memcpyHostToDevice(defaultStreams_[0], reinterpret_cast<std::byte*>(hSrc2.data()), dSrc2,
                                numElems * sizeof(int));
-  runtime_->kernelLaunch(defaultStream_, kernel, reinterpret_cast<std::byte*>(&params), sizeof(params), 0x1);
-  runtime_->memcpyDeviceToHost(defaultStream_, dDst, reinterpret_cast<std::byte*>(hDst.data()), numElems * sizeof(int));
-  runtime_->waitForStream(defaultStream_);
+  runtime_->kernelLaunch(defaultStreams_[0], kernel, reinterpret_cast<std::byte*>(&params), sizeof(params), 0x1);
+  runtime_->memcpyDeviceToHost(defaultStreams_[0], dDst, reinterpret_cast<std::byte*>(hDst.data()),
+                               numElems * sizeof(int));
+  runtime_->waitForStream(defaultStreams_[0]);
   runtime_->unloadCode(kernel);
-  runtime_->freeDevice(defaultDevice_, dSrc1);
-  runtime_->freeDevice(defaultDevice_, dSrc2);
-  runtime_->freeDevice(defaultDevice_, dDst);
+  runtime_->freeDevice(devices_[0], dSrc1);
+  runtime_->freeDevice(devices_[0], dSrc2);
+  runtime_->freeDevice(devices_[0], dDst);
   for (auto i = 0U; i < numElems; ++i) {
     ASSERT_EQ(hDst[i], hSrc1[i] + hSrc2[i] + (i == 123 ? 1 : 0));
   }
@@ -89,7 +90,7 @@ TEST_F(TestCodeLoading, MultipleLoads) {
     EXPECT_LT(static_cast<uint32_t>(*(it - 1)), static_cast<uint32_t>(*it));
   }
 
-  runtime_->waitForStream(defaultStream_);
+  runtime_->waitForStream(defaultStreams_[0]);
   RT_LOG(INFO) << "Unloading 100 kernels";
   for (auto lcr : kernelIds) {
     runtime_->unloadCode(lcr);
