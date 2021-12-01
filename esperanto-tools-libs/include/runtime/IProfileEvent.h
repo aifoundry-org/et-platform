@@ -76,10 +76,11 @@ class ScopedProfileEvent;
 ///
 class ProfileEvent {
 public:
-  using Id = uint64_t;
   using Cycles = uint64_t;
-  using TimePoint = std::chrono::time_point<std::chrono::steady_clock>;
-  using ExtraValues = std::variant<uint64_t, EventId, StreamId, DeviceId, KernelId, ResponseType>;
+  using Clock = std::chrono::steady_clock;
+  using TimePoint = std::chrono::time_point<Clock>;
+  using Duration = TimePoint::duration;
+  using ExtraValues = std::variant<uint64_t, EventId, StreamId, DeviceId, KernelId, ResponseType, Duration>;
   using ExtraMetadata = std::unordered_map<std::string, ExtraValues>;
 
   ProfileEvent() = default;
@@ -92,7 +93,7 @@ public:
   std::string getThreadId() const;
   ExtraMetadata getExtras() const;
 
-  std::optional<Id> getPairId() const;
+  std::optional<Duration> getDuration() const;
   std::optional<EventId> getEvent() const;
   std::optional<StreamId> getStream() const;
   std::optional<DeviceId> getDeviceId() const;
@@ -106,11 +107,11 @@ public:
 protected:
   void setType(Type t);
   void setClass(Class c);
-  void setTimeStamp(TimePoint t = std::chrono::steady_clock::now());
+  void setTimeStamp(TimePoint t = Clock::now());
   void setThreadId(std::thread::id id = std::this_thread::get_id());
   void setExtras(ExtraMetadata extras);
 
-  void setPairId(Id id);
+  void setDuration(Duration d);
   void setEvent(EventId event);
   void setStream(StreamId stream);
   void setDeviceId(DeviceId deviceId);

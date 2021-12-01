@@ -126,7 +126,6 @@ protected:
 private:
   void CreateProfileEvent() {
       rt::profiling::ProfileEvent evt(rt::profiling::Type::Start, rt::profiling::Class::GetDevices);
-      evt.setPairId(33);
       // etc..
       reference_evt = evt;
   }
@@ -156,9 +155,6 @@ TEST_F(ProfileEventDeserializationTest, DeserializeJson) {
   EXPECT_EQ(deserialized_evt.getClass(), reference_evt.getClass());
   EXPECT_EQ(deserialized_evt.getTimeStamp(), reference_evt.getTimeStamp());
   EXPECT_EQ(deserialized_evt.getThreadId(), reference_evt.getThreadId());
-
-  EXPECT_TRUE(deserialized_evt.getPairId().has_value());
-  EXPECT_EQ(deserialized_evt.getPairId().value(), 33);
 }
 
 TEST_F(ProfileEventDeserializationTest, DeserializeBinary) {
@@ -172,9 +168,6 @@ TEST_F(ProfileEventDeserializationTest, DeserializeBinary) {
   EXPECT_EQ(deserialized_evt.getClass(), reference_evt.getClass());
   EXPECT_EQ(deserialized_evt.getTimeStamp(), reference_evt.getTimeStamp());
   EXPECT_EQ(deserialized_evt.getThreadId(), reference_evt.getThreadId());
-
-  EXPECT_TRUE(deserialized_evt.getPairId().has_value());
-  EXPECT_EQ(deserialized_evt.getPairId().value(), 33);
 }
 
 } // namespace rt::tests

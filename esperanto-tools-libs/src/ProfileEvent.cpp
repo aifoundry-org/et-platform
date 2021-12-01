@@ -175,8 +175,8 @@ ProfileEvent::ExtraMetadata ProfileEvent::getExtras() const {
   return extra_;
 }
 
-std::optional<ProfileEvent::Id> ProfileEvent::getPairId() const {
-  return getExtra<ProfileEvent::Id>("pair_id");
+std::optional<ProfileEvent::Duration> ProfileEvent::getDuration() const {
+  return getExtra<ProfileEvent::Duration>("duration");
 }
 std::optional<EventId> ProfileEvent::getEvent() const {
   return getExtra<EventId>("event");
@@ -224,8 +224,8 @@ void ProfileEvent::setExtras(ExtraMetadata extras) {
   extra_ = std::move(extras);
 }
 
-void ProfileEvent::setPairId(Id id) {
-  addExtra("pair_id", id);
+void ProfileEvent::setDuration(Duration d) {
+  addExtra("duration", d);
 }
 
 void ProfileEvent::setEvent(EventId event) {

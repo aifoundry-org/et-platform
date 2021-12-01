@@ -21,7 +21,7 @@ public:
   explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, StreamId streamId, KernelId kernelId,
                               uint64_t loadAddress)
     : profiler_(profiler)
-    , event_{Type::Start, cls} {
+    , event_{Type::Complete, cls} {
     event_.setStream(streamId);
     event_.setKernelId(kernelId);
     event_.setLoadAddress(loadAddress);
@@ -29,36 +29,35 @@ public:
   }
   explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, KernelId kernelId)
     : profiler_(profiler)
-    , event_{Type::Start, cls} {
+    , event_{Type::Complete, cls} {
     event_.setKernelId(kernelId);
     init();
   }
   explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, DeviceId deviceId)
     : profiler_(profiler)
-    , event_{Type::Start, cls} {
+    , event_{Type::Complete, cls} {
     event_.setDeviceId(deviceId);
     init();
   }
   explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, StreamId streamId)
     : profiler_(profiler)
-    , event_{Type::Start, cls} {
+    , event_{Type::Complete, cls} {
     event_.setStream(streamId);
     init();
   }
   explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, EventId eventId)
     : profiler_(profiler)
-    , event_{Type::Start, cls} {
+    , event_{Type::Complete, cls} {
     event_.setEvent(eventId);
     init();
   }
   explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler)
     : profiler_(profiler)
-    , event_{Type::Start, cls} {
+    , event_{Type::Complete, cls} {
     init();
   }
   void init() {
-    event_.setPairId(nextPairId_++);
-    profiler_.record(event_);
+    event_.setTimeStamp();
   }
 
   void setEventId(EventId event) {
@@ -74,8 +73,7 @@ public:
   }
 
   ~ScopedProfileEvent() {
-    event_.setTimeStamp();
-    event_.type_ = Type::End;
+    event_.setDuration(ProfileEvent::Clock::now() - event_.getTimeStamp());
     profiler_.record(event_);
   }
 
@@ -86,7 +84,6 @@ public:
   ScopedProfileEvent& operator=(ScopedProfileEvent&&) = delete;
 
 private:
-  inline static std::atomic<uint64_t> nextPairId_ = 0;
   IProfilerRecorder& profiler_;
   ProfileEvent event_;
 };

@@ -20,6 +20,7 @@ using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::Mock;
 using ::testing::NiceMock;
+using ::testing::Property;
 using ::testing::Return;
 
 namespace rt {
@@ -63,50 +64,128 @@ TEST_F(ProfilerTests, stop_recording) {
 //
 // Test that IRuntime public interface generates profiling events
 //
-TEST_F(ProfilerTests, getDevices) {
-  // getDevices generates 2 events (start-stop)
-  EXPECT_CALL(*profilerMock_, record).Times(2);
 
+MATCHER(AGetDevicesEvent, "") {
+  return arg.getClass() == profiling::Class::GetDevices;
+}
+
+// getDevices generates 1 (complete) event
+TEST_F(ProfilerTests, getDevices) {
+  EXPECT_CALL(*profilerMock_, record(AGetDevicesEvent())).Times(1);
   runtime_->getDevices();
 }
 
-TEST_F(ProfilerTests, mallocDevice) {
-  // mallocDevice generates 2 events (start-stop)
-  EXPECT_CALL(*profilerMock_, record).Times(2);
+MATCHER(AMallocDevice, "") {
+  return arg.getClass() == profiling::Class::MallocDevice;
+}
 
+// mallocDevice generates 1 (complete) event
+TEST_F(ProfilerTests, mallocDevice) {
+  EXPECT_CALL(*profilerMock_, record(AMallocDevice())).Times(1);
   runtime_->mallocDevice(DeviceId(0), 10u);
 }
 
+MATCHER(AFreeDevice, "") {
+  return arg.getClass() == profiling::Class::FreeDevice;
+}
+
+// freeDevice generates 1 (complete) event
 TEST_F(ProfilerTests, freeDevice) {
   auto devId = DeviceId(0);
   auto d_ptr = runtime_->mallocDevice(devId, 10u);
 
-  // freeDevice generates 2 events (start-stop)
-  EXPECT_CALL(*profilerMock_, record).Times(2);
-
+  // ------- code under test -------
+  EXPECT_CALL(*profilerMock_, record(AFreeDevice())).Times(1);
   runtime_->freeDevice(devId, d_ptr);
+  // ------- ^^^^^^^^^^^^^^^ -------
 }
 
+MATCHER(ACreateStream, "") {
+  return arg.getClass() == profiling::Class::CreateStream;
+}
+
+// createStream generates 1 (complete) event
 TEST_F(ProfilerTests, createStream) {
-  auto devId = DeviceId(0);
-
-  // createStream generates 2 events (start-stop)
-  EXPECT_CALL(*profilerMock_, record).Times(2);
-
-  runtime_->createStream(devId);
+  EXPECT_CALL(*profilerMock_, record(ACreateStream())).Times(1);
+  runtime_->createStream(DeviceId(0));
 }
 
+MATCHER(ADestroyStream, "") {
+  return arg.getClass() == profiling::Class::DestroyStream;
+}
+
+// destroyStream generates 1 (complete) event
 TEST_F(ProfilerTests, destroyStream) {
+  auto stream = runtime_->createStream(DeviceId(0));
+
+  // ------- code under test -------
+  EXPECT_CALL(*profilerMock_, record(ADestroyStream())).Times(1);
+  runtime_->destroyStream(stream);
+  // ------- ^^^^^^^^^^^^^^^ -------
+}
+
+MATCHER(AWaitForStream, "") {
+  return arg.getClass() == profiling::Class::WaitForStream;
+}
+
+// waitForStream generates 1 (complete) event
+TEST_F(ProfilerTests, waitForStream) {
+  auto stream = runtime_->createStream(DeviceId(0));
+
+  // ------- code under test -------
+  EXPECT_CALL(*profilerMock_, record(AWaitForStream())).Times(1);
+  runtime_->waitForStream(stream);
+  // ------- ^^^^^^^^^^^^^^^ -------
+}
+
+MATCHER(AWaitForEvent, "") {
+  return arg.getClass() == profiling::Class::WaitForEvent;
+}
+
+// waitForEvent generates 1 (complete) event
+TEST_F(ProfilerTests, waitForEvent) {
+  auto stream = runtime_->createStream(DeviceId(0));
+  auto event_id = runtime_->abortStream(stream);
+
+  // ------- code under test -------
+  EXPECT_CALL(*profilerMock_, record(AWaitForEvent())).Times(1);
+  runtime_->waitForEvent(event_id);
+  // ------- ^^^^^^^^^^^^^^^ -------
+}
+
+MATCHER(AMemcpyHostToDevice, "") {
+  return arg.getClass() == profiling::Class::MemcpyHostToDevice;
+}
+MATCHER(ACommandSent, "") {
+  return arg.getClass() == profiling::Class::CommandSent;
+}
+MATCHER(AResponseReceived, "") {
+  return arg.getClass() == profiling::Class::ResponseReceived;
+}
+
+// memcpy H2D only generates 1 (complete) event
+TEST_F(ProfilerTests, memcpyHostToDevice) {
   auto devId = DeviceId(0);
   auto stream = runtime_->createStream(devId);
+  auto d_ptr = runtime_->mallocDevice(devId, 10u);
+  std::array<std::byte, 10u> h_buffer;
 
-  // destroyStream generates 2 events (start-stop)
-  EXPECT_CALL(*profilerMock_, record).Times(2);
+  // ------- code under test -------
+  EXPECT_CALL(*profilerMock_, record(AMemcpyHostToDevice())).Times(1);
+  EXPECT_CALL(*profilerMock_, record(ACommandSent())).Times(AtLeast(1));
+  EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1));
+  runtime_->memcpyHostToDevice(stream, h_buffer.data(), d_ptr, h_buffer.size());
+  // ------- code under test -------
 
-  runtime_->destroyStream(stream);
+  EXPECT_CALL(*profilerMock_, record(AWaitForStream())).Times(1);
+  runtime_->waitForStream(stream);
 }
 
-// RuntimeImpl::loadCode relies on code (loading elf)
+MATCHER(ALoadCode, "") {
+  return arg.getClass() == profiling::Class::LoadCode;
+}
+
+// Obs: RuntimeImpl::loadCode relies on code (loading elf)
 // that cannot be mocked.
 // This test then loads a real elf
 TEST_F(ProfilerTests, loadCode) {
@@ -115,17 +194,40 @@ TEST_F(ProfilerTests, loadCode) {
   auto kernelContent = readFile(std::string{KERNELS_DIR} + "/" + "add_vector.elf");
   EXPECT_FALSE(kernelContent.empty());
 
-  // loadCode test generates:
-  // +2 loadCode itself
-  //   +2 1-mallocDevice for loading the code
-  //   +2 1-mallocDevice x segment (only 1 segment)
-  //   +2 1-waitForEvent x event (only 1 event)
-  // +2 mandatory waitForStream
-  //   +4 2-waitForEvent (2 events)
-  EXPECT_CALL(*profilerMock_, record).Times(AtLeast(4)); // <-- unreliable. Improve exact count after SW-10380
-
+  // ------- code under test -------
+  EXPECT_CALL(*profilerMock_, record(ALoadCode())).Times(1);
+  EXPECT_CALL(*profilerMock_, record(ACommandSent())).Times(AtLeast(1));
+  EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1));
   runtime_->loadCode(stream, kernelContent.data(), kernelContent.size());
+  // ------- code under test -------
+
+  EXPECT_CALL(*profilerMock_, record(AWaitForStream())).Times(1);
   runtime_->waitForStream(stream);
+}
+
+MATCHER(AUnloadCode, "") {
+  return arg.getClass() == profiling::Class::UnloadCode;
+}
+
+TEST_F(ProfilerTests, unloadCode) {
+  auto devId = DeviceId(0);
+  auto stream = runtime_->createStream(devId);
+  auto kernelContent = readFile(std::string{KERNELS_DIR} + "/" + "empty.elf");
+  EXPECT_FALSE(kernelContent.empty());
+  auto res = runtime_->loadCode(stream, kernelContent.data(), kernelContent.size());
+  auto kernel = res.kernel_;
+  runtime_->waitForStream(stream);
+
+  // ------- code under test -------
+  EXPECT_CALL(*profilerMock_, record(AUnloadCode())).Times(1);
+  // EXPECT_CALL(*profilerMock_, record(ACommandSent())).Times(AtLeast(1));
+  // EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1));
+  runtime_->unloadCode(kernel);
+  // ------- code under test -------
+}
+
+MATCHER(AKernelLaunch, "") {
+  return arg.getClass() == profiling::Class::KernelLaunch;
 }
 
 TEST_F(ProfilerTests, kernelLaunch) {
@@ -135,18 +237,16 @@ TEST_F(ProfilerTests, kernelLaunch) {
   EXPECT_FALSE(kernelContent.empty());
   auto res = runtime_->loadCode(stream, kernelContent.data(), kernelContent.size());
   auto kernel = res.kernel_;
+  runtime_->waitForStream(stream);
 
-  // kernelLaunch test generates:
-  // +2 kernelLaunch itself
-  //   +2 1-waitForEvent x event (only 1 event)
-  //   +1 CommandSent
-  //   +1 ResponseReceived
-  // +2 mandatory waitForStream
-  //   +1 CommandSent
-  //   +1 ResponseReceived
-  EXPECT_CALL(*profilerMock_, record).Times(AtLeast(4)); //<<-- unreliable. Improve exact count after SW-10380
-
+  // ------- code under test -------
+  EXPECT_CALL(*profilerMock_, record(AKernelLaunch())).Times(1);
+  EXPECT_CALL(*profilerMock_, record(ACommandSent())).Times(AtLeast(1));
+  EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1));
   runtime_->kernelLaunch(stream, kernel, nullptr, 0, 0x1);
+  // ------- code under test -------
+
+  EXPECT_CALL(*profilerMock_, record(AWaitForStream())).Times(1);
   runtime_->waitForStream(stream);
 }
 

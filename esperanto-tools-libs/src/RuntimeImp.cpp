@@ -225,7 +225,7 @@ void RuntimeImp::unloadCode(KernelId kernel) {
                << " buffer: " << deviceBuffer;
 
   // free the buffer
-  freeDevice(deviceId, it->second->deviceBuffer_);
+  freeDeviceWithoutProfiling(deviceId, it->second->deviceBuffer_);
 
   // and remove the kernel
   kernels_.erase(it);
@@ -254,7 +254,6 @@ void RuntimeImp::freeDevice(DeviceId device, std::byte* buffer) {
   freeDeviceWithoutProfiling(device, buffer);
 }
 void RuntimeImp::freeDeviceWithoutProfiling(DeviceId device, std::byte* buffer) {
-  ScopedProfileEvent profileEvent(Class::FreeDevice, *profiler_, device);
   RT_LOG(INFO) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
                << " buffer address: " << std::hex << buffer;
   std::lock_guard lock(mutex_);
@@ -267,7 +266,6 @@ StreamId RuntimeImp::createStream(DeviceId device) {
 }
 
 StreamId RuntimeImp::createStreamWithoutProfiling(DeviceId device) {
-  ScopedProfileEvent profileEvent(Class::CreateStream, *profiler_, device);
   RT_LOG(INFO) << "Creating stream at device: " << static_cast<std::underlying_type_t<DeviceId>>(device);
   return streamManager_.createStream(device);
 }
