@@ -190,8 +190,8 @@ void TestDevMgmtApiSyncCmds::extractAndPrintTraceData(void) {
 
       DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
-      if (dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response, DM_SERVICE_REQUEST_TIMEOUT) !=
-          device_mgmt_api::DM_STATUS_SUCCESS) {
+      if (dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response,
+                                            DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
         DM_LOG(INFO) << "Unable to get SP trace buffer for device: " << deviceIdx << ". Disabling Trace.";
       } else {
         printSpTraceData(reinterpret_cast<unsigned char*>(response.data()), response.size());
@@ -373,7 +373,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB_1_6(bool singleDevice) {
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  const uint32_t output_size = 1; 
+  const uint32_t output_size = 1;
   char expected[output_size] = {16};
   printf("expected: %.*s\n", output_size, expected);
 
@@ -490,7 +490,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber_1_9(bool singleDevi
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-      EXPECT_EQ((output_size > 0),1);
+      EXPECT_EQ((output_size > 0), 1);
     }
   }
 }
@@ -1743,7 +1743,8 @@ void TestDevMgmtApiSyncCmds::getTraceBuffer_1_49(bool singleDevice) {
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    EXPECT_EQ(dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response, DM_SERVICE_REQUEST_TIMEOUT),
+    EXPECT_EQ(dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response,
+                                                DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -2085,7 +2086,7 @@ void TestDevMgmtApiSyncCmds::setPCIELinkSpeedToInvalidLinkSpeed_1_64(bool single
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED, input_buff,
                                 input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
-                                -EINVAL);
+              -EINVAL);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
@@ -2110,7 +2111,488 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidthToInvalidLaneWidth_1_65(bool single
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff, input_size,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
-                                -EINVAL);
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::testInvalidOutputSize(int32_t dmCmdType, bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  const uint32_t output_size = INVALID_OUTPUT_SIZE; /*Invalid output size*/
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    char output_buff[OUTPUT_SIZE_TEST] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::testInvalidDeviceNode(int32_t dmCmdType, bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  const uint32_t output_size = OUTPUT_SIZE_TEST;
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    int device_node = deviceIdx + MAX_DEVICE_NODE; /*Invalid device node*/
+    EXPECT_EQ(dm.serviceRequest(device_node, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::testInvalidHostLatency(int32_t dmCmdType, bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  const uint32_t output_size = OUTPUT_SIZE_TEST;
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    char output_buff[output_size] = {0};
+    auto dev_latency = std::make_unique<uint64_t>();
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size,
+                                nullptr /*nullptr for invalid testing*/, dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::testInvalidDeviceLatency(int32_t dmCmdType, bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  const uint32_t output_size = OUTPUT_SIZE_TEST;
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
+                                nullptr /*nullptr for invalid testing*/, DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::testInvalidOutputBuffer(int32_t dmCmdType, bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  const uint32_t output_size = OUTPUT_SIZE_TEST;
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    char* output_buff = nullptr; /*nullptr for invalid testing*/
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidOutputSize_1_66(bool singleDevice) {
+  testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidDeviceNode_1_67(bool singleDevice) {
+  testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidHostLatency_1_68(bool singleDevice) {
+  testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidDeviceLatency_1_69(bool singleDevice) {
+  testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidOutputBuffer_1_70(bool singleDevice) {
+  testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidOutputSize_1_71(bool singleDevice) {
+  testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidDeviceNode_1_72(bool singleDevice) {
+  testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidHostLatency_1_73(bool singleDevice) {
+  testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidDeviceLatency_1_74(bool singleDevice) {
+  testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidOutputBuffer_1_75(bool singleDevice) {
+  testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidOutputSize_1_76(bool singleDevice) {
+  testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidDeviceNode_1_77(bool singleDevice) {
+  testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidHostLatency_1_78(bool singleDevice) {
+  testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidDeviceLatency_1_79(bool singleDevice) {
+  testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidOutputBuffer_1_80(bool singleDevice) {
+  testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidOutputSize_1_81(bool singleDevice) {
+  testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidDeviceNode_1_82(bool singleDevice) {
+  testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidHostLatency_1_83(bool singleDevice) {
+  testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidDeviceLatency_1_84(bool singleDevice) {
+  testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidOutputBuffer_1_85(bool singleDevice) {
+  testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidOutputSize_1_86(bool singleDevice) {
+  testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidDeviceNode_1_87(bool singleDevice) {
+  testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidHostLatency_1_88(bool singleDevice) {
+  testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidDeviceLatency_1_89(bool singleDevice) {
+  testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidOutputBuffer_1_90(bool singleDevice) {
+  testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICStallsInvalidOutputSize_1_91(bool singleDevice) {
+  testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICStallsInvalidDeviceNode_1_92(bool singleDevice) {
+  testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICStallsInvalidHostLatency_1_93(bool singleDevice) {
+  testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICStallsInvalidDeviceLatency_1_94(bool singleDevice) {
+  testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICStallsInvalidOutputBuffer_1_95(bool singleDevice) {
+  testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICLatencyInvalidOutputSize_1_96(bool singleDevice) {
+  testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICLatencyInvalidDeviceNode_1_97(bool singleDevice) {
+  testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICLatencyInvalidHostLatency_1_98(bool singleDevice) {
+  testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICLatencyInvalidDeviceLatency_1_99(bool singleDevice) {
+  testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getASICLatencyInvalidOutputBuffer_1_100(bool singleDevice) {
+  testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::testInvalidCmdCode_1_101(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  const uint32_t output_size = OUTPUT_SIZE_TEST;
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, DM_CMD_INVALID, nullptr, 0, output_buff, output_size, hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::testInvalidInputBuffer(int32_t dmCmdType, bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = INPUT_SIZE_TEST;
+    const char* input_buff = nullptr; /*nullptr for invalid testing*/
+
+    const uint32_t output_size = OUTPUT_SIZE_TEST;
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, input_buff, input_size, output_buff, output_size,
+                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::testInvalidInputSize(int32_t dmCmdType, bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t input_size = INVALID_INPUT_SIZE;
+    const char input_buff[INPUT_SIZE_TEST] = {0};
+
+    const uint32_t output_size = OUTPUT_SIZE_TEST;
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, input_buff, input_size, output_buff, output_size,
+                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidInputBuffer_1_102(bool singleDevice) {
+  testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidInputSize_1_103(bool singleDevice) {
+  testInvalidInputSize(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidOutputSize_1_104(bool singleDevice) {
+  testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidDeviceNode_1_105(bool singleDevice) {
+  testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidHostLatency_1_106(bool singleDevice) {
+  testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidDeviceLatency_1_107(bool singleDevice) {
+  testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidOutputBuffer_1_108(bool singleDevice) {
+  testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCCountInvalidInputBuffer_1_109(bool singleDevice) {
+  testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidInputSize_1_110(bool singleDevice) {
+  testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidOutputSize_1_111(bool singleDevice) {
+  testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidDeviceNode_1_112(bool singleDevice) {
+  testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidHostLatency_1_113(bool singleDevice) {
+  testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidDeviceLatency_1_114(bool singleDevice) {
+  testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidOutputBuffer_1_115(bool singleDevice) {
+  testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCCountInvalidInputBuffer_1_116(bool singleDevice) {
+  testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCCountInvalidInputSize_1_117(bool singleDevice) {
+  testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidOutputSize_1_118(bool singleDevice) {
+  testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidDeviceNode_1_119(bool singleDevice) {
+  testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidHostLatency_1_120(bool singleDevice) {
+  testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidDeviceLatency_1_121(bool singleDevice) {
+  testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidOutputBuffer_1_122(bool singleDevice) {
+  testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
+}
+
+void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceNode_1_123(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  const uint32_t output_size = sizeof(device_mgmt_api::dm_cmd_e);
+  char expected[output_size] = {0};
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    EXPECT_EQ(dm.serviceRequest(deviceIdx + deviceCount, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_TEMPERATURE,
+                                nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidHostLatency_1_124(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  const uint32_t output_size = sizeof(device_mgmt_api::dm_cmd_e);
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    char output_buff[output_size] = {0};
+    auto dev_latency = std::make_unique<uint64_t>();
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_TEMPERATURE, nullptr, 0,
+                                output_buff, output_size, nullptr, dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceLatency_1_125(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  const uint32_t output_size = sizeof(device_mgmt_api::dm_cmd_e);
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_DDR_BW, nullptr, 0,
+                                output_buff, output_size, hst_latency.get(), nullptr, DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputBuffer_1_126(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  const uint32_t output_size = sizeof(device_mgmt_api::dm_cmd_e);
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MAX_MEMORY_ERROR, nullptr, 0, nullptr,
+                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputSize_1_127(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  const uint32_t output_size = sizeof(device_mgmt_api::dm_cmd_e);
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MAX_MEMORY_ERROR, nullptr, 0,
+                                output_buff, 0, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              -EINVAL);
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }

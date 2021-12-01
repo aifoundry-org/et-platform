@@ -24,8 +24,8 @@ class TestDevMgmtApiFuncSyncCmdsPcieFullBoot : public TestDevMgmtApiSyncCmds {
   }
   void TearDown() override {
     extractAndPrintTraceData();
-     if (handle_ != nullptr) {
-       dlclose(handle_);
+    if (handle_ != nullptr) {
+      dlclose(handle_);
     }
   }
 };
@@ -291,6 +291,25 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, setPCIELaneWidthToInvalidLaneWidt
   setPCIELaneWidthToInvalidLaneWidth_1_65(false /* Multiple Devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getHistoricalExtremeWithInvalidDeviceNode_1_123) {
+  getHistoricalExtremeWithInvalidDeviceNode_1_123(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getHistoricalExtremeWithInvalidHostLatency_1_124) {
+  getHistoricalExtremeWithInvalidHostLatency_1_124(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getHistoricalExtremeWithInvalidDeviceLatency_1_125) {
+  getHistoricalExtremeWithInvalidDeviceLatency_1_125(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getHistoricalExtremeWithInvalidOutputBuffer_1_126) {
+  getHistoricalExtremeWithInvalidOutputBuffer_1_126(false /* Multiple Devices */);
+}
+
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getHistoricalExtremeWithInvalidOutputSize_1_127) {
+  getHistoricalExtremeWithInvalidOutputSize_1_127(false /* Multiple Devices */);
+}
 
 int main(int argc, char** argv) {
   logging::LoggerDefault loggerDefault_;

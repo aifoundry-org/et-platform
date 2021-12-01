@@ -18,7 +18,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-
 #include <dlfcn.h>
 
 using namespace dev;
@@ -27,6 +26,13 @@ using namespace device_management;
 #define DM_LOG(severity) ET_LOG(DM, severity)
 #define DM_DLOG(severity) ET_DLOG(DM, severity)
 #define DM_VLOG(severity) ET_VLOG(DM, severity)
+
+#define MAX_DEVICE_NODE (250)
+#define INPUT_SIZE_TEST (1)
+#define OUTPUT_SIZE_TEST (24)
+#define DM_CMD_INVALID (256)
+#define INVALID_INPUT_SIZE (0)
+#define INVALID_OUTPUT_SIZE (0)
 
 DECLARE_bool(loopback_driver);
 DECLARE_string(trace_logfile_txt);
@@ -106,6 +112,75 @@ protected:
   void updateFirmwareImage_1_63(bool singleDevice);
   void setPCIELinkSpeedToInvalidLinkSpeed_1_64(bool singleDevice);
   void setPCIELaneWidthToInvalidLaneWidth_1_65(bool singleDevice);
+  void testInvalidOutputSize(int32_t dmCmdType, bool singleDevice);
+  void testInvalidDeviceNode(int32_t dmCmdType, bool singleDevice);
+  void testInvalidHostLatency(int32_t dmCmdType, bool singleDevice);
+  void testInvalidDeviceLatency(int32_t dmCmdType, bool singleDevice);
+  void testInvalidOutputBuffer(int32_t dmCmdType, bool singleDevice);
+  void getASICFrequenciesInvalidOutputSize_1_66(bool singleDevice);
+  void getASICFrequenciesInvalidDeviceNode_1_67(bool singleDevice);
+  void getASICFrequenciesInvalidHostLatency_1_68(bool singleDevice);
+  void getASICFrequenciesInvalidDeviceLatency_1_69(bool singleDevice);
+  void getASICFrequenciesInvalidOutputBuffer_1_70(bool singleDevice);
+  void getDRAMBandwidthInvalidOutputSize_1_71(bool singleDevice);
+  void getDRAMBandwidthInvalidDeviceNode_1_72(bool singleDevice);
+  void getDRAMBandwidthInvalidHostLatency_1_73(bool singleDevice);
+  void getDRAMBandwidthInvalidDeviceLatency_1_74(bool singleDevice);
+  void getDRAMBandwidthInvalidOutputBuffer_1_75(bool singleDevice);
+  void getDRAMCapacityUtilizationInvalidOutputSize_1_76(bool singleDevice);
+  void getDRAMCapacityUtilizationInvalidDeviceNode_1_77(bool singleDevice);
+  void getDRAMCapacityUtilizationInvalidHostLatency_1_78(bool singleDevice);
+  void getDRAMCapacityUtilizationInvalidDeviceLatency_1_79(bool singleDevice);
+  void getDRAMCapacityUtilizationInvalidOutputBuffer_1_80(bool singleDevice);
+  void getASICPerCoreDatapathUtilizationInvalidOutputSize_1_81(bool singleDevice);
+  void getASICPerCoreDatapathUtilizationInvalidDeviceNode_1_82(bool singleDevice);
+  void getASICPerCoreDatapathUtilizationInvalidHostLatency_1_83(bool singleDevice);
+  void getASICPerCoreDatapathUtilizationInvalidDeviceLatency_1_84(bool singleDevice);
+  void getASICPerCoreDatapathUtilizationInvalidOutputBuffer_1_85(bool singleDevice);
+  void getASICUtilizationInvalidOutputSize_1_86(bool singleDevice);
+  void getASICUtilizationInvalidDeviceNode_1_87(bool singleDevice);
+  void getASICUtilizationInvalidHostLatency_1_88(bool singleDevice);
+  void getASICUtilizationInvalidDeviceLatency_1_89(bool singleDevice);
+  void getASICUtilizationInvalidOutputBuffer_1_90(bool singleDevice);
+  void getASICStallsInvalidOutputSize_1_91(bool singleDevice);
+  void getASICStallsInvalidDeviceNode_1_92(bool singleDevice);
+  void getASICStallsInvalidHostLatency_1_93(bool singleDevice);
+  void getASICStallsInvalidDeviceLatency_1_94(bool singleDevice);
+  void getASICStallsInvalidOutputBuffer_1_95(bool singleDevice);
+  void getASICLatencyInvalidOutputSize_1_96(bool singleDevice);
+  void getASICLatencyInvalidDeviceNode_1_97(bool singleDevice);
+  void getASICLatencyInvalidHostLatency_1_98(bool singleDevice);
+  void getASICLatencyInvalidDeviceLatency_1_99(bool singleDevice);
+  void getASICLatencyInvalidOutputBuffer_1_100(bool singleDevice);
+  void testInvalidCmdCode_1_101(bool singleDevice);
+  void testInvalidInputBuffer(int32_t dmCmdType, bool singleDevice);
+  void testInvalidInputSize(int32_t dmCmdType, bool singleDevice);
+  void setDDRECCCountInvalidInputBuffer_1_102(bool singleDevice);
+  void setDDRECCCountInvalidInputSize_1_103(bool singleDevice);
+  void setDDRECCCountInvalidOutputSize_1_104(bool singleDevice);
+  void setDDRECCCountInvalidDeviceNode_1_105(bool singleDevice);
+  void setDDRECCCountInvalidHostLatency_1_106(bool singleDevice);
+  void setDDRECCCountInvalidDeviceLatency_1_107(bool singleDevice);
+  void setDDRECCCountInvalidOutputBuffer_1_108(bool singleDevice);
+  void setPCIEECCCountInvalidInputBuffer_1_109(bool singleDevice);
+  void setPCIEECCountInvalidInputSize_1_110(bool singleDevice);
+  void setPCIEECCountInvalidOutputSize_1_111(bool singleDevice);
+  void setPCIEECCountInvalidDeviceNode_1_112(bool singleDevice);
+  void setPCIEECCountInvalidHostLatency_1_113(bool singleDevice);
+  void setPCIEECCountInvalidDeviceLatency_1_114(bool singleDevice);
+  void setPCIEECCountInvalidOutputBuffer_1_115(bool singleDevice);
+  void setSRAMECCCountInvalidInputBuffer_1_116(bool singleDevice);
+  void setSRAMECCCountInvalidInputSize_1_117(bool singleDevice);
+  void setSRAMECCountInvalidOutputSize_1_118(bool singleDevice);
+  void setSRAMECCountInvalidDeviceNode_1_119(bool singleDevice);
+  void setSRAMECCountInvalidHostLatency_1_120(bool singleDevice);
+  void setSRAMECCountInvalidDeviceLatency_1_121(bool singleDevice);
+  void setSRAMECCountInvalidOutputBuffer_1_122(bool singleDevice);
+  void getHistoricalExtremeWithInvalidDeviceNode_1_123(bool singleDevice);
+  void getHistoricalExtremeWithInvalidHostLatency_1_124(bool singleDevice);
+  void getHistoricalExtremeWithInvalidDeviceLatency_1_125(bool singleDevice);
+  void getHistoricalExtremeWithInvalidOutputBuffer_1_126(bool singleDevice);
+  void getHistoricalExtremeWithInvalidOutputSize_1_127(bool singleDevice);
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
 };
