@@ -76,6 +76,7 @@ class ScopedProfileEvent;
 ///
 class ProfileEvent {
 public:
+  using Id = uint64_t;
   using Cycles = uint64_t;
   using Clock = std::chrono::steady_clock;
   using TimePoint = std::chrono::time_point<Clock>;
@@ -93,6 +94,7 @@ public:
   std::string getThreadId() const;
   ExtraMetadata getExtras() const;
 
+  std::optional<Id> getPairId() const;
   std::optional<Duration> getDuration() const;
   std::optional<EventId> getEvent() const;
   std::optional<StreamId> getStream() const;
@@ -111,6 +113,7 @@ protected:
   void setThreadId(std::thread::id id = std::this_thread::get_id());
   void setExtras(ExtraMetadata extras);
 
+  void setPairId(Id id);
   void setDuration(Duration d);
   void setEvent(EventId event);
   void setStream(StreamId stream);
