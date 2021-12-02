@@ -207,7 +207,7 @@ int verifyService() {
       return ret;
     }
 
-    DV_LOG(INFO) << "DDR Memory Size: " << (std::stoi (output_buff,nullptr,10)) / 1024 << "GB" << std::endl;
+    DV_LOG(INFO) << "DDR Memory Size: " << (int)(*output_buff) << "GB" << std::endl;
   }break;
 
   case DM_CMD::DM_CMD_GET_ASIC_CHIP_REVISION: {
