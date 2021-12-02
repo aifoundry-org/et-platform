@@ -149,7 +149,7 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
         case DM_CMD_GET_MODULE_MAX_TEMPERATURE ... DM_CMD_GET_MAX_MEMORY_ERROR:
             historical_extreme_value_request(tag_id, msg_id);
             break;
-        case DM_CMD_GET_MM_ERROR_COUNT:
+        case DM_CMD_GET_MM_ERROR_COUNT ... DM_CMD_MM_RESET:
             Minion_State_Host_Iface_Process_Request(tag_id, msg_id);
             break;
         case DM_CMD_GET_ASIC_FREQUENCIES ... DM_CMD_GET_ASIC_LATENCY:

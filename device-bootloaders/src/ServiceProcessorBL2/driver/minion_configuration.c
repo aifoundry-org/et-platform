@@ -936,26 +936,39 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
 {
     uint64_t req_start_time;
     int32_t status;
+    struct device_mgmt_mm_state_rsp_t dm_rsp;
+
     req_start_time = timer_get_ticks_count();
 
-    if (msg_id != DM_CMD_GET_MM_ERROR_COUNT)  {
-        Log_Write(LOG_LEVEL_ERROR, " mm state svc error: Invalid Minion State Request id: %d\r\n",msg_id);
-    } else {
-        struct device_mgmt_mm_state_rsp_t dm_rsp;
-
-        status = mm_get_error_count(&dm_rsp.mm_error_count);
-
-        if (0 != status) {
-             Log_Write(LOG_LEVEL_ERROR, " mm state svc error: get_mm_error_count()\r\n");
-        } else {
-            FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MM_ERROR_COUNT,
-                        timer_get_ticks_count() - req_start_time, status)
-
-            if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_mm_state_rsp_t))) {
-                  Log_Write(LOG_LEVEL_ERROR, "Minion_State_Host_Iface_Process_Request: Cqueue push error!\n");
+    switch (msg_id)
+    {
+        case DM_CMD_MM_RESET:
+            status = Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask(), true);
+            if (0 != status) {
+                Log_Write(LOG_LEVEL_ERROR, " mm reset svc error: Minion_Reset_Threads()\r\n");
             }
-        }
+        break;
+
+        case DM_CMD_GET_MM_ERROR_COUNT:
+            status = mm_get_error_count(&dm_rsp.mm_error_count);
+            if (0 != status) {
+                Log_Write(LOG_LEVEL_ERROR, " mm state svc error: get_mm_error_count()\r\n");
+            }
+        break
+;
+        default:
+            Log_Write(LOG_LEVEL_ERROR, " mm state svc error: Invalid Minion State Request id: %d\r\n",msg_id);
+            status = -1;
     }
+
+    FILL_RSP_HEADER(dm_rsp, tag_id, msg_id,
+                timer_get_ticks_count() - req_start_time, status)
+
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_mm_state_rsp_t))) {
+        Log_Write(LOG_LEVEL_ERROR, "Minion_State_Host_Iface_Process_Request: Cqueue push error!\n");
+    }
+
+    return;
 }
 
 /************************************************************************
@@ -1052,7 +1065,6 @@ void Minion_State_MM_Heartbeat_Handler(void)
     /* First time we get a heartbeat, we register watchdog timer */
     if (!event_control_block.mm_watchdog_initialized)
     {
-        /* TODO: SW-8081: Watchdog initialization here. Also register a callback to reset MM FW */
         event_control_block.mm_watchdog_initialized = true;
         if (xTimerStart(MM_HeartBeat_Timer, 0) != pdPASS)
         {
