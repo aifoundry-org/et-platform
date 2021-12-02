@@ -161,6 +161,10 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
       auto loadAddress = segment->get_physical_address();
       auto fileSize = segment->get_file_size();
       auto memSize = segment->get_memory_size();
+      if (memSize == 0) {
+        RT_LOG(WARNING) << "Segment " << segment->get_index() << " is 0-sized; skipping it.";
+        continue;
+      }
       auto addr = reinterpret_cast<uint64_t>(deviceBuffer) + offset;
       CHECK(memSize >= fileSize);
       if (!basePhysicalAddressCalculated) {
