@@ -23,6 +23,8 @@
 
 #include "etsoc_ddr_region_map.h"
 
+// clang-format off
+
 /* Aligns an address to the next 64-byte cache line */
 #define CACHE_LINE_ALIGN(x)        (((x + 63U) / 64U) * 64U)
 
