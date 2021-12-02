@@ -84,47 +84,7 @@
 */
 #define MM_INTERRUPT_TRG_ID         1U
 
-/* DDR Region 0 MMFW_TRACE_REGION (BAR=0, Offset=0x401000, Size=512K) */
-
-/*! \def MM_DEV_INTF_MMFW_TRACE_REGION_BAR
-    \brief A macro that provides the PCI BAR region using which
-    the MMFW trace region can be accessed
-*/
-#define MM_DEV_INTF_MMFW_TRACE_REGION_BAR    0
-
-/*! \def MM_DEV_INTF_MMFW_TRACE_REGION_OFFSET
-    \brief A macro that provides the offset of MMFW trace region
-    on PCI BAR
-*/
-#define MM_DEV_INTF_MMFW_TRACE_REGION_OFFSET 0x401000
-
-/*! \def MM_DEV_INTF_MMFW_TRACE_REGION_SIZE
-    \brief A macro that provides the total size of MMFW trace region
-    on PCI BAR.
-*/
-#define MM_DEV_INTF_MMFW_TRACE_REGION_SIZE   MM_TRACE_BUFFER_SIZE
-
-/* DDR Region 1 CMFW_TRACE_REGION (BAR=0, Offset=0x481000, Size=512K) */
-
-/*! \def MM_DEV_INTF_CMFW_TRACE_REGION_BAR
-    \brief A macro that provides the PCI BAR region using which
-    the CMFW trace region can be accessed
-*/
-#define MM_DEV_INTF_CMFW_TRACE_REGION_BAR    0
-
-/*! \def MM_DEV_INTF_CMFW_TRACE_REGION_OFFSET
-    \brief A macro that provides the offset of CMFW trace region
-    on PCI BAR
-*/
-#define MM_DEV_INTF_CMFW_TRACE_REGION_OFFSET 0x481000
-
-/*! \def MM_DEV_INTF_CMFW_TRACE_REGION_SIZE
-    \brief A macro that provides the total size of CMFW trace region
-    on PCI BAR.
-*/
-#define MM_DEV_INTF_CMFW_TRACE_REGION_SIZE   CM_TRACE_BUFFER_SIZE
-
-/* DDR Region 2 USER_KERNEL_SPACE (BAR=0, Offset=0x600000, Size~=12GB) */
+/* DDR Region 0 USER_KERNEL_SPACE (BAR=0, Offset=0x1000000, Size~=12GB) */
 
 /*! \def MM_DEV_INTF_USER_KERNEL_SPACE_BAR
     \brief A macro that provides the PCI BAR region using which
@@ -136,7 +96,7 @@
     \brief A macro that provides the offset of User Kernel space
     on PCI BAR
 */
-#define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET 0x600000
+#define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET (HOST_MANAGED_DRAM_START - DRAM_MEMMAP_BEGIN)
 
 /*! \def MM_DEV_INTF_USER_KERNEL_SPACE_SIZE
     \brief A macro that provides the total size of User Kernel space

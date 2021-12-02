@@ -214,7 +214,7 @@ correspoding Flash partition to take affect. */
 
 /* U-mode user kernels entry point
 (Fixed address - should sync kernels linker script if this is changed) */
-#define KERNEL_UMODE_ENTRY                0x8101000000ULL /* (LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE) */
+#define KERNEL_UMODE_ENTRY                (LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE)
 
 /* Storage for DMA configuration linked lists. Store at the end of U-mode stack base
 For each DMA channel, reserve 8MB for the list. Chosen arbitrarily to balance mem
