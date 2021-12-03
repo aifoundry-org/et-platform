@@ -1048,10 +1048,8 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 					new_node->region_start,
 					new_node->region_end);
 				et_print_event(et_dev->pdev, &dbg_msg);
-				// TODO: Un-comment following lines once SW-10327 is fixed.
-				// Until then error won't be returned and only error event will be printed.
-				//rv = -EINVAL;
-				//goto error_release_node_mem;
+				rv = -EINVAL;
+				goto error_release_node_mem;
 			}
 		}
 		list_add_tail(&new_node->list, &et_dev->bar_region_list);
