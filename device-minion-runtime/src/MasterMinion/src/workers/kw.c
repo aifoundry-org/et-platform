@@ -398,7 +398,7 @@ static int8_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask)
     /* Verify the shire mask */
     if (req_shire_mask == 0)
     {
-        return KW_ERROR_KERNEL_INVLD_SHIRE_MASK;
+        return KW_ERROR_KERNEL_INAVLID_SHIRE_MASK;
     }
 
     /* Acquire the lock */
@@ -501,7 +501,7 @@ static inline int8_t process_kernel_launch_cmd_payload(struct device_ops_kernel_
 
     if (args_size > DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX)
     {
-        status = KW_ERROR_KERNEL_INVLD_ARGS_SIZE;
+        status = KW_ERROR_KERNEL_INAVLID_ARGS_SIZE;
         Log_Write(LOG_LEVEL_ERROR, "KW:ERROR: Violated Kernel Args Size: %ld > %d\r\n", args_size,
             DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX);
     }
@@ -657,12 +657,15 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd(
         }
         else
         {
+            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMLaunch:CommandMulticast:Failed:Status:%d\r\n",
+                status);
+
             /* Broadcast message failed. Reclaim resources */
             kw_unreserve_kernel_shires(cmd->shire_mask);
             kw_unreserve_kernel_slot(kernel);
 
-            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMLaunch:CommandMulticast:Failed\r\n");
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
+            status = KW_ERROR_CM_IFACE_MULTICAST_FAILED;
         }
     }
 
@@ -934,34 +937,54 @@ static inline int8_t kw_cm_to_mm_kernel_force_abort(
     /* Verify that there is no abort hang situation recovery failure */
     if (status != STATUS_SUCCESS)
     {
+        Log_Write(LOG_LEVEL_ERROR, "KW:MM->CM:Abort Cmd hanged.status:%d\r\n", status);
+
+        int8_t reset_status = STATUS_SUCCESS;
+        uint64_t available_shires = 0;
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
 
         if (reset_on_failure)
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "KW:MM->CM:Abort hanged, doing reset of shires.status:%d\r\n", status);
+                "KW:MM->CM:Abort hanged, doing reset of shires:status:%d\r\n", status);
 
             /* Get the mask for available shires in the device */
-            uint64_t available_shires = CW_Get_Physically_Enabled_Shires();
-            int8_t reset_status;
+            available_shires = CW_Get_Physically_Enabled_Shires();
 
             /* Send cmd to SP to reset all the available shires */
             reset_status = SP_Iface_Reset_Minion(available_shires);
 
-            if (reset_status == STATUS_SUCCESS)
-            {
-                CW_Configure_Compute_Minion(available_shires);
-
-                /* Wait for all shires to boot up */
-                reset_status = CW_Wait_For_Compute_Minions_Boot(available_shires);
-            }
-
             if (reset_status != STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "KW: Unable to reset all the available shires in device (status: %d)\r\n",
-                    reset_status);
+                    "KW:SP_Iface: Unable to reset all Minions (status: %d)\r\n", reset_status);
+                reset_status = KW_ERROR_SP_IFACE_RESET_FAILED;
             }
+        }
+
+        if (reset_on_failure && (reset_status == STATUS_SUCCESS))
+        {
+            CW_Configure_Compute_Minion(available_shires);
+
+            /* Wait for all shires to boot up */
+            reset_status = CW_Wait_For_Compute_Minions_Boot(available_shires);
+
+            if (reset_status != STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_ERROR, "KW:CW: Unable to Boot all Minions (status: %d)\r\n",
+                    reset_status);
+                reset_status = KW_ERROR_CW_MINIONS_BOOT_FAILED;
+            }
+        }
+
+        /* Map the reset status to return status. */
+        if (reset_status != STATUS_SUCCESS)
+        {
+            status = reset_status;
+        }
+        else
+        {
+            status = KW_ERROR_CM_IFACE_MULTICAST_FAILED;
         }
     }
     else
@@ -1017,6 +1040,8 @@ static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t 
         /* No more pending messages left */
         if ((status != CIRCBUFF_ERROR_BAD_LENGTH) && (status != CIRCBUFF_ERROR_EMPTY))
         {
+            status_internal->status = KW_ERROR_CM_IFACE_UNICAST_FAILED;
+
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_CMD_ERROR);
             Log_Write(
                 LOG_LEVEL_ERROR, "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
@@ -1119,15 +1144,30 @@ static inline uint32_t kw_get_kernel_launch_completion_status(
     if ((kernel_state == KERNEL_STATE_ABORTED_BY_HOST) || (kernel_state == KERNEL_STATE_ABORTING))
     {
         /* Check for any errors */
-        if (status_internal->status != STATUS_SUCCESS)
+        if (status_internal->status == STATUS_SUCCESS)
         {
-            /* Error was detected, update response */
+            /* Update the kernel launch response to indicate that it was aborted by host */
+            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
+        }
+        else if (status_internal->status == KW_ERROR_CW_MINIONS_BOOT_FAILED)
+        {
+            /* TODO:SW-10385: Add new error code */
+            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+        }
+        else if (status_internal->status == KW_ERROR_SP_IFACE_RESET_FAILED)
+        {
+            /* TODO:SW-10385: Add new error code */
+            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+        }
+        else if (status_internal->status == KW_ERROR_CM_IFACE_MULTICAST_FAILED)
+        {
+            /* TODO:SW-10385: Add new error code */
             status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
         }
         else
         {
-            /* Update the kernel launch response to indicate that it was aborted by host */
-            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
+            /* It should never come here. TODO:SW-10385: Add unexpected error.*/
+            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
         }
     }
     else if (status_internal->cw_exception)
@@ -1138,6 +1178,11 @@ static inline uint32_t kw_get_kernel_launch_completion_status(
     else if (status_internal->cw_error)
     {
         /* Error was detected in kernel run, update response */
+        status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+    }
+    else if (status_internal->status == KW_ERROR_CM_IFACE_UNICAST_FAILED)
+    {
+        /* TODO:SW-10385: Add new error code */
         status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
     }
     else

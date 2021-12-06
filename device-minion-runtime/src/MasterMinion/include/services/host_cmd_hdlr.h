@@ -27,8 +27,36 @@
 
 /*! \def HOST_CMD_STATUS_ABORTED
     \brief Host command handler - Command aborted
+    NOTE: This is common for all Device API commands that's why it is kept max negative value.
+    TODO:SW-9109: Make this a unique error code.
 */
-#define HOST_CMD_STATUS_ABORTED   -1
+#define HOST_CMD_STATUS_ABORTED -128
+
+/*! \def HOST_CMD_ERROR_FW_VER_INVALID_FW_TYPE
+    \brief Host command handler - Invalid firmware type
+*/
+#define HOST_CMD_ERROR_FW_VER_INVALID_FW_TYPE -2
+
+/*! \def HOST_CMD_ERROR_SP_IFACE_FW_QUERY_FAILED
+    \brief Host command handler - Firmware version query to SP (MM to SP Interface)
+           is failed.
+*/
+#define HOST_CMD_ERROR_SP_IFACE_FW_QUERY_FAILED -3
+
+/*! \def HOST_CMD_ERROR_API_COMP_INVALID_MAJOR
+    \brief Host command handler - Invalid Major firmware version
+*/
+#define HOST_CMD_ERROR_API_COMP_INVALID_MAJOR -4
+
+/*! \def HOST_CMD_ERROR_API_COMP_INVALID_MINOR
+    \brief Host command handler - Invalid Minor firmware version
+*/
+#define HOST_CMD_ERROR_API_COMP_INVALID_MINOR -5
+
+/*! \def HOST_CMD_ERROR_API_COMP_INVALID_PATCH
+    \brief Host command handler - Invalid patch for current firmware
+*/
+#define HOST_CMD_ERROR_API_COMP_INVALID_PATCH -6
 
 /*! \fn int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
         uint64_t start_cycles)
@@ -38,8 +66,7 @@
     \param start_cycles cycle count to measure wait latency
     \return status success or negative error code
 */
-int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
-    uint64_t start_cycles);
+int8_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles);
 
 /*! \fn int8_t Host_HP_Command_Handler(void* command_buffer, uint8_t sqw_hp_idx)
     \brief Interface to handle host side high priority commands
@@ -47,6 +74,6 @@ int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
     \param sqw_hp_idx index of hp submission queue worker
     \return status success or negative error code
 */
-int8_t Host_HP_Command_Handler(void* command_buffer, uint8_t sqw_hp_idx);
+int8_t Host_HP_Command_Handler(void *command_buffer, uint8_t sqw_hp_idx);
 
 #endif /* HOST_CMD_HDLR_H */

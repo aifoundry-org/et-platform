@@ -48,24 +48,122 @@
 
 /*! \def DMA_TO_DEVICEAPI_STATUS
     \brief Helper macro to convert DMA Error to DEVICE API Errors
+     TODO:SW-10385: Add new error codes for all errors mapped to unknown error here.
 */
 #define DMA_TO_DEVICEAPI_STATUS(status, abort_status, ret_status)                                  \
     if ((status == DMAW_ABORTED_IDLE_CHANNEL_SEARCH) || (abort_status == HOST_CMD_STATUS_ABORTED)) \
     {                                                                                              \
         ret_status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;                                        \
     }                                                                                              \
-    else if (status == DMA_ERROR_INVALID_ADDRESS)                                                  \
+    else if (status == DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS)                                      \
     {                                                                                              \
         ret_status = DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS;                                     \
     }                                                                                              \
-    else if ((status == DMA_ERROR_OUT_OF_BOUNDS) || (status == DMAW_ERROR_INVALID_XFER_COUNT) ||   \
-             (status == DMAW_ERROR_INVALID_XFER_SIZE))                                             \
+    else if ((status == DMAW_ERROR_INVALID_XFER_SIZE) ||                                           \
+             (status == DMAW_ERROR_INVALID_XFER_COUNT))                                            \
     {                                                                                              \
         ret_status = DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE;                                        \
     }                                                                                              \
-    else                                                                                           \
+    else if (status == DMAW_ERROR_CM_IFACE_MULTICAST_FAILED)                                       \
     {                                                                                              \
         ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
+    }                                                                                              \
+    else if (status == DMAW_CW_SHIRE_NOT_BOOTED)                                                   \
+    {                                                                                              \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
+    }                                                                                              \
+    else if (status == DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED)                                       \
+    {                                                                                              \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
+    }                                                                                              \
+    else if (status == DMAW_ERROR_DRIVER_LINK_CONFIG_FAILED)                                       \
+    {                                                                                              \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
+    }                                                                                              \
+    else if (status == DMAW_ERROR_DRIVER_CHAN_START_FAILED)                                        \
+    {                                                                                              \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
+    }                                                                                              \
+    else if (status == DMAW_ERROR_DRIVER_ABORT_FAILED)                                             \
+    {                                                                                              \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
+    }                                                                                              \
+    else                                                                                           \
+    {                                                                                              \
+        /* It should never come here. TODO:SW-10385: Add unexpected error.*/                       \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
+    }
+
+/*! \def TRACE_RT_CONFIG_TO_DEVICEAPI_STATUS
+    \brief Helper macro to convert Trace Config Error to Device API Errors
+     TODO:SW-10385: Add new error codes for all errors mapped to general error here.
+*/
+#define TRACE_RT_CONFIG_TO_DEVICEAPI_STATUS(status, ret_status)              \
+    if (status == STATUS_SUCCESS)                                            \
+    {                                                                        \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS;               \
+    }                                                                        \
+    else if (status == HOST_CMD_STATUS_ABORTED)                              \
+    {                                                                        \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_HOST_ABORTED;          \
+    }                                                                        \
+    else if (status == TRACE_ERROR_INVALID_THREAD_MASK)                      \
+    {                                                                        \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_THREAD_MASK;       \
+    }                                                                        \
+    else if (status == TRACE_ERROR_INVALID_SHIRE_MASK)                       \
+    {                                                                        \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_SHIRE_MASK;        \
+    }                                                                        \
+    else if (status == TRACE_ERROR_CW_SHIRE_NOT_BOOTED)                      \
+    {                                                                        \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;       \
+    }                                                                        \
+    else if (status == TRACE_ERROR_CM_TRACE_CONFIG_FAILED)                   \
+    {                                                                        \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;       \
+    }                                                                        \
+    else if (status == TRACE_ERROR_MM_TRACE_CONFIG_FAILED)                   \
+    {                                                                        \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;       \
+    }                                                                        \
+    else                                                                     \
+    {                                                                        \
+        /* It should never come here. TODO:SW-10385: Add unexpected error.*/ \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;       \
+    }
+
+/*! \def TRACE_RT_CONTROL_TO_DEVICEAPI_STATUS
+    \brief Helper macro to convert Trace Control Error to Device API Errors
+     TODO:SW-10385: Add new error codes for all errors mapped to general error here.
+*/
+#define TRACE_RT_CONTROL_TO_DEVICEAPI_STATUS(status, ret_status)             \
+    if (status == STATUS_SUCCESS)                                            \
+    {                                                                        \
+        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS;              \
+    }                                                                        \
+    else if (status == HOST_CMD_STATUS_ABORTED)                              \
+    {                                                                        \
+        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_HOST_ABORTED;         \
+    }                                                                        \
+    else if (status == TRACE_ERROR_INVALID_RUNTIME_TYPE)                     \
+    {                                                                        \
+        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_RT_TYPE;          \
+    }                                                                        \
+    else if (status == TRACE_ERROR_CW_SHIRE_NOT_BOOTED)                      \
+    {                                                                        \
+        /* TODO:SW-10385: Add new error code */                              \
+        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_CONTROL_MASK;     \
+    }                                                                        \
+    else if (status == TRACE_ERROR_CM_IFACE_MULTICAST_FAILED)                \
+    {                                                                        \
+        /* TODO:SW-10385: Add new error code */                              \
+        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_CONTROL_MASK;     \
+    }                                                                        \
+    else                                                                     \
+    {                                                                        \
+        /* It should never come here. TODO:SW-10385: Add unexpected error.*/ \
+        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_CM_RT_CTRL_ERROR;     \
     }
 
 /************************************************************************
@@ -210,7 +308,7 @@ static inline int8_t compatibility_cmd_handler(void *command_buffer, uint8_t sqw
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
-        rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_HOST_ABORTED;
+        status = HOST_CMD_STATUS_ABORTED;
     }
     else
     {
@@ -224,16 +322,40 @@ static inline int8_t compatibility_cmd_handler(void *command_buffer, uint8_t sqw
         /* Validate if Host software version is compatible with the device software */
         if (cmd->major != DEVICE_OPS_API_MAJOR)
         {
-            rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_MAJOR;
+            status = HOST_CMD_ERROR_API_COMP_INVALID_MAJOR;
         }
         else if (cmd->minor != DEVICE_OPS_API_MINOR)
         {
-            rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_MINOR;
+            status = HOST_CMD_ERROR_API_COMP_INVALID_MINOR;
         }
         else if (cmd->patch != DEVICE_OPS_API_PATCH)
         {
-            rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_PATCH;
+            status = HOST_CMD_ERROR_API_COMP_INVALID_PATCH;
         }
+    }
+
+    /* Map device internal errors onto device api errors */
+    if (status == HOST_CMD_STATUS_ABORTED)
+    {
+        rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_HOST_ABORTED;
+    }
+    else if (status == HOST_CMD_ERROR_API_COMP_INVALID_MAJOR)
+    {
+        rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_MAJOR;
+    }
+    else if (status == HOST_CMD_ERROR_API_COMP_INVALID_MINOR)
+    {
+        rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_MINOR;
+    }
+    else if (status == HOST_CMD_ERROR_API_COMP_INVALID_PATCH)
+    {
+        rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_PATCH;
+    }
+    else
+    {
+        Log_Write(
+            LOG_LEVEL_ERROR, "SQ[%d]:HostCmdHdlr:COMPATIBILITY_CMD:Unexpected Error\r\n", sqw_idx);
+        /* It should never come here. TODO:SW-10385: Add unexpected error.*/
     }
 
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
@@ -318,7 +440,7 @@ static inline int8_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_id
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
-        rsp.status = DEV_OPS_API_FW_VERSION_RESPONSE_HOST_ABORTED;
+        status = HOST_CMD_STATUS_ABORTED;
     }
     else
     {
@@ -345,8 +467,7 @@ static inline int8_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_id
             Log_Write(LOG_LEVEL_ERROR,
                 "SQ[%d] HostCommandHandler:FW_VERSION_CMD:Invalid FW type received from host\r\n",
                 sqw_idx);
-            rsp.status = DEV_OPS_API_FW_VERSION_RESPONSE_BAD_FW_TYPE;
-            status = GENERAL_ERROR;
+            status = HOST_CMD_ERROR_FW_VER_INVALID_FW_TYPE;
         }
 
         if (status == STATUS_SUCCESS)
@@ -357,7 +478,7 @@ static inline int8_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_id
 
             if (status != STATUS_SUCCESS)
             {
-                rsp.status = DEV_OPS_API_FW_VERSION_RESPONSE_NOT_AVAILABLE;
+                status = HOST_CMD_ERROR_SP_IFACE_FW_QUERY_FAILED;
 
                 /* Reset values */
                 rsp.major = 0;
@@ -369,6 +490,26 @@ static inline int8_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_id
                     status);
             }
         }
+    }
+
+    /* Map device internal errors onto device api errors */
+    if (status == HOST_CMD_STATUS_ABORTED)
+    {
+        rsp.status = DEV_OPS_API_FW_VERSION_RESPONSE_HOST_ABORTED;
+    }
+    else if (status == HOST_CMD_ERROR_FW_VER_INVALID_FW_TYPE)
+    {
+        rsp.status = DEV_OPS_API_FW_VERSION_RESPONSE_BAD_FW_TYPE;
+    }
+    else if (status == HOST_CMD_ERROR_SP_IFACE_FW_QUERY_FAILED)
+    {
+        rsp.status = DEV_OPS_API_FW_VERSION_RESPONSE_NOT_AVAILABLE;
+    }
+    else
+    {
+        Log_Write(
+            LOG_LEVEL_ERROR, "SQ[%d]:HostCmdHdlr:FW_VERSION_CMD:Unexpected Error\r\n", sqw_idx);
+        /* It should never come here. TODO:SW-10385: Add unexpected error.*/
     }
 
 #if TEST_FRAMEWORK
@@ -597,7 +738,7 @@ static inline int8_t kernel_launch_cmd_handler(
         rsp.device_cmd_wait_dur = cycles.wait_cycles;
         rsp.device_cmd_execute_dur = 0U;
 
-        /* Populate the error type response */
+        /* Map device internal errors onto device api errors */
         if (status == KW_ERROR_KERNEL_SHIRES_NOT_READY)
         {
             rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SHIRES_NOT_READY;
@@ -606,7 +747,7 @@ static inline int8_t kernel_launch_cmd_handler(
         {
             rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS;
         }
-        else if (status == KW_ERROR_KERNEL_INVLD_ARGS_SIZE)
+        else if (status == KW_ERROR_KERNEL_INAVLID_ARGS_SIZE)
         {
             rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_PAYLOAD_SIZE;
         }
@@ -616,9 +757,15 @@ static inline int8_t kernel_launch_cmd_handler(
         {
             rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
         }
+        else if (status == KW_ERROR_CM_IFACE_MULTICAST_FAILED)
+        {
+            /* TODO:SW-10385: Add new error code */
+            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+        }
         else
         {
-            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+            /* It should never come here. TODO:SW-10385: Add unexpected error.*/
+            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
         }
 
 #if TEST_FRAMEWORK
@@ -804,8 +951,13 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
     {
         cm_shire_mask = Trace_Get_CM_Shire_Mask();
 
-        if ((cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE)) &&
-            (cm_shire_mask & CW_Get_Booted_Shires()) == cm_shire_mask)
+        if ((cm_shire_mask & CW_Get_Booted_Shires()) != cm_shire_mask)
+        {
+            status = DMAW_CW_SHIRE_NOT_BOOTED;
+        }
+
+        if ((status == STATUS_SUCCESS) &&
+            (cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE)))
         {
             /* Disable and Evict MM Trace.*/
             Trace_Set_Enable_MM(TRACE_DISABLE);
@@ -818,11 +970,16 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
             /* Send command to CM RT to disable Trace and evict Trace buffer. */
             status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
 
+            if (status != STATUS_SUCCESS)
+            {
+                status = DMAW_ERROR_CM_IFACE_MULTICAST_FAILED;
+            }
+
             cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = MM_TRACE_BUFFER_BASE;
         }
         else
         {
-            status = DMA_ERROR_OUT_OF_BOUNDS;
+            status = DMAW_ERROR_INVALID_XFER_SIZE;
         }
     }
     /* Check if flag is set to extract MM Trace buffer. */
@@ -837,7 +994,7 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
         }
         else
         {
-            status = DMA_ERROR_OUT_OF_BOUNDS;
+            status = DMAW_ERROR_INVALID_XFER_SIZE;
         }
     }
     /* Check if flag is set to extract CM Trace buffer. */
@@ -845,8 +1002,13 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
     {
         cm_shire_mask = Trace_Get_CM_Shire_Mask();
 
-        if ((cmd->list[TRACE_NODE_INDEX].size <= CM_TRACE_BUFFER_SIZE) &&
-            ((cm_shire_mask & CW_Get_Booted_Shires()) == cm_shire_mask))
+        if ((cm_shire_mask & CW_Get_Booted_Shires()) != cm_shire_mask)
+        {
+            status = DMAW_CW_SHIRE_NOT_BOOTED;
+        }
+
+        if ((status == STATUS_SUCCESS) &&
+            (cmd->list[TRACE_NODE_INDEX].size <= CM_TRACE_BUFFER_SIZE))
         {
             mm_to_cm_message_trace_buffer_evict_t cm_msg = {
                 .header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
@@ -856,11 +1018,16 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
             /* Send command to CM RT to disable Trace and evict Trace buffer. */
             status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
 
+            if (status != STATUS_SUCCESS)
+            {
+                status = DMAW_ERROR_CM_IFACE_MULTICAST_FAILED;
+            }
+
             cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = CM_TRACE_BUFFER_BASE;
         }
         else
         {
-            status = DMA_ERROR_OUT_OF_BOUNDS;
+            status = DMAW_ERROR_INVALID_XFER_SIZE;
         }
     }
 
@@ -1324,6 +1491,10 @@ static inline int8_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t 
     {
         status = HOST_CMD_STATUS_ABORTED;
     }
+    else if (!((cmd->rt_type & TRACE_RT_TYPE_MM) || (cmd->rt_type & TRACE_RT_TYPE_CM)))
+    {
+        status = TRACE_ERROR_INVALID_RUNTIME_TYPE;
+    }
     else
     {
         TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD, sqw_idx,
@@ -1351,12 +1522,17 @@ static inline int8_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t 
 
         if ((cm_shire_mask & CW_Get_Booted_Shires()) != cm_shire_mask)
         {
-            status = INVALID_CM_SHIRE_MASK;
+            status = TRACE_ERROR_CW_SHIRE_NOT_BOOTED;
         }
         else
         {
             /* Send command to CM RT to disable Trace and evict Trace buffer. */
             status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
+
+            if (status != STATUS_SUCCESS)
+            {
+                status = TRACE_ERROR_CM_IFACE_MULTICAST_FAILED;
+            }
         }
 
         if (status != STATUS_SUCCESS)
@@ -1373,26 +1549,7 @@ static inline int8_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t 
     rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
 
     /* Populate the response status */
-    if (status == HOST_CMD_STATUS_ABORTED)
-    {
-        rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_HOST_ABORTED;
-    }
-    else if (!((cmd->rt_type & TRACE_RT_TYPE_MM) || (cmd->rt_type & TRACE_RT_TYPE_CM)))
-    {
-        rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_RT_TYPE;
-    }
-    else if (status == STATUS_SUCCESS)
-    {
-        rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS;
-    }
-    else if (status == INVALID_CM_SHIRE_MASK)
-    {
-        rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_CONTROL_MASK;
-    }
-    else
-    {
-        rsp.status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_CM_RT_CTRL_ERROR;
-    }
+    TRACE_RT_CONTROL_TO_DEVICEAPI_STATUS(status, rsp.status)
 
     Log_Write(LOG_LEVEL_DEBUG,
         "HostCommandHandler:Pushing:TRACE_RT_CONTROL_RSP:tag_id=%x->Host_CQ\r\n",
@@ -1480,48 +1637,63 @@ static inline int8_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t s
     {
         status = HOST_CMD_STATUS_ABORTED;
     }
+    else if (((cmd->shire_mask & MM_SHIRE_MASK) && (!(cmd->thread_mask & MM_HART_MASK))) ||
+             (cmd->thread_mask == 0))
+    {
+        status = TRACE_ERROR_INVALID_THREAD_MASK;
+    }
+    else if ((!(cmd->shire_mask & MM_SHIRE_MASK)) && (!(cmd->shire_mask & CM_SHIRE_MASK)))
+    {
+        status = TRACE_ERROR_INVALID_SHIRE_MASK;
+    }
     else
     {
         TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD, sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
+    }
 
-        /* Check if MM Trace needs to configured. */
-        if (TRACE_CONFIG_CHECK_MM_HART(cmd->shire_mask, cmd->thread_mask))
+    /* Check if MM Trace needs to configured. */
+    if ((status == STATUS_SUCCESS) &&
+        (TRACE_CONFIG_CHECK_MM_HART(cmd->shire_mask, cmd->thread_mask)))
+    {
+        struct trace_init_info_t mm_trace_init = { .shire_mask = MM_SHIRE_MASK,
+            .thread_mask = MM_HART_MASK,
+            .filter_mask = cmd->filter_mask,
+            .event_mask = cmd->event_mask,
+            .threshold = MM_TRACE_BUFFER_SIZE };
+
+        /* Configure MM Trace. TODO: Add status code. */
+        status = Trace_Init_MM(&mm_trace_init);
+        Trace_String(TRACE_EVENT_STRING_CRITICAL, Trace_Get_MM_CB(), "MM:TRACE_RT_CONFIG:Done!!");
+    }
+
+    /* Check if CM Trace needs to configured. */
+    if ((status == STATUS_SUCCESS) &&
+        (TRACE_CONFIG_CHECK_CM_HART(cmd->shire_mask, cmd->thread_mask)))
+    {
+        Log_Write(LOG_LEVEL_DEBUG, "HostCmdHdlr:TID:%u:TRACE_CONFIG: Configure CM.\r\n",
+            cmd->command_info.cmd_hdr.tag_id);
+
+        if ((cmd->shire_mask & CW_Get_Booted_Shires()) == cmd->shire_mask)
         {
-            struct trace_init_info_t mm_trace_init = { .shire_mask = MM_SHIRE_MASK,
-                .thread_mask = MM_HART_MASK,
-                .filter_mask = cmd->filter_mask,
-                .event_mask = cmd->event_mask,
-                .threshold = MM_TRACE_BUFFER_SIZE };
+            mm_to_cm_message_trace_rt_config_t cm_msg;
+            cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE;
+            cm_msg.shire_mask = cmd->shire_mask;
+            cm_msg.thread_mask = cmd->thread_mask;
+            cm_msg.filter_mask = cmd->filter_mask;
+            cm_msg.event_mask = cmd->event_mask;
+            cm_msg.threshold = cmd->threshold;
 
-            /* Configure MM Trace. */
-            Trace_Init_MM(&mm_trace_init);
-            Trace_String(
-                TRACE_EVENT_STRING_CRITICAL, Trace_Get_MM_CB(), "MM:TRACE_RT_CONFIG:Done!!");
+            status = Trace_Configure_CM_RT(&cm_msg);
+
+            if (status != STATUS_SUCCESS)
+            {
+                status = TRACE_ERROR_CM_TRACE_CONFIG_FAILED;
+            }
         }
-
-        /* Check if CM Trace needs to configured. */
-        if (TRACE_CONFIG_CHECK_CM_HART(cmd->shire_mask, cmd->thread_mask))
+        else
         {
-            Log_Write(LOG_LEVEL_DEBUG, "HostCmdHdlr:TID:%u:TRACE_CONFIG: Configure CM.\r\n",
-                cmd->command_info.cmd_hdr.tag_id);
-
-            if ((cmd->shire_mask & CW_Get_Booted_Shires()) == cmd->shire_mask)
-            {
-                mm_to_cm_message_trace_rt_config_t cm_msg;
-                cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE;
-                cm_msg.shire_mask = cmd->shire_mask;
-                cm_msg.thread_mask = cmd->thread_mask;
-                cm_msg.filter_mask = cmd->filter_mask;
-                cm_msg.event_mask = cmd->event_mask;
-                cm_msg.threshold = cmd->threshold;
-
-                status = Trace_Configure_CM_RT(&cm_msg);
-            }
-            else
-            {
-                status = INVALID_CM_SHIRE_MASK;
-            }
+            status = TRACE_ERROR_CW_SHIRE_NOT_BOOTED;
         }
     }
 
@@ -1531,27 +1703,7 @@ static inline int8_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t s
     rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
 
     /* Populate the response status */
-    if (status == HOST_CMD_STATUS_ABORTED)
-    {
-        rsp.status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_HOST_ABORTED;
-    }
-    if ((cmd->shire_mask & MM_SHIRE_MASK) && (!(cmd->thread_mask & MM_HART_MASK)))
-    {
-        rsp.status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_THREAD_MASK;
-    }
-    else if ((status == INVALID_CM_SHIRE_MASK) ||
-             ((!(cmd->shire_mask & MM_SHIRE_MASK)) && (!(cmd->shire_mask & CM_SHIRE_MASK))))
-    {
-        rsp.status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_SHIRE_MASK;
-    }
-    else if (status == STATUS_SUCCESS)
-    {
-        rsp.status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS;
-    }
-    else
-    {
-        rsp.status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;
-    }
+    TRACE_RT_CONFIG_TO_DEVICEAPI_STATUS(status, rsp.status)
 
     Log_Write(LOG_LEVEL_DEBUG, "HostCmdHdlr:Pushing:TRACE_RT_CONFIG_RSP:tag_id=%x:Host_CQ\r\n",
         rsp.response_info.rsp_hdr.tag_id);

@@ -190,7 +190,7 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
     /* Verify the shire mask */
     if(dest_shire_mask == 0)
     {
-        return CM_IFACE_MULTICAST_INVLD_SHIRE_MASK;
+        return CM_IFACE_MULTICAST_INAVLID_SHIRE_MASK;
     }
 
     acquire_local_spinlock(&MM_CM_CB.mm_to_cm_broadcast_lock);

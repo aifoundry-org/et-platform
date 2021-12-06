@@ -75,6 +75,41 @@
 */
 #define DMAW_ERROR_INVALID_XFER_SIZE (DMA_ERROR_END - 3)
 
+/*! \def DMAW_ERROR_CM_IFACE_MULTICAST_FAILED
+    \brief DMA Worker - CM Multicast message failed
+*/
+#define DMAW_ERROR_CM_IFACE_MULTICAST_FAILED (DMA_ERROR_END - 4)
+
+/*! \def DMAW_CW_SHIRE_NOT_BOOTED
+    \brief DMA Worker - CM Shires not booted
+*/
+#define DMAW_CW_SHIRE_NOT_BOOTED (DMA_ERROR_END - 5)
+
+/*! \def DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED
+    \brief DMA Worker - DMA driver data node config failed
+*/
+#define DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED (DMA_ERROR_END - 6)
+
+/*! \def DMAW_ERROR_DRIVER_LINK_CONFIG_FAILED
+    \brief DMA Worker - DMA driver link node config failed
+*/
+#define DMAW_ERROR_DRIVER_LINK_CONFIG_FAILED (DMA_ERROR_END - 7)
+
+/*! \def DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS
+    \brief DMA Worker - Invalid device memory address
+*/
+#define DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS (DMA_ERROR_END - 8)
+
+/*! \def DMAW_ERROR_DRIVER_ABORT_FAILED
+    \brief DMA Worker - DMA chanel abort failed
+*/
+#define DMAW_ERROR_DRIVER_ABORT_FAILED (DMA_ERROR_END - 9)
+
+/*! \def DMAW_ERROR_DRIVER_CHAN_START_FAILED
+    \brief DMA Worker - DMA Chanel failed to start
+*/
+#define DMAW_ERROR_DRIVER_CHAN_START_FAILED (DMA_ERROR_END - 10)
+
 /*! \enum dma_chan_state_e
     \brief Enum that provides the state of a DMA channel
 */

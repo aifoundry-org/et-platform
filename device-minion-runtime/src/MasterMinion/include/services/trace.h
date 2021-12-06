@@ -28,8 +28,41 @@
 /**************************/
 /* MM Trace Status Codes  */
 /**************************/
-#define INVALID_TRACE_INIT_INFO -10
-#define INVALID_CM_SHIRE_MASK   -11
+
+/*! \def TRACE_ERROR_CM_TRACE_CONFIG_FAILED
+    \brief Trace - Failed to configure CM S-Mode Trace
+*/
+#define TRACE_ERROR_CM_TRACE_CONFIG_FAILED -1
+
+/*! \def TRACE_ERROR_MM_TRACE_CONFIG_FAILED
+    \brief Trace - Failed to configure MM S-Mode Trace
+*/
+#define TRACE_ERROR_MM_TRACE_CONFIG_FAILED -2
+
+/*! \def TRACE_ERROR_CW_SHIRE_NOT_BOOTED
+    \brief Trace - Required Compute Worker shires not booted to complete the command.
+*/
+#define TRACE_ERROR_CW_SHIRE_NOT_BOOTED -3
+
+/*! \def TRACE_ERROR_INVALID_SHIRE_MASK
+    \brief Trace - Invalid shire mask
+*/
+#define TRACE_ERROR_INVALID_SHIRE_MASK -4
+
+/*! \def TRACE_ERROR_INVALID_THREAD_MASK
+    \brief Trace - Invalid thread mask
+*/
+#define TRACE_ERROR_INVALID_THREAD_MASK -5
+
+/*! \def TRACE_ERROR_INVALID_RUNTIME_TYPE
+    \brief Trace - Invalid Trace runtime component
+*/
+#define TRACE_ERROR_INVALID_RUNTIME_TYPE -6
+
+/*! \def TRACE_ERROR_CM_IFACE_MULTICAST_FAILED
+    \brief Trace - MM to CM multicast message failed
+*/
+#define TRACE_ERROR_CM_IFACE_MULTICAST_FAILED -7
 
 #ifdef MM_ENABLE_CMD_EXECUTION_TRACE
 #define TRACE_LOG_CMD_STATUS(message_id, sqw_idx, tag_id, status)              \
@@ -67,13 +100,13 @@
     (((shire_mask & CM_SHIRE_MASK) && (thread_mask & MM_HART_MASK)) || \
         ((shire_mask & MM_SHIRE_MASK) && (thread_mask & CW_IN_MM_SHIRE)))
 
-/*! \fn void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
+/*! \fn int8_t Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
     \brief This function initializes Trace for all harts in Master Minion
            Shire
     \param mm_init_info Pointer Trace init information.
     \return None
 */
-void Trace_Init_MM(const struct trace_init_info_t *mm_init_info);
+int8_t Trace_Init_MM(const struct trace_init_info_t *mm_init_info);
 
 /*! \fn struct trace_control_block_t* Trace_Get_MM_CB(uint64_t hart_id)
     \brief This function return Trace control block for given Hart ID.

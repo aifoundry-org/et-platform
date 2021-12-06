@@ -143,9 +143,9 @@ static inline void et_trace_buffer_lock_release(void)
 *       None
 *
 ***********************************************************************/
-void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
+int8_t Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
 {
-    int8_t internal_status = STATUS_SUCCESS;
+    int8_t status = STATUS_SUCCESS;
     struct trace_init_info_t hart_init_info;
 
     /* If init information is NULL then do default initialization. */
@@ -159,8 +159,21 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
         hart_init_info.threshold = MM_TRACE_BUFFER_SIZE;
     }
     /* Check if shire mask is of Master Minion and atleast one thread is enabled. */
-    else if ((mm_init_info->shire_mask & MM_SHIRE_MASK) &&
-             (mm_init_info->thread_mask & MM_HART_MASK))
+    else if (!(mm_init_info->shire_mask & MM_SHIRE_MASK))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MM:TRACE_CONFIG:Invalid Init Info.\r\n");
+        MM_Trace_CB.cb.enable = TRACE_DISABLE;
+
+        status = TRACE_ERROR_INVALID_SHIRE_MASK;
+    }
+    else if (!(mm_init_info->thread_mask & MM_HART_MASK))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MM:TRACE_CONFIG:Invalid Init Info.\r\n");
+        MM_Trace_CB.cb.enable = TRACE_DISABLE;
+
+        status = TRACE_ERROR_INVALID_THREAD_MASK;
+    }
+    else
     {
         /* Populate given init information into per-thread Trace information structure. */
         hart_init_info.shire_mask = MM_SHIRE_MASK;
@@ -169,16 +182,8 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
         hart_init_info.event_mask = mm_init_info->event_mask;
         hart_init_info.threshold = mm_init_info->threshold;
     }
-    else
-    {
-        Log_Write(LOG_LEVEL_ERROR, "MM:TRACE_CONFIG:Invalid Init Info.\r\n");
-        MM_Trace_CB.cb.enable = TRACE_DISABLE;
 
-        /* Trace init information is invalid. */
-        internal_status = INVALID_TRACE_INIT_INFO;
-    }
-
-    if (internal_status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Initialize the spinlock */
         init_local_spinlock(&MM_Trace_CB.trace_buffer_lock, 0);
@@ -188,7 +193,12 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
         MM_Trace_CB.cb.base_per_hart = MM_TRACE_BUFFER_BASE;
 
         /* Initialize Trace for each all Harts in Master Minion. */
-        Trace_Init(&hart_init_info, &MM_Trace_CB.cb, TRACE_STD_HEADER);
+        status = Trace_Init(&hart_init_info, &MM_Trace_CB.cb, TRACE_STD_HEADER);
+
+        if (status != STATUS_SUCCESS)
+        {
+            status = TRACE_ERROR_MM_TRACE_CONFIG_FAILED;
+        }
 
         /* Initialize trace buffer header. */
         struct trace_buffer_std_header_t *trace_header =
@@ -210,6 +220,8 @@ void Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
 
     /* Evict an updated control block to L2 memory. */
     ETSOC_MEM_EVICT(&MM_Trace_CB, sizeof(mm_trace_control_block_t), to_L2)
+
+    return status;
 }
 
 /************************************************************************

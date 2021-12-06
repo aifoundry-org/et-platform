@@ -29,10 +29,10 @@
 */
 #define TIMEOUT_MM_CM_MSG(x)    (x * 1U)
 
-/*! \def CM_IFACE_MULTICAST_INVLD_SHIRE_MASK
+/*! \def CM_IFACE_MULTICAST_INAVLID_SHIRE_MASK
     \brief CM Iface error - Invalid multicast shire mask
 */
-#define CM_IFACE_MULTICAST_INVLD_SHIRE_MASK -1
+#define CM_IFACE_MULTICAST_INAVLID_SHIRE_MASK -1
 
 /*! \fn void CM_Iface_Init(void)
     \brief Function to initialize messaging infrastucture to compute
