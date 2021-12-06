@@ -29,8 +29,7 @@ typedef enum {
     LOG_LEVEL_ERROR = 1,
     LOG_LEVEL_WARNING = 2,
     LOG_LEVEL_INFO = 3,
-    LOG_LEVEL_DEBUG = 4,
-    LOG_LEVEL_TRACE = 5
+    LOG_LEVEL_DEBUG = 4
 } log_level_e;
 
 #endif /* _LOG_COMMON_H_ */
