@@ -2171,7 +2171,7 @@ void TestDevMgmtApiSyncCmds::testInvalidOutputBuffer(int32_t dmCmdType, bool sin
 void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidOutputSize(bool singleDevice) {
   testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, singleDevice);
 }
-    
+
 void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidDeviceNode(bool singleDevice) {
   testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, singleDevice);
 }
@@ -2337,7 +2337,7 @@ void TestDevMgmtApiSyncCmds::testInvalidInputBuffer(int32_t dmCmdType, bool sing
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     const uint32_t input_size = INPUT_SIZE_TEST;
     const char *input_buff = nullptr; /*nullptr for invalid testing*/
-    
+
     const uint32_t output_size = OUTPUT_SIZE_TEST;
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
@@ -2359,7 +2359,7 @@ void TestDevMgmtApiSyncCmds::testInvalidInputSize(int32_t dmCmdType, bool single
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     const uint32_t input_size = INVALID_INPUT_SIZE;
     const char input_buff[INPUT_SIZE_TEST] = {0};
-    
+
     const uint32_t output_size = OUTPUT_SIZE_TEST;
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
@@ -2612,5 +2612,21 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
                                 input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+  }
+}
+void TestDevMgmtApiSyncCmds::resetCM(bool singleDevice) {
+    getDM_t dmi = getInstance();
+    ASSERT_TRUE(dmi);
+    DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+    auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+      auto hst_latency = std::make_unique<uint32_t>();
+      auto dev_latency = std::make_unique<uint64_t>();
+
+      EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_CM_RESET, nullptr, 0, nullptr,
+                                  0, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                device_mgmt_api::DM_STATUS_SUCCESS);
+      DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }

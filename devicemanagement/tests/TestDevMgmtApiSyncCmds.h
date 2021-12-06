@@ -210,6 +210,7 @@ protected:
   void getASICLatencyInvalidHostLatency(bool singleDevice);
   void getASICLatencyInvalidDeviceLatency(bool singleDevice);
   void getASICLatencyInvalidOutputBuffer(bool singleDevice);
+  void resetCM(bool singleDevice);
 
   inline Target getTestTarget(void) const {
     auto envTarget = getenv("TARGET");
