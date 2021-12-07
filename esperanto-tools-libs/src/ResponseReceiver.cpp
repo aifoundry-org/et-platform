@@ -61,10 +61,12 @@ void ResponseReceiver::checkDevices() {
   auto devices = deviceLayer_->getDevicesCount();
   auto lastCheck = std::chrono::high_resolution_clock::now() - kCheckDevicesInterval;
   while (runDeviceChecker_) {
-    if (auto currentTime = std::chrono::high_resolution_clock::now(); currentTime + kCheckDevicesInterval > lastCheck) {
+    if (auto currentTime = std::chrono::high_resolution_clock::now();
+        currentTime > (lastCheck + kCheckDevicesInterval)) {
       for (int i = 0; i < devices; ++i) {
         receiverServices_->checkDevice(i);
       }
+      lastCheck = currentTime;
     }
     std::this_thread::sleep_for(kCheckDevicesPolling);
   }
@@ -75,6 +77,9 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
   , receiverServices_(receiverServices) {
 
   receiver_ = std::thread(std::bind(&ResponseReceiver::checkResponses, this));
+}
+
+void ResponseReceiver::startDeviceChecker() {
   deviceChecker_ = std::thread(std::bind(&ResponseReceiver::checkDevices, this));
 }
 

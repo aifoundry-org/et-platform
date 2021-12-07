@@ -140,14 +140,17 @@ void CommandSender::runnerFunc() {
         lock.unlock();
         RT_LOG(INFO) << "Submission queue " << sqIdx_
                      << " is full. Can't send command now, blocking the thread till an event has been dispatched.";
-        uint64_t sq_bitmap;
-        bool cq_available;
-        deviceLayer_.waitForEpollEventsMasterMinion(deviceId_, sq_bitmap, cq_available, std::chrono::seconds(1));
-        if (sq_bitmap & (1UL << sqIdx_)) {
-          RT_LOG(WARNING) << "Submission queue " << sqIdx_
-                          << " is still unavailable after waitForEpoll, trying again nevertheless";
-        } else {
-          RT_VLOG(LOW) << "Submission queue " << sqIdx_ << " available.";
+        uint64_t sq_bitmap = 0;
+        bool cq_available = false;
+        while (!(sq_bitmap & (1UL << sqIdx_))) {
+          deviceLayer_.waitForEpollEventsMasterMinion(deviceId_, sq_bitmap, cq_available, std::chrono::seconds(1));
+          if (!running_) {
+            break;
+          }
+          if (sq_bitmap == 0 && !cq_available) {
+            RT_VLOG(LOW) << "Didn't get any epoll events (timedout). Trying to send the command again.";
+            break;
+          }
         }
       }
     } else {

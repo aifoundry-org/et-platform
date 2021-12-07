@@ -101,13 +101,14 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling
   // initialization sequence, need to send abort command to ensure the device is in a proper state
   for (int d = 0; d < devicesCount; ++d) {
     RT_LOG(INFO) << "Initializing device: " << d;
-    checkDevice(d);
+    abortDevice(DeviceId{d});
     RT_LOG(INFO) << "Device: " << d << " initialized.";
   }
   eventManager_.setThrowOnMissingEvent(true);
   running_ = true;
   executionContextCache_ = std::make_unique<ExecutionContextCache>(
     this, kNumExecutionCacheBuffers, align(kExceptionBufferSize + kBlockSize, kBlockSize));
+  responseReceiver_->startDeviceChecker();
   RT_LOG(INFO) << "Runtime initialized.";
 }
 
@@ -421,7 +422,11 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
       RT_LOG(WARNING) << "Error on kernel launch: " << r->status << ". Tag id: " << static_cast<int>(eventId);
       processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
     } else {
-      executionContextCache_->releaseBuffer(eventId);
+      if (executionContextCache_) {
+        // it can happen on runtime initialization that executionContextCache does not exist yet and we are receiving
+        // responses from previous executions
+        executionContextCache_->releaseBuffer(eventId);
+      }
     }
     break;
   }
@@ -665,17 +670,24 @@ void RuntimeImp::checkDevice(int device) {
     return;
   }
   if (state != dev::DeviceState::Ready) {
-    running_ = true; // we need to start running to allow dispatch and waitForStream to work properly
     RT_LOG(WARNING) << "Device " << device << " is not ready. Current state: " << static_cast<int>(state)
                     << ". Runtime will issue abort command to all SQs of that device.";
-    for (auto sq = 0, sqCount = deviceLayer_->getSubmissionQueuesCount(device); sq < sqCount; ++sq) {
-      auto st = createStreamWithoutProfiling(DeviceId{device});
-      auto fakeEvt = eventManager_.getNextId();
-      streamManager_.addEvent(st, fakeEvt);
-      abortCommand(fakeEvt);
-      dispatch(fakeEvt);
-      waitForStreamWithoutProfiling(st);
-      destroyStreamWithoutProfiling(st);
-    }
+    abortDevice(DeviceId(device));
   }
+}
+
+void RuntimeImp::abortDevice(DeviceId device) {
+  // we need to ensure runtime is in running state to allow dispatch and waitForStream to work properly
+  auto oldRunningState = running_;
+  running_ = true;
+  for (auto sq = 0, sqCount = deviceLayer_->getSubmissionQueuesCount(static_cast<int>(device)); sq < sqCount; ++sq) {
+    auto st = createStreamWithoutProfiling(device);
+    auto fakeEvt = eventManager_.getNextId();
+    streamManager_.addEvent(st, fakeEvt);
+    abortCommand(fakeEvt);
+    dispatch(fakeEvt);
+    waitForStreamWithoutProfiling(st);
+    destroyStreamWithoutProfiling(st);
+  }
+  running_ = oldRunningState;
 }

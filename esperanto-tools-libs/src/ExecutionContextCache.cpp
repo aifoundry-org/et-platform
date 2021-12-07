@@ -106,10 +106,10 @@ Buffer* ExecutionContextCache::getReservedBuffer(EventId eventId) const {
 }
 
 void ExecutionContextCache::releaseBuffer(EventId id) {
-  RT_VLOG(HIGH) << "Releasing buffer for event " << static_cast<int>(id);
+  RT_VLOG(MID) << "Releasing buffer for event " << static_cast<int>(id);
   std::lock_guard lock(mutex_);
   auto it = find(reservedBuffers_, id);
   freeBuffers_[it->second->device_].emplace_back(it->second);
   reservedBuffers_.erase(it);
-  RT_VLOG(HIGH) << "Buffer erased. In use buffers count: " << reservedBuffers_.size();
+  RT_VLOG(MID) << "Buffer erased. In use buffers count: " << reservedBuffers_.size();
 }

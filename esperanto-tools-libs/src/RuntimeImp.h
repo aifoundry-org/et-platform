@@ -144,6 +144,8 @@ private:
 
   void processResponseError(DeviceErrorCode errorCode, EventId event);
 
+  void abortDevice(DeviceId d);
+
   uint64_t getCommandSenderIdx(int deviceId, int sqIdx) const {
     return (static_cast<uint64_t>(deviceId) << 32ULL) + static_cast<uint64_t>(sqIdx);
   }

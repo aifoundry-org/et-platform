@@ -26,6 +26,8 @@ public:
   };
   explicit ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServices* receiverServices);
 
+  void startDeviceChecker();
+
   ~ResponseReceiver();
 
 private:
