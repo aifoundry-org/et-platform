@@ -733,6 +733,10 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
             pwr_svc_get_module_uptime(tag_id, req_start_time);
             break;
         }
+        case DM_CMD_SET_THROTTLE_POWER_STATE_TEST: {
+            trace_power_state_test(tag_id, req_start_time, buffer);
+            break;
+        }
         default: {
             Log_Write(LOG_LEVEL_ERROR, "Unsupported message id!\n");
             break;

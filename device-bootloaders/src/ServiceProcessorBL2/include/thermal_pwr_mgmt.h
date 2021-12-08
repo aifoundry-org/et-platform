@@ -207,6 +207,14 @@ void dump_power_globals(void);
 */
 void power_throttling(power_throttle_state_e throttle_state);
 
+/*! \fn void trace_power_state_test(void *cmd)
+    \brief TThis function logs power status in trace for test
+    \param tag command tag
+    \param req_start_time  Time stamp when the request was received by the Command Dispatcher
+    \param cmd Command buffer
+    \returns none
+*/
+void trace_power_state_test(uint16_t tag, uint64_t req_start_time, void *cmd);
 /*! \fn void thermal_throttling(power_throttle_state_e throttle_state)
     \brief This function handles thermal throttling
     \param none

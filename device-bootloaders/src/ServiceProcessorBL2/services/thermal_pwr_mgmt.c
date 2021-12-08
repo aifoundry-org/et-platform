@@ -1287,7 +1287,48 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
 
     return 0;
 }
+/************************************************************************
+*
+*   FUNCTION
+*
+*       trace_power_state_test
+*
+*   DESCRIPTION
+*
+*       This function logs power status in trace for test
+*
+*   INPUTS
+*
+        tag               Command tag id
+*       req_start_time    Time stamp when the request was received by the Command
+*                         Dispatcher
+*       cmd               Power throttling command buffer
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void trace_power_state_test(uint16_t tag, uint64_t req_start_time, void *cmd)
+{
+    struct device_mgmt_power_throttle_config_rsp_t dm_rsp;
+    const struct device_mgmt_power_throttle_config_cmd_t *pwr_state_cmd =
+            (struct device_mgmt_power_throttle_config_cmd_t *)cmd;
+    struct trace_event_power_status_t power_status = { 0 };
 
+    power_status.power_state = pwr_state_cmd->power_state;
+    
+    Trace_Power_Status(Trace_Get_SP_CB(), &power_status);
+
+    FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_THROTTLE_POWER_STATE_TEST, timer_get_ticks_count() - req_start_time,
+                    DM_STATUS_SUCCESS)
+
+    if (0 !=
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_power_throttle_config_rsp_t)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "power_throttling_cmd_handler: Cqueue push error!\n");
+    }
+}
 /************************************************************************
 *
 *   FUNCTION
