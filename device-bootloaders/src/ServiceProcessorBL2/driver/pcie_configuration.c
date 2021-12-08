@@ -26,6 +26,9 @@
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/hal_device.h"
 
+#include "hal_noc_reconfig.h"
+#include "slam_engine.h"
+
 static void pcie_init_pshire(void);
 static void pcie_init_caps_list(void);
 static void pcie_init_error_cap(void);
@@ -37,6 +40,7 @@ static void pcie_wait_for_ints(void);
 static void pcie_error_isr(void);
 static void pcie_ce_error(void);
 static void pcie_uce_error(void);
+static void reconfig_noc_pshire(void);
 
 /*! \def BAR2_SIZE
     \brief BAR Sizes must be powers of 2 per the PCIe spec. Round up to next biggest power of 2.
@@ -558,6 +562,8 @@ CONFIG_INBOUND_IATU(3)
 
 static void pcie_init_atus(void)
 {
+    reconfig_noc_pshire();
+
     /* The config registers are protected by a write-enable bit */
     uint32_t miscControl1;
     miscControl1 =
@@ -947,4 +953,9 @@ int PCIE_Init_Status(void)
                    SMLH_LTSSM_STATE_LINK_UP ?
                0 :
                -1;
+}
+
+static void reconfig_noc_pshire(void)
+{
+    SLAM_ENGINE(&reconfig_noc_pshire_low_os);
 }
