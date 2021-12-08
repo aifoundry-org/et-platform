@@ -139,6 +139,8 @@ Modules:
           Value: 57
         - Name: SET_DM_TRACE_CONFIG
           Value: 58
+        - Name: SET_THROTTLE_POWER_STATE_TEST
+          Value: 59
         - Name: MID_END
           Value: 255
   ## List of Enums that are used in our messages
@@ -1136,6 +1138,37 @@ Modules:
       Description: Trace run control command reply
       Type: Response
       PairedMessage: device_mgmt_trace_run_control_cmd
+      Fields:
+        - Name: status
+          Description: DM_STATUS_SUCCESS or non-zero error code
+          Type: enum
+          Enum: dm_status
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
+
+    - Name: device_mgmt_power_throttle_config_cmd
+      Description: Configure options to configure power throttling states.
+      Type: Command
+      PairedMessage: device_mgmt_power_throttle_config_rsp
+      Fields:
+        - Name: power_state
+          Description: |-
+              This is throttle power state value, states can be
+              POWER_THROTTLE_STATE_POWER_UP,
+              POWER_THROTTLE_STATE_POWER_DOWN,
+              POWER_THROTTLE_STATE_POWER_SAFE
+
+          Type: enum
+          Enum: power_throttle_state
+        - Name: pad[7]
+          Description: Padding for alignment
+          Type: uint8_t
+
+    - Name: device_mgmt_power_throttle_config_rsp
+      Description: power throttle command response
+      Type: Response
+      PairedMessage: device_mgmt_power_throttle_config_cmd
       Fields:
         - Name: status
           Description: DM_STATUS_SUCCESS or non-zero error code
