@@ -311,6 +311,10 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, getHistoricalExtremeWithInvalidOu
   getHistoricalExtremeWithInvalidOutputSize_1_127(false /* Multiple Devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieFullBoot, setThrottlePowerStatus_1_128) {
+  setThrottlePowerStatus_1_128(true /* Single Devices */);
+}
+
 int main(int argc, char** argv) {
   logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);

@@ -475,6 +475,10 @@ TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, getHistoricalExtremeWithInvalidOutp
   getHistoricalExtremeWithInvalidOutputSize_1_127(false /* Multiple Devices */);
 }
 
+TEST_F(TestDevMgmtApiFuncSyncCmdsPcieSysEmu, setThrottlePowerStatus_1_128) {
+  setThrottlePowerStatus_1_128(true /* Single Devices */);
+}
+
 // retrieve MM FW error counts. This test should be run last so that we are
 // able to capture any errors in the previous test runs
 // Note after fix from: SW-8409, counters needs to adjusted to handle expected failures

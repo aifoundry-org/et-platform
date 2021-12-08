@@ -2602,3 +2602,62 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputSize_1_127(boo
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
+
+void TestDevMgmtApiSyncCmds::setThrottlePowerStatus_1_128(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  bool validEventFound = false;
+  std::vector<std::byte> response;
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+  const uint32_t output_size = sizeof(uint32_t);
+  char output_buff[output_size] = {0};
+  const struct trace_entry_header_t* entry = NULL;
+  
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    uint32_t input_size = sizeof(device_mgmt_api::power_throttle_state_e);
+    for (device_mgmt_api::power_throttle_state_e throttle_state = device_mgmt_api::POWER_THROTTLE_STATE_POWER_DOWN;
+         throttle_state >= device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP; throttle_state--) {
+      char input_buff[input_size] = {throttle_state};
+      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_THROTTLE_POWER_STATE_TEST,
+                                  input_buff, input_size, output_buff, output_size, hst_latency.get(),
+                                  dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                  device_mgmt_api::DM_STATUS_SUCCESS);
+    
+      DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    }
+    input_size = sizeof(device_mgmt_api::trace_control_e);
+    char input_buff_[input_size] = {device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE};
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff_,
+                            input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                            DM_SERVICE_REQUEST_TIMEOUT),
+          device_mgmt_api::DM_STATUS_SUCCESS);
+
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    if (!FLAGS_loopback_driver) {
+      if (dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response, DM_SERVICE_REQUEST_TIMEOUT) !=
+          device_mgmt_api::DM_STATUS_SUCCESS) {
+        DM_LOG(INFO) << "Unable to get SP trace buffer for device: " << deviceIdx << ". Disabling Trace.";
+      } else {
+            while (entry = Trace_Decode(reinterpret_cast<struct trace_buffer_std_header_t*>(response.data()), entry)) {
+            if(entry->type == TRACE_TYPE_POWER_STATUS)
+            {
+              validEventFound = true;
+            break;
+            }
+        }
+      }
+      EXPECT_TRUE(validEventFound) << "No SP trace event found!" << std::endl;
+      validEventFound = false;
+    }
+    input_buff_[input_size] = {device_mgmt_api::TRACE_CONTROL_RESET_TRACEBUF |
+                                    device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE};
+
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff_,
+                                input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+  }
+}

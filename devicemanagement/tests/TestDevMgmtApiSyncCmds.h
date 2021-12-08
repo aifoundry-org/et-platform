@@ -181,6 +181,7 @@ protected:
   void getHistoricalExtremeWithInvalidDeviceLatency_1_125(bool singleDevice);
   void getHistoricalExtremeWithInvalidOutputBuffer_1_126(bool singleDevice);
   void getHistoricalExtremeWithInvalidOutputSize_1_127(bool singleDevice);
+  void setThrottlePowerStatus_1_128(bool singleDevice);
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
 };

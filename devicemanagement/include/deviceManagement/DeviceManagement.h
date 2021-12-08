@@ -86,7 +86,8 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_GET_MM_ERROR_COUNT", device_mgmt_api::DM_CMD::DM_CMD_GET_MM_ERROR_COUNT},
   {"DM_CMD_GET_DEVICE_ERROR_EVENTS", device_mgmt_api::DM_CMD::DM_CMD_GET_DEVICE_ERROR_EVENTS},
   {"DM_CMD_SET_DM_TRACE_RUN_CONTROL", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL},
-  {"DM_CMD_SET_DM_TRACE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG}};
+  {"DM_CMD_SET_DM_TRACE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG},
+  {"DM_CMD_SET_THROTTLE_POWER_STATE_TEST", device_mgmt_api::DM_CMD::DM_CMD_SET_THROTTLE_POWER_STATE_TEST}};
 
 static std::unordered_map<std::string, device_mgmt_api::ACTIVE_POWER_MANAGEMENT> const activePowerManagementTable = {
   {"ACTIVE_POWER_MANAGEMENT_TURN_OFF", device_mgmt_api::ACTIVE_POWER_MANAGEMENT::ACTIVE_POWER_MANAGEMENT_TURN_OFF},
