@@ -106,7 +106,6 @@ public:
   std::optional<Cycles> getDeviceCmdWaitDur() const;
   std::optional<Cycles> getDeviceCmdExecDur() const;
 
-protected:
   void setType(Type t);
   void setClass(Class c);
   void setTimeStamp(TimePoint t = Clock::now());
@@ -125,10 +124,6 @@ protected:
   void setDeviceCmdWaitDur(uint64_t wait_dur);
   void setDeviceCmdExecDur(uint64_t exec_dur);
 
-  friend ScopedProfileEvent;
-  friend rt::RuntimeImp;
-  friend rt::CommandSender;
-  friend rt::tests::ProfileEventDeserializationTest;
   template <class Archive> friend void load(Archive& ar, ProfileEvent& evt);
 
 private:
