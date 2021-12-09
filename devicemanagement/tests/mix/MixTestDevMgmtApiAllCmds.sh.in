@@ -10,6 +10,8 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
+### NOTE: Mix tests run for TARGET=loopback only ###
+
 RUN_DIR=@CMAKE_CURRENT_BINARY_DIR@
 cd $RUN_DIR
 
@@ -21,7 +23,7 @@ else
 fi
 echo "Tests duration is $TESTS_DURATION"
 
-mgmt_tests=($(ctest -N -L LOOPBACK | awk '$2 ~ /#[0-9]+:/ && $4 !~ /Disabled/ {print $3}'))
+mgmt_tests=($(ctest -L "FUNCTIONAL|SECURITY|INTEGRATION" -N | awk '$2 ~ /#[0-9]+:/ && $4 !~ /Disabled/ {print $3}'))
 mgmt_tests_count=${#mgmt_tests[@]}
 if [[ $mgmt_tests_count -eq 0 ]]; then
     exit 1
@@ -34,7 +36,7 @@ mgmt_tests_endtime=$(date -ud "$TESTS_DURATION" +%s)
 while [[ $(date -u +%s) -le $mgmt_tests_endtime ]]
 do
     mgmt_exec_idx=$(($RANDOM % $mgmt_tests_count))
-    sudo ctest -R ${mgmt_tests[$mgmt_exec_idx]} -V > $mgmt_tests_logfile
+    sudo TARGET=loopback ctest -R ${mgmt_tests[$mgmt_exec_idx]} -V > $mgmt_tests_logfile
     mgmt_tests_rv=$?
     cat $mgmt_tests_logfile
     if [ $mgmt_tests_rv -ne 0 ]; then

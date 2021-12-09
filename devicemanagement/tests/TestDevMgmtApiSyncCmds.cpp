@@ -37,11 +37,9 @@ using TimeDuration = Clock::duration;
 
 #define DM_SERVICE_REQUEST_TIMEOUT 100000
 
-DEFINE_bool(loopback_driver, false, "Run on loopback driver");
 DEFINE_string(trace_logfile_txt, "DeviceSpTrace.txt", "File where SP trace data will be dumped in text format");
 DEFINE_string(trace_logfile_bin, "DeviceSpTrace.bin", "File where SP trace data will be dumped in bin format");
-DEFINE_bool(enable_trace_dump, FLAGS_loopback_driver ? false : true,
-            "Enable SP trace dump to file specified by flag: trace_logfile, otherwise on UART");
+DEFINE_bool(enable_trace_dump, true, "Enable SP trace dump to file specified by flag: trace_logfile, otherwise on UART");
 
 #define FORMAT_VERSION(major, minor, revision) ((major << 24) | (minor << 16) | (revision << 8))
 
@@ -77,7 +75,7 @@ void TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, siz
   std::stringstream logs;
 
   // return for loopback driver
-  if (FLAGS_loopback_driver) {
+  if (getTestTarget() == Target::Loopback) {
     DM_LOG(INFO) << "Get Trace Buffer is not supported on loopback driver";
     return;
   }
@@ -164,6 +162,11 @@ void TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, siz
 }
 
 void TestDevMgmtApiSyncCmds::extractAndPrintTraceData(void) {
+  if (!FLAGS_enable_trace_dump) {
+    DM_LOG(INFO) << "Skipping trace data extraction!";
+    return;
+  }
+
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -172,7 +175,7 @@ void TestDevMgmtApiSyncCmds::extractAndPrintTraceData(void) {
   uint32_t set_output_size;
 
   auto deviceCount = dm.getDevicesCount();
-  if (HasFailure() || FLAGS_enable_trace_dump) {
+  if (HasFailure()) {
     for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
       input_size = sizeof(device_mgmt_api::trace_control_e);
       char input_buff[input_size] = {device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE};
@@ -208,7 +211,7 @@ void TestDevMgmtApiSyncCmds::extractAndPrintTraceData(void) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleManufactureName(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -230,7 +233,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       printf("output_buff: %.*s\n", output_size, output_buff);
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
       EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
@@ -238,7 +241,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureName_1_1(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModulePartNumber_1_2(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModulePartNumber(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -260,7 +263,7 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber_1_2(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       printf("output_buff: %.*s\n", output_size, output_buff);
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
@@ -270,7 +273,7 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber_1_2(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleSerialNumber_1_3(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleSerialNumber(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -292,7 +295,7 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber_1_3(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       printf("output_buff: %.*s\n", output_size, output_buff);
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
@@ -302,7 +305,7 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber_1_3(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getASICChipRevision_1_4(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICChipRevision(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -325,7 +328,7 @@ void TestDevMgmtApiSyncCmds::getASICChipRevision_1_4(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       printf("output_buff: %.*s\n", output_size, output_buff);
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
@@ -335,7 +338,7 @@ void TestDevMgmtApiSyncCmds::getASICChipRevision_1_4(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModulePCIENumPortsMaxSpeed_1_5(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModulePCIENumPortsMaxSpeed(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -358,7 +361,7 @@ void TestDevMgmtApiSyncCmds::getModulePCIENumPortsMaxSpeed_1_5(bool singleDevice
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       printf("output_buff: %.*s\n", output_size, output_buff);
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
@@ -368,7 +371,7 @@ void TestDevMgmtApiSyncCmds::getModulePCIENumPortsMaxSpeed_1_5(bool singleDevice
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB_1_6(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -390,7 +393,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB_1_6(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       printf("output_buff: %.*s\n", output_size, output_buff);
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
@@ -400,7 +403,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB_1_6(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleRevision_1_7(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleRevision(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -422,7 +425,7 @@ void TestDevMgmtApiSyncCmds::getModuleRevision_1_7(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       printf("output_buff: %.*s\n", output_size, output_buff);
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
@@ -432,7 +435,7 @@ void TestDevMgmtApiSyncCmds::getModuleRevision_1_7(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleFormFactor_1_8(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleFormFactor(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -455,7 +458,7 @@ void TestDevMgmtApiSyncCmds::getModuleFormFactor_1_8(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       printf("output_buff: %.*s\n", output_size, output_buff);
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
@@ -465,7 +468,7 @@ void TestDevMgmtApiSyncCmds::getModuleFormFactor_1_8(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber_1_9(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -485,7 +488,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber_1_9(bool singleDevi
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       printf("output_buff: %.*s\n", output_size, output_buff);
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
@@ -495,7 +498,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber_1_9(bool singleDevi
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleMemoryType_1_10(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleMemoryType(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -518,7 +521,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryType_1_10(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       printf("output_buff: %.*s\n", output_size, output_buff);
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
@@ -528,7 +531,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryType_1_10(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModulePowerState_1_11(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModulePowerState(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -547,7 +550,7 @@ void TestDevMgmtApiSyncCmds::getModulePowerState_1_11(bool singleDevice) {
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       uint8_t powerstate = get_output_buff[0];
       // Note: Module's Power State could vary. So there cannot be expected value for Power State in the test
       printf("Module's Power State: %d\n", powerstate);
@@ -555,7 +558,7 @@ void TestDevMgmtApiSyncCmds::getModulePowerState_1_11(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::setModuleActivePowerManagement_1_62(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setModuleActivePowerManagement(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -578,7 +581,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagement_1_62(bool singleDevi
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
@@ -586,7 +589,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagement_1_62(bool singleDevi
 
 #define DM_TDP_LEVEL 25
 
-void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel_1_12(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -607,7 +610,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel_1_12(bool singleDevic
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
 
@@ -621,14 +624,14 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel_1_12(bool singleDevic
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       uint8_t tdp_level = get_output_buff[0];
       EXPECT_EQ(tdp_level, DM_TDP_LEVEL);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -650,7 +653,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13(bool singl
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ(set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
 
@@ -664,7 +667,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13(bool singl
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       device_mgmt_api::temperature_threshold_t* temperature_threshold =
         (device_mgmt_api::temperature_threshold_t*)get_output_buff;
       EXPECT_EQ(temperature_threshold->sw_temperature_c, 56);
@@ -672,7 +675,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold_1_13(bool singl
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -699,7 +702,7 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14(bool singleDev
       DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
       // Skip printing if loopback driver
-      if (!FLAGS_loopback_driver) {
+      if (getTestTarget() != Target::Loopback) {
         // Note: Throttle time could vary. So there cannot be expected value for throttle time in the test
         device_mgmt_api::residency_t* residency = (device_mgmt_api::residency_t*)output_buff;
         printf("throttle_residency %s (in usecs):\n", throttle_state_name[throttle_state]);
@@ -712,7 +715,7 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState_1_14(bool singleDev
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleUptime_1_15(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleUptime(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -730,7 +733,7 @@ void TestDevMgmtApiSyncCmds::getModuleUptime_1_15(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       device_mgmt_api::module_uptime_t* module_uptime = (device_mgmt_api::module_uptime_t*)output_buff;
       printf("Module uptime (day:hours:mins): %d:%d:%d\r\n", module_uptime->day, module_uptime->hours,
              module_uptime->mins);
@@ -738,7 +741,7 @@ void TestDevMgmtApiSyncCmds::getModuleUptime_1_15(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModulePower_1_16(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModulePower(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -761,7 +764,7 @@ void TestDevMgmtApiSyncCmds::getModulePower_1_16(bool singleDevice) {
     device_mgmt_api::module_power_t* module_power = (device_mgmt_api::module_power_t*)output_buff;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       auto power = (module_power->power >> 2) + (module_power->power & 0x03) * 0.25;
       printf("Module power (in Watts): %.3f \n", power);
 
@@ -770,7 +773,7 @@ void TestDevMgmtApiSyncCmds::getModulePower_1_16(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleVoltage_1_17(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleVoltage(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -790,7 +793,7 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage_1_17(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       // Note: Module power could vary. So there cannot be expected value for Module power in the test
       device_mgmt_api::module_voltage_t* module_voltage = (device_mgmt_api::module_voltage_t*)output_buff;
 
@@ -802,7 +805,7 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage_1_17(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature_1_18(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -822,7 +825,7 @@ void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature_1_18(bool singleDevice)
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       device_mgmt_api::current_temperature_t* cur_temp = (device_mgmt_api::current_temperature_t*)output_buff;
 
       printf(" Module current temperature (in C): %d\r\n", cur_temp->temperature_c);
@@ -832,7 +835,7 @@ void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature_1_18(bool singleDevice)
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleMaxTemperature_1_19(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleMaxTemperature(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -853,7 +856,7 @@ void TestDevMgmtApiSyncCmds::getModuleMaxTemperature_1_19(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       device_mgmt_api::max_temperature_t* max_temperature = (device_mgmt_api::max_temperature_t*)output_buff;
 
       // Note: Module's Max Temperature could vary. So there cannot be expected value for max temperature in the test
@@ -862,7 +865,7 @@ void TestDevMgmtApiSyncCmds::getModuleMaxTemperature_1_19(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleMaxMemoryErrors_1_20(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleMaxMemoryErrors(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -883,7 +886,7 @@ void TestDevMgmtApiSyncCmds::getModuleMaxMemoryErrors_1_20(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       device_mgmt_api::max_ecc_count_t* max_ecc_count = (device_mgmt_api::max_ecc_count_t*)output_buff;
 
       // Note: ECC count could vary. So there cannot be expected value for max_ecc_count in the test
@@ -892,7 +895,7 @@ void TestDevMgmtApiSyncCmds::getModuleMaxMemoryErrors_1_20(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleMaxDDRBW_1_21(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleMaxDDRBW(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -913,7 +916,7 @@ void TestDevMgmtApiSyncCmds::getModuleMaxDDRBW_1_21(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState_1_22(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -938,7 +941,7 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState_1_22(bool singleDevice
       DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
       // Skip printing if loopback driver
-      if (!FLAGS_loopback_driver) {
+      if (getTestTarget() != Target::Loopback) {
         // Note: Throttle time could vary. So there cannot be expected value for throttle time in the test
         device_mgmt_api::residency_t* residency = (device_mgmt_api::residency_t*)output_buff;
         printf("power_residency %s (in usecs):\n", power_state_name[power_state]);
@@ -951,7 +954,7 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState_1_22(bool singleDevice
   }
 }
 
-void TestDevMgmtApiSyncCmds::setAndGetDDRECCThresholdCount_1_23(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setAndGetDDRECCThresholdCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -975,13 +978,13 @@ void TestDevMgmtApiSyncCmds::setAndGetDDRECCThresholdCount_1_23(bool singleDevic
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::setAndGetSRAMECCThresholdCount_1_24(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setAndGetSRAMECCThresholdCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1004,13 +1007,13 @@ void TestDevMgmtApiSyncCmds::setAndGetSRAMECCThresholdCount_1_24(bool singleDevi
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::setAndGetPCIEECCThresholdCount_1_25(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setAndGetPCIEECCThresholdCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1033,13 +1036,13 @@ void TestDevMgmtApiSyncCmds::setAndGetPCIEECCThresholdCount_1_25(bool singleDevi
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::getPCIEECCUECCCount_1_26(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getPCIEECCUECCCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1060,7 +1063,7 @@ void TestDevMgmtApiSyncCmds::getPCIEECCUECCCount_1_26(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       device_mgmt_api::errors_count_t* errors_count = (device_mgmt_api::errors_count_t*)output_buff;
 
       EXPECT_EQ(errors_count->ecc, 0);
@@ -1069,7 +1072,7 @@ void TestDevMgmtApiSyncCmds::getPCIEECCUECCCount_1_26(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getDDRECCUECCCount_1_27(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDDRECCUECCCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1089,7 +1092,7 @@ void TestDevMgmtApiSyncCmds::getDDRECCUECCCount_1_27(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       device_mgmt_api::errors_count_t* errors_count = (device_mgmt_api::errors_count_t*)output_buff;
 
       EXPECT_EQ(errors_count->ecc, 0);
@@ -1098,7 +1101,7 @@ void TestDevMgmtApiSyncCmds::getDDRECCUECCCount_1_27(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getSRAMECCUECCCount_1_28(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getSRAMECCUECCCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1118,7 +1121,7 @@ void TestDevMgmtApiSyncCmds::getSRAMECCUECCCount_1_28(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       device_mgmt_api::errors_count_t* errors_count = (device_mgmt_api::errors_count_t*)output_buff;
 
       EXPECT_EQ(errors_count->ecc, 0);
@@ -1127,7 +1130,7 @@ void TestDevMgmtApiSyncCmds::getSRAMECCUECCCount_1_28(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getDDRBWCounter_1_29(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDDRBWCounter(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1148,7 +1151,7 @@ void TestDevMgmtApiSyncCmds::getDDRBWCounter_1_29(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::setPCIELinkSpeed_1_30(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setPCIELinkSpeed(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1172,13 +1175,13 @@ void TestDevMgmtApiSyncCmds::setPCIELinkSpeed_1_30(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::setPCIELaneWidth_1_31(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setPCIELaneWidth(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1202,13 +1205,13 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidth_1_31(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::setPCIERetrainPhy_1_32(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setPCIERetrainPhy(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1233,13 +1236,13 @@ void TestDevMgmtApiSyncCmds::setPCIERetrainPhy_1_32(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::getASICFrequencies_1_33(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICFrequencies(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1259,7 +1262,7 @@ void TestDevMgmtApiSyncCmds::getASICFrequencies_1_33(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getDRAMBW_1_34(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDRAMBW(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1278,7 +1281,7 @@ void TestDevMgmtApiSyncCmds::getDRAMBW_1_34(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilization_1_35(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilization(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1298,7 +1301,7 @@ void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilization_1_35(bool singleDevice) 
   }
 }
 
-void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilization_1_36(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilization(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1318,13 +1321,13 @@ void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilization_1_36(bool singleD
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::getASICUtilization_1_37(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICUtilization(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1343,13 +1346,13 @@ void TestDevMgmtApiSyncCmds::getASICUtilization_1_37(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::getASICStalls_1_38(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICStalls(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1368,13 +1371,13 @@ void TestDevMgmtApiSyncCmds::getASICStalls_1_38(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::getASICLatency_1_39(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICLatency(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1393,13 +1396,13 @@ void TestDevMgmtApiSyncCmds::getASICLatency_1_39(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::getMMErrorCount_1_40(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getMMErrorCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1418,7 +1421,7 @@ void TestDevMgmtApiSyncCmds::getMMErrorCount_1_40(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getFWBootstatus_1_41(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getFWBootstatus(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1438,13 +1441,13 @@ void TestDevMgmtApiSyncCmds::getFWBootstatus_1_41(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing and validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ(output_buff[0], 0);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleFWRevision_1_42(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleFWRevision(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1463,7 +1466,7 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision_1_42(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing and validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       printf("output_buff: %.*s\n", output_size, output_buff);
 
       device_mgmt_api::firmware_version_t* firmware_versions = (device_mgmt_api::firmware_version_t*)output_buff;
@@ -1477,7 +1480,7 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision_1_42(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode_1_43(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1504,7 +1507,7 @@ void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode_1_43(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
   int fd, i;
   char buff[BUFSIZ];
   ssize_t size = 0;
@@ -1544,7 +1547,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (FLAGS_loopback_driver) {
+    if (getTestTarget() == Target::Loopback) {
       close(fd);
       return;
     }
@@ -1584,7 +1587,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents_1_44(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::isUnsupportedService_1_45(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::isUnsupportedService(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1633,7 +1636,7 @@ void TestDevMgmtApiSyncCmds::isUnsupportedService_1_45(bool singleDevice) {
 
 #define SP_CRT_512_V002 "../include/hash.txt"
 
-void TestDevMgmtApiSyncCmds::setSpRootCertificate_1_46(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setSpRootCertificate(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1654,7 +1657,7 @@ void TestDevMgmtApiSyncCmds::setSpRootCertificate_1_46(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       char expected[output_size] = {0};
       strncpy(expected, "0", output_size);
 
@@ -1663,7 +1666,7 @@ void TestDevMgmtApiSyncCmds::setSpRootCertificate_1_46(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::setTraceControl_1_47(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setTraceControl(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1687,13 +1690,13 @@ void TestDevMgmtApiSyncCmds::setTraceControl_1_47(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::setTraceConfigure_1_48(bool singleDevice, uint32_t event_type, uint32_t filter_level) {
+void TestDevMgmtApiSyncCmds::setTraceConfigure(bool singleDevice, uint32_t event_type, uint32_t filter_level) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1720,14 +1723,14 @@ void TestDevMgmtApiSyncCmds::setTraceConfigure_1_48(bool singleDevice, uint32_t 
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
 
 // Note this test should always be the last one
-void TestDevMgmtApiSyncCmds::getTraceBuffer_1_49(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getTraceBuffer(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1736,7 +1739,7 @@ void TestDevMgmtApiSyncCmds::getTraceBuffer_1_49(bool singleDevice) {
   const struct trace_entry_header_t* entry = NULL;
 
   // Skip validation if loopback driver
-  if (FLAGS_loopback_driver) {
+  if (getTestTarget() == Target::Loopback) {
     DM_LOG(INFO) << "Get Trace Buffer is not supported on loopback driver";
     return;
   }
@@ -1761,7 +1764,7 @@ void TestDevMgmtApiSyncCmds::getTraceBuffer_1_49(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRange_1_50(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRange(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1785,7 +1788,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRange_1_50(bool singl
   }
 }
 
-void TestDevMgmtApiSyncCmds::setModuleSetTemperatureThresholdRange_1_51(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setModuleSetTemperatureThresholdRange(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1809,7 +1812,7 @@ void TestDevMgmtApiSyncCmds::setModuleSetTemperatureThresholdRange_1_51(bool sin
   }
 }
 
-void TestDevMgmtApiSyncCmds::setModuleStaticTDPLevelRange_1_52(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setModuleStaticTDPLevelRange(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1832,57 +1835,7 @@ void TestDevMgmtApiSyncCmds::setModuleStaticTDPLevelRange_1_52(bool singleDevice
   }
 }
 
-void TestDevMgmtApiSyncCmds::setPCIEMaxLinkSpeedRange_1_53(bool singleDevice) {
-  getDM_t dmi = getInstance();
-  ASSERT_TRUE(dmi);
-  DeviceManagement& dm = (*dmi)(devLayer_.get());
-
-  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(device_mgmt_api::pcie_link_speed_e);
-    const char input_buff[input_size] = {6}; // Invalid link speed
-
-    // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
-    const uint32_t output_size = sizeof(uint32_t);
-    char output_buff[output_size] = {0};
-
-    auto hst_latency = std::make_unique<uint32_t>();
-    auto dev_latency = std::make_unique<uint64_t>();
-
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED, input_buff,
-                                input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
-              -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-  }
-}
-
-void TestDevMgmtApiSyncCmds::setPCIELaneWidthRange_1_54(bool singleDevice) {
-  getDM_t dmi = getInstance();
-  ASSERT_TRUE(dmi);
-  DeviceManagement& dm = (*dmi)(devLayer_.get());
-
-  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(device_mgmt_api::pcie_lane_w_split_e);
-    const char input_buff[input_size] = {16}; // Invalid lane width
-
-    // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
-    const uint32_t output_size = sizeof(uint32_t);
-    char output_buff[output_size] = {0};
-
-    auto hst_latency = std::make_unique<uint32_t>();
-    auto dev_latency = std::make_unique<uint64_t>();
-
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff, input_size,
-                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
-              -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-  }
-}
-
-void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputSize_1_55(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputSize(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1907,7 +1860,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputSize
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputSize_1_56(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputSize(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1929,7 +1882,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputSize_1_56(bool
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceNode_1_57(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceNode(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1951,7 +1904,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceNode_1_57(bool
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidHostLatency_1_58(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidHostLatency(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1972,7 +1925,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidHostLatency_1_58(boo
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceLatency_1_59(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceLatency(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1993,7 +1946,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceLatency_1_59(b
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputBuffer_1_60(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputBuffer(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2014,7 +1967,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputBuffer_1_60(bo
   }
 }
 
-void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputBuffer_1_61(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputBuffer(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2037,7 +1990,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputBuff
   }
 }
 
-void TestDevMgmtApiSyncCmds::updateFirmwareImage_1_63(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::updateFirmwareImage(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2060,13 +2013,13 @@ void TestDevMgmtApiSyncCmds::updateFirmwareImage_1_63(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       ASSERT_EQ(output_buff[0], 0);
     }
   }
 }
 
-void TestDevMgmtApiSyncCmds::setPCIELinkSpeedToInvalidLinkSpeed_1_64(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setPCIELinkSpeedToInvalidLinkSpeed(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2091,7 +2044,7 @@ void TestDevMgmtApiSyncCmds::setPCIELinkSpeedToInvalidLinkSpeed_1_64(bool single
   }
 }
 
-void TestDevMgmtApiSyncCmds::setPCIELaneWidthToInvalidLaneWidth_1_65(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setPCIELaneWidthToInvalidLaneWidth(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2215,147 +2168,147 @@ void TestDevMgmtApiSyncCmds::testInvalidOutputBuffer(int32_t dmCmdType, bool sin
   }
 }
 
-void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidOutputSize_1_66(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidOutputSize(bool singleDevice) {
   testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, singleDevice);
 }
     
-void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidDeviceNode_1_67(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidDeviceNode(bool singleDevice) {
   testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidHostLatency_1_68(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidHostLatency(bool singleDevice) {
   testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidDeviceLatency_1_69(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidDeviceLatency(bool singleDevice) {
   testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidOutputBuffer_1_70(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICFrequenciesInvalidOutputBuffer(bool singleDevice) {
   testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidOutputSize_1_71(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidOutputSize(bool singleDevice) {
   testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidDeviceNode_1_72(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidDeviceNode(bool singleDevice) {
   testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidHostLatency_1_73(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidHostLatency(bool singleDevice) {
   testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidDeviceLatency_1_74(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidDeviceLatency(bool singleDevice) {
   testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidOutputBuffer_1_75(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDRAMBandwidthInvalidOutputBuffer(bool singleDevice) {
   testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidOutputSize_1_76(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidOutputSize(bool singleDevice) {
   testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidDeviceNode_1_77(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidDeviceNode(bool singleDevice) {
   testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidHostLatency_1_78(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidHostLatency(bool singleDevice) {
   testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidDeviceLatency_1_79(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidDeviceLatency(bool singleDevice) {
   testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidOutputBuffer_1_80(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilizationInvalidOutputBuffer(bool singleDevice) {
   testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidOutputSize_1_81(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidOutputSize(bool singleDevice) {
   testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidDeviceNode_1_82(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidDeviceNode(bool singleDevice) {
   testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidHostLatency_1_83(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidHostLatency(bool singleDevice) {
   testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidDeviceLatency_1_84(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidDeviceLatency(bool singleDevice) {
   testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidOutputBuffer_1_85(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilizationInvalidOutputBuffer(bool singleDevice) {
   testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidOutputSize_1_86(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidOutputSize(bool singleDevice) {
   testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidDeviceNode_1_87(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidDeviceNode(bool singleDevice) {
   testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidHostLatency_1_88(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidHostLatency(bool singleDevice) {
   testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidDeviceLatency_1_89(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidDeviceLatency(bool singleDevice) {
   testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidOutputBuffer_1_90(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICUtilizationInvalidOutputBuffer(bool singleDevice) {
   testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICStallsInvalidOutputSize_1_91(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICStallsInvalidOutputSize(bool singleDevice) {
   testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICStallsInvalidDeviceNode_1_92(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICStallsInvalidDeviceNode(bool singleDevice) {
   testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICStallsInvalidHostLatency_1_93(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICStallsInvalidHostLatency(bool singleDevice) {
   testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICStallsInvalidDeviceLatency_1_94(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICStallsInvalidDeviceLatency(bool singleDevice) {
   testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICStallsInvalidOutputBuffer_1_95(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICStallsInvalidOutputBuffer(bool singleDevice) {
   testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICLatencyInvalidOutputSize_1_96(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICLatencyInvalidOutputSize(bool singleDevice) {
   testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICLatencyInvalidDeviceNode_1_97(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICLatencyInvalidDeviceNode(bool singleDevice) {
   testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICLatencyInvalidHostLatency_1_98(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICLatencyInvalidHostLatency(bool singleDevice) {
   testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICLatencyInvalidDeviceLatency_1_99(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICLatencyInvalidDeviceLatency(bool singleDevice) {
   testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getASICLatencyInvalidOutputBuffer_1_100(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getASICLatencyInvalidOutputBuffer(bool singleDevice) {
   testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::testInvalidCmdCode_1_101(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::testInvalidCmdCode(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2419,91 +2372,91 @@ void TestDevMgmtApiSyncCmds::testInvalidInputSize(int32_t dmCmdType, bool single
   }
 }
 
-void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidInputBuffer_1_102(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidInputBuffer(bool singleDevice) {
   testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidInputSize_1_103(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidInputSize(bool singleDevice) {
   testInvalidInputSize(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidOutputSize_1_104(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidOutputSize(bool singleDevice) {
   testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidDeviceNode_1_105(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidDeviceNode(bool singleDevice) {
   testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidHostLatency_1_106(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidHostLatency(bool singleDevice) {
   testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidDeviceLatency_1_107(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidDeviceLatency(bool singleDevice) {
   testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidOutputBuffer_1_108(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setDDRECCCountInvalidOutputBuffer(bool singleDevice) {
   testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setPCIEECCCountInvalidInputBuffer_1_109(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setPCIEECCCountInvalidInputBuffer(bool singleDevice) {
   testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidInputSize_1_110(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidInputSize(bool singleDevice) {
   testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidOutputSize_1_111(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidOutputSize(bool singleDevice) {
   testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidDeviceNode_1_112(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidDeviceNode(bool singleDevice) {
   testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidHostLatency_1_113(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidHostLatency(bool singleDevice) {
   testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidDeviceLatency_1_114(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidDeviceLatency(bool singleDevice) {
   testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidOutputBuffer_1_115(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setPCIEECCountInvalidOutputBuffer(bool singleDevice) {
   testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setSRAMECCCountInvalidInputBuffer_1_116(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setSRAMECCCountInvalidInputBuffer(bool singleDevice) {
   testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setSRAMECCCountInvalidInputSize_1_117(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setSRAMECCCountInvalidInputSize(bool singleDevice) {
   testInvalidInputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidOutputSize_1_118(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidOutputSize(bool singleDevice) {
   testInvalidOutputSize(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidDeviceNode_1_119(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidDeviceNode(bool singleDevice) {
   testInvalidDeviceNode(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidHostLatency_1_120(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidHostLatency(bool singleDevice) {
   testInvalidHostLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidDeviceLatency_1_121(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidDeviceLatency(bool singleDevice) {
   testInvalidDeviceLatency(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidOutputBuffer_1_122(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setSRAMECCountInvalidOutputBuffer(bool singleDevice) {
   testInvalidOutputBuffer(device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, singleDevice);
 }
 
-void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceNode_1_123(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceNode(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2525,7 +2478,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceNode_1_123(boo
   }
 }
 
-void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidHostLatency_1_124(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidHostLatency(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2544,7 +2497,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidHostLatency_1_124(bo
   }
 }
 
-void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceLatency_1_125(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceLatency(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2563,7 +2516,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceLatency_1_125(
   }
 }
 
-void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputBuffer_1_126(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputBuffer(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2583,7 +2536,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputBuffer_1_126(b
   }
 }
 
-void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputSize_1_127(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputSize(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2603,7 +2556,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputSize_1_127(boo
   }
 }
 
-void TestDevMgmtApiSyncCmds::setThrottlePowerStatus_1_128(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   bool validEventFound = false;
@@ -2636,7 +2589,7 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus_1_128(bool singleDevice) {
           device_mgmt_api::DM_STATUS_SUCCESS);
 
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-    if (!FLAGS_loopback_driver) {
+    if (getTestTarget() != Target::Loopback) {
       if (dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response, DM_SERVICE_REQUEST_TIMEOUT) !=
           device_mgmt_api::DM_STATUS_SUCCESS) {
         DM_LOG(INFO) << "Unable to get SP trace buffer for device: " << deviceIdx << ". Disabling Trace.";

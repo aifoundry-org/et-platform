@@ -57,6 +57,7 @@ function(create_test)
     target_include_directories(${TEST_TARGET}
         PRIVATE 
             $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
+            ${CMAKE_CURRENT_SOURCE_DIR}
     )
     target_link_libraries(${TEST_TARGET}
         PRIVATE
@@ -76,55 +77,151 @@ function(create_test)
     )
 endfunction()
 
-if(BUILD_PCIE_LOOPBACK_DRIVER)
-    set(LOOPBACK_DRIVER "true")
-else()
-    set(LOOPBACK_DRIVER "false")
-endif()
-
 # All tests should be created using the helper
 
-###############
-# BASIC TESTS #
-###############
+####################
+# FUNCTIONAL TESTS #
+####################
 create_test(
-    TARGET     TestDevMgmtApiFuncSyncCmdsPcie
-    SOURCES    TestDevMgmtApiFuncSyncCmdsPcie.cpp TestDevMgmtApiSyncCmds.cpp
-    ARGS       --loopback_driver=${LOOPBACK_DRIVER}
-    PROPERTIES "LABELS;FC;LABELS;BEMU;LABELS;PCIE;LABELS;MGMT;LABELS;FUNCTIONAL;LABELS;SYSTEM;LABELS;LOOPBACK;LABELS;BRINGUP-DROP2;TIMEOUT;600"
+    TARGET	FunctionalTestDevMgmtApiAssetTrackingCmds
+    SOURCES	functional/FunctionalTestDevMgmtApiAssetTrackingCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS	""
+    PROPERTIES	"LABELS;FUNCTIONAL;TIMEOUT;60"
 )
 
 create_test(
-    TARGET     TestDevMgmtApiFuncSyncCmdsPcieFullBoot
-    SOURCES    TestDevMgmtApiFuncSyncCmdsPcieFullBoot.cpp TestDevMgmtApiSyncCmds.cpp
-    ARGS       ""
-    PROPERTIES "LABELS;FC;LABELS;PCIE-FULLBOOT;LABELS;MGMT;LABELS;FUNCTIONAL;LABELS;SYSTEM;LABELS;BRINGUP-DROP5;TIMEOUT;120"
+    TARGET      FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds
+    SOURCES     functional/FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
 )
 
 create_test(
-    TARGET     TestDevMgmtApiFuncSyncCmdsPcieSysEmu
-    SOURCES    TestDevMgmtApiFuncSyncCmdsPcieSysEmu.cpp TestDevMgmtApiSyncCmds.cpp
-    ARGS       ""
-    PROPERTIES "LABELS;PCIE-SYSEMU;LABELS;MGMT;LABELS;FUNCTIONAL;LABELS;SYSTEM;TIMEOUT;600"
+    TARGET      FunctionalTestDevMgmtApiHistoricalExtremeValCmds
+    SOURCES     functional/FunctionalTestDevMgmtApiHistoricalExtremeValCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
+)
+
+create_test(
+    TARGET      FunctionalTestDevMgmtApiErrorControlCmds
+    SOURCES     functional/FunctionalTestDevMgmtApiErrorControlCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
+)
+
+create_test(
+    TARGET      FunctionalTestDevMgmtApiLinkMgmtCmds
+    SOURCES     functional/FunctionalTestDevMgmtApiLinkMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
+)
+
+create_test(
+    TARGET      FunctionalTestDevMgmtApiPerfMgmtCmds
+    SOURCES     functional/FunctionalTestDevMgmtApiPerfMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
+)
+
+create_test(
+    TARGET      FunctionalTestDevMgmtApiFirmwareMgmtCmds
+    SOURCES     functional/FunctionalTestDevMgmtApiFirmwareMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
+)
+
+#####################
+# INTEGRATION TESTS #
+#####################
+create_test(
+    TARGET      IntegrationTestDevMgmtApiCmds
+    SOURCES     integration/IntegrationTestDevMgmtApiCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;INTEGRATION;TIMEOUT;300"
+)
+
+##################
+# SECURITY TESTS #
+##################
+create_test(
+    TARGET      SecurityTestDevMgmtApiGenericCmds
+    SOURCES     security/SecurityTestDevMgmtApiGenericCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
+)
+
+create_test(
+    TARGET      SecurityTestDevMgmtApiAssetTrackingCmds
+    SOURCES     security/SecurityTestDevMgmtApiAssetTrackingCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
+)
+
+create_test(
+    TARGET      SecurityTestDevMgmtApiThermalAndPowerMonitoringCmds
+    SOURCES     security/SecurityTestDevMgmtApiThermalAndPowerMonitoringCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
+)
+
+create_test(
+    TARGET      SecurityTestDevMgmtApiHistoricalExtremeValCmds
+    SOURCES     security/SecurityTestDevMgmtApiHistoricalExtremeValCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
+)
+
+create_test(
+    TARGET      SecurityTestDevMgmtApiErrorControlCmds
+    SOURCES     security/SecurityTestDevMgmtApiErrorControlCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
+)
+
+create_test(
+    TARGET      SecurityTestDevMgmtApiLinkMgmtCmds
+    SOURCES     security/SecurityTestDevMgmtApiLinkMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
+)
+
+create_test(
+    TARGET      SecurityTestDevMgmtApiPerfMgmtCmds
+    SOURCES     security/SecurityTestDevMgmtApiPerfMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
 )
 
 configure_file(
-    TestDevMgmtApiLoopbackMixAllCmdsPcie.sh.in
-    ${CMAKE_CURRENT_BINARY_DIR}/TestDevMgmtApiLoopbackMixAllCmdsPcie.sh @ONLY
+    mix/MixTestDevMgmtApiAllCmds.sh.in
+    ${CMAKE_CURRENT_BINARY_DIR}/MixTestDevMgmtApiAllCmds.sh @ONLY
 )
 
-set(TEST_MINOR 1)
 foreach (TIME_IN_MIN 5 15 30 45 60)
-    set(TEST_NAME deviceManagement:TestDevMgmtApiLoopbackMixAllCmdsPcie.${TIME_IN_MIN}minTest_4_${TEST_MINOR})
+    set(TEST_NAME deviceManagement:MixTestDevMgmtApiAllCmds.${TIME_IN_MIN}minTest)
     add_test(
         NAME              ${TEST_NAME}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMAND           TestDevMgmtApiLoopbackMixAllCmdsPcie.sh ${TIME_IN_MIN}minute
+	COMMAND           MixTestDevMgmtApiAllCmds.sh ${TIME_IN_MIN}minute
     )
 
     set_tests_properties(${TEST_NAME}
         PROPERTIES
-        DEPENDS TestDevMgmtApiFuncSyncCmdsPcieSysEmu
+        DEPENDS	FunctionalTestDevMgmtApiAssetTrackingCmds
+        DEPENDS	FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds
+        DEPENDS	FunctionalTestDevMgmtApiHistoricalExtremeValCmds
+        DEPENDS	FunctionalTestDevMgmtApiErrorControlCmds
+        DEPENDS	FunctionalTestDevMgmtApiLinkMgmtCmds
+        DEPENDS	FunctionalTestDevMgmtApiPerfMgmtCmds
+        DEPENDS	FunctionalTestDevMgmtApiFirmwareMgmtCmds
+        DEPENDS	IntegrationTestDevMgmtApiCmds
+        DEPENDS	SecurityTestDevMgmtApiGenericCmds
+        DEPENDS	SecurityTestDevMgmtApiAssetTrackingCmds
+        DEPENDS	SecurityTestDevMgmtApiThermalAndPowerMonitoringCmds
+        DEPENDS	SecurityTestDevMgmtApiHistoricalExtremeValCmds
+        DEPENDS	SecurityTestDevMgmtApiErrorControlCmds
+        DEPENDS	SecurityTestDevMgmtApiLinkMgmtCmds
+        DEPENDS	SecurityTestDevMgmtApiPerfMgmtCmds
     )
-    MATH(EXPR TEST_MINOR "${TEST_MINOR}+1")
 endforeach()
