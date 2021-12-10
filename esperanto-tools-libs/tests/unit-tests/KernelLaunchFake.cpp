@@ -50,6 +50,17 @@ struct KernelLaunchF : Test {
     }
     runtime_->waitForStream(stream_);
   }
+
+  void send_K(int iterations, size_t args_size, bool waitIter = false) {
+    dummy_.resize(args_size);
+    for (int i = 0; i < iterations; ++i) {
+      runtime_->kernelLaunch(stream_, kernel_, dummy_.data(), args_size, 0x3);
+      if (waitIter) {
+        runtime_->waitForStream(stream_);
+      }
+    }
+    runtime_->waitForStream(stream_);
+  }
   dev::IDeviceLayerFake deviceLayer_;
   std::vector<std::byte> dummy_;
   RuntimePtr runtime_;
@@ -80,6 +91,20 @@ TEST_F(KernelLaunchF, largeTransfer) {
 
 TEST_F(KernelLaunchF, largeTransferAndLargeArgs) {
   sendH2D_K_D2H(10, 128, 512ULL << 20);
+}
+
+TEST_F(KernelLaunchF, onlyKernels1M) {
+  // TODO this is included in the regular CI, so we launch only 10K. In a ryzen 1600 machine the throughput is something
+  // like ~25.5 kernels/ms
+  // send_K(1e6, 32);
+  send_K(1e4, 32);
+}
+
+TEST_F(KernelLaunchF, onlyKernels1M_waitIters) {
+  // send_K(1e6, 32, true);
+  // TODO this is included in the regular CI, so we launch only 10K. In a ryzen 1600 machine the throughput is something
+  // like ~8.4 kernels/ms
+  send_K(1e4, 32, true);
 }
 
 int main(int argc, char** argv) {
