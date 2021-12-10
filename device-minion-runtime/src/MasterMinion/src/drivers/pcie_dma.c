@@ -44,13 +44,12 @@
 /*! \def DMA_READ_CHAN_GET_LL_BASE
     \brief It returns DMA link list base address for specified DMA read channel.
 */
-#define DMA_READ_CHAN_GET_LL_BASE(chan) ((uint64_t)(DMA_CHAN_READ_0_LL_BASE + (chan * DMA_LL_SIZE)))
+#define DMA_READ_CHAN_GET_LL_BASE(chan) (DMA_CHAN_READ_0_LL_BASE + ((uint64_t)chan * DMA_LL_SIZE))
 
 /*! \def DMA_WRITE_CHAN_GET_LL_BASE
     \brief It returns DMA link list base address for specified DMA write channel.
 */
-#define DMA_WRITE_CHAN_GET_LL_BASE(chan) \
-    ((uint64_t)(DMA_CHAN_WRITE_0_LL_BASE + (chan * DMA_LL_SIZE)))
+#define DMA_WRITE_CHAN_GET_LL_BASE(chan) (DMA_CHAN_WRITE_0_LL_BASE + ((uint64_t)chan * DMA_LL_SIZE))
 
 /*! \def IS_DMA_READ_CHAN_VALID
     \brief Check if specified DMA read channel is valid.
