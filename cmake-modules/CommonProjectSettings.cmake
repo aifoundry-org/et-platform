@@ -62,3 +62,12 @@ if (ENABLE_UNITY)
     # Per-target alternaive:
     #set_target_properties(intro PROPERTIES UNITY_BUILD ON)
 endif()
+
+macro(set_project_version_from_conanfile)
+    file(READ "conanfile.py" CONANFILE)
+    string(REGEX MATCH "    version = \"([0-9]*).([0-9]*).([0-9]*)" _ ${CONANFILE})
+    set(PROJECT_VERSION_MAJOR ${CMAKE_MATCH_1})
+    set(PROJECT_VERSION_MINOR ${CMAKE_MATCH_2})
+    set(PROJECT_VERSION_PATCH ${CMAKE_MATCH_3})
+    set(PROJECT_VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})
+endmacro()
