@@ -1863,8 +1863,8 @@ int32_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t sta
             Log_Write(
                 LOG_LEVEL_ERROR, "HostCmdHdlr:Tag_ID=%u:UnsupportedCmd\r\n", hdr->cmd_hdr.tag_id);
 
-            /* TODO: Send unsupported command error event to host
-            Requires updates to PCIe kernel driver/userspace test */
+            /* Send unsupported command error event to host */
+            device_unsupported_cmd_event_handler(command_buffer, sqw_idx);
 
             /* Decrement commands count being processed by given SQW */
             SQW_Decrement_Command_Count(sqw_idx);
