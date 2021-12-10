@@ -8,11 +8,15 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.16)
-project(sw-sysemu VERSION 0.2.0)
+cmake_minimum_required(VERSION 3.15)
+project(sw-sysemu)
+
+set(PROJECT_VERSION 0.2.0)
 
 list(APPEND CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+message(STATUS "${PROJECT_NAME} version: ${PROJECT_VERSION}")
 
 message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")

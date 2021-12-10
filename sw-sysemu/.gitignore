@@ -1,2 +1,5 @@
 build
 compile_flags.txt
+cmake-build-*
+test_package/build
+.idea/

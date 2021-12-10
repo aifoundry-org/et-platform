@@ -56,10 +56,9 @@ build:conan:
         BACKTRACE: [ 'False' ]
   script: 
     # remove custom FindXXX.cmake modules when using conan 
-    - rm -rf ../cmake #TODO: remove cmake/ dir in the future
-    - conan install .. -s build_type=${BUILD_TYPE} -o sw-sysemu:profiling=${PROFILING} -o sw-sysemu:backtrace=${BACKTRACE} --build missing
-    - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DPROFILING=${PROFILING} -DBACKGRACE=${BACKTRACE} -G Ninja ..
-    - ninja
+    - cd ..
+    - conan install . -if=build -s build_type=${BUILD_TYPE} -o sw-sysemu:profiling=${PROFILING} -o sw-sysemu:backtrace=${BACKTRACE} --build missing
+    - conan build . -if=build
 
 #### package
 
