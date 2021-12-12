@@ -379,6 +379,16 @@ static inline void et_print_mgmt_dir(struct device *dev,
 				"Type                    : %d - SP FW Trace\n",
 				MGMT_MEM_REGION_TYPE_SPFW_TRACE);
 			break;
+		case MGMT_MEM_REGION_TYPE_MMFW_TRACE:
+			dev_dbg(dev,
+				"Type                    : %d - MM FW Trace\n",
+				MGMT_MEM_REGION_TYPE_MMFW_TRACE);
+			break;
+		case MGMT_MEM_REGION_TYPE_CMFW_TRACE:
+			dev_dbg(dev,
+				"Type                    : %d - CM FW Trace\n",
+				MGMT_MEM_REGION_TYPE_CMFW_TRACE);
+			break;
 		default:
 			dev_dbg(dev,
 				"Type                    : Unknown region\n");
