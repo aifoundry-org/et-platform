@@ -40,6 +40,21 @@
 #define SPIO_PLIC R_SP_PLIC_BASEADDR
 #endif
 
+/*! \def PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL
+    \brief Lock monitor sample strobe and clear
+*/
+#define PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL      0x19
+
+/*! \def PLL_REG_INDEX_REG_LOCK_MONITOR
+    \brief Lock montior
+*/
+#define PLL_REG_INDEX_REG_LOCK_MONITOR              0x30
+
+/*! \def PLL_LOCK_MONITOR_MASK
+    \brief Lock montior mask
+*/
+#define PLL_LOCK_MONITOR_MASK                       0x3F
+
 static uint32_t memshire_frequency;
 static uint32_t ddr_frequency;
 /* MEMSHIRE PLL frequency modes (795MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
@@ -109,8 +124,12 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode)
     if (0 != program_memshire_pll(0, pll_mode, &memshire_frequency))
         return -1;
 
+    memshire_pll_clear_lock_monitor(0);
+
     if (0 != program_memshire_pll(4, pll_mode, &memshire_frequency))
         return -1;
+
+    memshire_pll_clear_lock_monitor(4);
 
     return 0;
 }
@@ -515,4 +534,42 @@ uint32_t get_memshire_frequency( void )
 uint32_t get_ddr_frequency( void )
 {
    return ddr_frequency;
+}
+
+void memshire_pll_clear_lock_monitor(uint8_t ms_num)
+{
+    // PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL[0]: sample_strobe
+    // PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL[1]: lock_monitor_clear
+    write_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL, 0x3);
+    write_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL, 0x0);
+}
+
+uint32_t memshire_pll_get_lock_monitor(uint8_t ms_num)
+{
+    // PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL[0]: sample_strobe
+    write_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL, 0x1);
+    write_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL, 0x0);
+    return (uint32_t)(read_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_LOCK_MONITOR) & PLL_LOCK_MONITOR_MASK);
+}
+
+void print_memshire_pll_lock_monitors(void)
+{
+    uint32_t lock_monitor;
+
+    lock_monitor = memshire_pll_get_lock_monitor(0);
+    if (0 != lock_monitor)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "MEMSHIRE WEST PLL lock monitor: %d\n", lock_monitor);
+    }
+    lock_monitor = memshire_pll_get_lock_monitor(4);
+    if (0 != lock_monitor)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "MEMSHIRE EAST PLL lock monitor: %d\n", lock_monitor);
+    }
+}
+
+void clear_memshire_pll_lock_monitors(void)
+{
+    memshire_pll_clear_lock_monitor(0);
+    memshire_pll_clear_lock_monitor(4);
 }

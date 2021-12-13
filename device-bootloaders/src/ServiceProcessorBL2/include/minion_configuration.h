@@ -283,4 +283,18 @@ int32_t Minion_State_Get_Hang_Error_Count(uint32_t *err_count);
 */
 int8_t MM_Init_HeartBeat_Watchdog(void);
 
+/*! \fn int print_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask)
+    \brief This function prints lock monitors of LVDPLLs
+    \param  shire_mask Shire Mask
+    \return The function call status, pass/fail.
+*/
+int print_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask);
+
+/*! \fn int clear_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask)
+    \brief This function clears lock monitors of LVDPLLs
+    \param  shire_mask Shire Mask
+    \return The function call status, pass/fail.
+*/
+int clear_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask);
+
 #endif

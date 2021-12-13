@@ -197,6 +197,8 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode, boo
             {
                 SWITCH_CLOCK_MUX(i, SELECT_PLL_CLOCK_0)
             }
+
+            lvdpll_clear_lock_monitor(i);
         }
         shire_mask >>= 1;
     }
@@ -208,6 +210,97 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode, boo
                     pll_fail_mask);
     }
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       print_minion_shire_lvdpll_lock_monitors
+*
+*   DESCRIPTION
+*
+*       This function prints lock monitors of LVDPLLs
+*
+*   INPUTS
+*
+*       shire_mask shires for which lock monitor will be printed
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int print_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask)
+{
+    uint8_t num_shires;
+    uint16_t lock_monitor;
+
+    if(0 != shire_mask)
+    {
+        num_shires = get_highest_set_bit_offset(shire_mask);
+    }
+    else
+    {
+        return MINION_INVALID_SHIRE_MASK;
+    }
+
+    for (uint8_t i = 0; i <= num_shires; i++)
+    {
+        if (shire_mask & 1) {
+            lvdpll_read_lock_monitor(i, &lock_monitor);
+            if (0 != lock_monitor)
+            {
+                Log_Write(LOG_LEVEL_WARNING, "MINSHIRE %d PLL lock monitor: %d\n", i, lock_monitor & 0x3F);
+            }
+        }
+        shire_mask >>= 1;
+    }
+
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       clear_minion_shire_lvdpll_lock_monitors
+*
+*   DESCRIPTION
+*
+*       This function clears lock monitors of LVDPLLs
+*
+*   INPUTS
+*
+*       shire_mask shires for which lock monitor will be cleared
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int clear_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask)
+{
+    uint8_t num_shires;
+
+    if(0 != shire_mask)
+    {
+        num_shires = get_highest_set_bit_offset(shire_mask);
+    }
+    else
+    {
+        return MINION_INVALID_SHIRE_MASK;
+    }
+
+    for (uint8_t i = 0; i <= num_shires; i++)
+    {
+        if (shire_mask & 1) {
+            lvdpll_clear_lock_monitor(i);
+        }
+        shire_mask >>= 1;
+    }
+
+    return 0;
 }
 
 static int mm_get_error_count(struct mm_error_count_t *mm_error_count)

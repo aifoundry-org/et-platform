@@ -263,5 +263,33 @@ uint32_t get_memshire_frequency(void);
 */
 uint32_t get_ddr_frequency(void);
 
+/*! \fn void memshire_clear_lock_monitor(uint8_t ms_num)
+    \brief This function clears lock monitor of memshire PLL
+    \param ms_num Number of memshire
+    \return none
+*/
+void memshire_pll_clear_lock_monitor(uint8_t ms_num);
+
+/*! \fn uint32_t memshire_get_lock_monitor(uint8_t ms_num)
+    \brief This function reads lock monitor of memshire PLL
+    \param ms_num Number of memshire
+    \return PLL lock monitor value
+*/
+uint32_t memshire_pll_get_lock_monitor(uint8_t ms_num);
+
+/*! \fn void print_memshire_pll_lock_monitors(void)
+    \brief This function prints lock monitors of memshire PLLs
+    \param none
+    \return none
+*/
+void print_memshire_pll_lock_monitors(void);
+
+/*! \fn void clear_memshire_pll_lock_monitors(void)
+    \brief This function clears lock monitors of memshire PLLs
+    \param none
+    \return none
+*/
+void clear_memshire_pll_lock_monitors(void);
+
 #endif
 

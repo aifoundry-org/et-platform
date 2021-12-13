@@ -159,4 +159,39 @@ void pll_lock_loss_isr(void);
 */
 void enable_spio_pll_lock_loss_interrupt(void);
 
+/*! \fn void print_spio_lock_loss_counters(void)
+    \brief Prints lock counters handled by ISR
+    \param None 
+    \return None
+*/
+void print_spio_lock_loss_counters(void);
+
+/*! \fn void spio_pll_clear_lock_monitor(PLL_ID_t pll)
+    \brief This function clears lock monitor of SPIO PLL
+    \param pll PLL ID
+    \return none
+*/
+void spio_pll_clear_lock_monitor(PLL_ID_t pll);
+
+/*! \fn uint32_t spio_pll_get_lock_monitor(PLL_ID_t pll)
+    \brief This function reads lock monitor of SPIO PLL
+    \param pll PLL ID
+    \return PLL lock monitor value
+*/
+uint32_t spio_pll_get_lock_monitor(PLL_ID_t pll);
+
+/*! \fn void print_spio_lock_loss_monitors(void)
+    \brief This function prints lock monitors of SPIO PLLs
+    \param none
+    \return none
+*/
+void print_spio_lock_loss_monitors(void);
+
+/*! \fn void clear_spio_lock_loss_monitors(void)
+    \brief This function clears lock monitors of SPIO PLLs
+    \param none
+    \return none
+*/
+void clear_spio_lock_loss_monitors(void);
+
 #endif

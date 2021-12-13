@@ -61,6 +61,21 @@
 */
 #define PLL_REG_INDEX_REG_0                  0
 
+/*! \def PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL
+    \brief Lock monitor sample strobe and clear
+*/
+#define PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL      0x19
+
+/*! \def PLL_REG_INDEX_REG_LOCK_MONITOR
+    \brief Lock montior
+*/
+#define PLL_REG_INDEX_REG_LOCK_MONITOR              0x30
+
+/*! \def PLL_LOCK_MONITOR_MASK
+    \brief Lock montior mask
+*/
+#define PLL_LOCK_MONITOR_MASK                       0x3F
+
 /*! \def PLL_REG_INDEX_REG_UPDATE_STROBE
     \brief update strobe register index
 */
@@ -87,32 +102,34 @@
 #define FREQUENCY_HZ_TO_MHZ(x) ((x) / 1000000u)
 
 /*! \def PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID)
-    \brief Disiables lock interrupt, clears status and enables loss interrupt
+    \brief Disables lock interrupt, switch to PLL clock, clears status
+*          and enables loss interrupt
 */
 #define PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID)                 \
     clock_manager_set_pll_lock_int_enable(PLL_ID, false);    \
+    clock_manager_pll_bypass(PLL_ID, false);                 \
     clock_manager_clear_pll_status(PLL_ID);                  \
     clock_manager_set_pll_loss_int_enable(PLL_ID, true);
 
 /*! \def PLL_LOSS_INT_DIS_LOCK_INT_EN(PLL_ID)
-    \brief Disiables loss interrupt, clears status and enables lock interrupt
+    \brief Disables loss interrupt, switch to ref clock, clears status
+*          and enables lock interrupt
 */
 #define PLL_LOSS_INT_DIS_LOCK_INT_EN(PLL_ID)                 \
     clock_manager_set_pll_loss_int_enable(PLL_ID, false);    \
+    clock_manager_pll_bypass(PLL_ID, true);                  \
     clock_manager_clear_pll_status(PLL_ID);                  \
     clock_manager_set_pll_lock_int_enable(PLL_ID, true);
 
-/*! \def CHECK_AND_HANDLE_PLL_STATUS(PLL_ID, REG_MACRO, PLL_TO_PRINT)
-    \brief Disiables loss interrupt, clears status and enables lock interrupt
+/*! \def CHECK_AND_HANDLE_PLL_STATUS(PLL_ID, REG_MACRO)
+    \brief Check and handle PLL status
 */
-#define CHECK_AND_HANDLE_PLL_STATUS(PLL_ID, REG_MACRO, PLL_COUNTER, PLL_TO_PRINT)     \
+#define CHECK_AND_HANDLE_PLL_STATUS(PLL_ID, REG_MACRO, PLL_LOSS_COUNTER)     \
     clock_manager_get_pll_status(PLL_ID, &cm_pll_status);                             \
     if ( REG_MACRO(cm_pll_status) )                                                   \
     {                                                                                 \
         PLL_LOSS_INT_DIS_LOCK_INT_EN(PLL_ID)                                          \
-        PLL_COUNTER++;                                                                \
-        Log_Write(LOG_LEVEL_WARNING, "%s has lost lock, lock loss count = %d\r\n",    \
-                    PLL_TO_PRINT, PLL_COUNTER);                                       \
+        PLL_LOSS_COUNTER++;                                                                \
     }                                                                                 \
     else                                                                              \
     {                                                                                 \
@@ -258,6 +275,78 @@ static int clock_manager_clear_pll_status(PLL_ID_t pll)
     }
 
     return 0;
+}
+
+static inline void clear_lock_monitor(volatile uint32_t *pll_registers)
+{
+    // PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL[0]: sample_strobe
+    // PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL[1]: lock_monitor_clear
+    pll_registers[PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL] = 0x3;
+    __asm volatile ( " nop " );
+    pll_registers[PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL] = 0x0;
+}
+
+static inline uint32_t get_lock_monitor(volatile uint32_t *pll_registers)
+{
+    // PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL[0]: sample_strobe
+    pll_registers[PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL] = 0x1;
+    __asm volatile ( " nop " );
+    pll_registers[PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL] = 0x0;
+    return (pll_registers[PLL_REG_INDEX_REG_LOCK_MONITOR] & PLL_LOCK_MONITOR_MASK);
+}
+
+void spio_pll_clear_lock_monitor(PLL_ID_t pll)
+{
+    switch (pll)
+    {
+        case PLL_ID_SP_PLL_0:
+            clear_lock_monitor((uint32_t *)R_SP_PLL0_BASEADDR);
+            break;
+        case PLL_ID_SP_PLL_1:
+            clear_lock_monitor((uint32_t *)R_SP_PLL1_BASEADDR);
+            break;
+        case PLL_ID_SP_PLL_2:
+            clear_lock_monitor((uint32_t *)R_SP_PLL2_BASEADDR);
+            break;
+        case PLL_ID_SP_PLL_4:
+            clear_lock_monitor((uint32_t *)R_SP_PLL4_BASEADDR);
+            break;
+        case PLL_ID_PSHIRE:
+            clear_lock_monitor((uint32_t *)R_PCIE_PLLP0_BASEADDR);
+            break;
+        case PLL_ID_MAXION_CORE:
+            clear_lock_monitor((uint32_t *)R_SP_PLLMX0_BASEADDR);
+            break;
+        case PLL_ID_MAXION_UNCORE:
+            clear_lock_monitor((uint32_t *)R_SP_PLLMX1_BASEADDR);
+            break;
+        default:
+            break;
+    }
+
+}
+
+uint32_t spio_pll_get_lock_monitor(PLL_ID_t pll)
+{
+    switch (pll)
+    {
+        case PLL_ID_SP_PLL_0:
+            return get_lock_monitor((uint32_t *)R_SP_PLL0_BASEADDR);
+        case PLL_ID_SP_PLL_1:
+            return get_lock_monitor((uint32_t *)R_SP_PLL1_BASEADDR);
+        case PLL_ID_SP_PLL_2:
+            return get_lock_monitor((uint32_t *)R_SP_PLL2_BASEADDR);
+        case PLL_ID_SP_PLL_4:
+            return get_lock_monitor((uint32_t *)R_SP_PLL4_BASEADDR);
+        case PLL_ID_PSHIRE:
+            return get_lock_monitor((uint32_t *)R_PCIE_PLLP0_BASEADDR);
+        case PLL_ID_MAXION_CORE:
+            return get_lock_monitor((uint32_t *)R_SP_PLLMX0_BASEADDR);
+        case PLL_ID_MAXION_UNCORE:
+            return get_lock_monitor((uint32_t *)R_SP_PLLMX1_BASEADDR);
+        default:
+            return 0;
+    }
 }
 
 #pragma GCC diagnostic pop
@@ -433,7 +522,7 @@ int configure_sp_pll_0(uint8_t mode)
         goto ERROR;
     }
 
-    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_0)
+    spio_pll_clear_lock_monitor(PLL_ID_SP_PLL_0);
 
     return 0;
 
@@ -468,7 +557,7 @@ int configure_sp_pll_1(uint8_t mode)
         goto ERROR;
     }
 
-    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_1)
+    spio_pll_clear_lock_monitor(PLL_ID_SP_PLL_1);
 
     return 0;
 
@@ -503,7 +592,7 @@ int configure_sp_pll_2(uint8_t mode)
         goto ERROR;
     }
 
-    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_2)
+    spio_pll_clear_lock_monitor(PLL_ID_SP_PLL_2);
 
     return 0;
 
@@ -537,7 +626,7 @@ int configure_sp_pll_4(uint8_t mode)
         goto ERROR;
     }
 
-    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_4)
+    spio_pll_clear_lock_monitor(PLL_ID_SP_PLL_4);
 
     return 0;
 
@@ -572,6 +661,8 @@ int configure_pshire_pll(const uint8_t mode)
         goto ERROR;
     }
 
+    spio_pll_clear_lock_monitor(PLL_ID_PSHIRE);
+
     return 0;
 
 ERROR:
@@ -604,6 +695,8 @@ int configure_maxion_pll_core(uint8_t mode)
         goto ERROR;
     }
 
+    spio_pll_clear_lock_monitor(PLL_ID_MAXION_CORE);
+
     return 0;
 
 ERROR:
@@ -635,6 +728,8 @@ int configure_maxion_pll_uncore(uint8_t mode)
     {
         goto ERROR;
     }
+
+    spio_pll_clear_lock_monitor(PLL_ID_MAXION_UNCORE);
 
     return 0;
 
@@ -689,24 +784,76 @@ void pll_lock_loss_isr(void)
     
     // Check PLL0 status
     CHECK_AND_HANDLE_PLL_STATUS(PLL_ID_SP_PLL_0, CLOCK_MANAGER_CM_PLL0_STATUS_LOSS_GET,
-                                cm_pll_0_lock_loss_count, "PLL0_SPIO")
+                                cm_pll_0_lock_loss_count)
 
     // Check PLL1 status
     CHECK_AND_HANDLE_PLL_STATUS(PLL_ID_SP_PLL_1, CLOCK_MANAGER_CM_PLL1_STATUS_LOSS_GET,
-                                cm_pll_1_lock_loss_count, "PLL1_PU")
+                                cm_pll_1_lock_loss_count)
 
     // Check PLL2 status
     CHECK_AND_HANDLE_PLL_STATUS(PLL_ID_SP_PLL_2, CLOCK_MANAGER_CM_PLL2_STATUS_LOSS_GET,
-                                cm_pll_2_lock_loss_count, "PLL2_NOC")
+                                cm_pll_2_lock_loss_count)
 
     // Check PLL3 status
     CHECK_AND_HANDLE_PLL_STATUS(PLL_ID_SP_PLL_4, CLOCK_MANAGER_CM_PLL4_STATUS_LOSS_GET,
-                                cm_pll_4_lock_loss_count, "PLL4_MIN_STEP")
+                                cm_pll_4_lock_loss_count)
 }
 
 void enable_spio_pll_lock_loss_interrupt(void)
 {
+    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_0)
+    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_1)
+    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_2)
+    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_4)
     INT_enableInterrupt(SPIO_PLIC_CRU_INTR_ID, 1, pll_lock_loss_isr);
+}
+
+void print_spio_lock_loss_counters(void)
+{
+    Log_Write(LOG_LEVEL_CRITICAL, "PLL SPIO LOCK LOSS CNT: %d\n", cm_pll_0_lock_loss_count);
+    Log_Write(LOG_LEVEL_CRITICAL, "PLL PU LOCK LOSS CNT: %d\n", cm_pll_1_lock_loss_count);
+    Log_Write(LOG_LEVEL_CRITICAL, "PLL NOC LOCK LOSS CNT: %d\n", cm_pll_2_lock_loss_count);
+    Log_Write(LOG_LEVEL_CRITICAL, "PLL STEP LOCK LOSS CNT: %d\n", cm_pll_4_lock_loss_count);
+}
+
+void print_spio_lock_loss_monitors(void)
+{
+    uint32_t lock_monitor;
+
+    lock_monitor = spio_pll_get_lock_monitor(PLL_ID_SP_PLL_0);
+    if (0 != lock_monitor)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "PLL0 lock monitor: %d\n", lock_monitor);
+    }
+    lock_monitor = spio_pll_get_lock_monitor(PLL_ID_SP_PLL_1);
+    if (0 != lock_monitor)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "PLL1 lock monitor: %d\n", lock_monitor);
+    }
+    lock_monitor = spio_pll_get_lock_monitor(PLL_ID_SP_PLL_2);
+    if (0 != lock_monitor)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "PLL2 lock monitor: %d\n", lock_monitor);
+    }
+    lock_monitor = spio_pll_get_lock_monitor(PLL_ID_SP_PLL_4);
+    if (0 != lock_monitor)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "PLL4 lock monitor: %d\n", lock_monitor);
+    }
+    lock_monitor = spio_pll_get_lock_monitor(PLL_ID_PSHIRE);
+    if (0 != lock_monitor)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "PSHIRE PLL lock monitor: %d\n", lock_monitor);
+    }
+}
+
+void clear_spio_lock_loss_monitors(void)
+{
+    spio_pll_clear_lock_monitor(PLL_ID_SP_PLL_0);
+    spio_pll_clear_lock_monitor(PLL_ID_SP_PLL_1);
+    spio_pll_clear_lock_monitor(PLL_ID_SP_PLL_2);
+    spio_pll_clear_lock_monitor(PLL_ID_SP_PLL_4);
+    spio_pll_clear_lock_monitor(PLL_ID_PSHIRE);
 }
 
 int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
@@ -718,9 +865,10 @@ int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
     gs_sp_pll_4_frequency = 0;
     gs_pcie_pll_0_frequency = pcie_pll_0_frequency;
 
-    /* PLL0 and PLL1 are programmed during Bootrom, now just enabling lock loss interrupt */
-    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_0)
-    PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID_SP_PLL_1)
+    /* Clear lock monitors of PLLs configured during Bootrom */
+    spio_pll_clear_lock_monitor(PLL_ID_SP_PLL_0);
+    spio_pll_clear_lock_monitor(PLL_ID_SP_PLL_1);
+    spio_pll_clear_lock_monitor(PLL_ID_PSHIRE);
 
     return 0;
 }
