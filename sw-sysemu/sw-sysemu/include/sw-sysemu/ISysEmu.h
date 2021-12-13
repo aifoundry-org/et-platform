@@ -1,5 +1,5 @@
 //******************************************************************************
-// Copyright (C) 2020, Esperanto Technologies Inc.
+// Copyright (C) 2021, Esperanto Technologies Inc.
 // The copyright to the computer program(s) herein is the2
 // property of Esperanto Technologies, Inc. All Rights Reserved.
 // The program(s) may be used and/or copied only with
@@ -28,6 +28,7 @@ public:
     // we provide a simple implementation of read and write functions
     virtual void memoryReadFromHost(uint64_t address, size_t size, std::byte* dst);
     virtual void memoryWriteFromHost(uint64_t address, size_t size, const std::byte* src);
+    virtual void onSysemuFatalError(const std::string& error);
     virtual ~IHostListener() = default;
   };
 

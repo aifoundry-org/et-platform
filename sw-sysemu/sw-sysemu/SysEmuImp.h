@@ -46,6 +46,7 @@ public:
   bool host_memory_read(uint64_t host_addr, uint64_t size, void* data) override;
   bool host_memory_write(uint64_t host_addr, uint64_t size, const void* data) override;
   void notify_iatu_ctrl_2_reg_write(int pcie_id, uint32_t iatu, uint32_t value) override;
+  void notify_fatal_error(const std::string& error) override;
 
   ~SysEmuImp();
 
