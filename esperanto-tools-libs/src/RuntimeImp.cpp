@@ -242,7 +242,7 @@ std::byte* RuntimeImp::mallocDevice(DeviceId device, size_t size, uint32_t align
 }
 
 std::byte* RuntimeImp::mallocDeviceWithoutProfiling(DeviceId device, size_t size, uint32_t alignment) {
-  RT_LOG(INFO) << "Malloc requested device " << std::hex << static_cast<std::underlying_type_t<DeviceId>>(device)
+  RT_VLOG(LOW) << "Malloc requested device " << std::hex << static_cast<std::underlying_type_t<DeviceId>>(device)
                << " size: " << size << " alignment: " << alignment;
 
   if (__builtin_popcount(alignment) != 1) {
@@ -259,7 +259,7 @@ void RuntimeImp::freeDevice(DeviceId device, std::byte* buffer) {
   freeDeviceWithoutProfiling(device, buffer);
 }
 void RuntimeImp::freeDeviceWithoutProfiling(DeviceId device, std::byte* buffer) {
-  RT_LOG(INFO) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
+  RT_VLOG(LOW) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
                << " buffer address: " << std::hex << buffer;
   std::lock_guard lock(mutex_);
   find(memoryManagers_, device)->second.free(buffer);
@@ -271,7 +271,7 @@ StreamId RuntimeImp::createStream(DeviceId device) {
 }
 
 StreamId RuntimeImp::createStreamWithoutProfiling(DeviceId device) {
-  RT_LOG(INFO) << "Creating stream at device: " << static_cast<std::underlying_type_t<DeviceId>>(device);
+  RT_VLOG(LOW) << "Creating stream at device: " << static_cast<std::underlying_type_t<DeviceId>>(device);
   return streamManager_.createStream(device);
 }
 
@@ -281,7 +281,7 @@ void RuntimeImp::destroyStream(StreamId stream) {
 }
 
 void RuntimeImp::destroyStreamWithoutProfiling(StreamId stream) {
-  RT_LOG(INFO) << "Destroying stream: " << static_cast<std::underlying_type_t<StreamId>>(stream);
+  RT_VLOG(LOW) << "Destroying stream: " << static_cast<std::underlying_type_t<StreamId>>(stream);
   streamManager_.destroyStream(stream);
 }
 
@@ -666,6 +666,7 @@ void RuntimeImp::dispatch(EventId event) {
 
 void RuntimeImp::checkDevice(int device) {
   auto state = deviceLayer_->getDeviceStateMasterMinion(device);
+  RT_VLOG(LOW) << "Device state: " << static_cast<int>(state) << " Runtime running: " << (running_ ? "True" : "False");
   if (running_ && state == dev::DeviceState::PendingCommands) {
     return;
   }

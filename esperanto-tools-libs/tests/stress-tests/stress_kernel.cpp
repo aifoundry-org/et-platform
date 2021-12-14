@@ -179,6 +179,19 @@ TEST_F(StressKernel, 256_ele_10_exe_10_st_2_th_8_dev) {
   }
 }
 
+TEST_F(StressKernel, 64_ele_100K_exe_1st_10_th_nocheck_NOSYSEMU) {
+  if (sMode != Mode::PCIE) {
+    RT_LOG(INFO) << "This test is too slow to be run on SYSEMU, skipping it.";
+    return;
+  }
+  auto numIters = 100U;
+  auto numExecs = static_cast<uint32_t>(1e5) / numIters;
+  for (auto i = 1U; i <= numIters; ++i) {
+    RT_LOG(INFO) << "Running batch " << i << "/" << numExecs;
+    run_stress_kernel(1 << 6, numExecs, 1, 10, false);
+  }
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   Fixture::sMode = IsPcie(argc, argv) ? Fixture::Mode::PCIE : Fixture::Mode::SYSEMU;

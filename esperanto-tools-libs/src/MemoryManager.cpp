@@ -64,7 +64,7 @@ void MemoryManager::sanityCheck() const {
 #ifdef DISABLE_SANITY_CHECKS
   RT_VLOG(LOW) << "Sanity checks are disabled on compile time; cant run them";
 #else
-  RT_LOG(INFO) << "Doing sanity check";
+  RT_VLOG(LOW) << "Doing sanity check";
 
   constexpr auto getAllocationStr = [](const auto& allocation) {
     return std::string("Address: ") + std::to_string(allocation.first) + "Size: " + std::to_string(allocation.second);
@@ -120,7 +120,7 @@ void MemoryManager::sanityCheck() const {
              "Memory inconsistency: freebytes (" + std::to_string(freeBytes) + ") + allocatedBytes (" +
                std::to_string(allocatedBytes) + ") doesn't equals to total memory (" +
                std::to_string(totalMemoryBytes_) + ")");
-  RT_LOG(INFO) << "Sanity check ended successfully";
+  RT_VLOG(LOW) << "Sanity check ended successfully";
 #endif
 }
 

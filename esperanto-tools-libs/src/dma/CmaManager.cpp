@@ -22,7 +22,7 @@ CmaManager::CmaManager(IRuntime& runtime, size_t cmaSize)
   : runtime_(runtime)
   , dmaBuffer_(runtime_.allocateDmaBuffer(DeviceId{0}, cmaSize, true))
   , memoryManager_(reinterpret_cast<uint64_t>(dmaBuffer_->getPtr()), dmaBuffer_->getSize(), kCmaBlockSize) {
-  RT_LOG(INFO) << "Runtime CMA allocation size: 0x" << std::hex << cmaSize;
+  RT_VLOG(LOW) << "Runtime CMA allocation size: 0x" << std::hex << cmaSize;
 }
 
 size_t CmaManager::getFreeBytes() const {

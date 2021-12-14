@@ -109,6 +109,21 @@ TEST_F(StressMem, 1KB_50_memcpys_10stream_2thread_8dev) {
   }
 }
 
+TEST_F(StressMem, 1KB_1M_memcpies_10th_NOSYSEMU) {
+  if (sMode == Mode::SYSEMU) {
+    RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
+    return;
+  }
+  auto memcpySize = 1U << 10;
+  auto numCopies = static_cast<uint32_t>(1e6);
+  auto numThreads = 10U;
+  auto numBatches = 100U;
+  for (auto i = 1U; i <= numBatches; ++i) {
+    RT_LOG(INFO) << "Running batch " << i << "/" << numBatches;
+    run_stress_mem(runtime_.get(), memcpySize, numCopies / numThreads / numBatches, 1, numThreads, false);
+  }
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   StressMem::sMode = IsPcie(argc, argv) ? StressMem::Mode::PCIE : StressMem::Mode::SYSEMU;
