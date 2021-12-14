@@ -113,7 +113,7 @@ int8_t SP_Iface_Init(void);
 */
 #define SP_Iface_Pop_Cmd_From_SP2MM_SQ(rx_buff) SP_MM_Iface_Pop(MM_SQ, rx_buff)
 
-/*! \fn void SP_Iface_Processing(vq_cb_t* vq_cached , vq_cb_t *vq_shared,
+/*! \fn int32_t SP_Iface_Processing(vq_cb_t* vq_cached , vq_cb_t *vq_shared,
     uint32_t vq_used_space, void *const shared_mem_ptr)
     \brief Prefetches the data from a virtual queue.
     \param vq_cached Pointer to cached virtual queue control block.
@@ -123,7 +123,7 @@ int8_t SP_Iface_Init(void);
     \param vq_used_space Number of bytes used in VQ
     \return Status indicating success or negative error
 */
-int8_t SP_Iface_Processing(
+int32_t SP_Iface_Processing(
     vq_cb_t *vq_cached, vq_cb_t *vq_shared, void *shared_mem_ptr, uint64_t vq_used_space);
 
 /*! \fn int8_t SP_Iface_Get_Shire_Mask(uint64_t *shire_mask)

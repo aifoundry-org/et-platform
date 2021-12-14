@@ -1098,10 +1098,10 @@ static inline int8_t dma_readlist_cmd_verify_limits(
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t dma_readlist_cmd_handler(
+static inline int32_t dma_readlist_cmd_handler(
     void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles)
 {
     struct device_ops_dma_readlist_cmd_t *cmd =
@@ -1109,7 +1109,7 @@ static inline int8_t dma_readlist_cmd_handler(
     struct device_ops_dma_readlist_rsp_t rsp;
     dma_flags_e dma_flag;
     dma_write_chan_id_e chan = DMA_CHAN_ID_WRITE_INVALID;
-    int8_t status = GENERAL_ERROR;
+    int32_t status = GENERAL_ERROR;
     int8_t abort_status = STATUS_SUCCESS;
     uint64_t total_dma_size = 0;
     uint8_t dma_xfer_count = 0;
@@ -1313,10 +1313,10 @@ static inline int8_t dma_writelist_cmd_verify_limits(
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t dma_writelist_cmd_handler(
+static inline int32_t dma_writelist_cmd_handler(
     void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles)
 {
     const struct device_ops_dma_writelist_cmd_t *cmd =
@@ -1326,7 +1326,7 @@ static inline int8_t dma_writelist_cmd_handler(
     uint64_t total_dma_size = 0;
     uint8_t dma_xfer_count = 0;
     uint8_t loop_cnt;
-    int8_t status = GENERAL_ERROR;
+    int32_t status = GENERAL_ERROR;
     int8_t abort_status = STATUS_SUCCESS;
     exec_cycles_t cycles;
 
@@ -1818,12 +1818,12 @@ static inline void device_unsupported_cmd_event_handler(void *command_buffer, ui
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-int8_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles)
+int32_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles)
 {
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     const struct cmd_header_t *hdr = command_buffer;
 
     switch (hdr->cmd_hdr.msg_id)

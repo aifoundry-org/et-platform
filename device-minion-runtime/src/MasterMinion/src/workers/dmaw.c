@@ -275,14 +275,14 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8
 *
 *   OUTPUTS
 *
-*       int8_t          status success or error
+*       int32_t          status success or error
 *
 ***********************************************************************/
-int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
+int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
     const struct device_ops_dma_writelist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
     const exec_cycles_t *cycles)
 {
-    int8_t status = DMA_OPERATION_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     dma_channel_status_t chan_status;
 
     /* Set tag ID, set channel state to active, set SQW Index */
@@ -298,15 +298,14 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
     uint8_t last_i = (uint8_t)(xfer_count - 1);
 
     /* Configure DMA for all transfers one-by-one. */
-    for (uint8_t xfer_index = 0; (xfer_index <= last_i) && (status == DMA_OPERATION_SUCCESS);
-         ++xfer_index)
+    for (uint8_t xfer_index = 0; (xfer_index <= last_i) && (status == STATUS_SUCCESS); ++xfer_index)
     {
         /* Add DMA list data node for current transfer in the list.Enable completion interrupt for last transfer node. */
         status = dma_config_read_add_data_node(cmd->list[xfer_index].src_host_phy_addr,
             cmd->list[xfer_index].dst_device_phy_addr, cmd->list[xfer_index].size, read_chan_id,
             xfer_index, (xfer_index == last_i ? true : false));
 
-        if (status == DMA_ERROR_INVALID_ADDRESS)
+        if (status == DMA_DRIVER_ERROR_INVALID_ADDRESS)
         {
             Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:TID:%u:DMAW:Config:Invld dst Address 0x%lx\r\n",
                 sqw_idx, cmd->command_info.cmd_hdr.tag_id,
@@ -314,7 +313,7 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
 
             status = DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS;
         }
-        else if (status != DMA_OPERATION_SUCCESS)
+        else if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR,
                 "SQ[%d]:TID:%u:DMAW_Read:Config:Add data node failed:Status:%d\r\n", sqw_idx,
@@ -326,12 +325,12 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
         Log_Write(LOG_LEVEL_DEBUG, "DMAW_Read:Config:Added read data node No:%u\r\n", xfer_index);
     }
 
-    if (status == DMA_OPERATION_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Add DMA list link node at the end ot transfer list. */
         status = dma_config_read_add_link_node(read_chan_id, xfer_count);
 
-        if (status != DMA_OPERATION_SUCCESS)
+        if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR,
                 "SQ[%d]:TID:%u:DMAW_Read:Config: Add link node failed: Status: %d\r\n", sqw_idx,
@@ -343,12 +342,12 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
             "DMAW_Read:Config:Added DMA red Link node at the end of list transfer.\r\n");
     }
 
-    if (status == DMA_OPERATION_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Start the DMA channel */
         status = dma_start_read(read_chan_id);
 
-        if (status != DMA_OPERATION_SUCCESS)
+        if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] Failed to started DMA read chanel:Status:%d!\r\n",
                 sqw_idx, status);
@@ -356,7 +355,7 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
         }
     }
 
-    if (status == DMA_OPERATION_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Log the command state in trace */
         TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
@@ -418,14 +417,14 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
 *
 *   OUTPUTS
 *
-*       int8_t          status success or error
+*       int32_t          status success or error
 *
 ***********************************************************************/
-int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
+int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
     const struct device_ops_dma_readlist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
     const exec_cycles_t *cycles, dma_flags_e flags)
 {
-    int8_t status = DMA_OPERATION_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     dma_channel_status_t chan_status;
 
     /* Set tag ID, set channel state to active, set SQW Index */
@@ -441,22 +440,21 @@ int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
     uint8_t last_i = (uint8_t)(xfer_count - 1);
 
     /* Configure DMA for all transfers one-by-one. */
-    for (uint8_t xfer_index = 0; (xfer_index <= last_i) && (status == DMA_OPERATION_SUCCESS);
-         ++xfer_index)
+    for (uint8_t xfer_index = 0; (xfer_index <= last_i) && (status == STATUS_SUCCESS); ++xfer_index)
     {
         /* Add DMA list data node for current transfer in the list. Enable completion interrupt for last transfer node.*/
         status = dma_config_write_add_data_node(cmd->list[xfer_index].src_device_phy_addr,
             cmd->list[xfer_index].dst_host_phy_addr, cmd->list[xfer_index].size, write_chan_id,
             xfer_index, flags, (xfer_index == last_i ? true : false));
 
-        if (status == DMA_ERROR_INVALID_ADDRESS)
+        if (status == DMA_DRIVER_ERROR_INVALID_ADDRESS)
         {
             Log_Write(LOG_LEVEL_ERROR,
                 "SQ[%d]:TID:%u:DMAW_Write:Config:Invld src Address 0x%lx\r\n", sqw_idx,
                 cmd->command_info.cmd_hdr.tag_id, cmd->list[xfer_index].src_device_phy_addr);
             status = DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS;
         }
-        else if (status != DMA_OPERATION_SUCCESS)
+        else if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR,
                 "SQ[%d]:TID:%u:DMAW_Write:Config:Add data node failed:Status:%d\r\n", sqw_idx,
@@ -467,12 +465,12 @@ int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
         Log_Write(LOG_LEVEL_DEBUG, "DMAW_Write:Config:Added write data node No:%u\r\n", xfer_index);
     }
 
-    if (status == DMA_OPERATION_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Add DMA list link node at the end ot transfer list. */
         status = dma_config_write_add_link_node(write_chan_id, xfer_count);
 
-        if (status != DMA_OPERATION_SUCCESS)
+        if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR,
                 "SQ[%d]:TID:%u:DMAW:Config: Add link node failed: Stauts: %d\r\n", sqw_idx,
@@ -484,12 +482,12 @@ int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
             "DMAW:Config:Added DMA write Link node at the end of list transfer.\r\n");
     }
 
-    if (status == DMA_OPERATION_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Start the DMA channel */
         status = dma_start_write(write_chan_id);
 
-        if (status != DMA_OPERATION_SUCCESS)
+        if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] Failed to started DMA write chanel:Status:%d!\r\n",
                 sqw_idx, status);
@@ -497,7 +495,7 @@ int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
         }
     }
 
-    if (status == DMA_OPERATION_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Log the command state in trace */
         TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
@@ -692,20 +690,20 @@ static inline void process_dma_read_chan_aborting(
     dma_channel_status_t read_chan_status;
     exec_cycles_t dma_read_cycles;
     int8_t status = STATUS_SUCCESS;
-    DMA_STATUS_e dma_status;
+    int32_t dma_status;
     uint16_t msg_id; /* TODO: SW-9022: To be removed */
 
     /* Abort the channel */
     dma_status = dma_abort_read(read_chan);
 
-    if (dma_status == DMA_OPERATION_SUCCESS)
+    if (dma_status == STATUS_SUCCESS)
     {
         /* DMA transfer aborted, clear interrupt status */
         dma_status = dma_clear_read_abort(read_chan);
         dma_status |= dma_configure_read(read_chan);
     }
 
-    if (dma_status != DMA_OPERATION_SUCCESS)
+    if (dma_status != STATUS_SUCCESS)
     {
         status = DMAW_ERROR_DRIVER_ABORT_FAILED;
     }
@@ -931,20 +929,20 @@ static inline void process_dma_write_chan_aborting(
     dma_channel_status_t write_chan_status;
     exec_cycles_t dma_write_cycles;
     int8_t status = STATUS_SUCCESS;
-    DMA_STATUS_e dma_write_status = DMA_OPERATION_SUCCESS;
+    int32_t dma_write_status = STATUS_SUCCESS;
     uint16_t msg_id; /* TODO: SW-9022: To be removed */
 
     /* Abort the channel */
     dma_write_status = dma_abort_write(write_chan);
 
-    if (dma_write_status == DMA_OPERATION_SUCCESS)
+    if (dma_write_status == STATUS_SUCCESS)
     {
         /* DMA transfer aborted, clear interrupt status */
         dma_write_status = dma_clear_write_abort(write_chan);
         dma_write_status |= dma_configure_write(write_chan);
     }
 
-    if (dma_write_status != DMA_OPERATION_SUCCESS)
+    if (dma_write_status != STATUS_SUCCESS)
     {
         status = DMAW_ERROR_DRIVER_ABORT_FAILED;
     }

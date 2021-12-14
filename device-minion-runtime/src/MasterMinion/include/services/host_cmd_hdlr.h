@@ -58,7 +58,7 @@
 */
 #define HOST_CMD_ERROR_API_COMP_INVALID_PATCH -6
 
-/*! \fn int8_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
+/*! \fn int32_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,
         uint64_t start_cycles)
     \brief Interface to handle host side commands
     \param command_buffer pointer to command buffer
@@ -66,7 +66,7 @@
     \param start_cycles cycle count to measure wait latency
     \return status success or negative error code
 */
-int8_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles);
+int32_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles);
 
 /*! \fn int8_t Host_HP_Command_Handler(void* command_buffer, uint8_t sqw_hp_idx)
     \brief Interface to handle host side high priority commands

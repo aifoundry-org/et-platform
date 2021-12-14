@@ -172,10 +172,10 @@ static inline void write_xfer_list_link(uint64_t ll_address, uint32_t index)
 *
 *   OUTPUTS
 *
-*       int8_t     Status success or error
+*       int32_t     Status success or error
 *
 ***********************************************************************/
-static inline int8_t dma_bounds_check(uint64_t soc_addr, uint64_t size)
+static inline int32_t dma_bounds_check(uint64_t soc_addr, uint64_t size)
 {
     uint64_t end_addr = soc_addr + size - 1U;
 
@@ -186,12 +186,12 @@ static inline int8_t dma_bounds_check(uint64_t soc_addr, uint64_t size)
         {
             if ((soc_addr >= valid_dma_targets[i].begin) && (end_addr <= valid_dma_targets[i].end))
             {
-                return DMA_OPERATION_SUCCESS;
+                return STATUS_SUCCESS;
             }
         }
     }
 
-    return DMA_ERROR_INVALID_ADDRESS;
+    return DMA_DRIVER_ERROR_INVALID_ADDRESS;
 }
 
 /************************************************************************
@@ -216,14 +216,14 @@ static inline int8_t dma_bounds_check(uint64_t soc_addr, uint64_t size)
 *
 *   OUTPUTS
 *
-*       int8_t     status success or error
+*       int32_t     status success or error
 *
 ***********************************************************************/
-int8_t dma_config_read_add_data_node(uint64_t src_addr, uint64_t dest_addr, uint32_t size,
+int32_t dma_config_read_add_data_node(uint64_t src_addr, uint64_t dest_addr, uint32_t size,
     dma_read_chan_id_e chan, uint32_t index, bool local_interrupt)
 {
     /* Reads data from Host to Device memory */
-    int8_t status = DMA_ERROR_INVALID_CHAN_ID;
+    int32_t status = DMA_DRIVER_ERROR_INVALID_CHAN_ID;
 
     /* Validate the params */
     if (IS_DMA_READ_CHAN_VALID(chan))
@@ -231,7 +231,7 @@ int8_t dma_config_read_add_data_node(uint64_t src_addr, uint64_t dest_addr, uint
         /* Validate the bounds. Read: source is on host, dest is on SoC */
         status = dma_bounds_check(dest_addr, size);
 
-        if (status == DMA_OPERATION_SUCCESS)
+        if (status == STATUS_SUCCESS)
         {
             /* Add a data node in xfer list */
             write_xfer_list_data(
@@ -265,19 +265,19 @@ int8_t dma_config_read_add_data_node(uint64_t src_addr, uint64_t dest_addr, uint
 *
 *   OUTPUTS
 *
-*       int8_t     status success or error
+*       int32_t     status success or error
 *
 ***********************************************************************/
-int8_t dma_config_write_add_data_node(uint64_t src_addr, uint64_t dest_addr, uint32_t size,
+int32_t dma_config_write_add_data_node(uint64_t src_addr, uint64_t dest_addr, uint32_t size,
     dma_write_chan_id_e chan, uint32_t index, dma_flags_e dma_flags, bool local_interrupt)
 {
     /* Reads data from Host to Device memory */
-    int8_t status = DMA_OPERATION_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     /* Validate the params */
     if (!IS_DMA_WRITE_CHAN_VALID(chan))
     {
-        status = DMA_ERROR_INVALID_CHAN_ID;
+        status = DMA_DRIVER_ERROR_INVALID_CHAN_ID;
     }
     else if (!(dma_flags & DMA_SOC_NO_BOUNDS_CHECK))
     {
@@ -285,7 +285,7 @@ int8_t dma_config_write_add_data_node(uint64_t src_addr, uint64_t dest_addr, uin
         status = dma_bounds_check(src_addr, size);
     }
 
-    if (status == DMA_OPERATION_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Add a data node in xfer list */
         write_xfer_list_data(
@@ -312,20 +312,20 @@ int8_t dma_config_write_add_data_node(uint64_t src_addr, uint64_t dest_addr, uin
 *
 *   OUTPUTS
 *
-*       int8_t     status success or error
+*       int32_t     status success or error
 *
 ***********************************************************************/
-int8_t dma_config_read_add_link_node(dma_read_chan_id_e chan, uint32_t index)
+int32_t dma_config_read_add_link_node(dma_read_chan_id_e chan, uint32_t index)
 {
     if (IS_DMA_READ_CHAN_VALID(chan))
     {
         /* Add a link node in xfer list */
         write_xfer_list_link(DMA_READ_CHAN_GET_LL_BASE(chan), index);
 
-        return DMA_OPERATION_SUCCESS;
+        return STATUS_SUCCESS;
     }
 
-    return DMA_ERROR_INVALID_CHAN_ID;
+    return DMA_DRIVER_ERROR_INVALID_CHAN_ID;
 }
 
 /************************************************************************
@@ -345,20 +345,20 @@ int8_t dma_config_read_add_link_node(dma_read_chan_id_e chan, uint32_t index)
 *
 *   OUTPUTS
 *
-*       int8_t     status success or error
+*       int32_t     status success or error
 *
 ***********************************************************************/
-int8_t dma_config_write_add_link_node(dma_write_chan_id_e chan, uint32_t index)
+int32_t dma_config_write_add_link_node(dma_write_chan_id_e chan, uint32_t index)
 {
     if (IS_DMA_WRITE_CHAN_VALID(chan))
     {
         /* Add a link node in xfer list */
         write_xfer_list_link(DMA_WRITE_CHAN_GET_LL_BASE(chan), index);
 
-        return DMA_OPERATION_SUCCESS;
+        return STATUS_SUCCESS;
     }
 
-    return DMA_ERROR_INVALID_CHAN_ID;
+    return DMA_DRIVER_ERROR_INVALID_CHAN_ID;
 }
 
 /************************************************************************
@@ -378,10 +378,10 @@ int8_t dma_config_write_add_link_node(dma_write_chan_id_e chan, uint32_t index)
 *
 *   OUTPUTS
 *
-*       int8_t     Status success or error
+*       int32_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_configure_read(dma_read_chan_id_e chan)
+int32_t dma_configure_read(dma_read_chan_id_e chan)
 {
     uint32_t read_engine_en;
     uint32_t transfer_list_low_addr;
@@ -390,7 +390,7 @@ int8_t dma_configure_read(dma_read_chan_id_e chan)
     if (!IS_DMA_READ_CHAN_VALID(chan))
     {
         Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
-        return DMA_ERROR_INVALID_CHAN_ID;
+        return DMA_DRIVER_ERROR_INVALID_CHAN_ID;
     }
 
     read_engine_en =
@@ -414,7 +414,7 @@ int8_t dma_configure_read(dma_read_chan_id_e chan)
                   (chan * RD_DMA_REG_CHANNEL_STRIDE),
         transfer_list_high_addr);
 
-    return DMA_OPERATION_SUCCESS;
+    return STATUS_SUCCESS;
 }
 
 /************************************************************************
@@ -434,10 +434,10 @@ int8_t dma_configure_read(dma_read_chan_id_e chan)
 *
 *   OUTPUTS
 *
-*       int8_t     Status success or error
+*       int32_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_configure_write(dma_write_chan_id_e chan)
+int32_t dma_configure_write(dma_write_chan_id_e chan)
 {
     uint32_t write_engine_en;
     uint32_t transfer_list_low_addr;
@@ -446,7 +446,7 @@ int8_t dma_configure_write(dma_write_chan_id_e chan)
     if (!IS_DMA_WRITE_CHAN_VALID(chan))
     {
         Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
-        return DMA_ERROR_INVALID_CHAN_ID;
+        return DMA_DRIVER_ERROR_INVALID_CHAN_ID;
     }
 
     write_engine_en =
@@ -470,7 +470,7 @@ int8_t dma_configure_write(dma_write_chan_id_e chan)
                   (chan * WR_DMA_REG_CHANNEL_STRIDE),
         transfer_list_high_addr);
 
-    return DMA_OPERATION_SUCCESS;
+    return STATUS_SUCCESS;
 }
 
 /************************************************************************
@@ -489,10 +489,10 @@ int8_t dma_configure_write(dma_write_chan_id_e chan)
 *
 *   OUTPUTS
 *
-*       int8_t  Status success or error
+*       int32_t  Status success or error
 *
 ***********************************************************************/
-int8_t dma_start_read(dma_read_chan_id_e chan)
+int32_t dma_start_read(dma_read_chan_id_e chan)
 {
     uint32_t control1;
 
@@ -518,10 +518,10 @@ int8_t dma_start_read(dma_read_chan_id_e chan)
     else
     {
         Log_Write(LOG_LEVEL_ERROR, "Invalid DMA Read channel %d\r\n", chan);
-        return DMA_ERROR_INVALID_CHAN_ID;
+        return DMA_DRIVER_ERROR_INVALID_CHAN_ID;
     }
 
-    return DMA_OPERATION_SUCCESS;
+    return STATUS_SUCCESS;
 }
 
 /************************************************************************
@@ -540,10 +540,10 @@ int8_t dma_start_read(dma_read_chan_id_e chan)
 *
 *   OUTPUTS
 *
-*       int8_t     Status success or error
+*       int32_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_start_write(dma_write_chan_id_e chan)
+int32_t dma_start_write(dma_write_chan_id_e chan)
 {
     uint32_t control1;
 
@@ -569,10 +569,10 @@ int8_t dma_start_write(dma_write_chan_id_e chan)
     else
     {
         Log_Write(LOG_LEVEL_ERROR, "Invalid DMA Write channel %d\r\n", chan);
-        return DMA_ERROR_INVALID_CHAN_ID;
+        return DMA_DRIVER_ERROR_INVALID_CHAN_ID;
     }
 
-    return DMA_OPERATION_SUCCESS;
+    return STATUS_SUCCESS;
 }
 
 /************************************************************************
@@ -591,7 +591,7 @@ int8_t dma_start_write(dma_write_chan_id_e chan)
 *
 *   OUTPUTS
 *
-*       int8_t     Status success or error
+*       int32_t     Status success or error
 *
 ***********************************************************************/
 void dma_clear_read_done(dma_read_chan_id_e chan)
@@ -624,7 +624,7 @@ void dma_clear_read_done(dma_read_chan_id_e chan)
 *
 *   OUTPUTS
 *
-*       int8_t     Status success or error
+*       void     Status success or error
 *
 ***********************************************************************/
 void dma_clear_write_done(dma_write_chan_id_e chan)
@@ -657,12 +657,12 @@ void dma_clear_write_done(dma_write_chan_id_e chan)
 *
 *   OUTPUTS
 *
-*       int8_t     Status success or error
+*       int32_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_clear_read_abort(dma_read_chan_id_e chan)
+int32_t dma_clear_read_abort(dma_read_chan_id_e chan)
 {
-    int8_t status = DMA_OPERATION_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     if (IS_DMA_READ_CHAN_VALID(chan))
     {
@@ -673,7 +673,7 @@ int8_t dma_clear_read_abort(dma_read_chan_id_e chan)
     else
     {
         Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
-        status = DMA_ERROR_CHANNEL_NOT_AVAILABLE;
+        status = DMA_DRIVER_ERROR_CHANNEL_NOT_AVAILABLE;
     }
 
     return status;
@@ -695,12 +695,12 @@ int8_t dma_clear_read_abort(dma_read_chan_id_e chan)
 *
 *   OUTPUTS
 *
-*       int8_t     Status success or error
+*       int32_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_clear_write_abort(dma_write_chan_id_e chan)
+int32_t dma_clear_write_abort(dma_write_chan_id_e chan)
 {
-    int8_t status = DMA_OPERATION_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     if (IS_DMA_WRITE_CHAN_VALID(chan))
     {
@@ -711,7 +711,7 @@ int8_t dma_clear_write_abort(dma_write_chan_id_e chan)
     else
     {
         Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
-        status = DMA_ERROR_CHANNEL_NOT_AVAILABLE;
+        status = DMA_DRIVER_ERROR_CHANNEL_NOT_AVAILABLE;
     }
 
     return status;
@@ -733,16 +733,16 @@ int8_t dma_clear_write_abort(dma_write_chan_id_e chan)
 *
 *   OUTPUTS
 *
-*       int8_t     Status success or error
+*       int32_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_abort_read(dma_read_chan_id_e chan)
+int32_t dma_abort_read(dma_read_chan_id_e chan)
 {
     /* Verify the channel ID */
     if (!IS_DMA_READ_CHAN_VALID(chan))
     {
         Log_Write(LOG_LEVEL_ERROR, "Invalid DMA read channel %d\r\n", chan);
-        return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
+        return DMA_DRIVER_ERROR_CHANNEL_NOT_AVAILABLE;
     }
 
     /* Get the DMA error status DMA of respective channel */
@@ -768,7 +768,7 @@ int8_t dma_abort_read(dma_read_chan_id_e chan)
             dma_abort);
     }
 
-    return DMA_OPERATION_SUCCESS;
+    return STATUS_SUCCESS;
 }
 
 /************************************************************************
@@ -787,16 +787,16 @@ int8_t dma_abort_read(dma_read_chan_id_e chan)
 *
 *   OUTPUTS
 *
-*       int8_t     Status success or error
+*       int32_t     Status success or error
 *
 ***********************************************************************/
-int8_t dma_abort_write(dma_write_chan_id_e chan)
+int32_t dma_abort_write(dma_write_chan_id_e chan)
 {
     /* Verify the channel ID */
     if (!IS_DMA_WRITE_CHAN_VALID(chan))
     {
         Log_Write(LOG_LEVEL_ERROR, "Invalid DMA write channel %d\r\n", chan);
-        return DMA_ERROR_CHANNEL_NOT_AVAILABLE;
+        return DMA_DRIVER_ERROR_CHANNEL_NOT_AVAILABLE;
     }
 
     /* Get the DMA error status DMA of respective channel */
@@ -820,5 +820,5 @@ int8_t dma_abort_write(dma_write_chan_id_e chan)
             dma_abort);
     }
 
-    return DMA_OPERATION_SUCCESS;
+    return STATUS_SUCCESS;
 }

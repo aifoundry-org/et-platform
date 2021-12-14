@@ -195,9 +195,9 @@ static int8_t wait_for_response_from_service_processor(void)
 *       Simply tunnel command to MM command handler
 *
 ***********************************************************************/
-static int8_t tf_command_handler(void *cmd_buffer)
+static int32_t tf_command_handler(void *cmd_buffer)
 {
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     const struct cmd_header_t *hdr = cmd_buffer;
 
     Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:TF_Command_Handler. \r\n");
@@ -411,15 +411,15 @@ int8_t SP_Iface_Init(void)
 *
 *   OUTPUTS
 *
-*       int8_t      status success or failure of Interface initialization
+*       int32_t      status success or failure of Interface initialization
 *
 ***********************************************************************/
-int8_t SP_Iface_Processing(
+int32_t SP_Iface_Processing(
     vq_cb_t *vq_cached, vq_cb_t *vq_shared, void *shared_mem_ptr, uint64_t vq_used_space)
 {
     static uint8_t cmd_buff[64] __attribute__((aligned(64))) = { 0 };
     int32_t cmd_length = 0;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     Log_Write(LOG_LEVEL_DEBUG, "SP_Iface_Processing..\r\n");
 

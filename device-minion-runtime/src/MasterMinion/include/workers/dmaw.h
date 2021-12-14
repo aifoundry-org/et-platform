@@ -55,60 +55,55 @@
 #define DMAW_MAX_ELEMENT_SIZE \
     (MEM_REGION_DMA_ELEMENT_SIZE * MEM_REGION_DMA_ELEMENT_SIZE_STEP * 1024 * 1024)
 
-/*! \def DMAW_ERROR_GENERAL
-    \brief DMA Worker - General error.
-*/
-#define DMAW_ERROR_GENERAL DMA_ERROR_END /* TODO: To be maintained properly in SW-9109 */
-
 /*! \def DMAW_ABORTED_IDLE_CHANNEL_SEARCH
     \brief DMA Worker - Find DMA idle channel aborted
 */
-#define DMAW_ABORTED_IDLE_CHANNEL_SEARCH (DMA_ERROR_END - 1)
+#define DMAW_ABORTED_IDLE_CHANNEL_SEARCH -1
 
 /*! \def DMAW_ERROR_INVALID_XFER_COUNT
     \brief DMA Worker - DMA transfer count invalid
 */
-#define DMAW_ERROR_INVALID_XFER_COUNT (DMA_ERROR_END - 2)
+#define DMAW_ERROR_INVALID_XFER_COUNT -2
 
 /*! \def DMAW_ERROR_INVALID_XFER_SIZE
     \brief DMA Worker - DMA transfer size invalid
 */
-#define DMAW_ERROR_INVALID_XFER_SIZE (DMA_ERROR_END - 3)
+#define DMAW_ERROR_INVALID_XFER_SIZE -3
 
 /*! \def DMAW_ERROR_CM_IFACE_MULTICAST_FAILED
     \brief DMA Worker - CM Multicast message failed
 */
-#define DMAW_ERROR_CM_IFACE_MULTICAST_FAILED (DMA_ERROR_END - 4)
+#define DMAW_ERROR_CM_IFACE_MULTICAST_FAILED -4
 
 /*! \def DMAW_CW_SHIRE_NOT_BOOTED
     \brief DMA Worker - CM Shires not booted
 */
-#define DMAW_CW_SHIRE_NOT_BOOTED (DMA_ERROR_END - 5)
+#define DMAW_CW_SHIRE_NOT_BOOTED -5
 
 /*! \def DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED
     \brief DMA Worker - DMA driver data node config failed
 */
-#define DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED (DMA_ERROR_END - 6)
+#define DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED -6
 
 /*! \def DMAW_ERROR_DRIVER_LINK_CONFIG_FAILED
     \brief DMA Worker - DMA driver link node config failed
 */
-#define DMAW_ERROR_DRIVER_LINK_CONFIG_FAILED (DMA_ERROR_END - 7)
+#define DMAW_ERROR_DRIVER_LINK_CONFIG_FAILED -7
 
 /*! \def DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS
     \brief DMA Worker - Invalid device memory address
 */
-#define DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS (DMA_ERROR_END - 8)
+#define DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS -8
 
 /*! \def DMAW_ERROR_DRIVER_ABORT_FAILED
     \brief DMA Worker - DMA chanel abort failed
 */
-#define DMAW_ERROR_DRIVER_ABORT_FAILED (DMA_ERROR_END - 9)
+#define DMAW_ERROR_DRIVER_ABORT_FAILED -9
 
 /*! \def DMAW_ERROR_DRIVER_CHAN_START_FAILED
     \brief DMA Worker - DMA Chanel failed to start
 */
-#define DMAW_ERROR_DRIVER_CHAN_START_FAILED (DMA_ERROR_END - 10)
+#define DMAW_ERROR_DRIVER_CHAN_START_FAILED -10
 
 /*! \enum dma_chan_state_e
     \brief Enum that provides the state of a DMA channel
@@ -177,7 +172,7 @@ int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id, uint8_t
 */
 int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8_t sqw_idx);
 
-/*! \fn int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
+/*! \fn int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
     const struct device_ops_dma_writelist_cmd_t *cmd, uint16_t xfer_count, uint8_t sqw_idx,
     exec_cycles_t *cycles, uint8_t sw_timer_idx)
     \brief This function is used to trigger a DMA read transaction by calling the
@@ -189,11 +184,11 @@ int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8
     \param cycles Pointer to latency cycles struct
     \return Status success or error
 */
-int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
+int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
     const struct device_ops_dma_writelist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
     const exec_cycles_t *cycles);
 
-/*! \fn int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e chan_id,
+/*! \fn int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e chan_id,
     const struct device_ops_dma_readlist_cmd_t *cmd, uint16_t xfer_count, uint8_t sqw_idx,
     exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags)
     \brief This function is used to trigger a DMA write transaction by calling the
@@ -206,7 +201,7 @@ int8_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
     \param flags DMA flag to set a specific DMA action.
     \return Status success or error
 */
-int8_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e chan_id,
+int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e chan_id,
     const struct device_ops_dma_readlist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
     const exec_cycles_t *cycles, dma_flags_e flags);
 
