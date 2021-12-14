@@ -475,6 +475,10 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   hostListener_->pcieReady();
 }
 
+void SysEmuImp::notify_fatal_error(const std::string& error) {
+  hostListener_->onSysemuFatalError(error);
+}
+
 void SysEmuImp::stop() {
   running_ = false;
   // Wake host interrupt waiters

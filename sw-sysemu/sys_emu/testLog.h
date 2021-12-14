@@ -11,11 +11,11 @@
 #ifndef _TESTLOG_H_
 #define _TESTLOG_H_
 
-#include <cstdint>
-#include <sstream>
-#include <iostream>
-
 class sys_emu;
+
+#include <cstdint>
+#include <iostream>
+#include <sstream>
 
 enum logLevel {LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERR, LOG_FTL, NR_LOG_LEVELS};
 
@@ -93,22 +93,7 @@ public:
   void endl () {
     if (msgStarted_) os_ << std::endl;
   }
-  void endm(){
-    if (!msgStarted_) *outputStream_<<"endm without msg start (string="<<os_.str()<<")"<<std::endl;
-    else if (msgInLogLevel_)
-      *outputStream_<<""<<os_.str()<<std::endl;
-    os_.str("");
-    os_.clear();
-    if (fatal_) endSim();
-    if ( errors_ >= maxErrors_) {
-      if ( !simEnded() )  {
-        *outputStream_<<"Stopping simulation because max number of errors reached ("<<maxErrors_<<")"<<std::endl;
-        endSim();
-      }
-    }
-    msgInLogLevel_ = true;
-    msgStarted_ = false;
-  }
+  void endm();
 
 private:
   std::string name_;

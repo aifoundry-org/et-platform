@@ -52,3 +52,31 @@ std::string testLog::simTimeStr()
 {
     return std::to_string(testLog::simTime());
 }
+
+void testLog::endm() {
+  if (!msgStarted_)
+    *outputStream_ << "endm without msg start (string=" << os_.str() << ")" << std::endl;
+  else if (msgInLogLevel_)
+    *outputStream_ << "" << os_.str() << std::endl;
+  os_.str("");
+  os_.clear();
+  if (fatal_) {
+    if (device_ && device_->get_api_communicate()) {
+      device_->get_api_communicate()->notify_fatal_error(os_.str());
+    } else {
+      endSim();
+    }
+  } else if (errors_ >= maxErrors_) {
+    if (!simEnded()) {
+      *outputStream_ << "Stopping simulation because max number of errors reached (" << maxErrors_ << ")" << std::endl;
+      if (device_ && device_->get_api_communicate()) {
+        device_->get_api_communicate()->notify_fatal_error(
+          "Stopping simulation because max number of errors reached (" + std::to_string(maxErrors_) + ")");
+      } else {
+        endSim();
+      }
+    }
+  }
+  msgInLogLevel_ = true;
+  msgStarted_ = false;
+}
