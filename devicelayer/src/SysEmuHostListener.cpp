@@ -22,3 +22,12 @@ void SysEmuHostListener::memoryWriteFromHost(uint64_t address, size_t size, cons
 std::future<void> SysEmuHostListener::getPcieReadyFuture() {
   return pcieReady_.get_future();
 }
+
+void SysEmuHostListener::onSysemuFatalError(const std::string& error) {
+  DV_LOG(WARNING) << "Fatal error detected in sysemu: " << error;
+  sysemuLastError_ = error;
+}
+
+std::optional<std::string> SysEmuHostListener::getSysemuLastError() const {
+  return sysemuLastError_;
+}

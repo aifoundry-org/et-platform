@@ -8,7 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
-#include "deviceLayer/IDeviceLayer.h"
+#include "IDeviceLayer.h"
 #include <condition_variable>
 #include <cstdlib>
 #include <cstring>

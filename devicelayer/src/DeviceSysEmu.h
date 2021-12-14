@@ -78,6 +78,21 @@ private:
     CircBuffCb cb_;
   };
 
+  friend struct Checker;
+
+  struct Checker {
+    explicit Checker(const DeviceSysEmu& parent)
+      : parent_(parent){};
+
+    ~Checker() {
+      parent_.checkSysemuLastError();
+    }
+
+    const DeviceSysEmu& parent_;
+  };
+
+  void checkSysemuLastError() const;
+
   bool sendCommand(QueueInfo& queue, std::byte* command, size_t commandSize, bool& clearEvent);
   bool receiveResponse(QueueInfo& queue, std::vector<std::byte>& response, bool& clearEvent);
 

@@ -173,6 +173,7 @@ DeviceSysEmu::~DeviceSysEmu() {
 }
 
 bool DeviceSysEmu::sendCommand(QueueInfo& queueInfo, std::byte* command, size_t commandSize, bool& clearEvent) {
+  Checker checker{*this};
   clearEvent = true;
 
   // read tail_offset
@@ -212,6 +213,7 @@ bool DeviceSysEmu::sendCommand(QueueInfo& queueInfo, std::byte* command, size_t 
 bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, size_t commandSize, bool,
                                            bool isHighPriority) {
   std::lock_guard lock(mutex_);
+  Checker checker{*this};
   auto sq_idx = static_cast<uint32_t>(sqIdx);
   if (sq_idx >= (isHighPriority ? hpSubmissionQueuesMM_.size() : submissionQueuesMM_.size())) {
     throw Exception("Invalid queue");
@@ -235,6 +237,7 @@ bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, s
 
 bool DeviceSysEmu::sendCommandServiceProcessor(int, std::byte* command, size_t commandSize) {
   std::lock_guard lock(mutex_);
+  Checker checker{*this};
   bool clearEvent = true;
   auto res = sendCommand(submissionQueueSP_, command, commandSize, clearEvent);
   if (res) {
@@ -251,6 +254,7 @@ bool DeviceSysEmu::sendCommandServiceProcessor(int, std::byte* command, size_t c
 // EPOLLIN indicates the availability of read event i.e. completion queue
 // is available for reads
 bool DeviceSysEmu::checkForEventEPOLLIN(const QueueInfo& queueInfo) const {
+  Checker checker{*this};
   // Pull the latest state of buffer
   CircBuffCb cb;
   sysEmu_->mmioRead(queueInfo.bufferAddress_, sizeof(cb), reinterpret_cast<std::byte*>(&cb));
@@ -261,6 +265,7 @@ bool DeviceSysEmu::checkForEventEPOLLIN(const QueueInfo& queueInfo) const {
 // EPOLLOUT indicates the availability of write event i.e. submission queue
 // is available for writes
 bool DeviceSysEmu::checkForEventEPOLLOUT(const QueueInfo& queueInfo) const {
+  Checker checker{*this};
   // Pull the latest state of buffer
   CircBuffCb cb;
   sysEmu_->mmioRead(queueInfo.bufferAddress_, sizeof(cb), reinterpret_cast<std::byte*>(&cb));
@@ -271,6 +276,7 @@ bool DeviceSysEmu::checkForEventEPOLLOUT(const QueueInfo& queueInfo) const {
 void DeviceSysEmu::waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool& cq_available,
                                                   std::chrono::milliseconds timeout) {
   DV_VLOG(HIGH) << "Waiting for interrupt from master minion";
+  Checker checker{*this};
   sq_bitmap = 0;
   cq_available = false;
 
@@ -308,6 +314,7 @@ void DeviceSysEmu::waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool
 void DeviceSysEmu::waitForEpollEventsServiceProcessor(int, bool& sq_available, bool& cq_available,
                                                       std::chrono::milliseconds timeout) {
   DV_VLOG(HIGH) << "Waiting for interrupt from service processor";
+  Checker checker{*this};
 
   sq_available = false;
   cq_available = false;
@@ -354,6 +361,7 @@ void DeviceSysEmu::setSqThresholdServiceProcessor(int, uint32_t bytesNeeded) {
 }
 
 bool DeviceSysEmu::receiveResponse(QueueInfo& queue, std::vector<std::byte>& response, bool& clearEvent) {
+  Checker checker{*this};
   clearEvent = true;
 
   // read queue info
@@ -596,4 +604,11 @@ DeviceConfig DeviceSysEmu::getDeviceConfig(int) {
 
 size_t DeviceSysEmu::getFreeCmaMemory() const {
   return 1ULL << 30; // default free memory 1 GiB
+}
+
+void DeviceSysEmu::checkSysemuLastError() const {
+  auto lastError = hostListener_.getSysemuLastError();
+  if (lastError.has_value()) {
+    throw Exception(lastError.value());
+  }
 }
