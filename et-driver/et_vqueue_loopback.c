@@ -76,10 +76,11 @@ enum mgmt_device_msg_e {
 	DM_CMD_GET_ASIC_STALLS = 53,
 	DM_CMD_GET_ASIC_LATENCY = 54,
 	DM_CMD_GET_MM_ERROR_COUNT = 55,
-	DM_CMD_GET_DEVICE_ERROR_EVENTS = 56,
-	DM_CMD_SET_DM_TRACE_RUN_CONTROL = 57,
-	DM_CMD_SET_DM_TRACE_CONFIG = 58,
-	DM_CMD_SET_SP_EXCEPTION = 59,
+	DM_CMD_MM_RESET = 56,
+	DM_CMD_GET_DEVICE_ERROR_EVENTS = 57,
+	DM_CMD_SET_DM_TRACE_RUN_CONTROL = 58,
+	DM_CMD_SET_DM_TRACE_CONFIG = 59,
+	DM_CMD_SET_THROTTLE_POWER_STATE_TEST = 60,
 };
 
 /*
@@ -1987,6 +1988,21 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			rv = -EAGAIN;
 		break;
 
+	case DM_CMD_MM_RESET:
+		FILL_RSP_HEADER(dm_ms_rsp,
+				header.tag_id,
+				DM_CMD_MM_RESET,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_ms_rsp,
+					sizeof(dm_ms_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
 	case DM_CMD_GET_DEVICE_ERROR_EVENTS:
 		FILL_RSP_HEADER(dm_def_rsp,
 				header.tag_id,
@@ -2032,10 +2048,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			rv = -EAGAIN;
 		break;
 
-	case DM_CMD_SET_SP_EXCEPTION:
+	case DM_CMD_SET_THROTTLE_POWER_STATE_TEST:
 		FILL_RSP_HEADER(dm_def_rsp,
 				header.tag_id,
-				DM_CMD_SET_SP_EXCEPTION,
+				DM_CMD_SET_THROTTLE_POWER_STATE_TEST,
 				0,
 				DM_STATUS_SUCCESS);
 		if (!et_circbuffer_push(&cq->cb,
