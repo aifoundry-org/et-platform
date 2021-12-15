@@ -573,4 +573,11 @@ void pvt_print_temperature_sampled_values(pvtc_shire_type_t shire_type);
 */
 void pvt_print_voltage_sampled_values(pvtc_shire_type_t shire_type);
 
+/*! \fn void pvt_print_all(void)
+    \brief This function prints sampled values from all VM and TS
+    \param none
+    \return none
+*/
+void pvt_print_all(void);
+
 #endif

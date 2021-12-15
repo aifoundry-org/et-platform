@@ -14,6 +14,18 @@
 #include <hwinc/sp_pvt0.h>
 #include "hwinc/hal_device.h"
 
+/*! \def MAX(x,y)
+    \brief Returns max
+*/
+#define MAX(x,y)       \
+        x > y ? x : y
+
+/*! \def MIN(x,y)
+    \brief Returns min
+*/
+#define MIN(x,y)       \
+        x < y ? x : y
+
 /* PVT controllers reg pointers */
 static Pvtc *pReg_Pvtc[PVTC_NUM];
 
@@ -113,10 +125,10 @@ static PVTC_VM_mapping pvtc_minion_shire_vm_map[PVTC_MINION_SHIRE_NUM] = {
    reading the NoC voltage from Minion Shires that are physically adjacent as follows:
 
     Memshire #     Adjacent Minion Shire (Virtual ID)
- 	    4			  5
-       	5			 13
-       	6			  6
-       	7		     14
+        4             5
+        5            13
+        6             6
+        7            14
 
    So, East Memshires NOC voltage will be mapped to nearest Minion Shire.
 */
@@ -1175,8 +1187,9 @@ static void pvt_print_memshire_voltage_sampled_values(void)
 {
     int ret;
     MemShire_VM_sample memshire_sample_avg = {0, 0};
-    MemShire_VM_sample memshire_sample_hi_avg = {0, 0};
-    MemShire_VM_sample memshire_sample_lo_avg = {0, 0};
+    MemShire_VM_sample memshire_sample_hi_max = {0, 0};
+    MemShire_VM_sample memshire_sample_lo_min = {0xFFFF, 0xFFFF};
+    int valid_samples_num = 0;
 
     for(int mem = 0; mem < PVTC_MEM_SHIRE_NUM; mem++)
     {
@@ -1199,26 +1212,30 @@ static void pvt_print_memshire_voltage_sampled_values(void)
                 memshire_sample.vdd_noc, memshire_sample_lo.vdd_noc, memshire_sample_hi.vdd_noc);
 
             memshire_sample_avg.vdd_ms =
-                (uint16_t)((memshire_sample_avg.vdd_ms + memshire_sample.vdd_ms) / 2);
+                (uint16_t)(memshire_sample_avg.vdd_ms + memshire_sample.vdd_ms);
             memshire_sample_avg.vdd_noc =
-                (uint16_t)((memshire_sample_avg.vdd_noc + memshire_sample.vdd_noc) / 2);
+                (uint16_t)(memshire_sample_avg.vdd_noc + memshire_sample.vdd_noc);
+            valid_samples_num++;
         }
 
-        memshire_sample_hi_avg.vdd_ms =
-            (uint16_t)((memshire_sample_hi_avg.vdd_ms + memshire_sample_hi.vdd_ms) / 2);
-        memshire_sample_hi_avg.vdd_noc =
-            (uint16_t)((memshire_sample_hi_avg.vdd_noc + memshire_sample_hi.vdd_noc) / 2);
-        memshire_sample_lo_avg.vdd_ms =
-            (uint16_t)((memshire_sample_lo_avg.vdd_ms + memshire_sample_lo.vdd_ms) / 2);
-        memshire_sample_lo_avg.vdd_noc =
-            (uint16_t)((memshire_sample_lo_avg.vdd_noc + memshire_sample_lo.vdd_noc) / 2);
+        memshire_sample_hi_max.vdd_ms =
+            MAX(memshire_sample_hi_max.vdd_ms, memshire_sample_hi.vdd_ms);
+        memshire_sample_hi_max.vdd_noc =
+            MAX(memshire_sample_hi_max.vdd_noc, memshire_sample_hi.vdd_noc);
+        memshire_sample_lo_min.vdd_ms =
+            MIN(memshire_sample_lo_min.vdd_ms, memshire_sample_lo.vdd_ms);
+        memshire_sample_lo_min.vdd_noc =
+            MIN(memshire_sample_lo_min.vdd_noc, memshire_sample_lo.vdd_noc);
     }
+
+    memshire_sample_avg.vdd_ms = (uint16_t)(memshire_sample_avg.vdd_ms / valid_samples_num);
+    memshire_sample_avg.vdd_noc = (uint16_t)(memshire_sample_avg.vdd_noc / valid_samples_num);
 
     Log_Write(LOG_LEVEL_CRITICAL, "MemShire Average Volt[mV]:"
                 " VDD_MS: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
-                memshire_sample_avg.vdd_ms, memshire_sample_lo_avg.vdd_ms,
-                memshire_sample_hi_avg.vdd_ms, memshire_sample_avg.vdd_noc,
-                memshire_sample_lo_avg.vdd_noc, memshire_sample_hi_avg.vdd_noc);
+                memshire_sample_avg.vdd_ms, memshire_sample_lo_min.vdd_ms,
+                memshire_sample_hi_max.vdd_ms,  memshire_sample_avg.vdd_noc,
+                memshire_sample_lo_min.vdd_noc, memshire_sample_hi_max.vdd_noc);
 }
 
 static void pvt_print_min_shire_temperature_sampled_values(void)
@@ -1228,8 +1245,9 @@ static void pvt_print_min_shire_temperature_sampled_values(void)
     int sample_hi;
     int sample_lo;
     int sample_avg = 0;
-    int sample_hi_avg = 0;
-    int sample_lo_avg = 0;
+    int sample_hi_max = 0;
+    int sample_lo_min = 0xFFFF;
+    int valid_samples_num = 0;
 
     for(int min = 0; min < PVTC_MINION_SHIRE_NUM; min++) {
         pvt_get_min_shire_ts_sample_hilo(min, &sample_hi, &sample_lo);
@@ -1241,22 +1259,27 @@ static void pvt_print_min_shire_temperature_sampled_values(void)
         else {
             Log_Write(LOG_LEVEL_DEBUG, "MS %2d Temp [C]: %d [%d, %d]\n",
                 min, sample, sample_lo, sample_hi);
-            sample_avg = (sample_avg + sample) / 2;
+            sample_avg = sample_avg + sample;
+            valid_samples_num++;
         }
 
-        sample_hi_avg = (sample_hi_avg + sample_hi) / 2;
-        sample_lo_avg = (sample_lo_avg + sample_lo) / 2;
+        sample_hi_max = MAX(sample_hi_max, sample_hi);
+        sample_lo_min = MIN(sample_lo_min, sample_lo);
     }
+
+    sample_avg = sample_avg / valid_samples_num;
+    
     Log_Write(LOG_LEVEL_CRITICAL, "MinShire Average Temp[C]: %d [%d, %d]\n",
-                sample_avg, sample_lo_avg, sample_hi_avg);
+                sample_avg, sample_lo_min, sample_hi_max);
 }
 
 static void pvt_print_min_shire_voltage_sampled_values(void)
 {
     int ret;
     MinShire_VM_sample minshire_sample_avg = {0, 0, 0};
-    MinShire_VM_sample minshire_sample_hi_avg = {0, 0, 0};
-    MinShire_VM_sample minshire_sample_lo_avg = {0, 0, 0};
+    MinShire_VM_sample minshire_sample_hi_max = {0, 0, 0};
+    MinShire_VM_sample minshire_sample_lo_min = {0xFFFF, 0xFFFF, 0xFFFF};
+    int valid_samples_num = 0;
 
     for(int min = 0; min < PVTC_MINION_SHIRE_NUM; min++) {
 
@@ -1281,34 +1304,39 @@ static void pvt_print_min_shire_voltage_sampled_values(void)
                 minshire_sample.vdd_noc, minshire_sample_lo.vdd_noc, minshire_sample_hi.vdd_noc);
 
             minshire_sample_avg.vdd_mnn =
-                (uint16_t)((minshire_sample_avg.vdd_mnn + minshire_sample.vdd_mnn) / 2);
+                (uint16_t)(minshire_sample_avg.vdd_mnn + minshire_sample.vdd_mnn);
             minshire_sample_avg.vdd_sram =
-                (uint16_t)((minshire_sample_avg.vdd_sram + minshire_sample.vdd_sram) / 2);
+                (uint16_t)(minshire_sample_avg.vdd_sram + minshire_sample.vdd_sram);
             minshire_sample_avg.vdd_noc =
-                (uint16_t)((minshire_sample_avg.vdd_noc + minshire_sample.vdd_noc) / 2);
+                (uint16_t)(minshire_sample_avg.vdd_noc + minshire_sample.vdd_noc);
+            valid_samples_num++;
         }
 
-        minshire_sample_hi_avg.vdd_mnn =
-            (uint16_t)((minshire_sample_hi_avg.vdd_mnn + minshire_sample_hi.vdd_mnn) / 2);
-        minshire_sample_hi_avg.vdd_sram =
-            (uint16_t)((minshire_sample_hi_avg.vdd_sram + minshire_sample_hi.vdd_sram) / 2);
-        minshire_sample_hi_avg.vdd_noc =
-            (uint16_t)((minshire_sample_hi_avg.vdd_noc + minshire_sample_hi.vdd_noc) / 2);
-        minshire_sample_lo_avg.vdd_mnn =
-            (uint16_t)((minshire_sample_lo_avg.vdd_mnn + minshire_sample_lo.vdd_mnn) / 2);
-        minshire_sample_lo_avg.vdd_sram =
-            (uint16_t)((minshire_sample_lo_avg.vdd_sram + minshire_sample_lo.vdd_sram) / 2);
-        minshire_sample_lo_avg.vdd_noc =
-            (uint16_t)((minshire_sample_lo_avg.vdd_noc + minshire_sample_lo.vdd_noc) / 2);
+        minshire_sample_hi_max.vdd_mnn =
+            MAX(minshire_sample_hi_max.vdd_mnn, minshire_sample_hi.vdd_mnn);
+        minshire_sample_hi_max.vdd_sram =
+            MAX(minshire_sample_hi_max.vdd_sram, minshire_sample_hi.vdd_sram);
+        minshire_sample_hi_max.vdd_noc =
+            MAX(minshire_sample_hi_max.vdd_noc, minshire_sample_hi.vdd_noc);
+        minshire_sample_lo_min.vdd_mnn =
+            MIN(minshire_sample_lo_min.vdd_mnn, minshire_sample_lo.vdd_mnn);
+        minshire_sample_lo_min.vdd_sram =
+            MIN(minshire_sample_lo_min.vdd_sram, minshire_sample_lo.vdd_sram);
+        minshire_sample_lo_min.vdd_noc =
+            MIN(minshire_sample_lo_min.vdd_noc, minshire_sample_lo.vdd_noc);
     }
+
+    minshire_sample_avg.vdd_mnn = (uint16_t)(minshire_sample_avg.vdd_mnn / valid_samples_num);
+    minshire_sample_avg.vdd_sram = (uint16_t)(minshire_sample_avg.vdd_sram / valid_samples_num);
+    minshire_sample_avg.vdd_noc = (uint16_t)(minshire_sample_avg.vdd_noc / valid_samples_num);
 
     Log_Write(LOG_LEVEL_CRITICAL, "MinShire Average Volt[mV]: VDD_MNN: %d [%d, %d]"
                 " VDD_SRAM: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
-                minshire_sample_avg.vdd_mnn, minshire_sample_lo_avg.vdd_mnn,
-                minshire_sample_hi_avg.vdd_mnn, minshire_sample_avg.vdd_sram,
-                minshire_sample_lo_avg.vdd_sram, minshire_sample_hi_avg.vdd_sram,
-                minshire_sample_avg.vdd_noc, minshire_sample_lo_avg.vdd_noc,
-                minshire_sample_hi_avg.vdd_noc);
+                minshire_sample_avg.vdd_mnn, minshire_sample_lo_min.vdd_mnn,
+                minshire_sample_hi_max.vdd_mnn, minshire_sample_avg.vdd_sram,
+                minshire_sample_lo_min.vdd_sram, minshire_sample_hi_max.vdd_sram,
+                minshire_sample_avg.vdd_noc, minshire_sample_lo_min.vdd_noc,
+                minshire_sample_hi_max.vdd_noc);
 }
 
 void pvt_print_voltage_sampled_values(pvtc_shire_type_t shire_type)
@@ -1341,4 +1369,17 @@ void pvt_print_temperature_sampled_values(pvtc_shire_type_t shire_type)
         default:
             break;
     }
+}
+
+void pvt_print_all(void)
+{
+    /* Print Temperatures */
+    pvt_print_temperature_sampled_values(PVTC_IOSHIRE);
+    pvt_print_temperature_sampled_values(PVTC_MINION_SHIRE);
+
+    /* Print Temperatures */
+    pvt_print_voltage_sampled_values(PVTC_IOSHIRE);
+    pvt_print_voltage_sampled_values(PVTC_PSHIRE);
+    pvt_print_voltage_sampled_values(PVTC_MEMSHIRE);
+    pvt_print_voltage_sampled_values(PVTC_MINION_SHIRE);
 }
