@@ -284,6 +284,18 @@ public:
   ///
   virtual DeviceConfig getDeviceConfig(int device) = 0;
 
+  /// \brief returns a number of active shires (number of bits set to 1 in shire mask)
+  ///
+  /// @param[in] device the device which will be queried
+  ///
+  virtual int getActiveShiresNum(int device) = 0;
+
+  /// \brief returns device frequency
+  ///
+  /// @param[in] device the device which will be queried
+  ///
+  virtual uint32_t getFrequencyMHz(int device) = 0;
+
   /// \brief returns the available CMA memory in the system. That memory is allocated using \ref allocDmaBuffer
   ///
   /// @returns the size in bytes of allocatable CMA memory

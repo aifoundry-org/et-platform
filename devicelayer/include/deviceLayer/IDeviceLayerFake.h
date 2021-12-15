@@ -188,6 +188,12 @@ public:
   DeviceConfig getDeviceConfig(int) override {
     return DeviceConfig{};
   }
+  int getActiveShiresNum(int device) override {
+    return 32;
+  }
+  uint32_t getFrequencyMHz(int device) override {
+    return 0;
+  }
   int updateFirmwareImage(int, std::vector<unsigned char>&) override {
     return 0;
   }

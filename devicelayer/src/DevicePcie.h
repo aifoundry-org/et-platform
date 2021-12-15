@@ -50,6 +50,8 @@ public:
   void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) override;
   void freeDmaBuffer(void* dmaBuffer) override;
   DeviceConfig getDeviceConfig(int device) override;
+  int getActiveShiresNum(int device) override;
+  uint32_t getFrequencyMHz(int device) override;
   size_t getFreeCmaMemory() const override;
 
 private:

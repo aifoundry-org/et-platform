@@ -602,6 +602,27 @@ DeviceConfig DeviceSysEmu::getDeviceConfig(int) {
                       static_cast<uint32_t>(spInfo_.generic_attr.minion_shires_mask)};
 }
 
+int DeviceSysEmu::getActiveShiresNum(int device) {
+  DeviceConfig config = getDeviceConfig(device);
+  uint32_t shireMask = config.computeMinionShireMask_;
+  uint32_t checkPattern = 0x00000001;
+  size_t maskBits = 32;
+  int cntActive = 0;
+
+  for (size_t i = 0; i < maskBits; i++) {
+    bool active = shireMask & (checkPattern << i);
+    if (active) {
+      cntActive++;
+    }
+  }
+  return cntActive;
+}
+
+uint32_t DeviceSysEmu::getFrequencyMHz(int device) {
+  DeviceConfig config = getDeviceConfig(device);
+  return config.minionBootFrequency_;
+}
+
 size_t DeviceSysEmu::getFreeCmaMemory() const {
   return 1ULL << 30; // default free memory 1 GiB
 }

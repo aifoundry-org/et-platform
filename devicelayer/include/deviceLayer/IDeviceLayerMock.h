@@ -47,6 +47,8 @@ public:
   MOCK_METHOD1(freeDmaBuffer, void(void*));
   MOCK_METHOD3(getTraceBufferServiceProcessor, bool(int, TraceBufferType, std::vector<std::byte>&));
   MOCK_METHOD1(getDeviceConfig, DeviceConfig(int));
+  MOCK_METHOD1(getActiveShiresNum, int(int));
+  MOCK_METHOD1(getFrequencyMHz, uint32_t(int));
   MOCK_METHOD2(updateFirmwareImage, int(int, std::vector<unsigned char>&));
   MOCK_CONST_METHOD0(getFreeCmaMemory, size_t());
   MOCK_CONST_METHOD1(getDmaInfo, DmaInfo(int));

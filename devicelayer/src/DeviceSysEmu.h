@@ -67,6 +67,8 @@ public:
   void freeDmaBuffer(void* dmaBuffer) override;
   bool getTraceBufferServiceProcessor(int device, TraceBufferType trace_type, std::vector<std::byte>& response) override;
   DeviceConfig getDeviceConfig(int device) override;
+  int getActiveShiresNum(int device) override;
+  uint32_t getFrequencyMHz(int device) override;
   int updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) override;
   size_t getFreeCmaMemory() const override;
 

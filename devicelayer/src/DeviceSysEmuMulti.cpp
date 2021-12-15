@@ -112,6 +112,12 @@ bool DeviceSysEmuMulti::getTraceBufferServiceProcessor(int device, TraceBufferTy
 DeviceConfig DeviceSysEmuMulti::getDeviceConfig(int device) {
   return getDevice(device).getDeviceConfig(device);
 }
+int DeviceSysEmuMulti::getActiveShiresNum(int device) {
+  return getDevice(device).getActiveShiresNum(device);
+}
+uint32_t DeviceSysEmuMulti::getFrequencyMHz(int device) {
+  return getDevice(device).getFrequencyMHz(device);
+}
 int DeviceSysEmuMulti::updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) {
   return getDevice(device).updateFirmwareImage(device, fwImage);
 }
