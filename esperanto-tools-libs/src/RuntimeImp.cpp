@@ -607,7 +607,7 @@ std::vector<StreamError> RuntimeImp::retrieveStreamErrors(StreamId stream) {
   return streamManager_.retrieveErrors(stream);
 }
 
-EventId RuntimeImp::abortCommand(EventId commandId) {
+EventId RuntimeImp::abortCommand(EventId commandId, std::chrono::milliseconds timeout) {
   using namespace std::chrono_literals;
   auto stInfo = streamManager_.getStreamInfo(commandId);
   auto evt = eventManager_.getNextId();
@@ -622,9 +622,13 @@ EventId RuntimeImp::abortCommand(EventId commandId) {
     cmd.command_info.cmd_hdr.flags = device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
     cmd.command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD;
     cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
+    auto deadLine = std::chrono::steady_clock::now() + timeout;
     // check what device contains that eventid
     while (!deviceLayer_->sendCommandMasterMinion(stInfo->device_, stInfo->vq_, reinterpret_cast<std::byte*>(&cmd),
                                                   sizeof(cmd), false, true)) {
+      if (std::chrono::steady_clock::now() > deadLine) {
+        throw rt::Exception("Couldn't use the HPSQ. Perhaps the Master Minion is hanged?");
+      }
       RT_LOG(WARNING) << "Trying to abort a command but special HPSQ is full. Retrying...";
       std::this_thread::sleep_for(1ms);
     }
@@ -678,6 +682,7 @@ void RuntimeImp::checkDevice(int device) {
 }
 
 void RuntimeImp::abortDevice(DeviceId device) {
+  using namespace std::chrono_literals;
   // we need to ensure runtime is in running state to allow dispatch and waitForStream to work properly
   auto oldRunningState = running_;
   running_ = true;
@@ -685,7 +690,7 @@ void RuntimeImp::abortDevice(DeviceId device) {
     auto st = createStreamWithoutProfiling(device);
     auto fakeEvt = eventManager_.getNextId();
     streamManager_.addEvent(st, fakeEvt);
-    abortCommand(fakeEvt);
+    abortCommand(fakeEvt, 5s);
     dispatch(fakeEvt);
     waitForStreamWithoutProfiling(st);
     destroyStreamWithoutProfiling(st);

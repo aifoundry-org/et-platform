@@ -66,7 +66,7 @@ public:
 
   EventId stopDeviceTracing(StreamId stream, bool barrier) final;
 
-  EventId abortCommand(EventId commandId) final;
+  EventId abortCommand(EventId commandId, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) final;
 
   EventId abortStream(StreamId streamId) final;
 

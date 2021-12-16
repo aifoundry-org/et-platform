@@ -318,10 +318,13 @@ public:
   /// could be aborted through \ref abortStream.
   ///
   /// @param[in] commandId indicates the command's eventId to abort
+  /// @param[in] timeout indicates the maximum time trying to QUEUE an abort command into the device. If the timeout is
+  /// reached and the runtime was not able to push the command into the device, an Exception will be thrown
   ///
   /// @returns EventId is a handler of the abort command itself which can be waited for (waitForEventId) to synchronize.
   ///
-  virtual EventId abortCommand(EventId commandId) = 0;
+  virtual EventId abortCommand(EventId commandId,
+                               std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) = 0;
 
   /// \brief Instructs the device to abort all outstanding commands on a given stream. This will affect to all commands
   /// previously issued to given stream, later commands will execute normally. NOTE: as per current firmware

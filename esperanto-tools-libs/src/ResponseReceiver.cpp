@@ -80,13 +80,16 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
 }
 
 void ResponseReceiver::startDeviceChecker() {
+  runDeviceChecker_ = true;
   deviceChecker_ = std::thread(std::bind(&ResponseReceiver::checkDevices, this));
 }
 
 ResponseReceiver::~ResponseReceiver() {
   RT_LOG(INFO) << "Destroying response receiver";
-  runDeviceChecker_ = false;
-  deviceChecker_.join();
+  if (runDeviceChecker_) {
+    runDeviceChecker_ = false;
+    deviceChecker_.join();
+  }
   runReceiver_ = false;
   receiver_.join();
   RT_LOG(INFO) << "Response receiver destroyed";

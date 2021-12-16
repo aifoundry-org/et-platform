@@ -36,7 +36,7 @@ private:
 
   std::thread receiver_;
   std::thread deviceChecker_;
-  bool runDeviceChecker_ = true;
+  bool runDeviceChecker_ = false;
   bool runReceiver_ = true;
   dev::IDeviceLayer* deviceLayer_;
   IReceiverServices* receiverServices_;
