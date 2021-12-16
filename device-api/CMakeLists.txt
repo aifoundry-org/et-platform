@@ -9,13 +9,13 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.5)
+project(deviceApi DESCRIPTION "Esperanto DeviceAPI Project" LANGUAGES C CXX)
 
-project(deviceApi VERSION 0.1.0  DESCRIPTION "Esperanto DeviceAPI Project" LANGUAGES C CXX)
+set(PROJECT_VERSION 0.1.0)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 option(DEVICEAPI_BUILD_DOC "Build documentation" OFF)
-option(DEVICEAPI_DEPRECATED "Enable deprecated install targets" ON)
 
 include(GNUInstallDirs)
 

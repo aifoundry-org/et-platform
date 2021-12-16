@@ -1,37 +1,48 @@
-from conans import ConanFile, tools
-from conan.tools.cmake import CMake, CMakeToolchain
+from conan import ConanFile
+from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
+from conans import tools
 import os
+import re
+import sys
+import subprocess
 
 class DeviceApiConan(ConanFile):
     name = "deviceApi"
     version = "0.1.0"
+    url = "https://gitlab.esperanto.ai/software/device-api.git"
+    license = "Esperanto Technologies"
     
     settings = "os", "compiler", "arch", "build_type"
-    exports_sources = "cmake/*", "src/*", "CMakeLists.txt", "deviceApiConfig.cmake.in"
 
-    @property
-    def _build_subfolder(self):
-        return "build_subfolder"
- 
+    scm = {
+        "type": "git",
+        "url": "git@gitlab.esperanto.ai:software/device-api.git",
+        "revision": "auto",
+    }
+    generator = "CMakeDeps"
+
+    def set_version(self):
+        content = tools.load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
+        version = re.search(r"set\(PROJECT_VERSION (.*)\)", content).group(1)
+        self.version = version.strip()
+    
     def generate(self):
         tc = CMakeToolchain(self)
+        # not including documentation for now
+        tc.variables["DEVICEAPI_BUILD_DOC"] = False
         tc.generate()
 
-    _cmake = None
-    def _configure_cmake(self):
-        if not self._cmake:
-            cmake = CMake(self)
-            cmake.configure()
-            self._cmake = cmake
-        return self._cmake
-    
     def build(self):
-        cmake = self._configure_cmake()
+        # install python requirements
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+        cmake = CMake(self)
+        cmake.configure()
         cmake.build()
     
     def package(self):
-        cmake = self._configure_cmake()
+        cmake = CMake(self)
         cmake.install()
+        tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
         
     def package_id(self):
         self.info.header_only()
