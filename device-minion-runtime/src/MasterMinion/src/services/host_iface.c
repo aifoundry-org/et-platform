@@ -139,12 +139,12 @@ static void host_iface_rxisr(uint32_t intID)
 *
 *   OUTPUTS
 *
-*       int8_t      status success or failure of Interface initialization
+*       int32_t      status success or failure of Interface initialization
 *
 ***********************************************************************/
-int8_t Host_Iface_SQs_Init(void)
+int32_t Host_Iface_SQs_Init(void)
 {
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     uint64_t temp = 0;
 
     /* TODO: Need to decide the base address for memory
@@ -267,12 +267,12 @@ vq_cb_t *Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id)
 *
 *   OUTPUTS
 *
-*       int8_t      status success or failure of Interface initialization
+*       int32_t      status success or failure of Interface initialization
 *
 ***********************************************************************/
-int8_t Host_Iface_CQs_Init(void)
+int32_t Host_Iface_CQs_Init(void)
 {
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     uint64_t temp = 0;
 
     /* Initialize the Completion vqueues control block
@@ -280,15 +280,20 @@ int8_t Host_Iface_CQs_Init(void)
     temp = (((uint64_t)MM_CQ_SIZE << 32) | MM_CQS_BASE_ADDRESS);
     atomic_store_local_64((uint64_t *)&Host_CQs, temp);
 
-    for (uint32_t i = 0; (i < MM_CQ_COUNT) && (status == STATUS_SUCCESS); i++)
+    for (uint32_t cq_index = 0; cq_index < MM_CQ_COUNT; cq_index++)
     {
         /* Initialize the spinlock */
-        init_local_spinlock(&Host_CQs.vqueue_locks[i], 0);
+        init_local_spinlock(&Host_CQs.vqueue_locks[cq_index], 0);
 
         /* Initialize the CQ circular buffer */
-        status = VQ_Init(&Host_CQs.vqueues[i],
-            VQ_CIRCBUFF_BASE_ADDR(MM_CQS_BASE_ADDRESS, i, MM_CQ_SIZE), MM_CQ_SIZE, 0,
+        status = VQ_Init(&Host_CQs.vqueues[cq_index],
+            VQ_CIRCBUFF_BASE_ADDR(MM_CQS_BASE_ADDRESS, cq_index, MM_CQ_SIZE), MM_CQ_SIZE, 0,
             sizeof(cmd_size_t), MM_CQ_MEM_TYPE);
+
+        if (status != STATUS_SUCCESS)
+        {
+            break;
+        }
     }
 
     return status;
@@ -364,10 +369,10 @@ uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id)
 *
 *   OUTPUTS
 *
-*       int8_t     Status indicating success or negative error
+*       int32_t     Status indicating success or negative error
 *
 ***********************************************************************/
-int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void *cmd)
+int32_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, const void *cmd)
 {
     (void)sq_id;
     (void)cmd;
@@ -393,12 +398,12 @@ int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void *cmd)
 *
 *   OUTPUTS
 *
-*       int8_t     Status indicating success or negative error
+*       int32_t     Status indicating success or negative error
 *
 ***********************************************************************/
-int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void *p_cmd, uint32_t cmd_size)
+int32_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, const void *p_cmd, uint32_t cmd_size)
 {
-    int8_t status;
+    int32_t status;
 
     /* Acquire the lock. Multiple threads can call this function. */
     acquire_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
@@ -418,7 +423,7 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void *p_cmd, uint32_t cmd_size)
     {
         asm volatile("fence");
         /* TODO: Using MSI idx 0 for single CQ model */
-        status = (int8_t)pcie_interrupt_host(1);
+        status = pcie_interrupt_host(1);
 
         /* Release the lock */
         release_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
@@ -593,10 +598,10 @@ void Host_Iface_Processing(void)
 *
 *   OUTPUTS
 *
-*       int8_t            Returns successful status or error code.
+*       int32_t            Returns successful status or error code.
 *
 ***********************************************************************/
-int8_t Host_Iface_SQs_Deinit(void)
+int32_t Host_Iface_SQs_Deinit(void)
 {
     /* TODO: Perform deinit activities for the SQs */
     PLIC_UnregisterHandler(PU_PLIC_PCIE_MESSAGE_INTR_ID);
@@ -620,10 +625,10 @@ int8_t Host_Iface_SQs_Deinit(void)
 *
 *   OUTPUTS
 *
-*       int8_t            Returns successful status or error code.
+*       int32_t            Returns successful status or error code.
 *
 ***********************************************************************/
-int8_t Host_Iface_CQs_Deinit(void)
+int32_t Host_Iface_CQs_Deinit(void)
 {
     /* TODO: Perform deinit activities for the CQs */
     PLIC_UnregisterHandler(PU_PLIC_PCIE_MESSAGE_INTR_ID);

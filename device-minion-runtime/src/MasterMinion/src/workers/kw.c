@@ -120,7 +120,7 @@ struct kw_internal_status {
     bool kernel_done;
     bool cw_exception;
     bool cw_error;
-    int8_t status;
+    int32_t status;
 };
 
 /*! \var kw_cb_t KW_CB
@@ -569,14 +569,14 @@ static inline int8_t process_kernel_launch_cmd_payload(struct device_ops_kernel_
 *
 *   OUTPUTS
 *
-*       int8_t      status success or error
+*       int32_t      status success or error
 *
 ***********************************************************************/
-int8_t KW_Dispatch_Kernel_Launch_Cmd(
+int32_t KW_Dispatch_Kernel_Launch_Cmd(
     struct device_ops_kernel_launch_cmd_t *cmd, uint8_t sqw_idx, uint8_t *kw_idx)
 {
     kernel_instance_t *kernel = 0;
-    int8_t status = KW_ERROR_KERNEL_INVALID_ADDRESS;
+    int32_t status = KW_ERROR_KERNEL_INVALID_ADDRESS;
     uint8_t slot_index;
 
     /* Verify address bounds
@@ -690,12 +690,12 @@ int8_t KW_Dispatch_Kernel_Launch_Cmd(
 *
 *   OUTPUTS
 *
-*       int8_t      status success or error
+*       int32_t      status success or error
 *
 ***********************************************************************/
-int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd, uint8_t sqw_idx)
+int32_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd, uint8_t sqw_idx)
 {
-    int8_t status;
+    int32_t status;
     uint8_t slot_index;
     cm_iface_message_t message = { 0 };
     struct device_ops_kernel_abort_rsp_t abort_rsp;
@@ -920,14 +920,14 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 *
 *   OUTPUTS
 *
-*       int8_t             status success or error
+*       int32_t             status success or error
 *
 ***********************************************************************/
-static inline int8_t kw_cm_to_mm_kernel_force_abort(
+static inline int32_t kw_cm_to_mm_kernel_force_abort(
     uint64_t kernel_shire_mask, bool reset_on_failure)
 {
     cm_iface_message_t abort_msg = { .header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT };
-    int8_t status;
+    int32_t status;
 
     Log_Write(LOG_LEVEL_DEBUG, "KW:MM->CM:Sending abort multicast msg.\r\n");
 
@@ -939,7 +939,7 @@ static inline int8_t kw_cm_to_mm_kernel_force_abort(
     {
         Log_Write(LOG_LEVEL_ERROR, "KW:MM->CM:Abort Cmd hanged.status:%d\r\n", status);
 
-        int8_t reset_status = STATUS_SUCCESS;
+        int32_t reset_status = STATUS_SUCCESS;
         uint64_t available_shires = 0;
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
 
@@ -1021,7 +1021,7 @@ static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t 
     struct kw_internal_status *status_internal, const kernel_instance_t *kernel)
 {
     cm_iface_message_t message;
-    int8_t status;
+    int32_t status;
     (void)kernel;
 
     Log_Write(LOG_LEVEL_DEBUG, "KW:Processing single msg from CM\r\n");
@@ -1217,7 +1217,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 {
     bool wait_for_ipi = true;
     bool timeout_abort_serviced;
-    int8_t status;
+    int32_t status;
     uint8_t local_sqw_idx;
     uint32_t kernel_state;
     uint64_t kernel_shire_mask;

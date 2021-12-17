@@ -42,19 +42,11 @@
 */
 #define SW_TIMER_HW_COUNT_TO_SW_TICKS(HW_COUNT) (HW_COUNT / SW_TIMER_HW_COUNT_PER_SEC)
 
-/*! \enum SW_TIMER_STATUS_e
-    \brief Enum that provides the status of SW Timer operations
-*/
-typedef enum {
-    SW_TIMER_OPERATION_NOT_SUCCESS = -1,
-    SW_TIMER_OPERATION_SUCCESS = 0
-} SW_TIMER_STATUS_e;
-
-/*! \fn int8_t SW_Timer_Init(void)
+/*! \fn int32_t SW_Timer_Init(void)
     \brief Initializes the SW Timer
     \return Status indicating success or negative error
 */
-int8_t SW_Timer_Init(void);
+int32_t SW_Timer_Init(void);
 
 /*! \fn int8_t SW_Timer_Create_Timeout(void (*timeout_callback_fn)(uint8_t),
                                 uint8_t callback_arg, uint32_t sw_ticks)

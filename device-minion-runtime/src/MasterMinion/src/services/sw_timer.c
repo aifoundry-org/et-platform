@@ -32,6 +32,9 @@
 #include "services/sw_timer.h"
 #include "drivers/pu_timers.h"
 
+/* mm_rt_helpers */
+#include "error_codes.h"
+
 /*! \struct cmd_timeout_instance_
     \brief Holds the information to register a timeout
 */
@@ -180,10 +183,10 @@ static void SW_Timer_isr(void)
 *
 *   OUTPUTS
 *
-*       int8_t         status success or error
+*       int32_t         status success or error
 *
 ***********************************************************************/
-int8_t SW_Timer_Init(void)
+int32_t SW_Timer_Init(void)
 {
     for (uint8_t i = 0; i < SW_TIMER_MAX_SLOTS; i++)
     {
@@ -195,7 +198,7 @@ int8_t SW_Timer_Init(void)
     /* Init the HW timer */
     PU_Timer_Init(SW_Timer_isr, SW_TIMER_HW_COUNT_PER_SEC);
 
-    return SW_TIMER_OPERATION_SUCCESS;
+    return STATUS_SUCCESS;
 }
 
 /************************************************************************

@@ -102,7 +102,7 @@ static inline void dispatcher_assert(
 ***********************************************************************/
 void Dispatcher_Launch(uint32_t hart_id)
 {
-    int8_t status;
+    int32_t status;
     uint64_t sip;
 
     /* Initially set DIRs status to not ready */
@@ -154,8 +154,7 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Initialize SW Timer to register timeouts for commands */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:SW_Timer_Init\r\n");
     status = SW_Timer_Init();
-    dispatcher_assert(
-        status == SW_TIMER_OPERATION_SUCCESS, MM_CW_INIT_ERROR, "SW Timer init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_CW_INIT_ERROR, "SW Timer init failure.");
 
     /* Initialize Computer Workers */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:CW_Init\r\n");

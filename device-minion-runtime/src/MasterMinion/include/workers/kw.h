@@ -148,7 +148,7 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle);
 */
 void KW_Launch(uint32_t hart_id, uint32_t kw_idx);
 
-/*! \fn int8_t KW_Dispatch_Kernel_Launch_Cmd
+/*! \fn int32_t KW_Dispatch_Kernel_Launch_Cmd
         (struct device_ops_kernel_launch_cmd_t *cmd, uint8_t* kw_idx))
     \brief Kernel Worker's interface to dispatch a kernel launch command
     \param cmd Kernel Launch Command
@@ -156,17 +156,17 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx);
     \param kw_idx Pointer to get kernel work index (slot number)
     \return Status success or error
 */
-int8_t KW_Dispatch_Kernel_Launch_Cmd(
+int32_t KW_Dispatch_Kernel_Launch_Cmd(
     struct device_ops_kernel_launch_cmd_t *cmd, uint8_t sqw_idx, uint8_t *kw_idx);
 
-/*! \fn int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
+/*! \fn int32_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
     uint8_t sqw_idx)
     \brief Kernel Worker's interface to dispatch a kernel abort command
     \param cmd Kernel Abort Command
     \param sqw_idx Submission worker queue index
     \return Status success or error
 */
-int8_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd, uint8_t sqw_idx);
+int32_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd, uint8_t sqw_idx);
 
 /*! \fn void KW_Abort_All_Dispatched_Kernels(void)
     \brief Sets the status of each kernel to abort and notifies the KW

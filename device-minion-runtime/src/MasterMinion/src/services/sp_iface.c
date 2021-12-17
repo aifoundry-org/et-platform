@@ -37,6 +37,7 @@
 #include "services/host_cmd_hdlr.h"
 
 /* mm_rt_helpers */
+#include "error_codes.h"
 #include "syscall_internal.h"
 #include "layout.h"
 #include "workers/kw.h"
@@ -60,8 +61,8 @@ typedef struct sp_iface_sq_cb_ {
 static sp_iface_sq_cb_t SP_SQ_CB __attribute__((aligned(64))) = { 0 };
 
 /* Local prototypes */
-static int8_t sp_command_handler(void *cmd_buffer);
-static int8_t wait_for_response_from_service_processor(void);
+static int32_t sp_command_handler(const void *cmd_buffer);
+static int32_t wait_for_response_from_service_processor(void);
 
 /************************************************************************
 *
@@ -77,7 +78,7 @@ static int8_t wait_for_response_from_service_processor(void);
 static void sp_iface_mm_heartbeat_cb(uint8_t param)
 {
     struct mm2sp_heartbeat_event_t event;
-    int8_t status;
+    int32_t status;
     (void)param;
 
     /* Initialize event header */
@@ -129,11 +130,11 @@ static void sp_iface_sp_response_timeout_cb(uint8_t thread_id)
 *       Helper to wait for notification events from service processor
 *
 ***********************************************************************/
-static int8_t wait_for_response_from_service_processor(void)
+static int32_t wait_for_response_from_service_processor(void)
 {
     uint64_t sip;
     int8_t sw_timer_idx;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     /* Create timeout for SP response */
     sw_timer_idx = SW_Timer_Create_Timeout(&sp_iface_sp_response_timeout_cb,
@@ -229,9 +230,9 @@ static int32_t tf_command_handler(void *cmd_buffer)
 *       commands
 *
 ***********************************************************************/
-static int8_t sp_command_handler(void *cmd_buffer)
+static int32_t sp_command_handler(const void *cmd_buffer)
 {
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     const struct dev_cmd_hdr_t *hdr = cmd_buffer;
 
     Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:SP_Command_Handler:hdr:%s%d%s%d%s",
@@ -373,12 +374,12 @@ static int8_t sp_command_handler(void *cmd_buffer)
 *
 *   OUTPUTS
 *
-*       int8_t      status success or failure of Interface initialization
+*       int32_t      status success or failure of Interface initialization
 *
 ***********************************************************************/
-int8_t SP_Iface_Init(void)
+int32_t SP_Iface_Init(void)
 {
-    int8_t status;
+    int32_t status;
 
     status = SP_MM_Iface_Init();
 
@@ -466,16 +467,16 @@ int32_t SP_Iface_Processing(
 *
 *   OUTPUTS
 *
-*       int8_t      status success or failure of Interface initialization
+*       int32_t      status success or failure of Interface initialization
 *
 ***********************************************************************/
-int8_t SP_Iface_Get_Shire_Mask_And_Strap(uint64_t *shire_mask, uint8_t *lvdpll_strap)
+int32_t SP_Iface_Get_Shire_Mask_And_Strap(uint64_t *shire_mask, uint8_t *lvdpll_strap)
 {
     static uint8_t rsp_buff[64] __attribute__((aligned(64))) = { 0 };
     struct dev_cmd_hdr_t *hdr;
     uint64_t rsp_length = 0;
     struct mm2sp_get_active_shire_mask_cmd_t cmd;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     Log_Write(LOG_LEVEL_DEBUG, "MM2SP:SP_Iface_Get_Shire_Mask.\r\n");
 
@@ -553,16 +554,16 @@ int8_t SP_Iface_Get_Shire_Mask_And_Strap(uint64_t *shire_mask, uint8_t *lvdpll_s
 *
 *   OUTPUTS
 *
-*       int8_t      status success or failure of Interface initialization
+*       int32_t      status success or failure of Interface initialization
 *
 ***********************************************************************/
-int8_t SP_Iface_Reset_Minion(uint64_t shire_mask)
+int32_t SP_Iface_Reset_Minion(uint64_t shire_mask)
 {
     static uint8_t rsp_buff[64] __attribute__((aligned(64))) = { 0 };
     const struct dev_cmd_hdr_t *hdr;
     uint64_t rsp_length = 0;
     struct mm2sp_reset_minion_cmd_t cmd;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     Log_Write(LOG_LEVEL_DEBUG, "MM2SP:SP_Iface_Reset_Minion.\r\n");
 
@@ -615,7 +616,7 @@ int8_t SP_Iface_Reset_Minion(uint64_t shire_mask)
             if (hdr->msg_id == MM2SP_RSP_RESET_MINION)
             {
                 const struct mm2sp_reset_minion_rsp_t *rsp = (void *)rsp_buff;
-                status = (int8_t)rsp->results;
+                status = rsp->results;
             }
             else
             {
@@ -653,16 +654,16 @@ int8_t SP_Iface_Reset_Minion(uint64_t shire_mask)
 *
 *   OUTPUTS
 *
-*       int8_t      status success or failure of Interface initialization
+*       int32_t      status success or failure of Interface initialization
 *
 ***********************************************************************/
-int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
+int32_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
 {
     static uint8_t rsp_buff[64] __attribute__((aligned(64))) = { 0 };
     struct dev_cmd_hdr_t *hdr;
     uint64_t rsp_length = 0;
     struct mm2sp_get_cm_boot_freq_cmd_t cmd;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     Log_Write(LOG_LEVEL_DEBUG, "MM2SP:SP_Iface_Get_Boot_Freq.\r\n");
 
@@ -742,17 +743,17 @@ int8_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
 *
 *   OUTPUTS
 *
-*       int8_t      status success or failure of Interface initialization
+*       int32_t      status success or failure of Interface initialization
 *
 ***********************************************************************/
-int8_t SP_Iface_Get_Fw_Version(
+int32_t SP_Iface_Get_Fw_Version(
     mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t *minor, uint8_t *revision)
 {
     uint8_t rsp_buff[64] __attribute__((aligned(64))) = { 0 };
     const struct dev_cmd_hdr_t *hdr;
     uint64_t rsp_length = 0;
     struct mm2sp_get_fw_version_t cmd;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     /* Set the firmware type */
     cmd.fw_type = fw_type;
@@ -835,13 +836,13 @@ int8_t SP_Iface_Get_Fw_Version(
 *
 *   OUTPUTS
 *
-*       int8_t       status success or failure
+*       int32_t       status success or failure
 *
 ***********************************************************************/
-int8_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code)
+int32_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code)
 {
     struct mm2sp_report_error_event_t event;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     /* Initialize event header */
     SP_MM_IFACE_INIT_MSG_HDR(&event.msg_hdr, MM2SP_EVENT_REPORT_ERROR,
@@ -882,13 +883,13 @@ int8_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code)
 *
 *   OUTPUTS
 *
-*       int8_t       status success or failure
+*       int32_t       status success or failure
 *
 ***********************************************************************/
-int8_t SP_Iface_Setup_MM_HeartBeat(void)
+int32_t SP_Iface_Setup_MM_HeartBeat(void)
 {
     int8_t sw_timer_idx;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     /* Create timer for MM heartbeat */
     /* TODO: Fine tune the heartbeat interval */

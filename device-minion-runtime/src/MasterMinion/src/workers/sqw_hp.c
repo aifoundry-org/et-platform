@@ -171,7 +171,7 @@ static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t 
     const struct cmd_header_t *hp_cmd_hdr;
     int32_t processed_val;
     uint32_t cmd_buff_idx = 0;
-    int8_t status;
+    int32_t status;
 
     /* Create a shadow copy of data from HP SQ to L1 Buffer */
     status = VQ_Prefetch_Buffer(hp_vq_cached, hp_vq_used_space, hp_shared_mem_ptr, hp_cmd_buff);

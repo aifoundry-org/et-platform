@@ -39,11 +39,11 @@
  */
 typedef enum { SQ_HP, SQ, CQ } vq_type_t;
 
-/*! \fn int8_t Host_Iface_SQs_Init(void)
+/*! \fn int32_t Host_Iface_SQs_Init(void)
     \brief Initialize Host Interface Submission Queues
     \return Status indicating sucess or a negative error code
 */
-int8_t Host_Iface_SQs_Init(void);
+int32_t Host_Iface_SQs_Init(void);
 
 /*! \fn vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t sq_id)
     \brief Obtain pointer to virtual queue assiciated
@@ -54,11 +54,11 @@ int8_t Host_Iface_SQs_Init(void);
 */
 vq_cb_t *Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id);
 
-/*! \fn int8_t Host_Iface_CQs_Init(void)
+/*! \fn int32_t Host_Iface_CQs_Init(void)
     \brief Initialize Host Interface Completion Queues
     \return Status indicating success or a negative error code
 */
-int8_t Host_Iface_CQs_Init(void);
+int32_t Host_Iface_CQs_Init(void);
 
 /*! \fn uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id)
     \brief Interface to peek into submission queue identified
@@ -68,7 +68,7 @@ int8_t Host_Iface_CQs_Init(void);
 */
 uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id);
 
-/*! \fn int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void* cmd)
+/*! \fn int32_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, const void *cmd)
     \brief Interface to peek into submission queue identiefied by
     the submission queue identifier and obtain the first valid command
     in the cmd pointer provided by the caller
@@ -76,7 +76,7 @@ uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id);
     \param cmd Pointer to command buffer
     \returns Status indicating success or negative error
 */
-int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void *cmd);
+int32_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, const void *cmd);
 
 /*! \fn int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
     \brief Interface to pop a command from submission queue
@@ -88,7 +88,7 @@ int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void *cmd);
 */
 int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void *rx_buff);
 
-/*! \fn int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
+/*! \fn int32_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, const void* p_cmd, uint32_t cmd_size)
     \brief Interface to push a command to the completion queue identified by
     the completion queue identifier
     \param cq_id Completion queue ID
@@ -96,7 +96,7 @@ int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void *rx_buff);
     \param cmd_size Command size
     \return Status indicating success or negative error
 */
-int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void *p_cmd, uint32_t cmd_size);
+int32_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, const void *p_cmd, uint32_t cmd_size);
 
 /*! \fn bool Host_Iface_Interrupt_Status(void)
     \brief Query host interface interrupt status to check if host iface
@@ -111,17 +111,17 @@ bool Host_Iface_Interrupt_Status(void);
 */
 void Host_Iface_Processing(void);
 
-/*! \fn int8_t Host_Iface_SQs_Deinit(void)
+/*! \fn int32_t Host_Iface_SQs_Deinit(void)
     \brief Host interface SQs deinitialization
     \return Status indicating success or negative error
 */
-int8_t Host_Iface_SQs_Deinit(void);
+int32_t Host_Iface_SQs_Deinit(void);
 
-/*! \fn int8_t Host_Iface_CQs_Deinit(void)
+/*! \fn int32_t Host_Iface_CQs_Deinit(void)
     \brief Host interface CQs deinitialization
     \returns Status indicating success or negative error
 */
-int8_t Host_Iface_CQs_Deinit(void);
+int32_t Host_Iface_CQs_Deinit(void);
 
 /******************************/
 /* Special Optimized routines */

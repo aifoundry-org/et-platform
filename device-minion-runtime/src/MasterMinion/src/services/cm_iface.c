@@ -41,6 +41,7 @@
 #include "services/sw_timer.h"
 
 /* mm_rt_helpers */
+#include "error_codes.h"
 #include "layout.h"
 #include "syscall_internal.h"
 #include "cm_mm_defines.h"
@@ -115,9 +116,9 @@ static void mm_to_cm_iface_multicast_timeout_cb(uint8_t thread_id)
 *       None
 *
 ***********************************************************************/
-int8_t CM_Iface_Init(void)
+int32_t CM_Iface_Init(void)
 {
-    int8_t status = 0;
+    int32_t status = 0;
 
     init_local_spinlock(&MM_CM_CB.mm_to_cm_broadcast_lock, 0);
     atomic_store_local_32(&MM_CM_CB.timeout_flag, 0);
@@ -165,10 +166,10 @@ int8_t CM_Iface_Init(void)
 *       None
 *
 ***********************************************************************/
-int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message)
+int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message)
 {
     int8_t sw_timer_idx;
-    int8_t status = 0;
+    int32_t status = 0;
     uint8_t thread_id = get_hart_id() & (HARTS_PER_SHIRE - 1);
     uint32_t timeout_flag = 0;
     uint64_t sip;
@@ -282,12 +283,12 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *con
 *
 *   OUTPUTS
 *
-*       int8_t    status success or failure
+*       int32_t    status success or failure
 *
 ***********************************************************************/
-int8_t CM_Iface_Unicast_Receive(uint64_t cb_idx, cm_iface_message_t *const message)
+int32_t CM_Iface_Unicast_Receive(uint64_t cb_idx, cm_iface_message_t *const message)
 {
-    int8_t status;
+    int32_t status;
 
     circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
                                             cb_idx * CM_MM_IFACE_CIRCBUFFER_SIZE);

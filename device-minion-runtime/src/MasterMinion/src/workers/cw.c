@@ -120,7 +120,7 @@ static inline uint64_t cw_get_booted_shires(void)
     cm_iface_message_t message;
     const mm_to_cm_message_shire_ready_t *shire_ready =
         (const mm_to_cm_message_shire_ready_t *)&message;
-    int8_t internal_status;
+    int32_t internal_status;
     uint64_t booted_shires_mask = 0ULL;
 
     /* Processess messages from CM from CM > MM unicast circbuff */
@@ -179,14 +179,14 @@ static inline uint64_t cw_get_booted_shires(void)
 *
 *   OUTPUTS
 *
-*       int8_t              status success or failure
+*       int32_t              status success or failure
 *
 ***********************************************************************/
-int8_t CW_Init(void)
+int32_t CW_Init(void)
 {
     uint64_t shire_mask = 0;
     uint8_t lvdpll_strap = 0;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     /* Obtain the number of shires to be used from SP and initialize the CW control block */
     status = SP_Iface_Get_Shire_Mask_And_Strap(&shire_mask, &lvdpll_strap);
@@ -361,7 +361,7 @@ void CW_Process_CM_SMode_Messages(void)
 
                 /* Get the mask for available shires in the device */
                 uint64_t available_shires = CW_Get_Physically_Enabled_Shires();
-                int8_t reset_status;
+                int32_t reset_status;
 
                 /* Send cmd to SP to reset all the available shires */
                 /* TODO: We are sending MM shire to reset as well, hence all MM Minions

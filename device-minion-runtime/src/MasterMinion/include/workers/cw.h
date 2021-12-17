@@ -60,12 +60,12 @@ typedef uint8_t cw_shire_state_t;
 */
 #define CW_INIT_TIMEOUT 2U
 
-/*! \fn int8_t CW_Init(void)
+/*! \fn int32_t CW_Init(void)
     \brief Initialize Compute Workers, used by dispatcher
     to initialize compute shires
     \return none
 */
-int8_t CW_Init(void);
+int32_t CW_Init(void);
 
 /*! \fn int8_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
     \brief Receives boot messages from the compute shires

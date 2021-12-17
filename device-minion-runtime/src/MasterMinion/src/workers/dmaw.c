@@ -565,7 +565,7 @@ static inline void process_dma_read_chan_in_use(
     uint32_t dma_read_status;
     bool dma_read_done = false;
     bool dma_read_aborted = false;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     uint16_t msg_id; /* TODO: SW-9022: To be removed */
 
     dma_read_status = dma_get_read_int_status();
@@ -689,7 +689,7 @@ static inline void process_dma_read_chan_aborting(
 {
     dma_channel_status_t read_chan_status;
     exec_cycles_t dma_read_cycles;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     int32_t dma_status;
     uint16_t msg_id; /* TODO: SW-9022: To be removed */
 
@@ -804,7 +804,7 @@ static inline void process_dma_write_chan_in_use(
     bool dma_write_aborted = false;
     exec_cycles_t dma_write_cycles;
     dma_channel_status_t write_chan_status;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     uint16_t msg_id; /* TODO: SW-9022: To be removed */
 
     dma_write_status = dma_get_write_int_status();
@@ -928,7 +928,7 @@ static inline void process_dma_write_chan_aborting(
 {
     dma_channel_status_t write_chan_status;
     exec_cycles_t dma_write_cycles;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     int32_t dma_write_status = STATUS_SUCCESS;
     uint16_t msg_id; /* TODO: SW-9022: To be removed */
 

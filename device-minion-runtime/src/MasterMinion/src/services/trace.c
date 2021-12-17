@@ -43,6 +43,7 @@
 #include "services/log.h"
 
 /* mm_rt_helpers */
+#include "error_codes.h"
 #include "layout.h"
 
 /* Encoder function prototypes */
@@ -140,12 +141,12 @@ static inline void et_trace_buffer_lock_release(void)
 *
 *   OUTPUTS
 *
-*       None
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-int8_t Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
+int32_t Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
 {
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     struct trace_init_info_t hart_init_info;
 
     /* If init information is NULL then do default initialization. */
@@ -316,12 +317,12 @@ uint64_t Trace_Get_CM_Thread_Mask(void)
 *
 *   OUTPUTS
 *
-*       int8_t        status success or error
+*       int32_t        status success or error
 *
 ***********************************************************************/
-int8_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg)
+int32_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg)
 {
-    int8_t status;
+    int32_t status;
 
     /* Transmit the message to Compute Minions */
     status = CM_Iface_Multicast_Send(config_msg->shire_mask, (cm_iface_message_t *)config_msg);

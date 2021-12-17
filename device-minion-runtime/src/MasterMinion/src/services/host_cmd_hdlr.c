@@ -37,6 +37,7 @@
 #include "config/mm_config.h"
 
 /* mm_rt_helpers */
+#include "error_codes.h"
 #include "layout.h"
 
 /*! \def TRACE_NODE_INDEX
@@ -183,14 +184,14 @@
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t abort_cmd_handler(void *command_buffer, uint8_t sqw_hp_idx)
+static inline int32_t abort_cmd_handler(void *command_buffer, uint8_t sqw_hp_idx)
 {
     const struct device_ops_abort_cmd_t *cmd = (struct device_ops_abort_cmd_t *)command_buffer;
     struct device_ops_abort_rsp_t rsp;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD, sqw_hp_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -282,15 +283,15 @@ static inline int8_t abort_cmd_handler(void *command_buffer, uint8_t sqw_hp_idx)
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t compatibility_cmd_handler(void *command_buffer, uint8_t sqw_idx)
+static inline int32_t compatibility_cmd_handler(void *command_buffer, uint8_t sqw_idx)
 {
     const struct check_device_ops_api_compatibility_cmd_t *cmd =
         (struct check_device_ops_api_compatibility_cmd_t *)command_buffer;
     struct device_ops_api_compatibility_rsp_t rsp;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -416,15 +417,15 @@ static inline int8_t compatibility_cmd_handler(void *command_buffer, uint8_t sqw
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_idx)
+static inline int32_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_idx)
 {
     const struct device_ops_device_fw_version_cmd_t *cmd =
         (struct device_ops_device_fw_version_cmd_t *)command_buffer;
     struct device_ops_fw_version_rsp_t rsp = { 0 };
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     mm2sp_fw_type_e fw_type = 0;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
@@ -581,14 +582,14 @@ static inline int8_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_id
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t echo_cmd_handler(void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles)
+static inline int32_t echo_cmd_handler(void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles)
 {
     const struct device_ops_echo_cmd_t *cmd = (struct device_ops_echo_cmd_t *)command_buffer;
     struct device_ops_echo_rsp_t rsp = { 0 };
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -675,10 +676,10 @@ static inline int8_t echo_cmd_handler(void *command_buffer, uint8_t sqw_idx, uin
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t kernel_launch_cmd_handler(
+static inline int32_t kernel_launch_cmd_handler(
     void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles)
 {
     struct device_ops_kernel_launch_cmd_t *cmd =
@@ -686,8 +687,8 @@ static inline int8_t kernel_launch_cmd_handler(
     struct device_ops_kernel_launch_rsp_t rsp;
     uint8_t kw_idx;
     exec_cycles_t cycles;
-    int8_t status = GENERAL_ERROR;
-    int8_t abort_status = STATUS_SUCCESS;
+    int32_t status = GENERAL_ERROR;
+    int32_t abort_status = STATUS_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -830,16 +831,16 @@ static inline int8_t kernel_launch_cmd_handler(
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw_idx)
+static inline int32_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw_idx)
 {
     struct device_ops_kernel_abort_cmd_t *cmd =
         (struct device_ops_kernel_abort_cmd_t *)command_buffer;
     struct device_ops_kernel_abort_rsp_t rsp;
-    int8_t status = GENERAL_ERROR;
-    int8_t abort_status = STATUS_SUCCESS;
+    int32_t status = GENERAL_ERROR;
+    int32_t abort_status = STATUS_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -937,12 +938,13 @@ static inline int8_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw_
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_readlist_cmd_t *cmd)
+static inline int32_t dma_readlist_cmd_process_trace_flags(
+    struct device_ops_dma_readlist_cmd_t *cmd)
 {
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     uint64_t cm_shire_mask;
 
     /* If flags are set to extract both MM and CM Trace buffers. */
@@ -1051,13 +1053,13 @@ static inline int8_t dma_readlist_cmd_process_trace_flags(struct device_ops_dma_
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t dma_readlist_cmd_verify_limits(
+static inline int32_t dma_readlist_cmd_verify_limits(
     const struct device_ops_dma_readlist_cmd_t *cmd, uint8_t *dma_xfer_count)
 {
-    int8_t status;
+    int32_t status;
 
     /* Get number of transfer commands in the read list, based on message payload length. */
     *dma_xfer_count = (uint8_t)(
@@ -1110,7 +1112,7 @@ static inline int32_t dma_readlist_cmd_handler(
     dma_flags_e dma_flag;
     dma_write_chan_id_e chan = DMA_CHAN_ID_WRITE_INVALID;
     int32_t status = GENERAL_ERROR;
-    int8_t abort_status = STATUS_SUCCESS;
+    int32_t abort_status = STATUS_SUCCESS;
     uint64_t total_dma_size = 0;
     uint8_t dma_xfer_count = 0;
     uint8_t loop_cnt;
@@ -1266,13 +1268,13 @@ static inline int32_t dma_readlist_cmd_handler(
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t dma_writelist_cmd_verify_limits(
+static inline int32_t dma_writelist_cmd_verify_limits(
     const struct device_ops_dma_writelist_cmd_t *cmd, uint8_t *dma_xfer_count)
 {
-    int8_t status;
+    int32_t status;
 
     /* Get number of transfer commands in the write list, based on message payload length. */
     *dma_xfer_count = (uint8_t)(
@@ -1327,7 +1329,7 @@ static inline int32_t dma_writelist_cmd_handler(
     uint8_t dma_xfer_count = 0;
     uint8_t loop_cnt;
     int32_t status = GENERAL_ERROR;
-    int8_t abort_status = STATUS_SUCCESS;
+    int32_t abort_status = STATUS_SUCCESS;
     exec_cycles_t cycles;
 
     TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
@@ -1471,15 +1473,15 @@ static inline int32_t dma_writelist_cmd_handler(
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t sqw_idx)
+static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t sqw_idx)
 {
     const struct device_ops_trace_rt_control_cmd_t *cmd =
         (struct device_ops_trace_rt_control_cmd_t *)command_buffer;
     struct device_ops_trace_rt_control_rsp_t rsp;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -1616,15 +1618,15 @@ static inline int8_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t 
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int8_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t sqw_idx)
+static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t sqw_idx)
 {
     const struct device_ops_trace_rt_config_cmd_t *cmd =
         (struct device_ops_trace_rt_config_cmd_t *)command_buffer;
     struct device_ops_trace_rt_config_rsp_t rsp;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -1774,7 +1776,7 @@ static inline void device_unsupported_cmd_event_handler(void *command_buffer, ui
 {
     const struct cmn_header_t *cmd_header = (struct cmn_header_t *)command_buffer;
     struct device_ops_device_fw_error_t event;
-    int8_t status;
+    int32_t status;
 
     /* Fill the event */
     event.event_info.event_hdr.tag_id = cmd_header->tag_id;
@@ -1891,12 +1893,12 @@ int32_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t sta
 *
 *   OUTPUTS
 *
-*       int8_t           Successful status or error code.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-int8_t Host_HP_Command_Handler(void *command_buffer, uint8_t sqw_hp_idx)
+int32_t Host_HP_Command_Handler(void *command_buffer, uint8_t sqw_hp_idx)
 {
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     const struct cmd_header_t *hdr = command_buffer;
 
     switch (hdr->cmd_hdr.msg_id)
