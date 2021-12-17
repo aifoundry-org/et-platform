@@ -22,7 +22,7 @@
 /*! \def SW_TIMER_MAX_SLOTS
     \brief Maximum SW Timer slots allowed to register the timeouts
 */
-#define SW_TIMER_MAX_SLOTS     16
+#define SW_TIMER_MAX_SLOTS 16
 
 #define SW_TIME_FREE_SLOT_FLAG 0xFFFFFFFFFFFFFFFFull
 
@@ -30,7 +30,7 @@
     \brief HW count (10s) after which PU timer will expire periodically
            Note each tick is based of 250 Khz clock. Assuming that divider is set to 1
 */
-#define SW_TIMER_HW_COUNT_PER_SEC   250000
+#define SW_TIMER_HW_COUNT_PER_SEC 250000
 
 /*! \def SW_TIMER_SW_TICKS_TO_HW_COUNT(SW_TICKS)
     \brief Compute number of HW count in SW_TICKS
@@ -64,8 +64,8 @@ int8_t SW_Timer_Init(void);
     \param sw_ticks SW ticks for timeout the cammand
     \return SW Timer slot used to register the tiemout or negative error
 */
-int8_t SW_Timer_Create_Timeout(void (*timeout_callback_fn)(uint8_t),
-                                uint8_t callback_arg, uint32_t sw_ticks);
+int8_t SW_Timer_Create_Timeout(
+    void (*timeout_callback_fn)(uint8_t), uint8_t callback_arg, uint32_t sw_ticks);
 
 /*! \fn void SW_Timer_Cancel_Timeout(uint8_t sw_timer_idx)
     \brief Cancels the timeout already registered

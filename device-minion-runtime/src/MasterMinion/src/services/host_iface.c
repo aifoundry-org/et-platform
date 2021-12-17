@@ -77,21 +77,21 @@ typedef struct host_iface_cqs_cb_ {
     queues interface
     \warning Not thread safe!
 */
-static host_iface_sqs_hp_cb_t Host_SQs_HP __attribute__((aligned(64))) = {0};
+static host_iface_sqs_hp_cb_t Host_SQs_HP __attribute__((aligned(64))) = { 0 };
 
 /*! \var host_iface_sqs_cb_t Host_SQs
     \brief Global Host to MM submission
     queues interface
     \warning Not thread safe!
 */
-static host_iface_sqs_cb_t Host_SQs __attribute__((aligned(64))) = {0};
+static host_iface_sqs_cb_t Host_SQs __attribute__((aligned(64))) = { 0 };
 
 /*! \var host_iface_cqs_cb_t Host_CQs
     \brief Global MM to Host Minion completion
     queues interface
     \warning Not thread safe!
 */
-static host_iface_cqs_cb_t Host_CQs __attribute__((aligned(64))) = {0};
+static host_iface_cqs_cb_t Host_CQs __attribute__((aligned(64))) = { 0 };
 
 /*! \var bool Host_Iface_Interrupt_Flag
     \brief Global Submission vqueues Control Block
@@ -99,32 +99,27 @@ static host_iface_cqs_cb_t Host_CQs __attribute__((aligned(64))) = {0};
 */
 static volatile bool Host_Iface_Interrupt_Flag __attribute__((aligned(64))) = false;
 
-
 /* Local fn proptotypes */
 static void host_iface_rxisr(uint32_t intID);
 
 static void host_iface_rxisr(uint32_t intID)
 {
-    (void) intID;
+    (void)intID;
 
-    Log_Write(LOG_LEVEL_DEBUG,
-        "Dispatcher:PCIe interrupt!\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "Dispatcher:PCIe interrupt!\r\n");
 
     Host_Iface_Interrupt_Flag = true;
 
     /* TODO: Move this to a interrupt ack API within
     the driver abstraction, if ack mechanism is generic
     across interrupts this ack API can go to interrupts.c */
-    volatile uint32_t *const pcie_int_dec_ptr =
-        (uint32_t *)(R_PU_TRG_MMIN_BASEADDR + 0x8);
-    volatile uint32_t *const pcie_int_cnt_ptr =
-        (uint32_t *)(R_PU_TRG_MMIN_BASEADDR + 0xC);
+    volatile uint32_t *const pcie_int_dec_ptr = (uint32_t *)(R_PU_TRG_MMIN_BASEADDR + 0x8);
+    volatile uint32_t *const pcie_int_cnt_ptr = (uint32_t *)(R_PU_TRG_MMIN_BASEADDR + 0xC);
 
     if (*pcie_int_cnt_ptr)
     {
         *pcie_int_dec_ptr = 1;
     }
-
 }
 
 /************************************************************************
@@ -158,14 +153,14 @@ int8_t Host_Iface_SQs_Init(void)
     /* Initialize High Priority Submission vqueues control block
     based on build configuration mm_config.h */
     temp = ((MM_SQ_HP_SIZE << 32) | MM_SQS_HP_BASE_ADDRESS);
-    atomic_store_local_64((uint64_t*)&Host_SQs_HP, temp);
+    atomic_store_local_64((uint64_t *)&Host_SQs_HP, temp);
 
     for (uint32_t i = 0; (i < MM_SQ_HP_COUNT); i++)
     {
         /* Initialize the High Priority SQ circular buffer */
         status = VQ_Init(&Host_SQs_HP.vqueues[i],
-            VQ_CIRCBUFF_BASE_ADDR(MM_SQS_HP_BASE_ADDRESS, i, MM_SQ_HP_SIZE),
-            MM_SQ_HP_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE);
+            VQ_CIRCBUFF_BASE_ADDR(MM_SQS_HP_BASE_ADDRESS, i, MM_SQ_HP_SIZE), MM_SQ_HP_SIZE, 0,
+            sizeof(cmd_size_t), MM_SQ_MEM_TYPE);
 
         /* Check for error */
         if (status != STATUS_SUCCESS)
@@ -181,14 +176,14 @@ int8_t Host_Iface_SQs_Init(void)
         /* Initialize the Submission vqueues control block
         based on build configuration mm_config.h */
         temp = ((MM_SQ_SIZE << 32) | MM_SQS_BASE_ADDRESS);
-        atomic_store_local_64((uint64_t*)&Host_SQs, temp);
+        atomic_store_local_64((uint64_t *)&Host_SQs, temp);
 
         for (uint32_t i = 0; (i < MM_SQ_COUNT); i++)
         {
             /* Initialize the SQ circular buffer */
             status = VQ_Init(&Host_SQs.vqueues[i],
-                VQ_CIRCBUFF_BASE_ADDR(MM_SQS_BASE_ADDRESS, i, MM_SQ_SIZE),
-                MM_SQ_SIZE, 0, sizeof(cmd_size_t), MM_SQ_MEM_TYPE);
+                VQ_CIRCBUFF_BASE_ADDR(MM_SQS_BASE_ADDRESS, i, MM_SQ_SIZE), MM_SQ_SIZE, 0,
+                sizeof(cmd_size_t), MM_SQ_MEM_TYPE);
 
             /* Check for error */
             if (status != STATUS_SUCCESS)
@@ -205,8 +200,7 @@ int8_t Host_Iface_SQs_Init(void)
         /* Register host interface interrupt service routine to the host
         PCIe interrupt that is used to notify MM runtime of host's push
         to any of the submission vqueues */
-        PLIC_RegisterHandler(PU_PLIC_PCIE_MESSAGE_INTR_ID, HIFACE_INT_PRIORITY,
-            host_iface_rxisr);
+        PLIC_RegisterHandler(PU_PLIC_PCIE_MESSAGE_INTR_ID, HIFACE_INT_PRIORITY, host_iface_rxisr);
     }
 
     return status;
@@ -232,27 +226,26 @@ int8_t Host_Iface_SQs_Init(void)
 *       vq_cb_t*    Pointer to Virtual queue base
 *
 ***********************************************************************/
-vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id)
+vq_cb_t *Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id)
 {
-    vq_cb_t* retval=0;
+    vq_cb_t *retval = 0;
 
-    if(vq_type == SQ)
+    if (vq_type == SQ)
     {
         retval = &Host_SQs.vqueues[vq_id];
     }
-    else if(vq_type == CQ)
+    else if (vq_type == CQ)
     {
         retval = &Host_CQs.vqueues[vq_id];
     }
-    else if(vq_type == SQ_HP)
+    else if (vq_type == SQ_HP)
     {
         retval = &Host_SQs_HP.vqueues[vq_id];
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR,
-            "HostIface:ERROR:Obtaining VQ base address, bad vq_id: %d\r\n",
-            vq_id);
+        Log_Write(
+            LOG_LEVEL_ERROR, "HostIface:ERROR:Obtaining VQ base address, bad vq_id: %d\r\n", vq_id);
     }
 
     return retval;
@@ -285,18 +278,17 @@ int8_t Host_Iface_CQs_Init(void)
     /* Initialize the Completion vqueues control block
     based on build configuration mm_config.h */
     temp = (((uint64_t)MM_CQ_SIZE << 32) | MM_CQS_BASE_ADDRESS);
-    atomic_store_local_64((uint64_t*)&Host_CQs, temp);
+    atomic_store_local_64((uint64_t *)&Host_CQs, temp);
 
-    for (uint32_t i = 0; (i < MM_CQ_COUNT) &&
-        (status == STATUS_SUCCESS); i++)
+    for (uint32_t i = 0; (i < MM_CQ_COUNT) && (status == STATUS_SUCCESS); i++)
     {
         /* Initialize the spinlock */
         init_local_spinlock(&Host_CQs.vqueue_locks[i], 0);
 
         /* Initialize the CQ circular buffer */
         status = VQ_Init(&Host_CQs.vqueues[i],
-            VQ_CIRCBUFF_BASE_ADDR(MM_CQS_BASE_ADDRESS, i, MM_CQ_SIZE),
-            MM_CQ_SIZE, 0, sizeof(cmd_size_t), MM_CQ_MEM_TYPE);
+            VQ_CIRCBUFF_BASE_ADDR(MM_CQS_BASE_ADDRESS, i, MM_CQ_SIZE), MM_CQ_SIZE, 0,
+            sizeof(cmd_size_t), MM_CQ_MEM_TYPE);
     }
 
     return status;
@@ -351,9 +343,7 @@ uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id)
     cmd_size_t command_size;
 
     /* Peek the command size to pop from SQ */
-    VQ_Peek(&Host_SQs.vqueues[sq_id],
-            (void *)&command_size, 0,
-            sizeof(cmd_size_t));
+    VQ_Peek(&Host_SQs.vqueues[sq_id], (void *)&command_size, 0, sizeof(cmd_size_t));
 
     return command_size;
 }
@@ -377,11 +367,10 @@ uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id)
 *       int8_t     Status indicating success or negative error
 *
 ***********************************************************************/
-int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void* cmd)
+int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void *cmd)
 {
-    (void) sq_id;
-    (void) cmd;
-
+    (void)sq_id;
+    (void)cmd;
 
     return 0;
 }
@@ -407,7 +396,7 @@ int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void* cmd)
 *       int8_t     Status indicating success or negative error
 *
 ***********************************************************************/
-int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
+int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void *p_cmd, uint32_t cmd_size)
 {
     int8_t status;
 
@@ -419,11 +408,11 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
     {
         /* Push the response to circular buffer */
         status = VQ_Push(&Host_CQs.vqueues[cq_id], p_cmd, cmd_size);
-        if(status != STATUS_SUCCESS)
+        if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_WARNING, "CQ[%d] push warning: status code: %d\n", cq_id, status);
         }
-    } while(status == CIRCBUFF_ERROR_FULL);
+    } while (status == CIRCBUFF_ERROR_FULL);
 
     if (status == STATUS_SUCCESS)
     {
@@ -436,9 +425,8 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
 
         if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR,
-                "HostIface:CQ_Push:ERROR: Notification (Error: %d)\r\n",
-                status);
+            Log_Write(
+                LOG_LEVEL_ERROR, "HostIface:CQ_Push:ERROR: Notification (Error: %d)\r\n", status);
         }
     }
     else
@@ -446,9 +434,7 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
         /* Release the lock */
         release_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
 
-        Log_Write(LOG_LEVEL_ERROR,
-            "HostIface:CQ_Push:ERROR: VQ Push (Error: %d)\r\n",
-            status);
+        Log_Write(LOG_LEVEL_ERROR, "HostIface:CQ_Push:ERROR: VQ Push (Error: %d)\r\n", status);
     }
 
     return status;
@@ -474,7 +460,7 @@ int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
 *       int32_t   Status indicating success or negative error
 *
 ***********************************************************************/
-int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
+int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void *rx_buff)
 {
     int32_t pop_ret_val;
 
@@ -483,8 +469,7 @@ int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
 
     if (pop_ret_val < 0)
     {
-        Log_Write(LOG_LEVEL_ERROR,
-            "HostIface:SQ_Pop:ERROR:VQ pop failed.(Error code: %d)\r\n",
+        Log_Write(LOG_LEVEL_ERROR, "HostIface:SQ_Pop:ERROR:VQ pop failed.(Error code: %d)\r\n",
             pop_ret_val);
     }
 
@@ -547,7 +532,7 @@ void Host_Iface_Processing(void)
     uint8_t sq_id;
     bool status;
 
-    if(Host_Iface_Interrupt_Flag)
+    if (Host_Iface_Interrupt_Flag)
     {
         Host_Iface_Interrupt_Flag = false;
         asm volatile("fence");
@@ -558,18 +543,16 @@ void Host_Iface_Processing(void)
     {
         status = VQ_Data_Avail(&Host_SQs.vqueues[sq_id]);
 
-        if(status == true)
+        if (status == true)
         {
-            Log_Write(LOG_LEVEL_DEBUG,
-                "HostIfaceProcessing:Notifying:SQW_IDX:%d\r\n", sq_id);
+            Log_Write(LOG_LEVEL_DEBUG, "HostIfaceProcessing:Notifying:SQW_IDX:%d\r\n", sq_id);
 
             /* Dispatch work to SQ Worker associated with this SQ */
             SQW_Notify(sq_id);
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG,
-                "HostIfaceProcessing:NoData:SQ_IDX:%d\r\n", sq_id);
+            Log_Write(LOG_LEVEL_DEBUG, "HostIfaceProcessing:NoData:SQ_IDX:%d\r\n", sq_id);
         }
     }
 
@@ -578,18 +561,16 @@ void Host_Iface_Processing(void)
     {
         status = VQ_Data_Avail(&Host_SQs_HP.vqueues[sq_id]);
 
-        if(status == true)
+        if (status == true)
         {
-            Log_Write(LOG_LEVEL_DEBUG,
-                "HostIfaceProcessing:Notifying:SQW_HP_IDX:%d\r\n", sq_id);
+            Log_Write(LOG_LEVEL_DEBUG, "HostIfaceProcessing:Notifying:SQW_HP_IDX:%d\r\n", sq_id);
 
             /* Dispatch work to HP SQ Worker associated with this HP SQ */
             SQW_HP_Notify(sq_id);
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG,
-                "HostIfaceProcessing:NoData:SQ_HP_IDX:%d\r\n", sq_id);
+            Log_Write(LOG_LEVEL_DEBUG, "HostIfaceProcessing:NoData:SQ_HP_IDX:%d\r\n", sq_id);
         }
     }
 

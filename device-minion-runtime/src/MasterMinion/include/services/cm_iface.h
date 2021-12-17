@@ -27,7 +27,7 @@
 /*! \def TIMEOUT_MM_CM_MSG(x)
     \brief Timeout value (10s) for MM->CM messages
 */
-#define TIMEOUT_MM_CM_MSG(x)    (x * 1U)
+#define TIMEOUT_MM_CM_MSG(x) (x * 1U)
 
 /*! \def CM_IFACE_MULTICAST_INAVLID_SHIRE_MASK
     \brief CM Iface error - Invalid multicast shire mask
@@ -50,8 +50,7 @@ int8_t CM_Iface_Init(void);
     \param message Pointer to message buffer
     \return Status success or error
 */
-int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
-    cm_iface_message_t *const message);
+int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message);
 
 /*! \fn int8_t CM_Iface_Unicast_Receive(uint64_t cb_idx,
     cm_iface_message_t *const message)
@@ -63,7 +62,6 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
     \warning Not thread safe. Only one caller per cb_idx.
     User needs to use the respective locking APIs if thread safety is required.
 */
-int8_t CM_Iface_Unicast_Receive(uint64_t cb_idx,
-    cm_iface_message_t *const message);
+int8_t CM_Iface_Unicast_Receive(uint64_t cb_idx, cm_iface_message_t *const message);
 
 #endif

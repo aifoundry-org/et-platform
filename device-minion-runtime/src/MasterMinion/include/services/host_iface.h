@@ -32,16 +32,12 @@
 /*! \def HIFACE_INT_PRIORITY
     \brief Macro that provides the Host Interface interrupt priority.
 */
-#define     HIFACE_INT_PRIORITY    1
+#define HIFACE_INT_PRIORITY 1
 
 /**
  * @brief Enum of supported virtual queue types
  */
-typedef enum {
-    SQ_HP,
-    SQ,
-    CQ
-} vq_type_t;
+typedef enum { SQ_HP, SQ, CQ } vq_type_t;
 
 /*! \fn int8_t Host_Iface_SQs_Init(void)
     \brief Initialize Host Interface Submission Queues
@@ -56,7 +52,7 @@ int8_t Host_Iface_SQs_Init(void);
     \param vq_id Virtual Queue ID
     \return vq_cb_t* Pointer to the virtual queue control block
 */
-vq_cb_t* Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id);
+vq_cb_t *Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type, uint8_t vq_id);
 
 /*! \fn int8_t Host_Iface_CQs_Init(void)
     \brief Initialize Host Interface Completion Queues
@@ -80,7 +76,7 @@ uint32_t Host_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id);
     \param cmd Pointer to command buffer
     \returns Status indicating success or negative error
 */
-int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void* cmd);
+int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void *cmd);
 
 /*! \fn int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff)
     \brief Interface to pop a command from submission queue
@@ -90,7 +86,7 @@ int8_t Host_Iface_Peek_SQ_Cmd_Hdr(uint8_t sq_id, void* cmd);
     \param rx_buff Pointer to command rx buffer
     \return Number of bytes popped if > 0, no data if 0, and error code if < 0
 */
-int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff);
+int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void *rx_buff);
 
 /*! \fn int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size)
     \brief Interface to push a command to the completion queue identified by
@@ -100,7 +96,7 @@ int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void* rx_buff);
     \param cmd_size Command size
     \return Status indicating success or negative error
 */
-int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void* p_cmd, uint32_t cmd_size);
+int8_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, void *p_cmd, uint32_t cmd_size);
 
 /*! \fn bool Host_Iface_Interrupt_Status(void)
     \brief Query host interface interrupt status to check if host iface

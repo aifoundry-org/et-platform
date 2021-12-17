@@ -37,8 +37,8 @@
 */
 typedef struct cmd_timeout_instance_ {
     uint64_t expiration_time; /* Time at/after which timeout triggers */
-    void     (*timeout_callback_fn)(uint8_t);
-    uint8_t  callback_arg;
+    void (*timeout_callback_fn)(uint8_t);
+    uint8_t callback_arg;
 } cmd_timeout_t;
 
 /*! \struct sw_timer_cb_
@@ -47,8 +47,8 @@ typedef struct cmd_timeout_instance_ {
     till now
 */
 typedef struct sw_timer_cb_ {
-    uint64_t     accum_period;
-    spinlock_t   resource_lock;
+    uint64_t accum_period;
+    spinlock_t resource_lock;
     cmd_timeout_t cmd_timeout_cb[SW_TIMER_MAX_SLOTS];
 } sw_timer_cb_t;
 
@@ -56,7 +56,7 @@ typedef struct sw_timer_cb_ {
     \brief Global SW Timer Control Block
     \warning Not thread safe!
 */
-static sw_timer_cb_t SW_TIMER_CB __attribute__((aligned(64))) = {0};
+static sw_timer_cb_t SW_TIMER_CB __attribute__((aligned(64))) = { 0 };
 
 /*! \var bool SW_Timer_Interrupt_Flag
     \brief Global Flag to indicate PU Timer interrupt triggered
@@ -70,14 +70,13 @@ static volatile bool SW_Timer_Interrupt_Flag __attribute__((aligned(64))) = fals
 */
 static inline int8_t get_free_slot(void)
 {
-    for(int8_t sw_timer_idx = 0; sw_timer_idx < SW_TIMER_MAX_SLOTS; sw_timer_idx++)
+    for (int8_t sw_timer_idx = 0; sw_timer_idx < SW_TIMER_MAX_SLOTS; sw_timer_idx++)
     {
-        if(atomic_load_local_64(
-            &SW_TIMER_CB.cmd_timeout_cb[sw_timer_idx].expiration_time) ==
+        if (atomic_load_local_64(&SW_TIMER_CB.cmd_timeout_cb[sw_timer_idx].expiration_time) ==
             SW_TIME_FREE_SLOT_FLAG)
-            {
-                return sw_timer_idx;
-            }
+        {
+            return sw_timer_idx;
+        }
     }
 
     return -1;
@@ -117,7 +116,7 @@ void SW_Timer_Processing(void)
     uint64_t accum_period;
     void (*timeout_callback_fn)(uint8_t);
 
-    if(SW_Timer_Interrupt_Flag)
+    if (SW_Timer_Interrupt_Flag)
     {
         SW_Timer_Interrupt_Flag = false;
         asm volatile("fence");
@@ -128,13 +127,11 @@ void SW_Timer_Processing(void)
 
     for (uint8_t i = 0; i < SW_TIMER_MAX_SLOTS; i++)
     {
-        if(atomic_load_local_64(&SW_TIMER_CB.cmd_timeout_cb[i].expiration_time)
-            <= accum_period)
+        if (atomic_load_local_64(&SW_TIMER_CB.cmd_timeout_cb[i].expiration_time) <= accum_period)
         {
-            timeout_callback_fn = (void*)(uint64_t)atomic_load_local_64(
-                (void*)&SW_TIMER_CB.cmd_timeout_cb[i].timeout_callback_fn);
-            timeout_callback_fn(atomic_load_local_8(
-                &SW_TIMER_CB.cmd_timeout_cb[i].callback_arg));
+            timeout_callback_fn = (void *)(uint64_t)atomic_load_local_64(
+                (void *)&SW_TIMER_CB.cmd_timeout_cb[i].timeout_callback_fn);
+            timeout_callback_fn(atomic_load_local_8(&SW_TIMER_CB.cmd_timeout_cb[i].callback_arg));
         }
     }
 }
@@ -160,8 +157,7 @@ void SW_Timer_Processing(void)
 ***********************************************************************/
 static void SW_Timer_isr(void)
 {
-    Log_Write(LOG_LEVEL_DEBUG,
-        "Dispatcher:PU Timer Expiration interrupt!\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "Dispatcher:PU Timer Expiration interrupt!\r\n");
 
     SW_Timer_Interrupt_Flag = true;
 
@@ -189,11 +185,11 @@ static void SW_Timer_isr(void)
 ***********************************************************************/
 int8_t SW_Timer_Init(void)
 {
-    for(uint8_t i = 0; i < SW_TIMER_MAX_SLOTS; i++)
+    for (uint8_t i = 0; i < SW_TIMER_MAX_SLOTS; i++)
     {
         /* Use max uint64_t value as flag to mark this slot of time as free */
-        atomic_store_local_64(&SW_TIMER_CB.cmd_timeout_cb[i].expiration_time,
-            SW_TIME_FREE_SLOT_FLAG);
+        atomic_store_local_64(
+            &SW_TIMER_CB.cmd_timeout_cb[i].expiration_time, SW_TIME_FREE_SLOT_FLAG);
     }
 
     /* Init the HW timer */
@@ -201,7 +197,6 @@ int8_t SW_Timer_Init(void)
 
     return SW_TIMER_OPERATION_SUCCESS;
 }
-
 
 /************************************************************************
 *
@@ -224,8 +219,8 @@ int8_t SW_Timer_Init(void)
 *       free_timer_slot       SWTimer slot used to create timeout
 *
 ***********************************************************************/
-int8_t SW_Timer_Create_Timeout(void (*timeout_callback_fn)(uint8_t),
-                                uint8_t callback_arg, uint32_t sw_ticks)
+int8_t SW_Timer_Create_Timeout(
+    void (*timeout_callback_fn)(uint8_t), uint8_t callback_arg, uint32_t sw_ticks)
 {
     int8_t free_timer_slot;
 
@@ -233,19 +228,17 @@ int8_t SW_Timer_Create_Timeout(void (*timeout_callback_fn)(uint8_t),
     acquire_local_spinlock(&SW_TIMER_CB.resource_lock);
 
     free_timer_slot = get_free_slot();
-    if(free_timer_slot >= 0)
+    if (free_timer_slot >= 0)
     {
         atomic_store_local_64(
-            (void*)&SW_TIMER_CB.cmd_timeout_cb[free_timer_slot].timeout_callback_fn,
+            (void *)&SW_TIMER_CB.cmd_timeout_cb[free_timer_slot].timeout_callback_fn,
             (uint64_t)timeout_callback_fn);
-        atomic_store_local_8(&SW_TIMER_CB.cmd_timeout_cb[free_timer_slot].callback_arg,
-            callback_arg);
+        atomic_store_local_8(
+            &SW_TIMER_CB.cmd_timeout_cb[free_timer_slot].callback_arg, callback_arg);
         /* Store expiration_time = sw_ticks + accum_period + elapsed_time */
-        atomic_store_local_64(
-            &SW_TIMER_CB.cmd_timeout_cb[free_timer_slot].expiration_time,
-            SW_TIMER_SW_TICKS_TO_HW_COUNT(sw_ticks)
-            + atomic_load_local_64(&SW_TIMER_CB.accum_period)
-            + SW_Timer_Get_Elapsed_Time());
+        atomic_store_local_64(&SW_TIMER_CB.cmd_timeout_cb[free_timer_slot].expiration_time,
+            SW_TIMER_SW_TICKS_TO_HW_COUNT(sw_ticks) +
+                atomic_load_local_64(&SW_TIMER_CB.accum_period) + SW_Timer_Get_Elapsed_Time());
     }
 
     /* Release the lock */
@@ -277,11 +270,11 @@ void SW_Timer_Cancel_Timeout(uint8_t sw_timer_idx)
 {
     /* Use max uint64_t value as flag to mark this slot of timer as free */
     atomic_store_local_64(
-        &SW_TIMER_CB.cmd_timeout_cb[sw_timer_idx].expiration_time,
-        SW_TIME_FREE_SLOT_FLAG);
+        &SW_TIMER_CB.cmd_timeout_cb[sw_timer_idx].expiration_time, SW_TIME_FREE_SLOT_FLAG);
 
     /* Clear the callback */
-    atomic_store_local_64((void*)&SW_TIMER_CB.cmd_timeout_cb[sw_timer_idx].timeout_callback_fn, 0U);
+    atomic_store_local_64(
+        (void *)&SW_TIMER_CB.cmd_timeout_cb[sw_timer_idx].timeout_callback_fn, 0U);
 }
 
 /************************************************************************

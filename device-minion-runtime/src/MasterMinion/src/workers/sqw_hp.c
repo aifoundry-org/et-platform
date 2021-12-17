@@ -40,15 +40,15 @@
     \brief High Priority Submission Queue Worker Control Block structure
 */
 typedef struct sqw_hp_cb_ {
-    local_fcc_flag_t    sqw_fcc_flags[MM_SQ_HP_COUNT];
-    int32_t             barrier_cmds_count[MM_SQ_HP_COUNT];
+    local_fcc_flag_t sqw_fcc_flags[MM_SQ_HP_COUNT];
+    int32_t barrier_cmds_count[MM_SQ_HP_COUNT];
 } sqw_hp_cb_t;
 
 /*! \var sqw_hp_cb_t SQW_HP_CB
     \brief Global High Priority Submission Queue Worker Control Block
     \warning Not thread safe!
 */
-static sqw_hp_cb_t SQW_HP_CB __attribute__((aligned(64))) = {0};
+static sqw_hp_cb_t SQW_HP_CB __attribute__((aligned(64))) = { 0 };
 
 /************************************************************************
 *
@@ -77,7 +77,7 @@ static inline void sqw_hp_command_barrier(uint8_t sqw_hp_idx)
     do
     {
         asm volatile("fence\n" ::: "memory");
-    } while (atomic_load_local_32((uint32_t*)&SQW_HP_CB.barrier_cmds_count[sqw_hp_idx]) != 0U);
+    } while (atomic_load_local_32((uint32_t *)&SQW_HP_CB.barrier_cmds_count[sqw_hp_idx]) != 0U);
 }
 
 /************************************************************************
@@ -105,7 +105,7 @@ void SQW_HP_Init(void)
     for (uint8_t sqw_hp_idx = 0; sqw_hp_idx < MM_SQ_HP_COUNT; sqw_hp_idx++)
     {
         local_fcc_flag_init(&SQW_HP_CB.sqw_fcc_flags[sqw_hp_idx]);
-        atomic_store_local_32((uint32_t*)&SQW_HP_CB.barrier_cmds_count[sqw_hp_idx], 0U);
+        atomic_store_local_32((uint32_t *)&SQW_HP_CB.barrier_cmds_count[sqw_hp_idx], 0U);
     }
 }
 
@@ -133,13 +133,11 @@ void SQW_HP_Notify(uint8_t sqw_hp_idx)
     /* Uses odd Harts always */
     uint32_t minion = SQW_HP_WORKER_0 + sqw_hp_idx;
 
-    Log_Write(LOG_LEVEL_DEBUG, "SQW_HP:Notify:minion=%d:thread=%d\r\n",
-        minion, SQW_HP_THREAD_ID);
+    Log_Write(LOG_LEVEL_DEBUG, "SQW_HP:Notify:minion=%d:thread=%d\r\n", minion, SQW_HP_THREAD_ID);
 
     /* TODO: Future improvements: 1. To use IPIs.
     2. Improve FCC to address security concerns. */
-    local_fcc_flag_notify_no_ack(&SQW_HP_CB.sqw_fcc_flags[sqw_hp_idx],
-        minion, SQW_HP_THREAD_ID);
+    local_fcc_flag_notify_no_ack(&SQW_HP_CB.sqw_fcc_flags[sqw_hp_idx], minion, SQW_HP_THREAD_ID);
 }
 
 /************************************************************************
@@ -167,7 +165,7 @@ void SQW_HP_Notify(uint8_t sqw_hp_idx)
 *
 ***********************************************************************/
 static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t *hp_vq_cached,
-    vq_cb_t *hp_vq_shared, void* hp_shared_mem_ptr, uint64_t hp_vq_used_space)
+    vq_cb_t *hp_vq_shared, void *hp_shared_mem_ptr, uint64_t hp_vq_used_space)
 {
     uint8_t hp_cmd_buff[64] __attribute__((aligned(8))) = { 0 };
     const struct cmd_header_t *hp_cmd_hdr;
@@ -181,33 +179,32 @@ static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t 
     /* Update the tail offset in VQ shared memory so that host is able to push new commands */
     Host_Iface_Optimized_SQ_Update_Tail(hp_vq_shared, hp_vq_cached);
 
-    if(status != STATUS_SUCCESS)
+    if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "SQW_HP:ERROR:VQ_Prefetch_Buffer failed:%d\r\n",
-            status);
+        Log_Write(LOG_LEVEL_ERROR, "SQW_HP:ERROR:VQ_Prefetch_Buffer failed:%d\r\n", status);
         return;
     }
 
-    while(cmd_buff_idx < hp_vq_used_space)
+    while (cmd_buff_idx < hp_vq_used_space)
     {
         /* Process commands from L1 prefetched copy */
         processed_val = VQ_Process_Command(hp_cmd_buff, hp_vq_used_space, cmd_buff_idx);
 
-        if(processed_val > 0)
+        if (processed_val > 0)
         {
             /* Set the command starting address */
-            hp_cmd_hdr = (void*)&hp_cmd_buff[cmd_buff_idx];
+            hp_cmd_hdr = (void *)&hp_cmd_buff[cmd_buff_idx];
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "SQW_HP:Processing:SQW_HP_IDX=%d:tag_id=%x:Popped_length:%d\r\n",
-                sqw_hp_idx, hp_cmd_hdr->cmd_hdr.tag_id, processed_val);
+                "SQW_HP:Processing:SQW_HP_IDX=%d:tag_id=%x:Popped_length:%d\r\n", sqw_hp_idx,
+                hp_cmd_hdr->cmd_hdr.tag_id, processed_val);
 
             /* If barrier flag is set, wait until all cmds are
             processed in the current HP SQ */
-            if(hp_cmd_hdr->cmd_hdr.flags & CMD_FLAGS_BARRIER_ENABLE)
+            if (hp_cmd_hdr->cmd_hdr.flags & CMD_FLAGS_BARRIER_ENABLE)
             {
                 TRACE_LOG_CMD_STATUS(hp_cmd_hdr->cmd_hdr.msg_id, (uint8_t)sqw_hp_idx,
-                                     hp_cmd_hdr->cmd_hdr.tag_id, CMD_STATUS_WAIT_BARRIER);
+                    hp_cmd_hdr->cmd_hdr.tag_id, CMD_STATUS_WAIT_BARRIER);
 
                 sqw_hp_command_barrier((uint8_t)sqw_hp_idx);
             }
@@ -216,10 +213,9 @@ static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t 
             SQW_HP_Increment_Command_Count((uint8_t)sqw_hp_idx);
 
             /* Process the high priority command */
-            status = Host_HP_Command_Handler(&hp_cmd_buff[cmd_buff_idx],
-                (uint8_t)sqw_hp_idx);
+            status = Host_HP_Command_Handler(&hp_cmd_buff[cmd_buff_idx], (uint8_t)sqw_hp_idx);
 
-            if(status != STATUS_SUCCESS)
+            if (status != STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_ERROR, "SQW_HP:ERROR:Processing failed:%d\r\n", status);
             }
@@ -227,9 +223,10 @@ static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t 
             /* Update the command buffer index */
             cmd_buff_idx += (uint32_t)processed_val;
         }
-        else if(processed_val < 0)
+        else if (processed_val < 0)
         {
-            Log_Write(LOG_LEVEL_ERROR, "SQW_HP:ERROR:VQ cmd processing failed:%d\r\n", processed_val);
+            Log_Write(
+                LOG_LEVEL_ERROR, "SQW_HP:ERROR:VQ cmd processing failed:%d\r\n", processed_val);
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_PROCESSING_ERROR);
 
             /* Being pessimistic and update the command buffer index with VQ cmd header size */
@@ -261,7 +258,7 @@ static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t 
 __attribute__((noreturn)) void SQW_HP_Launch(uint32_t hart_id, uint32_t sqw_hp_idx)
 {
     uint64_t hp_tail_prev;
-    void* hp_shared_mem_ptr;
+    void *hp_shared_mem_ptr;
     circ_buff_cb_t circ_buff_cached __attribute__((aligned(64)));
     vq_cb_t hp_vq_cached;
 
@@ -270,24 +267,27 @@ __attribute__((noreturn)) void SQW_HP_Launch(uint32_t hart_id, uint32_t sqw_hp_i
     vq_cb_t *hp_vq_shared = Host_Iface_Get_VQ_Base_Addr(SQ_HP, (uint8_t)sqw_hp_idx);
 
     /* Make a copy of the VQ CB in cached DRAM to cached L1 stack variable */
-    ETSOC_Memory_Read_Local_Atomic((void*)hp_vq_shared, (void*)&hp_vq_cached, sizeof(hp_vq_cached));
+    ETSOC_Memory_Read_Local_Atomic(
+        (void *)hp_vq_shared, (void *)&hp_vq_cached, sizeof(hp_vq_cached));
 
     /* Make a copy of the Circular Buffer CB in shared SRAM to cached L1 stack variable */
-    ETSOC_Memory_Read_Uncacheable((void*)hp_vq_cached.circbuff_cb, (void*)&circ_buff_cached,
-        sizeof(circ_buff_cached));
+    ETSOC_Memory_Read_Uncacheable(
+        (void *)hp_vq_cached.circbuff_cb, (void *)&circ_buff_cached, sizeof(circ_buff_cached));
 
     /* Save the shared memory pointer */
-    hp_shared_mem_ptr = (void*)hp_vq_cached.circbuff_cb->buffer_ptr;
+    hp_shared_mem_ptr = (void *)hp_vq_cached.circbuff_cb->buffer_ptr;
 
     /* Verify that the head pointer in cached variable and shared SRAM are 8-byte aligned addresses */
-    if (!(IS_ALIGNED(&circ_buff_cached.head_offset, 8) && IS_ALIGNED(&hp_vq_cached.circbuff_cb->head_offset, 8)))
+    if (!(IS_ALIGNED(&circ_buff_cached.head_offset, 8) &&
+            IS_ALIGNED(&hp_vq_cached.circbuff_cb->head_offset, 8)))
     {
         Log_Write(LOG_LEVEL_ERROR, "SQW_HP:SQ HEAD not 64-bit aligned\r\n");
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_HP_BUFFER_ALIGNMENT_ERROR);
     }
 
     /* Verify that the tail pointer in cached variable and shared SRAM are 8-byte aligned addresses */
-    if (!(IS_ALIGNED(&circ_buff_cached.tail_offset, 8) && IS_ALIGNED(&hp_vq_cached.circbuff_cb->tail_offset, 8)))
+    if (!(IS_ALIGNED(&circ_buff_cached.tail_offset, 8) &&
+            IS_ALIGNED(&hp_vq_cached.circbuff_cb->tail_offset, 8)))
     {
         Log_Write(LOG_LEVEL_ERROR, "SQW_HP:SQ tail not 64-bit aligned\r\n");
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_HP_BUFFER_ALIGNMENT_ERROR);
@@ -298,7 +298,7 @@ __attribute__((noreturn)) void SQW_HP_Launch(uint32_t hart_id, uint32_t sqw_hp_i
 
     Log_Write(LOG_LEVEL_INFO, "SQW_HP:H%d:IDX=%d\r\n", hart_id, sqw_hp_idx);
 
-    while(1)
+    while (1)
     {
         /* Wait for SQ Worker notification from Dispatcher */
         local_fcc_flag_wait(&SQW_HP_CB.sqw_fcc_flags[sqw_hp_idx]);
@@ -312,11 +312,11 @@ __attribute__((noreturn)) void SQW_HP_Launch(uint32_t hart_id, uint32_t sqw_hp_i
         VQ_Get_Head_And_Tail(hp_vq_shared, &hp_vq_cached);
 
         /* Verify that the tail value read from memory is equal to previous tail value */
-        if(hp_tail_prev != VQ_Get_Tail_Offset(&hp_vq_cached))
+        if (hp_tail_prev != VQ_Get_Tail_Offset(&hp_vq_cached))
         {
             Log_Write(LOG_LEVEL_ERROR,
-            "SQW_HP:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
-            hp_tail_prev, VQ_Get_Tail_Offset(&hp_vq_cached));
+                "SQW_HP:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
+                hp_tail_prev, VQ_Get_Tail_Offset(&hp_vq_cached));
 
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_HP_PROCESSING_ERROR);
 
@@ -328,11 +328,11 @@ __attribute__((noreturn)) void SQW_HP_Launch(uint32_t hart_id, uint32_t sqw_hp_i
         uint64_t hp_vq_used_space = VQ_Get_Used_Space(&hp_vq_cached, CIRCBUFF_FLAG_NO_READ);
 
         /* Process commands until there is no more data in VQ */
-        while(hp_vq_used_space)
+        while (hp_vq_used_space)
         {
             /* Process the pending commands */
-            sqw_hp_process_waiting_commands(sqw_hp_idx, &hp_vq_cached, hp_vq_shared,
-                hp_shared_mem_ptr, hp_vq_used_space);
+            sqw_hp_process_waiting_commands(
+                sqw_hp_idx, &hp_vq_cached, hp_vq_shared, hp_shared_mem_ptr, hp_vq_used_space);
 
             /* Re-calculate the total number of bytes available in the VQ */
             hp_vq_used_space = VQ_Get_Used_Space(&hp_vq_cached, CIRCBUFF_FLAG_NO_READ);
@@ -370,15 +370,13 @@ void SQW_HP_Decrement_Command_Count(uint8_t sqw_hp_idx)
 
     if ((original_val - 1) < 0)
     {
-        Log_Write(LOG_LEVEL_ERROR,
-            "SQW_HP[%d] Decrement:Command Counter is Negative : %d\r\n",
-            sqw_hp_idx, original_val -1);
+        Log_Write(LOG_LEVEL_ERROR, "SQW_HP[%d] Decrement:Command Counter is Negative : %d\r\n",
+            sqw_hp_idx, original_val - 1);
     }
     else
     {
-        Log_Write(LOG_LEVEL_DEBUG,
-            "SQW_HP[%d] Decrement:Command Counter: %d\r\n",
-            sqw_hp_idx, original_val - 1);
+        Log_Write(LOG_LEVEL_DEBUG, "SQW_HP[%d] Decrement:Command Counter: %d\r\n", sqw_hp_idx,
+            original_val - 1);
     }
 }
 
@@ -405,10 +403,9 @@ void SQW_HP_Decrement_Command_Count(uint8_t sqw_hp_idx)
 void SQW_HP_Increment_Command_Count(uint8_t sqw_hp_idx)
 {
     /* Increment commands count being processed by current HP SQW */
-    int32_t original_val =
-        atomic_add_signed_local_32(&SQW_HP_CB.barrier_cmds_count[sqw_hp_idx], 1);
+    int32_t original_val = atomic_add_signed_local_32(&SQW_HP_CB.barrier_cmds_count[sqw_hp_idx], 1);
     (void)original_val;
 
-    Log_Write(LOG_LEVEL_DEBUG,
-        "SQW_HP[%d] Increment:Command Count: %d\r\n", sqw_hp_idx, original_val + 1);
+    Log_Write(LOG_LEVEL_DEBUG, "SQW_HP[%d] Increment:Command Count: %d\r\n", sqw_hp_idx,
+        original_val + 1);
 }

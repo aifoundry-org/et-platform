@@ -66,8 +66,8 @@ extern bool SW_Timer_Interrupt_Flag;
 
 /* Local functions */
 
-static inline void dispatcher_assert(bool condition, mm2sp_sp_recoverable_error_code_e error,
-    const char* error_log)
+static inline void dispatcher_assert(
+    bool condition, mm2sp_sp_recoverable_error_code_e error, const char *error_log)
 {
     if (!condition)
     {
@@ -116,14 +116,13 @@ void Dispatcher_Launch(uint32_t hart_id)
     2. SP to MM SQ, and Sp to MM CQ */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:SP_Iface_Init\r\n");
     status = SP_Iface_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, MM_SP_IFACE_INIT_ERROR,
-        "Service Processor init failure.");
+    dispatcher_assert(
+        status == STATUS_SUCCESS, MM_SP_IFACE_INIT_ERROR, "Service Processor init failure.");
 
     /* Initialize Serial Interface */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:SERIAL_init\r\n");
     status = (int8_t)SERIAL_init(PU_UART0);
-    dispatcher_assert(status == STATUS_SUCCESS, MM_SERIAL_INIT_ERROR,
-        "Serial init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_SERIAL_INIT_ERROR, "Serial init failure.");
 
     Log_Write(LOG_LEVEL_CRITICAL, "Dispatcher:launched on H%d\r\n", hart_id);
     Log_Write(LOG_LEVEL_CRITICAL, "Dispatcher:Master Minion variant: " MM_VARIANT "\r\n");
@@ -135,8 +134,7 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Initialize PLIC driver */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:PLIC_Init\r\n");
     PLIC_Init();
-    Log_Write(LOG_LEVEL_INFO,
-        "Dispatcher:Setting DIR ready status, INTERRUPT_INITIALIZED\r\n");
+    Log_Write(LOG_LEVEL_INFO, "Dispatcher:Setting DIR ready status, INTERRUPT_INITIALIZED\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_INTERRUPT_INITIALIZED);
 
     /* Initialize the interface to compute minion */
@@ -144,30 +142,27 @@ void Dispatcher_Launch(uint32_t hart_id)
     status = CM_Iface_Init();
     dispatcher_assert(status == STATUS_SUCCESS, MM_CM_IFACE_INIT_ERROR,
         "Compute Workers's interface init failure.");
-    Log_Write(LOG_LEVEL_INFO,
-        "Dispatcher:Setting DIR ready status, MM_CM_INTERFACE_READY\r\n");
+    Log_Write(LOG_LEVEL_INFO, "Dispatcher:Setting DIR ready status, MM_CM_INTERFACE_READY\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_CM_INTERFACE_READY);
 
     /* Also enable waking from WFI on supervisor external and timer interrupts (IPIs),
     Host interrupts go to the PLIC, which are received as external interrupts. */
     asm volatile("csrs  sie, %0\n"
-            : : "r" ((1 << SUPERVISOR_EXTERNAL_INTERRUPT) |
-            (1 << SUPERVISOR_TIMER_INTERRUPT)));
+                 :
+                 : "r"((1 << SUPERVISOR_EXTERNAL_INTERRUPT) | (1 << SUPERVISOR_TIMER_INTERRUPT)));
 
     /* Initialize SW Timer to register timeouts for commands */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:SW_Timer_Init\r\n");
     status = SW_Timer_Init();
-    dispatcher_assert(status == SW_TIMER_OPERATION_SUCCESS, MM_CW_INIT_ERROR,
-        "SW Timer init failure.");
+    dispatcher_assert(
+        status == SW_TIMER_OPERATION_SUCCESS, MM_CW_INIT_ERROR, "SW Timer init failure.");
 
-     /* Initialize Computer Workers */
+    /* Initialize Computer Workers */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:CW_Init\r\n");
     status = CW_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, MM_CW_INIT_ERROR,
-        "Compute Workers init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_CW_INIT_ERROR, "Compute Workers init failure.");
 
-    Log_Write(LOG_LEVEL_INFO,
-        "Dispatcher:Setting DIR ready status, CM_WORKERS_INITIALIZED\r\n");
+    Log_Write(LOG_LEVEL_INFO, "Dispatcher:Setting DIR ready status, CM_WORKERS_INITIALIZED\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_CM_WORKERS_INITIALIZED);
 
     /* Initialize Master Shire Workers */
@@ -179,27 +174,22 @@ void Dispatcher_Launch(uint32_t hart_id)
     KW_Init();
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:DMAW_Init\r\n");
     DMAW_Init();
-    Log_Write(LOG_LEVEL_INFO,
-        "Dispatcher:Setting DIR ready status, MM_WORKERS_INITIALIZED\r\n");
+    Log_Write(LOG_LEVEL_INFO, "Dispatcher:Setting DIR ready status, MM_WORKERS_INITIALIZED\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_WORKERS_INITIALIZED);
 
     /* Initialize Host Submission Queue and Completion Queue Interface */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:Host_Iface_SQs_Init\r\n");
     status = Host_Iface_SQs_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, MM_SQ_INIT_ERROR,
-        "Host SQs init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_SQ_INIT_ERROR, "Host SQs init failure.");
 
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:Host_Iface_CQs_Init\r\n");
     status = Host_Iface_CQs_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, MM_CQ_INIT_ERROR,
-        "Host CQs init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_CQ_INIT_ERROR, "Host CQs init failure.");
 
-    Log_Write(LOG_LEVEL_INFO,
-        "Dispatcher:Setting DIR ready status, MM_HOST_VQ_READY\r\n");
+    Log_Write(LOG_LEVEL_INFO, "Dispatcher:Setting DIR ready status, MM_HOST_VQ_READY\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_HOST_VQ_READY);
 
-    Log_Write(LOG_LEVEL_INFO,
-        "Dispatcher:Setting DIR ready status, MM_SP_INTERFACE_READY\r\n");
+    Log_Write(LOG_LEVEL_INFO, "Dispatcher:Setting DIR ready status, MM_SP_INTERFACE_READY\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_SP_INTERFACE_READY);
 
     /* Release Master Shire Workers */
@@ -209,8 +199,7 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Setup MM->SP Heartbeat */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:SP_Iface_Setup_MM_HeartBeat\r\n");
     status = SP_Iface_Setup_MM_HeartBeat();
-    dispatcher_assert(status == STATUS_SUCCESS, MM_CW_INIT_ERROR,
-        "MM->SP Heartbeat init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_CW_INIT_ERROR, "MM->SP Heartbeat init failure.");
 
     /* Master Minion boot is completed, now redirect logs to Trace. */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:Direct logging to trace\r\n");
@@ -226,7 +215,7 @@ void Dispatcher_Launch(uint32_t hart_id)
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_READY);
 
     /* Wait for a message from the host, SP, worker minions etc. */
-    while(1)
+    while (1)
     {
         /* Wait for an interrupt */
         asm volatile("wfi");
@@ -234,10 +223,9 @@ void Dispatcher_Launch(uint32_t hart_id)
         /* Read pending interrupts */
         SUPERVISOR_PENDING_INTERRUPTS(sip);
 
-        Log_Write(LOG_LEVEL_DEBUG,
-            "Dispatcher:Exiting WFI! SIP: 0x%" PRIx64 "\r\n", sip);
+        Log_Write(LOG_LEVEL_DEBUG, "Dispatcher:Exiting WFI! SIP: 0x%" PRIx64 "\r\n", sip);
 
-        if(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
+        if (sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
         {
             /* Clear IPI pending interrupt */
             asm volatile("csrc sip, %0" : : "r"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
@@ -246,22 +234,22 @@ void Dispatcher_Launch(uint32_t hart_id)
             CW_Process_CM_SMode_Messages();
         }
 
-        if(sip & (1 << SUPERVISOR_EXTERNAL_INTERRUPT))
+        if (sip & (1 << SUPERVISOR_EXTERNAL_INTERRUPT))
         {
             PLIC_Dispatch();
 
-            if(Host_Iface_Interrupt_Status())
+            if (Host_Iface_Interrupt_Status())
             {
                 Host_Iface_Processing();
             }
 
-            if(SW_Timer_Interrupt_Status())
+            if (SW_Timer_Interrupt_Status())
             {
                 SW_Timer_Processing();
             }
         }
 
-        if(sip & (1 << SUPERVISOR_TIMER_INTERRUPT))
+        if (sip & (1 << SUPERVISOR_TIMER_INTERRUPT))
         {
             /* TODO: set new mtimecp, timer_tick()*/
         }

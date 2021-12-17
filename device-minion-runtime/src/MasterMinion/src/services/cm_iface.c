@@ -56,8 +56,8 @@
 */
 typedef struct mm_cm_iface_cb {
     spinlock_t mm_to_cm_broadcast_lock;
-    uint32_t   timeout_flag;
-    uint8_t    sw_timer_idx;
+    uint32_t timeout_flag;
+    uint8_t sw_timer_idx;
 } mm_cm_iface_cb_t;
 
 /*! \var mm_cm_iface_cb_t MM_CM_CB
@@ -72,20 +72,16 @@ static mm_cm_iface_cb_t MM_CM_CB __attribute__((aligned(64))) = { 0 };
 */
 static uint32_t MM_CM_Broadcast_Last_Number __attribute__((aligned(64))) = 1;
 
-
 static void mm_to_cm_iface_multicast_timeout_cb(uint8_t arg);
 
-static inline int64_t broadcast_ipi_trigger
-    (uint64_t dest_shire_mask, uint64_t dest_hart_mask)
+static inline int64_t broadcast_ipi_trigger(uint64_t dest_shire_mask, uint64_t dest_hart_mask)
 {
     const uint64_t broadcast_parameters = broadcast_encode_parameters(
-        ESR_SHIRE_IPI_TRIGGER_PROT, ESR_SHIRE_REGION,
-        ESR_SHIRE_IPI_TRIGGER_REGNO);
+        ESR_SHIRE_IPI_TRIGGER_PROT, ESR_SHIRE_REGION, ESR_SHIRE_IPI_TRIGGER_REGNO);
 
     /* Broadcast dest_hart_mask to IPI_TRIGGER ESR in all shires
     in dest_shire_mask */
-    return syscall(SYSCALL_BROADCAST_INT, dest_hart_mask,
-        dest_shire_mask, broadcast_parameters);
+    return syscall(SYSCALL_BROADCAST_INT, dest_hart_mask, dest_shire_mask, broadcast_parameters);
 }
 
 static void mm_to_cm_iface_multicast_timeout_cb(uint8_t thread_id)
@@ -127,27 +123,22 @@ int8_t CM_Iface_Init(void)
     atomic_store_local_32(&MM_CM_CB.timeout_flag, 0);
 
     /* Master->worker broadcast message number and id */
-    atomic_store_global_8
-        (&mm_to_cm_broadcast_message_buffer_ptr->header.number, 0);
-    atomic_store_global_8
-        (&mm_to_cm_broadcast_message_buffer_ptr->header.id,
-        MM_TO_CM_MESSAGE_ID_NONE);
+    atomic_store_global_8(&mm_to_cm_broadcast_message_buffer_ptr->header.number, 0);
+    atomic_store_global_8(
+        &mm_to_cm_broadcast_message_buffer_ptr->header.id, MM_TO_CM_MESSAGE_ID_NONE);
 
     /* CM to MM Unicast Circularbuffer control blocks */
     for (uint32_t i = 0; i < (1 + MAX_SIMULTANEOUS_KERNELS); i++)
     {
-        circ_buff_cb_t *cb =
-            (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR
-            + i * CM_MM_IFACE_CIRCBUFFER_SIZE);
+        circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
+                                                i * CM_MM_IFACE_CIRCBUFFER_SIZE);
 
-        spinlock_t *lock =
-            &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[i];
+        spinlock_t *lock = &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[i];
 
         init_global_spinlock(lock, 0);
 
-        status = Circbuffer_Init(cb,
-        (uint32_t)(CM_MM_IFACE_CIRCBUFFER_SIZE - sizeof(circ_buff_cb_t)),
-        L2_SCP);
+        status = Circbuffer_Init(
+            cb, (uint32_t)(CM_MM_IFACE_CIRCBUFFER_SIZE - sizeof(circ_buff_cb_t)), L2_SCP);
     }
 
     return status;
@@ -174,8 +165,7 @@ int8_t CM_Iface_Init(void)
 *       None
 *
 ***********************************************************************/
-int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
-        cm_iface_message_t *const message)
+int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message)
 {
     int8_t sw_timer_idx;
     int8_t status = 0;
@@ -184,11 +174,10 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
     uint64_t sip;
     broadcast_message_ctrl_t msg_control;
 
-    Log_Write(LOG_LEVEL_DEBUG,
-        "CM_Iface_Multicast_Send:Sending multicast msg\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "CM_Iface_Multicast_Send:Sending multicast msg\r\n");
 
     /* Verify the shire mask */
-    if(dest_shire_mask == 0)
+    if (dest_shire_mask == 0)
     {
         return CM_IFACE_MULTICAST_INAVLID_SHIRE_MASK;
     }
@@ -197,20 +186,17 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
 
     /* Create timeout for MM->CM multicast complete */
     sw_timer_idx = SW_Timer_Create_Timeout(
-        &mm_to_cm_iface_multicast_timeout_cb, thread_id,
-        TIMEOUT_MM_CM_MSG(5));
+        &mm_to_cm_iface_multicast_timeout_cb, thread_id, TIMEOUT_MM_CM_MSG(5));
 
-    if(sw_timer_idx < 0)
+    if (sw_timer_idx < 0)
     {
-        Log_Write(LOG_LEVEL_ERROR,
-            "MM->CM: Unable to register Multicast timeout!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "MM->CM: Unable to register Multicast timeout!\r\n");
         status = -1;
     }
     else
     {
         /* Save the SW timer index in global CB */
-        atomic_store_local_8(&MM_CM_CB.sw_timer_idx,
-            (uint8_t)sw_timer_idx);
+        atomic_store_local_8(&MM_CM_CB.sw_timer_idx, (uint8_t)sw_timer_idx);
 
         /* Check for overflow */
         atomic_compare_and_exchange_local_32(&MM_CM_Broadcast_Last_Number, 255, 1);
@@ -221,12 +207,11 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
         /* Configure broadcast message control data */
         msg_control.shire_count = (uint32_t)__builtin_popcountll(dest_shire_mask);
         msg_control.sender_thread_id = thread_id;
-        atomic_store_global_64(&mm_to_cm_broadcast_message_ctrl_ptr->raw_u64,
-            msg_control.raw_u64);
+        atomic_store_global_64(&mm_to_cm_broadcast_message_ctrl_ptr->raw_u64, msg_control.raw_u64);
 
         /* Copy message to shared global buffer */
-        ETSOC_MEM_COPY_AND_EVICT(mm_to_cm_broadcast_message_buffer_ptr, message,
-            sizeof(*message), to_L3)
+        ETSOC_MEM_COPY_AND_EVICT(
+            mm_to_cm_broadcast_message_buffer_ptr, message, sizeof(*message), to_L3)
 
         /* Send IPI to receivers. Upper 32 Threads of Shire 32 also run Worker FW */
         broadcast_ipi_trigger(dest_shire_mask & 0xFFFFFFFFu, 0xFFFFFFFFFFFFFFFFu);
@@ -238,7 +223,8 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
         /* Wait until all the receiver Shires have ACK'd. 1 IPI for all the shires.
         Then it's safe to send another broadcast message.
         Also, wait until timeout is expired. */
-        do {
+        do
+        {
             /* Wait for an interrupt */
             asm volatile("wfi");
 
@@ -246,7 +232,7 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
             SUPERVISOR_PENDING_INTERRUPTS(sip);
 
             /* We are only interested in IPIs */
-            if(!(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT)))
+            if (!(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT)))
             {
                 continue;
             }
@@ -255,18 +241,16 @@ int8_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
             asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
             /* Read the global timeout flag to see for MM->CM message timeout */
-            timeout_flag =
-                atomic_compare_and_exchange_local_32(&MM_CM_CB.timeout_flag, 1, 0);
+            timeout_flag = atomic_compare_and_exchange_local_32(&MM_CM_CB.timeout_flag, 1, 0);
 
             /* Continue to wait for IPI until we shire count is 0 or timeout has occured */
-        } while ((atomic_load_global_32(&mm_to_cm_broadcast_message_ctrl_ptr->shire_count) != 0)
-                && (timeout_flag == 0));
+        } while ((atomic_load_global_32(&mm_to_cm_broadcast_message_ctrl_ptr->shire_count) != 0) &&
+                 (timeout_flag == 0));
 
         /* Check for timeout status */
-        if(timeout_flag != 0)
+        if (timeout_flag != 0)
         {
-            Log_Write(LOG_LEVEL_ERROR,
-                "MM->CM Multicast timeout abort!\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "MM->CM Multicast timeout abort!\r\n");
             status = -1;
         }
         else
@@ -305,9 +289,8 @@ int8_t CM_Iface_Unicast_Receive(uint64_t cb_idx, cm_iface_message_t *const messa
 {
     int8_t status;
 
-    circ_buff_cb_t *cb =
-        (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
-        cb_idx * CM_MM_IFACE_CIRCBUFFER_SIZE);
+    circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
+                                            cb_idx * CM_MM_IFACE_CIRCBUFFER_SIZE);
 
     /* Pop the command from circular buffer */
     status = Circbuffer_Pop(cb, message, sizeof(*message), L2_SCP);
