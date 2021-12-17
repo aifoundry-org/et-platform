@@ -33,6 +33,7 @@
 #include "et_io.h"
 #include "et_ioctl.h"
 #include "et_pci_dev.h"
+#include "et_vma.h"
 #include "et_vqueue.h"
 
 MODULE_LICENSE("GPL");
@@ -427,6 +428,20 @@ static const struct vm_operations_struct esperanto_pcie_vm_ops = {
 
 // clang-format on
 
+struct vm_area_struct *et_find_vma(unsigned long vaddr)
+{
+	struct vm_area_struct *vma;
+
+	mmap_read_lock(current->mm);
+	vma = find_vma(current->mm, vaddr);
+	if (!vma || vma->vm_ops != &esperanto_pcie_vm_ops) {
+		mmap_read_unlock(current->mm);
+		return NULL;
+	}
+	mmap_read_unlock(current->mm);
+	return vma;
+}
+
 static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 {
 	struct et_ops_dev *ops;
@@ -457,13 +472,13 @@ static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 		return -ENOMEM;
 	}
 
-	rv = remap_pfn_range(vma,
-			     vma->vm_start,
-			     __pa((unsigned long)kern_vaddr) >> PAGE_SHIFT,
-			     vma_pages(vma) << PAGE_SHIFT,
-			     vma->vm_page_prot);
+	rv = dma_mmap_coherent(&et_dev->pdev->dev,
+			       vma,
+			       kern_vaddr,
+			       dma_addr,
+			       size);
 	if (rv) {
-		dev_err(&et_dev->pdev->dev, "remap_pfn_range() failed!");
+		dev_err(&et_dev->pdev->dev, "dma_mmap_coherent() failed!");
 		goto error_dma_free_coherent;
 	}
 

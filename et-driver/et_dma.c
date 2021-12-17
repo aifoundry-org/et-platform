@@ -16,6 +16,7 @@
 #include "et_dma.h"
 #include "et_io.h"
 #include "et_pci_dev.h"
+#include "et_vma.h"
 #include "et_vqueue.h"
 
 static inline void et_dma_free_coherent(struct et_dma_info *dma_info)
@@ -407,11 +408,18 @@ ssize_t et_dma_writelist_to_device(struct et_pci_dev *et_dev,
 			return rv;
 		}
 
-		vma = find_vma(current->mm,
-			       cmd->list[node_num].src_host_virt_addr);
+		vma = et_find_vma(cmd->list[node_num].src_host_virt_addr);
 		if (!vma) {
 			dev_err(&et_dev->pdev->dev,
 				"mapping for writelist[%u].src_host_virt_addr not found!",
+				node_num);
+			return rv;
+		}
+
+		map = vma->vm_private_data;
+		if (!map) {
+			dev_err(&et_dev->pdev->dev,
+				"mapping for writelist[%u].src_host_virt_addr is corrupted!",
 				node_num);
 			return rv;
 		}
@@ -497,11 +505,18 @@ ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev,
 			return rv;
 		}
 
-		vma = find_vma(current->mm,
-			       cmd->list[node_num].dst_host_virt_addr);
+		vma = et_find_vma(cmd->list[node_num].dst_host_virt_addr);
 		if (!vma) {
 			dev_err(&et_dev->pdev->dev,
 				"mapping for readlist[%u].dst_host_virt_addr not found!",
+				node_num);
+			return rv;
+		}
+
+		map = vma->vm_private_data;
+		if (!map) {
+			dev_err(&et_dev->pdev->dev,
+				"mapping for readlist[%u].dst_host_virt_addr is corrupted!",
 				node_num);
 			return rv;
 		}
@@ -530,7 +545,6 @@ ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev,
 			return rv;
 		}
 
-		map = vma->vm_private_data;
 		cmd->list[node_num].dst_host_phy_addr =
 			map->dma_addr + cmd->list[node_num].dst_host_virt_addr -
 			vma->vm_start;
