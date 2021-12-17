@@ -74,6 +74,16 @@ void Command::enable() {
   parent_.enable(eventId_);
 }
 
+void CommandSender::setCommandData(EventId command, std::vector<std::byte> data) {
+  std::unique_lock lock(mutex_);
+  auto it =
+    std::find_if(begin(commands_), end(commands_), [command](const Command& elem) { return elem.eventId_ == command; });
+  if (it == end(commands_)) {
+    throw Exception("Trying to set data into  a non-existing command");
+  }
+  it->commandData_ = std::move(data);
+}
+
 void CommandSender::enable(EventId event) {
   std::unique_lock lock(mutex_);
   auto it =

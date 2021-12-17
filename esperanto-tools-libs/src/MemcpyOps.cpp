@@ -11,6 +11,7 @@
 #include "MemcpyOps.h"
 #include "RuntimeImp.h"
 #include "ScopedProfileEvent.h"
+#include "dma/CmaManager.h"
 #include "runtime/Types.h"
 #include <algorithm>
 #include <chrono>
@@ -20,6 +21,7 @@
 #include <g3log/loglevels.hpp>
 #include <iterator>
 #include <mutex>
+#include <numeric>
 #include <optional>
 #include <thread>
 #include <type_traits>
@@ -35,6 +37,17 @@ static_assert(offsetof(dma_write_node, size) == offsetof(dma_read_node, size));
 namespace {
 constexpr auto kMinBytesPerEntry = 1024UL;
 constexpr auto kBytesReservedForPrioritaryCommands = 256UL << 20;
+
+size_t getFreeCmaForCommand(const rt::CmaManager& cmaManager, std::optional<rt::EventId> topPrio, rt::EventId eventId) {
+  auto freeSize = cmaManager.getFreeBytes();
+  if (topPrio && topPrio != eventId) {
+    freeSize = (freeSize > kBytesReservedForPrioritaryCommands) ? (freeSize - kBytesReservedForPrioritaryCommands) : 0;
+    RT_VLOG(HIGH) << "Current command :" << static_cast<int>(eventId)
+                  << " Top prio command: " << static_cast<int>(topPrio.value())
+                  << " Max allocation bytes: " << freeSize;
+  }
+  return freeSize;
+}
 } // namespace
 
 namespace rt {
@@ -112,14 +125,8 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const st
     auto pendingBytes = size;
     while (pendingBytes > 0) {
       std::unique_lock lock(mutex_);
-      auto freeSize = cmaManager_->getFreeBytes();
       auto topPrio = cs.getTopPrioritaryCommand();
-      if (topPrio && topPrio != evt) {
-        RT_VLOG(HIGH) << "I'm not top prio command. Me: " << static_cast<int>(evt)
-                      << " Top prio: " << static_cast<int>(topPrio.value());
-        freeSize =
-          (freeSize > kBytesReservedForPrioritaryCommands) ? (freeSize - kBytesReservedForPrioritaryCommands) : 0;
-      }
+      auto freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
       if (freeSize > kMinBytesPerEntry) {
         // calculate current memcpy command size
         auto currentSize =
@@ -182,7 +189,9 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const st
 EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const IDmaBuffer* h_src, std::byte* d_dst, size_t size,
                                        bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, *profiler_, stream);
-  return memcpyHostToDeviceWithoutProfiling(stream, h_src, d_dst, size, barrier);
+  auto eventId = memcpyHostToDeviceWithoutProfiling(stream, h_src, d_dst, size, barrier);
+  profileEvent.setEventId(eventId);
+  return eventId;
 }
 
 EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const IDmaBuffer* h_src, const std::byte* d_dst,
@@ -207,7 +216,9 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const ID
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, IDmaBuffer* h_dst, size_t size,
                                        bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream);
-  return memcpyDeviceToHostWithoutProfiling(stream, d_src, h_dst, size, barrier);
+  auto eventId = memcpyDeviceToHostWithoutProfiling(stream, d_src, h_dst, size, barrier);
+  profileEvent.setEventId(eventId);
+  return eventId;
 }
 
 EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const std::byte* d_src, const IDmaBuffer* h_dst,
@@ -263,14 +274,8 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
     auto pendingBytes = size;
     while (pendingBytes > 0) {
       std::unique_lock lock(mutex_);
-      auto freeSize = cmaManager_->getFreeBytes();
       auto topPrio = cs.getTopPrioritaryCommand();
-      if (topPrio && topPrio != evt) {
-        freeSize =
-          (freeSize > kBytesReservedForPrioritaryCommands) ? (freeSize - kBytesReservedForPrioritaryCommands) : 0;
-        RT_VLOG(MID) << "I'm not top prio command. Me: " << static_cast<int>(evt)
-                     << " Top prio: " << static_cast<int>(topPrio.value()) << " Max allocation bytes: " << freeSize;
-      }
+      auto freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
       if (freeSize > kMinBytesPerEntry) {
         struct FinalCopy {
           std::byte* src;
@@ -313,11 +318,10 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
 
         // add a thread which will free the cma memory
         eventManager_.addOnDispatchCallback(
-          {{cmdEvt}, [this, cmdEvt, cmaPtr, cmdFinalCopies = std::move(cmdFinalCopies), syncCopyEvt] {
+          {{cmdEvt}, [this, cmaPtr, cmdFinalCopies = std::move(cmdFinalCopies), syncCopyEvt] {
              for (auto& copy : cmdFinalCopies) {
                memcpy(copy.dst, copy.src, copy.size);
              }
-             RT_VLOG(HIGH) << "DBG: after final copies for event: " << static_cast<int>(cmdEvt);
              cmaManager_->free(cmaPtr);
              dispatch(syncCopyEvt);
            }});
@@ -327,7 +331,8 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
           RT_VLOG(LOW) << "D2H. Waiting for top prio command: " << static_cast<int>(topPrio.value());
           waitForEventWithoutProfiling(topPrio.value());
         } else {
-          RT_VLOG(LOW) << "D2H. I'm top prio command (" << static_cast<int>(evt) << "); waiting for epoll. ";
+          RT_VLOG(LOW) << "D2H. Current command is top prio command (" << static_cast<int>(evt)
+                       << "); waiting for epoll. ";
           uint64_t sq;
           bool cq;
           deviceLayer_->waitForEpollEventsMasterMinion(streamInfo.device_, sq, cq, std::chrono::milliseconds(1));
@@ -344,6 +349,136 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
     RT_VLOG(HIGH) << "D2H: Cancelled GHOST command: " << static_cast<int>(evt);
   });
 
+  Sync(evt);
+  return evt;
+}
+
+EventId RuntimeImp::memcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier) {
+  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, *profiler_, stream);
+  auto eventId = memcpyHostToDeviceWithoutProfiling(stream, memcpyList, barrier);
+  profileEvent.setEventId(eventId);
+  return eventId;
+}
+EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier) {
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream);
+  auto eventId = memcpyDeviceToHostWithoutProfiling(stream, memcpyList, barrier);
+  profileEvent.setEventId(eventId);
+  return eventId;
+}
+
+EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier) {
+  auto streamInfo = streamManager_.getStreamInfo(stream);
+  checkList(streamInfo.device_, memcpyList);
+  auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
+
+  auto evt = eventManager_.getNextId();
+  RT_VLOG(LOW) << "MemcpyHostToDevice (list) stream: " << static_cast<int>(stream)
+               << " EventId: " << static_cast<int>(evt);
+  streamManager_.addEvent(stream, evt);
+
+  commandSender.send(Command{{}, commandSender, evt});
+  RT_VLOG(HIGH) << "H2D: Added command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
+
+  blockableThreadPool_.pushTask([this, barrier, memcpyList, evt, streamInfo] {
+    auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
+    auto totalSize = 0UL;
+    for (auto& op : memcpyList.operations_) {
+      totalSize += op.size_;
+    }
+    MemcpyCommandBuilder builder(MemcpyType::H2D, barrier);
+    builder.setTagId(evt);
+    std::unique_lock lock(mutex_);
+    auto topPrio = cs.getTopPrioritaryCommand();
+    auto freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
+    while (freeSize <= totalSize) {
+      lock.unlock();
+      if (topPrio != evt) {
+        throw Exception("Inconsistency in runtime: If current command is topPrio command then it should have enough "
+                        "CMA memory available.");
+      }
+      RT_VLOG(LOW) << "H2D. Waiting for top prio command: " << static_cast<int>(topPrio.value());
+      waitForEventWithoutProfiling(topPrio.value());
+      lock.lock();
+      topPrio = cs.getTopPrioritaryCommand();
+      freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
+    }
+    auto cmaPtr = cmaManager_->alloc(totalSize);
+    if (!cmaPtr) {
+      throw Exception("Inconsistency error in CMA Manager");
+    }
+    auto cmaPtrOffset = 0UL;
+    for (auto& op : memcpyList.operations_) {
+      builder.addOp(cmaPtr + cmaPtrOffset, op.dst_, op.size_);
+      std::copy(op.src_, op.src_ + op.size_, cmaPtr + cmaPtrOffset);
+      cmaPtrOffset += op.size_;
+    }
+    cs.setCommandData(evt, builder.build());
+    cs.enable(evt);
+    eventManager_.addOnDispatchCallback({{evt}, [this, cmaPtr] { cmaManager_->free(cmaPtr); }});
+  });
+  Sync(evt);
+  return evt;
+}
+EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier) {
+  auto streamInfo = streamManager_.getStreamInfo(stream);
+  checkList(streamInfo.device_, memcpyList);
+  auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
+
+  auto evt = eventManager_.getNextId();
+  RT_VLOG(LOW) << "MemcpyDeviceToHost (list) stream: " << static_cast<int>(stream)
+               << " EventId: " << static_cast<int>(evt);
+  streamManager_.addEvent(stream, evt);
+
+  commandSender.send(Command{{}, commandSender, evt});
+  RT_VLOG(HIGH) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
+
+  blockableThreadPool_.pushTask([this, barrier, memcpyList, evt, streamInfo, stream] {
+    auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
+    auto totalSize = 0UL;
+    for (auto& op : memcpyList.operations_) {
+      totalSize += op.size_;
+    }
+    std::unique_lock lock(mutex_);
+    auto topPrio = cs.getTopPrioritaryCommand();
+    auto freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
+    while (freeSize <= totalSize) {
+      lock.unlock();
+      if (topPrio != evt) {
+        throw Exception("Inconsistency in runtime: If current command is topPrio command then it should have enough "
+                        "CMA memory available.");
+      }
+      RT_VLOG(LOW) << "D2H. Waiting for top prio command: " << static_cast<int>(topPrio.value());
+      waitForEventWithoutProfiling(topPrio.value());
+      lock.lock();
+      topPrio = cs.getTopPrioritaryCommand();
+      freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
+    }
+    auto cmaPtr = cmaManager_->alloc(totalSize);
+    if (!cmaPtr) {
+      throw Exception("Inconsistency error in CMA Manager");
+    }
+    auto cmaPtrOffset = 0UL;
+    MemcpyCommandBuilder builder(MemcpyType::D2H, barrier);
+    auto cmdEvt = eventManager_.getNextId();
+    streamManager_.addEvent(stream, cmdEvt);
+    builder.setTagId(cmdEvt);
+    for (auto& op : memcpyList.operations_) {
+      builder.addOp(cmaPtr + cmaPtrOffset, op.src_, op.size_);
+      cmaPtrOffset += op.size_;
+    }
+    cs.sendBefore(evt, {builder.build(), cs, cmdEvt, true, true});
+    cs.cancel(evt);
+    RT_VLOG(HIGH) << "D2H: Cancelled GHOST command: " << static_cast<int>(evt);
+
+    // wait for the sent command, do the final copy to user buffers and dispatch the event
+    waitForEventWithoutProfiling(cmdEvt);
+    cmaPtrOffset = 0UL;
+    for (auto& op : memcpyList.operations_) {
+      std::copy(cmaPtr + cmaPtrOffset, cmaPtr + cmaPtrOffset + op.size_, op.dst_);
+      cmaPtrOffset += op.size_;
+    }
+    dispatch(evt);
+  });
   Sync(evt);
   return evt;
 }

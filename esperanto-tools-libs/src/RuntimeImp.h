@@ -50,10 +50,10 @@ public:
 
   EventId memcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) final;
   EventId memcpyDeviceToHost(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) final;
-  EventId memcpyHostToDevice(StreamId stream, const IDmaBuffer* src, std::byte* dst, size_t size,
-                             bool barrier) override;
-  EventId memcpyDeviceToHost(StreamId stream, const std::byte* src, IDmaBuffer* dst, size_t size,
-                             bool barrier) override;
+  EventId memcpyHostToDevice(StreamId stream, const IDmaBuffer* src, std::byte* dst, size_t size, bool barrier) final;
+  EventId memcpyDeviceToHost(StreamId stream, const std::byte* src, IDmaBuffer* dst, size_t size, bool barrier) final;
+  EventId memcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier) final;
+  EventId memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier) final;
 
   bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) final;
   bool waitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) final;
@@ -114,6 +114,9 @@ private:
   EventId memcpyDeviceToHostWithoutProfiling(StreamId stream, const std::byte* src, const IDmaBuffer* dst, size_t size,
                                              bool barrier);
 
+  EventId memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier);
+  EventId memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier);
+
   void checkDevice(int device) override;
   struct Kernel {
     Kernel(DeviceId deviceId, std::byte* deviceBuffer, uint64_t entryPoint)
@@ -145,6 +148,8 @@ private:
   void processResponseError(DeviceErrorCode errorCode, EventId event);
 
   void abortDevice(DeviceId d);
+
+  void checkList(int device, const MemcpyList& list) const;
 
   uint64_t getCommandSenderIdx(int deviceId, int sqIdx) const {
     return (static_cast<uint64_t>(deviceId) << 32ULL) + static_cast<uint64_t>(sqIdx);

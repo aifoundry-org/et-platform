@@ -11,6 +11,7 @@
 #include "RuntimeImp.h"
 #include "TestUtils.h"
 #include "common/Constants.h"
+#include "runtime/Types.h"
 #include <device-layer/IDeviceLayer.h>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logger.h>
@@ -25,6 +26,7 @@ public:
     imp->setMemoryManagerDebugMode(devices_[0], true);
   }
 };
+} // namespace
 
 // Load and removal of a single kernel.
 TEST_F(TestMemcpy, SimpleMemcpy) {
@@ -136,7 +138,57 @@ TEST_F(TestMemcpy, 2GbMemcpy) {
   }
 }
 
-} // namespace
+TEST_F(TestMemcpy, dmaListCheckExceptions) {
+  auto dev = devices_[0];
+  auto stream = runtime_->createStream(dev);
+  auto dmaInfo = deviceLayer_->getDmaInfo(static_cast<int>(dev));
+  rt::MemcpyList list;
+  list.addOp(nullptr, nullptr, dmaInfo.maxElementSize_ + 1);
+  EXPECT_THROW(runtime_->memcpyHostToDevice(stream, list);, rt::Exception);
+  list.operations_.clear();
+  for (auto i = 0U; i <= dmaInfo.maxElementCount_; ++i) {
+    list.addOp(nullptr, nullptr, 1);
+  }
+  EXPECT_THROW(runtime_->memcpyHostToDevice(stream, list);, rt::Exception);
+}
+
+TEST_F(TestMemcpy, dmaListSimple) {
+  auto dev = devices_[0];
+  auto stream = runtime_->createStream(dev);
+  auto dmaInfo = deviceLayer_->getDmaInfo(static_cast<int>(dev));
+  rt::MemcpyList listH2D;
+  rt::MemcpyList listD2H;
+  std::vector<std::byte*> deviceMem;
+  std::vector<std::vector<std::byte>> hostMemSrc;
+  std::vector<std::vector<std::byte>> hostMemDst;
+  std::mt19937 gen(std::random_device{}());
+  std::uniform_int_distribution dis;
+  auto maxEntrySize = 1024;
+  for (auto i = 0U; i < dmaInfo.maxElementCount_; ++i) {
+    auto entrySize = static_cast<size_t>(dis(gen) % maxEntrySize);
+    deviceMem.emplace_back(runtime_->mallocDevice(dev, entrySize));
+    std::vector<std::byte> currentEntry;
+    for (auto j = 0U; j < entrySize; ++j) {
+      currentEntry.emplace_back(std::byte(dis(gen) % 256));
+    }
+    hostMemSrc.emplace_back(currentEntry);
+    hostMemDst.emplace_back(std::vector<std::byte>(entrySize));
+    listH2D.addOp(hostMemSrc[i].data(), deviceMem[i], entrySize);
+    listD2H.addOp(deviceMem[i], hostMemDst[i].data(), entrySize);
+  }
+  // check src and dst are different now
+  for (auto i = 0U; i < hostMemSrc.size(); ++i) {
+    ASSERT_NE(hostMemSrc[i], hostMemDst[i]);
+  }
+  runtime_->memcpyHostToDevice(stream, listH2D);
+  runtime_->memcpyDeviceToHost(stream, listD2H);
+  runtime_->waitForStream(stream);
+
+  // check src and dst are equal after the copies
+  for (auto i = 0U; i < hostMemSrc.size(); ++i) {
+    ASSERT_EQ(hostMemSrc[i], hostMemDst[i]);
+  }
+}
 
 int main(int argc, char** argv) {
   Fixture::sMode = IsPcie(argc, argv) ? Fixture::Mode::PCIE : Fixture::Mode::SYSEMU;

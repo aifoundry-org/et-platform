@@ -176,7 +176,7 @@ public:
   /// @param[in] size indicates the size of the memcpy
   /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
   /// issued into this stream finish (a barrier). Usually the memcpies from host to device can run in parallel, hence
-  /// the default value is false All memcpy operations are always asynchronous.
+  /// the default value is false. All memcpy operations are always asynchronous.
   ///
   /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
   /// ends.
@@ -196,13 +196,45 @@ public:
   /// @param[in] size indicates the size of the memcpy
   /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
   /// issued into this stream finish (a barrier). Usually the memcpies from device to host must wait till a previous
-  /// kernel execution finishes, hence the default value is true All memcpy operations are always asynchronous.
+  /// kernel execution finishes, hence the default value is true. All memcpy operations are always asynchronous.
   ///
   /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
   /// ends.
   ///
   virtual EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, IDmaBuffer* h_dst, size_t size,
                                      bool barrier = true) = 0;
+
+  /// \brief Queues many memcpy operations from host memory to device memory. These operations are defined in struct
+  /// \ref MemcpyList. The device memory must be a valid region previously allocated by a mallocDevice; the host memory
+  /// must be a previously allocated memory in the host by the conventional means (for example the heap).
+  ///
+  /// @param[in] stream handler indicating in which stream to queue the memcpy
+  /// operation
+  /// @param[in] memcpyList contains all the operations required. See \ref MemcpyList
+  /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
+  /// issued into this stream finish (a barrier). Usually the memcpies from device to host must wait till a previous
+  /// kernel execution finishes, hence the default value is false. All memcpy operations are always asynchronous.
+  ///
+  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
+  /// ends.
+  ///
+  virtual EventId memcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier = false) = 0;
+
+  /// \brief Queues many memcpy operations from device memory to host memory. These operations are defined in struct
+  /// \ref MemcpyList. The device memory must be a valid region previously allocated by a mallocDevice; the host memory
+  /// must be a previously allocated memory in the host by the conventional means (for example the heap).
+  ///
+  /// @param[in] stream handler indicating in which stream to queue the memcpy
+  /// operation
+  /// @param[in] memcpyList contains all the operations required. See \ref MemcpyList
+  /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
+  /// issued into this stream finish (a barrier). Usually the memcpies from device to host must wait till a previous
+  /// kernel execution finishes, hence the default value is true All memcpy operations are always asynchronous.
+  ///
+  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
+  /// ends.
+  ///
+  virtual EventId memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier = true) = 0;
 
   /// \brief This will block the caller thread until the given event is dispatched or the timeout is reached. This
   /// primitive allows to synchronize with the device execution.

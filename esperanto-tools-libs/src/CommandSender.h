@@ -49,6 +49,7 @@ public:
   // if the Command is not yet running, it will be removed from the queue
   void cancel(EventId command);
 
+  void setCommandData(EventId command, std::vector<std::byte> data);
   void enable(EventId command);
   void setOnCommandSentCallback(CommandSentCallback callback);
 

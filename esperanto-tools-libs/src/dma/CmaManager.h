@@ -19,6 +19,9 @@ class CmaManager {
 public:
   CmaManager(IRuntime& runtime, size_t cmaSize);
 
+  // returns total size
+  size_t getTotalSize() const;
+
   // returns max contiguous bytes (max allocation)
   size_t getFreeBytes() const;
 

@@ -697,3 +697,23 @@ void RuntimeImp::abortDevice(DeviceId device) {
   }
   running_ = oldRunningState;
 }
+
+void RuntimeImp::checkList(int device, const MemcpyList& list) const {
+  auto dmaInfo = deviceLayer_->getDmaInfo(device);
+  if (list.operations_.size() > dmaInfo.maxElementCount_) {
+    throw Exception("Invalid element count in memcpy list. Max elements allowed is:" +
+                    std::to_string(dmaInfo.maxElementCount_));
+  }
+  size_t totalSize = 0;
+  for (auto& op : list.operations_) {
+    totalSize += op.size_;
+    if (op.size_ > dmaInfo.maxElementSize_) {
+      throw Exception("Invalid size in memcpy list. Max size available is: " + std::to_string(dmaInfo.maxElementSize_));
+    }
+  }
+  if (totalSize > cmaManager_->getTotalSize()) {
+    throw Exception("Required total size for the list is: " + std::to_string(totalSize) +
+                    " which is larger of maximum allowed of " + std::to_string(cmaManager_->getTotalSize()) +
+                    " bytes.");
+  }
+}

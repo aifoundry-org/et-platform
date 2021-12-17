@@ -25,6 +25,10 @@ CmaManager::CmaManager(IRuntime& runtime, size_t cmaSize)
   RT_VLOG(LOW) << "Runtime CMA allocation size: 0x" << std::hex << cmaSize;
 }
 
+size_t CmaManager::getTotalSize() const {
+  return dmaBuffer_->getSize();
+}
+
 size_t CmaManager::getFreeBytes() const {
   std::lock_guard lock(mutex_);
   auto freeBytes = memoryManager_.getFreeContiguousBytes();

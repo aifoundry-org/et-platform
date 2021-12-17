@@ -45,6 +45,20 @@ using RuntimePtr = std::unique_ptr<class IRuntime>;
 class Exception : public dbg::StackException {
   using dbg::StackException::StackException;
 };
+/// \brief This struct will hold a number of memcpy operations.
+struct MemcpyList {
+
+  void addOp(std::byte* src, std::byte* dst, size_t size) {
+    operations_.emplace_back(Op{src, dst, size});
+  }
+
+  struct Op {
+    std::byte* src_;
+    std::byte* dst_;
+    size_t size_;
+  };
+  std::vector<Op> operations_;
+};
 
 /// \brief This is the device kernel error context which is a result of a running kernel terminating on a abnormal state
 /// (exception / abort)
