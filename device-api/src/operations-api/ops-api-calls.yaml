@@ -251,6 +251,15 @@ Structs:
       - Name: pad[4]
         Description: Padding for alignment
         Type: uint8_t
+  - Name: kernel_rsp_error_ptr_t
+    Description: This contains U-mode exception buffer pointer and U-mode trace buffer pointer
+    Fields:
+      - Name: umode_exception_buffer_ptr
+        Description: Pointer to the U-mode exception buffer
+        Type: uint64_t
+      - Name: umode_trace_buffer_ptr
+        Description: Pointer to the U-mode trace buffer
+        Type: uint64_t
 
 ## List of Commands, Responses, and Events
 Messages :
@@ -423,6 +432,11 @@ Messages :
         Enum: dev_ops_api_kernel_launch_response
       - Name: pad[4]
         Description: Padding for alignment
+        Type: uint8_t
+      - Name: kernel_rsp_error_ptr[]
+        Description: |-
+                This is an optional response payload containing pointers to Exception and Trace buffers (struct kernel_rsp_error_ptr_t)
+                                                    to provide user option to retrieve the respective contents when a Kernel execution fails
         Type: uint8_t
 #-------------------------------------------------------------------------------
   - Name: device_ops_kernel_abort_cmd
