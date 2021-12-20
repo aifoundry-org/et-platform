@@ -1005,114 +1005,111 @@ static inline int32_t kw_cm_to_mm_kernel_force_abort(
 *
 *   DESCRIPTION
 *
-*       Helper function to proccess a single CM-to-MM message.
+*       Helper function to proccess CM-to-MM messages.
 *
 *   INPUTS
 *
 *       kw_id               Index of kernel worker.
 *       kernel_shire_mask   Shire mask of compute workers.
 *       status_internal     Status control block to return status.
-*       kernel              Kernel pointer.
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-static inline void kw_cm_to_mm_process_single_message(uint32_t kw_idx, uint64_t kernel_shire_mask,
-    struct kw_internal_status *status_internal, const kernel_instance_t *kernel)
+static inline void kw_cm_to_mm_process_messages(
+    uint32_t kw_idx, uint64_t kernel_shire_mask, struct kw_internal_status *status_internal)
 {
     cm_iface_message_t message;
     int32_t status;
-    (void)kernel;
 
-    Log_Write(LOG_LEVEL_DEBUG, "KW:Processing single msg from CM\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "KW:Processing msgs from CMs\r\n");
 
-    /* Acquire the unicast lock */
-    CM_Iface_Unicast_Acquire_Lock(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx);
-
-    /* Receive the CM->MM message */
-    status = CM_Iface_Unicast_Receive(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
-
-    /* Release the unicast lock */
-    CM_Iface_Unicast_Release_Lock(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx);
-
-    if (status != STATUS_SUCCESS)
+    /* Process all messages until the buffer is empty */
+    while (1)
     {
-        /* No more pending messages left */
-        if ((status != CIRCBUFF_ERROR_BAD_LENGTH) && (status != CIRCBUFF_ERROR_EMPTY))
-        {
-            status_internal->status = KW_ERROR_CM_IFACE_UNICAST_FAILED;
+        /* Receive the CM->MM message */
+        status = CM_Iface_Unicast_Receive(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kw_idx, &message);
 
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_CMD_ERROR);
-            Log_Write(
-                LOG_LEVEL_ERROR, "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", status);
+        if (status != STATUS_SUCCESS)
+        {
+            /* No more pending messages left */
+            if ((status != CIRCBUFF_ERROR_BAD_LENGTH) && (status != CIRCBUFF_ERROR_EMPTY))
+            {
+                status_internal->status = KW_ERROR_CM_IFACE_UNICAST_FAILED;
+
+                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_CMD_ERROR);
+                Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n",
+                    status);
+            }
+
+            Log_Write(LOG_LEVEL_WARNING, "KW:CM_To_MM: No pending msg\r\n");
+
+            break;
         }
 
-        Log_Write(LOG_LEVEL_WARNING, "KW:CM_To_MM: No pending msg\r\n");
+        switch (message.header.id)
+        {
+            case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
+                /* Set the flag to indicate that kernel launch has completed */
+                status_internal->kernel_done = true;
 
-        return;
-    }
+                const cm_to_mm_message_kernel_launch_completed_t *completed =
+                    (cm_to_mm_message_kernel_launch_completed_t *)&message;
 
-    switch (message.header.id)
-    {
-        case CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:
-            /* Set the flag to indicate that kernel launch has completed */
-            status_internal->kernel_done = true;
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from S%d:Status:%d\r\n",
+                    completed->shire_id, completed->status);
 
-            const cm_to_mm_message_kernel_launch_completed_t *completed =
-                (cm_to_mm_message_kernel_launch_completed_t *)&message;
+                /* Check the completion status for any error
+                First time we get an error, set the error flag */
+                if ((!status_internal->cw_error) &&
+                    (completed->status < KERNEL_COMPLETE_STATUS_SUCCESS))
+                {
+                    status_internal->cw_error = true;
+                }
+                break;
 
-            Log_Write(LOG_LEVEL_DEBUG,
-                "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from S%d:Status:%d\r\n",
-                completed->shire_id, completed->status);
-
-            /* Check the completion status for any error
-            First time we get an error, set the error flag */
-            if ((!status_internal->cw_error) &&
-                (completed->status < KERNEL_COMPLETE_STATUS_SUCCESS))
+            case CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION:
             {
+                const cm_to_mm_message_exception_t *exception =
+                    (cm_to_mm_message_exception_t *)&message;
+
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%" PRId32 "\r\n",
+                    exception->shire_id);
+
+                if (!status_internal->cw_exception)
+                {
+                    status_internal->cw_exception = true;
+                }
+                break;
+            }
+            case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR:
+                /* Report error to SP */
+                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_KERNEL_LAUNCH_ERROR);
+
+                const cm_to_mm_message_kernel_launch_error_t *error_mesg =
+                    (cm_to_mm_message_kernel_launch_error_t *)&message;
+
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR from H%" PRId64 "\r\n",
+                    error_mesg->hart_id);
+
+                /* Fatal error received. Try to recover kernel shires by sending abort message */
+                status_internal->status = kw_cm_to_mm_kernel_force_abort(kernel_shire_mask, false);
+
+                /* Set error and done flag */
                 status_internal->cw_error = true;
-            }
-            break;
+                status_internal->kernel_done = true;
+                break;
 
-        case CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION:
-        {
-            const cm_to_mm_message_exception_t *exception =
-                (cm_to_mm_message_exception_t *)&message;
-
-            Log_Write(LOG_LEVEL_DEBUG,
-                "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%" PRId32 "\r\n",
-                exception->shire_id);
-
-            if (!status_internal->cw_exception)
-            {
-                status_internal->cw_exception = true;
-            }
-            break;
+            default:
+                Log_Write(
+                    LOG_LEVEL_ERROR, "KW:from CW: Unexpected msg. ID: %d\r\n", message.header.id);
+                break;
         }
-        case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR:
-            /* Report error to SP */
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_KERNEL_LAUNCH_ERROR);
-
-            const cm_to_mm_message_kernel_launch_error_t *error_mesg =
-                (cm_to_mm_message_kernel_launch_error_t *)&message;
-
-            Log_Write(LOG_LEVEL_DEBUG,
-                "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR from H%" PRId64 "\r\n",
-                error_mesg->hart_id);
-
-            /* Fatal error received. Try to recover kernel shires by sending abort message */
-            status_internal->status = kw_cm_to_mm_kernel_force_abort(kernel_shire_mask, false);
-
-            /* Set error and done flag */
-            status_internal->cw_error = true;
-            status_internal->kernel_done = true;
-            break;
-
-        default:
-            Log_Write(LOG_LEVEL_ERROR, "KW:from CW: Unexpected msg. ID: %d\r\n", message.header.id);
-            break;
     }
 }
 
@@ -1274,9 +1271,8 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             }
             else
             {
-                /* Handle message from Compute Worker */
-                kw_cm_to_mm_process_single_message(
-                    kw_idx, kernel_shire_mask, &status_internal, kernel);
+                /* Handle messages from Compute Worker */
+                kw_cm_to_mm_process_messages(kw_idx, kernel_shire_mask, &status_internal);
 
                 /* Enable wait for IPI */
                 wait_for_ipi = true;

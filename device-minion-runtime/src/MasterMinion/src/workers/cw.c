@@ -127,18 +127,14 @@ static inline uint64_t cw_get_booted_shires(void)
     /* Processess messages from CM from CM > MM unicast circbuff */
     while (1)
     {
-        /* Acquire the unicast lock */
-        CM_Iface_Unicast_Acquire_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
-
         /* Unicast to dispatcher is slot 0 of unicast
         circular-buffers */
         internal_status = CM_Iface_Unicast_Receive(CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
 
-        /* Release the unicast lock */
-        CM_Iface_Unicast_Release_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
-
         if (internal_status != STATUS_SUCCESS)
+        {
             break;
+        }
 
         switch (message.header.id)
         {

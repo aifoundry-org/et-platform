@@ -289,12 +289,18 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
 int32_t CM_Iface_Unicast_Receive(uint64_t cb_idx, cm_iface_message_t *const message)
 {
     int32_t status;
-
     circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
                                             cb_idx * CM_MM_IFACE_CIRCBUFFER_SIZE);
+    spinlock_t *lock = &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[cb_idx];
+
+    /* Acquire the unicast buffer lock */
+    acquire_global_spinlock(lock);
 
     /* Pop the command from circular buffer */
     status = Circbuffer_Pop(cb, message, sizeof(*message), L2_SCP);
+
+    /* Release the unicast buffer lock */
+    release_global_spinlock(lock);
 
     return status;
 }

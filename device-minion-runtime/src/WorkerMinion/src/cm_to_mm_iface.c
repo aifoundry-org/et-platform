@@ -11,27 +11,35 @@
 #include "layout.h"
 #include "syscall_internal.h"
 
-int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx, const cm_iface_message_t *const message)
+int8_t CM_To_MM_Iface_Unicast_Send(
+    uint64_t ms_thread_id, uint64_t cb_idx, const cm_iface_message_t *const message)
 {
     int8_t status;
     circ_buff_cb_t *cb = (circ_buff_cb_t *)(CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR +
                                             cb_idx * CM_MM_IFACE_CIRCBUFFER_SIZE);
+    spinlock_t *lock = &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[cb_idx];
+
+    /* Acquire the unicast buffer lock */
+    acquire_global_spinlock(lock);
 
     status = Circbuffer_Push(cb, (const void *const)message, sizeof(*message), L2_SCP);
 
-    if(status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Send IPI to the required hart in Master Shire */
         syscall(SYSCALL_IPI_TRIGGER_INT, 1ull << ms_thread_id, MASTER_SHIRE, 0);
     }
 
+    /* Release the unicast buffer lock */
+    release_global_spinlock(lock);
+
     return status;
 }
 
-int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer,
-    uint64_t type, uint64_t hart_id, const internal_execution_context_t *context)
+int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer, uint64_t type,
+    uint64_t hart_id, const internal_execution_context_t *context)
 {
-    const uint64_t buffer_index = (hart_id < 2048U) ? hart_id: (hart_id - 32U);
+    const uint64_t buffer_index = (hart_id < 2048U) ? hart_id : (hart_id - 32U);
 
     context_buffer[buffer_index].type = type;
     context_buffer[buffer_index].cycles = PMC_Get_Current_Cycles();
@@ -50,9 +58,10 @@ int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer,
     return 0;
 }
 
-int8_t CM_To_MM_Save_Kernel_Error(execution_context_t *context_buffer, uint64_t hart_id, int64_t kernel_error_code)
+int8_t CM_To_MM_Save_Kernel_Error(
+    execution_context_t *context_buffer, uint64_t hart_id, int64_t kernel_error_code)
 {
-    const uint64_t buffer_index = (hart_id < 2048U) ? hart_id: (hart_id - 32U);
+    const uint64_t buffer_index = (hart_id < 2048U) ? hart_id : (hart_id - 32U);
     context_buffer[buffer_index].type = CM_CONTEXT_TYPE_USER_KERNEL_ERROR;
     context_buffer[buffer_index].cycles = PMC_Get_Current_Cycles();
     context_buffer[buffer_index].hart_id = hart_id;

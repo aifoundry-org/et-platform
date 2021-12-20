@@ -89,24 +89,4 @@ typedef struct {
     };
 } __attribute__((aligned(64))) cm_kernel_launched_flag_t;
 
-/*! \fn static inline void CM_Iface_Unicast_Acquire_Lock(uint64_t cb_idx)
-    \brief Function to acquire the global unicast lock.
-    \param cb_idx Index of the unicast buffer
-*/
-static inline void CM_Iface_Unicast_Acquire_Lock(uint64_t cb_idx)
-{
-    spinlock_t *lock = &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[cb_idx];
-    acquire_global_spinlock(lock);
-}
-
-/*! \fn static inline void CM_Iface_Unicast_Release_Lock(uint64_t cb_idx)
-    \brief Function to release the global unicast lock.
-    \param cb_idx Index of the unicast buffer
-*/
-static inline void CM_Iface_Unicast_Release_Lock(uint64_t cb_idx)
-{
-    spinlock_t *lock = &((spinlock_t *)CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR)[cb_idx];
-    release_global_spinlock(lock);
-}
-
 #endif

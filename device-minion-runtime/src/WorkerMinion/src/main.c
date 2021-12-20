@@ -52,8 +52,7 @@ void __attribute__((noreturn)) main(void)
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
 
     // Setup supervisor trap vector
-    asm volatile("csrw  stvec, %0\n"
-                 : : "r"(&trap_handler));
+    asm volatile("csrw  stvec, %0\n" : : "r"(&trap_handler));
 
     // Disable global interrupts (sstatus.SIE = 0) to not trap to trap handler.
     // But enable Supervisor Software Interrupts so that IPIs trap when in U-mode
@@ -64,8 +63,7 @@ void __attribute__((noreturn)) main(void)
     asm volatile("csrsi sie, %0\n" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
     // Enable all available PMU counters to be sampled in U-mode
-    asm volatile("csrw scounteren, %0\n"
-        : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
+    asm volatile("csrw scounteren, %0\n" : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
 
     /* Initialize Trace with default configurations. */
     Trace_Init_CM(NULL);
@@ -77,26 +75,19 @@ void __attribute__((noreturn)) main(void)
         /* Reset the thread boot counter */
         init_local_spinlock(&CM_Thread_Boot_Counter[shire_id], 0);
 
-        const mm_to_cm_message_shire_ready_t message = {
-            .header.id = CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY,
-            .shire_id = shire_id
-        };
+        const mm_to_cm_message_shire_ready_t message = { .header.id =
+                                                             CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY,
+            .shire_id = shire_id };
 
-        /* Acquire the unicast lock */
-        CM_Iface_Unicast_Acquire_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
-
-        // To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0)
+        /* To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0) */
         status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
             CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (const cm_iface_message_t *)&message);
 
-        /* Release the unicast lock */
-        CM_Iface_Unicast_Release_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
-
-        if(status != 0)
+        if (status != 0)
         {
             log_write(LOG_LEVEL_ERROR,
-                "H%04lld: CM->MM:Shire_ready:Unicast send failed! Error code: %d\n",
-                get_hart_id(), status);
+                "H%04lld: CM->MM:Shire_ready:Unicast send failed! Error code: %d\n", get_hart_id(),
+                status);
         }
     }
 

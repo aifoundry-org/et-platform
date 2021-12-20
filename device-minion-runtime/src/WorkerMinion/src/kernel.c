@@ -603,29 +603,11 @@ static void kernel_launch_post_cleanup(
             msg.slot_index = kernel->slot_index;
             msg.status = kernel_info_get_execution_status(shire_id);
 
-            /* If there was error/exception, acquire the unicast lock */
-            if (msg.status < KERNEL_COMPLETE_STATUS_SUCCESS)
-            {
-                /* Acquire the unicast lock */
-                CM_Iface_Unicast_Acquire_Lock(
-                    CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index);
-
-                status =
-                    CM_To_MM_Iface_Unicast_Send((uint64_t)(kernel->kw_base_id + kernel->slot_index),
-                        (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index),
-                        (cm_iface_message_t *)&msg);
-
-                /* Release the unicast lock */
-                CM_Iface_Unicast_Release_Lock(
-                    CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index);
-            }
-            else
-            {
-                status =
-                    CM_To_MM_Iface_Unicast_Send((uint64_t)(kernel->kw_base_id + kernel->slot_index),
-                        (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index),
-                        (cm_iface_message_t *)&msg);
-            }
+            /* Send the message to KW */
+            status =
+                CM_To_MM_Iface_Unicast_Send((uint64_t)(kernel->kw_base_id + kernel->slot_index),
+                    (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + kernel->slot_index),
+                    (cm_iface_message_t *)&msg);
 
             if (status != STATUS_SUCCESS)
             {

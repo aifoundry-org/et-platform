@@ -68,14 +68,19 @@
 /*                    (Base Address: 0x80000000)                     */
 /*     - user                - base-offset   - size                  */
 /*     CM Unicast buff       0x0             0x5000 (20K)            */
-/*     CM Kernel flags       0x5000          0x100 (256 bytes)       */
-/*     MM SQ prefetch buffer 0x5100          0x2400 (9K)             */
+/*     CM Unicast locks      0x5000          0x140 (320 bytes)       */
+/*     CM Kernel flags       0x5140          0x100 (256 bytes)       */
+/*     MM SQ prefetch buffer 0x5200          0x2400 (9K)             */
 /*********************************************************************/
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET  0x0
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR    ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET)
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_SIZE         ((1 + MAX_SIMULTANEOUS_KERNELS) * CM_MM_IFACE_CIRCBUFFER_SIZE)
 
-#define CM_KERNEL_LAUNCHED_FLAG_BASE_OFFSET          CM_MM_IFACE_UNICAST_CIRCBUFFERS_SIZE
+#define CM_MM_IFACE_UNICAST_LOCKS_BASE_OFFSET        CM_MM_IFACE_UNICAST_CIRCBUFFERS_SIZE
+#define CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR          ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_MM_IFACE_UNICAST_LOCKS_BASE_OFFSET)
+#define CM_MM_IFACE_UNICAST_LOCKS_SIZE               ((1 + MAX_SIMULTANEOUS_KERNELS) * 64) /* Slot 0 is for Thread 0 (Dispatcher), rest for Kernel Workers */
+
+#define CM_KERNEL_LAUNCHED_FLAG_BASE_OFFSET          CM_MM_IFACE_UNICAST_LOCKS_SIZE
 #define CM_KERNEL_LAUNCHED_FLAG_BASEADDR             ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_KERNEL_LAUNCHED_FLAG_BASE_OFFSET)
 #define CM_KERNEL_LAUNCHED_FLAG_BASEADDR_SIZE        (MAX_SIMULTANEOUS_KERNELS * KERNEL_LAUNCH_FLAG_SIZE)
 
@@ -144,9 +149,6 @@ S-mode stacks grow from the end of the 3rd region */
 
 #define CM_MM_HART_MESSAGE_COUNTER                        CACHE_LINE_ALIGN(FW_CM_TRACE_CB_BASEADDR + FW_CM_TRACE_CB_SIZE)
 #define CM_MM_HART_MESSAGE_COUNTER_SIZE                   (CM_MM_MESSAGE_COUNTER_SIZE * NUM_HARTS)
-
-#define CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR               CACHE_LINE_ALIGN(CM_MM_HART_MESSAGE_COUNTER + CM_MM_HART_MESSAGE_COUNTER_SIZE)
-#define CM_MM_IFACE_UNICAST_LOCKS_SIZE                    ((1 + MAX_SIMULTANEOUS_KERNELS) * 64) /* Slot 0 is for Thread 0 (Dispatcher), rest for Kernel Workers */
 
 #define FW_SMODE_STACK_BASE                               (LOW_SDATA_SUBREGION_BASE + LOW_SDATA_SUBREGION_SIZE)
 #define FW_SMODE_STACK_SCRATCH_REGION_SIZE                64 /* Used by trap handler. 64B is the offset to distribute stack bases across memory controllers. */
@@ -245,7 +247,7 @@ the range is the START to (END-1) */
 #ifndef __ASSEMBLER__
 
 /* Ensure the shared message buffers don't overlap with the S-stacks */
-static_assert((CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR + CM_MM_IFACE_UNICAST_LOCKS_SIZE) <
+static_assert((CM_MM_HART_MESSAGE_COUNTER + CM_MM_HART_MESSAGE_COUNTER_SIZE) <
               (FW_SMODE_STACK_BASE - (NUM_HARTS * FW_SMODE_STACK_SIZE)),
               "S-stack / message buffer region collision");
 

@@ -131,7 +131,7 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
         /* Get the kernel info attributes */
         kernel_info_get_attributes(shire_id, &kw_base_id, &slot_index);
 
-        /* Send exception message to appripriate kernel worker */
+        /* Send exception message to appropriate kernel worker */
         status = CM_To_MM_Iface_Unicast_Send((uint64_t)(kw_base_id + slot_index),
             (uint64_t)(CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX + slot_index),
             (cm_iface_message_t *)&message);
@@ -147,15 +147,9 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     {
         message.header.id = CM_TO_MM_MESSAGE_ID_FW_EXCEPTION;
 
-        /* Acquire the unicast lock */
-        CM_Iface_Unicast_Acquire_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
-
         /* Send exception message to dispatcher (Master shire Hart 0) */
         status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
             CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (cm_iface_message_t *)&message);
-
-        /* Release the unicast lock */
-        CM_Iface_Unicast_Release_Lock(CM_MM_MASTER_HART_UNICAST_BUFF_IDX);
 
         if (status != STATUS_SUCCESS)
         {

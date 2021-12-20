@@ -85,8 +85,8 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
             deviceFirmware::minion_rt_helpers_interface
     )
 
-   target_report_riscv_size(${MM_BUILD_VARIANT}.elf)
-   target_report_riscv_elf_file_header(${MM_BUILD_VARIANT}.elf)
+    target_report_riscv_size(${MM_BUILD_VARIANT}.elf)
+    target_report_riscv_elf_file_header(${MM_BUILD_VARIANT}.elf)
 
     install(TARGETS ${MM_BUILD_VARIANT}.elf
         EXPORT EsperantoDeviceMinionRuntimeTargets
