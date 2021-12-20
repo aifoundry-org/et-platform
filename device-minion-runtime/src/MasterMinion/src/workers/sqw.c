@@ -44,6 +44,9 @@
 #include <etsoc/drivers/pmu/pmu.h>
 #include <etsoc/isa/etsoc_memory.h>
 
+/* mm_rt_helpers */
+#include "error_codes.h"
+
 /* mm specific headers */
 #include "workers/sqw.h"
 #include "services/log.h"
@@ -95,13 +98,13 @@ static sqw_cb_t SQW_CB __attribute__((aligned(64))) = { 0 };
 *
 *   OUTPUTS
 *
-*       int8_t         Success or error code
+*       int32_t         Success or error code
 *
 ***********************************************************************/
-static inline int8_t sqw_command_barrier(uint8_t sqw_idx)
+static inline int32_t sqw_command_barrier(uint8_t sqw_idx)
 {
     sqw_cmds_status_t cmds_status;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:Command Barrier\r\n", sqw_idx);
 

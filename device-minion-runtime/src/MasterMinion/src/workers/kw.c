@@ -40,6 +40,7 @@
 #include <transports/vq/vq.h>
 
 /* mm_rt_helpers */
+#include "error_codes.h"
 #include "syscall_internal.h"
 
 /* mm specific headers */
@@ -187,12 +188,12 @@ static void kernel_abort_wait_timeout_callback(uint8_t sqw_idx)
 *
 *   OUTPUTS
 *
-*       int8_t         status success or error
+*       int32_t         status success or error
 *
 ***********************************************************************/
-static int8_t kw_wait_for_kernel_launch_flag(uint8_t sqw_idx, uint8_t slot_index)
+static int32_t kw_wait_for_kernel_launch_flag(uint8_t sqw_idx, uint8_t slot_index)
 {
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     int8_t sw_timer_idx;
     uint32_t timeout_flag;
     cm_kernel_launched_flag_t kernel_launched;
@@ -249,12 +250,12 @@ static int8_t kw_wait_for_kernel_launch_flag(uint8_t sqw_idx, uint8_t slot_index
 *
 *   OUTPUTS
 *
-*       int8_t         status success or error
+*       int32_t         status success or error
 *
 ***********************************************************************/
-static int8_t kw_find_used_kernel_slot(uint16_t launch_tag_id, uint8_t *slot)
+static int32_t kw_find_used_kernel_slot(uint16_t launch_tag_id, uint8_t *slot)
 {
-    int8_t status = KW_ERROR_KERNEL_SLOT_NOT_FOUND;
+    int32_t status = KW_ERROR_KERNEL_SLOT_NOT_FOUND;
 
     /* Acquire the lock */
     acquire_local_spinlock(&KW_CB.resource_lock);
@@ -302,13 +303,13 @@ static int8_t kw_find_used_kernel_slot(uint16_t launch_tag_id, uint8_t *slot)
 *
 *   OUTPUTS
 *
-*       int8_t              status success or error
+*       int32_t              status success or error
 *
 ***********************************************************************/
-static int8_t kw_reserve_kernel_slot(
+static int32_t kw_reserve_kernel_slot(
     uint8_t sqw_idx, uint8_t *slot_index, kernel_instance_t **kernel)
 {
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     sqw_state_e sqw_state;
     bool slot_reserved = false;
 
@@ -387,12 +388,12 @@ static void kw_unreserve_kernel_slot(kernel_instance_t *kernel)
 *
 *   OUTPUTS
 *
-*       int8_t          status success or error
+*       int32_t          status success or error
 *
 ***********************************************************************/
-static int8_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask)
+static int32_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask)
 {
-    int8_t status;
+    int32_t status;
     sqw_state_e sqw_state;
 
     /* Verify the shire mask */
@@ -488,16 +489,16 @@ static void kw_unreserve_kernel_shires(uint64_t shire_mask)
 *
 *   OUTPUTS
 *
-*       int8_t      status success or error
+*       int32_t      status success or error
 *
 ***********************************************************************/
-static inline int8_t process_kernel_launch_cmd_payload(struct device_ops_kernel_launch_cmd_t *cmd)
+static inline int32_t process_kernel_launch_cmd_payload(struct device_ops_kernel_launch_cmd_t *cmd)
 {
     /* Calculate the kernel arguments size */
     uint64_t args_size = (cmd->command_info.cmd_hdr.size - sizeof(*cmd));
     uint8_t *payload = (uint8_t *)cmd->argument_payload;
     Log_Write(LOG_LEVEL_DEBUG, "KW: Kernel launch argument payload size: %ld\r\n", args_size);
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     if (args_size > DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX)
     {
@@ -693,7 +694,8 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
 *       int32_t      status success or error
 *
 ***********************************************************************/
-int32_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd, uint8_t sqw_idx)
+int32_t KW_Dispatch_Kernel_Abort_Cmd(
+    const struct device_ops_kernel_abort_cmd_t *cmd, uint8_t sqw_idx)
 {
     int32_t status;
     uint8_t slot_index;

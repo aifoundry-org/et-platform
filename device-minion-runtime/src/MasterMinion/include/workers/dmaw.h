@@ -55,56 +55,6 @@
 #define DMAW_MAX_ELEMENT_SIZE \
     (MEM_REGION_DMA_ELEMENT_SIZE * MEM_REGION_DMA_ELEMENT_SIZE_STEP * 1024 * 1024)
 
-/*! \def DMAW_ABORTED_IDLE_CHANNEL_SEARCH
-    \brief DMA Worker - Find DMA idle channel aborted
-*/
-#define DMAW_ABORTED_IDLE_CHANNEL_SEARCH -1
-
-/*! \def DMAW_ERROR_INVALID_XFER_COUNT
-    \brief DMA Worker - DMA transfer count invalid
-*/
-#define DMAW_ERROR_INVALID_XFER_COUNT -2
-
-/*! \def DMAW_ERROR_INVALID_XFER_SIZE
-    \brief DMA Worker - DMA transfer size invalid
-*/
-#define DMAW_ERROR_INVALID_XFER_SIZE -3
-
-/*! \def DMAW_ERROR_CM_IFACE_MULTICAST_FAILED
-    \brief DMA Worker - CM Multicast message failed
-*/
-#define DMAW_ERROR_CM_IFACE_MULTICAST_FAILED -4
-
-/*! \def DMAW_CW_SHIRE_NOT_BOOTED
-    \brief DMA Worker - CM Shires not booted
-*/
-#define DMAW_CW_SHIRE_NOT_BOOTED -5
-
-/*! \def DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED
-    \brief DMA Worker - DMA driver data node config failed
-*/
-#define DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED -6
-
-/*! \def DMAW_ERROR_DRIVER_LINK_CONFIG_FAILED
-    \brief DMA Worker - DMA driver link node config failed
-*/
-#define DMAW_ERROR_DRIVER_LINK_CONFIG_FAILED -7
-
-/*! \def DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS
-    \brief DMA Worker - Invalid device memory address
-*/
-#define DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS -8
-
-/*! \def DMAW_ERROR_DRIVER_ABORT_FAILED
-    \brief DMA Worker - DMA chanel abort failed
-*/
-#define DMAW_ERROR_DRIVER_ABORT_FAILED -9
-
-/*! \def DMAW_ERROR_DRIVER_CHAN_START_FAILED
-    \brief DMA Worker - DMA Chanel failed to start
-*/
-#define DMAW_ERROR_DRIVER_CHAN_START_FAILED -10
-
 /*! \enum dma_chan_state_e
     \brief Enum that provides the state of a DMA channel
 */
@@ -156,21 +106,21 @@ void DMAW_Init(void);
 */
 void DMAW_Launch(uint32_t hart_id);
 
-/*! \fn int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id)
+/*! \fn int32_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id)
     \brief Finds an idle DMA read channel and reserves it
     \param chan_id Pointer to DMA channel ID
     \param sqw_idx Index of the submission queue worker
     \return Status success or error
 */
-int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id, uint8_t sqw_idx);
+int32_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id, uint8_t sqw_idx);
 
-/*! \fn int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id)
+/*! \fn int32_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id)
     \brief Finds an idle DMA write channel and reserves it
     \param chan_id Pointer to DMA channel ID
     \param sqw_idx Index of the submission queue worker
     \return Status success or error
 */
-int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8_t sqw_idx);
+int32_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8_t sqw_idx);
 
 /*! \fn int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
     const struct device_ops_dma_writelist_cmd_t *cmd, uint16_t xfer_count, uint8_t sqw_idx,

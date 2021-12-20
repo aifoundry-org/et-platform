@@ -45,6 +45,7 @@
 #include "services/sw_timer.h"
 
 /* m_rt_helpers */
+#include "error_codes.h"
 #include "layout.h"
 #include "syscall_internal.h"
 #include "cm_mm_defines.h"
@@ -229,14 +230,14 @@ int32_t CW_Init(void)
 *
 *   OUTPUTS
 *
-*       int8_t        status success or failure
+*       int32_t        status success or failure
 *
 ***********************************************************************/
-int8_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
+int32_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
 {
     bool exit_loop = false;
     uint64_t booted_shires_mask = 0ULL;
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     uint64_t sip;
     int8_t sw_timer_idx;
 
@@ -469,7 +470,7 @@ uint64_t CW_Get_Booted_Shires(void)
 *
 *   OUTPUTS
 *
-*       int8_t        status success or failure
+*       None
 *
 ***********************************************************************/
 void CW_Update_Shire_State(uint64_t shire_mask, cw_shire_state_t shire_state)
@@ -500,12 +501,12 @@ void CW_Update_Shire_State(uint64_t shire_mask, cw_shire_state_t shire_state)
 *
 *   OUTPUTS
 *
-*       int8t_t    Success status or error code
+*       int32_t    Success status or error code
 *
 ***********************************************************************/
-int8_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask)
+int32_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask)
 {
-    int8_t status = CW_SHIRES_NOT_FREE;
+    int32_t status = CW_SHIRES_NOT_FREE;
 
     /* Verify if all the given shires are booted */
     if ((atomic_load_local_64(&CW_CB.booted_shires_mask) & shire_mask) == shire_mask)

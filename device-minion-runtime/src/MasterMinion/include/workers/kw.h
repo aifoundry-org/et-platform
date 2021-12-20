@@ -37,76 +37,6 @@
 */
 #define KW_WORKER_0 ((KW_BASE_HART_ID - MM_BASE_ID) / HARTS_PER_MINION)
 
-/*! \def KW_ABORTED_KERNEL_SLOT_SEARCH
-    \brief Kernel Worker - Kernel slot search aborted
-*/
-#define KW_ABORTED_KERNEL_SLOT_SEARCH -2
-
-/*! \def KW_ERROR_KERNEL_SLOT_NOT_USED
-    \brief Kernel Worker - Kernel used slot not found error
-*/
-#define KW_ERROR_KERNEL_SLOT_NOT_USED -3
-
-/*! \def KW_ERROR_KERNEL_SLOT_NOT_FOUND
-    \brief Kernel Worker - Kernel slot not found error
-*/
-#define KW_ERROR_KERNEL_SLOT_NOT_FOUND -4
-
-/*! \def KW_ERROR_KERNEL_SHIRES_NOT_READY
-    \brief Kernel Worker - Kernel shires not ready
-*/
-#define KW_ERROR_KERNEL_SHIRES_NOT_READY -5
-
-/*! \def KW_ERROR_KERNEL_INVALID_ADDRESS
-    \brief Kernel Worker - Kernel invalid device address
-*/
-#define KW_ERROR_KERNEL_INVALID_ADDRESS -6
-
-/*! \def KW_ERROR_KERNEL_INAVLID_ARGS_SIZE
-    \brief Kernel Worker - Kernel invalid argument payload size
-*/
-#define KW_ERROR_KERNEL_INAVLID_ARGS_SIZE -7
-
-/*! \def KW_ERROR_SW_TIMER_REGISTER_FAIL
-    \brief Kernel Worker - Unable to register SW timer
-*/
-#define KW_ERROR_SW_TIMER_REGISTER_FAIL -8
-
-/*! \def KW_ERROR_TIMEDOUT_ABORT_WAIT
-    \brief Kernel Worker - Timed out waiting for sending the abort to CM
-*/
-#define KW_ERROR_TIMEDOUT_ABORT_WAIT -9
-
-/*! \def KW_ERROR_KERNEL_INAVLID_SHIRE_MASK
-    \brief Kernel Worker - Inavlid kernel shire mask
-*/
-#define KW_ERROR_KERNEL_INAVLID_SHIRE_MASK -10
-
-/*! \def KW_ABORTED_KERNEL_SHIRES_SEARCH
-    \brief Kernel Worker - Kernel shires search aborted
-*/
-#define KW_ABORTED_KERNEL_SHIRES_SEARCH -11
-
-/*! \def KW_ERROR_CM_IFACE_UNICAST_FAILED
-    \brief Kernel Worker - Failed to send a Unicast message to Compute Worker
-*/
-#define KW_ERROR_CM_IFACE_UNICAST_FAILED -12
-
-/*! \def KW_ERROR_CM_IFACE_MULTICAST_FAILED
-    \brief Kernel Worker - Failed to send a Multicast message to Compute Worker
-*/
-#define KW_ERROR_CM_IFACE_MULTICAST_FAILED -13
-
-/*! \def KW_ERROR_SP_IFACE_RESET_FAILED
-    \brief Kernel Worker - Failed to Reset the Minions
-*/
-#define KW_ERROR_SP_IFACE_RESET_FAILED -14
-
-/*! \def KW_ERROR_CW_MINIONS_BOOT_FAILED
-    \brief Kernel Worker - Failed to Boot the Minions
-*/
-#define KW_ERROR_CW_MINIONS_BOOT_FAILED -15
-
 /* Timeouts */
 
 /*! \def KERNEL_ABORT_WAIT_TIMEOUT
@@ -159,14 +89,15 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx);
 int32_t KW_Dispatch_Kernel_Launch_Cmd(
     struct device_ops_kernel_launch_cmd_t *cmd, uint8_t sqw_idx, uint8_t *kw_idx);
 
-/*! \fn int32_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd,
+/*! \fn int32_t KW_Dispatch_Kernel_Abort_Cmd(const struct device_ops_kernel_abort_cmd_t *cmd,
     uint8_t sqw_idx)
     \brief Kernel Worker's interface to dispatch a kernel abort command
     \param cmd Kernel Abort Command
     \param sqw_idx Submission worker queue index
     \return Status success or error
 */
-int32_t KW_Dispatch_Kernel_Abort_Cmd(struct device_ops_kernel_abort_cmd_t *cmd, uint8_t sqw_idx);
+int32_t KW_Dispatch_Kernel_Abort_Cmd(
+    const struct device_ops_kernel_abort_cmd_t *cmd, uint8_t sqw_idx);
 
 /*! \fn void KW_Abort_All_Dispatched_Kernels(void)
     \brief Sets the status of each kernel to abort and notifies the KW

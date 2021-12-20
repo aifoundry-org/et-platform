@@ -48,6 +48,9 @@
 #include "services/sp_iface.h"
 #include "services/trace.h"
 
+/* mm_rt_helpers */
+#include "error_codes.h"
+
 /*! \struct dmaw_read_cb_t
     \brief DMA Worker Read Control Block structure.
     Used to maintain DMA Worker Read related resources.
@@ -141,12 +144,12 @@ void DMAW_Init(void)
 *
 *   OUTPUTS
 *
-*       int8_t     status success or error
+*       int32_t     status success or error
 *
 ***********************************************************************/
-int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id, uint8_t sqw_idx)
+int32_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id, uint8_t sqw_idx)
 {
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     bool read_chan_reserved = false;
     sqw_state_e sqw_state;
 
@@ -207,12 +210,12 @@ int8_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id, uint8_t
 *
 *   OUTPUTS
 *
-*       int8_t     status success or error
+*       int32_t     status success or error
 *
 ***********************************************************************/
-int8_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8_t sqw_idx)
+int32_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8_t sqw_idx)
 {
-    int8_t status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     bool write_chan_reserved = false;
     sqw_state_e sqw_state;
 

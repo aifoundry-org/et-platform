@@ -28,32 +28,22 @@
 #include "config/mm_config.h"
 #include "workers/kw.h"
 
-
 /*! \def SQW_MAX_HART_ID
     \brief A macro that provides the maximum HART ID the SQW is configued
     to execute on.
 */
-#define     SQW_MAX_HART_ID      (SQW_BASE_HART_ID + (SQW_NUM * HARTS_PER_MINION))
+#define SQW_MAX_HART_ID (SQW_BASE_HART_ID + (SQW_NUM * HARTS_PER_MINION))
 
 /*! \def SQW_WORKER_0
     \brief A macro that provdies the minion index of the first Submission
     Queue worker within the master shire.
 */
-#define     SQW_WORKER_0         ((SQW_BASE_HART_ID - MM_BASE_ID) / HARTS_PER_MINION)
-
-/*! \def SQW_STATUS_BARRIER_ABORTED
-    \brief A macro that provide the status code for barrier abort
-*/
-#define     SQW_STATUS_BARRIER_ABORTED     -1
+#define SQW_WORKER_0 ((SQW_BASE_HART_ID - MM_BASE_ID) / HARTS_PER_MINION)
 
 /*! \enum sqw_state_e
     \brief Enum that provides the state of a SQW
 */
-typedef enum {
-    SQW_STATE_IDLE = 0,
-    SQW_STATE_BUSY,
-    SQW_STATE_ABORTED
-} sqw_state_e;
+typedef enum { SQW_STATE_IDLE = 0, SQW_STATE_BUSY, SQW_STATE_ABORTED } sqw_state_e;
 
 /*! \fn void SQW_Init(void)
     \brief Initialize resources used by the Submission Queue Worker

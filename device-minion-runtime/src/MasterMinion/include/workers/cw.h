@@ -35,26 +35,6 @@ typedef uint8_t cw_shire_state_t;
     \brief End of section which is ignored by Doxygen
 */
 
-/*! \def CW_ERROR_GENERAL
-    \brief Compute Worker - General error
-*/
-#define CW_ERROR_GENERAL -1
-
-/*! \def CW_SHIRE_UNAVAILABLE
-    \brief Compute Worker - Shires unavailable
-*/
-#define CW_SHIRE_UNAVAILABLE -2
-
-/*! \def CW_SHIRES_NOT_FREE
-    \brief Compute Worker - Shires not free
-*/
-#define CW_SHIRES_NOT_FREE -3
-
-/*! \def CW_ERROR_INIT_TIMEOUT
-    \brief Compute Worker - Init timeout occured
-*/
-#define CW_ERROR_INIT_TIMEOUT -4
-
 /*! \def CW_INIT_TIMEOUT
     \brief Timeout value for Compute Workers initialization
 */
@@ -67,12 +47,12 @@ typedef uint8_t cw_shire_state_t;
 */
 int32_t CW_Init(void);
 
-/*! \fn int8_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
+/*! \fn int32_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
     \brief Receives boot messages from the compute shires
     \param shire_mask Shires to wait for
     \return Status success or error
 */
-int8_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask);
+int32_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask);
 
 /*! \fn void CW_Process_CM_SMode_Messages(void)
     \brief CW helper to process messages from CM firmware
@@ -91,12 +71,12 @@ void CW_Process_CM_SMode_Messages(void);
 */
 void CW_Update_Shire_State(uint64_t shire_mask, cw_shire_state_t shire_state);
 
-/*! \fn int8_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask)
+/*! \fn int32_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask)
     \brief Check if shire associated with compute workers are free
     \param shire_mask Shire mask to check
     \return Status success or error
 */
-int8_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask);
+int32_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask);
 
 /*! \fn uint64_t CW_Get_Physically_Enabled_Shires(void)
     \brief Get mask for physically available shires of the chip

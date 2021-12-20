@@ -121,7 +121,7 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     /* Initialize Serial Interface */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:SERIAL_init\r\n");
-    status = (int8_t)SERIAL_init(PU_UART0);
+    status = SERIAL_init(PU_UART0);
     dispatcher_assert(status == STATUS_SUCCESS, MM_SERIAL_INIT_ERROR, "Serial init failure.");
 
     Log_Write(LOG_LEVEL_CRITICAL, "Dispatcher:launched on H%d\r\n", hart_id);

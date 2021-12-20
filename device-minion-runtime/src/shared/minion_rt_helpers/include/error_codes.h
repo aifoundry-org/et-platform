@@ -92,6 +92,162 @@ RESERVED
 #define DMA_DRIVER_ERROR_INVALID_ADDRESS -602
 
 /*************************************
+ * Define DMA Worker error codes.    *
+ *************************************/
+
+/*! \def DMAW_ABORTED_IDLE_CHANNEL_SEARCH
+    \brief DMA Worker - Find DMA idle channel aborted
+*/
+#define DMAW_ABORTED_IDLE_CHANNEL_SEARCH -900
+
+/*! \def DMAW_ERROR_INVALID_XFER_COUNT
+    \brief DMA Worker - DMA transfer count invalid
+*/
+#define DMAW_ERROR_INVALID_XFER_COUNT -901
+
+/*! \def DMAW_ERROR_INVALID_XFER_SIZE
+    \brief DMA Worker - DMA transfer size invalid
+*/
+#define DMAW_ERROR_INVALID_XFER_SIZE -902
+
+/*! \def DMAW_ERROR_CM_IFACE_MULTICAST_FAILED
+    \brief DMA Worker - CM Multicast message failed
+*/
+#define DMAW_ERROR_CM_IFACE_MULTICAST_FAILED -903
+
+/*! \def DMAW_CW_SHIRE_NOT_BOOTED
+    \brief DMA Worker - CM Shires not booted
+*/
+#define DMAW_CW_SHIRE_NOT_BOOTED -904
+
+/*! \def DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED
+    \brief DMA Worker - DMA driver data node config failed
+*/
+#define DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED -905
+
+/*! \def DMAW_ERROR_DRIVER_LINK_CONFIG_FAILED
+    \brief DMA Worker - DMA driver link node config failed
+*/
+#define DMAW_ERROR_DRIVER_LINK_CONFIG_FAILED -906
+
+/*! \def DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS
+    \brief DMA Worker - Invalid device memory address
+*/
+#define DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS -907
+
+/*! \def DMAW_ERROR_DRIVER_ABORT_FAILED
+    \brief DMA Worker - DMA chanel abort failed
+*/
+#define DMAW_ERROR_DRIVER_ABORT_FAILED -908
+
+/*! \def DMAW_ERROR_DRIVER_CHAN_START_FAILED
+    \brief DMA Worker - DMA Chanel failed to start
+*/
+#define DMAW_ERROR_DRIVER_CHAN_START_FAILED -909
+
+/*************************************
+ * Define Kernel Worker error codes.    *
+ *************************************/
+
+/*! \def KW_ERROR_CW_MINIONS_BOOT_FAILED
+    \brief Kernel Worker - Failed to Boot the Minions
+*/
+#define KW_ERROR_CW_MINIONS_BOOT_FAILED -1000
+
+/*! \def KW_ABORTED_KERNEL_SLOT_SEARCH
+    \brief Kernel Worker - Kernel slot search aborted
+*/
+#define KW_ABORTED_KERNEL_SLOT_SEARCH -1001
+
+/*! \def KW_ERROR_KERNEL_SLOT_NOT_USED
+    \brief Kernel Worker - Kernel used slot not found error
+*/
+#define KW_ERROR_KERNEL_SLOT_NOT_USED -1002
+
+/*! \def KW_ERROR_KERNEL_SLOT_NOT_FOUND
+    \brief Kernel Worker - Kernel slot not found error
+*/
+#define KW_ERROR_KERNEL_SLOT_NOT_FOUND -1003
+
+/*! \def KW_ERROR_KERNEL_SHIRES_NOT_READY
+    \brief Kernel Worker - Kernel shires not ready
+*/
+#define KW_ERROR_KERNEL_SHIRES_NOT_READY -1004
+
+/*! \def KW_ERROR_KERNEL_INVALID_ADDRESS
+    \brief Kernel Worker - Kernel invalid device address
+*/
+#define KW_ERROR_KERNEL_INVALID_ADDRESS -1005
+
+/*! \def KW_ERROR_KERNEL_INAVLID_ARGS_SIZE
+    \brief Kernel Worker - Kernel invalid argument payload size
+*/
+#define KW_ERROR_KERNEL_INAVLID_ARGS_SIZE -1006
+
+/*! \def KW_ERROR_SW_TIMER_REGISTER_FAIL
+    \brief Kernel Worker - Unable to register SW timer
+*/
+#define KW_ERROR_SW_TIMER_REGISTER_FAIL -1007
+
+/*! \def KW_ERROR_TIMEDOUT_ABORT_WAIT
+    \brief Kernel Worker - Timed out waiting for sending the abort to CM
+*/
+#define KW_ERROR_TIMEDOUT_ABORT_WAIT -1008
+
+/*! \def KW_ERROR_KERNEL_INAVLID_SHIRE_MASK
+    \brief Kernel Worker - Inavlid kernel shire mask
+*/
+#define KW_ERROR_KERNEL_INAVLID_SHIRE_MASK -1009
+
+/*! \def KW_ABORTED_KERNEL_SHIRES_SEARCH
+    \brief Kernel Worker - Kernel shires search aborted
+*/
+#define KW_ABORTED_KERNEL_SHIRES_SEARCH -1010
+
+/*! \def KW_ERROR_CM_IFACE_UNICAST_FAILED
+    \brief Kernel Worker - Failed to send a Unicast message to Compute Worker
+*/
+#define KW_ERROR_CM_IFACE_UNICAST_FAILED -1011
+
+/*! \def KW_ERROR_CM_IFACE_MULTICAST_FAILED
+    \brief Kernel Worker - Failed to send a Multicast message to Compute Worker
+*/
+#define KW_ERROR_CM_IFACE_MULTICAST_FAILED -1012
+
+/*! \def KW_ERROR_SP_IFACE_RESET_FAILED
+    \brief Kernel Worker - Failed to Reset the Minions
+*/
+#define KW_ERROR_SP_IFACE_RESET_FAILED -1013
+
+/*************************************
+ * Define Compute Worker error codes.    *
+ *************************************/
+
+/*! \def CW_SHIRE_UNAVAILABLE
+    \brief Compute Worker - Shires unavailable
+*/
+#define CW_SHIRE_UNAVAILABLE -1100
+
+/*! \def CW_SHIRES_NOT_FREE
+    \brief Compute Worker - Shires not free
+*/
+#define CW_SHIRES_NOT_FREE -1101
+
+/*! \def CW_ERROR_INIT_TIMEOUT
+    \brief Compute Worker - Init timeout occured
+*/
+#define CW_ERROR_INIT_TIMEOUT -1102
+
+/****************************************
+ * Define Submission Queue error codes. *
+ ****************************************/
+
+/*! \def SQW_STATUS_BARRIER_ABORTED
+    \brief A macro that provide the status code for barrier abort
+*/
+#define SQW_STATUS_BARRIER_ABORTED -1300
+
+/*************************************
  * Define Trace error codes.         *
  *************************************/
 

@@ -28,6 +28,9 @@
 /* mm_rt_svcs */
 #include <etsoc/isa/etsoc_memory.h>
 
+/* mm_rt_helpers */
+#include "error_codes.h"
+
 /* mm specific headers */
 #include "workers/sqw_hp.h"
 #include "services/log.h"
