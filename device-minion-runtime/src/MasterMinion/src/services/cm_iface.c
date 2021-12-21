@@ -31,6 +31,7 @@
 #include <etsoc/isa/riscv_encoding.h>
 #include <etsoc/isa/sync.h>
 #include <etsoc/isa/syscall.h>
+#include <system/layout.h>
 #include <transports/mm_cm_iface/broadcast.h>
 #include <transports/circbuff/circbuff.h>
 
@@ -42,7 +43,6 @@
 
 /* mm_rt_helpers */
 #include "error_codes.h"
-#include "layout.h"
 #include "syscall_internal.h"
 #include "cm_mm_defines.h"
 

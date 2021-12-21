@@ -7,16 +7,15 @@
 #include <etsoc/isa/hart.h>
 #include <etsoc/isa/riscv_encoding.h>
 #include <etsoc/isa/sync.h>
+#include <system/layout.h>
 #include <transports/mm_cm_iface/message_types.h>
 
-#include "syscall_internal.h"
-#include "layout.h"
-
-#include "kernel.h"
 #include "cm_to_mm_iface.h"
 #include "cm_mm_defines.h"
-#include "trace.h"
+#include "kernel.h"
 #include "log.h"
+#include "syscall_internal.h"
+#include "trace.h"
 
 void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const reg);
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus,

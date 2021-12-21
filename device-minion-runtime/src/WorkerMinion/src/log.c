@@ -6,8 +6,8 @@
 #include <common/printf.h>
 #include <etsoc/drivers/serial/serial.h>
 #include <etsoc/isa/sync.h>
+#include <system/layout.h>
 
-#include "layout.h"
 #include "log.h"
 #include "trace.h"
 

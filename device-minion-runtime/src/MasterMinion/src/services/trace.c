@@ -36,6 +36,7 @@
 #include <etsoc/isa/hart.h>
 #include <etsoc/isa/etsoc_memory.h>
 #include <etsoc/isa/sync.h>
+#include <system/layout.h>
 
 /* mm specific headers */
 #include "config/mm_config.h"
@@ -44,7 +45,6 @@
 
 /* mm_rt_helpers */
 #include "error_codes.h"
-#include "layout.h"
 
 /* Encoder function prototypes */
 static inline void et_trace_write_float(void *addr, float value);

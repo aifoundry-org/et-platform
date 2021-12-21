@@ -24,9 +24,7 @@
 #include <etsoc/isa/atomic.h>
 #include <etsoc/isa/hart.h>
 #include <etsoc/isa/sync.h>
-
-/* mm_rt_helpers */
-#include "layout.h"
+#include <system/layout.h>
 
 /* mm specific headers */
 #include "services/log.h"

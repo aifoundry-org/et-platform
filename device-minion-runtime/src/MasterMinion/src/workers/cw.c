@@ -35,6 +35,7 @@
 #include <etsoc/isa/syscall.h>
 #include <etsoc/isa/riscv_encoding.h>
 #include <etsoc/isa/sync.h>
+#include <system/layout.h>
 #include <transports/mm_cm_iface/message_types.h>
 
 /* mm specific headers */
@@ -46,7 +47,6 @@
 
 /* m_rt_helpers */
 #include "error_codes.h"
-#include "layout.h"
 #include "syscall_internal.h"
 #include "cm_mm_defines.h"
 

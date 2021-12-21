@@ -9,8 +9,8 @@
 *-------------------------------------------------------------------------
 */
 
-/* minion_rt_helpers */
-#include "layout.h"
+/* mm_rt_svcs */
+#include <system/layout.h>
 
 /*
  * Initially written by emmanuel.marie@esperantotech.com

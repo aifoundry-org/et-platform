@@ -5,17 +5,15 @@
 #include <etsoc/isa/riscv_encoding.h>
 #include <etsoc/isa/sync.h>
 #include <etsoc/isa/syscall.h>
+#include <system/layout.h>
 #include <transports/mm_cm_iface/message_types.h>
 
-#include "mm_to_cm_iface.h"
 #include "cm_to_mm_iface.h"
 #include "kernel.h"
 #include "log.h"
-#include "trace.h"
-
+#include "mm_to_cm_iface.h"
 #include "syscall_internal.h"
-#include "layout.h"
-
+#include "trace.h"
 
 typedef struct {
     cm_iface_message_number_t number;

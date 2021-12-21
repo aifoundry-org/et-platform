@@ -12,11 +12,11 @@
 #include <etsoc/isa/macros.h>
 #include <etsoc/isa/syscall.h>
 #include <etsoc/drivers/pmu/pmu.h>
+#include <system/layout.h>
 #include <transports/mm_cm_iface/message_types.h>
 
 #include "syscall_internal.h"
 #include "cm_mm_defines.h"
-#include "layout.h"
 #include "log.h"
 
 #include "kernel.h"

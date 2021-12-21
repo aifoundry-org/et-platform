@@ -28,6 +28,7 @@
 #include <etsoc/isa/riscv_encoding.h>
 #include <etsoc/isa/syscall.h>
 #include <etsoc/drivers/pmu/pmu.h>
+#include <system/layout.h>
 #include <transports/sp_mm_iface/sp_mm_comms_spec.h>
 
 /* mm specific headers */
@@ -39,7 +40,6 @@
 /* mm_rt_helpers */
 #include "error_codes.h"
 #include "syscall_internal.h"
-#include "layout.h"
 #include "workers/kw.h"
 #include "workers/dmaw.h"
 #include "workers/sqw.h"

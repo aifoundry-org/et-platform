@@ -23,8 +23,7 @@
 #include "services/log.h"
 
 /* mm-rt-svcs (shared across minion rt) */
-#include "layout.h"
-#include "services/log.h"
+#include <system/layout.h>
 
 /*! \var MM_DEV_INTF_REG_s *Gbl_MM_DIRs
     \brief Global static instance of Master Minions

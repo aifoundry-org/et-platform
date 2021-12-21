@@ -21,6 +21,7 @@
 /* mm_et_svcs */
 #include <etsoc/drivers/pmu/pmu.h>
 #include <etsoc/isa/cacheops.h>
+#include <system/layout.h>
 
 /* mm specific headers */
 #include "services/host_cmd_hdlr.h"
@@ -38,7 +39,6 @@
 
 /* mm_rt_helpers */
 #include "error_codes.h"
-#include "layout.h"
 
 /*! \def TRACE_NODE_INDEX
     \brief Default trace node index in DMA list command when flag is set to extract Trace buffers.

@@ -34,13 +34,11 @@
 
 /* mm_rt_svcs */
 #include <etsoc/common/common_defs.h>
+#include <system/layout.h>
 #include <transports/sp_mm_iface/sp_mm_shared_config.h>
 
 /* etsoc_hal */
-#include "hwinc/hal_device.h"
-
-/* mm_rt_helpers */
-#include "layout.h"
+#include <hwinc/hal_device.h>
 
 /************************************************/
 /*      - PC_MM secure mailbox layout (4K) -    */

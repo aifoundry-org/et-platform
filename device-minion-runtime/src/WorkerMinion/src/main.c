@@ -26,15 +26,14 @@
 #include <etsoc/isa/hart.h>
 #include <etsoc/isa/sync.h>
 #include <etsoc/isa/riscv_encoding.h>
-#include <transports/mm_cm_iface/message_types.h>
 #include <etsoc/drivers/pmu/pmu.h>
+#include <system/layout.h>
+#include <transports/mm_cm_iface/message_types.h>
 
-#include "layout.h"
-#include "log.h"
-
-#include "device_minion_runtime_build_configuration.h"
 #include "cm_mm_defines.h"
 #include "cm_to_mm_iface.h"
+#include "device_minion_runtime_build_configuration.h"
+#include "log.h"
 #include "mm_to_cm_iface.h"
 #include "trace.h"
 

@@ -30,9 +30,7 @@
 #include <etsoc/isa/fcc.h>
 #include <etsoc/isa/hart.h>
 #include <etsoc/isa/sync.h>
-
-/* minion_rt_helpers */
-#include "layout.h"
+#include <system/layout.h>
 
 /* Machine minion specific headers */
 #include "config/mm_config.h"

@@ -10,9 +10,7 @@
 
 /* mm-rt-svcs */
 #include <etsoc/isa/etsoc_memory.h>
-
-/* mm-rt-helpers */
-#include "layout.h"
+#include <system/layout.h>
 
 /* Cycle Bit */
 #define CTRL_CB 0x01

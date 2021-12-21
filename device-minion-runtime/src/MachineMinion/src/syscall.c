@@ -19,13 +19,13 @@
 #include <etsoc/isa/fcc.h>
 #include <etsoc/isa/hart.h>
 #include <etsoc/isa/sync.h>
+#include <system/layout.h>
 #include <transports/mm_cm_iface/broadcast.h>
 
 /* etsoc_hal */
 #include "hwinc/hal_device.h"
 
 /* minion_rt_helpers */
-#include "layout.h"
 #include "syscall_internal.h"
 #include "shire_cache.h"
 #include "minion_cfg.h"

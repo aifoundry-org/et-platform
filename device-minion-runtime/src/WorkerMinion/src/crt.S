@@ -1,4 +1,4 @@
-#include "layout.h"
+#include <system/layout.h>
 
 .section .text.init, "ax", @progbits
 .global _start

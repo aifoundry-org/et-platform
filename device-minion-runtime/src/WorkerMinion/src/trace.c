@@ -28,9 +28,9 @@
 #include <etsoc/isa/etsoc_memory.h>
 #include <etsoc/isa/hart.h>
 #include <etsoc/isa/cacheops.h>
+#include <system/layout.h>
 
 #include "log.h"
-#include "layout.h"
 
 #define ET_TRACE_GET_HART_ID()       get_hart_id()
 #define ET_TRACE_GET_TIMESTAMP()     PMC_Get_Current_Cycles()

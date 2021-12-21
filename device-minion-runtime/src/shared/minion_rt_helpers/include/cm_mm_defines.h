@@ -20,8 +20,6 @@
 #include <etsoc/isa/sync.h>
 #include <stdio.h>
 
-#include "layout.h"
-
 /*! \def CM_MM_MASTER_HART_DISPATCHER_IDX
     \brief A macro that provides the index of the hart within master shire
     used for dispatcher.
