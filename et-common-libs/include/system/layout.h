@@ -66,14 +66,19 @@
 /*                    (Base Address: 0x80000000)                     */
 /*     - user                - base-offset   - size                  */
 /*     CM Unicast buff       0x0             0x5000 (20K)            */
-/*     CM Kernel flags       0x5000          0x100 (256 bytes)       */
-/*     MM SQ prefetch buffer 0x5100          0x2400 (9K)             */
+/*     CM Unicast locks      0x5000          0x140 (320 bytes)       */
+/*     CM Kernel flags       0x5140          0x100 (256 bytes)       */
+/*     MM SQ prefetch buffer 0x5240          0x2400 (9K)             */
 /*********************************************************************/
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET  0x0
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR    ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET)
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_SIZE         ((1 + MAX_SIMULTANEOUS_KERNELS) * CM_MM_IFACE_CIRCBUFFER_SIZE)
 
-#define CM_KERNEL_LAUNCHED_FLAG_BASE_OFFSET          CM_MM_IFACE_UNICAST_CIRCBUFFERS_SIZE
+#define CM_MM_IFACE_UNICAST_LOCKS_BASE_OFFSET        CM_MM_IFACE_UNICAST_CIRCBUFFERS_SIZE
+#define CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR          ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_MM_IFACE_UNICAST_LOCKS_BASE_OFFSET)
+#define CM_MM_IFACE_UNICAST_LOCKS_SIZE               ((1 + MAX_SIMULTANEOUS_KERNELS) * 64) /* Slot 0 is for Thread 0 (Dispatcher), rest for Kernel Workers */
+
+#define CM_KERNEL_LAUNCHED_FLAG_BASE_OFFSET          CM_MM_IFACE_UNICAST_LOCKS_SIZE
 #define CM_KERNEL_LAUNCHED_FLAG_BASEADDR             ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_KERNEL_LAUNCHED_FLAG_BASE_OFFSET)
 #define CM_KERNEL_LAUNCHED_FLAG_BASEADDR_SIZE        (MAX_SIMULTANEOUS_KERNELS * KERNEL_LAUNCH_FLAG_SIZE)
 
@@ -143,9 +148,6 @@ S-mode stacks grow from the end of the 3rd region */
 #define CM_MM_HART_MESSAGE_COUNTER                        CACHE_LINE_ALIGN(FW_CM_TRACE_CB_BASEADDR + FW_CM_TRACE_CB_SIZE)
 #define CM_MM_HART_MESSAGE_COUNTER_SIZE                   (CM_MM_MESSAGE_COUNTER_SIZE * NUM_HARTS)
 
-#define CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR               CACHE_LINE_ALIGN(CM_MM_HART_MESSAGE_COUNTER + CM_MM_HART_MESSAGE_COUNTER_SIZE)
-#define CM_MM_IFACE_UNICAST_LOCKS_SIZE                    ((1 + MAX_SIMULTANEOUS_KERNELS) * 64) /* Slot 0 is for Thread 0 (Dispatcher), rest for Kernel Workers */
-
 #define FW_SMODE_STACK_BASE                               (LOW_SDATA_SUBREGION_BASE + LOW_SDATA_SUBREGION_SIZE)
 #define FW_SMODE_STACK_SCRATCH_REGION_SIZE                64 /* Used by trap handler. 64B is the offset to distribute stack bases across memory controllers. */
 #define FW_SMODE_STACK_SIZE                               (4096 + FW_SMODE_STACK_SCRATCH_REGION_SIZE) /* (4K + 64B) stack * 2112 stacks = 8580KB */
@@ -155,6 +157,7 @@ S-mode stacks grow from the end of the 3rd region */
 /*                (Base Address: 0x8004000000)                   */
 /*     - user            - base-offset   - size                  */
 /*     U-mode stacks     0x0             0x1000000 (16M)         */
+/*     DMA Linked Lists  0x1000000       0x4000000 (64M)         */
 /*****************************************************************/
 /* Give 4K for VM stack pages
 Bits[8:6] of an address specify memshire number, and bit[9] the controller within memshire.
@@ -162,13 +165,27 @@ Offset by 1<<6 = 64 to distribute stack bases across different memory controller
 #define KERNEL_UMODE_STACK_BASE           0x8005000000ULL
 #define KERNEL_UMODE_STACK_SIZE           (4096 + 64)
 
+/* Storage for DMA configuration linked lists. Store at the end of U-mode stack base
+For each DMA channel, reserve 8MB for the list. Chosen arbitrarily to balance mem
+useage vs likely need. Each entry is 24 bytes, so 349525 entries max per list. If the
+host system is totally fragmented (each entry tracks 4kB - VERY unlkely), can DMA
+~1.4GB without modifying the list. */
+#define DMA_LL_SIZE                       0x800000
+#define DMA_CHAN_READ_0_LL_BASE           KERNEL_UMODE_STACK_BASE
+#define DMA_CHAN_READ_1_LL_BASE           CACHE_LINE_ALIGN(DMA_CHAN_READ_0_LL_BASE + DMA_LL_SIZE)
+#define DMA_CHAN_READ_2_LL_BASE           CACHE_LINE_ALIGN(DMA_CHAN_READ_1_LL_BASE + DMA_LL_SIZE)
+#define DMA_CHAN_READ_3_LL_BASE           CACHE_LINE_ALIGN(DMA_CHAN_READ_2_LL_BASE + DMA_LL_SIZE)
+#define DMA_CHAN_WRITE_0_LL_BASE          CACHE_LINE_ALIGN(DMA_CHAN_READ_3_LL_BASE + DMA_LL_SIZE)
+#define DMA_CHAN_WRITE_1_LL_BASE          CACHE_LINE_ALIGN(DMA_CHAN_WRITE_0_LL_BASE + DMA_LL_SIZE)
+#define DMA_CHAN_WRITE_2_LL_BASE          CACHE_LINE_ALIGN(DMA_CHAN_WRITE_1_LL_BASE + DMA_LL_SIZE)
+#define DMA_CHAN_WRITE_3_LL_BASE          CACHE_LINE_ALIGN(DMA_CHAN_WRITE_2_LL_BASE + DMA_LL_SIZE)
+
 /*****************************************************************/
 /*              - Low Memory Region Layout (28G) -               */
 /*                (Base Address: 0x8100000000)                   */
 /*     - user            - base-offset   - size                  */
 /*     Sub-regions       0x0             0x1000000 (16M)         */
-/*     Host-managed      0x1000000       0x2FB000000 (12208M)    */
-/*     DMA Linked Lists  0x2FC000000     0x4000000 (64M)         */
+/*     Host-managed      0x1000000       0x2FF000000 (12272M)    */
 /*     Not-used          0x300000000     0x400000000 (16G)       */
 /* NOTE: "Not-used" region is accessible but not used currently. */
 /*****************************************************************/
@@ -214,29 +231,12 @@ correspoding Flash partition to take affect. */
 
 /* U-mode user kernels entry point
 (Fixed address - should sync kernels linker script if this is changed) */
-#define KERNEL_UMODE_ENTRY                0x8101000000ULL /* (LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE) */
-
-/* Storage for DMA configuration linked lists. Store at the end of U-mode stack base
-For each DMA channel, reserve 8MB for the list. Chosen arbitrarily to balance mem
-useage vs likely need. Each entry is 24 bytes, so 349525 entries max per list. If the
-host system is totally fragmented (each entry tracks 4kB - VERY unlkely), can DMA
-~1.4GB without modifying the list. */
-#define DMA_LL_SIZE                       0x800000
-/* TODO: SW-8002: Move these DMA LLs to OS data region starting address: KERNEL_UMODE_STACK_BASE + 0x0
-Also, update the PCIe kernel loopback driver to depict the correct size of the host manage region */
-#define DMA_CHAN_READ_0_LL_BASE           0x83FC000000
-#define DMA_CHAN_READ_1_LL_BASE           CACHE_LINE_ALIGN(DMA_CHAN_READ_0_LL_BASE + DMA_LL_SIZE)
-#define DMA_CHAN_READ_2_LL_BASE           CACHE_LINE_ALIGN(DMA_CHAN_READ_1_LL_BASE + DMA_LL_SIZE)
-#define DMA_CHAN_READ_3_LL_BASE           CACHE_LINE_ALIGN(DMA_CHAN_READ_2_LL_BASE + DMA_LL_SIZE)
-#define DMA_CHAN_WRITE_0_LL_BASE          CACHE_LINE_ALIGN(DMA_CHAN_READ_3_LL_BASE + DMA_LL_SIZE)
-#define DMA_CHAN_WRITE_1_LL_BASE          CACHE_LINE_ALIGN(DMA_CHAN_WRITE_0_LL_BASE + DMA_LL_SIZE)
-#define DMA_CHAN_WRITE_2_LL_BASE          CACHE_LINE_ALIGN(DMA_CHAN_WRITE_1_LL_BASE + DMA_LL_SIZE)
-#define DMA_CHAN_WRITE_3_LL_BASE          CACHE_LINE_ALIGN(DMA_CHAN_WRITE_2_LL_BASE + DMA_LL_SIZE)
+#define KERNEL_UMODE_ENTRY                (LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE)
 
 /* Define the address range in DRAM that the host runtime can explicitly manage
 the range is the START to (END-1) */
 #define HOST_MANAGED_DRAM_START           KERNEL_UMODE_ENTRY
-#define HOST_MANAGED_DRAM_END             DMA_CHAN_READ_0_LL_BASE /* TODO: SW-8002: 0x8400000000 */
+#define HOST_MANAGED_DRAM_END             0x8400000000ULL
 #define HOST_MANAGED_DRAM_SIZE            (HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START)
 
 /************************/
@@ -245,7 +245,7 @@ the range is the START to (END-1) */
 #ifndef __ASSEMBLER__
 
 /* Ensure the shared message buffers don't overlap with the S-stacks */
-static_assert((CM_MM_IFACE_UNICAST_LOCKS_BASE_ADDR + CM_MM_IFACE_UNICAST_LOCKS_SIZE) <
+static_assert((CM_MM_HART_MESSAGE_COUNTER + CM_MM_HART_MESSAGE_COUNTER_SIZE) <
               (FW_SMODE_STACK_BASE - (NUM_HARTS * FW_SMODE_STACK_SIZE)),
               "S-stack / message buffer region collision");
 

@@ -31,6 +31,8 @@ set(MM_RT_SVCS_HDRS
     include/etsoc/isa/syscall.h
     include/etsoc/isa/riscv_encoding.h
     include/etsoc/isa/utils.h
+    include/system/etsoc_ddr_region_map.h
+    include/system/layout.h
 )
 
 #Listing of public headers that expose services provided by
