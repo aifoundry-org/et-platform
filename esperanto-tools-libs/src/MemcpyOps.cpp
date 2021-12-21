@@ -376,7 +376,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyLi
                << " EventId: " << static_cast<int>(evt);
   streamManager_.addEvent(stream, evt);
 
-  commandSender.send(Command{{}, commandSender, evt});
+  commandSender.send(Command{{}, commandSender, evt, true});
   RT_VLOG(HIGH) << "H2D: Added command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   blockableThreadPool_.pushTask([this, barrier, memcpyList, evt, streamInfo] {

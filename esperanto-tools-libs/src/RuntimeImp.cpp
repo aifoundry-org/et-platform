@@ -332,18 +332,20 @@ void RuntimeImp::processResponseError(DeviceErrorCode errorCode, EventId event) 
     // here we have to check if there is an associated errorbuffer with the event; if so, copy the buffer from
     // devicebuffer into dmabuffer; then do the callback
     StreamError streamError(errorCode);
-    if (auto buffer = executionContextCache_->getReservedBuffer(event); buffer != nullptr) {
-      // TODO remove this when ticket https://esperantotech.atlassian.net/browse/SW-9617 is fixed
-      if (errorCode != DeviceErrorCode::KernelLaunchHostAborted) {
-        // do the copy
-        auto st = createStreamWithoutProfiling(buffer->device_);
-        auto errorContexts = std::vector<ErrorContext>(kNumErrorContexts);
-        auto e = memcpyDeviceToHost(st, buffer->getExceptionContextPtr(),
-                                    reinterpret_cast<std::byte*>(errorContexts.data()), kExceptionBufferSize, false);
-        waitForEventWithoutProfiling(e);
-        streamError.errorContext_.emplace(std::move(errorContexts));
+    if (executionContextCache_) {
+      if (auto buffer = executionContextCache_->getReservedBuffer(event); buffer != nullptr) {
+        // TODO remove this when ticket https://esperantotech.atlassian.net/browse/SW-9617 is fixed
+        if (errorCode != DeviceErrorCode::KernelLaunchHostAborted) {
+          // do the copy
+          auto st = createStreamWithoutProfiling(buffer->device_);
+          auto errorContexts = std::vector<ErrorContext>(kNumErrorContexts);
+          auto e = memcpyDeviceToHost(st, buffer->getExceptionContextPtr(),
+                                      reinterpret_cast<std::byte*>(errorContexts.data()), kExceptionBufferSize, false);
+          waitForEventWithoutProfiling(e);
+          streamError.errorContext_.emplace(std::move(errorContexts));
+        }
+        executionContextCache_->releaseBuffer(event);
       }
-      executionContextCache_->releaseBuffer(event);
     }
     if (!streamManager_.executeCallback(event, streamError)) {
       // the callback was not set, so add the error to the error list
