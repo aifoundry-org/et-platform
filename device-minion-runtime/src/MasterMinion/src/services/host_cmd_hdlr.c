@@ -684,7 +684,6 @@ static inline int32_t kernel_launch_cmd_handler(
 {
     struct device_ops_kernel_launch_cmd_t *cmd =
         (struct device_ops_kernel_launch_cmd_t *)command_buffer;
-    struct device_ops_kernel_launch_rsp_t rsp;
     uint8_t kw_idx;
     exec_cycles_t cycles;
     int32_t status = GENERAL_ERROR;
@@ -732,55 +731,69 @@ static inline int32_t kernel_launch_cmd_handler(
             "HostCmdHdlr:KernelLaunch:Failed CmdParam:code_start_address:%lx pointer_to_args:%lx\r\n",
             cmd->code_start_address, cmd->pointer_to_args);
 
+        /* Allocate memory for response message, it includes optional payload. */
+        uint8_t rsp_data[sizeof(struct device_ops_kernel_launch_rsp_t) +
+                         sizeof(struct kernel_rsp_error_ptr_t)] __attribute__((aligned(8))) = { 0 };
+        struct device_ops_kernel_launch_rsp_t *rsp =
+            (struct device_ops_kernel_launch_rsp_t *)(uintptr_t)rsp_data;
+
+        /* Kernel was not launched successfully, send NULL error pointers. */
+        struct kernel_rsp_error_ptr_t error_ptrs = { .umode_exception_buffer_ptr = 0,
+            .umode_trace_buffer_ptr = 0 };
+
+        /* Copy the error pointers (which is optional payload) at the end of response.
+           NOTE: Memory for optional payload is already allocated, so it is safe to use memory beyond normal response size. */
+        memcpy(&rsp->kernel_rsp_error_ptr[0], &error_ptrs, sizeof(error_ptrs));
+
         /* Construct and transit command response */
-        rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
-        rsp.response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-        rsp.device_cmd_start_ts = start_cycles;
-        rsp.device_cmd_wait_dur = cycles.wait_cycles;
-        rsp.device_cmd_execute_dur = 0U;
+        rsp->response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
+        rsp->response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
+        rsp->device_cmd_start_ts = start_cycles;
+        rsp->device_cmd_wait_dur = cycles.wait_cycles;
+        rsp->device_cmd_execute_dur = 0U;
 
         /* Map device internal errors onto device api errors */
         if (status == KW_ERROR_KERNEL_SHIRES_NOT_READY)
         {
-            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SHIRES_NOT_READY;
+            rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SHIRES_NOT_READY;
         }
         else if (status == KW_ERROR_KERNEL_INVALID_ADDRESS)
         {
-            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS;
+            rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS;
         }
         else if (status == KW_ERROR_KERNEL_INAVLID_ARGS_SIZE)
         {
-            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_PAYLOAD_SIZE;
+            rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_PAYLOAD_SIZE;
         }
         else if ((status == KW_ABORTED_KERNEL_SLOT_SEARCH) ||
                  (status == KW_ABORTED_KERNEL_SHIRES_SEARCH) ||
                  (abort_status == HOST_CMD_STATUS_ABORTED))
         {
-            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
+            rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
         }
         else if (status == KW_ERROR_CM_IFACE_MULTICAST_FAILED)
         {
             /* TODO:SW-10385: Add new error code */
-            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+            rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
         }
         else
         {
             /* It should never come here. TODO:SW-10385: Add unexpected error.*/
-            rsp.status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
+            rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
         }
 
 #if TEST_FRAMEWORK
         /* For SP2MM command response, we need to provide the total size = header + payload */
-        rsp.response_info.rsp_hdr.size = sizeof(struct device_ops_kernel_launch_rsp_t);
-        status = SP_Iface_Push_Rsp_To_SP2MM_CQ(&rsp, sizeof(rsp));
+        rsp->response_info.rsp_hdr.size = sizeof(rsp_data);
+        status = SP_Iface_Push_Rsp_To_SP2MM_CQ(rsp, sizeof(rsp_data));
 #else
-        rsp.response_info.rsp_hdr.size =
-            sizeof(struct device_ops_kernel_launch_rsp_t) - sizeof(struct cmn_header_t);
-        status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+        rsp->response_info.rsp_hdr.size =
+            (uint16_t)(sizeof(rsp_data) - sizeof(struct cmn_header_t));
+        status = Host_Iface_CQ_Push_Cmd(0, rsp, sizeof(rsp_data));
 #endif
         /* Check for abort status for trace logging.
         Since we are in failure path, we will ignore CQ push status for logging to trace. */
-        if (rsp.status == DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED)
+        if (rsp->status == DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED)
         {
             TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
                 cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
@@ -794,8 +807,8 @@ static inline int32_t kernel_launch_cmd_handler(
         if (status == STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_DEBUG,
-                "SQ[%d] HostCommandHandler:Pushed:KERNEL_LAUNCH_CMD_RSP:tag_id=%x->Host_CQ\r\n",
-                sqw_idx, rsp.response_info.rsp_hdr.tag_id);
+                "SQ[%d] HostCommandHandler:Pushed:KERNEL_LAUNCH_CMD_RSP:tag_id=%u->Host_CQ\r\n",
+                sqw_idx, rsp->response_info.rsp_hdr.tag_id);
         }
         else
         {

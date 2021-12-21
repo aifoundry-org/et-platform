@@ -99,6 +99,8 @@ typedef struct kernel_instance_ {
     uint8_t pad;
     exec_cycles_t kw_cycles;
     uint64_t kernel_shire_mask;
+    uint64_t umode_exception_buffer_ptr;
+    uint64_t umode_trace_buffer_ptr;
 } kernel_instance_t;
 
 /*! \typedef kw_cb_t
@@ -655,6 +657,17 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
         if (status == STATUS_SUCCESS)
         {
             *kw_idx = slot_index;
+            atomic_store_local_64(&kernel->umode_exception_buffer_ptr, cmd->exception_buffer);
+
+            if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
+            {
+                atomic_store_local_64(&kernel->umode_trace_buffer_ptr,
+                    ((struct trace_init_info_t *)(uintptr_t)CM_UMODE_TRACE_CFG_BASEADDR)->buffer);
+            }
+            else
+            {
+                atomic_store_local_64(&kernel->umode_trace_buffer_ptr, 0);
+            }
         }
         else
         {
@@ -1221,6 +1234,11 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     uint32_t kernel_state;
     uint64_t kernel_shire_mask;
     struct kw_internal_status status_internal;
+    /* Allocate memory for response message, it includes optional payload. */
+    uint8_t rsp_data[sizeof(struct device_ops_kernel_launch_rsp_t) +
+                     sizeof(struct kernel_rsp_error_ptr_t)] __attribute__((aligned(8))) = { 0 };
+    struct device_ops_kernel_launch_rsp_t *launch_rsp =
+        (struct device_ops_kernel_launch_rsp_t *)(uintptr_t)rsp_data;
 
     /* Get the kernel instance */
     kernel_instance_t *const kernel = &KW_CB.kernels[kw_idx];
@@ -1282,7 +1300,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         /* Kernel run complete with host abort, exception or success.
         reclaim resources and Prepare response */
 
-        struct device_ops_kernel_launch_rsp_t launch_rsp = { 0 };
+        uint16_t rsp_size = (uint16_t)(sizeof(struct device_ops_kernel_launch_rsp_t));
 
         /* Read the kernel state to detect abort by host */
         kernel_state = atomic_load_local_32(&kernel->kernel_state);
@@ -1292,17 +1310,32 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
         cycles.raw_u64 = atomic_load_local_64(&kernel->kw_cycles.raw_u64);
 
         /* Construct and transmit kernel launch response to host */
-        launch_rsp.response_info.rsp_hdr.tag_id = atomic_load_local_16(&kernel->launch_tag_id);
-        launch_rsp.response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-        launch_rsp.device_cmd_start_ts = cycles.cmd_start_cycles;
-        launch_rsp.device_cmd_wait_dur = cycles.wait_cycles;
-        launch_rsp.device_cmd_execute_dur =
+        launch_rsp->response_info.rsp_hdr.tag_id = atomic_load_local_16(&kernel->launch_tag_id);
+        launch_rsp->response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
+        launch_rsp->device_cmd_start_ts = cycles.cmd_start_cycles;
+        launch_rsp->device_cmd_wait_dur = cycles.wait_cycles;
+        launch_rsp->device_cmd_execute_dur =
             (PMC_GET_LATENCY(cycles.exec_start_cycles) & 0xFFFFFFFF);
 
         local_sqw_idx = atomic_load_local_8(&kernel->sqw_idx);
 
         /* Get completion status of kernel launch. */
-        launch_rsp.status = kw_get_kernel_launch_completion_status(kernel_state, &status_internal);
+        launch_rsp->status = kw_get_kernel_launch_completion_status(kernel_state, &status_internal);
+
+        if (launch_rsp->status != DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED)
+        {
+            /* Kernel was not completed successfully. So populate response with exception and trace buffer pointers. */
+            struct kernel_rsp_error_ptr_t error_ptrs;
+            error_ptrs.umode_exception_buffer_ptr =
+                atomic_load_local_64(&kernel->umode_exception_buffer_ptr);
+            error_ptrs.umode_trace_buffer_ptr =
+                atomic_load_local_64(&kernel->umode_trace_buffer_ptr);
+
+            /* Copy the error pointers (which is optional payload) at the end of response.
+               NOTE: Memory for optional payload is already allocated, so it is safe to use memory beyond normal response size. */
+            memcpy(&launch_rsp->kernel_rsp_error_ptr[0], &error_ptrs, sizeof(error_ptrs));
+            rsp_size = (uint16_t)(rsp_size + sizeof(error_ptrs));
+        }
 
         /* Give back the reserved compute shires. */
         kw_unreserve_kernel_shires(kernel_shire_mask);
@@ -1312,41 +1345,41 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
 
 #if TEST_FRAMEWORK
         /* For SP2MM command response, we need to provide the total size = header + payload */
-        launch_rsp.response_info.rsp_hdr.size = sizeof(launch_rsp);
+        launch_rsp->response_info.rsp_hdr.size = rsp_size;
         /* Send kernel launch response to SP */
-        status = SP_Iface_Push_Rsp_To_SP2MM_CQ(&launch_rsp, sizeof(launch_rsp));
+        status = SP_Iface_Push_Rsp_To_SP2MM_CQ(launch_rsp, rsp_size);
 #else
-        launch_rsp.response_info.rsp_hdr.size = sizeof(launch_rsp) - sizeof(struct cmn_header_t);
+        launch_rsp->response_info.rsp_hdr.size = (uint16_t)(rsp_size - sizeof(struct cmn_header_t));
         /* Send kernel launch response to host */
-        status = Host_Iface_CQ_Push_Cmd(0, &launch_rsp, sizeof(launch_rsp));
+        status = Host_Iface_CQ_Push_Cmd(0, launch_rsp, rsp_size);
 #endif
 
         if (status == STATUS_SUCCESS)
         {
             /* Log to command status to trace */
-            if (launch_rsp.status == DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED)
+            if (launch_rsp->status == DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED)
             {
                 TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, local_sqw_idx,
-                    launch_rsp.response_info.rsp_hdr.tag_id, CMD_STATUS_SUCCEEDED);
+                    launch_rsp->response_info.rsp_hdr.tag_id, CMD_STATUS_SUCCEEDED);
             }
-            else if (launch_rsp.status == DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED)
+            else if (launch_rsp->status == DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED)
             {
                 TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, local_sqw_idx,
-                    launch_rsp.response_info.rsp_hdr.tag_id, CMD_STATUS_ABORTED);
+                    launch_rsp->response_info.rsp_hdr.tag_id, CMD_STATUS_ABORTED);
             }
             else
             {
                 TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, local_sqw_idx,
-                    launch_rsp.response_info.rsp_hdr.tag_id, CMD_STATUS_FAILED);
+                    launch_rsp->response_info.rsp_hdr.tag_id, CMD_STATUS_FAILED);
             }
 
             Log_Write(LOG_LEVEL_DEBUG, "KW:CQ_Push:KERNEL_LAUNCH_CMD_RSP:tag_id=%x\r\n",
-                launch_rsp.response_info.rsp_hdr.tag_id);
+                launch_rsp->response_info.rsp_hdr.tag_id);
         }
         else
         {
             TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, local_sqw_idx,
-                launch_rsp.response_info.rsp_hdr.tag_id, CMD_STATUS_FAILED);
+                launch_rsp->response_info.rsp_hdr.tag_id, CMD_STATUS_FAILED);
 
             Log_Write(LOG_LEVEL_ERROR, "KW:CQ_Push:Failed\r\n");
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
