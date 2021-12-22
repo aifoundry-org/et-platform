@@ -19,9 +19,9 @@ typedef struct {
     cm_iface_message_number_t number;
 } __attribute__((aligned(64))) cm_iface_message_number_internal_t;
 
-#define CURRENT_THREAD_MASK   ((0x1UL << (get_hart_id()%64)))
+#define CURRENT_THREAD_MASK ((0x1UL << (get_hart_id() % 64)))
 /* MM -> CM message counters */
-#define mm_cm_msg_number ((cm_iface_message_number_internal_t*)CM_MM_HART_MESSAGE_COUNTER)
+#define mm_cm_msg_number ((cm_iface_message_number_internal_t *)CM_MM_HART_MESSAGE_COUNTER)
 static spinlock_t pre_msg_local_barrier[NUM_SHIRES] = { 0 };
 static spinlock_t msg_sync_local_barrier[NUM_SHIRES] = { 0 };
 
@@ -32,8 +32,8 @@ static spinlock_t msg_sync_local_barrier[NUM_SHIRES] = { 0 };
     ((broadcast_message_ctrl_t *)FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL)
 
 /* Local function prototypes */
-static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
-    cm_iface_message_t *const message_ptr, void *const optional_arg);
+static void mm_to_cm_iface_handle_message(
+    uint32_t shire, uint64_t hart, cm_iface_message_t *const message_ptr, void *const optional_arg);
 
 /* Finds the last shire involved in MM->CM message and notifies the MM */
 static inline void read_msg_and_notify_mm(uint64_t shire_id, cm_iface_message_t *const message)
@@ -45,8 +45,8 @@ static inline void read_msg_and_notify_mm(uint64_t shire_id, cm_iface_message_t 
     if (thread_num == 0)
     {
         /* Bring data from L3 and copy message from shared global memory to local buffer */
-        ETSOC_MEM_EVICT_AND_COPY(message, master_to_worker_broadcast_message_buffer_ptr,
-            sizeof(*message), to_L3)
+        ETSOC_MEM_EVICT_AND_COPY(
+            message, master_to_worker_broadcast_message_buffer_ptr, sizeof(*message), to_L3)
 
         /* Set the local barrier flag */
         init_local_spinlock(&msg_sync_local_barrier[shire_id], 1);
@@ -57,12 +57,12 @@ static inline void read_msg_and_notify_mm(uint64_t shire_id, cm_iface_message_t 
         local_spinwait_wait(&msg_sync_local_barrier[shire_id], 1, 0);
 
         /* Bring data from L2 and copy message from shared global memory to local buffer */
-        ETSOC_MEM_EVICT_AND_COPY(message, master_to_worker_broadcast_message_buffer_ptr,
-            sizeof(*message), to_L2)
+        ETSOC_MEM_EVICT_AND_COPY(
+            message, master_to_worker_broadcast_message_buffer_ptr, sizeof(*message), to_L2)
     }
 
     /* Last thread per shire decrements global counter */
-    if (thread_num == (thread_count -1))
+    if (thread_num == (thread_count - 1))
     {
         /* Reset the pre msg local barrier flag */
         init_local_spinlock(&pre_msg_local_barrier[shire_id], 0);
@@ -72,7 +72,7 @@ static inline void read_msg_and_notify_mm(uint64_t shire_id, cm_iface_message_t 
 
         /* Decrement the shire count to send msg acknownledgment to MM */
         atomic_add_signed_global_32(
-            (int32_t*)&master_to_worker_broadcast_message_ctrl_ptr->shire_count, -1);
+            (int32_t *)&master_to_worker_broadcast_message_ctrl_ptr->shire_count, -1);
     }
 }
 
@@ -110,7 +110,7 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
     read_msg_and_notify_mm(shire_id, &message);
 
     /* Check for pending MM->CM message */
-    if(message.header.number != mm_cm_msg_number[hart_id].number)
+    if (message.header.number != mm_cm_msg_number[hart_id].number)
     {
         /* Update the global copy of read messages */
         mm_cm_msg_number[hart_id].number = message.header.number;
@@ -125,111 +125,117 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
     }
 }
 
-static void mm_to_cm_iface_handle_message(uint32_t shire, uint64_t hart,
-    cm_iface_message_t *const message_ptr, void *const optional_arg)
+static void mm_to_cm_iface_handle_message(
+    uint32_t shire, uint64_t hart, cm_iface_message_t *const message_ptr, void *const optional_arg)
 {
     switch (message_ptr->header.id)
     {
-    case MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH:
-    {
-        int64_t rv = -1;
-        mm_to_cm_message_kernel_launch_t *launch = (mm_to_cm_message_kernel_launch_t *)message_ptr;
-        /* Check if this Shire is involved in the kernel launch */
-        if (launch->kernel.shire_mask & (1ULL << shire))
+        case MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH:
         {
-            mm_to_cm_message_kernel_params_t kernel;
-            kernel.kw_base_id           = launch->kernel.kw_base_id;
-            kernel.slot_index           = launch->kernel.slot_index;
-            kernel.flags                = launch->kernel.flags;
-            kernel.code_start_address   = launch->kernel.code_start_address;
-            kernel.pointer_to_args      = launch->kernel.pointer_to_args;
-            kernel.shire_mask           = launch->kernel.shire_mask;
-            kernel.exception_buffer     = launch->kernel.exception_buffer;
-
-            uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
-            rv = launch_kernel(kernel, kernel_stack_addr);
-        }
-
-        if (rv != 0)
-        {
-            // Something went wrong launching the kernel.
-            // TODO: Do something
-        }
-        break;
-    }
-    case MM_TO_CM_MESSAGE_ID_KERNEL_ABORT:
-    {
-        /* Should only abort if the kernel was launched on this hart */
-        if (kernel_info_has_thread_launched(shire, hart & (HARTS_PER_SHIRE - 1)))
-        {
-            uint64_t exception_buffer = 0;
-
-            /* Check if pointer to execution context was set */
-            if (optional_arg != 0)
+            int64_t rv = -1;
+            mm_to_cm_message_kernel_launch_t *launch =
+                (mm_to_cm_message_kernel_launch_t *)message_ptr;
+            /* Check if this Shire is involved in the kernel launch */
+            if (launch->kernel.shire_mask & (1ULL << shire))
             {
-                /* Get the kernel exception buffer */
-                exception_buffer = kernel_info_get_exception_buffer(shire);
+                mm_to_cm_message_kernel_params_t kernel;
+                kernel.kw_base_id = launch->kernel.kw_base_id;
+                kernel.slot_index = launch->kernel.slot_index;
+                kernel.flags = launch->kernel.flags;
+                kernel.code_start_address = launch->kernel.code_start_address;
+                kernel.pointer_to_args = launch->kernel.pointer_to_args;
+                kernel.shire_mask = launch->kernel.shire_mask;
+                kernel.exception_buffer = launch->kernel.exception_buffer;
+
+                uint64_t kernel_stack_addr =
+                    KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
+                rv = launch_kernel(kernel, kernel_stack_addr);
             }
 
-            /* If the kernel exception buffer is available */
-            if (exception_buffer != 0)
+            if (rv != 0)
             {
-                const internal_execution_context_t *context = (internal_execution_context_t*)optional_arg;
-
-                /* Save the execution context in the buffer provided */
-                CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
-                    CM_CONTEXT_TYPE_SYSTEM_ABORT, hart, context);
+                // Something went wrong launching the kernel.
+                // TODO: Do something
             }
-
-            return_from_kernel(0, KERNEL_RETURN_SYSTEM_ABORT);
+            break;
         }
-        break;
-    }
-    case MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL:
-    {
-        mm_to_cm_message_trace_rt_control_t *cmd =
-                                (mm_to_cm_message_trace_rt_control_t *)message_ptr;
-        if (cmd->thread_mask & CURRENT_THREAD_MASK)
+        case MM_TO_CM_MESSAGE_ID_KERNEL_ABORT:
         {
-            Trace_RT_Control_CM(cmd->cm_control);
-        }
-        break;
-    }
-    case MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE:
-    {
-        const mm_to_cm_message_trace_rt_config_t *cmd =
-                                (mm_to_cm_message_trace_rt_config_t *)message_ptr;
+            /* Should only abort if the kernel was launched on this hart */
+            if (kernel_info_has_thread_launched(shire, hart & (HARTS_PER_SHIRE - 1)))
+            {
+                uint64_t exception_buffer = 0;
 
-        if (cmd->thread_mask & CURRENT_THREAD_MASK)
+                /* Check if pointer to execution context was set */
+                if (optional_arg != 0)
+                {
+                    /* Get the kernel exception buffer */
+                    exception_buffer = kernel_info_get_exception_buffer(shire);
+                }
+
+                /* If the kernel exception buffer is available */
+                if (exception_buffer != 0)
+                {
+                    const internal_execution_context_t *context =
+                        (internal_execution_context_t *)optional_arg;
+
+                    /* Save the execution context in the buffer provided */
+                    CM_To_MM_Save_Execution_Context((execution_context_t *)exception_buffer,
+                        CM_CONTEXT_TYPE_SYSTEM_ABORT, hart, context);
+                }
+
+                return_from_kernel(0, KERNEL_RETURN_SYSTEM_ABORT);
+            }
+            break;
+        }
+        case MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL:
         {
-            struct trace_init_info_t mm_trace_init = {.shire_mask = cmd->shire_mask,
-                .thread_mask= cmd->thread_mask, .filter_mask = cmd->filter_mask,
-                .event_mask  = cmd->event_mask, .threshold   = cmd->threshold};
-
-            Trace_Init_CM(&mm_trace_init);
-            Trace_String(TRACE_EVENT_STRING_CRITICAL, Trace_Get_CM_CB(), "CM:TRACE_RT_CONFIG:Done!!\n");
+            mm_to_cm_message_trace_rt_control_t *cmd =
+                (mm_to_cm_message_trace_rt_control_t *)message_ptr;
+            if (cmd->thread_mask & CURRENT_THREAD_MASK)
+            {
+                Trace_RT_Control_CM(cmd->cm_control);
+            }
+            break;
         }
-        break;
-    }
-    case MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT:
-    {
-        const mm_to_cm_message_trace_buffer_evict_t *cmd =
-                                (mm_to_cm_message_trace_buffer_evict_t *)message_ptr;
-
-        if (cmd->thread_mask & CURRENT_THREAD_MASK)
+        case MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE:
         {
-            /* Disbale and Evict Trace buffer. */
-            Trace_Set_Enable_CM(TRACE_DISABLE);
+            const mm_to_cm_message_trace_rt_config_t *cmd =
+                (mm_to_cm_message_trace_rt_config_t *)message_ptr;
+
+            if (cmd->thread_mask & CURRENT_THREAD_MASK)
+            {
+                struct trace_init_info_t mm_trace_init = { .shire_mask = cmd->shire_mask,
+                    .thread_mask = cmd->thread_mask,
+                    .filter_mask = cmd->filter_mask,
+                    .event_mask = cmd->event_mask,
+                    .threshold = cmd->threshold };
+
+                Trace_Init_CM(&mm_trace_init);
+                Trace_String(
+                    TRACE_EVENT_STRING_CRITICAL, Trace_Get_CM_CB(), "CM:TRACE_RT_CONFIG:Done!!\n");
+            }
+            break;
         }
-        break;
-    }
-    case MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE:
-        // Make a syscall to M-mode to configure PMCs
-        syscall(SYSCALL_CONFIGURE_PMCS_INT, 0,
+        case MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT:
+        {
+            const mm_to_cm_message_trace_buffer_evict_t *cmd =
+                (mm_to_cm_message_trace_buffer_evict_t *)message_ptr;
+
+            if (cmd->thread_mask & CURRENT_THREAD_MASK)
+            {
+                /* Disbale and Evict Trace buffer. */
+                Trace_Set_Enable_CM(TRACE_DISABLE);
+            }
+            break;
+        }
+        case MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE:
+            // Make a syscall to M-mode to configure PMCs
+            syscall(SYSCALL_CONFIGURE_PMCS_INT, 0,
                 ((mm_to_cm_message_pmc_configure_t *)message_ptr)->conf_buffer_addr, 0);
-        break;
-    default:
-        // Unknown message
-        break;
+            break;
+        default:
+            // Unknown message
+            break;
     }
 }
