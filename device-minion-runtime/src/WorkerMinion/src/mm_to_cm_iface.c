@@ -133,7 +133,7 @@ static void mm_to_cm_iface_handle_message(
         case MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH:
         {
             int64_t rv = -1;
-            mm_to_cm_message_kernel_launch_t *launch =
+            const mm_to_cm_message_kernel_launch_t *launch =
                 (mm_to_cm_message_kernel_launch_t *)message_ptr;
             /* Check if this Shire is involved in the kernel launch */
             if (launch->kernel.shire_mask & (1ULL << shire))
@@ -154,8 +154,9 @@ static void mm_to_cm_iface_handle_message(
 
             if (rv != 0)
             {
-                // Something went wrong launching the kernel.
-                // TODO: Do something
+                /* Something went wrong launching the kernel. */
+                log_write(
+                    LOG_LEVEL_ERROR, "H%04" PRId64 ":MM->CM:Unable to launch kernel\r\n", hart);
             }
             break;
         }
@@ -235,7 +236,9 @@ static void mm_to_cm_iface_handle_message(
                 ((mm_to_cm_message_pmc_configure_t *)message_ptr)->conf_buffer_addr, 0);
             break;
         default:
-            // Unknown message
+            /* Unknown message received */
+            log_write(LOG_LEVEL_ERROR, "H%04" PRId64 ":MM->CM:Unknown msg received:ID:%d\r\n", hart,
+                message_ptr->header.id);
             break;
     }
 }
