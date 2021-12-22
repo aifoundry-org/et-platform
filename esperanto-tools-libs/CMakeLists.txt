@@ -73,6 +73,7 @@ add_library(etrt_obj OBJECT
     src/KernelLaunch.cpp
     src/MemcpyOps.cpp
     src/dma/CmaManager.cpp
+    src/dma/FwTraces.cpp
     src/ProfileEvent.cpp
     src/StreamManager.cpp
     src/Types.cpp

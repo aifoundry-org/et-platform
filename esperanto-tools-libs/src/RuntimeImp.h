@@ -94,6 +94,8 @@ public:
 private:
   friend ExecutionContextCache;
 
+  void dumpFwTraces(DeviceId device);
+
   std::vector<DeviceId> getDevicesWithoutProfiling() const;
 
   std::byte* mallocDeviceWithoutProfiling(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize);

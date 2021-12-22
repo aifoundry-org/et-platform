@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #include "RuntimeImp.h"
+#include "Constants.h"
 #include "ExecutionContextCache.h"
 #include "MemoryManager.h"
 #include "ScopedProfileEvent.h"
@@ -18,7 +19,6 @@
 
 #include "runtime/IDmaBuffer.h"
 #include "runtime/IRuntime.h"
-#include "runtime/Types.h"
 
 #include <cstdint>
 #include <device-layer/IDeviceLayer.h>
@@ -36,21 +36,6 @@
 
 using namespace rt;
 using namespace rt::profiling;
-
-namespace {
-// these constants are based on documentation:
-// https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1289355429/Device+Ops+Interface+-+Command+Response+Events+Bindings#Trace-setup-and-execution-flow
-constexpr auto kTracingFwMmSize = 4 * (1 << 20);
-constexpr auto kTracingFwCmSize = 1 * (1 << 20);
-constexpr auto kTracingFwBufferSize = kTracingFwCmSize + kTracingFwMmSize;
-constexpr int kEnableTracingBit = 1 << 0;
-constexpr int kTraceRtControlLogToUart = 1 << 1;
-constexpr int kResetTraceBufferAddressBit = 1 << 2; // Reset Trace buffer point to device side Trace Buffer base address
-constexpr auto kNumErrorContexts = 2080;
-constexpr auto kExceptionBufferSize = sizeof(ErrorContext) * kNumErrorContexts;
-constexpr auto kNumExecutionCacheBuffers = 5; // initial number of execution cache buffers
-constexpr auto kAllocFactorTotalMaxMemory = 2; // this will affect the size of memory we allocate for CMA
-} // namespace
 
 RuntimeImp::~RuntimeImp() {
   for (auto d : devices_) {
@@ -695,6 +680,10 @@ void RuntimeImp::abortDevice(DeviceId device) {
     abortCommand(fakeEvt, 5s);
     dispatch(fakeEvt);
     waitForStreamWithoutProfiling(st);
+    auto disableTraces = getenv("ET_DISABLE_PULL_FW_TRACES_AT_START");
+    if (!disableTraces) {
+      dumpFwTraces(device);
+    }
     destroyStreamWithoutProfiling(st);
   }
   running_ = oldRunningState;
