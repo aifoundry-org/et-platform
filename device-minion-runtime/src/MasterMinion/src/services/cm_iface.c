@@ -73,7 +73,7 @@ static mm_cm_iface_cb_t MM_CM_CB __attribute__((aligned(64))) = { 0 };
 */
 static uint32_t MM_CM_Broadcast_Last_Number __attribute__((aligned(64))) = 1;
 
-static void mm_to_cm_iface_multicast_timeout_cb(uint8_t arg);
+/* Local functions */
 
 static inline int64_t broadcast_ipi_trigger(uint64_t dest_shire_mask, uint64_t dest_hart_mask)
 {
@@ -113,7 +113,7 @@ static void mm_to_cm_iface_multicast_timeout_cb(uint8_t thread_id)
 *
 *   OUTPUTS
 *
-*       None
+*       status    Success or error
 *
 ***********************************************************************/
 int32_t CM_Iface_Init(void)
@@ -159,20 +159,20 @@ int32_t CM_Iface_Init(void)
 *
 *   INPUTS
 *
-*       arg   timeout
+*       dest_shire_mask    Shire mask to multicast message to
+*       message            Pointer to message
 *
 *   OUTPUTS
 *
-*       None
+*       status             Success or error
 *
 ***********************************************************************/
 int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message)
 {
     int8_t sw_timer_idx;
-    int32_t status = 0;
     uint8_t thread_id = get_hart_id() & (HARTS_PER_SHIRE - 1);
+    int32_t status = 0;
     uint32_t timeout_flag = 0;
-    uint64_t sip;
     broadcast_message_ctrl_t msg_control;
 
     Log_Write(LOG_LEVEL_DEBUG, "CM_Iface_Multicast_Send:Sending multicast msg\r\n");
@@ -221,30 +221,14 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
             syscall(SYSCALL_IPI_TRIGGER_INT, 0xFFFFFFFF00000000u, MASTER_SHIRE, 0);
         }
 
-        /* Wait until all the receiver Shires have ACK'd. 1 IPI for all the shires.
-        Then it's safe to send another broadcast message.
-        Also, wait until timeout is expired. */
+        /* Poll wait until all the receiver Shires have ACK'd or the timeout occurs.
+        Then it's safe to send another broadcast message. */
         do
         {
-            /* Wait for an interrupt */
-            asm volatile("wfi");
-
-            /* Read pending interrupts */
-            SUPERVISOR_PENDING_INTERRUPTS(sip);
-
-            /* We are only interested in IPIs */
-            if (!(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT)))
-            {
-                continue;
-            }
-
-            /* Clear IPI pending interrupt */
-            asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
-
             /* Read the global timeout flag to see for MM->CM message timeout */
             timeout_flag = atomic_compare_and_exchange_local_32(&MM_CM_CB.timeout_flag, 1, 0);
 
-            /* Continue to wait for IPI until we shire count is 0 or timeout has occured */
+            /* Continue to poll until the shire count is 0 or timeout has occured */
         } while ((atomic_load_global_32(&mm_to_cm_broadcast_message_ctrl_ptr->shire_count) != 0) &&
                  (timeout_flag == 0));
 
@@ -283,7 +267,7 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
 *
 *   OUTPUTS
 *
-*       int32_t    status success or failure
+*       status    status success or failure
 *
 ***********************************************************************/
 int32_t CM_Iface_Unicast_Receive(uint64_t cb_idx, cm_iface_message_t *const message)

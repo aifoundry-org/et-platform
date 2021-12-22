@@ -70,16 +70,9 @@ static inline void read_msg_and_notify_mm(uint64_t shire_id, cm_iface_message_t 
         /* Reset the msg sync local barrier flag */
         init_local_spinlock(&msg_sync_local_barrier[shire_id], 0);
 
-        int32_t last_shire = atomic_add_signed_global_32(
+        /* Decrement the shire count to send msg acknownledgment to MM */
+        atomic_add_signed_global_32(
             (int32_t*)&master_to_worker_broadcast_message_ctrl_ptr->shire_count, -1);
-
-        /* Last shire sends IPI to the sender thread in MM */
-        if(last_shire == 1)
-        {
-            /* Send IPI to the sender */
-            syscall(SYSCALL_IPI_TRIGGER_INT,
-                1ull << master_to_worker_broadcast_message_ctrl_ptr->sender_thread_id, MASTER_SHIRE, 0);
-        }
     }
 }
 

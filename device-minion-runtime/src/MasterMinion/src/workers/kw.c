@@ -1044,7 +1044,7 @@ static inline void kw_cm_to_mm_process_messages(
                     status);
             }
 
-            Log_Write(LOG_LEVEL_WARNING, "KW:CM_To_MM: No pending msg\r\n");
+            Log_Write(LOG_LEVEL_DEBUG, "KW:CM_To_MM: No pending msg\r\n");
 
             break;
         }

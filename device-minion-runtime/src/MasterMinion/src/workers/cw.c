@@ -121,18 +121,26 @@ static inline uint64_t cw_get_booted_shires(void)
     cm_iface_message_t message;
     const mm_to_cm_message_shire_ready_t *shire_ready =
         (const mm_to_cm_message_shire_ready_t *)&message;
-    int32_t internal_status;
+    int32_t status;
     uint64_t booted_shires_mask = 0ULL;
 
     /* Processess messages from CM from CM > MM unicast circbuff */
     while (1)
     {
-        /* Unicast to dispatcher is slot 0 of unicast
-        circular-buffers */
-        internal_status = CM_Iface_Unicast_Receive(CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
+        /* Receive msg from unicast buffer of dispatcher */
+        status = CM_Iface_Unicast_Receive(CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
 
-        if (internal_status != STATUS_SUCCESS)
+        if (status != STATUS_SUCCESS)
         {
+            /* Check for error conditions */
+            if ((status != CIRCBUFF_ERROR_BAD_LENGTH) && (status != CIRCBUFF_ERROR_EMPTY))
+            {
+                Log_Write(LOG_LEVEL_ERROR, "CW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n",
+                    status);
+            }
+
+            /* No more pending messages left */
+            Log_Write(LOG_LEVEL_DEBUG, "CW:CM_To_MM: No pending msg\r\n");
             break;
         }
 
