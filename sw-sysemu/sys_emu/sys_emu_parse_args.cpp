@@ -70,7 +70,8 @@ static const char * help_msg =
      -tstore_check            Enables TensorStore checks\n\
      -tstore_check_addr       Enables TensorStore check prints for a specific address (default: 0x1 [none])\n\
      -tstore_check_thread     Enables TensorStore check prints for a specific thread (default: 4096 [4096 => no thread, -1 => all threads])\n\
-     -gdb                     Start the GDB stub for remote debugging\n\
+     -gdb                     Start the GDB stub for remote debugging at the start of simulation\n\
+     -gdb_at_pc <PC>          Start the GDB stub for remote debugging at a given PC\n\
 "
 #ifdef SYSEMU_DEBUG
 "    -d                       Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n"
@@ -165,6 +166,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"tstore_check_addr",      required_argument, nullptr, 0},
         {"tstore_check_thread",    required_argument, nullptr, 0},
         {"gdb",                    no_argument,       nullptr, 0},
+        {"gdb_at_pc",              required_argument, nullptr, 0},
         {"m",                      no_argument,       nullptr, 0},
 #ifdef SYSEMU_DEBUG
         {"d",                      no_argument,       nullptr, 0},
@@ -466,6 +468,11 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if (!strcmp(name, "gdb"))
         {
             cmd_options.gdb = true;
+        }
+        else if (!strcmp(name, "gdb_at_pc"))
+        {
+            cmd_options.gdb = true;
+            sscanf(optarg, "%" PRIx64, &cmd_options.gdb_at_pc);
         }
         else if (!strcmp(name, "m"))
         {

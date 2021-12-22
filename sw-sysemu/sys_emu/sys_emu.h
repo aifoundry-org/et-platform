@@ -102,6 +102,7 @@ struct sys_emu_cmd_options {
     uint64_t    stop_log_at_pc               = ~0ull;
     bool        display_trap_info            = false;
     bool        gdb                          = false;
+    uint64_t    gdb_at_pc                    = ~0ull;
     bool        mem_check                    = false;
     uint64_t    mem_checker_log_addr         = 1;
     uint32_t    mem_checker_log_minion       = 2048;
@@ -170,6 +171,7 @@ public:
     void thread_write_memory(int thread, uint64_t addr, uint64_t size, const uint8_t* buffer) {
         chip.memory.write(chip.cpu[thread], addr, size, buffer);
     }
+    void disconnect_gdbstub();
 
     // PCIe DMA needs this
     bemu::MainMemory& get_memory() { return chip.memory; }

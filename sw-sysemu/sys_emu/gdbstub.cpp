@@ -996,7 +996,7 @@ static int gdbstub_handle_packet(char *packet)
         break;
     case 'D': /* Detach */
         rsp_send_packet("OK");
-        gdbstub_close_client();
+        gdbstub_fini();
         break;
     case 'g': /* Read general registers */
         gdbstub_handle_read_general_registers();
@@ -1202,6 +1202,7 @@ int gdbstub_close_client()
     LOG_GDBSTUB(INFO, "%s", "Client connection closed");
 
     g_status = GDBSTUB_STATUS_WAITING_CLIENT;
+    g_sys_emu->disconnect_gdbstub();
     return 0;
 }
 
@@ -1214,7 +1215,7 @@ void gdbstub_fini()
         g_listen_fd = -1;
     }
 
-    gdbstub_close_client();
+    (void) gdbstub_close_client();
 
     if (g_thread_list_xml) {
         free(g_thread_list_xml);
@@ -1222,6 +1223,7 @@ void gdbstub_fini()
     }
 
     g_status = GDBSTUB_STATUS_NOT_INITIALIZED;
+    g_sys_emu = nullptr;
 }
 
 int gdbstub_io()
@@ -1246,7 +1248,7 @@ int gdbstub_io()
     if (ret < 0) {
         LOG_GDBSTUB(WARN, "RSP: error receiving packet: %s",
                      strerror(ret));
-        gdbstub_close_client();
+        gdbstub_fini();
         return ret;
     } else if (ret == 0) {
         return 0;
