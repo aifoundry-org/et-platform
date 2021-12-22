@@ -238,13 +238,6 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
         LOG_AGENT(FTL, agent, "%s", "Need an ELF file, a file load, a mem_desc file or runtime API!");
     }
 
-#ifdef SYSEMU_DEBUG
-    if (cmd_options.debug == true) {
-        LOG_AGENT(INFO, agent, "%s", "Starting in interactive mode.");
-        debug_init();
-    }
-#endif
-
     // Init emu
     chip.init(bemu::System::Stepping::A0);
     memcpy(&chip.memory_reset_value, &cmd_options.mem_reset, MEM_RESET_PATTERN_SIZE);
@@ -472,11 +465,6 @@ int sys_emu::main_internal() {
                        || chip.pu_rvtimer_is_active()
                        || chip.spio_rvtimer_is_active()))))
     {
-#ifdef SYSEMU_DEBUG
-        if (cmd_options.debug)
-            debug_check();
-#endif
-
         if (gdb_enabled) {
             switch (gdbstub_get_status()) {
             case GDBSTUB_STATUS_WAITING_CLIENT:

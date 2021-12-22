@@ -96,10 +96,6 @@ static: LDFLAGS := -static
 static: $(sysemu_OBJDIR)/sys_emu
 	strip $<
 
-.PHONY: debug
-debug: CPPFLAGS += -DSYSEMU_DEBUG
-debug: $(sysemu_OBJDIR)/sys_emu
-
 .PHONY: clean
 clean:
 	$(RM) -r $(sysemu_OBJDIR) sysemu-artifacts*

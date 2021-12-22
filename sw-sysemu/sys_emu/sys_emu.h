@@ -14,7 +14,6 @@
 #include <algorithm>
 #include <bitset>
 #include <cstdint>
-#include <list>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -120,9 +119,6 @@ struct sys_emu_cmd_options {
 #ifdef SYSEMU_PROFILING
     std::string dump_prof_file;
 #endif
-#ifdef SYSEMU_DEBUG
-    bool        debug                        = false;
-#endif
 };
 
 class api_communicate;
@@ -209,31 +205,6 @@ protected:
     }
 
 private:
-
-#ifdef SYSEMU_DEBUG
-    struct pc_breakpoint_t {
-        uint64_t pc;
-        int      thread; // -1 == all threads
-    };
-
-    std::list<pc_breakpoint_t> pc_breakpoints;
-    int                        debug_steps;
-
-    bool pc_breakpoints_exists(uint64_t pc, int thread);
-    bool pc_breakpoints_add(uint64_t pc, int thread);
-    void pc_breakpoints_dump(int thread);
-    void pc_breakpoints_clear_for_thread(int thread);
-    void pc_breakpoints_clear(void);
-
-    void memdump(uint64_t addr, uint64_t size);
-
-    std::string dump_xregs(unsigned thread_id);
-    std::string dump_fregs(unsigned thread_id);
-    bool process_dbg_cmd(std::string cmd);
-    bool get_pc_break(uint64_t &pc, int &thread);
-    void debug_init(void);
-    void debug_check(void);
-#endif
 
     bemu::System    chip;
 
