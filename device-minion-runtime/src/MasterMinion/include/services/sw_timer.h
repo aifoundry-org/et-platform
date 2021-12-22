@@ -48,15 +48,15 @@
 */
 int32_t SW_Timer_Init(void);
 
-/*! \fn int8_t SW_Timer_Create_Timeout(void (*timeout_callback_fn)(uint8_t),
+/*! \fn int32_t SW_Timer_Create_Timeout(void (*timeout_callback_fn)(uint8_t),
                                 uint8_t callback_arg, uint32_t sw_ticks)
     \brief Adds new timeout entry for incoming command
     \param timeout_callback_fn Callback to be triggerd at timeout
     \param callback_arg argument for timeout callback
     \param sw_ticks SW ticks for timeout the cammand
-    \return SW Timer slot used to register the tiemout or negative error
+    \return SW Timer slot used to register the tiemout or Error code in case of failure.
 */
-int8_t SW_Timer_Create_Timeout(
+int32_t SW_Timer_Create_Timeout(
     void (*timeout_callback_fn)(uint8_t), uint8_t callback_arg, uint32_t sw_ticks);
 
 /*! \fn void SW_Timer_Cancel_Timeout(uint8_t sw_timer_idx)

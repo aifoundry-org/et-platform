@@ -11,7 +11,7 @@
 ************************************************************************/
 /***********************************************************************/
 /*! \file rt_errors.h
-    \brief A C header that defines error codes for device runtime firmware 
+    \brief A C header that defines error codes for device runtime firmware
     components which includes Master Minion Firmware and Compute Minion Firmware.
 */
 /***********************************************************************/
@@ -28,10 +28,10 @@
 
 /********************************** MASTER MINION ERROR CODES - START *************************************/
 
-/**************************************************** 
+/****************************************************
 Master Minion Error Codes Ranges.
 
-NOTE: This is table below is in sync with error code design page. 
+NOTE: This is table below is in sync with error code design page.
       Any changes in these ranges should be reflected in design page
       as well.
 
@@ -58,7 +58,7 @@ SERVICES
 - CM Interface  ---------------- [-1700, -1799]
 - Host Interface --------------- [-1800, -1899]
 - Host Command Handler --------- [-1900, -1999]
-- SW Timer --------------------- [-2000, -2099]
+- Software Timer --------------- [-2000, -2099]
 - Log -------------------------- [-2100, -2199]
 
 DISPATCHER
@@ -339,6 +339,16 @@ RESERVED
 */
 #define CM_IFACE_MULTICAST_INAVLID_SHIRE_MASK -1700
 
+/*! \def CM_IFACE_MULTICAST_TIMEOUT_EXPIRED
+    \brief CM Iface error - Wait timeout expired
+*/
+#define CM_IFACE_MULTICAST_TIMEOUT_EXPIRED -1701
+
+/*! \def CM_IFACE_MULTICAST_TIMER_REGISTER_FAILED
+    \brief CM Iface error - Failed to register timeout
+*/
+#define CM_IFACE_MULTICAST_TIMER_REGISTER_FAILED -1702
+
 /***********************************************
  * Define Host command handler's error codes.  *
  ***********************************************/
@@ -373,6 +383,20 @@ RESERVED
     \brief Host command handler - Invalid patch for current firmware
 */
 #define HOST_CMD_ERROR_API_COMP_INVALID_PATCH -1905
+
+/*! \def HOST_CMD_ERROR_INVALID_CMD_ID
+    \brief Host command handler - Invalid Command ID
+*/
+#define HOST_CMD_ERROR_INVALID_CMD_ID -1906
+
+/***********************************************
+ * Define Software Timer error codes.  *
+ ***********************************************/
+
+/*! \def SW_TIMER_NO_FREE_TIMESLOT_AVAILABLE
+    \brief Software Timer error - No free slot available to create timer.
+*/
+#define SW_TIMER_NO_FREE_TIMESLOT_AVAILABLE -2000
 
 /********************************** MASTER MINION ERROR CODES - END *************************************/
 

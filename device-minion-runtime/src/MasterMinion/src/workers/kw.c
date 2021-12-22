@@ -196,7 +196,7 @@ static void kernel_abort_wait_timeout_callback(uint8_t sqw_idx)
 static int32_t kw_wait_for_kernel_launch_flag(uint8_t sqw_idx, uint8_t slot_index)
 {
     int32_t status = STATUS_SUCCESS;
-    int8_t sw_timer_idx;
+    int32_t sw_timer_idx;
     uint32_t timeout_flag;
     cm_kernel_launched_flag_t kernel_launched;
 

@@ -67,13 +67,13 @@ static sw_timer_cb_t SW_TIMER_CB __attribute__((aligned(64))) = { 0 };
 */
 static volatile bool SW_Timer_Interrupt_Flag __attribute__((aligned(64))) = false;
 
-/*! \fn static inline int8_t get_free_slot(void)
+/*! \fn static inline int32_t get_free_slot(void)
     \brief Returns the index of free timeout slot
     \return Index of free slot
 */
-static inline int8_t get_free_slot(void)
+static inline int32_t get_free_slot(void)
 {
-    for (int8_t sw_timer_idx = 0; sw_timer_idx < SW_TIMER_MAX_SLOTS; sw_timer_idx++)
+    for (int32_t sw_timer_idx = 0; sw_timer_idx < SW_TIMER_MAX_SLOTS; sw_timer_idx++)
     {
         if (atomic_load_local_64(&SW_TIMER_CB.cmd_timeout_cb[sw_timer_idx].expiration_time) ==
             SW_TIME_FREE_SLOT_FLAG)
@@ -82,7 +82,7 @@ static inline int8_t get_free_slot(void)
         }
     }
 
-    return -1;
+    return SW_TIMER_NO_FREE_TIMESLOT_AVAILABLE;
 }
 
 /*! \fn bool SW_Timer_Interrupt_Status(void)
@@ -219,13 +219,14 @@ int32_t SW_Timer_Init(void)
 *
 *   OUTPUTS
 *
-*       free_timer_slot       SWTimer slot used to create timeout
+*       free_timer_slot       SWTimer slot used to create timeout. Or
+*                             Error code in case of failure.
 *
 ***********************************************************************/
-int8_t SW_Timer_Create_Timeout(
+int32_t SW_Timer_Create_Timeout(
     void (*timeout_callback_fn)(uint8_t), uint8_t callback_arg, uint32_t sw_ticks)
 {
-    int8_t free_timer_slot;
+    int32_t free_timer_slot;
 
     /* Acquire the lock */
     acquire_local_spinlock(&SW_TIMER_CB.resource_lock);

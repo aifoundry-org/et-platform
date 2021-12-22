@@ -51,48 +51,48 @@
     \brief Helper macro to convert DMA Error to DEVICE API Errors
      TODO:SW-10385: Add new error codes for all errors mapped to unknown error here.
 */
-#define DMA_TO_DEVICEAPI_STATUS(status, abort_status, ret_status)                                  \
-    if ((status == DMAW_ABORTED_IDLE_CHANNEL_SEARCH) || (abort_status == HOST_CMD_STATUS_ABORTED)) \
-    {                                                                                              \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;                                        \
-    }                                                                                              \
-    else if (status == DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS)                                      \
-    {                                                                                              \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS;                                     \
-    }                                                                                              \
-    else if ((status == DMAW_ERROR_INVALID_XFER_SIZE) ||                                           \
-             (status == DMAW_ERROR_INVALID_XFER_COUNT))                                            \
-    {                                                                                              \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE;                                        \
-    }                                                                                              \
-    else if (status == DMAW_ERROR_CM_IFACE_MULTICAST_FAILED)                                       \
-    {                                                                                              \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
-    }                                                                                              \
-    else if (status == DMAW_CW_SHIRE_NOT_BOOTED)                                                   \
-    {                                                                                              \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
-    }                                                                                              \
-    else if (status == DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED)                                       \
-    {                                                                                              \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
-    }                                                                                              \
-    else if (status == DMAW_ERROR_DRIVER_LINK_CONFIG_FAILED)                                       \
-    {                                                                                              \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
-    }                                                                                              \
-    else if (status == DMAW_ERROR_DRIVER_CHAN_START_FAILED)                                        \
-    {                                                                                              \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
-    }                                                                                              \
-    else if (status == DMAW_ERROR_DRIVER_ABORT_FAILED)                                             \
-    {                                                                                              \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
-    }                                                                                              \
-    else                                                                                           \
-    {                                                                                              \
-        /* It should never come here. TODO:SW-10385: Add unexpected error.*/                       \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                       \
+#define DMA_TO_DEVICEAPI_STATUS(status, ret_status)                                          \
+    if ((status == DMAW_ABORTED_IDLE_CHANNEL_SEARCH) || (status == HOST_CMD_STATUS_ABORTED)) \
+    {                                                                                        \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;                                  \
+    }                                                                                        \
+    else if (status == DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS)                                \
+    {                                                                                        \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS;                               \
+    }                                                                                        \
+    else if ((status == DMAW_ERROR_INVALID_XFER_SIZE) ||                                     \
+             (status == DMAW_ERROR_INVALID_XFER_COUNT))                                      \
+    {                                                                                        \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE;                                  \
+    }                                                                                        \
+    else if (status == DMAW_ERROR_CM_IFACE_MULTICAST_FAILED)                                 \
+    {                                                                                        \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
+    }                                                                                        \
+    else if (status == DMAW_CW_SHIRE_NOT_BOOTED)                                             \
+    {                                                                                        \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
+    }                                                                                        \
+    else if (status == DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED)                                 \
+    {                                                                                        \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
+    }                                                                                        \
+    else if (status == DMAW_ERROR_DRIVER_LINK_CONFIG_FAILED)                                 \
+    {                                                                                        \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
+    }                                                                                        \
+    else if (status == DMAW_ERROR_DRIVER_CHAN_START_FAILED)                                  \
+    {                                                                                        \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
+    }                                                                                        \
+    else if (status == DMAW_ERROR_DRIVER_ABORT_FAILED)                                       \
+    {                                                                                        \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
+    }                                                                                        \
+    else                                                                                     \
+    {                                                                                        \
+        /* It should never come here. TODO:SW-10385: Add unexpected error.*/                 \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
     }
 
 /*! \def TRACE_RT_CONFIG_TO_DEVICEAPI_STATUS
@@ -686,8 +686,7 @@ static inline int32_t kernel_launch_cmd_handler(
         (struct device_ops_kernel_launch_cmd_t *)command_buffer;
     uint8_t kw_idx;
     exec_cycles_t cycles;
-    int32_t status = GENERAL_ERROR;
-    int32_t abort_status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -698,10 +697,10 @@ static inline int32_t kernel_launch_cmd_handler(
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
-        abort_status = HOST_CMD_STATUS_ABORTED;
+        status = HOST_CMD_STATUS_ABORTED;
     }
 
-    if (abort_status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Blocking call to launch kernel */
         status = KW_Dispatch_Kernel_Launch_Cmd(cmd, sqw_idx, &kw_idx);
@@ -766,8 +765,7 @@ static inline int32_t kernel_launch_cmd_handler(
             rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_PAYLOAD_SIZE;
         }
         else if ((status == KW_ABORTED_KERNEL_SLOT_SEARCH) ||
-                 (status == KW_ABORTED_KERNEL_SHIRES_SEARCH) ||
-                 (abort_status == HOST_CMD_STATUS_ABORTED))
+                 (status == KW_ABORTED_KERNEL_SHIRES_SEARCH) || (status == HOST_CMD_STATUS_ABORTED))
         {
             rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
         }
@@ -852,8 +850,7 @@ static inline int32_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw
     struct device_ops_kernel_abort_cmd_t *cmd =
         (struct device_ops_kernel_abort_cmd_t *)command_buffer;
     struct device_ops_kernel_abort_rsp_t rsp;
-    int32_t status = GENERAL_ERROR;
-    int32_t abort_status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -864,10 +861,10 @@ static inline int32_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
-        abort_status = HOST_CMD_STATUS_ABORTED;
+        status = HOST_CMD_STATUS_ABORTED;
     }
 
-    if (abort_status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Dispatch kernel abort command */
         status = KW_Dispatch_Kernel_Abort_Cmd(cmd, sqw_idx);
@@ -886,7 +883,7 @@ static inline int32_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw
             sizeof(struct device_ops_kernel_abort_rsp_t) - sizeof(struct cmn_header_t);
 
         /* Populate the error type response */
-        if (abort_status == HOST_CMD_STATUS_ABORTED)
+        if (status == HOST_CMD_STATUS_ABORTED)
         {
             rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_HOST_ABORTED;
         }
@@ -1124,8 +1121,7 @@ static inline int32_t dma_readlist_cmd_handler(
     struct device_ops_dma_readlist_rsp_t rsp;
     dma_flags_e dma_flag;
     dma_write_chan_id_e chan = DMA_CHAN_ID_WRITE_INVALID;
-    int32_t status = GENERAL_ERROR;
-    int32_t abort_status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     uint64_t total_dma_size = 0;
     uint8_t dma_xfer_count = 0;
     uint8_t loop_cnt;
@@ -1144,10 +1140,10 @@ static inline int32_t dma_readlist_cmd_handler(
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
-        abort_status = HOST_CMD_STATUS_ABORTED;
+        status = HOST_CMD_STATUS_ABORTED;
     }
 
-    if (abort_status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Check if no special flag is set. */
         if ((cmd->command_info.cmd_hdr.flags & CMD_FLAGS_MMFW_TRACEBUF) ||
@@ -1229,7 +1225,7 @@ static inline int32_t dma_readlist_cmd_handler(
         rsp.device_cmd_execute_dur = 0U;
 
         /* Populate the error type response */
-        DMA_TO_DEVICEAPI_STATUS(status, abort_status, rsp.status)
+        DMA_TO_DEVICEAPI_STATUS(status, rsp.status)
 
         Log_Write(LOG_LEVEL_DEBUG,
             "HostCommandHandler:Pushing:DATA_READ_CMD_RSP:tag_id=%x->Host_CQ\r\n",
@@ -1341,8 +1337,7 @@ static inline int32_t dma_writelist_cmd_handler(
     uint64_t total_dma_size = 0;
     uint8_t dma_xfer_count = 0;
     uint8_t loop_cnt;
-    int32_t status = GENERAL_ERROR;
-    int32_t abort_status = STATUS_SUCCESS;
+    int32_t status = STATUS_SUCCESS;
     exec_cycles_t cycles;
 
     TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
@@ -1358,10 +1353,10 @@ static inline int32_t dma_writelist_cmd_handler(
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
     {
-        abort_status = HOST_CMD_STATUS_ABORTED;
+        status = HOST_CMD_STATUS_ABORTED;
     }
 
-    if (abort_status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Verify the dma count and size */
         status = dma_writelist_cmd_verify_limits(cmd, &dma_xfer_count);
@@ -1432,7 +1427,7 @@ static inline int32_t dma_writelist_cmd_handler(
         rsp.device_cmd_execute_dur = 0U;
 
         /* Populate the error type response */
-        DMA_TO_DEVICEAPI_STATUS(status, abort_status, rsp.status)
+        DMA_TO_DEVICEAPI_STATUS(status, rsp.status)
 
         status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 
@@ -1882,7 +1877,7 @@ int32_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t sta
             /* Decrement commands count being processed by given SQW */
             SQW_Decrement_Command_Count(sqw_idx);
 
-            status = GENERAL_ERROR;
+            status = HOST_CMD_ERROR_INVALID_CMD_ID;
             break;
     }
 
@@ -1929,7 +1924,7 @@ int32_t Host_HP_Command_Handler(void *command_buffer, uint8_t sqw_hp_idx)
             /* Decrement commands count being processed by given HP SQW */
             SQW_HP_Decrement_Command_Count(sqw_hp_idx);
 
-            status = GENERAL_ERROR;
+            status = HOST_CMD_ERROR_INVALID_CMD_ID;
             break;
     }
 

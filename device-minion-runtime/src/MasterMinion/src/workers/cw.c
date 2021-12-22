@@ -243,7 +243,7 @@ int32_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
     uint64_t booted_shires_mask = 0ULL;
     int32_t status = STATUS_SUCCESS;
     uint64_t sip;
-    int8_t sw_timer_idx;
+    int32_t sw_timer_idx;
 
     Log_Write(LOG_LEVEL_DEBUG, "CW: CW_Wait_For_Compute_Minions_Boot\r\n");
 

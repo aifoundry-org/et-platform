@@ -118,7 +118,7 @@ static void mm_to_cm_iface_multicast_timeout_cb(uint8_t thread_id)
 ***********************************************************************/
 int32_t CM_Iface_Init(void)
 {
-    int32_t status = 0;
+    int32_t status = STATUS_SUCCESS;
 
     init_local_spinlock(&MM_CM_CB.mm_to_cm_broadcast_lock, 0);
     atomic_store_local_32(&MM_CM_CB.timeout_flag, 0);
@@ -169,9 +169,9 @@ int32_t CM_Iface_Init(void)
 ***********************************************************************/
 int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message)
 {
-    int8_t sw_timer_idx;
+    int32_t sw_timer_idx;
     uint8_t thread_id = get_hart_id() & (HARTS_PER_SHIRE - 1);
-    int32_t status = 0;
+    int32_t status = STATUS_SUCCESS;
     uint32_t timeout_flag = 0;
     broadcast_message_ctrl_t msg_control;
 
@@ -191,8 +191,9 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
 
     if (sw_timer_idx < 0)
     {
-        Log_Write(LOG_LEVEL_ERROR, "MM->CM: Unable to register Multicast timeout!\r\n");
-        status = -1;
+        Log_Write(
+            LOG_LEVEL_ERROR, "MM->CM: Unable to register Multicast timeout. Status:%d\r\n", status);
+        status = CM_IFACE_MULTICAST_TIMER_REGISTER_FAILED;
     }
     else
     {
@@ -235,8 +236,8 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
         /* Check for timeout status */
         if (timeout_flag != 0)
         {
-            Log_Write(LOG_LEVEL_ERROR, "MM->CM Multicast timeout abort!\r\n");
-            status = -1;
+            status = CM_IFACE_MULTICAST_TIMEOUT_EXPIRED;
+            Log_Write(LOG_LEVEL_ERROR, "MM->CM Multicast timeout abort. Status:%d\r\n", status);
         }
         else
         {

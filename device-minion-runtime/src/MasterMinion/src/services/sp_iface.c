@@ -133,7 +133,7 @@ static void sp_iface_sp_response_timeout_cb(uint8_t thread_id)
 static int32_t wait_for_response_from_service_processor(void)
 {
     uint64_t sip;
-    int8_t sw_timer_idx;
+    int32_t sw_timer_idx;
     int32_t status = STATUS_SUCCESS;
 
     /* Create timeout for SP response */
@@ -888,7 +888,7 @@ int32_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code)
 ***********************************************************************/
 int32_t SP_Iface_Setup_MM_HeartBeat(void)
 {
-    int8_t sw_timer_idx;
+    int32_t sw_timer_idx;
     int32_t status = STATUS_SUCCESS;
 
     /* Create timer for MM heartbeat */
