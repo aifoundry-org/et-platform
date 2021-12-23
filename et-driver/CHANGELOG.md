@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - [SW-14453] Fixed crash during driver loading when some msg was already available in the CQ. The spinlock had to be initialized before its usage.
+- [SW-10058] Fixed crash during MM/CM trace pull using IO accesses.
 ### Security
 
 ## [0.9.0] - 2022-8-15

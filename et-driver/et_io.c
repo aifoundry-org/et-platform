@@ -1,3 +1,5 @@
+#include <linux/sched.h>
+
 #include "et_io.h"
 
 void et_iowrite(void __iomem *dst, loff_t offset, u8 *src, size_t count)
@@ -36,6 +38,7 @@ void et_iowrite(void __iomem *dst, loff_t offset, u8 *src, size_t count)
 		src += 8;
 		count -= 8;
 		--qwords;
+		cond_resched();
 	}
 
 	// Write remaining 4 bytes, if any
@@ -99,6 +102,7 @@ void et_ioread(void __iomem *src, loff_t offset, u8 *dst, size_t count)
 		dst += 8;
 		count -= 8;
 		--qwords;
+		cond_resched();
 	}
 
 	// Read remaining 4 bytes, if any
