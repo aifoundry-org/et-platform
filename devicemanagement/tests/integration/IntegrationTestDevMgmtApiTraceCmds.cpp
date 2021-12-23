@@ -1,5 +1,5 @@
 //******************************************************************************
-// Copyright (C) 2020 Esperanto Technologies Inc.
+// Copyright (C) 2022 Esperanto Technologies Inc.
 // The copyright to the computer program(s) herein is the
 // property of Esperanto Technologies, Inc. All Rights Reserved.
 // The program(s) may be used and/or copied only with
@@ -17,7 +17,7 @@
 using namespace dev;
 using namespace device_management;
 
-class IntegrationTestDevMgmtApiCmds : public TestDevMgmtApiSyncCmds {
+class IntegrationTestDevMgmtApiTraceCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
@@ -34,35 +34,30 @@ class IntegrationTestDevMgmtApiCmds : public TestDevMgmtApiSyncCmds {
   }
 };
 
-TEST_F(IntegrationTestDevMgmtApiCmds, serializeAccessMgmtNode) {
-  serializeAccessMgmtNode(false);
+TEST_F(IntegrationTestDevMgmtApiTraceCmds, getSpTraceBuffer) {
+  setTraceControl(false /* Multiple devices */);
+  setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                    device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG);
+  setAndGetModuleStaticTDPLevel(false /* Multiple devices */);
+  getTraceBuffer(false /* Multiple devices */, TraceBufferType::TraceBufferSP);
+
+  /* Restore the logging level back */
+  setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
+                    device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
 }
 
-TEST_F(IntegrationTestDevMgmtApiCmds, getDeviceErrorEvents) {
-  if (targetInList({ Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon })) {
-    getDeviceErrorEvents(false /* Multiple devices */);
+TEST_F(IntegrationTestDevMgmtApiTraceCmds, getMmTraceBuffer) {
+  if (targetInList({ Target::Silicon, Target::SysEMU })) {
+    getTraceBuffer(false /* Multiple devices */, TraceBufferType::TraceBufferMM);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
 
-TEST_F(IntegrationTestDevMgmtApiCmds, setTraceControl) {
-  setTraceControl(false /* Multiple devices */);
-}
-
-TEST_F(IntegrationTestDevMgmtApiCmds, setTraceConfigure) {
-  setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
-                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG);
-
-  /* Restore the logging level back */
-  setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
-                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
-}
-
-TEST_F(IntegrationTestDevMgmtApiCmds, resetCM) {
-  if (targetInList({ Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon })) {
-    resetCM(false /* Multiple devices */);
+TEST_F(IntegrationTestDevMgmtApiTraceCmds, getCmTraceBuffer) {
+  if (targetInList({ Target::Silicon, Target::SysEMU })) {
+    getTraceBuffer(false /* Multiple devices */, TraceBufferType::TraceBufferCM);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;

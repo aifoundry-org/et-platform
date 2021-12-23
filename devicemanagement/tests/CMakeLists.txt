@@ -141,6 +141,13 @@ create_test(
     PROPERTIES  "LABELS;INTEGRATION;TIMEOUT;300"
 )
 
+create_test(
+    TARGET      IntegrationTestDevMgmtApiTraceCmds
+    SOURCES     integration/IntegrationTestDevMgmtApiTraceCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;INTEGRATION;TIMEOUT;300"
+)
+
 ##################
 # SECURITY TESTS #
 ##################
