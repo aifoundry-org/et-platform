@@ -45,6 +45,7 @@
 #include "bl2_main.h"
 #include "bl_error_code.h"
 #include "hwinc/minion_lvdpll_program.h"
+#include "bl2_pvt_controller.h"
 
 struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
 
@@ -416,7 +417,7 @@ int update_module_current_temperature(void)
     uint8_t temperature;
     struct temperature_threshold_t temperature_threshold;
 
-    if (0 != pmic_get_temperature(&temperature))
+    if (0 != pvt_get_minion_avg_temperature(&temperature))
     {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get temperature\r\n");
         status = THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
@@ -469,7 +470,7 @@ int update_module_current_temperature(void)
 int get_module_current_temperature(uint8_t *soc_temperature)
 {
     uint8_t temperature;
-    if (0 != pmic_get_temperature(&temperature))
+    if (0 != pvt_get_minion_avg_temperature(&temperature))
     {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get temperature\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
@@ -1274,7 +1275,7 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
          Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
      }
 
-    if (0 != pmic_get_temperature(&current_temperature))
+    if (0 != pvt_get_minion_avg_temperature(&current_temperature))
     {
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
     }
@@ -1368,7 +1369,7 @@ void power_throttling(power_throttle_state_e throttle_state)
         go_to_safe_state(get_soc_power_reg()->module_power_state, throttle_state);
     }
 
-    if (0 != pmic_get_temperature(&current_temperature))
+    if (0 != pvt_get_minion_avg_temperature(&current_temperature))
     {
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc temperature\r\n");
     }
@@ -1499,7 +1500,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
         go_to_safe_state(get_soc_power_reg()->module_power_state, throttle_state);
     }
 
-    if (0 != pmic_get_temperature(&current_temperature))
+    if (0 != pvt_get_minion_avg_temperature(&current_temperature))
     {
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
     }
@@ -1538,7 +1539,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
         vTaskDelay(pdMS_TO_TICKS(DELTA_TEMP_UPDATE_PERIOD));
 
         /* Sample the temperature again */
-        if (0 != pmic_get_temperature(&current_temperature))
+        if (0 != pvt_get_minion_avg_temperature(&current_temperature))
         {
             Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
         }

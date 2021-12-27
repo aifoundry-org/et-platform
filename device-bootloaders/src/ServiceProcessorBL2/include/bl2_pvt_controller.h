@@ -573,6 +573,13 @@ void pvt_print_temperature_sampled_values(pvtc_shire_type_t shire_type);
 */
 void pvt_print_voltage_sampled_values(pvtc_shire_type_t shire_type);
 
+/*! \fn int pvt_get_minion_avg_temperature(uint8_t* avg_temp)
+    \brief This function returns average temperature for Minion shires
+    \param avg_temp place holder for return value
+    \return Status indicating success or negative error
+*/
+int pvt_get_minion_avg_temperature(uint8_t* avg_temp);
+
 /*! \fn void pvt_print_all(void)
     \brief This function prints sampled values from all VM and TS
     \param none

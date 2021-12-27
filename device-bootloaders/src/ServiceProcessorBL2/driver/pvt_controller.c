@@ -493,22 +493,14 @@ int pvt_get_min_shire_ts_sample(PVTC_MINSHIRE_e min_id, int *ts_sample)
     if (min_id > PVTC_MAX_MINSHIRE_ID)
     {
         Log_Write(LOG_LEVEL_WARNING, "MINION SHIRE id (%d) out of range\r\n", min_id);
-        return -1;
-    }
-
-    /* Check sample done */
-    if (TS_PD_INDIVIDUAL_IP_SDIF_DONE_SDIF_SMPL_DONE_GET(
-            pReg_Pvtc[pvt_id]->ts.ts_individual[ts_id].sdif_done) == 0)
-    {
-        Log_Write(LOG_LEVEL_INFO, "PVT TS sample for MINION SHIRE %d is not done yet\r\n", min_id);
-        return -1;
+        return ERROR_PVT_MINION_ID_OUT_OF_RANGE;
     }
 
     sample_data = pReg_Pvtc[pvt_id]->ts.ts_individual[ts_id].sdif_data;
     if (TS_PD_INDIVIDUAL_IP_SDIF_DATA_SAMPLE_FAULT_GET(sample_data))
     {
         Log_Write(LOG_LEVEL_WARNING, "Fault occured during TS sampling, sample data invalid\r\n");
-        return -1;
+        return ERROR_PVT_SAMPLE_FAULT;
     }
 
     *ts_sample = pvt_ts_conversion(TS_PD_INDIVIDUAL_IP_SDIF_DATA_SAMPLE_DATA_GET(sample_data));
@@ -526,7 +518,7 @@ int pvt_get_min_shire_ts_sample_hilo(PVTC_MINSHIRE_e min_id, int *ts_sample_high
     if (min_id > PVTC_MAX_MINSHIRE_ID)
     {
         Log_Write(LOG_LEVEL_WARNING, "MINION SHIRE id (%d) out of range\r\n", min_id);
-        return -1;
+        return ERROR_PVT_MINION_ID_OUT_OF_RANGE;
     }
 
     hilo = pReg_Pvtc[pvt_id]->ts.ts_individual[ts_id].smpl_hilo;
@@ -548,14 +540,14 @@ int pvt_get_ioshire_ts_sample(int *ts_sample)
             pReg_Pvtc[pvt_id]->ts.ts_individual[ts_id].sdif_done) == 0)
     {
         Log_Write(LOG_LEVEL_INFO, "PVT TS sample for IOSHIRE is not done yet\r\n");
-        return -1;
+        return ERROR_PVT_SAMPLE_NOT_DONE;
     }
 
     sample_data = pReg_Pvtc[pvt_id]->ts.ts_individual[ts_id].sdif_data;
     if (TS_PD_INDIVIDUAL_IP_SDIF_DATA_SAMPLE_FAULT_GET(sample_data))
     {
         Log_Write(LOG_LEVEL_WARNING, "Fault occured during TS sampling, sample data invalid\r\n");
-        return -1;
+        return ERROR_PVT_SAMPLE_FAULT;
     }
 
     *ts_sample = pvt_ts_conversion(TS_PD_INDIVIDUAL_IP_SDIF_DATA_SAMPLE_DATA_GET(sample_data));
@@ -586,7 +578,7 @@ int pvt_get_min_shire_pd_sample(PVTC_MINSHIRE_e min_id, int *pd_sample)
     if (min_id > PVTC_MAX_MINSHIRE_ID)
     {
         Log_Write(LOG_LEVEL_WARNING, "MINION SHIRE id (%d) out of range\r\n", min_id);
-        return -1;
+        return ERROR_PVT_MINION_ID_OUT_OF_RANGE;
     }
 
     /* Check sample done */
@@ -594,14 +586,14 @@ int pvt_get_min_shire_pd_sample(PVTC_MINSHIRE_e min_id, int *pd_sample)
             pReg_Pvtc[pvt_id]->pd.pd_individual[pd_id].sdif_done) == 0)
     {
         Log_Write(LOG_LEVEL_INFO, "PVT PD sample for MINION SHIRE %d is not done yet\r\n", min_id);
-        return -1;
+        return ERROR_PVT_SAMPLE_NOT_DONE;
     }
 
     sample_data = pReg_Pvtc[pvt_id]->pd.pd_individual[pd_id].sdif_data;
     if (TS_PD_INDIVIDUAL_IP_SDIF_DATA_SAMPLE_FAULT_GET(sample_data))
     {
         Log_Write(LOG_LEVEL_WARNING, "Fault occured during PD sampling, sample data invalid\r\n");
-        return -1;
+        return ERROR_PVT_SAMPLE_FAULT;
     }
 
     *pd_sample = pvt_pd_conversion(TS_PD_INDIVIDUAL_IP_SDIF_DATA_SAMPLE_DATA_GET(sample_data));
@@ -619,7 +611,7 @@ int pvt_get_min_shire_pd_sample_hilo(PVTC_MINSHIRE_e min_id, int *pd_sample_high
     if (min_id > PVTC_MAX_MINSHIRE_ID)
     {
         Log_Write(LOG_LEVEL_WARNING, "MINION SHIRE id (%d) out of range\r\n", min_id);
-        return -1;
+        return ERROR_PVT_MINION_ID_OUT_OF_RANGE;
     }
 
     hilo = pReg_Pvtc[pvt_id]->pd.pd_individual[pd_id].smpl_hilo;
@@ -641,14 +633,14 @@ int pvt_get_ioshire_pd_sample(int *pd_sample)
             pReg_Pvtc[pvt_id]->pd.pd_individual[pd_id].sdif_done) == 0)
     {
         Log_Write(LOG_LEVEL_INFO, "PVT PD sample for IOSHIRE is not done yet\r\n");
-        return -1;
+        return ERROR_PVT_SAMPLE_NOT_DONE;
     }
 
     sample_data = pReg_Pvtc[pvt_id]->pd.pd_individual[pd_id].sdif_data;
     if (TS_PD_INDIVIDUAL_IP_SDIF_DATA_SAMPLE_FAULT_GET(sample_data))
     {
         Log_Write(LOG_LEVEL_WARNING, "Fault occured during PD sampling, sample data invalid\r\n");
-        return -1;
+        return ERROR_PVT_SAMPLE_FAULT;
     }
 
     *pd_sample = pvt_pd_conversion(TS_PD_INDIVIDUAL_IP_SDIF_DATA_SAMPLE_DATA_GET(sample_data));
@@ -675,7 +667,7 @@ int pvt_get_min_shire_vm_sample(PVTC_MINSHIRE_e min_id, MinShire_VM_sample *vm_s
     if (min_id > PVTC_MAX_MINSHIRE_ID)
     {
         Log_Write(LOG_LEVEL_WARNING, "MINION SHIRE id (%d) out of range\r\n", min_id);
-        return -1;
+        return ERROR_PVT_MINION_ID_OUT_OF_RANGE;
     }
 
     uint8_t pvt_id = pvtc_minion_shire_vm_map[min_id].pvtc_id;
@@ -690,7 +682,7 @@ int pvt_get_min_shire_vm_sample(PVTC_MINSHIRE_e min_id, MinShire_VM_sample *vm_s
         {
             Log_Write(LOG_LEVEL_WARNING,
                       "Fault occured during VM sampling, sample data invalid\r\n");
-            return -1;
+            return ERROR_PVT_SAMPLE_FAULT;
         }
 
         switch (i)
@@ -721,7 +713,7 @@ int pvt_get_min_shire_vm_sample_hilo(PVTC_MINSHIRE_e min_id, MinShire_VM_sample 
     if (min_id > PVTC_MAX_MINSHIRE_ID)
     {
         Log_Write(LOG_LEVEL_WARNING, "MINION SHIRE id (%d) out of range\r\n", min_id);
-        return -1;
+        return ERROR_PVT_MINION_ID_OUT_OF_RANGE;
     }
 
     uint8_t pvt_id = pvtc_minion_shire_vm_map[min_id].pvtc_id;
@@ -766,7 +758,7 @@ int pvt_get_memshire_vm_sample(PVTC_MEMSHIRE_e memshire_id, MemShire_VM_sample *
     if (memshire_id > PVTC_MAX_MEMSHIRE_ID)
     {
         Log_Write(LOG_LEVEL_WARNING, "MEM SHIRE id (%d) out of range\r\n", memshire_id);
-        return -1;
+        return ERROR_PVT_MEM_ID_OUT_OF_RANGE;
     }
 
     uint32_t sample_data;
@@ -782,7 +774,7 @@ int pvt_get_memshire_vm_sample(PVTC_MEMSHIRE_e memshire_id, MemShire_VM_sample *
         {
             Log_Write(LOG_LEVEL_WARNING,
                       "Fault occured during VM sampling, sample data invalid\r\n");
-            return -1;
+            return ERROR_PVT_SAMPLE_FAULT;
         }
 
         switch (i)
@@ -809,7 +801,7 @@ int pvt_get_memshire_vm_sample_hilo(PVTC_MEMSHIRE_e memshire_id, MemShire_VM_sam
     if (memshire_id > PVTC_MAX_MEMSHIRE_ID)
     {
         Log_Write(LOG_LEVEL_WARNING, "MEM SHIRE id (%d) out of range\r\n", memshire_id);
-        return -1;
+        return ERROR_PVT_MEM_ID_OUT_OF_RANGE;
     }
 
     uint32_t hilo;
@@ -858,7 +850,7 @@ int pvt_get_ioshire_vm_sample(IOShire_VM_sample *vm_sample)
         {
             Log_Write(LOG_LEVEL_WARNING,
                       "Fault occured during VM sampling, sample data invalid\r\n");
-            return -1;
+            return ERROR_PVT_SAMPLE_FAULT;
         }
 
         switch (i)
@@ -937,7 +929,7 @@ int pvt_get_pshire_vm_sample(PShire_VM_sample *vm_sample)
         {
             Log_Write(LOG_LEVEL_WARNING,
                       "Fault occured during VM sampling, sample data invalid\r\n");
-            return -1;
+            return ERROR_PVT_SAMPLE_FAULT;
         }
 
         switch (i)
@@ -996,7 +988,7 @@ int pvt_get_ext_analog_vm_sample(PVTC_EXT_ANALOG_e ext_an_id, ExtAnalog_VM_sampl
     if (ext_an_id > PVTC_MAX_EXT_ANALOG_ID)
     {
         Log_Write(LOG_LEVEL_WARNING, "EXT ANALOG id (%d) out of range\r\n", ext_an_id);
-        return -1;
+        return ERROR_PVT_EXT_AN_ID_OUT_OF_RANGE;
     }
 
     uint8_t pvt_id = pvtc_ext_analog_vm_map[ext_an_id].pvtc_id;
@@ -1008,7 +1000,7 @@ int pvt_get_ext_analog_vm_sample(PVTC_EXT_ANALOG_e ext_an_id, ExtAnalog_VM_sampl
     if (VM_INDIVIDUAL_IP_SDIF_DATA_FAULT_GET(sample_data))
     {
         Log_Write(LOG_LEVEL_WARNING, "Fault occured during VM sampling, sample data invalid\r\n");
-        return -1;
+        return ERROR_PVT_SAMPLE_FAULT;
     }
 
     vm_sample->vdd_ext_analog =
@@ -1024,7 +1016,7 @@ int pvt_get_ext_analog_vm_sample_hilo(PVTC_EXT_ANALOG_e ext_an_id,
     if (ext_an_id > PVTC_MAX_EXT_ANALOG_ID)
     {
         Log_Write(LOG_LEVEL_WARNING, "EXT ANALOG id (%d) out of range\r\n", ext_an_id);
-        return -1;
+        return ERROR_PVT_EXT_AN_ID_OUT_OF_RANGE;
     }
 
     uint8_t pvt_id = pvtc_ext_analog_vm_map[ext_an_id].pvtc_id;
@@ -1369,6 +1361,33 @@ void pvt_print_temperature_sampled_values(pvtc_shire_type_t shire_type)
         default:
             break;
     }
+}
+
+int pvt_get_minion_avg_temperature(uint8_t* avg_temp)
+{
+    int sample;
+    int status;
+    int avg = 0;
+    int valid_samples_num = 0;
+    
+    for(int min = 0; min < PVTC_MINION_SHIRE_NUM; min++) {
+        status = pvt_get_min_shire_ts_sample(min, &sample);
+        if (0 == status) {
+            avg = avg + sample;
+            valid_samples_num++;
+        }
+    }
+
+    if (valid_samples_num == 0)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "There were no valid Minion Shire TS samples\r\n");
+        return ERROR_PVT_NO_VALID_TS_SAMPLES;
+    }
+
+    avg = avg / valid_samples_num;
+    *avg_temp = (uint8_t)avg;
+
+    return 0;
 }
 
 void pvt_print_all(void)
