@@ -38,7 +38,7 @@ typedef uint8_t cw_shire_state_t;
 /*! \def CW_INIT_TIMEOUT
     \brief Timeout value for Compute Workers initialization
 */
-#define CW_INIT_TIMEOUT 2U
+#define CW_INIT_TIMEOUT 5U
 
 /*! \fn int32_t CW_Init(void)
     \brief Initialize Compute Workers, used by dispatcher
@@ -46,13 +46,6 @@ typedef uint8_t cw_shire_state_t;
     \return none
 */
 int32_t CW_Init(void);
-
-/*! \fn int32_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
-    \brief Receives boot messages from the compute shires
-    \param shire_mask Shires to wait for
-    \return Status success or error
-*/
-int32_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask);
 
 /*! \fn void CW_Process_CM_SMode_Messages(void)
     \brief CW helper to process messages from CM firmware

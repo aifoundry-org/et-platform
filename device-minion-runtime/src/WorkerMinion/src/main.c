@@ -82,7 +82,12 @@ void __attribute__((noreturn)) main(void)
         status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
             CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (const cm_iface_message_t *)&message);
 
-        if (status != 0)
+        if (status == 0)
+        {
+            /* Log boot message */
+            log_write(LOG_LEVEL_DEBUG, "Shire %d booted up!\r\n", shire_id);
+        }
+        else
         {
             log_write(LOG_LEVEL_ERROR,
                 "H%04lld: CM->MM:Shire_ready:Unicast send failed! Error code: %d\n", get_hart_id(),

@@ -982,7 +982,9 @@ static inline int32_t kw_cm_to_mm_kernel_force_abort(
             CW_Configure_Compute_Minion(available_shires);
 
             /* Wait for all shires to boot up */
-            reset_status = CW_Wait_For_Compute_Minions_Boot(available_shires);
+            /* TODO: Should be replaced with proper fix to reset the CMs */
+            reset_status = -1;
+            /* CW_Wait_For_Compute_Minions_Boot(available_shires); */
 
             if (reset_status != STATUS_SUCCESS)
             {

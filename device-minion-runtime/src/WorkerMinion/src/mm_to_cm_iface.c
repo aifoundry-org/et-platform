@@ -86,6 +86,8 @@ void MM_To_CM_Iface_Init(void)
 
 void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
 {
+    log_write(LOG_LEVEL_DEBUG, "H%04lld:MM->CM:Ready to process msgs from MM.\r\n", get_hart_id());
+
     for (;;)
     {
         /* Wait for an IPI (Software Interrupt) */

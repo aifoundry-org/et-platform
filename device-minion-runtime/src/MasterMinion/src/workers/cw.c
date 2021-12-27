@@ -21,7 +21,6 @@
 
     Public interfaces:
         CW_Init
-        CW_Wait_For_Compute_Minions_Boot
         CW_Process_CM_SMode_Messages
         CW_Update_Shire_State
         CW_Check_Shires_Available_And_Ready
@@ -39,13 +38,14 @@
 #include <transports/mm_cm_iface/message_types.h>
 
 /* mm specific headers */
-#include "workers/cw.h"
+#include "drivers/plic.h"
 #include "services/cm_iface.h"
 #include "services/log.h"
 #include "services/sp_iface.h"
 #include "services/sw_timer.h"
+#include "workers/cw.h"
 
-/* m_rt_helpers */
+/* mm_rt_helpers */
 #include "error_codes.h"
 #include "syscall_internal.h"
 #include "cm_mm_defines.h"
@@ -67,6 +67,15 @@ typedef struct cw_cb_t_ {
     \warning Not thread safe!
 */
 static cw_cb_t CW_CB __attribute__((aligned(64))) = { 0 };
+
+/*! \def CW_RESET_CB
+    \brief Macro to reset the state of glabals in CW CB
+*/
+#define CW_RESET_CB                                         \
+    /* Reset state of globals */                            \
+    atomic_store_local_64(&CW_CB.booted_shires_mask, 0ULL); \
+    atomic_store_local_64(&CW_CB.shire_state, 0ULL);        \
+    atomic_store_local_32(&CW_CB.timeout_flag, 0);
 
 /************************************************************************
 *
@@ -99,79 +108,6 @@ static void cw_set_init_timeout_cb(uint8_t thread_id)
 *
 *   FUNCTION
 *
-*       cw_get_booted_shires
-*
-*   DESCRIPTION
-*
-*       Helper to process messages from compute minion (CM) firmware running
-*       in S mode. Specifically handles boot message Acks which means that a
-*       shire is booted successfully.
-*
-*   INPUTS
-*
-*       None
-*
-*   OUTPUTS
-*
-*       uint64_t              Booted shire mask
-*
-***********************************************************************/
-static inline uint64_t cw_get_booted_shires(void)
-{
-    cm_iface_message_t message;
-    const mm_to_cm_message_shire_ready_t *shire_ready =
-        (const mm_to_cm_message_shire_ready_t *)&message;
-    int32_t status;
-    uint64_t booted_shires_mask = 0ULL;
-
-    /* Processess messages from CM from CM > MM unicast circbuff */
-    while (1)
-    {
-        /* Receive msg from unicast buffer of dispatcher */
-        status = CM_Iface_Unicast_Receive(CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
-
-        if (status != STATUS_SUCCESS)
-        {
-            /* Check for error conditions */
-            if ((status != CIRCBUFF_ERROR_BAD_LENGTH) && (status != CIRCBUFF_ERROR_EMPTY))
-            {
-                Log_Write(LOG_LEVEL_ERROR, "CW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n",
-                    status);
-            }
-
-            /* No more pending messages left */
-            Log_Write(LOG_LEVEL_DEBUG, "CW:CM_To_MM: No pending msg\r\n");
-            break;
-        }
-
-        switch (message.header.id)
-        {
-            case CM_TO_MM_MESSAGE_ID_NONE:
-                Log_Write(LOG_LEVEL_DEBUG, "CW_Init:MESSAGE_ID_NONE\r\n");
-                break;
-
-            case CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY:
-                Log_Write(LOG_LEVEL_DEBUG, "CW_Init:MESSAGE_ID_SHIRE_READY S%d\r\n",
-                    shire_ready->shire_id);
-
-                /* Update the booted shire mask */
-                booted_shires_mask |= (1ULL << shire_ready->shire_id);
-                break;
-
-            default:
-                Log_Write(
-                    LOG_LEVEL_ERROR, "CW_Init:Unknown message id = 0x%x\r\n", message.header.id);
-                break;
-        }
-    }
-
-    return booted_shires_mask;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
 *       CW_Init
 *
 *   DESCRIPTION
@@ -189,9 +125,15 @@ static inline uint64_t cw_get_booted_shires(void)
 ***********************************************************************/
 int32_t CW_Init(void)
 {
-    uint64_t shire_mask = 0;
+    bool exit_loop = false;
     uint8_t lvdpll_strap = 0;
     int32_t status = STATUS_SUCCESS;
+    int32_t sw_timer_idx;
+    uint64_t shire_mask = 0;
+    uint64_t sip;
+
+    /* Reset the globals */
+    CW_RESET_CB
 
     /* Obtain the number of shires to be used from SP and initialize the CW control block */
     status = SP_Iface_Get_Shire_Mask_And_Strap(&shire_mask, &lvdpll_strap);
@@ -211,46 +153,6 @@ int32_t CW_Init(void)
     /* Bring up Compute Workers */
     syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, shire_mask, lvdpll_strap, 0);
 
-    /* Wait for all workers to be initialized */
-    status = CW_Wait_For_Compute_Minions_Boot(shire_mask);
-
-    return status;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       CW_Wait_For_Compute_Minions_Boot
-*
-*   DESCRIPTION
-*
-*       This functions waits for boot messages from given shires in the
-*       shire_mask
-*
-*   INPUTS
-*
-*       shire_mask    Mask of the shire to wait for
-*
-*   OUTPUTS
-*
-*       int32_t        status success or failure
-*
-***********************************************************************/
-int32_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
-{
-    bool exit_loop = false;
-    uint64_t booted_shires_mask = 0ULL;
-    int32_t status = STATUS_SUCCESS;
-    uint64_t sip;
-    int32_t sw_timer_idx;
-
-    Log_Write(LOG_LEVEL_DEBUG, "CW: CW_Wait_For_Compute_Minions_Boot\r\n");
-
-    /* Reset booted shires mask and their state */
-    atomic_store_local_64(&CW_CB.booted_shires_mask, 0ULL);
-    atomic_store_local_64(&CW_CB.shire_state, 0ULL);
-
     /* Create timeout to wait for all Compute Workers to boot up */
     sw_timer_idx = SW_Timer_Create_Timeout(
         &cw_set_init_timeout_cb, (get_hart_id() & (HARTS_PER_SHIRE - 1)), CW_INIT_TIMEOUT);
@@ -261,47 +163,51 @@ int32_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
             "CW: Unable to register CW init timeout! It may not recover in case of hang\r\n");
     }
 
-    /* Wait for all workers to be initialized */
+    /* Keep polling until all the compute shires have booted up or the timer expires */
+    /* TODO: The CMs are sending IPIs once booted. Those seem to be missed by MM.
+    Polling would fix the issue for now. */
     while (!exit_loop)
     {
-        /* Wait for an interrupt */
-        asm volatile("wfi");
-
-        /* Read pending interrupts */
+        /* Read pending interrupts (if any) */
         SUPERVISOR_PENDING_INTERRUPTS(sip);
 
-        if (sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
+        /* The pending external interrupts need to be processed here so that SW timer
+        expires based on tick interval. This function is meant to be called from dispatcher
+        context. Dispatcher is responsible for processing all the interrupts */
+        if (sip & (1 << SUPERVISOR_EXTERNAL_INTERRUPT))
         {
-            /* Clear IPI pending interrupt */
-            asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
+            PLIC_Dispatch();
+
+            if (SW_Timer_Interrupt_Status())
+            {
+                SW_Timer_Processing();
+            }
 
             /* Check for SW timer timeout */
             if (atomic_compare_and_exchange_local_32(&CW_CB.timeout_flag, 1, 0) == 1)
             {
                 Log_Write(
-                    LOG_LEVEL_ERROR, "CW: Timed-out waiting for rsp from compute workers!\r\n");
+                    LOG_LEVEL_ERROR, "CW:Timed-out waiting for rsp from compute workers!\r\n");
                 status = CW_ERROR_INIT_TIMEOUT;
                 exit_loop = true;
             }
-            else
-            {
-                /* Get booted shires, keeping previously booted shire mask as well. */
-                booted_shires_mask |= cw_get_booted_shires();
-            }
-        }
-        else
-        {
-            /* We are only interested in IPIs */
-            continue;
         }
 
-        /* Break loop if all compute minions are booted and ready */
-        if ((status == STATUS_SUCCESS) && ((booted_shires_mask & shire_mask) == shire_mask))
+        if (status == STATUS_SUCCESS)
         {
-            atomic_store_local_64(&CW_CB.booted_shires_mask, booted_shires_mask);
-            exit_loop = true;
+            /* Check if anty pending message is available */
+            CW_Process_CM_SMode_Messages();
+
+            /* Break loop if all compute minions are booted and ready */
+            if ((atomic_load_local_64(&CW_CB.booted_shires_mask) & shire_mask) == shire_mask)
+            {
+                exit_loop = true;
+            }
         }
     }
+
+    /* Clear IPI pending interrupt (if any) */
+    asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
     if (sw_timer_idx >= 0)
     {
@@ -335,15 +241,27 @@ int32_t CW_Wait_For_Compute_Minions_Boot(uint64_t shire_mask)
 ***********************************************************************/
 void CW_Process_CM_SMode_Messages(void)
 {
+    int32_t status;
+
     /* Processes messages from CM from CM > MM unicast circbuff */
     while (1)
     {
         cm_iface_message_t message;
 
-        /* Get the message from unicast buffer */
-        if (CM_Iface_Unicast_Receive(CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message) !=
-            STATUS_SUCCESS)
+        /* Receive msg from unicast buffer of dispatcher */
+        status = CM_Iface_Unicast_Receive(CM_MM_MASTER_HART_UNICAST_BUFF_IDX, &message);
+
+        if (status != STATUS_SUCCESS)
         {
+            /* Check for error conditions */
+            if ((status != CIRCBUFF_ERROR_BAD_LENGTH) && (status != CIRCBUFF_ERROR_EMPTY))
+            {
+                Log_Write(LOG_LEVEL_ERROR, "CW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n",
+                    status);
+            }
+
+            /* No more pending messages left */
+            Log_Write(LOG_LEVEL_DEBUG, "CW:CM_To_MM: No pending msg\r\n");
             break;
         }
 
@@ -353,6 +271,18 @@ void CW_Process_CM_SMode_Messages(void)
                 Log_Write(LOG_LEVEL_DEBUG, "CW:CM_TO_MM:MESSAGE_ID_NONE\r\n");
                 break;
 
+            case CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY:
+            {
+                const mm_to_cm_message_shire_ready_t *shire_ready =
+                    (const mm_to_cm_message_shire_ready_t *)&message;
+
+                Log_Write(LOG_LEVEL_DEBUG, "CW_Init:MESSAGE_ID_SHIRE_READY S%d\r\n",
+                    shire_ready->shire_id);
+
+                /* Update the booted shire mask */
+                atomic_or_local_64(&CW_CB.booted_shires_mask, (1ULL << shire_ready->shire_id));
+                break;
+            }
             case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION:
             {
                 const cm_to_mm_message_exception_t *exception =
@@ -379,7 +309,9 @@ void CW_Process_CM_SMode_Messages(void)
                     syscall(SYSCALL_CONFIGURE_COMPUTE_MINION_WARM_RESET, available_shires, 0, 0);
 
                     /* Wait for all shires to boot up */
-                    reset_status = CW_Wait_For_Compute_Minions_Boot(available_shires);
+                    /* TODO: Should be replaced with proper fix to reset the CMs */
+                    reset_status = -1;
+                    /* CW_Wait_For_Compute_Minions_Boot(available_shires); */
                 }
 
                 if (reset_status != STATUS_SUCCESS)
@@ -402,7 +334,7 @@ void CW_Process_CM_SMode_Messages(void)
                 break;
             }
             default:
-                Log_Write(LOG_LEVEL_CRITICAL, "CW:CM_TO_MM:Unknown message id = 0x%x\r\n",
+                Log_Write(LOG_LEVEL_ERROR, "CW:CM_TO_MM:Unknown message id = 0x%x\r\n",
                     message.header.id);
                 break;
         }
