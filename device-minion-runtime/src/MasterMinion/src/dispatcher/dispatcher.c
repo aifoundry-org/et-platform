@@ -200,18 +200,14 @@ void Dispatcher_Launch(uint32_t hart_id)
     status = SP_Iface_Setup_MM_HeartBeat();
     dispatcher_assert(status == STATUS_SUCCESS, MM_CW_INIT_ERROR, "MM->SP Heartbeat init failure.");
 
-    /* Master Minion boot is completed, now redirect logs to Trace. */
-    Log_Write(LOG_LEVEL_INFO, "Dispatcher:Direct logging to trace\r\n");
-    Log_Set_Interface(LOG_DUMP_TO_TRACE);
-
-    /* TODO:To be removed when Runtime/Glow has migrated to Traces */
-    Log_Write(LOG_LEVEL_INFO, "Dispatcher:Direct logging to UART\r\n");
-    Log_Set_Interface(LOG_DUMP_TO_UART);
-
     /* Mark Master Minion Status as Ready */
     /* Now able to receive and process commands from host .. */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:Setting DIR ready status, MM_READY\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_READY);
+
+    /* Master Minion boot is completed, now redirect logs to Trace. */
+    Log_Write(LOG_LEVEL_INFO, "Dispatcher:Redirect logging to trace\r\n");
+    Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
     /* Wait for a message from the host, SP, worker minions etc. */
     while (1)
