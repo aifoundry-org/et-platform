@@ -72,6 +72,12 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw);
 */
 int32_t MM_Iface_Send_Abort_All_Cmd(void);
 
+/*! \fn int32_t MM_Iface_Wait_For_CM_Boot_Cmd(void)
+    \brief This sends warm reset to CM and wait for them to boot.
+    \param shire_mask Minion shire mask to perform reset on
+    \return Status indicating success or negative error
+*/
+int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask);
 /*! \fn int8_t MM_Iface_Push_Cmd_To_SP2MM_SQ(void* p_cmd, uint32_t cmd_size)
     \brief Push command to Service Processor (SP) to Master Minion (MM)
     Submission Queue(SQ)

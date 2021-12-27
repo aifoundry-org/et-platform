@@ -114,13 +114,20 @@ int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask);
 */
 int Minion_Enable_Master_Shire_Threads(uint8_t mm_id);
 
-/*! \fn int Minion_Reset_Threads(uint64_t minion_shires_mask, bool include_mm)
-    \brief This function resets the Minion Shire threads
+/*! \fn int Master_Minion_Reset(uint64_t minion_shires_mask)
+    \brief This function resets the Compute Minion Shire threads
     \param minion_shires_mask Minion Shire Mask
     \param include_mm Reset MM threads
     \return The function call status, pass/fail.
 */
-int Minion_Reset_Threads(uint64_t minion_shires_mask, bool include_mm);
+int Master_Minion_Reset(uint64_t shires_mask);
+
+/*! \fn int Compute_Minion_Reset_Threads(uint64_t minion_shires_mask)
+    \brief This function resets the Compute Minion Shire threads
+    \param minion_shires_mask Minion Shire Mask
+    \return The function call status, pass/fail.
+*/
+int Compute_Minion_Reset_Threads(uint64_t minion_shires_mask);
 
 /*! \fn int Minion_Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t mode, uint8_t lvdpll_mode, bool use_step_clock)
     \brief This function configures the Minion PLLs to Step Clock, and bring them out of reset.

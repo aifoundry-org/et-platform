@@ -149,7 +149,7 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
         case DM_CMD_GET_MODULE_MAX_TEMPERATURE ... DM_CMD_GET_MAX_MEMORY_ERROR:
             historical_extreme_value_request(tag_id, msg_id);
             break;
-        case DM_CMD_GET_MM_ERROR_COUNT ... DM_CMD_MM_RESET:
+        case DM_CMD_GET_MM_ERROR_COUNT ... DM_CMD_CM_RESET:
             Minion_State_Host_Iface_Process_Request(tag_id, msg_id);
             break;
         case DM_CMD_GET_ASIC_FREQUENCIES ... DM_CMD_GET_ASIC_LATENCY:
@@ -386,9 +386,9 @@ static void mm2sp_minion_reset_handler(const void *cmd_buffer)
 
     /* Make sure the Shire Mask sent was valid and then issue the MM reset */
     if (((cmd->shire_mask & available_shires) != cmd->shire_mask) ||
-        (0 != Minion_Reset_Threads(cmd->shire_mask, false)))
+        (0 != Compute_Minion_Reset_Threads(cmd->shire_mask)))
     {
-        Log_Write(LOG_LEVEL_ERROR, "MM2SP_CMD_MINION_RESET: Unable to Reset Shires!\n");
+        Log_Write(LOG_LEVEL_ERROR, "Compute_Minion_Reset_Threads: Unable to Reset Shires!\n");
         rsp.results = -1;
     }
     else
@@ -420,7 +420,8 @@ static void mm2sp_report_error_event_handler(const void *cmd_buffer)
     else if (event->error_type == SP_RECOVERABLE)
     {
         /* Restart the Compute Minions  everything */
-        Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask(), true);
+        Master_Minion_Reset(Minion_State_MM_Iface_Get_Active_Shire_Mask());
+        Compute_Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask());
     }
     else
     {
