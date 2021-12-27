@@ -47,7 +47,7 @@
 /*! \def PVTC_CLK_SYNTH_STROBE
     \brief Clock synth strobe value for adjusting SDIF drive and sample points
 */
-#define PVTC_CLK_SYNTH_STROBE 0x2u
+#define PVTC_CLK_SYNTH_STROBE 0x3u
 
 /*! \def PVTC_CLK_SYNTH_HI
     \brief IP clock high period duration in apb_ios (100MHz) cycle units
