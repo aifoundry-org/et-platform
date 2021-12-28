@@ -133,14 +133,16 @@ Modules:
           Value: 54
         - Name: GET_MM_ERROR_COUNT
           Value: 55
-        - Name: GET_DEVICE_ERROR_EVENTS
+        - Name: CM_RESET
           Value: 56
-        - Name: SET_DM_TRACE_RUN_CONTROL
+        - Name: GET_DEVICE_ERROR_EVENTS
           Value: 57
-        - Name: SET_DM_TRACE_CONFIG
+        - Name: SET_DM_TRACE_RUN_CONTROL
           Value: 58
-        - Name: SET_THROTTLE_POWER_STATE_TEST
+        - Name: SET_DM_TRACE_CONFIG
           Value: 59
+        - Name: SET_THROTTLE_POWER_STATE_TEST
+          Value: 60
         - Name: MID_END
           Value: 255
   ## List of Enums that are used in our messages
