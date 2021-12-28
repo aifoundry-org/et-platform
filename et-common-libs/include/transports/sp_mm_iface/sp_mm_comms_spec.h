@@ -131,7 +131,9 @@ enum sp_mm_msg_e {
     SP2MM_CMD_GET_DRAM_BW,
     SP2MM_RSP_GET_DRAM_BW,
     SP2MM_CMD_MM_ABORT_ALL,
-    SP2MM_RSP_MM_ABORT_ALL
+    SP2MM_RSP_MM_ABORT_ALL,
+    SP2MM_CMD_CM_RESET,
+    SP2MM_RSP_CM_RESET
 };
 
 typedef uint8_t mm2sp_fw_type_e;
@@ -371,6 +373,22 @@ struct sp2mm_mm_abort_all_cmd_t {
 struct sp2mm_mm_abort_all_rsp_t {
   struct dev_cmd_hdr_t  msg_hdr;
   int32_t  status; /* command status for mm abort */
+};
+
+/*! \struct sp2mm_cm_reset_cmd_t
+    \brief SP to MM command strutcure for cm reset command.
+*/
+struct sp2mm_cm_reset_cmd_t {
+  struct dev_cmd_hdr_t  msg_hdr;
+  uint64_t shire_mask;
+};
+
+/*! \struct sp2mm_cm_reset_rsp_t
+    \brief SP to MM response strutcure to cm reset command.
+*/
+struct sp2mm_cm_reset_rsp_t {
+  struct dev_cmd_hdr_t  msg_hdr;
+  int32_t  status; /* command status for cm reset*/
 };
 
 /*! \def  MM2SP_CMD
