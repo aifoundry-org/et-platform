@@ -38,26 +38,21 @@
 /* Global variable to keep track of Machine Minions boot */
 static spinlock_t MM_Thread_Boot_Counter[NUM_SHIRES] = { 0 };
 
-static inline void initialize_scp(void)
+static inline void initialize_scp(uint32_t shire_id)
 {
-    /* setup cache op state machine to zero out the SCP region */
-    __asm__ __volatile__("li t0, 0x00000901\n"
+    /* Setup cache op state machine to zero out the SCP region of the given shire */
+    __asm__ __volatile__("li t0, 0x00000901\n");
 
-                         "li t1, 0x01c0300030\n"
-                         "sd t0, 0(t1)\n"
-
-                         "li t1, 0x01c0302030\n"
-                         "sd t0, 0(t1)\n"
-
-                         "li t1, 0x01c0304030\n"
-                         "sd t0, 0(t1)\n"
-
-                         "li t1, 0x01c0306030\n"
-                         "sd t0, 0(t1)\n"
-
-                         "fence iorw, iorw\n"
-                         :
-                         :);
+    for (uint64_t bank = 0; bank < 4; bank++)
+    {
+        /* Setup the ESR address */
+        uint64_t esr = 0x01c0300030U | (shire_id << 22U) | (bank << 13U);
+        __asm__ __volatile__("mv t1, %[esr]\n"
+                             "sd t0, 0(t1)\n"
+                             :
+                             : [esr] "r"(esr));
+    }
+    __asm__ __volatile__("fence iorw, iorw\n");
 }
 
 static inline void mm_setup_default_pmcs(uint32_t hart_id)
@@ -110,6 +105,7 @@ void __attribute__((noreturn)) main(void)
 {
     uint64_t temp;
     uint32_t hart_id = get_hart_id();
+    uint32_t shire_id = get_shire_id();
 
     // "Upon reset, a hart's privilege mode is set to M. The mstatus fields MIE and MPRV are reset to 0.
     // The pc is set to an implementation-defined reset vector. The mcause register is set to a value
@@ -160,11 +156,11 @@ void __attribute__((noreturn)) main(void)
         *ipi_redirect_filter_ptr = 0;
 
         /* Initialize Shire L2 SCP */
-        initialize_scp();
+        initialize_scp(shire_id);
     }
 
     /* Master shire non-sync minions (lower 16) */
-    if ((get_shire_id() == 32) && ((get_minion_id() & 0x1F) < 16))
+    if ((shire_id == MM_SHIRE_ID) && ((get_minion_id() & 0x1F) < 16))
     {
         const uint64_t *const master_entry = (uint64_t *)FW_MASTER_SMODE_ENTRY;
         const uint32_t minion_mask = 0xFFFFU;
@@ -218,7 +214,7 @@ void __attribute__((noreturn)) main(void)
     {
         // Worker shire and Master shire sync-minions (upper 16)
         const uint64_t *const worker_entry = (uint64_t *)FW_WORKER_SMODE_ENTRY;
-        const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
+        const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
 
         // First HART in each neighborhood
         if (hart_id % 16 == 0)
