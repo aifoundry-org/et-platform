@@ -65,9 +65,17 @@
     \brief This function initializes Trace for all harts in Master Minion
            Shire
     \param mm_init_info Pointer Trace init information.
-    \return None
+    \return Successful status or error code.
 */
 int32_t Trace_Init_MM(const struct trace_init_info_t *mm_init_info);
+
+/*! \fn int32_t Trace_Configure_MM(const struct trace_config_info_t *mm_config_info)
+    \brief This function configures the Matser Minion Trace.
+*       NOTE:Trace must be initialized using Trace_Init_MM() before this function.
+    \param mm_config_info Pointer Trace init information.
+    \return Successful status or error code.
+*/
+int32_t Trace_Configure_MM(const struct trace_config_info_t *mm_config_info);
 
 /*! \fn struct trace_control_block_t* Trace_Get_MM_CB(uint64_t hart_id)
     \brief This function return Trace control block for given Hart ID.

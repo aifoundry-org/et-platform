@@ -31,6 +31,7 @@
 #include <system/layout.h>
 
 #include "log.h"
+#include "error_codes.h"
 
 #define ET_TRACE_GET_HART_ID()       get_hart_id()
 #define ET_TRACE_GET_TIMESTAMP()     PMC_Get_Current_Cycles()
@@ -198,10 +199,8 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
         /* Set the default offset */
         CM_TRACE_CB[hart_cb_index].cb.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
 
-        /* Evict the Trace buffer standard header which is part of Base Hart's buffer.
-           It is required, even if tracing is disabled for base because it contain buffer
-           validation data as part of trace buffer standard header. */
-        Trace_Evict_CM_Buffer();
+        /* Initialize Trace for current Hart in Compute Minion Shire. */
+        Trace_Init(&hart_init_info, &CM_TRACE_CB[hart_cb_index].cb, TRACE_STD_HEADER);
     }
     else
     {
@@ -212,30 +211,55 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
 
         /* Set the default offset */
         CM_TRACE_CB[hart_cb_index].cb.offset_per_hart = sizeof(struct trace_buffer_size_header_t);
+
+        /* Initialize Trace for current Hart in Compute Minion Shire. */
+        Trace_Init(&hart_init_info, &CM_TRACE_CB[hart_cb_index].cb, TRACE_SIZE_HEADER);
     }
 
     /* Verify if the current shire and thread is enabled for tracing */
-    if (CHECK_HART_TRACE_ENABLED(&hart_init_info, hart_id))
-    {
-        if (hart_id == CM_BASE_HART_ID)
-        {
-            /* Initialize Trace for current Hart in Compute Minion Shire. */
-            Trace_Init(&hart_init_info, &CM_TRACE_CB[hart_cb_index].cb, TRACE_STD_HEADER);
-        }
-        else
-        {
-            /* Initialize Trace for current Hart in Compute Minion Shire. */
-            Trace_Init(&hart_init_info, &CM_TRACE_CB[hart_cb_index].cb, TRACE_SIZE_HEADER);
-        }
-
-        /* Evict the buffer header to L3 Cache. */
-        Trace_Evict_CM_Buffer();
-    }
-    else
+    if (!CHECK_HART_TRACE_ENABLED(&hart_init_info, hart_id))
     {
         /* Disable Trace for current Hart in Compute Minion Shire. */
         CM_TRACE_CB[hart_cb_index].cb.enable = TRACE_DISABLE;
     }
+
+    /* Evict the buffer header to L3 Cache. */
+    Trace_Evict_CM_Buffer();
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Configure_CM
+*
+*   DESCRIPTION
+*
+*       This function configures the Trace.
+*       NOTE:Trace must be initialized using Trace_Init_CM() before this
+*       function.
+*
+*   INPUTS
+*
+*       trace_config_info_t    Trace config info.
+*
+*   OUTPUTS
+*
+*       int32_t           Successful status or error code.
+*
+***********************************************************************/
+int32_t Trace_Configure_CM(const struct trace_config_info_t *cm_config_info)
+{
+    int32_t status = TRACE_ERROR_INVALID_TRACE_CONFIG_INFO;
+    const uint32_t hart_cb_index = GET_CB_INDEX(get_hart_id());
+
+    /* Check if init information pointer is NULL. */
+    if (cm_config_info != NULL)
+    {
+        status = Trace_Config(cm_config_info, &CM_TRACE_CB[hart_cb_index].cb);
+    }
+
+    return status;
 }
 
 /************************************************************************

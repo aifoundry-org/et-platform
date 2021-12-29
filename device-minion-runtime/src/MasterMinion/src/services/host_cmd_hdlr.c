@@ -128,6 +128,10 @@
     {                                                                        \
         ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;       \
     }                                                                        \
+    else if (status == TRACE_ERROR_INVALID_TRACE_CONFIG_INFO)                \
+    {                                                                        \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;       \
+    }                                                                        \
     else                                                                     \
     {                                                                        \
         /* It should never come here. TODO:SW-10385: Add unexpected error.*/ \
@@ -752,7 +756,7 @@ static inline int32_t kernel_launch_cmd_handler(
         rsp->device_cmd_execute_dur = 0U;
 
         /* Map device internal errors onto device api errors */
-        if (status == KW_ERROR_KERNEL_SHIRES_NOT_READY)
+        if (status == KW_ERROR_CW_SHIRES_NOT_READY)
         {
             rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SHIRES_NOT_READY;
         }
@@ -760,7 +764,7 @@ static inline int32_t kernel_launch_cmd_handler(
         {
             rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS;
         }
-        else if (status == KW_ERROR_KERNEL_INAVLID_ARGS_SIZE)
+        else if (status == KW_ERROR_KERNEL_INVALID_ARGS_SIZE)
         {
             rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_PAYLOAD_SIZE;
         }
@@ -1666,14 +1670,12 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
     if ((status == STATUS_SUCCESS) &&
         (TRACE_CONFIG_CHECK_MM_HART(cmd->shire_mask, cmd->thread_mask)))
     {
-        struct trace_init_info_t mm_trace_init = { .shire_mask = MM_SHIRE_MASK,
-            .thread_mask = MM_HART_MASK,
-            .filter_mask = cmd->filter_mask,
+        struct trace_config_info_t mm_trace_config = { .filter_mask = cmd->filter_mask,
             .event_mask = cmd->event_mask,
-            .threshold = MM_TRACE_BUFFER_SIZE };
+            .threshold = cmd->threshold };
 
-        /* Configure MM Trace. TODO: Add status code. */
-        status = Trace_Init_MM(&mm_trace_init);
+        /* Configure MM Trace. */
+        status = Trace_Configure_MM(&mm_trace_config);
         Trace_String(TRACE_EVENT_STRING_CRITICAL, Trace_Get_MM_CB(), "MM:TRACE_RT_CONFIG:Done!!");
     }
 

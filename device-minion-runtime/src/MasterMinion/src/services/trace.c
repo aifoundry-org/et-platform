@@ -229,6 +229,40 @@ int32_t Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
 *
 *   FUNCTION
 *
+*       Trace_Configure_MM
+*
+*   DESCRIPTION
+*
+*       This function configures the Trace.
+*       NOTE:Trace must be initialized using Trace_Init_MM() before this
+*       function.
+*
+*   INPUTS
+*
+*       trace_config_info_t    Trace init info for Master Minion shire.
+*
+*   OUTPUTS
+*
+*       int32_t           Successful status or error code.
+*
+***********************************************************************/
+int32_t Trace_Configure_MM(const struct trace_config_info_t *mm_config_info)
+{
+    int32_t status = TRACE_ERROR_INVALID_TRACE_CONFIG_INFO;
+
+    /* Check if init information pointer is NULL. */
+    if (mm_config_info != NULL)
+    {
+        status = Trace_Config(mm_config_info, &MM_Trace_CB.cb);
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       Trace_Get_MM_CB
 *
 *   DESCRIPTION

@@ -439,7 +439,7 @@ static int32_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask
         }
         else
         {
-            status = KW_ERROR_KERNEL_SHIRES_NOT_READY;
+            status = KW_ERROR_CW_SHIRES_NOT_READY;
             Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:kernel shires unavailable\r\n");
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_SLOT_ERROR);
         }
@@ -504,7 +504,7 @@ static inline int32_t process_kernel_launch_cmd_payload(struct device_ops_kernel
 
     if (args_size > DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX)
     {
-        status = KW_ERROR_KERNEL_INAVLID_ARGS_SIZE;
+        status = KW_ERROR_KERNEL_INVALID_ARGS_SIZE;
         Log_Write(LOG_LEVEL_ERROR, "KW:ERROR: Violated Kernel Args Size: %ld > %d\r\n", args_size,
             DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX);
     }

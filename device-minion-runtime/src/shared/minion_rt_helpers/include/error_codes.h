@@ -169,20 +169,20 @@ RESERVED
 */
 #define KW_ERROR_KERNEL_SLOT_NOT_FOUND -1003
 
-/*! \def KW_ERROR_KERNEL_SHIRES_NOT_READY
+/*! \def KW_ERROR_CW_SHIRES_NOT_READY
     \brief Kernel Worker - Kernel shires not ready
 */
-#define KW_ERROR_KERNEL_SHIRES_NOT_READY -1004
+#define KW_ERROR_CW_SHIRES_NOT_READY -1004
 
 /*! \def KW_ERROR_KERNEL_INVALID_ADDRESS
     \brief Kernel Worker - Kernel invalid device address
 */
 #define KW_ERROR_KERNEL_INVALID_ADDRESS -1005
 
-/*! \def KW_ERROR_KERNEL_INAVLID_ARGS_SIZE
+/*! \def KW_ERROR_KERNEL_INVALID_ARGS_SIZE
     \brief Kernel Worker - Kernel invalid argument payload size
 */
-#define KW_ERROR_KERNEL_INAVLID_ARGS_SIZE -1006
+#define KW_ERROR_KERNEL_INVALID_ARGS_SIZE -1006
 
 /*! \def KW_ERROR_SW_TIMER_REGISTER_FAIL
     \brief Kernel Worker - Unable to register SW timer
@@ -285,6 +285,11 @@ RESERVED
     \brief Trace - MM to CM multicast message failed
 */
 #define TRACE_ERROR_CM_IFACE_MULTICAST_FAILED -1506
+
+/*! \def TRACE_ERROR_INVALID_TRACE_CONFIG_INFO
+    \brief Trace - Invalid Trace configuration info
+*/
+#define TRACE_ERROR_INVALID_TRACE_CONFIG_INFO -1507
 
 /*************************************
  * Define SP Interface error codes.  *

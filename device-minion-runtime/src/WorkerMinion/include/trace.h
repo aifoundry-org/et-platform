@@ -22,16 +22,24 @@
     \brief This function initializes Trace for a single Hart in CM Shires.
            All CM Harts must call this function to Enable Trace.
     \param cm_init_info Pointer Trace init information.
-    \return None
+    \return Successful status or error code.
 */
 void Trace_Init_CM(const struct trace_init_info_t *cm_init_info);
+
+/*! \fn int32_t Trace_Configure_CM(const struct trace_config_info_t *cm_config_info)
+    \brief This function configures the Trace.
+           NOTE:Trace must be initialized using Trace_Init_CM() before this function.
+    \param cm_config_info Pointer to Trace config info.
+    \return Successful status or error code.
+*/
+int32_t Trace_Configure_CM(const struct trace_config_info_t *cm_config_info);
 
 /*! \fn struct trace_control_block_t* Trace_Get_CM_CB(void)
     \brief This function returns the Trace control block (CB) of
            the Worker Hart which is calling this function.
     \return Pointer to the Trace control block for caller Hart.
 */
-struct trace_control_block_t* Trace_Get_CM_CB(void);
+struct trace_control_block_t *Trace_Get_CM_CB(void);
 
 /*! \fn svoid Trace_Evict_CM_Buffer(void)
     \brief This function evicts the Trace buffer of caller Worker Hart.

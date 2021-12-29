@@ -208,13 +208,11 @@ static void mm_to_cm_iface_handle_message(
 
             if (cmd->thread_mask & CURRENT_THREAD_MASK)
             {
-                struct trace_init_info_t mm_trace_init = { .shire_mask = cmd->shire_mask,
-                    .thread_mask = cmd->thread_mask,
-                    .filter_mask = cmd->filter_mask,
+                struct trace_config_info_t cm_trace_config = { .filter_mask = cmd->filter_mask,
                     .event_mask = cmd->event_mask,
                     .threshold = cmd->threshold };
 
-                Trace_Init_CM(&mm_trace_init);
+                Trace_Configure_CM(&cm_trace_config);
                 Trace_String(
                     TRACE_EVENT_STRING_CRITICAL, Trace_Get_CM_CB(), "CM:TRACE_RT_CONFIG:Done!!\n");
             }
