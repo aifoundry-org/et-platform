@@ -18,11 +18,13 @@ set(MINION_BL_HDRS
     include/etsoc/drivers/pmu/pmu.h
     include/etsoc/isa/atomic.h
     include/etsoc/isa/atomic-impl.h
+    include/etsoc/isa/etsoc_memory.h
     include/etsoc/isa/esr_defines.h
     include/etsoc/isa/macros.h
     include/etsoc/isa/fcc.h
     include/etsoc/isa/flb.h
     include/etsoc/isa/hart.h
+    include/etsoc/isa/io.h
     include/etsoc/isa/sync.h
     include/etsoc/isa/cacheops.h
     include/etsoc/isa/syscall.h

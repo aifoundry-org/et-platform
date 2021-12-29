@@ -18,6 +18,7 @@ set(SP_BL1_HDRS
     include/etsoc/isa/io.h
     include/etsoc/isa/atomic.h
     include/etsoc/isa/atomic-impl.h
+    include/etsoc/isa/etsoc_memory.h
     include/etsoc/isa/esr_defines.h
     include/etsoc/isa/macros.h
     include/etsoc/isa/fcc.h

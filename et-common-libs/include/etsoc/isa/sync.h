@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "etsoc/isa/atomic.h"
+#include "etsoc/isa/etsoc_memory.h"
 #include "etsoc/isa/fcc.h"
 #include "etsoc/isa/hart.h"
 #include "etsoc/isa/macros.h"
@@ -185,8 +186,21 @@ static inline void init_global_spinlock(spinlock_t *lock, bool state)
 
 static inline void acquire_global_spinlock(spinlock_t *lock)
 {
-    while (atomic_or_global_32(&lock->flag, 1U) != 0U) {
-        asm volatile("fence\n" ::: "memory");
+    /* Try to acquire the lock */
+    if (atomic_or_global_32(&lock->flag, 1U) != 0U)
+    {
+        while(1)
+        {
+            /* Update the cache-line */
+            ETSOC_MEM_EVICT(&lock->flag, sizeof(lock->flag), to_L3)
+
+            /* First check if the lock is free using regular load. If yes, try to
+            acquire it using atomic primitive, else try again in next iteration. */
+            if ((lock->flag == 0U) && (atomic_or_global_32(&lock->flag, 1U) == 0U))
+            {
+                break;
+            }
+        }
     }
     asm volatile("fence\n" ::: "memory");
 }
