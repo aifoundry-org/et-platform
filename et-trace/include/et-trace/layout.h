@@ -213,6 +213,17 @@ struct trace_init_info_t {
         filter_mask; /*!< This is a bit mask representing a list of filters for a given event to trace. */
 };
 
+/*
+ * Global tracing information used to configure the Trace.
+ */
+struct trace_config_info_t {
+    uint32_t
+        event_mask; /*!< This is a bit mask, each bit corresponds to a specific Event to trace. */
+    uint32_t
+        filter_mask; /*!< This is a bit mask representing a list of filters for a given event to trace. */
+    uint32_t threshold;   /*!< Threshold for free memory in the buffer for each hart. */
+};
+
 /*! \struct trace_buffer_size_header_t
     \brief Trace buffer header (resides at the beggining of the buffer).
            It contains size of valid data in that buffer.

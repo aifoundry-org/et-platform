@@ -228,8 +228,9 @@ struct trace_control_block_t {
     uint8_t header; /*!< Buffer header type of value trace_header_type_e */
 } __attribute__((aligned(64)));
 
-int8_t Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb,
+int32_t Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb,
                 uint8_t buff_header);
+int32_t Trace_Config(const struct trace_config_info_t *config_info, struct trace_control_block_t *cb);
 void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
                   const char *str);
 void Trace_Format_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
@@ -566,10 +567,10 @@ static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint6
 *
 *   OUTPUTS
 *
-*       None
+*       int32_t                  Successful status or error code.
 *
 ***********************************************************************/
-int8_t Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb,
+int32_t Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb,
                 uint8_t buff_header)
 {
     uint32_t header_size = (buff_header == TRACE_STD_HEADER) ?
@@ -603,6 +604,53 @@ int8_t Trace_Init(const struct trace_init_info_t *init_info, struct trace_contro
                       init_info->threshold : cb->size_per_hart;
     cb->header = buff_header;
     cb->enable = TRACE_ENABLE;
+
+    return TRACE_STATUS_SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Config
+*
+*   DESCRIPTION
+*
+*       This function configures the Trace.
+*       NOTE:Trace must be initialized using Trace_init() before this
+*       function.
+*
+*   INPUTS
+*
+*       trace_config_info_t     Global tracing information used to
+*                               configure Trace.
+*       trace_control_block_t   Pointer to Trace control block.
+*
+*   OUTPUTS
+*
+*       int32_t                  Successful status or error code.
+*
+***********************************************************************/
+int32_t Trace_Config(const struct trace_config_info_t *config_info, struct trace_control_block_t *cb)
+{
+    if (!cb)
+    {
+        return TRACE_INVALID_CB;
+    }
+    else if (!config_info)
+    {
+        return TRACE_INVALID_INIT_INFO;
+    }
+    else if (config_info->threshold > ET_TRACE_READ_U32(cb->size_per_hart))
+    {
+        return TRACE_INVALID_THRESHOLD;
+    }
+
+    /* Check if it is a shortcut to enable all Trace events and filters. */
+    ET_TRACE_WRITE_U32(cb->filter_mask, (config_info->event_mask == TRACE_EVENT_ENABLE_ALL) ?
+        TRACE_FILTER_ENABLE_ALL : config_info->filter_mask);
+    ET_TRACE_WRITE_U32(cb->event_mask, config_info->event_mask);
+    ET_TRACE_WRITE_U32(cb->threshold, config_info->threshold);
 
     return TRACE_STATUS_SUCCESS;
 }

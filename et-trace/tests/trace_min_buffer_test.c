@@ -42,7 +42,7 @@ int main(int argc, const char **argv)
     cb.base_per_hart = (uint64_t)buf;
     cb.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
     printf("-- initialize trace with invalid buffer size\n");
-    int8_t status = Trace_Init(&info, &cb, TRACE_STD_HEADER);
+    int32_t status = Trace_Init(&info, &cb, TRACE_STD_HEADER);
     CHECK_EQ(status, TRACE_INVALID_BUF_SIZE);
     CHECK_EQ(cb.enable, TRACE_DISABLE);
 
