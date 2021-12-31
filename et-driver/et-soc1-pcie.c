@@ -70,12 +70,13 @@ module_param(ops_discovery_timeout, uint, 0);
 
 static DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
 
-static u8 get_index(void)
+static int get_dev_index(void)
 {
-	u8 index;
+	int index = -ENODEV;
 
 	if (bitmap_full(dev_bitmap, ET_MAX_DEVS))
-		return -EBUSY;
+		return index;
+
 	index = find_first_zero_bit(dev_bitmap, ET_MAX_DEVS);
 	set_bit(index, dev_bitmap);
 	return index;
@@ -106,11 +107,11 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	for (i = 0; i < ops->dir_vq.sq_count; i++)
 		et_squeue_event_available(ops->sq_pptr[i]);
 
-	mutex_unlock(&ops->vq_common.sq_bitmap_mutex);
-
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
 	if (!bitmap_empty(ops->vq_common.sq_bitmap, ops->dir_vq.sq_count))
 		mask |= EPOLLOUT;
+
+	mutex_unlock(&ops->vq_common.sq_bitmap_mutex);
 
 	// Generate EPOLLIN event if any CQ msg is saved for userspace
 	if (!bitmap_empty(ops->vq_common.cq_bitmap, ops->dir_vq.cq_count))
@@ -154,6 +155,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		for (sq_idx = 0; sq_idx < ops->dir_vq.sq_count; sq_idx++) {
 			if (!et_squeue_empty(ops->sq_pptr[sq_idx])) {
 				dev_state = DEV_STATE_PENDING_COMMANDS;
+				// break loop
 				break;
 			}
 		}
@@ -385,6 +387,9 @@ static void esperanto_pcie_vm_open(struct vm_area_struct *vma)
 {
 	struct et_dma_mapping *map = vma->vm_private_data;
 
+	if (!map)
+		return;
+
 	dev_dbg(&map->pdev->dev,
 		"vm_open: %p, [size=%lu,vma=%08lx-%08lx]\n",
 		map,
@@ -430,12 +435,13 @@ struct vm_area_struct *et_find_vma(unsigned long vaddr)
 	struct vm_area_struct *vma;
 
 	mmap_read_lock(current->mm);
+
 	vma = find_vma(current->mm, vaddr);
-	if (!vma || vma->vm_ops != &esperanto_pcie_vm_ops) {
-		mmap_read_unlock(current->mm);
-		return NULL;
-	}
+	if (!vma && vma->vm_ops != &esperanto_pcie_vm_ops)
+		vma = NULL;
+
 	mmap_read_unlock(current->mm);
+
 	return vma;
 }
 
@@ -545,9 +551,11 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		for (sq_idx = 0; sq_idx < mgmt->dir_vq.sq_count; sq_idx++) {
 			if (!et_squeue_empty(mgmt->sq_pptr[sq_idx])) {
 				dev_state = DEV_STATE_PENDING_COMMANDS;
+				// break loop
 				break;
 			}
 		}
+		mutex_unlock(&mgmt->vq_common.sq_bitmap_mutex);
 
 		if (size >= sizeof(u32) &&
 		    copy_to_user(usr_arg, &dev_state, size)) {
@@ -833,20 +841,18 @@ static const struct file_operations et_pcie_mgmt_fops = {
 static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 {
 	struct et_pci_dev *et_dev;
+	int index = get_dev_index();
+
+	if (index < 0)
+		return index;
 
 	et_dev = devm_kzalloc(&pdev->dev, sizeof(*et_dev), GFP_KERNEL);
-	*new_dev = et_dev;
-
 	if (!et_dev)
 		return -ENOMEM;
 
 	et_dev->pdev = pdev;
-
-	et_dev->dev_index = get_index();
-	if (et_dev->dev_index < 0) {
-		dev_err(&pdev->dev, "get index failed\n");
-		return -ENODEV;
-	}
+	et_dev->dev_index = (u8)index;
+	*new_dev = et_dev;
 
 	return 0;
 }
@@ -891,7 +897,6 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 	char syndrome_str[ET_EVENT_SYNDROME_LEN];
 	struct et_bar_addr_dbg *bar_addr_dbg;
 	struct et_bar_region *existing_node, *new_node;
-	struct list_head *node;
 
 	if (is_mgmt) {
 		regions = et_dev->mgmt.regions;
@@ -1025,9 +1030,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 		if (new_node->region_end >
 		    pci_resource_end(et_dev->pdev, dir_mem_region->bar)) {
 			dbg_msg.level = LEVEL_FATAL;
-			sprintf(dbg_msg.desc,
-				"BAR[%d] overflow detected!",
-				dir_mem_region->bar);
+			dbg_msg.desc = "BAR overflow detected!";
 			sprintf(dbg_msg.syndrome,
 				"Requested region size: 0x%llx at offset: 0x%llx is more than available BAR[%d] length\n",
 				dir_mem_region->bar_size,
@@ -1035,12 +1038,13 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 				dir_mem_region->bar);
 			et_print_event(et_dev->pdev, &dbg_msg);
 			rv = -EINVAL;
-			goto error_release_node_mem;
+			kfree(new_node);
+			goto error_unmap_discovered_regions;
 		}
 
-		list_for_each (node, &et_dev->bar_region_list) {
-			existing_node =
-				list_entry(node, struct et_bar_region, list);
+		list_for_each_entry (existing_node,
+				     &et_dev->bar_region_list,
+				     list) {
 			if (new_node->region_start >
 				    existing_node->region_end ||
 			    new_node->region_end <
@@ -1064,10 +1068,10 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 					new_node->region_end);
 				et_print_event(et_dev->pdev, &dbg_msg);
 				rv = -EINVAL;
-				goto error_release_node_mem;
+				kfree(new_node);
+				goto error_unmap_discovered_regions;
 			}
 		}
-		list_add_tail(&new_node->list, &et_dev->bar_region_list);
 
 		// BAR mapping for the discovered region
 		bm_info.bar = dir_mem_region->bar;
@@ -1085,7 +1089,8 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 				(is_mgmt) ? "Mgmt" : "Ops",
 				dir_mem_region->type);
 			et_print_event(et_dev->pdev, &dbg_msg);
-			goto error_release_node_mem;
+			kfree(new_node);
+			goto error_unmap_discovered_regions;
 		}
 
 		bar_addr_dbg->phys_addr =
@@ -1104,6 +1109,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 		       sizeof(dir_mem_region->access));
 
 		regions[dir_mem_region->type].is_valid = true;
+		list_add_tail(&new_node->list, &et_dev->bar_region_list);
 	}
 
 	// Check if all compulsory region types have been discovered and mapped
@@ -1126,7 +1132,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 				i);
 			et_print_event(et_dev->pdev, &dbg_msg);
 			rv = -EINVAL;
-			goto error_release_node_mem;
+			goto error_unmap_discovered_regions;
 		}
 	}
 
@@ -1144,9 +1150,6 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 	}
 
 	return (ssize_t)((u64)reg_pos - (u64)regs_data);
-
-error_release_node_mem:
-	kfree(new_node);
 
 error_unmap_discovered_regions:
 	et_unmap_discovered_regions(et_dev, is_mgmt);
@@ -1215,7 +1218,7 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 
 	// DIR size sanity check
 	dir_size = ioread16(&dir_mgmt_mem->total_size);
-	if (dir_size > DIR_MAPPINGS[IOMEM_R_DIR_MGMT].size) {
+	if (!dir_size && dir_size > DIR_MAPPINGS[IOMEM_R_DIR_MGMT].size) {
 		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc = "Invalid DIRs total size!";
 		sprintf(dbg_msg.syndrome,
@@ -1244,28 +1247,27 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	dir_mgmt = (struct et_mgmt_dir_header *)dir_pos;
 	section_size = dir_mgmt->attributes_size;
 
-	et_dev->bar0_size = SZ_1G * (u64)(dir_mgmt->bar0_size + 1);
-	et_dev->bar2_size = SZ_32K * (dir_mgmt->bar2_size + 1);
-
 	// BAR0 size check
+	et_dev->bar0_size = SZ_1G * (u64)(dir_mgmt->bar0_size + 1);
 	if (et_dev->bar0_size != pci_resource_len(et_dev->pdev, 0 /* BAR0 */)) {
 		dbg_msg.level = LEVEL_WARN;
 		dbg_msg.desc =
 			"BAR0 size doesn't match BAR0 size exposed by DIRs!";
 		sprintf(dbg_msg.syndrome,
-			"BAR0 size detected by host: %llx\nBAR0 size exposed by DIRs: 0x%llx\n",
+			"BAR0 size detected by host: 0x%llx\nBAR0 size exposed by DIRs: 0x%llx\n",
 			pci_resource_len(et_dev->pdev, 0),
 			et_dev->bar0_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 
 	// BAR2 size check
+	et_dev->bar2_size = SZ_32K * (dir_mgmt->bar2_size + 1);
 	if (et_dev->bar2_size != pci_resource_len(et_dev->pdev, 2 /* BAR2 */)) {
 		dbg_msg.level = LEVEL_WARN;
 		dbg_msg.desc =
 			"BAR2 size doesn't match BAR2 size exposed by DIRs!";
 		sprintf(dbg_msg.syndrome,
-			"BAR2 size detected by host: %llx\nBAR2 size exposed by DIRs: 0x%llx\n",
+			"BAR2 size detected by host: 0x%llx\nBAR2 size exposed by DIRs: 0x%llx\n",
 			pci_resource_len(et_dev->pdev, 2),
 			et_dev->bar2_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
@@ -1394,8 +1396,10 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	mgmt_bar_addr_dbg = kmalloc_array(dir_mgmt->num_regions,
 					  sizeof(struct et_bar_addr_dbg),
 					  GFP_KERNEL);
-	if (!mgmt_bar_addr_dbg)
-		return -ENOMEM;
+	if (!mgmt_bar_addr_dbg) {
+		rv = -ENOMEM;
+		goto error_free_dir_data;
+	}
 
 	/*
 	 * Map all memory regions and save attributes
@@ -1408,29 +1412,26 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 				       dir_mgmt->num_regions);
 	if (rv < 0) {
 		dev_err(&et_dev->pdev->dev,
-			"Mgmt: DIR Memory regions mapping failed!");
-		goto error_free_dir_data;
+			"Mgmt: DIR Memory Regions mapping failed!");
+		goto error_free_mgmt_bar_addr_dbg;
 	}
 
 	et_print_mgmt_dir(&et_dev->pdev->dev,
 			  dir_data,
 			  dir_size,
 			  mgmt_bar_addr_dbg);
-	kfree(mgmt_bar_addr_dbg);
 
 	dir_pos += rv;
 	if (dir_pos != dir_data + dir_size) {
 		dbg_msg.level = LEVEL_WARN;
 		dbg_msg.desc =
-			"Total DIR size does not match sum of respective Sizes of attribute regions";
+			"Total DIR size does not match sum of respective sizes of attribute regions";
 		sprintf(dbg_msg.syndrome,
 			"\nDevice: Mgmt\nSize: (DIRs: %zu, All Attribute Regions: %d)\n",
 			dir_size,
 			(int)(dir_pos - dir_data));
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
-
-	kfree(dir_data);
 
 	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, true /* mgmt_dev */);
@@ -1453,6 +1454,9 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 		goto error_vqueue_destroy_all;
 	}
 
+	kfree(mgmt_bar_addr_dbg);
+	kfree(dir_data);
+
 	return rv;
 
 error_vqueue_destroy_all:
@@ -1460,6 +1464,9 @@ error_vqueue_destroy_all:
 
 error_unmap_discovered_regions:
 	et_unmap_discovered_regions(et_dev, true /* mgmt_dev */);
+
+error_free_mgmt_bar_addr_dbg:
+	kfree(mgmt_bar_addr_dbg);
 
 error_free_dir_data:
 	kfree(dir_data);
@@ -1684,8 +1691,11 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	ops_bar_addr_dbg = kmalloc_array(dir_ops->num_regions,
 					 sizeof(struct et_bar_addr_dbg),
 					 GFP_KERNEL);
-	if (!ops_bar_addr_dbg)
-		return -ENOMEM;
+	if (!ops_bar_addr_dbg) {
+		rv = -ENOMEM;
+		goto error_free_dir_data;
+	}
+
 	/*
 	 * Map all memory regions and save attributes
 	 */
@@ -1698,14 +1708,13 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	if (rv < 0) {
 		dev_err(&et_dev->pdev->dev,
 			"Ops: DIR Memory Regions mapping failed!");
-		goto error_free_dir_data;
+		goto error_free_ops_bar_addr_dbg;
 	}
 
 	et_print_ops_dir(&et_dev->pdev->dev,
 			 dir_data,
 			 dir_size,
 			 ops_bar_addr_dbg);
-	kfree(ops_bar_addr_dbg);
 
 	dir_pos += rv;
 	if (dir_pos != dir_data + dir_size) {
@@ -1718,8 +1727,6 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 			(int)(dir_pos - dir_data));
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
-
-	kfree(dir_data);
 
 	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, false /* ops_dev */);
@@ -1742,6 +1749,9 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 		goto error_vqueue_destroy_all;
 	}
 
+	kfree(ops_bar_addr_dbg);
+	kfree(dir_data);
+
 	return rv;
 
 error_vqueue_destroy_all:
@@ -1749,6 +1759,9 @@ error_vqueue_destroy_all:
 
 error_unmap_discovered_regions:
 	et_unmap_discovered_regions(et_dev, false /* ops_dev */);
+
+error_free_ops_bar_addr_dbg:
+	kfree(ops_bar_addr_dbg);
 
 error_free_dir_data:
 	kfree(dir_data);
@@ -1786,13 +1799,11 @@ static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
 
 static void et_destroy_region_list(struct et_pci_dev *et_dev)
 {
-	struct list_head *pos, *next;
-	struct et_bar_region *node;
+	struct et_bar_region *pos, *tmp;
 
-	list_for_each_safe (pos, next, &et_dev->bar_region_list) {
-		node = list_entry(pos, struct et_bar_region, list);
-		list_del(pos);
-		kfree(node);
+	list_for_each_entry_safe (pos, tmp, &et_dev->bar_region_list, list) {
+		list_del(&pos->list);
+		kfree(pos);
 	}
 }
 

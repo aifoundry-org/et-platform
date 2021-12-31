@@ -815,7 +815,7 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 			break;
 
 		default:
-			strlcat(err_str, "Incorrect MGMT region type: ", len);
+			strlcat(err_str, "Incorrect Mgmt region type: ", len);
 			strlcat(err_str, reg_type_str, len);
 			rv = false;
 			break;
@@ -862,7 +862,7 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 			}
 			break;
 		default:
-			strlcat(err_str, "Incorrect OPS region type: ", len);
+			strlcat(err_str, "Incorrect Ops region type: ", len);
 			strlcat(err_str, reg_type_str, len);
 			rv = false;
 			break;
