@@ -340,7 +340,11 @@ static inline int32_t compatibility_cmd_handler(void *command_buffer, uint8_t sq
     }
 
     /* Map device internal errors onto device api errors */
-    if (status == HOST_CMD_STATUS_ABORTED)
+    if (status == STATUS_SUCCESS)
+    {
+        rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_SUCCESS;
+    }
+    else if (status == HOST_CMD_STATUS_ABORTED)
     {
         rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_HOST_ABORTED;
     }
@@ -498,7 +502,11 @@ static inline int32_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_i
     }
 
     /* Map device internal errors onto device api errors */
-    if (status == HOST_CMD_STATUS_ABORTED)
+    if (status == STATUS_SUCCESS)
+    {
+        rsp.status = DEV_OPS_API_FW_VERSION_RESPONSE_SUCCESS;
+    }
+    else if (status == HOST_CMD_STATUS_ABORTED)
     {
         rsp.status = DEV_OPS_API_FW_VERSION_RESPONSE_HOST_ABORTED;
     }
