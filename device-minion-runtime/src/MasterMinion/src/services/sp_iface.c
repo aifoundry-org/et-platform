@@ -36,6 +36,7 @@
 #include "services/sw_timer.h"
 #include "services/log.h"
 #include "services/host_cmd_hdlr.h"
+#include "workers/cw.h"
 
 /* mm_rt_helpers */
 #include "error_codes.h"
@@ -344,6 +345,33 @@ static int32_t sp_command_handler(const void *cmd_buffer)
             {
                 Log_Write(LOG_LEVEL_ERROR,
                     "SP2MM_CMD_MM_ABORT_ALL:SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push error!\r\n");
+            }
+        }
+        break;
+        case SP2MM_CMD_CM_RESET:
+        {
+            const struct sp2mm_cm_reset_cmd_t *mm_reset_cmd = (const void *)hdr;
+            struct sp2mm_cm_reset_rsp_t rsp;
+
+            /* Perform CM warm reset and wait*/
+            status = CW_CM_Configure_And_Wait_For_Boot(mm_reset_cmd->shire_mask);
+
+            /* Initialize response header */
+            SP_MM_IFACE_INIT_MSG_HDR(
+                &rsp.msg_hdr, SP2MM_RSP_CM_RESET, sizeof(struct sp2mm_cm_reset_rsp_t), 0)
+
+            rsp.status = status;
+
+            status = SP_Iface_Push_Rsp_To_SP2MM_CQ((void *)&rsp, sizeof(rsp));
+            if (status == STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "MM2SP:RSP:SP2MM_CMD_MM_RESET_ALL:SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push success!\r\n");
+            }
+            else
+            {
+                Log_Write(LOG_LEVEL_ERROR,
+                    "SP2MM_CMD_MM_RESET_ALL:SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push error!\r\n");
             }
         }
         break;

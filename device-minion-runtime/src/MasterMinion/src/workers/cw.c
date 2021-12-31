@@ -71,11 +71,13 @@ static cw_cb_t CW_CB __attribute__((aligned(64))) = { 0 };
 /*! \def CW_RESET_CB
     \brief Macro to reset the state of glabals in CW CB
 */
-#define CW_RESET_CB                                         \
-    /* Reset state of globals */                            \
-    atomic_store_local_64(&CW_CB.booted_shires_mask, 0ULL); \
-    atomic_store_local_64(&CW_CB.shire_state, 0ULL);        \
-    atomic_store_local_32(&CW_CB.timeout_flag, 0);
+#define CW_RESET_CB(shire_mask)                                 \
+    {                                                           \
+        /* Reset state of globals */                            \
+        atomic_store_local_64(&CW_CB.booted_shires_mask, 0ULL); \
+        atomic_store_local_64(&CW_CB.shire_state, 0ULL);        \
+        atomic_store_local_32(&CW_CB.timeout_flag, 0);          \
+    }
 
 /************************************************************************
 *
@@ -133,7 +135,7 @@ int32_t CW_Init(void)
     uint64_t sip;
 
     /* Reset the globals */
-    CW_RESET_CB
+    CW_RESET_CB(shire_mask)
 
     /* Obtain the number of shires to be used from SP and initialize the CW control block */
     status = SP_Iface_Get_Shire_Mask_And_Strap(&shire_mask, &lvdpll_strap);
@@ -298,21 +300,8 @@ void CW_Process_CM_SMode_Messages(void)
                 uint64_t available_shires = CW_Get_Physically_Enabled_Shires();
                 int32_t reset_status;
 
-                /* Send cmd to SP to reset all the available shires */
-                /* TODO: We are sending MM shire to reset as well, hence all MM Minions
-                will reset. This needs to be fixed on SP side. SP needs to check for
-                MM shire and only reset sync Minions. */
-                reset_status = SP_Iface_Reset_Minion(available_shires);
-
-                if (reset_status == STATUS_SUCCESS)
-                {
-                    syscall(SYSCALL_CONFIGURE_COMPUTE_MINION_WARM_RESET, available_shires, 0, 0);
-
-                    /* Wait for all shires to boot up */
-                    /* TODO: Should be replaced with proper fix to reset the CMs */
-                    reset_status = -1;
-                    /* CW_Wait_For_Compute_Minions_Boot(available_shires); */
-                }
+                /* Wait for all shires to boot up */
+                reset_status = CW_CM_Configure_And_Wait_For_Boot(available_shires);
 
                 if (reset_status != STATUS_SUCCESS)
                 {
@@ -462,7 +451,68 @@ int32_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask)
     return status;
 }
 
-void CW_Configure_Compute_Minion(uint64_t shire_mask)
+/************************************************************************
+*
+*   FUNCTION
+*
+*       CW_CM_Configure_And_Wait_For_Boot
+*
+*   DESCRIPTION
+*
+*       Reset booted shire mask and wait after performing CM warm reset
+*
+*   INPUTS
+*
+*       uint64_t   Shire mask to check
+*
+*   OUTPUTS
+*
+*       int32_t    Success status or error code
+*
+***********************************************************************/
+int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
 {
+    bool exit_loop = false;
+    int32_t status = STATUS_SUCCESS;
+    int32_t sw_timer_idx;
+
+    CW_RESET_CB(shire_mask)
+
+    /* Perform Reset on CM shires */
     syscall(SYSCALL_CONFIGURE_COMPUTE_MINION_WARM_RESET, shire_mask, 0, 0);
+
+    /* Create timeout to wait for all Compute Workers to boot up */
+    sw_timer_idx = SW_Timer_Create_Timeout(
+        &cw_set_init_timeout_cb, (get_hart_id() & (HARTS_PER_SHIRE - 1)), CW_INIT_TIMEOUT);
+
+    if (sw_timer_idx < 0)
+    {
+        Log_Write(LOG_LEVEL_WARNING,
+            "CW: Unable to register CW init timeout! It may not recover in case of hang\r\n");
+    }
+
+    /* Wait for all workers to be initialized */
+    do
+    {
+        /* Check for SW timer timeout */
+        if (atomic_compare_and_exchange_local_32(&CW_CB.timeout_flag, 1, 0) == 1)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "CW: Timed-out waiting for rsp from compute workers!\r\n");
+            status = CW_ERROR_INIT_TIMEOUT;
+            exit_loop = true;
+        }
+
+        if ((status == STATUS_SUCCESS) && (CW_Get_Booted_Shires() == shire_mask))
+        {
+            exit_loop = true;
+        }
+    } while (!exit_loop);
+
+    if (sw_timer_idx >= 0)
+    {
+        /* Free the registered SW Timeout slot */
+        SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
+    }
+
+    return status;
 }

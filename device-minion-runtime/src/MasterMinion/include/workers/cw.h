@@ -84,11 +84,11 @@ uint64_t CW_Get_Physically_Enabled_Shires(void);
 */
 uint64_t CW_Get_Booted_Shires(void);
 
-/*! \fn uint64_t CW_CONFIGURE_COMPUTE_MINION(uint64_t shire_mask)
-    \brief Configure CW minions for warmboot
-    \param shire_mask Available shires
+/*! \fn int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t available_shires)
+    \brief Configure and reset CW minions for warmboot
+    \param shire_mask Shires mask to perform reset and wait for boot
     \return None
 */
-void CW_Configure_Compute_Minion(uint64_t shire_mask);
+int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask);
 
 #endif /* CW_DEFS_H */

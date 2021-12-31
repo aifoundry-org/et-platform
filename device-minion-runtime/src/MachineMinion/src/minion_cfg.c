@@ -134,7 +134,39 @@ int64_t configure_compute_minion(uint64_t shire_mask, uint64_t lvdpll_strap)
     return status;
 }
 
-int64_t configure_compute_minion_warm_reset(uint64_t shire_mask)
+int64_t configure_compute_minion_warm_reset(uint64_t shires_mask)
 {
-    return (enable_compute_threads(shire_mask & CM_SHIRE_ID_MASK));
+    uint64_t enable_neig_mask;
+    uint64_t disable_neig_mask;
+    uint64_t minion_shires_mask = shires_mask;
+    uint8_t num_shires = get_highest_set_bit_offset(shires_mask);
+
+    for (uint8_t shire_id = 0; shire_id <= num_shires; shire_id++)
+    {
+        if (minion_shires_mask & 1)
+        {
+            /* Reset neighborhoods in a given shire, only reset upper two in case
+               of MM shire */
+            disable_neig_mask = (shire_id == MM_SHIRE_ID) ? 0x3 : 0x0;
+            enable_neig_mask = 0xf;
+
+            /* Read current Shire Config value */
+            uint64_t config = read_esr_new(PP_MACHINE, shire_id, REGION_OTHER,
+                ESR_OTHER_SUBREGION_OTHER, ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
+
+            /* Disable Neighborhood */
+            uint64_t cfg =
+                ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, disable_neig_mask);
+            write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, cfg, 0);
+
+            /* Enable Neighborhood */
+            cfg = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, enable_neig_mask);
+            write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, cfg, 0);
+        }
+        minion_shires_mask >>= 1;
+    }
+
+    return (enable_compute_threads(shires_mask & CM_SHIRE_ID_MASK));
 }

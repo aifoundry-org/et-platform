@@ -966,31 +966,15 @@ static inline int32_t kw_cm_to_mm_kernel_force_abort(
             /* Get the mask for available shires in the device */
             available_shires = CW_Get_Physically_Enabled_Shires();
 
-            /* Send cmd to SP to reset all the available shires */
-            reset_status = SP_Iface_Reset_Minion(available_shires);
-
-            if (reset_status != STATUS_SUCCESS)
-            {
-                Log_Write(LOG_LEVEL_ERROR,
-                    "KW:SP_Iface: Unable to reset all Minions (status: %d)\r\n", reset_status);
-                reset_status = KW_ERROR_SP_IFACE_RESET_FAILED;
-            }
-        }
-
-        if (reset_on_failure && (reset_status == STATUS_SUCCESS))
-        {
-            CW_Configure_Compute_Minion(available_shires);
-
             /* Wait for all shires to boot up */
-            /* TODO: Should be replaced with proper fix to reset the CMs */
-            reset_status = -1;
-            /* CW_Wait_For_Compute_Minions_Boot(available_shires); */
+            reset_status = CW_CM_Configure_And_Wait_For_Boot(available_shires);
 
             if (reset_status != STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_ERROR, "KW:CW: Unable to Boot all Minions (status: %d)\r\n",
                     reset_status);
                 reset_status = KW_ERROR_CW_MINIONS_BOOT_FAILED;
+                /*TODO: MM reset through SP should be implemented */
             }
         }
 
