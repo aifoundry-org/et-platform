@@ -307,7 +307,7 @@ namespace bemu {
 #define ESR_SBROADCAST          0x017FF5FFF8ULL /* PP = 0b01 */
 #define ESR_MBROADCAST          0x01FFF5FFF8ULL /* PP = 0b11 */
 
-
+#define ESR_SHIRE_RESET_MASK   0x1E00
 // -----------------------------------------------------------------------------
 // Neighborhood ESRs
 
