@@ -34,11 +34,6 @@ target_include_directories(WorkerMinion.elf
         $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/minion_rt_helpers/include>
 )
 
-target_compile_definitions(WorkerMinion.elf
-    PUBLIC
-        -DTRACE_EVICT_ENABLE=${TRACE_EVICT_ENABLE}
-)
-
 target_compile_options(WorkerMinion.elf
     PRIVATE
         -Wall

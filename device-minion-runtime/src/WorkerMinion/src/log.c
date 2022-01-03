@@ -58,14 +58,12 @@ int64_t log_write(log_level_t level, const char *const fmt, ...)
         /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
         type message. */
         ret = TRACE_STRING_MAX_SIZE;
-#if defined(TRACE_EVICT_ENABLE)
         /* Evict trace buffer to L3 so that it can be access on host side for extraction
            through IOCTL */
         if (level <= LOG_CM_TRACE_EVICT_LEVEL)
         {
             Trace_Evict_CM_Buffer();
         }
-#endif
     }
 
     return ret;
@@ -96,14 +94,12 @@ int64_t log_write_str(log_level_t level, const char *str)
 {
     Trace_String(level, Trace_Get_CM_CB(), str);
 
-#if defined(TRACE_EVICT_ENABLE)
     /* Evict trace buffer to L3 so that it can be access on host side for extraction
            through IOCTL */
     if (level <= LOG_CM_TRACE_EVICT_LEVEL)
     {
         Trace_Evict_CM_Buffer();
     }
-#endif
     /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
         type message. */
     return TRACE_STRING_MAX_SIZE;

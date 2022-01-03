@@ -225,8 +225,8 @@ static void mm_to_cm_iface_handle_message(
 
             if (cmd->thread_mask & CURRENT_THREAD_MASK)
             {
-                /* Disbale and Evict Trace buffer. */
-                Trace_Set_Enable_CM(TRACE_DISABLE);
+                /* Evict Trace buffer. */
+                Trace_Evict_CM_Buffer();
             }
             break;
         }

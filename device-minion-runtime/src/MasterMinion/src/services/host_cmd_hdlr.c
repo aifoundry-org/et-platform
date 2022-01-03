@@ -983,15 +983,15 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
         if ((status == STATUS_SUCCESS) &&
             (cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE)))
         {
-            /* Disable and Evict MM Trace.*/
-            Trace_Set_Enable_MM(TRACE_DISABLE);
+            /* Evict MM Trace.*/
+            Trace_Evict_Buffer_MM();
 
             mm_to_cm_message_trace_buffer_evict_t cm_msg = {
                 .header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
                 .thread_mask = Trace_Get_CM_Thread_Mask()
             };
 
-            /* Send command to CM RT to disable Trace and evict Trace buffer. */
+            /* Send command to CM RT to evict Trace buffer. */
             status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
 
             if (status != STATUS_SUCCESS)
@@ -1011,8 +1011,8 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
     {
         if (cmd->list[TRACE_NODE_INDEX].size <= MM_TRACE_BUFFER_SIZE)
         {
-            /* Disable and Evict MM Trace.*/
-            Trace_Set_Enable_MM(TRACE_DISABLE);
+            /* Evict MM Trace.*/
+            Trace_Evict_Buffer_MM();
 
             cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = MM_TRACE_BUFFER_BASE;
         }
@@ -1039,7 +1039,7 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
                 .thread_mask = Trace_Get_CM_Thread_Mask()
             };
 
-            /* Send command to CM RT to disable Trace and evict Trace buffer. */
+            /* Send command to CM RT to evict Trace buffer. */
             status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
 
             if (status != STATUS_SUCCESS)

@@ -448,12 +448,15 @@ uint32_t Trace_Evict_Buffer_MM(void)
 {
     struct trace_buffer_std_header_t *trace_header =
         (struct trace_buffer_std_header_t *)MM_TRACE_BUFFER_BASE;
+    et_trace_buffer_lock_acquire();
     uint32_t offset = atomic_load_local_32(&(MM_Trace_CB.cb.offset_per_hart));
 
     /* Store used buffer size in buffer header. */
     atomic_store_local_32(&trace_header->data_size, offset);
 
-    ETSOC_MEM_EVICT((uint64_t *)MM_TRACE_BUFFER_BASE, offset, to_Mem)
+    ETSOC_MEM_EVICT((uint64_t *)MM_TRACE_BUFFER_BASE, offset, to_L3)
+
+    et_trace_buffer_lock_release();
 
     return offset;
 }
@@ -481,10 +484,7 @@ uint32_t Trace_Evict_Buffer_MM(void)
 ***********************************************************************/
 void Trace_Set_Enable_MM(trace_enable_e control)
 {
+    et_trace_buffer_lock_acquire();
     atomic_store_local_8(&(MM_Trace_CB.cb.enable), control);
-
-    if (control == TRACE_DISABLE)
-    {
-        Trace_Evict_Buffer_MM();
-    }
+    et_trace_buffer_lock_release();
 }
