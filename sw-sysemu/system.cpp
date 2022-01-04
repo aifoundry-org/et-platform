@@ -67,6 +67,7 @@ void System::reset_shire_state(unsigned shireid)
     shire_cache_esrs[shire].reset();
     shire_other_esrs[shire].reset(shireid);
     broadcast_esrs[shire].reset();
+    mem_shire_esrs.reset();
 
     recalculate_thread0_enable(shire);
     recalculate_thread1_enable(shire);
