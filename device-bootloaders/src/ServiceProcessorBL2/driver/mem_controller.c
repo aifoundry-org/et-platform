@@ -86,13 +86,10 @@ uint64_t ms_read_chip_reg(uint32_t memshire, uint32_t mr_num)
     // wait for mrr u0 status to be set (Memshire register)
     Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d]Reading from memory chip, register 0x%08x\n", memshire, mr_num);
     data = ms_read_esr(memshire, ddrc_mrr_status) & 0x1;
-    
-    /*  TODO: This will be fixed after SW-10628
-        ESR register support needs to be added to SysEMU
      while(data != 0x1) {
          data = ms_read_esr(memshire, ddrc_mrr_status) & 0x1;
          usdelay(10);
-     } */
+     }
 
     // read data from ddrc_u0_mrr_data (Memshire register)
     data = ms_read_esr(memshire, ddrc_u0_mrr_data);
