@@ -25,6 +25,7 @@
 
 /* Aligns an address to the next 64-byte cache line */
 #define CACHE_LINE_ALIGN(x)        (((x + 63U) / 64U) * 64U)
+#define FOUR_K_ALIGN(x)            (((x + 0xFFFU) / 0x1000U) * 0x1000U)
 
 /* Architectural parameters */
 #define MASTER_SHIRE               32
@@ -155,26 +156,31 @@ S-mode stacks grow from the end of the 3rd region */
 #define FW_SMODE_STACK_SCRATCH_REGION_SIZE                64 /* Used by trap handler. 64B is the offset to distribute stack bases across memory controllers. */
 #define FW_SMODE_STACK_SIZE                               (4096 + FW_SMODE_STACK_SCRATCH_REGION_SIZE) /* (4K + 64B) stack * 2112 stacks = 8580KB */
 
-/*****************************************************************/
-/*              - Low OS Region Layout (4032M) -                 */
-/*                (Base Address: 0x8004000000)                   */
-/*     - user            - base-offset   - size                  */
-/*     U-mode stacks     0x0             0x1000000 (16M)         */
-/*     DMA Linked Lists  0x1000000       0x4000000 (64M)         */
-/*****************************************************************/
-/* Give 4K for VM stack pages
-Bits[8:6] of an address specify memshire number, and bit[9] the controller within memshire.
-Offset by 1<<6 = 64 to distribute stack bases across different memory controllers */
-#define KERNEL_UMODE_STACK_BASE           0x8005000000ULL
-#define KERNEL_UMODE_STACK_SIZE           (4096 + 64)
+/********************************************************************/
+/*              - Low OS Region Layout (4032M) -                    */
+/*                (Base Address: 0x8004000000)                      */
+/*     - user                    - base-offset   - size             */
+/*     DMA Linked Lists          0x0             0x4000000 (64M)    */
+/*     Scratch                   0x4000000       0x400000  (4M)     */
+/*     SP SMode Trace            0x4400000       0x1000    (4K)     */
+/*     MM SMode Trace            0x4401000       0x100000  (1M)     */
+/*     CM SMode Trace            0x4501000       0x820000  (8.1M)   */
+/*     CM UMode Trace Config     0x4d21000       0x40               */
+/*     CM UMode Trace CB (FIXED) 0x4d21040       0x20800   (130K)   */
+/*     UNUSED                    until offset 0xeffffff             */
+/*     UMode stacks              0xF000000       0x1040    (4.1K)   */
+/*     Kernel UMode Entry(FIXED) 0xf002000       until DRAM End     */
+/*                                                                  */
+/********************************************************************/
 
 /* Storage for DMA configuration linked lists. Store at the end of U-mode stack base
 For each DMA channel, reserve 8MB for the list. Chosen arbitrarily to balance mem
 useage vs likely need. Each entry is 24 bytes, so 349525 entries max per list. If the
-host system is totally fragmented (each entry tracks 4kB - VERY unlkely), can DMA
+host system is totally fragmented (each entry tracks 4kB - VERY unlikely), can DMA
 ~1.4GB without modifying the list. */
+#define DMA_LL_BASE                       LOW_OS_SUBREGION_BASE
 #define DMA_LL_SIZE                       0x800000
-#define DMA_CHAN_READ_0_LL_BASE           KERNEL_UMODE_STACK_BASE
+#define DMA_CHAN_READ_0_LL_BASE           CACHE_LINE_ALIGN(DMA_LL_BASE)
 #define DMA_CHAN_READ_1_LL_BASE           CACHE_LINE_ALIGN(DMA_CHAN_READ_0_LL_BASE + DMA_LL_SIZE)
 #define DMA_CHAN_READ_2_LL_BASE           CACHE_LINE_ALIGN(DMA_CHAN_READ_1_LL_BASE + DMA_LL_SIZE)
 #define DMA_CHAN_READ_3_LL_BASE           CACHE_LINE_ALIGN(DMA_CHAN_READ_2_LL_BASE + DMA_LL_SIZE)
@@ -183,23 +189,15 @@ host system is totally fragmented (each entry tracks 4kB - VERY unlkely), can DM
 #define DMA_CHAN_WRITE_2_LL_BASE          CACHE_LINE_ALIGN(DMA_CHAN_WRITE_1_LL_BASE + DMA_LL_SIZE)
 #define DMA_CHAN_WRITE_3_LL_BASE          CACHE_LINE_ALIGN(DMA_CHAN_WRITE_2_LL_BASE + DMA_LL_SIZE)
 
-/*****************************************************************/
-/*              - Low Memory Region Layout (28G) -               */
-/*                (Base Address: 0x8100000000)                   */
-/*     - user            - base-offset   - size                  */
-/*     Sub-regions       0x0             0x1000000 (16M)         */
-/*     Host-managed      0x1000000       0x2FF000000 (12272M)    */
-/*     Not-used          0x300000000     0x400000000 (16G)       */
-/* NOTE: "Not-used" region is accessible but not used currently. */
-/*****************************************************************/
-/* Expose whole DRAM low memory region to the host via BAR0. */
-#define DRAM_MEMMAP_BEGIN                 LOW_MEMORY_SUBREGION_BASE
-#define DRAM_MEMMAP_END                   (LOW_MEMORY_SUBREGION_BASE + LOW_MEMORY_SUBREGION_SIZE - 1)
-#define DRAM_MEMMAP_SIZE                  (DRAM_MEMMAP_END - DRAM_MEMMAP_BEGIN + 1)
+/* Expose whole DRAM low memory region and portion of LOW OS region used as DRAM to the host via BAR0. */
+#define DRAM_MEMMAP_BEGIN                 FOUR_K_ALIGN(DMA_CHAN_WRITE_3_LL_BASE + DMA_LL_SIZE)
+/* Low memory region plus portion of LOW OS region used as DRAM. */
+#define DRAM_MEMMAP_SIZE                  (LOW_MEMORY_SUBREGION_SIZE + DRAM_MEMMAP_BEGIN - LOW_OS_SUBREGION_BASE)
+#define DRAM_MEMMAP_END                   (DRAM_MEMMAP_BEGIN + DRAM_MEMMAP_SIZE - 1)
 
 /* This range is used as Scratch area as storage of new FW image whilst SP updates the
 correspoding Flash partition to take affect. */
-#define SP_DM_SCRATCH_REGION_BEGIN        (LOW_MEM_SUB_REGIONS_BASE + 0x0)
+#define SP_DM_SCRATCH_REGION_BEGIN        DRAM_MEMMAP_BEGIN
 #define SP_DM_SCRATCH_REGION_SIZE         0x400000U
 
 /* Trace buffers for Service Processor, Master Minion, and Compute Minion are consecutive
@@ -210,11 +208,11 @@ correspoding Flash partition to take affect. */
 #define SP_TRACE_BUFFER_SIZE              0x1000 /* 4KB for SP DM services Trace Buffer */
 
 /* Master Minion FW Trace Buffer */
-#define MM_TRACE_BUFFER_BASE              (SP_TRACE_BUFFER_BASE + SP_TRACE_BUFFER_SIZE)
+#define MM_TRACE_BUFFER_BASE              CACHE_LINE_ALIGN(SP_TRACE_BUFFER_BASE + SP_TRACE_BUFFER_SIZE)
 #define MM_TRACE_BUFFER_SIZE              0x100000 /* 1MB for Master Minion Trace Buffer */
 
 /* Compute Minion FW Trace Buffer */
-#define CM_TRACE_BUFFER_BASE              (MM_TRACE_BUFFER_BASE + MM_TRACE_BUFFER_SIZE)
+#define CM_TRACE_BUFFER_BASE              CACHE_LINE_ALIGN(MM_TRACE_BUFFER_BASE + MM_TRACE_BUFFER_SIZE)
 /* Default 4KB fixed buffer size per Hart for all Compute Worker Harts. It must be 64 byte aligned. */
 #define CM_TRACE_BUFFER_SIZE_PER_HART     0x1000
 #define CM_TRACE_BUFFER_SIZE              (CM_TRACE_BUFFER_SIZE_PER_HART * CM_HART_COUNT)
@@ -223,18 +221,21 @@ correspoding Flash partition to take affect. */
 #define CM_UMODE_TRACE_CFG_BASEADDR       CACHE_LINE_ALIGN(CM_TRACE_BUFFER_BASE + CM_TRACE_BUFFER_SIZE)
 #define CM_UMODE_TRACE_CFG_SIZE           64
 
-/* NOTE: Keep it's value in sync with device-software/et-common-libs/src/trace/trace_umode.c
-         This region should be in non-Host managed UMode region. */
+/* This region should be in non-Host managed UMode region.
+(WARNING: Fixed address - should sync with UMode Trace if this is changed) */
 #define CM_UMODE_TRACE_CB_BASEADDR        CACHE_LINE_ALIGN(CM_UMODE_TRACE_CFG_BASEADDR + CM_UMODE_TRACE_CFG_SIZE)
 #define CM_UMODE_TRACE_CB_SIZE            (TRACE_CB_MAX_SIZE * CM_HART_COUNT)
 
-/* Reserved area for DDR low memory sub regions */
-#define LOW_MEM_SUB_REGIONS_BASE          LOW_MEMORY_SUBREGION_BASE
-#define LOW_MEM_SUB_REGIONS_SIZE          0x0001000000ULL
+/* Give 4K for VM stack pages
+Bits[8:6] of an address specify memshire number, and bit[9] the controller within memshire.
+Offset by 1<<6 = 64 to distribute stack bases across different memory controllers */
+#define KERNEL_UMODE_STACK_OFFSET         0xF000000ULL
+#define KERNEL_UMODE_STACK_BASE           LOW_OS_SUBREGION_BASE + KERNEL_UMODE_STACK_OFFSET
+#define KERNEL_UMODE_STACK_SIZE           (4096 + 64)
 
 /* U-mode user kernels entry point
-(Fixed address - should sync kernels linker script if this is changed) */
-#define KERNEL_UMODE_ENTRY                (LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE)
+(WARNING: Fixed address - should sync kernels linker script if this is changed) */
+#define KERNEL_UMODE_ENTRY                FOUR_K_ALIGN(KERNEL_UMODE_STACK_BASE + KERNEL_UMODE_STACK_SIZE)
 
 /* Define the address range in DRAM that the host runtime can explicitly manage
 the range is the START to (END-1) */
@@ -252,13 +253,17 @@ static_assert((CM_MM_HART_MESSAGE_COUNTER + CM_MM_HART_MESSAGE_COUNTER_SIZE) <
               (FW_SMODE_STACK_BASE - (NUM_HARTS * FW_SMODE_STACK_SIZE)),
               "S-stack / message buffer region collision");
 
-/* Ensure that DDR low memory sub regions dont cross the define limit */
-static_assert((CM_UMODE_TRACE_CB_BASEADDR + CM_UMODE_TRACE_CB_SIZE) < (LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE),
-              "DDR low memory sub regions crossing limits");
+/* Ensure that DDR low OS regions dont cross the define limit */
+static_assert((CM_UMODE_TRACE_CB_BASEADDR + CM_UMODE_TRACE_CB_SIZE) < KERNEL_UMODE_STACK_BASE,
+              "DDR OS memory sub regions crossing limits");
 
-/* Ensure that DDR low memory regions dont overlap U-mode kernels entry */
-static_assert(((LOW_MEM_SUB_REGIONS_BASE + LOW_MEM_SUB_REGIONS_SIZE) - 1) < KERNEL_UMODE_ENTRY,
-              "DDR low memory / Kernel U-mode entry region collision");
+/* Ensure that fixed U-mode Trace CB address has not been changed. */
+static_assert(CM_UMODE_TRACE_CB_BASEADDR == 0x8008d21040ULL,
+              "U-mode Trace CB address is changed, it needs to be adjusted in U-mode Trace");
+
+/* Ensure that fixed U-mode kernels entry address has not been changed. */
+static_assert(KERNEL_UMODE_ENTRY == 0x8013002000ULL,
+              "Kernel U-mode entry is changed, it needs to be adjusted in linker script");
 
 #endif /* __ASSEMBLER__ */
 

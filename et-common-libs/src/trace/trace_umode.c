@@ -18,6 +18,8 @@
 #include "etsoc/isa/etsoc_memory.h"
 #include "etsoc/isa/hart.h"
 #include "etsoc/isa/syscall.h"
+// #include <assert.h>
+// #include <system/layout.h>
 
 static inline uint64_t trace_umode_sample_sc_pmc(uint64_t pmc)
 {
