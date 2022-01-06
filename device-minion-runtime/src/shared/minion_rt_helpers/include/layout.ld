@@ -32,4 +32,6 @@ FW_WORKER_SDATA_SIZE = 0x1000000; /* 16M */
 FW_SMODE_STACK_BASE  = S_DATA_REGION_BASE + S_DATA_REGION_SIZE;
 FW_SMODE_STACK_SIZE  = 4096 + 64; /* (4K + 64B) stack * 2112 stacks = 8580KB. 64B is the scratch space. */
 
-KERNEL_UMODE_ENTRY   = 0x8101000000;
+/* Entry point of a user kernel
+   WARNING: Fixed address (must be synced with device's memory layout) */
+KERNEL_UMODE_ENTRY   = 0x8013002000;
