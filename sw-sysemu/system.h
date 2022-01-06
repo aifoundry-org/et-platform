@@ -218,6 +218,7 @@ public:
     std::array<shire_cache_esrs_t, EMU_NUM_SHIRES>  shire_cache_esrs {};
     std::array<shire_other_esrs_t, EMU_NUM_SHIRES>  shire_other_esrs {};
     std::array<broadcast_esrs_t, EMU_NUM_SHIRES>    broadcast_esrs {};
+    mem_shire_esrs_t    mem_shire_esrs;
 
     // Logging
     testLog     log {"EMU", LOG_INFO}; // Consider making this a "plugin"

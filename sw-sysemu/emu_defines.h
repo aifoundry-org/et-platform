@@ -19,11 +19,13 @@ namespace bemu {
 
 // Maximum number of threads
 #define EMU_NUM_SHIRES          35
+#define NUM_MEM_SHIRES          8
 #define EMU_NUM_MINION_SHIRES   (EMU_NUM_SHIRES - 1)
 #define EMU_NUM_COMPUTE_SHIRES  (EMU_NUM_MINION_SHIRES - 2)
 #define EMU_MASTER_SHIRE        (EMU_NUM_MINION_SHIRES - 2)
 #define EMU_SPARE_SHIRE         (EMU_NUM_MINION_SHIRES - 1)
 #define EMU_IO_SHIRE_SP         (EMU_NUM_SHIRES - 1)
+#define EMU_MEM_SHIRE_BASE_ID   232
 #define EMU_THREADS_PER_MINION  2
 #define EMU_MINIONS_PER_NEIGH   8
 #define EMU_THREADS_PER_NEIGH   (EMU_THREADS_PER_MINION * EMU_MINIONS_PER_NEIGH)
