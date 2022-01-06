@@ -12,8 +12,9 @@
 /* Prefix of the kernel buffer meta-data (in bytes). Align to a page boundary. */
 ELF_BUFFER_MD_SIZE = 4096;
 
-/* Entry point of a user kernel (must be synced with device's memory layout) */
-KERNEL_UMODE_ENTRY = 0x8101000000 + ELF_BUFFER_MD_SIZE;
+/* Entry point of a user kernel
+   WARNING: Fixed address (must be synced with device's memory layout) */
+KERNEL_UMODE_ENTRY = 0x8013002000 + ELF_BUFFER_MD_SIZE;
 
 ENTRY(_start)
 
