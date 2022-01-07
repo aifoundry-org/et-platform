@@ -202,7 +202,7 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     /* Mark Master Minion Status as Ready */
     /* Now able to receive and process commands from host .. */
-    Log_Write(LOG_LEVEL_INFO, "Dispatcher:Setting DIR ready status, MM_READY\r\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "Dispatcher:Setting DIR ready status, MM_READY\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_READY);
 
     /* Master Minion boot is completed, now redirect logs to Trace. */

@@ -113,8 +113,11 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         case SYSCALL_CONFIGURE_COMPUTE_MINION:
             ret = configure_compute_minion(arg1, arg2);
             break;
-        case SYSCALL_CONFIGURE_COMPUTE_MINION_WARM_RESET:
-            ret = configure_compute_minion_warm_reset(arg1);
+        case SYSCALL_DISABLE_NEIGH:
+            disable_neigh(arg1);
+            break;
+        case SYSCALL_ENABLE_NEIGH:
+            ret = enable_neigh(arg1);
             break;
         case SYSCALL_UPDATE_MINION_PLL_FREQUENCY:
             ret = dynamic_minion_pll_frequency_update(arg1);

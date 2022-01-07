@@ -478,8 +478,14 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
 
     CW_RESET_CB(shire_mask)
 
-    /* Perform Reset on CM shires */
-    syscall(SYSCALL_CONFIGURE_COMPUTE_MINION_WARM_RESET, shire_mask, 0, 0);
+    /* Put all Compute Minion Neigh Logic into reset */
+    syscall(SYSCALL_DISABLE_NEIGH, shire_mask, 0, 0);
+
+    /* Re-init MM-CM Control Blocks */
+    CM_Iface_Init();
+
+    /* Bring all Compute Minion Neigh Logic out of reset */
+    syscall(SYSCALL_ENABLE_NEIGH, shire_mask, 0, 0);
 
     /* Create timeout to wait for all Compute Workers to boot up */
     sw_timer_idx = SW_Timer_Create_Timeout(
