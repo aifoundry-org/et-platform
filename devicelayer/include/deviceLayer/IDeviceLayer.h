@@ -222,15 +222,29 @@ public:
   ///
   virtual size_t getSubmissionQueueSizeServiceProcessor(int device) const = 0;
 
-  /// \brief Receives Service Processor's trace buffer associated to given device in response
+  /// \brief Receives Master Minion's trace buffer sizes associated to given device
   ///
   /// @param[in] device indicating which device to receive the response from.
-  /// @param[out] response buffer containing Service Processor's trace buffer
+  /// @param[in] traceType indicating which trace buffer type to pull from device.
+  /// Supported types are TraceBufferType::TraceBufferSP, TraceBufferType::TraceBufferMM,
+  /// TraceBufferType::CM.
   ///
-  /// @returns false if there was no response to be received
+  /// @returns size of trace buffer.
   ///
-  virtual bool getTraceBufferServiceProcessor(int device, TraceBufferType trace_type,
-                                              std::vector<std::byte>& response) = 0;
+  virtual size_t getTraceBufferSizeMasterMinion(int device, TraceBufferType traceType) = 0;
+
+  /// \brief Receives Service Processor's trace buffer associated to given device in traceBuf
+  ///
+  /// @param[in] device indicating which device to receive the buffer from.
+  /// @param[in] traceType indicating the type of trace buffer whose size is needed.
+  /// Supported types are TraceBufferType::TraceBufferMM, TraceBufferType::TraceBufferCM.
+  /// @param[out] traceBuf buffer containing Service Processor's trace buffer.
+  ///
+  /// @returns false if there was no buffer to be received.
+  ///
+  virtual bool getTraceBufferServiceProcessor(int device, TraceBufferType traceType,
+                                              std::vector<std::byte>& traceBuf) = 0;
+
   /// \brief Writes firmware image on DRAM of given device
   ///
   /// @param[in] device indicating which device's DRAM to be written.

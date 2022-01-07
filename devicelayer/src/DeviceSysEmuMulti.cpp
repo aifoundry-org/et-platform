@@ -105,9 +105,12 @@ void* DeviceSysEmuMulti::allocDmaBuffer(int device, size_t sizeInBytes, bool wri
 void DeviceSysEmuMulti::freeDmaBuffer(void* dmaBuffer) {
   return getDevice(0).freeDmaBuffer(dmaBuffer);
 }
-bool DeviceSysEmuMulti::getTraceBufferServiceProcessor(int device, TraceBufferType trace_type,
-                                                       std::vector<std::byte>& response) {
-  return getDevice(device).getTraceBufferServiceProcessor(device, trace_type, response);
+size_t DeviceSysEmuMulti::getTraceBufferSizeMasterMinion(int device, TraceBufferType traceType) {
+  return getDevice(device).getTraceBufferSizeMasterMinion(device, traceType);
+}
+bool DeviceSysEmuMulti::getTraceBufferServiceProcessor(int device, TraceBufferType traceType,
+                                                       std::vector<std::byte>& traceBuf) {
+  return getDevice(device).getTraceBufferServiceProcessor(device, traceType, traceBuf);
 }
 DeviceConfig DeviceSysEmuMulti::getDeviceConfig(int device) {
   return getDevice(device).getDeviceConfig(device);

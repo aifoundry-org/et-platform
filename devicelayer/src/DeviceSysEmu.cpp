@@ -114,6 +114,18 @@ size_t DeviceSysEmu::getSubmissionQueueSizeServiceProcessor(int) const {
   return submissionQueueSP_.size_ - sizeof(CircBuffCb);
 }
 
+size_t DeviceSysEmu::getTraceBufferSizeMasterMinion(int, TraceBufferType traceType) {
+  size_t traceBufSize = 0;
+  if (traceType == TraceBufferType::TraceBufferMM) {
+    traceBufSize = spInfo_.mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE].bar_size;
+  } else if (traceType == TraceBufferType::TraceBufferCM) {
+    traceBufSize = spInfo_.mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE].bar_size;
+  } else {
+    throw Exception("Unsupported trace type!");
+  }
+  return traceBufSize;
+}
+
 // Stub only since SysEmu is to be deprecated
 bool DeviceSysEmu::getTraceBufferServiceProcessor(int, TraceBufferType, std::vector<std::byte>&) {
   return false;

@@ -408,6 +408,19 @@ bool DevicePcie::receiveResponseMasterMinion(int device, std::vector<std::byte>&
   return wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_POP_CQ, &rspInfo);
 }
 
+size_t DevicePcie::getTraceBufferSizeMasterMinion(int device, TraceBufferType traceType) {
+  if (!opsEnabled_) {
+    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
+  }
+  if (device >= static_cast<int>(devices_.size())) {
+    throw Exception("Invalid device");
+  }
+  const auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
+
+  auto trace_type = static_cast<uint8_t>(traceType);
+  return static_cast<size_t>(wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_TRACE_BUFFER_SIZE, &trace_type).rc_);
+}
+
 bool DevicePcie::sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize) {
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
@@ -490,8 +503,8 @@ bool DevicePcie::receiveResponseServiceProcessor(int device, std::vector<std::by
   return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_POP_CQ, &rspInfo);
 }
 
-bool DevicePcie::getTraceBufferServiceProcessor(int device, TraceBufferType trace_type,
-                                                std::vector<std::byte>& response) {
+bool DevicePcie::getTraceBufferServiceProcessor(int device, TraceBufferType traceType,
+                                                std::vector<std::byte>& traceBuf) {
 
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
@@ -500,17 +513,14 @@ bool DevicePcie::getTraceBufferServiceProcessor(int device, TraceBufferType trac
     throw Exception("Invalid device");
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
-  
-  trace_desc traceInfo;
-  traceInfo.trace_type = static_cast<uint8_t>(trace_type);
-  auto traceRegSize =  wrap_ioctl(deviceInfo.fdMgmt_,
-                                               ETSOC1_IOCTL_GET_DEVICE_MGMT_TRACE_BUFFER_SIZE,
-                                               &traceInfo.trace_type).rc_;
 
-  response.resize(static_cast<uint64_t>(traceRegSize));
-  traceInfo.trace_type = static_cast<uint8_t>(trace_type);
-  traceInfo.buf = response.data();
-  return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER, &traceInfo);
+  trace_desc traceInfo;
+  traceInfo.trace_type = static_cast<uint8_t>(traceType);
+  auto traceRegSize = wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_GET_TRACE_BUFFER_SIZE, &traceInfo.trace_type).rc_;
+
+  traceBuf.resize(static_cast<uint64_t>(traceRegSize));
+  traceInfo.buf = traceBuf.data();
+  return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_EXTRACT_TRACE_BUFFER, &traceInfo);
 }
 
 int DevicePcie::updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) {

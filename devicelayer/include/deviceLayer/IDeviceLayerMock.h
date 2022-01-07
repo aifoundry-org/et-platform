@@ -45,6 +45,7 @@ public:
   MOCK_CONST_METHOD0(getDevicesCount, int());
   MOCK_METHOD3(allocDmaBuffer, void*(int, size_t sizeInBytes, bool));
   MOCK_METHOD1(freeDmaBuffer, void(void*));
+  MOCK_METHOD2(getTraceBufferSizeMasterMinion, size_t(int, TraceBufferType));
   MOCK_METHOD3(getTraceBufferServiceProcessor, bool(int, TraceBufferType, std::vector<std::byte>&));
   MOCK_METHOD1(getDeviceConfig, DeviceConfig(int));
   MOCK_METHOD1(getActiveShiresNum, int(int));
@@ -121,9 +122,13 @@ public:
     ON_CALL(*this, freeDmaBuffer).WillByDefault([this](void* dmaBuffer) {
       fake_.freeDmaBuffer(dmaBuffer);
     });
-    ON_CALL(*this, getTraceBufferServiceProcessor).WillByDefault([this](int device, TraceBufferType trace_type, std::vector<std::byte>& response) {
-      return fake_.getTraceBufferServiceProcessor(device, trace_type, response);
+    ON_CALL(*this, getTraceBufferSizeMasterMinion).WillByDefault([this](int device, TraceBufferType traceType) {
+      return fake_.getTraceBufferSizeMasterMinion(device, traceType);
     });
+    ON_CALL(*this, getTraceBufferServiceProcessor)
+      .WillByDefault([this](int device, TraceBufferType traceType, std::vector<std::byte>& traceBuf) {
+        return fake_.getTraceBufferServiceProcessor(device, traceType, traceBuf);
+      });
     ON_CALL(*this, getDeviceConfig).WillByDefault([this](int device) {
       return fake_.getDeviceConfig(device);
     });

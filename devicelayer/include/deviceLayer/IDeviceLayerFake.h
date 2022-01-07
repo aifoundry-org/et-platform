@@ -182,6 +182,14 @@ public:
   void freeDmaBuffer(void* dmaBuffer) override {
     free(dmaBuffer);
   }
+  size_t getTraceBufferSizeMasterMinion(int, TraceBufferType traceType) override {
+    if (traceType == TraceBufferType::TraceBufferMM) {
+      return 1024 * 1024;
+    } else if (traceType == TraceBufferType::TraceBufferCM) {
+      return 8 * 1024 * 1024;
+    }
+    return 0;
+  }
   bool getTraceBufferServiceProcessor(int, TraceBufferType, std::vector<std::byte>&) override {
     return false;
   }

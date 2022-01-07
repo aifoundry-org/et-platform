@@ -42,8 +42,8 @@ public:
   uint64_t getDramBaseAddress() const override;
   void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) override;
   void freeDmaBuffer(void* dmaBuffer) override;
-  bool getTraceBufferServiceProcessor(int device, TraceBufferType trace_type,
-                                      std::vector<std::byte>& response) override;
+  size_t getTraceBufferSizeMasterMinion(int device, TraceBufferType traceType) override;
+  bool getTraceBufferServiceProcessor(int device, TraceBufferType traceType, std::vector<std::byte>& traceBuf) override;
   DeviceConfig getDeviceConfig(int device) override;
   int getActiveShiresNum(int device) override;
   uint32_t getFrequencyMHz(int device) override;
