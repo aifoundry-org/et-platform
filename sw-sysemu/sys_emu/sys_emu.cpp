@@ -175,6 +175,20 @@ sys_emu::breakpoint_exists(uint64_t addr)
     return contains(breakpoints, addr);
 }
 
+
+void
+sys_emu::disconnect_gdbstub()
+{
+    breakpoints.clear();
+    single_step.reset();
+    for (auto& hart : chip.cpu) {
+        if (hart.is_halted()) {
+            hart.start_running();
+        }
+    }
+}
+
+
 sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_comm)
 {
     this->cmd_options = cmd_options;
@@ -223,13 +237,6 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
         cmd_options.mem_desc_file.empty() && cmd_options.api_comm_path.empty()) {
         LOG_AGENT(FTL, agent, "%s", "Need an ELF file, a file load, a mem_desc file or runtime API!");
     }
-
-#ifdef SYSEMU_DEBUG
-    if (cmd_options.debug == true) {
-        LOG_AGENT(INFO, agent, "%s", "Starting in interactive mode.");
-        debug_init();
-    }
-#endif
 
     // Init emu
     chip.init(bemu::System::Stepping::A0);
@@ -504,9 +511,9 @@ int sys_emu::main_internal() {
     profiling_init(this);
 #endif
 
+    bool gdb_enabled = cmd_options.gdb && (cmd_options.gdb_at_pc == ~0ull);
     if (cmd_options.gdb) {
         gdbstub_init(this, &chip);
-        gdbstub_accept_client();
     }
 
     LOG_AGENT(INFO, agent, "%s", "Starting emulation");
@@ -521,19 +528,16 @@ int sys_emu::main_internal() {
                || (chip.has_sleeping_harts()
                    && ((api_listener != nullptr)
                        || chip.pu_rvtimer_is_active()
-                       || chip.spio_rvtimer_is_active()))
-               || (cmd_options.gdb
-                   && (gdbstub_get_status() != GDBSTUB_STATUS_NOT_INITIALIZED))))
+                       || chip.spio_rvtimer_is_active()))))
     {
-#ifdef SYSEMU_DEBUG
-        if (cmd_options.debug)
-            debug_check();
-#endif
-
-        if (cmd_options.gdb) {
+        if (gdb_enabled) {
             switch (gdbstub_get_status()) {
             case GDBSTUB_STATUS_WAITING_CLIENT:
                 gdbstub_accept_client();
+                halt_all_threads(chip);
+                // If we connect the debugger cycle counting goes out the
+                // door; avoid finishing the simulation too early
+                cmd_options.max_cycles = ~0ull;
                 break;
             case GDBSTUB_STATUS_RUNNING:
                 /* Non-blocking, consumes all the pending GDB commands */
@@ -562,7 +566,15 @@ int sys_emu::main_internal() {
             // This should happen even if the hart is sleeping or blocked
             hart->async_execute();
 
-            if (hart->is_blocked()) {
+            if (cmd_options.gdb && !gdb_enabled && (hart->pc == cmd_options.gdb_at_pc)) {
+                // Break and connect the debugger in the next iteration!
+                gdb_enabled = true;
+                break;
+            }
+
+            // NB: Halted harts should be able to execute from the program
+            // buffer. For now we just skip them.
+            if (hart->is_blocked() || hart->is_halted()) {
                 // Fetch and interrupts are blocked because another hart of
                 // this core is in exclusive mode
                 continue;
@@ -575,11 +587,11 @@ int sys_emu::main_internal() {
                     hart->fetch();
 
                     // Check for breakpoints
-                    if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) && breakpoint_exists(thread_get_pc(thread_id))) {
-                        LOG_AGENT(DEBUG, *hart, "Hit breakpoint at address 0x%" PRIx64, thread_get_pc(thread_id));
+                    if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) && breakpoint_exists(hart->pc)) {
+                        LOG_AGENT(DEBUG, *hart, "Hit breakpoint at address 0x%" PRIx64, hart->pc);
                         gdbstub_signal_break(thread_id);
                         halt_all_threads(chip);
-                        break;
+                        continue;
                     }
 
                     // Dumping when M0:T0 reaches a PC
@@ -628,8 +640,8 @@ int sys_emu::main_internal() {
                 LOG_AGENT(DEBUG, *hart, "%s", "Single-step done");
                 gdbstub_signal_break(thread_id);
                 single_step[thread_id] = false;
-                halt_all_threads(chip);
-                break;
+                hart->enter_debug_mode();
+                continue;
             }
         }
 

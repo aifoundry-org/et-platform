@@ -14,7 +14,6 @@
 #include <algorithm>
 #include <bitset>
 #include <cstdint>
-#include <list>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -102,6 +101,7 @@ struct sys_emu_cmd_options {
     uint64_t    stop_log_at_pc               = ~0ull;
     bool        display_trap_info            = false;
     bool        gdb                          = false;
+    uint64_t    gdb_at_pc                    = ~0ull;
     bool        mem_check                    = false;
     uint64_t    mem_checker_log_addr         = 1;
     uint32_t    mem_checker_log_minion       = 2048;
@@ -118,9 +118,6 @@ struct sys_emu_cmd_options {
     uint32_t    tstore_checker_log_thread    = 4096;
 #ifdef SYSEMU_PROFILING
     std::string dump_prof_file;
-#endif
-#ifdef SYSEMU_DEBUG
-    bool        debug                        = false;
 #endif
 };
 
@@ -171,6 +168,7 @@ public:
     void thread_write_memory(int thread, uint64_t addr, uint64_t size, const uint8_t* buffer) {
         chip.memory.write(chip.cpu[thread], addr, size, buffer);
     }
+    void disconnect_gdbstub();
 
     // PCIe DMA needs this
     bemu::MainMemory& get_memory() { return chip.memory; }
@@ -208,31 +206,6 @@ protected:
     }
 
 private:
-
-#ifdef SYSEMU_DEBUG
-    struct pc_breakpoint_t {
-        uint64_t pc;
-        int      thread; // -1 == all threads
-    };
-
-    std::list<pc_breakpoint_t> pc_breakpoints;
-    int                        debug_steps;
-
-    bool pc_breakpoints_exists(uint64_t pc, int thread);
-    bool pc_breakpoints_add(uint64_t pc, int thread);
-    void pc_breakpoints_dump(int thread);
-    void pc_breakpoints_clear_for_thread(int thread);
-    void pc_breakpoints_clear(void);
-
-    void memdump(uint64_t addr, uint64_t size);
-
-    std::string dump_xregs(unsigned thread_id);
-    std::string dump_fregs(unsigned thread_id);
-    bool process_dbg_cmd(std::string cmd);
-    bool get_pc_break(uint64_t &pc, int &thread);
-    void debug_init(void);
-    void debug_check(void);
-#endif
 
     bemu::System    chip;
 
