@@ -153,14 +153,12 @@ void disable_neigh(uint64_t shires_mask)
                 ESR_OTHER_SUBREGION_OTHER, ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
 
             /* Disable Neighborhood */
-            config =
-                ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, disable_neig_mask);
+            config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, disable_neig_mask);
             write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
                 ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
 
             read_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
                 ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
-
         }
         minion_shires_mask >>= 1;
     }
@@ -176,7 +174,6 @@ int64_t enable_neigh(uint64_t shires_mask)
     {
         if (minion_shires_mask & 1)
         {
-
             /* Read current Shire Config value */
             uint64_t config = read_esr_new(PP_MACHINE, shire_id, REGION_OTHER,
                 ESR_OTHER_SUBREGION_OTHER, ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);

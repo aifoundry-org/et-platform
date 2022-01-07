@@ -33,21 +33,28 @@ uint64_t trap_routine(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t *
 {
     bool delegate = false;
 
-    if (mcause == EXCEPTION_ILLEGAL_INSTRUCTION) {
-        if ((mtval & INST_CSRRx_MASK) == INST_CSRRS_MHARTID) {
+    if (mcause == EXCEPTION_ILLEGAL_INSTRUCTION)
+    {
+        if ((mtval & INST_CSRRx_MASK) == INST_CSRRS_MHARTID)
+        {
             uint64_t rd = (mtval >> 7) & 0x1F;
             write_reg(regs, rd, get_mhart_id());
-        } else {
+        }
+        else
+        {
             /* Unhandled illegal instruction: delegate to S-mode */
             delegate = true;
         }
-    } else { /* Unhandled exception */
+    }
+    else
+    { /* Unhandled exception */
         /* For now, delegate all of them to S-mode */
         delegate = true;
     }
 
     /* Delegate to S-mode by software */
-    if (delegate) {
+    if (delegate)
+    {
         uint64_t mstatus;
         uint64_t prev_mode;
         uint64_t stvec;
@@ -92,14 +99,15 @@ uint64_t trap_routine(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t *
 
 static void write_reg(uint64_t *const reg, uint64_t rd, uint64_t val)
 {
-    switch (rd) {
-    case 0: // x0 has no effect
-        break;
-    case 2: // x2 is sp - write to mscratch to give them what they asked for
-        asm volatile("csrw mscratch, %0" : : "r"(val));
-        break;
-    default:
-        reg[rd] = val;
-        break;
+    switch (rd)
+    {
+        case 0: // x0 has no effect
+            break;
+        case 2: // x2 is sp - write to mscratch to give them what they asked for
+            asm volatile("csrw mscratch, %0" : : "r"(val));
+            break;
+        default:
+            reg[rd] = val;
+            break;
     }
 }

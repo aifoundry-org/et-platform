@@ -19,7 +19,7 @@ FW_MASTER_SCODE_BASE = S_CODE_REGION_BASE;
 FW_MASTER_SCODE_SIZE = 0x400000; /* 4M */
 
 FW_WORKER_SCODE_BASE = S_CODE_REGION_BASE + FW_MASTER_SCODE_SIZE;
-FW_WORKER_SCODE_SIZE = 0x400000;  /* 4M */
+FW_WORKER_SCODE_SIZE = 0x400000; /* 4M */
 
 /* Master and worker firmware split the SDATA region 16M each, last 16M for Minion FW boot config + shared message buffers + S-stacks */
 FW_MASTER_SDATA_BASE = S_DATA_REGION_BASE;
@@ -29,5 +29,6 @@ FW_WORKER_SDATA_BASE = S_DATA_REGION_BASE + FW_MASTER_SDATA_SIZE;
 FW_WORKER_SDATA_SIZE = 0x1000000; /* 16M */
 
 /* All S-mode stacks are laid out at the end of the SDATA region */
-FW_SMODE_STACK_BASE  = S_DATA_REGION_BASE + S_DATA_REGION_SIZE;
-FW_SMODE_STACK_SIZE  = 4096 + 64; /* (4K + 64B) stack * 2112 stacks = 8580KB. 64B is the scratch space. */
+FW_SMODE_STACK_BASE = S_DATA_REGION_BASE + S_DATA_REGION_SIZE;
+FW_SMODE_STACK_SIZE =
+    4096 + 64; /* (4K + 64B) stack * 2112 stacks = 8580KB. 64B is the scratch space. */

@@ -19,7 +19,7 @@ void swi_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const
     uint32_t shire_id = get_shire_id();
 
     /* Check for kernel abort handled down by a hart */
-    if(kernel_info_get_abort_flag(shire_id) == 1)
+    if (kernel_info_get_abort_flag(shire_id) == 1)
     {
         uint64_t sstatus;
         asm volatile("csrr %0, sstatus" : "=r"(sstatus));
@@ -28,13 +28,16 @@ void swi_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const
         uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
 
         /* If the kernel exception buffer is available */
-        if(exception_buffer != 0)
+        if (exception_buffer != 0)
         {
-            internal_execution_context_t context = {.scause = scause, .sepc = sepc,
-                .sstatus = sstatus, .stval = stval, .regs = reg};
+            internal_execution_context_t context = { .scause = scause,
+                .sepc = sepc,
+                .sstatus = sstatus,
+                .stval = stval,
+                .regs = reg };
 
             /* Save the execution context in the buffer provided (system abort case) */
-            CM_To_MM_Save_Execution_Context((execution_context_t*)exception_buffer,
+            CM_To_MM_Save_Execution_Context((execution_context_t *)exception_buffer,
                 CM_CONTEXT_TYPE_SYSTEM_ABORT, get_hart_id(), &context);
         }
 
@@ -43,11 +46,12 @@ void swi_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const
     else
     {
         /* Save the execution context so that it may be used in abort cases */
-        internal_execution_context_t context = {.scause = scause, .sepc = sepc, .stval = stval, .regs = reg};
+        internal_execution_context_t context = { .scause = scause,
+            .sepc = sepc,
+            .stval = stval,
+            .regs = reg };
 
         /* Handle messages from MM */
-        MM_To_CM_Iface_Multicast_Receive((void*)&context);
+        MM_To_CM_Iface_Multicast_Receive((void *)&context);
     }
 }
-
-

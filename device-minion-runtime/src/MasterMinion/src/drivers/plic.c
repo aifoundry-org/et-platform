@@ -38,8 +38,7 @@
 static void (*handlerTable[PU_PLIC_INTR_SRC_CNT])(uint32_t intID) = { NULL };
 
 static void plic_enable_interrupt(volatile uint32_t *const basePriorityReg,
-    volatile uint32_t *const baseEnableReg, uint32_t intID,
-    uint32_t priority)
+    volatile uint32_t *const baseEnableReg, uint32_t intID, uint32_t priority)
 {
     volatile uint32_t *const priorityReg = basePriorityReg + intID;
     volatile uint32_t *const enableReg = baseEnableReg + (intID / 32);
@@ -107,17 +106,14 @@ void PLIC_Init(void)
 *       None
 *
 ***********************************************************************/
-void PLIC_RegisterHandler(uint32_t intID, uint32_t priority,
-    void (*handler)(uint32_t intID))
+void PLIC_RegisterHandler(uint32_t intID, uint32_t priority, void (*handler)(uint32_t intID))
 {
     handlerTable[intID] = handler;
 
     plic_enable_interrupt(
-        (volatile uint32_t *const)
-        (R_PU_PLIC_BASEADDR + PU_PLIC_PRIORITY_0_ADDRESS),
-        (volatile uint32_t *const)
-        (R_PU_PLIC_BASEADDR + PU_PLIC_ENABLE_T11_R0_ADDRESS),
-        intID, priority);
+        (volatile uint32_t *const)(R_PU_PLIC_BASEADDR + PU_PLIC_PRIORITY_0_ADDRESS),
+        (volatile uint32_t *const)(R_PU_PLIC_BASEADDR + PU_PLIC_ENABLE_T11_R0_ADDRESS), intID,
+        priority);
 }
 
 /************************************************************************
@@ -142,11 +138,8 @@ void PLIC_RegisterHandler(uint32_t intID, uint32_t priority,
 void PLIC_UnregisterHandler(uint32_t intID)
 {
     plic_disable_interrupt(
-        (volatile uint32_t *const)
-        (R_PU_PLIC_BASEADDR + PU_PLIC_PRIORITY_0_ADDRESS),
-        (volatile uint32_t *const)
-        (R_PU_PLIC_BASEADDR + PU_PLIC_ENABLE_T11_R0_ADDRESS),
-        intID);
+        (volatile uint32_t *const)(R_PU_PLIC_BASEADDR + PU_PLIC_PRIORITY_0_ADDRESS),
+        (volatile uint32_t *const)(R_PU_PLIC_BASEADDR + PU_PLIC_ENABLE_T11_R0_ADDRESS), intID);
 
     handlerTable[intID] = NULL;
 }
@@ -174,12 +167,13 @@ void PLIC_Dispatch(void)
 {
     uint32_t maxID;
 
-    while (1) {
+    while (1)
+    {
         /* Load MaxID of Target 11 (Minion supervisor level interrupt) to claim the interrupt */
         maxID = ioread32(R_PU_PLIC_BASEADDR + PU_PLIC_MAXID_T11_ADDRESS);
 
         /* If MaxID is zero, there are no further interrupts */
-        if(maxID == 0)
+        if (maxID == 0)
         {
             break;
         }

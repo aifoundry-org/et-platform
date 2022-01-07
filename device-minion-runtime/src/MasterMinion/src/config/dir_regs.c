@@ -59,7 +59,6 @@ static void crc32(const void *data, uint32_t len, uint32_t *crc)
         }
     }
 
-
     /* Calculate CRC */
     for (uint32_t i = 0; i < len; ++i)
     {
@@ -112,47 +111,44 @@ void DIR_Init(void)
     Gbl_MM_DIRs->vq_attr.attributes_size = sizeof(MM_DEV_INTF_VQ_ATTR_s);
 
     /* Populate the MM VQ Buffer memory region attributes */
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .type = MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER;
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .bar = MM_VQ_BAR;
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .bar_offset = MM_VQ_OFFSET;
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .bar_size = MM_VQ_SIZE;
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .dev_address = 0U;
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .attributes_size = sizeof(MM_DEV_INTF_MEM_REGION_ATTR_s);
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].type =
+        MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER;
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].bar = MM_VQ_BAR;
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].bar_offset = MM_VQ_OFFSET;
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].bar_size = MM_VQ_SIZE;
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].dev_address = 0U;
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].attributes_size =
+        sizeof(MM_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].access_attr =
+        MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_NONE) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
     /* Populate the OPS Host Managed memory region attributes */
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED]
-        .type = MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED;
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED]
-        .bar = MM_DEV_INTF_USER_KERNEL_SPACE_BAR;
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED]
-        .bar_offset = MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET;
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED]
-        .bar_size = MM_DEV_INTF_USER_KERNEL_SPACE_SIZE;
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED]
-        .dev_address = HOST_MANAGED_DRAM_START;
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED]
-        .attributes_size = sizeof(MM_DEV_INTF_MEM_REGION_ATTR_s);
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED]
-        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_USER) |
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].type =
+        MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED;
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].bar =
+        MM_DEV_INTF_USER_KERNEL_SPACE_BAR;
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].bar_offset =
+        MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET;
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].bar_size =
+        MM_DEV_INTF_USER_KERNEL_SPACE_SIZE;
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].dev_address =
+        HOST_MANAGED_DRAM_START;
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].attributes_size =
+        sizeof(MM_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].access_attr =
+        MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_USER) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_OPS) |
-        MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_64_BIT)  |
+        MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_64_BIT) |
         MEM_REGION_DMA_ELEMENT_COUNT_SET(MEM_REGION_DMA_ELEMENT_COUNT) |
         MEM_REGION_DMA_ELEMENT_SIZE_SET(MEM_REGION_DMA_ELEMENT_SIZE);
 
     /* Calculate CRC32 of the DIRs excluding generic attributes
     NOTE: CRC32 checksum should be calculated at the end */
-    crc32((void*)&Gbl_MM_DIRs->vq_attr,
-        (uint32_t)(Gbl_MM_DIRs->generic_attr.total_size - Gbl_MM_DIRs->generic_attr.attributes_size),
+    crc32((void *)&Gbl_MM_DIRs->vq_attr,
+        (uint32_t)(
+            Gbl_MM_DIRs->generic_attr.total_size - Gbl_MM_DIRs->generic_attr.attributes_size),
         &dir_crc32);
 
     Gbl_MM_DIRs->generic_attr.crc32 = dir_crc32;

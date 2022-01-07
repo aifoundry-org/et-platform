@@ -240,8 +240,9 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
         if (timeout_flag != 0)
         {
             status = CM_IFACE_MULTICAST_TIMEOUT_EXPIRED;
-            Log_Write(LOG_LEVEL_ERROR, "MM->CM Multicast timeout abort. Status:%d, Pending CM Count: %d\r\n", 
-                                        status, mm_to_cm_broadcast_message_ctrl_ptr->shire_count);
+            Log_Write(LOG_LEVEL_ERROR,
+                "MM->CM Multicast timeout abort. Status:%d, Pending CM Count: %d\r\n", status,
+                mm_to_cm_broadcast_message_ctrl_ptr->shire_count);
         }
         else
         {
