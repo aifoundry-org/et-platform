@@ -123,6 +123,9 @@ int32_t CM_Iface_Init(void)
     init_local_spinlock(&MM_CM_CB.mm_to_cm_broadcast_lock, 0);
     atomic_store_local_32(&MM_CM_CB.timeout_flag, 0);
 
+    /* Reset the Global MM to CM Iface message number. */
+    atomic_store_local_32(&MM_CM_Broadcast_Last_Number, 1);
+
     /* Master->worker broadcast message number and id */
     atomic_store_global_8(&mm_to_cm_broadcast_message_buffer_ptr->header.number, 0);
     atomic_store_global_8(
@@ -241,8 +244,9 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
         {
             status = CM_IFACE_MULTICAST_TIMEOUT_EXPIRED;
             Log_Write(LOG_LEVEL_ERROR,
-                "MM->CM Multicast timeout abort. Status:%d, Pending CM Count: %d\r\n", status,
-                mm_to_cm_broadcast_message_ctrl_ptr->shire_count);
+                "MM->CM Multicast timeout abort. Status:%d\r\n", status);
+            Log_Write(LOG_LEVEL_ERROR, "MM->CM:msg_num=%u:msg_id=%u:pending shire_count=%u\r\n",
+                message->header.number,  message->header.id, atomic_load_global_32(&mm_to_cm_broadcast_message_ctrl_ptr->shire_count));
         }
         else
         {

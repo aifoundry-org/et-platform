@@ -50,6 +50,9 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
             "H%04" PRId64 ": Worker S-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64
             ", stval=0x%" PRIx64 "\n",
             hart_id, scause, sepc, stval);
+
+        /* Evict S-mode Trace buffer to L3. */
+        Trace_Evict_CM_Buffer();
     }
     else /* U-mode exception */
     {
@@ -74,6 +77,9 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
             CM_To_MM_Save_Execution_Context((execution_context_t *)exception_buffer,
                 CM_CONTEXT_TYPE_UMODE_EXCEPTION, hart_id, &context);
         }
+
+        /* Evict U-mode Trace buffer to L3. */
+        Trace_Evict_UMode_Buffer();
     }
 
     /* Only send kernel launch exception message once to MM. */

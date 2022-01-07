@@ -549,6 +549,36 @@ void Trace_Update_UMode_Buffer_Header(void)
 *
 *   FUNCTION
 *
+*       Trace_Evict_UMode_Buffer
+*
+*   DESCRIPTION
+*
+*       This function evicts the Trace buffer of caller Worker Hart.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Evict_UMode_Buffer(void)
+{
+    const struct trace_control_block_t *cb = &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb;
+
+    /* Updated buffer header. */
+    Trace_Update_UMode_Buffer_Header();
+
+    /* Flush the buffer from Cache to Memory. */
+    ETSOC_MEM_EVICT((uint64_t *)cb->base_per_hart, cb->offset_per_hart, to_L3)
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       get_index_among_enabled_harts
 *
 *   DESCRIPTION

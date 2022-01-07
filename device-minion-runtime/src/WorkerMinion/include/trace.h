@@ -77,4 +77,10 @@ void Trace_Init_UMode(const struct trace_init_info_t *init_info);
 */
 void Trace_Update_UMode_Buffer_Header(void);
 
+/*! \fn void Trace_Evict_UMode_Buffer(void)
+    \brief This function evicts the Trace buffer of caller Worker Hart.
+    \return None
+*/
+void Trace_Evict_UMode_Buffer(void);
+
 #endif
