@@ -131,11 +131,13 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	struct cmd_desc cmd_info;
 	struct rsp_desc rsp_info;
 	struct sq_threshold sq_threshold_info;
+	struct et_mapped_region *region;
 	void __user *usr_arg = (void __user *)arg;
 	u16 sq_idx;
 	size_t size;
 	u16 max_size;
 	u32 dev_state;
+	u8 trace_type;
 
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
 	et_dev = container_of(ops, struct et_pci_dev, ops);
@@ -169,23 +171,18 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		return 0;
 
 	case ETSOC1_IOCTL_GET_USER_DRAM_INFO:
-		if (!ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].is_valid)
-			return -EINVAL;
+		region = &ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED];
+		if (!region->is_valid || !(region->access.node_access &
+					   MEM_REGION_NODE_ACCESSIBLE_OPS))
+			return -EACCES;
 
-		user_dram.base =
-			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].soc_addr;
-		user_dram.size =
-			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].size;
-		user_dram.dma_max_elem_size =
-			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]
-				.access.dma_elem_size *
-			MEM_REGION_DMA_ELEMENT_STEP_SIZE;
-		user_dram.dma_max_elem_count =
-			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]
-				.access.dma_elem_count;
+		user_dram.base = region->soc_addr;
+		user_dram.size = region->size;
+		user_dram.dma_max_elem_size = region->access.dma_elem_size *
+					      MEM_REGION_DMA_ELEMENT_STEP_SIZE;
+		user_dram.dma_max_elem_count = region->access.dma_elem_count;
 
-		switch (ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]
-				.access.dma_align) {
+		switch (region->access.dma_align) {
 		case MEM_REGION_DMA_ALIGNMENT_NONE:
 			user_dram.align_in_bits = 0;
 			break;
@@ -209,6 +206,29 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		}
 
 		return 0;
+
+	case ETSOC1_IOCTL_GET_TRACE_BUFFER_SIZE:
+		if (copy_from_user(&trace_type, usr_arg, _IOC_SIZE(cmd)))
+			return -EINVAL;
+
+		switch (trace_type) {
+		case TRACE_BUFFER_MM:
+			region = &et_dev->mgmt.regions
+					  [MGMT_MEM_REGION_TYPE_MMFW_TRACE];
+			break;
+		case TRACE_BUFFER_CM:
+			region = &et_dev->mgmt.regions
+					  [MGMT_MEM_REGION_TYPE_CMFW_TRACE];
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		if (!region->is_valid || !(region->access.node_access &
+					   MEM_REGION_NODE_ACCESSIBLE_OPS))
+			return -EACCES;
+
+		return (u32)region->size;
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
 		if (size >= sizeof(u16) &&
@@ -248,7 +268,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		}
 
 		if (cmd_info.flags & CMD_DESC_FLAG_HIGH_PRIORITY) {
-			if (cmd_info.sq_index >= et_dev->ops.dir_vq.hpsq_count)
+			if (cmd_info.sq_index >= ops->dir_vq.hpsq_count)
 				return -EINVAL;
 
 			return et_squeue_copy_from_user(
@@ -259,7 +279,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 				(char __user __force *)cmd_info.cmd,
 				cmd_info.size);
 		} else {
-			if (cmd_info.sq_index >= et_dev->ops.dir_vq.sq_count)
+			if (cmd_info.sq_index >= ops->dir_vq.sq_count)
 				return -EINVAL;
 
 			if (cmd_info.flags & CMD_DESC_FLAG_DMA)
@@ -282,7 +302,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&rsp_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (rsp_info.cq_index >= et_dev->ops.dir_vq.cq_count ||
+		if (rsp_info.cq_index >= ops->dir_vq.cq_count ||
 		    !rsp_info.rsp || !rsp_info.size)
 			return -EINVAL;
 
@@ -313,7 +333,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&sq_threshold_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (sq_threshold_info.sq_index >= et_dev->ops.dir_vq.sq_count ||
+		if (sq_threshold_info.sq_index >= ops->dir_vq.sq_count ||
 		    !sq_threshold_info.bytes_needed ||
 		    sq_threshold_info.bytes_needed >
 			    (ops->dir_vq.sq_size -
@@ -519,9 +539,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	struct trace_desc trace_info;
 	struct sq_threshold sq_threshold_info;
 	struct fw_update_desc fw_update_info;
-	struct et_mapped_region *trace_region;
-	u32 trace_region_size;
-	void __iomem *trace_region_start;
+	struct et_mapped_region *region;
 	void __user *usr_arg = (void __user *)arg;
 	u16 sq_idx;
 	size_t size;
@@ -610,7 +628,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 		}
 
-		if (cmd_info.sq_index >= et_dev->mgmt.dir_vq.sq_count ||
+		if (cmd_info.sq_index >= mgmt->dir_vq.sq_count ||
 		    !cmd_info.cmd || !cmd_info.size)
 			return -EINVAL;
 
@@ -626,7 +644,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&rsp_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (rsp_info.cq_index >= et_dev->mgmt.dir_vq.cq_count ||
+		if (rsp_info.cq_index >= mgmt->dir_vq.cq_count ||
 		    !rsp_info.rsp || !rsp_info.size)
 			return -EINVAL;
 
@@ -657,8 +675,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&sq_threshold_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (sq_threshold_info.sq_index >=
-			    et_dev->mgmt.dir_vq.sq_count ||
+		if (sq_threshold_info.sq_index >= mgmt->dir_vq.sq_count ||
 		    !sq_threshold_info.bytes_needed ||
 		    sq_threshold_info.bytes_needed >
 			    (mgmt->dir_vq.sq_size -
@@ -679,35 +696,34 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 		return 0;
 
-	case ETSOC1_IOCTL_GET_DEVICE_MGMT_TRACE_BUFFER_SIZE:
+	case ETSOC1_IOCTL_GET_TRACE_BUFFER_SIZE:
 		if (copy_from_user(&trace_type, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
 		switch (trace_type) {
 		case TRACE_BUFFER_SP:
-			trace_region =
+			region =
 				&mgmt->regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE];
 			break;
 		case TRACE_BUFFER_MM:
-			trace_region =
+			region =
 				&mgmt->regions[MGMT_MEM_REGION_TYPE_MMFW_TRACE];
 			break;
 		case TRACE_BUFFER_CM:
-			trace_region =
+			region =
 				&mgmt->regions[MGMT_MEM_REGION_TYPE_CMFW_TRACE];
 			break;
 		default:
 			return -EINVAL;
 		}
 
-		if (!trace_region->is_valid)
-			return -EINVAL;
+		if (!region->is_valid || !(region->access.node_access &
+					   MEM_REGION_NODE_ACCESSIBLE_MGMT))
+			return -EACCES;
 
-		trace_region_size = (u32)trace_region->size;
-		return trace_region_size;
+		return (u32)region->size;
 
-	case ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER:
-
+	case ETSOC1_IOCTL_EXTRACT_TRACE_BUFFER:
 		if (copy_from_user(&trace_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
@@ -716,35 +732,33 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 		switch (trace_info.trace_type) {
 		case TRACE_BUFFER_SP:
-			trace_region =
+			region =
 				&mgmt->regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE];
 			break;
 		case TRACE_BUFFER_MM:
-			trace_region =
+			region =
 				&mgmt->regions[MGMT_MEM_REGION_TYPE_MMFW_TRACE];
 			break;
 		case TRACE_BUFFER_CM:
-			trace_region =
+			region =
 				&mgmt->regions[MGMT_MEM_REGION_TYPE_CMFW_TRACE];
 			break;
 		default:
 			return -EINVAL;
 		}
-		if (!trace_region->is_valid)
-			return -EINVAL;
+		if (!region->is_valid || !(region->access.node_access &
+					   MEM_REGION_NODE_ACCESSIBLE_MGMT))
+			return -EACCES;
 
-		trace_region_size = (u32)trace_region->size;
-		trace_region_start = trace_region->mapped_baseaddr;
-
-		trace_buf = kvmalloc(trace_region_size, GFP_KERNEL);
+		trace_buf = kvmalloc(region->size, GFP_KERNEL);
 		if (!trace_buf)
 			return -ENOMEM;
 
-		et_ioread(trace_region_start, 0, trace_buf, trace_region_size);
+		et_ioread(region->mapped_baseaddr, 0, trace_buf, region->size);
 		if (copy_to_user((char __user __force *)trace_info.buf,
 				 trace_buf,
-				 trace_region_size)) {
-			pr_err("ioctl: ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER: failed to copy to user\n");
+				 region->size)) {
+			pr_err("ioctl: ETSOC1_IOCTL_EXTRACT_TRACE_BUFFER: failed to copy to user\n");
 			kvfree(trace_buf);
 			return -ENOMEM;
 		}

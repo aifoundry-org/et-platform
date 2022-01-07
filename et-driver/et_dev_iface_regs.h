@@ -780,14 +780,27 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 		switch (region->type) {
 		case MGMT_MEM_REGION_TYPE_VQ_BUFFER:
 		case MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG:
+			// Attributes compatibility check
+			if (region->access.priv_mode !=
+				    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
+			    region->access.node_access !=
+				    MEM_REGION_NODE_ACCESSIBLE_NONE ||
+			    region->access.dma_align !=
+				    MEM_REGION_DMA_ALIGNMENT_NONE) {
+				strlcat(err_str,
+					"Incorrect access for region: ",
+					len);
+				strlcat(err_str, reg_type_str, len);
+				rv = false;
+			}
+			break;
+
 		case MGMT_MEM_REGION_TYPE_SPFW_TRACE:
 		case MGMT_MEM_REGION_TYPE_MMFW_TRACE:
 		case MGMT_MEM_REGION_TYPE_CMFW_TRACE:
 			// Attributes compatibility check
 			if (region->access.priv_mode !=
 				    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
-			    region->access.node_access !=
-				    MEM_REGION_NODE_ACCESSIBLE_NONE ||
 			    region->access.dma_align !=
 				    MEM_REGION_DMA_ALIGNMENT_NONE) {
 				strlcat(err_str,
@@ -842,10 +855,8 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 			// Attributes compatibility check
 			if (region->access.priv_mode !=
 				    MEM_REGION_PRIVILEGE_MODE_USER ||
-			    region->access.node_access !=
-				    MEM_REGION_NODE_ACCESSIBLE_OPS ||
-			    region->access.dma_align !=
-				    MEM_REGION_DMA_ALIGNMENT_64BIT) {
+			    region->access.node_access &
+				    MEM_REGION_NODE_ACCESSIBLE_MGMT) {
 				strlcat(err_str,
 					"Incorrect access for region: ",
 					len);

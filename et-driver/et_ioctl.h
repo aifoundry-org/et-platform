@@ -112,10 +112,10 @@ struct trace_desc {
 #define ETSOC1_IOCTL_SET_SQ_THRESHOLD                                          \
 	_IOW(ESPERANTO_PCIE_IOCTL_MAGIC, 10, struct sq_threshold)
 
-#define ETSOC1_IOCTL_GET_DEVICE_MGMT_TRACE_BUFFER_SIZE                         \
+#define ETSOC1_IOCTL_GET_TRACE_BUFFER_SIZE                                     \
 	_IOW(ESPERANTO_PCIE_IOCTL_MAGIC, 11, __u8)
 
-#define ETSOC1_IOCTL_EXTRACT_DEVICE_MGMT_TRACE_BUFFER                          \
+#define ETSOC1_IOCTL_EXTRACT_TRACE_BUFFER                                      \
 	_IOWR(ESPERANTO_PCIE_IOCTL_MAGIC, 12, struct trace_desc)
 
 #define ETSOC1_IOCTL_GET_DEVICE_STATE                                          \
