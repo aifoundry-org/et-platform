@@ -81,7 +81,7 @@ static inline int64_t broadcast_ipi_trigger(uint64_t dest_shire_mask, uint64_t d
         ESR_SHIRE_IPI_TRIGGER_PROT, ESR_SHIRE_REGION, ESR_SHIRE_IPI_TRIGGER_REGNO);
 
     /* Broadcast dest_hart_mask to IPI_TRIGGER ESR in all shires
-    in dest_shire_mask */
+  in dest_shire_mask */
     return syscall(SYSCALL_BROADCAST_INT, dest_hart_mask, dest_shire_mask, broadcast_parameters);
 }
 
@@ -226,7 +226,7 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
         }
 
         /* Poll wait until all the receiver Shires have ACK'd or the timeout occurs.
-        Then it's safe to send another broadcast message. */
+    Then it's safe to send another broadcast message. */
         do
         {
             /* Read the global timeout flag to see for MM->CM message timeout */
@@ -243,10 +243,10 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
         if (timeout_flag != 0)
         {
             status = CM_IFACE_MULTICAST_TIMEOUT_EXPIRED;
-            Log_Write(LOG_LEVEL_ERROR,
-                "MM->CM Multicast timeout abort. Status:%d\r\n", status);
+            Log_Write(LOG_LEVEL_ERROR, "MM->CM Multicast timeout abort. Status:%d\r\n", status);
             Log_Write(LOG_LEVEL_ERROR, "MM->CM:msg_num=%u:msg_id=%u:pending shire_count=%u\r\n",
-                message->header.number,  message->header.id, atomic_load_global_32(&mm_to_cm_broadcast_message_ctrl_ptr->shire_count));
+                message->header.number, message->header.id,
+                atomic_load_global_32(&mm_to_cm_broadcast_message_ctrl_ptr->shire_count));
         }
         else
         {
