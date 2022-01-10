@@ -46,9 +46,15 @@ struct Coop_tload_state {
 
 
 //
-// Cooperative tensor load tracking logic; indexed by [tenb][coopid]
+// Cooperative tensor load tracking logic.
+// Two entries for normal tensor loads, one for tensor load tenb.
+// Arrays are indexed by the group id.
 //
-using Coop_tload_table  = std::array<std::array<Coop_tload_state, 32>, 2>;
+struct Coop_tload_table {
+    using group_table = std::array<Coop_tload_state, 32>;
+    std::array<group_table, 2> tload_a;
+    group_table tload_b;
+};
 
 
 //==------------------------------------------------------------------------==//

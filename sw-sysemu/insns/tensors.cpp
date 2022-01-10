@@ -399,7 +399,8 @@ void tensor_load_start(Hart& cpu, uint64_t control)
             if (((neighs >> n) & 1) == 0) {
                 continue;
             }
-            auto& entry = cpu.chip->coop_tloads[neigh0 + n][tenb][group];
+            auto& coop_tloads = cpu.chip->coop_tloads[neigh0 + n];
+            auto& entry = tenb ? coop_tloads.tload_b[group] : coop_tloads.tload_a[id][group];
             if (entry.all.none()) {
                 entry.all = entry.pending = all;
             }
@@ -421,7 +422,8 @@ void tensor_load_start(Hart& cpu, uint64_t control)
             // Clear every cooperating neighborhood entry
             for (unsigned n = 0; n < EMU_NEIGH_PER_SHIRE; ++n) {
                 if (((neighs >> n) & 1) == 1) {
-                    auto& entry = cpu.chip->coop_tloads[neigh0 + n][tenb][group];
+                    auto& coop_tloads = cpu.chip->coop_tloads[neigh0 + n];
+                    auto& entry = tenb ? coop_tloads.tload_b[group] : coop_tloads.tload_a[id][group];
                     entry.all.reset();
                 }
             }
