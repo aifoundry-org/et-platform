@@ -318,7 +318,9 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 
 	if ((u64)(event_msg->event_syndrome[1] + trace_buf_size) >
 	    trace_region->size) {
-		dev_err(&pdev->dev, "Invalid Trace Buffer Offset");
+		dev_err(&pdev->dev,
+			"Invalid Trace Buffer Offset: 0x%llx\n",
+			event_msg->event_syndrome[1]);
 		return;
 	}
 

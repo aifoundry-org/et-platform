@@ -172,6 +172,7 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 			  0,
 			  (u8 *)&hpsq_pptr[i]->cb,
 			  sizeof(hpsq_pptr[i]->cb));
+		hpsq_pptr[i]->cb_mismatched = false;
 		hpsq_baseaddr += hpsq_size;
 
 		mutex_init(&hpsq_pptr[i]->push_mutex);
@@ -236,6 +237,7 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 			  0,
 			  (u8 *)&sq_pptr[i]->cb,
 			  sizeof(sq_pptr[i]->cb));
+		sq_pptr[i]->cb_mismatched = false;
 		sq_baseaddr += sq_size;
 
 		mutex_init(&sq_pptr[i]->push_mutex);
@@ -307,6 +309,7 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 			  0,
 			  (u8 *)&cq_pptr[i]->cb,
 			  sizeof(cq_pptr[i]->cb));
+		cq_pptr[i]->cb_mismatched = false;
 		cq_baseaddr += cq_size;
 
 		mutex_init(&cq_pptr[i]->pop_mutex);
@@ -560,13 +563,18 @@ ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 	ssize_t rv = count;
 
 	if (count < sizeof(*header)) {
-		pr_err("VQ[%d]: size too small: %ld", sq->index, count);
+		pr_err("SQ[%d]: size too small: %ld", sq->index, count);
 		return -EINVAL;
 	}
 
 	if (header->size > count) {
-		pr_err("VQ[%d]: header contains invalid cmd size", sq->index);
+		pr_err("SQ[%d]: header contains invalid cmd size", sq->index);
 		return -EINVAL;
+	}
+
+	if (sq->cb_mismatched) {
+		pr_err("SQ[%d] corrupt: circbuffer header invalid!", sq->index);
+		return -ENOTRECOVERABLE;
 	}
 
 	mutex_lock(&sq->push_mutex);
@@ -659,10 +667,13 @@ static inline void et_squeue_sync_cb_for_host(struct et_squeue *sq)
 	head_local = sq->cb.head;
 	et_ioread(sq->cb_mem, 0, (u8 *)&sq->cb, sizeof(sq->cb));
 
-	if (head_local != sq->cb.head)
-		pr_err("SQ sync: head mismatched, head_local: %lld, head_remote: %lld",
+	if (head_local != sq->cb.head) {
+		pr_err("SQ[%d] sync: head mismatched, head_local: %lld, head_remote: %lld",
+		       sq->index,
 		       head_local,
 		       sq->cb.head);
+		sq->cb_mismatched = true;
+	}
 
 	mutex_unlock(&sq->push_mutex);
 }
@@ -788,6 +799,11 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 	if (!ubuf || !count)
 		return -EINVAL;
 
+	if (cq->cb_mismatched) {
+		pr_err("CQ[%d] corrupt: circbuffer header invalid!", cq->index);
+		return -ENOTRECOVERABLE;
+	}
+
 	msg = et_dequeue_msg_node(cq);
 	if (!msg || !(msg->msg)) {
 		// Empty; no message to POP, returning EAGAIN
@@ -838,6 +854,12 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	struct device_mgmt_event_msg_t mgmt_event;
 	ssize_t rv;
 
+	if (cq->cb_mismatched) {
+		pr_err("et_cqueue_pop: CQ[%d]: circbuffer header invalid!",
+		       cq->index);
+		return -ENOTRECOVERABLE;
+	}
+
 	mutex_lock(&cq->pop_mutex);
 
 	// Read the message header
@@ -854,7 +876,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	// system is in a bad state. This should never happen.
 	// TODO: Add some recovery mechanism
 	if (!header.size) {
-		pr_err("CQ corrupt: invalid size");
+		pr_err("et_cqueue_pop: CQ[%d]: invalid size!", cq->index);
 		rv = -ENOTRECOVERABLE;
 		goto error_unlock_mutex;
 	}
@@ -928,10 +950,13 @@ static inline void et_cqueue_sync_cb_for_host(struct et_cqueue *cq)
 	tail_local = cq->cb.tail;
 	et_ioread(cq->cb_mem, 0, (u8 *)&cq->cb, sizeof(cq->cb));
 
-	if (tail_local != cq->cb.tail)
-		pr_err("CQ sync: tail mismatched, tail_local: %lld, tail_remote: %lld",
+	if (tail_local != cq->cb.tail) {
+		pr_err("CQ[%d] sync: tail mismatched, tail_local: %lld, tail_remote: %lld",
+		       cq->index,
 		       tail_local,
 		       cq->cb.tail);
+		cq->cb_mismatched = true;
+	}
 
 	mutex_unlock(&cq->pop_mutex);
 }

@@ -61,6 +61,7 @@ struct et_squeue {
 	bool is_hpsq;
 	struct et_circbuffer __iomem *cb_mem;
 	struct et_circbuffer cb;	/* local copy */
+	bool cb_mismatched;
 	struct mutex push_mutex;	/* serializes access to cb */
 	atomic_t sq_threshold;
 	struct et_vq_common *vq_common;
@@ -84,6 +85,7 @@ struct et_cqueue {
 	u16 index;
 	struct et_circbuffer __iomem *cb_mem;
 	struct et_circbuffer cb;	/* local copy */
+	bool cb_mismatched;
 	struct mutex pop_mutex;		/* serializes access to cb */
 	struct et_vq_common *vq_common;
 	struct list_head msg_list;
