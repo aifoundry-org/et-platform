@@ -82,6 +82,13 @@ Enums:
         Value : 1
       - Name : INVALID_TAG_ID
         Value : 2
+  - Name: dev_ops_api_cm_reset_response
+    Type: uint32_t
+    Values:
+      - Name: SUCCESS
+        Value: 0
+      - Name : ERROR
+        Value : 1
   - Name: dev_ops_api_kernel_launch_response
     Type: uint32_t
     Values:
@@ -684,6 +691,27 @@ Messages :
         Description: DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS or non-zero error code
         Type: enum
         Enum: dev_ops_trace_rt_control_response
+      - Name: pad[4]
+        Description: Padding for alignment
+        Type: uint8_t
+#-------------------------------------------------------------------------------
+  - Name: device_ops_cm_reset_cmd
+    Description: CM Reset command
+    Type: Command
+    PairedMessage: device_ops_cm_reset_rsp
+    Fields:
+      - Name: cm_shire_mask
+        Description: CM Shire Mask
+        Type: uint64_t
+  - Name: device_ops_cm_reset_rsp
+    Description:  CM Reset response
+    PairedMessage: device_ops_cm_reset_cmd
+    Type: Response
+    Fields:
+      - Name: status
+        Description: CM Reset status
+        Type: enum
+        Enum: dev_ops_api_cm_reset_response
       - Name: pad[4]
         Description: Padding for alignment
         Type: uint8_t
