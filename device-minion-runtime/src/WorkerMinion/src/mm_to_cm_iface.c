@@ -20,6 +20,7 @@ typedef struct {
 } __attribute__((aligned(64))) cm_iface_message_number_internal_t;
 
 #define CURRENT_THREAD_MASK ((0x1UL << (get_hart_id() % 64)))
+#define CURRENT_SHIRE_MASK  (1ULL << get_shire_id())
 /* MM -> CM message counters */
 #define mm_cm_msg_number ((cm_iface_message_number_internal_t *)CM_MM_HART_MESSAGE_COUNTER)
 static spinlock_t pre_msg_local_barrier[NUM_SHIRES] = { 0 };
@@ -70,9 +71,9 @@ static inline void read_msg_and_notify_mm(uint64_t shire_id, cm_iface_message_t 
         /* Reset the msg sync local barrier flag */
         init_local_spinlock(&msg_sync_local_barrier[shire_id], 0);
 
-        /* Decrement the shire count to send msg acknownledgment to MM */
-        atomic_add_signed_global_32(
-            (int32_t *)&master_to_worker_broadcast_message_ctrl_ptr->shire_count, -1);
+        /* Clear bit for current shire to send msg acknowledgment to MM */
+        atomic_and_global_64(
+            &master_to_worker_broadcast_message_ctrl_ptr->shire_mask, ~CURRENT_SHIRE_MASK);
     }
 }
 

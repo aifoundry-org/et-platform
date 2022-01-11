@@ -176,7 +176,6 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
     uint8_t thread_id = get_hart_id() & (HARTS_PER_SHIRE - 1);
     int32_t status = STATUS_SUCCESS;
     uint32_t timeout_flag = 0;
-    broadcast_message_ctrl_t msg_control;
 
     Log_Write(LOG_LEVEL_DEBUG, "CM_Iface_Multicast_Send:Sending multicast msg\r\n");
 
@@ -210,9 +209,8 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
         message->header.number = (uint8_t)atomic_add_local_32(&MM_CM_Broadcast_Last_Number, 1);
 
         /* Configure broadcast message control data */
-        msg_control.shire_count = (uint32_t)__builtin_popcountll(dest_shire_mask);
-        msg_control.sender_thread_id = thread_id;
-        atomic_store_global_64(&mm_to_cm_broadcast_message_ctrl_ptr->raw_u64, msg_control.raw_u64);
+        atomic_store_global_64(&mm_to_cm_broadcast_message_ctrl_ptr->shire_mask, dest_shire_mask);
+        atomic_store_global_32(&mm_to_cm_broadcast_message_ctrl_ptr->sender_thread_id, thread_id);
 
         /* Copy message to shared global buffer */
         ETSOC_MEM_COPY_AND_EVICT(
@@ -232,8 +230,8 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
             /* Read the global timeout flag to see for MM->CM message timeout */
             timeout_flag = atomic_compare_and_exchange_local_32(&MM_CM_CB.timeout_flag, 1, 0);
 
-            /* Continue to poll until the shire count is 0 or timeout has occured */
-        } while ((atomic_load_global_32(&mm_to_cm_broadcast_message_ctrl_ptr->shire_count) != 0) &&
+            /* Continue to poll until the all shires has sent ack (clear their corresponding bit mask) timeout has occurred */
+        } while ((atomic_load_global_64(&mm_to_cm_broadcast_message_ctrl_ptr->shire_mask) != 0) &&
                  (timeout_flag == 0));
 
         /* Clear IPI pending interrupt */
@@ -244,9 +242,9 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
         {
             status = CM_IFACE_MULTICAST_TIMEOUT_EXPIRED;
             Log_Write(LOG_LEVEL_ERROR, "MM->CM Multicast timeout abort. Status:%d\r\n", status);
-            Log_Write(LOG_LEVEL_ERROR, "MM->CM:msg_num=%u:msg_id=%u:pending shire_count=%u\r\n",
+            Log_Write(LOG_LEVEL_ERROR, "MM->CM:msg_num=%u:msg_id=%u:pending shire_mask=0x%lx\r\n",
                 message->header.number, message->header.id,
-                atomic_load_global_32(&mm_to_cm_broadcast_message_ctrl_ptr->shire_count));
+                atomic_load_global_64(&mm_to_cm_broadcast_message_ctrl_ptr->shire_mask));
         }
         else
         {
