@@ -180,6 +180,10 @@ Enums:
         Value: 0
       - Name: UNSUPPORTED_COMMAND
         Value: 1
+      - Name: CM_SMODE_RT_EXCEPTION
+        Value: 2
+      - Name: CM_SMODE_RT_HANG
+        Value: 3
   - Name: dev_ops_fw_type
     Type: uint8_t
     Values:
