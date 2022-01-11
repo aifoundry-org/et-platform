@@ -52,13 +52,8 @@ ASSERT_CACHE_LINE_CONSTRAINTS(cm_iface_message_t);
  */
 
 typedef struct {
-    union {
-        struct {
-            uint32_t shire_count;      /* The total number of shires that need to ack back */
-            uint32_t sender_thread_id; /* MM thread ID of the multicast sender */
-        };
-        uint64_t raw_u64;
-    };
+    uint64_t shire_mask;       /* Bit mask of shires that need to ack back */
+    uint32_t sender_thread_id; /* MM thread ID of the multicast sender */
 } __attribute__((aligned(64))) broadcast_message_ctrl_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(broadcast_message_ctrl_t);
