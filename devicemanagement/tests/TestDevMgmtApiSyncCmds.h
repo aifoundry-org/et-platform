@@ -113,7 +113,7 @@ protected:
   void getDeviceErrorEvents(bool singleDevice);
   void setTraceControl(bool singleDevice);
   void setTraceConfigure(bool singleDevice, uint32_t event_type, uint32_t filter_level);
-  void getTraceBuffer(bool singleDevice);
+  void getTraceBuffer(bool singleDevice, TraceBufferType bufferType);
 
   // Security tests general checks
   void isUnsupportedService(bool singleDevice);
