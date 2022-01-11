@@ -1872,11 +1872,12 @@ int32_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t sta
             status = trace_rt_config_cmd_handler(command_buffer, sqw_idx);
             break;
         default:
-            Log_Write(
-                LOG_LEVEL_ERROR, "SQ[%d] HostCmdHdlr:Tag_ID=%u:UnsupportedCmd\r\n", sqw_idx, hdr->cmd_hdr.tag_id);
+            Log_Write(LOG_LEVEL_ERROR, "SQ[%d] HostCmdHdlr:Tag_ID=%u:UnsupportedCmd\r\n", sqw_idx,
+                hdr->cmd_hdr.tag_id);
 
             /* Send unsupported command error event to host */
-            device_async_error_event_handler(command_buffer, DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND);
+            device_async_error_event_handler(
+                command_buffer, DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND);
 
             /* Decrement commands count being processed by given SQW */
             SQW_Decrement_Command_Count(sqw_idx);
@@ -1923,7 +1924,8 @@ int32_t Host_HP_Command_Handler(void *command_buffer, uint8_t sqw_hp_idx)
                 hdr->cmd_hdr.tag_id);
 
             /* Send unsupported command error event to host */
-            device_async_error_event_handler(command_buffer, DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND);
+            device_async_error_event_handler(
+                command_buffer, DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND);
 
             /* Decrement commands count being processed by given HP SQW */
             SQW_HP_Decrement_Command_Count(sqw_hp_idx);
