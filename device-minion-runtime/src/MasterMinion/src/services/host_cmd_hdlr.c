@@ -1790,7 +1790,7 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
 *       None.
 *
 ***********************************************************************/
-static inline void device_unsupported_cmd_event_handler(void *command_buffer, uint8_t sqw_idx)
+static inline void device_async_error_event_handler(void *command_buffer, uint8_t error_type)
 {
     const struct cmn_header_t *cmd_header = (struct cmn_header_t *)command_buffer;
     struct device_ops_device_fw_error_t event;
@@ -1800,21 +1800,15 @@ static inline void device_unsupported_cmd_event_handler(void *command_buffer, ui
     event.event_info.event_hdr.tag_id = cmd_header->tag_id;
     event.event_info.event_hdr.size = sizeof(event) - sizeof(struct cmn_header_t);
     event.event_info.event_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_ERROR;
-    event.error_type = DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND;
+    event.error_type = error_type;
 
     /* Push the event to CQ */
     status = Host_Iface_CQ_Push_Cmd(0, &event, sizeof(event));
 
-    if (status == STATUS_SUCCESS)
+    if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_DEBUG,
-            "SQ[%d] fw_error_event:Pushed:Async error event:tag_id=%x->Host_CQ\r\n", sqw_idx,
-            event.event_info.event_hdr.tag_id);
-    }
-    else
-    {
-        Log_Write(LOG_LEVEL_ERROR, "SQ[%d] fw_error_event:Tag_ID=%u:HostIface:Push:Failed\r\n",
-            sqw_idx, event.event_info.event_hdr.tag_id);
+        Log_Write(LOG_LEVEL_ERROR, "fw_error_event:%d Tag_ID=%u:HostIface:Push:Failed\r\n",
+            error_type, event.event_info.event_hdr.tag_id);
 
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
@@ -1879,10 +1873,10 @@ int32_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t sta
             break;
         default:
             Log_Write(
-                LOG_LEVEL_ERROR, "HostCmdHdlr:Tag_ID=%u:UnsupportedCmd\r\n", hdr->cmd_hdr.tag_id);
+                LOG_LEVEL_ERROR, "SQ[%d] HostCmdHdlr:Tag_ID=%u:UnsupportedCmd\r\n", sqw_idx, hdr->cmd_hdr.tag_id);
 
             /* Send unsupported command error event to host */
-            device_unsupported_cmd_event_handler(command_buffer, sqw_idx);
+            device_async_error_event_handler(command_buffer, DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND);
 
             /* Decrement commands count being processed by given SQW */
             SQW_Decrement_Command_Count(sqw_idx);
@@ -1929,7 +1923,7 @@ int32_t Host_HP_Command_Handler(void *command_buffer, uint8_t sqw_hp_idx)
                 hdr->cmd_hdr.tag_id);
 
             /* Send unsupported command error event to host */
-            device_unsupported_cmd_event_handler(command_buffer, sqw_hp_idx);
+            device_async_error_event_handler(command_buffer, DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND);
 
             /* Decrement commands count being processed by given HP SQW */
             SQW_HP_Decrement_Command_Count(sqw_hp_idx);
