@@ -1003,9 +1003,9 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 				rv = -EINVAL;
 				goto error_unmap_discovered_regions;
 			} else {
-				dbg_msg.level = LEVEL_FATAL;
+				dbg_msg.level = LEVEL_WARN;
 				dbg_msg.desc =
-					"DIRs compulsory field(s) not set!";
+					"DIRs invalid memory region found!";
 				et_print_event(et_dev->pdev, &dbg_msg);
 			}
 			continue;
@@ -1070,7 +1070,19 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 				dbg_msg.desc =
 					"Requested BAR region overlaps existing BAR region!";
 				sprintf(dbg_msg.syndrome,
-					"\nExisting region info:\n\tNode         : %s\n\tBAR          : %d\n\tRegion Type  : %d\n\tRegion start : 0x%llx\n\tRegion end   : 0x%llx\nRequested region info:\n\tNode         : %s\n\tBAR          : %d\n\tRegion Type  : %d\n\tRegion start : 0x%llx\n\tRegion end   : 0x%llx\n",
+					"\n"
+					"Existing region info:\n"
+					"\tNode         : %s\n"
+					"\tBAR          : %d\n"
+					"\tRegion Type  : %d\n"
+					"\tRegion start : 0x%llx\n"
+					"\tRegion end   : 0x%llx\n"
+					"Requested region info:\n"
+					"\tNode         : %s\n"
+					"\tBAR          : %d\n"
+					"\tRegion Type  : %d\n"
+					"\tRegion start : 0x%llx\n"
+					"\tRegion end   : 0x%llx\n",
 					existing_node->is_mgmt ? "Mgmt" : "Ops",
 					existing_node->bar,
 					existing_node->region_type,
