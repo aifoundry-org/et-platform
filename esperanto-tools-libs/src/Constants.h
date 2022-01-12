@@ -14,12 +14,6 @@
 namespace rt {
 // these constants are based on documentation:
 // https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1289355429/Device+Ops+Interface+-+Command+Response+Events+Bindings#Trace-setup-and-execution-flow
-constexpr auto kTracingFwMmSize = 1 << 20;
-constexpr auto kTracingFwCmSize = 4096 * 2080;
-constexpr auto kTracingFwBufferSize = kTracingFwCmSize + kTracingFwMmSize;
-constexpr int kEnableTracingBit = 1 << 0;
-constexpr int kTraceRtControlLogToUart = 1 << 1;
-constexpr int kResetTraceBufferAddressBit = 1 << 2; // Reset Trace buffer point to device side Trace Buffer base address
 constexpr auto kNumErrorContexts = 2080;
 constexpr auto kExceptionBufferSize = sizeof(ErrorContext) * kNumErrorContexts;
 constexpr auto kNumExecutionCacheBuffers = 5;  // initial number of execution cache buffers
