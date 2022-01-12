@@ -45,6 +45,7 @@
 
 /* mm specific headers */
 #include "config/mm_config.h"
+#include "services/host_cmd_hdlr.h"
 #include "services/host_iface.h"
 #include "services/cm_iface.h"
 #include "services/sp_iface.h"
@@ -101,6 +102,7 @@ typedef struct kernel_instance_ {
     uint64_t kernel_shire_mask;
     uint64_t umode_exception_buffer_ptr;
     uint64_t umode_trace_buffer_ptr;
+    // uint64_t failed_cm_shire_mask; //for umode exception only
 } kernel_instance_t;
 
 /*! \typedef kw_cb_t
@@ -621,6 +623,8 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
 
     if (status == STATUS_SUCCESS)
     {
+        uint64_t failed_cm_shires_mask;
+
         /* Populate the tag_id and sqw_idx for KW */
         atomic_store_local_16(&kernel->launch_tag_id, cmd->command_info.cmd_hdr.tag_id);
         atomic_store_local_8(&kernel->sqw_idx, sqw_idx);
@@ -654,7 +658,7 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
 
         /* Blocking call that blocks till all shires ack command */
         status = CM_Iface_Multicast_Send(
-            launch_args.kernel.shire_mask, (cm_iface_message_t *)&launch_args);
+            launch_args.kernel.shire_mask, (cm_iface_message_t *)&launch_args, &failed_cm_shires_mask);
 
         if (status == STATUS_SUCCESS)
         {
@@ -670,6 +674,11 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
             {
                 atomic_store_local_64(&kernel->umode_trace_buffer_ptr, 0);
             }
+        }
+        else if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
+        {
+            /* Send command to CM RT to disable Trace and evict Trace buffer. */
+            (void) Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
         }
         else
         {
@@ -728,6 +737,8 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
 
         if (status == STATUS_SUCCESS)
         {
+            uint64_t failed_cm_shires_mask;
+
             /* Update the kernel state to aborted */
             atomic_store_local_32(
                 &KW_CB.kernels[slot_index].kernel_state, KERNEL_STATE_ABORTED_BY_HOST);
@@ -741,7 +752,7 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
 
             /* Blocking call that blocks till all shires ack */
             status = CM_Iface_Multicast_Send(
-                atomic_load_local_64(&KW_CB.kernels[slot_index].kernel_shire_mask), &message);
+                atomic_load_local_64(&KW_CB.kernels[slot_index].kernel_shire_mask), &message, &failed_cm_shires_mask);
 
             /* Construct and transmit kernel abort response to host */
             abort_rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
@@ -752,6 +763,11 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
             if (status == STATUS_SUCCESS)
             {
                 abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS;
+            }
+            else if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
+            {
+                /* Send command to CM RT to disable Trace and evict Trace buffer. */
+                (void) Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
             }
             else
             {
@@ -938,57 +954,47 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 *   INPUTS
 *
 *       kernel_shire_mask  Kernel shire mask
-*       reset_on_failure   Reset CMs on abort multicast failure
 *
 *   OUTPUTS
 *
 *       int32_t             status success or error
 *
 ***********************************************************************/
-static inline int32_t kw_cm_to_mm_kernel_force_abort(
-    uint64_t kernel_shire_mask, bool reset_on_failure)
+static inline int32_t kw_cm_to_mm_kernel_force_abort(uint64_t kernel_shire_mask)
 {
     cm_iface_message_t abort_msg = { .header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT };
     int32_t status;
-
+    uint64_t failed_cm_shires_mask;
     Log_Write(LOG_LEVEL_DEBUG, "KW:MM->CM:Sending abort multicast msg.\r\n");
 
     /* Blocking call (with timeout) that blocks till all shires ack */
-    status = CM_Iface_Multicast_Send(kernel_shire_mask, &abort_msg);
+    status = CM_Iface_Multicast_Send(kernel_shire_mask, &abort_msg, &failed_cm_shires_mask);
 
     /* Verify that there is no abort hang situation recovery failure */
     if (status != STATUS_SUCCESS)
     {
         Log_Write(LOG_LEVEL_ERROR, "KW:MM->CM:Abort Cmd hanged.status:%d\r\n", status);
 
-        int32_t reset_status = STATUS_SUCCESS;
-        uint64_t available_shires = 0;
+        int32_t internal_status = STATUS_SUCCESS;
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
 
-        if (reset_on_failure)
+        if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
         {
-            Log_Write(LOG_LEVEL_ERROR,
-                "KW:MM->CM:Abort hanged, doing reset of shires:status:%d\r\n", status);
+            /* Send Async error event to Host runtime. */
+            internal_status = Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
 
-            /* Get the mask for available shires in the device */
-            available_shires = CW_Get_Physically_Enabled_Shires();
-
-            /* Wait for all shires to boot up */
-            reset_status = CW_CM_Configure_And_Wait_For_Boot(available_shires);
-
-            if (reset_status != STATUS_SUCCESS)
+            if (internal_status != STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_ERROR, "KW:CW: Unable to Boot all Minions (status: %d)\r\n",
-                    reset_status);
-                reset_status = KW_ERROR_CW_MINIONS_BOOT_FAILED;
-                /*TODO: MM reset through SP should be implemented */
+                Log_Write(LOG_LEVEL_ERROR,
+                    "CW: Failed in Device Async Error handling (status: %d)\r\n",
+                    internal_status);
             }
         }
 
         /* Map the reset status to return status. */
-        if (reset_status != STATUS_SUCCESS)
+        if (internal_status != STATUS_SUCCESS)
         {
-            status = reset_status;
+            status = internal_status;
         }
         else
         {
@@ -1086,6 +1092,7 @@ static inline void kw_cm_to_mm_process_messages(
                     "KW[%d]:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%" PRId32 "\r\n",
                     kw_idx, exception->shire_id);
 
+                /* Save shire mask which took exception. */
                 if (!status_internal->cw_exception)
                 {
                     status_internal->cw_exception = true;
@@ -1104,7 +1111,7 @@ static inline void kw_cm_to_mm_process_messages(
                     kw_idx, error_mesg->hart_id);
 
                 /* Fatal error received. Try to recover kernel shires by sending abort message */
-                status_internal->status = kw_cm_to_mm_kernel_force_abort(kernel_shire_mask, false);
+                status_internal->status = kw_cm_to_mm_kernel_force_abort(kernel_shire_mask);
 
                 /* Set error and done flag */
                 status_internal->cw_error = true;
@@ -1274,7 +1281,7 @@ void KW_Launch(uint32_t kw_idx)
                 /* Multicast abort to shires associated with current kernel slot
                 This abort should forcefully abort all the shires involved in
                 kernel launch and if it times out as well, do a reset of the shires. */
-                status_internal.status = kw_cm_to_mm_kernel_force_abort(kernel_shire_mask, true);
+                status_internal.status = kw_cm_to_mm_kernel_force_abort(kernel_shire_mask);
 
                 /* Since we did a multicast to CMs in above call, being pessimistic here
                 and disabling the wait for IPI to make sure we don't miss any pending message. */

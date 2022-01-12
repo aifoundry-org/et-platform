@@ -29,6 +29,20 @@
 */
 #define TIMEOUT_MM_CM_MSG(x) (x * 1U)
 
+/*! \typedef cm_state_e
+    \brief CM current state
+*/
+typedef uint32_t cm_state_e;
+
+/*! \enum cm_state
+    \brief Possible CM states.
+*/
+enum cm_state {
+    CM_STATE_NORMAL,    /**< CM is operation in normal state. */
+    CM_STATE_HANG,      /**< CM is Hung. */
+    CM_STATE_EXCEPTION  /**< CM took Exception. */
+};
+
 /*! \fn int32_t CM_Iface_Init(void)
     \brief Function to initialize messaging infrastucture to compute
     minions.
@@ -36,8 +50,7 @@
 */
 int32_t CM_Iface_Init(void);
 
-/*! \fn int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask,
-    cm_iface_message_t *const message)
+/*! \fn int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message, uint64_t *failed_cm_shire_mask)
     \brief Function to multicast a message to the compute shires
     specified
     by the shire mask
@@ -45,7 +58,7 @@ int32_t CM_Iface_Init(void);
     \param message Pointer to message buffer
     \return Status success or error
 */
-int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message);
+int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message, uint64_t *failed_cm_shire_mask);
 
 /*! \fn int32_t CM_Iface_Unicast_Receive(uint64_t cb_idx,
     cm_iface_message_t *const message)
@@ -58,5 +71,7 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
     User needs to use the respective locking APIs if thread safety is required.
 */
 int32_t CM_Iface_Unicast_Receive(uint64_t cb_idx, cm_iface_message_t *const message);
+
+int32_t CM_Iface_Update_CM_State(cm_state_e expected, cm_state_e desired);
 
 #endif

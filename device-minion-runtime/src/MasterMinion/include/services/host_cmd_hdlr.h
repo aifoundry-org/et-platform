@@ -43,4 +43,6 @@ int32_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t sta
 */
 int32_t Host_HP_Command_Handler(void *command_buffer, uint8_t sqw_hp_idx);
 
+int32_t Device_Async_Error_Event_Handler(uint8_t error_type, uint32_t payload);
+
 #endif /* HOST_CMD_HDLR_H */

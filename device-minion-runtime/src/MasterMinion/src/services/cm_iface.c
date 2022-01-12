@@ -58,6 +58,7 @@
 typedef struct mm_cm_iface_cb {
     spinlock_t mm_to_cm_broadcast_lock;
     uint32_t timeout_flag;
+    cm_state_e cm_state;
     uint8_t sw_timer_idx;
 } mm_cm_iface_cb_t;
 
@@ -122,6 +123,7 @@ int32_t CM_Iface_Init(void)
 
     init_local_spinlock(&MM_CM_CB.mm_to_cm_broadcast_lock, 0);
     atomic_store_local_32(&MM_CM_CB.timeout_flag, 0);
+    atomic_store_local_32(&MM_CM_CB.cm_state, CM_STATE_NORMAL);
 
     /* Reset the Global MM to CM Iface message number. */
     atomic_store_local_32(&MM_CM_Broadcast_Last_Number, 1);
@@ -152,6 +154,47 @@ int32_t CM_Iface_Init(void)
 *
 *   FUNCTION
 *
+*       CM_Iface_Update_CM_State
+*
+*   DESCRIPTION
+*
+*       Function to receive any message from CM to MM unicast buffer.
+*
+*   INPUTS
+*
+*       expected  Expected current state of CM
+*       desired   Desired new state of CM, it is updated only when
+*                 current state is expected
+*
+*   OUTPUTS
+*
+*       status    status success or failure
+*
+***********************************************************************/
+int32_t CM_Iface_Update_CM_State(cm_state_e expected, cm_state_e desired)
+{
+    cm_state_e current_state;
+    int32_t status;
+
+    /* If CM state is expected, then updated CM state to new desired state */
+    current_state = atomic_compare_and_exchange_local_32(&MM_CM_CB.cm_state, expected, desired);
+
+    if (current_state == expected)
+    {
+        status = STATUS_SUCCESS;
+    }
+    else
+    {
+        status = CM_IFACE_CM_IN_BAD_STATE;
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       CM_Iface_Multicast_Send
 *
 *   DESCRIPTION
@@ -162,15 +205,17 @@ int32_t CM_Iface_Init(void)
 *
 *   INPUTS
 *
-*       dest_shire_mask    Shire mask to multicast message to
-*       message            Pointer to message
+*       dest_shire_mask       Shire mask to multicast message to
+*       message               Pointer to message
+*       failed_cm_shire_mask  (Optional) Pointer to return mask for shires
+*                             which failed to send back Ack.
 *
 *   OUTPUTS
 *
 *       status             Success or error
 *
 ***********************************************************************/
-int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message)
+int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message, uint64_t *failed_cm_shire_mask)
 {
     int32_t sw_timer_idx;
     uint8_t thread_id = get_hart_id() & (HARTS_PER_SHIRE - 1);
@@ -179,8 +224,13 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
 
     Log_Write(LOG_LEVEL_DEBUG, "CM_Iface_Multicast_Send:Sending multicast msg\r\n");
 
+    if(CM_STATE_NORMAL != atomic_load_local_32(&MM_CM_CB.cm_state))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "CM_Iface_Multicast_Send:CM in Bad state\r\n");
+        return CM_IFACE_CM_IN_BAD_STATE;
+    }
     /* Verify the shire mask */
-    if (dest_shire_mask == 0)
+    else if (dest_shire_mask == 0)
     {
         return CM_IFACE_MULTICAST_INAVLID_SHIRE_MASK;
     }
@@ -224,13 +274,13 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
         }
 
         /* Poll wait until all the receiver Shires have ACK'd or the timeout occurs.
-    Then it's safe to send another broadcast message. */
+           Then it's safe to send another broadcast message. */
         do
         {
             /* Read the global timeout flag to see for MM->CM message timeout */
             timeout_flag = atomic_compare_and_exchange_local_32(&MM_CM_CB.timeout_flag, 1, 0);
 
-            /* Continue to poll until the all shires has sent ack (clear their corresponding bit mask) timeout has occurred */
+        /* Continue to poll until the all shires has sent ack (clear their corresponding bit mask) timeout has occurred */
         } while ((atomic_load_global_64(&mm_to_cm_broadcast_message_ctrl_ptr->shire_mask) != 0) &&
                  (timeout_flag == 0));
 
@@ -240,11 +290,18 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
         /* Check for timeout status */
         if (timeout_flag != 0)
         {
+            /* If CM state is normal, then set CM state hanged */
+            atomic_compare_and_exchange_local_32(&MM_CM_CB.cm_state, CM_STATE_NORMAL, CM_STATE_HANG);
             status = CM_IFACE_MULTICAST_TIMEOUT_EXPIRED;
+            uint64_t pending_shires = atomic_load_global_64(&mm_to_cm_broadcast_message_ctrl_ptr->shire_mask);
             Log_Write(LOG_LEVEL_ERROR, "MM->CM Multicast timeout abort. Status:%d\r\n", status);
             Log_Write(LOG_LEVEL_ERROR, "MM->CM:msg_num=%u:msg_id=%u:pending shire_mask=0x%lx\r\n",
-                message->header.number, message->header.id,
-                atomic_load_global_64(&mm_to_cm_broadcast_message_ctrl_ptr->shire_mask));
+                message->header.number, message->header.id, pending_shires);
+
+            if (failed_cm_shire_mask != NULL)
+            {
+                *failed_cm_shire_mask = pending_shires;
+            }
         }
         else
         {

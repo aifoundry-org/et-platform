@@ -274,6 +274,119 @@ static inline int32_t abort_cmd_handler(void *command_buffer, uint8_t sqw_hp_idx
 *
 *   FUNCTION
 *
+*       cm_reset_cmd_handler
+*
+*   DESCRIPTION
+*
+*       Process host CM reset command, and transmit response.
+*
+*   INPUTS
+*
+*       command_buffer   Buffer containing command to process
+*       sqw_hp_idx       HP Submission queue index
+*
+*   OUTPUTS
+*
+*       int32_t           Successful status or error code.
+*
+***********************************************************************/
+static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_idx)
+{
+    const struct device_ops_cm_reset_cmd_t *cmd = (struct device_ops_cm_reset_cmd_t *)command_buffer;
+    struct device_ops_cm_reset_rsp_t rsp;
+    int32_t status = STATUS_SUCCESS;
+
+    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_CMD, sqw_hp_idx,
+        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
+
+    Log_Write(LOG_LEVEL_DEBUG, "SQ_HP[%d] cm_reset_cmd_handler:Processing:CM_RESET_CMD\r\n", sqw_hp_idx);
+
+    /* Construct and transmit response */
+    rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
+    rsp.response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_RSP;
+
+    TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_CMD, sqw_hp_idx,
+        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
+
+    /* Check if requested shires are physically available */
+    if (cmd->cm_shire_mask == (cmd->cm_shire_mask & CW_Get_Physically_Enabled_Shires()))
+    {
+        /* Reset all and Wait for all shires to boot up. */
+        status = CW_CM_Configure_And_Wait_For_Boot(CW_Get_Physically_Enabled_Shires());
+
+        if (status != STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "KW:CW: Unable to Boot all Minions (status: %d)\r\n",
+                status);
+            status = HOST_CMD_ERROR_CM_RESET_FAILED;
+        }
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "KW:Invalid shire mask:0x%lx, physically available shire:0x%lx\r\n",
+            cmd->cm_shire_mask, CW_Get_Physically_Enabled_Shires());
+        status = HOST_CMD_ERROR_INVALID_CM_SHIRE_MASK;
+    }
+
+    /* Map device errors on ops API errors. */
+    if (status == STATUS_SUCCESS)
+    {
+        rsp.status = DEV_OPS_API_CM_RESET_RESPONSE_SUCCESS;
+    }
+    else if (status == HOST_CMD_ERROR_CM_RESET_FAILED)
+    {
+        rsp.status = DEV_OPS_API_CM_RESET_RESPONSE_CM_RESET_FAILED;
+    }
+    else if (status == HOST_CMD_ERROR_INVALID_CM_SHIRE_MASK)
+    {
+        rsp.status = DEV_OPS_API_CM_RESET_RESPONSE_INVALID_SHIRE_MASK;
+    }
+    else
+    {
+        rsp.status = DEV_OPS_API_CM_RESET_RESPONSE_ERROR;
+    }
+
+#if TEST_FRAMEWORK
+    /* For SP2MM command response, we need to provide the total size = header + payload */
+    rsp.response_info.rsp_hdr.size = sizeof(struct device_ops_cm_reset_rsp_t);
+    status = SP_Iface_Push_Rsp_To_SP2MM_CQ(&rsp, sizeof(rsp));
+#else
+    rsp.response_info.rsp_hdr.size =
+        sizeof(struct device_ops_cm_reset_rsp_t) - sizeof(struct cmn_header_t);
+    status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
+#endif
+
+    if (status == STATUS_SUCCESS)
+    {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_CMD, sqw_hp_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
+
+        Log_Write(LOG_LEVEL_DEBUG,
+            "SQ_HP[%d] cm_reset_cmd_handler:Pushed:CM Reset response:tag_id=%x->Host_CQ\r\n", sqw_hp_idx,
+            rsp.response_info.rsp_hdr.tag_id);
+    }
+    else
+    {
+        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_CMD, sqw_hp_idx,
+            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+
+        Log_Write(LOG_LEVEL_ERROR,
+            "SQ_HP[%d] cm_reset_cmd_handler:Tag_ID=%u:HostIface:Push:Failed\r\n", sqw_hp_idx,
+            cmd->command_info.cmd_hdr.tag_id);
+
+        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+    }
+#if !TEST_FRAMEWORK
+    /* Decrement the SQW HP count */
+    SQW_HP_Decrement_Command_Count(sqw_hp_idx);
+#endif
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       compatibility_cmd_handler
 *
 *   DESCRIPTION
@@ -981,6 +1094,7 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
 {
     int32_t status = STATUS_SUCCESS;
     uint64_t cm_shire_mask;
+    uint64_t failed_cm_shires_mask;
 
     /* If flags are set to extract both MM and CM Trace buffers. */
     if ((cmd->command_info.cmd_hdr.flags & CMD_FLAGS_MMFW_TRACEBUF) &&
@@ -1005,9 +1119,15 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
             };
 
             /* Send command to CM RT to evict Trace buffer. */
-            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
+            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg, &failed_cm_shires_mask);
 
-            if (status != STATUS_SUCCESS)
+            /* If CM hung then send Async event to host runtime. */
+             if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
+            {
+                /* Send command to CM RT to disable Trace and evict Trace buffer. */
+                (void) Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
+            }
+            else if (status != STATUS_SUCCESS)
             {
                 status = DMAW_ERROR_CM_IFACE_MULTICAST_FAILED;
             }
@@ -1053,9 +1173,14 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
             };
 
             /* Send command to CM RT to evict Trace buffer. */
-            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
+            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg, &failed_cm_shires_mask);
 
-            if (status != STATUS_SUCCESS)
+            if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
+            {
+                /* Send command to CM RT to disable Trace and evict Trace buffer. */
+                (void) Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
+            }
+            else if (status != STATUS_SUCCESS)
             {
                 status = DMAW_ERROR_CM_IFACE_MULTICAST_FAILED;
             }
@@ -1573,6 +1698,7 @@ static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t
         cm_msg.thread_mask = Trace_Get_CM_Thread_Mask();
 
         uint64_t cm_shire_mask = Trace_Get_CM_Shire_Mask();
+        uint64_t failed_cm_shires_mask;
 
         if ((cm_shire_mask & CW_Get_Booted_Shires()) != cm_shire_mask)
         {
@@ -1581,9 +1707,14 @@ static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t
         else
         {
             /* Send command to CM RT to disable Trace and evict Trace buffer. */
-            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
+            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg, &failed_cm_shires_mask);
 
-            if (status != STATUS_SUCCESS)
+            if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
+            {
+                /* Send command to CM RT to disable Trace and evict Trace buffer. */
+                (void) Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
+            }
+            else if (status != STATUS_SUCCESS)
             {
                 status = TRACE_ERROR_CM_IFACE_MULTICAST_FAILED;
             }
@@ -1815,25 +1946,25 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
 *
 *   INPUTS
 *
-*       command_buffer   Buffer containing command info
-*       sqw_idx          Submission queue index (normal or HP)
+*       error_type      Error type
+*       payload         (Optional) Payload.
 *
 *   OUTPUTS
 *
-*       None.
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline void device_async_error_event_handler(void *command_buffer, uint8_t error_type)
+int32_t Device_Async_Error_Event_Handler(uint8_t error_type, uint32_t payload)
 {
-    const struct cmn_header_t *cmd_header = (struct cmn_header_t *)command_buffer;
     struct device_ops_device_fw_error_t event;
     int32_t status;
 
     /* Fill the event */
-    event.event_info.event_hdr.tag_id = cmd_header->tag_id;
+    event.event_info.event_hdr.tag_id = 0xdead;
     event.event_info.event_hdr.size = sizeof(event) - sizeof(struct cmn_header_t);
     event.event_info.event_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_ERROR;
     event.error_type = error_type;
+    event.payload = payload;
 
     /* Push the event to CQ */
     status = Host_Iface_CQ_Push_Cmd(0, &event, sizeof(event));
@@ -1845,6 +1976,8 @@ static inline void device_async_error_event_handler(void *command_buffer, uint8_
 
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
+
+    return status;
 }
 
 /************************************************************************
@@ -1909,8 +2042,7 @@ int32_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t sta
                 hdr->cmd_hdr.tag_id, sqw_idx);
 
             /* Send unsupported command error event to host */
-            device_async_error_event_handler(
-                command_buffer, DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND);
+            Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND, 0);
 
             /* Decrement commands count being processed by given SQW */
             SQW_Decrement_Command_Count(sqw_idx);
@@ -1952,13 +2084,15 @@ int32_t Host_HP_Command_Handler(void *command_buffer, uint8_t sqw_hp_idx)
         case DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD:
             status = abort_cmd_handler(command_buffer, sqw_hp_idx);
             break;
+        case DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_CMD:
+            status = cm_reset_cmd_handler(command_buffer, sqw_hp_idx);
+            break;
         default:
             Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW_HP[%d]:HostCmdHdlr_HP:UnsupportedCmd\r\n",
                 hdr->cmd_hdr.tag_id, sqw_hp_idx);
 
             /* Send unsupported command error event to host */
-            device_async_error_event_handler(
-                command_buffer, DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND);
+            Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND, 0);
 
             /* Decrement commands count being processed by given HP SQW */
             SQW_HP_Decrement_Command_Count(sqw_hp_idx);

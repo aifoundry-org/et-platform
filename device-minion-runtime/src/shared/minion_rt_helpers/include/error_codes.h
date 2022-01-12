@@ -354,6 +354,11 @@ RESERVED
 */
 #define CM_IFACE_MULTICAST_TIMER_REGISTER_FAILED -1702
 
+/*! \def CM_IFACE_CM_IN_BAD_STATE
+    \brief CM Iface error - CM is in bad state.
+*/
+#define CM_IFACE_CM_IN_BAD_STATE -1703
+
 /***********************************************
  * Define Host command handler's error codes.  *
  ***********************************************/
@@ -393,6 +398,16 @@ RESERVED
     \brief Host command handler - Invalid Command ID
 */
 #define HOST_CMD_ERROR_INVALID_CMD_ID -1906
+
+/*! \def HOST_CMD_ERROR_INVALID_CM_SHIRE_MASK
+    \brief Host command handler - Invalid Shire mask
+*/
+#define HOST_CMD_ERROR_INVALID_CM_SHIRE_MASK -1907
+
+/*! \def HOST_CMD_ERROR_CM_RESET_FAILED
+    \brief Host command handler - Failed to reset CM shires
+*/
+#define HOST_CMD_ERROR_CM_RESET_FAILED -1908
 
 /***********************************************
  * Define Software Timer error codes.  *

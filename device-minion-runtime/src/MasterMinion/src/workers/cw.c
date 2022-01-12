@@ -38,12 +38,14 @@
 #include <transports/mm_cm_iface/message_types.h>
 
 /* mm specific headers */
+#include "config/mm_config.h"
 #include "drivers/plic.h"
 #include "services/cm_iface.h"
 #include "services/log.h"
 #include "services/sp_iface.h"
 #include "services/sw_timer.h"
 #include "workers/cw.h"
+#include "services/host_cmd_hdlr.h"
 
 /* mm_rt_helpers */
 #include "error_codes.h"
@@ -60,6 +62,7 @@ typedef struct cw_cb_t_ {
     uint64_t booted_shires_mask;
     uint64_t shire_state;
     uint32_t timeout_flag;
+    spinlock_t cm_reset_lock;
 } cw_cb_t;
 
 /*! \var cw_cb_t CW_CB
@@ -151,6 +154,9 @@ int32_t CW_Init(void)
 
     /* Initialize Global CW_CB */
     atomic_store_local_64(&CW_CB.physically_avail_shires_mask, shire_mask);
+
+    /* Initialize the spinlock */
+    init_local_spinlock(&CW_CB.cm_reset_lock, 0);
 
     /* Bring up Compute Workers */
     syscall(SYSCALL_CONFIGURE_COMPUTE_MINION, shire_mask, lvdpll_strap, 0);
@@ -287,6 +293,8 @@ void CW_Process_CM_SMode_Messages(void)
             }
             case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION:
             {
+                /* Update CM State to exception if it was not already in bad condition. */
+                CM_Iface_Update_CM_State(CM_STATE_NORMAL, CM_STATE_EXCEPTION);
                 const cm_to_mm_message_exception_t *exception =
                     (cm_to_mm_message_exception_t *)&message;
 
@@ -296,18 +304,14 @@ void CW_Process_CM_SMode_Messages(void)
                 /* Report SP of CM FW exception */
                 SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RUNTIME_EXCEPTION_ERROR);
 
-                /* Get the mask for available shires in the device */
-                uint64_t available_shires = CW_Get_Physically_Enabled_Shires();
-                int32_t reset_status;
+                /* Send Async error event to Host runtime. */
+                status = Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_EXCEPTION, (uint32_t)exception->hart_id);
 
-                /* Wait for all shires to boot up */
-                reset_status = CW_CM_Configure_And_Wait_For_Boot(available_shires);
-
-                if (reset_status != STATUS_SUCCESS)
+                if (status != STATUS_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_ERROR,
-                        "CW: Unable to reset all the available shires in device (status: %d)\r\n",
-                        reset_status);
+                        "CW: Failed in Device Async Error handling (status: %d)\r\n",
+                        status);
                 }
 
                 break;
@@ -476,6 +480,12 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
     int32_t status = STATUS_SUCCESS;
     int32_t sw_timer_idx;
 
+    /*TODO: Do not reset MM Shire until we have support to reset one neigh in MM shire .*/
+    shire_mask = shire_mask & (~MM_SHIRE_MASK);
+
+    /* Acquire the lock */
+    acquire_local_spinlock(&CW_CB.cm_reset_lock);
+
     CW_RESET_CB(shire_mask)
 
     /* Put all Compute Minion Neigh Logic into reset */
@@ -513,6 +523,12 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
             exit_loop = true;
         }
     } while (!exit_loop);
+
+    /* Release the lock */
+    release_local_spinlock(&CW_CB.cm_reset_lock);
+
+    /*TODO: Do not reset MM Shire until we have support to reset one neigh in MM shire .*/
+    atomic_compare_and_exchange_local_64(&CW_CB.booted_shires_mask, shire_mask, (shire_mask | MM_SHIRE_MASK));
 
     if (sw_timer_idx >= 0)
     {
