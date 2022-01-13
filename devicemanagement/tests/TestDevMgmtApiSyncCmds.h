@@ -232,7 +232,7 @@ protected:
         DM_LOG(INFO) << "Unknown target: " << envTarget << ", using default target (silicon)";
       }
     }
-    DM_LOG(INFO) << "Target: " << envTarget;
+    DM_LOG(INFO) << "Target: " << (!envTarget ? "silicon" : envTarget);
     return currentTarget;
   }
 
