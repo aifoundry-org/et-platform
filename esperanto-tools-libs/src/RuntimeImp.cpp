@@ -14,6 +14,7 @@
 #include "MemoryManager.h"
 #include "ScopedProfileEvent.h"
 #include "StreamManager.h"
+#include "Utils.h"
 #include "dma/CmaManager.h"
 #include "dma/DmaBufferImp.h"
 
@@ -159,7 +160,7 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
       if (!basePhysicalAddressCalculated) {
         basePhysicalAddress = loadAddress - offset;
         basePhysicalAddressCalculated = true;
-        profileEvent.setLoadAddress(reinterpret_cast<uint64_t>(deviceBuffer)-basePhysicalAddress);
+        profileEvent.setLoadAddress(reinterpret_cast<uint64_t>(deviceBuffer) - basePhysicalAddress);
       }
       // allocate a dmabuffer to do the copy
       buffers.emplace_back(allocateDmaBuffer(DeviceId{stInfo.device_}, memSize, true));
@@ -455,12 +456,15 @@ std::unique_ptr<IDmaBuffer> RuntimeImp::allocateDmaBuffer(DeviceId device, size_
 EventId RuntimeImp::setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
                                        uint32_t filterMask, bool barrier) {
 
+  RT_LOG(WARNING) << "Setup device tracing have no effect and will likely be deprecated in the future.";
   std::unique_lock lock(mutex_);
 
-  auto streamInfo = streamManager_.getStreamInfo(stream);
   auto evt = eventManager_.getNextId();
   streamManager_.addEvent(stream, evt);
-
+  unused(shireMask, threadMask, eventMask, filterMask, barrier);
+#if 0
+  https://esperantotech.atlassian.net/browse/SW-10843. Until we decide how is the final workflow for mm/cm traces keep this code here
+  auto streamInfo = streamManager_.getStreamInfo(stream);
   std::vector<std::byte> cmdBase(sizeof(device_ops_api::device_ops_trace_rt_config_cmd_t));
   auto& cmd = *reinterpret_cast<device_ops_api::device_ops_trace_rt_config_cmd_t*>(cmdBase.data());
   std::memset(&cmd, 0, sizeof(cmd));
@@ -475,11 +479,13 @@ EventId RuntimeImp::setupDeviceTracing(StreamId stream, uint32_t shireMask, uint
     cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
   commandSender.send(Command{cmdBase, commandSender, evt, false, true});
+#endif
+  dispatch(evt);
   Sync(evt);
   return evt;
 }
 
-EventId RuntimeImp::startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput, bool barrier) {
+EventId RuntimeImp::startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput, bool) {
   std::unique_lock lock(mutex_);
   if (!mmOutput && !cmOutput) {
     throw Exception("At least one output stream must be provided in order to record traces");
@@ -489,7 +495,8 @@ EventId RuntimeImp::startDeviceTracing(StreamId stream, std::ostream* mmOutput, 
   streamManager_.addEvent(stream, evt);
 
   auto& deviceTracing = find(deviceTracing_, DeviceId{streamInfo.device_})->second;
-
+#if 0
+https://esperantotech.atlassian.net/browse/SW-10843. Until we decide how is the final workflow for mm/cm traces keep this code here
   std::vector<std::byte> cmdBase(sizeof(device_ops_api::device_ops_trace_rt_control_cmd_t));
   auto& cmd = *reinterpret_cast<device_ops_api::device_ops_trace_rt_control_cmd_t*>(cmdBase.data());
   std::memset(&cmd, 0, sizeof(cmd));
@@ -507,8 +514,10 @@ EventId RuntimeImp::startDeviceTracing(StreamId stream, std::ostream* mmOutput, 
     cmd.command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
   commandSender.send(Command{cmdBase, commandSender, evt, false, true});
+#endif
   deviceTracing.cmOutput_ = cmOutput;
   deviceTracing.mmOutput_ = mmOutput;
+  dispatch(evt);
   Sync(evt);
   return evt;
 }
@@ -536,11 +545,11 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
   }
   if (deviceTracing.mmOutput_) {
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_MMFW_TRACEBUF;
-    cmdPtr->size += mmTraceSize;
+    cmdPtr->size += static_cast<uint32_t>(mmTraceSize);
   }
   if (deviceTracing.cmOutput_) {
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_CMFW_TRACEBUF;
-    cmdPtr->size += cmTraceSize;
+    cmdPtr->size += static_cast<uint32_t>(cmTraceSize);
   }
   RT_VLOG(LOW) << "Retrieving device traces. Size: " << std::hex << cmdPtr->size;
   cmdPtr->dst_host_virt_addr = cmdPtr->dst_host_phy_addr =

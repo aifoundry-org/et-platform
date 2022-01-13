@@ -33,8 +33,6 @@ TEST_F(FwTracesTest, CM_MM_Traces) {
   auto stream = runtime_->createStream(dev);
   auto random_trash = std::vector<int>();
 
-  // enable device traces
-  runtime_->setupDeviceTracing(stream, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
   std::stringstream cmOutput;
   std::stringstream mmOutput;
 
