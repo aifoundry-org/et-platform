@@ -269,14 +269,20 @@ static Coop_minion_mask coop_tload_minion_mask(uint32_t tcoop)
 #ifdef SYS_EMU
 static TLoad& coop_tload_find_partner(Hart& hart, const TLoad& tload)
 {
-    const auto is_coop_partner = [&tload](const TLoad& other) {
-        return (other.state == TLoad::State::waiting_coop) && (other.tcoop == tload.tcoop);
-    };
-    auto it = std::find_if(hart.core->tload_a.begin(), hart.core->tload_a.end(), is_coop_partner);
-    if (it == hart.core->tload_a.end()) {
-        throw std::runtime_error("unable to match cooperative tensor_loads");
+    const bool tenb = (tload.value >> 52) & 0x1;
+    const int  id   = tload.stride & 0x1;
+    auto& other = tenb ? hart.core->tload_b : hart.core->tload_a[id];
+    assert(other.state == TLoad::State::waiting_coop);
+    if (tload.tcoop != other.tcoop) {
+        LOG_HART(ERR, hart, "coop tload: tensor_coop does not match: expected 0x%08x, found 0x%08x", tload.tcoop, other.tcoop);
     }
-    return *it;
+    if (tload.value != other.value) {
+        LOG_HART(WARN, hart, "coop tload: CSR does not match: expected 0x%016lx, found 0x%016lx", tload.value, other.value);
+    }
+    if (tload.stride != other.stride) {
+        LOG_HART(WARN, hart, "coop tload: x31 does not match: expected 0x%016lx, found 0x%016lx", tload.stride, other.stride);
+    }
+    return other;
 }
 #endif
 
@@ -435,9 +441,7 @@ void tensor_load_start(Hart& cpu, uint64_t control)
                     continue;
                 }
                 Hart& hart = cpu.chip->cpu[hart0 + m * EMU_THREADS_PER_MINION];
-                auto& other_tload = tenb ? hart.core->tload_b
-                                         : coop_tload_find_partner(hart, tload);
-                assert(other_tload.state == TLoad::State::waiting_coop);
+                auto& other_tload = coop_tload_find_partner(hart, tload);
                 other_tload.state = TLoad::State::ready;
             }
         }
