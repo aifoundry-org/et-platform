@@ -1,93 +1,64 @@
-stages:
-  - build
-  - package
-
 include:
   - project: 'software/conan/conan-ci-pipelines-common'
-    file: 'conan-config.yaml'
-  - project: 'software/conan/conan-ci-pipelines-common'
-    file: 'build.yaml'
-  - project: 'software/conan/conan-ci-pipelines-common'
-    file: 'package.yaml'
+    ref: master
+    file: 'mr/common.yaml'
 
-#### build
+variables:
+  GIT_SUBMODULE_STRATEGY: none
+  GET_SOURCES_ATTEMPTS: 2
+  ARTIFACT_DOWNLOAD_ATTEMPTS: 2
 
-build:system_pkg_manager:
-  stage: build
-  tags:
-    - docker
-  image: ubuntu:latest
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH'
-  variables:
-    DEBIAN_FRONTEND: noninteractive
-  parallel:
-    matrix:
-      - COMPILER: [ gcc ]
-        COMPILER_VERSION: [ 7 ]
-        BUILD_TYPE: [ Release, Debug ]
-        PROFILING: [ 1 ]
-        BACKTRACE: [ 1 ]
-  before_script:
-    - apt-get update -qq
-    - apt-get install -qq -y --no-install-recommends ninja-build build-essential gcc-${COMPILER_VERSION} g++-${COMPILER_VERSION} cmake libunwind-dev libgoogle-glog-dev
-    - mkdir build
-    - cd build
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+gen_conan_build_pipeline:
+  extends: .template_job_k8s_with_conan_ci_pipelines_common
+  stage: .pre
+  image: conanio/gcc7-ubuntu16.04
   script:
-    - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DPROFILING=${PROFILING} -DBACKGRACE=${BACKTRACE} -G Ninja ..
-    - ninja
-  allow_failure: true
 
-build:conan:
+    # generate pipeline
+    - |
+      conan-ci-pipelines-common/gen-build-pipeline.py \
+          ci/src/conan.yaml \
+          conan-ci-pipelines-common/consumers.yaml \
+          conan-ci-pipelines-common/configs.yaml \
+          -o build-pipeline.yaml
+
+    - sh -c -x "${CMD_AFTER_GENERATE_PIPELINE}"
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+conan_build_pipeline:
   stage: build
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME != $CI_DEFAULT_BRANCH'
+  needs:
+    - gen_conan_build_pipeline
   variables:
-    DOCKER_IMAGE: conanio/${COMPILER}
-  parallel:
-    matrix:
-      - COMPILER: [ gcc7 ]
-        BUILD_TYPE: [ Release, Debug ]
-        PROFILING: [ 'False', 'True' ]
-        BACKTRACE: [ 'False', 'True' ]
-      - COMPILER: [ clang10 ]
-        BUILD_TYPE: [ Release, Debug ]
-        PROFILING: [ 'False' ]
-        BACKTRACE: [ 'False' ]
-  script: 
-    # remove custom FindXXX.cmake modules when using conan 
-    - cd ..
-    - conan install . -if=build -s build_type=${BUILD_TYPE} -o sw-sysemu:profiling=${PROFILING} -o sw-sysemu:backtrace=${BACKTRACE} --build missing
-    - conan build . -if=build
+    UPSTREAM_PROJECT_NAME:      ${CI_PROJECT_NAME}
+    UPSTREAM_CI_PIPELINE_ID:    ${CI_PIPELINE_ID}
+    CONAN_CI_PIPELINES_COMMON_REF: ${CONAN_CI_PIPELINES_COMMON_REF}
+    CONAN_CONFIG_EXTRA_ARGS: ${CONAN_CONFIG_EXTRA_ARGS}
+  trigger:
+    include:
+      - artifact: build-pipeline.yaml
+        job: gen_conan_build_pipeline
+    strategy: depend
 
-#### package
+###############################################################################
+###############################################################################
+###############################################################################
 
-package:
-  stage: package
-  rules:
-    - if: $CI_COMMIT_REF_NAME =~ /extract-etsoc-sysemu-$/
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH'
-  variables:
-    DOCKER_IMAGE: conanio/${COMPILER}${COMPILER_VERSION}
-    CONAN_STABLE_BRANCH_PATTERN: "develop/sw-sysemu"
-    CONAN_UPLOAD_FORCE: 0
-    CPT_SUMMARY_FILE: "cpt_summary_file.json"
-    CI_BUILD_REF_NAME: ${CI_COMMIT_REF_NAME}
-  parallel:
-    matrix:
-      - COMPILER: [ gcc ]
-        COMPILER_VERSION: [ 7 ]
-        CONAN_GCC_VERSIONS: [ 7 ]
-      - COMPILER: [ clang ]
-        COMPILER_VERSION: [ 10 ]
-        CONAN_CLANG_VERSIONS: [ 10 ]
-  script:
-    - echo ${CI_BUILD_REF_NAME}
-    - ./conan/ci/package.sh
-  artifacts:
-    paths:
-      - ${CPT_SUMMARY_FILE}
-    expire_in: 1 week
+on_success:promote:
+  extends: .template_job_k8s_with_conan_ci_pipelines_common_on_success_perform_promote
+  stage: deploy
+  needs:
+    - gen_conan_build_pipeline
+    - conan_build_pipeline
 
-
+on_failure:report:
+  extends: .template_job_k8s_bare_minimum_on_failure_report
+  stage: deploy

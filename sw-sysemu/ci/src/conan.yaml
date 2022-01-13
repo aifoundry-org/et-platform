@@ -1,0 +1,4 @@
+projects:
+  "sw-sysemu":
+    folder: .
+    configs: [host]
