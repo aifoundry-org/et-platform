@@ -89,6 +89,10 @@ Enums:
         Value: 0
       - Name : ERROR
         Value : 1
+      - Name : INVALID_SHIRE_MASK
+        Value : 2
+      - Name : CM_RESET_FAILED
+        Value : 3
   - Name: dev_ops_api_kernel_launch_response
     Type: uint32_t
     Values:
@@ -732,9 +736,9 @@ Messages :
         Description: Error Type
         Type: enum
         Enum: dev_ops_api_error_type
-      - Name: pad[4]
-        Description: Padding for alignment
-        Type: uint8_t
+      - Name: payload
+        Description: Optional payload as per error type
+        Type: uint32_t
 #------------------------------------------------------------------------------
   - Name: device_ops_trace_buffer_full_event
     Description: Binary trace buffer is full and the host should consume it
