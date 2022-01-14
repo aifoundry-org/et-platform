@@ -106,7 +106,7 @@ static void host_iface_rxisr(uint32_t intID)
 {
     (void)intID;
 
-    Log_Write(LOG_LEVEL_DEBUG, "Dispatcher:PCIe interrupt!\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "HostIface:Dispatcher:PCIe interrupt!\r\n");
 
     Host_Iface_Interrupt_Flag = true;
 
@@ -166,7 +166,8 @@ int32_t Host_Iface_SQs_Init(void)
         if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "ERROR: Unable to initialize Host to MM HP SQs. (Error code: %d)\r\n", status);
+                "HostIface:ERROR: Unable to initialize Host to MM HP SQs. (Error code: %d)\r\n",
+                status);
             break;
         }
     }
@@ -189,7 +190,8 @@ int32_t Host_Iface_SQs_Init(void)
             if (status != STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_ERROR,
-                    "ERROR: Unable to initialize Host to MM SQs. (Error code: %d)\r\n", status);
+                    "HostIface:ERROR: Unable to initialize Host to MM SQs. (Error code: %d)\r\n",
+                    status);
                 break;
             }
         }
@@ -415,7 +417,8 @@ int32_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, const void *p_cmd, uint32_t cmd_si
         status = VQ_Push(&Host_CQs.vqueues[cq_id], p_cmd, cmd_size);
         if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_WARNING, "CQ[%d] push warning: status code: %d\n", cq_id, status);
+            Log_Write(LOG_LEVEL_WARNING, "HostIface:CQ[%d] push warning: status code: %d\n", cq_id,
+                status);
         }
     } while (status == CIRCBUFF_ERROR_FULL);
 
@@ -550,14 +553,14 @@ void Host_Iface_Processing(void)
 
         if (status == true)
         {
-            Log_Write(LOG_LEVEL_DEBUG, "HostIfaceProcessing:Notifying:SQW_IDX:%d\r\n", sq_id);
+            Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:HostIface:Processing:Notifying\r\n", sq_id);
 
             /* Dispatch work to SQ Worker associated with this SQ */
             SQW_Notify(sq_id);
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG, "HostIfaceProcessing:NoData:SQ_IDX:%d\r\n", sq_id);
+            Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:HostIface:Processing:NoData\r\n", sq_id);
         }
     }
 
@@ -568,14 +571,14 @@ void Host_Iface_Processing(void)
 
         if (status == true)
         {
-            Log_Write(LOG_LEVEL_DEBUG, "HostIfaceProcessing:Notifying:SQW_HP_IDX:%d\r\n", sq_id);
+            Log_Write(LOG_LEVEL_DEBUG, "SQW_HP[%d]:HostIface:Processing:Notifying\r\n", sq_id);
 
             /* Dispatch work to HP SQ Worker associated with this HP SQ */
             SQW_HP_Notify(sq_id);
         }
         else
         {
-            Log_Write(LOG_LEVEL_DEBUG, "HostIfaceProcessing:NoData:SQ_HP_IDX:%d\r\n", sq_id);
+            Log_Write(LOG_LEVEL_DEBUG, "SQW_HP[%d]:HostIface:Processing:NoData\r\n", sq_id);
         }
     }
 

@@ -136,7 +136,8 @@ void SQW_HP_Notify(uint8_t sqw_hp_idx)
     /* Uses odd Harts always */
     uint32_t minion = SQW_HP_WORKER_0 + sqw_hp_idx;
 
-    Log_Write(LOG_LEVEL_DEBUG, "SQW_HP:Notify:minion=%d:thread=%d\r\n", minion, SQW_HP_THREAD_ID);
+    Log_Write(LOG_LEVEL_DEBUG, "SQW_HP[%d]:Notify:minion=%d:thread=%d\r\n", sqw_hp_idx, minion,
+        SQW_HP_THREAD_ID);
 
     /* TODO: Future improvements: 1. To use IPIs.
     2. Improve FCC to address security concerns. */
@@ -184,7 +185,8 @@ static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t 
 
     if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "SQW_HP:ERROR:VQ_Prefetch_Buffer failed:%d\r\n", status);
+        Log_Write(LOG_LEVEL_ERROR, "SQW_HP[%d]:ERROR:VQ_Prefetch_Buffer failed:%d\r\n", sqw_hp_idx,
+            status);
         return;
     }
 
@@ -198,9 +200,8 @@ static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t 
             /* Set the command starting address */
             hp_cmd_hdr = (void *)&hp_cmd_buff[cmd_buff_idx];
 
-            Log_Write(LOG_LEVEL_DEBUG,
-                "SQW_HP:Processing:SQW_HP_IDX=%d:tag_id=%x:Popped_length:%d\r\n", sqw_hp_idx,
-                hp_cmd_hdr->cmd_hdr.tag_id, processed_val);
+            Log_Write(LOG_LEVEL_DEBUG, "SQW_HP[%d]:Processing:tag_id=%x:Popped_length:%d\r\n",
+                sqw_hp_idx, hp_cmd_hdr->cmd_hdr.tag_id, processed_val);
 
             /* If barrier flag is set, wait until all cmds are
             processed in the current HP SQ */
@@ -220,7 +221,8 @@ static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t 
 
             if (status != STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_ERROR, "SQW_HP:ERROR:Processing failed:%d\r\n", status);
+                Log_Write(LOG_LEVEL_ERROR, "SQW_HP[%d]:ERROR:Processing failed:%d\r\n", sqw_hp_idx,
+                    status);
             }
 
             /* Update the command buffer index */
@@ -228,8 +230,8 @@ static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t 
         }
         else if (processed_val < 0)
         {
-            Log_Write(
-                LOG_LEVEL_ERROR, "SQW_HP:ERROR:VQ cmd processing failed:%d\r\n", processed_val);
+            Log_Write(LOG_LEVEL_ERROR, "SQW_HP[%d]:ERROR:VQ cmd processing failed:%d\r\n",
+                sqw_hp_idx, processed_val);
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_PROCESSING_ERROR);
 
             /* Being pessimistic and update the command buffer index with VQ cmd header size */
@@ -250,7 +252,6 @@ static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t 
 *
 *   INPUTS
 *
-*       hart_id     HART ID to launch the HP SQ
 *       sqw_hp_idx  Index of the HP SQ
 *
 *   OUTPUTS
@@ -258,7 +259,7 @@ static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t 
 *       None
 *
 ***********************************************************************/
-__attribute__((noreturn)) void SQW_HP_Launch(uint32_t hart_id, uint32_t sqw_hp_idx)
+__attribute__((noreturn)) void SQW_HP_Launch(uint32_t sqw_hp_idx)
 {
     uint64_t hp_tail_prev;
     void *hp_shared_mem_ptr;
@@ -284,7 +285,7 @@ __attribute__((noreturn)) void SQW_HP_Launch(uint32_t hart_id, uint32_t sqw_hp_i
     if (!(IS_ALIGNED(&circ_buff_cached.head_offset, 8) &&
             IS_ALIGNED(&hp_vq_cached.circbuff_cb->head_offset, 8)))
     {
-        Log_Write(LOG_LEVEL_ERROR, "SQW_HP:SQ HEAD not 64-bit aligned\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "SQW_HP[%d]:SQ HEAD not 64-bit aligned\r\n", sqw_hp_idx);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_HP_BUFFER_ALIGNMENT_ERROR);
     }
 
@@ -292,21 +293,21 @@ __attribute__((noreturn)) void SQW_HP_Launch(uint32_t hart_id, uint32_t sqw_hp_i
     if (!(IS_ALIGNED(&circ_buff_cached.tail_offset, 8) &&
             IS_ALIGNED(&hp_vq_cached.circbuff_cb->tail_offset, 8)))
     {
-        Log_Write(LOG_LEVEL_ERROR, "SQW_HP:SQ tail not 64-bit aligned\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "SQW_HP[%d]:SQ tail not 64-bit aligned\r\n", sqw_hp_idx);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_HP_BUFFER_ALIGNMENT_ERROR);
     }
 
     /* Update the local VQ CB to point to the cached L1 stack variable */
     hp_vq_cached.circbuff_cb = &circ_buff_cached;
 
-    Log_Write(LOG_LEVEL_INFO, "SQW_HP:H%d:IDX=%d\r\n", hart_id, sqw_hp_idx);
+    Log_Write(LOG_LEVEL_INFO, "SQW_HP[%d]\r\n", sqw_hp_idx);
 
     while (1)
     {
         /* Wait for SQ Worker notification from Dispatcher */
         local_fcc_flag_wait(&SQW_HP_CB.sqw_fcc_flags[sqw_hp_idx]);
 
-        Log_Write(LOG_LEVEL_DEBUG, "SQW_HP:H%d:received FCC event!\r\n", hart_id);
+        Log_Write(LOG_LEVEL_DEBUG, "SQW_HP[%d]:received FCC event!\r\n", sqw_hp_idx);
 
         /* Get the cached tail pointer */
         hp_tail_prev = VQ_Get_Tail_Offset(&hp_vq_cached);
@@ -318,8 +319,8 @@ __attribute__((noreturn)) void SQW_HP_Launch(uint32_t hart_id, uint32_t sqw_hp_i
         if (hp_tail_prev != VQ_Get_Tail_Offset(&hp_vq_cached))
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "SQW_HP:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
-                hp_tail_prev, VQ_Get_Tail_Offset(&hp_vq_cached));
+                "SQW_HP[%d]:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
+                sqw_hp_idx, hp_tail_prev, VQ_Get_Tail_Offset(&hp_vq_cached));
 
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_HP_PROCESSING_ERROR);
 

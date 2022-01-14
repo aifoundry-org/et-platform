@@ -90,19 +90,19 @@ void main(void)
     {
         /* Spin wait till dispatcher initialization is complete */
         local_spinwait_wait(&Launch_Wait, 1, 0);
-        SQW_HP_Launch(hart_id, (hart_id - SQW_HP_BASE_HART_ID) / HARTS_PER_MINION);
+        SQW_HP_Launch((hart_id - SQW_HP_BASE_HART_ID) / HARTS_PER_MINION);
     }
     else if ((hart_id >= SQW_BASE_HART_ID) && (hart_id < SQW_MAX_HART_ID) && EVEN_HART(hart_id))
     {
         /* Spin wait till dispatcher initialization is complete */
         local_spinwait_wait(&Launch_Wait, 1, 0);
-        SQW_Launch(hart_id, (hart_id - SQW_BASE_HART_ID) / HARTS_PER_MINION);
+        SQW_Launch((hart_id - SQW_BASE_HART_ID) / HARTS_PER_MINION);
     }
     else if ((hart_id >= KW_BASE_HART_ID) && (hart_id < KW_MAX_HART_ID) && EVEN_HART(hart_id))
     {
         /* Spin wait till dispatcher initialization is complete */
         local_spinwait_wait(&Launch_Wait, 1, 0);
-        KW_Launch(hart_id, (hart_id - KW_BASE_HART_ID) / HARTS_PER_MINION);
+        KW_Launch((hart_id - KW_BASE_HART_ID) / HARTS_PER_MINION);
     }
     else if ((hart_id >= DMAW_BASE_HART_ID) && (hart_id < DMAW_MAX_HART_ID) && EVEN_HART(hart_id))
     {

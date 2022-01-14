@@ -300,8 +300,9 @@ static inline int32_t compatibility_cmd_handler(void *command_buffer, uint8_t sq
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
-    Log_Write(
-        LOG_LEVEL_DEBUG, "SQ[%d] HostCommandHandler:Processing:API_COMPATIBILITY_CMD\r\n", sqw_idx);
+    Log_Write(LOG_LEVEL_DEBUG,
+        "TID[%u]:SQW[%d]:HostCommandHandler:Processing:API_COMPATIBILITY_CMD\r\n",
+        cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
     /* Construct and transmit response */
     rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
@@ -362,8 +363,9 @@ static inline int32_t compatibility_cmd_handler(void *command_buffer, uint8_t sq
     }
     else
     {
-        Log_Write(
-            LOG_LEVEL_ERROR, "SQ[%d]:HostCmdHdlr:COMPATIBILITY_CMD:Unexpected Error\r\n", sqw_idx);
+        Log_Write(LOG_LEVEL_ERROR,
+            "TID[%u]:SQW[%d]:HostCmdHdlr:COMPATIBILITY_CMD:Unexpected Error\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx);
         /* It should never come here. TODO:SW-10385: Add unexpected error.*/
     }
 
@@ -389,16 +391,17 @@ static inline int32_t compatibility_cmd_handler(void *command_buffer, uint8_t sq
         }
 
         Log_Write(LOG_LEVEL_DEBUG,
-            "SQ[%d] HostCommandHandler:Pushed:API_COMPATIBILITY_CMD_RSP:tag_id=%x->Host_CQ\r\n",
-            sqw_idx, rsp.response_info.rsp_hdr.tag_id);
+            "TID[%u]:SQW[%d]:HostCommandHandler:Pushed:API_COMPATIBILITY_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, rsp.response_info.rsp_hdr.tag_id);
     }
     else
     {
         TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
 
-        Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
-            sqw_idx, cmd->command_info.cmd_hdr.tag_id);
+        Log_Write(LOG_LEVEL_ERROR,
+            "TID[%u]:SQW[%d]:HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->command_info.cmd_hdr.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
 
@@ -439,7 +442,8 @@ static inline int32_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_i
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
-    Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] HostCommandHandler:Processing:FW_VERSION_CMD\r\n", sqw_idx);
+    Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCommandHandler:Processing:FW_VERSION_CMD\r\n",
+        cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
     /* Construct and transmit response */
     rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
@@ -474,8 +478,8 @@ static inline int32_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_i
         else
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "SQ[%d] HostCommandHandler:FW_VERSION_CMD:Invalid FW type received from host\r\n",
-                sqw_idx);
+                "TID[%u]:SQW[%d]:HostCommandHandler:FW_VERSION_CMD:Invalid FW type received from host\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx);
             status = HOST_CMD_ERROR_FW_VER_INVALID_FW_TYPE;
         }
 
@@ -495,8 +499,8 @@ static inline int32_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_i
                 rsp.patch = 0;
 
                 Log_Write(LOG_LEVEL_ERROR,
-                    "SQ[%d] HostCommandHandler:FW_VERSION_CMD:Request to SP failed:%d\r\n", sqw_idx,
-                    status);
+                    "TIID[%d]:SQW[%d]:HostCommandHandler:FW_VERSION_CMD:Request to SP failed:%d\r\n",
+                    cmd->command_info.cmd_hdr.tag_id, sqw_idx, status);
             }
         }
     }
@@ -520,8 +524,9 @@ static inline int32_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_i
     }
     else
     {
-        Log_Write(
-            LOG_LEVEL_ERROR, "SQ[%d]:HostCmdHdlr:FW_VERSION_CMD:Unexpected Error\r\n", sqw_idx);
+        Log_Write(LOG_LEVEL_ERROR,
+            "TID[%u]:SQW[%d]:HostCmdHdlr:FW_VERSION_CMD:Unexpected Error\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx);
         /* It should never come here. TODO:SW-10385: Add unexpected error.*/
     }
 
@@ -555,16 +560,17 @@ static inline int32_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_i
                 cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
         }
 
-        Log_Write(LOG_LEVEL_DEBUG, "SQ[%d]:HostCmdHdlr:CQ_Push:FW_VERSION_CMD_RSP:tag_id=%x\r\n",
-            sqw_idx, rsp.response_info.rsp_hdr.tag_id);
+        Log_Write(LOG_LEVEL_DEBUG,
+            "TID[%u]:SQW[%d]:HostCmdHdlr:CQ_Push:FW_VERSION_CMD_RSP:tag_id=%x\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, rsp.response_info.rsp_hdr.tag_id);
     }
     else
     {
         TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
 
-        Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCmdHdlr:Tag_ID=%u:CQ_Push:Failed\r\n", sqw_idx,
-            cmd->command_info.cmd_hdr.tag_id);
+        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:Tag_ID=%u:CQ_Push:Failed\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->command_info.cmd_hdr.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
 
@@ -606,7 +612,8 @@ static inline int32_t echo_cmd_handler(void *command_buffer, uint8_t sqw_idx, ui
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
-    Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] HostCommandHandler:Processing:ECHO_CMD\r\n", sqw_idx);
+    Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCommandHandler:Processing:ECHO_CMD\r\n",
+        cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
     /* Construct and transmit response */
     rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
@@ -649,16 +656,18 @@ static inline int32_t echo_cmd_handler(void *command_buffer, uint8_t sqw_idx, ui
                 cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
         }
 
-        Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] HostCommandHandler:CQ_Push:ECHO_CMD_RSP:tag_id=%x\r\n",
-            sqw_idx, rsp.response_info.rsp_hdr.tag_id);
+        Log_Write(LOG_LEVEL_DEBUG,
+            "TID[%u]:SQW[%d]:HostCommandHandler:CQ_Push:ECHO_CMD_RSP:tag_id=%x\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, rsp.response_info.rsp_hdr.tag_id);
     }
     else
     {
         TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD, sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
 
-        Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:HostCommandHandler:Tag_ID=%u:CQ_Push:Failed\r\n",
-            sqw_idx, cmd->command_info.cmd_hdr.tag_id);
+        Log_Write(LOG_LEVEL_ERROR,
+            "TID[%u]:SQW[%d]:HostCommandHandler:Tag_ID=%u:CQ_Push:Failed\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->command_info.cmd_hdr.tag_id);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
 
@@ -703,8 +712,9 @@ static inline int32_t kernel_launch_cmd_handler(
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
-    Log_Write(
-        LOG_LEVEL_DEBUG, "SQ[%d] HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n", sqw_idx);
+    Log_Write(LOG_LEVEL_DEBUG,
+        "TID[%u]:SQW[%d]:HostCommandHandler:Processing:KERNEL_LAUNCH_CMD\r\n",
+        cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
@@ -730,17 +740,19 @@ static inline int32_t kernel_launch_cmd_handler(
         and transmit command response to host completion queue */
         KW_Notify(kw_idx, &cycles);
 
-        Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] HostCommandHandler:KW:%d:Notified\r\n", sqw_idx, kw_idx);
+        Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:KW[%d]:HostCommandHandler:Notified\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, kw_idx);
     }
     else
     {
         Log_Write(LOG_LEVEL_ERROR,
-            "SQ[%d] HostCmdHdlr:KernelLaunch:Failed Tag ID=%d shire_mask:%lx Status:%d\r\n",
-            sqw_idx, cmd->command_info.cmd_hdr.tag_id, cmd->shire_mask, status);
+            "TID[%u]:SQW[%d]:HostCmdHdlr:KernelLaunch:Failed shire_mask:%lx Status:%d\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->shire_mask, status);
 
         Log_Write(LOG_LEVEL_DEBUG,
-            "HostCmdHdlr:KernelLaunch:Failed CmdParam:code_start_address:%lx pointer_to_args:%lx\r\n",
-            cmd->code_start_address, cmd->pointer_to_args);
+            "TID[%u]:SQW[%d]:HostCmdHdlr:KernelLaunch:Failed CmdParam:code_start_address:%lx pointer_to_args:%lx\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->code_start_address,
+            cmd->pointer_to_args);
 
         /* Allocate memory for response message, it includes optional payload. */
         uint8_t rsp_data[sizeof(struct device_ops_kernel_launch_rsp_t) +
@@ -817,14 +829,14 @@ static inline int32_t kernel_launch_cmd_handler(
         if (status == STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_DEBUG,
-                "SQ[%d] HostCommandHandler:Pushed:KERNEL_LAUNCH_CMD_RSP:tag_id=%u->Host_CQ\r\n",
-                sqw_idx, rsp->response_info.rsp_hdr.tag_id);
+                "TID[%u]:SQW[%d]:HostCommandHandler:Pushed:KERNEL_LAUNCH_CMD_RSP:tag_id=%u->Host_CQ\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, rsp->response_info.rsp_hdr.tag_id);
         }
         else
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "SQ[%d] HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n", sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id);
+                "TID[%u]:SQW[%d]:HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n", sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, cmd->command_info.cmd_hdr.tag_id);
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
         }
 
@@ -867,8 +879,8 @@ static inline int32_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
-    Log_Write(
-        LOG_LEVEL_DEBUG, "SQ[%d] HostCommandHandler:Processing:KERNEL_ABORT_CMD\r\n", sqw_idx);
+    Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCommandHandler:Processing:KERNEL_ABORT_CMD\r\n",
+        cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
@@ -885,8 +897,8 @@ static inline int32_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw
     if (status != STATUS_SUCCESS)
     {
         Log_Write(LOG_LEVEL_ERROR,
-            "HostCmdHdlr:KernelAbort:Failed:Status:%d:CmdParams:kernel_launch_tag_id:%x\r\n",
-            status, cmd->kernel_launch_tag_id);
+            "TID[%u]:SQW[%d]:HostCmdHdlr:KernelAbort:Failed:Status:%d:CmdParams:kernel_launch_tag_id:%x\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, status, cmd->kernel_launch_tag_id);
 
         /* Construct and transit command response */
         rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
@@ -927,13 +939,14 @@ static inline int32_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw
         if (status == STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_DEBUG,
-                "HostCommandHandler:Pushed:KERNEL_ABORT_CMD_RSP:tag_id=%x->Host_CQ\r\n",
-                rsp.response_info.rsp_hdr.tag_id);
+                "TID[%u]:SQW[%d]:HostCommandHandler:Pushed:KERNEL_ABORT_CMD_RSP:Host_CQ\r\n",
+                rsp.response_info.rsp_hdr.tag_id, sqw_idx);
         }
         else
         {
-            Log_Write(LOG_LEVEL_ERROR, "HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
-                cmd->command_info.cmd_hdr.tag_id);
+            Log_Write(LOG_LEVEL_ERROR,
+                "TID[%u]:SQW[%d]:HostCommandHandler:HostIface:Push:Failed\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx);
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
         }
 
@@ -1147,7 +1160,8 @@ static inline int32_t dma_readlist_cmd_handler(
     on device to move data from host to device, similarly a read
     command from host will trigger the implementation to configure
     a DMA write channel on device to move data from device to host */
-    Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] HostCommandHandler:Processing:DATA_READ_CMD\r\n", sqw_idx);
+    Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCommandHandler:Processing:DATA_READ_CMD\r\n",
+        cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
@@ -1182,16 +1196,19 @@ static inline int32_t dma_readlist_cmd_handler(
 
     if (status == STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMA_READ:channel_used:%d, dma xfer count=%d\r\n",
-            sqw_idx, chan, dma_xfer_count);
+        Log_Write(LOG_LEVEL_DEBUG,
+            "TID[%u]:SQW[%d]:DMA_READ:channel_used:%d, dma xfer count=%d\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, chan, dma_xfer_count);
 
         for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
         {
-            Log_Write(LOG_LEVEL_DEBUG, "DMA_READ:src_device_phy_addr:%" PRIx64 "\r\n",
-                cmd->list[loop_cnt].src_device_phy_addr);
-            Log_Write(LOG_LEVEL_DEBUG, "DMA_READ:dst_host_phy_addr:%" PRIx64 "\r\n",
-                cmd->list[loop_cnt].dst_host_phy_addr);
-            Log_Write(LOG_LEVEL_DEBUG, "DMA_READ:size:%" PRIx32 "\r\n", cmd->list[loop_cnt].size);
+            Log_Write(LOG_LEVEL_DEBUG,
+                "TID[%u]:SQW[%d]:DMA_READ:src_device_phy_addr:%" PRIx64 "\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].src_device_phy_addr);
+            Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:DMA_READ:dst_host_phy_addr:%" PRIx64 "\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].dst_host_phy_addr);
+            Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:DMA_READ:size:%" PRIx32 "\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].size);
 
             total_dma_size += cmd->list[loop_cnt].size;
         }
@@ -1208,19 +1225,20 @@ static inline int32_t dma_readlist_cmd_handler(
 
     if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:TID:%u:HostCmdHdlr:DMARead:Fail:%d\r\n", sqw_idx,
-            cmd->command_info.cmd_hdr.tag_id, status);
+        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:Fail:%d\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, status);
 
         for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "HostCmdHdlr:DMARead:Fail:TID:%u:src_device_phy_addr:%lx:size:%x\r\n",
-                cmd->command_info.cmd_hdr.tag_id, cmd->list[loop_cnt].src_device_phy_addr,
+                "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:Fail:src_device_phy_addr:%lx:size:%x\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].src_device_phy_addr,
                 cmd->list[loop_cnt].size);
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "HostCmdHdlr:DMARead:Fail:dst_host_virt_addr:%lx:dst_host_phy_addr:%lx\r\n",
-                cmd->list[loop_cnt].dst_host_virt_addr, cmd->list[loop_cnt].dst_host_phy_addr);
+                "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:Fail:dst_host_virt_addr:%lx:dst_host_phy_addr:%lx\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].dst_host_virt_addr,
+                cmd->list[loop_cnt].dst_host_phy_addr);
         }
 
         /* Construct and transmit command response */
@@ -1240,8 +1258,8 @@ static inline int32_t dma_readlist_cmd_handler(
         DMA_TO_DEVICEAPI_STATUS(status, rsp.status)
 
         Log_Write(LOG_LEVEL_DEBUG,
-            "HostCommandHandler:Pushing:DATA_READ_CMD_RSP:tag_id=%x->Host_CQ\r\n",
-            rsp.response_info.rsp_hdr.tag_id);
+            "TID[%u]:SQW[%d]:HostCommandHandler:Pushing:DATA_READ_CMD_RSP:Host_CQ\r\n",
+            rsp.response_info.rsp_hdr.tag_id, sqw_idx);
 
         status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 
@@ -1260,8 +1278,9 @@ static inline int32_t dma_readlist_cmd_handler(
 
         if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
-                cmd->command_info.cmd_hdr.tag_id);
+            Log_Write(LOG_LEVEL_ERROR,
+                "TID[%u]:SQW[%d]:HostCommandHandler:HostIface:Push:Failed\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx);
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
         }
 
@@ -1360,7 +1379,8 @@ static inline int32_t dma_writelist_cmd_handler(
     data from host to device, similarly a read command from host will
     trigger the implementation to configure a DMA write channel on device
     to move data from device to host */
-    Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] HostCommandHandler:Processing:DATA_WRITE_CMD\r\n", sqw_idx);
+    Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCommandHandler:Processing:DATA_WRITE_CMD\r\n",
+        cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
@@ -1382,17 +1402,21 @@ static inline int32_t dma_writelist_cmd_handler(
 
     if (status == STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMA_WRITE:channel_used:%d, dma xfer count=%d \r\n",
-            sqw_idx, chan, dma_xfer_count);
+        Log_Write(LOG_LEVEL_DEBUG,
+            "TID[%u]:SQW[%d]:DMA_WRITE:channel_used:%d, dma xfer count=%d \r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, chan, dma_xfer_count);
 
         for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
         {
-            Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:src_host_virt_addr:%" PRIx64 "\r\n",
-                cmd->list[loop_cnt].src_host_virt_addr);
-            Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:src_host_phy_addr:%" PRIx64 "\r\n",
-                cmd->list[loop_cnt].src_host_phy_addr);
-            Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:dst_device_phy_addr:%" PRIx64 "\r\n",
-                cmd->list[loop_cnt].dst_device_phy_addr);
+            Log_Write(LOG_LEVEL_DEBUG,
+                "TID[%u]:SQW[%d]:DMA_WRITE:src_host_virt_addr:%" PRIx64 "\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].src_host_virt_addr);
+            Log_Write(LOG_LEVEL_DEBUG,
+                "TID[%u]:SQW[%d]:DMA_WRITE:src_host_phy_addr:%" PRIx64 "\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].src_host_phy_addr);
+            Log_Write(LOG_LEVEL_DEBUG,
+                "TID[%u]:SQW[%d]:DMA_WRITE:dst_device_phy_addr:%" PRIx64 "\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].dst_device_phy_addr);
             Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:size:%" PRIx32 "\r\n", cmd->list[loop_cnt].size);
 
             total_dma_size += cmd->list[loop_cnt].size;
@@ -1410,19 +1434,20 @@ static inline int32_t dma_writelist_cmd_handler(
 
     if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr:DMAWrite:TID:%u:Fail:%d\r\n",
-            cmd->command_info.cmd_hdr.tag_id, status);
+        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:Fail:%d\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, status);
 
         for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "HostCmdHdlr:DMAWrite:Fail:TID:%u:dst_device_phy_addr:%lx:size:%x\r\n",
-                cmd->command_info.cmd_hdr.tag_id, cmd->list[loop_cnt].dst_device_phy_addr,
+                "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:Fail:dst_device_phy_addr:%lx:size:%x\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].dst_device_phy_addr,
                 cmd->list[loop_cnt].size);
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "HostCmdHdlr:DMAWrite:Fail:src_host_virt_addr:%lx:src_host_phy_addr:%lx\r\n",
-                cmd->list[loop_cnt].src_host_virt_addr, cmd->list[loop_cnt].src_host_phy_addr);
+                "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:Fail:src_host_virt_addr:%lx:src_host_phy_addr:%lx\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].src_host_virt_addr,
+                cmd->list[loop_cnt].src_host_phy_addr);
         }
 
         /* Construct and transit command response */
@@ -1459,13 +1484,14 @@ static inline int32_t dma_writelist_cmd_handler(
         if (status == STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_DEBUG,
-                "HostCommandHandler:Pushed:DATA_WRITE_CMD_RSP:tag_id=%x->Host_CQ\r\n",
-                rsp.response_info.rsp_hdr.tag_id);
+                "TID[%u]:SQW[%d]:HostCommandHandler:Pushed:DATA_WRITE_CMD_RSP:Host_CQ\r\n",
+                rsp.response_info.rsp_hdr.tag_id, sqw_idx);
         }
         else
         {
-            Log_Write(LOG_LEVEL_ERROR, "HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
-                cmd->command_info.cmd_hdr.tag_id);
+            Log_Write(LOG_LEVEL_ERROR,
+                "TID[%u]::SQW[%d]:HostCommandHandler:HostIface:Push:Failed\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx);
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
         }
 
@@ -1506,7 +1532,9 @@ static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
-    Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:Processing:TRACE_RT_CONTROL_CMD\r\n");
+    Log_Write(LOG_LEVEL_DEBUG,
+        "TID[%u]:SQW[%d]:HostCommandHandler:Processing:TRACE_RT_CONTROL_CMD\r\n",
+        cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
@@ -1526,14 +1554,18 @@ static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t
     /* Check if RT Component is MM Trace. */
     if ((status == STATUS_SUCCESS) && (cmd->rt_type & TRACE_RT_TYPE_MM))
     {
-        Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:TRACE_RT_CONTROL_CMD:MM RT control\r\n");
+        Log_Write(LOG_LEVEL_DEBUG,
+            "TID[%u]:SQW[%d]:HostCommandHandler:TRACE_RT_CONTROL_CMD:MM RT control\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx);
         Trace_RT_Control_MM(cmd->control);
     }
 
     /* Check if RT Component is CM Trace. */
     if ((status == STATUS_SUCCESS) && (cmd->rt_type & TRACE_RT_TYPE_CM))
     {
-        Log_Write(LOG_LEVEL_DEBUG, "HostCommandHandler:TRACE_RT_CONTROL_CMD:CM RT control\r\n");
+        Log_Write(LOG_LEVEL_DEBUG,
+            "TID[%u]:SQW[%d]:HostCommandHandler:TRACE_RT_CONTROL_CMD:CM RT control\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
         mm_to_cm_message_trace_rt_control_t cm_msg;
         cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
@@ -1560,8 +1592,8 @@ static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t
         if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "TRACE_RT_CONTROL:CM:Tag_ID=%u:Failed to Enable/Disable Trace, and to redirect logs.\r\n",
-                cmd->command_info.cmd_hdr.tag_id);
+                "TID[%u]:SQW[%d]:TRACE_RT_CONTROL:CM:Failed to Enable/Disable Trace, and to redirect logs.\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx);
         }
     }
 
@@ -1574,8 +1606,8 @@ static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t
     TRACE_RT_CONTROL_TO_DEVICEAPI_STATUS(status, rsp.status)
 
     Log_Write(LOG_LEVEL_DEBUG,
-        "HostCommandHandler:Pushing:TRACE_RT_CONTROL_RSP:tag_id=%x->Host_CQ\r\n",
-        rsp.response_info.rsp_hdr.tag_id);
+        "TID[%u]:SQW[%d]:HostCommandHandler:Pushing:TRACE_RT_CONTROL_RSP:Host_CQ\r\n",
+        rsp.response_info.rsp_hdr.tag_id, sqw_idx);
 
 #if TEST_FRAMEWORK
     /* For SP2MM command response, we need to provide the total size = header + payload */
@@ -1589,8 +1621,8 @@ static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t
     {
         TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD, sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
-        Log_Write(LOG_LEVEL_ERROR, "HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
-            cmd->command_info.cmd_hdr.tag_id);
+        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCommandHandler:ostIface:Push:Failed\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
     else
@@ -1651,8 +1683,8 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
-    Log_Write(LOG_LEVEL_DEBUG, "HostCmdHdlr:TID:%u:TRACE_CONFIG:Shire:%lx:Thread:%lx\r\n",
-        cmd->command_info.cmd_hdr.tag_id, cmd->shire_mask, cmd->thread_mask);
+    Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCmdHdlr:TRACE_CONFIG:Shire:%lx:Thread:%lx\r\n",
+        cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->shire_mask, cmd->thread_mask);
 
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
@@ -1691,8 +1723,8 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
     if ((status == STATUS_SUCCESS) &&
         (TRACE_CONFIG_CHECK_CM_HART(cmd->shire_mask, cmd->thread_mask)))
     {
-        Log_Write(LOG_LEVEL_DEBUG, "HostCmdHdlr:TID:%u:TRACE_CONFIG: Configure CM.\r\n",
-            cmd->command_info.cmd_hdr.tag_id);
+        Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCmdHdlr:TRACE_CONFIG: Configure CM.\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
         if ((cmd->shire_mask & CW_Get_Booted_Shires()) == cmd->shire_mask)
         {
@@ -1725,8 +1757,9 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
     /* Populate the response status */
     TRACE_RT_CONFIG_TO_DEVICEAPI_STATUS(status, rsp.status)
 
-    Log_Write(LOG_LEVEL_DEBUG, "HostCmdHdlr:Pushing:TRACE_RT_CONFIG_RSP:tag_id=%x:Host_CQ\r\n",
-        rsp.response_info.rsp_hdr.tag_id);
+    Log_Write(LOG_LEVEL_DEBUG,
+        "TID[%u]:SQW[%d]:HostCmdHdlr:Pushing:TRACE_RT_CONFIG_RSP:Host_CQ\r\n",
+        rsp.response_info.rsp_hdr.tag_id, sqw_idx);
 
 #if TEST_FRAMEWORK
     /* For SP2MM command response, we need to provide the total size = header + payload */
@@ -1740,8 +1773,8 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
     {
         TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD, sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
-        Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr:Tag_ID=%u:HostIface:Push:Failed\r\n",
-            cmd->command_info.cmd_hdr.tag_id);
+        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:HostIface:Push:Failed\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx);
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
     /* Check for abort status for trace logging. */
@@ -1807,8 +1840,8 @@ static inline void device_async_error_event_handler(void *command_buffer, uint8_
 
     if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "fw_error_event:%d Tag_ID=%u:HostIface:Push:Failed\r\n",
-            error_type, event.event_info.event_hdr.tag_id);
+        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:HostIface:Push:Failed:fw_error_event:%d \r\n",
+            cmd_header->tag_id, error_type);
 
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
@@ -1872,8 +1905,8 @@ int32_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t sta
             status = trace_rt_config_cmd_handler(command_buffer, sqw_idx);
             break;
         default:
-            Log_Write(LOG_LEVEL_ERROR, "SQ[%d] HostCmdHdlr:Tag_ID=%u:UnsupportedCmd\r\n", sqw_idx,
-                hdr->cmd_hdr.tag_id);
+            Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:UnsupportedCmd\r\n",
+                hdr->cmd_hdr.tag_id, sqw_idx);
 
             /* Send unsupported command error event to host */
             device_async_error_event_handler(
@@ -1920,8 +1953,8 @@ int32_t Host_HP_Command_Handler(void *command_buffer, uint8_t sqw_hp_idx)
             status = abort_cmd_handler(command_buffer, sqw_hp_idx);
             break;
         default:
-            Log_Write(LOG_LEVEL_ERROR, "HostCmdHdlr_HP:Tag_ID=%u:UnsupportedCmd\r\n",
-                hdr->cmd_hdr.tag_id);
+            Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW_HP[%d]:HostCmdHdlr_HP:UnsupportedCmd\r\n",
+                hdr->cmd_hdr.tag_id, sqw_hp_idx);
 
             /* Send unsupported command error event to host */
             device_async_error_event_handler(

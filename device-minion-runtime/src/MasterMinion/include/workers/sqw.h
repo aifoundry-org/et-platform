@@ -58,13 +58,12 @@ void SQW_Init(void);
 */
 void SQW_Notify(uint8_t sqw_idx);
 
-/*! \fn void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx)
+/*! \fn void SQW_Launch(uint32_t sqw_idx)
     \brief Launch the Submission Queue Worker
-    \param hart_id HART ID on which the Submission Queue Worker should be launched
     \param sqw_idx Queue Worker index
     \return none
 */
-void SQW_Launch(uint32_t hart_id, uint32_t sqw_idx);
+void SQW_Launch(uint32_t sqw_idx);
 
 /*! \fn SQW_Decrement_Command_Count(uint8_t sqw_idx)
     \brief Decrement command count for the given Submission Queue Worker

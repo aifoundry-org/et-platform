@@ -72,11 +72,10 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle);
 
 /*! \fn void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     \brief Launch the Kernel Worker thread
-    \param hart_id HART ID on which the Kernel Worker should be launched
     \param kw_idx Queue Worker index
     \return none
 */
-void KW_Launch(uint32_t hart_id, uint32_t kw_idx);
+void KW_Launch(uint32_t kw_idx);
 
 /*! \fn int32_t KW_Dispatch_Kernel_Launch_Cmd
         (struct device_ops_kernel_launch_cmd_t *cmd, uint8_t* kw_idx))

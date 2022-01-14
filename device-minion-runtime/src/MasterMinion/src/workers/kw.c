@@ -206,7 +206,8 @@ static int32_t kw_wait_for_kernel_launch_flag(uint8_t sqw_idx, uint8_t slot_inde
 
     if (sw_timer_idx < 0)
     {
-        Log_Write(LOG_LEVEL_ERROR, "KW: Unable to register kernel abort wait timeout!\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "SQW[%d]:KW: Unable to register kernel abort wait timeout!\r\n",
+            sqw_idx);
         status = KW_ERROR_SW_TIMER_REGISTER_FAIL;
     }
     else
@@ -336,7 +337,7 @@ static int32_t kw_reserve_kernel_slot(
     if (sqw_state == SQW_STATE_ABORTED)
     {
         status = KW_ABORTED_KERNEL_SLOT_SEARCH;
-        Log_Write(LOG_LEVEL_ERROR, "KW:ABORTED:kernel slot search\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "SQW[%d]:KW:ABORTED:kernel slot search\r\n", sqw_idx);
 
         /* Unreserve the slot */
         if (slot_reserved)
@@ -435,12 +436,12 @@ static int32_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask
         if (sqw_state == SQW_STATE_ABORTED)
         {
             status = KW_ABORTED_KERNEL_SHIRES_SEARCH;
-            Log_Write(LOG_LEVEL_ERROR, "KW:ABORTED:kernel shires search\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "SQW[%d]:KW:ABORTED:kernel shires search\r\n", sqw_idx);
         }
         else
         {
             status = KW_ERROR_CW_SHIRES_NOT_READY;
-            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:kernel shires unavailable\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "SQW[%d]:KW:ERROR:kernel shires unavailable\r\n", sqw_idx);
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_SLOT_ERROR);
         }
     }
@@ -499,7 +500,8 @@ static inline int32_t process_kernel_launch_cmd_payload(struct device_ops_kernel
     /* Calculate the kernel arguments size */
     uint64_t args_size = (cmd->command_info.cmd_hdr.size - sizeof(*cmd));
     uint8_t *payload = (uint8_t *)cmd->argument_payload;
-    Log_Write(LOG_LEVEL_DEBUG, "KW: Kernel launch argument payload size: %ld\r\n", args_size);
+    Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:KW: Kernel launch argument payload size: %ld\r\n",
+        cmd->command_info.cmd_hdr.tag_id, args_size);
     int32_t status = STATUS_SUCCESS;
 
     if (args_size > DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX)
@@ -671,7 +673,8 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
         }
         else
         {
-            Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMLaunch:CommandMulticast:Failed:Status:%d\r\n",
+            Log_Write(LOG_LEVEL_ERROR,
+                "SQW[%d]:KW:ERROR:MM2CMLaunch:CommandMulticast:Failed:Status:%d\r\n", sqw_idx,
                 status);
 
             /* Broadcast message failed. Reclaim resources */
@@ -754,7 +757,8 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
             {
                 abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR;
                 SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
-                Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:MM2CMAbort:CommandMulticast:Failed\r\n");
+                Log_Write(LOG_LEVEL_ERROR,
+                    "SQW[%d]:KW:ERROR:MM2CMAbort:CommandMulticast:Failed\r\n", sqw_idx);
             }
 
             /* Send kernel abort response to host */
@@ -762,13 +766,15 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
 
             if (status == STATUS_SUCCESS)
             {
-                Log_Write(LOG_LEVEL_DEBUG, "KW:Pushed:KERNEL_ABORT_CMD_RSP:tag_id=%x->Host_CQ\r\n",
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "SQW[%d]:KW:Pushed:KERNEL_ABORT_CMD_RSP:tag_id=%x->Host_CQ\r\n", sqw_idx,
                     abort_rsp.response_info.rsp_hdr.tag_id);
             }
             else
             {
                 SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
-                Log_Write(LOG_LEVEL_ERROR, "KW:Push:KERNEL_ABORT_CMD_RSP:Failed\r\n");
+                Log_Write(
+                    LOG_LEVEL_ERROR, "SQW[%d]:KW:Push:KERNEL_ABORT_CMD_RSP:Failed\r\n", sqw_idx);
             }
 
             /* Decrement commands count being processed by given SQW */
@@ -806,7 +812,7 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
 ***********************************************************************/
 void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
 {
-    Log_Write(LOG_LEVEL_DEBUG, "KW:SQ=%d: Abort all kernels\r\n", sqw_idx);
+    Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:KW:Abort all kernels\r\n", sqw_idx);
 
     /* Traverse all kernel slots and abort them */
     for (uint8_t kw_idx = 0; kw_idx < MM_MAX_PARALLEL_KERNELS; kw_idx++)
@@ -817,7 +823,7 @@ void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
             (atomic_compare_and_exchange_local_32(&KW_CB.kernels[kw_idx].kernel_state,
                  KERNEL_STATE_IN_USE, KERNEL_STATE_ABORTING) == KERNEL_STATE_IN_USE))
         {
-            Log_Write(LOG_LEVEL_DEBUG, "KW:SQ=%d: Aborting KW=%d\r\n", sqw_idx, kw_idx);
+            Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:KW:Aborting KW=%d\r\n", sqw_idx, kw_idx);
 
             /* Trigger IPI to KW */
             syscall(SYSCALL_IPI_TRIGGER_INT,
@@ -830,7 +836,7 @@ void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
             } while (
                 atomic_load_local_32(&KW_CB.kernels[kw_idx].kernel_state) == KERNEL_STATE_ABORTING);
 
-            Log_Write(LOG_LEVEL_DEBUG, "KW:SQ=%d: Aborted KW=%d\r\n", sqw_idx, kw_idx);
+            Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:KW:Aborted KW=%d\r\n", sqw_idx, kw_idx);
         }
     }
 }
@@ -905,7 +911,8 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 {
     uint32_t minion = KW_WORKER_0 + kw_idx;
 
-    Log_Write(LOG_LEVEL_DEBUG, "Notifying:KW:minion=%d:thread=%d\r\n", minion, KW_THREAD_ID);
+    Log_Write(LOG_LEVEL_DEBUG, "KW[%d]:Notifying:KW:minion=%d:thread=%d\r\n", kw_idx, minion,
+        KW_THREAD_ID);
 
     atomic_store_local_64(
         (void *)&KW_CB.kernels[kw_idx].kw_cycles.cmd_start_cycles, cycle->cmd_start_cycles);
@@ -1023,7 +1030,7 @@ static inline void kw_cm_to_mm_process_messages(
     cm_iface_message_t message;
     int32_t status;
 
-    Log_Write(LOG_LEVEL_DEBUG, "KW:Processing msgs from CMs\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "KW[%d]:Processing msgs from CMs\r\n", kw_idx);
 
     /* Process all messages until the buffer is empty */
     while (1)
@@ -1039,11 +1046,11 @@ static inline void kw_cm_to_mm_process_messages(
                 status_internal->status = KW_ERROR_CM_IFACE_UNICAST_FAILED;
 
                 SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_CMD_ERROR);
-                Log_Write(LOG_LEVEL_ERROR, "KW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n",
-                    status);
+                Log_Write(LOG_LEVEL_ERROR,
+                    "KW[%d]:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", kw_idx, status);
             }
 
-            Log_Write(LOG_LEVEL_DEBUG, "KW:CM_To_MM: No pending msg\r\n");
+            Log_Write(LOG_LEVEL_DEBUG, "KW[%d]:CM_To_MM: No pending msg\r\n", kw_idx);
 
             break;
         }
@@ -1058,8 +1065,8 @@ static inline void kw_cm_to_mm_process_messages(
                     (cm_to_mm_message_kernel_launch_completed_t *)&message;
 
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from S%d:Status:%d\r\n",
-                    completed->shire_id, completed->status);
+                    "KW[%d]:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from S%d:Status:%d\r\n",
+                    kw_idx, completed->shire_id, completed->status);
 
                 /* Check the completion status for any error
                 First time we get an error, set the error flag */
@@ -1076,8 +1083,8 @@ static inline void kw_cm_to_mm_process_messages(
                     (cm_to_mm_message_exception_t *)&message;
 
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%" PRId32 "\r\n",
-                    exception->shire_id);
+                    "KW[%d]:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%" PRId32 "\r\n",
+                    kw_idx, exception->shire_id);
 
                 if (!status_internal->cw_exception)
                 {
@@ -1093,8 +1100,8 @@ static inline void kw_cm_to_mm_process_messages(
                     (cm_to_mm_message_kernel_launch_error_t *)&message;
 
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "KW:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR from H%" PRId64 "\r\n",
-                    error_mesg->hart_id);
+                    "KW[%d]:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR from H%" PRId64 "\r\n",
+                    kw_idx, error_mesg->hart_id);
 
                 /* Fatal error received. Try to recover kernel shires by sending abort message */
                 status_internal->status = kw_cm_to_mm_kernel_force_abort(kernel_shire_mask, false);
@@ -1105,8 +1112,8 @@ static inline void kw_cm_to_mm_process_messages(
                 break;
 
             default:
-                Log_Write(
-                    LOG_LEVEL_ERROR, "KW:from CW: Unexpected msg. ID: %d\r\n", message.header.id);
+                Log_Write(LOG_LEVEL_ERROR, "KW[%d]:from CW: Unexpected msg. ID: %d\r\n", kw_idx,
+                    message.header.id);
                 break;
         }
     }
@@ -1211,7 +1218,7 @@ static inline uint32_t kw_get_kernel_launch_completion_status(
 *       None
 *
 ***********************************************************************/
-void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
+void KW_Launch(uint32_t kw_idx)
 {
     bool wait_for_ipi = true;
     bool timeout_abort_serviced;
@@ -1230,7 +1237,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     kernel_instance_t *const kernel = &KW_CB.kernels[kw_idx];
     exec_cycles_t cycles;
 
-    Log_Write(LOG_LEVEL_INFO, "KW:H%d:IDX=%d\r\n", hart_id, kw_idx);
+    Log_Write(LOG_LEVEL_INFO, "KW[%d]\r\n", kw_idx);
 
     while (1)
     {
@@ -1359,7 +1366,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
                     launch_rsp->response_info.rsp_hdr.tag_id, CMD_STATUS_FAILED);
             }
 
-            Log_Write(LOG_LEVEL_DEBUG, "KW:CQ_Push:KERNEL_LAUNCH_CMD_RSP:tag_id=%x\r\n",
+            Log_Write(LOG_LEVEL_DEBUG, "KW[%d]:CQ_Push:KERNEL_LAUNCH_CMD_RSP:tag_id=%x\r\n", kw_idx,
                 launch_rsp->response_info.rsp_hdr.tag_id);
         }
         else
@@ -1367,7 +1374,7 @@ void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
             TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, local_sqw_idx,
                 launch_rsp->response_info.rsp_hdr.tag_id, CMD_STATUS_FAILED);
 
-            Log_Write(LOG_LEVEL_ERROR, "KW:CQ_Push:Failed\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "KW[%d]:CQ_Push:Failed\r\n", kw_idx);
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
         }
 

@@ -27,18 +27,17 @@
 /* mm specific headers */
 #include "config/mm_config.h"
 
-
 /*! \def SQW_MAX_HART_ID
     \brief A macro that provides the maximum HART ID the SQW HP is configued
     to execute on.
 */
-#define     SQW_HP_MAX_HART_ID   (SQW_HP_BASE_HART_ID + (SQW_HP_NUM * HARTS_PER_MINION))
+#define SQW_HP_MAX_HART_ID (SQW_HP_BASE_HART_ID + (SQW_HP_NUM * HARTS_PER_MINION))
 
 /*! \def SQW_WORKER_0
     \brief A macro that provdies the minion index of the first High Priority
     Submission Queue worker within the master shire.
 */
-#define     SQW_HP_WORKER_0      ((SQW_HP_BASE_HART_ID - MM_BASE_ID) / HARTS_PER_MINION)
+#define SQW_HP_WORKER_0 ((SQW_HP_BASE_HART_ID - MM_BASE_ID) / HARTS_PER_MINION)
 
 /*! \fn void SQW_HP_Init(void)
     \brief Initialize resources used by the HP Submission Queue Worker
@@ -53,14 +52,12 @@ void SQW_HP_Init(void);
 */
 void SQW_HP_Notify(uint8_t sqw_hp_idx);
 
-/*! \fn void SQW_HP_Launch(uint32_t hart_id, uint32_t sqw_hp_idx)
+/*! \fn void SQW_HP_Launch(uint32_t sqw_hp_idx)
     \brief Launch the High priority Submission Queue Worker
-    \param hart_id HART ID on which the High priority Submission
-    Queue Worker should be launched
     \param sqw_hp_idx Queue Worker index
     \return none
 */
-__attribute__((noreturn)) void SQW_HP_Launch(uint32_t hart_id, uint32_t sqw_hp_idx);
+__attribute__((noreturn)) void SQW_HP_Launch(uint32_t sqw_hp_idx);
 
 /*! \fn SQW_HP_Decrement_Command_Count(uint8_t sqw_hp_idx)
     \brief Decrement command count for the given HP Submission Queue Worker
