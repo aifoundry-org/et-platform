@@ -289,17 +289,17 @@ static int64_t enable_thread1(uint64_t disable_mask, uint64_t enable_mask)
 // to avoid the overhead of making multiple syscalls
 static int64_t pre_kernel_setup(uint64_t thread1_enable_mask, uint64_t first_worker)
 {
-    // First worker HART in the shire
-    if ((get_hart_id() % 64U) == first_worker)
-    {
-        enable_thread1(0, thread1_enable_mask);
-    }
-
     // Thread 0 in each minion
     if (get_thread_id() == 0U)
     {
         // Disable L1 split and scratchpad. Unlocks and evicts all lines.
         init_l1();
+    }
+
+    // First worker HART in the shire
+    if ((get_hart_id() % 64U) == first_worker)
+    {
+        enable_thread1(0, thread1_enable_mask);
     }
 
     // First minion in each neighborhood

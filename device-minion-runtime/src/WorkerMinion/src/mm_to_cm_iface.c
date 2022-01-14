@@ -81,8 +81,10 @@ void MM_To_CM_Iface_Init(void)
 {
     const uint32_t hart_id = get_hart_id();
 
-    /* Initalize the MM-CM message counter to zero */
+    /* Initialize the MM-CM message counter to zero */
     mm_cm_msg_number[hart_id].number = 0U;
+    ETSOC_MEM_EVICT(
+        (void *)&mm_cm_msg_number[hart_id].number, sizeof(cm_iface_message_number_t), to_L3)
 }
 
 void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)

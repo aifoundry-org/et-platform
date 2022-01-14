@@ -38,9 +38,9 @@ typedef uint32_t cm_state_e;
     \brief Possible CM states.
 */
 enum cm_state {
-    CM_STATE_NORMAL,    /**< CM is operation in normal state. */
-    CM_STATE_HANG,      /**< CM is Hung. */
-    CM_STATE_EXCEPTION  /**< CM took Exception. */
+    CM_STATE_NORMAL,   /**< CM is operation in normal state. */
+    CM_STATE_HANG,     /**< CM is Hung. */
+    CM_STATE_EXCEPTION /**< CM took Exception. */
 };
 
 /*! \fn int32_t CM_Iface_Init(void)
@@ -58,7 +58,8 @@ int32_t CM_Iface_Init(void);
     \param message Pointer to message buffer
     \return Status success or error
 */
-int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message, uint64_t *failed_cm_shire_mask);
+int32_t CM_Iface_Multicast_Send(
+    uint64_t dest_shire_mask, cm_iface_message_t *const message, uint64_t *failed_cm_shire_mask);
 
 /*! \fn int32_t CM_Iface_Unicast_Receive(uint64_t cb_idx,
     cm_iface_message_t *const message)

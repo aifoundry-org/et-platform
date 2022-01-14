@@ -21,7 +21,6 @@
 /***********************************************************************/
 
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
-#include <esperanto/device-apis/device_apis_trace_types.h>
 #include <stddef.h>
 #include <inttypes.h>
 #include <etsoc/drivers/pmu/pmu.h>
@@ -103,6 +102,16 @@ typedef struct trace_umode_control_block {
 */
 #define GET_FIRST_TRACE_ENABLED_HART_ID(shire, thread) \
     (((get_lsb_set_pos(shire) - 1U) * HARTS_PER_SHIRE) + (get_lsb_set_pos(thread) - 1U))
+
+/*! \def CM_DEFAULT_TRACE_THREAD_MASK
+    \brief Default masks to enable Trace for first hart in CM Shires.
+*/
+#define CM_DEFAULT_TRACE_THREAD_MASK (0xFFFFFFFFUL)
+
+/*! \def CM_DEFAULT_TRACE_SHIRE_MASK
+    \brief Default masks to enable Trace for first CM shire.
+*/
+#define CM_DEFAULT_TRACE_SHIRE_MASK (0x1FFFFFFFFUL)
 
 /************************/
 /* Compile-time checks  */

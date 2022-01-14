@@ -361,7 +361,8 @@ int32_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg)
     uint64_t failed_cm_shires_mask;
 
     /* Transmit the message to Compute Minions */
-    status = CM_Iface_Multicast_Send(config_msg->shire_mask, (cm_iface_message_t *)config_msg, &failed_cm_shires_mask);
+    status = CM_Iface_Multicast_Send(
+        config_msg->shire_mask, (cm_iface_message_t *)config_msg, &failed_cm_shires_mask);
 
     /* Save the configured values in MM CB */
     if (status == STATUS_SUCCESS)
@@ -369,10 +370,11 @@ int32_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg)
         atomic_store_local_64(&MM_Trace_CB.cm_shire_mask, config_msg->shire_mask);
         atomic_store_local_64(&MM_Trace_CB.cm_thread_mask, config_msg->thread_mask);
     }
-    else  if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
+    else if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
     {
         /* Send command to CM RT to disable Trace and evict Trace buffer. */
-        (void) Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
+        (void)Device_Async_Error_Event_Handler(
+            DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
     }
 
     return status;

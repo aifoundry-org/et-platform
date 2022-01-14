@@ -305,13 +305,13 @@ void CW_Process_CM_SMode_Messages(void)
                 SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RUNTIME_EXCEPTION_ERROR);
 
                 /* Send Async error event to Host runtime. */
-                status = Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_EXCEPTION, (uint32_t)exception->hart_id);
+                status = Device_Async_Error_Event_Handler(
+                    DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_EXCEPTION, (uint32_t)exception->hart_id);
 
                 if (status != STATUS_SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_ERROR,
-                        "CW: Failed in Device Async Error handling (status: %d)\r\n",
-                        status);
+                        "CW: Failed in Device Async Error handling (status: %d)\r\n", status);
                 }
 
                 break;
@@ -520,6 +520,8 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
 
         if ((status == STATUS_SUCCESS) && (CW_Get_Booted_Shires() == shire_mask))
         {
+            Log_Write(LOG_LEVEL_CRITICAL,
+                "CW: All CW re-booted successfully. Shire Mask:0x%lx!\r\n", shire_mask);
             exit_loop = true;
         }
     } while (!exit_loop);
@@ -528,7 +530,8 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
     release_local_spinlock(&CW_CB.cm_reset_lock);
 
     /*TODO: Do not reset MM Shire until we have support to reset one neigh in MM shire .*/
-    atomic_compare_and_exchange_local_64(&CW_CB.booted_shires_mask, shire_mask, (shire_mask | MM_SHIRE_MASK));
+    atomic_compare_and_exchange_local_64(
+        &CW_CB.booted_shires_mask, shire_mask, (shire_mask | MM_SHIRE_MASK));
 
     if (sw_timer_idx >= 0)
     {

@@ -66,7 +66,6 @@ void __attribute__((noreturn)) main(void)
 
     /* Initialize Trace with default configurations. */
     Trace_Init_CM(NULL);
-    Trace_String(TRACE_EVENT_STRING_CRITICAL, Trace_Get_CM_CB(), "Trace Initialized!!\n");
 
     /* Last thread in a shire sends shire ready message to Master Minion */
     if (atomic_add_local_32(&CM_Thread_Boot_Counter[shire_id].flag, 1U) == (thread_count - 1))
@@ -85,7 +84,7 @@ void __attribute__((noreturn)) main(void)
         if (status == 0)
         {
             /* Log boot message */
-            log_write(LOG_LEVEL_DEBUG, "Shire %d booted up!\r\n", shire_id);
+            log_write(LOG_LEVEL_CRITICAL, "Shire %d booted up!\r\n", shire_id);
         }
         else
         {

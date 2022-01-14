@@ -138,12 +138,6 @@ void __attribute__((noreturn)) main(void)
     // Enable all available PMU counters to be sampled in S-mode
     asm volatile("csrw mcounteren, %0\n" : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
 
-    /* Init global console lock */
-    if (hart_id == MM_DISPATCHER_HART_ID)
-    {
-        init_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR, 0);
-    }
-
     /* Setup the default events for PMCs */
     mm_setup_default_pmcs(hart_id);
 

@@ -292,14 +292,16 @@ static inline int32_t abort_cmd_handler(void *command_buffer, uint8_t sqw_hp_idx
 ***********************************************************************/
 static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_idx)
 {
-    const struct device_ops_cm_reset_cmd_t *cmd = (struct device_ops_cm_reset_cmd_t *)command_buffer;
+    const struct device_ops_cm_reset_cmd_t *cmd =
+        (struct device_ops_cm_reset_cmd_t *)command_buffer;
     struct device_ops_cm_reset_rsp_t rsp;
     int32_t status = STATUS_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_CMD, sqw_hp_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
-    Log_Write(LOG_LEVEL_DEBUG, "SQ_HP[%d] cm_reset_cmd_handler:Processing:CM_RESET_CMD\r\n", sqw_hp_idx);
+    Log_Write(
+        LOG_LEVEL_DEBUG, "SQ_HP[%d] cm_reset_cmd_handler:Processing:CM_RESET_CMD\r\n", sqw_hp_idx);
 
     /* Construct and transmit response */
     rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
@@ -316,15 +318,16 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
 
         if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "KW:CW: Unable to Boot all Minions (status: %d)\r\n",
-                status);
+            Log_Write(
+                LOG_LEVEL_ERROR, "KW:CW: Unable to Boot all Minions (status: %d)\r\n", status);
             status = HOST_CMD_ERROR_CM_RESET_FAILED;
         }
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR, "KW:Invalid shire mask:0x%lx, physically available shire:0x%lx\r\n",
-            cmd->cm_shire_mask, CW_Get_Physically_Enabled_Shires());
+        Log_Write(LOG_LEVEL_ERROR,
+            "KW:Invalid shire mask:0x%lx, physically available shire:0x%lx\r\n", cmd->cm_shire_mask,
+            CW_Get_Physically_Enabled_Shires());
         status = HOST_CMD_ERROR_INVALID_CM_SHIRE_MASK;
     }
 
@@ -362,8 +365,8 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
 
         Log_Write(LOG_LEVEL_DEBUG,
-            "SQ_HP[%d] cm_reset_cmd_handler:Pushed:CM Reset response:tag_id=%x->Host_CQ\r\n", sqw_hp_idx,
-            rsp.response_info.rsp_hdr.tag_id);
+            "SQ_HP[%d] cm_reset_cmd_handler:Pushed:CM Reset response:tag_id=%x->Host_CQ\r\n",
+            sqw_hp_idx, rsp.response_info.rsp_hdr.tag_id);
     }
     else
     {
@@ -1106,9 +1109,7 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
         {
             status = DMAW_CW_SHIRE_NOT_BOOTED;
         }
-
-        if ((status == STATUS_SUCCESS) &&
-            (cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE)))
+        else if (cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE))
         {
             /* Evict MM Trace.*/
             Trace_Evict_Buffer_MM();
@@ -1119,13 +1120,15 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
             };
 
             /* Send command to CM RT to evict Trace buffer. */
-            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg, &failed_cm_shires_mask);
+            status = CM_Iface_Multicast_Send(
+                cm_shire_mask, (cm_iface_message_t *)&cm_msg, &failed_cm_shires_mask);
 
             /* If CM hung then send Async event to host runtime. */
-             if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
+            if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
             {
                 /* Send command to CM RT to disable Trace and evict Trace buffer. */
-                (void) Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
+                Device_Async_Error_Event_Handler(
+                    DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
             }
             else if (status != STATUS_SUCCESS)
             {
@@ -1163,9 +1166,7 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
         {
             status = DMAW_CW_SHIRE_NOT_BOOTED;
         }
-
-        if ((status == STATUS_SUCCESS) &&
-            (cmd->list[TRACE_NODE_INDEX].size <= CM_TRACE_BUFFER_SIZE))
+        else if (cmd->list[TRACE_NODE_INDEX].size <= CM_TRACE_BUFFER_SIZE)
         {
             mm_to_cm_message_trace_buffer_evict_t cm_msg = {
                 .header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
@@ -1173,12 +1174,14 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
             };
 
             /* Send command to CM RT to evict Trace buffer. */
-            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg, &failed_cm_shires_mask);
+            status = CM_Iface_Multicast_Send(
+                cm_shire_mask, (cm_iface_message_t *)&cm_msg, &failed_cm_shires_mask);
 
             if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
             {
                 /* Send command to CM RT to disable Trace and evict Trace buffer. */
-                (void) Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
+                Device_Async_Error_Event_Handler(
+                    DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
             }
             else if (status != STATUS_SUCCESS)
             {
@@ -1707,12 +1710,14 @@ static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t
         else
         {
             /* Send command to CM RT to disable Trace and evict Trace buffer. */
-            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg, &failed_cm_shires_mask);
+            status = CM_Iface_Multicast_Send(
+                cm_shire_mask, (cm_iface_message_t *)&cm_msg, &failed_cm_shires_mask);
 
             if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
             {
                 /* Send command to CM RT to disable Trace and evict Trace buffer. */
-                (void) Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
+                Device_Async_Error_Event_Handler(
+                    DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
             }
             else if (status != STATUS_SUCCESS)
             {
@@ -1971,8 +1976,7 @@ int32_t Device_Async_Error_Event_Handler(uint8_t error_type, uint32_t payload)
 
     if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:HostIface:Push:Failed:fw_error_event:%d \r\n",
-            cmd_header->tag_id, error_type);
+        Log_Write(LOG_LEVEL_ERROR, "HostIface:Push:Failed:fw_error_event:%d \r\n", error_type);
 
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
     }
