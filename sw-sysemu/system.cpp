@@ -60,8 +60,9 @@ void System::reset_shire_state(unsigned shireid)
     for (unsigned neigh = 0; neigh < neigh_count; ++neigh) {
         unsigned idx = EMU_NEIGH_PER_SHIRE*shire + neigh;
         neigh_esrs[idx].reset();
-        coop_tloads[idx][0].fill(Coop_tload_state{});
-        coop_tloads[idx][1].fill(Coop_tload_state{});
+        coop_tloads[idx].tload_a[0].fill(Coop_tload_state{});
+        coop_tloads[idx].tload_a[1].fill(Coop_tload_state{});
+        coop_tloads[idx].tload_b.fill(Coop_tload_state{});
     }
     shire_cache_esrs[shire].reset();
     shire_other_esrs[shire].reset(shireid);
