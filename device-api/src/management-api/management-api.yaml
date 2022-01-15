@@ -143,7 +143,39 @@ Modules:
           Value: 59
         - Name: SET_THROTTLE_POWER_STATE_TEST
           Value: 60
-        - Name: MID_END
+        - Name: MDI_SELECT_HART
+          Value: 61
+        - Name: MDI_UNSELECT_HART
+          Value: 62  
+        - Name: MDI_RESET_HART
+          Value: 63
+        - Name: MDI_HALT_HART
+          Value: 64
+        - Name: MDI_RESUME_HART
+          Value: 65
+        - Name: MDI_GET_HART_STATUS
+          Value: 66
+        - Name: MDI_SET_BREAKPOINT
+          Value: 67
+        - Name: MDI_UNSET_BREAKPOINT
+          Value: 68
+        - Name: MDI_ENABLE_SINGLE_STEP
+          Value: 69
+        - Name: MDI_DISABLE_SINGLE_STEP
+          Value: 70
+        - Name: MDI_READ_GPR
+          Value: 71
+        - Name: MDI_DUMP_GPR
+          Value: 72
+        - Name: MDI_WRITE_GPR
+          Value: 73  
+        - Name: MDI_READ_CSR
+          Value: 74
+        - Name: MDI_WRITE_CSR
+          Value: 75
+        - Name: MDI_READ_MEM
+          Value: 76   
+        - Name: MDI_END
           Value: 255
   ## List of Enums that are used in our messages
     - Name: power_state
@@ -294,6 +326,56 @@ Modules:
           Value: 1
         - Name: INVALID
           Value: 2
+    - Name:  mdi_hart_selection_flag
+      Description: Select or Unselect option for Hart
+      Type: uint8_t
+      Values:
+        - Name: SELECT_HART
+          Value: 0
+        - Name: UNSELECT_HART
+          Value: 1
+    - Name:  mdi_hart_ctrl_flag
+      Description: Hart Control flag
+      Type: uint8_t
+      Values:
+        - Name: HALT_HART
+          Value: 0
+        - Name: RESUME_HART
+          Value: 1
+        - Name: RESET_HART
+          Value: 2
+        - Name: HART_STATUS
+          Value: 3
+    - Name:  mdi_bp_ctrl_flag
+      Description: Breakpoint Control flag
+      Type: uint8_t
+      Values:
+        - Name: SET_BREAKPOINT
+          Value: 0
+        - Name: UNSET_BREAKPOINT
+          Value: 1
+    - Name:  mdi_ss_ctrl_flag
+      Description: Single Step Control(Enable/Disable) flag
+      Type: uint8_t
+      Values:
+        - Name: ENABLE_SS
+          Value: 0
+        - Name: DISABLE_SS
+          Value: 1
+    - Name:  priv_mask
+      Description: Minion mode
+      Type: uint64_t
+      Values:
+        - Name: PRIV_NONE
+          Value: 0
+        - Name: PRIV_MMODE
+          Value: 1
+        - Name: PRIV_SMODE
+          Value: 2
+        - Name: PRIV_UMODE
+          Value: 4
+        - Name: PRIV_ALL
+          Value: 7
 
   Structs:
     - Name: asset_info_t
@@ -520,6 +602,103 @@ Modules:
         - Name: pad[7]
           Description: Padding for alignment
           Type: uint8_t
+    - Name: mdi_hart_selection_t
+      Fields:
+        - Name: shire_id
+          Description: Shire ID
+          Type: uint64_t
+        - Name: thread_mask
+          Description: Thread Mask
+          Type: uint64_t
+        - Name: flags
+          Description: Flags that indicate, select/unselect/etc function
+          Type: uint64_t
+    - Name: mdi_hart_control_t
+      Fields:
+        - Name: flags
+          Description: Flags that indicate action to perform, reset/halt/resume/status/etc
+          Type: uint64_t
+    - Name: mdi_bp_control_t
+      Fields:
+        - Name: hart_id
+          Description: Hart ID 
+          Type: uint64_t
+        - Name: pc
+          Description: Address for breakpoint
+          Type: uint64_t
+        - Name: mode 
+          Description: Minion mode
+          Type: uint64_t
+        - Name: flags
+          Description: Flags that indicate BP action, set/unset/etc
+          Type: uint64_t
+    - Name: mdi_ss_control_t
+      Fields:
+        - Name: shire_mask
+          Description: Shire Mask
+          Type: uint64_t
+        - Name: thread_mask
+          Description: Thread Mask
+          Type: uint64_t
+        - Name: flags
+          Description: Flags that indicate ss actions, TBD
+          Type: uint64_t
+    - Name: mdi_gpr_read_t
+      Fields:
+        - Name: hart_id
+          Description: HART ID
+          Type: uint64_t
+        - Name: gpr_index
+          Description: GPR Index
+          Type: uint32_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t 
+    - Name: mdi_dump_gpr_t
+      Fields:
+        - Name: gpr[32]
+          Description: Padding for alignment
+          Type: uint64_t       
+    - Name: mdi_gpr_write_t
+      Fields:
+        - Name: hart_id
+          Description: HART ID
+          Type: uint64_t
+        - Name: data
+          Description: Data to be written to GPR
+          Type: uint64_t  
+        - Name: gpr_index
+          Description: GPR Index
+          Type: uint32_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t 
+    - Name: mdi_csr_read_t
+      Fields:
+        - Name: hart_id
+          Description: HART ID
+          Type: uint64_t
+        - Name: csr_name
+          Description: CSR Name
+          Type: uint32_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t 
+    - Name: mdi_csr_write_t
+      Fields:
+        - Name: hart_id
+          Description: HART ID
+          Type: uint64_t
+        - Name: data
+          Description: Data to be written to CSR
+          Type: uint64_t 
+        - Name: csr_name
+          Description: CSR Name
+          Type: uint32_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
+
   # List of Commands, Responses, Events
   Messages :
       #-------------------------------------------------------------------------------
@@ -1179,4 +1358,214 @@ Modules:
         - Name: pad[4]
           Description: Padding for alignment
           Type: uint8_t
+#------------------------------------------------------------------------------
+# MDI Commands and Responses
+#-------------------------------------------------------------------------------
+    - Name: mdi_hart_selection_cmd
+      Description: Command to select/unselect HART
+      Type: Command
+      PairedMessage: mdi_hart_selection_rsp
+      Fields:
+        - Name: cmd_attr
+          Description: Command attributes for HART selection
+          Type: struct
+          Struct: mdi_hart_selection_t
+
+    - Name: mdi_hart_selection_rsp
+      Description: HART selection response
+      Type: Response
+      PairedMessage: mdi_hart_selection_cmd
+      Fields:
+        - Name: status
+          Description: Indications if HART selection operation suceeded
+          Type: uint32_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
+
+    - Name: mdi_hart_control_cmd
+      Description: Command to control HARTs
+      Type: Command
+      PairedMessage: mdi_hart_control_rsp
+      Fields:
+        - Name: cmd_attr
+          Description: Command attributes for HART control
+          Type: struct
+          Struct: mdi_hart_selection_t
+
+    - Name: mdi_hart_control_rsp
+      Description: HART control response
+      Type: Response
+      PairedMessage: mdi_hart_control_cmd
+      Fields:
+        - Name: status
+          Description: Indications if HART control operation suceeded
+          Type: uint32_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
+
+    - Name: mdi_bp_control_cmd
+      Description: Breakpoint control command
+      Type: Command
+      PairedMessage: mdi_hart_control_rsp
+      Fields:
+        - Name: cmd_attr
+          Description: Command attributes for BP control
+          Type: struct
+          Struct: mdi_bp_control_t
+
+    - Name: mdi_bp_control_rsp
+      Description: Breakpoint control response
+      Type: Response
+      PairedMessage: mdi_bp_control_cmd
+      Fields:
+        - Name: status
+          Description: Indications if BP control operation suceeded
+          Type: uint32_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
+
+    - Name: mdi_ss_control_cmd
+      Description: Single Step control command
+      Type: Command
+      PairedMessage: mdi_ss_control_rsp
+      Fields:
+        - Name: cmd_attr
+          Description: Command attributes for Single Step control
+          Type: struct
+          Struct: mdi_ss_control_t
+
+    - Name: mdi_ss_control_rsp
+      Description: Single Step control response
+      Type: Response
+      PairedMessage: mdi_ss_control_cmd
+      Fields:
+        - Name: status
+          Description: Indications if SS control operation suceeded
+          Type: uint32_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
+
+    - Name: mdi_read_gpr_cmd
+      Description: GPR Read command
+      Type: Command
+      PairedMessage: mdi_read_gpr_rsp
+      Fields:
+        - Name: cmd_attr
+          Description: Command attributes(hart_id and gpr index) for reading GPR
+          Type: struct
+          Struct: mdi_gpr_read_t
+
+    - Name: mdi_dump_gpr_cmd
+      Description: GPR Dump command
+      Type: Command
+      PairedMessage: mdi_dump_gpr_rsp
+      Fields:
+        - Name: hart_id
+          Description: Hart ID for reading GPRs
+          Type: uint64_t
+      
+    - Name: mdi_dump_gpr_rsp
+      Description: GPR Dump Response
+      Type: Response
+      PairedMessage: mdi_dump_gpr_cmd
+      Fields:
+        - Name: gprs
+          Description: GPRs
+          Type: struct
+          Struct: mdi_dump_gpr_t
+
+    - Name: mdi_read_gpr_rsp
+      Description: GPR Read response
+      Type: Response
+      PairedMessage: mdi_read_gpr_cmd
+      Fields:
+        - Name: data
+          Description: GPR register data
+          Type: uint64_t
+
+    - Name: mdi_write_gpr_cmd
+      Description: GPR Write command
+      Type: Command
+      PairedMessage: mdi_write_gpr_rsp
+      Fields:
+        - Name: cmd_attr
+          Description: Command attributes(hart_id,gpr index, data) for writing GPR
+          Type: struct
+          Struct: mdi_gpr_write_t      
+
+    - Name: mdi_write_gpr_rsp
+      Description: GPR Write Response
+      Type: Command
+      PairedMessage: mdi_write_gpr_cmd
+      Fields:
+        - Name: dummy
+          Description: Dummy field
+          Type: uint64_t
+
+    - Name: mdi_read_csr_cmd
+      Description: CSR Read command
+      Type: Command
+      PairedMessage: mdi_read_csr_rsp
+      Fields:
+        - Name: cmd_attr
+          Description: Command attributes(hart_id and csr name) for reading CSR
+          Type: struct
+          Struct: mdi_csr_read_t
+
+    - Name: mdi_read_csr_rsp
+      Description: CSR Read response
+      Type: Response
+      PairedMessage: mdi_read_csr_cmd
+      Fields:
+        - Name: data
+          Description: Control and Status Register(CSR) data
+          Type: uint64_t
+
+    - Name: mdi_write_csr_cmd
+      Description: CSR Write command
+      Type: Command
+      PairedMessage: mdi_write_csr_rsp
+      Fields:
+        - Name: cmd_attr
+          Description: Command attributes(hart_id,csr name, data) for writing to CSR
+          Type: struct
+          Struct: mdi_csr_write_t
+
+    - Name: mdi_write_csr_rsp
+      Description: CSR Write response
+      Type: Response
+      PairedMessage: mdi_write_csr_cmd
+      Fields:
+        - Name: dummy
+          Description:  Dummy field
+          Type: uint64_t
+    
+    - Name: mdi_mem_read_cmd
+      Description: Memory Read command
+      Type: Command
+      PairedMessage: mdi_mem_read_rsp
+      Fields:
+        - Name: address
+          Description: Memory address to be read from
+          Type: uint64_t
+        - Name: size
+          Description: Size of memory region
+          Type: uint32_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t 
+    
+    - Name: mdi_mem_read_rsp
+      Description: Memory Read response
+      Type: Response
+      PairedMessage: mdi_mem_read_cmd
+      Fields:
+        - Name: data
+          Description: Memory content value
+          Type: uint64_t    
+
 #------------------------------------------------------------------------------
