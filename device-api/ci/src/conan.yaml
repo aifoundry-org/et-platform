@@ -1,0 +1,4 @@
+projects:
+  "deviceApi":
+    folder: .
+    configs: [host, device]
