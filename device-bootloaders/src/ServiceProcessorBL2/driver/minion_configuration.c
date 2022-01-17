@@ -1358,3 +1358,72 @@ int8_t MM_Init_HeartBeat_Watchdog(void)
 
     return status;
 }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*      enable_sram_and_icache_interrupts
+*
+*   DESCRIPTION
+*
+*      This function enables interrupts from SRAM and ICache.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       status   Status indicating success or negative error
+*
+***********************************************************************/
+int8_t enable_sram_and_icache_interrupts(void)
+{
+    int8_t status = 0;
+    uint8_t  minshire;
+    uint64_t shire_mask;
+
+    shire_mask = Minion_Get_Active_Compute_Minion_Mask();
+
+    FOR_EACH_MINSHIRE(
+        INT_enableInterrupt(SPIO_PLIC_MINSHIRE_ERR0_INTR + minshire, 1,
+                            sram_and_icache_error_isr);
+        )
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*      disable_sram_and_icache_interrupts
+*
+*   DESCRIPTION
+*
+*      This function disables interrupts from SRAM and ICache.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       status   Status indicating success or negative error
+*
+***********************************************************************/
+int8_t disable_sram_and_icache_interrupts(void)
+{
+    int8_t status = 0;
+    uint8_t  minshire;
+    uint64_t shire_mask;
+
+    shire_mask = Minion_Get_Active_Compute_Minion_Mask();
+
+    FOR_EACH_MINSHIRE(
+        INT_disableInterrupt(SPIO_PLIC_MINSHIRE_ERR0_INTR + minshire);
+        )
+
+    return status;
+}

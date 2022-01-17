@@ -26,9 +26,6 @@
 #include "esr.h"
 #include "minion_configuration.h"
 
-#define SINGLE_BIT_ECC 0
-#define DOUBLE_BIT_ECC 1
-
 /*! \def SPIO_PLIC
 */
 #ifndef SPIO_PLIC
@@ -55,16 +52,45 @@
 */
 #define CACHE_LINE_SIZE                   64
 
+/*! \def BIT
+    \brief Macto setting bit position
+ */
+#ifndef BIT
+#define BIT(x) (0x1ul << x)
+#endif
+
+/*!
+ * @enum shire_cache_error_type
+ * @brief Enum defining event/error type
+ */
+enum shire_cache_error_type {
+    SINGLE_BIT_ECC = 0,
+    DOUBLE_BIT_ECC,
+    ECC_ERROR_COUNTER_SATURATION,
+    DECODE_AND_SLAVE_ERRORS,
+    PERFORMANCE_COUNTER_SATURATION
+};
+
 /*!
  * @struct struct sram_event_control_block
  * @brief SRAM driver error mgmt control block
  */
-struct sram_event_control_block
+typedef struct sram_event_control_block
 {
     uint32_t ce_count;              /**< Correctable error count. */
     uint32_t uce_count;             /**< Un-Correctable error count. */
     uint32_t ce_threshold;          /**< Correctable error threshold. */
     dm_event_isr_callback event_cb; /**< Event callback handler. */
+} sram_event_control_block_t;
+
+/*!
+ * @struct struct sram_and_icache_event_control_block
+ * @brief SRAM and ICache driver error mgmt control block
+ */
+struct sram_and_icache_event_control_block
+{
+    sram_event_control_block_t sram;
+    sram_event_control_block_t icache;
 };
 
 /*! \def SC_BANK_BROADCAST
@@ -82,6 +108,29 @@ struct sram_event_control_block
 */
 #define SC_BANK_NUM 4
 
+int32_t icache_error_control_init(dm_event_isr_callback event_cb);
+int32_t icache_error_control_deinit(uint64_t shire_mask);
+
+int32_t icache_err_interrupt_enable(uint64_t shire_mask, uint32_t interrupt_mask);
+int32_t icache_enable_ce_interrupt(uint64_t shire_mask);
+int32_t icache_enable_uce_interrupt(uint64_t shire_mask);
+int32_t icache_enable_ecc_counter_saturation_interrupt(uint64_t shire_mask);
+int32_t icache_enable_all_interrupts(uint64_t shire_mask);
+
+int32_t icache_err_interrupt_disable(uint64_t shire_mask, uint32_t interrupt_mask);
+int32_t icache_disable_ce_interrupt(uint64_t shire_mask);
+int32_t icache_disable_uce_interrupt(uint64_t shire_mask);
+int32_t icache_disble_ecc_counter_saturation_interrupt(uint64_t shire_mask);
+int32_t icache_disable_all_interrupts(uint64_t shire_mask);
+
+void    sram_and_icache_error_isr(void);
+
+/*! \fn int32_t sram_error_control_init(dm_event_isr_callback event_cb)
+    \brief This function inits sram error control subsystem.
+    \param event_cb Event callback handler.
+    \return Status indicating success or negative error
+*/
+
 int32_t sram_error_control_init(dm_event_isr_callback event_cb);
 
 /*! \fn int32_t sram_error_control_deinit(uint64_t shire_mask)
@@ -91,6 +140,57 @@ int32_t sram_error_control_init(dm_event_isr_callback event_cb);
 */
 
 int32_t sram_error_control_deinit(uint64_t shire_mask);
+
+/*! \fn int32_t sc_err_interrupt_enable(uint64_t shire_mask, uint32_t interrupt_mask)
+    \brief This function enables shire cache error interrupts.
+    \param shire_mask Active shire mask
+           interrupt_mask Mask for interrupts to be enabled
+    \return Status indicating success or negative error
+*/
+int32_t sc_err_interrupt_enable(uint64_t shire_mask, uint32_t interrupt_mask);
+
+/*! \fn int32_t sram_enable_ecc_counter_saturation_interrupt(uint64_t shire_mask)
+    \brief This function enables sram ecc counter saturation interrupts.
+    \param shire_mask Active shire mask
+    \return Status indicating success or negative error
+*/
+int32_t sram_enable_ecc_counter_saturation_interrupt(uint64_t shire_mask);
+
+/*! \fn int32_t sram_enable_decode_and_slave_interrupt(uint64_t shire_mask)
+    \brief This function enables sram decode and slave error interrupts.
+    \param shire_mask Active shire mask
+    \return Status indicating success or negative error
+*/
+int32_t sram_enable_decode_and_slave_interrupt(uint64_t shire_mask);
+
+/*! \fn int32_t sram_enable_perf_counter_saturation_interrupt(uint64_t shire_mask)
+    \brief This function enables sram performance counter saturation interrupts.
+    \param shire_mask Active shire mask
+    \return Status indicating success or negative error
+*/
+int32_t sram_enable_perf_counter_saturation_interrupt(uint64_t shire_mask);
+
+/*! \fn int32_t sram_enable_all_interrupts(uint64_t shire_mask)
+    \brief This function enables all sram error interrupts.
+    \param shire_mask Active shire mask
+    \return Status indicating success or negative error
+*/
+int32_t sram_enable_all_interrupts(uint64_t shire_mask);
+
+/*! \fn int32_t sc_err_interrupt_disable(uint64_t shire_mask, uint32_t interrupt_mask)
+    \brief This function disables shire cache error interrupts.
+    \param shire_mask Active shire mask
+           interrupt_mask Mask for interrupts to be enabled
+    \return Status indicating success or negative error
+*/
+int32_t sc_err_interrupt_disable(uint64_t shire_mask, uint32_t interrupt_mask);
+
+/*! \fn int32_t sram_disable_all_interrupts(uint64_t shire_mask)
+    \brief This function disables all sram error interrupts.
+    \param shire_mask Active shire mask
+    \return Status indicating success or negative error
+*/
+int32_t sram_disable_all_interrupts(uint64_t shire_mask);
 
 /*! \fn int32_t sram_enable_ce_interrupt(uint64_t shire_mask)
     \brief This function enables sram correctable error interrupts.
@@ -147,6 +247,14 @@ int32_t sram_get_ce_count(uint32_t *ce_count);
 */
 
 int32_t sram_get_uce_count(uint32_t *uce_count);
+
+/*! \fn int32_t icache_error_control_init(dm_event_isr_callback event_cb)
+    \brief This function inits icache error control subsystem.
+    \param event_cb Event callback handler.
+    \return Status indicating success or negative error
+*/
+
+int32_t sram_error_control_init(dm_event_isr_callback event_cb);
 
 /*! \fn uint16_t Cache_Control_SCP_size(uint64_t shire_mask)
     \brief This function provides SCP size (MB)

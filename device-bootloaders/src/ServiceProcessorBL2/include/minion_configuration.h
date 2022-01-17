@@ -22,6 +22,7 @@
 #include "bl2_reset.h"
 #include "sp_otp.h"
 #include "bl2_pmic_controller.h"
+#include "bl2_cache_control.h"
 #include "bl2_firmware_loader.h"
 #include "bl2_certificates.h"
 #include "bl_error_code.h"
@@ -303,5 +304,19 @@ int print_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask);
     \return The function call status, pass/fail.
 */
 int clear_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask);
+
+/*! \fn int8_t enable_sram_and_icache_interrupts(void)
+    \brief This function enables interrupts from SRAM and ICache.
+    \param NONE
+    \return Status indicating success or negative error
+*/
+int8_t enable_sram_and_icache_interrupts(void);
+
+/*! \fn int8_t disable_sram_and_icache_interrupts(void)
+    \brief This function disables interrupts from SRAM and ICache.
+    \param NONE
+    \return Status indicating success or negative error
+*/
+int8_t disable_sram_and_icache_interrupts(void);
 
 #endif

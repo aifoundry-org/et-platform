@@ -400,6 +400,11 @@
 */
 #define SRAM_CORR_ERROR_THRESHOLD  32
 
+/*! \def ICACHE_CORR_ERROR_THRESHOLD
+    \brief Predefined threshold for ICACHE correctable errors.
+*/
+#define ICACHE_CORR_ERROR_THRESHOLD  32
+
 /************************
   RTOS Task Properties
  ************************/
