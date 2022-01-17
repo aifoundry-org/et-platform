@@ -102,7 +102,6 @@ static StaticTask_t gs_taskBufferMain;
 static void taskMain(void *pvParameters)
 {
     uint64_t minion_shires_mask;
-    uint8_t mm_id;
     int status;
     (void)pvParameters;
 
@@ -256,18 +255,9 @@ static void taskMain(void *pvParameters)
     /* Initialize the Cache Size DIRs */
     DIR_Cache_Size_Init();
 
-    // Extract Master Minion Shire ID from Fuses
-    status = otp_get_master_shire_id(&mm_id);
-    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to read master minion shire ID!")
-    // If ID Value wasn't burned into fuse, use default value
-    if (mm_id == 0xff){
-       Log_Write(LOG_LEVEL_WARNING,
-            "Master shire ID was not found in the OTP, using default value of 32!\n");
-       mm_id = 32;
-    }
-
     // Launch Master Minion Runtime
-    status = Minion_Enable_Master_Shire_Threads(mm_id);
+    Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]Minion_Enable_Master_Shire_Threads\n");
+    status = Minion_Enable_Master_Shire_Threads();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to enable Master minion threads!")
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MM_FW_LAUNCHED);

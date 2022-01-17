@@ -18,6 +18,7 @@
 #include "bl2_build_configuration.h"
 #include "bl2_firmware_update.h"
 #include "mm_iface.h"
+#include "system/layout.h"
 
 #define SPI_FLASH_WRITES_256B_CHUNK_SIZE 256
 #define SPI_FLASH_WRITES_128B_CHUNK_SIZE 128
@@ -382,12 +383,12 @@ static int32_t dm_svc_firmware_update(void)
 {
     // Firmware image is available in the memory.
     Log_Write(LOG_LEVEL_INFO, "FW mgmt request: %s\n", __func__);
-    Log_Write(LOG_LEVEL_DEBUG, "Image available at : %lx,  size: %lx\n",
-            (uint64_t)DEVICE_FW_UPDATE_REGION_BASE, DEVICE_FW_UPDATE_REGION_SIZE);
+    Log_Write(LOG_LEVEL_DEBUG, "Image available at : %lx,  size: %x\n",
+            (uint64_t)SP_DM_SCRATCH_REGION_BEGIN, SP_DM_SCRATCH_REGION_SIZE);
 
     // Program the image to flash.
-    if (0 != flash_fs_update_partition((void *)DEVICE_FW_UPDATE_REGION_BASE,
-                                       DEVICE_FW_UPDATE_REGION_SIZE,
+    if (0 != flash_fs_update_partition((void *)SP_DM_SCRATCH_REGION_BEGIN,
+                                       SP_DM_SCRATCH_REGION_SIZE,
                                        SPI_FLASH_WRITES_256B_CHUNK_SIZE)) {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_update_partition: failed to write data!\n");
         return DEVICE_FW_FLASH_UPDATE_ERROR;
@@ -395,15 +396,14 @@ static int32_t dm_svc_firmware_update(void)
         Log_Write(LOG_LEVEL_INFO, "flash partition has been updated with new image!\n");
     }
 
-#ifdef VALIDATE_FW_WRITE
     /* Read back the image data written into flash and compare with the
         the data present in the DDR - ensure data is written correctly to
         flash.
     */
-    const uint8_t *ddr_data = (const uint8_t * )DEVICE_FW_UPDATE_REGION_BASE;
+    const uint8_t *ddr_data = (const uint8_t * )SP_DM_SCRATCH_REGION_BEGIN;
     uint8_t flash_data[SPI_FLASH_WRITES_256B_CHUNK_SIZE];
 
-    for (uint32_t i = 0; i < DEVICE_FW_UPDATE_REGION_SIZE;
+    for (uint32_t i = 0; i < SP_DM_SCRATCH_REGION_SIZE;
                     i = i + SPI_FLASH_WRITES_256B_CHUNK_SIZE) {
         /* Read data from flash passive partition */
         if ( 0 != flash_fs_read(false, flash_data, SPI_FLASH_WRITES_256B_CHUNK_SIZE, i)) {
@@ -418,7 +418,6 @@ static int32_t dm_svc_firmware_update(void)
             return DEVICE_FW_FLASH_UPDATE_ERROR;
         }
     }
-#endif
 
     // Swap the priority counter of the partitions. so bootrom will choose
     // the partition with an updated image

@@ -34,6 +34,9 @@
 #define MAX_SPI_TX_FIFO_DEPTH 256
 #define MAX_SPI_TX_FIFO_SIZE  (MAX_SPI_TX_FIFO_DEPTH * 4)
 
+/* Wait loop counter for SPI Flash accesses */
+#define SPI_WAIT_LOOP_TIMEOUT 80000
+
 /* Polling for mem busy loop, num_reads - number of status reads before timeout error */
 #define SPI_MEM_BUSY_WAIT_LOOP(flash_id, spi_status, num_reads)            \
     int k = 0;                                                             \
@@ -558,7 +561,7 @@ int spi_flash_page_program(SPI_FLASH_ID_t flash_id, uint32_t address, const uint
         return ERROR_SPI_FLASH_PP_FAILED;
     }
 
-    SPI_MEM_BUSY_WAIT_LOOP(flash_id, spi_status, 40000)
+    SPI_MEM_BUSY_WAIT_LOOP(flash_id, spi_status, SPI_WAIT_LOOP_TIMEOUT)
 
     return 0;
 }
@@ -619,7 +622,7 @@ int spi_flash_block_erase(SPI_FLASH_ID_t flash_id, uint32_t address)
         return ERROR_SPI_FLASH_BE_FAILED;
     }
 
-    SPI_MEM_BUSY_WAIT_LOOP(flash_id, spi_status, 40000)
+    SPI_MEM_BUSY_WAIT_LOOP(flash_id, spi_status, SPI_WAIT_LOOP_TIMEOUT)
 
     return 0;
 }
@@ -680,7 +683,7 @@ int spi_flash_sector_erase(SPI_FLASH_ID_t flash_id, uint32_t address)
         return ERROR_SPI_FLASH_SE_FAILED;
     }
 
-    SPI_MEM_BUSY_WAIT_LOOP(flash_id, spi_status, 40000)
+    SPI_MEM_BUSY_WAIT_LOOP(flash_id, spi_status, SPI_WAIT_LOOP_TIMEOUT)
 
     return 0;
 }

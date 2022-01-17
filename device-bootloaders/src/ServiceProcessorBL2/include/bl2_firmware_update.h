@@ -42,23 +42,6 @@ enum DEVICE_FW_UPDATE_STATUS {
     DEVICE_FW_UPDATED_IMAGE_BOOT_FAILED = 3
 };
 
-/* Release 0.0.7 TODO: This needs to be retrieved from Device Interface registers */
-
-/*! \def DEVICE_FW_UPDATE_REGION_SIZE
-    \brief Device Firmware update memory region size.
-*/
-#define DEVICE_FW_UPDATE_REGION_SIZE 0x0400000UL
-
-/*! \def DEVICE_FW_UPDATE_REGION_BASE
-    \brief Device Firmware update memory region base address.
-*/
-#define DEVICE_FW_UPDATE_REGION_BASE 0x8005120000ULL
-
-/*! \def VALIDATE_FW_WRITE
-    \brief  Validates the firmware written to the flash memory
-*/
-#define VALIDATE_FW_WRITE
-
 /*! \def FORMAT_VERSION
     \brief Macro for formatting FW version. It will be of the format:  Major[1 byte].[Minor 1 byte].[Revision 1 byte].[NULL].
 */

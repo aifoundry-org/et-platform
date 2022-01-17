@@ -36,12 +36,6 @@
 */
 #define SP_DEV_INTF_REG_VERSION            1U
 
-/*! \func Magic_Marker_Instruction
- *  \brief A magic marker instruction which is used to trigger an external
- *   event. This is a NOP instructions
-*/
-#define ISSUE_MAGIC_MARKER() __asm__ __volatile__("sltiu zero,zero,0x799\n")
-
 /***************************************/
 /* Memory Region accessibility options */
 /***************************************/

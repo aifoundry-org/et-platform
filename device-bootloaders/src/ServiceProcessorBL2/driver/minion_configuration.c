@@ -41,12 +41,14 @@
 #include "usdelay.h"
 
 #include <hwinc/etsoc_shire_other_esr.h>
+#include <hwinc/etsoc_shire_cache_esr.h>
 
 #include "esr.h"
 #include "minion_configuration.h"
 #include "hal_minion_pll.h"
 #include "FreeRTOS.h"
 #include "timers.h"
+#include "bl2_otp.h"
 
 /*!
  * @struct struct minion_event_control_block
@@ -387,7 +389,10 @@ int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask)
                                     ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(1) |
                                     ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(0xF);
             write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
-                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
+                                 ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
+            read_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                                ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
+
         }
         shire_mask >>= 1;
     }
@@ -413,12 +418,40 @@ int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask)
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-int Minion_Enable_Master_Shire_Threads(uint8_t mm_id)
+int Minion_Enable_Master_Shire_Threads(void)
 {
-    /* Enable only Device Runtime Management thread on Master Shire */
-    write_esr_new(PP_MACHINE, mm_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
-                    ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_ADDRESS, ~(MM_RT_THREADS), 0);
-    return 0;
+   uint8_t mm_id = 0;
+   int status;
+   uint32_t yield_priority = 0x1; 
+   uint64_t sc_esr;
+
+   // Extract Master Minion Shire ID from Fuses
+   status = otp_get_master_shire_id(&mm_id);
+   if (status != STATUS_SUCCESS)
+   {
+      Log_Write(LOG_LEVEL_ERROR, "Failed to read master minion shire ID"); 
+   }
+   
+  // If ID Value wasn't burned into fuse, use default value
+  if (mm_id == 0xff){
+      Log_Write(LOG_LEVEL_WARNING,"Master shire ID was not found in the OTP, using default value of 32!\n");
+      mm_id = 32;
+  }
+   
+  // Set SC REQQ to distribute arbritration equally between Neigh/L3 Slave
+  for (uint8_t bank = 0; bank < 4; bank++ ) {
+      sc_esr = read_esr_new(PP_MACHINE, mm_id, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+      ETSOC_SHIRE_CACHE_ESR_SC_REQQ_CTL_ADDRESS, bank);
+      sc_esr = ETSOC_SHIRE_CACHE_ESR_SC_REQQ_CTL_ESR_SC_L3_YIELD_PRIORITY_MODIFY(sc_esr, yield_priority);
+      write_esr_new(PP_MACHINE, mm_id, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+                    ETSOC_SHIRE_CACHE_ESR_SC_REQQ_CTL_ADDRESS, sc_esr, bank);
+     }
+   
+  /* Enable only Device Runtime threads on Master Shire */
+  write_esr_new(PP_MACHINE, mm_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_ADDRESS, ~(MM_RT_THREADS), 0);
+
+  return 0;
 }
 /************************************************************************
 *
