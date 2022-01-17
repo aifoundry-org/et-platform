@@ -343,7 +343,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
         streamManager_.addEvent(stream, syncCopyEvt);
         cmdEvents.emplace_back(syncCopyEvt);
 
-        // add a thread which will free the cma memory
+        // add a callback which will free the cma memory
         eventManager_.addOnDispatchCallback(
           {{cmdEvt}, [this, cmaPtr, cmdFinalCopies = std::move(cmdFinalCopies), syncCopyEvt, cmaCopyFunction] {
              for (auto& copy : cmdFinalCopies) {
