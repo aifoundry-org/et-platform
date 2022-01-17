@@ -3,9 +3,9 @@ import os
 class CMakeModulesConan(ConanFile):
     name = "cmake-modules"
     version = "0.5.0"
-    license = "<Put the package license here>"
+    license = "esperanto"
     author = "Pau Farre <pau.farre@esperantotech.com>"
-    url = "<Package recipe repository url here, for issues about the package>"
+    url = "https://gitlab.esperanto.ai/software/cmake-modules"
     description = "A collection of cmake modules"
     topics = ("cmake", "modules")
 
@@ -16,8 +16,7 @@ class CMakeModulesConan(ConanFile):
         self.copy(pattern="*.cmake", dst="cmake")
 
     def package_info(self):
-        self.cpp_info.builddirs.append("cmake")
-        self.cpp_info.build_modules = [
+        build_modules = [
             os.path.join("cmake", "CommonProjectSettings.cmake"),
             os.path.join("cmake", "CompilerCache.cmake"),
             os.path.join("cmake", "CompilerOptions.cmake"),
@@ -25,6 +24,9 @@ class CMakeModulesConan(ConanFile):
             os.path.join("cmake", "CompilerWarnings.cmake"),
             os.path.join("cmake", "StaticAnalyzers.cmake")
         ]
+        self.cpp_info.builddirs.append("cmake")
+        self.cpp_info.build_modules = build_modules # DEPRECATED
+        self.cpp_info.set_property("cmake_build_modules", build_modules)
 
     def package_id(self):
         self.info.header_only()
