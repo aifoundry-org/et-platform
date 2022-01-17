@@ -15,33 +15,35 @@
 
 #pragma once
 namespace rt {
-class Server;
+class RuntimeServer;
 class IRuntime;
 class Worker {
 public:
-  explicit Worker(int socket, IRuntime& runtime, Server& server);
+  explicit Worker(int socket, IRuntime& runtime, RuntimeServer& server);
   ~Worker();
 
 private:
   void requestProcessor();
   void freeResources();
-  void processRequest(const req::Request& request);
+  // return false if there were some error
+  bool processRequest(const Request::Header& request);
 
-  void sendResponse(const resp::Response& response);
+  void sendResponse(Response::Type type, EventId event);
+
+  template <typename T> bool deserializeRequest(T& out, size_t size);
 
   struct Allocation {
-    DeviceId device_;
+    int device_;
     std::byte* ptr_;
     bool operator<(const Allocation& other) const {
       return device_ < other.device_ || (device_ == other.device_ && ptr_ < other.ptr_);
     }
   };
+
   std::set<Allocation> allocations_;
-  std::set<StreamId> streams_;
-  std::set<KernelId> kernels_;
   std::thread runner_;
   IRuntime& runtime_;
-  Server& server_;
+  RuntimeServer& server_;
   int socket_;
   bool running_ = true;
 };
