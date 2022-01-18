@@ -31,7 +31,8 @@ typedef uint8_t cm_iface_message_number_t;
 typedef struct {
     cm_iface_message_number_t number;
     cm_iface_message_id_t id;
-    uint8_t pad[6]; /* Padding to make struct 64-bit aligned */
+    uint16_t tag_id;
+    uint8_t pad[4]; /* Padding to make struct 64-bit aligned */
 } cm_iface_message_header_t;
 
 #define MESSAGE_MAX_PAYLOAD_SIZE (64 - sizeof(cm_iface_message_header_t))
