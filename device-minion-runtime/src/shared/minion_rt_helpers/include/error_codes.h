@@ -115,11 +115,6 @@ RESERVED
 */
 #define DMAW_ERROR_CM_IFACE_MULTICAST_FAILED -903
 
-/*! \def DMAW_CW_SHIRE_NOT_BOOTED
-    \brief DMA Worker - CM Shires not booted
-*/
-#define DMAW_CW_SHIRE_NOT_BOOTED -904
-
 /*! \def DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED
     \brief DMA Worker - DMA driver data node config failed
 */
@@ -260,11 +255,6 @@ RESERVED
     \brief Trace - Failed to configure MM S-Mode Trace
 */
 #define TRACE_ERROR_MM_TRACE_CONFIG_FAILED -1501
-
-/*! \def TRACE_ERROR_CW_SHIRE_NOT_BOOTED
-    \brief Trace - Trace enabled Compute Worker shires are not booted.
-*/
-#define TRACE_ERROR_CW_SHIRE_NOT_BOOTED -1502
 
 /*! \def TRACE_ERROR_INVALID_SHIRE_MASK
     \brief Trace - Invalid shire mask

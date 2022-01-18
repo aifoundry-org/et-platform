@@ -623,8 +623,6 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
 
     if (status == STATUS_SUCCESS)
     {
-        uint64_t failed_cm_shires_mask;
-
         /* Populate the tag_id and sqw_idx for KW */
         atomic_store_local_16(&kernel->launch_tag_id, cmd->command_info.cmd_hdr.tag_id);
         atomic_store_local_8(&kernel->sqw_idx, sqw_idx);
@@ -657,8 +655,8 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
 
         /* Blocking call that blocks till all shires ack command */
-        status = CM_Iface_Multicast_Send(launch_args.kernel.shire_mask,
-            (cm_iface_message_t *)&launch_args, &failed_cm_shires_mask);
+        status = CM_Iface_Multicast_Send(
+            launch_args.kernel.shire_mask, (cm_iface_message_t *)&launch_args);
 
         if (status == STATUS_SUCCESS)
         {
@@ -674,12 +672,6 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
             {
                 atomic_store_local_64(&kernel->umode_trace_buffer_ptr, 0);
             }
-        }
-        else if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
-        {
-            /* Send command to CM RT to disable Trace and evict Trace buffer. */
-            Device_Async_Error_Event_Handler(
-                DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
         }
         else
         {
@@ -738,8 +730,6 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
 
         if (status == STATUS_SUCCESS)
         {
-            uint64_t failed_cm_shires_mask;
-
             /* Update the kernel state to aborted */
             atomic_store_local_32(
                 &KW_CB.kernels[slot_index].kernel_state, KERNEL_STATE_ABORTED_BY_HOST);
@@ -753,8 +743,7 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
 
             /* Blocking call that blocks till all shires ack */
             status = CM_Iface_Multicast_Send(
-                atomic_load_local_64(&KW_CB.kernels[slot_index].kernel_shire_mask), &message,
-                &failed_cm_shires_mask);
+                atomic_load_local_64(&KW_CB.kernels[slot_index].kernel_shire_mask), &message);
 
             /* Construct and transmit kernel abort response to host */
             abort_rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
@@ -765,12 +754,6 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
             if (status == STATUS_SUCCESS)
             {
                 abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS;
-            }
-            else if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
-            {
-                /* Send command to CM RT to disable Trace and evict Trace buffer. */
-                Device_Async_Error_Event_Handler(
-                    DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
             }
             else
             {
@@ -967,42 +950,19 @@ static inline int32_t kw_cm_to_mm_kernel_force_abort(uint64_t kernel_shire_mask)
 {
     cm_iface_message_t abort_msg = { .header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT };
     int32_t status;
-    uint64_t failed_cm_shires_mask;
     Log_Write(LOG_LEVEL_DEBUG, "KW:MM->CM:Sending abort multicast msg.\r\n");
 
     /* Blocking call (with timeout) that blocks till all shires ack */
-    status = CM_Iface_Multicast_Send(kernel_shire_mask, &abort_msg, &failed_cm_shires_mask);
+    status = CM_Iface_Multicast_Send(kernel_shire_mask, &abort_msg);
 
     /* Verify that there is no abort hang situation recovery failure */
     if (status != STATUS_SUCCESS)
     {
         Log_Write(LOG_LEVEL_ERROR, "KW:MM->CM:Abort Cmd hanged.status:%d\r\n", status);
 
-        int32_t internal_status = STATUS_SUCCESS;
         SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
 
-        if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
-        {
-            /* Send Async error event to Host runtime. */
-            internal_status = Device_Async_Error_Event_Handler(
-                DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
-
-            if (internal_status != STATUS_SUCCESS)
-            {
-                Log_Write(LOG_LEVEL_ERROR,
-                    "CW: Failed in Device Async Error handling (status: %d)\r\n", internal_status);
-            }
-        }
-
-        /* Map the reset status to return status. */
-        if (internal_status != STATUS_SUCCESS)
-        {
-            status = internal_status;
-        }
-        else
-        {
-            status = KW_ERROR_CM_IFACE_MULTICAST_FAILED;
-        }
+        status = KW_ERROR_CM_IFACE_MULTICAST_FAILED;
     }
     else
     {
@@ -1122,8 +1082,9 @@ static inline void kw_cm_to_mm_process_messages(
                 break;
 
             default:
-                Log_Write(LOG_LEVEL_ERROR, "KW[%d]:from CW: Unexpected msg. ID: %d\r\n", kw_idx,
-                    message.header.id);
+                Log_Write(LOG_LEVEL_ERROR,
+                    "KW[%d]:from CW: Unexpected msg. ID: %d from H%" PRId64 "\r\n", kw_idx,
+                    message.header.id, error_mesg->hart_id);
                 break;
         }
     }

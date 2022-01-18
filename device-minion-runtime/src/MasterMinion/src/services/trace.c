@@ -27,7 +27,6 @@
 
 /* common-api, device_ops_api */
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
-#include <esperanto/device-apis/device_apis_trace_types.h>
 
 /* mm_rt_svcs */
 #include <etsoc/drivers/pmu/pmu.h>
@@ -45,6 +44,7 @@
 #include "services/host_cmd_hdlr.h"
 
 /* mm_rt_helpers */
+#include "cm_mm_defines.h"
 #include "error_codes.h"
 
 /* Encoder function prototypes */
@@ -358,23 +358,15 @@ uint64_t Trace_Get_CM_Thread_Mask(void)
 int32_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg)
 {
     int32_t status;
-    uint64_t failed_cm_shires_mask;
 
     /* Transmit the message to Compute Minions */
-    status = CM_Iface_Multicast_Send(
-        config_msg->shire_mask, (cm_iface_message_t *)config_msg, &failed_cm_shires_mask);
+    status = CM_Iface_Multicast_Send(config_msg->shire_mask, (cm_iface_message_t *)config_msg);
 
     /* Save the configured values in MM CB */
     if (status == STATUS_SUCCESS)
     {
         atomic_store_local_64(&MM_Trace_CB.cm_shire_mask, config_msg->shire_mask);
         atomic_store_local_64(&MM_Trace_CB.cm_thread_mask, config_msg->thread_mask);
-    }
-    else if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
-    {
-        /* Send command to CM RT to disable Trace and evict Trace buffer. */
-        (void)Device_Async_Error_Event_Handler(
-            DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
     }
 
     return status;

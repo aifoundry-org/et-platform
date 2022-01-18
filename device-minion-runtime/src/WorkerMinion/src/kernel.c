@@ -612,8 +612,7 @@ static void kernel_launch_post_cleanup(
             if (status != STATUS_SUCCESS)
             {
                 log_write(LOG_LEVEL_ERROR,
-                    "H%04lld: CM->MM:launch_complete:Unicast send failed! Error code: %d\n",
-                    get_hart_id(), status);
+                    "CM->MM:launch_complete:Unicast send failed! Error code: %d\n", status);
             }
         }
     }

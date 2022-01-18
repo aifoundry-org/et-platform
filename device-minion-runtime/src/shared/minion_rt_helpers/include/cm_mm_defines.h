@@ -24,30 +24,40 @@
     \brief A macro that provides the index of the hart within master shire
     used for dispatcher.
 */
-#define CM_MM_MASTER_HART_DISPATCHER_IDX  0U
+#define CM_MM_MASTER_HART_DISPATCHER_IDX 0U
 
 /*! \def CM_MM_MASTER_HART_UNICAST_BUFF_IDX
     \brief A macro that provides the index of the unicast buffer associated
     with Master HART within the master shire.
 */
-#define CM_MM_MASTER_HART_UNICAST_BUFF_IDX  0U
+#define CM_MM_MASTER_HART_UNICAST_BUFF_IDX 0U
 
 /*! \def CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX
     \brief A macro that provides the base index of the unicast buffer
     associated with Kernel Workers.
 */
-#define CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX  1U
+#define CM_MM_KW_HART_UNICAST_BUFF_BASE_IDX 1U
 
 /* Error Codes */
 /*! \def CM_ERROR_KERNEL_RETURN
     \brief A macro that provides the error code for compute minion kernel return error
 */
-#define CM_ERROR_KERNEL_RETURN                -1
+#define CM_ERROR_KERNEL_RETURN -1
 
 /*! \def CM_ERROR_KERNEL_LAUNCH
     \brief A macro that provides the error code for compute minion kernel launch error
 */
-#define CM_ERROR_KERNEL_LAUNCH                -2
+#define CM_ERROR_KERNEL_LAUNCH -2
+
+/*! \def CM_DEFAULT_TRACE_THREAD_MASK
+    \brief Default masks to enable Trace for all hart in CM Shires.
+*/
+#define CM_DEFAULT_TRACE_THREAD_MASK (0xFFFFFFFFUL)
+
+/*! \def CM_DEFAULT_TRACE_SHIRE_MASK
+    \brief Default masks to enable Trace for all CM shires.
+*/
+#define CM_DEFAULT_TRACE_SHIRE_MASK (0x1FFFFFFFFUL)
 
 /*! \enum cm_context_type_e
     \brief An enum that provides the types of CM execution contexts that can be saved.

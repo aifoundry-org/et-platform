@@ -88,8 +88,7 @@ void __attribute__((noreturn)) main(void)
         }
         else
         {
-            log_write(LOG_LEVEL_ERROR,
-                "H%04lld: CM->MM:Shire_ready:Unicast send failed! Error code: %d\n", get_hart_id(),
+            log_write(LOG_LEVEL_ERROR, "CM->MM:Shire_ready:Unicast send failed! Error code: %d\n",
                 status);
         }
     }

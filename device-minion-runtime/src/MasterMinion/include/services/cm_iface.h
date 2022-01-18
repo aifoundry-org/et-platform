@@ -50,7 +50,7 @@ enum cm_state {
 */
 int32_t CM_Iface_Init(void);
 
-/*! \fn int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message, uint64_t *failed_cm_shire_mask)
+/*! \fn int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message)
     \brief Function to multicast a message to the compute shires
     specified
     by the shire mask
@@ -58,8 +58,7 @@ int32_t CM_Iface_Init(void);
     \param message Pointer to message buffer
     \return Status success or error
 */
-int32_t CM_Iface_Multicast_Send(
-    uint64_t dest_shire_mask, cm_iface_message_t *const message, uint64_t *failed_cm_shire_mask);
+int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message);
 
 /*! \fn int32_t CM_Iface_Unicast_Receive(uint64_t cb_idx,
     cm_iface_message_t *const message)
@@ -73,6 +72,13 @@ int32_t CM_Iface_Multicast_Send(
 */
 int32_t CM_Iface_Unicast_Receive(uint64_t cb_idx, cm_iface_message_t *const message);
 
+/*! \fn int32_t CM_Iface_Update_CM_State(cm_state_e expected, cm_state_e desired)
+    \brief Function to receive any message from CM to MM unicast buffer.
+    \param expected Expected current state of CM
+    \param desired Desired new state of CM, it is updated only when
+                   current state is expected
+    \return Status success or error
+*/
 int32_t CM_Iface_Update_CM_State(cm_state_e expected, cm_state_e desired);
 
 #endif

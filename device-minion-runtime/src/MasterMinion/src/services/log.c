@@ -25,7 +25,6 @@
 #include <etsoc/isa/hart.h>
 #include <etsoc/isa/sync.h>
 #include <system/layout.h>
-#include <etsoc/drivers/pmu/pmu.h>
 
 /* mm specific headers */
 #include "services/log.h"
@@ -44,8 +43,6 @@ static log_interface_t Log_Interface __attribute__((aligned(64))) = LOG_DUMP_TO_
 #define CHECK_STRING_FILTER(cb, log_level) \
     ((atomic_load_local_32(&cb->filter_mask) & TRACE_FILTER_STRING_MASK) >= log_level)
 
-#define ET_TRACE_GET_TIMESTAMP() PMC_Get_Current_Cycles()
-#define ET_TRACE_GET_HART_ID()   get_hart_id()
 /************************************************************************
 *
 *   FUNCTION
@@ -145,13 +142,9 @@ int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
     char buff[128];
     va_list va;
 
-    int32_t bytes_written = snprintf(
-        buff, sizeof(buff), "%ld:H[%d]:", ET_TRACE_GET_TIMESTAMP(), ET_TRACE_GET_HART_ID());
-    /* TODO: Use Trace_Format_String() when Trace common library has support/alternative
-        of libc_nano to process va_list string formatting. Also, remove log_level check
-        from here, as trace library does that internally .*/
+    int32_t bytes_written = 0;
     va_start(va, fmt);
-    vsnprintf((buff + bytes_written), (sizeof(buff) - (unsigned)bytes_written), fmt, va);
+    vsnprintf(buff, sizeof(buff), fmt, va);
 
     /* Dump the log message over current log interface. */
     if (atomic_load_local_8(&Log_Interface) == LOG_DUMP_TO_TRACE)

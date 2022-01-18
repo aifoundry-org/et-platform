@@ -31,6 +31,7 @@
 
 #include "log.h"
 #include "error_codes.h"
+#include "cm_mm_defines.h"
 
 #define ET_TRACE_GET_HART_ID()       get_hart_id()
 #define ET_TRACE_GET_TIMESTAMP()     PMC_Get_Current_Cycles()
@@ -78,7 +79,6 @@ typedef struct trace_umode_control_block {
     \brief CM Base HART ID.
 */
 #define CM_BASE_HART_ID 0
-#define CACHE_LINE_SIZE 64U
 #define MASK_64BIT      (~0x0UL)
 
 /*! \def CM_TRACE_CB
@@ -102,16 +102,6 @@ typedef struct trace_umode_control_block {
 */
 #define GET_FIRST_TRACE_ENABLED_HART_ID(shire, thread) \
     (((get_lsb_set_pos(shire) - 1U) * HARTS_PER_SHIRE) + (get_lsb_set_pos(thread) - 1U))
-
-/*! \def CM_DEFAULT_TRACE_THREAD_MASK
-    \brief Default masks to enable Trace for first hart in CM Shires.
-*/
-#define CM_DEFAULT_TRACE_THREAD_MASK (0xFFFFFFFFUL)
-
-/*! \def CM_DEFAULT_TRACE_SHIRE_MASK
-    \brief Default masks to enable Trace for first CM shire.
-*/
-#define CM_DEFAULT_TRACE_SHIRE_MASK (0x1FFFFFFFFUL)
 
 /************************/
 /* Compile-time checks  */

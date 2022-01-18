@@ -89,7 +89,7 @@ void MM_To_CM_Iface_Init(void)
 
 void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
 {
-    log_write(LOG_LEVEL_DEBUG, "H%04lld:MM->CM:Ready to process msgs from MM.\r\n", get_hart_id());
+    log_write(LOG_LEVEL_DEBUG, "MM->CM:Ready to process msgs from MM.\r\n");
 
     for (;;)
     {
@@ -125,8 +125,7 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
     }
     else
     {
-        log_write(LOG_LEVEL_WARNING,
-            "H%04" PRId64 ":MM->CM: Tried to read a non-pending message!\n", hart_id);
+        log_write(LOG_LEVEL_WARNING, ":MM->CM: Tried to read a non-pending message!\n");
     }
 }
 
@@ -161,7 +160,7 @@ static void mm_to_cm_iface_handle_message(
             {
                 /* Something went wrong launching the kernel. */
                 log_write(
-                    LOG_LEVEL_ERROR, "H%04" PRId64 ":MM->CM:Unable to launch kernel\r\n", hart);
+                    LOG_LEVEL_ERROR, "MM->CM: Kernel completed with user error code:%d\r\n", rv);
             }
             break;
         }
@@ -240,8 +239,8 @@ static void mm_to_cm_iface_handle_message(
             break;
         default:
             /* Unknown message received */
-            log_write(LOG_LEVEL_ERROR, "H%04" PRId64 ":MM->CM:Unknown msg received:ID:%d\r\n", hart,
-                message_ptr->header.id);
+            log_write(
+                LOG_LEVEL_ERROR, ":MM->CM:Unknown msg received:ID:%d\r\n", message_ptr->header.id);
             break;
     }
 }

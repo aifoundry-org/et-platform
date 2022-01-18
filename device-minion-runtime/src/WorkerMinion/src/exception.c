@@ -47,9 +47,9 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         Trace_Execution_Stack(Trace_Get_CM_CB(), &context);
 
         log_write(LOG_LEVEL_CRITICAL,
-            "H%04" PRId64 ": Worker S-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64
-            ", stval=0x%" PRIx64 "\n",
-            hart_id, scause, sepc, stval);
+            "Worker S-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64
+            "\n",
+            scause, sepc, stval);
 
         /* Evict S-mode Trace buffer to L3. */
         Trace_Evict_CM_Buffer();
@@ -69,9 +69,9 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
                 .regs = reg };
 
             log_write(LOG_LEVEL_CRITICAL,
-                "H%04" PRId64 ": Worker U-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64
+                ": Worker U-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64
                 ", stval=0x%" PRIx64 "\n",
-                hart_id, scause, sepc, stval);
+                scause, sepc, stval);
 
             /* Save the execution context in the buffer provided */
             CM_To_MM_Save_Execution_Context((execution_context_t *)exception_buffer,
@@ -144,8 +144,7 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
         if (status != STATUS_SUCCESS)
         {
             log_write(LOG_LEVEL_ERROR,
-                "H%04lld: CM->MM:U-mode_exceptionUnicast send failed! Error code: %d\n", hart_id,
-                status);
+                "CM->MM:U-mode_exceptionUnicast send failed! Error code: %d\n", status);
         }
     }
     else
@@ -159,8 +158,7 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
         if (status != STATUS_SUCCESS)
         {
             log_write(LOG_LEVEL_ERROR,
-                "H%04lld: CM->MM:S-mode_exception:Unicast send failed! Error code: %d\n", hart_id,
-                status);
+                "CM->MM:S-mode_exception:Unicast send failed! Error code: %d\n", status);
         }
     }
 }

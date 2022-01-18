@@ -69,10 +69,6 @@
     {                                                                                        \
         ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
     }                                                                                        \
-    else if (status == DMAW_CW_SHIRE_NOT_BOOTED)                                             \
-    {                                                                                        \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
-    }                                                                                        \
     else if (status == DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED)                                 \
     {                                                                                        \
         ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
@@ -116,10 +112,6 @@
     {                                                                        \
         ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_SHIRE_MASK;        \
     }                                                                        \
-    else if (status == TRACE_ERROR_CW_SHIRE_NOT_BOOTED)                      \
-    {                                                                        \
-        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;       \
-    }                                                                        \
     else if (status == TRACE_ERROR_CM_TRACE_CONFIG_FAILED)                   \
     {                                                                        \
         ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;       \
@@ -154,11 +146,6 @@
     else if (status == TRACE_ERROR_INVALID_RUNTIME_TYPE)                     \
     {                                                                        \
         ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_RT_TYPE;          \
-    }                                                                        \
-    else if (status == TRACE_ERROR_CW_SHIRE_NOT_BOOTED)                      \
-    {                                                                        \
-        /* TODO:SW-10385: Add new error code */                              \
-        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_CONTROL_MASK;     \
     }                                                                        \
     else if (status == TRACE_ERROR_CM_IFACE_MULTICAST_FAILED)                \
     {                                                                        \
@@ -1097,43 +1084,39 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
 {
     int32_t status = STATUS_SUCCESS;
     uint64_t cm_shire_mask;
-    uint64_t failed_cm_shires_mask;
 
     /* If flags are set to extract both MM and CM Trace buffers. */
     if ((cmd->command_info.cmd_hdr.flags & CMD_FLAGS_MMFW_TRACEBUF) &&
         (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_CMFW_TRACEBUF))
     {
-        cm_shire_mask = Trace_Get_CM_Shire_Mask();
+        cm_shire_mask = Trace_Get_CM_Shire_Mask() & CW_Get_Booted_Shires();
 
-        if ((cm_shire_mask & CW_Get_Booted_Shires()) != cm_shire_mask)
+        if (cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE))
         {
-            status = DMAW_CW_SHIRE_NOT_BOOTED;
-        }
-        else if (cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE))
-        {
-            /* Evict MM Trace.*/
-            Trace_Evict_Buffer_MM();
-
             mm_to_cm_message_trace_buffer_evict_t cm_msg = {
                 .header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
                 .thread_mask = Trace_Get_CM_Thread_Mask()
             };
 
             /* Send command to CM RT to evict Trace buffer. */
-            status = CM_Iface_Multicast_Send(
-                cm_shire_mask, (cm_iface_message_t *)&cm_msg, &failed_cm_shires_mask);
+            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
 
-            /* If CM hung then send Async event to host runtime. */
-            if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
+            if (status == CM_IFACE_CM_IN_BAD_STATE)
             {
-                /* Send command to CM RT to disable Trace and evict Trace buffer. */
-                Device_Async_Error_Event_Handler(
-                    DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
+                Log_Write(LOG_LEVEL_ERROR,
+                    "TID[%u]:HostCmdHdlr:CM Trace Read:CM Multicast:Bad State:Fail:%d\r\n",
+                    cmd->command_info.cmd_hdr.tag_id, status);
+
+                /* TODO:10810: When CM is in bad state allow CM trace to be pulled in any case. */
+                status = STATUS_SUCCESS;
             }
             else if (status != STATUS_SUCCESS)
             {
                 status = DMAW_ERROR_CM_IFACE_MULTICAST_FAILED;
             }
+
+            /* Evict MM Trace.*/
+            Trace_Evict_Buffer_MM();
 
             cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = MM_TRACE_BUFFER_BASE;
         }
@@ -1160,13 +1143,9 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
     /* Check if flag is set to extract CM Trace buffer. */
     else if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_CMFW_TRACEBUF)
     {
-        cm_shire_mask = Trace_Get_CM_Shire_Mask();
+        cm_shire_mask = Trace_Get_CM_Shire_Mask() & CW_Get_Booted_Shires();
 
-        if ((cm_shire_mask & CW_Get_Booted_Shires()) != cm_shire_mask)
-        {
-            status = DMAW_CW_SHIRE_NOT_BOOTED;
-        }
-        else if (cmd->list[TRACE_NODE_INDEX].size <= CM_TRACE_BUFFER_SIZE)
+        if (cmd->list[TRACE_NODE_INDEX].size <= CM_TRACE_BUFFER_SIZE)
         {
             mm_to_cm_message_trace_buffer_evict_t cm_msg = {
                 .header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
@@ -1174,14 +1153,16 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
             };
 
             /* Send command to CM RT to evict Trace buffer. */
-            status = CM_Iface_Multicast_Send(
-                cm_shire_mask, (cm_iface_message_t *)&cm_msg, &failed_cm_shires_mask);
+            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
 
-            if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
+            if (status == CM_IFACE_CM_IN_BAD_STATE)
             {
-                /* Send command to CM RT to disable Trace and evict Trace buffer. */
-                Device_Async_Error_Event_Handler(
-                    DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
+                Log_Write(LOG_LEVEL_ERROR,
+                    "TID[%u]:HostCmdHdlr:CM Trace Read:CM Multicast:Bad State:Fail:%d\r\n",
+                    cmd->command_info.cmd_hdr.tag_id, status);
+
+                /* TODO:10810: When CM is in bad state allow CM trace to be pulled in any case. */
+                status = STATUS_SUCCESS;
             }
             else if (status != STATUS_SUCCESS)
             {
@@ -1700,36 +1681,16 @@ static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t
         cm_msg.cm_control = cmd->control;
         cm_msg.thread_mask = Trace_Get_CM_Thread_Mask();
 
-        uint64_t cm_shire_mask = Trace_Get_CM_Shire_Mask();
-        uint64_t failed_cm_shires_mask;
+        uint64_t cm_shire_mask = Trace_Get_CM_Shire_Mask() & CW_Get_Booted_Shires();
 
-        if ((cm_shire_mask & CW_Get_Booted_Shires()) != cm_shire_mask)
-        {
-            status = TRACE_ERROR_CW_SHIRE_NOT_BOOTED;
-        }
-        else
-        {
-            /* Send command to CM RT to disable Trace and evict Trace buffer. */
-            status = CM_Iface_Multicast_Send(
-                cm_shire_mask, (cm_iface_message_t *)&cm_msg, &failed_cm_shires_mask);
-
-            if (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED)
-            {
-                /* Send command to CM RT to disable Trace and evict Trace buffer. */
-                Device_Async_Error_Event_Handler(
-                    DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)failed_cm_shires_mask);
-            }
-            else if (status != STATUS_SUCCESS)
-            {
-                status = TRACE_ERROR_CM_IFACE_MULTICAST_FAILED;
-            }
-        }
+        /* Send command to CM RT to disable Trace and evict Trace buffer. */
+        status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
 
         if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR,
-                "TID[%u]:SQW[%d]:TRACE_RT_CONTROL:CM:Failed to Enable/Disable Trace, and to redirect logs.\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx);
+            Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:TRACE_RT_CONTROL:CM:Failed Status:%d.\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, status);
+            status = TRACE_ERROR_CM_IFACE_MULTICAST_FAILED;
         }
     }
 
@@ -1827,12 +1788,16 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
     {
         status = HOST_CMD_STATUS_ABORTED;
     }
+    /* Check if Hart mask is valid. */
     else if (((cmd->shire_mask & MM_SHIRE_MASK) && (!(cmd->thread_mask & MM_HART_MASK))) ||
              (cmd->thread_mask == 0))
     {
         status = TRACE_ERROR_INVALID_THREAD_MASK;
     }
-    else if ((!(cmd->shire_mask & MM_SHIRE_MASK)) && (!(cmd->shire_mask & CM_SHIRE_MASK)))
+    /* Check if Shire mask is valid. */
+    else if ((cmd->shire_mask == 0) || (!(cmd->shire_mask & CM_SHIRE_MASK)) ||
+             ((cmd->shire_mask & CM_SHIRE_MASK) &&
+                 (!((cmd->shire_mask & CW_Get_Booted_Shires()) == cmd->shire_mask))))
     {
         status = TRACE_ERROR_INVALID_SHIRE_MASK;
     }
@@ -1862,26 +1827,22 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
         Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCmdHdlr:TRACE_CONFIG: Configure CM.\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
-        if ((cmd->shire_mask & CW_Get_Booted_Shires()) == cmd->shire_mask)
-        {
-            mm_to_cm_message_trace_rt_config_t cm_msg;
-            cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE;
-            cm_msg.shire_mask = cmd->shire_mask;
-            cm_msg.thread_mask = cmd->thread_mask;
-            cm_msg.filter_mask = cmd->filter_mask;
-            cm_msg.event_mask = cmd->event_mask;
-            cm_msg.threshold = cmd->threshold;
+        mm_to_cm_message_trace_rt_config_t cm_msg;
+        cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE;
+        cm_msg.shire_mask = cmd->shire_mask;
+        cm_msg.thread_mask = cmd->thread_mask;
+        cm_msg.filter_mask = cmd->filter_mask;
+        cm_msg.event_mask = cmd->event_mask;
+        cm_msg.threshold = cmd->threshold;
 
-            status = Trace_Configure_CM_RT(&cm_msg);
+        status = Trace_Configure_CM_RT(&cm_msg);
 
-            if (status != STATUS_SUCCESS)
-            {
-                status = TRACE_ERROR_CM_TRACE_CONFIG_FAILED;
-            }
-        }
-        else
+        if (status != STATUS_SUCCESS)
         {
-            status = TRACE_ERROR_CW_SHIRE_NOT_BOOTED;
+            Log_Write(LOG_LEVEL_ERROR,
+                "TID[%u]:SQW[%d]:HostCmdHdlr:TRACE_CONFIG: Failed: Status:%d.\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, status);
+            status = TRACE_ERROR_CM_TRACE_CONFIG_FAILED;
         }
     }
 
@@ -1965,7 +1926,7 @@ int32_t Device_Async_Error_Event_Handler(uint8_t error_type, uint32_t payload)
     int32_t status;
 
     /* Fill the event */
-    event.event_info.event_hdr.tag_id = 0xdead;
+    event.event_info.event_hdr.tag_id = 0xffff; /* Async Event Tag ID. */
     event.event_info.event_hdr.size = sizeof(event) - sizeof(struct cmn_header_t);
     event.event_info.event_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_ERROR;
     event.error_type = error_type;
@@ -2046,7 +2007,8 @@ int32_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t sta
                 hdr->cmd_hdr.tag_id, sqw_idx);
 
             /* Send unsupported command error event to host */
-            Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND, 0);
+            Device_Async_Error_Event_Handler(
+                DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND, hdr->cmd_hdr.tag_id);
 
             /* Decrement commands count being processed by given SQW */
             SQW_Decrement_Command_Count(sqw_idx);
@@ -2096,7 +2058,8 @@ int32_t Host_HP_Command_Handler(void *command_buffer, uint8_t sqw_hp_idx)
                 hdr->cmd_hdr.tag_id, sqw_hp_idx);
 
             /* Send unsupported command error event to host */
-            Device_Async_Error_Event_Handler(DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND, 0);
+            Device_Async_Error_Event_Handler(
+                DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND, hdr->cmd_hdr.tag_id);
 
             /* Decrement commands count being processed by given HP SQW */
             SQW_HP_Decrement_Command_Count(sqw_hp_idx);

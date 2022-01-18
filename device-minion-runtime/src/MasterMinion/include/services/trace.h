@@ -41,7 +41,7 @@
 /*! \def CM_SHIRE_MASK
     \brief Shire mask of Compute Workers.
 */
-#define CM_SHIRE_MASK 0xFFFFFFFFULL
+#define CM_SHIRE_MASK 0x1FFFFFFFFULL
 
 /*! \def CW_IN_MM_SHIRE
     \brief Computer worker HART index in MM Shire.

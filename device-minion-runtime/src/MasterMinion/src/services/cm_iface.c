@@ -39,6 +39,7 @@
 #include "config/mm_config.h"
 #include "services/log.h"
 #include "services/cm_iface.h"
+#include "services/host_cmd_hdlr.h"
 #include "services/sw_timer.h"
 
 /* mm_rt_helpers */
@@ -123,7 +124,6 @@ int32_t CM_Iface_Init(void)
 
     init_local_spinlock(&MM_CM_CB.mm_to_cm_broadcast_lock, 0);
     atomic_store_local_32(&MM_CM_CB.timeout_flag, 0);
-    atomic_store_local_32(&MM_CM_CB.cm_state, CM_STATE_NORMAL);
 
     /* Reset the Global MM to CM Iface message number. */
     atomic_store_local_32(&MM_CM_Broadcast_Last_Number, 1);
@@ -146,6 +146,8 @@ int32_t CM_Iface_Init(void)
         status = Circbuffer_Init(
             cb, (uint32_t)(CM_MM_IFACE_CIRCBUFFER_SIZE - sizeof(circ_buff_cb_t)), L2_SCP);
     }
+
+    atomic_store_local_32(&MM_CM_CB.cm_state, CM_STATE_NORMAL);
 
     return status;
 }
@@ -207,16 +209,13 @@ int32_t CM_Iface_Update_CM_State(cm_state_e expected, cm_state_e desired)
 *
 *       dest_shire_mask       Shire mask to multicast message to
 *       message               Pointer to message
-*       failed_cm_shire_mask  (Optional) Pointer to return mask for shires
-*                             which failed to send back Ack.
 *
 *   OUTPUTS
 *
 *       status             Success or error
 *
 ***********************************************************************/
-int32_t CM_Iface_Multicast_Send(
-    uint64_t dest_shire_mask, cm_iface_message_t *const message, uint64_t *failed_cm_shire_mask)
+int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message)
 {
     int32_t sw_timer_idx;
     uint8_t thread_id = get_hart_id() & (HARTS_PER_SHIRE - 1);
@@ -291,20 +290,20 @@ int32_t CM_Iface_Multicast_Send(
         /* Check for timeout status */
         if (timeout_flag != 0)
         {
-            /* If CM state is normal, then set CM state hanged */
-            atomic_compare_and_exchange_local_32(
-                &MM_CM_CB.cm_state, CM_STATE_NORMAL, CM_STATE_HANG);
             status = CM_IFACE_MULTICAST_TIMEOUT_EXPIRED;
             uint64_t pending_shires =
                 atomic_load_global_64(&mm_to_cm_broadcast_message_ctrl_ptr->shire_mask);
+
+            /* If CM state is normal, then set CM state hanged */
+            CM_Iface_Update_CM_State(CM_STATE_NORMAL, CM_STATE_HANG);
+
+            /* Send CM Hang error event to host */
+            Device_Async_Error_Event_Handler(
+                DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)pending_shires);
+
             Log_Write(LOG_LEVEL_ERROR, "MM->CM Multicast timeout abort. Status:%d\r\n", status);
             Log_Write(LOG_LEVEL_ERROR, "MM->CM:msg_num=%u:msg_id=%u:pending shire_mask=0x%lx\r\n",
                 message->header.number, message->header.id, pending_shires);
-
-            if (failed_cm_shire_mask != NULL)
-            {
-                *failed_cm_shire_mask = pending_shires;
-            }
         }
         else
         {
