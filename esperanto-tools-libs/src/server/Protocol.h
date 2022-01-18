@@ -16,11 +16,6 @@
 #include <stdint.h>
 #include <type_traits>
 namespace rt {
-using KernelIdT = std::underlying_type<KernelId>::type;
-using EventIdT = std::underlying_type<EventId>::type;
-using StreamIdT = std::underlying_type<StreamId>::type;
-using DeviceIdT = std::underlying_type<DeviceId>::type;
-using DeviceErrorCodeT = std::underlying_type<DeviceErrorCode>::type;
 using AddressT = uint64_t;
 
 template <class Archive> void serialize(Archive& archive, ErrorContext& ec) {
@@ -48,19 +43,19 @@ enum class Type : uint32_t {
 };
 
 struct UnloadCode {
-  KernelIdT kernel_;
+  KernelId kernel_;
   template <class Archive> void serialize(Archive& archive) {
     archive(kernel_);
   }
 };
 struct KernelLaunch {
-  StreamIdT stream_;
-  KernelIdT kernel_;
+  StreamId stream_;
+  KernelId kernel_;
   AddressT kernelArgs_;
   size_t kernelArgsSize_;
 };
 struct Memcpy {
-  StreamIdT stream_;
+  StreamId stream_;
   AddressT src_;
   AddressT dst_;
   size_t size_;
@@ -75,7 +70,7 @@ struct MemcpyList {
     AddressT dst_;
     size_t size_;
   };
-  StreamIdT stream_;
+  StreamId stream_;
   std::vector<Op> ops_;
   bool barrier_;
   template <class Archive> void serialize(Archive& archive) {
@@ -91,14 +86,14 @@ struct CreateStream {
 };
 
 struct DestroyStream {
-  StreamIdT stream_;
+  StreamId stream_;
   template <class Archive> void serialize(Archive& archive) {
     archive(stream_);
   }
 };
 
 struct LoadCode {
-  StreamIdT stream_;
+  StreamId stream_;
   uint64_t elf_;
   size_t elfSize_;
 };
@@ -117,7 +112,7 @@ struct Version {
 
 struct Malloc {
   size_t size_;
-  DeviceIdT device_;
+  DeviceId device_;
   uint32_t alignment_;
   template <class Archive> void serialize(Archive& archive) {
     archive(size_, device_, alignment_);
@@ -125,7 +120,7 @@ struct Malloc {
 };
 
 struct Free {
-  DeviceIdT device_;
+  DeviceId device_;
   AddressT address_;
   template <class Archive> void serialize(Archive& archive) {
     archive(device_, address_);
@@ -133,7 +128,7 @@ struct Free {
 };
 
 struct AbortStream {
-  StreamIdT streamId_;
+  StreamId streamId_;
   template <class Archive> void serialize(Archive& archive) {
     archive(streamId_);
   }
@@ -159,31 +154,31 @@ enum class Type : uint32_t {
 };
 
 struct GetDevices {
-  std::vector<DeviceIdT> devices_;
+  std::vector<DeviceId> devices_;
   template <class Archive> void serialize(Archive& archive) {
     archive(devices_);
   }
 };
 
 struct Event {
-  EventIdT event_;
+  EventId event_;
   template <class Archive> void serialize(Archive& archive) {
     archive(event_);
   }
 };
 struct CreateStream {
-  StreamIdT stream_;
+  StreamId stream_;
   template <class Archive> void serialize(Archive& archive) {
     archive(stream_);
   }
 };
 struct LoadCode {
-  EventIdT event_;
-  KernelIdT kernel_;
+  EventId event_;
+  KernelId kernel_;
   uint64_t loadAddress_;
 };
 struct StreamError {
-  DeviceErrorCodeT errorCode_;
+  DeviceErrorCode errorCode_;
   std::optional<std::vector<ErrorContext>> errorContext_;
   template <class Archive> void serialize(Archive& archive) {
     archive(errorCode_, errorContext_);

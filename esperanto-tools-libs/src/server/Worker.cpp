@@ -130,7 +130,7 @@ bool Worker::processRequest(const ReqHeader& header) {
 
 void Worker::freeResources() {
   for (auto alloc : allocations_) {
-    runtime_.freeDevice(DeviceId{alloc.device_}, alloc.ptr_);
+    runtime_.freeDevice(alloc.device_, alloc.ptr_);
   }
   allocations_.clear();
 }
