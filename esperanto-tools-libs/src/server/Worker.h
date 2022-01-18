@@ -33,7 +33,7 @@ private:
   template <typename T> bool deserializeRequest(T& out, size_t size);
 
   struct Allocation {
-    int device_;
+    DeviceId device_;
     std::byte* ptr_;
     bool operator<(const Allocation& other) const {
       return device_ < other.device_ || (device_ == other.device_ && ptr_ < other.ptr_);
