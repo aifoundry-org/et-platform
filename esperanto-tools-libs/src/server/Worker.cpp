@@ -29,7 +29,7 @@ struct MemStream : public std::streambuf {
 template <typename T> bool Worker::deserializeRequest(T& out, size_t size) {
   std::vector<char> buffer(size);
   if (auto res = read(socket_, buffer.data(), size - sizeof(ReqHeader)); res < static_cast<long>(size)) {
-    RT_VLOG(LOW) << "Read socket error: " << strerror(static_cast<int>(res));
+    RT_VLOG(LOW) << "Read socket error: " << strerror(static_cast<int>(errno));
     RT_LOG(INFO) << "Closing connection.";
     return false;
   }
@@ -42,6 +42,27 @@ template <typename T> bool Worker::deserializeRequest(T& out, size_t size) {
   } catch (...) {
     return false;
   }
+}
+
+template <typename T> bool Worker::sendResponse(Response::Type type, T payload) {
+  std::stringstream response;
+  cereal::PortableBinaryOutputArchive archive(response);
+  archive(payload);
+  auto str = response.str();
+  RespHeader rspHeader;
+  rspHeader.size_ = static_cast<uint32_t>(sizeof(rspHeader) + str.size());
+  rspHeader.type_ = type;
+  if (auto res = write(socket_, &rspHeader, sizeof(rspHeader)); res < static_cast<long>(sizeof(rspHeader))) {
+    RT_VLOG(LOW) << "Write socket error: " << strerror(static_cast<int>(errno));
+    RT_LOG(INFO) << "Closing connection.";
+    return false;
+  }
+  if (auto res = write(socket_, str.data(), str.size()); res < static_cast<long>(str.size())) {
+    RT_VLOG(LOW) << "Write socket error: " << strerror(static_cast<int>(errno));
+    RT_LOG(INFO) << "Closing connection.";
+    return false;
+  }
+  return true;
 }
 
 Worker::Worker(int socket, IRuntime& runtime, RuntimeServer& server)
@@ -61,7 +82,7 @@ void Worker::requestProcessor() {
 
   while (running_) {
     ReqHeader reqHeader;
-    if (auto res = read(socket_, &reqHeader, sizeof(reqHeader)); res != sizeof(reqHeader)) {
+    if (auto res = read(socket_, &reqHeader, sizeof(reqHeader)); res != static_cast<long>(sizeof(reqHeader))) {
       RT_VLOG(LOW) << "Read socket error: " << strerror(static_cast<int>(res));
       RT_LOG(INFO) << "Closing connection.";
       break;
@@ -79,17 +100,31 @@ bool Worker::processRequest(const ReqHeader& header) {
   case Request::Type::FREE: {
     Request::Free req;
     deserializeRequest(req, header.size_);
-    runtime_.freeDevice(DeviceId{req.device_}, req.address_);
-    break;
+    auto addr = reinterpret_cast<std::byte*>(req.address_);
+    if (allocations_.erase(Allocation{req.device_, addr}) != 1) {
+      RT_LOG(WARNING) << "Trying to deallocate a non previous allocated buffer.";
+      return false;
+    }
+    runtime_.freeDevice(DeviceId{req.device_}, addr);
+    return true;
   }
 
   case Request::Type::ABORT_STREAM: {
     Request::AbortStream req;
     deserializeRequest(req, header.size_);
     auto evt = runtime_.abortStream(StreamId{req.streamId_});
-    sendResponse(Response::Type::ABORT_STREAM, evt);
-    break;
+    return sendResponse(Response::Type::ABORT_STREAM, evt);
   }
+
+  case Request::Type::CREATE_STREAM: {
+    Request::CreateStream req;
+    deserializeRequest(req, header.size_);
+    auto st = runtime_.createStream(req.device_);
+    return sendResponse(Response::Type::CREATE_STREAM, st);
+  }
+  default:
+    RT_LOG(WARNING) << "Unknown request: " << static_cast<int>(header.type_);
+    return false;
   }
 }
 

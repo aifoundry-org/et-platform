@@ -28,7 +28,7 @@ private:
   // return false if there were some error
   bool processRequest(const Request::Header& request);
 
-  void sendResponse(Response::Type type, EventId event);
+  template <typename T> bool sendResponse(Response::Type type, T payload);
 
   template <typename T> bool deserializeRequest(T& out, size_t size);
 

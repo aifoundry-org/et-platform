@@ -79,7 +79,7 @@ add_library(etrt_obj OBJECT
     src/StreamManager.cpp
     src/Types.cpp
     src/Utils.cpp
-    src/server/Server.cpp
+    src/server/RuntimeServer.cpp
     src/server/Worker.cpp
 )
 
