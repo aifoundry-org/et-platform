@@ -630,6 +630,7 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
         /* Populate the kernel launch params */
         mm_to_cm_message_kernel_launch_t launch_args = { 0 };
         launch_args.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
+        launch_args.header.tag_id = cmd->command_info.cmd_hdr.tag_id;
         launch_args.kernel.kw_base_id = (uint8_t)KW_MS_BASE_HART;
         launch_args.kernel.slot_index = slot_index;
         launch_args.kernel.code_start_address = cmd->code_start_address;
@@ -736,6 +737,7 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
 
             /* Set the kernel abort message */
             message.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT;
+            message.header.tag_id = cmd->command_info.cmd_hdr.tag_id;
 
             /* Command status trace log */
             TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD, sqw_idx,
@@ -948,7 +950,8 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 ***********************************************************************/
 static inline int32_t kw_cm_to_mm_kernel_force_abort(uint64_t kernel_shire_mask)
 {
-    cm_iface_message_t abort_msg = { .header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT };
+    cm_iface_message_t abort_msg = { .header.id = MM_TO_CM_MESSAGE_ID_KERNEL_ABORT,
+        .header.tag_id = 0 };
     int32_t status;
     Log_Write(LOG_LEVEL_DEBUG, "KW:MM->CM:Sending abort multicast msg.\r\n");
 

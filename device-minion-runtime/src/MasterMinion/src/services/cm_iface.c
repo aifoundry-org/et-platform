@@ -128,10 +128,11 @@ int32_t CM_Iface_Init(void)
     /* Reset the Global MM to CM Iface message number. */
     atomic_store_local_32(&MM_CM_Broadcast_Last_Number, 1);
 
-    /* Master->worker broadcast message number and id */
+    /* Master->worker broadcast tag ID, message number and message ID */
     atomic_store_global_8(&mm_to_cm_broadcast_message_buffer_ptr->header.number, 0);
     atomic_store_global_8(
         &mm_to_cm_broadcast_message_buffer_ptr->header.id, MM_TO_CM_MESSAGE_ID_NONE);
+    atomic_store_global_16(&mm_to_cm_broadcast_message_buffer_ptr->header.tag_id, 0);
 
     /* CM to MM Unicast Circularbuffer control blocks */
     for (uint32_t i = 0; i < (1 + MAX_SIMULTANEOUS_KERNELS); i++)

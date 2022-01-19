@@ -142,6 +142,9 @@ static void mm_to_cm_iface_handle_message(
             /* Check if this Shire is involved in the kernel launch */
             if (launch->kernel.shire_mask & (1ULL << shire))
             {
+                log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM: Launching Kernel on Shire 0x%lx\r\n",
+                    message_ptr->header.tag_id, 1ULL << shire);
+
                 mm_to_cm_message_kernel_params_t kernel;
                 kernel.kw_base_id = launch->kernel.kw_base_id;
                 kernel.slot_index = launch->kernel.slot_index;
@@ -159,8 +162,9 @@ static void mm_to_cm_iface_handle_message(
             if (rv != 0)
             {
                 /* Something went wrong launching the kernel. */
-                log_write(
-                    LOG_LEVEL_ERROR, "MM->CM: Kernel completed with user error code:%d\r\n", rv);
+                log_write(LOG_LEVEL_ERROR,
+                    "TID[%u]:MM->CM: Kernel completed with error code:%d\r\n",
+                    message_ptr->header.tag_id, rv);
             }
             break;
         }
@@ -199,6 +203,8 @@ static void mm_to_cm_iface_handle_message(
                 (mm_to_cm_message_trace_rt_control_t *)message_ptr;
             if (cmd->thread_mask & CURRENT_THREAD_MASK)
             {
+                log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM: Trace RT Control for current hart.\r\n",
+                    message_ptr->header.tag_id);
                 Trace_RT_Control_CM(cmd->cm_control);
             }
             break;
@@ -214,6 +220,9 @@ static void mm_to_cm_iface_handle_message(
                     .event_mask = cmd->event_mask,
                     .threshold = cmd->threshold };
 
+                log_write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:MM->CM: Trace Config. Event:0x%lx:Filter:0x%lx:Threshold:%d\r\n",
+                    message_ptr->header.tag_id, cmd->event_mask, cmd->filter_mask, cmd->threshold);
                 Trace_Configure_CM(&cm_trace_config);
                 Trace_String(
                     TRACE_EVENT_STRING_CRITICAL, Trace_Get_CM_CB(), "CM:TRACE_RT_CONFIG:Done!!\n");
@@ -227,6 +236,9 @@ static void mm_to_cm_iface_handle_message(
 
             if (cmd->thread_mask & CURRENT_THREAD_MASK)
             {
+                log_write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:MM->CM: Evict Trace Buffer for current hart\r\n",
+                    message_ptr->header.tag_id);
                 /* Evict Trace buffer. */
                 Trace_Evict_CM_Buffer();
             }
@@ -239,8 +251,8 @@ static void mm_to_cm_iface_handle_message(
             break;
         default:
             /* Unknown message received */
-            log_write(
-                LOG_LEVEL_ERROR, ":MM->CM:Unknown msg received:ID:%d\r\n", message_ptr->header.id);
+            log_write(LOG_LEVEL_ERROR, "TID[%u]:MM->CM:Unknown msg received:ID:%d\r\n",
+                message_ptr->header.tag_id, message_ptr->header.id);
             break;
     }
 }

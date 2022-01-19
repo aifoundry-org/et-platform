@@ -1095,6 +1095,7 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
         {
             mm_to_cm_message_trace_buffer_evict_t cm_msg = {
                 .header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
+                .header.tag_id = cmd->command_info.cmd_hdr.tag_id,
                 .thread_mask = Trace_Get_CM_Thread_Mask()
             };
 
@@ -1149,6 +1150,7 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
         {
             mm_to_cm_message_trace_buffer_evict_t cm_msg = {
                 .header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
+                .header.tag_id = cmd->command_info.cmd_hdr.tag_id,
                 .thread_mask = Trace_Get_CM_Thread_Mask()
             };
 
@@ -1678,6 +1680,7 @@ static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t
 
         mm_to_cm_message_trace_rt_control_t cm_msg;
         cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
+        cm_msg.header.tag_id = cmd->command_info.cmd_hdr.tag_id;
         cm_msg.cm_control = cmd->control;
         cm_msg.thread_mask = Trace_Get_CM_Thread_Mask();
 
