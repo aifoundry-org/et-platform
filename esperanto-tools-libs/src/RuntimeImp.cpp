@@ -534,8 +534,9 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
   auto cmTraceSize =
     deviceLayer_->getTraceBufferSizeMasterMinion(streamInfo.device_, dev::TraceBufferType::TraceBufferCM);
 
-  std::vector<std::byte> cmd(sizeof(device_ops_api::device_ops_data_read_cmd_t));
-  auto cmdPtr = reinterpret_cast<device_ops_api::device_ops_data_read_cmd_t*>(cmd.data());
+  std::vector<std::byte> cmd(sizeof(device_ops_api::device_ops_dma_readlist_cmd_t) +
+                             sizeof(device_ops_api::dma_read_node));
+  auto cmdPtr = reinterpret_cast<device_ops_api::device_ops_dma_readlist_cmd_t*>(cmd.data());
   std::memset(cmdPtr, 0, cmd.size());
   cmdPtr->command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
   cmdPtr->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD;
@@ -545,14 +546,14 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
   }
   if (deviceTracing.mmOutput_) {
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_MMFW_TRACEBUF;
-    cmdPtr->size += static_cast<uint32_t>(mmTraceSize);
+    cmdPtr->list[0].size += static_cast<uint32_t>(mmTraceSize);
   }
   if (deviceTracing.cmOutput_) {
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_CMFW_TRACEBUF;
-    cmdPtr->size += static_cast<uint32_t>(cmTraceSize);
+    cmdPtr->list[0].size += static_cast<uint32_t>(cmTraceSize);
   }
-  RT_VLOG(LOW) << "Retrieving device traces. Size: " << std::hex << cmdPtr->size;
-  cmdPtr->dst_host_virt_addr = cmdPtr->dst_host_phy_addr =
+  RT_VLOG(LOW) << "Retrieving device traces. Size: " << std::hex << cmdPtr->list[0].size;
+  cmdPtr->list[0].dst_host_virt_addr = cmdPtr->list[0].dst_host_phy_addr =
     reinterpret_cast<uint64_t>(deviceTracing.dmaBuffer_->getPtr());
 
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
