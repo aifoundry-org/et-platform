@@ -26,9 +26,9 @@ private:
   void requestProcessor();
   void freeResources();
   // return false if there were some error
-  bool processRequest(const Request::Header& request);
+  bool processRequest(const req::Header& request);
 
-  template <typename T> bool sendResponse(Response::Type type, T payload);
+  template <typename T> bool sendResponse(resp::Type type, T payload);
 
   template <typename T> bool deserializeRequest(T& out, size_t size);
 

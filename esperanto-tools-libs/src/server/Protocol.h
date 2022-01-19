@@ -15,6 +15,7 @@
 #include <limits>
 #include <stdint.h>
 #include <type_traits>
+#include <variant>
 namespace rt {
 using AddressT = uint64_t;
 
@@ -22,7 +23,7 @@ template <class Archive> void serialize(Archive& archive, ErrorContext& ec) {
   archive(ec.type_, ec.cycle_, ec.hartId_, ec.mepc_, ec.mstatus_, ec.mtval_, ec.mcause_, ec.userDefinedError_, ec.gpr_);
 }
 
-namespace Request {
+namespace req {
 
 // these requests corresponds to first version of the protocol, is expected to add more versions here in the future
 enum class Type : uint32_t {
@@ -142,9 +143,18 @@ struct AbortStream {
     archive(streamId_);
   }
 };
-} // namespace Request
+struct Request {
+  Header header_;
+  std::variant<UnloadCode, KernelLaunch, Memcpy, MemcpyList, CreateStream, DestroyStream, LoadCode, Version, Malloc,
+               Free, AbortStream>
+    payload_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(header_, payload_);
+  }
+};
+} // namespace req
 
-namespace Response {
+namespace resp {
 enum class Type : uint32_t {
   VERSION = 0x7FFFFFFF,
   MALLOC,
@@ -203,6 +213,13 @@ struct Header {
     archive(size_, type_);
   }
 };
+struct Response {
+  Header header_;
+  std::variant<GetDevices, Event, CreateStream, LoadCode, StreamError> payload_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(header_, payload_);
+  }
+};
 
-} // namespace Response
+} // namespace resp
 } // namespace rt
