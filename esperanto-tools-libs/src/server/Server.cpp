@@ -22,7 +22,7 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
 
   runtime_ = IRuntime::create(deviceLayer_.get());
 
-  socket_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+  socket_ = socket(AF_UNIX, SOCK_STREAM, 0);
 
   sockaddr_un addr;
   memset(&addr, 0, sizeof(addr));

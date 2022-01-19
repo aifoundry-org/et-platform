@@ -53,6 +53,9 @@ struct KernelLaunch {
   KernelId kernel_;
   AddressT kernelArgs_;
   size_t kernelArgsSize_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(stream_, kernel_, kernelArgs_, kernelArgsSize_);
+  }
 };
 struct Memcpy {
   StreamId stream_;
@@ -96,11 +99,17 @@ struct LoadCode {
   StreamId stream_;
   uint64_t elf_;
   size_t elfSize_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(stream_, elf_, elfSize_);
+  }
 };
 
 struct Header {
   uint32_t size_;
   Type type_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(size_, type_);
+  }
 };
 
 struct Version {
@@ -176,6 +185,9 @@ struct LoadCode {
   EventId event_;
   KernelId kernel_;
   uint64_t loadAddress_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(event_, kernel_, loadAddress_);
+  }
 };
 struct StreamError {
   DeviceErrorCode errorCode_;
@@ -187,6 +199,9 @@ struct StreamError {
 struct Header {
   uint32_t size_;
   Type type_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(size_, type_);
+  }
 };
 
 } // namespace Response
