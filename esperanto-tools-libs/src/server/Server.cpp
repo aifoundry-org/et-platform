@@ -7,7 +7,7 @@
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
-#include "RuntimeServer.h"
+#include "Server.h"
 #include "Utils.h"
 #include "Worker.h"
 #include "runtime/Types.h"
@@ -17,7 +17,7 @@
 #include <sys/un.h>
 using namespace rt;
 
-RuntimeServer::RuntimeServer(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer) {
+Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer) {
   deviceLayer_ = std::move(deviceLayer);
 
   runtime_ = IRuntime::create(deviceLayer_.get());
@@ -35,10 +35,10 @@ RuntimeServer::RuntimeServer(const std::string& socketPath, std::unique_ptr<dev:
   if (listen(socket_, 10) < 0) {
     RT_LOG(FATAL) << "Listen error: " << strerror(errno);
   }
-  listener_ = std::thread(&RuntimeServer::Listen, this);
+  listener_ = std::thread(&Server::Listen, this);
 }
 
-void RuntimeServer::Listen() {
+void Server::Listen() {
 
   while (running_) {
 

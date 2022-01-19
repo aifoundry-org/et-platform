@@ -15,11 +15,11 @@
 
 #pragma once
 namespace rt {
-class RuntimeServer;
+class Server;
 class IRuntime;
 class Worker {
 public:
-  explicit Worker(int socket, IRuntime& runtime, RuntimeServer& server);
+  explicit Worker(int socket, IRuntime& runtime, Server& server);
   ~Worker();
 
 private:
@@ -43,7 +43,7 @@ private:
   std::set<Allocation> allocations_;
   std::thread runner_;
   IRuntime& runtime_;
-  RuntimeServer& server_;
+  Server& server_;
   int socket_;
   bool running_ = true;
 };

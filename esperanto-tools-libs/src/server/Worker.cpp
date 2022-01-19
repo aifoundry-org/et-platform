@@ -10,7 +10,7 @@
 
 #include "Worker.h"
 #include "Protocol.h"
-#include "RuntimeServer.h"
+#include "Server.h"
 #include "Utils.h"
 #include <cereal/archives/portable_binary.hpp>
 #include <cstring>
@@ -65,7 +65,7 @@ template <typename T> bool Worker::sendResponse(Response::Type type, T payload) 
   return true;
 }
 
-Worker::Worker(int socket, IRuntime& runtime, RuntimeServer& server)
+Worker::Worker(int socket, IRuntime& runtime, Server& server)
   : runtime_(runtime)
   , server_(server)
   , socket_(socket) {

@@ -15,9 +15,9 @@
 #include <thread>
 #include <vector>
 namespace rt {
-class RuntimeServer {
+class Server {
 public:
-  explicit RuntimeServer(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer);
+  explicit Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer);
 
   void removeWorker(Worker* worker) {
     std::remove_if(begin(workers_), end(workers_), [worker](const auto& item) { return item.get() == worker; });
