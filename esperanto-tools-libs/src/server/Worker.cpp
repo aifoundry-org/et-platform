@@ -17,8 +17,8 @@
 #include <unistd.h>
 
 using namespace rt;
-using ReqHeader = Request::Header;
-using RespHeader = Response::Header;
+using ReqHeader = req::Header;
+using RespHeader = resp::Header;
 
 struct MemStream : public std::streambuf {
   MemStream(char* s, std::size_t n) {
@@ -44,7 +44,7 @@ template <typename T> bool Worker::deserializeRequest(T& out, size_t size) {
   }
 }
 
-template <typename T> bool Worker::sendResponse(Response::Type type, T payload) {
+template <typename T> bool Worker::sendResponse(resp::Type type, T payload) {
   std::stringstream response;
   cereal::PortableBinaryOutputArchive archive(response);
   archive(payload);
@@ -97,8 +97,8 @@ void Worker::requestProcessor() {
 bool Worker::processRequest(const ReqHeader& header) {
   switch (header.type_) {
 
-  case Request::Type::FREE: {
-    Request::Free req;
+  case req::Type::FREE: {
+    req::Free req;
     deserializeRequest(req, header.size_);
     auto addr = reinterpret_cast<std::byte*>(req.address_);
     if (allocations_.erase(Allocation{req.device_, addr}) != 1) {
@@ -109,18 +109,18 @@ bool Worker::processRequest(const ReqHeader& header) {
     return true;
   }
 
-  case Request::Type::ABORT_STREAM: {
-    Request::AbortStream req;
+  case req::Type::ABORT_STREAM: {
+    req::AbortStream req;
     deserializeRequest(req, header.size_);
     auto evt = runtime_.abortStream(StreamId{req.streamId_});
-    return sendResponse(Response::Type::ABORT_STREAM, evt);
+    return sendResponse(resp::Type::ABORT_STREAM, evt);
   }
 
-  case Request::Type::CREATE_STREAM: {
-    Request::CreateStream req;
+  case req::Type::CREATE_STREAM: {
+    req::CreateStream req;
     deserializeRequest(req, header.size_);
     auto st = runtime_.createStream(req.device_);
-    return sendResponse(Response::Type::CREATE_STREAM, st);
+    return sendResponse(resp::Type::CREATE_STREAM, st);
   }
   default:
     RT_LOG(WARNING) << "Unknown request: " << static_cast<int>(header.type_);
