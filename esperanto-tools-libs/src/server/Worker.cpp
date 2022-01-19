@@ -17,8 +17,6 @@
 #include <unistd.h>
 
 using namespace rt;
-using ReqHeader = req::Header;
-using RespHeader = resp::Header;
 
 struct MemStream : public std::streambuf {
   MemStream(char* s, std::size_t n) {
@@ -80,21 +78,30 @@ Worker::~Worker() {
 
 void Worker::requestProcessor() {
 
+  auto requestBuffer = std::array<char, sizeof(req::Request)>{};
+  auto ms = MemStream{requestBuffer.data(), requestBuffer.size()};
   while (running_) {
-    ReqHeader reqHeader;
-    if (auto res = read(socket_, &reqHeader, sizeof(reqHeader)); res != static_cast<long>(sizeof(reqHeader))) {
-      RT_VLOG(LOW) << "Read socket error: " << strerror(static_cast<int>(res));
+
+    if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); res < 0) {
+      RT_VLOG(LOW) << "Read socket error: " << strerror(errno);
       RT_LOG(INFO) << "Closing connection.";
       break;
     }
-    if (!processRequest(reqHeader)) {
+    std::istream is(&ms);
+    try {
+      cereal::PortableBinaryInputArchive archive{is};
+      req::Request request;
+      archive >> request;
+      processRequest(request);
+    } catch (...) {
+      RT_VLOG(LOW) << "Error processing the request or sending the response. Closing connection.";
       break;
     }
   }
   server_.removeWorker(this);
 }
 
-bool Worker::processRequest(const ReqHeader& header) {
+bool Worker::processRequest(const Request& request) {
   switch (header.type_) {
 
   case req::Type::FREE: {

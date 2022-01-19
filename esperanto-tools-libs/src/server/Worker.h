@@ -39,7 +39,6 @@ private:
       return device_ < other.device_ || (device_ == other.device_ && ptr_ < other.ptr_);
     }
   };
-
   std::set<Allocation> allocations_;
   std::thread runner_;
   IRuntime& runtime_;
