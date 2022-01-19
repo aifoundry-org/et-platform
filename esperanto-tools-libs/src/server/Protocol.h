@@ -49,6 +49,7 @@ struct UnloadCode {
     archive(kernel_);
   }
 };
+
 struct KernelLaunch {
   StreamId stream_;
   KernelId kernel_;
@@ -58,6 +59,7 @@ struct KernelLaunch {
     archive(stream_, kernel_, kernelArgs_, kernelArgsSize_);
   }
 };
+
 struct Memcpy {
   StreamId stream_;
   AddressT src_;
@@ -68,6 +70,7 @@ struct Memcpy {
     archive(stream_, src_, dst_, size_, barrier_);
   }
 };
+
 struct MemcpyList {
   struct Op {
     AddressT src_;
@@ -105,14 +108,6 @@ struct LoadCode {
   }
 };
 
-struct Header {
-  uint32_t size_;
-  Type type_;
-  template <class Archive> void serialize(Archive& archive) {
-    archive(size_, type_);
-  }
-};
-
 struct Version {
   uint64_t value_;
   template <class Archive> void serialize(Archive& archive) {
@@ -143,13 +138,14 @@ struct AbortStream {
     archive(streamId_);
   }
 };
+
 struct Request {
-  Header header_;
+  Type type_;
   std::variant<UnloadCode, KernelLaunch, Memcpy, MemcpyList, CreateStream, DestroyStream, LoadCode, Version, Malloc,
                Free, AbortStream>
     payload_;
   template <class Archive> void serialize(Archive& archive) {
-    archive(header_, payload_);
+    archive(type_, payload_);
   }
 };
 } // namespace req
@@ -185,12 +181,14 @@ struct Event {
     archive(event_);
   }
 };
+
 struct CreateStream {
   StreamId stream_;
   template <class Archive> void serialize(Archive& archive) {
     archive(stream_);
   }
 };
+
 struct LoadCode {
   EventId event_;
   KernelId kernel_;
@@ -199,6 +197,7 @@ struct LoadCode {
     archive(event_, kernel_, loadAddress_);
   }
 };
+
 struct StreamError {
   DeviceErrorCode errorCode_;
   std::optional<std::vector<ErrorContext>> errorContext_;
@@ -206,20 +205,13 @@ struct StreamError {
     archive(errorCode_, errorContext_);
   }
 };
-struct Header {
-  uint32_t size_;
-  Type type_;
-  template <class Archive> void serialize(Archive& archive) {
-    archive(size_, type_);
-  }
-};
+
 struct Response {
-  Header header_;
+  Type type_;
   std::variant<GetDevices, Event, CreateStream, LoadCode, StreamError> payload_;
   template <class Archive> void serialize(Archive& archive) {
-    archive(header_, payload_);
+    archive(type_, payload_);
   }
 };
-
 } // namespace resp
 } // namespace rt
