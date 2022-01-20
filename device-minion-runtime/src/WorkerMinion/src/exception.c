@@ -46,10 +46,9 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         /* Log the execution stack event to trace */
         Trace_Execution_Stack(Trace_Get_CM_CB(), &context);
 
-        log_write(LOG_LEVEL_CRITICAL,
-            "Worker S-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64
-            "\n",
-            scause, sepc, stval);
+        log_write(LOG_LEVEL_ERROR,
+            "S-mode XCPT scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n", scause,
+            sepc, stval);
 
         /* Evict S-mode Trace buffer to L3. */
         Trace_Evict_CM_Buffer();
@@ -68,9 +67,8 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
                 .stval = stval,
                 .regs = reg };
 
-            log_write(LOG_LEVEL_CRITICAL,
-                ": Worker U-mode exception: scause=0x%" PRIx64 ", sepc=0x%" PRIx64
-                ", stval=0x%" PRIx64 "\n",
+            log_write(LOG_LEVEL_INFO,
+                "U-mode XCPT: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n",
                 scause, sepc, stval);
 
             /* Save the execution context in the buffer provided */
