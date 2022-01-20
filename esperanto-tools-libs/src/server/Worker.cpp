@@ -77,6 +77,17 @@ void Worker::requestProcessor() {
 
 void Worker::processRequest(const req::Request& request) {
   switch (request.type_) {
+  case req::Type::VERSION: {
+    sendResponse({resp::Type::VERSION, resp::Version{1}}); // current version is "1"
+    break;
+  }
+  case req::Type::MALLOC: {
+    auto& req = std::get<req::Malloc>(request.payload_);
+    auto ptr = runtime_.mallocDevice(req.device_, req.size_, req.alignment_);
+    allocations_.insert(Allocation{req.device_, ptr});
+    sendResponse({resp::Type::MALLOC, resp::Malloc{reinterpret_cast<AddressT>(ptr)}});
+    break;
+  }
   case req::Type::FREE: {
     auto& req = std::get<req::Free>(request.payload_);
     auto addr = reinterpret_cast<std::byte*>(req.address_);
@@ -88,17 +99,60 @@ void Worker::processRequest(const req::Request& request) {
     break;
   }
 
-  case req::Type::ABORT_STREAM: {
-    auto& req = std::get<req::AbortStream>(request.payload_);
-    auto evt = runtime_.abortStream(req.streamId_);
-    sendResponse({resp::Type::ABORT_STREAM, resp::Event{evt}});
+  case req::Type::MEMCPY_H2D:
+  case req::Type::MEMCPY_D2H:
+  case req::Type::MEMCPY_LIST_H2D:
+  case req::Type::MEMCPY_LIST_D2H:
     break;
-  }
 
   case req::Type::CREATE_STREAM: {
     auto& req = std::get<req::CreateStream>(request.payload_);
     auto st = runtime_.createStream(req.device_);
+    streams_.insert(st);
     sendResponse({resp::Type::CREATE_STREAM, resp::CreateStream{st}});
+    break;
+  }
+  case req::Type::DESTROY_STREAM: {
+    auto& req = std::get<req::DestroyStream>(request.payload_);
+    if (streams_.erase(req.stream_) != 1) {
+      RT_LOG(WARNING) << "Trying to destroy a non previous created stream.";
+      throw Exception("Trying to destroy a non previous created stream.");
+    }
+    runtime_.destroyStream(req.stream_);
+    break;
+  }
+  case req::Type::LOAD_CODE: {
+    auto& req = std::get<req::LoadCode>(request.payload_);
+    // needs the same mod of memcpy to pass a custom copyer
+    // after that, put the kernelId into the kernels_ set to be able to unload them after the client disconnects (if not
+    // done explicitely)
+    break;
+  }
+  case req::Type::UNLOAD_CODE: {
+    auto& req = std::get<req::UnloadCode>(request.payload_);
+    if (kernels_.erase(req.kernel_) != 1) {
+      RT_LOG(WARNING) << "Trying to unload a non previously loaded kernel.";
+      throw Exception("Trying to unload a non previously loaded kernel.");
+    }
+    runtime_.unloadCode(req.kernel_);
+    break;
+  }
+  case req::Type::KERNEL_LAUNCH: {
+    auto& req = std::get<req::KernelLaunch>(request.payload_);
+    auto evt =
+      runtime_.kernelLaunch(req.stream_, req.kernel_, req.kernelArgs_.data(), req.kernelArgs_.size(), req.shireMask_);
+    sendResponse({resp::Type::KERNEL_LAUNCH, resp::Event{evt}});
+    break;
+  }
+  case req::Type::GET_DEVICES: {
+    auto devices = runtime_.getDevices();
+    sendResponse({resp::Type::GET_DEVICES, resp::GetDevices{devices}});
+    break;
+  }
+  case req::Type::ABORT_STREAM: {
+    auto& req = std::get<req::AbortStream>(request.payload_);
+    auto evt = runtime_.abortStream(req.streamId_);
+    sendResponse({resp::Type::ABORT_STREAM, resp::Event{evt}});
     break;
   }
   default:
@@ -112,4 +166,14 @@ void Worker::freeResources() {
     runtime_.freeDevice(alloc.device_, alloc.ptr_);
   }
   allocations_.clear();
+
+  for (auto st : streams_) {
+    runtime_.destroyStream(st);
+  }
+  streams_.clear();
+
+  for (auto k : kernels_) {
+    runtime_.unloadCode(k);
+  }
+  kernels_.clear();
 }

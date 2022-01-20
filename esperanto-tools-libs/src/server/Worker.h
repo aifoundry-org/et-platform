@@ -37,6 +37,8 @@ private:
     }
   };
   std::set<Allocation> allocations_;
+  std::set<StreamId> streams_;
+  std::set<KernelId> kernels_;
   std::thread runner_;
   IRuntime& runtime_;
   Server& server_;

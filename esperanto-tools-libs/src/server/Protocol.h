@@ -57,10 +57,10 @@ struct UnloadCode {
 struct KernelLaunch {
   StreamId stream_;
   KernelId kernel_;
-  AddressT kernelArgs_;
-  size_t kernelArgsSize_;
+  uint64_t shireMask_;
+  std::vector<std::byte> kernelArgs_;
   template <class Archive> void serialize(Archive& archive) {
-    archive(stream_, kernel_, kernelArgs_, kernelArgsSize_);
+    archive(stream_, kernel_, kernelArgs_, shireMask_);
   }
 };
 
@@ -188,6 +188,19 @@ struct GetDevices {
   }
 };
 
+struct Version {
+  uint64_t version_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(version_);
+  }
+};
+
+struct Malloc {
+  AddressT address_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(address_);
+  }
+};
 struct Event {
   EventId event_;
   template <class Archive> void serialize(Archive& archive) {
@@ -227,7 +240,7 @@ struct Response {
     , payload_(payload) {
   }
   Type type_;
-  std::variant<GetDevices, Event, CreateStream, LoadCode, StreamError> payload_;
+  std::variant<Version, Malloc, GetDevices, Event, CreateStream, LoadCode, StreamError> payload_;
   template <class Archive> void serialize(Archive& archive) {
     archive(type_, payload_);
   }
