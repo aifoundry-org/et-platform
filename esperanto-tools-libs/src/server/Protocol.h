@@ -11,6 +11,10 @@
 #pragma once
 #include "runtime/Types.h"
 #include <cereal/cereal.hpp>
+#include <cereal/types/array.hpp>
+#include <cereal/types/optional.hpp>
+#include <cereal/types/variant.hpp>
+#include <cereal/types/vector.hpp>
 #include <cstddef>
 #include <limits>
 #include <stdint.h>
@@ -76,6 +80,9 @@ struct MemcpyList {
     AddressT src_;
     AddressT dst_;
     size_t size_;
+    template <class Archive> void serialize(Archive& archive) {
+      archive(src_, dst_, size_);
+    }
   };
   StreamId stream_;
   std::vector<Op> ops_;
@@ -140,6 +147,12 @@ struct AbortStream {
 };
 
 struct Request {
+  Request() = default;
+  template <typename T>
+  Request(Type type, T payload)
+    : type_(type)
+    , payload_(payload) {
+  }
   Type type_;
   std::variant<UnloadCode, KernelLaunch, Memcpy, MemcpyList, CreateStream, DestroyStream, LoadCode, Version, Malloc,
                Free, AbortStream>
@@ -207,6 +220,12 @@ struct StreamError {
 };
 
 struct Response {
+  Response() = default;
+  template <typename T>
+  Response(Type type, T payload)
+    : type_(type)
+    , payload_(payload) {
+  }
   Type type_;
   std::variant<GetDevices, Event, CreateStream, LoadCode, StreamError> payload_;
   template <class Archive> void serialize(Archive& archive) {

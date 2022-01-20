@@ -24,43 +24,17 @@ struct MemStream : public std::streambuf {
   }
 };
 
-template <typename T> bool Worker::deserializeRequest(T& out, size_t size) {
-  std::vector<char> buffer(size);
-  if (auto res = read(socket_, buffer.data(), size - sizeof(ReqHeader)); res < static_cast<long>(size)) {
-    RT_VLOG(LOW) << "Read socket error: " << strerror(static_cast<int>(errno));
-    RT_LOG(INFO) << "Closing connection.";
-    return false;
-  }
-  try {
-    auto ms = MemStream{buffer.data(), buffer.size()};
-    std::istream is(&ms);
-    cereal::PortableBinaryInputArchive archive(is);
-    archive(out);
-    return true;
-  } catch (...) {
-    return false;
-  }
-}
-
-template <typename T> bool Worker::sendResponse(resp::Type type, T payload) {
+void Worker::sendResponse(const resp::Response& resp) {
   std::stringstream response;
   cereal::PortableBinaryOutputArchive archive(response);
-  archive(payload);
+  archive(resp);
   auto str = response.str();
-  RespHeader rspHeader;
-  rspHeader.size_ = static_cast<uint32_t>(sizeof(rspHeader) + str.size());
-  rspHeader.type_ = type;
-  if (auto res = write(socket_, &rspHeader, sizeof(rspHeader)); res < static_cast<long>(sizeof(rspHeader))) {
-    RT_VLOG(LOW) << "Write socket error: " << strerror(static_cast<int>(errno));
-    RT_LOG(INFO) << "Closing connection.";
-    return false;
-  }
   if (auto res = write(socket_, str.data(), str.size()); res < static_cast<long>(str.size())) {
-    RT_VLOG(LOW) << "Write socket error: " << strerror(static_cast<int>(errno));
+    auto errorMsg = std::string{strerror(errno)};
+    RT_VLOG(LOW) << "Write socket error: " << errorMsg;
     RT_LOG(INFO) << "Closing connection.";
-    return false;
+    throw Exception("Write socket error: " + errorMsg);
   }
-  return true;
 }
 
 Worker::Worker(int socket, IRuntime& runtime, Server& server)
@@ -77,11 +51,11 @@ Worker::~Worker() {
 }
 
 void Worker::requestProcessor() {
-
-  auto requestBuffer = std::array<char, sizeof(req::Request)>{};
+  constexpr size_t kMaxRequestSize = 4096;
+  auto requestBuffer = std::vector<char>(kMaxRequestSize);
   auto ms = MemStream{requestBuffer.data(), requestBuffer.size()};
-  while (running_) {
 
+  while (running_) {
     if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); res < 0) {
       RT_VLOG(LOW) << "Read socket error: " << strerror(errno);
       RT_LOG(INFO) << "Closing connection.";
@@ -101,37 +75,35 @@ void Worker::requestProcessor() {
   server_.removeWorker(this);
 }
 
-bool Worker::processRequest(const Request& request) {
-  switch (header.type_) {
-
+void Worker::processRequest(const req::Request& request) {
+  switch (request.type_) {
   case req::Type::FREE: {
-    req::Free req;
-    deserializeRequest(req, header.size_);
+    auto& req = std::get<req::Free>(request.payload_);
     auto addr = reinterpret_cast<std::byte*>(req.address_);
     if (allocations_.erase(Allocation{req.device_, addr}) != 1) {
       RT_LOG(WARNING) << "Trying to deallocate a non previous allocated buffer.";
-      return false;
+      throw Exception("Trying to deallocate a non previous allocated buffer.");
     }
     runtime_.freeDevice(DeviceId{req.device_}, addr);
-    return true;
+    break;
   }
 
   case req::Type::ABORT_STREAM: {
-    req::AbortStream req;
-    deserializeRequest(req, header.size_);
-    auto evt = runtime_.abortStream(StreamId{req.streamId_});
-    return sendResponse(resp::Type::ABORT_STREAM, evt);
+    auto& req = std::get<req::AbortStream>(request.payload_);
+    auto evt = runtime_.abortStream(req.streamId_);
+    sendResponse({resp::Type::ABORT_STREAM, resp::Event{evt}});
+    break;
   }
 
   case req::Type::CREATE_STREAM: {
-    req::CreateStream req;
-    deserializeRequest(req, header.size_);
+    auto& req = std::get<req::CreateStream>(request.payload_);
     auto st = runtime_.createStream(req.device_);
-    return sendResponse(resp::Type::CREATE_STREAM, st);
+    sendResponse({resp::Type::CREATE_STREAM, resp::CreateStream{st}});
+    break;
   }
   default:
-    RT_LOG(WARNING) << "Unknown request: " << static_cast<int>(header.type_);
-    return false;
+    RT_LOG(WARNING) << "Unknown request: " << static_cast<int>(request.type_);
+    throw Exception("Unknown request: " + std::to_string(static_cast<int>(request.type_)));
   }
 }
 

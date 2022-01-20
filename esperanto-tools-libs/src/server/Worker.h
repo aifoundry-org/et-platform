@@ -25,12 +25,9 @@ public:
 private:
   void requestProcessor();
   void freeResources();
-  // return false if there were some error
-  bool processRequest(const req::Header& request);
+  void processRequest(const req::Request& request);
 
-  template <typename T> bool sendResponse(resp::Type type, T payload);
-
-  template <typename T> bool deserializeRequest(T& out, size_t size);
+  void sendResponse(const resp::Response& response);
 
   struct Allocation {
     DeviceId device_;
