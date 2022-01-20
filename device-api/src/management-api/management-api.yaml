@@ -376,7 +376,16 @@ Modules:
           Value: 4
         - Name: PRIV_ALL
           Value: 7
-
+    - Name: mdi_event_type
+      Description: MDI BP Event status
+      Type: uint32_t
+      Values:
+        - Name: NONE
+          Value: 0
+        - Name: BP_HALT_SUCCESS
+          Value: 1
+        - Name : BP_HALT_FAILED
+          Value: 2
   Structs:
     - Name: asset_info_t
       Description: Asset Information
@@ -698,6 +707,17 @@ Modules:
         - Name: pad[4]
           Description: Padding for alignment
           Type: uint8_t
+    - Name: mdi_mem_read_t
+      Fields:
+        - Name: address
+          Description: Memory address to be read from
+          Type: uint64_t
+        - Name: size
+          Description: Size of memory region
+          Type: uint32_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t 
 
   # List of Commands, Responses, Events
   Messages :
@@ -1549,16 +1569,10 @@ Modules:
       Type: Command
       PairedMessage: mdi_mem_read_rsp
       Fields:
-        - Name: address
-          Description: Memory address to be read from
-          Type: uint64_t
-        - Name: size
-          Description: Size of memory region
-          Type: uint32_t
-        - Name: pad[4]
-          Description: Padding for alignment
-          Type: uint8_t 
-    
+        - Name: cmd_attr
+          Description: Command attributes(memory address, size) for reading memory
+          Type: struct
+          Struct: mdi_mem_read_t
     - Name: mdi_mem_read_rsp
       Description: Memory Read response
       Type: Response
@@ -1567,5 +1581,16 @@ Modules:
         - Name: data
           Description: Memory content value
           Type: uint64_t    
-
 #------------------------------------------------------------------------------
+    - Name: device_mgmt_mdi_bp_event
+      Description: Breakpoint notification reported by the device
+      Type: Event
+      PairedMessage: None
+      Fields:
+        - Name: event_type
+          Description: Event Type
+          Type: enum
+          Enum: mdi_event_type
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
