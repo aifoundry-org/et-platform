@@ -54,6 +54,8 @@ enum mm2sp_mm_recoverable_error_code_e {
     MM_CM2MM_KERNEL_LAUNCH_ERROR      = -65,
     MM_CM2MM_KERNEL_EXCEPTION_ERROR   = -66,
     MM_CM_RUNTIME_EXCEPTION_ERROR     = -67,
+    MM_CM_RUNTIME_FW_ERROR            = -68,
+    MM_CM2MM_UNKOWN_MESSAGE_ERROR     = -69,
     MM_CM_RUNTIME_ERRORS_END          = -79,
     /* Dispatcher error codes */
     MM_DISPATCHER_ERROR_START         = -80,

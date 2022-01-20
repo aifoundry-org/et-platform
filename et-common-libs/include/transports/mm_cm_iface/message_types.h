@@ -176,8 +176,8 @@ ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_exception_t);
 typedef struct {
     cm_iface_message_header_t header;
     uint64_t hart_id;
-    int8_t error_code;
-    uint8_t pad[7]; /* Padding to make struct 64-bit aligned */
+    int32_t error_code;
+    uint8_t pad[4]; /* Padding to make struct 64-bit aligned */
 } __attribute__((packed, aligned(64))) cm_to_mm_message_fw_error_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_fw_error_t);
