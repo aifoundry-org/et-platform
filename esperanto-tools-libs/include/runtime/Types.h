@@ -74,7 +74,7 @@ struct MemcpyList {
 
 /// \brief This is the device kernel error context which is a result of a running kernel terminating on a abnormal state
 /// (exception / abort)
-struct __attribute__((packed, aligned(64))) ErrorContext {
+struct __attribute__((aligned(64))) ErrorContext {
   uint64_t type_;  ///< 0: compute hang, 1: U-mode exception, 2: system abort, 3: self abort, 4: kernel execution error,
                    ///< 5: kernel execution tensor error
   uint64_t cycle_; ///< The cycle as sampled from the system counters at the point where the event type has happened.
