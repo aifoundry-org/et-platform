@@ -78,8 +78,11 @@ Enums:
     Values:
       - Name: SUCCESS
         Value: 0
+      - Name : UNEXPECTED_ERROR
+        Value : 1
       - Name : ERROR
         Value : 1
+        Description: Deprecated
       - Name : INVALID_TAG_ID
         Value : 2
   - Name: dev_ops_api_cm_reset_response
@@ -87,7 +90,7 @@ Enums:
     Values:
       - Name: SUCCESS
         Value: 0
-      - Name : ERROR
+      - Name : UNEXPECTED_ERROR
         Value : 1
       - Name : INVALID_SHIRE_MASK
         Value : 2
@@ -100,6 +103,9 @@ Enums:
         Value: 0
       - Name: ERROR
         Value: 1
+        Description: Deprecated
+      - Name : UNEXPECTED_ERROR
+        Value : 1
       - Name: EXCEPTION
         Value: 2
       - Name: SHIRES_NOT_READY
@@ -112,6 +118,14 @@ Enums:
         Value: 6
       - Name: INVALID_ARGS_PAYLOAD_SIZE
         Value: 7
+      - Name: CM_IFACE_MULTICAST_FAILED
+        Value: 8
+      - Name: CM_IFACE_UNICAST_FAILED
+        Value: 9
+      - Name: SP_IFACE_RESET_FAILED
+        Value: 10
+      - Name: CW_MINIONS_BOOT_FAILED
+        Value: 11
   - Name: dev_ops_api_kernel_abort_response
     Type: uint32_t
     Values:
@@ -132,18 +146,33 @@ Enums:
         Value: 0
       - Name: UNKNOWN_ERROR
         Value: 1
+        Description: Deprecated
+      - Name: UNEXPECTED_ERROR
+        Value: 1
       - Name: TIMEOUT_IDLE_CHANNEL_UNAVAILABLE
         Value: 2
+        Description: Deprecated
       - Name: HOST_ABORTED
         Value: 3
       - Name: ERROR_ABORTED
         Value: 4
       - Name: TIMEOUT_HANG
         Value: 5
+        Description: Deprecated
       - Name: INVALID_ADDRESS
         Value: 6
       - Name: INVALID_SIZE
         Value: 7
+      - Name: CM_IFACE_MULTICAST_FAILED
+        Value: 8
+      - Name: DRIVER_DATA_CONFIG_FAILED
+        Value: 9
+      - Name: DRIVER_LINK_CONFIG_FAILED
+        Value: 10
+      - Name: DRIVER_CHAN_START_FAILED
+        Value: 11
+      - Name: DRIVER_ABORT_FAILED
+        Value: 12
   - Name: dev_ops_api_echo_response
     Type: uint32_t
     Values:
@@ -156,27 +185,31 @@ Enums:
     Values:
       - Name: SUCCESS
         Value: 0
-      - Name: BAD_FW_TYPE
+      - Name: UNEXPECTED_ERROR
         Value: 1
-      - Name: NOT_AVAILABLE
+      - Name: BAD_FW_TYPE
         Value: 2
-      - Name: HOST_ABORTED
+      - Name: NOT_AVAILABLE
         Value: 3
+      - Name: HOST_ABORTED
+        Value: 4
   - Name: dev_ops_api_compatibility_response
     Type: uint32_t
     Values:
       - Name: SUCCESS
         Value: 0
-      - Name: INCOMPATIBLE_MAJOR
+      - Name: UNEXPECTED_ERROR
         Value: 1
-      - Name: INCOMPATIBLE_MINOR
+      - Name: INCOMPATIBLE_MAJOR
         Value: 2
-      - Name: INCOMPATIBLE_PATCH
+      - Name: INCOMPATIBLE_MINOR
         Value: 3
-      - Name: BAD_FW_TYPE
+      - Name: INCOMPATIBLE_PATCH
         Value: 4
-      - Name: HOST_ABORTED
+      - Name: BAD_FW_TYPE
         Value: 5
+      - Name: HOST_ABORTED
+        Value: 6
   - Name: dev_ops_api_error_type
     Type: uint32_t
     Values:
@@ -202,23 +235,34 @@ Enums:
     Values:
       - Name: SUCCESS
         Value: 0
-      - Name: BAD_SHIRE_MASK
+      - Name: UNEXPECTED_ERROR
         Value: 1
-      - Name: BAD_THREAD_MASK
+      - Name: BAD_SHIRE_MASK
         Value: 2
-      - Name: BAD_EVENT_MASK
+      - Name: BAD_THREAD_MASK
         Value: 3
-      - Name: BAD_FILTER_MASK
+      - Name: BAD_EVENT_MASK
         Value: 4
-      - Name: RT_CONFIG_ERROR
+      - Name: BAD_FILTER_MASK
         Value: 5
-      - Name: HOST_ABORTED
+      - Name: RT_CONFIG_ERROR
         Value: 6
+        Description: Deprecated
+      - Name: HOST_ABORTED
+        Value: 7
+      - Name: CM_TRACE_CONFIG_FAILED
+        Value: 8
+      - Name: MM_TRACE_CONFIG_FAILED
+        Value: 9
+      - Name: INVALID_TRACE_CONFIG_INFO
+        Value: 10
   - Name: dev_ops_trace_rt_control_response
     Type: uint32_t
     Values:
       - Name: SUCCESS
         Value: 0
+      - Name: UNEXPECTED_ERROR
+        Value: 1
       - Name: BAD_RT_TYPE
         Value: 1
       - Name: BAD_CONTROL_MASK
@@ -229,6 +273,8 @@ Enums:
         Value: 4
       - Name: HOST_ABORTED
         Value: 5
+      - Name: CM_IFACE_MULTICAST_FAILED
+        Value: 6
 Structs:
   - Name: dma_read_node
     Description: Node containing one DMA read transfer information
