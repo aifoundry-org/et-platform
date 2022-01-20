@@ -1130,23 +1130,20 @@ static inline uint32_t kw_get_kernel_launch_completion_status(
         }
         else if (status_internal->status == KW_ERROR_CW_MINIONS_BOOT_FAILED)
         {
-            /* TODO:SW-10385: Add new error code */
-            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_CW_MINIONS_BOOT_FAILED;
         }
         else if (status_internal->status == KW_ERROR_SP_IFACE_RESET_FAILED)
         {
-            /* TODO:SW-10385: Add new error code */
-            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SP_IFACE_RESET_FAILED;
         }
         else if (status_internal->status == KW_ERROR_CM_IFACE_MULTICAST_FAILED)
         {
-            /* TODO:SW-10385: Add new error code */
-            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_CM_IFACE_MULTICAST_FAILED;
         }
         else
         {
-            /* It should never come here. TODO:SW-10385: Add unexpected error.*/
-            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+            /* It should never come here. */
+            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_UNEXPECTED_ERROR;
         }
     }
     else if (status_internal->cw_exception)
@@ -1161,8 +1158,7 @@ static inline uint32_t kw_get_kernel_launch_completion_status(
     }
     else if (status_internal->status == KW_ERROR_CM_IFACE_UNICAST_FAILED)
     {
-        /* TODO:SW-10385: Add new error code */
-        status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+        status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_CM_IFACE_UNICAST_FAILED;
     }
     else
     {

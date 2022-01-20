@@ -49,7 +49,6 @@
 
 /*! \def DMA_TO_DEVICEAPI_STATUS
     \brief Helper macro to convert DMA Error to DEVICE API Errors
-     TODO:SW-10385: Add new error codes for all errors mapped to unknown error here.
 */
 #define DMA_TO_DEVICEAPI_STATUS(status, ret_status)                                          \
     if ((status == DMAW_ABORTED_IDLE_CHANNEL_SEARCH) || (status == HOST_CMD_STATUS_ABORTED)) \
@@ -67,95 +66,92 @@
     }                                                                                        \
     else if (status == DMAW_ERROR_CM_IFACE_MULTICAST_FAILED)                                 \
     {                                                                                        \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_CM_IFACE_MULTICAST_FAILED;                     \
     }                                                                                        \
     else if (status == DMAW_ERROR_DRIVER_DATA_CONFIG_FAILED)                                 \
     {                                                                                        \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_DRIVER_DATA_CONFIG_FAILED;                     \
     }                                                                                        \
     else if (status == DMAW_ERROR_DRIVER_LINK_CONFIG_FAILED)                                 \
     {                                                                                        \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_DRIVER_LINK_CONFIG_FAILED;                     \
     }                                                                                        \
     else if (status == DMAW_ERROR_DRIVER_CHAN_START_FAILED)                                  \
     {                                                                                        \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_DRIVER_CHAN_START_FAILED;                      \
     }                                                                                        \
     else if (status == DMAW_ERROR_DRIVER_ABORT_FAILED)                                       \
     {                                                                                        \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_DRIVER_ABORT_FAILED;                           \
     }                                                                                        \
     else                                                                                     \
     {                                                                                        \
-        /* It should never come here. TODO:SW-10385: Add unexpected error.*/                 \
-        ret_status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;                                 \
+        /* Unexpected error. It should never come here. */                                   \
+        ret_status = DEV_OPS_API_DMA_RESPONSE_UNEXPECTED_ERROR;                              \
     }
 
 /*! \def TRACE_RT_CONFIG_TO_DEVICEAPI_STATUS
     \brief Helper macro to convert Trace Config Error to Device API Errors
-     TODO:SW-10385: Add new error codes for all errors mapped to general error here.
 */
-#define TRACE_RT_CONFIG_TO_DEVICEAPI_STATUS(status, ret_status)              \
-    if (status == STATUS_SUCCESS)                                            \
-    {                                                                        \
-        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS;               \
-    }                                                                        \
-    else if (status == HOST_CMD_STATUS_ABORTED)                              \
-    {                                                                        \
-        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_HOST_ABORTED;          \
-    }                                                                        \
-    else if (status == TRACE_ERROR_INVALID_THREAD_MASK)                      \
-    {                                                                        \
-        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_THREAD_MASK;       \
-    }                                                                        \
-    else if (status == TRACE_ERROR_INVALID_SHIRE_MASK)                       \
-    {                                                                        \
-        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_SHIRE_MASK;        \
-    }                                                                        \
-    else if (status == TRACE_ERROR_CM_TRACE_CONFIG_FAILED)                   \
-    {                                                                        \
-        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;       \
-    }                                                                        \
-    else if (status == TRACE_ERROR_MM_TRACE_CONFIG_FAILED)                   \
-    {                                                                        \
-        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;       \
-    }                                                                        \
-    else if (status == TRACE_ERROR_INVALID_TRACE_CONFIG_INFO)                \
-    {                                                                        \
-        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;       \
-    }                                                                        \
-    else                                                                     \
-    {                                                                        \
-        /* It should never come here. TODO:SW-10385: Add unexpected error.*/ \
-        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_RT_CONFIG_ERROR;       \
+#define TRACE_RT_CONFIG_TO_DEVICEAPI_STATUS(status, ret_status)                  \
+    if (status == STATUS_SUCCESS)                                                \
+    {                                                                            \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS;                   \
+    }                                                                            \
+    else if (status == HOST_CMD_STATUS_ABORTED)                                  \
+    {                                                                            \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_HOST_ABORTED;              \
+    }                                                                            \
+    else if (status == TRACE_ERROR_INVALID_THREAD_MASK)                          \
+    {                                                                            \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_THREAD_MASK;           \
+    }                                                                            \
+    else if (status == TRACE_ERROR_INVALID_SHIRE_MASK)                           \
+    {                                                                            \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_BAD_SHIRE_MASK;            \
+    }                                                                            \
+    else if (status == TRACE_ERROR_CM_TRACE_CONFIG_FAILED)                       \
+    {                                                                            \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_CM_TRACE_CONFIG_FAILED;    \
+    }                                                                            \
+    else if (status == TRACE_ERROR_MM_TRACE_CONFIG_FAILED)                       \
+    {                                                                            \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_MM_TRACE_CONFIG_FAILED;    \
+    }                                                                            \
+    else if (status == TRACE_ERROR_INVALID_TRACE_CONFIG_INFO)                    \
+    {                                                                            \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_INVALID_TRACE_CONFIG_INFO; \
+    }                                                                            \
+    else                                                                         \
+    {                                                                            \
+        /* It should never come here. */                                         \
+        ret_status = DEV_OPS_TRACE_RT_CONFIG_RESPONSE_UNEXPECTED_ERROR;          \
     }
 
 /*! \def TRACE_RT_CONTROL_TO_DEVICEAPI_STATUS
     \brief Helper macro to convert Trace Control Error to Device API Errors
-     TODO:SW-10385: Add new error codes for all errors mapped to general error here.
 */
-#define TRACE_RT_CONTROL_TO_DEVICEAPI_STATUS(status, ret_status)             \
-    if (status == STATUS_SUCCESS)                                            \
-    {                                                                        \
-        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS;              \
-    }                                                                        \
-    else if (status == HOST_CMD_STATUS_ABORTED)                              \
-    {                                                                        \
-        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_HOST_ABORTED;         \
-    }                                                                        \
-    else if (status == TRACE_ERROR_INVALID_RUNTIME_TYPE)                     \
-    {                                                                        \
-        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_RT_TYPE;          \
-    }                                                                        \
-    else if (status == TRACE_ERROR_CM_IFACE_MULTICAST_FAILED)                \
-    {                                                                        \
-        /* TODO:SW-10385: Add new error code */                              \
-        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_CONTROL_MASK;     \
-    }                                                                        \
-    else                                                                     \
-    {                                                                        \
-        /* It should never come here. TODO:SW-10385: Add unexpected error.*/ \
-        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_CM_RT_CTRL_ERROR;     \
+#define TRACE_RT_CONTROL_TO_DEVICEAPI_STATUS(status, ret_status)                  \
+    if (status == STATUS_SUCCESS)                                                 \
+    {                                                                             \
+        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS;                   \
+    }                                                                             \
+    else if (status == HOST_CMD_STATUS_ABORTED)                                   \
+    {                                                                             \
+        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_HOST_ABORTED;              \
+    }                                                                             \
+    else if (status == TRACE_ERROR_INVALID_RUNTIME_TYPE)                          \
+    {                                                                             \
+        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_BAD_RT_TYPE;               \
+    }                                                                             \
+    else if (status == TRACE_ERROR_CM_IFACE_MULTICAST_FAILED)                     \
+    {                                                                             \
+        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_CM_IFACE_MULTICAST_FAILED; \
+    }                                                                             \
+    else                                                                          \
+    {                                                                             \
+        /* It should never come here. */                                          \
+        ret_status = DEV_OPS_TRACE_RT_CONTROL_RESPONSE_UNEXPECTED_ERROR;          \
     }
 
 /************************************************************************
@@ -333,7 +329,8 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
     }
     else
     {
-        rsp.status = DEV_OPS_API_CM_RESET_RESPONSE_ERROR;
+        /* Unexpected error. It should never come here.*/
+        rsp.status = DEV_OPS_API_CM_RESET_RESPONSE_UNEXPECTED_ERROR;
     }
 
 #if TEST_FRAMEWORK
@@ -469,7 +466,8 @@ static inline int32_t compatibility_cmd_handler(void *command_buffer, uint8_t sq
         Log_Write(LOG_LEVEL_ERROR,
             "TID[%u]:SQW[%d]:HostCmdHdlr:COMPATIBILITY_CMD:Unexpected Error\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx);
-        /* It should never come here. TODO:SW-10385: Add unexpected error.*/
+        /* It should never come here. */
+        rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_UNEXPECTED_ERROR;
     }
 
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
@@ -630,7 +628,8 @@ static inline int32_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_i
         Log_Write(LOG_LEVEL_ERROR,
             "TID[%u]:SQW[%d]:HostCmdHdlr:FW_VERSION_CMD:Unexpected Error\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx);
-        /* It should never come here. TODO:SW-10385: Add unexpected error.*/
+        /* It should never come here. */
+        rsp.status = DEV_OPS_API_FW_VERSION_RESPONSE_UNEXPECTED_ERROR;
     }
 
 #if TEST_FRAMEWORK
@@ -898,13 +897,12 @@ static inline int32_t kernel_launch_cmd_handler(
         }
         else if (status == KW_ERROR_CM_IFACE_MULTICAST_FAILED)
         {
-            /* TODO:SW-10385: Add new error code */
-            rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR;
+            rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_CM_IFACE_MULTICAST_FAILED;
         }
         else
         {
-            /* It should never come here. TODO:SW-10385: Add unexpected error.*/
-            rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG;
+            /* Unexpected error. It should never come here.*/
+            rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_UNEXPECTED_ERROR;
         }
 
 #if TEST_FRAMEWORK

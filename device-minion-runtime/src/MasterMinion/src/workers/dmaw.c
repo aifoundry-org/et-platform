@@ -736,8 +736,7 @@ static inline void process_dma_read_chan_aborting(
 
     if (status == DMAW_ERROR_DRIVER_ABORT_FAILED)
     {
-        /* TODO:SW-10385: Add new error code */
-        write_rsp->status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;
+        write_rsp->status = DEV_OPS_API_DMA_RESPONSE_DRIVER_ABORT_FAILED;
     }
     else
     {
@@ -975,8 +974,7 @@ static inline void process_dma_write_chan_aborting(
 
     if (status == DMAW_ERROR_DRIVER_ABORT_FAILED)
     {
-        /* TODO:SW-10385: Add new error code */
-        read_rsp->status = DEV_OPS_API_DMA_RESPONSE_UNKNOWN_ERROR;
+        read_rsp->status = DEV_OPS_API_DMA_RESPONSE_DRIVER_ABORT_FAILED;
     }
     else
     {

@@ -410,4 +410,13 @@ RESERVED
 
 /********************************** MASTER MINION ERROR CODES - END *************************************/
 
+/********************************** COMPUTE MINION ERROR CODES - START ***********************************/
+
+/*! \def CM_INVALID_MM_TO_CM_MESSAGE_ID
+    \brief Compute worker error - Invalid MM to CM message ID.
+*/
+#define CM_INVALID_MM_TO_CM_MESSAGE_ID -3000
+
+/********************************** COMPUTE MINION ERROR CODES - END *************************************/
+
 #endif

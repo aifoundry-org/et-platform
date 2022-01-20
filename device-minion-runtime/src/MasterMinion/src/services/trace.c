@@ -255,6 +255,11 @@ int32_t Trace_Configure_MM(const struct trace_config_info_t *mm_config_info)
     if (mm_config_info != NULL)
     {
         status = Trace_Config(mm_config_info, &MM_Trace_CB.cb);
+
+        if (status != STATUS_SUCCESS)
+        {
+            status = TRACE_ERROR_MM_TRACE_CONFIG_FAILED;
+        }
     }
 
     return status;

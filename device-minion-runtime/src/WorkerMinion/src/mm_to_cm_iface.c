@@ -9,6 +9,7 @@
 #include <transports/mm_cm_iface/message_types.h>
 
 #include "cm_to_mm_iface.h"
+#include "error_codes.h"
 #include "kernel.h"
 #include "log.h"
 #include "mm_to_cm_iface.h"
@@ -253,6 +254,19 @@ static void mm_to_cm_iface_handle_message(
             /* Unknown message received */
             log_write(LOG_LEVEL_ERROR, "TID[%u]:MM->CM:Unknown msg received:ID:%d\r\n",
                 message_ptr->header.tag_id, message_ptr->header.id);
+
+            const cm_to_mm_message_fw_error_t message = { .header.id = CM_TO_MM_MESSAGE_ID_FW_ERROR,
+                .hart_id = get_hart_id(),
+                .error_code = CM_INVALID_MM_TO_CM_MESSAGE_ID };
+
+            /* To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0) */
+            int32_t status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
+                CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (const cm_iface_message_t *)&message);
+
+            if (status == STATUS_SUCCESS)
+            {
+                log_write(LOG_LEVEL_ERROR, "CM->MM:Unicast send failed! Error code: %d\n", status);
+            }
             break;
     }
 }
