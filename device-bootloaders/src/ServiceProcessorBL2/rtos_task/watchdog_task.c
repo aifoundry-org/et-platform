@@ -65,9 +65,9 @@ static void watchdog_task_entry(void *pvParameter)
     const TickType_t frequency =
                      pdMS_TO_TICKS((WDOG_DEFAULT_TIMEOUT_MSEC * 80) / 100);
 
-    /* obtain reste cause form PMIC to determine if it was
+    /* obtain reset cause form PMIC to determine if it was
        watchdog reset */
-    uint8_t reset_cause = 0;
+    uint32_t reset_cause = 0;
 
     if (0 != pmic_get_reset_cause(&reset_cause))
     {
@@ -76,7 +76,7 @@ static void watchdog_task_entry(void *pvParameter)
     else
     {
         /* if it was a watchdog reset then inform host using watchdog event */
-        if(PMIC_I2C_RESET_CAUSE_WDT_GET(reset_cause))
+        if(reset_cause == PMIC_I2C_RESET_RESET_CAUSE_CRU_SYS_RESET)
         {
             struct event_message_t message;
             /* add details in message header and fill payload */

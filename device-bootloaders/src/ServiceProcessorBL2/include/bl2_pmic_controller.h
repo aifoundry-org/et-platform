@@ -18,7 +18,7 @@
 
 #include "dm_event_def.h"
 
-#include "hwinc/pmic_i2c.h"
+#include "pmic_hal.h"
 
 /*!
  * @enum  enum voltage_type_e
@@ -74,34 +74,34 @@ int32_t pmic_thermal_pwr_cb_init(dm_pmic_isr_callback event_cb);
 */
 void pmic_error_isr(void);
 
-/*! \fn int pmic_get_fw_version(uint8_t* fw_version)
+/*! \fn int pmic_get_fw_version(uint32_t* fw_version)
     \brief This function reads Firmware Version register of PMIC.
     \param fw_version - value of Firmware Version register of PMIC.
     \return The function call status, pass/fail.
 */
-int pmic_get_fw_version(uint8_t *fw_version);
+int pmic_get_fw_version(uint32_t *fw_version);
 
-/*! \fn int pmic_get_gpo_bit(uint8_t index, uint8_t* gpo_bit_value)
-    \brief This function reads GPO Control register bit of PMIC.
+/*! \fn int pmic_get_gpio_bit(uint8_t index, uint8_t* gpio_bit_value)
+    \brief This function reads GPIO Control register bit of PMIC.
     \param index - index of bit to be fetched
-    \param gpo_bit_value - value of the bit
+    \param gpio_bit_value - value of the bit
     \return The function call status, pass/fail.
 */
-int pmic_get_gpo_bit(uint8_t index, uint8_t *gpo_bit_value);
+int pmic_get_gpio_bit(uint8_t index, uint8_t *gpoi_bit_value);
 
-/*! \fn int pmic_set_gpo_bit(uint8_t index)
-    \brief This function sets GPO Control register bit of PMIC.
+/*! \fn int pmic_set_gpio_bit(uint8_t index)
+    \brief This function sets GPIO Control register bit of PMIC.
     \param index - index of bit to be set
     \return The function call status, pass/fail.
 */
-int pmic_set_gpo_bit(uint8_t index);
+int pmic_set_gpio_bit(uint8_t index);
 
 /*! \fn int pmic_clear_gpo_bit(uint8_t index)
-    \brief This function clears GPO Control register bit of PMIC.
+    \brief This function clears GPIO Control register bit of PMIC.
     \param index - index of bit to be cleared
     \return The function call status, pass/fail.
 */
-int pmic_clear_gpo_bit(uint8_t index);
+int pmic_clear_gpio_bit(uint8_t index);
 
 /*! \fn int pmic_get_input_voltage(uint8_t* input_voltage)
     \brief This function reads Input Voltage register of PMIC.
@@ -150,12 +150,12 @@ int pmic_enable_etsoc_reset_after_perst(void);
 */
 int pmic_disable_etsoc_reset_after_perst(void);
 
-/*! \fn int pmic_get_reset_cause(uint8_t* reset_cause)
+/*! \fn int pmic_get_reset_cause(uint32_t* reset_cause)
     \brief This function reads Reset Causation register of PMIC.
     \param reset_cause - value of Reset Causation register of PMIC.
     \return The function call status, pass/fail.
 */
-int pmic_get_reset_cause(uint8_t *reset_cause);
+int pmic_get_reset_cause(uint32_t *reset_cause);
 
 /*! \fn int pmic_get_voltage(voltage_type_e voltage_type, uint8_t* voltage)
     \brief This function returns specific voltage setting.
@@ -337,5 +337,26 @@ int32_t Power_Convert_Hex_to_mW(uint8_t power_hex);
     \return Hex  Power in PMIC encoded Hex value 
 */
 int32_t Power_Convert_mW_to_Hex(uint8_t power_mW);
+
+/*! \fn int pmic_get_board_type(uint32_t *board_type)
+    \brief This function reads board type.
+    \param board_type - board type BUB(0x1), PCIe(0x2)
+    \return The function call status, pass/fail
+*/
+int pmic_get_board_type(uint32_t *board_type);
+
+/*! \fn int pmic_set_gpio_as_output(uint8_t index)
+    \brief This function sets GPIO direction as output.
+    \param index - index of GPIO pin
+    \return The function call status, pass/fail
+*/
+int pmic_set_gpio_as_output(uint8_t index);
+
+/*! \fn int pmic_set_gpio_as_input(uint8_t index)
+    \brief This function sets GPIO direction as input.
+    \param index - index of GPIO pin
+    \return The function call status, pass/fail
+*/
+int pmic_set_gpio_as_input(uint8_t index);
 
 #endif
