@@ -118,11 +118,4 @@ void Trace_RT_Control_MM(uint32_t control);
 */
 uint32_t Trace_Evict_Buffer_MM(void);
 
-/*! \fn void Trace_Set_Enable_MM(trace_enable_e enable)
-    \brief This function enables/disables Trace for Master Minnion.
-    \param control Enum to Enable/Disable Trace
-    \return None
-*/
-void Trace_Set_Enable_MM(trace_enable_e control);
-
 #endif
