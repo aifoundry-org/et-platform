@@ -1,0 +1,44 @@
+import:
+  - path: '@ci@/ci-tools/templates/template-main-top-level.yaml'
+
+parameters:
+  SW_PLATFORM_BRANCH:
+    description: SW-Platform branch to track
+    type: string
+    default_value: "origin/develop/system-sw"
+  REPO_SSH_URL:
+    description: Repository URL
+    type: string
+    default_value: "git@gitlab.esperanto.ai:software/sw-sysemu.git"
+  REPO_NAME:
+    description: Repository name
+    type: string
+    default_value: "sw-sysemu"
+
+stages:
+  FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU:
+    cmds:
+      - job: sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"
+
+  JOB_RUNTIME:
+    cmds:
+      - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"
+
+  JOB_CODE_QUALITY:
+    cmds:
+      - job: sw-platform/code-analysis/sw-sysemu-sonarqube
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},tools/sw-sysemu:${BRANCH}"
+          GITLAB_SOURCE_BRANCH:
+            raw_cmd: '"${env.gitlabSourceBranch}"'
+          GITLAB_TARGET_BRANCH:
+            raw_cmd: '"${env.gitlabTargetBranch}"'
+          GITLAB_MR_ID:
+            raw_cmd: '"${env.gitlabMergeRequestIid}"'

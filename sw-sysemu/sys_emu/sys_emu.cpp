@@ -287,7 +287,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
 
     // Setup PU UART1 RX stream
     if (!cmd_options.pu_uart1_rx_file.empty()) {
-        int fd = open(cmd_options.pu_uart1_rx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        int fd = open(cmd_options.pu_uart1_rx_file.c_str(), O_RDONLY | O_NONBLOCK | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
             LOG_AGENT(FTL, agent, "Error opening \"%s\"", cmd_options.pu_uart1_rx_file.c_str());
         }
@@ -309,7 +309,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
 
     // Setup SPIO UART1 RX stream
     if (!cmd_options.spio_uart1_rx_file.empty()) {
-        int fd = open(cmd_options.spio_uart1_rx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        int fd = open(cmd_options.spio_uart1_rx_file.c_str(), O_RDONLY | O_NONBLOCK | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
             LOG_AGENT(FTL, agent, "Error opening \"%s\"", cmd_options.spio_uart1_rx_file.c_str());
         }
@@ -433,6 +433,71 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     }
 }
 
+int sys_emu::reset_shire(unsigned shire_id)
+{
+    LOG_AGENT(WARN, agent, "%s %d", "Resetting shire:", shire_id);
+    unsigned s = shire_id;
+    {
+        unsigned shire_minion_count =
+                (s == EMU_IO_SHIRE_SP) ? 1 : EMU_MINIONS_PER_SHIRE;
+
+        unsigned shire_thread_count =
+                (s == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+
+        bool disable_multithreading =
+                !cmd_options.second_thread || multithreading_is_disabled(chip, s);
+
+        unsigned minion_thread_count =
+                (disable_multithreading || (s == EMU_IO_SHIRE_SP)) ? 1 : EMU_THREADS_PER_MINION;
+
+        uint64_t reset_pc =
+            (s == EMU_IO_SHIRE_SP) ? cmd_options.sp_reset_pc : cmd_options.reset_pc;
+
+        bool skip_shire = (((cmd_options.shires_en >> s) & 1) == 0);
+
+        // Set simulating harts
+        for (unsigned t = 0; t < shire_thread_count; ++t) {
+            unsigned m   = t / EMU_THREADS_PER_MINION;
+            unsigned tid = s * EMU_THREADS_PER_SHIRE + t;
+
+            bool skip_minion = (((cmd_options.minions_en >> m) & 1) == 0);
+            bool skip_hart   = (t % EMU_THREADS_PER_MINION) >= minion_thread_count;
+
+            if (skip_shire || skip_minion || skip_hart) {
+                chip.cpu[tid].become_nonexistent();
+                continue;
+            }
+
+            // FIXME: We should set the minion_boot neighborhood ESR and make
+            // reset_hart() set the PC value from minion_boot.
+            chip.reset_hart(tid);
+            chip.cpu[tid].become_unavailable();
+            thread_set_pc(tid, reset_pc);
+
+            // FIXME: Why is this here? Shouldn't SW set this?
+            chip.cpu[tid].mregs[bemu::m0].set();
+        }
+
+        // Calculate mask of which Minions of the Shire to enable
+        uint32_t enable_minion_mask = cmd_options.minions_en & ((1ull << shire_minion_count) - 1);
+        if (((s == EMU_IO_SHIRE_SP) && cmd_options.sp_dis) ||
+            ((s != EMU_IO_SHIRE_SP) && cmd_options.mins_dis) ||
+            skip_shire)
+        {
+            enable_minion_mask = 0;
+        }
+
+        chip.reset_shire_state(s);
+        if (disable_multithreading) {
+            if (s != EMU_IO_SHIRE_SP) {
+                chip.shire_other_esrs[s].minion_feature |= 0x10;
+            }
+        }
+        chip.write_thread0_disable(s, ~enable_minion_mask);
+        chip.write_thread1_disable(s, ~enable_minion_mask);
+    }
+    return 0;
+}
 ////////////////////////////////////////////////////////////////////////////////
 // Main function implementation
 ////////////////////////////////////////////////////////////////////////////////
