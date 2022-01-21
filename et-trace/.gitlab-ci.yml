@@ -1,10 +1,60 @@
-stages:
-  - test
+include:
+  - project: 'software/conan/conan-ci-pipelines-common'
+    ref: master
+    file: 'mr/common.yaml'
+
+variables:
+  GIT_SUBMODULE_STRATEGY: none
+  GET_SOURCES_ATTEMPTS: 2
+  ARTIFACT_DOWNLOAD_ATTEMPTS: 2
+
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+gen_conan_build_pipeline:
+  extends: .template_job_k8s_with_conan_ci_pipelines_common
+  stage: .pre
+  image: conanio/gcc7-ubuntu16.04
+  script:
+
+    # generate pipeline
+    - |
+      conan-ci-pipelines-common/gen-build-pipeline.py \
+          .ci/conan.yaml \
+          conan-ci-pipelines-common/consumers.yaml \
+          conan-ci-pipelines-common/configs.yaml \
+          -o build-pipeline.yaml
+
+    - sh -c -x "${CMD_AFTER_GENERATE_PIPELINE}"
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+conan_build_pipeline:
+  stage: build
+  needs:
+    - gen_conan_build_pipeline
+  variables:
+    UPSTREAM_PROJECT_NAME:      ${CI_PROJECT_NAME}
+    UPSTREAM_CI_PIPELINE_ID:    ${CI_PIPELINE_ID}
+    CONAN_CI_PIPELINES_COMMON_REF: ${CONAN_CI_PIPELINES_COMMON_REF}
+    CONAN_CONFIG_EXTRA_ARGS: ${CONAN_CONFIG_EXTRA_ARGS}
+  trigger:
+    include:
+      - artifact: build-pipeline.yaml
+        job: gen_conan_build_pipeline
+    strategy: depend
+
+###############################################################################
+###############################################################################
+###############################################################################
 
 test:system_pkg_manager:
+  extends: .template_job_k8s_bare_minimum
   stage: test
-  tags:
-    - docker
   image: ubuntu:latest
   variables:
     DEBIAN_FRONTEND: noninteractive
@@ -27,3 +77,18 @@ test:system_pkg_manager:
     - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DET_TRACE_TEST=ON -G Ninja ..
     - ninja
     - ctest --verbose
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+on_success:promote:
+  extends: .template_job_k8s_with_conan_ci_pipelines_common_on_success_perform_promote
+  stage: deploy
+  needs:
+    - gen_conan_build_pipeline
+    - conan_build_pipeline
+
+on_failure:report:
+  extends: .template_job_k8s_bare_minimum_on_failure_report
+  stage: deploy
