@@ -10,9 +10,10 @@
 
 cmake_minimum_required(VERSION 3.5)
 project(esperantoTrace
-  VERSION 0.1.0
   DESCRIPTION "Esperanto device traces"
   LANGUAGES C)
+
+set(PROJECT_VERSION 0.1.0)
 
 option(ET_TRACE_TEST "Build et-trace tests" OFF)
 
