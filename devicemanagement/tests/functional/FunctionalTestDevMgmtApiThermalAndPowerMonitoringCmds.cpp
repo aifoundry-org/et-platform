@@ -21,13 +21,12 @@ class FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds : public TestDevMgmt
   void SetUp() override {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
-    if (getTestTarget() == Target::Loopback) {
-      // Loopback driver does not support trace
-      FLAGS_enable_trace_dump = false;
-    }
+    initTestTrace();
+    controlTraceLogging(false);
   }
   void TearDown() override {
-    extractAndPrintTraceData();
+    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
+    controlTraceLogging(true);
     if (handle_ != nullptr) {
       dlclose(handle_);
     }
@@ -59,7 +58,7 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModulePower) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleVoltage) {
-  if (targetInList({ Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon })) {
+  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
     getModuleVoltage(false /* Multiple devices */);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";

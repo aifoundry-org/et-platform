@@ -23,6 +23,9 @@
 
 using namespace dev;
 using namespace device_management;
+using Clock = std::chrono::system_clock;
+using Timepoint = Clock::time_point;
+using TimeDuration = Clock::duration;
 
 #define DM_LOG(severity) ET_LOG(DM, severity)
 #define DM_DLOG(severity) ET_DLOG(DM, severity)
@@ -35,9 +38,10 @@ using namespace device_management;
 #define INVALID_INPUT_SIZE (0)
 #define INVALID_OUTPUT_SIZE (0)
 
-DECLARE_string(trace_logfile_txt);
-DECLARE_string(trace_logfile_bin);
 DECLARE_bool(enable_trace_dump);
+DECLARE_string(trace_base_dir);
+DECLARE_string(trace_txt_dir);
+DECLARE_string(trace_bin_dir);
 
 void testSerial(device_management::DeviceManagement& dm, uint32_t deviceIdx, uint32_t index, uint32_t timeout,
                 int* result);
@@ -107,11 +111,15 @@ protected:
   void updateFirmwareImage(bool singleDevice);
 
   // Integration tests for SP tracing and error events
-  void printSpTraceData(const unsigned char*, size_t);
-  void extractAndPrintTraceData(void);
+  void initTestTrace();
+  bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) const;
+  void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) const;
+
+  void controlTraceLogging(bool resetTraceBuffer);
+  void extractAndPrintTraceData(bool singleDevice, TraceBufferType bufferType);
   void serializeAccessMgmtNode(bool singleDevice);
   void getDeviceErrorEvents(bool singleDevice);
-  void setTraceControl(bool singleDevice);
+  void setTraceControl(bool singleDevice, uint32_t control_bitmap);
   void setTraceConfigure(bool singleDevice, uint32_t event_type, uint32_t filter_level);
   void getTraceBuffer(bool singleDevice, TraceBufferType bufferType);
 

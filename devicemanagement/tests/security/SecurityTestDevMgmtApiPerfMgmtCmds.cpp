@@ -21,13 +21,13 @@ class SecurityTestDevMgmtApiPerfMgmtCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
-    if (getTestTarget() == Target::Loopback) {
-      // Loopback driver does not support trace
-      FLAGS_enable_trace_dump = false;
-    }
+    initTestTrace();
+    controlTraceLogging(false);
   }
   void TearDown() override {
-    extractAndPrintTraceData();
+    DM_LOG(INFO) << "TearDown SecurityTestDevMgmtApiPerfMgmtCmds";
+    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
+    controlTraceLogging(true);
     if (handle_ != nullptr) {
       dlclose(handle_);
     }

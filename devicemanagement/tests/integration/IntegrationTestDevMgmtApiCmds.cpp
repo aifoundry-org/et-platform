@@ -21,13 +21,12 @@ class IntegrationTestDevMgmtApiCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
-    if (getTestTarget() == Target::Loopback) {
-      // Loopback driver does not support trace
-      FLAGS_enable_trace_dump = false;
-    }
+    initTestTrace();
+    controlTraceLogging(false);
   }
   void TearDown() override {
-    extractAndPrintTraceData();
+    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
+    controlTraceLogging(true);
     if (handle_ != nullptr) {
       dlclose(handle_);
     }
@@ -39,7 +38,7 @@ TEST_F(IntegrationTestDevMgmtApiCmds, serializeAccessMgmtNode) {
 }
 
 TEST_F(IntegrationTestDevMgmtApiCmds, getDeviceErrorEvents) {
-  if (targetInList({ Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon })) {
+  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
     getDeviceErrorEvents(false /* Multiple devices */);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -48,20 +47,26 @@ TEST_F(IntegrationTestDevMgmtApiCmds, getDeviceErrorEvents) {
 }
 
 TEST_F(IntegrationTestDevMgmtApiCmds, setTraceControl) {
-  setTraceControl(false /* Multiple devices */);
+  DM_LOG(INFO) << "setTraceControl: verifying disable trace control command";
+  setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE);
+  DM_LOG(INFO) << "setTraceControl: verifying enabling trace (dump to UART) control command";
+  setTraceControl(false /* Multiple devices */,
+                  device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE | device_mgmt_api::TRACE_CONTROL_TRACE_UART_ENABLE);
+  DM_LOG(INFO) << "setTraceControl: verifying enabling trace (dump to trace buffer) control command";
+  setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE);
 }
 
 TEST_F(IntegrationTestDevMgmtApiCmds, setTraceConfigure) {
   setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
-                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG);
+                    device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG);
 
   /* Restore the logging level back */
   setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
-                         device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
+                    device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
 }
 
 TEST_F(IntegrationTestDevMgmtApiCmds, resetCM) {
-  if (targetInList({ Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon })) {
+  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
     resetCM(false /* Multiple devices */);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";

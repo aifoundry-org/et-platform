@@ -37,10 +37,13 @@ using TimeDuration = Clock::duration;
 
 #define DM_SERVICE_REQUEST_TIMEOUT 100000
 
-DEFINE_string(trace_logfile_txt, "DeviceSpTrace.txt", "File where SP trace data will be dumped in text format");
-DEFINE_string(trace_logfile_bin, "DeviceSpTrace.bin", "File where SP trace data will be dumped in bin format");
 DEFINE_bool(enable_trace_dump, true,
             "Enable SP trace dump to file specified by flag: trace_logfile, otherwise on UART");
+DEFINE_string(trace_base_dir, "devtrace", "Base directory which will contain all traces");
+DEFINE_string(trace_txt_dir, FLAGS_trace_base_dir + "/txt_files",
+              "A directory in the current path where the decoded device traces will be printed");
+DEFINE_string(trace_bin_dir, FLAGS_trace_base_dir + "/bin_files",
+              "A directory in the current path where the raw device traces will be dumped");
 
 #define FORMAT_VERSION(major, minor, revision) ((major << 24) | (minor << 16) | (revision << 8))
 
@@ -71,103 +74,41 @@ getDM_t TestDevMgmtApiSyncCmds::getInstance() {
   return (getDM_t)0;
 }
 
-void TestDevMgmtApiSyncCmds::printSpTraceData(const unsigned char* traceBuf, size_t bufSize) {
-  std::ofstream logFileText;
-  std::stringstream logs;
-
-  // return for loopback driver
-  if (getTestTarget() == Target::Loopback) {
-    DM_LOG(INFO) << "Get Trace Buffer is not supported on loopback driver";
-    return;
-  }
-  const struct trace_entry_header_t* entry =
-    Trace_Decode(templ::bit_cast<trace_buffer_std_header_t*>(traceBuf), nullptr);
-
-  if (entry) {
-    std::ofstream rawTrace(FLAGS_trace_logfile_bin, std::ofstream::binary | std::ios_base::in | std::ios_base::out);
-
-    struct trace_buffer_std_header_t* traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf);
-    bool update_size = true;
-
-    if (rawTrace.fail()) {
-      // Raw Trace file does not exist, create new file.
-      rawTrace.open(FLAGS_trace_logfile_bin, std::ofstream::binary);
-      rawTrace.write(templ::bit_cast<char*>(traceHdr), sizeof(trace_buffer_std_header_t));
-      update_size = false;
-    } else {
-      // move cursor at the end of file to append the existing file.
-      rawTrace.seekp(0, std::ios_base::end);
-    }
-
-    // Dump raw Trace events into file (without trace header)
-    rawTrace.write(templ::bit_cast<char*>(entry), (traceHdr->data_size - sizeof(trace_buffer_std_header_t)));
-
-    if (update_size) {
-      // If we are appending data into existing file then update data size in raw trace header.
-      uint32_t raw_size = 0;
-      std::ifstream readHdr(FLAGS_trace_logfile_bin);
-
-      // Get data existing data size in raw binary
-      readHdr.seekg(sizeof(uint32_t), std::ios_base::beg);
-      readHdr.read(templ::bit_cast<char*>(&raw_size), sizeof(uint32_t));
-      readHdr.close();
-
-      // Update data size
-      raw_size = raw_size + (traceHdr->data_size - sizeof(trace_buffer_std_header_t));
-      rawTrace.seekp(sizeof(uint32_t), std::ios_base::beg);
-      rawTrace.write(templ::bit_cast<char*>(&raw_size), sizeof(uint32_t));
-    }
-
-    rawTrace.close();
-  }
-
-  logFileText.open(FLAGS_trace_logfile_txt, std::ios_base::app);
-
-  if (!logFileText.is_open()) {
-    DM_LOG(ERROR) << "Cannot open text trace file";
-    return;
-  }
-
-  logFileText << "\n\n"
-              << ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() << "."
-              << ::testing::UnitTest::GetInstance()->current_test_info()->name() << std::endl;
-
-  const trace_string_t* tracePacketString;
-  std::array<char, TRACE_STRING_MAX_SIZE + 1> stringLog;
-  entry = NULL;
-  // Decode only string and exception type of packets
-  while (entry = Trace_Decode((struct trace_buffer_std_header_t*)traceBuf, entry)) {
-    if (entry->type == TRACE_TYPE_STRING) {
-      tracePacketString = templ::bit_cast<trace_string_t*>(entry);
-      strncpy(stringLog.data(), tracePacketString->string, TRACE_STRING_MAX_SIZE);
-      stringLog[TRACE_STRING_MAX_SIZE] = '\0';
-      logs << "Timestamp:" << tracePacketString->header.cycle << " :" << stringLog.data() << std::endl;
-    } else if (entry->type == TRACE_TYPE_EXCEPTION) {
-      const trace_execution_stack_t* tracePacketExecStack = templ::bit_cast<trace_execution_stack_t*>(entry);
-      logs << "Timestamp:" << tracePacketExecStack->header.cycle << std::endl;
-      logs << "mepc = 0x" << std::hex << tracePacketExecStack->registers.epc << std::endl;
-      logs << "mtval = 0x" << std::hex << tracePacketExecStack->registers.tval << std::endl;
-      logs << "mstatus = 0x" << std::hex << tracePacketExecStack->registers.status << std::endl;
-      logs << "mcause = 0x" << std::hex << tracePacketExecStack->registers.cause << std::endl;
-      logs << "x1 = 0x" << std::hex << tracePacketExecStack->registers.gpr[0] << std::endl;
-      /* Log x5-x31, x2-x4 are not preserved */
-      for (int idx = 4; idx < TRACE_DEV_CONTEXT_GPRS; idx++) {
-        logs << "x" << std::dec << idx + 1 << " = "
-             << "0x" << std::hex << tracePacketExecStack->registers.gpr[idx] << std::endl;
-      }
-    }
-  }
-
-  logFileText << logs.str();
-  logFileText.close();
+std::string inline getTraceTxtName(int deviceIdx) {
+  return (fs::path(FLAGS_trace_txt_dir) / fs::path("dev" + std::to_string(deviceIdx) + "_traces.txt"))
+    .string();
 }
 
-void TestDevMgmtApiSyncCmds::extractAndPrintTraceData(void) {
+std::string inline getFullTestName() {
+  return ::testing::UnitTest::GetInstance()->current_test_info()->test_case_name() + std::string(".") +
+         ::testing::UnitTest::GetInstance()->current_test_info()->name();
+}
+
+void TestDevMgmtApiSyncCmds::initTestTrace() {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = dm.getDevicesCount();
+
+  if (getTestTarget() == Target::Loopback) {
+    FLAGS_enable_trace_dump = false;
+  }
+  if (FLAGS_enable_trace_dump) {
+    fs::create_directory(FLAGS_trace_base_dir);
+    fs::create_directory(FLAGS_trace_txt_dir);
+    fs::create_directory(FLAGS_trace_bin_dir);
+    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+      std::ofstream logfile(getTraceTxtName(deviceIdx), std::ios_base::app);
+      logfile << "\n" << getFullTestName() << std::endl;
+    }
+  }
+}
+
+void TestDevMgmtApiSyncCmds::controlTraceLogging(bool resetTraceBuffer) {
   if (!FLAGS_enable_trace_dump) {
-    DM_LOG(INFO) << "Skipping trace data extraction!";
     return;
   }
-
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -176,38 +117,214 @@ void TestDevMgmtApiSyncCmds::extractAndPrintTraceData(void) {
   uint32_t set_output_size;
 
   auto deviceCount = dm.getDevicesCount();
-  if (HasFailure()) {
-    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-      input_size = sizeof(device_mgmt_api::trace_control_e);
-      char input_buff[input_size] = {device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE};
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    input_size = sizeof(device_mgmt_api::trace_control_e);
+    char input_buff[input_size];
+    device_mgmt_api::trace_control_e control = device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE;
 
-      set_output_size = sizeof(uint8_t);
-      char set_output_buff[set_output_size] = {0};
+    if (resetTraceBuffer) {
+      control |= device_mgmt_api::TRACE_CONTROL_RESET_TRACEBUF;
+    }
 
-      auto hst_latency = std::make_unique<uint32_t>();
-      auto dev_latency = std::make_unique<uint64_t>();
+    memcpy(input_buff, &control, input_size);
 
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff,
-                                  input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
-                                  DM_SERVICE_REQUEST_TIMEOUT),
-                device_mgmt_api::DM_STATUS_SUCCESS);
+    set_output_size = sizeof(uint8_t);
+    char set_output_buff[set_output_size] = {0};
 
-      DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
 
-      if (dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response,
-                                            DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
-        DM_LOG(INFO) << "Unable to get SP trace buffer for device: " << deviceIdx << ". Disabling Trace.";
-      } else {
-        printSpTraceData(reinterpret_cast<unsigned char*>(response.data()), response.size());
-      }
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff,
+                                input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
-      char input_buff_[input_size] = {device_mgmt_api::TRACE_CONTROL_RESET_TRACEBUF |
-                                      device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE};
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff_,
-                                  input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
-                                  DM_SERVICE_REQUEST_TIMEOUT),
-                device_mgmt_api::DM_STATUS_SUCCESS);
+    const uint32_t input_size_ =
+      sizeof(device_mgmt_api::trace_configure_e) + sizeof(device_mgmt_api::trace_configure_filter_mask_e);
+    const uint32_t input_buff_[input_size_] = {device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING |
+                                               device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_INFO};
+
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG,
+                                reinterpret_cast<const char*>(input_buff_), input_size_, set_output_buff,
+                                set_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+static inline void logTraceException(std::stringstream& logs, const struct trace_entry_header_t* entry) {
+  const trace_execution_stack_t* tracePacketExecStack = templ::bit_cast<trace_execution_stack_t*>(entry);
+  logs << "\nsepc = 0x" << std::hex << tracePacketExecStack->registers.epc << std::endl;
+  logs << "stval = 0x" << std::hex << tracePacketExecStack->registers.tval << std::endl;
+  logs << "sstatus = 0x" << std::hex << tracePacketExecStack->registers.status << std::endl;
+  logs << "scause = 0x" << std::hex << tracePacketExecStack->registers.cause << std::endl;
+  /* Log x1-x31 */
+  for (int idx = 0; idx < TRACE_DEV_CONTEXT_GPRS; idx++) {
+    logs << "x" << std::dec << idx + 1 << " = "
+         << "0x" << std::hex << tracePacketExecStack->registers.gpr[idx] << std::endl;
+  }
+}
+
+static inline void decodeSingleTraceEvent(std::stringstream& logs, const struct trace_entry_header_t* entry) {
+  logs << "H:" << entry->hart_id << " Timestamp:" << entry->cycle << " :";
+  if (entry->type == TRACE_TYPE_STRING) {
+    std::array<char, TRACE_STRING_MAX_SIZE + 1> stringLog;
+    const trace_string_t* tracePacketString = templ::bit_cast<trace_string_t*>(entry);
+    snprintf(stringLog.data(), TRACE_STRING_MAX_SIZE + 1, "%s", tracePacketString->string);
+    logs << stringLog.data() << std::endl;
+  } else if (entry->type == TRACE_TYPE_EXCEPTION) {
+    logTraceException(logs, entry);
+  } else {
+    logs << "Trace Packet Type:" << entry->type
+         << ", Use trace-utils decoder on trace binary file to parse this packet." << std::endl;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
+                                                TraceBufferType bufferType) const {
+  if (traceBuf.empty()) {
+    DM_LOG(INFO) << "Invalid trace buffer! size is 0";
+    return;
+  }
+  struct trace_buffer_std_header_t* traceHdr;
+  std::string fileName = (fs::path(FLAGS_trace_bin_dir) / fs::path("dev" + std::to_string(deviceIdx) + "_")).string();
+  unsigned int dataSize = 0;
+  auto fileFlags = std::ofstream::binary;
+  // Select the bin file
+  switch (bufferType) {
+  case TraceBufferType::TraceBufferSP:
+    traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
+    dataSize = traceHdr->data_size;
+    fileName += "sp_";
+    fileFlags |= std::ios_base::app;
+    break;
+  case TraceBufferType::TraceBufferMM:
+    traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
+    dataSize = traceHdr->data_size;
+    fileName += "mm_";
+    fileFlags |= std::ios_base::app;
+    break;
+
+  case TraceBufferType::TraceBufferCM:
+    traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
+    dataSize = traceHdr->sub_buffer_count * traceHdr->sub_buffer_size;
+    fileName += "cmsmode_";
+    fileFlags |= std::ofstream::trunc;
+    break;
+
+  default:
+    DM_LOG(INFO) << "Cannot dump unknown buffer type!";
+    return;
+  }
+
+  fileName += std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".bin";
+
+  if (dataSize < sizeof(trace_buffer_std_header_t)) {
+    return;
+  }
+
+  std::ofstream rawTrace;
+
+  // Open the file
+  rawTrace.open(fileName, fileFlags);
+  if (rawTrace.is_open()) {
+    bool update_size = false;
+
+    // Check if the file is empty
+    if (rawTrace.tellp() <= 0) {
+      rawTrace.write(templ::bit_cast<char*>(traceHdr), sizeof(trace_buffer_std_header_t));
+    } else {
+      update_size = true;
+    }
+    // Remove the size of std header
+    dataSize -= static_cast<unsigned int>(sizeof(trace_buffer_std_header_t));
+    // Dump raw Trace data in the file (without std header)
+    rawTrace.write(templ::bit_cast<char*>(traceBuf.data() + sizeof(trace_buffer_std_header_t)), dataSize);
+    // Close the file
+    rawTrace.close();
+
+    // If we are appending data into existing file then update data size in raw trace header.
+    if (update_size && dataSize) {
+      unsigned int rawSize = 0;
+      std::fstream tracefile(fileName, std::fstream::binary | std::fstream::in | std::fstream::out);
+
+      // Get data existing data size in raw binary
+      tracefile.seekg(offsetof(trace_buffer_std_header_t, data_size), std::fstream::beg);
+      tracefile.read(templ::bit_cast<char*>(&rawSize), sizeof(traceHdr->data_size));
+
+      // Update data size
+      rawSize += dataSize;
+      tracefile.seekp(offsetof(trace_buffer_std_header_t, data_size), std::fstream::beg);
+      tracefile.write(templ::bit_cast<char*>(&rawSize), sizeof(traceHdr->data_size));
+      tracefile.close();
+    }
+  } else {
+    DM_LOG(INFO) << "Unable to open file: " << fileName;
+  }
+}
+
+bool TestDevMgmtApiSyncCmds::decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf,
+                                               TraceBufferType bufferType) const {
+  if (traceBuf.empty()) {
+    DM_LOG(INFO) << "Invalid trace buffer! size is 0";
+    return false;
+  }
+  std::ofstream logfile;
+  std::string fileName = getTraceTxtName(deviceIdx);
+  DM_LOG(INFO) << "Saving trace to file: " << fileName;
+  logfile.open(fileName, std::ios_base::app);
+  switch (bufferType) {
+  case TraceBufferType::TraceBufferSP:
+    logfile << "-> SP Traces" << std::endl;
+    break;
+  case TraceBufferType::TraceBufferMM:
+    logfile << "-> MM S-Mode Traces" << std::endl;
+    break;
+  case TraceBufferType::TraceBufferCM:
+    logfile << "-> CM S-Mode Traces" << std::endl;
+    break;
+  default:
+    DM_LOG(INFO) << "Cannot decode unknown buffer type!";
+    logfile.close();
+    return false;
+  }
+
+  const struct trace_entry_header_t* entry = NULL;
+  bool validEventFound = false;
+  std::stringstream logs;
+  for (entry = Trace_Decode(templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data()), entry); entry;
+       entry = Trace_Decode(templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data()), entry)) {
+    decodeSingleTraceEvent(logs, entry);
+    validEventFound = true;
+  }
+
+  logfile << logs.str();
+  logfile.close();
+
+  return validEventFound;
+}
+
+void TestDevMgmtApiSyncCmds::extractAndPrintTraceData(bool singleDevice, TraceBufferType bufferType) {
+  if (!FLAGS_enable_trace_dump) {
+    return;
+  }
+
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+  std::vector<std::byte> response;
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    if (dm.getTraceBufferServiceProcessor(deviceIdx, bufferType, response, DM_SERVICE_REQUEST_TIMEOUT) !=
+        device_mgmt_api::DM_STATUS_SUCCESS) {
+      DM_LOG(INFO) << "Unable to get trace buffer for device: " << deviceIdx << ". Disabling Trace.";
+    } else {
+      decodeTraceEvents(deviceIdx, response, bufferType);
+      dumpRawTraceBuffer(deviceIdx, response, bufferType);
     }
   }
 }
@@ -691,7 +808,7 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState(bool singleDevice) 
     for (device_mgmt_api::power_throttle_state_e throttle_state = device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP;
          throttle_state <= device_mgmt_api::POWER_THROTTLE_STATE_THERMAL_SAFE; throttle_state++) {
       const uint32_t input_size = sizeof(device_mgmt_api::power_throttle_state_e);
-      const char input_buff[input_size] = {throttle_state};
+      const char input_buff[input_size] = {(char)throttle_state};
       char output_buff[output_size] = {0};
       auto hst_latency = std::make_unique<uint32_t>();
       auto dev_latency = std::make_unique<uint64_t>();
@@ -930,7 +1047,7 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState(bool singleDevice) {
     for (device_mgmt_api::power_state_e power_state = device_mgmt_api::POWER_STATE_MAX_POWER;
          power_state <= device_mgmt_api::POWER_STATE_SAFE_POWER; power_state++) {
       const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
-      const char input_buff[input_size] = {power_state};
+      const char input_buff[input_size] = {(char)power_state};
       char output_buff[output_size] = {0};
       auto hst_latency = std::make_unique<uint32_t>();
       auto dev_latency = std::make_unique<uint64_t>();
@@ -1667,7 +1784,7 @@ void TestDevMgmtApiSyncCmds::setSpRootCertificate(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::setTraceControl(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setTraceControl(bool singleDevice, uint32_t control_bitmap) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -1675,7 +1792,7 @@ void TestDevMgmtApiSyncCmds::setTraceControl(bool singleDevice) {
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     const uint32_t input_size = sizeof(device_mgmt_api::trace_control_e);
-    const char input_buff[input_size] = {device_mgmt_api::TRACE_CONTROL_TRACE_UART_DISABLE};
+    const char input_buff[input_size] = {(char)control_bitmap};
 
     const uint32_t set_output_size = sizeof(uint8_t);
     char set_output_buff[set_output_size] = {0};
@@ -1705,8 +1822,7 @@ void TestDevMgmtApiSyncCmds::setTraceConfigure(bool singleDevice, uint32_t event
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     const uint32_t input_size =
-      (sizeof(device_mgmt_api::trace_configure_e) + sizeof(device_mgmt_api::trace_configure_filter_mask_e)) /
-      sizeof(uint32_t);
+      sizeof(device_mgmt_api::trace_configure_e) + sizeof(device_mgmt_api::trace_configure_filter_mask_e);
     const uint32_t input_buff[input_size] = {event_type, filter_level};
 
     const uint32_t set_output_size = sizeof(uint8_t);
@@ -1716,9 +1832,8 @@ void TestDevMgmtApiSyncCmds::setTraceConfigure(bool singleDevice, uint32_t event
     auto dev_latency = std::make_unique<uint64_t>();
 
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG,
-                                reinterpret_cast<const char*>(input_buff), input_size * sizeof(uint32_t),
-                                set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                reinterpret_cast<const char*>(input_buff), input_size, set_output_buff, set_output_size,
+                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -2567,7 +2682,7 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
     uint32_t input_size = sizeof(device_mgmt_api::power_throttle_state_e);
     for (device_mgmt_api::power_throttle_state_e throttle_state = device_mgmt_api::POWER_THROTTLE_STATE_POWER_DOWN;
          throttle_state >= device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP; throttle_state--) {
-      char input_buff[input_size] = {throttle_state};
+      char input_buff[input_size] = {(char)throttle_state};
       EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_THROTTLE_POWER_STATE_TEST, input_buff,
                                   input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                   DM_SERVICE_REQUEST_TIMEOUT),
@@ -2608,18 +2723,18 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
   }
 }
 void TestDevMgmtApiSyncCmds::resetCM(bool singleDevice) {
-    getDM_t dmi = getInstance();
-    ASSERT_TRUE(dmi);
-    DeviceManagement& dm = (*dmi)(devLayer_.get());
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-    auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
-    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-      auto hst_latency = std::make_unique<uint32_t>();
-      auto dev_latency = std::make_unique<uint64_t>();
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
 
-      EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_CM_RESET, nullptr, 0, nullptr,
-                                  0, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
-                device_mgmt_api::DM_STATUS_SUCCESS);
-      DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_CM_RESET, nullptr, 0, nullptr, 0, hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }

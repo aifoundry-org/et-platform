@@ -21,13 +21,9 @@ class IntegrationTestDevMgmtApiTraceCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
-    if (getTestTarget() == Target::Loopback) {
-      // Loopback driver does not support trace
-      FLAGS_enable_trace_dump = false;
-    }
+    initTestTrace();
   }
   void TearDown() override {
-    extractAndPrintTraceData();
     if (handle_ != nullptr) {
       dlclose(handle_);
     }
@@ -35,11 +31,11 @@ class IntegrationTestDevMgmtApiTraceCmds : public TestDevMgmtApiSyncCmds {
 };
 
 TEST_F(IntegrationTestDevMgmtApiTraceCmds, getSpTraceBuffer) {
-  setTraceControl(false /* Multiple devices */);
+  setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE);
   setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
                     device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG);
   setAndGetModuleStaticTDPLevel(false /* Multiple devices */);
-  getTraceBuffer(false /* Multiple devices */, TraceBufferType::TraceBufferSP);
+  extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
 
   /* Restore the logging level back */
   setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
@@ -47,8 +43,8 @@ TEST_F(IntegrationTestDevMgmtApiTraceCmds, getSpTraceBuffer) {
 }
 
 TEST_F(IntegrationTestDevMgmtApiTraceCmds, getMmTraceBuffer) {
-  if (targetInList({ Target::Silicon, Target::SysEMU })) {
-    getTraceBuffer(false /* Multiple devices */, TraceBufferType::TraceBufferMM);
+  if (targetInList({Target::Silicon, Target::SysEMU})) {
+    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferMM);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
@@ -56,8 +52,8 @@ TEST_F(IntegrationTestDevMgmtApiTraceCmds, getMmTraceBuffer) {
 }
 
 TEST_F(IntegrationTestDevMgmtApiTraceCmds, getCmTraceBuffer) {
-  if (targetInList({ Target::Silicon, Target::SysEMU })) {
-    getTraceBuffer(false /* Multiple devices */, TraceBufferType::TraceBufferCM);
+  if (targetInList({Target::Silicon, Target::SysEMU})) {
+    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferCM);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;

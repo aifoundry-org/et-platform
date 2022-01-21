@@ -21,13 +21,12 @@ class FunctionalTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
-    if (getTestTarget() == Target::Loopback) {
-      // Loopback driver does not support trace
-      FLAGS_enable_trace_dump = false;
-    }
+    initTestTrace();
+    controlTraceLogging(false);
   }
   void TearDown() override {
-    extractAndPrintTraceData();
+    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
+    controlTraceLogging(true);
     if (handle_ != nullptr) {
       dlclose(handle_);
     }
@@ -39,7 +38,7 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getMMErrorCount) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getFWBootstatus) {
-  if (targetInList({ Target::FullBoot, Target::Silicon })) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
     getFWBootstatus(false /* Multiple devices */);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -48,7 +47,7 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getFWBootstatus) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getModuleFWRevision) {
-  if (targetInList({ Target::FullBoot, Target::Silicon })) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
     getModuleFWRevision(false /* Multiple devices */);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";

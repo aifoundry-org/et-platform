@@ -21,13 +21,12 @@ class FunctionalTestDevMgmtApiAssetTrackingCmds : public TestDevMgmtApiSyncCmds 
   void SetUp() override {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
-    if (getTestTarget() == Target::Loopback) {
-      // Loopback driver does not support trace
-      FLAGS_enable_trace_dump = false;
-    }
+    initTestTrace();
+    controlTraceLogging(false);
   }
   void TearDown() override {
-    extractAndPrintTraceData();
+    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
+    controlTraceLogging(true);
     if (handle_ != nullptr) {
       dlclose(handle_);
     }
@@ -35,7 +34,7 @@ class FunctionalTestDevMgmtApiAssetTrackingCmds : public TestDevMgmtApiSyncCmds 
 };
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleManufactureName) {
-  if (targetInList({ Target::FullBoot, Target::Silicon })) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
     getModuleManufactureName(false /* Multiple devices */);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -44,7 +43,7 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleManufactureName) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModulePartNumber) {
-  if (targetInList({ Target::FullBoot, Target::Silicon })) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
     getModulePartNumber(false /* Multiple devices */);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -53,7 +52,7 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModulePartNumber) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleSerialNumber) {
-  if (targetInList({ Target::FullBoot, Target::Silicon })) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
     getModuleSerialNumber(false /* Multiple devices */);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -62,7 +61,7 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleSerialNumber) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getASICChipRevision) {
-  if (targetInList({ Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon })) {
+  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
     getASICChipRevision(false /* Multiple devices */);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -75,7 +74,7 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModulePCIENumPortsMaxSpeed)
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleMemorySizeMB) {
-  if (targetInList({ Target::FullBoot, Target::Silicon })) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
     getModuleMemorySizeMB(false /* Multiple devices */);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -84,7 +83,7 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleMemorySizeMB) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleRevision) {
-  if (targetInList({ Target::FullBoot, Target::Silicon })) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
     getModuleRevision(false /* Multiple devices */);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -93,7 +92,7 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleRevision) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleFormFactor) {
-  if (targetInList({ Target::FullBoot, Target::Silicon })) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
     getModuleFormFactor(false /* Multiple devices */);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
