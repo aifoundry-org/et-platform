@@ -1,5 +1,9 @@
 build/
+cmake-build-*
 .vscode/
 test_package/build/
+conan-ci-pipelines-common/
+locks/
+variables.env
 compile_commands.json
 *.swp
