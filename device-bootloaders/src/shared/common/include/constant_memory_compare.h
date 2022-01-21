@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 
-int constant_time_memory_compare(volatile const void *restrict s1, volatile const void *restrict s2,
+int constant_time_memory_compare(volatile const void *s1, volatile const void *s2,
                                  size_t size);
 
 #endif

@@ -19,21 +19,29 @@ set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/bl_layout.ld)
 set(ZEBU_TARGET SP_RAM)
 
 # BL2 build variants
-foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
+foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enabled)
     set(TARGET_NAME ServiceProcessorBL2_${BL2_BUILD_VARIANT})
 
     if (BL2_BUILD_VARIANT STREQUAL "fast-boot")
         # Fast Boot version
         set(FAST_BOOT 1)
         set(TEST_FRAMEWORK 0)
+        set(MINION_DEBUG_INTERFACE 0)
     elseif (BL2_BUILD_VARIANT STREQUAL "testframework")
         # Test Frame work version
         set(FAST_BOOT 0)
         set(TEST_FRAMEWORK 1)
-    else()
-        # Default to Production version
+        set(MINION_DEBUG_INTERFACE 0)
+    elseif (BL2_BUILD_VARIANT STREQUAL "production")
+        # Production version
         set(FAST_BOOT 0)
         set(TEST_FRAMEWORK 0)
+        set(MINION_DEBUG_INTERFACE 0)
+    else()
+        # Debug enabled
+        set(FAST_BOOT 1)
+        set(TEST_FRAMEWORK 0)  
+        set(MINION_DEBUG_INTERFACE 1)
     endif()
 
     add_riscv_executable(${TARGET_NAME}
@@ -77,6 +85,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/dm_task.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/event_handler.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/watchdog_task.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/mdi_debug_task.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/crypto_rot.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/test_events.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/firmware_update.c
@@ -95,6 +104,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
         ${CMAKE_CURRENT_SOURCE_DIR}/services/log.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/bl2_exception.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/bl2_scratch_buffer.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/services/minion_debug.c
     )
     target_include_directories(${TARGET_NAME}.elf
         PRIVATE
@@ -107,7 +117,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework)
     target_compile_definitions(${TARGET_NAME}.elf
         PUBLIC
             -DBL2_VARIANT="${BL2_BUILD_VARIANT}"
-            -DFAST_BOOT=${FAST_BOOT} -DTEST_FRAMEWORK=${TEST_FRAMEWORK}
+            -DFAST_BOOT=${FAST_BOOT} -DTEST_FRAMEWORK=${TEST_FRAMEWORK} -DMINION_DEBUG_INTERFACE=${MINION_DEBUG_INTERFACE}
     )
     target_link_libraries(${TARGET_NAME}.elf
         PRIVATE

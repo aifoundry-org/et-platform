@@ -1,11 +1,15 @@
-add_library(device_common STATIC 
-    src/constant_memory_compare.c
-    src/sp_otp.c
+add_library(device_common 
+    common/src/constant_memory_compare.c
+    common/src/sp_otp.c
+    minion_debug_interface/src/debug_accessor.c
+    minion_debug_interface/src/minion_run_control.c
+    minion_debug_interface/src/minion_state_inspection.c
 )
 add_library(deviceFirmware::device_common ALIAS device_common)
 target_include_directories(device_common
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/minion_debug_interface/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 target_link_libraries(device_common 
