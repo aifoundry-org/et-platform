@@ -1,0 +1,4 @@
+[submodule "ci/ci-tools"]
+	path = ci/ci-tools
+	url = ../ci-tools.git
+	branch = master
