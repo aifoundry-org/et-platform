@@ -43,25 +43,9 @@ static inline void read_msg_and_notify_mm(uint64_t shire_id, cm_iface_message_t 
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
     uint32_t thread_num = atomic_add_local_32(&pre_msg_local_barrier[shire_id].flag, 1U);
 
-    /* First thread brings message from L3 */
-    if (thread_num == 0)
-    {
-        /* Bring data from L3 and copy message from shared global memory to local buffer */
-        ETSOC_MEM_EVICT_AND_COPY(
-            message, master_to_worker_broadcast_message_buffer_ptr, sizeof(*message), to_L3)
-
-        /* Set the local barrier flag */
-        init_local_spinlock(&msg_sync_local_barrier[shire_id], 1);
-    }
-    else
-    {
-        /* All threads in Shire wait for first Thread to set flag */
-        local_spinwait_wait(&msg_sync_local_barrier[shire_id], 1, 0);
-
-        /* Bring data from L2 and copy message from shared global memory to local buffer */
-        ETSOC_MEM_EVICT_AND_COPY(
-            message, master_to_worker_broadcast_message_buffer_ptr, sizeof(*message), to_L2)
-    }
+    /* Bring data from L3 and copy message from shared global memory to local buffer */
+    ETSOC_MEM_EVICT_AND_COPY(
+        message, master_to_worker_broadcast_message_buffer_ptr, sizeof(*message), to_L3)
 
     /* Last thread per shire decrements global counter */
     if (thread_num == (thread_count - 1))
