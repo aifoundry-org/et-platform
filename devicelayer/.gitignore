@@ -1,6 +1,9 @@
 build
 cmake-build-*
-conan/test_package/build
+test_package/build
+locks/
+variables.env
+conan-ci-pipelines-common/
 Testing/**
 tests/Testing/**
 
