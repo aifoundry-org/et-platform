@@ -174,7 +174,9 @@ Modules:
         - Name: MDI_WRITE_CSR
           Value: 75
         - Name: MDI_READ_MEM
-          Value: 76   
+          Value: 76
+        - Name: MDI_WRITE_MEM
+          Value: 77
         - Name: MDI_END
           Value: 255
   ## List of Enums that are used in our messages
@@ -632,7 +634,7 @@ Modules:
         - Name: hart_id
           Description: Hart ID 
           Type: uint64_t
-        - Name: pc
+        - Name: bp_address
           Description: Address for breakpoint
           Type: uint64_t
         - Name: mode 
@@ -718,7 +720,20 @@ Modules:
         - Name: pad[4]
           Description: Padding for alignment
           Type: uint8_t 
-
+    - Name: mdi_mem_write_t
+      Fields:
+        - Name: address
+          Description: Memory address to be written to
+          Type: uint64_t
+        - Name: data
+          Description: Data to be written
+          Type: uint64_t
+        - Name: size
+          Description: Size of memory region
+          Type: uint32_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
   # List of Commands, Responses, Events
   Messages :
       #-------------------------------------------------------------------------------
@@ -1580,7 +1595,27 @@ Modules:
       Fields:
         - Name: data
           Description: Memory content value
-          Type: uint64_t    
+          Type: uint64_t
+    - Name: mdi_mem_write_cmd
+      Description: Memory Write command
+      Type: Command
+      PairedMessage: mdi_mem_write_rsp
+      Fields:
+        - Name: cmd_attr
+          Description: Command attributes(memory address, size, data) for writing to memory
+          Type: struct
+          Struct: mdi_mem_write_t
+    - Name: mdi_mem_write_rsp
+      Description: Memory Write response
+      Type: Response
+      PairedMessage: mdi_mem_write_cmd
+      Fields:
+        - Name: status
+          Description: Indications if memory write suceeded
+          Type: uint32_t
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
 #------------------------------------------------------------------------------
     - Name: device_mgmt_mdi_bp_event
       Description: Breakpoint notification reported by the device
