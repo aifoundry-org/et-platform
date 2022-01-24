@@ -1,10 +1,13 @@
-from conans import ConanFile, tools
+from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeToolchain
+from conan.tools.layout import cmake_layout
+from conans import tools
 import os
+import re
+
 
 class HostUtilsConan(ConanFile):
     name = "hostUtils"
-    version = "0.1.0"
     url = "https://gitlab.esperanto.ai/software/common-sw"
     description = ""
     license = "Esperanto Technologies"
@@ -12,53 +15,83 @@ class HostUtilsConan(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
     options = {
         "shared": [True, False],
-        "fPIC": [True, False]
+        "with_tests": [True, False],
     }
     default_options = {
         "shared": False,
-        "fPIC": True
+        "with_tests": True
     }
 
-    generators = "cmake_find_package_multi"
+    scm = {
+        "type": "git",
+        "url": "git@gitlab.esperanto.ai:software/common-sw.git",
+        "revision": "auto",
+    }
+    generators = "CMakeDeps"
 
-    exports_sources = [ "CMakeLists.txt", "logging/*", "debug/*", "hostUtilsConfig.cmake.in" ]
-
-    requires = "g3log/1.3.2"
-    build_requires = "cmake-modules/[>=0.4.1 <1.0.0]"
     python_requires = "conan-common/[>=0.1.0 <1.0.0]"
     
-    def configure(self):
+    def set_version(self):
+        content = tools.load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
+        version = re.search(r"set\(PROJECT_VERSION (.*)\)", content).group(1)
+        self.version = version.strip()
+
+    def requirements(self):
+        self.requires("g3log/1.3.3")
+        if self.options.with_tests:
+            self.requires("gtest/1.8.1")
+    
+    def build_requirements(self):
+        self.test_requires("cmake-modules/[>=0.4.1 <1.0.0]")
+    
+    def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
         check_req_min_cppstd(self, "17")
+    
+    def layout(self):
+        cmake_layout(self)
+        self.cpp.source.includedirs = ["."]
 
     def generate(self):
         tc = CMakeToolchain(self)
-        tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
+        tc.variables["BUILD_TESTS"] = self.options.with_tests
+        tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies["cmake-modules"].package_folder, "cmake")
         tc.generate()
     
-    _cmake = None
-    def _configure_cmake(self):
-        if not self._cmake:
-            cmake = CMake(self)
-            cmake.configure()
-            self._cmake = cmake
-        return self._cmake
-    
     def build(self):
-        cmake = self._configure_cmake()
+        cmake = CMake(self)
+        cmake.configure()
         cmake.build()
+        if self.options.with_tests and not tools.cross_building(self):
+            self.run("ctest", cwd=os.path.join("threadPool", "tests"), run_environment=True)
     
     def package(self):
-        cmake = self._configure_cmake()
+        cmake = CMake(self)
         cmake.install()
+        tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
     
     def package_info(self):
         # library components
-        self.cpp_info.components["logging"].set_property("cmake_target_name", "logging")
+        self.cpp_info.components["logging"].set_property("cmake_target_name", "hostUtils::logging")
         self.cpp_info.components["logging"].requires = ["g3log::g3log"]
         self.cpp_info.components["logging"].libs = ["logging"]
+        self.cpp_info.components["logging"].includedirs =  ["include"]
         self.cpp_info.components["logging"].libdirs = ["lib", "lib64"]
-        self.cpp_info.components["debug"].set_property("cmake_target_name", "debug")
+
+        self.cpp_info.components["debug"].set_property("cmake_target_name", "hostUtils::debug")
         self.cpp_info.components["debug"].requires = ["g3log::g3log"]
         self.cpp_info.components["debug"].libs = ["debugging"]
+        self.cpp_info.components["debug"].includedirs =  ["include"]
         self.cpp_info.components["debug"].libdirs = ["lib", "lib64"]
+
+        self.cpp_info.components["debugging"].set_property("cmake_target_name", "hostUtils::debugging")
+        self.cpp_info.components["debugging"].requires = ["g3log::g3log"]
+        self.cpp_info.components["debugging"].libs = ["debugging"]
+        self.cpp_info.components["debugging"].includedirs =  ["include"]
+        self.cpp_info.components["debugging"].libdirs = ["lib", "lib64"]
+
+        self.cpp_info.components["threadPool"].set_property("cmake_target_name", "hostUtils::threadPool")
+        self.cpp_info.components["threadPool"].requires = ["logging"]
+        self.cpp_info.components["threadPool"].libs = ["threadPool"]
+        self.cpp_info.components["threadPool"].includedirs =  ["include"]
+        self.cpp_info.components["threadPool"].libdirs = ["lib", "lib64"]

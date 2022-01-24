@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.15)
 project(debug VERSION 0.1.0)
 
 include(GNUInstallDirs)
@@ -36,9 +36,9 @@ target_include_directories(debug
 target_link_libraries(debug PUBLIC g3log::g3log)
 
 set_target_properties(debug PROPERTIES
-  PUBLIC_HEADER "include/debug/StackException.h;include/debug/Check.h"
+    PUBLIC_HEADER "include/debug/StackException.h;include/debug/Check.h"
+    POSITION_INDEPENDENT_CODE ON
 )
-set_target_properties(debug PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 ###########
 # new target 
