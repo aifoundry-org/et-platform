@@ -201,46 +201,127 @@ typedef struct {
    uint8_t ch_id;
 } PVTC_VM_mapping;
 
+/*! \struct TS_Sample
+    \brief Struct for holding current, high and low value
+*/
+typedef struct {
+   int16_t current;
+   int16_t high;
+   int16_t low;
+} TS_Sample;
+
+/*! \struct PD_Sample
+    \brief Struct for holding current, high and low value
+*/
+typedef struct {
+   uint16_t current;
+   uint16_t high;
+   uint16_t low;
+} PD_Sample;
+
+/*! \struct VM_Sample
+    \brief Struct for holding VM current, high and low value
+*/
+typedef struct {
+   uint16_t current;
+   uint16_t high;
+   uint16_t low;
+} VM_Sample;
+
 /*! \struct MinShire_VM_sample
     \brief Struct for holding Minion Voltage sampled values
 */
 typedef struct {
-   uint16_t vdd_sram;
-   uint16_t vdd_noc;
-   uint16_t vdd_mnn;
+   VM_Sample vdd_sram;
+   VM_Sample vdd_noc;
+   VM_Sample vdd_mnn;
 } MinShire_VM_sample;
 
 /*! \struct IOShire_VM_sample
     \brief Struct for holding IOShire Voltage sampled values
 */
 typedef struct {
-   uint16_t vdd_noc;
-   uint16_t vdd_pu;
-   uint16_t vdd_mxn;
+   VM_Sample vdd_noc;
+   VM_Sample vdd_pu;
+   VM_Sample vdd_mxn;
 } IOShire_VM_sample;
 
 /*! \struct PShire_VM_sample
     \brief Struct for holding PShire Voltage sampled values
 */
 typedef struct {
-   uint16_t vdd_pshr;
-   uint16_t vdd_noc;
+   VM_Sample vdd_pshr;
+   VM_Sample vdd_noc;
 } PShire_VM_sample;
 
 /*! \struct MemShire_VM_sample
     \brief Struct for holding MemShire Voltage sampled values
 */
 typedef struct {
-   uint16_t vdd_ms;
-   uint16_t vdd_noc;
+   VM_Sample vdd_ms;
+   VM_Sample vdd_noc;
 } MemShire_VM_sample;
 
 /*! \struct ExtAnalog_VM_sample
     \brief Struct for holding External Analog Voltage sampled values
 */
 typedef struct {
-   uint16_t vdd_ext_analog;
+   VM_Sample vdd_ext_analog;
 } ExtAnalog_VM_sample;
+
+/*! \struct IOShire_samples
+    \brief Struct for holding IOShire Temperature and Voltage sampled values
+*/
+typedef struct {
+   TS_Sample ts;
+   IOShire_VM_sample vm;
+} IOShire_samples;
+
+/*! \struct PShire_samples
+    \brief Struct for holding PShire Temperature and Voltage sampled values
+*/
+typedef struct {
+   PShire_VM_sample vm;
+} PShire_samples;
+
+/*! \struct MemShire_samples
+    \brief Struct for holding MemShire Temperature and Voltage sampled values
+*/
+typedef struct {
+   MemShire_VM_sample vm;
+} MemShire_samples;
+
+/*! \struct MinShire_samples
+    \brief Struct for holding MinShire Temperature and Voltage sampled values
+*/
+typedef struct {
+   TS_Sample ts;
+   MinShire_VM_sample vm;
+} MinShire_samples;
+
+/*! \struct All_MinShire_samples
+    \brief Struct for holding All MinShire Temperature and Voltage sampled values
+*/
+typedef struct {
+   MinShire_samples minshire[PVTC_MINION_SHIRE_NUM];
+} All_MinShire_samples;
+
+/*! \struct All_MemShire_samples
+    \brief Struct for holding All MemShire Temperature and Voltage sampled values
+*/
+typedef struct {
+   MemShire_samples memshire[PVTC_MEM_SHIRE_NUM];
+} All_MemShire_samples;
+
+/*! \struct All_PVT_samples
+    \brief Struct for holding All PVT Temperature and Voltage sampled values
+*/
+typedef struct {
+   IOShire_samples ioshire;
+   PShire_samples  pshire;
+   MemShire_samples memshire[PVTC_MEM_SHIRE_NUM];
+   MinShire_samples minshire[PVTC_MINION_SHIRE_NUM];
+} All_PVT_samples;
 
 /*! \enum shire_type_t
     \brief Enums for shire types
@@ -372,6 +453,60 @@ typedef enum pvtcExtAnalog
     PVTC_MAX_EXT_ANALOG_ID = PVTC_EXT_ANALOG_1
 } PVTC_EXT_ANALOG_e;
 
+/*! \enum PVTC_MINSHIRE_e
+    \brief Enums for MINSHIREs that are monitored by PVTC
+*/
+typedef enum PVT_PRINT
+{
+    PVT_PRINT_MINSHIRE_0 = 0,
+    PVT_PRINT_MINSHIRE_1 = 1,
+    PVT_PRINT_MINSHIRE_2 = 2,
+    PVT_PRINT_MINSHIRE_3 = 3,
+    PVT_PRINT_MINSHIRE_4 = 4,
+    PVT_PRINT_MINSHIRE_5 = 5,
+    PVT_PRINT_MINSHIRE_6 = 6,
+    PVT_PRINT_MINSHIRE_7 = 7,
+    PVT_PRINT_MINSHIRE_8 = 8,
+    PVT_PRINT_MINSHIRE_9 = 9,
+    PVT_PRINT_MINSHIRE_10 = 10,
+    PVT_PRINT_MINSHIRE_11 = 11,
+    PVT_PRINT_MINSHIRE_12 = 12,
+    PVT_PRINT_MINSHIRE_13 = 13,
+    PVT_PRINT_MINSHIRE_14 = 14,
+    PVT_PRINT_MINSHIRE_15 = 15,
+    PVT_PRINT_MINSHIRE_16 = 16,
+    PVT_PRINT_MINSHIRE_17 = 17,
+    PVT_PRINT_MINSHIRE_18 = 18,
+    PVT_PRINT_MINSHIRE_19 = 19,
+    PVT_PRINT_MINSHIRE_20 = 20,
+    PVT_PRINT_MINSHIRE_21 = 21,
+    PVT_PRINT_MINSHIRE_22 = 22,
+    PVT_PRINT_MINSHIRE_23 = 23,
+    PVT_PRINT_MINSHIRE_24 = 24,
+    PVT_PRINT_MINSHIRE_25 = 25,
+    PVT_PRINT_MINSHIRE_26 = 26,
+    PVT_PRINT_MINSHIRE_27 = 27,
+    PVT_PRINT_MINSHIRE_28 = 28,
+    PVT_PRINT_MINSHIRE_29 = 29,
+    PVT_PRINT_MINSHIRE_30 = 30,
+    PVT_PRINT_MINSHIRE_31 = 31,
+    PVT_PRINT_MINSHIRE_32 = 32,
+    PVT_PRINT_MINSHIRE_33 = 33,
+    PVT_PRINT_MINSHIRE_ALL= 34,
+    PVT_PRINT_MEMSHIRE_232 = 232,
+    PVT_PRINT_MEMSHIRE_233 = 233,
+    PVT_PRINT_MEMSHIRE_234 = 234,
+    PVT_PRINT_MEMSHIRE_235 = 235,
+    PVT_PRINT_MEMSHIRE_236 = 236,
+    PVT_PRINT_MEMSHIRE_237 = 237,
+    PVT_PRINT_MEMSHIRE_238 = 238,
+    PVT_PRINT_MEMSHIRE_239 = 239,
+    PVT_PRINT_MEMSHIRE_ALL = 240,
+    PVT_PRINT_PSHIRE_253 = 253,
+    PVT_PRINT_IOSHIRE_254 = 254,
+    PVT_PRINT_ALL = 255
+} PVT_PRINT_e;
+
 /*! \fn int pvt_init(void)
     \brief This function inits pvt controllers.
     \param none
@@ -379,72 +514,35 @@ typedef enum pvtcExtAnalog
 */
 int pvt_init(void);
 
-/*! \fn int pvt_get_min_shire_ts_sample(PVTC_MINSHIRE_e min_id, int *ts_sample)
+/*! \fn int pvt_get_min_shire_ts_sample(PVTC_MINSHIRE_e min_id, TS_Sample *ts_sample)
     \brief This function gets TS sample for Minion Shire
     \param min_id Minion Shire ID
     \param ts_sample sample to be stored
     \return Status indicating success or negative error
 */
-int pvt_get_min_shire_ts_sample(PVTC_MINSHIRE_e min_id, int *ts_sample);
+int pvt_get_min_shire_ts_sample(PVTC_MINSHIRE_e min_id, TS_Sample *ts_sample);
 
-/*! \fn int pvt_get_min_shire_ts_sample(PVTC_MINSHIRE_e min_id, int *ts_sample)
-    \brief This function gets TS highest and lowest sampled values for Minion Shire
-    \param min_id Minion Shire ID
-    \param ts_sample_high highest sample to be stored
-    \param ts_sample_low lowest sample to be stored
-    \return Status indicating success or negative error
-*/
-int pvt_get_min_shire_ts_sample_hilo(PVTC_MINSHIRE_e min_id, int *ts_sample_high,
-                                                             int *ts_sample_low);
-
-/*! \fn int pvt_get_ioshire_ts_sample(int *ts_sample)
+/*! \fn int pvt_get_ioshire_ts_sample(TS_Sample *ts_sample)
     \brief This function gets TS sample for IOShire
     \param ts_sample sample to be stored
     \return Status indicating success or negative error
 */
-int pvt_get_ioshire_ts_sample(int *ts_sample);
+int pvt_get_ioshire_ts_sample(TS_Sample *ts_sample);
 
-/*! \fn int pvt_get_ioshire_ts_sample_hilo(int *ts_sample_high, int *ts_sample_low)
-    \brief This function gets TS highest and lowest sampled values for IOShire
-    \param ts_sample_high highest sample to be stored
-    \param ts_sample_low lowest sample to be stored
-    \return Status indicating success or negative error
-*/
-int pvt_get_ioshire_ts_sample_hilo(int *ts_sample_high, int *ts_sample_low);
-
-/*! \fn int pvt_get_min_shire_pd_sample(PVTC_MINSHIRE_e min_id, int *pd_sample)
+/*! \fn int pvt_get_min_shire_pd_sample(PVTC_MINSHIRE_e min_id, PD_Sample *pd_sample)
     \brief This function gets PD sample for Minion Shire
     \param min_id Minion Shire ID
     \param pd_sample sample to be stored
     \return Status indicating success or negative error
 */
-int pvt_get_min_shire_pd_sample(PVTC_MINSHIRE_e min_id, int *pd_sample);
+int pvt_get_min_shire_pd_sample(PVTC_MINSHIRE_e min_id, PD_Sample *pd_sample);
 
-/*! \fn int pvt_get_min_shire_pd_sample_hilo(PVTC_MINSHIRE_e min_id, int *pd_sample_high,
-*                                                             int *pd_sample_low)
-    \brief This function gets PD highest and lowest sampled values for Minion Shire
-    \param min_id Minion Shire ID
-    \param pd_sample_high highest sample to be stored
-    \param pd_sample_low lowest sample to be stored
-    \return Status indicating success or negative error
-*/
-int pvt_get_min_shire_pd_sample_hilo(PVTC_MINSHIRE_e min_id, int *pd_sample_high,
-                                                             int *pd_sample_low);
-
-/*! \fn int pvt_get_ioshire_pd_sample(int *pd_sample)
+/*! \fn int pvt_get_ioshire_pd_sample(PD_Sample *pd_sample)
     \brief This function gets TS sample for IOShire
     \param pd_sample sample to be stored
     \return Status indicating success or negative error
 */
-int pvt_get_ioshire_pd_sample(int *pd_sample);
-
-/*! \fn int pvt_get_ioshire_pd_sample_hilo(int *pd_sample_high, int *pd_sample_low)
-    \brief This function gets PD highest and lowest sampled values for IOShire
-    \param pd_sample_high highest sample to be stored
-    \param pd_sample_low lowest sample to be stored
-    \return Status indicating success or negative error
-*/
-int pvt_get_ioshire_pd_sample_hilo(int *pd_sample_high, int *pd_sample_low);
+int pvt_get_ioshire_pd_sample(PD_Sample *pd_sample);
 
 /*! \fn int pvt_get_min_shire_vm_sample(PVTC_MINSHIRE_e min_id, MinShire_VM_sample *vm_sample)
     \brief This function gets VM sample for Minion Shire
@@ -454,17 +552,6 @@ int pvt_get_ioshire_pd_sample_hilo(int *pd_sample_high, int *pd_sample_low);
 */
 int pvt_get_min_shire_vm_sample(PVTC_MINSHIRE_e min_id, MinShire_VM_sample *vm_sample);
 
-/*! \fn int pvt_get_min_shire_vm_sample_hilo(PVTC_MINSHIRE_e min_id,
-*                       MinShire_VM_sample *vm_sample_high, MinShire_VM_sample *vm_sample_low)
-    \brief This function gets VM highest and lowest sampled values for Minion Shire
-    \param min_id Minion Shire ID
-    \param vm_sample_high highest sample to be stored
-    \param vm_sample_low lowest sample to be stored
-    \return Status indicating success or negative error
-*/
-int pvt_get_min_shire_vm_sample_hilo(PVTC_MINSHIRE_e min_id, MinShire_VM_sample *vm_sample_high,
-                                                             MinShire_VM_sample *vm_sample_low);
-
 /*! \fn int pvt_get_memshire_vm_sample(PVTC_MEMSHIRE_e memshire_id, MemShire_VM_sample *vm_sample)
     \brief This function gets VM sample for Mem Shire
     \param memshire_id Mem Shire ID
@@ -473,33 +560,12 @@ int pvt_get_min_shire_vm_sample_hilo(PVTC_MINSHIRE_e min_id, MinShire_VM_sample 
 */
 int pvt_get_memshire_vm_sample(PVTC_MEMSHIRE_e memshire_id, MemShire_VM_sample *vm_sample);
 
-/*! \fn int pvt_get_memshire_vm_sample_hilo(PVTC_MEMSHIRE_e memshire_id,
-*                       MemShire_VM_sample *vm_sample_high, MemShire_VM_sample *vm_sample_low)
-    \brief This function gets VM highest and lowest sampled values for Mem Shire
-    \param memshire_id Mem Shire ID
-    \param vm_sample_high highest sample to be stored
-    \param vm_sample_low lowest sample to be stored
-    \return Status indicating success or negative error
-*/
-int pvt_get_memshire_vm_sample_hilo(PVTC_MEMSHIRE_e memshire_id, MemShire_VM_sample *vm_sample_high,
-                                                                 MemShire_VM_sample *vm_sample_low);
-
 /*! \fn int pvt_get_ioshire_vm_sample(IOShire_VM_sample *vm_sample)
     \brief This function gets VM sample for IOShire
     \param vm_sample sample to be stored
     \return Status indicating success or negative error
 */
 int pvt_get_ioshire_vm_sample(IOShire_VM_sample *vm_sample);
-
-/*! \fn int pvt_get_ioshire_vm_sample_hilo(IOShire_VM_sample *vm_sample_high,
-*                                          IOShire_VM_sample *vm_sample_low)
-    \brief This function gets VM highest and lowest sampled values for IOShire
-    \param vm_sample_high highest sample to be stored
-    \param vm_sample_low lowest sample to be stored
-    \return Status indicating success or negative error
-*/
-int pvt_get_ioshire_vm_sample_hilo(IOShire_VM_sample *vm_sample_high,
-                                   IOShire_VM_sample *vm_sample_low);
 
 /*! \fn int pvt_get_pshire_vm_sample(PShire_VM_sample *vm_sample)
     \brief This function gets VM sample for PShire
@@ -508,15 +574,6 @@ int pvt_get_ioshire_vm_sample_hilo(IOShire_VM_sample *vm_sample_high,
 */
 int pvt_get_pshire_vm_sample(PShire_VM_sample *vm_sample);
 
-/*! \fn int pvt_get_pshire_vm_sample_hilo(PShire_VM_sample *vm_sample_high,
-                                          PShire_VM_sample *vm_sample_low)
-    \brief This function gets VM highest and lowest sampled values for PShire
-    \param vm_sample_high highest sample to be stored
-    \param vm_sample_low lowest sample to be stored
-    \return Status indicating success or negative error
-*/
-int pvt_get_pshire_vm_sample_hilo(PShire_VM_sample *vm_sample_high, PShire_VM_sample *vm_sample_low);
-
 /*! \fn int pvt_get_ext_analog_vm_sample(PVTC_EXT_ANALOG_e ext_an_id, ExtAnalog_VM_sample *vm_sample)
     \brief This function gets VM sample for External Analog
     \param ext_an_id External Analog ID
@@ -524,19 +581,6 @@ int pvt_get_pshire_vm_sample_hilo(PShire_VM_sample *vm_sample_high, PShire_VM_sa
     \return Status indicating success or negative error
 */
 int pvt_get_ext_analog_vm_sample(PVTC_EXT_ANALOG_e ext_an_id, ExtAnalog_VM_sample *vm_sample);
-
-/*! \fn int pvt_get_ext_analog_vm_sample_hilo(PVTC_EXT_ANALOG_e ext_an_id,
-                                      ExtAnalog_VM_sample *vm_sample_high,
-                                      ExtAnalog_VM_sample *vm_sample_low)
-    \brief This function gets VM highest and lowest sampled values for External Analog
-    \param ext_an_id External Analog ID
-    \param vm_sample_high highest sample to be stored
-    \param vm_sample_low lowest sample to be stored
-    \return Status indicating success or negative error
-*/
-int pvt_get_ext_analog_vm_sample_hilo(PVTC_EXT_ANALOG_e ext_an_id,
-                                      ExtAnalog_VM_sample *vm_sample_high,
-                                      ExtAnalog_VM_sample *vm_sample_low);
 
 /*! \fn int pvt_single_sample_run(void)
     \brief This function triggers single sample run on all sensors
@@ -548,11 +592,11 @@ void pvt_single_sample_run(void);
 /*! \fn int pvt_hilo_reset(void)
     \brief This function reset high and low sampled values of all sensors
     \param none
-    \return none
+    \return Status indicating success or negative error
 */
 int pvt_hilo_reset(void);
 
-/*! \fn int pvt_continuous_sample_run(void)
+/*! \fn void pvt_continuous_sample_run(void)
     \brief This function triggers continuous sample run on all sensors
     \param none
     \return none
@@ -586,5 +630,18 @@ int pvt_get_minion_avg_temperature(uint8_t* avg_temp);
     \return none
 */
 void pvt_print_all(void);
+
+/*! \fn int pvt_get_and_print(uint8_t print_ts, uint8_t print_vm, PVT_PRINT_e print_select,
+*                             uint16_t *data, uint32_t *num_bytes)
+    \brief This function gets and prints sampled values from selected VMs and TSs
+    \param print_ts      Print TS values
+    \param print_vm      Print VM values
+    \param print_select  Select what to get/print
+    \param data          Placeholder for sampled values
+    \param num_bytes     Number of valid bytes in data
+    \return Status indicating success or negative error
+*/
+int pvt_get_and_print(uint8_t print_ts, uint8_t print_vm, PVT_PRINT_e print_select, uint16_t *data,
+                    uint32_t *num_bytes);
 
 #endif
