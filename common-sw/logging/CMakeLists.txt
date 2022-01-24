@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.15)
 project(logging VERSION 0.1.0)
 
 include(GNUInstallDirs)
@@ -34,9 +34,9 @@ target_include_directories(logging
 target_link_libraries(logging PUBLIC g3log::g3log)
 
 set_target_properties(logging PROPERTIES
-  PUBLIC_HEADER "include/logging/Logging.h;include/logging/Logger.h;include/logging/DefaultSinks.h;include/logging/Instance.h"
+    PUBLIC_HEADER "include/logging/Logging.h;include/logging/Logger.h;include/logging/DefaultSinks.h;include/logging/Instance.h"
+    POSITION_INDEPENDENT_CODE ON
 )
-set_target_properties(logging PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Add package information
 include(CMakePackageConfigHelpers)

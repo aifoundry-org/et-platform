@@ -1,0 +1,4 @@
+projects:
+  "hostUtils":
+    folder: .
+    configs: [host]

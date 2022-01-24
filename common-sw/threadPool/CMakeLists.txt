@@ -9,11 +9,12 @@
 #------------------------------------------------------------------------------
 
 
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.15)
 project(threadPool VERSION 0.1.0)
 
 include(GNUInstallDirs)
 option(BUILD_TESTS "Build ThreadPool tests" ON)
+
 add_library(threadPool 
     include/threadPool/ThreadPool.h 
     src/ThreadPool.cpp
@@ -29,9 +30,9 @@ target_include_directories(threadPool
 target_link_libraries(threadPool PUBLIC logging)
 
 set_target_properties(threadPool PROPERTIES
-  PUBLIC_HEADER "include/threadPool/ThreadPool.h;include/threadPool/function2.hpp"
+    PUBLIC_HEADER "include/threadPool/ThreadPool.h;include/threadPool/function2.hpp"
+    POSITION_INDEPENDENT_CODE ON
 )
-set_target_properties(threadPool PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Add package information
 include(CMakePackageConfigHelpers)

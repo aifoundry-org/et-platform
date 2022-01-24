@@ -1,6 +1,9 @@
 build/
 cmake-build-*
-conan/test_pacakge/build/
+test_pacakge/build/
+locks/
+variables.env
+conan-ci-pipelines-common/
 
 # IDEs
 .idea
