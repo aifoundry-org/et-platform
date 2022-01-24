@@ -22,7 +22,7 @@ gen_conan_build_pipeline:
     # generate pipeline
     - |
       conan-ci-pipelines-common/gen-build-pipeline.py \
-          .ci/conan.yaml \
+          ci/src/conan.yaml \
           conan-ci-pipelines-common/consumers.yaml \
           conan-ci-pipelines-common/configs.yaml \
           -o build-pipeline.yaml
