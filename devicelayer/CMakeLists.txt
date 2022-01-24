@@ -9,30 +9,10 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.17)
-project(deviceLayer VERSION 0.1.0)
+project(deviceLayer LANGUAGES CXX)
 
-option(ENABLE_CONAN "Enable using conan to inject dependencies" OFF)
-if (ENABLE_CONAN)
-    if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan.cmake")
-    message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
-    file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/v0.16.1/conan.cmake"
-                    "${CMAKE_BINARY_DIR}/conan.cmake"
-                    EXPECTED_HASH SHA256=396e16d0f5eabdc6a14afddbcfff62a54a7ee75c6da23f32f7a31bc85db23484
-                    TLS_VERIFY ON)
-    endif()
-    include(${CMAKE_BINARY_DIR}/conan.cmake)
+set(PROJECT_VERSION 0.1.0)
 
-    conan_cmake_configure(REQUIRES sw-sysemu/1.0
-                          GENERATORS cmake_find_package
-                          OPTIONS gflags:namespace="google")
-
-    conan_cmake_autodetect(conan_settings)
-
-    conan_cmake_install(PATH_OR_REFERENCE .
-                    BUILD missing
-                    SETTINGS ${conan_settings})
-endif()
-                   
 set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_PREFIX_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
 
