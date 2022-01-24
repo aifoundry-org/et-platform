@@ -17,4 +17,4 @@ find_dependency(sw-sysemu REQUIRED)
 find_dependency(Boost REQUIRED)
 
 include(${CMAKE_CURRENT_LIST_DIR}/DeviceLayerTargets.cmake)
-check_required_components(deviceLayer)
+check_required_components(DeviceLayer)
