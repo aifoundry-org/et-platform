@@ -1,7 +1,7 @@
 from conan import ConanFile
-from conan import tools
 from conan.tools.cmake import CMake, CMakeToolchain
 from conan.tools.layout import cmake_layout
+from conans import tools
 import os
 import re
 
