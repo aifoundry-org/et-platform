@@ -12,6 +12,8 @@
 #include "emu_defines.h"
 #include "emu_gio.h"
 #include "memmap.h"
+#include <cstdint>
+#include <cstring>
 
 #define MD_LOG(addr, minion, cmd) \
     { if((addr == 0x0) || (log_addr == 0x0) || (addr == log_addr)) \
@@ -1239,6 +1241,21 @@ void mem_checker::l2_evict(uint32_t shire_id, uint32_t cache_bank)
     // L2 evict drains CB as well
     cb_drain(shire_id, cache_bank);
 }
+
+
+// Public function called when SW evicts a minion's entire L1 cache
+void mem_checker::l1_evict_all(uint32_t shire_id, uint32_t minion_id)
+{
+    uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
+    memset(l1_minion_valid[minion], 0, sizeof(bool) * L1D_NUM_WAYS * L1D_NUM_SETS);
+
+    MD_LOG(0, minion, LOG_AGENT(DEBUG, *this, "mem_checker::l1_evict_all => shire_id %i, minion_id %i", shire_id, minion_id));
+
+    for (int set = 0; set < L1D_NUM_SETS; ++set) {
+        l1_clear_set(shire_id, minion_id, set, true);
+    }
+}
+
 
 // Public function called when code executed an evict SW
 void mem_checker::l1_evict_sw(uint32_t shire_id, uint32_t minion_id, uint32_t set, uint32_t way)
