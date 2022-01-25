@@ -159,7 +159,7 @@
     \brief A macro that provides the total size of Service Processor
     trace buffer space on PCI BAR.
 */
-#define SP_DEV_INTF_CM_TRACE_BUFFER_SIZE               CM_TRACE_BUFFER_SIZE
+#define SP_DEV_INTF_CM_TRACE_BUFFER_SIZE               CM_SMODE_TRACE_BUFFER_SIZE
 
 /* Interrupt Trigger Region (BAR=2, Offset=0x2000, Size=8KB) */
 

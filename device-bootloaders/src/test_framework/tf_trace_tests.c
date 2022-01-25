@@ -158,25 +158,25 @@ int8_t CM_Trace_Get_Info_Cmd_Handler(const void* test_cmd)
     {
         struct trace_buffer_std_header_t trace_header;
         memcpy(&trace_header,
-            (void*)CM_TRACE_BUFFER_BASE,
+            (void*)CM_SMODE_TRACE_BUFFER_BASE,
             sizeof(struct trace_buffer_std_header_t));
         rsp.offset = trace_header.data_size;
-        rsp.base = CM_TRACE_BUFFER_BASE;
+        rsp.base = CM_SMODE_TRACE_BUFFER_BASE;
     }
     else
     {
         struct trace_buffer_size_header_t trace_header;
         memcpy(&trace_header,
-            (void*)(CM_TRACE_BUFFER_BASE + (cmd->buffer_id * CM_TRACE_BUFFER_SIZE_PER_HART)),
+            (void*)(CM_SMODE_TRACE_BUFFER_BASE + (cmd->buffer_id * CM_SMODE_TRACE_BUFFER_SIZE_PER_HART)),
             sizeof(struct trace_buffer_size_header_t));
         rsp.offset = trace_header.data_size;
-        rsp.base = CM_TRACE_BUFFER_BASE + (cmd->buffer_id * CM_TRACE_BUFFER_SIZE_PER_HART);
+        rsp.base = CM_SMODE_TRACE_BUFFER_BASE + (cmd->buffer_id * CM_SMODE_TRACE_BUFFER_SIZE_PER_HART);
     }
 
     rsp.rsp_hdr.id = TF_RSP_CM_TRACE_GET_INFO;
     rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
     rsp.rsp_hdr.payload_size =  TF_GET_PAYLOAD_SIZE(rsp);
-    rsp.size = CM_TRACE_BUFFER_SIZE_PER_HART;
+    rsp.size = CM_SMODE_TRACE_BUFFER_SIZE_PER_HART;
 
     TF_Send_Response(&rsp, sizeof(rsp));
 
@@ -189,7 +189,7 @@ int8_t CM_Trace_Get_Buffer_Cmd_Handler(const void* test_cmd)
     struct tf_rsp_cm_trace_get_buffer_t rsp;
     struct trace_buffer_std_header_t trace_header;
 
-    memcpy(&trace_header, (void*)CM_TRACE_BUFFER_BASE, sizeof(struct trace_buffer_std_header_t));
+    memcpy(&trace_header, (void*)CM_SMODE_TRACE_BUFFER_BASE, sizeof(struct trace_buffer_std_header_t));
 
     rsp.bytes_read = trace_header.data_size;
     rsp.rsp_hdr.id = TF_RSP_CM_TRACE_GET_BUFFER;
@@ -199,7 +199,7 @@ int8_t CM_Trace_Get_Buffer_Cmd_Handler(const void* test_cmd)
 
     TF_Send_Response_With_Payload(&rsp,
         (uint32_t) (sizeof(tf_rsp_hdr_t) + sizeof(uint32_t)),
-        (void*) CM_TRACE_BUFFER_BASE, rsp.bytes_read);
+        (void*) CM_SMODE_TRACE_BUFFER_BASE, rsp.bytes_read);
 
     return 0;
 }
