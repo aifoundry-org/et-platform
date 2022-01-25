@@ -63,6 +63,9 @@ public:
     case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD:
       rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP;
       break;
+    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_CMD:
+      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_RSP;
+      break;
     default:
       throw Exception("Please, add command with msg_id: " + std::to_string(cmd->msg_id));
     }
