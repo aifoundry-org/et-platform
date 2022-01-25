@@ -1,6 +1,6 @@
-from conans import ConanFile
+from conan import ConanFile
 
-class EtIoctlConan(ConanFile):
+class UserspaceEtDriverConan(ConanFile):
     name = "linuxDriver"
     version = "0.1.0"
     # No settings/options are necessary, this is header only
