@@ -32,7 +32,7 @@ typedef struct umode_trace_control_block {
 } __attribute__((aligned(64))) umode_trace_control_block_t;
 
 /* WARNING: Keep it in sync with the memory map layout file in minion runtime. */
-#define CM_UMODE_TRACE_CB_BASEADDR  0x8008d21040
+#define CM_UMODE_TRACE_CB_BASEADDR  0x8004d22000ULL
 
 /*! \def GET_CB_INDEX
     \brief Get CB index of current Hart in pre-allocated CB array.
