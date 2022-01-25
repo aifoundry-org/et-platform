@@ -84,7 +84,7 @@ typedef struct trace_umode_control_block {
 /*! \def CM_TRACE_CB
     \brief A local Trace control block for a Compute Minion.
 */
-#define CM_TRACE_CB ((trace_smode_control_block_t *)FW_CM_TRACE_CB_BASEADDR)
+#define CM_TRACE_CB ((trace_smode_control_block_t *)CM_SMODE_TRACE_CB_BASEADDR)
 
 /*! \def CM_UMODE_TRACE_CB
     \brief A local Trace control block for a Compute Minion.
@@ -153,7 +153,7 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
         hart_init_info.thread_mask = CM_DEFAULT_TRACE_THREAD_MASK;
         hart_init_info.event_mask = TRACE_EVENT_STRING;
         hart_init_info.filter_mask = TRACE_EVENT_STRING_WARNING;
-        hart_init_info.threshold = CM_TRACE_BUFFER_SIZE_PER_HART;
+        hart_init_info.threshold = CM_SMODE_TRACE_BUFFER_SIZE_PER_HART;
     }
     else
     {
@@ -167,15 +167,15 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
 
     /* Buffer settings for current Hart. */
     CM_TRACE_CB[hart_cb_index].cb.base_per_hart =
-        (CM_TRACE_BUFFER_BASE + (hart_cb_index * CM_TRACE_BUFFER_SIZE_PER_HART));
-    CM_TRACE_CB[hart_cb_index].cb.size_per_hart = CM_TRACE_BUFFER_SIZE_PER_HART;
+        (CM_SMODE_TRACE_BUFFER_BASE + (hart_cb_index * CM_SMODE_TRACE_BUFFER_SIZE_PER_HART));
+    CM_TRACE_CB[hart_cb_index].cb.size_per_hart = CM_SMODE_TRACE_BUFFER_SIZE_PER_HART;
 
     /* Initialize trace buffer header. First CM hart contains ET Trace header,
        rest of Harts contain only size of trace data in their header.*/
     if (hart_id == CM_BASE_HART_ID)
     {
         struct trace_buffer_std_header_t *trace_header =
-            (struct trace_buffer_std_header_t *)CM_TRACE_BUFFER_BASE;
+            (struct trace_buffer_std_header_t *)CM_SMODE_TRACE_BUFFER_BASE;
 
         trace_header->magic_header = TRACE_MAGIC_HEADER;
         trace_header->type = TRACE_CM_BUFFER;
@@ -188,7 +188,7 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
                        (get_msb_set_pos(hart_init_info.thread_mask) - 1U));
 
         /* Buffer is divided equally among all CM Harts, with fixed size per Hart. */
-        trace_header->sub_buffer_size = CM_TRACE_BUFFER_SIZE_PER_HART;
+        trace_header->sub_buffer_size = CM_SMODE_TRACE_BUFFER_SIZE_PER_HART;
 
         /* populate Trace layout version in Header. */
         trace_header->version.major = TRACE_VERSION_MAJOR;

@@ -1089,7 +1089,7 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
     {
         cm_shire_mask = Trace_Get_CM_Shire_Mask() & CW_Get_Booted_Shires();
 
-        if (cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_TRACE_BUFFER_SIZE))
+        if (cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_SMODE_TRACE_BUFFER_SIZE))
         {
             mm_to_cm_message_trace_buffer_evict_t cm_msg = {
                 .header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
@@ -1144,7 +1144,7 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
     {
         cm_shire_mask = Trace_Get_CM_Shire_Mask() & CW_Get_Booted_Shires();
 
-        if (cmd->list[TRACE_NODE_INDEX].size <= CM_TRACE_BUFFER_SIZE)
+        if (cmd->list[TRACE_NODE_INDEX].size <= CM_SMODE_TRACE_BUFFER_SIZE)
         {
             mm_to_cm_message_trace_buffer_evict_t cm_msg = {
                 .header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
@@ -1169,7 +1169,7 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
                 status = DMAW_ERROR_CM_IFACE_MULTICAST_FAILED;
             }
 
-            cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = CM_TRACE_BUFFER_BASE;
+            cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = CM_SMODE_TRACE_BUFFER_BASE;
         }
         else
         {

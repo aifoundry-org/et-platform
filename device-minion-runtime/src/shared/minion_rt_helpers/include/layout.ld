@@ -1,4 +1,5 @@
-/* Hardware memory region layout */
+/* Hardware memory region layout
+   WARNING: Fixed addresses and sizes, it must be synced with device's memory layout */
 M_CODE_REGION_BASE = 0x8000000000; /* MCODE region is  2M from 0x8000000000 to 0x80001FFFFF */
 M_CODE_REGION_SIZE = 0x0000200000;
 
@@ -21,12 +22,12 @@ FW_MASTER_SCODE_SIZE = 0x400000; /* 4M */
 FW_WORKER_SCODE_BASE = S_CODE_REGION_BASE + FW_MASTER_SCODE_SIZE;
 FW_WORKER_SCODE_SIZE = 0x400000; /* 4M */
 
-/* Master and worker firmware split the SDATA region 16M each, last 16M for Minion FW boot config + shared message buffers + S-stacks */
+/* Master and worker firmware split the SDATA region 4M each, last 40M for Minion FW boot config + shared message buffers + S-stacks + Traces */
 FW_MASTER_SDATA_BASE = S_DATA_REGION_BASE;
-FW_MASTER_SDATA_SIZE = 0x1000000; /* 16M */
+FW_MASTER_SDATA_SIZE = 0x400000; /* 4M */
 
 FW_WORKER_SDATA_BASE = S_DATA_REGION_BASE + FW_MASTER_SDATA_SIZE;
-FW_WORKER_SDATA_SIZE = 0x1000000; /* 16M */
+FW_WORKER_SDATA_SIZE = 0x400000; /* 4M */
 
 /* All S-mode stacks are laid out at the end of the SDATA region */
 FW_SMODE_STACK_BASE = S_DATA_REGION_BASE + S_DATA_REGION_SIZE;

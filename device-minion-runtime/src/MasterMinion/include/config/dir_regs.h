@@ -20,6 +20,7 @@
 
 #include <stdint.h>
 #include "config/mm_config.h"
+#include "system/layout.h"
 
 /* List of REGIONS based on Spec as defined here:
  * https://esperantotech.atlassian.net/wiki/spaces/SW/pages/1233584203/Memory+Map */
@@ -124,7 +125,7 @@
 /*! \def MEM_REGION_DMA_ELEMENT_COUNT
     \brief Macro for element count in DMA list
 */
-#define MEM_REGION_DMA_ELEMENT_COUNT 8
+#define MEM_REGION_DMA_ELEMENT_COUNT DMA_MAX_ENTRIES_PER_LL
 
 /***************************/
 /* MM DIRs data structures */
