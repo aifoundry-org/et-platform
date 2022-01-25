@@ -60,6 +60,7 @@ class RuntimeConan(ConanFile):
         tc.variables["BUILD_TESTS"] = self.options.get_safe("with_tests")
         tc.variables["BUILD_TOOLS"] = self.options.get_safe("with_tools")
         tc.variables["BUILD_DOCS"] = False
+        tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
         tc.generate()
         
@@ -79,8 +80,14 @@ class RuntimeConan(ConanFile):
         self.cpp_info.components["etrt"].names["cmake_find_package_multi"] = "etrt"
         self.cpp_info.components["etrt"].set_property("cmake_target_name", "runtime::etrt")
         self.cpp_info.components["etrt"].requires = ["hostUtils::debug", "cereal::cereal", "deviceApi::deviceApi", "deviceLayer::deviceLayer", "hostUtils::logging", "elfio::elfio"]
+        self.cpp_info.components["etrt"].libs = ["etrt"]
+        self.cpp_info.components["etrt"].includedirs = ["include"]
+        self.cpp_info.components["etrt"].libdirs = ["lib"]
 
         self.cpp_info.components["etrt_static"].names["cmake_find_package"] = "etrt_static"
         self.cpp_info.components["etrt_static"].names["cmake_find_package_multi"] = "etrt_static"
         self.cpp_info.components["etrt_static"].set_property("cmake_target_name", "runtime::etrt_static")
         self.cpp_info.components["etrt_static"].requires = ["hostUtils::debug", "cereal::cereal", "deviceApi::deviceApi", "deviceLayer::deviceLayer", "hostUtils::logging", "elfio::elfio"]
+        self.cpp_info.components["etrt_static"].libs = ["etrt_static"]
+        self.cpp_info.components["etrt_static"].includedirs = ["include"]
+        self.cpp_info.components["etrt_static"].libdirs = ["lib"]
