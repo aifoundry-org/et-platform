@@ -196,7 +196,7 @@ static void mdi_set_breakpoint(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_st
     const struct mdi_bp_control_cmd_t *mdi_cmd_req = (struct mdi_bp_control_cmd_t *)buffer;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_SET_BREAKPOINT\n");
-    Set_PC_Breakpoint(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.pc,
+    Set_PC_Breakpoint(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.bp_address,
                       mdi_cmd_req->cmd_attr.mode);
 
     /* Send BP Halt success/failure event to host */
@@ -247,13 +247,10 @@ static void mdi_read_gpr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
     struct mdi_read_gpr_rsp_t mdi_rsp;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_READ_GPR\n");
-
-    uint64_t reg_value = Read_GPR(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.gpr_index);
-
+    mdi_rsp.data = Read_GPR(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.gpr_index);
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
-    mdi_rsp.data = reg_value;
 
-    Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u, mdi_rsp.data:%lu\n",
+    Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u, mdi_rsp.data:%lx\n",
               mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.data);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&mdi_rsp, sizeof(struct mdi_read_gpr_rsp_t)))
@@ -332,14 +329,34 @@ static void mdi_read_csr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
 
 static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = -1;
+    int32_t status = 0;
     const struct mdi_mem_read_cmd_t *mdi_cmd_req = (struct mdi_mem_read_cmd_t *)buffer;
     struct mdi_mem_read_rsp_t mdi_rsp;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_READ_MEM\n");
 
-    /* MDI READ memory is not supported in lib */
     mdi_rsp.data = MEM_READ64(mdi_cmd_req->cmd_attr.address);
+
+    FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
+    Log_Write(LOG_LEVEL_INFO,
+              "Response for msg_id = %u, tag_id = %u, Address: %lx, mdi_rsp.data:%lx\n",
+              mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id,
+              mdi_cmd_req->cmd_attr.address, mdi_rsp.data);
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&mdi_rsp, sizeof(struct mdi_mem_read_rsp_t)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Cqueue push error!\n");
+    }
+}
+
+static void mdi_mem_write(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
+{
+    int32_t status = 0;
+    const struct mdi_mem_write_cmd_t *mdi_cmd_req = (struct mdi_mem_write_cmd_t *)buffer;
+    struct mdi_mem_write_rsp_t mdi_rsp;
+
+    Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_WRITE_MEM\n");
+
+    MEM_WRITE64(mdi_cmd_req->cmd_attr.address, mdi_cmd_req->cmd_attr.data);
 
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
     Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u, mdi_rsp.status:%u\n",
@@ -419,6 +436,10 @@ void minion_debug_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
 
         case DM_CMD_MDI_READ_MEM:
             mdi_mem_read(tag_id, msg_id, req_start_time, buffer);
+            break;
+
+        case DM_CMD_MDI_WRITE_MEM:
+            mdi_mem_write(tag_id, msg_id, req_start_time, buffer);
             break;
 
         default:

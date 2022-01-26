@@ -171,7 +171,7 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
                 /* Process firmware service request cmd */
                 firmware_service_process_request(tag_id, msg_id, (void *)buffer);
                 break;
-            case DM_CMD_MDI_SELECT_HART ... DM_CMD_MDI_READ_MEM:
+            case DM_CMD_MDI_SELECT_HART ... DM_CMD_MDI_WRITE_MEM:
                 /* Process minion debug request cmd */
                 minion_debug_request(tag_id, msg_id, (void *)buffer);
                 break;
