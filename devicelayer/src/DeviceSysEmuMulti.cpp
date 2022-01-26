@@ -33,9 +33,9 @@ DmaInfo DeviceSysEmuMulti::getDmaInfo(int device) const {
   return getDevice(device).getDmaInfo(device);
 }
 
-DeviceSysEmuMulti::DeviceSysEmuMulti(const emu::SysEmuOptions& options, int numDevices) {
-  for (int i = 0; i < numDevices; ++i) {
-    devices_.emplace_back(std::make_unique<DeviceSysEmu>(options));
+DeviceSysEmuMulti::DeviceSysEmuMulti(std::vector<emu::SysEmuOptions> options) {
+  for (auto& o : options) {
+    devices_.emplace_back(std::make_unique<DeviceSysEmu>(o));
   }
 }
 

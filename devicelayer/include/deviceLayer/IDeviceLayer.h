@@ -329,6 +329,16 @@ public:
   static std::unique_ptr<IDeviceLayer> createSysEmuDeviceLayer(const emu::SysEmuOptions& options,
                                                                uint8_t numDevices = 1);
 
+  /// \brief Factory method to instantiate a IDeviceApi implementation, based on sysemu backend
+  ///
+  /// @param[in] options this contains all sysemu parametrizable options see \ref emu::SysEmuOptions. For each
+  /// sysemuOptions it will create an emulation device. This method is intended to provide different sysemu parameters
+  /// for each sysemu device simulated.
+  ///
+  /// @returns std::unique_ptr<IDeviceApi> is the IDeviceApi implementation
+  ///
+  static std::unique_ptr<IDeviceLayer> createSysEmuDeviceLayer(std::vector<emu::SysEmuOptions> options);
+
   /// \brief Factory method to instantiate a IDeviceApi implementation, based on Pcie backend
   ///
   /// @param[in] enableMasterMinion if this is true, deviceLayer will attempt to open the operations port (Master

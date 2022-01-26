@@ -14,7 +14,7 @@
 namespace dev {
 class DeviceSysEmuMulti : public IDeviceLayer {
 public:
-  explicit DeviceSysEmuMulti(const emu::SysEmuOptions& options, int numDevices);
+  explicit DeviceSysEmuMulti(std::vector<emu::SysEmuOptions> options);
 
   // IDeviceAsync
   bool sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma,
