@@ -156,10 +156,9 @@ enum SP_DEV_INTF_FORM_FACTOR_e {
     \brief Values representing the BAR0 sizes that can be configured
 */
 enum SP_DEV_INTF_BAR0_SIZE_e {
-    SP_DEV_INTF_BAR0_SIZE_1GB = 0,
-    SP_DEV_INTF_BAR0_SIZE_2GB = 1,
-    /* Unused values for now */
-    SP_DEV_INTF_BAR0_SIZE_32GB = 31
+    SP_DEV_INTF_BAR0_SIZE_8MB = 0,
+    SP_DEV_INTF_BAR0_SIZE_16MB = 1,
+    SP_DEV_INTF_BAR0_SIZE_24MB = 2
     /* Unused values for now */
 };
 

@@ -596,8 +596,11 @@ static void pcie_init_atus(void)
     Log_Write(LOG_LEVEL_CRITICAL, " done\r\n");
 
     /* Setup BAR0
-       Name        Host Addr       SoC Addr      Size   Notes
-       R_L3_DRAM   BAR0 + 0x0000   0x8005000000  ~32G   SoC DRAM */
+       Name                  Host Addr           SoC Addr      Size    Notes
+       SP_DM_SCRATCH_REGION  BAR0 + 0x00921000   0x80018418c0  4M      F/W update - Scratch
+       SP_TRACE_BUFFER       BAR0 + 0x00000000   0x8001C418C0  4K      SP SMode Trace
+       MM_TRACE_BUFFER       BAR0 + 0x00001000   0x8001C428C0  1M      MM SMode Trace
+       CM_TRACE_BUFFER       BAR0 + 0x00101000   0x8001D428C0  8.125M  CM SMode Trace */
 
     uint32_t bar0_lo =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
@@ -605,9 +608,12 @@ static void pcie_init_atus(void)
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR1_REG_ADDRESS);
     uint64_t bar0 = ((uint64_t)bar0_hi << 32) | ((uint64_t)bar0_lo & 0xFFFFFFF0ULL);
 
-    config_inbound_iatu_0(bar0,              /* baseAddr */
-                          DRAM_MEMMAP_BEGIN, /* targetAddr */
-                          DRAM_MEMMAP_SIZE); /* size */
+    config_inbound_iatu_0(bar0,                             /* baseAddr */
+                          SP_DM_SCRATCH_REGION_BEGIN,       /* targetAddr */
+                          SP_DM_SCRATCH_REGION_SIZE +
+                          SP_TRACE_BUFFER_SIZE +
+                          MM_TRACE_BUFFER_SIZE +
+                          CM_SMODE_TRACE_BUFFER_SIZE);      /* size */
 
     /* Setup BAR2
        Name              Host Addr       SoC Addr      Size   Notes
@@ -633,8 +639,8 @@ static void pcie_init_atus(void)
     baseAddr += R_PU_MBOX_PC_SP_SIZE;
 
     config_inbound_iatu_3(baseAddr,
-                          R_PU_TRG_PCIE_BASEADDR, //targetAddr
-                          R_PU_TRG_PCIE_SIZE);    //size
+                          R_PU_TRG_PCIE_BASEADDR,             /* targetAddr */
+                          R_PU_TRG_PCIE_SIZE);                /* size */
 
     baseAddr += R_PU_TRG_PCIE_SIZE;
 

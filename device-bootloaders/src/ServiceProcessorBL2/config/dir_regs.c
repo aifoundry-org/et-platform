@@ -70,7 +70,7 @@ void DIR_Init(void)
     Gbl_SP_DIRs->generic_attr.minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
     Gbl_SP_DIRs->generic_attr.form_factor = SP_DEV_CONFIG_FORM_FACTOR_PCIE;
     Gbl_SP_DIRs->generic_attr.cache_line_size = CACHE_LINE_SIZE;
-    Gbl_SP_DIRs->generic_attr.bar0_size = SP_DEV_INTF_BAR0_SIZE_32GB;
+    Gbl_SP_DIRs->generic_attr.bar0_size = SP_DEV_INTF_BAR0_SIZE_16MB;
     Gbl_SP_DIRs->generic_attr.bar2_size = SP_DEV_INTF_BAR2_SIZE_256KB;
 
     /* Populate the SP VQs attributes */
