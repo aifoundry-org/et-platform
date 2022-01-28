@@ -58,14 +58,14 @@ static uint64_t get_enabled_harts(uint64_t shire_id)
 void select_hart_op(uint64_t shire_id, uint64_t neigh_id, uint16_t hart_mask)
 {
     uint64_t hactrl = READ_HACTRL(shire_id, neigh_id);
-    hactrl = UNSELECT_HART_OP(hactrl, hart_mask);
+    hactrl = SELECT_HART_OP(hactrl, (uint64_t)hart_mask);
     WRITE_HACTRL(shire_id, neigh_id, hactrl);
 }
 
 void unselect_hart_op(uint64_t shire_id, uint64_t neigh_id, uint16_t hart_mask)
 {
     uint64_t hactrl = READ_HACTRL(shire_id, neigh_id);
-    hactrl = SELECT_HART_OP(hactrl, (uint64_t)hart_mask);
+    hactrl = UNSELECT_HART_OP(hactrl, (uint64_t)hart_mask);
     WRITE_HACTRL(shire_id, neigh_id, hactrl);
 }
 
