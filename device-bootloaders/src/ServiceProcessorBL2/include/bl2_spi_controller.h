@@ -19,6 +19,21 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/*! \def SPI_MAX_TX_FREQUENCY
+    \brief Max SPI tx frequency in MHz
+*/
+#define SPI_MAX_TX_FREQUENCY   36
+
+/*! \def SPI_MAX_RX_FREQUENCY
+    \brief Max SPI rx frequency in MHz
+*/
+#define SPI_MAX_RX_FREQUENCY   36
+
+/*! \def SPI_USE_DEFAULT_FREQUENCY
+    \brief Special value that tells driver not to change divider.
+*/
+#define SPI_USE_DEFAULT_FREQUENCY   0
+
 /**
  * @enum SPI_CONTROLLER_ID
  * @brief Enum defining SPI controller IDs
@@ -46,9 +61,11 @@ typedef struct SPI_COMMAND {
 /*! \fn int spi_controller_init(SPI_CONTROLLER_ID_t id)
     \brief This function initializes SPI controller driver.
     \param id id of SPI controller
+    \param rx_frequency Target rx frequency for SPI
+    \param tx_frequency Target tx frequency for SPI
     \return Status indicating success or negative error
 */
-int spi_controller_init(SPI_CONTROLLER_ID_t id);
+int spi_controller_init(SPI_CONTROLLER_ID_t id, uint32_t rx_frequency, uint32_t tx_frequency);
 
 /*! \fn int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMMAND_t *command)
     \brief This function sends command to SPI controller.

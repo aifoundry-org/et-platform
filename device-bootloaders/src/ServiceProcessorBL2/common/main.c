@@ -474,6 +474,10 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     // Initialize System Interrupt
     INT_init();
 
+    // Initialize SPI controller
+    status = SPI_Flash_Initialize(g_service_processor_bl2_data.flash_fs_bl2_info.flash_id);
+    ASSERT_FATAL(status == STATUS_SUCCESS, "SPI_Flash_Initialize() failed!")
+
     // Create Main RTOS task and launch Scheduler
     Log_Write(LOG_LEVEL_CRITICAL, "Starting RTOS...\n");
     gs_taskHandleMain = xTaskCreateStatic(taskMain, "Main Task", MAIN_TASK_STACK_SIZE, NULL, 1,
