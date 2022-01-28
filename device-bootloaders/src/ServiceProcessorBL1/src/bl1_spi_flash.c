@@ -56,7 +56,7 @@ int spi_flash_init(SPI_FLASH_ID_t flash_id)
         return -1;
     }
 
-    return spi_controller_init(controller_id);
+    return spi_controller_init(controller_id, SPI_MAX_RX_FREQUENCY, SPI_MAX_TX_FREQUENCY);
 }
 
 int spi_flash_wren(SPI_FLASH_ID_t flash_id)

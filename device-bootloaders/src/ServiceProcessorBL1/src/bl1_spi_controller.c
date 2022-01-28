@@ -32,26 +32,6 @@
 
 #define MAX_RX_TX_FIFO_SIZE 256
 
-#define RX_BAUD_RATE_DIVIDER_100_MHZ_VALUE \
-    2 // used when the PLL_1 is turned off, will result in SCLK_OUT frequency of 50 MHz
-#define RX_BAUD_RATE_DIVIDER_250_MHZ_VALUE \
-    6 // used when the PLL_1 is set to 1000 MHz, will result in SCLK_OUT frequency of 41.7 MHz
-#define RX_BAUD_RATE_DIVIDER_375_MHZ_VALUE \
-    8 // used when the PLL_1 is set to 1500 MHz, will result in SCLK_OUT frequency of 46.9 MHz
-#define RX_BAUD_RATE_DIVIDER_500_MHZ_VALUE \
-    10 // used when the PLL_1 is set to 2000 MHz, will result in SCLK_OUT frequency of 50.0 MHz
-#define TX_BAUD_RATE_DIVIDER_100_MHZ_VALUE \
-    2 // used when the PLL_1 is turned off, will result in SCLK_OUT frequency of 50 MHz
-#define TX_BAUD_RATE_DIVIDER_250_MHZ_VALUE \
-    6 // used when the PLL_1 is set to 1000 MHz, will result in SCLK_OUT frequency of 41.7 MHz
-#define TX_BAUD_RATE_DIVIDER_375_MHZ_VALUE \
-    8 // used when the PLL_1 is set to 1500 MHz, will result in SCLK_OUT frequency of 46.9 MHz
-#define TX_BAUD_RATE_DIVIDER_500_MHZ_VALUE \
-    10 // used when the PLL_1 is set to 2000 MHz, will result in SCLK_OUT frequency of 50.0 MHz
-
-#define RX_BAUD_RATE_DIVIDER_VALUE RX_BAUD_RATE_DIVIDER_500_MHZ_VALUE
-#define TX_BAUD_RATE_DIVIDER_VALUE TX_BAUD_RATE_DIVIDER_500_MHZ_VALUE
-
 #if 1
 #define SCPOL_VALUE SSI_CTRLR0_SCPOL_SCPOL_SCLK_LOW
 #else
@@ -68,6 +48,9 @@
 #define TX_TIMEOUT 0x1000
 #define RX_TIMEOUT 0x1000
 
+static void spi_set_divider(uint32_t rx_frequency, uint32_t tx_frequency);
+static uint32_t spi_calculate_divider(uint32_t frequency);
+
 static uintptr_t get_spi_registers(SPI_CONTROLLER_ID_t id)
 {
     switch (id) {
@@ -80,7 +63,7 @@ static uintptr_t get_spi_registers(SPI_CONTROLLER_ID_t id)
     }
 }
 
-int spi_controller_init(SPI_CONTROLLER_ID_t id)
+int spi_controller_init(SPI_CONTROLLER_ID_t id, uint32_t rx_frequency, uint32_t tx_frequency)
 {
     uintptr_t spi_regs = get_spi_registers(id);
     if (0 == spi_regs) {
@@ -111,6 +94,8 @@ int spi_controller_init(SPI_CONTROLLER_ID_t id)
                                               SSI_IMR_RXFIM_SET(0) | SSI_IMR_MSTIM_SET(0));
 
     iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(1));
+
+    spi_set_divider(rx_frequency, tx_frequency);
 
     return 0;
 }
@@ -528,6 +513,8 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
     uint32_t dfs32_frame_size;
     uint32_t slave_en_mask;
 
+    const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data = get_service_processor_bl1_data();
+
 #if defined(WRITES_USE_32_BIT_FRAMES) || defined(READS_USE_32_BIT_FRAMES)
     bool use_32bit_frames = false;
 #endif
@@ -631,7 +618,7 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
     slave_en_mask = SSI_SER_SER_SET((1u << slave_index) & SLAVE_MASK);
 
     if (command->data_receive) {
-        iowrite32(spi_regs + SSI_BAUDR_ADDRESS, SSI_BAUDR_SCKDV_SET(RX_BAUD_RATE_DIVIDER_VALUE));
+        iowrite32(spi_regs + SSI_BAUDR_ADDRESS, SSI_BAUDR_SCKDV_SET(bl1_data->spi_controller_rx_baudrate_divider));
         iowrite32(spi_regs + SSI_CTRLR0_ADDRESS,
                   (uint32_t)(
                       // SSI_CTRLR0_DFS_SET(0) |
@@ -674,7 +661,7 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
                                     command->data_size);
 #endif
     } else {
-        iowrite32(spi_regs + SSI_BAUDR_ADDRESS, SSI_BAUDR_SCKDV_SET(TX_BAUD_RATE_DIVIDER_VALUE));
+        iowrite32(spi_regs + SSI_BAUDR_ADDRESS, SSI_BAUDR_SCKDV_SET(bl1_data->spi_controller_tx_baudrate_divider));
         iowrite32(spi_regs + SSI_CTRLR0_ADDRESS,
                   (uint32_t)(
                       // SSI_CTRLR0_DFS_SET(0)                                       |
@@ -707,6 +694,39 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
     iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
 
     return rv;
+}
+
+static void spi_set_divider(uint32_t rx_frequency, uint32_t tx_frequency)
+{
+    SERVICE_PROCESSOR_BL1_DATA_t *bl1_data = get_service_processor_bl1_data();
+
+    if (rx_frequency != SPI_USE_DEFAULT_FREQUENCY) {
+        bl1_data->spi_controller_rx_baudrate_divider = (uint16_t)spi_calculate_divider(rx_frequency);
+        MESSAGE_INFO("SPI rx divider is set to %d\n", bl1_data->spi_controller_rx_baudrate_divider);
+    }
+
+    if (tx_frequency != SPI_USE_DEFAULT_FREQUENCY) {
+        bl1_data->spi_controller_tx_baudrate_divider = (uint16_t)spi_calculate_divider(tx_frequency);
+        MESSAGE_INFO("SPI tx divider is set to %d\n", bl1_data->spi_controller_tx_baudrate_divider);
+    }
+
+}
+
+static uint32_t spi_calculate_divider(uint32_t frequency)
+{
+    const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data = get_service_processor_bl1_data();
+
+    uint32_t spi_divider;
+    uint32_t calculated_frequency;
+
+    spi_divider = (bl1_data->sp_pll1_frequency/4) / frequency;
+    calculated_frequency = (bl1_data->sp_pll1_frequency/4) / spi_divider;
+
+    if (calculated_frequency > frequency) {
+        spi_divider++;
+    }
+
+    return spi_divider;
 }
 
 #pragma GCC pop_options

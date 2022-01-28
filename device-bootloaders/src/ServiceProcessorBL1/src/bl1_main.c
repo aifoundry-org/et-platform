@@ -148,6 +148,10 @@ static int copy_rom_data(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
     memcpy(&(g_service_processor_bl1_data.sp_bl1_header), &(rom_data->sp_bl1_header),
            sizeof(rom_data->sp_bl1_header));
 
+    // copy the SP flash_fs info
+    memcpy(&(g_service_processor_bl1_data.flash_fs_bl1_info), &(rom_data->flash_fs_rom_info),
+           sizeof(rom_data->flash_fs_rom_info));
+
     return 0;
 }
 #endif
@@ -209,6 +213,11 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
             printx("crypto_init() failed!!\n");
             goto FATAL_ERROR;
         }
+    }
+
+    if (0 != spi_flash_init(g_service_processor_bl1_data.flash_fs_bl1_info.flash_id)) {
+        printx("spi_flash_init() failed!!\n");
+        goto FATAL_ERROR;
     }
 
     if (0 != flash_fs_init(&(g_service_processor_bl1_data.flash_fs_bl1_info),

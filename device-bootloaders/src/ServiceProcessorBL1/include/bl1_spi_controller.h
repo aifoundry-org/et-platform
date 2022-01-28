@@ -15,6 +15,21 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/*! \def SPI_MAX_TX_FREQUENCY
+    \brief Max SPI tx frequency in MHz
+*/
+#define SPI_MAX_TX_FREQUENCY   36
+
+/*! \def SPI_MAX_RX_FREQUENCY
+    \brief Max SPI rx frequency in MHz
+*/
+#define SPI_MAX_RX_FREQUENCY   36
+
+/*! \def SPI_USE_DEFAULT_FREQUENCY
+    \brief Special value that tells driver not to change divider.
+*/
+#define SPI_USE_DEFAULT_FREQUENCY   0
+
 typedef enum SPI_CONTROLLER_ID {
     SPI_CONTROLLER_ID_INVALID = 0,
     SPI_CONTROLLER_ID_SPI_0,
@@ -31,7 +46,7 @@ typedef struct SPI_COMMAND {
     uint8_t *data_buffer;
 } SPI_COMMAND_t;
 
-int spi_controller_init(SPI_CONTROLLER_ID_t id);
+int spi_controller_init(SPI_CONTROLLER_ID_t id, uint32_t rx_frequency, uint32_t tx_frequency);
 int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMMAND_t *command);
 
 #endif
