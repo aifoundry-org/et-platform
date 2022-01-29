@@ -439,6 +439,12 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
       processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
     }
     break;
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_ERROR: {
+    auto r = reinterpret_cast<const device_ops_api::device_ops_device_fw_error_t*>(response.data());
+    RT_LOG(WARNING) << "Reported asynchronous ERROR event from firmware: " << r->error_type;
+    processResponseError(convert(header->rsp_hdr.msg_id, r->error_type), eventId);
+    break;
+  }
   default:
     RT_LOG(WARNING) << "Unknown response msg id: " << header->rsp_hdr.msg_id;
     break;

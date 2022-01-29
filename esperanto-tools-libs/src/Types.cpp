@@ -60,66 +60,86 @@ std::string StreamError::getString() const {
   return ss.str();
 }
 
+#define STR_DEVICE_ERROR_CODE(CODE)                                                                                    \
+  case DeviceErrorCode::CODE: {                                                                                        \
+    return #CODE;                                                                                                      \
+  }
 std::string std::to_string(rt::DeviceErrorCode e) {
   using namespace rt;
   switch (e) {
-  case DeviceErrorCode::KernelLaunchError:
-    return "KernelLaunchError";
-  case DeviceErrorCode::KernelLaunchException:
-    return "KernelLaunchException";
-  case DeviceErrorCode::KernelLaunchShiresNotReady:
-    return "KernelLaunchShiresNotReady";
-  case DeviceErrorCode::KernelLaunchHostAborted:
-    return "KernelLaunchHostAborted";
-  case DeviceErrorCode::KernelLaunchInvalidAddress:
-    return "KernelLaunchInvalidAddress";
-  case DeviceErrorCode::KernelLaunchTimeoutHang:
-    return "KernelLaunchTimeoutHang";
-  case DeviceErrorCode::KernelLaunchInvalidArgsPayloadSize:
-    return "KernelLaunchInvalidArgsPayloadSize";
-  case DeviceErrorCode::KernelAbortError:
-    return "KernelAbortError";
-  case DeviceErrorCode::KernelAbortInvalidTagId:
-    return "KernelAbortInvalidTagId";
-  case DeviceErrorCode::KernelAbortTimeoutHang:
-    return "KernelAbortTimeoutHang";
-  case DeviceErrorCode::DmaUnknownError:
-    return "DmaUnknownError";
-  case DeviceErrorCode::DmaTimeoutIdleChannelUnavailable:
-    return "DmaTimeoutIdleChannelUnavailable";
-  case DeviceErrorCode::DmaAborted:
-    return "DmaAborted";
-  case DeviceErrorCode::DmaHostAborted:
-    return "DmaHostAborted";
-  case DeviceErrorCode::DmaErrorAborted:
-    return "DmaErrorAborted";
-  case DeviceErrorCode::DmaTimeoutHang:
-    return "DmaTimeoutHang";
-  case DeviceErrorCode::DmaInvalidAddress:
-    return "DmaInvalidAddress";
-  case DeviceErrorCode::DmaInvalidSize:
-    return "DmaInvalidSize";
-  case DeviceErrorCode::TraceConfigError:
-    return "TraceConfigError";
-  case DeviceErrorCode::TraceConfigBadShireMask:
-    return "TraceConfigBadShireMask";
-  case DeviceErrorCode::TraceConfigBadThreadMask:
-    return "TraceConfigBadThreadMask";
-  case DeviceErrorCode::TraceConfigBadEventMask:
-    return "TraceConfigBadEventMask";
-  case DeviceErrorCode::TraceConfigBadFilterMask:
-    return "TraceConfigBadFilterMask";
-  case DeviceErrorCode::TraceControlBadRtType:
-    return "TraceControlBadRtType";
-  case DeviceErrorCode::TraceControlBadControlMask:
-    return "TraceControlBadControlMask";
-  case DeviceErrorCode::TraceControlComputeMinionRtCtrlError:
-    return "TraceControlComputeMinionRtCtrlError";
-  case DeviceErrorCode::TraceControlMasterMinionRtCtrlError:
-    return "TraceControlMasterMinionRtCtrlError";
-  case rt::DeviceErrorCode::Unknown:
-    RT_LOG(WARNING) << "Unknown error code";
-    return "Unknown error code";
+    STR_DEVICE_ERROR_CODE(KernelLaunchUnexpectedError)
+    STR_DEVICE_ERROR_CODE(KernelLaunchException)
+    STR_DEVICE_ERROR_CODE(KernelLaunchShiresNotReady)
+    STR_DEVICE_ERROR_CODE(KernelLaunchHostAborted)
+    STR_DEVICE_ERROR_CODE(KernelLaunchInvalidAddress)
+    STR_DEVICE_ERROR_CODE(KernelLaunchTimeoutHang)
+    STR_DEVICE_ERROR_CODE(KernelLaunchInvalidArgsPayloadSize)
+    STR_DEVICE_ERROR_CODE(KernelLaunchCmIfaceMulticastFailed)
+    STR_DEVICE_ERROR_CODE(KernelLaunchCmIfaceUnicastFailed)
+    STR_DEVICE_ERROR_CODE(KernelLaunchSpIfaceResetFailed)
+    STR_DEVICE_ERROR_CODE(KernelLaunchCwMinionsBootFailed)
+
+    STR_DEVICE_ERROR_CODE(AbortUnexpectedError)
+    STR_DEVICE_ERROR_CODE(AbortInvalidTagId)
+
+    STR_DEVICE_ERROR_CODE(CmResetUnexpectedError)
+    STR_DEVICE_ERROR_CODE(CmResetInvalidShireMask)
+    STR_DEVICE_ERROR_CODE(CmResetFailed)
+
+    STR_DEVICE_ERROR_CODE(KernelAbortError)
+    STR_DEVICE_ERROR_CODE(KernelAbortInvalidTagId)
+    STR_DEVICE_ERROR_CODE(KernelAbortTimeoutHang)
+    STR_DEVICE_ERROR_CODE(KernelAbortHostAborted)
+
+    STR_DEVICE_ERROR_CODE(DmaUnexpectedError)
+    STR_DEVICE_ERROR_CODE(DmaHostAborted)
+    STR_DEVICE_ERROR_CODE(DmaErrorAborted)
+    STR_DEVICE_ERROR_CODE(DmaInvalidAddress)
+    STR_DEVICE_ERROR_CODE(DmaInvalidSize)
+    STR_DEVICE_ERROR_CODE(DmaCmIfaceMulticastFailed)
+    STR_DEVICE_ERROR_CODE(DmaDriverDataConfigFailed)
+    STR_DEVICE_ERROR_CODE(DmaDriverLinkConfigFailed)
+    STR_DEVICE_ERROR_CODE(DmaDriverChanStartFailed)
+    STR_DEVICE_ERROR_CODE(DmaDriverAbortFailed)
+
+    STR_DEVICE_ERROR_CODE(TraceConfigUnexpectedError)
+    STR_DEVICE_ERROR_CODE(TraceConfigBadShireMask)
+    STR_DEVICE_ERROR_CODE(TraceConfigBadThreadMask)
+    STR_DEVICE_ERROR_CODE(TraceConfigBadEventMask)
+    STR_DEVICE_ERROR_CODE(TraceConfigBadFilterMask)
+    STR_DEVICE_ERROR_CODE(TraceConfigHostAborted)
+    STR_DEVICE_ERROR_CODE(TraceConfigCmFailed)
+    STR_DEVICE_ERROR_CODE(TraceConfigMmFailed)
+    STR_DEVICE_ERROR_CODE(TraceConfigInvalidConfig)
+
+    STR_DEVICE_ERROR_CODE(TraceControlUnexpectedError)
+    STR_DEVICE_ERROR_CODE(TraceControlBadRtType)
+    STR_DEVICE_ERROR_CODE(TraceControlBadControlMask)
+    STR_DEVICE_ERROR_CODE(TraceControlComputeMinionRtCtrlError)
+    STR_DEVICE_ERROR_CODE(TraceControlMasterMinionRtCtrlError)
+    STR_DEVICE_ERROR_CODE(TraceControlHostAborted)
+    STR_DEVICE_ERROR_CODE(TraceControlCmIfaceMulticastFailed)
+
+    STR_DEVICE_ERROR_CODE(ApiCompatibilityUnexpectedError)
+    STR_DEVICE_ERROR_CODE(ApiCompatibilityIncompatibleMajor)
+    STR_DEVICE_ERROR_CODE(ApiCompatibilityIncompatibleMinor)
+    STR_DEVICE_ERROR_CODE(ApiCompatibilityIncompatiblePatch)
+    STR_DEVICE_ERROR_CODE(ApiCompatibilityBadFirmwareType)
+    STR_DEVICE_ERROR_CODE(ApiCompatibilityHostAborted)
+
+    STR_DEVICE_ERROR_CODE(FirmwareVersionUnexpectedError)
+    STR_DEVICE_ERROR_CODE(FirmwareVersionBadFwType)
+    STR_DEVICE_ERROR_CODE(FirmwareVersionNotAvailable)
+    STR_DEVICE_ERROR_CODE(FirmwareVersionHostAborted)
+
+    STR_DEVICE_ERROR_CODE(EchoHostAborted)
+
+    STR_DEVICE_ERROR_CODE(ErrorTypeUnsupportedCommand)
+    STR_DEVICE_ERROR_CODE(ErrorTypeCmSmodeRtException)
+    STR_DEVICE_ERROR_CODE(ErrorTypeCmSmodeRtHang)
+
+    STR_DEVICE_ERROR_CODE(Unknown)
+
   default:
     RT_LOG(WARNING) << "Not stringized error code. Consider adding it to " __FILE__;
     return "Not stringized error code: " + std::to_string(static_cast<int>(e));

@@ -76,41 +76,76 @@ struct __attribute__((packed, aligned(64))) ErrorContext {
 };
 
 enum class DeviceErrorCode {
-  KernelLaunchError,
+  KernelLaunchUnexpectedError,
   KernelLaunchException,
   KernelLaunchShiresNotReady,
   KernelLaunchHostAborted,
   KernelLaunchInvalidAddress,
   KernelLaunchTimeoutHang,
   KernelLaunchInvalidArgsPayloadSize,
+  KernelLaunchCmIfaceMulticastFailed,
+  KernelLaunchCmIfaceUnicastFailed,
+  KernelLaunchSpIfaceResetFailed,
+  KernelLaunchCwMinionsBootFailed,
 
   KernelAbortError,
   KernelAbortInvalidTagId,
   KernelAbortTimeoutHang,
   KernelAbortHostAborted,
 
-  AbortError,
+  AbortUnexpectedError,
   AbortInvalidTagId,
 
-  DmaUnknownError,
-  DmaTimeoutIdleChannelUnavailable,
-  DmaAborted, // todo: to be removed once the glow shifts to new error types
+  DmaUnexpectedError,
   DmaHostAborted,
   DmaErrorAborted,
-  DmaTimeoutHang,
   DmaInvalidAddress,
   DmaInvalidSize,
+  DmaCmIfaceMulticastFailed,
+  DmaDriverDataConfigFailed,
+  DmaDriverLinkConfigFailed,
+  DmaDriverChanStartFailed,
+  DmaDriverAbortFailed,
 
-  TraceConfigError,
+  TraceConfigUnexpectedError,
   TraceConfigBadShireMask,
   TraceConfigBadThreadMask,
   TraceConfigBadEventMask,
   TraceConfigBadFilterMask,
+  TraceConfigHostAborted,
+  TraceConfigCmFailed,
+  TraceConfigMmFailed,
+  TraceConfigInvalidConfig,
 
+  TraceControlUnexpectedError,
   TraceControlBadRtType,
   TraceControlBadControlMask,
   TraceControlComputeMinionRtCtrlError,
   TraceControlMasterMinionRtCtrlError,
+  TraceControlHostAborted,
+  TraceControlCmIfaceMulticastFailed,
+
+  ApiCompatibilityUnexpectedError,
+  ApiCompatibilityIncompatibleMajor,
+  ApiCompatibilityIncompatibleMinor,
+  ApiCompatibilityIncompatiblePatch,
+  ApiCompatibilityBadFirmwareType,
+  ApiCompatibilityHostAborted,
+
+  FirmwareVersionUnexpectedError,
+  FirmwareVersionBadFwType,
+  FirmwareVersionNotAvailable,
+  FirmwareVersionHostAborted,
+
+  EchoHostAborted,
+
+  CmResetUnexpectedError,
+  CmResetInvalidShireMask,
+  CmResetFailed,
+
+  ErrorTypeUnsupportedCommand,
+  ErrorTypeCmSmodeRtException,
+  ErrorTypeCmSmodeRtHang,
 
   Unknown
 };
