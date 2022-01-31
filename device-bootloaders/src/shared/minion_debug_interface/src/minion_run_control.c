@@ -28,7 +28,7 @@ bool Resume_Harts()
     {
         return false;
     }
-    uint64_t current_dmctrl = read_dmctrl() | DMCTRL_RES_MASK;
+    uint32_t current_dmctrl = read_dmctrl() | DMCTRL_RES_MASK;
     write_dmctrl(current_dmctrl);
     return (workarround_resume_post());
 }

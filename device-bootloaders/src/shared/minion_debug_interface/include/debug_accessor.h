@@ -42,7 +42,7 @@
 #define DMACTIVE         (1)
 #define RESUMEREQ        (1U << 30)
 #define DMCTRL_RES_MASK  (RESUMEREQ | DMACTIVE)
-#define HALTREQ          (1ULL << 31)
+#define HALTREQ          (1U << 31)
 #define DMCTRL_HALT_MASK (HALTREQ | DMACTIVE)
 
 #define UNSELECT_HART_OP(hactrl, mask) (hactrl & (~(mask | (mask << 16)) & 0xFFFFUL))
@@ -91,9 +91,45 @@
     write_esr_new(PP_MACHINE, (uint8_t)(shire_id), REGION_OTHER, ESR_OTHER_SUBREGION_OTHER, \
                   ETSOC_SHIRE_OTHER_ESR_THREAD1_DISABLE_ADDRESS, data, 0)
 
+#define READ_HASTATUS0(shire_id, neigh_id)                                                    \
+    read_esr_new(PP_MESSAGES, (uint8_t)(shire_id), REGION_NEIGHBOURHOOD, (uint8_t)(neigh_id), \
+                 ETSOC_NEIGH_ESR_HASTATUS0_ADDRESS, 0)
+
+#define HART_HALT_STATUS(hart_id)                                                                       \
+     ETSOC_NEIGH_ESR_HASTATUS0_HALTED_GET(READ_HASTATUS0(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
+     & (hart_id % HARTS_PER_NEIGH);
+
+#define HART_RUNNING_STATUS(hart_id)                                                                       \
+     ETSOC_NEIGH_ESR_HASTATUS0_RUNNING_GET(READ_HASTATUS0(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
+     & (hart_id % HARTS_PER_NEIGH);
+
+#define HART_RESUME_STATUS(hart_id)                                                                       \
+     ETSOC_NEIGH_ESR_HASTATUS0_RESUMEACK_GET(READ_HASTATUS0(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
+     & (hart_id % HARTS_PER_NEIGH);
+
+#define HART_RESET_STATUS(hart_id)                                                                       \
+     ETSOC_NEIGH_ESR_HASTATUS0_HAVERESET_GET(READ_HASTATUS0(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
+     & (hart_id % HARTS_PER_NEIGH);
+
+#define WRITE_HASTATUS0(shire_id, neigh_id, data)                                              \
+    write_esr_new(PP_MESSAGES, (uint8_t)(shire_id), REGION_NEIGHBOURHOOD, (uint8_t)(neigh_id), \
+                  ETSOC_NEIGH_ESR_HASTATUS0_ADDRESS, data, 0)
+
 #define READ_HASTATUS1(shire_id, neigh_id)                                                    \
     read_esr_new(PP_MESSAGES, (uint8_t)(shire_id), REGION_NEIGHBOURHOOD, (uint8_t)(neigh_id), \
                  ETSOC_NEIGH_ESR_HASTATUS1_ADDRESS, 0)
+
+#define HART_ERROR_STATUS(hart_id)                                                                     \
+     ETSOC_NEIGH_ESR_HASTATUS1_ERROR_GET(READ_HASTATUS1(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
+     & (hart_id % HARTS_PER_NEIGH);
+
+#define HART_EXCEPTION_STATUS(hart_id)                                                                     \
+     ETSOC_NEIGH_ESR_HASTATUS1_EXCEPTION_GET(READ_HASTATUS1(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
+     & (hart_id % HARTS_PER_NEIGH);
+
+#define HART_BUSY_STATUS(hart_id)                                                                     \
+     ETSOC_NEIGH_ESR_HASTATUS1_BUSY_GET(READ_HASTATUS1(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
+     & (hart_id % HARTS_PER_NEIGH);
 
 #define WRITE_HASTATUS1(shire_id, neigh_id, data)                                              \
     write_esr_new(PP_MESSAGES, (uint8_t)(shire_id), REGION_NEIGHBOURHOOD, (uint8_t)(neigh_id), \
@@ -101,8 +137,8 @@
 
 /* Functions required by minion run control APIs*/
 uint64_t read_andortreel2(void);
-uint64_t read_dmctrl(void);
-void write_dmctrl(uint64_t data);
+uint32_t read_dmctrl(void);
+void write_dmctrl(uint32_t data);
 void assert_halt(void);
 void deassert_halt(void);
 bool wait_till_core_halt(void);

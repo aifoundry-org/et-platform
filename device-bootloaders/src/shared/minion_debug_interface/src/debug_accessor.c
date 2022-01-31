@@ -21,17 +21,17 @@ static uint64_t WORKARROUND_RESUME_ENABLED_HARTS[NUM_SHIRES] = { 0 };
 
 uint64_t read_andortreel2(void)
 {
-    return ioread64(R_SP_MISC_BASEADDR | SPIO_MISC_ESR_ANDORTREEL2_ADDRESS);
+    return ioread32(R_SP_MISC_BASEADDR | SPIO_MISC_ESR_ANDORTREEL2_ADDRESS);
 }
 
-uint64_t read_dmctrl(void)
+uint32_t read_dmctrl(void)
 {
-    return ioread64(R_SP_MISC_BASEADDR + SPIO_MISC_ESR_DMCTRL_ADDRESS);
+    return ioread32(R_SP_MISC_BASEADDR + SPIO_MISC_ESR_DMCTRL_ADDRESS);
 }
 
-void write_dmctrl(uint64_t data)
+void write_dmctrl(uint32_t data)
 {
-    return iowrite64((R_SP_MISC_BASEADDR | SPIO_MISC_ESR_DMCTRL_ADDRESS), data);
+    return iowrite32((R_SP_MISC_BASEADDR | SPIO_MISC_ESR_DMCTRL_ADDRESS), data);
 }
 
 static void enable_shire_harts(uint64_t shire_id, uint64_t harts)
@@ -81,13 +81,13 @@ bool wait_till_core_halt(void)
 
 void assert_halt(void)
 {
-    uint64_t current_dmctrl = read_dmctrl() | DMCTRL_HALT_MASK;
+    uint32_t current_dmctrl = read_dmctrl() | DMCTRL_HALT_MASK;
     write_dmctrl(current_dmctrl);
 }
 
 void deassert_halt(void)
 {
-    uint64_t current_dmctrl = read_dmctrl() | DMCTRL_HALT_MASK;
+    uint32_t current_dmctrl = read_dmctrl() | DMCTRL_HALT_MASK;
     write_dmctrl(current_dmctrl & ~HALTREQ);
 }
 
@@ -207,9 +207,6 @@ void write_nxdata1(uint64_t hart_id, uint64_t data)
 
 void execute_instructions(uint64_t hart_id, const uint32_t *inst_list, uint32_t num_inst)
 {
-    uint64_t neigh_id = GET_THREAD_ID(hart_id);
-    uint64_t shire_id = GET_SHIRE_ID(hart_id);
-
     for (uint64_t inst_pair_idx = 0; inst_pair_idx < num_inst; inst_pair_idx += 2)
     {
         uint64_t inst0 = inst_list[inst_pair_idx];
@@ -221,17 +218,16 @@ void execute_instructions(uint64_t hart_id, const uint32_t *inst_list, uint32_t 
         uint64_t hastatus1 = ~BITS64_ALLF_MASK;
         while (busy && rtry)
         {
-            hastatus1 = READ_HASTATUS1(shire_id, neigh_id);
-            busy = (hastatus1 & 0xFFFF) & (hart_id % HARTS_PER_NEIGH);
+            busy = HART_BUSY_STATUS(hart_id)
             --rtry;
 
-            bool xcpt = ((hastatus1 >> IS_XCPT_FIELD) & 0xffff) & (hart_id % HARTS_PER_NEIGH);
+            bool xcpt = HART_EXCEPTION_STATUS(hart_id)
             if (xcpt)
             {
                 uint64_t xcpt_mask =
                     ~(((uint64_t)1 << HARTS_PER_NEIGH) + hart_id % HARTS_PER_NEIGH) &
                     BITS64_ALLF_MASK;
-                WRITE_HASTATUS1(shire_id, neigh_id, hastatus1 & xcpt_mask);
+                WRITE_HASTATUS1(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id), hastatus1 & xcpt_mask);
 
                 /* Add logging capability. ERROR: There was an exception while executing instructions */
             }
