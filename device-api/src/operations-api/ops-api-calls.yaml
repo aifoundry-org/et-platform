@@ -264,17 +264,17 @@ Enums:
       - Name: UNEXPECTED_ERROR
         Value: 1
       - Name: BAD_RT_TYPE
-        Value: 1
-      - Name: BAD_CONTROL_MASK
         Value: 2
-      - Name: CM_RT_CTRL_ERROR
+      - Name: BAD_CONTROL_MASK
         Value: 3
-      - Name: MM_RT_CTRL_ERROR
+      - Name: CM_RT_CTRL_ERROR
         Value: 4
-      - Name: HOST_ABORTED
+      - Name: MM_RT_CTRL_ERROR
         Value: 5
-      - Name: CM_IFACE_MULTICAST_FAILED
+      - Name: HOST_ABORTED
         Value: 6
+      - Name: CM_IFACE_MULTICAST_FAILED
+        Value: 7
 Structs:
   - Name: dma_read_node
     Description: Node containing one DMA read transfer information
