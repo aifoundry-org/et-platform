@@ -374,7 +374,7 @@ public:
   ///
   /// @returns RuntimePtr an IRuntime instance. See \ref dev::IDeviceLayer
   ///
-  static RuntimePtr create(dev::IDeviceLayer* deviceLayer);
+  static RuntimePtr create(dev::IDeviceLayer* deviceLayer, Options options = getDefaultOptions());
 };
 
 } // namespace rt

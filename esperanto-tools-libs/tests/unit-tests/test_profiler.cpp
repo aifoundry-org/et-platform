@@ -13,6 +13,7 @@
 #include "gtest/gtest.h"
 
 #include "RuntimeImp.h"
+#include "runtime/Types.h"
 
 #include <deviceLayer/IDeviceLayerMock.h>
 
@@ -38,7 +39,7 @@ protected:
                    << profiling::getString(evt.getType());
     });
     profilerMock_ = profilerMock.get();
-    runtime_ = std::make_unique<RuntimeImp>(deviceLayer_.get(), std::move(profilerMock));
+    runtime_ = std::make_unique<RuntimeImp>(deviceLayer_.get(), std::move(profilerMock), getDefaultOptions());
   }
   void TearDown() override {
     // Verify ProfilerMock expectations before runtime is destroyed!

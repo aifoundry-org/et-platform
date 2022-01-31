@@ -42,6 +42,9 @@ public:
 
   void setDebugMode(bool enabled);
 
+  // checks if the operation is valid knowing current allocations
+  void checkOperation(const std::byte* address, size_t size) const;
+
 private:
   struct FreeChunk {
     uint32_t startAddress_;
@@ -57,7 +60,7 @@ private:
     }
   };
 
-  uint32_t compressPointer(std::byte* ptr) const {
+  uint32_t compressPointer(const std::byte* ptr) const {
     auto tmp = reinterpret_cast<uint64_t>(ptr);
     tmp -= dramBaseAddr_;
     tmp >>= blockSizeLog2_;

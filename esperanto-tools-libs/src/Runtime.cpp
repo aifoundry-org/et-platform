@@ -13,7 +13,7 @@
 #include "runtime/IRuntime.h"
 
 namespace rt {
-RuntimePtr IRuntime::create(dev::IDeviceLayer* deviceLayer) {
-  return std::make_unique<RuntimeImp>(deviceLayer, std::make_unique<profiling::ProfilerImp>());
+RuntimePtr IRuntime::create(dev::IDeviceLayer* deviceLayer, rt::Options options) {
+  return std::make_unique<RuntimeImp>(deviceLayer, std::make_unique<profiling::ProfilerImp>(), options);
 }
 }

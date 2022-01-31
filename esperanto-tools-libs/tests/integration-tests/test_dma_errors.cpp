@@ -24,6 +24,7 @@ public:
     Fixture::SetUp();
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
     imp->setMemoryManagerDebugMode(devices_[0], true);
+    imp->setCheckMemcpyDeviceAddress(false);
   }
 };
 } // namespace

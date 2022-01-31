@@ -37,6 +37,17 @@ enum class DeviceId : int {};
 /// \brief KernelId Handler
 enum class KernelId : int {};
 
+/// \brief This struct will hold parametrization options for Runtime instantiation
+struct Options {
+  bool checkMemcpyDeviceOperations_; /// < if set, the runtime will inspect all memcpy operations and throw an
+                                     /// exception if invalid device address/size
+};
+
+/// \brief Returns the default options. See \ref Options
+constexpr auto getDefaultOptions() {
+  return Options{true};
+}
+
 /// \brief RuntimePtr is an alias for a pointer to a Runtime instantation
 using RuntimePtr = std::unique_ptr<class IRuntime>;
 

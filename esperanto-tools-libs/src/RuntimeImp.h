@@ -32,7 +32,8 @@ class MemoryManager;
 
 class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
 public:
-  explicit RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling::IProfilerRecorder> profiler);
+  explicit RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling::IProfilerRecorder> profiler,
+                      Options options);
 
   std::vector<DeviceId> getDevices() final;
 
@@ -89,6 +90,9 @@ public:
 
   // these methods are intended for debugging, internal use only
   void setMemoryManagerDebugMode(DeviceId device, bool enable);
+  void setCheckMemcpyDeviceAddress(bool value) {
+    checkMemcpyDeviceAddress_ = value;
+  }
   void setSentCommandCallback(DeviceId device, CommandSender::CommandSentCallback callback);
 
 private:
@@ -185,5 +189,6 @@ private:
   EventManager eventManager_;
   threadPool::ThreadPool nonblockableThreadPool_{8};
   bool running_ = false;
+  bool checkMemcpyDeviceAddress_ = false;
 };
 } // namespace rt

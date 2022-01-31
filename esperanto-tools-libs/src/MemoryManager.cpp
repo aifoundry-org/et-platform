@@ -191,6 +191,31 @@ void MemoryManager::addChunk(FreeChunk chunk) {
   }
 }
 
+void MemoryManager::checkOperation(const std::byte* address, size_t size) const {
+  auto addressU = reinterpret_cast<uint64_t>(address);
+  auto blockSize = 1U << blockSizeLog2_;
+  auto numBlocks = (addressU % blockSize + size + blockSize - 1) / blockSize;
+  auto firstBlock = compressPointer(address);
+  auto lastBlock = firstBlock + numBlocks;
+  auto it = allocated_.upper_bound(firstBlock);
+
+  if (it == begin(allocated_)) {
+    throw rt::Exception("Invalid memcpy op. Device address:" + std::to_string(addressU) +
+                        " size: " + std::to_string(size));
+  }
+  --it;
+
+  while (lastBlock > it->first + it->second) {
+    auto next = it;
+    if (++next == end(allocated_) || it->first + it->second != next->first) {
+
+      throw rt::Exception("Invalid memcpy op. Device address:" + std::to_string(addressU) +
+                          " size: " + std::to_string(size));
+    }
+    it = next;
+  }
+}
+
 void MemoryManager::setDebugMode(bool enabled) {
   debugMode_ = enabled;
 }

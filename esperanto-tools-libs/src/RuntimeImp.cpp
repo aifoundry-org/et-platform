@@ -45,9 +45,11 @@ RuntimeImp::~RuntimeImp() {
   running_ = false;
 }
 
-RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling::IProfilerRecorder> profiler)
+RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling::IProfilerRecorder> profiler,
+                       Options options)
   : deviceLayer_{deviceLayer}
   , profiler_{std::move(profiler)} {
+  checkMemcpyDeviceAddress_ = options.checkMemcpyDeviceOperations_;
   auto devicesCount = deviceLayer_->getDevicesCount();
   CHECK(devicesCount > 0);
   for (int i = 0; i < devicesCount; ++i) {

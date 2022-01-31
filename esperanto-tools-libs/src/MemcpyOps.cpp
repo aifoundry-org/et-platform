@@ -103,6 +103,10 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
 EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const std::byte* h_src, const std::byte* d_dst,
                                                        size_t size, bool barrier) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
+  if (checkMemcpyDeviceAddress_) {
+    auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
+    mm.checkOperation(d_dst, size);
+  }
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
   auto evt = eventManager_.getNextId();
@@ -200,6 +204,10 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const ID
     throw Exception("Trying to do a memcpy host to device using a dma buffer shorter than required size.");
   }
   auto streamInfo = streamManager_.getStreamInfo(stream);
+  if (checkMemcpyDeviceAddress_) {
+    auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
+    mm.checkOperation(d_dst, size);
+  }
   MemcpyCommandBuilder cmdBuilder{MemcpyType::H2D, barrier};
   cmdBuilder.addOp(h_src->getPtr(), d_dst, size);
   auto evt = eventManager_.getNextId();
@@ -227,6 +235,10 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
     throw Exception("Trying to do a memcpy device to host using a dma buffer shorter than required size.");
   }
   auto streamInfo = streamManager_.getStreamInfo(stream);
+  if (checkMemcpyDeviceAddress_) {
+    auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
+    mm.checkOperation(d_src, size);
+  }
   MemcpyCommandBuilder cmdBuilder{MemcpyType::D2H, barrier};
   cmdBuilder.addOp(h_dst->getPtr(), d_src, size);
   auto evt = eventManager_.getNextId();
@@ -253,6 +265,10 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
   auto streamInfo = streamManager_.getStreamInfo(stream);
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
+  if (checkMemcpyDeviceAddress_) {
+    auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
+    mm.checkOperation(d_src, size);
+  }
   auto evt = eventManager_.getNextId();
   RT_VLOG(LOW) << "MemcpyDeviceToHost stream: " << static_cast<int>(stream) << " EventId: " << static_cast<int>(evt)
                << std::hex << " Host address: " << h_dst << " Device address: " << d_src << " Size: " << size;
@@ -369,6 +385,14 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, b
 EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
   checkList(streamInfo.device_, memcpyList);
+
+  if (checkMemcpyDeviceAddress_) {
+    auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
+    for (auto& elem : memcpyList.operations_) {
+      mm.checkOperation(elem.dst_, elem.size_);
+    }
+  }
+
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
   auto evt = eventManager_.getNextId();
@@ -422,6 +446,12 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyLi
 EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
   checkList(streamInfo.device_, memcpyList);
+  if (checkMemcpyDeviceAddress_) {
+    auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
+    for (auto& elem : memcpyList.operations_) {
+      mm.checkOperation(elem.src_, elem.size_);
+    }
+  }
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
   auto evt = eventManager_.getNextId();
