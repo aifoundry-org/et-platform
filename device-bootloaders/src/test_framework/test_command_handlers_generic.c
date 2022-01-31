@@ -1,5 +1,5 @@
 #include "tf.h"
-
+#include <string.h>
 
 int8_t TF_Set_Entry_Point_Handler(void* test_cmd);
 int8_t SP_Fw_Version_Cmd_Handler(void* test_cmd);
@@ -77,24 +77,15 @@ int8_t Move_Data_To_Device_Cmd_Handler(void* test_cmd)
         (struct tf_cmd_move_data_to_device_t *)test_cmd;
     struct tf_rsp_move_data_to_device_t rsp;
 
-    char* dst = (char*)cmd->dst_addr;
-    char* src = (char*)cmd->data;
-    uint32_t size = cmd->size;
-    uint32_t bytes_written = 0;
-
-    /* TODO: This is a naive approach,
-    can be made optimized */
-    while(size) {
-        *dst = *src;
-        dst++;src++;
-        size--;
-        bytes_written++;
-    }
+    /* Copy the data from command to given destination address.
+       NOTE: Since data size is given within TF command, so it is safe
+       here to copy given data size from variable length data source. */
+    memcpy((void*)cmd->dst_addr, (void*)cmd->data, cmd->size);
 
     rsp.rsp_hdr.id = TF_RSP_MOVE_DATA_TO_DEVICE;
     rsp.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
     rsp.rsp_hdr.payload_size =  sizeof(rsp.bytes_written);
-    rsp.bytes_written = bytes_written;
+    rsp.bytes_written = cmd->size;
 
     TF_Send_Response(&rsp, sizeof(rsp));
 
