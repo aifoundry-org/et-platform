@@ -84,9 +84,10 @@ struct I2c : public MemoryRegion {
 protected:
     enum : uint8_t 
     {
-         PMIC_AVG_POWER_ADDR = 0x29,
-         PMIC_TEMP_ADDR = 0x7,
-         PMIC_INT_CAUSE_ADDR = 0x4
+         PMIC_AVG_POWER_ADDR = 0x5,
+         PMIC_TEMP_ADDR = 0x6,
+         PMIC_INT_CAUSE_ADDR = 0xA,
+         PMIC_RESET_CAUSE_ADDR = 0x10
     };
 
     uint8_t i2c_reg_addr;
@@ -133,6 +134,9 @@ protected:
             result = (current_temp > 80) ? 1: (( average_power > 40) ? 2: 0);
             // TODO: agent.chip->sp_plic_interrupt_pending_clear(plic_source);
             break;
+        case PMIC_RESET_CAUSE_ADDR:
+            // Return cause of Reset
+            result = 0x8; // Defaults to SW Reset requested by SOC
         default: 
             result = 0;
             break;
