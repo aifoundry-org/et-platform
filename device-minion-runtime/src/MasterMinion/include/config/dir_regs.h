@@ -37,20 +37,20 @@
 /* Memory Region accessibility options */
 /***************************************/
 
-/*! \def MEM_REGION_PRIVILEDGE_MODE_SET(x)
-    \brief Macro that sets the priviledge mode for a memory region
+/*! \def MEM_REGION_IOACCESS_SET(x)
+    \brief Macro that sets the IO access for a memory region
 */
-#define MEM_REGION_PRIVILEDGE_MODE_SET(x) (x & 0x00000001u)
+#define MEM_REGION_IOACCESS_SET(x) (x & 0x00000001u)
 
-/*! \def MEM_REGION_PRIVILEDGE_MODE_KERNEL
-    \brief Macro representing the kernel privileged mode value
+/*! \def MEM_REGION_IOACCESS_DISABLED
+    \brief Macro representing IO access disabled for a memory region
 */
-#define MEM_REGION_PRIVILEDGE_MODE_KERNEL 0x0
+#define MEM_REGION_IOACCESS_DISABLED 0x0
 
-/*! \def MEM_REGION_PRIVILEDGE_MODE_USER
-    \brief MAcro representing the user privileged mode value
+/*! \def MEM_REGION_IOACCESS_ENABLED
+    \brief Macro representing IO access enabled for a memory region
 */
-#define MEM_REGION_PRIVILEDGE_MODE_USER 0x1
+#define MEM_REGION_IOACCESS_ENABLED 0x1
 
 /*! \def MEM_REGION_NODE_ACCESSIBLE_SET(x)
     \brief Macro that sets the node accessibility for a memory region
