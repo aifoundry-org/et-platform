@@ -89,8 +89,6 @@ struct et_pci_dev {
 	struct et_ops_dev ops;
 	struct et_mgmt_dev mgmt;
 	struct list_head bar_region_list;
-	u64 bar0_size;
-	u64 bar2_size;
 };
 
 // clang-format on

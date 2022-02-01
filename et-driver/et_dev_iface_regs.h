@@ -55,9 +55,9 @@
  * will be generated to update the driver.
  */
 
-/* MEM_REGION_PRIVILEGE_MODE */
-#define MEM_REGION_PRIVILEGE_MODE_KERNEL (0x0)
-#define MEM_REGION_PRIVILEGE_MODE_USER	 (0x1)
+/* MEM_REGION_IOACCESS */
+#define MEM_REGION_IOACCESS_DISABLED (0x0)
+#define MEM_REGION_IOACCESS_ENABLED  (0x1)
 
 /* MEM_REGION_NODE_ACCESSIBLE */
 #define MEM_REGION_NODE_ACCESSIBLE_NONE (0x0)
@@ -83,13 +83,12 @@
 struct et_dir_reg_access {
 	/* Description:
 	 *
-	 *	priv_mode: The mode can be kernel or user. If set to kernel,
-	 *	the region will not be exposed to user.
+	 *	io_access: Indicates whether the region needs to be mapped by host
 	 *
-	 *	Kernel:			0x0
-	 *	User:			0x1
+	 *      Region not to be mapped for IO accesses    0x0
+	 *      Region to be mapped for IO accesses        0x1
 	 */
-	u32 priv_mode : 1; /* bit 0 */
+	u32 io_access : 1; /* bit 0 */
 
 	/* Description:
 	 *
@@ -221,15 +220,15 @@ struct et_mgmt_dir_header {
 	u32 minion_boot_freq;
 	u32 crc32;
 	s16 status;
+	u16 cache_line_size;
+	u16 l2_size;
+	u16 l3_size;
+	u32 bar0_size;
+	u32 bar2_size;
 	u16 form_factor;
 	u16 device_tdp;
-	u16 l3_size;
-	u16 l2_size;
 	u16 scp_size;
-	u16 cache_line_size;
-	u16 bar0_size;
-	u16 bar2_size;
-	u8 reserved[6];
+	u8 reserved[2];
 } __packed;
 
 struct et_mgmt_dir {
@@ -347,8 +346,8 @@ static inline void et_print_mgmt_dir(struct device *dev,
 			"Attributes Size         : 0x%x\n",
 			mgmt_dir->mem_region[i].attributes_size);
 		dev_dbg(dev,
-			"Access (Privilege mode) : 0x%x\n",
-			mgmt_dir->mem_region[i].access.priv_mode);
+			"I/O Access              : 0x%x\n",
+			mgmt_dir->mem_region[i].access.io_access);
 		dev_dbg(dev,
 			"Access (Node access)    : 0x%x\n",
 			mgmt_dir->mem_region[i].access.node_access);
@@ -575,8 +574,8 @@ static inline void et_print_ops_dir(struct device *dev,
 			"Attributes Size         : 0x%x\n",
 			ops_dir->mem_region[i].attributes_size);
 		dev_dbg(dev,
-			"Access (Privilege mode) : 0x%x\n",
-			ops_dir->mem_region[i].access.priv_mode);
+			"I/O Access              : 0x%x\n",
+			ops_dir->mem_region[i].access.io_access);
 		dev_dbg(dev,
 			"Access (Node access)    : 0x%x\n",
 			ops_dir->mem_region[i].access.node_access);
@@ -781,8 +780,8 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 		case MGMT_MEM_REGION_TYPE_VQ_BUFFER:
 		case MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG:
 			// Attributes compatibility check
-			if (region->access.priv_mode !=
-				    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
+			if (region->access.io_access !=
+				    MEM_REGION_IOACCESS_ENABLED ||
 			    region->access.node_access !=
 				    MEM_REGION_NODE_ACCESSIBLE_NONE ||
 			    region->access.dma_align !=
@@ -799,8 +798,8 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 		case MGMT_MEM_REGION_TYPE_MMFW_TRACE:
 		case MGMT_MEM_REGION_TYPE_CMFW_TRACE:
 			// Attributes compatibility check
-			if (region->access.priv_mode !=
-				    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
+			if (region->access.io_access !=
+				    MEM_REGION_IOACCESS_ENABLED ||
 			    region->access.dma_align !=
 				    MEM_REGION_DMA_ALIGNMENT_NONE) {
 				strlcat(err_str,
@@ -813,8 +812,8 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 
 		case MGMT_MEM_REGION_TYPE_SCRATCH:
 			// Attributes compatibility check
-			if (region->access.priv_mode !=
-				    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
+			if (region->access.io_access !=
+				    MEM_REGION_IOACCESS_ENABLED ||
 			    region->access.node_access !=
 				    MEM_REGION_NODE_ACCESSIBLE_MGMT ||
 			    region->access.dma_align !=
@@ -837,8 +836,8 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 		switch (region->type) {
 		case OPS_MEM_REGION_TYPE_VQ_BUFFER:
 			// Attributes compatibility check
-			if (region->access.priv_mode !=
-				    MEM_REGION_PRIVILEGE_MODE_KERNEL ||
+			if (region->access.io_access !=
+				    MEM_REGION_IOACCESS_ENABLED ||
 			    region->access.node_access !=
 				    MEM_REGION_NODE_ACCESSIBLE_NONE ||
 			    region->access.dma_align !=
@@ -853,8 +852,8 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 
 		case OPS_MEM_REGION_TYPE_HOST_MANAGED:
 			// Attributes compatibility check
-			if (region->access.priv_mode !=
-				    MEM_REGION_PRIVILEGE_MODE_USER ||
+			if (region->access.io_access !=
+				    MEM_REGION_IOACCESS_DISABLED ||
 			    region->access.node_access &
 				    MEM_REGION_NODE_ACCESSIBLE_MGMT) {
 				strlcat(err_str,

@@ -1025,6 +1025,25 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 			goto error_unmap_discovered_regions;
 		}
 
+		// Skip BAR mapping of region if IO access is disabled by device
+		if (!dir_mem_region->access.io_access) {
+			bar_addr_dbg->phys_addr =
+				pci_resource_start(et_dev->pdev, bm_info.bar) +
+				bm_info.bar_offset;
+			bar_addr_dbg->mapped_baseaddr = NULL;
+			bar_addr_dbg++;
+			regions[dir_mem_region->type].is_valid = true;
+			regions[dir_mem_region->type].mapped_baseaddr = NULL;
+			regions[dir_mem_region->type].size =
+				dir_mem_region->bar_size;
+			regions[dir_mem_region->type].soc_addr =
+				dir_mem_region->dev_address;
+			memcpy(&regions[dir_mem_region->type].access,
+			       (u8 *)&dir_mem_region->access,
+			       sizeof(dir_mem_region->access));
+			continue;
+		}
+
 		new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
 		if (!new_node) {
 			rv = -ENOMEM;
@@ -1275,28 +1294,28 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	section_size = dir_mgmt->attributes_size;
 
 	// BAR0 size check
-	et_dev->bar0_size = SZ_1G * (u64)(dir_mgmt->bar0_size + 1);
-	if (et_dev->bar0_size != pci_resource_len(et_dev->pdev, 0 /* BAR0 */)) {
+	if (dir_mgmt->bar0_size !=
+	    pci_resource_len(et_dev->pdev, 0 /* BAR0 */)) {
 		dbg_msg.level = LEVEL_WARN;
 		dbg_msg.desc =
 			"BAR0 size doesn't match BAR0 size exposed by DIRs!";
 		sprintf(dbg_msg.syndrome,
-			"BAR0 size detected by host: 0x%llx\nBAR0 size exposed by DIRs: 0x%llx\n",
+			"BAR0 size detected by host: 0x%llx\nBAR0 size exposed by DIRs: 0x%x\n",
 			pci_resource_len(et_dev->pdev, 0),
-			et_dev->bar0_size);
+			dir_mgmt->bar0_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 
 	// BAR2 size check
-	et_dev->bar2_size = SZ_32K * (dir_mgmt->bar2_size + 1);
-	if (et_dev->bar2_size != pci_resource_len(et_dev->pdev, 2 /* BAR2 */)) {
+	if (dir_mgmt->bar2_size !=
+	    pci_resource_len(et_dev->pdev, 2 /* BAR2 */)) {
 		dbg_msg.level = LEVEL_WARN;
 		dbg_msg.desc =
 			"BAR2 size doesn't match BAR2 size exposed by DIRs!";
 		sprintf(dbg_msg.syndrome,
-			"BAR2 size detected by host: 0x%llx\nBAR2 size exposed by DIRs: 0x%llx\n",
+			"BAR2 size detected by host: 0x%llx\nBAR2 size exposed by DIRs: 0x%x\n",
 			pci_resource_len(et_dev->pdev, 2),
-			et_dev->bar2_size);
+			dir_mgmt->bar2_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 

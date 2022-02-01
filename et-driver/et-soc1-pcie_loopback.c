@@ -801,7 +801,7 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 
 	region = &et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER];
 	region->is_valid = true;
-	region->access.priv_mode = MEM_REGION_PRIVILEGE_MODE_KERNEL;
+	region->access.io_access = MEM_REGION_IOACCESS_ENABLED;
 	region->access.node_access = MEM_REGION_NODE_ACCESSIBLE_NONE;
 	region->access.dma_align = MEM_REGION_DMA_ALIGNMENT_NONE;
 	region->size =
@@ -884,7 +884,7 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	// Initialize VQ_BUFFER region
 	region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
 	region->is_valid = true;
-	region->access.priv_mode = MEM_REGION_PRIVILEGE_MODE_KERNEL;
+	region->access.io_access = MEM_REGION_IOACCESS_ENABLED;
 	region->access.node_access = MEM_REGION_NODE_ACCESSIBLE_NONE;
 	region->access.dma_align = MEM_REGION_DMA_ALIGNMENT_NONE;
 	region->size =
@@ -897,7 +897,7 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	// Initialize HOST_MANAGED region
 	region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_HOST_MANAGED];
 	region->is_valid = true;
-	region->access.priv_mode = MEM_REGION_PRIVILEGE_MODE_USER;
+	region->access.io_access = MEM_REGION_IOACCESS_DISABLED;
 	region->access.node_access = MEM_REGION_NODE_ACCESSIBLE_OPS;
 	region->access.dma_elem_size = 0x4; /* 4 * 32MB = 128MB */
 	region->access.dma_elem_count = 0x4;
