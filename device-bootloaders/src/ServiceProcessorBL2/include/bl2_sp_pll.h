@@ -62,6 +62,18 @@ typedef enum SP_PLL_STATE_e {
     SP_PLL_STATE_100_PER_CENT
 } SP_PLL_STATE_t;
 
+/**
+ * @enum HPDPLL_LDO_UPDATE_t
+ * @brief Enum defining HPDPLL LDO update type
+ */
+typedef enum HPDPLL_LDO_UPDATE_e {
+    HPDPLL_LDO_NO_UPDATE,
+    HPDPLL_LDO_ENABLE,
+    HPDPLL_LDO_DISABLE,
+    HPDPLL_LDO_BYPASS,
+    HPDPLL_LDO_KICK
+} HPDPLL_LDO_UPDATE_t;
+
 /*! \fn uint32_t get_input_clock_index(void)
     \brief This function returns input clock index
     \param None

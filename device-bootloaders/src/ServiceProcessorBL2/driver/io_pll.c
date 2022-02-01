@@ -29,6 +29,7 @@
 #include "bl2_sp_pll.h"
 #include "bl2_main.h"
 #include "interrupt.h"
+#include "usdelay.h"
 
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/sp_cru.h"
@@ -61,10 +62,35 @@
 */
 #define PLL_REG_INDEX_REG_0                  0
 
+/*! \def PLL_REG_INDEX_REG_LOCK_THRESHOLD
+    \brief lock threshold
+*/
+#define PLL_REG_INDEX_REG_LOCK_THRESHOLD               0x0B
+
+/*! \def PLL_REG_INDEX_REG_LDO_CONTROL
+    \brief LDO control
+*/
+#define PLL_REG_INDEX_REG_LDO_CONTROL                  0x18
+
 /*! \def PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL
     \brief Lock monitor sample strobe and clear
 */
 #define PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL      0x19
+
+/*! \def PLL_REG_INDEX_REG_FREQ_MONITOR_CONTROL
+    \brief Freq montior control
+*/
+#define PLL_REG_INDEX_REG_FREQ_MONITOR_CONTROL         0x23
+
+/*! \def PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_REF_COUNT
+    \brief Freq montior clock ref count
+*/
+#define PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_REF_COUNT   0x24
+
+/*! \def PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_COUNT_0
+    \brief Freq montior clock count 0
+*/
+#define PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_COUNT_0     0x25
 
 /*! \def PLL_REG_INDEX_REG_LOCK_MONITOR
     \brief Lock montior
@@ -75,6 +101,11 @@
     \brief Lock montior mask
 */
 #define PLL_LOCK_MONITOR_MASK                       0x3F
+
+/*! \def PLL_REG_INDEX_REG_DCO_CODE_LOOP_FILTER
+    \brief DCO code aquired
+*/
+#define PLL_REG_INDEX_REG_DCO_CODE_LOOP_FILTER         0x32
 
 /*! \def PLL_REG_INDEX_REG_UPDATE_STROBE
     \brief update strobe register index
@@ -95,6 +126,16 @@
     \brief DCO normalization enable mask
 */
 #define DCO_NORMALIZATION_ENABLE__MASK       (1u << DCO_NORMALIZATION_ENABLE__SHIFT)
+
+/*! \def PLL_ENABLE__SHIFT
+    \brief PLL enable shift
+*/
+#define PLL_ENABLE__SHIFT      3u
+
+/*! \def PLL_ENABLE__MASK
+    \brief PLL enable mask
+*/
+#define PLL_ENABLE__MASK       (1u << PLL_ENABLE__SHIFT)
 
 /*! \def FREQUENCY_HZ_TO_MHZ(x)
     \brief Converts HZ to MHZ
@@ -349,19 +390,6 @@ uint32_t spio_pll_get_lock_monitor(PLL_ID_t pll)
     }
 }
 
-#pragma GCC diagnostic pop
-
-static int configure_pll_off(volatile uint32_t *pll_registers)
-{
-    /* disable the PLL */
-    pll_registers[0] = 0;
-
-    /* set reg_update strobe to update registers */
-    pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE] = 1;
-
-    return 0;
-}
-
 static void update_pll_registers(volatile uint32_t *pll_registers)
 {
     uint32_t strobe;
@@ -375,14 +403,52 @@ static void update_pll_registers(volatile uint32_t *pll_registers)
     pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE] = strobe;
 }
 
-static int configure_pll(volatile uint32_t *pll_registers, uint8_t mode, uint32_t* target_freq)
+#pragma GCC diagnostic pop
+
+static int spio_pll_wait_for_lock(volatile const uint32_t *pll_registers)
 {
     uint32_t timeout = PLL_LOCK_TIMEOUT;
+
+    /* Give some time for the clock to be stable
+       Document suggest 65 ref clock.
+       Use 3us for the worst case with 24Mhz ref
+    */
+    usdelay(3);
+
+    /* Wait for the PLL to lock within a given timeout */
+    while (timeout > 0)
+    {
+        if (pll_registers[PLL_REG_INDEX_REG_LOCK_DETECT_STATUS] & 1)
+        {
+            return 0;
+        }
+        --timeout;
+    }
+    
+    return ERROR_SP_PLL_PLL_LOCK_TIMEOUT;  
+}
+
+static int configure_pll_off(volatile uint32_t *pll_registers)
+{
+    /* disable the PLL */
+    pll_registers[0] = 0;
+
+    /* set reg_update strobe to update registers */
+    pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE] = 1;
+
+    return 0;
+}
+
+static int configure_pll(volatile uint32_t *pll_registers, uint8_t mode, uint32_t* target_freq,
+                            HPDPLL_LDO_UPDATE_t ldo_update, uint32_t threshold_multiplier)
+{
     uint8_t register_index;
     uint16_t register_value;
     uint8_t entry_index;
     uint32_t pll_settings_index;
     uint32_t reg0;
+    uint16_t ldo_reg = 0;
+    int status;
     static const uint32_t pll_settings_count =
         sizeof(gs_hpdpll_settings) / sizeof(HPDPLL_SETTING_t);
 
@@ -409,6 +475,31 @@ FOUND_CONFIG_DATA:
     {
         register_index = gs_hpdpll_settings[pll_settings_index].offsets[entry_index];
         register_value = gs_hpdpll_settings[pll_settings_index].values[entry_index];
+        /* Change LDO configuration if necessary */
+        if(register_index == PLL_REG_INDEX_REG_LDO_CONTROL)
+        {
+            if (ldo_update == HPDPLL_LDO_DISABLE || ldo_update == HPDPLL_LDO_KICK)
+            {
+                register_value |= 0x2;     // Turn off LDO
+                ldo_reg = register_value;
+            }
+            if (ldo_update == HPDPLL_LDO_BYPASS)
+            {
+                register_value |= 0x1;     // Bypass LDO
+            }
+        }
+        /* Increase lock threshold if necessary */
+        if(register_index == PLL_REG_INDEX_REG_LOCK_THRESHOLD)
+        {
+            if ((register_value * threshold_multiplier) > 0x0FFFFu)
+            {
+                register_value = (uint16_t)(0xFFFF);
+            }
+            else
+            {
+                register_value = (uint16_t)(register_value * threshold_multiplier);
+            }
+        }
         pll_registers[register_index] = register_value;
     }
 
@@ -450,16 +541,36 @@ FOUND_CONFIG_DATA:
      POTENTIAL BUG WORKAROUND END
 
      Wait for the PLL to lock within a given timeout */
-    while (timeout > 0)
+    status = spio_pll_wait_for_lock(pll_registers);
+    if(0 != status)
     {
-        if (pll_registers[PLL_REG_INDEX_REG_LOCK_DETECT_STATUS] & 1)
-        {
-            return 0;
-        }
-        --timeout;
+        return status;
     }
 
-    return ERROR_SP_PLL_PLL_LOCK_TIMEOUT;
+    if (ldo_update == HPDPLL_LDO_KICK)
+    {
+        ldo_reg &= (uint16_t)(~(0x2));  // Turn on LDO
+        pll_registers[PLL_REG_INDEX_REG_LDO_CONTROL] = ldo_reg;
+        update_pll_registers(pll_registers); // Update PLL registers reg_update
+
+        usdelay(3);
+
+        reg0 = reg0 & ~PLL_ENABLE__MASK; // Disable PLL
+        pll_registers[PLL_REG_INDEX_REG_0] = reg0;
+        update_pll_registers(pll_registers);
+
+        reg0 = reg0 | PLL_ENABLE__MASK; // Enable PLL
+        pll_registers[PLL_REG_INDEX_REG_0] = reg0;
+        update_pll_registers(pll_registers);
+
+        status = spio_pll_wait_for_lock(pll_registers);
+        if(0 != status)
+        {
+            return status;
+        }
+    }
+
+    return 0;
 }
 
 static int clock_manager_pll_bypass(PLL_ID_t pll, bool bypass_enable)
@@ -510,7 +621,8 @@ int configure_sp_pll_0(uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_SP_PLL0_BASEADDR, mode, &gs_sp_pll_0_frequency);
+    rv = configure_pll((uint32_t *)R_SP_PLL0_BASEADDR, mode, &gs_sp_pll_0_frequency,
+                            HPDPLL_LDO_BYPASS, 1);
     if (0 != rv)
     {
         goto ERROR;
@@ -545,7 +657,8 @@ int configure_sp_pll_1(uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_SP_PLL1_BASEADDR, mode, &gs_sp_pll_1_frequency);
+    rv = configure_pll((uint32_t *)R_SP_PLL1_BASEADDR, mode, &gs_sp_pll_1_frequency,
+                            HPDPLL_LDO_BYPASS, 1);
     if (0 != rv)
     {
         goto ERROR;
@@ -580,7 +693,8 @@ int configure_sp_pll_2(uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_SP_PLL2_BASEADDR, mode, &gs_sp_pll_2_frequency);
+    rv = configure_pll((uint32_t *)R_SP_PLL2_BASEADDR, mode, &gs_sp_pll_2_frequency,
+                            HPDPLL_LDO_BYPASS, 1);
     if (0 != rv)
     {
         goto ERROR;
@@ -614,7 +728,8 @@ int configure_sp_pll_4(uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_SP_PLL4_BASEADDR, mode, &gs_sp_pll_4_frequency);
+    rv = configure_pll((uint32_t *)R_SP_PLL4_BASEADDR, mode, &gs_sp_pll_4_frequency,
+                            HPDPLL_LDO_BYPASS, 1);
     if (0 != rv)
     {
         goto ERROR;
@@ -649,7 +764,8 @@ int configure_pshire_pll(const uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_PCIE_PLLP0_BASEADDR, mode, &gs_pcie_pll_0_frequency);
+    rv = configure_pll((uint32_t *)R_PCIE_PLLP0_BASEADDR, mode, &gs_pcie_pll_0_frequency,
+                            HPDPLL_LDO_BYPASS, 1);
     if (0 != rv)
     {
         goto ERROR;
@@ -683,7 +799,8 @@ int configure_maxion_pll_core(uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_SP_PLLMX0_BASEADDR, mode, &gs_maxion_pll_core_frequency);
+    rv = configure_pll((uint32_t *)R_SP_PLLMX0_BASEADDR, mode, &gs_maxion_pll_core_frequency,
+                            HPDPLL_LDO_BYPASS, 1);
     if (0 != rv)
     {
         goto ERROR;
@@ -717,7 +834,8 @@ int configure_maxion_pll_uncore(uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_SP_PLLMX1_BASEADDR, mode, &gs_maxion_pll_uncore_frequency);
+    rv = configure_pll((uint32_t *)R_SP_PLLMX1_BASEADDR, mode, &gs_maxion_pll_uncore_frequency,
+                            HPDPLL_LDO_BYPASS, 1);
     if (0 != rv)
     {
         goto ERROR;

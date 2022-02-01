@@ -40,20 +40,6 @@
 #define SPIO_PLIC R_SP_PLIC_BASEADDR
 #endif
 
-/*! \def PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL
-    \brief Lock monitor sample strobe and clear
-*/
-#define PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL      0x19
-
-/*! \def PLL_REG_INDEX_REG_LOCK_MONITOR
-    \brief Lock montior
-*/
-#define PLL_REG_INDEX_REG_LOCK_MONITOR              0x30
-
-/*! \def PLL_LOCK_MONITOR_MASK
-    \brief Lock montior mask
-*/
-#define PLL_LOCK_MONITOR_MASK                       0x3F
 
 static uint32_t memshire_frequency;
 static uint32_t ddr_frequency;
@@ -121,12 +107,12 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode)
         return -1;
     }
 
-    if (0 != program_memshire_pll(0, pll_mode, &memshire_frequency))
+    if (0 != program_memshire_pll(0, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_BYPASS, 1))
         return -1;
 
     memshire_pll_clear_lock_monitor(0);
 
-    if (0 != program_memshire_pll(4, pll_mode, &memshire_frequency))
+    if (0 != program_memshire_pll(4, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_BYPASS, 1))
         return -1;
 
     memshire_pll_clear_lock_monitor(4);
