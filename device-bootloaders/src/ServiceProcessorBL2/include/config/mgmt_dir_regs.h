@@ -40,20 +40,20 @@
 /* Memory Region accessibility options */
 /***************************************/
 
-/*! \def MEM_REGION_PRIVILEDGE_MODE_SET(x)
-    \brief Macro that sets the priviledge mode for a memory region
+/*! \def MEM_REGION_IOACCESS_SET(x)
+    \brief Macro that sets the IO access for a memory region
 */
-#define MEM_REGION_PRIVILEDGE_MODE_SET(x)  (x & 0x00000001u)
+#define MEM_REGION_IOACCESS_SET(x)                 (x & 0x00000001u)
 
-/*! \def MEM_REGION_PRIVILEDGE_MODE_KERNEL
-    \brief Macro representing the kernel privileged mode value
+/*! \def MEM_REGION_IOACCESS_DISABLED
+    \brief Macro representing IO access disabled for a memory region
 */
-#define MEM_REGION_PRIVILEDGE_MODE_KERNEL  0x0
+#define MEM_REGION_IOACCESS_DISABLED               0x0
 
-/*! \def MEM_REGION_PRIVILEDGE_MODE_USER
-    \brief MAcro representing the user privileged mode value
+/*! \def MEM_REGION_IOACCESS_ENABLED
+    \brief Macro representing IO access enabled for a memory region
 */
-#define MEM_REGION_PRIVILEDGE_MODE_USER    0x1
+#define MEM_REGION_IOACCESS_ENABLED                0x1
 
 /*! \def MEM_REGION_NODE_ACCESSIBLE_SET(x)
     \brief Macro that sets the priviledge mode for a memory region
@@ -152,27 +152,6 @@ enum SP_DEV_INTF_FORM_FACTOR_e {
 	SP_DEV_CONFIG_FORM_FACTOR_M_2
 };
 
-/*! \enum SP_DEV_INTF_BAR0_SIZE_e
-    \brief Values representing the BAR0 sizes that can be configured
-*/
-enum SP_DEV_INTF_BAR0_SIZE_e {
-    SP_DEV_INTF_BAR0_SIZE_8MB = 0,
-    SP_DEV_INTF_BAR0_SIZE_16MB = 1,
-    SP_DEV_INTF_BAR0_SIZE_24MB = 2
-    /* Unused values for now */
-};
-
-/*! \enum SP_DEV_INTF_BAR2_SIZE_e
-    \brief Values representing the BAR2 sizes that can be configured
-*/
-enum SP_DEV_INTF_BAR2_SIZE_e {
-    SP_DEV_INTF_BAR2_SIZE_32KB = 0,
-    SP_DEV_INTF_BAR2_SIZE_64KB = 1,
-    /* Unused values for now */
-    SP_DEV_INTF_BAR2_SIZE_256KB = 7
-    /* Unused values for now */
-};
-
 /*! \struct SP_DEV_INTF_MEM_REGION_ATTR
     \brief Holds the information of Service Processor interface memory region.
     \warning Must be 64-bit aligned.
@@ -217,15 +196,15 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR {
     uint32_t minion_boot_freq;
     uint32_t crc32;
     int16_t  status;
+    uint16_t cache_line_size;
+    uint16_t l2_size;
+    uint16_t l3_size;
+    uint32_t bar0_size;
+    uint32_t bar2_size;
     uint16_t form_factor;
     uint16_t device_tdp;
-    uint16_t l3_size;
-    uint16_t l2_size;
     uint16_t scp_size;
-    uint16_t cache_line_size;
-    uint16_t bar0_size;
-    uint16_t bar2_size;
-    uint8_t reserved[6];
+    uint8_t reserved[2];
 } SP_DEV_INTF_GENERIC_ATTR_s;
 
 

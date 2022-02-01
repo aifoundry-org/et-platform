@@ -31,6 +31,19 @@
 #include "thermal_pwr_mgmt.h"
 #include "perf_mgmt.h"
 #include "crc32.h"
+#include "system/layout.h"
+#include "hwinc/hal_device.h"
+
+#define SP_DEV_INTF_BAR0_SIZE                      \
+        SP_DM_SCRATCH_REGION_SIZE  +               \
+        SP_TRACE_BUFFER_SIZE       +               \
+        MM_TRACE_BUFFER_SIZE       +               \
+        CM_SMODE_TRACE_BUFFER_SIZE
+
+#define SP_DEV_INTF_BAR2_SIZE                      \
+        R_PU_TRG_PCIE_SIZE   +                     \
+        R_PU_MBOX_PC_SP_SIZE +                     \
+        R_PU_MBOX_PC_MM_SIZE
 
 /*! \var Gbl_SP_DIRs
     \brief Global static instance of Service Processors
@@ -70,8 +83,8 @@ void DIR_Init(void)
     Gbl_SP_DIRs->generic_attr.minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
     Gbl_SP_DIRs->generic_attr.form_factor = SP_DEV_CONFIG_FORM_FACTOR_PCIE;
     Gbl_SP_DIRs->generic_attr.cache_line_size = CACHE_LINE_SIZE;
-    Gbl_SP_DIRs->generic_attr.bar0_size = SP_DEV_INTF_BAR0_SIZE_16MB;
-    Gbl_SP_DIRs->generic_attr.bar2_size = SP_DEV_INTF_BAR2_SIZE_256KB;
+    Gbl_SP_DIRs->generic_attr.bar0_size = SP_DEV_INTF_BAR0_SIZE;
+    Gbl_SP_DIRs->generic_attr.bar2_size = SP_DEV_INTF_BAR2_SIZE;
 
     /* Populate the SP VQs attributes */
     Gbl_SP_DIRs->vq_attr.sq_offset = SP_SQ_OFFSET;
@@ -99,7 +112,7 @@ void DIR_Init(void)
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
         .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
+        .access_attr = MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_NONE) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
@@ -117,7 +130,7 @@ void DIR_Init(void)
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
         .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
-        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
+        .access_attr = MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_NONE) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
@@ -135,7 +148,7 @@ void DIR_Init(void)
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
         .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
-        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
+        .access_attr = MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
@@ -153,7 +166,7 @@ void DIR_Init(void)
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
         .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
-        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
+        .access_attr = MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
@@ -171,7 +184,7 @@ void DIR_Init(void)
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
         .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
-        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
+        .access_attr = MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
@@ -189,7 +202,7 @@ void DIR_Init(void)
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
         .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
     Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
-        .access_attr = MEM_REGION_PRIVILEDGE_MODE_SET(MEM_REGION_PRIVILEDGE_MODE_KERNEL) |
+        .access_attr = MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
