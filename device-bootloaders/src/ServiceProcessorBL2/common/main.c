@@ -411,8 +411,8 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     fake_bl1_data.pcie_pll0_frequency = 1010;
     fake_bl1_data.timer_raw_ticks_before_pll_turned_on = 0;
     fake_bl1_data.vaultip_coid_set = 0;
-    fake_bl1_data.spi_controller_rx_baudrate_divider = 0;
-    fake_bl1_data.spi_controller_tx_baudrate_divider = 0;
+    fake_bl1_data.spi_controller_rx_baudrate_divider = 14;
+    fake_bl1_data.spi_controller_tx_baudrate_divider = 14;
     fake_bl1_data.flash_fs_bl1_info.flash_id_u32 = SPI_FLASH_ON_PACKAGE;
     fake_bl1_data.flash_fs_bl1_info.flash_size = 0x100000;
     fake_bl1_data.flash_fs_bl1_info.active_partition = 0;
