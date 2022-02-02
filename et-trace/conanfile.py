@@ -51,8 +51,12 @@ class EsperantoTraceConan(ConanFile):
         self.info.header_only()
 
     def package_info(self):
-        et_trace_cmake_name = "esperantoTrace::et_trace"
-        self.cpp_info.components["et_trace"].names["cmake_find_package"] = et_trace_cmake_name
-        self.cpp_info.components["et_trace"].names["cmake_find_package_multi"] = et_trace_cmake_name
-        self.cpp_info.components["et_trace"].set_property("cmake_target_name", et_trace_cmake_name)
+        self.cpp_info.components["et_trace"].set_property("cmake_target_name",  "esperantoTrace::et_trace")
         self.cpp_info.components["et_trace"].includedirs = ["include", "include/esperanto"]
+
+        # TODO: to remove in conan v2 once cmake_find_package* generators removed
+        # changes namespace to esperantoTrace::
+        self.cpp_info.names["cmake_find_package"] = "esperantoTrace" 
+        # yields 'esperantoTrace::et_trace' target
+        self.cpp_info.components["et_trace"].names["cmake_find_package"] = "et_trace"
+        self.cpp_info.components["et_trace"].names["cmake_find_package_multi"] = "et_trace"
