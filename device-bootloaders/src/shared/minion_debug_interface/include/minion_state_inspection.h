@@ -71,4 +71,12 @@ uint64_t Read_CSR(uint64_t hart_id, uint32_t csr);
 */
 void Write_CSR(uint64_t hart_id, uint32_t csr, uint64_t data);
 
+
+/*! \fn void VPU_RF_Init(uint64_t hart_id)
+    \brief Initialize the VPU Register file of Hart specified by hart_id
+    \param hart_id Hart ID for which has to be written
+    \returns None
+*/
+void VPU_RF_Init(uint64_t hart_id);
+
 #endif /* MINION_STATE_INSPECTION_H */

@@ -43,7 +43,7 @@
 #define READ_X31    0x2ff3
 #define READ_CSR_SEQ(offset)                                             \
     /* Read DDATA0 Instruction */                                        \
-    READ_DDATA0,                     /* Issue CSR Read Instruction */    \
+        READ_DDATA0,                 /* Issue CSR Read Instruction */    \
         (READ_X31 | (offset << 20)), /* Read DDATA1 Instruction */       \
         READ_DDATA1,                 /* Insert Ebreak to align buffer */ \
         EBREAK_INST
@@ -55,10 +55,22 @@
 #define WRITE_X31    0xf9073
 #define WRITE_CSR_SEQ(offset)                                             \
     /* Write DDATA0 Instruction */                                        \
-    WRITE_DDATA0,                     /* Issue CSR Read Instruction */    \
+        WRITE_DDATA0,                 /* Issue CSR Read Instruction */    \
         (WRITE_X31 | (offset << 20)), /* Write DDATA1 Instruction */      \
         WRITE_DDATA1,                 /* Insert Ebreak to align buffer */ \
         EBREAK_INST
 #define NUM_INST_CSR_WRITE_SEQ 4
+
+/* VPU RF Init Sequence  */
+#define LOAD_T0_FP_INIT   0x000022b7U /* lui t0,0x2             */
+#define UPDATE_MSTATUS    0x3002a073U /* csrs mstatus, t0       */
+#define FMA_3PORT_RF_READ 0x00007043U /* fmadd.s f0, f0, f0, f0 */
+
+#define VPU_RF_INIT_SEQ()    \
+         LOAD_T0_FP_INIT,    \
+         UPDATE_MSTATUS,     \
+         FMA_3PORT_RF_READ,  \
+         EBREAK_INST
+#define NUM_INST_VPU_RF_INIT_SEQ 4
 
 #endif /* DEBUG_INSTRUCTION_SEQUENCE_H */

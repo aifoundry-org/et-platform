@@ -55,3 +55,10 @@ void Write_CSR(uint64_t hart_id, uint32_t csr, uint64_t data)
     write_ddata(hart_id, data);
     execute_instructions(hart_id, write_reg_list, NUM_INST_CSR_WRITE_SEQ);
 }
+
+void VPU_RF_Init(uint64_t hart_id)
+{
+    uint32_t vpu_rf_init_list[NUM_INST_VPU_RF_INIT_SEQ] = { VPU_RF_INIT_SEQ() };
+    execute_instructions(hart_id, vpu_rf_init_list, NUM_INST_VPU_RF_INIT_SEQ);
+}
+
