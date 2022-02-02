@@ -35,14 +35,14 @@ bool Resume_Harts()
 
 bool Check_Halted()
 {
-    uint64_t treel2 = read_andortreel2();
+    uint32_t treel2 = read_andortreel2();
     bool no_harts_enabled = HALTED(treel2) && RUNNING(treel2);
     return (HALTED(treel2) && (!no_harts_enabled));
 }
 
 bool Check_Running()
 {
-    uint64_t treel2 = read_andortreel2();
+    uint32_t treel2 = read_andortreel2();
     bool no_harts_enabled = HALTED(treel2) && RUNNING(treel2);
     return (RUNNING(treel2) && (!no_harts_enabled));
 }

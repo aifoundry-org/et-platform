@@ -19,7 +19,7 @@ static uint16_t SELECTED_MINSHIRES[NUM_SHIRES][4] = { 0 };
 static uint64_t WORKARROUND_RESUME_SELECTED_HARTS[NUM_SHIRES] = { 0 };
 static uint64_t WORKARROUND_RESUME_ENABLED_HARTS[NUM_SHIRES] = { 0 };
 
-uint64_t read_andortreel2(void)
+uint32_t read_andortreel2(void)
 {
     return ioread32(R_SP_MISC_BASEADDR | SPIO_MISC_ESR_ANDORTREEL2_ADDRESS);
 }
@@ -170,7 +170,7 @@ static void write_abscmd(uint64_t hart_id, uint64_t data)
     uint8_t shire_id = (uint8_t)(GET_SHIRE_ID(hart_id));
     uint8_t minion_id = (uint8_t)(GET_MINION_ID(hart_id));
     uint8_t thread_id = (uint8_t)(GET_THREAD_ID(hart_id));
-    write_esr_new(PP_MESSAGES, shire_id, REGION_MINION, minion_id, ABSCMD, data, thread_id);
+    write_esr_new(PP_MESSAGES, shire_id, REGION_MINION, minion_id, ABSCMD_BYTE, data, thread_id);
 }
 
 uint64_t read_nxdata0(uint64_t hart_id)
@@ -178,7 +178,7 @@ uint64_t read_nxdata0(uint64_t hart_id)
     uint8_t shire_id = (uint8_t)(GET_SHIRE_ID(hart_id));
     uint8_t minion_id = (uint8_t)(GET_MINION_ID(hart_id));
     uint8_t thread_id = (uint8_t)(GET_THREAD_ID(hart_id));
-    return read_esr_new(PP_MESSAGES, shire_id, REGION_MINION, minion_id, NXDATA0, thread_id);
+    return read_esr_new(PP_MESSAGES, shire_id, REGION_MINION, minion_id, NXDATA0_BYTE, thread_id);
 }
 
 void write_nxdata0(uint64_t hart_id, uint64_t data)
@@ -186,7 +186,7 @@ void write_nxdata0(uint64_t hart_id, uint64_t data)
     uint8_t shire_id = (uint8_t)(GET_SHIRE_ID(hart_id));
     uint8_t minion_id = (uint8_t)(GET_MINION_ID(hart_id));
     uint8_t thread_id = (uint8_t)(GET_THREAD_ID(hart_id));
-    write_esr_new(PP_MESSAGES, shire_id, REGION_MINION, minion_id, NXDATA0, data, thread_id);
+    write_esr_new(PP_MESSAGES, shire_id, REGION_MINION, minion_id, NXDATA0_BYTE, data, thread_id);
 }
 
 uint64_t read_nxdata1(uint64_t hart_id)
@@ -194,7 +194,7 @@ uint64_t read_nxdata1(uint64_t hart_id)
     uint8_t shire_id = (uint8_t)(GET_SHIRE_ID(hart_id));
     uint8_t minion_id = (uint8_t)(GET_MINION_ID(hart_id));
     uint8_t thread_id = (uint8_t)(GET_THREAD_ID(hart_id));
-    return read_esr_new(PP_MESSAGES, shire_id, REGION_MINION, minion_id, NXDATA1, thread_id);
+    return read_esr_new(PP_MESSAGES, shire_id, REGION_MINION, minion_id, NXDATA1_BYTE, thread_id);
 }
 
 void write_nxdata1(uint64_t hart_id, uint64_t data)
@@ -202,7 +202,7 @@ void write_nxdata1(uint64_t hart_id, uint64_t data)
     uint8_t shire_id = (uint8_t)(GET_SHIRE_ID(hart_id));
     uint8_t minion_id = (uint8_t)(GET_MINION_ID(hart_id));
     uint8_t thread_id = (uint8_t)(GET_THREAD_ID(hart_id));
-    write_esr_new(PP_MESSAGES, shire_id, REGION_MINION, minion_id, NXDATA0, data, thread_id);
+    write_esr_new(PP_MESSAGES, shire_id, REGION_MINION, minion_id, NXDATA0_BYTE, data, thread_id);
 }
 
 void execute_instructions(uint64_t hart_id, const uint32_t *inst_list, uint32_t num_inst)
