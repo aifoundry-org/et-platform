@@ -200,6 +200,29 @@ pipeline {
         }
         stage('PARALLEL1') {
           parallel {
+            stage('CLANG_CHECK') {
+              steps {
+                script {
+                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/system-sw-integration/pipelines/et-common-libs-clang-tests', COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}")) {
+                    script {
+                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}", JOB_NAME: 'sw-platform/system-sw-integration/pipelines/et-common-libs-clang-tests')
+                      build job:
+                        'sw-platform/system-sw-integration/pipelines/et-common-libs-clang-tests',
+                        propagate: true,
+                        parameters: [
+                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"),
+                          string(name: 'NODE', value: 'WORKER'),
+                          string(name: 'TIMEOUT', value: '1'),
+                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
+                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                        ]
+                    }
+                  }
+                }
+              }
+            }
             stage('FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU') {
               steps {
                 script {

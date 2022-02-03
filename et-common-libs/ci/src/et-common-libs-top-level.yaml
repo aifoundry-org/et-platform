@@ -32,6 +32,16 @@ stages:
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"
     exec_after: [DSL_JOB]
 
+  CLANG_CHECK:
+    cmds:
+      - job: sw-platform/system-sw-integration/pipelines/et-common-libs-clang-tests
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"
+          NODE: WORKER
+          TIMEOUT: "1"
+    exec_after: [CHECK_IN]
+  
   JOB_CODE_QUALITY:
     cmds:
       - job: sw-platform/code-analysis/et-common-libs-sonarqube
