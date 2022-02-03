@@ -1,7 +1,6 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
-#include <common/printf.h>
 #include <etsoc/common/common_defs.h>
 #include <etsoc/isa/cacheops.h>
 #include <etsoc/isa/fcc.h>

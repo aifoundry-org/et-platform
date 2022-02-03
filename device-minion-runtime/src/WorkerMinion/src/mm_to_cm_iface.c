@@ -127,7 +127,7 @@ static void mm_to_cm_iface_handle_message(
             /* Check if this Shire is involved in the kernel launch */
             if (launch->kernel.shire_mask & (1ULL << shire))
             {
-                log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM: Launching Kernel on Shire 0x%lx\r\n",
+                log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM: Launching Kernel on Shire 0x%llx\r\n",
                     message_ptr->header.tag_id, 1ULL << shire);
 
                 mm_to_cm_message_kernel_params_t kernel;
@@ -148,7 +148,7 @@ static void mm_to_cm_iface_handle_message(
             {
                 /* Something went wrong launching the kernel. */
                 log_write(LOG_LEVEL_ERROR,
-                    "TID[%u]:MM->CM: Kernel completed with error code:%d\r\n",
+                    "TID[%u]:MM->CM: Kernel completed with error code:%ld\r\n",
                     message_ptr->header.tag_id, rv);
             }
             break;
@@ -206,7 +206,7 @@ static void mm_to_cm_iface_handle_message(
                     .threshold = cmd->threshold };
 
                 log_write(LOG_LEVEL_DEBUG,
-                    "TID[%u]:MM->CM: Trace Config. Event:0x%lx:Filter:0x%lx:Threshold:%d\r\n",
+                    "TID[%u]:MM->CM: Trace Config. Event:0x%x:Filter:0x%x:Threshold:%d\r\n",
                     message_ptr->header.tag_id, cmd->event_mask, cmd->filter_mask, cmd->threshold);
                 Trace_Configure_CM(&cm_trace_config);
                 Trace_String(
