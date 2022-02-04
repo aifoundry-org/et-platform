@@ -15,9 +15,6 @@
 #include "minion_run_control.h"
 #include "minion_state_inspection.h"
 
-static uint16_t SELECTED_MINSHIRES[NUM_SHIRES][4] = { 0 };
-static uint64_t WORKARROUND_RESUME_SELECTED_HARTS[NUM_SHIRES] = { 0 };
-static uint64_t WORKARROUND_RESUME_ENABLED_HARTS[NUM_SHIRES] = { 0 };
 
 uint32_t read_andortreel2(void)
 {
@@ -34,49 +31,51 @@ void write_dmctrl(uint32_t data)
     return iowrite32((R_SP_MISC_BASEADDR | SPIO_MISC_ESR_DMCTRL_ADDRESS), data);
 }
 
-static void enable_shire_harts(uint64_t shire_id, uint64_t harts)
+void disable_shire_neigh(uint8_t shire_id, uint8_t neigh_id)
 {
-    WRITE_THREAD0_DISABLE(shire_id, harts & THREAD_0_MASK);
-    WRITE_THREAD1_DISABLE(shire_id, harts & THREAD_1_MASK);
+    uint32_t th0_disabled = READ_THREAD0_DISABLE(shire_id);
+    uint32_t th1_disabled = READ_THREAD1_DISABLE(shire_id);
+    th0_disabled |= DISABLE_MINION_MASK(neigh_id);
+    th1_disabled |= DISABLE_MINION_MASK(neigh_id);
+    WRITE_THREAD0_DISABLE(shire_id, th0_disabled);
+    WRITE_THREAD1_DISABLE(shire_id, th1_disabled);
 }
 
-static void disable_shire_harts(uint64_t shire_id, uint64_t harts)
+void enable_shire_neigh(uint8_t shire_id, uint8_t neigh_id)
 {
-    WRITE_THREAD0_DISABLE(shire_id, harts & ~THREAD_0_MASK);
-    WRITE_THREAD1_DISABLE(shire_id, harts & ~THREAD_1_MASK);
+    uint32_t th0_disabled = READ_THREAD0_DISABLE(shire_id);
+    uint32_t th1_disabled = READ_THREAD1_DISABLE(shire_id);
+    th0_disabled &= ENABLE_MINION_MASK(neigh_id);
+    th1_disabled &= ENABLE_MINION_MASK(neigh_id);
+    WRITE_THREAD0_DISABLE(shire_id, th0_disabled);
+    WRITE_THREAD1_DISABLE(shire_id, th1_disabled);
 }
 
-static uint64_t get_enabled_harts(uint64_t shire_id)
+uint64_t get_enabled_harts(uint8_t shire_id)
 {
-    uint32_t th0 = (uint32_t)(READ_THREAD0_DISABLE(shire_id));
-    uint32_t th1 = (uint32_t)(READ_THREAD1_DISABLE(shire_id));
-    uint64_t th0_enabled = ~th0;
-    uint64_t th1_enabled = ~th1;
-    return th0_enabled | th1_enabled << 32;
+    uint32_t th0_enabled = ~READ_THREAD0_DISABLE(shire_id);
+    uint32_t th1_enabled = ~READ_THREAD1_DISABLE(shire_id);
+    uint64_t shire_enabled_harts = 0;
+    for (uint32_t i = 0; i < HARTS_PER_SHIRE; ++i)
+    {
+        uint32_t th_enabled = i%2 == 0 ? th0_enabled : th1_enabled;
+        shire_enabled_harts |= ((th_enabled >> i/2) & 0x1) << i;
+    }
+    return shire_enabled_harts;
 }
 
-void select_hart_op(uint64_t shire_id, uint64_t neigh_id, uint16_t hart_mask)
+void select_hart_op(uint8_t shire_id, uint8_t neigh_id, uint16_t hart_mask)
 {
     uint64_t hactrl = READ_HACTRL(shire_id, neigh_id);
     hactrl = SELECT_HART_OP(hactrl, (uint64_t)hart_mask);
     WRITE_HACTRL(shire_id, neigh_id, hactrl);
 }
 
-void unselect_hart_op(uint64_t shire_id, uint64_t neigh_id, uint16_t hart_mask)
+void unselect_hart_op(uint8_t shire_id, uint8_t neigh_id, uint16_t hart_mask)
 {
     uint64_t hactrl = READ_HACTRL(shire_id, neigh_id);
     hactrl = UNSELECT_HART_OP(hactrl, (uint64_t)hart_mask);
     WRITE_HACTRL(shire_id, neigh_id, hactrl);
-}
-
-bool wait_till_core_halt(void)
-{
-    uint32_t rtry = MAX_RETRIES;
-    while (!Check_Halted() && rtry != 0)
-    {
-        rtry--;
-    }
-    return (rtry != 0);
 }
 
 void assert_halt(void)
@@ -89,79 +88,6 @@ void deassert_halt(void)
 {
     uint32_t current_dmctrl = read_dmctrl() | DMCTRL_HALT_MASK;
     write_dmctrl(current_dmctrl & ~HALTREQ);
-}
-
-bool workarround_resume_pre(void)
-{
-    for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id += 1)
-    {
-        uint64_t enabled_harts = get_enabled_harts(shire_id);
-        uint64_t harts_to_enable = 0;
-        uint64_t harts_to_select = 0;
-        for (uint64_t neigh_id = 0; neigh_id < NUM_NEIGH_PER_SHIRE; neigh_id += 1)
-        {
-            uint64_t neigh_mask = SELECTED_MINSHIRES[shire_id][neigh_id];
-            if (((neigh_mask & 3) != 3) && (neigh_mask != 0))
-            {
-                uint64_t m0_requires_enable = ~(enabled_harts >> HARTS_PER_NEIGH) & 3;
-                uint64_t m0_requires_select = ~(neigh_mask & 3) & 3;
-                harts_to_select = harts_to_select | m0_requires_select
-                                                        << neigh_id * HARTS_PER_NEIGH;
-                harts_to_enable = harts_to_enable | m0_requires_enable
-                                                        << neigh_id * HARTS_PER_NEIGH;
-            }
-        }
-        WORKARROUND_RESUME_ENABLED_HARTS[shire_id] = harts_to_enable;
-        WORKARROUND_RESUME_SELECTED_HARTS[shire_id] = harts_to_select;
-        if (harts_to_select != 0)
-        {
-            Select_Harts(shire_id, harts_to_select);
-            assert_halt();
-            if (harts_to_enable != 0)
-            {
-                enable_shire_harts(shire_id, harts_to_enable);
-            }
-            bool all_halted = wait_till_core_halt();
-            if (!all_halted)
-            {
-                return false;
-            }
-            deassert_halt();
-            const uint64_t NUM_M0_PER_SHIRE = 8;
-            const uint64_t m0_local_hart_id[8] = {
-                HARTS_PER_SHIRE * shire_id + (0 * HARTS_PER_NEIGH + 0),
-                HARTS_PER_SHIRE * shire_id + (0 * HARTS_PER_NEIGH + 1),
-                HARTS_PER_SHIRE * shire_id + (1 * HARTS_PER_NEIGH + 0),
-                HARTS_PER_SHIRE * shire_id + (1 * HARTS_PER_NEIGH + 1),
-                HARTS_PER_SHIRE * shire_id + (2 * HARTS_PER_NEIGH + 0),
-                HARTS_PER_SHIRE * shire_id + (2 * HARTS_PER_NEIGH + 1),
-                HARTS_PER_SHIRE * shire_id + (3 * HARTS_PER_NEIGH + 0),
-                HARTS_PER_SHIRE * shire_id + (3 * HARTS_PER_NEIGH + 1)
-            };
-
-            for (uint64_t m0_idx = 0; m0_idx < NUM_M0_PER_SHIRE; m0_idx += 1)
-            {
-                uint64_t hart_id = m0_local_hart_id[m0_idx];
-                Set_PC_Breakpoint(hart_id, Read_CSR(hart_id, MINION_CSR_DPC_OFFSET),
-                                  PRIV_MASK_PRIV_ALL);
-            }
-        }
-    }
-    return true;
-}
-
-bool workarround_resume_post(void)
-{
-    for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id += 1)
-    {
-        uint64_t harts_to_disable = WORKARROUND_RESUME_ENABLED_HARTS[shire_id];
-        uint64_t harts_to_unselect = WORKARROUND_RESUME_SELECTED_HARTS[shire_id];
-        Unselect_Harts(shire_id, harts_to_unselect);
-        disable_shire_harts(shire_id, harts_to_disable);
-        WORKARROUND_RESUME_ENABLED_HARTS[shire_id] = 0;
-        WORKARROUND_RESUME_SELECTED_HARTS[shire_id] = 0;
-    }
-    return true;
 }
 
 /* Functions used by minion state inspection APIs */

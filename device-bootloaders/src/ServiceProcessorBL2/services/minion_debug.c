@@ -126,8 +126,13 @@ static void mdi_select_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start
     const struct mdi_hart_selection_cmd_t *mdi_cmd_req = (struct mdi_hart_selection_cmd_t *)buffer;
 
     /* Select a Hart */
-    Select_Harts(mdi_cmd_req->cmd_attr.shire_id, mdi_cmd_req->cmd_attr.thread_mask);
-
+    for(uint8_t neigh_id=0; neigh_id < NUM_NEIGH_PER_SHIRE; neigh_id++)
+    {
+       if(mdi_cmd_req->cmd_attr.thread_mask & (0xFFULL << (8*neigh_id)))
+       { 
+           Select_Harts((uint8_t)mdi_cmd_req->cmd_attr.shire_id, neigh_id);
+       }
+    }
     /* MDI lib function does not return status for Select/Unselect Hart operation. 
         Sending success status by default in response */
     send_mdi_hart_selection_response(tag_id, msg_id, req_start_time, status);
@@ -143,7 +148,13 @@ static void mdi_unselect_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_sta
     const struct mdi_hart_selection_cmd_t *mdi_cmd_req = (struct mdi_hart_selection_cmd_t *)buffer;
 
     /* Unselect a Hart */
-    Unselect_Harts(mdi_cmd_req->cmd_attr.shire_id, mdi_cmd_req->cmd_attr.thread_mask);
+    for(uint8_t neigh_id=0; neigh_id < NUM_NEIGH_PER_SHIRE; neigh_id++)
+    {
+       if(mdi_cmd_req->cmd_attr.thread_mask & (0xFFULL << (8*neigh_id)))
+       { 
+           Unselect_Harts((uint8_t)mdi_cmd_req->cmd_attr.shire_id, neigh_id);
+       }
+    }
 
     /* MDI lib function does not return status for Select/Unselect Hart operation. 
         Sending success status by default in response */

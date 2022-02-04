@@ -72,7 +72,7 @@ __attribute__((noreturn)) static void dm_mdi_bp_notify_task(void *pvParameters)
             Log_Write(LOG_LEVEL_INFO, "DM MDI BP set event received: %s\n", __func__);
 
             /* Wait for core to halt */
-            ret = wait_till_core_halt();
+            ret = WAIT(Check_Halted());
 
             if (ret)
             {

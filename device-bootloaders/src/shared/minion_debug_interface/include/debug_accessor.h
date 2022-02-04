@@ -31,10 +31,9 @@
 #include <system/layout.h>
 
 #define HARTS_PER_NEIGH     16
+#define MINIONS_PER_NEIGH   HARTS_PER_NEIGH/2
 #define NUM_NEIGH_PER_SHIRE 4
 #define MAX_RETRIES         5
-#define THREAD_0_MASK       0x55555555UL
-#define THREAD_1_MASK       0xAAAAAAAAUL
 #define TDATA1(mode)        (((uint64_t)1 << 59) | (1 << 12) | (0 << 7) | ((mode & 7) << 3) | (1 << 2))
 #define RUNNING(treel2)     (treel2 >> 5 & 1U)
 #define HALTED(treel2)      (treel2 >> 3 & 1U)
@@ -62,7 +61,11 @@
 #define NEIGH_ID_2 2
 #define NEIGH_ID_3 3
 
-#define NEIGH_MASK(thread_mask, neigh_id) ((uint16_t)(thread_mask >> (neigh_id * HARTS_PER_NEIGH)))
+#define PER_NEIGH_MINION_DISABLE_MASK 0xFFU
+#define DISABLE_MINION_MASK(neigh_id) (PER_NEIGH_MINION_DISABLE_MASK << (MINIONS_PER_NEIGH*neigh_id))
+#define ENABLE_MINION_MASK(neigh_id) ~DISABLE_MINION_MASK(neigh_id)
+
+#define NEIGH_MASK (HARTS_PER_NEIGH-1)
 
 #define GET_THREAD_ID(hart_id) (hart_id & 1)
 #define GET_MINION_ID(hart_id) (hart_id >> 1 & 31)
@@ -71,32 +74,45 @@
 
 #define IS_XCPT_FIELD 16
 
-#define READ_HACTRL(shire_id, neigh_id)                                                       \
-    read_esr_new(PP_MESSAGES, (uint8_t)(shire_id), REGION_NEIGHBOURHOOD, (uint8_t)(neigh_id), \
+#define WAIT_COND(COND, REPEAT) \
+    ({                                            \
+    int32_t __repeat = REPEAT;                    \
+    bool __cond_meet = false;                     \
+    while (__repeat--) {                          \
+        if (COND) { __cond_meet = true; break;}   \
+    }                                             \
+    __cond_meet;                                  \
+    })
+
+#define WAIT(COND) \
+    WAIT_COND(COND, MAX_RETRIES)
+
+#define READ_HACTRL(shire_id, neigh_id)                                              \
+    read_esr_new(PP_MESSAGES, shire_id, REGION_NEIGHBOURHOOD, neigh_id,              \
                  ETSOC_NEIGH_ESR_HACTRL_BYTE_ADDRESS, 0)
 
-#define WRITE_HACTRL(shire_id, neigh_id, data)                                                 \
-    write_esr_new(PP_MESSAGES, (uint8_t)(shire_id), REGION_NEIGHBOURHOOD, (uint8_t)(neigh_id), \
+#define WRITE_HACTRL(shire_id, neigh_id, data)                                       \
+    write_esr_new(PP_MESSAGES, shire_id, REGION_NEIGHBOURHOOD, neigh_id,             \
                   ETSOC_NEIGH_ESR_HACTRL_BYTE_ADDRESS, data, 0)
 
-#define READ_THREAD0_DISABLE(shire_id)                                                     \
-    read_esr_new(PP_MACHINE, (uint8_t)(shire_id), REGION_OTHER, ESR_OTHER_SUBREGION_OTHER, \
+#define READ_THREAD0_DISABLE(shire_id)                                                         \
+        (uint32_t) read_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER, \
                  ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_BYTE_ADDRESS, 0)
 
-#define READ_THREAD1_DISABLE(shire_id)                                                     \
-    read_esr_new(PP_MACHINE, (uint8_t)(shire_id), REGION_OTHER, ESR_OTHER_SUBREGION_OTHER, \
-                 ETSOC_SHIRE_OTHER_ESR_THREAD1_DISABLE_BYTE_ADDRESS, 0)
+#define READ_THREAD1_DISABLE(shire_id)                                                         \
+        (uint32_t) read_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER, \
+                     ETSOC_SHIRE_OTHER_ESR_THREAD1_DISABLE_BYTE_ADDRESS, 0)
 
-#define WRITE_THREAD0_DISABLE(shire_id, data)                                               \
-    write_esr_new(PP_MACHINE, (uint8_t)(shire_id), REGION_OTHER, ESR_OTHER_SUBREGION_OTHER, \
+#define WRITE_THREAD0_DISABLE(shire_id, data)                                        \
+    write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,     \
                   ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_BYTE_ADDRESS, data, 0)
 
-#define WRITE_THREAD1_DISABLE(shire_id, data)                                               \
-    write_esr_new(PP_MACHINE, (uint8_t)(shire_id), REGION_OTHER, ESR_OTHER_SUBREGION_OTHER, \
+#define WRITE_THREAD1_DISABLE(shire_id, data)                                        \
+    write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,     \
                   ETSOC_SHIRE_OTHER_ESR_THREAD1_DISABLE_BYTE_ADDRESS, data, 0)
 
-#define READ_HASTATUS0(shire_id, neigh_id)                                                    \
-    read_esr_new(PP_MESSAGES, (uint8_t)(shire_id), REGION_NEIGHBOURHOOD, (uint8_t)(neigh_id), \
+#define READ_HASTATUS0(shire_id, neigh_id)                                           \
+    read_esr_new(PP_MESSAGES, shire_id, REGION_NEIGHBOURHOOD, neigh_id,              \
                  ETSOC_NEIGH_ESR_HASTATUS0_BYTE_ADDRESS, 0)
 
 #define HART_HALT_STATUS(hart_id)                                                                       \
@@ -115,12 +131,12 @@
      ETSOC_NEIGH_ESR_HASTATUS0_HAVERESET_GET(READ_HASTATUS0(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
      & (hart_id % HARTS_PER_NEIGH);
 
-#define WRITE_HASTATUS0(shire_id, neigh_id, data)                                              \
-    write_esr_new(PP_MESSAGES, (uint8_t)(shire_id), REGION_NEIGHBOURHOOD, (uint8_t)(neigh_id), \
+#define WRITE_HASTATUS0(shire_id, neigh_id, data)                                    \
+    write_esr_new(PP_MESSAGES, shire_id, REGION_NEIGHBOURHOOD, neigh_id,             \
                   ETSOC_NEIGH_ESR_HASTATUS0_BYTE_ADDRESS, data, 0)
 
-#define READ_HASTATUS1(shire_id, neigh_id)                                                    \
-    read_esr_new(PP_MESSAGES, (uint8_t)(shire_id), REGION_NEIGHBOURHOOD, (uint8_t)(neigh_id), \
+#define READ_HASTATUS1(shire_id, neigh_id)                                           \
+    read_esr_new(PP_MESSAGES, shire_id, REGION_NEIGHBOURHOOD, neigh_id,              \
                  ETSOC_NEIGH_ESR_HASTATUS1_BYTE_ADDRESS, 0)
 
 #define HART_ERROR_STATUS(hart_id)                                                                     \
@@ -135,8 +151,8 @@
      ETSOC_NEIGH_ESR_HASTATUS1_BUSY_GET(READ_HASTATUS1(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
      & (hart_id % HARTS_PER_NEIGH);
 
-#define WRITE_HASTATUS1(shire_id, neigh_id, data)                                              \
-    write_esr_new(PP_MESSAGES, (uint8_t)(shire_id), REGION_NEIGHBOURHOOD, (uint8_t)(neigh_id), \
+#define WRITE_HASTATUS1(shire_id, neigh_id, data)                                   \
+    write_esr_new(PP_MESSAGES, shire_id, REGION_NEIGHBOURHOOD, neigh_id,            \
                   ETSOC_NEIGH_ESR_HASTATUS1_BYTE_ADDRESS, data, 0)
 
 /* Functions required by minion run control APIs*/
@@ -145,11 +161,11 @@ uint32_t read_dmctrl(void);
 void write_dmctrl(uint32_t data);
 void assert_halt(void);
 void deassert_halt(void);
-bool wait_till_core_halt(void);
-void select_hart_op(uint64_t shire_id, uint64_t neigh_id, uint16_t hart_mask);
-void unselect_hart_op(uint64_t shire_id, uint64_t neigh_id, uint16_t hart_mask);
-bool workarround_resume_pre(void);
-bool workarround_resume_post(void);
+void select_hart_op(uint8_t shire_id, uint8_t neigh_id, uint16_t hart_mask);
+void unselect_hart_op(uint8_t shire_id, uint8_t neigh_id, uint16_t hart_mask);
+void disable_shire_neigh(uint8_t shire_id, uint8_t neigh_id);
+void enable_shire_neigh(uint8_t shire_id, uint8_t neigh_id);
+uint64_t get_enabled_harts(uint8_t shire_id);
 
 /* Functions required by minion state control APIs*/
 uint64_t read_nxdata0(uint64_t hart_id);

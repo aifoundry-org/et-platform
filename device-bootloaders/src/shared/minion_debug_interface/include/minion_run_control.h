@@ -26,21 +26,21 @@
 #include <esperanto/device-apis/management-api/device_mgmt_api_rpc_types.h>
 
 /* Hart Selection */
-/*! \fn void Select_Harts(uint64_t shire_mask, uint64_t thread_mask)
+/*! \fn void Select_Harts(uint8_t shire_mask, uint8_t thread_mask)
     \brief Select the Harts specified by shire_mask/thread_mask
     \param shire_id Active shire ID
     \param thread_mask Hart Thread mask
     \returns None
 */
-void Select_Harts(uint64_t shire_id, uint64_t thread_mask);
+void Select_Harts(uint8_t shire_id, uint8_t thread_mask);
 
-/*! \fn void Unselect_Harts(uint64_t shire_mask, uint64_t thread_mask)
+/*! \fn void Unselect_Harts(uint8_t shire_mask, uint8_t thread_mask)
     \brief Unselect the Hart specified by shire_mask/thread_mask
     \param shire_id  Active shire ID
     \param thread_mask  Hart Thread mask
     \returns None
 */
-void Unselect_Harts(uint64_t shire_id, uint64_t thread_mask);
+void Unselect_Harts(uint8_t shire_id, uint8_t thread_mask);
 
 /* Hart Control */
 /*! \fn bool Halt_Harts(void)
@@ -58,7 +58,8 @@ bool Halt_Harts(void);
 bool Resume_Harts(void);
 
 /*! \fn bool Check_Running(void)
-    \brief This function returns True if selected harts are running
+    \brief This function returns True if selected harts are running. It DOESN'T implement the workaround for
+           Errata 1.18 so minion 0 on each neigh needs to be selected and enabled when this function is called
     \param None 
     \returns bool
 */

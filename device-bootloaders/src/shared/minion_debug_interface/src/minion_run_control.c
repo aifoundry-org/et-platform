@@ -17,20 +17,16 @@
 bool Halt_Harts()
 {
     assert_halt();
-    bool all_halted = wait_till_core_halt();
+    bool all_halted = WAIT(Check_Halted());
     deassert_halt();
     return all_halted;
 }
 
 bool Resume_Harts()
 {
-    if (!workarround_resume_pre())
-    {
-        return false;
-    }
     uint32_t current_dmctrl = read_dmctrl() | DMCTRL_RES_MASK;
     write_dmctrl(current_dmctrl);
-    return (workarround_resume_post());
+    return WAIT(Check_Running());
 }
 
 bool Check_Halted()
@@ -47,20 +43,14 @@ bool Check_Running()
     return (RUNNING(treel2) && (!no_harts_enabled));
 }
 
-void Select_Harts(uint64_t shire_id, uint64_t thread_mask)
+void Select_Harts(uint8_t shire_id, uint8_t neigh_id)
 {
-    select_hart_op(shire_id, NEIGH_ID_0, NEIGH_MASK(thread_mask, NEIGH_ID_0));
-    select_hart_op(shire_id, NEIGH_ID_1, NEIGH_MASK(thread_mask, NEIGH_ID_1));
-    select_hart_op(shire_id, NEIGH_ID_2, NEIGH_MASK(thread_mask, NEIGH_ID_2));
-    select_hart_op(shire_id, NEIGH_ID_3, NEIGH_MASK(thread_mask, NEIGH_ID_3));
+    select_hart_op(shire_id, neigh_id, NEIGH_MASK);
 }
 
-void Unselect_Harts(uint64_t shire_id, uint64_t thread_mask)
+void Unselect_Harts(uint8_t shire_id, uint8_t neigh_id)
 {
-    unselect_hart_op(shire_id, NEIGH_ID_0, NEIGH_MASK(thread_mask, NEIGH_ID_0));
-    unselect_hart_op(shire_id, NEIGH_ID_1, NEIGH_MASK(thread_mask, NEIGH_ID_1));
-    unselect_hart_op(shire_id, NEIGH_ID_2, NEIGH_MASK(thread_mask, NEIGH_ID_2));
-    unselect_hart_op(shire_id, NEIGH_ID_3, NEIGH_MASK(thread_mask, NEIGH_ID_2));
+    unselect_hart_op(shire_id, neigh_id, NEIGH_MASK);
 }
 
 void Set_PC(uint64_t hart_id, uint64_t pc)

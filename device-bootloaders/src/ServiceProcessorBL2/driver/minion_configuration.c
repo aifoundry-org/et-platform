@@ -35,6 +35,7 @@
         Minion_State_Set_Hang_Error_Threshold
         Minion_State_Get_Exception_Error_Count
         Minion_State_Get_Hang_Error_Count
+        Minion_VPU_RF_Init
 */
 /***********************************************************************/
 #include <stdio.h>
@@ -49,6 +50,9 @@
 #include "FreeRTOS.h"
 #include "timers.h"
 #include "bl2_otp.h"
+
+#include "minion_state_inspection.h"
+#include "minion_run_control.h"
 
 /*!
  * @struct struct minion_event_control_block
@@ -1426,4 +1430,82 @@ int8_t disable_sram_and_icache_interrupts(void)
         )
 
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*      Minion_VPU_RF_Init
+*
+*   DESCRIPTION
+*
+*      This function clears up all Compute Shires Minion VPU RF.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       status   Status indicating success or negative error
+*
+************************************************************************/
+int8_t Minion_VPU_RF_Init(uint64_t shire_mask)
+{
+    uint8_t  highest_shireid;
+
+    if(0 != shire_mask)
+    {
+        highest_shireid = get_highest_set_bit_offset(shire_mask);
+   }
+    else
+    {
+        return 0;
+    }
+
+   for(uint8_t shireid=0; shireid <= highest_shireid; shireid++)
+   {
+      /* Select all Neighs in Shire */
+      Select_Harts(shireid, 0x0);
+      Select_Harts(shireid, 0x1);
+      Select_Harts(shireid, 0x2);
+      Select_Harts(shireid, 0x3);
+
+      assert_halt();
+
+      /* Enable all Minions in all Neighs in this Shire */
+      enable_shire_neigh(shireid, 0x0);
+      enable_shire_neigh(shireid, 0x1);
+      enable_shire_neigh(shireid, 0x2);
+      enable_shire_neigh(shireid, 0x3);
+
+      /* Wait for all Harts in Shire to halt */
+      if (!WAIT(Check_Halted()))
+      {
+          return 0;
+      }
+
+      /* Execute VPU init sequence on each Harts within this Shire */
+      uint64_t start_hart_id = (uint64_t)(shireid * HARTS_PER_NEIGH * NUM_NEIGH_PER_SHIRE);
+      uint64_t last_hart_id = start_hart_id + (HARTS_PER_NEIGH*NUM_NEIGH_PER_SHIRE);
+      for(uint64_t hartid=start_hart_id ; hartid < last_hart_id; hartid++)
+      {
+          VPU_RF_Init(hartid);
+      }
+
+      /* Disable all Minions in all Neighs in this Shire */
+      disable_shire_neigh(shireid,0x0);
+      disable_shire_neigh(shireid,0x1);
+      disable_shire_neigh(shireid,0x2);
+      disable_shire_neigh(shireid,0x3);
+
+      /* Unselect all Neighs in Shire */
+      Unselect_Harts(shireid, 0x0);
+      Unselect_Harts(shireid, 0x1);
+      Unselect_Harts(shireid, 0x2);
+      Unselect_Harts(shireid, 0x3);
+   }
+
+  return SUCCESS;
 }

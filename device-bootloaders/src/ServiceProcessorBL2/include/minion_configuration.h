@@ -319,4 +319,12 @@ int8_t enable_sram_and_icache_interrupts(void);
 */
 int8_t disable_sram_and_icache_interrupts(void);
 
+/*! \fn int8_t Minion_VPU_RF_Init(uint64_t shire_mask) 
+    \brief This function initialized the VPU RF for all Minion.
+           listed on the shire_mask
+    \param shire_mask Shire Mask
+    \return Status indicating success or negative error
+*/
+int8_t Minion_VPU_RF_Init(uint64_t shire_mask);
+
 #endif
