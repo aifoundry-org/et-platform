@@ -49,9 +49,8 @@ class DeviceLayerConan(ConanFile):
         self.requires("deviceApi/0.1.0")
         # IDeviceLayerMock.h
         self.requires("gtest/1.8.1")
-
-    def build_requirements(self):
-        self.test_requires("cmake-modules/[>=0.4.1 <1.0.0]")
+        
+        self.requires("cmake-modules/[>=0.4.1 <1.0.0]")
     
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
