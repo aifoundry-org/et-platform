@@ -102,6 +102,7 @@ public:
     void cb_drain(uint32_t shire_id, uint32_t cache_bank);
     void l2_flush(uint32_t shire_id, uint32_t cache_bank);
     void l2_evict(uint32_t shire_id, uint32_t cache_bank);
+    void l1_evict_all(uint32_t shire_id, uint32_t minion_id);
     void l1_evict_sw(uint32_t shire_id, uint32_t minion_id, uint32_t set, uint32_t way);
     void l1_flush_sw(uint32_t shire_id, uint32_t minion_id, uint32_t set, uint32_t way);
     void mcache_control_up(uint32_t shire_id, uint32_t minion_id, uint32_t val);

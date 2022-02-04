@@ -17,6 +17,10 @@
 #include "processor.h"
 #include "utility.h"
 
+#ifdef SYS_EMU
+#include "sys_emu.h"
+#endif
+
 namespace bemu {
 
 
@@ -136,6 +140,23 @@ void insn_slti(Hart& cpu)
 {
     DISASM_RD_RS1_IIMM("slti");
     WRITE_RD(int64_t(RS1) < IIMM);
+#ifdef SYS_EMU
+    if (cpu.inst.rs1() || cpu.inst.rd()) return;
+    // SW hints are encoded as `slti x0,x0,hint`.
+    // For a reference of available hints, see [Interface with DV environment][1].
+    // Note: This is a late addition, so most of these hints are not actually implemented.
+    //
+    // [1]: https://esperantotech.atlassian.net/wiki/spaces/VE/pages/221216827/Interface+between+assembly+test+and+EVL+DV+environment
+    switch (IIMM) {
+    case 0x602: { // L1 eviction for the given minion (sysemu only).
+        if (cpu.chip->emu()->get_mem_check()) {
+            cpu.chip->emu()->get_mem_checker().l1_evict_all(shire_index(cpu), core_index(cpu));
+        }
+        break;
+    }
+    default:;
+    }
+#endif
 }
 
 
