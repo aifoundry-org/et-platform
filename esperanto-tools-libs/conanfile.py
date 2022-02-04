@@ -43,9 +43,8 @@ class RuntimeConan(ConanFile):
         
         self.requires("cereal/1.3.1")
         self.requires("elfio/3.8")
-    
-    def build_requirements(self):
-        self.test_requires("cmake-modules/[>=0.4.1 <1.0.0]")
+        
+        self.requires("cmake-modules/[>=0.4.1 <1.0.0]")
     
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
