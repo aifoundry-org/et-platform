@@ -34,17 +34,6 @@
 #include "system/layout.h"
 #include "hwinc/hal_device.h"
 
-#define SP_DEV_INTF_BAR0_SIZE                      \
-        SP_DM_SCRATCH_REGION_SIZE  +               \
-        SP_TRACE_BUFFER_SIZE       +               \
-        MM_TRACE_BUFFER_SIZE       +               \
-        CM_SMODE_TRACE_BUFFER_SIZE
-
-#define SP_DEV_INTF_BAR2_SIZE                      \
-        R_PU_TRG_PCIE_SIZE   +                     \
-        R_PU_MBOX_PC_SP_SIZE +                     \
-        R_PU_MBOX_PC_MM_SIZE
-
 /*! \var Gbl_SP_DIRs
     \brief Global static instance of Service Processors
     Device Interface Registers
@@ -297,6 +286,5 @@ void DIR_Generic_Attributes_Init(void)
     /* Populate the device generic attributes */
     Gbl_SP_DIRs->generic_attr.minion_boot_freq = (uint32_t)Get_Minion_Frequency();
     get_module_tdp_level((uint8_t *)&Gbl_SP_DIRs->generic_attr.device_tdp);
-
     return;
 }

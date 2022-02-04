@@ -26,6 +26,15 @@
 #include "hwinc/hal_device.h"
 #include "system/layout.h"
 
+/**********************/
+/* BAR Configuration  */
+/**********************/
+/* Note BAR 0 must be aligned to 2^N 1 MB (16MB) */
+#define SP_DEV_INTF_BAR0_SIZE      0x1000000ULL
+
+/* Note BAR 2 must be aligned to 2^N 1 KB  (16KB)*/
+#define SP_DEV_INTF_BAR2_SIZE      0x4000ULL 
+
 /************************************************/
 /*      - PC_SP secure mailbox layout (4K) -    */
 /*      user         base-offset      size      */
@@ -453,6 +462,29 @@ static_assert((SP_SQ_BASE_ADDRESS + (SP_SQ_COUNT * SP_SQ_SIZE) - 1) < SP_CQ_BASE
 /* Ensure that SP SQs and CQs size is within limits */
 static_assert(((SP_SQ_COUNT * SP_SQ_SIZE) + (SP_CQ_COUNT * SP_CQ_SIZE)) <= SP_VQ_BAR_SIZE,
               "SP VQs size not within limits.");
+
+/**************************************************************/
+/* BAR 0 sub memory                                           */
+/* Pls make sure to update this equation as BAR 0 is expended */
+/**************************************************************/
+/* Check that expose BAR 0 size is enough to fit relevant memory */
+static_assert((SP_DM_SCRATCH_REGION_SIZE +
+               SP_TRACE_BUFFER_SIZE      +
+               MM_TRACE_BUFFER_SIZE      +
+               CM_SMODE_TRACE_BUFFER_SIZE) <= 
+               SP_DEV_INTF_BAR0_SIZE,
+               "Sub memory regions dont fit BAR 0 exposed size");
+
+/**************************************************************/
+/* BAR 2 sub memory                                           */
+/* Pls make sure to update this equation as BAR 2 is expended */
+/**************************************************************/
+/* Check that expose BAR 2 size is enough to fit relevant memory */
+static_assert((R_PU_TRG_PCIE_SIZE   +
+               R_PU_MBOX_PC_SP_SIZE +
+               R_PU_MBOX_PC_MM_SIZE) <=
+               SP_DEV_INTF_BAR2_SIZE,
+               "Sub memory regions dont fit BAR 2 exposed size");
 
 #endif /* __ASSEMBLER__ */
 

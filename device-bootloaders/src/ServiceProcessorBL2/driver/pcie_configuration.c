@@ -42,10 +42,11 @@ static void pcie_ce_error(void);
 static void pcie_uce_error(void);
 static void reconfig_noc_pshire(void);
 
+
 /*! \def BAR2_SIZE
     \brief BAR Sizes must be powers of 2 per the PCIe spec. Round up to next biggest power of 2.
 */
-#define BAR2_SIZE 0x000000000003FFFFULL /*256kb*/
+#define BAR2_SIZE (SP_DEV_INTF_BAR2_SIZE - 1ULL) 
 
 /*! \def BAR_IN_MEM_SPACE
     \brief BARs in memory space
@@ -60,12 +61,12 @@ static void reconfig_noc_pshire(void);
 /*! \def BAR_ENABLE
     \brief BAr Enable mask
 */
-#define BAR_ENABLE 1
+#define BAR_ENABLE 1ULL
 
 /*! \def BAR_DISABLE
     \brief BAR disable mask
 */
-#define BAR_DISABLE 0
+#define BAR_DISABLE 0U
 
 /*! \def FB_MODE_FIGURE_OF_MERIT
     \brief Set FB MODE
@@ -333,13 +334,13 @@ static void pcie_init_bars(void)
     /* BAR0 has the resizeable BAR capability setup. It ignores the mask register (except for the
        enable bit), and instead bases it's size on RESBAR_CTRL_REG_BAR_SIZE. */
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_DBI2_BAR0_MASK_REG_ADDRESS,
-              BAR_ENABLE);
+              (uint32_t)BAR_ENABLE);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_DBI2_BAR1_MASK_REG_ADDRESS,
               BAR_DISABLE);
 
     /* All other BARs are not resizeable, and use the mask register to set size */
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_DBI2_BAR2_MASK_REG_ADDRESS,
-              (uint32_t)(BAR2_SIZE & 0xFFFFFFFFUL) | BAR_ENABLE);
+              (uint32_t)((BAR2_SIZE | BAR_ENABLE ) & 0xFFFFFFFFULL));
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_DBI2_BAR3_MASK_REG_ADDRESS,
               (uint32_t)((BAR2_SIZE >> 32) & 0xFFFFFFFFULL));
 
@@ -348,20 +349,20 @@ static void pcie_init_bars(void)
       for accessing things like the MSI-X table, which is in RAM contained in the IP block. */
 
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_DBI2_EXP_ROM_BAR_MASK_REG_ADDRESS,
-              BAR_DISABLE);
+             BAR_DISABLE);
 
     /* Only allow the host to size BAR0 to 32GB */
     iowrite32(
         PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CAP_REG_0_REG_ADDRESS,
-        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CAP_REG_0_REG_RESBAR_CAP_REG_0_32GB_SET(
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CAP_REG_0_REG_RESBAR_CAP_REG_0_16MB_SET(
             1));
 
-    /* Default BAR0 to 32GB. 32GB = 2^35. BAR size is encoded as
-       2^(RESBAR_CTRL_REG_BAR_SIZE + 20) - set to 15 to get 32GB. */
+    /* Default BAR0 to 16MB. 16MB = 2^24. BAR size is encoded as
+       2^(RESBAR_CTRL_REG_BAR_SIZE + 20). */
     iowrite32(
         PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CTRL_REG_0_REG_ADDRESS,
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CTRL_REG_0_REG_RESBAR_CTRL_REG_BAR_SIZE_SET(
-            15));
+            4));
 
     /* BAR0 config (maps DRAM) */
     bar0 = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
