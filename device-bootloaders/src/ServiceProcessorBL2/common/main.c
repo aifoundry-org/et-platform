@@ -135,12 +135,17 @@ static void taskMain(void *pvParameters)
 #endif
 #endif
 
+    /* Print Pshire PVT sampled values */
+    pvt_print_voltage_sampled_values(PVTC_PSHIRE);
+
     // Extract the active Compute Minions based on fuse
     minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
     Minion_Set_Active_Shire_Mask(minion_shires_mask);
 
-    /* Print PVT sampled values */
-    pvt_print_voltage_sampled_values(PVTC_PSHIRE);
+    // Initialize Minions 
+    Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]Initialize_Minions\n");
+    status = Initialize_Minions(minion_shires_mask);
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Minion initialization failed!")
 
     // Initialize Host to Service Processor Interface
 #if !TEST_FRAMEWORK
@@ -179,7 +184,7 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_noc() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED);
 
-    /* Print PVT sampled values */
+    /* Print IOSHIRE PVT sampled values */
     pvt_print_temperature_sampled_values(PVTC_IOSHIRE);
     pvt_print_voltage_sampled_values(PVTC_IOSHIRE);
 
@@ -208,17 +213,17 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_memshire() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
 
-    /* Print PVT sampled values */
+    /* Print MemShire PVT sampled values */
     pvt_print_voltage_sampled_values(PVTC_MEMSHIRE);
 
     /* Setup Compute Minions Shire Clocks and bring them out of Reset */
     uint8_t lvdpll_strap_pins;
     lvdpll_strap_pins = get_lvdpll_strap_value();
 
-    status = Minion_Configure_Minion_Clock_Reset(minion_shires_mask,
-                                                 min_step_pll_mode[hpdpll_strap_pins],
-                                                 min_lvdpll_mode[lvdpll_strap_pins],
-                                                 true /*Use Step Clock*/);
+    status = Minion_Configure_Minion_Shire_PLL(minion_shires_mask,
+                                               min_step_pll_mode[hpdpll_strap_pins],
+                                               min_lvdpll_mode[lvdpll_strap_pins],
+                                               false /*Use Step Clock*/);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Enable Compute Minion failed!")
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);
@@ -247,10 +252,6 @@ static void taskMain(void *pvParameters)
     launch_mm_sp_command_handler();
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_COMMAND_DISPATCHER_INITIALIZED);
-
-    // Enable Compute Minion Shire Caches and Neighbourhoods
-    status = Minion_Enable_Shire_Cache_and_Neighborhoods(minion_shires_mask);
-    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to enable minion neighborhoods!")
 
     /* Initialize the Cache Size DIRs */
     DIR_Cache_Size_Init();

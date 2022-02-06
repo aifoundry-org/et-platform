@@ -58,15 +58,16 @@
  * @struct struct minion_event_control_block
  * @brief Minion error event mgmt control block
  */
-struct minion_event_control_block {
-    uint64_t mm_heartbeat_count; /**< counter to track MM heartbeat. */
-    uint32_t except_count;       /**< Exception error count. */
-    uint32_t hang_count;         /**< Hang error count. */
-    uint32_t except_threshold;   /**< Exception error count threshold. */
-    uint32_t hang_threshold;     /**< Hang error count threshold. */
-    uint64_t active_shire_mask;  /**< active shire number mask. */
+struct minion_event_control_block
+{
+    uint64_t mm_heartbeat_count;    /**< counter to track MM heartbeat. */
+    uint32_t except_count;          /**< Exception error count. */
+    uint32_t hang_count;            /**< Hang error count. */
+    uint32_t except_threshold;      /**< Exception error count threshold. */
+    uint32_t hang_threshold;        /**< Hang error count threshold. */
+    uint64_t active_shire_mask;     /**< active shire number mask. */
     dm_event_isr_callback event_cb; /**< Event callback handler. */
-    bool     mm_watchdog_initialized; /**< Track state of mm watchdog. */
+    bool mm_watchdog_initialized;   /**< Track state of mm watchdog. */
 };
 
 /* The driver can populate this structure with the defaults that will be used during the init
@@ -79,23 +80,22 @@ static TimerHandle_t MM_HeartBeat_Timer;
 static StaticTimer_t MM_Timer_Buffer;
 
 /* Macro to increment exception error counter and send event to host */
-#define MINION_EXCEPT_ERROR_EVENT_HANDLE(error_type, error_code)                   \
-    /* Update error count */                                                       \
-    if(++event_control_block.except_count > event_control_block.except_threshold)  \
-    {                                                                              \
-        struct event_message_t message;                                            \
-                                                                                   \
-        /* Reset the errors counter */                                             \
-        event_control_block.except_count = 0;                                      \
-                                                                                   \
-        /* Add details in message header and fill payload */                       \
-        FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH,                       \
-                            sizeof(struct event_message_t))                        \
-        FILL_EVENT_PAYLOAD(&message.payload, WARNING,                              \
-            event_control_block.except_count, error_type, (uint32_t)error_code)    \
-                                                                                   \
-        /* Call the callback function and post message */                          \
-        event_control_block.event_cb(CORRECTABLE, &message);                       \
+#define MINION_EXCEPT_ERROR_EVENT_HANDLE(error_type, error_code)                             \
+    /* Update error count */                                                                 \
+    if (++event_control_block.except_count > event_control_block.except_threshold)           \
+    {                                                                                        \
+        struct event_message_t message;                                                      \
+                                                                                             \
+        /* Reset the errors counter */                                                       \
+        event_control_block.except_count = 0;                                                \
+                                                                                             \
+        /* Add details in message header and fill payload */                                 \
+        FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH, sizeof(struct event_message_t)) \
+        FILL_EVENT_PAYLOAD(&message.payload, WARNING, event_control_block.except_count,      \
+                           error_type, (uint32_t)error_code)                                 \
+                                                                                             \
+        /* Call the callback function and post message */                                    \
+        event_control_block.event_cb(CORRECTABLE, &message);                                 \
     }
 
 /* This Threashold voltage would need to be extracted from OTP */
@@ -122,7 +122,7 @@ static uint64_t g_active_shire_mask = 0;
 /*! \def TIMEOUT_PLL_LOCK
     \brief lock timeout for PLL
 */
-#define TIMEOUT_PLL_LOCK   100000
+#define TIMEOUT_PLL_LOCK 100000
 
 /*==================== Function Separator =============================*/
 
@@ -169,14 +169,14 @@ static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode, bool use_step_clock)
+static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode)
 {
     int status = SUCCESS;
     uint64_t dll_fail_mask = 0;
     uint64_t pll_fail_mask = 0;
     uint8_t num_shires;
 
-    if(0 != shire_mask)
+    if (0 != shire_mask)
     {
         num_shires = get_highest_set_bit_offset(shire_mask);
     }
@@ -186,34 +186,33 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode, boo
     }
     for (uint8_t i = 0; i <= num_shires; i++)
     {
-        if (shire_mask & 1) {
+        if (shire_mask & 1)
+        {
             SWITCH_CLOCK_MUX(i, SELECT_REF_CLOCK)
-            if(0 != dll_config(i))
+            if (0 != dll_config(i))
             {
                 status = MINION_PLL_DLL_CONFIG_ERROR;
                 dll_fail_mask = dll_fail_mask | (uint64_t)(1 << i);
             }
-            SWITCH_CLOCK_MUX(i, SELECT_STEP_CLOCK)
-            if(0 != config_lvdpll_freq_full(i, mode))
+
+            if (0 != config_lvdpll_freq_full(i, mode))
             {
                 status = MINION_PLL_DLL_CONFIG_ERROR;
                 pll_fail_mask = pll_fail_mask | (uint64_t)(1 << i);
             }
-            if(!use_step_clock)
-            {
-                SWITCH_CLOCK_MUX(i, SELECT_PLL_CLOCK_0)
-            }
+
+            SWITCH_CLOCK_MUX(i, SELECT_PLL_CLOCK_0)
 
             lvdpll_clear_lock_monitor(i);
         }
         shire_mask >>= 1;
     }
-    if(status != SUCCESS)
+    if (status != SUCCESS)
     {
         Log_Write(LOG_LEVEL_ERROR, "minion_configure_plls_and_dlls(): DLL failed mask %lu!\n",
-                    dll_fail_mask);
+                  dll_fail_mask);
         Log_Write(LOG_LEVEL_ERROR, "minion_configure_plls_and_dlls(): PLL failed mask %lu!\n",
-                    pll_fail_mask);
+                  pll_fail_mask);
     }
     return status;
 }
@@ -242,7 +241,7 @@ int print_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask)
     uint8_t num_shires;
     uint16_t lock_monitor;
 
-    if(0 != shire_mask)
+    if (0 != shire_mask)
     {
         num_shires = get_highest_set_bit_offset(shire_mask);
     }
@@ -253,11 +252,13 @@ int print_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask)
 
     for (uint8_t i = 0; i <= num_shires; i++)
     {
-        if (shire_mask & 1) {
+        if (shire_mask & 1)
+        {
             lvdpll_read_lock_monitor(i, &lock_monitor);
             if (0 != lock_monitor)
             {
-                Log_Write(LOG_LEVEL_WARNING, "MINSHIRE %d PLL lock monitor: %d\n", i, lock_monitor & 0x3F);
+                Log_Write(LOG_LEVEL_WARNING, "MINSHIRE %d PLL lock monitor: %d\n", i,
+                          lock_monitor & 0x3F);
             }
         }
         shire_mask >>= 1;
@@ -289,7 +290,7 @@ int clear_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask)
 {
     uint8_t num_shires;
 
-    if(0 != shire_mask)
+    if (0 != shire_mask)
     {
         num_shires = get_highest_set_bit_offset(shire_mask);
     }
@@ -300,7 +301,8 @@ int clear_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask)
 
     for (uint8_t i = 0; i <= num_shires; i++)
     {
-        if (shire_mask & 1) {
+        if (shire_mask & 1)
+        {
             lvdpll_clear_lock_monitor(i);
         }
         shire_mask >>= 1;
@@ -358,7 +360,7 @@ static void MM_HeartBeat_Timer_Cb(xTimerHandle pxTimer)
 *
 *   FUNCTION
 *
-*       Minion_Enable_Shire_Cache_and_Neighborhoods
+*       enable_minion_shire 
 *
 *   DESCRIPTION
 *
@@ -373,10 +375,10 @@ static void MM_HeartBeat_Timer_Cb(xTimerHandle pxTimer)
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask)
+static int enable_minion_shire(uint64_t shire_mask)
 {
     uint8_t num_shires;
-    if(0 != shire_mask)
+    if (0 != shire_mask)
     {
         num_shires = get_highest_set_bit_offset(shire_mask);
     }
@@ -384,23 +386,26 @@ int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask)
     {
         return MINION_INVALID_SHIRE_MASK;
     }
+
     for (uint8_t i = 0; i <= num_shires; i++)
     {
         if (shire_mask & 1)
         {
+            SWITCH_CLOCK_MUX(i, SELECT_REF_CLOCK)
             /* Set Shire ID, enable cache and all Neighborhoods */
             const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(i) |
                                     ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(1) |
                                     ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(0xF);
             write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
-                                 ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
+                          ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
             read_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
-                                ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
+                         ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
 
+            //NOSONAR Minion_VPU_RF_Init(i);
         }
         shire_mask >>= 1;
     }
-    return 0;
+    return SUCCESS;
 }
 
 /************************************************************************
@@ -424,38 +429,42 @@ int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask)
 ***********************************************************************/
 int Minion_Enable_Master_Shire_Threads(void)
 {
-   uint8_t mm_id = 0;
-   int status;
-   uint32_t yield_priority = 0x1; 
-   uint64_t sc_esr;
+    uint8_t mm_id = 0;
+    int status;
+    uint32_t yield_priority = 0x1;
+    uint64_t sc_esr;
 
-   // Extract Master Minion Shire ID from Fuses
-   status = otp_get_master_shire_id(&mm_id);
-   if (status != STATUS_SUCCESS)
-   {
-      Log_Write(LOG_LEVEL_ERROR, "Failed to read master minion shire ID"); 
-   }
-   
-  // If ID Value wasn't burned into fuse, use default value
-  if (mm_id == 0xff){
-      Log_Write(LOG_LEVEL_WARNING,"Master shire ID was not found in the OTP, using default value of 32!\n");
-      mm_id = 32;
-  }
-   
-  // Set SC REQQ to distribute arbritration equally between Neigh/L3 Slave
-  for (uint8_t bank = 0; bank < 4; bank++ ) {
-      sc_esr = read_esr_new(PP_MACHINE, mm_id, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
-      ETSOC_SHIRE_CACHE_ESR_SC_REQQ_CTL_ADDRESS, bank);
-      sc_esr = ETSOC_SHIRE_CACHE_ESR_SC_REQQ_CTL_ESR_SC_L3_YIELD_PRIORITY_MODIFY(sc_esr, yield_priority);
-      write_esr_new(PP_MACHINE, mm_id, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
-                    ETSOC_SHIRE_CACHE_ESR_SC_REQQ_CTL_ADDRESS, sc_esr, bank);
-     }
-   
-  /* Enable only Device Runtime threads on Master Shire */
-  write_esr_new(PP_MACHINE, mm_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
-                ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_ADDRESS, ~(MM_RT_THREADS), 0);
+    // Extract Master Minion Shire ID from Fuses
+    status = otp_get_master_shire_id(&mm_id);
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to read master minion shire ID");
+    }
 
-  return 0;
+    // If ID Value wasn't burned into fuse, use default value
+    if (mm_id == 0xff)
+    {
+        Log_Write(LOG_LEVEL_WARNING,
+                  "Master shire ID was not found in the OTP, using default value of 32!\n");
+        mm_id = 32;
+    }
+
+    // Set SC REQQ to distribute arbritration equally between Neigh/L3 Slave
+    for (uint8_t bank = 0; bank < 4; bank++)
+    {
+        sc_esr = read_esr_new(PP_MACHINE, mm_id, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+                              ETSOC_SHIRE_CACHE_ESR_SC_REQQ_CTL_ADDRESS, bank);
+        sc_esr = ETSOC_SHIRE_CACHE_ESR_SC_REQQ_CTL_ESR_SC_L3_YIELD_PRIORITY_MODIFY(sc_esr,
+                                                                                   yield_priority);
+        write_esr_new(PP_MACHINE, mm_id, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
+                      ETSOC_SHIRE_CACHE_ESR_SC_REQQ_CTL_ADDRESS, sc_esr, bank);
+    }
+
+    /* Enable only Device Runtime threads on Master Shire */
+    write_esr_new(PP_MACHINE, mm_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                  ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_ADDRESS, ~(MM_RT_THREADS), 0);
+
+    return 0;
 }
 /************************************************************************
 *
@@ -492,18 +501,18 @@ int Master_Minion_Reset(uint64_t shires_mask)
 
     /* Read current Shire Config value */
     uint64_t config = read_esr_new(PP_MACHINE, MM_MASTER_SHIRE_ID, REGION_OTHER,
-                                    ESR_OTHER_SUBREGION_OTHER,
-                                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
+                                   ESR_OTHER_SUBREGION_OTHER,
+                                   ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
 
     /* Disable Neighborhood */
     uint64_t cfg = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, disable_neig_mask);
     write_esr_new(PP_MACHINE, MM_MASTER_SHIRE_ID, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
-                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, cfg, 0);
+                  ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, cfg, 0);
 
     /* Enable Neighborhood */
     cfg = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, enable_neig_mask);
     write_esr_new(PP_MACHINE, MM_MASTER_SHIRE_ID, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
-                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, cfg, 0);
+                  ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, cfg, 0);
 
     return 0;
 }
@@ -560,7 +569,7 @@ int Compute_Minion_Reset_Threads(uint64_t shires_mask)
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-int Minion_Shire_Update_Voltage( uint8_t voltage)
+int Minion_Shire_Update_Voltage(uint8_t voltage)
 {
     return pmic_set_voltage(MINION, voltage);
 }
@@ -595,79 +604,92 @@ int Minion_Get_Voltage_Given_Freq(int32_t target_frequency)
 *
 *   FUNCTION
 *
-*       Minion_Program_Step_Clock_PLL
+*       Minion_Configure_Minion_Shire_PLL
 *
 *   DESCRIPTION
 *
-*       This function provide support to program the
-        Minion Shire Step Clock which is coming from
-        IO Shire HDPLL 4.
-*
-*   INPUTS
-*
-*       mode     value of the freq(in mode) to updated to
-*
-*   OUTPUTS
-*
-*       The function call status, pass/fail
-*
-***********************************************************************/
-int Minion_Program_Step_Clock_PLL(uint8_t mode)
-{
-    configure_sp_pll_4(mode);
-
-    return 0;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Minion_Configure_Minion_Clock_Reset
-*
-*   DESCRIPTION
-*
-*       This function configures the Minion PLLs to Step Clock, and bring them
-*       out of reset.
+*       This function configures the Minion Shire PLLs 
 *
 *   INPUTS
 *
 *       minion_shires_mask  Shire Mask to enable
-*       Frequency mode to bring up Minions
+*       hpdpll_mode - value of the Step Clock freq(in mode) to updated to
+*       lvdpll_mode - value of Minion LVDPLLL freq(in mode)
+*       use_step_clock - Option to have Minion Shire use Step Clock
 *
 *   OUTPUTS
 *
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-int Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t hdpll_mode, uint8_t lvdpll_mode, bool use_step_clock)
+int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpll_mode,
+                                      uint8_t lvdpll_mode, bool use_step_clock)
 {
-
-    /* TODO: Update Minion Voltage if neccesary
-      Minion_Shire_Voltage_Update(voltage);
-    */
-    /* Configure Minon Step clock to 650 Mhz */
-    if (0 != Minion_Program_Step_Clock_PLL(hdpll_mode)) {
-        Log_Write(LOG_LEVEL_ERROR, "configure_sp_pll_4() failed!\n");
-        return MINION_STEP_CLOCK_CONFIGURE_ERROR;
+    if (use_step_clock)
+    {
+        if (0 != configure_sp_pll_4(hpdpll_mode))
+        {
+            Log_Write(LOG_LEVEL_ERROR, "configure_sp_pll_4() failed!\n");
+            return MINION_STEP_CLOCK_CONFIGURE_ERROR;
+        }
+    }
+    else if (0 != minion_configure_plls_and_dlls(minion_shires_mask, lvdpll_mode))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "minion_configure_plls_and_dlls() failed!\n");
+        return MINION_PLL_DLL_CONFIG_ERROR;
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_WARNING, "Minion Shire PLL using Ref Clock\n");
     }
 
-    if (0 != release_minions_from_cold_reset()) {
+    return SUCCESS;
+}
+/************************************************************************
+*
+*   FUNCTION
+*
+*      Initialize_Minions 
+*
+*   DESCRIPTION
+*
+*       This function brings all Minion shire out of reset and enables 
+*       all Shire Cache/Neigh logic, and clears up VPU state
+*
+*
+*   INPUTS
+*
+*       shire_mask - Shire MASK
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int Initialize_Minions(uint64_t shire_mask)
+{
+    /* Update Minion Voltage if neccesary 
+       NOSONAR Minion_Shire_Voltage_Update(new_volt);*/
+
+    if (0 != release_minions_from_cold_reset())
+    {
         Log_Write(LOG_LEVEL_ERROR, "release_minions_from_cold_reset() failed!\n");
         return MINION_COLD_RESET_CONFIG_ERROR;
     }
 
-    if (0 != release_minions_from_warm_reset()) {
+    if (0 != release_minions_from_warm_reset())
+    {
         Log_Write(LOG_LEVEL_ERROR, "release_minions_from_warm_reset() failed!\n");
-        return MINION_WARM_RESET_CONFIG_ERROR ;
+        return MINION_WARM_RESET_CONFIG_ERROR;
     }
 
-    if (0 != minion_configure_plls_and_dlls(minion_shires_mask, lvdpll_mode, use_step_clock)) {
-        Log_Write(LOG_LEVEL_ERROR, "minion_configure_plls_and_dlls() failed!\n");
-        return MINION_PLL_DLL_CONFIG_ERROR;
+    if (0 != enable_minion_shire(shire_mask))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "minions_enable_shire() failed!\n");
+        return MINION_ENABLE_SHIRE_ERROR;
     }
 
-   return SUCCESS;
+    return SUCCESS;
 }
 
 /************************************************************************
@@ -697,19 +719,23 @@ uint64_t Minion_Get_Active_Compute_Minion_Mask(void)
     uint64_t enable_mask = 0;
 
     // 32 Worker Shires: There are 4 OTP entries containing the status of their Neighboorhods
-    for (uint32_t entry = 0; entry < 4; entry++) {
+    for (uint32_t entry = 0; entry < 4; entry++)
+    {
         uint32_t status;
 
         ret = sp_otp_get_neighborhood_status_mask(entry, &status);
-        if (ret < 0) {
+        if (ret < 0)
+        {
             // If the OTP read fails, assume we have to enable all Neighboorhods
             status = 0xFFFFFFFF;
         }
 
         // Each Neighboorhod status OTP entry contains information for 8 Shires
-        for (uint32_t i = 0; i < 8; i++) {
+        for (uint32_t i = 0; i < 8; i++)
+        {
             // Only enable a Shire if *ALL* its Neighboorhods are Functional
-            if ((status & 0xF) == 0xF) {
+            if ((status & 0xF) == 0xF)
+            {
                 enable_mask |= 1ULL << (entry * 8 + i);
             }
             status >>= 4;
@@ -718,7 +744,8 @@ uint64_t Minion_Get_Active_Compute_Minion_Mask(void)
 
     // Master Shire Neighboorhods status
     ret = sp_otp_get_neighborhood_status_nh128_nh135_other(&status_other);
-    if ((ret < 0) || ((status_other.B.neighborhood_status & 0xF) == 0xF)) {
+    if ((ret < 0) || ((status_other.B.neighborhood_status & 0xF) == 0xF))
+    {
         enable_mask |= 1ULL << 32;
     }
 
@@ -747,30 +774,34 @@ uint64_t Minion_Get_Active_Compute_Minion_Mask(void)
 ***********************************************************************/
 int Minion_Load_Authenticate_Firmware(void)
 {
-    if (0 != load_sw_certificates_chain()) {
+    if (0 != load_sw_certificates_chain())
+    {
         Log_Write(LOG_LEVEL_ERROR, "Failed to load SW ROOT/Issuing Certificate chain!\n");
         return FW_SW_CERTS_LOAD_ERROR;
     }
 
-    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MACHINE_MINION)) {
+    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MACHINE_MINION))
+    {
         Log_Write(LOG_LEVEL_ERROR, "Failed to load Machine Minion firmware!\n");
         return FW_MACH_LOAD_ERROR;
     }
     Log_Write(LOG_LEVEL_INFO, "MACH FW loaded.\n");
 
-    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MASTER_MINION)) {
+    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MASTER_MINION))
+    {
         Log_Write(LOG_LEVEL_ERROR, "Failed to load Master Minion firmware!\n");
         return FW_MM_LOAD_ERROR;
     }
     Log_Write(LOG_LEVEL_INFO, "MM FW loaded.\n");
 
-    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_WORKER_MINION)) {
+    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_WORKER_MINION))
+    {
         Log_Write(LOG_LEVEL_ERROR, "Failed to load Worker Minion firmware!\n");
         return FW_CM_LOAD_ERROR;
     }
     Log_Write(LOG_LEVEL_INFO, "WM FW loaded.\n");
 
-   return SUCCESS;
+    return SUCCESS;
 }
 
 /************************************************************************
@@ -856,7 +887,7 @@ uint64_t Minion_Read_ESR(uint32_t address)
 int Minion_Write_ESR(uint32_t address, uint64_t data, uint64_t mmshire_mask)
 {
     uint8_t num_shires;
-    if(0 != mmshire_mask)
+    if (0 != mmshire_mask)
     {
         num_shires = get_highest_set_bit_offset(mmshire_mask);
     }
@@ -864,10 +895,12 @@ int Minion_Write_ESR(uint32_t address, uint64_t data, uint64_t mmshire_mask)
     {
         return MINION_INVALID_SHIRE_MASK;
     }
-    for (uint8_t i = 0; i <= num_shires; i++) {
-        if (mmshire_mask & 1) {
-                volatile uint64_t *p = esr_address(PP_MACHINE, i, REGION_MINION, address);
-                *p = data;
+    for (uint8_t i = 0; i <= num_shires; i++)
+    {
+        if (mmshire_mask & 1)
+        {
+            volatile uint64_t *p = esr_address(PP_MACHINE, i, REGION_MINION, address);
+            *p = data;
         }
         mmshire_mask >>= 1;
     }
@@ -902,7 +935,7 @@ int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args)
     cmd.msg_hdr.msg_id = SP2MM_CMD_KERNEL_LAUNCH;
     cmd.msg_hdr.msg_size = sizeof(struct sp2mm_kernel_launch_cmd_t);
     cmd.args = args;
-    cmd.shire_mask=mmshire_mask;
+    cmd.shire_mask = mmshire_mask;
 
     MM_Iface_Push_Cmd_To_SP2MM_SQ(&cmd, sizeof(cmd));
 
@@ -989,28 +1022,31 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
     {
         case DM_CMD_CM_RESET:
             status = Compute_Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask());
-            if (0 != status) {
-                Log_Write(LOG_LEVEL_ERROR, " mm reset svc error: Compute_Minion_Reset_Threads()\r\n");
+            if (0 != status)
+            {
+                Log_Write(LOG_LEVEL_ERROR,
+                          " mm reset svc error: Compute_Minion_Reset_Threads()\r\n");
             }
 
-        break;
+            break;
 
         case DM_CMD_GET_MM_ERROR_COUNT:
             status = mm_get_error_count(&dm_rsp.mm_error_count);
-            if (0 != status) {
+            if (0 != status)
+            {
                 Log_Write(LOG_LEVEL_ERROR, " mm state svc error: get_mm_error_count()\r\n");
             }
-        break
-;
+            break;
         default:
-            Log_Write(LOG_LEVEL_ERROR, " mm state svc error: Invalid Minion State Request id: %d\r\n",msg_id);
+            Log_Write(LOG_LEVEL_ERROR,
+                      " mm state svc error: Invalid Minion State Request id: %d\r\n", msg_id);
             status = -1;
     }
 
-    FILL_RSP_HEADER(dm_rsp, tag_id, msg_id,
-                timer_get_ticks_count() - req_start_time, status)
+    FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_mm_state_rsp_t))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_mm_state_rsp_t)))
+    {
         Log_Write(LOG_LEVEL_ERROR, "Minion_State_Host_Iface_Process_Request: Cqueue push error!\n");
     }
 
@@ -1042,7 +1078,7 @@ void Minion_State_MM_Error_Handler(int32_t error_code)
     {
         case MM_HANG_ERROR:
             /* Update error count for Hang type */
-            if(++event_control_block.hang_count > event_control_block.hang_threshold)
+            if (++event_control_block.hang_count > event_control_block.hang_threshold)
             {
                 struct event_message_t message;
 
@@ -1050,10 +1086,9 @@ void Minion_State_MM_Error_Handler(int32_t error_code)
                 event_control_block.hang_count = 0;
 
                 /* Add details in message header and fill payload */
-                FILL_EVENT_HEADER(&message.header, MINION_HANG_TH,
-                                    sizeof(struct event_message_t))
-                FILL_EVENT_PAYLOAD(&message.payload, WARNING,
-                    event_control_block.hang_count, MM_RUNTIME_HANG_ERROR, (uint32_t)error_code)
+                FILL_EVENT_HEADER(&message.header, MINION_HANG_TH, sizeof(struct event_message_t))
+                FILL_EVENT_PAYLOAD(&message.payload, WARNING, event_control_block.hang_count,
+                                   MM_RUNTIME_HANG_ERROR, (uint32_t)error_code)
 
                 /* Call the callback function and post message */
                 event_control_block.event_cb(CORRECTABLE, &message);
@@ -1107,7 +1142,6 @@ void Minion_State_MM_Error_Handler(int32_t error_code)
 ***********************************************************************/
 void Minion_State_MM_Heartbeat_Handler(void)
 {
-
     /* First time we get a heartbeat, we register watchdog timer */
     if (!event_control_block.mm_watchdog_initialized)
     {
@@ -1120,7 +1154,7 @@ void Minion_State_MM_Heartbeat_Handler(void)
     }
     else
     {
-        if( xTimerReset( MM_HeartBeat_Timer, 0 ) != pdPASS )
+        if (xTimerReset(MM_HeartBeat_Timer, 0) != pdPASS)
         {
             /* The reset command was not executed successfully - Log Error */
             Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer reset failed\n", __func__);
@@ -1349,11 +1383,8 @@ int8_t MM_Init_HeartBeat_Watchdog(void)
     int8_t status = 0;
 
     MM_HeartBeat_Timer = xTimerCreateStatic("MM_HEARTBEAT",
-                                pdMS_TO_TICKS(MM_HEARTBEAT_TIMEOUT_MSEC),
-                                pdFALSE,
-                                (void*)0,
-                                MM_HeartBeat_Timer_Cb,
-                                &MM_Timer_Buffer);
+                                            pdMS_TO_TICKS(MM_HEARTBEAT_TIMEOUT_MSEC), pdFALSE,
+                                            (void *)0, MM_HeartBeat_Timer_Cb, &MM_Timer_Buffer);
     if (!MM_HeartBeat_Timer)
     {
         Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer creation failed\n", __func__);
@@ -1385,15 +1416,13 @@ int8_t MM_Init_HeartBeat_Watchdog(void)
 int8_t enable_sram_and_icache_interrupts(void)
 {
     int8_t status = 0;
-    uint8_t  minshire;
+    uint8_t minshire;
     uint64_t shire_mask;
 
     shire_mask = Minion_Get_Active_Compute_Minion_Mask();
 
     FOR_EACH_MINSHIRE(
-        INT_enableInterrupt(SPIO_PLIC_MINSHIRE_ERR0_INTR + minshire, 1,
-                            sram_and_icache_error_isr);
-        )
+        INT_enableInterrupt(SPIO_PLIC_MINSHIRE_ERR0_INTR + minshire, 1, sram_and_icache_error_isr);)
 
     return status;
 }
@@ -1420,14 +1449,12 @@ int8_t enable_sram_and_icache_interrupts(void)
 int8_t disable_sram_and_icache_interrupts(void)
 {
     int8_t status = 0;
-    uint8_t  minshire;
+    uint8_t minshire;
     uint64_t shire_mask;
 
     shire_mask = Minion_Get_Active_Compute_Minion_Mask();
 
-    FOR_EACH_MINSHIRE(
-        INT_disableInterrupt(SPIO_PLIC_MINSHIRE_ERR0_INTR + minshire);
-        )
+    FOR_EACH_MINSHIRE(INT_disableInterrupt(SPIO_PLIC_MINSHIRE_ERR0_INTR + minshire);)
 
     return status;
 }
@@ -1440,72 +1467,48 @@ int8_t disable_sram_and_icache_interrupts(void)
 *
 *   DESCRIPTION
 *
-*      This function clears up all Compute Shires Minion VPU RF.
+*      This function clears up all Minions Shires Core VPU RF.
 *
 *   INPUTS
 *
-*       None
+*       shireid - Minion Shire ID to initialize
 *
 *   OUTPUTS
 *
 *       status   Status indicating success or negative error
 *
 ************************************************************************/
-int8_t Minion_VPU_RF_Init(uint64_t shire_mask)
+int8_t Minion_VPU_RF_Init(uint8_t shireid)
 {
-    uint8_t  highest_shireid;
+    for (uint8_t neighid = 0; neighid < NUM_NEIGH_PER_SHIRE; neighid++)
+    {
+        /* Select all Neighs in Shire */
+        Select_Harts(shireid, neighid);
+        assert_halt();
 
-    if(0 != shire_mask)
-    {
-        highest_shireid = get_highest_set_bit_offset(shire_mask);
-   }
-    else
-    {
-        return 0;
+        /* Enable all Minions in this Neigh*/
+        enable_shire_neigh(shireid, neighid);
+
+        /* Wait for all Harts in Shire to halt */
+        if (!WAIT(Check_Halted()))
+        {
+            return 0;
+        }
+
+        /* Execute VPU init sequence on each Harts within this Neigh */
+        uint64_t start_hart_id = (uint64_t)((shireid * HARTS_PER_NEIGH * NUM_NEIGH_PER_SHIRE) +
+                                            (neighid * HARTS_PER_NEIGH));
+        uint64_t last_hart_id = start_hart_id + HARTS_PER_NEIGH;
+        for (uint64_t hartid = start_hart_id; hartid < last_hart_id; hartid++)
+        {
+            VPU_RF_Init(hartid);
+        }
+
+        /* Disable all Minions in this Neigh */
+        disable_shire_neigh(shireid, neighid);
+
+        /* Unselect all Harts in this Neigh */
+        Unselect_Harts(shireid, neighid);
     }
-
-   for(uint8_t shireid=0; shireid <= highest_shireid; shireid++)
-   {
-      /* Select all Neighs in Shire */
-      Select_Harts(shireid, 0x0);
-      Select_Harts(shireid, 0x1);
-      Select_Harts(shireid, 0x2);
-      Select_Harts(shireid, 0x3);
-
-      assert_halt();
-
-      /* Enable all Minions in all Neighs in this Shire */
-      enable_shire_neigh(shireid, 0x0);
-      enable_shire_neigh(shireid, 0x1);
-      enable_shire_neigh(shireid, 0x2);
-      enable_shire_neigh(shireid, 0x3);
-
-      /* Wait for all Harts in Shire to halt */
-      if (!WAIT(Check_Halted()))
-      {
-          return 0;
-      }
-
-      /* Execute VPU init sequence on each Harts within this Shire */
-      uint64_t start_hart_id = (uint64_t)(shireid * HARTS_PER_NEIGH * NUM_NEIGH_PER_SHIRE);
-      uint64_t last_hart_id = start_hart_id + (HARTS_PER_NEIGH*NUM_NEIGH_PER_SHIRE);
-      for(uint64_t hartid=start_hart_id ; hartid < last_hart_id; hartid++)
-      {
-          VPU_RF_Init(hartid);
-      }
-
-      /* Disable all Minions in all Neighs in this Shire */
-      disable_shire_neigh(shireid,0x0);
-      disable_shire_neigh(shireid,0x1);
-      disable_shire_neigh(shireid,0x2);
-      disable_shire_neigh(shireid,0x3);
-
-      /* Unselect all Neighs in Shire */
-      Unselect_Harts(shireid, 0x0);
-      Unselect_Harts(shireid, 0x1);
-      Unselect_Harts(shireid, 0x2);
-      Unselect_Harts(shireid, 0x3);
-   }
-
-  return SUCCESS;
+    return SUCCESS;
 }

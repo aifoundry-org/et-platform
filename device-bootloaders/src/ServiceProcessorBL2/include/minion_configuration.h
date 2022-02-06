@@ -36,7 +36,8 @@
  * @enum minion_error_type
  * @brief Enum defining event/error type
  */
-enum minion_error_type {
+enum minion_error_type
+{
     CM_USER_KERNEL_ERROR = 0,
     CM_RUNTIME_ERROR,
     MM_DISPATCHER_ERROR,
@@ -50,7 +51,7 @@ enum minion_error_type {
 /*! \def MINION_HANG_ERROR_THRESHOLD
     \brief Minion hang errors threshold
 */
-#define MINION_HANG_ERROR_THRESHOLD   1
+#define MINION_HANG_ERROR_THRESHOLD 1
 
 /*! \def MINION_EXCEPT_ERROR_THRESHOLD
     \brief Minion exception errors threshold
@@ -60,12 +61,12 @@ enum minion_error_type {
 /*! \def MM_HEARTBEAT_TIMEOUT_MSEC
     \brief MM  heartbeat timeout period
 */
-#define MM_HEARTBEAT_TIMEOUT_MSEC    10000
+#define MM_HEARTBEAT_TIMEOUT_MSEC 10000
 
 /*! \def MM_MASTER_SHIRE_ID
     \brief MM master shire ID
 */
-#define MM_MASTER_SHIRE_ID     32
+#define MM_MASTER_SHIRE_ID 32
 
 /*! \fn int Minion_Shire_Update_Voltage( uint8_t voltage)
     \brief This function provide support to update the Minion
@@ -73,8 +74,7 @@ enum minion_error_type {
     \param voltage value of the Voltage to updated to
     \return The function call status, pass/fail.
 */
-int Minion_Shire_Update_Voltage( uint8_t voltage);
-
+int Minion_Shire_Update_Voltage(uint8_t voltage);
 
 /*! \fn Minion_Get_Voltage_Given_Freq(int32_t target_frequency)
     \brief This function returns a voltage operating value given
@@ -101,13 +101,6 @@ int Minion_Program_Step_Clock_PLL(uint8_t mode);
 */
 uint8_t pll_freq_to_mode(int32_t freq);
 
-/*! \fn int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask)
-    \brief This function enables minion shire caches and neighborhoods
-    \param shire_mask shire to be configured
-    \return The function call status, pass/fail.
-*/
-int Minion_Enable_Shire_Cache_and_Neighborhoods(uint64_t shire_mask);
-
 /*! \fn int Minion_Enable_Master_Shire_Threads(void)
     \brief This function enables mastershire threads
     \param N/A
@@ -130,15 +123,24 @@ int Master_Minion_Reset(uint64_t shires_mask);
 */
 int Compute_Minion_Reset_Threads(uint64_t minion_shires_mask);
 
-/*! \fn int Minion_Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t mode, uint8_t lvdpll_mode, bool use_step_clock)
+/*! \fn int Initialize_Minions(uint64_t shires_mask)
+    \brief This function brings all Minion shire out of reset and enables
+           all Shire Cache/Neigh logic, and clears up VPU state 
+    \param minion_shires_mask Minion Shire Mask
+    \return The function call status, pass/fail.
+*/
+int Initialize_Minions(uint64_t shires_mask);
+
+/*! \fn int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpll_mode ,uint8_t lvdpll_mode, bool use_step_clock)
     \brief This function configures the Minion PLLs to Step Clock, and bring them out of reset.
     \param  minion_shires_mask Shire Mask to enable
-    \param  hdpll_mode Frequency mode to bring up Minions (Step Clock)
+    \param  hpdpll_mode Frequency of the Step clock
     \param  lvdpll_mode Frequency mode to enable the internal LVDPLL of each Shire
     \param  to enable Minion to use Step clock
     \return The function call status, pass/fail.
 */
-int Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t hdpll_mode, uint8_t lvdpll_mode, bool use_step_clock);
+int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpll_mode,
+                                      uint8_t lvdpll_mode, bool use_step_clock);
 
 /*! \fn uint64_t Minion_Get_Active_Compute_Minion_Mask(void)
     \brief This function gets the active compute shire mask
@@ -147,7 +149,6 @@ int Minion_Configure_Minion_Clock_Reset(uint64_t minion_shires_mask, uint8_t hdp
     \return Active CM shire mask.
 */
 uint64_t Minion_Get_Active_Compute_Minion_Mask(void);
-
 
 /*! \fn int Minion_Load_Authenticate_Firmware(void)
     \brief This function loads and authenticates the
@@ -319,12 +320,12 @@ int8_t enable_sram_and_icache_interrupts(void);
 */
 int8_t disable_sram_and_icache_interrupts(void);
 
-/*! \fn int8_t Minion_VPU_RF_Init(uint64_t shire_mask) 
-    \brief This function initialized the VPU RF for all Minion.
-           listed on the shire_mask
-    \param shire_mask Shire Mask
-    \return Status indicating success or negative error
+/*! \fn int8_t Minion_VPU_RF_Init(uint8_t shire_id) 
+ *  \brief This function initialized the VPU RF for all Minion.
+ *         listed on the shire_mask
+ *  \param shire_id Minion Shire ID
+ *  \return Status indicating success or negative error
 */
-int8_t Minion_VPU_RF_Init(uint64_t shire_mask);
+int8_t Minion_VPU_RF_Init(uint8_t shireid);
 
 #endif
