@@ -1492,8 +1492,9 @@ int8_t Minion_VPU_RF_Init(uint8_t shireid)
         /* Wait for all Harts in Shire to halt */
         if (!WAIT(Check_Halted()))
         {
-            return 0;
+            return MINION_CORE_NOT_HALTED;
         }
+        deassert_halt();              
 
         /* Execute VPU init sequence on each Harts within this Neigh */
         uint64_t start_hart_id = (uint64_t)((shireid * HARTS_PER_NEIGH * NUM_NEIGH_PER_SHIRE) +
@@ -1503,9 +1504,6 @@ int8_t Minion_VPU_RF_Init(uint8_t shireid)
         {
             VPU_RF_Init(hartid);
         }
-
-        /* Disable all Minions in this Neigh */
-        disable_shire_neigh(shireid, neighid);
 
         /* Unselect all Harts in this Neigh */
         Unselect_Harts(shireid, neighid);

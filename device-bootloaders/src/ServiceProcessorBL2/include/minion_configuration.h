@@ -117,7 +117,7 @@ int Minion_Enable_Master_Shire_Threads(void);
 int Master_Minion_Reset(uint64_t shires_mask);
 
 /*! \fn int Compute_Minion_Reset_Threads(uint64_t minion_shires_mask)
-    \brief This function resets the Compute Minion Shire threads
+    \This function resets the Compute Minion Shire threads
     \param minion_shires_mask Minion Shire Mask
     \return The function call status, pass/fail.
 */
