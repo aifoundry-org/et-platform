@@ -77,10 +77,12 @@ void Worker::requestProcessor() {
 
 void Worker::processRequest(const req::Request& request) {
   switch (request.type_) {
+
   case req::Type::VERSION: {
     sendResponse({resp::Type::VERSION, resp::Version{1}}); // current version is "1"
     break;
   }
+
   case req::Type::MALLOC: {
     auto& req = std::get<req::Malloc>(request.payload_);
     auto ptr = runtime_.mallocDevice(req.device_, req.size_, req.alignment_);
@@ -88,6 +90,7 @@ void Worker::processRequest(const req::Request& request) {
     sendResponse({resp::Type::MALLOC, resp::Malloc{reinterpret_cast<AddressT>(ptr)}});
     break;
   }
+
   case req::Type::FREE: {
     auto& req = std::get<req::Free>(request.payload_);
     auto addr = reinterpret_cast<std::byte*>(req.address_);
@@ -99,11 +102,49 @@ void Worker::processRequest(const req::Request& request) {
     break;
   }
 
-  case req::Type::MEMCPY_H2D:
-  case req::Type::MEMCPY_D2H:
-  case req::Type::MEMCPY_LIST_H2D:
-  case req::Type::MEMCPY_LIST_D2H:
+  case req::Type::MEMCPY_H2D: {
+    auto& req = std::get<req::Memcpy>(request.payload_);
+    auto src = reinterpret_cast<std::byte*>(req.src_);
+    auto dst = reinterpret_cast<std::byte*>(req.dst_);
+    auto evt = runtime_.memcpyHostToDevice(req.stream_, src, dst, req.size_, req.barrier_);
+    sendResponse({resp::Type::MEMCPY_H2D, resp::Event{evt}});
     break;
+  }
+
+  case req::Type::MEMCPY_D2H: {
+    auto& req = std::get<req::Memcpy>(request.payload_);
+    auto src = reinterpret_cast<std::byte*>(req.src_);
+    auto dst = reinterpret_cast<std::byte*>(req.dst_);
+    auto evt = runtime_.memcpyHostToDevice(req.stream_, src, dst, req.size_, req.barrier_);
+    sendResponse({resp::Type::MEMCPY_D2H, resp::Event{evt}});
+    break;
+  }
+
+  case req::Type::MEMCPY_LIST_H2D: {
+    auto& req = std::get<req::MemcpyList>(request.payload_);
+    MemcpyList memcpyList;
+    for (auto& o : req.ops_) {
+      auto src = reinterpret_cast<std::byte*>(o.src_);
+      auto dst = reinterpret_cast<std::byte*>(o.dst_);
+      memcpyList.addOp(src, dst, o.size_);
+    }
+    auto evt = runtime_.memcpyHostToDevice(req.stream_, memcpyList, req.barrier_);
+    sendResponse({resp::Type::MEMCPY_LIST_H2D, resp::Event{evt}});
+    break;
+  }
+
+  case req::Type::MEMCPY_LIST_D2H: {
+    auto& req = std::get<req::MemcpyList>(request.payload_);
+    MemcpyList memcpyList;
+    for (auto& o : req.ops_) {
+      auto src = reinterpret_cast<std::byte*>(o.src_);
+      auto dst = reinterpret_cast<std::byte*>(o.dst_);
+      memcpyList.addOp(src, dst, o.size_);
+    }
+    auto evt = runtime_.memcpyDeviceToHost(req.stream_, memcpyList, req.barrier_);
+    sendResponse({resp::Type::MEMCPY_LIST_D2H, resp::Event{evt}});
+    break;
+  }
 
   case req::Type::CREATE_STREAM: {
     auto& req = std::get<req::CreateStream>(request.payload_);
@@ -112,6 +153,7 @@ void Worker::processRequest(const req::Request& request) {
     sendResponse({resp::Type::CREATE_STREAM, resp::CreateStream{st}});
     break;
   }
+
   case req::Type::DESTROY_STREAM: {
     auto& req = std::get<req::DestroyStream>(request.payload_);
     if (streams_.erase(req.stream_) != 1) {
@@ -121,12 +163,14 @@ void Worker::processRequest(const req::Request& request) {
     runtime_.destroyStream(req.stream_);
     break;
   }
+
   case req::Type::LOAD_CODE: {
     auto& req = std::get<req::LoadCode>(request.payload_);
     auto resp = runtime_.loadCode(req.stream_, req.elf_.data(), req.elf_.size());
     sendResponse({resp::Type::LOAD_CODE, resp});
     break;
   }
+
   case req::Type::UNLOAD_CODE: {
     auto& req = std::get<req::UnloadCode>(request.payload_);
     if (kernels_.erase(req.kernel_) != 1) {
@@ -136,6 +180,7 @@ void Worker::processRequest(const req::Request& request) {
     runtime_.unloadCode(req.kernel_);
     break;
   }
+
   case req::Type::KERNEL_LAUNCH: {
     auto& req = std::get<req::KernelLaunch>(request.payload_);
     auto evt =
@@ -148,12 +193,14 @@ void Worker::processRequest(const req::Request& request) {
     sendResponse({resp::Type::GET_DEVICES, resp::GetDevices{devices}});
     break;
   }
+
   case req::Type::ABORT_STREAM: {
     auto& req = std::get<req::AbortStream>(request.payload_);
     auto evt = runtime_.abortStream(req.streamId_);
     sendResponse({resp::Type::ABORT_STREAM, resp::Event{evt}});
     break;
   }
+
   default:
     RT_LOG(WARNING) << "Unknown request: " << static_cast<int>(request.type_);
     throw Exception("Unknown request: " + std::to_string(static_cast<int>(request.type_)));
