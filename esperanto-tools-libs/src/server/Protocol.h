@@ -108,10 +108,11 @@ struct DestroyStream {
 
 struct LoadCode {
   StreamId stream_;
-  uint64_t elf_;
-  size_t elfSize_;
+  // an alternative would be to send only pointer + size; but it would complicate the load code part. It woulf safe a
+  // couple of memcpys, its likely not worth it...
+  std::vector<std::byte> elf_;
   template <class Archive> void serialize(Archive& archive) {
-    archive(stream_, elf_, elfSize_);
+    archive(stream_, elf_);
   }
 };
 

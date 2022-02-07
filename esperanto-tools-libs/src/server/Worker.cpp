@@ -123,9 +123,8 @@ void Worker::processRequest(const req::Request& request) {
   }
   case req::Type::LOAD_CODE: {
     auto& req = std::get<req::LoadCode>(request.payload_);
-    // needs the same mod of memcpy to pass a custom copyer
-    // after that, put the kernelId into the kernels_ set to be able to unload them after the client disconnects (if not
-    // done explicitely)
+    auto resp = runtime_.loadCode(req.stream_, req.elf_.data(), req.elf_.size());
+    sendResponse({resp::Type::LOAD_CODE, resp});
     break;
   }
   case req::Type::UNLOAD_CODE: {
