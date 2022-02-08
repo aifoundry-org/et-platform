@@ -275,7 +275,7 @@ Modules:
         - Name: RESET_TRACEBUF
           Value: 4
     - Name: trace_configure
-      Description: Trace enable/disable and UART log
+      Description: Trace configure events
       Type: uint32_t
       Values:
         - Name: EVENT_STRING
@@ -283,9 +283,9 @@ Modules:
         - Name: EVENT_PMC
           Value: 2
         - Name: EVENT_MARKER
-          Value: 3
+          Value: 4
         - Name: TRACE_EVENT_ENABLE_ALL
-          Value: 0xFFFF
+          Value: 0xFFFFFFFF
     - Name: trace_configure_filter_mask
       Description: Trace string events filters
       Type: uint32_t
