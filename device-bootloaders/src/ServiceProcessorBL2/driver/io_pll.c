@@ -974,19 +974,94 @@ void clear_spio_lock_loss_monitors(void)
     spio_pll_clear_lock_monitor(PLL_ID_PSHIRE);
 }
 
+static int spio_pll_ldo_bypass(PLL_ID_t pll, volatile uint32_t *pll_registers)
+{
+    uint16_t ldo_reg = 0;
+    int status;
+    uint32_t timeout = PLL_LOCK_TIMEOUT;
+
+    status = clock_manager_pll_bypass(pll, true);
+    if (0 != status)
+    {
+        return status;
+    }
+
+    ldo_reg = (uint16_t)pll_registers[PLL_REG_INDEX_REG_LDO_CONTROL];
+    ldo_reg |= 0x1;     // Bypass LDO
+    pll_registers[PLL_REG_INDEX_REG_LDO_CONTROL] = ldo_reg;
+    update_pll_registers(pll_registers);
+
+    /* Give some time for the clock to be stable
+       Document suggest 65 ref clock.
+    */
+    if (pll == PLL_ID_SP_PLL_0)
+    {
+        for(int i = 0; i<100; i++) __asm volatile ( " nop " );
+    }
+    else
+    {
+        for(int i = 0; i<1500; i++) __asm volatile ( " nop " );
+    }
+   
+    /* Wait for the PLL to lock within a given timeout */
+    while (timeout > 0)
+    {
+        if (pll_registers[PLL_REG_INDEX_REG_LOCK_DETECT_STATUS] & 1)
+        {
+            break;
+        }
+        --timeout;
+    }
+    if (0 == timeout)
+    {
+        return ERROR_SP_PLL_PLL_LOCK_TIMEOUT; 
+    }
+
+    status = clock_manager_pll_bypass(pll, false);
+    if (0 != status)
+    {
+        return status;
+    }
+
+    clear_lock_monitor(pll_registers);
+
+    return 0;
+}
+
 int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
              uint32_t pcie_pll_0_frequency)
 {
+    int status;
+
     gs_sp_pll_0_frequency = sp_pll_0_frequency;
     gs_sp_pll_1_frequency = sp_pll_1_frequency;
     gs_sp_pll_2_frequency = 0;
     gs_sp_pll_4_frequency = 0;
     gs_pcie_pll_0_frequency = pcie_pll_0_frequency;
 
-    /* Clear lock monitors of PLLs configured during Bootrom */
-    spio_pll_clear_lock_monitor(PLL_ID_SP_PLL_0);
-    spio_pll_clear_lock_monitor(PLL_ID_SP_PLL_1);
-    spio_pll_clear_lock_monitor(PLL_ID_PSHIRE);
+    /* Bypass LDOs of PLLs configured during Bootrom */
+    status = spio_pll_ldo_bypass(PLL_ID_SP_PLL_0, (uint32_t *)R_SP_PLL0_BASEADDR);
+    if (0 != status)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "SPIO PLL0 ldo bypass failed\n");
+        return status;
+    }
+
+    status = spio_pll_ldo_bypass(PLL_ID_SP_PLL_1, (uint32_t *)R_SP_PLL1_BASEADDR);
+    if (0 != status)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "SPIO PLL1 ldo bypass failed\n");
+        return status;
+    }
+
+#if !FAST_BOOT
+    status = spio_pll_ldo_bypass(PLL_ID_PSHIRE, (uint32_t *)R_PCIE_PLLP0_BASEADDR);
+    if (0 != status)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "PSHIRE PLL ldo bypass failed\n");
+        return status;
+    }
+#endif
 
     return 0;
 }

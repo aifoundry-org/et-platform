@@ -19,21 +19,6 @@
 
 #include <stdint.h>
 
-/*! \def ERROR_SP_PLL_CONFIG_DATA_NOT_FOUND
-    \brief PLL error define for data not found
-*/
-#define ERROR_SP_PLL_CONFIG_DATA_NOT_FOUND -1000
-
-/*! \def ERROR_SP_PLL_PLL_LOCK_TIMEOUT
-    \brief sp pll lock timeout
-*/
-#define ERROR_SP_PLL_PLL_LOCK_TIMEOUT      -1001
-
-/*! \def ERROR_SP_PLL_INVALID_PLL_ID
-    \brief invalid PLL ID define
-*/
-#define ERROR_SP_PLL_INVALID_PLL_ID        -1002
-
 /**
  * @enum PLL_ID_t
  * @brief Enum defining PLL IDs
