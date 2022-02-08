@@ -133,7 +133,7 @@ Modules:
           Value: 54
         - Name: GET_MM_ERROR_COUNT
           Value: 55
-        - Name: CM_RESET
+        - Name: MM_RESET
           Value: 56
         - Name: GET_DEVICE_ERROR_EVENTS
           Value: 57

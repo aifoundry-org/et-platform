@@ -8,7 +8,6 @@ import subprocess
 
 class DeviceApiConan(ConanFile):
     name = "deviceApi"
-    version = "0.1.0"
     url = "https://gitlab.esperanto.ai/software/device-api.git"
     license = "Esperanto Technologies"
     
