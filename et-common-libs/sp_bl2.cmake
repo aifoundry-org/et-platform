@@ -59,7 +59,13 @@ add_library(sp-bl2 STATIC
     src/transports/sp_mm_iface/sp_mm_iface.c
 )
 add_library(et-common-libs::sp-bl2 ALIAS sp-bl2)
-target_compile_definitions(sp-bl2 PUBLIC -DSERVICE_PROCESSOR_BL2=1)
+
+target_compile_definitions(sp-bl2
+    PUBLIC
+        -DSP_RT=1
+        -DSERVICE_PROCESSOR_BL2=1
+)
+
 set_target_properties(sp-bl2 PROPERTIES LINKER_LANGUAGE C)
 
 target_link_libraries(sp-bl2
@@ -82,10 +88,6 @@ target_compile_options(sp-bl2
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 
-target_compile_definitions(sp-bl2
-    PUBLIC
-        -DSP_RT=1
-)
 
 #################################################
 #Install and export sp-bl2 library and headers
