@@ -21,11 +21,11 @@ class EtCommonLibsConan(ConanFile):
         "with_cm_rt_svcs": [True, False],
     }
     default_options = {
-        "with_sp_bl": False,
+        "with_sp_bl": True,
         "with_cm_umode": True,
-        "with_minion_bl": False,
-        "with_mm_rt_svcs": False,
-        "with_cm_rt_svcs": False,
+        "with_minion_bl": True,
+        "with_mm_rt_svcs": True,
+        "with_cm_rt_svcs": True,
     }
 
     scm = {
