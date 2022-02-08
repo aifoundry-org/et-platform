@@ -1,0 +1,4 @@
+projects:
+  "et-common-libs":
+    folder: .
+    configs: [device]
