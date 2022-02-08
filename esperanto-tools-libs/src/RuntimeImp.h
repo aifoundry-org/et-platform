@@ -32,6 +32,9 @@ class MemoryManager;
 
 class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
 public:
+  enum class CmaCopyType { TO_CMA, FROM_CMA };
+  using CmaCopyFunction = std::function<void(const std::byte* src, std::byte* dst, size_t size, CmaCopyType type)>;
+
   explicit RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling::IProfilerRecorder> profiler,
                       Options options);
 
@@ -87,6 +90,10 @@ public:
   void dispatch(EventId event);
 
   ~RuntimeImp();
+
+  void setCmaCopyFunction(const CmaCopyFunction& func) {
+    cmaCopyFunction_ = func;
+  }
 
   // these methods are intended for debugging, internal use only
   void setMemoryManagerDebugMode(DeviceId device, bool enable);
@@ -180,8 +187,6 @@ private:
   std::unique_ptr<ExecutionContextCache> executionContextCache_;
   std::unordered_map<uint64_t, CommandSender> commandSenders_;
 
-  // using unique_ptr to not have to deal with elfio mess (the class is not friendly with modern c++)
-
   int nextKernelId_ = 0;
 
   std::unique_ptr<ResponseReceiver> responseReceiver_;
@@ -190,5 +195,6 @@ private:
   threadPool::ThreadPool nonblockableThreadPool_{8};
   bool running_ = false;
   bool checkMemcpyDeviceAddress_ = false;
+  CmaCopyFunction cmaCopyFunction_;
 };
 } // namespace rt

@@ -147,7 +147,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const st
           entrySize = std::min(entrySize, currentSize);
           builder.addOp(cmaPtr + cmaPtrOffset, d_dst + offset, entrySize);
           // copy the data to the cma buffer
-          std::copy(h_src + offset, h_src + offset + entrySize, cmaPtr + cmaPtrOffset);
+          cmaCopyFunction_(h_src + offset, cmaPtr + cmaPtrOffset, entrySize, CmaCopyType::TO_CMA);
           offset += entrySize;
           cmaPtrOffset += entrySize;
           currentSize -= entrySize;
@@ -336,7 +336,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
         eventManager_.addOnDispatchCallback(
           {{cmdEvt}, [this, cmaPtr, cmdFinalCopies = std::move(cmdFinalCopies), syncCopyEvt] {
              for (auto& copy : cmdFinalCopies) {
-               memcpy(copy.dst, copy.src, copy.size);
+               cmaCopyFunction_(copy.src, copy.dst, copy.size, CmaCopyType::FROM_CMA);
              }
              cmaManager_->free(cmaPtr);
              dispatch(syncCopyEvt);
@@ -433,7 +433,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyLi
     auto cmaPtrOffset = 0UL;
     for (auto& op : memcpyList.operations_) {
       builder.addOp(cmaPtr + cmaPtrOffset, op.dst_, op.size_);
-      std::copy(op.src_, op.src_ + op.size_, cmaPtr + cmaPtrOffset);
+      cmaCopyFunction_(op.src_, cmaPtr + cmaPtrOffset, op.size_, CmaCopyType::TO_CMA);
       cmaPtrOffset += op.size_;
     }
     cs.setCommandData(evt, builder.build());
@@ -504,7 +504,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyLi
     waitForEventWithoutProfiling(cmdEvt);
     cmaPtrOffset = 0UL;
     for (auto& op : memcpyList.operations_) {
-      std::copy(cmaPtr + cmaPtrOffset, cmaPtr + cmaPtrOffset + op.size_, op.dst_);
+      cmaCopyFunction_(cmaPtr + cmaPtrOffset, op.dst_, op.size_, CmaCopyType::FROM_CMA);
       cmaPtrOffset += op.size_;
     }
     dispatch(evt);

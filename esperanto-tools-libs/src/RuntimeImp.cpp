@@ -49,6 +49,9 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling
                        Options options)
   : deviceLayer_{deviceLayer}
   , profiler_{std::move(profiler)} {
+
+  setCmaCopyFunction(
+    [](const std::byte* src, std::byte* dst, size_t size, CmaCopyType) { std::copy(src, src + size, dst); });
   checkMemcpyDeviceAddress_ = options.checkMemcpyDeviceOperations_;
   auto devicesCount = deviceLayer_->getDevicesCount();
   CHECK(devicesCount > 0);
@@ -577,6 +580,7 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
     // first wait till the copy ends
     waitForEventWithoutProfiling(memcpyEvt);
 
+    //#TODO see https://esperantotech.atlassian.net/browse/SW-11156
     if (mmOut) {
       mmOut->write(reinterpret_cast<const char*>(dmaPtr), static_cast<long>(mmTraceSize));
       dmaPtr += mmTraceSize;
