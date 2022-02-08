@@ -29,18 +29,18 @@
 /*! \fn void Select_Harts(uint8_t shire_mask, uint8_t thread_mask)
     \brief Select the Harts specified by shire_mask/thread_mask
     \param shire_id Active shire ID
-    \param thread_mask Hart Thread mask
+    \param neigh_id Neighbour ID
     \returns None
 */
-void Select_Harts(uint8_t shire_id, uint8_t thread_mask);
+void Select_Harts(uint8_t shire_id, uint8_t neigh_id);
 
 /*! \fn void Unselect_Harts(uint8_t shire_mask, uint8_t thread_mask)
     \brief Unselect the Hart specified by shire_mask/thread_mask
     \param shire_id  Active shire ID
-    \param thread_mask  Hart Thread mask
+    \param neigh_id Neighbour ID
     \returns None
 */
-void Unselect_Harts(uint8_t shire_id, uint8_t thread_mask);
+void Unselect_Harts(uint8_t shire_id, uint8_t neigh_id);
 
 /* Hart Control */
 /*! \fn bool Halt_Harts(void)

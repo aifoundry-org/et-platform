@@ -119,19 +119,19 @@ static void send_mdi_ss_control_response(tag_id_t tag_id, msg_id_t msg_id, uint6
 
 static void mdi_select_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = 0;
+    int32_t status = SUCCESS;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_SELECT_HART\n");
 
     const struct mdi_hart_selection_cmd_t *mdi_cmd_req = (struct mdi_hart_selection_cmd_t *)buffer;
 
     /* Select a Hart */
-    for(uint8_t neigh_id=0; neigh_id < NUM_NEIGH_PER_SHIRE; neigh_id++)
+    for (uint8_t neigh_id = 0; neigh_id < NUM_NEIGH_PER_SHIRE; neigh_id++)
     {
-       if(mdi_cmd_req->cmd_attr.thread_mask & (0xFFULL << (8*neigh_id)))
-       { 
-           Select_Harts((uint8_t)mdi_cmd_req->cmd_attr.shire_id, neigh_id);
-       }
+        if (mdi_cmd_req->cmd_attr.thread_mask & (0xFFULL << (MINIONS_PER_NEIGH * neigh_id)))
+        {
+            Select_Harts((uint8_t)mdi_cmd_req->cmd_attr.shire_id, neigh_id);
+        }
     }
     /* MDI lib function does not return status for Select/Unselect Hart operation. 
         Sending success status by default in response */
@@ -141,19 +141,19 @@ static void mdi_select_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start
 static void mdi_unselect_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
                               void *buffer)
 {
-    int32_t status = 0;
+    int32_t status = SUCCESS;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_UNSELECT_HART\n");
 
     const struct mdi_hart_selection_cmd_t *mdi_cmd_req = (struct mdi_hart_selection_cmd_t *)buffer;
 
     /* Unselect a Hart */
-    for(uint8_t neigh_id=0; neigh_id < NUM_NEIGH_PER_SHIRE; neigh_id++)
+    for (uint8_t neigh_id = 0; neigh_id < NUM_NEIGH_PER_SHIRE; neigh_id++)
     {
-       if(mdi_cmd_req->cmd_attr.thread_mask & (0xFFULL << (8*neigh_id)))
-       { 
-           Unselect_Harts((uint8_t)mdi_cmd_req->cmd_attr.shire_id, neigh_id);
-       }
+        if (mdi_cmd_req->cmd_attr.thread_mask & (0xFFULL << (MINIONS_PER_NEIGH * neigh_id)))
+        {
+            Unselect_Harts((uint8_t)mdi_cmd_req->cmd_attr.shire_id, neigh_id);
+        }
     }
 
     /* MDI lib function does not return status for Select/Unselect Hart operation. 
@@ -172,9 +172,15 @@ static void mdi_halt_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_t
 static void mdi_resume_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time)
 {
     bool ret = true;
+    int32_t status = -1;
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_RESUME_HART\n");
     ret = Resume_Harts();
-    send_mdi_hart_control_response(tag_id, msg_id, req_start_time, ret);
+    Log_Write(LOG_LEVEL_INFO, "Resume_Harts() : %d\n", ret);
+    if (ret)
+    {
+        status = SUCCESS;
+    }
+    send_mdi_hart_control_response(tag_id, msg_id, req_start_time, status);
 }
 
 static void mdi_reset_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time)
@@ -202,7 +208,7 @@ static void mdi_hart_status(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start
 static void mdi_set_breakpoint(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
                                void *buffer)
 {
-    int32_t status = 0;
+    int32_t status = SUCCESS;
     struct device_mgmt_mdi_bp_event_t event;
     const struct mdi_bp_control_cmd_t *mdi_cmd_req = (struct mdi_bp_control_cmd_t *)buffer;
 
@@ -219,7 +225,7 @@ static void mdi_set_breakpoint(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_st
 static void mdi_unset_breakpoint(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
                                  void *buffer)
 {
-    int32_t status = 0;
+    int32_t status = SUCCESS;
     const struct mdi_bp_control_cmd_t *mdi_cmd_req = (struct mdi_bp_control_cmd_t *)buffer;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_UNSET_BREAKPOINT\n");
@@ -253,16 +259,28 @@ static void mdi_disable_single_step(tag_id_t tag_id, msg_id_t msg_id, uint64_t r
 
 static void mdi_read_gpr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = 0;
+    int32_t status = SUCCESS;
     const struct mdi_read_gpr_cmd_t *mdi_cmd_req = (struct mdi_read_gpr_cmd_t *)buffer;
     struct mdi_read_gpr_rsp_t mdi_rsp;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_READ_GPR\n");
-    mdi_rsp.data = Read_GPR(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.gpr_index);
+
+    if (mdi_cmd_req->cmd_attr.gpr_index < NO_OF_GPR_REGS)
+    {
+        mdi_rsp.data = Read_GPR(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.gpr_index);
+        Log_Write(LOG_LEVEL_INFO, "GPR Index:%x, mdi_rsp.data:%lx\n",
+                    mdi_cmd_req->cmd_attr.gpr_index, mdi_rsp.data);
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_WARNING, "Invalid GPR Read Request\r\n");
+        status = MDI_INVALID_GPR_INDEX;
+    }
+
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
 
-    Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u, mdi_rsp.data:%lx\n",
-              mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.data);
+    Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u\n",
+              mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&mdi_rsp, sizeof(struct mdi_read_gpr_rsp_t)))
     {
@@ -272,7 +290,7 @@ static void mdi_read_gpr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
 
 static void mdi_dump_gpr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = 0;
+    int32_t status = SUCCESS;
     const struct mdi_dump_gpr_cmd_t *mdi_cmd_req = (struct mdi_dump_gpr_cmd_t *)buffer;
     struct mdi_dump_gpr_rsp_t mdi_rsp;
 
@@ -294,7 +312,7 @@ static void mdi_dump_gpr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
 
 static void mdi_write_gpr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = 0;
+    int32_t status = SUCCESS;
     const struct mdi_write_gpr_cmd_t *mdi_cmd_req = (struct mdi_write_gpr_cmd_t *)buffer;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_WRITE_GPR\n");
@@ -306,7 +324,7 @@ static void mdi_write_gpr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_t
 
 static void mdi_write_csr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = 0;
+    int32_t status = SUCCESS;
     const struct mdi_write_csr_cmd_t *mdi_cmd_req = (struct mdi_write_csr_cmd_t *)buffer;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_WRITE_CSR\n");
@@ -319,13 +337,17 @@ static void mdi_write_csr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_t
 
 static void mdi_read_csr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = 0;
+    int32_t status = SUCCESS;
     const struct mdi_read_csr_cmd_t *mdi_cmd_req = (struct mdi_read_csr_cmd_t *)buffer;
     struct mdi_read_csr_rsp_t mdi_rsp;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_READ_CSR\n");
 
-    mdi_rsp.data = Read_CSR(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.csr_name);
+    uint32_t csr_name = (mdi_cmd_req->cmd_attr.csr_name == GDB_RISCV_PC_INDEX) ?
+                            MINION_CSR_DPC_OFFSET :
+                            mdi_cmd_req->cmd_attr.csr_name;
+
+    mdi_rsp.data = Read_CSR(mdi_cmd_req->cmd_attr.hart_id, csr_name);
 
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
 
@@ -340,19 +362,30 @@ static void mdi_read_csr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
 
 static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = 0;
+    int32_t status = SUCCESS;
     const struct mdi_mem_read_cmd_t *mdi_cmd_req = (struct mdi_mem_read_cmd_t *)buffer;
-    struct mdi_mem_read_rsp_t mdi_rsp;
+    struct mdi_mem_read_rsp_t mdi_rsp = {0};
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_READ_MEM\n");
 
-    mdi_rsp.data = MEM_READ64(mdi_cmd_req->cmd_attr.address);
+    if (mdi_cmd_req->cmd_attr.address >= HOST_MANAGED_DRAM_START &&
+        mdi_cmd_req->cmd_attr.address <= HOST_MANAGED_DRAM_END)
+    {
+        status = ETSOC_Memory_Read_Uncacheable((const void *)mdi_cmd_req->cmd_attr.address,
+                                               &mdi_rsp.data, mdi_cmd_req->cmd_attr.size);
+
+        Log_Write(LOG_LEVEL_DEBUG, "Read address: %lx, mdi_rsp.data: %lx\n, status:%d\r\n",
+                  mdi_cmd_req->cmd_attr.address, mdi_rsp.data, status);
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MDI Invalid Memory read request!\n");
+        status = MDI_INVALID_MEMORY_READ_REQUEST;
+    }
 
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
-    Log_Write(LOG_LEVEL_INFO,
-              "Response for msg_id = %u, tag_id = %u, Address: %lx, mdi_rsp.data:%lx\n",
-              mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id,
-              mdi_cmd_req->cmd_attr.address, mdi_rsp.data);
+    Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u",
+              mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id);
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&mdi_rsp, sizeof(struct mdi_mem_read_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR, "Cqueue push error!\n");
@@ -361,13 +394,17 @@ static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
 
 static void mdi_mem_write(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = 0;
+    int32_t status = SUCCESS;
     const struct mdi_mem_write_cmd_t *mdi_cmd_req = (struct mdi_mem_write_cmd_t *)buffer;
     struct mdi_mem_write_rsp_t mdi_rsp;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_WRITE_MEM\n");
 
-    MEM_WRITE64(mdi_cmd_req->cmd_attr.address, mdi_cmd_req->cmd_attr.data);
+    status = ETSOC_Memory_Write_Uncacheable(&mdi_cmd_req->cmd_attr.data, (void *)mdi_cmd_req->cmd_attr.address,
+                                            mdi_cmd_req->cmd_attr.size);
+
+    Log_Write(LOG_LEVEL_DEBUG, "Write address: %lx, data: %lx\n, status:%d\r\n",
+                mdi_cmd_req->cmd_attr.address, mdi_cmd_req->cmd_attr.data, status);
 
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
     Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u, mdi_rsp.status:%u\n",

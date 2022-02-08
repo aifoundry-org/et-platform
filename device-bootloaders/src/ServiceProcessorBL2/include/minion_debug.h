@@ -23,11 +23,6 @@
 #include "minion_state_inspection.h"
 #include "log.h"
 
-#define NO_OF_GPR_REGS 32
-
-#define MEM_READ64(addr)        *(volatile uint64_t *)((uint64_t)addr)
-#define MEM_WRITE64(addr, data) *(volatile uint64_t *)((uint64_t)(addr)) = (uint64_t)(data)
-
 /*! \fn void minion_debug_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
     \brief Function takes command ID as input from Host, and accordingly calls the respective minion debug
 *       run control/state inspection APIs.
