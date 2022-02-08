@@ -188,6 +188,7 @@ void Worker::processRequest(const req::Request& request) {
     sendResponse({resp::Type::KERNEL_LAUNCH, resp::Event{evt}});
     break;
   }
+
   case req::Type::GET_DEVICES: {
     auto devices = runtime_.getDevices();
     sendResponse({resp::Type::GET_DEVICES, resp::GetDevices{devices}});
