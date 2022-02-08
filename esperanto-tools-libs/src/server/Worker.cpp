@@ -167,7 +167,8 @@ void Worker::processRequest(const req::Request& request) {
   case req::Type::LOAD_CODE: {
     auto& req = std::get<req::LoadCode>(request.payload_);
     auto resp = runtime_.loadCode(req.stream_, req.elf_.data(), req.elf_.size());
-    sendResponse({resp::Type::LOAD_CODE, resp});
+    sendResponse({resp::Type::LOAD_CODE,
+                  resp::LoadCode{resp.event_, resp.kernel_, reinterpret_cast<AddressT>(resp.loadAddress_)}});
     break;
   }
 
