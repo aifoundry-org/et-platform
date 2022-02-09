@@ -40,6 +40,11 @@ class EtCommonLibsConan(ConanFile):
         version = re.search(r"set\(PROJECT_VERSION (.*)\)", content).group(1)
         self.version = version.strip()
     
+    def configure(self):
+        # et-common-libs is a C library, doesn't depend on any C++ standard library
+        del self.settings.compiler.libcxx
+        del self.settings.compiler.cppstd
+
     def requirements(self):
         self.requires("esperantoTrace/0.1.0")
         # cm-umode doens't require etsoc_hal
@@ -58,13 +63,14 @@ class EtCommonLibsConan(ConanFile):
         del self.info.settings.os
 
     def generate(self):
-        new_cmake_flags_init_template = textwrap.dedent("""
-        set(CMAKE_CXX_FLAGS_INIT "${CONAN_CXX_FLAGS}" CACHE STRING "" FORCE)
-        set(CMAKE_C_FLAGS_INIT "${CONAN_C_FLAGS} -std=gnu11 --specs=nano.specs -mcmodel=medany -march=rv64imf -mabi=lp64f -fno-zero-initialized-in-bss -ffunction-sections -fdata-sections -fstack-usage -Wall -Wextra -Werror -Wdouble-promotion -Wformat -Wnull-dereference -Wswitch-enum -Wshadow -Wstack-protector -Wpointer-arith -Wundef -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wno-main" CACHE STRING "" FORCE)
-        set(CMAKE_SHARED_LINKER_FLAGS_INIT "${CONAN_SHARED_LINKER_FLAGS}" CACHE STRING "" FORCE)
-        set(CMAKE_EXE_LINKER_FLAGS_INIT "${CONAN_EXE_LINKER_FLAGS}" CACHE STRING "" FORCE)
-        """)
-
+        # Get the toolchains from "tools.cmake.cmaketoolchain:user_toolchain" conf at the
+        # tool_requires
+        user_toolchains = []
+        for dep in self.dependencies.direct_build.values():
+            ut = dep.conf_info["tools.cmake.cmaketoolchain:user_toolchain"]
+            if ut:
+                user_toolchains.append(ut)
+        
         tc = CMakeToolchain(self)
         tc.variables["WITH_SP_BL"] = self.options.with_sp_bl
         tc.variables["WITH_CM_UMODE"] = self.options.with_cm_umode
@@ -72,11 +78,9 @@ class EtCommonLibsConan(ConanFile):
         tc.variables["WITH_MM_RT_SVCS"] = self.options.with_mm_rt_svcs
         tc.variables["WITH_CM_RT_SVCS"] = self.options.with_cm_rt_svcs
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
-
-        tc.blocks["cmake_flags_init"].template = new_cmake_flags_init_template
-
-        if tools.cross_building(self):
-            tc.blocks["generic_system"].values["compiler"] = self.deps_env_info["riscv-gnu-toolchain"].CC
+        if user_toolchains:
+            self.output.info("Applying user_toolchains: %s" % user_toolchains)
+            tc.blocks["user_toolchain"].values["paths"] = user_toolchains
 
         tc.generate()
 
@@ -88,32 +92,40 @@ class EtCommonLibsConan(ConanFile):
     def package(self):
         cmake = CMake(self)
         cmake.install()
+        tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
     
     def package_info(self):
-        self.cpp_info.components["cm-umode"].includedirs = [os.path.join("cm-umode", "include")]
-        self.cpp_info.components["cm-umode"].libdirs = [os.path.join("cm-umode", "lib")]
-        self.cpp_info.components["cm-umode"].libs = ["cm-umode"]
-        self.cpp_info.components["cm-umode"].requires = ["esperantoTrace::et_trace"]
-
+        
         if self.options.with_sp_bl:
+            self.cpp_info.components["sp_bl1"].set_property("cmake_target_name", "et-common-libs::sp_bl1")
             self.cpp_info.components["sp_bl1"].includedirs = [os.path.join("sp-bl1", "include")]
             self.cpp_info.components["sp_bl1"].libdirs = [os.path.join("sp-bl1", "lib")]
             self.cpp_info.components["sp_bl1"].libs = ["sp-bl1"]
             self.cpp_info.components["sp_bl1"].requires = ["etsoc_hal::etsoc_hal"]
 
+            self.cpp_info.components["sp_bl2"].set_property("cmake_target_name", "et-common-libs::sp_bl2")
             self.cpp_info.components["sp_bl2"].includedirs = [os.path.join("sp-bl2", "include")]
             self.cpp_info.components["sp_bl2"].libdirs = [os.path.join("sp-bl2", "lib")]
             self.cpp_info.components["sp_bl2"].libs = ["sp-bl2"]
             self.cpp_info.components["sp_bl2"].defines = ["SERVICE_PROCESSOR_BL2=1"]
             self.cpp_info.components["sp_bl2"].requires = ["etsoc_hal::etsoc_hal", "esperantoTrace::et_trace"]
 
+        if self.options.with_cm_umode:
+            self.cpp_info.components["cm-umode"].set_property("cmake_target_name", "et-common-libs::cm-umode")
+            self.cpp_info.components["cm-umode"].includedirs = [os.path.join("cm-umode", "include")]
+            self.cpp_info.components["cm-umode"].libdirs = [os.path.join("cm-umode", "lib")]
+            self.cpp_info.components["cm-umode"].libs = ["cm-umode"]
+            self.cpp_info.components["cm-umode"].requires = ["esperantoTrace::et_trace"]
+
         if self.options.with_minion_bl:
+            self.cpp_info.components["minion-bl"].set_property("cmake_target_name", "et-common-libs::minion-bl")
             self.cpp_info.components["minion-bl"].includedirs = [os.path.join("minion-bl", "include")]
             self.cpp_info.components["minion-bl"].libdirs = [os.path.join("minion-bl", "lib")]
             self.cpp_info.components["minion-bl"].libs = ["minion-bl"]
             self.cpp_info.components["minion-bl"].requires = ["etsoc_hal::etsoc_hal"]
 
         if self.options.with_mm_rt_svcs:
+            self.cpp_info.components["mm-rt-svcs"].set_property("cmake_target_name", "et-common-libs::mm-rt-svcs")
             self.cpp_info.components["mm-rt-svcs"].includedirs = [os.path.join("mm-rt-svcs", "include")]
             self.cpp_info.components["mm-rt-svcs"].libdirs = [os.path.join("mm-rt-svcs", "lib")]
             self.cpp_info.components["mm-rt-svcs"].libs = ["mm-rt-svcs"]
@@ -121,6 +133,7 @@ class EtCommonLibsConan(ConanFile):
             self.cpp_info.components["mm-rt-svcs"].requires = ["etsoc_hal::etsoc_hal"]
 
         if self.options.with_cm_rt_svcs:
+            self.cpp_info.components["cm-rt-svcs"].set_property("cmake_target_name", "et-common-libs::cm-rt-svcs")
             self.cpp_info.components["cm-rt-svcs"].includedirs = [os.path.join("cm-rt-svcs", "include")]
             self.cpp_info.components["cm-rt-svcs"].libdirs = [os.path.join("cm-rt-svcs", "lib")]
             self.cpp_info.components["cm-rt-svcs"].libs = ["cm-rt-svcs"]
