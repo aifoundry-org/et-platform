@@ -1296,7 +1296,7 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	// BAR0 size check
 	if (dir_mgmt->bar0_size !=
 	    pci_resource_len(et_dev->pdev, 0 /* BAR0 */)) {
-		dbg_msg.level = LEVEL_WARN;
+		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc =
 			"BAR0 size doesn't match BAR0 size exposed by DIRs!";
 		sprintf(dbg_msg.syndrome,
@@ -1304,12 +1304,14 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 			pci_resource_len(et_dev->pdev, 0),
 			dir_mgmt->bar0_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
+		rv = -EINVAL;
+		goto error_unmap_dir_region;
 	}
 
 	// BAR2 size check
 	if (dir_mgmt->bar2_size !=
 	    pci_resource_len(et_dev->pdev, 2 /* BAR2 */)) {
-		dbg_msg.level = LEVEL_WARN;
+		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc =
 			"BAR2 size doesn't match BAR2 size exposed by DIRs!";
 		sprintf(dbg_msg.syndrome,
@@ -1317,6 +1319,8 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 			pci_resource_len(et_dev->pdev, 2),
 			dir_mgmt->bar2_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
+		rv = -EINVAL;
+		goto error_unmap_dir_region;
 	}
 
 	// End of region check
