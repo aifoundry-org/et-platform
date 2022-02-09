@@ -31,24 +31,16 @@ void write_dmctrl(uint32_t data)
     return iowrite32((R_SP_MISC_BASEADDR | SPIO_MISC_ESR_DMCTRL_ADDRESS), data);
 }
 
-void disable_shire_neigh(uint8_t shire_id, uint8_t neigh_id)
+void disable_shire_threads(uint8_t shire_id)
 {
-    uint32_t th0_disabled = READ_THREAD0_DISABLE(shire_id);
-    uint32_t th1_disabled = READ_THREAD1_DISABLE(shire_id);
-    th0_disabled |= DISABLE_MINION_MASK(neigh_id);
-    th1_disabled |= DISABLE_MINION_MASK(neigh_id);
-    WRITE_THREAD0_DISABLE(shire_id, th0_disabled);
-    WRITE_THREAD1_DISABLE(shire_id, th1_disabled);
+    WRITE_THREAD0_DISABLE(shire_id, 0xFFFFFFFF);
+    WRITE_THREAD1_DISABLE(shire_id, 0xFFFFFFFF);
 }
 
-void enable_shire_neigh(uint8_t shire_id, uint8_t neigh_id)
+void enable_shire_threads(uint8_t shire_id)
 {
-    uint32_t th0_disabled = READ_THREAD0_DISABLE(shire_id);
-    uint32_t th1_disabled = READ_THREAD1_DISABLE(shire_id);
-    th0_disabled &= ENABLE_MINION_MASK(neigh_id);
-    th1_disabled &= ENABLE_MINION_MASK(neigh_id);
-    WRITE_THREAD0_DISABLE(shire_id, th0_disabled);
-    WRITE_THREAD1_DISABLE(shire_id, th1_disabled);
+    WRITE_THREAD0_DISABLE(shire_id, 0x0);
+    WRITE_THREAD1_DISABLE(shire_id, 0x0);
 }
 
 uint64_t get_enabled_harts(uint8_t shire_id)

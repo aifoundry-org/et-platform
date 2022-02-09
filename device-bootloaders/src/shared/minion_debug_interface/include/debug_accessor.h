@@ -22,11 +22,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "esr.h"
-#include "etsoc_hal/inc/hal_device.h"
-#include "etsoc_hal/inc/etsoc_neigh_esr.h"
-#include "etsoc_hal/inc/spio_misc_esr.h"
-#include "etsoc_hal/inc/etsoc_shire_other_esr.h"
 #include "etsoc_hal/inc/minion_csr.h"
+#include "hwinc/sp_misc.h"
+#include "hwinc/etsoc_shire_other_esr.h"
 #include "etsoc/isa/io.h"
 #include <system/layout.h>
 #include "bl_error_code.h"
@@ -34,7 +32,7 @@
 #define HARTS_PER_NEIGH     16
 #define MINIONS_PER_NEIGH   HARTS_PER_NEIGH / 2
 #define NUM_NEIGH_PER_SHIRE 4
-#define MAX_RETRIES         5
+#define MAX_RETRIES         1000
 #define TDATA1(mode)        (((uint64_t)1 << 59) | (1 << 12) | (0 << 7) | ((mode & 7) << 3) | (1 << 2))
 #define RUNNING(treel2)     (treel2 >> 5 & 1U)
 #define HALTED(treel2)      (treel2 >> 3 & 1U)
@@ -179,8 +177,8 @@ void assert_halt(void);
 void deassert_halt(void);
 void select_hart_op(uint8_t shire_id, uint8_t neigh_id, uint16_t hart_mask);
 void unselect_hart_op(uint8_t shire_id, uint8_t neigh_id, uint16_t hart_mask);
-void disable_shire_neigh(uint8_t shire_id, uint8_t neigh_id);
-void enable_shire_neigh(uint8_t shire_id, uint8_t neigh_id);
+void disable_shire_threads(uint8_t shire_id);
+void enable_shire_threads(uint8_t shire_id);
 uint64_t get_enabled_harts(uint8_t shire_id);
 
 /* Functions required by minion state control APIs*/

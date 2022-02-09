@@ -21,11 +21,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "esr.h"
-#include "etsoc_hal/inc/hal_device.h"
-#include "etsoc_hal/inc/etsoc_neigh_esr.h"
-#include "etsoc_hal/inc/spio_misc_esr.h"
-#include "etsoc_hal/inc/etsoc_shire_other_esr.h"
 #include "etsoc_hal/inc/minion_csr.h"
+#include "hwinc/hal_device.h"
+#include "hwinc/etsoc_neigh_esr.h"
+#include "hwinc/sp_misc.h"
+#include "hwinc/etsoc_shire_other_esr.h"
+
 #include "debug_accessor.h"
 #include "debug_instruction_sequence.h"
 #include <et-trace/layout.h>

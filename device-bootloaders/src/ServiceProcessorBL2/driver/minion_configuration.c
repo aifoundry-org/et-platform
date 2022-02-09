@@ -98,6 +98,20 @@ static StaticTimer_t MM_Timer_Buffer;
         event_control_block.event_cb(CORRECTABLE, &message);                                 \
     }
 
+/* Macro to update all Neighs in Shire for a given input function */
+#define UPDATE_ALL_NEIGH(function, shireid)                             \
+    for( uint8_t neighid = 0; neighid < NUM_NEIGH_PER_SHIRE; neighid++) \
+    {                                                                   \
+       function(shireid, neighid);                                      \
+    }                                                                   \
+ 
+/* Macro to update all Minion Harts in Shire for a given input function */
+#define UPDATE_ALL_MINION(function, start_hart, last_hart)               \
+    for( uint64_t hartid = start_hart; hartid < last_hart; hartid++)     \
+    {                                                                    \
+       function(hartid);                                                 \
+    } 
+
 /* This Threashold voltage would need to be extracted from OTP */
 #define THRESHOLD_VOLTAGE 400
 
@@ -393,7 +407,7 @@ static int enable_minion_shire(uint64_t shire_mask)
         {
             SWITCH_CLOCK_MUX(i, SELECT_REF_CLOCK)
             /* Set Shire ID, enable cache and all Neighborhoods */
-            const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(i) |
+            uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(i) |
                                     ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(1) |
                                     ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(0xF);
             write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
@@ -401,7 +415,23 @@ static int enable_minion_shire(uint64_t shire_mask)
             read_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
                          ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
 
-            //NOSONAR Minion_VPU_RF_Init(i);
+            /* VPU Array init */
+            //NOSONAR if (0 != Minion_VPU_RF_Init(i))
+            //NOSONAR Log_Write(LOG_LEVEL_WARNING, "Shire %d VPU RF not initialized\n",i); 
+
+            //NOSONAR Log_Write(LOG_LEVEL_CRITICAL, "Reseting Neighs\n");
+            /* Reset Neighs*/
+            config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, 0x0);
+            write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                          ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
+            read_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                         ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
+
+            config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, 0xF);
+            write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                          ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
+            read_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                         ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
         }
         shire_mask >>= 1;
     }
@@ -1480,38 +1510,30 @@ int8_t disable_sram_and_icache_interrupts(void)
 ************************************************************************/
 int Minion_VPU_RF_Init(uint8_t shireid)
 {
-    /* Assert halt signal. Would affect all the selected harts until is deasserted */
+    /* Select all Neighs in Shire */
+    UPDATE_ALL_NEIGH(Select_Harts, shireid)
+   
+    /* Assert Halt */
     assert_halt();
-
-    for (uint8_t neighid = 0; neighid < NUM_NEIGH_PER_SHIRE; neighid++)
-    {
-        /* Select all Neighs in Shire */
-        Select_Harts(shireid, neighid);
-
-        /* Enable all Minions in this Neigh*/
-        enable_shire_neigh(shireid, neighid);
-
-        /* Wait for all Harts in Shire to halt */
-        if (!WAIT(Check_Halted()))
-        {
-            return MINION_CORE_NOT_HALTED;
-        }
-
-        /* Execute VPU init sequence on each Harts within this Neigh */
-        uint64_t start_hart_id = (uint64_t)((shireid * HARTS_PER_NEIGH * NUM_NEIGH_PER_SHIRE) +
-                                            (neighid * HARTS_PER_NEIGH));
-        uint64_t last_hart_id = start_hart_id + HARTS_PER_NEIGH;
-        for (uint64_t hartid = start_hart_id; hartid < last_hart_id; hartid++)
-        {
-            VPU_RF_Init(hartid);
-        }
-
-        /* Unselect all Harts in this Neigh */
-        Unselect_Harts(shireid, neighid);
+   
+    /* Enable all Threads in this Shire */ 
+    enable_shire_threads(shireid);
+ 
+    /* Wait for all Harts in Shire to halt */
+    if (!WAIT(Check_Halted())) {
+       UPDATE_ALL_NEIGH(Unselect_Harts,shireid)
+       return MINION_CORE_NOT_HALTED;
     }
 
-    /* Done halting minions */
     deassert_halt();
+
+    uint64_t start_hart = (uint64_t)(shireid * HARTS_PER_SHIRE);
+    uint64_t last_hart = start_hart + HARTS_PER_SHIRE;
+    UPDATE_ALL_MINION(VPU_RF_Init,start_hart, last_hart)
+    Log_Write(LOG_LEVEL_CRITICAL, "Executed VPU RF on Hart [%ld:%ld]\n", start_hart, last_hart); 
+
+    /* Unselect all Neighs in Shire */
+    UPDATE_ALL_NEIGH(Unselect_Harts,shireid)
 
     return SUCCESS;
 }
