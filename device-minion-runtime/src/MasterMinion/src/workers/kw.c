@@ -118,7 +118,6 @@ typedef struct kernel_instance_ {
     uint64_t kernel_shire_mask;
     uint64_t umode_exception_buffer_ptr;
     uint64_t umode_trace_buffer_ptr;
-    // uint64_t failed_cm_shire_mask; //for umode exception only
 } kernel_instance_t;
 
 /*! \typedef kw_cb_t

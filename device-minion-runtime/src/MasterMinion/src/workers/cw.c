@@ -61,8 +61,8 @@ typedef struct cw_cb_t_ {
     uint64_t physically_avail_shires_mask;
     uint64_t booted_shires_mask;
     uint64_t shire_state;
-    uint32_t timeout_flag;
     spinlock_t cm_reset_lock;
+    uint32_t timeout_flag;
 } cw_cb_t;
 
 /*! \var cw_cb_t CW_CB
@@ -74,12 +74,12 @@ static cw_cb_t CW_CB __attribute__((aligned(64))) = { 0 };
 /*! \def CW_RESET_CB
     \brief Macro to reset the state of glabals in CW CB
 */
-#define CW_RESET_CB(shire_mask)                                 \
-    {                                                           \
-        /* Reset state of globals */                            \
-        atomic_store_local_64(&CW_CB.booted_shires_mask, 0ULL); \
-        atomic_store_local_64(&CW_CB.shire_state, 0ULL);        \
-        atomic_store_local_32(&CW_CB.timeout_flag, 0);          \
+#define CW_RESET_CB(shire_mask)                                        \
+    {                                                                  \
+        /* Reset state of globals */                                   \
+        atomic_and_local_64(&CW_CB.booted_shires_mask, (~shire_mask)); \
+        atomic_and_local_64(&CW_CB.shire_state, (~shire_mask));        \
+        atomic_store_local_32(&CW_CB.timeout_flag, 0);                 \
     }
 
 /************************************************************************
@@ -137,15 +137,15 @@ int32_t CW_Init(void)
     uint64_t shire_mask = 0;
     uint64_t sip;
 
-    /* Reset the globals */
-    CW_RESET_CB(shire_mask)
-
     /* Obtain the number of shires to be used from SP and initialize the CW control block */
     status = SP_Iface_Get_Shire_Mask_And_Strap(&shire_mask, &lvdpll_strap);
     if (status != STATUS_SUCCESS)
     {
         return status;
     }
+
+    /* Reset the globals */
+    CW_RESET_CB(shire_mask)
 
     Log_Write(LOG_LEVEL_DEBUG, "CW_Init:Shire mask from SP: 0x%lx\r\n", shire_mask);
 
@@ -524,7 +524,7 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
             exit_loop = true;
         }
 
-        if ((status == STATUS_SUCCESS) && (CW_Get_Booted_Shires() == shire_mask))
+        if ((status == STATUS_SUCCESS) && ((CW_Get_Booted_Shires() & shire_mask) == shire_mask))
         {
             Log_Write(LOG_LEVEL_CRITICAL,
                 "CW: All CW re-booted successfully. Shire Mask:0x%lx!\r\n", shire_mask);
@@ -534,10 +534,6 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
 
     /* Release the lock */
     release_local_spinlock(&CW_CB.cm_reset_lock);
-
-    /*TODO: Do not reset MM Shire until we have support to reset one neigh in MM shire .*/
-    atomic_compare_and_exchange_local_64(
-        &CW_CB.booted_shires_mask, shire_mask, (shire_mask | MM_SHIRE_MASK));
 
     if (sw_timer_idx >= 0)
     {

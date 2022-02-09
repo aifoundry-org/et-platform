@@ -49,8 +49,8 @@
 
 /* Encoder function prototypes */
 static inline void et_trace_write_float(void *addr, float value);
-static inline void et_trace_buffer_lock_acquire(void);
-static inline void et_trace_buffer_lock_release(void);
+static inline void et_trace_mm_cb_lock_acquire(void);
+static inline void et_trace_mm_cb_lock_release(void);
 
 #define ET_TRACE_GET_HPM_COUNTER(id) pmu_core_counter_read_unpriv(id)
 #define ET_TRACE_GET_TIMESTAMP()     PMC_Get_Current_Cycles()
@@ -69,8 +69,8 @@ static inline void et_trace_buffer_lock_release(void);
 #define ET_TRACE_MEM_CPY(dest, src, size) ETSOC_Memory_Write_Local_Atomic(src, dest, size)
 
 /* Master Minion trace buffer locks */
-#define ET_TRACE_BUFFER_LOCK_ACQUIRE et_trace_buffer_lock_acquire();
-#define ET_TRACE_BUFFER_LOCK_RELEASE et_trace_buffer_lock_release();
+#define ET_TRACE_BUFFER_LOCK_ACQUIRE et_trace_mm_cb_lock_acquire();
+#define ET_TRACE_BUFFER_LOCK_RELEASE et_trace_mm_cb_lock_release();
 
 #define ET_TRACE_ENCODER_IMPL
 #include "services/trace.h"
@@ -103,9 +103,9 @@ typedef struct mm_trace_control_block {
     struct trace_control_block_t cb; /**!< Common Trace library control block. */
     uint64_t cm_shire_mask;          /**!< Compute Minion Shire mask to fetch Trace data from CM. */
     uint64_t cm_thread_mask;         /**!< Compute Minion Shire mask to fetch Trace data from CM. */
-    spinlock_t trace_buffer_lock;    /**!< Lock to serialize operations on trace buffer offset it
-                                           includes buffer reservation in encoder, buffer reset, and buffer evict. */
-    spinlock_t trace_cb_lock;        /**!< Compute Minion Shire mask to fetch Trace data from CM. */
+    spinlock_t mm_trace_cb_lock;     /**!< Lock to serialize operations on MM trace CB */
+    spinlock_t
+        trace_internal_cb_lock; /**!< Lock to serialize operation on CB internal fields other than MM CB (it has its own lock). */
 } __attribute__((aligned(64))) mm_trace_control_block_t;
 
 /* A local Trace control block for all Master Minions. */
@@ -113,17 +113,19 @@ static mm_trace_control_block_t MM_Trace_CB = { .cb = { 0 },
     .cm_shire_mask = CM_DEFAULT_TRACE_SHIRE_MASK,
     .cm_thread_mask = CM_DEFAULT_TRACE_THREAD_MASK };
 
-/* Trace buffer locking routines */
-static inline void et_trace_buffer_lock_acquire(void)
+/* Trace buffer locking routines
+   WARNING: This lock is shared with Trace encoder, So while using this in MM Trace component,
+   there should be no Trace logs used after acquiring this. */
+static inline void et_trace_mm_cb_lock_acquire(void)
 {
     /* Acquire the lock */
-    acquire_local_spinlock(&MM_Trace_CB.trace_buffer_lock);
+    acquire_local_spinlock(&MM_Trace_CB.mm_trace_cb_lock);
 }
 
-static inline void et_trace_buffer_lock_release(void)
+static inline void et_trace_mm_cb_lock_release(void)
 {
     /* Release the lock */
-    release_local_spinlock(&MM_Trace_CB.trace_buffer_lock);
+    release_local_spinlock(&MM_Trace_CB.mm_trace_cb_lock);
 }
 
 /************************************************************************
@@ -189,8 +191,8 @@ int32_t Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
     if (status == STATUS_SUCCESS)
     {
         /* Initialize the spinlock */
-        init_local_spinlock(&MM_Trace_CB.trace_buffer_lock, 0);
-        init_local_spinlock(&MM_Trace_CB.trace_cb_lock, 0);
+        init_local_spinlock(&MM_Trace_CB.mm_trace_cb_lock, 0);
+        init_local_spinlock(&MM_Trace_CB.trace_internal_cb_lock, 0);
 
         /* Common buffer for all MM Harts. */
         MM_Trace_CB.cb.size_per_hart = MM_TRACE_BUFFER_SIZE;
@@ -257,12 +259,12 @@ int32_t Trace_Configure_MM(const struct trace_config_info_t *mm_config_info)
     if (mm_config_info != NULL)
     {
         /* Acquire the lock */
-        acquire_local_spinlock(&MM_Trace_CB.trace_cb_lock);
+        et_trace_mm_cb_lock_acquire();
 
         status = Trace_Config(mm_config_info, &MM_Trace_CB.cb);
 
         /* Release the lock */
-        release_local_spinlock(&MM_Trace_CB.trace_cb_lock);
+        et_trace_mm_cb_lock_release();
 
         if (status != STATUS_SUCCESS)
         {
@@ -373,13 +375,13 @@ int32_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg)
     int32_t status;
 
     /* Acquire the lock */
-    acquire_local_spinlock(&MM_Trace_CB.trace_cb_lock);
+    acquire_local_spinlock(&MM_Trace_CB.trace_internal_cb_lock);
 
     /* Transmit the message to Compute Minions */
     status = CM_Iface_Multicast_Send(config_msg->shire_mask, (cm_iface_message_t *)config_msg);
 
     /* Release the lock */
-    release_local_spinlock(&MM_Trace_CB.trace_cb_lock);
+    release_local_spinlock(&MM_Trace_CB.trace_internal_cb_lock);
 
     /* Save the configured values in MM CB */
     if (status == STATUS_SUCCESS)
@@ -413,28 +415,27 @@ int32_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg)
 void Trace_RT_Control_MM(uint32_t control)
 {
     /* Acquire the lock */
-    acquire_local_spinlock(&MM_Trace_CB.trace_cb_lock);
+    et_trace_mm_cb_lock_acquire();
 
     /* Check flag to reset Trace buffer. */
     if (control & TRACE_RT_CONTROL_RESET_TRACEBUF)
     {
-        et_trace_buffer_lock_acquire();
         atomic_store_local_32(
             &(MM_Trace_CB.cb.offset_per_hart), sizeof(struct trace_buffer_std_header_t));
-        et_trace_buffer_lock_release();
     }
 
     /* Check flag to Enable/Disable Trace. */
     if (control & TRACE_RT_CONTROL_ENABLE_TRACE)
     {
         atomic_store_local_8(&(MM_Trace_CB.cb.enable), TRACE_ENABLE);
-        Log_Write(LOG_LEVEL_DEBUG, "TRACE_RT_CONTROL:MM:Trace Enabled.\r\n");
     }
     else
     {
         atomic_store_local_8(&(MM_Trace_CB.cb.enable), TRACE_DISABLE);
-        Log_Write(LOG_LEVEL_DEBUG, "TRACE_RT_CONTROL:MM:Trace Disabled.\r\n");
     }
+
+    /* Release the lock */
+    et_trace_mm_cb_lock_release();
 
     /* Check flag to redirect logs to Trace or UART. */
     if (control & TRACE_RT_CONTROL_LOG_TO_UART)
@@ -447,9 +448,6 @@ void Trace_RT_Control_MM(uint32_t control)
         Log_Set_Interface(LOG_DUMP_TO_TRACE);
         Log_Write(LOG_LEVEL_DEBUG, "TRACE_RT_CONTROL:MM:Logs redirected to Trace buffer.\r\n");
     }
-
-    /* Release the lock */
-    release_local_spinlock(&MM_Trace_CB.trace_cb_lock);
 }
 
 /************************************************************************
@@ -476,7 +474,7 @@ uint32_t Trace_Evict_Buffer_MM(void)
 {
     struct trace_buffer_std_header_t *trace_header =
         (struct trace_buffer_std_header_t *)MM_TRACE_BUFFER_BASE;
-    et_trace_buffer_lock_acquire();
+    et_trace_mm_cb_lock_acquire();
     uint32_t offset = atomic_load_local_32(&(MM_Trace_CB.cb.offset_per_hart));
 
     /* Store used buffer size in buffer header. */
@@ -484,7 +482,7 @@ uint32_t Trace_Evict_Buffer_MM(void)
 
     ETSOC_MEM_EVICT((uint64_t *)MM_TRACE_BUFFER_BASE, offset, to_L3)
 
-    et_trace_buffer_lock_release();
+    et_trace_mm_cb_lock_release();
 
     return offset;
 }

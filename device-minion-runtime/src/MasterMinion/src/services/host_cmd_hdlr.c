@@ -279,6 +279,7 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
         (struct device_ops_cm_reset_cmd_t *)command_buffer;
     struct device_ops_cm_reset_rsp_t rsp;
     int32_t status = STATUS_SUCCESS;
+    uint64_t enabled_cm_shire_mask = CW_Get_Physically_Enabled_Shires();
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_CMD, sqw_hp_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -294,10 +295,10 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
 
     /* Check if requested shires are physically available */
-    if (cmd->cm_shire_mask == (cmd->cm_shire_mask & CW_Get_Physically_Enabled_Shires()))
+    if (cmd->cm_shire_mask == (cmd->cm_shire_mask & enabled_cm_shire_mask))
     {
         /* Reset all and Wait for all shires to boot up. */
-        status = CW_CM_Configure_And_Wait_For_Boot(CW_Get_Physically_Enabled_Shires());
+        status = CW_CM_Configure_And_Wait_For_Boot(enabled_cm_shire_mask);
 
         if (status != STATUS_SUCCESS)
         {
@@ -310,7 +311,7 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
     {
         Log_Write(LOG_LEVEL_ERROR,
             "KW:Invalid shire mask:0x%lx, physically available shire:0x%lx\r\n", cmd->cm_shire_mask,
-            CW_Get_Physically_Enabled_Shires());
+            enabled_cm_shire_mask);
         status = HOST_CMD_ERROR_INVALID_CM_SHIRE_MASK;
     }
 
@@ -333,15 +334,9 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
         rsp.status = DEV_OPS_API_CM_RESET_RESPONSE_UNEXPECTED_ERROR;
     }
 
-#if TEST_FRAMEWORK
-    /* For SP2MM command response, we need to provide the total size = header + payload */
-    rsp.response_info.rsp_hdr.size = sizeof(struct device_ops_cm_reset_rsp_t);
-    status = SP_Iface_Push_Rsp_To_SP2MM_CQ(&rsp, sizeof(rsp));
-#else
     rsp.response_info.rsp_hdr.size =
         sizeof(struct device_ops_cm_reset_rsp_t) - sizeof(struct cmn_header_t);
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
-#endif
 
     if (status == STATUS_SUCCESS)
     {
