@@ -116,7 +116,7 @@ protected:
   void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) const;
 
   void controlTraceLogging(bool resetTraceBuffer);
-  void extractAndPrintTraceData(bool singleDevice, TraceBufferType bufferType);
+  bool extractAndPrintTraceData(bool singleDevice, TraceBufferType bufferType);
   void serializeAccessMgmtNode(bool singleDevice);
   void getDeviceErrorEvents(bool singleDevice);
   void setTraceControl(bool singleDevice, uint32_t control_bitmap);

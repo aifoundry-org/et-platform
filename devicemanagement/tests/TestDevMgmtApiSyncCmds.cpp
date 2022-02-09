@@ -167,7 +167,8 @@ static inline void logTraceException(std::stringstream& logs, const struct trace
   }
 }
 
-static inline void decodeSingleTraceEvent(std::stringstream& logs, const struct trace_entry_header_t* entry) {
+static inline bool decodeSingleTraceEvent(std::stringstream& logs, const struct trace_entry_header_t* entry) {
+  auto validTypeFound = true;
   logs << "H:" << entry->hart_id << " Timestamp:" << entry->cycle << " :";
   if (entry->type == TRACE_TYPE_STRING) {
     std::array<char, TRACE_STRING_MAX_SIZE + 1> stringLog;
@@ -176,10 +177,14 @@ static inline void decodeSingleTraceEvent(std::stringstream& logs, const struct 
     logs << stringLog.data() << std::endl;
   } else if (entry->type == TRACE_TYPE_EXCEPTION) {
     logTraceException(logs, entry);
-  } else {
+  } else if (entry->type > TRACE_TYPE_STRING && entry->type <= TRACE_TYPE_CUSTOM_EVENT) {
     logs << "Trace Packet Type:" << entry->type
          << ", Use trace-utils decoder on trace binary file to parse this packet." << std::endl;
+  } else {
+    logs << "Invalid Trace Packet Type:" << entry->type << std::endl;
+    validTypeFound = false;
   }
+  return validTypeFound;
 }
 
 void TestDevMgmtApiSyncCmds::dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
@@ -296,8 +301,9 @@ bool TestDevMgmtApiSyncCmds::decodeTraceEvents(int deviceIdx, const std::vector<
   std::stringstream logs;
   for (entry = Trace_Decode(templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data()), entry); entry;
        entry = Trace_Decode(templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data()), entry)) {
-    decodeSingleTraceEvent(logs, entry);
-    validEventFound = true;
+    if (decodeSingleTraceEvent(logs, entry)) {
+      validEventFound = true;
+    }
   }
 
   logfile << logs.str();
@@ -306,32 +312,36 @@ bool TestDevMgmtApiSyncCmds::decodeTraceEvents(int deviceIdx, const std::vector<
   return validEventFound;
 }
 
-void TestDevMgmtApiSyncCmds::extractAndPrintTraceData(bool singleDevice, TraceBufferType bufferType) {
+bool TestDevMgmtApiSyncCmds::extractAndPrintTraceData(bool singleDevice, TraceBufferType bufferType) {
   if (!FLAGS_enable_trace_dump) {
-    return;
+    return false;
   }
 
   // TODO SW-9220: To be removed. Disabling the trace flushes the buffer
   setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE);
 
   getDM_t dmi = getInstance();
-  ASSERT_TRUE(dmi);
+  EXPECT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
   std::vector<std::byte> response;
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  auto validTraceDataFound = false;
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     if (dm.getTraceBufferServiceProcessor(deviceIdx, bufferType, response, DM_SERVICE_REQUEST_TIMEOUT) !=
         device_mgmt_api::DM_STATUS_SUCCESS) {
       DM_LOG(INFO) << "Unable to get trace buffer for device: " << deviceIdx << ". Disabling Trace.";
       continue;
     }
-    decodeTraceEvents(deviceIdx, response, bufferType);
     dumpRawTraceBuffer(deviceIdx, response, bufferType);
+    if (decodeTraceEvents(deviceIdx, response, bufferType)) {
+      validTraceDataFound = true;
+    }
   }
 
   // TODO SW-9220: To be removed
   setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE);
+  return validTraceDataFound;
 }
 
 void TestDevMgmtApiSyncCmds::getModuleManufactureName(bool singleDevice) {
