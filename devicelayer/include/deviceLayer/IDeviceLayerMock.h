@@ -9,8 +9,7 @@
  *-------------------------------------------------------------------------*/
 #pragma once
 
-#include "deviceLayer/IDeviceLayer.h"
-#include "deviceLayer/IDeviceLayerFake.h"
+#include "IDeviceLayerFake.h"
 
 #include <chrono>
 #include <gmock/gmock.h>

@@ -171,15 +171,17 @@ DeviceSysEmu::DeviceSysEmu(const emu::SysEmuOptions& options) {
 }
 
 DeviceSysEmu::~DeviceSysEmu() {
-  DV_LOG(INFO) << "Destroying DeviceSysEmu";
+  DV_LOG(INFO) << "Destroying DeviceSysEmu.";
   isRunning_ = false;
-  DV_LOG(INFO) << "Stopping sysemu";
-  sysEmu_->stop();
-  DV_LOG(INFO) << "Awake all waiting threads";
+  DV_LOG(INFO) << "Stopping sysemu.";
+  sysEmu_.reset();
+  DV_LOG(INFO) << "Checking last errors from sysemu.";
+  checkSysemuLastError(); // this needs to be done after sysemu instance has been destroyed
+  DV_LOG(INFO) << "Awake all waiting threads.";
   for (auto& interruptBlock : interruptBlock_) {
     interruptBlock.notify_all();
   }
-  DV_LOG(INFO) << "Joining interrupt listener";
+  DV_LOG(INFO) << "Joining interrupt listener.";
   interruptListener_.join();
   DV_LOG(INFO) << "Interrupt listener joined";
 }
