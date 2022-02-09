@@ -45,12 +45,12 @@ bool Check_Running()
 
 void Select_Harts(uint8_t shire_id, uint8_t neigh_id)
 {
-    select_hart_op(shire_id, neigh_id, NEIGH_MASK);
+    select_hart_op(shire_id, neigh_id, ALL_MINIONS_MASK);
 }
 
 void Unselect_Harts(uint8_t shire_id, uint8_t neigh_id)
 {
-    unselect_hart_op(shire_id, neigh_id, NEIGH_MASK);
+    unselect_hart_op(shire_id, neigh_id, ALL_MINIONS_MASK);
 }
 
 void Set_PC(uint64_t hart_id, uint64_t pc)

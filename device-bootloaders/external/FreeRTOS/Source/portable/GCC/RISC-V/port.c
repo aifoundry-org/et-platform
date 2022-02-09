@@ -205,15 +205,22 @@ extern void xPortStartFirstTask( void );
 
 	#if( ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIMECMP_BASE_ADDRESS != 0 ) )
 	{
-		/* Enable mtime and external interrupts.  1<<7 for timer interrupt, 1<<11
-		for external interrupt.  _RB_ What happens here when mtime is not present as
-		with pulpino? */
-		__asm volatile( "csrs mie, %0" :: "r"(0x880) );
+		/* Enable
+                    Bus error - 1 << 23
+                    External Interrrupt - 1 << 11
+                    Timer Interrupt - 1 << 7
+                    Mmode SW Interrupt - 1 << 3
+		*/
+		__asm volatile( "csrs mie, %0" :: "r"(0x800888) );
 	}
 	#else
 	{
-		/* Enable external interrupts. */
-		__asm volatile( "csrs mie, %0" :: "r"(0x800) );
+		/* Enable
+                    Bus error - 1 << 23
+                    External Interrrupt - 1 << 11
+                    Mmode SW Interrupt - 1 << 3
+		*/
+		__asm volatile( "csrs mie, %0" :: "r"(0x800808) );
 	}
 	#endif /* ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIMECMP_BASE_ADDRESS != 0 ) */
 

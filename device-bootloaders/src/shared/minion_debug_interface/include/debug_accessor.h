@@ -62,12 +62,12 @@
 #define NEIGH_ID_2 2
 #define NEIGH_ID_3 3
 
-#define PER_NEIGH_MINION_DISABLE_MASK 0xFFU
+#define PER_NEIGH_MINION_MASK 0xFFU
 #define DISABLE_MINION_MASK(neigh_id) \
-    (PER_NEIGH_MINION_DISABLE_MASK << (MINIONS_PER_NEIGH * neigh_id))
+    (PER_NEIGH_MINION_MASK << (MINIONS_PER_NEIGH * neigh_id))
 #define ENABLE_MINION_MASK(neigh_id) ~DISABLE_MINION_MASK(neigh_id)
 
-#define NEIGH_MASK (HARTS_PER_NEIGH - 1)
+#define ALL_MINIONS_MASK 0xFFFFU
 
 #define GET_THREAD_ID(hart_id) (hart_id & 1)
 #define GET_MINION_ID(hart_id) (hart_id >> 1 & 31)

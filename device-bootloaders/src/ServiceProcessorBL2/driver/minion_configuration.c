@@ -1478,13 +1478,15 @@ int8_t disable_sram_and_icache_interrupts(void)
 *       status   Status indicating success or negative error
 *
 ************************************************************************/
-int8_t Minion_VPU_RF_Init(uint8_t shireid)
+int Minion_VPU_RF_Init(uint8_t shireid)
 {
+    /* Assert halt signal. Would affect all the selected harts until is deasserted */
+    assert_halt();
+
     for (uint8_t neighid = 0; neighid < NUM_NEIGH_PER_SHIRE; neighid++)
     {
         /* Select all Neighs in Shire */
         Select_Harts(shireid, neighid);
-        assert_halt();
 
         /* Enable all Minions in this Neigh*/
         enable_shire_neigh(shireid, neighid);
@@ -1494,7 +1496,6 @@ int8_t Minion_VPU_RF_Init(uint8_t shireid)
         {
             return MINION_CORE_NOT_HALTED;
         }
-        deassert_halt();              
 
         /* Execute VPU init sequence on each Harts within this Neigh */
         uint64_t start_hart_id = (uint64_t)((shireid * HARTS_PER_NEIGH * NUM_NEIGH_PER_SHIRE) +
@@ -1508,5 +1509,9 @@ int8_t Minion_VPU_RF_Init(uint8_t shireid)
         /* Unselect all Harts in this Neigh */
         Unselect_Harts(shireid, neighid);
     }
+
+    /* Done halting minions */
+    deassert_halt();
+
     return SUCCESS;
 }

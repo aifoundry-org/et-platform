@@ -62,15 +62,20 @@
 #define NUM_INST_CSR_WRITE_SEQ 4
 
 /* VPU RF Init Sequence  */
-#define LOAD_T0_FP_INIT   0x000022b7U /* lui t0,0x2             */
-#define UPDATE_MSTATUS    0x3002a073U /* csrs mstatus, t0       */
-#define FMA_3PORT_RF_READ 0x00007043U /* fmadd.s f0, f0, f0, f0 */
+#define CLR_MATP       0x7c005073 /* csrwi matp,0              */
+#define CLR_SATP       0x18005073 /* csrwi satp,0              */
+#define INIT_T0        0x000062b7 /* lui   t0,0x6              */
+#define UPDATE_MSTATUS 0x3002a073  /* csrs  mstatus,t0          */
+#define CLR_FCSR       0x00305073 /* csrwi fcsr,0              */
+#define FMA_3PORT_RF_READ 0x00007043 /* fmadd.s f0, f0, f0, f0 */
 
 #define VPU_RF_INIT_SEQ()    \
-         LOAD_T0_FP_INIT,    \
+         CLR_MATP,           \
+         CLR_SATP,           \
+         INIT_T0,            \
          UPDATE_MSTATUS,     \
-         FMA_3PORT_RF_READ,  \
-         EBREAK_INST
-#define NUM_INST_VPU_RF_INIT_SEQ 4
+         CLR_FCSR,           \
+         FMA_3PORT_RF_READ
+#define NUM_INST_VPU_RF_INIT_SEQ 6
 
 #endif /* DEBUG_INSTRUCTION_SEQUENCE_H */
