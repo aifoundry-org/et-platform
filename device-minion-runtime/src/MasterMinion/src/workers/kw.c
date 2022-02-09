@@ -87,6 +87,22 @@
         }                                                                              \
     }
 
+/*! \def KERNEL_SAVE_UMODE_TRACE_PTR(kernel, cmd)
+    \brief Macro used to save user mode trace pointer in KW CB.
+*/
+#define KW_SAVE_UMODE_TRACE_PTR(kernel, cmd)                                                   \
+    {                                                                                          \
+        if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)           \
+        {                                                                                      \
+            atomic_store_local_64(&kernel->umode_trace_buffer_ptr,                             \
+                ((struct trace_init_info_t *)(uintptr_t)CM_UMODE_TRACE_CFG_BASEADDR)->buffer); \
+        }                                                                                      \
+        else                                                                                   \
+        {                                                                                      \
+            atomic_store_local_64(&kernel->umode_trace_buffer_ptr, 0);                         \
+        }                                                                                      \
+    }
+
 /*! \typedef kernel_instance_t
     \brief Kernel Instance Control Block structure.
     Kernel instance maintains information related to
@@ -615,77 +631,76 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
         }
     }
 
-    /* Kernel arguments are optional (0 == optional) */
     if (status == STATUS_SUCCESS)
     {
+        /* Process the kernel optional payload */
         status = process_kernel_launch_cmd_payload(cmd);
-    }
-
-    if (status == STATUS_SUCCESS)
-    {
-        /* Populate the tag_id and sqw_idx for KW */
-        atomic_store_local_16(&kernel->launch_tag_id, cmd->command_info.cmd_hdr.tag_id);
-        atomic_store_local_8(&kernel->sqw_idx, sqw_idx);
-
-        /* Populate the kernel launch params */
-        mm_to_cm_message_kernel_launch_t launch_args = { 0 };
-        launch_args.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
-        launch_args.header.tag_id = cmd->command_info.cmd_hdr.tag_id;
-        launch_args.kernel.kw_base_id = (uint8_t)KW_MS_BASE_HART;
-        launch_args.kernel.slot_index = slot_index;
-        launch_args.kernel.code_start_address = cmd->code_start_address;
-        launch_args.kernel.pointer_to_args = cmd->pointer_to_args;
-        launch_args.kernel.shire_mask = cmd->shire_mask;
-        launch_args.kernel.exception_buffer = cmd->exception_buffer;
-
-        /* If the flag bit flush L3 is set */
-        if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3)
-        {
-            launch_args.kernel.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
-        }
-
-        if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
-        {
-            launch_args.kernel.flags |= KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE;
-        }
-
-        /* Reset the L2 SCP kernel launched flag for the acquired kernel worker slot */
-        atomic_store_global_32(&CM_KERNEL_LAUNCHED_FLAG[slot_index].flag, 0);
-
-        TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
-            cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
-
-        /* Blocking call that blocks till all shires ack command */
-        status = CM_Iface_Multicast_Send(
-            launch_args.kernel.shire_mask, (cm_iface_message_t *)&launch_args);
 
         if (status == STATUS_SUCCESS)
         {
-            *kw_idx = slot_index;
-            atomic_store_local_64(&kernel->umode_exception_buffer_ptr, cmd->exception_buffer);
+            /* Populate the tag_id and sqw_idx for KW */
+            atomic_store_local_16(&kernel->launch_tag_id, cmd->command_info.cmd_hdr.tag_id);
+            atomic_store_local_8(&kernel->sqw_idx, sqw_idx);
+
+            /* Populate the kernel launch params */
+            mm_to_cm_message_kernel_launch_t launch_args = { 0 };
+            launch_args.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
+            launch_args.header.tag_id = cmd->command_info.cmd_hdr.tag_id;
+            launch_args.kernel.kw_base_id = (uint8_t)KW_MS_BASE_HART;
+            launch_args.kernel.slot_index = slot_index;
+            launch_args.kernel.code_start_address = cmd->code_start_address;
+            launch_args.kernel.pointer_to_args = cmd->pointer_to_args;
+            launch_args.kernel.shire_mask = cmd->shire_mask;
+            launch_args.kernel.exception_buffer = cmd->exception_buffer;
+
+            /* If the flag bit flush L3 is set */
+            if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3)
+            {
+                launch_args.kernel.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
+            }
 
             if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
             {
-                atomic_store_local_64(&kernel->umode_trace_buffer_ptr,
-                    ((struct trace_init_info_t *)(uintptr_t)CM_UMODE_TRACE_CFG_BASEADDR)->buffer);
+                launch_args.kernel.flags |= KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE;
+            }
+
+            /* Reset the L2 SCP kernel launched flag for the acquired kernel worker slot */
+            atomic_store_global_32(&CM_KERNEL_LAUNCHED_FLAG[slot_index].flag, 0);
+
+            TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
+                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
+
+            /* Blocking call that blocks till all shires ack command */
+            status = CM_Iface_Multicast_Send(
+                launch_args.kernel.shire_mask, (cm_iface_message_t *)&launch_args);
+
+            if (status == STATUS_SUCCESS)
+            {
+                *kw_idx = slot_index;
+                atomic_store_local_64(&kernel->umode_exception_buffer_ptr, cmd->exception_buffer);
+
+                /* Save the U-mode trace ptr in KW CB */
+                KW_SAVE_UMODE_TRACE_PTR(kernel, cmd)
             }
             else
             {
-                atomic_store_local_64(&kernel->umode_trace_buffer_ptr, 0);
+                Log_Write(LOG_LEVEL_ERROR,
+                    "SQW[%d]:KW:ERROR:MM2CMLaunch:CommandMulticast:Failed:Status:%d\r\n", sqw_idx,
+                    status);
+
+                /* Broadcast message failed. Reclaim resources */
+                kw_unreserve_kernel_shires(cmd->shire_mask);
+                kw_unreserve_kernel_slot(kernel);
+
+                SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
+                status = KW_ERROR_CM_IFACE_MULTICAST_FAILED;
             }
         }
         else
         {
-            Log_Write(LOG_LEVEL_ERROR,
-                "SQW[%d]:KW:ERROR:MM2CMLaunch:CommandMulticast:Failed:Status:%d\r\n", sqw_idx,
-                status);
-
-            /* Broadcast message failed. Reclaim resources */
+            /* Failure detected. Reclaim the resources */
             kw_unreserve_kernel_shires(cmd->shire_mask);
             kw_unreserve_kernel_slot(kernel);
-
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
-            status = KW_ERROR_CM_IFACE_MULTICAST_FAILED;
         }
     }
 
