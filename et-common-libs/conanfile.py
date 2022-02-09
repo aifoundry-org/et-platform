@@ -58,10 +58,6 @@ class EtCommonLibsConan(ConanFile):
         if self.settings.arch != "rv64":
             raise ConanInvalidConfiguration("Cross-compiling to arch %s is not supported" % self.settings.arch)
 
-    def package_id(self):
-        # the target device doesn't have an OS
-        del self.info.settings.os
-
     def generate(self):
         # Get the toolchains from "tools.cmake.cmaketoolchain:user_toolchain" conf at the
         # tool_requires
