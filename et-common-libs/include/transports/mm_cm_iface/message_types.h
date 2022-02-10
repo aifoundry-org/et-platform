@@ -29,16 +29,21 @@ typedef uint8_t cm_iface_message_id_t;
 typedef uint8_t cm_iface_message_number_t;
 
 typedef struct {
-    cm_iface_message_number_t number;
-    cm_iface_message_id_t id;
-    uint16_t tag_id;
+    union {
+        struct {
+            cm_iface_message_number_t number;
+            cm_iface_message_id_t id;
+            uint16_t tag_id;
+        };
+        uint32_t raw_header;
+    };
     uint8_t pad[4]; /* Padding to make struct 64-bit aligned */
 } cm_iface_message_header_t;
 
 #define MESSAGE_MAX_PAYLOAD_SIZE (64 - sizeof(cm_iface_message_header_t))
 
-#define ASSERT_CACHE_LINE_CONSTRAINTS(type)                                      \
-    static_assert(sizeof(type) == 64, "sizeof(" #type ") must be 64 bytes");     \
+#define ASSERT_CACHE_LINE_CONSTRAINTS(type)                                  \
+    static_assert(sizeof(type) == 64, "sizeof(" #type ") must be 64 bytes"); \
     static_assert(_Alignof(type) == 64, "_Alignof(" #type ") must be 64 bytes")
 
 typedef struct {
@@ -73,7 +78,7 @@ typedef enum {
     MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE
 } mm_to_cm_message_id_e;
 
-#define KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH (1u << 0)
+#define KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH      (1u << 0)
 #define KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE (1u << 1)
 
 typedef struct {
@@ -103,28 +108,30 @@ ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_pmc_configure_t);
 
 typedef struct {
     cm_iface_message_header_t header;
-    uint64_t thread_mask;  /**< Bit Mask of Thread. */
-    uint32_t cm_control;   /**< Bit encoded CM Trace control. */
-    uint8_t  pad[4];       /**< Padding for alignment. */
+    uint64_t thread_mask; /**< Bit Mask of Thread. */
+    uint32_t cm_control;  /**< Bit encoded CM Trace control. */
+    uint8_t pad[4];       /**< Padding for alignment. */
 } __attribute__((packed, aligned(64))) mm_to_cm_message_trace_rt_control_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_trace_rt_control_t);
 
 typedef struct {
     cm_iface_message_header_t header;
-    uint64_t thread_mask;  /**< Bit Mask of Thread. */
+    uint64_t thread_mask; /**< Bit Mask of Thread. */
 } __attribute__((packed, aligned(64))) mm_to_cm_message_trace_buffer_evict_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_trace_buffer_evict_t);
 
 typedef struct {
     cm_iface_message_header_t header;
-    uint64_t  shire_mask;   /**< Bit Mask of Shire to enable Trace Capture */
-    uint64_t  thread_mask;  /**< Bit Mask of Thread within a Shire to enable Trace Capture */
-    uint32_t  event_mask;   /**< This is a bit mask, each bit corresponds to a specific Event to trace */
-    uint32_t  filter_mask;  /**< This is a bit mask representing a list of filters for a given event to trace */
-    uint32_t  threshold;    /**< Trace buffer threshold, device will notify Host when buffer is filled up-to this threshold value. */
-    uint8_t   pad[4];       /**< Padding for alignment. */
+    uint64_t shire_mask;  /**< Bit Mask of Shire to enable Trace Capture */
+    uint64_t thread_mask; /**< Bit Mask of Thread within a Shire to enable Trace Capture */
+    uint32_t event_mask; /**< This is a bit mask, each bit corresponds to a specific Event to trace */
+    uint32_t
+        filter_mask; /**< This is a bit mask representing a list of filters for a given event to trace */
+    uint32_t
+        threshold; /**< Trace buffer threshold, device will notify Host when buffer is filled up-to this threshold value. */
+    uint8_t pad[4]; /**< Padding for alignment. */
 } __attribute__((packed, aligned(64))) mm_to_cm_message_trace_rt_config_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_trace_rt_config_t);

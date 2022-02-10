@@ -23,6 +23,9 @@
 
 #include "system/etsoc_ddr_region_map.h"
 
+/* Turn of clang format for this file. It is more readable that way. */
+// clang-format off
+
 /* Aligns an address to the next 64-byte cache line */
 #define FOUR_K_ALIGN(x)            (((x + 0xFFFULL) / 0x1000ULL) * 0x1000ULL)
 #define SIZE_8B                    0x8
@@ -72,11 +75,13 @@
 /*********************************************************************/
 /*              - Shire 32 L2 SCP Region Layout (2.5M) -             */
 /*                    (Base Address: 0x80000000)                     */
-/*     - user                - base-offset   - size                  */
-/*     CM Unicast buff       0x0             0x5000 (20K)            */
-/*     CM Unicast locks      0x5000          0x140 (320 bytes)       */
-/*     CM Kernel flags       0x5140          0x100 (256 bytes)       */
-/*     MM SQ prefetch buffer 0x5240          0x2400 (9K)             */
+/*     - user                    - base-offset   - size              */
+/*     CM Unicast buff           0x0             0x5000 (20K)        */
+/*     CM Unicast locks          0x5000          0x140 (320 bytes)   */
+/*     CM Kernel flags           0x5140          0x100 (256 bytes)   */
+/*     MM SQ prefetch buffer     0x5240          0x2400 (9K)         */
+/*     Broadcast Message Buffer  0x7640          0x40      (64B)     */
+/*     Broadcast Message Control 0x7680          0x40      (64B)     */
 /*********************************************************************/
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET  0x0
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR    ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET)
@@ -97,6 +102,16 @@
 #define MM_SQ_PREFETCHED_BUFFER_BASE_OFFSET          (FW_GLOBAL_UART_LOCK_BASE_OFFSET + FW_GLOBAL_UART_LOCK_SIZE)
 #define MM_SQ_PREFETCHED_BUFFER_BASEADDR             ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, MM_SQ_PREFETCHED_BUFFER_BASE_OFFSET)
 #define MM_SQ_PREFETCHED_BUFFER_SIZE                 (MM_SQ_COUNT_MAX * MM_SQ_SIZE_MAX)
+
+/* Master Minion to Worker Minion Broadcat message buffer. */
+#define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER_OFFSET (MM_SQ_PREFETCHED_BUFFER_BASE_OFFSET + MM_SQ_PREFETCHED_BUFFER_SIZE)
+#define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER        ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER_OFFSET)
+#define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER_SIZE   MESSAGE_BUFFER_SIZE
+
+/* Master Minion to Worker Minion Broadcat message control. */
+#define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL_OFFSET   (FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER_OFFSET + FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER_SIZE)
+#define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL          (FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER + FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL_OFFSET)
+#define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL_SIZE     BROADCAST_MESSAGE_CTRL_SIZE
 
 /*****************************************************************/
 /*              - Low MCODE Region Layout (2M) -                 */
@@ -136,11 +151,10 @@
 /*     Master FW sdata           0x8001000000    0x400000  (4M)      - BAR  */
 /*     Worker FW sdata           0x8001400000    0x400000  (4M)      NA     */
 /*     FW Boot Config            0x8001800000    0x40      (64B)     NA     */
-/*     Broadcast Message Buffer  0x8001800040    0x40      (64B)     NA     */
-/*     Broadcast Message Control 0x8001800080    0x40      (64B)     NA     */
-/*     CM-MM Message counter     0x80018000C0    0x21000   (84K)     NA     */
-/*     CM SMode Trace CB         0x80018210C0    0x20800   (82K)     NA     */
-/*     CM UMode Trace Config     0x80018418C0    0x40      (64B)     NA     */
+/*     CM-MM Message counter     0x8001800040    0x21000   (84K)     NA     */
+/*     CM SMode Trace CB         0x8001821040    0x20800   (82K)     NA     */
+/*     CM UMode Trace Config     0x8001841840    0x40      (64B)     NA     */
+/*     UNUSED                    0x8001841880    0x1F5C780 (31.36M)  NA     */
 /*     SMODE Stacks end          0x800379E000    0x8785920 (8580K)   NA     */
 /*     SMODE Stacks base         0x8003FFF000                        NA     */
 /****************************************************************************/
@@ -159,16 +173,8 @@
 #define FW_MINION_FW_BOOT_CONFIG                            (FW_WORKER_SDATA_BASE + FW_WORKER_SDATA_SIZE)
 #define FW_MINION_FW_BOOT_CONFIG_SIZE                       SIZE_64B
 
-/* Master Minion to Worker Minion Broadcat message buffer. */
-#define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER        (FW_MINION_FW_BOOT_CONFIG + FW_MINION_FW_BOOT_CONFIG_SIZE)
-#define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER_SIZE   MESSAGE_BUFFER_SIZE
-
-/* Master Minion to Worker Minion Broadcat message control. */
-#define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL          (FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER + FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER_SIZE)
-#define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL_SIZE     BROADCAST_MESSAGE_CTRL_SIZE
-
 /* Master Minion and Worker Minion message counter. */
-#define CM_MM_HART_MESSAGE_COUNTER                          (FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL + FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL_SIZE)
+#define CM_MM_HART_MESSAGE_COUNTER                          (FW_MINION_FW_BOOT_CONFIG + FW_MINION_FW_BOOT_CONFIG_SIZE)
 #define CM_MM_HART_MESSAGE_COUNTER_SIZE                     (CM_MM_MESSAGE_COUNTER_SIZE * NUM_HARTS)
 
 /* CM SMODE Trace control block */
@@ -198,14 +204,19 @@
 /*     UNUSED                    until offset 0x57FFFFF   ~(2.74M)   NA     */
 /*     UMode stacks end          0x8004fbf800    0x840800 ~(8.25M)   NA     */
 /*     UMode stacks base         0x8005800000                        NA     */
+/*     UNUSED                    0x8005800000    0x2000    (8K)      NA     */
 /*     Kernel UMode Entry(FIXED) 0x8005802000    until DRAM End      NA     */
+/*     / Host Managed DRAM                                                  */
+/*                                                                          */
+/*              - Low Memory Sub-Region Layout (28G) -                      */
+/*                (Base Address: 0x8100000000)                              */
+/*     - user                    - base          - size              - BAR  */
+/*     Host Managed DRAM        0x8100000000    until region Ends     NA    */
 /****************************************************************************/
 
-/* Storage for DMA configuration linked lists. Store at the end of U-mode stack base
-For each DMA channel, reserve 8MB for the list. Chosen arbitrarily to balance mem
-useage vs likely need. Each entry is 24 bytes, so 349525 entries max per list. If the
-host system is totally fragmented (each entry tracks 4kB - VERY unlikely), can DMA
-~1.4GB without modifying the list. */
+/* Storage for DMA configuration linked lists. Store at the end of U-mode stack base + 4K offset.
+   For each DMA channel. Each link-list can have maximum DMA_MAX_ENTRIES_PER_LL number of entries.
+   And per entry size is 24 bytes. Memory is reserved dynamically based on number of entries per link-list */
 #define DMA_LL_BASE                             LOW_OS_SUBREGION_BASE
 #define DMA_PER_ENTRY_SIZE                      24U
 #define DMA_MAX_ENTRIES_PER_LL                  4U
@@ -261,7 +272,8 @@ correspoding Flash partition to take affect. */
 #define CM_UMODE_TRACE_CB_BASEADDR              (CM_SMODE_TRACE_BUFFER_BASE + CM_SMODE_TRACE_BUFFER_SIZE)
 #define CM_UMODE_TRACE_CB_SIZE                  (TRACE_CB_MAX_SIZE * CM_HART_COUNT)
 
-/* Give 4K for VM stack pages
+/* Give (4K+64B) for VM stack pages. This 64 in addition to 4K used to distrube stacks for
+different HARTs across different mem shires. The logic behind this is as follows.
 Bits[8:6] of an address specify memshire number, and bit[9] the controller within memshire.
 Offset by 1<<6 = 64 to distribute stack bases across different memory controllers */
 #define KERNEL_UMODE_STACK_OFFSET               0x1800000ULL
