@@ -1,0 +1,593 @@
+{
+	"enum": {
+		"DM_CMD": [
+
+			"======Comment:Asset tracking=====",
+
+			"DM_CMD_GET_MODULE_MANUFACTURE_NAME",
+			"DM_CMD_GET_MODULE_PART_NUMBER",
+			"DM_CMD_GET_MODULE_SERIAL_NUMBER",
+			"DM_CMD_GET_ASIC_CHIP_REVISION",
+			"DM_CMD_GET_MODULE_FIRMWARE_REVISIONS",
+			"DM_CMD_GET_MODULE_PCIE_ADDR",
+			"DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED",
+			"DM_CMD_GET_MODULE_MEMORY_SIZE_MB",
+			"DM_CMD_GET_MODULE_REVISION",
+			"DM_CMD_GET_MODULE_FORM_FACTOR",
+			"DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER",
+			"DM_CMD_GET_MODULE_MEMORY_TYPE",
+			"DM_CMD_GET_FUSED_PUBLIC_KEYS",
+
+			"======Comment:Firmware Management =====",
+
+			"DM_CMD_SET_FIRMWARE_UPDATE",
+			"DM_CMD_GET_FIRMWARE_BOOT_STATUS",
+			"DM_CMD_SET_FIRMWARE_VERSION_COUNTER",
+			"DM_CMD_SET_FIRMWARE_VALID",
+			"DM_CMD_SET_SP_BOOT_ROOT_CERT",
+			"DM_CMD_SET_SW_BOOT_ROOT_CERT",
+
+			"======Comment: Health Management (Thermal and Power) =====",
+
+			"DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS",
+			"DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS",
+			"DM_CMD_GET_MODULE_POWER_STATE",
+			"DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT",
+			"DM_CMD_GET_MODULE_STATIC_TDP_LEVEL",
+			"DM_CMD_SET_MODULE_STATIC_TDP_LEVEL",
+			"DM_CMD_GET_MODULE_CURRENT_TEMPERATURE",
+			"DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES",
+			"DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES",
+			"DM_CMD_GET_MODULE_UPTIME",
+			"DM_CMD_GET_MODULE_VOLTAGE",
+			"DM_CMD_GET_MODULE_POWER",
+
+			"======Comment: Historical extreme values =====",
+
+			"DM_CMD_GET_MODULE_MAX_TEMPERATURE",
+			"DM_CMD_GET_MODULE_MAX_DDR_BW",
+			"DM_CMD_GET_MAX_MEMORY_ERROR",
+
+			"======Comment: Error Control =====",
+
+			"DM_CMD_SET_DDR_ECC_COUNT",
+			"DM_CMD_SET_PCIE_ECC_COUNT",
+			"DM_CMD_SET_SRAM_ECC_COUNT",
+
+
+			"======Comment: Link Management =====",
+
+			"DM_CMD_SET_PCIE_RESET",
+			"DM_CMD_GET_MODULE_PCIE_ECC_UECC",
+			"DM_CMD_GET_MODULE_DDR_BW_COUNTER",
+			"DM_CMD_GET_MODULE_DDR_ECC_UECC",
+			"DM_CMD_GET_MODULE_SRAM_ECC_UECC",
+			"DM_CMD_SET_PCIE_MAX_LINK_SPEED",
+			"DM_CMD_SET_PCIE_LANE_WIDTH",
+			"DM_CMD_SET_PCIE_RETRAIN_PHY",
+
+
+			"======Comment: Performance =====",
+
+			"DM_CMD_GET_ASIC_FREQUENCIES",
+			"DM_CMD_GET_DRAM_BANDWIDTH",
+			"DM_CMD_GET_DRAM_CAPACITY_UTILIZATION",
+			"DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION",
+			"DM_CMD_GET_ASIC_UTILIZATION",
+			"DM_CMD_GET_ASIC_STALLS",
+			"DM_CMD_GET_ASIC_LATENCY",
+
+			"======Comment: Master Minion State =====",
+			"DM_CMD_GET_MM_ERROR_COUNT"
+		],
+
+		"FIRMWARE_STATUS": ["FIRMWARE_STATUS_PASS", "FIRMWARE_STATUS_FAILED"],
+		"DM_STATUS": ["DM_STATUS_SUCCESS", "DM_STATUS_ERROR"],
+		"POWER_STATE": ["POWER_STATE_MAX_POWER", "POWER_STATE_MANAGED_POWER", "POWER_STATE_SAFE_POWER", "POWER_STATE_LOW_POWER", "POWER_STATE_INVALID"],
+		"ACTIVE_POWER_MANAGEMENT": ["ACTIVE_POWER_MANAGEMENT_TURN_OFF", "ACTIVE_POWER_MANAGEMENT_TURN_ON", "ACTIVE_POWER_MANAGEMENT_INVALID"],
+		"POWER_THROTTLE_STATE": ["POWER_THROTTLE_STATE_POWER_IDLE", "POWER_THROTTLE_STATE_THERMAL_IDLE", "POWER_THROTTLE_STATE_POWER_UP", "POWER_THROTTLE_STATE_POWER_DOWN", "POWER_THROTTLE_STATE_THERMAL_DOWN", "POWER_THROTTLE_STATE_POWER_SAFE", "POWER_THROTTLE_STATE_THERMAL_SAFE"],
+		"PCIE_RESET": ["PCIE_RESET_FLR", "PCIE_RESET_HOT", "PCIE_RESET_WARM"],
+		"PCIE_LINK_SPEED": ["PCIE_LINK_SPEED_GEN3", "PCIE_LINK_SPEED_GEN4"],
+		"PCIE_LANE_W_SPLIT": ["PCIE_LANE_W_SPLIT_x4", "PCIE_LANE_W_SPLIT_x8"]
+	},
+
+	"cmd_param_structs": {
+
+		"asset_tracking_class": {
+
+			"asset_tracking": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": ["DM_CMD_GET_MODULE_MANUFACTURE_NAME",
+									"DM_CMD_GET_MODULE_PART_NUMBER",
+									"DM_CMD_GET_MODULE_SERIAL_NUMBER",
+									"DM_CMD_GET_ASIC_CHIP_REVISION",
+									"DM_CMD_GET_MODULE_PCIE_ADDR",
+									"DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED",
+									"DM_CMD_GET_MODULE_MEMORY_SIZE_MB",
+									"DM_CMD_GET_MODULE_REVISION",
+									"DM_CMD_GET_MODULE_FORM_FACTOR",
+									"DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER",
+									"DM_CMD_GET_MODULE_MEMORY_TYPE"
+									]
+				},
+
+				"fields": {
+					"asset[24]": "char "
+				}
+			},
+
+			"fused_public_key": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": ["DM_CMD_GET_FUSED_PUBLIC_KEYS"]
+				},
+
+				"fields": {
+					"key_size_tbd[32]": "uint8_t"
+				}
+			},
+
+			"firmware_version": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_MODULE_FIRMWARE_REVISIONS"
+				},
+				"fields": {
+					"bl1_v": "uint32_t",
+					"bl2_v": "uint32_t",
+					"mm_v": "uint32_t",
+					"wm_v": "uint32_t",
+					"machm_v": "uint32_t"
+				}
+			}
+		},
+
+		"firmware_mgmt_class": {
+
+			"update_firmware": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types. Image format is TBD",
+					"input_buff": "DM_CMD_SET_FIRMWARE_UPDATE",
+					"output_buff": null
+				},
+				"fields": {
+					"fw_image_path[64]": "char "
+				}
+			},
+
+			"certificate_hash": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "DM_CMD_SET_SP_BOOT_ROOT_CERT",
+					"output_buff": null
+				},
+				"fields": {
+					"hash_size_tbd[32]": "uint8_t"
+				}
+			}
+		},
+
+		"thermal_power_mgmt_class": {
+
+			"temperature_threshold": {
+
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS",
+					"output_buff": "DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS"
+				},
+
+				"fields": {
+					"sw_temperature_c": "int32_t"
+				},
+
+				"default_temp_threshold" : {
+					"sw_temp_c" : 70
+				}
+			},
+
+			"power_state": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_MODULE_POWER_STATE"
+				},
+
+				"fields": {
+					"state": "enum POWER_STATE"
+				},
+
+				"default_power_state" : "POWER_STATE_LOW_POWER"
+			},
+
+			"active_power_management": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT",
+					"output_buff": null
+				},
+
+				"fields": {
+					"state": "enum ACTIVE_POWER_MANAGEMENT"
+				},
+
+				"default_power_state" : "ACTIVE_POWER_MANAGEMENT_TURN_OFF"
+			},
+
+			"power_throttle_state": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES",
+					"output_buff": null
+				},
+
+				"fields": {
+					"tdp": "enum POWER_THROTTLE_STATE"
+				},
+
+				"default_power_throttle_state" : "POWER_THROTTLE_STATE_POWER_IDLE"
+			},
+
+			"current_temperature": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_MODULE_CURRENT_TEMPERATURE"
+				},
+
+				"fields": {
+					"temperature_c": "int32_t"
+				}
+			},
+
+			"throttle_residency": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES"
+				},
+
+				"fields": {
+					"cumulative": "uint64_t",
+					"average": "uint64_t",
+					"maximum": "uint64_t",
+					"minimum": "uint64_t"
+				}
+			},
+
+			"power_residency": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES"
+				},
+				"fields": {
+					"cumulative": "uint64_t",
+					"average": "uint64_t",
+					"maximum": "uint64_t",
+					"minimum": "uint64_t"
+				}
+			},
+
+			"module_power": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_MODULE_POWER"
+				},
+				"fields": {
+					"watts": "uint32_t"
+				}
+			},
+
+			"module_voltage": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_MODULE_VOLTAGE"
+				},
+				"fields": {
+					"ddr" : "uint8_t",
+					"l2_cache" : "uint8_t",
+					"maxion" : "uint8_t",
+					"minion" : "uint8_t",
+					"pcie" : "uint8_t",
+					"noc" : "uint8_t",
+					"pcie_logic" : "uint8_t",
+					"vddqlp" : "uint8_t",
+					"vddq" : "uint8_t"
+				}
+			},
+
+			"module_uptime": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_MODULE_UPTIME"
+				},
+				"fields": {
+					"time_day": "uint16_t",
+					"time_hours": "uint8_t",
+					"time_seconds": "uint8_t"
+				}
+			}
+
+		},
+
+		"max_historical_values_class": {
+
+			"max_temperature": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_MODULE_MAX_TEMPERATURE"
+				},
+				"fields": {
+					"max_temperature_c": "int32_t"
+				}
+			},
+
+			"max_memory_error": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_MAX_MEMORY_ERROR"
+				},
+
+				"fields": {
+					"max_ecc_count": "uint32_t"
+				}
+			},
+
+			"max_dram_bw": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_MODULE_MAX_DDR_BW"
+				},
+				"fields": {
+					"max_bw_rd_req_sec": "uint32_t",
+					"max_bw_wr_req_sec": "uint32_t"
+				}
+			}
+		},
+
+		"error_control_class": {
+
+			"set_error_count": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": ["DM_CMD_SET_DDR_ECC_COUNT", "DM_CMD_SET_SRAM_ECC_COUNT ", "DM_CMD_SET_PCIE_ECC_COUNT"],
+					"output_buff": null
+				},
+				"fields": {
+					"ecc_error_count": "uint32_t"
+				},
+
+				"default_error_threshold" : 10
+			}
+		},
+
+
+		"link_mgmt_class": {
+
+			"pcie_reset": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "DM_CMD_SET_PCIE_RESET",
+					"output_buff": null
+				},
+				"fields": {
+					"reset_type": "enum PCIE_RESET"
+				}
+			},
+
+			"get_error_count": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": ["DM_CMD_GET_MODULE_PCIE_ECC_UECC", "DM_CMD_GET_MODULE_DDR_ECC_UECC", "DM_CMD_GET_MODULE_SRAM_ECC_UECC"]
+				},
+				"fields": {
+					"ecc_count": "uint32_t",
+					"uecc_count": "uint32_t"
+				}
+			},
+
+			"dram_bw_counter": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_MODULE_DDR_BW_COUNTER"
+				},
+				"fields": {
+					"read_req_per_sec": "uint32_t",
+					"write_req_per_sec": "uint32_t"
+				}
+			},
+
+			"pcie_link_speed": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "DM_CMD_SET_PCIE_MAX_LINK_SPEED",
+					"output_buff": null
+				},
+				"fields": {
+					"speed": "enum PCIE_LINK_SPEED"
+				},
+
+				"default_link_speed" : "PCIE_LINK_SPEED_GEN3"
+			},
+
+			"pcie_lane_width": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": "DM_CMD_SET_PCIE_LANE_WIDTH",
+					"output_buff": null
+				},
+				"fields": {
+					"width": "enum PCIE_LANE_W_SPLIT"
+				}
+			},
+
+			"pcie_retrain_phy": {
+				"usage": {
+					"desc": "No struct is requried, request is handled based on the command id",
+					"input_buff": "null",
+					"output_buff": "null"
+				}
+			},
+
+			"etsoc_reset": {
+				"usage": {
+					"desc": "No struct is requried, request is handled based on the command id",
+					"input_buff": "null",
+					"output_buff": "null"
+				}
+			}
+		},
+
+		"performance_class": {
+			"asic_frequencies": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_ASIC_FREQUENCIES"
+				},
+				"fields": {
+					"minion_shire_mhz": "uint8_t",
+					"noc_mhz": "uint8_t",
+					"mem_shire_mhz": "uint8_t",
+					"dram_mhz": "uint8_t",
+					"p_shire_mhz": "uint8_t",
+					"io_shire_mhz": "uint8_t"
+				},
+
+				"default_freqs" : {
+					"minion_shire": 800,
+					"noc": 400,
+					"mem_shire":1067,
+					"dram": 1067,
+					"p_shire": 1010,
+					"io_shire": 500
+				}
+			},
+			"dram_bw": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_DRAM_BANDWIDTH"
+				},
+				"fields": {
+					"read_req_sec": "uint32_t",
+					"write_req_sec": "uint32_t"
+				}
+			},
+
+			"dram_capacity": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_DRAM_CAPACITY_UTILIZATION"
+				},
+				"fields": {
+					"percentage_cap": "uint32_t"
+				}
+			},
+
+			"asic_per_core_util": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION"
+				},
+				"fields": {
+					"TBD": "TBD"
+				}
+			},
+
+			"asic_util": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_ASIC_UTILIZATION"
+				},
+				"fields": {
+					"TBD": "TBD"
+				}
+			},
+
+			"asic_stalls": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_ASIC_STALLS"
+				},
+				"fields": {
+					"TBD": "TBD"
+				}
+			},
+
+			"asic_latency": {
+				"usage": {
+					"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+					"input_buff": null,
+					"output_buff": "DM_CMD_GET_ASIC_LATENCY"
+				},
+				"fields": {
+					"TBD": "TBD"
+				}
+			}
+		},
+
+		"mm_error_count": {
+			"usage": {
+				"desc": "struct is used in the input_buff/output_buff arguments of serviceRequest API for following request types",
+				"input_buff": null,
+				"output_buff": "DM_CMD_GET_MM_ERROR_COUNT"
+			},
+			"fields": {
+				"hang_count": "uint32_t",
+				"exception_count": "uint32_t"
+			}
+		}
+	},
+
+	"APIs": {
+
+		"getInstance": {
+			"revision": "1.0.0",
+			"name": "DM Instance",
+			"short_desc": "Gets the DM Instance",
+			"desc": "Gets the Device Management Instance",
+			"return type": "DeviceManagement &",
+			"access_method": "Library call",
+			"symbol_name": "getInstance"
+		},
+
+		"serviceRequest": {
+			"revision": "1.0.0",
+			"short_desc": "Generic API for DM services",
+			"desc": "Generic API to request various DM services",
+			"access_method": "Instance call",
+			"symbol_name": "serviceRequest",
+			"return type": "int32_t",
+			"valid_range": "enum DM_STATUS",
+			"parameters": {
+				"device_node": "const uint32_t",
+				"cmd_id": "const uint32_t",
+				"input_buff": "const char *",
+				"input_size": "const uint32_t",
+				"output_buff": "char *",
+				"output_size": "const uint32_t",
+				"host_latency_usec": "uint64_t *",
+				"device_latency_usec": "uint64_t *",
+				"timeout_msec": "const uint32_t"
+			}
+		}
+	}
+}
