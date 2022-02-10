@@ -147,8 +147,11 @@ void Trace_Process_Config_Cmd(void *buffer)
         (struct device_mgmt_trace_config_cmd_t *)buffer;
 
     Trace_Configure(dm_cmd->event_mask, dm_cmd->filter_mask);
-          Log_Write(LOG_LEVEL_INFO,
-                            "TRACE_CONFIG:SP:Trace Event/Filter Mask set.\r\n");
+    if (dm_cmd->event_mask & TRACE_EVENT_STRING)
+    {
+        Log_Set_Level(dm_cmd->filter_mask & TRACE_FILTER_STRING_MASK);
+    }
+    Log_Write(LOG_LEVEL_INFO, "TRACE_CONFIG:SP:Trace Event/Filter Mask set.\r\n");
 }
 
 static void send_trace_config_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time)
