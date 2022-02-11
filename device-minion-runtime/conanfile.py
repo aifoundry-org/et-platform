@@ -1,92 +1,154 @@
-from conans import ConanFile, tools
-from conan.tools.cmake import CMake, CMakeToolchain
+from conan import ConanFile
+from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
+from conans import tools
 from conans.errors import ConanInvalidConfiguration
-import textwrap
 import os
+import re
 
-required_conan_version = ">=1.36.0"
+def make_hash_array(strval):
+    # the maximum length of the git hash is 32 bytes
+    # which corresponds to the length of a SHA2-256 hash
+    max_git_hash_length = 32
+
+    result = "{ "
+    hexbytes = bytes.fromhex(strval)
+    for n in range(max_git_hash_length):
+        if n > 0:
+            result = result + ", "
+        
+        if n < len(hexbytes):
+            result = result + "0x{0:02x}".format(hexbytes[n])
+        else:
+            result = result + "0x00"
+
+    result = result + " }"
+    return result
+
+
+def make_version_array(strval):
+    max_git_version_length = 112 
+
+    result = "{ "
+    for n in range(max_git_version_length):
+        if n > 0:
+            result = result + ", "
+        
+        if n < len(strval):
+            result = result + "'" + strval[n] + "'"
+        else:
+            result = result + "0"
+    
+    result = result + " }"
+    return result
 
 class DeviceMinionRuntimeConan(ConanFile):
     name = "device-minion-runtime"
     version = "0.0.1"
     url = "https://gitlab.esperanto.ai/software/device-minion-runtime"
-    description = ""
+    description = "minion-rt runtime"
     license = "Esperanto Technologies"
 
     settings = "os", "arch", "compiler", "build_type"
     options = {}
     default_options = {}
 
-    generators = "cmake_find_package_multi"
+    scm = {
+        "type": "git",
+        "url": "git@gitlab.esperanto.ai:software/device-minion-runtime.git",
+        "revision": "auto",
+    }
+    generators = "CMakeDeps"
 
-    exports_sources = [ "CMakeLists.txt", "cmake/*", "external/*", "include/*", "scripts/*", "src/*", "tools/*", "EsperantoDeviceMinionRuntimeConfig.cmake.in", "EsperantoDeviceMinionRuntimeConfigVersion.cmake.in" ]
+    def set_version(self):
+        content = tools.load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
+        version = re.search(r"project\(deviceMinionRuntime VERSION \s*([\d.]+)", content).group(1)
+        self.version = version.strip()
 
-    requires = [
-        "deviceApi/0.1.0",
-        "esperantoTrace/0.1.0",
-        "signedImageFormat/1.0" 
-    ]
+    def requirements(self):
+        self.requires("deviceApi/0.1.0")
+        self.requires("esperantoTrace/0.1.0")
+        self.requires("signedImageFormat/1.0")
+        self.requires("etsoc_hal/0.1.0")
+        self.requires("et-common-libs/0.0.1")
+    
+    def validate(self):
+        if self.settings.arch != "rv64":
+            raise ConanInvalidConfiguration("Cross-compiling to arch {} is not supported".format(self.settings.arch))
+
+        et_common_libs = self.dependencies["et-common-libs"]
+        # et-common-libs must be compiled with these components
+        for flag in ["with_minion_bl", "with_mm_rt_svcs", "with_cm_rt_svcs"]:
+            if not et_common_libs.options.get_safe(flag):
+                raise ConanInvalidConfiguration("{0} requires {1} package with '-o {1}:{2}'".format(self.name, "et-common-libs", flag))
 
     def build_requirements(self):
-        self.build_requires("cmake-modules/[>=0.4.1 <1.0.0]", force_host_context=True)
+        self.tool_requires("cmake-modules/[>=0.4.1 <1.0.0]")
 
     def generate(self):
-        new_cmake_flags_init_template = textwrap.dedent("""
-        set(CMAKE_CXX_FLAGS_INIT "${CONAN_CXX_FLAGS}" CACHE STRING "" FORCE)
-        set(CMAKE_C_FLAGS_INIT "${CONAN_C_FLAGS} -std=gnu11 -fno-zero-initialized-in-bss -ffunction-sections -fdata-sections -fstack-usage -Wall -Wextra -Werror -Wdouble-promotion -Wformat -Wnull-dereference -Wswitch-enum -Wshadow -Wstack-protector -Wpointer-arith -Wundef -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wno-main" CACHE STRING "" FORCE)
-        set(CMAKE_SHARED_LINKER_FLAGS_INIT "${CONAN_SHARED_LINKER_FLAGS}" CACHE STRING "" FORCE)
-        set(CMAKE_EXE_LINKER_FLAGS_INIT "${CONAN_EXE_LINKER_FLAGS}" CACHE STRING "" FORCE)
-        """)
-
+        # Get the toolchains from "tools.cmake.cmaketoolchain:user_toolchain" conf at the
+        # tool_requires
+        user_toolchains = []
+        for dep in self.dependencies.direct_build.values():
+            ut = dep.conf_info["tools.cmake.cmaketoolchain:user_toolchain"]
+            if ut:
+                user_toolchains.append(ut)
+        
         tc = CMakeToolchain(self)
+        tc.variables["GIT_HASH_STRING"] = self.info.package_id()
+        tc.variables["GIT_HASH_ARRAY"] = make_hash_array(self.info.package_id())
+        tc.variables["GIT_VERSION_STRING"] = self.version
+        tc.variables["GIT_VERSION_ARRAY"] = make_version_array(self.version)
+
         tc.variables["ENABLE_STRICT_BUILD_TYPES"] = True
         tc.variables["DEVICE_MINION_RUNTIME_DEPRECATED"] = True
         tc.variables["BUILD_DOC"] = False
-        tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
-        tc.preprocessor_definitions["RISCV_ET_MINION"] = ""
-        tc.blocks["cmake_flags_init"].template = new_cmake_flags_init_template
-        tc.generate()
-    
+        tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies.build["cmake-modules"].package_folder, "cmake")
+        tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
 
-    _cmake = None
-    def _configure_cmake(self):
-        if not self._cmake:
-            cmake = CMake(self)
-            cmake.verbose = True
-            cmake.configure()
-            self._cmake = cmake
-        return self._cmake
-    
+        tc.preprocessor_definitions["RISCV_ET_MINION"] = ""
+
+        if user_toolchains:
+            self.output.info("Applying user_toolchains: %s" % user_toolchains)
+            tc.blocks["user_toolchain"].values["paths"] = user_toolchains
+        
+        tc.generate()
+
     def build(self):
-        cmake = self._configure_cmake()
+        cmake = CMake(self)
+        cmake.configure()
         cmake.build()
     
     def package(self):
-        cmake = self._configure_cmake()
+        cmake = CMake(self)
         cmake.install()
+        tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
     
     def package_info(self):
         etfw_includedir = os.path.join("include", "esperanto-fw")
         etfw_libdir = os.path.join("lib", "esperanto-fw")
         
         self.cpp_info.set_property("cmake_target_name", "EsperantoDeviceMinionRuntime")
-        self.cpp_info.components["device_configuration"].requires = ["signedImageFormat::signedImageFormat"]
-
-        self.cpp_info.components["device_common"].includedirs = ["include", etfw_includedir, os.path.join(etfw_includedir, "device-common")]
-
-        self.cpp_info.components["sp_firmware_helpers"].includedirs = ["include", etfw_includedir, os.path.join(etfw_includedir, "firmware_helpers")]
-        self.cpp_info.components["sp_firmware_helpers"].libs = ["sp_firmware_helpers"]
-        self.cpp_info.components["sp_firmware_helpers"].libdirs = [etfw_libdir]
-        self.cpp_info.components["sp_firmware_helpers"].requires = ["device_common"]
-
-        self.cpp_info.components["mm_firmware_helpers"].includedirs = ["include", etfw_includedir, os.path.join(etfw_includedir, "firmware_helpers")]
-        self.cpp_info.components["mm_firmware_helpers"].libs = ["mm_firmware_helpers"]
-        self.cpp_info.components["mm_firmware_helpers"].libdirs = [etfw_libdir]
-        self.cpp_info.components["mm_firmware_helpers"].requires = ["device_common"]
+        
+        self.cpp_info.components["minion_rt_helpers_interface"].requires = ["signedImageFormat::signedImageFormat"]
 
         self.cpp_info.components["MachineMinion"].bindirs = [os.path.join(etfw_libdir, "MachineMinion")]
-        self.cpp_info.components["MachineMinion"].requires = ["device_configuration"]
+        self.cpp_info.components["MachineMinion"].requires = [
+            "etsoc_hal::etsoc_hal",
+            "et-common-libs::minion-bl",
+            "minion_rt_helpers_interface"
+        ]
         self.cpp_info.components["MasterMinion"].bindirs = [os.path.join(etfw_libdir, "MasterMinion")]
-        self.cpp_info.components["MasterMinion"].requires = ["deviceApi::deviceApi", "esperantoTrace::et_trace", "device_common", "device_configuration"]
+        self.cpp_info.components["MasterMinion"].requires = [
+            "esperantoTrace::et_trace",
+            "deviceApi::deviceApi",
+            "etsoc_hal::etsoc_hal",
+            "et-common-libs::mm-rt-svcs",
+            "minion_rt_helpers_interface"
+        ]
         self.cpp_info.components["WorkerMinion"].bindirs = [os.path.join(etfw_libdir, "WorkerMinion")]
-        self.cpp_info.components["WorkerMinion"].requires = ["deviceApi::deviceApi", "esperantoTrace::et_trace", "device_configuration"]
+        self.cpp_info.components["WorkerMinion"].requires = [
+            "deviceApi::deviceApi",
+            "et-common-libs::cm-rt-svcs",
+            "esperantoTrace::et_trace",
+            "minion_rt_helpers_interface"
+        ]

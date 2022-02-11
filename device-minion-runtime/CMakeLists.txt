@@ -11,7 +11,18 @@
 cmake_minimum_required(VERSION 3.13)
 project(deviceMinionRuntime VERSION 0.0.1 LANGUAGES C ASM)
 
+message(STATUS "PROJECT_VERSION ${PROJECT_VERSION}")
+set(DEVICE_MINION_RUNTIME_VERSION_MAJOR   ${PROJECT_VERSION_MAJOR})
+set(DEVICE_MINION_RUNTIME_VERSION_MINOR   ${PROJECT_VERSION_MINOR})
+set(DEVICE_MINION_RUNTIME_REVISION_NUMBER ${PROJECT_VERSION_PATCH})
+
+message(STATUS "GIT_HASH_STRING:    ${GIT_HASH_STRING}")
+message(STATUS "GIT_HASH_ARRAY:     ${GIT_HASH_ARRAY}")
+message(STATUS "GIT_VERSION_STRING: ${GIT_VERSION_STRING}")
+message(STATUS "GIT_VERSION_ARRAY:  ${GIT_VERSION_ARRAY}")
+
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
@@ -21,7 +32,6 @@ include(GNUInstallDirs)
 include(DeviceUtils)
 cmake_policy(SET CMP0076 NEW)
 
-set(CMAKE_VERBOSE_MAKEFILE TRUE)
 set(ET_DEFAULT_BUILD_TYPE "Release")
 
 option(ENABLE_STRICT_BUILD_TYPES "Whether project configuration should fail if build_type is not one of the allowed values: Debug Release RelWithDebInfo MinSizeRel" ON)
@@ -42,17 +52,12 @@ else()
     set(DEVICE_MINION_RUNTIME_BUILD_TYPE "RELEASE")
 endif()
 
-set(DEVICE_MINION_RUNTIME_VERSION_MAJOR   0)
-set(DEVICE_MINION_RUNTIME_VERSION_MINOR   0)
-set(DEVICE_MINION_RUNTIME_REVISION_NUMBER 1)
-
 if (DEVICE_MINION_RUNTIME_DEPRECATED)
     set(BIN_INSTALL_DIR     ${CMAKE_INSTALL_BINDIR}     CACHE STRING "Bin install dir")
     set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE STRING "Include install dir")
     set(LIB_INSTALL_DIR     ${CMAKE_INSTALL_LIBDIR}     CACHE STRING "Library install dir")
 endif()
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 find_package(deviceApi REQUIRED)
 find_package(signedImageFormat REQUIRED)
@@ -76,7 +81,6 @@ endif()
 
 add_subdirectory(src)
 add_subdirectory(scripts)
-add_subdirectory(tools)
 
 ### Add package information
 include(CMakePackageConfigHelpers)

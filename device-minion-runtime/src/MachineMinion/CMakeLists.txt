@@ -27,8 +27,6 @@ target_include_directories(MachineMinion.elf
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE
         $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/shared/minion_rt_helpers/include>
-        ${CMAKE_INSTALL_PREFIX}/include/esperanto-fw/etsoc_hal # FIXME: THIS BREAKS ENCAPSULATION
-        ${CMAKE_INSTALL_PREFIX}/minion-bl/include              # FIXME: THIS BREAKS ENCAPSULATION
 )
 
 target_compile_options(MachineMinion.elf

@@ -12,3 +12,13 @@
 # Directories
 build/
 .vscode/
+cmake-build-*/
+.idea
+
+# conan
+test_package/build
+
+# conan ci
+locks/
+variables.env
+conan-ci-pipelines-common/
