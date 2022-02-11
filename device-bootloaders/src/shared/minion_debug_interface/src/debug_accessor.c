@@ -18,17 +18,17 @@
 
 uint32_t read_andortreel2(void)
 {
-    return ioread32(R_SP_MISC_BASEADDR | SPIO_MISC_ESR_ANDORTREEL2_ADDRESS);
+    return ioread32(R_SP_MISC_BASEADDR | SPIO_MISC_ESR_ANDORTREEL2_BYTE_ADDRESS);
 }
 
 uint32_t read_dmctrl(void)
 {
-    return ioread32(R_SP_MISC_BASEADDR + SPIO_MISC_ESR_DMCTRL_ADDRESS);
+    return ioread32(R_SP_MISC_BASEADDR + SPIO_MISC_ESR_DMCTRL_BYTE_ADDRESS);
 }
 
 void write_dmctrl(uint32_t data)
 {
-    return iowrite32((R_SP_MISC_BASEADDR | SPIO_MISC_ESR_DMCTRL_ADDRESS), data);
+    return iowrite32((R_SP_MISC_BASEADDR | SPIO_MISC_ESR_DMCTRL_BYTE_ADDRESS), data);
 }
 
 void disable_shire_threads(uint8_t shire_id)
