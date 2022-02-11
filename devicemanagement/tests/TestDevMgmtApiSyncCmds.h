@@ -220,6 +220,11 @@ protected:
   void getASICLatencyInvalidOutputBuffer(bool singleDevice);
   void resetCM(bool singleDevice);
 
+  // Functional tests for  MDI Run control/State Inspection APIs
+  void testRunControlCmdsReadGPR(bool singleDevice);
+  void testRunControlCmdsReadCSR(bool singleDevice);
+  void readMem(bool singleDevice);
+
   inline Target getTestTarget(void) const {
     auto envTarget = getenv("TARGET");
     auto currentTarget = Target::Silicon;

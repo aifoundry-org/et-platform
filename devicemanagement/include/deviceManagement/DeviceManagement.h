@@ -88,7 +88,28 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_GET_DEVICE_ERROR_EVENTS", device_mgmt_api::DM_CMD::DM_CMD_GET_DEVICE_ERROR_EVENTS},
   {"DM_CMD_SET_DM_TRACE_RUN_CONTROL", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL},
   {"DM_CMD_SET_DM_TRACE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG},
-  {"DM_CMD_SET_THROTTLE_POWER_STATE_TEST", device_mgmt_api::DM_CMD::DM_CMD_SET_THROTTLE_POWER_STATE_TEST}};
+  {"DM_CMD_SET_THROTTLE_POWER_STATE_TEST", device_mgmt_api::DM_CMD::DM_CMD_SET_THROTTLE_POWER_STATE_TEST}
+#if MINION_DEBUG_INTERFACE    
+  ,
+  {"DM_CMD_MDI_SELECT_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART},
+  {"DM_CMD_MDI_UNSELECT_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART},
+  {"DM_CMD_MDI_RESET_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_RESET_HART},
+  {"DM_CMD_MDI_HALT_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART},
+  {"DM_CMD_MDI_RESUME_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART},
+  {"DM_CMD_MDI_GET_HART_STATUS", device_mgmt_api::DM_CMD::DM_CMD_MDI_GET_HART_STATUS},
+  {"DM_CMD_MDI_SET_BREAKPOINT", device_mgmt_api::DM_CMD::DM_CMD_MDI_SET_BREAKPOINT},
+  {"DM_CMD_MDI_UNSET_BREAKPOINT", device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSET_BREAKPOINT},
+  {"DM_CMD_MDI_ENABLE_SINGLE_STEP", device_mgmt_api::DM_CMD::DM_CMD_MDI_ENABLE_SINGLE_STEP},
+  {"DM_CMD_MDI_DISABLE_SINGLE_STEP", device_mgmt_api::DM_CMD::DM_CMD_MDI_DISABLE_SINGLE_STEP},
+  {"DM_CMD_MDI_READ_GPR", device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR},
+  {"DM_CMD_MDI_DUMP_GPR", device_mgmt_api::DM_CMD::DM_CMD_MDI_DUMP_GPR},
+  {"DM_CMD_MDI_WRITE_GPR", device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_GPR},
+  {"DM_CMD_MDI_READ_CSR", device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR},
+  {"DM_CMD_MDI_WRITE_CSR", device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR},
+  {"DM_CMD_MDI_READ_MEM", device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM},
+  {"DM_CMD_MDI_READ_MEM", device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM}
+#endif 
+  };
 
 static std::unordered_map<std::string, device_mgmt_api::ACTIVE_POWER_MANAGEMENT> const activePowerManagementTable = {
   {"ACTIVE_POWER_MANAGEMENT_TURN_OFF", device_mgmt_api::ACTIVE_POWER_MANAGEMENT::ACTIVE_POWER_MANAGEMENT_TURN_OFF},

@@ -148,6 +148,23 @@ create_test(
     PROPERTIES  "LABELS;INTEGRATION;TIMEOUT;300"
 )
 
+#####################
+# MDI DEBUG TESTS #
+#####################
+create_test(
+    TARGET      RunControlApiTestcmds
+    SOURCES     mdi_debug/RunControlApiTestcmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;INTEGRATION;TIMEOUT;300"
+)
+
+create_test(
+    TARGET      StateInspectionApiTestcmds
+    SOURCES     mdi_debug/StateInspectionApiTestcmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;INTEGRATION;TIMEOUT;300"
+)
+
 ##################
 # SECURITY TESTS #
 ##################
