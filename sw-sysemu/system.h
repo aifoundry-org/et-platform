@@ -66,8 +66,8 @@ struct Coop_tload_table {
 class System {
 public:
     // ----- Types -----
-    using neigh_pmu_counters_t  = std::array<std::array<uint64_t, 6>, EMU_THREADS_PER_MINION>;
-    using neigh_pmu_events_t    = std::array<std::array<uint8_t, 6>, EMU_THREADS_PER_NEIGH>;
+    using neigh_pmu_counters_t  = std::array<std::array<uint64_t, EMU_THREADS_PER_MINION>, 6>;
+    using neigh_pmu_events_t    = std::array<std::array<uint8_t, EMU_THREADS_PER_NEIGH>, 6>;
 
     using msg_func_t = std::function<void(unsigned)>;
     using hart_mask_t = std::bitset<EMU_NUM_THREADS>;
