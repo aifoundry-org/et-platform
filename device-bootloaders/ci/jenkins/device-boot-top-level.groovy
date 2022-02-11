@@ -198,6 +198,27 @@ pipeline {
                 }
               }
             }
+            stage('DM_TESTS_RECOVERY_MODE_PCIE_SYSEMU') {
+              steps {
+                script {
+                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/dm-tests-recovery-mode-pcie-sysemu-1dev', COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}")) {
+                    script {
+                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/dm-tests-recovery-mode-pcie-sysemu-1dev')
+                      build job:
+                        'sw-platform/virtual-platform/pipelines/dm-tests-recovery-mode-pcie-sysemu-1dev',
+                        propagate: true,
+                        parameters: [
+                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
+                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
+                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                        ]
+                    }
+                  }
+                }
+              }
+            }
             stage('DM_TESTS_ZEBU_BEMU') {
               steps {
                 script {

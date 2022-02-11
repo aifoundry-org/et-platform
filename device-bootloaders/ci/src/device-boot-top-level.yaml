@@ -50,3 +50,10 @@ stages:
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
+
+  DM_TESTS_RECOVERY_MODE_PCIE_SYSEMU:
+    cmds:
+      - job: sw-platform/virtual-platform/pipelines/dm-tests-recovery-mode-pcie-sysemu-1dev
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
