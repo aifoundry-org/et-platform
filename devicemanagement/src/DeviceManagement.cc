@@ -332,7 +332,27 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
     case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES:
     case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES:
     case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL:
-    case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG: {
+    case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG:
+#if MINION_DEBUG_INTERFACE    
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_RESET_HART:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_GET_HART_STATUS:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_SET_BREAKPOINT:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSET_BREAKPOINT:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_ENABLE_SINGLE_STEP:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_DISABLE_SINGLE_STEP:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_DUMP_GPR:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_GPR:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM:
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM:
+#endif 
+    {
       memcpy(wCB->payload, input_buff, inputSize);
       wCB->info.cmd_hdr.size = (sizeof(*(wCB.get())) - 1) + inputSize;
       break;

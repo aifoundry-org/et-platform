@@ -167,7 +167,8 @@ static inline void logTraceException(std::stringstream& logs, const struct trace
   }
 }
 
-static inline void decodeSingleTraceEvent(std::stringstream& logs, const struct trace_entry_header_t* entry) {
+static inline bool decodeSingleTraceEvent(std::stringstream& logs, const struct trace_entry_header_t* entry) {
+  auto validTypeFound = true;
   logs << "H:" << entry->hart_id << " Timestamp:" << entry->cycle << " :";
   if (entry->type == TRACE_TYPE_STRING) {
     std::array<char, TRACE_STRING_MAX_SIZE + 1> stringLog;
@@ -176,10 +177,14 @@ static inline void decodeSingleTraceEvent(std::stringstream& logs, const struct 
     logs << stringLog.data() << std::endl;
   } else if (entry->type == TRACE_TYPE_EXCEPTION) {
     logTraceException(logs, entry);
-  } else {
+  } else if (entry->type > TRACE_TYPE_STRING && entry->type <= TRACE_TYPE_CUSTOM_EVENT) {
     logs << "Trace Packet Type:" << entry->type
          << ", Use trace-utils decoder on trace binary file to parse this packet." << std::endl;
+  } else {
+    logs << "Invalid Trace Packet Type:" << entry->type << std::endl;
+    validTypeFound = false;
   }
+  return validTypeFound;
 }
 
 void TestDevMgmtApiSyncCmds::dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
@@ -296,8 +301,9 @@ bool TestDevMgmtApiSyncCmds::decodeTraceEvents(int deviceIdx, const std::vector<
   std::stringstream logs;
   for (entry = Trace_Decode(templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data()), entry); entry;
        entry = Trace_Decode(templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data()), entry)) {
-    decodeSingleTraceEvent(logs, entry);
-    validEventFound = true;
+    if (decodeSingleTraceEvent(logs, entry)) {
+      validEventFound = true;
+    }
   }
 
   logfile << logs.str();
@@ -306,32 +312,36 @@ bool TestDevMgmtApiSyncCmds::decodeTraceEvents(int deviceIdx, const std::vector<
   return validEventFound;
 }
 
-void TestDevMgmtApiSyncCmds::extractAndPrintTraceData(bool singleDevice, TraceBufferType bufferType) {
+bool TestDevMgmtApiSyncCmds::extractAndPrintTraceData(bool singleDevice, TraceBufferType bufferType) {
   if (!FLAGS_enable_trace_dump) {
-    return;
+    return false;
   }
 
   // TODO SW-9220: To be removed. Disabling the trace flushes the buffer
   setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE);
 
   getDM_t dmi = getInstance();
-  ASSERT_TRUE(dmi);
+  EXPECT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
   std::vector<std::byte> response;
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  auto validTraceDataFound = false;
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     if (dm.getTraceBufferServiceProcessor(deviceIdx, bufferType, response, DM_SERVICE_REQUEST_TIMEOUT) !=
         device_mgmt_api::DM_STATUS_SUCCESS) {
       DM_LOG(INFO) << "Unable to get trace buffer for device: " << deviceIdx << ". Disabling Trace.";
       continue;
     }
-    decodeTraceEvents(deviceIdx, response, bufferType);
     dumpRawTraceBuffer(deviceIdx, response, bufferType);
+    if (decodeTraceEvents(deviceIdx, response, bufferType)) {
+      validTraceDataFound = true;
+    }
   }
 
   // TODO SW-9220: To be removed
   setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE);
+  return validTraceDataFound;
 }
 
 void TestDevMgmtApiSyncCmds::getModuleManufactureName(bool singleDevice) {
@@ -2740,6 +2750,166 @@ void TestDevMgmtApiSyncCmds::resetCM(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_CM_RESET, nullptr, 0, nullptr, 0, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::readMem(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  const uint32_t input_size = sizeof(device_mgmt_api::mdi_mem_read_t);
+  device_mgmt_api::mdi_mem_read_t input_buff;
+  /* Test address in HOST_MANAGED_DRAM_START - HOST_MANAGED_DRAM_END address range */
+  input_buff.address = 0x8005802000;
+  input_buff.size = sizeof(uint64_t);
+  const uint32_t output_size = sizeof(uint64_t);
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    uint64_t output = 0;
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM, (char*)&input_buff, input_size,
+                                (char*)&output, output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+
+    // Skip validation if loopback driver
+    if (getTestTarget() != Target::Loopback) {
+       printf("Mem addr:%lx  Value: %lx", input_buff.address, output);
+    }
+  }
+}
+
+void TestDevMgmtApiSyncCmds::testRunControlCmdsReadGPR(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t output_size = sizeof(uint64_t);
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    /* Select Hart */
+    const uint32_t hart_selection_input_size = sizeof(device_mgmt_api::mdi_hart_selection_t);
+    device_mgmt_api::mdi_hart_selection_t hart_selection_input_buff;
+    //Set the Shire ID and Neigh ID. 
+    hart_selection_input_buff.shire_id = 0;
+    hart_selection_input_buff.thread_mask = 0x1;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART, (char*)&hart_selection_input_buff, hart_selection_input_size, 
+                               output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                               DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+
+
+    /* Halt Hart */
+    uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
+    char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
+    uint32_t hart_control_output_size = sizeof(uint32_t);
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff, hart_control_input_size,
+                                output_buff, hart_control_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    
+
+    const uint32_t gpr_read_input_size = sizeof(device_mgmt_api::mdi_gpr_read_t);
+    device_mgmt_api::mdi_gpr_read_t gpr_read_input_buff;
+    gpr_read_input_buff.hart_id = 0;
+    for(int i=0; i<32; i++) {
+      uint64_t output = 0;
+      gpr_read_input_buff.gpr_index = i;
+      const uint32_t read_output_size = sizeof(uint64_t);
+      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff, gpr_read_input_size,
+                                  (char*)&output, read_output_size, hst_latency.get(), dev_latency.get(),
+                                  DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+
+      if (getTestTarget() != Target::Loopback) {
+          printf("HartID:%ld GPR Index: %ld GPR REG Value: %lx\n",gpr_read_input_buff.hart_id, gpr_read_input_buff.gpr_index, output);
+      } 
+    }
+
+    /* Resume Hart */
+    hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
+    hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff, hart_control_input_size,
+                                output_buff, hart_control_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+
+
+    /* Unselect Hart */ 
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART, (char*)&hart_selection_input_buff, hart_selection_input_size,
+                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);          
+
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::testRunControlCmdsReadCSR(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t output_size = sizeof(uint64_t);
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    /* Select Hart */
+    const uint32_t hart_selection_input_size = sizeof(device_mgmt_api::mdi_hart_selection_t);
+    device_mgmt_api::mdi_hart_selection_t hart_selection_input_buff;
+    //Set the Shire ID and Neigh ID. 
+    hart_selection_input_buff.shire_id = 0;
+    hart_selection_input_buff.thread_mask = 0x1;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART, (char*)&hart_selection_input_buff, hart_selection_input_size, 
+                               output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                               DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+
+
+    /* Halt Hart */
+    uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
+    char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
+    uint32_t hart_control_output_size = sizeof(uint32_t);
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff, hart_control_input_size,
+                                output_buff, hart_control_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    
+
+    const uint32_t csr_read_input_size = sizeof(device_mgmt_api::mdi_csr_read_t);
+    device_mgmt_api::mdi_csr_read_t csr_read_input_buff;
+    csr_read_input_buff.hart_id = 0;
+    /* PC offset */
+    csr_read_input_buff.csr_name = 0x20;
+    uint64_t output = 0;
+    const uint32_t read_output_size = sizeof(uint64_t);
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff, csr_read_input_size,
+                                (char*)&output, read_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+
+    if (getTestTarget() != Target::Loopback) {
+        printf("HartID:%ld  PC Value: %lx\n",csr_read_input_buff.hart_id, output);
+    } 
+    
+    /* Resume Hart */
+    hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
+    hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff, hart_control_input_size,
+                                output_buff, hart_control_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+
+
+    /* Unselect Hart */ 
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART, (char*)&hart_selection_input_buff, hart_selection_input_size,
+                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);          
+
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }

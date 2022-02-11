@@ -116,7 +116,7 @@ protected:
   void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) const;
 
   void controlTraceLogging(bool resetTraceBuffer);
-  void extractAndPrintTraceData(bool singleDevice, TraceBufferType bufferType);
+  bool extractAndPrintTraceData(bool singleDevice, TraceBufferType bufferType);
   void serializeAccessMgmtNode(bool singleDevice);
   void getDeviceErrorEvents(bool singleDevice);
   void setTraceControl(bool singleDevice, uint32_t control_bitmap);
@@ -219,6 +219,11 @@ protected:
   void getASICLatencyInvalidDeviceLatency(bool singleDevice);
   void getASICLatencyInvalidOutputBuffer(bool singleDevice);
   void resetCM(bool singleDevice);
+
+  // Functional tests for  MDI Run control/State Inspection APIs
+  void testRunControlCmdsReadGPR(bool singleDevice);
+  void testRunControlCmdsReadCSR(bool singleDevice);
+  void readMem(bool singleDevice);
 
   inline Target getTestTarget(void) const {
     auto envTarget = getenv("TARGET");

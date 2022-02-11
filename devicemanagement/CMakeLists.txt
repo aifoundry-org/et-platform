@@ -22,6 +22,12 @@ option(BUILD_TESTS "Build tests" ON)
 option(BUILD_TOOLS "Build dm_tester tool" ON)
 option(BUILD_DOC "Build documentation" ON)
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(MINION_DEBUG_INTERFACE 1)
+else()
+    set(MINION_DEBUG_INTERFACE 0)
+endif()
+
 add_library(deviceManagement_obj OBJECT
     src/DeviceManagement.cc
     src/utils.h
@@ -34,6 +40,12 @@ target_include_directories(deviceManagement_obj
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
 )
+
+target_compile_definitions(deviceManagement_obj
+    PUBLIC
+        -DMINION_DEBUG_INTERFACE=${MINION_DEBUG_INTERFACE}
+)
+
 set_target_properties(deviceManagement_obj PROPERTIES
     PUBLIC_HEADER "include/deviceManagement/DeviceManagement.h;include/deviceManagement/dm.h"
     POSITION_INDEPENDENT_CODE TRUE
@@ -81,7 +93,8 @@ if (BUILD_TESTS)
 endif()
 
 if (BUILD_TOOLS)
-    add_subdirectory(tools)
+    add_subdirectory(tools/dm_tester)
+    add_subdirectory(tools/debug_server)
 endif()
 
 if (BUILD_DOC)

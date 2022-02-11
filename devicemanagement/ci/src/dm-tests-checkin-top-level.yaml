@@ -1,0 +1,55 @@
+import:
+  - path: '@ci@/ci-tools/templates/template-main-top-level.yaml'
+
+parameters:
+  SW_PLATFORM_BRANCH:
+    description: SW-Platform branch to track
+    type: string
+    default_value: "origin/develop/system-sw"
+  REPO_SSH_URL:
+    description: Repository URL
+    type: string
+    default_value: "git@gitlab.esperanto.ai:software/devicemanagement.git"
+  REPO_NAME:
+    description: Repository name
+    type: string
+    default_value: "deviceManagement"
+  FORCE_CHILD_RETRIGGER:
+    description: 'Forces all child jobs of the current job to retrigger even if smart-retrigger is being used'
+    type: bool
+    default_value: true
+  GITLAB_SOURCE_BRANCH:
+    description: Name of the branch in Gitlab that triggered the current MR
+    type: string
+    default_value: "$gitlabSourceBranch"
+  GITLAB_TARGET_BRANCH:
+    description: Target branch where the current branch will be merged
+    type: string
+    default_value: "$gitlabTargetBranch"
+  GITLAB_MR_ID:
+    description: Identifier of the Gitlab MR that triggered the pipeline
+    type: string
+    default_value: "$gitlabMergeRequestIid"
+
+
+stages:
+  DM_TESTS_PCIE_SYSEMU:
+    cmds:
+      - job: sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}"
+          
+  DM_TESTS_RECOVERY_MODE_PCIE_SYSEMU:
+    cmds:
+      - job: sw-platform/virtual-platform/pipelines/dm-tests-recovery-mode-pcie-sysemu-1dev
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}"
+
+  FIRMWARE_AND_DM_TESTS_PCIE_LOOPBACK:
+    cmds:
+      - job: sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-loopback-1dev
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}"
