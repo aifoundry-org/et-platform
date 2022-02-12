@@ -132,6 +132,8 @@
 /*! \def MDI Error Codes. */
 #define MDI_INVALID_MEMORY_READ_REQUEST -14000
 #define MDI_INVALID_GPR_INDEX           -14001
+#define MDI_CORE_NOT_HALTED             -14002
+#define MDI_CORE_NOT_RESUME             -14003
 
 /*! \def IO PLL Error Codes. */
 #define ERROR_SP_PLL_CONFIG_DATA_NOT_FOUND -15000

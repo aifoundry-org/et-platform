@@ -163,23 +163,15 @@ static void mdi_unselect_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_sta
 
 static void mdi_halt_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time)
 {
-    bool ret = true;
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_HALT_HART\n");
-    ret = Halt_Harts();
-    send_mdi_hart_control_response(tag_id, msg_id, req_start_time, ret);
+    int32_t status = Halt_Harts() ? SUCCESS: MDI_CORE_NOT_HALTED;
+    send_mdi_hart_control_response(tag_id, msg_id, req_start_time, status);
 }
 
 static void mdi_resume_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time)
 {
-    bool ret = true;
-    int32_t status = -1;
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_RESUME_HART\n");
-    ret = Resume_Harts();
-    Log_Write(LOG_LEVEL_INFO, "Resume_Harts() : %d\n", ret);
-    if (ret)
-    {
-        status = SUCCESS;
-    }
+    int32_t status = Resume_Harts() ? SUCCESS: MDI_CORE_NOT_RESUME;
     send_mdi_hart_control_response(tag_id, msg_id, req_start_time, status);
 }
 
