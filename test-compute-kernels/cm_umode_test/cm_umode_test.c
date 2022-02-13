@@ -35,6 +35,7 @@ int main(const MyVectors* const vectors) {
     /************************/
     /* U-mode utils testing */
     /************************/
+    int64_t status;
 
     /* Only a single thread in kernel */
     if((get_shire_id() == 0) && ((get_minion_id() & 0x1f) == 0) && (get_thread_id() == 1))
@@ -50,21 +51,21 @@ int main(const MyVectors* const vectors) {
 
         /* Test strlen */
         et_strlen((char*)&vectors->a[0]);
-    }
 
-    /****************************************/
-    /* Priviledged Cache Ops U-mode testing */
-    /****************************************/
-    int64_t status;
+        /****************************************/
+        /* Priviledged Cache Ops U-mode testing */
+        /****************************************/
+
+        status = cache_ops_priv_l1_cache_lock_sw(0, 0x8102000000);
+        et_assert(status == 0)
+
+        /* L1 D-cache is in split with scratchpad enabled. unlock set 15 associated with thread 1 */
+        status = cache_ops_priv_l1_cache_unlock_sw(0, 15);
+        et_assert(status == 0)
+    }
 
     /* use_tmask=0, dst=1 (L2/SP_RAM), set=0, way=0, num_lines=15 */
     status = cache_ops_priv_evict_sw(0, to_L2, 0, 0, 15);
-    et_assert(status == 0)
-
-    status = cache_ops_priv_l1_cache_lock_sw(0, (uint64_t)vectors);
-    et_assert(status == 0)
-
-    status = cache_ops_priv_l1_cache_unlock_sw(0, (uint64_t)vectors);
     et_assert(status == 0)
 
     status = cache_ops_priv_cache_invalidate(1, 0);

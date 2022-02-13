@@ -3,11 +3,12 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-#include "etsoc/isa/hart.h"
-#include "etsoc/isa/fcc.h"
-#include "etsoc/isa/flb.h"
-#include "etsoc/isa/syscall.h"
-#include "etsoc/common/utils.h"
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/fcc.h>
+#include <etsoc/isa/flb.h>
+#include <etsoc/isa/syscall.h>
+#include <etsoc/common/utils.h>
+#include <trace/trace_umode.h>
 #include "lfsr.h"
 
 #pragma GCC optimize ("-O3")
@@ -46,12 +47,12 @@ int64_t main(uint64_t* cycles) {
     const uint64_t bytes =
         *cycles * 16 * 64;  // 16 64-byte cache lines per cycle
 
-    uint64_t start_timestamp = (uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0);
+    uint64_t start_timestamp = et_get_timestamp();
 
     random_dram_tensor_loads(*cycles);
     //fast_scsp_tensor_loads(cycles);
 
-    uint64_t elapsed_time_us = ((uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0) - start_timestamp) / 40;
+    uint64_t elapsed_time_us = (et_get_timestamp() - start_timestamp) / 40;
     uint64_t mb_per_s = (bytes * 1000000) / (elapsed_time_us * 1024 * 1024);
 
     et_printf("%" PRIu64 "us %" PRIu64 "MB/s", elapsed_time_us, mb_per_s);
