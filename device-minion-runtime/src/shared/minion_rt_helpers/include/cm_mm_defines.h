@@ -52,12 +52,47 @@
 /*! \def CM_DEFAULT_TRACE_THREAD_MASK
     \brief Default masks to enable Trace for all hart in CM Shires.
 */
-#define CM_DEFAULT_TRACE_THREAD_MASK (0xFFFFFFFFUL)
+#define CM_DEFAULT_TRACE_THREAD_MASK 0xFFFFFFFFFFFFFFFFULL
 
 /*! \def CM_DEFAULT_TRACE_SHIRE_MASK
     \brief Default masks to enable Trace for all CM shires.
 */
-#define CM_DEFAULT_TRACE_SHIRE_MASK (0x1FFFFFFFFUL)
+#define CM_DEFAULT_TRACE_SHIRE_MASK 0x1FFFFFFFFULL
+
+/*! \def MM_SHIRE_MASK
+    \brief Master Minion Shire mask
+*/
+#define MM_SHIRE_MASK (1ULL << 32)
+
+/*! \def CM_SHIRE_MASK
+    \brief Shire mask of Compute Minions Shires.
+*/
+#define CM_SHIRE_MASK 0xFFFFFFFFUL
+
+/*! \def CM_MM_SHIRE_MASK
+    \brief Shire mask of Compute Minions and Master Shire.
+*/
+#define CM_MM_SHIRE_MASK 0x1FFFFFFFFULL
+
+/*! \def MM_HART_MASK
+    \brief Master Minion Hart mask
+*/
+#define MM_HART_MASK 0xFFFFFFFFUL
+
+/*! \def CM_HART_MASK
+    \brief Compute Minion Hart mask
+*/
+#define CM_HART_MASK 0xFFFFFFFFFFFFFFFFULL
+
+/*! \def CW_IN_MM_SHIRE
+    \brief Computer worker HART index in MM Shire.
+*/
+#define CW_IN_MM_SHIRE 0xFFFFFFFF00000000ULL
+
+/*! \def MM_HART_COUNT
+    \brief Number of Harts running MMFW.
+*/
+#define MM_HART_COUNT 32U
 
 /*! \enum cm_context_type_e
     \brief An enum that provides the types of CM execution contexts that can be saved.
@@ -67,7 +102,8 @@ typedef enum {
     CM_CONTEXT_TYPE_UMODE_EXCEPTION,
     CM_CONTEXT_TYPE_SYSTEM_ABORT,
     CM_CONTEXT_TYPE_SELF_ABORT,
-    CM_CONTEXT_TYPE_USER_KERNEL_ERROR
+    CM_CONTEXT_TYPE_USER_KERNEL_ERROR,
+    CM_CONTEXT_TYPE_TENSOR_ERROR
 } cm_context_type_e;
 
 /*! \struct execution_context_t

@@ -1,3 +1,20 @@
+/***********************************************************************
+*
+* Copyright (C) 2022 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************/
+/*! \file kernel.c
+    \brief A C module that implements the kernel execution relation data
+    structures and interfaces.
+
+*/
+/***********************************************************************/
 #include <stdbool.h>
 #include <inttypes.h>
 
@@ -22,15 +39,39 @@
 #include "cm_to_mm_iface.h"
 #include "trace.h"
 
+/**********/
+/* Macros */
+/**********/
 #define CM_KERNEL_LAUNCHED_FLAG ((cm_kernel_launched_flag_t *)CM_KERNEL_LAUNCHED_FLAG_BASEADDR)
+#define WAIT_FOR_MEM_AND_TENSOR_OPS                    \
+    {                                                  \
+        /* Wait for all memory accesses to complete */ \
+        FENCE                                          \
+        /* Wait for all tensor ops to complete */      \
+        WAIT_TENSOR_LOAD_0                             \
+        WAIT_TENSOR_LOAD_1                             \
+        WAIT_TENSOR_LOAD_L2_0                          \
+        WAIT_TENSOR_LOAD_L2_1                          \
+        WAIT_PREFETCH_0                                \
+        WAIT_PREFETCH_1                                \
+        WAIT_CACHEOPS                                  \
+        WAIT_TENSOR_FMA                                \
+        WAIT_TENSOR_STORE                              \
+        WAIT_TENSOR_REDUCE                             \
+        WAIT_TENSOR_QUANT                              \
+    }
 
-// Align the struct to cache line so that we can use local atomics on the array created below
+/*******************/
+/* Data structures */
+/*******************/
+/* Align the struct to cache line so that we can use local atomics on the array created below */
 typedef struct kernel_launch_info {
     uint64_t launched_threads;
     uint64_t returned_threads;
     uint64_t completed_threads; /* Bitmask of threads that have already completed the launch */
     uint64_t exception_buffer;
     uint32_t abort_flag;
+    uint32_t execution_status;
     union {
         struct {
             uint8_t kw_base_id;
@@ -39,19 +80,28 @@ typedef struct kernel_launch_info {
         };
         uint32_t raw_u32;
     };
-    int8_t execution_status;
 } __attribute__((aligned(CACHE_LINE_SIZE))) kernel_launch_info_t;
 
+/***************/
+/* Global Data */
+/***************/
 static const uint8_t tensor_zeros[64] __attribute__((aligned(64))) = { 0 };
-
 static spinlock_t pre_launch_local_barrier[NUM_SHIRES] = { 0 };
 static spinlock_t pre_launch_global_barrier = { 0 };
 static local_fcc_barrier_t post_launch_barrier[NUM_SHIRES] = { 0 };
 static kernel_launch_info_t kernel_launch_info[NUM_SHIRES] = { 0 };
 static uint64_t kernel_launch_shire_mask __attribute__((aligned(64))) = 0;
 static uint32_t kernel_launch_global_abort_flag __attribute__((aligned(64))) = 0;
+static uint32_t kernel_launch_global_execution_status __attribute__((aligned(64))) = 0;
 
-// Identify the last thread in pool
+/***********************/
+/* Function Prototypes */
+/***********************/
+static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel);
+static void kernel_launch_post_cleanup(
+    const mm_to_cm_message_kernel_params_t *kernel, int64_t return_value, uint64_t return_type);
+
+/* Identify the last thread in pool */
 static inline bool find_last_thread(spinlock_t *lock, uint32_t num_threads)
 {
     if (atomic_add_local_32(&lock->flag, 1U) == (num_threads - 1))
@@ -148,15 +198,22 @@ uint32_t kernel_info_get_abort_flag(uint32_t shire_id)
     return (atomic_load_local_32(&kernel_launch_info[shire_id].abort_flag));
 }
 
+static inline void kernel_info_reset_execution_status(uint32_t shire_id)
+{
+    atomic_store_local_32(
+        &kernel_launch_info[shire_id].execution_status, KERNEL_COMPLETE_STATUS_SUCCESS);
+}
+
 static inline void kernel_info_set_execution_status(
     uint32_t shire_id, kernel_complete_status_e status)
 {
-    atomic_store_signed_local_8(&kernel_launch_info[shire_id].execution_status, status);
+    atomic_compare_and_exchange_local_32(
+        &kernel_launch_info[shire_id].execution_status, KERNEL_COMPLETE_STATUS_SUCCESS, status);
 }
 
 static inline kernel_complete_status_e kernel_info_get_execution_status(uint32_t shire_id)
 {
-    return atomic_load_signed_local_8(&kernel_launch_info[shire_id].execution_status);
+    return atomic_load_local_32(&kernel_launch_info[shire_id].execution_status);
 }
 
 static inline void kernel_info_reset_thread_returned(uint32_t shire_id)
@@ -216,16 +273,35 @@ static inline void kernel_info_set_attributes(
     atomic_store_local_64(&kernel_launch_info[shire_id].exception_buffer, kernel->exception_buffer);
 }
 
-static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel);
-static void kernel_launch_post_cleanup(
-    const mm_to_cm_message_kernel_params_t *kernel, int64_t return_value, uint64_t return_type);
+static inline void kernel_check_tensor_errors(uint32_t shire_id, uint32_t hart_id)
+{
+    uint64_t tensor_error;
+    asm volatile("csrr %0, tensor_error\n" : "=r"(tensor_error));
+
+    /* Check for tensor errors and save the execution context */
+    if (tensor_error != 0)
+    {
+        log_write(LOG_LEVEL_ERROR, "Post kernel launch:Tensor error: %ld\n", tensor_error);
+
+        kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
+
+        /* Get the kernel error buffer */
+        uint64_t error_buffer = kernel_info_get_exception_buffer(shire_id);
+
+        /* If the kernel error buffer is available */
+        if (error_buffer != 0)
+        {
+            CM_To_MM_Save_Kernel_Error((execution_context_t *)error_buffer, hart_id,
+                CM_CONTEXT_TYPE_TENSOR_ERROR, (int64_t)tensor_error);
+        }
+    }
+}
 
 int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_stack_addr)
 {
     uint64_t *firmware_sp;
     uint64_t return_type;
     int64_t return_value;
-    uint64_t tensor_error;
     bool kernel_last_thread;
 
     asm volatile("csrr  %0, sscratch \n"
@@ -362,12 +438,10 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
         "1:                        \n" /* firmware context resumes from here via return_from_kernel() */
         "mv    %[return_value], a0 \n"
         "mv    %[return_type],  a1 \n"
-        "csrr  %[tensor_error], tensor_error \n"
 
         : [firmware_sp] "=m"(*firmware_sp), /* firmware context resume */
         [return_value] "=r"(return_value),  /* collect kernel return value */
-        [return_type] "=r"(return_type),    /* collect kernel return type */
-        [tensor_error] "=r"(tensor_error)   /* collect tensor_error */
+        [return_type] "=r"(return_type)     /* collect kernel return type */
 
         : [k_ret_addr] "r"(0),                    /* Setting kernel return to zero */
         [k_stack_addr] "r"(kernel_stack_addr),    /* Kernel stack address */
@@ -414,15 +488,17 @@ static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel)
     {
         // Initialize the kernel execution status
         kernel_info_set_attributes(shire_id, kernel);
-        kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_SUCCESS);
+        kernel_info_reset_execution_status(shire_id);
         kernel_info_reset_completed_threads(shire_id);
         kernel_info_reset_thread_returned(shire_id);
         kernel_info_reset_abort_flag(shire_id);
         atomic_store_global_64(&kernel_launch_shire_mask, kernel->shire_mask);
         atomic_store_global_32(&kernel_launch_global_abort_flag, 0);
+        atomic_store_global_32(
+            &kernel_launch_global_execution_status, KERNEL_COMPLETE_STATUS_SUCCESS);
 
-        // Init all FLBs except reserved FLBs 28-31
-        for (uint64_t barrier = 0; barrier < 28; barrier++)
+        /* Init all FLBs */
+        for (uint64_t barrier = 0; barrier < FLB_COUNT; barrier++)
         {
             INIT_FLB(THIS_SHIRE, barrier);
         }
@@ -500,6 +576,12 @@ static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel)
         // Ensure all cache evicts are complete
         WAIT_CACHEOPS
     }
+    else /* Thread 1 */
+    {
+        /* Zero out the tensor errors */
+        asm volatile("csrwi tensor_error, 0 \n");
+    }
+
     uint64_t scratch;
     // Enables 8 lanes of FPU, clears m1-m7
     asm volatile("li       %0, 0xFF \n" // m0=0xFF, m1-m7=0
@@ -517,7 +599,8 @@ static void kernel_launch_post_cleanup(
     const mm_to_cm_message_kernel_params_t *kernel, int64_t return_value, uint64_t return_type)
 {
     const uint32_t shire_id = get_shire_id();
-    const uint64_t thread_id = get_hart_id() & (HARTS_PER_SHIRE - 1);
+    const uint32_t hart_id = get_hart_id();
+    const uint64_t thread_id = hart_id & (HARTS_PER_SHIRE - 1);
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
     const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
     const uint64_t thread_mask = (shire_id == MASTER_SHIRE) ? 0xFFFFFFFF00000000U :
@@ -555,34 +638,27 @@ static void kernel_launch_post_cleanup(
         /* If the kernel error buffer is available */
         if (error_buffer != 0)
         {
-            CM_To_MM_Save_Kernel_Error(
-                (execution_context_t *)error_buffer, get_hart_id(), return_value);
+            CM_To_MM_Save_Kernel_Error((execution_context_t *)error_buffer, hart_id,
+                CM_CONTEXT_TYPE_USER_KERNEL_ERROR, return_value);
         }
     }
 
-    // Wait for all memory accesses to complete
-    FENCE
+    /* Wait for memory accesses and tensor ops */
+    WAIT_FOR_MEM_AND_TENSOR_OPS
 
-    // Wait for all tensor ops to complete
-    WAIT_TENSOR_LOAD_0
-    WAIT_TENSOR_LOAD_1
-    WAIT_TENSOR_LOAD_L2_0
-    WAIT_TENSOR_LOAD_L2_1
-    WAIT_PREFETCH_0
-    WAIT_PREFETCH_1
-    WAIT_CACHEOPS
-    WAIT_TENSOR_FMA
-    WAIT_TENSOR_STORE
-    WAIT_TENSOR_REDUCE
+    /* Check for tensor errors - must be after tensor ops wait */
+    /* TODO: SW-11250: Enable once Glow models are fixed to remove tensor errors */
+    //kernel_check_tensor_errors(shire_id, hart_id);
 
     /* Empty all FCCs before blocking on FCC barrier */
     init_fcc(FCC_0);
     init_fcc(FCC_1);
 
-    // Blocking barrier with all the participating threads of the shire
-    // We have to make sure all threads have finished before evicting caches
+    /* Blocking barrier with all the participating threads of the shire.
+    We have to make sure all threads have finished before evicting caches */
     local_fcc_barrier(&post_launch_barrier[shire_id], thread_count, minion_mask);
 
+    /* Cleanup hart state after kernel launch */
     syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, thread_count, 0, 0);
 
     /* Last thread to reach here check for kernel launch completion */
@@ -591,16 +667,25 @@ static void kernel_launch_post_cleanup(
     {
         /* Decrement the kernel launch shire count */
         uint64_t prev_shire_mask = kernel_launch_reset_shire_mask(shire_id);
+        uint32_t exec_status = kernel_info_get_execution_status(shire_id);
+
+        /* Check for kernel execution status in a shire */
+        if (exec_status != KERNEL_COMPLETE_STATUS_SUCCESS)
+        {
+            /* Collect the first error generated by a shire
+            involved in kernel launch and save it globally */
+            atomic_compare_and_exchange_global_32(&kernel_launch_global_execution_status,
+                KERNEL_COMPLETE_STATUS_SUCCESS, exec_status);
+        }
 
         /* Last shire in kernel launch sends a complete message to MM */
         if ((prev_shire_mask & ~(1ULL << shire_id)) == 0)
         {
-            cm_to_mm_message_kernel_launch_completed_t msg;
-            msg.header.number = 0; // Not used. TODO: Remove
+            cm_to_mm_message_kernel_launch_completed_t msg = { 0 };
             msg.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE;
             msg.shire_id = shire_id;
             msg.slot_index = kernel->slot_index;
-            msg.status = kernel_info_get_execution_status(shire_id);
+            msg.status = atomic_load_global_32(&kernel_launch_global_execution_status);
 
             /* Send the message to KW */
             status =

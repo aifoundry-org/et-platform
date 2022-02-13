@@ -233,24 +233,6 @@
 #define MM_CQ_MEM_TYPE UNCACHED
 
 /*******************************************************************/
-/* Definitions for MM Shire and its Harts                          */
-/*******************************************************************/
-/*! \def MM_SHIRE_MASK
-    \brief Master Minion Shire mask
-*/
-#define MM_SHIRE_MASK (1UL << 32)
-
-/*! \def MM_HART_MASK
-    \brief Master Minion Hart mask
-*/
-#define MM_HART_MASK (0xFFFFFFFFUL)
-
-/*! \def MM_HART_COUNT
-    \brief Number of Harts running MMFW.
-*/
-#define MM_HART_COUNT 32U
-
-/*******************************************************************/
 /* Definitions for MM dispatcher, and workers - SQW, KW, DMAW, CQW */
 /*******************************************************************/
 

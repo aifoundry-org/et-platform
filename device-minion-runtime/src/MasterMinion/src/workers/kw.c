@@ -1054,12 +1054,14 @@ static inline void kw_cm_to_mm_process_messages(
                     "KW[%d]:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from S%d:Status:%d\r\n",
                     kw_idx, completed->shire_id, completed->status);
 
-                /* Check the completion status for any error
-                First time we get an error, set the error flag */
-                if ((!status_internal->cw_error) &&
-                    (completed->status < KERNEL_COMPLETE_STATUS_SUCCESS))
+                /* Check the completion status for any error. */
+                if (completed->status == KERNEL_COMPLETE_STATUS_ERROR)
                 {
                     status_internal->cw_error = true;
+
+                    Log_Write(LOG_LEVEL_ERROR,
+                        "KW[%d]:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:S%d:Execution error detected!\r\n",
+                        kw_idx, completed->shire_id);
                 }
                 break;
 

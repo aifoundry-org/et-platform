@@ -30,8 +30,8 @@
     \warning Not thread safe. Only one caller per cb_idx.
     User needs to use the respective locking APIs if thread safety is required.
 */
-int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx,
-    const cm_iface_message_t *const message);
+int8_t CM_To_MM_Iface_Unicast_Send(
+    uint64_t ms_thread_id, uint64_t cb_idx, const cm_iface_message_t *const message);
 
 /*! \fn int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer,
     uint64_t type, uint64_t hart_id, const internal_execution_context_t *context)
@@ -42,18 +42,19 @@ int8_t CM_To_MM_Iface_Unicast_Send(uint64_t ms_thread_id, uint64_t cb_idx,
     \param context Context of exception
     \return success or error
 */
-int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer,
-    uint64_t type, uint64_t hart_id, const internal_execution_context_t *context);
+int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer, uint64_t type,
+    uint64_t hart_id, const internal_execution_context_t *context);
 
-/*! \fn int8_t CM_To_MM_Save_Kernel_Error(execution_context_t *context_buffer, uint64_t hart_id,
-    int64_t kernel_error_code)
+/*! \fn int8_t CM_To_MM_Save_Kernel_Error(execution_context_t *context_buffer, uint64_t hart_id, uint64_t error_type,
+    int64_t error_code)
     \brief Function to save kernel execution error in a buffer
     \param context_buffer Pointer to context buffer
     \param hart_id Hart ID of thread that took error
-    \param kernel_error_code Error code to be saved
+    \param error_type Type of error
+    \param error_code Error code to be saved
     \return Status success or error
 */
-int8_t CM_To_MM_Save_Kernel_Error(execution_context_t *context_buffer, uint64_t hart_id,
-    int64_t kernel_error_code);
+int8_t CM_To_MM_Save_Kernel_Error(
+    execution_context_t *context_buffer, uint64_t hart_id, uint64_t error_type, int64_t error_code);
 
 #endif

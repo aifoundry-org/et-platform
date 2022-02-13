@@ -181,11 +181,18 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
         trace_header->type = TRACE_CM_BUFFER;
         trace_header->data_size = sizeof(struct trace_buffer_size_header_t);
 
-        /* Update trace buffer header for buffer partitioning information.
-           Update number of buffers based on Trace enabled Harts. */
-        trace_header->sub_buffer_count =
-            (uint16_t)(((get_msb_set_pos(hart_init_info.shire_mask) - 1U) * HARTS_PER_SHIRE) +
-                       (get_msb_set_pos(hart_init_info.thread_mask) - 1U));
+        /* Update trace buffer header for buffer partitioning information. Update number of buffers
+        based on Trace enabled Harts. Exclude Master Shire from this calculation. */
+        trace_header->sub_buffer_count = (uint16_t)(
+            ((get_msb_set_pos(hart_init_info.shire_mask & CM_SHIRE_MASK) - 1U) * HARTS_PER_SHIRE) +
+            get_msb_set_pos(hart_init_info.thread_mask));
+
+        /* Check if Master Shire Compute Minions tracing needs to be initialized */
+        if (hart_init_info.shire_mask & MM_SHIRE_MASK)
+        {
+            trace_header->sub_buffer_count =
+                (uint16_t)(trace_header->sub_buffer_count + MASTER_SHIRE_COMPUTE_HARTS);
+        }
 
         /* Buffer is divided equally among all CM Harts, with fixed size per Hart. */
         trace_header->sub_buffer_size = CM_SMODE_TRACE_BUFFER_SIZE_PER_HART;

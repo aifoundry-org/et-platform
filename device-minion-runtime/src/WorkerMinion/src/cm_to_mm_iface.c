@@ -59,13 +59,13 @@ int8_t CM_To_MM_Save_Execution_Context(execution_context_t *context_buffer, uint
 }
 
 int8_t CM_To_MM_Save_Kernel_Error(
-    execution_context_t *context_buffer, uint64_t hart_id, int64_t kernel_error_code)
+    execution_context_t *context_buffer, uint64_t hart_id, uint64_t error_type, int64_t error_code)
 {
     const uint64_t buffer_index = (hart_id < 2048U) ? hart_id : (hart_id - 32U);
-    context_buffer[buffer_index].type = CM_CONTEXT_TYPE_USER_KERNEL_ERROR;
+    context_buffer[buffer_index].type = error_type;
     context_buffer[buffer_index].cycles = PMC_Get_Current_Cycles();
     context_buffer[buffer_index].hart_id = hart_id;
-    context_buffer[buffer_index].user_error = kernel_error_code;
+    context_buffer[buffer_index].user_error = error_code;
 
     /* Evict the data to L3 */
     ETSOC_MEM_EVICT(&context_buffer[buffer_index], sizeof(execution_context_t), to_L3)

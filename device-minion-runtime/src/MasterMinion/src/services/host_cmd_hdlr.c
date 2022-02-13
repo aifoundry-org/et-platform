@@ -39,6 +39,7 @@
 
 /* mm_rt_helpers */
 #include "error_codes.h"
+#include "cm_mm_defines.h"
 
 /*! \def TRACE_NODE_INDEX
     \brief Default trace node index in DMA list command when flag is set to extract Trace buffers.
@@ -1791,8 +1792,8 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
         status = TRACE_ERROR_INVALID_THREAD_MASK;
     }
     /* Check if Shire mask is valid. */
-    else if ((cmd->shire_mask == 0) || (!(cmd->shire_mask & CM_SHIRE_MASK)) ||
-             ((cmd->shire_mask & CM_SHIRE_MASK) &&
+    else if ((cmd->shire_mask == 0) || (!(cmd->shire_mask & CM_MM_SHIRE_MASK)) ||
+             ((cmd->shire_mask & CM_MM_SHIRE_MASK) &&
                  (!((cmd->shire_mask & CW_Get_Booted_Shires()) == cmd->shire_mask))))
     {
         status = TRACE_ERROR_INVALID_SHIRE_MASK;
