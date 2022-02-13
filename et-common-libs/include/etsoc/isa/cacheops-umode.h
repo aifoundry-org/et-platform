@@ -85,8 +85,8 @@ inline int64_t __attribute__((always_inline)) cache_ops_priv_flush_sw(uint64_t u
 inline int64_t __attribute__((always_inline)) cache_ops_priv_l1_cache_lock_sw(uint64_t way,
     uint64_t phy_addr)
 {
-    uint64_t csr_enc = ((way        & 0x3                   ) << 57 ) |
-                       ((phy_addr   & 0xFFFFFFFFC0ULL       ) << 6  );
+    uint64_t csr_enc = ((way        & 0x3                   ) << 55 ) |
+                       ((phy_addr   & 0xFFFFFFFFC0ULL       )       ) ;
 
     return syscall(SYSCALL_CACHE_OPS_LOCK_SW, csr_enc, 0, 0);
 }
@@ -98,10 +98,10 @@ inline int64_t __attribute__((always_inline)) cache_ops_priv_l1_cache_lock_sw(ui
 //   Hard-unlock and zero a particular set-way in the L1 data cache
 //
 inline int64_t __attribute__((always_inline)) cache_ops_priv_l1_cache_unlock_sw(uint64_t way,
-    uint64_t phy_addr)
+    uint64_t set)
 {
-    uint64_t csr_enc = ((way        & 0x3                   ) << 57 ) |
-                       ((phy_addr   & 0x3                   ) << 6  );
+    uint64_t csr_enc = ((way        & 0x3                   ) << 55 ) |
+                       ((set        & 0xF                   ) << 6  );
 
     return syscall(SYSCALL_CACHE_OPS_UNLOCK_SW, csr_enc, 0, 0);
 }

@@ -155,8 +155,8 @@ typedef enum {
 
 /* Status values for kernel completion message */
 typedef enum {
-    KERNEL_COMPLETE_STATUS_ERROR = -1,
-    KERNEL_COMPLETE_STATUS_SUCCESS = 0
+    KERNEL_COMPLETE_STATUS_SUCCESS = 0,
+    KERNEL_COMPLETE_STATUS_ERROR = 1
 } kernel_complete_status_e;
 
 typedef struct {
@@ -202,9 +202,9 @@ ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_error_t);
 typedef struct {
     cm_iface_message_header_t header;
     uint32_t shire_id;
+    uint32_t status;
     uint8_t slot_index;
-    int8_t status;
-    uint8_t pad[2]; /* Padding to make struct 64-bit aligned */
+    uint8_t pad[7]; /* Padding to make struct 64-bit aligned */
 } __attribute__((packed, aligned(64))) cm_to_mm_message_kernel_launch_completed_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_completed_t);

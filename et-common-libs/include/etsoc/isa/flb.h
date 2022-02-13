@@ -22,6 +22,8 @@ extern "C" {
         asm volatile("csrrw %0, flb0, %1" : "=r"(result) : "r"(val)); \
     } while (0)
 
+#define FLB_COUNT 32
+
 #ifdef __cplusplus
 }
 #endif
