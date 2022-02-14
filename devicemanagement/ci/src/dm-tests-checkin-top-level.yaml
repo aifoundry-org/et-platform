@@ -35,7 +35,7 @@ parameters:
 stages:
   DM_TESTS_PCIE_SYSEMU:
     cmds:
-      - job: sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev
+      - job: sw-platform/virtual-platform/pipelines/dm-tests-pcie-sysemu-1dev
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}"
