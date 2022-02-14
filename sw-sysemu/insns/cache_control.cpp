@@ -219,10 +219,14 @@ void dcache_lock_paddr(Hart& cpu, uint64_t value)
     int      way   = (value >> 55) & 0x3;
     uint64_t paddr = value & 0x000000FFFFFFFFC0ULL;
 
-    if (!mmu_check_cacheop_access(cpu, paddr, CacheOp_Lock)) {
+    bool cacheop_ok = mmu_check_cacheop_access(cpu, paddr, CacheOp_Lock);
+
+    // Here we just check if there would be an access fault, but do not actually stop.
+    // We still want to check whether the PA can _actually_ be locked.
+    // This way we can set TensorError[5] and TensorError[7] for the same instruction.
+    if (!cacheop_ok) {
         LOG_HART(DEBUG, cpu, "\tLockSW: 0x%016" PRIx64 ", Way: %d access fault", paddr, way);
         update_tensor_error(cpu, 1 << 7);
-        return;
     }
 
     unsigned set = dcache_index(paddr, cpu.core->mcache_control, cpu.mhartid % EMU_THREADS_PER_MINION);
@@ -249,6 +253,11 @@ void dcache_lock_paddr(Hart& cpu, uint64_t value)
     // Cannot lock any more lines in this set; stop the operation
     if (nlocked >= (L1D_NUM_WAYS-1)) {
         update_tensor_error(cpu, 1 << 5);
+        return;
+    }
+
+    // Finally stop if this would cause an access fault
+    if (!cacheop_ok) {
         return;
     }
 

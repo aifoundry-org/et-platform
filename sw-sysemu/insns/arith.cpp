@@ -150,7 +150,7 @@ void insn_slti(Hart& cpu)
     switch (IIMM) {
     case 0x602: { // L1 eviction for the given minion (sysemu only).
         if (cpu.chip->emu()->get_mem_check()) {
-            cpu.chip->emu()->get_mem_checker().l1_evict_all(shire_index(cpu), core_index(cpu));
+            cpu.chip->emu()->get_mem_checker().l1_evict_all(shire_index(cpu), core_index(cpu) % EMU_MINIONS_PER_SHIRE);
         }
         break;
     }
