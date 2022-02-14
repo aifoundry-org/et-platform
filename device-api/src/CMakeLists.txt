@@ -12,8 +12,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/device_apis.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/esperanto/device-apis/device_apis.h)
 
 set(DEV_API_HDRS ${CMAKE_CURRENT_BINARY_DIR}/device_apis.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_message_types.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_trace_types.h)
+    ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_message_types.h)
 
 include(GenerateApi)
 
@@ -46,10 +45,6 @@ target_include_directories(deviceApi
 add_library(deviceApi::deviceApi ALIAS deviceApi)
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_message_types.h
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto/device-apis
-    COMPONENT deviceApi)
-
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_trace_types.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto/device-apis
     COMPONENT deviceApi)
 
