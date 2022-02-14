@@ -155,11 +155,11 @@ pipeline {
             stage('DM_TESTS_PCIE_SYSEMU') {
               steps {
                 script {
-                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev', COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}")) {
+                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/dm-tests-pcie-sysemu-1dev', COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}")) {
                     script {
-                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev')
+                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/dm-tests-pcie-sysemu-1dev')
                       build job:
-                        'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev',
+                        'sw-platform/virtual-platform/pipelines/dm-tests-pcie-sysemu-1dev',
                         propagate: true,
                         parameters: [
                           string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
