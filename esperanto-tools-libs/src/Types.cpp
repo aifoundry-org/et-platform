@@ -39,6 +39,9 @@ std::string StreamError::getString() const {
       case 4:
         ss << "kernel execution error";
         break;
+      case 5:
+        ss << "kernel execution tensor error";
+        break;
       default:
         ss << " unknown";
         break;
