@@ -50,8 +50,6 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling
   : deviceLayer_{deviceLayer}
   , profiler_{std::move(profiler)} {
 
-  setCmaCopyFunction(
-    [](const std::byte* src, std::byte* dst, size_t size, CmaCopyType) { std::copy(src, src + size, dst); });
   checkMemcpyDeviceAddress_ = options.checkMemcpyDeviceOperations_;
   auto devicesCount = deviceLayer_->getDevicesCount();
   CHECK(devicesCount > 0);

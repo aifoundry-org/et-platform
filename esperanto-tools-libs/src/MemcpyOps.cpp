@@ -101,7 +101,8 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
 }
 
 EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const std::byte* h_src, const std::byte* d_dst,
-                                                       size_t size, bool barrier) {
+                                                       size_t size, bool barrier,
+                                                       const CmaCopyFunction& cmaCopyFunction) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
   if (checkMemcpyDeviceAddress_) {
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
@@ -120,7 +121,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const st
   commandSender.send(Command{{}, commandSender, evt});
   RT_VLOG(HIGH) << "H2D: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  blockableThreadPool_.pushTask([this, size, barrier, d_dst, h_src, evt, stream, streamInfo] {
+  blockableThreadPool_.pushTask([this, size, barrier, d_dst, h_src, evt, stream, streamInfo, cmaCopyFunction] {
     std::vector<EventId> cmdEvents;
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto dmaInfo = deviceLayer_->getDmaInfo(streamInfo.device_);
@@ -147,7 +148,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const st
           entrySize = std::min(entrySize, currentSize);
           builder.addOp(cmaPtr + cmaPtrOffset, d_dst + offset, entrySize);
           // copy the data to the cma buffer
-          cmaCopyFunction_(h_src + offset, cmaPtr + cmaPtrOffset, entrySize, CmaCopyType::TO_CMA);
+          cmaCopyFunction(h_src + offset, cmaPtr + cmaPtrOffset, entrySize, CmaCopyType::TO_CMA);
           offset += entrySize;
           cmaPtrOffset += entrySize;
           currentSize -= entrySize;
@@ -261,7 +262,8 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
 }
 
 EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const std::byte* d_src, std::byte* h_dst,
-                                                       size_t size, bool barrier) {
+                                                       size_t size, bool barrier,
+                                                       const CmaCopyFunction& cmaCopyFunction) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
@@ -281,7 +283,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
   commandSender.send(Command{{}, commandSender, evt});
   RT_VLOG(HIGH) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  blockableThreadPool_.pushTask([this, stream, size, barrier, d_src, h_dst, evt, streamInfo] {
+  blockableThreadPool_.pushTask([this, stream, size, barrier, d_src, h_dst, evt, streamInfo, cmaCopyFunction] {
     std::vector<EventId> cmdEvents;
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto dmaInfo = deviceLayer_->getDmaInfo(streamInfo.device_);
@@ -334,9 +336,9 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
 
         // add a thread which will free the cma memory
         eventManager_.addOnDispatchCallback(
-          {{cmdEvt}, [this, cmaPtr, cmdFinalCopies = std::move(cmdFinalCopies), syncCopyEvt] {
+          {{cmdEvt}, [this, cmaPtr, cmdFinalCopies = std::move(cmdFinalCopies), syncCopyEvt, cmaCopyFunction] {
              for (auto& copy : cmdFinalCopies) {
-               cmaCopyFunction_(copy.src, copy.dst, copy.size, CmaCopyType::FROM_CMA);
+               cmaCopyFunction(copy.src, copy.dst, copy.size, CmaCopyType::FROM_CMA);
              }
              cmaManager_->free(cmaPtr);
              dispatch(syncCopyEvt);
@@ -382,7 +384,8 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, b
   return eventId;
 }
 
-EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier) {
+EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier,
+                                                       const CmaCopyFunction& cmaCopyFunction) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
   checkList(streamInfo.device_, memcpyList);
 
@@ -403,7 +406,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyLi
   commandSender.send(Command{{}, commandSender, evt, true});
   RT_VLOG(HIGH) << "H2D: Added command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  blockableThreadPool_.pushTask([this, barrier, memcpyList, evt, streamInfo] {
+  blockableThreadPool_.pushTask([this, barrier, memcpyList, evt, streamInfo, cmaCopyFunction] {
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto totalSize = 0UL;
     for (auto& op : memcpyList.operations_) {
@@ -433,7 +436,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyLi
     auto cmaPtrOffset = 0UL;
     for (auto& op : memcpyList.operations_) {
       builder.addOp(cmaPtr + cmaPtrOffset, op.dst_, op.size_);
-      cmaCopyFunction_(op.src_, cmaPtr + cmaPtrOffset, op.size_, CmaCopyType::TO_CMA);
+      cmaCopyFunction(op.src_, cmaPtr + cmaPtrOffset, op.size_, CmaCopyType::TO_CMA);
       cmaPtrOffset += op.size_;
     }
     cs.setCommandData(evt, builder.build());
@@ -443,7 +446,8 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyLi
   Sync(evt);
   return evt;
 }
-EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier) {
+EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier,
+                                                       const CmaCopyFunction& cmaCopyFunction) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
   checkList(streamInfo.device_, memcpyList);
   if (checkMemcpyDeviceAddress_) {
@@ -462,7 +466,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyLi
   commandSender.send(Command{{}, commandSender, evt});
   RT_VLOG(HIGH) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  blockableThreadPool_.pushTask([this, barrier, memcpyList, evt, streamInfo, stream] {
+  blockableThreadPool_.pushTask([this, barrier, memcpyList, evt, streamInfo, stream, cmaCopyFunction] {
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto totalSize = 0UL;
     for (auto& op : memcpyList.operations_) {
@@ -504,7 +508,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyLi
     waitForEventWithoutProfiling(cmdEvt);
     cmaPtrOffset = 0UL;
     for (auto& op : memcpyList.operations_) {
-      cmaCopyFunction_(cmaPtr + cmaPtrOffset, op.dst_, op.size_, CmaCopyType::FROM_CMA);
+      cmaCopyFunction(cmaPtr + cmaPtrOffset, op.dst_, op.size_, CmaCopyType::FROM_CMA);
       cmaPtrOffset += op.size_;
     }
     dispatch(evt);

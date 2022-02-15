@@ -34,6 +34,9 @@ class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
 public:
   enum class CmaCopyType { TO_CMA, FROM_CMA };
   using CmaCopyFunction = std::function<void(const std::byte* src, std::byte* dst, size_t size, CmaCopyType type)>;
+  static constexpr auto defaultCmaCopyFunction = [](const std::byte* src, std::byte* dst, size_t size, CmaCopyType) {
+    std::copy(src, src + size, dst);
+  };
 
   explicit RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling::IProfilerRecorder> profiler,
                       Options options);
@@ -91,23 +94,12 @@ public:
 
   ~RuntimeImp();
 
-  void setCmaCopyFunction(const CmaCopyFunction& func) {
-    cmaCopyFunction_ = func;
-  }
-
   // these methods are intended for debugging, internal use only
   void setMemoryManagerDebugMode(DeviceId device, bool enable);
   void setCheckMemcpyDeviceAddress(bool value) {
     checkMemcpyDeviceAddress_ = value;
   }
   void setSentCommandCallback(DeviceId device, CommandSender::CommandSentCallback callback);
-
-private:
-  friend ExecutionContextCache;
-
-  void dumpFwTraces(DeviceId device);
-
-  std::vector<DeviceId> getDevicesWithoutProfiling() const;
 
   std::byte* mallocDeviceWithoutProfiling(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize);
   void freeDeviceWithoutProfiling(DeviceId device, std::byte* buffer);
@@ -119,16 +111,27 @@ private:
   bool waitForStreamWithoutProfiling(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24));
 
   EventId memcpyHostToDeviceWithoutProfiling(StreamId stream, const std::byte* src, const std::byte* dst, size_t size,
-                                             bool barrier);
+                                             bool barrier,
+                                             const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
   EventId memcpyDeviceToHostWithoutProfiling(StreamId stream, const std::byte* src, std::byte* dst, size_t size,
-                                             bool barrier);
+                                             bool barrier,
+                                             const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
   EventId memcpyHostToDeviceWithoutProfiling(StreamId stream, const IDmaBuffer* src, const std::byte* dst, size_t size,
                                              bool barrier);
   EventId memcpyDeviceToHostWithoutProfiling(StreamId stream, const std::byte* src, const IDmaBuffer* dst, size_t size,
                                              bool barrier);
 
-  EventId memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier);
-  EventId memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier);
+  EventId memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier,
+                                             const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
+  EventId memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier,
+                                             const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
+
+  std::vector<DeviceId> getDevicesWithoutProfiling() const;
+
+private:
+  friend ExecutionContextCache;
+
+  void dumpFwTraces(DeviceId device);
 
   void checkDevice(int device) override;
   struct Kernel {
@@ -195,6 +198,5 @@ private:
   threadPool::ThreadPool nonblockableThreadPool_{8};
   bool running_ = false;
   bool checkMemcpyDeviceAddress_ = false;
-  CmaCopyFunction cmaCopyFunction_;
 };
 } // namespace rt
