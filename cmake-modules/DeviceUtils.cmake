@@ -79,6 +79,28 @@ macro(add_riscv_executable TARGET_NAME)
         DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${BIN_FILE}
     )
 
+    if (DEFINED ZEBU_TARGET)
+        set(HEX_FILE ${TARGET_NAME}.hex)
+
+        # custom command to generate a ZeBu hex file from the elf
+        # This file creates multiple output files that are not captured correctly as outputs.
+        # Create a token file file to mark success of converting the ELF to hex, and prevent
+        # regeneration of the hex files if the ELF has not changed
+        add_custom_command(
+            OUTPUT ${HEX_FILE}.done
+            COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE_PATH} --output-file ${ZEBU_FILENAME}
+            COMMAND date > ${HEX_FILE}.done
+            DEPENDS ${ELF_FILE}.foo
+        )
+
+        # call elftohex and get the list of files it will generate per target
+        execute_process(
+            COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE_PATH} --output-file ${ZEBU_FILENAME} --print-output-files
+            OUTPUT_VARIABLE "${TARGET_NAME}_OUTPUT"
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    endif()
+
 endmacro(add_riscv_executable)
 
 function(target_report_riscv_size TARGET_NAME)
