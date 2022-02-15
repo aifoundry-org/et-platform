@@ -458,7 +458,8 @@ static int32_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask
         else
         {
             status = KW_ERROR_CW_SHIRES_NOT_READY;
-            Log_Write(LOG_LEVEL_ERROR, "SQW[%d]:KW:ERROR:kernel shires unavailable\r\n", sqw_idx);
+            Log_Write(LOG_LEVEL_ERROR, "SQW[%d]:KW:ERROR:kernel shires unavailable:0x%lx\r\n",
+                sqw_idx, req_shire_mask);
             SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_SLOT_ERROR);
         }
     }

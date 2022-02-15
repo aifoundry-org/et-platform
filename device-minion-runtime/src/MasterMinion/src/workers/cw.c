@@ -194,8 +194,9 @@ int32_t CW_Init(void)
             /* Check for SW timer timeout */
             if (atomic_compare_and_exchange_local_32(&CW_CB.timeout_flag, 1, 0) == 1)
             {
-                Log_Write(
-                    LOG_LEVEL_ERROR, "CW:Timed-out waiting for rsp from compute workers!\r\n");
+                Log_Write(LOG_LEVEL_ERROR,
+                    "CW:Init:Timed-out waiting CW Ack: Pending Shire Mask: 0x%lx\r\n",
+                    (~atomic_load_local_64(&CW_CB.booted_shires_mask) & shire_mask));
                 status = CW_ERROR_INIT_TIMEOUT;
                 exit_loop = true;
             }
@@ -203,7 +204,7 @@ int32_t CW_Init(void)
 
         if (status == STATUS_SUCCESS)
         {
-            /* Check if anty pending message is available */
+            /* Check if any pending message is available */
             CW_Process_CM_SMode_Messages();
 
             /* Break loop if all compute minions are booted and ready */
@@ -519,7 +520,9 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
         /* Check for SW timer timeout */
         if (atomic_compare_and_exchange_local_32(&CW_CB.timeout_flag, 1, 0) == 1)
         {
-            Log_Write(LOG_LEVEL_ERROR, "CW: Timed-out waiting for rsp from compute workers!\r\n");
+            Log_Write(LOG_LEVEL_ERROR,
+                "CW:Reset:Timed-out waiting CW Ack: Pending Shire Mask: 0x%lx\r\n",
+                (~atomic_load_local_64(&CW_CB.booted_shires_mask) & shire_mask));
             status = CW_ERROR_INIT_TIMEOUT;
             exit_loop = true;
         }
@@ -532,14 +535,14 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
         }
     } while (!exit_loop);
 
-    /* Release the lock */
-    release_local_spinlock(&CW_CB.cm_reset_lock);
-
     if (sw_timer_idx >= 0)
     {
         /* Free the registered SW Timeout slot */
         SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
     }
+
+    /* Release the lock */
+    release_local_spinlock(&CW_CB.cm_reset_lock);
 
     return status;
 }
