@@ -9,16 +9,16 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.5)
-
-project(tf-protocol VERSION 0.1.0  DESCRIPTION "Esperanto Test Framework Project" LANGUAGES C CXX)
+project(tf-protocol VERSION 0.1.0 DESCRIPTION "Esperanto Test Framework Project" LANGUAGES C CXX)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 include(GNUInstallDirs)
 
+### Build
 add_subdirectory(src)
 
-### Add package information
+### Installation
 include(CMakePackageConfigHelpers)
 
 install(TARGETS tf-protocol
