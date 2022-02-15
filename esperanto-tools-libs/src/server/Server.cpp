@@ -52,13 +52,13 @@ void Server::Listen() {
                     << ". Be sure runtime daemon has CAP_SYS_PTRACE capability.";
     }
     socklen_t len = sizeof(ucred);
-    struct ucred ucred;
-    if (getsockopt(cl, SOL_SOCKET, SO_PEERCRED, &ucred, &len) == -1) {
+    ucred credentials;
+    if (getsockopt(cl, SOL_SOCKET, SO_PEERCRED, &credentials, &len) == -1) {
       RT_LOG(FATAL) << "Unable to get peer credentials: " << strerror(errno)
                     << ". Be sure runtime daemon has CAP_SYS_PTRACE capability.";
     }
-    RT_LOG(INFO) << " New client connection established from PID: " << ucred.pid << "(UID: " << ucred.uid
-                 << " GID: " << ucred.gid << ").";
+    RT_LOG(INFO) << " New client connection established from PID: " << credentials.pid << "(UID: " << credentials.uid
+                 << " GID: " << credentials.gid << ").";
 
     // delegate the request processing for this client to a worker
     workers_.emplace_back(std::make_unique<Worker>(cl, *runtime_, *this));

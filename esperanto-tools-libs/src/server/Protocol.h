@@ -27,6 +27,10 @@ template <class Archive> void serialize(Archive& archive, ErrorContext& ec) {
   archive(ec.type_, ec.cycle_, ec.hartId_, ec.mepc_, ec.mstatus_, ec.mtval_, ec.mcause_, ec.userDefinedError_, ec.gpr_);
 }
 
+template <class Archive> void serialize(Archive& archive, UserTrace& uc) {
+  archive(uc.buffer_, uc.buffer_size_, uc.eventMask_, uc.filterMask_, uc.shireMask_, uc.threadMask_, uc.threshold_);
+}
+
 namespace req {
 
 // these requests corresponds to first version of the protocol, is expected to add more versions here in the future
@@ -59,8 +63,11 @@ struct KernelLaunch {
   KernelId kernel_;
   uint64_t shireMask_;
   std::vector<std::byte> kernelArgs_;
+  bool barrier_;
+  bool flushL3_;
+  std::optional<UserTrace> userTrace_;
   template <class Archive> void serialize(Archive& archive) {
-    archive(stream_, kernel_, kernelArgs_, shireMask_);
+    archive(stream_, kernel_, kernelArgs_, shireMask_, barrier_, flushL3_, userTrace_);
   }
 };
 

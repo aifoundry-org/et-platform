@@ -8,18 +8,18 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #include "Protocol.h"
-#include "runtime/Types.h"
+#include "RuntimeImp.h"
 
 #include <set>
+#include <sys/socket.h>
 #include <thread>
 
 #pragma once
 namespace rt {
 class Server;
-class IRuntime;
 class Worker {
 public:
-  explicit Worker(int socket, IRuntime& runtime, Server& server);
+  explicit Worker(int socket, RuntimeImp& runtime, Server& server, ucred credentials);
   ~Worker();
 
 private:
@@ -36,11 +36,13 @@ private:
       return device_ < other.device_ || (device_ == other.device_ && ptr_ < other.ptr_);
     }
   };
+
+  RuntimeImp::CmaCopyFunction cmaCopyFunction_;
+  RuntimeImp& runtime_;
   std::set<Allocation> allocations_;
   std::set<StreamId> streams_;
   std::set<KernelId> kernels_;
   std::thread runner_;
-  IRuntime& runtime_;
   Server& server_;
   int socket_;
   bool running_ = true;
