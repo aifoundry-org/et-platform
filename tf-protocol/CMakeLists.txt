@@ -7,7 +7,6 @@
 # in accordance with the terms and conditions stipulated in the
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
-
 cmake_minimum_required(VERSION 3.5)
 project(tf-protocol VERSION 0.1.0 DESCRIPTION "Esperanto Test Framework Project" LANGUAGES C CXX)
 
