@@ -24,7 +24,7 @@ public:
   }
 
 private:
-  void Listen();
+  void listen();
 
   int socket_;
   bool running_ = true;

@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 #include "Protocol.h"
 #include "RuntimeImp.h"
+#include "runtime/Types.h"
 
 #include <set>
 #include <sys/socket.h>
@@ -17,10 +18,12 @@
 #pragma once
 namespace rt {
 class Server;
-class Worker {
+class Worker : public patterns::Observer<EventId> {
 public:
   explicit Worker(int socket, RuntimeImp& runtime, Server& server, ucred credentials);
   ~Worker();
+
+  void update(EventId event) override;
 
 private:
   void requestProcessor();
@@ -42,6 +45,7 @@ private:
   std::set<Allocation> allocations_;
   std::set<StreamId> streams_;
   std::set<KernelId> kernels_;
+  std::set<EventId> events_;
   std::thread runner_;
   Server& server_;
   int socket_;

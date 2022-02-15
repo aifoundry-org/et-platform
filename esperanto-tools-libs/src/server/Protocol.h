@@ -186,7 +186,8 @@ enum class Type : uint32_t {
   UNLOAD_CODE,
   KERNEL_LAUNCH,
   GET_DEVICES,
-  ABORT_STREAM
+  ABORT_STREAM,
+  EVENT_DISPATCHED
 };
 
 struct GetDevices {

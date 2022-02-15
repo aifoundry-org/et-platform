@@ -13,6 +13,7 @@
 #include "CommandSender.h"
 #include "EventManager.h"
 #include "MemoryManager.h"
+#include "Observer.h"
 #include "ProfilerImp.h"
 #include "ResponseReceiver.h"
 #include "StreamManager.h"
@@ -43,7 +44,7 @@ struct DeviceApiVersion {
   uint32_t patch = INVALID;
 };
 
-class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
+class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices, public patterns::Subject<EventId> {
 public:
   enum class CmaCopyType { TO_CMA, FROM_CMA };
   using CmaCopyFunction = std::function<void(const std::byte* src, std::byte* dst, size_t size, CmaCopyType type)>;

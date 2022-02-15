@@ -26,6 +26,12 @@ struct MemStream : public std::streambuf {
   }
 };
 
+void Worker::update(EventId event) {
+  if (events_.erase(event) > 0) {
+    sendResponse({resp::Type::EVENT_DISPATCHED, resp::Event{event}});
+  }
+}
+
 void Worker::sendResponse(const resp::Response& resp) {
   std::stringstream response;
   cereal::PortableBinaryOutputArchive archive(response);
@@ -43,6 +49,8 @@ Worker::Worker(int socket, RuntimeImp& runtime, Server& server, ucred credential
   : runtime_(runtime)
   , server_(server)
   , socket_(socket) {
+
+  runtime_.attach(this);
   cmaCopyFunction_ = [pid = credentials.pid](const std::byte* src, std::byte* dst, size_t size,
                                              RuntimeImp::CmaCopyType type) {
     iovec local;
@@ -69,6 +77,7 @@ Worker::Worker(int socket, RuntimeImp& runtime, Server& server, ucred credential
 
 Worker::~Worker() {
   running_ = false;
+  runtime_.detach(this);
   runner_.join();
   freeResources();
 }
@@ -131,6 +140,7 @@ void Worker::processRequest(const req::Request& request) {
     auto dst = reinterpret_cast<std::byte*>(req.dst_);
     auto evt =
       runtime_.memcpyHostToDeviceWithoutProfiling(req.stream_, src, dst, req.size_, req.barrier_, cmaCopyFunction_);
+    events_.emplace(evt);
     sendResponse({resp::Type::MEMCPY_H2D, resp::Event{evt}});
     break;
   }
@@ -141,6 +151,7 @@ void Worker::processRequest(const req::Request& request) {
     auto dst = reinterpret_cast<std::byte*>(req.dst_);
     auto evt =
       runtime_.memcpyDeviceToHostWithoutProfiling(req.stream_, src, dst, req.size_, req.barrier_, cmaCopyFunction_);
+    events_.emplace(evt);
     sendResponse({resp::Type::MEMCPY_D2H, resp::Event{evt}});
     break;
   }
@@ -154,6 +165,7 @@ void Worker::processRequest(const req::Request& request) {
       memcpyList.addOp(src, dst, o.size_);
     }
     auto evt = runtime_.memcpyHostToDeviceWithoutProfiling(req.stream_, memcpyList, req.barrier_, cmaCopyFunction_);
+    events_.emplace(evt);
     sendResponse({resp::Type::MEMCPY_LIST_H2D, resp::Event{evt}});
     break;
   }
@@ -167,6 +179,7 @@ void Worker::processRequest(const req::Request& request) {
       memcpyList.addOp(src, dst, o.size_);
     }
     auto evt = runtime_.memcpyDeviceToHostWithoutProfiling(req.stream_, memcpyList, req.barrier_, cmaCopyFunction_);
+    events_.emplace(evt);
     sendResponse({resp::Type::MEMCPY_LIST_D2H, resp::Event{evt}});
     break;
   }
@@ -192,6 +205,7 @@ void Worker::processRequest(const req::Request& request) {
   case req::Type::LOAD_CODE: {
     auto& req = std::get<req::LoadCode>(request.payload_);
     auto resp = runtime_.loadCode(req.stream_, req.elf_.data(), req.elf_.size());
+    events_.emplace(resp.event_);
     sendResponse({resp::Type::LOAD_CODE,
                   resp::LoadCode{resp.event_, resp.kernel_, reinterpret_cast<AddressT>(resp.loadAddress_)}});
     break;
@@ -211,6 +225,7 @@ void Worker::processRequest(const req::Request& request) {
     auto& req = std::get<req::KernelLaunch>(request.payload_);
     auto evt = runtime_.kernelLaunch(req.stream_, req.kernel_, req.kernelArgs_.data(), req.kernelArgs_.size(),
                                      req.shireMask_, req.barrier_, req.flushL3_, req.userTrace_);
+    events_.emplace(evt);
     sendResponse({resp::Type::KERNEL_LAUNCH, resp::Event{evt}});
     break;
   }
@@ -224,6 +239,7 @@ void Worker::processRequest(const req::Request& request) {
   case req::Type::ABORT_STREAM: {
     auto& req = std::get<req::AbortStream>(request.payload_);
     auto evt = runtime_.abortStream(req.streamId_);
+    events_.emplace(evt);
     sendResponse({resp::Type::ABORT_STREAM, resp::Event{evt}});
     break;
   }

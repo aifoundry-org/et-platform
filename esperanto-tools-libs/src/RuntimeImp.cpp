@@ -792,6 +792,7 @@ void RuntimeImp::dispatch(EventId event) {
   ScopedProfileEvent profileEvent(Class::DispatchEvent, *profiler_, event);
   streamManager_.removeEvent(event);
   eventManager_.dispatch(event);
+  notify(event);
 }
 
 void RuntimeImp::checkDevice(int device) {

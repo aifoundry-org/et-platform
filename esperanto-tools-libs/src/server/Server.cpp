@@ -32,13 +32,13 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
   if (bind(socket_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
     RT_LOG(FATAL) << "Bind error: " << strerror(errno);
   }
-  if (listen(socket_, 10) < 0) {
+  if (::listen(socket_, 10) < 0) {
     RT_LOG(FATAL) << "Listen error: " << strerror(errno);
   }
-  listener_ = std::thread(&Server::Listen, this);
+  listener_ = std::thread(&Server::listen, this);
 }
 
-void Server::Listen() {
+void Server::listen() {
 
   while (running_) {
 
@@ -61,6 +61,6 @@ void Server::Listen() {
                  << " GID: " << credentials.gid << ").";
 
     // delegate the request processing for this client to a worker
-    workers_.emplace_back(std::make_unique<Worker>(cl, *runtime_, *this));
+    workers_.emplace_back(std::make_unique<Worker>(cl, *runtime_, *this, credentials));
   }
 }
