@@ -9,13 +9,12 @@
 #------------------------------------------------------------------------------
 
 randomized_test(
-  NAME tl_tfma_tstore_fc
+  NAME coop_tl_tfma_fc
   NUMBER_OF_TESTS 4
-  GEN_COMMAND python3 ${SCRIPTS_KERNEL_DIR}/gen_random_params.py --shires 32 --scenario tload_tfma_tstore --target_dir include --output_type array --repeat 10
+  GEN_COMMAND python3 ${PROJECT_SOURCE_DIR}/scripts/gen_random_params.py --shires 32 --scenario coop_tload_tfma --target_dir include --output_type array --repeat 10
   OUTPUT_GEN_FILES random_seed
-                   include/tstore_configs.h
                    include/tfma_configs.h
                    include/tl0_configs.h
                    include/tl1_configs.h
-  SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/tl_tfma_tstore_fc.c
+  SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/coop_tl_tfma_fc.c
   )
