@@ -1,0 +1,4 @@
+projects:
+  "tf-protocol":
+    folder: .
+    configs: [device]
