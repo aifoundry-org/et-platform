@@ -2737,9 +2737,7 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
               device_mgmt_api::DM_STATUS_SUCCESS);
   }
 }
-
-/* TODO Disabling CM test as it will be replaced with MM Reset in SW-10736
-void TestDevMgmtApiSyncCmds::resetCM(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::resetMM(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2749,13 +2747,13 @@ void TestDevMgmtApiSyncCmds::resetCM(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_CM_RESET, nullptr, 0, nullptr, 0, hst_latency.get(),
+    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_MM_RESET, nullptr, 0, nullptr, 0, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
-*/
+
 void TestDevMgmtApiSyncCmds::readMem(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);

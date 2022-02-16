@@ -218,9 +218,8 @@ protected:
   void getASICLatencyInvalidHostLatency(bool singleDevice);
   void getASICLatencyInvalidDeviceLatency(bool singleDevice);
   void getASICLatencyInvalidOutputBuffer(bool singleDevice);
-  /* TODO Disabling CM test as it will be replaced with MM Reset in SW-10736
-  void resetCM(bool singleDevice);
-  */
+  void resetMM(bool singleDevice);
+
   // Functional tests for  MDI Run control/State Inspection APIs
   void testRunControlCmdsSetBreakpoint(bool singleDevice);
   void testRunControlCmdsReadGPR(bool singleDevice);

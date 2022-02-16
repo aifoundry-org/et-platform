@@ -89,7 +89,7 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_SET_DM_TRACE_RUN_CONTROL", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL},
   {"DM_CMD_SET_DM_TRACE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG},
   {"DM_CMD_SET_THROTTLE_POWER_STATE_TEST", device_mgmt_api::DM_CMD::DM_CMD_SET_THROTTLE_POWER_STATE_TEST}
-#if MINION_DEBUG_INTERFACE    
+#if MINION_DEBUG_INTERFACE
   ,
   {"DM_CMD_MDI_SELECT_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART},
   {"DM_CMD_MDI_UNSELECT_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART},
@@ -108,8 +108,8 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_MDI_WRITE_CSR", device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR},
   {"DM_CMD_MDI_READ_MEM", device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM},
   {"DM_CMD_MDI_READ_MEM", device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM}
-#endif 
-  };
+#endif
+};
 
 static std::unordered_map<std::string, device_mgmt_api::ACTIVE_POWER_MANAGEMENT> const activePowerManagementTable = {
   {"ACTIVE_POWER_MANAGEMENT_TURN_OFF", device_mgmt_api::ACTIVE_POWER_MANAGEMENT::ACTIVE_POWER_MANAGEMENT_TURN_OFF},
