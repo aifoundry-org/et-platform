@@ -78,6 +78,10 @@ struct sys_emu_cmd_options {
     bool        log_en                       = false;
     std::string log_path;
     std::bitset<EMU_NUM_THREADS> log_thread;
+    uint32_t    log_trigger_insn             = 0;
+    uint64_t    log_trigger_hart             = 0;
+    uint64_t    log_trigger_start            = 0;
+    uint64_t    log_trigger_stop             = 0;
     std::vector<dump_info> dump_at_end;
     std::unordered_multimap<uint64_t, dump_info> dump_at_pc;
     std::string dump_mem;

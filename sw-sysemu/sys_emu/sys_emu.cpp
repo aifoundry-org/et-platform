@@ -198,7 +198,13 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
 
     // Setup logging
     chip.log.setDevice(this);
-    chip.log.setLogLevel(cmd_options.log_en ? LOG_DEBUG : LOG_INFO);
+    chip.log_trigger_insn = cmd_options.log_trigger_insn;
+    chip.log_trigger_hart = cmd_options.log_trigger_hart;
+    chip.log_trigger_start = cmd_options.log_trigger_start;
+    chip.log_trigger_stop = cmd_options.log_trigger_stop;
+    chip.log_trigger_count = 0;
+    chip.log_dynamic = (chip.log_trigger_insn != 0) && (chip.log_trigger_stop > chip.log_trigger_start) && (chip.log_trigger_hart < EMU_NUM_THREADS);
+    chip.log.setLogLevel(cmd_options.log_en && (!chip.log_dynamic || (chip.log_trigger_start == 0)) ? LOG_DEBUG : LOG_INFO);
     chip.log_thread = cmd_options.log_thread;
 
     if (!cmd_options.log_path.empty()) {
@@ -480,6 +486,20 @@ int sys_emu::main_internal() {
                 break;
             default:
                 break;
+            }
+        }
+
+        // Dynamic logging
+        if (chip.log_dynamic) {
+            auto& hart = chip.cpu[chip.log_trigger_hart];
+            if ((hart.state == bemu::Hart::State::active) && (hart.inst.bits == chip.log_trigger_insn)) {
+                chip.log_trigger_count++;
+                if (chip.log_trigger_count == chip.log_trigger_start) {
+                    chip.log.setLogLevel(LOG_DEBUG);
+                }
+                if (chip.log_trigger_count == chip.log_trigger_stop) {
+                    chip.log.setLogLevel(LOG_INFO);
+                }
             }
         }
 
