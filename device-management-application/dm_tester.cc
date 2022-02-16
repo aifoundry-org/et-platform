@@ -823,6 +823,13 @@ int verifyService() {
   case DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE : {
     return (runService(imagePath.c_str(), imagePath.length(), nullptr, 0));
   } break;
+
+  case DM_CMD::DM_CMD_MM_RESET: {
+    if ((ret = runService(nullptr, 0, nullptr, 0)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+  } break;
+
   default:
     DV_LOG(ERROR) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
     return -EINVAL;
