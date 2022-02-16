@@ -18,7 +18,7 @@ project(
     DESCRIPTION "ET Accelerator API, a header and library exposed to CM usermode"
 )
 
-set(PROJECT_VERSION 0.0.1)
+set(PROJECT_VERSION 0.0.2)
 
 option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
 
@@ -29,7 +29,7 @@ include(GNUInstallDirs)
 
 option(WITH_SP_BL "Build sp_bl1/sp_bl2 component" ON)
 if (WITH_SP_BL)
-    # Build and install SP Bootloader lib 
+    # Build and install SP Bootloader lib
     include(sp_bl1.cmake)
     include(sp_bl2.cmake)
 endif()

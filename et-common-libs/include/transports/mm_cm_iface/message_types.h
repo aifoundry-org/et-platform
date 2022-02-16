@@ -27,6 +27,17 @@
 
 typedef uint8_t cm_iface_message_id_t;
 typedef uint8_t cm_iface_message_number_t;
+typedef uint16_t cm_iface_message_flags_t;
+
+/*! \enum cm_iface_message_flags_e
+    \brief Enum that provides MM to CM interface flags to set a specific action.
+*/
+typedef enum {
+    CM_IFACE_FLAG_ASYNC_CMD =
+        0, /* Async command execution, It does not make sure that the command execution is completed before Ack. */
+    CM_IFACE_FLAG_SYNC_CMD =
+        1 /* Sync command execution, It makes sure that the command execution is completed before Ack.  */
+} cm_iface_message_flags_e;
 
 typedef struct {
     union {
@@ -34,10 +45,11 @@ typedef struct {
             cm_iface_message_number_t number;
             cm_iface_message_id_t id;
             uint16_t tag_id;
+            cm_iface_message_flags_t flags; /* Command flags */
+            uint8_t pad[2];                 /* Padding to make struct 64-bit aligned */
         };
-        uint32_t raw_header;
+        uint64_t raw_header;
     };
-    uint8_t pad[4]; /* Padding to make struct 64-bit aligned */
 } cm_iface_message_header_t;
 
 #define MESSAGE_MAX_PAYLOAD_SIZE (64 - sizeof(cm_iface_message_header_t))
