@@ -1,0 +1,14 @@
+# build-system
+build
+cmake-build-*
+
+# conan
+test_package/build
+
+# CI
+locks/
+variables.env
+conan-ci-pipelines-common
+
+# ide
+.idea
