@@ -53,14 +53,15 @@
 #define EXCEPTION_TXFMA_OFF                      31
 
 /* Interrupts have highest bit (MXLEN-1) set to 1 */
-#define SUPERVISOR_SOFTWARE_INTERRUPT            1
-#define MACHINE_SOFTWARE_INTERRUPT               3
-#define SUPERVISOR_TIMER_INTERRUPT               5
-#define MACHINE_TIMER_INTERRUPT                  7
-#define SUPERVISOR_EXTERNAL_INTERRUPT            9
-#define MACHINE_EXTERNAL_INTERRUPT               11
+#define SUPERVISOR_SOFTWARE_INTERRUPT 1
+#define MACHINE_SOFTWARE_INTERRUPT    3
+#define SUPERVISOR_TIMER_INTERRUPT    5
+#define MACHINE_TIMER_INTERRUPT       7
+#define SUPERVISOR_EXTERNAL_INTERRUPT 9
+#define MACHINE_EXTERNAL_INTERRUPT    11
+#define BUS_ERROR_INTERRUPT           23 /* ET specific interrupts */
 
-#define SUPERVISOR_PENDING_INTERRUPTS(sip)       asm volatile("csrr %0, sip" : "=r"(sip))
+#define SUPERVISOR_PENDING_INTERRUPTS(sip) asm volatile("csrr %0, sip" : "=r"(sip))
 
 //                                   csr       |     rs1      |    funct3   | opcode
 #define INST_CSRRx_MASK ((0xFFFULL << 20) | (0x1f << 15) | (0x7 << 12) | (0x7f))
@@ -69,9 +70,9 @@
 #define INST_CSRRS_MHARTID ((0xF14ULL << 20) | (0 << 15) | (0x2 << 12) | (0x73))
 
 /* Macros to access RISC-V registers */
-#define CSR_READ_SCAUSE(value)     asm volatile("csrr %0, scause\n" : "=r"(value));
-#define CSR_READ_SSTATUS(value)    asm volatile("csrr %0, sstatus\n" : "=r"(value));
-#define CSR_READ_SEPC(value)       asm volatile("csrr %0, sepc\n" : "=r"(value));
-#define CSR_READ_STVAL(value)      asm volatile("csrr %0, stval\n" : "=r"(value));
+#define CSR_READ_SCAUSE(value)  asm volatile("csrr %0, scause\n" : "=r"(value));
+#define CSR_READ_SSTATUS(value) asm volatile("csrr %0, sstatus\n" : "=r"(value));
+#define CSR_READ_SEPC(value)    asm volatile("csrr %0, sepc\n" : "=r"(value));
+#define CSR_READ_STVAL(value)   asm volatile("csrr %0, stval\n" : "=r"(value));
 
 #endif
