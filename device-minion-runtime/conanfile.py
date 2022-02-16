@@ -15,7 +15,7 @@ def make_hash_array(strval):
     for n in range(max_git_hash_length):
         if n > 0:
             result = result + ", "
-        
+
         if n < len(hexbytes):
             result = result + "0x{0:02x}".format(hexbytes[n])
         else:
@@ -26,18 +26,18 @@ def make_hash_array(strval):
 
 
 def make_version_array(strval):
-    max_git_version_length = 112 
+    max_git_version_length = 112
 
     result = "{ "
     for n in range(max_git_version_length):
         if n > 0:
             result = result + ", "
-        
+
         if n < len(strval):
             result = result + "'" + strval[n] + "'"
         else:
             result = result + "0"
-    
+
     result = result + " }"
     return result
 
@@ -69,8 +69,8 @@ class DeviceMinionRuntimeConan(ConanFile):
         self.requires("esperantoTrace/0.1.0")
         self.requires("signedImageFormat/1.0")
         self.requires("etsoc_hal/0.1.0")
-        self.requires("et-common-libs/0.0.1")
-    
+        self.requires("et-common-libs/0.0.2")
+
     def validate(self):
         if self.settings.arch != "rv64":
             raise ConanInvalidConfiguration("Cross-compiling to arch {} is not supported".format(self.settings.arch))
@@ -92,7 +92,7 @@ class DeviceMinionRuntimeConan(ConanFile):
             ut = dep.conf_info["tools.cmake.cmaketoolchain:user_toolchain"]
             if ut:
                 user_toolchains.append(ut)
-        
+
         tc = CMakeToolchain(self)
         tc.variables["GIT_HASH_STRING"] = self.info.package_id()
         tc.variables["GIT_HASH_ARRAY"] = make_hash_array(self.info.package_id())
@@ -110,25 +110,25 @@ class DeviceMinionRuntimeConan(ConanFile):
         if user_toolchains:
             self.output.info("Applying user_toolchains: %s" % user_toolchains)
             tc.blocks["user_toolchain"].values["paths"] = user_toolchains
-        
+
         tc.generate()
 
     def build(self):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-    
+
     def package(self):
         cmake = CMake(self)
         cmake.install()
         tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
-    
+
     def package_info(self):
         etfw_includedir = os.path.join("include", "esperanto-fw")
         etfw_libdir = os.path.join("lib", "esperanto-fw")
-        
+
         self.cpp_info.set_property("cmake_target_name", "EsperantoDeviceMinionRuntime")
-        
+
         self.cpp_info.components["minion_rt_helpers_interface"].requires = ["signedImageFormat::signedImageFormat"]
 
         self.cpp_info.components["MachineMinion"].bindirs = [os.path.join(etfw_libdir, "MachineMinion")]

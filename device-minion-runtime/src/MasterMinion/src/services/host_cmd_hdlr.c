@@ -1090,6 +1090,7 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
             mm_to_cm_message_trace_buffer_evict_t cm_msg = {
                 .header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
                 .header.tag_id = cmd->command_info.cmd_hdr.tag_id,
+                .header.flags = CM_IFACE_FLAG_SYNC_CMD,
                 .thread_mask = Trace_Get_CM_Thread_Mask()
             };
 
@@ -1145,6 +1146,7 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
             mm_to_cm_message_trace_buffer_evict_t cm_msg = {
                 .header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
                 .header.tag_id = cmd->command_info.cmd_hdr.tag_id,
+                .header.flags = CM_IFACE_FLAG_SYNC_CMD,
                 .thread_mask = Trace_Get_CM_Thread_Mask()
             };
 
@@ -1672,11 +1674,12 @@ static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t
             "TID[%u]:SQW[%d]:HostCommandHandler:TRACE_RT_CONTROL_CMD:CM RT control\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
-        mm_to_cm_message_trace_rt_control_t cm_msg;
-        cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL;
-        cm_msg.header.tag_id = cmd->command_info.cmd_hdr.tag_id;
-        cm_msg.cm_control = cmd->control;
-        cm_msg.thread_mask = Trace_Get_CM_Thread_Mask();
+        mm_to_cm_message_trace_rt_control_t cm_msg = { .header.id =
+                                                           MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL,
+            .header.tag_id = cmd->command_info.cmd_hdr.tag_id,
+            .header.flags = CM_IFACE_FLAG_SYNC_CMD,
+            .cm_control = cmd->control,
+            .thread_mask = Trace_Get_CM_Thread_Mask() };
 
         uint64_t cm_shire_mask = Trace_Get_CM_Shire_Mask() & CW_Get_Booted_Shires();
 
@@ -1824,13 +1827,14 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
         Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCmdHdlr:TRACE_CONFIG: Configure CM.\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
-        mm_to_cm_message_trace_rt_config_t cm_msg;
-        cm_msg.header.id = MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE;
-        cm_msg.shire_mask = cmd->shire_mask;
-        cm_msg.thread_mask = cmd->thread_mask;
-        cm_msg.filter_mask = cmd->filter_mask;
-        cm_msg.event_mask = cmd->event_mask;
-        cm_msg.threshold = cmd->threshold;
+        mm_to_cm_message_trace_rt_config_t cm_msg = { .header.id =
+                                                          MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE,
+            .header.flags = CM_IFACE_FLAG_SYNC_CMD,
+            .shire_mask = cmd->shire_mask,
+            .thread_mask = cmd->thread_mask,
+            .filter_mask = cmd->filter_mask,
+            .event_mask = cmd->event_mask,
+            .threshold = cmd->threshold };
 
         status = Trace_Configure_CM_RT(&cm_msg);
 

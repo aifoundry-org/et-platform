@@ -131,8 +131,10 @@ int32_t CM_Iface_Init(void)
     /* Initialize Master->worker broadcast tag ID, message number and message ID */
     cm_iface_message_header_t msg_header = { .id = MM_TO_CM_MESSAGE_ID_NONE,
         .number = 0,
-        .tag_id = 0 };
-    atomic_store_global_32(
+        .tag_id = 0,
+        .flags = 0 };
+
+    atomic_store_global_64(
         &mm_to_cm_broadcast_message_buffer_ptr->header.raw_header, msg_header.raw_header);
 
     /* CM to MM Unicast Circularbuffer control blocks */

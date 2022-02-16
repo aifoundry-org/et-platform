@@ -39,14 +39,10 @@ static void mm_to_cm_iface_handle_message(
     uint32_t shire, uint64_t hart, cm_iface_message_t *const message_ptr, void *const optional_arg);
 
 /* Finds the last shire involved in MM->CM message and notifies the MM */
-static inline void read_msg_and_notify_mm(uint64_t shire_id)
+static inline void notify_mm(uint64_t shire_id)
 {
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
     uint32_t thread_num = atomic_add_local_32(&pre_msg_local_barrier[shire_id].flag, 1U);
-
-    /* Evict stale line from L1D */
-    ETSOC_MEM_EVICT(
-        master_to_worker_broadcast_message_buffer_ptr, sizeof(cm_iface_message_t), to_L2)
 
     /* Last thread per shire decrements global counter */
     if (thread_num == (thread_count - 1))
@@ -94,11 +90,16 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
 {
     const uint32_t shire_id = get_shire_id();
     const uint32_t hart_id = get_hart_id();
-    cm_iface_message_t *message;
+    cm_iface_message_t *message = master_to_worker_broadcast_message_buffer_ptr;
 
-    read_msg_and_notify_mm(shire_id);
+    /* Evict stale line from L1D */
+    ETSOC_MEM_EVICT(message, sizeof(cm_iface_message_t), to_L2)
 
-    message = master_to_worker_broadcast_message_buffer_ptr;
+    if (!(message->header.flags & CM_IFACE_FLAG_SYNC_CMD))
+    {
+        /* For Async command execution send back Ack to MM upon receiving the message. */
+        notify_mm(shire_id);
+    }
 
     /* Check for pending MM->CM message */
     if (message->header.number != mm_cm_msg_number[hart_id].number)
@@ -253,5 +254,11 @@ static void mm_to_cm_iface_handle_message(
                 log_write(LOG_LEVEL_ERROR, "CM->MM:Unicast send failed! Error code: %d\n", status);
             }
             break;
+    }
+
+    if (message_ptr->header.flags & CM_IFACE_FLAG_SYNC_CMD)
+    {
+        /* For Sync command execution send back Ack to MM upon completion of command execution. */
+        notify_mm(get_shire_id());
     }
 }
