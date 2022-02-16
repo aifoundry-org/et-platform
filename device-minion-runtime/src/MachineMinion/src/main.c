@@ -124,7 +124,11 @@ void __attribute__((noreturn)) main(void)
         "li    %0, 0x100            \n" // Delegate user environment calls to supervisor mode
         "csrs  medeleg, %0          \n"
         "csrwi menable_shadows, 0x3 \n" // Enable shadow registers for hartid and sleep txfma
-        "csrsi mie, 0x8             \n" // Enable machine software interrupts
+        /* TODO: Bus error interrupts are disabled in M mode for now since SysEMU does not emulate Shire-cache
+        and Mem-shire PMCs ESRs and hence does illegal operation and generates bus error interrupt */
+        //"li    %0, 0x800008         \n" // Enable machine software interrupts, ET Bus Error Interrupt[23]
+        "li    %0, 0x8              \n" // Enable machine software interrupts
+        "csrs  mie, %0              \n"
         "csrsi mstatus, 0x8         \n" // Enable interrupts
         : "=&r"(temp));
 

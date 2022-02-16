@@ -17,6 +17,7 @@ add_riscv_executable(WorkerMinion
     src/syscall.c
     src/swi.c
     src/exception.c
+    src/extended_interrupt.c
     src/main.c
     src/cm_to_mm_iface.c
     src/mm_to_cm_iface.c

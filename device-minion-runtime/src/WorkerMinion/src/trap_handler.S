@@ -77,6 +77,8 @@ test_if_environment_call:
     j     processed_source
 
 handle_interrupt:
+    li    t2, ((1 << 63) | BUS_ERROR_INTERRUPT) /* ET specific bus error interrupt */
+    beq   t0, t2, is_extended_interrupt
     li    t2, ((1 << 63) | SUPERVISOR_SOFTWARE_INTERRUPT)
     bne   t2, t0, as_yet_unhandled      /* Something as yet unhandled. */
     mv    a0, t0                        /* 1st argument = scause */
@@ -85,6 +87,14 @@ handle_interrupt:
     mv    a3, sp                        /* 4th argument = pointer to regs on stack */
     la    ra, processed_source
     j     swi_handler                   /* Software interrupt */
+
+is_extended_interrupt:
+    csrr  a0, scause                    /* 1st argument = scause */
+    csrr  a1, sepc                      /* 2nd argument = sepc */
+    csrr  a2, stval                     /* 3rd argument = stval */
+    mv    a3, sp                        /* 4th argument = pointer to regs on stack */
+    la    ra, processed_source          /* Set the return address */
+    j     extended_interrupt            /* ET specific interrupt handler */
 
 is_exception:
     mv    a0, t0                        /* 1st argument = scause */

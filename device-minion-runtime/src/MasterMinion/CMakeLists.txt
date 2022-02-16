@@ -23,6 +23,7 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
         src/crt.S
         src/trap_handler.S
         src/exception.c
+        src/extended_interrupt.c
         src/main.c
         src/build_configuration.c
         src/config/dir_regs.c

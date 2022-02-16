@@ -61,13 +61,13 @@ void main(void)
                  "csrw  stvec, %0        \n"
                  : "=&r"(temp));
 
-    /* Enable waking from WFI on supervisor software interrupts (IPIs).
+    /* Enable waking from WFI on supervisor software interrupts (IPIs) and bus error interrupts
     But disable interrupts globally so that they *do not* trap to the trap handler */
     /* TODO: create and use proper macros from interrupts.h */
     asm volatile("csrci sstatus, 0x2\n"
                  "csrw  sie, %0\n"
                  :
-                 : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
+                 : "r"((1 << SUPERVISOR_SOFTWARE_INTERRUPT) | (1 << BUS_ERROR_INTERRUPT)));
 
     const uint32_t hart_id = get_hart_id();
 

@@ -1,3 +1,5 @@
+#include <etsoc/isa/riscv_encoding.h>
+
 .section .text, "ax", @progbits /* TODO FIXME move to S +RX page sections */
 
 .align 12 /* Minion requires machine trap vector to be 4K aligned, mtvec[11:0] = 0 */
@@ -12,7 +14,7 @@ trap_handler:
 
     /* Check interrupt or exception (Interrupts have highest bit = 1) */
     csrr  t0, scause
-    blt   t0, x0, error_trapped_interrupt
+    blt   t0, x0, handle_interrupt      /* Branch past exception handling if it's an interrupt. */
 
     /* Allocate space for the context */
     addi  sp, sp, -(32 * 8)
@@ -68,7 +70,19 @@ trap_handler:
 
     /* Return value of exception handler is return address */
     csrw  sepc, a0
+    j     processed_source
 
+handle_interrupt:
+    li    t1, ((1 << 63) | BUS_ERROR_INTERRUPT)  /* ET specific bus error interrupt */
+    bne   t1, t0, as_yet_unhandled               /* Something as yet unhandled. */
+    csrr  a0, scause                             /* 1st argument = scause */
+    csrr  a1, sepc                               /* 2nd argument = sepc */
+    csrr  a2, stval                              /* 3rd argument = stval */
+    mv    a3, sp                                 /* 4th argument = pointer to regs on stack */
+    la    ra, processed_source                   /* Set the return address */
+    j     extended_interrupt                     /* ET specific interrupt handler */
+
+processed_source:
     /* Restore context */
     ld    x1,   1 * 8(sp)
     /*    x2, is sp, restored later */
@@ -106,8 +120,8 @@ trap_handler:
     sret
 
     /* Should never get here!! */
-error_trapped_interrupt:
+as_yet_unhandled:
     ebreak
-    j     error_trapped_interrupt
+    j     as_yet_unhandled
 
 .endfunc

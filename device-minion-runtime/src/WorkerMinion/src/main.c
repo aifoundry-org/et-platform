@@ -50,18 +50,21 @@ void __attribute__((noreturn)) main(void)
     const uint32_t shire_id = get_shire_id();
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
 
-    // Setup supervisor trap vector
+    /* Setup supervisor trap vector */
     asm volatile("csrw  stvec, %0\n" : : "r"(&trap_handler));
 
-    // Disable global interrupts (sstatus.SIE = 0) to not trap to trap handler.
-    // But enable Supervisor Software Interrupts so that IPIs trap when in U-mode
-    // RISC-V spec:
-    //   "An interrupt i will be taken if bit i is set in both mip and mie,
-    //    and if interrupts are globally enabled."
+    /* Disable global interrupts (sstatus.SIE = 0) to not trap to trap handler.
+    But enable Supervisor Software Interrupts so that IPIs and bus error intterupts
+    trap when in U-mode
+    RISC-V spec:
+       "An interrupt i will be taken if bit i is set in both mip and mie,
+        and if interrupts are globally enabled." */
     asm volatile("csrci sstatus, 0x2\n");
-    asm volatile("csrsi sie, %0\n" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
+    asm volatile("csrs sie, %0\n"
+                 :
+                 : "r"((1 << SUPERVISOR_SOFTWARE_INTERRUPT) | (1 << BUS_ERROR_INTERRUPT)));
 
-    // Enable all available PMU counters to be sampled in U-mode
+    /* Enable all available PMU counters to be sampled in U-mode */
     asm volatile("csrw scounteren, %0\n" : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
 
     /* Initialize Trace with default configurations. */
