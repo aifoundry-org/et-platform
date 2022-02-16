@@ -965,10 +965,6 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
             shire_other_esrs[shire].shire_config = uint32_t(value & 0x3ffffff);
             LOG_AGENT(DEBUG, agent, "S%u:shire_config = 0x%" PRIx32,
                       SHIREID(shire), shire_other_esrs[shire].shire_config);
-            if (value & ESR_SHIRE_RESET_MASK)
-            {
-                SYS_EMU_PTR->reset_shire(value & 0xff);
-            }
             return;
         case ESR_THREAD1_DISABLE:
             write_thread1_disable(shire, uint32_t(value));
