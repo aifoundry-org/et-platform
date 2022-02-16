@@ -8,14 +8,14 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.15)
-project(EsperantoTestKernelsLoader VERSION 0.1.0 LANGUAGES C ASM)
+project(EsperantoTestKernels VERSION 0.1.0 LANGUAGES C ASM)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(ExternalProject)
 include(GNUInstallDirs)
 include(DeviceUtils)
-include(TestComputeKernelsUtils)
+include(EsperantoTestKernelsUtils)
 
 cmake_policy(SET CMP0076 NEW)
 
