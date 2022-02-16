@@ -87,6 +87,7 @@ namespace bemu {
 #define ESR_CACHE_REGION       0x0100300000ULL
 #define ESR_RBOX_REGION        0x0100320000ULL
 #define ESR_SHIRE_REGION       0x0100340000ULL
+#define ESR_MEMSHIRE_REGION    0x0180000000ULL
 
 // The message port subregion inside the Hart ESR region
 #define ESR_HART_PORT_ADDR_VALID(x) (((x) & 0xF38) == 0x800)
@@ -300,6 +301,16 @@ namespace bemu {
 #define ESR_PU_RVTIM_MTIME        0x01C0000000ULL /* PP = 0b11 */
 #define ESR_PU_RVTIM_MTIMECMP     0x01C0000008ULL /* PP = 0b11 */
 
+// ESR DDR chip register addresses
+#define ESR_MEM_SHIRE_STATUS        0x0180000238ULL
+#define ESR_MEM_SHIRE_INT_EN        0x0180000250ULL
+#define ESR_MEM_SHIRE_CRTIT_INT_EN  0x0180000248ULL
+#define ESR_MEM_SHIRE_CRTIT2_INT_EN 0x01fa000280ULL
+#define ESR_MEM_SHIRE_CTRL_STATUS   0x01C0000280ULL
+#define ESR_MEM_SHIRE_PERF0_QUAL    0x01C00002A0ULL
+#define ESR_MEM_SHIRE_PERF1_QUAL    0x01C00002A8ULL
+#define ESR_MEM_SHIRE_PERF0_QUAL2   0x01C00002B0ULL
+#define ESR_MEM_SHIRE_PERF1_QUAL2   0x01C00002B8ULL
 
 // Broadcast ESR addresses
 #define ESR_BROADCAST_DATA      0x013FF5FFF0ULL /* PP = 0b00 */
@@ -307,7 +318,7 @@ namespace bemu {
 #define ESR_SBROADCAST          0x017FF5FFF8ULL /* PP = 0b01 */
 #define ESR_MBROADCAST          0x01FFF5FFF8ULL /* PP = 0b11 */
 
-
+#define ESR_SHIRE_RESET_MASK   0x1E00
 // -----------------------------------------------------------------------------
 // Neighborhood ESRs
 
@@ -419,6 +430,14 @@ struct broadcast_esrs_t {
     void reset() {}
 };
 
+// -----------------------------------------------------------------------------
+// MEM Shire ESRs
+struct mem_shire_esrs_t {
+    uint64_t status;
+    uint64_t int_en;
+    uint64_t perf_ctrl_status;
+    void reset() { status = 0x1; int_en=0; perf_ctrl_status=0;}
+};
 
 } // namespace bemu
 
