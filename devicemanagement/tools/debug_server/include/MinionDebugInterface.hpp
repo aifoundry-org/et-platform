@@ -21,6 +21,15 @@ using namespace device_management;
 #define RISCV64_NUM_GPRS        32 //registers
 #define MAX_RSP_PKT_SIZE        256 //bytes
 #define RISCV_PC_INDEX          32
+
+/* Target state */
+enum target_state {
+  TGT_RUNNING,
+  TGT_HALTED,
+  TGT_EXCEPTION,
+  TGT_ERROR
+};
+
 /**
  * @brief MinionDebugInterface Interface to control and interact with
  * simulation from an independent outside program, e.g. from a debug server.
@@ -244,4 +253,7 @@ class MinionDebugInterface {
   std::unique_ptr<IDeviceLayer>   devLayer_;
   getDM_t   dmi_;
   uint32_t    current_hart_;
+  bool        tgt_state;
+  bool        server_state;
+  bool        should_stop_server;
 };
