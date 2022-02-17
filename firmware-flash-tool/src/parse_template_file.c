@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <stdbool.h>
 
 #include <json-c/json.h>
 
@@ -127,7 +128,7 @@ static int process_region(json_object * jobj, REGION_INFO_t * pregion) {
     json_object * value;
     const char * str;
 
-    if (TRUE != json_object_object_get_ex(jobj, REGION_ID_KEY, &value)) {
+    if (true != json_object_object_get_ex(jobj, REGION_ID_KEY, &value)) {
         fprintf(stderr, "ERROR in process_region: Missing key " REGION_ID_KEY "!\n");
         return -1;
     }
@@ -136,14 +137,14 @@ static int process_region(json_object * jobj, REGION_INFO_t * pregion) {
         return -1;
     }
 
-    if (TRUE == json_object_object_get_ex(jobj, REGION_SIZE_KEY, &value)) {
+    if (true == json_object_object_get_ex(jobj, REGION_SIZE_KEY, &value)) {
         if (0 != process_integer(value, &(pregion->size))) {
             fprintf(stderr, "ERROR in process_region: process_integer() failed to parse region size!\n");
             return -1;
         }
     }
 
-    if (TRUE == json_object_object_get_ex(jobj, REGION_FILE_KEY, &value)) {
+    if (true == json_object_object_get_ex(jobj, REGION_FILE_KEY, &value)) {
         if (json_type_string == json_object_get_type(value)) {
             str = json_object_get_string(value);
             if (NULL == str) {
@@ -238,7 +239,7 @@ static int process_partition(json_object * jobj, PARTITION_INFO_t * ppartition) 
     int rv;
     json_object * value;
 
-    if (TRUE == json_object_object_get_ex(jobj, PARTITION_SIZE_KEY, &value)) {
+    if (true == json_object_object_get_ex(jobj, PARTITION_SIZE_KEY, &value)) {
         if (0 != process_integer(value, &(ppartition->partition_size))) {
             fprintf(stderr, "ERROR in process_partition: process_integer() failed to parse partition size!\n");
             rv = -1;
@@ -248,7 +249,7 @@ static int process_partition(json_object * jobj, PARTITION_INFO_t * ppartition) 
         ppartition->partition_size = 0;
     }
 
-    if (TRUE == json_object_object_get_ex(jobj, PARTITION_PRIORITY_KEY, &value)) {
+    if (true == json_object_object_get_ex(jobj, PARTITION_PRIORITY_KEY, &value)) {
         if (0 != process_integer(value, &(ppartition->priority))) {
             fprintf(stderr, "ERROR in process_partition: process_integer() failed to parse partition priority!\n");
             rv = -1;
@@ -258,7 +259,7 @@ static int process_partition(json_object * jobj, PARTITION_INFO_t * ppartition) 
         ppartition->priority = 0;
     }
 
-    if (TRUE == json_object_object_get_ex(jobj, PARTITION_ATTEMPTED_COUNT_KEY, &value)) {
+    if (true == json_object_object_get_ex(jobj, PARTITION_ATTEMPTED_COUNT_KEY, &value)) {
         if (0 != process_integer(value, &(ppartition->attempted_boot_counter))) {
             fprintf(stderr, "ERROR in process_partition: process_integer() failed to parse partition attempted boot count!\n");
             rv = -1;
@@ -268,7 +269,7 @@ static int process_partition(json_object * jobj, PARTITION_INFO_t * ppartition) 
         ppartition->attempted_boot_counter = 0;
     }
 
-    if (TRUE == json_object_object_get_ex(jobj, PARTITION_COMPLETED_COUNT_KEY, &value)) {
+    if (true == json_object_object_get_ex(jobj, PARTITION_COMPLETED_COUNT_KEY, &value)) {
         if (0 != process_integer(value, &(ppartition->completed_boot_counter))) {
             fprintf(stderr, "ERROR in process_partition: process_integer() failed to parse partition completed boot count!\n");
             rv = -1;
@@ -278,7 +279,7 @@ static int process_partition(json_object * jobj, PARTITION_INFO_t * ppartition) 
         ppartition->completed_boot_counter = 0;
     }
 
-    if (TRUE != json_object_object_get_ex(jobj, PARTITION_REGIONS_KEY, &value)) {
+    if (true != json_object_object_get_ex(jobj, PARTITION_REGIONS_KEY, &value)) {
         fprintf(stderr, "ERROR in process_partition: missing key '" PARTITION_REGIONS_KEY "'!\n");
         rv = -1;
         goto DONE;
@@ -308,7 +309,7 @@ static int process_image(json_object * jobj, IMAGE_INFO_t * pimage) {
     uint32_t count;
     uint32_t index = 0;
 
-    if (TRUE == json_object_object_get_ex(jobj, IMAGE_SIZE_KEY, &value)) {
+    if (true == json_object_object_get_ex(jobj, IMAGE_SIZE_KEY, &value)) {
         if (0 != process_integer(value, &(pimage->image_size))) {
             fprintf(stderr, "ERROR in process_image: process_integer() failed to parse image size!\n");
             rv = -1;
@@ -318,7 +319,7 @@ static int process_image(json_object * jobj, IMAGE_INFO_t * pimage) {
         pimage->image_size = 0;
     }
 
-    if (TRUE != json_object_object_get_ex(jobj, IMAGE_PARTITIONS_KEY, &value)) {
+    if (true != json_object_object_get_ex(jobj, IMAGE_PARTITIONS_KEY, &value)) {
         fprintf(stderr, "ERROR in process_image: missing key '" IMAGE_PARTITIONS_KEY "'!\n");
         rv = -1;
         goto DONE;
@@ -405,7 +406,7 @@ int parse_template_file(const char * filename, TEMPLATE_INFO_t * template) {
         goto DONE;
     }
 
-    if (TRUE == json_object_object_get_ex(jobj, IMAGE_KEY, &value)) {
+    if (true == json_object_object_get_ex(jobj, IMAGE_KEY, &value)) {
         template->image = (IMAGE_INFO_t*)malloc(sizeof(IMAGE_INFO_t));
         if (NULL == template->image) {
             fprintf(stderr, "ERROR in parse_template_file: failed to allocate IMAGE_INFO_t memory!\n");
@@ -420,7 +421,7 @@ int parse_template_file(const char * filename, TEMPLATE_INFO_t * template) {
             goto DONE;
         }
         template->image_type = true;
-    } else if (TRUE == json_object_object_get_ex(jobj, PARTITION_KEY, &value)) {
+    } else if (true == json_object_object_get_ex(jobj, PARTITION_KEY, &value)) {
         template->partition = (PARTITION_INFO_t*)malloc(sizeof(PARTITION_INFO_t));
         if (NULL == template->partition) {
             fprintf(stderr, "ERROR in parse_template_file: failed to allocate PARTITION_INFO_t memory!\n");
