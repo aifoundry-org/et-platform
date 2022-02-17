@@ -162,10 +162,10 @@ TEST_F(TestMemcpy, dmaListSimple) {
   std::vector<std::vector<std::byte>> hostMemSrc;
   std::vector<std::vector<std::byte>> hostMemDst;
   std::mt19937 gen(std::random_device{}());
-  std::uniform_int_distribution dis;
-  auto maxEntrySize = 1024;
+  auto maxEntrySize = 1024UL;
+  std::uniform_int_distribution dis(1UL, maxEntrySize);
   for (auto i = 0U; i < dmaInfo.maxElementCount_; ++i) {
-    auto entrySize = static_cast<size_t>(dis(gen) % maxEntrySize);
+    auto entrySize = dis(gen);
     deviceMem.emplace_back(runtime_->mallocDevice(dev, entrySize));
     std::vector<std::byte> currentEntry;
     for (auto j = 0U; j < entrySize; ++j) {

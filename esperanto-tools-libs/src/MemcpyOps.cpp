@@ -504,14 +504,15 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyLi
     cs.cancel(evt);
     RT_VLOG(HIGH) << "D2H: Cancelled GHOST command: " << static_cast<int>(evt);
 
-    // wait for the sent command, do the final copy to user buffers and dispatch the event
-    waitForEventWithoutProfiling(cmdEvt);
-    cmaPtrOffset = 0UL;
-    for (auto& op : memcpyList.operations_) {
-      cmaCopyFunction(cmaPtr + cmaPtrOffset, op.dst_, op.size_, CmaCopyType::FROM_CMA);
-      cmaPtrOffset += op.size_;
-    }
-    dispatch(evt);
+    eventManager_.addOnDispatchCallback({{cmdEvt}, [this, evt, cmaPtr, cmaCopyFunction, ops = memcpyList.operations_] {
+                                           auto offset = 0UL;
+                                           for (auto& op : ops) {
+                                             cmaCopyFunction(cmaPtr + offset, op.dst_, op.size_, CmaCopyType::FROM_CMA);
+                                             offset += op.size_;
+                                           }
+                                           cmaManager_->free(cmaPtr);
+                                           dispatch(evt);
+                                         }});
   });
   Sync(evt);
   return evt;

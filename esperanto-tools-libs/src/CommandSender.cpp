@@ -86,6 +86,7 @@ void CommandSender::setCommandData(EventId command, std::vector<std::byte> data)
 
 void CommandSender::enable(EventId event) {
   std::unique_lock lock(mutex_);
+  RT_VLOG(HIGH) << "Enabling command " << static_cast<int>(event);
   auto it =
     std::find_if(begin(commands_), end(commands_), [event](const Command& elem) { return elem.eventId_ == event; });
   if (it == end(commands_)) {
@@ -115,6 +116,7 @@ std::optional<EventId> CommandSender::getTopPrioritaryCommand() const {
 
 void CommandSender::cancel(EventId event) {
   std::unique_lock lock(mutex_);
+  RT_VLOG(HIGH) << "Cancel command " << static_cast<int>(event);
   auto it =
     std::find_if(begin(commands_), end(commands_), [event](const Command& elem) { return elem.eventId_ == event; });
   if (it != end(commands_)) {
@@ -164,7 +166,6 @@ void CommandSender::runnerFunc() {
         }
       }
     } else {
-      // check if we are running and if there are any commands
       condVar_.wait(lock, [this] { return !running_ || (!commands_.empty() && commands_.front().isEnabled_); });
     }
   }
