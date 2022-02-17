@@ -348,6 +348,18 @@ Modules:
           Value: 2
         - Name: HART_STATUS
           Value: 3
+    - Name:  mdi_hart_status
+      Description: Hart status
+      Type: uint8_t
+      Values:
+        - Name: HALTED
+          Value: 0
+        - Name: RUNNING
+          Value: 1
+        - Name: EXCEPTION
+          Value: 2
+        - Name: ERROR
+          Value: 3
     - Name:  mdi_bp_ctrl_flag
       Description: Breakpoint Control flag
       Type: uint8_t
@@ -626,6 +638,9 @@ Modules:
           Type: uint64_t
     - Name: mdi_hart_control_t
       Fields:
+        - Name: hart_id
+          Description: Hart ID
+          Type: uint64_t
         - Name: flags
           Description: Flags that indicate action to perform, reset/halt/resume/status/etc
           Type: uint64_t
@@ -1426,7 +1441,7 @@ Modules:
         - Name: cmd_attr
           Description: Command attributes for HART control
           Type: struct
-          Struct: mdi_hart_selection_t
+          Struct: mdi_hart_control_t
 
     - Name: mdi_hart_control_rsp
       Description: HART control response
