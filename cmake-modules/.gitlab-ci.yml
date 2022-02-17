@@ -4,12 +4,18 @@ include:
     file: 'mr/common.yaml'
 
 variables:
-  GET_SOURCES_ATTEMPTS: 2
-  ARTIFACT_DOWNLOAD_ATTEMPTS: 2
+  # https://docs.gitlab.com/ee/ci/runners/configure_runners.html#job-stages-attempts 
+  ARTIFACT_DOWNLOAD_ATTEMPTS: 5
+  EXECUTOR_JOB_SECTION_ATTEMPTS: 5
+  GET_SOURCES_ATTEMPTS: 5
+  RESTORE_CACHE_ATTEMPTS: 5
 
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 ###############################################################################
 ###############################################################################
