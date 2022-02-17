@@ -20,7 +20,6 @@ include(EsperantoTestKernelsUtils)
 cmake_policy(SET CMP0076 NEW)
 
 # Dependencies
-find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(esperantoTrace REQUIRED)
 find_package(et-common-libs REQUIRED COMPONENTS cm-umode)
 
