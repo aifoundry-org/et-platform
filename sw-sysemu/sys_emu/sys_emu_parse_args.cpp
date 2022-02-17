@@ -26,6 +26,10 @@ static const char * help_msg =
      -lm <minion>             Log a given Minion. Can be used multiple times. (default: all)\n\
      -ls <shire>,<threads>    Log given Threads of a Shire. Can be used multiple times. (default: all)\n\
      -lp <path>               Redirect log output to path. (default: stdout)\n\
+     -ltrigger_insn <instn>   Logging verbosity will be set to DEBUG after finding this instruction. (hex format, default: 0)\n\
+     -ltrigger_hart <hart>    Logging verbosity will be set to DEBUG after this hart finds the trigger instruction. (default: 0)\n\
+     -ltrigger_start <count>  Logging verbosity will be set to DEBUG after finding the trigger instruction this many times. (default: 0)\n\
+     -ltrigger_stop <count>   Logging verbosity will be set back to INFO after finding the trigger instruction this many times. (default: 0)\n\
      -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
      -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
      -single_thread           Disable 2nd Minion thread\n\
@@ -116,6 +120,10 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"lm",                     required_argument, nullptr, 0},
         {"ls",                     required_argument, nullptr, 0},
         {"lp",                     required_argument, nullptr, 0},
+        {"ltrigger_insn",          required_argument, nullptr, 0},
+        {"ltrigger_hart",          required_argument, nullptr, 0},
+        {"ltrigger_start",         required_argument, nullptr, 0},
+        {"ltrigger_stop",          required_argument, nullptr, 0},
         {"minions",                required_argument, nullptr, 0},
         {"shires",                 required_argument, nullptr, 0},
         {"master_min",             no_argument,       nullptr, 0}, // deprecated, use -shires <mask> to enable Master Shire and SP
@@ -245,6 +253,24 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if (!strcmp(name, "lp"))
         {
             cmd_options.log_path = optarg;
+        }
+        else if (!strcmp(name, "ltrigger_insn"))
+        {
+            uint64_t instruction;
+            sscanf(optarg, "%" PRIx64, &instruction);
+            cmd_options.log_trigger_insn = instruction;
+        }
+        else if (!strcmp(name, "ltrigger_hart"))
+        {
+            cmd_options.log_trigger_hart = atoi(optarg);
+        }
+        else if (!strcmp(name, "ltrigger_start"))
+        {
+            cmd_options.log_trigger_start = atoi(optarg);
+        }
+        else if (!strcmp(name, "ltrigger_stop"))
+        {
+            cmd_options.log_trigger_stop = atoi(optarg);
         }
         else if (!strcmp(name, "minions"))
         {

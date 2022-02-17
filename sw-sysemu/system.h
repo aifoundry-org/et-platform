@@ -229,6 +229,12 @@ public:
     // Logging
     testLog     log {"EMU", LOG_INFO}; // Consider making this a "plugin"
     hart_mask_t log_thread;
+    bool        log_dynamic;
+    uint32_t    log_trigger_insn;
+    uint64_t    log_trigger_hart;
+    uint64_t    log_trigger_start;
+    uint64_t    log_trigger_stop;
+    uint64_t    log_trigger_count;
 
     // System agent
     Noagent   noagent {this, "SYSTEM"};
