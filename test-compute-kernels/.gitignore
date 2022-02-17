@@ -1,0 +1,15 @@
+# build-syste
+build/
+cmake-build-*/
+
+# conan
+test_package/build
+
+# conan ci
+locks/
+variables.env
+conan-ci-pipelines-common/
+
+# IDEs
+.vscode/
+.idea

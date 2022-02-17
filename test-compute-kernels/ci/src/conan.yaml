@@ -1,0 +1,4 @@
+projects:
+  "esperanto-test-kernels":
+    folder: .
+    configs: [device]
