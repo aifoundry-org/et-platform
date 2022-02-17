@@ -62,7 +62,7 @@ void insn_c_sd(Hart& cpu)
 
 void insn_c_sdsp(Hart& cpu)
 {
-    C_DISASM_STORE_SWSP("c.sdsp");
+    C_DISASM_STORE_SDSP("c.sdsp");
     mmu_store64(cpu, X2 + C_IMMSDSP, C_RS2, Mem_Access_Store);
 }
 
