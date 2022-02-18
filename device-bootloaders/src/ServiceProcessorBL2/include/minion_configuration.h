@@ -32,22 +32,6 @@
 #include "sp_host_iface.h"
 #include "dm_event_def.h"
 
-/*!
- * @enum minion_error_type
- * @brief Enum defining event/error type
- */
-enum minion_error_type
-{
-    CM_USER_KERNEL_ERROR = 0,
-    CM_RUNTIME_ERROR,
-    MM_DISPATCHER_ERROR,
-    MM_SQW_ERROR,
-    MM_DMAW_ERROR,
-    MM_KW_ERROR,
-    MM_RUNTIME_HANG_ERROR,
-    MM_UNDEFINED_ERROR
-};
-
 /*! \def MINION_HANG_ERROR_THRESHOLD
     \brief Minion hang errors threshold
 */
@@ -125,7 +109,7 @@ int Compute_Minion_Reset_Threads(uint64_t minion_shires_mask);
 
 /*! \fn int Initialize_Minions(uint64_t shires_mask)
     \brief This function brings all Minion shire out of reset and enables
-           all Shire Cache/Neigh logic, and clears up VPU state 
+           all Shire Cache/Neigh logic, and clears up VPU state
     \param minion_shires_mask Minion Shire Mask
     \return The function call status, pass/fail.
 */
@@ -214,12 +198,13 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id);
 */
 uint64_t Minion_State_MM_Iface_Get_Active_Shire_Mask(void);
 
-/*! \fn void Minion_State_MM_Error_Handler(int32_t msg_id)
+/*! \fn void Minion_State_MM_Error_Handler(uint16_t error_type, int32_t error_code)
     \brief Process the Minion State errors.
-    \param msg_id Unique enum representing specific error.
+    \param error_type Type of error occured.
+    \param error_code Unique enum representing specific error.
     \returns none
 */
-void Minion_State_MM_Error_Handler(int32_t msg_id);
+void Minion_State_MM_Error_Handler(uint16_t error_type, int32_t error_code);
 
 /*! \fn void Minion_State_MM_Heartbeat_Handler(void)
     \brief Increment MM heartbeat.
@@ -320,7 +305,7 @@ int8_t enable_sram_and_icache_interrupts(void);
 */
 int8_t disable_sram_and_icache_interrupts(void);
 
-/*! \fn int Minion_VPU_RF_Init(uint8_t shire_id) 
+/*! \fn int Minion_VPU_RF_Init(uint8_t shire_id)
  *  \brief This function initialized the VPU RF for all Minion.
  *         listed on the shire_mask
  *  \param shire_id Minion Shire ID

@@ -104,13 +104,13 @@ static StaticTimer_t MM_Timer_Buffer;
     {                                                                   \
        function(shireid, neighid);                                      \
     }                                                                   \
- 
+
 /* Macro to update all Minion Harts in Shire for a given input function */
 #define UPDATE_ALL_MINION(function, start_hart, last_hart)               \
     for( uint64_t hartid = start_hart; hartid < last_hart; hartid++)     \
     {                                                                    \
        function(hartid);                                                 \
-    } 
+    }
 
 /* This Threashold voltage would need to be extracted from OTP */
 #define THRESHOLD_VOLTAGE 400
@@ -355,7 +355,7 @@ static void MM_HeartBeat_Timer_Cb(xTimerHandle pxTimer)
 {
     Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer expired\n", __func__);
 
-    Minion_State_MM_Error_Handler(MM_HANG_ERROR);
+    Minion_State_MM_Error_Handler(SP_RECOVERABLE_FW_MM_HANG, MM_HEARTBEAT_WD_EXPIRED);
 
     /* Stop the timer */
     if (pdPASS != xTimerStop(pxTimer, 0))
@@ -374,7 +374,7 @@ static void MM_HeartBeat_Timer_Cb(xTimerHandle pxTimer)
 *
 *   FUNCTION
 *
-*       enable_minion_shire 
+*       enable_minion_shire
 *
 *   DESCRIPTION
 *
@@ -417,7 +417,7 @@ static int enable_minion_shire(uint64_t shire_mask)
 
             /* VPU Array init */
             //NOSONAR if (0 != Minion_VPU_RF_Init(i))
-            //NOSONAR Log_Write(LOG_LEVEL_WARNING, "Shire %d VPU RF not initialized\n",i); 
+            //NOSONAR Log_Write(LOG_LEVEL_WARNING, "Shire %d VPU RF not initialized\n",i);
 
             //NOSONAR Log_Write(LOG_LEVEL_CRITICAL, "Reseting Neighs\n");
             /* Reset Neighs*/
@@ -638,7 +638,7 @@ int Minion_Get_Voltage_Given_Freq(int32_t target_frequency)
 *
 *   DESCRIPTION
 *
-*       This function configures the Minion Shire PLLs 
+*       This function configures the Minion Shire PLLs
 *
 *   INPUTS
 *
@@ -679,11 +679,11 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
 *
 *   FUNCTION
 *
-*      Initialize_Minions 
+*      Initialize_Minions
 *
 *   DESCRIPTION
 *
-*       This function brings all Minion shire out of reset and enables 
+*       This function brings all Minion shire out of reset and enables
 *       all Shire Cache/Neigh logic, and clears up VPU state
 *
 *
@@ -698,7 +698,7 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
 ***********************************************************************/
 int Initialize_Minions(uint64_t shire_mask)
 {
-    /* Update Minion Voltage if neccesary 
+    /* Update Minion Voltage if neccesary
        NOSONAR Minion_Shire_Voltage_Update(new_volt);*/
 
     if (0 != release_minions_from_cold_reset())
@@ -1095,6 +1095,7 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
 *
 *   INPUTS
 *
+*       uint16_t Type of error occured.
 *       int32_t Unique enum representing specific error.
 *
 *   OUTPUTS
@@ -1102,52 +1103,32 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
 *       None
 *
 ***********************************************************************/
-void Minion_State_MM_Error_Handler(int32_t error_code)
+void Minion_State_MM_Error_Handler(uint16_t error_type, int32_t error_code)
 {
-    switch (error_code)
+    /* Check for MM hang event */
+    if (error_type == SP_RECOVERABLE_FW_MM_HANG)
     {
-        case MM_HANG_ERROR:
-            /* Update error count for Hang type */
-            if (++event_control_block.hang_count > event_control_block.hang_threshold)
-            {
-                struct event_message_t message;
+        /* Update error count for Hang type */
+        if (++event_control_block.hang_count > event_control_block.hang_threshold)
+        {
+            struct event_message_t message;
 
-                /* Reset the hang counter */
-                event_control_block.hang_count = 0;
+            /* Reset the hang counter */
+            event_control_block.hang_count = 0;
 
-                /* Add details in message header and fill payload */
-                FILL_EVENT_HEADER(&message.header, MINION_HANG_TH, sizeof(struct event_message_t))
-                FILL_EVENT_PAYLOAD(&message.payload, WARNING, event_control_block.hang_count,
-                                   MM_RUNTIME_HANG_ERROR, (uint32_t)error_code)
+            /* Add details in message header and fill payload */
+            FILL_EVENT_HEADER(&message.header, MINION_HANG_TH, sizeof(struct event_message_t))
+            FILL_EVENT_PAYLOAD(&message.payload, WARNING, event_control_block.hang_count,
+                               SP_RECOVERABLE_FW_MM_HANG, (uint32_t)error_code)
 
-                /* Call the callback function and post message */
-                event_control_block.event_cb(CORRECTABLE, &message);
-            }
-            break;
-
-        case MM_DMA_ERRORS_END ... MM_DMA_ERRORS_START:
-            MINION_EXCEPT_ERROR_EVENT_HANDLE(MM_DMAW_ERROR, error_code)
-            break;
-
-        case MM_KW_ERRORS_END ... MM_KW_ERRORS_START:
-            MINION_EXCEPT_ERROR_EVENT_HANDLE(MM_KW_ERROR, error_code)
-            break;
-
-        case MM_SQW_ERRORS_END ... MM_SQW_ERRORS_START:
-            MINION_EXCEPT_ERROR_EVENT_HANDLE(MM_SQW_ERROR, error_code)
-            break;
-
-        case MM_CM_RUNTIME_ERRORS_END ... MM_CM_RUNTIME_ERRORS_START:
-            MINION_EXCEPT_ERROR_EVENT_HANDLE(CM_RUNTIME_ERROR, error_code)
-            break;
-
-        case MM_DISPATCHER_ERROR_END ... MM_DISPATCHER_ERROR_START:
-            MINION_EXCEPT_ERROR_EVENT_HANDLE(MM_DISPATCHER_ERROR, error_code)
-            break;
-
-        default:
-            MINION_EXCEPT_ERROR_EVENT_HANDLE(MM_UNDEFINED_ERROR, error_code)
-            break;
+            /* Call the callback function and post message */
+            event_control_block.event_cb(CORRECTABLE, &message);
+        }
+    }
+    else
+    {
+        /* Generate error event for the host */
+        MINION_EXCEPT_ERROR_EVENT_HANDLE(error_type, error_code)
     }
 }
 
@@ -1418,7 +1399,8 @@ int8_t MM_Init_HeartBeat_Watchdog(void)
     if (!MM_HeartBeat_Timer)
     {
         Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer creation failed\n", __func__);
-        status = -MM_UNDEFINED_ERROR;
+        /* Todo: Need to change error types to int32_t */
+        status = -1;
     }
 
     return status;
@@ -1512,13 +1494,13 @@ int Minion_VPU_RF_Init(uint8_t shireid)
 {
     /* Select all Neighs in Shire */
     UPDATE_ALL_NEIGH(Select_Harts, shireid)
-   
+
     /* Assert Halt */
     assert_halt();
-   
-    /* Enable all Threads in this Shire */ 
+
+    /* Enable all Threads in this Shire */
     enable_shire_threads(shireid);
- 
+
     /* Wait for all Harts in Shire to halt */
     if (!WAIT(Check_Halted())) {
        UPDATE_ALL_NEIGH(Unselect_Harts,shireid)
@@ -1530,7 +1512,7 @@ int Minion_VPU_RF_Init(uint8_t shireid)
     uint64_t start_hart = (uint64_t)(shireid * HARTS_PER_SHIRE);
     uint64_t last_hart = start_hart + HARTS_PER_SHIRE;
     UPDATE_ALL_MINION(VPU_RF_Init,start_hart, last_hart)
-    Log_Write(LOG_LEVEL_CRITICAL, "Executed VPU RF on Hart [%ld:%ld]\n", start_hart, last_hart); 
+    Log_Write(LOG_LEVEL_CRITICAL, "Executed VPU RF on Hart [%ld:%ld]\n", start_hart, last_hart);
 
     /* Unselect all Neighs in Shire */
     UPDATE_ALL_NEIGH(Unselect_Harts,shireid)

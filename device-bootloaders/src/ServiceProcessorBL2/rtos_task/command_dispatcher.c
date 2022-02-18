@@ -421,20 +421,14 @@ static void mm2sp_report_error_event_handler(const void *cmd_buffer)
 
     Log_Write(LOG_LEVEL_INFO, "MM_Error_Reported: Code = %d \r\n", event->error_code);
 
-    if (event->error_type == MM_RECOVERABLE)
+    /* Handle the error */
+    Minion_State_MM_Error_Handler(event->error_type, event->error_code);
+
+    if (event->error_type == SP_RECOVERABLE_FW_MM_ERROR)
     {
-        Minion_State_MM_Error_Handler(event->error_code);
-    }
-    else if (event->error_type == SP_RECOVERABLE)
-    {
-        /* Restart the Compute Minions  everything */
+        /* Reset MM and CMs */
         Master_Minion_Reset(Minion_State_MM_Iface_Get_Active_Shire_Mask());
         Compute_Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask());
-    }
-    else
-    {
-        /* Not supported */
-        Log_Write(LOG_LEVEL_ERROR, "MM2SP:Unsupported error type!\r\n");
     }
 }
 

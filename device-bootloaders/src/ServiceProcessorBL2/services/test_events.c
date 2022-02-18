@@ -74,12 +74,12 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
 
     /* Generate Minion Exception threshold Error */
     FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH, sizeof(struct event_message_t))
-    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 20, MM_SQW_ERROR, (uint32_t)MM_SQ_PROCESSING_ERROR)
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 20, MM_RECOVERABLE_FW_MM_SQW_ERROR, (uint32_t)MM_SQ_PROCESSING_ERROR)
     minion_event_callback(UNCORRECTABLE, &message);
 
     /* Generate Minion hang threshold Error */
     FILL_EVENT_HEADER(&message.header, MINION_HANG_TH, sizeof(struct event_message_t))
-    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 80, MM_RUNTIME_HANG_ERROR, (uint32_t)MM_HANG_ERROR)
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 80, SP_RECOVERABLE_FW_MM_HANG, (uint32_t)MM_HEARTBEAT_WD_EXPIRED)
     minion_event_callback(UNCORRECTABLE, &message);
 
     /* Generate runtime error */
