@@ -77,7 +77,7 @@ include_directories(${PROJECT_SOURCE_DIR}/shared/common/include)
 get_filename_component(SHARED_SRC_DIR "shared/common/src" ABSOLUTE)
 set(SHARED_INC_DIRS ${PROJECT_SOURCE_DIR}/shared/common/include)
 
-get_target_property(FLASH_TOOL_HEADERS_INTERFACE_PATH flash-tool INTERFACE_INCLUDE_DIRECTORIES)
+get_target_property(FLASH_TOOL_HEADERS_INTERFACE_PATH esperanto-flash-tool::headers INTERFACE_INCLUDE_DIRECTORIES)
 include_directories(${FLASH_TOOL_HEADERS_INTERFACE_PATH})
 
 
