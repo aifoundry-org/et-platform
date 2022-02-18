@@ -69,7 +69,7 @@ class DeviceMinionRuntimeConan(ConanFile):
         self.requires("esperantoTrace/0.1.0")
         self.requires("signedImageFormat/1.0")
         self.requires("etsoc_hal/0.1.0")
-        self.requires("et-common-libs/0.0.2")
+        self.requires("et-common-libs/0.0.3")
 
     def validate(self):
         if self.settings.arch != "rv64":
