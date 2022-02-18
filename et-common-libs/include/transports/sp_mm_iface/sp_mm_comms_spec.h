@@ -41,9 +41,7 @@ enum mm2sp_mm_recoverable_error_code_e {
     MM_CQ_PUSH_ERROR                  = -41,
     MM_SQ_PROCESSING_ERROR            = -42,
     MM_SQ_BUFFER_ALIGNMENT_ERROR      = -43,
-    MM_SQ_HP_PROCESSING_ERROR         = -44,
-    MM_SQ_HP_BUFFER_ALIGNMENT_ERROR   = -45,
-    MM_SQ_CMDS_ABORTED                = -46,
+    MM_SQ_CMDS_ABORTED                = -44,
     MM_SQW_ERRORS_END                 = -59,
     /* CM runtime error codes */
     MM_CM_RUNTIME_ERRORS_START        = -60,
@@ -60,7 +58,6 @@ enum mm2sp_mm_recoverable_error_code_e {
     /* Dispatcher error codes */
     MM_DISPATCHER_ERROR_START         = -80,
     MM_DISPATCHER_ERROR_END           = -99,
-    MM_HANG_ERROR                     = -100,
 };
 
 typedef int16_t mm2sp_sp_recoverable_error_code_e;
@@ -74,21 +71,40 @@ enum mm2sp_sp_recoverable_error_code_e {
     MM_CM_IFACE_INIT_ERROR       = -2,
     MM_SP_IFACE_INIT_ERROR       = -3,
     MM_CW_INIT_ERROR             = -4,
-    MM_SERIAL_INIT_ERROR         = -5,
-    MM_CQ_INIT_ERROR             = -6,
-    MM_SQ_INIT_ERROR             = -7,
-    MM_RUNTIME_EXCEPTION         = -8
+    MM_SW_TIMER_INIT_ERROR       = -5,
+    MM_HEARTBEAT_INIT_ERROR      = -6,
+    MM_SERIAL_INIT_ERROR         = -7,
+    MM_CQ_INIT_ERROR             = -8,
+    MM_SQ_INIT_ERROR             = -9,
+    MM_RUNTIME_EXCEPTION         = -10,
+    MM_HEARTBEAT_WD_EXPIRED      = -11
 };
 
 typedef uint16_t mm2sp_error_type_e;
 
 /*! \enum mm2sp_error_type_e
-    \brief MM to SP reported error's type, it specifies that whether a particular
-           error is MM recoverable or it needs SP intervention.
+    \brief MM to SP reported error's type.
 */
 enum mm2sp_error_type_e {
-    MM_RECOVERABLE               = 0,
-    SP_RECOVERABLE
+    SP_RECOVERABLE_FW_MM_HANG = 0,
+    SP_RECOVERABLE_FW_MM_ERROR = 1,
+    MM_RECOVERABLE_FW_CM_RUNTIME_ERROR = 2,
+    MM_RECOVERABLE_FW_MM_DISPATCHER_ERROR = 3,
+    MM_RECOVERABLE_FW_MM_DMAW_ERROR = 4,
+    MM_RECOVERABLE_FW_MM_SQW_ERROR = 5,
+    MM_RECOVERABLE_FW_MM_SQW_HP_ERROR = 6,
+    MM_RECOVERABLE_FW_MM_SPW_ERROR = 7,
+    MM_RECOVERABLE_FW_MM_KW_ERROR = 8,
+    MM_RECOVERABLE_OPS_API_KERNEL_LAUNCH = 9,
+    MM_RECOVERABLE_OPS_API_DMA_READLIST = 10,
+    MM_RECOVERABLE_OPS_API_DMA_WRITELIST = 11,
+    MM_RECOVERABLE_OPS_API_ECHO = 12,
+    MM_RECOVERABLE_OPS_API_FW_VER = 13,
+    MM_RECOVERABLE_OPS_API_COMPATIBILITY = 14,
+    MM_RECOVERABLE_OPS_API_ABORT = 15,
+    MM_RECOVERABLE_OPS_API_CM_RESET = 16,
+    MM_RECOVERABLE_OPS_API_TRACE_RT_CONFIG = 17,
+    MM_RECOVERABLE_OPS_API_TRACE_RT_CONTROL = 18
 };
 
 /*********************************
