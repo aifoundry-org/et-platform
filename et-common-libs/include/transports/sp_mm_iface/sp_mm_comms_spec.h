@@ -28,36 +28,36 @@ typedef int16_t mm2sp_mm_recoverable_error_code_e;
 */
 enum mm2sp_mm_recoverable_error_code_e {
     /* DMAW error codes */
-    MM_DMA_ERRORS_START               = 0,
-    MM_DMA_CONFIG_ERROR               = -1,
-    MM_DMA_TIMEOUT_ERROR              = -2,
-    MM_DMA_ERRORS_END                 = -19,
+    MM_DMA_ERRORS_START = 0,
+    MM_DMA_CONFIG_ERROR = -1,
+    MM_DMA_TIMEOUT_ERROR = -2,
+    MM_DMA_ERRORS_END = -19,
     /* KW error codes */
-    MM_KW_ERRORS_START                = -20,
-    MM_KERNEL_LAUNCH_ERROR            = -21,
-    MM_KW_ERRORS_END                  = -39,
+    MM_KW_ERRORS_START = -20,
+    MM_KERNEL_LAUNCH_ERROR = -21,
+    MM_KW_ERRORS_END = -39,
     /* SQW error codes */
-    MM_SQW_ERRORS_START               = -40,
-    MM_CQ_PUSH_ERROR                  = -41,
-    MM_SQ_PROCESSING_ERROR            = -42,
-    MM_SQ_BUFFER_ALIGNMENT_ERROR      = -43,
-    MM_SQ_CMDS_ABORTED                = -44,
-    MM_SQW_ERRORS_END                 = -59,
+    MM_SQW_ERRORS_START = -40,
+    MM_CQ_PUSH_ERROR = -41,
+    MM_SQ_PROCESSING_ERROR = -42,
+    MM_SQ_BUFFER_ALIGNMENT_ERROR = -43,
+    MM_SQ_CMDS_ABORTED = -44,
+    MM_SQW_ERRORS_END = -59,
     /* CM runtime error codes */
-    MM_CM_RUNTIME_ERRORS_START        = -60,
-    MM_CM_RESERVE_SLOT_ERROR          = -61,
-    MM_CM_KERNEL_ABORT_TIMEOUT_ERROR  = -62,
-    MM_MM2CM_CMD_ERROR                = -63,
-    MM_CM2MM_CMD_ERROR                = -64,
-    MM_CM2MM_KERNEL_LAUNCH_ERROR      = -65,
-    MM_CM2MM_KERNEL_EXCEPTION_ERROR   = -66,
-    MM_CM_RUNTIME_EXCEPTION_ERROR     = -67,
-    MM_CM_RUNTIME_FW_ERROR            = -68,
-    MM_CM2MM_UNKOWN_MESSAGE_ERROR     = -69,
-    MM_CM_RUNTIME_ERRORS_END          = -79,
+    MM_CM_RUNTIME_ERRORS_START = -60,
+    MM_CM_RESERVE_SLOT_ERROR = -61,
+    MM_CM_KERNEL_ABORT_TIMEOUT_ERROR = -62,
+    MM_MM2CM_CMD_ERROR = -63,
+    MM_CM2MM_CMD_ERROR = -64,
+    MM_CM2MM_KERNEL_LAUNCH_ERROR = -65,
+    MM_CM2MM_KERNEL_EXCEPTION_ERROR = -66,
+    MM_CM_RUNTIME_EXCEPTION_ERROR = -67,
+    MM_CM_RUNTIME_FW_ERROR = -68,
+    MM_CM2MM_UNKOWN_MESSAGE_ERROR = -69,
+    MM_CM_RUNTIME_ERRORS_END = -79,
     /* Dispatcher error codes */
-    MM_DISPATCHER_ERROR_START         = -80,
-    MM_DISPATCHER_ERROR_END           = -99,
+    MM_DISPATCHER_ERROR_START = -80,
+    MM_DISPATCHER_ERROR_END = -99,
 };
 
 typedef int16_t mm2sp_sp_recoverable_error_code_e;
@@ -67,17 +67,17 @@ typedef int16_t mm2sp_sp_recoverable_error_code_e;
            so it will require intervention from SP and perform the reset sequence
 */
 enum mm2sp_sp_recoverable_error_code_e {
-    MM_CM2MM_MM_HANG             = -1,
-    MM_CM_IFACE_INIT_ERROR       = -2,
-    MM_SP_IFACE_INIT_ERROR       = -3,
-    MM_CW_INIT_ERROR             = -4,
-    MM_SW_TIMER_INIT_ERROR       = -5,
-    MM_HEARTBEAT_INIT_ERROR      = -6,
-    MM_SERIAL_INIT_ERROR         = -7,
-    MM_CQ_INIT_ERROR             = -8,
-    MM_SQ_INIT_ERROR             = -9,
-    MM_RUNTIME_EXCEPTION         = -10,
-    MM_HEARTBEAT_WD_EXPIRED      = -11
+    MM_CM2MM_MM_HANG = -1,
+    MM_CM_IFACE_INIT_ERROR = -2,
+    MM_SP_IFACE_INIT_ERROR = -3,
+    MM_CW_INIT_ERROR = -4,
+    MM_SW_TIMER_INIT_ERROR = -5,
+    MM_HEARTBEAT_INIT_ERROR = -6,
+    MM_SERIAL_INIT_ERROR = -7,
+    MM_CQ_INIT_ERROR = -8,
+    MM_SQ_INIT_ERROR = -9,
+    MM_RUNTIME_EXCEPTION = -10,
+    MM_HEARTBEAT_WD_EXPIRED = -11
 };
 
 typedef uint16_t mm2sp_error_type_e;
@@ -173,111 +173,111 @@ enum mm2sp_fw_type {
     \brief Command header for all messages between MM and SP.
 */
 struct dev_cmd_hdr_t {
-  uint16_t msg_size;
-  uint16_t msg_id;
-  int32_t issuing_hart_id; /* Used by MM to SP commands only */
+    uint16_t msg_size;
+    uint16_t msg_id;
+    int32_t issuing_hart_id; /* Used by MM to SP commands only */
 };
 
 /*! \struct mm2sp_echo_cmd_t
     \brief MM to SP Echo command structure
 */
 struct mm2sp_echo_cmd_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  uint32_t  payload;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    uint32_t payload;
+} __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_echo_rsp_t
     \brief MM to SP Echo command's response structure
 */
 struct mm2sp_echo_rsp_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  uint32_t  payload;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    uint32_t payload;
+} __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_get_active_shire_mask_cmd_t
     \brief MM to SP command strutcure for get active shire command
 */
 struct mm2sp_get_active_shire_mask_cmd_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+} __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_get_active_shire_mask_rsp_t
     \brief MM to SP command strutcure for get active shire command'
            response
 */
 struct mm2sp_get_active_shire_mask_rsp_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  uint64_t  active_shire_mask;
-  uint8_t  lvdpll_strap;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    uint64_t active_shire_mask;
+    uint8_t lvdpll_strap;
+} __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_get_cm_boot_freq_cmd_t
     \brief MM to SP command strutcure for get Compute Minion Boot
            frequency
 */
 struct mm2sp_get_cm_boot_freq_cmd_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+} __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_get_cm_boot_freq_rsp_t
     \brief MM to SP command strutcure for get Compute Minion Boot
            frequency command's response.
 */
 struct mm2sp_get_cm_boot_freq_rsp_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  uint32_t  cm_boot_freq;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    uint32_t cm_boot_freq;
+} __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_report_error_event_t
     \brief MM to SP event structure to report an error.
 */
 struct mm2sp_report_error_event_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  uint16_t error_type;
-  int16_t error_code;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    uint16_t error_type;
+    int16_t error_code;
+} __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_reset_minion_cmd_t
     \brief MM to SP Minion Reset command structure
 */
 struct mm2sp_reset_minion_cmd_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  uint64_t shire_mask;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    uint64_t shire_mask;
+} __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_reset_minion_rsp_t
     \brief MM to SP Reset Minion response strutcure
 */
 struct mm2sp_reset_minion_rsp_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  int32_t  results;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    int32_t results;
+} __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_heartbeat_event_t
     \brief MM to SP event structure to report periodic heartbeat.
 */
 struct mm2sp_heartbeat_event_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+} __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_get_fw_version_t
     \brief MM to SP command structure to get fw version.
 */
 struct mm2sp_get_fw_version_t {
-  struct dev_cmd_hdr_t msg_hdr;
-  mm2sp_fw_type_e fw_type;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    mm2sp_fw_type_e fw_type;
+} __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_get_fw_version_rsp_t
     \brief MM to SP response strutcure to receive fw version.
 */
 struct mm2sp_get_fw_version_rsp_t {
-  struct dev_cmd_hdr_t msg_hdr;
-  uint8_t major;
-  uint8_t minor;
-  uint8_t revision;
-  uint8_t pad;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    uint8_t major;
+    uint8_t minor;
+    uint8_t revision;
+    uint8_t pad;
+} __attribute__((aligned(8), packed));
 
 /*********************************
     SP to MM Command Structures
@@ -287,133 +287,134 @@ struct mm2sp_get_fw_version_rsp_t {
     \brief SP to MM Echo command structure
 */
 struct sp2mm_echo_cmd_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  uint32_t  payload;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    uint32_t payload;
+} __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_echo_rsp_t
     \brief SP to MM Echo command's response structure
 */
 struct sp2mm_echo_rsp_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  uint32_t  payload;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    uint32_t payload;
+} __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_update_freq_cmd_t
     \brief SP to MM command strutcure to update MM frequency.
 */
 struct sp2mm_update_freq_cmd_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  uint16_t  freq;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    uint16_t freq;
+} __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_update_freq_rsp_t
     \brief SP to MM response strutcure to update MM frequency command.
 */
 struct sp2mm_update_freq_rsp_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  int32_t  status; /* TODO: Define status as a enum once all error states are defined */
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    int32_t status; /* TODO: Define status as a enum once all error states are defined */
+} __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_teardown_mm_cmd_t
     \brief SP to MM command strutcure to tear down MM.
 */
 struct sp2mm_teardown_mm_cmd_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+} __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_teardown_mm_rsp_t
     \brief SP to MM response strutcure to tear down command.
 */
 struct sp2mm_teardown_mm_rsp_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  int32_t  status; /* TODO: Define status as a enum once all error states are defined */
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    int32_t status; /* TODO: Define status as a enum once all error states are defined */
+} __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_quiesce_traffic_cmd_t
     \brief SP to MM command strutcure for quiesce traffic.
 */
 struct sp2mm_quiesce_traffic_cmd_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+} __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_quiesce_traffic_rsp_t
     \brief SP to MM response strutcure for quiesce traffic command.
 */
 struct sp2mm_quiesce_traffic_rsp_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  int32_t  status; /* TODO: Define status as a enum once all error states are defined */
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    int32_t status; /* TODO: Define status as a enum once all error states are defined */
+} __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_kernel_launch_cmd_t
     \brief SP to MM command strutcure for Kernel Launch command.
 */
 struct sp2mm_kernel_launch_cmd_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  uint64_t  shire_mask;
-  void *args;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    uint64_t shire_mask;
+    void *args;
+} __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_kernel_launch_rsp_t
     \brief SP to MM response strutcure for Kernel Launch command.
 */
 struct sp2mm_kernel_launch_rsp_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  int32_t  status; /* TODO: Define status as a enum once all error states are defined */
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    int32_t status; /* TODO: Define status as a enum once all error states are defined */
+} __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_get_dram_bw_cmd_t
     \brief SP to MM command strutcure for Get DRAM BW command.
 */
 struct sp2mm_get_dram_bw_cmd_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+} __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_get_dram_bw_rsp_t
     \brief SP to MM response strutcure for Get DRAM BW command.
 */
 struct sp2mm_get_dram_bw_rsp_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  uint32_t  read_bw;
-  uint32_t  write_bw;
-}__attribute__ ((aligned(8), packed));
+    struct dev_cmd_hdr_t msg_hdr;
+    uint32_t read_bw;
+    uint32_t write_bw;
+} __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_mm_abort_all_cmd_t
     \brief SP to MM command strutcure for abort command.
 */
 struct sp2mm_mm_abort_all_cmd_t {
-  struct dev_cmd_hdr_t  msg_hdr;
+    struct dev_cmd_hdr_t msg_hdr;
 };
 
 /*! \struct sp2mm_mm_abort_all_rsp_t
     \brief SP to MM response strutcure to abort command.
 */
 struct sp2mm_mm_abort_all_rsp_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  int32_t  status; /* command status for mm abort */
+    struct dev_cmd_hdr_t msg_hdr;
+    int32_t status; /* command status for mm abort */
 };
 
 /*! \struct sp2mm_cm_reset_cmd_t
     \brief SP to MM command strutcure for cm reset command.
 */
 struct sp2mm_cm_reset_cmd_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  uint64_t shire_mask;
+    struct dev_cmd_hdr_t msg_hdr;
+    uint64_t shire_mask;
 };
 
 /*! \struct sp2mm_cm_reset_rsp_t
     \brief SP to MM response strutcure to cm reset command.
 */
 struct sp2mm_cm_reset_rsp_t {
-  struct dev_cmd_hdr_t  msg_hdr;
-  int32_t  status; /* command status for cm reset*/
+    struct dev_cmd_hdr_t msg_hdr;
+    int32_t status; /* command status for cm reset*/
 };
 
 /*! \def  MM2SP_CMD
     \brief Helper macro to construct MM to SP commands
 */
 #define MM2SP_CMD(cmd_var, cmd_id, cmd_size, issuing_hart_id) \
-    cmd_var.msg_hdr.msg_id = cmd_id; cmd_var.msg_hdr.msg_size = cmd_size; \
-    cmd_var.msg_hdr.issuing_hart_id = (uint16_t) issuing_hart_id
+    cmd_var.msg_hdr.msg_id = cmd_id;                          \
+    cmd_var.msg_hdr.msg_size = cmd_size;                      \
+    cmd_var.msg_hdr.issuing_hart_id = (uint16_t)issuing_hart_id
 
 #endif /* MM_SP_CMD_SPEC_H */
