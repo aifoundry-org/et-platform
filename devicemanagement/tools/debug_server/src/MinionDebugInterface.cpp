@@ -23,6 +23,8 @@ MinionDebugInterface::MinionDebugInterface(uint64_t shire_mask, uint64_t thread_
     this->handle_ = dlopen("libDM.so", RTLD_LAZY);
     this->devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     this->dmi_ = reinterpret_cast<getDM_t>(dlsym(this->handle_, "getInstance"));
+    this->server_state = false;
+    this->should_stop_server = false;
 
 }  // MinionDebugInterface ()
 
@@ -95,8 +97,9 @@ void MinionDebugInterface::stall() {
 
     DV_LOG(INFO) << "MDI::stall.." << std::endl;
     // By default this halts the Hart0.
-    // this->MinionDebugInterface::haltHart();
-
+    this->selectHart(0,1);
+    this->haltHart();
+    this->tgt_state = TGT_HALTED;
 }
 
 void MinionDebugInterface::closeMDI() {
@@ -110,12 +113,19 @@ void MinionDebugInterface::unstall() {
     DV_LOG(INFO) << "MDI::unstall.." << std::endl;
     this->resumeHart();
     this->unselectHart(0,1);
+    this->tgt_state = TGT_RUNNING;
 }
 
 bool MinionDebugInterface::isStalled() {
 
-    DV_LOG(INFO) << "MDI::isStalled.." << std::endl;
-    return true;
+    //DV_LOG(INFO) << "MDI::isStalled.." << std::endl;
+    if(this->tgt_state != TGT_RUNNING){
+        //DV_LOG(INFO) << "MDI::isStalled..true" << std::endl;
+        return true;
+    }else {
+        //DV_LOG(INFO) << "MDI::isStalled..false" << std::endl;
+        return false;
+    }
 }
 
 void MinionDebugInterface::step() {
@@ -405,23 +415,25 @@ uint32_t MinionDebugInterface::wordSize() {
 void MinionDebugInterface::stopServer() {
 
     DV_LOG(INFO) << "MDI::stopServer.." << std::endl;
+    this->should_stop_server = true;
 }
 
 bool MinionDebugInterface::shouldStopServer() {
 
-    DV_LOG(INFO) << "MDI::shouldStopServer.." << std::endl;
-    return false;
+    //DV_LOG(INFO) << "MDI::shouldStopServer.." << std::endl;
+    return this->should_stop_server;
 }
 
 bool MinionDebugInterface::isServerRunning() {
 
     DV_LOG(INFO) << "MDI::isServerRunning.." << std::endl;
-    return true;
+    return this->server_state;
 }
 
 void MinionDebugInterface::setServerRunning(bool status) {
 
-    DV_LOG(INFO) << "MDI::setServerRunning.." << std::endl;
+    DV_LOG(INFO) << "MDI::setServerRunning.." << status << std::endl;
+    this->server_state = status;
 }
 
 //Target specific utilities

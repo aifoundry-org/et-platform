@@ -2785,6 +2785,68 @@ void TestDevMgmtApiSyncCmds::readMem(bool singleDevice) {
   }
 }
 
+void TestDevMgmtApiSyncCmds::testRunControlCmdsSetBreakpoint(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    const uint32_t output_size = sizeof(uint64_t);
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    /* Select Hart */
+    const uint32_t hart_selection_input_size = sizeof(device_mgmt_api::mdi_hart_selection_t);
+    device_mgmt_api::mdi_hart_selection_t hart_selection_input_buff;
+    //Set the Shire ID and Neigh ID.
+    hart_selection_input_buff.shire_id = 0;
+    hart_selection_input_buff.thread_mask = 0x1;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART, (char*)&hart_selection_input_buff, hart_selection_input_size,
+                               output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                               DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+
+
+    /* Halt Hart */
+    uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
+    char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
+    uint32_t hart_control_output_size = sizeof(uint32_t);
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff, hart_control_input_size,
+                                output_buff, hart_control_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+
+    /* Set Breakpoint */
+    const uint32_t mdi_bp_input_size = sizeof(device_mgmt_api::mdi_bp_control_t);
+    device_mgmt_api::mdi_bp_control_t mdi_bp_input_buff;
+
+    //Set the Hart ID/BP address/mode
+    /*
+    mdi_bp_input_buff.hart_id = 0;
+    mdi_bp_input_buff.bp_address = 0x8000c03adc; // BP after 2 instructions after wfi
+    mdi_bp_input_buff.mode = device_mgmt_api::PRIV_MASK_PRIV_SMODE;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SET_BREAKPOINT, (char*)&mdi_bp_input_buff, mdi_bp_input_size,
+                               output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                               DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    */
+    mdi_bp_input_buff.hart_id = 0;
+    mdi_bp_input_buff.bp_address = 0x8005803000; // Elf Entry address for cm_umode_kernel
+    mdi_bp_input_buff.mode = device_mgmt_api::PRIV_MASK_PRIV_UMODE;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SET_BREAKPOINT, (char*)&mdi_bp_input_buff, mdi_bp_input_size,
+                               output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                               DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+
+    /* Resume Hart */
+    hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
+    hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff, hart_control_input_size,
+                                output_buff, hart_control_output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+
+    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
 void TestDevMgmtApiSyncCmds::testRunControlCmdsReadGPR(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
@@ -2800,10 +2862,10 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsReadGPR(bool singleDevice) {
     /* Select Hart */
     const uint32_t hart_selection_input_size = sizeof(device_mgmt_api::mdi_hart_selection_t);
     device_mgmt_api::mdi_hart_selection_t hart_selection_input_buff;
-    //Set the Shire ID and Neigh ID. 
+    //Set the Shire ID and Neigh ID.
     hart_selection_input_buff.shire_id = 0;
     hart_selection_input_buff.thread_mask = 0x1;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART, (char*)&hart_selection_input_buff, hart_selection_input_size, 
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART, (char*)&hart_selection_input_buff, hart_selection_input_size,
                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -2841,10 +2903,10 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsReadGPR(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
 
 
-    /* Unselect Hart */ 
+    /* Unselect Hart */
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART, (char*)&hart_selection_input_buff, hart_selection_input_size,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);          
+                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
 
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }

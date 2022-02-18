@@ -221,6 +221,7 @@ protected:
   void resetCM(bool singleDevice);
 
   // Functional tests for  MDI Run control/State Inspection APIs
+  void testRunControlCmdsSetBreakpoint(bool singleDevice);
   void testRunControlCmdsReadGPR(bool singleDevice);
   void testRunControlCmdsReadCSR(bool singleDevice);
   void readMem(bool singleDevice);

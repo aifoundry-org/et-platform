@@ -27,82 +27,89 @@ using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
 
 static struct option long_options[] = {
-                                       {"node", required_argument, 0, 'n'},
-                                       {"port", required_argument, 0, 'p'},
-                                       {0, 0, 0, 0}
-                                      };
+                                    {"help", no_argument, 0, 'h'},
+                                    {"node", required_argument, 0, 'n'},
+                                    {"port", required_argument, 0, 'p'},
+                                    {"shire_id", required_argument, 0, 's'},
+                                    {"thread_mask", required_argument, 0, 't'},
+                                    {0, 0, 0, 0}
+                                    };
+
 
 void printUsage(char* argv)
 {
-  std::cout << std::endl;
-  std::cout << "Debug Server Usage: " << argv << " [-p port] [-n device_index] [-h]" << std::endl;
-  std::cout << "Optional input arguments:" << std::endl;
-  std::cout << "-p specify the TCP port on which the debug server is to be started, default:51000" << std::endl;
-  std::cout << "-n ETSoC1 device index on which the debug server is to be started, device_index:0" << std::endl;
-  std::cout << "-s Shire ID" << std::endl;
-  std::cout << "-t Thread mask" << std::endl;
-  std::cout << "-h Help, usage instructions" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Debug Server Usage: " << argv << " [-p port] [-n device_index] [-h]" << std::endl;
+    std::cout << "Optional input arguments:" << std::endl;
+    std::cout << "-p specify the TCP port on which the debug server is to be started, default:51000" << std::endl;
+    std::cout << "-n ETSoC1 device index on which the debug server is to be started, device_index:0" << std::endl;
+    std::cout << "-s Shire ID" << std::endl;
+    std::cout << "-t Thread mask" << std::endl;
+    std::cout << "-h Help, usage instructions" << std::endl;
 }
 
 int main(int argc, char** argv)
 {
-  int c;
-  int option_index = 0;
+    int c;
+    int option_index = 0;
+    uint8_t device_idx = 0; // Default device index 0
+    uint32_t port = 51000; // Default port 51000
+    uint8_t shire_id = 0; // Shire ID 0
+    uint64_t thread_mask = 0x0000000000000001; // Default thread mask 0x0000000000000001
+    bool exit = false;
 
-  // Initialize Google's logging library.
-  logging::LoggerDefault loggerDefault_;
+    //Initialize Google's logging library
+    logging::LoggerDefault loggerDefault_;
 
-  while (1)
-  {
-
-    /* TODO: To be implemented, add support for shire mask and thread mask input args.*/ 
-    c = getopt_long(argc, argv, "n:p:h", long_options, &option_index);
-
-    switch (c)
+    while (1)
     {
-        case 'h':
-        printUsage(argv[0]);
-        break;
+        c = getopt_long (argc, argv, "h:p:n:s:t:", long_options, &option_index);
 
-        case 'n':
-        /* TODO: Implement support for starting the debug server on specified ETSoC1 device index. */
-        DV_LOG(INFO) << "n option provided " << std::endl;
-        break;
+        /* Detect the end of the options. */
+        if (c == -1)
+            break;
 
-        case 'p':
-        /* TODO: Implement support for starting the debug server on specified TCP port. */
-        DV_LOG(INFO) << "p option provided" << std::endl;
-        break;
+        switch (c)
+        {
+            case 'h':
+            std::cout << "Help/Usage" << std::endl;
+            printUsage(argv[0]);
+            exit = true;
+            break;
 
-        case 's':
-        /* TODO: Implement support for shire id. */
-        DV_LOG(INFO) << "s option provided" << std::endl;
-        break;
+            case 'n':
+            device_idx = atoi(optarg);
+            break;
 
-        case 't':
-        /* TODO: Implement support for thread mask id. */
-        DV_LOG(INFO) << "t option provided" << std::endl;
-        break;
+            case 'p':
+            port = atoi(optarg);
+            break;
 
-        default:
-        break;
+            case 's':
+            shire_id = atoi(optarg);
+            break;
+
+            case 't':
+            thread_mask = strtoul(optarg, NULL, 0);
+            break;
+
+            default:
+            break;
+        }
+
     }
 
-    // Send DM Start Debug Server command to device
+    if(!exit)
+    {
+        // Start the GDB Server that serves as proxy to GDB client
+        MinionDebugInterface minionDebugInterface(shire_id, thread_mask);
+        GdbServer gdbServer(/*Minion Debug Interface =*/&minionDebugInterface, /*tcp port=*/port);
 
-    // Start the GDB Server that serves as proxy to GDB client
-    // TODO: To be implemented.Process the input argument for shire mask and thread mask.
-    MinionDebugInterface minionDebugInterface(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
-    GdbServer gdbServer(/*Minion Debug Interface =*/&minionDebugInterface, /*tcp port=*/51000);
+        std::thread gdbThread(&GdbServer::serverThread, &gdbServer);
+        DV_LOG(INFO) << "GDB Server, Started.." << std::endl;
+        gdbThread.join();
+        DV_LOG(INFO) << "Debug Server, Exiting .." << std::endl;
+    }
 
-    std::thread gdbThread(&GdbServer::serverThread, &gdbServer);
-
-    DV_LOG(INFO) << "GDB thread, started.." << std::endl;
-
-    gdbThread.join();
-
-    DV_LOG(INFO) << "GDB thread, exiting .." << std::endl;
-  }
-
-  return 0;
+    return 0;
 }

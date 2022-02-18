@@ -112,7 +112,6 @@ void GdbServer::serverThread() {
     //DV_LOG(INFO) << "Getting a RSP client request.." << std::endl;
     if(!rspClientRequest())
         break;
-
     }
   }
 
@@ -210,6 +209,7 @@ bool GdbServer::rspClientRequest() {
       rsp->putPkt(pkt);
       mdi->unstall();
       mdi->closeMDI();
+      mdi->stopServer();
       targetStopped = false;
       mdi_initialized = false;
       return true;

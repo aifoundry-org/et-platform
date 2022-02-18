@@ -33,6 +33,15 @@ class RunControlApiTestcmds : public TestDevMgmtApiSyncCmds {
   }
 };
 
+TEST_F(RunControlApiTestcmds, testRunControlCmdsSetBreakpoint) {
+  if (targetInList({Target::Silicon })) {
+    testRunControlCmdsSetBreakpoint(false);
+  } else {
+    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
 TEST_F(RunControlApiTestcmds, testRunControlCmdsReadGPR) {
   if (targetInList({Target::Silicon })) {
     testRunControlCmdsReadGPR(false);
