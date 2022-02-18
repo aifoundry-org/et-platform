@@ -243,39 +243,99 @@ static void parse_cm_err_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				  struct event_dbg_msg *dbg_msg)
 {
 	switch (event_msg->event_syndrome[0]) {
-	case CM_USER_KERNEL_ERROR:
+	case SP_RECOVERABLE_FW_MM_HANG:
 		sprintf(dbg_msg->syndrome,
-			"CM User Kernel Error (error code: %d)\n",
+			"SP Recoverable MM FW RT Hang (error code: %d)\n",
 			(s32)event_msg->event_syndrome[1]);
 		break;
-	case CM_RUNTIME_ERROR:
+	case SP_RECOVERABLE_FW_MM_ERROR:
+		sprintf(dbg_msg->syndrome,
+			"SP Recoverable MM RT Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	case MM_RECOVERABLE_FW_CM_RUNTIME_ERROR:
 		sprintf(dbg_msg->syndrome,
 			"CM Runtime Error (error code: %d)\n",
 			(s32)event_msg->event_syndrome[1]);
 		break;
-	case MM_DISPATCHER_ERROR:
+	case MM_RECOVERABLE_FW_MM_SPW_ERROR:
+		sprintf(dbg_msg->syndrome,
+			"MM SPW Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	case MM_RECOVERABLE_FW_MM_DISPATCHER_ERROR:
 		sprintf(dbg_msg->syndrome,
 			"MM Dispatcher Error (error code: %d)\n",
 			(s32)event_msg->event_syndrome[1]);
 		break;
-	case MM_SQW_ERROR:
+	case MM_RECOVERABLE_FW_MM_SQW_ERROR:
 		sprintf(dbg_msg->syndrome,
 			"MM SQW Error (error code: %d)\n",
 			(s32)event_msg->event_syndrome[1]);
 		break;
-	case MM_DMAW_ERROR:
+	case MM_RECOVERABLE_FW_MM_SQW_HP_ERROR:
+		sprintf(dbg_msg->syndrome,
+			"MM SQW HP Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	case MM_RECOVERABLE_FW_MM_DMAW_ERROR:
 		sprintf(dbg_msg->syndrome,
 			"MM DMAW Error (error code: %d)\n",
 			(s32)event_msg->event_syndrome[1]);
 		break;
-	case MM_KW_ERROR:
+	case MM_RECOVERABLE_FW_MM_KW_ERROR:
 		sprintf(dbg_msg->syndrome,
 			"MM KW Error (error code: %d)\n",
 			(s32)event_msg->event_syndrome[1]);
 		break;
-	case MM_RUNTIME_HANG_ERROR:
+	case MM_RECOVERABLE_OPS_API_KERNEL_LAUNCH:
 		sprintf(dbg_msg->syndrome,
-			"MM Runtime Hang (error code: %d)\n",
+			"OPS API Kernel Launch Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	case MM_RECOVERABLE_OPS_API_DMA_READLIST:
+		sprintf(dbg_msg->syndrome,
+			"OPS API DMA ReadList Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	case MM_RECOVERABLE_OPS_API_DMA_WRITELIST:
+		sprintf(dbg_msg->syndrome,
+			"OPS API DMA WriteList Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	case MM_RECOVERABLE_OPS_API_ECHO:
+		sprintf(dbg_msg->syndrome,
+			"OPS API Echo Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	case MM_RECOVERABLE_OPS_API_FW_VER:
+		sprintf(dbg_msg->syndrome,
+			"OPS API FW Version Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	case MM_RECOVERABLE_OPS_API_COMPATIBILITY:
+		sprintf(dbg_msg->syndrome,
+			"OPS API API Compatibility Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	case MM_RECOVERABLE_OPS_API_ABORT:
+		sprintf(dbg_msg->syndrome,
+			"OPS API Abort Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	case MM_RECOVERABLE_OPS_API_CM_RESET:
+		sprintf(dbg_msg->syndrome,
+			"OPS API CM Reset Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	case MM_RECOVERABLE_OPS_API_TRACE_RT_CONFIG:
+		sprintf(dbg_msg->syndrome,
+			"OPS API Trace RT Config Error (error code: %d)\n",
+			(s32)event_msg->event_syndrome[1]);
+		break;
+	case MM_RECOVERABLE_OPS_API_TRACE_RT_CONTROL:
+		sprintf(dbg_msg->syndrome,
+			"OPS API Trace RT Control Error (error code: %d)\n",
 			(s32)event_msg->event_syndrome[1]);
 		break;
 	default:
