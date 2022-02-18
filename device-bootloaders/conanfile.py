@@ -1,0 +1,163 @@
+from conan import ConanFile
+from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
+from conans import tools
+from conans.errors import ConanInvalidConfiguration
+import textwrap
+import os
+import re
+
+
+
+
+class EsperantoBootLoadersConan(ConanFile):
+    name = "device-bootloaders"
+    url = "https://gitlab.esperanto.ai/software/device-bootloaders"
+    description = "Device Bootloaders"
+    license = "Esperanto Technologies"
+
+    settings = "os", "arch", "compiler", "build_type"
+    options = {
+        "warnings_as_errors" : [True, False]
+    }
+    default_options = {
+        "warnings_as_errors" : False
+    }
+
+    scm = {
+        "type": "git",
+        "url": "git@gitlab.esperanto.ai:software/device-bootloaders.git",
+        "revision": "auto",
+    }
+    generators = "CMakeDeps"
+
+    python_requires = "conan-common/[>=0.3.0 <1.0.0]"
+
+    def set_version(self):
+        content = tools.load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
+        version = re.search(r"project\(EsperantoBootLoader VERSION \s*([\d.]+)", content).group(1)
+        self.version = version.strip()
+    
+    def configure(self):
+        # et-common-libs is a C library, doesn't depend on any C++ standard library
+        del self.settings.compiler.libcxx
+        del self.settings.compiler.cppstd
+
+    def requirements(self):
+        # header-only libs
+        self.requires("deviceApi/0.1.0")
+        self.requires("esperantoTrace/0.1.0")
+        self.requires("signedImageFormat/1.0")
+        self.requires("tf-protocol/0.1.0")
+        self.requires("esperanto-flash-tool/0.1.0") # we only consume a header
+        # libs
+        self.requires("etsoc_hal/0.1.0")
+        self.requires("et-common-libs/0.0.3")
+        self.requires("device-minion-runtime/0.0.1")
+    
+        # declare as build_requires once https://github.com/conan-io/conan/issues/10544 is fixed
+        self.requires("cmake-modules/[>=0.4.1 <1.0.0]")
+    
+    def validate(self):
+        if self.settings.arch != "rv64":
+            raise ConanInvalidConfiguration("Cross-compiling to arch %s is not supported" % self.settings.arch)
+
+    def layout(self):
+        cmake_layout(self)
+
+    def generate(self):
+        make_hash_array = self.python_requires["conan-common"].module.make_hash_array
+        make_version_array = self.python_requires["conan-common"].module.make_version_array
+
+        # Get the toolchains from "tools.cmake.cmaketoolchain:user_toolchain" conf at the
+        # tool_requires
+        user_toolchains = []
+        for dep in self.dependencies.direct_build.values():
+            ut = dep.conf_info["tools.cmake.cmaketoolchain:user_toolchain"]
+            if ut:
+                user_toolchains.append(ut)
+        
+        tc = CMakeToolchain(self)
+        tc.variables["CMAKE_VERBOSE_MAKEFILE"] = False
+        tc.variables["GIT_HASH_STRING"] = self.info.package_id()
+        tc.variables["GIT_HASH_ARRAY"] = make_hash_array(self.info.package_id())
+        tc.variables["GIT_VERSION_STRING"] = self.version
+        tc.variables["GIT_VERSION_ARRAY"] = make_version_array(self.version)
+
+        tc.variables["ENABLE_WARNINGS_AS_ERRORS"] = self.options.warnings_as_errors
+        tc.variables["BUILD_DOC"] = False
+        tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies["cmake-modules"].package_folder, "cmake")
+        tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
+
+        if user_toolchains:
+            self.output.info("Applying user_toolchains: %s" % user_toolchains)
+            tc.blocks["user_toolchain"].values["paths"] = user_toolchains
+
+        tc.generate()
+
+    def build(self):
+        cmake = CMake(self)
+        cmake.configure()
+        cmake.build()
+    
+    @property
+    def _elfs(self):
+        #            (executable, directory name)
+        elfs = [
+            ("BootromTrampolineToBL2.elf", "BootromTrampolineToBL2"), 
+            ("ServiceProcessorBL1.elf", "ServiceProcessorBL1"), 
+            ("ServiceProcessorBL2_production.elf", os.path.join("ServiceProcessorBL2", "production")), 
+            ("ServiceProcessorBL2_fast-boot.elf", os.path.join("ServiceProcessorBL2", "fast-boot")),
+            ("ServiceProcessorBL2_testframework.elf", os.path.join("ServiceProcessorBL2", "testframework")),
+            ("ServiceProcessorBL2_mdi_enabled.elf", os.path.join("ServiceProcessorBL2", "mdi_enabled"))
+        ]
+        return elfs
+    
+    def _custom_cmake_module(self, name):
+        return "conan-{}-{}.cmake".format(self.name, name)
+
+    def package(self):
+        cmake = CMake(self)
+        cmake.install()
+        tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
+    
+        build_modules_folder = os.path.join(self.package_folder, "lib", "cmake")
+        os.makedirs(build_modules_folder)
+        for elf, elf_dir in self._elfs:
+            build_module_path = os.path.join(build_modules_folder, self._custom_cmake_module(elf))
+            with open(build_module_path, "w+") as f:
+                f.write(textwrap.dedent("""\
+                    if(NOT TARGET EsperantoBootLoader::{exec})
+                        if(CMAKE_CROSSCOMPILING)
+                            find_program(ESPERANTO_BOOTLOADER_PROGRAM et-bootloader-{exec} PATHS ENV PATH NO_DEFAULT_PATH)
+                        endif()
+                        if(NOT ESPERANTO_BOOTLOADER_PROGRAM)
+                            set(ESPERANTO_BOOTLOADER_PROGRAM "${{CMAKE_CURRENT_LIST_DIR}}/../../lib/esperanto-fw/{exec_dir}/{exec}")
+                        endif()
+                        get_filename_component(ESPERANTO_BOOTLOADER_PROGRAM "${{ESPERANTO_BOOTLOADER_PROGRAM}}" ABSOLUTE)
+                        add_executable(EsperantoBootLoader::{exec} IMPORTED)
+                        set_property(TARGET EsperantoBootLoader::{exec} PROPERTY IMPORTED_LOCATION ${{ESPERANTO_BOOTLOADER_PROGRAM}})
+                    endif()
+                    """.format(exec=elf, exec_dir=elf_dir)))
+
+        build_module_path = os.path.join(build_modules_folder, self._custom_cmake_module("deprecated-vars"))
+        with open(build_module_path, "w+") as f:
+            f.write(textwrap.dedent("""\
+                set(ESPERANTO_BOOTLOADER_BIN_DIR "${{CMAKE_CURRENT_LIST_DIR}}/../../bin")
+                get_filename_component(ESPERANTO_BOOTLOADER_BIN_DIR "${{ESPERANTO_BOOTLOADER_BIN_DIR}}" ABSOLUTE)
+
+                set(ESPERANTO_BOOTLOADER_INCLUDE_DIR "${{CMAKE_CURRENT_LIST_DIR}}/../../include")
+                get_filename_component(ESPERANTO_BOOTLOADER_INCLUDE_DIR "${{ESPERANTO_BOOTLOADER_INCLUDE_DIR}}" ABSOLUTE)
+
+                set(ESPERANTO_BOOTLOADER_LIB_DIR "${{CMAKE_CURRENT_LIST_DIR}}/../../lib")
+                get_filename_component(ESPERANTO_BOOTLOADER_LIB_DIR "${{ESPERANTO_BOOTLOADER_LIB_DIR}}" ABSOLUTE)
+                """.format()))
+
+    def package_info(self):
+        self.cpp_info.set_property("cmake_file_name", "EsperantoBootLoader")
+
+        build_modules = []
+        build_modules.append(os.path.join("lib", "cmake", self._custom_cmake_module("deprecated-vars")))
+        for elf, elf_dir in self._elfs:
+            build_modules.append(os.path.join("lib", "cmake", self._custom_cmake_module(elf)))
+        self.cpp_info.set_property("cmake_build_modules", build_modules)
+        
