@@ -110,14 +110,14 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
         PRIVATE
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
             $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-            $<BUILD_INTERFACE:${SHARED_INC_DIRS}>
-            $<BUILD_INTERFACE:${FLASH_TOOL_HEADERS}>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw>
     )
     target_compile_definitions(${TARGET_NAME}.elf
         PUBLIC
             -DBL2_VARIANT="${BL2_BUILD_VARIANT}"
-            -DFAST_BOOT=${FAST_BOOT} -DTEST_FRAMEWORK=${TEST_FRAMEWORK} -DMINION_DEBUG_INTERFACE=${MINION_DEBUG_INTERFACE}
+            -DFAST_BOOT=${FAST_BOOT}
+            -DTEST_FRAMEWORK=${TEST_FRAMEWORK}
+            -DMINION_DEBUG_INTERFACE=${MINION_DEBUG_INTERFACE}
     )
     target_link_libraries(${TARGET_NAME}.elf
         PRIVATE
@@ -126,7 +126,8 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
             etsoc_hal::etsoc_hal
             et-common-libs::sp-bl2
             et-common-libs::sp-bl1
-            deviceFirmware::device_common
+            esperantoBootLoader::common
+            esperantoBootLoader::minion_debug_interface
             FreeRTOS::FreeRTOS
             $<${TEST_FRAMEWORK}:test_framework>
             esperantoTrace::et_trace
@@ -152,6 +153,7 @@ endforeach()
 # Exposing BL2_driver for e.g. Test Framework
 #   This interface is universal between variants for now
 add_library(BL2_driver INTERFACE)
+add_library(esperantoBootLoader::BL2_driver ALIAS BL2_driver)
 target_include_directories(BL2_driver
     INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -162,8 +164,9 @@ target_link_libraries(BL2_driver
         deviceApi::deviceApi
         signedImageFormat::signedImageFormat
         etsoc_hal::etsoc_hal
-        et-common-libs::sp-bl2
-        deviceFirmware::device_common
-        FreeRTOS::FreeRTOS
         esperantoTrace::et_trace
+        et-common-libs::sp-bl2
+        FreeRTOS::FreeRTOS
+
+        esperantoBootLoader::common
 )

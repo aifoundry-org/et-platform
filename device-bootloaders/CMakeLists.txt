@@ -7,23 +7,47 @@
 # in accordance with the terms and conditions stipulated in the
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
-
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.15)
 project(EsperantoBootLoader VERSION 0.1.0 LANGUAGES C ASM)
 
+message(STATUS "PROJECT_VERSION ${PROJECT_VERSION}")
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+
+message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
+message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
+
+if (DEFINED GIT_HASH_STRING)
+    set(GIT_HASH_STRING "\"${GIT_HASH_STRING}\"")
+endif()
+if (DEFINED GIT_VERSION_STRING)
+    set(GIT_VERSION_STRING "\"${GIT_VERSION_STRING}\"")
+endif()
+message(STATUS "GIT_HASH_STRING:    ${GIT_HASH_STRING}")
+message(STATUS "GIT_HASH_ARRAY:     ${GIT_HASH_ARRAY}")
+message(STATUS "GIT_VERSION_STRING: ${GIT_VERSION_STRING}")
+message(STATUS "GIT_VERSION_ARRAY:  ${GIT_VERSION_ARRAY}")
+
 set(ET_DEFAULT_BUILD_TYPE "Release")
+
+########## Project options ###################################
 
 option(ENABLE_STRICT_BUILD_TYPES "Whether project configuration should fail if build_type is not one of the allowed values: Debug Release RelWithDebInfo MinSizeRel" ON)
 option(ENABLE_REPORT_GLOBAL_FLAGS "Wether global flags should be shown when configuring the project" ON)
 include(CommonProjectSettings)
 include(DeviceUtils)
 include(GNUInstallDirs)
+
 cmake_policy(SET CMP0076 NEW)
 
 option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
 if(ENABLE_WARNINGS_AS_ERRORS)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
 endif()
+
+option(BUILD_DOC "Build documentation" ON)
+
+########## Dependencies #####################################
 
 find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(signedImageFormat REQUIRED)
@@ -34,57 +58,28 @@ find_package(etsoc_hal REQUIRED)
 find_package(esperantoTrace REQUIRED)
 find_package(et-common-libs REQUIRED COMPONENTS sp-bl1 sp-bl2)
 
-# Providers for third-party dependencies (gRPC_*_PROVIDER properties):
-# "module": build the dependency using sources from git submodule under external
-# "package": use cmake's find_package functionality to locate a pre-installed dependency
-# TODO enable correct use of package to find preinstalled dependencies for now "package"
-# will mean to use the DEPENDENCIES_PATH to derive the include and library paths
-# FIXME currenlty this project is not self contained and does not contain any external dependencies.
-# set(devicefw_CODE_SIGNING_TOOLS_PROVIDER "module" CACHE STRING "Provider of code signing tools library")
-# set_property(CACHE devicefw_CODE_SIGNING_TOOLS_PROVIDER PROPERTY STRINGS "module" "package")
-# set(devicefw_FLASH_TOOL_PROVIDER "module" CACHE STRING "Provider of the flash tools library")
-# set_property(CACHE devicefw_FLASH_TOOL_PROVIDER PROPERTY STRINGS "module" "package")
+# installation related vars (to replace in the future for GnuInstallDirs)
 set(DOCUMENTATION_INSTALL_DIR  "${CMAKE_INSTALL_PREFIX}" CACHE STRING "Documentation installation path")
 set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
 set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
 
-set(DEVFW_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
-  CACHE PATH "Instalation path of external dependencies")
-
-list(APPEND CMAKE_PREFIX_PATH ${DEVFW_EXTERNAL_INSTALL_PREFIX})
-
-option(BUILD_DOC "Build documentation" ON)
-
-# Make sure that custom modules are loaded
-list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
-
 ########## Documentation #####################################
 
-# check if Doxygen is installed
-find_package(Doxygen)
-if (DOXYGEN_FOUND)
-  add_subdirectory(doc)
-else (DOXYGEN_FOUND)
-  message("Doxygen need to be installed to generate the doxygen documentation")
-endif (DOXYGEN_FOUND)
+if (BUILD_DOC)
+    # check if Doxygen is installed
+    find_package(Doxygen REQUIRED)
+    
+    add_subdirectory(doc)
+endif()
 
-############################ FW build Rules ############### ####################
-
-include_directories(${PROJECT_SOURCE_DIR}/shared/common/include)
-
-get_filename_component(SHARED_SRC_DIR "shared/common/src" ABSOLUTE)
-set(SHARED_INC_DIRS ${PROJECT_SOURCE_DIR}/shared/common/include)
-
-get_target_property(FLASH_TOOL_HEADERS_INTERFACE_PATH esperanto-flash-tool::headers INTERFACE_INCLUDE_DIRECTORIES)
-include_directories(${FLASH_TOOL_HEADERS_INTERFACE_PATH})
-
-
+############################ FW build Rules ############### 
 
 add_subdirectory(external)
 add_subdirectory(src)
 
+########## Installation #####################################
 
 include(CMakePackageConfigHelpers)
 
@@ -92,25 +87,30 @@ include(CMakePackageConfigHelpers)
 # (this registers the build-tree with a global CMake-registry)
 export(PACKAGE EsperantoBootLoaderTargets)
 
+# Install the export set for use with the install-tree
+install(EXPORT EsperantoBootLoaderTargets
+    NAMESPACE EsperantoBootLoader::
+    DESTINATION "${LIB_INSTALL_DIR}/cmake/EsperantoBootLoader"
+)
+
 # Create the *-config.cmake and *-config-version.cmake files
-configure_package_config_file(EsperantoBootLoaderConfig.cmake.in
-     ${CMAKE_CURRENT_BINARY_DIR}/EsperantoBootLoaderConfig.cmake
-  INSTALL_DESTINATION ${LIB_INSTALL_DIR}/EsperantoBootLoader/cmake
-  PATH_VARS INCLUDE_INSTALL_DIR SYSCONFIG_INSTALL_DIR LIB_INSTALL_DIR BIN_INSTALL_DIR
-  )
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/EsperantoBootLoaderConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/EsperantoBootLoaderConfig.cmake
+    INSTALL_DESTINATION ${LIB_INSTALL_DIR}/EsperantoBootLoader/cmake
+    PATH_VARS INCLUDE_INSTALL_DIR SYSCONFIG_INSTALL_DIR LIB_INSTALL_DIR BIN_INSTALL_DIR
+)
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/EsperantoBootLoaderConfigVersion.cmake
-  VERSION ${VERSION}
-  COMPATIBILITY SameMajorVersion )
+    ${CMAKE_CURRENT_BINARY_DIR}/EsperantoBootLoaderConfigVersion.cmake
+    VERSION ${VERSION}
+    COMPATIBILITY SameMajorVersion
+)
 
 # Install the *Config.cmake and *ConfigVersion.cmake
 install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/EsperantoBootLoaderConfig.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/EsperantoBootLoaderConfigVersion.cmake"
-  DESTINATION ${LIB_INSTALL_DIR}/cmake/EsperantoBootLoader
-  COMPONENT bootloader)
+    ${CMAKE_CURRENT_BINARY_DIR}/EsperantoBootLoaderConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/EsperantoBootLoaderConfigVersion.cmake
+    DESTINATION ${LIB_INSTALL_DIR}/cmake/EsperantoBootLoader
+    COMPONENT bootloader
+)
 
-# Install the export set for use with the install-tree
-install(EXPORT EsperantoBootLoaderTargets
-  NAMESPACE EsperantoBootLoader::
-  DESTINATION "${LIB_INSTALL_DIR}/cmake/EsperantoBootLoader")

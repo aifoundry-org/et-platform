@@ -30,15 +30,13 @@ add_riscv_executable(ServiceProcessorBL1
 target_include_directories(ServiceProcessorBL1.elf
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${SHARED_INC_DIRS}>
-        $<BUILD_INTERFACE:${FLASH_TOOL_HEADERS}>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw>
 )
 target_link_libraries(ServiceProcessorBL1.elf
     PRIVATE
         signedImageFormat::signedImageFormat
         etsoc_hal::etsoc_hal
-        deviceFirmware::device_common
+        esperantoBootLoader::common
         et-common-libs::sp-bl1
         $<${TEST_FRAMEWORK}:test_framework_core>
 )

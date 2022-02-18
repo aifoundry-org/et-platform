@@ -15,7 +15,7 @@ target_sources(test_framework_core
 target_link_libraries(test_framework_core
   PUBLIC
     tf-protocol::tf-protocol
-    deviceFirmware::device_common
+    esperantoBootLoader::common
     et-common-libs::sp-bl1
     et-common-libs::sp-bl2
 )
@@ -55,10 +55,10 @@ target_sources(test_framework
 target_link_libraries(test_framework
   PUBLIC
     tf-protocol::tf-protocol
-    deviceFirmware::device_common
     et-common-libs::sp-bl2
     FreeRTOS::FreeRTOS
-    BL2_driver
+    esperantoBootLoader::common
+    esperantoBootLoader::BL2_driver
 )
 
 target_compile_definitions(test_framework
