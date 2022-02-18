@@ -29,7 +29,7 @@ uint64_t exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint6
         sepc, stval, sstatus);
 
     /* Report SP of unrecoverable error. SP will reset MM. */
-    SP_Iface_Report_Error(SP_RECOVERABLE, MM_RUNTIME_EXCEPTION);
+    SP_Iface_Report_Error(SP_RECOVERABLE_FW_MM_ERROR, MM_RUNTIME_EXCEPTION);
 
     C_TEST_FAIL
 

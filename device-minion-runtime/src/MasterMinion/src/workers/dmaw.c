@@ -392,7 +392,7 @@ int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
         Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:TID:%u:DMAW Read Config Failed:%d!\r\n", sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, status);
 
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_DMA_CONFIG_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_DMAW_ERROR, MM_DMA_CONFIG_ERROR);
     }
 
     return status;
@@ -532,7 +532,7 @@ int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
         Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:TID:%u:DMAW Write Config Failed:%d!\r\n", sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, status);
 
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_DMA_CONFIG_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_DMAW_ERROR, MM_DMA_CONFIG_ERROR);
     }
 
     return status;
@@ -646,7 +646,7 @@ static inline void process_dma_read_chan_in_use(
                 msg_id, read_chan_status.sqw_idx, read_chan_status.tag_id, CMD_STATUS_FAILED)
             Log_Write(LOG_LEVEL_ERROR, "DMAW:Tag_ID=%u:HostIface:Push:Failed\r\n",
                 read_chan_status.tag_id);
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_DMAW_ERROR, MM_CQ_PUSH_ERROR);
         }
         else
         {
@@ -661,6 +661,13 @@ static inline void process_dma_read_chan_in_use(
                 TRACE_LOG_CMD_STATUS(
                     msg_id, read_chan_status.sqw_idx, read_chan_status.tag_id, CMD_STATUS_FAILED)
             }
+        }
+
+        /* Check for device API error */
+        if (write_rsp->status != DEV_OPS_API_DMA_RESPONSE_COMPLETE)
+        {
+            /* Report device API error to SP */
+            SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_DMA_WRITELIST, (int16_t)write_rsp->status);
         }
     }
 }
@@ -772,8 +779,11 @@ static inline void process_dma_read_chan_aborting(
             msg_id, read_chan_status.sqw_idx, read_chan_status.tag_id, CMD_STATUS_FAILED)
         Log_Write(
             LOG_LEVEL_ERROR, "DMAW:Tag_ID=%u:HostIface:Push:Failed\r\n", read_chan_status.tag_id);
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_DMAW_ERROR, MM_CQ_PUSH_ERROR);
     }
+
+    /* Report device API error to SP */
+    SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_DMA_WRITELIST, (int16_t)write_rsp->status);
 }
 
 /************************************************************************
@@ -898,7 +908,14 @@ static inline void process_dma_write_chan_in_use(
                 msg_id, write_chan_status.sqw_idx, write_chan_status.tag_id, CMD_STATUS_FAILED)
             Log_Write(LOG_LEVEL_ERROR, "DMAW:Tag_ID=%u:HostIface:Push:Failed\r\n",
                 write_chan_status.tag_id);
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_DMAW_ERROR, MM_CQ_PUSH_ERROR);
+        }
+
+        /* Check for device API error */
+        if (read_rsp->status != DEV_OPS_API_DMA_RESPONSE_COMPLETE)
+        {
+            /* Report device API error to SP */
+            SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_DMA_READLIST, (int16_t)read_rsp->status);
         }
     }
 }
@@ -1008,8 +1025,11 @@ static inline void process_dma_write_chan_aborting(
             msg_id, write_chan_status.sqw_idx, write_chan_status.tag_id, CMD_STATUS_FAILED)
         Log_Write(
             LOG_LEVEL_ERROR, "DMAW:Tag_ID=%u:HostIface:Push:Failed\r\n", write_chan_status.tag_id);
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_DMAW_ERROR, MM_CQ_PUSH_ERROR);
     }
+
+    /* Report device API error to SP */
+    SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_DMA_READLIST, (int16_t)read_rsp->status);
 }
 
 /************************************************************************

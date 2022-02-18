@@ -245,11 +245,19 @@ static inline int32_t abort_cmd_handler(void *command_buffer, uint8_t sqw_hp_idx
             "SQ_HP[%d] abort_cmd_handler:Tag_ID=%u:HostIface:Push:Failed\r\n", sqw_hp_idx,
             cmd->command_info.cmd_hdr.tag_id);
 
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
     }
 #if !TEST_FRAMEWORK
     /* Decrement the SQW HP count */
     SQW_HP_Decrement_Command_Count(sqw_hp_idx);
+
+    /* Check for device API error */
+    if (rsp.status != DEV_OPS_API_ABORT_RESPONSE_SUCCESS)
+    {
+        /* Report device API error to SP */
+        SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_ABORT, (int16_t)rsp.status);
+    }
+
 #endif
     return status;
 }
@@ -337,6 +345,8 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
 
     rsp.response_info.rsp_hdr.size =
         sizeof(struct device_ops_cm_reset_rsp_t) - sizeof(struct cmn_header_t);
+
+    /* Push the response to CQ */
     status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 
     if (status == STATUS_SUCCESS)
@@ -357,12 +367,19 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
             "SQ_HP[%d] cm_reset_cmd_handler:Tag_ID=%u:HostIface:Push:Failed\r\n", sqw_hp_idx,
             cmd->command_info.cmd_hdr.tag_id);
 
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
     }
-#if !TEST_FRAMEWORK
+
     /* Decrement the SQW HP count */
     SQW_HP_Decrement_Command_Count(sqw_hp_idx);
-#endif
+
+    /* Check for device API error */
+    if (rsp.status != DEV_OPS_API_CM_RESET_RESPONSE_SUCCESS)
+    {
+        /* Report device API error to SP */
+        SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_CM_RESET, (int16_t)rsp.status);
+    }
+
     return status;
 }
 
@@ -499,11 +516,18 @@ static inline int32_t compatibility_cmd_handler(void *command_buffer, uint8_t sq
         Log_Write(LOG_LEVEL_ERROR,
             "TID[%u]:SQW[%d]:HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->command_info.cmd_hdr.tag_id);
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
     }
 
     /* Decrement commands count being processed by given SQW */
     SQW_Decrement_Command_Count(sqw_idx);
+
+    /* Check for device API error */
+    if (rsp.status != DEV_OPS_API_COMPATIBILITY_RESPONSE_SUCCESS)
+    {
+        /* Report device API error to SP */
+        SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_COMPATIBILITY, (int16_t)rsp.status);
+    }
 
     return status;
 }
@@ -669,12 +693,19 @@ static inline int32_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_i
 
         Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:Tag_ID=%u:CQ_Push:Failed\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->command_info.cmd_hdr.tag_id);
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
     }
 
 #if !TEST_FRAMEWORK
     /* Decrement commands count being processed by given SQW */
     SQW_Decrement_Command_Count(sqw_idx);
+
+    /* Check for device API error */
+    if (rsp.status != DEV_OPS_API_FW_VERSION_RESPONSE_SUCCESS)
+    {
+        /* Report device API error to SP */
+        SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_FW_VER, (int16_t)rsp.status);
+    }
 #endif
 
     return status;
@@ -766,12 +797,19 @@ static inline int32_t echo_cmd_handler(void *command_buffer, uint8_t sqw_idx, ui
         Log_Write(LOG_LEVEL_ERROR,
             "TID[%u]:SQW[%d]:HostCommandHandler:Tag_ID=%u:CQ_Push:Failed\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->command_info.cmd_hdr.tag_id);
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
     }
 
 #if !TEST_FRAMEWORK
     /* Decrement commands count being processed by given SQW */
     SQW_Decrement_Command_Count(sqw_idx);
+
+    /* Check for device API error */
+    if (rsp.status != DEV_OPS_API_ECHO_RESPONSE_SUCCESS)
+    {
+        /* Report device API error to SP */
+        SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_ECHO, (int16_t)rsp.status);
+    }
 #endif
 
     return status;
@@ -934,12 +972,15 @@ static inline int32_t kernel_launch_cmd_handler(
             Log_Write(LOG_LEVEL_ERROR,
                 "TID[%u]:SQW[%d]:HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n", sqw_idx,
                 cmd->command_info.cmd_hdr.tag_id, cmd->command_info.cmd_hdr.tag_id);
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
         }
 
 #if !TEST_FRAMEWORK
         /* Decrement commands count being processed by given SQW */
         SQW_Decrement_Command_Count(sqw_idx);
+
+        /* Report device API error to SP */
+        SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_KERNEL_LAUNCH, (int16_t)rsp->status);
 #endif
     }
 
@@ -1044,7 +1085,7 @@ static inline int32_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw
             Log_Write(LOG_LEVEL_ERROR,
                 "TID[%u]:SQW[%d]:HostCommandHandler:HostIface:Push:Failed\r\n",
                 cmd->command_info.cmd_hdr.tag_id, sqw_idx);
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
         }
 
         /* Decrement commands count being processed by given SQW */
@@ -1388,11 +1429,14 @@ static inline int32_t dma_readlist_cmd_handler(
             Log_Write(LOG_LEVEL_ERROR,
                 "TID[%u]:SQW[%d]:HostCommandHandler:HostIface:Push:Failed\r\n",
                 cmd->command_info.cmd_hdr.tag_id, sqw_idx);
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
         }
 
         /* Decrement commands count being processed by given SQW */
         SQW_Decrement_Command_Count(sqw_idx);
+
+        /* Report device API error to SP */
+        SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_DMA_READLIST, (int16_t)rsp.status);
     }
 
     return status;
@@ -1599,11 +1643,14 @@ static inline int32_t dma_writelist_cmd_handler(
             Log_Write(LOG_LEVEL_ERROR,
                 "TID[%u]::SQW[%d]:HostCommandHandler:HostIface:Push:Failed\r\n",
                 cmd->command_info.cmd_hdr.tag_id, sqw_idx);
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
         }
 
         /* Decrement commands count being processed by given SQW */
         SQW_Decrement_Command_Count(sqw_idx);
+
+        /* Report device API error to SP */
+        SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_DMA_WRITELIST, (int16_t)rsp.status);
     }
 
     return status;
@@ -1720,7 +1767,7 @@ static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
         Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCommandHandler:ostIface:Push:Failed\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx);
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
     }
     else
     {
@@ -1745,6 +1792,13 @@ static inline int32_t trace_rt_control_cmd_handler(void *command_buffer, uint8_t
 #if !TEST_FRAMEWORK
     /* Decrement commands count being processed by given SQW */
     SQW_Decrement_Command_Count(sqw_idx);
+
+    /* Check for device API error */
+    if (rsp.status != DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS)
+    {
+        /* Report device API error to SP */
+        SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_TRACE_RT_CONTROL, (int16_t)rsp.status);
+    }
 #endif
 
     return status;
@@ -1873,7 +1927,7 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
         Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:HostIface:Push:Failed\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx);
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
     }
     /* Check for abort status for trace logging. */
     else if (rsp.status == DEV_OPS_TRACE_RT_CONFIG_RESPONSE_HOST_ABORTED)
@@ -1895,6 +1949,13 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
 #if !TEST_FRAMEWORK
     /* Decrement commands count being processed by given SQW */
     SQW_Decrement_Command_Count(sqw_idx);
+
+    /* Check for device API error */
+    if (rsp.status != DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS)
+    {
+        /* Report device API error to SP */
+        SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_TRACE_RT_CONFIG, (int16_t)rsp.status);
+    }
 #endif
 
     return status;
@@ -1940,7 +2001,7 @@ int32_t Device_Async_Error_Event_Handler(uint8_t error_type, uint32_t payload)
     {
         Log_Write(LOG_LEVEL_ERROR, "HostIface:Push:Failed:fw_error_event:%d \r\n", error_type);
 
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
     }
 
     return status;

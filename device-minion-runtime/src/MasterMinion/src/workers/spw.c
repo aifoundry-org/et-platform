@@ -76,7 +76,7 @@ void SPW_Launch(uint32_t hart_id)
             IS_ALIGNED(&spw_vq_cached.circbuff_cb->head_offset, 8)))
     {
         Log_Write(LOG_LEVEL_ERROR, "SPW:SQ HEAD not 64-bit aligned\r\n");
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_BUFFER_ALIGNMENT_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SPW_ERROR, MM_SQ_BUFFER_ALIGNMENT_ERROR);
     }
 
     /* Verify that the tail pointer in cached variable and shared SRAM are 8-byte aligned addresses */
@@ -84,7 +84,7 @@ void SPW_Launch(uint32_t hart_id)
             IS_ALIGNED(&spw_vq_cached.circbuff_cb->tail_offset, 8)))
     {
         Log_Write(LOG_LEVEL_ERROR, "SPW:SQ tail not 64-bit aligned\r\n");
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_BUFFER_ALIGNMENT_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SPW_ERROR, MM_SQ_BUFFER_ALIGNMENT_ERROR);
     }
 
     /* Update the local VQ CB to point to the cached L1 stack variable */
@@ -124,7 +124,7 @@ void SPW_Launch(uint32_t hart_id)
                 "SPW:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
                 tail_prev, VQ_Get_Tail_Offset(&spw_vq_cached));
 
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_PROCESSING_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SPW_ERROR, MM_SQ_PROCESSING_ERROR);
 
             spw_vq_cached.circbuff_cb->tail_offset = tail_prev;
         }

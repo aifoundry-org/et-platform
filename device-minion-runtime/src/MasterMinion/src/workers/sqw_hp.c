@@ -232,7 +232,7 @@ static inline void sqw_hp_process_waiting_commands(uint32_t sqw_hp_idx, vq_cb_t 
         {
             Log_Write(LOG_LEVEL_ERROR, "SQW_HP[%d]:ERROR:VQ cmd processing failed:%d\r\n",
                 sqw_hp_idx, processed_val);
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_PROCESSING_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_HP_ERROR, MM_SQ_PROCESSING_ERROR);
 
             /* Being pessimistic and update the command buffer index with VQ cmd header size */
             cmd_buff_idx += DEVICE_CMD_HEADER_SIZE;
@@ -286,7 +286,7 @@ __attribute__((noreturn)) void SQW_HP_Launch(uint32_t sqw_hp_idx)
             IS_ALIGNED(&hp_vq_cached.circbuff_cb->head_offset, 8)))
     {
         Log_Write(LOG_LEVEL_ERROR, "SQW_HP[%d]:SQ HEAD not 64-bit aligned\r\n", sqw_hp_idx);
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_HP_BUFFER_ALIGNMENT_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_HP_ERROR, MM_SQ_BUFFER_ALIGNMENT_ERROR);
     }
 
     /* Verify that the tail pointer in cached variable and shared SRAM are 8-byte aligned addresses */
@@ -294,7 +294,7 @@ __attribute__((noreturn)) void SQW_HP_Launch(uint32_t sqw_hp_idx)
             IS_ALIGNED(&hp_vq_cached.circbuff_cb->tail_offset, 8)))
     {
         Log_Write(LOG_LEVEL_ERROR, "SQW_HP[%d]:SQ tail not 64-bit aligned\r\n", sqw_hp_idx);
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_HP_BUFFER_ALIGNMENT_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_HP_ERROR, MM_SQ_BUFFER_ALIGNMENT_ERROR);
     }
 
     /* Update the local VQ CB to point to the cached L1 stack variable */
@@ -322,7 +322,7 @@ __attribute__((noreturn)) void SQW_HP_Launch(uint32_t sqw_hp_idx)
                 "SQW_HP[%d]:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
                 sqw_hp_idx, hp_tail_prev, VQ_Get_Tail_Offset(&hp_vq_cached));
 
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_SQ_HP_PROCESSING_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_HP_ERROR, MM_SQ_PROCESSING_ERROR);
 
             /* TODO: Fallback mechanism: use the cached copy of HP SQ tail */
             hp_vq_cached.circbuff_cb->tail_offset = hp_tail_prev;

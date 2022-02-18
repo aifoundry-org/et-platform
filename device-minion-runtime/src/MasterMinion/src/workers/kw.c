@@ -460,7 +460,7 @@ static int32_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint64_t req_shire_mask
             status = KW_ERROR_CW_SHIRES_NOT_READY;
             Log_Write(LOG_LEVEL_ERROR, "SQW[%d]:KW:ERROR:kernel shires unavailable:0x%lx\r\n",
                 sqw_idx, req_shire_mask);
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RESERVE_SLOT_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CM_RESERVE_SLOT_ERROR);
         }
     }
 
@@ -693,7 +693,7 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
                 kw_unreserve_kernel_shires(cmd->shire_mask);
                 kw_unreserve_kernel_slot(kernel);
 
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
+                SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_MM2CM_CMD_ERROR);
                 status = KW_ERROR_CM_IFACE_MULTICAST_FAILED;
             }
         }
@@ -777,7 +777,7 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
             else
             {
                 abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR;
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
+                SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_MM2CM_CMD_ERROR);
                 Log_Write(LOG_LEVEL_ERROR,
                     "SQW[%d]:KW:ERROR:MM2CMAbort:CommandMulticast:Failed\r\n", sqw_idx);
             }
@@ -793,7 +793,7 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
             }
             else
             {
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+                SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CQ_PUSH_ERROR);
                 Log_Write(
                     LOG_LEVEL_ERROR, "SQW[%d]:KW:Push:KERNEL_ABORT_CMD_RSP:Failed\r\n", sqw_idx);
             }
@@ -804,7 +804,7 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
         else
         {
             /* Report error to SP */
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_KERNEL_ABORT_TIMEOUT_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CM_KERNEL_ABORT_TIMEOUT_ERROR);
         }
     }
 
@@ -982,7 +982,7 @@ static inline int32_t kw_cm_to_mm_kernel_force_abort(uint64_t kernel_shire_mask)
     {
         Log_Write(LOG_LEVEL_ERROR, "KW:MM->CM:Abort Cmd hanged.status:%d\r\n", status);
 
-        SP_Iface_Report_Error(MM_RECOVERABLE, MM_MM2CM_CMD_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_MM2CM_CMD_ERROR);
 
         status = KW_ERROR_CM_IFACE_MULTICAST_FAILED;
     }
@@ -1036,7 +1036,7 @@ static inline void kw_cm_to_mm_process_messages(
             {
                 status_internal->status = KW_ERROR_CM_IFACE_UNICAST_FAILED;
 
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_CMD_ERROR);
+                SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CM2MM_CMD_ERROR);
                 Log_Write(LOG_LEVEL_ERROR,
                     "KW[%d]:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", kw_idx, status);
             }
@@ -1088,7 +1088,7 @@ static inline void kw_cm_to_mm_process_messages(
             }
             case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR:
                 /* Report error to SP */
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_KERNEL_LAUNCH_ERROR);
+                SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CM2MM_KERNEL_LAUNCH_ERROR);
 
                 const cm_to_mm_message_kernel_launch_error_t *error_mesg =
                     (cm_to_mm_message_kernel_launch_error_t *)&message;
@@ -1366,12 +1366,20 @@ void KW_Launch(uint32_t kw_idx)
                 launch_rsp->response_info.rsp_hdr.tag_id, CMD_STATUS_FAILED);
 
             Log_Write(LOG_LEVEL_ERROR, "KW[%d]:CQ_Push:Failed\r\n", kw_idx);
-            SP_Iface_Report_Error(MM_RECOVERABLE, MM_CQ_PUSH_ERROR);
+            SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CQ_PUSH_ERROR);
         }
 
 #if !TEST_FRAMEWORK
         /* Decrement commands count being processed by given SQW */
         SQW_Decrement_Command_Count(local_sqw_idx);
+
+        /* Check for device API error */
+        if (launch_rsp->status != DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED)
+        {
+            /* Report device API error to SP */
+            SP_Iface_Report_Error(
+                MM_RECOVERABLE_OPS_API_KERNEL_LAUNCH, (int16_t)launch_rsp->status);
+        }
 #else
         (void)local_sqw_idx;
 #endif

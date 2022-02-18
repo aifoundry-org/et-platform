@@ -303,7 +303,8 @@ void CW_Process_CM_SMode_Messages(void)
                     exception->hart_id);
 
                 /* Report SP of CM FW exception */
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RUNTIME_EXCEPTION_ERROR);
+                SP_Iface_Report_Error(
+                    MM_RECOVERABLE_FW_CM_RUNTIME_ERROR, MM_CM_RUNTIME_EXCEPTION_ERROR);
 
                 /* Send Async error event to Host runtime. */
                 status = Device_Async_Error_Event_Handler(
@@ -322,7 +323,7 @@ void CW_Process_CM_SMode_Messages(void)
                 const cm_to_mm_message_fw_error_t *error = (cm_to_mm_message_fw_error_t *)&message;
 
                 /* Report SP of CM FW Error */
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM_RUNTIME_FW_ERROR);
+                SP_Iface_Report_Error(MM_RECOVERABLE_FW_CM_RUNTIME_ERROR, MM_CM_RUNTIME_FW_ERROR);
 
                 Log_Write(LOG_LEVEL_CRITICAL,
                     "CW:CM_TO_MM:MESSAGE_ID_FW_ERROR from H%ld: Error_code: %d\r\n", error->hart_id,
@@ -332,7 +333,8 @@ void CW_Process_CM_SMode_Messages(void)
             }
             default:
                 /* Report SP of CM FW Error */
-                SP_Iface_Report_Error(MM_RECOVERABLE, MM_CM2MM_UNKOWN_MESSAGE_ERROR);
+                SP_Iface_Report_Error(
+                    MM_RECOVERABLE_FW_CM_RUNTIME_ERROR, MM_CM2MM_UNKOWN_MESSAGE_ERROR);
 
                 Log_Write(LOG_LEVEL_ERROR, "CW:CM_TO_MM:Unknown message id = 0x%x\r\n",
                     message.header.id);

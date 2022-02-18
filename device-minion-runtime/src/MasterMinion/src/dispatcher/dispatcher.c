@@ -74,7 +74,7 @@ static inline void dispatcher_assert(
         /* Report error in DIRs */
         DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_FW_ERROR);
 
-        SP_Iface_Report_Error(SP_RECOVERABLE, error);
+        SP_Iface_Report_Error(SP_RECOVERABLE_FW_MM_ERROR, error);
 
         /* Assert with failure */
         ASSERT(false, error_log);
@@ -154,7 +154,7 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Initialize SW Timer to register timeouts for commands */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:SW_Timer_Init\r\n");
     status = SW_Timer_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, MM_CW_INIT_ERROR, "SW Timer init failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_SW_TIMER_INIT_ERROR, "SW Timer init failure.");
 
     /* Initialize Computer Workers */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:CW_Init\r\n");
@@ -198,7 +198,8 @@ void Dispatcher_Launch(uint32_t hart_id)
     /* Setup MM->SP Heartbeat */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:SP_Iface_Setup_MM_HeartBeat\r\n");
     status = SP_Iface_Setup_MM_HeartBeat();
-    dispatcher_assert(status == STATUS_SUCCESS, MM_CW_INIT_ERROR, "MM->SP Heartbeat init failure.");
+    dispatcher_assert(
+        status == STATUS_SUCCESS, MM_HEARTBEAT_INIT_ERROR, "MM->SP Heartbeat init failure.");
 
     /* Mark Master Minion Status as Ready */
     /* Now able to receive and process commands from host .. */
