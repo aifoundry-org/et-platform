@@ -1,0 +1,4 @@
+projects:
+  "esperanto-flash-tool":
+    folder: .
+    configs: [host, device]
