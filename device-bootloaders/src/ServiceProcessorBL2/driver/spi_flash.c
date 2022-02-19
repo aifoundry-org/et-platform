@@ -35,7 +35,7 @@
 #define MAX_SPI_TX_FIFO_SIZE  (MAX_SPI_TX_FIFO_DEPTH * 4)
 
 /* Wait loop counter for SPI Flash accesses */
-#define SPI_WAIT_LOOP_TIMEOUT 80000
+#define SPI_WAIT_LOOP_TIMEOUT 160000
 
 /* Polling for mem busy loop, num_reads - number of status reads before timeout error */
 #define SPI_MEM_BUSY_WAIT_LOOP(flash_id, spi_status, num_reads)            \

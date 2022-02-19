@@ -402,8 +402,15 @@ static int32_t dm_svc_firmware_update(void)
     */
     const uint8_t *ddr_data = (const uint8_t * )SP_DM_SCRATCH_REGION_BEGIN;
     uint8_t flash_data[SPI_FLASH_WRITES_256B_CHUNK_SIZE];
+    const SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
 
-    for (uint32_t i = 0; i < SP_DM_SCRATCH_REGION_SIZE;
+    sp_bl2_data = get_service_processor_bl2_data();
+    if (sp_bl2_data == NULL) {
+        Log_Write(LOG_LEVEL_ERROR, "dm_svc_firmware_update: Unable to get SP BL2 data!\n");
+        return DEVICE_FW_FLASH_UPDATE_ERROR;
+    }
+
+    for (uint32_t i = 0; i < sp_bl2_data->flash_fs_bl2_info.flash_size / 2;
                     i = i + SPI_FLASH_WRITES_256B_CHUNK_SIZE) {
         /* Read data from flash passive partition */
         if ( 0 != flash_fs_read(false, flash_data, SPI_FLASH_WRITES_256B_CHUNK_SIZE, i)) {
