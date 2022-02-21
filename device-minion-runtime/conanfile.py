@@ -4,6 +4,8 @@ from conans import tools
 from conans.errors import ConanInvalidConfiguration
 import os
 import re
+import textwrap
+
 
 def make_hash_array(strval):
     # the maximum length of the git hash is 32 bytes
@@ -49,8 +51,12 @@ class DeviceMinionRuntimeConan(ConanFile):
     license = "Esperanto Technologies"
 
     settings = "os", "arch", "compiler", "build_type"
-    options = {}
-    default_options = {}
+    options = {
+        "warnings_as_errors" : [True, False]
+    }
+    default_options = {
+        "warnings_as_errors" : True
+    }
 
     scm = {
         "type": "git",
@@ -65,9 +71,11 @@ class DeviceMinionRuntimeConan(ConanFile):
         self.version = version.strip()
 
     def requirements(self):
+        # header-only libs
         self.requires("deviceApi/0.1.0")
         self.requires("esperantoTrace/0.1.0")
         self.requires("signedImageFormat/1.0")
+        # libs
         self.requires("etsoc_hal/0.1.0")
         self.requires("et-common-libs/0.0.3")
 
@@ -100,6 +108,7 @@ class DeviceMinionRuntimeConan(ConanFile):
         tc.variables["GIT_VERSION_ARRAY"] = make_version_array(self.version)
 
         tc.variables["ENABLE_STRICT_BUILD_TYPES"] = True
+        tc.variables["ENABLE_WARNINGS_AS_ERRORS"] = self.options.warnings_as_errors
         tc.variables["DEVICE_MINION_RUNTIME_DEPRECATED"] = True
         tc.variables["BUILD_DOC"] = False
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies.build["cmake-modules"].package_folder, "cmake")
@@ -118,37 +127,61 @@ class DeviceMinionRuntimeConan(ConanFile):
         cmake.configure()
         cmake.build()
 
+
+    @property
+    def _elfs(self):
+        #            (executable, directory name)
+        elfs = [("MachineMinion.elf", "MachineMinion"), 
+                ("MasterMinion.elf", "MasterMinion"), 
+                ("MasterMinionTF.elf", "MasterMinion"), 
+                ("WorkerMinion.elf", "WorkerMinion")]
+        return elfs
+
     def package(self):
         cmake = CMake(self)
         cmake.install()
         tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
 
-    def package_info(self):
-        etfw_includedir = os.path.join("include", "esperanto-fw")
-        etfw_libdir = os.path.join("lib", "esperanto-fw")
+        build_modules_folder = os.path.join(self.package_folder, "lib", "cmake")
+        os.makedirs(build_modules_folder)
+        for elf, elf_dir in self._elfs:
+            build_module_path = os.path.join(build_modules_folder, "conan-{}-{}.cmake".format(self.name, elf))
+            with open(build_module_path, "w+") as f:
+                f.write(textwrap.dedent("""\
+                    if(NOT TARGET EsperantoDeviceMinionRuntime::{exec})
+                        if(CMAKE_CROSSCOMPILING)
+                            find_program(ESPERANTO_DEVICE_MINION_RUNTIME_PROGRAM et-minion-runtime-{exec} PATHS ENV PATH NO_DEFAULT_PATH)
+                        endif()
+                        if(NOT ESPERANTO_DEVICE_MINION_RUNTIME_PROGRAM)
+                            set(ESPERANTO_DEVICE_MINION_RUNTIME_PROGRAM "${{CMAKE_CURRENT_LIST_DIR}}/../../lib/esperanto-fw/{exec_dir}/{exec}")
+                        endif()
+                        get_filename_component(ESPERANTO_DEVICE_MINION_RUNTIME_PROGRAM "${{ESPERANTO_DEVICE_MINION_RUNTIME_PROGRAM}}" ABSOLUTE)
+                        add_executable(EsperantoDeviceMinionRuntime::{exec} IMPORTED)
+                        set_property(TARGET EsperantoDeviceMinionRuntime::{exec} PROPERTY IMPORTED_LOCATION ${{ESPERANTO_DEVICE_MINION_RUNTIME_PROGRAM}})
+                    endif()
+                    """.format(exec=elf, exec_dir=elf_dir)))
 
+        build_module_path = os.path.join(build_modules_folder, "conan-{}-{}.cmake".format(self.name, "deprecated-vars"))
+        with open(build_module_path, "w+") as f:
+            f.write(textwrap.dedent("""\
+                set(ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR "${{CMAKE_CURRENT_LIST_DIR}}/../../bin")
+                get_filename_component(ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR "${{ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR}}" ABSOLUTE)
+
+                set(ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR "${{CMAKE_CURRENT_LIST_DIR}}/../../include")
+                get_filename_component(ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR "${{ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR}}" ABSOLUTE)
+
+                set(ESPERANTO_DEVICE_MINION_RUNTIME_LIB_DIR "${{CMAKE_CURRENT_LIST_DIR}}/../../lib")
+                get_filename_component(ESPERANTO_DEVICE_MINION_RUNTIME_LIB_DIR "${{ESPERANTO_DEVICE_MINION_RUNTIME_LIB_DIR}}" ABSOLUTE)
+                """.format(exec=elf, exec_dir=elf_dir)))
+
+
+    def package_info(self):
+        self.cpp_info.set_property("cmake_file_name", "EsperantoDeviceMinionRuntime")
         self.cpp_info.set_property("cmake_target_name", "EsperantoDeviceMinionRuntime")
 
-        self.cpp_info.components["minion_rt_helpers_interface"].requires = ["signedImageFormat::signedImageFormat"]
-
-        self.cpp_info.components["MachineMinion"].bindirs = [os.path.join(etfw_libdir, "MachineMinion")]
-        self.cpp_info.components["MachineMinion"].requires = [
-            "etsoc_hal::etsoc_hal",
-            "et-common-libs::minion-bl",
-            "minion_rt_helpers_interface"
-        ]
-        self.cpp_info.components["MasterMinion"].bindirs = [os.path.join(etfw_libdir, "MasterMinion")]
-        self.cpp_info.components["MasterMinion"].requires = [
-            "esperantoTrace::et_trace",
-            "deviceApi::deviceApi",
-            "etsoc_hal::etsoc_hal",
-            "et-common-libs::mm-rt-svcs",
-            "minion_rt_helpers_interface"
-        ]
-        self.cpp_info.components["WorkerMinion"].bindirs = [os.path.join(etfw_libdir, "WorkerMinion")]
-        self.cpp_info.components["WorkerMinion"].requires = [
-            "deviceApi::deviceApi",
-            "et-common-libs::cm-rt-svcs",
-            "esperantoTrace::et_trace",
-            "minion_rt_helpers_interface"
-        ]
+        build_modules = []
+        build_modules.append(os.path.join("lib", "cmake", "conan-{}-{}.cmake".format(self.name, "deprecated-vars")))
+        for elf, elf_dir in self._elfs:
+            build_modules.append(os.path.join("lib", "cmake", "conan-{}-{}.cmake".format(self.name, elf)))
+        self.cpp_info.set_property("cmake_build_modules", build_modules)
+        
