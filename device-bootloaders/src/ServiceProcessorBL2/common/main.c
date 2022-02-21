@@ -223,7 +223,7 @@ static void taskMain(void *pvParameters)
     status = Minion_Configure_Minion_Shire_PLL(minion_shires_mask,
                                                min_step_pll_mode[hpdpll_strap_pins],
                                                min_lvdpll_mode[lvdpll_strap_pins],
-                                               false /*Use Step Clock*/);
+                                               false);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Enable Compute Minion failed!")
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);

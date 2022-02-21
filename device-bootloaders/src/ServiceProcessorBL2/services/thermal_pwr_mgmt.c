@@ -1060,7 +1060,6 @@ int set_power_event_cb(dm_event_isr_callback event_cb)
 int init_thermal_pwr_mgmt_service(void)
 {
     int status = 0;
-    uint32_t freq;
 
     get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
 
@@ -1093,16 +1092,6 @@ int init_thermal_pwr_mgmt_service(void)
         status = pmic_thermal_pwr_cb_init(pmic_isr_callback);
     }
 
-    if(0 != get_pll_frequency(PLL_ID_SP_PLL_4, &freq))
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to get Minion Step Clock frequency!");
-        return ERROR_PERF_MGMT_FAILED_TO_GET_FREQ;
-    }
-    else
-    {
-        Update_Minion_Frequency_Global_Reg((int32_t)freq);
-    }
- 
     return status;
 }
 

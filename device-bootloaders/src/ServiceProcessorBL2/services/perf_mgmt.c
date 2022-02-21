@@ -225,7 +225,9 @@ void Update_Minion_Frequency_Global_Reg(int32_t new_freq)
 int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies)
 {
     uint32_t freq;
-    
+
+    get_soc_perf_reg()->asic_frequency.minion_shire_mhz = (uint32_t)Get_Minion_Frequency();
+
     if(0 != get_pll_frequency(PLL_ID_SP_PLL_2, &freq))
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to get NOC frequency!");

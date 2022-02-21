@@ -43,6 +43,7 @@
 
 #include <hwinc/etsoc_shire_other_esr.h>
 #include <hwinc/etsoc_shire_cache_esr.h>
+#include <hwinc/lvdpll_modes_config.h>
 
 #include "esr.h"
 #include "minion_configuration.h"
@@ -50,6 +51,7 @@
 #include "FreeRTOS.h"
 #include "timers.h"
 #include "bl2_otp.h"
+#include "perf_mgmt.h"
 
 #include "minion_state_inspection.h"
 #include "minion_run_control.h"
@@ -111,6 +113,11 @@ static StaticTimer_t MM_Timer_Buffer;
     {                                                                    \
        function(hartid);                                                 \
     }
+
+/*! \def FREQUENCY_HZ_TO_MHZ(x)
+    \brief Converts HZ to MHZ
+*/
+#define FREQUENCY_HZ_TO_MHZ(x) ((x) / 1000000u)
 
 /* This Threashold voltage would need to be extracted from OTP */
 #define THRESHOLD_VOLTAGE 400
@@ -228,6 +235,12 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode)
         Log_Write(LOG_LEVEL_ERROR, "minion_configure_plls_and_dlls(): PLL failed mask %lu!\n",
                   pll_fail_mask);
     }
+    else
+    {
+        Update_Minion_Frequency_Global_Reg(
+            (int32_t)FREQUENCY_HZ_TO_MHZ(gs_lvdpll_settings[mode-1].output_frequency));
+    }
+
     return status;
 }
 
@@ -435,6 +448,49 @@ static int enable_minion_shire(uint64_t shire_mask)
         }
         shire_mask >>= 1;
     }
+    return SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       minion_configure_hpdpll
+*
+*   DESCRIPTION
+*
+*       This function configures the Minion Shire with HPDPLL mode
+*
+*   INPUTS
+*
+*       hpdpll_mode - value of the Step Clock freq(in mode)
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+static int minion_configure_hpdpll(uint8_t hpdpll_mode)
+{
+    uint32_t freq;
+    int status;
+
+    status = configure_sp_pll_4(hpdpll_mode);
+    if (status != SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "configure_sp_pll_4() failed!\n");
+        return MINION_STEP_CLOCK_CONFIGURE_ERROR;
+    }
+
+    status = get_pll_frequency(PLL_ID_SP_PLL_4, &freq);
+    if (status != SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "get_pll_frequency(): failed to get frequency!\n");
+        return MINION_GET_FREQ_ERROR;
+    }
+
+    Update_Minion_Frequency_Global_Reg((int32_t)freq);
+
     return SUCCESS;
 }
 
@@ -655,13 +711,11 @@ int Minion_Get_Voltage_Given_Freq(int32_t target_frequency)
 int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpll_mode,
                                       uint8_t lvdpll_mode, bool use_step_clock)
 {
+    int status = SUCCESS;
+
     if (use_step_clock)
     {
-        if (0 != configure_sp_pll_4(hpdpll_mode))
-        {
-            Log_Write(LOG_LEVEL_ERROR, "configure_sp_pll_4() failed!\n");
-            return MINION_STEP_CLOCK_CONFIGURE_ERROR;
-        }
+        status = minion_configure_hpdpll(hpdpll_mode);
     }
     else if (0 != minion_configure_plls_and_dlls(minion_shires_mask, lvdpll_mode))
     {
@@ -673,8 +727,9 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
         Log_Write(LOG_LEVEL_WARNING, "Minion Shire PLL using Ref Clock\n");
     }
 
-    return SUCCESS;
+    return status;
 }
+
 /************************************************************************
 *
 *   FUNCTION
