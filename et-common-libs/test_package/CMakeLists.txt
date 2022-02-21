@@ -14,7 +14,7 @@ option(WITH_CM_RT_SVCS "" ON)
 set(REQUIRED_COMPONENTS)
 
 if (WITH_SP_BL)
-   list(APPEND REQUIRED_COMPONENTS "sp_bl1:sp_bl2")
+   list(APPEND REQUIRED_COMPONENTS "sp-bl1:sp-bl2")
 endif()
 
 if (WITH_CM_UMODE)
@@ -39,7 +39,7 @@ find_package(et-common-libs REQUIRED COMPONENTS ${REQUIRED_COMPONENTS})
 if (WITH_SP_BL)
     add_executable(${PROJECT_NAME}_sp_bl test_package.c)
     target_compile_definitions(${PROJECT_NAME}_sp_bl PRIVATE TEST_PACKAGE_SP_BL)
-    target_link_libraries(${PROJECT_NAME}_sp_bl PRIVATE et-common-libs::sp_bl1 et-common-libs::sp_bl2)
+    target_link_libraries(${PROJECT_NAME}_sp_bl PRIVATE et-common-libs::sp-bl1 et-common-libs::sp-bl2)
 endif()
 
 

@@ -14,6 +14,7 @@ class EtCommonLibsConan(ConanFile):
 
     settings = "os", "arch", "compiler", "build_type"
     options = {
+        "warnings_as_errors": [True, False],
         "with_sp_bl": [True, False],
         "with_cm_umode": [True, False],
         "with_minion_bl": [True, False],
@@ -21,6 +22,7 @@ class EtCommonLibsConan(ConanFile):
         "with_cm_rt_svcs": [True, False],
     }
     default_options = {
+        "warnings_as_errors": True,
         "with_sp_bl": True,
         "with_cm_umode": True,
         "with_minion_bl": True,
@@ -68,6 +70,7 @@ class EtCommonLibsConan(ConanFile):
                 user_toolchains.append(ut)
         
         tc = CMakeToolchain(self)
+        tc.variables["ENABLE_WARNINGS_AS_ERRORS"] = self.options.warnings_as_errors
         tc.variables["WITH_SP_BL"] = self.options.with_sp_bl
         tc.variables["WITH_CM_UMODE"] = self.options.with_cm_umode
         tc.variables["WITH_MINION_BL"] = self.options.with_minion_bl
@@ -93,18 +96,18 @@ class EtCommonLibsConan(ConanFile):
     def package_info(self):
         
         if self.options.with_sp_bl:
-            self.cpp_info.components["sp_bl1"].set_property("cmake_target_name", "et-common-libs::sp_bl1")
-            self.cpp_info.components["sp_bl1"].includedirs = [os.path.join("sp-bl1", "include")]
-            self.cpp_info.components["sp_bl1"].libdirs = [os.path.join("sp-bl1", "lib")]
-            self.cpp_info.components["sp_bl1"].libs = ["sp-bl1"]
-            self.cpp_info.components["sp_bl1"].requires = ["etsoc_hal::etsoc_hal"]
+            self.cpp_info.components["sp-bl1"].set_property("cmake_target_name", "et-common-libs::sp-bl1")
+            self.cpp_info.components["sp-bl1"].includedirs = [os.path.join("sp-bl1", "include")]
+            self.cpp_info.components["sp-bl1"].libdirs = [os.path.join("sp-bl1", "lib")]
+            self.cpp_info.components["sp-bl1"].libs = ["sp-bl1"]
+            self.cpp_info.components["sp-bl1"].requires = ["etsoc_hal::etsoc_hal"]
 
-            self.cpp_info.components["sp_bl2"].set_property("cmake_target_name", "et-common-libs::sp_bl2")
-            self.cpp_info.components["sp_bl2"].includedirs = [os.path.join("sp-bl2", "include")]
-            self.cpp_info.components["sp_bl2"].libdirs = [os.path.join("sp-bl2", "lib")]
-            self.cpp_info.components["sp_bl2"].libs = ["sp-bl2"]
-            self.cpp_info.components["sp_bl2"].defines = ["SERVICE_PROCESSOR_BL2=1"]
-            self.cpp_info.components["sp_bl2"].requires = ["etsoc_hal::etsoc_hal", "esperantoTrace::et_trace"]
+            self.cpp_info.components["sp-bl2"].set_property("cmake_target_name", "et-common-libs::sp-bl2")
+            self.cpp_info.components["sp-bl2"].includedirs = [os.path.join("sp-bl2", "include")]
+            self.cpp_info.components["sp-bl2"].libdirs = [os.path.join("sp-bl2", "lib")]
+            self.cpp_info.components["sp-bl2"].libs = ["sp-bl2"]
+            self.cpp_info.components["sp-bl2"].defines = ["SP_RT=1", "SERVICE_PROCESSOR_BL2=1"]
+            self.cpp_info.components["sp-bl2"].requires = ["etsoc_hal::etsoc_hal", "esperantoTrace::et_trace"]
 
         if self.options.with_cm_umode:
             self.cpp_info.components["cm-umode"].set_property("cmake_target_name", "et-common-libs::cm-umode")
