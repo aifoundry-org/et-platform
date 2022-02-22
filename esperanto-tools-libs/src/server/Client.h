@@ -8,16 +8,19 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
+#include "Protocol.h"
+#include "StreamManager.h"
 #include "runtime/IRuntime.h"
-#include "runtime/Types.h"
-#include <string_view>
+#include <mutex>
 #include <thread>
-#include <vector>
+#include <unordered_map>
 
 namespace rt {
 class Client : public IRuntime {
 public:
   explicit Client(const std::string& socketPath);
+
+  ~Client();
 
   std::vector<DeviceId> getDevices() override;
   std::byte* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) override;
@@ -78,8 +81,21 @@ public:
   EventId abortStream(StreamId streamId) override;
 
 private:
+  bool waitForEventWithoutProfiling(EventId event, std::chrono::seconds timeout);
+  bool waitForStreamWithoutProfiling(StreamId stream, std::chrono::seconds timeout);
+
+  void sendRequest(const req::Request& request);
+  void processResponse(const resp::Response& response);
+
+  void responseProcessor();
+
+  std::unordered_map<EventId, std::condition_variable> waiters_;
+  std::unordered_map<EventId, StreamId> eventToStream_;
+  std::unordered_map<StreamId, std::vector<EventId>> streamToEvents_;
+  std::thread listener_;
+  std::mutex mutex_;
+
   int socket_;
   bool running_ = true;
-  std::thread listener_;
 };
 } // namespace rt
