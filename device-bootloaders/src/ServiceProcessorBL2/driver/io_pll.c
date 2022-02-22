@@ -28,6 +28,7 @@
 #include "etsoc/isa/io.h"
 #include "bl2_sp_pll.h"
 #include "bl2_main.h"
+#include "bl2_timer.h"
 #include "interrupt.h"
 #include "usdelay.h"
 
@@ -206,25 +207,25 @@ static int clock_manager_set_pll_lock_int_enable(PLL_ID_t pll, bool inth_enable)
     {
         case PLL_ID_SP_PLL_0:
             reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL0_CTRL_ADDRESS);
-            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL0_CTRL_LOCKINTR_EN_MODIFY(reg_value, 
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL0_CTRL_LOCKINTR_EN_MODIFY(reg_value,
                                                                         (inth_enable ? 1 : 0));
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL0_CTRL_ADDRESS, reg_value);
             break;
         case PLL_ID_SP_PLL_1:
             reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL1_CTRL_ADDRESS);
-            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL1_CTRL_LOCKINTR_EN_MODIFY(reg_value, 
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL1_CTRL_LOCKINTR_EN_MODIFY(reg_value,
                                                                         (inth_enable ? 1 : 0));
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL1_CTRL_ADDRESS, reg_value);
             break;
         case PLL_ID_SP_PLL_2:
             reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL2_CTRL_ADDRESS);
-            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL2_CTRL_LOCKINTR_EN_MODIFY(reg_value, 
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL2_CTRL_LOCKINTR_EN_MODIFY(reg_value,
                                                                         (inth_enable ? 1 : 0));
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL2_CTRL_ADDRESS, reg_value);
             break;
         case PLL_ID_SP_PLL_4:
             reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS);
-            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL4_CTRL_LOCKINTR_EN_MODIFY(reg_value, 
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL4_CTRL_LOCKINTR_EN_MODIFY(reg_value,
                                                                         (inth_enable ? 1 : 0));
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS, reg_value);
             break;
@@ -243,25 +244,25 @@ static int clock_manager_set_pll_loss_int_enable(PLL_ID_t pll, bool inth_enable)
     {
         case PLL_ID_SP_PLL_0:
             reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL0_CTRL_ADDRESS);
-            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL0_CTRL_LOSSINTR_EN_MODIFY(reg_value, 
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL0_CTRL_LOSSINTR_EN_MODIFY(reg_value,
                                                                         (inth_enable ? 1 : 0));
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL0_CTRL_ADDRESS, reg_value);
             break;
         case PLL_ID_SP_PLL_1:
             reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL1_CTRL_ADDRESS);
-            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL1_CTRL_LOSSINTR_EN_MODIFY(reg_value, 
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL1_CTRL_LOSSINTR_EN_MODIFY(reg_value,
                                                                         (inth_enable ? 1 : 0));
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL1_CTRL_ADDRESS, reg_value);
             break;
         case PLL_ID_SP_PLL_2:
             reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL2_CTRL_ADDRESS);
-            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL2_CTRL_LOSSINTR_EN_MODIFY(reg_value, 
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL2_CTRL_LOSSINTR_EN_MODIFY(reg_value,
                                                                         (inth_enable ? 1 : 0));
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL2_CTRL_ADDRESS, reg_value);
             break;
         case PLL_ID_SP_PLL_4:
             reg_value = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS);
-            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL4_CTRL_LOSSINTR_EN_MODIFY(reg_value, 
+            reg_value = (uint32_t)CLOCK_MANAGER_CM_PLL4_CTRL_LOSSINTR_EN_MODIFY(reg_value,
                                                                         (inth_enable ? 1 : 0));
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_PLL4_CTRL_ADDRESS, reg_value);
             break;
@@ -424,8 +425,8 @@ static int spio_pll_wait_for_lock(volatile const uint32_t *pll_registers)
         }
         --timeout;
     }
-    
-    return ERROR_SP_PLL_PLL_LOCK_TIMEOUT;  
+
+    return ERROR_SP_PLL_PLL_LOCK_TIMEOUT;
 }
 
 static int configure_pll_off(volatile uint32_t *pll_registers)
@@ -634,6 +635,9 @@ int configure_sp_pll_0(uint8_t mode)
         goto ERROR;
     }
 
+    /* Update timer to match new PLL0 setup */
+    timer_update(gs_sp_pll_0_frequency);
+
     spio_pll_clear_lock_monitor(PLL_ID_SP_PLL_0);
 
     return 0;
@@ -642,6 +646,7 @@ ERROR:
     clock_manager_pll_bypass(PLL_ID_SP_PLL_0, true);
     configure_pll_off((uint32_t *)R_SP_PLL0_BASEADDR);
     gs_sp_pll_0_frequency = 100;
+    timer_update(gs_sp_pll_0_frequency);
 
     return rv;
 }
@@ -899,7 +904,7 @@ int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency)
 void pll_lock_loss_isr(void)
 {
     uint32_t cm_pll_status = 0;
-    
+
     // Check PLL0 status
     CHECK_AND_HANDLE_PLL_STATUS(PLL_ID_SP_PLL_0, CLOCK_MANAGER_CM_PLL0_STATUS_LOSS_GET,
                                 cm_pll_0_lock_loss_count)
@@ -1002,7 +1007,7 @@ static int spio_pll_ldo_bypass(PLL_ID_t pll, volatile uint32_t *pll_registers)
     {
         for(int i = 0; i<1500; i++) __asm volatile ( " nop " );
     }
-   
+
     /* Wait for the PLL to lock within a given timeout */
     while (timeout > 0)
     {
@@ -1014,7 +1019,7 @@ static int spio_pll_ldo_bypass(PLL_ID_t pll, volatile uint32_t *pll_registers)
     }
     if (0 == timeout)
     {
-        return ERROR_SP_PLL_PLL_LOCK_TIMEOUT; 
+        return ERROR_SP_PLL_PLL_LOCK_TIMEOUT;
     }
 
     status = clock_manager_pll_bypass(pll, false);

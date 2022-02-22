@@ -23,11 +23,14 @@
  * depending on the PLL frequency
  */
 #define DIVIDER_100 10ULL // PLLs @ 100%
-#define DIVIDER_75  8ULL // PLLs @ 75%
+#define DIVIDER_75  15ULL // PLLs @ 75%
+#define MULTIPLIER_75  2ULL // PLLs @ 75%
 #define DIVIDER_50  5ULL // PLLs @ 50%
 #define DIVIDER_OFF 4ULL // PLLs off
+#define DEFAULT_MULTIPLIER 1ULL
 
 static uint32_t gs_timer_divider = DIVIDER_OFF;
+static uint32_t gs_timer_multiplier = DEFAULT_MULTIPLIER;
 static uint64_t gs_timer_raw_ticks_before_pll_turned_on = 0;
 static uint64_t gs_timer_1_MHz_ticks_before_pll_turned_on = 0;
 
@@ -36,10 +39,11 @@ uint64_t timer_get_ticks_count(void)
     uint64_t tick_count;
     tick_count = ioread64(R_SP_RVTIM_BASEADDR + RVTIMER_MTIME_ADDRESS);
     if (0 == gs_timer_raw_ticks_before_pll_turned_on) {
-        return tick_count / gs_timer_divider;
+        return tick_count * gs_timer_multiplier / gs_timer_divider;
     } else {
         return gs_timer_1_MHz_ticks_before_pll_turned_on +
-               ((tick_count - gs_timer_raw_ticks_before_pll_turned_on) / gs_timer_divider);
+               ((tick_count - gs_timer_raw_ticks_before_pll_turned_on) * gs_timer_multiplier /
+               gs_timer_divider);
     }
 }
 
@@ -54,17 +58,21 @@ void timer_init(void)
     switch (bl1_data->sp_pll0_frequency) {
     case 1000:
         gs_timer_divider = DIVIDER_100;
+        gs_timer_multiplier = DEFAULT_MULTIPLIER;
         break;
     case 750:
         gs_timer_divider = DIVIDER_75;
+        gs_timer_multiplier = MULTIPLIER_75;
         break;
     case 500:
         gs_timer_divider = DIVIDER_50;
+        gs_timer_multiplier = DEFAULT_MULTIPLIER;
         break;
 
     case 0:
     default:
         gs_timer_divider = DIVIDER_OFF;
+        gs_timer_multiplier = DEFAULT_MULTIPLIER;
         gs_timer_raw_ticks_before_pll_turned_on = 0;
         gs_timer_1_MHz_ticks_before_pll_turned_on = 0;
         break;

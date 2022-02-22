@@ -20,7 +20,7 @@
 
 /*! \fn void timer_init(uint64_t timer_raw_ticks_before_pll_turned_on, uint32_t sp_pll0_frequency)
     \brief This function configures initializes timer subsystem
-    \param timer_raw_ticks_before_pll_turned_on ticks value to wait before turing on PLL 
+    \param timer_raw_ticks_before_pll_turned_on ticks value to wait before turing on PLL
     \param sp_pll0_frequency PLL0 frequency value
     \return none
 */
@@ -32,5 +32,12 @@ void timer_init(uint64_t timer_raw_ticks_before_pll_turned_on, uint32_t sp_pll0_
     \return ticks value
 */
 uint64_t timer_get_ticks_count(void);
+
+/*! \fn void timer_update()
+    \brief This function updates timer SW dividers in order to match new PLL0 config
+    \param sp_pll0_frequency PLL0 frequency value
+    \return none
+*/
+void timer_update(uint32_t sp_pll0_frequency);
 
 #endif
