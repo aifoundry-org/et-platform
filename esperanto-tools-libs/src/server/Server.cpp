@@ -61,6 +61,6 @@ void Server::listen() {
                  << " GID: " << credentials.gid << ").";
 
     // delegate the request processing for this client to a worker
-    workers_.emplace_back(std::make_unique<Worker>(cl, *runtime_, *this, credentials));
+    workers_.emplace_back(std::make_unique<Worker>(cl, dynamic_cast<RuntimeImp&>(*runtime_), *this, credentials));
   }
 }
