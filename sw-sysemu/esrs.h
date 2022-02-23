@@ -71,6 +71,8 @@ namespace bemu {
 #define ESR_SREGION_EXT_MASK    0x01003E0000ULL
 #define ESR_SREGION_EXT_SHIFT   17
 
+// Memshire and DDRC region is defined by bit [9] (when shire ID is 232 to 239)
+#define ESR_MSREGION_MASK       0x0100000200ULL
 
 // Base addresses for the various ESR subregions
 //  * Hart ESR Region is at region [21:20] == 2'b00
@@ -87,7 +89,8 @@ namespace bemu {
 #define ESR_CACHE_REGION       0x0100300000ULL
 #define ESR_RBOX_REGION        0x0100320000ULL
 #define ESR_SHIRE_REGION       0x0100340000ULL
-#define ESR_MEMSHIRE_REGION    0x0180000000ULL
+#define ESR_MEMSHIRE_REGION    0x0100000000ULL
+#define ESR_DDRC_REGION        0x0100000200ULL
 
 // The message port subregion inside the Hart ESR region
 #define ESR_HART_PORT_ADDR_VALID(x) (((x) & 0xF38) == 0x800)
