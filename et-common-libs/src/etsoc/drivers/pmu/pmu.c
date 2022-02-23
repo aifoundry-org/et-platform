@@ -62,7 +62,7 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
         uint64_t pmc0_cfg = *(hart_sc_cfg_data+1);
         uint64_t pmc1_cfg = *(hart_sc_cfg_data+2);
 
-        ret = ret + configure_sc_pmcs(ctl_status_cfg, pmc0_cfg, pmc1_cfg);
+        ret = ret + configure_sc_pmcs(ctl_status_cfg, pmc0_cfg, pmc1_cfg, true);
     }
 
     // Shire id's 0-7 just to simplify code initialize ms-id's 0-7.
@@ -87,7 +87,7 @@ int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_buffer_addr)
 }
 
 // Must be called by only one hart in a neighborhood
-int64_t configure_sc_pmcs(uint64_t ctl_status_cfg, uint64_t pmc0_cfg, uint64_t pmc1_cfg)
+int64_t configure_sc_pmcs(uint64_t ctl_status_cfg, uint64_t pmc0_cfg, uint64_t pmc1_cfg, bool start_counters)
 {
     int64_t ret;
     uint64_t hart_id = get_hart_id();
@@ -102,6 +102,13 @@ int64_t configure_sc_pmcs(uint64_t ctl_status_cfg, uint64_t pmc0_cfg, uint64_t p
     ret = ret + pmu_shire_cache_event_configure(shire_id, neigh_id, 1, pmc1_cfg);
     // Set bits in ctl_status register that show whether we monitor events or resources.
     pmu_shire_cache_counter_set(shire_id, neigh_id, ctl_status_cfg);
+
+    if (start_counters)
+    {
+        pmu_shire_cache_counter_start(shire_id, neigh_id, PMU_SC_CYCLE_PMC);
+        pmu_shire_cache_counter_start(shire_id, neigh_id, PMU_SC_PMC0);
+        pmu_shire_cache_counter_start(shire_id, neigh_id, PMU_SC_PMC1);
+    }
 
     return ret;
 }
@@ -144,8 +151,10 @@ int64_t reset_pmcs(void)
         ret = ret + pmu_core_counter_reset(PMU_MHPMCOUNTER3 + neigh_minion_id);
     }
 
-    if (reset_sc_harts) {
-        for (uint8_t pmc = 0; pmc < 3; pmc++) {
+    if (reset_sc_harts)
+    {
+        for (uint8_t pmc = 0; pmc < 3; pmc++)
+        {
             pmu_shire_cache_counter_reset(shire_id, neigh_id, pmc);
         }
     }

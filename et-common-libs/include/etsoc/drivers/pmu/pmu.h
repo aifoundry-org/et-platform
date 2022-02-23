@@ -19,6 +19,7 @@ extern "C" {
 
 
 #include "etsoc/isa/esr_defines.h"
+#include "stdbool.h"
 // PMU support: Defines and basic API
 
 typedef uint8_t hpm_counter_e;
@@ -167,6 +168,7 @@ enum hpm_counter {
 // SC default config values
 #define PMU_SC_CTL_STATUS_MASK 0x200100 /* Enables p0 and p1 counters in event mode 0 */
 #define PMU_SC_L2_READS        0x4250
+#define PMU_SC_L2_WRITES       0xBFF0
 #define PMU_SC_MSG_SEND        0x4
 
 // MS default config values
@@ -365,16 +367,25 @@ static inline void pmu_shire_cache_counter_set(uint64_t shire_id, uint64_t b, ui
 }
 
 // Reset a shire cache PMC
+// It directly sets the counter value to zero. It does not make use of reset bit in ESR control register
+// because to take affect it needs to start the counter
 static inline void pmu_shire_cache_counter_reset(uint64_t shire_id, uint64_t b, uint64_t pmc)
 {
-    uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
-    uint64_t init_val = *sc_bank_perfctrl_addr;
-    if (pmc == PMU_SC_CYCLE_PMC) {
-        *sc_bank_perfctrl_addr = init_val | PMU_SC_RESET_CYCLE_CNT_CTRL;
-    } else if (pmc == PMU_SC_PMC0) {
-        *sc_bank_perfctrl_addr = init_val | PMU_SC_RESET_P0_CTRL;
-    } else if (pmc == PMU_SC_PMC1) {
-        *sc_bank_perfctrl_addr = init_val | PMU_SC_RESET_P1_CTRL;
+    uint64_t *sc_bank_pmc_addr = 0;
+    if (pmc == PMU_SC_CYCLE_PMC)
+    {
+        sc_bank_pmc_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CYC_CNTR);
+        *sc_bank_pmc_addr = 0;
+    }
+    else if (pmc == PMU_SC_PMC0)
+    {
+        sc_bank_pmc_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_P0_CNTR);
+        *sc_bank_pmc_addr = 0;
+    }
+    else if (pmc == PMU_SC_PMC1)
+    {
+        sc_bank_pmc_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_P1_CNTR);
+        *sc_bank_pmc_addr = 0;
     }
 }
 
@@ -516,9 +527,9 @@ static inline uint64_t pmu_memshire_event_sample(uint64_t ms_id, uint64_t pmc)
 
 // NOTE: THIS IS DEPRECATED
 int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_area_addr);
-int64_t configure_sc_pmcs(uint64_t ctl_status_cfg, uint64_t pmc0_cfg, uint64_t pmc1_cfg);
-int64_t configure_ms_pmcs(uint64_t ctl_status_cfg, uint64_t ddrc_perfmon_p0_qual, uint64_t ddrc_perfmon_p1_qual,
-    uint64_t ddrc_perfmon_p0_qual2, uint64_t ddrc_perfmon_p1_qual2);
+int64_t configure_sc_pmcs(uint64_t ctl_status_cfg, uint64_t pmc0_cfg, uint64_t pmc1_cfg, bool start_counters);
+int64_t configure_ms_pmcs(uint64_t ctl_status_cfg, uint64_t ddrc_perfmon_p0_qual,
+    uint64_t ddrc_perfmon_p1_qual, uint64_t ddrc_perfmon_p0_qual2, uint64_t ddrc_perfmon_p1_qual2);
 int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr);
 uint64_t sample_sc_pmcs(uint64_t pmc);
 uint64_t sample_ms_pmcs(uint64_t pmc);
