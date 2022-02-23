@@ -30,7 +30,7 @@ class EsperantoTestKenelsConan(ConanFile):
     def configure(self):
         del self.settings.compiler.libcxx
         del self.settings.compiler.cppstd
-    
+
     def requirements(self):
         self.requires("esperantoTrace/0.1.0")
         self.requires("et-common-libs/0.0.3")
@@ -40,7 +40,7 @@ class EsperantoTestKenelsConan(ConanFile):
 
     def build_requirements(self):
         self.build_requires("cmake-modules/[>=0.4.1 <1.0.0]")
-    
+
     def validate(self):
         if self.settings.arch != "rv64":
             raise ConanInvalidConfiguration("Cross-compiling to arch {} is not supported".format(self.settings.arch))
@@ -59,7 +59,7 @@ class EsperantoTestKenelsConan(ConanFile):
             ut = dep.conf_info["tools.cmake.cmaketoolchain:user_toolchain"]
             if ut:
                 user_toolchains.append(ut)
-        
+
         tc = CMakeToolchain(self)
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies.build["cmake-modules"].package_folder, "cmake")
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
@@ -67,19 +67,19 @@ class EsperantoTestKenelsConan(ConanFile):
         if user_toolchains:
             self.output.info("Applying user_toolchains: %s" % user_toolchains)
             tc.blocks["user_toolchain"].values["paths"] = user_toolchains
-        
+
         tc.generate()
 
     def build(self):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-    
+
     def package(self):
         cmake = CMake(self)
         cmake.install()
         tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
-    
+
         build_modules_folder = os.path.join(self.package_folder, "lib", "cmake")
         os.makedirs(build_modules_folder)
         build_module_path = os.path.join(build_modules_folder, "conan-{}-{}.cmake".format(self.name, "deprecated-vars"))
@@ -97,7 +97,7 @@ class EsperantoTestKenelsConan(ConanFile):
 
     def package_info(self):
         self.cpp_info.set_property("cmake_file_name", "EsperantoTestKernels")
-    
+
         build_modules = []
         build_modules.append(os.path.join("lib", "cmake", "conan-{}-{}.cmake".format(self.name, "deprecated-vars")))
         self.cpp_info.set_property("cmake_build_modules", build_modules)

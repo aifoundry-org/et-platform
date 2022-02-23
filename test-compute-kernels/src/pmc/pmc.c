@@ -3,6 +3,7 @@
 #include <etsoc/common/utils.h>
 #include <trace/trace_umode.h>
 #include <etsoc/isa/cacheops-umode.h>
+#include <etsoc/isa/atomic.h>
 #include "etsoc/isa/hart.h"
 
 /* Define base addresses for memory operations to generate shire cache and memory shire events.
@@ -38,13 +39,16 @@ int64_t main(void)
         }
         et_trace_pmc_compute(hart_id);
 
-        /* PMC Shire Cache test for L2_MISS_REQ, PMU_SC_L2_READS, and ICACHE_ETLINK_REQ:
-           Read from U-mode range memory address, which is not in L1 cache.
-           L2_MISS_REQ, PMU_SC_L2_READS, and ICACHE_ETLINK_REQ should at least be incremented by one. */
+        /* PMC Shire Cache test for L2_MISS_REQ, PMU_SC_L2_READS, PMU_SC_L2_WRITES,
+           and ICACHE_ETLINK_REQ:
+           DO atomic load and store from L2 cache from U-mode range memory address.
+           L2_MISS_REQ, PMU_SC_L2_READS, PMU_SC_L2_WRITES, and ICACHE_ETLINK_REQ should at least be incremented by one. */
         et_printf("PMC Shire Cache, L2_MISS_REQ, and ICACHE_ETLINK_REQ.\n\r");
         et_trace_pmc_memory(hart_id);
         et_trace_pmc_compute(hart_id);
-        et_memcpy(GET_NEIGH_BASE(SC_BASE_DEST, neigh_index), GET_NEIGH_BASE(SC_BASE_SRC, neigh_index), TEST_DATA_SIZE);
+        uint64_t data = atomic_load_local_64(GET_NEIGH_BASE(SC_BASE_SRC, neigh_index));
+        data += 1;
+        atomic_store_local_64(GET_NEIGH_BASE(SC_BASE_DEST, neigh_index), data);
         et_trace_pmc_compute(hart_id);
         et_trace_pmc_memory(hart_id);
 
