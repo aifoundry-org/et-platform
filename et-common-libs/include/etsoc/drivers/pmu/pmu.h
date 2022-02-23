@@ -17,7 +17,6 @@
 extern "C" {
 #endif
 
-
 #include "etsoc/isa/esr_defines.h"
 #include "stdbool.h"
 // PMU support: Defines and basic API
@@ -34,10 +33,10 @@ enum hpm_counter {
 };
 
 // ETSoC-1 PMU hardware
-#define PMU_FIRST_HPM      3
-#define PMU_LAST_CORE_HPM  6
-#define PMU_LAST_HPM       8
-#define PMU_NR_HPM         (PMU_LAST_HPM - PMU_FIRST_HPM + 1)
+#define PMU_FIRST_HPM     3
+#define PMU_LAST_CORE_HPM 6
+#define PMU_LAST_HPM      8
+#define PMU_NR_HPM        (PMU_LAST_HPM - PMU_FIRST_HPM + 1)
 
 // User-Level CSRs :: Counters/Timers
 #define PMU_USER_CYCLE   0xC00ULL
@@ -73,7 +72,7 @@ enum hpm_counter {
 #define PMU_SC_COUNTERS_PER_BANK     3
 #define PMU_EVENT_SHIRE_AREA \
     (PMU_MINION_COUNTERS_PER_HART * 2 + PMU_NEIGH_COUNTERS_PER_HART * 2 + PMU_SC_COUNTERS_PER_BANK)
-#define NUM_SHIRES_PMC 33
+#define NUM_SHIRES_PMC            33
 #define PMU_EVENT_MEMSHIRE_OFFSET (PMU_EVENT_SHIRE_AREA * NUM_SHIRES_PMC)
 #define PMU_MS_COUNTERS_PER_MS    5
 
@@ -88,9 +87,9 @@ enum hpm_counter {
 // This could be moved in the configuration buffer but we need to add support for
 // overflows, etc in the firmware in that case.
 #define PMU_SC_START_ALL_CTRL_VAL 0x00060033ULL
-#define PMU_SC_STOP_ALL_CTRL_VAL ~PMU_SC_START_ALL_CTRL_VAL
+#define PMU_SC_STOP_ALL_CTRL_VAL  ~PMU_SC_START_ALL_CTRL_VAL
 #define PMU_MS_START_ALL_CTRL_VAL 0x00060033ULL
-#define PMU_MS_STOP_ALL_CTRL_VAL ~PMU_MS_START_ALL_CTRL_VAL
+#define PMU_MS_STOP_ALL_CTRL_VAL  ~PMU_MS_START_ALL_CTRL_VAL
 
 #define PMU_SC_START_CYCLE_CNT_CTRL (0x1ULL << 0)
 #define PMU_SC_START_P0_CTRL        (0x1ULL << 4)
@@ -165,7 +164,7 @@ enum hpm_counter {
 #define PMU_NEIGH_EVENT_BANK_UC_FIFO_PUSH_ETLINK_REQ 22
 #define PMU_NEIGH_EVENT_SC_UC_ETLINK_RSP             23
 
-// SC default config values
+/* SC default config values. These values are Hardware ESRs of PMC component. */
 #define PMU_SC_CTL_STATUS_MASK 0x200100 /* Enables p0 and p1 counters in event mode 0 */
 #define PMU_SC_L2_READS        0x4250
 #define PMU_SC_L2_WRITES       0xBFF0
@@ -190,39 +189,40 @@ enum hpm_counter {
 // Configure a core (minion and neighborhood) event counter
 static inline int64_t pmu_core_event_configure(uint64_t evt_reg, uint64_t evt)
 {
-    switch (evt_reg) {
-    case PMU_MHPMEVENT3:
-        __asm__ __volatile__("csrw %[csr], %[event]\n"
-                             :
-                             : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT3));
-        break;
-    case PMU_MHPMEVENT4:
-        __asm__ __volatile__("csrw %[csr], %[event]\n"
-                             :
-                             : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT4));
-        break;
-    case PMU_MHPMEVENT5:
-        __asm__ __volatile__("csrw %[csr], %[event]\n"
-                             :
-                             : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT5));
-        break;
-    case PMU_MHPMEVENT6:
-        __asm__ __volatile__("csrw %[csr], %[event]\n"
-                             :
-                             : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT6));
-        break;
-    case PMU_MHPMEVENT7:
-        __asm__ __volatile__("csrw %[csr], %[event]\n"
-                             :
-                             : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT7));
-        break;
-    case PMU_MHPMEVENT8:
-        __asm__ __volatile__("csrw %[csr], %[event]\n"
-                             :
-                             : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT8));
-        break;
-    default:
-        return -1;
+    switch (evt_reg)
+    {
+        case PMU_MHPMEVENT3:
+            __asm__ __volatile__("csrw %[csr], %[event]\n"
+                                 :
+                                 : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT3));
+            break;
+        case PMU_MHPMEVENT4:
+            __asm__ __volatile__("csrw %[csr], %[event]\n"
+                                 :
+                                 : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT4));
+            break;
+        case PMU_MHPMEVENT5:
+            __asm__ __volatile__("csrw %[csr], %[event]\n"
+                                 :
+                                 : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT5));
+            break;
+        case PMU_MHPMEVENT6:
+            __asm__ __volatile__("csrw %[csr], %[event]\n"
+                                 :
+                                 : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT6));
+            break;
+        case PMU_MHPMEVENT7:
+            __asm__ __volatile__("csrw %[csr], %[event]\n"
+                                 :
+                                 : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT7));
+            break;
+        case PMU_MHPMEVENT8:
+            __asm__ __volatile__("csrw %[csr], %[event]\n"
+                                 :
+                                 : [event] "r"(evt), [csr] "i"(PMU_MHPMEVENT8));
+            break;
+        default:
+            return -1;
     }
     return 0;
 }
@@ -230,39 +230,40 @@ static inline int64_t pmu_core_event_configure(uint64_t evt_reg, uint64_t evt)
 // Write to core (minion and neighborhood) event counter
 static inline int64_t pmu_core_counter_write(uint64_t pmc, uint64_t val)
 {
-    switch (pmc) {
-    case PMU_MHPMCOUNTER3:
-        __asm__ __volatile__("csrw %[csr], %[init]\n"
-                             :
-                             : [init] "r"(val), [csr] "i"(PMU_MHPMCOUNTER3));
-        break;
-    case PMU_MHPMCOUNTER4:
-        __asm__ __volatile__("csrw %[csr], %[init]\n"
-                             :
-                             : [init] "r"(val), [csr] "i"(PMU_MHPMCOUNTER4));
-        break;
-    case PMU_MHPMCOUNTER5:
-        __asm__ __volatile__("csrw %[csr], %[init]\n"
-                             :
-                             : [init] "r"(val), [csr] "i"(PMU_MHPMCOUNTER5));
-        break;
-    case PMU_MHPMCOUNTER6:
-        __asm__ __volatile__("csrw %[csr], %[init]\n"
-                             :
-                             : [init] "r"(val), [csr] "i"(PMU_MHPMCOUNTER6));
-        break;
-    case PMU_MHPMCOUNTER7:
-        __asm__ __volatile__("csrw %[csr], %[init]\n"
-                             :
-                             : [init] "r"(val), [csr] "i"(PMU_MHPMCOUNTER7));
-        break;
-    case PMU_MHPMCOUNTER8:
-        __asm__ __volatile__("csrw %[csr], %[init]\n"
-                             :
-                             : [init] "r"(val), [csr] "i"(PMU_MHPMCOUNTER8));
-        break;
-    default:
-        return -1;
+    switch (pmc)
+    {
+        case PMU_MHPMCOUNTER3:
+            __asm__ __volatile__("csrw %[csr], %[init]\n"
+                                 :
+                                 : [init] "r"(val), [csr] "i"(PMU_MHPMCOUNTER3));
+            break;
+        case PMU_MHPMCOUNTER4:
+            __asm__ __volatile__("csrw %[csr], %[init]\n"
+                                 :
+                                 : [init] "r"(val), [csr] "i"(PMU_MHPMCOUNTER4));
+            break;
+        case PMU_MHPMCOUNTER5:
+            __asm__ __volatile__("csrw %[csr], %[init]\n"
+                                 :
+                                 : [init] "r"(val), [csr] "i"(PMU_MHPMCOUNTER5));
+            break;
+        case PMU_MHPMCOUNTER6:
+            __asm__ __volatile__("csrw %[csr], %[init]\n"
+                                 :
+                                 : [init] "r"(val), [csr] "i"(PMU_MHPMCOUNTER6));
+            break;
+        case PMU_MHPMCOUNTER7:
+            __asm__ __volatile__("csrw %[csr], %[init]\n"
+                                 :
+                                 : [init] "r"(val), [csr] "i"(PMU_MHPMCOUNTER7));
+            break;
+        case PMU_MHPMCOUNTER8:
+            __asm__ __volatile__("csrw %[csr], %[init]\n"
+                                 :
+                                 : [init] "r"(val), [csr] "i"(PMU_MHPMCOUNTER8));
+            break;
+        default:
+            return -1;
     }
     return 0;
 }
@@ -274,39 +275,40 @@ static inline int64_t pmu_core_counter_write(uint64_t pmc, uint64_t val)
 static inline uint64_t pmu_core_counter_read_priv(uint64_t pmc)
 {
     uint64_t val = 0;
-    switch (pmc) {
-    case PMU_MHPMCOUNTER3:
-        __asm__ __volatile__("csrr %[res], %[csr]\n"
-                             : [res] "=r"(val)
-                             : [csr] "i"(PMU_MHPMCOUNTER3));
-        break;
-    case PMU_MHPMCOUNTER4:
-        __asm__ __volatile__("csrr %[res], %[csr]\n"
-                             : [res] "=r"(val)
-                             : [csr] "i"(PMU_MHPMCOUNTER4));
-        break;
-    case PMU_MHPMCOUNTER5:
-        __asm__ __volatile__("csrr %[res], %[csr]\n"
-                             : [res] "=r"(val)
-                             : [csr] "i"(PMU_MHPMCOUNTER5));
-        break;
-    case PMU_MHPMCOUNTER6:
-        __asm__ __volatile__("csrr %[res], %[csr]\n"
-                             : [res] "=r"(val)
-                             : [csr] "i"(PMU_MHPMCOUNTER6));
-        break;
-    case PMU_MHPMCOUNTER7:
-        __asm__ __volatile__("csrr %[res], %[csr]\n"
-                             : [res] "=r"(val)
-                             : [csr] "i"(PMU_MHPMCOUNTER7));
-        break;
-    case PMU_MHPMCOUNTER8:
-        __asm__ __volatile__("csrr %[res], %[csr]\n"
-                             : [res] "=r"(val)
-                             : [csr] "i"(PMU_MHPMCOUNTER8));
-        break;
-    default:
-        return PMU_INCORRECT_COUNTER;
+    switch (pmc)
+    {
+        case PMU_MHPMCOUNTER3:
+            __asm__ __volatile__("csrr %[res], %[csr]\n"
+                                 : [res] "=r"(val)
+                                 : [csr] "i"(PMU_MHPMCOUNTER3));
+            break;
+        case PMU_MHPMCOUNTER4:
+            __asm__ __volatile__("csrr %[res], %[csr]\n"
+                                 : [res] "=r"(val)
+                                 : [csr] "i"(PMU_MHPMCOUNTER4));
+            break;
+        case PMU_MHPMCOUNTER5:
+            __asm__ __volatile__("csrr %[res], %[csr]\n"
+                                 : [res] "=r"(val)
+                                 : [csr] "i"(PMU_MHPMCOUNTER5));
+            break;
+        case PMU_MHPMCOUNTER6:
+            __asm__ __volatile__("csrr %[res], %[csr]\n"
+                                 : [res] "=r"(val)
+                                 : [csr] "i"(PMU_MHPMCOUNTER6));
+            break;
+        case PMU_MHPMCOUNTER7:
+            __asm__ __volatile__("csrr %[res], %[csr]\n"
+                                 : [res] "=r"(val)
+                                 : [csr] "i"(PMU_MHPMCOUNTER7));
+            break;
+        case PMU_MHPMCOUNTER8:
+            __asm__ __volatile__("csrr %[res], %[csr]\n"
+                                 : [res] "=r"(val)
+                                 : [csr] "i"(PMU_MHPMCOUNTER8));
+            break;
+        default:
+            return PMU_INCORRECT_COUNTER;
     }
     return val;
 }
@@ -344,15 +346,20 @@ static inline uint64_t pmu_core_counter_read_unpriv(hpm_counter_e pmc)
 }
 
 // Configure an event for a shire cache perf counter
-static inline int64_t pmu_shire_cache_event_configure(uint64_t shire_id, uint64_t b, uint64_t evt_reg,
-                                         uint64_t val)
+static inline int64_t pmu_shire_cache_event_configure(
+    uint64_t shire_id, uint64_t b, uint64_t evt_reg, uint64_t val)
 {
     uint64_t *sc_bank_qualevt_addr = 0;
-    if (evt_reg == 0) {
+    if (evt_reg == 0)
+    {
         sc_bank_qualevt_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_P0_QUAL);
-    } else if (evt_reg == 1) {
+    }
+    else if (evt_reg == 1)
+    {
         sc_bank_qualevt_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_P1_QUAL);
-    } else {
+    }
+    else
+    {
         return -1;
     }
     *sc_bank_qualevt_addr = val;
@@ -394,11 +401,16 @@ static inline void pmu_shire_cache_counter_start(uint64_t shire_id, uint64_t b, 
 {
     uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
     uint64_t init_val = *sc_bank_perfctrl_addr;
-    if (pmc == PMU_SC_CYCLE_PMC) {
+    if (pmc == PMU_SC_CYCLE_PMC)
+    {
         *sc_bank_perfctrl_addr = init_val | PMU_SC_START_CYCLE_CNT_CTRL;
-    } else if (pmc == PMU_SC_PMC0) {
+    }
+    else if (pmc == PMU_SC_PMC0)
+    {
         *sc_bank_perfctrl_addr = init_val | PMU_SC_START_P0_CTRL;
-    } else if (pmc == PMU_SC_PMC1) {
+    }
+    else if (pmc == PMU_SC_PMC1)
+    {
         *sc_bank_perfctrl_addr = init_val | PMU_SC_START_P1_CTRL;
     }
 }
@@ -408,11 +420,16 @@ static inline void pmu_shire_cache_counter_stop(uint64_t shire_id, uint64_t b, u
 {
     uint64_t *sc_bank_perfctrl_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CTL_STATUS);
     uint64_t init_val = *sc_bank_perfctrl_addr;
-    if (pmc == PMU_SC_CYCLE_PMC) {
+    if (pmc == PMU_SC_CYCLE_PMC)
+    {
         *sc_bank_perfctrl_addr = init_val & ~PMU_SC_START_CYCLE_CNT_CTRL;
-    } else if (pmc == PMU_SC_PMC0) {
+    }
+    else if (pmc == PMU_SC_PMC0)
+    {
         *sc_bank_perfctrl_addr = init_val & ~PMU_SC_START_P0_CTRL;
-    } else if (pmc == PMU_SC_PMC1) {
+    }
+    else if (pmc == PMU_SC_PMC1)
+    {
         *sc_bank_perfctrl_addr = init_val & ~PMU_SC_START_P1_CTRL;
     }
 }
@@ -422,13 +439,20 @@ static inline uint64_t pmu_shire_cache_counter_sample(uint64_t shire_id, uint64_
 {
     uint64_t val = 0;
     uint64_t *sc_bank_pmc_addr = 0;
-    if (pmc == PMU_SC_CYCLE_PMC) {
+    if (pmc == PMU_SC_CYCLE_PMC)
+    {
         sc_bank_pmc_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_CYC_CNTR);
-    } else if (pmc == PMU_SC_PMC0) {
+    }
+    else if (pmc == PMU_SC_PMC0)
+    {
         sc_bank_pmc_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_P0_CNTR);
-    } else if (pmc == PMU_SC_PMC1) {
+    }
+    else if (pmc == PMU_SC_PMC1)
+    {
         sc_bank_pmc_addr = (uint64_t *)ESR_CACHE(shire_id, b, SC_PERFMON_P1_CNTR);
-    } else {
+    }
+    else
+    {
         return PMU_INCORRECT_COUNTER;
     }
     val = *sc_bank_pmc_addr;
@@ -439,15 +463,24 @@ static inline uint64_t pmu_shire_cache_counter_sample(uint64_t shire_id, uint64_
 static inline int64_t pmu_memshire_event_configure(uint64_t ms_id, uint64_t evt_reg, uint64_t val)
 {
     uint64_t *ms_pmc_ctrl_addr = 0;
-    if (evt_reg == 0) {
+    if (evt_reg == 0)
+    {
         ms_pmc_ctrl_addr = (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_P0_QUAL);
-    } else if (evt_reg == 1) {
+    }
+    else if (evt_reg == 1)
+    {
         ms_pmc_ctrl_addr = (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_P1_QUAL);
-    } else if (evt_reg == 2) {
+    }
+    else if (evt_reg == 2)
+    {
         ms_pmc_ctrl_addr = (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_P0_QUAL2);
-    } else if (evt_reg == 3) {
+    }
+    else if (evt_reg == 3)
+    {
         ms_pmc_ctrl_addr = (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_P1_QUAL2);
-    } else {
+    }
+    else
+    {
         return -1;
     }
     *ms_pmc_ctrl_addr = val;
@@ -468,11 +501,16 @@ static inline void pmu_memshire_event_reset(uint64_t ms_id, uint64_t pmc)
     uint64_t *ms_pmc_ctrl_addr =
         (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
     uint64_t init_val = *ms_pmc_ctrl_addr;
-    if (pmc == PMU_MS_CYCLE_PMC) {
+    if (pmc == PMU_MS_CYCLE_PMC)
+    {
         *ms_pmc_ctrl_addr = init_val | PMU_MS_RESET_CYCLE_CNT_CTRL;
-    } else if (pmc == PMU_MS_PMC0) {
+    }
+    else if (pmc == PMU_MS_PMC0)
+    {
         *ms_pmc_ctrl_addr = init_val | PMU_MS_RESET_P0_CTRL;
-    } else if (pmc == PMU_MS_PMC1) {
+    }
+    else if (pmc == PMU_MS_PMC1)
+    {
         *ms_pmc_ctrl_addr = init_val | PMU_MS_RESET_P1_CTRL;
     }
 }
@@ -483,11 +521,16 @@ static inline void pmu_memshire_event_start(uint64_t ms_id, uint64_t pmc)
     uint64_t *ms_pmc_ctrl_addr =
         (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
     uint64_t init_val = *ms_pmc_ctrl_addr;
-    if (pmc == PMU_MS_CYCLE_PMC) {
+    if (pmc == PMU_MS_CYCLE_PMC)
+    {
         *ms_pmc_ctrl_addr = init_val | PMU_MS_START_CYCLE_CNT_CTRL;
-    } else if (pmc == PMU_MS_PMC0) {
+    }
+    else if (pmc == PMU_MS_PMC0)
+    {
         *ms_pmc_ctrl_addr = init_val | PMU_MS_START_P0_CTRL;
-    } else if (pmc == PMU_MS_PMC1) {
+    }
+    else if (pmc == PMU_MS_PMC1)
+    {
         *ms_pmc_ctrl_addr = init_val | PMU_MS_START_P1_CTRL;
     }
 }
@@ -498,11 +541,16 @@ static inline void pmu_memshire_event_stop(uint64_t ms_id, uint64_t pmc)
     uint64_t *ms_pmc_ctrl_addr =
         (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
     uint64_t init_val = *ms_pmc_ctrl_addr;
-    if (pmc == PMU_MS_CYCLE_PMC) {
+    if (pmc == PMU_MS_CYCLE_PMC)
+    {
         *ms_pmc_ctrl_addr = init_val & ~PMU_MS_START_CYCLE_CNT_CTRL;
-    } else if (pmc == PMU_MS_PMC0) {
+    }
+    else if (pmc == PMU_MS_PMC0)
+    {
         *ms_pmc_ctrl_addr = init_val & ~PMU_MS_START_P0_CTRL;
-    } else if (pmc == PMU_MS_PMC1) {
+    }
+    else if (pmc == PMU_MS_PMC1)
+    {
         *ms_pmc_ctrl_addr = init_val & ~PMU_MS_START_P1_CTRL;
     }
 }
@@ -512,13 +560,20 @@ static inline uint64_t pmu_memshire_event_sample(uint64_t ms_id, uint64_t pmc)
 {
     uint64_t val = 0;
     uint64_t *ms_pmc_addr = 0;
-    if (pmc == PMU_MS_CYCLE_PMC) {
+    if (pmc == PMU_MS_CYCLE_PMC)
+    {
         ms_pmc_addr = (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CYC_CNTR);
-    } else if (pmc == PMU_MS_PMC0) {
+    }
+    else if (pmc == PMU_MS_PMC0)
+    {
         ms_pmc_addr = (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_P0_CNTR);
-    } else if (pmc == PMU_MS_PMC1) {
+    }
+    else if (pmc == PMU_MS_PMC1)
+    {
         ms_pmc_addr = (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_P1_CNTR);
-    } else {
+    }
+    else
+    {
         return PMU_INCORRECT_COUNTER;
     }
     val = *ms_pmc_addr;
@@ -527,7 +582,7 @@ static inline uint64_t pmu_memshire_event_sample(uint64_t ms_id, uint64_t pmc)
 
 // NOTE: THIS IS DEPRECATED
 int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_area_addr);
-int64_t configure_sc_pmcs(uint64_t ctl_status_cfg, uint64_t pmc0_cfg, uint64_t pmc1_cfg, bool start_counters);
+int64_t configure_sc_pmcs(uint64_t ctl_status_cfg, uint64_t pmc0_cfg, uint64_t pmc1_cfg);
 int64_t configure_ms_pmcs(uint64_t ctl_status_cfg, uint64_t ddrc_perfmon_p0_qual,
     uint64_t ddrc_perfmon_p1_qual, uint64_t ddrc_perfmon_p0_qual2, uint64_t ddrc_perfmon_p1_qual2);
 int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr);
@@ -545,7 +600,8 @@ be improved */
     \brief A function to get current minion cycles based on PMC Counter 3 which
     setup by default to count the Minion cycles
 */
-static inline uint64_t PMC_Get_Current_Cycles(void)  {
+static inline uint64_t PMC_Get_Current_Cycles(void)
+{
     uint64_t val;
     __asm__ __volatile__("csrr %0, hpmcounter3\n" : "=r"(val));
     return val;
@@ -556,7 +612,6 @@ static inline uint64_t PMC_Get_Current_Cycles(void)  {
     minus start_cycle(argument)
 */
 #define PMC_GET_LATENCY(x) (uint32_t)(PMC_Get_Current_Cycles() - x)
-
 
 #ifdef __cplusplus
 }
