@@ -2,9 +2,9 @@ from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
 from conans import tools
 from conans.errors import ConanInvalidConfiguration
-import textwrap
 import os
 import re
+
 
 class EtCommonLibsConan(ConanFile):
     name = "et-common-libs"
@@ -37,6 +37,8 @@ class EtCommonLibsConan(ConanFile):
     }
     generators = "CMakeDeps"
 
+    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
+
     def set_version(self):
         content = tools.load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
         version = re.search(r"set\(PROJECT_VERSION (.*)\)", content).group(1)
@@ -55,7 +57,10 @@ class EtCommonLibsConan(ConanFile):
            self.options.with_mm_rt_svcs or \
            self.options.with_cm_rt_svcs:
            self.requires("etsoc_hal/0.1.0")
-
+    
+    def package_id(self):
+        self.python_requires["conan-common"].module.x86_64_compatible(self)
+    
     def validate(self):
         if self.settings.arch != "rv64":
             raise ConanInvalidConfiguration("Cross-compiling to arch %s is not supported" % self.settings.arch)
