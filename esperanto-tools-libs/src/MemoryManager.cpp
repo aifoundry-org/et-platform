@@ -192,6 +192,7 @@ void MemoryManager::addChunk(FreeChunk chunk) {
 }
 
 void MemoryManager::checkOperation(const std::byte* address, size_t size) const {
+  return;
   auto addressU = reinterpret_cast<uint64_t>(address);
   auto blockSize = 1U << blockSizeLog2_;
   auto numBlocks = (addressU % blockSize + size + blockSize - 1) / blockSize;
@@ -221,6 +222,7 @@ void MemoryManager::setDebugMode(bool enabled) {
 }
 
 void MemoryManager::free(std::byte* ptr) {
+  RT_LOG(INFO) << "Free at device address: " << ptr;
   auto tmp = compressPointer(ptr);
   auto it = allocated_.find(tmp);
   if (it == allocated_.end()) {
@@ -277,8 +279,8 @@ std::byte* MemoryManager::malloc(size_t size, uint32_t alignment) {
   addr += missAlignment;
   allocated_.insert({addr, countBlocks});
 
-  RT_DLOG(INFO) << "Malloc at device address: " << std::hex << uncompressPointer(addr)
-                << " compressed pointer (not address): " << addr;
+  RT_LOG(INFO) << "Malloc at device address: " << std::hex << uncompressPointer(addr)
+               << " compressed pointer (not address): " << addr;
   if (debugMode_) {
     sanityCheck();
   }
