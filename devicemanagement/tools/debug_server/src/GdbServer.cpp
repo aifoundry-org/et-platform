@@ -444,8 +444,17 @@ void GdbServer::rspContinue() {
 //! @param[in] except  The exception to use (if any)
 //-----------------------------------------------------------------------------
 void GdbServer::rspContinue(uint32_t addr, uint32_t except) {
+ 
   mdi->unstall();
   targetStopped = false;
+
+  // Wait and process a possible halt request
+  if(RSP_BREAK_CHAR == rsp->getRspChar()) {
+    mdi->stall();
+    targetStopped = true;
+    pkt->packStr("S05");
+    rsp->putPkt(pkt);
+  }
 }  // rspContinue ()
 
 //-----------------------------------------------------------------------------
