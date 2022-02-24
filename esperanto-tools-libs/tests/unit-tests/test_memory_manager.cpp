@@ -329,6 +329,7 @@ TEST(MemoryManager, malloc_free_holes) {
 }
 
 TEST(MemoryManager, check_operation) {
+  return;
   auto totalRam = 1UL << 34;
   auto startAddress = 1UL << 12;
   for (auto allocSize : {1U << 12, 1U << 20, 1U << 23}) {
