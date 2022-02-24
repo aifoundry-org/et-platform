@@ -4,9 +4,6 @@ from conans import tools
 from conans.errors import ConanInvalidConfiguration
 import textwrap
 import os
-import re
-
-
 
 
 class EsperantoBootLoadersConan(ConanFile):
@@ -30,15 +27,12 @@ class EsperantoBootLoadersConan(ConanFile):
     }
     generators = "CMakeDeps"
 
-    python_requires = "conan-common/[>=0.3.0 <1.0.0]"
+    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
 
     def set_version(self):
-        content = tools.load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
-        version = re.search(r"project\(EsperantoBootLoader VERSION \s*([\d.]+)", content).group(1)
-        self.version = version.strip()
-    
+        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "EsperantoBootLoader")
+
     def configure(self):
-        # et-common-libs is a C library, doesn't depend on any C++ standard library
         del self.settings.compiler.libcxx
         del self.settings.compiler.cppstd
 
@@ -54,8 +48,11 @@ class EsperantoBootLoadersConan(ConanFile):
         self.requires("et-common-libs/0.0.3")
         self.requires("device-minion-runtime/0.0.1")
     
-        # declare as build_requires once https://github.com/conan-io/conan/issues/10544 is fixed
-        self.requires("cmake-modules/[>=0.4.1 <1.0.0]")
+    def package_id(self):
+        self.python_requires["conan-common"].module.x86_64_compatible(self)
+    
+    def build_requirements(self):
+        self.build_requires("cmake-modules/[>=0.4.1 <1.0.0]")
     
     def validate(self):
         if self.settings.arch != "rv64":
@@ -85,7 +82,7 @@ class EsperantoBootLoadersConan(ConanFile):
 
         tc.variables["ENABLE_WARNINGS_AS_ERRORS"] = self.options.warnings_as_errors
         tc.variables["BUILD_DOC"] = False
-        tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies["cmake-modules"].package_folder, "cmake")
+        tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies.build["cmake-modules"].package_folder, "cmake")
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
 
         if user_toolchains:
@@ -128,14 +125,14 @@ class EsperantoBootLoadersConan(ConanFile):
                 f.write(textwrap.dedent("""\
                     if(NOT TARGET EsperantoBootLoader::{exec})
                         if(CMAKE_CROSSCOMPILING)
-                            find_program(ESPERANTO_BOOTLOADER_PROGRAM et-bootloader-{exec} PATHS ENV PATH NO_DEFAULT_PATH)
+                            find_program(ESPERANTO_BOOTLOADER_{exec}_PROGRAM et-bootloader-{exec} PATHS ENV PATH NO_DEFAULT_PATH)
                         endif()
-                        if(NOT ESPERANTO_BOOTLOADER_PROGRAM)
-                            set(ESPERANTO_BOOTLOADER_PROGRAM "${{CMAKE_CURRENT_LIST_DIR}}/../../lib/esperanto-fw/{exec_dir}/{exec}")
+                        if(NOT ESPERANTO_BOOTLOADER_{exec}_PROGRAM)
+                            set(ESPERANTO_BOOTLOADER_{exec}_PROGRAM "${{CMAKE_CURRENT_LIST_DIR}}/../../lib/esperanto-fw/{exec_dir}/{exec}")
                         endif()
-                        get_filename_component(ESPERANTO_BOOTLOADER_PROGRAM "${{ESPERANTO_BOOTLOADER_PROGRAM}}" ABSOLUTE)
+                        get_filename_component(ESPERANTO_BOOTLOADER_{exec}_PROGRAM "${{ESPERANTO_BOOTLOADER_{exec}_PROGRAM}}" ABSOLUTE)
                         add_executable(EsperantoBootLoader::{exec} IMPORTED)
-                        set_property(TARGET EsperantoBootLoader::{exec} PROPERTY IMPORTED_LOCATION ${{ESPERANTO_BOOTLOADER_PROGRAM}})
+                        set_property(TARGET EsperantoBootLoader::{exec} PROPERTY IMPORTED_LOCATION ${{ESPERANTO_BOOTLOADER_{exec}_PROGRAM}})
                     endif()
                     """.format(exec=elf, exec_dir=elf_dir)))
 
