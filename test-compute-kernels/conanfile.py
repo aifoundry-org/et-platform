@@ -3,7 +3,7 @@ from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
 from conans import tools
 from conans.errors import ConanInvalidConfiguration
 import os
-import re
+import textwrap
 
 
 class EsperantoTestKenelsConan(ConanFile):
@@ -22,15 +22,25 @@ class EsperantoTestKenelsConan(ConanFile):
     }
     generators = "CMakeDeps"
 
-    def set_version(self):
-        content = tools.load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
-        version = re.search(r"project\(EsperantoTestKernels VERSION \s*([\d.]+)", content).group(1)
-        self.version = version.strip()
+    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
 
+    def set_version(self):
+        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "EsperantoTestKernels")
+
+    def configure(self):
+        del self.settings.compiler.libcxx
+        del self.settings.compiler.cppstd
+    
     def requirements(self):
         self.requires("esperantoTrace/0.1.0")
-        self.requires("et-common-libs/0.0.1")
+        self.requires("et-common-libs/0.0.3")
 
+    def package_id(self):
+        self.python_requires["conan-common"].module.x86_64_compatible(self)
+
+    def build_requirements(self):
+        self.build_requires("cmake-modules/[>=0.4.1 <1.0.0]")
+    
     def validate(self):
         if self.settings.arch != "rv64":
             raise ConanInvalidConfiguration("Cross-compiling to arch {} is not supported".format(self.settings.arch))
@@ -40,9 +50,6 @@ class EsperantoTestKenelsConan(ConanFile):
         for flag in ["with_cm_umode"]:
             if not et_common_libs.options.get_safe(flag):
                 raise ConanInvalidConfiguration("{0} requires {1} package with '-o {1}:{2}'".format(self.name, "et-common-libs", flag))
-
-    def build_requirements(self):
-        self.tool_requires("cmake-modules/[>=0.5.0 <1.0.0]")
 
     def generate(self):
         # Get the toolchains from "tools.cmake.cmaketoolchain:user_toolchain" conf at the
@@ -73,3 +80,24 @@ class EsperantoTestKenelsConan(ConanFile):
         cmake.install()
         tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
     
+        build_modules_folder = os.path.join(self.package_folder, "lib", "cmake")
+        os.makedirs(build_modules_folder)
+        build_module_path = os.path.join(build_modules_folder, "conan-{}-{}.cmake".format(self.name, "deprecated-vars"))
+        with open(build_module_path, "w+") as f:
+            f.write(textwrap.dedent("""\
+                set(ESPERANTO_TEST_KERNELS_BIN_DIR "${{CMAKE_CURRENT_LIST_DIR}}/../../bin")
+                get_filename_component(ESPERANTO_TEST_KERNELS_BIN_DIR "${{ESPERANTO_TEST_KERNELS_BIN_DIR}}" ABSOLUTE)
+
+                set(ESPERANTO_TEST_KERNELS_INCLUDE_DIR "${{CMAKE_CURRENT_LIST_DIR}}/../../include")
+                get_filename_component(ESPERANTO_TEST_KERNELS_INCLUDE_DIR "${{ESPERANTO_TEST_KERNELS_INCLUDE_DIR}}" ABSOLUTE)
+
+                set(ESPERANTO_TEST_KERNELS_LIB_DIR "${{CMAKE_CURRENT_LIST_DIR}}/../../lib")
+                get_filename_component(ESPERANTO_TEST_KERNELS_LIB_DIR "${{ESPERANTO_TEST_KERNELS_LIB_DIR}}" ABSOLUTE)
+                """.format()))
+
+    def package_info(self):
+        self.cpp_info.set_property("cmake_file_name", "EsperantoTestKernels")
+    
+        build_modules = []
+        build_modules.append(os.path.join("lib", "cmake", "conan-{}-{}.cmake".format(self.name, "deprecated-vars")))
+        self.cpp_info.set_property("cmake_build_modules", build_modules)
