@@ -69,20 +69,39 @@ void MM_To_CM_Iface_Init(void)
 
 void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
 {
-    log_write(LOG_LEVEL_DEBUG, "MM->CM:Ready to process msgs from MM.\r\n");
+    uint64_t sip;
+
+    log_write(LOG_LEVEL_DEBUG, "CM:Ready to process interrupts.\r\n");
 
     for (;;)
     {
-        /* Wait for an IPI (Software Interrupt) */
+        /* Wait for an interrupt */
         asm volatile("wfi\n");
 
-        /* We got a software interrupt (IPI) handed down from M-mode.
-        M-mode already cleared the MSIP (Machine Software Interrupt Pending)
-        Clear Supervisor Software Interrupt Pending (SSIP) */
-        asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
+        /* Read pending interrupts */
+        SUPERVISOR_PENDING_INTERRUPTS(sip);
 
-        /* Receive and process message buffer */
-        MM_To_CM_Iface_Multicast_Receive(0);
+        log_write(LOG_LEVEL_DEBUG, "CM:Exiting WFI! SIP: 0x%" PRIx64 "\r\n", sip);
+
+        if (sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
+        {
+            /* We got a software interrupt (IPI) handed down from M-mode.
+            M-mode already cleared the MSIP (Machine Software Interrupt Pending)
+            Clear Supervisor Software Interrupt Pending (SSIP) */
+            asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
+
+            /* Receive and process message buffer */
+            MM_To_CM_Iface_Multicast_Receive(0);
+        }
+
+        if (sip & (1 << BUS_ERROR_INTERRUPT))
+        {
+            /* Clear Bus Error Interrupt Pending */
+            asm volatile("csrc sip, %0" : : "r"(1 << BUS_ERROR_INTERRUPT));
+
+            log_write(
+                LOG_LEVEL_ERROR, "CM:Bus error interrupt received:SIP:0x%" PRIx64 "\r\n", sip);
+        }
     }
 }
 

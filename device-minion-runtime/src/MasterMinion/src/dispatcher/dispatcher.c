@@ -249,6 +249,15 @@ void Dispatcher_Launch(uint32_t hart_id)
         {
             /* TODO: set new mtimecp, timer_tick()*/
         }
+
+        if (sip & (1 << BUS_ERROR_INTERRUPT))
+        {
+            /* Clear Bus Error Interrupt Pending */
+            asm volatile("csrc sip, %0" : : "r"(1 << BUS_ERROR_INTERRUPT));
+
+            Log_Write(
+                LOG_LEVEL_ERROR, "CM:Bus error interrupt received:SIP:0x%" PRIx64 "\r\n", sip);
+        }
     } /* loop never breaks */
 
     /* no return */

@@ -32,6 +32,9 @@ void extended_interrupt(uint64_t scause, uint64_t sepc, uint64_t stval, const ui
     /* Check if bus error interrupt */
     if ((scause & 0xFF) == BUS_ERROR_INTERRUPT)
     {
+        /* Clear the bus error interrupt */
+        asm volatile("csrc sip, %0" : : "r"(1 << BUS_ERROR_INTERRUPT));
+
         log_write(LOG_LEVEL_CRITICAL,
             "CM:Bus error interrupt:scause: %lx sepc: %lx stval: %lx sstatus: %lx\n", scause, sepc,
             stval, sstatus);

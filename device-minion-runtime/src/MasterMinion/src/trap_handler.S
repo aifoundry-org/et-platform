@@ -12,10 +12,6 @@ trap_handler:
     /* Save t0 to sscratch */
     csrrw t0, sscratch, t0
 
-    /* Check interrupt or exception (Interrupts have highest bit = 1) */
-    csrr  t0, scause
-    blt   t0, x0, handle_interrupt      /* Branch past exception handling if it's an interrupt. */
-
     /* Allocate space for the context */
     addi  sp, sp, -(32 * 8)
 
@@ -60,6 +56,10 @@ trap_handler:
 .option norelax
     la    gp, __global_pointer$
 .option pop
+
+    /* Check interrupt or exception (Interrupts have highest bit = 1) */
+    csrr  t0, scause
+    blt   t0, x0, handle_interrupt      /* Branch past exception handling if it's an interrupt. */
 
     /* Invoke exception handler with params (scause, spec, stval, pointer to saved context) */
     csrr  a0, scause

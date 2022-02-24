@@ -47,8 +47,8 @@
 /*! \def TRACE_CONFIG_CHECK_CM_HART
     \brief Helper macro to check if given shire and thread masks contains any CM HART.
 */
-#define TRACE_CONFIG_CHECK_CM_HART(shire_mask, thread_mask)               \
-    (((shire_mask & CM_MM_SHIRE_MASK) && (thread_mask & MM_HART_MASK)) || \
+#define TRACE_CONFIG_CHECK_CM_HART(shire_mask, thread_mask)            \
+    (((shire_mask & CM_SHIRE_MASK) && (thread_mask & CM_HART_MASK)) || \
         ((shire_mask & MM_SHIRE_MASK) && (thread_mask & CW_IN_MM_SHIRE)))
 
 /*! \fn int32_t Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
