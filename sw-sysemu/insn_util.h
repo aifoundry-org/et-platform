@@ -1047,13 +1047,13 @@ inline void set_fp_exceptions(Hart& cpu)
 } while (0)
 
 #define C_DISASM_STORE_SDSP(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x2)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1(), C_IMMSDSP); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x2)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs2(), C_IMMSDSP); \
     LOG_REG(":", 2); \
     LOG_REG(":", cpu.inst.rvc_rs2()); \
 } while (0)
 
 #define C_DISASM_STORE_SWSP(name) do { \
-    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x2)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs1(), C_IMMSWSP); \
+    LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,%" PRId64 "(x2)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rvc_rs2(), C_IMMSWSP); \
     LOG_REG(":", 2); \
     LOG_REG(":", cpu.inst.rvc_rs2()); \
 } while (0)
