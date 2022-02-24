@@ -185,7 +185,6 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
     // Redirect local shire requests to the corresponding shire
     uint64_t addr2 = legalize_esr_address(agent, addr);
     unsigned shire = shire_index((addr2 & ESR_REGION_SHIRE_MASK) >> ESR_REGION_SHIRE_SHIFT);
-    uint64_t sregion = addr2 & ESR_SREGION_MASK;
 
     // Broadcast is special...
     switch (addr) {
@@ -218,14 +217,47 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
         LOG_AGENT(WARN, agent, "Read unknown R_PU_RVTim ESR 0x%" PRIx64, esr);
         throw memory_error(addr);
     }
-    if( (shire >= EMU_MEM_SHIRE_BASE_ID) && (shire < (EMU_MEM_SHIRE_BASE_ID + EMU_NUM_SHIRES)))
-    {
-        sregion = ESR_MEMSHIRE_REGION;
-    }
-    else if (shire >= EMU_NUM_SHIRES) {
+
+    if ((shire >= EMU_NUM_SHIRES) && !((shire >= EMU_MEM_SHIRE_BASE_ID) && (shire < (EMU_MEM_SHIRE_BASE_ID + NUM_MEM_SHIRES)))) {
         LOG_AGENT(WARN, agent, "Read illegal ESR S%u:0x%llx", SHIREID(shire), addr2 & ~ESR_REGION_SHIRE_MASK);
         throw memory_error(addr);
     }
+
+    uint64_t msregion = addr2 & ESR_MSREGION_MASK;
+
+    if ((shire >= EMU_MEM_SHIRE_BASE_ID) && (shire < (EMU_MEM_SHIRE_BASE_ID + NUM_MEM_SHIRES))) {
+        uint64_t esr = addr2 & ESR_SHIRE_ESR_MASK;
+        if (msregion == ESR_DDRC_REGION) {
+            uint64_t esr = addr2 & ESR_SHIRE_ESR_MASK;
+            switch (esr) {
+                case ESR_MEM_SHIRE_PERF0_QUAL:
+                case ESR_MEM_SHIRE_PERF1_QUAL:
+                case ESR_MEM_SHIRE_PERF0_QUAL2:
+                case ESR_MEM_SHIRE_PERF1_QUAL2:
+                    return 0;
+                case ESR_MEM_SHIRE_CTRL_STATUS:
+                    return mem_shire_esrs.perf_ctrl_status;
+                case ESR_MEM_SHIRE_STATUS:
+                    return mem_shire_esrs.status;
+                case ESR_MEM_SHIRE_INT_EN:
+                case ESR_MEM_SHIRE_CRTIT_INT_EN:
+                case ESR_MEM_SHIRE_CRTIT2_INT_EN:
+                    return mem_shire_esrs.int_en;
+                default:
+                    LOG_AGENT(WARN, agent, "Read unknown DDRC ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+                    throw memory_error(addr);
+            }
+        } else if (msregion == ESR_MEMSHIRE_REGION) {
+            // TODO: Handle Mem shire ESRs...
+            LOG_AGENT(WARN, agent, "Read unknown MEM Shire ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+            throw memory_error(addr);
+        } else {
+            LOG_AGENT(WARN, agent, "Read unknown MEM Shire region S%u:0x%" PRIx64, SHIREID(shire), esr);
+            throw memory_error(addr);
+        }
+    }
+
+    uint64_t sregion = addr2 & ESR_SREGION_MASK;
 
     if (sregion == ESR_HART_REGION) {
         uint64_t esr = addr2 & ESR_HART_ESR_MASK;
@@ -281,19 +313,6 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
         }
         LOG_AGENT(WARN, agent, "Read unknown neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
         throw memory_error(addr);
-    }
-
-    if (sregion == ESR_MEMSHIRE_REGION) {
-        uint64_t esr = addr2 & ESR_SHIRE_ESR_MASK;
-
-        switch(esr)
-        {
-            case ESR_MEM_SHIRE_STATUS:
-                return mem_shire_esrs.status;
-            case ESR_MEM_SHIRE_INT_EN:
-            case ESR_MEM_SHIRE_CRTIT_INT_EN:
-                return mem_shire_esrs.int_en;
-        }
     }
 
     uint64_t sregion_extra = addr2 & ESR_SREGION_EXT_MASK;
@@ -515,7 +534,6 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
     // Redirect local shire requests to the corresponding shire
     uint64_t addr2 = legalize_esr_address(agent, addr);
     unsigned shire = shire_index((addr2 & ESR_REGION_SHIRE_MASK) >> ESR_REGION_SHIRE_SHIFT);
-    uint64_t sregion = addr2 & ESR_SREGION_MASK;
 
     // Broadcast is special...
     switch (addr) {
@@ -565,15 +583,53 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
         LOG_AGENT(WARN, agent, "Write unknown R_PU_RVTim ESR 0x%" PRIx64, esr);
         throw memory_error(addr);
     }
-    if( (shire >= EMU_MEM_SHIRE_BASE_ID) && (shire < (EMU_MEM_SHIRE_BASE_ID + EMU_NUM_SHIRES)))
-    {
-        sregion = ESR_MEMSHIRE_REGION;
-    }
-    else if (shire >= EMU_NUM_SHIRES) {
+
+    if ((shire >= EMU_NUM_SHIRES) && !((shire >= EMU_MEM_SHIRE_BASE_ID) && (shire < (EMU_MEM_SHIRE_BASE_ID + NUM_MEM_SHIRES)))) {
         LOG_AGENT(WARN, agent, "Write illegal ESR S%u:0x%llx", SHIREID(shire), addr2 & ~ESR_REGION_SHIRE_MASK);
         throw memory_error(addr);
     }
 
+    uint64_t msregion = addr2 & ESR_MSREGION_MASK;
+
+    if ((shire >= EMU_MEM_SHIRE_BASE_ID) && (shire < (EMU_MEM_SHIRE_BASE_ID + NUM_MEM_SHIRES))) {
+        uint64_t esr = addr2 & ESR_SHIRE_ESR_MASK;
+        if (msregion == ESR_DDRC_REGION) {
+            uint64_t esr = addr2 & ESR_SHIRE_ESR_MASK;
+            switch (esr) {
+                case ESR_MEM_SHIRE_PERF0_QUAL:
+                case ESR_MEM_SHIRE_PERF1_QUAL:
+                case ESR_MEM_SHIRE_PERF0_QUAL2:
+                case ESR_MEM_SHIRE_PERF1_QUAL2:
+                    // Dummy access, do nothing
+                    break;
+                case ESR_MEM_SHIRE_CTRL_STATUS:
+                    mem_shire_esrs.perf_ctrl_status = value;
+                    LOG_AGENT(DEBUG, agent, "S%u:perf_ctrl_status = 0x%" PRIx64,
+                            SHIREID(shire), mem_shire_esrs.perf_ctrl_status);
+                    break;
+                case ESR_MEM_SHIRE_INT_EN:
+                case ESR_MEM_SHIRE_CRTIT_INT_EN:
+                case ESR_MEM_SHIRE_CRTIT2_INT_EN:
+                    mem_shire_esrs.int_en = value;
+                    LOG_AGENT(DEBUG, agent, "S%u:int_en = 0x%" PRIx64,
+                            SHIREID(shire), mem_shire_esrs.int_en);
+                    break;
+                default:
+                    LOG_AGENT(WARN, agent, "Write unknown DDRC ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+                    throw memory_error(addr);
+            }
+        } else if (msregion == ESR_MEMSHIRE_REGION) {
+            // TODO: Handle Mem shire ESRs...
+            LOG_AGENT(WARN, agent, "Write unknown MEM Shire ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+            throw memory_error(addr);
+        } else {
+            LOG_AGENT(WARN, agent, "Write unknown MEM Shire region S%u:0x%" PRIx64, SHIREID(shire), esr);
+            throw memory_error(addr);
+        }
+        return;
+    }
+
+    uint64_t sregion = addr2 & ESR_SREGION_MASK;
 
     if (sregion == ESR_HART_REGION) {
         uint64_t esr = addr2 & ESR_HART_ESR_MASK;
@@ -696,32 +752,6 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
             }
         }
         return;
-    }
-
-    if (sregion == ESR_MEMSHIRE_REGION) {
-        uint64_t esr = addr2 & ESR_SHIRE_ESR_MASK;
-        switch(esr)
-        {
-            case ESR_MEM_SHIRE_PERF0_QUAL:
-            case ESR_MEM_SHIRE_PERF1_QUAL:
-            case ESR_MEM_SHIRE_PERF0_QUAL2:
-            case ESR_MEM_SHIRE_PERF1_QUAL2:
-            case ESR_MEM_SHIRE_CTRL_STATUS:
-                mem_shire_esrs.perf_ctrl_status = value;
-                LOG_AGENT(DEBUG, agent, "S%u:perf_ctrl_status = 0x%" PRIx32,
-                          SHIREID(shire), mem_shire_esrs.perf_ctrl_status);
-                break;
-            case ESR_MEM_SHIRE_INT_EN:
-            case ESR_MEM_SHIRE_CRTIT_INT_EN:
-            case ESR_MEM_SHIRE_CRTIT2_INT_EN:
-                mem_shire_esrs.int_en = value;
-                LOG_AGENT(DEBUG, agent, "S%u:int_en = 0x%" PRIx32,
-                          SHIREID(shire), mem_shire_esrs.int_en);
-                break;
-            default:
-                LOG_AGENT(WARN, agent, "Write unknown MEM Shire ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
-                throw memory_error(addr);
-        }
     }
 
     uint64_t sregion_extra = addr2 & ESR_SREGION_EXT_MASK;
