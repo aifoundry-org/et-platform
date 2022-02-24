@@ -3,45 +3,8 @@ from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
 from conans import tools
 from conans.errors import ConanInvalidConfiguration
 import os
-import re
 import textwrap
 
-
-def make_hash_array(strval):
-    # the maximum length of the git hash is 32 bytes
-    # which corresponds to the length of a SHA2-256 hash
-    max_git_hash_length = 32
-
-    result = "{ "
-    hexbytes = bytes.fromhex(strval)
-    for n in range(max_git_hash_length):
-        if n > 0:
-            result = result + ", "
-
-        if n < len(hexbytes):
-            result = result + "0x{0:02x}".format(hexbytes[n])
-        else:
-            result = result + "0x00"
-
-    result = result + " }"
-    return result
-
-
-def make_version_array(strval):
-    max_git_version_length = 112
-
-    result = "{ "
-    for n in range(max_git_version_length):
-        if n > 0:
-            result = result + ", "
-
-        if n < len(strval):
-            result = result + "'" + strval[n] + "'"
-        else:
-            result = result + "0"
-
-    result = result + " }"
-    return result
 
 class DeviceMinionRuntimeConan(ConanFile):
     name = "device-minion-runtime"
@@ -65,11 +28,15 @@ class DeviceMinionRuntimeConan(ConanFile):
     }
     generators = "CMakeDeps"
 
-    def set_version(self):
-        content = tools.load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
-        version = re.search(r"project\(deviceMinionRuntime VERSION \s*([\d.]+)", content).group(1)
-        self.version = version.strip()
+    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
 
+    def set_version(self):
+        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "deviceMinionRuntime")
+
+    def configure(self):
+        del self.settings.compiler.libcxx
+        del self.settings.compiler.cppstd
+    
     def requirements(self):
         # header-only libs
         self.requires("deviceApi/0.1.0")
@@ -78,6 +45,12 @@ class DeviceMinionRuntimeConan(ConanFile):
         # libs
         self.requires("etsoc_hal/0.1.0")
         self.requires("et-common-libs/0.0.3")
+
+    def package_id(self):
+        self.python_requires["conan-common"].module.x86_64_compatible(self)
+    
+    def build_requirements(self):
+        self.build_requires("cmake-modules/[>=0.4.1 <1.0.0]")
 
     def validate(self):
         if self.settings.arch != "rv64":
@@ -89,10 +62,10 @@ class DeviceMinionRuntimeConan(ConanFile):
             if not et_common_libs.options.get_safe(flag):
                 raise ConanInvalidConfiguration("{0} requires {1} package with '-o {1}:{2}'".format(self.name, "et-common-libs", flag))
 
-    def build_requirements(self):
-        self.tool_requires("cmake-modules/[>=0.4.1 <1.0.0]")
-
     def generate(self):
+        make_hash_array = self.python_requires["conan-common"].module.make_hash_array
+        make_version_array = self.python_requires["conan-common"].module.make_version_array
+
         # Get the toolchains from "tools.cmake.cmaketoolchain:user_toolchain" conf at the
         # tool_requires
         user_toolchains = []
@@ -127,7 +100,6 @@ class DeviceMinionRuntimeConan(ConanFile):
         cmake.configure()
         cmake.build()
 
-
     @property
     def _elfs(self):
         #            (executable, directory name)
@@ -150,14 +122,14 @@ class DeviceMinionRuntimeConan(ConanFile):
                 f.write(textwrap.dedent("""\
                     if(NOT TARGET EsperantoDeviceMinionRuntime::{exec})
                         if(CMAKE_CROSSCOMPILING)
-                            find_program(ESPERANTO_DEVICE_MINION_RUNTIME_PROGRAM et-minion-runtime-{exec} PATHS ENV PATH NO_DEFAULT_PATH)
+                            find_program(ESPERANTO_DEVICE_MINION_RUNTIME_{exec}_PROGRAM et-minion-runtime-{exec} PATHS ENV PATH NO_DEFAULT_PATH)
                         endif()
-                        if(NOT ESPERANTO_DEVICE_MINION_RUNTIME_PROGRAM)
-                            set(ESPERANTO_DEVICE_MINION_RUNTIME_PROGRAM "${{CMAKE_CURRENT_LIST_DIR}}/../../lib/esperanto-fw/{exec_dir}/{exec}")
+                        if(NOT ESPERANTO_DEVICE_MINION_RUNTIME_{exec}_PROGRAM)
+                            set(ESPERANTO_DEVICE_MINION_RUNTIME_{exec}_PROGRAM "${{CMAKE_CURRENT_LIST_DIR}}/../../lib/esperanto-fw/{exec_dir}/{exec}")
                         endif()
-                        get_filename_component(ESPERANTO_DEVICE_MINION_RUNTIME_PROGRAM "${{ESPERANTO_DEVICE_MINION_RUNTIME_PROGRAM}}" ABSOLUTE)
+                        get_filename_component(ESPERANTO_DEVICE_MINION_RUNTIME_{exec}_PROGRAM "${{ESPERANTO_DEVICE_MINION_RUNTIME_{exec}_PROGRAM}}" ABSOLUTE)
                         add_executable(EsperantoDeviceMinionRuntime::{exec} IMPORTED)
-                        set_property(TARGET EsperantoDeviceMinionRuntime::{exec} PROPERTY IMPORTED_LOCATION ${{ESPERANTO_DEVICE_MINION_RUNTIME_PROGRAM}})
+                        set_property(TARGET EsperantoDeviceMinionRuntime::{exec} PROPERTY IMPORTED_LOCATION ${{ESPERANTO_DEVICE_MINION_RUNTIME_{exec}_PROGRAM}})
                     endif()
                     """.format(exec=elf, exec_dir=elf_dir)))
 
