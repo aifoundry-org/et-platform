@@ -42,11 +42,15 @@
 /* Global variable to keep track of Compute Minions boot */
 static spinlock_t CM_Thread_Boot_Counter[NUM_SHIRES] = { 0 };
 
+/*! \def CM_BOOT_MASK_PTR
+    \brief Global shared pointer to CM shires boot mask
+*/
+#define CM_BOOT_MASK_PTR ((uint64_t *)CM_SHIRES_BOOT_MASK_BASEADDR)
+
 extern void trap_handler(void);
 
 void __attribute__((noreturn)) main(void)
 {
-    int8_t status;
     const uint32_t shire_id = get_shire_id();
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
 
@@ -70,30 +74,17 @@ void __attribute__((noreturn)) main(void)
     /* Initialize Trace with default configurations. */
     Trace_Init_CM(NULL);
 
-    /* Last thread in a shire sends shire ready message to Master Minion */
+    /* Last thread in a shire updates the global CM shire boot mask */
     if (atomic_add_local_32(&CM_Thread_Boot_Counter[shire_id].flag, 1U) == (thread_count - 1))
     {
         /* Reset the thread boot counter */
         init_local_spinlock(&CM_Thread_Boot_Counter[shire_id], 0);
 
-        const mm_to_cm_message_shire_ready_t message = { .header.id =
-                                                             CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY,
-            .shire_id = shire_id };
+        /* Set the shire ID bit in the global CM shire boot mask */
+        atomic_or_global_64(CM_BOOT_MASK_PTR, (1ULL << shire_id));
 
-        /* To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0) */
-        status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
-            CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (const cm_iface_message_t *)&message);
-
-        if (status == 0)
-        {
-            /* Log boot message */
-            log_write(LOG_LEVEL_CRITICAL, "Shire %d booted up!\r\n", shire_id);
-        }
-        else
-        {
-            log_write(LOG_LEVEL_ERROR, "CM->MM:Shire_ready:Unicast send failed! Error code: %d\n",
-                status);
-        }
+        /* Log boot message */
+        log_write(LOG_LEVEL_CRITICAL, "Shire %d booted up!\r\n", shire_id);
     }
 
     /* Initialize the MM-CM Iface */

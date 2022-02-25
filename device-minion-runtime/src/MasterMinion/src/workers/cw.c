@@ -71,12 +71,18 @@ typedef struct cw_cb_t_ {
 */
 static cw_cb_t CW_CB __attribute__((aligned(64))) = { 0 };
 
+/*! \def CM_BOOT_MASK_PTR
+    \brief Global shared pointer to CM shires boot mask
+*/
+#define CM_BOOT_MASK_PTR ((uint64_t *)CM_SHIRES_BOOT_MASK_BASEADDR)
+
 /*! \def CW_RESET_CB
     \brief Macro to reset the state of glabals in CW CB
 */
 #define CW_RESET_CB(shire_mask)                                        \
     {                                                                  \
         /* Reset state of globals */                                   \
+        atomic_and_global_64(CM_BOOT_MASK_PTR, (~shire_mask));         \
         atomic_and_local_64(&CW_CB.booted_shires_mask, (~shire_mask)); \
         atomic_and_local_64(&CW_CB.shire_state, (~shire_mask));        \
         atomic_store_local_32(&CW_CB.timeout_flag, 0);                 \
@@ -135,6 +141,7 @@ int32_t CW_Init(void)
     int32_t status = STATUS_SUCCESS;
     int32_t sw_timer_idx;
     uint64_t shire_mask = 0;
+    uint64_t booted_shires_mask = 0;
     uint64_t sip;
 
     /* Obtain the number of shires to be used from SP and initialize the CW control block */
@@ -144,8 +151,8 @@ int32_t CW_Init(void)
         return status;
     }
 
-    /* Reset the globals */
-    CW_RESET_CB(shire_mask)
+    /* Reset the globals and clear the whole shire mask */
+    CW_RESET_CB(0xFFFFFFFFFFFFFFFF)
 
     Log_Write(LOG_LEVEL_DEBUG, "CW_Init:Shire mask from SP: 0x%lx\r\n", shire_mask);
 
@@ -204,19 +211,19 @@ int32_t CW_Init(void)
 
         if (status == STATUS_SUCCESS)
         {
-            /* Check if any pending message is available */
-            CW_Process_CM_SMode_Messages();
+            /* Load the global CM shires boot mask */
+            booted_shires_mask = atomic_load_global_64(CM_BOOT_MASK_PTR);
+
+            /* Store the global shared shires mask locally */
+            atomic_store_local_64(&CW_CB.booted_shires_mask, booted_shires_mask);
 
             /* Break loop if all compute minions are booted and ready */
-            if ((atomic_load_local_64(&CW_CB.booted_shires_mask) & shire_mask) == shire_mask)
+            if ((booted_shires_mask & shire_mask) == shire_mask)
             {
                 exit_loop = true;
             }
         }
     }
-
-    /* Clear IPI pending interrupt (if any) */
-    asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
     if (sw_timer_idx >= 0)
     {
@@ -280,18 +287,6 @@ void CW_Process_CM_SMode_Messages(void)
                 Log_Write(LOG_LEVEL_DEBUG, "CW:CM_TO_MM:MESSAGE_ID_NONE\r\n");
                 break;
 
-            case CM_TO_MM_MESSAGE_ID_FW_SHIRE_READY:
-            {
-                const mm_to_cm_message_shire_ready_t *shire_ready =
-                    (const mm_to_cm_message_shire_ready_t *)&message;
-
-                Log_Write(LOG_LEVEL_DEBUG, "CW_Init:MESSAGE_ID_SHIRE_READY S%d\r\n",
-                    shire_ready->shire_id);
-
-                /* Update the booted shire mask */
-                atomic_or_local_64(&CW_CB.booted_shires_mask, (1ULL << shire_ready->shire_id));
-                break;
-            }
             case CM_TO_MM_MESSAGE_ID_FW_EXCEPTION:
             {
                 /* Update CM State to exception if it was not already in bad condition. */
@@ -488,6 +483,7 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
     bool exit_loop = false;
     int32_t status = STATUS_SUCCESS;
     int32_t sw_timer_idx;
+    uint64_t booted_shires_mask;
 
     /*TODO: Do not reset MM Shire until we have support to reset one neigh in MM shire .*/
     shire_mask = shire_mask & (~MM_SHIRE_MASK);
@@ -529,11 +525,21 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
             exit_loop = true;
         }
 
-        if ((status == STATUS_SUCCESS) && ((CW_Get_Booted_Shires() & shire_mask) == shire_mask))
+        if (status == STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_CRITICAL,
-                "CW: All CW re-booted successfully. Shire Mask:0x%lx!\r\n", shire_mask);
-            exit_loop = true;
+            /* Load the global CM shires boot mask */
+            booted_shires_mask = atomic_load_global_64(CM_BOOT_MASK_PTR);
+
+            /* Store the global shared shires mask locally */
+            atomic_store_local_64(&CW_CB.booted_shires_mask, booted_shires_mask);
+
+            /* Break loop if all compute minions are booted and ready */
+            if ((booted_shires_mask & shire_mask) == shire_mask)
+            {
+                Log_Write(LOG_LEVEL_CRITICAL,
+                    "CW: All CW re-booted successfully. Shire Mask:0x%lx!\r\n", shire_mask);
+                exit_loop = true;
+            }
         }
     } while (!exit_loop);
 
