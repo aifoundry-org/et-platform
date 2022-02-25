@@ -192,7 +192,6 @@ void MemoryManager::addChunk(FreeChunk chunk) {
 }
 
 void MemoryManager::checkOperation(const std::byte* address, size_t size) const {
-  return;
   auto addressU = reinterpret_cast<uint64_t>(address);
   auto blockSize = 1U << blockSizeLog2_;
   auto numBlocks = (addressU % blockSize + size + blockSize - 1) / blockSize;

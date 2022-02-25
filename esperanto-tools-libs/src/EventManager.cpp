@@ -69,8 +69,7 @@ void EventManager::dispatch(EventId event) {
   }
 
   if (auto it = blockedThreads_.find(event); it != end(blockedThreads_)) {
-    lock.unlock();
-    it->second->notifyAll();
+    it->second->notify_all();
   }
 }
 
@@ -79,39 +78,42 @@ bool EventManager::isDispatched(EventId event) const {
 }
 
 bool EventManager::blockUntilDispatched(EventId event, std::chrono::milliseconds timeout) {
+  RT_VLOG(HIGH) << "Blocking until dispatched for event " << static_cast<int>(event);
   std::unique_lock lock(mutex_);
   if (isDispatched(event)) {
+    RT_VLOG(HIGH) << "Event " << static_cast<int>(event) << " already dispatched.";
     return true; // no block if the event is already dispatched
   }
 
   auto it = blockedThreads_.find(event);
 
-  Semaphore* sem;
+  std::condition_variable* cv;
   if (it == end(blockedThreads_)) {
-    auto tmp = std::make_unique<Semaphore>();
-    sem = tmp.get();
+    auto tmp = std::make_unique<std::condition_variable>();
+    cv = tmp.get();
     blockedThreads_[event] = std::move(tmp);
   } else {
-    sem = it->second.get();
+    cv = it->second.get();
   }
-  auto res = sem->wait(lock, timeout);
-  if (!sem->isAnyThreadBlocked()) {
+  auto res = cv->wait_for(lock, timeout);
+  if (res == std::cv_status::timeout) {
+    RT_VLOG(HIGH) << "Event " << static_cast<int>(event) << " TIMED OUT.";
+    return false;
+  }
+  if (blockedThreads_.find(event) != end(blockedThreads_)) {
     blockedThreads_.erase(event);
   }
-  return res;
+  RT_VLOG(HIGH) << "Event " << static_cast<int>(event) << " dispatched.";
+  return true;
 }
+
 EventManager::~EventManager() {
   using namespace std::chrono_literals;
   std::unique_lock lock(mutex_);
-  for (auto& [event, semaphore] : blockedThreads_) {
+  for (auto& [event, cv] : blockedThreads_) {
     RT_LOG(WARNING)
       << "Destroying eventmanager with non-dispatched events. Notifying all threads that where waiting for event "
       << static_cast<int>(event);
-    semaphore->notifyAll();
-  }
-  lock.unlock();
-  // while until threads have remove the events
-  while (!blockedThreads_.empty()) {
-    std::this_thread::sleep_for(1ms);
+    cv->notify_all();
   }
 }

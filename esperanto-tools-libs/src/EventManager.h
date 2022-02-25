@@ -45,37 +45,11 @@ public:
   bool isDispatched(EventId event) const;
 
 private:
-
-  // need a semaphore to deal with spurious wakeups, a simple cond_variable is not enough
-  struct Semaphore {
-    void notifyAll() {
-      ready_ = true;
-      condVar_.notify_all();
-    }
-    // returns false if the timeout is reached; true otherwise
-    bool wait(std::unique_lock<std::mutex>& lock, std::chrono::milliseconds timeout) {
-      count_++;
-      RT_LOG_IF(FATAL, timeout.count() == 0) << "Count can't be zero!";
-      RT_DLOG(INFO) << "Blocking thread for a max of " << timeout.count() << " milliseconds.";
-      auto res = condVar_.wait_for(lock, timeout, [this]() { return ready_; });
-      RT_DLOG(INFO) << "Thread unblocked ready value: " << ready_ << " wait_for result: " << res;
-      count_--;
-      return res;
-    }
-    bool isAnyThreadBlocked() const {
-      return count_ > 0;
-    }
-
-    std::condition_variable condVar_;
-    int count_ = 0;
-    bool ready_ = false;
-  };
-
   mutable std::mutex mutex_;
   bool throwOnMissingEvent_ = false;
   std::set<EventId> onflyEvents_;
   std::vector<OnDispatchCallback> callbacks_;
-  std::unordered_map<EventId, std::unique_ptr<Semaphore>> blockedThreads_;
+  std::unordered_map<EventId, std::unique_ptr<std::condition_variable>> blockedThreads_;
   std::underlying_type_t<EventId> nextEventId_ = 0;
   threadPool::ThreadPool callbackExecutor_{2};
 };
