@@ -74,14 +74,15 @@
 
 /*********************************************************************/
 /*              - Shire 32 L2 SCP Region Layout (2.5M) -             */
-/*                    (Base Address: 0x80000000)                     */
+/*                    (Base Address: 0x90000000)                     */
 /*     - user                    - base-offset   - size              */
 /*     CM Unicast buff           0x0             0x5000 (20K)        */
 /*     CM Unicast locks          0x5000          0x140 (320 bytes)   */
 /*     CM Kernel flags           0x5140          0x100 (256 bytes)   */
 /*     MM SQ prefetch buffer     0x5240          0x2400 (9K)         */
-/*     Broadcast Message Buffer  0x7640          0x40      (64B)     */
-/*     Broadcast Message Control 0x7680          0x40      (64B)     */
+/*     Broadcast Message Buffer  0x7640          0x40 (64B)          */
+/*     Broadcast Message Control 0x7680          0x40 (64B)          */
+/*     CM shires boot mask       0x76C0          0x40 (64B)          */
 /*********************************************************************/
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET  0x0
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR    ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET)
@@ -110,8 +111,12 @@
 
 /* Master Minion to Worker Minion Broadcat message control. */
 #define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL_OFFSET   (FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER_OFFSET + FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER_SIZE)
-#define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL          (FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER + FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL_OFFSET)
+#define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL          ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL_OFFSET)
 #define FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL_SIZE     BROADCAST_MESSAGE_CTRL_SIZE
+
+#define CM_SHIRES_BOOT_MASK_OFFSET                          (FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL_OFFSET + FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL_SIZE)
+#define CM_SHIRES_BOOT_MASK_BASEADDR                        ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_SHIRES_BOOT_MASK_OFFSET)
+#define CM_SHIRES_BOOT_MASK_SIZE                            SIZE_64B /* Occupy a single cache-line */
 
 /*****************************************************************/
 /*              - Low MCODE Region Layout (2M) -                 */
