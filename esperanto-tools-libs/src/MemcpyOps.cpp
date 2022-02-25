@@ -103,6 +103,7 @@ EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, 
 EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const std::byte* h_src, const std::byte* d_dst,
                                                        size_t size, bool barrier,
                                                        const CmaCopyFunction& cmaCopyFunction) {
+  std::unique_lock lock(mutex_);
   auto streamInfo = streamManager_.getStreamInfo(stream);
   if (checkMemcpyDeviceAddress_) {
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
@@ -122,6 +123,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const st
   RT_VLOG(HIGH) << "H2D: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   blockableThreadPool_.pushTask([this, size, barrier, d_dst, h_src, evt, stream, streamInfo, cmaCopyFunction] {
+    RT_VLOG(HIGH) << "Start processing command id " << static_cast<int>(evt);
     std::vector<EventId> cmdEvents;
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto dmaInfo = deviceLayer_->getDmaInfo(streamInfo.device_);
@@ -186,7 +188,9 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const st
     // remove the ghost
     cs.cancel(evt);
     RT_VLOG(HIGH) << "H2D: Cancelled GHOST command: " << static_cast<int>(evt);
+    RT_VLOG(HIGH) << "End processing command id " << static_cast<int>(evt);
   });
+  lock.unlock();
   Sync(evt);
   return evt;
 }
@@ -204,6 +208,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const ID
   if (size > h_src->getSize()) {
     throw Exception("Trying to do a memcpy host to device using a dma buffer shorter than required size.");
   }
+  std::unique_lock lock(mutex_);
   auto streamInfo = streamManager_.getStreamInfo(stream);
   if (checkMemcpyDeviceAddress_) {
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
@@ -235,6 +240,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
   if (size > h_dst->getSize()) {
     throw Exception("Trying to do a memcpy device to host using a dma buffer shorter than required size.");
   }
+  std::unique_lock lock(mutex_);
   auto streamInfo = streamManager_.getStreamInfo(stream);
   if (checkMemcpyDeviceAddress_) {
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
@@ -264,6 +270,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, 
 EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const std::byte* d_src, std::byte* h_dst,
                                                        size_t size, bool barrier,
                                                        const CmaCopyFunction& cmaCopyFunction) {
+  std::unique_lock lock(mutex_);
   auto streamInfo = streamManager_.getStreamInfo(stream);
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
@@ -284,6 +291,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
   RT_VLOG(HIGH) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   blockableThreadPool_.pushTask([this, stream, size, barrier, d_src, h_dst, evt, streamInfo, cmaCopyFunction] {
+    RT_VLOG(HIGH) << "Start processing command id " << static_cast<int>(evt);
     std::vector<EventId> cmdEvents;
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto dmaInfo = deviceLayer_->getDmaInfo(streamInfo.device_);
@@ -365,8 +373,9 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
     // remove the ghost
     cs.cancel(evt);
     RT_VLOG(HIGH) << "D2H: Cancelled GHOST command: " << static_cast<int>(evt);
+    RT_VLOG(HIGH) << "End processing command id " << static_cast<int>(evt);
   });
-
+  lock.unlock();
   Sync(evt);
   return evt;
 }
@@ -386,6 +395,7 @@ EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, b
 
 EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier,
                                                        const CmaCopyFunction& cmaCopyFunction) {
+  std::unique_lock lock(mutex_);
   auto streamInfo = streamManager_.getStreamInfo(stream);
   checkList(streamInfo.device_, memcpyList);
 
@@ -407,6 +417,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyLi
   RT_VLOG(HIGH) << "H2D: Added command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   blockableThreadPool_.pushTask([this, barrier, memcpyList, evt, streamInfo, cmaCopyFunction] {
+    RT_VLOG(HIGH) << "Start processing command id " << static_cast<int>(evt);
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto totalSize = 0UL;
     for (auto& op : memcpyList.operations_) {
@@ -442,12 +453,15 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyLi
     cs.setCommandData(evt, builder.build());
     cs.enable(evt);
     eventManager_.addOnDispatchCallback({{evt}, [this, cmaPtr] { cmaManager_->free(cmaPtr); }});
+    RT_VLOG(HIGH) << "End processing command id " << static_cast<int>(evt);
   });
+  lock.unlock();
   Sync(evt);
   return evt;
 }
 EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier,
                                                        const CmaCopyFunction& cmaCopyFunction) {
+  std::unique_lock lock(mutex_);
   auto streamInfo = streamManager_.getStreamInfo(stream);
   checkList(streamInfo.device_, memcpyList);
   if (checkMemcpyDeviceAddress_) {
@@ -467,6 +481,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyLi
   RT_VLOG(HIGH) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   blockableThreadPool_.pushTask([this, barrier, memcpyList, evt, streamInfo, stream, cmaCopyFunction] {
+    RT_VLOG(HIGH) << "Start processing command id " << static_cast<int>(evt);
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto totalSize = 0UL;
     for (auto& op : memcpyList.operations_) {
@@ -513,7 +528,9 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyLi
                                            cmaManager_->free(cmaPtr);
                                            dispatch(evt);
                                          }});
+    RT_VLOG(HIGH) << "End processing command id " << static_cast<int>(evt);
   });
+  lock.unlock();
   Sync(evt);
   return evt;
 }

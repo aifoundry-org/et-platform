@@ -193,7 +193,7 @@ private:
   int nextKernelId_ = 0;
 
   std::unique_ptr<ResponseReceiver> responseReceiver_;
-  threadPool::ThreadPool blockableThreadPool_{128};
+  threadPool::ThreadPool blockableThreadPool_{8};
   EventManager eventManager_;
   bool running_ = false;
   bool checkMemcpyDeviceAddress_ = false;
