@@ -6,6 +6,7 @@ from conans.errors import ConanInvalidConfiguration
 import os
 import re
 
+
 class RuntimeConan(ConanFile):
     name = "runtime"
     url = "https://gitlab.esperanto.ai/software/esperanto-tools-libs"
@@ -29,13 +30,15 @@ class RuntimeConan(ConanFile):
     }
     generators = "CMakeDeps"
 
-    python_requires = "conan-common/[>=0.1.0 <1.0.0]"
+    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
 
     def set_version(self):
-        content = tools.load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
-        version = re.search(r"set\(PROJECT_VERSION (.*)\)", content).group(1)
-        self.version = version.strip()
+        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "runtime")
 
+    def configure_options(self):
+        if self.options.with_tests and not self.dependencies["esperanto-flash-tool"].options.get_safe("header_only"):
+            raise ConanInvalidConfiguration("When enabling runtime tests esperanto-flash-tool:header_only must be True")
+    
     def requirements(self):
         self.requires("deviceApi/0.1.0")
         self.requires("deviceLayer/0.1.0")
@@ -45,6 +48,14 @@ class RuntimeConan(ConanFile):
         self.requires("elfio/3.8")
         
         self.requires("cmake-modules/[>=0.4.1 <1.0.0]")
+
+        if self.options.with_tests:
+            self.requires("sw-sysemu/0.2.0")
+
+            self.requires("et-common-libs/0.0.3")
+            self.requires("device-minion-runtime/0.0.1")
+            self.requires("esperanto-test-kernels/0.1.0")
+            self.requires("device-bootloaders/0.1.0")
     
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
@@ -67,7 +78,9 @@ class RuntimeConan(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-    
+        if self.options.with_tests and not tools.cross_building(self.settings):
+            self.run("ctest -T Test -L 'Generic' --no-compress-output")
+
     def package(self):
         cmake = CMake(self)
         cmake.install()

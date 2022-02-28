@@ -12,7 +12,7 @@ include(ExternalProject)
 include(GoogleTest)
 
 # System dependencies
-find_package(DeviceLayer REQUIRED)
+find_package(deviceLayer REQUIRED)
 find_package(sw-sysemu REQUIRED)
 
 # Esperanto dependencies
@@ -54,7 +54,7 @@ macro(build_test_binary)
         PRIVATE
             runtime::etrt_static
             cereal::cereal
-            gflags
+            gflags::gflags
             deviceLayer::deviceLayer
             sw-sysemu::sw-sysemu
             GTest::gtest            
@@ -112,6 +112,7 @@ get_property(MACHINE_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MachineMini
 get_property(WORKER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinion.elf PROPERTY LOCATION)
 
 set(KERNELS_DIR "${ESPERANTO_TEST_KERNELS_LIB_DIR}/esperanto-fw/kernels")
+message(STATUS "${KERNELS_DIR}")
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${BREAKPAD_INCLUDE_DIR}/breakpad)
