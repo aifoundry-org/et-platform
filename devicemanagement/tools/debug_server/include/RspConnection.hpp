@@ -34,6 +34,9 @@
 //! The default service to use if port number = 0 and no service specified
 #define DEFAULT_RSP_SERVICE "gdb-server123"
 
+// Break Char (ctrl+c) from GDB client
+#define RSP_BREAK_CHAR      0x03
+
 //-----------------------------------------------------------------------------
 //! Class implementing the RSP connection listener
 
@@ -71,6 +74,9 @@ class RspConnection {
   bool getPkt(RspPacket *pkt);
   bool putPkt(RspPacket *pkt);
 
+  // Routine to handle individual chars
+  int getRspChar();
+
  private:
   // Generic initializer
   void rspInit(int _portNum, const char *_serviceName);
@@ -78,7 +84,6 @@ class RspConnection {
   // Internal routines to handle individual chars
   bool putRspChar(char c);
   bool putRspStr(char *const c, const size_t len);
-  int getRspChar();
 
   //! The port number to listen on
   int portNum;
