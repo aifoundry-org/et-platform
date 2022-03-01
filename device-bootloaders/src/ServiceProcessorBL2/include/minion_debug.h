@@ -21,6 +21,7 @@
 #include "sp_host_iface.h"
 #include "minion_run_control.h"
 #include "minion_state_inspection.h"
+#include "cache_flush_ops.h"
 #include "log.h"
 
 /*! \fn void minion_debug_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer)

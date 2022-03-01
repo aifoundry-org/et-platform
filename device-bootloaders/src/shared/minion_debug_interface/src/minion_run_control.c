@@ -17,7 +17,7 @@
 bool Halt_Harts()
 {
     assert_halt();
-    bool all_halted = WAIT(Check_Halted());
+    bool all_halted = WAIT(check_halted());
     deassert_halt();
     return all_halted;
 }
@@ -26,21 +26,7 @@ bool Resume_Harts()
 {
     uint32_t current_dmctrl = read_dmctrl() | DMCTRL_RES_MASK;
     write_dmctrl(current_dmctrl);
-    return WAIT(Check_Running());
-}
-
-bool Check_Halted()
-{
-    uint32_t treel2 = read_andortreel2();
-    bool no_harts_enabled = HALTED(treel2) && RUNNING(treel2);
-    return (HALTED(treel2) && (!no_harts_enabled));
-}
-
-bool Check_Running()
-{
-    uint32_t treel2 = read_andortreel2();
-    bool no_harts_enabled = HALTED(treel2) && RUNNING(treel2);
-    return (RUNNING(treel2) && (!no_harts_enabled));
+    return WAIT(check_running());
 }
 
 void Select_Harts(uint8_t shire_id, uint8_t neigh_id)
@@ -63,7 +49,7 @@ void Set_PC(uint64_t hart_id, uint64_t pc)
 void Set_PC_Breakpoint(uint64_t hart_id, uint64_t pc, priv_mask_e mode)
 {
     Write_CSR(hart_id, MINION_CSR_TDATA1_OFFSET, TDATA1(mode));
-    Write_CSR(hart_id, MINION_CSR_TDATA1_OFFSET, pc);
+    Write_CSR(hart_id, MINION_CSR_TDATA2_OFFSET, pc);
 }
 
 void Unset_PC_Breakpoint(uint64_t hart_id)

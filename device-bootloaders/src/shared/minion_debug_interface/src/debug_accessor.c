@@ -120,7 +120,7 @@ void write_nxdata1(uint64_t hart_id, uint64_t data)
     uint8_t shire_id = (uint8_t)(GET_SHIRE_ID(hart_id));
     uint8_t minion_id = (uint8_t)(GET_MINION_ID(hart_id));
     uint8_t thread_id = (uint8_t)(GET_THREAD_ID(hart_id));
-    write_esr_new(PP_MESSAGES, shire_id, REGION_MINION, minion_id, NXDATA0_BYTE, data, thread_id);
+    write_esr_new(PP_MESSAGES, shire_id, REGION_MINION, minion_id, NXDATA1_BYTE, data, thread_id);
 }
 
 void execute_instructions(uint64_t hart_id, const uint32_t *inst_list, uint32_t num_inst)
@@ -136,10 +136,10 @@ void execute_instructions(uint64_t hart_id, const uint32_t *inst_list, uint32_t 
         uint64_t hastatus1 = ~BITS64_ALLF_MASK;
         while (busy && rtry)
         {
-            busy = HART_BUSY_STATUS(hart_id)
+            busy = HART_BUSY_STATUS(hart_id);
             --rtry;
 
-            bool xcpt = HART_EXCEPTION_STATUS(hart_id)
+            bool xcpt = HART_EXCEPTION_STATUS(hart_id);
             if (xcpt)
             {
                 uint64_t xcpt_mask =
@@ -168,4 +168,21 @@ void write_ddata(uint64_t hart_id, uint64_t data)
 {
     write_nxdata0(hart_id, (data & 0xffffffff));
     write_nxdata1(hart_id, ((data >> 32) & 0xffffffff));
+}
+
+/* This function returns True if selected harts are halted */
+bool check_halted()
+{
+    uint32_t treel2 = read_andortreel2();
+    bool no_harts_enabled = HALTED(treel2) && RUNNING(treel2);
+    return (HALTED(treel2) && (!no_harts_enabled));
+}
+
+/* This function returns True if selected harts are running. It DOESN'T implement the workaround for
+   Errata 1.18 so minion 0 on each neigh needs to be selected and enabled when this function is called*/
+bool check_running()
+{
+    uint32_t treel2 = read_andortreel2();
+    bool no_harts_enabled = HALTED(treel2) && RUNNING(treel2);
+    return (RUNNING(treel2) && (!no_harts_enabled));
 }

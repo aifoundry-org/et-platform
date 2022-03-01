@@ -60,10 +60,9 @@
 #define NEIGH_ID_2 2
 #define NEIGH_ID_3 3
 
-#define PER_NEIGH_MINION_MASK 0xFFU
-#define DISABLE_MINION_MASK(neigh_id) \
-    (PER_NEIGH_MINION_MASK << (MINIONS_PER_NEIGH * neigh_id))
-#define ENABLE_MINION_MASK(neigh_id) ~DISABLE_MINION_MASK(neigh_id)
+#define PER_NEIGH_MINION_MASK         0xFFU
+#define DISABLE_MINION_MASK(neigh_id) (PER_NEIGH_MINION_MASK << (MINIONS_PER_NEIGH * neigh_id))
+#define ENABLE_MINION_MASK(neigh_id)  ~DISABLE_MINION_MASK(neigh_id)
 
 #define ALL_MINIONS_MASK 0xFFFFU
 
@@ -125,22 +124,22 @@
 #define HART_HALT_STATUS(hart_id)                                     \
     ETSOC_NEIGH_ESR_HASTATUS0_HALTED_GET(                             \
         READ_HASTATUS0(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
-    &(hart_id % HARTS_PER_NEIGH);
+    &(1ULL << (hart_id % HARTS_PER_NEIGH))
 
 #define HART_RUNNING_STATUS(hart_id)                                  \
     ETSOC_NEIGH_ESR_HASTATUS0_RUNNING_GET(                            \
         READ_HASTATUS0(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
-    &(hart_id % HARTS_PER_NEIGH);
+    &(1ULL << (hart_id % HARTS_PER_NEIGH))
 
 #define HART_RESUME_STATUS(hart_id)                                   \
     ETSOC_NEIGH_ESR_HASTATUS0_RESUMEACK_GET(                          \
         READ_HASTATUS0(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
-    &(hart_id % HARTS_PER_NEIGH);
+    &(1ULL << (hart_id % HARTS_PER_NEIGH))
 
 #define HART_RESET_STATUS(hart_id)                                    \
     ETSOC_NEIGH_ESR_HASTATUS0_HAVERESET_GET(                          \
         READ_HASTATUS0(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
-    &(hart_id % HARTS_PER_NEIGH);
+    &(1ULL << (hart_id % HARTS_PER_NEIGH))
 
 #define WRITE_HASTATUS0(shire_id, neigh_id, data)                        \
     write_esr_new(PP_MESSAGES, shire_id, REGION_NEIGHBOURHOOD, neigh_id, \
@@ -153,17 +152,17 @@
 #define HART_ERROR_STATUS(hart_id)                                    \
     ETSOC_NEIGH_ESR_HASTATUS1_ERROR_GET(                              \
         READ_HASTATUS1(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
-    &(hart_id % HARTS_PER_NEIGH);
+    &(1ULL << (hart_id % HARTS_PER_NEIGH))
 
 #define HART_EXCEPTION_STATUS(hart_id)                                \
     ETSOC_NEIGH_ESR_HASTATUS1_EXCEPTION_GET(                          \
         READ_HASTATUS1(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
-    &(hart_id % HARTS_PER_NEIGH);
+    &(1ULL << (hart_id % HARTS_PER_NEIGH))
 
 #define HART_BUSY_STATUS(hart_id)                                     \
     ETSOC_NEIGH_ESR_HASTATUS1_BUSY_GET(                               \
         READ_HASTATUS1(GET_SHIRE_ID(hart_id), GET_NEIGH_ID(hart_id))) \
-    &(hart_id % HARTS_PER_NEIGH);
+    &(1ULL << (hart_id % HARTS_PER_NEIGH))
 
 #define WRITE_HASTATUS1(shire_id, neigh_id, data)                        \
     write_esr_new(PP_MESSAGES, shire_id, REGION_NEIGHBOURHOOD, neigh_id, \
@@ -180,6 +179,8 @@ void unselect_hart_op(uint8_t shire_id, uint8_t neigh_id, uint16_t hart_mask);
 void disable_shire_threads(uint8_t shire_id);
 void enable_shire_threads(uint8_t shire_id);
 uint64_t get_enabled_harts(uint8_t shire_id);
+bool check_halted(void);
+bool check_running(void);
 
 /* Functions required by minion state control APIs*/
 uint64_t read_nxdata0(uint64_t hart_id);

@@ -57,21 +57,6 @@ bool Halt_Harts(void);
 */
 bool Resume_Harts(void);
 
-/*! \fn bool Check_Running(void)
-    \brief This function returns True if selected harts are running. It DOESN'T implement the workaround for
-           Errata 1.18 so minion 0 on each neigh needs to be selected and enabled when this function is called
-    \param None 
-    \returns bool
-*/
-bool Check_Running(void);
-
-/*! \fn bool Check_Halted(void)
-    \brief This function returns True if selected harts are halted
-    \param None 
-    \returns bool
-*/
-bool Check_Halted(void);
-
 /* Breakpoint Control */
 /*! \fn  void Set_PC_Breakpoint(uint64_t hart_id, uint64_t pc, priv_mask_t mode)
     \brief  Sets breakpoint on a PC. Other breapoints (on data or on PC) in the hart

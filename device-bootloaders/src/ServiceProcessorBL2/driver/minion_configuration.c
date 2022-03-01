@@ -1557,7 +1557,7 @@ int Minion_VPU_RF_Init(uint8_t shireid)
     enable_shire_threads(shireid);
 
     /* Wait for all Harts in Shire to halt */
-    if (!WAIT(Check_Halted())) {
+    if (!WAIT(check_halted())) {
        UPDATE_ALL_NEIGH(Unselect_Harts,shireid)
        return MINION_CORE_NOT_HALTED;
     }

@@ -29,8 +29,8 @@ uint64_t Read_GPR(uint64_t hart_id, uint32_t reg)
 void Write_GPR(uint64_t hart_id, uint32_t reg, uint64_t data)
 {
     uint32_t write_reg_list[NUM_INST_GPR_WRITE_SEQ] = { WRITE_GPR_SEQ(reg) };
-    execute_instructions(hart_id, write_reg_list, NUM_INST_GPR_WRITE_SEQ);
     write_ddata(hart_id, data);
+    execute_instructions(hart_id, write_reg_list, NUM_INST_GPR_WRITE_SEQ);
 }
 
 uint64_t *Read_All_GPR(uint64_t hart_id)
