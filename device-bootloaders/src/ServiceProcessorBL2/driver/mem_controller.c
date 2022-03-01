@@ -107,12 +107,12 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode)
         return -1;
     }
 
-    if (0 != program_memshire_pll(0, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_BYPASS, 1))
+    if (0 != program_memshire_pll(0, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_KICK, 2))
         return -1;
 
     memshire_pll_clear_lock_monitor(0);
 
-    if (0 != program_memshire_pll(4, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_BYPASS, 1))
+    if (0 != program_memshire_pll(4, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_KICK, 2))
         return -1;
 
     memshire_pll_clear_lock_monitor(4);

@@ -118,25 +118,36 @@
 */
 #define PLL_REG_INDEX_REG_LOCK_DETECT_STATUS 0x39
 
-/*! \def DCO_NORMALIZATION_ENABLE__SHIFT
-    \brief DCO normalization enable shift
+/*! \def DCO_NORMALIZATION_ENABLE_OFFSET
+    \brief DCO normalization enable offset
 */
-#define DCO_NORMALIZATION_ENABLE__SHIFT      7u
+#define DCO_NORMALIZATION_ENABLE_OFFSET      7u
 
-/*! \def DCO_NORMALIZATION_ENABLE__MASK
+/*! \def DCO_NORMALIZATION_ENABLE_MASK
     \brief DCO normalization enable mask
 */
-#define DCO_NORMALIZATION_ENABLE__MASK       (1u << DCO_NORMALIZATION_ENABLE__SHIFT)
+#define DCO_NORMALIZATION_ENABLE_MASK       (1u << DCO_NORMALIZATION_ENABLE_OFFSET)
 
-/*! \def PLL_ENABLE__SHIFT
-    \brief PLL enable shift
-*/
-#define PLL_ENABLE__SHIFT      3u
 
-/*! \def PLL_ENABLE__MASK
-    \brief PLL enable mask
+/*! \def STROBE_UPDATE_OFFSET
+    \brief Strobe update offset
 */
-#define PLL_ENABLE__MASK       (1u << PLL_ENABLE__SHIFT)
+#define STROBE_UPDATE_OFFSET      0u
+
+/*! \def PLL_ENABLE_OFFSET
+    \brief PLL enable offset
+*/
+#define PLL_ENABLE_OFFSET      3u
+
+/*! \def LDO_POWER_DOWN_OFFSET
+    \brief LDO power down offset
+*/
+#define LDO_POWER_DOWN_OFFSET      1u
+
+/*! \def LDO_BYPASS_OFFSET
+    \brief LDO bypass offset
+*/
+#define LDO_BYPASS_OFFSET      0u
 
 /*! \def FREQUENCY_HZ_TO_MHZ(x)
     \brief Converts HZ to MHZ
@@ -166,17 +177,33 @@
 /*! \def CHECK_AND_HANDLE_PLL_STATUS(PLL_ID, REG_MACRO)
     \brief Check and handle PLL status
 */
-#define CHECK_AND_HANDLE_PLL_STATUS(PLL_ID, REG_MACRO, PLL_LOSS_COUNTER)     \
+#define CHECK_AND_HANDLE_PLL_STATUS(PLL_ID, REG_MACRO, PLL_LOSS_COUNTER)              \
     clock_manager_get_pll_status(PLL_ID, &cm_pll_status);                             \
     if ( REG_MACRO(cm_pll_status) )                                                   \
     {                                                                                 \
         PLL_LOSS_INT_DIS_LOCK_INT_EN(PLL_ID)                                          \
-        PLL_LOSS_COUNTER++;                                                                \
+        PLL_LOSS_COUNTER++;                                                           \
     }                                                                                 \
     else                                                                              \
     {                                                                                 \
         PLL_LOCK_INT_DIS_LOST_INT_EN(PLL_ID)                                          \
     }
+
+/*! \def HPDPLL_CLEAR_REG_BIT(regs, reg_offset, bit_offset)
+    \brief Clears register bit
+*/
+#define HPDPLL_CLEAR_REG_BIT(regs, reg, reg_offset, bit_offset)                       \
+    reg = (uint16_t)regs[reg_offset];                                                           \
+    reg &= (uint16_t)(~(0x1u << bit_offset));                                         \
+    regs[reg_offset] = reg;
+
+/*! \def HPDPLL_SET_REG_BIT(regs, reg_offset, bit_offset)
+    \brief Sets register bit
+*/
+#define HPDPLL_SET_REG_BIT(regs, reg, reg_offset, bit_offset)                         \
+    reg = (uint16_t)regs[reg_offset];                                                           \
+    reg |= (uint16_t)(0x1u << bit_offset);                                            \
+    regs[reg_offset] = reg;
 
 static uint32_t gs_sp_pll_0_frequency;
 static uint32_t gs_sp_pll_1_frequency;
@@ -395,13 +422,8 @@ static void update_pll_registers(volatile uint32_t *pll_registers)
 {
     uint32_t strobe;
 
-    strobe = pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE];
-    strobe = strobe & 0xFFFFFFFE;
-    pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE] = strobe;
-
-    strobe = pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE];
-    strobe = strobe | 1;
-    pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE] = strobe;
+    HPDPLL_SET_REG_BIT(pll_registers, strobe, PLL_REG_INDEX_REG_UPDATE_STROBE,
+                            STROBE_UPDATE_OFFSET)
 }
 
 #pragma GCC diagnostic pop
@@ -481,12 +503,12 @@ FOUND_CONFIG_DATA:
         {
             if (ldo_update == HPDPLL_LDO_DISABLE || ldo_update == HPDPLL_LDO_KICK)
             {
-                register_value |= 0x2;     // Turn off LDO
+                register_value |= (0x1u << LDO_POWER_DOWN_OFFSET);     // Turn off LDO
                 ldo_reg = register_value;
             }
             if (ldo_update == HPDPLL_LDO_BYPASS)
             {
-                register_value |= 0x1;     // Bypass LDO
+                register_value |= (0x1u << LDO_BYPASS_OFFSET);     // Bypass LDO
             }
         }
         /* Increase lock threshold if necessary */
@@ -519,23 +541,19 @@ FOUND_CONFIG_DATA:
 
     /* if the DCO_NORMALIZATION_ENABLE bit is NOT 1, set it to 1 */
     reg0 = pll_registers[PLL_REG_INDEX_REG_0];
-    if (!(reg0 & DCO_NORMALIZATION_ENABLE__MASK))
+    if (!(reg0 & DCO_NORMALIZATION_ENABLE_MASK))
     {
-        reg0 = reg0 | DCO_NORMALIZATION_ENABLE__MASK;
-        pll_registers[PLL_REG_INDEX_REG_0] = reg0;
+        HPDPLL_SET_REG_BIT(pll_registers, reg0, PLL_REG_INDEX_REG_0,
+                                DCO_NORMALIZATION_ENABLE_OFFSET)
         update_pll_registers(pll_registers);
     }
 
     /* set the DCO_NORMALIZATION_ENABLE bit to 0 */
-    reg0 = pll_registers[PLL_REG_INDEX_REG_0];
-    reg0 = reg0 & ~DCO_NORMALIZATION_ENABLE__MASK;
-    pll_registers[PLL_REG_INDEX_REG_0] = reg0;
+    HPDPLL_CLEAR_REG_BIT(pll_registers, reg0, PLL_REG_INDEX_REG_0, DCO_NORMALIZATION_ENABLE_OFFSET)
     update_pll_registers(pll_registers);
 
     /* set the DCO_NORMALIZATION_ENABLE bit to 1 */
-    reg0 = pll_registers[PLL_REG_INDEX_REG_0];
-    reg0 = reg0 | DCO_NORMALIZATION_ENABLE__MASK;
-    pll_registers[PLL_REG_INDEX_REG_0] = reg0;
+    HPDPLL_SET_REG_BIT(pll_registers, reg0, PLL_REG_INDEX_REG_0, DCO_NORMALIZATION_ENABLE_OFFSET)
     update_pll_registers(pll_registers);
 
     /*
@@ -550,18 +568,18 @@ FOUND_CONFIG_DATA:
 
     if (ldo_update == HPDPLL_LDO_KICK)
     {
-        ldo_reg &= (uint16_t)(~(0x2));  // Turn on LDO
-        pll_registers[PLL_REG_INDEX_REG_LDO_CONTROL] = ldo_reg;
+        HPDPLL_CLEAR_REG_BIT(pll_registers, ldo_reg, PLL_REG_INDEX_REG_LDO_CONTROL,
+                                LDO_POWER_DOWN_OFFSET)  // Turn on LDO
         update_pll_registers(pll_registers); // Update PLL registers reg_update
 
         usdelay(3);
 
-        reg0 = reg0 & ~PLL_ENABLE__MASK; // Disable PLL
-        pll_registers[PLL_REG_INDEX_REG_0] = reg0;
+        HPDPLL_CLEAR_REG_BIT(pll_registers, reg0, PLL_REG_INDEX_REG_0,
+                                PLL_ENABLE_OFFSET)  // Disable PLL
         update_pll_registers(pll_registers);
 
-        reg0 = reg0 | PLL_ENABLE__MASK; // Enable PLL
-        pll_registers[PLL_REG_INDEX_REG_0] = reg0;
+        HPDPLL_SET_REG_BIT(pll_registers, reg0, PLL_REG_INDEX_REG_0,
+                                PLL_ENABLE_OFFSET)  // Enable PLL
         update_pll_registers(pll_registers);
 
         status = spio_pll_wait_for_lock(pll_registers);
@@ -623,7 +641,7 @@ int configure_sp_pll_0(uint8_t mode)
     }
 
     rv = configure_pll((uint32_t *)R_SP_PLL0_BASEADDR, mode, &gs_sp_pll_0_frequency,
-                            HPDPLL_LDO_BYPASS, 1);
+                            HPDPLL_LDO_KICK, 2);
     if (0 != rv)
     {
         goto ERROR;
@@ -663,7 +681,7 @@ int configure_sp_pll_1(uint8_t mode)
     }
 
     rv = configure_pll((uint32_t *)R_SP_PLL1_BASEADDR, mode, &gs_sp_pll_1_frequency,
-                            HPDPLL_LDO_BYPASS, 1);
+                            HPDPLL_LDO_KICK, 2);
     if (0 != rv)
     {
         goto ERROR;
@@ -699,7 +717,7 @@ int configure_sp_pll_2(uint8_t mode)
     }
 
     rv = configure_pll((uint32_t *)R_SP_PLL2_BASEADDR, mode, &gs_sp_pll_2_frequency,
-                            HPDPLL_LDO_BYPASS, 1);
+                            HPDPLL_LDO_KICK, 2);
     if (0 != rv)
     {
         goto ERROR;
@@ -734,7 +752,7 @@ int configure_sp_pll_4(uint8_t mode)
     }
 
     rv = configure_pll((uint32_t *)R_SP_PLL4_BASEADDR, mode, &gs_sp_pll_4_frequency,
-                            HPDPLL_LDO_BYPASS, 1);
+                            HPDPLL_LDO_KICK, 2);
     if (0 != rv)
     {
         goto ERROR;
@@ -770,7 +788,7 @@ int configure_pshire_pll(const uint8_t mode)
     }
 
     rv = configure_pll((uint32_t *)R_PCIE_PLLP0_BASEADDR, mode, &gs_pcie_pll_0_frequency,
-                            HPDPLL_LDO_BYPASS, 1);
+                            HPDPLL_LDO_KICK, 2);
     if (0 != rv)
     {
         goto ERROR;
@@ -979,9 +997,12 @@ void clear_spio_lock_loss_monitors(void)
     spio_pll_clear_lock_monitor(PLL_ID_PSHIRE);
 }
 
-static int spio_pll_ldo_bypass(PLL_ID_t pll, volatile uint32_t *pll_registers)
+static int spio_pll_ldo_kick(PLL_ID_t pll, volatile uint32_t *pll_registers,
+                                    uint32_t threshold_multiplier)
 {
     uint16_t ldo_reg = 0;
+    uint16_t reg0 = 0;
+    uint16_t lock_threshold = 0;
     int status;
     uint32_t timeout = PLL_LOCK_TIMEOUT;
 
@@ -991,9 +1012,44 @@ static int spio_pll_ldo_bypass(PLL_ID_t pll, volatile uint32_t *pll_registers)
         return status;
     }
 
-    ldo_reg = (uint16_t)pll_registers[PLL_REG_INDEX_REG_LDO_CONTROL];
-    ldo_reg |= 0x1;     // Bypass LDO
-    pll_registers[PLL_REG_INDEX_REG_LDO_CONTROL] = ldo_reg;
+    lock_threshold = (uint16_t)pll_registers[PLL_REG_INDEX_REG_LOCK_THRESHOLD];
+    if ((lock_threshold * threshold_multiplier) > 0x0FFFFu)
+    {
+        lock_threshold = (uint16_t)(0xFFFF);
+    }
+    else
+    {
+        lock_threshold = (uint16_t)(lock_threshold * threshold_multiplier);
+    }
+    pll_registers[PLL_REG_INDEX_REG_LOCK_THRESHOLD] = lock_threshold;
+
+    HPDPLL_CLEAR_REG_BIT(pll_registers, ldo_reg, PLL_REG_INDEX_REG_LDO_CONTROL,
+                            LDO_BYPASS_OFFSET)  // Clear LDO bypass
+    HPDPLL_SET_REG_BIT(pll_registers, ldo_reg, PLL_REG_INDEX_REG_LDO_CONTROL,
+                            LDO_POWER_DOWN_OFFSET)  // Turn off LDO
+    update_pll_registers(pll_registers);
+
+    HPDPLL_CLEAR_REG_BIT(pll_registers, ldo_reg, PLL_REG_INDEX_REG_LDO_CONTROL,
+                            LDO_POWER_DOWN_OFFSET)  // Turn oon LDO
+    update_pll_registers(pll_registers);
+
+    /* Wait some time.
+    */
+    if (pll == PLL_ID_SP_PLL_0)
+    {
+        for(int i = 0; i<300; i++) __asm volatile ( " nop " );
+    }
+    else
+    {
+        for(int i = 0; i<1500; i++) __asm volatile ( " nop " );
+    }
+
+    HPDPLL_CLEAR_REG_BIT(pll_registers, reg0, PLL_REG_INDEX_REG_0,
+                            PLL_ENABLE_OFFSET)  // Disable PLL
+    update_pll_registers(pll_registers);
+
+    HPDPLL_SET_REG_BIT(pll_registers, reg0, PLL_REG_INDEX_REG_0,
+                            PLL_ENABLE_OFFSET)  // Enable PLL
     update_pll_registers(pll_registers);
 
     /* Give some time for the clock to be stable
@@ -1001,7 +1057,7 @@ static int spio_pll_ldo_bypass(PLL_ID_t pll, volatile uint32_t *pll_registers)
     */
     if (pll == PLL_ID_SP_PLL_0)
     {
-        for(int i = 0; i<100; i++) __asm volatile ( " nop " );
+        for(int i = 0; i<300; i++) __asm volatile ( " nop " );
     }
     else
     {
@@ -1044,15 +1100,15 @@ int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
     gs_sp_pll_4_frequency = 0;
     gs_pcie_pll_0_frequency = pcie_pll_0_frequency;
 
-    /* Bypass LDOs of PLLs configured during Bootrom */
-    status = spio_pll_ldo_bypass(PLL_ID_SP_PLL_0, (uint32_t *)R_SP_PLL0_BASEADDR);
+    /* Perform LDO kick of PLLs configured during Bootrom */
+    status = spio_pll_ldo_kick(PLL_ID_SP_PLL_0, (uint32_t *)R_SP_PLL0_BASEADDR, 2);
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_ERROR, "SPIO PLL0 ldo bypass failed\n");
         return status;
     }
 
-    status = spio_pll_ldo_bypass(PLL_ID_SP_PLL_1, (uint32_t *)R_SP_PLL1_BASEADDR);
+    status = spio_pll_ldo_kick(PLL_ID_SP_PLL_1, (uint32_t *)R_SP_PLL1_BASEADDR, 2);
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_ERROR, "SPIO PLL1 ldo bypass failed\n");
@@ -1060,7 +1116,7 @@ int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
     }
 
 #if !FAST_BOOT
-    status = spio_pll_ldo_bypass(PLL_ID_PSHIRE, (uint32_t *)R_PCIE_PLLP0_BASEADDR);
+    status = spio_pll_ldo_kick(PLL_ID_PSHIRE, (uint32_t *)R_PCIE_PLLP0_BASEADDR, 2);
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_ERROR, "PSHIRE PLL ldo bypass failed\n");
