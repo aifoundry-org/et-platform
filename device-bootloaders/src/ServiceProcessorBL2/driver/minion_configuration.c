@@ -1174,7 +1174,7 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
 
     switch (msg_id)
     {
-        case DM_CMD_CM_RESET:
+        case DM_CMD_MM_RESET:
             status = Compute_Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask());
             if (0 != status)
             {
