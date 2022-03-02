@@ -33,7 +33,7 @@
 #define MINIONS_PER_NEIGH   HARTS_PER_NEIGH / 2
 #define NUM_NEIGH_PER_SHIRE 4
 #define MAX_RETRIES         1000
-#define TDATA1(mode)        (((uint64_t)1 << 59) | (1 << 12) | (0 << 7) | ((mode & 7) << 3) | (1 << 2))
+#define TDATA1(mode)        (((uint64_t)1 << 59) | (1 << 12) | (0 << 7) | ((mode & 0xF) << 3) | (1 << 2))
 #define RUNNING(treel2)     (treel2 >> 5 & 1U)
 #define HALTED(treel2)      (treel2 >> 3 & 1U)
 
