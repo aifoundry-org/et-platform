@@ -382,14 +382,14 @@ Modules:
       Values:
         - Name: PRIV_NONE
           Value: 0
-        - Name: PRIV_MMODE
+        - Name: PRIV_UMODE
           Value: 1
         - Name: PRIV_SMODE
           Value: 2
-        - Name: PRIV_UMODE
-          Value: 4
+        - Name: PRIV_MMODE
+          Value: 8
         - Name: PRIV_ALL
-          Value: 7
+          Value: 11
     - Name: mdi_event_type
       Description: MDI BP Event status
       Type: uint32_t
