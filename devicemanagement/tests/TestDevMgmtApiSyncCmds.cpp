@@ -2737,6 +2737,8 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
               device_mgmt_api::DM_STATUS_SUCCESS);
   }
 }
+
+/* TODO Disabling CM test as it will be replaced with MM Reset in SW-10736
 void TestDevMgmtApiSyncCmds::resetCM(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
@@ -2753,7 +2755,7 @@ void TestDevMgmtApiSyncCmds::resetCM(bool singleDevice) {
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
-
+*/
 void TestDevMgmtApiSyncCmds::readMem(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
