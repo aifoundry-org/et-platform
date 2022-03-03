@@ -74,7 +74,15 @@ static inline void mm_setup_default_pmcs(uint32_t hart_id)
         /* A single hart each neighborhood configures SC PMCs */
         if (hart_id % 16 == 0)
         {
-            configure_sc_pmcs(PMU_SC_CTL_STATUS_MASK, PMU_SC_L2_READS, PMU_SC_MSG_SEND);
+            configure_sc_pmcs(PMU_SC_CTL_STATUS_MASK, PMU_SC_L2_READS, PMU_SC_L2_WRITES);
+
+            uint64_t neigh_id = (hart_id >> 4) & 0x3;
+            uint64_t shire_id = (hart_id >> 6) & 0x1F;
+
+            /* Start Shire Cache PMC counters */
+            pmu_shire_cache_counter_start(shire_id, neigh_id, PMU_SC_CYCLE_PMC);
+            pmu_shire_cache_counter_start(shire_id, neigh_id, PMU_SC_PMC0);
+            pmu_shire_cache_counter_start(shire_id, neigh_id, PMU_SC_PMC1);
         }
     }
 
