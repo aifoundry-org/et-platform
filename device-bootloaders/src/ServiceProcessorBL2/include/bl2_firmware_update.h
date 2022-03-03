@@ -31,17 +31,6 @@
 
 #include "hwinc/hal_device.h"
 
-/**
- * @enum DEVICE_FW_UPDATE_STATUS
- * @brief Enum of Firmware update status
- */
-enum DEVICE_FW_UPDATE_STATUS {
-    DEVICE_FW_FLASH_UPDATE_SUCCESS = 0,
-    DEVICE_FW_FLASH_UPDATE_ERROR = 1,
-    DEVICE_FW_FLASH_PRIORITY_COUNTER_SWAP_ERROR = 2,
-    DEVICE_FW_UPDATED_IMAGE_BOOT_FAILED = 3
-};
-
 /*! \def FORMAT_VERSION
     \brief Macro for formatting FW version. It will be of the format:  Major[1 byte].[Minor 1 byte].[Revision 1 byte].[NULL].
 */

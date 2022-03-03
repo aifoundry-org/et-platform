@@ -552,6 +552,12 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
     {
         Log_Write(LOG_LEVEL_INFO, "Re-scanning partition %u...\n", n);
 
+        if (false == flash_fs_bl1_info->partition_info[n].partition_valid) {
+            flash_fs_bl2_info->partition_info[n].partition_valid = false;
+            Log_Write(LOG_LEVEL_WARNING, "Partition %u is not valid, skipping\n", n);
+            continue;
+        }
+
         if (0 != flash_fs_scan_partition(partition_size, &flash_fs_bl2_info->partition_info[n]))
         {
             Log_Write(LOG_LEVEL_ERROR, "Partition %u seems corrupted.\n", n);
@@ -964,7 +970,7 @@ int flash_fs_erase_partition(uint32_t partition_address, uint32_t partition_size
 
     /* Erase partition */
     for (uint32_t block_addr = partition_address;
-         block_addr <= (partition_address + partition_size); block_addr += SPI_FLASH_BLOCK_SIZE)
+         block_addr < (partition_address + partition_size); block_addr += SPI_FLASH_BLOCK_SIZE)
     {
         if (0 != spi_flash_block_erase(sg_flash_fs_bl2_info.flash_id, block_addr))
         {
@@ -1006,10 +1012,10 @@ int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk
     partition_size = sg_flash_fs_bl2_info.flash_size / 2;
 
     /* Check that buffer size is greater than partition size */
-    if (buffer_size < partition_size)
+    if (buffer_size != partition_size)
     {
-        MESSAGE_ERROR("flash_fs_update_partition: failed (image buffer size is smaller \
-                        than partition size)!\n");
+        MESSAGE_ERROR("flash_fs_update_partition: failed (update image buffer size is not \
+                        equal to partition size)!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
@@ -1038,7 +1044,7 @@ int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk
     }
 
     if (0 !=
-        flash_fs_write_partition(passive_partition_address, buffer, (uint32_t)buffer_size, chunk_size))
+        flash_fs_write_partition(passive_partition_address, buffer, partition_size, chunk_size))
     {
         MESSAGE_ERROR("flash_fs_write_file: failed to write data  passive partition address:%x  \
             buffer:%lx  buffer_size:%x!\n",

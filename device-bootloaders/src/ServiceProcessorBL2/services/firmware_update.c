@@ -19,10 +19,9 @@
 #include "bl2_firmware_update.h"
 #include "mm_iface.h"
 #include "system/layout.h"
+#include "bl_error_code.h"
 
-#define SPI_FLASH_WRITES_256B_CHUNK_SIZE 256
-#define SPI_FLASH_WRITES_128B_CHUNK_SIZE 128
-#define SPI_FLASH_WRITES_64B_CHUNK_SIZE  64
+#define SPI_FLASH_256B_CHUNK_SIZE 256
 
 /************************************************************************
 *
@@ -119,13 +118,13 @@ static int32_t dm_svc_get_firmware_status(void)
 
     if (0 != flash_fs_get_boot_counters(&attempted_boot_counter, &completed_boot_counter)) {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_get_boot_counters: failed to get boot counters!\n");
-        return DEVICE_FW_UPDATED_IMAGE_BOOT_FAILED;
+        return ERROR_FW_UPDATE_IMAGE_BOOT;
     } else {
         Log_Write(LOG_LEVEL_INFO, "flash_fs_get_boot_counters: Success!\n");
         if (attempted_boot_counter != completed_boot_counter) {
             Log_Write(LOG_LEVEL_ERROR,
                 "flash_fs_get_boot_counters: Attempted and completed boot counter do not match!\n");
-            return DEVICE_FW_UPDATED_IMAGE_BOOT_FAILED;
+            return ERROR_FW_UPDATE_IMAGE_BOOT;
         }
     }
 
@@ -368,7 +367,19 @@ static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_
 *
 *   DESCRIPTION
 *
-*       This is a function for updating firmware on flash memory
+*       This is a function for updating firmware on passive partition of
+*       flash memory. The active partition from which the system booted
+*       is not modified. Host writes input image (4 MBs in size) to
+*       scratch region of device memory. Input image is composed of two
+*       2 MB partition images. Since partition size is 2 MBs, only
+*       1st half of input image is always used in firmware update.
+*       First, passive partition is erased and then image is flashed.
+*       After this, verification is performed which involves comparing
+*       input image residing in scratch region with that on passive
+*       partition. After verification completes, priority counters for
+*       both partitions are set such that passive partition gets
+*       precedence after reboot and becomes the active partition and
+*       brings up silicon using updated firmware.
 *
 *   INPUTS
 *
@@ -386,54 +397,64 @@ static int32_t dm_svc_firmware_update(void)
     Log_Write(LOG_LEVEL_DEBUG, "Image available at : %lx,  size: %x\n",
             (uint64_t)SP_DM_SCRATCH_REGION_BEGIN, SP_DM_SCRATCH_REGION_SIZE);
 
+    const SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
+    uint32_t partition_size;
+    uint64_t start_time;
+    uint64_t end_time;
+
+    sp_bl2_data = get_service_processor_bl2_data();
+    if (sp_bl2_data == NULL) {
+        Log_Write(LOG_LEVEL_ERROR, "dm_svc_firmware_update: Unable to get SP BL2 data!\n");
+        return ERROR_FW_UPDATE_INVALID_BL2_DATA;
+    }
+
+    partition_size = sp_bl2_data->flash_fs_bl2_info.flash_size / 2;
+    start_time = timer_get_ticks_count();
+
     // Program the image to flash.
-    if (0 != flash_fs_update_partition((void *)SP_DM_SCRATCH_REGION_BEGIN,
-                                       SP_DM_SCRATCH_REGION_SIZE,
-                                       SPI_FLASH_WRITES_256B_CHUNK_SIZE)) {
+    if (0 != flash_fs_update_partition((void *)SP_DM_SCRATCH_REGION_BEGIN, partition_size,
+                                       SPI_FLASH_256B_CHUNK_SIZE)) {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_update_partition: failed to write data!\n");
-        return DEVICE_FW_FLASH_UPDATE_ERROR;
+        return ERROR_FW_UPDATE_ERASE_WRITE_PARTITION;
     } else {
-        Log_Write(LOG_LEVEL_INFO, "flash partition has been updated with new image!\n");
+        Log_Write(LOG_LEVEL_INFO, "Current FW image at partition %d\n", sp_bl2_data->flash_fs_bl2_info.active_partition);
+        Log_Write(LOG_LEVEL_INFO, "New FW image at partition %d\n", 1 - sp_bl2_data->flash_fs_bl2_info.active_partition);
     }
 
     /* Read back the image data written into flash and compare with the
         the data present in the DDR - ensure data is written correctly to
         flash.
     */
-    const uint8_t *ddr_data = (const uint8_t * )SP_DM_SCRATCH_REGION_BEGIN;
-    uint8_t flash_data[SPI_FLASH_WRITES_256B_CHUNK_SIZE];
-    const SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
+    const uint8_t *ddr_data = (const uint8_t *)SP_DM_SCRATCH_REGION_BEGIN;
+    uint8_t flash_data[SPI_FLASH_256B_CHUNK_SIZE];
 
-    sp_bl2_data = get_service_processor_bl2_data();
-    if (sp_bl2_data == NULL) {
-        Log_Write(LOG_LEVEL_ERROR, "dm_svc_firmware_update: Unable to get SP BL2 data!\n");
-        return DEVICE_FW_FLASH_UPDATE_ERROR;
-    }
-
-    for (uint32_t i = 0; i < sp_bl2_data->flash_fs_bl2_info.flash_size / 2;
-                    i = i + SPI_FLASH_WRITES_256B_CHUNK_SIZE) {
+    for (uint32_t i = 0; i < partition_size; i = i + SPI_FLASH_256B_CHUNK_SIZE) {
         /* Read data from flash passive partition */
-        if ( 0 != flash_fs_read(false, flash_data, SPI_FLASH_WRITES_256B_CHUNK_SIZE, i)) {
-            Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: Data validation failed!\n");
-            return DEVICE_FW_FLASH_UPDATE_ERROR;
+        if (0 != flash_fs_read(false, flash_data, SPI_FLASH_256B_CHUNK_SIZE, i)) {
+            Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: read back from flash failed!\n");
+            return ERROR_FW_UPDATE_READ_PARTITON;
         }
 
         /* Compare with the image data in the DDR */
-        if(memcmp((const void *)(ddr_data + i), (const void *) flash_data,
-                                SPI_FLASH_WRITES_256B_CHUNK_SIZE)) {
-            Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: Data validation failed!\n");
-            return DEVICE_FW_FLASH_UPDATE_ERROR;
+        if (memcmp((const void *)(ddr_data + i), (const void *)flash_data,
+                                SPI_FLASH_256B_CHUNK_SIZE)) {
+            Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: data validation failed!\n");
+            return ERROR_FW_UPDATE_MEMCOMPARE;
         }
     }
+
+    end_time = timer_get_ticks_count();
 
     // Swap the priority counter of the partitions. so bootrom will choose
     // the partition with an updated image
     if (0 != flash_fs_swap_primary_boot_partition()) {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_swap_primary_boot_partition: Update priority counter failed!\n");
-        return DEVICE_FW_FLASH_PRIORITY_COUNTER_SWAP_ERROR;
+        return ERROR_FW_UPDATE_PRIORITY_COUNTER_SWAP;
     }
 
-    return DEVICE_FW_FLASH_UPDATE_SUCCESS;
+    Log_Write(LOG_LEVEL_CRITICAL, "New FW updated successfully in %ld seconds\n", (end_time - start_time) / 1000000);
+
+    return SUCCESS;
 }
 
 /************************************************************************

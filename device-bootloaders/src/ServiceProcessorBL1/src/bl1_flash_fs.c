@@ -185,6 +185,10 @@ int flash_fs_init(FLASH_FS_BL1_INFO_t *restrict flash_fs_bl1_info,
     for (n = 0; n < 2; n++) {
         printx("Re-scanning partition %u...\n", n);
 
+        if (false == flash_fs_bl1_info->partition_info[n].partition_valid) {
+            printx("Partition %u is not valid, skipping\n", n);
+            continue;
+        }
         if (0 != flash_fs_scan_partition(partition_size, &flash_fs_bl1_info->partition_info[n])) {
             printx("Partition %u seems corrupted.\n", n);
             flash_fs_bl1_info->partition_info[n].partition_valid = false;
