@@ -174,10 +174,11 @@ TEST_F(ProfilerTests, memcpyHostToDevice) {
   // ------- code under test -------
   EXPECT_CALL(*profilerMock_, record(AMemcpyHostToDevice())).Times(1);
   EXPECT_CALL(*profilerMock_, record(ACommandSent())).Times(AtLeast(1));
-  EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1));
+  EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1)); // same
   runtime_->memcpyHostToDevice(stream, h_buffer.data(), d_ptr, h_buffer.size());
   // ------- code under test -------
 
+  sleep(1); // give time to the helper threads to record CommandSent/ResponseReceived evts
   EXPECT_CALL(*profilerMock_, record(AWaitForStream())).Times(1);
   runtime_->waitForStream(stream);
 }
@@ -198,10 +199,11 @@ TEST_F(ProfilerTests, loadCode) {
   // ------- code under test -------
   EXPECT_CALL(*profilerMock_, record(ALoadCode())).Times(1);
   EXPECT_CALL(*profilerMock_, record(ACommandSent())).Times(AtLeast(1));
-  EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1));
+  EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1)); // same
   runtime_->loadCode(stream, kernelContent.data(), kernelContent.size());
   // ------- code under test -------
 
+  sleep(1); // give time to the helper threads to record CommandSent/ResponseReceived evts
   EXPECT_CALL(*profilerMock_, record(AWaitForStream())).Times(1);
   runtime_->waitForStream(stream);
 }
@@ -221,10 +223,14 @@ TEST_F(ProfilerTests, unloadCode) {
 
   // ------- code under test -------
   EXPECT_CALL(*profilerMock_, record(AUnloadCode())).Times(1);
-  // EXPECT_CALL(*profilerMock_, record(ACommandSent())).Times(AtLeast(1));
-  // EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1));
+  EXPECT_CALL(*profilerMock_, record(ACommandSent())).Times(AtLeast(0));
+  EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(0)); // same
   runtime_->unloadCode(kernel);
   // ------- code under test -------
+
+  sleep(1); // give time to the helper threads to record CommandSent/ResponseReceived evts
+  EXPECT_CALL(*profilerMock_, record(AWaitForStream())).Times(1);
+  runtime_->waitForStream(stream);
 }
 
 MATCHER(AKernelLaunch, "") {
@@ -243,12 +249,29 @@ TEST_F(ProfilerTests, kernelLaunch) {
   // ------- code under test -------
   EXPECT_CALL(*profilerMock_, record(AKernelLaunch())).Times(1);
   EXPECT_CALL(*profilerMock_, record(ACommandSent())).Times(AtLeast(1));
-  EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1));
+  EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1)); // same
   runtime_->kernelLaunch(stream, kernel, nullptr, 0, 0x1);
   // ------- code under test -------
 
+  sleep(1); // give time to the helper threads to record CommandSent/ResponseReceived evts
   EXPECT_CALL(*profilerMock_, record(AWaitForStream())).Times(1);
   runtime_->waitForStream(stream);
+}
+
+TEST_F(ProfilerTests, CommandSender) {
+  std::vector<std::byte> commandData(64);
+
+  auto header = reinterpret_cast<device_ops_api::cmn_header_t*>(commandData.data());
+  // dummy msg_id to make it work on deviceLayerFake
+  header->msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD;
+  header->tag_id = device_ops_api::tag_id_t(0);
+
+  CommandSender cs(*deviceLayer_, *profilerMock_, 0, 0);
+
+  // ------- code under test -------
+  EXPECT_CALL(*profilerMock_, record(_)).Times(1);
+  cs.send(Command{commandData, cs, EventId(0), false, true});
+  // ------- code under test -------
 }
 
 } // end namespace rt
