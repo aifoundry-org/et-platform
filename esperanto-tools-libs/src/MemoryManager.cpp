@@ -20,6 +20,7 @@
 #include <ios>
 #include <limits>
 #include <numeric>
+#include <sstream>
 
 using namespace rt;
 
@@ -193,24 +194,30 @@ void MemoryManager::addChunk(FreeChunk chunk) {
 
 void MemoryManager::checkOperation(const std::byte* address, size_t size) const {
   auto addressU = reinterpret_cast<uint64_t>(address);
-  auto blockSize = 1U << blockSizeLog2_;
-  auto numBlocks = (addressU % blockSize + size + blockSize - 1) / blockSize;
   auto firstBlock = compressPointer(address);
-  auto lastBlock = firstBlock + numBlocks;
+  auto lastBlock = compressPointer(address + size - 1);
   auto it = allocated_.upper_bound(firstBlock);
 
+  auto throwException = [addressU, size, this] {
+    std::stringstream allocs;
+    for (auto a : allocated_) {
+      allocs << std::hex << "@: " << uncompressPointer(a.first) << " size: " << std::dec << (a.second << blockSizeLog2_)
+             << "\n";
+    }
+    RT_VLOG(HIGH) << "Allocations:\n" << allocs.str();
+    std::stringstream ss;
+    ss << "Invalid memcpy op. Device address: 0x" << std::hex << addressU << " size: " << std::dec << size;
+    throw rt::Exception(ss.str());
+  };
   if (it == begin(allocated_)) {
-    throw rt::Exception("Invalid memcpy op. Device address:" + std::to_string(addressU) +
-                        " size: " + std::to_string(size));
+    throwException();
   }
   --it;
 
   while (lastBlock > it->first + it->second) {
     auto next = it;
     if (++next == end(allocated_) || it->first + it->second != next->first) {
-
-      throw rt::Exception("Invalid memcpy op. Device address:" + std::to_string(addressU) +
-                          " size: " + std::to_string(size));
+      throwException();
     }
     it = next;
   }
@@ -279,7 +286,7 @@ std::byte* MemoryManager::malloc(size_t size, uint32_t alignment) {
   allocated_.insert({addr, countBlocks});
 
   RT_LOG(INFO) << "Malloc at device address: " << std::hex << uncompressPointer(addr)
-               << " compressed pointer (not address): " << addr;
+               << " compressed pointer (not address): " << addr << " size: " << std::dec << size;
   if (debugMode_) {
     sanityCheck();
   }

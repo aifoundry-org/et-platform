@@ -22,6 +22,11 @@ add_library(benchmarker
 add_library(runtimeTools::benchmarker ALIAS benchmarker)
 target_compile_features(benchmarker PUBLIC cxx_std_17)
 
+add_executable(runKernel src/runKernel.cpp)
+target_include_directories(runKernel PRIVATE ../src)
+target_compile_features(runKernel PRIVATE cxx_std_17)
+target_link_libraries(runKernel PRIVATE hostUtils::logging runtime::etrt_static deviceLayer::deviceLayer)
+
 include(GNUInstallDirs)
 
 target_include_directories(benchmarker
@@ -81,3 +86,5 @@ install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/ToolsConfigVersion.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/tools
 )
+
+

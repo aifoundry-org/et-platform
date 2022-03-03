@@ -18,7 +18,6 @@
 #include <ios>
 #include <random>
 #include <string_view>
-
 #pragma GCC diagnostic push
 #ifdef __clang__
 #pragma GCC diagnostic ignored "-Wkeyword-macro"
@@ -332,30 +331,30 @@ TEST(MemoryManager, check_operation) {
   return;
   auto totalRam = 1UL << 34;
   auto startAddress = 1UL << 12;
-  for (auto allocSize : {1U << 12, 1U << 20, 1U << 23}) {
-    RT_DLOG(INFO) << "AllocSize: " << allocSize;
-    for (auto blockSize : {128U, 1024U, 2048U, 4096U}) {
-      RT_DLOG(INFO) << "BlockSize: " << blockSize;
-      std::vector<std::byte*> allocations;
-      auto mm = MemoryManager(startAddress, totalRam, blockSize);
-      ASSERT_THROW(mm.checkOperation(reinterpret_cast<std::byte*>(startAddress), 1), rt::Exception);
-      for (auto i = 0U; i < 10; ++i) {
-        RT_DLOG(INFO) << "Iter: " << i;
-        allocations.emplace_back(mm.malloc(allocSize, allocSize));
-        ASSERT_NO_THROW(mm.checkOperation(allocations.back(), allocSize));
-        ASSERT_THROW(mm.checkOperation(allocations.back(), allocSize + 1), rt::Exception);
-        ASSERT_NO_THROW(mm.checkOperation(allocations.back() + allocSize / 2, allocSize / 2));
-        ASSERT_NO_THROW(mm.checkOperation(*allocations.begin(), allocSize * (i + 1)));
-        ASSERT_THROW({ mm.checkOperation(*allocations.begin(), allocSize * (i + 1) + 1); }, rt::Exception);
+  for (auto blockSize : {128U, 1024U, 2048U, 4096U}) {
+    RT_DLOG(INFO) << "BlockSize: " << blockSize;
+      for (auto allocSize : {1U << 12, 1U << 20, 1U << 23, blockSize}) {
+        RT_DLOG(INFO) << "AllocSize: " << allocSize;
+        std::vector<std::byte*> allocations;
+        auto mm = MemoryManager(startAddress, totalRam, blockSize);
+        ASSERT_THROW(mm.checkOperation(reinterpret_cast<std::byte*>(startAddress), 1), rt::Exception);
+        for (auto i = 0U; i < 10; ++i) {
+          RT_DLOG(INFO) << "Iter: " << i;
+          allocations.emplace_back(mm.malloc(allocSize, allocSize));
+          ASSERT_NO_THROW(mm.checkOperation(allocations.back(), allocSize));
+          ASSERT_THROW(mm.checkOperation(allocations.back(), allocSize + 1), rt::Exception);
+          ASSERT_NO_THROW(mm.checkOperation(allocations.back() + allocSize / 2, allocSize / 2));
+          ASSERT_NO_THROW(mm.checkOperation(*allocations.begin(), allocSize * (i + 1)));
+          ASSERT_THROW({ mm.checkOperation(*allocations.begin(), allocSize * (i + 1) + 1); }, rt::Exception);
+        }
+        mm.free(allocations[4]);
+        ASSERT_THROW(mm.checkOperation(allocations[4], 1), rt::Exception);
+        ASSERT_THROW(mm.checkOperation(allocations[0], allocSize * 4 + 1), rt::Exception);
+        ASSERT_NO_THROW(mm.checkOperation(allocations[0], allocSize * 4));
+        ASSERT_NO_THROW(mm.checkOperation(allocations[5], allocSize * 5));
+        ASSERT_THROW(mm.checkOperation(allocations[5], allocSize * 5 + 1), rt::Exception);
+        ASSERT_THROW(mm.checkOperation(allocations[5] + 1, allocSize * 5), rt::Exception);
       }
-      mm.free(allocations[4]);
-      ASSERT_THROW(mm.checkOperation(allocations[4], 1), rt::Exception);
-      ASSERT_THROW(mm.checkOperation(allocations[0], allocSize * 4 + 1), rt::Exception);
-      ASSERT_NO_THROW(mm.checkOperation(allocations[0], allocSize * 4));
-      ASSERT_NO_THROW(mm.checkOperation(allocations[5], allocSize * 5));
-      ASSERT_THROW(mm.checkOperation(allocations[5], allocSize * 5 + 1), rt::Exception);
-      ASSERT_THROW(mm.checkOperation(allocations[5] + 1, allocSize * 5), rt::Exception);
-    }
   }
 }
 
