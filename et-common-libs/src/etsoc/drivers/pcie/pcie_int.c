@@ -146,7 +146,6 @@ int pcie_interrupt_host(uint32_t vec)
     }
 
     uint32_t msi_mask;
-    uint32_t tmp;
 
     /* Get the interrupt type supported from PCIE CB */
     switch (pcie_cb_get_int_type())
@@ -156,13 +155,11 @@ int pcie_interrupt_host(uint32_t vec)
 
         /* TODO: this can bit-bang faster than the synopsis IP can
         handle if you call pcie_interrupt_host() back-to-back */
-        tmp = ioread32(PCIE_NOPCIESR + PCIE_NOPCIESR_MSI_TX_VEC_ADDRESS);
-        tmp |= msi_mask;
-        iowrite32(PCIE_NOPCIESR + PCIE_NOPCIESR_MSI_TX_VEC_ADDRESS, tmp);
-
-        tmp = ioread32(PCIE_NOPCIESR + PCIE_NOPCIESR_MSI_TX_VEC_ADDRESS);
-        tmp &= ~msi_mask;
-        iowrite32(PCIE_NOPCIESR + PCIE_NOPCIESR_MSI_TX_VEC_ADDRESS, tmp);
+        /* Need to read-modify-write to this register. But writing the
+        value directly should work as well */
+        iowrite32(PCIE_NOPCIESR + PCIE_NOPCIESR_MSI_TX_VEC_ADDRESS, msi_mask);
+        msi_mask &= ~msi_mask;
+        iowrite32(PCIE_NOPCIESR + PCIE_NOPCIESR_MSI_TX_VEC_ADDRESS, msi_mask);
 
         break;
     case pcie_int_msix:
