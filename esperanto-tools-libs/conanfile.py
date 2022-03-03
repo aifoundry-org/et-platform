@@ -52,10 +52,10 @@ class RuntimeConan(ConanFile):
         if self.options.with_tests:
             self.requires("sw-sysemu/0.2.0")
 
-            self.requires("et-common-libs/0.0.3")
-            self.requires("device-minion-runtime/0.0.1")
-            self.requires("esperanto-test-kernels/0.1.0")
-            self.requires("device-bootloaders/0.1.0")
+            self.requires("et-common-libs/0.0.3@#067b5c43dafbbbeb43a508d30441f7a4")
+            self.requires("device-minion-runtime/0.0.1@#0ce142edbe6145f654371f07d65e311a")
+            self.requires("device-bootloaders/0.1.0@#442ed4e669a855d902eae1044cccf98f")
+            self.requires("esperanto-test-kernels/0.1.0@#b5ad909b244ca83b3b7029320eb16c41")
     
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
