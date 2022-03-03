@@ -258,7 +258,7 @@ TEST_F(ProfilerTests, kernelLaunch) {
   runtime_->waitForStream(stream);
 }
 
-TEST_F(ProfilerTests, CommandSender) {
+TEST_F(ProfilerTests, DISABLED_CommandSender) {
   std::vector<std::byte> commandData(64);
 
   auto header = reinterpret_cast<device_ops_api::cmn_header_t*>(commandData.data());
