@@ -289,7 +289,6 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
         (struct device_ops_cm_reset_cmd_t *)command_buffer;
     struct device_ops_cm_reset_rsp_t rsp;
     int32_t status = STATUS_SUCCESS;
-    uint64_t enabled_cm_shire_mask = CW_Get_Physically_Enabled_Shires();
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_CMD, sqw_hp_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -304,25 +303,13 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_CMD, sqw_hp_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
 
-    /* Check if requested shires are physically available */
-    if (cmd->cm_shire_mask == (cmd->cm_shire_mask & enabled_cm_shire_mask))
-    {
-        /* Reset all and Wait for all shires to boot up. */
-        status = CW_CM_Configure_And_Wait_For_Boot(enabled_cm_shire_mask);
+    /* Reset all and Wait for all shires to boot up. */
+    status = CW_CM_Configure_And_Wait_For_Boot();
 
-        if (status != STATUS_SUCCESS)
-        {
-            Log_Write(
-                LOG_LEVEL_ERROR, "KW:CW: Unable to Boot all Minions (status: %d)\r\n", status);
-            status = HOST_CMD_ERROR_CM_RESET_FAILED;
-        }
-    }
-    else
+    if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR,
-            "KW:Invalid shire mask:0x%lx, physically available shire:0x%lx\r\n", cmd->cm_shire_mask,
-            enabled_cm_shire_mask);
-        status = HOST_CMD_ERROR_INVALID_CM_SHIRE_MASK;
+        Log_Write(LOG_LEVEL_ERROR, "KW:CW: Unable to Boot all Minions (status: %d)\r\n", status);
+        status = HOST_CMD_ERROR_CM_RESET_FAILED;
     }
 
     /* Map device errors on ops API errors. */
@@ -333,10 +320,6 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
     else if (status == HOST_CMD_ERROR_CM_RESET_FAILED)
     {
         rsp.status = DEV_OPS_API_CM_RESET_RESPONSE_CM_RESET_FAILED;
-    }
-    else if (status == HOST_CMD_ERROR_INVALID_CM_SHIRE_MASK)
-    {
-        rsp.status = DEV_OPS_API_CM_RESET_RESPONSE_INVALID_SHIRE_MASK;
     }
     else
     {

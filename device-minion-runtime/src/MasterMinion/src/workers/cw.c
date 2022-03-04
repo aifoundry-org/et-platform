@@ -471,37 +471,39 @@ int32_t CW_Check_Shires_Available_And_Free(uint64_t shire_mask)
 *
 *   DESCRIPTION
 *
-*       Reset booted shire mask and wait after performing CM warm reset
+*       Reset all physically available CW shires and wait boot-up after
+*       performing CM warm reset.
 *
 *   INPUTS
 *
-*       uint64_t   Shire mask to check
+*       None
 *
 *   OUTPUTS
 *
 *       int32_t    Success status or error code
 *
 ***********************************************************************/
-int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
+int32_t CW_CM_Configure_And_Wait_For_Boot(void)
 {
     bool exit_loop = false;
     int32_t status = STATUS_SUCCESS;
     int32_t sw_timer_idx;
     uint64_t booted_shires_mask;
-
-    /*TODO: Do not reset MM Shire until we have support to reset one neigh in MM shire .*/
-    shire_mask = shire_mask & (~MM_SHIRE_MASK);
+    uint64_t shire_mask = CW_Get_Physically_Enabled_Shires();
 
     /* Acquire the lock */
     acquire_local_spinlock(&CW_CB.cm_reset_lock);
+
+    /* Pause MM-CM communication */
+    CM_Iface_Multicast_Block();
 
     CW_RESET_CB(shire_mask)
 
     /* Put all Compute Minion Neigh Logic into reset */
     syscall(SYSCALL_DISABLE_NEIGH, shire_mask, 0, 0);
 
-    /* Re-init MM-CM Control Blocks */
-    CM_Iface_Init();
+    /* Re-init MM-CM Control Blocks. */
+    CM_Iface_Init(false);
 
     /* Bring all Compute Minion Neigh Logic out of reset */
     syscall(SYSCALL_ENABLE_NEIGH, shire_mask, 0, 0);
@@ -522,8 +524,7 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
         /* Check for SW timer timeout */
         if (atomic_compare_and_exchange_local_32(&CW_CB.timeout_flag, 1, 0) == 1)
         {
-            Log_Write(LOG_LEVEL_ERROR,
-                "CW:Reset:Timed-out waiting CW Ack: Pending Shire Mask: 0x%lx\r\n",
+            Log_Write(LOG_LEVEL_ERROR, "CW:Reset:CW Ack time out:Pending Shire Mask:0x%lx\r\n",
                 (~atomic_load_local_64(&CW_CB.booted_shires_mask) & shire_mask));
             status = CW_ERROR_INIT_TIMEOUT;
             exit_loop = true;
@@ -546,6 +547,9 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(uint64_t shire_mask)
             }
         }
     } while (!exit_loop);
+
+    /* Unblock mm-cm multicast */
+    CM_Iface_Multicast_Unblock();
 
     if (sw_timer_idx >= 0)
     {

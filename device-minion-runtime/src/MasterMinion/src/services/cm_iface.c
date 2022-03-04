@@ -111,18 +111,17 @@ static void mm_to_cm_iface_multicast_timeout_cb(uint8_t thread_id)
 *
 *   INPUTS
 *
-*       None
+*       reset_lock  Reset broadcast message lock.
 *
 *   OUTPUTS
 *
 *       status    Success or error
 *
 ***********************************************************************/
-int32_t CM_Iface_Init(void)
+int32_t CM_Iface_Init(bool reset_lock)
 {
     int32_t status = STATUS_SUCCESS;
 
-    init_local_spinlock(&MM_CM_CB.mm_to_cm_broadcast_lock, 0);
     atomic_store_local_32(&MM_CM_CB.timeout_flag, 0);
 
     /* Reset the Global MM to CM Iface message number. */
@@ -152,6 +151,11 @@ int32_t CM_Iface_Init(void)
     }
 
     atomic_store_local_32(&MM_CM_CB.cm_state, CM_STATE_NORMAL);
+
+    if (reset_lock)
+    {
+        init_local_spinlock(&MM_CM_CB.mm_to_cm_broadcast_lock, 0);
+    }
 
     return status;
 }
@@ -195,6 +199,55 @@ int32_t CM_Iface_Update_CM_State(cm_state_e expected, cm_state_e desired)
     }
 
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       CM_Iface_Multicast_Block
+*
+*   DESCRIPTION
+*
+*       Block MM to CM Multicast messages. It will wait for completion of
+*       in-progress messages (if any).
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void CM_Iface_Multicast_Block(void)
+{
+    acquire_local_spinlock(&MM_CM_CB.mm_to_cm_broadcast_lock);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       CM_Iface_Multicast_Unblock
+*
+*   DESCRIPTION
+*
+*       Unblock MM to CM Multicast messages.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void CM_Iface_Multicast_Unblock(void)
+{
+    release_local_spinlock(&MM_CM_CB.mm_to_cm_broadcast_lock);
 }
 
 /************************************************************************

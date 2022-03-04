@@ -350,11 +350,10 @@ static int32_t sp_command_handler(const void *cmd_buffer)
         break;
         case SP2MM_CMD_CM_RESET:
         {
-            const struct sp2mm_cm_reset_cmd_t *mm_reset_cmd = (const void *)hdr;
             struct sp2mm_cm_reset_rsp_t rsp;
 
             /* Perform CM warm reset and wait*/
-            status = CW_CM_Configure_And_Wait_For_Boot(mm_reset_cmd->shire_mask);
+            status = CW_CM_Configure_And_Wait_For_Boot();
 
             /* Initialize response header */
             SP_MM_IFACE_INIT_MSG_HDR(

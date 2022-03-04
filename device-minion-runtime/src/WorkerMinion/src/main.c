@@ -78,8 +78,12 @@ void __attribute__((noreturn)) main(void)
     MM_To_CM_Iface_Init();
 
     /* Last thread in a shire updates the global CM shire boot mask */
-    if (atomic_add_local_32(&CM_Thread_Boot_Counter[shire_id].flag, 1U) == (thread_count - 1))
+    uint32_t booted_threads = atomic_add_local_32(&CM_Thread_Boot_Counter[shire_id].flag, 1U) + 1;
+    if (booted_threads == thread_count)
     {
+        /* TODO:SW-11626: This is workaround for Zebu CM reset failure. */
+        Log_Write(LOG_LEVEL_CRITICAL, "CM:Shire %d sending Ack to MM!\r\n", shire_id);
+
         /* Reset the thread boot counter */
         init_local_spinlock(&CM_Thread_Boot_Counter[shire_id], 0);
 
@@ -87,7 +91,13 @@ void __attribute__((noreturn)) main(void)
         atomic_or_global_64(CM_BOOT_MASK_PTR, (1ULL << shire_id));
 
         /* Log boot message */
-        Log_Write(LOG_LEVEL_CRITICAL, "Shire %d booted up!\r\n", shire_id);
+        Log_Write(LOG_LEVEL_CRITICAL, "CM:Shire %d booted up!\r\n", shire_id);
+    }
+    else if (booted_threads > thread_count)
+    {
+        /* Log boot error message */
+        Log_Write(LOG_LEVEL_CRITICAL, "CM:Fatal Error:Thread boot count corrupted:%d\r\n",
+            booted_threads);
     }
 
     /* Start the main processing loop */

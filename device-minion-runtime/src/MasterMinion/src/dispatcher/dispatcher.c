@@ -139,7 +139,7 @@ void Dispatcher_Launch(uint32_t hart_id)
 
     /* Initialize the interface to compute minion */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:CM_Iface_Init\r\n");
-    status = CM_Iface_Init();
+    status = CM_Iface_Init(true);
     dispatcher_assert(status == STATUS_SUCCESS, MM_CM_IFACE_INIT_ERROR,
         "Compute Workers's interface init failure.");
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:Setting DIR ready status, MM_CM_INTERFACE_READY\r\n");

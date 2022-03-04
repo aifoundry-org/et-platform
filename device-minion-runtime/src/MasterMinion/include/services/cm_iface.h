@@ -43,12 +43,26 @@ enum cm_state {
     CM_STATE_EXCEPTION /**< CM took Exception. */
 };
 
-/*! \fn int32_t CM_Iface_Init(void)
-    \brief Function to initialize messaging infrastucture to compute
+/*! \fn int32_t CM_Iface_Init(bool reset_lock)
+    \brief Function to initialize messaging infrastructure to compute
     minions.
+    \param reset_lock Reset broadcast message lock.
     \return Status success or error
 */
-int32_t CM_Iface_Init(void);
+int32_t CM_Iface_Init(bool reset_lock);
+
+/*! \fn void CM_Iface_Multicast_Block(void)
+    \brief Block MM to CM Multicast messages. It will wait for completion of
+        in-progress messages (if any).
+    \return None
+*/
+void CM_Iface_Multicast_Block(void);
+
+/*! \fn void CM_Iface_Multicast_Unblock(void)
+    \brief Unblock MM to CM Multicast messages.
+    \return None
+*/
+void CM_Iface_Multicast_Unblock(void);
 
 /*! \fn int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *const message)
     \brief Function to multicast a message to the compute shires

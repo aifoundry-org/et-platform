@@ -389,11 +389,6 @@ RESERVED
 */
 #define HOST_CMD_ERROR_INVALID_CMD_ID -1906
 
-/*! \def HOST_CMD_ERROR_INVALID_CM_SHIRE_MASK
-    \brief Host command handler - Invalid Shire mask
-*/
-#define HOST_CMD_ERROR_INVALID_CM_SHIRE_MASK -1907
-
 /*! \def HOST_CMD_ERROR_CM_RESET_FAILED
     \brief Host command handler - Failed to reset CM shires
 */
