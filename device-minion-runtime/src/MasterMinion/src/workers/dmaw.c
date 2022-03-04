@@ -392,7 +392,7 @@ int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
         Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:TID:%u:DMAW Read Config Failed:%d!\r\n", sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, status);
 
-        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_DMAW_ERROR, MM_DMA_CONFIG_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_DMAW_ERROR, MM_DMA_WRITE_CONFIG_ERROR);
     }
 
     return status;
@@ -532,7 +532,7 @@ int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
         Log_Write(LOG_LEVEL_ERROR, "SQ[%d]:TID:%u:DMAW Write Config Failed:%d!\r\n", sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, status);
 
-        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_DMAW_ERROR, MM_DMA_CONFIG_ERROR);
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_DMAW_ERROR, MM_DMA_WRITE_CONFIG_ERROR);
     }
 
     return status;

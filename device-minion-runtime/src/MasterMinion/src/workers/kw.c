@@ -693,7 +693,8 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
                 kw_unreserve_kernel_shires(cmd->shire_mask);
                 kw_unreserve_kernel_slot(kernel);
 
-                SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_MM2CM_CMD_ERROR);
+                SP_Iface_Report_Error(
+                    MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CM_MULTICAST_KERNEL_LAUNCH_ERROR);
                 status = KW_ERROR_CM_IFACE_MULTICAST_FAILED;
             }
         }
@@ -777,7 +778,8 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
             else
             {
                 abort_rsp.status = DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR;
-                SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_MM2CM_CMD_ERROR);
+                SP_Iface_Report_Error(
+                    MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CM_MULTICAST_KERNEL_ABORT_ERROR);
                 Log_Write(LOG_LEVEL_ERROR,
                     "SQW[%d]:KW:ERROR:MM2CMAbort:CommandMulticast:Failed\r\n", sqw_idx);
             }
@@ -982,7 +984,8 @@ static inline int32_t kw_cm_to_mm_kernel_force_abort(uint64_t kernel_shire_mask)
     {
         Log_Write(LOG_LEVEL_ERROR, "KW:MM->CM:Abort Cmd hanged.status:%d\r\n", status);
 
-        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_MM2CM_CMD_ERROR);
+        /* Report the error to SP */
+        SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CM_MULTICAST_KERNEL_ABORT_ERROR);
 
         status = KW_ERROR_CM_IFACE_MULTICAST_FAILED;
     }
@@ -1036,7 +1039,8 @@ static inline void kw_cm_to_mm_process_messages(
             {
                 status_internal->status = KW_ERROR_CM_IFACE_UNICAST_FAILED;
 
-                SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CM2MM_CMD_ERROR);
+                SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_KW_UNICAST_RECEIVE_ERROR);
+
                 Log_Write(LOG_LEVEL_ERROR,
                     "KW[%d]:ERROR:CM_To_MM Receive failed. Status code: %d\r\n", kw_idx, status);
             }
@@ -1087,9 +1091,7 @@ static inline void kw_cm_to_mm_process_messages(
                 break;
             }
             case CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR:
-                /* Report error to SP */
-                SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CM2MM_KERNEL_LAUNCH_ERROR);
-
+            {
                 const cm_to_mm_message_kernel_launch_error_t *error_mesg =
                     (cm_to_mm_message_kernel_launch_error_t *)&message;
 
@@ -1104,11 +1106,14 @@ static inline void kw_cm_to_mm_process_messages(
                 status_internal->cw_error = true;
                 status_internal->kernel_done = true;
                 break;
-
+            }
             default:
-                Log_Write(LOG_LEVEL_ERROR,
-                    "KW[%d]:from CW: Unexpected msg. ID: %d from H%" PRId64 "\r\n", kw_idx,
-                    message.header.id, error_mesg->hart_id);
+                Log_Write(LOG_LEVEL_ERROR, "KW[%d]:from CW: Unexpected msg. ID: %d\r\n", kw_idx,
+                    message.header.id);
+
+                /* Report SP of unknown msg Error */
+                SP_Iface_Report_Error(
+                    MM_RECOVERABLE_FW_CM_RUNTIME_ERROR, MM_KW_UNKNOWN_MESSAGE_ERROR);
                 break;
         }
     }

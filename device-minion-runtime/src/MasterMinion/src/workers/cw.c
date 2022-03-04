@@ -272,6 +272,7 @@ void CW_Process_CM_SMode_Messages(void)
             /* Check for error conditions */
             if ((status != CIRCBUFF_ERROR_BAD_LENGTH) && (status != CIRCBUFF_ERROR_EMPTY))
             {
+                SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CM_UNICAST_RECEIVE_ERROR);
                 Log_Write(LOG_LEVEL_ERROR, "CW:ERROR:CM_To_MM Receive failed. Status code: %d\r\n",
                     status);
             }
@@ -299,7 +300,7 @@ void CW_Process_CM_SMode_Messages(void)
 
                 /* Report SP of CM FW exception */
                 SP_Iface_Report_Error(
-                    MM_RECOVERABLE_FW_CM_RUNTIME_ERROR, MM_CM_RUNTIME_EXCEPTION_ERROR);
+                    MM_RECOVERABLE_FW_CM_RUNTIME_ERROR, MM_CM_RT_FW_EXCEPTION_ERROR);
 
                 /* Send Async error event to Host runtime. */
                 status = Device_Async_Error_Event_Handler(
@@ -318,7 +319,7 @@ void CW_Process_CM_SMode_Messages(void)
                 const cm_to_mm_message_fw_error_t *error = (cm_to_mm_message_fw_error_t *)&message;
 
                 /* Report SP of CM FW Error */
-                SP_Iface_Report_Error(MM_RECOVERABLE_FW_CM_RUNTIME_ERROR, MM_CM_RUNTIME_FW_ERROR);
+                SP_Iface_Report_Error(MM_RECOVERABLE_FW_CM_RUNTIME_ERROR, MM_CM_RT_FW_ERROR);
 
                 Log_Write(LOG_LEVEL_CRITICAL,
                     "CW:CM_TO_MM:MESSAGE_ID_FW_ERROR from H%ld: Error_code: %d\r\n", error->hart_id,
@@ -327,9 +328,9 @@ void CW_Process_CM_SMode_Messages(void)
                 break;
             }
             default:
-                /* Report SP of CM FW Error */
+                /* Report SP of unknown msg Error */
                 SP_Iface_Report_Error(
-                    MM_RECOVERABLE_FW_CM_RUNTIME_ERROR, MM_CM2MM_UNKOWN_MESSAGE_ERROR);
+                    MM_RECOVERABLE_FW_CM_RUNTIME_ERROR, MM_CM_UNKNOWN_MESSAGE_ERROR);
 
                 Log_Write(LOG_LEVEL_ERROR, "CW:CM_TO_MM:Unknown message id = 0x%x\r\n",
                     message.header.id);

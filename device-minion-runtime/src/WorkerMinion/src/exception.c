@@ -40,20 +40,26 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
             .status = sstatus,
             .cause = scause };
 
+        log_write(LOG_LEVEL_ERROR,
+            "S-mode XCPT scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n", scause,
+            sepc, stval);
+
+        log_write(LOG_LEVEL_ERROR, "exception_handler:Saving context on S-mode exception\r\n");
+
         /* Copy all the GPRs except x0 (hardwired to zero) */
         memcpy(context.gpr, &reg[1], sizeof(uint64_t) * TRACE_DEV_CONTEXT_GPRS);
 
         /* Log the execution stack event to trace */
         Trace_Execution_Stack(Trace_Get_CM_CB(), &context);
-
-        log_write(LOG_LEVEL_ERROR,
-            "S-mode XCPT scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n", scause,
-            sepc, stval);
     }
     else /* U-mode exception */
     {
         /* Get the kernel exception buffer */
         uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
+
+        log_write(LOG_LEVEL_ERROR,
+            "U-mode XCPT: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n", scause,
+            sepc, stval);
 
         /* If the kernel exception buffer is available */
         if (exception_buffer != 0)
@@ -64,9 +70,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
                 .stval = stval,
                 .regs = reg };
 
-            log_write(LOG_LEVEL_INFO,
-                "U-mode XCPT: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n",
-                scause, sepc, stval);
+            log_write(LOG_LEVEL_ERROR, "exception_handler:Saving context on U-mode exception\r\n");
 
             /* Save the execution context in the buffer provided */
             CM_To_MM_Save_Execution_Context((execution_context_t *)exception_buffer,
@@ -127,6 +131,8 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     /* If the exception is recoverable, inform kernel worker, else inform dispatcher */
     if (user_mode)
     {
+        log_write(LOG_LEVEL_DEBUG, "send_exception_message:Reporting U-mode exception to KW\r\n");
+
         message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION;
 
         /* Get the kernel info attributes */
@@ -145,6 +151,9 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     }
     else
     {
+        log_write(LOG_LEVEL_DEBUG,
+            "send_exception_message:Reporting S-mode exception to MM dispatcher\r\n");
+
         message.header.id = CM_TO_MM_MESSAGE_ID_FW_EXCEPTION;
 
         /* Send exception message to dispatcher (Master shire Hart 0) */

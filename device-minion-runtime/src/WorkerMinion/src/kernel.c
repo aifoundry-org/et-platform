@@ -452,6 +452,8 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
         [k_param_a3] "r"(0)                       /* Unused for now */
     );
 
+    log_write(LOG_LEVEL_DEBUG, "launch_kernel:Returned from kernel launch\r\n");
+
     /* Do post kernel launch cleanup */
     kernel_launch_post_cleanup(&kernel, return_value, return_type);
 
@@ -623,6 +625,9 @@ static void kernel_launch_post_cleanup(
     {
         /* Save the kernel launch status for sending response to MM */
         kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
+
+        log_write(LOG_LEVEL_ERROR,
+            "kernel_launch_post_cleanup:kernel completion return type:%ld\r\n", return_type);
     }
     /* If the return type is success but kernel return value is not success,
     save the error code in u-mode error context buffer (if available) */
@@ -632,12 +637,17 @@ static void kernel_launch_post_cleanup(
         /* Save the kernel launch status for sending response to MM */
         kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
 
+        log_write(LOG_LEVEL_ERROR,
+            "kernel_launch_post_cleanup:kernel completion return code:%ld\r\n", return_value);
+
         /* Get the kernel error buffer */
         uint64_t error_buffer = kernel_info_get_exception_buffer(shire_id);
 
         /* If the kernel error buffer is available */
         if (error_buffer != 0)
         {
+            log_write(LOG_LEVEL_ERROR, "kernel_launch_post_cleanup:Saving context on error\r\n");
+
             CM_To_MM_Save_Kernel_Error((execution_context_t *)error_buffer, hart_id,
                 CM_CONTEXT_TYPE_USER_KERNEL_ERROR, return_value);
         }
@@ -654,6 +664,8 @@ static void kernel_launch_post_cleanup(
     init_fcc(FCC_0);
     init_fcc(FCC_1);
 
+    log_write(LOG_LEVEL_DEBUG, "kernel_launch_post_cleanup:Entering barrier\r\n");
+
     /* Blocking barrier with all the participating threads of the shire.
     We have to make sure all threads have finished before evicting caches */
     local_fcc_barrier(&post_launch_barrier[shire_id], thread_count, minion_mask);
@@ -668,6 +680,9 @@ static void kernel_launch_post_cleanup(
         /* Decrement the kernel launch shire count */
         uint64_t prev_shire_mask = kernel_launch_reset_shire_mask(shire_id);
         uint32_t exec_status = kernel_info_get_execution_status(shire_id);
+
+        log_write(LOG_LEVEL_DEBUG, "kernel_launch_post_cleanup:All harts returned:Shire:%d\r\n",
+            shire_id);
 
         /* Check for kernel execution status in a shire */
         if (exec_status != KERNEL_COMPLETE_STATUS_SUCCESS)
@@ -686,6 +701,9 @@ static void kernel_launch_post_cleanup(
             msg.shire_id = shire_id;
             msg.slot_index = kernel->slot_index;
             msg.status = atomic_load_global_32(&kernel_launch_global_execution_status);
+
+            log_write(LOG_LEVEL_DEBUG,
+                "kernel_launch_post_cleanup:Kernel launch complete:Shire:%d\r\n", shire_id);
 
             /* Send the message to KW */
             status =

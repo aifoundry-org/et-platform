@@ -126,6 +126,9 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
         /* Update the global copy of read messages */
         mm_cm_msg_number[hart_id].number = message->header.number;
 
+        log_write(LOG_LEVEL_DEBUG, "MM->CM:Msg received:msg_id:%d:msg_num:%d\r\n",
+            message->header.id, message->header.number);
+
         /* Handle the message */
         mm_to_cm_iface_handle_message(shire_id, hart_id, message, optional_arg);
     }
@@ -176,10 +179,16 @@ static void mm_to_cm_iface_handle_message(
         }
         case MM_TO_CM_MESSAGE_ID_KERNEL_ABORT:
         {
+            log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Kernel abort msg received\r\n",
+                message_ptr->header.tag_id);
+
             /* Should only abort if the kernel was launched on this hart */
             if (kernel_info_has_thread_launched(shire, hart & (HARTS_PER_SHIRE - 1)))
             {
                 uint64_t exception_buffer = 0;
+
+                log_write(LOG_LEVEL_WARNING, "TID[%u]:MM->CM:Aborting kernel...\r\n",
+                    message_ptr->header.tag_id);
 
                 /* Check if pointer to execution context was set */
                 if (optional_arg != 0)
@@ -194,6 +203,9 @@ static void mm_to_cm_iface_handle_message(
                     const internal_execution_context_t *context =
                         (internal_execution_context_t *)optional_arg;
 
+                    log_write(LOG_LEVEL_ERROR, "TID[%u]:MM->CM:Saving context on kernel abort\r\n",
+                        message_ptr->header.tag_id);
+
                     /* Save the execution context in the buffer provided */
                     CM_To_MM_Save_Execution_Context((execution_context_t *)exception_buffer,
                         CM_CONTEXT_TYPE_SYSTEM_ABORT, hart, context);
@@ -205,6 +217,9 @@ static void mm_to_cm_iface_handle_message(
         }
         case MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL:
         {
+            log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Trace update control msg received\r\n",
+                message_ptr->header.tag_id);
+
             mm_to_cm_message_trace_rt_control_t *cmd =
                 (mm_to_cm_message_trace_rt_control_t *)message_ptr;
             if (cmd->thread_mask & CURRENT_THREAD_MASK)
@@ -219,6 +234,9 @@ static void mm_to_cm_iface_handle_message(
         {
             const mm_to_cm_message_trace_rt_config_t *cmd =
                 (mm_to_cm_message_trace_rt_config_t *)message_ptr;
+
+            log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Kernel abort msg received\r\n",
+                message_ptr->header.tag_id);
 
             if (cmd->thread_mask & CURRENT_THREAD_MASK)
             {
@@ -239,6 +257,9 @@ static void mm_to_cm_iface_handle_message(
         {
             const mm_to_cm_message_trace_buffer_evict_t *cmd =
                 (mm_to_cm_message_trace_buffer_evict_t *)message_ptr;
+
+            log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Trace buffer evict msg received\r\n",
+                message_ptr->header.tag_id);
 
             if (cmd->thread_mask & CURRENT_THREAD_MASK)
             {

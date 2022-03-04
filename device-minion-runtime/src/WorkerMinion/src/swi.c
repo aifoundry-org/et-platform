@@ -3,6 +3,7 @@
 #include <system/layout.h>
 #include "cm_to_mm_iface.h"
 #include "kernel.h"
+#include "log.h"
 #include "mm_to_cm_iface.h"
 
 void swi_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const reg);
@@ -17,6 +18,8 @@ void swi_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const
     asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
     uint32_t shire_id = get_shire_id();
+
+    log_write(LOG_LEVEL_DEBUG, "swi_handler:IPI received\r\n");
 
     /* Check for kernel abort handled down by a hart */
     if (kernel_info_get_abort_flag(shire_id) == 1)
@@ -50,6 +53,8 @@ void swi_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const
             .sepc = sepc,
             .stval = stval,
             .regs = reg };
+
+        log_write(LOG_LEVEL_DEBUG, "swi_handler:Handling msg from MM\r\n");
 
         /* Handle messages from MM */
         MM_To_CM_Iface_Multicast_Receive((void *)&context);

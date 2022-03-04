@@ -51,9 +51,10 @@
 /*! \def DMA_TO_DEVICEAPI_STATUS
     \brief Helper macro to convert DMA Error to DEVICE API Errors
 */
-#define DMA_TO_DEVICEAPI_STATUS(status, ret_status)                                          \
+#define DMA_TO_DEVICEAPI_STATUS(status, ret_status, dma_fail_msg)                            \
     if ((status == DMAW_ABORTED_IDLE_CHANNEL_SEARCH) || (status == HOST_CMD_STATUS_ABORTED)) \
     {                                                                                        \
+        strncpy(dma_fail_msg, "Aborted", sizeof(dma_fail_msg));                              \
         ret_status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;                                  \
     }                                                                                        \
     else if (status == DMAW_ERROR_DRIVER_INAVLID_DEV_ADDRESS)                                \
@@ -881,14 +882,8 @@ static inline int32_t kernel_launch_cmd_handler(
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR,
-            "TID[%u]:SQW[%d]:HostCmdHdlr:KernelLaunch:Failed shire_mask:%lx Status:%d\r\n",
-            cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->shire_mask, status);
-
-        Log_Write(LOG_LEVEL_DEBUG,
-            "TID[%u]:SQW[%d]:HostCmdHdlr:KernelLaunch:Failed CmdParam:code_start_address:%lx pointer_to_args:%lx\r\n",
-            cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->code_start_address,
-            cmd->pointer_to_args);
+        char kernel_fail_msg[8] = "Failed\0";
+        kernel_fail_msg[sizeof(kernel_fail_msg) - 1] = 0;
 
         /* Allocate memory for response message, it includes optional payload. */
         uint8_t rsp_data[sizeof(struct device_ops_kernel_launch_rsp_t) +
@@ -927,6 +922,7 @@ static inline int32_t kernel_launch_cmd_handler(
         else if ((status == KW_ABORTED_KERNEL_SLOT_SEARCH) ||
                  (status == KW_ABORTED_KERNEL_SHIRES_SEARCH) || (status == HOST_CMD_STATUS_ABORTED))
         {
+            strncpy(kernel_fail_msg, "Aborted", sizeof(kernel_fail_msg));
             rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED;
         }
         else if (status == KW_ERROR_CM_IFACE_MULTICAST_FAILED)
@@ -938,6 +934,15 @@ static inline int32_t kernel_launch_cmd_handler(
             /* Unexpected error. It should never come here.*/
             rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_UNEXPECTED_ERROR;
         }
+
+        Log_Write(LOG_LEVEL_ERROR,
+            "TID[%u]:SQW[%d]:HostCmdHdlr:KernelLaunch:%s:shire_mask:%lx Status:%d\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, kernel_fail_msg, cmd->shire_mask, status);
+
+        Log_Write(LOG_LEVEL_DEBUG,
+            "TID[%u]:SQW[%d]:HostCmdHdlr:KernelLaunch:%s:code_start_address:%lx pointer_to_args:%lx\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, kernel_fail_msg, cmd->code_start_address,
+            cmd->pointer_to_args);
 
 #if TEST_FRAMEWORK
         /* For SP2MM command response, we need to provide the total size = header + payload */
@@ -1373,21 +1378,8 @@ static inline int32_t dma_readlist_cmd_handler(
 
     if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:Fail:%d\r\n",
-            cmd->command_info.cmd_hdr.tag_id, sqw_idx, status);
-
-        for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
-        {
-            Log_Write(LOG_LEVEL_ERROR,
-                "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:Fail:src_device_phy_addr:%lx:size:%x\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].src_device_phy_addr,
-                cmd->list[loop_cnt].size);
-
-            Log_Write(LOG_LEVEL_DEBUG,
-                "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:Fail:dst_host_virt_addr:%lx:dst_host_phy_addr:%lx\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].dst_host_virt_addr,
-                cmd->list[loop_cnt].dst_host_phy_addr);
-        }
+        char dmar_fail_msg[8] = "Failed\0";
+        dmar_fail_msg[sizeof(dmar_fail_msg) - 1] = 0;
 
         /* Construct and transmit command response */
         rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
@@ -1403,7 +1395,23 @@ static inline int32_t dma_readlist_cmd_handler(
         rsp.device_cmd_execute_dur = 0U;
 
         /* Populate the error type response */
-        DMA_TO_DEVICEAPI_STATUS(status, rsp.status)
+        DMA_TO_DEVICEAPI_STATUS(status, rsp.status, dmar_fail_msg)
+
+        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:%s:%d\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmar_fail_msg, status);
+
+        for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:%s:src_device_phy_addr:%lx:size:%x\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmar_fail_msg,
+                cmd->list[loop_cnt].src_device_phy_addr, cmd->list[loop_cnt].size);
+
+            Log_Write(LOG_LEVEL_DEBUG,
+                "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:%s:dst_host_virt_addr:%lx:dst_host_phy_addr:%lx\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmar_fail_msg,
+                cmd->list[loop_cnt].dst_host_virt_addr, cmd->list[loop_cnt].dst_host_phy_addr);
+        }
 
         Log_Write(LOG_LEVEL_DEBUG,
             "TID[%u]:SQW[%d]:HostCommandHandler:Pushing:DATA_READ_CMD_RSP:Host_CQ\r\n",
@@ -1585,21 +1593,8 @@ static inline int32_t dma_writelist_cmd_handler(
 
     if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:Fail:%d\r\n",
-            cmd->command_info.cmd_hdr.tag_id, sqw_idx, status);
-
-        for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
-        {
-            Log_Write(LOG_LEVEL_ERROR,
-                "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:Fail:dst_device_phy_addr:%lx:size:%x\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].dst_device_phy_addr,
-                cmd->list[loop_cnt].size);
-
-            Log_Write(LOG_LEVEL_DEBUG,
-                "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:Fail:src_host_virt_addr:%lx:src_host_phy_addr:%lx\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].src_host_virt_addr,
-                cmd->list[loop_cnt].src_host_phy_addr);
-        }
+        char dmaw_fail_msg[8] = "Failed\0";
+        dmaw_fail_msg[sizeof(dmaw_fail_msg) - 1] = 0;
 
         /* Construct and transit command response */
         rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
@@ -1615,7 +1610,23 @@ static inline int32_t dma_writelist_cmd_handler(
         rsp.device_cmd_execute_dur = 0U;
 
         /* Populate the error type response */
-        DMA_TO_DEVICEAPI_STATUS(status, rsp.status)
+        DMA_TO_DEVICEAPI_STATUS(status, rsp.status, dmaw_fail_msg)
+
+        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:%s:%d\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmaw_fail_msg, status);
+
+        for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:%s:dst_device_phy_addr:%lx:size:%x\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmaw_fail_msg,
+                cmd->list[loop_cnt].dst_device_phy_addr, cmd->list[loop_cnt].size);
+
+            Log_Write(LOG_LEVEL_DEBUG,
+                "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:%s:src_host_virt_addr:%lx:src_host_phy_addr:%lx\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmaw_fail_msg,
+                cmd->list[loop_cnt].src_host_virt_addr, cmd->list[loop_cnt].src_host_phy_addr);
+        }
 
         status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 
