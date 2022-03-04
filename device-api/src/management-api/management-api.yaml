@@ -177,6 +177,8 @@ Modules:
           Value: 76
         - Name: MDI_WRITE_MEM
           Value: 77
+        - Name: MDI_SET_BREAKPOINT_EVENT
+          Value: 128
         - Name: MDI_END
           Value: 255
   ## List of Enums that are used in our messages
