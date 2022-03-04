@@ -109,7 +109,7 @@ static StaticTimer_t MM_Timer_Buffer;
 
 /* Macro to update all Minion Harts in Shire for a given input function */
 #define UPDATE_ALL_MINION(function, start_hart, last_hart)               \
-    for( uint64_t hartid = start_hart; hartid < last_hart; hartid++)     \
+    for( uint64_t hartid = start_hart; hartid <= last_hart; hartid++)     \
     {                                                                    \
        function(hartid);                                                 \
     }
@@ -125,6 +125,19 @@ static StaticTimer_t MM_Timer_Buffer;
         shiremask >>= 1;                                        \
     }                                                           \
 
+
+/* Macro to switch to Step Clock and disable LVDPLL     */
+#define SWITCH_TO_STEP_CLOCK (shiremask)                 \
+    for (uint8_t i = 0; i <= num_shires; i++)            \
+    {                                                    \
+        if (shiremask & 1)                               \
+        {                                                \
+           SWITCH_CLOCK_MUX(shireid, SELECT_STEP_CLOCK)  \
+           lvdpll_disable(shireid);                      \
+        }                                                \
+        shiremask >>= 1;                                 \
+    }      
+    
 #define CONFIG_SHIRE_NEIGH(id, sc_enable, neigh_mask, enable_vpu_rf_wa)                   \
      /* Set Shire ID, enable cache and all Neighborhoods */                               \
      const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(id) |        \
@@ -217,7 +230,6 @@ static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
 static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode)
 {
     int status = SUCCESS;
-    uint64_t dll_fail_mask = 0;
     uint64_t pll_fail_mask = 0;
     uint8_t num_shires;
 
@@ -233,16 +245,9 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode)
     {
         if (shire_mask & 1)
         {
-            SWITCH_CLOCK_MUX(i, SELECT_REF_CLOCK)
-            if (0 != dll_config(i))
-            {
-                status = MINION_PLL_DLL_CONFIG_ERROR;
-                dll_fail_mask = dll_fail_mask | (uint64_t)(1 << i);
-            }
-
             if (0 != config_lvdpll_freq_full(i, mode))
             {
-                status = MINION_PLL_DLL_CONFIG_ERROR;
+                status = MINION_PLL_CONFIG_ERROR;
                 pll_fail_mask = pll_fail_mask | (uint64_t)(1 << i);
             }
 
@@ -254,8 +259,6 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode)
     }
     if (status != SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "minion_configure_plls_and_dlls(): DLL failed mask %lu!\n",
-                  dll_fail_mask);
         Log_Write(LOG_LEVEL_ERROR, "minion_configure_plls_and_dlls(): PLL failed mask %lu!\n",
                   pll_fail_mask);
     }
@@ -440,7 +443,7 @@ static int enable_minion_shire(uint64_t shire_mask)
 
     uint64_t shiremask = shire_mask;
 
-#if !FAST_BOOT
+#if !(FAST_BOOT || TEST_FRAMEWORK)
     /* Enable Minion in all neighs */
     UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/ , 0xF /*Enable all Neigh*/, true /*Enable VPU RF WA*/)
 
@@ -482,7 +485,7 @@ static int enable_minion_shire(uint64_t shire_mask)
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-static int minion_configure_hpdpll(uint8_t hpdpll_mode)
+static int minion_configure_hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
 {
     uint32_t freq;
     int status;
@@ -499,6 +502,26 @@ static int minion_configure_hpdpll(uint8_t hpdpll_mode)
     {
         Log_Write(LOG_LEVEL_ERROR, "get_pll_frequency(): failed to get frequency!\n");
         return MINION_GET_FREQ_ERROR;
+    }
+
+    uint8_t num_shires;
+    if (0 != shire_mask)
+    {
+         num_shires = get_highest_set_bit_offset(shire_mask);
+    }
+    else
+    {
+        return MINION_INVALID_SHIRE_MASK;
+    }
+
+    for (uint8_t shireid = 0; shireid <= num_shires; shireid++)
+    {
+        if (shire_mask & 1)
+        {
+           SWITCH_CLOCK_MUX(shireid, SELECT_STEP_CLOCK)
+           lvdpll_disable(shireid);
+        }
+        shire_mask >>= 1;
     }
 
     Update_Minion_Frequency_Global_Reg((int32_t)freq);
@@ -725,14 +748,48 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
 {
     int status = SUCCESS;
 
-    if (use_step_clock)
+    uint8_t num_shires;
+    uint64_t shire_mask = minion_shires_mask;            
+    uint64_t dll_fail_mask = 0;
+
+    if (0 != minion_shires_mask)
     {
-        status = minion_configure_hpdpll(hpdpll_mode);
+        num_shires = get_highest_set_bit_offset(minion_shires_mask);
+    }
+    else
+    {
+        return MINION_INVALID_SHIRE_MASK;
+    } 
+
+ 
+    for (uint8_t i = 0; i <= num_shires; i++)
+    {
+        if (shire_mask & 1)
+        {
+            SWITCH_CLOCK_MUX(i, SELECT_REF_CLOCK)
+            if (0 != dll_config(i))
+            {
+               dll_fail_mask = dll_fail_mask | (uint64_t)(1 << i);
+            }
+        }
+        shire_mask >>= 1;   
+    }
+
+    if(0 != dll_fail_mask) 
+    {
+         Log_Write(LOG_LEVEL_ERROR, "minion_configure_dlls(): DLL failed mask %lu!\n",
+                                     dll_fail_mask);
+         return MINION_DLL_CONFIG_ERROR;
+    }
+
+    if(use_step_clock)
+    {
+        status = minion_configure_hpdpll(hpdpll_mode, minion_shires_mask);
     }
     else if (0 != minion_configure_plls_and_dlls(minion_shires_mask, lvdpll_mode))
     {
         Log_Write(LOG_LEVEL_ERROR, "minion_configure_plls_and_dlls() failed!\n");
-        return MINION_PLL_DLL_CONFIG_ERROR;
+        return MINION_PLL_CONFIG_ERROR;
     }
     else
     {
@@ -1586,7 +1643,6 @@ int Minion_VPU_RF_Init(uint8_t shireid)
     disable_shire_threads(shireid);
 
     deassert_halt();
-
 
     return SUCCESS;
 }

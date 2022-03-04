@@ -40,11 +40,12 @@
 #define MINION_STEP_CLOCK_CONFIGURE_ERROR    -3000
 #define MINION_COLD_RESET_CONFIG_ERROR       -3001
 #define MINION_WARM_RESET_CONFIG_ERROR       -3002
-#define MINION_PLL_DLL_CONFIG_ERROR          -3003
-#define MINION_INVALID_SHIRE_MASK            -3004
-#define MINION_ENABLE_SHIRE_ERROR            -3005
-#define MINION_CORE_NOT_HALTED               -3006
-#define MINION_GET_FREQ_ERROR                -3007
+#define MINION_PLL_CONFIG_ERROR              -3003
+#define MINION_DLL_CONFIG_ERROR              -3004
+#define MINION_INVALID_SHIRE_MASK            -3005
+#define MINION_ENABLE_SHIRE_ERROR            -3006
+#define MINION_CORE_NOT_HALTED               -3007
+#define MINION_GET_FREQ_ERROR                -3008
 
 /*! \def Main::FW Load and Authenticate Setup Error Return code  */
 #define FW_SW_CERTS_LOAD_ERROR -4000
