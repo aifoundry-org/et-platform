@@ -87,7 +87,7 @@ __attribute__((noreturn)) static void dm_mdi_bp_notify_task(void *pvParameters)
 
             event.event_info.event_hdr.tag_id = 0xffff; /* Async Event Tag ID. */
             event.event_info.event_hdr.size = sizeof(event) - sizeof(struct cmn_header_t);
-            event.event_info.event_hdr.msg_id = DM_CMD_MDI_SET_BREAKPOINT;
+            event.event_info.event_hdr.msg_id = DM_CMD_MDI_SET_BREAKPOINT_EVENT;
             status = SP_Host_Iface_CQ_Push_Cmd((void *)&event, sizeof(event));
             if (status)
             {
