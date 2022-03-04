@@ -29,12 +29,13 @@ typedef int16_t mm2sp_mm_recoverable_error_code_e;
 enum mm2sp_mm_recoverable_error_code_e {
     /* DMAW error codes */
     MM_DMA_ERRORS_START = 0,
-    MM_DMA_CONFIG_ERROR = -1,
-    MM_DMA_TIMEOUT_ERROR = -2,
+    MM_DMA_READ_CONFIG_ERROR = -1,
+    MM_DMA_WRITE_CONFIG_ERROR = -2,
     MM_DMA_ERRORS_END = -19,
     /* KW error codes */
     MM_KW_ERRORS_START = -20,
-    MM_KERNEL_LAUNCH_ERROR = -21,
+    MM_KW_UNKNOWN_MESSAGE_ERROR = -21,
+    MM_KW_UNICAST_RECEIVE_ERROR = -22,
     MM_KW_ERRORS_END = -39,
     /* SQW error codes */
     MM_SQW_ERRORS_START = -40,
@@ -47,13 +48,12 @@ enum mm2sp_mm_recoverable_error_code_e {
     MM_CM_RUNTIME_ERRORS_START = -60,
     MM_CM_RESERVE_SLOT_ERROR = -61,
     MM_CM_KERNEL_ABORT_TIMEOUT_ERROR = -62,
-    MM_MM2CM_CMD_ERROR = -63,
-    MM_CM2MM_CMD_ERROR = -64,
-    MM_CM2MM_KERNEL_LAUNCH_ERROR = -65,
-    MM_CM2MM_KERNEL_EXCEPTION_ERROR = -66,
-    MM_CM_RUNTIME_EXCEPTION_ERROR = -67,
-    MM_CM_RUNTIME_FW_ERROR = -68,
-    MM_CM2MM_UNKOWN_MESSAGE_ERROR = -69,
+    MM_CM_RT_FW_EXCEPTION_ERROR = -63,
+    MM_CM_RT_FW_ERROR = -64,
+    MM_CM_UNKNOWN_MESSAGE_ERROR = -65,
+    MM_CM_UNICAST_RECEIVE_ERROR = -66,
+    MM_CM_MULTICAST_KERNEL_ABORT_ERROR = -67,
+    MM_CM_MULTICAST_KERNEL_LAUNCH_ERROR = -68,
     MM_CM_RUNTIME_ERRORS_END = -79,
     /* Dispatcher error codes */
     MM_DISPATCHER_ERROR_START = -80,
