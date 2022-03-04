@@ -35,13 +35,13 @@ void extended_interrupt(uint64_t scause, uint64_t sepc, uint64_t stval, const ui
         /* Clear the bus error interrupt */
         asm volatile("csrc sip, %0" : : "r"(1 << BUS_ERROR_INTERRUPT));
 
-        log_write(LOG_LEVEL_CRITICAL,
+        Log_Write(LOG_LEVEL_CRITICAL,
             "CM:Bus error interrupt:scause: %lx sepc: %lx stval: %lx sstatus: %lx\n", scause, sepc,
             stval, sstatus);
     }
     else
     {
-        log_write(LOG_LEVEL_CRITICAL,
+        Log_Write(LOG_LEVEL_CRITICAL,
             "CM:Unhandled ET specific interrupt:scause: %lx sepc: %lx stval: %lx sstatus: %lx\n",
             scause, sepc, stval, sstatus);
     }

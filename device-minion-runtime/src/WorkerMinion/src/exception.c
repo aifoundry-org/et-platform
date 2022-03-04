@@ -40,11 +40,11 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
             .status = sstatus,
             .cause = scause };
 
-        log_write(LOG_LEVEL_ERROR,
+        Log_Write(LOG_LEVEL_ERROR,
             "S-mode XCPT scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n", scause,
             sepc, stval);
 
-        log_write(LOG_LEVEL_ERROR, "exception_handler:Saving context on S-mode exception\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "exception_handler:Saving context on S-mode exception\r\n");
 
         /* Copy all the GPRs except x0 (hardwired to zero) */
         memcpy(context.gpr, &reg[1], sizeof(uint64_t) * TRACE_DEV_CONTEXT_GPRS);
@@ -57,7 +57,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         /* Get the kernel exception buffer */
         uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
 
-        log_write(LOG_LEVEL_ERROR,
+        Log_Write(LOG_LEVEL_ERROR,
             "U-mode XCPT: scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n", scause,
             sepc, stval);
 
@@ -70,7 +70,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
                 .stval = stval,
                 .regs = reg };
 
-            log_write(LOG_LEVEL_ERROR, "exception_handler:Saving context on U-mode exception\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "exception_handler:Saving context on U-mode exception\r\n");
 
             /* Save the execution context in the buffer provided */
             CM_To_MM_Save_Execution_Context((execution_context_t *)exception_buffer,
@@ -131,7 +131,7 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
     /* If the exception is recoverable, inform kernel worker, else inform dispatcher */
     if (user_mode)
     {
-        log_write(LOG_LEVEL_DEBUG, "send_exception_message:Reporting U-mode exception to KW\r\n");
+        Log_Write(LOG_LEVEL_DEBUG, "send_exception_message:Reporting U-mode exception to KW\r\n");
 
         message.header.id = CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION;
 
@@ -145,13 +145,13 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
 
         if (status != STATUS_SUCCESS)
         {
-            log_write(LOG_LEVEL_ERROR,
+            Log_Write(LOG_LEVEL_ERROR,
                 "CM->MM:U-mode_exceptionUnicast send failed! Error code: %d\n", status);
         }
     }
     else
     {
-        log_write(LOG_LEVEL_DEBUG,
+        Log_Write(LOG_LEVEL_DEBUG,
             "send_exception_message:Reporting S-mode exception to MM dispatcher\r\n");
 
         message.header.id = CM_TO_MM_MESSAGE_ID_FW_EXCEPTION;
@@ -162,7 +162,7 @@ static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtva
 
         if (status != STATUS_SUCCESS)
         {
-            log_write(LOG_LEVEL_ERROR,
+            Log_Write(LOG_LEVEL_ERROR,
                 "CM->MM:S-mode_exception:Unicast send failed! Error code: %d\n", status);
         }
     }

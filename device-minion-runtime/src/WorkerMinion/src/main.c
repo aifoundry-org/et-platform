@@ -84,7 +84,7 @@ void __attribute__((noreturn)) main(void)
         atomic_or_global_64(CM_BOOT_MASK_PTR, (1ULL << shire_id));
 
         /* Log boot message */
-        log_write(LOG_LEVEL_CRITICAL, "Shire %d booted up!\r\n", shire_id);
+        Log_Write(LOG_LEVEL_CRITICAL, "Shire %d booted up!\r\n", shire_id);
     }
 
     /* Initialize the MM-CM Iface */

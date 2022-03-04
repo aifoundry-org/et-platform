@@ -71,7 +71,7 @@ void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
 {
     uint64_t sip;
 
-    log_write(LOG_LEVEL_DEBUG, "CM:Ready to process interrupts.\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "CM:Ready to process interrupts.\r\n");
 
     for (;;)
     {
@@ -81,7 +81,7 @@ void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
         /* Read pending interrupts */
         SUPERVISOR_PENDING_INTERRUPTS(sip);
 
-        log_write(LOG_LEVEL_DEBUG, "CM:Exiting WFI! SIP: 0x%" PRIx64 "\r\n", sip);
+        Log_Write(LOG_LEVEL_DEBUG, "CM:Exiting WFI! SIP: 0x%" PRIx64 "\r\n", sip);
 
         if (sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
         {
@@ -99,7 +99,7 @@ void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
             /* Clear Bus Error Interrupt Pending */
             asm volatile("csrc sip, %0" : : "r"(1 << BUS_ERROR_INTERRUPT));
 
-            log_write(
+            Log_Write(
                 LOG_LEVEL_ERROR, "CM:Bus error interrupt received:SIP:0x%" PRIx64 "\r\n", sip);
         }
     }
@@ -126,7 +126,7 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
         /* Update the global copy of read messages */
         mm_cm_msg_number[hart_id].number = message->header.number;
 
-        log_write(LOG_LEVEL_DEBUG, "MM->CM:Msg received:msg_id:%d:msg_num:%d\r\n",
+        Log_Write(LOG_LEVEL_DEBUG, "MM->CM:Msg received:msg_id:%d:msg_num:%d\r\n",
             message->header.id, message->header.number);
 
         /* Handle the message */
@@ -134,7 +134,7 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
     }
     else
     {
-        log_write(LOG_LEVEL_WARNING, ":MM->CM: Tried to read a non-pending message!\n");
+        Log_Write(LOG_LEVEL_WARNING, ":MM->CM: Tried to read a non-pending message!\n");
     }
 }
 
@@ -151,7 +151,7 @@ static void mm_to_cm_iface_handle_message(
             /* Check if this Shire is involved in the kernel launch */
             if (launch->kernel.shire_mask & (1ULL << shire))
             {
-                log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM: Launching Kernel on Shire 0x%llx\r\n",
+                Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM: Launching Kernel on Shire 0x%llx\r\n",
                     message_ptr->header.tag_id, 1ULL << shire);
 
                 mm_to_cm_message_kernel_params_t kernel;
@@ -171,7 +171,7 @@ static void mm_to_cm_iface_handle_message(
             if (rv != 0)
             {
                 /* Something went wrong launching the kernel. */
-                log_write(LOG_LEVEL_ERROR,
+                Log_Write(LOG_LEVEL_ERROR,
                     "TID[%u]:MM->CM: Kernel completed with error code:%ld\r\n",
                     message_ptr->header.tag_id, rv);
             }
@@ -179,7 +179,7 @@ static void mm_to_cm_iface_handle_message(
         }
         case MM_TO_CM_MESSAGE_ID_KERNEL_ABORT:
         {
-            log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Kernel abort msg received\r\n",
+            Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Kernel abort msg received\r\n",
                 message_ptr->header.tag_id);
 
             /* Should only abort if the kernel was launched on this hart */
@@ -187,7 +187,7 @@ static void mm_to_cm_iface_handle_message(
             {
                 uint64_t exception_buffer = 0;
 
-                log_write(LOG_LEVEL_WARNING, "TID[%u]:MM->CM:Aborting kernel...\r\n",
+                Log_Write(LOG_LEVEL_WARNING, "TID[%u]:MM->CM:Aborting kernel...\r\n",
                     message_ptr->header.tag_id);
 
                 /* Check if pointer to execution context was set */
@@ -203,7 +203,7 @@ static void mm_to_cm_iface_handle_message(
                     const internal_execution_context_t *context =
                         (internal_execution_context_t *)optional_arg;
 
-                    log_write(LOG_LEVEL_ERROR, "TID[%u]:MM->CM:Saving context on kernel abort\r\n",
+                    Log_Write(LOG_LEVEL_ERROR, "TID[%u]:MM->CM:Saving context on kernel abort\r\n",
                         message_ptr->header.tag_id);
 
                     /* Save the execution context in the buffer provided */
@@ -217,14 +217,14 @@ static void mm_to_cm_iface_handle_message(
         }
         case MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL:
         {
-            log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Trace update control msg received\r\n",
+            Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Trace update control msg received\r\n",
                 message_ptr->header.tag_id);
 
             mm_to_cm_message_trace_rt_control_t *cmd =
                 (mm_to_cm_message_trace_rt_control_t *)message_ptr;
             if (cmd->thread_mask & CURRENT_THREAD_MASK)
             {
-                log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM: Trace RT Control for current hart.\r\n",
+                Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM: Trace RT Control for current hart.\r\n",
                     message_ptr->header.tag_id);
                 Trace_RT_Control_CM(cmd->cm_control);
             }
@@ -235,7 +235,7 @@ static void mm_to_cm_iface_handle_message(
             const mm_to_cm_message_trace_rt_config_t *cmd =
                 (mm_to_cm_message_trace_rt_config_t *)message_ptr;
 
-            log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Kernel abort msg received\r\n",
+            Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Kernel abort msg received\r\n",
                 message_ptr->header.tag_id);
 
             if (cmd->thread_mask & CURRENT_THREAD_MASK)
@@ -244,7 +244,7 @@ static void mm_to_cm_iface_handle_message(
                     .event_mask = cmd->event_mask,
                     .threshold = cmd->threshold };
 
-                log_write(LOG_LEVEL_DEBUG,
+                Log_Write(LOG_LEVEL_DEBUG,
                     "TID[%u]:MM->CM: Trace Config. Event:0x%x:Filter:0x%x:Threshold:%d\r\n",
                     message_ptr->header.tag_id, cmd->event_mask, cmd->filter_mask, cmd->threshold);
                 Trace_Configure_CM(&cm_trace_config);
@@ -258,12 +258,12 @@ static void mm_to_cm_iface_handle_message(
             const mm_to_cm_message_trace_buffer_evict_t *cmd =
                 (mm_to_cm_message_trace_buffer_evict_t *)message_ptr;
 
-            log_write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Trace buffer evict msg received\r\n",
+            Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Trace buffer evict msg received\r\n",
                 message_ptr->header.tag_id);
 
             if (cmd->thread_mask & CURRENT_THREAD_MASK)
             {
-                log_write(LOG_LEVEL_DEBUG,
+                Log_Write(LOG_LEVEL_DEBUG,
                     "TID[%u]:MM->CM: Evict Trace Buffer for current hart\r\n",
                     message_ptr->header.tag_id);
                 /* Evict Trace buffer. */
@@ -278,7 +278,7 @@ static void mm_to_cm_iface_handle_message(
             break;
         default:
             /* Unknown message received */
-            log_write(LOG_LEVEL_ERROR, "TID[%u]:MM->CM:Unknown msg received:ID:%d\r\n",
+            Log_Write(LOG_LEVEL_ERROR, "TID[%u]:MM->CM:Unknown msg received:ID:%d\r\n",
                 message_ptr->header.tag_id, message_ptr->header.id);
 
             const cm_to_mm_message_fw_error_t message = { .header.id = CM_TO_MM_MESSAGE_ID_FW_ERROR,
@@ -291,7 +291,7 @@ static void mm_to_cm_iface_handle_message(
 
             if (status == STATUS_SUCCESS)
             {
-                log_write(LOG_LEVEL_ERROR, "CM->MM:Unicast send failed! Error code: %d\n", status);
+                Log_Write(LOG_LEVEL_ERROR, "CM->MM:Unicast send failed! Error code: %d\n", status);
             }
             break;
     }

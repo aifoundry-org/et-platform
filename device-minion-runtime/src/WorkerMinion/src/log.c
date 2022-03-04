@@ -21,7 +21,7 @@
 *
 *   FUNCTION
 *
-*       log_write
+*       __Log_Write
 *
 *   DESCRIPTION
 *
@@ -38,7 +38,7 @@
 *       int64_t        bytes written
 *
 ***********************************************************************/
-int32_t __log_write(log_level_e level, const char *const fmt, ...)
+int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
 {
     /* TODO: Use Trace_Format_String() when Trace common library has support/alternative
        of libc_nano to process va_list string formatting. Also, remove log_level check
@@ -66,7 +66,7 @@ int32_t __log_write(log_level_e level, const char *const fmt, ...)
 *
 *   FUNCTION
 *
-*       log_write_str
+*       __Log_Write_Str
 *
 *   DESCRIPTION
 *
@@ -83,7 +83,7 @@ int32_t __log_write(log_level_e level, const char *const fmt, ...)
 *       int64_t        bytes written
 *
 ***********************************************************************/
-int32_t __log_write_str(log_level_e level, const char *str, size_t length)
+int32_t __Log_Write_Str(log_level_e level, const char *str, size_t length)
 {
     (void)length;
 

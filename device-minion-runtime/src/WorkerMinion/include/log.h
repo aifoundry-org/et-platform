@@ -19,37 +19,37 @@
 #define CURRENT_LOG_LEVEL LOG_LEVEL_INFO
 #endif
 
-/*! \fn int32_t __log_write(const char *const fmt, ...)
+/*! \fn int32_t __Log_Write(const char *const fmt, ...)
     \brief Write a log with va_list style args
     \param level Log level for the current log
     \param fmt format specifier
     \param ... variable list
     \return Bytes written
 */
-int32_t __log_write(log_level_e level, const char *const fmt, ...)
+int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
     __attribute__((format(printf, 2, 3)));
 
-/*! \fn int32_t __log_write_str(const char *str, size_t length)
+/*! \fn int32_t __Log_Write_Str(const char *str, size_t length)
     \brief Write a string log without any restriction by log level
     \param level Log level for the current log
     \param str Pointer to a string
     \param length Length of string
     \return bytes written
 */
-int32_t __log_write_str(log_level_e level, const char *str, size_t length);
+int32_t __Log_Write_Str(log_level_e level, const char *str, size_t length);
 
-/*! \fn int32_t log_write(log_level_t level, const char *const fmt, ...)
+/*! \fn int32_t Log_Write(log_level_t level, const char *const fmt, ...)
     \brief Write a log with va_list style args
     \param level Log level for the current log
     \param fmt format specifier
     \param ... variable list
     \return Bytes written
 */
-#define log_write(level, fmt, ...)                  \
+#define Log_Write(level, fmt, ...)                  \
     do                                              \
     {                                               \
         if (level <= CURRENT_LOG_LEVEL)             \
-            __log_write(level, fmt, ##__VA_ARGS__); \
+            __Log_Write(level, fmt, ##__VA_ARGS__); \
     } while (0)
 
 /*! \fn int32_t Log_Write_String(const char *str, size_t length)
@@ -63,7 +63,7 @@ int32_t __log_write_str(log_level_e level, const char *str, size_t length);
     do                                           \
     {                                            \
         if (level <= CURRENT_LOG_LEVEL)          \
-            __log_write_str(level, str, length); \
+            __Log_Write_Str(level, str, length); \
     } while (0)
 
 #endif
