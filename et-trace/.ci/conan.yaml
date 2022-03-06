@@ -1,4 +1,4 @@
 projects:
   "esperantoTrace":
     folder: .
-    configs: [host]
+    configs: [host, device]
