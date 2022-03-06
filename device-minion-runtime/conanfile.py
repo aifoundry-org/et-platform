@@ -36,7 +36,7 @@ class DeviceMinionRuntimeConan(ConanFile):
     def configure(self):
         del self.settings.compiler.libcxx
         del self.settings.compiler.cppstd
-    
+
     def requirements(self):
         # header-only libs
         self.requires("deviceApi/0.1.0")
@@ -44,11 +44,11 @@ class DeviceMinionRuntimeConan(ConanFile):
         self.requires("signedImageFormat/1.0")
         # libs
         self.requires("etsoc_hal/0.1.0")
-        self.requires("et-common-libs/0.0.3")
+        self.requires("et-common-libs/0.0.4")
 
     def package_id(self):
         self.python_requires["conan-common"].module.x86_64_compatible(self)
-    
+
     def build_requirements(self):
         self.build_requires("cmake-modules/[>=0.4.1 <1.0.0]")
 
@@ -103,9 +103,9 @@ class DeviceMinionRuntimeConan(ConanFile):
     @property
     def _elfs(self):
         #            (executable, directory name)
-        elfs = [("MachineMinion.elf", "MachineMinion"), 
-                ("MasterMinion.elf", "MasterMinion"), 
-                ("MasterMinionTF.elf", "MasterMinion"), 
+        elfs = [("MachineMinion.elf", "MachineMinion"),
+                ("MasterMinion.elf", "MasterMinion"),
+                ("MasterMinionTF.elf", "MasterMinion"),
                 ("WorkerMinion.elf", "WorkerMinion")]
         return elfs
 
@@ -156,4 +156,3 @@ class DeviceMinionRuntimeConan(ConanFile):
         for elf, elf_dir in self._elfs:
             build_modules.append(os.path.join("lib", "cmake", "conan-{}-{}.cmake".format(self.name, elf)))
         self.cpp_info.set_property("cmake_build_modules", build_modules)
-        
