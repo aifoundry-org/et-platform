@@ -18,7 +18,7 @@ project(
     DESCRIPTION "ET Accelerator API, a header and library exposed to CM usermode"
 )
 
-set(PROJECT_VERSION 0.0.3)
+set(PROJECT_VERSION 0.0.4)
 
 option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
 

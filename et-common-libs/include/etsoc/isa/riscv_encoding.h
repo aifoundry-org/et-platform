@@ -70,9 +70,13 @@
 #define INST_CSRRS_MHARTID ((0xF14ULL << 20) | (0 << 15) | (0x2 << 12) | (0x73))
 
 /* Macros to access RISC-V registers */
-#define CSR_READ_SCAUSE(value)  asm volatile("csrr %0, scause\n" : "=r"(value));
-#define CSR_READ_SSTATUS(value) asm volatile("csrr %0, sstatus\n" : "=r"(value));
-#define CSR_READ_SEPC(value)    asm volatile("csrr %0, sepc\n" : "=r"(value));
-#define CSR_READ_STVAL(value)   asm volatile("csrr %0, stval\n" : "=r"(value));
+#define CSR_READ_SCAUSE(value)        asm volatile("csrr %0, scause\n" : "=r"(value));
+#define CSR_READ_SSTATUS(value)       asm volatile("csrr %0, sstatus\n" : "=r"(value));
+#define CSR_READ_SEPC(value)          asm volatile("csrr %0, sepc\n" : "=r"(value));
+#define CSR_READ_STVAL(value)         asm volatile("csrr %0, stval\n" : "=r"(value));
+#define SUPERVISOR_INTERRUPTS_ENABLE  asm volatile("csrsi sstatus, 0x2");
+#define SUPERVISOR_INTERRUPTS_DISABLE asm volatile("csrci sstatus, 0x2");
+#define SUPERVISOR_INTERRUPT_PENDING_CLEAR(int_code) \
+    asm volatile("csrc sip, %0" : : "r"(1 << int_code));
 
 #endif
