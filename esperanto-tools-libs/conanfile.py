@@ -40,7 +40,7 @@ class RuntimeConan(ConanFile):
             raise ConanInvalidConfiguration("When enabling runtime tests esperanto-flash-tool:header_only must be True")
     
     def requirements(self):
-        self.requires("deviceApi/0.1.0")
+        self.requires("deviceApi/0.1.0#ce161078362d1dde04b7cacbb5fb851b")
         self.requires("deviceLayer/0.1.0")
         self.requires("hostUtils/0.1.0")
         
@@ -56,6 +56,10 @@ class RuntimeConan(ConanFile):
             self.requires("device-minion-runtime/0.0.1@#0ce142edbe6145f654371f07d65e311a")
             self.requires("device-bootloaders/0.1.0@#442ed4e669a855d902eae1044cccf98f")
             self.requires("esperanto-test-kernels/0.1.0@#b5ad909b244ca83b3b7029320eb16c41")
+
+            # only for pinning dependencies
+            self.requires("esperantoTrace/0.1.0#69b90d42d6e0fa223ce504f0aab8771d")
+
     
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
