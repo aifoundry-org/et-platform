@@ -64,16 +64,16 @@ TEST_F(IntegrationTestDevMgmtApiCmds, setTraceConfigure) {
   setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
                     device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
 }
-
+/* Disabling CM test as it will be replaced with MM Reset in SW-10736
 TEST_F(IntegrationTestDevMgmtApiCmds, resetCM) {
   if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
-    resetCM(false /* Multiple devices */);
+    resetCM(false);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
-
+*/
 int main(int argc, char** argv) {
   logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);

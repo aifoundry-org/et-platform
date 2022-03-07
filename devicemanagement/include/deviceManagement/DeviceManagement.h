@@ -84,7 +84,7 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_GET_ASIC_STALLS", device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS},
   {"DM_CMD_GET_ASIC_LATENCY", device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY},
   {"DM_CMD_GET_MM_ERROR_COUNT", device_mgmt_api::DM_CMD::DM_CMD_GET_MM_ERROR_COUNT},
-  {"DM_CMD_CM_RESET", device_mgmt_api::DM_CMD::DM_CMD_CM_RESET},
+  {"DM_CMD_MM_RESET", device_mgmt_api::DM_CMD::DM_CMD_MM_RESET},
   {"DM_CMD_GET_DEVICE_ERROR_EVENTS", device_mgmt_api::DM_CMD::DM_CMD_GET_DEVICE_ERROR_EVENTS},
   {"DM_CMD_SET_DM_TRACE_RUN_CONTROL", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL},
   {"DM_CMD_SET_DM_TRACE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG},
