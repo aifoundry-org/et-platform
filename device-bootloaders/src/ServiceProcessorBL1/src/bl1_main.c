@@ -116,6 +116,88 @@ static void invoke_sp_bl2(void)
     bl2_address.pFN(&g_service_processor_bl1_data);
 }
 
+static int
+copy_partition_info_data(ESPERANTO_PARTITION_BL1_INFO_t *bl1_partition_info,
+                         const ESPERANTO_PARTITION_ROM_INFO_t *rom_partition_info)
+{
+    if (NULL == bl1_partition_info || NULL == rom_partition_info) {
+        printx("copy_partition_info_data: invalid arguments!\n");
+        return -1;
+    }
+
+    memcpy(&(bl1_partition_info->header), &(rom_partition_info->header),
+           sizeof(rom_partition_info->header));
+    memcpy(&(bl1_partition_info->regions_table), &(rom_partition_info->regions_table),
+           sizeof(rom_partition_info->regions_table));
+
+    bl1_partition_info->priority_designator_region_index =
+        rom_partition_info->priority_designator_region_index;
+    bl1_partition_info->boot_counters_region_index = rom_partition_info->boot_counters_region_index;
+    bl1_partition_info->configuration_data_region_index =
+        rom_partition_info->configuration_data_region_index;
+    bl1_partition_info->vaultip_fw_region_index = rom_partition_info->vaultip_fw_region_index;
+    bl1_partition_info->pcie_config_region_index = rom_partition_info->pcie_config_region_index;
+    bl1_partition_info->sp_certificates_region_index =
+        rom_partition_info->sp_certificates_region_index;
+    bl1_partition_info->sp_bl1_region_index = rom_partition_info->sp_bl1_region_index;
+
+    memcpy(&(bl1_partition_info->priority_designator_region_data),
+           &(rom_partition_info->priority_designator_region_data),
+           sizeof(rom_partition_info->priority_designator_region_data));
+    memcpy(&(bl1_partition_info->boot_counters_region_data),
+           &(rom_partition_info->boot_counters_region_data),
+           sizeof(rom_partition_info->boot_counters_region_data));
+
+    bl1_partition_info->priority_counter = rom_partition_info->priority_counter;
+    bl1_partition_info->attempted_boot_counter = rom_partition_info->attempted_boot_counter;
+    bl1_partition_info->completed_boot_counter = rom_partition_info->completed_boot_counter;
+    bl1_partition_info->partition_valid = rom_partition_info->partition_valid;
+
+    return 0;
+}
+
+static int copy_flash_fs_data(FLASH_FS_BL1_INFO_t *flash_fs_bl1_info,
+                        const FLASH_FS_ROM_INFO_t *flash_fs_rom_info)
+{
+    uint32_t region_index;
+    uint32_t region_address;
+    uint32_t region_size;
+
+    if (NULL == flash_fs_bl1_info || NULL == flash_fs_rom_info) {
+        printx("copy_flash_fs_data: invalid arguments!\n");
+        return -1;
+    }
+
+    memset(flash_fs_bl1_info, 0, sizeof(FLASH_FS_BL1_INFO_t));
+
+    for (uint32_t n = 0; n < 2; n++) {
+        if (0 != copy_partition_info_data(&(flash_fs_bl1_info->partition_info[n]),
+                                          &(flash_fs_rom_info->partition_info[n]))) {
+            printx("copy_partition_info_data(%u) failed!\n", n);
+            return -1;
+        }
+    }
+
+    flash_fs_bl1_info->flash_id_u32 = flash_fs_rom_info->flash_id_u32;
+    flash_fs_bl1_info->flash_size = flash_fs_rom_info->flash_size;
+    flash_fs_bl1_info->active_partition = flash_fs_rom_info->active_partition;
+    flash_fs_bl1_info->other_partition_valid = flash_fs_rom_info->other_partition_valid;
+
+    region_index = flash_fs_rom_info->partition_info[flash_fs_rom_info->active_partition].configuration_data_region_index ;
+    region_address = flash_fs_rom_info->partition_info[flash_fs_rom_info->active_partition].regions_table[region_index].region_offset * FLASH_PAGE_SIZE;
+    region_size = flash_fs_rom_info->partition_info[flash_fs_rom_info->active_partition].regions_table[region_index].region_reserved_size * FLASH_PAGE_SIZE;
+    printx("region_index configuration data is 0x%08x \n", region_index);
+    printx("region_address configuration data is 0x%08x \n", region_address);
+    printx("region_size configuration data is 0x%08x \n", region_size);
+    flash_fs_bl1_info->configuration_region_address = region_address;
+    flash_fs_bl1_info->pcie_config_file_info = flash_fs_rom_info->pcie_config_file_info;
+    flash_fs_bl1_info->vaultip_firmware_file_info = flash_fs_rom_info->vaultip_firmware_file_info;
+    flash_fs_bl1_info->sp_certificates_file_info = flash_fs_rom_info->sp_certificates_file_info;
+    flash_fs_bl1_info->sp_bl1_file_info = flash_fs_rom_info->sp_bl1_file_info;
+
+    return 0;
+}
+
 static int copy_rom_data(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
 {
     printx("SP ROM data address: %x\n", rom_data);
@@ -149,8 +231,10 @@ static int copy_rom_data(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
            sizeof(rom_data->sp_bl1_header));
 
     // copy the SP flash_fs info
-    memcpy(&(g_service_processor_bl1_data.flash_fs_bl1_info), &(rom_data->flash_fs_rom_info),
-           sizeof(rom_data->flash_fs_rom_info));
+    if (0 != copy_flash_fs_data(&g_service_processor_bl1_data.flash_fs_bl1_info, &rom_data->flash_fs_rom_info) ) {
+        printx("copy_flash_fs_data() failed!");
+        return -1;
+    }
 
     return 0;
 }
@@ -220,8 +304,7 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
         goto FATAL_ERROR;
     }
 
-    if (0 != flash_fs_init(&(g_service_processor_bl1_data.flash_fs_bl1_info),
-                           &(rom_data->flash_fs_rom_info))) {
+    if (0 != flash_fs_init(&g_service_processor_bl1_data.flash_fs_bl1_info)) {
         printx("flash_fs_init() failed!!\n");
         goto FATAL_ERROR;
     }

@@ -14,8 +14,7 @@
 
 #include "bl1_spi_flash.h"
 
-int flash_fs_init(FLASH_FS_BL1_INFO_t *restrict flash_fs_bl1_info,
-                  const FLASH_FS_ROM_INFO_t *restrict flash_fs_rom_info);
+int flash_fs_init(FLASH_FS_BL1_INFO_t *flash_fs_bl1_info);
 int flash_fs_set_active_partition(bool primary);
 int flash_fs_get_config_data(void *buffer);
 int flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t *size);

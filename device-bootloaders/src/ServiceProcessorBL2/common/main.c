@@ -142,7 +142,7 @@ static void taskMain(void *pvParameters)
     minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
     Minion_Set_Active_Shire_Mask(minion_shires_mask);
 
-    // Initialize Minions 
+    // Initialize Minions
     Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]Initialize_Minions\n");
     status = Initialize_Minions(minion_shires_mask);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Minion initialization failed!")
@@ -337,6 +337,105 @@ static void taskMain(void *pvParameters)
     }
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       copy_partition_info_data
+*
+*   DESCRIPTION
+*
+*       This function initialize bl2 partition info struct by copying data
+*       from bl1 partition info struct
+*
+*   INPUTS
+*
+*       bl1_partition_info   bl1 partition info struct
+*
+*   OUTPUTS
+*
+*       bl2_partition_info   bl2 partition info struct
+*
+***********************************************************************/
+static int
+copy_partition_info_data(ESPERANTO_PARTITION_BL2_INFO_t *bl2_partition_info,
+                         const ESPERANTO_PARTITION_BL1_INFO_t *bl1_partition_info)
+{
+    if (NULL == bl2_partition_info || NULL == bl1_partition_info)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "copy_partition_info_data: invalid arguments!\n");
+        return -1;
+    }
+
+    memcpy(&(bl2_partition_info->header), &(bl1_partition_info->header),
+           sizeof(bl1_partition_info->header));
+    memcpy(&(bl2_partition_info->regions_table), &(bl1_partition_info->regions_table),
+           sizeof(bl1_partition_info->regions_table));
+
+    bl2_partition_info->priority_designator_region_index =
+        bl1_partition_info->priority_designator_region_index;
+    bl2_partition_info->boot_counters_region_index =
+        bl1_partition_info->boot_counters_region_index;
+    bl2_partition_info->configuration_data_region_index =
+        bl1_partition_info->configuration_data_region_index;
+    bl2_partition_info->vaultip_fw_region_index = bl1_partition_info->vaultip_fw_region_index;
+    bl2_partition_info->pcie_config_region_index = bl1_partition_info->pcie_config_region_index;
+    bl2_partition_info->sp_certificates_region_index =
+        bl1_partition_info->sp_certificates_region_index;
+    bl2_partition_info->sp_bl1_region_index = bl1_partition_info->sp_bl1_region_index;
+    bl2_partition_info->sp_bl2_region_index = bl1_partition_info->sp_bl2_region_index;
+
+    memcpy(&(bl2_partition_info->priority_designator_region_data),
+           &(bl1_partition_info->priority_designator_region_data),
+           sizeof(bl1_partition_info->priority_designator_region_data));
+    memcpy(&(bl2_partition_info->boot_counters_region_data),
+           &(bl1_partition_info->boot_counters_region_data),
+           sizeof(bl1_partition_info->boot_counters_region_data));
+
+    bl2_partition_info->priority_counter = bl1_partition_info->priority_counter;
+    bl2_partition_info->attempted_boot_counter = bl1_partition_info->attempted_boot_counter;
+    bl2_partition_info->completed_boot_counter = bl1_partition_info->completed_boot_counter;
+    bl2_partition_info->partition_valid = bl1_partition_info->partition_valid;
+
+    return 0;
+}
+
+static int copy_flash_fs_data(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info,
+                              const FLASH_FS_BL1_INFO_t *flash_fs_bl1_info)
+{
+    if (NULL == flash_fs_bl2_info || NULL == flash_fs_bl1_info)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "copy_flash_fs_data: invalid arguments!\n");
+        return -1;
+    }
+
+    memset(flash_fs_bl2_info, 0, sizeof(FLASH_FS_BL2_INFO_t));
+
+    for (uint32_t n = 0; n < 2; n++)
+    {
+        if (0 != copy_partition_info_data(&(flash_fs_bl2_info->partition_info[n]),
+                                          &(flash_fs_bl1_info->partition_info[n])))
+        {
+            Log_Write(LOG_LEVEL_ERROR, "copy_partition_info_data(%u) failed!\n", n);
+            return -1;
+        }
+    }
+
+    flash_fs_bl2_info->flash_id_u32 = flash_fs_bl1_info->flash_id_u32;
+    flash_fs_bl2_info->flash_size = flash_fs_bl1_info->flash_size;
+    flash_fs_bl2_info->active_partition = flash_fs_bl1_info->active_partition;
+    flash_fs_bl2_info->other_partition_valid = flash_fs_bl1_info->other_partition_valid;
+    flash_fs_bl2_info->configuration_region_address =
+        flash_fs_bl1_info->configuration_region_address;
+    flash_fs_bl2_info->pcie_config_file_info = flash_fs_bl1_info->pcie_config_file_info;
+    flash_fs_bl2_info->vaultip_firmware_file_info = flash_fs_bl1_info->vaultip_firmware_file_info;
+    flash_fs_bl2_info->sp_certificates_file_info = flash_fs_bl1_info->sp_certificates_file_info;
+    flash_fs_bl2_info->sp_bl1_file_info = flash_fs_bl1_info->sp_bl1_file_info;
+    flash_fs_bl2_info->sp_bl2_file_info = flash_fs_bl1_info->sp_bl2_file_info;
+
+    return 0;
+}
+
 static int initialize_bl2_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 {
     if (NULL == bl1_data ||
@@ -382,7 +481,10 @@ static int initialize_bl2_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
            sizeof(bl1_data->sp_bl2_header));
 
     // Initialize BL2 Flash File-System by copy content from BL1 Flash info
-    flash_fs_init(&g_service_processor_bl2_data.flash_fs_bl2_info, &bl1_data->flash_fs_bl1_info);
+    if (0 != copy_flash_fs_data(&g_service_processor_bl2_data.flash_fs_bl2_info, &bl1_data->flash_fs_bl1_info)) {
+        Log_Write(LOG_LEVEL_ERROR, "copy_flash_fs_data() failed!\n");
+        return -1;
+    }
 
     return 0;
 }
@@ -479,7 +581,11 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     status = SPI_Flash_Initialize(g_service_processor_bl2_data.flash_fs_bl2_info.flash_id);
     ASSERT_FATAL(status == STATUS_SUCCESS, "SPI_Flash_Initialize() failed!")
 
-    // Create Main RTOS task and launch Scheduler
+    // Initialize flash fs
+    status = flash_fs_init(&g_service_processor_bl2_data.flash_fs_bl2_info);
+    ASSERT_FATAL(status == STATUS_SUCCESS, "flash_fs_init() failed!")
+
+        // Create Main RTOS task and launch Scheduler
     Log_Write(LOG_LEVEL_CRITICAL, "Starting RTOS...\n");
     gs_taskHandleMain = xTaskCreateStatic(taskMain, "Main Task", MAIN_TASK_STACK_SIZE, NULL, 1,
                                           gs_stackMain, &gs_taskBufferMain);

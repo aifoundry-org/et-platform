@@ -21,16 +21,12 @@
 
 #include "bl2_spi_flash.h"
 
-/*! \fn int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
-*                         const FLASH_FS_BL1_INFO_t *restrict flash_fs_bl1_info)
-    \brief This function initialize bl2 flash info struct by copying data from
-*          bl1 flash info struct, also initialize partition infos.
+/*! \fn int flash_fs_init(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
+    \brief This function initialize partition infos.
     \param flash_fs_bl2_info - bl2 flash info struct to initialize
-    \param flash_fs_bl1_info - bl1 flash info struct to copy data from
     \return The function call status, pass/fail.
 */
-int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
-                  const FLASH_FS_BL1_INFO_t *restrict flash_fs_bl1_info);
+int flash_fs_init(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info);
 
 /*! \fn int flash_fs_set_active_partition(bool primary)
     \brief UNIMPLEMENTED

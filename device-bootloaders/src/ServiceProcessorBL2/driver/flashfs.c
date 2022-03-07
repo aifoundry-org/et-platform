@@ -352,70 +352,6 @@ static int flash_fs_scan_partition(uint32_t partition_size,
 *
 *   FUNCTION
 *
-*       init_partition_info_data
-*
-*   DESCRIPTION
-*
-*       This function initialize bl2 partition info struct by copying data
-*       from bl1 partition info struct
-*
-*   INPUTS
-*
-*       bl1_partition_info   bl1 partition info struct
-*
-*   OUTPUTS
-*
-*       bl2_partition_info   bl2 partition info struct
-*
-***********************************************************************/
-
-static int
-init_partition_info_data(ESPERANTO_PARTITION_BL2_INFO_t *restrict bl2_partition_info,
-                         const ESPERANTO_PARTITION_BL1_INFO_t *restrict bl1_partition_info)
-{
-    if (NULL == bl2_partition_info || NULL == bl1_partition_info)
-    {
-        MESSAGE_ERROR("init_partition_info_data: invalid arguments!\n");
-        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
-    }
-
-    memcpy(&(bl2_partition_info->header), &(bl1_partition_info->header),
-           sizeof(bl1_partition_info->header));
-    memcpy(&(bl2_partition_info->regions_table), &(bl1_partition_info->regions_table),
-           sizeof(bl1_partition_info->regions_table));
-
-    bl2_partition_info->priority_designator_region_index =
-        bl1_partition_info->priority_designator_region_index;
-    bl2_partition_info->boot_counters_region_index =
-        bl1_partition_info->boot_counters_region_index;
-    bl2_partition_info->configuration_data_region_index =
-        bl1_partition_info->configuration_data_region_index;
-    bl2_partition_info->vaultip_fw_region_index = bl1_partition_info->vaultip_fw_region_index;
-    bl2_partition_info->pcie_config_region_index = bl1_partition_info->pcie_config_region_index;
-    bl2_partition_info->sp_certificates_region_index =
-        bl1_partition_info->sp_certificates_region_index;
-    bl2_partition_info->sp_bl1_region_index = bl1_partition_info->sp_bl1_region_index;
-    bl2_partition_info->sp_bl2_region_index = bl1_partition_info->sp_bl2_region_index;
-
-    memcpy(&(bl2_partition_info->priority_designator_region_data),
-           &(bl1_partition_info->priority_designator_region_data),
-           sizeof(bl1_partition_info->priority_designator_region_data));
-    memcpy(&(bl2_partition_info->boot_counters_region_data),
-           &(bl1_partition_info->boot_counters_region_data),
-           sizeof(bl1_partition_info->boot_counters_region_data));
-
-    bl2_partition_info->priority_counter = bl1_partition_info->priority_counter;
-    bl2_partition_info->attempted_boot_counter = bl1_partition_info->attempted_boot_counter;
-    bl2_partition_info->completed_boot_counter = bl1_partition_info->completed_boot_counter;
-    bl2_partition_info->partition_valid = bl1_partition_info->partition_valid;
-
-    return 0;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
 *       flash_fs_preload_config_data
 *
 *   DESCRIPTION
@@ -496,64 +432,32 @@ static int flash_fs_preload_config_data(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
 *
 *   DESCRIPTION
 *
-*       This function initialize bl2 flash info struct by copying data
-*       from bl1 flash info struct, also initialize partition infos.
+*       This function initialize partition infos.
 *
 *   INPUTS
-*
-*       flash_fs_bl1_info    bl1 partition info struct
-*
-*   OUTPUTS
 *
 *       flash_fs_bl2_info    bl2 partition info struct
 *
 ***********************************************************************/
 
-int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
-                  const FLASH_FS_BL1_INFO_t *restrict flash_fs_bl1_info)
+int flash_fs_init(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
 {
-    uint32_t n;
     uint32_t partition_size;
 
-    if (NULL == flash_fs_bl2_info || NULL == flash_fs_bl1_info)
+    if (NULL == flash_fs_bl2_info)
     {
-        MESSAGE_ERROR("flash_fs_init: invalid arguments!\n");
+        MESSAGE_ERROR("flash_fs_init: invalid argument!\n");
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
-    memset(flash_fs_bl2_info, 0, sizeof(FLASH_FS_BL2_INFO_t));
-
-    for (n = 0; n < 2; n++)
-    {
-        if (0 != init_partition_info_data(&(flash_fs_bl2_info->partition_info[n]),
-                                          &(flash_fs_bl1_info->partition_info[n])))
-        {
-            MESSAGE_ERROR("flash_fs_init: init_partition_info_data(%u) failed!\n", n);
-            return ERROR_SPI_FLASH_FS_INIT_FAILED;
-        }
-    }
-
-    flash_fs_bl2_info->flash_id_u32 = flash_fs_bl1_info->flash_id_u32;
-    flash_fs_bl2_info->flash_size = flash_fs_bl1_info->flash_size;
-    flash_fs_bl2_info->active_partition = flash_fs_bl1_info->active_partition;
-    flash_fs_bl2_info->other_partition_valid = flash_fs_bl1_info->other_partition_valid;
-    flash_fs_bl2_info->configuration_region_address =
-        flash_fs_bl1_info->configuration_region_address;
-    flash_fs_bl2_info->pcie_config_file_info = flash_fs_bl1_info->pcie_config_file_info;
-    flash_fs_bl2_info->vaultip_firmware_file_info = flash_fs_bl1_info->vaultip_firmware_file_info;
-    flash_fs_bl2_info->sp_certificates_file_info = flash_fs_bl1_info->sp_certificates_file_info;
-    flash_fs_bl2_info->sp_bl1_file_info = flash_fs_bl1_info->sp_bl1_file_info;
-    flash_fs_bl2_info->sp_bl2_file_info = flash_fs_bl1_info->sp_bl2_file_info;
-
-    partition_size = flash_fs_bl1_info->flash_size / 2;
+    partition_size = flash_fs_bl2_info->flash_size / 2;
 
     /* re-scan both partitions in the flash */
-    for (n = 0; n < 2; n++)
+    for (uint32_t n = 0; n < 2; n++)
     {
         Log_Write(LOG_LEVEL_INFO, "Re-scanning partition %u...\n", n);
 
-        if (false == flash_fs_bl1_info->partition_info[n].partition_valid) {
-            flash_fs_bl2_info->partition_info[n].partition_valid = false;
+        if (false == flash_fs_bl2_info->partition_info[n].partition_valid) {
             Log_Write(LOG_LEVEL_WARNING, "Partition %u is not valid, skipping\n", n);
             continue;
         }
@@ -576,7 +480,7 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
     }
 
     if (false ==
-        flash_fs_bl1_info->partition_info[flash_fs_bl1_info->active_partition].partition_valid)
+        flash_fs_bl2_info->partition_info[flash_fs_bl2_info->active_partition].partition_valid)
     {
         /* the active boot partition is no longer valid! */
         MESSAGE_ERROR("No valid partition found!\n");
@@ -585,7 +489,7 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *restrict flash_fs_bl2_info,
 
 
     flash_fs_preload_config_data(flash_fs_bl2_info);
-    
+
     memcpy(&sg_flash_fs_bl2_info, flash_fs_bl2_info, sizeof(FLASH_FS_BL2_INFO_t));
 
     return 0;
@@ -1549,7 +1453,7 @@ int flash_fs_get_module_rev(char *module_rev)
 
 int flash_fs_get_memory_size(char *mem_size)
 {
-    
+
     memcpy(mem_size, &(sg_flash_fs_bl2_info.asset_config_data.mem_size),
            sizeof(sg_flash_fs_bl2_info.asset_config_data.mem_size));
     return 0;
@@ -1577,7 +1481,7 @@ int flash_fs_get_memory_size(char *mem_size)
 
 int flash_fs_get_form_factor(char *form_factor)
 {
-    
+
     memcpy(form_factor, &(sg_flash_fs_bl2_info.asset_config_data.form_factor),
            sizeof(sg_flash_fs_bl2_info.asset_config_data.form_factor));
     return 0;
