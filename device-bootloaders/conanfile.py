@@ -45,15 +45,15 @@ class EsperantoBootLoadersConan(ConanFile):
         self.requires("esperanto-flash-tool/0.1.0") # we only consume a header
         # libs
         self.requires("etsoc_hal/0.1.0")
-        self.requires("et-common-libs/0.0.3")
-        self.requires("device-minion-runtime/0.0.1")
-    
+        self.requires("et-common-libs/0.0.4")
+        self.requires("device-minion-runtime/0.0.2")
+
     def package_id(self):
         self.python_requires["conan-common"].module.x86_64_compatible(self)
-    
+
     def build_requirements(self):
         self.build_requires("cmake-modules/[>=0.4.1 <1.0.0]")
-    
+
     def validate(self):
         if self.settings.arch != "rv64":
             raise ConanInvalidConfiguration("Cross-compiling to arch %s is not supported" % self.settings.arch)
@@ -72,7 +72,7 @@ class EsperantoBootLoadersConan(ConanFile):
             ut = dep.conf_info["tools.cmake.cmaketoolchain:user_toolchain"]
             if ut:
                 user_toolchains.append(ut)
-        
+
         tc = CMakeToolchain(self)
         tc.variables["CMAKE_VERBOSE_MAKEFILE"] = False
         tc.variables["GIT_HASH_STRING"] = self.info.package_id()
@@ -95,20 +95,20 @@ class EsperantoBootLoadersConan(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-    
+
     @property
     def _elfs(self):
         #            (executable, directory name)
         elfs = [
-            ("BootromTrampolineToBL2.elf", "BootromTrampolineToBL2"), 
-            ("ServiceProcessorBL1.elf", "ServiceProcessorBL1"), 
-            ("ServiceProcessorBL2_production.elf", os.path.join("ServiceProcessorBL2", "production")), 
+            ("BootromTrampolineToBL2.elf", "BootromTrampolineToBL2"),
+            ("ServiceProcessorBL1.elf", "ServiceProcessorBL1"),
+            ("ServiceProcessorBL2_production.elf", os.path.join("ServiceProcessorBL2", "production")),
             ("ServiceProcessorBL2_fast-boot.elf", os.path.join("ServiceProcessorBL2", "fast-boot")),
             ("ServiceProcessorBL2_testframework.elf", os.path.join("ServiceProcessorBL2", "testframework")),
             ("ServiceProcessorBL2_mdi_enabled.elf", os.path.join("ServiceProcessorBL2", "mdi_enabled"))
         ]
         return elfs
-    
+
     def _custom_cmake_module(self, name):
         return "conan-{}-{}.cmake".format(self.name, name)
 
@@ -116,7 +116,7 @@ class EsperantoBootLoadersConan(ConanFile):
         cmake = CMake(self)
         cmake.install()
         tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
-    
+
         build_modules_folder = os.path.join(self.package_folder, "lib", "cmake")
         os.makedirs(build_modules_folder)
         for elf, elf_dir in self._elfs:
@@ -157,4 +157,4 @@ class EsperantoBootLoadersConan(ConanFile):
         for elf, elf_dir in self._elfs:
             build_modules.append(os.path.join("lib", "cmake", self._custom_cmake_module(elf)))
         self.cpp_info.set_property("cmake_build_modules", build_modules)
-        
+
