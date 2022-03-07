@@ -57,22 +57,22 @@ void __attribute__((noreturn)) main(void)
     /* Setup supervisor trap vector */
     asm volatile("csrw  stvec, %0\n" : : "r"(&trap_handler));
 
-    /* Disable global interrupts (sstatus.SIE = 0) to not trap to trap handler.
-    But enable Supervisor Software Interrupts so that IPIs and bus error intterupts
-    trap when in U-mode
-    RISC-V spec:
-       "An interrupt i will be taken if bit i is set in both mip and mie,
-        and if interrupts are globally enabled." */
-    asm volatile("csrci sstatus, 0x2\n");
+    /* Enable Supervisor software interrupts (IPI) and Bus Error interrupts
+    Also enable global interrupts (sstatus.SIE = 0) so that both S-mode and
+    U-mode intterupts will trap to trap handler */
     asm volatile("csrs sie, %0\n"
                  :
                  : "r"((1 << SUPERVISOR_SOFTWARE_INTERRUPT) | (1 << BUS_ERROR_INTERRUPT)));
+    SUPERVISOR_INTERRUPTS_ENABLE
 
     /* Enable all available PMU counters to be sampled in U-mode */
     asm volatile("csrw scounteren, %0\n" : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
 
     /* Initialize Trace with default configurations. */
     Trace_Init_CM(NULL);
+
+    /* Initialize the MM-CM Iface */
+    MM_To_CM_Iface_Init();
 
     /* Last thread in a shire updates the global CM shire boot mask */
     if (atomic_add_local_32(&CM_Thread_Boot_Counter[shire_id].flag, 1U) == (thread_count - 1))
@@ -86,9 +86,6 @@ void __attribute__((noreturn)) main(void)
         /* Log boot message */
         Log_Write(LOG_LEVEL_CRITICAL, "Shire %d booted up!\r\n", shire_id);
     }
-
-    /* Initialize the MM-CM Iface */
-    MM_To_CM_Iface_Init();
 
     /* Start the main processing loop */
     MM_To_CM_Iface_Main_Loop();

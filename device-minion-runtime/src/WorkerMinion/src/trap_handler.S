@@ -7,14 +7,24 @@
 .func
 
 /* S-mode traps are not reentrant, but may come from S-mode or U-mode */
-/* Note that interrupts are globally disabled, so if we receive an interrupt while in S-mode, it won't trap
-   but just wake from WFI (if the local interrupt bits are set in sie) */
 trap_handler:
     csrrw t0, sscratch, t0              /* Swap t0 with sscratch */
     sd    t1, 0 (t0)                    /* Save t1 in the S-mode stack scratch region */
-    mv    t1, sp                        /* Set t1 to original sp */
-    ld    sp, 8 (t0)                    /* Since we only trap from U-mode, switch to the S-mode stack */
 
+    csrr  t1, sstatus                   /* Use t1 to check what privilege we trapped from */
+    srli  t1, t1, 8
+    andi  t1, t1, 1
+    bne   t1, zero, from_s_mode         /* If we came from S-mode, skip switching the sp */
+
+from_u_mode:
+    mv    t1, sp                        /* Set t1 to original sp */
+    ld    sp, 8 (t0)                    /* If we came from U-mode, switch to the S-mode stack */
+    j     from_any_mode
+
+from_s_mode:
+    mv    t1, sp                        /* Set t1 to original sp */
+
+from_any_mode:
     addi  sp, sp, -(32 * 8)             /* Make room for sp and saved context on stack */
     sd    t1, 2 * 8(sp)                 /* Save original sp (x2) */
 

@@ -75,20 +75,33 @@ void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
 
     for (;;)
     {
+        /* Fast path: Disable supervisor interrupts and wake up from WFI to
+        check the pending interrupt and process msg from MM.
+        Disabling global interrupts will not trap the interrupts.
+        According to RISC-V spec:
+            "An interrupt i will be taken if bit i is set in both mip and mie,
+            and if interrupts are globally enabled." */
+        SUPERVISOR_INTERRUPTS_DISABLE
+
         /* Wait for an interrupt */
-        asm volatile("wfi\n");
+        WFI
 
-        /* Read pending interrupts */
-        SUPERVISOR_PENDING_INTERRUPTS(sip);
+            /* Read pending interrupts */
+            SUPERVISOR_PENDING_INTERRUPTS(sip);
 
-        Log_Write(LOG_LEVEL_DEBUG, "CM:Exiting WFI! SIP: 0x%" PRIx64 "\r\n", sip);
+        Log_Write(LOG_LEVEL_DEBUG, "Exiting WFI! SIP: 0x%" PRIx64 "\r\n", sip);
 
         if (sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
         {
             /* We got a software interrupt (IPI) handed down from M-mode.
             M-mode already cleared the MSIP (Machine Software Interrupt Pending)
             Clear Supervisor Software Interrupt Pending (SSIP) */
-            asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
+            SUPERVISOR_INTERRUPT_PENDING_CLEAR(SUPERVISOR_SOFTWARE_INTERRUPT)
+
+            /* Slow path: Enable supervisor interrupts after clearing the pending interrupt.
+            Now the IPIs will trap to tap handler when the hart is running in S-mode as well.
+            This will allow us to wake the hart from MM if its not responding in S-mode. */
+            SUPERVISOR_INTERRUPTS_ENABLE
 
             /* Receive and process message buffer */
             MM_To_CM_Iface_Multicast_Receive(0);
