@@ -159,6 +159,9 @@ int32_t CW_Init(void)
     /* Set the bit for MM shire sync Minions */
     shire_mask = MASK_SET_BIT(shire_mask, MASTER_SHIRE);
 
+    /* Bring all Compute Minion Neigh Logic out of reset */
+    syscall(SYSCALL_ENABLE_NEIGH, shire_mask, 0, 0);
+
     /* Initialize Global CW_CB */
     atomic_store_local_64(&CW_CB.physically_avail_shires_mask, shire_mask);
 
