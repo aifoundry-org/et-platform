@@ -68,9 +68,17 @@ extern "C" {
 
 /*! \def TRACE_STRING_MAX_SIZE
     \brief Max size of string to log into Trace string message.
-        Longer strings are truncated.
+           Longer strings will not be logged.
+    TODO: Make this user configurable option, after
+          updating Trace users to remove dependacy on it.
 */
-#define TRACE_STRING_MAX_SIZE 64
+#define TRACE_STRING_MAX_SIZE 512
+
+/*! \def TRACE_STRING_SIZE_ALIGN
+    \brief Trace string message alignment. This will keep string packet
+           cache line (i.e. 8 bytes) aligned.
+*/
+#define TRACE_STRING_SIZE_ALIGN(size)     ((((size) + 7) / 8) * 8)
 
 /*! \def TRACE_MAGIC_HEADER
     \brief This is Trace header magic number. This is just temproray number as of now.
@@ -85,7 +93,7 @@ extern "C" {
 /*! \def TRACE_VERSION_MINOR
     \brief This is Trace layout version (minor).
 */
-#define TRACE_VERSION_MINOR 2
+#define TRACE_VERSION_MINOR 3
 
 /*! \def TRACE_VERSION_PATCH
     \brief This is Trace layout version (patch).
@@ -255,9 +263,9 @@ struct trace_buffer_std_header_t {
 */
 struct trace_entry_header_t {
     uint64_t cycle;   /**< Current cycle */
-    uint32_t hart_id; /**< (optional) Hart ID of the Hart which is logging Trace */
+    uint32_t payload_size; /**< Size of the event payload following the entry header */
+    uint16_t hart_id; /**< (optional) Hart ID of the Hart which is logging Trace */
     uint16_t type;    /**< One of enum trace_type_e */
-    uint8_t pad[2];   /**< Cache Alignment for MM as it uses atomic operations. */
 } __attribute__((packed));
 
 /*! \struct trace_pmc_counters_compute_t
@@ -349,7 +357,7 @@ struct trace_power_status_t {
 */
 struct trace_string_t {
     struct trace_entry_header_t header;
-    char string[TRACE_STRING_MAX_SIZE];
+    char string[];
 } __attribute__((packed));
 
 /*! \struct trace_entry_header_t
