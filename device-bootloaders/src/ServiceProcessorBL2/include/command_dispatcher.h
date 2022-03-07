@@ -37,3 +37,9 @@ void host_intf_init(void);
     \return Status indicating success or negative error
 */
 void mm_intf_init(void);
+
+/*! \fn int Minion_Create_Reset_Task(void)
+    \brief This function creates a task to reset Master Minion
+    \return The function call status, pass/fail.
+*/
+int Minion_Create_Reset_Task(void);

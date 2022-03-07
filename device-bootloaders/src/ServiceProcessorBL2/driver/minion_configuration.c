@@ -12,8 +12,9 @@
 
     Public interfaces:
         Minion_Enable_Neighborhoods
-        Minion_Reset_Threads
         Minion_Enable_Master_Shire_Threads
+        Minion_Disable_CM_Shire_Threads
+        Master_Minion_Reset
         Minion_Shire_Update_Voltage
         Minion_Program_Step_Clock_PLL
         Minion_Enable_Compute_Minion
@@ -46,7 +47,9 @@
 #include <hwinc/lvdpll_modes_config.h>
 
 #include "esr.h"
+#include "bl2_otp.h"
 #include "minion_configuration.h"
+#include "command_dispatcher.h"
 #include "hal_minion_pll.h"
 #include "FreeRTOS.h"
 #include "timers.h"
@@ -55,6 +58,7 @@
 
 #include "minion_state_inspection.h"
 #include "minion_run_control.h"
+#include "trace.h"
 
 /*!
  * @struct struct minion_event_control_block
@@ -78,7 +82,7 @@ struct minion_event_control_block
 static struct minion_event_control_block event_control_block __attribute__((section(".data")));
 
 /* Globals for SW timer */
-static TimerHandle_t MM_HeartBeat_Timer;
+TimerHandle_t MM_HeartBeat_Timer;
 static StaticTimer_t MM_Timer_Buffer;
 
 /* Macro to increment exception error counter and send event to host */
@@ -102,10 +106,10 @@ static StaticTimer_t MM_Timer_Buffer;
 
 /* Macro to update all Neighs in Shire for a given input function */
 #define UPDATE_ALL_NEIGH(function, shireid)                             \
-    for( uint8_t neighid = 0; neighid < NUM_NEIGH_PER_SHIRE; neighid++) \
+    for (uint8_t neighid = 0; neighid < NUM_NEIGH_PER_SHIRE; neighid++) \
     {                                                                   \
-       function(shireid, neighid);                                      \
-    }                                                                   \
+        function(shireid, neighid);                                     \
+    }
 
 /* Macro to update all Minion Harts in Shire for a given input function */
 #define UPDATE_ALL_MINION(function, start_hart, last_hart)               \
@@ -168,7 +172,20 @@ static StaticTimer_t MM_Timer_Buffer;
 // implementation
 #define MM_RT_THREADS 0x0000FFFFU
 
+/*! \def MM_COMPUTE_THREADS
+    \brief Define for Threads which participate in the Device Runtime.
+         Currently the upper 16 Minions (32 Harts) of the whole Minion Shire
+         participates in Compute Minion Kernel execution.
+*/
+#define MM_COMPUTE_THREADS 0xFFFFFFFFU
+
 static uint64_t g_active_shire_mask = 0;
+
+/* MM command handler task cb to reset task */
+extern TaskHandle_t g_mm_cmd_hdlr_handle;
+
+/* MM heartbeat time CB to delete timer */
+extern TimerHandle_t MM_HeartBeat_Timer;
 
 /*==================== Function Separator =============================*/
 
@@ -404,10 +421,7 @@ static void MM_HeartBeat_Timer_Cb(xTimerHandle pxTimer)
     }
 
     /* Reset minion threads */
-    if (0 != Master_Minion_Reset(Minion_State_MM_Iface_Get_Active_Shire_Mask()))
-    {
-        Log_Write(LOG_LEVEL_ERROR, "%s :  failed\n", __func__);
-    }
+    Minion_Create_Reset_Task();
 }
 
 /************************************************************************
@@ -537,11 +551,11 @@ static int minion_configure_hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
 *
 *   DESCRIPTION
 *
-*       This function enables mastershire threads.
+*       This function configures mastershire threads.
 *
 *   INPUTS
 *
-*       mm_id master minion shire id
+*       enable flag to enable/disable MM threads
 *
 *   OUTPUTS
 *
@@ -587,6 +601,46 @@ int Minion_Enable_Master_Shire_Threads(void)
 
     return 0;
 }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Configure_CM_Shire_Threads
+*
+*   DESCRIPTION
+*
+*       This function configures CM threads.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int Minion_Disable_CM_Shire_Threads(void)
+{
+    uint64_t shire_mask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
+    uint8_t num_shires = get_highest_set_bit_offset(shire_mask);
+
+    for (uint8_t i = 0; i <= num_shires; i++)
+    {
+        if (shire_mask & 1)
+        {
+            /* Disable all CM threads on each Shire */
+            write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                          ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_ADDRESS, MM_COMPUTE_THREADS, 0);
+            write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                          ETSOC_SHIRE_OTHER_ESR_THREAD1_DISABLE_ADDRESS, MM_COMPUTE_THREADS, 0);
+        }
+        shire_mask >>= 1;
+    }
+
+    return 0;
+}
 /************************************************************************
 *
 *   FUNCTION
@@ -599,44 +653,90 @@ int Minion_Enable_Master_Shire_Threads(void)
 *
 *   INPUTS
 *
-*       minion_shires_mask Minion Shire Mask
+*       pvParameters Task input parametes
 *
 *   OUTPUTS
 *
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-int Master_Minion_Reset(uint64_t shires_mask)
+void Master_Minion_Reset(void *pvParameters)
 {
-    uint64_t enable_neig_mask;
-    uint64_t disable_neig_mask;
+    (void)pvParameters;
+    uint64_t shire_mask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
+    uint8_t num_shires = get_highest_set_bit_offset(shire_mask);
 
-    if (0 == shires_mask)
+    /* Disable Minion neighs */
+    for (uint8_t i = 0; i <= num_shires; i++)
     {
-        return MINION_INVALID_SHIRE_MASK;
+        if (shire_mask & 1)
+        {
+            /* Set values for Shire ID, enable cache and all Neighborhoods */
+            const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(i) |
+                                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(0) |
+                                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(0x0);
+            write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                          ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
+        }
+        shire_mask >>= 1;
     }
 
-    /* Only reset last 2 neighborhoods */
-    disable_neig_mask = 0x3;
-    enable_neig_mask = 0xc;
+    /* Disable CM threads  */
+    Minion_Disable_CM_Shire_Threads();
 
-    /* Read current Shire Config value */
-    uint64_t config = read_esr_new(PP_MACHINE, MM_MASTER_SHIRE_ID, REGION_OTHER,
-                                   ESR_OTHER_SUBREGION_OTHER,
-                                   ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
+    /* Delete MM command handler task to re initialize it*/
+    vTaskDelete(g_mm_cmd_hdlr_handle);
 
-    /* Disable Neighborhood */
-    uint64_t cfg = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, disable_neig_mask);
-    write_esr_new(PP_MACHINE, MM_MASTER_SHIRE_ID, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
-                  ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, cfg, 0);
+    /* Delete MM heartbeat timer before disabling MM threads */
+    xTimerDelete(MM_HeartBeat_Timer, 0);
 
-    /* Enable Neighborhood */
-    cfg = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, enable_neig_mask);
-    write_esr_new(PP_MACHINE, MM_MASTER_SHIRE_ID, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
-                  ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, cfg, 0);
+    /* Get active shire mask */
+    shire_mask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
 
-    return 0;
+    /* Enab Minion neighs. Minion threads will be enabled by MM when it will bring up CMs after reset */
+    for (uint8_t i = 0; i <= num_shires; i++)
+    {
+        if (shire_mask & 1)
+        {
+            /* Set Shire ID, enable cache and all Neighborhoods */
+            const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(i) |
+                                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(1) |
+                                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(0xf);
+            write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                          ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
+        }
+        shire_mask >>= 1;
+    }
+
+    /* Re initialize SP-MM services */
+    if (SP_MM_Iface_Init() != 0)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Init Failed\n");
+    }
+    else
+    {
+        /* Re launch MM command handler */
+        launch_mm_sp_command_handler();
+
+        /* Initialize heart beat timer */
+        if (MM_Init_HeartBeat_Watchdog() != 0)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "MM_Init_HeartBeat_Watchdog Failed\n");
+        }
+        else
+        {
+            /* Bringing MM RT and CM harts out of reset */
+            Minion_Enable_Master_Shire_Threads();
+
+            /*TODO: Will be removed after SW-11279 */
+            Trace_Init_SP(NULL);
+        }
+    }
+
+    /* Delete task after completing MM reset */
+    vTaskDelete(NULL);
 }
+
 /************************************************************************
 *
 *   FUNCTION
@@ -1175,15 +1275,11 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
     switch (msg_id)
     {
         case DM_CMD_MM_RESET:
-            status = Compute_Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask());
-            if (0 != status)
-            {
-                Log_Write(LOG_LEVEL_ERROR,
-                          " mm reset svc error: Compute_Minion_Reset_Threads()\r\n");
-            }
-
+            /* Create a Task to reset Master Minion. 
+            This is necessary to perform non blocking reset as MM sends command to SP when initialized
+            so the command handler has to respond to that command otherwise MM init will fail*/
+            Minion_Create_Reset_Task();
             break;
-
         case DM_CMD_GET_MM_ERROR_COUNT:
             status = mm_get_error_count(&dm_rsp.mm_error_count);
             if (0 != status)

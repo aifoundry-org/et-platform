@@ -92,13 +92,17 @@ uint8_t pll_freq_to_mode(int32_t freq);
 */
 int Minion_Enable_Master_Shire_Threads(void);
 
-/*! \fn int Master_Minion_Reset(uint64_t minion_shires_mask)
-    \brief This function resets the Compute Minion Shire threads
-    \param minion_shires_mask Minion Shire Mask
-    \param include_mm Reset MM threads
+/*! \fn int Minion_Configure_CM_Shire_Threads(bool enable)
+    \brief This function enables mastershire threads
     \return The function call status, pass/fail.
 */
-int Master_Minion_Reset(uint64_t shires_mask);
+int Minion_Disable_CM_Shire_Threads(void);
+
+/*! \fn int Master_Minion_Reset(uint64_t minion_shires_mask)
+    \brief This function resets the Compute Minion Shire threads
+    \return The function call status, pass/fail.
+*/
+void Master_Minion_Reset(void *pvParameters);
 
 /*! \fn int Compute_Minion_Reset_Threads(uint64_t minion_shires_mask)
     \This function resets the Compute Minion Shire threads

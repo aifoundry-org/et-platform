@@ -26,7 +26,8 @@
 #define SUCCESS 0
 
 /*! \def Generic errors: [-1, -999] */
-#define ERROR_INVALID_ARGUMENT -1
+#define ERROR_INVALID_ARGUMENT      -1
+#define ERROR_TASK_CREATION_FAILED  -2
 
 /*! \def Main::NOC Setup Error Return code  */
 #define NOC_MAIN_CLOCK_CONFIGURE_ERROR -1000
