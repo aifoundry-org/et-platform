@@ -126,45 +126,7 @@ static inline bool check_trace_layout_version(const struct trace_version_t *buf_
 
 static inline const struct trace_entry_header_t *get_next_trace_event(const struct trace_entry_header_t *packet)
 {
-    size_t payload_size = 0;
-#define ET_TRACE_PAYLOAD_SIZE(E, S) \
-    case TRACE_TYPE_##E:            \
-        payload_size = S;           \
-        break;
-
-    /* Get payload size depending on entry type */
-    switch (packet->type) {
-        ET_TRACE_PAYLOAD_SIZE(VALUE_U8, sizeof(struct trace_value_u8_t))
-        ET_TRACE_PAYLOAD_SIZE(VALUE_U16, sizeof(struct trace_value_u16_t))
-        ET_TRACE_PAYLOAD_SIZE(VALUE_U32, sizeof(struct trace_value_u32_t))
-        ET_TRACE_PAYLOAD_SIZE(VALUE_U64, sizeof(struct trace_value_u64_t))
-        ET_TRACE_PAYLOAD_SIZE(VALUE_FLOAT, sizeof(struct trace_value_float_t))
-        ET_TRACE_PAYLOAD_SIZE(STRING, sizeof(struct trace_string_t))
-        ET_TRACE_PAYLOAD_SIZE(PMC_COUNTER, sizeof(struct trace_pmc_counter_t))
-        ET_TRACE_PAYLOAD_SIZE(PMC_COUNTERS_COMPUTE, sizeof(struct trace_pmc_counters_compute_t))
-        ET_TRACE_PAYLOAD_SIZE(PMC_COUNTERS_MEMORY, sizeof(struct trace_pmc_counters_memory_t))
-    case TRACE_TYPE_MEMORY: {
-        payload_size = sizeof(struct trace_entry_header_t)      /* header*/
-                       + sizeof(uint64_t)                       /* src_addr */
-                       + sizeof(uint64_t)                       /* size */
-                       + ((struct trace_memory_t *)packet)->size; /* data */
-        break;
-    }
-        ET_TRACE_PAYLOAD_SIZE(EXCEPTION, sizeof(struct trace_execution_stack_t))
-        ET_TRACE_PAYLOAD_SIZE(CMD_STATUS, sizeof(struct trace_cmd_status_t))
-        ET_TRACE_PAYLOAD_SIZE(POWER_STATUS, sizeof(struct trace_power_status_t))
-    case TRACE_TYPE_CUSTOM_EVENT: {
-        payload_size = sizeof(struct trace_entry_header_t)      /* header */
-                       + sizeof(uint32_t)                       /* custom_type */
-                       + sizeof(uint32_t)                       /* payload_size */
-                       + ((struct trace_custom_event_t *)packet)->payload_size; /* payload */
-        break;
-    }
-    default:
-        return NULL;
-    }
-
-#undef ET_TRACE_PAYLOAD_SIZE
+    size_t payload_size = (sizeof(struct trace_entry_header_t) + packet->payload_size);
 
     if (payload_size == 0)
         return NULL;
