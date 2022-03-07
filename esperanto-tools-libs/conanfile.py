@@ -40,7 +40,10 @@ class RuntimeConan(ConanFile):
             raise ConanInvalidConfiguration("When enabling runtime tests esperanto-flash-tool:header_only must be True")
     
     def requirements(self):
-        self.requires("deviceApi/0.1.0#ce161078362d1dde04b7cacbb5fb851b")
+        if self.options.with_tests:
+            self.requires("deviceApi/0.1.0#ce161078362d1dde04b7cacbb5fb851b")
+        else:
+            self.requires("deviceApi/0.1.0")
         self.requires("deviceLayer/0.1.0")
         self.requires("hostUtils/0.1.0")
         
