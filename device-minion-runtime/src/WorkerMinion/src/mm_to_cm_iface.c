@@ -134,7 +134,9 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
     }
     else
     {
-        Log_Write(LOG_LEVEL_WARNING, ":MM->CM: Tried to read a non-pending message!\n");
+        Log_Write(LOG_LEVEL_WARNING,
+            "MM->CM: Tried to read a non-pending message:Msg Number:%d:\r\n",
+            message->header.number);
     }
 }
 

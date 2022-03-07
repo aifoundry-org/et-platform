@@ -8,7 +8,6 @@ import textwrap
 
 class DeviceMinionRuntimeConan(ConanFile):
     name = "device-minion-runtime"
-    version = "0.0.1"
     url = "https://gitlab.esperanto.ai/software/device-minion-runtime"
     description = "minion-rt runtime"
     license = "Esperanto Technologies"
