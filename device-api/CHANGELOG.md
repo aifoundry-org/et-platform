@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file
 - Added conan-common dependency to reuse conan code
 ### Changed
-- Renamed CM reset to MM reset
+- Renamed CM reset to MM 
+- Require Jinja2>=2.10.3 to avoid conflict with conan (which requires conan>=3.0)
 ### Deprecated
 ### Removed
 ### Fixed
