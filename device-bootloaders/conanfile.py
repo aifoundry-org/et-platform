@@ -6,6 +6,9 @@ import textwrap
 import os
 
 
+required_conan_version = ">=1.46.0"
+
+
 class EsperantoBootLoadersConan(ConanFile):
     name = "device-bootloaders"
     url = "https://gitlab.esperanto.ai/software/device-bootloaders"
@@ -45,8 +48,8 @@ class EsperantoBootLoadersConan(ConanFile):
         self.requires("esperanto-flash-tool/0.1.0") # we only consume a header
         # libs
         self.requires("etsoc_hal/0.1.0")
-        self.requires("et-common-libs/0.0.4")
-        self.requires("device-minion-runtime/0.0.2")
+        self.requires("et-common-libs/0.0.5")
+        self.requires("device-minion-runtime/0.0.3")
 
     def package_id(self):
         self.python_requires["conan-common"].module.x86_64_compatible(self)
@@ -65,14 +68,6 @@ class EsperantoBootLoadersConan(ConanFile):
         make_hash_array = self.python_requires["conan-common"].module.make_hash_array
         make_version_array = self.python_requires["conan-common"].module.make_version_array
 
-        # Get the toolchains from "tools.cmake.cmaketoolchain:user_toolchain" conf at the
-        # tool_requires
-        user_toolchains = []
-        for dep in self.dependencies.direct_build.values():
-            ut = dep.conf_info["tools.cmake.cmaketoolchain:user_toolchain"]
-            if ut:
-                user_toolchains.append(ut)
-
         tc = CMakeToolchain(self)
         tc.variables["CMAKE_VERBOSE_MAKEFILE"] = False
         tc.variables["GIT_HASH_STRING"] = self.info.package_id()
@@ -84,10 +79,6 @@ class EsperantoBootLoadersConan(ConanFile):
         tc.variables["BUILD_DOC"] = False
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies.build["cmake-modules"].package_folder, "cmake")
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
-
-        if user_toolchains:
-            self.output.info("Applying user_toolchains: %s" % user_toolchains)
-            tc.blocks["user_toolchain"].values["paths"] = user_toolchains
 
         tc.generate()
 
