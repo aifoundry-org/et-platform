@@ -5,6 +5,7 @@ from conans.errors import ConanInvalidConfiguration
 import os
 import re
 
+required_conan_version = ">=1.46.0"
 
 class EtCommonLibsConan(ConanFile):
     name = "et-common-libs"
@@ -66,14 +67,6 @@ class EtCommonLibsConan(ConanFile):
             raise ConanInvalidConfiguration("Cross-compiling to arch %s is not supported" % self.settings.arch)
 
     def generate(self):
-        # Get the toolchains from "tools.cmake.cmaketoolchain:user_toolchain" conf at the
-        # tool_requires
-        user_toolchains = []
-        for dep in self.dependencies.direct_build.values():
-            ut = dep.conf_info["tools.cmake.cmaketoolchain:user_toolchain"]
-            if ut:
-                user_toolchains.append(ut)
-        
         tc = CMakeToolchain(self)
         tc.variables["ENABLE_WARNINGS_AS_ERRORS"] = self.options.warnings_as_errors
         tc.variables["WITH_SP_BL"] = self.options.with_sp_bl
@@ -82,10 +75,6 @@ class EtCommonLibsConan(ConanFile):
         tc.variables["WITH_MM_RT_SVCS"] = self.options.with_mm_rt_svcs
         tc.variables["WITH_CM_RT_SVCS"] = self.options.with_cm_rt_svcs
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
-        if user_toolchains:
-            self.output.info("Applying user_toolchains: %s" % user_toolchains)
-            tc.blocks["user_toolchain"].values["paths"] = user_toolchains
-
         tc.generate()
 
     def build(self):
