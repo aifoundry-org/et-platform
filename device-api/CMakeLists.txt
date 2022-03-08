@@ -9,9 +9,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.15)
-project(deviceApi DESCRIPTION "Esperanto DeviceAPI Project" LANGUAGES C CXX)
-
-set(PROJECT_VERSION 0.2.0)
+project(deviceApi VERSION 0.2.0 DESCRIPTION "Esperanto DeviceAPI Project" LANGUAGES C CXX)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
