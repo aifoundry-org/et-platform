@@ -646,7 +646,7 @@ static void kernel_launch_post_cleanup(
         /* If the kernel error buffer is available */
         if (error_buffer != 0)
         {
-            Log_Write(LOG_LEVEL_ERROR, "kernel_launch_post_cleanup:Saving context on error\r\n");
+            Log_Write(LOG_LEVEL_INFO, "kernel_launch_post_cleanup:Saving context on error\r\n");
 
             CM_To_MM_Save_Kernel_Error((execution_context_t *)error_buffer, hart_id,
                 CM_CONTEXT_TYPE_USER_KERNEL_ERROR, return_value);

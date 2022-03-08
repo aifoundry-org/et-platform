@@ -44,7 +44,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
             "S-mode XCPT scause=0x%" PRIx64 ", sepc=0x%" PRIx64 ", stval=0x%" PRIx64 "\n", scause,
             sepc, stval);
 
-        Log_Write(LOG_LEVEL_ERROR, "exception_handler:Saving context on S-mode exception\r\n");
+        Log_Write(LOG_LEVEL_INFO, "exception_handler:Saving context on S-mode exception\r\n");
 
         /* Copy all the GPRs except x0 (hardwired to zero) */
         memcpy(context.gpr, &reg[1], sizeof(uint64_t) * TRACE_DEV_CONTEXT_GPRS);
@@ -70,7 +70,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
                 .stval = stval,
                 .regs = reg };
 
-            Log_Write(LOG_LEVEL_ERROR, "exception_handler:Saving context on U-mode exception\r\n");
+            Log_Write(LOG_LEVEL_INFO, "exception_handler:Saving context on U-mode exception\r\n");
 
             /* Save the execution context in the buffer provided */
             CM_To_MM_Save_Execution_Context((execution_context_t *)exception_buffer,

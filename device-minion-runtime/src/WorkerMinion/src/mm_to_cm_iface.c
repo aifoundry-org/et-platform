@@ -20,8 +20,25 @@ typedef struct {
     cm_iface_message_number_t number;
 } __attribute__((aligned(64))) cm_iface_message_number_internal_t;
 
+/* Helper macros */
 #define CURRENT_THREAD_MASK      ((0x1UL << (get_hart_id() % 64)))
 #define GET_SHIRE_MASK(shire_id) (1ULL << shire_id)
+#define MM_NOTIFY_ASYNC_MSG(shire_id, msg_header)            \
+    {                                                        \
+        if (!(msg_header.flags & CM_IFACE_FLAG_SYNC_CMD))    \
+        {                                                    \
+            /* Ack back to MM upon receiving the message. */ \
+            notify_mm(shire_id);                             \
+        }                                                    \
+    }
+#define MM_NOTIFY_SYNC_MSG(shire_id, msg_header)             \
+    {                                                        \
+        if (msg_header.flags & CM_IFACE_FLAG_SYNC_CMD)       \
+        {                                                    \
+            /* Ack back to MM upon completion of command. */ \
+            notify_mm(shire_id);                             \
+        }                                                    \
+    }
 
 /* MM -> CM message counters */
 #define mm_cm_msg_number ((cm_iface_message_number_internal_t *)CM_MM_HART_MESSAGE_COUNTER)
@@ -127,12 +144,6 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
     /* Evict stale line from L1D */
     ETSOC_MEM_EVICT(message, sizeof(cm_iface_message_t), to_L2)
 
-    if (!(message->header.flags & CM_IFACE_FLAG_SYNC_CMD))
-    {
-        /* For Async command execution send back Ack to MM upon receiving the message. */
-        notify_mm(shire_id);
-    }
-
     /* Check for pending MM->CM message */
     if (message->header.number != mm_cm_msg_number[hart_id].number)
     {
@@ -147,8 +158,7 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
     }
     else
     {
-        Log_Write(LOG_LEVEL_WARNING,
-            "MM->CM: Tried to read a non-pending message:Msg Number:%d:\r\n",
+        Log_Write(LOG_LEVEL_ERROR, "MM->CM: Tried to read a non-pending message:Msg Number:%d:\r\n",
             message->header.number);
     }
 }
@@ -156,18 +166,21 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
 static void mm_to_cm_iface_handle_message(
     uint32_t shire, uint64_t hart, cm_iface_message_t *const message_ptr, void *const optional_arg)
 {
-    switch (message_ptr->header.id)
+    cm_iface_message_header_t msg_header = message_ptr->header;
+
+    switch (msg_header.id)
     {
         case MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH:
         {
-            int64_t rv = -1;
+            int64_t rv = 0;
             const mm_to_cm_message_kernel_launch_t *launch =
                 (mm_to_cm_message_kernel_launch_t *)message_ptr;
+
             /* Check if this Shire is involved in the kernel launch */
             if (launch->kernel.shire_mask & (1ULL << shire))
             {
                 Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM: Launching Kernel on Shire 0x%llx\r\n",
-                    message_ptr->header.tag_id, 1ULL << shire);
+                    msg_header.tag_id, 1ULL << shire);
 
                 mm_to_cm_message_kernel_params_t kernel;
                 kernel.kw_base_id = launch->kernel.kw_base_id;
@@ -178,32 +191,47 @@ static void mm_to_cm_iface_handle_message(
                 kernel.shire_mask = launch->kernel.shire_mask;
                 kernel.exception_buffer = launch->kernel.exception_buffer;
 
+                /* Notify MM after copying the msg locally */
+                MM_NOTIFY_ASYNC_MSG(shire, msg_header)
+
                 uint64_t kernel_stack_addr =
                     KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
                 rv = launch_kernel(kernel, kernel_stack_addr);
+            }
+            else
+            {
+                /* Notify MM after parsing the msg */
+                MM_NOTIFY_ASYNC_MSG(shire, msg_header)
+
+                Log_Write(LOG_LEVEL_ERROR,
+                    "TID[%u]:MM->CM:Kernel launch msg received on shire not involved in kernel launch\r\n",
+                    msg_header.tag_id);
             }
 
             if (rv != 0)
             {
                 /* Something went wrong launching the kernel. */
                 Log_Write(LOG_LEVEL_ERROR,
-                    "TID[%u]:MM->CM: Kernel completed with error code:%ld\r\n",
-                    message_ptr->header.tag_id, rv);
+                    "TID[%u]:MM->CM: Kernel completed with error code:%ld\r\n", msg_header.tag_id,
+                    rv);
             }
             break;
         }
         case MM_TO_CM_MESSAGE_ID_KERNEL_ABORT:
         {
-            Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Kernel abort msg received\r\n",
-                message_ptr->header.tag_id);
+            /* Notify MM after parsing the msg */
+            MM_NOTIFY_ASYNC_MSG(shire, msg_header)
+
+            Log_Write(
+                LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Kernel abort msg received\r\n", msg_header.tag_id);
 
             /* Should only abort if the kernel was launched on this hart */
             if (kernel_info_has_thread_launched(shire, hart & (HARTS_PER_SHIRE - 1)))
             {
                 uint64_t exception_buffer = 0;
 
-                Log_Write(LOG_LEVEL_WARNING, "TID[%u]:MM->CM:Aborting kernel...\r\n",
-                    message_ptr->header.tag_id);
+                Log_Write(
+                    LOG_LEVEL_WARNING, "TID[%u]:MM->CM:Aborting kernel...\r\n", msg_header.tag_id);
 
                 /* Check if pointer to execution context was set */
                 if (optional_arg != 0)
@@ -218,8 +246,8 @@ static void mm_to_cm_iface_handle_message(
                     const internal_execution_context_t *context =
                         (internal_execution_context_t *)optional_arg;
 
-                    Log_Write(LOG_LEVEL_ERROR, "TID[%u]:MM->CM:Saving context on kernel abort\r\n",
-                        message_ptr->header.tag_id);
+                    Log_Write(LOG_LEVEL_INFO, "TID[%u]:MM->CM:Saving context on kernel abort\r\n",
+                        msg_header.tag_id);
 
                     /* Save the execution context in the buffer provided */
                     CM_To_MM_Save_Execution_Context((execution_context_t *)exception_buffer,
@@ -233,15 +261,21 @@ static void mm_to_cm_iface_handle_message(
         case MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL:
         {
             Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Trace update control msg received\r\n",
-                message_ptr->header.tag_id);
+                msg_header.tag_id);
 
             mm_to_cm_message_trace_rt_control_t *cmd =
                 (mm_to_cm_message_trace_rt_control_t *)message_ptr;
-            if (cmd->thread_mask & CURRENT_THREAD_MASK)
+            uint64_t thread_mask = cmd->thread_mask;
+            uint32_t cm_control = cmd->cm_control;
+
+            /* Notify MM after copying the msg locally */
+            MM_NOTIFY_ASYNC_MSG(shire, msg_header)
+
+            if (thread_mask & CURRENT_THREAD_MASK)
             {
                 Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM: Trace RT Control for current hart.\r\n",
-                    message_ptr->header.tag_id);
-                Trace_RT_Control_CM(cmd->cm_control);
+                    msg_header.tag_id);
+                Trace_RT_Control_CM(cm_control);
             }
             break;
         }
@@ -249,19 +283,24 @@ static void mm_to_cm_iface_handle_message(
         {
             const mm_to_cm_message_trace_rt_config_t *cmd =
                 (mm_to_cm_message_trace_rt_config_t *)message_ptr;
+            struct trace_config_info_t cm_trace_config = { .filter_mask = cmd->filter_mask,
+                .event_mask = cmd->event_mask,
+                .threshold = cmd->threshold };
+            uint64_t thread_mask = cmd->thread_mask;
 
-            Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Kernel abort msg received\r\n",
-                message_ptr->header.tag_id);
+            /* Notify MM after copying the msg locally */
+            MM_NOTIFY_ASYNC_MSG(shire, msg_header)
 
-            if (cmd->thread_mask & CURRENT_THREAD_MASK)
+            Log_Write(
+                LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Kernel abort msg received\r\n", msg_header.tag_id);
+
+            if (thread_mask & CURRENT_THREAD_MASK)
             {
-                struct trace_config_info_t cm_trace_config = { .filter_mask = cmd->filter_mask,
-                    .event_mask = cmd->event_mask,
-                    .threshold = cmd->threshold };
-
                 Log_Write(LOG_LEVEL_DEBUG,
                     "TID[%u]:MM->CM: Trace Config. Event:0x%x:Filter:0x%x:Threshold:%d\r\n",
-                    message_ptr->header.tag_id, cmd->event_mask, cmd->filter_mask, cmd->threshold);
+                    msg_header.tag_id, cm_trace_config.event_mask, cm_trace_config.filter_mask,
+                    cm_trace_config.threshold);
+
                 Trace_Configure_CM(&cm_trace_config);
                 Trace_String(
                     TRACE_EVENT_STRING_CRITICAL, Trace_Get_CM_CB(), "CM:TRACE_RT_CONFIG:Done!!\n");
@@ -272,32 +311,33 @@ static void mm_to_cm_iface_handle_message(
         {
             const mm_to_cm_message_trace_buffer_evict_t *cmd =
                 (mm_to_cm_message_trace_buffer_evict_t *)message_ptr;
+            uint64_t thread_mask = cmd->thread_mask;
+
+            /* Notify MM after copying the msg locally */
+            MM_NOTIFY_ASYNC_MSG(shire, msg_header)
 
             Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Trace buffer evict msg received\r\n",
-                message_ptr->header.tag_id);
+                msg_header.tag_id);
 
-            if (cmd->thread_mask & CURRENT_THREAD_MASK)
+            if (thread_mask & CURRENT_THREAD_MASK)
             {
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "TID[%u]:MM->CM: Evict Trace Buffer for current hart\r\n",
-                    message_ptr->header.tag_id);
+                    "TID[%u]:MM->CM: Evict Trace Buffer for current hart\r\n", msg_header.tag_id);
                 /* Evict Trace buffer. */
                 Trace_Evict_CM_Buffer();
             }
             break;
         }
-        case MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE:
-            // Make a syscall to M-mode to configure PMCs
-            syscall(SYSCALL_CONFIGURE_PMCS_INT, 0,
-                ((mm_to_cm_message_pmc_configure_t *)message_ptr)->conf_buffer_addr, 0);
-            break;
         default:
+            /* Notify MM after parsing the msg */
+            MM_NOTIFY_ASYNC_MSG(shire, msg_header)
+
             /* Unknown message received */
             Log_Write(LOG_LEVEL_ERROR, "TID[%u]:MM->CM:Unknown msg received:ID:%d\r\n",
-                message_ptr->header.tag_id, message_ptr->header.id);
+                msg_header.tag_id, msg_header.id);
 
             const cm_to_mm_message_fw_error_t message = { .header.id = CM_TO_MM_MESSAGE_ID_FW_ERROR,
-                .hart_id = get_hart_id(),
+                .hart_id = hart,
                 .error_code = CM_INVALID_MM_TO_CM_MESSAGE_ID };
 
             /* To Master Shire thread 0 aka Dispatcher (circbuff queue index is 0) */
@@ -310,10 +350,6 @@ static void mm_to_cm_iface_handle_message(
             }
             break;
     }
-
-    if (message_ptr->header.flags & CM_IFACE_FLAG_SYNC_CMD)
-    {
-        /* For Sync command execution send back Ack to MM upon completion of command execution. */
-        notify_mm(get_shire_id());
-    }
+    /* Check and notify MM for synchronous msg */
+    MM_NOTIFY_SYNC_MSG(shire, msg_header)
 }

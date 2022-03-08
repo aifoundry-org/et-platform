@@ -268,7 +268,7 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
 
         /* Copy message to shared global buffer */
         ETSOC_MEM_COPY_AND_EVICT(
-            mm_to_cm_broadcast_message_buffer_ptr, message, sizeof(*message), to_L3)
+            mm_to_cm_broadcast_message_buffer_ptr, message, sizeof(*message), to_L2)
 
         /* Send IPI to receivers. Upper 32 Threads of Shire 32 also run Worker FW */
         broadcast_ipi_trigger(dest_shire_mask & 0xFFFFFFFFu, 0xFFFFFFFFFFFFFFFFu);
