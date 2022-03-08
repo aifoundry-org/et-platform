@@ -59,7 +59,9 @@ int main(const MyVectors* const vectors) {
         status = cache_ops_priv_l1_cache_lock_sw(0, 0x8102000000);
         et_assert(status == 0)
 
-        /* L1 D-cache is in split with scratchpad enabled. unlock set 15 associated with thread 1 */
+        /* L1 D-cache is in split with scratchpad enabled. unlock set 14 and 15 associated with thread 1 */
+        status = cache_ops_priv_l1_cache_unlock_sw(0, 14);
+        et_assert(status == 0)
         status = cache_ops_priv_l1_cache_unlock_sw(0, 15);
         et_assert(status == 0)
     }
