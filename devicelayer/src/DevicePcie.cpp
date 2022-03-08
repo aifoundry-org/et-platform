@@ -283,7 +283,7 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
          << deviceInfo.cfg_.computeMinionShireMask_ << std::endl;
 
     devices_.emplace_back(deviceInfo);
-    DV_LOG(INFO) << logs.str();
+    DV_DLOG(DEBUG) << logs.str();
   }
 }
 
