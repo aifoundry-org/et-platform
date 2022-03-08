@@ -24,8 +24,10 @@ option(BUILD_DOC "Build documentation" ON)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(MINION_DEBUG_INTERFACE 1)
+    set(NDEBUG 0)
 else()
     set(MINION_DEBUG_INTERFACE 0)
+    set(NDEBUG 1)
 endif()
 
 add_library(deviceManagement_obj OBJECT
@@ -44,6 +46,7 @@ target_include_directories(deviceManagement_obj
 target_compile_definitions(deviceManagement_obj
     PUBLIC
         -DMINION_DEBUG_INTERFACE=${MINION_DEBUG_INTERFACE}
+        -DNDEBUG=${NDEBUG}
 )
 
 set_target_properties(deviceManagement_obj PROPERTIES

@@ -57,7 +57,7 @@ void DeviceManagement::setDeviceLayer(IDeviceLayer* ptr) {
 itCmd DeviceManagement::isValidCommand(uint32_t cmd_code) {
   for (auto it = commandCodeTable.begin(); it != commandCodeTable.end(); ++it) {
     if (it->second == cmd_code) {
-      DV_LOG(INFO) << "Command: " << it->first << " code: " << it->second << std::endl;
+      DV_DLOG(DEBUG) << "Command: " << it->first << " code: " << it->second << std::endl;
       return it;
     }
   }
@@ -371,7 +371,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
       return -EIO;
     }
 
-    DV_LOG(INFO) << "Sent cmd: " << wCB->info.cmd_hdr.msg_id << " with header size: " << wCB->info.cmd_hdr.size
+    DV_DLOG(DEBUG) << "Sent cmd: " << wCB->info.cmd_hdr.msg_id << " with header size: " << wCB->info.cmd_hdr.size
                  << std::endl;
 
     int responseReceived = 0;
@@ -405,7 +405,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
           continue;
         }
 
-        DV_LOG(INFO) << "Read rsp to cmd: " << rCB->info.rsp_hdr.msg_id
+        DV_DLOG(DEBUG) << "Read rsp to cmd: " << rCB->info.rsp_hdr.msg_id
                      << " with header size: " << rCB->info.rsp_hdr.size << std::endl;
 
         if (output_buff && output_size) {
