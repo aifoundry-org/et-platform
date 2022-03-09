@@ -99,8 +99,8 @@ handle_interrupt:
     j     swi_handler                   /* Software interrupt */
 
 is_extended_interrupt:
-    csrr  a0, scause                    /* 1st argument = scause */
-    csrr  a1, sepc                      /* 2nd argument = sepc */
+    mv    a0, t0                        /* 1st argument = scause */
+    mv    a1, t1                        /* 2nd argument = sepc */
     csrr  a2, stval                     /* 3rd argument = stval */
     mv    a3, sp                        /* 4th argument = pointer to regs on stack */
     la    ra, processed_source          /* Set the return address */

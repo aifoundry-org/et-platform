@@ -328,6 +328,41 @@ static void mm_to_cm_iface_handle_message(
             }
             break;
         }
+        case MM_TO_CM_MESSAGE_ID_DUMP_THREAD_CONTEXT:
+        {
+            /* Notify MM after parsing the msg */
+            MM_NOTIFY_ASYNC_MSG(shire, msg_header)
+
+            Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Dump thread context msg received\r\n",
+                msg_header.tag_id);
+
+            /* Check if pointer to execution context was set */
+            if (optional_arg != 0)
+            {
+                const internal_execution_context_t *context =
+                    (internal_execution_context_t *)optional_arg;
+                struct dev_context_registers_t trace_context = { .epc = context->sepc,
+                    .tval = context->stval,
+                    .status = context->sstatus,
+                    .cause = context->scause };
+
+                Log_Write(LOG_LEVEL_INFO, "TID[%u]:MM->CM:Dumping the context in trace buffer\r\n",
+                    msg_header.tag_id);
+
+                /* Copy all the GPRs except x0 (hardwired to zero) */
+                memcpy(trace_context.gpr, &context->regs[1],
+                    sizeof(uint64_t) * TRACE_DEV_CONTEXT_GPRS);
+
+                /* Log the execution stack event to trace */
+                Trace_Execution_Stack(Trace_Get_CM_CB(), &trace_context);
+            }
+            else
+            {
+                Log_Write(LOG_LEVEL_ERROR, "TID[%u]:MM->CM:Context not available in WFI loop\r\n",
+                    msg_header.tag_id);
+            }
+            break;
+        }
         default:
             /* Notify MM after parsing the msg */
             MM_NOTIFY_ASYNC_MSG(shire, msg_header)

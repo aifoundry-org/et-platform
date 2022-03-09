@@ -984,6 +984,7 @@ static inline int32_t kw_cm_to_mm_kernel_force_abort(uint64_t kernel_shire_mask)
         .header.flags = CM_IFACE_FLAG_ASYNC_CMD };
 
     int32_t status;
+
     Log_Write(LOG_LEVEL_DEBUG, "KW:MM->CM:Sending abort multicast msg.\r\n");
 
     /* Blocking call (with timeout) that blocks till all shires ack */
@@ -1276,6 +1277,9 @@ void KW_Launch(uint32_t kw_idx)
             {
                 timeout_abort_serviced = true;
                 Log_Write(LOG_LEVEL_ERROR, "KW[%d]:Aborting kernel...\r\n", kw_idx);
+
+                /* Make sure that the kernel is launched on the CMs */
+                kw_wait_for_kernel_launch_flag(kernel->sqw_idx, (uint8_t)kw_idx);
 
                 /* Multicast abort to shires associated with current kernel slot
                 This abort should forcefully abort all the shires involved in

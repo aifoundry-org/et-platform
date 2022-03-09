@@ -9,18 +9,19 @@
 .func
 .global trap_handler
 trap_handler:
-    /* Save t0 to sscratch */
-    csrrw t0, sscratch, t0
+    csrrw t0, sscratch, t0              /* Save t0 to sscratch */
+    sd    t1, 0 (t0)                    /* Save t1 in the S-mode stack scratch region */
+    mv    t1, sp                        /* Set t1 to original sp */
 
-    /* Allocate space for the context */
-    addi  sp, sp, -(32 * 8)
+    addi  sp, sp, -(32 * 8)             /* Allocate space for the context */
+    sd    t1, 2 * 8(sp)                 /* Save original sp (x2) */
 
-    /* Restore t0 from sscratch */
-    csrrw t0, sscratch, t0
+    ld    t1, 0 (t0)                    /* Restore t1 from the S-mode stack scratch region */
+    csrrw t0, sscratch, t0              /* Restore t0 from sscratch */
 
     /* Save context */
     sd    x1,   1 * 8(sp)
-    sd    x2,   2 * 8(sp)
+    /* x2 is saved above */
     sd    x3,   3 * 8(sp)
     sd    x4,   4 * 8(sp)
     sd    x5,   5 * 8(sp)
@@ -62,7 +63,7 @@ trap_handler:
     blt   t0, x0, handle_interrupt      /* Branch past exception handling if it's an interrupt. */
 
     /* Invoke exception handler with params (scause, spec, stval, pointer to saved context) */
-    csrr  a0, scause
+    mv    a0, t0
     csrr  a1, sepc
     csrr  a2, stval
     mv    a3, sp
@@ -75,7 +76,7 @@ trap_handler:
 handle_interrupt:
     li    t1, ((1 << 63) | BUS_ERROR_INTERRUPT)  /* ET specific bus error interrupt */
     bne   t1, t0, as_yet_unhandled               /* Something as yet unhandled. */
-    csrr  a0, scause                             /* 1st argument = scause */
+    mv    a0, t0                                 /* 1st argument = scause */
     csrr  a1, sepc                               /* 2nd argument = sepc */
     csrr  a2, stval                              /* 3rd argument = stval */
     mv    a3, sp                                 /* 4th argument = pointer to regs on stack */
@@ -115,7 +116,8 @@ processed_source:
     ld    x29, 29 * 8(sp)
     ld    x30, 30 * 8(sp)
 
-    addi  sp, sp, (32 * 8)
+    /* Stack pointer (x2) is the last register to be restored */
+    ld    x2,   2 * 8(sp)
 
     sret
 
