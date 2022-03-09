@@ -150,6 +150,8 @@ void insn_wfi(Hart& cpu)
 {
     DISASM_NOARG("wfi");
 
+    if (cpu.debug_mode) return; // treated as a nop in debug mode
+
     Privilege curprv = PRV;
     uint64_t mstatus = cpu.mstatus;
 

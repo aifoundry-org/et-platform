@@ -2128,6 +2128,11 @@ void tensor_wait_execute(Hart& cpu, Hart::Waiting what)
 // At this point we also notify of any change to the tensor_error.
 void tensor_wait_start(Hart& cpu, uint64_t value)
 {
+    if (cpu.debug_mode) {
+        LOG_HART(WARN, cpu, "%s", "Executing a TensorWait from debug mode has undefined behavior");
+        return; // treat as a nop just in case
+    }
+
     const uint64_t event = value & 0xF;
     if (event > 10) return; // Invalid events are treated as a NOP
     const auto what = static_cast<Hart::Waiting>(1 << event);
