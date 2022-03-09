@@ -158,7 +158,6 @@ public:
     void clear_external_supervisor_interrupt(unsigned shire_id);
     void evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask);
     int main_internal();
-    int reset_shire(unsigned shire_id);
 
     uint64_t get_emu_cycle()  { return emu_cycle; }
 
