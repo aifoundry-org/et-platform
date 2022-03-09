@@ -53,9 +53,16 @@ void System::debug_reset(unsigned shire)
     unsigned s = (shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire;
     unsigned ncount = (s == EMU_IO_SHIRE_SP) ? 1 : EMU_NEIGH_PER_SHIRE;
     unsigned hcount = (s == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+    unsigned hneigh = (s == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_NEIGH;
 
     for (unsigned n = 0; n < ncount; ++n) {
-        neigh_esrs[n + s * EMU_NEIGH_PER_SHIRE].debug_reset();
+        auto& esrs = neigh_esrs[n + s * EMU_NEIGH_PER_SHIRE];
+        esrs.debug_reset();
+        for (unsigned h = 0; h < hneigh; ++h) {
+            const auto& hart = cpu[h + n * EMU_THREADS_PER_NEIGH + s * EMU_THREADS_PER_SHIRE];
+            esrs.hastatus0 |= ((uint64_t)hart.is_halted()) << h;
+            esrs.hastatus0 |= ((uint64_t)hart.is_running()) << (h + 16);
+        }
     }
     shire_cache_esrs[s].debug_reset();
     shire_other_esrs[s].debug_reset();
@@ -484,8 +491,11 @@ void System::recalculate_thread0_enable(unsigned shire)
                 cpu[thread].become_unavailable();
             }
             else if (cpu[thread].is_unavailable()) {
-                // FIXME: check if we should halt-on-reset!
-                cpu[thread].start_running();
+                if (should_halt_on_reset(cpu[thread])) {
+                    cpu[thread].enter_debug_mode();
+                } else {
+                    cpu[thread].start_running();
+                }
             }
         }
     }
@@ -509,8 +519,11 @@ void System::recalculate_thread1_enable(unsigned shire)
                 cpu[thread].become_unavailable();
             }
             else if (cpu[thread].is_unavailable()) {
-                // FIXME: check if we should halt-on-reset!
-                cpu[thread].start_running();
+                if (should_halt_on_reset(cpu[thread])) {
+                    cpu[thread].enter_debug_mode();
+                } else {
+                    cpu[thread].start_running();
+                }
             }
         }
     }
@@ -629,6 +642,7 @@ void System::load_raw(const char* filename, unsigned long long addr)
         addr += count;
     }
 }
+
 
 uint64_t System::emu_cycle() const noexcept
 {

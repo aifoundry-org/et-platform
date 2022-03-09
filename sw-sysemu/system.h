@@ -272,6 +272,7 @@ private:
     uint16_t selected_neigh_harts(unsigned neigh) const;
     uint16_t calculate_andortree0(unsigned neigh) const;
     uint16_t calculate_andortree1(unsigned shire) const;
+    bool should_halt_on_reset(const Hart& cpu) const;
 
     // Message ports
     void write_msg_port_data_to_scp(Hart& cpu, unsigned id, uint32_t *data, uint8_t oob);
@@ -481,12 +482,19 @@ inline void System::tick_peripherals(uint64_t cycle)
 
 inline uint16_t System::selected_neigh_harts(unsigned neigh) const
 {
-    // if dmctrl.hasel == 0 then selection is done using hactrl.hartmask,
-    // otherwise selection is done using (hactrl.hawindow | hactrl.hartmask)
-    uint64_t hactrl = neigh_esrs[neigh].hactrl;
-    return ((dmctrl >> 26) & 1) == 0
-        ? uint16_t((hactrl >> 16) & 0xff)
-        : uint16_t((hactrl & 0xff) | ((hactrl >> 16) & 0xff));
+    const bool     hasel    = (dmctrl >> 26) & 0x1;
+    const uint64_t hactrl   = neigh_esrs[neigh].hactrl;
+    const uint16_t hawindow = hactrl & 0xffff;
+    const uint16_t hartmask = (hactrl >> 16) & 0xffff;
+    return hasel ? (hartmask | hawindow) : hartmask;
+}
+
+
+inline bool System::should_halt_on_reset(const Hart& cpu) const
+{
+    const uint64_t hactrl = neigh_esrs[neigh_index(cpu)].hactrl;
+    const uint64_t resethalt = (hactrl >> 32) & 0xFFFF;
+    return resethalt & (1ull << index_in_neigh(cpu));
 }
 
 

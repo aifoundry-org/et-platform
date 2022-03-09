@@ -24,6 +24,29 @@
 namespace bemu {
 
 
+// Helper enum / functions to update hastatus0
+enum hastatus0_offset {
+    hastatus0_halted = 0,
+    hastatus0_running = 16,
+    hastatus0_resumeack = 32,
+    hastatus0_havereset = 48,
+};
+
+
+static inline void set_hastatus0(Hart& cpu, unsigned offset)
+{
+    const uint64_t mask = (1ull << index_in_neigh(cpu));
+    cpu.chip->neigh_esrs[neigh_index(cpu)].hastatus0 |= (mask << offset);
+}
+
+
+static inline void clear_hastatus0(Hart& cpu, unsigned offset)
+{
+    const uint64_t mask = (1ull << index_in_neigh(cpu));
+    cpu.chip->neigh_esrs[neigh_index(cpu)].hastatus0 &= ~(mask << offset);
+}
+
+
 // Messaging extension (from msgport.cpp)
 void configure_port(Hart&, unsigned, uint32_t);
 
@@ -36,6 +59,17 @@ using insn_decode_func_t = insn_exec_funct_t (*)(uint32_t, uint16_t&);
 
 
 void tensor_wait_execute(Hart& cpu, Hart::Waiting what);
+
+
+static Privilege get_privilege(uint64_t val)
+{
+    switch (val & 0x3) {
+    case 0: return Privilege::U;
+    case 1: return Privilege::S;
+    case 3: return Privilege::M;
+    default: return Privilege::U;
+    }
+}
 
 
 // -----------------------------------------------------------------------------
@@ -1527,6 +1561,16 @@ void Hart::start_running()
         return;
     }
     LOG_HART(DEBUG, *this, "%s", "Start running");
+    clear_hastatus0(*this, hastatus0_halted);
+    set_hastatus0(*this, hastatus0_running);
+    // If we are resuming from debug mode, update PC and privilege
+    if (debug_mode) {
+        set_hastatus0(*this, hastatus0_resumeack);
+        pc = dpc;
+        set_prv(get_privilege(dcsr));
+    }
+    // FIXME(cabul): If the hart was executing a tensor_wait while being halted,
+    // we should resume execution of the tensor_wait when it is resumed.
     debug_mode = false;
     if (is_active() || is_sleeping()) {
         return;
@@ -1548,6 +1592,16 @@ void Hart::enter_debug_mode()
     }
     LOG_HART(DEBUG, *this, "%s", "Halt execution");
     debug_mode = true;
+    dpc = npc;
+    // FIXME(cabul): DCSR.cause may not be b/c of haltreq here (only for now it is)
+    dcsr = (static_cast<uint32_t>(prv))
+         | (0x3 << 6)   // cause: the debugger requested entry to DM using `haltreq`
+         | (0x4 << 28); // xdebugver: tied to 0x4
+    set_hastatus0(*this, hastatus0_halted);
+    clear_hastatus0(*this, hastatus0_running);
+    prv = Privilege::M; // NB: This does not activate breakpoints
+    // FIXME(cabul): We should also unblock pending tensor_waits here
+    stop_waiting(Waiting::interrupt); // halt is an interrupt
     if (is_active() || is_sleeping()) {
         return;
     }
@@ -1799,6 +1853,10 @@ void Hart::warm_reset()
         core->reduce.hart = this;
         core->tqueue.clear();
     }
+
+    clear_hastatus0(*this, hastatus0_halted);
+    clear_hastatus0(*this, hastatus0_running);
+    set_hastatus0(*this, hastatus0_havereset);
 }
 
 

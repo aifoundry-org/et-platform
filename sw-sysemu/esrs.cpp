@@ -773,7 +773,6 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                 // }
                 break;
             case ESR_HACTRL:
-                // FIXME: This has side-effects!
                 neigh_esrs[pos].hactrl = uint64_t(value & 0x0000ffffffffffffull);
                 LOG_AGENT(DEBUG, agent, "S%u:N%u:hactrl = 0x%" PRIx64,
                           SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].hactrl);

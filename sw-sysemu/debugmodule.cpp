@@ -10,6 +10,8 @@
 
 #include "system.h"
 
+#include "emu_gio.h"
+
 #define DMACTIVE(x)         (((x) >>  0) & 1)
 #define NDMRESET(x)         (((x) >>  1) & 1)
 #define CLRRESETHALTREQ(x)  (((x) >>  2) & 1)
@@ -24,6 +26,20 @@
 namespace bemu {
 
 
+namespace {
+
+
+// Get the number of request bits set in the DMCTRL value.
+// At most one of the following bits may be set at a time:
+// resumereq, hartreset, ackhavereset, setresethaltreq, clrresethaltreq.
+static inline int dmctrl_reqbits(uint32_t value)
+{
+    return __builtin_popcount(value & 0x7000000C);
+}
+
+}
+
+
 //==------------------------------------------------------------------------==//
 //
 // Minionshire debug module
@@ -32,13 +48,14 @@ namespace bemu {
 
 void System::write_dmctrl(uint32_t value)
 {
+    static constexpr auto num_minion_neighs = EMU_NUM_MINION_SHIRES * EMU_NEIGH_PER_SHIRE;
+
     uint32_t newvalue = value & 0xF400000F;
     uint32_t oldvalue = dmctrl;
     dmctrl = newvalue;
 
-    // dmactive going from 0 to 1. In this case we reset the DM and we ignore
-    // all other bits written :-/
-    if (DMACTIVE(oldvalue) == 0 && DMACTIVE(newvalue) == 1) {
+    // dmactive goes from 1 to 0: reset debug module
+    if (DMACTIVE(oldvalue) == 1 && DMACTIVE(newvalue) == 0) {
         for (unsigned s = 0; s < EMU_NUM_COMPUTE_SHIRES; ++s) {
             debug_reset(s);
         }
@@ -46,8 +63,8 @@ void System::write_dmctrl(uint32_t value)
         return;
     }
 
+    // dmactive not set: ignore requests
     if (DMACTIVE(newvalue) == 0) {
-        // The DM is inactive; ignore request
         return;
     }
 
@@ -59,7 +76,7 @@ void System::write_dmctrl(uint32_t value)
         return;
     }
 
-    // ndmreset goes from 0 to 1: stop resetting the system
+    // ndmreset goes from 1 to 0: stop resetting the system
     if (NDMRESET(oldvalue) == 1 && NDMRESET(newvalue) == 0) {
         for (unsigned s = 0; s < EMU_NUM_COMPUTE_SHIRES; ++s) {
             end_warm_reset(s);
@@ -70,43 +87,106 @@ void System::write_dmctrl(uint32_t value)
     // On any given write, a debugger may only write 1 to at most one of the
     // following bits: resumereq, hartreset, ackhavereset, setresethaltreq,
     // and clrresethaltreq. The others must be written 0.
-
-    if (RESUMEREQ(newvalue) == 1) {
-        // haltreq has priority over resumereq
-        if (HALTREQ(newvalue) == 0) {
-            // FIXME: do something here
-        }
-    }
-    else if (HARTRESET(newvalue) == 1) {
-        // hartreset goes from 0 to 1: start resetting the selected harts
-        if (HARTRESET(oldvalue) == 0) {
-            // FIXME: do something here
-        }
-    }
-    else if (ACKHAVERESET(newvalue) == 1) {
-        // FIXME: do something here
-    }
-    else if (SETRESETHALTREQ(newvalue) == 1) {
-        // FIXME: do something here
-    }
-    else if (CLRRESETHALTREQ(newvalue) == 1) {
-        // FIXME: do something here
+    if (dmctrl_reqbits(newvalue) > 1) {
+        LOG_AGENT(WARN, noagent, "dmctrl: issuing multiple debug requests: 0x%08x", newvalue);
     }
 
-    // hartreset goes from 1 to 0: stop resetting the selected harts
+    // Apply a given function to each selected hart
+    const auto for_each_selected = [&](const std::function<void(Hart&)>& fn) {
+        for (unsigned neigh = 0; neigh < num_minion_neighs; ++neigh) {
+            const uint16_t selected = selected_neigh_harts(neigh);
+            for (unsigned hart = 0; hart < EMU_THREADS_PER_NEIGH; ++hart) {
+                if ((selected >> hart) & 0x1) {
+                    const auto id = neigh * EMU_THREADS_PER_NEIGH + hart;
+                    fn(cpu[id]);
+                }
+            }
+        }
+    };
+
+    // hartreset goes from 0 to 1: start resetting selected harts
+    if (HARTRESET(oldvalue) == 0 && HARTRESET(newvalue) == 1) {
+        LOG_AGENT(DEBUG, noagent, "%s", "dmctrl: begin reset");
+        for_each_selected([](Hart& hart) {
+            LOG_HART(DEBUG, hart, "%s", "Warm reset");
+            hart.warm_reset();
+        });
+        return;
+    }
+
+    // hartreset goes from 1 to 0: stop resetting selected harts
     if (HARTRESET(oldvalue) == 1 && HARTRESET(newvalue) == 0) {
-        // FIXME: do something here
+        LOG_AGENT(DEBUG, noagent, "%s", "dmctrl: end reset");
+        for (unsigned shire = 0; shire < EMU_NUM_MINION_SHIRES; ++shire) {
+            end_warm_reset(shire);
+        }
+        return;
     }
 
-    if (HALTREQ(newvalue) == 1) {
-        // FIXME: do something here
+    // resumereq is set: resume selected harts
+    if (RESUMEREQ(newvalue)) {
+        LOG_AGENT(DEBUG, noagent, "%s", "dmctrl: resume harts");
+        // NB: This should also update HASTATUS0
+        for_each_selected(&Hart::start_running);
+        return;
+    }
+
+    // resumereq goes from 1 to 0: clear HASTATUS0.resumeack
+    if (RESUMEREQ(oldvalue) == 1 && RESUMEREQ(newvalue) == 0) {
+        LOG_AGENT(DEBUG, noagent, "%s", "dmctrl: clear HASTATUS0.resumeack");
+        for (unsigned neigh = 0; neigh < num_minion_neighs; ++neigh) {
+            const uint64_t mask = selected_neigh_harts(neigh);
+            neigh_esrs[neigh].hastatus0 &= ~(mask << 32) | ~(0xFFFFull << 32);
+        }
+    }
+
+    // haltreq is set: halt selected harts
+    if (HALTREQ(newvalue)) {
+        LOG_AGENT(DEBUG, noagent, "%s", "dmctrl: halt harts");
+        // NB: This will also update HASTATUS0
+        for_each_selected(&Hart::enter_debug_mode);
+        return;
+    }
+
+    // ackhavereset is set: clear HASTATUS0.havereset
+    if (ACKHAVERESET(newvalue)) {
+        LOG_AGENT(DEBUG, noagent, "%s", "dmctrl: clear HASTATUS0.havereset");
+        for (unsigned neigh = 0; neigh < num_minion_neighs; ++neigh) {
+            const uint64_t mask = selected_neigh_harts(neigh);
+            neigh_esrs[neigh].hastatus0 &= ~(mask << 48);
+        }
+        return;
+    }
+
+    if (SETRESETHALTREQ(newvalue) == 1) {
+        LOG_AGENT(DEBUG, noagent, "%s", "dmctrl: set HACTRL.resethalt");
+        for (unsigned neigh = 0; neigh < num_minion_neighs; ++neigh) {
+            const uint64_t mask = selected_neigh_harts(neigh);
+            neigh_esrs[neigh].hactrl |= (mask << 32);
+        }
+        return;
+    }
+
+    if (CLRRESETHALTREQ(newvalue) == 1) {
+        LOG_AGENT(DEBUG, noagent, "%s", "dmctrl: clear HACTRL.resethalt");
+        for (unsigned neigh = 0; neigh < num_minion_neighs; ++neigh) {
+            const uint64_t mask = selected_neigh_harts(neigh);
+            neigh_esrs[neigh].hactrl &= ~(mask << 32);
+        }
+        return;
     }
 }
 
 
 uint32_t System::read_dmctrl() const
 {
-    return dmctrl & 0x2FFFFFF3;
+    // Only the following bits have a stateful value:
+    //  - dmactive,
+    //  - ndmreset,
+    //  - hasel, and
+    //  - hartreset.
+    // All other bits will read 0.
+    return dmctrl & 0x24000003;
 }
 
 
@@ -221,7 +301,7 @@ void System::write_spdmctrl(uint32_t value)
         return;
     }
 
-    // ndmreset goes from 0 to 1: stop resetting the system
+    // ndmreset goes from 1 to 0: stop resetting the system
     if (NDMRESET(oldvalue) == 1 && NDMRESET(newvalue) == 0) {
         end_warm_reset(EMU_IO_SHIRE_SP);
         return;
