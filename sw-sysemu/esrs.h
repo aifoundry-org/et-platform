@@ -462,7 +462,10 @@ struct mem_shire_esrs_t {
     uint64_t status;
     uint64_t int_en;
     uint64_t perf_ctrl_status;
-    void reset() { status = 0x1; int_en=0; perf_ctrl_status=0;}
+
+    void debug_reset() {}
+    void warm_reset() {}
+    void cold_reset();
 };
 
 } // namespace bemu

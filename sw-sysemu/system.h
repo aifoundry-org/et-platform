@@ -104,6 +104,7 @@ public:
     void cold_reset(unsigned shire);
     void cold_reset_mindm();
     void cold_reset_spdm();
+    void cold_reset_memshire();
 
     uint64_t get_csr(unsigned thread, uint16_t cnum);
     void set_csr(unsigned thread, uint16_t cnum, uint64_t data);

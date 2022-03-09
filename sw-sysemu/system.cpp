@@ -90,7 +90,6 @@ void System::begin_warm_reset(unsigned shire)
     shire_cache_esrs[s].warm_reset();
     shire_other_esrs[s].warm_reset();
     broadcast_esrs[s].warm_reset();
-    mem_shire_esrs.reset(); // FIXME(cabul): Change to warm_reset
 
     for (unsigned h = 0; h < hcount; ++h) {
         cpu[h + s * EMU_THREADS_PER_SHIRE].warm_reset();
@@ -140,6 +139,12 @@ void System::cold_reset_spdm()
 {
     debug_reset(EMU_IO_SHIRE_SP);
     spdmctrl = 0;
+}
+
+
+void System::cold_reset_memshire()
+{
+    mem_shire_esrs.cold_reset();
 }
 
 

@@ -197,6 +197,14 @@ void shire_other_esrs_t::cold_reset(unsigned shire)
 }
 
 
+void mem_shire_esrs_t::cold_reset()
+{
+    status = 0x1;
+    int_en = 0;
+    perf_ctrl_status = 0;
+}
+
+
 uint64_t System::esr_read(const Agent& agent, uint64_t addr)
 {
     // Redirect local shire requests to the corresponding shire
