@@ -1,0 +1,39 @@
+Disclaimer: These tests should probably be moved to dv/tests.
+All tests are self-checking, but have only been tested against sysemu.
+Some of these may not work with RTL (missing workarounds for erratas).
+    
+Two ELFs will be built: <test>.elf and <test>.spio.elf.
+The service processor ELF relies on global (`g_`) variables
+in the minion ELF, so there is a dependency between the two.
+The service processor/minion code is mixed in the same source file.
+
+Each test source has a heading with its sysemu arguments.
+This is used as input for sysemu when running the tests.
+    
+Test directory structure:
+    common/   Common sources/linker scripts
+    include/  Header files
+    tests/    Test sources
+    
+To execute tests
+    cd debug_tests
+    make -j sysemu  # Build sysemu
+    make            # Build tests
+    make run        # Run tests
+    make run LOG=1  # Run tests with verbose logs
+    make run/tests/<test>  # Run only a single test
+
+Available tests:
+  setup_debug.c     Test whether the debug module can be accessed
+  andortree.c       Test and-or-tree at different levels
+  resethaltreq.c    Test whether hactrl.resethaltreq can be set
+  halt_resume.c     Test whether we can halt, then resume a hart
+  halt_resume_4n.c  Test whether we can halt, then resume multiple harts
+  reset_harts.c     Test whether hart can be reset
+  halt_on_reset.c   Test whether harts will halt-on-reset
+  abscmd.c          Test execution from the program buffer
+  progbuf_break.c   Test interaction between program buffer and breakpoints
+  progbuf_wfi.c     Test interaction between program buffer and wfi
+  read_gpr.c        Test whether we can read all GPRs
+  write_gpr.c       Test whether we can write a GPR
+  read_write_gpr.c  Test whether we can read, then write a GPR
