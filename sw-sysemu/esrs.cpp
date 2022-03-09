@@ -279,9 +279,24 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
     if (sregion == ESR_HART_REGION) {
         uint64_t esr = addr2 & ESR_HART_ESR_MASK;
         unsigned hart = (addr2 & ESR_REGION_HART_MASK) >> ESR_REGION_HART_SHIFT;
-        LOG_AGENT(WARN, agent, "Read unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
-                  SHIREID(shire), MINION(hart), THREAD(hart), esr);
-        throw memory_error(addr);
+        switch (esr) {
+        case ESR_ABSCMD:
+        case ESR_NXPROGBUF0:
+        case ESR_NXPROGBUF1:
+        case ESR_AXPROGBUF0:
+        case ESR_AXPROGBUF1:
+            return 0;
+        case ESR_NXDATA0:
+        case ESR_AXDATA0:
+            return cpu[hart + shire * EMU_THREADS_PER_SHIRE].ddata0 & 0xFFFFFFFF;
+        case ESR_NXDATA1:
+        case ESR_AXDATA1:
+            return cpu[hart + shire * EMU_THREADS_PER_SHIRE].ddata0 >> 32;
+        default:
+            LOG_AGENT(WARN, agent, "Read unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
+                      SHIREID(shire), MINION(hart), THREAD(hart), esr);
+            throw memory_error(addr);
+        }
     }
 
     if (sregion == ESR_NEIGH_REGION) {
@@ -676,9 +691,48 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
             }
             return;
         }
-        LOG_AGENT(WARN, agent, "Write unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
-                  SHIREID(shire), MINION(hart), THREAD(hart), esr);
-        throw memory_error(addr);
+        switch (esr) {
+        case ESR_ABSCMD:
+        case ESR_NXPROGBUF0:
+        case ESR_NXPROGBUF1:
+        case ESR_AXPROGBUF0:
+        case ESR_AXPROGBUF1: {
+            unsigned hartid = hart + shire * EMU_THREADS_PER_SHIRE;
+            if (cpu[hartid].in_progbuf()) {
+                cpu[hartid].exit_progbuf(Hart::Progbuf::error);
+            } else if (cpu[hartid].is_halted()) {
+                cpu[hartid].write_progbuf(esr, value);
+                if (esr < ESR_NXPROGBUF0 || esr > ESR_NXPROGBUF1) {
+                    cpu[hartid].enter_progbuf();
+                }
+            }
+            // FIXME(cabul): What happens if the cpu is not halted?
+            break;
+        }
+        case ESR_NXDATA0:
+        case ESR_AXDATA0: {
+            unsigned hartid = hart + shire * EMU_THREADS_PER_SHIRE;
+            cpu[hartid].ddata0 &= 0xFFFFFFFF00000000ull;
+            cpu[hartid].ddata0 |= value & 0xFFFFFFFFull;
+            if (esr == ESR_AXDATA0) cpu[hartid].enter_progbuf();
+            LOG_AGENT(DEBUG, agent, "S%u:H%u:data0 = 0x%" PRIx64, SHIREID(shire), hart, value);
+            break;
+        }
+        case ESR_NXDATA1:
+        case ESR_AXDATA1: {
+            unsigned hartid = hart + shire * EMU_THREADS_PER_SHIRE;
+            cpu[hartid].ddata0 &= 0xFFFFFFFFull;
+            cpu[hartid].ddata0 |= value << 32;
+            LOG_AGENT(DEBUG, agent, "S%u:H%u:data1 = 0x%" PRIx64, SHIREID(shire), hart, value);
+            if (esr == ESR_AXDATA1) cpu[hartid].enter_progbuf();
+            break;
+        }
+        default:
+            LOG_AGENT(WARN, agent, "Write unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
+                      SHIREID(shire), MINION(hart), THREAD(hart), esr);
+            throw memory_error(addr);
+        }
+        return;
     }
 
     if (sregion == ESR_NEIGH_REGION) {
@@ -778,7 +832,7 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                           SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].hactrl);
                 break;
             case ESR_HASTATUS1:
-                neigh_esrs[pos].hastatus1 = uint64_t(value & 0x0000ffffffffffffull);
+                neigh_esrs[pos].hastatus1 = uint64_t(value & 0x0000ffffffff0000ull);
                 LOG_AGENT(DEBUG, agent, "S%u:N%u:hastatus1 = 0x%" PRIx64,
                           SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].hastatus1);
                 break;

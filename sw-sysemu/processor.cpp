@@ -9,6 +9,7 @@
 *-------------------------------------------------------------------------*/
 
 #include "emu_gio.h"
+#include "esrs.h"
 #include "insn.h"
 #include "insn_func.h"
 #include "insn_util.h"
@@ -20,6 +21,11 @@
 #ifdef SYS_EMU
 #include "sys_emu.h"
 #endif
+
+
+#define PROGBUF_START (ESR_ABSCMD)
+#define PROGBUF_END   (ESR_ABSCMD + 16)
+
 
 namespace bemu {
 
@@ -1600,6 +1606,7 @@ void Hart::enter_debug_mode()
     set_hastatus0(*this, hastatus0_halted);
     clear_hastatus0(*this, hastatus0_running);
     prv = Privilege::M; // NB: This does not activate breakpoints
+    reset_progbuf();
     // FIXME(cabul): We should also unblock pending tensor_waits here
     stop_waiting(Waiting::interrupt); // halt is an interrupt
     if (is_active() || is_sleeping()) {
@@ -1769,6 +1776,16 @@ void Hart::maybe_wakeup()
 }
 
 
+void Hart::debug_reset()
+{
+    // Exit and clear the program buffer
+    if (in_progbuf()) {
+        exit_progbuf(Progbuf::error);
+    }
+    reset_progbuf();
+}
+
+
 void Hart::warm_reset()
 {
     // Become unavailable
@@ -1776,6 +1793,11 @@ void Hart::warm_reset()
         state = State::unavailable;
         waits = Hart::Waiting::none;
         links.unlink();
+    }
+
+    // Check if in program buffer
+    if (in_progbuf()) {
+        exit_progbuf(Progbuf::error);
     }
 
     // Register files
@@ -1857,6 +1879,95 @@ void Hart::warm_reset()
     clear_hastatus0(*this, hastatus0_halted);
     clear_hastatus0(*this, hastatus0_running);
     set_hastatus0(*this, hastatus0_havereset);
+}
+
+
+void Hart::reset_progbuf()
+{
+    static constexpr uint32_t ebreak = 0x100073;
+    std::fill(progbuf.begin(), progbuf.end(), ebreak);
+}
+
+
+bool Hart::in_progbuf() const
+{
+    return pc >= PROGBUF_START && pc < PROGBUF_END;
+}
+
+
+void Hart::fetch_progbuf()
+{
+    assert(in_progbuf());
+    inst.bits  = progbuf[(pc - PROGBUF_START) / 4];
+    inst.flags = 0;
+}
+
+
+void Hart::advance_progbuf()
+{
+    if (!in_progbuf()) {
+        return;
+    }
+    advance_pc();
+    if (!in_progbuf()) {
+        exit_progbuf(Progbuf::ok);
+    }
+}
+
+
+void Hart::enter_progbuf()
+{
+    LOG_HART(DEBUG, *this, "%s", "Enter program buffer");
+    pc = PROGBUF_START;
+    chip->neigh_esrs[neigh_index(*this)].hastatus1 |= (1ull << index_in_neigh(*this));
+}
+
+
+void Hart::exit_progbuf(Progbuf status)
+{
+    assert(in_progbuf());
+    pc = PROGBUF_END;
+    npc = dpc;
+    const uint64_t mask = 1ull << index_in_neigh(*this);
+    auto& hastatus1 = chip->neigh_esrs[neigh_index(*this)].hastatus1;
+    switch (status) {
+    case Progbuf::ok:
+        LOG_HART(DEBUG, *this, "%s", "Exit program buffer");
+        break;
+    case Progbuf::exception:
+        LOG_HART(DEBUG, *this, "%s", "Exit program buffer (exception)");
+        hastatus1 |= mask << 16;
+        break;
+    case Progbuf::error:
+        LOG_HART(DEBUG, *this, "%s", "Exit program buffer (error)");
+        hastatus1 |= mask << 32;
+        break;
+    default:
+        assert(0 && "Unreachable");
+    }
+    chip->neigh_esrs[neigh_index(*this)].hastatus1 &= ~mask;
+}
+
+
+void Hart::write_progbuf(uint64_t addr, uint64_t value)
+{
+    assert(!in_progbuf());
+    switch (addr) {
+    case ESR_ABSCMD:
+        progbuf[0] = value & 0xFFFFFFFF;
+        progbuf[1] = value >> 32;
+        break;
+    case ESR_NXPROGBUF0:
+    case ESR_AXPROGBUF0:
+        progbuf[2] = value;
+        break;
+    case ESR_NXPROGBUF1:
+    case ESR_AXPROGBUF1:
+        progbuf[3] = value;
+        break;
+    default:
+        assert(0 && "Invalid ESR for program buffer");
+    }
 }
 
 

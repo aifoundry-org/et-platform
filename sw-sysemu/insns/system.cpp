@@ -24,6 +24,13 @@ void insn_c_ebreak(Hart& cpu)
 {
     DISASM_NOARG("c.ebreak");
 
+    if (cpu.debug_mode) {
+        cpu.exit_progbuf(Hart::Progbuf::ok);
+        return;
+    }
+
+    // TODO: This may enter debug mode
+
     // The spec says that hardware breakpoint sets mtval/stval to the current
     // PC but ebreak is a software breakpoint; should it also set mtval/stval
     // to the current PC or set it to 0?
@@ -35,6 +42,13 @@ void insn_ebreak(Hart& cpu)
 {
     DISASM_NOARG("ebreak");
 
+    if (cpu.debug_mode) {
+        cpu.exit_progbuf(Hart::Progbuf::ok);
+        return;
+    }
+
+    // TODO: This may enter debug mode
+ 
     // The spec says that hardware breakpoint sets mtval/stval to the current
     // PC but ebreak is a software breakpoint; should it also set mtval/stval
     // to the current PC or set it to 0?

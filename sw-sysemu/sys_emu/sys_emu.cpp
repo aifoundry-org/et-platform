@@ -499,11 +499,36 @@ int sys_emu::main_internal() {
                 break;
             }
 
-            // NB: Halted harts should be able to execute from the program
-            // buffer. For now we just skip them.
-            if (hart->is_blocked() || hart->is_halted()) {
-                // Fetch and interrupts are blocked because another hart of
-                // this core is in exclusive mode
+            // Fetch and interrupts are blocked because another hart of this core is in exclusive mode
+            if (hart->is_blocked()) {
+                continue;
+            }
+
+            // If the hart is halted either do nothing or fetch and execute from the program buffer
+            if (hart->is_halted()) {
+                if (!hart->in_progbuf()) {
+                    continue;
+                }
+                using Progbuf = bemu::Hart::Progbuf;
+                try {
+                    hart->fetch_progbuf();
+                    hart->execute();
+                    hart->advance_progbuf();
+                }
+                catch (const bemu::Trap& t) {
+                    LOG_AGENT(WARN, *hart, "Program buffer trapped: %s", t.what());
+                    hart->exit_progbuf(Progbuf::exception);
+                }
+                catch (const bemu::instruction_restart) {
+                    LOG_AGENT(DEBUG, *hart, "%s", "Instruction killed and will be restarted");
+                }
+                catch (const bemu::memory_error& e) {
+                    LOG_AGENT(WARN, *hart, "Program buffer bus error: 0x%" PRIx64, e.addr);
+                    hart->exit_progbuf(Progbuf::exception);
+                }
+                catch (const std::exception& e) {
+                    LOG_AGENT(FTL, *hart, "%s", e.what());
+                }
                 continue;
             }
 

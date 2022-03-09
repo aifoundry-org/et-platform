@@ -313,6 +313,13 @@ struct Hart : public Agent {
         tload_tenb  = 1 << 20,
     };
 
+    // Program buffer status
+    enum class Progbuf {
+        ok,
+        exception,
+        error,
+    };
+
     // ----- Public methods -----
 
     long shireid() const;
@@ -330,6 +337,15 @@ struct Hart : public Agent {
     void raise_interrupt(int cause, uint64_t data = 0);
     void clear_interrupt(int cause);
     void notify_pmu_minion_event(uint8_t event);
+
+    // Program buffer
+    void reset_progbuf();
+    bool in_progbuf() const;
+    void write_progbuf(uint64_t addr, uint64_t value);
+    void fetch_progbuf();
+    void advance_progbuf();
+    void enter_progbuf();
+    void exit_progbuf(Progbuf status);
 
     uint8_t frm() const;
 
@@ -354,7 +370,7 @@ struct Hart : public Agent {
     void maybe_sleep();
     void maybe_wakeup();
 
-    void debug_reset() {}
+    void debug_reset();
     void warm_reset();
     void cold_reset() {}
 
@@ -436,6 +452,8 @@ struct Hart : public Agent {
     // Other hart internal (microarchitectural or hidden) state
     Privilege   prv;
     bool        debug_mode;
+
+    std::array<uint32_t, 4> progbuf;
 
     // Pre-computed state to improve simulation speed
     bool break_on_load;
