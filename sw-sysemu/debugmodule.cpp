@@ -129,7 +129,7 @@ uint32_t System::read_andortree2() const
 
         // set the 'all*' fields by AND-ing
         if ((and_or_tree_1 & (1 << 10)) != 0) {
-            value &= (and_or_tree_1 << 1) & 0x2a8;
+            value &= ((and_or_tree_1 << 1) & 0x2a8) | ~0x2a8;
         }
     }
 
@@ -151,26 +151,23 @@ uint16_t System::calculate_andortree0(unsigned neigh) const
         return 0;
     }
 
-    uint32_t halted      = neigh_esrs[neigh].hastatus0 & 0xff;
-    uint32_t running     = (neigh_esrs[neigh].hastatus0 >> 16) & 0xff;
-    uint32_t resumeack   = (neigh_esrs[neigh].hastatus0 >> 32) & 0xff;
-    uint32_t havereset   = (neigh_esrs[neigh].hastatus0 >> 48) & 0xff;
-    uint32_t unavailable = ~(halted & running) & 0xff;
+    uint32_t halted      = neigh_esrs[neigh].hastatus0 & selected;
+    uint32_t running     = (neigh_esrs[neigh].hastatus0 >> 16) & selected;
+    uint32_t resumeack   = (neigh_esrs[neigh].hastatus0 >> 32) & selected;
+    uint32_t havereset   = (neigh_esrs[neigh].hastatus0 >> 48) & selected;
+    uint32_t unavailable = ~(halted | running) & selected;
 
     uint16_t value = 0;
-    if (halted) {
-        value |= (halted == selected) ? 0x3 : 0x1;
-    }
-    if (running) {
-        value |= (running == selected) ? 0xc : 0x4;
-    }
-    if (resumeack) {
-        value |= (resumeack == selected) ? 0x30 : 0x10;
-    }
-    if (havereset) {
-        value |= (havereset == selected) ? 0xc0 : 0x40;
-    }
-    value |= unavailable ? 0x300 : 0x100;
+    value |= (!!halted)              << 0; // anyhalted
+    value |= (halted == selected)    << 1; // allhalted
+    value |= (!!running)             << 2; // anyrunning
+    value |= (running == selected)   << 3; // allrunning
+    value |= (!!resumeack)           << 4; // anyresumeack
+    value |= (resumeack == selected) << 5; // allresumeack
+    value |= (!!havereset)           << 6; // anyhavereset
+    value |= (havereset == selected) << 7; // allhavereset
+    value |= (!!unavailable)         << 8; // anyunavailable
+    value |= (!!selected)            << 9; // anyselected
     return value;
 }
 
@@ -193,7 +190,7 @@ uint16_t System::calculate_andortree1(unsigned shire) const
 
         // set the 'all*' fields by AND-ing
         if ((and_or_tree_0 & (1 << 9)) != 0) {
-            value &= (and_or_tree_0 << 1) & 0x154;
+            value &= ((and_or_tree_0 << 1) & 0x154) | ~0x154;
         }
     }
 
