@@ -49,10 +49,10 @@ halt_all_threads(bemu::System& chip)
 {
     // FIXME: How do we halt waiting harts?
     for (auto& hart : chip.active) {
-       hart.enter_debug_mode();
+       hart.enter_debug_mode(bemu::Debug_entry::Cause::haltreq);
     }
     for (auto& hart : chip.awaking) {
-       hart.enter_debug_mode();
+       hart.enter_debug_mode(bemu::Debug_entry::Cause::haltreq);
     }
 }
 
@@ -566,6 +566,9 @@ int sys_emu::main_internal() {
                     hart->advance_pc();
                 }
             }
+            catch (const bemu::Debug_entry& e) {
+                hart->enter_debug_mode(e.cause);
+            }
             catch (const bemu::Trap& t) {
                 uint64_t old_pc = hart->pc;
                 hart->take_trap(t);
@@ -592,7 +595,7 @@ int sys_emu::main_internal() {
                 LOG_AGENT(DEBUG, *hart, "%s", "Single-step done");
                 gdbstub_signal_break(thread_id);
                 single_step[thread_id] = false;
-                hart->enter_debug_mode();
+                hart->enter_debug_mode(bemu::Debug_entry::Cause::haltreq);
                 continue;
             }
         }

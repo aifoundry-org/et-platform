@@ -144,7 +144,7 @@ void System::write_dmctrl(uint32_t value)
     if (HALTREQ(newvalue)) {
         LOG_AGENT(DEBUG, noagent, "%s", "dmctrl: halt harts");
         // NB: This will also update HASTATUS0
-        for_each_selected(&Hart::enter_debug_mode);
+        for_each_selected([](Hart& hart) { hart.enter_debug_mode(Debug_entry::Cause::haltreq); });
         return;
     }
 

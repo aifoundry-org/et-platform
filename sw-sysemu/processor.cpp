@@ -78,6 +78,19 @@ static Privilege get_privilege(uint64_t val)
 }
 
 
+static const char* debug_cause(Debug_entry::Cause cause)
+{
+    using Cause = Debug_entry::Cause;
+    switch (cause) {
+    case Cause::ebreak: return "ebreak";
+    case Cause::trigger: return "trigger module";
+    case Cause::haltreq: return "halt request";
+    case Cause::step: return "single step";
+    default: assert(0 && "Unreachable");
+    }
+}
+
+
 // -----------------------------------------------------------------------------
 //
 // 32-bit instruction decoding
@@ -1591,17 +1604,16 @@ void Hart::start_running()
 }
 
 
-void Hart::enter_debug_mode()
+void Hart::enter_debug_mode(Debug_entry::Cause cause)
 {
     if (is_halted()) {
         return;
     }
-    LOG_HART(DEBUG, *this, "%s", "Halt execution");
+    LOG_HART(DEBUG, *this, "Halt execution: %s", debug_cause(cause));
     debug_mode = true;
     dpc = npc;
-    // FIXME(cabul): DCSR.cause may not be b/c of haltreq here (only for now it is)
     dcsr = (static_cast<uint32_t>(prv))
-         | (0x3 << 6)   // cause: the debugger requested entry to DM using `haltreq`
+         | (static_cast<uint32_t>(cause) << 6)
          | (0x4 << 28); // xdebugver: tied to 0x4
     set_hastatus0(*this, hastatus0_halted);
     clear_hastatus0(*this, hastatus0_running);

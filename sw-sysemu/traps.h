@@ -103,6 +103,24 @@ DEF_TRAP_N(ICACHE_ECC_COUNTER_OVERFLOW_INTERRUPT + (1ull<<63), Interrupt, trap_i
 DEF_TRAP_N(BUS_ERROR_INTERRUPT                   + (1ull<<63), Interrupt, trap_bus_error_interrupt);
 
 
+// For ebreak, trigger, and single step, we rely on Exceptions
+// to abort the execution of an instruction and enter debug mode.
+struct Debug_entry : public std::exception {
+    enum class Cause {
+        ebreak  = 1, // An ebreak instruction was executed
+        trigger = 2, // The Trigger Module caused a breakpoint exception
+        haltreq = 3, // The debugger requested entry to Debug Mode
+        step    = 4, // The hart single stepped because step was set
+    };
+
+    Debug_entry(Cause cause) : cause(cause) { }
+
+    const char* what() const noexcept { return "Debug entry"; }
+
+    Cause cause;
+};
+
+
 } // namespace bemu
 
 #endif // BEMU_TRAPS_H

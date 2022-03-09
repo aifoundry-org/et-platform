@@ -364,7 +364,7 @@ struct Hart : public Agent {
     void become_nonexistent();
     void become_unavailable();
     void start_running();
-    void enter_debug_mode();
+    void enter_debug_mode(Debug_entry::Cause cause);
     void start_waiting(Waiting what);
     void stop_waiting(Waiting what);
     void maybe_sleep();

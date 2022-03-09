@@ -20,6 +20,12 @@
 namespace bemu {
 
 
+static bool ebreak_should_break(const Hart& cpu)
+{
+    return cpu.dcsr & (1ull << (static_cast<int>(cpu.prv) + 12));
+}
+
+
 void insn_c_ebreak(Hart& cpu)
 {
     DISASM_NOARG("c.ebreak");
@@ -29,7 +35,9 @@ void insn_c_ebreak(Hart& cpu)
         return;
     }
 
-    // TODO: This may enter debug mode
+    if (ebreak_should_break(cpu)) {
+        throw Debug_entry(Debug_entry::Cause::ebreak);
+    }
 
     // The spec says that hardware breakpoint sets mtval/stval to the current
     // PC but ebreak is a software breakpoint; should it also set mtval/stval
@@ -47,8 +55,10 @@ void insn_ebreak(Hart& cpu)
         return;
     }
 
-    // TODO: This may enter debug mode
- 
+    if (ebreak_should_break(cpu)) {
+        throw Debug_entry(Debug_entry::Cause::ebreak);
+    }
+
     // The spec says that hardware breakpoint sets mtval/stval to the current
     // PC but ebreak is a software breakpoint; should it also set mtval/stval
     // to the current PC or set it to 0?

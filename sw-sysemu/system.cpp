@@ -492,7 +492,7 @@ void System::recalculate_thread0_enable(unsigned shire)
             }
             else if (cpu[thread].is_unavailable()) {
                 if (should_halt_on_reset(cpu[thread])) {
-                    cpu[thread].enter_debug_mode();
+                    cpu[thread].enter_debug_mode(Debug_entry::Cause::haltreq);
                 } else {
                     cpu[thread].start_running();
                 }
@@ -520,7 +520,7 @@ void System::recalculate_thread1_enable(unsigned shire)
             }
             else if (cpu[thread].is_unavailable()) {
                 if (should_halt_on_reset(cpu[thread])) {
-                    cpu[thread].enter_debug_mode();
+                    cpu[thread].enter_debug_mode(Debug_entry::Cause::haltreq);
                 } else {
                     cpu[thread].start_running();
                 }

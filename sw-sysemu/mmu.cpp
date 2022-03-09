@@ -118,8 +118,10 @@ static inline bool halt_on_breakpoint(const Hart& cpu)
 
 [[noreturn]] void throw_trap_breakpoint(const Hart& cpu, uint64_t addr)
 {
-    if (halt_on_breakpoint(cpu))
-        throw std::runtime_error("Debug mode not supported yet!");
+    if (halt_on_breakpoint(cpu)) {
+        // FIXME(cabul): tdata1.timing
+        throw Debug_entry(Debug_entry::Cause::trigger);
+    }
     throw trap_breakpoint(addr);
 }
 
