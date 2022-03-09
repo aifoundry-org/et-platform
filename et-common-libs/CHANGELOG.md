@@ -1,0 +1,68 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+[[_TOC_]]
+
+## [Unreleased]
+
+### Added
+- Added CHANGELOG.md
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- (Conan) Recipe compatible with Conan >= 1.46.0
+### Security
+
+## [0.4.0] - 2022-3-06
+### Added
+- Adding RISC-V helper macros
+### Changed
+- Improved MM2SP error codes
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.3.0] - 2022-03-04
+### Added
+- Added SC PMC reset clear
+- Added CM shires boot mask in L2 SCP
+### Changed
+- Clang format
+- (Conan) RISC-V recipes compatible with x86_64 builds
+- (Conan) Exposed bootloader components to consumers
+### Deprecated
+### Removed
+- Removing IO reads to generate MSI
+### Fixed
+### Security
+
+## [0.2.0] - 2022-02-17
+### Added
+- Added MM to CM Sync/Async command support
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.1.0] - 2022-02-16
+Initial version
+### Added
+- This CHANGELOG file.
+- Conan recipe to package the project.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+[Unreleased]: https://gitlab.esperanto.ai/software/et-common-libs/-/compare/v0.4.0...master
+[0.4.0]: https://gitlab.esperanto.ai/software/et-common-libs/-/compare/v0.3.0...v0.4.0
+[0.3.0]: https://gitlab.esperanto.ai/software/et-common-libs/-/compare/v0.2.0...v0.3.0
+[0.2.0]: https://gitlab.esperanto.ai/software/et-common-libs/-/compare/v0.1.0...v0.2.0
+[0.1.0]: https://gitlab.esperanto.ai/software/et-common-libs/-/tags/v0.1.0
