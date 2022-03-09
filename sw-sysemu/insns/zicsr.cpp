@@ -1140,7 +1140,7 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
             break;
         case 0x50BAD000:
             LOG_AGENT(INFO, cpu, "%s", "Signal end test with FAIL");
-            cpu.chip->set_emu_done(true);
+            cpu.chip->set_emu_done(true, true);
             break;
         }
 #endif

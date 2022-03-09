@@ -106,7 +106,8 @@ public:
 
     // Simulation control
     bool get_emu_done() const;
-    void set_emu_done(bool value);
+    bool get_emu_fail() const;
+    void set_emu_done(bool value, bool failure = false);
 
     bool has_active_harts() const;
     bool has_sleeping_harts() const;
@@ -254,6 +255,7 @@ private:
 
     // Simulation control
     bool m_emu_done {false};
+    bool m_emu_fail {false};
 
     // Message ports
     bool msg_port_delayed_write {false};
@@ -270,9 +272,17 @@ inline bool System::get_emu_done() const
 }
 
 
-inline void System::set_emu_done(bool value)
+inline bool System::get_emu_fail() const
+{
+    return m_emu_fail;
+}
+
+
+
+inline void System::set_emu_done(bool value, bool failure)
 {
     m_emu_done = value;
+    m_emu_fail |= failure;
 }
 
 

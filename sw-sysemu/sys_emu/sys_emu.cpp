@@ -453,6 +453,8 @@ int sys_emu::main_internal() {
     profiling_init(this);
 #endif
 
+    int rv = EXIT_SUCCESS;
+
     bool gdb_enabled = cmd_options.gdb && (cmd_options.gdb_at_pc == ~0ull);
     if (cmd_options.gdb) {
         gdbstub_init(this, &chip);
@@ -704,8 +706,13 @@ int sys_emu::main_internal() {
     if (emu_cycle == cmd_options.max_cycles) {
         LOG_AGENT(ERR, agent, "Error, max cycles reached (%" SCNd64 ")",
                   cmd_options.max_cycles);
+        rv = EXIT_FAILURE;
     } else if (!chip.get_emu_done() && chip.has_sleeping_harts()) {
         LOG_AGENT(ERR, agent, "%s", "Error, sleeping harts found");
+        rv = EXIT_FAILURE;
+    } else if (chip.get_emu_fail()) {
+        LOG_AGENT(ERR, agent, "%s", "Error, test failure");
+        rv = EXIT_FAILURE;
     }
 
     // Checks that the tensor store are drained
@@ -760,5 +767,5 @@ int sys_emu::main_internal() {
     profiling_fini();
 #endif
 
-    return 0;
+    return rv;
 }
