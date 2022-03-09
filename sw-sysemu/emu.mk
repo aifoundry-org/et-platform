@@ -61,6 +61,7 @@ emu_hdrs := \
 
 emu_cpp_srcs := \
 	agent.cpp \
+	debugmodule.cpp \
 	devices/pcie_dma.cpp \
 	emu_gio.cpp \
 	esrs.cpp \

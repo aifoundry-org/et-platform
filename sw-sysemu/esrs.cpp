@@ -115,6 +115,14 @@ static uint64_t decode_broadcast_esr_value(uint64_t pp, uint64_t value)
 }
 
 
+void neigh_esrs_t::debug_reset()
+{
+    hactrl = 0;
+    hastatus0 = 0;
+    hastatus1 = 0;
+}
+
+
 void neigh_esrs_t::warm_reset()
 {
     ipi_redirect_pc = 0;
@@ -319,6 +327,14 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
             return neigh_esrs[pos].texture_status;
         case ESR_TEXTURE_IMAGE_TABLE_PTR:
             return neigh_esrs[pos].texture_image_table_ptr;
+        case ESR_HACTRL:
+            return neigh_esrs[pos].hactrl;
+        case ESR_HASTATUS0:
+            return neigh_esrs[pos].hastatus0;
+        case ESR_HASTATUS1:
+            return neigh_esrs[pos].hastatus1;
+        case ESR_AND_OR_TREE_L0:
+            return calculate_andortree0(pos);
         }
         LOG_AGENT(WARN, agent, "Read unknown neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
         throw memory_error(addr);
@@ -528,6 +544,8 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
             return shire_other_esrs[shire].clk_gate_ctrl;
         case ESR_SHIRE_CHANNEL_ECO_CTL:
             return shire_other_esrs[shire].shire_channel_eco_ctl;
+        case ESR_AND_OR_TREE_L1:
+            return calculate_andortree1(shire);
         }
         LOG_AGENT(WARN, agent, "Read unknown shire_other ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
         throw memory_error(addr);
@@ -753,6 +771,17 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                 // catch (const std::bad_cast&) {
                 //     throw memory_error(addr);
                 // }
+                break;
+            case ESR_HACTRL:
+                // FIXME: This has side-effects!
+                neigh_esrs[pos].hactrl = uint64_t(value & 0x0000ffffffffffffull);
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:hactrl = 0x%" PRIx64,
+                          SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].hactrl);
+                break;
+            case ESR_HASTATUS1:
+                neigh_esrs[pos].hastatus1 = uint64_t(value & 0x0000ffffffffffffull);
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:hastatus1 = 0x%" PRIx64,
+                          SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].hastatus1);
                 break;
             default:
                 LOG_AGENT(WARN, agent, "Write unknown neigh ESR S%u:N%u:0x%" PRIx64,

@@ -98,9 +98,12 @@ public:
     void load_raw(const char* filename, unsigned long long addr);
 
     // Reset state
+    void debug_reset(unsigned shire);
     void begin_warm_reset(unsigned shire);
     void end_warm_reset(unsigned shire);
     void cold_reset(unsigned shire);
+    void cold_reset_mindm();
+    void cold_reset_spdm();
 
     uint64_t get_csr(unsigned thread, uint16_t cnum);
     void set_csr(unsigned thread, uint16_t cnum, uint64_t data);
@@ -178,6 +181,17 @@ public:
     void config_simulated_harts(unsigned shire, uint32_t minionmask,
                                 bool multithreaded, bool enabled);
 
+    // Minionshire debug module
+    void write_dmctrl(uint32_t value);
+    uint32_t read_dmctrl() const;
+    uint32_t read_andortree2() const;
+
+    // Service processor debug module
+    void write_spdmctrl(uint32_t value);
+    void write_sphastatus(uint32_t value);
+    uint32_t read_spdmctrl() const;
+    uint32_t read_sphastatus() const;
+
     // Message ports
     void set_msg_funcs(msg_func_t fn);
     void set_delayed_msg_port_write(bool);
@@ -254,6 +268,11 @@ private:
     void recalculate_thread0_enable(unsigned shire);
     void recalculate_thread1_enable(unsigned shire);
 
+    // Minionshire debug module
+    uint16_t selected_neigh_harts(unsigned neigh) const;
+    uint16_t calculate_andortree0(unsigned neigh) const;
+    uint16_t calculate_andortree1(unsigned shire) const;
+
     // Message ports
     void write_msg_port_data_to_scp(Hart& cpu, unsigned id, uint32_t *data, uint8_t oob);
 
@@ -262,6 +281,13 @@ private:
     // Simulation control
     bool m_emu_done {false};
     bool m_emu_fail {false};
+
+    // Minionshire debug module
+    uint32_t dmctrl;
+
+    // Service processor debug module
+    uint32_t spdmctrl;
+    uint8_t  sphastatus;
 
     // Message ports
     bool msg_port_delayed_write {false};
@@ -450,6 +476,17 @@ inline void System::tick_peripherals(uint64_t cycle)
         memory.pu_apb_timers_clock_tick(*this);
         memory.spio_apb_timers_clock_tick(*this);
     }
+}
+
+
+inline uint16_t System::selected_neigh_harts(unsigned neigh) const
+{
+    // if dmctrl.hasel == 0 then selection is done using hactrl.hartmask,
+    // otherwise selection is done using (hactrl.hawindow | hactrl.hartmask)
+    uint64_t hactrl = neigh_esrs[neigh].hactrl;
+    return ((dmctrl >> 26) & 1) == 0
+        ? uint16_t((hactrl >> 16) & 0xff)
+        : uint16_t((hactrl & 0xff) | ((hactrl >> 16) & 0xff));
 }
 
 

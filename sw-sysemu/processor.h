@@ -345,6 +345,7 @@ struct Hart : public Agent {
     void maybe_sleep();
     void maybe_wakeup();
 
+    void debug_reset() {}
     void warm_reset();
     void cold_reset() {}
 

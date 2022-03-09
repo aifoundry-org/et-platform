@@ -48,6 +48,25 @@ void System::init(Stepping ver)
 }
 
 
+void System::debug_reset(unsigned shire)
+{
+    unsigned s = (shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire;
+    unsigned ncount = (s == EMU_IO_SHIRE_SP) ? 1 : EMU_NEIGH_PER_SHIRE;
+    unsigned hcount = (s == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+
+    for (unsigned n = 0; n < ncount; ++n) {
+        neigh_esrs[n + s * EMU_NEIGH_PER_SHIRE].debug_reset();
+    }
+    shire_cache_esrs[s].debug_reset();
+    shire_other_esrs[s].debug_reset();
+    broadcast_esrs[s].debug_reset();
+
+    for (unsigned h = 0; h < hcount; ++h) {
+        cpu[h + s * EMU_THREADS_PER_SHIRE].debug_reset();
+    }
+}
+
+
 void System::begin_warm_reset(unsigned shire)
 {
     unsigned s = (shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire;
@@ -98,6 +117,22 @@ void System::cold_reset(unsigned shire)
     for (unsigned h = 0; h < hcount; ++h) {
         cpu[h + s * EMU_THREADS_PER_SHIRE].cold_reset();
     }
+}
+
+
+void System::cold_reset_mindm()
+{
+    for (unsigned s = 0; s < EMU_NUM_COMPUTE_SHIRES; ++s) {
+        debug_reset(s);
+    }
+    dmctrl = 0;
+}
+
+
+void System::cold_reset_spdm()
+{
+    debug_reset(EMU_IO_SHIRE_SP);
+    spdmctrl = 0;
 }
 
 

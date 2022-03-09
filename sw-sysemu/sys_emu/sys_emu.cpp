@@ -377,6 +377,8 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     for (unsigned shire = 0; shire < EMU_NUM_SHIRES; ++shire) {
         chip.cold_reset(shire);
     }
+    chip.cold_reset_mindm();
+    chip.cold_reset_spdm();
 
     // Configure the simulation parameters
     for (unsigned shire = 0; shire < EMU_NUM_COMPUTE_SHIRES; ++shire) {

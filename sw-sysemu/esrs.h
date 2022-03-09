@@ -127,7 +127,17 @@ namespace bemu {
 // Hart ESR addresses
 #define ESR_HART_U0             0x0100000000ULL /* PP = 0b00 */
 #define ESR_HART_S0             0x0140000000ULL /* PP = 0b01 */
+#define ESR_HART_D0             0x0180000000ULL /* PP = 0b10 */
 #define ESR_HART_M0             0x01C0000000ULL /* PP = 0b11 */
+#define ESR_NXDATA0             0x0180000780ULL /* PP = 0b10 */
+#define ESR_NXDATA1             0x0180000788ULL /* PP = 0b10 */
+#define ESR_AXDATA0             0x0180000790ULL /* PP = 0b10 */
+#define ESR_AXDATA1             0x0180000798ULL /* PP = 0b10 */
+#define ESR_AXPROGBUF0          0x01800007A0ULL /* PP = 0b10 */
+#define ESR_AXPROGBUF1          0x01800007A8ULL /* PP = 0b10 */
+#define ESR_NXPROGBUF0          0x01800007B0ULL /* PP = 0b10 */
+#define ESR_NXPROGBUF1          0x01800007B8ULL /* PP = 0b10 */
+#define ESR_ABSCMD              0x01800007C0ULL /* PP = 0b10 */
 
 
 // Message Port addresses
@@ -140,6 +150,7 @@ namespace bemu {
 // Neighborhood ESR addresses
 #define ESR_NEIGH_U0                0x0100100000ULL /* PP = 0b00 */
 #define ESR_NEIGH_S0                0x0140100000ULL /* PP = 0b01 */
+#define ESR_NEIGH_D0                0x0180100000ULL /* PP = 0b01 */
 #define ESR_NEIGH_M0                0x01C0100000ULL /* PP = 0b11 */
 #define ESR_DUMMY0                  0x0100100000ULL /* PP = 0b00 */
 #define ESR_DUMMY1                  0x0100100008ULL /* PP = 0b00 */
@@ -149,10 +160,6 @@ namespace bemu {
 #define ESR_DUMMY3                  0x01C0100030ULL /* PP = 0b11 */
 #define ESR_VMSPAGESIZE             0x01C0100038ULL /* PP = 0b11 */
 #define ESR_IPI_REDIRECT_PC         0x0100100040ULL /* PP = 0b00 */
-//#define ESR_HACTRL                      /* PP = 0b10 */
-//#define ESR_HASTATUS0                   /* PP = 0b10 */
-//#define ESR_HASTATUS1                   /* PP = 0b10 */
-//#define ESR_AND_OR_TREEL0               /* PP = 0b10 */
 #define ESR_PMU_CTRL                0x01C0100068ULL /* PP = 0b11 */
 #define ESR_NEIGH_CHICKEN           0x01C0100070ULL /* PP = 0b11 */
 #define ESR_ICACHE_ERR_LOG_CTL      0x01C0100078ULL /* PP = 0b11 */
@@ -162,11 +169,16 @@ namespace bemu {
 #define ESR_TEXTURE_CONTROL         0x0100108000ULL /* PP = 0b00 */
 #define ESR_TEXTURE_STATUS          0x0100108008ULL /* PP = 0b00 */
 #define ESR_TEXTURE_IMAGE_TABLE_PTR 0x0100108010ULL /* PP = 0b00 */
+#define ESR_HACTRL                  0x018010FF80ULL /* PP = 0b10 */
+#define ESR_HASTATUS0               0x018010FF88ULL /* PP = 0b10 */
+#define ESR_HASTATUS1               0x018010FF90ULL /* PP = 0b10 */
+#define ESR_AND_OR_TREE_L0          0x018010FF98ULL /* PP = 0b10 */
 
 
 // shire_cache ESR addresses
 #define ESR_CACHE_U0                      0x0100300000ULL /* PP = 0b00 */
 #define ESR_CACHE_S0                      0x0140300000ULL /* PP = 0b01 */
+#define ESR_CACHE_D0                      0x0180300000ULL /* PP = 0b10 */
 #define ESR_CACHE_M0                      0x01C0300000ULL /* PP = 0b11 */
 #define ESR_SC_L3_SHIRE_SWIZZLE_CTL       0x01C0300000ULL /* PP = 0b11 */
 #define ESR_SC_REQQ_CTL                   0x01C0300008ULL /* PP = 0b11 */
@@ -218,6 +230,7 @@ namespace bemu {
 // shire_other ESR addresses
 #define ESR_SHIRE_U0                    0x0100340000ULL /* PP = 0b00 */
 #define ESR_SHIRE_S0                    0x0140340000ULL /* PP = 0b01 */
+#define ESR_SHIRE_D0                    0x0180340000ULL /* PP = 0b10 */
 #define ESR_SHIRE_M0                    0x01C0340000ULL /* PP = 0b11 */
 #define ESR_MINION_FEATURE              0x01C0340000ULL /* PP = 0b11 */
 #define ESR_SHIRE_CONFIG                0x01C0340008ULL /* PP = 0b11 */
@@ -264,7 +277,6 @@ namespace bemu {
 #define ESR_FAST_LOCAL_BARRIER29        0x01003401E8ULL /* PP = 0b00 */
 #define ESR_FAST_LOCAL_BARRIER30        0x01003401F0ULL /* PP = 0b00 */
 #define ESR_FAST_LOCAL_BARRIER31        0x01003401F8ULL /* PP = 0b00 */
-//#define ESR_AND_OR_TREEL1               /* PP = 0b10 */
 #define ESR_MTIME_LOCAL_TARGET          0x01C0340218ULL /* PP = 0b11 */
 #define ESR_SHIRE_POWER_CTRL            0x01C0340220ULL /* PP = 0b11 */
 #define ESR_POWER_CTRL_NEIGH_NSLEEPIN   0x01C0340228ULL /* PP = 0b11 */
@@ -298,6 +310,7 @@ namespace bemu {
 #define ESR_CLK_GATE_CTRL               0x01C0340310ULL /* PP = 0b11 */
 //#define ESR_DEBUG_CLK_GATE_CTRL         /* PP = 0b10 */
 #define ESR_SHIRE_CHANNEL_ECO_CTL       0x01C0340340ULL /* PP = 0b11 */
+#define ESR_AND_OR_TREE_L1              0x018035FF80ULL /* PP = 0b10 */
 
 
 // IOshire ESR addresses
@@ -330,6 +343,9 @@ struct neigh_esrs_t {
     uint64_t ipi_redirect_pc;
     uint64_t minion_boot;
     uint64_t texture_image_table_ptr;
+    uint64_t hactrl;
+    uint64_t hastatus0;
+    uint64_t hastatus1;
     uint32_t dummy0;
     uint16_t icache_sbe_dbe_counts;
     uint16_t texture_control;
@@ -342,6 +358,7 @@ struct neigh_esrs_t {
     bool     dummy3;
     bool     pmu_ctrl;
 
+    void debug_reset();
     void warm_reset();
     void cold_reset();
 };
@@ -380,6 +397,7 @@ struct shire_cache_esrs_t {
         uint8_t  sc_eco_ctl;
     } bank[4]; // four banks
 
+    void debug_reset() {}
     void warm_reset() {}
     void cold_reset();
 };
@@ -420,6 +438,8 @@ struct shire_other_esrs_t {
     bool     uc_config;
     bool     icache_prefetch_active; // proxy for icache_{msu}prefetch
 
+    void debug_reset() {}
+
     void warm_reset();
     void cold_reset(unsigned shireid);
 };
@@ -431,6 +451,7 @@ struct shire_other_esrs_t {
 struct broadcast_esrs_t {
     uint64_t data;
 
+    void debug_reset() {}
     void warm_reset() {}
     void cold_reset() {}
 };
