@@ -28,6 +28,7 @@ emu_hdrs := \
 	devices/rvtimer.h \
 	devices/shire_lpddr.h \
 	devices/spi.h \
+	devices/spio_misc_region.h \
 	devices/spio_rvtimer_region.h \
 	devices/uart.h \
 	emu_defines.h \
@@ -63,6 +64,7 @@ emu_cpp_srcs := \
 	agent.cpp \
 	debugmodule.cpp \
 	devices/pcie_dma.cpp \
+	devices/spio_misc_region.cpp \
 	emu_gio.cpp \
 	esrs.cpp \
 	flb.cpp \

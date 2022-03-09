@@ -50,6 +50,7 @@ namespace bemu {
 // | 0x00_4000_0000 | 0x00_7FFF_FFFF |    1GiB  | SP region         |
 // | 0x00_4000_0000 | 0x00_4001_FFFF |  128KiB  |   SP/ROM          |
 // | 0x00_4040_0000 | 0x00_404F_FFFF |    1MiB  |   SP/SRAM         |
+// | 0x00_5202_9000 | 0x00_5202_9FFF |    4KiB  |   SP/SP_MISC      |
 // | 0x00_8000_0000 | 0x00_FFFF_FFFF |    2GiB  | SCP region        |
 // | 0x01_0000_0000 | 0x01_FFFF_FFFF |    4GiB  | ESR region        |
 // | 0x02_0000_0000 | 0x3F_FFFF_FFFF |  256GiB  | Reserved          |

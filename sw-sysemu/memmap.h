@@ -21,6 +21,7 @@
 // |     1G   |     2G   | 0x00_4000_0000 | 0x00_7fff_ffff | SP region       |
 // |     1G   |  1G+128K | 0x00_4000_0000 | 0x00_4001_ffff |     SP/ROM      |
 // |   1G+1M  |   1G+2M  | 0x00_4040_0000 | 0x00_404f_ffff |     SP/SRAM     |
+// | 1G+288M+164K ...    | 0x00_5202_9000 | 0x00_5202_9FFF |     SP/SP_MISC  |
 // |     2G   |     4G   | 0x00_8000_0000 | 0x00_ffff_ffff | SCP region      |
 // |     4G   |     8G   | 0x01_0000_0000 | 0x01_ffff_ffff | ESR region      |
 // |     8G   |   256G   | 0x02_0000_0000 | 0x3f_ffff_ffff | Reserved        |
@@ -66,6 +67,10 @@ inline bool paddr_is_sp_sram_code(uint64_t addr)
 
 inline bool paddr_is_sp_sram_data(uint64_t addr)
 { return (addr >= 0x0040480000ULL) && (addr < 0x0040500000ULL); }
+
+
+inline bool paddr_is_sp_misc(uint64_t addr)
+{ return (addr >= 0x0052029000ULL) && (addr < 0x005202A000ULL); }
 
 
 inline bool paddr_is_scratchpad(uint64_t addr)

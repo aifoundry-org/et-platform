@@ -400,6 +400,7 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
             || (ts_tl_co && !paddr_is_sp_cacheable(addr))
             || (paddr_is_sp_sram_code(addr) && data_access_is_write(macc) && (mode != Privilege::M))
             || (paddr_is_sp_sram_data(addr) && (mode == Privilege::U))
+            || (paddr_is_sp_misc(addr) && (mode != Privilege::M))
             || (!paddr_is_sp_cacheable(addr) && !addr_is_size_aligned(addr, size)))
             throw_access_fault(vaddr, macc);
         return addr;

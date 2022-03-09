@@ -19,10 +19,11 @@
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
 #include "memory/sparse_region.h"
+#include "devices/spio_misc_region.h"
 #include "devices/uart.h"
 #ifdef SYS_EMU
-#include "devices/cru.h"
 #include "devices/DW_apb_timers.h"
+#include "devices/cru.h"
 #include "devices/efuse.h"
 #include "devices/i2c.h"
 #include "devices/pcie_apb_subsys.h"
@@ -38,7 +39,7 @@
 namespace bemu {
 
 
-template<unsigned long long Base, unsigned long long N>
+template<unsigned long long Base>
 struct SvcProcRegion : public MemoryRegion {
     using addr_type     = typename MemoryRegion::addr_type;
     using size_type     = typename MemoryRegion::size_type;
@@ -46,7 +47,7 @@ struct SvcProcRegion : public MemoryRegion {
     using pointer       = typename MemoryRegion::pointer;
     using const_pointer = typename MemoryRegion::const_pointer;
 
-    static_assert(N == 1_GiB, "bemu::SvcProcRegion has illegal size");
+    static_assert(Base == 1_GiB, "bemu::SvcProcRegion has illegal base");
 
     enum : unsigned long long {
         // base addresses for the various regions of the address space
@@ -59,6 +60,7 @@ struct SvcProcRegion : public MemoryRegion {
         sp_timer_base        = 0x12025000,
         sp_efuse_base        = 0x12026000,
         sp_cru_base          = 0x12028000,
+        sp_misc_base         = 0x12029000,
         sp_rvtim_base        = 0x12100000,
         pvtc0_base           = 0x14000000,
         pvtc1_base           = 0x14010000,
@@ -107,7 +109,7 @@ struct SvcProcRegion : public MemoryRegion {
     }
 
     addr_type first() const override { return Base; }
-    addr_type last() const override { return Base + N - 1; }
+    addr_type last() const override { return Base + 1_GiB - 1; }
 
     void dump_data(const Agent&, std::ostream&, size_type, size_type) const override { }
 
@@ -117,6 +119,7 @@ struct SvcProcRegion : public MemoryRegion {
     SP_PLIC       <sp_plic_base,    32_MiB>      sp_plic{};
     Uart          <sp_uart0_base,  4_KiB>        spio_uart0{};
     Uart          <sp_uart1_base,  4_KiB>        spio_uart1{};
+    SpioMiscRegion                               sp_misc{};
 #ifdef SYS_EMU
     DW_apb_timers <sp_timer_base,    4_KiB>      sp_timer{};
     Efuse         <sp_efuse_base,    8_KiB>      sp_efuse{};
@@ -158,7 +161,7 @@ protected:
 
     // These arrays must be sorted by region offset
 #ifdef SYS_EMU
-    std::array<MemoryRegion*,27> regions = {{
+    std::array<MemoryRegion*,28> regions = {{
         &sp_rom,
         &sp_sram,
         &sp_plic,
@@ -168,6 +171,7 @@ protected:
         &sp_timer,
         &sp_efuse,
         &sp_cru,
+        &sp_misc,
         &sp_rvtim,
         &pvtc0,
         &pvtc1,
@@ -188,11 +192,12 @@ protected:
         &shire_lppdr
     }};
 #else
-    std::array<MemoryRegion*,5> regions = {{
+    std::array<MemoryRegion*,6> regions = {{
         &sp_rom,
         &sp_sram,
         &sp_plic,
         &spio_uart0,
+        &sp_misc,
         &spio_uart1,
     }};
 #endif
