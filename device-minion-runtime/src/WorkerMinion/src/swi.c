@@ -17,46 +17,14 @@ void swi_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const
     Clear Supervisor Software Interrupt Pending (SSIP) */
     asm volatile("csrci sip, %0" : : "I"(1 << SUPERVISOR_SOFTWARE_INTERRUPT));
 
-    uint32_t shire_id = get_shire_id();
+    /* Save the execution context so that it may be used in abort cases */
+    internal_execution_context_t context = { .scause = scause,
+        .sepc = sepc,
+        .stval = stval,
+        .regs = reg };
 
-    Log_Write(LOG_LEVEL_DEBUG, "swi_handler:IPI received\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "swi_handler:IPI received:handling MM msg\r\n");
 
-    /* Check for kernel abort handled down by a hart */
-    if (kernel_info_get_abort_flag(shire_id) == 1)
-    {
-        uint64_t sstatus;
-        asm volatile("csrr %0, sstatus" : "=r"(sstatus));
-
-        /* Get the kernel exception buffer */
-        uint64_t exception_buffer = kernel_info_get_exception_buffer(shire_id);
-
-        /* If the kernel exception buffer is available */
-        if (exception_buffer != 0)
-        {
-            internal_execution_context_t context = { .scause = scause,
-                .sepc = sepc,
-                .sstatus = sstatus,
-                .stval = stval,
-                .regs = reg };
-
-            /* Save the execution context in the buffer provided (system abort case) */
-            CM_To_MM_Save_Execution_Context((execution_context_t *)exception_buffer,
-                CM_CONTEXT_TYPE_SYSTEM_ABORT, get_hart_id(), &context);
-        }
-
-        return_from_kernel(0, KERNEL_RETURN_SYSTEM_ABORT);
-    }
-    else
-    {
-        /* Save the execution context so that it may be used in abort cases */
-        internal_execution_context_t context = { .scause = scause,
-            .sepc = sepc,
-            .stval = stval,
-            .regs = reg };
-
-        Log_Write(LOG_LEVEL_DEBUG, "swi_handler:Handling msg from MM\r\n");
-
-        /* Handle messages from MM */
-        MM_To_CM_Iface_Multicast_Receive((void *)&context);
-    }
+    /* Handle messages from MM */
+    MM_To_CM_Iface_Multicast_Receive((void *)&context);
 }

@@ -89,26 +89,6 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
     }
 
-#if 0 /* TODO: See the posibility of optimizing exceptions using self abort */
-    /* First hart in the shire that took exception will do a self abort
-    and send IPI to other harts in the shire to abort as well
-    NOTE: The harts in U-mode will trap only on IPI. Harts that will enter exception handler
-    must return from kernel since traps on IPIs are disabled in S-mode */
-    if(kernel_info_set_abort_flag(shire_id))
-    {
-        /* Only send kernel launch abort message once to MM.
-        MM will send kernel abort message to rest of the shires */
-        if(kernel_launch_set_global_abort_flag() && user_mode)
-        {
-            /* Sends exception message to MM */
-            send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
-        }
-
-        /* Send the IPI to all other Harts in this shire */
-        syscall(SYSCALL_IPI_TRIGGER_INT, MASK_RESET_BIT(0xFFFFFFFFFFFFFFFFu, hart_id % 64), shire_id, 0);
-    }
-#endif
-
     return_from_kernel(0, KERNEL_RETURN_EXCEPTION);
 }
 

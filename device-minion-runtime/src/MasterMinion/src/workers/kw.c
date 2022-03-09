@@ -339,7 +339,7 @@ static int32_t kw_reserve_kernel_slot(
         {
             /* Find unused kernel slot and reserve it */
             if (atomic_compare_and_exchange_local_32(&KW_CB.kernels[i].kernel_state,
-                    KERNEL_STATE_UN_USED, KERNEL_STATE_IN_USE) == KERNEL_STATE_UN_USED)
+                    KERNEL_STATE_UN_USED, KERNEL_STATE_SLOT_RESERVED) == KERNEL_STATE_UN_USED)
             {
                 *kernel = &KW_CB.kernels[i];
                 *slot_index = i;
@@ -677,6 +677,8 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
 
             if (status == STATUS_SUCCESS)
             {
+                /* Mark the kernel slot in use since the kernel is launched */
+                atomic_store_local_32(&kernel->kernel_state, KERNEL_STATE_IN_USE);
                 *kw_idx = slot_index;
                 atomic_store_local_64(&kernel->umode_exception_buffer_ptr, cmd->exception_buffer);
 
@@ -840,6 +842,14 @@ void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
     /* Traverse all kernel slots and abort them */
     for (uint8_t kw_idx = 0; kw_idx < MM_MAX_PARALLEL_KERNELS; kw_idx++)
     {
+        /* Spin-wait if kernel slot state is reserved.
+        Reserved slot needs to transition to unused or in use before we can abort it */
+        do
+        {
+            asm volatile("fence\n" ::: "memory");
+        } while (atomic_load_local_32(&KW_CB.kernels[kw_idx].kernel_state) ==
+                 KERNEL_STATE_SLOT_RESERVED);
+
         /* Check if this kernel slot is used by the given sqw_idx
         and kernel slot is in use, then abort it */
         if ((atomic_load_local_8(&KW_CB.kernels[kw_idx].sqw_idx) == sqw_idx) &&
@@ -1265,7 +1275,7 @@ void KW_Launch(uint32_t kw_idx)
                 (atomic_load_local_32(&kernel->kernel_state) == KERNEL_STATE_ABORTING))
             {
                 timeout_abort_serviced = true;
-                Log_Write(LOG_LEVEL_ERROR, "KW:Aborting:kw_idx=%d\r\n", kw_idx);
+                Log_Write(LOG_LEVEL_ERROR, "KW[%d]:Aborting kernel...\r\n", kw_idx);
 
                 /* Multicast abort to shires associated with current kernel slot
                 This abort should forcefully abort all the shires involved in
