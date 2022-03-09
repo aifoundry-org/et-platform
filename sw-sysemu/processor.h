@@ -408,12 +408,12 @@ struct Hart : public Agent {
     uint32_t    mip;
     uint64_t    tdata1;
     uint64_t    tdata2;
-    // TODO: uint32_t    dcsr;
-    // TODO: uint64_t    dpc;
+    uint32_t    dcsr;
+    uint64_t    dpc;
     uint16_t    mhartid;
 
     // Esperanto control and status registers
-    // TODO: uint64_t    ddata0;
+    uint64_t    ddata0;
     uint64_t    minstmask;        // 33b
     uint32_t    minstmatch;
     uint64_t    mbusaddr;         // 40b

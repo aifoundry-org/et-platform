@@ -102,8 +102,8 @@ CSRDEF(0x7a1, tdata1, TDATA1)
 CSRDEF(0x7a2, tdata2, TDATA2)
 CSRDEF(0x7a3, tdata3, TDATA3)           // not implemented
 CSRDEF(0x7a4, tinfo, TINFO)             // not implemented
-CSRDEF(0x7b0, dcsr, DCSR)               // TODO
-CSRDEF(0x7b1, dpc, DPC)                 // TODO
+CSRDEF(0x7b0, dcsr, DCSR)
+CSRDEF(0x7b1, dpc, DPC)
 CSRDEF(0x7b2, dscratch0, DSCRATCH0)     // not implemented
 CSRDEF(0x7b3, dscratch1, DSCRATCH1)     // not implemented
 CSRDEF(0xb00, mcycle, MCYCLE)
@@ -241,7 +241,7 @@ CSRDEF(0xf14, mhartid, MHARTID)
 // Esperanto registers
 //
 
-CSRDEF(0x7b8, ddata0, DDATA0)           // TODO
+CSRDEF(0x7b8, ddata0, DDATA0)
 CSRDEF(0x7c0, matp, MATP)
 CSRDEF(0x7cd, minstmask, MINSTMASK)
 CSRDEF(0x7ce, minstmatch, MINSTMATCH)

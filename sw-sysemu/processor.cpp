@@ -1748,9 +1748,10 @@ void Hart::warm_reset()
     mcause = 0;
     mip = 0;
     tdata1 = 0x20C0000000000000ULL;
-    // TODO: dcsr <= xdebugver=1, prv=3;
+    dcsr = 0x40000003ULL;
 
     // Esperanto control and status registers
+    ddata0 = 0;
     minstmask = 0;
     minstmatch = 0;
     // TODO: amofence_ctrl <= ...

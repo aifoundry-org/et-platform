@@ -285,8 +285,21 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
         val = cpu.tdata2;
         break;
         // unimplemented: TDATA3
-        // TODO: DCSR
-        // TODO: DPC
+    case CSR_DCSR:
+        val = cpu.dcsr;
+        break;
+    case CSR_DPC:
+        if (!cpu.debug_mode) {
+            throw trap_illegal_instruction(cpu.inst.bits);
+        }
+        val = cpu.dpc;
+        break;
+    case CSR_DDATA0:
+        if (!cpu.debug_mode) {
+            throw trap_illegal_instruction(cpu.inst.bits);
+        }
+        val = cpu.ddata0;
+        break;
         // unimplemented: DSCRATCH0
         // unimplemented: DSCRATCH1
     case CSR_MCYCLE:
@@ -808,8 +821,22 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         }
         break;
         // unimplemented: TDATA3
-        // TODO: DCSR
-        // TODO: DPC
+    case CSR_DCSR:
+        // TODO: Implement single-step
+        cpu.dcsr = val & 0x0FFFF037;
+        break;
+    case CSR_DPC:
+        if (!cpu.debug_mode) {
+            throw trap_illegal_instruction(cpu.inst.bits);
+        }
+        cpu.dpc = val;
+        break;
+    case CSR_DDATA0:
+        if (!cpu.debug_mode) {
+            throw trap_illegal_instruction(cpu.inst.bits);
+        }
+        cpu.ddata0 = val;
+        break;
         // unimplemented: DSCRATCH0
         // unimplemented: DSCRATCH1
     case CSR_MCYCLE:
