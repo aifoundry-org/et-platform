@@ -13,9 +13,23 @@ emu_hdrs := \
 	cache.h \
 	csrs.h \
 	decode.h \
+	devices/DW_apb_timers.h \
+	devices/cru.h \
+	devices/efuse.h \
+	devices/i2c.h \
+	devices/pcie_apb_subsys.h \
+	devices/pcie_dbi_slv.h \
+	devices/pcie_dma.h \
+	devices/pcie_esr.h \
+	devices/pcie_nopcie_esr.h \
+	devices/pcie_usr_esr.h \
 	devices/plic.h \
-	devices/pu_uart.h \
+	devices/pll.h \
 	devices/rvtimer.h \
+	devices/shire_lpddr.h \
+	devices/spi.h \
+	devices/spio_rvtimer_region.h \
+	devices/uart.h \
 	emu_defines.h \
 	emu_gio.h \
 	esrs.h \

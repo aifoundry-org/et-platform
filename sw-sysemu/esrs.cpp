@@ -115,22 +115,27 @@ static uint64_t decode_broadcast_esr_value(uint64_t pp, uint64_t value)
 }
 
 
-void neigh_esrs_t::reset()
+void neigh_esrs_t::warm_reset()
 {
     ipi_redirect_pc = 0;
-    minion_boot = ESR_NEIGH_MINION_BOOT_RESET_VAL;
     texture_image_table_ptr = 0;
     texture_control = ESR_TEXTURE_CONTROL_RESET_VAL;
     texture_status = 0;
-    icache_err_log_ctl = ESR_ICACHE_ERR_LOG_CTL_RESET_VAL;
-    mprot = ESR_MPROT_RESET_VAL;
-    neigh_chicken = 0;
     vmspagesize = 0;
-    pmu_ctrl = 0;
+    pmu_ctrl = false;
 }
 
 
-void shire_cache_esrs_t::reset()
+void neigh_esrs_t::cold_reset()
+{
+    minion_boot = ESR_NEIGH_MINION_BOOT_RESET_VAL;
+    icache_err_log_ctl = ESR_ICACHE_ERR_LOG_CTL_RESET_VAL;
+    mprot = ESR_MPROT_RESET_VAL;
+    neigh_chicken = 0;
+}
+
+
+void shire_cache_esrs_t::cold_reset()
 {
     for (int i = 0; i < 4; ++i) {
         bank[i].sc_l2_cache_ctl = ESR_SC_L2_CACHE_CTL_RESET_VAL;
@@ -145,13 +150,20 @@ void shire_cache_esrs_t::reset()
 }
 
 
-void shire_other_esrs_t::reset(unsigned shire)
+void shire_other_esrs_t::warm_reset()
 {
     for (int i = 0; i < 32; ++i) {
         fast_local_barrier[i] = 0;
     }
     ipi_redirect_filter = ESR_FILTER_IPI_RESET_VAL;
     ipi_trigger = 0;
+    shire_coop_mode = false;
+    icache_prefetch_active = false;
+}
+
+
+void shire_other_esrs_t::cold_reset(unsigned shire)
+{
     shire_cache_ram_cfg1 = ESR_SHIRE_CACHE_RAM_CFG1_RESET_VAL;
     shire_cache_ram_cfg3 = ESR_SHIRE_CACHE_RAM_CFG3_RESET_VAL;
     shire_cache_ram_cfg4 = ESR_SHIRE_CACHE_RAM_CFG4_RESET_VAL;
@@ -160,23 +172,20 @@ void shire_other_esrs_t::reset(unsigned shire)
     thread0_disable = 0xffffffff;
     thread1_disable = 0xffffffff;
     mtime_local_target = 0;
-    shire_power_ctrl = 0;
     power_ctrl_neigh_nsleepin = 0;
     power_ctrl_neigh_isolation = 0;
     shire_pll_auto_config = 0;
     shire_dll_auto_config = 0;
+    shire_power_ctrl = 0;
+    clk_gate_ctrl = ESR_SHIRE_CLK_GATE_CTRL_RESET_VAL;
     if (shire == IO_SHIRE_ID || shire == EMU_IO_SHIRE_SP) {
         minion_feature = 0x3b;
     } else {
         minion_feature = 0x01;
     }
     shire_ctrl_clockmux = 0;
-    shire_coop_mode = 0;
-    uc_config = 0;
-    clk_gate_ctrl = ESR_SHIRE_CLK_GATE_CTRL_RESET_VAL;
     shire_channel_eco_ctl = 0;
-
-    icache_prefetch_active = 0;
+    uc_config = false;
 }
 
 
@@ -282,6 +291,8 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
             return 0;
         case ESR_MINION_BOOT:
             return neigh_esrs[pos].minion_boot;
+        case ESR_MPROT:
+            return neigh_esrs[pos].mprot;
         case ESR_DUMMY2:
             return neigh_esrs[pos].dummy2;
         case ESR_DUMMY3:
@@ -306,8 +317,6 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
             return neigh_esrs[pos].texture_control;
         case ESR_TEXTURE_STATUS:
             return neigh_esrs[pos].texture_status;
-        case ESR_MPROT:
-            return neigh_esrs[pos].mprot;
         case ESR_TEXTURE_IMAGE_TABLE_PTR:
             return neigh_esrs[pos].texture_image_table_ptr;
         }
@@ -682,6 +691,11 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                 LOG_AGENT(DEBUG, agent, "S%u:N%u:minion_boot = 0x%" PRIx64,
                           SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].minion_boot);
                 break;
+            case ESR_MPROT:
+                neigh_esrs[pos].mprot = uint8_t(value & 0x7f);
+                LOG_AGENT(DEBUG, agent, "S%u:N%u:mprot = 0x%" PRIx8,
+                          SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].mprot);
+                break;
             case ESR_DUMMY2:
                 neigh_esrs[pos].dummy2 = bool(value & 1);
                 LOG_AGENT(DEBUG, agent, "S%u:N%u:dummy2 = 0x%x",
@@ -727,14 +741,8 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                 LOG_AGENT(DEBUG, agent, "S%u:N%u:texture_control = 0x%" PRIx16,
                           SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].texture_control);
                 break;
-            case ESR_MPROT:
-                neigh_esrs[pos].mprot = uint8_t(value & 0x7f);
-                LOG_AGENT(DEBUG, agent, "S%u:N%u:mprot = 0x%" PRIx8,
-                          SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].mprot);
-                break;
             case ESR_TEXTURE_IMAGE_TABLE_PTR:
-                value &= VA_M;
-                neigh_esrs[pos].texture_image_table_ptr = value;
+                neigh_esrs[pos].texture_image_table_ptr = value & VA_M;
                 LOG_AGENT(DEBUG, agent, "S%u:N%u:texture_image_table_ptr = 0x%" PRIx64,
                           SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].texture_image_table_ptr);
                 // try {
@@ -747,7 +755,8 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                 // }
                 break;
             default:
-                LOG_AGENT(WARN, agent, "Write unknown neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), NEIGHID(pos), esr);
+                LOG_AGENT(WARN, agent, "Write unknown neigh ESR S%u:N%u:0x%" PRIx64,
+                          SHIREID(shire), NEIGHID(pos), esr);
                 throw memory_error(addr);
             }
         }

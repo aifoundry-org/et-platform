@@ -24,10 +24,6 @@
 namespace bemu {
 
 
-// Messaging extension (from msgport.cpp)
-void configure_port(Hart&, unsigned, uint32_t);
-
-
 void System::init(Stepping ver)
 {
     stepping = ver;
@@ -52,115 +48,55 @@ void System::init(Stepping ver)
 }
 
 
-void System::reset_shire_state(unsigned shireid)
+void System::begin_warm_reset(unsigned shire)
 {
-    unsigned shire = (shireid == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shireid;
-    unsigned neigh_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_NEIGH_PER_SHIRE;
+    unsigned s = (shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire;
+    unsigned ncount = (s == EMU_IO_SHIRE_SP) ? 1 : EMU_NEIGH_PER_SHIRE;
+    unsigned hcount = (s == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
 
-    for (unsigned neigh = 0; neigh < neigh_count; ++neigh) {
-        unsigned idx = EMU_NEIGH_PER_SHIRE*shire + neigh;
-        neigh_esrs[idx].reset();
-        coop_tloads[idx].tload_a[0].fill(Coop_tload_state{});
-        coop_tloads[idx].tload_a[1].fill(Coop_tload_state{});
-        coop_tloads[idx].tload_b.fill(Coop_tload_state{});
+    for (unsigned n = 0; n < ncount; ++n) {
+        unsigned neigh = n + s * EMU_NEIGH_PER_SHIRE;
+        neigh_esrs[neigh].warm_reset();
+        coop_tloads[neigh].tload_a[0].fill(Coop_tload_state{});
+        coop_tloads[neigh].tload_a[1].fill(Coop_tload_state{});
+        coop_tloads[neigh].tload_b.fill(Coop_tload_state{});
     }
-    shire_cache_esrs[shire].reset();
-    shire_other_esrs[shire].reset(shireid);
-    broadcast_esrs[shire].reset();
-    mem_shire_esrs.reset();
+    shire_cache_esrs[s].warm_reset();
+    shire_other_esrs[s].warm_reset();
+    broadcast_esrs[s].warm_reset();
+    mem_shire_esrs.reset(); // FIXME(cabul): Change to warm_reset
 
-    recalculate_thread0_enable(shire);
-    recalculate_thread1_enable(shire);
-
-    // reset FCC for all threads in shire
-    unsigned thread0 = shire * EMU_THREADS_PER_SHIRE;
-    unsigned threadN = thread0 + (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
-    for (unsigned thread = thread0; thread < threadN; ++thread) {
-        cpu[thread].fcc[0] = 0;
-        cpu[thread].fcc[1] = 0;
+    for (unsigned h = 0; h < hcount; ++h) {
+        cpu[h + s * EMU_THREADS_PER_SHIRE].warm_reset();
     }
 }
 
 
-void System::reset_hart(unsigned thread)
+void System::end_warm_reset(unsigned shire)
 {
-    // Waiting reasons
-    cpu[thread].waits = Hart::Waiting::none;
+    // We have already reset the Minions in begin_warm_reset(), where
+    // they were set to 'unavailable', so now we just need to ensure that
+    // enabled Minion become running or halted.
+    recalculate_thread0_enable(shire);
+    recalculate_thread1_enable(shire);
+}
 
-    // Register files
-    cpu[thread].xregs[x0] = 0;
 
-    // PC
-    cpu[thread].pc = 0;
-    cpu[thread].npc = 0;
+void System::cold_reset(unsigned shire)
+{
+    unsigned s = (shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire;
+    unsigned ncount = (s == EMU_IO_SHIRE_SP) ? 1 : EMU_NEIGH_PER_SHIRE;
+    unsigned hcount = (s == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
 
-    // Currently executing instruction
-    cpu[thread].inst = Instruction { 0, 0 };
-
-    // Fetch buffer
-    cpu[thread].fetch_pc = -1;
-
-    // RISCV control and status registers
-    cpu[thread].scounteren = 0;
-    cpu[thread].mstatus = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
-    cpu[thread].medeleg = 0;
-    cpu[thread].mideleg = 0;
-    cpu[thread].mie = 0;
-    cpu[thread].mcounteren = 0;
-    for (auto counter = 0; counter < 6; ++counter) {
-        neigh_pmu_events[thread / EMU_THREADS_PER_NEIGH][counter][thread % EMU_THREADS_PER_NEIGH] = PMU_MINION_EVENT_NONE;
+    for (unsigned n = 0; n < ncount; ++n) {
+        neigh_esrs[n + s * EMU_NEIGH_PER_SHIRE].cold_reset();
     }
-    cpu[thread].mcause = 0;
-    cpu[thread].mip = 0;
-    cpu[thread].tdata1 = 0x20C0000000000000ULL;
-    // TODO: cpu[thread].dcsr <= xdebugver=1, prv=3;
+    shire_cache_esrs[s].cold_reset();
+    shire_other_esrs[s].cold_reset(s);
+    broadcast_esrs[s].cold_reset();
 
-    // Esperanto control and status registers
-    cpu[thread].minstmask = 0;
-    cpu[thread].minstmatch = 0;
-    // TODO: cpu[thread].amofence_ctrl <= ...
-    cpu[thread].gsc_progress = 0;
-
-    // Port control
-    for (unsigned p = 0; p < cpu[thread].portctrl.size(); ++p) {
-        configure_port(cpu[thread], p, 0);
-    }
-
-    // Other hart internal (microarchitectural or hidden) state
-    cpu[thread].prv = Privilege::M;
-    cpu[thread].debug_mode = false;
-    cpu[thread].ext_seip = 0;
-
-    // Pre-computed state to improve simulation speed
-    cpu[thread].break_on_load = false;
-    cpu[thread].break_on_store = false;
-    cpu[thread].break_on_fetch = false;
-
-    // Reset core-shared state
-    if ((thread % EMU_THREADS_PER_MINION) == 0) {
-        cpu[thread].core->matp = 0;
-        cpu[thread].core->menable_shadows = 0;
-        cpu[thread].core->excl_mode = 0;
-        cpu[thread].core->mcache_control = 0;
-        cpu[thread].core->ucache_control = 0x200;
-        for (auto& set : cpu[thread].core->scp_lock) {
-            set.fill(false);
-        }
-
-        cpu[thread].core->reduce.state = TReduce::State::idle;
-        cpu[thread].core->reduce.hart = &cpu[thread];
-        cpu[thread].core->tmul.state = TMul::State::idle;
-        cpu[thread].core->tquant.state = TQuant::State::idle;
-        cpu[thread].core->tstore.state = TStore::State::idle;
-
-        cpu[thread].core->tload_a[0].state = TLoad::State::idle;
-        cpu[thread].core->tload_a[0].paired = false;
-        cpu[thread].core->tload_a[1].state = TLoad::State::idle;
-        cpu[thread].core->tload_a[1].paired = false;
-        cpu[thread].core->tload_b.state = TLoad::State::idle;
-        cpu[thread].core->tload_b.paired = false;
-
-        cpu[thread].core->tqueue.clear();
+    for (unsigned h = 0; h < hcount; ++h) {
+        cpu[h + s * EMU_THREADS_PER_SHIRE].cold_reset();
     }
 }
 
@@ -542,6 +478,55 @@ void System::recalculate_thread1_enable(unsigned shire)
                 cpu[thread].start_running();
             }
         }
+    }
+}
+
+
+void System::config_reset_pc(unsigned neigh, uint64_t value)
+{
+    neigh_esrs[neigh].minion_boot = value & VA_M;
+}
+
+
+void System::config_simulated_harts(unsigned shire, uint32_t minionmask,
+                                    bool multithreaded, bool enabled)
+{
+    static_assert(EMU_THREADS_PER_MINION == 2, "Wrong thread-per-minion count");
+
+    if (shire == IO_SHIRE_ID) {
+        shire = EMU_IO_SHIRE_SP;
+    }
+    if (shire == EMU_IO_SHIRE_SP) {
+        multithreaded = false;
+    }
+
+    unsigned minion_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_MINIONS_PER_SHIRE;
+    unsigned hart_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_MINION;
+
+    uint32_t disabled[2];
+    disabled[0] = ~minionmask & ((1 << minion_count) - 1);
+    disabled[1] = multithreaded ? disabled[0] : ((1 << minion_count) - 1);
+
+    if (!multithreaded) {
+        shire_other_esrs[shire].minion_feature |= 0x10;
+    }
+    for (unsigned m = 0; m < minion_count; ++m) {
+        unsigned h = m * EMU_THREADS_PER_MINION + shire * EMU_THREADS_PER_SHIRE;
+        for (unsigned t = 0; t < hart_count; ++t) {
+            if (((disabled[t] >> m) & 1) == 0) {
+                cpu[h + t].become_unavailable();
+            } else {
+                cpu[h + t].become_nonexistent();
+            }
+        }
+    }
+
+    // All harts will come out of reset as 'unavailable', but when
+    // 'threadX_disable[n]' is set to 0 the corresponding hart will come out
+    // of reset 'running' (or 'halted').
+    if (enabled) {
+        shire_other_esrs[shire].thread0_disable = disabled[0];
+        shire_other_esrs[shire].thread1_disable = disabled[1];
     }
 }
 

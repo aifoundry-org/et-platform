@@ -373,64 +373,37 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
         api_listener->set_system(&chip);
     }
 
-    for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
-        unsigned shire_minion_count =
-                (s == EMU_IO_SHIRE_SP) ? 1 : EMU_MINIONS_PER_SHIRE;
+    // Reset the cold-reset part of the system
+    for (unsigned shire = 0; shire < EMU_NUM_SHIRES; ++shire) {
+        chip.cold_reset(shire);
+    }
 
-        unsigned shire_thread_count =
-                (s == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
-
-        bool disable_multithreading =
-                !cmd_options.second_thread || multithreading_is_disabled(chip, s);
-
-        unsigned minion_thread_count =
-                (disable_multithreading || (s == EMU_IO_SHIRE_SP)) ? 1 : EMU_THREADS_PER_MINION;
-
-        uint64_t reset_pc =
-            (s == EMU_IO_SHIRE_SP) ? cmd_options.sp_reset_pc : cmd_options.reset_pc;
-
-        bool skip_shire = (((cmd_options.shires_en >> s) & 1) == 0);
-
-        // Set simulating harts
-        for (unsigned t = 0; t < shire_thread_count; ++t) {
-            unsigned m   = t / EMU_THREADS_PER_MINION;
-            unsigned tid = s * EMU_THREADS_PER_SHIRE + t;
-
-            bool skip_minion = (((cmd_options.minions_en >> m) & 1) == 0);
-            bool skip_hart   = (t % EMU_THREADS_PER_MINION) >= minion_thread_count;
-
-            if (skip_shire || skip_minion || skip_hart) {
-                chip.cpu[tid].become_nonexistent();
-                continue;
-            }
-
-            // FIXME: We should set the minion_boot neighborhood ESR and make
-            // reset_hart() set the PC value from minion_boot.
-            chip.reset_hart(tid);
-            chip.cpu[tid].become_unavailable();
-            thread_set_pc(tid, reset_pc);
-
-            // FIXME: Why is this here? Shouldn't SW set this?
-            chip.cpu[tid].mregs[bemu::m0].set();
+    // Configure the simulation parameters
+    for (unsigned shire = 0; shire < EMU_NUM_COMPUTE_SHIRES; ++shire) {
+        if (((cmd_options.shires_en >> shire) & 1) == 0) {
+            chip.config_simulated_harts(shire, 0, false, false);
+            continue;
         }
-
-        // Calculate mask of which Minions of the Shire to enable
-        uint32_t enable_minion_mask = cmd_options.minions_en & ((1ull << shire_minion_count) - 1);
-        if (((s == EMU_IO_SHIRE_SP) && cmd_options.sp_dis) ||
-            ((s != EMU_IO_SHIRE_SP) && cmd_options.mins_dis) ||
-            skip_shire)
-        {
-            enable_minion_mask = 0;
+        for (unsigned n = 0; n < EMU_NEIGH_PER_SHIRE; ++n) {
+            unsigned neigh = n + shire * EMU_NEIGH_PER_SHIRE;
+            chip.config_reset_pc(neigh, cmd_options.reset_pc);
         }
+        chip.config_simulated_harts(shire, cmd_options.minions_en,
+                                    cmd_options.second_thread,
+                                    !cmd_options.mins_dis);
+    }
+    if (((cmd_options.shires_en >> EMU_IO_SHIRE_SP) & 1) == 0)  {
+        chip.config_simulated_harts(EMU_IO_SHIRE_SP, 0, false, false);
+    } else {
+        chip.config_reset_pc(EMU_IO_SHIRE_SP_NEIGH, cmd_options.sp_dis);
+        chip.config_simulated_harts(EMU_IO_SHIRE_SP, cmd_options.minions_en,
+                                    false, !cmd_options.sp_dis);
+    }
 
-        chip.reset_shire_state(s);
-        if (disable_multithreading) {
-            if (s != EMU_IO_SHIRE_SP) {
-                chip.shire_other_esrs[s].minion_feature |= 0x10;
-            }
-        }
-        chip.write_thread0_disable(s, ~enable_minion_mask);
-        chip.write_thread1_disable(s, ~enable_minion_mask);
+    // Reset the warm-reset part of the system
+    for (unsigned shire = 0; shire < EMU_NUM_SHIRES; ++shire) {
+        chip.begin_warm_reset(shire);
+        chip.end_warm_reset(shire);
     }
 
     // Initialize xregs passed to command line

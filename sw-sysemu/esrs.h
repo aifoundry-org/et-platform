@@ -301,8 +301,8 @@ namespace bemu {
 
 
 // IOshire ESR addresses
-#define ESR_PU_RVTIM_MTIME        0x01C0000000ULL /* PP = 0b11 */
-#define ESR_PU_RVTIM_MTIMECMP     0x01C0000008ULL /* PP = 0b11 */
+#define ESR_PU_RVTIM_MTIME      0x01C0000000ULL /* PP = 0b11 */
+#define ESR_PU_RVTIM_MTIMECMP   0x01C0000008ULL /* PP = 0b11 */
 
 // ESR DDR chip register addresses
 #define ESR_MEM_SHIRE_STATUS        0x0180000238ULL
@@ -323,7 +323,7 @@ namespace bemu {
 
 #define ESR_SHIRE_RESET_MASK   0x1E00
 // -----------------------------------------------------------------------------
-// Neighborhood ESRs
+// Minshire neighborhood ESRs
 
 struct neigh_esrs_t {
     uint64_t icache_err_log_info;
@@ -342,12 +342,13 @@ struct neigh_esrs_t {
     bool     dummy3;
     bool     pmu_ctrl;
 
-    void reset();
+    void warm_reset();
+    void cold_reset();
 };
 
 
 // -----------------------------------------------------------------------------
-// shire_cache ESRs
+// Minshire shire_cache ESRs
 
 struct shire_cache_esrs_t {
     struct {
@@ -368,23 +369,24 @@ struct shire_cache_esrs_t {
         uint64_t sc_reqq_debug_ctl;
         uint64_t sc_sbe_dbe_counts;
         uint64_t sc_scp_cache_ctl;
-        uint32_t sc_reqq_ctl;
-        uint16_t sc_err_log_ctl;
-        uint8_t  sc_eco_ctl;
         uint64_t sc_perfmon_ctl_status;
         uint64_t sc_perfmon_cyc_cntr;
         uint64_t sc_perfmon_p0_cntr;
         uint64_t sc_perfmon_p1_cntr;
         uint64_t sc_perfmon_p0_qual;
         uint64_t sc_perfmon_p1_qual;
+        uint32_t sc_reqq_ctl;
+        uint16_t sc_err_log_ctl;
+        uint8_t  sc_eco_ctl;
     } bank[4]; // four banks
 
-    void reset();
+    void warm_reset() {}
+    void cold_reset();
 };
 
 
 // -----------------------------------------------------------------------------
-// shire_other ESRs
+// Minshire shire_other ESRs
 
 struct shire_other_esrs_t {
     uint8_t  fast_local_barrier[32];
@@ -405,22 +407,21 @@ struct shire_other_esrs_t {
     uint32_t thread0_disable;
     uint32_t thread1_disable;
     uint32_t mtime_local_target;
-    uint16_t shire_power_ctrl;
     uint32_t power_ctrl_neigh_nsleepin;
     uint32_t power_ctrl_neigh_isolation;
     uint32_t shire_pll_auto_config;
     uint16_t shire_dll_auto_config;
+    uint16_t shire_power_ctrl;
+    uint16_t clk_gate_ctrl;
     uint8_t  minion_feature;
     uint8_t  shire_ctrl_clockmux;
+    uint8_t  shire_channel_eco_ctl;
     bool     shire_coop_mode;
     bool     uc_config;
-    uint16_t clk_gate_ctrl;
-    uint8_t  shire_channel_eco_ctl;
+    bool     icache_prefetch_active; // proxy for icache_{msu}prefetch
 
-    // this is a proxy for icache_{msu}prefetch
-    bool     icache_prefetch_active;
-
-    void reset(unsigned shireid);
+    void warm_reset();
+    void cold_reset(unsigned shireid);
 };
 
 
@@ -430,7 +431,8 @@ struct shire_other_esrs_t {
 struct broadcast_esrs_t {
     uint64_t data;
 
-    void reset() {}
+    void warm_reset() {}
+    void cold_reset() {}
 };
 
 // -----------------------------------------------------------------------------

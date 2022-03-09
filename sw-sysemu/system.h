@@ -98,8 +98,9 @@ public:
     void load_raw(const char* filename, unsigned long long addr);
 
     // Reset state
-    void reset_shire_state(unsigned shireid);
-    void reset_hart(unsigned thread);
+    void begin_warm_reset(unsigned shire);
+    void end_warm_reset(unsigned shire);
+    void cold_reset(unsigned shire);
 
     uint64_t get_csr(unsigned thread, uint16_t cnum);
     void set_csr(unsigned thread, uint16_t cnum, uint64_t data);
@@ -171,6 +172,11 @@ public:
     void write_icache_prefetch(Privilege privilege, unsigned shire, uint64_t val);
     uint64_t read_icache_prefetch(Privilege privilege, unsigned shire) const;
     void finish_icache_prefetch(unsigned shire);
+
+    // Pre-reset configuration
+    void config_reset_pc(unsigned neigh, uint64_t value);
+    void config_simulated_harts(unsigned shire, uint32_t minionmask,
+                                bool multithreaded, bool enabled);
 
     // Message ports
     void set_msg_funcs(msg_func_t fn);

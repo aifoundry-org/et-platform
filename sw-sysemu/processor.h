@@ -345,6 +345,9 @@ struct Hart : public Agent {
     void maybe_sleep();
     void maybe_wakeup();
 
+    void warm_reset();
+    void cold_reset() {}
+
     // ----- Public state -----
 
     // Hart state (disabled, running, etc.)
@@ -395,10 +398,12 @@ struct Hart : public Agent {
     uint32_t    mip;
     uint64_t    tdata1;
     uint64_t    tdata2;
-    // TODO: dcsr, dpc, dscratch
+    // TODO: uint32_t    dcsr;
+    // TODO: uint64_t    dpc;
     uint16_t    mhartid;
 
     // Esperanto control and status registers
+    // TODO: uint64_t    ddata0;
     uint64_t    minstmask;        // 33b
     uint32_t    minstmatch;
     uint64_t    mbusaddr;         // 40b
@@ -746,6 +751,24 @@ inline unsigned neigh_index(const Hart& cpu)
 inline unsigned shire_index(const Hart& cpu)
 {
     return hart_index(cpu) / EMU_THREADS_PER_SHIRE;
+}
+
+
+inline unsigned index_in_core(const Hart& cpu)
+{
+    return cpu.mhartid % EMU_THREADS_PER_MINION;
+}
+
+
+inline unsigned index_in_neigh(const Hart& cpu)
+{
+    return cpu.mhartid % EMU_THREADS_PER_NEIGH;
+}
+
+
+inline unsigned index_in_shire(const Hart& cpu)
+{
+    return cpu.mhartid % EMU_THREADS_PER_SHIRE;
 }
 
 

@@ -23,6 +23,11 @@
 
 namespace bemu {
 
+
+// Messaging extension (from msgport.cpp)
+void configure_port(Hart&, unsigned, uint32_t);
+
+
 // Instruction execution function
 using insn_exec_funct_t = void (*)(Hart&);
 
@@ -1460,8 +1465,8 @@ void Hart::notify_pmu_minion_event(uint8_t event)
 {
     // The first four counters count Minion-related events
     for (int i = 0; i < 4; i++) {
-        if (chip->neigh_pmu_events[neigh_index(*this)][i][mhartid % EMU_THREADS_PER_MINION] == event) {
-            ++chip->neigh_pmu_counters[neigh_index(*this)][i][mhartid % EMU_THREADS_PER_MINION];
+        if (chip->neigh_pmu_events[neigh_index(*this)][i][index_in_core(*this)] == event) {
+            ++chip->neigh_pmu_counters[neigh_index(*this)][i][index_in_core(*this)];
         }
     }
 }
@@ -1475,13 +1480,17 @@ void Hart::notify_pmu_minion_event(uint8_t event)
 
 void Hart::become_nonexistent()
 {
-    if (mhartid % EMU_THREADS_PER_MINION == 0) {
+    if (index_in_core(*this) == 0) {
         core->tload_a[0].state = TLoad::State::idle;
         core->tload_a[1].state = TLoad::State::idle;
         core->tload_b.state = TLoad::State::idle;
+        core->tload_a[0].paired = false;
+        core->tload_a[1].paired = false;
+        core->tload_b.paired = false;
         core->tmul.state = TMul::State::idle;
         core->tquant.state = TQuant::State::idle;
         core->reduce.state = TReduce::State::idle;
+        core->reduce.hart = this;
         core->tqueue.clear();
     }
     waits = Waiting::none;
@@ -1495,7 +1504,7 @@ void Hart::become_unavailable()
     if (is_active() || is_sleeping()) {
         LOG_HART(DEBUG, *this, "%s", "Become unavailable");
     }
-    if (mhartid % EMU_THREADS_PER_MINION == 0) {
+    if (index_in_core(*this) == 0) {
         if (has_active_coprocessor()) {
             LOG_HART(WARN, *this, "%s",
                      "Stopping a hart with an active coprocessor!");
@@ -1503,9 +1512,13 @@ void Hart::become_unavailable()
         core->tload_a[0].state = TLoad::State::idle;
         core->tload_a[1].state = TLoad::State::idle;
         core->tload_b.state = TLoad::State::idle;
+        core->tload_a[0].paired = false;
+        core->tload_a[1].paired = false;
+        core->tload_b.paired = false;
         core->tmul.state = TMul::State::idle;
         core->tquant.state = TQuant::State::idle;
         core->reduce.state = TReduce::State::idle;
+        core->reduce.hart = this;
         core->tqueue.clear();
     }
     waits = Waiting::none;
@@ -1704,6 +1717,95 @@ void Hart::maybe_wakeup()
         chip->awaking.push_back(*this);
         state = State::active;
         LOG_HART(DEBUG, *this, "%s", "Waking up");
+    }
+}
+
+
+void Hart::warm_reset()
+{
+    // Become unavailable
+    if (state != State::nonexistent) {
+        state = State::unavailable;
+        waits = Hart::Waiting::none;
+        links.unlink();
+    }
+
+    // Register files
+    xregs[x0] = 0;
+
+    // PC
+    pc = chip->neigh_esrs[neigh_index(*this)].minion_boot;
+    npc = pc;
+
+    // Currently executing instruction
+    inst = Instruction { 0, 0 };
+
+    // Fetch buffer
+    fetch_pc = -1;
+
+    // RISCV control and status registers
+    scounteren = 0;
+    mstatus = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
+    medeleg = 0;
+    mideleg = 0;
+    mie = 0;
+    mcounteren = 0;
+
+    mcause = 0;
+    mip = 0;
+    tdata1 = 0x20C0000000000000ULL;
+    // TODO: dcsr <= xdebugver=1, prv=3;
+
+    // Esperanto control and status registers
+    minstmask = 0;
+    minstmatch = 0;
+    // TODO: amofence_ctrl <= ...
+    gsc_progress = 0;
+    fcc[0] = 0;
+    fcc[1] = 0;
+
+    // PMU events
+    System::neigh_pmu_events_t& events = chip->neigh_pmu_events[neigh_index(*this)];
+    for (int counter = 0; counter < 6; ++counter) {
+        events[counter][index_in_neigh(*this)] = PMU_MINION_EVENT_NONE;
+    }
+
+    // Port control
+    for (unsigned p = 0; p < portctrl.size(); ++p) {
+        configure_port(*this, p, 0);
+    }
+
+    // Other hart internal (microarchitectural or hidden) state
+    prv = Privilege::M;
+    debug_mode = false;
+    ext_seip = 0;
+
+    // Pre-computed state to improve simulation speed
+    break_on_load = false;
+    break_on_store = false;
+    break_on_fetch = false;
+
+    // Reset core-shared state
+    if (index_in_core(*this) == 0) {
+        core->matp = 0;
+        core->menable_shadows = 0;
+        core->excl_mode = 0;
+        core->mcache_control = 0;
+        core->ucache_control = 0x200;
+        for (auto& set : core->scp_lock) {
+            set.fill(false);
+        }
+        core->tload_a[0].state = TLoad::State::idle;
+        core->tload_a[1].state = TLoad::State::idle;
+        core->tload_b.state = TLoad::State::idle;
+        core->tload_a[0].paired = false;
+        core->tload_a[1].paired = false;
+        core->tload_b.paired = false;
+        core->tmul.state = TMul::State::idle;
+        core->tquant.state = TQuant::State::idle;
+        core->reduce.state = TReduce::State::idle;
+        core->reduce.hart = this;
+        core->tqueue.clear();
     }
 }
 
