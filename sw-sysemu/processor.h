@@ -80,7 +80,16 @@ struct TLoad {
     State           state;  // FSM state
 
     uint64_t uuid = 0;
+
+    void clear();
 };
+
+
+inline void TLoad::clear()
+{
+    state = State::idle;
+    paired = false;
+}
 
 
 struct TMul {

@@ -44,12 +44,6 @@
 #endif
 
 
-static inline bool
-multithreading_is_disabled(const bemu::System& chip, unsigned shire)
-{
-    return chip.shire_other_esrs[shire].minion_feature & 0x10;
-}
-
 static void
 halt_all_threads(bemu::System& chip)
 {
@@ -397,7 +391,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     if (((cmd_options.shires_en >> EMU_IO_SHIRE_SP) & 1) == 0)  {
         chip.config_simulated_harts(EMU_IO_SHIRE_SP, 0, false, false);
     } else {
-        chip.config_reset_pc(EMU_IO_SHIRE_SP_NEIGH, cmd_options.sp_dis);
+        chip.config_reset_pc(EMU_IO_SHIRE_SP_NEIGH, cmd_options.sp_reset_pc);
         chip.config_simulated_harts(EMU_IO_SHIRE_SP, cmd_options.minions_en,
                                     false, !cmd_options.sp_dis);
     }

@@ -539,8 +539,8 @@ void System::config_simulated_harts(unsigned shire, uint32_t minionmask,
     unsigned hart_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_MINION;
 
     uint32_t disabled[2];
-    disabled[0] = ~minionmask & ((1 << minion_count) - 1);
-    disabled[1] = multithreaded ? disabled[0] : ((1 << minion_count) - 1);
+    disabled[0] = (~minionmask) & ((1ul << minion_count) - 1);
+    disabled[1] = multithreaded ? disabled[0] : ((1ul << minion_count) - 1);
 
     if (!multithreaded) {
         shire_other_esrs[shire].minion_feature |= 0x10;

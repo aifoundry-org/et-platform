@@ -1481,12 +1481,9 @@ void Hart::notify_pmu_minion_event(uint8_t event)
 void Hart::become_nonexistent()
 {
     if (index_in_core(*this) == 0) {
-        core->tload_a[0].state = TLoad::State::idle;
-        core->tload_a[1].state = TLoad::State::idle;
-        core->tload_b.state = TLoad::State::idle;
-        core->tload_a[0].paired = false;
-        core->tload_a[1].paired = false;
-        core->tload_b.paired = false;
+        core->tload_a[0].clear();
+        core->tload_a[1].clear();
+        core->tload_b.clear();
         core->tmul.state = TMul::State::idle;
         core->tquant.state = TQuant::State::idle;
         core->reduce.state = TReduce::State::idle;
@@ -1509,12 +1506,9 @@ void Hart::become_unavailable()
             LOG_HART(WARN, *this, "%s",
                      "Stopping a hart with an active coprocessor!");
         }
-        core->tload_a[0].state = TLoad::State::idle;
-        core->tload_a[1].state = TLoad::State::idle;
-        core->tload_b.state = TLoad::State::idle;
-        core->tload_a[0].paired = false;
-        core->tload_a[1].paired = false;
-        core->tload_b.paired = false;
+        core->tload_a[0].clear();
+        core->tload_a[1].clear();
+        core->tload_b.clear();
         core->tmul.state = TMul::State::idle;
         core->tquant.state = TQuant::State::idle;
         core->reduce.state = TReduce::State::idle;
@@ -1795,12 +1789,9 @@ void Hart::warm_reset()
         for (auto& set : core->scp_lock) {
             set.fill(false);
         }
-        core->tload_a[0].state = TLoad::State::idle;
-        core->tload_a[1].state = TLoad::State::idle;
-        core->tload_b.state = TLoad::State::idle;
-        core->tload_a[0].paired = false;
-        core->tload_a[1].paired = false;
-        core->tload_b.paired = false;
+        core->tload_a[0].clear();
+        core->tload_a[1].clear();
+        core->tload_b.clear();
         core->tmul.state = TMul::State::idle;
         core->tquant.state = TQuant::State::idle;
         core->reduce.state = TReduce::State::idle;

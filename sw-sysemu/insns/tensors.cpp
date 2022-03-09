@@ -331,8 +331,7 @@ void tensor_load_start(Hart& cpu, uint64_t control)
                                      "is an active cooperative tensor load "
                                      "to tenb");
         }
-        tload.state = TLoad::State::idle;
-        tload.paired = false;
+        tload.clear();
     }
 
     // Cooperative tensor loads require the shire to be in cooperative mode
@@ -498,7 +497,7 @@ void tensor_load_execute(Hart& cpu, int tlid, bool tenb)
         }
     } else {
         assert(tload.paired == false);
-        tload.state = TLoad::State::idle;
+        tload.clear();
     }
 
     notify_tensor_load(cpu, cmd, tenb, adj + (start % L1_SCP_ENTRIES),
@@ -1587,8 +1586,7 @@ void tensor_fma_execute(Hart& cpu)
     cpu.core->tmul.state = TMul::State::idle;
     if (cpu.core->tload_b.paired) {
         // Paired txfma; complete previous load to tenb
-        cpu.core->tload_b.state = TLoad::State::idle;
-        cpu.core->tload_b.paired = false;
+        cpu.core->tload_b.clear();
         cpu.stop_waiting(Hart::Waiting::tload_tenb);
     }
 
