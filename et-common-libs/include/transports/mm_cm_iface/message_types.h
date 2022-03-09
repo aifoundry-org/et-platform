@@ -87,7 +87,8 @@ typedef enum {
     MM_TO_CM_MESSAGE_ID_TRACE_UPDATE_CONTROL,
     MM_TO_CM_MESSAGE_ID_TRACE_CONFIGURE,
     MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
-    MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE
+    MM_TO_CM_MESSAGE_ID_PMC_CONFIGURE,
+    MM_TO_CM_MESSAGE_ID_DUMP_THREAD_CONTEXT
 } mm_to_cm_message_id_e;
 
 #define KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH      (1u << 0)
@@ -147,6 +148,13 @@ typedef struct {
 } __attribute__((packed, aligned(64))) mm_to_cm_message_trace_rt_config_t;
 
 ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_trace_rt_config_t);
+
+typedef struct {
+    cm_iface_message_header_t header;
+    uint64_t thread_mask; /**< Bit Mask of Thread within a Shire to dump the context */
+} __attribute__((packed, aligned(64))) mm_to_cm_message_dump_thread_context_t;
+
+ASSERT_CACHE_LINE_CONSTRAINTS(mm_to_cm_message_dump_thread_context_t);
 
 /*
  * CM to MM messages
