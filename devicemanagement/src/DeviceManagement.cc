@@ -34,9 +34,110 @@ struct lockable_ {
     : idx(index) {
   }
 
+  ~lockable_() {
+    if (receiverRunning) {
+      receiverRunning = false;
+    }
+#if MINION_DEBUG_INTERFACE
+    eventsCv.notify_all();
+#endif
+  }
+
+  std::future<std::vector<std::byte>> getRespReceiveFuture(device_mgmt_api::tag_id_t tagId) {
+    std::scoped_lock lk(mtx);
+    std::promise<std::vector<std::byte>> p;
+    commandMap.insert_or_assign(tagId, std::move(p));
+    return commandMap[tagId].get_future();
+  };
+
+  bool fulfillRespReceivePromise(const std::vector<std::byte>& response) {
+    auto tagId = reinterpret_cast<const dm_rsp*>(response.data())->info.rsp_hdr.tag_id;
+    std::scoped_lock lk(mtx);
+    if (commandMap.find(tagId) == commandMap.end()) {
+      // An unkept promise cannot be fulfilled
+      return false;
+    }
+    commandMap[tagId].set_value(response);
+    return true;
+  }
+
+#if MINION_DEBUG_INTERFACE
+  void pushEvent(std::vector<std::byte>& event) {
+    std::scoped_lock lk(eventsMtx);
+    events.push(std::move(event));
+    eventsCv.notify_all();
+  }
+
+  bool popEvent(std::vector<std::byte>& event, uint32_t timeout) {
+    std::unique_lock lk(eventsMtx);
+    if (eventsCv.wait_for(lk, std::chrono::milliseconds(timeout), [this]() { return !events.empty(); })) {
+      event = std::move(events.front());
+      events.pop();
+      return true;
+    }
+    return false;
+  }
+#endif
+
   uint32_t idx;
-  std::timed_mutex devGuard;
+  std::atomic<bool> receiverRunning = false;
+  std::thread receiver;
+  std::timed_mutex sqGuard;
+  std::timed_mutex cqGuard;
+
+private:
+  std::unordered_map<device_mgmt_api::tag_id_t, std::promise<std::vector<std::byte>>> commandMap;
+  std::mutex mtx;
+#if MINION_DEBUG_INTERFACE
+  std::mutex eventsMtx;
+  std::condition_variable eventsCv;
+  std::queue<std::vector<std::byte>> events;
+#endif
 };
+
+#if MINION_DEBUG_INTERFACE
+bool DeviceManagement::handleEvent(const uint32_t device_node, std::vector<std::byte>& message) {
+  auto rCB = reinterpret_cast<const dm_evt*>(message.data());
+  // The range can be extended to handle all type of events
+  if (rCB->info.event_hdr.msg_id >= device_mgmt_api::DM_CMD_MDI_SET_BREAKPOINT_EVENT &&
+      rCB->info.event_hdr.msg_id < device_mgmt_api::DM_CMD_MDI_END) {
+    auto lockable = getDevice(device_node);
+    lockable->pushEvent(message);
+    return true;
+  }
+  return false;
+}
+
+bool DeviceManagement::getEvent(const uint32_t device_node, std::vector<std::byte>& event,
+                                uint32_t timeout) {
+  auto lockable = getDevice(device_node);
+  return lockable->popEvent(event, timeout);
+}
+#endif
+
+void DeviceManagement::receiver(const uint32_t device_node) {
+  auto lockable = getDevice(device_node);
+  while (lockable->receiverRunning) {
+    lockable->cqGuard.lock();
+    std::vector<std::byte> message;
+    while (devLayer_->receiveResponseServiceProcessor(lockable->idx, message)) {
+#if MINION_DEBUG_INTERFACE
+      if (handleEvent(lockable->idx, message)) {
+        continue;
+      }
+#endif
+      if (!lockable->fulfillRespReceivePromise(message)) {
+        DV_DLOG(WARNING) << "Received a response for not sent command, discarding it.";
+      }
+    }
+    lockable->cqGuard.unlock();
+    auto sqAvail = false;
+    auto cqAvail = false;
+    while (lockable->receiverRunning && !cqAvail) {
+      devLayer_->waitForEpollEventsServiceProcessor(lockable->idx, sqAvail, cqAvail);
+    }
+  }
+}
 
 struct DeviceManagement::destruction_ {
   void operator()(const DeviceManagement* const ptr) {
@@ -89,12 +190,16 @@ bool DeviceManagement::isGetCommand(itCmd& cmd) {
   return false;
 }
 
-
 std::shared_ptr<lockable_> DeviceManagement::getDevice(const uint32_t index) {
   auto& ptr = deviceMap_[index];
 
   if (!ptr) {
     ptr = std::make_shared<lockable_>(index);
+    if (!ptr->receiverRunning) {
+      ptr->receiverRunning = true;
+      ptr->receiver = std::thread(std::bind(&DeviceManagement::receiver, this, index));
+      ptr->receiver.detach();
+    }
   }
 
   return deviceMap_[index];
@@ -161,20 +266,14 @@ int DeviceManagement::processHashFile(const char* filePath, std::vector<unsigned
   return 0;
 }
 
-int DeviceManagement::getTraceBufferServiceProcessor(const uint32_t device_node, TraceBufferType trace_type, std::vector<std::byte>& response,
-                                                     uint32_t timeout) {
+int DeviceManagement::getTraceBufferServiceProcessor(const uint32_t device_node, TraceBufferType trace_type,
+                                                     std::vector<std::byte>& response) {
   if (!isValidDeviceNode(device_node)) {
     return -EINVAL;
   }
 
-  auto lockable = getDevice(device_node);
-  if (lockable->devGuard.try_lock_for(std::chrono::milliseconds(timeout))) {
-    const std::lock_guard<std::timed_mutex> lock(lockable->devGuard, std::adopt_lock_t());
-    devLayer_->getTraceBufferServiceProcessor(lockable->idx, trace_type, response);
-    return 0;
-  }
-
-  return -EAGAIN;
+  devLayer_->getTraceBufferServiceProcessor(device_node, trace_type, response);
+  return 0;
 }
 
 bool DeviceManagement::isValidTdpLevel(const char* input_buff) {
@@ -250,6 +349,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
                                      uint32_t* host_latency, uint64_t* dev_latency, uint32_t timeout) {
 
   auto start = std::chrono::steady_clock::now();
+  auto end = start + std::chrono::milliseconds(timeout);
 
   if (!isValidDeviceNode(device_node)) {
     return -EINVAL;
@@ -289,8 +389,9 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
   auto inputSize = input_size;
   auto lockable = getDevice(device_node);
 
-  if (lockable->devGuard.try_lock_for(std::chrono::milliseconds(timeout))) {
-    const std::lock_guard<std::timed_mutex> lock(lockable->devGuard, std::adopt_lock_t());
+  std::future<std::vector<std::byte>> respReceiveFuture;
+  if (lockable->sqGuard.try_lock_for(end - std::chrono::steady_clock::now())) {
+    const std::lock_guard<std::timed_mutex> lock(lockable->sqGuard, std::adopt_lock_t());
 
     auto wCB = std::make_unique<dm_cmd>();
     wCB->info.cmd_hdr.tag_id = tag_id_++;
@@ -333,7 +434,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
     case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES:
     case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL:
     case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG:
-#if MINION_DEBUG_INTERFACE    
+#if MINION_DEBUG_INTERFACE
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART:
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART:
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_RESET_HART:
@@ -351,7 +452,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR:
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM:
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM:
-#endif 
+#endif
     {
       memcpy(wCB->payload, input_buff, inputSize);
       wCB->info.cmd_hdr.size = (sizeof(*(wCB.get())) - 1) + inputSize;
@@ -366,68 +467,42 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
     } break;
     }
 
+    respReceiveFuture = lockable->getRespReceiveFuture(wCB->info.cmd_hdr.tag_id);
     if (!devLayer_->sendCommandServiceProcessor(lockable->idx, reinterpret_cast<std::byte*>(wCB.get()),
                                                 wCB->info.cmd_hdr.size)) {
       return -EIO;
     }
 
     DV_DLOG(DEBUG) << "Sent cmd: " << wCB->info.cmd_hdr.msg_id << " with header size: " << wCB->info.cmd_hdr.size
-                 << std::endl;
+                   << std::endl;
 
-    int responseReceived = 0;
-    bool sq_available = true, cq_available = true, event_pending = true;
-    while (responseReceived < 1) {
-      if (start + std::chrono::milliseconds(timeout) < std::chrono::steady_clock::now()) {
-        DV_LOG(INFO) << "Timeout expired while waiting for rsp to cmd: " << wCB->info.cmd_hdr.msg_id << std::endl;
-        return -EAGAIN;
-      }
-
-      if (event_pending) {
-        event_pending = false;
-      } else {
-        devLayer_->waitForEpollEventsServiceProcessor(lockable->idx, sq_available, cq_available);
-      }
-
-      if (cq_available) {
-        std::vector<std::byte> message;
-        if (!devLayer_->receiveResponseServiceProcessor(lockable->idx, message)) {
-          continue;
-        }
-        auto rCB = reinterpret_cast<dm_rsp*>(message.data());
-
-        if (rCB->info.rsp_hdr.msg_id != wCB->info.cmd_hdr.msg_id ||
-            rCB->info.rsp_hdr.tag_id != wCB->info.cmd_hdr.tag_id) {
-          DV_LOG(INFO) << "Read rsp to cmd: " << rCB->info.rsp_hdr.msg_id << " (tag_id: " << rCB->info.rsp_hdr.tag_id
-                       << ") but expected: " << wCB->info.cmd_hdr.msg_id << " (tag_id: " << wCB->info.cmd_hdr.tag_id
-                       << ")" << std::endl;
-          // Discarding if old/different response is received
-          event_pending = true;
-          continue;
-        }
-
-        DV_DLOG(DEBUG) << "Read rsp to cmd: " << rCB->info.rsp_hdr.msg_id
-                     << " with header size: " << rCB->info.rsp_hdr.size << std::endl;
-
-        if (output_buff && output_size) {
-          memcpy(output_buff, rCB->payload, output_size);
-        }
-
-        auto status = rCB->info.rsp_hdr_ext.status;
-
-        if (status) {
-          DV_LOG(INFO) << "Received incorrect rsp status: " << rCB->info.rsp_hdr_ext.status << std::endl;
-          return -EIO;
-        }
-
-        *dev_latency = rCB->info.rsp_hdr_ext.device_latency_usec;
-        *host_latency =
-          std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
-
-        responseReceived++;
-
-        return 0;
-      }
+    if (auto status = respReceiveFuture.wait_for(end - std::chrono::steady_clock::now());
+        status != std::future_status::ready) {
+      return -EAGAIN;
     }
+
+    auto message = respReceiveFuture.get();
+    auto rCB = reinterpret_cast<dm_rsp*>(message.data());
+
+    DV_DLOG(DEBUG) << "Read rsp to cmd: " << rCB->info.rsp_hdr.msg_id << " with header size: " << rCB->info.rsp_hdr.size
+                   << std::endl;
+
+    if (output_buff && output_size) {
+      memcpy(output_buff, rCB->payload, output_size);
+    }
+
+    auto status = rCB->info.rsp_hdr_ext.status;
+
+    if (status) {
+      DV_LOG(INFO) << "Received incorrect rsp status: " << rCB->info.rsp_hdr_ext.status << std::endl;
+      return -EIO;
+    }
+
+    *dev_latency = rCB->info.rsp_hdr_ext.device_latency_usec;
+    *host_latency =
+      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
+
+    return 0;
   }
 
   return -EAGAIN;

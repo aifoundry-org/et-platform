@@ -141,6 +141,13 @@ struct dm_rsp {
   char payload[1];
 };
 
+#if MINION_DEBUG_INTERFACE
+struct dm_evt {
+  device_mgmt_api::evt_header_t info;
+  char payload[1];
+};
+#endif
+
 typedef std::unordered_map<std::string, device_mgmt_api::DM_CMD>::const_iterator itCmd;
 
 /// @class DeviceManagement
@@ -183,12 +190,21 @@ public:
   /// @param[in] device_node  device index to use
   /// @param[inout] response  trace buffer received from the device after
   /// servicing the request
-  /// @param[in] timeout  Time to wait for the request to complete, i.e.
-  /// to receive a message.
   ///
   /// @return Zero if the call was succesfull.
   int getTraceBufferServiceProcessor(const uint32_t device_node, TraceBufferType buf_type,
-                                     std::vector<std::byte>& response, uint32_t timeout);
+                                     std::vector<std::byte>& response);
+
+#ifdef MINION_DEBUG_INTERFACE
+  /// @brief Gets the MDI event type
+  ///
+  /// @param[in] device_node  device index to use
+  /// @param[out] event  A vector containing the complete event message
+  /// @param[in] timeout  Time to wait for the event to receive
+  ///
+  /// @return true if event is received in given timeout else false
+  bool getEvent(const uint32_t device_node, std::vector<std::byte>& event, uint32_t timeout);
+#endif
 
 private:
   /// @brief DeviceManagement constructors
@@ -197,7 +213,9 @@ private:
   DeviceManagement(const DeviceManagement& dm){};
 
   /// @brief DeviceManagement Destructor
-  ~DeviceManagement(){};
+  ~DeviceManagement() {
+    deviceMap_.clear();
+  };
   struct destruction_;
 
   /// @brief Determine if command is a 'set' or 'get' data command
@@ -308,6 +326,21 @@ private:
   ///
   /// @param[in] ptr  IDeviceLayer pointer
   void setDeviceLayer(IDeviceLayer* ptr);
+
+  /// @brief Communicates with device for receiving the responses or events
+  ///
+  /// @param[in] device_node  device index to use
+  void receiver(const uint32_t device_node);
+
+#ifdef MINION_DEBUG_INTERFACE
+  /// @brief Handles the event message types
+  ///
+  /// @param[in] device_node  device index to use
+  /// @param[in] message Vector containing raw received message
+  ///
+  /// @param[out] return true if given message was event and handled correctly
+  bool handleEvent(const uint32_t device_node, std::vector<std::byte>& message);
+#endif
 
   std::unordered_map<uint32_t, std::shared_ptr<lockable_>> deviceMap_;
   IDeviceLayer* devLayer_;
