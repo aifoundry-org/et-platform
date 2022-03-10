@@ -71,14 +71,21 @@ static inline uint64_t trace_umode_sample_ms_pmc(uint64_t pmc)
 ***********************************************************************/
 void __et_printf(const char *fmt, ...)
 {
-    char data[TRACE_STRING_MAX_SIZE + 1];
     va_list va;
     va_start(va, fmt);
+    /* Get string message size. */
+    int32_t str_length = vsnprintf(NULL, 0, fmt, va) + 1;
 
-    vsnprintf(data, TRACE_STRING_MAX_SIZE, fmt, va);
+    if (str_length > 0)
+    {
+        /* Add one null termination character. */
+        str_length += 1;
+        char data[str_length];
+        vsnprintf(data, (size_t)str_length, fmt, va);
 
-    Trace_String(TRACE_EVENT_STRING_CRITICAL,
-        &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb, data);
+        Trace_String(
+            TRACE_EVENT_STRING_CRITICAL, &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb, data);
+    }
 }
 
 /************************************************************************
