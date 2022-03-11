@@ -22,6 +22,20 @@ using namespace device_management;
 #define MAX_RSP_PKT_SIZE        256 //bytes
 #define RISCV_PC_INDEX          32
 
+#define HARTS_PER_NEIGH     16
+#define NUM_NEIGH_PER_SHIRE 4
+#define NUM_HARTS_PER_SHIRE (NUM_NEIGH_PER_SHIRE*HARTS_PER_NEIGH)
+
+#define MDI_MEM_READ_LENGTH_BYTES_8     8
+#define MDI_MEM_READ_LENGTH_BYTES_4     4
+#define MDI_MEM_READ_LENGTH_BYTES_2     2
+#define MDI_MEM_READ_LENGTH_BYTES_1     1
+
+#define MDI_MEM_WRITE_LENGTH_BYTES_8     8
+#define MDI_MEM_WRITE_LENGTH_BYTES_4     4
+#define MDI_MEM_WRITE_LENGTH_BYTES_2     2
+#define MDI_MEM_WRITE_LENGTH_BYTES_1     1
+
 /* Target state */
 enum target_state {
   TGT_RUNNING,
@@ -229,10 +243,35 @@ class MinionDebugInterface {
   void resumeHart();
 
   /**
+   * @brief hartStatus Get Hart Status
+   * @return None
+   */
+   uint32_t hartStatus();
+
+  /**
+   * @brief getShireID Accessor for Shire ID
+   * @return Shire ID
+   */
+   uint64_t getShireID();
+
+     /**
+   * @brief getThreadMask Accessor for Thread Mask
+   * @return Thread Mask
+   */
+   uint64_t getThreadMask();
+
+  /**
    * @brief closeMDI Deletes the MDI Object
    * @return None
    */
   void closeMDI();
+
+
+  /**
+   * @brief uint64_bytes_swap Swap the bytes in the input
+   * @return None
+   */
+  uint64_t uint64BytesSwap(uint64_t val);
 
   private:
 
@@ -247,7 +286,7 @@ class MinionDebugInterface {
   int invokeDmServiceRequest(uint8_t code, const char* input_buff, const uint32_t input_size,
     char* output_buff, const uint32_t output_size);
 
-  uint64_t    shire_mask;
+  uint64_t    shire_id;
   uint64_t    thread_mask;
   void*       handle_;
   std::unique_ptr<IDeviceLayer>   devLayer_;

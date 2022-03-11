@@ -236,8 +236,7 @@ bool GdbServer::rspClientRequest() {
       // Set the thread number of subsequent operations.
       // silently and just reply "OK"
       // Just select first core/Hart.
-      mdi->selectHart(0,1);
-      mdi->haltHart();
+      mdi->selectHart(mdi->getShireID(),mdi->getThreadMask());
       pkt->packStr("OK");
       rsp->putPkt(pkt);
       return true;
@@ -274,13 +273,13 @@ bool GdbServer::rspClientRequest() {
       return true;
 
     case 'p':
-      //DV_LOG(INFO) << "rcvd:p" << std::endl;
+      // DV_LOG(INFO) << "rcvd:p" << std::endl;
       // Read a register
-      rspReadCSRReg();
+      rspReadReg();
       return true;
 
     case 'P':
-      //DV_LOG(INFO) << "rcvd:P" << std::endl;
+      // DV_LOG(INFO) << "rcvd:P" << std::endl;
       // Write a register
       rspWriteReg();
       return true;
@@ -414,7 +413,7 @@ void GdbServer::rspContinue(uint32_t except) {
          << " not recognized: ignored" << endl;
   }
 
-  addr = mdi->readCSRReg(mdi->pcRegNum());  // Default uses current PC
+  addr = mdi->readReg(mdi->pcRegNum());  // Default uses current PC
 
   rspContinue(addr, EXCEPT_NONE);
 
@@ -465,8 +464,6 @@ void GdbServer::rspContinue(uint32_t addr, uint32_t except) {
 //! Each byte is packed as a pair of hex digits.
 //-----------------------------------------------------------------------------
 void GdbServer::rspReadAllRegs() {
-  //mdi->selectHart(0,1);
-  //mdi->haltHart();
   for (int r = 0; r < mdi->nRegs(); r++) {
     Utils::reg2Hex(mdi->htotl(mdi->readReg(r)),
                    &(pkt->data[r * 16]));
@@ -567,11 +564,11 @@ void GdbServer::rspReadMem() {
 //! The length given is the number of bytes to be written.
 //-----------------------------------------------------------------------------
 void GdbServer::rspWriteMem() {
-  uint32_t addr;  // Where to write the memory
+  uint64_t addr;  // Where to write the memory
   int len;        // Number of bytes to write
   int retval=0;
 
-  if (2 != sscanf(pkt->data, "M%x,%x:", &addr, &len)) {
+  if (2 != sscanf(pkt->data, "M%lx,%x:", &addr, &len)) {
     cerr << "Warning: Failed to recognize RSP write memory " << pkt->data
          << endl;
     pkt->packStr("E01");
@@ -655,25 +652,6 @@ void GdbServer::rspWriteReg() {
   rsp->putPkt(pkt);
 
 }  // rspWriteReg ()
-
-
-void GdbServer::rspReadCSRReg() {
-  uint32_t regNum;
-
-  // Break out the fields from the data
-  if (1 != sscanf(pkt->data, "p%x", &regNum)) {
-    cerr << "Warning: Failed to recognize RSP read register command: "
-         << pkt->data << endl;
-    pkt->packStr("E01");
-    rsp->putPkt(pkt);
-    return;
-  }
-
-  Utils::reg2Hex(mdi->htotl(mdi->readCSRReg(regNum)), pkt->data);
-  pkt->setLen(strlen(pkt->data));
-  rsp->putPkt(pkt);
-
-}
 
 //-----------------------------------------------------------------------------
 //! Handle a RSP query request
@@ -1064,10 +1042,11 @@ void GdbServer::rspVpkt() {
 //! The data is in model-endian format, so no transformation is needed.
 //-----------------------------------------------------------------------------
 void GdbServer::rspWriteMemBin() {
-  uint32_t addr;  // Where to write the memory
+  uint64_t addr;  // Where to write the memory
   int len;        // Number of bytes to write
+  int retval=0;
 
-  if (2 != sscanf(pkt->data, "X%x,%x:", &addr, &len)) {
+  if (2 != sscanf(pkt->data, "X%lx,%x:", &addr, &len)) {
     //spdlog::warn(
     //    "GdbServer: Failed to recognize RSP write memory command: {:s}",
     //    std::string(pkt->data));
@@ -1098,10 +1077,15 @@ void GdbServer::rspWriteMemBin() {
   }
 
   // Write bytes to memory
-  mdi->writeMem(bindat, addr, len);
+  retval = mdi->writeMem(bindat, addr, len);
 
-  pkt->packStr("OK");
-  rsp->putPkt(pkt);
+  if(!retval) {
+    pkt->packStr("OK");
+    rsp->putPkt(pkt);
+  } else {
+    pkt->packStr("E01");
+    rsp->putPkt(pkt);
+  }
 
 }  // rspWriteMemBin ()
 
@@ -1115,7 +1099,7 @@ void GdbServer::rspRemoveMatchpoint() {
   int len;         // Matchpoint length (not used)
 
   // Break out the instruction
-  if (3 != sscanf(pkt->data, "z%1d,%x,%1d", (int *)&type, &addr, &len)) {
+  if (3 != sscanf(pkt->data, "z%1d,%lx,%1d", (int *)&type, &addr, &len)) {
     cerr << "Warning: RSP matchpoint deletion request not "
          << "recognized: ignored" << endl;
     pkt->packStr("E01");
@@ -1182,7 +1166,7 @@ void GdbServer::rspInsertMatchpoint() {
   int len;        // Matchpoint length (not used)
 
   // Break out the instruction
-  if (3 != sscanf(pkt->data, "Z%1d,%x,%1d", (int *)&type, &addr, &len)) {
+  if (3 != sscanf(pkt->data, "Z%1d,%lx,%1d", (int *)&type, &addr, &len)) {
     cerr << "Warning: RSP matchpoint insertion request not "
          << "recognized: ignored" << endl;
     pkt->packStr("E01");

@@ -107,9 +107,9 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_MDI_READ_CSR", device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR},
   {"DM_CMD_MDI_WRITE_CSR", device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR},
   {"DM_CMD_MDI_READ_MEM", device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM},
-  {"DM_CMD_MDI_READ_MEM", device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM}
-#endif
-};
+  {"DM_CMD_MDI_WRITE_MEM", device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM}
+#endif 
+  };
 
 static std::unordered_map<std::string, device_mgmt_api::ACTIVE_POWER_MANAGEMENT> const activePowerManagementTable = {
   {"ACTIVE_POWER_MANAGEMENT_TURN_OFF", device_mgmt_api::ACTIVE_POWER_MANAGEMENT::ACTIVE_POWER_MANAGEMENT_TURN_OFF},

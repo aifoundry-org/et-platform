@@ -293,10 +293,6 @@ bool RspConnection::getPkt(RspPacket *pkt) {
     pkt->data[count] = 0;
     pkt->setLen(count);
 
-#if ENABLE_DEBUG_LOGS
-    DV_LOG(INFO) << "<<<<<" << "Rcvd: " << pkt->data << "  Length:" << count << std::endl;
-#endif 
-
     // If we have a valid end of packet char, validate the checksum. If we
     // don't it's because we ran out of buffer in the previous loop.
     if ('#' == ch) {
@@ -469,11 +465,6 @@ bool RspConnection::putRspStr(char *const buf, const size_t len) {
          << "' to unopened RSP client: Ignored" << endl;
     return false;
   }
-
-#if ENABLE_DEBUG_LOGS
-  buf[len]=0;
-  DV_LOG(INFO) << ">>>>>" << "Transmit: " << buf << "Length:" << len <<std::endl;
-#endif 
 
   // Write until successful (we retry after interrupts) or catastrophic
   // failure.

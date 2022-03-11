@@ -26,6 +26,8 @@ using Clock = std::chrono::system_clock;
 using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
 
+#define ENABLE_DEFAULT_LOGGING   0
+
 static struct option long_options[] = {
                                     {"help", no_argument, 0, 'h'},
                                     {"node", required_argument, 0, 'n'},
@@ -58,8 +60,10 @@ int main(int argc, char** argv)
     uint64_t thread_mask = 0x0000000000000001; // Default thread mask 0x0000000000000001
     bool exit = false;
 
+#if ENABLE_DEFAULT_LOGGING
     //Initialize Google's logging library
     logging::LoggerDefault loggerDefault_;
+#endif 
 
     while (1)
     {
@@ -101,6 +105,7 @@ int main(int argc, char** argv)
 
     if(!exit)
     {
+        // TODO : Error check for shire ID and thread_mask input parameters 
         // Start the GDB Server that serves as proxy to GDB client
         MinionDebugInterface minionDebugInterface(shire_id, thread_mask);
         GdbServer gdbServer(/*Minion Debug Interface =*/&minionDebugInterface, /*tcp port=*/port);

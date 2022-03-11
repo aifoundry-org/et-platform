@@ -221,10 +221,14 @@ protected:
   void resetMM(bool singleDevice);
 
   // Functional tests for  MDI Run control/State Inspection APIs
-  void testRunControlCmdsSetBreakpoint(bool singleDevice);
-  void testRunControlCmdsReadGPR(bool singleDevice);
-  void testRunControlCmdsReadCSR(bool singleDevice);
-  void readMem(bool singleDevice);
+  void testRunControlCmdsSetandUnsetBreakpoint(uint64_t shireID, uint64_t threadMask, uint64_t hartID, uint64_t bpAddr);
+  void testRunControlCmdsGetHartStatus(uint64_t shireID, uint64_t threadMask, uint64_t hartID);
+  void testStateInspectionReadGPR(uint64_t shireID, uint64_t threadMask, uint64_t hartID);
+  void testStateInspectionWriteGPR(uint64_t shireID, uint64_t threadMask, uint64_t hartID, uint64_t writeTestData);
+  void testStateInspectionReadCSR(uint64_t shireID, uint64_t threadMask, uint64_t hartID, uint64_t csrName);
+  void testStateInspectionWriteCSR(uint64_t shireID, uint64_t threadMask, uint64_t hartID, uint64_t csrName, uint64_t csrData);
+  void readMem(uint64_t readAddr);
+  void writeMem(uint64_t testInputData, uint64_t writeAddr); 
 
   inline Target getTestTarget(void) const {
     auto envTarget = getenv("TARGET");

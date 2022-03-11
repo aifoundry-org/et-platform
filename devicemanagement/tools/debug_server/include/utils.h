@@ -14,5 +14,3 @@
 #define DV_LOG(severity) ET_LOG(DEVICE_LAYER, severity)
 #define DV_DLOG(severity) ET_DLOG(DEVICE_LAYER, severity)
 #define DV_VLOG(level) ET_VLOG(DEVICE_LAYER, level)
-
-#define ENABLE_DEBUG_LOGS     0

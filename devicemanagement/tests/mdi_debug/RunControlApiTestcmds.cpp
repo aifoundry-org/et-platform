@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "TestDevMgmtApiSyncCmds.h"
+#include "MDIApiTest.h"
 #include <dlfcn.h>
 #include <glog/logging.h>
 #include <gmock/gmock.h>
@@ -33,27 +34,20 @@ class RunControlApiTestcmds : public TestDevMgmtApiSyncCmds {
   }
 };
 
-TEST_F(RunControlApiTestcmds, testRunControlCmdsSetBreakpoint) {
-  if (targetInList({Target::Silicon })) {
-    testRunControlCmdsSetBreakpoint(false);
+TEST_F(RunControlApiTestcmds, testRunControlCmdsSetandUnsetBreakpoint) {
+  if (targetInList({Target::Silicon})) {
+    testRunControlCmdsSetandUnsetBreakpoint(MDI_TEST_DEFAULT_SHIRE_ID, 
+             MDI_TEST_DEFAULT_THREAD_MASK, MDI_TEST_DEFAULT_HARTID, (COMPUTE_KERNEL_DEVICE_ADDRESS+MDI_TEST_BP_ADDRESS_OFFSET));
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
 
-TEST_F(RunControlApiTestcmds, testRunControlCmdsReadGPR) {
-  if (targetInList({Target::Silicon })) {
-    testRunControlCmdsReadGPR(false);
-  } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
-    FLAGS_enable_trace_dump = false;
-  }
-}
-
-TEST_F(RunControlApiTestcmds, testRunControlCmdsReadCSR) {
-  if (targetInList({Target::Silicon })) {
-    testRunControlCmdsReadCSR(false);
+TEST_F(RunControlApiTestcmds, testRunControlCmdsGetHartStatus) {
+  if (targetInList({Target::Silicon})) {
+    testRunControlCmdsGetHartStatus(MDI_TEST_DEFAULT_SHIRE_ID, 
+             MDI_TEST_DEFAULT_THREAD_MASK, MDI_TEST_DEFAULT_HARTID);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;

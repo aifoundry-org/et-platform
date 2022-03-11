@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "TestDevMgmtApiSyncCmds.h"
+#include "MDIApiTest.h"
 #include <dlfcn.h>
 #include <glog/logging.h>
 #include <gmock/gmock.h>
@@ -16,6 +17,7 @@
 
 using namespace dev;
 using namespace device_management;
+
 
 class StateInspectionApiTestcmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
@@ -35,7 +37,56 @@ class StateInspectionApiTestcmds : public TestDevMgmtApiSyncCmds {
 
 TEST_F(StateInspectionApiTestcmds, readMem) {
   if (targetInList({Target::Silicon})) {
-    readMem(false);
+    readMem(COMPUTE_KERNEL_DEVICE_ADDRESS);
+  } else {
+    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(StateInspectionApiTestcmds, writeMem) {
+  if (targetInList({Target::Silicon})) {
+    writeMem(MDI_TEST_WRITE_MEM_TEST_DATA, COMPUTE_KERNEL_DEVICE_ADDRESS);
+  } else {
+    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(StateInspectionApiTestcmds, testStateInspectionReadGPR) {
+  if (targetInList({Target::Silicon})) {
+    testStateInspectionReadGPR(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK,
+                               MDI_TEST_DEFAULT_HARTID);
+  } else {
+    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(StateInspectionApiTestcmds, testStateInspectionWriteGPR) {
+  if (targetInList({Target::Silicon})) {
+    testStateInspectionWriteGPR(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK,
+                                MDI_TEST_DEFAULT_HARTID, MDI_TEST_GPR_WRITE_TEST_DATA);
+  } else {
+    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(StateInspectionApiTestcmds, testStateInspectionReadCSR) {
+  if (targetInList({Target::Silicon})) {
+    testStateInspectionReadCSR(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK,
+                               MDI_TEST_DEFAULT_HARTID, MDI_TEST_CSR_PC_REG);
+  } else {
+    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(StateInspectionApiTestcmds, testStateInspectionWriteCSR) {
+  if (targetInList({Target::Silicon})) {
+    testStateInspectionWriteCSR(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK,
+                                MDI_TEST_DEFAULT_HARTID, MDI_TEST_CSR_PC_REG, MDI_TEST_CSR_WRITE_PC_TEST_ADDRESS);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;

@@ -18,14 +18,20 @@
 
 // Constructor and Destructor
 
-MinionDebugInterface::MinionDebugInterface(uint64_t shire_mask, uint64_t thread_mask) {
+MinionDebugInterface::MinionDebugInterface(uint64_t shire_id, uint64_t thread_mask) {
 
     this->handle_ = dlopen("libDM.so", RTLD_LAZY);
     this->devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     this->dmi_ = reinterpret_cast<getDM_t>(dlsym(this->handle_, "getInstance"));
+    this->shire_id = shire_id;
+    this->thread_mask = thread_mask;
+    this->current_hart_ = ((shire_id*NUM_HARTS_PER_SHIRE) + __builtin_ctzl(thread_mask));
     this->server_state = false;
     this->should_stop_server = false;
-
+ 
+     this->tgt_state = TGT_RUNNING;
+    /* TODO: Enable this once device fw is updated */
+    // this->tgt_state =  this->MinionDebugInterface::hartStatus(); 
 }  // MinionDebugInterface ()
 
 MinionDebugInterface::~MinionDebugInterface() {
@@ -58,27 +64,27 @@ int MinionDebugInterface::verifyDMLib() {
 int MinionDebugInterface::invokeDmServiceRequest(uint8_t code, const char* input_buff,
     const uint32_t input_size, char* output_buff, const uint32_t output_size) {
 
-  auto retval = verifyDMLib();
+    auto retval = verifyDMLib();
 
-  if (retval != verifyDMLib()) {
-    DV_LOG(INFO) << "Failed to verify the DM lib: " << std::endl;
-    return retval;
-  }
+    if (retval != verifyDMLib()) {
+        DV_LOG(INFO) << "Failed to verify the DM lib: " << std::endl;
+        return retval;
+    }
 
-  DeviceManagement& dm = this->dmi_(devLayer_.get());
+    DeviceManagement& dm = this->dmi_(devLayer_.get());
 
-  auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint64_t>();
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
 
-  retval = dm.serviceRequest(0, code, input_buff, input_size, output_buff,
+    retval = dm.serviceRequest(0, code, input_buff, input_size, output_buff,
             output_size, hst_latency.get(), dev_latency.get(), 70000);
 
-  if (retval != DM_STATUS_SUCCESS) {
-    DV_LOG(INFO) << "Service request failed with return code: " << std::endl;
-    return retval;
-  }
+    if (retval != DM_STATUS_SUCCESS) {
+        DV_LOG(INFO) << "Service request failed with return code: " << std::hex << retval << std::endl;
+        return retval;
+    }
 
-  return 0;
+    return 0;
 }
 
 //Methods
@@ -95,9 +101,8 @@ void MinionDebugInterface::reset() {
 
 void MinionDebugInterface::stall() {
 
-    DV_LOG(INFO) << "MDI::stall.." << std::endl;
-    // By default this halts the Hart0.
-    this->selectHart(0,1);
+    DV_LOG(INFO) << "MDI::stall.." << "Shire ID:" << this->shire_id << "Thread Mask:" <<  this->thread_mask << std::endl;
+    this->selectHart(this->shire_id, this->thread_mask);
     this->haltHart();
     this->tgt_state = TGT_HALTED;
 }
@@ -112,13 +117,16 @@ void MinionDebugInterface::unstall() {
 
     DV_LOG(INFO) << "MDI::unstall.." << std::endl;
     this->resumeHart();
-    this->unselectHart(0,1);
+    this->unselectHart(this->shire_id,this->thread_mask);
     this->tgt_state = TGT_RUNNING;
 }
 
 bool MinionDebugInterface::isStalled() {
+    
+    /* TODO: Enable this once device bl is updated */
+    // this->tgt_state = mdi->hartStatus();
 
-    //DV_LOG(INFO) << "MDI::isStalled.." << std::endl;
+    //DV_LOG(INFO) << "MDI::isStalled.." << std::endl; 
     if(this->tgt_state != TGT_RUNNING){
         //DV_LOG(INFO) << "MDI::isStalled..true" << std::endl;
         return true;
@@ -133,21 +141,17 @@ void MinionDebugInterface::step() {
     struct mdi_ss_control_t mdi_cmd;
     uint32_t status;
 
-    mdi_cmd.shire_mask = 0; //TODO, logic to set current shire mask here
-    mdi_cmd.thread_mask = 0; //TODO, logic to set current thread mast here
+    mdi_cmd.shire_mask = this->shire_id; 
+    mdi_cmd.thread_mask = this->thread_mask; 
     mdi_cmd.flags = 0; //TODO, logic to set flags for single stepping
 
-#if ENABLE_DEBUG_LOGS
     DV_LOG(INFO) << "MDI::step.." << std::endl;
-#endif
 
     auto retval = invokeDmServiceRequest(DM_CMD_MDI_ENABLE_SINGLE_STEP,
         (char*) &mdi_cmd, sizeof(struct mdi_bp_control_t),
         (char*) &status, sizeof(uint32_t));
 
-#if ENABLE_DEBUG_LOGS
-    DV_LOG(INFO) << "MDI::insertBreakpoint.." << std::endl;
-#endif
+    DV_LOG(INFO) << "MDI::step instruction status" << status << std::endl;
 
 }
 
@@ -156,16 +160,18 @@ void MinionDebugInterface::insertBreakpoint(uint64_t addr) {
     struct mdi_bp_control_t mdi_cmd;
     uint32_t status;
 
-    mdi_cmd.hart_id = this->current_hart_; // assign current hart ID
+    mdi_cmd.hart_id = this->current_hart_;
     mdi_cmd.bp_address = addr;
-    mdi_cmd.mode = 0; //TODO, fix logic here, assign minion mode here
+    mdi_cmd.mode = device_mgmt_api::PRIV_MASK_PRIV_UMODE;
     mdi_cmd.flags = 0; //TODO, fix logic here, set flags to indicate set/insert break point
+
+    DV_LOG(INFO) << "MDI::insertBreakpoint Hart ID:" << mdi_cmd.hart_id << std::hex  << "BP address:" << mdi_cmd.bp_address << std::endl;
 
     auto retval = invokeDmServiceRequest(DM_CMD_MDI_SET_BREAKPOINT,
         (char*) &mdi_cmd, sizeof(struct mdi_bp_control_t),
         (char*) &status, sizeof(uint32_t));
 
-    DV_LOG(INFO) << "MDI::insertBreakpoint.." << std::endl;
+    DV_LOG(INFO) << "MDI::insertBreakpoint complete status:" << status << std::endl;
 }
 
 void MinionDebugInterface::removeBreakpoint(uint64_t addr) {
@@ -178,11 +184,13 @@ void MinionDebugInterface::removeBreakpoint(uint64_t addr) {
     mdi_cmd.mode = 0; //TODO, fix logic here, assign minion mode here
     mdi_cmd.flags = 0; //TODO, fix logic here, set flags to indicate unset/remove break point
 
+    DV_LOG(INFO) << "MDI::removeBreakpoint Hart ID:" << mdi_cmd.hart_id << std::hex << "BP addr:" << mdi_cmd.bp_address << std::endl;
+
     auto retval = invokeDmServiceRequest(DM_CMD_MDI_UNSET_BREAKPOINT,
         (char*) &mdi_cmd, sizeof(struct mdi_bp_control_t),
         (char*) &status, sizeof(uint32_t));
 
-    DV_LOG(INFO) << "MDI::removeBreakpoint.." << std::endl;
+    DV_LOG(INFO) << "MDI::removeBreakpoint complete status:" << status << std::endl;
 }
 
 uint64_t MinionDebugInterface::selectHart(std::uint64_t shire_id, std::uint64_t thread_mask) {
@@ -193,17 +201,13 @@ uint64_t MinionDebugInterface::selectHart(std::uint64_t shire_id, std::uint64_t 
     mdi_cmd.shire_id = shire_id;
     mdi_cmd.thread_mask = thread_mask;
 
-#if ENABLE_DEBUG_LOGS
     DV_LOG(INFO) << "MDI::selectHart ->" << "Shire ID: " << std::hex << mdi_cmd.shire_id << "Thread Mask: " << std::hex << mdi_cmd.thread_mask << std::endl;
-#endif
 
     auto retval = invokeDmServiceRequest(DM_CMD_MDI_SELECT_HART,
         (char*) &mdi_cmd, sizeof(struct mdi_hart_selection_t),
         (char*) &output_buff, sizeof(uint64_t));
 
-#if ENABLE_DEBUG_LOGS
     DV_LOG(INFO) << "Select Hart Status: " << std::hex << retval << std::endl;
-#endif
 }
 
 uint64_t MinionDebugInterface::unselectHart(std::uint64_t shire_id, std::uint64_t thread_mask) {
@@ -214,18 +218,13 @@ uint64_t MinionDebugInterface::unselectHart(std::uint64_t shire_id, std::uint64_
     mdi_cmd.shire_id = shire_id;
     mdi_cmd.thread_mask = thread_mask;
 
-#if ENABLE_DEBUG_LOGS
     DV_LOG(INFO) << "MDI::unselectHart ->" << "Shire ID: " << std::hex << mdi_cmd.shire_id << "Thread Mask: " << std::hex << mdi_cmd.thread_mask << std::endl;
-#endif
 
     auto retval = invokeDmServiceRequest(DM_CMD_MDI_UNSELECT_HART,
         (char*) &mdi_cmd, sizeof(struct mdi_hart_selection_t),
         (char*) &output_buff, sizeof(uint64_t));
 
-#if ENABLE_DEBUG_LOGS
     DV_LOG(INFO) << "UnSelect Hart Status: " << std::hex << retval << std::endl;
-#endif
-
 }
 
 void MinionDebugInterface::haltHart() {
@@ -234,18 +233,13 @@ void MinionDebugInterface::haltHart() {
     const uint32_t output_size = sizeof(uint64_t);
     char output_buff[output_size] = {0};
 
-#if ENABLE_DEBUG_LOGS
     DV_LOG(INFO) << "MDI::haltHart" << std::endl;
-#endif
 
     auto retval = invokeDmServiceRequest(DM_CMD_MDI_HALT_HART,
         (char*) &mdi_cmd, sizeof(struct mdi_hart_control_t),
         (char*) &output_buff, sizeof(uint32_t));
 
-#if ENABLE_DEBUG_LOGS
     DV_LOG(INFO) << "Halt Hart Complete" << std::endl;
-#endif
-
 }
 
 void MinionDebugInterface::resumeHart() {
@@ -254,142 +248,295 @@ void MinionDebugInterface::resumeHart() {
     const uint32_t output_size = sizeof(uint64_t);
     char output_buff[output_size] = {0};
 
-#if ENABLE_DEBUG_LOGS
     DV_LOG(INFO) << "MDI::resumeHart" << std::endl;
-#endif
 
     auto retval = invokeDmServiceRequest(DM_CMD_MDI_RESUME_HART,
         (char*) &mdi_cmd, sizeof(struct mdi_hart_control_t),
         (char*) &output_buff, sizeof(uint32_t));
 
-#if ENABLE_DEBUG_LOGS
     DV_LOG(INFO) << "Resume Hart Complete" << std::endl;
-#endif
-
 }
+
+uint32_t MinionDebugInterface::hartStatus() {
+
+    struct mdi_hart_control_t mdi_cmd;
+    uint32_t hart_status;
+    mdi_cmd.hart_id = this->current_hart_;
+
+    DV_LOG(INFO) << "MDI::hartStatus" << std::endl;
+
+    auto retval = invokeDmServiceRequest(DM_CMD_MDI_GET_HART_STATUS,
+        (char*) &mdi_cmd, sizeof(struct mdi_hart_control_t),
+        (char*) &hart_status, sizeof(uint32_t));
+
+    DV_LOG(INFO) << "MDI::hartStatus :" << hart_status << std::endl;
+
+    return hart_status;
+}
+
 
 uint64_t MinionDebugInterface::readReg(std::uint32_t num) {
 
-    struct mdi_gpr_read_t mdi_cmd;
-    uint64_t regval;
+   uint64_t regval=0;
+   if(num < RISCV_PC_INDEX){
+        struct mdi_gpr_read_t mdi_gpr_read;
+        mdi_gpr_read.hart_id = 0;    
+        mdi_gpr_read.gpr_index = num;
+ 
+        DV_LOG(INFO) << "Read GPR Reg ->" << "Hart ID: " << std::hex << mdi_gpr_read.hart_id << " GPR Index: " << std::hex << mdi_gpr_read.gpr_index << std::endl;
+ 
+        auto retval = invokeDmServiceRequest(DM_CMD_MDI_READ_GPR,
+            (char*) &mdi_gpr_read, sizeof(struct mdi_gpr_read_t),
+            (char*) &regval, sizeof(uint64_t));
+ 
+        DV_LOG(INFO) << "GPR Reg Value: " << std::hex << regval << std::endl;
+   } 
+   else 
+   {
+        struct mdi_csr_read_t mdi_csr_read;
+        mdi_csr_read.hart_id = 0;
+        mdi_csr_read.csr_name = num;
+ 
+        DV_LOG(INFO) << "Read CSR Reg ->" << "Hart ID: " << std::hex << mdi_csr_read.hart_id << " CSR Index: " << std::hex << mdi_csr_read.csr_name << std::endl;
+ 
+        auto retval = invokeDmServiceRequest(DM_CMD_MDI_READ_CSR,
+            (char*) &mdi_csr_read, sizeof(struct mdi_csr_read_t),
+            (char*) &regval, sizeof(uint64_t));
 
-    mdi_cmd.hart_id = 0;
-    mdi_cmd.gpr_index = num;
+        DV_LOG(INFO) << "CSR Reg Value: " << std::hex << regval << std::endl;
+   }
 
-#if ENABLE_DEBUG_LOGS
-    DV_LOG(INFO) << "MDI::readReg ->" << "Hart ID: " << std::hex << mdi_cmd.hart_id << " GPR Index: " << std::hex << mdi_cmd.gpr_index << std::endl;
-#endif
-
-    auto retval = invokeDmServiceRequest(DM_CMD_MDI_READ_GPR,
-        (char*) &mdi_cmd, sizeof(struct mdi_gpr_read_t),
-        (char*) &regval, sizeof(uint64_t));
-
-#if ENABLE_DEBUG_LOGS
-    DV_LOG(INFO) << "GPR Reg Value: " << std::hex << regval << std::endl;
-#endif
-
-    return regval;
-}
-
-uint64_t MinionDebugInterface::readCSRReg(std::uint32_t num) {
-
-    struct mdi_csr_read_t mdi_cmd;
-    uint64_t regval;
-
-    mdi_cmd.hart_id = 0;
-    mdi_cmd.csr_name = num;
-
-#if ENABLE_DEBUG_LOGS
-    DV_LOG(INFO) << "MDI::readReg ->" << "Hart ID: " << std::hex << mdi_cmd.hart_id << " CSR Index: " << std::hex << mdi_cmd.csr_name << std::endl;
-#endif
-
-    auto retval = invokeDmServiceRequest(DM_CMD_MDI_READ_CSR,
-        (char*) &mdi_cmd, sizeof(struct mdi_csr_read_t),
-        (char*) &regval, sizeof(uint64_t));
-
-#if ENABLE_DEBUG_LOGS
-    DV_LOG(INFO) << "CSR Reg Value: " << std::hex << regval << std::endl;
-#endif
-
-    return regval;
+   return regval;
 }
 
 void MinionDebugInterface::writeReg(std::uint32_t num, uint64_t value) {
 
-    struct mdi_gpr_write_t mdi_cmd;
     uint64_t dummy;
+    uint64_t tgt_value;
 
-    mdi_cmd.hart_id = 0;
-    mdi_cmd.data = value;
-    mdi_cmd.gpr_index = num;
+    tgt_value = this->uint64BytesSwap(value);
+    DV_LOG(INFO) << "MDI::writeReg ->" << " Reg num: " << num << "value: " << std::hex << value << std::endl;
+    
+    if(num < RISCV_PC_INDEX){
 
-#if ENABLE_DEBUG_LOGS
-    DV_LOG(INFO) << "MDI::writeReg ->" << " num: " << std::hex << num << "value: " << std::hex << value << std::endl;
-    DV_LOG(INFO) << "MDI::writeReg ->" << " GPR Index: " << std::hex << mdi_cmd.gpr_index << "Data: " << std::hex << mdi_cmd.data << std::endl;
-#endif
+        DV_LOG(INFO) << "GPR Write.." << std::endl;
+        struct mdi_gpr_write_t mdi_gpr_write;
+        mdi_gpr_write.hart_id = this->current_hart_;
+        mdi_gpr_write.data = tgt_value;
+        mdi_gpr_write.gpr_index = num;
 
-    auto retval = invokeDmServiceRequest(DM_CMD_MDI_WRITE_GPR,
-        (char*) &mdi_cmd, sizeof(struct mdi_gpr_write_t),
+        auto retval = invokeDmServiceRequest(DM_CMD_MDI_WRITE_GPR,
+        (char*) &mdi_gpr_write, sizeof(struct mdi_gpr_write_t),
         (char*) &dummy, sizeof(uint64_t));
+    } else {
+
+        DV_LOG(INFO) << "CSR Write.." << std::endl;
+        struct mdi_csr_write_t mdi_csr_write;
+
+        mdi_csr_write.hart_id = this->current_hart_;
+        mdi_csr_write.data = tgt_value;
+        mdi_csr_write.csr_name = num;
+
+        auto retval = invokeDmServiceRequest(DM_CMD_MDI_WRITE_CSR,
+        (char*) &mdi_csr_write, sizeof(struct mdi_csr_write_t),
+        (char*) &dummy, sizeof(uint64_t));
+
+    }
+    
+    DV_LOG(INFO) << "MDI::writeReg complete..";
 }
 
-int MinionDebugInterface::readMem(uint8_t *out, uint64_t addr, std::uint32_t len) {
 
+int MinionDebugInterface::readMem(uint8_t *out, uint64_t addr, std::uint32_t len) {
     struct mdi_mem_read_t mdi_cmd_req;
     mdi_cmd_req.address = addr;
-    mdi_cmd_req.size = len;
-    const uint32_t output_size = 8;
+    uint32_t output_size;
+    DV_LOG(INFO) << "MDI::readMem" << " ADDRESS: " << std::hex << mdi_cmd_req.address << " LENGTH: " << std::hex << len << std::endl;
+    
+    while (len >= MDI_MEM_READ_LENGTH_BYTES_8)
+    {
+        mdi_cmd_req.size = MDI_MEM_READ_LENGTH_BYTES_8;
+        DV_LOG(INFO) << "8 byte read ->" << " ADDRESS: " << std::hex << mdi_cmd_req.address << " LENGTH: " << std::hex << mdi_cmd_req.size << std::endl;
 
-#if ENABLE_DEBUG_LOGS
-     DV_LOG(INFO) << "MDI::readMem" << " ADDRESS: " << std::hex << mdi_cmd_req.address << " LENGTH: " << std::hex << mdi_cmd_req.size << std::endl;
- #endif
-    // TODO: Loop over length and check for retval status
-    auto retval = invokeDmServiceRequest(DM_CMD_MDI_READ_MEM,
-            (char*) &mdi_cmd_req, sizeof(mdi_cmd_req),
-            (char*) out, output_size);
+        auto retval = invokeDmServiceRequest(DM_CMD_MDI_READ_MEM,
+                (char*) &mdi_cmd_req, sizeof(mdi_cmd_req),
+                (char*) out, mdi_cmd_req.size);
 
-#if ENABLE_DEBUG_LOGS
-    DV_LOG(INFO) << "MDI::readMem.. completed " << std::endl;
-#endif
+        if (retval != DM_STATUS_SUCCESS){
+            return retval;
+        }
 
-    return retval;
+        mdi_cmd_req.address += MDI_MEM_READ_LENGTH_BYTES_8;
+        out += MDI_MEM_READ_LENGTH_BYTES_8;
+        len -= MDI_MEM_READ_LENGTH_BYTES_8;
+    }
+
+    while (len >= MDI_MEM_READ_LENGTH_BYTES_4)
+    {
+        mdi_cmd_req.size = MDI_MEM_READ_LENGTH_BYTES_4;
+        
+        DV_LOG(INFO) << "4 byte read ->" << " ADDRESS: " << std::hex << mdi_cmd_req.address << " LENGTH: " << std::hex << mdi_cmd_req.size << std::endl;
+
+        auto retval = invokeDmServiceRequest(DM_CMD_MDI_READ_MEM,
+                (char*) &mdi_cmd_req, sizeof(mdi_cmd_req),
+                (char*) out, mdi_cmd_req.size);
+
+        if (retval != DM_STATUS_SUCCESS){
+            return retval;
+        }
+
+        mdi_cmd_req.address += MDI_MEM_READ_LENGTH_BYTES_4;
+        out += MDI_MEM_READ_LENGTH_BYTES_4;
+        len -= MDI_MEM_READ_LENGTH_BYTES_4;
+    }
+
+    while (len >= MDI_MEM_READ_LENGTH_BYTES_2)
+    {
+        mdi_cmd_req.size = MDI_MEM_READ_LENGTH_BYTES_2;
+        
+        DV_LOG(INFO) << "2 byte read ->" << " ADDRESS: " << std::hex << mdi_cmd_req.address << " LENGTH: " << std::hex << mdi_cmd_req.size << std::endl;
+
+        auto retval = invokeDmServiceRequest(DM_CMD_MDI_READ_MEM,
+                (char*) &mdi_cmd_req, sizeof(mdi_cmd_req),
+                (char*) out, mdi_cmd_req.size);
+
+        if (retval != DM_STATUS_SUCCESS){
+            return retval;
+        }
+
+        mdi_cmd_req.address += MDI_MEM_READ_LENGTH_BYTES_2;
+        out += MDI_MEM_READ_LENGTH_BYTES_2;
+        len -= MDI_MEM_READ_LENGTH_BYTES_2;
+    }
+
+    while (len)
+    {
+        mdi_cmd_req.size = MDI_MEM_READ_LENGTH_BYTES_1;
+        
+        DV_LOG(INFO) << "1 byte read ->" << " ADDRESS: " << std::hex << mdi_cmd_req.address << " LENGTH: " 
+                     << std::hex << mdi_cmd_req.size << std::endl;
+
+        auto retval = invokeDmServiceRequest(DM_CMD_MDI_READ_MEM, (char*) &mdi_cmd_req, 
+                                             sizeof(mdi_cmd_req), (char*) out, mdi_cmd_req.size);
+
+        if (retval != DM_STATUS_SUCCESS){
+            return retval;
+        }
+
+        mdi_cmd_req.address += MDI_MEM_READ_LENGTH_BYTES_1;
+        out += MDI_MEM_READ_LENGTH_BYTES_1;
+        len -= MDI_MEM_READ_LENGTH_BYTES_1;
+    }
+
+    return 0;
 }
 
 int MinionDebugInterface::writeMem(uint8_t *src, uint64_t addr, std::uint32_t len) {
 
+    uint64_t status=0;
     struct mdi_mem_write_t mdi_cmd;
-    uint32_t status;
-
     mdi_cmd.address = addr;
-    mdi_cmd.size = sizeof(uint64_t);
 
-    // TODO:Loop needs to be fixed/optimized and check for writemem status
+     DV_LOG(INFO) << "MDI::writeMem" << " address: 0x" << std::hex << mdi_cmd.address << " len: " << std::hex << len << std::endl;
 
-    //Check the length of data to be written to memory
-    while((len) > sizeof(uint64_t)) {
+    /* If the addresses are 64-bit aligned */
+    if (!((mdi_cmd.address) & 0x7))
+    {
+        while (len >= MDI_MEM_WRITE_LENGTH_BYTES_8)
+        {
 
-    memcpy((char*)&mdi_cmd.data, src, sizeof(uint64_t));
+            DV_LOG(INFO) << "64 bit aligned" << " address: 0x" << std::hex << mdi_cmd.address << " len: " << std::hex << len << std::endl;
+            memcpy((char*)&mdi_cmd.data, src, sizeof(uint64_t));
+            mdi_cmd.size = sizeof(uint64_t);
+            auto retval = invokeDmServiceRequest(DM_CMD_MDI_WRITE_MEM, (char*) &mdi_cmd, sizeof(mdi_cmd),
+                                                (char*) &status, sizeof(uint64_t));
+            DV_LOG(INFO) << "DM retval:" << std::hex << retval << " status: " << std::hex << status << std::endl;
+            if (retval != DM_STATUS_SUCCESS){
+                return retval;
+            }
 
-    auto retval = invokeDmServiceRequest(DM_CMD_MDI_WRITE_MEM,
-        (char*) &mdi_cmd, sizeof(mdi_cmd),
-        (char*) &status, sizeof(uint64_t));
-
-    /* Adjust the remaining length and address */
-    len = len - sizeof(uint64_t);
-    mdi_cmd.address += sizeof(uint64_t);
-
+            if (status != DM_STATUS_SUCCESS) {
+                return status;
+            }
+            mdi_cmd.address += MDI_MEM_WRITE_LENGTH_BYTES_8;
+            len -= MDI_MEM_WRITE_LENGTH_BYTES_8;
+        }
     }
 
-    /* Write the remaining bytes of data */
-    if(len > 0){
+    /* If the addresses are 32-bit aligned */
+    if (!((mdi_cmd.address) & 0x3))
+    {
+        while (len >= MDI_MEM_WRITE_LENGTH_BYTES_4)
+        {
 
-    memcpy((char*)&mdi_cmd.data, src, len);
-    mdi_cmd.size = len;
+            DV_LOG(INFO) << "32 bit aligned" << " address: 0x" << std::hex << mdi_cmd.address << " len: " << std::hex << len << std::endl;
+            memcpy((char*)&mdi_cmd.data, src, sizeof(uint32_t));
+            mdi_cmd.size = sizeof(uint32_t);
+            auto retval = invokeDmServiceRequest(DM_CMD_MDI_WRITE_MEM, (char*) &mdi_cmd, sizeof(mdi_cmd),
+                                                (char*) &status, sizeof(uint64_t));
+            DV_LOG(INFO) << "DM retval:" << std::hex << retval << " status: " << std::hex << status << std::endl;
+            if (retval != DM_STATUS_SUCCESS){
+                return retval;
+            }
 
-    auto retval = invokeDmServiceRequest(DM_CMD_MDI_WRITE_MEM,
-        (char*) &mdi_cmd, sizeof(mdi_cmd),
-        (char*) &status, sizeof(uint64_t));
+            if (status != DM_STATUS_SUCCESS) {
+                return status;
+            }
+            mdi_cmd.address += MDI_MEM_WRITE_LENGTH_BYTES_4;
+            len -= MDI_MEM_WRITE_LENGTH_BYTES_4;
+        }
     }
+    /* If the addresses are 16-bit aligned */
+    else if (!((mdi_cmd.address) & 0x1))
+    {
+        while (len >= MDI_MEM_WRITE_LENGTH_BYTES_2)
+        {
+
+            DV_LOG(INFO) << "16 bit aligned writeMem" << " address: 0x" << std::hex << mdi_cmd.address << " len: " << std::hex << len << std::endl;
+            memcpy((char*)&mdi_cmd.data, src, sizeof(uint16_t));
+            mdi_cmd.size = sizeof(uint16_t);
+            auto retval = invokeDmServiceRequest(DM_CMD_MDI_WRITE_MEM, (char*) &mdi_cmd, sizeof(mdi_cmd),
+                                                (char*) &status, sizeof(uint64_t));
+            DV_LOG(INFO) << "DM retval:" << std::hex << retval << " status: " << std::hex << status << std::endl;
+            if (retval != DM_STATUS_SUCCESS){
+                return retval;
+            }
+
+            if (status != DM_STATUS_SUCCESS) {
+                return status;
+            }
+
+            mdi_cmd.address += MDI_MEM_WRITE_LENGTH_BYTES_2;
+            len -= MDI_MEM_WRITE_LENGTH_BYTES_2;
+        }
+    }
+
+    /* Write byte aligned data (if any) */
+    while (len)
+    {
+
+        DV_LOG(INFO) << "byte aligned" << " address: 0x" << std::hex << mdi_cmd.address << " len: " << std::hex << len << std::endl;
+        memcpy((char*)&mdi_cmd.data, src, sizeof(uint8_t));
+        mdi_cmd.size = sizeof(uint8_t);
+        auto retval = invokeDmServiceRequest(DM_CMD_MDI_WRITE_MEM, (char*) &mdi_cmd, sizeof(mdi_cmd),
+                                            (char*) &status, sizeof(uint64_t));
+        DV_LOG(INFO) << "DM retval:" << std::hex << retval << " status: " << std::hex << status << std::endl;
+
+        if (retval != DM_STATUS_SUCCESS){
+            return retval;
+        }
+
+        if (status != DM_STATUS_SUCCESS) {
+            return status;
+        }
+        
+        mdi_cmd.address += MDI_MEM_WRITE_LENGTH_BYTES_1;
+        len -= MDI_MEM_WRITE_LENGTH_BYTES_1;
+    }
+
+    DV_LOG(INFO) << "MDI::writeMem completed.." << std::endl;
+
+    return 0;
 }
 
 uint32_t MinionDebugInterface::pcRegNum() {
@@ -444,8 +591,26 @@ uint64_t MinionDebugInterface::htotl(uint64_t hostVal) {
     return hostVal;
 }
 
+uint64_t MinionDebugInterface::getShireID() {
+
+    return this->shire_id;
+}
+
+uint64_t MinionDebugInterface::getThreadMask() {
+
+    return this->thread_mask;
+}
+
+
 uint64_t MinionDebugInterface::ttohl(uint64_t targetVal) {
 
     //DV_LOG(INFO) << "MDI::ttohl.." << std::endl;
     return targetVal;
+}
+
+uint64_t MinionDebugInterface::uint64BytesSwap(uint64_t val)
+{
+    val = ((val << 8) & 0xFF00FF00FF00FF00ULL ) | ((val >> 8) & 0x00FF00FF00FF00FFULL );
+    val = ((val << 16) & 0xFFFF0000FFFF0000ULL ) | ((val >> 16) & 0x0000FFFF0000FFFFULL );
+    return (val << 32) | (val >> 32);
 }
