@@ -29,7 +29,7 @@ FW_MASTER_SDATA_SIZE = 0x400000; /* 4M */
 FW_WORKER_SDATA_BASE = S_DATA_REGION_BASE + FW_MASTER_SDATA_SIZE;
 FW_WORKER_SDATA_SIZE = 0x400000; /* 4M */
 
-/* All S-mode stacks are laid out at the end of the SDATA region */
-FW_SMODE_STACK_BASE = S_DATA_REGION_BASE + S_DATA_REGION_SIZE;
+/* All S-mode stacks are laid out at the end of the SDATA region with an offset of 4K from end */
+FW_SMODE_STACK_BASE = S_DATA_REGION_BASE + S_DATA_REGION_SIZE - 0x1000;
 FW_SMODE_STACK_SIZE =
     4096 + 64; /* (4K + 64B) stack * 2112 stacks = 8580KB. 64B is the scratch space. */
