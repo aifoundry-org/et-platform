@@ -1644,13 +1644,12 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
   char buff[BUFSIZ];
   ssize_t size = 0;
   int result = 0;
-  int mode = O_RDONLY | O_NONBLOCK;
   const int max_err_types = 11;
   std::string line;
   std::string err_types[max_err_types] = {
     "PCIe Correctable Error", "PCIe Un-Correctable Error", "DRAM Correctable Error",     "DRAM Un-Correctable Error",
-    "SRAM Correctable Error", "SRAM Un-Correctable Error", "Power Management IC Errors", "Compute Minion Exception",
-    "Compute Minion Hang",    "SP Runtime Error",          "SP Runtime Exception"};
+    "SRAM Correctable Error", "SRAM Un-Correctable Error", "Power Management IC Errors", "Minion Runtime Error",
+    "Minion Runtime Hang",    "SP Runtime Error",          "SP Runtime Exception"};
 
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
@@ -1661,8 +1660,9 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
     int err_count[max_err_types] = {0};
     result = 0;
     size = 0;
-    fd = open("/dev/kmsg", mode);
-    lseek(fd, 0, SEEK_END);
+    fd = open("/dev/kmsg", (O_RDONLY | O_NONBLOCK));
+    ASSERT_GE(fd, 0) << "Unable to read dmesg\n";
+    ASSERT_NE(lseek(fd, 0, SEEK_END), -1) << "Unable to lseek() dmesg end\n";
     DM_LOG(INFO) << "waiting for error events...\n";
 
     // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
@@ -1687,7 +1687,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
     EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
 
     DM_LOG(INFO) << "Response received from device, wait for printing\n";
-    sleep(10);
+    std::this_thread::sleep_for(std::chrono::seconds(5));
     DM_LOG(INFO) << "waiting done, starting events verification...\n";
 
     do {
@@ -1697,6 +1697,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
       } while (size < 0 && errno == EPIPE);
 
       line.assign(buff);
+
       for (i = 0; i < max_err_types; i++) {
         if (std::string::npos != line.find(err_types[i])) {
           err_count[i] += 1;
@@ -1708,8 +1709,9 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
     for (i = 0; i < max_err_types; i++) {
       DM_LOG(INFO) << "matched '" << err_types[i] << "' " << err_count[i] << " time(s)\n";
       if (err_count[i] > 0) {
-        result += err_count[i];
+        result++;
       }
+      EXPECT_GE(err_count[i], 1);
     }
 
     close(fd);

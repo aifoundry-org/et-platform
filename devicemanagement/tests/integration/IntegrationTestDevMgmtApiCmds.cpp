@@ -38,7 +38,7 @@ TEST_F(IntegrationTestDevMgmtApiCmds, serializeAccessMgmtNode) {
 }
 
 TEST_F(IntegrationTestDevMgmtApiCmds, getDeviceErrorEvents) {
-  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
+  if (getTestTarget() != Target::Loopback) {
     getDeviceErrorEvents(false /* Multiple devices */);
   } else {
     DM_LOG(INFO) << "Skipping the test since its not supported on current target";
