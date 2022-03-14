@@ -61,8 +61,6 @@
 #define MACHINE_EXTERNAL_INTERRUPT    11
 #define BUS_ERROR_INTERRUPT           23 /* ET specific interrupts */
 
-#define SUPERVISOR_PENDING_INTERRUPTS(sip) asm volatile("csrr %0, sip" : "=r"(sip))
-
 //                                   csr       |     rs1      |    funct3   | opcode
 #define INST_CSRRx_MASK ((0xFFFULL << 20) | (0x1f << 15) | (0x7 << 12) | (0x7f))
 
@@ -78,5 +76,6 @@
 #define SUPERVISOR_INTERRUPTS_DISABLE asm volatile("csrci sstatus, 0x2");
 #define SUPERVISOR_INTERRUPT_PENDING_CLEAR(int_code) \
     asm volatile("csrc sip, %0" : : "r"(1 << int_code));
-
+#define SUPERVISOR_PENDING_INTERRUPTS(sip)    asm volatile("csrr %0, sip" : "=r"(sip));
+#define SUPERVISROR_INTERRUPT_ENABLE_SET(int) asm volatile("csrs sie, %0" : : "r"(1 << int));
 #endif

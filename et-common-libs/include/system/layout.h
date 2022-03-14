@@ -155,12 +155,11 @@
 /*     - user                   - base-offset   - size                      */
 /*     Master FW sdata           0x8001000000    0x400000  (4M)      - BAR  */
 /*     Worker FW sdata           0x8001400000    0x400000  (4M)      NA     */
-/*     FW Boot Config            0x8001800000    0x40      (64B)     NA     */
-/*     CM-MM Message counter     0x8001800040    0x21000   (84K)     NA     */
-/*     CM SMode Trace CB         0x8001821040    0x20800   (82K)     NA     */
-/*     CM UMode Trace Config     0x8001841840    0x40      (64B)     NA     */
-/*     UNUSED                    0x8001841880    0x1F5C780 (31.36M)  NA     */
-/*     SMODE Stacks end          0x800379E000    0x8785920 (8580K)   NA     */
+/*     CM-MM Message counter     0x8001800000    0x21000   (132K)    NA     */
+/*     CM SMode Trace CB         0x8001821000    0x20800   (130K)    NA     */
+/*     CM UMode Trace Config     0x8001841800    0x40      (64B)     NA     */
+/*     UNUSED                    0x8001841840    0x1F5C7C0 (~31.36M) NA     */
+/*     SMODE Stacks end          0x800379E000    0x861000  (8580K)   NA     */
 /*     SMODE Stacks base         0x8003FFF000                        NA     */
 /****************************************************************************/
 
@@ -174,19 +173,15 @@
 #define FW_WORKER_SDATA_BASE                                (FW_MASTER_SDATA_BASE + FW_MASTER_SDATA_SIZE)
 #define FW_WORKER_SDATA_SIZE                                SIZE_4MB
 
-/* FW boot configuration */
-#define FW_MINION_FW_BOOT_CONFIG                            (FW_WORKER_SDATA_BASE + FW_WORKER_SDATA_SIZE)
-#define FW_MINION_FW_BOOT_CONFIG_SIZE                       SIZE_64B
-
 /* Master Minion and Worker Minion message counter. */
-#define CM_MM_HART_MESSAGE_COUNTER                          (FW_MINION_FW_BOOT_CONFIG + FW_MINION_FW_BOOT_CONFIG_SIZE)
+#define CM_MM_HART_MESSAGE_COUNTER                          (FW_WORKER_SDATA_BASE + FW_WORKER_SDATA_SIZE)
 #define CM_MM_HART_MESSAGE_COUNTER_SIZE                     (CM_MM_MESSAGE_COUNTER_SIZE * NUM_HARTS)
 
-/* CM SMODE Trace control block */
+/* CM S-mode Trace control block */
 #define CM_SMODE_TRACE_CB_BASEADDR                          (CM_MM_HART_MESSAGE_COUNTER + CM_MM_HART_MESSAGE_COUNTER_SIZE)
 #define CM_SMODE_TRACE_CB_SIZE                              (TRACE_CB_MAX_SIZE * CM_HART_COUNT)
 
-/* CM UMode Trace config region. */
+/* CM U-mode Trace config region. */
 #define CM_UMODE_TRACE_CFG_BASEADDR                         (CM_SMODE_TRACE_CB_BASEADDR + CM_SMODE_TRACE_CB_SIZE)
 #define CM_UMODE_TRACE_CFG_SIZE                             SIZE_64B
 

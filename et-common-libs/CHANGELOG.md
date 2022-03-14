@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (Conan) Use conan-common get_version_from_cmake_project
 ### Deprecated
 ### Removed
+- Removed FW boot config memory space
 ### Fixed
 - (Conan) Recipe compatible with Conan >= 1.46.0
 ### Security
