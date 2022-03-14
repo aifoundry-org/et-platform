@@ -57,13 +57,16 @@ void __attribute__((noreturn)) main(void)
     /* Setup supervisor trap vector */
     asm volatile("csrw  stvec, %0\n" : : "r"(&trap_handler));
 
-    /* Enable Supervisor software interrupts (IPI) and Bus Error interrupts
-    Also enable global interrupts (sstatus.SIE = 0) so that both S-mode and
-    U-mode intterupts will trap to trap handler */
+    /* Disable global interrupts (sstatus.SIE = 0) to not trap to trap handler.
+    But enable Supervisor Software Interrupts so that IPIs and bus error interrupts
+    trap when in U-mode
+    RISC-V spec:
+       "An interrupt i will be taken if bit i is set in both mip and mie,
+        and if interrupts are globally enabled." */
+    SUPERVISOR_INTERRUPTS_DISABLE
     asm volatile("csrs sie, %0\n"
                  :
                  : "r"((1 << SUPERVISOR_SOFTWARE_INTERRUPT) | (1 << BUS_ERROR_INTERRUPT)));
-    SUPERVISOR_INTERRUPTS_ENABLE
 
     /* Enable all available PMU counters to be sampled in U-mode */
     asm volatile("csrw scounteren, %0\n" : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));

@@ -30,6 +30,7 @@
 #include <etsoc/drivers/pmu/pmu.h>
 #include <system/layout.h>
 #include <transports/mm_cm_iface/message_types.h>
+#include <etsoc/isa/riscv_encoding.h>
 
 #include "syscall_internal.h"
 #include "cm_mm_defines.h"
@@ -609,15 +610,15 @@ static void kernel_launch_post_cleanup(
                                                               0xFFFFFFFFFFFFFFFFU;
     int8_t status;
 
+    /* Enable supervisor interrupts. Now the IPIs will trap to trap handler */
+    SUPERVISOR_INTERRUPTS_ENABLE
+
     /* Update Trace buffer header if Trace was enabled. */
     if (kernel->flags & KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
     {
         /* TODO: SW-9308: Once this is done, remove this update to Trace header. */
         Trace_Update_UMode_Buffer_Header();
     }
-
-    /* Reset the launched bit for the current thread */
-    kernel_info_reset_launched_thread(shire_id, thread_id);
 
     /* Kernel user error handling. If the return type is not success,
     set the kernel launch status as error */
@@ -693,6 +694,9 @@ static void kernel_launch_post_cleanup(
                 KERNEL_COMPLETE_STATUS_SUCCESS, exec_status);
         }
 
+        /* Disable Supervisor global interrupts just before sending msg (possibly) to MM */
+        SUPERVISOR_INTERRUPTS_DISABLE
+
         /* Last shire in kernel launch sends a complete message to MM */
         if ((prev_shire_mask & ~(1ULL << shire_id)) == 0)
         {
@@ -717,5 +721,10 @@ static void kernel_launch_post_cleanup(
                     "CM->MM:launch_complete:Unicast send failed! Error code: %d\n", status);
             }
         }
+    }
+    else
+    {
+        /* Disable Supervisor global interrupts since we will process the messages in WFI loop */
+        SUPERVISOR_INTERRUPTS_DISABLE
     }
 }

@@ -15,13 +15,17 @@ and by firmware (e.g. normal kernel completion, kernel abort) */
 int64_t return_from_kernel(int64_t return_value, uint64_t return_type)
 {
     const uint64_t thread_id = get_hart_id() & 63;
-    uint64_t prev_returned = kernel_info_set_thread_returned(get_shire_id(), thread_id);
+    const uint32_t shire_id = get_shire_id();
+    uint64_t prev_returned = kernel_info_set_thread_returned(shire_id, thread_id);
     (void)return_type; /* To avoid compiler warning */
 
     /* A Hart in specific kernel launch can only pass through return_from_kernel once */
     if (!((prev_returned >> thread_id) & 1))
     {
         uint64_t *firmware_sp;
+
+        /* Reset the launched bit for the current thread */
+        kernel_info_reset_launched_thread(shire_id, thread_id);
 
         asm volatile("csrr  %0, sscratch \n"
                      "addi  %0, %0, 8    \n"

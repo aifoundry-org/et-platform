@@ -16,6 +16,7 @@
 #include "syscall_internal.h"
 #include "trace.h"
 
+/* Internal data structures */
 typedef struct {
     cm_iface_message_number_t number;
 } __attribute__((aligned(64))) cm_iface_message_number_internal_t;
@@ -23,6 +24,7 @@ typedef struct {
 /* Helper macros */
 #define CURRENT_THREAD_MASK      ((0x1UL << (get_hart_id() % 64)))
 #define GET_SHIRE_MASK(shire_id) (1ULL << shire_id)
+#define GET_CM_INDEX(hart_id)    ((hart_id < 2048U) ? hart_id : (hart_id - 32U))
 #define MM_NOTIFY_ASYNC_MSG(shire_id, msg_header)            \
     {                                                        \
         if (!(msg_header.flags & CM_IFACE_FLAG_SYNC_CMD))    \
@@ -40,10 +42,9 @@ typedef struct {
         }                                                    \
     }
 
-/* MM -> CM message counters */
+/* MM -> CM global variables */
 #define mm_cm_msg_number ((cm_iface_message_number_internal_t *)CM_MM_HART_MESSAGE_COUNTER)
-static spinlock_t pre_msg_local_barrier[NUM_SHIRES] = { 0 };
-static spinlock_t msg_sync_local_barrier[NUM_SHIRES] = { 0 };
+static spinlock_t mm_cm_msg_read[NUM_SHIRES] = { 0 };
 
 /* MM -> CM message buffers */
 #define master_to_worker_broadcast_message_buffer_ptr \
@@ -53,22 +54,18 @@ static spinlock_t msg_sync_local_barrier[NUM_SHIRES] = { 0 };
 
 /* Local function prototypes */
 static void mm_to_cm_iface_handle_message(
-    uint32_t shire, uint64_t hart, cm_iface_message_t *const message_ptr, void *const optional_arg);
+    cm_iface_message_t *const message_ptr, void *const optional_arg);
 
 /* Finds the last shire involved in MM->CM message and notifies the MM */
 static inline void notify_mm(uint64_t shire_id)
 {
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
-    uint32_t thread_num = atomic_add_local_32(&pre_msg_local_barrier[shire_id].flag, 1U);
 
-    /* Last thread per shire decrements global counter */
-    if (thread_num == (thread_count - 1))
+    /* Last thread per shire clears the global shire bitmask */
+    if (atomic_add_local_32(&mm_cm_msg_read[shire_id].flag, 1U) == (thread_count - 1))
     {
-        /* Reset the pre msg local barrier flag */
-        init_local_spinlock(&pre_msg_local_barrier[shire_id], 0);
-
-        /* Reset the msg sync local barrier flag */
-        init_local_spinlock(&msg_sync_local_barrier[shire_id], 0);
+        /* Reset the MM-CM msg read counter */
+        init_local_spinlock(&mm_cm_msg_read[shire_id], 0);
 
         /* Clear bit for current shire to send msg acknowledgment to MM */
         atomic_and_global_64(
@@ -78,10 +75,13 @@ static inline void notify_mm(uint64_t shire_id)
 
 void MM_To_CM_Iface_Init(void)
 {
-    const uint32_t hart_id = get_hart_id();
+    const uint32_t thread_idx = GET_CM_INDEX(get_hart_id());
 
-    /* Initialize the MM-CM message counter to zero */
-    mm_cm_msg_number[hart_id].number = 0U;
+    /* Initialize the globals to zero */
+    mm_cm_msg_number[thread_idx].number = 0U;
+
+    /* Reset the MM-CM msg read counter */
+    init_local_spinlock(&mm_cm_msg_read[get_shire_id()], 0);
 }
 
 void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
@@ -92,14 +92,6 @@ void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
 
     for (;;)
     {
-        /* Fast path: Disable supervisor interrupts and wake up from WFI to
-        check the pending interrupt and process msg from MM.
-        Disabling global interrupts will not trap the interrupts.
-        According to RISC-V spec:
-            "An interrupt i will be taken if bit i is set in both mip and mie,
-            and if interrupts are globally enabled." */
-        SUPERVISOR_INTERRUPTS_DISABLE
-
         /* Wait for an interrupt */
         WFI
 
@@ -114,11 +106,6 @@ void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
             M-mode already cleared the MSIP (Machine Software Interrupt Pending)
             Clear Supervisor Software Interrupt Pending (SSIP) */
             SUPERVISOR_INTERRUPT_PENDING_CLEAR(SUPERVISOR_SOFTWARE_INTERRUPT)
-
-            /* Slow path: Enable supervisor interrupts after clearing the pending interrupt.
-            Now the IPIs will trap to tap handler when the hart is running in S-mode as well.
-            This will allow us to wake the hart from MM if its not responding in S-mode. */
-            SUPERVISOR_INTERRUPTS_ENABLE
 
             /* Receive and process message buffer */
             MM_To_CM_Iface_Multicast_Receive(0);
@@ -137,24 +124,23 @@ void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
 
 void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
 {
-    const uint32_t shire_id = get_shire_id();
-    const uint32_t hart_id = get_hart_id();
+    const uint32_t thread_idx = GET_CM_INDEX(get_hart_id());
     cm_iface_message_t *message = master_to_worker_broadcast_message_buffer_ptr;
 
     /* Evict stale line from L1D */
     ETSOC_MEM_EVICT(message, sizeof(cm_iface_message_t), to_L2)
 
     /* Check for pending MM->CM message */
-    if (message->header.number != mm_cm_msg_number[hart_id].number)
+    if (message->header.number != mm_cm_msg_number[thread_idx].number)
     {
         /* Update the global copy of read messages */
-        mm_cm_msg_number[hart_id].number = message->header.number;
+        mm_cm_msg_number[thread_idx].number = message->header.number;
 
         Log_Write(LOG_LEVEL_DEBUG, "MM->CM:Msg received:msg_id:%d:msg_num:%d\r\n",
             message->header.id, message->header.number);
 
         /* Handle the message */
-        mm_to_cm_iface_handle_message(shire_id, hart_id, message, optional_arg);
+        mm_to_cm_iface_handle_message(message, optional_arg);
     }
     else
     {
@@ -164,9 +150,11 @@ void MM_To_CM_Iface_Multicast_Receive(void *const optional_arg)
 }
 
 static void mm_to_cm_iface_handle_message(
-    uint32_t shire, uint64_t hart, cm_iface_message_t *const message_ptr, void *const optional_arg)
+    cm_iface_message_t *const message_ptr, void *const optional_arg)
 {
     cm_iface_message_header_t msg_header = message_ptr->header;
+    const uint32_t shire = get_shire_id();
+    const uint32_t hart = get_hart_id();
 
     switch (msg_header.id)
     {
@@ -379,7 +367,7 @@ static void mm_to_cm_iface_handle_message(
             int32_t status = CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
                 CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (const cm_iface_message_t *)&message);
 
-            if (status == STATUS_SUCCESS)
+            if (status != STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_ERROR, "CM->MM:Unicast send failed! Error code: %d\n", status);
             }
