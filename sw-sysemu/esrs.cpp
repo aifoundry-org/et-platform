@@ -230,6 +230,8 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
         if (msregion == ESR_DDRC_REGION) {
             uint64_t esr = addr2 & ESR_SHIRE_ESR_MASK;
             switch (esr) {
+                case ESR_DDRC_U0_MRR_DATA:
+                case ESR_DDRC_U1_MRR_DATA:
                 case ESR_MEM_SHIRE_PERF0_QUAL:
                 case ESR_MEM_SHIRE_PERF1_QUAL:
                 case ESR_MEM_SHIRE_PERF0_QUAL2:
@@ -596,6 +598,8 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
         if (msregion == ESR_DDRC_REGION) {
             uint64_t esr = addr2 & ESR_SHIRE_ESR_MASK;
             switch (esr) {
+                case ESR_DDRC_U0_MRR_DATA:
+                case ESR_DDRC_U1_MRR_DATA:
                 case ESR_MEM_SHIRE_PERF0_QUAL:
                 case ESR_MEM_SHIRE_PERF1_QUAL:
                 case ESR_MEM_SHIRE_PERF0_QUAL2:
