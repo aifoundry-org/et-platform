@@ -97,13 +97,11 @@ uint64_t kernel_launch_get_pending_shire_mask(void);
 */
 bool kernel_launch_set_global_abort_flag(void);
 
-/*! \fn int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel,
-            uint64_t kernel_stack_addr)
+/*! \fn int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
     \brief Function used to launch kernel with the given parameters.
-    \param kernel Kernel parameters og the kernel to be launched.
-    \param kernel_stack_addr Address of the kernel stack
+    \param kernel Parameters of the kernel to be launched.
     \return Success or error
 */
-int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_stack_addr);
+int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel);
 
 #endif

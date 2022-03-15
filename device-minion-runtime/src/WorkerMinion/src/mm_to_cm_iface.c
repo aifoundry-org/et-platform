@@ -182,9 +182,8 @@ static void mm_to_cm_iface_handle_message(
                 /* Notify MM after copying the msg locally */
                 MM_NOTIFY_ASYNC_MSG(shire, msg_header)
 
-                uint64_t kernel_stack_addr =
-                    KERNEL_UMODE_STACK_BASE - (hart * KERNEL_UMODE_STACK_SIZE);
-                rv = launch_kernel(kernel, kernel_stack_addr);
+                /* Launch the kernel in U-mode */
+                rv = launch_kernel(kernel);
             }
             else
             {

@@ -115,6 +115,7 @@ processed_source:
     ld    x28, 28 * 8(sp)
     ld    x29, 29 * 8(sp)
     ld    x30, 30 * 8(sp)
+    ld    x31, 31 * 8(sp)
 
     /* Stack pointer (x2) is the last register to be restored */
     ld    x2,   2 * 8(sp)

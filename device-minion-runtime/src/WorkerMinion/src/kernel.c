@@ -298,11 +298,13 @@ static inline void kernel_check_tensor_errors(uint32_t shire_id, uint32_t hart_i
     }
 }
 
-int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_stack_addr)
+int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
 {
     uint64_t *firmware_sp;
     uint64_t return_type;
     int64_t return_value;
+    uint64_t hart_id = get_hart_id();
+    uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart_id * KERNEL_UMODE_STACK_SIZE);
     bool kernel_last_thread;
 
     asm volatile("csrr  %0, sscratch \n"
@@ -316,7 +318,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel, uint64_t kernel_s
         &pre_launch_global_barrier, (uint32_t)__builtin_popcountll(kernel.shire_mask));
 
     /* Set the thread state to kernel launched */
-    kernel_info_set_thread_launched(get_shire_id(), get_hart_id() & (HARTS_PER_SHIRE - 1));
+    kernel_info_set_thread_launched(get_shire_id(), hart_id & (HARTS_PER_SHIRE - 1));
 
     /* Last thread in kernel launch sets the kernel launch global flag for MM */
     if (kernel_last_thread)

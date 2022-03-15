@@ -49,18 +49,14 @@ uint64_t trap_routine(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t *
     else if ((mcause & 0xFF) == BUS_ERROR_INTERRUPT)
     {
         uint64_t mbusaddr;
-        uint64_t mbuspc;
 
         /* Clear the bus error interrupt */
         asm volatile("csrc mip, %0" : : "r"(1 << BUS_ERROR_INTERRUPT));
 
         /* Read the address and PC that caused the bus error */
-        __asm__ __volatile__("csrr %0, 0x7d5\n"
-                             "csrr %1, 0x7d6\n"
-                             : "=r"(mbusaddr), "=r"(mbuspc));
+        __asm__ __volatile__("csrr %0, mbusaddr" : "=r"(mbusaddr));
 
-        /* TODO: Need to log mbusaddr and mbuspc to trace.
-        There is no trace support for M-mode right now */
+        /* TODO: Need to log mbusaddr to trace. There is no trace support for M-mode right now */
     }
     else
     { /* Unhandled exception */
