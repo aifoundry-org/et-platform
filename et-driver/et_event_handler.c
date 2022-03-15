@@ -582,12 +582,12 @@ int et_handle_device_event(struct et_cqueue *cq,
 		dbg_msg.desc = "Power Management IC Errors";
 		parse_pmic_syndrome(event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_API_MID_CM_ETH_EVENT:
-		dbg_msg.desc = "Compute Minion Exception";
+	case DEV_MGMT_API_MID_MINION_RUNTIME_ERROR_EVENT:
+		dbg_msg.desc = "Minion Runtime Error";
 		parse_cm_err_syndrome(event_msg, &dbg_msg);
 		break;
-	case DEV_MGMT_API_MID_CM_HTH_EVENT:
-		dbg_msg.desc = "Compute Minion Hang";
+	case DEV_MGMT_API_MID_MINION_RUNTIME_HANG_EVENT:
+		dbg_msg.desc = "Minion Runtime Hang";
 		parse_cm_err_syndrome(event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_THROTTLE_TIME_EVENT:

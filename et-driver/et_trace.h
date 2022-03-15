@@ -28,9 +28,9 @@ enum trace_type { TRACE_TYPE_EXCEPTION = 10 };
  */
 struct trace_entry_header {
 	u64 cycle; /* Current cycle */
-	u32 hart_id; /* Hart ID of the Hart which is logging Trace */
+	u32 payload_size; /**< Size of the event payload following the entry header */
+	u16 hart_id; /* Hart ID of the Hart which is logging Trace */
 	u16 type; /* One of enum trace_type */
-	u8 pad[2]; /* To keep natural alignment for memory operations. */
 } __packed;
 
 /*
