@@ -111,7 +111,8 @@ static void dm_event_task_entry(void *pvParameters)
     while (1) {
         /* block until a message is received */
         if (xQueueReceive(q_handle, &msg, portMAX_DELAY) == pdTRUE) {
-            Log_Write(LOG_LEVEL_INFO, "DM event received: %s\n",__func__);
+            Log_Write(LOG_LEVEL_INFO, "DM event received: msg_id: %d, %s\n",
+                      msg.header.msg_id, __func__);
             status = SP_Host_Iface_CQ_Push_Cmd((void *)&msg, sizeof(msg));
             if (status) {
                 Log_Write(LOG_LEVEL_ERROR, "dm_event_handler_task_error :  push to CQ failed!\n");
@@ -131,7 +132,7 @@ void pcie_event_callback(enum error_type type, struct event_message_t *msg)
             g_max_error_count.pcie_uce_max_count = error_count;
     }
 
-    /* Post message to the queue */
+    /* Post message to the queue - must be called from ISR context */
     xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
 }
 
@@ -147,7 +148,7 @@ void sram_event_callback(enum error_type type, struct event_message_t *msg)
             g_max_error_count.sram_uce_max_count = error_count;
     }
 
-    /* Post message to the queue */
+    /* Post message to the queue - must be called from ISR context */
     xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
 }
 
@@ -163,7 +164,7 @@ void ddr_event_callback(enum error_type type, struct event_message_t *msg)
             g_max_error_count.ddr_uce_max_count = error_count;
     }
 
-    /* Post message to the queue */
+    /* Post message to the queue - must be called from ISR context */
     xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
 }
 
@@ -171,7 +172,7 @@ void power_event_callback(enum error_type type, struct event_message_t *msg)
 {
     (void)type;
 
-    /* Post message to the queue */
+    /* Post message to the queue - must be called from task context */
     xQueueSend(q_handle, msg, portMAX_DELAY);
 }
 
@@ -181,7 +182,7 @@ void wdog_timeout_callback(enum error_type type, struct event_message_t *msg)
         //TODO: Handle wdog timeouts
          (void) type;
     } else {
-       /* Post message to the queue */
+       /* Post message to the queue - must be called from ISR context */
        xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
     }
 }
@@ -189,7 +190,7 @@ void wdog_timeout_callback(enum error_type type, struct event_message_t *msg)
 void minion_event_callback(enum error_type type, struct event_message_t *msg)
 {
     (void)type;
-    /* Post message to the queue */
+    /* Post message to the queue - must be called from task context */
     xQueueSend(q_handle, msg, portMAX_DELAY);
 }
 
@@ -198,6 +199,16 @@ void pmic_event_callback(enum error_type type, struct event_message_t *msg)
     //Type is always uncorectable, maybe it will be changed in the future
     (void)type;
 
-    /* Post message to the queue */
+    /* Post message to the queue - must be called from ISR context */
     xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
 }
+
+#ifdef TEST_EVENT_GEN
+
+void generate_test_event(const struct event_message_t *msg)
+{
+    /* Post message to the queue - must be called from task context */
+    xQueueSend(q_handle, msg, portMAX_DELAY);
+}
+
+#endif

@@ -62,8 +62,9 @@ void pmic_event_callback(enum error_type type, struct event_message_t *msg);
 #define TEST_EVENT_GEN
 #ifdef TEST_EVENT_GEN
 
-/* resume events generation teask */
+/* resume events generation task */
 void start_test_events(tag_id_t tag_id, msg_id_t msg_id);
+void generate_test_event(const struct event_message_t *msg);
 #endif
 
 #endif
