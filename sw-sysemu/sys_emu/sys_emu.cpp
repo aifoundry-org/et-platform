@@ -376,7 +376,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     chip.cold_reset_memshire();
 
     // Configure the simulation parameters
-    for (unsigned shire = 0; shire < EMU_NUM_COMPUTE_SHIRES; ++shire) {
+    for (unsigned shire = 0; shire < EMU_NUM_MINION_SHIRES; ++shire) {
         if (((cmd_options.shires_en >> shire) & 1) == 0) {
             chip.config_simulated_harts(shire, 0, false, false);
             continue;
