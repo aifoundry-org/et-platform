@@ -171,7 +171,7 @@ DeviceSysEmu::DeviceSysEmu(const emu::SysEmuOptions& options) {
 }
 
 DeviceSysEmu::~DeviceSysEmu() {
-  DV_LOG(INFO) << "Destroying DeviceSysEmu.";
+  DV_LOG(INFO) << "Destroying DeviceSysEmu. Sysemu ptr: " << sysEmu_.get();
   isRunning_ = false;
   DV_LOG(INFO) << "Stopping sysemu.";
   sysEmu_.reset();
@@ -221,6 +221,7 @@ bool DeviceSysEmu::sendCommand(QueueInfo& queueInfo, std::byte* command, size_t 
     clearEvent = false;
   }
 
+  DV_VLOG(LOW) << "Command sent. Sysemu ptr: " << sysEmu_.get();
   return true;
 }
 
