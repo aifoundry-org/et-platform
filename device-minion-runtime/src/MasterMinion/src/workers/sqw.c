@@ -211,7 +211,6 @@ void SQW_Notify(uint8_t sqw_idx)
 *       sqw_idx         Submission Queue Worker index
 *       vq_cached       VQ cached local pointer
 *       vq_shared       VQ shared SRAM pointer
-*       start_cycles    Command processing start cycles
 *       shared_mem_ptr  Shared memory pointer of VQ
 *       vq_used_space   Total number of data bytes to process
 *
@@ -221,13 +220,14 @@ void SQW_Notify(uint8_t sqw_idx)
 *
 ***********************************************************************/
 static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_cached,
-    vq_cb_t *vq_shared, uint64_t start_cycles, void *shared_mem_ptr, uint64_t vq_used_space)
+    vq_cb_t *vq_shared, void *shared_mem_ptr, uint64_t vq_used_space)
 {
     uint8_t *cmd_buff = (uint8_t *)(MM_SQ_PREFETCHED_BUFFER_BASEADDR + sqw_idx * MM_SQ_SIZE_MAX);
     const struct cmd_header_t *cmd_hdr;
     uint32_t cmd_buff_idx = 0;
     int32_t pop_ret_val;
     int32_t status;
+    uint64_t start_cycles = PMC_Get_Current_Cycles();
 
     /* Create a shadow copy of data from SQ to L2 SCP */
     status = VQ_Prefetch_Buffer(vq_cached, vq_used_space, shared_mem_ptr, cmd_buff);
@@ -318,7 +318,6 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
 void SQW_Launch(uint32_t sqw_idx)
 {
     uint64_t tail_prev;
-    uint64_t start_cycles = 0;
     void *shared_mem_ptr;
     circ_buff_cb_t circ_buff_cached __attribute__((aligned(64)));
     vq_cb_t vq_cached;
@@ -368,15 +367,12 @@ void SQW_Launch(uint32_t sqw_idx)
         /* Wait for SQ Worker notification from Dispatcher */
         local_fcc_flag_wait(&SQW_CB.sqw_fcc_flags[sqw_idx]);
 
+        Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:received FCC event!\r\n", sqw_idx);
+
         /* Update the SQW state to busy */
         atomic_store_local_32(&SQW_CB.sqw_status[sqw_idx].state, SQW_STATE_BUSY);
 
         Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:State Busy\r\n", sqw_idx);
-
-        /* Get current minion cycle */
-        start_cycles = PMC_Get_Current_Cycles();
-
-        Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:received FCC event!\r\n", sqw_idx);
 
         /* Get the cached tail pointer */
         tail_prev = VQ_Get_Tail_Offset(&vq_cached);
@@ -405,7 +401,7 @@ void SQW_Launch(uint32_t sqw_idx)
         {
             /* Process the pending commands */
             sqw_process_waiting_commands(
-                sqw_idx, &vq_cached, vq_shared, start_cycles, shared_mem_ptr, vq_used_space);
+                sqw_idx, &vq_cached, vq_shared, shared_mem_ptr, vq_used_space);
 
             /* In case of SQW aborted state, we need to read the shared copy of head and tail
             again to make sure that all the commands in VQ are processed and aborted. */
