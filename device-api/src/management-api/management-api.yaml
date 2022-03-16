@@ -657,6 +657,9 @@ Modules:
         - Name: mode 
           Description: Minion mode
           Type: uint64_t
+        - Name: bp_event_wait_timeout 
+          Description: Wait time(in ms) for BP to be hit
+          Type: uint64_t
         - Name: flags
           Description: Flags that indicate BP action, set/unset/etc
           Type: uint64_t
