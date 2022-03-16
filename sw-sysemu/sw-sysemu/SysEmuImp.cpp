@@ -105,7 +105,7 @@ void logSysEmuOptions(const sys_emu_cmd_options& options) {
   SE_LOG(INFO) << "************************************************************************************\n";
 }
 
-void runMain(const sys_emu_cmd_options& opts, api_communicate* comm, std::exception_ptr* error) {
+void runMain(sys_emu_cmd_options opts, api_communicate* comm, std::exception_ptr* error) {
   try {
     SE_LOG(INFO) << "Starting sysemu thread " << std::this_thread::get_id();
     logSysEmuOptions(opts);
@@ -381,10 +381,12 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   if (!options.additionalOptions.empty()) {
     std::vector<const char*> extraOptions;
     extraOptions.emplace_back("dummyExecName");
-    for (auto&& opt : options.additionalOptions) {
+    for (auto& opt : options.additionalOptions) {
       extraOptions.emplace_back(opt.c_str());
     }
     auto parsed = sys_emu::parse_command_line_arguments(extraOptions.size(), const_cast<char**>(extraOptions.data()));
+    optind = 0; // need to reset global variable optind because above function uses getopt_long. See
+                // https://linux.die.net/man/3/getopt_long
     if (!std::get<0>(parsed)) {
       throw Exception("Error parsing SysEmu arguments");
     }
