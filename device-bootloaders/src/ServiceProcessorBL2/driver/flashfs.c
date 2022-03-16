@@ -465,18 +465,24 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
         if (0 != flash_fs_scan_partition(partition_size, &flash_fs_bl2_info->partition_info[n]))
         {
             Log_Write(LOG_LEVEL_ERROR, "Partition %u seems corrupted.\n", n);
-            flash_fs_bl2_info->partition_info[n].partition_valid = false;
+        }
+        /* test if the critical required files are present in the partition */
+        else if (INVALID_REGION_INDEX ==
+                flash_fs_bl2_info->partition_info[n].dram_training_region_index)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "DRAM training data not found!\n");
         }
         else
         {
-            /* test if the critical required files are present in the partition */
-            if (INVALID_REGION_INDEX ==
-                flash_fs_bl2_info->partition_info[n].dram_training_region_index)
-            {
-                Log_Write(LOG_LEVEL_ERROR, "DRAM training data not found!\n");
-                flash_fs_bl2_info->partition_info[n].partition_valid = false;
-            }
+            continue;
         }
+
+        flash_fs_bl2_info->partition_info[n].partition_valid = false;
+        if (flash_fs_bl2_info->other_partition_valid == 1 && flash_fs_bl2_info->active_partition == n) {
+            flash_fs_bl2_info->active_partition = 1 - n;
+            Log_Write(LOG_LEVEL_CRITICAL, "Partition %u is now the active partition.\n", 1 - n);
+        }
+        flash_fs_bl2_info->other_partition_valid = 0;
     }
 
     if (false ==

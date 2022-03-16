@@ -119,16 +119,21 @@ int flash_fs_init(FLASH_FS_BL1_INFO_t *flash_fs_bl1_info)
             printx("Partition %u is not valid, skipping\n", n);
             continue;
         }
+
         if (0 != flash_fs_scan_partition(partition_size, &flash_fs_bl1_info->partition_info[n])) {
             printx("Partition %u seems corrupted.\n", n);
-            flash_fs_bl1_info->partition_info[n].partition_valid = false;
+        } else if (INVALID_REGION_INDEX == flash_fs_bl1_info->partition_info[n].sp_bl2_region_index) {
+            printx("sp bl2 not found!\n");
         } else {
-            // test if the critical required files are present in the partition
-            if (INVALID_REGION_INDEX == flash_fs_bl1_info->partition_info[n].sp_bl2_region_index) {
-                printx("sp bl2 not found!\n");
-                flash_fs_bl1_info->partition_info[n].partition_valid = false;
-            }
+            continue;
         }
+
+        flash_fs_bl1_info->partition_info[n].partition_valid = false;
+        if (flash_fs_bl1_info->other_partition_valid == 1 && flash_fs_bl1_info->active_partition == n) {
+            flash_fs_bl1_info->active_partition = 1 - n;
+            printx("Partition %u is now the active partition.\n", 1 - n);
+        }
+        flash_fs_bl1_info->other_partition_valid = 0;
     }
 
     if (false ==
