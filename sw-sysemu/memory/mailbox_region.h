@@ -325,7 +325,11 @@ struct MailboxRegion : public MemoryRegion, public IMailboxInterrupts
             default_value(result, n, agent.chip->memory_reset_value, pos);
             return;
         }
-        elem->read(agent, pos - elem->first(), n, result);
+        try {
+            elem->read(agent, pos - elem->first(), n, result);
+        } catch (const memory_error&) {
+            throw memory_error(first() + pos);
+        }
     }
 
     void write(const Agent& agent, size_type pos, size_type n, const_pointer source) override {
