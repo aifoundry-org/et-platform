@@ -18,7 +18,7 @@ extern QueueHandle_t q_dm_mdi_bp_notify_handle;
 static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
                                  int32_t status)
 {
-    struct device_mgmt_default_rsp_t dm_rsp = {0};
+    struct device_mgmt_default_rsp_t dm_rsp = { 0 };
 
     Log_Write(LOG_LEVEL_INFO, "MDI Response: %s\n", __func__);
 
@@ -38,7 +38,7 @@ static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_
 static void send_mdi_hart_selection_response(tag_id_t tag_id, msg_id_t msg_id,
                                              uint64_t req_start_time, int32_t status)
 {
-    struct mdi_hart_selection_rsp_t mdi_rsp = {0};
+    struct mdi_hart_selection_rsp_t mdi_rsp = { 0 };
 
     Log_Write(LOG_LEVEL_INFO, "MDI Response: %s\n", __func__);
 
@@ -60,7 +60,7 @@ static void send_mdi_hart_selection_response(tag_id_t tag_id, msg_id_t msg_id,
 static void send_mdi_hart_control_response(tag_id_t tag_id, msg_id_t msg_id,
                                            uint64_t req_start_time, int32_t status)
 {
-    struct mdi_hart_control_rsp_t mdi_rsp = {0};
+    struct mdi_hart_control_rsp_t mdi_rsp = { 0 };
 
     Log_Write(LOG_LEVEL_INFO, "MDI Response: %s\n", __func__);
 
@@ -79,7 +79,7 @@ static void send_mdi_hart_control_response(tag_id_t tag_id, msg_id_t msg_id,
 static void send_mdi_bp_control_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
                                          int32_t status)
 {
-    struct mdi_bp_control_rsp_t mdi_rsp = {0};
+    struct mdi_bp_control_rsp_t mdi_rsp = { 0 };
 
     Log_Write(LOG_LEVEL_INFO, "MDI Response: %s\n", __func__);
 
@@ -101,7 +101,7 @@ static void send_mdi_bp_control_response(tag_id_t tag_id, msg_id_t msg_id, uint6
 static void send_mdi_ss_control_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
                                          int32_t status)
 {
-    struct mdi_ss_control_rsp_t mdi_rsp = {0};
+    struct mdi_ss_control_rsp_t mdi_rsp = { 0 };
 
     Log_Write(LOG_LEVEL_INFO, "MDI Response: %s\n", __func__);
 
@@ -133,7 +133,7 @@ static void mdi_select_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start
             Select_Harts((uint8_t)mdi_cmd_req->cmd_attr.shire_id, neigh_id);
         }
     }
-    
+
     /* MDI lib function does not return status for Select/Unselect Hart operation. 
         Sending success status by default in response */
     send_mdi_hart_selection_response(tag_id, msg_id, req_start_time, status);
@@ -232,22 +232,23 @@ static void mdi_set_breakpoint(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_st
                                void *buffer)
 {
     int32_t status = SUCCESS;
-    struct device_mgmt_mdi_bp_event_t event;
-    const struct mdi_bp_control_cmd_t *mdi_cmd_req = (struct mdi_bp_control_cmd_t *)buffer;
+    struct mdi_bp_control_cmd_t *mdi_cmd_req = (struct mdi_bp_control_cmd_t *)buffer;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_SET_BREAKPOINT\n");
 
-    Log_Write(LOG_LEVEL_INFO, "Hart ID: %ld, BP Address: %lx, Mode:%ld\n",
+    Log_Write(LOG_LEVEL_INFO, "Hart ID: %ld, BP Address: %lx, Mode:%ld  Timeout: %ld\n",
               mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.bp_address,
-              mdi_cmd_req->cmd_attr.mode);
+              mdi_cmd_req->cmd_attr.mode, mdi_cmd_req->cmd_attr.bp_event_wait_timeout);
 
     Set_PC_Breakpoint(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.bp_address,
                       mdi_cmd_req->cmd_attr.mode);
-
+ 
     /* Send BP Halt success/failure event to host */
-    xQueueSend(q_dm_mdi_bp_notify_handle, &event, portMAX_DELAY);
+    xQueueSend(q_dm_mdi_bp_notify_handle, (void*)mdi_cmd_req, portMAX_DELAY);
 
+    /* Send MDI Set BP cmd response */
     send_mdi_bp_control_response(tag_id, msg_id, req_start_time, status);
+
 }
 
 static void mdi_unset_breakpoint(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
@@ -300,8 +301,8 @@ static void mdi_read_gpr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
     if (mdi_cmd_req->cmd_attr.gpr_index < NO_OF_GPR_REGS)
     {
         mdi_rsp.data = Read_GPR(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.gpr_index);
-        Log_Write(LOG_LEVEL_INFO, "GPR Index:%x, GPR value:%lx\n",
-                  mdi_cmd_req->cmd_attr.gpr_index, mdi_rsp.data);
+        Log_Write(LOG_LEVEL_INFO, "GPR Index:%x, GPR value:%lx\n", mdi_cmd_req->cmd_attr.gpr_index,
+                  mdi_rsp.data);
     }
     else
     {
@@ -416,8 +417,8 @@ static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
         status = ETSOC_Memory_Read_Write_Cacheable((const void *)mdi_cmd_req->cmd_attr.address,
                                                    &mdi_rsp.data, mdi_cmd_req->cmd_attr.size);
 
-        Log_Write(LOG_LEVEL_DEBUG, "Mem Read Status:%d  Read address: %lx, Value: %lx\r\n",
-                  status, mdi_cmd_req->cmd_attr.address, mdi_rsp.data);
+        Log_Write(LOG_LEVEL_DEBUG, "Mem Read Status:%d  Read address: %lx, Value: %lx\r\n", status,
+                  mdi_cmd_req->cmd_attr.address, mdi_rsp.data);
     }
     else
     {
@@ -426,7 +427,7 @@ static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
     }
 
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
-    Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u",
+    Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u\n",
               mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id);
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&mdi_rsp, sizeof(struct mdi_mem_read_rsp_t)))
     {
@@ -446,10 +447,8 @@ static void mdi_mem_write(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_t
                                                (void *)mdi_cmd_req->cmd_attr.address,
                                                mdi_cmd_req->cmd_attr.size);
 
-    /* Update the cache-line https://esperantotech.atlassian.net/browse/SW-9220  Eviction causes SP Hang */
-    // ETSOC_MEM_EVICT((void *)mdi_cmd_req->cmd_attr.address, mdi_cmd_req->cmd_attr.size, to_L3)
-
-    /* Invalidata Minion cache line  https://esperantotech.atlassian.net/browse/SW-11428*/ 
+    //  SP to request CM to perform memory write using the program buffers interface.
+    //  https://esperantotech.atlassian.net/browse/SW-11458
 
     Log_Write(LOG_LEVEL_DEBUG, "Write address: 0x%lx, Data: %lx\n, Size:%d  Status:%d\r\n",
               mdi_cmd_req->cmd_attr.address, mdi_cmd_req->cmd_attr.data, mdi_cmd_req->cmd_attr.size,

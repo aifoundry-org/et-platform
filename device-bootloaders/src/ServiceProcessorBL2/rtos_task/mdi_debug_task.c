@@ -57,42 +57,75 @@ void create_dm_mdi_bp_notify_task(void)
     }
 }
 
+static void dm_mdi_bp_notify_host(bool bp_hit)
+{
+
+    int status;
+    struct device_mgmt_mdi_bp_event_t event;
+
+    if(bp_hit)
+    {
+        Log_Write(LOG_LEVEL_INFO, "MDI_EVENT_TYPE_BP_HALT_SUCCESS: %s\n", __func__);
+        event.event_type = MDI_EVENT_TYPE_BP_HALT_SUCCESS;
+    } 
+    else
+    {
+        Log_Write(LOG_LEVEL_INFO, "MDI_EVENT_TYPE_BP_HALT_FAILURE: %s\n", __func__);
+        event.event_type = MDI_EVENT_TYPE_BP_HALT_FAILED;
+    }
+    
+    event.event_info.event_hdr.tag_id = 0xffff; /* Async Event Tag ID. */
+    event.event_info.event_hdr.size = sizeof(event) - sizeof(struct cmn_header_t);
+    event.event_info.event_hdr.msg_id = DM_CMD_MDI_SET_BREAKPOINT_EVENT;
+    status = SP_Host_Iface_CQ_Push_Cmd((void *)&event, sizeof(event));
+    if (status)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "dm_mdi_bp_notify_host:  push to CQ failed!\n");
+    }
+}
+
 __attribute__((noreturn)) static void dm_mdi_bp_notify_task(void *pvParameters)
 {
-    struct device_mgmt_mdi_bp_event_t event;
-    int status;
-    bool ret;
+    bool ret = false;
+    uint64_t bp_timeout;
     (void)pvParameters;
+    struct mdi_bp_control_cmd_t mdi_cmd_req;
 
     while (1)
     {
         /* block until a message is received */
-        if (xQueueReceive(q_dm_mdi_bp_notify_handle, &event, portMAX_DELAY) == pdTRUE)
+        if (xQueueReceive(q_dm_mdi_bp_notify_handle, &mdi_cmd_req, portMAX_DELAY) == pdTRUE)
         {
             Log_Write(LOG_LEVEL_INFO, "DM MDI BP set event received: %s\n", __func__);
+            bp_timeout =  mdi_cmd_req.cmd_attr.bp_event_wait_timeout;
 
-            /* Wait for core to halt */
-            ret = WAIT(check_halted());
+            while ((bp_timeout > 0) && (!ret))
+            {
+                /* Wait for the BP timeout period specified */
+                vTaskDelay(pdMS_TO_TICKS(DM_MDI_BP_NOTIFY_TASK_DELAY_MS));
+
+                bp_timeout -= DM_MDI_BP_NOTIFY_TASK_DELAY_MS;
+
+                /* Check if the core is halted due to BP */
+                ret = HART_HALT_STATUS(mdi_cmd_req.cmd_attr.hart_id);
+
+            }
 
             if (ret)
             {
                 /* Breakpoint halt success */
-                event.event_type = MDI_EVENT_TYPE_BP_HALT_SUCCESS;
+                Log_Write(LOG_LEVEL_INFO, "Hart Halted due to breakpoint\n");
+                dm_mdi_bp_notify_host(true);
             }
             else
             {
-                /* Breakpoint halt failed. */
-                event.event_type = MDI_EVENT_TYPE_BP_HALT_FAILED;
+                /* Breakpoint halt did not occur within specified timeout */
+               Log_Write(LOG_LEVEL_INFO, "Hart failed to Halt within user specified timeout\r\n"); 
+               dm_mdi_bp_notify_host(false);    
             }
-
-            event.event_info.event_hdr.tag_id = 0xffff; /* Async Event Tag ID. */
-            event.event_info.event_hdr.size = sizeof(event) - sizeof(struct cmn_header_t);
-            event.event_info.event_hdr.msg_id = DM_CMD_MDI_SET_BREAKPOINT_EVENT;
-            status = SP_Host_Iface_CQ_Push_Cmd((void *)&event, sizeof(event));
-            if (status)
-            {
-                Log_Write(LOG_LEVEL_ERROR, "dm_mdi_bp_notify_task :  push to CQ failed!\n");
-            }
+ 
+            /* Re-initialize the variable  */
+            ret = false;
         }
     }
 }
