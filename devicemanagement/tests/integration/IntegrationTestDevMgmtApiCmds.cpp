@@ -46,7 +46,7 @@ TEST_F(IntegrationTestDevMgmtApiCmds, getDeviceErrorEvents) {
   }
 }
 
-TEST_F(IntegrationTestDevMgmtApiCmds, resetMM) {
+TEST_F(IntegrationTestDevMgmtApiCmds, DISABLED_resetMM) {
   if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
     resetMM(false);
   } else {
