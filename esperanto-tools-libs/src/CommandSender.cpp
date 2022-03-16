@@ -136,7 +136,8 @@ void CommandSender::runnerFunc() {
       auto& cmd = commands_.front();
       if (deviceLayer_.sendCommandMasterMinion(deviceId_, sqIdx_, cmd.commandData_.data(), cmd.commandData_.size(),
                                                cmd.isDma_)) {
-        RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_);
+        RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_) << ". DeviceID: " << deviceId_
+                     << "SQ: " << sqIdx_;
 
         profiling::ProfileEvent event(profiling::Type::Instant, profiling::Class::CommandSent);
         event.setEvent(cmd.eventId_);

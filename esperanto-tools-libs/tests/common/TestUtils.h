@@ -71,10 +71,17 @@ public:
       RT_LOG(INFO) << "Running tests with PCIE deviceLayer";
       deviceLayer_ = dev::IDeviceLayer::createPcieDeviceLayer();
       break;
-    case Mode::SYSEMU:
+    case Mode::SYSEMU: {
       RT_LOG(INFO) << "Running tests with SYSEMU deviceLayer";
-      deviceLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions(), sNumDevices);
+      auto opts = getDefaultOptions();
+      std::vector<decltype(opts)> vopts;
+      for (auto i = 0; i < sNumDevices; ++i) {
+        vopts.emplace_back(opts);
+        vopts.back().logFile += std::to_string(i);
+      }
+      deviceLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(vopts);
       break;
+    }
     case Mode::FAKE:
       RT_LOG(INFO) << "Running tests with FAKE deviceLayer";
       deviceLayer_ = std::make_unique<dev::IDeviceLayerFake>();
