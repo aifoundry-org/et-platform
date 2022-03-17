@@ -33,6 +33,13 @@
 #include <RspConnection.hpp>
 #include <RspPacket.hpp>
 #include <MinionDebugInterface.hpp>
+#include <MDIEvent.hpp>
+
+constexpr uint8_t defaultDeviceIdx = 0;
+constexpr uint32_t defaultRSPConnPort = 51000;
+constexpr uint8_t defaultShireID = 0;
+constexpr uint64_t defaultThreadMask = 0x1;
+constexpr uint64_t defaultBPTimeout = 100000; /* timeout in ms */
 
 //! Module implementing a GDB RSP server.
 
@@ -70,6 +77,9 @@ class GdbServer {
   //! Minion Debug
   MinionDebugInterface *mdi;
 
+  // MDI Event
+  MDIEvent *mdiEvent;
+
   //! Our associated RSP interface (which we create)
   RspConnection *rsp;
 
@@ -87,7 +97,7 @@ class GdbServer {
   void rspReportException();
   void rspContinue();
   void rspContinue(uint32_t except);
-  void rspContinue(uint32_t addr, uint32_t except);
+  void rspContinue(uint64_t addr, uint32_t except);
   void rspReadAllRegs();
   void rspWriteAllRegs();
   void rspReadMem();
@@ -102,7 +112,7 @@ class GdbServer {
   void rspRestart();
   void rspStep();
   void rspStep(uint32_t except);
-  void rspStep(uint32_t addr, uint32_t except);
+  void rspStep(uint64_t addr, uint32_t except);
   void rspVpkt();
   void rspWriteMemBin();
   void rspRemoveMatchpoint();

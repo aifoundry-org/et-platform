@@ -43,11 +43,17 @@ GdbServer::GdbServer(MinionDebugInterface *mdiCtrl, int rspPort)
     : mdi(mdiCtrl) {
   GdbServer::pkt = new RspPacket(RSP_PKT_MAX);
   GdbServer::rsp = new RspConnection(rspPort);
+
+  GdbServer::mdiEvent = new MDIEvent(mdi, pkt, rsp);
+  std::thread mdiEventThread(&MDIEvent::deviceAsyncEventThread, mdiEvent);
+  mdiEventThread.detach();
+
 }  // GdbServer ()
 
 GdbServer::~GdbServer() {
   delete rsp;
   delete pkt;
+  delete mdiEvent;
 }  // ~GdbServer
 
 //-----------------------------------------------------------------------------
@@ -76,7 +82,7 @@ void GdbServer::serverThread() {
       } else {
           if(mdi_initialized == false) {
           // Create a new Instance of MDI
-          mdi = new MinionDebugInterface(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
+          mdi = new MinionDebugInterface(defaultDeviceIdx, defaultShireID, defaultThreadMask, defaultBPTimeout);
           mdi_initialized = true;
         }
       }
@@ -396,7 +402,7 @@ void GdbServer::rspReportException() {
 //! @param[in] except  The exception to use
 //-----------------------------------------------------------------------------
 void GdbServer::rspContinue(uint32_t except) {
-  uint32_t addr;  // Address to continue from, if any
+  uint64_t addr;  // Address to continue from, if any
 
   // Reject all except 'c' packets
   if ('c' != pkt->data[0]) {
@@ -408,7 +414,7 @@ void GdbServer::rspContinue(uint32_t except) {
   // Get an address if we have one
   if (0 == strcmp("c", pkt->data)) {
     // Proceed
-  } else if (1 != sscanf(pkt->data, "c%x", &addr)) {
+  } else if (1 != sscanf(pkt->data, "c%lx", &addr)) {
     cerr << "Warning: RSP continue address " << pkt->data
          << " not recognized: ignored" << endl;
   }
@@ -442,7 +448,7 @@ void GdbServer::rspContinue() {
 //! @param[in] addr    Address from which to step
 //! @param[in] except  The exception to use (if any)
 //-----------------------------------------------------------------------------
-void GdbServer::rspContinue(uint32_t addr, uint32_t except) {
+void GdbServer::rspContinue(uint64_t addr, uint32_t except) {
  
   mdi->unstall();
   targetStopped = false;
@@ -900,7 +906,7 @@ void GdbServer::rspRestart() {
 //!                    this way.
 //-----------------------------------------------------------------------------
 void GdbServer::rspStep(uint32_t except) {
-  uint32_t addr;  // The address to step from, if any
+  uint64_t addr;  // The address to step from, if any
 
   // Reject all except 's' packets
   if ('s' != pkt->data[0]) {
@@ -911,7 +917,7 @@ void GdbServer::rspStep(uint32_t except) {
 
   if (0 == strcmp("s", pkt->data)) {
     // No address supplied, use PC
-  } else if (1 != sscanf(pkt->data, "s%x", &addr)) {
+  } else if (1 != sscanf(pkt->data, "s%lx", &addr)) {
     cerr << "Warning: RSP step address " << pkt->data << " not ignored" << endl;
     // Still just use PC
   }
@@ -938,7 +944,7 @@ void GdbServer::rspStep() {
 //! @param[in] addr    Address from which to step
 //! @param[in] except  The exception to use (if any)
 //-----------------------------------------------------------------------------
-void GdbServer::rspStep(uint32_t addr, uint32_t except) {
+void GdbServer::rspStep(uint64_t addr, uint32_t except) {
   // Set the address as the value of the next program counter
   mdi->writeReg(mdi->pcRegNum(), addr);
   mdi->step();

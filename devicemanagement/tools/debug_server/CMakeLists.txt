@@ -31,6 +31,7 @@ add_executable(debug-server
     src/MiscUtils.cpp
     src/RspConnection.cpp
     src/RspPacket.cpp
+    src/MDIEvent.cpp
     )
 
 target_compile_features(debug-server PUBLIC cxx_std_17)

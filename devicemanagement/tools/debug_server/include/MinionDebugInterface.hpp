@@ -52,7 +52,7 @@ class MinionDebugInterface {
  public:
   /* ------ Public methods ------ */
 
-  MinionDebugInterface(uint64_t shire_mask, uint64_t thread_mask);
+  MinionDebugInterface(uint8_t device_idx, uint64_t shire_mask, uint64_t thread_mask, uint64_t bp_timeout);
 
   ~MinionDebugInterface();
 
@@ -273,6 +273,15 @@ class MinionDebugInterface {
    */
   uint64_t uint64BytesSwap(uint64_t val);
 
+  uint8_t     device_idx; 
+  uint64_t    bp_timeout;
+  bool        tgt_state;
+  void*       handle_;
+  std::unique_ptr<IDeviceLayer>   devLayer_;
+  getDM_t     dmi_;
+  uint64_t    shire_id;
+  uint64_t    thread_mask;
+
   private:
 
   /**
@@ -286,13 +295,7 @@ class MinionDebugInterface {
   int invokeDmServiceRequest(uint8_t code, const char* input_buff, const uint32_t input_size,
     char* output_buff, const uint32_t output_size);
 
-  uint64_t    shire_id;
-  uint64_t    thread_mask;
-  void*       handle_;
-  std::unique_ptr<IDeviceLayer>   devLayer_;
-  getDM_t   dmi_;
   uint32_t    current_hart_;
-  bool        tgt_state;
   bool        server_state;
   bool        should_stop_server;
 };

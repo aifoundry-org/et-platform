@@ -18,13 +18,14 @@
 
 // Constructor and Destructor
 
-MinionDebugInterface::MinionDebugInterface(uint64_t shire_id, uint64_t thread_mask) {
-
+MinionDebugInterface::MinionDebugInterface(uint8_t device_idx, uint64_t shire_id, uint64_t thread_mask, uint64_t bp_timeout) {
     this->handle_ = dlopen("libDM.so", RTLD_LAZY);
     this->devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     this->dmi_ = reinterpret_cast<getDM_t>(dlsym(this->handle_, "getInstance"));
+    this->device_idx = device_idx;
     this->shire_id = shire_id;
     this->thread_mask = thread_mask;
+    this->bp_timeout = bp_timeout;
     this->current_hart_ = ((shire_id*NUM_HARTS_PER_SHIRE) + __builtin_ctzl(thread_mask));
     this->server_state = false;
     this->should_stop_server = false;
@@ -32,6 +33,7 @@ MinionDebugInterface::MinionDebugInterface(uint64_t shire_id, uint64_t thread_ma
      this->tgt_state = TGT_RUNNING;
     /* TODO: Enable this once device fw is updated */
     // this->tgt_state =  this->MinionDebugInterface::hartStatus(); 
+
 }  // MinionDebugInterface ()
 
 MinionDebugInterface::~MinionDebugInterface() {
@@ -101,7 +103,7 @@ void MinionDebugInterface::reset() {
 
 void MinionDebugInterface::stall() {
 
-    DV_LOG(INFO) << "MDI::stall.." << "Shire ID:" << this->shire_id << "Thread Mask:" <<  this->thread_mask << std::endl;
+    DV_LOG(INFO) << "MDI::stall.." << "Shire ID:" << this->shire_id << "Thread Mask:" << std::hex << this->thread_mask << std::endl;
     this->selectHart(this->shire_id, this->thread_mask);
     this->haltHart();
     this->tgt_state = TGT_HALTED;
@@ -115,7 +117,7 @@ void MinionDebugInterface::closeMDI() {
 
 void MinionDebugInterface::unstall() {
 
-    DV_LOG(INFO) << "MDI::unstall.." << std::endl;
+    DV_LOG(INFO) << "MDI::unstall.." << "Shire ID:" << this->shire_id << "Thread Mask:" << std::hex << this->thread_mask << std::endl;
     this->resumeHart();
     this->unselectHart(this->shire_id,this->thread_mask);
     this->tgt_state = TGT_RUNNING;
@@ -151,7 +153,7 @@ void MinionDebugInterface::step() {
         (char*) &mdi_cmd, sizeof(struct mdi_bp_control_t),
         (char*) &status, sizeof(uint32_t));
 
-    DV_LOG(INFO) << "MDI::step instruction status" << status << std::endl;
+    DV_LOG(INFO) << "MDI::step status:" << status << std::endl;
 
 }
 
@@ -163,9 +165,10 @@ void MinionDebugInterface::insertBreakpoint(uint64_t addr) {
     mdi_cmd.hart_id = this->current_hart_;
     mdi_cmd.bp_address = addr;
     mdi_cmd.mode = device_mgmt_api::PRIV_MASK_PRIV_UMODE;
+    mdi_cmd.bp_event_wait_timeout = this->bp_timeout; 
     mdi_cmd.flags = 0; //TODO, fix logic here, set flags to indicate set/insert break point
 
-    DV_LOG(INFO) << "MDI::insertBreakpoint Hart ID:" << mdi_cmd.hart_id << std::hex  << "BP address:" << mdi_cmd.bp_address << std::endl;
+    DV_LOG(INFO) << "MDI::insertBreakpoint Hart ID:" << mdi_cmd.hart_id << "BP addr:" << std::hex << mdi_cmd.bp_address << std::endl;
 
     auto retval = invokeDmServiceRequest(DM_CMD_MDI_SET_BREAKPOINT,
         (char*) &mdi_cmd, sizeof(struct mdi_bp_control_t),
@@ -184,7 +187,7 @@ void MinionDebugInterface::removeBreakpoint(uint64_t addr) {
     mdi_cmd.mode = 0; //TODO, fix logic here, assign minion mode here
     mdi_cmd.flags = 0; //TODO, fix logic here, set flags to indicate unset/remove break point
 
-    DV_LOG(INFO) << "MDI::removeBreakpoint Hart ID:" << mdi_cmd.hart_id << std::hex << "BP addr:" << mdi_cmd.bp_address << std::endl;
+    DV_LOG(INFO) << "MDI::removeBreakpoint Hart ID:" << mdi_cmd.hart_id  << "BP addr:" << std::hex <<  mdi_cmd.bp_address << std::endl;
 
     auto retval = invokeDmServiceRequest(DM_CMD_MDI_UNSET_BREAKPOINT,
         (char*) &mdi_cmd, sizeof(struct mdi_bp_control_t),
@@ -201,13 +204,13 @@ uint64_t MinionDebugInterface::selectHart(std::uint64_t shire_id, std::uint64_t 
     mdi_cmd.shire_id = shire_id;
     mdi_cmd.thread_mask = thread_mask;
 
-    DV_LOG(INFO) << "MDI::selectHart ->" << "Shire ID: " << std::hex << mdi_cmd.shire_id << "Thread Mask: " << std::hex << mdi_cmd.thread_mask << std::endl;
+    DV_LOG(INFO) << "MDI::selectHart ->" << "Shire ID: " << mdi_cmd.shire_id << "Thread Mask: " << std::hex << mdi_cmd.thread_mask << std::endl;
 
     auto retval = invokeDmServiceRequest(DM_CMD_MDI_SELECT_HART,
         (char*) &mdi_cmd, sizeof(struct mdi_hart_selection_t),
         (char*) &output_buff, sizeof(uint64_t));
 
-    DV_LOG(INFO) << "Select Hart Status: " << std::hex << retval << std::endl;
+    DV_LOG(INFO) << "MDI::selectHart Status: " << std::hex << retval << std::endl;
 }
 
 uint64_t MinionDebugInterface::unselectHart(std::uint64_t shire_id, std::uint64_t thread_mask) {
@@ -218,13 +221,13 @@ uint64_t MinionDebugInterface::unselectHart(std::uint64_t shire_id, std::uint64_
     mdi_cmd.shire_id = shire_id;
     mdi_cmd.thread_mask = thread_mask;
 
-    DV_LOG(INFO) << "MDI::unselectHart ->" << "Shire ID: " << std::hex << mdi_cmd.shire_id << "Thread Mask: " << std::hex << mdi_cmd.thread_mask << std::endl;
+    DV_LOG(INFO) << "MDI::unselectHart ->" << "Shire ID: " << mdi_cmd.shire_id << "Thread Mask: " << std::hex << mdi_cmd.thread_mask << std::endl;
 
     auto retval = invokeDmServiceRequest(DM_CMD_MDI_UNSELECT_HART,
         (char*) &mdi_cmd, sizeof(struct mdi_hart_selection_t),
         (char*) &output_buff, sizeof(uint64_t));
 
-    DV_LOG(INFO) << "UnSelect Hart Status: " << std::hex << retval << std::endl;
+    DV_LOG(INFO) << "MDI::unselectHart Status: " << std::hex << retval << std::endl;
 }
 
 void MinionDebugInterface::haltHart() {
@@ -239,7 +242,7 @@ void MinionDebugInterface::haltHart() {
         (char*) &mdi_cmd, sizeof(struct mdi_hart_control_t),
         (char*) &output_buff, sizeof(uint32_t));
 
-    DV_LOG(INFO) << "Halt Hart Complete" << std::endl;
+    DV_LOG(INFO) << "MDI::haltHart Complete" << std::endl;
 }
 
 void MinionDebugInterface::resumeHart() {
@@ -254,7 +257,7 @@ void MinionDebugInterface::resumeHart() {
         (char*) &mdi_cmd, sizeof(struct mdi_hart_control_t),
         (char*) &output_buff, sizeof(uint32_t));
 
-    DV_LOG(INFO) << "Resume Hart Complete" << std::endl;
+    DV_LOG(INFO) << "MDI::resumeHart Complete" << std::endl;
 }
 
 uint32_t MinionDebugInterface::hartStatus() {
@@ -280,10 +283,10 @@ uint64_t MinionDebugInterface::readReg(std::uint32_t num) {
    uint64_t regval=0;
    if(num < RISCV_PC_INDEX){
         struct mdi_gpr_read_t mdi_gpr_read;
-        mdi_gpr_read.hart_id = 0;    
+        mdi_gpr_read.hart_id = this->current_hart_;    
         mdi_gpr_read.gpr_index = num;
  
-        DV_LOG(INFO) << "Read GPR Reg ->" << "Hart ID: " << std::hex << mdi_gpr_read.hart_id << " GPR Index: " << std::hex << mdi_gpr_read.gpr_index << std::endl;
+        DV_LOG(INFO) << "Read GPR " << "Hart ID: " << mdi_gpr_read.hart_id << " GPR Index: " << mdi_gpr_read.gpr_index << std::endl;
  
         auto retval = invokeDmServiceRequest(DM_CMD_MDI_READ_GPR,
             (char*) &mdi_gpr_read, sizeof(struct mdi_gpr_read_t),
@@ -294,10 +297,10 @@ uint64_t MinionDebugInterface::readReg(std::uint32_t num) {
    else 
    {
         struct mdi_csr_read_t mdi_csr_read;
-        mdi_csr_read.hart_id = 0;
+        mdi_csr_read.hart_id = this->current_hart_;
         mdi_csr_read.csr_name = num;
  
-        DV_LOG(INFO) << "Read CSR Reg ->" << "Hart ID: " << std::hex << mdi_csr_read.hart_id << " CSR Index: " << std::hex << mdi_csr_read.csr_name << std::endl;
+        DV_LOG(INFO) << "Read CSR " << "Hart ID: " <<  mdi_csr_read.hart_id << " CSR Index: " << mdi_csr_read.csr_name << std::endl;
  
         auto retval = invokeDmServiceRequest(DM_CMD_MDI_READ_CSR,
             (char*) &mdi_csr_read, sizeof(struct mdi_csr_read_t),
@@ -315,11 +318,10 @@ void MinionDebugInterface::writeReg(std::uint32_t num, uint64_t value) {
     uint64_t tgt_value;
 
     tgt_value = this->uint64BytesSwap(value);
-    DV_LOG(INFO) << "MDI::writeReg ->" << " Reg num: " << num << "value: " << std::hex << value << std::endl;
     
     if(num < RISCV_PC_INDEX){
 
-        DV_LOG(INFO) << "GPR Write.." << std::endl;
+        DV_LOG(INFO) << "MDI:: writeReg GPR ->" << " Reg num: " << num << "value: " << std::hex << value << std::endl;
         struct mdi_gpr_write_t mdi_gpr_write;
         mdi_gpr_write.hart_id = this->current_hart_;
         mdi_gpr_write.data = tgt_value;
@@ -330,9 +332,8 @@ void MinionDebugInterface::writeReg(std::uint32_t num, uint64_t value) {
         (char*) &dummy, sizeof(uint64_t));
     } else {
 
-        DV_LOG(INFO) << "CSR Write.." << std::endl;
+        DV_LOG(INFO) << "MDI:: writeReg CSR ->" << " Reg num: " << num << "value: " << std::hex << value << std::endl;
         struct mdi_csr_write_t mdi_csr_write;
-
         mdi_csr_write.hart_id = this->current_hart_;
         mdi_csr_write.data = tgt_value;
         mdi_csr_write.csr_name = num;
@@ -342,8 +343,6 @@ void MinionDebugInterface::writeReg(std::uint32_t num, uint64_t value) {
         (char*) &dummy, sizeof(uint64_t));
 
     }
-    
-    DV_LOG(INFO) << "MDI::writeReg complete..";
 }
 
 
@@ -351,7 +350,6 @@ int MinionDebugInterface::readMem(uint8_t *out, uint64_t addr, std::uint32_t len
     struct mdi_mem_read_t mdi_cmd_req;
     mdi_cmd_req.address = addr;
     uint32_t output_size;
-    DV_LOG(INFO) << "MDI::readMem" << " ADDRESS: " << std::hex << mdi_cmd_req.address << " LENGTH: " << std::hex << len << std::endl;
     
     while (len >= MDI_MEM_READ_LENGTH_BYTES_8)
     {

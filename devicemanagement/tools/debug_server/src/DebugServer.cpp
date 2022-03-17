@@ -26,6 +26,7 @@ using Clock = std::chrono::system_clock;
 using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
 
+// Enable/Disable flag to control logging
 #define ENABLE_DEFAULT_LOGGING   0
 
 static struct option long_options[] = {
@@ -33,7 +34,8 @@ static struct option long_options[] = {
                                     {"node", required_argument, 0, 'n'},
                                     {"port", required_argument, 0, 'p'},
                                     {"shire_id", required_argument, 0, 's'},
-                                    {"thread_mask", required_argument, 0, 't'},
+                                    {"thread_mask", required_argument, 0, 'm'},
+                                    {"bp_timeout", required_argument, 0, 't'},
                                     {0, 0, 0, 0}
                                     };
 
@@ -46,7 +48,8 @@ void printUsage(char* argv)
     std::cout << "-p specify the TCP port on which the debug server is to be started, default:51000" << std::endl;
     std::cout << "-n ETSoC1 device index on which the debug server is to be started, device_index:0" << std::endl;
     std::cout << "-s Shire ID" << std::endl;
-    std::cout << "-t Thread mask" << std::endl;
+    std::cout << "-m Thread mask" << std::endl;
+    std::cout << "-t BP timeout" << std::endl;
     std::cout << "-h Help, usage instructions" << std::endl;
 }
 
@@ -54,10 +57,11 @@ int main(int argc, char** argv)
 {
     int c;
     int option_index = 0;
-    uint8_t device_idx = 0; // Default device index 0
-    uint32_t port = 51000; // Default port 51000
-    uint8_t shire_id = 0; // Shire ID 0
-    uint64_t thread_mask = 0x0000000000000001; // Default thread mask 0x0000000000000001
+    uint8_t device_idx = defaultDeviceIdx; // Default device index 0
+    uint32_t port = defaultRSPConnPort; // Default port 51000
+    uint8_t shire_id = defaultShireID; // Shire ID 0
+    uint64_t thread_mask = defaultThreadMask; // Default thread mask 0x0000000000000001
+    uint64_t bp_timeout = defaultBPTimeout; // Default timeout for bp to be hit
     bool exit = false;
 
 #if ENABLE_DEFAULT_LOGGING
@@ -67,7 +71,7 @@ int main(int argc, char** argv)
 
     while (1)
     {
-        c = getopt_long (argc, argv, "h:p:n:s:t:", long_options, &option_index);
+        c = getopt_long (argc, argv, "h:n:p:s:m:t:", long_options, &option_index);
 
         /* Detect the end of the options. */
         if (c == -1)
@@ -93,8 +97,12 @@ int main(int argc, char** argv)
             shire_id = atoi(optarg);
             break;
 
-            case 't':
+            case 'm':
             thread_mask = strtoul(optarg, NULL, 0);
+            break;
+
+            case 't':
+            bp_timeout = strtoul(optarg, NULL, 0);
             break;
 
             default:
@@ -107,7 +115,7 @@ int main(int argc, char** argv)
     {
         // TODO : Error check for shire ID and thread_mask input parameters 
         // Start the GDB Server that serves as proxy to GDB client
-        MinionDebugInterface minionDebugInterface(shire_id, thread_mask);
+        MinionDebugInterface minionDebugInterface(device_idx, shire_id, thread_mask, bp_timeout);
         GdbServer gdbServer(/*Minion Debug Interface =*/&minionDebugInterface, /*tcp port=*/port);
 
         std::thread gdbThread(&GdbServer::serverThread, &gdbServer);
