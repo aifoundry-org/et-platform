@@ -46,7 +46,10 @@ add_library(sysemu
     sys_emu/sys_emu_parse_args.cpp
     sys_emu/testLog.cpp
     sys_emu/utils.cpp
+    agent.cpp
+    debugmodule.cpp
     devices/pcie_dma.cpp
+    devices/spio_misc_region.cpp
     emu_gio.cpp
     esrs.cpp
     flb.cpp
