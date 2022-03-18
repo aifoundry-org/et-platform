@@ -28,7 +28,8 @@
 #define DM_MDI_EVENT_QUEUE_ITEM_SIZE sizeof(struct mdi_bp_control_cmd_t)
 #define DM_MDI_EVENT_QUEUE_SIZE      DM_MDI_EVENT_QUEUE_LENGTH *DM_MDI_EVENT_QUEUE_ITEM_SIZE
 
-#define DM_MDI_BP_NOTIFY_TASK_DELAY_MS    100
+/* BP Notify Task's delay while waiting for BP timeout */
+#define DM_MDI_BP_NOTIFY_TASK_DELAY_MS    1000
 
 /*! \fn void create_dm_mdi_bp_notify_task(void)
     \brief Creates a MDI task for handling breakpoint events

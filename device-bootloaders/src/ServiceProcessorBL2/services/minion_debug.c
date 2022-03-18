@@ -128,7 +128,7 @@ static void mdi_select_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start
     /* Select a Hart */
     for (uint8_t neigh_id = 0; neigh_id < NUM_NEIGH_PER_SHIRE; neigh_id++)
     {
-        if (mdi_cmd_req->cmd_attr.thread_mask & (0xFFULL << (MINIONS_PER_NEIGH * neigh_id)))
+        if (mdi_cmd_req->cmd_attr.thread_mask & (0xFFFFULL << (HARTS_PER_NEIGH * neigh_id)))
         {
             Select_Harts((uint8_t)mdi_cmd_req->cmd_attr.shire_id, neigh_id);
         }
@@ -151,7 +151,7 @@ static void mdi_unselect_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_sta
     /* Unselect a Hart */
     for (uint8_t neigh_id = 0; neigh_id < NUM_NEIGH_PER_SHIRE; neigh_id++)
     {
-        if (mdi_cmd_req->cmd_attr.thread_mask & (0xFFULL << (MINIONS_PER_NEIGH * neigh_id)))
+        if (mdi_cmd_req->cmd_attr.thread_mask & (0xFFFFULL << (HARTS_PER_NEIGH * neigh_id)))
         {
             Unselect_Harts((uint8_t)mdi_cmd_req->cmd_attr.shire_id, neigh_id);
         }
