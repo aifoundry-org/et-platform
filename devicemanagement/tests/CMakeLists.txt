@@ -222,30 +222,30 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}/MixTestDevMgmtApiAllCmds.sh @ONLY
 )
 
-foreach (TIME_IN_MIN 5 15 30 45 60)
-    set(TEST_NAME deviceManagement:MixTestDevMgmtApiAllCmds.${TIME_IN_MIN}minTest)
-    add_test(
-        NAME              ${TEST_NAME}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-	COMMAND           MixTestDevMgmtApiAllCmds.sh ${TIME_IN_MIN}minute
-    )
+add_test(
+    NAME              deviceManagement:MixTestDevMgmtApiAllCmds.randomizeTests
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMAND           MixTestDevMgmtApiAllCmds.sh
+)
 
-    set_tests_properties(${TEST_NAME}
-        PROPERTIES
-        DEPENDS	FunctionalTestDevMgmtApiAssetTrackingCmds
-        DEPENDS	FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds
-        DEPENDS	FunctionalTestDevMgmtApiHistoricalExtremeValCmds
-        DEPENDS	FunctionalTestDevMgmtApiErrorControlCmds
-        DEPENDS	FunctionalTestDevMgmtApiLinkMgmtCmds
-        DEPENDS	FunctionalTestDevMgmtApiPerfMgmtCmds
-        DEPENDS	FunctionalTestDevMgmtApiFirmwareMgmtCmds
-        DEPENDS	IntegrationTestDevMgmtApiCmds
-        DEPENDS	SecurityTestDevMgmtApiGenericCmds
-        DEPENDS	SecurityTestDevMgmtApiAssetTrackingCmds
-        DEPENDS	SecurityTestDevMgmtApiThermalAndPowerMonitoringCmds
-        DEPENDS	SecurityTestDevMgmtApiHistoricalExtremeValCmds
-        DEPENDS	SecurityTestDevMgmtApiErrorControlCmds
-        DEPENDS	SecurityTestDevMgmtApiLinkMgmtCmds
-        DEPENDS	SecurityTestDevMgmtApiPerfMgmtCmds
-    )
-endforeach()
+set_tests_properties(${TEST_NAME}
+    PROPERTIES
+    DEPENDS           FunctionalTestDevMgmtApiAssetTrackingCmds
+    DEPENDS           FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds
+    DEPENDS           FunctionalTestDevMgmtApiHistoricalExtremeValCmds
+    DEPENDS           FunctionalTestDevMgmtApiErrorControlCmds
+    DEPENDS           FunctionalTestDevMgmtApiLinkMgmtCmds
+    DEPENDS           FunctionalTestDevMgmtApiPerfMgmtCmds
+    DEPENDS           FunctionalTestDevMgmtApiFirmwareMgmtCmds
+    DEPENDS           IntegrationTestDevMgmtApiCmds
+    DEPENDS           IntegrationTestDevMgmtApiTraceCmds
+    DEPENDS           RunControlApiTestcmds
+    DEPENDS           StateInspectionApiTestcmds
+    DEPENDS           SecurityTestDevMgmtApiGenericCmds
+    DEPENDS           SecurityTestDevMgmtApiAssetTrackingCmds
+    DEPENDS           SecurityTestDevMgmtApiThermalAndPowerMonitoringCmds
+    DEPENDS           SecurityTestDevMgmtApiHistoricalExtremeValCmds
+    DEPENDS           SecurityTestDevMgmtApiErrorControlCmds
+    DEPENDS           SecurityTestDevMgmtApiLinkMgmtCmds
+    DEPENDS           SecurityTestDevMgmtApiPerfMgmtCmds
+)

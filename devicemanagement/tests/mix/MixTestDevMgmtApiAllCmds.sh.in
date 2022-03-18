@@ -10,20 +10,24 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-### NOTE: Mix tests run for TARGET=loopback only ###
-
 RUN_DIR=@CMAKE_CURRENT_BINARY_DIR@
 cd $RUN_DIR
 
-if [ -n "$1" ]; then
-    TESTS_DURATION=$1
-else
+## Checking environment variables
+if [ -z "$DURATION" ]; then
     ## Default test duration
-    TESTS_DURATION="5minute"
+    DURATION="5minute"
 fi
-echo "Tests duration is $TESTS_DURATION"
+echo "Tests duration is $DURATION"
 
-mgmt_tests=($(ctest -L "FUNCTIONAL|SECURITY|INTEGRATION" -N | awk '$2 ~ /#[0-9]+:/ && $4 !~ /Disabled/ {print $3}'))
+if [ -n "$VERBOSE" ]; then
+    VERBOSE="-V"
+fi
+
+echo "Tests duration is $DURATION"
+
+labels="FUNCTIONAL|SECURITY|INTEGRATION"
+mgmt_tests=($(ctest -L $labels -N | awk '$2 ~ /#[0-9]+:/ && $4 !~ /Disabled/ {print $3}'))
 mgmt_tests_count=${#mgmt_tests[@]}
 if [[ $mgmt_tests_count -eq 0 ]]; then
     exit 1
@@ -32,13 +36,13 @@ fi
 ## save logs for one test and print at once. This will be helpful when
 ## mgmt and ops tests be executed in parallel
 mgmt_tests_logfile=$(mktemp)
-mgmt_tests_endtime=$(date -ud "$TESTS_DURATION" +%s)
+mgmt_tests_endtime=$(date -ud "$DURATION" +%s)
 while [[ $(date -u +%s) -le $mgmt_tests_endtime ]]
 do
     mgmt_exec_idx=$(($RANDOM % $mgmt_tests_count))
-    sudo TARGET=loopback ctest -R ${mgmt_tests[$mgmt_exec_idx]} -V > $mgmt_tests_logfile
+    sudo TARGET=${TARGET} ctest -L $labels -R "^${mgmt_tests[$mgmt_exec_idx]}$" ${VERBOSE} > $mgmt_tests_logfile
     mgmt_tests_rv=$?
-    cat $mgmt_tests_logfile
+    cat $mgmt_tests_logfile | tail -n +2 | head -n -7
     if [ $mgmt_tests_rv -ne 0 ]; then
         rm $mgmt_tests_logfile
         exit $mgmt_tests_rv
