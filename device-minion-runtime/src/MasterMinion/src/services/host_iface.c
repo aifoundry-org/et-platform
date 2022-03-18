@@ -424,9 +424,8 @@ int32_t Host_Iface_CQ_Push_Cmd(uint8_t cq_id, const void *p_cmd, uint32_t cmd_si
 
     if (status == STATUS_SUCCESS)
     {
-        asm volatile("fence");
-        /* TODO: Using MSI idx 0 for single CQ model */
-        status = pcie_interrupt_host(1);
+        FENCE
+        status = pcie_interrupt_host(MM_CQ_NOTIFY_VECTOR);
 
         /* Release the lock */
         release_local_spinlock(&Host_CQs.vqueue_locks[cq_id]);
@@ -512,8 +511,7 @@ void Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached)
 
     /* TODO: We need to send event to the host when 25% of space is avialable is SQ.
     Should be build time macro */
-    /* TODO: Use seperate MSI for notifiying host that SQ has freed up space */
-    (void)pcie_interrupt_host(1);
+    (void)pcie_interrupt_host(MM_SQ_NOTIFY_VECTOR);
 }
 
 /************************************************************************

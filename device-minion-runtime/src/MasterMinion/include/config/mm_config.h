@@ -188,6 +188,11 @@
 */
 #define MM_SQS_HP_BASE_ADDRESS (MM_SQS_BASE_ADDRESS + (MM_SQ_COUNT * MM_SQ_SIZE))
 
+/*! \def MM_SQ_NOTIFY_VECTOR
+    \brief A macro that provides the MSI vector for MM SQ pop notification.
+*/
+#define MM_SQ_NOTIFY_VECTOR 2
+
 /*! \def MM_CQS_BASE_ADDRESS
     \brief A macro that provides the Master Minion's base address
     for completion queues from 64 bit DRAM base, or 32 bit absolute
@@ -222,7 +227,7 @@
     \brief A macro that provides the starting PCIe interrupt vector for
     CQ notifications
 */
-#define MM_CQ_NOTIFY_VECTOR 0
+#define MM_CQ_NOTIFY_VECTOR 3
 
 /*! \def MM_CQ_MEM_TYPE
     \brief A macro that provides the memory type for MM completion queue
