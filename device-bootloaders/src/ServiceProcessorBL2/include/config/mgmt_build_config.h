@@ -247,6 +247,12 @@
 */
 #define SP_SQ_SIZE (SP_VQ_BAR_SIZE / 2)
 
+/*! \def SP_SQ_NOTIFY_VECTOR
+    \brief A macro that provides the starting PCIe interrupt vector for
+    SQ notifications
+*/
+#define SP_SQ_NOTIFY_VECTOR 0
+
 /*! \def SP_SQ_MEM_TYPE
     \brief A macro that provides the memory type for SP submission queues
     0 - L2 Cache
@@ -288,7 +294,7 @@
     \brief A macro that provides the starting PCIe interrupt vector for
     CQ notifications
 */
-#define SP_CQ_NOTIFY_VECTOR 0
+#define SP_CQ_NOTIFY_VECTOR 1
 
 /*! \def SP_CQ_MEM_TYPE
     \brief A macro that provides the memory type for SP completion queue

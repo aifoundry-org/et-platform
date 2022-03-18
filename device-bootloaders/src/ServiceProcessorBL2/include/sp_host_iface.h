@@ -24,6 +24,8 @@
 #include "etsoc/common/common_defs.h"
 #include "transports/vq/vq.h"
 #include "sp_vq_build_config.h"
+#include "etsoc/drivers/pcie/pcie_int.h"
+#include "config/mgmt_build_config.h"
 
 /**
  * @brief Enum of supported virtual queue types
@@ -90,6 +92,9 @@ static inline void SP_Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq
 {
     /* Update tail value in VQ memory */
     VQ_Set_Tail_Offset(sq_shared, VQ_Get_Tail_Offset(sq_cached));
+
+    /* Notify host */
+    pcie_interrupt_host(SP_SQ_NOTIFY_VECTOR);
 }
 
 #endif /* SP_HOST_IFACE_DEFS_H */
