@@ -343,7 +343,13 @@ int verifyService() {
     }
 
     current_temperature_t* cur_temp = (current_temperature_t*)output_buff;
-    DV_LOG(INFO) << "Current Temperature Output: " << +cur_temp->temperature_c << " c" << std::endl;
+    DV_LOG(INFO) << "PMIC SYS Temperature Output: " << +cur_temp->pmic_sys << " c" << std::endl;
+    DV_LOG(INFO) << "IOSHIRE Current Temperature Output: " << +cur_temp->ioshire_current << " c" << std::endl;
+    DV_LOG(INFO) << "IOSHIRE Low Temperature Output: " << +cur_temp->ioshire_low << " c" << std::endl;
+    DV_LOG(INFO) << "IOSHIRE High Temperature Output: " << +cur_temp->ioshire_high << " c" << std::endl;
+    DV_LOG(INFO) << "MINSHIRE Current Temperature Output: " << +cur_temp->minshire_avg << " c" << std::endl;
+    DV_LOG(INFO) << "MINSHIRE Low Temperature Output: " << +cur_temp->minshire_low << " c" << std::endl;
+    DV_LOG(INFO) << "MINSHIRE High Temperature Output: " << +cur_temp->minshire_high << " c" << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES: {
@@ -371,6 +377,29 @@ int verifyService() {
       DV_LOG(INFO) << "average: " << residency->average << std::endl;
       DV_LOG(INFO) << "maximum: " << residency->maximum << std::endl;
       DV_LOG(INFO) << "minimum: " << residency->minimum << std::endl;
+    }
+  } break;
+
+  case DM_CMD::DM_CMD_SET_FREQUENCY: {
+    for (device_mgmt_api::pll_id_e pll_id = device_mgmt_api::PLL_ID_NOC_PLL;
+         pll_id <= device_mgmt_api::PLL_ID_MINION_PLL; pll_id++) {
+      for (device_mgmt_api::use_step_e use_step = device_mgmt_api::USE_STEP_CLOCK_FALSE;
+           use_step <= device_mgmt_api::USE_STEP_CLOCK_TRUE; use_step++) {
+        if(use_step == device_mgmt_api::USE_STEP_CLOCK_TRUE
+           && pll_id != device_mgmt_api::PLL_ID_MINION_PLL) continue;
+        const uint32_t input_size = sizeof(device_mgmt_api::pll_id_e) +
+                                    sizeof(uint16_t) +
+                                    sizeof(device_mgmt_api::use_step_e);
+        char input_buff[input_size];
+        input_buff[0] = (char)(0x90);
+        input_buff[1] = (char)(0x01);
+        input_buff[2] = (char)pll_id;
+        input_buff[3] = (char)use_step;
+        
+        if ((ret = runService(input_buff, input_size, nullptr, 0)) != DM_STATUS_SUCCESS) {
+          return ret;
+        }
+      }
     }
   } break;
 
