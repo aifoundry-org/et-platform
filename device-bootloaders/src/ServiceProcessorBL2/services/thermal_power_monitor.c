@@ -17,6 +17,9 @@
 /***********************************************************************/
 
 #include "bl2_thermal_power_monitor.h"
+#include "minion_configuration.h"
+#include <hwinc/hpdpll_modes_config.h>
+#include <hwinc/lvdpll_modes_config.h>
 
 /************************************************************************
 *
@@ -438,10 +441,10 @@ static void pwr_svc_set_module_temp_thresholds(uint16_t tag, uint64_t req_start_
 static void pwr_svc_get_module_current_temperature(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_current_temperature_rsp_t dm_rsp;
-    uint8_t soc_temperature;
+    struct current_temperature_t temperature;
     int32_t status;
 
-    status = get_module_current_temperature(&soc_temperature);
+    status = get_module_current_temperature(&temperature);
 
     if (0 != status)
     {
@@ -449,7 +452,7 @@ static void pwr_svc_get_module_current_temperature(uint16_t tag, uint64_t req_st
     }
     else
     {
-        dm_rsp.current_temperature.temperature_c = soc_temperature;
+        dm_rsp.current_temperature = temperature;
     }
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_CURRENT_TEMPERATURE,
@@ -651,6 +654,187 @@ static void pwr_svc_set_module_active_pwr_mgmt(tag_id_t tag_id, uint64_t req_sta
 *
 *   FUNCTION
 *
+*       pwr_svc_find_hpdpll_mode
+*
+*   DESCRIPTION
+*
+*       This function finds HPDPLL mode for a given frequency
+*
+*   INPUTS
+*
+*       freq              Desired frequency
+*
+*   OUTPUTS
+*
+*       hpdpll_mode       HPDPLL mode
+*
+***********************************************************************/
+static int pwr_svc_find_hpdpll_mode(uint16_t freq, uint8_t *hpdpll_mode)
+{
+    uint8_t strap_pins;
+    uint32_t input_freqs[] = {100, 24, 40};
+    uint32_t input_freq;
+
+    static const uint32_t hpdpll_settings_count =
+        sizeof(gs_hpdpll_settings) / sizeof(HPDPLL_SETTING_t);
+    
+    strap_pins = get_hpdpll_strap_value();
+    input_freq = input_freqs[strap_pins];
+
+    /* Find HPDPLL mode */
+    for (uint32_t pll_settings_index = 0; pll_settings_index < hpdpll_settings_count;
+        pll_settings_index++)
+    {
+        if (gs_hpdpll_settings[pll_settings_index].input_frequency == input_freq*1000000 &&
+            gs_hpdpll_settings[pll_settings_index].output_frequency == freq*1000000)
+        {
+            *hpdpll_mode = gs_hpdpll_settings[pll_settings_index].mode;
+            return 0;
+        }
+    }
+    
+    return THERMAL_PWR_MGMT_HPDPLL_MODE_FIND_FAILED;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pwr_svc_find_lvdpll_mode
+*
+*   DESCRIPTION
+*
+*       This function finds LVDPLL mode for a given frequency
+*
+*   INPUTS
+*
+*       freq              Desired frequency
+*
+*   OUTPUTS
+*
+*       lvdpll_mode       LVDPLL mode
+*
+***********************************************************************/
+static int pwr_svc_find_lvdpll_mode(uint16_t freq, uint8_t *lvdpll_mode)
+{
+    uint8_t strap_pins;
+    uint32_t input_freqs[] = {100, 24, 40};
+    uint32_t input_freq;
+
+    static const uint32_t lvdpll_settings_count =
+        sizeof(gs_lvdpll_settings) / sizeof(LVDPLL_SETTING_t);
+    
+    strap_pins = get_lvdpll_strap_value();
+    input_freq = input_freqs[strap_pins];
+
+    /* Find LVDPLL mode */
+    for (uint32_t pll_settings_index = 0; pll_settings_index < lvdpll_settings_count;
+        pll_settings_index++)
+    {
+        if (gs_lvdpll_settings[pll_settings_index].input_frequency == input_freq*1000000 &&
+            gs_lvdpll_settings[pll_settings_index].output_frequency == freq*1000000)
+        {
+            *lvdpll_mode = gs_lvdpll_settings[pll_settings_index].mode;
+            return 0;
+        }
+    }
+    
+    return THERMAL_PWR_MGMT_LVDPLL_MODE_FIND_FAILED;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pwr_svc_set_module_frequency
+*
+*   DESCRIPTION
+*
+*       This function sets module frequency
+*
+*   INPUTS
+*
+*       tag_id            Tag id
+*       req_start_time    Time stamp when the request was received by the Command
+*                         Dispatcher
+*       buffer            Command input buffer
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void pwr_svc_set_module_frequency(tag_id_t tag_id, uint64_t req_start_time,
+                                                void *buffer)
+{
+    uint16_t freq;
+    pll_id_e pll_id;
+    uint8_t hpdpll_mode = 0;
+    uint8_t lvdpll_mode = 0;
+    uint8_t use_step_clock;
+    int status;
+
+    const struct device_mgmt_set_frequency_cmd_t *set_frequency_cmd =
+                (struct device_mgmt_set_frequency_cmd_t *)buffer;
+    struct device_mgmt_set_frequency_rsp_t dm_rsp;
+
+    pll_id = set_frequency_cmd->pll_id;
+    freq = set_frequency_cmd->pll_freq;
+    use_step_clock = set_frequency_cmd->use_step_clock ;
+    
+    if(pll_id == PLL_ID_NOC_PLL || use_step_clock == USE_STEP_CLOCK_TRUE)
+    {
+        status = pwr_svc_find_hpdpll_mode(freq, &hpdpll_mode);
+        if(status != 0)
+        {
+            goto SEND_RESPONSE;
+        }
+    }
+    else
+    {
+        status = pwr_svc_find_lvdpll_mode(freq, &lvdpll_mode);
+        if(status != 0)
+        {
+            goto SEND_RESPONSE;
+        }
+    }
+    
+    switch(pll_id)
+    {
+        case PLL_ID_NOC_PLL:
+            status = configure_sp_pll_2(hpdpll_mode);
+            if(0 != status)
+            {
+                goto SEND_RESPONSE;
+            }
+            break;
+        case PLL_ID_MINION_PLL:
+            status = Minion_Configure_Minion_Shire_PLL_no_mask(hpdpll_mode, lvdpll_mode,
+                                                               use_step_clock);
+            if(0 != status)
+            {
+                goto SEND_RESPONSE;
+            }
+            break;
+        default:
+            status = THERMAL_PWR_MGMT_SET_FREQ_ID_INVALID;
+    }
+
+SEND_RESPONSE:
+    FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_SET_FREQUENCY, timer_get_ticks_count() - req_start_time,
+                    status)
+
+    if (0 !=
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_set_frequency_rsp_t)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_set_module_frequency: Cqueue push error!\n");
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       thermal_power_monitoring_process
 *
 *   DESCRIPTION
@@ -735,6 +919,10 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
         }
         case DM_CMD_SET_THROTTLE_POWER_STATE_TEST: {
             trace_power_state_test(tag_id, req_start_time, buffer);
+            break;
+        }
+        case DM_CMD_SET_FREQUENCY: {
+            pwr_svc_set_module_frequency(tag_id, req_start_time, buffer);
             break;
         }
         default: {

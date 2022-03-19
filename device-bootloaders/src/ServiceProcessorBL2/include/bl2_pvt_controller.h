@@ -644,4 +644,11 @@ void pvt_print_all(void);
 int pvt_get_and_print(uint8_t print_ts, uint8_t print_vm, PVT_PRINT_e print_select, uint16_t *data,
                     uint32_t *num_bytes);
 
+/*! \fn int pvt_get_minion_avg_low_high_temperature(TS_Sample* temp)
+    \brief This function returns average, high and low temperature for Minion shires
+    \param temp place holder for return values
+    \return Status indicating success or negative error
+*/
+int pvt_get_minion_avg_low_high_temperature(TS_Sample* temp);
+
 #endif

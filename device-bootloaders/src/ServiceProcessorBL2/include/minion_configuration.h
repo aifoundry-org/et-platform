@@ -119,7 +119,8 @@ int Compute_Minion_Reset_Threads(uint64_t minion_shires_mask);
 */
 int Initialize_Minions(uint64_t shires_mask);
 
-/*! \fn int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpll_mode ,uint8_t lvdpll_mode, bool use_step_clock)
+/*! \fn int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpll_mode,
+*                                             uint8_t lvdpll_mode, bool use_step_clock)
     \brief This function configures the Minion PLLs to Step Clock, and bring them out of reset.
     \param  minion_shires_mask Shire Mask to enable
     \param  hpdpll_mode Frequency of the Step clock
@@ -128,6 +129,17 @@ int Initialize_Minions(uint64_t shires_mask);
     \return The function call status, pass/fail.
 */
 int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpll_mode,
+                                      uint8_t lvdpll_mode, bool use_step_clock);
+
+/*! \fn int Minion_Configure_Minion_Shire_PLL_no_mask(uint8_t hpdpll_mode,
+*                                             uint8_t lvdpll_mode, bool use_step_clock)
+    \brief This function configures the Minion PLLs to Step Clock, and bring them out of reset.
+    \param  hpdpll_mode Frequency of the Step clock
+    \param  lvdpll_mode Frequency mode to enable the internal LVDPLL of each Shire
+    \param  to enable Minion to use Step clock
+    \return The function call status, pass/fail.
+*/
+int Minion_Configure_Minion_Shire_PLL_no_mask(uint8_t hpdpll_mode,
                                       uint8_t lvdpll_mode, bool use_step_clock);
 
 /*! \fn uint64_t Minion_Get_Active_Compute_Minion_Mask(void)

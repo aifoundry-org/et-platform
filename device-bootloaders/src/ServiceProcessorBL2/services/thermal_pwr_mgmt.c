@@ -460,27 +460,53 @@ int update_module_current_temperature(void)
 *
 *   INPUTS
 *
-*       *soc_temperature         Pointer to temperature variable
+*       *temperature         Pointer to temperature variable
 *
 *   OUTPUTS
 *
 *       int                      Return status
 *
 ***********************************************************************/
-int get_module_current_temperature(uint8_t *soc_temperature)
+int get_module_current_temperature(struct current_temperature_t *temperature)
 {
-    uint8_t temperature;
-    if (0 != pvt_get_minion_avg_temperature(&temperature))
+    TS_Sample pvt_temperature;
+    uint8_t pmic_temperature;
+
+    if (0 != pvt_get_minion_avg_temperature(&pmic_temperature))
     {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get temperature\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else
     {
-        get_soc_power_reg()->soc_temperature = temperature;
+        temperature->pmic_sys = pmic_temperature;
     }
 
-    *soc_temperature = get_soc_power_reg()->soc_temperature;
+    if (0 != pvt_get_minion_avg_low_high_temperature(&pvt_temperature))
+    {
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get temperature\r\n");
+        return THERMAL_PWR_MGMT_PVT_ACCESS_FAILED;
+    }
+    else
+    {
+        get_soc_power_reg()->soc_temperature = (uint8_t)pvt_temperature.current;
+        temperature->minshire_avg = pvt_temperature.current;
+        temperature->minshire_high = pvt_temperature.high;
+        temperature->minshire_low = pvt_temperature.low;
+    }
+
+    if (0 != pvt_get_ioshire_ts_sample(&pvt_temperature))
+    {
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get temperature\r\n");
+        return THERMAL_PWR_MGMT_PVT_ACCESS_FAILED;
+    }
+    else
+    {
+        temperature->ioshire_current = pvt_temperature.current;
+        temperature->ioshire_high = pvt_temperature.high;
+        temperature->ioshire_low = pvt_temperature.low;
+    }
+
     return 0;
 }
 

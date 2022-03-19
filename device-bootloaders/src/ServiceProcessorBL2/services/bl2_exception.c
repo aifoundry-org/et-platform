@@ -273,6 +273,7 @@ static void dump_power_globals_trace(void)
     power_state_e power_state = 0;
     uint8_t tdp_level = 0;
     uint8_t temp = 0;
+    struct current_temperature_t temperature;
     uint8_t data_buff[SP_POWER_GLOBALS_SIZE];
     uint64_t buff_idx = 0;
 
@@ -287,8 +288,8 @@ static void dump_power_globals_trace(void)
     buff_idx += sizeof(uint8_t);
 
     /* Read the value and copy it to buffer */
-    get_module_current_temperature(&temp);
-    data_buff[buff_idx] = temp;
+    get_module_current_temperature(&temperature);
+    data_buff[buff_idx] = temperature.pmic_sys;
     buff_idx += sizeof(uint8_t);
 
     /* Read the value and copy it to buffer */

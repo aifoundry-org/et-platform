@@ -97,12 +97,12 @@ int get_module_temperature_threshold(struct temperature_threshold_t *temperature
 */
 int update_module_current_temperature(void);
 
-/*! \fn int get_module_current_temperature(uint8_t *soc_temperature);
+/*! \fn int get_module_current_temperature(struct current_temperature_t *temperature);
     \brief Interface to get the module's current temperature.
-    \param soc_temperature  Pointer to SOC temperature variable
+    \param temperature  Pointer to SOC temperature variable
     \returns Status indicating success or negative error
 */
-int get_module_current_temperature(uint8_t *soc_temperature);
+int get_module_current_temperature(struct current_temperature_t *temperature);
 
 /*! \fn int update_module_soc_power(void);
     \brief Interface to update the module's SOC Power consumption.

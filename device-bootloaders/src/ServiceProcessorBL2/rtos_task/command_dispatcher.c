@@ -149,6 +149,7 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
                 firmware_service_process_request(tag_id, msg_id, (void *)buffer);
                 break;
             case DM_CMD_SET_THROTTLE_POWER_STATE_TEST:
+            case DM_CMD_SET_FREQUENCY:
             case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS ... DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES:
                 thermal_power_monitoring_process(tag_id, msg_id, (void *)buffer);
                 break;

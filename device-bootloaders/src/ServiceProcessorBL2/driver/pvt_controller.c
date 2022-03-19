@@ -476,14 +476,6 @@ int pvt_get_ioshire_ts_sample(TS_Sample *ts_sample)
     uint8_t pvt_id = PVTC_IOSHIRE_TS_PD_ID / PVTC_TS_NUM;
     uint8_t ts_id = PVTC_IOSHIRE_TS_PD_ID % PVTC_TS_NUM;
 
-    /* Check sample done */
-    if (TS_PD_INDIVIDUAL_IP_SDIF_DONE_SDIF_SMPL_DONE_GET(
-            pReg_Pvtc[pvt_id]->ts.ts_individual[ts_id].sdif_done) == 0)
-    {
-        Log_Write(LOG_LEVEL_INFO, "PVT TS sample for IOSHIRE is not done yet\r\n");
-        return ERROR_PVT_SAMPLE_NOT_DONE;
-    }
-
     return pvt_get_ts_data(pvt_id, ts_id, ts_sample);
 }
 
@@ -1116,6 +1108,43 @@ int pvt_get_minion_avg_temperature(uint8_t* avg_temp)
 
     avg = avg / valid_samples_num;
     *avg_temp = (uint8_t)avg;
+
+    return 0;
+}
+
+int pvt_get_minion_avg_low_high_temperature(TS_Sample* temp)
+{
+    TS_Sample sample;
+    int status;
+    int avg = 0;
+    int high = 0;
+    int low = 0x0FFF;
+    int valid_samples_num = 0;
+
+    sample.high = 0;
+    sample.low = 0x0FFF;
+    
+    for(int min = 0; min < PVTC_MINION_SHIRE_NUM; min++) {
+        status = pvt_get_min_shire_ts_sample(min, &sample);
+        if (0 == status) {
+            avg = avg + sample.current;
+            valid_samples_num++;
+            high = MAX(sample.high, high);
+            low = MIN(sample.low, low);
+        }
+    }
+
+    if (valid_samples_num == 0)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "There were no valid Minion Shire TS samples\r\n");
+        return ERROR_PVT_NO_VALID_TS_SAMPLES;
+    }
+
+    avg = avg / valid_samples_num;
+
+    temp->current = (int16_t)avg;
+    temp->high = (int16_t)high;
+    temp->low = (int16_t)low;
 
     return 0;
 }

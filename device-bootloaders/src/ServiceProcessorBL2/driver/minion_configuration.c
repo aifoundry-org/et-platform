@@ -179,7 +179,8 @@ static StaticTimer_t MM_Timer_Buffer;
 */
 #define MM_COMPUTE_THREADS 0xFFFFFFFFU
 
-static uint64_t g_active_shire_mask = 0;
+static uint64_t gs_active_shire_mask = 0;
+static uint64_t gs_dlls_initialized = 0;
 
 /* MM command handler task cb to reset task */
 extern TaskHandle_t g_mm_cmd_hdlr_handle;
@@ -262,13 +263,17 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode)
     {
         if (shire_mask & 1)
         {
+            SWITCH_CLOCK_MUX(i, SELECT_STEP_CLOCK)
+
             if (0 != config_lvdpll_freq_full(i, mode))
             {
                 status = MINION_PLL_CONFIG_ERROR;
                 pll_fail_mask = pll_fail_mask | (uint64_t)(1 << i);
             }
-
-            SWITCH_CLOCK_MUX(i, SELECT_PLL_CLOCK_0)
+            else
+            {
+                SWITCH_CLOCK_MUX(i, SELECT_PLL_CLOCK_0)
+            }
 
             lvdpll_clear_lock_monitor(i);
         }
@@ -833,7 +838,6 @@ int Minion_Get_Voltage_Given_Freq(int32_t target_frequency)
 *
 *   INPUTS
 *
-*       minion_shires_mask  Shire Mask to enable
 *       hpdpll_mode - value of the Step Clock freq(in mode) to updated to
 *       lvdpll_mode - value of Minion LVDPLLL freq(in mode)
 *       use_step_clock - Option to have Minion Shire use Step Clock
@@ -861,15 +865,14 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
         return MINION_INVALID_SHIRE_MASK;
     } 
 
- 
     for (uint8_t i = 0; i <= num_shires; i++)
     {
-        if (shire_mask & 1)
+        if ((shire_mask & 1) && (0 == gs_dlls_initialized))
         {
             SWITCH_CLOCK_MUX(i, SELECT_REF_CLOCK)
             if (0 != dll_config(i))
             {
-               dll_fail_mask = dll_fail_mask | (uint64_t)(1 << i);
+                dll_fail_mask = dll_fail_mask | (uint64_t)(1 << i);
             }
         }
         shire_mask >>= 1;   
@@ -880,6 +883,10 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
          Log_Write(LOG_LEVEL_ERROR, "minion_configure_dlls(): DLL failed mask %lu!\n",
                                      dll_fail_mask);
          return MINION_DLL_CONFIG_ERROR;
+    }
+    else
+    {
+        gs_dlls_initialized = 1;
     }
 
     if(use_step_clock)
@@ -895,6 +902,38 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
     {
         Log_Write(LOG_LEVEL_WARNING, "Minion Shire PLL using Ref Clock\n");
     }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Configure_Minion_Shire_PLL_no_mask
+*
+*   DESCRIPTION
+*
+*       This function configures the Minion Shire PLLs
+*
+*   INPUTS
+*
+*       hpdpll_mode - value of the Step Clock freq(in mode) to updated to
+*       lvdpll_mode - value of Minion LVDPLLL freq(in mode)
+*       use_step_clock - Option to have Minion Shire use Step Clock
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int Minion_Configure_Minion_Shire_PLL_no_mask(uint8_t hpdpll_mode,
+                                      uint8_t lvdpll_mode, bool use_step_clock)
+{
+    int status = SUCCESS;
+
+    status = Minion_Configure_Minion_Shire_PLL(gs_active_shire_mask, hpdpll_mode, lvdpll_mode,
+                                               use_step_clock);
 
     return status;
 }
@@ -1217,7 +1256,7 @@ int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args)
 ***********************************************************************/
 void Minion_Set_Active_Shire_Mask(uint64_t active_shire_mask)
 {
-    g_active_shire_mask = active_shire_mask;
+    gs_active_shire_mask = active_shire_mask;
 }
 
 /************************************************************************
@@ -1241,7 +1280,7 @@ void Minion_Set_Active_Shire_Mask(uint64_t active_shire_mask)
 ***********************************************************************/
 uint64_t Minion_State_MM_Iface_Get_Active_Shire_Mask(void)
 {
-    return g_active_shire_mask;
+    return gs_active_shire_mask;
 }
 
 /************************************************************************
