@@ -946,9 +946,15 @@ void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature(bool singleDevice) {
     if (getTestTarget() != Target::Loopback) {
       device_mgmt_api::current_temperature_t* cur_temp = (device_mgmt_api::current_temperature_t*)output_buff;
 
-      printf(" Module current temperature (in C): %d\r\n", cur_temp->temperature_c);
+      printf(" PMIC SYS current temperature (in C): %d\r\n", cur_temp->pmic_sys);
+      printf(" IOSHIRE current temperature (in C): %d\r\n", cur_temp->ioshire_current);
+      printf(" IOSHIRE low temperature (in C): %d\r\n", cur_temp->ioshire_low);
+      printf(" IOSHIRE high temperature (in C): %d\r\n", cur_temp->ioshire_high);
+      printf(" MINSHIRE average temperature (in C): %d\r\n", cur_temp->minshire_avg);
+      printf(" MINSHIRE low temperature (in C): %d\r\n", cur_temp->minshire_low);
+      printf(" MINSHIRE high temperature (in C): %d\r\n", cur_temp->minshire_high);
 
-      EXPECT_NE(cur_temp->temperature_c, 0);
+      EXPECT_NE(cur_temp->pmic_sys, 0);
     }
   }
 }
@@ -1067,6 +1073,40 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState(bool singleDevice) {
         printf("\taverage: %d\n", residency->average);
         printf("\tmaximum: %d\n", residency->maximum);
         printf("\tminimum: %d\n", residency->minimum);
+      }
+    }
+  }
+}
+
+void TestDevMgmtApiSyncCmds::setModuleFrequency(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    for (device_mgmt_api::pll_id_e pll_id = device_mgmt_api::PLL_ID_NOC_PLL;
+         pll_id <= device_mgmt_api::PLL_ID_MINION_PLL; pll_id++) {
+      for (device_mgmt_api::use_step_e use_step = device_mgmt_api::USE_STEP_CLOCK_FALSE;
+           use_step <= device_mgmt_api::USE_STEP_CLOCK_TRUE; use_step++) {
+        if(use_step == device_mgmt_api::USE_STEP_CLOCK_TRUE
+           && pll_id != device_mgmt_api::PLL_ID_MINION_PLL) continue;
+        const uint32_t input_size = sizeof(uint16_t) +
+                                    sizeof(device_mgmt_api::pll_id_e) +
+                                    sizeof(device_mgmt_api::use_step_e);
+        char input_buff[input_size];
+        input_buff[0] = (char)(0x90);
+        input_buff[1] = (char)(0x01);
+        input_buff[2] = (char)pll_id;
+        input_buff[3] = (char)use_step;
+        auto hst_latency = std::make_unique<uint32_t>();
+        auto dev_latency = std::make_unique<uint64_t>();
+
+        EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FREQUENCY,
+                                    input_buff, input_size, nullptr, 0, hst_latency.get(),
+                                    dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                    device_mgmt_api::DM_STATUS_SUCCESS);
+        DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
       }
     }
   }

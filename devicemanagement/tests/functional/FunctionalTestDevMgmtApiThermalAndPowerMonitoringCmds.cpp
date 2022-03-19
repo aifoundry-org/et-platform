@@ -86,6 +86,10 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setThrottlePowerSt
   setThrottlePowerStatus(true /* Multiple Devices */);
 }
 
+TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setModuleFrequency) {
+  setModuleFrequency(false /* Multiple devices */);
+}
+
 int main(int argc, char** argv) {
   logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);
