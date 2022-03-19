@@ -143,40 +143,42 @@ Modules:
           Value: 59
         - Name: SET_THROTTLE_POWER_STATE_TEST
           Value: 60
-        - Name: MDI_SELECT_HART
+        - Name: SET_FREQUENCY
           Value: 61
+        - Name: MDI_SELECT_HART
+          Value: 62
         - Name: MDI_UNSELECT_HART
-          Value: 62  
+          Value: 63  
         - Name: MDI_RESET_HART
-          Value: 63
-        - Name: MDI_HALT_HART
           Value: 64
-        - Name: MDI_RESUME_HART
+        - Name: MDI_HALT_HART
           Value: 65
-        - Name: MDI_GET_HART_STATUS
+        - Name: MDI_RESUME_HART
           Value: 66
-        - Name: MDI_SET_BREAKPOINT
+        - Name: MDI_GET_HART_STATUS
           Value: 67
-        - Name: MDI_UNSET_BREAKPOINT
+        - Name: MDI_SET_BREAKPOINT
           Value: 68
-        - Name: MDI_ENABLE_SINGLE_STEP
+        - Name: MDI_UNSET_BREAKPOINT
           Value: 69
-        - Name: MDI_DISABLE_SINGLE_STEP
+        - Name: MDI_ENABLE_SINGLE_STEP
           Value: 70
-        - Name: MDI_READ_GPR
+        - Name: MDI_DISABLE_SINGLE_STEP
           Value: 71
-        - Name: MDI_DUMP_GPR
+        - Name: MDI_READ_GPR
           Value: 72
+        - Name: MDI_DUMP_GPR
+          Value: 73
         - Name: MDI_WRITE_GPR
-          Value: 73  
+          Value: 74  
         - Name: MDI_READ_CSR
-          Value: 74
-        - Name: MDI_WRITE_CSR
           Value: 75
-        - Name: MDI_READ_MEM
+        - Name: MDI_WRITE_CSR
           Value: 76
-        - Name: MDI_WRITE_MEM
+        - Name: MDI_READ_MEM
           Value: 77
+        - Name: MDI_WRITE_MEM
+          Value: 78
         - Name: MDI_SET_BREAKPOINT_EVENT
           Value: 128
         - Name: MDI_END
@@ -402,6 +404,22 @@ Modules:
           Value: 1
         - Name : BP_HALT_FAILED
           Value: 2
+    - Name: pll_id
+      Description: PLL id for frequency change
+      Type: uint8_t
+      Values:
+        - Name : NOC_PLL
+          Value: 0
+        - Name : MINION_PLL
+          Value: 1
+    - Name: use_step
+      Description: Use step clock for Minions
+      Type: uint8_t
+      Values:
+        - Name : CLOCK_FALSE
+          Value: 0
+        - Name : CLOCK_TRUE
+          Value: 1
   Structs:
     - Name: asset_info_t
       Description: Asset Information
@@ -456,10 +474,28 @@ Modules:
           Type: uint8_t
     - Name: current_temperature_t
       Fields:
-        - Name: temperature_c
-          Description: Current temperature (in C)
+        - Name: ioshire_current
+          Description: IOSHIRE current temperature (in C)
+          Type: int16_t
+        - Name: ioshire_low
+          Description: IOSHIRE lowest temperature (in C)
+          Type: int16_t
+        - Name: ioshire_high
+          Description: IOSHIRE highest temperature (in C)
+          Type: int16_t
+        - Name: minshire_avg
+          Description: Mionion Shire average temperature (in C)
+          Type: int16_t
+        - Name: minshire_low
+          Description: Mionion Shire lowest temperature (in C)
+          Type: int16_t
+        - Name: minshire_high
+          Description: Mionion Shire highest temperature (in C)
+          Type: int16_t
+        - Name: pmic_sys
+          Description: PMIC SYS temperature (in C)
           Type: uint8_t
-        - Name: pad[7]
+        - Name: pad[3]
           Description: Padding for alignment
           Type: uint8_t
     - Name: residency_t
@@ -1226,6 +1262,33 @@ Modules:
           Description: Frequencies of different components
           Type: struct
           Struct: asic_frequencies_t
+    - Name: device_mgmt_set_frequency_cmd
+      Description:  Command to request frequency change
+      Type: Command
+      PairedMessage: device_mgmt_default_rsp
+      Fields:
+        - Name: pll_freq
+          Description: PLL frequency
+          Type: uint16_t
+        - Name: pll_id
+          Description: PLL id
+          Type: enum
+          Enum: pll_id
+        - Name: use_step_clock
+          Description: Use step clock for Minions
+          Type: enum
+          Enum: use_step
+        - Name: pad[4]
+          Description: Padding for alignment
+          Type: uint8_t
+    - Name: device_mgmt_set_frequency_rsp
+      Type: Response
+      Description: Response for power state command
+      PairedMessage: device_mgmt_set_frequency_cmd
+      Fields:
+        - Name: dummy
+          Description: Padding for alignment
+          Type: uint64_t
     - Name: device_mgmt_dram_bw_cmd
       Description:  Command to get DRAM BW Info
       Type: Command
