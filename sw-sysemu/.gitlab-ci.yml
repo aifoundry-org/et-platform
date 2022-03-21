@@ -1,64 +1,67 @@
 include:
-  - project: 'software/conan/conan-ci-pipelines-common'
+  - project: 'software/gitlab-ci-common'
     ref: master
-    file: 'mr/common.yaml'
+    file:
+      - 'pods/nano-pod.yaml'
+      - 'misc/retries.yaml'
 
-variables:
-  GIT_SUBMODULE_STRATEGY: none
-  GET_SOURCES_ATTEMPTS: 2
-  ARTIFACT_DOWNLOAD_ATTEMPTS: 2
-
+stages:
+  - generate_build
+  - build
+  - test
+  - deploy
 
 ###############################################################################
 ###############################################################################
 ###############################################################################
 
-gen_conan_build_pipeline:
-  extends: .template_job_k8s_with_conan_ci_pipelines_common
-  stage: .pre
-  image: conanio/gcc7-ubuntu16.04
+generate_build:conan:
+  extends:
+    - .retries
+    - .pod_nano
+  stage: generate_build
+  tags:
+    - k8s
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/ubuntu-18.04-gcc7-conan:0.0.7
   script:
-
-    # generate pipeline
-    - |
-      conan-ci-pipelines-common/gen-build-pipeline.py \
-          ci/src/conan.yaml \
-          conan-ci-pipelines-common/consumers.yaml \
-          conan-ci-pipelines-common/configs.yaml \
-          -o build-pipeline.yaml
-
-    - sh -c -x "${CMD_AFTER_GENERATE_PIPELINE}"
+    - cd conan
+    - python3 -m ci_build
+    - mv build_pipeline.yml ..
+  artifacts:
+    expire_in: 1h 
+    paths:
+      - build_pipeline.yml
 
 ###############################################################################
 ###############################################################################
 ###############################################################################
 
-conan_build_pipeline:
-  stage: build
+build:conan:
   needs:
-    - gen_conan_build_pipeline
-  variables:
-    UPSTREAM_PROJECT_NAME:      ${CI_PROJECT_NAME}
-    UPSTREAM_CI_PIPELINE_ID:    ${CI_PIPELINE_ID}
-    CONAN_CI_PIPELINES_COMMON_REF: ${CONAN_CI_PIPELINES_COMMON_REF}
-    CONAN_CONFIG_EXTRA_ARGS: ${CONAN_CONFIG_EXTRA_ARGS}
+  - generate_build:conan
+  stage: build
   trigger:
     include:
-      - artifact: build-pipeline.yaml
-        job: gen_conan_build_pipeline
+    - artifact: build_pipeline.yml
+      job: generate_build:conan
     strategy: depend
 
 ###############################################################################
 ###############################################################################
 ###############################################################################
 
-on_success:promote:
-  extends: .template_job_k8s_with_conan_ci_pipelines_common_on_success_perform_promote
-  stage: deploy
-  needs:
-    - gen_conan_build_pipeline
-    - conan_build_pipeline
+# hypotetical unit tests would go here
 
-on_failure:report:
-  extends: .template_job_k8s_bare_minimum_on_failure_report
-  stage: deploy
+###############################################################################
+###############################################################################
+###############################################################################
+
+# on_success:promote:
+#   extends: .template_job_k8s_with_conan_ci_pipelines_common_on_success_perform_promote
+#   stage: deploy
+#   needs:
+#     - build:conan
+#   script:
+#     - cd conan
+
+
