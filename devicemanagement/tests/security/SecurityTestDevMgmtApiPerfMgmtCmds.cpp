@@ -25,7 +25,6 @@ class SecurityTestDevMgmtApiPerfMgmtCmds : public TestDevMgmtApiSyncCmds {
     controlTraceLogging(false);
   }
   void TearDown() override {
-    DM_LOG(INFO) << "TearDown SecurityTestDevMgmtApiPerfMgmtCmds";
     extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
     controlTraceLogging(true);
     if (handle_ != nullptr) {

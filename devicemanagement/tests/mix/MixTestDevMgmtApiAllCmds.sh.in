@@ -18,16 +18,14 @@ if [ -z "$DURATION" ]; then
     ## Default test duration
     DURATION="5minute"
 fi
-echo "Tests duration is $DURATION"
+echo "$0: Tests duration is $DURATION"
 
 if [ -n "$VERBOSE" ]; then
     VERBOSE="-V"
 fi
 
-echo "Tests duration is $DURATION"
-
 labels="FUNCTIONAL|SECURITY|INTEGRATION"
-mgmt_tests=($(ctest -L $labels -N | awk '$2 ~ /#[0-9]+:/ && $4 !~ /Disabled/ {print $3}'))
+mgmt_tests=($(ctest -L $labels -E "RunControlApiTestcmds|StateInspectionApiTestcmds" -N | awk '$2 ~ /#[0-9]+:/ && $4 !~ /Disabled/ {print $3}'))
 mgmt_tests_count=${#mgmt_tests[@]}
 if [[ $mgmt_tests_count -eq 0 ]]; then
     exit 1
@@ -40,7 +38,7 @@ mgmt_tests_endtime=$(date -ud "$DURATION" +%s)
 while [[ $(date -u +%s) -le $mgmt_tests_endtime ]]
 do
     mgmt_exec_idx=$(($RANDOM % $mgmt_tests_count))
-    sudo TARGET=${TARGET} ctest -L $labels -R "^${mgmt_tests[$mgmt_exec_idx]}$" ${VERBOSE} > $mgmt_tests_logfile
+    TARGET=${TARGET} ctest -L $labels -R "^${mgmt_tests[$mgmt_exec_idx]}$" ${VERBOSE} > $mgmt_tests_logfile
     mgmt_tests_rv=$?
     cat $mgmt_tests_logfile | tail -n +2 | head -n -7
     if [ $mgmt_tests_rv -ne 0 ]; then
