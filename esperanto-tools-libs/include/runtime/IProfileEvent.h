@@ -62,6 +62,7 @@ enum class Class {
   Pmc,
   CommandSent,
   ResponseReceived,
+  DispatchEvent,
 
   COUNT
 };

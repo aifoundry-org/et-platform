@@ -57,6 +57,8 @@ std::string getString(Class cls) {
     return "CommandSent";
   case event::ResponseReceived:
     return "ResponseReceived";
+  case event::DispatchEvent:
+    return "DispatchEvent";
   default:
     assert(false);
     return "Unknown class";
@@ -113,6 +115,7 @@ Class class_from_string(const std::string& str) {
     s_map[getString(Class::Pmc)] = Class::Pmc;
     s_map[getString(Class::CommandSent)] = Class::CommandSent;
     s_map[getString(Class::ResponseReceived)] = Class::ResponseReceived;
+    s_map[getString(Class::DispatchEvent)] = Class::DispatchEvent;
 
     assert(s_map.size() == static_cast<int>(Class::COUNT));
   });

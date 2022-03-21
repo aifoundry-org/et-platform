@@ -209,6 +209,7 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
        RT_VLOG(LOW) << "Load code ended. Buffers released.";
        dispatch(evt);
      }});
+  profileEvent.setEventId(loadCodeResult.event_);
   return loadCodeResult;
 }
 
@@ -678,6 +679,7 @@ void RuntimeImp::dispatch(EventId event) {
                     << static_cast<int>(event);
     return;
   }
+  ScopedProfileEvent profileEvent(Class::DispatchEvent, *profiler_, event);
   streamManager_.removeEvent(event);
   eventManager_.dispatch(event);
 }
