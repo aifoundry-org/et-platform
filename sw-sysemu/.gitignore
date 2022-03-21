@@ -3,6 +3,5 @@ compile_flags.txt
 cmake-build-*
 test_package/build
 locks/
-variables.env
-conan-ci-pipelines-common/
+*.lock
 .idea/
