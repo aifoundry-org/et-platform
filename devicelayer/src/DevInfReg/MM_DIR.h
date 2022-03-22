@@ -49,6 +49,14 @@ enum MM_DEV_INTF_MEM_REGION_TYPE_e {
     MM_DEV_INTF_MEM_REGION_TYPE_NUM
 };
 
+/*! \enum MM_INTRPT_BIT_e
+    \brief Representing interrupt bits for Master Minion.
+*/
+enum MM_INTRPT_BIT_e {
+    MM_SQ = 1U << 2,
+    MM_CQ = 1U << 3,
+};
+
 /*! \struct MM_DEV_INTF_MEM_REGION_ATTR
     \brief Holds the information of Master Minion interface memory region.
     \warning Must be 64-bit aligned.

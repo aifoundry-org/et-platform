@@ -154,14 +154,20 @@ DeviceSysEmu::DeviceSysEmu(const emu::SysEmuOptions& options) {
   interruptListener_ = std::thread([&] {
     while (isRunning_) {
       // Device Management:
-      //  - MSI Vector[0] - Mgmt VQ
+      //  - MSI Vector[0] - Mgmt SQ
+      //  - MSI Vector[1] - Mgmt CQ
       // Device Operations:
-      //  - MSI Vector[1] - Ops VQ
-      auto bitmask = sysEmu_->waitForInterrupt(0xffffffff);
-      for (uint32_t i = 0; i < 32; ++i) {
-        if (bitmask & 1u << i) {
-          interruptBlock_[i].notify_all();
-        }
+      //  - MSI Vector[2] - Ops SQ(s)
+      //  - MSI Vector[3] - Ops CQ
+      auto bitmap = sysEmu_->waitForInterrupt(SP_SQ | SP_CQ | MM_SQ | MM_CQ);
+      std::lock_guard lock(mutex_);
+      if (bitmap & (SP_SQ | SP_CQ)) {
+        spIntrptBitmap_ |= bitmap & (SP_SQ | SP_CQ);
+        spEpollBlock_.notify_all();
+      }
+      if (bitmap & (MM_SQ | MM_CQ)) {
+        mmIntrptBitmap_ |= bitmap & (MM_SQ | MM_CQ);
+        mmEpollBlock_.notify_all();
       }
     }
   });
@@ -178,9 +184,8 @@ DeviceSysEmu::~DeviceSysEmu() {
   DV_LOG(INFO) << "Checking last errors from sysemu.";
   checkSysemuLastError(); // this needs to be done after sysemu instance has been destroyed
   DV_LOG(INFO) << "Awake all waiting threads.";
-  for (auto& interruptBlock : interruptBlock_) {
-    interruptBlock.notify_all();
-  }
+  spEpollBlock_.notify_all();
+  mmEpollBlock_.notify_all();
   DV_LOG(INFO) << "Joining interrupt listener.";
   interruptListener_.join();
   DV_LOG(INFO) << "Interrupt listener joined";
@@ -288,6 +293,41 @@ bool DeviceSysEmu::checkForEventEPOLLOUT(const QueueInfo& queueInfo) const {
   return getAvailSpace(cb) >= queueInfo.thresholdBytes_;
 }
 
+bool DeviceSysEmu::foundEventsMasterMinion(uint64_t& sqBitmap, bool& cqAvailable) {
+  uint64_t tempSqBitmap = 0;
+  bool tempCqAvailable = false;
+  // Check for SQ availability if it's corresponding interrupt is received
+  if (mmIntrptBitmap_ & MM_SQ) {
+    // Clear interrupt
+    mmIntrptBitmap_ &= ~static_cast<uint32_t>(MM_SQ);
+    for (uint32_t sqIdx = 0; sqIdx < mmInfo_.vq_attr.sq_count; ++sqIdx) {
+      if (mmSqBitmap_ & 0x1U << sqIdx) {
+        continue;
+      }
+      if (checkForEventEPOLLOUT(submissionQueuesMM_[sqIdx])) {
+        tempSqBitmap |= (0x1U << sqIdx);
+      }
+    }
+  }
+
+  // Check for CQ availability if it's corresponding interrupt is received
+  if ((mmIntrptBitmap_ & MM_CQ) && !mmCqReady_) {
+    // Clear interrupt
+    mmIntrptBitmap_ &= ~static_cast<uint32_t>(MM_CQ);
+    tempCqAvailable = checkForEventEPOLLIN(completionQueueMM_);
+  }
+  // return true if edge-trigger event(s) found i.e., some bit from sqBitmap or cqReady activates
+  // (changes from  0 -> 1), mimic the PCIe driver
+  if ((tempSqBitmap & ~mmSqBitmap_) || (tempCqAvailable && !mmCqReady_)) {
+    sqBitmap = tempSqBitmap;
+    mmSqBitmap_ = tempSqBitmap;
+    cqAvailable = tempCqAvailable;
+    mmCqReady_ = tempCqAvailable;
+    return true;
+  }
+  return false;
+}
+
 void DeviceSysEmu::waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool& cq_available,
                                                   std::chrono::milliseconds timeout) {
   DV_VLOG(HIGH) << "Waiting for interrupt from master minion";
@@ -296,34 +336,39 @@ void DeviceSysEmu::waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool
   cq_available = false;
 
   auto lock = std::unique_lock<std::mutex>(mutex_);
-  interruptBlock_[1].wait_for(lock, timeout, [this, &sq_bitmap, &cq_available]() {
-    if (!isRunning_)
-      return true;
-    uint64_t tempSqBitmap = 0;
-    bool tempCqAvailable = false;
-    for (uint32_t sq_idx = 0; sq_idx < mmInfo_.vq_attr.sq_count; ++sq_idx) {
-      if (mmSqBitmap_ & 0x1U << sq_idx) {
-        continue;
-      }
-      if (checkForEventEPOLLOUT(submissionQueuesMM_[sq_idx])) {
-        tempSqBitmap |= (0x1U << sq_idx);
-      }
-    }
-    if (!mmCqReady_) {
-      tempCqAvailable = checkForEventEPOLLIN(completionQueueMM_);
-    }
-    // exit the wait whenever some bit from sqBitmap or cqReady activates (changes from  0 -> 1), mimic the PCIe
-    //
-    // driver
-    if ((tempSqBitmap & ~mmSqBitmap_) || (tempCqAvailable && !mmCqReady_)) {
-      mmSqBitmap_ = sq_bitmap = tempSqBitmap;
-      mmCqReady_ = cq_available = tempCqAvailable;
+  mmEpollBlock_.wait_for(lock, timeout, [this, &sq_bitmap, &cq_available]() {
+    if (!isRunning_) {
       return true;
     }
-    return false;
+    return foundEventsMasterMinion(sq_bitmap, cq_available);
   });
   DV_VLOG(HIGH) << "Finished waiting interrupt for master minion. SQ_BITMAP: " << std::hex << sq_bitmap
                 << " CQ_AVAILABLE: " << cq_available;
+}
+
+bool DeviceSysEmu::foundEventsServiceProcessor(bool& sqAvailable, bool& cqAvailable) {
+  bool tempSqAvailable = false;
+  bool tempCqAvailable = false;
+  // Check for SQ availability if it's corresponding interrupt is received
+  if ((spIntrptBitmap_ & SP_SQ) && !spSqReady_) {
+    // Clear interrupt
+    spIntrptBitmap_ &= ~static_cast<uint32_t>(SP_SQ);
+    tempSqAvailable = checkForEventEPOLLOUT(submissionQueueSP_);
+  }
+  // Check for CQ availability if it's corresponding interrupt is received
+  if ((spIntrptBitmap_ & SP_CQ) && !spCqReady_) {
+    // Clear interrupt
+    spIntrptBitmap_ &= ~static_cast<uint32_t>(SP_CQ);
+    tempCqAvailable = checkForEventEPOLLIN(completionQueueSP_);
+  }
+  if ((tempSqAvailable && !spSqReady_) || (tempCqAvailable && !spCqReady_)) {
+    sqAvailable = tempSqAvailable;
+    spSqReady_ = tempSqAvailable;
+    cqAvailable = tempCqAvailable;
+    spCqReady_ = tempCqAvailable;
+    return true;
+  }
+  return false;
 }
 
 void DeviceSysEmu::waitForEpollEventsServiceProcessor(int, bool& sq_available, bool& cq_available,
@@ -335,24 +380,11 @@ void DeviceSysEmu::waitForEpollEventsServiceProcessor(int, bool& sq_available, b
   cq_available = false;
 
   auto lock = std::unique_lock<std::mutex>(mutex_);
-  interruptBlock_[0].wait_for(lock, timeout, [this, &sq_available, &cq_available]() {
+  spEpollBlock_.wait_for(lock, timeout, [this, &sq_available, &cq_available]() {
     if (!isRunning_) {
       return true;
     }
-    bool tempSqAvailable = false;
-    bool tempCqAvailable = false;
-    if (!spSqReady_) {
-      tempSqAvailable = checkForEventEPOLLOUT(submissionQueueSP_);
-    }
-    if (!spCqReady_) {
-      tempCqAvailable = checkForEventEPOLLIN(completionQueueSP_);
-    }
-    if ((tempSqAvailable && !spSqReady_) || (tempCqAvailable && !spCqReady_)) {
-      sq_available = spSqReady_ = tempSqAvailable;
-      cq_available = spCqReady_ = tempCqAvailable;
-      return true;
-    }
-    return false;
+    return foundEventsServiceProcessor(sq_available, cq_available);
   });
   DV_VLOG(HIGH) << "Finished waiting interrupt for service processor. SQ_AVAILABLE: " << std::hex << sq_available
                 << " CQ_AVAILABLE: " << cq_available;

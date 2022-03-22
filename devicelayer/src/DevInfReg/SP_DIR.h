@@ -56,6 +56,14 @@ enum SP_DEV_INTF_MEM_REGION_TYPE_e {
     SP_DEV_INTF_MEM_REGION_TYPE_NUM
 };
 
+/*! \enum SP_INTRPT_BIT_e
+    \brief Representing interrupt bits for Service Processor.
+*/
+enum SP_INTRPT_BIT_e {
+    SP_SQ = 1U << 0,
+    SP_CQ = 1U << 1,
+};
+
 /*! \struct SP_DEV_INTF_MEM_REGION_ATTR
     \brief Holds the information of Service Processor interface memory region.
     \warning Must be 64-bit aligned.

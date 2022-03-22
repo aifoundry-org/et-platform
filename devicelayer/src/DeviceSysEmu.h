@@ -101,6 +101,8 @@ private:
 
   bool checkForEventEPOLLIN(const QueueInfo& queueInfo) const;
   bool checkForEventEPOLLOUT(const QueueInfo& queueInfo) const;
+  bool foundEventsMasterMinion(uint64_t& sqBitmap, bool& cqAvailable);
+  bool foundEventsServiceProcessor(bool& sqAvailable, bool& cqAvailable);
 
   void startHostMemoryAccessThread();
   void setupMasterMinion();
@@ -113,15 +115,18 @@ private:
   std::array<uint64_t, 8> barAddress_;
 
   std::mutex mutex_;
-  std::array<std::condition_variable, 32> interruptBlock_;
   std::thread interruptListener_;
 
   uint64_t spDevIntfRegAddr_;
   uint64_t mmDevIntfRegAddr_;
 
+  std::condition_variable mmEpollBlock_;
+  uint32_t mmIntrptBitmap_ = 0;
   std::atomic<uint64_t> mmSqBitmap_ = 0;
   std::atomic<bool> mmCqReady_ = false;
 
+  std::condition_variable spEpollBlock_;
+  uint32_t spIntrptBitmap_ = 0;
   std::atomic<bool> spSqReady_ = false;
   std::atomic<bool> spCqReady_ = false;
 
