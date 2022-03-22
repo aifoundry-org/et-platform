@@ -163,6 +163,9 @@ MATCHER(ACommandSent, "") {
 MATCHER(AResponseReceived, "") {
   return arg.getClass() == profiling::Class::ResponseReceived;
 }
+MATCHER(ADispatchEventReceived, "") {
+  return arg.getClass() == profiling::Class::DispatchEvent;
+}
 
 // memcpy H2D only generates 1 (complete) event
 TEST_F(ProfilerTests, memcpyHostToDevice) {
@@ -175,6 +178,7 @@ TEST_F(ProfilerTests, memcpyHostToDevice) {
   EXPECT_CALL(*profilerMock_, record(AMemcpyHostToDevice())).Times(1);
   EXPECT_CALL(*profilerMock_, record(ACommandSent())).Times(AtLeast(1));
   EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1)); // same
+  EXPECT_CALL(*profilerMock_, record(ADispatchEventReceived())).Times(2);
   runtime_->memcpyHostToDevice(stream, h_buffer.data(), d_ptr, h_buffer.size());
   // ------- code under test -------
 
@@ -200,6 +204,7 @@ TEST_F(ProfilerTests, loadCode) {
   EXPECT_CALL(*profilerMock_, record(ALoadCode())).Times(1);
   EXPECT_CALL(*profilerMock_, record(ACommandSent())).Times(AtLeast(1));
   EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1)); // same
+  EXPECT_CALL(*profilerMock_, record(ADispatchEventReceived())).Times(2);
   runtime_->loadCode(stream, kernelContent.data(), kernelContent.size());
   // ------- code under test -------
 
@@ -250,6 +255,7 @@ TEST_F(ProfilerTests, kernelLaunch) {
   EXPECT_CALL(*profilerMock_, record(AKernelLaunch())).Times(1);
   EXPECT_CALL(*profilerMock_, record(ACommandSent())).Times(AtLeast(1));
   EXPECT_CALL(*profilerMock_, record(AResponseReceived())).Times(AtLeast(1)); // same
+  EXPECT_CALL(*profilerMock_, record(ADispatchEventReceived())).Times(1);
   runtime_->kernelLaunch(stream, kernel, nullptr, 0, 0x1);
   // ------- code under test -------
 
