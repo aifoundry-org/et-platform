@@ -119,17 +119,12 @@ void __attribute__((noreturn)) main(void)
     // The pc is set to an implementation-defined reset vector. The mcause register is set to a value
     // indicating the cause of the reset. All other hart state is undefined."
 
-    /* TODO: Use medeleg to delegate U-mode exceptions directly to S-mode such as illegal instruction, etc)
-     *       this way if a kernel has an exception it will be processed faster. Right now U-mode
-     *       exceptions trap to M-mode, so M-mode is manually delegating them to S-mode, which
-     *       introduces a latency/performance hit... (check trap_routine) */
-
     asm volatile(
         "la    %0, trap_handler     \n" // Setup machine mode trap handler
         "csrw  mtvec, %0            \n"
         "li    %0, 0x800333         \n" // Delegate supervisor and user software, timer, bus error and external interrupts to supervisor mode
         "csrs  mideleg, %0          \n"
-        "li    %0, 0x100            \n" // Delegate user environment calls to supervisor mode
+        "li    %0, 0x5C00B1F7       \n" // Delegate all RISC-V and ET specific relevant exceptions to supervisor mode
         "csrs  medeleg, %0          \n"
         "csrwi menable_shadows, 0x3 \n" // Enable shadow registers for hartid and sleep txfma
         "li    %0, 0x800008         \n" // Enable machine software interrupts, ET Bus Error Interrupt[23]
