@@ -260,7 +260,9 @@ void RuntimeImp::freeDeviceWithoutProfiling(DeviceId device, std::byte* buffer) 
 
 StreamId RuntimeImp::createStream(DeviceId device) {
   ScopedProfileEvent profileEvent(Class::CreateStream, *profiler_, device);
-  return createStreamWithoutProfiling(device);
+  auto st = createStreamWithoutProfiling(device);
+  profileEvent.setStream(st);
+  return st;
 }
 
 StreamId RuntimeImp::createStreamWithoutProfiling(DeviceId device) {

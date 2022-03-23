@@ -64,6 +64,10 @@ public:
     event_.setEvent(event);
   }
 
+  void setStream(StreamId stream) {
+    event_.setStream(stream);
+  }
+
   void setLoadAddress(uint64_t address) {
     event_.setLoadAddress(address);
   }
