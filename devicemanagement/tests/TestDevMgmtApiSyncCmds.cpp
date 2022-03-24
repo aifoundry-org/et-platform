@@ -47,20 +47,6 @@ DEFINE_string(trace_bin_dir, FLAGS_trace_base_dir + "/bin_files",
 
 #define FORMAT_VERSION(major, minor, revision) ((major << 24) | (minor << 16) | (revision << 8))
 
-void testSerial(DeviceManagement& dm, uint32_t deviceIdx, uint32_t index, uint32_t timeout, int* result) {
-  const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
-  char output_buff[output_size] = {0};
-  auto hst_latency = std::make_unique<uint32_t>();
-  auto dev_latency = std::make_unique<uint64_t>();
-
-  if (index == 2 || index == 3) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  }
-
-  *result = dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
-                              output_buff, output_size, hst_latency.get(), dev_latency.get(), timeout);
-}
-
 getDM_t TestDevMgmtApiSyncCmds::getInstance() {
   const char* error;
 
@@ -1622,16 +1608,42 @@ void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode(bool singleDevice) {
     auto res1 = std::make_unique<int>();
     auto res2 = std::make_unique<int>();
     auto res3 = std::make_unique<int>();
+    std::condition_variable cv;
+    std::mutex syncMtx;
+    bool sync = false;
 
-    std::thread first(testSerial, std::ref(dm), (uint32_t)deviceIdx, (uint32_t)1, (uint32_t)DM_SERVICE_REQUEST_TIMEOUT,
-                      res1.get());
-    std::thread second(testSerial, std::ref(dm), (uint32_t)deviceIdx, (uint32_t)2, (uint32_t)0, res2.get());
-    std::thread third(testSerial, std::ref(dm), (uint32_t)deviceIdx, (uint32_t)3,
-                      (uint32_t)DM_SERVICE_REQUEST_TIMEOUT << 1, res3.get());
+    auto testSerial = [&](uint32_t timeout, int* result) {
+      const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
+      char output_buff[output_size] = {0};
+      auto hst_latency = std::make_unique<uint32_t>();
+      auto dev_latency = std::make_unique<uint64_t>();
+      {
+        std::unique_lock lk(syncMtx);
+        cv.wait(lk, [&sync]() { return sync; });
+      }
+      *result = dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
+                                  output_buff, output_size, hst_latency.get(), dev_latency.get(), timeout);
+    };
 
-    first.join();
-    second.join();
-    third.join();
+    std::vector<std::thread> threads;
+    threads.push_back(std::thread(testSerial, (uint32_t)DM_SERVICE_REQUEST_TIMEOUT, res1.get()));
+    threads.push_back(std::thread(testSerial, (uint32_t)0, res2.get()));
+    threads.push_back(std::thread(testSerial, (uint32_t)DM_SERVICE_REQUEST_TIMEOUT, res3.get()));
+
+    // Delay to ensure all threads started and reached the same point of sync
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    {
+      std::scoped_lock lk(syncMtx);
+      sync = true;
+      cv.notify_all();
+    }
+
+    // Wait for threads completion
+    for (auto& thread : threads) {
+      if (thread.joinable()) {
+        thread.join();
+      }
+    }
 
     EXPECT_EQ(*res1, device_mgmt_api::DM_STATUS_SUCCESS);
     EXPECT_EQ(*res2, -EAGAIN);

@@ -43,9 +43,6 @@ DECLARE_string(trace_base_dir);
 DECLARE_string(trace_txt_dir);
 DECLARE_string(trace_bin_dir);
 
-void testSerial(device_management::DeviceManagement& dm, uint32_t deviceIdx, uint32_t index, uint32_t timeout,
-                int* result);
-
 enum class Target { Silicon, Bemu, FullBoot, FullChip, SysEMU, Loopback };
 
 class TestDevMgmtApiSyncCmds : public ::testing::Test {

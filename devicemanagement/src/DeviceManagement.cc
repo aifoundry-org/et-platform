@@ -191,8 +191,9 @@ bool DeviceManagement::isGetCommand(itCmd& cmd) {
 }
 
 std::shared_ptr<lockable_> DeviceManagement::getDevice(const uint32_t index) {
+  static std::mutex mtx;
+  std::scoped_lock lk(mtx);
   auto& ptr = deviceMap_[index];
-
   if (!ptr) {
     ptr = std::make_shared<lockable_>(index);
     if (!ptr->receiverRunning) {
