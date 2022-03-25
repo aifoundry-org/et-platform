@@ -2,13 +2,12 @@
 import os
 
 from ecpt.packager import Packager
-from ecpt.builder import GitlabCiBuilder
 
 
 def main():
     conanfile_path = os.path.join(os.path.dirname(__file__), "..", "conanfile.py")
     
-    build = Packager(GitlabCiBuilder())
+    build = Packager(ci_build=True)
     build.add_package(conanfile_path)
     build.add_consumer("runtime/0.2.0@")
     build.add_configuration("default", "linux-ubuntu18.04-x86_64-gcc7-release")

@@ -4,6 +4,7 @@ include:
     file:
       - 'pods/nano-pod.yaml'
       - 'misc/retries.yaml'
+      - 'jobs/conan-jobs.yaml'
 
 stages:
   - generate_build
@@ -19,18 +20,19 @@ generate_build:conan:
   extends:
     - .retries
     - .pod_nano
+    - .template-conan-linux-ubuntu18.04-gcc7
   stage: generate_build
   tags:
     - k8s
-  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/ubuntu-18.04-gcc7-conan:0.0.7
-  script:
+  before_script:
     - cd conan
+  script:
     - python3 -m ci_build
-    - mv build_pipeline.yml ..
   artifacts:
     expire_in: 1h 
     paths:
-      - build_pipeline.yml
+      - conan/build_pipeline.yml
+      - conan/lockfiles_info.json
 
 ###############################################################################
 ###############################################################################
@@ -42,7 +44,7 @@ build:conan:
   stage: build
   trigger:
     include:
-    - artifact: build_pipeline.yml
+    - artifact: conan/build_pipeline.yml
       job: generate_build:conan
     strategy: depend
 
@@ -56,12 +58,22 @@ build:conan:
 ###############################################################################
 ###############################################################################
 
-# on_success:promote:
-#   extends: .template_job_k8s_with_conan_ci_pipelines_common_on_success_perform_promote
-#   stage: deploy
-#   needs:
-#     - build:conan
-#   script:
-#     - cd conan
+on_success:promote:
+  extends:
+    - .retries
+    - .pod_nano
+    - .template-conan-linux-ubuntu18.04-gcc7
+  stage: deploy
+  needs:
+    - generate_build:conan
+    - build:conan
+  tags:
+    - k8s
+  variables:
+    PYTHONIOENCODING: utf-8
+  before_script:
+    - cd conan
+  script:
+    - python3 -m ci_promote
 
 
