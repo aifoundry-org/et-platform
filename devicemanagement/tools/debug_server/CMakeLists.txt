@@ -14,6 +14,7 @@ find_package(deviceLayer REQUIRED)
 find_package(glog REQUIRED)
 find_package(Threads REQUIRED)
 
+set(GDB_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 add_executable(debug-server
     src/DebugServer.cpp
@@ -47,3 +48,7 @@ install(TARGETS debug-server
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
+
+if (BUILD_TESTS)
+   add_subdirectory(tests)
+endif(BUILD_TESTS)

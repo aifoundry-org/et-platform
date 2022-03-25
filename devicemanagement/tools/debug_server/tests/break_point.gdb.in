@@ -1,0 +1,45 @@
+# Setting width, height and verbose for batch mode
+set width 0
+set height 0
+set verbose off
+
+# Enabling logging
+set logging file gdb_log.out
+set logging on
+
+# Disable debugging traces
+set debug remote 0
+
+# Attaching to the GDB server
+target remote :51000
+
+# Loading file containg the debug symbols
+file @KERNELS_DIR@/cm_umode_test.elf
+
+# Launching the kernel application in seprate process
+shell sleep 2 && cd @FIRMWARE_TESTS_BINARY_DIR@ && ctest -R FunctionalTestDevOpsApiKernelCmds.launchAddVectorKernelDMAList_CmUMode &
+
+# Putting a break point in source code at line 25
+# 24:  int elemsPerWorker = (vectors->numElements + numWorkers - 1) / numWorkers;
+# 25:* if (elemsPerWorker % 16) {
+# 26:      elemsPerWorker += 16 - (elemsPerWorker % 16);
+break cm_umode_test.c:25
+
+# Continue the execution
+continue
+
+# Reading the registers value
+info register
+
+# Printing the value of a variable
+print elemsPerWorker
+
+# Storing the value of variable in local variable
+set $value = elemsPerWorker
+
+# Deleting break point
+delete
+
+# Check if the value of the variable is set to expected value after hitting the breakpoint
+if($value != 328)
+  quit 1
