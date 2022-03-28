@@ -37,6 +37,11 @@
 #include "workers/dmaw.h"
 #include "services/log.h"
 
+/* MM FW internal testing */
+#ifdef FW_MM_TESTS_ENABLE
+#include "../tests/dmaw_tests.h"
+#endif
+
 /*! \def EVEN_HART(x)
     \brief Macro to check the even or odd parity of the hart
 */
@@ -110,6 +115,15 @@ void main(void)
         local_spinwait_wait(&Launch_Wait, 1, 0);
         DMAW_Launch(hart_id);
     }
+#ifdef FW_MM_TESTS_ENABLE
+    else if ((hart_id >= DMAW_BASE_HART_ID) && (hart_id <= DMAW_BASE_HART_ID + 1) &&
+             !EVEN_HART(hart_id))
+    {
+        /* Spin wait till dispatcher initialization is complete */
+        local_spinwait_wait(&Launch_Wait, 1, 0);
+        DMAW_Tests(hart_id);
+    }
+#endif
     else
     {
         while (1)

@@ -19,7 +19,7 @@ set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 # MM build variants
 foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
 
-    add_riscv_executable(${MM_BUILD_VARIANT}
+    set(SRC_LIST
         src/crt.S
         src/trap_handler.S
         src/exception.c
@@ -46,6 +46,11 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
         src/services/sw_timer.c
         src/services/trace.c
     )
+    if (${FW_TESTS_ENABLE})
+        list(APPEND SRC_LIST tests/dmaw_tests.c)
+    endif()
+
+    add_riscv_executable(${MM_BUILD_VARIANT} ${SRC_LIST})
 
     if (MM_BUILD_VARIANT STREQUAL "MasterMinionTF")
         # Test Framework version
@@ -70,6 +75,7 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
             -DTRACE_EVICT_ENABLE=${TRACE_EVICT_ENABLE}
         PRIVATE
             $<$<BOOL:${ENABLE_CMD_EXECUTION_TRACE}>:MM_ENABLE_CMD_EXECUTION_TRACE>
+            $<$<BOOL:${FW_TESTS_ENABLE}>:FW_MM_TESTS_ENABLE>
     )
     target_compile_options(${MM_BUILD_VARIANT}.elf
         PRIVATE
