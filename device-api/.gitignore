@@ -1,8 +1,13 @@
+# build
 build
 cmake-build-*
-.idea
-conan/test_package/build
+
+# conan
 test_package/build
-locks/
-variables.env
-conan-ci-pipelines-common
+*.lock
+
+# conan ci
+lockfiles_info.json
+
+# IDE(s)
+.idea
