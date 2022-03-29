@@ -1089,11 +1089,10 @@ void TestDevMgmtApiSyncCmds::setModuleFrequency(bool singleDevice) {
          pll_id <= device_mgmt_api::PLL_ID_MINION_PLL; pll_id++) {
       for (device_mgmt_api::use_step_e use_step = device_mgmt_api::USE_STEP_CLOCK_FALSE;
            use_step <= device_mgmt_api::USE_STEP_CLOCK_TRUE; use_step++) {
-        if(use_step == device_mgmt_api::USE_STEP_CLOCK_TRUE
-           && pll_id != device_mgmt_api::PLL_ID_MINION_PLL) continue;
-        const uint32_t input_size = sizeof(uint16_t) +
-                                    sizeof(device_mgmt_api::pll_id_e) +
-                                    sizeof(device_mgmt_api::use_step_e);
+        if (use_step == device_mgmt_api::USE_STEP_CLOCK_TRUE && pll_id != device_mgmt_api::PLL_ID_MINION_PLL)
+          continue;
+        const uint32_t input_size =
+          sizeof(uint16_t) + sizeof(device_mgmt_api::pll_id_e) + sizeof(device_mgmt_api::use_step_e);
         char input_buff[input_size];
         input_buff[0] = (char)(0x90);
         input_buff[1] = (char)(0x01);
@@ -1102,10 +1101,9 @@ void TestDevMgmtApiSyncCmds::setModuleFrequency(bool singleDevice) {
         auto hst_latency = std::make_unique<uint32_t>();
         auto dev_latency = std::make_unique<uint64_t>();
 
-        EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FREQUENCY,
-                                    input_buff, input_size, nullptr, 0, hst_latency.get(),
-                                    dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
-                                    device_mgmt_api::DM_STATUS_SUCCESS);
+        EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FREQUENCY, input_buff, input_size,
+                                    nullptr, 0, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                  device_mgmt_api::DM_STATUS_SUCCESS);
         DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
       }
     }
@@ -2825,15 +2823,15 @@ void TestDevMgmtApiSyncCmds::readMem(uint64_t readAddr) {
     auto dev_latency = std::make_unique<uint64_t>();
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM, (char*)&input_buff, input_size,
                                 (char*)&output, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
-        DM_LOG(INFO) << "Mem addr: 0x" << std::hex << input_buff.address << " Value:" << std::hex << output;
+      DM_LOG(INFO) << "Mem addr: 0x" << std::hex << input_buff.address << " Value:" << std::hex << output;
     }
 
     DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-
   }
 }
 
@@ -2841,12 +2839,12 @@ void TestDevMgmtApiSyncCmds::writeMem(uint64_t testInputData, uint64_t writeAddr
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
- 
+
   auto deviceCount = dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    
+
     const uint32_t mdi_mem_write_cmd_size = sizeof(device_mgmt_api::mdi_mem_write_t);
     device_mgmt_api::mdi_mem_write_t mdi_mem_write;
     mdi_mem_write.address = writeAddr;
@@ -2854,12 +2852,13 @@ void TestDevMgmtApiSyncCmds::writeMem(uint64_t testInputData, uint64_t writeAddr
     mdi_mem_write.data = testInputData;
     uint64_t mem_write_status = 0;
 
-    DM_LOG(INFO) << "Mem addr: 0x" << std::hex << mdi_mem_write.address << " Write Value:" << std::hex << mdi_mem_write.data;
+    DM_LOG(INFO) << "Mem addr: 0x" << std::hex << mdi_mem_write.address << " Write Value:" << std::hex
+                 << mdi_mem_write.data;
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM, (char*)&mdi_mem_write, mdi_mem_write_cmd_size,
-                                (char*)&mem_write_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
-
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM, (char*)&mdi_mem_write,
+                                mdi_mem_write_cmd_size, (char*)&mem_write_status, sizeof(uint64_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(mem_write_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -2867,11 +2866,12 @@ void TestDevMgmtApiSyncCmds::writeMem(uint64_t testInputData, uint64_t writeAddr
     device_mgmt_api::mdi_mem_read_t mdi_mem_read;
     mdi_mem_read.address = writeAddr;
     mdi_mem_read.size = sizeof(uint64_t);
-    uint64_t mem_read_output =0;
+    uint64_t mem_read_output = 0;
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM, (char*)&mdi_mem_read, mdi_mem_read_cmd_size,
-                                (char*)&mem_read_output, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM, (char*)&mdi_mem_read,
+                                mdi_mem_read_cmd_size, (char*)&mem_read_output, sizeof(uint64_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     DM_LOG(INFO) << "Mem addr: 0x" << std::hex << mdi_mem_read.address << " Read Value:" << std::hex << mem_read_output;
 
@@ -2881,7 +2881,8 @@ void TestDevMgmtApiSyncCmds::writeMem(uint64_t testInputData, uint64_t writeAddr
   }
 }
 
-void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t shireID, uint64_t threadMask, uint64_t hartID, uint64_t bpAddr) {
+void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t shireID, uint64_t threadMask,
+                                                                     uint64_t hartID, uint64_t bpAddr) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2894,24 +2895,26 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t sh
     /* Select Hart */
     const uint32_t mdi_hart_select_input_size = sizeof(device_mgmt_api::mdi_hart_selection_t);
     device_mgmt_api::mdi_hart_selection_t mdi_hart_select_input_buff;
-    //Set the Shire ID and Neigh ID. 
+    // Set the Shire ID and Neigh ID.
     mdi_hart_select_input_buff.shire_id = shireID;
     mdi_hart_select_input_buff.thread_mask = threadMask;
-    uint64_t hart_select_status;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART, (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size, 
-                               (char*)&hart_select_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                               DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t hart_select_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
+                                (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
+                                (char*)&hart_select_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(hart_select_status, device_mgmt_api::DM_STATUS_SUCCESS);
-
 
     /* Halt Hart */
     uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
-    uint64_t halt_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff, hart_control_input_size,
-                                (char*)&halt_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t halt_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
+                                hart_control_input_size, (char*)&halt_hart_status, sizeof(int32_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(halt_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -2919,34 +2922,39 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t sh
     const uint32_t mdi_bp_input_size = sizeof(device_mgmt_api::mdi_bp_control_t);
     device_mgmt_api::mdi_bp_control_t mdi_bp_input_buff;
 
-    //Set the Hart ID/BP address/mode
+    // Set the Hart ID/BP address/mode
     mdi_bp_input_buff.hart_id = hartID;
     mdi_bp_input_buff.bp_address = bpAddr;
     mdi_bp_input_buff.mode = device_mgmt_api::PRIV_MASK_PRIV_UMODE;
-    uint64_t bp_cmd_status;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SET_BREAKPOINT, (char*)&mdi_bp_input_buff, mdi_bp_input_size,
-                               (char*)&bp_cmd_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                               DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t bp_cmd_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SET_BREAKPOINT,
+                                (char*)&mdi_bp_input_buff, mdi_bp_input_size, (char*)&bp_cmd_status, sizeof(int32_t),
+                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Set BP at address: 0x" << std::hex << mdi_bp_input_buff.bp_address << " Status:" << std::hex << bp_cmd_status;
+    DM_LOG(INFO) << "Set BP at address: 0x" << std::hex << mdi_bp_input_buff.bp_address << " Status:" << std::hex
+                 << bp_cmd_status;
     EXPECT_EQ(bp_cmd_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* UnSet Breakpoint */
     mdi_bp_input_buff = {0};
     mdi_bp_input_buff.hart_id = hartID;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSET_BREAKPOINT, (char*)&mdi_bp_input_buff, mdi_bp_input_size,
-                               (char*)&bp_cmd_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                               DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    bp_cmd_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSET_BREAKPOINT,
+                                (char*)&mdi_bp_input_buff, mdi_bp_input_size, (char*)&bp_cmd_status, sizeof(int32_t),
+                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(bp_cmd_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* Resume Hart */
     hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
-    uint64_t resume_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff, hart_control_input_size,
-                                (char*)&resume_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t resume_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
+                                hart_control_input_size, (char*)&resume_hart_status, sizeof(int32_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -2969,67 +2977,74 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsGetHartStatus(uint64_t shireID, u
     /* Select Hart */
     const uint32_t mdi_hart_select_input_size = sizeof(device_mgmt_api::mdi_hart_selection_t);
     device_mgmt_api::mdi_hart_selection_t mdi_hart_select_input_buff;
-    //Set the Shire ID and Neigh ID. 
+    // Set the Shire ID and Neigh ID.
     mdi_hart_select_input_buff.shire_id = shireID;
     mdi_hart_select_input_buff.thread_mask = threadMask;
-    uint64_t hart_select_status;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART, (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size, 
-                               (char*)&hart_select_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                               DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t hart_select_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
+                                (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
+                                (char*)&hart_select_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(hart_select_status, device_mgmt_api::DM_STATUS_SUCCESS);
-
 
     /* Halt Hart */
     uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
-    uint64_t halt_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff, hart_control_input_size,
-                                (char*)&halt_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t halt_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
+                                hart_control_input_size, (char*)&halt_hart_status, sizeof(int32_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(halt_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* Get the Hart Status */
     device_mgmt_api::mdi_hart_control_t mdi_hart_control_input;
-    mdi_hart_control_input.hart_id = hartID; 
+    mdi_hart_control_input.hart_id = hartID;
     uint32_t hart_status;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_GET_HART_STATUS, (char*)&mdi_hart_control_input, sizeof(mdi_hart_control_input),
-                                  (char*)&hart_status, sizeof(uint32_t), hst_latency.get(), dev_latency.get(),
-                                  DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_GET_HART_STATUS,
+                                (char*)&mdi_hart_control_input, sizeof(mdi_hart_control_input), (char*)&hart_status,
+                                sizeof(uint32_t), hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     if (getTestTarget() != Target::Loopback) {
-        DM_LOG(INFO) << "HartID:" << std::hex << mdi_hart_control_input.hart_id << " Status:" << std::hex << hart_status;
-    } 
+      DM_LOG(INFO) << "HartID:" << std::hex << mdi_hart_control_input.hart_id << " Status:" << std::hex << hart_status;
+    }
 
-    EXPECT_EQ(hart_status, device_mgmt_api::MDI_HART_STATUS_HALTED); 
+    EXPECT_EQ(hart_status, device_mgmt_api::MDI_HART_STATUS_HALTED);
 
     /* Resume Hart */
     hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
-    uint64_t resume_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff, hart_control_input_size,
-                                (char*)&resume_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t resume_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
+                                hart_control_input_size, (char*)&resume_hart_status, sizeof(int32_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* Get the Hart Status */
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_GET_HART_STATUS, (char*)&mdi_hart_control_input, sizeof(mdi_hart_control_input),
-                                  (char*)&hart_status, sizeof(uint32_t), hst_latency.get(), dev_latency.get(),
-                                  DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_GET_HART_STATUS,
+                                (char*)&mdi_hart_control_input, sizeof(mdi_hart_control_input), (char*)&hart_status,
+                                sizeof(uint32_t), hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     if (getTestTarget() != Target::Loopback) {
-        DM_LOG(INFO) << "HartID:" << std::hex << mdi_hart_control_input.hart_id << " Status:" << std::hex << hart_status;
-    } 
+      DM_LOG(INFO) << "HartID:" << std::hex << mdi_hart_control_input.hart_id << " Status:" << std::hex << hart_status;
+    }
 
     EXPECT_EQ(hart_status, device_mgmt_api::MDI_HART_STATUS_RUNNING);
 
-    /* Unselect Hart */ 
-    uint64_t unselect_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART, (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
-                                (char*)&unselect_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS); 
+    /* Unselect Hart */
+    int32_t unselect_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
+                                (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
+                                (char*)&unselect_hart_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -3050,59 +3065,66 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadGPR(uint64_t shireID, uint64
     /* Select Hart */
     const uint32_t mdi_hart_select_input_size = sizeof(device_mgmt_api::mdi_hart_selection_t);
     device_mgmt_api::mdi_hart_selection_t mdi_hart_select_input_buff;
-    //Set the Shire ID and Neigh ID. 
+    // Set the Shire ID and Neigh ID.
     mdi_hart_select_input_buff.shire_id = shireID;
     mdi_hart_select_input_buff.thread_mask = threadMask;
-    uint64_t hart_select_status;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART, (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size, 
-                               (char*)&hart_select_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                               DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t hart_select_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
+                                (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
+                                (char*)&hart_select_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(hart_select_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* Halt Hart */
     uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
-    uint64_t halt_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff, hart_control_input_size,
-                                (char*)&halt_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t halt_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
+                                hart_control_input_size, (char*)&halt_hart_status, sizeof(int32_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(halt_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
-    
+
     const uint32_t gpr_read_input_size = sizeof(device_mgmt_api::mdi_gpr_read_t);
     device_mgmt_api::mdi_gpr_read_t gpr_read_input_buff;
     gpr_read_input_buff.hart_id = hartID;
     /* Read starting from GPR index 1 */
-    for(int i=1; i<32; i++) {
+    for (int i = 1; i < 32; i++) {
       uint64_t output = 0;
       gpr_read_input_buff.gpr_index = i;
       const uint32_t read_output_size = sizeof(uint64_t);
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff, gpr_read_input_size,
-                                  (char*)&output, read_output_size, hst_latency.get(), dev_latency.get(),
-                                  DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff,
+                                  gpr_read_input_size, (char*)&output, read_output_size, hst_latency.get(),
+                                  dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                device_mgmt_api::DM_STATUS_SUCCESS);
 
       if (getTestTarget() != Target::Loopback) {
-          DM_LOG(INFO) << "HartID:" << std::hex << gpr_read_input_buff.hart_id << " GPR Index:" << gpr_read_input_buff.gpr_index
-                       << " GPR REG Value:" << std::hex << output;
-      } 
+        DM_LOG(INFO) << "HartID:" << std::hex << gpr_read_input_buff.hart_id
+                     << " GPR Index:" << gpr_read_input_buff.gpr_index << " GPR REG Value:" << std::hex << output;
+      }
     }
 
     /* Resume Hart */
     hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
-    uint64_t resume_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff, hart_control_input_size,
-                                (char*)&resume_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t resume_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
+                                hart_control_input_size, (char*)&resume_hart_status, sizeof(int32_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
-    /* Unselect Hart */ 
-    uint64_t unselect_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART, (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
-                                (char*)&unselect_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS); 
+    /* Unselect Hart */
+    int32_t unselect_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
+                                (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
+                                (char*)&unselect_hart_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -3110,7 +3132,8 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadGPR(uint64_t shireID, uint64
   }
 }
 
-void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint64_t threadMask, uint64_t hartID, uint64_t writeTestData) {
+void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint64_t threadMask, uint64_t hartID,
+                                                         uint64_t writeTestData) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -3123,23 +3146,26 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
     /* Select Hart */
     const uint32_t mdi_hart_select_input_size = sizeof(device_mgmt_api::mdi_hart_selection_t);
     device_mgmt_api::mdi_hart_selection_t mdi_hart_select_input_buff;
-    //Set the Shire ID and Neigh ID. 
+    // Set the Shire ID and Neigh ID.
     mdi_hart_select_input_buff.shire_id = shireID;
     mdi_hart_select_input_buff.thread_mask = threadMask;
-    uint64_t hart_select_status=0;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART, (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size, 
-                               (char*)&hart_select_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                               DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t hart_select_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
+                                (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
+                                (char*)&hart_select_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(hart_select_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* Halt Hart */
     uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
-    uint64_t halt_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff, hart_control_input_size,
-                                (char*)&halt_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t halt_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
+                                hart_control_input_size, (char*)&halt_hart_status, sizeof(int32_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(halt_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -3151,32 +3177,35 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
     device_mgmt_api::mdi_gpr_write_t gpr_write_input_buff;
     uint64_t dummy;
     gpr_write_input_buff.hart_id = hartID;
-    
+
     uint64_t output = 0;
     const uint32_t read_output_size = sizeof(uint64_t);
-    for(int i=1; i<32; i++) {
+    for (int i = 1; i < 32; i++) {
       gpr_read_input_buff.gpr_index = i;
       gpr_write_input_buff.gpr_index = i;
 
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff, gpr_read_input_size,
-                            (char*)&output, read_output_size, hst_latency.get(), dev_latency.get(),
-                            DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
-      
-      DM_LOG(INFO) << "Before update HartID:" << std::hex << gpr_read_input_buff.hart_id << " GPR Index:" << gpr_read_input_buff.gpr_index
-                       << " Value:" << std::hex << output;
+      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff,
+                                  gpr_read_input_size, (char*)&output, read_output_size, hst_latency.get(),
+                                  dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                device_mgmt_api::DM_STATUS_SUCCESS);
+
+      DM_LOG(INFO) << "Before update HartID:" << std::hex << gpr_read_input_buff.hart_id
+                   << " GPR Index:" << gpr_read_input_buff.gpr_index << " Value:" << std::hex << output;
 
       gpr_write_input_buff.data = writeTestData + i; /* Test Data */
-      DM_LOG(INFO) << "Write Value:" << std::hex << gpr_write_input_buff.data; 
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_GPR, (char*)&gpr_write_input_buff, gpr_write_input_size,
-                                  (char*)&dummy, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                  DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+      DM_LOG(INFO) << "Write Value:" << std::hex << gpr_write_input_buff.data;
+      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_GPR,
+                                  (char*)&gpr_write_input_buff, gpr_write_input_size, (char*)&dummy, sizeof(uint64_t),
+                                  hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                device_mgmt_api::DM_STATUS_SUCCESS);
 
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff, gpr_read_input_size,
-                                  (char*)&output, read_output_size, hst_latency.get(), dev_latency.get(),
-                                  DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
- 
-      DM_LOG(INFO) << "After update HartID:" << std::hex << gpr_read_input_buff.hart_id << " GPR Index:" << gpr_read_input_buff.gpr_index
-                       << " Value:" << std::hex << output;
+      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff,
+                                  gpr_read_input_size, (char*)&output, read_output_size, hst_latency.get(),
+                                  dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                device_mgmt_api::DM_STATUS_SUCCESS);
+
+      DM_LOG(INFO) << "After update HartID:" << std::hex << gpr_read_input_buff.hart_id
+                   << " GPR Index:" << gpr_read_input_buff.gpr_index << " Value:" << std::hex << output;
 
       EXPECT_EQ(gpr_write_input_buff.data, output);
     }
@@ -3184,18 +3213,21 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
     /* Resume Hart */
     hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
-    uint64_t resume_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff, hart_control_input_size,
-                                (char*)&resume_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t resume_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
+                                hart_control_input_size, (char*)&resume_hart_status, sizeof(int32_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
-    /* Unselect Hart */ 
-    uint64_t unselect_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART, (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
-                                (char*)&unselect_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS); 
+    /* Unselect Hart */
+    int32_t unselect_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
+                                (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
+                                (char*)&unselect_hart_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -3203,8 +3235,8 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
   }
 }
 
-
-void TestDevMgmtApiSyncCmds::testStateInspectionReadCSR(uint64_t shireID, uint64_t threadMask, uint64_t hartID, uint64_t csrName) {
+void TestDevMgmtApiSyncCmds::testStateInspectionReadCSR(uint64_t shireID, uint64_t threadMask, uint64_t hartID,
+                                                        uint64_t csrName) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -3217,23 +3249,26 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadCSR(uint64_t shireID, uint64
     /* Select Hart */
     const uint32_t mdi_hart_select_input_size = sizeof(device_mgmt_api::mdi_hart_selection_t);
     device_mgmt_api::mdi_hart_selection_t mdi_hart_select_input_buff;
-    //Set the Shire ID and Neigh ID. 
+    // Set the Shire ID and Neigh ID.
     mdi_hart_select_input_buff.shire_id = shireID;
     mdi_hart_select_input_buff.thread_mask = threadMask;
-    uint64_t hart_select_status=0;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART, (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size, 
-                               (char*)&hart_select_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                               DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t hart_select_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
+                                (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
+                                (char*)&hart_select_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(hart_select_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* Halt Hart */
     uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
-    uint64_t halt_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff, hart_control_input_size,
-                                (char*)&halt_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t halt_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
+                                hart_control_input_size, (char*)&halt_hart_status, sizeof(int32_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(halt_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -3243,29 +3278,33 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadCSR(uint64_t shireID, uint64
     /* PC offset */
     csr_read_input_buff.csr_name = csrName;
     uint64_t csr_value = 0;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff, csr_read_input_size,
-                                (char*)&csr_value, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff,
+                                csr_read_input_size, (char*)&csr_value, sizeof(uint64_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     if (getTestTarget() != Target::Loopback) {
-        DM_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " PC Value:" << std::hex << csr_value;
-    } 
+      DM_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " PC Value:" << std::hex << csr_value;
+    }
 
     /* Resume Hart */
     hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
-    uint64_t resume_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff, hart_control_input_size,
-                                (char*)&resume_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t resume_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
+                                hart_control_input_size, (char*)&resume_hart_status, sizeof(int32_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
-    /* Unselect Hart */ 
-    uint64_t unselect_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART, (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
-                                (char*)&unselect_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS); 
+    /* Unselect Hart */
+    int32_t unselect_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
+                                (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
+                                (char*)&unselect_hart_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -3273,7 +3312,8 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadCSR(uint64_t shireID, uint64
   }
 }
 
-void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint64_t threadMask, uint64_t hartID, uint64_t csrName, uint64_t csrData) {
+void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint64_t threadMask, uint64_t hartID,
+                                                         uint64_t csrName, uint64_t csrData) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -3288,20 +3328,23 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
     device_mgmt_api::mdi_hart_selection_t mdi_hart_select_input_buff;
     mdi_hart_select_input_buff.shire_id = shireID;
     mdi_hart_select_input_buff.thread_mask = threadMask;
-    uint64_t hart_select_status=0;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART, (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size, 
-                               (char*)&hart_select_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                               DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t hart_select_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
+                                (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
+                                (char*)&hart_select_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(hart_select_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* Halt Hart */
     uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
-    uint64_t halt_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff, hart_control_input_size,
-                                (char*)&halt_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t halt_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
+                                hart_control_input_size, (char*)&halt_hart_status, sizeof(int32_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(halt_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -3311,11 +3354,13 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
     /* PC offset */
     csr_read_input_buff.csr_name = csrName;
     uint64_t intial_pc_addr = 0;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff, csr_read_input_size,
-                                (char*)&intial_pc_addr, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff,
+                                csr_read_input_size, (char*)&intial_pc_addr, sizeof(uint64_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Initial PC Value:" << std::hex << intial_pc_addr;
+    DM_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Initial PC Value:" << std::hex
+                 << intial_pc_addr;
 
     const uint32_t csr_write_input_size = sizeof(device_mgmt_api::mdi_csr_write_t);
     device_mgmt_api::mdi_csr_write_t csr_write_input_buff;
@@ -3323,49 +3368,58 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
     csr_write_input_buff.csr_name = csrName;
     csr_write_input_buff.data = csrData;
     uint64_t dummy = 0;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR, (char*)&csr_write_input_buff, csr_write_input_size,
-                                (char*)&dummy, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR, (char*)&csr_write_input_buff,
+                                csr_write_input_size, (char*)&dummy, sizeof(uint64_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
-    uint64_t updated_pc_addr = 0; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff, csr_read_input_size,
-                                (char*)&updated_pc_addr, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    uint64_t updated_pc_addr = 0;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff,
+                                csr_read_input_size, (char*)&updated_pc_addr, sizeof(uint64_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Updated PC Value:" << std::hex << updated_pc_addr;
+    DM_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Updated PC Value:" << std::hex
+                 << updated_pc_addr;
 
-    EXPECT_EQ(csr_write_input_buff.data , updated_pc_addr);
+    EXPECT_EQ(csr_write_input_buff.data, updated_pc_addr);
 
     /* Reset the PC to initial PC address */
     csr_write_input_buff.data = intial_pc_addr; /* Reset it to initial PC address */
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR, (char*)&csr_write_input_buff, csr_write_input_size,
-                                (char*)&dummy, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
- 
-    updated_pc_addr=0;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff, csr_read_input_size,
-                                (char*)&updated_pc_addr, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR, (char*)&csr_write_input_buff,
+                                csr_write_input_size, (char*)&dummy, sizeof(uint64_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Changed PC to initial value:" << std::hex << updated_pc_addr;
+    updated_pc_addr = 0;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff,
+                                csr_read_input_size, (char*)&updated_pc_addr, sizeof(uint64_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+
+    DM_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Changed PC to initial value:" << std::hex
+                 << updated_pc_addr;
 
     EXPECT_EQ(intial_pc_addr, updated_pc_addr);
 
     /* Resume Hart */
     hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
-    uint64_t resume_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff, hart_control_input_size,
-                                (char*)&resume_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS);
+    int32_t resume_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
+                                hart_control_input_size, (char*)&resume_hart_status, sizeof(int32_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
-    /* Unselect Hart */ 
-    uint64_t unselect_hart_status; 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART, (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
-                                (char*)&unselect_hart_status, sizeof(uint64_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT), device_mgmt_api::DM_STATUS_SUCCESS); 
+    /* Unselect Hart */
+    int32_t unselect_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
+                                (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
+                                (char*)&unselect_hart_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
