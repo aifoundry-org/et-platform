@@ -1,9 +1,14 @@
 include:
   - project: 'software/gitlab-ci-common'
-    ref: master
+    ref: eaa145e684411db579462b41feb7736c6ed0028c
     file:
       - 'pods/nano-pod.yaml'
       - 'misc/retries.yaml'
+      - 'jobs/generic-k8s-job.yaml'
+
+  - project: 'software/gitlab-ci-common'
+    ref: master
+    file:
       - 'jobs/conan-jobs.yaml'
 
 stages:
@@ -18,16 +23,17 @@ stages:
 
 generate_build:conan:
   extends:
-    - .retries
     - .pod_nano
+    - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: generate_build
-  tags:
-    - k8s
-  before_script:
-    - cd conan
-  script:
-    - python3 -m ci_build
+
+  variables:
+    TIMEOUT: 15m
+
+    CMD_BUILD: |
+      cd conan
+      python3 -m ci_build
   artifacts:
     expire_in: 1h 
     paths:
@@ -60,20 +66,17 @@ build:conan:
 
 on_success:promote:
   extends:
-    - .retries
     - .pod_nano
+    - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: deploy
   needs:
     - generate_build:conan
     - build:conan
-  tags:
-    - k8s
   variables:
     PYTHONIOENCODING: utf-8
-  before_script:
-    - cd conan
-  script:
-    - python3 -m ci_promote
+    CMD_BUILD: |
+      cd conan
+      python3 -m ci_promote
 
 
