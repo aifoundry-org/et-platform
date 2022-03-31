@@ -46,6 +46,7 @@
 #include "bl_error_code.h"
 #include "hwinc/minion_lvdpll_program.h"
 #include "bl2_pvt_controller.h"
+#include "mem_controller.h"
 
 struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
 
@@ -1744,4 +1745,84 @@ void dump_power_globals(void)
         soc_power_reg->module_voltage.pcie, soc_power_reg->module_voltage.noc,
         soc_power_reg->module_voltage.pcie_logic, soc_power_reg->module_voltage.vddqlp,
         soc_power_reg->module_voltage.vddq);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       print_system_operating_point
+*
+*   DESCRIPTION
+*
+*       Prints system operating point
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void print_system_operating_point(void)
+{
+    uint32_t freq;
+    TS_Sample temperature;
+
+    Log_Write(LOG_LEVEL_CRITICAL, "SHIRE       \t\tFreq          \t\tVoltage          \t\tTeperature\r\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "---------------------------------------------------------------------------------------------\r\n"); 
+
+    /* Neigh */
+    freq = (uint32_t)Get_Minion_Frequency();
+    pvt_get_minion_avg_low_high_temperature(&temperature);
+    MinShire_VM_sample minshire_voltage = {{0, 0, 0xFFFF}, {0, 0, 0xFFFF}, {0, 0, 0xFFFF}};
+    pvt_get_minion_avg_low_high_voltage(&minshire_voltage);
+    Log_Write(LOG_LEVEL_CRITICAL, "NEIGH       \t\tHPDPLL4 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t%dC,[%dC,%dC]\r\n",
+                freq, minshire_voltage.vdd_mnn.current, minshire_voltage.vdd_mnn.low,
+                minshire_voltage.vdd_mnn.high, temperature.current, temperature.low,
+                temperature.high);
+    
+    /* Sram */
+    Log_Write(LOG_LEVEL_CRITICAL, "SRAM        \t\tHPDPLL4 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
+                freq, minshire_voltage.vdd_sram.current, minshire_voltage.vdd_sram.low,
+                minshire_voltage.vdd_sram.high);
+
+    /* NOC */
+    get_pll_frequency(PLL_ID_SP_PLL_2, &freq);
+    Log_Write(LOG_LEVEL_CRITICAL, "NOC         \t\tHPDPLL2 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
+                freq, minshire_voltage.vdd_noc.current, minshire_voltage.vdd_noc.low,
+                minshire_voltage.vdd_noc.high);
+
+    /* MemShire */
+    freq = get_memshire_frequency();
+    MemShire_VM_sample memshire_voltage = {{0, 0, 0xFFFF}, {0, 0, 0xFFFF}};
+    pvt_get_memshire_avg_low_high_voltage(&memshire_voltage);
+    Log_Write(LOG_LEVEL_CRITICAL, "MEMSHIRE    \t\tHPDPLLM %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
+                freq, memshire_voltage.vdd_ms.current, memshire_voltage.vdd_ms.low,
+                memshire_voltage.vdd_ms.high);
+
+    /* IOShire SPIO*/
+    get_pll_frequency(PLL_ID_SP_PLL_0, &freq);
+    pvt_get_ioshire_ts_sample(&temperature);
+    IOShire_VM_sample ioshire_voltage;
+    pvt_get_ioshire_vm_sample(&ioshire_voltage);
+    Log_Write(LOG_LEVEL_CRITICAL, "IOSHIRE SPIO\t\tHPDPLL0 %dMHz\t\t/                  \t\t%dC,[%dC,%dC]\r\n",
+                freq, temperature.current, temperature.low,
+                temperature.high);
+
+    /* IOShire PU*/
+    get_pll_frequency(PLL_ID_SP_PLL_1, &freq);
+    Log_Write(LOG_LEVEL_CRITICAL, "        PU  \t\tHPDPLL1 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
+                freq, ioshire_voltage.vdd_pu.current, ioshire_voltage.vdd_pu.low,
+                ioshire_voltage.vdd_pu.high);
+
+    /* PSHIRE */
+    get_pll_frequency(PLL_ID_PSHIRE, &freq);
+    PShire_VM_sample pshr_voltage;
+    pvt_get_pshire_vm_sample(&pshr_voltage);
+    Log_Write(LOG_LEVEL_CRITICAL, "PSHIRE      \t\tHPDPLLP %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
+                freq, pshr_voltage.vdd_pshr.current, pshr_voltage.vdd_pshr.low,
+                pshr_voltage.vdd_pshr.high);
 }

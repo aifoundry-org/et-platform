@@ -26,6 +26,103 @@
 #define MIN(x,y)       \
         x < y ? x : y
 
+/*! \def GET_MINION_VM(mishire_sample_avg,valid_samples_num) 
+    \brief Reads all MinShire VM values
+*/
+#define GET_MINION_VM(mishire_sample_avg,valid_samples_num)                                        \
+    int ret;                                                                                       \
+    for(int min = 0; min < PVTC_MINION_SHIRE_NUM; min++) {                                         \
+        MinShire_VM_sample minshire_sample = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};                    \
+        ret = pvt_get_min_shire_vm_sample(min, &minshire_sample);                                  \
+        if (0 != ret) {                                                                            \
+            Log_Write(LOG_LEVEL_DEBUG, "MS %2d Voltage [mV]: VDD_MNN: Sample fault"                \
+                " VDD_SRAM: Sample fault VDD_NOC: Sample fault\n", min);                           \
+        }                                                                                          \
+        else {                                                                                     \
+            Log_Write(LOG_LEVEL_DEBUG, "MS %2d Voltage [mV]: VDD_MNN: %d [%d, %d]"                 \
+                " VDD_SRAM: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",                                   \
+                min,minshire_sample.vdd_mnn.current, minshire_sample.vdd_mnn.low,                  \
+                minshire_sample.vdd_mnn.high, minshire_sample.vdd_sram.current,                    \
+                minshire_sample.vdd_sram.low, minshire_sample.vdd_sram.high,                       \
+                minshire_sample.vdd_noc.current, minshire_sample.vdd_noc.low,                      \
+                minshire_sample.vdd_noc.high);                                                     \
+                                                                                                   \
+            minshire_sample_avg.vdd_mnn.current =                                                  \
+                (uint16_t)(minshire_sample_avg.vdd_mnn.current+minshire_sample.vdd_mnn.current);   \
+            minshire_sample_avg.vdd_sram.current =                                                 \
+                (uint16_t)(minshire_sample_avg.vdd_sram.current+minshire_sample.vdd_sram.current); \
+            minshire_sample_avg.vdd_noc.current =                                                  \
+                (uint16_t)(minshire_sample_avg.vdd_noc.current+minshire_sample.vdd_noc.current);   \
+            valid_samples_num++;                                                                   \
+                                                                                                   \
+            minshire_sample_avg.vdd_mnn.high =                                                     \
+                MAX(minshire_sample_avg.vdd_mnn.high, minshire_sample.vdd_mnn.high);               \
+            minshire_sample_avg.vdd_sram.high =                                                    \
+                MAX(minshire_sample_avg.vdd_sram.high, minshire_sample.vdd_sram.high);             \
+            minshire_sample_avg.vdd_noc.high =                                                     \
+                MAX(minshire_sample_avg.vdd_noc.high, minshire_sample.vdd_noc.high);               \
+            minshire_sample_avg.vdd_mnn.low =                                                      \
+                MIN(minshire_sample_avg.vdd_mnn.low, minshire_sample.vdd_mnn.low);                 \
+            minshire_sample_avg.vdd_sram.low =                                                     \
+                MIN(minshire_sample_avg.vdd_sram.low, minshire_sample.vdd_sram.low);               \
+            minshire_sample_avg.vdd_noc.low =                                                      \
+                MIN(minshire_sample_avg.vdd_noc.low, minshire_sample.vdd_noc.low);                 \
+        }                                                                                          \
+    }                                                                                              \
+    if (valid_samples_num != 0)                                                                    \
+    {                                                                                              \
+        minshire_sample_avg.vdd_mnn.current =                                                      \
+            (uint16_t)(minshire_sample_avg.vdd_mnn.current / valid_samples_num);                   \
+        minshire_sample_avg.vdd_sram.current =                                                     \
+            (uint16_t)(minshire_sample_avg.vdd_sram.current / valid_samples_num);                  \
+        minshire_sample_avg.vdd_noc.current =                                                      \
+            (uint16_t)(minshire_sample_avg.vdd_noc.current / valid_samples_num);                   \
+    }
+
+/*! \def GET_MEMSHIRE_VM(memshire_sample_avg,valid_samples_num) 
+    \brief Reads all MemShire VM values
+*/
+#define GET_MEMSHIRE_VM(memshire_sample_avg,valid_samples_num)                                     \
+    int ret;                                                                                       \
+    for(int mem = 0; mem < PVTC_MEM_SHIRE_NUM; mem++)                                              \
+    {                                                                                              \
+        MemShire_VM_sample memshire_sample = {{0, 0, 0}, {0, 0, 0}};                               \
+        ret = pvt_get_memshire_vm_sample(mem, &memshire_sample);                                   \
+        if (0 != ret) {                                                                            \
+            Log_Write(LOG_LEVEL_DEBUG, "MEM %d Voltage [mV]:"                                      \
+                " VDD_MS: Sample fault VDD_NOC: Sample fault\n", mem);                             \
+        }                                                                                          \
+        else {                                                                                     \
+            Log_Write(LOG_LEVEL_DEBUG, "MEM %d Voltage [mV]:"                                      \
+                " VDD_MS: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",                                     \
+                mem, memshire_sample.vdd_ms.current, memshire_sample.vdd_ms.low,                   \
+                memshire_sample.vdd_ms.high, memshire_sample.vdd_noc.current,                      \
+                memshire_sample.vdd_noc.low, memshire_sample.vdd_noc.high);                        \
+                                                                                                   \
+            memshire_sample_avg.vdd_ms.current =                                                   \
+                (uint16_t)(memshire_sample_avg.vdd_ms.current + memshire_sample.vdd_ms.current);   \
+            memshire_sample_avg.vdd_noc.current =                                                  \
+                (uint16_t)(memshire_sample_avg.vdd_noc.current + memshire_sample.vdd_noc.current); \
+            valid_samples_num++;                                                                   \
+                                                                                                   \
+            memshire_sample_avg.vdd_ms.high =                                                      \
+                MAX(memshire_sample_avg.vdd_ms.high, memshire_sample.vdd_ms.high);                 \
+            memshire_sample_avg.vdd_noc.high =                                                     \
+                MAX(memshire_sample_avg.vdd_noc.high, memshire_sample.vdd_noc.high);               \
+            memshire_sample_avg.vdd_ms.low =                                                       \
+                MIN(memshire_sample_avg.vdd_ms.low, memshire_sample.vdd_ms.low);                   \
+            memshire_sample_avg.vdd_noc.low =                                                      \
+                MIN(memshire_sample_avg.vdd_noc.low, memshire_sample.vdd_noc.low);                 \
+        }                                                                                          \
+    }                                                                                              \
+    if (valid_samples_num != 0)                                                                    \
+    {                                                                                              \
+        memshire_sample_avg.vdd_ms.current =                                                       \
+            (uint16_t)(memshire_sample_avg.vdd_ms.current / valid_samples_num);                    \
+        memshire_sample_avg.vdd_noc.current =                                                      \
+            (uint16_t)(memshire_sample_avg.vdd_noc.current / valid_samples_num);                   \
+    }
+
 /* PVT controllers reg pointers */
 static Pvtc *pReg_Pvtc[PVTC_NUM];
 
@@ -911,47 +1008,10 @@ static void pvt_print_pshire_voltage_sampled_values(void)
 
 static void pvt_print_memshire_voltage_sampled_values(void)
 {
-    int ret;
     MemShire_VM_sample memshire_sample_avg = {{0, 0, 0xFFFF}, {0, 0, 0xFFFF}};
     int valid_samples_num = 0;
 
-    for(int mem = 0; mem < PVTC_MEM_SHIRE_NUM; mem++)
-    {
-        MemShire_VM_sample memshire_sample = {{0, 0, 0}, {0, 0, 0}};
-
-        ret = pvt_get_memshire_vm_sample(mem, &memshire_sample);
-        if (0 != ret) {
-            Log_Write(LOG_LEVEL_DEBUG, "MEM %d Voltage [mV]:"
-                " VDD_MS: Sample fault VDD_NOC: Sample fault\n", mem);
-        }
-        else {
-            Log_Write(LOG_LEVEL_DEBUG, "MEM %d Voltage [mV]:"
-                " VDD_MS: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
-                mem, memshire_sample.vdd_ms.current, memshire_sample.vdd_ms.low,
-                memshire_sample.vdd_ms.high, memshire_sample.vdd_noc.current,
-                memshire_sample.vdd_noc.low, memshire_sample.vdd_noc.high);
-
-            memshire_sample_avg.vdd_ms.current =
-                (uint16_t)(memshire_sample_avg.vdd_ms.current + memshire_sample.vdd_ms.current);
-            memshire_sample_avg.vdd_noc.current =
-                (uint16_t)(memshire_sample_avg.vdd_noc.current + memshire_sample.vdd_noc.current);
-            valid_samples_num++;
-
-            memshire_sample_avg.vdd_ms.high =
-                MAX(memshire_sample_avg.vdd_ms.high, memshire_sample.vdd_ms.high);
-            memshire_sample_avg.vdd_noc.high =
-                MAX(memshire_sample_avg.vdd_noc.high, memshire_sample.vdd_noc.high);
-            memshire_sample_avg.vdd_ms.low =
-                MIN(memshire_sample_avg.vdd_ms.low, memshire_sample.vdd_ms.low);
-            memshire_sample_avg.vdd_noc.low =
-                MIN(memshire_sample_avg.vdd_noc.low, memshire_sample.vdd_noc.low);
-        }
-    }
-
-    memshire_sample_avg.vdd_ms.current =
-        (uint16_t)(memshire_sample_avg.vdd_ms.current / valid_samples_num);
-    memshire_sample_avg.vdd_noc.current =
-        (uint16_t)(memshire_sample_avg.vdd_noc.current / valid_samples_num);
+    GET_MEMSHIRE_VM(memshire_sample_avg,valid_samples_num)
 
     Log_Write(LOG_LEVEL_CRITICAL, "MemShire Average Volt[mV]:"
                 " VDD_MS: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
@@ -992,57 +1052,10 @@ static void pvt_print_min_shire_temperature_sampled_values(void)
 
 static void pvt_print_min_shire_voltage_sampled_values(void)
 {
-    int ret;
     MinShire_VM_sample minshire_sample_avg = {{0, 0, 0xFFFF}, {0, 0, 0xFFFF}, {0, 0, 0xFFFF}};
     int valid_samples_num = 0;
 
-    for(int min = 0; min < PVTC_MINION_SHIRE_NUM; min++) {
-
-        MinShire_VM_sample minshire_sample = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
-
-        ret = pvt_get_min_shire_vm_sample(min, &minshire_sample);
-        if (0 != ret) {
-            Log_Write(LOG_LEVEL_DEBUG, "MS %2d Voltage [mV]: VDD_MNN: Sample fault"
-                " VDD_SRAM: Sample fault VDD_NOC: Sample fault\n", min);
-        }
-        else {
-            Log_Write(LOG_LEVEL_DEBUG, "MS %2d Voltage [mV]: VDD_MNN: %d [%d, %d]"
-                " VDD_SRAM: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
-                min,minshire_sample.vdd_mnn.current, minshire_sample.vdd_mnn.low,
-                minshire_sample.vdd_mnn.high, minshire_sample.vdd_sram.current,
-                minshire_sample.vdd_sram.low, minshire_sample.vdd_sram.high,
-                minshire_sample.vdd_noc.current, minshire_sample.vdd_noc.low,
-                minshire_sample.vdd_noc.high);
-
-            minshire_sample_avg.vdd_mnn.current =
-                (uint16_t)(minshire_sample_avg.vdd_mnn.current + minshire_sample.vdd_mnn.current);
-            minshire_sample_avg.vdd_sram.current =
-                (uint16_t)(minshire_sample_avg.vdd_sram.current + minshire_sample.vdd_sram.current);
-            minshire_sample_avg.vdd_noc.current =
-                (uint16_t)(minshire_sample_avg.vdd_noc.current + minshire_sample.vdd_noc.current);
-            valid_samples_num++;
-
-            minshire_sample_avg.vdd_mnn.high =
-                MAX(minshire_sample_avg.vdd_mnn.high, minshire_sample.vdd_mnn.high);
-            minshire_sample_avg.vdd_sram.high =
-                MAX(minshire_sample_avg.vdd_sram.high, minshire_sample.vdd_sram.high);
-            minshire_sample_avg.vdd_noc.high =
-                MAX(minshire_sample_avg.vdd_noc.high, minshire_sample.vdd_noc.high);
-            minshire_sample_avg.vdd_mnn.low =
-                MIN(minshire_sample_avg.vdd_mnn.low, minshire_sample.vdd_mnn.low);
-            minshire_sample_avg.vdd_sram.low =
-                MIN(minshire_sample_avg.vdd_sram.low, minshire_sample.vdd_sram.low);
-            minshire_sample_avg.vdd_noc.low =
-                MIN(minshire_sample_avg.vdd_noc.low, minshire_sample.vdd_noc.low);
-        }
-    }
-
-    minshire_sample_avg.vdd_mnn.current =
-        (uint16_t)(minshire_sample_avg.vdd_mnn.current / valid_samples_num);
-    minshire_sample_avg.vdd_sram.current =
-        (uint16_t)(minshire_sample_avg.vdd_sram.current / valid_samples_num);
-    minshire_sample_avg.vdd_noc.current =
-        (uint16_t)(minshire_sample_avg.vdd_noc.current / valid_samples_num);
+    GET_MINION_VM(mishire_sample_avg,valid_samples_num)
 
     Log_Write(LOG_LEVEL_CRITICAL, "MinShire Average Volt[mV]: VDD_MNN: %d [%d, %d]"
                 " VDD_SRAM: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
@@ -1145,6 +1158,42 @@ int pvt_get_minion_avg_low_high_temperature(TS_Sample* temp)
     temp->current = (int16_t)avg;
     temp->high = (int16_t)high;
     temp->low = (int16_t)low;
+
+    return 0;
+}
+
+int pvt_get_minion_avg_low_high_voltage(MinShire_VM_sample* minshire_voltage)
+{
+    MinShire_VM_sample minshire_sample_avg = {{0, 0, 0xFFFF}, {0, 0, 0xFFFF}, {0, 0, 0xFFFF}};
+    int valid_samples_num = 0;
+
+    GET_MINION_VM(mishire_sample_avg,valid_samples_num)
+
+    if (valid_samples_num == 0)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "There were no valid Minion Shire VM samples\r\n");
+        return ERROR_PVT_NO_VALID_VM_SAMPLES;
+    }
+
+    *minshire_voltage = minshire_sample_avg;
+
+    return 0;
+}
+
+int pvt_get_memshire_avg_low_high_voltage(MemShire_VM_sample* memshire_voltage)
+{
+    MemShire_VM_sample memshire_sample_avg = {{0, 0, 0xFFFF}, {0, 0, 0xFFFF}};
+    int valid_samples_num = 0;
+
+    GET_MEMSHIRE_VM(memshire_sample_avg,valid_samples_num)
+
+    if (valid_samples_num == 0)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "There were no valid Minion Shire TS samples\r\n");
+        return ERROR_PVT_NO_VALID_TS_SAMPLES;
+    }
+
+    *memshire_voltage = memshire_sample_avg;
 
     return 0;
 }

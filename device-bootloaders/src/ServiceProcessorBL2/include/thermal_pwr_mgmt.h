@@ -215,11 +215,19 @@ void power_throttling(power_throttle_state_e throttle_state);
     \returns none
 */
 void trace_power_state_test(uint16_t tag, uint64_t req_start_time, void *cmd);
+
 /*! \fn void thermal_throttling(power_throttle_state_e throttle_state)
     \brief This function handles thermal throttling
     \param none
     \returns none
 */
 void thermal_throttling(power_throttle_state_e throttle_state);
+
+/*! \fn void print_system_operating_point(void)
+    \brief This function prints system operating point
+    \param none
+    \returns none
+*/
+void print_system_operating_point(void);
 
 #endif

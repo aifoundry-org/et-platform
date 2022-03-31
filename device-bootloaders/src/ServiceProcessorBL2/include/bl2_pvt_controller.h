@@ -651,4 +651,18 @@ int pvt_get_and_print(uint8_t print_ts, uint8_t print_vm, PVT_PRINT_e print_sele
 */
 int pvt_get_minion_avg_low_high_temperature(TS_Sample* temp);
 
+/*! \fn int pvt_get_minion_avg_low_high_voltage(MinShire_VM_sample* minshire_voltage)
+    \brief This function returns average, high and low voltage for Minion shires
+    \param minshire_voltage place holder for return values
+    \return Status indicating success or negative error
+*/
+int pvt_get_minion_avg_low_high_voltage(MinShire_VM_sample* minshire_voltage);
+
+/*! \fn int pvt_get_memshire_avg_low_high_voltage(MemShire_VM_sample* memshire_voltage)
+    \brief This function returns average, high and low voltage for Mem shires
+    \param memshire_voltage place holder for return values
+    \return Status indicating success or negative error
+*/
+int pvt_get_memshire_avg_low_high_voltage(MemShire_VM_sample* memshire_voltage);
+
 #endif
