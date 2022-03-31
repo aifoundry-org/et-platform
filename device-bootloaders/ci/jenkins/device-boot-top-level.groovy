@@ -153,6 +153,27 @@ pipeline {
                 sh 'if [ ! -z \"${gitlabTargetBranch}\" ] ; then git fetch && git merge origin/$gitlabTargetBranch | grep Already && ( echo \"Branch is up to date with target branch proceeding...\" && exit 0 ) || ( echo \"Merge request is out of date with respect to target branch. Please, rebase it and re-submit merge request\" && exit 1 ); else echo \"Skipping branch up to date check as environment variable gitlabTargetBranch is not defined!\" ; fi'
               }
             }
+            stage('CLANG_CHECK') {
+              steps {
+                script {
+                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/system-sw-integration/pipelines/device-bootloaders-clang-tests', COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}")) {
+                    script {
+                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}", JOB_NAME: 'sw-platform/system-sw-integration/pipelines/device-bootloaders-clang-tests')
+                      build job:
+                        'sw-platform/system-sw-integration/pipelines/device-bootloaders-clang-tests',
+                        propagate: true,
+                        parameters: [
+                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
+                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"),
+                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
+                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
+                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
+                        ]
+                    }
+                  }
+                }
+              }
+            }
             stage('CODE_QUALITY') {
               steps {
                 script {
