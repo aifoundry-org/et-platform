@@ -94,3 +94,6 @@ class DeviceLayerConan(ConanFile):
             "linuxDriver::linuxDriver",
             "boost::boost"
         ]
+        if not self.options.shared:
+            if self.settings.compiler == "gcc" and tools.Version(self.settings.compiler.version) < "9":
+                self.cpp_info.system_libs.append("stdc++fs")
