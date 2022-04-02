@@ -1,79 +1,98 @@
-from conans import ConanFile, tools
+from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeToolchain
+from conan.tools.layout import cmake_layout
+from conans import tools
 from conans.errors import ConanInvalidConfiguration
 import os
 
 
 class DeviceManagementConan(ConanFile):
     name = "deviceManagement"
-    version = "0.1.0"
-    url = "https://gitlab.esperanto.ai/software/deviceManagement" #TODO: Once deviceManagement gets its own project, update this url
+    url = "https://gitlab.esperanto.ai/software/devicemanagement"
     description = ""
     license = "Esperanto Technologies"
 
     settings = "os", "arch", "compiler", "build_type"
     options = {
-        "shared": [True, False],
-        "fPIC": [True, False]
+        "fPIC": [True, False],
+        "with_tests": [True, False],
+        "with_tools": [True, False],
     }
     default_options = {
-        "shared": False,
-        "fPIC": True
+        "fPIC": True,
+        "with_tests": False,
+        "with_tools": True
     }
 
-    generators = "cmake_find_package_multi"
+    scm = {
+        "type": "git",
+        "url": "git@gitlab.esperanto.ai:software/devicelayer.git",
+        "revision": "auto",
+    }
+    generators = "CMakeDeps"
 
-    exports_sources = [ "CMakeLists.txt", "cmake/*", "include/*", "src/*", "deviceManagementConfig.cmake.in" ]
-
-    requires = [
-        # core lib
-        "deviceApi/0.1.0",
-        "deviceLayer/0.1.0",
-        "hostUtils/0.1.0"
-    ]
-    build_requires = "cmake-modules/[>=0.4.1 <1.0.0]"
-    python_requires = "conan-common/[>=0.1.0 <1.0.0]"
+    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
     
-    def configure(self):
+
+    def set_version(self):
+        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "deviceManagement")
+        
+    def requirements(self):
+        self.requires("deviceApi/0.3.0")
+        self.requires("deviceLayer/0.1.0")
+        self.requires("hostUtils/0.1.0")
+
+        if self.options.with_tools:
+            self.requires("glog/0.4.0")
+
+    def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
         check_req_min_cppstd(self, "17")
 
+        if self.options.with_tests:
+            raise ConanInvalidConfiguration("Support for building with tests not yet implemented.")
+        
+    def layout(self):
+        cmake_layout(self)
+        self.folders.source = "."
+    
     def generate(self):
         tc = CMakeToolchain(self)
-        tc.variables["BUILD_TESTS"] = False
-        tc.variables["BUILD_TOOLS"] = False
+        tc.variables["BUILD_TESTS"] = self.options.with_tests
+        tc.variables["BUILD_TOOLS"] = self.options.with_tools
         tc.variables["BUILD_DOC"] = False
+        tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
         tc.generate()
-    
-
-    _cmake = None
-    def _configure_cmake(self):
-        if not self._cmake:
-            cmake = CMake(self)
-            cmake.verbose = True
-            cmake.configure()
-            self._cmake = cmake
-        return self._cmake
-    
+        
     def build(self):
-        cmake = self._configure_cmake()
+        cmake = CMake(self)
+        cmake.configure()
         cmake.build()
     
     def package(self):
-        cmake = self._configure_cmake()
+        cmake = CMake(self)
         cmake.install()
         tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
     
     def package_info(self):
         # library components
-        self.cpp_info.components["DM"].names["cmake_find_package"] = "DM"
-        self.cpp_info.components["DM"].names["cmake_find_package_multi"] = "DM"
+        self.cpp_info.components["DM"].set_property("cmake_target_name", "deviceManagement::DM")
         self.cpp_info.components["DM"].requires = ["deviceApi::deviceApi", "deviceLayer::deviceLayer", "hostUtils::logging"]
         self.cpp_info.components["DM"].lib = ["DM"]
-        self.cpp_info.components["DM"].libdirs = ["lib", "lib64"]
-        self.cpp_info.components["DM_static"].names["cmake_find_package"] = "DM_static"
-        self.cpp_info.components["DM_static"].names["cmake_find_package_multi"] = "DM_static"
+        self.cpp_info.components["DM"].includedirs = ["include"]
+        self.cpp_info.components["DM"].libdirs = ["lib"]
+        if self.settings.build_type == "Debug":
+            self.cpp_info.components["DM"].defines.append("MINION_DEBUG_INTERFACE")
+        
+        self.cpp_info.components["DM_static"].set_property("cmake_target_name", "deviceManagement::DM_static")
         self.cpp_info.components["DM_static"].requires = ["deviceApi::deviceApi", "deviceLayer::deviceLayer", "hostUtils::logging"]
         self.cpp_info.components["DM_static"].lib = ["DM_static"]
-        self.cpp_info.components["DM_static"].libdirs = ["lib", "lib64"]
+        self.cpp_info.components["DM_static"].includedirs = ["include"]
+        self.cpp_info.components["DM_static"].libdirs = ["lib"]
+        if self.settings.build_type == "Debug":
+            self.cpp_info.components["DM_static"].defines.append("MINION_DEBUG_INTERFACE")
+
+        bin_path = os.path.join(self.package_folder, "bin")
+        self.output.info("Appending PATH environment variable: {}".format(bin_path))
+        self.env_info.PATH.append(bin_path)

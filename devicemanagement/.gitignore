@@ -1,0 +1,7 @@
+build
+cmake-build-*
+
+test_package/build
+*.lock
+
+lockfiles_info.json
