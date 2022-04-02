@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.17)
-project(deviceManagement VERSION 0.1.0)
+project(deviceManagement VERSION 0.1.0 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
 
@@ -96,8 +96,7 @@ if (BUILD_TESTS)
 endif()
 
 if (BUILD_TOOLS)
-    add_subdirectory(tools/dm_tester)
-    add_subdirectory(tools/debug_server)
+    add_subdirectory(tools)
 endif()
 
 if (BUILD_DOC)

@@ -15,14 +15,6 @@ find_package(gflags REQUIRED)
 find_package(glog REQUIRED)
 find_package(Threads REQUIRED)
 
-set(COMMON_LIBRARIES
-    glog::glog
-    gflags::gflags
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${CMAKE_DL_LIBS}
-    deviceManagement::DM
-    deviceLayer::deviceLayer
-)
 
 add_executable(debug-server
     src/DebugServer.cpp
@@ -32,7 +24,7 @@ add_executable(debug-server
     src/RspConnection.cpp
     src/RspPacket.cpp
     src/MDIEvent.cpp
-    )
+)
 
 target_compile_features(debug-server PUBLIC cxx_std_17)
 
@@ -41,7 +33,15 @@ target_include_directories(debug-server
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools/debug_server/include>
 )
 
-target_link_libraries(debug-server ${COMMON_LIBRARIES})
+target_link_libraries(debug-server
+    PRIVATE
+        glog::glog
+        gflags::gflags
+        ${CMAKE_THREAD_LIBS_INIT}
+        ${CMAKE_DL_LIBS}
+        deviceManagement::DM
+        deviceLayer::deviceLayer
+)
 
 install(TARGETS debug-server
     EXPORT deviceManagementTargets

@@ -8,33 +8,5 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-include(ExternalProject)
-
-find_package(deviceLayer REQUIRED)
-find_package(gflags REQUIRED)
-find_package(glog REQUIRED)
-find_package(Threads REQUIRED)
-
-set(COMMON_LIBRARIES
-    glog::glog
-    gflags::gflags
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${CMAKE_DL_LIBS}
-    deviceManagement::DM
-    deviceLayer::deviceLayer
-)
-
-add_executable(dm-tester dm_tester.cc)
-target_compile_features(dm-tester PUBLIC cxx_std_17)
-target_include_directories(dm-tester
-    PRIVATE
-        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
-)
-target_link_libraries(dm-tester ${COMMON_LIBRARIES})
-
-install(TARGETS dm-tester
-    EXPORT deviceManagementTargets
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
+add_subdirectory(debug_server)
+add_subdirectory(dm_tester)
