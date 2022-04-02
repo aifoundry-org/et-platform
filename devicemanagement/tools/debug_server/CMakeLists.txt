@@ -11,7 +11,6 @@
 include(ExternalProject)
 
 find_package(deviceLayer REQUIRED)
-find_package(gflags REQUIRED)
 find_package(glog REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -36,7 +35,6 @@ target_include_directories(debug-server
 target_link_libraries(debug-server
     PRIVATE
         glog::glog
-        gflags::gflags
         ${CMAKE_THREAD_LIBS_INIT}
         ${CMAKE_DL_LIBS}
         deviceManagement::DM
