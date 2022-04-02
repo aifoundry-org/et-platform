@@ -15,14 +15,6 @@ find_package(gflags REQUIRED)
 find_package(glog REQUIRED)
 find_package(Threads REQUIRED)
 
-set(COMMON_LIBRARIES
-    glog::glog
-    gflags::gflags
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${CMAKE_DL_LIBS}
-    deviceManagement::DM
-    deviceLayer::deviceLayer
-)
 
 add_executable(dm-tester dm_tester.cc)
 target_compile_features(dm-tester PUBLIC cxx_std_17)
@@ -30,7 +22,15 @@ target_include_directories(dm-tester
     PRIVATE
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
 )
-target_link_libraries(dm-tester ${COMMON_LIBRARIES})
+target_link_libraries(dm-tester
+    PRIVATE 
+        glog::glog
+        gflags::gflags
+        ${CMAKE_THREAD_LIBS_INIT}
+        ${CMAKE_DL_LIBS}
+        deviceManagement::DM
+        deviceLayer::deviceLayer
+)
 
 install(TARGETS dm-tester
     EXPORT deviceManagementTargets
