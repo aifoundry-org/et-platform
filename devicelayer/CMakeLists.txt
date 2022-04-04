@@ -9,9 +9,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.15)
-project(deviceLayer LANGUAGES CXX)
-
-set(PROJECT_VERSION 0.1.0)
+project(deviceLayer VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_PREFIX_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
@@ -40,6 +38,7 @@ option(ENABLE_TESTS "Enable compiling tests" ON)
 option(ENABLE_DEPRECATED "Generate Deprecated config file" ON)
 
 find_package(linuxDriver REQUIRED)
+find_package(deviceApi REQUIRED)
 find_package(sw-sysemu REQUIRED)
 find_package(hostUtils REQUIRED)
 find_package(Boost REQUIRED)

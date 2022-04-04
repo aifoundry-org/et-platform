@@ -1,4 +1,0 @@
-projects:
-  "deviceLayer":
-    folder: .
-    configs: [host]

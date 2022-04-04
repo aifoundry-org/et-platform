@@ -25,6 +25,7 @@ function(create_test)
     target_link_libraries(${TEST_TARGET}
         PRIVATE
             deviceLayer::deviceLayer
+            deviceApi::deviceApi # required for IDeviceLayerFake
             hostUtils::logging
             GTest::gtest
             GTest::gmock
