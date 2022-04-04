@@ -62,6 +62,7 @@ class RuntimeConan(ConanFile):
 
             # only for pinning dependencies
             self.requires("esperantoTrace/0.1.0#69b90d42d6e0fa223ce504f0aab8771d")
+            self.requires("etsoc_hal/0.1.0#a1a853c0bae6f7712674cba52b8917a9")
 
     
     def validate(self):
