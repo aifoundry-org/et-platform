@@ -3,6 +3,7 @@ include:
     ref: eaa145e684411db579462b41feb7736c6ed0028c
     file:
       - 'pods/nano-pod.yaml'
+      - 'pods/large-pod.yaml'
       - 'jobs/generic-k8s-job.yaml'
 
   - project: 'software/gitlab-ci-common'
@@ -24,7 +25,7 @@ stages:
 
 unit_tests:conan:sysemu:
   extends:
-    - .pod_nano
+    - .pod_large
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   
