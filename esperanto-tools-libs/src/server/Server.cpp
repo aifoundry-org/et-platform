@@ -11,6 +11,7 @@
 #include "Utils.h"
 #include "Worker.h"
 #include "runtime/Types.h"
+#include <mutex>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -61,6 +62,12 @@ void Server::listen() {
                  << " GID: " << credentials.gid << ").";
 
     // delegate the request processing for this client to a worker
+    std::lock_guard lock(mutex_);
     workers_.emplace_back(std::make_unique<Worker>(cl, dynamic_cast<RuntimeImp&>(*runtime_), *this, credentials));
   }
+}
+
+void Server::removeWorker(Worker* worker) {
+  std::lock_guard lock(mutex_);
+  std::remove_if(begin(workers_), end(workers_), [worker](const auto& item) { return item.get() == worker; });
 }

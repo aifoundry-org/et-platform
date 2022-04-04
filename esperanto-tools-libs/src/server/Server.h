@@ -19,15 +19,14 @@ class Server {
 public:
   explicit Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer);
 
-  void removeWorker(Worker* worker) {
-    std::remove_if(begin(workers_), end(workers_), [worker](const auto& item) { return item.get() == worker; });
-  }
+  void removeWorker(Worker* worker);
 
 private:
   void listen();
 
   int socket_;
   bool running_ = true;
+  std::mutex mutex_;
   std::vector<std::unique_ptr<Worker>> workers_;
   std::thread listener_;
   std::unique_ptr<IRuntime> runtime_;
