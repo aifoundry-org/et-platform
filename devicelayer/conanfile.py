@@ -44,7 +44,7 @@ class DeviceLayerConan(ConanFile):
         self.requires("boost/1.72.0")
 
         # IDeviceLayerFake.h
-        self.requires("deviceApi/0.1.0")
+        self.requires("deviceApi/0.3.0")
         # IDeviceLayerMock.h
         self.requires("gtest/1.8.1")
         
