@@ -1,64 +1,116 @@
 include:
-  - project: 'software/conan/conan-ci-pipelines-common'
+  - project: 'software/gitlab-ci-common'
+    ref: eaa145e684411db579462b41feb7736c6ed0028c
+    file:
+      - 'pods/nano-pod.yaml'
+      - 'pods/large-pod.yaml'
+      - 'jobs/generic-k8s-job.yaml'
+
+  - project: 'software/gitlab-ci-common'
     ref: master
-    file: 'mr/common.yaml'
+    file:
+      - 'jobs/conan-jobs.yaml'
 
-variables:
-  GIT_SUBMODULE_STRATEGY: none
-  GET_SOURCES_ATTEMPTS: 2
-  ARTIFACT_DOWNLOAD_ATTEMPTS: 2
+stages:
+  - smoke
+  - generate_build
+  - build
+  - test
+  - deploy
 
-
-###############################################################################
-###############################################################################
-###############################################################################
-
-gen_conan_build_pipeline:
-  extends: .template_job_k8s_with_conan_ci_pipelines_common
-  stage: .pre
-  image: conanio/gcc7-ubuntu16.04
-  script:
-
-    # generate pipeline
-    - |
-      conan-ci-pipelines-common/gen-build-pipeline.py \
-          .ci/conan.yaml \
-          conan-ci-pipelines-common/consumers.yaml \
-          conan-ci-pipelines-common/configs.yaml \
-          -o build-pipeline.yaml
-
-    - sh -c -x "${CMD_AFTER_GENERATE_PIPELINE}"
 
 ###############################################################################
 ###############################################################################
 ###############################################################################
 
-conan_build_pipeline:
+smoke_tests:conan:sysemu:
+  extends:
+    - .pod_large
+    - .template_job
+    - .template-conan-linux-ubuntu18.04-gcc7
+  
+  stage: smoke
+
+  parallel:
+    matrix:
+      - BUILD_TYPE: [ release, debug ]
+  
+  variables:
+    TIMEOUT: 30m
+
+    CMD_BUILD: |
+      mkdir cmake-build-${BUILD_TYPE}
+      cd cmake-build-${BUILD_TYPE}
+      conan remote disable conan-tmp
+      conan install .. -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE} -o deviceLayer:with_tests=True --build missing
+      cmake --configure .. -DCMAKE_TOOLCHAIN_FILE=conan/conan_toolchain.cmake -G Ninja
+      cmake --build .
+      cd threadPool/tests
+      ctest
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+generate_build:conan:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan-linux-ubuntu18.04-gcc7
+  stage: generate_build
+
+  variables:
+    TIMEOUT: 15m
+
+    CMD_BUILD: |
+      cd conan
+      python3 -m ci_build
+  
+  artifacts:
+    expire_in: 1h 
+    paths:
+      - conan/build_pipeline.yml
+      - conan/lockfiles_info.json
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+build:conan:
   stage: build
   needs:
-    - gen_conan_build_pipeline
-  variables:
-    UPSTREAM_PROJECT_NAME:      ${CI_PROJECT_NAME}
-    UPSTREAM_CI_PIPELINE_ID:    ${CI_PIPELINE_ID}
-    CONAN_CI_PIPELINES_COMMON_REF: ${CONAN_CI_PIPELINES_COMMON_REF}
-    CONAN_CONFIG_EXTRA_ARGS: ${CONAN_CONFIG_EXTRA_ARGS}
+  - generate_build:conan
+  stage: build
   trigger:
     include:
-      - artifact: build-pipeline.yaml
-        job: gen_conan_build_pipeline
+    - artifact: conan/build_pipeline.yml
+      job: generate_build:conan
     strategy: depend
 
 ###############################################################################
 ###############################################################################
 ###############################################################################
 
-on_success:promote:
-  extends: .template_job_k8s_with_conan_ci_pipelines_common_on_success_perform_promote
-  stage: deploy
-  needs:
-    - gen_conan_build_pipeline
-    - conan_build_pipeline
+# other tests could go here
 
-on_failure:report:
-  extends: .template_job_k8s_bare_minimum_on_failure_report
+###############################################################################
+###############################################################################
+###############################################################################
+
+on_success:promote:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan-linux-ubuntu18.04-gcc7
+  
   stage: deploy
+
+  needs:
+    - generate_build:conan
+    - build:conan
+  
+  variables:
+    PYTHONIOENCODING: utf-8
+    CMD_BUILD: |
+      cd conan
+      python3 -m ci_promote
