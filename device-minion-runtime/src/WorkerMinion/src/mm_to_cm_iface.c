@@ -274,24 +274,39 @@ static void mm_to_cm_iface_handle_message(
                 .event_mask = cmd->event_mask,
                 .threshold = cmd->threshold };
             uint64_t thread_mask = cmd->thread_mask;
+            uint64_t shire_mask = cmd->shire_mask;
 
             /* Notify MM after copying the msg locally */
             MM_NOTIFY_ASYNC_MSG(shire, msg_header)
 
-            Log_Write(
-                LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Kernel abort msg received\r\n", msg_header.tag_id);
-
-            if (thread_mask & CURRENT_THREAD_MASK)
+            /* Disable Trace for Harts not specified in given Shire and Thread mask. */
+            if ((thread_mask & CURRENT_THREAD_MASK) && (shire_mask & GET_SHIRE_MASK(shire)))
             {
                 Log_Write(LOG_LEVEL_DEBUG,
                     "TID[%u]:MM->CM: Trace Config. Event:0x%x:Filter:0x%x:Threshold:%d\r\n",
                     msg_header.tag_id, cm_trace_config.event_mask, cm_trace_config.filter_mask,
                     cm_trace_config.threshold);
 
-                Trace_Configure_CM(&cm_trace_config);
-                Trace_String(
-                    TRACE_EVENT_STRING_CRITICAL, Trace_Get_CM_CB(), "CM:TRACE_RT_CONFIG:Done!!\n");
+                /* Update Trace configuration for current hart */
+                int32_t status = Trace_Configure_CM(&cm_trace_config);
+
+                /* Enable the Trace. Even Trace config failed it will enable Trace on existing configurations. */
+                Trace_Set_Enable_CM(TRACE_ENABLE);
+
+                if (status == STATUS_SUCCESS)
+                {
+                    Log_Write(LOG_LEVEL_CRITICAL, "CM:TRACE_RT_CONFIG:Done!!\n");
+                }
+                else
+                {
+                    Log_Write(LOG_LEVEL_ERROR, "CM:TRACE_RT_CONFIG:Failed:Status:%d!\r\n", status);
+                }
             }
+            else
+            {
+                Trace_Set_Enable_CM(TRACE_DISABLE);
+            }
+
             break;
         }
         case MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT:

@@ -40,6 +40,7 @@
 /* mm specific headers */
 #include "config/mm_config.h"
 #include "services/cm_iface.h"
+#include "workers/cw.h"
 #include "services/log.h"
 #include "services/host_cmd_hdlr.h"
 
@@ -378,7 +379,7 @@ int32_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg)
     acquire_local_spinlock(&MM_Trace_CB.trace_internal_cb_lock);
 
     /* Transmit the message to Compute Minions */
-    status = CM_Iface_Multicast_Send(config_msg->shire_mask, (cm_iface_message_t *)config_msg);
+    status = CM_Iface_Multicast_Send(CW_Get_Booted_Shires(), (cm_iface_message_t *)config_msg);
 
     /* Release the lock */
     release_local_spinlock(&MM_Trace_CB.trace_internal_cb_lock);
