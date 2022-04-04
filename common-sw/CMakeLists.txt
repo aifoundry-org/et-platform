@@ -10,9 +10,8 @@
 
 
 cmake_minimum_required(VERSION 3.15)
-project(hostUtils LANGUAGES CXX)
+project(hostUtils VERSION 0.1.0 LANGUAGES CXX)
 
-set(PROJECT_VERSION 0.1.0)
 
 list(APPEND CMAKE_PREFIX_PATH ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
