@@ -1,4 +1,0 @@
-projects:
-  "device-bootloaders":
-    folder: .
-    configs: [device]

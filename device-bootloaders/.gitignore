@@ -6,8 +6,7 @@ cmake-build-*/
 
 # conan
 test_package/build
+*.lock
 
 # conan ci
-locks/
-variables.env
-conan-ci-pipelines-common/
+lockfiles_info.json
