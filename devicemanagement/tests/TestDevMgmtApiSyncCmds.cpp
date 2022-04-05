@@ -1643,9 +1643,9 @@ void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode(bool singleDevice) {
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    auto res1 = std::make_unique<int>();
-    auto res2 = std::make_unique<int>();
-    auto res3 = std::make_unique<int>();
+    // Creating 100 threads and they all try to perform serviceRequest() after a single point of sync
+    const auto totalThreads = 100;
+    std::array<int, totalThreads> results;
     std::condition_variable cv;
     std::mutex syncMtx;
     bool sync = false;
@@ -1664,9 +1664,9 @@ void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode(bool singleDevice) {
     };
 
     std::vector<std::thread> threads;
-    threads.push_back(std::thread(testSerial, (uint32_t)DM_SERVICE_REQUEST_TIMEOUT, res1.get()));
-    threads.push_back(std::thread(testSerial, (uint32_t)0, res2.get()));
-    threads.push_back(std::thread(testSerial, (uint32_t)DM_SERVICE_REQUEST_TIMEOUT, res3.get()));
+    for (auto threadId = 0; threadId < totalThreads; threadId++) {
+      threads.push_back(std::thread(testSerial, (uint32_t)DM_SERVICE_REQUEST_TIMEOUT, &results[threadId]));
+    }
 
     // Delay to ensure all threads started and reached the same point of sync
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -1683,9 +1683,9 @@ void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode(bool singleDevice) {
       }
     }
 
-    EXPECT_EQ(*res1, device_mgmt_api::DM_STATUS_SUCCESS);
-    EXPECT_EQ(*res2, -EAGAIN);
-    EXPECT_EQ(*res3, device_mgmt_api::DM_STATUS_SUCCESS);
+    for (auto threadId = 0; threadId < totalThreads; threadId++) {
+      EXPECT_EQ(results[threadId], device_mgmt_api::DM_STATUS_SUCCESS);
+    }
   }
 }
 
