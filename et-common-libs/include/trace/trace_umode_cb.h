@@ -28,21 +28,21 @@ extern "C" {
  * Compute Minion UMode Trace control block.
  */
 typedef struct umode_trace_control_block {
-    struct trace_control_block_t cb;    /*!< Common Trace library control block. */
+    struct trace_control_block_t cb; /*!< Common Trace library control block. */
 } __attribute__((aligned(64))) umode_trace_control_block_t;
 
 /* WARNING: Keep it in sync with the memory map layout file in minion runtime. */
-#define CM_UMODE_TRACE_CB_BASEADDR  0x8004d22000ULL
+#define CM_UMODE_TRACE_CB_BASEADDR 0x8004d23000ULL
 
 /*! \def GET_CB_INDEX
     \brief Get CB index of current Hart in pre-allocated CB array.
 */
-#define GET_CB_INDEX(hart_id)       ((hart_id < 2048U) ? hart_id : (hart_id - 32U))
+#define GET_CB_INDEX(hart_id) ((hart_id < 2048U) ? hart_id : (hart_id - 32U))
 
 /*! \def CM_UMODE_TRACE_CB
     \brief A local Trace control block for a Compute Minion.
 */
-#define CM_UMODE_TRACE_CB           ((umode_trace_control_block_t*)CM_UMODE_TRACE_CB_BASEADDR)
+#define CM_UMODE_TRACE_CB ((umode_trace_control_block_t *)CM_UMODE_TRACE_CB_BASEADDR)
 
 #ifdef __cplusplus
 }

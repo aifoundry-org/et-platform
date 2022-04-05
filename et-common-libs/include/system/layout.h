@@ -58,6 +58,8 @@
 
 /* FW trace related defines */
 #define TRACE_CB_MAX_SIZE           SIZE_64B
+/* 4KB for SP DM services Trace Buffer + 4KB for Exception Trace buffer. */
+#define SP_TRACE_SUB_BUFFER_COUNT   2
 
 /* MM VQs related defines */
 #define MM_SQ_COUNT_MAX             4
@@ -255,7 +257,8 @@ correspoding Flash partition to take affect. */
    4KB, 1MB, and 8.125MB respectively. */
 /* SP DM services Trace Buffer */
 #define SP_TRACE_BUFFER_BASE                    (SP_DM_SCRATCH_REGION_BEGIN + SP_DM_SCRATCH_REGION_SIZE)
-#define SP_TRACE_BUFFER_SIZE                    SIZE_4KB /* 4KB for SP DM services Trace Buffer */
+#define SP_TRACE_BUFFER_SIZE_PER_SUB_BUFFER     SIZE_4KB
+#define SP_TRACE_BUFFER_SIZE                    (SP_TRACE_BUFFER_SIZE_PER_SUB_BUFFER * SP_TRACE_SUB_BUFFER_COUNT)
 
 /* Master Minion FW Trace Buffer */
 #define MM_TRACE_BUFFER_BASE                    (SP_TRACE_BUFFER_BASE + SP_TRACE_BUFFER_SIZE)
@@ -305,7 +308,7 @@ static_assert((CM_UMODE_TRACE_CB_BASEADDR + CM_UMODE_TRACE_CB_SIZE) < KERNEL_UMO
               "DDR OS memory sub regions crossing limits");
 
 /* Ensure that fixed U-mode Trace CB address has not been changed. */
-static_assert(CM_UMODE_TRACE_CB_BASEADDR == 0x8004d22000ULL,
+static_assert(CM_UMODE_TRACE_CB_BASEADDR == 0x8004d23000ULL,
               "U-mode Trace CB address is changed, it needs to be adjusted in U-mode Trace");
 
 /* Ensure that fixed U-mode kernels entry address has not been changed. */
