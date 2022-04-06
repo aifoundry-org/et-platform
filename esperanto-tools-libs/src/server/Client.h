@@ -88,7 +88,9 @@ private:
   void processResponse(const resp::Response& response);
 
   void responseProcessor();
+  req::Id getNextId();
 
+  // esto no es correcto, cambiar a solo 1 condition_variable puede ser suficiente ...
   std::unordered_map<EventId, std::condition_variable> waiters_;
   std::unordered_map<EventId, StreamId> eventToStream_;
   std::unordered_map<StreamId, std::vector<EventId>> streamToEvents_;
@@ -96,6 +98,7 @@ private:
   std::mutex mutex_;
 
   int socket_;
+  req::Id nextId_ = 0;
   bool running_ = true;
 };
 } // namespace rt

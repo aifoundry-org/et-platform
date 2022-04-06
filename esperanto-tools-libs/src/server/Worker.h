@@ -48,6 +48,7 @@ private:
   std::set<EventId> events_;
   std::thread runner_;
   Server& server_;
+  std::mutex mutex_;
   int socket_;
   bool running_ = true;
 };

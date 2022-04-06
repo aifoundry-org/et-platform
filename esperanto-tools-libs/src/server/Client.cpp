@@ -121,6 +121,7 @@ bool Client::waitForStreamWithoutProfiling(StreamId stream, std::chrono::seconds
   auto start = std::chrono::steady_clock::now();
   std::unique_lock lock(mutex_);
   auto events = find(streamToEvents_, stream, "Stream does not exist")->second;
+  lock.unlock();
   if (events.empty()) {
     return true;
   }
@@ -131,4 +132,15 @@ bool Client::waitForStreamWithoutProfiling(StreamId stream, std::chrono::seconds
     }
   }
   return true;
+}
+
+req::Id Client::getNextId() {
+  if (++nextId_ != req::ASYNC_RUNTIME_EVENT) {
+    return nextId_;
+  } else { // skip special requestId that can't be used
+    return ++nextId_;
+  }
+}
+
+EventId Client::abortStream(StreamId streamId) {
 }

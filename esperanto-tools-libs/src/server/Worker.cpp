@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #include "Worker.h"
+#include "NetworkException.h"
 #include "Protocol.h"
 #include "Server.h"
 #include "Utils.h"
@@ -27,8 +28,9 @@ struct MemStream : public std::streambuf {
 };
 
 void Worker::update(EventId event) {
+  std::lock_guard lock(mutex_);
   if (events_.erase(event) > 0) {
-    sendResponse({resp::Type::EVENT_DISPATCHED, resp::Event{event}});
+    sendResponse({resp::Type::EVENT_DISPATCHED, req::ASYNC_RUNTIME_EVENT, resp::Event{event}});
   }
 }
 
@@ -68,8 +70,8 @@ Worker::Worker(int socket, RuntimeImp& runtime, Server& server, ucred credential
       res = process_vm_writev(pid, &local, 1, &remote, 1, 0);
     }
     if (res != static_cast<ssize_t>(size)) {
-      throw Exception("Error copying/writing from/to remote process with PID: " + std::to_string(pid) +
-                      " error: " + strerror(static_cast<int>(res)));
+      throw NetworkException("Error copying/writing from/to remote process with PID: " + std::to_string(pid) +
+                             " error: " + strerror(static_cast<int>(res)));
     };
   };
   runner_ = std::thread(&Worker::requestProcessor, this);
@@ -86,23 +88,29 @@ void Worker::requestProcessor() {
   constexpr size_t kMaxRequestSize = 4096;
   auto requestBuffer = std::vector<char>(kMaxRequestSize);
   auto ms = MemStream{requestBuffer.data(), requestBuffer.size()};
-
-  while (running_) {
-    if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); res < 0) {
-      RT_VLOG(LOW) << "Read socket error: " << strerror(errno);
-      RT_LOG(INFO) << "Closing connection.";
-      break;
+  try {
+    while (running_) {
+      std::lock_guard lock(mutex_);
+      if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); res < 0) {
+        RT_VLOG(LOW) << "Read socket error: " << strerror(errno);
+        RT_LOG(INFO) << "Closing connection.";
+        break;
+      }
+      std::istream is(&ms);
+      req::Id id;
+      try {
+        cereal::PortableBinaryInputArchive archive{is};
+        req::Request request;
+        archive >> request;
+        id = request.id_; // save in case runtime triggers an exception to answer with correct id
+        processRequest(request);
+      } catch (const Exception& e) {
+        RT_VLOG(LOW) << "Got a runtime exception. Passing that exception to the client.";
+        sendResponse({resp::Type::RUNTIME_EXCEPTION, id, resp::RuntimeException{e}});
+      }
     }
-    std::istream is(&ms);
-    try {
-      cereal::PortableBinaryInputArchive archive{is};
-      req::Request request;
-      archive >> request;
-      processRequest(request);
-    } catch (...) {
-      RT_VLOG(LOW) << "Error processing the request or sending the response. Closing connection.";
-      break;
-    }
+  } catch (const NetworkException& e) {
+    RT_VLOG(LOW) << "Got a network exception. Closing connection. Exception message: " << e.what();
   }
   server_.removeWorker(this);
 }
@@ -111,7 +119,7 @@ void Worker::processRequest(const req::Request& request) {
   switch (request.type_) {
 
   case req::Type::VERSION: {
-    sendResponse({resp::Type::VERSION, resp::Version{1}}); // current version is "1"
+    sendResponse({resp::Type::VERSION, request.id_, resp::Version{1}}); // current version is "1"
     break;
   }
 
@@ -119,7 +127,7 @@ void Worker::processRequest(const req::Request& request) {
     auto& req = std::get<req::Malloc>(request.payload_);
     auto ptr = runtime_.mallocDeviceWithoutProfiling(req.device_, req.size_, req.alignment_);
     allocations_.insert(Allocation{req.device_, ptr});
-    sendResponse({resp::Type::MALLOC, resp::Malloc{reinterpret_cast<AddressT>(ptr)}});
+    sendResponse({resp::Type::MALLOC, request.id_, resp::Malloc{reinterpret_cast<AddressT>(ptr)}});
     break;
   }
 
@@ -141,7 +149,7 @@ void Worker::processRequest(const req::Request& request) {
     auto evt =
       runtime_.memcpyHostToDeviceWithoutProfiling(req.stream_, src, dst, req.size_, req.barrier_, cmaCopyFunction_);
     events_.emplace(evt);
-    sendResponse({resp::Type::MEMCPY_H2D, resp::Event{evt}});
+    sendResponse({resp::Type::MEMCPY_H2D, request.id_, resp::Event{evt}});
     break;
   }
 
@@ -152,7 +160,7 @@ void Worker::processRequest(const req::Request& request) {
     auto evt =
       runtime_.memcpyDeviceToHostWithoutProfiling(req.stream_, src, dst, req.size_, req.barrier_, cmaCopyFunction_);
     events_.emplace(evt);
-    sendResponse({resp::Type::MEMCPY_D2H, resp::Event{evt}});
+    sendResponse({resp::Type::MEMCPY_D2H, request.id_, resp::Event{evt}});
     break;
   }
 
@@ -166,7 +174,7 @@ void Worker::processRequest(const req::Request& request) {
     }
     auto evt = runtime_.memcpyHostToDeviceWithoutProfiling(req.stream_, memcpyList, req.barrier_, cmaCopyFunction_);
     events_.emplace(evt);
-    sendResponse({resp::Type::MEMCPY_LIST_H2D, resp::Event{evt}});
+    sendResponse({resp::Type::MEMCPY_LIST_H2D, request.id_, resp::Event{evt}});
     break;
   }
 
@@ -180,7 +188,7 @@ void Worker::processRequest(const req::Request& request) {
     }
     auto evt = runtime_.memcpyDeviceToHostWithoutProfiling(req.stream_, memcpyList, req.barrier_, cmaCopyFunction_);
     events_.emplace(evt);
-    sendResponse({resp::Type::MEMCPY_LIST_D2H, resp::Event{evt}});
+    sendResponse({resp::Type::MEMCPY_LIST_D2H, request.id_, resp::Event{evt}});
     break;
   }
 
@@ -188,7 +196,7 @@ void Worker::processRequest(const req::Request& request) {
     auto& req = std::get<req::CreateStream>(request.payload_);
     auto st = runtime_.createStreamWithoutProfiling(req.device_);
     streams_.insert(st);
-    sendResponse({resp::Type::CREATE_STREAM, resp::CreateStream{st}});
+    sendResponse({resp::Type::CREATE_STREAM, request.id_, resp::CreateStream{st}});
     break;
   }
 
@@ -206,7 +214,7 @@ void Worker::processRequest(const req::Request& request) {
     auto& req = std::get<req::LoadCode>(request.payload_);
     auto resp = runtime_.loadCode(req.stream_, req.elf_.data(), req.elf_.size());
     events_.emplace(resp.event_);
-    sendResponse({resp::Type::LOAD_CODE,
+    sendResponse({resp::Type::LOAD_CODE, request.id_,
                   resp::LoadCode{resp.event_, resp.kernel_, reinterpret_cast<AddressT>(resp.loadAddress_)}});
     break;
   }
@@ -226,13 +234,13 @@ void Worker::processRequest(const req::Request& request) {
     auto evt = runtime_.kernelLaunch(req.stream_, req.kernel_, req.kernelArgs_.data(), req.kernelArgs_.size(),
                                      req.shireMask_, req.barrier_, req.flushL3_, req.userTrace_);
     events_.emplace(evt);
-    sendResponse({resp::Type::KERNEL_LAUNCH, resp::Event{evt}});
+    sendResponse({resp::Type::KERNEL_LAUNCH, request.id_, resp::Event{evt}});
     break;
   }
 
   case req::Type::GET_DEVICES: {
     auto devices = runtime_.getDevices();
-    sendResponse({resp::Type::GET_DEVICES, resp::GetDevices{devices}});
+    sendResponse({resp::Type::GET_DEVICES, request.id_, resp::GetDevices{devices}});
     break;
   }
 
@@ -240,12 +248,12 @@ void Worker::processRequest(const req::Request& request) {
     auto& req = std::get<req::AbortStream>(request.payload_);
     auto evt = runtime_.abortStream(req.streamId_);
     events_.emplace(evt);
-    sendResponse({resp::Type::ABORT_STREAM, resp::Event{evt}});
+    sendResponse({resp::Type::ABORT_STREAM, request.id_, resp::Event{evt}});
     break;
   }
 
   default:
-    RT_LOG(WARNING) << "Unknown request: " << static_cast<int>(request.type_);
+    RT_LOG(WARNING) << "Unknown request: " << static_cast<int>(request.type_) << " id: " << request.id_;
     throw Exception("Unknown request: " + std::to_string(static_cast<int>(request.type_)));
   }
 }
