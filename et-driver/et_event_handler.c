@@ -595,8 +595,11 @@ int et_handle_device_event(struct et_cqueue *cq,
 		parse_throttling_syndrome(event_msg, &dbg_msg);
 		break;
 	case DEV_MGMT_API_MID_SP_RUNTIME_EXCEPTION_EVENT:
-	case DEV_MGMT_API_MID_SP_RUNTIME_HANG_EVENT:
 		dbg_msg.desc = "SP Runtime Exception";
+		parse_sp_runtime_syndrome(event_msg, &dbg_msg, cq);
+		break;
+	case DEV_MGMT_API_MID_SP_RUNTIME_HANG_EVENT:
+		dbg_msg.desc = "SP Runtime Hang";
 		parse_sp_runtime_syndrome(event_msg, &dbg_msg, cq);
 		break;
 	case DEV_MGMT_API_MID_SP_RUNTIME_ERROR_EVENT:
