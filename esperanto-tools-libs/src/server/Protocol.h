@@ -51,7 +51,12 @@ enum class Type : uint32_t {
   ABORT_STREAM
 };
 
-struct UnloadCode {
+using Id = uint32_t;
+
+// special Id used for asynchronous events from runtime. This Id won't correspond to any request
+constexpr Id ASYNC_RUNTIME_EVENT = 0xFFFFFFFF;
+
+  struct UnloadCode {
   KernelId kernel_;
   template <class Archive> void serialize(Archive& archive) {
     archive(kernel_);
@@ -157,11 +162,13 @@ struct AbortStream {
 struct Request {
   Request() = default;
   template <typename T>
-  Request(Type type, T payload)
+  Request(Type type, Id id, T payload)
     : type_(type)
+    , id_(id)
     , payload_(payload) {
   }
   Type type_;
+  Id id_;
   std::variant<UnloadCode, KernelLaunch, Memcpy, MemcpyList, CreateStream, DestroyStream, LoadCode, Version, Malloc,
                Free, AbortStream>
     payload_;
@@ -187,8 +194,11 @@ enum class Type : uint32_t {
   KERNEL_LAUNCH,
   GET_DEVICES,
   ABORT_STREAM,
-  EVENT_DISPATCHED
+  EVENT_DISPATCHED,
+  RUNTIME_EXCEPTION
 };
+
+using Id = req::Id;
 
 struct GetDevices {
   std::vector<DeviceId> devices_;
@@ -241,15 +251,24 @@ struct StreamError {
   }
 };
 
+struct RuntimeException {
+  Exception exception;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(exception);
+  }
+};
+
 struct Response {
   Response() = default;
   template <typename T>
-  Response(Type type, T payload)
+  Response(Type type, Id id, T payload)
     : type_(type)
+    , id_(id)
     , payload_(payload) {
   }
   Type type_;
-  std::variant<Version, Malloc, GetDevices, Event, CreateStream, LoadCode, StreamError> payload_;
+  Id id_;
+  std::variant<Version, Malloc, GetDevices, Event, CreateStream, LoadCode, StreamError, RuntimeException> payload_;
   template <class Archive> void serialize(Archive& archive) {
     archive(type_, payload_);
   }
