@@ -146,7 +146,7 @@ static inline const struct trace_entry_header_t *decode_next_valid_sub_buffer(
     struct trace_buffer_size_header_t *base = NULL;
     struct trace_entry_header_t *next = NULL;
     /* */
-    for (size_t i = (buf_index + 1); i < (tb->sub_buffer_count - 1); i++)
+    for (size_t i = (buf_index + 1); i < tb->sub_buffer_count; i++)
     {
         /* Get the base of Nth sub buffer */
         base = (struct trace_buffer_size_header_t *)((uint64_t)tb +
