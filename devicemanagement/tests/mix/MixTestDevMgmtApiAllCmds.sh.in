@@ -38,6 +38,7 @@ mgmt_tests_endtime=$(date -ud "$DURATION" +%s)
 while [[ $(date -u +%s) -le $mgmt_tests_endtime ]]
 do
     mgmt_exec_idx=$(($RANDOM % $mgmt_tests_count))
+    echo "Running ${mgmt_tests[$mgmt_exec_idx]}"
     TARGET=${TARGET} ctest -L $labels -R "^${mgmt_tests[$mgmt_exec_idx]}$" ${VERBOSE} > $mgmt_tests_logfile
     mgmt_tests_rv=$?
     cat $mgmt_tests_logfile | tail -n +2 | head -n -7

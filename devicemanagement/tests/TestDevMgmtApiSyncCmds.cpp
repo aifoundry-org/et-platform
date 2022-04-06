@@ -1646,35 +1646,28 @@ void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode(bool singleDevice) {
     // Creating 100 threads and they all try to perform serviceRequest() after a single point of sync
     const auto totalThreads = 100;
     std::array<int, totalThreads> results;
-    std::condition_variable cv;
-    std::mutex syncMtx;
-    bool sync = false;
+    std::promise<void> syncPromise;
+    std::shared_future syncFuture(syncPromise.get_future());
 
     auto testSerial = [&](uint32_t timeout, int* result) {
       const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
       char output_buff[output_size] = {0};
       auto hst_latency = std::make_unique<uint32_t>();
       auto dev_latency = std::make_unique<uint64_t>();
-      {
-        std::unique_lock lk(syncMtx);
-        cv.wait(lk, [&sync]() { return sync; });
-      }
+      syncFuture.wait();
       *result = dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
                                   output_buff, output_size, hst_latency.get(), dev_latency.get(), timeout);
     };
 
     std::vector<std::thread> threads;
     for (auto threadId = 0; threadId < totalThreads; threadId++) {
-      threads.push_back(std::thread(testSerial, (uint32_t)DM_SERVICE_REQUEST_TIMEOUT, &results[threadId]));
+      threads.push_back(
+        std::thread(testSerial, (uint32_t)DM_SERVICE_REQUEST_TIMEOUT * totalThreads, &results[threadId]));
     }
 
     // Delay to ensure all threads started and reached the same point of sync
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    {
-      std::scoped_lock lk(syncMtx);
-      sync = true;
-      cv.notify_all();
-    }
+    syncPromise.set_value();
 
     // Wait for threads completion
     for (auto& thread : threads) {
