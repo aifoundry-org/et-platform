@@ -55,26 +55,26 @@
 /*! \def ASSERT_FATAL(cond, log)
     \brief A blocking assertion macro with serial log for SP runtime
 */
-#define ASSERT_FATAL(cond, log)                                                    \
-    if (!(cond))                                                                   \
-    {                                                                              \
-        Log_Write(LOG_LEVEL_ERROR,                                                 \
-        "Fatal error on line %d in %s: %s\r\n", __LINE__, __FUNCTION__, log);      \
-        Log_Write(LOG_LEVEL_ERROR, "Waiting for SOC RESET!!!\n");                  \
-        while (1)                                                                  \
-        {                                                                          \
-            Log_Write(LOG_LEVEL_CRITICAL, "SP Down..");                            \
-            vTaskDelay(1000U);                                                     \
-        }                                                                          \
+#define ASSERT_FATAL(cond, log)                                                                    \
+    if (!(cond))                                                                                   \
+    {                                                                                              \
+        Log_Write(LOG_LEVEL_ERROR, "Fatal error on line %d in %s: %s\r\n", __LINE__, __FUNCTION__, \
+                  log);                                                                            \
+        Log_Write(LOG_LEVEL_ERROR, "Waiting for SOC RESET!!!\n");                                  \
+        while (1)                                                                                  \
+        {                                                                                          \
+            Log_Write(LOG_LEVEL_CRITICAL, "SP Down..");                                            \
+            vTaskDelay(1000U);                                                                     \
+        }                                                                                          \
     }
 
 void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
                                    StackType_t **ppxIdleTaskStackBuffer,
                                    uint32_t *pulIdleTaskStackSize);
 
-void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer,
-                                     StackType_t **ppxTimerTaskStackBuffer,
-                                     uint32_t *pulTimerTaskStackSize );
+void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
+                                    StackType_t **ppxTimerTaskStackBuffer,
+                                    uint32_t *pulTimerTaskStackSize);
 void vApplicationIdleHook(void);
 void vApplicationTickHook(void);
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName);
@@ -82,13 +82,13 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName);
 static SERVICE_PROCESSOR_BL2_DATA_t g_service_processor_bl2_data;
 
 /* NOC frequency modes (500MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
-static uint8_t noc_pll_mode[3] = {5, 11, 17};
+static uint8_t noc_pll_mode[3] = { 5, 11, 17 };
 
 /* MIN STEP CLOCK frequency modes (650MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
-static uint8_t min_step_pll_mode[3] = {44, 45, 46};
+static uint8_t min_step_pll_mode[3] = { 44, 45, 46 };
 
 /* LVDPLL frequency modes (500MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
-static uint8_t min_lvdpll_mode[3] = {15, 60, 105};
+static uint8_t min_lvdpll_mode[3] = { 15, 60, 105 };
 
 SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void)
 {
@@ -128,7 +128,7 @@ static void taskMain(void *pvParameters)
 #else
     // If build is for TF skip PCIe initilize, except if
     // TF_Entry_Point is set to TF_BL2_ENTRY_FOR_DM_WITH_PCIE
-    if(TF_Get_Entry_Point() == TF_BL2_ENTRY_FOR_DM_WITH_PCIE)
+    if (TF_Get_Entry_Point() == TF_BL2_ENTRY_FOR_DM_WITH_PCIE)
     {
         PCIe_init(true /*expect_link_up*/);
     }
@@ -147,17 +147,15 @@ static void taskMain(void *pvParameters)
     // Initialize Host to Service Processor Interface
 #if !TEST_FRAMEWORK
     status = SP_Host_Iface_Init();
-    ASSERT_FATAL(status == STATUS_SUCCESS,
-        "SP Host Interface Initialization failed!")
+    ASSERT_FATAL(status == STATUS_SUCCESS, "SP Host Interface Initialization failed!")
 #else
     // If build is for TF skip Host to SP interface initilization,
     // except if TF_Entry_Point is set to TF_BL2_ENTRY_FOR_DM_WITH_PCIE
-    if(TF_Get_Entry_Point() == TF_BL2_ENTRY_FOR_DM_WITH_PCIE)
+    if (TF_Get_Entry_Point() == TF_BL2_ENTRY_FOR_DM_WITH_PCIE)
     {
         // Initialize Host->SP interface
         status = SP_Host_Iface_Init();
-        ASSERT_FATAL(status == STATUS_SUCCESS,
-            "SP Host Interface Initialization failed!")
+        ASSERT_FATAL(status == STATUS_SUCCESS, "SP Host Interface Initialization failed!")
         // Launch Host->SP Command Handler
         launch_host_sp_command_handler();
     }
@@ -166,7 +164,7 @@ static void taskMain(void *pvParameters)
     // Initialize Service Processor to Master Minion FW interface
     status = MM_Iface_Init();
     ASSERT_FATAL(status == STATUS_SUCCESS,
-        "SP to Master Minion FW Interface Initialization failed!")
+                 "SP to Master Minion FW Interface Initialization failed!")
 
     /* Initialize the DIRs */
     DIR_Init();
@@ -212,14 +210,14 @@ static void taskMain(void *pvParameters)
 
     status = Minion_Configure_Minion_Shire_PLL(minion_shires_mask,
                                                min_step_pll_mode[hpdpll_strap_pins],
-                                               min_lvdpll_mode[lvdpll_strap_pins],
-                                               false);
+                                               min_lvdpll_mode[lvdpll_strap_pins], false);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Enable Compute Minion failed!")
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);
 
     // Initialize Vault service
-    if (!is_vaultip_disabled()) {
+    if (!is_vaultip_disabled())
+    {
         status = Vault_Initialize();
         ASSERT_FATAL(status == STATUS_SUCCESS, "Vault_Initialize() failed!")
         status = crypto_init(get_service_processor_bl2_data()->vaultip_coid_set);
@@ -232,7 +230,8 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to load Minion Firmware!")
 #endif
 
-    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_FW_AUTHENTICATED_INITIALIZED);
+    DIR_Set_Service_Processor_Status(
+        SP_DEV_INTF_SP_BOOT_STATUS_MINION_FW_AUTHENTICATED_INITIALIZED);
 
 #if !TEST_FRAMEWORK
     // Launch Host->SP Command Handler
@@ -294,7 +293,7 @@ static void taskMain(void *pvParameters)
     // Initialize DM sampling task
     init_dm_sampling_task();
 
-    if(Minion_State_Get_MM_Heartbeat_Count() == 0)
+    if (Minion_State_Get_MM_Heartbeat_Count() == 0)
     {
         /* Warn, MM is not ready */
         Log_Write(LOG_LEVEL_WARNING, "MM not ready, SP has not received MM heartbeat!\r\n");
@@ -316,7 +315,8 @@ static void taskMain(void *pvParameters)
     Trace_Init_SP(NULL);
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
-    while (1) {
+    while (1)
+    {
         Log_Write(LOG_LEVEL_CRITICAL, "SP Alive..\r\n");
         // Print SP Hearbeat
         vTaskDelay(MAIN_DEFAULT_TIMEOUT_MSEC);
@@ -343,9 +343,8 @@ static void taskMain(void *pvParameters)
 *       bl2_partition_info   bl2 partition info struct
 *
 ***********************************************************************/
-static int
-copy_partition_info_data(ESPERANTO_PARTITION_BL2_INFO_t *bl2_partition_info,
-                         const ESPERANTO_PARTITION_BL1_INFO_t *bl1_partition_info)
+static int copy_partition_info_data(ESPERANTO_PARTITION_BL2_INFO_t *bl2_partition_info,
+                                    const ESPERANTO_PARTITION_BL1_INFO_t *bl1_partition_info)
 {
     if (NULL == bl2_partition_info || NULL == bl1_partition_info)
     {
@@ -360,8 +359,7 @@ copy_partition_info_data(ESPERANTO_PARTITION_BL2_INFO_t *bl2_partition_info,
 
     bl2_partition_info->priority_designator_region_index =
         bl1_partition_info->priority_designator_region_index;
-    bl2_partition_info->boot_counters_region_index =
-        bl1_partition_info->boot_counters_region_index;
+    bl2_partition_info->boot_counters_region_index = bl1_partition_info->boot_counters_region_index;
     bl2_partition_info->configuration_data_region_index =
         bl1_partition_info->configuration_data_region_index;
     bl2_partition_info->vaultip_fw_region_index = bl1_partition_info->vaultip_fw_region_index;
@@ -426,13 +424,15 @@ static int initialize_bl2_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 {
     if (NULL == bl1_data ||
         sizeof(SERVICE_PROCESSOR_BL1_DATA_t) != bl1_data->service_processor_bl1_data_size ||
-        SERVICE_PROCESSOR_BL1_DATA_VERSION != bl1_data->service_processor_bl1_version) {
+        SERVICE_PROCESSOR_BL1_DATA_VERSION != bl1_data->service_processor_bl1_version)
+    {
         Log_Write(LOG_LEVEL_ERROR, "Invalid BL1 DATA!\n");
         return -1;
     }
 
     memset(&g_service_processor_bl2_data, 0, sizeof(g_service_processor_bl2_data));
-    g_service_processor_bl2_data.service_processor_bl2_data_size = sizeof(g_service_processor_bl2_data);
+    g_service_processor_bl2_data.service_processor_bl2_data_size =
+        sizeof(g_service_processor_bl2_data);
     g_service_processor_bl2_data.service_processor_bl2_version = SERVICE_PROCESSOR_BL2_DATA_VERSION;
 
     g_service_processor_bl2_data.service_processor_rom_version =
@@ -448,11 +448,11 @@ static int initialize_bl2_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 
     // copy major,minor,revision info of BL1 image
     g_service_processor_bl2_data.service_processor_bl1_image_file_version_major =
-         bl1_data->service_processor_bl1_image_file_version_major;
+        bl1_data->service_processor_bl1_image_file_version_major;
     g_service_processor_bl2_data.service_processor_bl1_image_file_version_minor =
-         bl1_data->service_processor_bl1_image_file_version_minor;
+        bl1_data->service_processor_bl1_image_file_version_minor;
     g_service_processor_bl2_data.service_processor_bl1_image_file_version_revision =
-         bl1_data->service_processor_bl1_image_file_version_revision;
+        bl1_data->service_processor_bl1_image_file_version_revision;
 
     // copy the SP ROOT/ISSUING CA certificates chain
     memcpy(&(g_service_processor_bl2_data.sp_certificates), &(bl1_data->sp_certificates),
@@ -467,7 +467,9 @@ static int initialize_bl2_data(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
            sizeof(bl1_data->sp_bl2_header));
 
     // Initialize BL2 Flash File-System by copy content from BL1 Flash info
-    if (0 != copy_flash_fs_data(&g_service_processor_bl2_data.flash_fs_bl2_info, &bl1_data->flash_fs_bl1_info)) {
+    if (0 != copy_flash_fs_data(&g_service_processor_bl2_data.flash_fs_bl2_info,
+                                &bl1_data->flash_fs_bl1_info))
+    {
         Log_Write(LOG_LEVEL_ERROR, "copy_flash_fs_data() failed!\n");
         return -1;
     }
@@ -529,7 +531,9 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     // if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_HW ..
     Trace_Init_SP(NULL);
     Log_Set_Level(LOG_LEVEL_INFO);
-    Log_Write(LOG_LEVEL_INFO, "Entering TF_DEFAULT_ENTRY intercept. Waiting for host to set interception point.\r\n");
+    Log_Write(
+        LOG_LEVEL_INFO,
+        "Entering TF_DEFAULT_ENTRY intercept. Waiting for host to set interception point.\r\n");
     TF_Wait_And_Process_TF_Cmds(TF_DEFAULT_ENTRY);
     Log_Write(LOG_LEVEL_INFO, "Host set TFintercept to: %d.\n", TF_Get_Entry_Point());
 
@@ -540,9 +544,10 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 
     // Initialize Splash screen
     Log_Write(LOG_LEVEL_CRITICAL, "\n** SP BL2 STARTED **\r\n");
-    Log_Write(LOG_LEVEL_CRITICAL, "BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
-           image_version_info->file_version_major, image_version_info->file_version_minor,
-           image_version_info->file_version_revision);
+    Log_Write(LOG_LEVEL_CRITICAL,
+              "BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
+              image_version_info->file_version_major, image_version_info->file_version_minor,
+              image_version_info->file_version_revision);
 
     // Populate BL2 globals using BL1 data from previous BL1
     status = initialize_bl2_data(bl1_data);
@@ -571,7 +576,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     status = flash_fs_init(&g_service_processor_bl2_data.flash_fs_bl2_info);
     ASSERT_FATAL(status == STATUS_SUCCESS, "flash_fs_init() failed!")
 
-        // Create Main RTOS task and launch Scheduler
+    // Create Main RTOS task and launch Scheduler
     Log_Write(LOG_LEVEL_CRITICAL, "Starting RTOS...\n");
     gs_taskHandleMain = xTaskCreateStatic(taskMain, "Main Task", MAIN_TASK_STACK_SIZE, NULL, 1,
                                           gs_stackMain, &gs_taskBufferMain);
@@ -580,7 +585,6 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 
     // If Scheduler fails, spin waiting for SOC Reset
     ASSERT_FATAL(false, "Failed to Launch RTOS Scheduler!")
-
 }
 
 /* configUSE_STATIC_ALLOCATION is set to 1, so the application must provide an
@@ -612,15 +616,15 @@ void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
 /* configSUPPORT_STATIC_ALLOCATION and configUSE_TIMERS are both set to 1, so the
 application must provide an implementation of vApplicationGetTimerTaskMemory()
 to provide the memory that is used by the Timer service task. */
-void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer,
-                                     StackType_t **ppxTimerTaskStackBuffer,
-                                     uint32_t *pulTimerTaskStackSize )
+void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
+                                    StackType_t **ppxTimerTaskStackBuffer,
+                                    uint32_t *pulTimerTaskStackSize)
 {
     /* If the buffers to be provided to the Timer task are declared inside this
     function then they must be declared static - otherwise they will be allocated on
     the stack and so not exists after this function exits. */
     static StaticTask_t xTimerTaskTCB;
-    static StackType_t uxTimerTaskStack[ configTIMER_TASK_STACK_DEPTH ];
+    static StackType_t uxTimerTaskStack[configTIMER_TASK_STACK_DEPTH];
 
     /* Pass out a pointer to the StaticTask_t structure in which the Timer
     task's state will be stored. */

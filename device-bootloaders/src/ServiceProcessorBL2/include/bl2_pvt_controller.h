@@ -179,148 +179,166 @@
 /*! \struct PVTC_IP_disable_mask
     \brief Struct for holding disable masks
 */
-typedef struct {
-   uint8_t ts_disable_mask;
-   uint8_t pd_disable_mask;
-   uint8_t vm_disable_mask;
+typedef struct
+{
+    uint8_t ts_disable_mask;
+    uint8_t pd_disable_mask;
+    uint8_t vm_disable_mask;
 } PVTC_IP_disable_mask;
 
 /*! \struct PVTC_VM_enable_mask
     \brief Struct for holding VM enable masks
 */
-typedef struct {
-   uint16_t vm_enable_mask[PVTC_VM_NUM];
+typedef struct
+{
+    uint16_t vm_enable_mask[PVTC_VM_NUM];
 } PVTC_VM_enable_mask;
 
 /*! \struct PVTC_VM_mapping
     \brief Struct for holding VM mapping
 */
-typedef struct {
-   uint8_t pvtc_id;
-   uint8_t vm_id;
-   uint8_t ch_id;
+typedef struct
+{
+    uint8_t pvtc_id;
+    uint8_t vm_id;
+    uint8_t ch_id;
 } PVTC_VM_mapping;
 
 /*! \struct TS_Sample
     \brief Struct for holding current, high and low value
 */
-typedef struct {
-   int16_t current;
-   int16_t high;
-   int16_t low;
+typedef struct
+{
+    int16_t current;
+    int16_t high;
+    int16_t low;
 } TS_Sample;
 
 /*! \struct PD_Sample
     \brief Struct for holding current, high and low value
 */
-typedef struct {
-   uint16_t current;
-   uint16_t high;
-   uint16_t low;
+typedef struct
+{
+    uint16_t current;
+    uint16_t high;
+    uint16_t low;
 } PD_Sample;
 
 /*! \struct VM_Sample
     \brief Struct for holding VM current, high and low value
 */
-typedef struct {
-   uint16_t current;
-   uint16_t high;
-   uint16_t low;
+typedef struct
+{
+    uint16_t current;
+    uint16_t high;
+    uint16_t low;
 } VM_Sample;
 
 /*! \struct MinShire_VM_sample
     \brief Struct for holding Minion Voltage sampled values
 */
-typedef struct {
-   VM_Sample vdd_sram;
-   VM_Sample vdd_noc;
-   VM_Sample vdd_mnn;
+typedef struct
+{
+    VM_Sample vdd_sram;
+    VM_Sample vdd_noc;
+    VM_Sample vdd_mnn;
 } MinShire_VM_sample;
 
 /*! \struct IOShire_VM_sample
     \brief Struct for holding IOShire Voltage sampled values
 */
-typedef struct {
-   VM_Sample vdd_noc;
-   VM_Sample vdd_pu;
-   VM_Sample vdd_mxn;
+typedef struct
+{
+    VM_Sample vdd_noc;
+    VM_Sample vdd_pu;
+    VM_Sample vdd_mxn;
 } IOShire_VM_sample;
 
 /*! \struct PShire_VM_sample
     \brief Struct for holding PShire Voltage sampled values
 */
-typedef struct {
-   VM_Sample vdd_pshr;
-   VM_Sample vdd_noc;
+typedef struct
+{
+    VM_Sample vdd_pshr;
+    VM_Sample vdd_noc;
 } PShire_VM_sample;
 
 /*! \struct MemShire_VM_sample
     \brief Struct for holding MemShire Voltage sampled values
 */
-typedef struct {
-   VM_Sample vdd_ms;
-   VM_Sample vdd_noc;
+typedef struct
+{
+    VM_Sample vdd_ms;
+    VM_Sample vdd_noc;
 } MemShire_VM_sample;
 
 /*! \struct ExtAnalog_VM_sample
     \brief Struct for holding External Analog Voltage sampled values
 */
-typedef struct {
-   VM_Sample vdd_ext_analog;
+typedef struct
+{
+    VM_Sample vdd_ext_analog;
 } ExtAnalog_VM_sample;
 
 /*! \struct IOShire_samples
     \brief Struct for holding IOShire Temperature and Voltage sampled values
 */
-typedef struct {
-   TS_Sample ts;
-   IOShire_VM_sample vm;
+typedef struct
+{
+    TS_Sample ts;
+    IOShire_VM_sample vm;
 } IOShire_samples;
 
 /*! \struct PShire_samples
     \brief Struct for holding PShire Temperature and Voltage sampled values
 */
-typedef struct {
-   PShire_VM_sample vm;
+typedef struct
+{
+    PShire_VM_sample vm;
 } PShire_samples;
 
 /*! \struct MemShire_samples
     \brief Struct for holding MemShire Temperature and Voltage sampled values
 */
-typedef struct {
-   MemShire_VM_sample vm;
+typedef struct
+{
+    MemShire_VM_sample vm;
 } MemShire_samples;
 
 /*! \struct MinShire_samples
     \brief Struct for holding MinShire Temperature and Voltage sampled values
 */
-typedef struct {
-   TS_Sample ts;
-   MinShire_VM_sample vm;
+typedef struct
+{
+    TS_Sample ts;
+    MinShire_VM_sample vm;
 } MinShire_samples;
 
 /*! \struct All_MinShire_samples
     \brief Struct for holding All MinShire Temperature and Voltage sampled values
 */
-typedef struct {
-   MinShire_samples minshire[PVTC_MINION_SHIRE_NUM];
+typedef struct
+{
+    MinShire_samples minshire[PVTC_MINION_SHIRE_NUM];
 } All_MinShire_samples;
 
 /*! \struct All_MemShire_samples
     \brief Struct for holding All MemShire Temperature and Voltage sampled values
 */
-typedef struct {
-   MemShire_samples memshire[PVTC_MEM_SHIRE_NUM];
+typedef struct
+{
+    MemShire_samples memshire[PVTC_MEM_SHIRE_NUM];
 } All_MemShire_samples;
 
 /*! \struct All_PVT_samples
     \brief Struct for holding All PVT Temperature and Voltage sampled values
 */
-typedef struct {
-   IOShire_samples ioshire;
-   PShire_samples  pshire;
-   MemShire_samples memshire[PVTC_MEM_SHIRE_NUM];
-   MinShire_samples minshire[PVTC_MINION_SHIRE_NUM];
+typedef struct
+{
+    IOShire_samples ioshire;
+    PShire_samples pshire;
+    MemShire_samples memshire[PVTC_MEM_SHIRE_NUM];
+    MinShire_samples minshire[PVTC_MINION_SHIRE_NUM];
 } All_PVT_samples;
 
 /*! \enum shire_type_t
@@ -492,7 +510,7 @@ typedef enum PVT_PRINT
     PVT_PRINT_MINSHIRE_31 = 31,
     PVT_PRINT_MINSHIRE_32 = 32,
     PVT_PRINT_MINSHIRE_33 = 33,
-    PVT_PRINT_MINSHIRE_ALL= 34,
+    PVT_PRINT_MINSHIRE_ALL = 34,
     PVT_PRINT_MEMSHIRE_232 = 232,
     PVT_PRINT_MEMSHIRE_233 = 233,
     PVT_PRINT_MEMSHIRE_234 = 234,
@@ -622,7 +640,7 @@ void pvt_print_voltage_sampled_values(pvtc_shire_type_t shire_type);
     \param avg_temp place holder for return value
     \return Status indicating success or negative error
 */
-int pvt_get_minion_avg_temperature(uint8_t* avg_temp);
+int pvt_get_minion_avg_temperature(uint8_t *avg_temp);
 
 /*! \fn void pvt_print_all(void)
     \brief This function prints sampled values from all VM and TS
@@ -642,27 +660,27 @@ void pvt_print_all(void);
     \return Status indicating success or negative error
 */
 int pvt_get_and_print(uint8_t print_ts, uint8_t print_vm, PVT_PRINT_e print_select, uint16_t *data,
-                    uint32_t *num_bytes);
+                      uint32_t *num_bytes);
 
 /*! \fn int pvt_get_minion_avg_low_high_temperature(TS_Sample* temp)
     \brief This function returns average, high and low temperature for Minion shires
     \param temp place holder for return values
     \return Status indicating success or negative error
 */
-int pvt_get_minion_avg_low_high_temperature(TS_Sample* temp);
+int pvt_get_minion_avg_low_high_temperature(TS_Sample *temp);
 
 /*! \fn int pvt_get_minion_avg_low_high_voltage(MinShire_VM_sample* minshire_voltage)
     \brief This function returns average, high and low voltage for Minion shires
     \param minshire_voltage place holder for return values
     \return Status indicating success or negative error
 */
-int pvt_get_minion_avg_low_high_voltage(MinShire_VM_sample* minshire_voltage);
+int pvt_get_minion_avg_low_high_voltage(MinShire_VM_sample *minshire_voltage);
 
 /*! \fn int pvt_get_memshire_avg_low_high_voltage(MemShire_VM_sample* memshire_voltage)
     \brief This function returns average, high and low voltage for Mem shires
     \param memshire_voltage place holder for return values
     \return Status indicating success or negative error
 */
-int pvt_get_memshire_avg_low_high_voltage(MemShire_VM_sample* memshire_voltage);
+int pvt_get_memshire_avg_low_high_voltage(MemShire_VM_sample *memshire_voltage);
 
 #endif

@@ -103,10 +103,13 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 /*! \def FILL_POWER_STATUS(ptr, throttle_st, pwr_st, curr_pwr, curr_temp)
     \brief Help macro to fill up Power Status Struct
 */
-#define FILL_POWER_STATUS(ptr, u, v, w, x, y, z)       \
-        ptr.throttle_state = u; ptr.power_state = v ;  \
-        ptr.current_power = w ; ptr.current_temp = x;  \
-        ptr.tgt_freq = y ; ptr.tgt_voltage = z;        \
+#define FILL_POWER_STATUS(ptr, u, v, w, x, y, z) \
+    ptr.throttle_state = u;                      \
+    ptr.power_state = v;                         \
+    ptr.current_power = w;                       \
+    ptr.current_temp = x;                        \
+    ptr.tgt_freq = y;                            \
+    ptr.tgt_voltage = z;
 
 /*! \def SEND_THROTTLE_EVENT(THROTTLE_EVENT_TYPE)
     \brief Sends throttle event to host
@@ -130,68 +133,63 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 /*! \def UPDATE_RESIDENCY(RESIDENCY_TYPE)
     \brief Updates residency
 */
-#define UPDATE_RESIDENCY(RESIDENCY_TYPE)                                    \
-    get_soc_power_reg()->RESIDENCY_TYPE.cumulative += time_usec;            \
-                                                                            \
-    /* Update the AVG throttle time */                                      \
-    if(0 != get_soc_power_reg()->RESIDENCY_TYPE.average)                    \
-    {                                                                       \
-        get_soc_power_reg()->RESIDENCY_TYPE.average =                       \
-        (get_soc_power_reg()->RESIDENCY_TYPE.average + time_usec) / 2;      \
-    }                                                                       \
-    else                                                                    \
-    {                                                                       \
-        get_soc_power_reg()->RESIDENCY_TYPE.average = time_usec;            \
-    }                                                                       \
-                                                                            \
-    /* Update the MAX throttle time */                                      \
-    if (get_soc_power_reg()->RESIDENCY_TYPE.maximum < time_usec)            \
-    {                                                                       \
-        get_soc_power_reg()->RESIDENCY_TYPE.maximum = time_usec;            \
-    }                                                                       \
-                                                                            \
-    /* Update the MIN throttle time */                                      \
-    if(0 == get_soc_power_reg()->RESIDENCY_TYPE.minimum)                    \
-    {                                                                       \
-        get_soc_power_reg()->RESIDENCY_TYPE.minimum = time_usec;            \
-    }                                                                       \
-    else                                                                    \
-    {                                                                       \
-        if (get_soc_power_reg()->RESIDENCY_TYPE.minimum > time_usec)        \
-        {                                                                   \
-            get_soc_power_reg()->RESIDENCY_TYPE.minimum = time_usec;        \
-        }                                                                   \
+#define UPDATE_RESIDENCY(RESIDENCY_TYPE)                                   \
+    get_soc_power_reg()->RESIDENCY_TYPE.cumulative += time_usec;           \
+                                                                           \
+    /* Update the AVG throttle time */                                     \
+    if (0 != get_soc_power_reg()->RESIDENCY_TYPE.average)                  \
+    {                                                                      \
+        get_soc_power_reg()->RESIDENCY_TYPE.average =                      \
+            (get_soc_power_reg()->RESIDENCY_TYPE.average + time_usec) / 2; \
+    }                                                                      \
+    else                                                                   \
+    {                                                                      \
+        get_soc_power_reg()->RESIDENCY_TYPE.average = time_usec;           \
+    }                                                                      \
+                                                                           \
+    /* Update the MAX throttle time */                                     \
+    if (get_soc_power_reg()->RESIDENCY_TYPE.maximum < time_usec)           \
+    {                                                                      \
+        get_soc_power_reg()->RESIDENCY_TYPE.maximum = time_usec;           \
+    }                                                                      \
+                                                                           \
+    /* Update the MIN throttle time */                                     \
+    if (0 == get_soc_power_reg()->RESIDENCY_TYPE.minimum)                  \
+    {                                                                      \
+        get_soc_power_reg()->RESIDENCY_TYPE.minimum = time_usec;           \
+    }                                                                      \
+    else                                                                   \
+    {                                                                      \
+        if (get_soc_power_reg()->RESIDENCY_TYPE.minimum > time_usec)       \
+        {                                                                  \
+            get_soc_power_reg()->RESIDENCY_TYPE.minimum = time_usec;       \
+        }                                                                  \
     }
 
 /*! \def PRINT_RESIDENCY(RESIDENCY_TYPE)
     \brief Prints residency
 */
-#define PRINT_RESIDENCY(RESIDENCY_TYPE)                       \
-    Log_Write(LOG_LEVEL_CRITICAL, "\t cumulative = %lu\n",    \
-              soc_power_reg->RESIDENCY_TYPE.cumulative);      \
-    Log_Write(LOG_LEVEL_CRITICAL, "\t average = %lu\n",       \
-              soc_power_reg->RESIDENCY_TYPE.average);         \
-    Log_Write(LOG_LEVEL_CRITICAL, "\t maximum = %lu\n",       \
-              soc_power_reg->RESIDENCY_TYPE.maximum);         \
-    Log_Write(LOG_LEVEL_CRITICAL, "\t minimum = %lu\n",       \
-              soc_power_reg->RESIDENCY_TYPE.minimum);
+#define PRINT_RESIDENCY(RESIDENCY_TYPE)                                                         \
+    Log_Write(LOG_LEVEL_CRITICAL, "\t cumulative = %lu\n",                                      \
+              soc_power_reg->RESIDENCY_TYPE.cumulative);                                        \
+    Log_Write(LOG_LEVEL_CRITICAL, "\t average = %lu\n", soc_power_reg->RESIDENCY_TYPE.average); \
+    Log_Write(LOG_LEVEL_CRITICAL, "\t maximum = %lu\n", soc_power_reg->RESIDENCY_TYPE.maximum); \
+    Log_Write(LOG_LEVEL_CRITICAL, "\t minimum = %lu\n", soc_power_reg->RESIDENCY_TYPE.minimum);
 
 /*! \def MAX_POWER_THRESHOLD_GUARDBAND(tdp)
     \brief TDP guard band, (power_scale_factor)% above TDP level,
 *          It is the margin above TDP level to allow Power management to
 *          move up and down.
 */
-#define MAX_POWER_THRESHOLD_GUARDBAND(tdp) \
-    ((tdp * (100 + POWER_SCALE_FACTOR)) / 100)
+#define MAX_POWER_THRESHOLD_GUARDBAND(tdp) ((tdp * (100 + POWER_SCALE_FACTOR)) / 100)
 
 /*! \def GET_POWER_STATE(power_mW)
     \brief Depending on given power returns current power state.
 */
-#define GET_POWER_STATE(power_mW, tdp)                     \
-    (power_mW > MAX_POWER_THRESHOLD_GUARDBAND(tdp)) ?      \
-    POWER_STATE_MAX_POWER :                                \
-    (power_mW > SAFE_POWER_THRESHOLD) ?                    \
-    POWER_STATE_MANAGED_POWER : POWER_STATE_SAFE_POWER
+#define GET_POWER_STATE(power_mW, tdp)                \
+    (power_mW > MAX_POWER_THRESHOLD_GUARDBAND(tdp)) ? \
+        POWER_STATE_MAX_POWER :                       \
+        (power_mW > SAFE_POWER_THRESHOLD) ? POWER_STATE_MANAGED_POWER : POWER_STATE_SAFE_POWER
 
 /************************************************************************
 *
@@ -309,7 +307,8 @@ int update_module_tdp_level(uint8_t tdp)
     else
     {
         Log_Write(LOG_LEVEL_INFO,
-              "thermal pwr mgmt svc: Update module tdp level threshold to new level: %d\r\n", tdp);
+                  "thermal pwr mgmt svc: Update module tdp level threshold to new level: %d\r\n",
+                  tdp);
         get_soc_power_reg()->module_tdp_level = tdp;
     }
     return 0;
@@ -552,7 +551,7 @@ int update_module_soc_power(void)
 
     /* Update the power state */
     update_module_power_state(GET_POWER_STATE(soc_pwr_mW, tdp_level_mW));
-   
+
     if ((soc_pwr_mW > MAX_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
         (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_POWER_DOWN) &&
         (get_soc_power_reg()->active_power_management))
@@ -633,9 +632,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.ddr = voltage;
-        Log_Write(LOG_LEVEL_INFO,
-              "get_module_voltage: DDR Voltage: %d\r\n", voltage);
-
+        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: DDR Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(L2CACHE, &voltage))
@@ -646,8 +643,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.l2_cache = voltage;
-        Log_Write(LOG_LEVEL_INFO,
-              "get_module_voltage: L2 Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: L2 Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(MAXION, &voltage))
@@ -658,8 +654,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.maxion = voltage;
-        Log_Write(LOG_LEVEL_INFO,
-              "get_module_voltage: Maxion Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: Maxion Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(MINION, &voltage))
@@ -670,8 +665,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.minion = voltage;
-        Log_Write(LOG_LEVEL_INFO,
-              "get_module_voltage: Minion Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: Minion Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(PCIE, &voltage))
@@ -682,8 +676,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.pcie = voltage;
-        Log_Write(LOG_LEVEL_INFO,
-              "get_module_voltage: PCIE Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: PCIE Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(NOC, &voltage))
@@ -694,8 +687,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.noc = voltage;
-        Log_Write(LOG_LEVEL_INFO,
-              "get_module_voltage: NOC Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: NOC Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(PCIE_LOGIC, &voltage))
@@ -706,8 +698,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.pcie_logic = voltage;
-        Log_Write(LOG_LEVEL_INFO,
-              "get_module_voltage: PCIE Subsystem Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: PCIE Subsystem Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(VDDQLP, &voltage))
@@ -718,8 +709,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.vddqlp = voltage;
-        Log_Write(LOG_LEVEL_INFO,
-              "get_module_voltage: VDDQ LP Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: VDDQ LP Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(VDDQ, &voltage))
@@ -730,8 +720,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.vddq = voltage;
-        Log_Write(LOG_LEVEL_INFO,
-              "get_module_voltage: VDDQ Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: VDDQ Voltage: %d\r\n", voltage);
     }
 
     *module_voltage = get_soc_power_reg()->module_voltage;
@@ -1094,7 +1083,7 @@ int init_thermal_pwr_mgmt_service(void)
 
     /* Create the power management task - use for throttling and DVFS */
     g_pm_handle = xTaskCreateStatic(thermal_power_task_entry, "TT_TASK", TT_TASK_STACK_SIZE, NULL,
-                                 TT_TASK_PRIORITY, g_pm_task, &g_staticTask_ptr);
+                                    TT_TASK_PRIORITY, g_pm_task, &g_staticTask_ptr);
     if (!g_pm_handle)
     {
         MESSAGE_ERROR("Task Creation Failed: Failed to create power management task.\n");
@@ -1143,7 +1132,8 @@ int init_thermal_pwr_mgmt_service(void)
 *       int                       Return status
 *
 ***********************************************************************/
-static int reduce_minion_operating_point(int32_t delta_power, struct trace_event_power_status_t *power_status)
+static int reduce_minion_operating_point(int32_t delta_power,
+                                         struct trace_event_power_status_t *power_status)
 {
     /* Compute delta freq to compensate for delta Power */
     int32_t delta_freq = (delta_power * DP_per_Mhz) / 1000;
@@ -1151,7 +1141,8 @@ static int reduce_minion_operating_point(int32_t delta_power, struct trace_event
 
     /* If we are using modes round frequency to be multiple of MODE_FREQUENCY_STEP_SIZE */
 #if USE_FCW_FOR_LVDPLL == 0
-    new_freq = ((new_freq + (MODE_FREQUENCY_STEP_SIZE / 2)) / MODE_FREQUENCY_STEP_SIZE) * MODE_FREQUENCY_STEP_SIZE;
+    new_freq = ((new_freq + (MODE_FREQUENCY_STEP_SIZE / 2)) / MODE_FREQUENCY_STEP_SIZE) *
+               MODE_FREQUENCY_STEP_SIZE;
 #endif
 
     if (0 != Minion_Shire_Update_PLL_Freq((uint16_t)new_freq))
@@ -1196,7 +1187,8 @@ static int reduce_minion_operating_point(int32_t delta_power, struct trace_event
 *       int                       Return status
 *
 ***********************************************************************/
-static int increase_minion_operating_point(int32_t delta_power, struct trace_event_power_status_t *power_status)
+static int increase_minion_operating_point(int32_t delta_power,
+                                           struct trace_event_power_status_t *power_status)
 {
     /* Compute delta freq to compensate for delta Power */
     int32_t delta_freq = (delta_power * DP_per_Mhz) / 1000;
@@ -1204,7 +1196,8 @@ static int increase_minion_operating_point(int32_t delta_power, struct trace_eve
 
     /* If we are using modes round frequency to be multiple of MODE_FREQUENCY_STEP_SIZE */
 #if USE_FCW_FOR_LVDPLL == 0
-    new_freq = ((new_freq + (MODE_FREQUENCY_STEP_SIZE / 2)) / MODE_FREQUENCY_STEP_SIZE) * MODE_FREQUENCY_STEP_SIZE;
+    new_freq = ((new_freq + (MODE_FREQUENCY_STEP_SIZE / 2)) / MODE_FREQUENCY_STEP_SIZE) *
+               MODE_FREQUENCY_STEP_SIZE;
 #endif
 
     int32_t new_voltage = Minion_Get_Voltage_Given_Freq(new_freq);
@@ -1221,8 +1214,8 @@ static int increase_minion_operating_point(int32_t delta_power, struct trace_eve
 
     Update_Minion_Frequency_Global_Reg(new_freq);
 
-    power_status->tgt_freq = (uint16_t) new_freq;
-    power_status->tgt_voltage = (uint16_t) new_voltage;
+    power_status->tgt_freq = (uint16_t)new_freq;
+    power_status->tgt_voltage = (uint16_t)new_voltage;
 
     Trace_Power_Status(Trace_Get_SP_CB(), power_status);
 
@@ -1253,7 +1246,7 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
 {
     uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
     uint8_t average_power = 0;
-    struct trace_event_power_status_t power_status =  { 0 };
+    struct trace_event_power_status_t power_status = { 0 };
     int32_t new_voltage = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY);
 
     if (SAFE_STATE_FREQUENCY < Get_Minion_Frequency())
@@ -1285,19 +1278,18 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
 
     Update_Minion_Frequency_Global_Reg(SAFE_STATE_FREQUENCY);
 
-     /* Get the current power */
-     if (0 != pmic_read_average_soc_power(&average_power))
-     {
-         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
-     }
+    /* Get the current power */
+    if (0 != pmic_read_average_soc_power(&average_power))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
+    }
 
     if (0 != pvt_get_minion_avg_temperature(&current_temperature))
     {
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
     }
 
-    FILL_POWER_STATUS(power_status, throttle_state, power_state,
-                      average_power, current_temperature,
+    FILL_POWER_STATUS(power_status, throttle_state, power_state, average_power, current_temperature,
                       (uint16_t)SAFE_STATE_FREQUENCY, (uint16_t)new_voltage)
 
     Trace_Power_Status(Trace_Get_SP_CB(), &power_status);
@@ -1330,18 +1322,18 @@ void trace_power_state_test(uint16_t tag, uint64_t req_start_time, void *cmd)
 {
     struct device_mgmt_power_throttle_config_rsp_t dm_rsp;
     const struct device_mgmt_power_throttle_config_cmd_t *pwr_state_cmd =
-            (struct device_mgmt_power_throttle_config_cmd_t *)cmd;
+        (struct device_mgmt_power_throttle_config_cmd_t *)cmd;
     struct trace_event_power_status_t power_status = { 0 };
 
     power_status.power_state = pwr_state_cmd->power_state;
-    
+
     Trace_Power_Status(Trace_Get_SP_CB(), &power_status);
 
-    FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_THROTTLE_POWER_STATE_TEST, timer_get_ticks_count() - req_start_time,
-                    DM_STATUS_SUCCESS)
+    FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_THROTTLE_POWER_STATE_TEST,
+                    timer_get_ticks_count() - req_start_time, DM_STATUS_SUCCESS)
 
-    if (0 !=
-        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_power_throttle_config_rsp_t)))
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
+                                       sizeof(struct device_mgmt_power_throttle_config_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR, "power_throttling_cmd_handler: Cqueue push error!\n");
     }
@@ -1399,23 +1391,24 @@ void power_throttling(power_throttle_state_e throttle_state)
     /* module_tdp_level is in Watts, converting to miliWatts */
     tdp_level_mW = get_soc_power_reg()->module_tdp_level * 1000;
 
-    while (!throttle_condition_met &&
-           (get_soc_power_reg()->power_throttle_state <= throttle_state))
+    while (!throttle_condition_met && (get_soc_power_reg()->power_throttle_state <= throttle_state))
     {
         /* Program the new operating point */
         switch (throttle_state)
         {
             case POWER_THROTTLE_STATE_POWER_UP: {
                 delta_power_mW = ((average_power_mW * (POWER_SCALE_FACTOR)) / 100);
-                FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state,
-                                  average_power, current_temperature, 0, 0)
+                FILL_POWER_STATUS(power_status, throttle_state,
+                                  get_soc_power_reg()->module_power_state, average_power,
+                                  current_temperature, 0, 0)
                 increase_minion_operating_point(delta_power_mW, &power_status);
                 break;
             }
             case POWER_THROTTLE_STATE_POWER_DOWN: {
                 delta_power_mW = ((average_power_mW * (POWER_SCALE_FACTOR)) / 100);
-                FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state,
-                                  average_power, current_temperature, 0, 0)
+                FILL_POWER_STATUS(power_status, throttle_state,
+                                  get_soc_power_reg()->module_power_state, average_power,
+                                  current_temperature, 0, 0)
                 reduce_minion_operating_point(delta_power_mW, &power_status);
                 break;
             }
@@ -1537,8 +1530,9 @@ void thermal_throttling(power_throttle_state_e throttle_state)
                 average_power_mW = Power_Convert_Hex_to_mW(average_power);
                 delta_power_mW = ((average_power_mW * (POWER_SCALE_FACTOR)) / 100);
 
-                FILL_POWER_STATUS(power_status, throttle_state, get_soc_power_reg()->module_power_state,
-                                  average_power, current_temperature, 0, 0)
+                FILL_POWER_STATUS(power_status, throttle_state,
+                                  get_soc_power_reg()->module_power_state, average_power,
+                                  current_temperature, 0, 0)
                 /* Program the new operating point  */
                 reduce_minion_operating_point(delta_power_mW, &power_status);
                 break;
@@ -1568,7 +1562,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_IDLE;
     }
 
-    if(throttle_state == POWER_THROTTLE_STATE_THERMAL_SAFE)
+    if (throttle_state == POWER_THROTTLE_STATE_THERMAL_SAFE)
     {
         SEND_THROTTLE_EVENT(THROTTLE_TIME);
     }
@@ -1609,8 +1603,8 @@ void thermal_power_task_entry(void *pvParameter)
             xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
         }
 
-        Log_Write(LOG_LEVEL_INFO, "POWER THROTTLING:%d\n", 
-                            get_soc_power_reg()->power_throttle_state);
+        Log_Write(LOG_LEVEL_INFO, "POWER THROTTLING:%d\n",
+                  get_soc_power_reg()->power_throttle_state);
 
         switch (get_soc_power_reg()->power_throttle_state)
         {
@@ -1666,11 +1660,11 @@ static void pmic_isr_callback(uint8_t int_cause)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-    if(PMIC_I2C_INT_CTRL_OV_TEMP_GET(int_cause))
+    if (PMIC_I2C_INT_CTRL_OV_TEMP_GET(int_cause))
     {
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_SAFE;
     }
-    else if(PMIC_I2C_INT_CTRL_OV_POWER_GET(int_cause))
+    else if (PMIC_I2C_INT_CTRL_OV_POWER_GET(int_cause))
     {
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_SAFE;
     }
@@ -1771,58 +1765,62 @@ void print_system_operating_point(void)
     uint32_t freq;
     TS_Sample temperature;
 
-    Log_Write(LOG_LEVEL_CRITICAL, "SHIRE       \t\tFreq          \t\tVoltage          \t\tTeperature\r\n");
-    Log_Write(LOG_LEVEL_CRITICAL, "---------------------------------------------------------------------------------------------\r\n"); 
+    Log_Write(LOG_LEVEL_CRITICAL,
+              "SHIRE       \t\tFreq          \t\tVoltage          \t\tTeperature\r\n");
+    Log_Write(
+        LOG_LEVEL_CRITICAL,
+        "---------------------------------------------------------------------------------------------\r\n");
 
     /* Neigh */
     freq = (uint32_t)Get_Minion_Frequency();
     pvt_get_minion_avg_low_high_temperature(&temperature);
-    MinShire_VM_sample minshire_voltage = {{0, 0, 0xFFFF}, {0, 0, 0xFFFF}, {0, 0, 0xFFFF}};
+    MinShire_VM_sample minshire_voltage = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
     pvt_get_minion_avg_low_high_voltage(&minshire_voltage);
-    Log_Write(LOG_LEVEL_CRITICAL, "NEIGH       \t\tHPDPLL4 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t%dC,[%dC,%dC]\r\n",
-                freq, minshire_voltage.vdd_mnn.current, minshire_voltage.vdd_mnn.low,
-                minshire_voltage.vdd_mnn.high, temperature.current, temperature.low,
-                temperature.high);
-    
+    Log_Write(LOG_LEVEL_CRITICAL,
+              "NEIGH       \t\tHPDPLL4 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t%dC,[%dC,%dC]\r\n", freq,
+              minshire_voltage.vdd_mnn.current, minshire_voltage.vdd_mnn.low,
+              minshire_voltage.vdd_mnn.high, temperature.current, temperature.low,
+              temperature.high);
+
     /* Sram */
     Log_Write(LOG_LEVEL_CRITICAL, "SRAM        \t\tHPDPLL4 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
-                freq, minshire_voltage.vdd_sram.current, minshire_voltage.vdd_sram.low,
-                minshire_voltage.vdd_sram.high);
+              freq, minshire_voltage.vdd_sram.current, minshire_voltage.vdd_sram.low,
+              minshire_voltage.vdd_sram.high);
 
     /* NOC */
     get_pll_frequency(PLL_ID_SP_PLL_2, &freq);
     Log_Write(LOG_LEVEL_CRITICAL, "NOC         \t\tHPDPLL2 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
-                freq, minshire_voltage.vdd_noc.current, minshire_voltage.vdd_noc.low,
-                minshire_voltage.vdd_noc.high);
+              freq, minshire_voltage.vdd_noc.current, minshire_voltage.vdd_noc.low,
+              minshire_voltage.vdd_noc.high);
 
     /* MemShire */
     freq = get_memshire_frequency();
-    MemShire_VM_sample memshire_voltage = {{0, 0, 0xFFFF}, {0, 0, 0xFFFF}};
+    MemShire_VM_sample memshire_voltage = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
     pvt_get_memshire_avg_low_high_voltage(&memshire_voltage);
     Log_Write(LOG_LEVEL_CRITICAL, "MEMSHIRE    \t\tHPDPLLM %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
-                freq, memshire_voltage.vdd_ms.current, memshire_voltage.vdd_ms.low,
-                memshire_voltage.vdd_ms.high);
+              freq, memshire_voltage.vdd_ms.current, memshire_voltage.vdd_ms.low,
+              memshire_voltage.vdd_ms.high);
 
     /* IOShire SPIO*/
     get_pll_frequency(PLL_ID_SP_PLL_0, &freq);
     pvt_get_ioshire_ts_sample(&temperature);
-    IOShire_VM_sample ioshire_voltage;
+    IOShire_VM_sample ioshire_voltage = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } };
     pvt_get_ioshire_vm_sample(&ioshire_voltage);
-    Log_Write(LOG_LEVEL_CRITICAL, "IOSHIRE SPIO\t\tHPDPLL0 %dMHz\t\t/                  \t\t%dC,[%dC,%dC]\r\n",
-                freq, temperature.current, temperature.low,
-                temperature.high);
+    Log_Write(LOG_LEVEL_CRITICAL,
+              "IOSHIRE SPIO\t\tHPDPLL0 %dMHz\t\t/                  \t\t%dC,[%dC,%dC]\r\n", freq,
+              temperature.current, temperature.low, temperature.high);
 
     /* IOShire PU*/
     get_pll_frequency(PLL_ID_SP_PLL_1, &freq);
     Log_Write(LOG_LEVEL_CRITICAL, "        PU  \t\tHPDPLL1 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
-                freq, ioshire_voltage.vdd_pu.current, ioshire_voltage.vdd_pu.low,
-                ioshire_voltage.vdd_pu.high);
+              freq, ioshire_voltage.vdd_pu.current, ioshire_voltage.vdd_pu.low,
+              ioshire_voltage.vdd_pu.high);
 
     /* PSHIRE */
     get_pll_frequency(PLL_ID_PSHIRE, &freq);
-    PShire_VM_sample pshr_voltage;
+    PShire_VM_sample pshr_voltage = { { 0, 0, 0 }, { 0, 0, 0 } };
     pvt_get_pshire_vm_sample(&pshr_voltage);
     Log_Write(LOG_LEVEL_CRITICAL, "PSHIRE      \t\tHPDPLLP %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
-                freq, pshr_voltage.vdd_pshr.current, pshr_voltage.vdd_pshr.low,
-                pshr_voltage.vdd_pshr.high);
+              freq, pshr_voltage.vdd_pshr.current, pshr_voltage.vdd_pshr.low,
+              pshr_voltage.vdd_pshr.high);
 }

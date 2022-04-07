@@ -112,10 +112,10 @@ static StaticTimer_t MM_Timer_Buffer;
     }
 
 /* Macro to update all Minion Harts in Shire for a given input function */
-#define UPDATE_ALL_MINION(function, start_hart, last_hart)               \
-    for( uint64_t hartid = start_hart; hartid <= last_hart; hartid++)     \
-    {                                                                    \
-       function(hartid);                                                 \
+#define UPDATE_ALL_MINION(function, start_hart, last_hart)            \
+    for (uint64_t hartid = start_hart; hartid <= last_hart; hartid++) \
+    {                                                                 \
+        function(hartid);                                             \
     }
 
 /* Macro to update all Shires for a given input function */
@@ -127,33 +127,33 @@ static StaticTimer_t MM_Timer_Buffer;
             function(i, arg1, arg2, arg3);                      \
         }                                                       \
         shiremask >>= 1;                                        \
-    }                                                           \
-
+    }
 
 /* Macro to switch to Step Clock and disable LVDPLL     */
-#define SWITCH_TO_STEP_CLOCK (shiremask)                 \
-    for (uint8_t i = 0; i <= num_shires; i++)            \
-    {                                                    \
-        if (shiremask & 1)                               \
-        {                                                \
-           SWITCH_CLOCK_MUX(shireid, SELECT_STEP_CLOCK)  \
-           lvdpll_disable(shireid);                      \
-        }                                                \
-        shiremask >>= 1;                                 \
-    }      
-    
-#define CONFIG_SHIRE_NEIGH(id, sc_enable, neigh_mask, enable_vpu_rf_wa)                   \
-     /* Set Shire ID, enable cache and all Neighborhoods */                               \
-     const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(id) |        \
-                             ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(sc_enable) | \
-                             ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(neigh_mask); \
-      write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,               \
-                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);               \
-      if(enable_vpu_rf_wa) {                                                              \
-          /* VPU Array init */                                                            \
-          if (0 != Minion_VPU_RF_Init(i))                                                 \
-              Log_Write(LOG_LEVEL_WARNING, "Shire %d VPU RF not initialized\n",i);        \
-      }     
+#define SWITCH_TO_STEP_CLOCK                              \
+    (shiremask) for (uint8_t i = 0; i <= num_shires; i++) \
+    {                                                     \
+        if (shiremask & 1)                                \
+        {                                                 \
+            SWITCH_CLOCK_MUX(shireid, SELECT_STEP_CLOCK)  \
+            lvdpll_disable(shireid);                      \
+        }                                                 \
+        shiremask >>= 1;                                  \
+    }
+
+#define CONFIG_SHIRE_NEIGH(id, sc_enable, neigh_mask, enable_vpu_rf_wa)                  \
+    /* Set Shire ID, enable cache and all Neighborhoods */                               \
+    const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(id) |        \
+                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(sc_enable) | \
+                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(neigh_mask); \
+    write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,                \
+                  ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);                \
+    if (enable_vpu_rf_wa)                                                                \
+    {                                                                                    \
+        /* VPU Array init */                                                             \
+        if (0 != Minion_VPU_RF_Init(i))                                                  \
+            Log_Write(LOG_LEVEL_WARNING, "Shire %d VPU RF not initialized\n", i);        \
+    }
 
 /*! \def FREQUENCY_HZ_TO_MHZ(x)
     \brief Converts HZ to MHZ
@@ -287,7 +287,7 @@ static int minion_configure_plls_and_dlls(uint64_t shire_mask, uint8_t mode)
     else
     {
         Update_Minion_Frequency_Global_Reg(
-            (int32_t)FREQUENCY_HZ_TO_MHZ(gs_lvdpll_settings[mode-1].output_frequency));
+            (int32_t)FREQUENCY_HZ_TO_MHZ(gs_lvdpll_settings[mode - 1].output_frequency));
     }
 
     return status;
@@ -464,22 +464,26 @@ static int enable_minion_shire(uint64_t shire_mask)
 
 #if !(FAST_BOOT || TEST_FRAMEWORK)
     /* Enable Minion in all neighs */
-    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/ , 0xF /*Enable all Neigh*/, true /*Enable VPU RF WA*/)
+    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xF /*Enable all Neigh*/,
+                     true /*Enable VPU RF WA*/)
 
     /* Due to workaround to initialize Minion VPU RF using Minion Program Buffer 
        we need to reset the Neigh/Minion Core to bring it back to clean state */
 
     /* Disable Minion in all neighs */
     shiremask = shire_mask;
-    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 0 /* Disable S$*/ , 0x0 /*Disable all Neigh*/, false)
+    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 0 /* Disable S$*/, 0x0 /*Disable all Neigh*/,
+                     false)
 
     /* Enable Minion in all neighs */
     shiremask = shire_mask;
-    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/ , 0xF /*Enable all Neigh*/, false)
+    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xF /*Enable all Neigh*/,
+                     false)
     Log_Write(LOG_LEVEL_CRITICAL, "Shire Cache and Neigh Enable with VPU RF WA\n");
 #else
     /* Enable Minion in all neighs */
-    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/ , 0xF /*Enable all Neigh*/, false)
+    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xF /*Enable all Neigh*/,
+                     false)
 #endif
 
     return SUCCESS;
@@ -526,7 +530,7 @@ static int minion_configure_hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
     uint8_t num_shires;
     if (0 != shire_mask)
     {
-         num_shires = get_highest_set_bit_offset(shire_mask);
+        num_shires = get_highest_set_bit_offset(shire_mask);
     }
     else
     {
@@ -537,8 +541,8 @@ static int minion_configure_hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
     {
         if (shire_mask & 1)
         {
-           SWITCH_CLOCK_MUX(shireid, SELECT_STEP_CLOCK)
-           lvdpll_disable(shireid);
+            SWITCH_CLOCK_MUX(shireid, SELECT_STEP_CLOCK)
+            lvdpll_disable(shireid);
         }
         shire_mask >>= 1;
     }
@@ -853,7 +857,7 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
     int status = SUCCESS;
 
     uint8_t num_shires;
-    uint64_t shire_mask = minion_shires_mask;            
+    uint64_t shire_mask = minion_shires_mask;
     uint64_t dll_fail_mask = 0;
 
     if (0 != minion_shires_mask)
@@ -863,7 +867,7 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
     else
     {
         return MINION_INVALID_SHIRE_MASK;
-    } 
+    }
 
     for (uint8_t i = 0; i <= num_shires; i++)
     {
@@ -875,21 +879,21 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
                 dll_fail_mask = dll_fail_mask | (uint64_t)(1 << i);
             }
         }
-        shire_mask >>= 1;   
+        shire_mask >>= 1;
     }
 
-    if(0 != dll_fail_mask) 
+    if (0 != dll_fail_mask)
     {
-         Log_Write(LOG_LEVEL_ERROR, "minion_configure_dlls(): DLL failed mask %lu!\n",
-                                     dll_fail_mask);
-         return MINION_DLL_CONFIG_ERROR;
+        Log_Write(LOG_LEVEL_ERROR, "minion_configure_dlls(): DLL failed mask %lu!\n",
+                  dll_fail_mask);
+        return MINION_DLL_CONFIG_ERROR;
     }
     else
     {
         gs_dlls_initialized = 1;
     }
 
-    if(use_step_clock)
+    if (use_step_clock)
     {
         Log_Write(LOG_LEVEL_CRITICAL, "Minion Shire PLL using Step Clock\n");
         status = minion_configure_hpdpll(hpdpll_mode, minion_shires_mask);
@@ -924,8 +928,8 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-int Minion_Configure_Minion_Shire_PLL_no_mask(uint8_t hpdpll_mode,
-                                      uint8_t lvdpll_mode, bool use_step_clock)
+int Minion_Configure_Minion_Shire_PLL_no_mask(uint8_t hpdpll_mode, uint8_t lvdpll_mode,
+                                              bool use_step_clock)
 {
     int status = SUCCESS;
 
@@ -1765,7 +1769,7 @@ int Minion_VPU_RF_Init(uint8_t shireid)
 
     uint64_t start_hart = (uint64_t)shireid * HARTS_PER_SHIRE;
     uint64_t last_hart = start_hart + (HARTS_PER_SHIRE - 1);
-    UPDATE_ALL_MINION(VPU_RF_Init,start_hart, last_hart)
+    UPDATE_ALL_MINION(VPU_RF_Init, start_hart, last_hart)
     Log_Write(LOG_LEVEL_DEBUG, "Executed VPU RF on Hart [%ld:%ld]\n", start_hart, last_hart);
 
     /* Unselect all Neighs in Shire */

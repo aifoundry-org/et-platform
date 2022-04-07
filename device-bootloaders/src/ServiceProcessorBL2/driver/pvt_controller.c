@@ -17,42 +17,46 @@
 /*! \def MAX(x,y)
     \brief Returns max
 */
-#define MAX(x,y)       \
-        x > y ? x : y
+#define MAX(x, y) x > y ? x : y
 
 /*! \def MIN(x,y)
     \brief Returns min
 */
-#define MIN(x,y)       \
-        x < y ? x : y
+#define MIN(x, y) x < y ? x : y
 
 /*! \def GET_MINION_VM(mishire_sample_avg,valid_samples_num) 
     \brief Reads all MinShire VM values
 */
-#define GET_MINION_VM(mishire_sample_avg,valid_samples_num)                                        \
+#define GET_MINION_VM(mishire_sample_avg, valid_samples_num)                                       \
     int ret;                                                                                       \
-    for(int min = 0; min < PVTC_MINION_SHIRE_NUM; min++) {                                         \
-        MinShire_VM_sample minshire_sample = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};                    \
+    for (int min = 0; min < PVTC_MINION_SHIRE_NUM; min++)                                          \
+    {                                                                                              \
+        MinShire_VM_sample minshire_sample = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } };            \
         ret = pvt_get_min_shire_vm_sample(min, &minshire_sample);                                  \
-        if (0 != ret) {                                                                            \
-            Log_Write(LOG_LEVEL_DEBUG, "MS %2d Voltage [mV]: VDD_MNN: Sample fault"                \
-                " VDD_SRAM: Sample fault VDD_NOC: Sample fault\n", min);                           \
+        if (0 != ret)                                                                              \
+        {                                                                                          \
+            Log_Write(LOG_LEVEL_DEBUG,                                                             \
+                      "MS %2d Voltage [mV]: VDD_MNN: Sample fault"                                 \
+                      " VDD_SRAM: Sample fault VDD_NOC: Sample fault\n",                           \
+                      min);                                                                        \
         }                                                                                          \
-        else {                                                                                     \
-            Log_Write(LOG_LEVEL_DEBUG, "MS %2d Voltage [mV]: VDD_MNN: %d [%d, %d]"                 \
-                " VDD_SRAM: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",                                   \
-                min,minshire_sample.vdd_mnn.current, minshire_sample.vdd_mnn.low,                  \
-                minshire_sample.vdd_mnn.high, minshire_sample.vdd_sram.current,                    \
-                minshire_sample.vdd_sram.low, minshire_sample.vdd_sram.high,                       \
-                minshire_sample.vdd_noc.current, minshire_sample.vdd_noc.low,                      \
-                minshire_sample.vdd_noc.high);                                                     \
+        else                                                                                       \
+        {                                                                                          \
+            Log_Write(LOG_LEVEL_DEBUG,                                                             \
+                      "MS %2d Voltage [mV]: VDD_MNN: %d [%d, %d]"                                  \
+                      " VDD_SRAM: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",                             \
+                      min, minshire_sample.vdd_mnn.current, minshire_sample.vdd_mnn.low,           \
+                      minshire_sample.vdd_mnn.high, minshire_sample.vdd_sram.current,              \
+                      minshire_sample.vdd_sram.low, minshire_sample.vdd_sram.high,                 \
+                      minshire_sample.vdd_noc.current, minshire_sample.vdd_noc.low,                \
+                      minshire_sample.vdd_noc.high);                                               \
                                                                                                    \
             minshire_sample_avg.vdd_mnn.current =                                                  \
-                (uint16_t)(minshire_sample_avg.vdd_mnn.current+minshire_sample.vdd_mnn.current);   \
-            minshire_sample_avg.vdd_sram.current =                                                 \
-                (uint16_t)(minshire_sample_avg.vdd_sram.current+minshire_sample.vdd_sram.current); \
+                (uint16_t)(minshire_sample_avg.vdd_mnn.current + minshire_sample.vdd_mnn.current); \
+            minshire_sample_avg.vdd_sram.current = (uint16_t)(                                     \
+                minshire_sample_avg.vdd_sram.current + minshire_sample.vdd_sram.current);          \
             minshire_sample_avg.vdd_noc.current =                                                  \
-                (uint16_t)(minshire_sample_avg.vdd_noc.current+minshire_sample.vdd_noc.current);   \
+                (uint16_t)(minshire_sample_avg.vdd_noc.current + minshire_sample.vdd_noc.current); \
             valid_samples_num++;                                                                   \
                                                                                                    \
             minshire_sample_avg.vdd_mnn.high =                                                     \
@@ -82,22 +86,27 @@
 /*! \def GET_MEMSHIRE_VM(memshire_sample_avg,valid_samples_num) 
     \brief Reads all MemShire VM values
 */
-#define GET_MEMSHIRE_VM(memshire_sample_avg,valid_samples_num)                                     \
+#define GET_MEMSHIRE_VM(memshire_sample_avg, valid_samples_num)                                    \
     int ret;                                                                                       \
-    for(int mem = 0; mem < PVTC_MEM_SHIRE_NUM; mem++)                                              \
+    for (int mem = 0; mem < PVTC_MEM_SHIRE_NUM; mem++)                                             \
     {                                                                                              \
-        MemShire_VM_sample memshire_sample = {{0, 0, 0}, {0, 0, 0}};                               \
+        MemShire_VM_sample memshire_sample = { { 0, 0, 0 }, { 0, 0, 0 } };                         \
         ret = pvt_get_memshire_vm_sample(mem, &memshire_sample);                                   \
-        if (0 != ret) {                                                                            \
-            Log_Write(LOG_LEVEL_DEBUG, "MEM %d Voltage [mV]:"                                      \
-                " VDD_MS: Sample fault VDD_NOC: Sample fault\n", mem);                             \
+        if (0 != ret)                                                                              \
+        {                                                                                          \
+            Log_Write(LOG_LEVEL_DEBUG,                                                             \
+                      "MEM %d Voltage [mV]:"                                                       \
+                      " VDD_MS: Sample fault VDD_NOC: Sample fault\n",                             \
+                      mem);                                                                        \
         }                                                                                          \
-        else {                                                                                     \
-            Log_Write(LOG_LEVEL_DEBUG, "MEM %d Voltage [mV]:"                                      \
-                " VDD_MS: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",                                     \
-                mem, memshire_sample.vdd_ms.current, memshire_sample.vdd_ms.low,                   \
-                memshire_sample.vdd_ms.high, memshire_sample.vdd_noc.current,                      \
-                memshire_sample.vdd_noc.low, memshire_sample.vdd_noc.high);                        \
+        else                                                                                       \
+        {                                                                                          \
+            Log_Write(LOG_LEVEL_DEBUG,                                                             \
+                      "MEM %d Voltage [mV]:"                                                       \
+                      " VDD_MS: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",                               \
+                      mem, memshire_sample.vdd_ms.current, memshire_sample.vdd_ms.low,             \
+                      memshire_sample.vdd_ms.high, memshire_sample.vdd_noc.current,                \
+                      memshire_sample.vdd_noc.low, memshire_sample.vdd_noc.high);                  \
                                                                                                    \
             memshire_sample_avg.vdd_ms.current =                                                   \
                 (uint16_t)(memshire_sample_avg.vdd_ms.current + memshire_sample.vdd_ms.current);   \
@@ -138,76 +147,142 @@ static PVTC_IP_disable_mask pvtc_ip_disable_mask[PVTC_NUM] = {
 /* Minion shires always takes 3 consecutive VM channels [SRAM, NOC, MNN],
    So we are mapping just first one.
 */
-static PVTC_VM_mapping pvtc_minion_shire_vm_map[PVTC_MINION_SHIRE_NUM] = {
-    { // MinShire 0
-        .pvtc_id = PVTC_2, .vm_id = VM_5, .ch_id = CHAN_7 },
-    { // MinShire 1
-        .pvtc_id = PVTC_2, .vm_id = VM_5, .ch_id = CHAN_10 },
-    { // MinShire 2
-        .pvtc_id = PVTC_3, .vm_id = VM_7, .ch_id = CHAN_4 },
-    { // MinShire 3
-        .pvtc_id = PVTC_3, .vm_id = VM_6, .ch_id = CHAN_1 },
-    { // MinShire 4
-        .pvtc_id = PVTC_0, .vm_id = VM_1, .ch_id = CHAN_13 },
-    { // MinShire 5
-        .pvtc_id = PVTC_0, .vm_id = VM_0, .ch_id = CHAN_4 },
-    { // MinShire 6
-        .pvtc_id = PVTC_1, .vm_id = VM_3, .ch_id = CHAN_10 },
-    { // MinShire 7
-        .pvtc_id = PVTC_1, .vm_id = VM_2, .ch_id = CHAN_1 },
-    { // MinShire 8
-        .pvtc_id = PVTC_2, .vm_id = VM_5, .ch_id = CHAN_13 },
-    { // MinShire 9
-        .pvtc_id = PVTC_2, .vm_id = VM_4, .ch_id = CHAN_13 },
-    { // MinShire 10
-        .pvtc_id = PVTC_3, .vm_id = VM_6, .ch_id = CHAN_4 },
-    { // MinShire 11
-        .pvtc_id = PVTC_3, .vm_id = VM_6, .ch_id = CHAN_7 },
-    { // MinShire 12
-        .pvtc_id = PVTC_2, .vm_id = VM_5, .ch_id = CHAN_1 },
-    { // MinShire 13
-        .pvtc_id = PVTC_0, .vm_id = VM_0, .ch_id = CHAN_7 },
-    { // MinShire 14
-        .pvtc_id = PVTC_1, .vm_id = VM_3, .ch_id = CHAN_13 },
-    { // MinShire 15
-        .pvtc_id = PVTC_1, .vm_id = VM_2, .ch_id = CHAN_13 },
-    { // MinShire 16
-        .pvtc_id = PVTC_2, .vm_id = VM_5, .ch_id = CHAN_4 },
-    { // MinShire 17
-        .pvtc_id = PVTC_2, .vm_id = VM_4, .ch_id = CHAN_10 },
-    { // MinShire 18
-        .pvtc_id = PVTC_3, .vm_id = VM_7, .ch_id = CHAN_7 },
-    { // MinShire 19
-        .pvtc_id = PVTC_3, .vm_id = VM_6, .ch_id = CHAN_10 },
-    { // MinShire 20
-        .pvtc_id = PVTC_0, .vm_id = VM_1, .ch_id = CHAN_7 },
-    { // MinShire 21
-        .pvtc_id = PVTC_0, .vm_id = VM_0, .ch_id = CHAN_10 },
-    { // MinShire 22
-        .pvtc_id = PVTC_1, .vm_id = VM_3, .ch_id = CHAN_7 },
-    { // MinShire 23
-        .pvtc_id = PVTC_1, .vm_id = VM_2, .ch_id = CHAN_10 },
-    { // MinShire 24
-        .pvtc_id = PVTC_2, .vm_id = VM_4, .ch_id = CHAN_4 },
-    { // MinShire 25
-        .pvtc_id = PVTC_2, .vm_id = VM_4, .ch_id = CHAN_7 },
-    { // MinShire 26
-        .pvtc_id = PVTC_3, .vm_id = VM_7, .ch_id = CHAN_10 },
-    { // MinShire 27
-        .pvtc_id = PVTC_3, .vm_id = VM_7, .ch_id = CHAN_13 },
-    { // MinShire 28
-        .pvtc_id = PVTC_0, .vm_id = VM_1, .ch_id = CHAN_10 },
-    { // MinShire 29
-        .pvtc_id = PVTC_0, .vm_id = VM_0, .ch_id = CHAN_13 },
-    { // MinShire 30
-        .pvtc_id = PVTC_1, .vm_id = VM_3, .ch_id = CHAN_4 },
-    { // MinShire 31
-        .pvtc_id = PVTC_1, .vm_id = VM_2, .ch_id = CHAN_4 },
-    { // MinShire 32
-        .pvtc_id = PVTC_3, .vm_id = VM_6, .ch_id = CHAN_13 },
-    { // MinShire 33
-        .pvtc_id = PVTC_1, .vm_id = VM_2, .ch_id = CHAN_7 }
-};
+static PVTC_VM_mapping pvtc_minion_shire_vm_map[PVTC_MINION_SHIRE_NUM] = { { // MinShire 0
+                                                                             .pvtc_id = PVTC_2,
+                                                                             .vm_id = VM_5,
+                                                                             .ch_id = CHAN_7 },
+                                                                           { // MinShire 1
+                                                                             .pvtc_id = PVTC_2,
+                                                                             .vm_id = VM_5,
+                                                                             .ch_id = CHAN_10 },
+                                                                           { // MinShire 2
+                                                                             .pvtc_id = PVTC_3,
+                                                                             .vm_id = VM_7,
+                                                                             .ch_id = CHAN_4 },
+                                                                           { // MinShire 3
+                                                                             .pvtc_id = PVTC_3,
+                                                                             .vm_id = VM_6,
+                                                                             .ch_id = CHAN_1 },
+                                                                           { // MinShire 4
+                                                                             .pvtc_id = PVTC_0,
+                                                                             .vm_id = VM_1,
+                                                                             .ch_id = CHAN_13 },
+                                                                           { // MinShire 5
+                                                                             .pvtc_id = PVTC_0,
+                                                                             .vm_id = VM_0,
+                                                                             .ch_id = CHAN_4 },
+                                                                           { // MinShire 6
+                                                                             .pvtc_id = PVTC_1,
+                                                                             .vm_id = VM_3,
+                                                                             .ch_id = CHAN_10 },
+                                                                           { // MinShire 7
+                                                                             .pvtc_id = PVTC_1,
+                                                                             .vm_id = VM_2,
+                                                                             .ch_id = CHAN_1 },
+                                                                           { // MinShire 8
+                                                                             .pvtc_id = PVTC_2,
+                                                                             .vm_id = VM_5,
+                                                                             .ch_id = CHAN_13 },
+                                                                           { // MinShire 9
+                                                                             .pvtc_id = PVTC_2,
+                                                                             .vm_id = VM_4,
+                                                                             .ch_id = CHAN_13 },
+                                                                           { // MinShire 10
+                                                                             .pvtc_id = PVTC_3,
+                                                                             .vm_id = VM_6,
+                                                                             .ch_id = CHAN_4 },
+                                                                           { // MinShire 11
+                                                                             .pvtc_id = PVTC_3,
+                                                                             .vm_id = VM_6,
+                                                                             .ch_id = CHAN_7 },
+                                                                           { // MinShire 12
+                                                                             .pvtc_id = PVTC_2,
+                                                                             .vm_id = VM_5,
+                                                                             .ch_id = CHAN_1 },
+                                                                           { // MinShire 13
+                                                                             .pvtc_id = PVTC_0,
+                                                                             .vm_id = VM_0,
+                                                                             .ch_id = CHAN_7 },
+                                                                           { // MinShire 14
+                                                                             .pvtc_id = PVTC_1,
+                                                                             .vm_id = VM_3,
+                                                                             .ch_id = CHAN_13 },
+                                                                           { // MinShire 15
+                                                                             .pvtc_id = PVTC_1,
+                                                                             .vm_id = VM_2,
+                                                                             .ch_id = CHAN_13 },
+                                                                           { // MinShire 16
+                                                                             .pvtc_id = PVTC_2,
+                                                                             .vm_id = VM_5,
+                                                                             .ch_id = CHAN_4 },
+                                                                           { // MinShire 17
+                                                                             .pvtc_id = PVTC_2,
+                                                                             .vm_id = VM_4,
+                                                                             .ch_id = CHAN_10 },
+                                                                           { // MinShire 18
+                                                                             .pvtc_id = PVTC_3,
+                                                                             .vm_id = VM_7,
+                                                                             .ch_id = CHAN_7 },
+                                                                           { // MinShire 19
+                                                                             .pvtc_id = PVTC_3,
+                                                                             .vm_id = VM_6,
+                                                                             .ch_id = CHAN_10 },
+                                                                           { // MinShire 20
+                                                                             .pvtc_id = PVTC_0,
+                                                                             .vm_id = VM_1,
+                                                                             .ch_id = CHAN_7 },
+                                                                           { // MinShire 21
+                                                                             .pvtc_id = PVTC_0,
+                                                                             .vm_id = VM_0,
+                                                                             .ch_id = CHAN_10 },
+                                                                           { // MinShire 22
+                                                                             .pvtc_id = PVTC_1,
+                                                                             .vm_id = VM_3,
+                                                                             .ch_id = CHAN_7 },
+                                                                           { // MinShire 23
+                                                                             .pvtc_id = PVTC_1,
+                                                                             .vm_id = VM_2,
+                                                                             .ch_id = CHAN_10 },
+                                                                           { // MinShire 24
+                                                                             .pvtc_id = PVTC_2,
+                                                                             .vm_id = VM_4,
+                                                                             .ch_id = CHAN_4 },
+                                                                           { // MinShire 25
+                                                                             .pvtc_id = PVTC_2,
+                                                                             .vm_id = VM_4,
+                                                                             .ch_id = CHAN_7 },
+                                                                           { // MinShire 26
+                                                                             .pvtc_id = PVTC_3,
+                                                                             .vm_id = VM_7,
+                                                                             .ch_id = CHAN_10 },
+                                                                           { // MinShire 27
+                                                                             .pvtc_id = PVTC_3,
+                                                                             .vm_id = VM_7,
+                                                                             .ch_id = CHAN_13 },
+                                                                           { // MinShire 28
+                                                                             .pvtc_id = PVTC_0,
+                                                                             .vm_id = VM_1,
+                                                                             .ch_id = CHAN_10 },
+                                                                           { // MinShire 29
+                                                                             .pvtc_id = PVTC_0,
+                                                                             .vm_id = VM_0,
+                                                                             .ch_id = CHAN_13 },
+                                                                           { // MinShire 30
+                                                                             .pvtc_id = PVTC_1,
+                                                                             .vm_id = VM_3,
+                                                                             .ch_id = CHAN_4 },
+                                                                           { // MinShire 31
+                                                                             .pvtc_id = PVTC_1,
+                                                                             .vm_id = VM_2,
+                                                                             .ch_id = CHAN_4 },
+                                                                           { // MinShire 32
+                                                                             .pvtc_id = PVTC_3,
+                                                                             .vm_id = VM_6,
+                                                                             .ch_id = CHAN_13 },
+                                                                           { // MinShire 33
+                                                                             .pvtc_id = PVTC_1,
+                                                                             .vm_id = VM_2,
+                                                                             .ch_id = CHAN_7 } };
 
 /* MEM shires always takes 2 consecutive VM channels [MS, NOC],
    But due to bellow errata we will map both.
@@ -231,29 +306,29 @@ static PVTC_VM_mapping pvtc_minion_shire_vm_map[PVTC_MINION_SHIRE_NUM] = {
 */
 static PVTC_VM_mapping pvtc_memshire_vm_map[PVTC_MEM_SHIRE_NUM][2] = {
     { // Memshire 0
-        {.pvtc_id = PVTC_2, .vm_id = VM_4, .ch_id = CHAN_0},
-        {.pvtc_id = PVTC_2, .vm_id = VM_4, .ch_id = CHAN_1} },
+      { .pvtc_id = PVTC_2, .vm_id = VM_4, .ch_id = CHAN_0 },
+      { .pvtc_id = PVTC_2, .vm_id = VM_4, .ch_id = CHAN_1 } },
     { // Memshire 1
-        {.pvtc_id = PVTC_2, .vm_id = VM_4, .ch_id = CHAN_2},
-        {.pvtc_id = PVTC_2, .vm_id = VM_4, .ch_id = CHAN_3} },
+      { .pvtc_id = PVTC_2, .vm_id = VM_4, .ch_id = CHAN_2 },
+      { .pvtc_id = PVTC_2, .vm_id = VM_4, .ch_id = CHAN_3 } },
     { // Memshire 2
-        {.pvtc_id = PVTC_3, .vm_id = VM_7, .ch_id = CHAN_2},
-        {.pvtc_id = PVTC_3, .vm_id = VM_7, .ch_id = CHAN_3} },
+      { .pvtc_id = PVTC_3, .vm_id = VM_7, .ch_id = CHAN_2 },
+      { .pvtc_id = PVTC_3, .vm_id = VM_7, .ch_id = CHAN_3 } },
     { // Memshire 3
-        {.pvtc_id = PVTC_3, .vm_id = VM_7, .ch_id = CHAN_0},
-        {.pvtc_id = PVTC_3, .vm_id = VM_7, .ch_id = CHAN_1} },
+      { .pvtc_id = PVTC_3, .vm_id = VM_7, .ch_id = CHAN_0 },
+      { .pvtc_id = PVTC_3, .vm_id = VM_7, .ch_id = CHAN_1 } },
     { // Memshire 4
-        {.pvtc_id = PVTC_0, .vm_id = VM_0, .ch_id = CHAN_0},
-        {.pvtc_id = PVTC_0, .vm_id = VM_0, .ch_id = CHAN_5} },
+      { .pvtc_id = PVTC_0, .vm_id = VM_0, .ch_id = CHAN_0 },
+      { .pvtc_id = PVTC_0, .vm_id = VM_0, .ch_id = CHAN_5 } },
     { // Memshire 5
-        {.pvtc_id = PVTC_0, .vm_id = VM_0, .ch_id = CHAN_2},
-        {.pvtc_id = PVTC_0, .vm_id = VM_0, .ch_id = CHAN_8} },
+      { .pvtc_id = PVTC_0, .vm_id = VM_0, .ch_id = CHAN_2 },
+      { .pvtc_id = PVTC_0, .vm_id = VM_0, .ch_id = CHAN_8 } },
     { // Memshire 6
-        {.pvtc_id = PVTC_1, .vm_id = VM_3, .ch_id = CHAN_2},
-        {.pvtc_id = PVTC_1, .vm_id = VM_3, .ch_id = CHAN_11} },
+      { .pvtc_id = PVTC_1, .vm_id = VM_3, .ch_id = CHAN_2 },
+      { .pvtc_id = PVTC_1, .vm_id = VM_3, .ch_id = CHAN_11 } },
     { // Memshire 7
-        {.pvtc_id = PVTC_1, .vm_id = VM_3, .ch_id = CHAN_0},
-        {.pvtc_id = PVTC_1, .vm_id = VM_3, .ch_id = CHAN_14} }
+      { .pvtc_id = PVTC_1, .vm_id = VM_3, .ch_id = CHAN_0 },
+      { .pvtc_id = PVTC_1, .vm_id = VM_3, .ch_id = CHAN_14 } }
 };
 
 /* IOSHIRE takes 3 consecutive VM channels [MXN, PU, NOC],
@@ -268,12 +343,14 @@ static PVTC_VM_mapping pvtc_pshire_vm_map = { .pvtc_id = PVTC_0, .vm_id = VM_1, 
 
 /* External analog inputs
 */
-static PVTC_VM_mapping pvtc_ext_analog_vm_map[PVTC_EXT_ANALOG_VM_NUM] = {
-    { // External analog 0
-        .pvtc_id = PVTC_0, .vm_id = VM_1, .ch_id = CHAN_0 },
-    { // External analog 1
-        .pvtc_id = PVTC_2, .vm_id = VM_5, .ch_id = CHAN_0 }
-};
+static PVTC_VM_mapping pvtc_ext_analog_vm_map[PVTC_EXT_ANALOG_VM_NUM] = { { // External analog 0
+                                                                            .pvtc_id = PVTC_0,
+                                                                            .vm_id = VM_1,
+                                                                            .ch_id = CHAN_0 },
+                                                                          { // External analog 1
+                                                                            .pvtc_id = PVTC_2,
+                                                                            .vm_id = VM_5,
+                                                                            .ch_id = CHAN_0 } };
 
 static void pvt_configure_controller(uint8_t pvt_id)
 {
@@ -497,7 +574,7 @@ static int16_t pvt_ts_conversion(uint16_t ts_sample)
         result = ts_sample;
     }
 
-    return (int16_t) result;
+    return (int16_t)result;
 }
 
 static uint16_t pvt_pd_conversion(uint16_t pd_sample)
@@ -959,12 +1036,14 @@ static void pvt_print_ioshire_temperature_sampled_values(void)
     TS_Sample sample;
 
     ret = pvt_get_ioshire_ts_sample(&sample);
-    if (0 != ret) {
+    if (0 != ret)
+    {
         Log_Write(LOG_LEVEL_CRITICAL, "IOSHIRE Temp [C]: Sample fault\n");
     }
-    else {
-        Log_Write(LOG_LEVEL_CRITICAL, "IOSHIRE Temp [C]: %d [%d, %d]\n",
-                sample.current, sample.low, sample.high);
+    else
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "IOSHIRE Temp [C]: %d [%d, %d]\n", sample.current, sample.low,
+                  sample.high);
     }
 }
 
@@ -972,18 +1051,21 @@ static void pvt_print_ioshire_voltage_sampled_values(void)
 {
     int ret;
 
-    IOShire_VM_sample ioshire_sample = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+    IOShire_VM_sample ioshire_sample = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } };
     ret = pvt_get_ioshire_vm_sample(&ioshire_sample);
-    if (0 != ret) {
+    if (0 != ret)
+    {
         Log_Write(LOG_LEVEL_CRITICAL, "IOSHIRE Voltage [mV]: VDD_PU: Sample fault"
-                " VDD_NOC: Sample fault\n");
+                                      " VDD_NOC: Sample fault\n");
     }
-    else {
-        Log_Write(LOG_LEVEL_CRITICAL, "IOSHIRE Voltage [mV]: VDD_PU: %d [%d, %d]"
-                " VDD_NOC: %d [%d, %d]\n",
-                ioshire_sample.vdd_pu.current, ioshire_sample.vdd_pu.low,
-                ioshire_sample.vdd_pu.high, ioshire_sample.vdd_noc.current,
-                ioshire_sample.vdd_noc.low, ioshire_sample.vdd_noc.high);
+    else
+    {
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "IOSHIRE Voltage [mV]: VDD_PU: %d [%d, %d]"
+                  " VDD_NOC: %d [%d, %d]\n",
+                  ioshire_sample.vdd_pu.current, ioshire_sample.vdd_pu.low,
+                  ioshire_sample.vdd_pu.high, ioshire_sample.vdd_noc.current,
+                  ioshire_sample.vdd_noc.low, ioshire_sample.vdd_noc.high);
     }
 }
 
@@ -991,50 +1073,57 @@ static void pvt_print_pshire_voltage_sampled_values(void)
 {
     int ret;
 
-    PShire_VM_sample pshire_sample = {{0, 0, 0}, {0, 0, 0}};
+    PShire_VM_sample pshire_sample = { { 0, 0, 0 }, { 0, 0, 0 } };
     ret = pvt_get_pshire_vm_sample(&pshire_sample);
-    if (0 != ret) {
+    if (0 != ret)
+    {
         Log_Write(LOG_LEVEL_WARNING, "PSHIRE Voltage [mV]:"
-                " VDD_PSHR: Sample fault VDD_NOC: Sample fault \n");
+                                     " VDD_PSHR: Sample fault VDD_NOC: Sample fault \n");
     }
-    else {
-        Log_Write(LOG_LEVEL_CRITICAL, "PSHIRE Voltage [mV]:"
-                " VDD_PSHR: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
-                pshire_sample.vdd_pshr.current, pshire_sample.vdd_pshr.low,
-                pshire_sample.vdd_pshr.high, pshire_sample.vdd_noc.current,
-                pshire_sample.vdd_noc.low, pshire_sample.vdd_noc.high);
+    else
+    {
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "PSHIRE Voltage [mV]:"
+                  " VDD_PSHR: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
+                  pshire_sample.vdd_pshr.current, pshire_sample.vdd_pshr.low,
+                  pshire_sample.vdd_pshr.high, pshire_sample.vdd_noc.current,
+                  pshire_sample.vdd_noc.low, pshire_sample.vdd_noc.high);
     }
 }
 
 static void pvt_print_memshire_voltage_sampled_values(void)
 {
-    MemShire_VM_sample memshire_sample_avg = {{0, 0, 0xFFFF}, {0, 0, 0xFFFF}};
+    MemShire_VM_sample memshire_sample_avg = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
     int valid_samples_num = 0;
 
-    GET_MEMSHIRE_VM(memshire_sample_avg,valid_samples_num)
+    GET_MEMSHIRE_VM(memshire_sample_avg, valid_samples_num)
 
-    Log_Write(LOG_LEVEL_CRITICAL, "MemShire Average Volt[mV]:"
-                " VDD_MS: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
-                memshire_sample_avg.vdd_ms.current, memshire_sample_avg.vdd_ms.low,
-                memshire_sample_avg.vdd_ms.high,  memshire_sample_avg.vdd_noc.current,
-                memshire_sample_avg.vdd_noc.low, memshire_sample_avg.vdd_noc.high);
+    Log_Write(LOG_LEVEL_CRITICAL,
+              "MemShire Average Volt[mV]:"
+              " VDD_MS: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
+              memshire_sample_avg.vdd_ms.current, memshire_sample_avg.vdd_ms.low,
+              memshire_sample_avg.vdd_ms.high, memshire_sample_avg.vdd_noc.current,
+              memshire_sample_avg.vdd_noc.low, memshire_sample_avg.vdd_noc.high);
 }
 
 static void pvt_print_min_shire_temperature_sampled_values(void)
 {
     int ret;
     TS_Sample sample;
-    TS_Sample sample_avg = {0, 0, 0x0FFF};
+    TS_Sample sample_avg = { 0, 0, 0x0FFF };
     int valid_samples_num = 0;
 
-    for(int min = 0; min < PVTC_MINION_SHIRE_NUM; min++) {
+    for (int min = 0; min < PVTC_MINION_SHIRE_NUM; min++)
+    {
         ret = pvt_get_min_shire_ts_sample(min, &sample);
-        if (0 != ret) {
+        if (0 != ret)
+        {
             Log_Write(LOG_LEVEL_DEBUG, "MS %2d Temp [C]: Sample fault\n", min);
         }
-        else {
-            Log_Write(LOG_LEVEL_DEBUG, "MS %2d Temp [C]: %d [%d, %d]\n",
-                min, sample.current, sample.low, sample.high);
+        else
+        {
+            Log_Write(LOG_LEVEL_DEBUG, "MS %2d Temp [C]: %d [%d, %d]\n", min, sample.current,
+                      sample.low, sample.high);
 
             sample_avg.current = (int16_t)(sample_avg.current + sample.current);
             valid_samples_num++;
@@ -1045,50 +1134,60 @@ static void pvt_print_min_shire_temperature_sampled_values(void)
     }
 
     sample_avg.current = (int16_t)(sample_avg.current / valid_samples_num);
-    
-    Log_Write(LOG_LEVEL_CRITICAL, "MinShire Average Temp[C]: %d [%d, %d]\n",
-                sample_avg.current, sample_avg.low, sample_avg.high);
+
+    Log_Write(LOG_LEVEL_CRITICAL, "MinShire Average Temp[C]: %d [%d, %d]\n", sample_avg.current,
+              sample_avg.low, sample_avg.high);
 }
 
 static void pvt_print_min_shire_voltage_sampled_values(void)
 {
-    MinShire_VM_sample minshire_sample_avg = {{0, 0, 0xFFFF}, {0, 0, 0xFFFF}, {0, 0, 0xFFFF}};
+    MinShire_VM_sample minshire_sample_avg = { { 0, 0, 0xFFFF },
+                                               { 0, 0, 0xFFFF },
+                                               { 0, 0, 0xFFFF } };
     int valid_samples_num = 0;
 
-    GET_MINION_VM(mishire_sample_avg,valid_samples_num)
+    GET_MINION_VM(mishire_sample_avg, valid_samples_num)
 
-    Log_Write(LOG_LEVEL_CRITICAL, "MinShire Average Volt[mV]: VDD_MNN: %d [%d, %d]"
-                " VDD_SRAM: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
-                minshire_sample_avg.vdd_mnn.current, minshire_sample_avg.vdd_mnn.low,
-                minshire_sample_avg.vdd_mnn.high, minshire_sample_avg.vdd_sram.current,
-                minshire_sample_avg.vdd_sram.low, minshire_sample_avg.vdd_sram.high,
-                minshire_sample_avg.vdd_noc.current, minshire_sample_avg.vdd_noc.low,
-                minshire_sample_avg.vdd_noc.high);
+    Log_Write(LOG_LEVEL_CRITICAL,
+              "MinShire Average Volt[mV]: VDD_MNN: %d [%d, %d]"
+              " VDD_SRAM: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
+              minshire_sample_avg.vdd_mnn.current, minshire_sample_avg.vdd_mnn.low,
+              minshire_sample_avg.vdd_mnn.high, minshire_sample_avg.vdd_sram.current,
+              minshire_sample_avg.vdd_sram.low, minshire_sample_avg.vdd_sram.high,
+              minshire_sample_avg.vdd_noc.current, minshire_sample_avg.vdd_noc.low,
+              minshire_sample_avg.vdd_noc.high);
 }
 
 void pvt_print_voltage_sampled_values(pvtc_shire_type_t shire_type)
 {
-    switch(shire_type)
+    switch (shire_type)
     {
-        case PVTC_IOSHIRE: pvt_print_ioshire_voltage_sampled_values();
+        case PVTC_IOSHIRE:
+            pvt_print_ioshire_voltage_sampled_values();
             break;
-        case PVTC_PSHIRE: pvt_print_pshire_voltage_sampled_values();
+        case PVTC_PSHIRE:
+            pvt_print_pshire_voltage_sampled_values();
             break;
-        case PVTC_MEMSHIRE: pvt_print_memshire_voltage_sampled_values();
+        case PVTC_MEMSHIRE:
+            pvt_print_memshire_voltage_sampled_values();
             break;
-        case PVTC_MINION_SHIRE: pvt_print_min_shire_voltage_sampled_values();
+        case PVTC_MINION_SHIRE:
+            pvt_print_min_shire_voltage_sampled_values();
             break;
-        default: break;
+        default:
+            break;
     }
 }
 
 void pvt_print_temperature_sampled_values(pvtc_shire_type_t shire_type)
 {
-    switch(shire_type)
+    switch (shire_type)
     {
-        case PVTC_IOSHIRE: pvt_print_ioshire_temperature_sampled_values();
+        case PVTC_IOSHIRE:
+            pvt_print_ioshire_temperature_sampled_values();
             break;
-        case PVTC_MINION_SHIRE: pvt_print_min_shire_temperature_sampled_values();
+        case PVTC_MINION_SHIRE:
+            pvt_print_min_shire_temperature_sampled_values();
             break;
         case PVTC_PSHIRE:
         case PVTC_MEMSHIRE:
@@ -1098,16 +1197,18 @@ void pvt_print_temperature_sampled_values(pvtc_shire_type_t shire_type)
     }
 }
 
-int pvt_get_minion_avg_temperature(uint8_t* avg_temp)
+int pvt_get_minion_avg_temperature(uint8_t *avg_temp)
 {
     TS_Sample sample;
     int status;
     int avg = 0;
     int valid_samples_num = 0;
-    
-    for(int min = 0; min < PVTC_MINION_SHIRE_NUM; min++) {
+
+    for (int min = 0; min < PVTC_MINION_SHIRE_NUM; min++)
+    {
         status = pvt_get_min_shire_ts_sample(min, &sample);
-        if (0 == status) {
+        if (0 == status)
+        {
             avg = avg + sample.current;
             valid_samples_num++;
         }
@@ -1125,7 +1226,7 @@ int pvt_get_minion_avg_temperature(uint8_t* avg_temp)
     return 0;
 }
 
-int pvt_get_minion_avg_low_high_temperature(TS_Sample* temp)
+int pvt_get_minion_avg_low_high_temperature(TS_Sample *temp)
 {
     TS_Sample sample;
     int status;
@@ -1136,10 +1237,12 @@ int pvt_get_minion_avg_low_high_temperature(TS_Sample* temp)
 
     sample.high = 0;
     sample.low = 0x0FFF;
-    
-    for(int min = 0; min < PVTC_MINION_SHIRE_NUM; min++) {
+
+    for (int min = 0; min < PVTC_MINION_SHIRE_NUM; min++)
+    {
         status = pvt_get_min_shire_ts_sample(min, &sample);
-        if (0 == status) {
+        if (0 == status)
+        {
             avg = avg + sample.current;
             valid_samples_num++;
             high = MAX(sample.high, high);
@@ -1162,12 +1265,14 @@ int pvt_get_minion_avg_low_high_temperature(TS_Sample* temp)
     return 0;
 }
 
-int pvt_get_minion_avg_low_high_voltage(MinShire_VM_sample* minshire_voltage)
+int pvt_get_minion_avg_low_high_voltage(MinShire_VM_sample *minshire_voltage)
 {
-    MinShire_VM_sample minshire_sample_avg = {{0, 0, 0xFFFF}, {0, 0, 0xFFFF}, {0, 0, 0xFFFF}};
+    MinShire_VM_sample minshire_sample_avg = { { 0, 0, 0xFFFF },
+                                               { 0, 0, 0xFFFF },
+                                               { 0, 0, 0xFFFF } };
     int valid_samples_num = 0;
 
-    GET_MINION_VM(mishire_sample_avg,valid_samples_num)
+    GET_MINION_VM(mishire_sample_avg, valid_samples_num)
 
     if (valid_samples_num == 0)
     {
@@ -1180,12 +1285,12 @@ int pvt_get_minion_avg_low_high_voltage(MinShire_VM_sample* minshire_voltage)
     return 0;
 }
 
-int pvt_get_memshire_avg_low_high_voltage(MemShire_VM_sample* memshire_voltage)
+int pvt_get_memshire_avg_low_high_voltage(MemShire_VM_sample *memshire_voltage)
 {
-    MemShire_VM_sample memshire_sample_avg = {{0, 0, 0xFFFF}, {0, 0, 0xFFFF}};
+    MemShire_VM_sample memshire_sample_avg = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
     int valid_samples_num = 0;
 
-    GET_MEMSHIRE_VM(memshire_sample_avg,valid_samples_num)
+    GET_MEMSHIRE_VM(memshire_sample_avg, valid_samples_num)
 
     if (valid_samples_num == 0)
     {
@@ -1212,7 +1317,7 @@ void pvt_print_all(void)
 }
 
 static int pvt_get_and_print_minshire(uint8_t print_ts, uint8_t print_vm, PVTC_MINSHIRE_e min_id,
-                                    MinShire_samples* min_samples)
+                                      MinShire_samples *min_samples)
 {
     int status;
 
@@ -1224,8 +1329,8 @@ static int pvt_get_and_print_minshire(uint8_t print_ts, uint8_t print_vm, PVTC_M
     }
     if (print_ts)
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "MS %2d Temp [C]: %d [%d, %d]\n",
-            min_id, min_samples->ts.current, min_samples->ts.low, min_samples->ts.high);
+        Log_Write(LOG_LEVEL_CRITICAL, "MS %2d Temp [C]: %d [%d, %d]\n", min_id,
+                  min_samples->ts.current, min_samples->ts.low, min_samples->ts.high);
     }
     status = pvt_get_min_shire_vm_sample(min_id, &(min_samples->vm));
     if (0 != status)
@@ -1235,20 +1340,21 @@ static int pvt_get_and_print_minshire(uint8_t print_ts, uint8_t print_vm, PVTC_M
     }
     if (print_vm)
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "MS %2d Voltage [mV]: VDD_MNN: %d [%d, %d]"
-            " VDD_SRAM: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
-            min_id,min_samples->vm.vdd_mnn.current, min_samples->vm.vdd_mnn.low,
-            min_samples->vm.vdd_mnn.high, min_samples->vm.vdd_sram.current,
-            min_samples->vm.vdd_sram.low, min_samples->vm.vdd_sram.high,
-            min_samples->vm.vdd_noc.current, min_samples->vm.vdd_noc.low,
-            min_samples->vm.vdd_noc.high);
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "MS %2d Voltage [mV]: VDD_MNN: %d [%d, %d]"
+                  " VDD_SRAM: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
+                  min_id, min_samples->vm.vdd_mnn.current, min_samples->vm.vdd_mnn.low,
+                  min_samples->vm.vdd_mnn.high, min_samples->vm.vdd_sram.current,
+                  min_samples->vm.vdd_sram.low, min_samples->vm.vdd_sram.high,
+                  min_samples->vm.vdd_noc.current, min_samples->vm.vdd_noc.low,
+                  min_samples->vm.vdd_noc.high);
     }
-    
+
     return 0;
 }
 
 static int pvt_get_and_print_memshire(uint8_t print_vm, PVTC_MEMSHIRE_e mem_id,
-                                    MemShire_samples* mem_samples)
+                                      MemShire_samples *mem_samples)
 {
     int status;
 
@@ -1260,18 +1366,19 @@ static int pvt_get_and_print_memshire(uint8_t print_vm, PVTC_MEMSHIRE_e mem_id,
     }
     if (print_vm)
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "MEM %d Voltage [mV]:"
-            " VDD_MS: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
-            mem_id, mem_samples->vm.vdd_ms.current, mem_samples->vm.vdd_ms.low,
-            mem_samples->vm.vdd_ms.high, mem_samples->vm.vdd_noc.current,
-            mem_samples->vm.vdd_noc.low, mem_samples->vm.vdd_noc.high);
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "MEM %d Voltage [mV]:"
+                  " VDD_MS: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
+                  mem_id, mem_samples->vm.vdd_ms.current, mem_samples->vm.vdd_ms.low,
+                  mem_samples->vm.vdd_ms.high, mem_samples->vm.vdd_noc.current,
+                  mem_samples->vm.vdd_noc.low, mem_samples->vm.vdd_noc.high);
     }
-    
+
     return 0;
 }
 
 static int pvt_get_and_print_ioshire(uint8_t print_ts, uint8_t print_vm,
-                                    IOShire_samples* io_samples)
+                                     IOShire_samples *io_samples)
 {
     int status;
 
@@ -1283,8 +1390,8 @@ static int pvt_get_and_print_ioshire(uint8_t print_ts, uint8_t print_vm,
     }
     if (print_ts)
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "IOSHIRE Temp [C]: %d [%d, %d]\n",
-            io_samples->ts.current, io_samples->ts.low, io_samples->ts.high);
+        Log_Write(LOG_LEVEL_CRITICAL, "IOSHIRE Temp [C]: %d [%d, %d]\n", io_samples->ts.current,
+                  io_samples->ts.low, io_samples->ts.high);
     }
     status = pvt_get_ioshire_vm_sample(&(io_samples->vm));
     if (0 != status)
@@ -1294,18 +1401,18 @@ static int pvt_get_and_print_ioshire(uint8_t print_ts, uint8_t print_vm,
     }
     if (print_vm)
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "IOSHIRE Voltage [mV]: VDD_PU: %d [%d, %d]"
-            " VDD_NOC: %d [%d, %d]\n",
-            io_samples->vm.vdd_pu.current, io_samples->vm.vdd_pu.low,
-            io_samples->vm.vdd_pu.high, io_samples->vm.vdd_noc.current,
-            io_samples->vm.vdd_noc.low, io_samples->vm.vdd_noc.high);
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "IOSHIRE Voltage [mV]: VDD_PU: %d [%d, %d]"
+                  " VDD_NOC: %d [%d, %d]\n",
+                  io_samples->vm.vdd_pu.current, io_samples->vm.vdd_pu.low,
+                  io_samples->vm.vdd_pu.high, io_samples->vm.vdd_noc.current,
+                  io_samples->vm.vdd_noc.low, io_samples->vm.vdd_noc.high);
     }
-    
+
     return 0;
 }
 
-static int pvt_get_and_print_pshire(uint8_t print_vm,
-                                    PShire_samples* pshr_samples)
+static int pvt_get_and_print_pshire(uint8_t print_vm, PShire_samples *pshr_samples)
 {
     int status;
 
@@ -1317,52 +1424,52 @@ static int pvt_get_and_print_pshire(uint8_t print_vm,
     }
     if (print_vm)
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "PSHIRE Voltage [mV]:"
-            " VDD_PSHR: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
-            pshr_samples->vm.vdd_pshr.current, pshr_samples->vm.vdd_pshr.low,
-            pshr_samples->vm.vdd_pshr.high, pshr_samples->vm.vdd_noc.current,
-            pshr_samples->vm.vdd_noc.low, pshr_samples->vm.vdd_noc.high);
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "PSHIRE Voltage [mV]:"
+                  " VDD_PSHR: %d [%d, %d] VDD_NOC: %d [%d, %d]\n",
+                  pshr_samples->vm.vdd_pshr.current, pshr_samples->vm.vdd_pshr.low,
+                  pshr_samples->vm.vdd_pshr.high, pshr_samples->vm.vdd_noc.current,
+                  pshr_samples->vm.vdd_noc.low, pshr_samples->vm.vdd_noc.high);
     }
-    
+
     return 0;
 }
 
-static int pvt_get_and_print_memshire_all(uint8_t print_vm, All_MemShire_samples* mem_samples)
+static int pvt_get_and_print_memshire_all(uint8_t print_vm, All_MemShire_samples *mem_samples)
 {
     int status;
 
-    for(int mem_id = 0; mem_id < PVTC_MEM_SHIRE_NUM; mem_id++)
+    for (int mem_id = 0; mem_id < PVTC_MEM_SHIRE_NUM; mem_id++)
     {
-        status =
-            pvt_get_and_print_memshire(print_vm, mem_id, &(mem_samples->memshire[mem_id]));
+        status = pvt_get_and_print_memshire(print_vm, mem_id, &(mem_samples->memshire[mem_id]));
         if (0 != status)
         {
             return status;
         }
     }
-    
+
     return 0;
 }
 
 static int pvt_get_and_print_minshire_all(uint8_t print_ts, uint8_t print_vm,
-                                            All_MinShire_samples* min_samples)
+                                          All_MinShire_samples *min_samples)
 {
     int status;
 
-    for(int min_id = 0; min_id < PVTC_MINION_SHIRE_NUM; min_id++)
+    for (int min_id = 0; min_id < PVTC_MINION_SHIRE_NUM; min_id++)
     {
         status = pvt_get_and_print_minshire(print_ts, print_vm, min_id,
-                                                &(min_samples->minshire[min_id]));
+                                            &(min_samples->minshire[min_id]));
         if (0 != status)
         {
             return status;
         }
     }
-    
+
     return 0;
 }
 
-static int pvt_get_and_print_all(uint8_t print_ts, uint8_t print_vm, All_PVT_samples* all_samples)
+static int pvt_get_and_print_all(uint8_t print_ts, uint8_t print_vm, All_PVT_samples *all_samples)
 {
     int status;
 
@@ -1379,24 +1486,24 @@ static int pvt_get_and_print_all(uint8_t print_ts, uint8_t print_vm, All_PVT_sam
     }
 
     status = pvt_get_and_print_memshire_all(print_vm,
-                        (All_MemShire_samples*)&(all_samples->memshire[0]));
+                                            (All_MemShire_samples *)&(all_samples->memshire[0]));
     if (0 != status)
     {
         return status;
     }
 
     status = pvt_get_and_print_minshire_all(print_ts, print_vm,
-                        (All_MinShire_samples*)&(all_samples->minshire[0]));
+                                            (All_MinShire_samples *)&(all_samples->minshire[0]));
     if (0 != status)
     {
         return status;
     }
-    
+
     return 0;
 }
 
 int pvt_get_and_print(uint8_t print_ts, uint8_t print_vm, PVT_PRINT_e print_select, uint16_t *data,
-                        uint32_t *num_bytes)
+                      uint32_t *num_bytes)
 {
     int status;
 
@@ -1404,34 +1511,34 @@ int pvt_get_and_print(uint8_t print_ts, uint8_t print_vm, PVT_PRINT_e print_sele
     {
         case PVT_PRINT_MINSHIRE_0 ... PVT_PRINT_MINSHIRE_33:
             status = pvt_get_and_print_minshire(print_ts, print_vm, (uint8_t)print_select,
-                                                (MinShire_samples*)data);
+                                                (MinShire_samples *)data);
             *num_bytes = sizeof(MinShire_samples);
             break;
         case PVT_PRINT_MEMSHIRE_232 ... PVT_PRINT_MEMSHIRE_239:
             status = pvt_get_and_print_memshire(print_vm,
-                        (uint8_t)(print_select - PVT_PRINT_MEMSHIRE_232), (MemShire_samples*)data);
+                                                (uint8_t)(print_select - PVT_PRINT_MEMSHIRE_232),
+                                                (MemShire_samples *)data);
             *num_bytes = sizeof(MemShire_samples);
             break;
         case PVT_PRINT_IOSHIRE_254:
-            status = pvt_get_and_print_ioshire(print_ts, print_vm, (IOShire_samples*)data);
+            status = pvt_get_and_print_ioshire(print_ts, print_vm, (IOShire_samples *)data);
             *num_bytes = sizeof(IOShire_samples);
             break;
         case PVT_PRINT_PSHIRE_253:
-            status = pvt_get_and_print_pshire(print_vm, (PShire_samples*)data);
+            status = pvt_get_and_print_pshire(print_vm, (PShire_samples *)data);
             *num_bytes = sizeof(PShire_samples);
             break;
         case PVT_PRINT_MEMSHIRE_ALL:
-            status =
-                pvt_get_and_print_memshire_all(print_vm, (All_MemShire_samples*)data);
+            status = pvt_get_and_print_memshire_all(print_vm, (All_MemShire_samples *)data);
             *num_bytes = sizeof(All_MemShire_samples);
             break;
         case PVT_PRINT_MINSHIRE_ALL:
             status =
-                pvt_get_and_print_minshire_all(print_ts, print_vm, (All_MinShire_samples*)data);
+                pvt_get_and_print_minshire_all(print_ts, print_vm, (All_MinShire_samples *)data);
             *num_bytes = sizeof(All_MinShire_samples);
             break;
         case PVT_PRINT_ALL:
-            status = pvt_get_and_print_all(print_ts, print_vm, (All_PVT_samples*)data);
+            status = pvt_get_and_print_all(print_ts, print_vm, (All_PVT_samples *)data);
             *num_bytes = sizeof(All_PVT_samples);
             break;
         default:
@@ -1440,4 +1547,3 @@ int pvt_get_and_print(uint8_t print_ts, uint8_t print_vm, PVT_PRINT_e print_sele
 
     return status;
 }
-
