@@ -246,7 +246,10 @@ int32_t get_watchdog_max_timeout(uint32_t *timeout_msec)
 *
 *   DESCRIPTION
 *
-*       WDT ISR
+*       Stack frame is saved to a7 register before invoking WDT ISR, this
+*       helps in dumping stack frame and CSRS to trace. Exception trace 
+*       buffer is used to dump stack and CSRS information. Trace offset 
+*       is then sent to driver to print information on console.
 *
 *   INPUTS
 *
@@ -259,21 +262,22 @@ int32_t get_watchdog_max_timeout(uint32_t *timeout_msec)
 ***********************************************************************/
 void watchdog_isr(void)
 {
+    uint64_t stack_frame;
     uint8_t *trace_buf;
 
     /* Restart and clear the interrupt */
     iowrite32(R_SP_WDT_BASEADDR + WDT_WDT_CRR_ADDRESS, WDT_WDT_CRR_WDT_CRR_WDT_CRR_RESTART);
 
-    trace_buf = bl2_dump_stack_frame();
+    /* For dumping the stack frame outside of exception context such as
+    wdog interrupt, the stack is assumed to be present in the a7 register.
+    The trap handler saves the sp in the a7 and it is preserved till we reach
+    the driver ISR handler.
+    */
+    asm volatile("mv %0, a7" : "=r"(stack_frame));
 
-    /* Invoke the event handler callback */
-    if (wdog_control_block.event_cb)
-    {
-        struct event_message_t message;
-        /* add details in message header and fill payload */
-        FILL_EVENT_HEADER(&message.header, SP_RUNTIME_HANG, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, timer_get_ticks_count(),
-                           SP_TRACE_GET_ENTRY_OFFSET(trace_buf, Trace_Get_SP_CB()))
-        wdog_control_block.event_cb(CORRECTABLE, &message);
-    }
+    /* Dump stack frame to trace buffer in lock-less manner */
+    trace_buf = Trace_Exception_Dump_Context((void *)stack_frame);
+
+    /* BL2 report event to post message directly to CQ*/
+    BL2_Report_Event(SP_TRACE_GET_ENTRY_OFFSET(trace_buf), SP_RUNTIME_HANG);
 }

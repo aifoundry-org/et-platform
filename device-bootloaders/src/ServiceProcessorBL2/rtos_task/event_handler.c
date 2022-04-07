@@ -59,33 +59,43 @@ int32_t dm_event_control_init(void)
     q_handle = xQueueCreateStatic(DM_EVENT_QUEUE_LENGTH, DM_EVENT_QUEUE_ITEM_SIZE, DM_Queue_Storage,
                                   &g_staticQueue);
 
-    if (!q_handle) {
-        Log_Write(LOG_LEVEL_ERROR, "Message Queue creation error: Failed to create DM Events Queue.\n");
+    if (!q_handle)
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+                  "Message Queue creation error: Failed to create DM Events Queue.\n");
         return status;
     }
 
     t_handle = xTaskCreateStatic(dm_event_task_entry, "DM_EVENT_TASK", DM_EVENT_TASK_STACK, NULL,
                                  DM_EVENT_TASK_PRIORITY, g_dm_stack, &g_staticTask_ptr);
 
-    if (!t_handle) {
-        Log_Write(LOG_LEVEL_ERROR, "Task Creation Failed: Failed to create DM Event Handler Task.\n");
+    if (!t_handle)
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+                  "Task Creation Failed: Failed to create DM Event Handler Task.\n");
         vQueueDelete(q_handle);
         return status;
     }
 
     /* Init error control subsystem */
     status = pcie_error_control_init(pcie_event_callback);
-    if (!status) {
+    if (!status)
+    {
         status = ddr_error_control_init(ddr_event_callback);
-        if (!status) {
+        if (!status)
+        {
             status = sram_error_control_init(sram_event_callback);
-            if (!status) {
+            if (!status)
+            {
                 status = set_power_event_cb(power_event_callback);
-                if (!status) {
+                if (!status)
+                {
                     status = watchdog_error_init(wdog_timeout_callback);
-                    if (!status) {
+                    if (!status)
+                    {
                         status = Minion_State_Error_Control_Init(minion_event_callback);
-                        if (!status) {
+                        if (!status)
+                        {
                             status = pmic_error_control_init(pmic_event_callback);
                         }
                     }
@@ -94,7 +104,8 @@ int32_t dm_event_control_init(void)
         }
     }
 
-    if (status) {
+    if (status)
+    {
         Log_Write(LOG_LEVEL_ERROR, "Error Control Init Failed: Failed to init error control\n");
     }
 
@@ -108,13 +119,16 @@ static void dm_event_task_entry(void *pvParameters)
 
     (void)pvParameters;
 
-    while (1) {
+    while (1)
+    {
         /* block until a message is received */
-        if (xQueueReceive(q_handle, &msg, portMAX_DELAY) == pdTRUE) {
-            Log_Write(LOG_LEVEL_INFO, "DM event received: msg_id: %d, %s\n",
-                      msg.header.msg_id, __func__);
+        if (xQueueReceive(q_handle, &msg, portMAX_DELAY) == pdTRUE)
+        {
+            Log_Write(LOG_LEVEL_INFO, "DM event received: msg_id: %d, %s\n", msg.header.msg_id,
+                      __func__);
             status = SP_Host_Iface_CQ_Push_Cmd((void *)&msg, sizeof(msg));
-            if (status) {
+            if (status)
+            {
                 Log_Write(LOG_LEVEL_ERROR, "dm_event_handler_task_error :  push to CQ failed!\n");
             }
         }
@@ -124,10 +138,13 @@ static void dm_event_task_entry(void *pvParameters)
 void pcie_event_callback(enum error_type type, struct event_message_t *msg)
 {
     uint32_t error_count = EVENT_PAYLOAD_GET_ERROR_COUNT(&msg->payload);
-    if (type == CORRECTABLE) {
+    if (type == CORRECTABLE)
+    {
         if (error_count > g_max_error_count.pcie_ce_max_count)
             g_max_error_count.pcie_ce_max_count = error_count;
-    } else {
+    }
+    else
+    {
         if (error_count > g_max_error_count.pcie_uce_max_count)
             g_max_error_count.pcie_uce_max_count = error_count;
     }
@@ -140,10 +157,13 @@ void sram_event_callback(enum error_type type, struct event_message_t *msg)
 {
     uint32_t error_count = EVENT_PAYLOAD_GET_ERROR_COUNT(&msg->payload);
 
-    if (type == CORRECTABLE) {
+    if (type == CORRECTABLE)
+    {
         if (error_count > g_max_error_count.sram_ce_max_count)
             g_max_error_count.sram_ce_max_count = error_count;
-    } else {
+    }
+    else
+    {
         if (error_count > g_max_error_count.sram_uce_max_count)
             g_max_error_count.sram_uce_max_count = error_count;
     }
@@ -156,10 +176,13 @@ void ddr_event_callback(enum error_type type, struct event_message_t *msg)
 {
     uint32_t error_count = EVENT_PAYLOAD_GET_ERROR_COUNT(&msg->payload);
 
-    if (type == CORRECTABLE) {
+    if (type == CORRECTABLE)
+    {
         if (error_count > g_max_error_count.ddr_ce_max_count)
             g_max_error_count.ddr_ce_max_count = error_count;
-    } else {
+    }
+    else
+    {
         if (error_count > g_max_error_count.ddr_uce_max_count)
             g_max_error_count.ddr_uce_max_count = error_count;
     }
@@ -178,12 +201,15 @@ void power_event_callback(enum error_type type, struct event_message_t *msg)
 
 void wdog_timeout_callback(enum error_type type, struct event_message_t *msg)
 {
-    if (type == CORRECTABLE) {
+    if (type == CORRECTABLE)
+    {
         //TODO: Handle wdog timeouts
-         (void) type;
-    } else {
-       /* Post message to the queue - must be called from ISR context */
-       xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
+        (void)type;
+    }
+    else
+    {
+        /* Post message to the queue - must be called from ISR context */
+        xQueueSendFromISR(q_handle, msg, (BaseType_t *)NULL);
     }
 }
 

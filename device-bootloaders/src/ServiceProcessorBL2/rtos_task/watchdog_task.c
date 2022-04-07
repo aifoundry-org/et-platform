@@ -36,18 +36,21 @@ int32_t init_watchdog_service(void)
 {
     int32_t status = 0;
 
-    /* Build time argument to configure Time slicing schedule delays. */ 
+    /* Build time argument to configure Time slicing schedule delays. */
     status = watchdog_init((WDOG_DEFAULT_TIMEOUT_MSEC * WDOG_TIME_SLICE_PERC) / 100);
-    if (!status) {
+    if (!status)
+    {
         /* Create the watchdog feeding task */
-        t_handle = xTaskCreateStatic(watchdog_task_entry, "WDOG_TASK", WDOG_TASK_STACK_SIZE,
-                                     NULL, WDOG_TASK_PRIORITY, g_dm_stack,
-                                     &g_staticTask_ptr);
-        if (!t_handle) {
-            Log_Write(LOG_LEVEL_ERROR, "Task Creation Failed: Failed to create Watchdog Handler Task.\n");
+        t_handle = xTaskCreateStatic(watchdog_task_entry, "WDOG_TASK", WDOG_TASK_STACK_SIZE, NULL,
+                                     WDOG_TASK_PRIORITY, g_dm_stack, &g_staticTask_ptr);
+        if (!t_handle)
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                      "Task Creation Failed: Failed to create Watchdog Handler Task.\n");
             status = -1;
         }
-        else {
+        else
+        {
             Log_Write(LOG_LEVEL_INFO, "Watchdog service initialized.\n");
         }
     }
@@ -62,8 +65,7 @@ static void watchdog_task_entry(void *pvParameter)
     /* Use 80% of the given time for the task delay
        to account for scheduling delays. Its a guess,
        might need to change*/
-    const TickType_t frequency =
-                     pdMS_TO_TICKS((WDOG_DEFAULT_TIMEOUT_MSEC * 80) / 100);
+    const TickType_t frequency = pdMS_TO_TICKS((WDOG_DEFAULT_TIMEOUT_MSEC * 80) / 100);
 
     /* obtain reset cause form PMIC to determine if it was
        watchdog reset */
@@ -76,7 +78,7 @@ static void watchdog_task_entry(void *pvParameter)
     else
     {
         /* if it was a watchdog reset then inform host using watchdog event */
-        if(reset_cause == PMIC_I2C_RESET_RESET_CAUSE_CRU_SYS_RESET)
+        if (reset_cause == PMIC_I2C_RESET_RESET_CAUSE_CRU_SYS_RESET)
         {
             struct event_message_t message;
             /* add details in message header and fill payload */
@@ -89,7 +91,8 @@ static void watchdog_task_entry(void *pvParameter)
     /* Initialise the xLastWakeTime variable with the current time. */
     TickType_t last_wake_time = xTaskGetTickCount();
 
-    while (1) {
+    while (1)
+    {
         vTaskDelayUntil(&last_wake_time, frequency);
         watchdog_kick();
     }

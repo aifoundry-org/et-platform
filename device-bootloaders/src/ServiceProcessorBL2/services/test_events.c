@@ -14,7 +14,7 @@
 #include "minion_configuration.h"
 #include "dm_event_control.h"
 #include "sp_host_iface.h"
-#include "bl2_exception.h"
+#include "trace.h"
 
 #ifdef TEST_EVENT_GEN
 
@@ -26,15 +26,14 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
     struct dev_context_registers_t context;
 
     /* Copy dummy data */
-    memset((void*)&context, 0xa5, sizeof(context));
+    memset((void *)&context, 0xa5, sizeof(context));
 
     /* Log the execution stack event to trace */
     trace_buf = Trace_Execution_Stack(Trace_Get_SP_CB(), &context);
 
     /* Generate SP Runtime Exception */
     FILL_EVENT_HEADER(&message.header, SP_RUNTIME_EXCEPT, sizeof(struct event_message_t))
-    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, 0,
-                       SP_TRACE_GET_ENTRY_OFFSET(trace_buf, Trace_Get_SP_CB()))
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, 0, SP_TRACE_GET_ENTRY_OFFSET(trace_buf))
     generate_test_event(&message);
 
     /* Generate PCIE Correctable Error */
@@ -74,12 +73,14 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
 
     /* Generate Minion Exception threshold Error */
     FILL_EVENT_HEADER(&message.header, MINION_EXCEPT_TH, sizeof(struct event_message_t))
-    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 20, MM_RECOVERABLE_FW_MM_SQW_ERROR, (uint32_t)MM_SQ_PROCESSING_ERROR)
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 20, MM_RECOVERABLE_FW_MM_SQW_ERROR,
+                       (uint32_t)MM_SQ_PROCESSING_ERROR)
     generate_test_event(&message);
 
     /* Generate Minion hang threshold Error */
     FILL_EVENT_HEADER(&message.header, MINION_HANG_TH, sizeof(struct event_message_t))
-    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 80, SP_RECOVERABLE_FW_MM_HANG, (uint32_t)MM_HEARTBEAT_WD_EXPIRED)
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 80, SP_RECOVERABLE_FW_MM_HANG,
+                       (uint32_t)MM_HEARTBEAT_WD_EXPIRED)
     generate_test_event(&message);
 
     /* Generate runtime error */

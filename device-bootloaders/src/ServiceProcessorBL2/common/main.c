@@ -311,8 +311,14 @@ static void taskMain(void *pvParameters)
     Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
 
-    /* Redirect the log messages to trace buffer after initialization is done */
+    /* Initialize SP Trace component */
     Trace_Init_SP(NULL);
+
+    /* Initialize SP Exception Trace component */
+    status = Trace_Exception_Init_SP(NULL);
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init SP Exception trace component!")
+
+    /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
     while (1)

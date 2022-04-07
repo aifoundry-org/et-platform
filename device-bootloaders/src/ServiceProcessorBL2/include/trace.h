@@ -43,11 +43,11 @@ enum {
 /*! \def SP_TRACE_GET_ENTRY_OFFSET(addr)
     \brief Returns offset of addr from SP trace buffer base.
 */
-#define SP_TRACE_GET_ENTRY_OFFSET(addr, cb) ((uint64_t)addr - cb->base_per_hart)
+#define SP_TRACE_GET_ENTRY_OFFSET(addr) ((uint64_t)addr - SP_TRACE_BUFFER_BASE)
 
 /*! \fn void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     \brief This function initializes Trace for sp
-    \param mm_init_info Pointer Trace init information.
+    \param sp_init_info Pointer Trace init information.
     \return None
 */
 void Trace_Init_SP(const struct trace_init_info_t *sp_init_info);
@@ -85,5 +85,26 @@ void Trace_Process_Control_Cmd(void *buffer);
     \return None.
 */
 void Trace_Process_Config_Cmd(void *buffer);
+
+/*! \fn Trace_Exception_Init_SP(const struct trace_init_info_t *sp_init_info)
+    \brief This function initializes Trace buffer for SP exception.
+    \param init_info Pointer Trace init information.
+    \return None.
+*/
+int32_t Trace_Exception_Init_SP(const struct trace_init_info_t *init_info);
+
+/*! \fn struct trace_control_block_t* Trace_Get_SP_Exp_CB(void)
+    \brief This function returns Trace control block for Exception buffer.
+    \return Pointer to the Trace control block .
+*/
+struct trace_control_block_t *Trace_Get_SP_Exp_CB(void);
+
+/*! \fn Trace_Exception_Dump_Context(const void *stack_frame)
+    \brief This function dumps stack context to trace and returns
+          trace buffer offset.
+    \param stack_frame current stack frame context including GPRs and CSRS
+    \return pointer to trace buffer with dumped stack context.
+*/
+uint8_t *Trace_Exception_Dump_Context(const void *stack_frame);
 
 #endif

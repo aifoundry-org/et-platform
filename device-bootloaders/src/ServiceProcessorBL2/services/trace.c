@@ -27,6 +27,7 @@
 #include "config/mgmt_build_config.h"
 #include "bl2_scratch_buffer.h"
 #include "bl2_timer.h"
+#include "interrupt.h"
 #include "FreeRTOS.h"
 #include "portmacro.h"
 #include "semphr.h"
@@ -38,19 +39,24 @@ static inline void et_trace_buffer_lock_acquire(void);
 static inline void et_trace_buffer_lock_release(void);
 
 /* Master Minion trace buffer locks */
-#define ET_TRACE_BUFFER_LOCK_ACQUIRE      et_trace_buffer_lock_acquire();
-#define ET_TRACE_BUFFER_LOCK_RELEASE      et_trace_buffer_lock_release();
+#define ET_TRACE_BUFFER_LOCK_ACQUIRE et_trace_buffer_lock_acquire();
+#define ET_TRACE_BUFFER_LOCK_RELEASE et_trace_buffer_lock_release();
 
-#define ET_TRACE_GET_TIMESTAMP()          timer_get_ticks_count()
+#define ET_TRACE_GET_TIMESTAMP() timer_get_ticks_count()
 
 /* Define for Encoder */
 #define ET_TRACE_ENCODER_IMPL
 #include "trace.h"
-
+#include "bl2_exception.h"
 /*
  * Service Processor Trace control block.
  */
 struct trace_control_block_t SP_Trace_CB;
+
+/*
+ * Exception Trace control block.
+ */
+struct trace_control_block_t SP_Exp_Trace_CB;
 
 /* Trace buffer lock */
 static SemaphoreHandle_t Trace_Mutex_Handle = NULL;
@@ -62,8 +68,8 @@ static void Trace_Configure(uint32_t event_mask, uint32_t filter_mask);
 /* Trace buffer locking routines */
 static inline void et_trace_buffer_lock_acquire(void)
 {
-    /* Acquire the Mutex */
-    if (Trace_Mutex_Handle && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+    /* Acquire the Mutex (only in case of non-trap context)*/
+    if (!INT_Is_Trap_Context() && Trace_Mutex_Handle)
     {
         xSemaphoreTake(Trace_Mutex_Handle, portMAX_DELAY);
     }
@@ -71,8 +77,8 @@ static inline void et_trace_buffer_lock_acquire(void)
 
 static inline void et_trace_buffer_lock_release(void)
 {
-    /* Release the Mutex */
-    if (Trace_Mutex_Handle && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+    /* Release the Mutex (only in case of non-trap context)*/
+    if (!INT_Is_Trap_Context() && Trace_Mutex_Handle)
     {
         xSemaphoreGive(Trace_Mutex_Handle);
     }
@@ -98,8 +104,7 @@ void Trace_Process_Control_Cmd(void *buffer)
     if (dm_cmd->control & TRACE_CONTROL_TRACE_ENABLE)
     {
         Trace_Run_Control(TRACE_ENABLE);
-        Log_Write(LOG_LEVEL_INFO,
-                            "TRACE_RT_CONTROL:SP:Trace Enabled.\r\n");
+        Log_Write(LOG_LEVEL_INFO, "TRACE_RT_CONTROL:SP:Trace Enabled.\r\n");
     }
     else
     {
@@ -107,21 +112,18 @@ void Trace_Process_Control_Cmd(void *buffer)
         Trace_Run_Control(TRACE_DISABLE);
         //NOSONAR TODO: https://esperantotech.atlassian.net/browse/SW-9220
         //NOSONAR evict(to_Mem, (void *)SP_Trace_CB.base_per_hart, SP_Trace_CB.offset_per_hart);
-        Log_Write(LOG_LEVEL_INFO,
-                            "TRACE_RT_CONTROL:SP:Trace Disabled.\r\n");
+        Log_Write(LOG_LEVEL_INFO, "TRACE_RT_CONTROL:SP:Trace Disabled.\r\n");
     }
 
     if (dm_cmd->control & TRACE_CONTROL_TRACE_UART_ENABLE)
     {
         Log_Set_Interface(LOG_DUMP_TO_UART);
-        Log_Write(LOG_LEVEL_INFO,
-                "TRACE_RT_CONTROL:SP:Logs redirected to UART.\r\n");
+        Log_Write(LOG_LEVEL_INFO, "TRACE_RT_CONTROL:SP:Logs redirected to UART.\r\n");
     }
     else
     {
         Log_Set_Interface(LOG_DUMP_TO_TRACE);
-        Log_Write(LOG_LEVEL_INFO,
-                "TRACE_RT_CONTROL:SP:Logs redirected to Trace buffer\r\n");
+        Log_Write(LOG_LEVEL_INFO, "TRACE_RT_CONTROL:SP:Logs redirected to Trace buffer\r\n");
     }
 }
 
@@ -130,12 +132,11 @@ static void send_trace_control_response(tag_id_t tag_id, msg_id_t msg_id, uint64
     struct device_mgmt_default_rsp_t dm_rsp;
 
     FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time,
-                     DM_STATUS_SUCCESS);
+                    DM_STATUS_SUCCESS);
 
     dm_rsp.payload = DM_STATUS_SUCCESS;
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
-                                        sizeof(struct device_mgmt_default_rsp_t)))
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR, "send_trace_control_response: Cqueue push error!\n");
     }
@@ -143,8 +144,7 @@ static void send_trace_control_response(tag_id_t tag_id, msg_id_t msg_id, uint64
 
 void Trace_Process_Config_Cmd(void *buffer)
 {
-    struct device_mgmt_trace_config_cmd_t *dm_cmd =
-        (struct device_mgmt_trace_config_cmd_t *)buffer;
+    struct device_mgmt_trace_config_cmd_t *dm_cmd = (struct device_mgmt_trace_config_cmd_t *)buffer;
 
     Trace_Configure(dm_cmd->event_mask, dm_cmd->filter_mask);
     if (dm_cmd->event_mask & TRACE_EVENT_STRING)
@@ -159,12 +159,12 @@ static void send_trace_config_response(tag_id_t tag_id, msg_id_t msg_id, uint64_
     struct device_mgmt_default_rsp_t dm_rsp;
 
     FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time,
-                     DM_STATUS_SUCCESS);
+                    DM_STATUS_SUCCESS);
 
     dm_rsp.payload = DM_STATUS_SUCCESS;
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
-                                        sizeof(struct device_mgmt_trace_config_rsp_t)))
+    if (0 !=
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_trace_config_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR, "send_trace_config_response: Cqueue push error!\n");
     }
@@ -215,12 +215,12 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
         void *trace_buff = get_scratch_buffer(&sp_init_info_l.buffer_size);
         sp_init_info_l.buffer = (uint64_t)trace_buff;
 #else
-        sp_init_info_l.buffer        = SP_TRACE_BUFFER_BASE;
-        sp_init_info_l.buffer_size   = SP_TRACE_BUFFER_SIZE;
+        sp_init_info_l.buffer = SP_TRACE_BUFFER_BASE;
+        sp_init_info_l.buffer_size = SP_TRACE_BUFFER_SIZE_PER_SUB_BUFFER;
 #endif
-        sp_init_info_l.event_mask    = TRACE_EVENT_STRING;
-        sp_init_info_l.filter_mask   = TRACE_EVENT_STRING_WARNING;
-        sp_init_info_l.threshold     = sp_init_info_l.buffer_size;
+        sp_init_info_l.event_mask = TRACE_EVENT_STRING;
+        sp_init_info_l.filter_mask = TRACE_EVENT_STRING_WARNING;
+        sp_init_info_l.threshold = sp_init_info_l.buffer_size;
     }
     else
     {
@@ -244,9 +244,11 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     /* Put the MAJIC. */
     trace_header->magic_header = TRACE_MAGIC_HEADER;
 
-    /* Put the buffer partitioning info for a single buffer. */
-    trace_header->sub_buffer_count = 1;
-    trace_header->sub_buffer_size = SP_TRACE_BUFFER_SIZE;
+    /* SP buffer has been partitioned into two parts, one will be used for SP events and other
+       will be used explicitly for exception events
+       Put the buffer partitioning info for a single buffer. */
+    trace_header->sub_buffer_count = SP_TRACE_SUB_BUFFER_COUNT;
+    trace_header->sub_buffer_size = SP_TRACE_BUFFER_SIZE_PER_SUB_BUFFER;
 
     /* populate Trace layout version in Header. */
     trace_header->version.major = TRACE_VERSION_MAJOR;
@@ -277,7 +279,7 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
 *       trace_control_block_t Pointer to the Trace control block.
 *
 ***********************************************************************/
-struct trace_control_block_t* Trace_Get_SP_CB(void)
+struct trace_control_block_t *Trace_Get_SP_CB(void)
 {
     return &SP_Trace_CB;
 }
@@ -403,4 +405,142 @@ void Trace_Process_CMD(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
         default:
             break;
     }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Exception_Init_SP
+*
+*   DESCRIPTION
+*
+*       This function initializes Trace for Service Processor exception reporting
+*
+*   INPUTS
+*
+*       init_info exception trace init info
+*
+*   OUTPUTS
+*
+*       Status of SP Exception trace initialization (Success or any Error)
+*
+***********************************************************************/
+int32_t Trace_Exception_Init_SP(const struct trace_init_info_t *init_info)
+{
+    struct trace_init_info_t exp_init_info_l;
+
+    if (init_info == NULL)
+    {
+        /* Populate default Trace configurations for Service Processor. */
+        exp_init_info_l.event_mask = TRACE_EVENT_STRING;
+        exp_init_info_l.filter_mask = TRACE_EVENT_STRING_WARNING;
+        exp_init_info_l.threshold = SP_TRACE_BUFFER_SIZE_PER_SUB_BUFFER;
+    }
+    else
+    {
+        memcpy(&exp_init_info_l, init_info, sizeof(struct trace_init_info_t));
+    }
+
+    /* Initialize exception trace buffer as sub-buffer of SP trace buffer 
+       with size equal to sub buffer size. */
+    SP_Exp_Trace_CB.size_per_hart = SP_TRACE_BUFFER_SIZE_PER_SUB_BUFFER;
+    SP_Exp_Trace_CB.base_per_hart = (SP_TRACE_BUFFER_BASE + SP_TRACE_BUFFER_SIZE_PER_SUB_BUFFER);
+
+    struct trace_buffer_size_header_t *size_header =
+        (struct trace_buffer_size_header_t *)SP_Exp_Trace_CB.base_per_hart;
+
+    size_header->data_size = sizeof(struct trace_buffer_size_header_t);
+
+    /* Set the default offset */
+    SP_Exp_Trace_CB.offset_per_hart = sizeof(struct trace_buffer_size_header_t);
+
+    /* Initialize Trace for SP Exception buffer. */
+    return Trace_Init(&exp_init_info_l, &SP_Exp_Trace_CB, TRACE_SIZE_HEADER);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Get_SP_Exp_CB
+*
+*   DESCRIPTION
+*
+*       This function returns the Trace control block (CB) for SP Exception.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       trace_control_block_t Pointer to the Trace control block.
+*
+***********************************************************************/
+struct trace_control_block_t *Trace_Get_SP_Exp_CB(void)
+{
+    return &SP_Exp_Trace_CB;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Exception_Dump_Context
+*
+*   DESCRIPTION
+*
+*       This function dumps stack context to trace and returns trace buffer
+        offset.
+*
+*   INPUTS
+*
+*       stack_frame 
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+uint8_t *Trace_Exception_Dump_Context(const void *stack_frame)
+{
+    struct dev_context_registers_t context = { 0 };
+    const uint64_t *stack_pointer = (const uint64_t *)stack_frame;
+    uint8_t *trace_buf;
+
+    /* Dump the stack frame - for stack frame defintion,
+        see the comments in the portASM.c file */
+
+    /* Move the stack pointer to x1 saved location */
+    stack_pointer++;
+
+    /* Save x1 first */
+    context.gpr[0] = *stack_pointer;
+
+    /* Move the stack pointer to x5 saved location */
+    stack_pointer++;
+
+    /* Dump x5 to x31 to specified context structure */
+    memcpy((void *)&context.gpr[4], stack_pointer,
+           SP_EXCEPTION_STACK_FRAME_SIZE - (sizeof(uint64_t) * 1));
+
+    /* Dump CSRs to the specified context structure */
+    asm volatile("csrr %0, mcause\n"
+                 "csrr %1, mstatus\n"
+                 "csrr %2, mepc\n"
+                 "csrr %3, mtval"
+                 : "=r"(context.cause), "=r"(context.status), "=r"(context.epc),
+                   "=r"(context.tval));
+
+    /* Log the execution stack event to trace */
+    trace_buf = Trace_Execution_Stack(&SP_Exp_Trace_CB, &context);
+
+    /* Update data size in size header of exception buffer */
+    struct trace_buffer_size_header_t *size_header =
+        (struct trace_buffer_size_header_t *)SP_Exp_Trace_CB.base_per_hart;
+
+    size_header->data_size = SP_Exp_Trace_CB.offset_per_hart;
+
+    return trace_buf;
 }

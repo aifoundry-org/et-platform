@@ -14,17 +14,13 @@
 
     Public interfaces:
     bl2_exception_entry
-    bl2_dump_stack_frame
+    BL2_Report_Event
 */
 /***********************************************************************/
 #include "bl2_exception.h"
 #include "portmacro.h"
 
-#include <et-trace/encoder.h>
-
 /* Local functions */
-static void dump_stack_frame_and_csrs(const void *stack_frame,
-    struct dev_context_registers_t *context);
 static void dump_perf_globals_trace(void);
 static void dump_power_globals_trace(void);
 static void dump_power_states_globals_trace(void);
@@ -45,6 +41,9 @@ static void dump_power_states_globals_trace(void);
     memcpy(buff_ptr, &residency_struct, sizeof(residency_struct));                    \
     buff_idx += sizeof(residency_struct);
 
+/* trap context variable has to be set to true in case of exception. This will
+   enable sending exception event to host without using any semaphores */
+extern bool is_trap_context;
 /************************************************************************
 *
 *   FUNCTION
@@ -67,22 +66,20 @@ static void dump_power_states_globals_trace(void);
 ***********************************************************************/
 __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
 {
-    struct dev_context_registers_t context = {0};
-    struct trace_control_block_t *trace_cb = Trace_Get_SP_CB();
     uint8_t *trace_buf;
+
+    /* It is an exception trap so set trap context to true here*/
+    is_trap_context = true;
 
     /* Disable global interrupts - no nested exceptions */
     portDISABLE_INTERRUPTS();
 
     /* Dump the arch and chip specific registers. No chip registers are
-    currently saved in the context switch code. */
-    dump_stack_frame_and_csrs(stack_frame, &context);
-
-    /* Log the execution stack event to trace */
-    trace_buf = Trace_Execution_Stack(trace_cb, &context);
+    currently saved in the context switch code and log the execution stack event to trace */
+    trace_buf = Trace_Exception_Dump_Context(stack_frame);
 
     /* Generate exception event for host */
-    SP_Exception_Event(SP_TRACE_GET_ENTRY_OFFSET(trace_buf, trace_cb));
+    BL2_Report_Event(SP_TRACE_GET_ENTRY_OFFSET(trace_buf), SP_RUNTIME_EXCEPT);
 
     /* Dump performance and power globals to trace */
     dump_perf_globals_trace();
@@ -94,99 +91,6 @@ __attribute__((noreturn)) void bl2_exception_entry(const void *stack_frame)
     /* No recovery for now - spin forever */
     while (1)
         ;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       bl2_dump_stack_frame
-*
-*   DESCRIPTION
-*
-*       This function  dumps the stack frame for non-exception traps such as
-*       watch dog interrupts.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       Pointer to region in trace buffer reserved for exception stack entry
-*
-***********************************************************************/
-uint8_t *bl2_dump_stack_frame(void)
-{
-    struct dev_context_registers_t context = {0};
-    uint64_t stack_frame;
-    uint8_t *trace_buf;
-
-    /* For dumping the stack frame outside of exception context such as
-        wdog interrupt, the stack is assumed to be present in the a7 register.
-        The trap handler saves the sp in the a7 and it is preserved till we reach
-        the driver ISR handler.
-    */
-    asm volatile("mv %0, a7" : "=r"(stack_frame));
-
-    /* Dump the context */
-    dump_stack_frame_and_csrs((void*)stack_frame, &context);
-
-    /* Log the execution stack event to trace */
-    trace_buf = Trace_Execution_Stack(Trace_Get_SP_CB(), &context);
-
-    return trace_buf;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       dump_stack_frame_and_csrs
-*
-*   DESCRIPTION
-*
-*       This function dumps the stack frame state and CSRs to trace buffer
-*       or console.
-*
-*   INPUTS
-*
-*       stack_frame    Pointer to stack frame
-*       context        Pointer to context registers structure
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-static void dump_stack_frame_and_csrs(const void *stack_frame,
-    struct dev_context_registers_t *context)
-{
-    const uint64_t *stack_pointer = (const uint64_t *)stack_frame;
-
-    /* Dump the stack frame - for stack frame defintion,
-        see the comments in the portASM.c file */
-
-    /* Move the stack pointer to x1 saved location */
-    stack_pointer++;
-
-    /* Save x1 first */
-    context->gpr[0] = *stack_pointer;
-
-    /* Move the stack pointer to x5 saved location */
-    stack_pointer++;
-
-    /* Dump x5 to x31 to specified context structure */
-    memcpy((void*)&context->gpr[4], stack_pointer,
-        SP_EXCEPTION_STACK_FRAME_SIZE - (sizeof(uint64_t) * 1));
-
-    /* Dump CSRs to the specified context structure */
-    asm volatile("csrr %0, mcause\n"
-                 "csrr %1, mstatus\n"
-                 "csrr %2, mepc\n"
-                 "csrr %3, mtval"
-                 : "=r"(context->cause), "=r"(context->status),
-                   "=r"(context->epc), "=r"(context->tval));
 }
 
 /************************************************************************
@@ -363,32 +267,33 @@ static void dump_power_states_globals_trace(void)
 *
 *   FUNCTION
 *
-*       SP_Exception_Event
+*       BL2_Report_Event
 *
 *   DESCRIPTION
 *
-*       Generate exception event to host
+*       Generate event to host directly via CQ
 *
 *   INPUTS
 *
 *       trace_buffer_offset    Offset in trace buffer
+*       event    event id to report
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void SP_Exception_Event(uint64_t trace_buffer_offset)
+void BL2_Report_Event(uint64_t trace_buffer_offset, enum event_ids event)
 {
     struct event_message_t message;
 
     /* add details in message header and fill payload */
-    FILL_EVENT_HEADER(&message.header, SP_RUNTIME_EXCEPT, sizeof(struct event_message_t))
+    FILL_EVENT_HEADER(&message.header, event, sizeof(struct event_message_t))
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, timer_get_ticks_count(), trace_buffer_offset)
 
     /* Post message to the queue */
     if (0 != SP_Host_Iface_CQ_Push_Cmd((void *)&message, sizeof(message)))
     {
-        Log_Write(LOG_LEVEL_ERROR, "SP_Exception_Event: push to CQ failed!\n");
+        Log_Write(LOG_LEVEL_ERROR, "BL2_Report_Event: push to CQ failed!\n");
     }
 }

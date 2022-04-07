@@ -29,18 +29,19 @@
 #include "sp_host_iface.h"
 #include "etsoc/drivers/pcie/pcie_int.h"
 #include "transports/vq/vq.h"
+#include "interrupt.h"
 #include "log.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
 #include "portmacro.h"
 
-
 /*! \struct host_iface_sqs_cb_t;
     \brief Host interface control block that manages
     submissions queues
 */
-typedef struct host_iface_sqs_cb_ {
+typedef struct host_iface_sqs_cb_
+{
     uint32_t vqueue_base; /* This is a 32 bit offset from base */
     uint32_t vqueue_size;
     vq_cb_t vqueue;
@@ -50,7 +51,8 @@ typedef struct host_iface_sqs_cb_ {
     \brief Host interface control block that manages
     completion queues
 */
-typedef struct host_iface_cqs_cb_ {
+typedef struct host_iface_cqs_cb_
+{
     /* Local copy globals */
     circ_buff_cb_t circ_buff_local;
     /* Shared copy globals */
@@ -59,18 +61,17 @@ typedef struct host_iface_cqs_cb_ {
     vq_cb_t vqueue;
 } sp_host_iface_cqs_cb_t;
 
-
 /*! \var host_iface_sqs_cb_t Host_SQs
     \brief Global Host to SP submission
     queues interface
 */
-static sp_host_iface_sqs_cb_t SP_Host_SQ __attribute__((aligned(64))) = {0};
+static sp_host_iface_sqs_cb_t SP_Host_SQ __attribute__((aligned(64))) = { 0 };
 
 /*! \var host_iface_cqs_cb_t Host_CQs
     \brief Global SP to Host Minion completion
     queues interface
 */
-static sp_host_iface_cqs_cb_t SP_Host_CQ __attribute__((aligned(64))) = {0};
+static sp_host_iface_cqs_cb_t SP_Host_CQ __attribute__((aligned(64))) = { 0 };
 
 /*! \var SemaphoreHandle_t Host_CQ_Lock
     \brief Host CQ lock
@@ -117,7 +118,7 @@ int8_t SP_Host_Iface_Init(void)
 
     status = SP_Host_Iface_SQ_Init();
 
-    if(status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         status = SP_Host_Iface_CQ_Init();
     }
@@ -154,8 +155,8 @@ int8_t SP_Host_Iface_SQ_Init(void)
     SP_Host_SQ.vqueue_size = SP_SQ_SIZE;
 
     /* Initialize the SQ circular buffer */
-    status = VQ_Init(&SP_Host_SQ.vqueue, SP_Host_SQ.vqueue_base,
-        SP_Host_SQ.vqueue_size, 0, sizeof(cmd_size_t), SP_SQ_MEM_TYPE);
+    status = VQ_Init(&SP_Host_SQ.vqueue, SP_Host_SQ.vqueue_base, SP_Host_SQ.vqueue_size, 0,
+                     sizeof(cmd_size_t), SP_SQ_MEM_TYPE);
 
     if (status == STATUS_SUCCESS)
     {
@@ -199,15 +200,15 @@ int8_t SP_Host_Iface_CQ_Init(void)
     SP_Host_CQ.vqueue_size = SP_CQ_SIZE;
 
     /* Initialize the SQ circular buffer */
-    status = VQ_Init(&SP_Host_CQ.vqueue, SP_Host_CQ.vqueue_base,
-        SP_Host_CQ.vqueue_size, 0, sizeof(cmd_size_t), SP_CQ_MEM_TYPE);
+    status = VQ_Init(&SP_Host_CQ.vqueue, SP_Host_CQ.vqueue_base, SP_Host_CQ.vqueue_size, 0,
+                     sizeof(cmd_size_t), SP_CQ_MEM_TYPE);
 
     /* Populate data in local copy globals */
-    if(status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
         /* Make a copy of the Circular Buffer CB in shared SRAM to global variable */
         memcpy(&SP_Host_CQ.circ_buff_local, SP_Host_CQ.vqueue.circbuff_cb,
-            sizeof(SP_Host_CQ.circ_buff_local));
+               sizeof(SP_Host_CQ.circ_buff_local));
     }
 
     if (status == STATUS_SUCCESS)
@@ -242,12 +243,12 @@ int8_t SP_Host_Iface_CQ_Init(void)
 *       uint16_t    Returns SQ command size read or zero for error.
 *
 ***********************************************************************/
-int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
+int8_t SP_Host_Iface_CQ_Push_Cmd(void *p_cmd, uint32_t cmd_size)
 {
-    int8_t status = GENERAL_ERROR;
+    int8_t status = STATUS_SUCCESS;
 
-    /* Obtain the mutex to serialize access to the VQs.
-       The mutex includes the priority inheritance and hence
+    /* Obtain the mutex (only in case of non-trap context) to serialize access
+       to the VQs. The mutex includes the priority inheritance and hence
        avoids the priority inversion problem
        In case mutex is already locked, the calling task will have to wait until
        it is released by the prior task. The max wait time is defined by the
@@ -255,21 +256,31 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
        If wait time exceeds the HOST_VQ_MAX_TIMEOUT, the call will return with
        the error.
     */
-    if (xSemaphoreTake(Host_CQ_Lock, (TickType_t)HOST_VQ_MAX_TIMEOUT ) == pdTRUE)
+    if (!INT_Is_Trap_Context())
+    {
+        /* Obtain semaphore if it's not a trap context */
+        if (xSemaphoreTake(Host_CQ_Lock, (TickType_t)HOST_VQ_MAX_TIMEOUT) != pdTRUE)
+        {
+            status = GENERAL_ERROR;
+        }
+    }
+
+    if (status == STATUS_SUCCESS)
     {
         /* Verify that the head value read from shared memory is equal to previous head value */
-        if(SP_Host_CQ.circ_buff_local.head_offset != VQ_Get_Head_Offset(&SP_Host_CQ.vqueue))
+        if (SP_Host_CQ.circ_buff_local.head_offset != VQ_Get_Head_Offset(&SP_Host_CQ.vqueue))
         {
-            uint64_t local_head_offset =  SP_Host_CQ.circ_buff_local.head_offset;
+            uint64_t local_head_offset = SP_Host_CQ.circ_buff_local.head_offset;
             uint64_t reference_head_offset = VQ_Get_Head_Offset(&SP_Host_CQ.vqueue);
 
             /* Fallback mechanism: use the cached copy of SQ tail */
             SP_Host_CQ.vqueue.circbuff_cb->head_offset = SP_Host_CQ.circ_buff_local.head_offset;
 
             /* If this condition occurs, there's definitely some corruption in VQs */
-            Log_Write(LOG_LEVEL_WARNING,
-            "SP_Host_Iface_CQ_Push_Cmd:FATAL_ERROR:Tail Mismatch:Local: %ld, Shared Memory: %ld Using local value as fallback mechanism\r\n",
-            local_head_offset, reference_head_offset);
+            Log_Write(
+                LOG_LEVEL_WARNING,
+                "SP_Host_Iface_CQ_Push_Cmd:FATAL_ERROR:Tail Mismatch:Local: %ld, Shared Memory: %ld Using local value as fallback mechanism\r\n",
+                local_head_offset, reference_head_offset);
         }
 
         /* Push the command to circular buffer */
@@ -278,12 +289,15 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
         /* Get the updated head pointer in local copy */
         SP_Host_CQ.circ_buff_local.head_offset = VQ_Get_Head_Offset(&SP_Host_CQ.vqueue);
 
-        if(status == STATUS_SUCCESS)
+        if (status == STATUS_SUCCESS)
         {
             pcie_interrupt_host(SP_CQ_NOTIFY_VECTOR);
         }
 
-        xSemaphoreGive(Host_CQ_Lock);
+        if (!INT_Is_Trap_Context())
+        {
+            xSemaphoreGive(Host_CQ_Lock);
+        }
     }
 
     return status;
@@ -308,12 +322,12 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size)
 *       uint32_t    Returns SQ command size read or zero for error.
 *
 ***********************************************************************/
-uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff)
+uint32_t SP_Host_Iface_SQ_Pop_Cmd(void *rx_buff)
 {
     uint32_t return_val = 0;
     int32_t pop_ret_val = 0;
 
-   /*  Obtain the mutex to serialize access to the VQs.
+    /*  Obtain the mutex to serialize access to the VQs.
        The mutex includes the priority inheritance and hence
        avoids the priority inversion problem
        In case mutex is already locked, the calling task will have to wait until
@@ -322,7 +336,7 @@ uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff)
        If wait time exceeds the HOST_VQ_MAX_TIMEOUT, the call will return with
        the error.
     */
-    if (xSemaphoreTake(Host_SQ_Lock, (TickType_t)HOST_VQ_MAX_TIMEOUT ) == pdTRUE)
+    if (xSemaphoreTake(Host_SQ_Lock, (TickType_t)HOST_VQ_MAX_TIMEOUT) == pdTRUE)
     {
         /* Pop the command from circular buffer */
         pop_ret_val = VQ_Pop(&SP_Host_SQ.vqueue, rx_buff);
@@ -361,23 +375,22 @@ uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff)
 *       vq_cb_t*    Pointer to Virtual queue base
 *
 ***********************************************************************/
-vq_cb_t* SP_Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type)
+vq_cb_t *SP_Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type)
 {
-    vq_cb_t* retval = 0;
+    vq_cb_t *retval = 0;
 
-    if(vq_type == SQ)
+    if (vq_type == SQ)
     {
         retval = &SP_Host_SQ.vqueue;
     }
-    else if(vq_type == CQ)
+    else if (vq_type == CQ)
     {
         retval = &SP_Host_CQ.vqueue;
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR,
-            "HostIface:ERROR:Obtaining VQ base address, bad vq_type: %d\r\n",
-            vq_type);
+        Log_Write(LOG_LEVEL_ERROR, "HostIface:ERROR:Obtaining VQ base address, bad vq_type: %d\r\n",
+                  vq_type);
     }
 
     return retval;

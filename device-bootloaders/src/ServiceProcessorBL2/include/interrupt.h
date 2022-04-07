@@ -19,6 +19,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /* TODO FIXME generate these. Copied by hand by wearle 5/3/2019.
   See esperanto-soc/dv/tests/ioshire/sw/inc/pu_plic_intr_device.h
@@ -251,3 +252,10 @@ void INT_enableInterrupt(interrupt_t interrupt, uint32_t priority, void (*isr)(v
     \return The function call status, pass/fail.
 */
 void INT_disableInterrupt(interrupt_t interrupt);
+
+/*! \fn INT_Is_Trap_Context(void)
+    \brief This function returns context state variable value to determine if it is 
+           a trap context or not.
+    \return None.
+*/
+bool INT_Is_Trap_Context(void);

@@ -15,6 +15,7 @@
         INT_init
         INT_enableInterrupt
         INT_disableInterrupt
+        INT_Is_Trap_Context
 */
 /***********************************************************************/
 
@@ -45,6 +46,13 @@
     \brief Interrupt priority mask
 */
 #define PRIORITY_MASK 0x7U
+
+/*! \def is_trap_context
+    \brief global variable to hold information that current execution context is from
+           a trap handler. This is used in calls to prevent take/give semaphores in case
+           of ISR.
+*/
+bool is_trap_context = false;
 
 static void (*vectorTable[SPIO_PLIC_INTR_SRC_CNT])(void);
 
@@ -191,8 +199,15 @@ void external_interrupt_handler(uint64_t cause)
     if (ulMaxID == 0)
         return;
 
+    /* set trap context variable to true to indicate that currently a trap is being 
+       handeled. */
+    is_trap_context = true;
+
     /* Dispatch it */
     (*vectorTable[ulMaxID])();
+
+    /* trap has been serviced */
+    is_trap_context = false;
 
     /* Write ulMaxID to indicate the interrupt has been serviced */
     iowrite32(SPIO_PLIC + SPIO_PLIC_MAXID_T0_ADDRESS, ulMaxID);
@@ -212,8 +227,15 @@ static void pu_plicISR(void)
     if (pu_plicIntID == 0)
         return;
 
+    /* set trap context variable to true to indicate that currently a trap is being 
+       handeled. */
+    is_trap_context = true;
+
     /* Dispatch it */
     (*pu_plicVectorTable[pu_plicIntID])();
+
+    /* trap has been serviced */
+    is_trap_context = false;
 
     /* Tell the PU_PLIC the interrupt is complete and it can signal again */
     /* Important: it needs to match the int ID read above */
@@ -221,4 +243,10 @@ static void pu_plicISR(void)
 
     /* Assumption: external_interrupt_handler will write
        the SP_PLIC's MaxID reg after this returns, */
+}
+
+bool INT_Is_Trap_Context(void)
+{
+    /* return state of trap context variable */
+    return is_trap_context;
 }
