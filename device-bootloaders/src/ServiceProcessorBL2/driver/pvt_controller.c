@@ -994,7 +994,7 @@ static void pvt_print_pshire_voltage_sampled_values(void)
     PShire_VM_sample pshire_sample = {{0, 0, 0}, {0, 0, 0}};
     ret = pvt_get_pshire_vm_sample(&pshire_sample);
     if (0 != ret) {
-        Log_Write(LOG_LEVEL_CRITICAL, "PSHIRE Voltage [mV]:"
+        Log_Write(LOG_LEVEL_WARNING, "PSHIRE Voltage [mV]:"
                 " VDD_PSHR: Sample fault VDD_NOC: Sample fault \n");
     }
     else {

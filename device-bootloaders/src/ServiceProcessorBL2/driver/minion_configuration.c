@@ -891,16 +891,13 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
 
     if(use_step_clock)
     {
+        Log_Write(LOG_LEVEL_CRITICAL, "Minion Shire PLL using Step Clock\n");
         status = minion_configure_hpdpll(hpdpll_mode, minion_shires_mask);
-    }
-    else if (0 != minion_configure_plls_and_dlls(minion_shires_mask, lvdpll_mode))
-    {
-        Log_Write(LOG_LEVEL_ERROR, "minion_configure_plls_and_dlls() failed!\n");
-        return MINION_PLL_CONFIG_ERROR;
     }
     else
     {
-        Log_Write(LOG_LEVEL_WARNING, "Minion Shire PLL using Ref Clock\n");
+        Log_Write(LOG_LEVEL_CRITICAL, "Minion Shire PLL using LVDPLL Clock\n");
+        status = minion_configure_plls_and_dlls(minion_shires_mask, lvdpll_mode);
     }
 
     return status;

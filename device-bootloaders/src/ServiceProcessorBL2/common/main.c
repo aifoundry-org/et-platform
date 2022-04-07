@@ -135,9 +135,6 @@ static void taskMain(void *pvParameters)
 #endif
 #endif
 
-    /* Print Pshire PVT sampled values */
-    pvt_print_voltage_sampled_values(PVTC_PSHIRE);
-
     // Extract the active Compute Minions based on fuse
     minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
     Minion_Set_Active_Shire_Mask(minion_shires_mask);
@@ -184,10 +181,6 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_noc() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED);
 
-    /* Print IOSHIRE PVT sampled values */
-    pvt_print_temperature_sampled_values(PVTC_IOSHIRE);
-    pvt_print_voltage_sampled_values(PVTC_IOSHIRE);
-
 #if !(FAST_BOOT || TEST_FRAMEWORK)
     // Initialize Flash service
     status = flashfs_drv_init();
@@ -212,9 +205,6 @@ static void taskMain(void *pvParameters)
     status = configure_memshire();
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_memshire() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
-
-    /* Print MemShire PVT sampled values */
-    pvt_print_voltage_sampled_values(PVTC_MEMSHIRE);
 
     /* Setup Compute Minions Shire Clocks and bring them out of Reset */
     uint8_t lvdpll_strap_pins;
@@ -315,23 +305,16 @@ static void taskMain(void *pvParameters)
         Log_Write(LOG_LEVEL_CRITICAL, "MM heartbeat alive!\r\n");
     }
 
-    /* Print PVT sampled values */
-    pvt_print_temperature_sampled_values(PVTC_MINION_SHIRE);
-    pvt_print_voltage_sampled_values(PVTC_MINION_SHIRE);
+    /* Print system operating point */
+    print_system_operating_point();
 
     /* Inform Host Device is Ready */
     Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
 
-    /* Print system operating point */
-    print_system_operating_point();
-
-    Trace_Init_SP(NULL);
     /* Redirect the log messages to trace buffer after initialization is done */
+    Trace_Init_SP(NULL);
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
-
-    /* Enable SPIO PLLs lock loss interrupt */
-    enable_spio_pll_lock_loss_interrupt();
 
     while (1) {
         Log_Write(LOG_LEVEL_CRITICAL, "SP Alive..\r\n");
