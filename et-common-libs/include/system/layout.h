@@ -285,8 +285,9 @@ Offset by 1<<6 = 64 to distribute stack bases across different memory controller
 #define KERNEL_UMODE_STACK_END                  (KERNEL_UMODE_STACK_BASE - (KERNEL_UMODE_STACK_SIZE * CM_HART_COUNT))
 
 /* U-mode user kernels entry point
-   (WARNING: Fixed address - should sync compute kernels linker script) */
-#define KERNEL_UMODE_ENTRY                      FOUR_K_ALIGN(KERNEL_UMODE_STACK_BASE + KERNEL_UMODE_STACK_SIZE)
+   (WARNING: Fixed address - should sync compute kernels linker script)
+   Note: Give a 4K offset from U-mode stacks so that we don't have any address collision. */
+#define KERNEL_UMODE_ENTRY                      FOUR_K_ALIGN(KERNEL_UMODE_STACK_BASE + SIZE_4KB)
 
 /* Define the address range in DRAM that the host runtime can explicitly manage
 the range is the START to (END-1) */
@@ -312,7 +313,7 @@ static_assert(CM_UMODE_TRACE_CB_BASEADDR == 0x8004d23000ULL,
               "U-mode Trace CB address is changed, it needs to be adjusted in U-mode Trace");
 
 /* Ensure that fixed U-mode kernels entry address has not been changed. */
-static_assert(KERNEL_UMODE_ENTRY == 0x8005802000ULL,
+static_assert(KERNEL_UMODE_ENTRY == 0x8005801000ULL,
               "Kernel U-mode entry is changed, it needs to be adjusted in linker script");
 
 #endif /* __ASSEMBLER__ */
