@@ -66,7 +66,7 @@ TEST_F(DeviceErrors, KernelLaunchException) {
 }
 
 int main(int argc, char** argv) {
-  Fixture::sMode = IsPcie(argc, argv) ? Fixture::Mode::PCIE : Fixture::Mode::SYSEMU;
+  ParseArguments(argc, argv);
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

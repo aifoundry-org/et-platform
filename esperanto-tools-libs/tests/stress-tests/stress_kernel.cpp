@@ -209,7 +209,7 @@ TEST_F(StressKernel, 64_ele_100K_exe_1st_10_th_nocheck_NOSYSEMU) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-  Fixture::sMode = IsPcie(argc, argv) ? Fixture::Mode::PCIE : Fixture::Mode::SYSEMU;
+  ParseArguments(argc, argv);
   g3::log_levels::disable(DEBUG);
   return RUN_ALL_TESTS();
 }

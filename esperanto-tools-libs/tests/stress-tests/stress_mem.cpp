@@ -126,6 +126,6 @@ TEST_F(StressMem, 1KB_1M_memcpies_10th_NOSYSEMU) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-  StressMem::sMode = IsPcie(argc, argv) ? StressMem::Mode::PCIE : StressMem::Mode::SYSEMU;
+  ParseArguments(argc, argv);
   return RUN_ALL_TESTS();
 }

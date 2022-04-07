@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logger.h>
 #include <hostUtils/threadPool/ThreadPool.h>
+#include <optional>
 #include <random>
 #include <runtime/IRuntime.h>
 #include <sw-sysemu/SysEmuOptions.h>
@@ -87,6 +88,7 @@ public:
       deviceLayer_ = std::make_unique<dev::IDeviceLayerFake>();
     }
     runtime_ = rt::IRuntime::create(deviceLayer_.get());
+    SetupTrace();
     devices_ = runtime_->getDevices();
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
 
@@ -106,6 +108,7 @@ public:
     }
     tp_.reset();
     runtime_.reset();
+    traceOut_.close();
     defaultStreams_.clear();
     devices_.clear();
     deviceLayer_.reset();
@@ -123,8 +126,22 @@ public:
 
   inline static Mode sMode = Mode::SYSEMU;
   inline static uint8_t sNumDevices = 1;
+  inline static bool sTraceEnabled = false;
+
+private:
+  void SetupTrace() {
+    if (sTraceEnabled) {
+      auto traceFile = ::testing::UnitTest::GetInstance()->current_test_info()->name() + std::string{".trace.json"};
+      auto profiler = runtime_->getProfiler();
+      RT_LOG(INFO) << "Traces enables for this test. Storing trace at file: " << traceFile;
+      traceOut_ = std::ofstream(traceFile);
+      ASSERT_TRUE(traceOut_.is_open());
+      profiler->start(traceOut_, rt::IProfiler::OutputType::Json);
+    }
+  }
 
 protected:
+  std::ofstream traceOut_;
   logging::LoggerDefault loggerDefault_;
   std::unique_ptr<dev::IDeviceLayer> deviceLayer_;
   rt::RuntimePtr runtime_;
@@ -195,4 +212,18 @@ inline bool IsPcie(int argc, char* argv[]) {
     }
   }
   return false;
+}
+
+inline bool IsTraceEnabled(int argc, char* argv[]) {
+  for (auto i = 1; i < argc; ++i) {
+    if (std::string{argv[i]} == "--trace") {
+      return true;
+    }
+  }
+  return false;
+}
+
+inline void ParseArguments(int argc, char* argv[]) {
+  Fixture::sMode = IsPcie(argc, argv) ? Fixture::Mode::PCIE : Fixture::Mode::SYSEMU;
+  Fixture::sTraceEnabled = IsTraceEnabled(argc, argv);
 }

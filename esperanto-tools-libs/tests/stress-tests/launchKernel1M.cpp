@@ -45,7 +45,7 @@ TEST_F(Fixture, Launch_1M_Kernels_noBarrier_NOSYSEMU) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-  Fixture::sMode = IsPcie(argc, argv) ? Fixture::Mode::PCIE : Fixture::Mode::SYSEMU;
+  ParseArguments(argc, argv);
   g3::log_levels::disable(DEBUG);
   return RUN_ALL_TESTS();
 }
