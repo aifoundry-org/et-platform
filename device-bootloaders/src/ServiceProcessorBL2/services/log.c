@@ -271,6 +271,10 @@ int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
     {
         Trace_String(level, Trace_Get_SP_CB(), str);
 
+        /* Update trace buffer header, this will update data size field
+           to reflect current data in buffer. */
+        Trace_Update_SP_Buffer_Header();
+
         /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
            type message. */
         bytes_written = TRACE_STRING_MAX_SIZE;

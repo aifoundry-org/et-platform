@@ -363,6 +363,34 @@ static void Trace_Configure(uint32_t event_mask, uint32_t filter_mask)
 *
 *   FUNCTION
 *
+*       Trace_Update_SP_Buffer_Header
+*
+*   DESCRIPTION
+*
+*       This function Updates Trace buffer header to reflect current data
+*       in buffer.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Update_SP_Buffer_Header(void)
+{
+    struct trace_buffer_std_header_t *trace_header =
+        (struct trace_buffer_std_header_t *)SP_Trace_CB.base_per_hart;
+
+    trace_header->data_size = SP_Trace_CB.offset_per_hart;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       Trace_Process_CMD
 *
 *   DESCRIPTION

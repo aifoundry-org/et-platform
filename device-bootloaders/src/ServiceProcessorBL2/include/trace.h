@@ -65,6 +65,13 @@ struct trace_control_block_t *Trace_Get_SP_CB(void);
 */
 uint32_t Trace_Get_SP_Buffer(void);
 
+/*! \fn void Trace_Update_SP_Buffer_Header(void)
+    \brief This function Updates Trace buffer header to reflect current data
+           in buffer.
+    \return None.
+*/
+void Trace_Update_SP_Buffer_Header(void);
+
 /*! \fn void Trace_RT_Process_CMD(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
     \brief This function processes trace commands from host, this includes
             configuring trace for Service Processor.
