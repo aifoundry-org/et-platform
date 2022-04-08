@@ -22,6 +22,10 @@ _deps
 
 # Conan
 test_package/build
+*.lock
+
+# Conan CI
+lockfiles_info.json
 
 # Local History for Visual Studio Code
 .history/
