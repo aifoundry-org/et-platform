@@ -582,8 +582,7 @@ local.properties
 
 # Conan
 test_package/build
+*.lock
 
 # Conan CI
-locks/
-variables.env
-conan-ci-pipelines-common/
+lockfiles_info.json
