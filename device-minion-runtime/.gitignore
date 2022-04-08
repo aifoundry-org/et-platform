@@ -9,16 +9,17 @@
 *_LOCAL_*.*
 *_REMOTE_*.*
 
-# Directories
+# build
 build/
-.vscode/
 cmake-build-*/
-.idea
 
 # conan
 test_package/build
+*.lock
 
 # conan ci
-locks/
-variables.env
-conan-ci-pipelines-common/
+lockfiles_info.json
+
+# IDE(s)
+.vscode/
+.idea
