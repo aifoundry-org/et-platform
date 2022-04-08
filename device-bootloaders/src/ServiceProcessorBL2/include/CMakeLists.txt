@@ -8,8 +8,8 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-get_filename_component(GET_GIT_HASH_ABS_PATH "${ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR}/esperanto-fw/get_git_hash.py" ABSOLUTE)
-get_filename_component(GET_GIT_VERSION_ABS_PATH "${ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR}/esperanto-fw/get_git_version.py" ABSOLUTE)
+get_filename_component(GET_GIT_HASH_ABS_PATH "${CMAKE_SOURCE_DIR}/scripts/get_git_hash.py" ABSOLUTE)
+get_filename_component(GET_GIT_VERSION_ABS_PATH "${CMAKE_SOURCE_DIR}/scripts/get_git_version.py" ABSOLUTE)
 set(CMAKE_GET_GIT_HASH ${GET_GIT_HASH_ABS_PATH}                  CACHE PATH   "get-git-hash" FORCE)
 set(CMAKE_GET_GIT_VERSION ${GET_GIT_VERSION_ABS_PATH}            CACHE PATH   "get-git-version" FORCE)
 

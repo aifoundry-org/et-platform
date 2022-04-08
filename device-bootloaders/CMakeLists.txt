@@ -49,11 +49,10 @@ option(BUILD_DOC "Build documentation" ON)
 
 ########## Dependencies #####################################
 
-find_package(EsperantoDeviceMinionRuntime REQUIRED)
 find_package(signedImageFormat REQUIRED)
 find_package(deviceApi REQUIRED)
-find_package(tf-protocol REQUIRED)
 find_package(EsperantoFlashTool CONFIG REQUIRED)
+find_package(tf-protocol REQUIRED)
 find_package(etsoc_hal REQUIRED)
 find_package(esperantoTrace REQUIRED)
 find_package(et-common-libs REQUIRED COMPONENTS sp-bl1 sp-bl2)
@@ -78,6 +77,7 @@ endif()
 
 add_subdirectory(external)
 add_subdirectory(src)
+add_subdirectory(scripts)
 
 ########## Installation #####################################
 
