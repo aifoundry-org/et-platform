@@ -4,11 +4,11 @@ cmake-build-*
 
 # conan
 test_package/build
+*.lock
 
 # CI
-locks/
-variables.env
-conan-ci-pipelines-common
+lockfiles_info.json
 
 # ide
 .idea
+.vscode/

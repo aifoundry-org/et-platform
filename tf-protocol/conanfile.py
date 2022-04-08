@@ -21,10 +21,10 @@ class TfProtocolCOnan(ConanFile):
     }
     generator = "CMakeDeps"
 
+    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
+    
     def set_version(self):
-        content = tools.load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
-        version = re.search(r"project\(tf-protocol VERSION \s*([\d.]+)", content).group(1)
-        self.version = version.strip()
+        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, self.name)
     
     def generate(self):
         tc = CMakeToolchain(self)
