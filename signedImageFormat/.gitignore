@@ -1,8 +1,13 @@
 # Conan
-conan/test_package/build/
+test_package/build/
+*.lock
+
+# conan ci
+lockfiles_info.json
 
 # common build folder names
 build/
+cmake-build-*
 
 # Created by .ignore support plugin (hsz.mobi)
 ### Vim template
@@ -236,6 +241,3 @@ _deps
 
 ## S/MIME message
 *.smime
-
-## Conan
-test_package/build
