@@ -50,7 +50,7 @@ TEST_F(IntegrationTestDevMgmtApiCmds, getDeviceErrorEvents) {
   if (getTestTarget() != Target::Loopback) {
     getDeviceErrorEvents(false /* Multiple devices */);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
@@ -59,18 +59,18 @@ TEST_F(IntegrationTestDevMgmtApiCmds, DISABLED_resetMM) {
   if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
     resetMM(false);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
 
 TEST_F(IntegrationTestDevMgmtApiCmds, setTraceControl) {
-  DM_LOG(INFO) << "setTraceControl: verifying disable trace control command";
+  DV_LOG(INFO) << "setTraceControl: verifying disable trace control command";
   setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE);
-  DM_LOG(INFO) << "setTraceControl: verifying enabling trace (dump to UART) control command";
+  DV_LOG(INFO) << "setTraceControl: verifying enabling trace (dump to UART) control command";
   setTraceControl(false /* Multiple devices */,
                   device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE | device_mgmt_api::TRACE_CONTROL_TRACE_UART_ENABLE);
-  DM_LOG(INFO) << "setTraceControl: verifying enabling trace (dump to trace buffer) control command";
+  DV_LOG(INFO) << "setTraceControl: verifying enabling trace (dump to trace buffer) control command";
   setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE);
 }
 
@@ -84,7 +84,6 @@ TEST_F(IntegrationTestDevMgmtApiCmds, setTraceConfigure) {
 }
 
 int main(int argc, char** argv) {
-  logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   FLAGS_minloglevel = 0;

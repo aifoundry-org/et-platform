@@ -58,7 +58,6 @@ TEST_F(SecurityTestDevMgmtApiThermalAndPowerMonitoringCmds, setModuleActivePower
 }
 
 int main(int argc, char** argv) {
-  logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   FLAGS_minloglevel = 0;

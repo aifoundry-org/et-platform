@@ -22,14 +22,6 @@ option(BUILD_TESTS "Build tests" ON)
 option(BUILD_TOOLS "Build dm_tester tool" ON)
 option(BUILD_DOC "Build documentation" ON)
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(MINION_DEBUG_INTERFACE 1)
-    set(NDEBUG 0)
-else()
-    set(MINION_DEBUG_INTERFACE 0)
-    set(NDEBUG 1)
-endif()
-
 add_library(deviceManagement_obj OBJECT
     src/DeviceManagement.cc
     src/utils.h
@@ -43,11 +35,19 @@ target_include_directories(deviceManagement_obj
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
 )
 
-target_compile_definitions(deviceManagement_obj
-    PUBLIC
-        -DMINION_DEBUG_INTERFACE=${MINION_DEBUG_INTERFACE}
-        -DNDEBUG=${NDEBUG}
-)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_options(deviceManagement_obj
+        PUBLIC
+            -DMINION_DEBUG_INTERFACE
+            -UNDEBUG
+    )
+else()
+    target_compile_options(deviceManagement_obj
+        PUBLIC
+            -UMINION_DEBUG_INTERFACE
+            -DNDEBUG
+    )
+endif()
 
 set_target_properties(deviceManagement_obj PROPERTIES
     PUBLIC_HEADER "include/deviceManagement/DeviceManagement.h;include/deviceManagement/dm.h"

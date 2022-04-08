@@ -129,14 +129,14 @@ void TestDevMgmtApiSyncCmds::controlTraceLogging(bool resetTraceBuffer) {
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG, input_buff_.data(),
                                 input_buff_.size(), set_output_buff.data(), set_output_buff.size(), hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -176,7 +176,7 @@ static inline bool decodeSingleTraceEvent(std::stringstream& logs, const struct 
 void TestDevMgmtApiSyncCmds::dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
                                                 TraceBufferType bufferType) const {
   if (traceBuf.empty()) {
-    DM_LOG(INFO) << "Invalid trace buffer! size is 0";
+    DV_LOG(INFO) << "Invalid trace buffer! size is 0";
     return;
   }
   struct trace_buffer_std_header_t* traceHdr;
@@ -206,7 +206,7 @@ void TestDevMgmtApiSyncCmds::dumpRawTraceBuffer(int deviceIdx, const std::vector
     break;
 
   default:
-    DM_LOG(INFO) << "Cannot dump unknown buffer type!";
+    DV_LOG(INFO) << "Cannot dump unknown buffer type!";
     return;
   }
 
@@ -252,19 +252,19 @@ void TestDevMgmtApiSyncCmds::dumpRawTraceBuffer(int deviceIdx, const std::vector
       tracefile.close();
     }
   } else {
-    DM_LOG(INFO) << "Unable to open file: " << fileName;
+    DV_LOG(INFO) << "Unable to open file: " << fileName;
   }
 }
 
 bool TestDevMgmtApiSyncCmds::decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf,
                                                TraceBufferType bufferType) const {
   if (traceBuf.empty()) {
-    DM_LOG(INFO) << "Invalid trace buffer! size is 0";
+    DV_LOG(INFO) << "Invalid trace buffer! size is 0";
     return false;
   }
   std::ofstream logfile;
   std::string fileName = getTraceTxtName(deviceIdx);
-  DM_LOG(INFO) << "Saving trace to file: " << fileName;
+  DV_LOG(INFO) << "Saving trace to file: " << fileName;
   logfile.open(fileName, std::ios_base::app);
   switch (bufferType) {
   case TraceBufferType::TraceBufferSP:
@@ -277,7 +277,7 @@ bool TestDevMgmtApiSyncCmds::decodeTraceEvents(int deviceIdx, const std::vector<
     logfile << "-> CM S-Mode Traces" << std::endl;
     break;
   default:
-    DM_LOG(INFO) << "Cannot decode unknown buffer type!";
+    DV_LOG(INFO) << "Cannot decode unknown buffer type!";
     logfile.close();
     return false;
   }
@@ -315,7 +315,7 @@ bool TestDevMgmtApiSyncCmds::extractAndPrintTraceData(bool singleDevice, TraceBu
   auto validTraceDataFound = false;
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     if (dm.getTraceBufferServiceProcessor(deviceIdx, bufferType, response) != device_mgmt_api::DM_STATUS_SUCCESS) {
-      DM_LOG(INFO) << "Unable to get trace buffer for device: " << deviceIdx << ". Disabling Trace.";
+      DV_LOG(INFO) << "Unable to get trace buffer for device: " << deviceIdx << ". Disabling Trace.";
       continue;
     }
     dumpRawTraceBuffer(deviceIdx, response, bufferType);
@@ -348,7 +348,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureName(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -378,7 +378,7 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -410,7 +410,7 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -443,7 +443,7 @@ void TestDevMgmtApiSyncCmds::getASICChipRevision(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -476,7 +476,7 @@ void TestDevMgmtApiSyncCmds::getModulePCIENumPortsMaxSpeed(bool singleDevice) {
                                 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -508,7 +508,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -540,7 +540,7 @@ void TestDevMgmtApiSyncCmds::getModuleRevision(bool singleDevice) {
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -573,7 +573,7 @@ void TestDevMgmtApiSyncCmds::getModuleFormFactor(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -603,7 +603,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber(bool singleDevice) 
                                 nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -636,7 +636,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryType(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -696,7 +696,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagement(bool singleDevice) {
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -739,7 +739,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel(bool singleDevice) {
                                 get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -782,7 +782,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold(bool singleDevi
                                 0, get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -817,7 +817,7 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState(bool singleDevice) 
                                   input_buff, input_size, output_buff, output_size, hst_latency.get(),
                                   dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
                 device_mgmt_api::DM_STATUS_SUCCESS);
-      DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+      DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
       // Skip printing if loopback driver
       if (getTestTarget() != Target::Loopback) {
@@ -848,7 +848,7 @@ void TestDevMgmtApiSyncCmds::getModuleUptime(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_UPTIME, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -876,7 +876,7 @@ void TestDevMgmtApiSyncCmds::getModulePower(bool singleDevice) {
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Note: Module power could vary. So there cannot be expected value for Module power in the test
     device_mgmt_api::module_power_t* module_power = (device_mgmt_api::module_power_t*)output_buff;
@@ -908,7 +908,7 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_VOLTAGE, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -940,7 +940,7 @@ void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -977,7 +977,7 @@ void TestDevMgmtApiSyncCmds::getModuleMaxTemperature(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1007,7 +1007,7 @@ void TestDevMgmtApiSyncCmds::getModuleMaxMemoryErrors(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1036,7 +1036,7 @@ void TestDevMgmtApiSyncCmds::getModuleMaxDDRBW(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -1062,7 +1062,7 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState(bool singleDevice) {
                                   input_buff, input_size, output_buff, output_size, hst_latency.get(),
                                   dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
                 device_mgmt_api::DM_STATUS_SUCCESS);
-      DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+      DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
       // Skip printing if loopback driver
       if (getTestTarget() != Target::Loopback) {
@@ -1104,7 +1104,7 @@ void TestDevMgmtApiSyncCmds::setModuleFrequency(bool singleDevice) {
         EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FREQUENCY, input_buff, input_size,
                                     nullptr, 0, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
                   device_mgmt_api::DM_STATUS_SUCCESS);
-        DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+        DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
       }
     }
   }
@@ -1131,7 +1131,7 @@ void TestDevMgmtApiSyncCmds::setAndGetDDRECCThresholdCount(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1160,7 +1160,7 @@ void TestDevMgmtApiSyncCmds::setAndGetSRAMECCThresholdCount(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1189,7 +1189,7 @@ void TestDevMgmtApiSyncCmds::setAndGetPCIEECCThresholdCount(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1216,7 +1216,7 @@ void TestDevMgmtApiSyncCmds::getPCIEECCUECCCount(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1245,7 +1245,7 @@ void TestDevMgmtApiSyncCmds::getDDRECCUECCCount(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1274,7 +1274,7 @@ void TestDevMgmtApiSyncCmds::getSRAMECCUECCCount(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1303,7 +1303,7 @@ void TestDevMgmtApiSyncCmds::getDDRBWCounter(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -1328,7 +1328,7 @@ void TestDevMgmtApiSyncCmds::setPCIELinkSpeed(bool singleDevice) {
                                 input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1358,7 +1358,7 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidth(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1389,7 +1389,7 @@ void TestDevMgmtApiSyncCmds::setPCIERetrainPhy(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1414,7 +1414,7 @@ void TestDevMgmtApiSyncCmds::getASICFrequencies(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -1433,7 +1433,7 @@ void TestDevMgmtApiSyncCmds::getDRAMBW(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -1453,7 +1453,7 @@ void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilization(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -1474,7 +1474,7 @@ void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilization(bool singleDevice
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1499,7 +1499,7 @@ void TestDevMgmtApiSyncCmds::getASICUtilization(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1524,7 +1524,7 @@ void TestDevMgmtApiSyncCmds::getASICStalls(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1549,7 +1549,7 @@ void TestDevMgmtApiSyncCmds::getASICLatency(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1573,7 +1573,7 @@ void TestDevMgmtApiSyncCmds::getMMErrorCount(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MM_ERROR_COUNT, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -1594,7 +1594,7 @@ void TestDevMgmtApiSyncCmds::getFWBootstatus(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing and validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1619,7 +1619,7 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip printing and validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1706,7 +1706,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
     fd = open("/dev/kmsg", (O_RDONLY | O_NONBLOCK));
     ASSERT_GE(fd, 0) << "Unable to read dmesg\n";
     ASSERT_NE(lseek(fd, 0, SEEK_END), -1) << "Unable to lseek() dmesg end\n";
-    DM_LOG(INFO) << "waiting for error events...\n";
+    DV_LOG(INFO) << "waiting for error events...\n";
 
     // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
     const uint32_t output_size = sizeof(uint32_t);
@@ -1719,7 +1719,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() == Target::Loopback) {
@@ -1729,9 +1729,9 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
 
     EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Response received from device, wait for printing\n";
+    DV_LOG(INFO) << "Response received from device, wait for printing\n";
     std::this_thread::sleep_for(std::chrono::seconds(5));
-    DM_LOG(INFO) << "waiting done, starting events verification...\n";
+    DV_LOG(INFO) << "waiting done, starting events verification...\n";
 
     do {
       do {
@@ -1750,7 +1750,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
     } while (size > 0);
 
     for (i = 0; i < max_err_types; i++) {
-      DM_LOG(INFO) << "matched '" << err_types[i] << "' " << err_count[i] << " time(s)\n";
+      DV_LOG(INFO) << "matched '" << err_types[i] << "' " << err_count[i] << " time(s)\n";
       if (err_count[i] > 0) {
         result++;
       }
@@ -1807,7 +1807,7 @@ void TestDevMgmtApiSyncCmds::isUnsupportedService(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), nullptr, DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Requests Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Requests Completed for Device: " << deviceIdx;
   }
 }
 
@@ -1831,7 +1831,7 @@ void TestDevMgmtApiSyncCmds::setSpRootCertificate(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT * 20),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1864,7 +1864,7 @@ void TestDevMgmtApiSyncCmds::setTraceControl(bool singleDevice, uint32_t control
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1895,7 +1895,7 @@ void TestDevMgmtApiSyncCmds::setTraceConfigure(bool singleDevice, uint32_t event
                                 hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -1915,14 +1915,14 @@ void TestDevMgmtApiSyncCmds::getTraceBuffer(bool singleDevice, TraceBufferType b
 
   // Skip validation if loopback driver
   if (getTestTarget() == Target::Loopback) {
-    DM_LOG(INFO) << "Get Trace Buffer is not supported on loopback driver";
+    DV_LOG(INFO) << "Get Trace Buffer is not supported on loopback driver";
     return;
   }
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     EXPECT_EQ(dm.getTraceBufferServiceProcessor(deviceIdx, bufferType, response), device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     while (entry = Trace_Decode(reinterpret_cast<struct trace_buffer_std_header_t*>(response.data()), entry)) {
       if (entry->type == TRACE_TYPE_STRING || entry->type == TRACE_TYPE_EXCEPTION ||
@@ -1957,7 +1957,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRange(bool singleDevi
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -1981,7 +1981,7 @@ void TestDevMgmtApiSyncCmds::setModuleSetTemperatureThresholdRange(bool singleDe
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2004,7 +2004,7 @@ void TestDevMgmtApiSyncCmds::setModuleStaticTDPLevelRange(bool singleDevice) {
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2029,7 +2029,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputSize
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2051,7 +2051,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputSize(bool sing
                                 output_buff, 0 /*Invalid output size*/, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2073,7 +2073,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceNode(bool sing
                                 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2094,7 +2094,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidHostLatency(bool sin
                                 output_buff, output_size, nullptr /*nullptr for invalid testing*/, dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2115,7 +2115,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceLatency(bool s
                                 output_buff, output_size, hst_latency.get(), nullptr /*nullptr for invalid testing*/,
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2136,7 +2136,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputBuffer(bool si
                                 nullptr /*nullptr instaed of output buffer*/, output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2159,7 +2159,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputBuff
                                 set_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2183,7 +2183,7 @@ void TestDevMgmtApiSyncCmds::updateFirmwareImage(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -2213,7 +2213,7 @@ void TestDevMgmtApiSyncCmds::setPCIELinkSpeedToInvalidLinkSpeed(bool singleDevic
                                 input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2238,7 +2238,7 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidthToInvalidLaneWidth(bool singleDevic
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2257,7 +2257,7 @@ void TestDevMgmtApiSyncCmds::testInvalidOutputSize(int32_t dmCmdType, bool singl
     EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2277,7 +2277,7 @@ void TestDevMgmtApiSyncCmds::testInvalidDeviceNode(int32_t dmCmdType, bool singl
     EXPECT_EQ(dm.serviceRequest(device_node, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2295,7 +2295,7 @@ void TestDevMgmtApiSyncCmds::testInvalidHostLatency(int32_t dmCmdType, bool sing
     EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size,
                                 nullptr /*nullptr for invalid testing*/, dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2313,7 +2313,7 @@ void TestDevMgmtApiSyncCmds::testInvalidDeviceLatency(int32_t dmCmdType, bool si
     EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
                                 nullptr /*nullptr for invalid testing*/, DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2332,7 +2332,7 @@ void TestDevMgmtApiSyncCmds::testInvalidOutputBuffer(int32_t dmCmdType, bool sin
     EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2491,7 +2491,7 @@ void TestDevMgmtApiSyncCmds::testInvalidCmdCode(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(deviceIdx, DM_CMD_INVALID, nullptr, 0, output_buff, output_size, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2513,7 +2513,7 @@ void TestDevMgmtApiSyncCmds::testInvalidInputBuffer(int32_t dmCmdType, bool sing
     EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, input_buff, input_size, output_buff, output_size,
                                 hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2535,7 +2535,7 @@ void TestDevMgmtApiSyncCmds::testInvalidInputSize(int32_t dmCmdType, bool single
     EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, input_buff, input_size, output_buff, output_size,
                                 hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2641,7 +2641,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceNode(bool sing
                                 DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2660,7 +2660,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidHostLatency(bool sin
                                 output_buff, output_size, nullptr, dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2679,7 +2679,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceLatency(bool s
                                 output_buff, output_size, hst_latency.get(), nullptr, DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2699,7 +2699,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputBuffer(bool si
                                 output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2719,7 +2719,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputSize(bool sing
                                 output_buff, 0, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               -EINVAL);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2746,7 +2746,7 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
                                   DM_SERVICE_REQUEST_TIMEOUT),
                 device_mgmt_api::DM_STATUS_SUCCESS);
 
-      DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+      DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
     }
     input_size = sizeof(device_mgmt_api::trace_control_e);
     char input_buff_[input_size] = {device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE};
@@ -2755,11 +2755,11 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
                                 DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
     if (getTestTarget() != Target::Loopback) {
       if (dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response) !=
           device_mgmt_api::DM_STATUS_SUCCESS) {
-        DM_LOG(INFO) << "Unable to get SP trace buffer for device: " << deviceIdx << ". Disabling Trace.";
+        DV_LOG(INFO) << "Unable to get SP trace buffer for device: " << deviceIdx << ". Disabling Trace.";
       } else {
         while (entry = Trace_Decode(reinterpret_cast<struct trace_buffer_std_header_t*>(response.data()), entry)) {
           if (entry->type == TRACE_TYPE_POWER_STATUS) {
@@ -2793,7 +2793,7 @@ void TestDevMgmtApiSyncCmds::resetMM(bool singleDevice) {
     EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_MM_RESET, nullptr, 0, nullptr, 0, hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2821,10 +2821,10 @@ void TestDevMgmtApiSyncCmds::readMem(uint64_t readAddr) {
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
-      DM_LOG(INFO) << "Mem addr: 0x" << std::hex << input_buff.address << " Value:" << std::hex << output;
+      DV_LOG(INFO) << "Mem addr: 0x" << std::hex << input_buff.address << " Value:" << std::hex << output;
     }
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2845,7 +2845,7 @@ void TestDevMgmtApiSyncCmds::writeMem(uint64_t testInputData, uint64_t writeAddr
     mdi_mem_write.data = testInputData;
     uint64_t mem_write_status = 0;
 
-    DM_LOG(INFO) << "Mem addr: 0x" << std::hex << mdi_mem_write.address << " Write Value:" << std::hex
+    DV_LOG(INFO) << "Mem addr: 0x" << std::hex << mdi_mem_write.address << " Write Value:" << std::hex
                  << mdi_mem_write.data;
 
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM, (char*)&mdi_mem_write,
@@ -2866,11 +2866,11 @@ void TestDevMgmtApiSyncCmds::writeMem(uint64_t testInputData, uint64_t writeAddr
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Mem addr: 0x" << std::hex << mdi_mem_read.address << " Read Value:" << std::hex << mem_read_output;
+    DV_LOG(INFO) << "Mem addr: 0x" << std::hex << mdi_mem_read.address << " Read Value:" << std::hex << mem_read_output;
 
     EXPECT_EQ(mem_read_output, testInputData);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2925,7 +2925,7 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t sh
                                 hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Set BP at address: 0x" << std::hex << mdi_bp_input_buff.bp_address << " Status:" << std::hex
+    DV_LOG(INFO) << "Set BP at address: 0x" << std::hex << mdi_bp_input_buff.bp_address << " Status:" << std::hex
                  << bp_cmd_status;
     EXPECT_EQ(bp_cmd_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -2951,7 +2951,7 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t sh
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -3003,7 +3003,7 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsGetHartStatus(uint64_t shireID, u
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     if (getTestTarget() != Target::Loopback) {
-      DM_LOG(INFO) << "HartID:" << std::hex << mdi_hart_control_input.hart_id << " Status:" << std::hex << hart_status;
+      DV_LOG(INFO) << "HartID:" << std::hex << mdi_hart_control_input.hart_id << " Status:" << std::hex << hart_status;
     }
 
     EXPECT_EQ(hart_status, device_mgmt_api::MDI_HART_STATUS_HALTED);
@@ -3026,7 +3026,7 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsGetHartStatus(uint64_t shireID, u
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     if (getTestTarget() != Target::Loopback) {
-      DM_LOG(INFO) << "HartID:" << std::hex << mdi_hart_control_input.hart_id << " Status:" << std::hex << hart_status;
+      DV_LOG(INFO) << "HartID:" << std::hex << mdi_hart_control_input.hart_id << " Status:" << std::hex << hart_status;
     }
 
     EXPECT_EQ(hart_status, device_mgmt_api::MDI_HART_STATUS_RUNNING);
@@ -3041,7 +3041,7 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsGetHartStatus(uint64_t shireID, u
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -3095,7 +3095,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadGPR(uint64_t shireID, uint64
                 device_mgmt_api::DM_STATUS_SUCCESS);
 
       if (getTestTarget() != Target::Loopback) {
-        DM_LOG(INFO) << "HartID:" << std::hex << gpr_read_input_buff.hart_id
+        DV_LOG(INFO) << "HartID:" << std::hex << gpr_read_input_buff.hart_id
                      << " GPR Index:" << gpr_read_input_buff.gpr_index << " GPR REG Value:" << std::hex << output;
       }
     }
@@ -3121,7 +3121,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadGPR(uint64_t shireID, uint64
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -3182,11 +3182,11 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
                                   dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
                 device_mgmt_api::DM_STATUS_SUCCESS);
 
-      DM_LOG(INFO) << "Before update HartID:" << std::hex << gpr_read_input_buff.hart_id
+      DV_LOG(INFO) << "Before update HartID:" << std::hex << gpr_read_input_buff.hart_id
                    << " GPR Index:" << gpr_read_input_buff.gpr_index << " Value:" << std::hex << output;
 
       gpr_write_input_buff.data = writeTestData + i; /* Test Data */
-      DM_LOG(INFO) << "Write Value:" << std::hex << gpr_write_input_buff.data;
+      DV_LOG(INFO) << "Write Value:" << std::hex << gpr_write_input_buff.data;
       EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_GPR,
                                   (char*)&gpr_write_input_buff, gpr_write_input_size, (char*)&dummy, sizeof(uint64_t),
                                   hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
@@ -3197,7 +3197,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
                                   dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
                 device_mgmt_api::DM_STATUS_SUCCESS);
 
-      DM_LOG(INFO) << "After update HartID:" << std::hex << gpr_read_input_buff.hart_id
+      DV_LOG(INFO) << "After update HartID:" << std::hex << gpr_read_input_buff.hart_id
                    << " GPR Index:" << gpr_read_input_buff.gpr_index << " Value:" << std::hex << output;
 
       EXPECT_EQ(gpr_write_input_buff.data, output);
@@ -3224,7 +3224,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -3277,7 +3277,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadCSR(uint64_t shireID, uint64
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     if (getTestTarget() != Target::Loopback) {
-      DM_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " PC Value:" << std::hex << csr_value;
+      DV_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " PC Value:" << std::hex << csr_value;
     }
 
     /* Resume Hart */
@@ -3301,7 +3301,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadCSR(uint64_t shireID, uint64
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -3352,7 +3352,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Initial PC Value:" << std::hex
+    DV_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Initial PC Value:" << std::hex
                  << intial_pc_addr;
 
     const uint32_t csr_write_input_size = sizeof(device_mgmt_api::mdi_csr_write_t);
@@ -3372,7 +3372,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Updated PC Value:" << std::hex
+    DV_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Updated PC Value:" << std::hex
                  << updated_pc_addr;
 
     EXPECT_EQ(csr_write_input_buff.data, updated_pc_addr);
@@ -3390,7 +3390,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Changed PC to initial value:" << std::hex
+    DV_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Changed PC to initial value:" << std::hex
                  << updated_pc_addr;
 
     EXPECT_EQ(intial_pc_addr, updated_pc_addr);
@@ -3416,6 +3416,6 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DM_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }

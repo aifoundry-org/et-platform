@@ -27,10 +27,6 @@ using Clock = std::chrono::system_clock;
 using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
 
-#define DM_LOG(severity) ET_LOG(DM, severity)
-#define DM_DLOG(severity) ET_DLOG(DM, severity)
-#define DM_VLOG(severity) ET_VLOG(DM, severity)
-
 #define MAX_DEVICE_NODE (250)
 #define INPUT_SIZE_TEST (1)
 #define OUTPUT_SIZE_TEST (24)
@@ -245,7 +241,7 @@ protected:
       } else if (std::strncmp(envTarget, "loopback", 8) == 0) {
         currentTarget = Target::Loopback;
       } else {
-        DM_LOG(INFO) << "Unknown target: " << envTarget << ", using default target (silicon)";
+        DV_LOG(INFO) << "Unknown target: " << envTarget << ", using default target (silicon)";
       }
     }
     return currentTarget;
@@ -257,6 +253,7 @@ protected:
 
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
+  logging::LoggerDefault logger_;
 };
 
 #endif // TEST_DEVICE_M_H

@@ -39,7 +39,7 @@ TEST_F(RunControlApiTestcmds, testRunControlCmdsSetandUnsetBreakpoint) {
     testRunControlCmdsSetandUnsetBreakpoint(MDI_TEST_DEFAULT_SHIRE_ID, 
              MDI_TEST_DEFAULT_THREAD_MASK, MDI_TEST_DEFAULT_HARTID, (COMPUTE_KERNEL_DEVICE_ADDRESS+MDI_TEST_BP_ADDRESS_OFFSET));
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
@@ -49,13 +49,12 @@ TEST_F(RunControlApiTestcmds, testRunControlCmdsGetHartStatus) {
     testRunControlCmdsGetHartStatus(MDI_TEST_DEFAULT_SHIRE_ID, 
              MDI_TEST_DEFAULT_THREAD_MASK, MDI_TEST_DEFAULT_HARTID);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
 
 int main(int argc, char** argv) {
-  logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   FLAGS_minloglevel = 0;

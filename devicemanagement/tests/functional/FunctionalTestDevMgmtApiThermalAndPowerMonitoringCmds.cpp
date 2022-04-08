@@ -65,7 +65,7 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleVoltage) 
   if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
     getModuleVoltage(false /* Multiple devices */);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
@@ -91,7 +91,6 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setModuleFrequency
 }
 
 int main(int argc, char** argv) {
-  logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   FLAGS_minloglevel = 0;

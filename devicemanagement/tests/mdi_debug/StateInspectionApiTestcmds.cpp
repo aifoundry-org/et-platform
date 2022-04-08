@@ -39,7 +39,7 @@ TEST_F(StateInspectionApiTestcmds, readMem) {
   if (targetInList({Target::Silicon})) {
     readMem(COMPUTE_KERNEL_DEVICE_ADDRESS);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
@@ -48,7 +48,7 @@ TEST_F(StateInspectionApiTestcmds, writeMem) {
   if (targetInList({Target::Silicon})) {
     writeMem(MDI_TEST_WRITE_MEM_TEST_DATA, COMPUTE_KERNEL_DEVICE_ADDRESS);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
@@ -58,7 +58,7 @@ TEST_F(StateInspectionApiTestcmds, testStateInspectionReadGPR) {
     testStateInspectionReadGPR(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK,
                                MDI_TEST_DEFAULT_HARTID);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
@@ -68,7 +68,7 @@ TEST_F(StateInspectionApiTestcmds, testStateInspectionWriteGPR) {
     testStateInspectionWriteGPR(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK,
                                 MDI_TEST_DEFAULT_HARTID, MDI_TEST_GPR_WRITE_TEST_DATA);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
@@ -78,7 +78,7 @@ TEST_F(StateInspectionApiTestcmds, testStateInspectionReadCSR) {
     testStateInspectionReadCSR(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK,
                                MDI_TEST_DEFAULT_HARTID, MDI_TEST_CSR_PC_REG);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
@@ -88,13 +88,12 @@ TEST_F(StateInspectionApiTestcmds, testStateInspectionWriteCSR) {
     testStateInspectionWriteCSR(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK,
                                 MDI_TEST_DEFAULT_HARTID, MDI_TEST_CSR_PC_REG, MDI_TEST_CSR_WRITE_PC_TEST_ADDRESS);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
 
 int main(int argc, char** argv) {
-  logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   FLAGS_minloglevel = 0;

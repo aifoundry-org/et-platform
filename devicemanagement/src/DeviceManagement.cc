@@ -53,12 +53,16 @@ struct lockable_ {
   bool fulfillRespReceivePromise(const std::vector<std::byte>& response) {
     auto tagId = reinterpret_cast<const dm_rsp*>(response.data())->info.rsp_hdr.tag_id;
     std::scoped_lock lk(mtx);
-    if (commandMap.find(tagId) == commandMap.end()) {
-      // An unkept promise cannot be fulfilled
-      return false;
+    if (auto it = commandMap.find(tagId); it != commandMap.end()) {
+      it->second.set_value(response);
+      commandMap.erase(it);
+      return true;
     }
-    commandMap[tagId].set_value(response);
-    return true;
+    auto rsp = reinterpret_cast<const dm_rsp*>(response.data());
+    DV_LOG(FATAL) << "Stray response received: tag_id: " << rsp->info.rsp_hdr.tag_id
+                  << ", msg_id: " << rsp->info.rsp_hdr.msg_id;
+    // An unkept promise cannot be fulfilled
+    return false;
   }
 
 #if MINION_DEBUG_INTERFACE
@@ -127,7 +131,7 @@ void DeviceManagement::receiver(const uint32_t device_node) {
       }
 #endif
       if (!lockable->fulfillRespReceivePromise(message)) {
-        DV_DLOG(WARNING) << "Received a response for not sent command, discarding it.";
+        DV_DLOG(WARNING) << "receiver: discarding the stray message";
       }
     }
     lockable->cqGuard.unlock();

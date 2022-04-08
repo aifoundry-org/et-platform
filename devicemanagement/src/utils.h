@@ -11,6 +11,6 @@
 #pragma once
 #include <hostUtils/logging/Logging.h>
 
-#define DV_LOG(severity) ET_LOG(DEVICE_LAYER, severity)
-#define DV_DLOG(severity) ET_DLOG(DEVICE_LAYER, severity)
-#define DV_VLOG(level) ET_VLOG(DEVICE_LAYER, level)
+#define DV_LOG(severity) ET_LOG(DM, severity)
+#define DV_DLOG(severity) ET_DLOG(DM, severity)
+#define DV_VLOG(level) ET_VLOG(DM, level)

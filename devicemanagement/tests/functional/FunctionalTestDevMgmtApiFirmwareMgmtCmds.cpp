@@ -45,7 +45,7 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getFWBootstatus) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     getFWBootstatus(false /* Multiple devices */);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
@@ -54,7 +54,7 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getModuleFWRevision) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     getModuleFWRevision(false /* Multiple devices */);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
@@ -69,7 +69,6 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getModuleFWRevision) {
 //}
 
 int main(int argc, char** argv) {
-  logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   FLAGS_minloglevel = 0;

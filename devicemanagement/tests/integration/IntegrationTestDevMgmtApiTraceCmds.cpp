@@ -32,7 +32,7 @@ class IntegrationTestDevMgmtApiTraceCmds : public TestDevMgmtApiSyncCmds {
 
 TEST_F(IntegrationTestDevMgmtApiTraceCmds, getSpTraceBuffer) {
   if (!FLAGS_enable_trace_dump) {
-    DM_LOG(INFO) << "Skipping the test since enable_trace_dump is set to false";
+    DV_LOG(INFO) << "Skipping the test since enable_trace_dump is set to false";
     return;
   }
   setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE);
@@ -51,7 +51,7 @@ TEST_F(IntegrationTestDevMgmtApiTraceCmds, getMmTraceBuffer) {
     /* Only verifying pulling of MM trace buffer from device, trace data validation is being done in firmware tests */
     extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferMM);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
@@ -61,13 +61,12 @@ TEST_F(IntegrationTestDevMgmtApiTraceCmds, getCmTraceBuffer) {
     /* Only verifying pulling of CM trace buffer from device, trace data validation is being done in firmware tests */
     extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferCM);
   } else {
-    DM_LOG(INFO) << "Skipping the test since its not supported on current target";
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
   }
 }
 
 int main(int argc, char** argv) {
-  logging::LoggerDefault loggerDefault_;
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   FLAGS_minloglevel = 0;
