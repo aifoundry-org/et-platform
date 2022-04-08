@@ -1,9 +1,19 @@
-build/
+# build
+build
 cmake-build-*
+
+# conan
+test_package/build
+*.lock
+
+# conan ci
+lockfiles_info.json
+build_pipeline.yml
+
+# IDE(s)
+.idea
 .vscode/
-test_package/build/
-conan-ci-pipelines-common/
-locks/
-variables.env
-compile_commands.json
+
+# other
 *.swp
+test-plan-trace.ods
