@@ -1,94 +1,99 @@
 include:
-  - project: 'software/conan/conan-ci-pipelines-common'
+  - project: 'software/gitlab-ci-common'
+    ref: eaa145e684411db579462b41feb7736c6ed0028c
+    file:
+      - 'pods/nano-pod.yaml'
+      - 'pods/medium-pod.yaml'
+      - 'jobs/generic-k8s-job.yaml'
+
+  - project: 'software/gitlab-ci-common'
     ref: master
-    file: 'mr/common.yaml'
+    file:
+      - 'jobs/conan-jobs.yaml'
 
-variables:
-  GIT_SUBMODULE_STRATEGY: none
-  GET_SOURCES_ATTEMPTS: 2
-  ARTIFACT_DOWNLOAD_ATTEMPTS: 2
+stages:
+  - generate_build
+  - build
+  - test
+  - deploy
 
-
-###############################################################################
-###############################################################################
-###############################################################################
-
-gen_conan_build_pipeline:
-  extends: .template_job_k8s_with_conan_ci_pipelines_common
-  stage: .pre
-  image: conanio/gcc7-ubuntu16.04
-  script:
-
-    # generate pipeline
-    - |
-      conan-ci-pipelines-common/gen-build-pipeline.py \
-          .ci/conan.yaml \
-          conan-ci-pipelines-common/consumers.yaml \
-          conan-ci-pipelines-common/configs.yaml \
-          -o build-pipeline.yaml
-
-    - sh -c -x "${CMD_AFTER_GENERATE_PIPELINE}"
 
 ###############################################################################
 ###############################################################################
 ###############################################################################
 
-conan_build_pipeline:
-  stage: build
-  needs:
-    - gen_conan_build_pipeline
+generate_build:conan:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan-linux-ubuntu18.04-gcc7
+  stage: generate_build
+
   variables:
-    UPSTREAM_PROJECT_NAME:      ${CI_PROJECT_NAME}
-    UPSTREAM_CI_PIPELINE_ID:    ${CI_PIPELINE_ID}
-    CONAN_CI_PIPELINES_COMMON_REF: ${CONAN_CI_PIPELINES_COMMON_REF}
-    CONAN_CONFIG_EXTRA_ARGS: ${CONAN_CONFIG_EXTRA_ARGS}
+    TIMEOUT: 15m
+
+    CMD_BUILD: |
+      cd conan
+      python3 -m ci_build
+  artifacts:
+    expire_in: 1h 
+    paths:
+      - conan/build_pipeline.yml
+      - conan/lockfiles_info.json
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+build:conan:
+  needs:
+  - generate_build:conan
+  stage: build
   trigger:
     include:
-      - artifact: build-pipeline.yaml
-        job: gen_conan_build_pipeline
+    - artifact: conan/build_pipeline.yml
+      job: generate_build:conan
     strategy: depend
 
 ###############################################################################
 ###############################################################################
 ###############################################################################
 
-test:system_pkg_manager:
-  extends: .template_job_k8s_bare_minimum
+test:conan:
+  extends:
+    - .pod_medium
+    - .template_job
+    - .template-conan-linux-ubuntu18.04-gcc7
   stage: test
-  image: ubuntu:latest
+  needs:
+    - build:conan
   variables:
-    DEBIAN_FRONTEND: noninteractive
-  parallel:
-    matrix:
-      - COMPILER: [ gcc ]
-        COMPILER_VERSION: [ 8 ]
-        BUILD_TYPE: [ Release, Debug ]
-  before_script:
-    - echo -e "\e[0Ksection_start:`date +%s`:install_system_deps_section\r\e[0KInstall system dependencies"
-    - apt-get update -qq
-    - apt-get install -qq -y --no-install-recommends ninja-build build-essential gcc-${COMPILER_VERSION} g++-${COMPILER_VERSION} cmake
-    - echo -e "\e[0Ksection_end:`date +%s`:install_system_deps_section\r\e[0K"
+    TIMEOUT: 15m
+    CMD_BUILD: |
+      mkdir cmake-build-release
+      cd cmake-build-release
+      conan install .. -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-release -o esperantoTrace:with_tests=True
+      cmake .. -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake
+      cmake --build .
+      ctest . --verbose
 
-    - echo -e "\e[0Ksection_start:`date +%s`:prepare_build_dir_section\r\e[0KPrepare build directory"
-    - mkdir build
-    - cd build
-    - echo -e "\e[0Ksection_end:`date +%s`:prepare_build_dir_section\r\e[0K"
-  script:
-    - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DET_TRACE_TEST=ON -G Ninja ..
-    - ninja
-    - ctest --verbose
 
 ###############################################################################
 ###############################################################################
 ###############################################################################
 
 on_success:promote:
-  extends: .template_job_k8s_with_conan_ci_pipelines_common_on_success_perform_promote
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan-linux-ubuntu18.04-gcc7
   stage: deploy
   needs:
-    - gen_conan_build_pipeline
-    - conan_build_pipeline
-
-on_failure:report:
-  extends: .template_job_k8s_bare_minimum_on_failure_report
-  stage: deploy
+    - generate_build:conan
+    - build:conan
+    - test:conan
+  variables:
+    PYTHONIOENCODING: utf-8
+    CMD_BUILD: |
+      cd conan
+      python3 -m ci_promote
