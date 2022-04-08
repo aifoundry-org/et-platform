@@ -104,21 +104,10 @@ void TestDevMgmtApiSyncCmds::controlTraceLogging(bool resetTraceBuffer) {
   if (resetTraceBuffer) {
     control |= device_mgmt_api::TRACE_CONTROL_RESET_TRACEBUF;
   }
+
   memcpy(input_buff.data(), &control, sizeof(control));
 
-  // Trace configure input params
-  const uint32_t input_size_ =
-    sizeof(device_mgmt_api::trace_configure_e) + sizeof(device_mgmt_api::trace_configure_filter_mask_e);
-  std::array<char, input_size_> input_buff_;
-  device_mgmt_api::trace_configure_e event_mask = device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING;
-  memcpy(input_buff_.data(), &event_mask, sizeof(event_mask));
-
-  device_mgmt_api::trace_configure_filter_mask_e filter_mask =
-    device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_INFO;
-  memcpy(input_buff_.data() + sizeof(event_mask), &filter_mask, sizeof(filter_mask));
-
   std::array<char, sizeof(uint8_t)> set_output_buff = {0};
-
   auto hst_latency = std::make_unique<uint32_t>();
   auto dev_latency = std::make_unique<uint64_t>();
 
@@ -126,13 +115,6 @@ void TestDevMgmtApiSyncCmds::controlTraceLogging(bool resetTraceBuffer) {
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff.data(),
                                 input_buff.size(), set_output_buff.data(), set_output_buff.size(), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
-              device_mgmt_api::DM_STATUS_SUCCESS);
-
-    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG, input_buff_.data(),
-                                input_buff_.size(), set_output_buff.data(), set_output_buff.size(), hst_latency.get(),
                                 dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
@@ -303,9 +285,6 @@ bool TestDevMgmtApiSyncCmds::extractAndPrintTraceData(bool singleDevice, TraceBu
     return false;
   }
 
-  // TODO SW-9220: To be removed. Disabling the trace flushes the buffer
-  setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE);
-
   getDM_t dmi = getInstance();
   EXPECT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -324,8 +303,6 @@ bool TestDevMgmtApiSyncCmds::extractAndPrintTraceData(bool singleDevice, TraceBu
     }
   }
 
-  // TODO SW-9220: To be removed
-  setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE);
   return validTraceDataFound;
 }
 

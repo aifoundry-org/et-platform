@@ -220,9 +220,10 @@ protected:
   void testStateInspectionReadGPR(uint64_t shireID, uint64_t threadMask, uint64_t hartID);
   void testStateInspectionWriteGPR(uint64_t shireID, uint64_t threadMask, uint64_t hartID, uint64_t writeTestData);
   void testStateInspectionReadCSR(uint64_t shireID, uint64_t threadMask, uint64_t hartID, uint64_t csrName);
-  void testStateInspectionWriteCSR(uint64_t shireID, uint64_t threadMask, uint64_t hartID, uint64_t csrName, uint64_t csrData);
+  void testStateInspectionWriteCSR(uint64_t shireID, uint64_t threadMask, uint64_t hartID, uint64_t csrName,
+                                   uint64_t csrData);
   void readMem(uint64_t readAddr);
-  void writeMem(uint64_t testInputData, uint64_t writeAddr); 
+  void writeMem(uint64_t testInputData, uint64_t writeAddr);
 
   inline Target getTestTarget(void) const {
     auto envTarget = getenv("TARGET");
