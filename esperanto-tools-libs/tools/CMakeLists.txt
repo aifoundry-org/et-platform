@@ -17,6 +17,9 @@ find_package(EsperantoTestKernels REQUIRED)
 add_library(benchmarker
   src/BenchmarkerImp.cpp
   src/BenchmarkerImp.h
+  src/Logging.h
+  src/Worker.h
+  src/Worker.cpp
   include/tools/IBenchmarker.h)
 
 add_library(runtimeTools::benchmarker ALIAS benchmarker)

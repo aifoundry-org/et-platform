@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------
- * Copyright (C) 2021, Esperanto Technologies Inc.
+ * Copyright (C) 2021,2022, Esperanto Technologies Inc.
  * The copyright to the computer program(s) herein is the
  * property of Esperanto Technologies, Inc. All Rights Reserved.
  * The program(s) may be used and/or copied only with
@@ -9,42 +9,60 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
-#include <device-layer/IDeviceLayer.h>
+#include "runtime/Types.h"
+#include <bitset>
 #include <runtime/IRuntime.h>
 namespace rt {
+constexpr auto kMaxDevices = 16;
 class IBenchmarker {
 public:
-  enum class WorkloadType {
-    H2D_K_D2H, //< Host to Device transfer, kernel, Device to Host transfer
-    H2D_D2H,   //< Host to Device transfer, Device to Host transfer
-    K          //< Only kernel
-  };
-
   struct Options {
-    WorkloadType type = WorkloadType::H2D_K_D2H;
-    uint64_t numThreads = 1; //< total number of threads to execute the workloads (numWorkloads / numThreads)
-    uint64_t numWorkloads =
-      100; //< total number of iterations, depending on WorkloadType each iteration will be 1, 2 or 3 commands
-    uint64_t numBytesPerTransferH2D = 4096; //< total number of bytes transferred from host to device
-    uint64_t numBytesPerTransferD2H = 4096; //< total number of bytes transferred from device to host
-    uint64_t numCyclesPerKernel = 1000;     //< estimated on a basis of ~10 cycles is a jump. In sysemu its completely
-                                            // different, < since it doesnt estimate cycles accurately.
-    bool useDmaBuffers = false;             //< indicates if we want to use dmaBuffers or not (dmaBuffers <-> zero-copy)
+    // total number of bytes transferred from host to device. If 0 then the workload won't do H2D transfers
+    size_t bytesH2D = 4096;
+    // total number of bytes transferred from device to host. If 0 then the workload won't do D2H transfers
+    size_t bytesD2H = 4096;
+    // path of kernel to execute. If empty then there won't be kernel execution in the workload
+    std::string kernelPath;
+    // number of workloads executed per thread
+    uint64_t numWorkloadsPerThread = 100;
+    // total number of threads
+    uint64_t numThreads = 1;
+    // total number of bytes transferred from host to device. If 0 then the workload won't do H2D transfers
+    // indicates if we want to use dmaBuffers or not (dmaBuffers <-> zero-copy)
+    bool useDmaBuffers = false;
+    // optionally get runtime traces, if this is not empty runtime will gather execution traces there.
+    std::string runtimeTracePath;
   };
 
-  struct Results {
-    float commandsSentPerSecond;
+  // DeviceMask by default has all devices disabled
+  struct DeviceMask {
+    // returns a DeviceMask with all devices enabled
+    static DeviceMask enableAll();
+
+    void enableDevice(DeviceId device);
+    void disableDevice(DeviceId device);
+    bool isEnabled(DeviceId device);
+    std::bitset<kMaxDevices> mask_;
+  };
+
+  struct WorkerResult {
+    DeviceId device; // device corresponding to these results
     float bytesSentPerSecond;
     float bytesReceivedPerSecond;
   };
-  // factory method. kernelsDir parameter is where all elfs are located, from test_compute_kernels
-  static std::unique_ptr<IBenchmarker> create(dev::IDeviceLayer* deviceLayer, const std::string& kernelsDir);
+  struct SummaryResults {
+    float bytesSentPerSecond;
+    float bytesReceivedPerSecond;
+    std::vector<WorkerResult> workerResults;
+  };
 
-  // retrieve the runtime, useful to setup profiler for example
-  virtual IRuntime* getRuntime() = 0;
+  // factory method.
+  static std::unique_ptr<IBenchmarker> create(rt::IRuntime* runtime);
 
-  // runs the benchmark
-  virtual Results run(Options options) = 0;
+  // TODO: preprocess, postprocess and kernelLaunch customization functions
+
+  // runs the benchmark. On each enabled device will be executed options.numWorkloadsPerThread * options.numThreads
+  virtual SummaryResults run(Options options, DeviceMask mask = DeviceMask::enableAll()) = 0;
 
   virtual ~IBenchmarker() = default;
 };

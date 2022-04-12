@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "benchmarkerRunner.h"
+#include "runtime/Types.h"
 
 #include <device-layer/IDeviceLayerFake.h>
 #include <gtest/gtest.h>
@@ -18,13 +19,13 @@
 TEST(BenchmarkerTool, fake) {
   dev::IDeviceLayerFake deviceLayer;
   rt::IBenchmarker::Options options;
-  options.numBytesPerTransferD2H = 4 << 20;
-  options.numBytesPerTransferH2D = 4 << 20;
-  options.numCyclesPerKernel = 1000;
-  options.numWorkloads = 100;
+  options.bytesD2H = 4 << 20;
+  options.bytesH2D = 4 << 20;
+  options.numWorkloadsPerThread = 100;
   options.numThreads = 8;
   options.useDmaBuffers = false;
-  runBenchmarker(&deviceLayer, options);
+  auto rt = rt::IRuntime::create(&deviceLayer);
+  runBenchmarker(rt.get(), options);
 }
 
 int main(int argc, char** argv) {
