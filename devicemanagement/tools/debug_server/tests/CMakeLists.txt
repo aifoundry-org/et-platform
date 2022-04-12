@@ -39,26 +39,30 @@ function(create_gdb_test)
     endif()
 endfunction()
 
-create_gdb_test(
-    NAME	DebugServer:RunGDB.breakPointTest
-    ARGS	--gdb_script ${CMAKE_CURRENT_BINARY_DIR}/break_point.gdb
-    PROPERTIES	"LABELS;GDBSERVER;TIMEOUT;300"
-)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    create_gdb_test(
+        NAME	DebugServer:RunGDB.breakPointTest
+        ARGS	--gdb_script ${CMAKE_CURRENT_BINARY_DIR}/break_point.gdb
+        PROPERTIES	"LABELS;GDBSERVER;TIMEOUT;300"
+    )
 
-create_gdb_test(
-    NAME	DebugServer:RunGDB.registerReadWriteTest
-    ARGS	--gdb_script ${CMAKE_CURRENT_BINARY_DIR}/reg_read_write.gdb
-    PROPERTIES	"LABELS;GDBSERVER;TIMEOUT;120"
-)
+    create_gdb_test(
+        NAME	DebugServer:RunGDB.registerReadWriteTest
+        ARGS	--gdb_script ${CMAKE_CURRENT_BINARY_DIR}/reg_read_write.gdb
+        PROPERTIES	"LABELS;GDBSERVER;TIMEOUT;120"
+    )
 
-create_gdb_test(
-    NAME	DebugServer:RunGDB.memoryReadTest
-    ARGS	--gdb_script ${CMAKE_CURRENT_BINARY_DIR}/mem_read.gdb
-    PROPERTIES	"LABELS;GDBSERVER;TIMEOUT;120"
-)
+    create_gdb_test(
+        NAME	DebugServer:RunGDB.memoryReadTest
+        ARGS	--gdb_script ${CMAKE_CURRENT_BINARY_DIR}/mem_read.gdb
+        PROPERTIES	"LABELS;GDBSERVER;TIMEOUT;120"
+    )
 
-create_gdb_test(
-    NAME	DebugServer:RunGDB.reconnectTest
-    ARGS	--gdb_script ${CMAKE_CURRENT_BINARY_DIR}/reconnect.gdb
-    PROPERTIES	"LABELS;GDBSERVER;TIMEOUT;120"
-)
+    create_gdb_test(
+        NAME	DebugServer:RunGDB.reconnectTest
+        ARGS	--gdb_script ${CMAKE_CURRENT_BINARY_DIR}/reconnect.gdb
+        PROPERTIES	"LABELS;GDBSERVER;TIMEOUT;120"
+    )
+else()
+    message("Tests not created. Build type: ${CMAKE_BUILD_TYPE}")
+endif()

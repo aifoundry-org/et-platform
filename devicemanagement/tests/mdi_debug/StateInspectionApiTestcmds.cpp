@@ -36,7 +36,7 @@ class StateInspectionApiTestcmds : public TestDevMgmtApiSyncCmds {
 };
 
 TEST_F(StateInspectionApiTestcmds, readMem) {
-  if (targetInList({Target::Silicon})) {
+  if (targetInList({Target::Silicon, Target::SysEMU})) {
     readMem(COMPUTE_KERNEL_DEVICE_ADDRESS);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -45,7 +45,7 @@ TEST_F(StateInspectionApiTestcmds, readMem) {
 }
 
 TEST_F(StateInspectionApiTestcmds, writeMem) {
-  if (targetInList({Target::Silicon})) {
+  if (targetInList({Target::Silicon, Target::SysEMU})) {
     writeMem(MDI_TEST_WRITE_MEM_TEST_DATA, COMPUTE_KERNEL_DEVICE_ADDRESS);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -54,7 +54,7 @@ TEST_F(StateInspectionApiTestcmds, writeMem) {
 }
 
 TEST_F(StateInspectionApiTestcmds, testStateInspectionReadGPR) {
-  if (targetInList({Target::Silicon})) {
+  if (targetInList({Target::Silicon, Target::SysEMU})) {
     testStateInspectionReadGPR(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK,
                                MDI_TEST_DEFAULT_HARTID);
   } else {
@@ -64,7 +64,7 @@ TEST_F(StateInspectionApiTestcmds, testStateInspectionReadGPR) {
 }
 
 TEST_F(StateInspectionApiTestcmds, testStateInspectionWriteGPR) {
-  if (targetInList({Target::Silicon})) {
+  if (targetInList({Target::Silicon, Target::SysEMU})) {
     testStateInspectionWriteGPR(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK,
                                 MDI_TEST_DEFAULT_HARTID, MDI_TEST_GPR_WRITE_TEST_DATA);
   } else {
@@ -74,7 +74,7 @@ TEST_F(StateInspectionApiTestcmds, testStateInspectionWriteGPR) {
 }
 
 TEST_F(StateInspectionApiTestcmds, testStateInspectionReadCSR) {
-  if (targetInList({Target::Silicon})) {
+  if (targetInList({Target::Silicon, Target::SysEMU})) {
     testStateInspectionReadCSR(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK,
                                MDI_TEST_DEFAULT_HARTID, MDI_TEST_CSR_PC_REG);
   } else {
@@ -84,7 +84,7 @@ TEST_F(StateInspectionApiTestcmds, testStateInspectionReadCSR) {
 }
 
 TEST_F(StateInspectionApiTestcmds, testStateInspectionWriteCSR) {
-  if (targetInList({Target::Silicon})) {
+  if (targetInList({Target::Silicon, Target::SysEMU})) {
     testStateInspectionWriteCSR(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK,
                                 MDI_TEST_DEFAULT_HARTID, MDI_TEST_CSR_PC_REG, MDI_TEST_CSR_WRITE_PC_TEST_ADDRESS);
   } else {

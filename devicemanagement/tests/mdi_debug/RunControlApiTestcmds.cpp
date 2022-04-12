@@ -35,7 +35,7 @@ class RunControlApiTestcmds : public TestDevMgmtApiSyncCmds {
 };
 
 TEST_F(RunControlApiTestcmds, testRunControlCmdsSetandUnsetBreakpoint) {
-  if (targetInList({Target::Silicon})) {
+  if (targetInList({Target::Silicon, Target::SysEMU})) {
     testRunControlCmdsSetandUnsetBreakpoint(MDI_TEST_DEFAULT_SHIRE_ID, 
              MDI_TEST_DEFAULT_THREAD_MASK, MDI_TEST_DEFAULT_HARTID, (COMPUTE_KERNEL_DEVICE_ADDRESS+MDI_TEST_BP_ADDRESS_OFFSET));
   } else {
@@ -45,7 +45,7 @@ TEST_F(RunControlApiTestcmds, testRunControlCmdsSetandUnsetBreakpoint) {
 }
 
 TEST_F(RunControlApiTestcmds, testRunControlCmdsGetHartStatus) {
-  if (targetInList({Target::Silicon})) {
+  if (targetInList({Target::Silicon, Target::SysEMU})) {
     testRunControlCmdsGetHartStatus(MDI_TEST_DEFAULT_SHIRE_ID, 
              MDI_TEST_DEFAULT_THREAD_MASK, MDI_TEST_DEFAULT_HARTID);
   } else {

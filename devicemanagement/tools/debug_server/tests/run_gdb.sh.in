@@ -46,6 +46,6 @@ fi
 
 cd @GDB_DIR@
 ./debug-server -m $thread_mask -n $device_index -s $shire_id &
-trap 'pkill -P "$$" || true' INT EXIT
+trap 'pkill -P "$$" || true' INT EXIT ERR
 sleep 1
-riscv64-unknown-elf-gdb --batch --command=$gdb_script
+/esperanto/minion/bin/riscv64-unknown-elf-gdb --batch --command=$gdb_script
