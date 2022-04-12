@@ -25,3 +25,9 @@ stages:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/test-compute-kernels:${BRANCH}"
 
+  JOB_FIRMWARE_TESTS_PCIE_SYSEMU:
+    cmds:
+      - job: sw-platform/virtual-platform/pipelines/firmware-tests-pcie-sysemu-1dev
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/test-compute-kernels:${BRANCH}"
