@@ -31,6 +31,7 @@ generate_build:conan:
 
   variables:
     TIMEOUT: 15m
+    PYTHONIOENCODING: utf-8
 
     CMD_BUILD: |
       cd conan
