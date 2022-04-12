@@ -51,7 +51,7 @@ BenchmarkerImp::BenchmarkerImp(IRuntime* runtime)
   BM_LOG_IF(FATAL, devices.empty()) << "No devices";
 }
 
-BenchmarkerImp::SummaryResults BenchmarkerImp::run(Options options, DeviceMask mask) {
+IBenchmarker::SummaryResults BenchmarkerImp::run(Options options, DeviceMask mask) {
   BM_LOG_IF(FATAL, options.useDmaBuffers) << "Use dma buffers is not yet supported.";
   BM_LOG_IF(FATAL, !options.kernelPath.empty()) << "Kernel based workloads is not yet supported.";
   auto& tracePath = options.runtimeTracePath;
@@ -68,12 +68,12 @@ BenchmarkerImp::SummaryResults BenchmarkerImp::run(Options options, DeviceMask m
     profiler->start(traceOutput, rt::IProfiler::OutputType::Json);
   }
   BM_LOG(INFO) << "Creating workers...";
-  std::vector<Worker> workers;
+  std::vector<std::unique_ptr<Worker>> workers;
   for (auto d : runtime_->getDevices()) {
     if (mask.isEnabled(d)) {
       BM_LOG(INFO) << "\t Device " << static_cast<int>(d) << " is enabled. Creating workers.";
       for (int i = 0; i < options.numThreads; ++i) {
-        workers.emplace_back(Worker(options.bytesH2D, options.bytesD2H, d, *runtime_));
+        workers.emplace_back(std::make_unique<Worker>(options.bytesH2D, options.bytesD2H, d, *runtime_));
       }
     }
   }
@@ -82,12 +82,12 @@ BenchmarkerImp::SummaryResults BenchmarkerImp::run(Options options, DeviceMask m
   BM_LOG(INFO) << "Starting the run.";
   auto start = std::chrono::high_resolution_clock::now();
   for (auto& w : workers) {
-    w.start(options.numWorkloadsPerThread);
+    w->start(options.numWorkloadsPerThread);
   }
   BM_LOG(INFO) << "Waiting until all workers have ended.";
   SummaryResults summary;
   for (auto& w : workers) {
-    summary.workerResults.emplace_back(w.wait());
+    summary.workerResults.emplace_back(w->wait());
   }
   auto et = std::chrono::high_resolution_clock::now() - start;
   auto us = std::chrono::duration_cast<std::chrono::microseconds>(et);

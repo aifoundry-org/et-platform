@@ -19,10 +19,10 @@
 TEST(BenchmarkerTool, sysemu) {
   auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
   rt::IBenchmarker::Options options;
-  options.bytesD2H = 3 << 20;
-  options.bytesH2D = 3 << 20;
-  options.numWorkloadsPerThread = 25;
-  options.numThreads = 4;
+  options.bytesD2H = 300 << 20;
+  options.bytesH2D = 300 << 20;
+  options.numWorkloadsPerThread = 8;
+  options.numThreads = 1;
   options.useDmaBuffers = false;
   auto rt = rt::IRuntime::create(deviceLayer.get());
   runBenchmarker(rt.get(), options);

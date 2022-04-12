@@ -19,7 +19,6 @@ public:
   explicit Worker(size_t bytesH2D, size_t bytesD2H, rt::DeviceId device, rt::IRuntime& runtime);
   void start(int numIterations);
   rt::IBenchmarker::WorkerResult wait();
-  Worker(Worker&&) = default;
   ~Worker();
 
 private:
