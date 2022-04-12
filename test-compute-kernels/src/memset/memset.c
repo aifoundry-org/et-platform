@@ -1,5 +1,5 @@
 
-#include "etsoc/isa/hart.h"
+#include <etsoc/isa/hart.h>
 
 typedef struct {
   int* a;
@@ -8,7 +8,7 @@ typedef struct {
   int numShires;
 } Parameters;
 
-inline int min(int a, int b) { return a < b ? a : b; }
+static inline int min(int a, int b) { return a < b ? a : b; }
 
 int main(const Parameters* const params) {
   int hart = (int)get_hart_id();

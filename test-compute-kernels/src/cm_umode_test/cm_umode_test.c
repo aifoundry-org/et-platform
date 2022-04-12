@@ -1,8 +1,8 @@
-#include "etsoc/isa/hart.h"
-#include "etsoc/isa/cacheops-umode.h"
-#include "etsoc/common/utils.h"
+#include <etsoc/isa/hart.h>
+#include <etsoc/isa/cacheops-umode.h>
+#include <etsoc/common/utils.h>
 
-inline int min(int a, int b) { return a < b ? a : b; }
+static inline int min(int a, int b) { return a < b ? a : b; }
 
 typedef struct {
   int* a;

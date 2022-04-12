@@ -215,10 +215,10 @@
 
             //
             // Tensor Store
-            //  - start f0, row size of 32 bytes, 
+            //  - start f0, row size of 32 bytes,
             "li     x30, 0x40f8000000000000\n"
             "add    x30, x30, %[tensor_c_init]\n"
-            "li     x31, %[tensor_c_stride]\n"
+            "mv     x31, %[tensor_c_stride]\n"
             "csrw   0x87F, x30\n"
 
             // Restores mask
@@ -230,7 +230,7 @@
         [coopMaskB] "+&r" (coopMaskB)
       :
         [helper_activation_threads] "i" (HELPER_ACTIVATION_THREADS),
-        [tensor_c_stride] "i" (tensor_c_stride),
+        [tensor_c_stride] "r" (tensor_c_stride),
         [barrier_o_t] "r" (barrier_o_t),
         [tensor_a_init] "r" (tensor_a_init),
         [tensor_b_init] "r" (tensor_b_init),

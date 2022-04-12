@@ -53,7 +53,7 @@
 // "Device common lib" helpers
 #define flbarrier(barrier_id, num_threads)            ({ uint64_t res; WAIT_FLB(num_threads + 1, barrier_id, res); res; })
 #define fcc_send(prv, shire_id, thread, fcc_id, mask) ({ SEND_FCC(shire_id, thread, fcc_id, mask); })
-#define fcc(fcc_id)                                   ({ WAIT_FCC(fcc_id); })
+#define fcc(fcc_id)                                   ({ wait_fcc(fcc_id); })
 
 // This function sends one FCC to a sync minion when the last hart gets
 // to the barrier

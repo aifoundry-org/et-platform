@@ -49,15 +49,15 @@
 
      __asm__ __volatile__ (
         // Generate TensorLoadL2Scp command for matrix B
-        "or     x8, %[l2_scp_dest_entry], %[tensor_b_init]\n" // Merge mem source with l2 scp dest
-        "addi   x8, x8, 15\n"                                 // 16 cachelines worth of prefetching
+        "or     x7, %[l2_scp_dest_entry], %[tensor_b_init]\n" // Merge mem source with l2 scp dest
+        "addi   x7, x7, 15\n"                                 // 16 cachelines worth of prefetching
         // TensorWait ID for TensorLoadL2Scp
         "li     x4, 2\n"
         // TensorLoadL2Scp stride
         "addi   x31, %[tensor_load_l2scp_stride], 0x0\n"
         // Prefetches to wait before doing a tensor wait
         "li     x5, 2\n"
-        
+
         // FCC0 addr + data to weight threads
         "li     x27, 0x13ff400d0\n"
         "li     x28, %[helper_weights_threads]\n"
@@ -92,7 +92,7 @@
                 "2:\n"
 
                 "j      4f\n"
-            
+
             // Decrements skip tensor wait counter
             "3:\n"
                 "addi   x5, x5, -1\n"
@@ -102,11 +102,11 @@
             // consume an FCC0
             "4:\n"
             "csrw   0x821, zero\n"
-            "csrw   0x85F, x8\n"
+            "csrw   0x85F, x7\n"
             // Swap the B Prefetch ID
             "xori   x31, x31, 1\n"
             // Advance L2 SCP dest and weight source
-            "add    x8, x8, %[tensor_load_l2scp_adv]\n"
+            "add    x7, x7, %[tensor_load_l2scp_adv]\n"
             // End of loop for dimension 1
             "addi   x6, x6, -1\n"
             "bne    x6, zero, 1b\n"
@@ -135,16 +135,16 @@
             "sd     x26, 0(x30)\n"
             "sd     x28, 0(x27)\n"
         "6:\n"
-      : 
+      :
         [tensor_load_l2scp_stride] "+&r" (tensor_load_l2scp_stride)
-      : 
+      :
         [compute_threads] "i" (COMPUTE_THREADS),
         [helper_weights_threads] "i" (HELPER_WEIGHTS_THREADS),
         [barrier_o_t] "r" (barrier_o_t),
         [l2_scp_dest_entry] "r" (l2_scp_dest_entry),
         [tensor_b_init] "r" (tensor_b_init),
         [tensor_load_l2scp_adv] "r" (tensor_load_l2scp_adv)
-      : 
+      :
         "x31",
         "x30",
         "x29",
@@ -152,8 +152,8 @@
         "x27",
         "x26",
         "x24",
+        "x7",
         "x6",
-        "x4",
-        "x8" 
+        "x4"
     );
 

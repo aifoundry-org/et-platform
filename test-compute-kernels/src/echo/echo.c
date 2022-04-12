@@ -7,7 +7,7 @@ typedef struct {
     char* output;
 } EchoParams;
 
-inline int min(int a, int b)
+static inline int min(int a, int b)
 {
     return a < b ? a : b;
 }
