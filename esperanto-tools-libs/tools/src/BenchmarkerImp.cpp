@@ -89,6 +89,10 @@ IBenchmarker::SummaryResults BenchmarkerImp::run(Options options, DeviceMask mas
   for (auto& w : workers) {
     summary.workerResults.emplace_back(w->wait());
   }
+  if (!tracePath.empty()) {
+    auto profiler = runtime_->getProfiler();
+    profiler->stop();
+  }
   auto et = std::chrono::high_resolution_clock::now() - start;
   auto us = std::chrono::duration_cast<std::chrono::microseconds>(et);
   auto secs = us.count() / 1e6f;
