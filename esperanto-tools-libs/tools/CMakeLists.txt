@@ -12,7 +12,13 @@ cmake_minimum_required(VERSION 3.17)
 project(runtimeTools VERSION 0.1.0)
 
 find_package(deviceLayer REQUIRED)
-find_package(EsperantoTestKernels REQUIRED)
+find_package(EsperantoBootLoader REQUIRED)
+find_package(EsperantoDeviceMinionRuntime REQUIRED)
+get_property(BOOTROM_TRAMPOLINE_TO_BL2_ELF TARGET EsperantoBootLoader::BootromTrampolineToBL2.elf PROPERTY LOCATION)
+get_property(BL2_ELF TARGET EsperantoBootLoader::ServiceProcessorBL2_fast-boot.elf PROPERTY LOCATION)
+get_property(MASTER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MasterMinion.elf PROPERTY LOCATION)
+get_property(MACHINE_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MachineMinion.elf PROPERTY LOCATION)
+get_property(WORKER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinion.elf PROPERTY LOCATION)
 
 add_library(benchmarker
   src/BenchmarkerImp.cpp
@@ -30,6 +36,12 @@ target_include_directories(runKernel PRIVATE ../src)
 target_compile_features(runKernel PRIVATE cxx_std_17)
 target_link_libraries(runKernel PRIVATE hostUtils::logging runtime::etrt_static deviceLayer::deviceLayer)
 
+find_package(gflags REQUIRED)
+configure_file(src/Constants.h.in ${CMAKE_BINARY_DIR}/src/Constants.h)
+add_executable(bench src/bench.cpp ${CMAKE_BINARY_DIR}/src/Constants.h)
+target_include_directories(bench PRIVATE ${CMAKE_BINARY_DIR}/src)
+target_link_libraries(bench PRIVATE gflags::gflags stdc++fs benchmarker)
+
 include(GNUInstallDirs)
 
 target_include_directories(benchmarker
@@ -42,7 +54,8 @@ set_target_properties(benchmarker PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE
 )
 
-target_link_libraries(benchmarker PRIVATE stdc++fs hostUtils::logging runtime::etrt_static deviceLayer::deviceLayer)
+target_link_libraries(benchmarker PRIVATE stdc++fs hostUtils::logging deviceLayer::deviceLayer)
+target_link_libraries(benchmarker PUBLIC runtime::etrt_static)
 
 # Add package information
 include(CMakePackageConfigHelpers)
