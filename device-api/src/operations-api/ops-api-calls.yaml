@@ -778,13 +778,16 @@ Messages :
     Type: Event
     PairedMessage: None
     Fields:
+      - Name: payload
+        Description: Optional payload as per error type
+        Type: uint64_t
       - Name: error_type
         Description: Error Type
         Type: enum
         Enum: dev_ops_api_error_type
-      - Name: payload
-        Description: Optional payload as per error type
-        Type: uint32_t
+      - Name: pad[4]
+        Description: Padding for alignment
+        Type: uint8_t
 #------------------------------------------------------------------------------
   - Name: device_ops_trace_buffer_full_event
     Description: Binary trace buffer is full and the host should consume it
