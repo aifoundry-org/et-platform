@@ -82,7 +82,9 @@ auto createDeviceLayer() {
 }
 int main(int argc, char* argv[]) {
   logging::Instance logger;
-  g3::log_levels::disable(INFO);
+  if (!FLAGS_enableLogging) {
+    g3::log_levels::disable(INFO);
+  }
 
   google::SetUsageMessage("Usage: ");
   google::ParseCommandLineNonHelpFlags(&argc, &argv, true);
