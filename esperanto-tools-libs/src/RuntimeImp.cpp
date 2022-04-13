@@ -87,6 +87,12 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling
     desiredCma = maxCma;
   }
   RT_LOG_IF(FATAL, desiredCma < 1024) << "Error: need at least 1024B of CMA to work";
+  auto envCma = getenv("ET_CMA_SIZE");
+  if (envCma) {
+    auto mem = std::stoull(envCma);
+    RT_LOG(INFO) << "Overriding default calculated CMA size of " << desiredCma << " with a CMA size of " << mem;
+    desiredCma = mem;
+  }
   cmaManager_ = std::make_unique<CmaManager>(*this, desiredCma);
   responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
 
