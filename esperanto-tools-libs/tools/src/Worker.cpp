@@ -23,7 +23,7 @@ Worker::Worker(size_t bytesH2D, size_t bytesD2H, DeviceId device, IRuntime& runt
     dH2D_ = runtime_.mallocDevice(device_, bytesH2D);
   }
   if (bytesD2H > 0) {
-    hD2H_.resize(bytesH2D);
+    hD2H_.resize(bytesD2H);
     dD2H_ = runtime_.mallocDevice(device_, bytesD2H);
   }
   stream_ = runtime_.createStream(device_);

@@ -13,7 +13,7 @@
 #include <bitset>
 #include <runtime/IRuntime.h>
 namespace rt {
-constexpr auto kMaxDevices = 16;
+constexpr auto kMaxDevices = 32;
 class IBenchmarker {
 public:
   struct Options {

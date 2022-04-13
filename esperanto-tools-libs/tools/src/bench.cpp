@@ -22,9 +22,10 @@ using namespace rt;
 
 DEFINE_uint64(h2d, 16 << 20, "transfer size from host to device");
 DEFINE_uint64(d2h, 16 << 20, "transfer size from device to host");
-DEFINE_uint32(dmask, 1, "device mask to enable/disable devices to benchmark");
+DEFINE_uint32(dmask, -1, "device mask to enable/disable devices to benchmark");
 DEFINE_uint64(th, 1, "number of threads per device");
 DEFINE_uint64(wl, 100, "number of workloads to execute per thread");
+DEFINE_bool(enableLogging, false, "enable INFO level of logger");
 DEFINE_string(tracePath, "", "path for the runtime trace. If empty then it won't be a runtime trace");
 DEFINE_bool(h, false, "Show help");
 DECLARE_bool(help);
