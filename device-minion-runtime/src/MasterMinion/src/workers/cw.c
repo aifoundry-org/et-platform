@@ -307,7 +307,7 @@ void CW_Process_CM_SMode_Messages(void)
 
                 /* Send Async error event to Host runtime. */
                 status = Device_Async_Error_Event_Handler(
-                    DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_EXCEPTION, (uint32_t)exception->hart_id);
+                    DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_EXCEPTION, exception->hart_id);
 
                 if (status != STATUS_SUCCESS)
                 {

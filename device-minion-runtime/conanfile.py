@@ -41,7 +41,7 @@ class DeviceMinionRuntimeConan(ConanFile):
 
     def requirements(self):
         # header-only libs
-        self.requires("deviceApi/0.3.0")
+        self.requires("deviceApi/0.4.0")
         self.requires("esperantoTrace/0.1.0")
         self.requires("signedImageFormat/1.0")
         # libs

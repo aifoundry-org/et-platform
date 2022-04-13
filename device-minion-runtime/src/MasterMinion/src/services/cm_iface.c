@@ -356,7 +356,7 @@ int32_t CM_Iface_Multicast_Send(uint64_t dest_shire_mask, cm_iface_message_t *co
 
             /* Send CM Hang error event to host */
             Device_Async_Error_Event_Handler(
-                DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, (uint32_t)pending_shires);
+                DEV_OPS_API_ERROR_TYPE_CM_SMODE_RT_HANG, pending_shires);
 
             Log_Write(LOG_LEVEL_ERROR, "MM->CM Multicast timeout abort. Status:%d\r\n", status);
             Log_Write(LOG_LEVEL_ERROR, "MM->CM:msg_num=%u:msg_id=%u:pending shire_mask=0x%lx\r\n",

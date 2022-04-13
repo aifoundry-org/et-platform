@@ -1976,7 +1976,7 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
 *       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-int32_t Device_Async_Error_Event_Handler(uint8_t error_type, uint32_t payload)
+int32_t Device_Async_Error_Event_Handler(uint8_t error_type, uint64_t payload)
 {
     struct device_ops_device_fw_error_t event;
     int32_t status;
