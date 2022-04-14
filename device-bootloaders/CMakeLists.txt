@@ -8,7 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.15)
-project(EsperantoBootLoader VERSION 0.1.0 LANGUAGES C ASM)
+project(EsperantoBootLoader VERSION 0.2.0 LANGUAGES C ASM)
 
 message(STATUS "PROJECT_VERSION ${PROJECT_VERSION}")
 
@@ -69,11 +69,11 @@ set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
 if (BUILD_DOC)
     # check if Doxygen is installed
     find_package(Doxygen REQUIRED)
-    
+
     add_subdirectory(doc)
 endif()
 
-############################ FW build Rules ############### 
+############################ FW build Rules ###############
 
 add_subdirectory(external)
 add_subdirectory(src)
