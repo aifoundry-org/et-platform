@@ -26,17 +26,17 @@ class DeviceManagementConan(ConanFile):
 
     scm = {
         "type": "git",
-        "url": "git@gitlab.esperanto.ai:software/devicelayer.git",
+        "url": "git@gitlab.esperanto.ai:software/devicemanagement.git",
         "revision": "auto",
     }
     generators = "CMakeDeps"
 
     python_requires = "conan-common/[>=0.5.0 <1.0.0]"
-    
+
 
     def set_version(self):
         self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "deviceManagement")
-        
+
     def requirements(self):
         self.requires("deviceApi/0.3.0")
         self.requires("deviceLayer/0.1.0")
@@ -51,11 +51,11 @@ class DeviceManagementConan(ConanFile):
 
         if self.options.with_tests:
             raise ConanInvalidConfiguration("Support for building with tests not yet implemented.")
-        
+
     def layout(self):
         cmake_layout(self)
         self.folders.source = "."
-    
+
     def generate(self):
         tc = CMakeToolchain(self)
         tc.variables["BUILD_TESTS"] = self.options.with_tests
@@ -64,17 +64,17 @@ class DeviceManagementConan(ConanFile):
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
         tc.generate()
-        
+
     def build(self):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-    
+
     def package(self):
         cmake = CMake(self)
         cmake.install()
         tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
-    
+
     def package_info(self):
         # library components
         self.cpp_info.components["DM"].set_property("cmake_target_name", "deviceManagement::DM")
@@ -86,7 +86,7 @@ class DeviceManagementConan(ConanFile):
             self.cpp_info.components["DM"].defines.append("MINION_DEBUG_INTERFACE")
         else:
             self.cpp_info.components["DM"].defines.append("NDEBUG")
-        
+
         self.cpp_info.components["DM_static"].set_property("cmake_target_name", "deviceManagement::DM_static")
         self.cpp_info.components["DM_static"].requires = ["deviceApi::deviceApi", "deviceLayer::deviceLayer", "hostUtils::logging"]
         self.cpp_info.components["DM_static"].lib = ["DM_static"]
