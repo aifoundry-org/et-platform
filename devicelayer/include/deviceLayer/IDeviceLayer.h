@@ -348,7 +348,7 @@ public:
   /// @returns std::unique_ptr<IDeviceApi> is the IDeviceApi implementation
   ///
   static std::unique_ptr<IDeviceLayer> createPcieDeviceLayer(bool enableMasterMinion = true,
-                                                             bool enableServiceProcessor = true);
+                                                             bool enableServiceProcessor = false);
 
   /// \brief Virtual Destructor to enable polymorphic release of the IDeviceApi
   /// instances
