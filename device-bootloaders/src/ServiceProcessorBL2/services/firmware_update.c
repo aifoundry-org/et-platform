@@ -20,6 +20,8 @@
 #include "mm_iface.h"
 #include "system/layout.h"
 #include "bl_error_code.h"
+#include "crc32.h"
+#include "esperanto_flash_image.h"
 
 #define SPI_FLASH_256B_CHUNK_SIZE 256
 
@@ -363,6 +365,182 @@ static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_
 *
 *   FUNCTION
 *
+*       verify_image_regions
+*
+*   DESCRIPTION
+*
+*       This function performs verification checks on regions of input
+*       image before updating the image on flash.
+*
+*   INPUTS
+*
+*       fw_addr      Start of image which is start of scratch region
+*
+*   OUTPUTS
+*
+*       Status
+*
+***********************************************************************/
+static int32_t verify_image_regions(void *fw_addr)
+{
+    uint32_t n;
+    uint32_t crc;
+    uint32_t region_offset_end;
+    uint32_t partition_size_in_blocks;
+    const ESPERANTO_FLASH_PARTITION_HEADER_t *header;
+    const ESPERANATO_REGION_INFO_t *regions_table;
+
+    header = (ESPERANTO_FLASH_PARTITION_HEADER_t *)fw_addr;
+    if (header == NULL) {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: image address is invalid!\n");
+        return ERROR_FW_UPDATE_VERIFY_REGIONS_INVALID_ARGUMENTS;
+    }
+    partition_size_in_blocks = header->partition_size / FLASH_PAGE_SIZE;
+
+    regions_table = (ESPERANATO_REGION_INFO_t *)((uint64_t)fw_addr + sizeof(ESPERANTO_FLASH_PARTITION_HEADER_t));
+
+    for (n = 0; n < header->regions_count; n++, regions_table++) {
+        switch (regions_table->region_id) {
+            case ESPERANTO_FLASH_REGION_ID_PRIORITY_DESIGNATOR:
+                if (1 != regions_table->region_reserved_size) {
+                    Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region %u PRI DESIGN wrong size!\n", n);
+                    return ERROR_FW_UPDATE_IMG_REGION_PRI_DES_WRONG_SIZE;
+                }
+                break;
+            case ESPERANTO_FLASH_REGION_ID_BOOT_COUNTERS:
+                if (1 != regions_table->region_reserved_size) {
+                    Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region %u BOOT COUNT wrong size!\n", n);
+                    return ERROR_FW_UPDATE_IMG_REGION_BOOT_COUNT_WRONG_SIZE;
+                }
+                break;
+            case ESPERANTO_FLASH_REGION_ID_CONFIGURATION_DATA:
+                if (1 != regions_table->region_reserved_size) {
+                    Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region %u CFG DATA wrong size!\n", n);
+                    return ERROR_FW_UPDATE_IMG_REGION_CFG_DATA_WRONG_SIZE;
+                }
+                break;
+            case ESPERANTO_FLASH_REGION_ID_PCIE_CONFIG:
+            case ESPERANTO_FLASH_REGION_ID_VAULTIP_FW:
+            case ESPERANTO_FLASH_REGION_ID_SP_CERTIFICATES:
+            case ESPERANTO_FLASH_REGION_ID_SP_BL1:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING:
+            case ESPERANTO_FLASH_REGION_ID_MACHINE_MINION:
+            case ESPERANTO_FLASH_REGION_ID_MASTER_MINION:
+            case ESPERANTO_FLASH_REGION_ID_WORKER_MINION:
+            case ESPERANTO_FLASH_REGION_ID_MAXION_BL1:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_800MHZ:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_933MHZ:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_1067MHZ:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_800MHZ:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_933MHZ:
+            case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_1067MHZ:
+            case ESPERANTO_FLASH_REGION_ID_SP_BL2:
+                break;
+            case ESPERANTO_FLASH_REGION_ID_INVALID:
+            case ESPERANTO_FLASH_REGION_ID_SW_CERTIFICATES:
+            case ESPERANTO_FLASH_REGION_ID_COMM_CERTIFICATES:
+            case ESPERANTO_FLASH_REGION_ID_AFTER_LAST_SUPPORTED_VALUE:
+            case ESPERANTO_FLASH_REGION_ID_FFFFFFFF:
+                Log_Write(LOG_LEVEL_DEBUG, "verify_image_regions: ignoring region id %u.\n", n);
+                continue;
+            default:
+                Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region id %u.\n", n);
+                return ERROR_FW_UPDATE_IMG_REGION_ID_INVALID;
+        }
+
+        crc = 0;
+        crc32(regions_table,
+              offsetof(ESPERANATO_REGION_INFO_t, region_info_checksum), &crc);
+        if (crc != regions_table->region_info_checksum) {
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: region %u CRC mismatch! (expected %08x, got %08x)\n", n,
+                   regions_table->region_info_checksum, crc);
+            return ERROR_FW_UPDATE_IMG_REGION_CRC_MISMATCH;
+        }
+        if (0 == regions_table->region_offset ||
+            regions_table->region_offset >= partition_size_in_blocks) {
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region %u offset!\n", n);
+            return ERROR_FW_UPDATE_IMG_REGION_OFFSET_INVALID;
+        }
+        if (0 == regions_table->region_reserved_size) {
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: region %u has zero size!\n", n);
+            return ERROR_FW_UPDATE_IMG_REGION_SIZE_INVALID;
+        }
+        region_offset_end = regions_table->region_offset +
+                            regions_table->region_reserved_size;
+        if (region_offset_end < regions_table->region_offset) {
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: region %u offset/size overflow!\n", n);
+            return ERROR_FW_UPDATE_IMG_REGION_OFFSET_OR_SIZE_OVERFLOW;
+        }
+        if (region_offset_end > partition_size_in_blocks) {
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region %u size!\n", n);
+            return ERROR_FW_UPDATE_IMG_REGION_SIZE_INVALID;
+        }
+    }
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       verify_image_header
+*
+*   DESCRIPTION
+*
+*       This function performs verification checks on input update image
+*       before updating the image on flash.
+*
+*   INPUTS
+*
+*       fw_addr      Start of image which is start of scratch region
+*
+*   OUTPUTS
+*
+*       Status
+*
+***********************************************************************/
+static int32_t verify_image_header(void *fw_addr)
+{
+    const ESPERANTO_FLASH_PARTITION_HEADER_t *header;
+    uint32_t crc = 0;
+
+    header = (ESPERANTO_FLASH_PARTITION_HEADER_t *)fw_addr;
+    if (header == NULL) {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_header: image address is invalid!\n");
+        return ERROR_FW_UPDATE_VERIFY_HEADER_INVALID_ARGUMENTS;
+    }
+
+    if (ESPERANTO_PARTITION_TAG != header->partition_tag) {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_header: partition header tag mismatch! (expected %08x, got %08x)\n", ESPERANTO_PARTITION_TAG, header->partition_tag);
+        return ERROR_FW_UPDATE_IMG_HEADER_TAG_MISMATCH;
+    }
+    if (sizeof(ESPERANTO_FLASH_PARTITION_HEADER_t) != header->partition_header_size) {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_header: partition header size mismatch!\n");
+        return ERROR_FW_UPDATE_IMG_HEADER_SIZE_MISMATCH;
+    }
+    if (sizeof(ESPERANATO_REGION_INFO_t) != header->region_info_size) {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_header: partition region size mismatch!\n");
+        return ERROR_FW_UPDATE_IMG_HEADER_REGION_SIZE_MISMATCH;
+    }
+    if (header->regions_count > ESPERANTO_MAX_REGIONS_COUNT) {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_header: invalid regions count value!\n");
+        return ERROR_FW_UPDATE_IMG_HEADER_REGIONS_COUNT_INVALID;
+    }
+
+    crc32(header, offsetof(ESPERANTO_FLASH_PARTITION_HEADER_t, partition_header_checksum), &crc);
+    if (crc != header->partition_header_checksum) {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_header: partition header CRC mismatch!\n");
+        return ERROR_FW_UPDATE_IMG_HEADER_CRC_MISMATCH;
+    }
+
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       dm_svc_firmware_update
 *
 *   DESCRIPTION
@@ -401,6 +579,7 @@ static int32_t dm_svc_firmware_update(void)
     uint32_t partition_size;
     uint64_t start_time;
     uint64_t end_time;
+    int32_t ret = 0;
 
     sp_bl2_data = get_service_processor_bl2_data();
     if (sp_bl2_data == NULL) {
@@ -411,7 +590,19 @@ static int32_t dm_svc_firmware_update(void)
     partition_size = sp_bl2_data->flash_fs_bl2_info.flash_size / 2;
     start_time = timer_get_ticks_count();
 
-    // Program the image to flash.
+    ret = verify_image_header((void *)SP_DM_SCRATCH_REGION_BEGIN);
+    if (ret != 0) {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_header: update image verification failed!\n");
+        return ret;
+    }
+
+    ret = verify_image_regions((void *)SP_DM_SCRATCH_REGION_BEGIN);
+    if (ret != 0) {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: update image verification failed!\n");
+        return ret;
+    }
+
+    // Image has passed verifcation checks, program it to flash.
     if (0 != flash_fs_update_partition((void *)SP_DM_SCRATCH_REGION_BEGIN, partition_size,
                                        SPI_FLASH_256B_CHUNK_SIZE)) {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_update_partition: failed to write data!\n");
