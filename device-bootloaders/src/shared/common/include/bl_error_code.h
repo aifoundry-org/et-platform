@@ -26,8 +26,8 @@
 #define SUCCESS 0
 
 /*! \def Generic errors: [-1, -999] */
-#define ERROR_INVALID_ARGUMENT      -1
-#define ERROR_TASK_CREATION_FAILED  -2
+#define ERROR_INVALID_ARGUMENT     -1
+#define ERROR_TASK_CREATION_FAILED -2
 
 /*! \def Main::NOC Setup Error Return code  */
 #define NOC_MAIN_CLOCK_CONFIGURE_ERROR -1000
@@ -38,15 +38,15 @@
 #define MEMSHIRE_DDR_CONFIG_ERROR        -2002
 
 /*! \def Main::Minion Setup Error Return code  */
-#define MINION_STEP_CLOCK_CONFIGURE_ERROR    -3000
-#define MINION_COLD_RESET_CONFIG_ERROR       -3001
-#define MINION_WARM_RESET_CONFIG_ERROR       -3002
-#define MINION_PLL_CONFIG_ERROR              -3003
-#define MINION_DLL_CONFIG_ERROR              -3004
-#define MINION_INVALID_SHIRE_MASK            -3005
-#define MINION_ENABLE_SHIRE_ERROR            -3006
-#define MINION_CORE_NOT_HALTED               -3007
-#define MINION_GET_FREQ_ERROR                -3008
+#define MINION_STEP_CLOCK_CONFIGURE_ERROR -3000
+#define MINION_COLD_RESET_CONFIG_ERROR    -3001
+#define MINION_WARM_RESET_CONFIG_ERROR    -3002
+#define MINION_PLL_CONFIG_ERROR           -3003
+#define MINION_DLL_CONFIG_ERROR           -3004
+#define MINION_INVALID_SHIRE_MASK         -3005
+#define MINION_ENABLE_SHIRE_ERROR         -3006
+#define MINION_CORE_NOT_HALTED            -3007
+#define MINION_GET_FREQ_ERROR             -3008
 
 /*! \def Main::FW Load and Authenticate Setup Error Return code  */
 #define FW_SW_CERTS_LOAD_ERROR -4000

@@ -74,20 +74,26 @@ static void reset_etsoc(void)
 ***********************************************************************/
 static void dm_svc_get_public_keys(tag_id_t tag_id, uint64_t req_start_time)
 {
-    uint8_t                                   gs_sp_root_ca_hash[512/8];
-    uint32_t                                  hash_size;
-    struct device_mgmt_fused_pub_keys_rsp_t   dm_rsp = { 0 };
+    uint8_t gs_sp_root_ca_hash[512 / 8];
+    uint32_t hash_size;
+    struct device_mgmt_fused_pub_keys_rsp_t dm_rsp = { 0 };
 
-    if (0 != crypto_load_public_key_hash_from_otp(VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH, gs_sp_root_ca_hash, sizeof(gs_sp_root_ca_hash), &hash_size)) {
-        Log_Write(LOG_LEVEL_WARNING,"SP ROOT CA HASH not found in OTP!\n");
+    if (0 != crypto_load_public_key_hash_from_otp(VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH,
+                                                  gs_sp_root_ca_hash, sizeof(gs_sp_root_ca_hash),
+                                                  &hash_size))
+    {
+        Log_Write(LOG_LEVEL_WARNING, "SP ROOT CA HASH not found in OTP!\n");
     }
 
-    FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_FUSED_PUBLIC_KEYS, timer_get_ticks_count() - req_start_time, DM_STATUS_SUCCESS)
+    FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_FUSED_PUBLIC_KEYS,
+                    timer_get_ticks_count() - req_start_time, DM_STATUS_SUCCESS)
 
     // copy the root hash
     memcpy(dm_rsp.fused_public_keys.keys, gs_sp_root_ca_hash, hash_size);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_fused_pub_keys_rsp_t))) {
+    if (0 !=
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_fused_pub_keys_rsp_t)))
+    {
         Log_Write(LOG_LEVEL_ERROR, "send_status_response: Cqueue push error!\n");
     }
 }
@@ -118,13 +124,18 @@ static int32_t dm_svc_get_firmware_status(void)
 
     Log_Write(LOG_LEVEL_INFO, "FW mgmt request: %s\n", __func__);
 
-    if (0 != flash_fs_get_boot_counters(&attempted_boot_counter, &completed_boot_counter)) {
+    if (0 != flash_fs_get_boot_counters(&attempted_boot_counter, &completed_boot_counter))
+    {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_get_boot_counters: failed to get boot counters!\n");
         return ERROR_FW_UPDATE_IMAGE_BOOT;
-    } else {
+    }
+    else
+    {
         Log_Write(LOG_LEVEL_INFO, "flash_fs_get_boot_counters: Success!\n");
-        if (attempted_boot_counter != completed_boot_counter) {
-            Log_Write(LOG_LEVEL_ERROR,
+        if (attempted_boot_counter != completed_boot_counter)
+        {
+            Log_Write(
+                LOG_LEVEL_ERROR,
                 "flash_fs_get_boot_counters: Attempted and completed boot counter do not match!\n");
             return ERROR_FW_UPDATE_IMAGE_BOOT;
         }
@@ -183,16 +194,18 @@ static int32_t dm_svc_set_bl2_monotonic_counter(uint32_t counter)
 *       Status
 *
 ***********************************************************************/
-static int32_t update_sw_boot_root_certificate_hash(char *key_blob, char* associated_data)
+static int32_t update_sw_boot_root_certificate_hash(char *key_blob, char *associated_data)
 {
     int32_t ret = 0;
 
     Log_Write(LOG_LEVEL_DEBUG, "recieved key_blob:\n");
-    for (int i = 0; i < 48; i++) {
+    for (int i = 0; i < 48; i++)
+    {
         Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&key_blob[i]);
     }
     Log_Write(LOG_LEVEL_DEBUG, "recieved associated_data:\n");
-    for (int i = 0; i < 48; i++) {
+    for (int i = 0; i < 48; i++)
+    {
         Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&associated_data[i]);
     }
     //TODO: Needs a future implementation. Currently we do not have a OTP field for SW boot certificate hash
@@ -219,15 +232,21 @@ static int32_t update_sw_boot_root_certificate_hash(char *key_blob, char* associ
 *       Status
 *
 ***********************************************************************/
-static int32_t dm_svc_update_sw_boot_root_certificate_hash(struct device_mgmt_certificate_hash_cmd_t *certificate_hash_cmd)
+static int32_t dm_svc_update_sw_boot_root_certificate_hash(
+    struct device_mgmt_certificate_hash_cmd_t *certificate_hash_cmd)
 {
-   //cmd_payload contains the hash for new certificate.
-   if(0 != update_sw_boot_root_certificate_hash(certificate_hash_cmd->certificate_hash.key_blob, certificate_hash_cmd->certificate_hash.associated_data)) {
-        Log_Write(LOG_LEVEL_ERROR, " dm_svc_update_sw_boot_root_certificate_hash : vault_ip_update_sp_boot_root_certificate_hash failed!\n");
+    //cmd_payload contains the hash for new certificate.
+    if (0 != update_sw_boot_root_certificate_hash(
+                 certificate_hash_cmd->certificate_hash.key_blob,
+                 certificate_hash_cmd->certificate_hash.associated_data))
+    {
+        Log_Write(
+            LOG_LEVEL_ERROR,
+            " dm_svc_update_sw_boot_root_certificate_hash : vault_ip_update_sp_boot_root_certificate_hash failed!\n");
         return -1;
-   }
+    }
 
-   return 0;
+    return 0;
 }
 
 /************************************************************************
@@ -250,7 +269,7 @@ static int32_t dm_svc_update_sw_boot_root_certificate_hash(struct device_mgmt_ce
 *       Status
 *
 ***********************************************************************/
-static int32_t update_sp_boot_root_certificate_hash(char *key_blob, char* associated_data)
+static int32_t update_sp_boot_root_certificate_hash(char *key_blob, char *associated_data)
 {
     static const uint32_t asset_policy = 4;
     static uint32_t asset_size;
@@ -260,10 +279,11 @@ static int32_t update_sp_boot_root_certificate_hash(char *key_blob, char* associ
 
     Log_Write(LOG_LEVEL_INFO, "FW mgmt request: %s\n", __func__);
 
-    if (0 != vaultip_drv_static_asset_search(get_rom_identity(),
-                                             VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH, &asset_id,
-                                             &asset_size)) {
-        Log_Write(LOG_LEVEL_ERROR,
+    if (0 != vaultip_drv_static_asset_search(
+                 get_rom_identity(), VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH, &asset_id, &asset_size))
+    {
+        Log_Write(
+            LOG_LEVEL_ERROR,
             "update_sp_boot_root_certificate_hash: vaultip_drv_static_asset_search(%u) failed!\n",
             VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH);
         return -1;
@@ -271,8 +291,10 @@ static int32_t update_sp_boot_root_certificate_hash(char *key_blob, char* associ
 
     if (0 != vaultip_drv_otp_data_write(get_rom_identity(), VAULTIP_STATIC_ASSET_SP_ROOT_CA_HASH,
                                         asset_policy, true, key_blob, key_blob_size,
-                                        associated_data, associated_data_size)) {
-        Log_Write(LOG_LEVEL_ERROR, " update_sp_boot_root_certificate_hash: vaultip_public_data_write() failed!\n");
+                                        associated_data, associated_data_size))
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+                  " update_sp_boot_root_certificate_hash: vaultip_public_data_write() failed!\n");
         return -1;
     };
 
@@ -304,16 +326,24 @@ static int32_t dm_svc_update_sp_boot_root_certificate_hash(
     Log_Write(LOG_LEVEL_INFO, "FW mgmt request: %s\n", __func__);
 
     Log_Write(LOG_LEVEL_DEBUG, "recieved key_blob:\n");
-    for (int i = 0; i < 48; i++) {
-        Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.key_blob[i]);
+    for (int i = 0; i < 48; i++)
+    {
+        Log_Write(LOG_LEVEL_DEBUG, "%02x ",
+                  *(unsigned char *)&certificate_hash_cmd->certificate_hash.key_blob[i]);
     }
     Log_Write(LOG_LEVEL_DEBUG, "recieved associated_data:\n");
-    for (int i = 0; i < 48; i++) {
-        Log_Write(LOG_LEVEL_DEBUG, "%02x ", *(unsigned char *)&certificate_hash_cmd->certificate_hash.associated_data[i]);
+    for (int i = 0; i < 48; i++)
+    {
+        Log_Write(LOG_LEVEL_DEBUG, "%02x ",
+                  *(unsigned char *)&certificate_hash_cmd->certificate_hash.associated_data[i]);
     }
     //Command payload contains the hash for new certificate.
-    if (0 != update_sp_boot_root_certificate_hash(certificate_hash_cmd->certificate_hash.key_blob, certificate_hash_cmd->certificate_hash.associated_data)) {
-        Log_Write(LOG_LEVEL_ERROR,
+    if (0 != update_sp_boot_root_certificate_hash(
+                 certificate_hash_cmd->certificate_hash.key_blob,
+                 certificate_hash_cmd->certificate_hash.associated_data))
+    {
+        Log_Write(
+            LOG_LEVEL_ERROR,
             " dm_svc_update_sp_boot_root_certificate_hash : vault_ip_update_sp_boot_root_certificate_hash failed!\n");
         return -1;
     }
@@ -350,13 +380,14 @@ static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_
 
     Log_Write(LOG_LEVEL_INFO, "FW mgmt response: %s\n", __func__);
 
-    Log_Write(LOG_LEVEL_DEBUG, "Fw mgmt response for msg_id = %u, tag_id = %u\n",msg_id, tag_id);
+    Log_Write(LOG_LEVEL_DEBUG, "Fw mgmt response for msg_id = %u, tag_id = %u\n", msg_id, tag_id);
 
     FILL_RSP_HEADER(dm_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status);
 
     dm_rsp.payload = status;
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t)))
+    {
         Log_Write(LOG_LEVEL_ERROR, "send_status_response: Cqueue push error!\n");
     }
 }
@@ -383,7 +414,6 @@ static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_
 ***********************************************************************/
 static int32_t verify_image_regions(void *fw_addr)
 {
-    uint32_t n;
     uint32_t crc;
     uint32_t region_offset_end;
     uint32_t partition_size_in_blocks;
@@ -391,31 +421,76 @@ static int32_t verify_image_regions(void *fw_addr)
     const ESPERANATO_REGION_INFO_t *regions_table;
 
     header = (ESPERANTO_FLASH_PARTITION_HEADER_t *)fw_addr;
-    if (header == NULL) {
+    if (header == NULL)
+    {
         Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: image address is invalid!\n");
         return ERROR_FW_UPDATE_VERIFY_REGIONS_INVALID_ARGUMENTS;
     }
     partition_size_in_blocks = header->partition_size / FLASH_PAGE_SIZE;
 
-    regions_table = (ESPERANATO_REGION_INFO_t *)((uint64_t)fw_addr + sizeof(ESPERANTO_FLASH_PARTITION_HEADER_t));
+    regions_table = (ESPERANATO_REGION_INFO_t *)((uint64_t)fw_addr +
+                                                 sizeof(ESPERANTO_FLASH_PARTITION_HEADER_t));
 
-    for (n = 0; n < header->regions_count; n++, regions_table++) {
-        switch (regions_table->region_id) {
+    for (uint32_t n = 0; n < header->regions_count; n++, regions_table++)
+    {
+        crc = 0;
+        crc32(regions_table, offsetof(ESPERANATO_REGION_INFO_t, region_info_checksum), &crc);
+        if (crc != regions_table->region_info_checksum)
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                      "verify_image_regions: region %u CRC mismatch! (expected %08x, got %08x)\n",
+                      n, regions_table->region_info_checksum, crc);
+            return ERROR_FW_UPDATE_IMG_REGION_CRC_MISMATCH;
+        }
+        if (0 == regions_table->region_offset ||
+            regions_table->region_offset >= partition_size_in_blocks)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region %u offset!\n", n);
+            return ERROR_FW_UPDATE_IMG_REGION_OFFSET_INVALID;
+        }
+        if (0 == regions_table->region_reserved_size)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: region %u has zero size!\n", n);
+            return ERROR_FW_UPDATE_IMG_REGION_SIZE_INVALID;
+        }
+        region_offset_end = regions_table->region_offset + regions_table->region_reserved_size;
+        if (region_offset_end < regions_table->region_offset)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: region %u offset/size overflow!\n",
+                      n);
+            return ERROR_FW_UPDATE_IMG_REGION_OFFSET_OR_SIZE_OVERFLOW;
+        }
+        if (region_offset_end > partition_size_in_blocks)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region %u size!\n", n);
+            return ERROR_FW_UPDATE_IMG_REGION_SIZE_INVALID;
+        }
+
+        switch (regions_table->region_id)
+        {
             case ESPERANTO_FLASH_REGION_ID_PRIORITY_DESIGNATOR:
-                if (1 != regions_table->region_reserved_size) {
-                    Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region %u PRI DESIGN wrong size!\n", n);
+                if (1 != regions_table->region_reserved_size)
+                {
+                    Log_Write(LOG_LEVEL_ERROR,
+                              "verify_image_regions: invalid region %u PRI DESIGN wrong size!\n",
+                              n);
                     return ERROR_FW_UPDATE_IMG_REGION_PRI_DES_WRONG_SIZE;
                 }
                 break;
             case ESPERANTO_FLASH_REGION_ID_BOOT_COUNTERS:
-                if (1 != regions_table->region_reserved_size) {
-                    Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region %u BOOT COUNT wrong size!\n", n);
+                if (1 != regions_table->region_reserved_size)
+                {
+                    Log_Write(LOG_LEVEL_ERROR,
+                              "verify_image_regions: invalid region %u BOOT COUNT wrong size!\n",
+                              n);
                     return ERROR_FW_UPDATE_IMG_REGION_BOOT_COUNT_WRONG_SIZE;
                 }
                 break;
             case ESPERANTO_FLASH_REGION_ID_CONFIGURATION_DATA:
-                if (1 != regions_table->region_reserved_size) {
-                    Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region %u CFG DATA wrong size!\n", n);
+                if (1 != regions_table->region_reserved_size)
+                {
+                    Log_Write(LOG_LEVEL_ERROR,
+                              "verify_image_regions: invalid region %u CFG DATA wrong size!\n", n);
                     return ERROR_FW_UPDATE_IMG_REGION_CFG_DATA_WRONG_SIZE;
                 }
                 break;
@@ -448,34 +523,6 @@ static int32_t verify_image_regions(void *fw_addr)
                 Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region id %u.\n", n);
                 return ERROR_FW_UPDATE_IMG_REGION_ID_INVALID;
         }
-
-        crc = 0;
-        crc32(regions_table,
-              offsetof(ESPERANATO_REGION_INFO_t, region_info_checksum), &crc);
-        if (crc != regions_table->region_info_checksum) {
-            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: region %u CRC mismatch! (expected %08x, got %08x)\n", n,
-                   regions_table->region_info_checksum, crc);
-            return ERROR_FW_UPDATE_IMG_REGION_CRC_MISMATCH;
-        }
-        if (0 == regions_table->region_offset ||
-            regions_table->region_offset >= partition_size_in_blocks) {
-            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region %u offset!\n", n);
-            return ERROR_FW_UPDATE_IMG_REGION_OFFSET_INVALID;
-        }
-        if (0 == regions_table->region_reserved_size) {
-            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: region %u has zero size!\n", n);
-            return ERROR_FW_UPDATE_IMG_REGION_SIZE_INVALID;
-        }
-        region_offset_end = regions_table->region_offset +
-                            regions_table->region_reserved_size;
-        if (region_offset_end < regions_table->region_offset) {
-            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: region %u offset/size overflow!\n", n);
-            return ERROR_FW_UPDATE_IMG_REGION_OFFSET_OR_SIZE_OVERFLOW;
-        }
-        if (region_offset_end > partition_size_in_blocks) {
-            Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: invalid region %u size!\n", n);
-            return ERROR_FW_UPDATE_IMG_REGION_SIZE_INVALID;
-        }
     }
     return 0;
 }
@@ -506,32 +553,40 @@ static int32_t verify_image_header(void *fw_addr)
     uint32_t crc = 0;
 
     header = (ESPERANTO_FLASH_PARTITION_HEADER_t *)fw_addr;
-    if (header == NULL) {
+    if (header == NULL)
+    {
         Log_Write(LOG_LEVEL_ERROR, "verify_image_header: image address is invalid!\n");
         return ERROR_FW_UPDATE_VERIFY_HEADER_INVALID_ARGUMENTS;
     }
 
-    if (ESPERANTO_PARTITION_TAG != header->partition_tag) {
-        Log_Write(LOG_LEVEL_ERROR, "verify_image_header: partition header tag mismatch! (expected %08x, got %08x)\n", ESPERANTO_PARTITION_TAG, header->partition_tag);
+    crc32(header, offsetof(ESPERANTO_FLASH_PARTITION_HEADER_t, partition_header_checksum), &crc);
+    if (crc != header->partition_header_checksum)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_header: partition header CRC mismatch!\n");
+        return ERROR_FW_UPDATE_IMG_HEADER_CRC_MISMATCH;
+    }
+
+    if (ESPERANTO_PARTITION_TAG != header->partition_tag)
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+                  "verify_image_header: partition header tag mismatch! (expected %08x, got %08x)\n",
+                  ESPERANTO_PARTITION_TAG, header->partition_tag);
         return ERROR_FW_UPDATE_IMG_HEADER_TAG_MISMATCH;
     }
-    if (sizeof(ESPERANTO_FLASH_PARTITION_HEADER_t) != header->partition_header_size) {
+    if (sizeof(ESPERANTO_FLASH_PARTITION_HEADER_t) != header->partition_header_size)
+    {
         Log_Write(LOG_LEVEL_ERROR, "verify_image_header: partition header size mismatch!\n");
         return ERROR_FW_UPDATE_IMG_HEADER_SIZE_MISMATCH;
     }
-    if (sizeof(ESPERANATO_REGION_INFO_t) != header->region_info_size) {
+    if (sizeof(ESPERANATO_REGION_INFO_t) != header->region_info_size)
+    {
         Log_Write(LOG_LEVEL_ERROR, "verify_image_header: partition region size mismatch!\n");
         return ERROR_FW_UPDATE_IMG_HEADER_REGION_SIZE_MISMATCH;
     }
-    if (header->regions_count > ESPERANTO_MAX_REGIONS_COUNT) {
+    if (header->regions_count > ESPERANTO_MAX_REGIONS_COUNT)
+    {
         Log_Write(LOG_LEVEL_ERROR, "verify_image_header: invalid regions count value!\n");
         return ERROR_FW_UPDATE_IMG_HEADER_REGIONS_COUNT_INVALID;
-    }
-
-    crc32(header, offsetof(ESPERANTO_FLASH_PARTITION_HEADER_t, partition_header_checksum), &crc);
-    if (crc != header->partition_header_checksum) {
-        Log_Write(LOG_LEVEL_ERROR, "verify_image_header: partition header CRC mismatch!\n");
-        return ERROR_FW_UPDATE_IMG_HEADER_CRC_MISMATCH;
     }
 
     return 0;
@@ -573,7 +628,7 @@ static int32_t dm_svc_firmware_update(void)
     // Firmware image is available in the memory.
     Log_Write(LOG_LEVEL_INFO, "FW mgmt request: %s\n", __func__);
     Log_Write(LOG_LEVEL_DEBUG, "Image available at : %lx,  size: %x\n",
-            (uint64_t)SP_DM_SCRATCH_REGION_BEGIN, SP_DM_SCRATCH_REGION_SIZE);
+              (uint64_t)SP_DM_SCRATCH_REGION_BEGIN, SP_DM_SCRATCH_REGION_SIZE);
 
     const SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
     uint32_t partition_size;
@@ -582,7 +637,8 @@ static int32_t dm_svc_firmware_update(void)
     int32_t ret = 0;
 
     sp_bl2_data = get_service_processor_bl2_data();
-    if (sp_bl2_data == NULL) {
+    if (sp_bl2_data == NULL)
+    {
         Log_Write(LOG_LEVEL_ERROR, "dm_svc_firmware_update: Unable to get SP BL2 data!\n");
         return ERROR_FW_UPDATE_INVALID_BL2_DATA;
     }
@@ -591,25 +647,32 @@ static int32_t dm_svc_firmware_update(void)
     start_time = timer_get_ticks_count();
 
     ret = verify_image_header((void *)SP_DM_SCRATCH_REGION_BEGIN);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         Log_Write(LOG_LEVEL_ERROR, "verify_image_header: update image verification failed!\n");
         return ret;
     }
 
     ret = verify_image_regions((void *)SP_DM_SCRATCH_REGION_BEGIN);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: update image verification failed!\n");
         return ret;
     }
 
     // Image has passed verifcation checks, program it to flash.
     if (0 != flash_fs_update_partition((void *)SP_DM_SCRATCH_REGION_BEGIN, partition_size,
-                                       SPI_FLASH_256B_CHUNK_SIZE)) {
+                                       SPI_FLASH_256B_CHUNK_SIZE))
+    {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_update_partition: failed to write data!\n");
         return ERROR_FW_UPDATE_ERASE_WRITE_PARTITION;
-    } else {
-        Log_Write(LOG_LEVEL_INFO, "Current FW image at partition %d\n", sp_bl2_data->flash_fs_bl2_info.active_partition);
-        Log_Write(LOG_LEVEL_INFO, "New FW image at partition %d\n", 1 - sp_bl2_data->flash_fs_bl2_info.active_partition);
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_INFO, "Current FW image at partition %d\n",
+                  sp_bl2_data->flash_fs_bl2_info.active_partition);
+        Log_Write(LOG_LEVEL_INFO, "New FW image at partition %d\n",
+                  1 - sp_bl2_data->flash_fs_bl2_info.active_partition);
     }
 
     /* Read back the image data written into flash and compare with the
@@ -619,16 +682,19 @@ static int32_t dm_svc_firmware_update(void)
     const uint8_t *ddr_data = (const uint8_t *)SP_DM_SCRATCH_REGION_BEGIN;
     uint8_t flash_data[SPI_FLASH_256B_CHUNK_SIZE];
 
-    for (uint32_t i = 0; i < partition_size; i = i + SPI_FLASH_256B_CHUNK_SIZE) {
+    for (uint32_t i = 0; i < partition_size; i = i + SPI_FLASH_256B_CHUNK_SIZE)
+    {
         /* Read data from flash passive partition */
-        if (0 != flash_fs_read(false, flash_data, SPI_FLASH_256B_CHUNK_SIZE, i)) {
+        if (0 != flash_fs_read(false, flash_data, SPI_FLASH_256B_CHUNK_SIZE, i))
+        {
             Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: read back from flash failed!\n");
             return ERROR_FW_UPDATE_READ_PARTITON;
         }
 
         /* Compare with the image data in the DDR */
         if (memcmp((const void *)(ddr_data + i), (const void *)flash_data,
-                                SPI_FLASH_256B_CHUNK_SIZE)) {
+                   SPI_FLASH_256B_CHUNK_SIZE))
+        {
             Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: data validation failed!\n");
             return ERROR_FW_UPDATE_MEMCOMPARE;
         }
@@ -638,12 +704,15 @@ static int32_t dm_svc_firmware_update(void)
 
     // Swap the priority counter of the partitions. so bootrom will choose
     // the partition with an updated image
-    if (0 != flash_fs_swap_primary_boot_partition()) {
-        Log_Write(LOG_LEVEL_ERROR, "flash_fs_swap_primary_boot_partition: Update priority counter failed!\n");
+    if (0 != flash_fs_swap_primary_boot_partition())
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+                  "flash_fs_swap_primary_boot_partition: Update priority counter failed!\n");
         return ERROR_FW_UPDATE_PRIORITY_COUNTER_SWAP;
     }
 
-    Log_Write(LOG_LEVEL_CRITICAL, "New FW updated successfully in %ld seconds\n", (end_time - start_time) / 1000000);
+    Log_Write(LOG_LEVEL_CRITICAL, "New FW updated successfully in %ld seconds\n",
+              (end_time - start_time) / 1000000);
 
     return SUCCESS;
 }
@@ -669,9 +738,9 @@ static int32_t dm_svc_firmware_update(void)
 ***********************************************************************/
 uint32_t sp_get_image_version_info(void)
 {
-   return (FORMAT_VERSION((uint32_t)get_image_version_info()->file_version_major,
-                       (uint32_t)get_image_version_info()->file_version_minor,
-                       (uint32_t)get_image_version_info()->file_version_revision));
+    return (FORMAT_VERSION((uint32_t)get_image_version_info()->file_version_major,
+                           (uint32_t)get_image_version_info()->file_version_minor,
+                           (uint32_t)get_image_version_info()->file_version_revision));
 }
 
 /************************************************************************
@@ -719,20 +788,24 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
 
     // Get the MM FW version values
     firmware_service_get_mm_version(&major, &minor, &revision);
-    dm_rsp.firmware_version.mm_v = FORMAT_VERSION((uint32_t)major, (uint32_t)minor, (uint32_t)revision);
+    dm_rsp.firmware_version.mm_v =
+        FORMAT_VERSION((uint32_t)major, (uint32_t)minor, (uint32_t)revision);
 
     // Get the WM FW version values
     firmware_service_get_wm_version(&major, &minor, &revision);
-    dm_rsp.firmware_version.wm_v = FORMAT_VERSION((uint32_t)major, (uint32_t)minor, (uint32_t)revision);
+    dm_rsp.firmware_version.wm_v =
+        FORMAT_VERSION((uint32_t)major, (uint32_t)minor, (uint32_t)revision);
 
     // Get the Machine FW version values
     firmware_service_get_machm_version(&major, &minor, &revision);
-    dm_rsp.firmware_version.machm_v = FORMAT_VERSION((uint32_t)major, (uint32_t)minor, (uint32_t)revision);
+    dm_rsp.firmware_version.machm_v =
+        FORMAT_VERSION((uint32_t)major, (uint32_t)minor, (uint32_t)revision);
 
     FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MODULE_FIRMWARE_REVISIONS,
                     timer_get_ticks_count() - req_start_time, DM_STATUS_SUCCESS);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(dm_rsp))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(dm_rsp)))
+    {
         Log_Write(LOG_LEVEL_ERROR, "dm_svc_get_firmware_version: Cqueue push error!\n");
     }
 }
@@ -767,12 +840,17 @@ void firmware_service_get_mm_version(uint8_t *major, uint8_t *minor, uint8_t *re
     master_image_file_header = get_master_minion_image_file_header();
 
     // Populate the required values
-    *major = (((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-        0xFF0000) >> 16);
-    *minor = (((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-        0xFF00) >> 8);
-    *revision = ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-        0xFF);
+    *major =
+        (((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+          0xFF0000) >>
+         16);
+    *minor =
+        (((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+          0xFF00) >>
+         8);
+    *revision =
+        ((master_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF);
 }
 
 /************************************************************************
@@ -805,12 +883,17 @@ void firmware_service_get_wm_version(uint8_t *major, uint8_t *minor, uint8_t *re
     worker_image_file_header = get_worker_minion_image_file_header();
 
     // Populate the required values
-    *major = (((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-        0xFF0000) >> 16);
-    *minor = (((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-        0xFF00) >> 8);
-    *revision = ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-        0xFF);
+    *major =
+        (((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+          0xFF0000) >>
+         16);
+    *minor =
+        (((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+          0xFF00) >>
+         8);
+    *revision =
+        ((worker_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF);
 }
 
 /************************************************************************
@@ -843,12 +926,17 @@ void firmware_service_get_machm_version(uint8_t *major, uint8_t *minor, uint8_t 
     machine_image_file_header = get_machine_minion_image_file_header();
 
     // Populate the required values
-    *major = (((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-        0xFF0000) >> 16);
-    *minor = (((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-        0xFF00) >> 8);
-    *revision = ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
-        0xFF);
+    *major =
+        (((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+          0xFF0000) >>
+         16);
+    *minor =
+        (((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+          0xFF00) >>
+         8);
+    *revision =
+        ((machine_image_file_header->info.image_info_and_signaure.info.public_info.file_version) &
+         0xFF);
 }
 
 /************************************************************************
@@ -878,52 +966,56 @@ void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *bu
     int32_t ret = 0;
     uint64_t req_start_time = timer_get_ticks_count();
 
-    switch (msg_id) {
-    case DM_CMD_SET_FIRMWARE_UPDATE:
-        ret = MM_Iface_Send_Abort_All_Cmd();
-        if( ret == SUCCESS)
-        {
-            ret = dm_svc_firmware_update();
+    switch (msg_id)
+    {
+        case DM_CMD_SET_FIRMWARE_UPDATE:
+            ret = MM_Iface_Send_Abort_All_Cmd();
+            if (ret == SUCCESS)
+            {
+                ret = dm_svc_firmware_update();
+            }
+            send_status_response(tag_id, msg_id, req_start_time, ret);
+            break;
+
+        case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS:
+            dm_svc_get_firmware_version(tag_id, req_start_time);
+            break;
+
+        case DM_CMD_GET_FIRMWARE_BOOT_STATUS:
+            ret = dm_svc_get_firmware_status();
+            send_status_response(tag_id, msg_id, req_start_time, ret);
+            break;
+
+        case DM_CMD_SET_FIRMWARE_VERSION_COUNTER: {
+            uint32_t counter = *((uint32_t *)buffer);
+            ret = dm_svc_set_bl2_monotonic_counter(counter);
+            send_status_response(tag_id, msg_id, req_start_time, ret);
+            break;
         }
-        send_status_response(tag_id, msg_id, req_start_time, ret);
-        break;
 
-    case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS:
-        dm_svc_get_firmware_version(tag_id, req_start_time);
-        break;
+        case DM_CMD_SET_SW_BOOT_ROOT_CERT: {
+            struct device_mgmt_certificate_hash_cmd_t *dm_cmd_req = (void *)buffer;
+            ret = dm_svc_update_sw_boot_root_certificate_hash(dm_cmd_req);
+            send_status_response(tag_id, msg_id, req_start_time, ret);
+            break;
+        }
 
-    case DM_CMD_GET_FIRMWARE_BOOT_STATUS:
-        ret = dm_svc_get_firmware_status();
-        send_status_response(tag_id, msg_id, req_start_time, ret);
-        break;
+        case DM_CMD_SET_SP_BOOT_ROOT_CERT: {
+            struct device_mgmt_certificate_hash_cmd_t *dm_cmd_req = (void *)buffer;
+            ret = dm_svc_update_sp_boot_root_certificate_hash(dm_cmd_req);
+            send_status_response(tag_id, msg_id, req_start_time, ret);
+            break;
+        }
 
-    case DM_CMD_SET_FIRMWARE_VERSION_COUNTER: {
-        uint32_t counter = *((uint32_t*)buffer);
-        ret = dm_svc_set_bl2_monotonic_counter(counter);
-        send_status_response(tag_id, msg_id, req_start_time, ret);
-        break;
-    }
+        case DM_CMD_GET_FUSED_PUBLIC_KEYS:
+            dm_svc_get_public_keys(tag_id, req_start_time);
+            break;
 
-    case DM_CMD_SET_SW_BOOT_ROOT_CERT:{
-        struct device_mgmt_certificate_hash_cmd_t *dm_cmd_req = (void*)buffer;
-        ret = dm_svc_update_sw_boot_root_certificate_hash(dm_cmd_req);
-        send_status_response(tag_id, msg_id, req_start_time, ret);
-        break;
-    }
-
-    case DM_CMD_SET_SP_BOOT_ROOT_CERT: {
-        struct device_mgmt_certificate_hash_cmd_t *dm_cmd_req = (void*)buffer;
-        ret = dm_svc_update_sp_boot_root_certificate_hash(dm_cmd_req);
-        send_status_response(tag_id, msg_id, req_start_time, ret);
-        break;
-    }
-
-    case DM_CMD_GET_FUSED_PUBLIC_KEYS:
-        dm_svc_get_public_keys(tag_id, req_start_time);
-        break;
-
-    case DM_CMD_RESET_ETSOC:
-        reset_etsoc();
-        break;
+        case DM_CMD_RESET_ETSOC:
+            reset_etsoc();
+            break;
+        default:
+            Log_Write(LOG_LEVEL_ERROR, "firmware_service_process_request: invalid message id %u.\n",
+                      msg_id);
     }
 }
