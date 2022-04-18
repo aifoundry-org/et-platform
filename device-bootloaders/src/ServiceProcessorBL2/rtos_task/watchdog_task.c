@@ -37,7 +37,7 @@ int32_t init_watchdog_service(void)
     int32_t status = 0;
 
     /* Build time argument to configure Time slicing schedule delays. */
-    status = watchdog_init((WDOG_DEFAULT_TIMEOUT_MSEC * WDOG_TIME_SLICE_PERC) / 100);
+    status = watchdog_init(WDOG_DEFAULT_TIMEOUT_MSEC);
     if (!status)
     {
         /* Create the watchdog feeding task */
@@ -61,11 +61,13 @@ int32_t init_watchdog_service(void)
 static void watchdog_task_entry(void *pvParameter)
 {
     (void)pvParameter;
+    uint32_t watchdog_timeout;
 
+    get_watchdog_timeout(&watchdog_timeout);
     /* Use 80% of the given time for the task delay
        to account for scheduling delays. Its a guess,
        might need to change*/
-    const TickType_t frequency = pdMS_TO_TICKS((WDOG_DEFAULT_TIMEOUT_MSEC * 80) / 100);
+    const TickType_t frequency = pdMS_TO_TICKS((watchdog_timeout * 80) / 100);
 
     /* obtain reset cause form PMIC to determine if it was
        watchdog reset */
