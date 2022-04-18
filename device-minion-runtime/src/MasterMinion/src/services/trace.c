@@ -161,7 +161,8 @@ int32_t Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
         hart_init_info.shire_mask = MM_SHIRE_MASK;
         hart_init_info.thread_mask = MM_DEFAULT_THREAD_MASK;
         hart_init_info.event_mask = TRACE_EVENT_STRING;
-        hart_init_info.filter_mask = TRACE_EVENT_STRING_INFO;
+        /* Set Trace default log level to Debug. This log level is independent from Log component. */
+        hart_init_info.filter_mask = TRACE_EVENT_STRING_DEBUG;
         hart_init_info.threshold = MM_TRACE_BUFFER_SIZE;
     }
     /* Check if shire mask is of Master Minion and atleast one thread is enabled. */

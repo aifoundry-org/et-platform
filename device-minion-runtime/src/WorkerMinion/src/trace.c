@@ -152,7 +152,8 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
         hart_init_info.shire_mask = CM_DEFAULT_TRACE_SHIRE_MASK;
         hart_init_info.thread_mask = CM_DEFAULT_TRACE_THREAD_MASK;
         hart_init_info.event_mask = TRACE_EVENT_STRING;
-        hart_init_info.filter_mask = TRACE_EVENT_STRING_WARNING;
+        /* Set Trace default log level to Debug. This log level is independent from Log component. */
+        hart_init_info.filter_mask = TRACE_EVENT_STRING_DEBUG;
         hart_init_info.threshold = CM_SMODE_TRACE_BUFFER_SIZE_PER_HART;
     }
     else
