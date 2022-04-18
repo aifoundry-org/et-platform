@@ -114,9 +114,9 @@ int main(int argc, char* argv[]) {
   if (FLAGS_json) {
     using namespace nlohmann;
     json j;
-    j["options"] = json{opts};
-    j["execution"] = json{results};
-    std::cout << j.dump();
+    j["options"] = opts;
+    j["execution"] = results;
+    std::cout << j.dump() << std::endl;
   } else {
     std::cout << "Summary: " << std::setprecision(2) << std::fixed << "\n * H2D: " << results.bytesSentPerSecond / 1e6
               << "MB/s"
