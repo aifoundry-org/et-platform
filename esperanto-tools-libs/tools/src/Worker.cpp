@@ -38,7 +38,7 @@ void Worker::start(int numIterations) {
         runtime_.memcpyHostToDevice(stream_, hH2D_.data(), dH2D_, hH2D_.size());
       }
       if (dD2H_) {
-        runtime_.memcpyDeviceToHost(stream_, hD2H_.data(), dD2H_, hD2H_.size());
+        runtime_.memcpyDeviceToHost(stream_, dD2H_, hD2H_.data(), hD2H_.size());
       }
     }
     runtime_.waitForStream(stream_);
