@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
     json j;
     j["options"] = opts;
     j["execution"] = results;
-    std::cout << j.dump() << std::endl;
+    std::cout << j.dump(2) << std::endl;
   } else {
     std::cout << "Summary: " << std::setprecision(2) << std::fixed << "\n * H2D: " << results.bytesSentPerSecond / 1e6
               << "MB/s"
