@@ -8,6 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #include "Constants.h"
+#include "json_conversion.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 #include "tools/IBenchmarker.h"
@@ -18,6 +19,7 @@
 #include <hostUtils/logging/Logger.h>
 #include <iomanip>
 #include <iostream>
+
 using namespace rt;
 
 DEFINE_uint64(h2d, 16 << 20, "transfer size from host to device");
@@ -28,6 +30,7 @@ DEFINE_uint64(wl, 100, "number of workloads to execute per thread");
 DEFINE_bool(enableLogging, false, "enable INFO level of logger");
 DEFINE_string(tracePath, "", "path for the runtime trace. If empty then it won't be a runtime trace");
 DEFINE_bool(h, false, "Show help");
+DEFINE_bool(json, false, "Outputs a json summary.");
 DECLARE_bool(help);
 DECLARE_bool(helpshort);
 
@@ -108,7 +111,15 @@ int main(int argc, char* argv[]) {
   IBenchmarker::DeviceMask mask;
   mask.mask_ = FLAGS_dmask;
   auto results = benchmarker->run(opts, mask);
-  std::cout << "Summary: " << std::setprecision(2) << std::fixed << "\n * H2D: " << results.bytesSentPerSecond / 1e6
-            << "MB/s"
-            << "\n * D2H: " << results.bytesReceivedPerSecond / 1e6 << "MB/s" << std::endl;
+  if (FLAGS_json) {
+    using namespace nlohmann;
+    json j;
+    j["options"] = json{opts};
+    j["execution"] = json{results};
+    std::cout << j.dump();
+  } else {
+    std::cout << "Summary: " << std::setprecision(2) << std::fixed << "\n * H2D: " << results.bytesSentPerSecond / 1e6
+              << "MB/s"
+              << "\n * D2H: " << results.bytesReceivedPerSecond / 1e6 << "MB/s" << std::endl;
+  }
 }
