@@ -22,13 +22,13 @@ void to_json(nlohmann::json& j, const IBenchmarker::Options& options) {
                      {"kernelPath", options.kernelPath}};
 }
 void to_json(nlohmann::json& j, const IBenchmarker::WorkerResult& result) {
-  j = nlohmann::json{{"BytesReceivedPerSecond", result.bytesReceivedPerSecond},
-                     {"BytesSentPerSecond", result.bytesSentPerSecond},
+  j = nlohmann::json{{"MBpsReceived", result.bytesReceivedPerSecond / static_cast<float>(1 << 10)},
+                     {"MBpsSent", result.bytesSentPerSecond / static_cast<float>(1 << 10)},
                      {"DeviceId", result.device}};
 }
 void to_json(nlohmann::json& j, const IBenchmarker::SummaryResults& result) {
-  j = nlohmann::json{{"TotalBytesReceivedPerSecond", result.bytesReceivedPerSecond},
-                     {"TotalBytesSentPerSecond", result.bytesSentPerSecond},
+  j = nlohmann::json{{"TotalMBpsReceived", result.bytesReceivedPerSecond / static_cast<float>(1 << 10)},
+                     {"TotalMBpsSent", result.bytesSentPerSecond / static_cast<float>(1 << 10)},
                      {"WorkersResults", result.workerResults}};
 }
 } // namespace rt
