@@ -38,7 +38,7 @@ void Worker::start(int numIterations) {
         runtime_.memcpyHostToDevice(stream_, hH2D_.data(), dH2D_, hH2D_.size());
       }
       if (dD2H_) {
-        runtime_.memcpyHostToDevice(stream_, hD2H_.data(), dD2H_, hD2H_.size());
+        runtime_.memcpyDeviceToHost(stream_, hD2H_.data(), dD2H_, hD2H_.size());
       }
     }
     runtime_.waitForStream(stream_);
@@ -46,7 +46,7 @@ void Worker::start(int numIterations) {
     auto us = std::chrono::duration_cast<std::chrono::microseconds>(et);
     auto secs = us.count() / 1e6f;
     result_.bytesReceivedPerSecond = hD2H_.size() * numIterations / secs;
-    result_.bytesReceivedPerSecond = hH2D_.size() * numIterations / secs;
+    result_.bytesSentPerSecond = hH2D_.size() * numIterations / secs;
   });
 }
 
