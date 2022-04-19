@@ -201,6 +201,9 @@ void dcache_prefetch_vaddr(Hart& cpu, uint64_t value)
             try {
                 cache_line_t tmp;
                 uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch, cop);
+                if (paddr_is_scratchpad(paddr) && dest != 0) {
+                    throw memory_error(paddr);
+                }
                 cpu.chip->memory.read(cpu, paddr, L1D_LINE_SIZE, tmp.u32.data());
                 LOG_MEMREAD512(paddr, tmp.u32);
             }
