@@ -109,6 +109,8 @@ int main(int argc, char* argv[]) {
   opts.bytesD2H = FLAGS_d2h;
   opts.bytesH2D = FLAGS_h2d;
   opts.numThreads = FLAGS_th;
+  opts.numD2H = FLAGS_numd2h;
+  opts.numH2D = FLAGS_numh2d;
   opts.numWorkloadsPerThread = FLAGS_wl;
 
   IBenchmarker::DeviceMask mask;

@@ -15,15 +15,17 @@ using namespace rt;
 
 Worker::Worker(size_t bytesH2D, size_t bytesD2H, size_t numH2D, size_t numD2H, DeviceId device, IRuntime& runtime)
   : runtime_(runtime)
-  , device_(device) {
+  , device_(device)
+  , numH2D_(numH2D)
+  , numD2H_(numD2H) {
   auto devices = runtime.getDevices();
   BM_LOG_IF(FATAL, std::find(begin(devices), end(devices), device_) == end(devices)) << "Invalid DeviceId";
   BM_LOG_IF(FATAL, bytesH2D == 0 && bytesD2H == 0) << "H2D and D2H can't be both zero";
-  if (numH2D > 1) {
-    bytesH2D = bytesH2D + numH2D - 1;
+  if (numH2D_ > 1) {
+    bytesH2D = bytesH2D + numH2D_ - 1;
   }
-  if (numD2H > 1) {
-    bytesD2H = bytesD2H + numD2H - 1;
+  if (numD2H_ > 1) {
+    bytesD2H = bytesD2H + numD2H_ - 1;
   }
   if (bytesH2D > 0) {
     hH2D_.resize(bytesH2D);
