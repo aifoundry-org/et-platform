@@ -19,7 +19,9 @@ void to_json(nlohmann::json& j, const IBenchmarker::Options& options) {
                      {"workloadsPerThread", options.numWorkloadsPerThread},
                      {"runtimeTracePath", options.runtimeTracePath},
                      {"useDmaBuffers", options.useDmaBuffers},
-                     {"kernelPath", options.kernelPath}};
+                     {"kernelPath", options.kernelPath},
+                     {"numH2D", options.numH2D},
+                     {"numD2H", options.numD2H}};
 }
 void to_json(nlohmann::json& j, const IBenchmarker::WorkerResult& result) {
   j = nlohmann::json{{"MBpsReceived", result.bytesReceivedPerSecond / static_cast<float>(1 << 20)},

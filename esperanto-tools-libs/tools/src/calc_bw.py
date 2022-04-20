@@ -48,7 +48,7 @@ def main():
   os.access(execPath, os.X_OK) or sys.exit('provide bench tool executable')
 
   alltransfers = list(map(lambda pair: bench(pair[0], pair[1]), transfers))
-  alltransfers.append(list(map(lambda pair: bench(pair[0], pair[1], 53), transfers)))
+  alltransfers.append(map(lambda pair: bench(pair[0], pair[1], 53), transfers))
   print(json.dumps(alltransfers, indent=2))
 
 
