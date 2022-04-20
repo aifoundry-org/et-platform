@@ -46,7 +46,7 @@ unit_tests:conan:sysemu:
       conan install .. -pr:b default -pr:h linux-ubuntu16.04-x86_64-gcc7-${BUILD_TYPE} -o runtime:with_tests=True -o esperanto-flash-tool:header_only=True --build missing
       cmake --configure .. -DCMAKE_TOOLCHAIN_FILE=conan/conan_toolchain.cmake -G Ninja
       cmake --build .
-      ctest -T Test -L 'Generic' --no-compress-output --parallel 2
+      ctest -T Test -L 'Generic' --no-compress-output --parallel 4
 
 ###############################################################################
 ###############################################################################
