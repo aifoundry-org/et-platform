@@ -825,6 +825,71 @@ static const struct file_operations et_pcie_mgmt_fops = {
 
 // clang-format on
 
+static pci_ers_result_t esperanto_pcie_error_detected(struct pci_dev *pdev,
+						      pci_channel_state_t state)
+{
+	pci_ers_result_t rv;
+
+	dev_info(&pdev->dev,
+		 "PCI error: detected callback, state(%d)!\n",
+		 state);
+
+	switch (state) {
+	case pci_channel_io_normal:
+		rv = PCI_ERS_RESULT_CAN_RECOVER;
+		break;
+	/* Fatal error, prepare for slot reset */
+	case pci_channel_io_frozen:
+		rv = PCI_ERS_RESULT_NEED_RESET;
+		break;
+	case pci_channel_io_perm_failure:
+	default:
+		/* Permanent error, prepare for device removal */
+		rv = PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	return rv;
+}
+
+static pci_ers_result_t esperanto_pcie_mmio_enabled(struct pci_dev *pdev)
+{
+	dev_info(&pdev->dev, "PCI error: mmio enabled callback!\n");
+
+	/* TODO - dump whatever for debugging purposes */
+
+	/* This called only if esperanto_pcie_error_detected returns
+	 * PCI_ERS_RESULT_CAN_RECOVER.
+	 */
+
+	return PCI_ERS_RESULT_DISCONNECT;
+}
+
+static pci_ers_result_t esperanto_pcie_slot_reset(struct pci_dev *pdev)
+{
+	dev_info(&pdev->dev, "PCI error: slot reset callback!\n");
+
+	/* TODO - This called if slot is successfully reset, perform the
+	 * re-initialization of device here.
+	 */
+
+	return PCI_ERS_RESULT_DISCONNECT;
+}
+
+static void esperanto_pcie_resume(struct pci_dev *pdev)
+{
+	dev_info(&pdev->dev, "PCI error: resume callback!\n");
+}
+
+// clang-format off
+static const struct pci_error_handlers et_pcie_err_handler = {
+	.error_detected	= esperanto_pcie_error_detected,
+	.mmio_enabled	= esperanto_pcie_mmio_enabled,
+	.slot_reset	= esperanto_pcie_slot_reset,
+	.resume		= esperanto_pcie_resume,
+};
+
+// clang-format on
+
 static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 {
 	struct et_pci_dev *et_dev;
@@ -1953,6 +2018,7 @@ static struct pci_driver et_pcie_driver = {
 	.id_table	= esperanto_pcie_tbl,
 	.probe		= esperanto_pcie_probe,
 	.remove		= esperanto_pcie_remove,
+	.err_handler	= &et_pcie_err_handler,
 };
 
 // clang-format on
