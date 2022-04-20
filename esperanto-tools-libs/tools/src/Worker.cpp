@@ -62,14 +62,18 @@ void Worker::start(int numIterations) {
     for (int i = 0; i < numIterations; ++i) {
       if (dH2D_) {
         if (numH2D_ > 1) {
-          runtime_.memcpyHostToDevice(stream_, listH2D);
+          for (auto& op : listH2D) {
+            runtime_.memcpyHostToDevice(stream_, op);
+          }
         } else {
           runtime_.memcpyHostToDevice(stream_, hH2D_.data(), dH2D_, hH2D_.size());
         }
       }
       if (dD2H_) {
         if (numD2H_ > 1) {
-          runtime_.memcpyDeviceToHost(stream_, listD2H);
+          for (auto& op : listD2H) {
+            runtime_.memcpyDeviceToHost(stream_, op);
+          }
         } else {
           runtime_.memcpyDeviceToHost(stream_, dD2H_, hD2H_.data(), hD2H_.size());
         }
