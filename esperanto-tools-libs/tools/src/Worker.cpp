@@ -42,15 +42,22 @@ Worker::Worker(size_t bytesH2D, size_t bytesD2H, size_t numH2D, size_t numD2H, D
 void Worker::start(int numIterations) {
   runner_ = std::thread([this, numIterations] {
     auto start = std::chrono::high_resolution_clock::now();
-    rt::MemcpyList listH2D;
-    rt::MemcpyList listD2H;
+    std::vector<rt::MemcpyList> listH2D;
+    std::vector<rt::MemcpyList> listD2H;
+
     for (auto i = 0U; i < numH2D_; ++i) {
       auto size = hH2D_.size() / numH2D_;
-      listH2D.addOp(hH2D_.data() + i * size, dH2D_ + i * size, size);
+      if (i % 4 == 0) {
+        listH2D.emplace_back(rt::MemcpyList{});
+      }
+      listH2D.back().addOp(hH2D_.data() + i * size, dH2D_ + i * size, size);
     }
     for (auto i = 0U; i < numD2H_; ++i) {
       auto size = hD2H_.size() / numD2H_;
-      listD2H.addOp(hD2H_.data() + i * size, dD2H_ + i * size, size);
+      if (i % 4 == 0) {
+        listD2H.emplace_back(rt::MemcpyList{});
+      }
+      listD2H.back().addOp(hD2H_.data() + i * size, dD2H_ + i * size, size);
     }
     for (int i = 0; i < numIterations; ++i) {
       if (dH2D_) {
