@@ -9,15 +9,22 @@
  *-------------------------------------------------------------------------*/
 #include "Worker.h"
 #include "Logging.h"
+#include "runtime/Types.h"
 #include <hostUtils/logging/Logging.h>
 using namespace rt;
 
-Worker::Worker(size_t bytesH2D, size_t bytesD2H, DeviceId device, IRuntime& runtime)
+Worker::Worker(size_t bytesH2D, size_t bytesD2H, size_t numH2D, size_t numD2H, DeviceId device, IRuntime& runtime)
   : runtime_(runtime)
   , device_(device) {
   auto devices = runtime.getDevices();
   BM_LOG_IF(FATAL, std::find(begin(devices), end(devices), device_) == end(devices)) << "Invalid DeviceId";
   BM_LOG_IF(FATAL, bytesH2D == 0 && bytesD2H == 0) << "H2D and D2H can't be both zero";
+  if (numH2D > 1) {
+    bytesH2D = bytesH2D + numH2D - 1;
+  }
+  if (numD2H > 1) {
+    bytesD2H = bytesD2H + numD2H - 1;
+  }
   if (bytesH2D > 0) {
     hH2D_.resize(bytesH2D);
     dH2D_ = runtime_.mallocDevice(device_, bytesH2D);
@@ -33,12 +40,30 @@ Worker::Worker(size_t bytesH2D, size_t bytesD2H, DeviceId device, IRuntime& runt
 void Worker::start(int numIterations) {
   runner_ = std::thread([this, numIterations] {
     auto start = std::chrono::high_resolution_clock::now();
+    rt::MemcpyList listH2D;
+    rt::MemcpyList listD2H;
+    for (auto i = 0U; i < numH2D_; ++i) {
+      auto size = hH2D_.size() / numH2D_;
+      listH2D.addOp(hH2D_.data() + i * size, dH2D_ + i * size, size);
+    }
+    for (auto i = 0U; i < numD2H_; ++i) {
+      auto size = hD2H_.size() / numD2H_;
+      listD2H.addOp(hD2H_.data() + i * size, dD2H_ + i * size, size);
+    }
     for (int i = 0; i < numIterations; ++i) {
       if (dH2D_) {
-        runtime_.memcpyHostToDevice(stream_, hH2D_.data(), dH2D_, hH2D_.size());
+        if (numH2D_ > 1) {
+          runtime_.memcpyHostToDevice(stream_, listH2D);
+        } else {
+          runtime_.memcpyHostToDevice(stream_, hH2D_.data(), dH2D_, hH2D_.size());
+        }
       }
       if (dD2H_) {
-        runtime_.memcpyDeviceToHost(stream_, dD2H_, hD2H_.data(), hD2H_.size());
+        if (numD2H_ > 1) {
+          runtime_.memcpyDeviceToHost(stream_, listD2H);
+        } else {
+          runtime_.memcpyDeviceToHost(stream_, dD2H_, hD2H_.data(), hD2H_.size());
+        }
       }
     }
     runtime_.waitForStream(stream_);

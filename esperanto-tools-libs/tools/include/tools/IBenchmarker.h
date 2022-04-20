@@ -21,6 +21,10 @@ public:
     size_t bytesH2D = 4096;
     // total number of bytes transferred from device to host. If 0 then the workload won't do D2H transfers
     size_t bytesD2H = 4096;
+    // number of commands for each transfer -use memcpylist- H2D
+    size_t numH2D = 1;
+    // number of commands for each transfer -use memcpylist- H2D
+    size_t numD2H = 1;
     // path of kernel to execute. If empty then there won't be kernel execution in the workload
     std::string kernelPath;
     // number of workloads executed per thread

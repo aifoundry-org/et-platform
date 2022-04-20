@@ -16,7 +16,8 @@
 
 class Worker {
 public:
-  explicit Worker(size_t bytesH2D, size_t bytesD2H, rt::DeviceId device, rt::IRuntime& runtime);
+  explicit Worker(size_t bytesH2D, size_t bytesD2H, size_t numH2D, size_t numD2H, rt::DeviceId device,
+                  rt::IRuntime& runtime);
   void start(int numIterations);
   rt::IBenchmarker::WorkerResult wait();
   ~Worker();
@@ -27,6 +28,8 @@ private:
   rt::StreamId stream_;
   std::thread runner_;
   rt::IBenchmarker::WorkerResult result_;
+  size_t numH2D_;
+  size_t numD2H_;
 
   std::vector<std::byte> hH2D_;
   std::byte* dH2D_ = nullptr;

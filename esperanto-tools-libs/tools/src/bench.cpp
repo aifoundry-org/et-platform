@@ -25,8 +25,10 @@ using namespace rt;
 DEFINE_uint64(h2d, 16 << 20, "transfer size from host to device");
 DEFINE_uint64(d2h, 16 << 20, "transfer size from device to host");
 DEFINE_uint32(dmask, -1, "device mask to enable/disable devices to benchmark");
-DEFINE_uint64(th, 1, "number of threads per device");
-DEFINE_uint64(wl, 100, "number of workloads to execute per thread");
+DEFINE_uint64(th, 2, "number of threads per device");
+DEFINE_uint64(wl, 10, "number of workloads to execute per thread");
+DEFINE_uint32(numh2d, 1, "number of transfers of h2d/numh2d bytes size");
+DEFINE_uint32(numd2h, 1, "number of transfers of d2h/numd2h bytes size");
 DEFINE_bool(enableLogging, false, "enable INFO level of logger");
 DEFINE_string(tracePath, "", "path for the runtime trace. If empty then it won't be a runtime trace");
 DEFINE_bool(h, false, "Show help");
@@ -108,6 +110,7 @@ int main(int argc, char* argv[]) {
   opts.bytesH2D = FLAGS_h2d;
   opts.numThreads = FLAGS_th;
   opts.numWorkloadsPerThread = FLAGS_wl;
+
   IBenchmarker::DeviceMask mask;
   mask.mask_ = FLAGS_dmask;
   auto results = benchmarker->run(opts, mask);

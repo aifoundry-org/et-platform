@@ -73,7 +73,8 @@ IBenchmarker::SummaryResults BenchmarkerImp::run(Options options, DeviceMask mas
     if (mask.isEnabled(d)) {
       BM_LOG(INFO) << "\t Device " << static_cast<int>(d) << " is enabled. Creating workers.";
       for (int i = 0; i < options.numThreads; ++i) {
-        workers.emplace_back(std::make_unique<Worker>(options.bytesH2D, options.bytesD2H, d, *runtime_));
+        workers.emplace_back(
+          std::make_unique<Worker>(options.bytesH2D, options.bytesD2H, options.numH2D, options.numD2H, d, *runtime_));
       }
     }
   }
