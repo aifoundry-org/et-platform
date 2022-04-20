@@ -1,9 +1,10 @@
 #!/usr/bin/python3
 
+from locale import getdefaultlocale
 import subprocess as proc
 import sys
 import os
-import locale
+import json 
 
 transfers = [
 (602112,	4000),
@@ -34,8 +35,10 @@ h2d53 = [
 execPath = ""
 
 def bench(h2d, d2h, dmask=1, th=2, wl=10, numh2d=1, numd2h=1, cma_size=1<<30, dl=2):
-  return proc.run(env={'ET_CMA_SIZE': str(cma_size)}, executable=execPath, encoding=locale.getpreferredencoding(), stdout=proc.PIPE,
-  args='-json -wl {wl} -th {th} -h2d {h2d} -d2h {d2h} -th {th} -numh2d {numh2d} -numd2h {numd2h} -dmask {dmask} -deviceLayer {dl}'.format(dl=dl, wl=wl, th=th, dmask=dmask, h2d=h2d, d2h=d2h, numh2d=numh2d, numd2h=numd2h))
+  argos='dummy -json -wl {wl} -th {th} -h2d {h2d} -d2h {d2h} -th {th} -numh2d {numh2d} -numd2h {numd2h} -dmask {dmask} -deviceLayer {dl}'.format(dl=dl, wl=wl, th=th, dmask=dmask, h2d=h2d, d2h=d2h, numh2d=numh2d, numd2h=numd2h).split()
+  res = proc.run(env={'ET_CMA_SIZE': str(cma_size)}, executable=execPath, stdout=proc.PIPE, args=argos, encoding='utf-8').stdout
+  return json.loads(res)
+
   
 
 
@@ -47,7 +50,10 @@ def main():
   alltransfers = list(map(lambda pair: bench(pair[0], pair[1]), transfers))
   othertransfers = list(map(lambda pair: bench(pair[0], pair[1], 53), transfers))
   for item in alltransfers:
-    print('WPS: ', item.TotalWLps)
+    print('WPS: ', item['execution']['TotalWLps'])
+
+  for item in othertransfers:
+    print('WPS: ', item['execution']['TotalWLps'])    
 
 
 
