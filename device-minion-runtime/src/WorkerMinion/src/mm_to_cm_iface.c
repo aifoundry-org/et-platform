@@ -79,9 +79,6 @@ void MM_To_CM_Iface_Init(void)
 
     /* Initialize the globals to zero */
     mm_cm_msg_number[thread_idx].number = 0U;
-
-    /* Reset the MM-CM msg read counter */
-    init_local_spinlock(&mm_cm_msg_read[get_shire_id()], 0);
 }
 
 void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)

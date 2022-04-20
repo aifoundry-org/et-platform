@@ -1,5 +1,26 @@
-#include <string.h>
+/***********************************************************************
+*
+* Copyright (C) 2022 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************/
+/*! \file cm_to_mm_iface.c
+    \brief A C module that implements the CM to MM messaging data
+    structures and interfaces.
 
+    Public interfaces:
+        CM_To_MM_Iface_Unicast_Send
+        CM_To_MM_Save_Execution_Context
+        CM_To_MM_Save_Kernel_Error
+
+*/
+/***********************************************************************/
+#include <string.h>
 #include <etsoc/drivers/pmu/pmu.h>
 #include <etsoc/isa/etsoc_memory.h>
 #include <etsoc/isa/sync.h>
@@ -11,6 +32,9 @@
 #include "mm_to_cm_iface.h"
 #include "syscall_internal.h"
 
+/********************/
+/* Public Functions */
+/********************/
 int8_t CM_To_MM_Iface_Unicast_Send(
     uint64_t ms_thread_id, uint64_t cb_idx, const cm_iface_message_t *const message)
 {
