@@ -33,9 +33,9 @@ h2d53 = [
 
 execPath = ""
 
-def bench(h2d, d2h, dmask=1, th=2, wl=10, numh2d=1, numd2h=1, cma_size=1<<30):
+def bench(h2d, d2h, dmask=1, th=2, wl=10, numh2d=1, numd2h=1, cma_size=1<<30, dl=2):
   return proc.run(env={'ET_CMA_SIZE': str(cma_size)}, executable=execPath, encoding=locale.getpreferredencoding(), stdout=proc.PIPE,
-  args='-json -wl {wl} -th {th} -h2d {h2d} -d2h {d2h} -th {th} -numh2d {numh2d} -numd2h {numd2h} -dmask {dmask}'.format(wl=wl, th=th, dmask=dmask, h2d=h2d, d2h=d2h, numh2d=numh2d, numd2h=numd2h))
+  args='-json -wl {wl} -th {th} -h2d {h2d} -d2h {d2h} -th {th} -numh2d {numh2d} -numd2h {numd2h} -dmask {dmask} -deviceLayer {dl}'.format(dl=dl, wl=wl, th=th, dmask=dmask, h2d=h2d, d2h=d2h, numh2d=numh2d, numd2h=numd2h))
   
 
 
@@ -46,7 +46,6 @@ def main():
 
   alltransfers = list(map(lambda pair: bench(pair[0], pair[1]), transfers))
   othertransfers = list(map(lambda pair: bench(pair[0], pair[1], 53), transfers))
-  print(alltransfers[0])
   pass
 
 

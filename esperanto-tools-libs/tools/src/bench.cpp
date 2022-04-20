@@ -125,6 +125,7 @@ int main(int argc, char* argv[]) {
   } else {
     std::cout << "Summary: " << std::setprecision(2) << std::fixed << "\n * H2D: " << results.bytesSentPerSecond / 1e6
               << "MB/s"
-              << "\n * D2H: " << results.bytesReceivedPerSecond / 1e6 << "MB/s" << std::endl;
+              << "\n * D2H: " << results.bytesReceivedPerSecond / 1e6 << "MB/s"
+              << "\n * Workloads/s: " << results.workloadsPerSecond << std::endl;
   }
 }
