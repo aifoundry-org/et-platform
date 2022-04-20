@@ -46,7 +46,8 @@ def main():
 
   alltransfers = list(map(lambda pair: bench(pair[0], pair[1]), transfers))
   othertransfers = list(map(lambda pair: bench(pair[0], pair[1], 53), transfers))
-  pass
+  for item in alltransfers:
+    print('WPS: ', item.TotalWLps)
 
 
 
