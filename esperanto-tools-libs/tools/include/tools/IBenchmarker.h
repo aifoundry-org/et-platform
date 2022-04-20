@@ -53,10 +53,12 @@ public:
     DeviceId device; // device corresponding to these results
     float bytesSentPerSecond;
     float bytesReceivedPerSecond;
+    float workloadsPerSecond;
   };
   struct SummaryResults {
     float bytesSentPerSecond;
     float bytesReceivedPerSecond;
+    float workloadsPerSecond;
     std::vector<WorkerResult> workerResults;
   };
 

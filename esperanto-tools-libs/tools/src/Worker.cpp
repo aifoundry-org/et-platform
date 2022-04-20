@@ -85,6 +85,7 @@ void Worker::start(int numIterations) {
     auto secs = us.count() / 1e6f;
     result_.bytesReceivedPerSecond = hD2H_.size() * numIterations / secs;
     result_.bytesSentPerSecond = hH2D_.size() * numIterations / secs;
+    result_.workloadsPerSecond = numIterations / secs;
   });
 }
 

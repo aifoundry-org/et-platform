@@ -100,6 +100,7 @@ IBenchmarker::SummaryResults BenchmarkerImp::run(Options options, DeviceMask mas
   auto totalWl = workers.size() * options.numWorkloadsPerThread;
   summary.bytesReceivedPerSecond = options.bytesD2H * totalWl / secs;
   summary.bytesSentPerSecond = options.bytesH2D * totalWl / secs;
+  summary.workloadsPerSecond = totalWl / secs;
   return summary;
 }
 
