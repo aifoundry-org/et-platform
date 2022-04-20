@@ -26,6 +26,12 @@
 #include <unistd.h>
 #include <glog/logging.h>
 #include <exception>
+#include <condition_variable>
+#include <fcntl.h>
+#include <fstream>
+#include <string>
+#define ET_TRACE_DECODER_IMPL
+#include <esperanto/et-trace/decoder.h>
 
 namespace fs = std::experimental::filesystem;
 
@@ -120,6 +126,180 @@ static uint8_t mem_count;
 static bool mem_count_flag = false;
 
 static std::string imagePath;
+
+// A namespace containing template for `bit_cast`. To be removed when `bit_cast` will be available
+namespace templ {
+template <class To, class From>
+typename std::enable_if_t<
+  sizeof(To) == sizeof(From) && std::is_trivially_copyable_v<From> && std::is_trivially_copyable_v<To>, To>
+// constexpr support needs compiler magic
+bit_cast(const From& src) noexcept {
+  static_assert(std::is_trivially_constructible_v<To>,
+                "This implementation additionally requires destination type to be trivially constructible");
+
+  To dst;
+  memcpy(&dst, &src, sizeof(To));
+  return dst;
+}
+} // namespace templ
+
+static inline void logTraceException(std::stringstream& logs, const struct trace_entry_header_t* entry) {
+  const trace_execution_stack_t* tracePacketExecStack = templ::bit_cast<trace_execution_stack_t*>(entry);
+  logs << "\nsepc = 0x" << std::hex << tracePacketExecStack->registers.epc << std::endl;
+  logs << "stval = 0x" << std::hex << tracePacketExecStack->registers.tval << std::endl;
+  logs << "sstatus = 0x" << std::hex << tracePacketExecStack->registers.status << std::endl;
+  logs << "scause = 0x" << std::hex << tracePacketExecStack->registers.cause << std::endl;
+  /* Log x1-x31 */
+  for (int idx = 0; idx < TRACE_DEV_CONTEXT_GPRS; idx++) {
+    logs << "x" << std::dec << idx + 1 << " = "
+         << "0x" << std::hex << tracePacketExecStack->registers.gpr[idx] << std::endl;
+  }
+}
+
+static inline bool decodeSingleTraceEvent(std::stringstream& logs, const struct trace_entry_header_t* entry) {
+  auto validTypeFound = true;
+  logs << "H:" << entry->hart_id << " Timestamp:" << entry->cycle << " :";
+  if (entry->type == TRACE_TYPE_STRING) {
+    std::array<char, TRACE_STRING_MAX_SIZE + 1> stringLog;
+    const trace_string_t* tracePacketString = templ::bit_cast<trace_string_t*>(entry);
+    snprintf(stringLog.data(), TRACE_STRING_MAX_SIZE + 1, "%s", tracePacketString->string);
+    logs << stringLog.data() << std::endl;
+  } else if (entry->type == TRACE_TYPE_EXCEPTION) {
+    logTraceException(logs, entry);
+  } else if (entry->type > TRACE_TYPE_STRING && entry->type <= TRACE_TYPE_CUSTOM_EVENT) {
+    logs << "Trace Packet Type:" << entry->type
+         << ", Use trace-utils decoder on trace binary file to parse this packet." << std::endl;
+  } else {
+    logs << "Invalid Trace Packet Type:" << entry->type << std::endl;
+    validTypeFound = false;
+  }
+  return validTypeFound;
+}
+bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf,
+                                               TraceBufferType bufferType) {
+  if (traceBuf.empty()) {
+    DV_LOG(INFO) << "Invalid trace buffer! size is 0";
+    return false;
+  }
+  std::ofstream logfile;
+  std::string fileName = (fs::path("dev" + std::to_string(deviceIdx) + "_traces.txt")).string();
+  DV_LOG(INFO) << "Saving trace to file: " << fileName;
+  logfile.open(fileName, std::ios_base::app);
+  switch (bufferType) {
+  case TraceBufferType::TraceBufferSP:
+    logfile << "-> SP Traces" << std::endl;
+    break;
+  case TraceBufferType::TraceBufferMM:
+    logfile << "-> MM S-Mode Traces" << std::endl;
+    break;
+  case TraceBufferType::TraceBufferCM:
+    logfile << "-> CM S-Mode Traces" << std::endl;
+    break;
+  default:
+    DV_LOG(INFO) << "Cannot decode unknown buffer type!";
+    logfile.close();
+    return false;
+  }
+
+  const struct trace_entry_header_t* entry = NULL;
+  bool validEventFound = false;
+  std::stringstream logs;
+  for (entry = Trace_Decode(templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data()), entry); entry;
+       entry = Trace_Decode(templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data()), entry)) {
+    if (decodeSingleTraceEvent(logs, entry)) {
+      validEventFound = true;
+    }
+  }
+
+  logfile << logs.str();
+  logfile.close();
+
+  return validEventFound;
+}
+
+
+void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
+                                                TraceBufferType bufferType) {
+  if (traceBuf.empty()) {
+    DV_LOG(INFO) << "Invalid trace buffer! size is 0";
+    return;
+  }
+  struct trace_buffer_std_header_t* traceHdr;
+  std::string fileName = (fs::path("dev" + std::to_string(deviceIdx) + "_")).string();
+  unsigned int dataSize = 0;
+  auto fileFlags = std::ofstream::binary;
+  // Select the bin file
+  switch (bufferType) {
+  case TraceBufferType::TraceBufferSP:
+    traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
+    dataSize = traceHdr->data_size;
+    fileName += "sp_";
+    fileFlags |= std::ios_base::app;
+    break;
+  case TraceBufferType::TraceBufferMM:
+    traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
+    dataSize = traceHdr->data_size;
+    fileName += "mm_";
+    fileFlags |= std::ios_base::app;
+    break;
+
+  case TraceBufferType::TraceBufferCM:
+    traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
+    dataSize = traceHdr->sub_buffer_count * traceHdr->sub_buffer_size;
+    fileName += "cmsmode_";
+    fileFlags |= std::ofstream::trunc;
+    break;
+
+  default:
+    DV_LOG(INFO) << "Cannot dump unknown buffer type!";
+    return;
+  }
+
+  fileName += ".bin";
+
+  if (dataSize < sizeof(trace_buffer_std_header_t)) {
+    return;
+  }
+
+  std::ofstream rawTrace;
+
+  // Open the file
+  rawTrace.open(fileName, fileFlags);
+  if (rawTrace.is_open()) {
+    bool update_size = false;
+
+    // Check if the file is empty
+    if (rawTrace.tellp() <= 0) {
+      rawTrace.write(templ::bit_cast<char*>(traceHdr), sizeof(trace_buffer_std_header_t));
+    } else {
+      update_size = true;
+    }
+    // Remove the size of std header
+    dataSize -= static_cast<unsigned int>(sizeof(trace_buffer_std_header_t));
+    // Dump raw Trace data in the file (without std header)
+    rawTrace.write(templ::bit_cast<char*>(traceBuf.data() + sizeof(trace_buffer_std_header_t)), dataSize);
+    // Close the file
+    rawTrace.close();
+
+    // If we are appending data into existing file then update data size in raw trace header.
+    if (update_size && dataSize) {
+      unsigned int rawSize = 0;
+      std::fstream tracefile(fileName, std::fstream::binary | std::fstream::in | std::fstream::out);
+
+      // Get data existing data size in raw binary
+      tracefile.seekg(offsetof(trace_buffer_std_header_t, data_size), std::fstream::beg);
+      tracefile.read(templ::bit_cast<char*>(&rawSize), sizeof(traceHdr->data_size));
+
+      // Update data size
+      rawSize += dataSize;
+      tracefile.seekp(offsetof(trace_buffer_std_header_t, data_size), std::fstream::beg);
+      tracefile.write(templ::bit_cast<char*>(&rawSize), sizeof(traceHdr->data_size));
+      tracefile.close();
+    }
+  } else {
+    DV_LOG(INFO) << "Unable to open file: " << fileName;
+  }
+}
 
 int runService(const char* input_buff, const uint32_t input_size, char* output_buff, const uint32_t output_size) {
 
@@ -895,6 +1075,7 @@ bool validCommand() {
   if (it != commandCodeTable.end()) {
     cmd = it->first;
     code = it->second;
+    DV_LOG(ERROR) << "command: " << str_optarg << " code " << code <<std::endl;
     return true;
   }
 
@@ -1130,6 +1311,7 @@ static struct option long_options[] = {{"code", required_argument, 0, 'o'},
                                        {"thresholds", required_argument, 0, 'e'},
                                        {"timeout", required_argument, 0, 'u'},
                                        {"imagepath", required_argument, 0, 'i'},
+                                       {"gettrace", required_argument, 0, 'g'},
                                        {0, 0, 0, 0}};
 
 void printCode(char* argv) {
@@ -1152,7 +1334,19 @@ void printCommand(char* argv) {
             << "Command by name:" << std::endl;
   std::cout << std::endl;
 
-  for (auto const& [key, val] : commandCodeTable) {
+  // Declare vector of pairs
+  std::vector<std::pair<std::string, device_mgmt_api::DM_CMD> > A;
+    
+  // Copy key-value pair from Map to vector of pairs
+  for (auto& it : commandCodeTable) {
+      A.push_back(it);
+  }
+  std::sort(A.begin(), A.end(), [](std::pair<std::string, device_mgmt_api::DM_CMD>& a, std::pair<std::string, device_mgmt_api::DM_CMD>& b){return a.first < b.first;});
+  for (auto const& [key, val] : A) {
+    if(val >= 58 && val <= 59)
+    {
+      continue;
+    }
     std::cout << "\t\t\t" << val << ": " << key << std::endl;
   }
 
@@ -1359,6 +1553,17 @@ void printFWUpdate(char* argv) {
             << " -" << (char)long_options[12].val << " path-to-flash-image" << std::endl;
 }
 
+void printTraceBuf(char* argv) {
+  std::cout << std::endl;
+  std::cout << "\t"
+            << "-" << (char)long_options[13].val << ", --" << long_options[13].name << "=[SP, MM, CM]" << std::endl;
+  std::cout << "\t\t"
+            << "Get Trace Buffer" << std::endl;
+  std::cout << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[13].val << " "<< "[SP, MM, CM]"<< std::endl;
+}
+
 void printUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "Usage: " << argv << " -o ncode | -m command [-n node] [-u nmsecs] [-h]"
@@ -1377,6 +1582,46 @@ void printUsage(char* argv) {
   printTDPLevel(argv);
   printThresholds(argv);
   printFWUpdate(argv);
+  printTraceBuf(argv);
+}
+
+int getTraceBuffer()
+{
+  TraceBufferType buf;
+  int ret;
+  std::string str_optarg = std::string(optarg);
+  
+  std::unordered_map<std::string, TraceBufferType> const traceBuffers = 
+  {
+    {"SP",TraceBufferType::TraceBufferSP},
+    {"MM",TraceBufferType::TraceBufferMM},
+    {"CM",TraceBufferType::TraceBufferCM}
+  };
+
+  auto it = traceBuffers.find(str_optarg);
+
+  if (it != traceBuffers.end()) {
+    buf = it->second;
+    DV_LOG(INFO) << "buf: " << str_optarg << " code " << int(buf) <<std::endl;
+
+    static DMLib dml;
+    if (ret = dml.verifyDMLib()) {
+      DV_LOG(ERROR) << "Failed to verify the DM lib: " << ret << std::endl;
+      return ret;
+    }
+    DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
+    std::vector<std::byte> response;
+    TraceBufferType buf_type = TraceBufferType::TraceBufferSP;
+    if (dm.getTraceBufferServiceProcessor(node, buf_type, response) != device_mgmt_api::DM_STATUS_SUCCESS) {
+      DV_LOG(INFO) << "Unable to get trace buffer for node: "<< node << std::endl;
+    }
+      dumpRawTraceBuffer(node, response, buf_type);
+      decodeTraceEvents(node, response, buf_type);
+
+    return true;
+  }
+  DV_LOG(ERROR) << "Not a valid argument for trace buffer: " << str_optarg  <<std::endl;
+  return false;
 }
 
 int main(int argc, char** argv) {
@@ -1388,7 +1633,7 @@ int main(int argc, char** argv) {
 
   while (1) {
 
-    c = getopt_long(argc, argv, "o:m:hc:n:p:r:s:w:t:e:u:i:", long_options, &option_index);
+    c = getopt_long(argc, argv, "o:m:hc:n:p:r:s:w:t:e:u:i:g:", long_options, &option_index);
 
     if (c == -1) {
       break;
@@ -1477,6 +1722,14 @@ int main(int argc, char** argv) {
       if(!validPath()) {
          return -EINVAL;
       }
+      break;
+    case 'g' :
+      if(!getTraceBuffer())
+      {
+          printTraceBuf(argv[0]);
+          return -EINVAL;
+      }
+      return 0;
       break;
     case '?':
       printUsage(argv[0]);

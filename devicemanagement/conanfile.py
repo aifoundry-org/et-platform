@@ -41,6 +41,7 @@ class DeviceManagementConan(ConanFile):
         self.requires("deviceApi/0.3.0")
         self.requires("deviceLayer/0.1.0")
         self.requires("hostUtils/0.1.0")
+        self.requires("esperantoTrace/0.1.0")
 
         if self.options.with_tools:
             self.requires("glog/0.4.0")

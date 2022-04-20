@@ -13,7 +13,7 @@ include(ExternalProject)
 find_package(deviceLayer REQUIRED)
 find_package(glog REQUIRED)
 find_package(Threads REQUIRED)
-
+find_package(esperantoTrace REQUIRED)
 
 add_executable(dm-tester dm_tester.cc)
 target_compile_features(dm-tester PUBLIC cxx_std_17)
@@ -28,6 +28,7 @@ target_link_libraries(dm-tester
         ${CMAKE_DL_LIBS}
         deviceManagement::DM
         deviceLayer::deviceLayer
+        esperantoTrace::et_trace
 )
 
 install(TARGETS dm-tester
