@@ -1343,7 +1343,7 @@ void printCommand(char* argv) {
   }
   std::sort(A.begin(), A.end(), [](std::pair<std::string, device_mgmt_api::DM_CMD>& a, std::pair<std::string, device_mgmt_api::DM_CMD>& b){return a.first < b.first;});
   for (auto const& [key, val] : A) {
-    if(val >= 58 && val <= 59)
+    if(val >= DM_CMD_SET_DM_TRACE_RUN_CONTROL && val <= DM_CMD_SET_DM_TRACE_CONFIG)
     {
       continue;
     }
