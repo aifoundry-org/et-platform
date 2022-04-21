@@ -10,6 +10,7 @@
 
 include(ExternalProject)
 
+find_dependency(esperantoTrace REQUIRED)
 find_package(deviceLayer REQUIRED)
 find_package(glog REQUIRED)
 find_package(Threads REQUIRED)
