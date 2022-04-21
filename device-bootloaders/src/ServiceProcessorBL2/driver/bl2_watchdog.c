@@ -190,8 +190,12 @@ int32_t watchdog_init(uint32_t timeout_msec)
         wdog_control_block.timeout_msec = (uint32_t)MAP_TOP_TO_MS(val);
 
         Log_Write(LOG_LEVEL_WARNING, "Watchdog timeout set to approx %d milliseconds\n",
-                  (int)MAP_TOP_TO_MS(val));
+                  wdog_control_block.timeout_msec);
     }
+
+    /* Update max timeout value */
+    wdog_control_block.max_timeout_msec =
+        (uint32_t)MAP_TOP_TO_MS(WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER15_OR_2G);
 
     return 0;
 }
