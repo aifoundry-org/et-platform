@@ -182,7 +182,23 @@ bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf,
     return false;
   }
   std::ofstream logfile;
-  std::string fileName = (fs::path("dev" + std::to_string(deviceIdx) + "_traces.txt")).string();
+  std::string fileName = (fs::path("dev" + std::to_string(deviceIdx))).string();
+  switch (bufferType) {
+  case TraceBufferType::TraceBufferSP:
+    fileName += "_sp_";
+    break;
+  case TraceBufferType::TraceBufferMM:
+    fileName += "_mm_";
+    break;
+  case TraceBufferType::TraceBufferCM:
+    fileName += "_cmsmode_";
+    break;
+
+  default:
+    DV_LOG(INFO) << "Cannot dump unknown buffer type!";
+    return false;
+  }
+  fileName += "traces.txt";
   DV_LOG(INFO) << "Saving trace to file: " << fileName;
   logfile.open(fileName, std::ios_base::app);
   switch (bufferType) {
@@ -1035,7 +1051,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_MM_RESET: {
     if ((ret = runService(nullptr, 0, nullptr, 0)) != DM_STATUS_SUCCESS) {
-      return ret;
+    return ret;
     }
   } break;
 
@@ -1587,7 +1603,7 @@ void printUsage(char* argv) {
 
 int getTraceBuffer()
 {
-  TraceBufferType buf;
+  TraceBufferType buf_type;
   int ret;
   std::string str_optarg = std::string(optarg);
   
@@ -1601,8 +1617,7 @@ int getTraceBuffer()
   auto it = traceBuffers.find(str_optarg);
 
   if (it != traceBuffers.end()) {
-    buf = it->second;
-    DV_LOG(INFO) << "buf: " << str_optarg << " code " << int(buf) <<std::endl;
+    buf_type = it->second;
 
     static DMLib dml;
     if (ret = dml.verifyDMLib()) {
@@ -1611,7 +1626,7 @@ int getTraceBuffer()
     }
     DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
     std::vector<std::byte> response;
-    TraceBufferType buf_type = TraceBufferType::TraceBufferSP;
+
     if (dm.getTraceBufferServiceProcessor(node, buf_type, response) != device_mgmt_api::DM_STATUS_SUCCESS) {
       DV_LOG(INFO) << "Unable to get trace buffer for node: "<< node << std::endl;
     }
