@@ -154,7 +154,7 @@ int main() {
     } else {
       std::cout << size / (1 << 20) << "MB\t";
     }
-    int runs = (size > (1 << 20)) ? 20 : 500;
+    int runs = (size > (1 << 20)) ? 5 : 500;
     std::cout << simple_memcpy(size, runs) << "MB/s\t";
     std::cout << stdcopy(size, runs) << "MB/s\t";
     std::cout << asmmemcpy(size, runs) << "MB/s\t";
