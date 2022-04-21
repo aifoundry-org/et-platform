@@ -32,6 +32,9 @@ _start:
     csrwi fcsr, 0       # clear floating point status
     #csrwi mip, 0       # clear all pending interrupts
 
+    #Clear 1 Hot encoding in VPU Rf
+    fmadd.s f0, f0, f0, f0
+
     addi x1,  x0, 0
     # sp set later
     # gp set later
