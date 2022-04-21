@@ -148,7 +148,7 @@ float asmmemcpy(size_t size, int runs = 1) {
 int main() {
   std::cout << "size\tmemcpy\t\tstdcopy\t\tasm_memcpy\tomp_simple2\tomp_simple8\tc++11threads2\tc++11threads8\n"
             << std::setprecision(2) << std::fixed;
-  for (auto size : {1 << 10, 1 << 15, 1 << 20, 1 << 25}) {
+  for (auto size : {1 << 10, 1 << 15, 1 << 20, 1 << 25, 1 << 27}) {
     if (size < (1 << 20)) {
       std::cout << size / (1 << 10) << "KB\t";
     } else {
