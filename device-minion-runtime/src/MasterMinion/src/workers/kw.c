@@ -1090,9 +1090,10 @@ static inline void kw_cm_to_mm_process_messages(
                 const cm_to_mm_message_exception_t *exception =
                     (cm_to_mm_message_exception_t *)&message;
 
-                Log_Write(LOG_LEVEL_DEBUG,
-                    "KW[%d]:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%" PRId32 "\r\n",
-                    kw_idx, exception->shire_id);
+                Log_Write(LOG_LEVEL_ERROR,
+                    "KW[%d]:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%d H%lu @ SEPC: 0x%lX SCAUSE: 0x%lX STVAL: 0x%lX SSTATUS: 0x%lX \r\n",
+                    kw_idx, exception->shire_id, exception->hart_id, exception->mepc,
+                    exception->mcause, exception->mtval, exception->mstatus);
 
                 /* Save shire mask which took exception. */
                 if (!status_internal->cw_exception)
@@ -1106,7 +1107,7 @@ static inline void kw_cm_to_mm_process_messages(
                 const cm_to_mm_message_kernel_launch_error_t *error_mesg =
                     (cm_to_mm_message_kernel_launch_error_t *)&message;
 
-                Log_Write(LOG_LEVEL_DEBUG,
+                Log_Write(LOG_LEVEL_ERROR,
                     "KW[%d]:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR from H%" PRId64 "\r\n",
                     kw_idx, error_mesg->hart_id);
 
