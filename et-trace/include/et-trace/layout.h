@@ -113,7 +113,7 @@ typedef uint8_t trace_buffer_type_e;
 /*! \enum trace_buffer_type
     \brief Trace buffer type either MM, CM, or SP etc.
 */
-enum trace_buffer_type { TRACE_MM_BUFFER, TRACE_CM_BUFFER, TRACE_SP_BUFFER, TRACE_CM_UMODE_BUFFER };
+enum trace_buffer_type { TRACE_MM_BUFFER, TRACE_CM_BUFFER, TRACE_SP_BUFFER, TRACE_CM_UMODE_BUFFER, TRACE_SP_STATS_BUFFER, TRACE_MM_STATS_BUFFER};
 
 /*! \typedef trace_header_type_e
     \brief Trace buffer type either trace_buffer_std_header_t or trace_buffer_size_header_t.
