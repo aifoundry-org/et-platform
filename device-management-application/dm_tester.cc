@@ -127,6 +127,10 @@ static bool mem_count_flag = false;
 
 static std::string imagePath;
 
+static uint16_t minion_freq_mhz;
+static uint16_t noc_freq_mhz;
+static bool frequencies_flag = false;
+
 // A namespace containing template for `bit_cast`. To be removed when `bit_cast` will be available
 namespace templ {
 template <class To, class From>
@@ -232,7 +236,6 @@ bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf,
 
   return validEventFound;
 }
-
 
 void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
                                                 TraceBufferType bufferType) {
@@ -577,8 +580,18 @@ int verifyService() {
   } break;
 
   case DM_CMD::DM_CMD_SET_FREQUENCY: {
+    if (!frequencies_flag) {
+      DV_LOG(ERROR) << "Aborting, --frequencies was not defined" << std::endl;
+      return -EINVAL;
+    }
     for (device_mgmt_api::pll_id_e pll_id = device_mgmt_api::PLL_ID_NOC_PLL;
          pll_id <= device_mgmt_api::PLL_ID_MINION_PLL; pll_id++) {
+      uint16_t pll_freq;
+      if (pll_id == device_mgmt_api::PLL_ID_NOC_PLL) {
+        pll_freq = noc_freq_mhz;
+      } else if (pll_id == device_mgmt_api::PLL_ID_MINION_PLL) {
+        pll_freq = minion_freq_mhz;
+      }
       for (device_mgmt_api::use_step_e use_step = device_mgmt_api::USE_STEP_CLOCK_FALSE;
            use_step <= device_mgmt_api::USE_STEP_CLOCK_TRUE; use_step++) {
         if(use_step == device_mgmt_api::USE_STEP_CLOCK_TRUE
@@ -587,8 +600,8 @@ int verifyService() {
                                     sizeof(uint16_t) +
                                     sizeof(device_mgmt_api::use_step_e);
         char input_buff[input_size];
-        input_buff[0] = (char)(0x90);
-        input_buff[1] = (char)(0x01);
+        input_buff[0] = (char)(pll_freq & 0xff);
+        input_buff[1] = (char)((pll_freq > 8) & 0xff);
         input_buff[2] = (char)pll_id;
         input_buff[3] = (char)use_step;
         
@@ -1314,6 +1327,31 @@ bool validPath() {
   return true;
 }
 
+bool validFrequencies() {
+  if (!std::regex_match(std::string(optarg), std::regex("^[0-9]+,[0-9]+$"))) {
+      DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not valid, e.g: 300,100" << std::endl;
+      return false;
+  }
+
+  auto freq = std::stoul(std::strtok(optarg, ","));
+  if (freq > std::numeric_limits<decltype(minion_freq_mhz)>::max()) {
+    DV_LOG(ERROR) << "Aborting, minion shire frequency (MHz): " << freq << " is not valid ( 0 - "
+                  << std::numeric_limits<decltype(minion_freq_mhz)>::max() << " )" << std::endl;
+    return false;
+  }
+  minion_freq_mhz = static_cast<decltype(minion_freq_mhz)>(freq);
+
+  freq = std::stoul(std::strtok(NULL, ","));
+  if (freq > std::numeric_limits<decltype(noc_freq_mhz)>::max()) {
+    DV_LOG(ERROR) << "Aborting, noc frequency (MHz): " << freq << " is not valid ( 0 - "
+                  << std::numeric_limits<decltype(noc_freq_mhz)>::max() << " )" << std::endl;
+    return false;
+  }
+  noc_freq_mhz = static_cast<decltype(noc_freq_mhz)>(freq);
+
+  return true;
+}
+
 static struct option long_options[] = {{"code", required_argument, 0, 'o'},
                                        {"command", required_argument, 0, 'm'},
                                        {"help", no_argument, 0, 'h'},
@@ -1328,6 +1366,7 @@ static struct option long_options[] = {{"code", required_argument, 0, 'o'},
                                        {"timeout", required_argument, 0, 'u'},
                                        {"imagepath", required_argument, 0, 'i'},
                                        {"gettrace", required_argument, 0, 'g'},
+                                       {"frequencies", required_argument, 0, 'f'},
                                        {0, 0, 0, 0}};
 
 void printCode(char* argv) {
@@ -1562,7 +1601,7 @@ void printFWUpdate(char* argv) {
   std::cout << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[0].val << " "
-            << DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE << " -" << (char)long_options[12].val << "path-to-flash-image"
+            << DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE << " -" << (char)long_options[12].val << " path-to-flash-image"
             << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[1].val << " DM_CMD_SET_FIRMWARE_UPDATE"
@@ -1580,10 +1619,26 @@ void printTraceBuf(char* argv) {
             << "Ex. " << argv << " -" << (char)long_options[13].val << " "<< "[SP, MM, CM]"<< std::endl;
 }
 
+void printFrequencies(char* argv) {
+  std::cout << std::endl;
+  std::cout << "\t"
+            << "-" << (char)long_options[14].val << ", --" << long_options[14].name << "=minionfreq,nocfreq" << std::endl;
+  std::cout << "\t\t"
+            << "Set Frequency (MHz)" << std::endl;
+  std::cout << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[0].val << " "
+            << DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE << " -" << (char)long_options[14].val << " 400,400"
+            << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[1].val << " DM_CMD_SET_FREQUENCY"
+            << " -" << (char)long_options[13].val << " 400,400" << std::endl;
+}
+
 void printUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "Usage: " << argv << " -o ncode | -m command [-n node] [-u nmsecs] [-h]"
-            << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp| -i npath]"
+            << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp | -i npath | -f minionfreq,nocfreq]"
             << std::endl;
   printCode(argv);
   printCommand(argv);
@@ -1599,6 +1654,7 @@ void printUsage(char* argv) {
   printThresholds(argv);
   printFWUpdate(argv);
   printTraceBuf(argv);
+  printFrequencies(argv);
 }
 
 int getTraceBuffer()
@@ -1648,7 +1704,7 @@ int main(int argc, char** argv) {
 
   while (1) {
 
-    c = getopt_long(argc, argv, "o:m:hc:n:p:r:s:w:t:e:u:i:g:", long_options, &option_index);
+    c = getopt_long(argc, argv, "o:m:hc:n:p:r:s:w:t:e:u:i:g:f:", long_options, &option_index);
 
     if (c == -1) {
       break;
@@ -1745,6 +1801,10 @@ int main(int argc, char** argv) {
           return -EINVAL;
       }
       return 0;
+    case 'f' :
+      if(!(frequencies_flag = validFrequencies())) {
+         return -EINVAL;
+      }
       break;
     case '?':
       printUsage(argv[0]);
