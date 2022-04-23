@@ -25,7 +25,6 @@
 .global _start
 
 _start:
-    csrwi matp, 0       # disable machine VM
     csrwi satp, 0       # disable supervisor VM
     li    t0, 0x6000
     csrs  mstatus, t0   # set floating point status fs=11 (dirty)
