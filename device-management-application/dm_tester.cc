@@ -981,24 +981,29 @@ int verifyService() {
 
     device_mgmt_api::firmware_version_t* firmware_versions = (device_mgmt_api::firmware_version_t*)output_buff;
 
-    uint32_t versions = firmware_versions->bl1_v;
-    DV_LOG(INFO) << "BL1 Firmware versions: Major: " << (versions >> 24)
-        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;
+    uint32_t versions = firmware_versions->fw_release_rev;
+    DV_LOG(INFO) << "Firmware release revision: Major: " << ((versions >> 24) & 0xFF)
+        << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
+
+    versions = firmware_versions->bl1_v;
+    DV_LOG(INFO) << "BL1 Firmware versions: Major: " << ((versions >> 24) & 0xFF)
+        << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
+
     versions = firmware_versions->bl2_v;
-    DV_LOG(INFO) << "BL2 Firmware versions: Major: " << (versions >> 24)
-        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;
+    DV_LOG(INFO) << "BL2 Firmware versions: Major: " << ((versions >> 24) & 0xFF)
+        << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->mm_v;
-    DV_LOG(INFO) << "Master Minion Firmware versions: Major: " << (versions >> 24)
-        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;
+    DV_LOG(INFO) << "Master Minion Firmware versions: Major: " << ((versions >> 24) & 0xFF)
+        << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->wm_v;
-    DV_LOG(INFO) << "Worker Minion versions: Major: " << (versions >> 24)
-        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;
+    DV_LOG(INFO) << "Worker Minion versions: Major: " << ((versions >> 24) & 0xFF)
+        << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->machm_v;
-    DV_LOG(INFO) << "Machine Minion versions: Major: " << (versions >> 24)
-        << " Minor: " << (versions >> 16) << " Revision: " << (versions >> 8) << std::endl;
+    DV_LOG(INFO) << "Machine Minion versions: Major: " << ((versions >> 24) & 0xFF)
+        << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
   } break;
 
