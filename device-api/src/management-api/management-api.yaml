@@ -449,8 +449,8 @@ Modules:
         - Name: machm_v
           Description: Machine Minion Firmware version
           Type: uint32_t
-        - Name: pad
-          Description: Padding for alignment
+        - Name: fw_release_rev
+          Description: Firmware release revision
           Type: uint32_t
     - Name: fw_image_path_t
       Description: Firmware image path
