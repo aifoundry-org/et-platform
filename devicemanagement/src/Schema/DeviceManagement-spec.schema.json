@@ -141,7 +141,8 @@
 					"bl2_v": "uint32_t",
 					"mm_v": "uint32_t",
 					"wm_v": "uint32_t",
-					"machm_v": "uint32_t"
+					"machm_v": "uint32_t",
+					"fw_release_rev": "uint32_t"
 				}
 			}
 		},
