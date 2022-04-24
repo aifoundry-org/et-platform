@@ -1493,4 +1493,31 @@ int flash_fs_get_form_factor(char *form_factor)
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_get_fw_release_rev
+*
+*   DESCRIPTION
+*
+*       This function returns ET-SOC firmware release revision.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       fw_release_rev          Firmware release revision
+*
+***********************************************************************/
+
+int flash_fs_get_fw_release_rev(char *fw_release_rev)
+{
+    memcpy(fw_release_rev, &(sg_flash_fs_bl2_info.asset_config_data.fw_release_rev),
+           sizeof(sg_flash_fs_bl2_info.asset_config_data.fw_release_rev));
+    return 0;
+}
+
 #pragma GCC pop_options

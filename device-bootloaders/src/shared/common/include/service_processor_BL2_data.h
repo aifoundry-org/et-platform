@@ -63,7 +63,8 @@ typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_DATA {
     uint8_t     mem_size;
     uint32_t    module_rev;
     uint8_t     form_factor;
-    uint8_t     padding[30];
+    uint32_t    fw_release_rev;
+    uint8_t     padding[26];
 } ESPERANTO_CONFIG_DATA_t;
 
 static_assert(64 == sizeof(ESPERANTO_CONFIG_DATA_t), "sizeof(ESPERANTO_CONFIG_DATA_t) is not 64!");

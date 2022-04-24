@@ -426,7 +426,7 @@ static int32_t verify_image_regions(void *fw_addr)
         Log_Write(LOG_LEVEL_ERROR, "verify_image_regions: image address is invalid!\n");
         return ERROR_FW_UPDATE_VERIFY_REGIONS_INVALID_ARGUMENTS;
     }
-    partition_size_in_blocks = header->partition_size / FLASH_PAGE_SIZE;
+    partition_size_in_blocks = header->partition_size; // already in terms of blocks
 
     regions_table = (ESPERANATO_REGION_INFO_t *)((uint64_t)fw_addr +
                                                  sizeof(ESPERANTO_FLASH_PARTITION_HEADER_t));
@@ -800,6 +800,9 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
     firmware_service_get_machm_version(&major, &minor, &revision);
     dm_rsp.firmware_version.machm_v =
         FORMAT_VERSION((uint32_t)major, (uint32_t)minor, (uint32_t)revision);
+
+    // Get the FW release revision values
+    flash_fs_get_fw_release_rev((char *)&dm_rsp.firmware_version.fw_release_rev);
 
     FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MODULE_FIRMWARE_REVISIONS,
                     timer_get_ticks_count() - req_start_time, DM_STATUS_SUCCESS);

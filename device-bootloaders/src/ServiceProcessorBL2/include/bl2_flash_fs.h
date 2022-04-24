@@ -178,5 +178,11 @@ int flash_fs_get_memory_size(char *mem_size);
 */
 int flash_fs_get_form_factor(char *form_factor);
 
+/*! \fn int flash_fs_get_fw_release_rev(char *fw_release_rev)
+    \brief This function returns ET-SOC firmware release revision.
+    \param fw_release_rev - to get firmware release revision
+    \return The function call status, pass/fail.
+*/
+int flash_fs_get_fw_release_rev(char *fw_release_rev);
 
 #endif

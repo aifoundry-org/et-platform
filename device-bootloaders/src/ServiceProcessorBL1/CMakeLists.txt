@@ -1,6 +1,6 @@
 set(FILE_VERSION_MAJOR 0)
 set(FILE_VERSION_MINOR 0)
-set(FILE_REVISION_NUMBER 1)
+set(FILE_REVISION_NUMBER 4)
 
 set(TARGET_NAME ServiceProcessorBL1)
 set(LINKER_SCRIPT src/bl1_sections.ld)
