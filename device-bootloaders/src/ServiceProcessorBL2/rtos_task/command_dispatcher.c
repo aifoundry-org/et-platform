@@ -254,7 +254,7 @@ static void pc_vq_task(void *pvParameters)
         {
             /* If this condition occurs, there's definitely some corruption in VQs */
             Log_Write(
-                LOG_LEVEL_WARNING,
+                LOG_LEVEL_ERROR,
                 "pc_vq_task:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
                 tail_prev, VQ_Get_Tail_Offset(&vq_cached));
 
@@ -285,6 +285,7 @@ static void mm2sp_echo_cmd_handler(const void *cmd_buffer)
 {
     const struct mm2sp_echo_cmd_t *cmd = cmd_buffer;
     struct mm2sp_echo_rsp_t rsp;
+    int8_t status;
 
     Log_Write(LOG_LEVEL_INFO, "MM2SP_CMD_ECHO: \n");
 
@@ -294,9 +295,11 @@ static void mm2sp_echo_cmd_handler(const void *cmd_buffer)
 
     rsp.payload = cmd->payload;
 
-    if (0 != MM_Iface_Push_Rsp_To_MM2SP_CQ((void *)&rsp, sizeof(rsp)))
+    status = MM_Iface_Push_Rsp_To_MM2SP_CQ((void *)&rsp, sizeof(rsp));
+    if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Rsp_To_MM2SP_CQ: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR,
+                  "mm2sp_echo:MM_Iface_Push_Rsp_To_MM2SP_CQ:Cqueue push error:%d\n", status);
     }
 }
 
@@ -304,6 +307,7 @@ static void mm2sp_get_active_shire_mask_cmd_handler(const void *cmd_buffer)
 {
     const struct mm2sp_get_active_shire_mask_cmd_t *cmd = cmd_buffer;
     struct mm2sp_get_active_shire_mask_rsp_t rsp;
+    int8_t status;
 
     Log_Write(LOG_LEVEL_INFO, "MM2SP_CMD_GET_ACTIVE_SHIRE_MASK: response going to  MM HART: %d\n",
               cmd->msg_hdr.issuing_hart_id);
@@ -315,9 +319,13 @@ static void mm2sp_get_active_shire_mask_cmd_handler(const void *cmd_buffer)
     rsp.active_shire_mask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
     rsp.lvdpll_strap = get_lvdpll_strap_value();
 
-    if (0 != MM_Iface_Push_Rsp_To_MM2SP_CQ((void *)&rsp, sizeof(rsp)))
+    status = MM_Iface_Push_Rsp_To_MM2SP_CQ((void *)&rsp, sizeof(rsp));
+    if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Rsp_To_MM2SP_CQ: Cqueue push error!\n");
+        Log_Write(
+            LOG_LEVEL_ERROR,
+            "mm2sp_get_active_shire_mask:MM_Iface_Push_Rsp_To_MM2SP_CQ:Cqueue push error:%d\n",
+            status);
     }
 }
 
@@ -325,6 +333,7 @@ static void mm2sp_get_fw_version_cmd_handler(const void *cmd_buffer)
 {
     const struct mm2sp_get_fw_version_t *cmd = cmd_buffer;
     struct mm2sp_get_fw_version_rsp_t rsp;
+    int8_t status;
 
     Log_Write(LOG_LEVEL_INFO, "MM2SP_CMD_GET_FW_VERSION: \n");
 
@@ -372,9 +381,12 @@ static void mm2sp_get_fw_version_cmd_handler(const void *cmd_buffer)
         Log_Write(LOG_LEVEL_ERROR, "mm_cmd_hldr: ERROR:Unknown FW type:%d\n", cmd->fw_type);
     }
 
-    if (0 != MM_Iface_Push_Rsp_To_MM2SP_CQ((void *)&rsp, sizeof(rsp)))
+    status = MM_Iface_Push_Rsp_To_MM2SP_CQ((void *)&rsp, sizeof(rsp));
+    if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Rsp_To_MM2SP_CQ: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR,
+                  "mm2sp_get_fw_version:MM_Iface_Push_Rsp_To_MM2SP_CQ:Cqueue push error:%d\n",
+                  status);
     }
 }
 
@@ -382,6 +394,7 @@ static void mm2sp_get_cm_boot_freq_cmd_handler(const void *cmd_buffer)
 {
     const struct mm2sp_get_cm_boot_freq_cmd_t *cmd = cmd_buffer;
     struct mm2sp_get_cm_boot_freq_rsp_t rsp;
+    int8_t status;
 
     SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_CM_BOOT_FREQ,
                              sizeof(struct mm2sp_get_cm_boot_freq_rsp_t),
@@ -389,9 +402,12 @@ static void mm2sp_get_cm_boot_freq_cmd_handler(const void *cmd_buffer)
 
     get_pll_frequency(PLL_ID_SP_PLL_4, &rsp.cm_boot_freq);
 
-    if (0 != MM_Iface_Push_Rsp_To_MM2SP_CQ((void *)&rsp, sizeof(rsp)))
+    status = MM_Iface_Push_Rsp_To_MM2SP_CQ((void *)&rsp, sizeof(rsp));
+    if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Rsp_To_MM2SP_CQ: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR,
+                  "mm2sp_get_cm_boot_freq:MM_Iface_Push_Rsp_To_MM2SP_CQ:Cqueue push error:%d\n",
+                  status);
     }
 }
 
@@ -399,6 +415,7 @@ static void mm2sp_minion_reset_handler(const void *cmd_buffer)
 {
     const struct mm2sp_reset_minion_cmd_t *cmd = cmd_buffer;
     struct mm2sp_reset_minion_rsp_t rsp;
+    int8_t status;
 
     Log_Write(LOG_LEVEL_INFO, "MM2SP_CMD_MINION_RESET: \n");
 
@@ -420,9 +437,12 @@ static void mm2sp_minion_reset_handler(const void *cmd_buffer)
     SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_RESET_MINION,
                              sizeof(struct mm2sp_reset_minion_rsp_t), cmd->msg_hdr.issuing_hart_id)
 
-    if (0 != MM_Iface_Push_Rsp_To_MM2SP_CQ((void *)&rsp, sizeof(rsp)))
+    status = MM_Iface_Push_Rsp_To_MM2SP_CQ((void *)&rsp, sizeof(rsp));
+    if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Rsp_To_MM2SP_CQ: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR,
+                  "mm2sp_minion_reset:MM_Iface_Push_Rsp_To_MM2SP_CQ:Cqueue push error:%d\n",
+                  status);
     }
 }
 
@@ -506,8 +526,8 @@ static void mm_cmd_hdlr_task(void *pvParameters)
         {
             /* If this condition occurs, there's definitely some corruption in VQs */
             Log_Write(
-                LOG_LEVEL_WARNING,
-                "pc_vq_task:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
+                LOG_LEVEL_ERROR,
+                "mm_cmd_hdlr_task:FATAL_ERROR:Tail Mismatch:Cached: %ld, Shared Memory: %ld Using cached value as fallback mechanism\r\n",
                 tail_prev, VQ_Get_Tail_Offset(&vq_cached));
 
             vq_cached.circbuff_cb->tail_offset = tail_prev;

@@ -278,7 +278,7 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void *p_cmd, uint32_t cmd_size)
 
             /* If this condition occurs, there's definitely some corruption in VQs */
             Log_Write(
-                LOG_LEVEL_WARNING,
+                LOG_LEVEL_ERROR,
                 "SP_Host_Iface_CQ_Push_Cmd:FATAL_ERROR:Tail Mismatch:Local: %ld, Shared Memory: %ld Using local value as fallback mechanism\r\n",
                 local_head_offset, reference_head_offset);
         }
