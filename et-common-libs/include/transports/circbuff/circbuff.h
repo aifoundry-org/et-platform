@@ -245,4 +245,20 @@ static inline void Circbuffer_Set_Head(circ_buff_cb_t *dest_circ_buff_cb_ptr,
     ETSOC_Memory_Write_64(&head_val, &dest_circ_buff_cb_ptr->head_offset, flags)
 }
 
+/*! \fn static inline uint64_t Circbuffer_Get_Length(const circ_buff_cb_t *circ_buff_cb_ptr,
+    uint32_t flags)
+    \brief Gets the lenth value in circular buffer CB.
+    \param [in] circ_buff_cb_ptr: Pointer to circular buffer control block.
+    \param [in] flags: Indicates memory access type
+*/
+static inline uint64_t Circbuffer_Get_Length(const circ_buff_cb_t *circ_buff_cb_ptr, uint32_t flags)
+{
+    uint64_t length = 0;
+
+    /* Read the circular buffer CB from memory */
+    ETSOC_Memory_Read_64(&circ_buff_cb_ptr->length, &length, flags)
+
+    return length;
+}
+
 #endif /* CIRCBUFF_H */
