@@ -609,12 +609,11 @@ static void pcie_init_atus(void)
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR1_REG_ADDRESS);
     uint64_t bar0 = ((uint64_t)bar0_hi << 32) | ((uint64_t)bar0_lo & 0xFFFFFFF0ULL);
 
-    config_inbound_iatu_0(bar0,                             /* baseAddr */
-                          SP_DM_SCRATCH_REGION_BEGIN,       /* targetAddr */
-                          SP_DM_SCRATCH_REGION_SIZE +
-                          SP_TRACE_BUFFER_SIZE +
-                          MM_TRACE_BUFFER_SIZE +
-                          CM_SMODE_TRACE_BUFFER_SIZE);      /* size */
+    config_inbound_iatu_0(bar0,                       /* baseAddr */
+                          SP_DM_SCRATCH_REGION_BEGIN, /* targetAddr */
+                          SP_DM_SCRATCH_REGION_SIZE + SP_TRACE_BUFFER_SIZE + MM_TRACE_BUFFER_SIZE +
+                              CM_SMODE_TRACE_BUFFER_SIZE + SP_STATS_BUFFER_SIZE +
+                              MM_STATS_BUFFER_SIZE); /* size */
 
     /* Setup BAR2
        Name              Host Addr       SoC Addr      Size   Notes

@@ -27,6 +27,7 @@
 #include "config/mgmt_build_config.h"
 #include "bl2_scratch_buffer.h"
 #include "bl2_timer.h"
+#include "bl_error_code.h"
 #include "interrupt.h"
 #include "FreeRTOS.h"
 #include "portmacro.h"
@@ -57,6 +58,11 @@ struct trace_control_block_t SP_Trace_CB;
  * Exception Trace control block.
  */
 struct trace_control_block_t SP_Exp_Trace_CB;
+
+/*
+ * Dev Stats Trace control block.
+ */
+struct trace_control_block_t SP_Dev_Stats_Trace_CB;
 
 /* Trace buffer lock */
 static SemaphoreHandle_t Trace_Mutex_Handle = NULL;
@@ -571,4 +577,100 @@ uint8_t *Trace_Exception_Dump_Context(const void *stack_frame)
     size_header->data_size = SP_Exp_Trace_CB.offset_per_hart;
 
     return trace_buf;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Init_SP_Dev_Stats
+*
+*   DESCRIPTION
+*
+*       This function initializes Trace for device stats.
+*
+*   INPUTS
+*
+*       init_info exception trace init info
+*
+*   OUTPUTS
+*
+*       Status of SP Exception trace initialization (Success or any Error)
+*
+***********************************************************************/
+int32_t Trace_Init_SP_Dev_Stats(const struct trace_init_info_t *dev_trace_init_info)
+{
+    int32_t status = ERROR_INVALID_ARGUMENT;
+    struct trace_init_info_t dev_trace_init_info_l;
+
+    //TODO: A Mutex lock should be added to make this thread safe.
+
+    /* If init information is NULL then do default initialization. */
+    if (dev_trace_init_info == NULL)
+    {
+        /* Populate default Trace configurations for Service Processor. */
+
+        dev_trace_init_info_l.buffer = SP_STATS_TRACE_BUFFER_BASE;
+        dev_trace_init_info_l.buffer_size = SP_STATS_BUFFER_SIZE;
+        dev_trace_init_info_l.event_mask = TRACE_EVENT_STRING;
+        dev_trace_init_info_l.filter_mask = TRACE_EVENT_STRING_DEBUG;
+        dev_trace_init_info_l.threshold = dev_trace_init_info_l.buffer_size;
+    }
+    else
+    {
+        memcpy(&dev_trace_init_info_l, dev_trace_init_info, sizeof(struct trace_init_info_t));
+    }
+
+    /* Common buffer for all SP HART. */
+    SP_Dev_Stats_Trace_CB.size_per_hart = dev_trace_init_info_l.buffer_size;
+    SP_Dev_Stats_Trace_CB.base_per_hart = dev_trace_init_info_l.buffer;
+
+    /* Initialize Trace for each all Harts in Service Processor. */
+    status = Trace_Init(&dev_trace_init_info_l, &SP_Dev_Stats_Trace_CB, TRACE_STD_HEADER);
+
+    /* Initialize trace buffer header. */
+    struct trace_buffer_std_header_t *trace_header =
+        (struct trace_buffer_std_header_t *)SP_Dev_Stats_Trace_CB.base_per_hart;
+
+    /* Put the buffer type */
+    trace_header->type = TRACE_SP_STATS_BUFFER;
+
+    /* Put the MAGIC. */
+    trace_header->magic_header = TRACE_MAGIC_HEADER;
+    trace_header->sub_buffer_count = SP_DEV_STATS_TRACE_SUB_BUFFER_COUNT;
+    trace_header->sub_buffer_size = SP_STATS_BUFFER_SIZE;
+
+    /* populate Trace layout version in Header. */
+    trace_header->version.major = TRACE_VERSION_MAJOR;
+    trace_header->version.minor = TRACE_VERSION_MINOR;
+    trace_header->version.patch = TRACE_VERSION_PATCH;
+
+    /* Put the data size. */
+    trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Get_Dev_Stats_CB
+*
+*   DESCRIPTION
+*
+*       This function returns the Trace control block (CB) for Dev Stats.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       trace_control_block_t Pointer to the Trace control block.
+*
+***********************************************************************/
+struct trace_control_block_t *Trace_Get_Dev_Stats_CB(void)
+{
+    return &SP_Dev_Stats_Trace_CB;
 }

@@ -114,4 +114,16 @@ struct trace_control_block_t *Trace_Get_SP_Exp_CB(void);
 */
 uint8_t *Trace_Exception_Dump_Context(const void *stack_frame);
 
+/*! \fn Trace_Init_SP_Dev_Stats(const struct trace_init_info_t *dev_trace_init_info)
+    \brief This function initializes Trace buffer for device stats.
+    \param init_info Pointer Trace init information.
+    \return None.
+*/
+int32_t Trace_Init_SP_Dev_Stats(const struct trace_init_info_t *dev_trace_init_info);
+
+/*! \fn struct trace_control_block_t* Trace_Get_Dev_Stats_CB(void)
+    \brief This function returns Trace control block for dev stats buffer.
+    \return Pointer to the Trace control block .
+*/
+struct trace_control_block_t *Trace_Get_Dev_Stats_CB(void);
 #endif

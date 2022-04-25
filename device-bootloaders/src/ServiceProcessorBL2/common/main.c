@@ -318,6 +318,10 @@ static void taskMain(void *pvParameters)
     status = Trace_Exception_Init_SP(NULL);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init SP Exception trace component!")
 
+    /* Initialize Dev Stats Trace component */
+    status = Trace_Init_SP_Dev_Stats(NULL);
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init Dev Stats trace component!")
+
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
