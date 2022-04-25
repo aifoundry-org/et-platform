@@ -61,6 +61,8 @@
 /* 4KB for SP DM services Trace Buffer + 4KB for Exception Trace buffer. */
 #define SP_TRACE_SUB_BUFFER_COUNT   2
 
+#define SP_DEV_STATS_TRACE_SUB_BUFFER_COUNT   1
+
 /* MM VQs related defines */
 #define MM_SQ_COUNT_MAX             4
 #define MM_SQ_SIZE_MAX              0x900
@@ -199,10 +201,12 @@
 /*     - user                    - base          - size              - BAR  */
 /*     DMA Linked Lists          0x8004000000    0x1000    (4k)      NA     */
 /*     Scratch                   0x8004001000    0x400000  (4M)      0      */
-/*     SP SMode Trace            0x8004401000    0x1000    (4K)      0      */
-/*     MM SMode Trace            0x8004402000    0x100000  (1M)      0      */
-/*     CM SMode Trace            0x8004502000    0x820000  (8.125M)  0      */
-/*     CM UMode Trace CB (FIXED) 0x8004D22000    0x20800   (130K)    NA     */
+/*     SP SMode Trace            0x8004402000    0x2000    (8K)      0      */
+/*     MM SMode Trace            0x8004403000    0x100000  (1M)      0      */
+/*     CM SMode Trace            0x8004503000    0x820000  (8.125M)  0      */
+/*     SP Dev Stats Trace        0x8004D23000    0x100000  (1.0 MB)  0      */
+/*     MM Dev Stats Trace        0x8004E23000    0x100000  (1.0 MB)  0      */
+/*     CM UMode Trace CB (FIXED) 0x8004F23000    0x20800   (130K)    NA     */
 /*     UNUSED                    until offset 0x57FFFFF   ~(2.74M)   NA     */
 /*     UMode stacks end          0x8004fbf800    0x840800 ~(8.25M)   NA     */
 /*     UMode stacks base         0x8005800000                        NA     */
@@ -270,9 +274,17 @@ correspoding Flash partition to take affect. */
 #define CM_SMODE_TRACE_BUFFER_SIZE_PER_HART     SIZE_4KB
 #define CM_SMODE_TRACE_BUFFER_SIZE              (CM_SMODE_TRACE_BUFFER_SIZE_PER_HART * CM_HART_COUNT)
 
+/* SP Dev Stats Trace Buffer */
+#define SP_STATS_TRACE_BUFFER_BASE              (CM_SMODE_TRACE_BUFFER_BASE + CM_SMODE_TRACE_BUFFER_SIZE )
+#define SP_STATS_BUFFER_SIZE                    SIZE_1MB
+
+/* MM Dev Stats Trace Buffer */
+#define MM_STATS_TRACE_BUFFER_BASE              (SP_STATS_TRACE_BUFFER_BASE + SP_STATS_BUFFER_SIZE)
+#define MM_STATS_BUFFER_SIZE                    SIZE_1MB
+
 /* This region should be in non-Host managed UMode region.
 (WARNING: Fixed address - should sync with UMode Trace) */
-#define CM_UMODE_TRACE_CB_BASEADDR              (CM_SMODE_TRACE_BUFFER_BASE + CM_SMODE_TRACE_BUFFER_SIZE)
+#define CM_UMODE_TRACE_CB_BASEADDR              (MM_STATS_TRACE_BUFFER_BASE + MM_STATS_BUFFER_SIZE)
 #define CM_UMODE_TRACE_CB_SIZE                  (TRACE_CB_MAX_SIZE * CM_HART_COUNT)
 
 /* Give (4K+64B) for VM stack pages. This 64 in addition to 4K used to distrube stacks for
@@ -309,7 +321,7 @@ static_assert((CM_UMODE_TRACE_CB_BASEADDR + CM_UMODE_TRACE_CB_SIZE) < KERNEL_UMO
               "DDR OS memory sub regions crossing limits");
 
 /* Ensure that fixed U-mode Trace CB address has not been changed. */
-static_assert(CM_UMODE_TRACE_CB_BASEADDR == 0x8004d23000ULL,
+static_assert(CM_UMODE_TRACE_CB_BASEADDR == 0x8004F23000ULL,
               "U-mode Trace CB address is changed, it needs to be adjusted in U-mode Trace");
 
 /* Ensure that fixed U-mode kernels entry address has not been changed. */
