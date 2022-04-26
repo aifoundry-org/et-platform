@@ -601,7 +601,7 @@ int verifyService() {
                                     sizeof(device_mgmt_api::use_step_e);
         char input_buff[input_size];
         input_buff[0] = (char)(pll_freq & 0xff);
-        input_buff[1] = (char)((pll_freq > 8) & 0xff);
+        input_buff[1] = (char)((pll_freq >> 8) & 0xff);
         input_buff[2] = (char)pll_id;
         input_buff[3] = (char)use_step;
         
@@ -1628,11 +1628,11 @@ void printFrequencies(char* argv) {
   std::cout << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[0].val << " "
-            << DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE << " -" << (char)long_options[14].val << " 400,400"
+            << DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE << " -" << (char)long_options[14].val << " 400,200"
             << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[1].val << " DM_CMD_SET_FREQUENCY"
-            << " -" << (char)long_options[13].val << " 400,400" << std::endl;
+            << " -" << (char)long_options[14].val << " 400,200" << std::endl;
 }
 
 void printUsage(char* argv) {
