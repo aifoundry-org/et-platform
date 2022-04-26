@@ -60,7 +60,7 @@ struct DmaInfo {
 enum class DeviceState { Ready, PendingCommands, NotResponding, Undefined };
 
 /// \brief This enum contains possible trace buffer types to extract from SP
-enum class TraceBufferType { TraceBufferSP = 0, TraceBufferMM, TraceBufferCM, TraceBufferTypeNum };
+enum class TraceBufferType { TraceBufferSP = 0, TraceBufferMM, TraceBufferCM, TraceBufferSPStats, TraceBufferMMStats, TraceBufferTypeNum };
 
 class Exception : public dbg::StackException {
   using dbg::StackException::StackException;
