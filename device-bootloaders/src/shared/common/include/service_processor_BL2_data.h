@@ -13,7 +13,8 @@
 
 #define SERVICE_PROCESSOR_BL2_DATA_VERSION 0x00000001
 
-typedef struct ESPERANTO_PARTITION_BL2_INFO_s {
+typedef struct ESPERANTO_PARTITION_BL2_INFO_s
+{
     // partition header loaded from flash
     ESPERANTO_FLASH_PARTITION_HEADER_t header;
 
@@ -56,30 +57,35 @@ typedef struct ESPERANTO_PARTITION_BL2_INFO_s {
 } ESPERANTO_PARTITION_BL2_INFO_t;
 
 /* Esperanto flash config data */
-typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_DATA {
-    char        manuf_name[16];
-    uint32_t    part_num;
-    uint64_t    serial_num;                 
-    uint8_t     mem_size;
-    uint32_t    module_rev;
-    uint8_t     form_factor;
-    uint32_t    fw_release_rev;
-    uint8_t     padding[26];
+typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_DATA
+{
+    char manuf_name[16];
+    uint32_t part_num;
+    uint64_t serial_num;
+    uint8_t mem_size;
+    uint32_t module_rev;
+    uint8_t form_factor;
+    uint32_t fw_release_rev;
+    uint8_t padding[26];
 } ESPERANTO_CONFIG_DATA_t;
 
 static_assert(64 == sizeof(ESPERANTO_CONFIG_DATA_t), "sizeof(ESPERANTO_CONFIG_DATA_t) is not 64!");
 
 /* Esperanto flash config header */
-typedef struct ESPERANTO_CONFIG_HEADER {
+typedef struct ESPERANTO_CONFIG_HEADER
+{
     uint32_t tag;
     uint32_t version;
-    uint64_t hash;                 
+    uint64_t hash;
 } ESPERANTO_CONFIG_HEADER_t;
 
-static_assert(16 == sizeof(ESPERANTO_CONFIG_HEADER_t), "sizeof(ESPERANTO_CONFIG_HEADER_t) is not 16!");
+static_assert(16 == sizeof(ESPERANTO_CONFIG_HEADER_t),
+              "sizeof(ESPERANTO_CONFIG_HEADER_t) is not 16!");
 
-typedef struct FLASH_FS_BL2_INFO_s {
-    union {
+typedef struct FLASH_FS_BL2_INFO_s
+{
+    union
+    {
         SPI_FLASH_ID_t flash_id;
         uint32_t flash_id_u32;
     };
@@ -91,7 +97,7 @@ typedef struct FLASH_FS_BL2_INFO_s {
     // @cabul: Need to add file_info for this if we want to use flash_fs_read_file
 
     ESPERANTO_CONFIG_HEADER_t asset_config_header;
-    ESPERANTO_CONFIG_DATA_t   asset_config_data;
+    ESPERANTO_CONFIG_DATA_t asset_config_data;
 
     ESPERANATO_FILE_INFO_t pcie_config_file_info;
     ESPERANATO_FILE_INFO_t vaultip_firmware_file_info;
@@ -113,7 +119,8 @@ typedef struct FLASH_FS_BL2_INFO_s {
     ESPERANATO_FILE_INFO_t dram_training_2d_payload_1067mhz_file_info;
 } FLASH_FS_BL2_INFO_t;
 
-typedef struct SERVICE_PROCESSOR_BL2_DATA_s {
+typedef struct SERVICE_PROCESSOR_BL2_DATA_s
+{
     uint32_t service_processor_bl2_data_size;
     uint32_t service_processor_bl2_version;
     uint32_t service_processor_bl1_version;
