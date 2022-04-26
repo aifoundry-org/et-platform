@@ -189,6 +189,8 @@ enum et_mgmt_mem_region_type {
 	MGMT_MEM_REGION_TYPE_SPFW_TRACE,
 	MGMT_MEM_REGION_TYPE_MMFW_TRACE,
 	MGMT_MEM_REGION_TYPE_CMFW_TRACE,
+	MGMT_MEM_REGION_TYPE_SP_STATS,
+	MGMT_MEM_REGION_TYPE_MM_STATS,
 	MGMT_MEM_REGION_TYPE_NUM
 };
 
@@ -387,6 +389,16 @@ static inline void et_print_mgmt_dir(struct device *dev,
 			dev_dbg(dev,
 				"Type                    : %d - CM FW Trace\n",
 				MGMT_MEM_REGION_TYPE_CMFW_TRACE);
+			break;
+		case MGMT_MEM_REGION_TYPE_SP_STATS:
+			dev_dbg(dev,
+				"Type                    : %d - SP Dev Stats\n",
+				MGMT_MEM_REGION_TYPE_SP_STATS);
+			break;
+		case MGMT_MEM_REGION_TYPE_MM_STATS:
+			dev_dbg(dev,
+				"Type                    : %d - MM Dev Stats\n",
+				MGMT_MEM_REGION_TYPE_MM_STATS);
 			break;
 		default:
 			dev_dbg(dev,
@@ -797,6 +809,8 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 		case MGMT_MEM_REGION_TYPE_SPFW_TRACE:
 		case MGMT_MEM_REGION_TYPE_MMFW_TRACE:
 		case MGMT_MEM_REGION_TYPE_CMFW_TRACE:
+		case MGMT_MEM_REGION_TYPE_SP_STATS:
+		case MGMT_MEM_REGION_TYPE_MM_STATS:
 			// Attributes compatibility check
 			if (region->access.io_access !=
 				    MEM_REGION_IOACCESS_ENABLED ||

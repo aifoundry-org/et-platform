@@ -210,6 +210,11 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			region = &et_dev->mgmt.regions
 					  [MGMT_MEM_REGION_TYPE_CMFW_TRACE];
 			break;
+		case TRACE_BUFFER_MM_STATS:
+			region =
+				&et_dev->mgmt
+					 .regions[MGMT_MEM_REGION_TYPE_MM_STATS];
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -686,6 +691,12 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			region =
 				&mgmt->regions[MGMT_MEM_REGION_TYPE_CMFW_TRACE];
 			break;
+		case TRACE_BUFFER_SP_STATS:
+			region = &mgmt->regions[MGMT_MEM_REGION_TYPE_SP_STATS];
+			break;
+		case TRACE_BUFFER_MM_STATS:
+			region = &mgmt->regions[MGMT_MEM_REGION_TYPE_MM_STATS];
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -715,6 +726,12 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		case TRACE_BUFFER_CM:
 			region =
 				&mgmt->regions[MGMT_MEM_REGION_TYPE_CMFW_TRACE];
+			break;
+		case TRACE_BUFFER_SP_STATS:
+			region = &mgmt->regions[MGMT_MEM_REGION_TYPE_SP_STATS];
+			break;
+		case TRACE_BUFFER_MM_STATS:
+			region = &mgmt->regions[MGMT_MEM_REGION_TYPE_MM_STATS];
 			break;
 		default:
 			return -EINVAL;
