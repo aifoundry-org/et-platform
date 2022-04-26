@@ -5,6 +5,7 @@
  *-------------------------------------------------------------------------
  */
 
+#include <linux/aer.h>
 #include <linux/crc32.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -1964,10 +1965,19 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_free_irq_vectors;
 	}
 
+	rv = pci_enable_pcie_error_reporting(pdev);
+	if (rv) {
+		dev_warn(&pdev->dev, "Couldn't enable PCI error reporting\n");
+		et_dev->is_err_reporting = false;
+		rv = 0;
+	} else {
+		et_dev->is_err_reporting = true;
+	}
+
 	rv = et_mgmt_dev_init(et_dev);
 	if (rv) {
 		dev_err(&pdev->dev, "Mgmt device initialization failed\n");
-		goto error_pci_release_regions;
+		goto error_pci_disable_pcie_error_reporting;
 	}
 
 	rv = et_ops_dev_init(et_dev);
@@ -1987,7 +1997,12 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 
 	return rv;
 
-error_pci_release_regions:
+error_pci_disable_pcie_error_reporting:
+	if (et_dev->is_err_reporting) {
+		pci_disable_pcie_error_reporting(pdev);
+		et_dev->is_err_reporting = false;
+	}
+
 	pci_release_regions(pdev);
 
 error_free_irq_vectors:
@@ -2019,6 +2034,9 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 		et_ops_dev_destroy(et_dev);
 
 	et_mgmt_dev_destroy(et_dev);
+
+	if (et_dev->is_err_reporting)
+		pci_disable_pcie_error_reporting(pdev);
 
 	pci_release_regions(pdev);
 	pci_free_irq_vectors(pdev);

@@ -85,6 +85,7 @@ struct et_mgmt_dev {
 
 struct et_pci_dev {
 	u8 dev_index;
+	bool is_err_reporting;
 	bool is_recovery_mode;
 	struct pci_dev *pdev;
 	struct dev_config cfg;
