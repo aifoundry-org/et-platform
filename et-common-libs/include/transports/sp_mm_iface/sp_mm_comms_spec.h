@@ -57,6 +57,7 @@ enum mm2sp_mm_recoverable_error_code_e {
     MM_CM_RUNTIME_ERRORS_END = -79,
     /* Dispatcher error codes */
     MM_DISPATCHER_ERROR_START = -80,
+    MM_STATS_TRACE_INIT_ERROR = -81,
     MM_DISPATCHER_ERROR_END = -99,
 };
 
