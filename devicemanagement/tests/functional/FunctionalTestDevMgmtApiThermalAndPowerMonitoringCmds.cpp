@@ -26,7 +26,7 @@ class FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds : public TestDevMgmt
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     initTestTrace();
-    controlTraceLogging(true);
+    controlTraceLogging();
   }
   void TearDown() override {
     extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);

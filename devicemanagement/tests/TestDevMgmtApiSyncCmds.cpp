@@ -39,6 +39,8 @@ using TimeDuration = Clock::duration;
 
 DEFINE_bool(enable_trace_dump, true,
             "Enable SP trace dump to file specified by flag: trace_logfile, otherwise on UART");
+DEFINE_bool(reset_trace_buffer, true,
+            "Reset the SP trace buffer on the start of the test run if trace logging is enabled");
 DEFINE_string(trace_base_dir, "devtrace", "Base directory which will contain all traces");
 DEFINE_string(trace_txt_dir, FLAGS_trace_base_dir + "/txt_files",
               "A directory in the current path where the decoded device traces will be printed");
@@ -90,7 +92,7 @@ void TestDevMgmtApiSyncCmds::initTestTrace() {
   }
 }
 
-void TestDevMgmtApiSyncCmds::controlTraceLogging(bool resetTraceBuffer) {
+void TestDevMgmtApiSyncCmds::controlTraceLogging(void) {
   if (!FLAGS_enable_trace_dump) {
     return;
   }
@@ -101,7 +103,7 @@ void TestDevMgmtApiSyncCmds::controlTraceLogging(bool resetTraceBuffer) {
   // Trace control input params
   std::array<char, sizeof(device_mgmt_api::trace_control_e)> input_buff;
   device_mgmt_api::trace_control_e control = device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE;
-  if (resetTraceBuffer) {
+  if (FLAGS_reset_trace_buffer) {
     control |= device_mgmt_api::TRACE_CONTROL_RESET_TRACEBUF;
   }
 

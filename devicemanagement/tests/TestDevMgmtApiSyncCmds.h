@@ -109,7 +109,7 @@ protected:
   bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) const;
   void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) const;
 
-  void controlTraceLogging(bool resetTraceBuffer);
+  void controlTraceLogging(void);
   bool extractAndPrintTraceData(bool singleDevice, TraceBufferType bufferType);
   void serializeAccessMgmtNode(bool singleDevice);
   void getDeviceErrorEvents(bool singleDevice);
