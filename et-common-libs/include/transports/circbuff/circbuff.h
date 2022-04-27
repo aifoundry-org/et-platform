@@ -22,7 +22,7 @@
 /**
  * @brief Defines for Circular Buffer status codes.
  */
-#define CIRCBUFF_OPERATION_SUCCESS     0
+#define CIRCBUFF_OPERATION_SUCCESS    0
 #define CIRCBUFF_ERROR_BAD_LENGTH     -1
 #define CIRCBUFF_ERROR_BAD_HEAD_INDEX -2
 #define CIRCBUFF_ERROR_BAD_TAIL_INDEX -3
@@ -33,19 +33,19 @@
 /**
  * @brief Reserved defines for Circular Buffer flags field.
  */
-#define CIRCBUFF_FLAG_NO_READ          (1U << 31)
-#define CIRCBUFF_FLAG_NO_WRITE         (1U << 30)
+#define CIRCBUFF_FLAG_NO_READ  (1U << 31)
+#define CIRCBUFF_FLAG_NO_WRITE (1U << 30)
 
 /*! \struct circ_buff_cb_t
     \brief The circular buffer control block which holds the
     information of a circular buffer.
 */
 typedef struct __attribute__((__packed__)) circ_buff_cb {
-    uint64_t head_offset;   /**< Offset of the circular buffer to write data to */
-    uint64_t tail_offset;   /**< Offset of the circular buffer to read data from */
-    uint64_t length;        /**< Total length (in bytes) of the circular buffer */
-    uint64_t pad;           /**< Padding to make the struct 32-bytes aligned */
-    uint8_t buffer_ptr[];   /**< Flexible array to access circular buffer memory
+    uint64_t head_offset; /**< Offset of the circular buffer to write data to */
+    uint64_t tail_offset; /**< Offset of the circular buffer to read data from */
+    uint64_t length;      /**< Total length (in bytes) of the circular buffer */
+    uint64_t pad;         /**< Padding to make the struct 32-bytes aligned */
+    uint8_t buffer_ptr[]; /**< Flexible array to access circular buffer memory
                             located just after circ_buff_cb_t */
 } circ_buff_cb_t;
 
@@ -68,8 +68,8 @@ int8_t Circbuffer_Init(circ_buff_cb_t *circ_buff_cb_ptr, uint64_t buffer_length,
     \param [in] flags: Indicates memory access type
     \returns Success status if the data is pushed or a negative error code in case of error.
 */
-int8_t Circbuffer_Push(circ_buff_cb_t *const circ_buff_cb_ptr,
-    const void *const src_buffer, uint64_t src_length, uint32_t flags);
+int8_t Circbuffer_Push(circ_buff_cb_t *const circ_buff_cb_ptr, const void *const src_buffer,
+    uint64_t src_length, uint32_t flags);
 
 /*! \fn int8_t Circbuffer_Pop(volatile circ_buff_cb_t *const circ_buff_cb_ptr,
     void *const dest_buffer, uint64_t dest_length , uint32_t flags)
@@ -80,8 +80,8 @@ int8_t Circbuffer_Push(circ_buff_cb_t *const circ_buff_cb_ptr,
     \param [in] flags: Indicates memory access type
     \returns Success status if the data is poped or a negative error code in case of error.
 */
-int8_t Circbuffer_Pop(circ_buff_cb_t *const circ_buff_cb_ptr,
-    void *const dest_buffer, uint64_t dest_length, uint32_t flags);
+int8_t Circbuffer_Pop(circ_buff_cb_t *const circ_buff_cb_ptr, void *const dest_buffer,
+    uint64_t dest_length, uint32_t flags);
 
 /*! \fn int8_t Circbuffer_Read(circ_buff_cb_t *const circ_buff_cb_ptr,
     void *const src_circ_buffer, void *const dest_buffer,
@@ -94,9 +94,8 @@ int8_t Circbuffer_Pop(circ_buff_cb_t *const circ_buff_cb_ptr,
     \param [in] flags: Indicates memory access type
     \returns Success status if the data is read or a negative error code in case of error.
 */
-int8_t Circbuffer_Read(circ_buff_cb_t *const circ_buff_cb_ptr,
-    void *const src_circ_buffer, void *const dest_buffer,
-    uint64_t dest_length, uint32_t flags);
+int8_t Circbuffer_Read(circ_buff_cb_t *const circ_buff_cb_ptr, void *const src_circ_buffer,
+    void *const dest_buffer, uint64_t dest_length, uint32_t flags);
 
 /*! \fn int8_t Circbuffer_Peek(volatile circ_buff_cb_t *const circbuffer_ptr,
     void *const dest_buffer, uint64_t peek_offset, uint64_t peek_length, uint32_t flags)
@@ -107,8 +106,8 @@ int8_t Circbuffer_Read(circ_buff_cb_t *const circ_buff_cb_ptr,
     \param [in] flags: Indicates memory access type
     \returns Success status if the data is read or a negative error code in case of error.
 */
-int8_t Circbuffer_Peek(circ_buff_cb_t *const circbuffer_ptr,
-    void *const dest_buffer, uint64_t peek_offset, uint64_t peek_length, uint32_t flags);
+int8_t Circbuffer_Peek(circ_buff_cb_t *const circbuffer_ptr, void *const dest_buffer,
+    uint64_t peek_offset, uint64_t peek_length, uint32_t flags);
 
 /*! \fn static inline uint64_t Circbuffer_Get_Avail_Space(volatile circ_buff_cb_t *const circ_buff_ptr,
     uint32_t flags)
@@ -117,8 +116,8 @@ int8_t Circbuffer_Peek(circ_buff_cb_t *const circbuffer_ptr,
     \param [in] flags: Indicates memory access type
     \returns Free space in bytes.
 */
-static inline uint64_t Circbuffer_Get_Avail_Space(const circ_buff_cb_t *circ_buff_ptr,
-    uint32_t flags)
+static inline uint64_t Circbuffer_Get_Avail_Space(
+    const circ_buff_cb_t *circ_buff_ptr, uint32_t flags)
 {
     /* Read from memory if no read flag is not set */
     if (flags != CIRCBUFF_FLAG_NO_READ)
@@ -126,17 +125,18 @@ static inline uint64_t Circbuffer_Get_Avail_Space(const circ_buff_cb_t *circ_buf
         circ_buff_cb_t circ_buff __attribute__((aligned(8)));
 
         /* Read the circular buffer CB from memory */
-        ETSOC_Memory_Read(circ_buff_ptr, &circ_buff, sizeof(circ_buff), flags)
+        ETSOC_Memory_Read(circ_buff_ptr, &circ_buff, sizeof(circ_buff), flags);
 
         return ((circ_buff.head_offset >= circ_buff.tail_offset) ?
-                        (circ_buff.length - 1) - (circ_buff.head_offset - circ_buff.tail_offset) :
-                        circ_buff.tail_offset - circ_buff.head_offset - 1);
+                    (circ_buff.length - 1) - (circ_buff.head_offset - circ_buff.tail_offset) :
+                    circ_buff.tail_offset - circ_buff.head_offset - 1);
     }
     else
     {
         return ((circ_buff_ptr->head_offset >= circ_buff_ptr->tail_offset) ?
-                (circ_buff_ptr->length - 1) - (circ_buff_ptr->head_offset - circ_buff_ptr->tail_offset) :
-                circ_buff_ptr->tail_offset - circ_buff_ptr->head_offset - 1);
+                    (circ_buff_ptr->length - 1) -
+                        (circ_buff_ptr->head_offset - circ_buff_ptr->tail_offset) :
+                    circ_buff_ptr->tail_offset - circ_buff_ptr->head_offset - 1);
     }
 }
 
@@ -147,8 +147,8 @@ static inline uint64_t Circbuffer_Get_Avail_Space(const circ_buff_cb_t *circ_buf
     \param [in] flags: Indicates memory access type
     \returns Used space in bytes.
 */
-static inline uint64_t Circbuffer_Get_Used_Space(const circ_buff_cb_t *circ_buff_ptr,
-    uint32_t flags)
+static inline uint64_t Circbuffer_Get_Used_Space(
+    const circ_buff_cb_t *circ_buff_ptr, uint32_t flags)
 {
     /* Read from memory if no read flag is not set */
     if (flags != CIRCBUFF_FLAG_NO_READ)
@@ -156,15 +156,16 @@ static inline uint64_t Circbuffer_Get_Used_Space(const circ_buff_cb_t *circ_buff
         circ_buff_cb_t circ_buff __attribute__((aligned(8)));
 
         /* Read the circular buffer CB from memory */
-        ETSOC_Memory_Read(circ_buff_ptr, &circ_buff, sizeof(circ_buff), flags)
+        ETSOC_Memory_Read(circ_buff_ptr, &circ_buff, sizeof(circ_buff), flags);
 
         return ((circ_buff.head_offset >= circ_buff.tail_offset) ?
-                circ_buff.head_offset - circ_buff.tail_offset :
-                (circ_buff.length + circ_buff.head_offset - circ_buff.tail_offset));
+                    circ_buff.head_offset - circ_buff.tail_offset :
+                    (circ_buff.length + circ_buff.head_offset - circ_buff.tail_offset));
     }
     else
     {
-        return ((circ_buff_ptr->head_offset >= circ_buff_ptr->tail_offset) ?
+        return (
+            (circ_buff_ptr->head_offset >= circ_buff_ptr->tail_offset) ?
                 circ_buff_ptr->head_offset - circ_buff_ptr->tail_offset :
                 (circ_buff_ptr->length + circ_buff_ptr->head_offset - circ_buff_ptr->tail_offset));
     }
@@ -182,7 +183,8 @@ static inline void Circbuffer_Get_Head_Tail(const circ_buff_cb_t *src_circ_buff_
 {
     /* Read the circular buffer CB from memory */
     ETSOC_Memory_Read(src_circ_buff_cb_ptr, dest_circ_buff_cb_ptr,
-        sizeof(((circ_buff_cb_t*)0)->head_offset) + sizeof(((circ_buff_cb_t*)0)->tail_offset), flags)
+        sizeof(((circ_buff_cb_t *)0)->head_offset) + sizeof(((circ_buff_cb_t *)0)->tail_offset),
+        flags);
 }
 
 /*! \fn static inline uint64_t Circbuffer_Get_Tail(const circ_buff_cb_t *circ_buff_cb_ptr,
@@ -196,7 +198,7 @@ static inline uint64_t Circbuffer_Get_Tail(const circ_buff_cb_t *circ_buff_cb_pt
     uint64_t tail = 0;
 
     /* Read the circular buffer CB from memory */
-    ETSOC_Memory_Read_64(&circ_buff_cb_ptr->tail_offset, &tail, flags)
+    ETSOC_Memory_Read_64(&circ_buff_cb_ptr->tail_offset, &tail, flags);
 
     return tail;
 }
@@ -208,11 +210,11 @@ static inline uint64_t Circbuffer_Get_Tail(const circ_buff_cb_t *circ_buff_cb_pt
     \param [in] tail_val: Value of tail offset to write.
     \param [in] flags: Indicates memory access type
 */
-static inline void Circbuffer_Set_Tail(circ_buff_cb_t *dest_circ_buff_cb_ptr,
-    uint64_t tail_val, uint32_t flags)
+static inline void Circbuffer_Set_Tail(
+    circ_buff_cb_t *dest_circ_buff_cb_ptr, uint64_t tail_val, uint32_t flags)
 {
     /* Write the circular buffer CB from memory */
-    ETSOC_Memory_Write_64(&tail_val, &dest_circ_buff_cb_ptr->tail_offset, flags)
+    ETSOC_Memory_Write_64(&tail_val, &dest_circ_buff_cb_ptr->tail_offset, flags);
 }
 
 /*! \fn static inline uint64_t Circbuffer_Get_Head(const circ_buff_cb_t *circ_buff_cb_ptr,
@@ -226,7 +228,7 @@ static inline uint64_t Circbuffer_Get_Head(const circ_buff_cb_t *circ_buff_cb_pt
     uint64_t head = 0;
 
     /* Read the circular buffer CB from memory */
-    ETSOC_Memory_Read_64(&circ_buff_cb_ptr->head_offset, &head, flags)
+    ETSOC_Memory_Read_64(&circ_buff_cb_ptr->head_offset, &head, flags);
 
     return head;
 }
@@ -238,11 +240,11 @@ static inline uint64_t Circbuffer_Get_Head(const circ_buff_cb_t *circ_buff_cb_pt
     \param [in] head_val: Value of head offset to write.
     \param [in] flags: Indicates memory access type
 */
-static inline void Circbuffer_Set_Head(circ_buff_cb_t *dest_circ_buff_cb_ptr,
-    uint64_t head_val, uint32_t flags)
+static inline void Circbuffer_Set_Head(
+    circ_buff_cb_t *dest_circ_buff_cb_ptr, uint64_t head_val, uint32_t flags)
 {
     /* Write the circular buffer CB from memory */
-    ETSOC_Memory_Write_64(&head_val, &dest_circ_buff_cb_ptr->head_offset, flags)
+    ETSOC_Memory_Write_64(&head_val, &dest_circ_buff_cb_ptr->head_offset, flags);
 }
 
 /*! \fn static inline uint64_t Circbuffer_Get_Length(const circ_buff_cb_t *circ_buff_cb_ptr,
@@ -256,7 +258,7 @@ static inline uint64_t Circbuffer_Get_Length(const circ_buff_cb_t *circ_buff_cb_
     uint64_t length = 0;
 
     /* Read the circular buffer CB from memory */
-    ETSOC_Memory_Read_64(&circ_buff_cb_ptr->length, &length, flags)
+    ETSOC_Memory_Read_64(&circ_buff_cb_ptr->length, &length, flags);
 
     return length;
 }
