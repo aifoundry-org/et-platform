@@ -98,7 +98,6 @@ public:
     }
 
     runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
-    tp_ = std::make_unique<threadPool::ThreadPool>(1, true);
   }
 
   void TearDown() override {
@@ -106,7 +105,6 @@ public:
       runtime_->waitForStream(s);
       runtime_->destroyStream(s);
     }
-    tp_.reset();
     runtime_.reset();
     traceOut_.close();
     defaultStreams_.clear();
@@ -118,9 +116,9 @@ public:
     auto kernelContent = readFile(std::string{KERNELS_DIR} + "/" + kernel_name);
     EXPECT_FALSE(kernelContent.empty());
     EXPECT_TRUE(devices_.size() > deviceIdx);
-    auto tempStream = runtime_->createStream(rt::DeviceId(deviceIdx));
-    auto res = runtime_->loadCode(tempStream, kernelContent.data(), kernelContent.size());
-    tp_->pushTask([res, this, kernelContent = std::move(kernelContent)] { runtime_->waitForEvent(res.event_); });
+    auto st = defaultStreams_[deviceIdx];
+    auto res = runtime_->loadCode(st, kernelContent.data(), kernelContent.size());
+    runtime_->waitForEvent(res.event_);
     return res.kernel_;
   }
 
@@ -147,7 +145,6 @@ protected:
   rt::RuntimePtr runtime_;
   std::vector<rt::DeviceId> devices_;
   std::vector<rt::StreamId> defaultStreams_;
-  std::unique_ptr<threadPool::ThreadPool> tp_;
 };
 
 template <typename TContainer> void randomize(TContainer& container, int init, int end) {

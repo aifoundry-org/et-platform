@@ -430,7 +430,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyLi
     auto freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
     while (freeSize <= totalSize) {
       lck.unlock();
-      if (topPrio != evt) {
+      if (topPrio == evt) {
         throw Exception("Inconsistency in runtime: If current command is topPrio command then it should have enough "
                         "CMA memory available.");
       }
@@ -492,7 +492,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyLi
     auto freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
     while (freeSize <= totalSize) {
       lck.unlock();
-      if (topPrio != evt) {
+      if (topPrio == evt) {
         throw Exception("Inconsistency in runtime: If current command is topPrio command then it should have enough "
                         "CMA memory available.");
       }

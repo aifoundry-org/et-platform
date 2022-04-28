@@ -141,7 +141,6 @@ void CommandSender::runnerFunc() {
 
         profiling::ProfileEvent event(profiling::Type::Instant, profiling::Class::CommandSent);
         event.setEvent(cmd.eventId_);
-        event.setStream(StreamId(sqIdx_));
         event.setDeviceId(DeviceId(deviceId_));
         profiler_.record(event);
 

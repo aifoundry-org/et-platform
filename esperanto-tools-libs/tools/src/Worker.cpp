@@ -57,7 +57,7 @@ void Worker::start(int numIterations) {
       if (i % 4 == 0) {
         listD2H.emplace_back(rt::MemcpyList{});
       }
-      listD2H.back().addOp(hD2H_.data() + i * size, dD2H_ + i * size, size);
+      listD2H.back().addOp(dD2H_ + i * size, hD2H_.data() + i * size, size);
     }
     for (int i = 0; i < numIterations; ++i) {
       if (dH2D_) {

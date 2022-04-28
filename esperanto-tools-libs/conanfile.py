@@ -43,7 +43,7 @@ class RuntimeConan(ConanFile):
         if self.options.with_tests:
             self.requires("deviceApi/0.4.0#b581ee71930e41a44a3e10d4ff40496e")
         else:
-            self.requires("deviceApi/0.3.0")
+            self.requires("deviceApi/0.4.0")
         self.requires("deviceLayer/0.1.0")
         self.requires("hostUtils/0.1.0")
         
