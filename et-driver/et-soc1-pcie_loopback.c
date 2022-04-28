@@ -86,7 +86,7 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	__poll_t mask = 0;
 	struct et_ops_dev *ops;
 
-	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
+	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
 
 	poll_wait(fp, &ops->vq_common.waitqueue, wait);
 
@@ -126,7 +126,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	u16 max_size;
 	u32 dev_state;
 
-	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
+	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
 	et_dev = container_of(ops, struct et_pci_dev, ops);
 	size = _IOC_SIZE(cmd);
 
@@ -330,9 +330,7 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 	__poll_t mask = 0;
 	struct et_mgmt_dev *mgmt;
 
-	mgmt = container_of(fp->private_data,
-			    struct et_mgmt_dev,
-			    misc_mgmt_dev);
+	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
 
 	poll_wait(fp, &mgmt->vq_common.waitqueue, wait);
 
@@ -428,7 +426,7 @@ static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 	size_t size = vma->vm_end - vma->vm_start;
 	int rv;
 
-	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
+	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
 	et_dev = container_of(ops, struct et_pci_dev, ops);
 
 	if (vma->vm_pgoff != 0) {
@@ -497,9 +495,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	u16 max_size;
 	u32 dev_state;
 
-	mgmt = container_of(fp->private_data,
-			    struct et_mgmt_dev,
-			    misc_mgmt_dev);
+	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
 	et_dev = container_of(mgmt, struct et_pci_dev, mgmt);
 
 	size = _IOC_SIZE(cmd);
@@ -650,16 +646,16 @@ static int esperanto_pcie_ops_open(struct inode *inode, struct file *fp)
 {
 	struct et_ops_dev *ops;
 
-	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
+	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
 
-	spin_lock(&ops->ops_open_lock);
-	if (ops->is_ops_open) {
-		spin_unlock(&ops->ops_open_lock);
+	spin_lock(&ops->open_lock);
+	if (ops->is_open) {
+		spin_unlock(&ops->open_lock);
 		pr_err("Tried to open same device multiple times\n");
 		return -EBUSY; /* already open */
 	}
-	ops->is_ops_open = true;
-	spin_unlock(&ops->ops_open_lock);
+	ops->is_open = true;
+	spin_unlock(&ops->open_lock);
 
 	return 0;
 }
@@ -668,18 +664,16 @@ static int esperanto_pcie_mgmt_open(struct inode *inode, struct file *fp)
 {
 	struct et_mgmt_dev *mgmt;
 
-	mgmt = container_of(fp->private_data,
-			    struct et_mgmt_dev,
-			    misc_mgmt_dev);
+	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
 
-	spin_lock(&mgmt->mgmt_open_lock);
-	if (mgmt->is_mgmt_open) {
-		spin_unlock(&mgmt->mgmt_open_lock);
+	spin_lock(&mgmt->open_lock);
+	if (mgmt->is_open) {
+		spin_unlock(&mgmt->open_lock);
 		pr_err("Tried to open same device multiple times\n");
 		return -EBUSY; /* already open */
 	}
-	mgmt->is_mgmt_open = true;
-	spin_unlock(&mgmt->mgmt_open_lock);
+	mgmt->is_open = true;
+	spin_unlock(&mgmt->open_lock);
 
 	return 0;
 }
@@ -688,8 +682,8 @@ static int esperanto_pcie_ops_release(struct inode *inode, struct file *fp)
 {
 	struct et_ops_dev *ops;
 
-	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
-	ops->is_ops_open = false;
+	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
+	ops->is_open = false;
 
 	return 0;
 }
@@ -698,10 +692,8 @@ static int esperanto_pcie_mgmt_release(struct inode *inode, struct file *fp)
 {
 	struct et_mgmt_dev *mgmt;
 
-	mgmt = container_of(fp->private_data,
-			    struct et_mgmt_dev,
-			    misc_mgmt_dev);
-	mgmt->is_mgmt_open = false;
+	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
+	mgmt->is_open = false;
 
 	return 0;
 }
@@ -752,8 +744,8 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	struct et_mapped_region *region;
 	int rv;
 
-	et_dev->mgmt.is_mgmt_open = false;
-	spin_lock_init(&et_dev->mgmt.mgmt_open_lock);
+	et_dev->mgmt.is_open = false;
+	spin_lock_init(&et_dev->mgmt.open_lock);
 
 	et_dev->cfg.form_factor = DEV_CONFIG_FORM_FACTOR_PCIE;
 	et_dev->cfg.tdp = 25;
@@ -792,13 +784,13 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	}
 
 	// Create Mgmt device node
-	et_dev->mgmt.misc_mgmt_dev.minor = MISC_DYNAMIC_MINOR;
-	et_dev->mgmt.misc_mgmt_dev.fops = &et_pcie_mgmt_fops;
-	et_dev->mgmt.misc_mgmt_dev.name = devm_kasprintf(&et_dev->pdev->dev,
-							 GFP_KERNEL,
-							 "et%d_mgmt",
-							 et_dev->dev_index);
-	rv = misc_register(&et_dev->mgmt.misc_mgmt_dev);
+	et_dev->mgmt.misc_dev.minor = MISC_DYNAMIC_MINOR;
+	et_dev->mgmt.misc_dev.fops = &et_pcie_mgmt_fops;
+	et_dev->mgmt.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
+						    GFP_KERNEL,
+						    "et%d_mgmt",
+						    et_dev->dev_index);
+	rv = misc_register(&et_dev->mgmt.misc_dev);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "Mgmt: misc register failed\n");
 		goto error_vqueue_destroy_all;
@@ -820,7 +812,7 @@ error_free_vq_buffer:
 
 static void et_mgmt_dev_destroy(struct et_pci_dev *et_dev)
 {
-	misc_deregister(&et_dev->mgmt.misc_mgmt_dev);
+	misc_deregister(&et_dev->mgmt.misc_dev);
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
 	kfree((void __force *)et_dev->mgmt
 		      .regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER]
@@ -833,8 +825,8 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	struct et_mapped_region *region;
 	int rv;
 
-	et_dev->ops.is_ops_open = false;
-	spin_lock_init(&et_dev->ops.ops_open_lock);
+	et_dev->ops.is_open = false;
+	spin_lock_init(&et_dev->ops.open_lock);
 
 	// Init DMA rbtree
 	mutex_init(&et_dev->ops.dma_rbtree_mutex);
@@ -888,13 +880,13 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	}
 
 	// Create Ops device node
-	et_dev->ops.misc_ops_dev.minor = MISC_DYNAMIC_MINOR;
-	et_dev->ops.misc_ops_dev.fops = &et_pcie_ops_fops;
-	et_dev->ops.misc_ops_dev.name = devm_kasprintf(&et_dev->pdev->dev,
-						       GFP_KERNEL,
-						       "et%d_ops",
-						       et_dev->dev_index);
-	rv = misc_register(&et_dev->ops.misc_ops_dev);
+	et_dev->ops.misc_dev.minor = MISC_DYNAMIC_MINOR;
+	et_dev->ops.misc_dev.fops = &et_pcie_ops_fops;
+	et_dev->ops.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
+						   GFP_KERNEL,
+						   "et%d_ops",
+						   et_dev->dev_index);
+	rv = misc_register(&et_dev->ops.misc_dev);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "misc ops register failed\n");
 		goto error_vqueue_destroy_all;
@@ -915,7 +907,7 @@ error_free_vq_buffer:
 
 static void et_ops_dev_destroy(struct et_pci_dev *et_dev)
 {
-	misc_deregister(&et_dev->ops.misc_ops_dev);
+	misc_deregister(&et_dev->ops.misc_dev);
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
 
 	kfree((void __force *)et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER]

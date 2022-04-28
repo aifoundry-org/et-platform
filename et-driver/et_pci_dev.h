@@ -57,9 +57,10 @@ enum et_msi_vec_idx {
 };
 
 struct et_ops_dev {
-	struct miscdevice misc_ops_dev;
-	bool is_ops_open;
-	spinlock_t ops_open_lock;	/* serializes access to is_ops_open */
+	atomic_t state;
+	struct miscdevice misc_dev;
+	bool is_open;
+	spinlock_t open_lock;		/* serializes access to is_open */
 	void __iomem *dir;
 	struct et_mapped_region regions[OPS_MEM_REGION_TYPE_NUM];
 	struct et_ops_dir_vqueue dir_vq;
@@ -72,9 +73,10 @@ struct et_ops_dev {
 };
 
 struct et_mgmt_dev {
-	struct miscdevice misc_mgmt_dev;
-	bool is_mgmt_open;
-	spinlock_t mgmt_open_lock;	/* serializes access to is_mgmt_open */
+	atomic_t state;
+	struct miscdevice misc_dev;
+	bool is_open;
+	spinlock_t open_lock;		/* serializes access to is_open */
 	void __iomem *dir;
 	struct et_mapped_region regions[MGMT_MEM_REGION_TYPE_NUM];
 	struct et_mgmt_dir_vqueue dir_vq;

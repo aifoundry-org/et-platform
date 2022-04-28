@@ -56,6 +56,8 @@ struct evt_header_t {
 enum device_msg_e {
 	DEV_MGMT_API_MID_BEGIN = 0,
 	/* Device Mgmt Message IDs reserved */
+	DEV_MGMT_API_MID_MM_RESET = 56,
+	/* Device Mgmt Message IDs reserved */
 	DEV_MGMT_API_MID_EVENTS_BEGIN = 256,
 	DEV_MGMT_API_MID_PCIE_CE_EVENT = 256,
 	DEV_MGMT_API_MID_PCIE_UCE_EVENT,
@@ -125,6 +127,14 @@ enum dev_ops_api_dma_response_e {
 	DEV_OPS_API_DMA_RESPONSE_DRIVER_LINK_CONFIG_FAILED = 10,
 	DEV_OPS_API_DMA_RESPONSE_DRIVER_CHAN_START_FAILED = 11,
 	DEV_OPS_API_DMA_RESPONSE_DRIVER_ABORT_FAILED = 12
+};
+
+/*
+ * MM reset response status enum
+ */
+enum dev_mgmt_api_mm_reset_response_e {
+	DEV_OPS_API_MM_RESET_RESPONSE_COMPLETE = 0,
+	// TODO: SW-11288: Add other possible error responses
 };
 
 /*
@@ -230,6 +240,16 @@ struct device_ops_dma_writelist_rsp_t {
 	u64 cmd_wait_time;
 	u64 cmd_execution_time;
 	u32 status;
+	u32 pad;
+} __packed __aligned(8);
+
+/*
+ * Device Mgmt to host response message header
+ */
+struct device_mgmt_rsp_hdr_t {
+	struct rsp_header_t response_info;
+	u64 device_latency_usec;
+	s32 status;
 	u32 pad;
 } __packed __aligned(8);
 

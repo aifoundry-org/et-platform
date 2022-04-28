@@ -35,6 +35,7 @@
 #include "et_io.h"
 #include "et_ioctl.h"
 #include "et_pci_dev.h"
+#include "et_reset.h"
 #include "et_vma.h"
 #include "et_vqueue.h"
 
@@ -88,7 +89,7 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	__poll_t mask = 0;
 	struct et_ops_dev *ops;
 
-	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
+	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
 
 	poll_wait(fp, &ops->vq_common.waitqueue, wait);
 
@@ -130,29 +131,29 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	u32 dev_state;
 	u8 trace_type;
 
-	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
+	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
 	et_dev = container_of(ops, struct et_pci_dev, ops);
 	size = _IOC_SIZE(cmd);
+	dev_state = atomic_read(&ops->state);
 
-	switch (cmd) {
-	case ETSOC1_IOCTL_GET_DEVICE_STATE:
-		// TODO: SW-8811: Implement device state with
-		// heart-beat mechanism. A corner case is possible
-		// here that single command sent that causes hang will
-		// not be detected because the command will be popped
-		// out of SQ by device and SQ will appear empty here.
-		dev_state = DEV_STATE_READY;
-
-		// Check if any SQ has pending command(s)
-		mutex_lock(&ops->vq_common.sq_bitmap_mutex);
-		for (sq_idx = 0; sq_idx < ops->dir_vq.sq_count; sq_idx++) {
-			if (!et_squeue_empty(ops->sq_pptr[sq_idx])) {
-				dev_state = DEV_STATE_PENDING_COMMANDS;
-				// break loop
-				break;
+	if (cmd == ETSOC1_IOCTL_GET_DEVICE_STATE) {
+		// TODO: SW-10535: DEV_STATE_PENDING_COMMANDS is to be removed.
+		// A corner case is possible here that single command sent that
+		// causes hang will not be detected because the command will be
+		// popped out of SQ by device and SQ will appear empty here.
+		if (dev_state == DEV_STATE_READY) {
+			// Check if any SQ has pending command(s)
+			mutex_lock(&ops->vq_common.sq_bitmap_mutex);
+			for (sq_idx = 0; sq_idx < ops->dir_vq.sq_count;
+			     sq_idx++) {
+				if (!et_squeue_empty(ops->sq_pptr[sq_idx])) {
+					dev_state = DEV_STATE_PENDING_COMMANDS;
+					// break loop
+					break;
+				}
 			}
+			mutex_unlock(&ops->vq_common.sq_bitmap_mutex);
 		}
-		mutex_unlock(&ops->vq_common.sq_bitmap_mutex);
 
 		if (size >= sizeof(u32) &&
 		    copy_to_user(usr_arg, &dev_state, size)) {
@@ -160,7 +161,12 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		}
 		return 0;
+	}
 
+	if (dev_state != DEV_STATE_READY)
+		return -EBUSY;
+
+	switch (cmd) {
 	case ETSOC1_IOCTL_GET_USER_DRAM_INFO:
 		region = &ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED];
 		if (!region->is_valid || !(region->access.node_access &
@@ -255,7 +261,8 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&cmd_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
 
-		if (!cmd_info.cmd || !cmd_info.size)
+		if (!cmd_info.cmd || !cmd_info.size ||
+		    cmd_info.flags & CMD_DESC_FLAG_MM_RESET)
 			return -EINVAL;
 
 		if (cmd_info.flags & CMD_DESC_FLAG_DMA &&
@@ -358,9 +365,7 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 	__poll_t mask = 0;
 	struct et_mgmt_dev *mgmt;
 
-	mgmt = container_of(fp->private_data,
-			    struct et_mgmt_dev,
-			    misc_mgmt_dev);
+	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
 
 	poll_wait(fp, &mgmt->vq_common.waitqueue, wait);
 
@@ -457,7 +462,7 @@ static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 	size_t size = vma->vm_end - vma->vm_start;
 	int rv;
 
-	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
+	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
 	et_dev = container_of(ops, struct et_pci_dev, ops);
 
 	if (vma->vm_pgoff != 0) {
@@ -527,44 +532,49 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	u16 sq_idx;
 	size_t size;
 	u16 max_size;
-	u32 dev_state;
+	u32 mgmt_dev_state;
+	u32 ops_dev_state;
 	u8 trace_type;
 	void *trace_buf;
+	long rv;
 
-	mgmt = container_of(fp->private_data,
-			    struct et_mgmt_dev,
-			    misc_mgmt_dev);
+	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
 	et_dev = container_of(mgmt, struct et_pci_dev, mgmt);
-
 	size = _IOC_SIZE(cmd);
+	mgmt_dev_state = atomic_read(&mgmt->state);
 
-	switch (cmd) {
-	case ETSOC1_IOCTL_GET_DEVICE_STATE:
-		// TODO: SW-8811: Implement device state with
-		// heart-beat mechanism. A corner case is possible
-		// here that single command sent that causes hang will
-		// not be detected because the command will be popped
-		// out of SQ by device and SQ will appear empty here.
-		dev_state = DEV_STATE_READY;
-
-		// Check if any SQ has pending command(s)
-		mutex_lock(&mgmt->vq_common.sq_bitmap_mutex);
-		for (sq_idx = 0; sq_idx < mgmt->dir_vq.sq_count; sq_idx++) {
-			if (!et_squeue_empty(mgmt->sq_pptr[sq_idx])) {
-				dev_state = DEV_STATE_PENDING_COMMANDS;
-				// break loop
-				break;
+	if (cmd == ETSOC1_IOCTL_GET_DEVICE_STATE) {
+		// TODO: SW-10535: DEV_STATE_PENDING_COMMANDS is to be removed.
+		// A corner case is possible here that single command sent that
+		// causes hang will not be detected because the command will be
+		// popped out of SQ by device and SQ will appear empty here.
+		if (mgmt_dev_state == DEV_STATE_READY) {
+			// Check if any SQ has pending command(s)
+			mutex_lock(&mgmt->vq_common.sq_bitmap_mutex);
+			for (sq_idx = 0; sq_idx < mgmt->dir_vq.sq_count;
+			     sq_idx++) {
+				if (!et_squeue_empty(mgmt->sq_pptr[sq_idx])) {
+					mgmt_dev_state =
+						DEV_STATE_PENDING_COMMANDS;
+					// break loop
+					break;
+				}
 			}
+			mutex_unlock(&mgmt->vq_common.sq_bitmap_mutex);
 		}
-		mutex_unlock(&mgmt->vq_common.sq_bitmap_mutex);
 
 		if (size >= sizeof(u32) &&
-		    copy_to_user(usr_arg, &dev_state, size)) {
+		    copy_to_user(usr_arg, &mgmt_dev_state, size)) {
 			pr_err("ioctl: ETSOC1_IOCTL_GET_DEVICE_STATE: failed to copy to user\n");
 			return -EFAULT;
 		}
 		return 0;
+	}
 
+	if (mgmt_dev_state != DEV_STATE_READY)
+		return -EBUSY;
+
+	switch (cmd) {
 	case ETSOC1_IOCTL_FW_UPDATE:
 		if (copy_from_user(&fw_update_info, usr_arg, _IOC_SIZE(cmd)))
 			return -EINVAL;
@@ -615,13 +625,24 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		    !cmd_info.cmd || !cmd_info.size)
 			return -EINVAL;
 
-		return et_squeue_copy_from_user(
+		if (cmd_info.flags & CMD_DESC_FLAG_MM_RESET) {
+			ops_dev_state = atomic_read(&et_dev->ops.state);
+			atomic_set(&et_dev->ops.state,
+				   DEV_STATE_RESET_IN_PROGRESS);
+		}
+
+		rv = et_squeue_copy_from_user(
 			et_dev,
 			true /* mgmt_dev */,
 			false /* normal SQ */,
 			cmd_info.sq_index,
 			(char __user __force *)cmd_info.cmd,
 			cmd_info.size);
+
+		if (rv < 0 && cmd_info.flags & CMD_DESC_FLAG_MM_RESET)
+			atomic_set(&et_dev->ops.state, ops_dev_state);
+
+		return rv;
 
 	case ETSOC1_IOCTL_POP_CQ:
 		if (copy_from_user(&rsp_info, usr_arg, _IOC_SIZE(cmd)))
@@ -767,16 +788,16 @@ static int esperanto_pcie_ops_open(struct inode *inode, struct file *fp)
 {
 	struct et_ops_dev *ops;
 
-	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
+	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
 
-	spin_lock(&ops->ops_open_lock);
-	if (ops->is_ops_open) {
-		spin_unlock(&ops->ops_open_lock);
+	spin_lock(&ops->open_lock);
+	if (ops->is_open) {
+		spin_unlock(&ops->open_lock);
 		pr_err("Tried to open same device multiple times\n");
 		return -EBUSY; /* already open */
 	}
-	ops->is_ops_open = true;
-	spin_unlock(&ops->ops_open_lock);
+	ops->is_open = true;
+	spin_unlock(&ops->open_lock);
 
 	return 0;
 }
@@ -785,18 +806,16 @@ static int esperanto_pcie_mgmt_open(struct inode *inode, struct file *fp)
 {
 	struct et_mgmt_dev *mgmt;
 
-	mgmt = container_of(fp->private_data,
-			    struct et_mgmt_dev,
-			    misc_mgmt_dev);
+	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
 
-	spin_lock(&mgmt->mgmt_open_lock);
-	if (mgmt->is_mgmt_open) {
-		spin_unlock(&mgmt->mgmt_open_lock);
+	spin_lock(&mgmt->open_lock);
+	if (mgmt->is_open) {
+		spin_unlock(&mgmt->open_lock);
 		pr_err("Tried to open same device multiple times\n");
 		return -EBUSY; /* already open */
 	}
-	mgmt->is_mgmt_open = true;
-	spin_unlock(&mgmt->mgmt_open_lock);
+	mgmt->is_open = true;
+	spin_unlock(&mgmt->open_lock);
 
 	return 0;
 }
@@ -805,8 +824,8 @@ static int esperanto_pcie_ops_release(struct inode *inode, struct file *fp)
 {
 	struct et_ops_dev *ops;
 
-	ops = container_of(fp->private_data, struct et_ops_dev, misc_ops_dev);
-	ops->is_ops_open = false;
+	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
+	ops->is_open = false;
 
 	return 0;
 }
@@ -815,10 +834,8 @@ static int esperanto_pcie_mgmt_release(struct inode *inode, struct file *fp)
 {
 	struct et_mgmt_dev *mgmt;
 
-	mgmt = container_of(fp->private_data,
-			    struct et_mgmt_dev,
-			    misc_mgmt_dev);
-	mgmt->is_mgmt_open = false;
+	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
+	mgmt->is_open = false;
 
 	return 0;
 }
@@ -1258,7 +1275,8 @@ error_unmap_discovered_regions:
 	return rv;
 }
 
-static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
+static int
+et_mgmt_dev_init(struct et_pci_dev *et_dev, bool reg_dev, u32 timeout_secs)
 {
 	bool dir_ready = false;
 	u8 *dir_data, *dir_pos;
@@ -1271,8 +1289,8 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	struct event_dbg_msg dbg_msg;
 	char syndrome_str[ET_EVENT_SYNDROME_LEN];
 
-	et_dev->mgmt.is_mgmt_open = false;
-	spin_lock_init(&et_dev->mgmt.mgmt_open_lock);
+	et_dev->mgmt.is_open = false;
+	spin_lock_init(&et_dev->mgmt.open_lock);
 
 	// Map DIR region
 	rv = et_map_bar(et_dev,
@@ -1287,7 +1305,7 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 
 	// TODO: Improve device discovery
 	// Waiting for device to be ready, wait for mgmt_discovery_timeout
-	for (i = 0; !dir_ready && i <= mgmt_discovery_timeout; i++) {
+	for (i = 0; !dir_ready && i <= timeout_secs; i++) {
 		rv = (int)ioread16(&dir_mgmt_mem->status);
 		if (rv == MGMT_BOOT_STATUS_DEV_READY) {
 			pr_debug("Mgmt: DIRs ready, status: %d", rv);
@@ -1546,19 +1564,23 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 		goto error_unmap_discovered_regions;
 	}
 
-	// Create Mgmt device node
-	et_dev->mgmt.misc_mgmt_dev.minor = MISC_DYNAMIC_MINOR;
-	et_dev->mgmt.misc_mgmt_dev.fops = &et_pcie_mgmt_fops;
-	et_dev->mgmt.misc_mgmt_dev.name = devm_kasprintf(&et_dev->pdev->dev,
-							 GFP_KERNEL,
-							 "et%d_mgmt",
-							 et_dev->dev_index);
-	rv = misc_register(&et_dev->mgmt.misc_mgmt_dev);
-	if (rv) {
-		dev_err(&et_dev->pdev->dev, "Mgmt: misc_register() failed!\n");
-		goto error_vqueue_destroy_all;
+	if (reg_dev) {
+		// Create Mgmt device node
+		et_dev->mgmt.misc_dev.minor = MISC_DYNAMIC_MINOR;
+		et_dev->mgmt.misc_dev.fops = &et_pcie_mgmt_fops;
+		et_dev->mgmt.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
+							    GFP_KERNEL,
+							    "et%d_mgmt",
+							    et_dev->dev_index);
+		rv = misc_register(&et_dev->mgmt.misc_dev);
+		if (rv) {
+			dev_err(&et_dev->pdev->dev,
+				"Mgmt: misc_register() failed!\n");
+			goto error_vqueue_destroy_all;
+		}
 	}
 
+	atomic_set(&et_dev->mgmt.state, DEV_STATE_READY);
 	kfree(mgmt_bar_addr_dbg);
 	kfree(dir_data);
 
@@ -1582,15 +1604,24 @@ error_unmap_dir_region:
 	return rv;
 }
 
-static void et_mgmt_dev_destroy(struct et_pci_dev *et_dev)
+static void et_mgmt_dev_destroy(struct et_pci_dev *et_dev, bool dereg_dev)
 {
-	misc_deregister(&et_dev->mgmt.misc_mgmt_dev);
+	if (dereg_dev)
+		misc_deregister(&et_dev->mgmt.misc_dev);
+
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
 	et_unmap_discovered_regions(et_dev, true /* mgmt_dev */);
 	et_unmap_bar(et_dev->mgmt.dir);
 }
 
-static int et_ops_dev_init(struct et_pci_dev *et_dev)
+int et_mgmt_dev_reset(struct et_pci_dev *et_dev, bool rereg_dev)
+{
+	et_mgmt_dev_destroy(et_dev, rereg_dev);
+	return et_mgmt_dev_init(et_dev, rereg_dev, 0U);
+}
+
+static int
+et_ops_dev_init(struct et_pci_dev *et_dev, bool reg_dev, u32 timeout_secs)
 {
 	bool dir_ready = false;
 	u8 *dir_data, *dir_pos;
@@ -1603,8 +1634,8 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	struct event_dbg_msg dbg_msg;
 	char syndrome_str[ET_EVENT_SYNDROME_LEN];
 
-	et_dev->ops.is_ops_open = false;
-	spin_lock_init(&et_dev->ops.ops_open_lock);
+	et_dev->ops.is_open = false;
+	spin_lock_init(&et_dev->ops.open_lock);
 
 	// Init DMA rbtree
 	mutex_init(&et_dev->ops.dma_rbtree_mutex);
@@ -1623,7 +1654,7 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 
 	// TODO: Improve device discovery
 	// Waiting for device to be ready, wait for ops_discovery_timeout
-	for (i = 0; !dir_ready && i <= ops_discovery_timeout; i++) {
+	for (i = 0; !dir_ready && i <= timeout_secs; i++) {
 		rv = (int)ioread16(&dir_ops_mem->status);
 		if (rv == OPS_BOOT_STATUS_MM_READY) {
 			pr_debug("Ops: DIRs ready, status: %d", rv);
@@ -1841,19 +1872,23 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 		goto error_unmap_discovered_regions;
 	}
 
-	// Create Ops device node
-	et_dev->ops.misc_ops_dev.minor = MISC_DYNAMIC_MINOR;
-	et_dev->ops.misc_ops_dev.fops = &et_pcie_ops_fops;
-	et_dev->ops.misc_ops_dev.name = devm_kasprintf(&et_dev->pdev->dev,
-						       GFP_KERNEL,
-						       "et%d_ops",
-						       et_dev->dev_index);
-	rv = misc_register(&et_dev->ops.misc_ops_dev);
-	if (rv) {
-		dev_err(&et_dev->pdev->dev, "Ops: misc_register() failed!\n");
-		goto error_vqueue_destroy_all;
+	if (reg_dev) {
+		// Create Ops device node
+		et_dev->ops.misc_dev.minor = MISC_DYNAMIC_MINOR;
+		et_dev->ops.misc_dev.fops = &et_pcie_ops_fops;
+		et_dev->ops.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
+							   GFP_KERNEL,
+							   "et%d_ops",
+							   et_dev->dev_index);
+		rv = misc_register(&et_dev->ops.misc_dev);
+		if (rv) {
+			dev_err(&et_dev->pdev->dev,
+				"Ops: misc_register() failed!\n");
+			goto error_vqueue_destroy_all;
+		}
 	}
 
+	atomic_set(&et_dev->ops.state, DEV_STATE_READY);
 	kfree(ops_bar_addr_dbg);
 	kfree(dir_data);
 
@@ -1877,9 +1912,11 @@ error_unmap_dir_region:
 	return rv;
 }
 
-static void et_ops_dev_destroy(struct et_pci_dev *et_dev)
+static void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool dereg_dev)
 {
-	misc_deregister(&et_dev->ops.misc_ops_dev);
+	if (dereg_dev)
+		misc_deregister(&et_dev->ops.misc_dev);
+
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
 	et_unmap_discovered_regions(et_dev, false /* ops_dev */);
 	et_unmap_bar(et_dev->ops.dir);
@@ -1889,6 +1926,14 @@ static void et_ops_dev_destroy(struct et_pci_dev *et_dev)
 	mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
 
 	mutex_destroy(&et_dev->ops.dma_rbtree_mutex);
+}
+
+int et_ops_dev_reset(struct et_pci_dev *et_dev, bool rereg_dev)
+{
+	et_ops_dev_destroy(et_dev, rereg_dev);
+	// TODO: SW-11288: The init timeout should be 0 secs here, currently
+	// MM reset response does not indicate the completion of reset.
+	return et_ops_dev_init(et_dev, rereg_dev, 60U);
 }
 
 static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
@@ -1974,13 +2019,13 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		et_dev->is_err_reporting = true;
 	}
 
-	rv = et_mgmt_dev_init(et_dev);
+	rv = et_mgmt_dev_init(et_dev, true, mgmt_discovery_timeout);
 	if (rv) {
 		dev_err(&pdev->dev, "Mgmt device initialization failed\n");
 		goto error_pci_disable_pcie_error_reporting;
 	}
 
-	rv = et_ops_dev_init(et_dev);
+	rv = et_ops_dev_init(et_dev, true, ops_discovery_timeout);
 	if (rv) {
 		dev_warn(&pdev->dev,
 			 "Ops device initialization failed, errno: %d\n",
@@ -2031,9 +2076,9 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 		return;
 
 	if (!et_dev->is_recovery_mode)
-		et_ops_dev_destroy(et_dev);
+		et_ops_dev_destroy(et_dev, true);
 
-	et_mgmt_dev_destroy(et_dev);
+	et_mgmt_dev_destroy(et_dev, true);
 
 	if (et_dev->is_err_reporting)
 		pci_disable_pcie_error_reporting(pdev);

@@ -8,9 +8,10 @@
 
 // These flags are valid for Ops Device only
 enum cmd_desc_flag {
-	CMD_DESC_FLAG_NONE = 0,
-	CMD_DESC_FLAG_DMA,
-	CMD_DESC_FLAG_HIGH_PRIORITY
+	CMD_DESC_FLAG_NONE = 0x0,
+	CMD_DESC_FLAG_DMA = 0x1 << 0,
+	CMD_DESC_FLAG_MM_RESET = 0x1 << 1,
+	CMD_DESC_FLAG_HIGH_PRIORITY = 0x1 << 2
 };
 
 enum dev_config_form_factor {
@@ -21,8 +22,10 @@ enum dev_config_form_factor {
 
 enum dev_state {
 	DEV_STATE_READY = 0,
+	/* TODO: SW-10535 To be removed */
 	DEV_STATE_PENDING_COMMANDS,
-	DEV_STATE_NOT_RESPONDING
+	DEV_STATE_NOT_RESPONDING,
+	DEV_STATE_RESET_IN_PROGRESS,
 };
 
 enum trace_buffer_type {

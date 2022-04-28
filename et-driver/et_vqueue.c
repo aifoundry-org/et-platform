@@ -17,6 +17,7 @@
 #include "et_event_handler.h"
 #include "et_io.h"
 #include "et_pci_dev.h"
+#include "et_reset.h"
 #include "et_vqueue.h"
 
 static struct et_msg_node *create_msg_node(u32 msg_size)
@@ -71,6 +72,29 @@ static void destroy_msg_node(struct et_msg_node *node)
 		kfree(node->msg);
 		kfree(node);
 	}
+}
+
+static void mm_reset_completion_callback(struct et_cqueue *cq,
+					 struct device_mgmt_rsp_hdr_t *rsp)
+{
+	struct et_pci_dev *et_dev = pci_get_drvdata(cq->vq_common->pdev);
+
+	if (rsp->status != DEV_OPS_API_MM_RESET_RESPONSE_COMPLETE) {
+		dev_err(&et_dev->pdev->dev,
+			"MM reset failed!, status: %d\n",
+			rsp->status);
+		goto error;
+	}
+
+	if (et_ops_dev_reset(et_dev, false) != 0) {
+		dev_err(&et_dev->pdev->dev, "Ops Device reset failed!\n");
+		goto error;
+	}
+
+	return;
+
+error:
+	atomic_set(&et_dev->ops.state, DEV_STATE_NOT_RESPONDING);
 }
 
 void et_destroy_msg_list(struct et_cqueue *cq)
@@ -1016,6 +1040,12 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	}
 
 	mutex_unlock(&cq->pop_mutex);
+
+	// Check for MM reset command and complete post reset steps
+	if (header.msg_id == DEV_MGMT_API_MID_MM_RESET)
+		mm_reset_completion_callback(
+			cq,
+			(struct device_mgmt_rsp_hdr_t *)msg_node->msg);
 
 	// Enqueue msg node to user msg_list of CQ
 	enqueue_msg_node(cq, msg_node);
