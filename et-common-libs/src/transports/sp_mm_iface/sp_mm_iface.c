@@ -152,7 +152,7 @@ int8_t SP_MM_Iface_Init(void)
     ETSOC_RT_MEM_WRITE_64((uint64_t *)&SP_CQueue, temp64);
 
     /* TODO: This function call initializes circular buffer, hence break up SP and MM VQs init */
-    status = VQ_Init(&SP_SQueue.vqueue, SP_SQueue.vqueue_base, SP_SQueue.vqueue_size, 0,
+    status = VQ_Init(&SP_SQueue.vqueue, SP2MM_SQ_BASE, SP2MM_SQ_SIZE, 0,
         sizeof(cmd_size_t), SP2MM_SQ_MEM_TYPE);
 
     if (status == STATUS_SUCCESS)
@@ -165,7 +165,7 @@ int8_t SP_MM_Iface_Init(void)
         ETSOC_RT_MEM_WRITE_64(&SP_SQueue.circ_buff_local.length,
             Circbuffer_Get_Length((circ_buff_cb_t *)SP2MM_SQ_BASE, SP2MM_SQ_MEM_TYPE));
 
-        status = VQ_Init(&SP_CQueue.vqueue, SP_CQueue.vqueue_base, SP_CQueue.vqueue_size, 0,
+        status = VQ_Init(&SP_CQueue.vqueue, SP2MM_CQ_BASE, SP2MM_CQ_SIZE, 0,
             sizeof(cmd_size_t), SP2MM_CQ_MEM_TYPE);
     }
 
@@ -184,7 +184,7 @@ int8_t SP_MM_Iface_Init(void)
         temp64 = ((MM2SP_CQ_SIZE << 32) | MM2SP_CQ_BASE);
         ETSOC_RT_MEM_WRITE_64((uint64_t *)&MM_CQueue, temp64);
 
-        status = VQ_Init(&MM_SQueue.vqueue, MM_SQueue.vqueue_base, MM_SQueue.vqueue_size, 0,
+        status = VQ_Init(&MM_SQueue.vqueue, MM2SP_SQ_BASE, MM2SP_SQ_SIZE, 0,
             sizeof(cmd_size_t), MM2SP_SQ_MEM_TYPE);
     }
 
@@ -198,7 +198,7 @@ int8_t SP_MM_Iface_Init(void)
         ETSOC_RT_MEM_WRITE_64((uint64_t *)(void *)&MM_SQueue.circ_buff_local.length,
             Circbuffer_Get_Length((circ_buff_cb_t *)MM2SP_SQ_BASE, MM2SP_SQ_MEM_TYPE));
 
-        status = VQ_Init(&MM_CQueue.vqueue, MM_CQueue.vqueue_base, MM_CQueue.vqueue_size, 0,
+        status = VQ_Init(&MM_CQueue.vqueue, MM2SP_CQ_BASE, MM2SP_CQ_SIZE, 0,
             sizeof(cmd_size_t), MM2SP_CQ_MEM_TYPE);
     }
 
