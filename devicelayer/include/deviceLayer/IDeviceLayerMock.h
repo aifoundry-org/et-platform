@@ -27,7 +27,7 @@ public:
   MOCK_METHOD4(waitForEpollEventsMasterMinion,
                void(int device, uint64_t& sq_bitmap, bool& cq_available, std::chrono::milliseconds timeout));
   MOCK_METHOD2(receiveResponseMasterMinion, bool(int device, std::vector<std::byte>& response));
-  MOCK_METHOD3(sendCommandServiceProcessor, bool(int device, std::byte* command, size_t commandSize));
+  MOCK_METHOD4(sendCommandServiceProcessor, bool(int device, std::byte* command, size_t commandSize, bool isMmReset));
   MOCK_METHOD2(setSqThresholdServiceProcessor, void(int device, uint32_t bytesNeeded));
   MOCK_METHOD3(waitForEpollEventsServiceProcessor, void(int device, bool& sq_available, bool& cq_available));
   MOCK_METHOD4(waitForEpollEventsServiceProcessor,
@@ -71,8 +71,8 @@ public:
     ON_CALL(*this, receiveResponseMasterMinion).WillByDefault([this](int device, std::vector<std::byte>& response) {
       return fake_.receiveResponseMasterMinion(device, response);
     });
-    ON_CALL(*this, sendCommandServiceProcessor).WillByDefault([this](int device, std::byte* command, size_t commandSize) {
-      return fake_.sendCommandServiceProcessor(device, command, commandSize);
+    ON_CALL(*this, sendCommandServiceProcessor).WillByDefault([this](int device, std::byte* command, size_t commandSize, bool isMmReset) {
+      return fake_.sendCommandServiceProcessor(device, command, commandSize, isMmReset);
     });
     ON_CALL(*this, setSqThresholdServiceProcessor).WillByDefault([this](int device, uint32_t bytesNeeded) {
       fake_.setSqThresholdServiceProcessor(device, bytesNeeded);

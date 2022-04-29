@@ -426,7 +426,7 @@ size_t DevicePcie::getTraceBufferSizeMasterMinion(int device, TraceBufferType tr
   return static_cast<size_t>(wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_TRACE_BUFFER_SIZE, &trace_type).rc_);
 }
 
-bool DevicePcie::sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize) {
+bool DevicePcie::sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize, bool isMmReset) {
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
   }
@@ -439,6 +439,9 @@ bool DevicePcie::sendCommandServiceProcessor(int device, std::byte* command, siz
   cmdInfo.size = static_cast<uint16_t>(commandSize);
   cmdInfo.sq_index = 0;
   cmdInfo.flags = 0;
+  if (isMmReset) {
+    cmdInfo.flags |= CMD_DESC_FLAG_MM_RESET;
+  }
   return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_PUSH_SQ, &cmdInfo);
 }
 

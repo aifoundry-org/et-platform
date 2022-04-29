@@ -102,7 +102,7 @@ public:
     return false;
   }
 
-  bool sendCommandServiceProcessor(int, std::byte* command, size_t) override {
+  bool sendCommandServiceProcessor(int, std::byte* command, size_t, bool) override {
     std::unique_lock<std::mutex> lock(spMutex_, std::defer_lock);
     while (!lock.try_lock()) {
       // spin-lock

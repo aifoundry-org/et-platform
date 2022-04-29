@@ -55,8 +55,9 @@ bool DeviceSysEmuMulti::receiveResponseMasterMinion(int device, std::vector<std:
   return getDevice(device).receiveResponseMasterMinion(device, response);
 }
 
-bool DeviceSysEmuMulti::sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize) {
-  return getDevice(device).sendCommandServiceProcessor(device, command, commandSize);
+bool DeviceSysEmuMulti::sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize,
+                                                    bool isMmReset) {
+  return getDevice(device).sendCommandServiceProcessor(device, command, commandSize, isMmReset);
 }
 void DeviceSysEmuMulti::setSqThresholdServiceProcessor(int device, uint32_t bytesNeeded) {
   return getDevice(device).setSqThresholdServiceProcessor(device, bytesNeeded);

@@ -255,7 +255,7 @@ bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, s
   return res;
 }
 
-bool DeviceSysEmu::sendCommandServiceProcessor(int, std::byte* command, size_t commandSize) {
+bool DeviceSysEmu::sendCommandServiceProcessor(int, std::byte* command, size_t commandSize, bool) {
   std::lock_guard lock(mutex_);
   Checker checker{*this};
   bool clearEvent = true;

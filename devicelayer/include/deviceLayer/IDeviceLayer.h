@@ -61,7 +61,7 @@ struct DmaInfo {
 };
 
 /// \brief This enum contains possible device states
-enum class DeviceState { Ready, PendingCommands, NotResponding, Undefined };
+enum class DeviceState { Ready, PendingCommands, NotResponding, ResetInProgress, Undefined };
 
 /// \brief This enum contains possible trace buffer types to extract from SP
 enum class TraceBufferType { TraceBufferSP = 0, TraceBufferMM, TraceBufferCM, TraceBufferSPStats, TraceBufferMMStats, TraceBufferTypeNum };
@@ -125,10 +125,11 @@ public:
   /// @param[in] device indicating which device to send the command.
   /// @param[in] command its a buffer which contains the command itself.
   /// @param[in] commandSize the size of the command + payload buffer.
+  /// @param[in] isMmReset indicates if the command involves MM Reset handling. Needed for PCIe deviceLayer implementations
   ///
   /// @returns false if there was not enough space to send the command, true otherwise
   ///
-  virtual bool sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize) = 0;
+  virtual bool sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize, bool isMmReset) = 0;
 
   /// \brief Set the submission queue availability threshold. Submission queue epoll event will be generated only if
   /// space on submission queue is greater or equal to this threshold set. Default threshold value is one forth of size

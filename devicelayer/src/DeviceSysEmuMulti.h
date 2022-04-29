@@ -24,7 +24,7 @@ public:
                                       std::chrono::milliseconds timeout = std::chrono::seconds(10)) override;
   bool receiveResponseMasterMinion(int device, std::vector<std::byte>& response) override;
 
-  bool sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize) override;
+  bool sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize, bool isMmReset) override;
   void setSqThresholdServiceProcessor(int device, uint32_t bytesNeeded) override;
   void waitForEpollEventsServiceProcessor(int device, bool& sqAvailable, bool& cqAvailable,
                                           std::chrono::milliseconds timeout = std::chrono::seconds(10)) override;
