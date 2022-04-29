@@ -114,6 +114,9 @@ static mm_trace_control_block_t MM_Trace_CB = { .cb = { 0 },
     .cm_shire_mask = CM_DEFAULT_TRACE_SHIRE_MASK,
     .cm_thread_mask = CM_DEFAULT_TRACE_THREAD_MASK };
 
+/* A local Trace control block for Master Minion Dev Stats. */
+static mm_trace_control_block_t MM_Stats_Trace_CB = { .cb = { 0 } };
+
 /* Trace buffer locking routines
    WARNING: This lock is shared with Trace encoder, So while using this in MM Trace component,
    there should be no Trace logs used after acquiring this. */
@@ -422,8 +425,8 @@ void Trace_RT_Control_MM(uint32_t control)
     /* Check flag to reset Trace buffer. */
     if (control & TRACE_RT_CONTROL_RESET_TRACEBUF)
     {
-        atomic_store_local_32(
-            &(MM_Trace_CB.cb.offset_per_hart), sizeof(struct trace_buffer_std_header_t));
+        atomic_store_local_32(&(MM_Trace_CB.cb.offset_per_hart),
+            sizeof(struct trace_buffer_std_header_t));
     }
 
     /* Check flag to Enable/Disable Trace. */
@@ -487,4 +490,171 @@ uint32_t Trace_Evict_Buffer_MM(void)
     et_trace_mm_cb_lock_release();
 
     return offset;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Evict_Buffer_MM_Stats
+*
+*   DESCRIPTION
+*
+*       This function Evict the MM Stats Trace buffer upto current used 
+*       buffer, it also updates the trace buffer header to include buffer 
+*       usage.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint32_t    Size of buffer that was used and evicted.
+*
+***********************************************************************/
+uint32_t Trace_Evict_Buffer_MM_Stats(void)
+{
+    struct trace_buffer_std_header_t *trace_header =
+        (struct trace_buffer_std_header_t *)MM_STATS_TRACE_BUFFER_BASE;
+
+    acquire_local_spinlock(&MM_Stats_Trace_CB.mm_trace_cb_lock);
+    uint32_t offset = atomic_load_local_32(&(MM_Stats_Trace_CB.cb.offset_per_hart));
+
+    /* Store used buffer size in buffer header. */
+    atomic_store_local_32(&trace_header->data_size, offset);
+
+    ETSOC_MEM_EVICT((uint64_t *)MM_STATS_TRACE_BUFFER_BASE, offset, to_L3)
+
+    release_local_spinlock(&MM_Stats_Trace_CB.mm_trace_cb_lock);
+
+    return offset;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Init_MM_Stats
+*
+*   DESCRIPTION
+*
+*       This function initializes Trace for dev stats in Master Minion
+*       Shire.
+*
+*   INPUTS
+*
+*       trace_init_info_t    Trace init info for Master Minion shire.
+*
+*   OUTPUTS
+*
+*       int32_t           Successful status or error code.
+*
+***********************************************************************/
+int32_t Trace_Init_MM_Stats(const struct trace_init_info_t *mm_init_info)
+{
+    int32_t status = STATUS_SUCCESS;
+    struct trace_init_info_t hart_init_info;
+
+    /* If init information is NULL then do default initialization. */
+    if (mm_init_info == NULL)
+    {
+        /* Populate default Trace configurations for Master Minion. */
+        hart_init_info.shire_mask = MM_SHIRE_MASK;
+        hart_init_info.thread_mask = MM_DEFAULT_THREAD_MASK;
+        hart_init_info.event_mask = TRACE_EVENT_STRING;
+        hart_init_info.filter_mask = TRACE_EVENT_STRING_DEBUG;
+        hart_init_info.threshold = MM_TRACE_BUFFER_SIZE;
+    }
+    /* Check if shire mask is of Master Minion and atleast one thread is enabled. */
+    else if (!(mm_init_info->shire_mask & MM_SHIRE_MASK))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Trace_Init_MM_Stats:Invalid Init Info.\r\n");
+        MM_Stats_Trace_CB.cb.enable = TRACE_DISABLE;
+
+        status = TRACE_ERROR_INVALID_SHIRE_MASK;
+    }
+    else if (!(mm_init_info->thread_mask & MM_HART_MASK))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Trace_Init_MM_Stats:Invalid Init Info.\r\n");
+        MM_Stats_Trace_CB.cb.enable = TRACE_DISABLE;
+
+        status = TRACE_ERROR_INVALID_THREAD_MASK;
+    }
+    else
+    {
+        /* Populate given init information into per-thread Trace information structure. */
+        hart_init_info.shire_mask = MM_SHIRE_MASK;
+        hart_init_info.thread_mask = MM_HART_MASK;
+        hart_init_info.filter_mask = mm_init_info->filter_mask;
+        hart_init_info.event_mask = mm_init_info->event_mask;
+        hart_init_info.threshold = mm_init_info->threshold;
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        //TODO: Move these locks to runtime implementation
+        /* Initialize the spinlock */
+        init_local_spinlock(&MM_Stats_Trace_CB.mm_trace_cb_lock, 0);
+        init_local_spinlock(&MM_Stats_Trace_CB.trace_internal_cb_lock, 0);
+
+        /* Common buffer for all MM Harts. */
+        MM_Stats_Trace_CB.cb.size_per_hart = MM_STATS_BUFFER_SIZE;
+        MM_Stats_Trace_CB.cb.base_per_hart = MM_STATS_TRACE_BUFFER_BASE;
+
+        /* Initialize Trace for each all Harts in Master Minion. */
+        status = Trace_Init(&hart_init_info, &MM_Stats_Trace_CB.cb, TRACE_STD_HEADER);
+
+        if (status != STATUS_SUCCESS)
+        {
+            status = TRACE_ERROR_MM_TRACE_CONFIG_FAILED;
+        }
+
+        /* Initialize trace buffer header. */
+        struct trace_buffer_std_header_t *trace_header =
+            (struct trace_buffer_std_header_t *)MM_STATS_TRACE_BUFFER_BASE;
+
+        /* Update trace buffer header for buffer layout version and partitioning information.
+           One common buffer is used by all Harts to log Tracing. */
+        trace_header->magic_header = TRACE_MAGIC_HEADER;
+        trace_header->type = TRACE_MM_STATS_BUFFER;
+        trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
+        trace_header->sub_buffer_size = MM_STATS_BUFFER_SIZE;
+        trace_header->sub_buffer_count = 1;
+        trace_header->version.major = TRACE_VERSION_MAJOR;
+        trace_header->version.minor = TRACE_VERSION_MINOR;
+        trace_header->version.patch = TRACE_VERSION_PATCH;
+
+        ETSOC_MEM_EVICT((void *)trace_header, sizeof(struct trace_buffer_std_header_t), to_L3)
+    }
+
+    /* Evict an updated control block to L2 memory. */
+    ETSOC_MEM_EVICT(&MM_Stats_Trace_CB, sizeof(mm_trace_control_block_t), to_L2)
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Get_MM_Stats_CB
+*
+*   DESCRIPTION
+*
+*       This function returns the common Trace control block (CB) for Trace
+*       dev stats.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       trace_control_block_t Pointer to the Trace control block.
+*
+***********************************************************************/
+struct trace_control_block_t *Trace_Get_MM_Stats_CB(void)
+{
+    return &MM_Stats_Trace_CB.cb;
 }

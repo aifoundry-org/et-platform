@@ -101,11 +101,32 @@ int32_t Trace_Configure_CM_RT(mm_to_cm_message_trace_rt_config_t *config_msg);
 */
 void Trace_RT_Control_MM(uint32_t control);
 
-/*! \fn uint32_t Trace_Evict_Buffer_MM(void)
+/*! \fn uint32_t Trace_Evict_Buffer_MM()
     \brief  This function Evict the MM Trace buffer upto current used buffer,
             it also updates the trace buffer header to include buffer usage.
     \return Size of buffer that was used and victed.
 */
 uint32_t Trace_Evict_Buffer_MM(void);
+
+/*! \fn uint32_t Trace_Evict_Buffer_MM_Stats(uint8_t trace_buf_type)
+    \brief  This function Evict the MM Stats Trace buffer upto current used buffer,
+            it also updates the trace buffer header to include buffer usage.
+    \return Size of buffer that was used and victed.
+*/
+uint32_t Trace_Evict_Buffer_MM_Stats(void);
+
+/*! \fn int32_t Trace_Init_MM_Stats(const struct trace_init_info_t *mm_init_info)
+    \brief This function initializes Stats trace for Master Minion
+           Shire
+    \param mm_init_info Pointer Trace init information.
+    \return Successful status or error code.
+*/
+int32_t Trace_Init_MM_Stats(const struct trace_init_info_t *mm_init_info);
+
+/*! \fn struct trace_control_block_t* Trace_Get_MM_Stats_CB(uint64_t hart_id)
+    \brief This function return Trace control block for mm dev stats.
+    \return Pointer to the Trace control block for caller Hart.
+*/
+struct trace_control_block_t *Trace_Get_MM_Stats_CB(void);
 
 #endif
