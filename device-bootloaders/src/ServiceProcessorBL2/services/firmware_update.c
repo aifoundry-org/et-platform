@@ -632,9 +632,20 @@ static int32_t dm_svc_firmware_update(void)
 
     const SERVICE_PROCESSOR_BL2_DATA_t *sp_bl2_data;
     uint32_t partition_size;
-    uint64_t start_time;
-    uint64_t end_time;
+    uint64_t start;
+    uint64_t end;
+    uint64_t prog_start;
+    uint64_t prog_end;
+    uint64_t verify_start;
+    uint64_t verify_end;
     int32_t ret = 0;
+    uint32_t version;
+
+    start = timer_get_ticks_count();
+
+    version = sp_get_image_version_info();
+    Log_Write(LOG_LEVEL_CRITICAL, "Esperanto Flash Programmer Version %u.%u.%u\n",
+              (version >> 24) & 0xFF, (version >> 16) & 0xFF, (version >> 8) & 0xFF);
 
     sp_bl2_data = get_service_processor_bl2_data();
     if (sp_bl2_data == NULL)
@@ -644,7 +655,6 @@ static int32_t dm_svc_firmware_update(void)
     }
 
     partition_size = sp_bl2_data->flash_fs_bl2_info.flash_size / 2;
-    start_time = timer_get_ticks_count();
 
     ret = verify_image_header((void *)SP_DM_SCRATCH_REGION_BEGIN);
     if (ret != 0)
@@ -660,6 +670,8 @@ static int32_t dm_svc_firmware_update(void)
         return ret;
     }
 
+    prog_start = timer_get_ticks_count();
+
     // Image has passed verifcation checks, program it to flash.
     if (0 != flash_fs_update_partition((void *)SP_DM_SCRATCH_REGION_BEGIN, partition_size,
                                        SPI_FLASH_256B_CHUNK_SIZE))
@@ -669,6 +681,7 @@ static int32_t dm_svc_firmware_update(void)
     }
     else
     {
+        prog_end = timer_get_ticks_count();
         Log_Write(LOG_LEVEL_INFO, "Current FW image at partition %d\n",
                   sp_bl2_data->flash_fs_bl2_info.active_partition);
         Log_Write(LOG_LEVEL_INFO, "New FW image at partition %d\n",
@@ -679,6 +692,7 @@ static int32_t dm_svc_firmware_update(void)
         the data present in the DDR - ensure data is written correctly to
         flash.
     */
+    verify_start = timer_get_ticks_count();
     const uint8_t *ddr_data = (const uint8_t *)SP_DM_SCRATCH_REGION_BEGIN;
     uint8_t flash_data[SPI_FLASH_256B_CHUNK_SIZE];
 
@@ -690,7 +704,6 @@ static int32_t dm_svc_firmware_update(void)
             Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: read back from flash failed!\n");
             return ERROR_FW_UPDATE_READ_PARTITON;
         }
-
         /* Compare with the image data in the DDR */
         if (memcmp((const void *)(ddr_data + i), (const void *)flash_data,
                    SPI_FLASH_256B_CHUNK_SIZE))
@@ -700,7 +713,9 @@ static int32_t dm_svc_firmware_update(void)
         }
     }
 
-    end_time = timer_get_ticks_count();
+    verify_end = timer_get_ticks_count();
+    Log_Write(LOG_LEVEL_CRITICAL, "All loaded bytes verified OK!\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "Executing exit sequence...\n");
 
     // Swap the priority counter of the partitions. so bootrom will choose
     // the partition with an updated image
@@ -711,8 +726,12 @@ static int32_t dm_svc_firmware_update(void)
         return ERROR_FW_UPDATE_PRIORITY_COUNTER_SWAP;
     }
 
-    Log_Write(LOG_LEVEL_CRITICAL, "New FW updated successfully in %ld seconds\n",
-              (end_time - start_time) / 1000000);
+    end = timer_get_ticks_count();
+    Log_Write(LOG_LEVEL_CRITICAL, "Target erased, programmed and verified successfully\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "Completed after %ld seconds\n", (end - start) / 1000000);
+    Log_Write(LOG_LEVEL_CRITICAL, "OK (Total %lds, Erase and Prog %lds, Verify %lds)\n",
+              (end - start) / 1000000, (prog_end - prog_start) / 1000000,
+              (verify_end - verify_start) / 1000000);
 
     return SUCCESS;
 }
