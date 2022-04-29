@@ -321,7 +321,9 @@ Structs:
       - Name: umode_trace_buffer_ptr
         Description: Pointer to the U-mode trace buffer
         Type: uint64_t
-
+      - Name: cm_shire_mask
+        Description:  Bit mask showing in which CM shire exception OR hang occurred
+        Type: uint64_t
 ## List of Commands, Responses, and Events
 Messages :
 #-------------------------------------------------------------------------------
