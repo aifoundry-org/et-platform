@@ -253,8 +253,14 @@ struct StreamError {
 
 struct RuntimeException {
   Exception exception;
-  template <class Archive> void serialize(Archive& archive) {
-    archive(exception);
+  template <class Archive> void save(Archive& archive) const {
+    archive(std::string{exception.what()});
+  }
+
+  template <class Archive> void load(Archive& archive) {
+    std::string what_message;
+    archive(what_message);
+    exception = Exception{what_message};
   }
 };
 
@@ -270,7 +276,7 @@ struct Response {
   Id id_;
   std::variant<Version, Malloc, GetDevices, Event, CreateStream, LoadCode, StreamError, RuntimeException> payload_;
   template <class Archive> void serialize(Archive& archive) {
-    archive(type_, payload_);
+    archive(type_, id_, payload_);
   }
 };
 } // namespace resp

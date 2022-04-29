@@ -97,7 +97,7 @@ void Worker::requestProcessor() {
         break;
       }
       std::istream is(&ms);
-      req::Id id;
+      req::Id id{0};
       try {
         cereal::PortableBinaryInputArchive archive{is};
         req::Request request;
