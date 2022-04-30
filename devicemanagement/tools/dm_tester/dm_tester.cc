@@ -1064,12 +1064,55 @@ int verifyService() {
   } break;
 
   case DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE : {
-    return (runService(imagePath.c_str(), imagePath.length(), nullptr, 0));
+    // Unique case in which two service requests are done, first one to reset SP
+    // trace buffer followed by second one to perform firmware update. For this
+    // reason runService() isn't used.
+
+    DMLib dml;
+
+    if (ret = dml.verifyDMLib()) {
+      DV_LOG(ERROR) << "Failed to verify the DM lib: " << ret << std::endl;
+      return ret;
+    }
+    DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
+
+    std::array<char, sizeof(device_mgmt_api::trace_control_e)> input_buff;
+    device_mgmt_api::trace_control_e control =
+      device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE | device_mgmt_api::TRACE_CONTROL_RESET_TRACEBUF;
+    memcpy(input_buff.data(), &control, sizeof(control));
+
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    ret = dm.serviceRequest(node, DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff.data(), input_buff.size(),
+                            nullptr, 0, hst_latency.get(), dev_latency.get(), timeout);
+
+    if (ret != DM_STATUS_SUCCESS) {
+      DV_LOG(INFO) << "Service request failed with return code: " << ret << std::endl;
+      return ret;
+    }
+
+    DV_LOG(INFO) << "Host Latency: " << *hst_latency << " ms" << std::endl;
+    DV_LOG(INFO) << "Device Latency: " << *dev_latency << " us" << std::endl;
+    DV_LOG(INFO) << "Service request succeeded" << std::endl;
+
+    ret = dm.serviceRequest(node, code, imagePath.c_str(), imagePath.length(), nullptr, 0, hst_latency.get(),
+                            dev_latency.get(), timeout);
+
+    if (ret != DM_STATUS_SUCCESS) {
+      DV_LOG(INFO) << "Service request failed with return code: " << ret << std::endl;
+      return ret;
+    }
+
+    DV_LOG(INFO) << "Host Latency: " << *hst_latency << " ms" << std::endl;
+    DV_LOG(INFO) << "Device Latency: " << *dev_latency << " us" << std::endl;
+    DV_LOG(INFO) << "Service request succeeded" << std::endl;
+    ret = 0;
   } break;
 
   case DM_CMD::DM_CMD_MM_RESET: {
     if ((ret = runService(nullptr, 0, nullptr, 0)) != DM_STATUS_SUCCESS) {
-    return ret;
+      return ret;
     }
   } break;
 
