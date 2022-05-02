@@ -93,17 +93,11 @@ TEST_F(KernelLaunchF, largeTransferAndLargeArgs) {
   sendH2D_K_D2H(10, 128, 512ULL << 20);
 }
 
-TEST_F(KernelLaunchF, onlyKernels1M) {
-  // TODO this is included in the regular CI, so we launch only 10K. In a ryzen 1600 machine the throughput is something
-  // like ~25.5 kernels/ms
-  // send_K(1e6, 32);
+TEST_F(KernelLaunchF, onlyKernels10K) {
   send_K(1e4, 32);
 }
 
-TEST_F(KernelLaunchF, onlyKernels1M_waitIters) {
-  // send_K(1e6, 32, true);
-  // TODO this is included in the regular CI, so we launch only 10K. In a ryzen 1600 machine the throughput is something
-  // like ~8.4 kernels/ms
+TEST_F(KernelLaunchF, onlyKernels10K_waitIters) {
   send_K(1e4, 32, true);
 }
 

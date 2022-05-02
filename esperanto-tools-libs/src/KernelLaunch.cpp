@@ -52,7 +52,6 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
     throw Exception("Can't execute stream and kernel associated to a different device");
   }
 
-  // TODO: SW-7615 - Allocation/extraction of U mode Kernel Trace buffer
   bool kernelArgsFit = kernel_args_size <= maxSizeKernelEmbeddingParameters;
   auto optionalArgSize = kernelArgsFit ? kernel_args_size : 0;
   if (userTraceConfig) {

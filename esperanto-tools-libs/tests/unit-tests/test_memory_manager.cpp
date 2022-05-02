@@ -51,55 +51,6 @@ TEST(MemoryManager, compress_and_uncompress) {
   }
 }
 
-TEST(MemoryManager, SW8673) {
-  // TODO: this test is disabled because after sw-9219 workaround we can not longer utilize DeviceLayerMock
-  // -responsereceiver will hang-
-  return;
-  using namespace ::testing;
-  dev::IDeviceLayerMock deviceLayer;
-  dev::IDeviceLayerFake deviceLayerFake;
-  ON_CALL(deviceLayer, getDevicesCount()).WillByDefault(Return(1));
-  ON_CALL(deviceLayer, getSubmissionQueuesCount(_)).WillByDefault(Return(1));
-  ON_CALL(deviceLayer, allocDmaBuffer(_, _, _)).WillByDefault(WithArg<1>(Invoke([](auto arg) { return malloc(arg); })));
-  ON_CALL(deviceLayer, freeDmaBuffer(_)).WillByDefault(WithArg<0>(Invoke([](auto arg) { free(arg); })));
-  ON_CALL(deviceLayer, getDramSize()).WillByDefault(Return(1UL << 42));
-  auto values = {0x400UL, 0xC00UL, 0x800UL};
-  auto idx = begin(values);
-  ON_CALL(deviceLayer, getDramBaseAddress()).WillByDefault(Invoke([&idx] { return *idx++; }));
-
-  std::default_random_engine e1(12389);
-
-  // test for three differents base address, given by the same device layer mock
-  std::for_each(begin(values), end(values), [&](const auto&) {
-    auto rt = IRuntime::create(&deviceLayer);
-    rt->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
-    std::vector<std::byte*> allocated;
-    for (auto alignment : {0x100000U, 0x10000U, 0x1000U, 0x200U}) {
-      std::uniform_int_distribution<uint32_t> uniform_dist(1, alignment * 7);
-      std::uniform_real_distribution<float> dice(0.0f, 1.0f);
-      constexpr auto freeTh = 0.3f;
-      for (int j = 0; j < 10000; ++j) {
-        auto size = uniform_dist(e1);
-        if (j % 2 == 0)
-          size = 0x6000U;
-        allocated.emplace_back(rt->mallocDevice(DeviceId{0}, size, alignment));
-        auto ptr = reinterpret_cast<uint64_t>(allocated.back());
-        ASSERT_GE(ptr, alignment);
-        RT_LOG(INFO) << std::hex << "Size: " << size << " Alignment: " << alignment << " ptr: " << ptr;
-        ASSERT_EQ(ptr % alignment, 0);
-        if (dice(e1) < freeTh) {
-          std::shuffle(begin(allocated), end(allocated), e1);
-          rt->freeDevice(DeviceId{0}, allocated.back());
-          allocated.pop_back();
-        }
-      }
-    }
-    for (auto v : allocated) {
-      rt->freeDevice(DeviceId{0}, v);
-    }
-  });
-}
-
 TEST(MemoryManager, SW8240) {
   auto size = (1 << 20) + 1UL;
   // shouldn't be possible to allocate a non multiple of alignment
