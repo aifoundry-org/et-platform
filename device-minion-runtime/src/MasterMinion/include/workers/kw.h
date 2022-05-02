@@ -106,4 +106,11 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
 */
 void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx);
 
+/*! \fn void KW_Reset_State(void)
+    \brief Reset the KW State
+    \param none
+    \return none
+*/
+void KW_Reset_State(void);
+
 #endif /* KW_DEFS_H */

@@ -878,6 +878,47 @@ void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
 *
 *   FUNCTION
 *
+*       KW_Reset_State
+*
+*   DESCRIPTION
+*
+*       Resets KW state if the CM has been reset. This handles the case
+*       where CM was reset while kernel launch was in progress or a launched kernel 
+*       is hung, and if host tried to reset CM without sending abort command first.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void KW_Reset_State(void)
+{
+
+    Log_Write(LOG_LEVEL_DEBUG, "KW: Reset State\r\n");
+
+    for (uint8_t kw_idx = 0; kw_idx < MM_MAX_PARALLEL_KERNELS; kw_idx++)
+    {
+        /* Check if this kernel slot is in use, then update the state to reset */
+        if (atomic_compare_and_exchange_local_32(&KW_CB.kernels[kw_idx].kernel_state,
+                 KERNEL_STATE_IN_USE, KERNEL_STATE_UN_USED) == KERNEL_STATE_IN_USE)
+        {
+            Log_Write(LOG_LEVEL_DEBUG, "KW:Resetting KW=%d\r\n", kw_idx);
+
+            /* Trigger IPI to KW */
+            syscall(SYSCALL_IPI_TRIGGER_INT,
+                1ULL << ((KW_BASE_HART_ID + (kw_idx * HARTS_PER_MINION)) % 64), MASTER_SHIRE, 0);
+        }
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       KW_Init
 *
 *   DESCRIPTION
@@ -1261,6 +1302,7 @@ void KW_Launch(uint32_t kw_idx)
         status_internal.cw_error = false;
         timeout_abort_serviced = false;
         status_internal.status = STATUS_SUCCESS;
+        wait_for_ipi = true;
 
         /* Read the shire mask for the current kernel */
         kernel_shire_mask = atomic_load_local_64(&kernel->kernel_shire_mask);
@@ -1272,9 +1314,11 @@ void KW_Launch(uint32_t kw_idx)
             /* Wait and clear IPI */
             KW_WAIT_AND_CLEAR_SW_INTERRUPT(wait_for_ipi)
 
+            kernel_state = atomic_load_local_32(&kernel->kernel_state);
+
             /* Check the kernel_state is set to abort after timeout */
             if ((!timeout_abort_serviced) &&
-                (atomic_load_local_32(&kernel->kernel_state) == KERNEL_STATE_ABORTING))
+                (kernel_state == KERNEL_STATE_ABORTING))
             {
                 timeout_abort_serviced = true;
                 Log_Write(LOG_LEVEL_ERROR, "KW[%d]:Aborting kernel...\r\n", kw_idx);

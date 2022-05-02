@@ -45,6 +45,7 @@
 #include "services/sp_iface.h"
 #include "services/sw_timer.h"
 #include "workers/cw.h"
+#include "workers/kw.h"
 #include "services/host_cmd_hdlr.h"
 
 /* mm_rt_helpers */
@@ -502,6 +503,9 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(void)
     /* Put all Compute Minion Neigh Logic into reset */
     syscall(SYSCALL_DISABLE_NEIGH, shire_mask, 0, 0);
 
+    /* CW has been reset. Now reset the KW. */
+    KW_Reset_State();
+    
     /* Re-init MM-CM Control Blocks. */
     CM_Iface_Init(false);
 
