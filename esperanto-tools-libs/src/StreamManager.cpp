@@ -105,8 +105,10 @@ bool StreamManager::executeCallback(EventId eventId, const StreamError& error) {
     RT_VLOG(LOW) << "No error callback.";
     return false;
   } else {
-    RT_VLOG(LOW) << "Executing error callback.";
-    streamErrorCallback_(eventId, error);
+    threadPool_.pushTask([this, eventId, error] {
+      RT_VLOG(LOW) << "Executing error callback.";
+      streamErrorCallback_(eventId, error);
+    });
     return true;
   }
 }
@@ -123,17 +125,20 @@ void StreamManager::setErrorCallback(StreamErrorCallback callback) {
 
 void StreamManager::addError(EventId event, StreamError error) {
   std::lock_guard lock(mutex_);
-  if (streamErrorCallback_) {
-    std::thread([cb = streamErrorCallback_, error = std::move(error), event] { cb(event, error); });
-  } else {
-    for (auto& [id, stream] : streams_) {
-      unused(id);
-      if (stream.submittedEvents_.find(event) != end(stream.submittedEvents_)) {
-        stream.errors_.emplace_back(std::move(error));
-        return;
-      }
+  for (auto& [id, stream] : streams_) {
+    unused(id);
+    if (stream.submittedEvents_.find(event) != end(stream.submittedEvents_)) {
+      stream.errors_.emplace_back(std::move(error));
+      return;
     }
-    RT_LOG(WARNING) << "Trying to process an error without a host callback set and the stream was already destroyed. "
-                       "So this error will be unnoticed by host.";
+  }
+  RT_LOG(WARNING) << "Trying to process an error without a host callback set and the stream was already destroyed. "
+                     "So this error will be unnoticed by host.";
+}
+
+void StreamManager::addError(const StreamError& error) {
+  std::lock_guard lock(mutex_);
+  for (auto& [_, stream] : streams_) {
+    stream.errors_.emplace_back(error);
   }
 }

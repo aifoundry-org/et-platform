@@ -11,6 +11,7 @@
 #pragma once
 #include "Utils.h"
 #include "runtime/Types.h"
+#include <hostUtils/threadPool/ThreadPool.h>
 #include <mutex>
 #include <set>
 #include <type_traits>
@@ -78,8 +79,10 @@ public:
   // returns false if there is no callback
   bool executeCallback(EventId eventId, const StreamError& error);
   void addError(EventId event, StreamError error);
+  void addError(const StreamError& error);
 
 private:
+  threadPool::ThreadPool threadPool_{2};
   QueueHelper queueHelper_;
   std::unordered_map<StreamId, Stream> streams_;
   std::underlying_type<StreamId>::type nextStreamId_ = 0;
