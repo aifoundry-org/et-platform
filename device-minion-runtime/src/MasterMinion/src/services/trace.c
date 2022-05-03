@@ -425,8 +425,8 @@ void Trace_RT_Control_MM(uint32_t control)
     /* Check flag to reset Trace buffer. */
     if (control & TRACE_RT_CONTROL_RESET_TRACEBUF)
     {
-        atomic_store_local_32(&(MM_Trace_CB.cb.offset_per_hart),
-            sizeof(struct trace_buffer_std_header_t));
+        atomic_store_local_32(
+            &(MM_Trace_CB.cb.offset_per_hart), sizeof(struct trace_buffer_std_header_t));
     }
 
     /* Check flag to Enable/Disable Trace. */
