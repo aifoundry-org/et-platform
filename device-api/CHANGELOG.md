@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 
 Initial version
 
-
-[Unreleased]: https://gitlab.esperanto.ai/software/device-api/-/compare/v0.1.0...master
+[Unreleased]: https://gitlab.esperanto.ai/software/device-api/-/compare/v0.4.0...master
+[0.4.0]: https://gitlab.esperanto.ai/software/device-api/-/tags/v0.4.0..v0.3.0
+[0.3.0]: https://gitlab.esperanto.ai/software/device-api/-/tags/v0.3.0..v0.2.0
 [0.2.0]: https://gitlab.esperanto.ai/software/device-api/-/tags/v0.2.0..v0.1.0
-[0.1.0]: https://gitlab.esperanto.ai/software/device-api/-/tags/v0.1.0
