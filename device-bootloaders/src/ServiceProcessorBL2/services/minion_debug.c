@@ -242,13 +242,12 @@ static void mdi_set_breakpoint(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_st
 
     Set_PC_Breakpoint(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.bp_address,
                       mdi_cmd_req->cmd_attr.mode);
- 
+
     /* Send BP Halt success/failure event to host */
-    xQueueSend(q_dm_mdi_bp_notify_handle, (void*)mdi_cmd_req, portMAX_DELAY);
+    xQueueSend(q_dm_mdi_bp_notify_handle, (void *)mdi_cmd_req, portMAX_DELAY);
 
     /* Send MDI Set BP cmd response */
     send_mdi_bp_control_response(tag_id, msg_id, req_start_time, status);
-
 }
 
 static void mdi_unset_breakpoint(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
@@ -386,16 +385,16 @@ static void mdi_read_csr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_READ_CSR\n");
 
-    uint32_t csr_name = (mdi_cmd_req->cmd_attr.csr_name == GDB_RISCV_PC_INDEX) ?
-                            MINION_CSR_DPC_OFFSET :
-                            mdi_cmd_req->cmd_attr.csr_name;
+    uint32_t csr_addr = csr_addr_lookup[mdi_cmd_req->cmd_attr.csr_name];
 
-    mdi_rsp.data = Read_CSR(mdi_cmd_req->cmd_attr.hart_id, csr_name);
+    mdi_rsp.data = Read_CSR(mdi_cmd_req->cmd_attr.hart_id, csr_addr);
 
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
 
-    Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u, CSR Value:%lx\n",
-              mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.data);
+    Log_Write(LOG_LEVEL_INFO,
+              "Response for msg_id = %u, tag_id = %u, CSR addr = 0x%x CSR Value:%lx\n",
+              mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id,
+              csr_addr_lookup[mdi_cmd_req->cmd_attr.csr_name], mdi_rsp.data);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&mdi_rsp, sizeof(struct mdi_read_csr_rsp_t)))
     {

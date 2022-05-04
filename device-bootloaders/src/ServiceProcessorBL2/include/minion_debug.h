@@ -19,6 +19,7 @@
 
 #include "dm.h"
 #include "sp_host_iface.h"
+#include "xml2devaddr_map.h"
 #include "minion_run_control.h"
 #include "minion_state_inspection.h"
 #include "cache_flush_ops.h"
