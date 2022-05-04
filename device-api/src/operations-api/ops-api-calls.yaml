@@ -213,14 +213,12 @@ Enums:
   - Name: dev_ops_api_error_type
     Type: uint32_t
     Values:
-      - Name: NONE
-        Value: 0
       - Name: UNSUPPORTED_COMMAND
-        Value: 1
+        Value: 0
       - Name: CM_SMODE_RT_EXCEPTION
-        Value: 2
+        Value: 1
       - Name: CM_SMODE_RT_HANG
-        Value: 3
+        Value: 2
   - Name: dev_ops_fw_type
     Type: uint8_t
     Values:
