@@ -15,6 +15,37 @@
 
 extern QueueHandle_t q_dm_mdi_bp_notify_handle;
 
+static bool mdi_debug_access_addr_in_valid_range(uint64_t addr)
+{
+    int count = 0;
+    bool region_found = false;
+    uint64_t region_start;
+    uint64_t region_end;
+
+    /* Loop through all memory regions */
+    while ((!region_found) && (count < DEBUG_ACCESS_MEM_REGION_COUNT))
+    {
+        /* Get start and end addresses for memory region */
+        region_start = mdi_debug_access_mem_region[count].start_addr;
+        region_end = region_start + mdi_debug_access_mem_region[count].size;
+
+        /* Check if address is within the current region */
+        if ((addr >= region_start) && (addr <= region_end))
+        {
+            /* Set flag to show address is in valid range */
+            region_found = true;
+        }
+        else
+        {
+            /* Check next region */
+            count++;
+        }
+    }
+
+    /* Return if address was within valid range */
+    return region_found;
+}
+
 static void send_status_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
                                  int32_t status)
 {
@@ -410,8 +441,7 @@ static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_READ_MEM\n");
 
-    if (mdi_cmd_req->cmd_attr.address >= HOST_MANAGED_DRAM_START &&
-        mdi_cmd_req->cmd_attr.address <= HOST_MANAGED_DRAM_END)
+    if (mdi_debug_access_addr_in_valid_range(mdi_cmd_req->cmd_attr.address))
     {
         status = ETSOC_Memory_Read_Write_Cacheable((const void *)mdi_cmd_req->cmd_attr.address,
                                                    &mdi_rsp.data, mdi_cmd_req->cmd_attr.size);
