@@ -200,16 +200,8 @@ Enums:
         Value: 0
       - Name: UNEXPECTED_ERROR
         Value: 1
-      - Name: INCOMPATIBLE_MAJOR
-        Value: 2
-      - Name: INCOMPATIBLE_MINOR
-        Value: 3
-      - Name: INCOMPATIBLE_PATCH
-        Value: 4
-      - Name: BAD_FW_TYPE
-        Value: 5
       - Name: HOST_ABORTED
-        Value: 6
+        Value: 2
   - Name: dev_ops_api_error_type
     Type: uint32_t
     Values:
@@ -327,22 +319,13 @@ Messages :
 #-------------------------------------------------------------------------------
   - Name: check_device_ops_api_compatibility_cmd
     Description:  Request the version of the device_ops_api supported
-                  by the target, advertise the one we support
+                  by the target
     Type: Command
     PairedMessage: device_ops_api_compatibility_rsp
     Fields:
-      - Name: major
-        Description: Sem Version Major
-        Type: uint16_t
-      - Name: minor
-        Description: Sem Version Minor
-        Type: uint16_t
-      - Name: patch
-        Description: Sem Version Patch
-        Type: uint16_t
-      - Name: pad[2]
-        Description: Padding for alignment
-        Type: uint8_t
+      - Name: dummy
+        Description: Dummy field
+        Type: uint64_t
   - Name: device_ops_api_compatibility_rsp
     Type: Response
     Description: Return the version implemented by the target

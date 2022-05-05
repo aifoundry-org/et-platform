@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [[_TOC_]]
 
+## [0.5.0]
+### Added
+### Changed
+-- [SW-12373] - Removing compatibility checks on device side 
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
 
 ## [0.4.0]
 ### Added
