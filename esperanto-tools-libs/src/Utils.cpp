@@ -156,14 +156,6 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
     switch (responseCode) {
     case DEV_OPS_API_COMPATIBILITY_RESPONSE_UNEXPECTED_ERROR:
       return rt::DeviceErrorCode::ApiCompatibilityUnexpectedError;
-    case DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_MAJOR:
-      return rt::DeviceErrorCode::ApiCompatibilityIncompatibleMajor;
-    case DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_MINOR:
-      return rt::DeviceErrorCode::ApiCompatibilityIncompatibleMinor;
-    case DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_PATCH:
-      return rt::DeviceErrorCode::ApiCompatibilityIncompatiblePatch;
-    case DEV_OPS_API_COMPATIBILITY_RESPONSE_BAD_FW_TYPE:
-      return rt::DeviceErrorCode::ApiCompatibilityBadFirmwareType;
     case DEV_OPS_API_COMPATIBILITY_RESPONSE_HOST_ABORTED:
       return rt::DeviceErrorCode::ApiCompatibilityHostAborted;
     default:
