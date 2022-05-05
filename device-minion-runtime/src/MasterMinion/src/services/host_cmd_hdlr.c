@@ -418,23 +418,10 @@ static inline int32_t compatibility_cmd_handler(void *command_buffer, uint8_t sq
         TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_EXECUTING)
 
+        /* Notes its up to the Host Runtime to check for backward compatiblity */
         rsp.major = DEVICE_OPS_API_MAJOR;
         rsp.minor = DEVICE_OPS_API_MINOR;
         rsp.patch = DEVICE_OPS_API_PATCH;
-
-        /* Validate if Host software version is compatible with the device software */
-        if (cmd->major != DEVICE_OPS_API_MAJOR)
-        {
-            status = HOST_CMD_ERROR_API_COMP_INVALID_MAJOR;
-        }
-        else if (cmd->minor != DEVICE_OPS_API_MINOR)
-        {
-            status = HOST_CMD_ERROR_API_COMP_INVALID_MINOR;
-        }
-        else if (cmd->patch != DEVICE_OPS_API_PATCH)
-        {
-            status = HOST_CMD_ERROR_API_COMP_INVALID_PATCH;
-        }
     }
 
     /* Map device internal errors onto device api errors */
@@ -445,18 +432,6 @@ static inline int32_t compatibility_cmd_handler(void *command_buffer, uint8_t sq
     else if (status == HOST_CMD_STATUS_ABORTED)
     {
         rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_HOST_ABORTED;
-    }
-    else if (status == HOST_CMD_ERROR_API_COMP_INVALID_MAJOR)
-    {
-        rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_MAJOR;
-    }
-    else if (status == HOST_CMD_ERROR_API_COMP_INVALID_MINOR)
-    {
-        rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_MINOR;
-    }
-    else if (status == HOST_CMD_ERROR_API_COMP_INVALID_PATCH)
-    {
-        rsp.status = DEV_OPS_API_COMPATIBILITY_RESPONSE_INCOMPATIBLE_PATCH;
     }
     else
     {

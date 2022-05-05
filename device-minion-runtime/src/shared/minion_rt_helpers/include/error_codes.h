@@ -369,21 +369,6 @@ RESERVED
 */
 #define HOST_CMD_ERROR_SP_IFACE_FW_QUERY_FAILED -1902
 
-/*! \def HOST_CMD_ERROR_API_COMP_INVALID_MAJOR
-    \brief Host command handler - Invalid Major firmware version
-*/
-#define HOST_CMD_ERROR_API_COMP_INVALID_MAJOR -1903
-
-/*! \def HOST_CMD_ERROR_API_COMP_INVALID_MINOR
-    \brief Host command handler - Invalid Minor firmware version
-*/
-#define HOST_CMD_ERROR_API_COMP_INVALID_MINOR -1904
-
-/*! \def HOST_CMD_ERROR_API_COMP_INVALID_PATCH
-    \brief Host command handler - Invalid patch for current firmware
-*/
-#define HOST_CMD_ERROR_API_COMP_INVALID_PATCH -1905
-
 /*! \def HOST_CMD_ERROR_INVALID_CMD_ID
     \brief Host command handler - Invalid Command ID
 */
