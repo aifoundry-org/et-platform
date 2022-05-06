@@ -29,6 +29,7 @@ struct MemStream : public std::streambuf {
 
 void Worker::update(EventId event) {
   std::lock_guard lock(mutex_);
+
   if (events_.erase(event) > 0) {
     sendResponse({resp::Type::EVENT_DISPATCHED, req::ASYNC_RUNTIME_EVENT, resp::Event{event}});
   }
@@ -97,7 +98,7 @@ void Worker::requestProcessor() {
         break;
       }
       std::istream is(&ms);
-      req::Id id{0};
+      req::Id id{req::INVALID_REQUEST_ID};
       try {
         cereal::PortableBinaryInputArchive archive{is};
         req::Request request;
@@ -273,4 +274,10 @@ void Worker::freeResources() {
     runtime_.unloadCode(k);
   }
   kernels_.clear();
+}
+
+void Worker::onStreamError(EventId event, const StreamError& error) {
+  if (events_.find(event) != end(events_)) {
+    sendResponse({resp::Type::RUNTIME_EXCEPTION, req::ASYNC_RUNTIME_EVENT, error});
+  }
 }

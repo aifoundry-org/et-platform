@@ -37,6 +37,12 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
     RT_LOG(FATAL) << "Listen error: " << strerror(errno);
   }
   listener_ = std::thread(&Server::listen, this);
+  runtime_->setOnStreamErrorsCallback([this](EventId evt, const StreamError& error) {
+    SpinLock lock(mutex_);
+    for (auto& w : workers_) {
+      w->onStreamError(evt, error);
+    }
+  });
 }
 
 void Server::listen() {
@@ -62,12 +68,12 @@ void Server::listen() {
                  << " GID: " << credentials.gid << ").";
 
     // delegate the request processing for this client to a worker
-    std::lock_guard lock(mutex_);
+    SpinLock lock(mutex_);
     workers_.emplace_back(std::make_unique<Worker>(cl, dynamic_cast<RuntimeImp&>(*runtime_), *this, credentials));
   }
 }
 
 void Server::removeWorker(Worker* worker) {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   std::remove_if(begin(workers_), end(workers_), [worker](const auto& item) { return item.get() == worker; });
 }

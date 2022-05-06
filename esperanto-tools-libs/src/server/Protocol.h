@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <type_traits>
 #include <variant>
+
 namespace rt {
 using AddressT = uint64_t;
 
@@ -29,6 +30,10 @@ template <class Archive> void serialize(Archive& archive, ErrorContext& ec) {
 
 template <class Archive> void serialize(Archive& archive, UserTrace& uc) {
   archive(uc.buffer_, uc.buffer_size_, uc.eventMask_, uc.filterMask_, uc.shireMask_, uc.threadMask_, uc.threshold_);
+}
+
+template <class Archive> void serialize(Archive& archive, StreamError& se) {
+  archive(se.errorCode_, se.errorContext_);
 }
 
 namespace req {
@@ -55,8 +60,9 @@ using Id = uint32_t;
 
 // special Id used for asynchronous events from runtime. This Id won't correspond to any request
 constexpr Id ASYNC_RUNTIME_EVENT = 0xFFFFFFFF;
+constexpr Id INVALID_REQUEST_ID = ASYNC_RUNTIME_EVENT - 1;
 
-  struct UnloadCode {
+struct UnloadCode {
   KernelId kernel_;
   template <class Archive> void serialize(Archive& archive) {
     archive(kernel_);
@@ -168,7 +174,7 @@ struct Request {
     , payload_(payload) {
   }
   Type type_;
-  Id id_;
+  Id id_ = INVALID_REQUEST_ID;
   std::variant<UnloadCode, KernelLaunch, Memcpy, MemcpyList, CreateStream, DestroyStream, LoadCode, Version, Malloc,
                Free, AbortStream>
     payload_;
@@ -242,15 +248,6 @@ struct LoadCode {
     archive(event_, kernel_, loadAddress_);
   }
 };
-
-struct StreamError {
-  DeviceErrorCode errorCode_;
-  std::optional<std::vector<ErrorContext>> errorContext_;
-  template <class Archive> void serialize(Archive& archive) {
-    archive(errorCode_, errorContext_);
-  }
-};
-
 struct RuntimeException {
   Exception exception;
   template <class Archive> void save(Archive& archive) const {

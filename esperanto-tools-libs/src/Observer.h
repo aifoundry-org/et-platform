@@ -30,7 +30,8 @@ public:
     }
   }
   void detach(Observer<T>* o) {
-    std::remove(begin(observers_), end(observers_), o);
+    auto it = std::remove(begin(observers_), end(observers_), o);
+    observers_.erase(it, end(observers_));
   }
   void notify(T hint) {
     for (auto& o : observers_) {

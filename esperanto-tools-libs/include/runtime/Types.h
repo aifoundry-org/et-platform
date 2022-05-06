@@ -170,6 +170,7 @@ struct StreamError {
   explicit StreamError(DeviceErrorCode errorCode)
     : errorCode_(errorCode) {
   }
+  StreamError() = default;
   std::string getString() const; /// < returns a string representation of the StreamError
   DeviceErrorCode errorCode_ = DeviceErrorCode::Unknown;
   std::optional<uint64_t> cmShireMask_; /// < only available in some kernel errors. Contains offending shiremask

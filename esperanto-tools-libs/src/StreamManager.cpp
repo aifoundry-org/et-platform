@@ -105,9 +105,10 @@ bool StreamManager::executeCallback(EventId eventId, const StreamError& error) {
     RT_VLOG(LOW) << "No error callback.";
     return false;
   } else {
-    auto cb = streamErrorCallback_;
-    lock.unlock();
-    cb(eventId, error);
+    threadPool_.pushTask([cb = streamErrorCallback_, eventId, error] {
+      RT_VLOG(LOW) << "Executing error callback.";
+      cb(eventId, error);
+    });
     return true;
   }
 }

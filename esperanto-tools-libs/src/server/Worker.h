@@ -25,6 +25,8 @@ public:
 
   void update(EventId event) override;
 
+  void onStreamError(EventId event, const StreamError& error);
+
 private:
   void requestProcessor();
   void freeResources();
