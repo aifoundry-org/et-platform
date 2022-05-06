@@ -18,6 +18,7 @@ set(TEST_LIST
   KernelLaunchFake.cpp:""
   TestCommandSender.cpp:""
   initRuntime.cpp:""
+  test_spinlock.cpp:"" 
 )
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;LABELS;Sysemu;LABELS;Unittest;TIMEOUT;300" "ut_")

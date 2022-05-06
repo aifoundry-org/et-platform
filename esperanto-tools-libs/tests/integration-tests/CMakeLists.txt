@@ -12,7 +12,6 @@ set(INTEGRATION_TEST_LIST
   test_code_loading.cpp:""
   test_fwtraces.cpp:""
   test_memcpy.cpp:""
-  test_profiler.cpp:""
   test_device_errors.cpp:""
   test_dma_errors.cpp:""
   )

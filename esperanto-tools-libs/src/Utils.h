@@ -10,6 +10,8 @@
 
 #pragma once
 #include <assert.h>
+#include <chrono>
+#include <hostUtils/logging/Logger.h>
 #include <hostUtils/logging/Logging.h>
 #include <runtime/Types.h>
 #include <string>
@@ -45,3 +47,17 @@ template <typename T, typename... Args> void unused(T t, Args... args) {
 #define RT_LOG_IF(severity, condition) ET_LOG_IF(RUNTIME, severity, condition)
 
 rt::DeviceErrorCode convert(int responseType, uint32_t responseCode);
+
+template <typename Mutex> struct SpinLock : public std::unique_lock<Mutex> {
+  explicit SpinLock(Mutex& mutex, std::chrono::milliseconds spinTime = std::chrono::milliseconds(10))
+    : std::unique_lock<Mutex>{mutex, std::defer_lock} {
+    auto start = std::chrono::high_resolution_clock::now();
+    while (!this->try_lock()) {
+      if (std::chrono::high_resolution_clock::now() - start > spinTime) {
+        RT_VLOG(HIGH) << "Couldn't lock in " << spinTime.count() << "ms. Now go to regular lock.";
+        this->lock();
+        break;
+      }
+    }
+  }
+};

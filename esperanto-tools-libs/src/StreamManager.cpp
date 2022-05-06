@@ -139,6 +139,7 @@ void StreamManager::addError(EventId event, StreamError error) {
 void StreamManager::addError(const StreamError& error) {
   std::lock_guard lock(mutex_);
   for (auto& [_, stream] : streams_) {
+    unused(_);
     stream.errors_.emplace_back(error);
   }
 }
