@@ -505,7 +505,7 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(void)
 
     /* CW has been reset. Now reset the KW. */
     KW_Reset_State();
-    
+
     /* Re-init MM-CM Control Blocks. */
     CM_Iface_Init(false);
 

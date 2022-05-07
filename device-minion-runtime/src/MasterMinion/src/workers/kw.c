@@ -897,14 +897,13 @@ void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
 ***********************************************************************/
 void KW_Reset_State(void)
 {
-
     Log_Write(LOG_LEVEL_DEBUG, "KW: Reset State\r\n");
 
     for (uint8_t kw_idx = 0; kw_idx < MM_MAX_PARALLEL_KERNELS; kw_idx++)
     {
         /* Check if this kernel slot is in use, then update the state to reset */
         if (atomic_compare_and_exchange_local_32(&KW_CB.kernels[kw_idx].kernel_state,
-                 KERNEL_STATE_IN_USE, KERNEL_STATE_UN_USED) == KERNEL_STATE_IN_USE)
+                KERNEL_STATE_IN_USE, KERNEL_STATE_UN_USED) == KERNEL_STATE_IN_USE)
         {
             Log_Write(LOG_LEVEL_DEBUG, "KW:Resetting KW=%d\r\n", kw_idx);
 
@@ -1317,8 +1316,7 @@ void KW_Launch(uint32_t kw_idx)
             kernel_state = atomic_load_local_32(&kernel->kernel_state);
 
             /* Check the kernel_state is set to abort after timeout */
-            if ((!timeout_abort_serviced) &&
-                (kernel_state == KERNEL_STATE_ABORTING))
+            if ((!timeout_abort_serviced) && (kernel_state == KERNEL_STATE_ABORTING))
             {
                 timeout_abort_serviced = true;
                 Log_Write(LOG_LEVEL_ERROR, "KW[%d]:Aborting kernel...\r\n", kw_idx);
