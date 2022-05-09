@@ -13,6 +13,7 @@ set(TEST_LIST
   test_streams_lifecycle.cpp:""
   test_event_manager.cpp:""
   test_profiler.cpp:""
+  test_devices.cpp:""
   benchmark.cpp:""
   other.cpp:""
   KernelLaunchFake.cpp:""

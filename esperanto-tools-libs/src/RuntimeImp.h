@@ -43,6 +43,8 @@ public:
 
   std::vector<DeviceId> getDevices() final;
 
+  DeviceProperties getDeviceProperties(DeviceId device) final;
+
   LoadCodeResult loadCode(StreamId stream, const std::byte* elf, size_t elf_size) final;
   void unloadCode(KernelId kernel) final;
 
@@ -100,6 +102,8 @@ public:
     checkMemcpyDeviceAddress_ = value;
   }
   void setSentCommandCallback(DeviceId device, CommandSender::CommandSentCallback callback);
+
+  DeviceProperties getDevicePropertiesWithoutProfiling(DeviceId device);
 
   std::byte* mallocDeviceWithoutProfiling(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize);
   void freeDeviceWithoutProfiling(DeviceId device, std::byte* buffer);

@@ -119,6 +119,32 @@ std::vector<DeviceId> RuntimeImp::getDevicesWithoutProfiling() const {
   return devices_;
 }
 
+DeviceProperties RuntimeImp::getDeviceProperties(DeviceId device) {
+  auto prop = getDevicePropertiesWithoutProfiling(device);
+  // SW-12468 log device properties to the runtime trace
+  return prop;
+}
+
+DeviceProperties RuntimeImp::getDevicePropertiesWithoutProfiling(DeviceId device) {
+  auto deviceInt = static_cast<int>(device);
+  auto deviceConfig = deviceLayer_->getDeviceConfig(deviceInt);
+  rt::DeviceProperties prop{};
+  
+  prop.frequency_ = deviceConfig.minionBootFrequency_;
+  prop.availableShires_ = static_cast<uint32_t>(deviceLayer_->getActiveShiresNum(deviceInt));
+  prop.memoryBandwidth_ = deviceConfig.ddrBandwidth_;
+  prop.memorySize_ = deviceLayer_->getDramSize();
+  prop.l3Size_ = deviceConfig.totalL3Size_;
+  prop.l2shireSize_ = deviceConfig.totalL2Size_;
+  prop.l2scratchpadSize_ = deviceConfig.totalScratchPadSize_;
+  prop.cacheLineSize_ = deviceConfig.cacheLineSize_;
+  prop.l2CacheBanks_ = deviceConfig.numL2CacheBanks_;
+  prop.spareComputeMinionoShireId_ = deviceConfig.spareComputeMinionoShireId_;
+  prop.deviceArch_ = deviceConfig.archRevision_;
+
+  return prop;
+}
+
 LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size_t size) {
   ScopedProfileEvent profileEvent(Class::LoadCode, *profiler_, stream);
   std::lock_guard lock(mutex_);
