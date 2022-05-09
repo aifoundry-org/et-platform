@@ -221,6 +221,8 @@ ASSERT_CACHE_LINE_CONSTRAINTS(cm_to_mm_message_kernel_launch_error_t);
 
 typedef struct {
     cm_iface_message_header_t header;
+    uint64_t exception_mask;    /* Shire mask to show which shires took exception. */
+    uint64_t system_abort_mask; /* Shire mask to show which shires have serviced system abort. */
     uint32_t shire_id;
     uint32_t status;
     uint8_t slot_index;
