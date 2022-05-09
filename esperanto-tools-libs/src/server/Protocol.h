@@ -62,6 +62,9 @@ using Id = uint32_t;
 constexpr Id ASYNC_RUNTIME_EVENT = 0xFFFFFFFF;
 constexpr Id INVALID_REQUEST_ID = ASYNC_RUNTIME_EVENT - 1;
 
+constexpr bool IsRegularId(Id id) {
+  return id != ASYNC_RUNTIME_EVENT && id != INVALID_REQUEST_ID;
+}
 struct UnloadCode {
   KernelId kernel_;
   template <class Archive> void serialize(Archive& archive) {
@@ -133,14 +136,6 @@ struct LoadCode {
     archive(stream_, elf_);
   }
 };
-
-struct Version {
-  uint64_t value_;
-  template <class Archive> void serialize(Archive& archive) {
-    archive(value_);
-  }
-};
-
 struct Malloc {
   size_t size_;
   DeviceId device_;
@@ -175,8 +170,8 @@ struct Request {
   }
   Type type_;
   Id id_ = INVALID_REQUEST_ID;
-  std::variant<UnloadCode, KernelLaunch, Memcpy, MemcpyList, CreateStream, DestroyStream, LoadCode, Version, Malloc,
-               Free, AbortStream>
+  std::variant<std::monostate, UnloadCode, KernelLaunch, Memcpy, MemcpyList, CreateStream, DestroyStream, LoadCode,
+               Malloc, Free, AbortStream>
     payload_;
   template <class Archive> void serialize(Archive& archive) {
     archive(type_, payload_);
@@ -269,9 +264,11 @@ struct Response {
     , id_(id)
     , payload_(payload) {
   }
+  using Payload_t =
+    std::variant<Version, Malloc, GetDevices, Event, CreateStream, LoadCode, StreamError, RuntimeException>;
   Type type_;
   Id id_;
-  std::variant<Version, Malloc, GetDevices, Event, CreateStream, LoadCode, StreamError, RuntimeException> payload_;
+  Payload_t payload_;
   template <class Archive> void serialize(Archive& archive) {
     archive(type_, id_, payload_);
   }

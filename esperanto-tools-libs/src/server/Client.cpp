@@ -10,9 +10,13 @@
 
 #include "Client.h"
 #include "Utils.h"
+#include "server/NetworkException.h"
+#include "server/Protocol.h"
 #include <cereal/archives/portable_binary.hpp>
 #include <chrono>
+#include <condition_variable>
 #include <poll.h>
+#include <sstream>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -44,16 +48,16 @@ Client::Client(const std::string& socketPath) {
   int val = 1;
 
   if (setsockopt(socket_, SOL_SOCKET, SO_PASSCRED, &val, sizeof(val)) < 0) {
-    throw Exception("unable to set local per credentials");
+    throw NetworkException("unable to set local per credentials");
   }
 
-  if (connect(socket_, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
-    throw Exception("connect error");
+  if (connect(socket_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == -1) {
+    throw NetworkException("connect error");
   }
   ucred ucred;
   socklen_t len = sizeof(ucred);
   if (getsockopt(socket_, SOL_SOCKET, SO_PEERCRED, &ucred, &len) == -1) {
-    throw Exception("getsockopt error");
+    throw NetworkException("getsockopt error");
   }
 
   RT_LOG(INFO) << "Runtime client connection: (PID:  " << getpid()
@@ -61,6 +65,7 @@ Client::Client(const std::string& socketPath) {
                << ", euid=" << ucred.uid << ", egid=" << ucred.gid;
 
   listener_ = std::thread(&Client::responseProcessor, this);
+  handShake();
 }
 
 void Client::responseProcessor() {
@@ -77,7 +82,7 @@ void Client::responseProcessor() {
         if (fd.revents & POLLIN) {
           if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); res < 0) {
             RT_LOG(WARNING) << "Read socket error: " << strerror(errno);
-            throw Exception(std::string{"Read socket error: "} + strerror(errno));
+            throw NetworkException(std::string{"Read socket error: "} + strerror(errno));
           }
           std::istream is(&ms);
           cereal::PortableBinaryInputArchive archive{is};
@@ -86,11 +91,11 @@ void Client::responseProcessor() {
           processResponse(response);
         } else {
           RT_LOG(WARNING) << "Unexpected poll events result: " << fd.revents;
-          throw Exception("Unexpected poll events result: " + std::to_string(fd.revents));
+          throw NetworkException("Unexpected poll events result: " + std::to_string(fd.revents));
         }
       } else if (rpoll < 0) { // some error happened
         RT_LOG(WARNING) << "Poll error: " << strerror(errno);
-        throw Exception(std::string{"Poll error: "} + strerror(errno));
+        throw NetworkException(std::string{"Poll error: "} + strerror(errno));
       }
       // rpoll==0 means timeout, so run the bucle again
     }
@@ -113,8 +118,8 @@ bool Client::waitForEventWithoutProfiling(EventId event, std::chrono::seconds ti
     return true;
   }
 
-  return waiters_[event].wait_for(lock, timeout,
-                                  [this, event] { return eventToStream_.find(event) == end(eventToStream_); });
+  return waiters_[resp::Type::EVENT_DISPATCHED].wait_for(
+    lock, timeout, [this, event] { return eventToStream_.find(event) == end(eventToStream_); });
 }
 
 bool Client::waitForStreamWithoutProfiling(StreamId stream, std::chrono::seconds timeout) {
@@ -135,12 +140,47 @@ bool Client::waitForStreamWithoutProfiling(StreamId stream, std::chrono::seconds
 }
 
 req::Id Client::getNextId() {
-  if (++nextId_ != req::ASYNC_RUNTIME_EVENT) {
-    return nextId_;
-  } else { // skip special requestId that can't be used
-    return ++nextId_;
+  while (!req::IsRegularId(++nextId_))
+    ;
+  return nextId_;
+}
+
+void Client::sendRequest(const req::Request& request) {
+  std::lock_guard lock(mutex_);
+  std::stringstream sreq;
+  cereal::PortableBinaryOutputArchive archive(sreq);
+  archive(request);
+  auto str = sreq.str();
+  if (waiters_.find(request.id_) != end(waiters_)) {
+    RT_LOG(WARNING) << "There was a previous response structure (Waiter) for request ID: " << request.id_
+                    << ". New request ID will erase the previous one. This is likely a BUG.";
   }
+  waiters_.emplace(Waiter{});
+
+  if (auto res = write(socket_, str.data(), str.size()); res < static_cast<long>(str.size())) {
+    auto errorMsg = std::string{strerror(errno)};
+    RT_VLOG(LOW) << "Write socket error: " << errorMsg;
+    throw NetworkException("Write socket error: " + errorMsg);
+  }
+}
+resp::Response::Payload_t Client::waitForResponse(req::Id req) {
+  std::unique_lock lock(mutex_);
+  auto it = find(waiters_, req, "Request not registered");
+  auto& waiter = it->second;
+  waiter.wait(lock);
+  auto payload = std::move(waiter.payload_);
+  waiters_.erase(it);
+  return payload;
 }
 
 EventId Client::abortStream(StreamId streamId) {
+  auto payload = sendRequestAndWait(req::Type::ABORT_STREAM, req::AbortStream{streamId});
+  return std::get<resp::Event>(payload).event_;
+}
+
+void Client::handShake() {
+  auto payload = sendRequestAndWait(req::Type::VERSION, std::monostate{});
+  if (std::get<resp::Version>(payload).version_ != 1) {
+    throw Exception("Unsupported version. Current client version only supports version: 1. Please update the runtime client library.");
+  }
 }

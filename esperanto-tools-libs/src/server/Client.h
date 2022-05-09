@@ -11,6 +11,7 @@
 #include "Protocol.h"
 #include "StreamManager.h"
 #include "runtime/IRuntime.h"
+#include <condition_variable>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
@@ -81,6 +82,12 @@ public:
   EventId abortStream(StreamId streamId) override;
 
 private:
+  template <typename Payload> resp::Response::Payload_t sendRequestAndWait(req::Type type, Payload payload) {
+    auto reqId = getNextId();
+    sendRequest({type, reqId, std::move(payload)});
+    return waitForResponse(reqId);
+  }
+  void handShake();
   bool waitForEventWithoutProfiling(EventId event, std::chrono::seconds timeout);
   bool waitForStreamWithoutProfiling(StreamId stream, std::chrono::seconds timeout);
 
@@ -89,16 +96,26 @@ private:
 
   void responseProcessor();
   req::Id getNextId();
+  resp::Response::Payload_t waitForResponse(req::Id);
 
-  // esto no es correcto, cambiar a solo 1 condition_variable puede ser suficiente ...
-  std::unordered_map<EventId, std::condition_variable> waiters_;
+  struct Waiter {
+    template <typename Lock> void wait(Lock& lock) {
+      while (!valid_) {
+        condVar_.wait(lock);
+      }
+    }
+    resp::Response::Payload_t payload_;
+    std::condition_variable condVar_;
+    bool valid_ = false;
+  };
+  std::unordered_map<req::Id, Waiter> waiters_;
   std::unordered_map<EventId, StreamId> eventToStream_;
   std::unordered_map<StreamId, std::vector<EventId>> streamToEvents_;
   std::thread listener_;
   std::mutex mutex_;
 
   int socket_;
-  req::Id nextId_ = 0;
+  std::atomic<req::Id> nextId_ = 0;
   bool running_ = true;
 };
 } // namespace rt
