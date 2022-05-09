@@ -645,7 +645,7 @@ DeviceConfig DeviceSysEmu::getDeviceConfig(int) {
                       16,
                       80,
                       64,
-                      650,
+                      1000,
                       static_cast<uint32_t>(spInfo_.generic_attr.minion_shires_mask)};
 }
 

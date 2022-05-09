@@ -197,13 +197,33 @@ public:
     return false;
   }
   DeviceConfig getDeviceConfig(int) override {
-    return DeviceConfig{};
+    return DeviceConfig{DeviceConfig::FormFactor::PCIE,     // Form factor
+                        25,                                 // TDP
+                        32,                                 // Total L3 size in MBytes
+                        16,                                 // Total L2 size in MBytes
+                        80,                                 // Total L2scp size in MBytes
+                        64,                                 // CacheLine alignment in Bytes
+                        1000,                               // Base frequency
+                        static_cast<uint32_t>(0xFFFFFFFF)}; // Compute minion mask
   }
   int getActiveShiresNum(int device) override {
-    return 32;
+    DeviceConfig config = getDeviceConfig(device);
+    uint32_t shireMask = config.computeMinionShireMask_;
+    uint32_t checkPattern = 0x00000001;
+    size_t maskBits = 32;
+    int cntActive = 0;
+
+    for (size_t i = 0; i < maskBits; i++) {
+      bool active = shireMask & (checkPattern << i);
+      if (active) {
+        cntActive++;
+      }
+    }
+    return cntActive;
   }
   uint32_t getFrequencyMHz(int device) override {
-    return 0;
+    DeviceConfig config = getDeviceConfig(device);
+    return config.minionBootFrequency_;
   }
   int updateFirmwareImage(int, std::vector<unsigned char>&) override {
     return 0;
