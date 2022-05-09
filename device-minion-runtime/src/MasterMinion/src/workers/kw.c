@@ -137,10 +137,11 @@ typedef struct kw_cb_ {
     track different types of errors.
 */
 struct kw_internal_status {
+    uint64_t cm_error_shire_mask;
+    int32_t status;
     bool kernel_done;
     bool cw_exception;
     bool cw_error;
-    int32_t status;
 };
 
 /*! \var kw_cb_t KW_CB
@@ -883,7 +884,7 @@ void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
 *   DESCRIPTION
 *
 *       Resets KW state if the CM has been reset. This handles the case
-*       where CM was reset while kernel launch was in progress or a launched kernel 
+*       where CM was reset while kernel launch was in progress or a launched kernel
 *       is hung, and if host tried to reset CM without sending abort command first.
 *
 *   INPUTS
@@ -1118,10 +1119,13 @@ static inline void kw_cm_to_mm_process_messages(
                 if (completed->status == KERNEL_COMPLETE_STATUS_ERROR)
                 {
                     status_internal->cw_error = true;
+                    status_internal->cm_error_shire_mask = completed->exception_mask |
+                                                           completed->system_abort_mask;
 
                     Log_Write(LOG_LEVEL_ERROR,
-                        "KW[%d]:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:S%d:Execution error detected!\r\n",
-                        kw_idx, completed->shire_id);
+                        "KW[%d]:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:Execution error detected:S%d:Exception Mask:0x%lx:Abort Mask:0x%lx\r\n",
+                        kw_idx, completed->shire_id, completed->exception_mask,
+                        completed->system_abort_mask);
                 }
                 break;
 
@@ -1301,6 +1305,7 @@ void KW_Launch(uint32_t kw_idx)
         status_internal.cw_error = false;
         timeout_abort_serviced = false;
         status_internal.status = STATUS_SUCCESS;
+        status_internal.cm_error_shire_mask = 0;
         wait_for_ipi = true;
 
         /* Read the shire mask for the current kernel */
@@ -1376,6 +1381,7 @@ void KW_Launch(uint32_t kw_idx)
                 atomic_load_local_64(&kernel->umode_exception_buffer_ptr);
             error_ptrs.umode_trace_buffer_ptr =
                 atomic_load_local_64(&kernel->umode_trace_buffer_ptr);
+            error_ptrs.cm_shire_mask = status_internal.cm_error_shire_mask;
 
             /* Copy the error pointers (which is optional payload) at the end of response.
                NOTE: Memory for optional payload is already allocated, so it is safe to use memory beyond normal response size. */

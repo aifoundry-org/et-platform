@@ -712,8 +712,12 @@ static void kernel_launch_post_cleanup(
             msg.slot_index = kernel->slot_index;
             msg.status = atomic_load_global_32(&kernel_launch_global_execution_status);
 
-            /* TODO: Collect kernel_launch_global_exception_mask and
-            kernel_launch_global_system_abort_mask and send it to MM in above msg */
+            if (msg.status != KERNEL_COMPLETE_STATUS_SUCCESS)
+            {
+                msg.exception_mask = atomic_load_global_64(&kernel_launch_global_exception_mask);
+                msg.system_abort_mask =
+                    atomic_load_global_64(&kernel_launch_global_system_abort_mask);
+            }
 
             Log_Write(LOG_LEVEL_DEBUG,
                 "kernel_launch_post_cleanup:Kernel launch complete:Shire:%d\r\n", shire_id);
