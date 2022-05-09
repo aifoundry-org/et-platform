@@ -38,19 +38,13 @@ bool kernel_info_has_thread_launched(uint32_t shire_id, uint64_t thread_id);
 */
 uint64_t kernel_info_reset_launched_thread(uint32_t shire_id, uint64_t thread_id);
 
-/*! \fn bool kernel_info_set_abort_flag(uint32_t shire_id)
+/*! \fn uint64_t kernel_info_set_local_exception_mask(uint32_t shire_id, uint64_t thread_id)
     \brief Used to set the shire abort flag in case of a exception.
     \param shire_id Shire ID
-    \return True if the flag was set
+    \param thread_id ID of the thread that took exception
+    \return Value of exception mask before setting the current hart's bit
 */
-bool kernel_info_set_abort_flag(uint32_t shire_id);
-
-/*! \fn uint32_t kernel_info_get_abort_flag(uint32_t shire_id)
-    \brief Used to get the shire abort flag.
-    \param shire_id Shire ID
-    \return Value of the flag
-*/
-uint32_t kernel_info_get_abort_flag(uint32_t shire_id);
+uint64_t kernel_info_set_local_exception_mask(uint32_t shire_id, uint64_t thread_id);
 
 /*! \fn bool kernel_info_has_thread_completed(uint32_t shire_id, uint64_t thread_id)
     \brief Used to check if a thread in a shire has completed kernel or not.
@@ -90,12 +84,13 @@ uint64_t kernel_info_set_thread_returned(uint32_t shire_id, uint64_t thread_id);
 */
 uint64_t kernel_launch_get_pending_shire_mask(void);
 
-/*! \fn bool kernel_launch_set_global_abort_flag(void)
-    \brief This function sets the global abort flag for the current kernel launch. This helps us to
+/*! \fn uint64_t kernel_launch_set_global_exception_mask(uint32_t shire_id)
+    \brief This function sets the global exception mask for the current kernel launch. This helps us to
     send a single abort/exception message to MM.
-    \return none
+    \param shire_id ID of the shire
+    \return Value of the bitmask before setting the bit of the current shire
 */
-bool kernel_launch_set_global_abort_flag(void);
+uint64_t kernel_launch_set_global_exception_mask(uint32_t shire_id);
 
 /*! \fn int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
     \brief Function used to launch kernel with the given parameters.

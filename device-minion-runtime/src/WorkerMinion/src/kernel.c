@@ -70,8 +70,9 @@ typedef struct kernel_launch_info {
     uint64_t launched_threads;
     uint64_t returned_threads;
     uint64_t completed_threads; /* Bitmask of threads that have already completed the launch */
+    uint64_t exception_mask;
+    uint64_t system_abort_mask;
     uint64_t exception_buffer;
-    uint32_t abort_flag;
     uint32_t execution_status;
     union {
         struct {
@@ -92,7 +93,8 @@ static spinlock_t pre_launch_global_barrier = { 0 };
 static local_fcc_barrier_t post_launch_barrier[NUM_SHIRES] = { 0 };
 static kernel_launch_info_t kernel_launch_info[NUM_SHIRES] = { 0 };
 static uint64_t kernel_launch_shire_mask __attribute__((aligned(64))) = 0;
-static uint32_t kernel_launch_global_abort_flag __attribute__((aligned(64))) = 0;
+static uint64_t kernel_launch_global_exception_mask __attribute__((aligned(64))) = 0;
+static uint64_t kernel_launch_global_system_abort_mask __attribute__((aligned(64))) = 0;
 static uint32_t kernel_launch_global_execution_status __attribute__((aligned(64))) = 0;
 
 /***********************/
@@ -152,9 +154,9 @@ static bool pre_launch_synchronize_shires(spinlock_t *lock, uint32_t num_shires)
     return kernel_last_thread;
 }
 
-bool kernel_launch_set_global_abort_flag(void)
+uint64_t kernel_launch_set_global_exception_mask(uint32_t shire_id)
 {
-    return (atomic_compare_and_exchange_global_32(&kernel_launch_global_abort_flag, 0, 1) == 0);
+    return atomic_or_global_64(&kernel_launch_global_exception_mask, (1ULL << shire_id));
 }
 
 uint64_t kernel_launch_get_pending_shire_mask(void)
@@ -183,20 +185,9 @@ bool kernel_info_has_thread_launched(uint32_t shire_id, uint64_t thread_id)
     return (atomic_load_local_64(&kernel_launch_info[shire_id].launched_threads) >> thread_id) & 1;
 }
 
-bool kernel_info_set_abort_flag(uint32_t shire_id)
+uint64_t kernel_info_set_local_exception_mask(uint32_t shire_id, uint64_t thread_id)
 {
-    return (
-        atomic_compare_and_exchange_local_32(&kernel_launch_info[shire_id].abort_flag, 0, 1) == 0);
-}
-
-static inline void kernel_info_reset_abort_flag(uint32_t shire_id)
-{
-    atomic_store_local_32(&kernel_launch_info[shire_id].abort_flag, 0);
-}
-
-uint32_t kernel_info_get_abort_flag(uint32_t shire_id)
-{
-    return (atomic_load_local_32(&kernel_launch_info[shire_id].abort_flag));
+    return atomic_or_local_64(&kernel_launch_info[shire_id].exception_mask, 1ULL << thread_id);
 }
 
 static inline void kernel_info_reset_execution_status(uint32_t shire_id)
@@ -496,9 +487,13 @@ static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel)
         kernel_info_reset_execution_status(shire_id);
         kernel_info_reset_completed_threads(shire_id);
         kernel_info_reset_thread_returned(shire_id);
-        kernel_info_reset_abort_flag(shire_id);
+        atomic_store_local_64(&kernel_launch_info[shire_id].exception_mask, 0);
+        atomic_store_local_64(&kernel_launch_info[shire_id].system_abort_mask, 0);
+        /* TODO: Improvement: The global atomic to reset kernel launch globals should be done
+        by the first shire involved in kernel launch only, not all shires. */
         atomic_store_global_64(&kernel_launch_shire_mask, kernel->shire_mask);
-        atomic_store_global_32(&kernel_launch_global_abort_flag, 0);
+        atomic_store_global_64(&kernel_launch_global_exception_mask, 0);
+        atomic_store_global_64(&kernel_launch_global_system_abort_mask, 0);
         atomic_store_global_32(
             &kernel_launch_global_execution_status, KERNEL_COMPLETE_STATUS_SUCCESS);
 
@@ -631,6 +626,15 @@ static void kernel_launch_post_cleanup(
 
         Log_Write(LOG_LEVEL_ERROR,
             "kernel_launch_post_cleanup:kernel completion return type:%ld\r\n", return_type);
+
+        /* Check if the thread was aborted by the system, if yes, set the local and global bit mask */
+        if ((return_type == KERNEL_RETURN_SYSTEM_ABORT) &&
+            (atomic_or_local_64(
+                 &kernel_launch_info[shire_id].system_abort_mask, 1ULL << thread_id) == 0))
+        {
+            /* Set the global system abort flag to indicate that this particular shire was aborted */
+            atomic_or_global_64(&kernel_launch_global_system_abort_mask, 1ULL << shire_id);
+        }
     }
     /* If the return type is success but kernel return value is not success,
     save the error code in u-mode error context buffer (if available) */
@@ -707,6 +711,9 @@ static void kernel_launch_post_cleanup(
             msg.shire_id = shire_id;
             msg.slot_index = kernel->slot_index;
             msg.status = atomic_load_global_32(&kernel_launch_global_execution_status);
+
+            /* TODO: Collect kernel_launch_global_exception_mask and
+            kernel_launch_global_system_abort_mask and send it to MM in above msg */
 
             Log_Write(LOG_LEVEL_DEBUG,
                 "kernel_launch_post_cleanup:Kernel launch complete:Shire:%d\r\n", shire_id);

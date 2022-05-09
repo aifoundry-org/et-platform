@@ -87,8 +87,10 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
         Trace_Evict_CM_Buffer();
         Trace_Evict_UMode_Buffer();
 
-        /* Only send kernel launch exception message once to MM. */
-        if (kernel_launch_set_global_abort_flag())
+        /* Only send kernel launch exception message once to MM. To avoid flood of global atomics,
+        the shire-level check for exception is done first using local atomics. */
+        if ((kernel_info_set_local_exception_mask(shire_id, hart_id) == 0) &&
+            (kernel_launch_set_global_exception_mask(shire_id) == 0))
         {
             /* Sends exception message to MM */
             send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
