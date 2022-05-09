@@ -37,54 +37,82 @@
 
 /*! \def NUMBER_OF_MEMSHIRE
 */
-#define NUMBER_OF_MEMSHIRE     8
+#define HW_NUMBER_OF_MEMSHIRE 8
 
-#define FOR_EACH_MEMSHIRE(statements)                                              \
-            {                                                                      \
-                for(memshire = 0;memshire < NUMBER_OF_MEMSHIRE;++memshire) {       \
-                   statements                                                      \
-                }                                                                  \
-            }
-#define FOR_EACH_MEMSHIRE_EVEN_FIRST(statements)                                   \
-            {                                                                      \
-                for(memshire = 0;memshire < NUMBER_OF_MEMSHIRE;memshire += 2) {    \
-                   statements                                                      \
-                }                                                                  \
-                for(memshire = 1;memshire < NUMBER_OF_MEMSHIRE;memshire += 2) {    \
-                   statements                                                      \
-                }                                                                  \
-            }
+#define MEMSHIRE_BASE 0
 
+#define NUMBER_OF_MEMSHIRE 8
+
+#define FOR_EACH_MEMSHIRE(statements)                                                             \
+    {                                                                                             \
+        for (memshire = MEMSHIRE_BASE; memshire < MEMSHIRE_BASE + NUMBER_OF_MEMSHIRE; ++memshire) \
+        {                                                                                         \
+            statements                                                                            \
+        }                                                                                         \
+    }
+#define FOR_EACH_MEMSHIRE_EVEN_FIRST(statements)                                          \
+    {                                                                                     \
+        for (memshire = MEMSHIRE_BASE; memshire < MEMSHIRE_BASE + NUMBER_OF_MEMSHIRE;     \
+             memshire += 2)                                                               \
+        {                                                                                 \
+            statements                                                                    \
+        }                                                                                 \
+        for (memshire = MEMSHIRE_BASE + 1; memshire < MEMSHIRE_BASE + NUMBER_OF_MEMSHIRE; \
+             memshire += 2)                                                               \
+        {                                                                                 \
+            statements                                                                    \
+        }                                                                                 \
+    }
 
 /*
  * DDR Controller macros - temporary fix
  */
-#define DDRC_INT_STATUS_ESR_MC0_ECC_CORRECTED_ERR_INTR_GET(x) \
-   (((x) & 0x0080u) >> 7)
-#define DDRC_INT_STATUS_ESR_MC0_ECC_UNCORRECTED_ERR_INTR_GET(x) \
-   ((x) & 0x0001u)
+#define DDRC_INT_STATUS_ESR_MC0_ECC_CORRECTED_ERR_INTR_GET(x)   (((x)&0x0080u) >> 7)
+#define DDRC_INT_STATUS_ESR_MC0_ECC_UNCORRECTED_ERR_INTR_GET(x) ((x)&0x0001u)
 
 /*
 ** Diagnostic macros
 */
-#define DDR_DIAG                         (DDR_DIAG_DEBUG_INFO            | \
-                                          DDR_DIAG_MEMSHIRE_ID)
-#define DDR_DIAG_DEBUG_INFO              (0x01 << 0)
-#define DDR_DIAG_MEMSHIRE_ID             (0x01 << 1)
-#define DDR_DIAG_VERIFY_REGISTER_WRITE   (0x01 << 2)
-#define DDR_DIAG_VERIFY_SRAM_WRITE       (0x01 << 3)
+#define DDR_DIAG                       (DDR_DIAG_MEMSHIRE_ID)
+#define DDR_DIAG_DEBUG_INFO            (0x01 << 0)
+#define DDR_DIAG_MEMSHIRE_ID           (0x01 << 1)
+#define DDR_DIAG_VERIFY_REGISTER_WRITE (0x01 << 2)
+#define DDR_DIAG_VERIFY_SRAM_WRITE     (0x01 << 3)
 
 #if (DDR_DIAG & DDR_DIAG_MEMSHIRE_ID)
-#  define CHECK_MEMSHIRE_ID(memshire)    check_memshire_revision_id(memshire)
+#define CHECK_MEMSHIRE_ID(memshire) check_memshire_revision_id(memshire)
 #else
-#  define CHECK_MEMSHIRE_ID(memshire)
+#define CHECK_MEMSHIRE_ID(memshire)
 #endif
+
+/**
+ * @enum ms_status_t
+ * @brief Enum defines for memory status
+ */
+typedef enum
+{
+    WORKING,
+    FAILED,
+    DISABLED,
+    UNINITIALIZED,
+} ms_status_t;
+
+/**
+ * @struct ms_dram_status_t
+ * @brief Structure contains dram status
+ */
+typedef struct
+{
+    uint32_t system_status; // each bit represent an unexpected failure
+    ms_status_t physical_memshire_status[HW_NUMBER_OF_MEMSHIRE];
+} ms_dram_status_t;
 
 /**
  * @enum ddr_frequency_t
  * @brief Frequency enum defines for DDR memory
  */
-typedef enum {
+typedef enum
+{
     DDR_FREQUENCY_800MHZ,
     DDR_FREQUENCY_933MHZ,
     DDR_FREQUENCY_1066MHZ
@@ -94,7 +122,8 @@ typedef enum {
  * @enum ddr_capacity_t
  * @brief Capacity enum defines for DDR memory
  */
-typedef enum {
+typedef enum
+{
     DDR_CAPACITY_4GB,
     DDR_CAPACITY_8GB,
     DDR_CAPACITY_16GB,
@@ -105,12 +134,13 @@ typedef enum {
  * @struct DDR_MODE
  * @brief Structure for passing into DDR driver
  */
-typedef struct {
-    ddr_frequency_t  frequency;
-    ddr_capacity_t   capacity;
-    bool             ecc;
-    bool             training;
-    bool             sim_only;
+typedef struct
+{
+    ddr_frequency_t frequency;
+    ddr_capacity_t capacity;
+    bool ecc;
+    bool training;
+    bool sim_only;
 } DDR_MODE;
 
 /*!
@@ -124,6 +154,21 @@ struct ddr_event_control_block
     uint32_t ce_threshold;          /**< Correctable error threshold. */
     dm_event_isr_callback event_cb; /**< Event callback handler. */
 };
+
+/*! \fn uint64_t ms_read_chip_reg(uint32_t memshire, uint32_t mr_num)
+    \brief This function reads from the memory chip, and returns the register value
+    \param memshire memshire id
+    \param mr_num   register number
+    \return data obtained from the register
+*/
+uint64_t ms_read_chip_reg(uint32_t memshire, uint32_t mr_num);
+
+/*! \fn void ms_get_dram_status(void)
+    \brief This function returns a const pointer to a dram status structure
+    \param none
+    \return const ms_dram_status_t*
+*/
+const ms_dram_status_t *ms_get_dram_status(void);
 
 /*! \fn void check_memshire_revision_id(uint32_t memshire)
     \brief This function prints out ms_memory_revision_id to debug print
@@ -155,6 +200,13 @@ uint64_t ms_read_chip_reg(uint32_t memshire, uint32_t mr_num);
     \return Zero indicating success or non-zero for error
 */
 int ddr_config(const DDR_MODE *ddr_mode);
+
+/*! \fn void ms_printout_status(uint32_t memshire, bool ddrc_enabled) 
+    \brief This function prints the status of the DDR Controller
+    \param memshire memshire id, ddrc_enabled option to disabled DDR controller
+    \return N/A
+*/
+void ms_printout_status(uint32_t memshire, bool ddrc_enabled);
 
 /*! \fn int32_t ddr_error_control_init(dm_event_isr_callback event_cb)
     \brief This function initializes the ddr error control subsystem, including
@@ -263,6 +315,20 @@ uint32_t get_memshire_frequency(void);
 */
 uint32_t get_ddr_frequency(void);
 
+/*! \fn ms_write_phy_ram (..) 
+    \brief Helper to write to DDR Phy RAM
+    \param NA
+    \return NA 
+*/
+void ms_write_phy_ram(uint32_t memshire, const uint64_t addr, const uint32_t value);
+
+/*! \fn mem_disable_unused_clocks (void) 
+    \brief Disables unused clocks in memshire
+    \param NA
+    \return NA 
+*/
+void mem_disable_unused_clocks(void);
+
 /*! \fn void memshire_clear_lock_monitor(uint8_t ms_num)
     \brief This function clears lock monitor of memshire PLL
     \param ms_num Number of memshire
@@ -292,4 +358,3 @@ void print_memshire_pll_lock_monitors(void);
 void clear_memshire_pll_lock_monitors(void);
 
 #endif
-

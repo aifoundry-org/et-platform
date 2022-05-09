@@ -234,7 +234,6 @@ static int flash_fs_scan_regions(uint32_t partition_size,
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_1067MHZ:
                 break;
             default:
-                Log_Write(LOG_LEVEL_WARNING, "flash_fs_scan_regions: ignoring region %u.\n", n);
                 continue;
         }
 
@@ -1045,7 +1044,7 @@ int flash_fs_read(bool active, void *buffer, uint32_t chunk_size, uint32_t offse
         }
     }
 
-    Log_Write(LOG_LEVEL_INFO, "Read from partition address:%x  buffer:%lx  chunk_size:%x!\n",
+    Log_Write(LOG_LEVEL_DEBUG, "Read from partition address:%x  buffer:%lx  chunk_size:%x!\n",
               partition_address, (uint64_t)buffer, chunk_size);
 
     /* Read the data from the partition */

@@ -22,6 +22,21 @@
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/sp_cru.h"
 
+/*! \struct ecid_t
+    \brief This structure holds the Electronic Chip ID
+    \param none
+    \returns Status indicating success or negative error
+*/
+#define ECID_LOT_ID_LENGTH 6
+typedef struct
+{
+    uint64_t lot_id;
+    uint8_t wafer_id;
+    uint8_t x_coordinate;
+    uint8_t y_coordinate;
+    char lot_id_str[ECID_LOT_ID_LENGTH + 1];
+} ecid_t;
+
 /*! \fn uint8_t* OTP_Initialize()
     \brief Interface to initialize OTP
     \param None
@@ -36,7 +51,7 @@ int OTP_Initialize(void);
     \param mask
     \returns data word
 */
-uint32_t OTP_Read_Word (uint32_t bank, uint32_t row, uint32_t mask);
+uint32_t OTP_Read_Word(uint32_t bank, uint32_t row, uint32_t mask);
 
 /*! \fn uint8_t* OTP_Write_Word (uint32_t Bank, uint32_t Row, uint32_t mask, uint32_t data)
     \brief Interface read word from OTP
@@ -46,7 +61,7 @@ uint32_t OTP_Read_Word (uint32_t bank, uint32_t row, uint32_t mask);
     \param data data to be written
     \returns Status indicating success or negative error
 */
-int OTP_Write_Word (uint32_t Bank, uint32_t Row, uint32_t mask, uint32_t data);
+int OTP_Write_Word(uint32_t Bank, uint32_t Row, uint32_t mask, uint32_t data);
 
 /*! \fn int otp_get_chip_revision(char *chip_rev)
     \brief Interface to get the chip revision
@@ -69,5 +84,12 @@ int otp_get_master_shire_id(uint8_t *mm_id);
     \returns Status indicating success or negative error
 */
 int otp_get_shire_speed(uint8_t shire_num, uint8_t *speed);
+
+/*! \fn int read_ecid(void)
+    \brief This function reads ECID OTP memory
+    \param ecid pointer to a ecid_t structure
+    \returns Status indicating success or negative error
+*/
+int read_ecid(ecid_t *ecid);
 
 #endif

@@ -24,12 +24,12 @@
 /*! \def OTP_ENTRY_SIZE_BYTES
     \brief size of single OTP entry
 */
-#define OTP_ENTRY_SIZE_BYTES  4u
+#define OTP_ENTRY_SIZE_BYTES 4u
 
 /*! \def OTP_BANK_SIZE_BYTES
     \brief defining OTP bank sizes
 */
-#define OTP_BANK_SIZE_BYTES   16u
+#define OTP_BANK_SIZE_BYTES 16u
 
 /*! \def OTP_BANK_SIZE_ENTRIES
     \brief macro to calculate total bank size entries
@@ -39,14 +39,13 @@
 /*! \def OTP_CALC_START_BANK_INDEX
     \brief macro to calculate bank start index based on entry index
 */
-#define OTP_CALC_START_BANK_INDEX(entry_index) \
-    ((entry_index) / OTP_BANK_SIZE_ENTRIES)
+#define OTP_CALC_START_BANK_INDEX(entry_index) ((entry_index) / OTP_BANK_SIZE_ENTRIES)
 
 /*! \def OTP_CALC_START_BANK_INDEX
     \brief macro to calculate bank start index based on entry index
 */
 #define OTP_CALC_END_BANK_INDEX(entry_index, entry_count, entry_size) \
-    ((((entry_index) * OTP_ENTRY_SIZE_BYTES) + (entry_count) * (entry_size) - 1) / OTP_BANK_SIZE_BYTES)
+    ((((entry_index)*OTP_ENTRY_SIZE_BYTES) + (entry_count) * (entry_size)-1) / OTP_BANK_SIZE_BYTES)
 
 /*! \def WRCK_TIMEOUT
     \brief macro to define timeout for operation
@@ -68,7 +67,7 @@ static inline bool otp_is_bank_locked(uint32_t bank_index)
     {
         return false;
     }
-    else 
+    else
     {
         return true;
     }
@@ -76,7 +75,7 @@ static inline bool otp_is_bank_locked(uint32_t bank_index)
 
 int OTP_Initialize(void)
 {
-    const volatile uint32_t * sp_otp_data = (uint32_t*)R_SP_EFUSE_BASEADDR;
+    const volatile uint32_t *sp_otp_data = (uint32_t *)R_SP_EFUSE_BASEADDR;
     uint32_t main_wrck;
     uint32_t vault_wrck;
     uint32_t timeout;
@@ -87,10 +86,10 @@ int OTP_Initialize(void)
     main_wrck = CLOCK_MANAGER_CM_CLK_MAIN_WRCK_SEL_MODIFY(main_wrck, 1);
     iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_MAIN_WRCK_ADDRESS, main_wrck);
     timeout = WRCK_TIMEOUT;
-    do 
+    do
     {
         timeout--;
-        if (0 == timeout) 
+        if (0 == timeout)
         {
             main_wrck = CLOCK_MANAGER_CM_CLK_MAIN_WRCK_SEL_MODIFY(main_wrck, 0);
             iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_MAIN_WRCK_ADDRESS, main_wrck);
@@ -98,7 +97,6 @@ int OTP_Initialize(void)
         }
         main_wrck = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_MAIN_WRCK_ADDRESS);
     } while (0 == CLOCK_MANAGER_CM_CLK_MAIN_WRCK_STABLE_GET(main_wrck));
-
 
     /* Use the fast clock (100 MHz) to drive the VaultIP WRCK */
     vault_wrck = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_VAULT_WRCK_ADDRESS);
@@ -118,7 +116,8 @@ int OTP_Initialize(void)
     } while (0 == CLOCK_MANAGER_CM_CLK_VAULT_WRCK_STABLE_GET(vault_wrck));
 
     /* check the bootstrap pins to test if the OTP is available */
-    if (RESET_MANAGER_RM_STATUS2_ERROR_SMS_UDR_GET(ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS)))
+    if (RESET_MANAGER_RM_STATUS2_ERROR_SMS_UDR_GET(
+            ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS)))
     {
         gs_sp_otp_lock_bits[0] = 0xFFFFFFFF;
         gs_sp_otp_lock_bits[1] = 0xFFFFFFFF;
@@ -134,13 +133,13 @@ int OTP_Initialize(void)
         gs_misc_configuration.R = sp_otp_data[SP_OTP_INDEX_MISC_CONFIGURATION];
         gs_is_otp_available = true;
     }
-    
+
     return 0;
 }
 
-uint32_t OTP_Read_Word (uint32_t bank, uint32_t row, uint32_t mask)
+uint32_t OTP_Read_Word(uint32_t bank, uint32_t row, uint32_t mask)
 {
-    const volatile uint32_t * sp_otp_data = (uint32_t*)R_SP_EFUSE_BASEADDR;
+    const volatile uint32_t *sp_otp_data = (uint32_t *)R_SP_EFUSE_BASEADDR;
     uint32_t index = bank + row;
     if (index >= 256)
     {
@@ -149,19 +148,18 @@ uint32_t OTP_Read_Word (uint32_t bank, uint32_t row, uint32_t mask)
 
     if (!gs_is_otp_available)
     {
-        return  0xFFFFFFFF;
+        return 0xFFFFFFFF;
     }
     else
     {
         return (sp_otp_data[index] & mask);
     }
-
 }
 
-int OTP_Write_Word (uint32_t bank, uint32_t row, uint32_t mask, uint32_t value)
+int OTP_Write_Word(uint32_t bank, uint32_t row, uint32_t mask, uint32_t value)
 {
     uint32_t offset = bank + row;
-    volatile uint32_t * sp_otp_data = (uint32_t*)R_SP_EFUSE_BASEADDR;
+    volatile uint32_t *sp_otp_data = (uint32_t *)R_SP_EFUSE_BASEADDR;
     uint32_t bank_index = OTP_CALC_START_BANK_INDEX(offset);
     uint32_t old_value;
     uint32_t new_value;
@@ -181,10 +179,11 @@ int OTP_Write_Word (uint32_t bank, uint32_t row, uint32_t mask, uint32_t value)
     sp_otp_data[offset] = value;
     new_value = sp_otp_data[offset];
 
-    if (SP_OTP_INDEX_LOCK_REG_BITS_31_00_OFFSET == offset) {
+    if (SP_OTP_INDEX_LOCK_REG_BITS_31_00_OFFSET == offset)
+    {
         gs_sp_otp_lock_bits[0] = new_value;
     }
-    else if (SP_OTP_INDEX_LOCK_REG_BITS_63_32_OFFSET == offset) 
+    else if (SP_OTP_INDEX_LOCK_REG_BITS_63_32_OFFSET == offset)
     {
         gs_sp_otp_lock_bits[1] = new_value;
     }
@@ -217,7 +216,7 @@ int otp_get_chip_revision(char *chip_rev)
     OTP_SILICON_REVISION_t silicon_revision;
 
     status = sp_otp_get_silicon_revision(&silicon_revision);
-    if (status != 0) 
+    if (status != 0)
     {
         Log_Write(LOG_LEVEL_ERROR, "sp_otp_get_silicon_revision() failed!\n");
         return status;
@@ -256,7 +255,7 @@ int otp_get_master_shire_id(uint8_t *mm_id)
     OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_t neigh_config;
 
     status = sp_otp_get_neighborhood_status_nh128_nh135_other(&neigh_config);
-    if (status != 0) 
+    if (status != 0)
     {
         Log_Write(LOG_LEVEL_ERROR, "sp_otp_get_neighborhood_status_nh128_nh135_other() failed!\n");
         return status;
@@ -294,4 +293,72 @@ int otp_get_shire_speed(uint8_t shire_num, uint8_t *speed)
     status = sp_otp_get_shire_speed(shire_num, speed);
 
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*      read_ecid 
+*
+*   DESCRIPTION
+*
+*       This function reads the Electronic Chip ID
+*       This information is fused into OTP with 
+*       the following encoding: 
+*        - TSMC Lot ID: 36bit. bits:1152:1187
+*        - Wafer ID: 5bit. bits: 1188:1192 
+*        - X coord: 8bit. bits: 1193:1200 
+*        - Y coord: 8bit. bits: 1201:1208
+*
+*   INPUTS
+*   
+*       None
+* 
+*   OUTPUTS
+*
+*       int          Return status
+*
+***********************************************************************/
+int read_ecid(ecid_t *ecid)
+{
+    const volatile uint32_t *sp_otp_data = (uint32_t *)R_SP_EFUSE_BASEADDR;
+
+    if (ecid == NULL)
+        return -1;
+
+    ecid->lot_id = (((uint64_t)sp_otp_data[37] & 0xf) << 32) | sp_otp_data[36];
+    ecid->wafer_id = (uint8_t)((sp_otp_data[37] >> 8) & 0x1f);
+    ecid->x_coordinate = (uint8_t)((sp_otp_data[37] >> 16) & 0xff);
+    ecid->y_coordinate = (uint8_t)((sp_otp_data[37] >> 24) & 0xff);
+
+    // ECID encoding according to fuse map
+    uint64_t lot_id = ecid->lot_id;
+    char *str = ecid->lot_id_str;
+    int i = ECID_LOT_ID_LENGTH;
+    str[i--] = '\0';
+    while (lot_id > 0 && i >= 0)
+    {
+        str[i] = lot_id & 0x3f;
+        if (str[i] < 10)
+            str[i] = (char)(str[i] + '0');
+        else if (str[i] < 36)
+            str[i] = (char)(str[i] - 10 + 'A');
+        else
+            str[i] = '_';
+        --i;
+        lot_id >>= 6;
+    }
+
+    Log_Write(LOG_LEVEL_INFO, "ECID:\n");
+    Log_Write(LOG_LEVEL_INFO, "  OTP row 36 = 0x%08x\n", sp_otp_data[36]);
+    Log_Write(LOG_LEVEL_INFO, "  OTP row 37 = 0x%08x\n", sp_otp_data[37]);
+    Log_Write(LOG_LEVEL_INFO, "  Lot ID       = %s (0x%016lx)\n", ecid->lot_id_str, ecid->lot_id);
+    Log_Write(LOG_LEVEL_INFO, "  Wafer ID     = 0x%02x (%d)\n", ecid->wafer_id, ecid->wafer_id);
+    Log_Write(LOG_LEVEL_INFO, "  X Coordinate = 0x%02x (%d)\n", ecid->x_coordinate,
+              ecid->x_coordinate);
+    Log_Write(LOG_LEVEL_INFO, "  Y Coordinate = 0x%02x (%d)\n", ecid->y_coordinate,
+              ecid->y_coordinate);
+
+    return 0;
 }

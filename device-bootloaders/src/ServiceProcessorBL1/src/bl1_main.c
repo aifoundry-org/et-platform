@@ -41,14 +41,17 @@ bool is_vaultip_disabled(void)
     static bool initialized = false;
     static bool vaultip_disabled = false;
 
-    if (!initialized) {
-        if (0 != sp_otp_get_vaultip_chicken_bit(&vaultip_disabled)) {
+    if (!initialized)
+    {
+        if (0 != sp_otp_get_vaultip_chicken_bit(&vaultip_disabled))
+        {
             vaultip_disabled = false;
         }
 
         rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
         if (0 != RESET_MANAGER_RM_STATUS2_A0_UNLOCK_GET(rm_status2) &&
-            0 != RESET_MANAGER_RM_STATUS2_SKIP_VAULT_GET(rm_status2)) {
+            0 != RESET_MANAGER_RM_STATUS2_SKIP_VAULT_GET(rm_status2))
+        {
             vaultip_disabled = true;
         }
     }
@@ -95,8 +98,10 @@ typedef int (*BL2_MAIN_PFN)(const SERVICE_PROCESSOR_BL1_DATA_t *data);
 
 static void invoke_sp_bl2(void)
 {
-    union {
-        struct {
+    union
+    {
+        struct
+        {
             uint32_t lo;
             uint32_t hi;
         };
@@ -107,7 +112,8 @@ static void invoke_sp_bl2(void)
                          .secret_info.exec_address_lo;
     bl2_address.hi = g_service_processor_bl1_data.sp_bl2_header.info.image_info_and_signaure.info
                          .secret_info.exec_address_hi;
-    printx("Invoking SP BL2 @ 0x%" PRIx64 "!\r\n", bl2_address.u64);
+    printx("Invoking SP BL2 !\r\n");
+    //printx("Invoking SP BL2 @ 0x%" PRIx64 "!\r\n", bl2_address.u64);
 
     // Evict Dcache and invalidate Icache before jumping to BL2
     evict_dcache();
@@ -116,11 +122,11 @@ static void invoke_sp_bl2(void)
     bl2_address.pFN(&g_service_processor_bl1_data);
 }
 
-static int
-copy_partition_info_data(ESPERANTO_PARTITION_BL1_INFO_t *bl1_partition_info,
-                         const ESPERANTO_PARTITION_ROM_INFO_t *rom_partition_info)
+static int copy_partition_info_data(ESPERANTO_PARTITION_BL1_INFO_t *bl1_partition_info,
+                                    const ESPERANTO_PARTITION_ROM_INFO_t *rom_partition_info)
 {
-    if (NULL == bl1_partition_info || NULL == rom_partition_info) {
+    if (NULL == bl1_partition_info || NULL == rom_partition_info)
+    {
         printx("copy_partition_info_data: invalid arguments!\n");
         return -1;
     }
@@ -157,22 +163,21 @@ copy_partition_info_data(ESPERANTO_PARTITION_BL1_INFO_t *bl1_partition_info,
 }
 
 static int copy_flash_fs_data(FLASH_FS_BL1_INFO_t *flash_fs_bl1_info,
-                        const FLASH_FS_ROM_INFO_t *flash_fs_rom_info)
+                              const FLASH_FS_ROM_INFO_t *flash_fs_rom_info)
 {
-    uint32_t region_index;
-    uint32_t region_address;
-    uint32_t region_size;
-
-    if (NULL == flash_fs_bl1_info || NULL == flash_fs_rom_info) {
+    if (NULL == flash_fs_bl1_info || NULL == flash_fs_rom_info)
+    {
         printx("copy_flash_fs_data: invalid arguments!\n");
         return -1;
     }
 
     memset(flash_fs_bl1_info, 0, sizeof(FLASH_FS_BL1_INFO_t));
 
-    for (uint32_t n = 0; n < 2; n++) {
+    for (uint32_t n = 0; n < 2; n++)
+    {
         if (0 != copy_partition_info_data(&(flash_fs_bl1_info->partition_info[n]),
-                                          &(flash_fs_rom_info->partition_info[n]))) {
+                                          &(flash_fs_rom_info->partition_info[n])))
+        {
             printx("copy_partition_info_data(%u) failed!\n", n);
             return -1;
         }
@@ -183,12 +188,19 @@ static int copy_flash_fs_data(FLASH_FS_BL1_INFO_t *flash_fs_bl1_info,
     flash_fs_bl1_info->active_partition = flash_fs_rom_info->active_partition;
     flash_fs_bl1_info->other_partition_valid = flash_fs_rom_info->other_partition_valid;
 
-    region_index = flash_fs_rom_info->partition_info[flash_fs_rom_info->active_partition].configuration_data_region_index ;
-    region_address = flash_fs_rom_info->partition_info[flash_fs_rom_info->active_partition].regions_table[region_index].region_offset * FLASH_PAGE_SIZE;
-    region_size = flash_fs_rom_info->partition_info[flash_fs_rom_info->active_partition].regions_table[region_index].region_reserved_size * FLASH_PAGE_SIZE;
-    printx("region_index configuration data is 0x%08x \n", region_index);
-    printx("region_address configuration data is 0x%08x \n", region_address);
-    printx("region_size configuration data is 0x%08x \n", region_size);
+    uint32_t region_index;
+    uint32_t region_address;
+    //uint32_t region_size;
+    region_index = flash_fs_rom_info->partition_info[flash_fs_rom_info->active_partition]
+                       .configuration_data_region_index;
+    region_address = flash_fs_rom_info->partition_info[flash_fs_rom_info->active_partition]
+                         .regions_table[region_index]
+                         .region_offset *
+                     FLASH_PAGE_SIZE;
+    //region_size = flash_fs_rom_info->partition_info[flash_fs_rom_info->active_partition].regions_table[region_index].region_reserved_size * FLASH_PAGE_SIZE;
+    //printx("region_index configuration data is 0x%08x \n", region_index);
+    //printx("region_address configuration data is 0x%08x \n", region_address);
+    //printx("region_size configuration data is 0x%08x \n", region_size);
     flash_fs_bl1_info->configuration_region_address = region_address;
     flash_fs_bl1_info->pcie_config_file_info = flash_fs_rom_info->pcie_config_file_info;
     flash_fs_bl1_info->vaultip_firmware_file_info = flash_fs_rom_info->vaultip_firmware_file_info;
@@ -200,10 +212,11 @@ static int copy_flash_fs_data(FLASH_FS_BL1_INFO_t *flash_fs_bl1_info,
 
 static int copy_rom_data(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
 {
-    printx("SP ROM data address: %x\n", rom_data);
+    //printx("SP ROM data address: %x\n", rom_data);
     if (NULL == rom_data ||
         sizeof(SERVICE_PROCESSOR_ROM_DATA_t) != rom_data->service_processor_rom_data_size ||
-        SERVICE_PROCESSOR_ROM_DATA_VERSION != rom_data->service_processor_rom_version) {
+        SERVICE_PROCESSOR_ROM_DATA_VERSION != rom_data->service_processor_rom_version)
+    {
         printx("Invalid ROM DATA!\n");
         return -1;
     }
@@ -231,7 +244,9 @@ static int copy_rom_data(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
            sizeof(rom_data->sp_bl1_header));
 
     // copy the SP flash_fs info
-    if (0 != copy_flash_fs_data(&g_service_processor_bl1_data.flash_fs_bl1_info, &rom_data->flash_fs_rom_info) ) {
+    if (0 != copy_flash_fs_data(&g_service_processor_bl1_data.flash_fs_bl1_info,
+                                &rom_data->flash_fs_rom_info))
+    {
         printx("copy_flash_fs_data() failed!");
         return -1;
     }
@@ -249,7 +264,7 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
     // Control does not return from call below
     TF_Wait_And_Process_TF_Cmds(TF_DEFAULT_ENTRY);
     TF_Wait_And_Process_TF_Cmds(TF_BL1_ENTRY);
-#endif  // TEST_FRAMEWORK
+#endif // TEST_FRAMEWORK
 
     bool disable_vault;
 
@@ -261,9 +276,6 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
     printx("GIT version: %s\n", GIT_VERSION_STRING);
     printx("GIT hash: %s\n", GIT_HASH_STRING);
 
-    volatile uint32_t *rom = (uint32_t *)0x40000000;
-    printx("ROM: %08x %08x %08x %08x\n", rom[0], rom[1], rom[2], rom[3]);
-
 #ifdef MINIMAL_IMAGE
     (void)rom_data;
 #else
@@ -272,44 +284,56 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
         sizeof(g_service_processor_bl1_data);
     g_service_processor_bl1_data.service_processor_bl1_version = SERVICE_PROCESSOR_BL1_DATA_VERSION;
 
-    g_service_processor_bl1_data.service_processor_bl1_image_file_version_minor = image_version_info->file_version_minor;
-    g_service_processor_bl1_data.service_processor_bl1_image_file_version_major =  image_version_info->file_version_major;
-    g_service_processor_bl1_data.service_processor_bl1_image_file_version_revision = image_version_info->file_version_revision;
+    g_service_processor_bl1_data.service_processor_bl1_image_file_version_minor =
+        image_version_info->file_version_minor;
+    g_service_processor_bl1_data.service_processor_bl1_image_file_version_major =
+        image_version_info->file_version_major;
+    g_service_processor_bl1_data.service_processor_bl1_image_file_version_revision =
+        image_version_info->file_version_revision;
 
-    if (0 != copy_rom_data(rom_data)) {
+    if (0 != copy_rom_data(rom_data))
+    {
         printx("copy_rom_data() failed!!\n");
         goto FATAL_ERROR;
     }
 
     timer_init();
 
-    if (0 != sp_otp_init()) {
+    if (0 != sp_otp_init())
+    {
         printx("sp_otp_init() failed!!\n");
         goto FATAL_ERROR;
     }
 
     disable_vault = is_vaultip_disabled();
 
-    if (false == disable_vault) {
+    if (false == disable_vault)
+    {
         MESSAGE_INFO("CE DIS\n");
-    } else {
-        if (0 != crypto_init()) {
+    }
+    else
+    {
+        if (0 != crypto_init())
+        {
             printx("crypto_init() failed!!\n");
             goto FATAL_ERROR;
         }
     }
 
-    if (0 != spi_flash_init(g_service_processor_bl1_data.flash_fs_bl1_info.flash_id)) {
+    if (0 != spi_flash_init(g_service_processor_bl1_data.flash_fs_bl1_info.flash_id))
+    {
         printx("spi_flash_init() failed!!\n");
         goto FATAL_ERROR;
     }
 
-    if (0 != flash_fs_init(&g_service_processor_bl1_data.flash_fs_bl1_info)) {
+    if (0 != flash_fs_init(&g_service_processor_bl1_data.flash_fs_bl1_info))
+    {
         printx("flash_fs_init() failed!!\n");
         goto FATAL_ERROR;
     }
 
-    if (0 != load_bl2_firmware()) {
+    if (0 != load_bl2_firmware())
+    {
         printx("load_bl2_firmware() failed!!\n");
         goto FATAL_ERROR;
     }
@@ -326,6 +350,9 @@ FATAL_ERROR:
 #endif
 
 HALT:
-    while (1) {
+    while (1)
+    {
+        /* Spin is loop if code jumps here
+         Only error cases can jump here */
     }
 }

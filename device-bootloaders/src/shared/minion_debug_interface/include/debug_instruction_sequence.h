@@ -43,7 +43,7 @@
 #define READ_X31    0x2ff3
 #define READ_CSR_SEQ(offset)                                             \
     /* Read DDATA0 Instruction */                                        \
-        READ_DDATA0,                 /* Issue CSR Read Instruction */    \
+    READ_DDATA0,                     /* Issue CSR Read Instruction */    \
         (READ_X31 | (offset << 20)), /* Read DDATA1 Instruction */       \
         READ_DDATA1,                 /* Insert Ebreak to align buffer */ \
         EBREAK_INST
@@ -55,27 +55,23 @@
 #define WRITE_X31    0xf9073
 #define WRITE_CSR_SEQ(offset)                                             \
     /* Write DDATA0 Instruction */                                        \
-        WRITE_DDATA0,                 /* Issue CSR Read Instruction */    \
+    WRITE_DDATA0,                     /* Issue CSR Read Instruction */    \
         (WRITE_X31 | (offset << 20)), /* Write DDATA1 Instruction */      \
         WRITE_DDATA1,                 /* Insert Ebreak to align buffer */ \
         EBREAK_INST
 #define NUM_INST_CSR_WRITE_SEQ 4
 
 /* VPU RF Init Sequence  */
-#define CLR_MATP       0x7c005073 /* csrwi matp,0              */
-#define CLR_SATP       0x18005073 /* csrwi satp,0              */
-#define INIT_T0        0x000062b7 /* lui   t0,0x6              */
-#define UPDATE_MSTATUS 0x3002a073  /* csrs  mstatus,t0          */
-#define CLR_FCSR       0x00305073 /* csrwi fcsr,0              */
+#define CLR_MATP          0x7c005073 /* csrwi matp,0              */
+#define CLR_SATP          0x18005073 /* csrwi satp,0              */
+#define INIT_T0           0x000062b7 /* lui   t0,0x6              */
+#define UPDATE_MSTATUS    0x3002a073 /* csrs  mstatus,t0          */
+#define CLR_FCSR          0x00305073 /* csrwi fcsr,0              */
 #define FMA_3PORT_RF_READ 0x00007043 /* fmadd.s f0, f0, f0, f0 */
+#define WFI_INST          0x10500073 /* wfi */
 
-#define VPU_RF_INIT_SEQ()    \
-         CLR_MATP,           \
-         CLR_SATP,           \
-         INIT_T0,            \
-         UPDATE_MSTATUS,     \
-         CLR_FCSR,           \
-         FMA_3PORT_RF_READ
-#define NUM_INST_VPU_RF_INIT_SEQ 6
+#define VPU_RF_INIT_SEQ() \
+    CLR_MATP, CLR_SATP, INIT_T0, UPDATE_MSTATUS, CLR_FCSR, FMA_3PORT_RF_READ, WFI_INST, EBREAK_INST
+#define NUM_INST_VPU_RF_INIT_SEQ 8
 
 #endif /* DEBUG_INSTRUCTION_SEQUENCE_H */

@@ -108,12 +108,20 @@ static void taskMain(void *pvParameters)
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
+    log_level_t log_level;
+    log_level = Log_Get_Level();
+    Log_Set_Level(log_level);
+
     // Establish connection to PMIC
     // NOSONAR struct module_voltage_t module_voltage ={0};
     setup_pmic();
     // Read all Voltage Rails
     // Bug in PMIC FW preventing access to these registers
     // NOSONAR get_module_voltage(&module_voltage);
+
+    // Read and printout ecid
+    ecid_t ecid;
+    read_ecid(&ecid);
 
 #if FAST_BOOT
     // In cases where BootROM is bypass, initialize PCIe link
@@ -140,7 +148,7 @@ static void taskMain(void *pvParameters)
     Minion_Set_Active_Shire_Mask(minion_shires_mask);
 
     // Initialize Minions
-    Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]Initialize_Minions\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]Initialize Minion Shire\n");
     status = Initialize_Minions(minion_shires_mask);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Minion initialization failed!")
 
@@ -172,15 +180,18 @@ static void taskMain(void *pvParameters)
 
     Log_Write(LOG_LEVEL_CRITICAL, "time: %lu\n", timer_get_ticks_count());
 
-    // Setup NOC
     uint8_t hpdpll_strap_pins;
     hpdpll_strap_pins = get_hpdpll_strap_value();
+
+    // Setup NOC
+    Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]Configure NOC\n");
     status = NOC_Configure(noc_pll_mode[hpdpll_strap_pins]);
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_noc() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_NOC_INITIALIZED);
 
 #if !(FAST_BOOT || TEST_FRAMEWORK)
     // Initialize Flash service
+    Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]Flash FileSystem ..");
     status = flashfs_drv_init();
     ASSERT_FATAL(status == STATUS_SUCCESS, "flashfs_drv_init() failed!")
 #endif
@@ -200,6 +211,7 @@ static void taskMain(void *pvParameters)
 #endif
 
     // Setup MemShire/DDR
+    Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]MemShire Configure\n");
     status = configure_memshire();
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_memshire() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
@@ -208,9 +220,14 @@ static void taskMain(void *pvParameters)
     uint8_t lvdpll_strap_pins;
     lvdpll_strap_pins = get_lvdpll_strap_value();
 
+    Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]Minion Shire PLL Configure \n");
+    Log_Write(LOG_LEVEL_INFO, "HDPLL[Strap: %d] mode: %d LVDPLL[Strap: %d] mode: %d\n",
+              hpdpll_strap_pins, min_step_pll_mode[hpdpll_strap_pins], lvdpll_strap_pins,
+              min_lvdpll_mode[lvdpll_strap_pins]);
+
     status = Minion_Configure_Minion_Shire_PLL(minion_shires_mask,
                                                min_step_pll_mode[hpdpll_strap_pins],
-                                               min_lvdpll_mode[lvdpll_strap_pins], false);
+                                               min_lvdpll_mode[lvdpll_strap_pins], true);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Enable Compute Minion failed!")
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_MINION_INITIALIZED);
@@ -270,11 +287,6 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init watchdog service!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_SP_WATCHDOG_TASK_READY);
 
-    // Initialize  DM event handler task
-    status = dm_event_control_init();
-    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to create dm event handler task!")
-    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_EVENT_HANDLER_READY);
-
 #if !FAST_BOOT
     // At this point, SP and minions have booted successfully. Increment the completed boot counter
     status = flash_fs_increment_completed_boot_count();
@@ -290,9 +302,6 @@ static void taskMain(void *pvParameters)
     /* Populate the device generic attributes */
     DIR_Generic_Attributes_Init();
 
-    // Initialize DM sampling task
-    init_dm_sampling_task();
-
     if (Minion_State_Get_MM_Heartbeat_Count() == 0)
     {
         /* Warn, MM is not ready */
@@ -303,6 +312,11 @@ static void taskMain(void *pvParameters)
         /* Warn, MM heartbeat alive */
         Log_Write(LOG_LEVEL_CRITICAL, "MM heartbeat alive!\r\n");
     }
+
+    // Initialize  DM event handler task
+    status = dm_event_control_init();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to create dm event handler task!")
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_EVENT_HANDLER_READY);
 
     /* Print system operating point */
     print_system_operating_point();
@@ -324,6 +338,10 @@ static void taskMain(void *pvParameters)
 
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
+
+    // Initialize DM sampling task
+    Log_Write(LOG_LEVEL_INFO, "MAIN:[txt] DM Sampling Task Start\n");
+    init_dm_sampling_task();
 
     while (1)
     {
