@@ -42,30 +42,4 @@ typedef struct
     uint64_t size;
 } mem_region;
 
-static const mem_region mdi_debug_access_mem_region[DEBUG_ACCESS_MEM_REGION_COUNT] = {
-    /* MEMORY REGION 1 - DRAM                                 */
-    {
-        HOST_MANAGED_DRAM_START, /* Start  Address   */
-        HOST_MANAGED_DRAM_SIZE   /* Size             */
-    },
-
-    /* MEMORY REGION 2 - CM S MODE TRACE Buffer region         */
-    {
-        CM_SMODE_TRACE_BUFFER_BASE, /* Start  Address   */
-        CM_SMODE_TRACE_BUFFER_SIZE  /* Size             */
-    },
-
-    /* MEMORY REGION 3 - MM S MODE TRACE Buffer region        */
-    {
-        MM_TRACE_BUFFER_BASE, /* Start  Address   */
-        MM_TRACE_BUFFER_SIZE  /* Size             */
-    },
-
-    /* MEMORY REGION 4 - User mode Kernel Stack region        */
-    {
-        KERNEL_UMODE_STACK_BASE, /* Start  Address   */
-        KERNEL_UMODE_STACK_SIZE  /* Size             */
-    },
-};
-
 #endif /* MINION_DEBUG_H */

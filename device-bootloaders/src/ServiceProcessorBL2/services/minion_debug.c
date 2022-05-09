@@ -15,6 +15,32 @@
 
 extern QueueHandle_t q_dm_mdi_bp_notify_handle;
 
+static const mem_region mdi_debug_access_mem_region[DEBUG_ACCESS_MEM_REGION_COUNT] = {
+    /* MEMORY REGION 1 - DRAM                                 */
+    {
+        HOST_MANAGED_DRAM_START, /* Start  Address   */
+        HOST_MANAGED_DRAM_SIZE   /* Size             */
+    },
+
+    /* MEMORY REGION 2 - CM S MODE TRACE Buffer region         */
+    {
+        CM_SMODE_TRACE_BUFFER_BASE, /* Start  Address   */
+        CM_SMODE_TRACE_BUFFER_SIZE  /* Size             */
+    },
+
+    /* MEMORY REGION 3 - MM S MODE TRACE Buffer region        */
+    {
+        MM_TRACE_BUFFER_BASE, /* Start  Address   */
+        MM_TRACE_BUFFER_SIZE  /* Size             */
+    },
+
+    /* MEMORY REGION 4 - User mode Kernel Stack region        */
+    {
+        KERNEL_UMODE_STACK_BASE, /* Start  Address   */
+        KERNEL_UMODE_STACK_SIZE  /* Size             */
+    },
+};
+
 static bool mdi_debug_access_addr_in_valid_range(uint64_t addr)
 {
     int count = 0;
@@ -30,7 +56,7 @@ static bool mdi_debug_access_addr_in_valid_range(uint64_t addr)
         region_end = region_start + mdi_debug_access_mem_region[count].size;
 
         /* Check if address is within the current region */
-        if ((addr >= region_start) && (addr <= region_end))
+        if ((addr >= region_start) && (addr < region_end))
         {
             /* Set flag to show address is in valid range */
             region_found = true;
