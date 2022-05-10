@@ -432,7 +432,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
       DV_LOG(INFO) << "Mem copy ";
       memcpy(wCB->payload, tmp, inputSize);
       DV_LOG(INFO) << "Size: " << inputSize;
-      wCB->info.cmd_hdr.size = (sizeof(*(wCB.get())) - 1) + inputSize;
+      wCB->info.cmd_hdr.size = sizeof(wCB->info) + inputSize;
       DV_LOG(INFO) << "input_buff: " << tmp;
     } break;
     case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES:
@@ -460,7 +460,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
 #endif
     {
       memcpy(wCB->payload, input_buff, inputSize);
-      wCB->info.cmd_hdr.size = (sizeof(*(wCB.get())) - 1) + inputSize;
+      wCB->info.cmd_hdr.size = sizeof(wCB->info) + inputSize;
       break;
     }
     default: {
@@ -468,7 +468,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
         memcpy(wCB->payload, input_buff, inputSize);
       }
 
-      wCB->info.cmd_hdr.size = (inputSize) ? (sizeof(*(wCB.get())) - 1) + inputSize : sizeof(*(wCB.get()));
+      wCB->info.cmd_hdr.size = sizeof(wCB->info) + inputSize;
     } break;
     }
 
