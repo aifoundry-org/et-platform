@@ -203,8 +203,13 @@ public:
                         16,                                 // Total L2 size in MBytes
                         80,                                 // Total L2scp size in MBytes
                         64,                                 // CacheLine alignment in Bytes
+                        4,                                  // number of L2 cache banks
+                        128000,                             // ddr bandwidth
                         1000,                               // Base frequency
-                        static_cast<uint32_t>(0xFFFFFFFF)}; // Compute minion mask
+                        static_cast<uint32_t>(0xFFFFFFFF),  // Compute minion mask
+                        32,                                 // spare minion shire id
+                        0                                   // arch revision (ETSOC)
+                        };
   }
   int getActiveShiresNum(int device) override {
     DeviceConfig config = getDeviceConfig(device);

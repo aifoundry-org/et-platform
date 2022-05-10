@@ -639,14 +639,20 @@ void DeviceSysEmu::freeDmaBuffer(void* dmaBuffer) {
 }
 
 DeviceConfig DeviceSysEmu::getDeviceConfig(int) {
-  return DeviceConfig{DeviceConfig::FormFactor::PCIE,
-                      25,
-                      32,
-                      16,
-                      80,
-                      64,
-                      1000,
-                      static_cast<uint32_t>(spInfo_.generic_attr.minion_shires_mask)};
+  return DeviceConfig{
+    DeviceConfig::FormFactor::PCIE,                                 /* form factor */
+    25,                                                             /* tdp (W) */
+    32,                                                             /* L3 cache (MB) */
+    16,                                                             /* L2 cache (MB) */
+    80,                                                             /* scratchpad (MB) */
+    64,                                                             /* cache line size (bytes) */
+    4,                                                              /* L2 cache banks */
+    128000,                                                         /* DDR BW (MB/s) */
+    1000,                                                           /* Mhz */
+    static_cast<uint32_t>(spInfo_.generic_attr.minion_shires_mask), /* shire mask */
+    32,                                                             /* spare minion shire id */
+    0                                                               /* Arch revision 0 (ETSOC1) */
+  };
 }
 
 int DeviceSysEmu::getActiveShiresNum(int device) {
