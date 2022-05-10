@@ -416,6 +416,7 @@ int update_module_current_temperature(void)
     int status = 0;
     uint8_t temperature;
     struct temperature_threshold_t temperature_threshold;
+    struct trace_event_power_status_t power_status = { 0 };
 
     if (0 != pvt_get_minion_avg_temperature(&temperature))
     {
@@ -429,6 +430,10 @@ int update_module_current_temperature(void)
         if (get_soc_power_reg()->max_temp < temperature)
         {
             get_soc_power_reg()->max_temp = temperature;
+
+            /* Log Power status to SP dev Stats buffer */
+            power_status.current_temp = temperature;
+            Trace_Power_Status(Trace_Get_Dev_Stats_CB(), &power_status);
         }
     }
 
@@ -534,6 +539,7 @@ int update_module_soc_power(void)
     uint8_t soc_pwr;
     int32_t soc_pwr_mW;
     int32_t tdp_level_mW;
+    struct trace_event_power_status_t power_status = { 0 };
 
     if (0 != pmic_read_average_soc_power(&soc_pwr))
     {
@@ -543,6 +549,10 @@ int update_module_soc_power(void)
     else
     {
         get_soc_power_reg()->soc_power = soc_pwr;
+
+        /* Log Power status to SP dev Stats buffer */
+        power_status.current_power = soc_pwr;
+        Trace_Power_Status(Trace_Get_Dev_Stats_CB(), &power_status);
     }
 
     soc_pwr_mW = Power_Convert_Hex_to_mW(soc_pwr);
