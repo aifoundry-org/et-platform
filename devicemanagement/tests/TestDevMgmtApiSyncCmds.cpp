@@ -175,13 +175,24 @@ void TestDevMgmtApiSyncCmds::dumpRawTraceBuffer(int deviceIdx, const std::vector
     fileName += "sp_";
     fileFlags |= std::ios_base::app;
     break;
+  case TraceBufferType::TraceBufferSPStats:
+    traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
+    dataSize = traceHdr->data_size;
+    fileName += "sp_stats_";
+    fileFlags |= std::ios_base::app;
+    break;
   case TraceBufferType::TraceBufferMM:
     traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
     dataSize = traceHdr->data_size;
     fileName += "mm_";
     fileFlags |= std::ios_base::app;
     break;
-
+  case TraceBufferType::TraceBufferMMStats:
+    traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
+    dataSize = traceHdr->data_size;
+    fileName += "mm_stats_";
+    fileFlags |= std::ios_base::app;
+    break;
   case TraceBufferType::TraceBufferCM:
     traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
     dataSize = traceHdr->sub_buffer_count * traceHdr->sub_buffer_size;
@@ -254,8 +265,14 @@ bool TestDevMgmtApiSyncCmds::decodeTraceEvents(int deviceIdx, const std::vector<
   case TraceBufferType::TraceBufferSP:
     logfile << "-> SP Traces" << std::endl;
     break;
+  case TraceBufferType::TraceBufferSPStats:
+    logfile << "-> SP Stats Traces" << std::endl;
+    break;
   case TraceBufferType::TraceBufferMM:
     logfile << "-> MM S-Mode Traces" << std::endl;
+    break;
+  case TraceBufferType::TraceBufferMMStats:
+    logfile << "-> MM Stats Traces" << std::endl;
     break;
   case TraceBufferType::TraceBufferCM:
     logfile << "-> CM S-Mode Traces" << std::endl;
