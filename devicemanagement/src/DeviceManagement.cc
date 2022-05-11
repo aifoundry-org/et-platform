@@ -474,7 +474,8 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
 
     respReceiveFuture = lockable->getRespReceiveFuture(wCB->info.cmd_hdr.tag_id);
     if (!devLayer_->sendCommandServiceProcessor(lockable->idx, reinterpret_cast<std::byte*>(wCB.get()),
-                                                wCB->info.cmd_hdr.size)) {
+                                                wCB->info.cmd_hdr.size,
+                                                cmd_code == device_mgmt_api::DM_CMD::DM_CMD_MM_RESET)) {
       return -EIO;
     }
 
