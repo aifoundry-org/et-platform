@@ -587,7 +587,7 @@ int32_t configure_memshire(void)
         .frequency = DDR_FREQUENCY_933MHZ,
         .capacity = DDR_CAPACITY_16GB,
         .ecc = false,
-#if !FAST_BOOT
+#if !(FAST_BOOT || TEST_FRAMEWORK)
         .training = true,
 #else
         .training = false,
