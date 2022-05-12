@@ -76,6 +76,10 @@ public:
     event_.setKernelId(std::move(kernelId));
   }
 
+  void setDeviceProperties(DeviceProperties props) {
+    event_.setDeviceProperties(std::move(props));
+  }
+
   ~ScopedProfileEvent() {
     event_.setDuration(ProfileEvent::Clock::now() - event_.getTimeStamp());
     profiler_.record(event_);

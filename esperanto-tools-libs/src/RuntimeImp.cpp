@@ -120,8 +120,9 @@ std::vector<DeviceId> RuntimeImp::getDevicesWithoutProfiling() const {
 }
 
 DeviceProperties RuntimeImp::getDeviceProperties(DeviceId device) {
+  ScopedProfileEvent profileEvent(Class::GetDeviceProperties, *profiler_, device);
   auto prop = getDevicePropertiesWithoutProfiling(device);
-  // SW-12468 log device properties to the runtime trace
+  profileEvent.setDeviceProperties(prop);
   return prop;
 }
 
@@ -139,6 +140,7 @@ DeviceProperties RuntimeImp::getDevicePropertiesWithoutProfiling(DeviceId device
   prop.l2scratchpadSize_ = deviceConfig.totalScratchPadSize_;
   prop.cacheLineSize_ = deviceConfig.cacheLineSize_;
   prop.l2CacheBanks_ = deviceConfig.numL2CacheBanks_;
+  prop.computeMinionShireMask_ = deviceConfig.computeMinionShireMask_;
   prop.spareComputeMinionoShireId_ = deviceConfig.spareComputeMinionoShireId_;
   prop.deviceArch_ = deviceConfig.archRevision_;
 

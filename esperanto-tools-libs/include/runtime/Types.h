@@ -189,16 +189,16 @@ struct LoadCodeResult {
 struct DeviceProperties {
   uint32_t frequency_;       ///< device frequency in Mhz
   uint32_t availableShires_; ///< device shire count
-  uint32_t memoryBandwidth_; ///< device memory bandwidth in GBytes/second (SW-12498)
+  uint32_t memoryBandwidth_; ///< device memory bandwidth in MBytes/second
   uint64_t memorySize_;      ///< device memory size in bytes
   uint16_t l3Size_;          ///< device L3 size in bytes
   uint16_t l2shireSize_;     ///< device L2 shire size in bytes 
   uint16_t l2scratchpadSize_;///< device L2 scratchpad size in bytes
   uint16_t cacheLineSize_;   ///< device caceh line size in bytes
-  uint16_t l2CacheBanks_;    ///< number of banks in the L2 (SW-12498)
+  uint16_t l2CacheBanks_;    ///< number of banks in the L2
   uint32_t computeMinionShireMask_;       ///< mask which indicates what are the compute minion shires
   uint16_t spareComputeMinionoShireId_; ///< spare compute minion Shire ID
-  uint16_t deviceArch_;      ///< device architecture revision (SW-12498)
+  uint16_t deviceArch_;      ///< device architecture revision
 };
 
 // NOTE: this is copied directly from device firmware "encoder.h"; we need to find a proper solution. So this will be in

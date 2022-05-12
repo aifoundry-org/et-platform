@@ -76,6 +76,16 @@ TEST_F(ProfilerTests, getDevices) {
   runtime_->getDevices();
 }
 
+MATCHER(AGetDevicePropertiesEvent, "") {
+  return arg.getClass() == profiling::Class::GetDeviceProperties;
+}
+
+// getDeviceProperties generates 1 (complete) event
+TEST_F(ProfilerTests, getDeviceProperties) {
+  EXPECT_CALL(*profilerMock_, record(AGetDevicePropertiesEvent())).Times(1);
+  runtime_->getDeviceProperties(rt::DeviceId(0));
+}
+
 MATCHER(AMallocDevice, "") {
   return arg.getClass() == profiling::Class::MallocDevice;
 }

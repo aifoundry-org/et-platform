@@ -63,6 +63,7 @@ enum class Class {
   CommandSent,
   ResponseReceived,
   DispatchEvent,
+  GetDeviceProperties,
 
   COUNT
 };
@@ -82,7 +83,7 @@ public:
   using Clock = std::chrono::steady_clock;
   using TimePoint = std::chrono::time_point<Clock>;
   using Duration = TimePoint::duration;
-  using ExtraValues = std::variant<uint64_t, EventId, StreamId, DeviceId, KernelId, ResponseType, Duration>;
+  using ExtraValues = std::variant<uint64_t, EventId, StreamId, DeviceId, KernelId, ResponseType, Duration, DeviceProperties>;
   using ExtraMetadata = std::unordered_map<std::string, ExtraValues>;
 
   ProfileEvent() = default;
@@ -106,6 +107,7 @@ public:
   std::optional<Cycles> getDeviceCmdStartTs() const;
   std::optional<Cycles> getDeviceCmdWaitDur() const;
   std::optional<Cycles> getDeviceCmdExecDur() const;
+  std::optional<DeviceProperties> getDeviceProperties() const;
 
   void setType(Type t);
   void setClass(Class c);
@@ -124,6 +126,7 @@ public:
   void setDeviceCmdStartTs(uint64_t start_ts);
   void setDeviceCmdWaitDur(uint64_t wait_dur);
   void setDeviceCmdExecDur(uint64_t exec_dur);
+  void setDeviceProperties(DeviceProperties props);
 
   template <class Archive> friend void load(Archive& ar, ProfileEvent& evt);
 
@@ -191,6 +194,25 @@ template <class Archive> void save(Archive& ar, const ProfileEvent& evt) {
 }
 
 } // end namespace rt::profiling
+
+namespace cereal {
+
+template <typename Archive> void serialize(Archive& ar, rt::DeviceProperties& props) {
+  ar(cereal::make_nvp("frequency", props.frequency_));
+  ar(cereal::make_nvp("available_shires", props.availableShires_));
+  ar(cereal::make_nvp("memory_bw", props.memoryBandwidth_));
+  ar(cereal::make_nvp("memory_size", props.memorySize_));
+  ar(cereal::make_nvp("l3_size", props.l3Size_));
+  ar(cereal::make_nvp("l2_shire_size", props.l2shireSize_));
+  ar(cereal::make_nvp("l2_scp_size", props.l2scratchpadSize_));
+  ar(cereal::make_nvp("cache_line_size", props.cacheLineSize_));
+  ar(cereal::make_nvp("l2_cache_banks", props.l2CacheBanks_));
+  ar(cereal::make_nvp("compute_minion_shire_mask", props.computeMinionShireMask_));
+  ar(cereal::make_nvp("spare_compute_minion_shire_id", props.spareComputeMinionoShireId_));
+  ar(cereal::make_nvp("device_arch_rev", props.deviceArch_));
+}
+
+} // end namespace cereal
 
 /// @}
 // End of runtime_profile_event_api

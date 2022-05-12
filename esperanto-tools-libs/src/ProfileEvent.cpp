@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #include "runtime/IProfileEvent.h"
+#include "Utils.h"
 
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/portable_binary.hpp>
@@ -22,46 +23,36 @@
 #include <thread>
 
 namespace rt::profiling {
+
+#define STR_PROFILING_CLASS(CLASS)                                                                                     \
+  case rt::profiling::Class::CLASS: {                                                                                  \
+    return #CLASS;                                                                                                     \
+  }
+   
 std::string getString(Class cls) {
-  using event = rt::profiling::Class;
   switch (cls) {
-  case event::GetDevices:
-    return "GetDevices";
-  case event::LoadCode:
-    return "LoadCode";
-  case event::UnloadCode:
-    return "UnloadCode";
-  case event::MallocDevice:
-    return "MallocDevice";
-  case event::FreeDevice:
-    return "FreeDevice";
-  case event::CreateStream:
-    return "CreateStream";
-  case event::DestroyStream:
-    return "DestroyStream";
-  case event::KernelLaunch:
-    return "KernelLaunch";
-  case event::MemcpyHostToDevice:
-    return "MemcpyHostToDevice";
-  case event::MemcpyDeviceToHost:
-    return "MemcpyDeviceToHost";
-  case event::WaitForEvent:
-    return "WaitForEvent";
-  case event::WaitForStream:
-    return "WaitForStream";
-  case event::DeviceCommand:
-    return "DeviceCommand";
-  case event::Pmc:
-    return "Pmc";
-  case event::CommandSent:
-    return "CommandSent";
-  case event::ResponseReceived:
-    return "ResponseReceived";
-  case event::DispatchEvent:
-    return "DispatchEvent";
+    STR_PROFILING_CLASS(GetDevices)
+    STR_PROFILING_CLASS(LoadCode)
+    STR_PROFILING_CLASS(UnloadCode)
+    STR_PROFILING_CLASS(MallocDevice)
+    STR_PROFILING_CLASS(FreeDevice)
+    STR_PROFILING_CLASS(CreateStream)
+    STR_PROFILING_CLASS(DestroyStream)
+    STR_PROFILING_CLASS(KernelLaunch)
+    STR_PROFILING_CLASS(MemcpyHostToDevice)
+    STR_PROFILING_CLASS(MemcpyDeviceToHost)
+    STR_PROFILING_CLASS(WaitForEvent)
+    STR_PROFILING_CLASS(WaitForStream)
+    STR_PROFILING_CLASS(DeviceCommand)
+    STR_PROFILING_CLASS(Pmc)
+    STR_PROFILING_CLASS(CommandSent)
+    STR_PROFILING_CLASS(ResponseReceived)
+    STR_PROFILING_CLASS(DispatchEvent)
+    STR_PROFILING_CLASS(GetDeviceProperties)
+  
   default:
-    assert(false);
-    return "Unknown class";
+    RT_LOG(WARNING) << "No stringized unknown profiling::Class. Consider adding it to " __FILE__;
+    return "Unknown class: " + std::to_string(static_cast<int>(cls));
   }
 }
 
@@ -76,8 +67,8 @@ std::string getString(Type type) {
   case Type::Instant:
     return "Instant";
   default:
-    assert(false);
-    return "Unknown type";
+    RT_LOG(WARNING) << "No stringized unknown profiling::Type. Consider adding it to " __FILE__;
+    return "Unknown type: " + std::to_string(static_cast<int>(type));
   }
 }
 
@@ -90,8 +81,8 @@ std::string getString(ResponseType rspType) {
   case ResponseType::Kernel:
     return "Kernel";
   default:
-    assert(false);
-    return "Unknown type";
+    RT_LOG(WARNING) << "No stringized unknown ResponseType. Consider adding it to " __FILE__;
+    return "Unknown response type: " + std::to_string(static_cast<int>(rspType));
   }
 }
 
@@ -116,6 +107,7 @@ Class class_from_string(const std::string& str) {
     s_map[getString(Class::CommandSent)] = Class::CommandSent;
     s_map[getString(Class::ResponseReceived)] = Class::ResponseReceived;
     s_map[getString(Class::DispatchEvent)] = Class::DispatchEvent;
+    s_map[getString(Class::GetDeviceProperties)] = Class::GetDeviceProperties;
 
     assert(s_map.size() == static_cast<int>(Class::COUNT));
   });
@@ -211,6 +203,9 @@ std::optional<uint64_t> ProfileEvent::getDeviceCmdWaitDur() const {
 std::optional<uint64_t> ProfileEvent::getDeviceCmdExecDur() const {
   return getExtra<uint64_t>("device_cmd_exec_dur");
 }
+std::optional<DeviceProperties> ProfileEvent::getDeviceProperties() const {
+  return getExtra<DeviceProperties>("device_properties");
+}
 
 void ProfileEvent::setType(Type t) {
   type_ = t;
@@ -272,6 +267,10 @@ void ProfileEvent::setDeviceCmdWaitDur(uint64_t wait_dur) {
 
 void ProfileEvent::setDeviceCmdExecDur(uint64_t exec_dur) {
   addExtra("device_cmd_exec_dur", exec_dur);
+}
+
+void ProfileEvent::setDeviceProperties(DeviceProperties props) {
+  addExtra("device_properties", props);
 }
 
 template <typename... Args> void ProfileEvent::addExtra(std::string name, Args&&... args) {
