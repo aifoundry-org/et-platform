@@ -84,7 +84,7 @@ static cw_cb_t CW_CB __attribute__((aligned(64))) = { 0 };
         /* Reset state of globals */                                   \
         atomic_and_global_64(CM_BOOT_MASK_PTR, (~shire_mask));         \
         atomic_and_local_64(&CW_CB.booted_shires_mask, (~shire_mask)); \
-        atomic_and_local_64(&CW_CB.shire_state, (~shire_mask));        \
+        atomic_and_local_64(&CW_CB.shire_state, CW_SHIRE_STATE_FREE);  \
         atomic_store_local_32(&CW_CB.timeout_flag, 0);                 \
     }
 

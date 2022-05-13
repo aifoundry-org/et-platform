@@ -39,10 +39,15 @@
 
 /* Timeouts */
 
-/*! \def KERNEL_ABORT_WAIT_TIMEOUT
-    \brief Timeout value for waiting for kernel abort to be issued from MM.
+/*! \def KERNEL_LAUNCH_WAIT_TIMEOUT
+    \brief Timeout value for waiting for kernel launch flag to be set.
 */
-#define KERNEL_ABORT_WAIT_TIMEOUT 10
+#define KERNEL_LAUNCH_WAIT_TIMEOUT 10
+
+/*! \def KERNEL_CM_ABORT_WAIT_TIMEOUT
+    \brief Timeout value for waiting for kernel abort response from CMs.
+*/
+#define KERNEL_CM_ABORT_WAIT_TIMEOUT 5
 
 /*! \enum kernel_state_e
     \brief Enum that provides the state of a kernel

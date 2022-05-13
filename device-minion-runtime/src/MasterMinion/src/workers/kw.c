@@ -103,6 +103,20 @@
         }                                                                                      \
     }
 
+#define KW_REGISTER_CM_ABORT_TIMER(kw_abort_timer, kw_idx, status)                                    \
+    if (status == STATUS_SUCCESS)                                                                     \
+    {                                                                                                 \
+        /* Create timeout to wait for kernel complete msg from CMs after KW abort */                  \
+        kw_abort_timer = SW_Timer_Create_Timeout(                                                     \
+            &kw_cm_abort_wait_timeout_callback, (uint8_t)kw_idx, KERNEL_CM_ABORT_WAIT_TIMEOUT);       \
+                                                                                                      \
+        if (kw_abort_timer < 0)                                                                       \
+        {                                                                                             \
+            Log_Write(LOG_LEVEL_WARNING,                                                              \
+                "KW:Unable to register KW CM abort timeout! It may not recover in case of hang\r\n"); \
+        }                                                                                             \
+    }
+
 /*! \typedef kernel_instance_t
     \brief Kernel Instance Control Block structure.
     Kernel instance maintains information related to
@@ -110,14 +124,14 @@
     launch command.
 */
 typedef struct kernel_instance_ {
-    uint32_t kernel_state;
-    tag_id_t launch_tag_id;
-    uint8_t sqw_idx;
-    uint8_t pad;
     exec_cycles_t kw_cycles;
     uint64_t kernel_shire_mask;
     uint64_t umode_exception_buffer_ptr;
     uint64_t umode_trace_buffer_ptr;
+    uint32_t kernel_state;
+    tag_id_t launch_tag_id;
+    uint8_t sqw_idx;
+    uint8_t cm_abort_wait_timeout_flag;
 } kernel_instance_t;
 
 /*! \typedef kw_cb_t
@@ -129,7 +143,7 @@ typedef struct kw_cb_ {
     fcc_sync_cb_t host2kw[MM_MAX_PARALLEL_KERNELS];
     spinlock_t resource_lock;
     kernel_instance_t kernels[MM_MAX_PARALLEL_KERNELS];
-    uint32_t abort_wait_timeout_flag[SQW_NUM];
+    uint32_t launch_wait_timeout_flag[SQW_NUM];
 } kw_cb_t;
 
 /*! \struct kw_internal_status
@@ -169,11 +183,40 @@ static inline bool kw_check_address_bounds(uint64_t dev_address, bool is_optiona
 *
 *   FUNCTION
 *
-*       kernel_abort_wait_timeout_callback
+*       kw_cm_abort_wait_timeout_callback
 *
 *   DESCRIPTION
 *
 *       Callback for kernel abort wait timeout
+*
+*   INPUTS
+*
+*       kw_idx    Kernel worker index
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void kw_cm_abort_wait_timeout_callback(uint8_t kw_idx)
+{
+    /* Set the flag to indicate timeout */
+    atomic_store_local_8(&KW_CB.kernels[kw_idx].cm_abort_wait_timeout_flag, 1);
+
+    /* Trigger IPI to KW */
+    syscall(SYSCALL_IPI_TRIGGER_INT, 1ULL << ((KW_BASE_HART_ID + (kw_idx * HARTS_PER_MINION)) % 64),
+        MASTER_SHIRE, 0);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       kw_launch_wait_timeout_callback
+*
+*   DESCRIPTION
+*
+*       Callback for kernel launch wait timeout
 *
 *   INPUTS
 *
@@ -184,10 +227,10 @@ static inline bool kw_check_address_bounds(uint64_t dev_address, bool is_optiona
 *       None
 *
 ***********************************************************************/
-static void kernel_abort_wait_timeout_callback(uint8_t sqw_idx)
+static void kw_launch_wait_timeout_callback(uint8_t sqw_idx)
 {
     /* Set the kernel abort wait timeout flag */
-    atomic_store_local_32(&KW_CB.abort_wait_timeout_flag[sqw_idx], 1U);
+    atomic_store_local_32(&KW_CB.launch_wait_timeout_flag[sqw_idx], 1U);
 }
 
 /************************************************************************
@@ -220,7 +263,7 @@ static int32_t kw_wait_for_kernel_launch_flag(uint8_t sqw_idx, uint8_t slot_inde
 
     /* Create timeout to wait for kernel launch completion flag from CM */
     sw_timer_idx = SW_Timer_Create_Timeout(
-        &kernel_abort_wait_timeout_callback, sqw_idx, KERNEL_ABORT_WAIT_TIMEOUT);
+        &kw_launch_wait_timeout_callback, sqw_idx, KERNEL_LAUNCH_WAIT_TIMEOUT);
 
     if (sw_timer_idx < 0)
     {
@@ -236,8 +279,8 @@ static int32_t kw_wait_for_kernel_launch_flag(uint8_t sqw_idx, uint8_t slot_inde
             kernel_launched.flag = atomic_load_global_32(&CM_KERNEL_LAUNCHED_FLAG[slot_index].flag);
 
             /* Read the timeout flag */
-            timeout_flag =
-                atomic_compare_and_exchange_local_32(&KW_CB.abort_wait_timeout_flag[sqw_idx], 1, 0);
+            timeout_flag = atomic_compare_and_exchange_local_32(
+                &KW_CB.launch_wait_timeout_flag[sqw_idx], 1, 0);
 
         } while ((kernel_launched.flag == 0) && (timeout_flag == 0));
 
@@ -1182,6 +1225,11 @@ static inline uint32_t kw_get_kernel_launch_completion_status(
         {
             status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_CM_IFACE_MULTICAST_FAILED;
         }
+        else if (status_internal->status == KW_ERROR_CM_ABORT_TIMEOUT)
+        {
+            /* TODO: Add specific error code for CM abort completion timeout */
+            status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_CM_IFACE_MULTICAST_FAILED;
+        }
         else
         {
             /* It should never come here. */
@@ -1233,9 +1281,10 @@ static inline uint32_t kw_get_kernel_launch_completion_status(
 void KW_Launch(uint32_t kw_idx)
 {
     bool wait_for_ipi = true;
-    bool timeout_abort_serviced;
-    int32_t status;
+    bool kw_abort_serviced;
     uint8_t local_sqw_idx;
+    int32_t status;
+    int32_t kw_abort_timer;
     uint32_t kernel_state;
     uint64_t kernel_shire_mask;
     struct kw_internal_status status_internal;
@@ -1263,10 +1312,12 @@ void KW_Launch(uint32_t kw_idx)
         status_internal.kernel_done = false;
         status_internal.cw_exception = false;
         status_internal.cw_error = false;
-        timeout_abort_serviced = false;
+        kw_abort_serviced = false;
         status_internal.status = STATUS_SUCCESS;
         status_internal.cm_error_shire_mask = 0;
         wait_for_ipi = true;
+        kw_abort_timer = -1;
+        atomic_store_local_8(&kernel->cm_abort_wait_timeout_flag, 0);
 
         /* Read the shire mask for the current kernel */
         kernel_shire_mask = atomic_load_local_64(&kernel->kernel_shire_mask);
@@ -1278,24 +1329,38 @@ void KW_Launch(uint32_t kw_idx)
             /* Wait and clear IPI */
             KW_WAIT_AND_CLEAR_SW_INTERRUPT(wait_for_ipi)
 
+            /* Get the kernel state */
+            kernel_state = atomic_load_local_32(&kernel->kernel_state);
+
             /* Check the kernel_state is set to abort after timeout */
-            if ((!timeout_abort_serviced) &&
-                (atomic_load_local_32(&kernel->kernel_state) == KERNEL_STATE_ABORTING))
+            if ((!kw_abort_serviced) && (kernel_state == KERNEL_STATE_ABORTING))
             {
-                timeout_abort_serviced = true;
+                kw_abort_serviced = true;
                 Log_Write(LOG_LEVEL_ERROR, "KW[%d]:Aborting kernel...\r\n", kw_idx);
 
                 /* Make sure that the kernel is launched on the CMs */
                 kw_wait_for_kernel_launch_flag(kernel->sqw_idx, (uint8_t)kw_idx);
 
                 /* Multicast abort to shires associated with current kernel slot
-                This abort should forcefully abort all the shires involved in
-                kernel launch and if it times out as well, do a reset of the shires. */
+                This abort should forcefully abort all the shires involved in kernel launch */
                 status_internal.status = kw_cm_to_mm_kernel_force_abort(kernel_shire_mask);
+
+                /* Check and register a timer for completion message from CMs after abort */
+                KW_REGISTER_CM_ABORT_TIMER(kw_abort_timer, kw_idx, status_internal.status)
 
                 /* Since we did a multicast to CMs in above call, being pessimistic here
                 and disabling the wait for IPI to make sure we don't miss any pending message. */
                 wait_for_ipi = false;
+            }
+            else if ((kernel_state == KERNEL_STATE_ABORTING) &&
+                     (atomic_load_local_8(&kernel->cm_abort_wait_timeout_flag) == 1))
+            {
+                /* Set the status to indicate that timeout occured while waiting for abort completion message from CMs. */
+                status_internal.status = KW_ERROR_CM_ABORT_TIMEOUT;
+
+                Log_Write(LOG_LEVEL_ERROR,
+                    "KW[%d]:Timeout occured waiting for kernel complete message after CM abort\r\n",
+                    kw_idx);
             }
             else
             {
@@ -1305,6 +1370,13 @@ void KW_Launch(uint32_t kw_idx)
                 /* Enable wait for IPI */
                 wait_for_ipi = true;
             }
+        }
+
+        /* Check if CM abort timer was registered */
+        if (kw_abort_timer >= 0)
+        {
+            /* Free the registered SW Timeout slot */
+            SW_Timer_Cancel_Timeout((uint8_t)kw_abort_timer);
         }
 
         /* Kernel run complete with host abort, exception or success.

@@ -214,6 +214,11 @@ RESERVED
 */
 #define KW_ERROR_SP_IFACE_RESET_FAILED -1013
 
+/*! \def KW_ERROR_CM_ABORT_TIMEOUT
+    \brief Kernel Worker - CM abort timeout occurred
+*/
+#define KW_ERROR_CM_ABORT_TIMEOUT -1014
+
 /*************************************
  * Define Compute Worker error codes.    *
  *************************************/
