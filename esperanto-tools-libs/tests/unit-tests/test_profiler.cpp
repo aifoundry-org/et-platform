@@ -227,7 +227,7 @@ MATCHER(AUnloadCode, "") {
   return arg.getClass() == profiling::Class::UnloadCode;
 }
 
-TEST_F(ProfilerTests, unloadCode) {
+TEST_F(ProfilerTests, DISABLED_unloadCode) {
   auto devId = DeviceId(0);
   auto stream = runtime_->createStream(devId);
   auto kernelContent = readFile(std::string{KERNELS_DIR} + "/" + "empty.elf");
@@ -252,7 +252,7 @@ MATCHER(AKernelLaunch, "") {
   return arg.getClass() == profiling::Class::KernelLaunch;
 }
 
-TEST_F(ProfilerTests, kernelLaunch) {
+TEST_F(ProfilerTests, DISABLED_kernelLaunch) {
   auto devId = DeviceId(0);
   auto stream = runtime_->createStream(devId);
   auto kernelContent = readFile(std::string{KERNELS_DIR} + "/" + "empty.elf");

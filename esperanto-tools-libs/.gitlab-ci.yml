@@ -48,7 +48,7 @@ unit_tests:conan:sysemu:
       conan install .. -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE} -o runtime:with_tests=True -o esperanto-flash-tool:header_only=True --build missing
       cmake --configure .. -DCMAKE_TOOLCHAIN_FILE=conan/conan_toolchain.cmake -G Ninja
       cmake --build .
-      ctest -T Test -L 'Generic' -R 'runtime:ut_' -E 'runtime:ut_RuntimeBenchmark' --no-compress-output --parallel 4
+      ctest -T Test -L 'Generic' -R 'runtime:ut_' -E 'runtime:ut_RuntimeBenchmark' --no-compress-output --output-on-failure --parallel 4
 
 ###############################################################################
 ###############################################################################
@@ -119,7 +119,7 @@ tests:conan:sysemu:
       conan install .. -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE} -o runtime:with_tests=True -o esperanto-flash-tool:header_only=True --build missing
       cmake --configure .. -DCMAKE_TOOLCHAIN_FILE=conan/conan_toolchain.cmake -G Ninja
       cmake --build .
-      ctest -T Test -L 'Generic' -E 'runtime:ut_RuntimeBenchmark' -E 'runtime:it_DeviceErrors.KernelLaunchInvalidMask' --no-compress-output --parallel 4
+      ctest -T Test -L 'Generic' -E 'runtime:ut_RuntimeBenchmark' -E 'runtime:it_DeviceErrors.KernelLaunchInvalidMask' --no-compress-output --output-on-failure --parallel 4
 
 
 # NIGHTLY 
@@ -151,7 +151,7 @@ nightly_torture_tests:conan:sysemu:
       conan install .. -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE} -o runtime:with_tests=True -o esperanto-flash-tool:header_only=True --build missing
       cmake --configure .. -DCMAKE_TOOLCHAIN_FILE=conan/conan_toolchain.cmake -G Ninja
       cmake --build .
-      ctest -T Test -L 'Generic' --repeat until-fail:10 --no-compress-output --parallel 8
+      ctest -T Test -L 'Generic' --repeat until-fail:10 --no-compress-output --output-on-failure --parallel 8
 
 # integration tests could go here
 
