@@ -55,6 +55,8 @@ echo "Device Index = "$device_index
 for ((i=0; i < $NUM_SHIRES; i++))
 do
     let "curr_bit = $((1 << $i))"
+    let "shire_curr_bit = curr_bit"
+    #echo $shire_curr_bit
     #printf '%x\n' $shire_mask
     #printf '%x\n' $curr_bit
     if [[ $(($shire_mask & $curr_bit)) -ne 0 ]]; then
@@ -63,6 +65,8 @@ do
         for ((j=0; j < $NUM_THREADS; j++))
         do
             let "curr_bit = $((1 << $j))"
+            let "thread_curr_bit = curr_bit"
+            #echo $thread_curr_bit
             #printf '%x\n' $thread_mask
             #printf '%x\n' $curr_bit
             if [[ $(($thread_mask & $curr_bit)) -ne 0 ]]; then
@@ -74,7 +78,7 @@ do
                 echo "Thread index = " $thread_index
 
                 # Launch Debug Server
-                ./debug-server -s $shire_index -m $thread_mask -n $device_index &
+                ./debug-server -s $shire_index -m $thread_curr_bit -n $device_index &
 
                 # Start client with context_dump.gdb script
                 #sleep 1
