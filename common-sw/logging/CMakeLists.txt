@@ -31,6 +31,7 @@ target_include_directories(logging
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>     
 )
+target_compile_features(logging PRIVATE cxx_std_17)
 target_link_libraries(logging PUBLIC g3log::g3log)
 
 set_target_properties(logging PROPERTIES

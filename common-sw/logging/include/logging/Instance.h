@@ -7,14 +7,26 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
+#pragma once
+
 #include <memory>
 namespace logging {
+
 class Logger;
+
 class Instance {
 public:
+  /// Public logging levels
+  enum class LEVEL { FATAL = 0, WARNING, INFO, DEBUG };
+
   Instance();
   ~Instance();
+
+  /// enables/disables logging level 'lvl'
+  void setEnable(LEVEL lvl, bool enable);
+
 private:
   std::unique_ptr<Logger> logger_; 
 };
-}
+
+} // end namespace logging

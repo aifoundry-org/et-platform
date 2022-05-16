@@ -16,10 +16,12 @@
 #include <stdlib.h>
 
 namespace logging {
+
 const LEVELS 
     VLOG_HIGH{g3::kDebugValue-100, {"VERBOSE_HIGH"}},
     VLOG_MID{g3::kDebugValue-99, {"VERBOSE_MID"}},
     VLOG_LOW{g3::kDebugValue-98, {"VERBOSE_LOW"}};
+
 class Logger {
 public:
 
@@ -65,4 +67,5 @@ public:
     }
   }
 };
-}
+
+} // end namespace logging
