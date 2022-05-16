@@ -57,6 +57,13 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
 
         /* Sends exception message to MM */
         send_exception_message(scause, sepc, stval, sstatus, hart_id, shire_id, user_mode);
+
+        /* Should only return from kernel if the kernel was launched on this hart.
+           This is only required if S-Mode exception occurred while handling the U-Mode exception */
+        if (kernel_info_has_thread_launched(shire_id, hart_id & (HARTS_PER_SHIRE - 1)))
+        {
+            return_from_kernel(0, KERNEL_RETURN_EXCEPTION);
+        }
     }
     else /* U-mode exception */
     {
