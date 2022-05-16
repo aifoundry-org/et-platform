@@ -10,6 +10,7 @@
 #include <linux/workqueue.h>
 
 #include "et_ioctl.h"
+#include "et_sysfs_stats.h"
 #include "et_vqueue.h"
 
 // clang-format off
@@ -70,6 +71,7 @@ struct et_ops_dev {
 	struct et_vq_common vq_common;
 	struct rb_root dma_rbtree;
 	struct mutex dma_rbtree_mutex;	/* serializes access to dma_rbtree */
+	atomic64_t mem_stats[ET_MEM_STATS_MAX_ATTRIBUTES];
 };
 
 struct et_mgmt_dev {
@@ -83,6 +85,7 @@ struct et_mgmt_dev {
 	struct et_squeue **sq_pptr;
 	struct et_cqueue **cq_pptr;
 	struct et_vq_common vq_common;
+	atomic64_t err_stats[ET_ERR_STATS_MAX_ATTRIBUTES];
 };
 
 struct et_pci_dev {

@@ -36,6 +36,7 @@
 #include "et_ioctl.h"
 #include "et_pci_dev.h"
 #include "et_reset.h"
+#include "et_sysfs_stats.h"
 #include "et_vma.h"
 #include "et_vqueue.h"
 
@@ -393,6 +394,7 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 static void esperanto_pcie_vm_open(struct vm_area_struct *vma)
 {
 	struct et_dma_mapping *map = vma->vm_private_data;
+	struct et_pci_dev *et_dev;
 
 	if (!map)
 		return;
@@ -405,11 +407,18 @@ static void esperanto_pcie_vm_open(struct vm_area_struct *vma)
 		vma->vm_end);
 
 	map->ref_count++;
+	if (map->ref_count == 1) {
+		et_dev = pci_get_drvdata(map->pdev);
+		atomic64_add(
+			map->size,
+			&et_dev->ops.mem_stats[ET_MEM_STATS_CMA_ALLOCATED]);
+	}
 }
 
 static void esperanto_pcie_vm_close(struct vm_area_struct *vma)
 {
 	struct et_dma_mapping *map = vma->vm_private_data;
+	struct et_pci_dev *et_dev;
 
 	if (!map)
 		return;
@@ -422,6 +431,12 @@ static void esperanto_pcie_vm_close(struct vm_area_struct *vma)
 		vma->vm_end);
 
 	map->ref_count--;
+	if (map->ref_count == 0) {
+		et_dev = pci_get_drvdata(map->pdev);
+		atomic64_sub(
+			map->size,
+			&et_dev->ops.mem_stats[ET_MEM_STATS_CMA_ALLOCATED]);
+	}
 	if (map->ref_count == 0) {
 		dma_free_coherent(&map->pdev->dev,
 				  map->size,
@@ -1556,6 +1571,10 @@ et_mgmt_dev_init(struct et_pci_dev *et_dev, bool reg_dev, u32 timeout_secs)
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 
+	memset(et_dev->mgmt.err_stats,
+	       0,
+	       sizeof(atomic64_t) * ARRAY_SIZE(et_dev->mgmt.err_stats));
+
 	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, true /* mgmt_dev */);
 	if (rv) {
@@ -1608,7 +1627,6 @@ static void et_mgmt_dev_destroy(struct et_pci_dev *et_dev, bool dereg_dev)
 {
 	if (dereg_dev)
 		misc_deregister(&et_dev->mgmt.misc_dev);
-
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
 	et_unmap_discovered_regions(et_dev, true /* mgmt_dev */);
 	et_unmap_bar(et_dev->mgmt.dir);
@@ -1864,6 +1882,10 @@ et_ops_dev_init(struct et_pci_dev *et_dev, bool reg_dev, u32 timeout_secs)
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 
+	memset(et_dev->ops.mem_stats,
+	       0,
+	       sizeof(atomic64_t) * ARRAY_SIZE(et_dev->ops.mem_stats));
+
 	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, false /* ops_dev */);
 	if (rv) {
@@ -1916,7 +1938,6 @@ static void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool dereg_dev)
 {
 	if (dereg_dev)
 		misc_deregister(&et_dev->ops.misc_dev);
-
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
 	et_unmap_discovered_regions(et_dev, false /* ops_dev */);
 	et_unmap_bar(et_dev->ops.dir);
@@ -2019,10 +2040,18 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		et_dev->is_err_reporting = true;
 	}
 
+	rv = et_sysfs_stats_init(et_dev);
+	if (rv) {
+		dev_err(&pdev->dev,
+			"Failed to init sysfs files, error %d\n",
+			-rv);
+		goto error_pci_disable_pcie_error_reporting;
+	}
+
 	rv = et_mgmt_dev_init(et_dev, true, mgmt_discovery_timeout);
 	if (rv) {
 		dev_err(&pdev->dev, "Mgmt device initialization failed\n");
-		goto error_pci_disable_pcie_error_reporting;
+		goto error_sysfs_stats_remove;
 	}
 
 	rv = et_ops_dev_init(et_dev, true, ops_discovery_timeout);
@@ -2041,6 +2070,9 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 	et_destroy_region_list(et_dev);
 
 	return rv;
+
+error_sysfs_stats_remove:
+	et_sysfs_stats_remove(et_dev);
 
 error_pci_disable_pcie_error_reporting:
 	if (et_dev->is_err_reporting) {
@@ -2079,6 +2111,7 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 		et_ops_dev_destroy(et_dev, true);
 
 	et_mgmt_dev_destroy(et_dev, true);
+	et_sysfs_stats_remove(et_dev);
 
 	if (et_dev->is_err_reporting)
 		pci_disable_pcie_error_reporting(pdev);
@@ -2087,7 +2120,6 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 	pci_free_irq_vectors(pdev);
 	pci_clear_master(pdev);
 	pci_disable_device(pdev);
-
 	destroy_et_pci_dev(et_dev);
 	pci_set_drvdata(pdev, NULL);
 }

@@ -21,6 +21,7 @@
 #include "et_circbuffer.h"
 #include "et_dev_iface_regs.h"
 #include "et_device_api.h"
+#include "et_sysfs_stats.h"
 
 #define ET_MAX_QUEUES 64
 
@@ -67,6 +68,7 @@ struct et_squeue {
 	atomic_t sq_threshold;
 	struct et_vq_common *vq_common;
 	struct work_struct isr_work;
+	atomic64_t stats[ET_VQ_STATS_MAX_ATTRIBUTES];
 };
 
 // clang-format on
@@ -93,6 +95,7 @@ struct et_cqueue {
 	struct work_struct isr_work;
 	struct list_head msg_list;
 	struct mutex msg_list_mutex;	/* serializes access to msg_list */
+	atomic64_t stats[ET_VQ_STATS_MAX_ATTRIBUTES];
 };
 
 // clang-format on
