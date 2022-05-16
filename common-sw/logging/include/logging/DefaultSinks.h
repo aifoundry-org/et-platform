@@ -40,7 +40,7 @@ struct ColoredOutput {
      } else {
        ss << "\033[" << color << "m" << msg << "\033[m";
      }
-     std::cerr << ss.str() << std::endl;
+     std::cerr << ss.str() << std::flush;
   }
 };
 }
