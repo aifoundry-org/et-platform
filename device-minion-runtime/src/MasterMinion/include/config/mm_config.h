@@ -370,6 +370,11 @@ static_assert((MM_SQS_BASE_ADDRESS + (MM_SQ_COUNT * MM_SQ_SIZE) - 1) < MM_SQS_HP
 static_assert((MM_SQS_HP_BASE_ADDRESS + (MM_SQ_HP_COUNT * MM_SQ_HP_SIZE) - 1) < MM_CQS_BASE_ADDRESS,
     "MM HP SQs and MM CQs base address overlapping.");
 
+/* Ensure that MM CQs are within mailbox range */
+static_assert((MM_CQS_BASE_ADDRESS + (MM_CQ_COUNT * MM_CQ_SIZE)) <=
+                  (R_PU_MBOX_PC_MM_BASEADDR + R_PU_MBOX_PC_MM_SIZE),
+    "MM CQs not with PC MM mailbox region.");
+
 /* Ensure that MM SQs are within limits */
 static_assert(
     MM_SQ_COUNT <= MM_SQ_MAX_SUPPORTED, "Number of MM Submission Queues not within limits.");

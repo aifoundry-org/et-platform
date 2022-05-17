@@ -120,6 +120,30 @@ log_interface_t Log_Get_Interface(void)
 *
 *   FUNCTION
 *
+*       Log_Get_Level
+*
+*   DESCRIPTION
+*
+*       Get current log level.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       log_level_t    returns the current log level.
+*
+***********************************************************************/
+log_level_t Log_Get_Level(void)
+{
+    return CURRENT_LOG_LEVEL;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       __Log_Write
 *
 *   DESCRIPTION

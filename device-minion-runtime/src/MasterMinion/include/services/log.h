@@ -55,6 +55,12 @@ void Log_Set_Interface(log_interface_t interface);
 */
 log_interface_t Log_Get_Interface(void);
 
+/*! \fn log_interface_t Log_Get_Level(void)
+    \brief Get current log level
+    \return The current log level
+*/
+log_level_t Log_Get_Level(void);
+
 /*! \fn int32_t __Log_Write(const char *const fmt, ...)
     \brief Write a log with va_list style args without any restriction by log level
     \param level Log level for the current log
