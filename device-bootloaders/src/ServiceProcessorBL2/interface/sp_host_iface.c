@@ -291,6 +291,7 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void *p_cmd, uint32_t cmd_size)
 
         if (status == STATUS_SUCCESS)
         {
+            FENCE
             pcie_interrupt_host(SP_CQ_NOTIFY_VECTOR);
         }
 
