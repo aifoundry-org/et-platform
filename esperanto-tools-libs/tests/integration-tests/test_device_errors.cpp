@@ -44,6 +44,8 @@ TEST_F(DeviceErrors, KernelLaunchInvalidMask) {
   runtime_->setOnStreamErrorsCallback([&callbackExecuted](auto, const auto&) { callbackExecuted = true; });
   runtime_->kernelLaunch(defaultStreams_[0], add_vector_kernel, dummyArgs.data(), sizeof(dummyArgs), 0UL);
   runtime_->waitForStream(defaultStreams_[0]);
+  defaultStreams_.clear();
+  runtime_.reset();
   EXPECT_TRUE(callbackExecuted);
 }
 
@@ -62,6 +64,8 @@ TEST_F(DeviceErrors, KernelLaunchException) {
   runtime_->kernelLaunch(defaultStreams_[0], exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0x1FFFFFFFFUL);
   runtime_->waitForStream(defaultStreams_[0]);
   RT_LOG(INFO) << "This is expected, part of the test. Stream error message: \n" << errors[0].getString();
+  defaultStreams_.clear();
+  runtime_.reset();
   EXPECT_TRUE(callbackExecuted);
 }
 

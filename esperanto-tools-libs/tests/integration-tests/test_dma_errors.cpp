@@ -42,6 +42,8 @@ TEST_F(TestDmaErrors, DmaOob) {
   runtime_->memcpyHostToDevice(defaultStreams_[0], hostMem.data(), reinterpret_cast<std::byte*>(ramUpperLimit) - 512,
                                hostMem.size());
   runtime_->waitForStream(defaultStreams_[0]);
+  defaultStreams_.clear();
+  runtime_.reset();
   ASSERT_TRUE(errorReported);
   ASSERT_EQ(deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(devices_[0])), dev::DeviceState::Ready);
 }
@@ -65,8 +67,6 @@ TEST_F(TestDmaErrors, DmaOobPlusCommands) {
     runtime_->memcpyHostToDevice(defaultStreams_[0], hostMem.data(), dst, hostMem.size());
   }
   runtime_->waitForEvent(evt);
-  ASSERT_TRUE(errorReported);
-  runtime_->setOnStreamErrorsCallback(nullptr);
   if (Fixture::sMode == Fixture::Mode::PCIE) {
     // this part of the test can only be run in PCIE because sysemu always returns "ready" in DeviceState
     // reinstantiate the runtime and check the device is ready
@@ -76,6 +76,9 @@ TEST_F(TestDmaErrors, DmaOobPlusCommands) {
   }
   // before ending we wait for all events to be finished
   runtime_->waitForStream(defaultStreams_[0]);
+  ASSERT_TRUE(errorReported);
+  defaultStreams_.clear();
+  runtime_.reset();
 }
 
 int main(int argc, char** argv) {
