@@ -36,6 +36,7 @@ void Worker::update(EventId event) {
 }
 
 void Worker::sendResponse(const resp::Response& resp) {
+  RT_VLOG(MID) << "Sending response. Type: " << static_cast<int>(resp.type_) << " Id: " << resp.id_;
   std::stringstream response;
   cereal::PortableBinaryOutputArchive archive(response);
   archive(resp);
@@ -43,8 +44,7 @@ void Worker::sendResponse(const resp::Response& resp) {
   if (auto res = write(socket_, str.data(), str.size()); res < static_cast<long>(str.size())) {
     auto errorMsg = std::string{strerror(errno)};
     RT_VLOG(LOW) << "Write socket error: " << errorMsg;
-    RT_LOG(INFO) << "Closing connection.";
-    throw Exception("Write socket error: " + errorMsg);
+    throw NetworkException("Write socket error: " + errorMsg);
   }
 }
 
@@ -79,44 +79,51 @@ Worker::Worker(int socket, RuntimeImp& runtime, Server& server, ucred credential
 }
 
 Worker::~Worker() {
+  RT_VLOG(LOW) << "Destroying worker " << this;
   running_ = false;
-  runtime_.detach(this);
   runner_.join();
   freeResources();
+  RT_VLOG(LOW) << "Worker dtor ended. Ptr:" << this;
 }
 
 void Worker::requestProcessor() {
   constexpr size_t kMaxRequestSize = 4096;
   auto requestBuffer = std::vector<char>(kMaxRequestSize);
-  auto ms = MemStream{requestBuffer.data(), requestBuffer.size()};
   try {
     while (running_) {
-      std::lock_guard lock(mutex_);
+      RT_VLOG(MID) << "Reading next request";
       if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); res < 0) {
-        RT_VLOG(LOW) << "Read socket error: " << strerror(errno);
-        RT_LOG(INFO) << "Closing connection.";
-        break;
-      }
-      std::istream is(&ms);
-      req::Id id{req::INVALID_REQUEST_ID};
-      try {
-        cereal::PortableBinaryInputArchive archive{is};
-        req::Request request;
-        archive >> request;
-        id = request.id_; // save in case runtime triggers an exception to answer with correct id
-        processRequest(request);
-      } catch (const Exception& e) {
-        RT_VLOG(LOW) << "Got a runtime exception. Passing that exception to the client.";
-        sendResponse({resp::Type::RUNTIME_EXCEPTION, id, resp::RuntimeException{e}});
+        auto msg = std::string{"Read socket error: "} + strerror(errno);
+        RT_VLOG(LOW) << msg;
+        throw NetworkException(msg);
+      } else if (res > 0) {
+        auto ms = MemStream{requestBuffer.data(), static_cast<size_t>(res)};
+        std::istream is(&ms);
+        req::Id id{req::INVALID_REQUEST_ID};
+        try {
+          cereal::PortableBinaryInputArchive archive{is};
+          req::Request request;
+          archive >> request;
+          id = request.id_; // save in case runtime triggers an exception to answer with correct id
+          processRequest(request);
+        } catch (const Exception& e) {
+          if (running_) {
+            RT_VLOG(LOW) << "Got a runtime exception. Passing that exception to the client.";
+            sendResponse({resp::Type::RUNTIME_EXCEPTION, id, resp::RuntimeException{e}});
+          }
+        }
+      } else if (running_) {
+        server_.removeWorker(this);
+        running_ = false;
       }
     }
   } catch (const NetworkException& e) {
-    RT_VLOG(LOW) << "Got a network exception. Closing connection. Exception message: " << e.what();
+    RT_VLOG(LOW) << "Got a network exception. " << e.what();
   }
-  server_.removeWorker(this);
 }
 
 void Worker::processRequest(const req::Request& request) {
+  RT_VLOG(MID) << "Processing request. Type: " << static_cast<int>(request.type_) << " Id: " << request.id_;
   switch (request.type_) {
 
   case req::Type::VERSION: {
@@ -260,6 +267,7 @@ void Worker::processRequest(const req::Request& request) {
 }
 
 void Worker::freeResources() {
+  RT_LOG(INFO) << "Freeing resources";
   for (auto alloc : allocations_) {
     runtime_.freeDevice(alloc.device_, alloc.ptr_);
   }

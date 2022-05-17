@@ -11,12 +11,27 @@
 #include "Utils.h"
 #include "Worker.h"
 #include "runtime/Types.h"
+#include <hostUtils/threadPool/ThreadPool.h>
 #include <mutex>
+#include <signal.h>
 #include <sys/param.h>
+#include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
+#include <unistd.h>
 using namespace rt;
+
+Server::~Server() {
+  RT_LOG(INFO) << "Destroying server.";
+  running_ = false;
+  SpinLock lock(mutex_);
+  RT_LOG(INFO) << "Waiting for listener.";
+  listener_.join();
+  RT_LOG(INFO) << "Destroying all existing workers.";
+  workers_.clear();
+  close(socket_);
+}
 
 Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer) {
   deviceLayer_ = std::move(deviceLayer);
@@ -36,6 +51,7 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
   if (::listen(socket_, 10) < 0) {
     RT_LOG(FATAL) << "Listen error: " << strerror(errno);
   }
+  RT_LOG(INFO) << "Listening on socket " << socketPath;
   listener_ = std::thread(&Server::listen, this);
   runtime_->setOnStreamErrorsCallback([this](EventId evt, const StreamError& error) {
     SpinLock lock(mutex_);
@@ -48,7 +64,12 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
 void Server::listen() {
 
   while (running_) {
-
+    pollfd pfd;
+    pfd.events = POLLIN;
+    pfd.fd = socket_;
+    if (poll(&pfd, 1, 5) == 0) {
+      continue;
+    }
     auto cl = accept(socket_, nullptr, nullptr);
     if (cl < 0) {
       RT_LOG(WARNING) << "Accept error: " << strerror(errno) << ". Ignoring this client connection.";
@@ -74,6 +95,18 @@ void Server::listen() {
 }
 
 void Server::removeWorker(Worker* worker) {
-  SpinLock lock(mutex_);
-  std::remove_if(begin(workers_), end(workers_), [worker](const auto& item) { return item.get() == worker; });
+  tp_.pushTask([this, worker] {
+    RT_VLOG(LOW) << "Removing worker: " << worker;
+    SpinLock lock(mutex_);
+    if (running_) {
+      auto it =
+        std::find_if(begin(workers_), end(workers_), [worker](const auto& item) { return item.get() == worker; });
+      if (it != end(workers_)) {
+        workers_.erase(it);
+        RT_VLOG(LOW) << "Worker " << worker << " removed.";
+      } else {
+        RT_LOG(WARNING) << "Trying to destroy a non existant worker and server was still runnning.";
+      }
+    }
+  });
 }

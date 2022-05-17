@@ -101,14 +101,24 @@ private:
   struct Waiter {
     template <typename Lock> void wait(Lock& lock) {
       while (!valid_) {
+        RT_VLOG(MID) << "Valid is false, waiting again. This: " << this << " valid: " << valid_
+                     << " condVar addr: " << &condVar_;
         condVar_.wait(lock);
       }
+      RT_VLOG(MID) << "Woke up";
+    }
+    void notify(resp::Response::Payload_t payload) {
+      payload_ = std::move(payload);
+      valid_ = true;
+      RT_VLOG(MID) << "Waking up. This: " << this << " valid: " << valid_ << " condVar addr: " << &condVar_;
+      condVar_.notify_all();
+      RT_VLOG(MID) << "done";
     }
     resp::Response::Payload_t payload_;
     std::condition_variable condVar_;
     bool valid_ = false;
   };
-  std::unordered_map<req::Id, Waiter> waiters_;
+  std::unordered_map<resp::Id, std::unique_ptr<Waiter>> waiters_;
   std::unordered_map<EventId, StreamId> eventToStream_;
   std::unordered_map<StreamId, std::vector<EventId>> streamToEvents_;
   std::thread listener_;

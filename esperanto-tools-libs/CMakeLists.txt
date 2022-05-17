@@ -82,6 +82,7 @@ add_library(etrt_obj OBJECT
     src/Utils.cpp
     src/server/Server.cpp
     src/server/Worker.cpp
+    src/server/Client.cpp
 )
 
 set_target_properties(etrt_obj PROPERTIES

@@ -11,6 +11,7 @@
 #include "Worker.h"
 #include "device-layer/IDeviceLayer.h"
 #include "runtime/IRuntime.h"
+#include <hostUtils/threadPool/ThreadPool.h>
 #include <string_view>
 #include <thread>
 #include <vector>
@@ -18,7 +19,7 @@ namespace rt {
 class Server {
 public:
   explicit Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer);
-
+  ~Server();
   void removeWorker(Worker* worker);
 
 private:
@@ -27,9 +28,10 @@ private:
   int socket_;
   bool running_ = true;
   std::mutex mutex_;
-  std::vector<std::unique_ptr<Worker>> workers_;
   std::thread listener_;
-  std::unique_ptr<IRuntime> runtime_;
   std::unique_ptr<dev::IDeviceLayer> deviceLayer_;
+  std::unique_ptr<IRuntime> runtime_;
+  std::vector<std::unique_ptr<Worker>> workers_;
+  threadPool::ThreadPool tp_{1}; // used to remove workers
 };
 } // namespace rt

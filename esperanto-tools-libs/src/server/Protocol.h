@@ -13,6 +13,7 @@
 #include <cereal/cereal.hpp>
 #include <cereal/types/array.hpp>
 #include <cereal/types/optional.hpp>
+#include <cereal/types/string.hpp>
 #include <cereal/types/variant.hpp>
 #include <cereal/types/vector.hpp>
 #include <cstddef>
@@ -174,7 +175,7 @@ struct Request {
                Malloc, Free, AbortStream>
     payload_;
   template <class Archive> void serialize(Archive& archive) {
-    archive(type_, payload_);
+    archive(type_, id_, payload_);
   }
 };
 } // namespace req
@@ -244,16 +245,30 @@ struct LoadCode {
   }
 };
 struct RuntimeException {
-  Exception exception;
+  RuntimeException() = default;
+  explicit RuntimeException(const Exception& e)
+    : exception_(e) {
+  }
+  Exception exception_ = Exception{""};
+
   template <class Archive> void save(Archive& archive) const {
-    archive(std::string{exception.what()});
+    archive(std::string{exception_.what()});
   }
 
   template <class Archive> void load(Archive& archive) {
     std::string what_message;
     archive(what_message);
-    exception = Exception{what_message};
+    exception_ = Exception{what_message};
   }
+  /*template <class Archive> void save(Archive& archive) const {
+    archive(std::string{exception_.what()});
+  }
+
+  template <class Archive> void load(Archive& archive) {
+    std::string what_message;
+    archive(what_message);
+    exception_ = Exception{what_message};
+  }*/
 };
 
 struct Response {

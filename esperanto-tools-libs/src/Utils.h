@@ -40,11 +40,10 @@ template <typename T, typename... Args> void unused(T t, Args... args) {
   unused(t);
   unused(args...);
 }
-
-#define RT_LOG(severity) ET_LOG(RUNTIME, severity)
-#define RT_DLOG(severity) ET_DLOG(RUNTIME, severity)
-#define RT_VLOG(severity) ET_VLOG(RUNTIME, severity)
-#define RT_LOG_IF(severity, condition) ET_LOG_IF(RUNTIME, severity, condition)
+#define RT_LOG(severity) ET_LOG(RUNTIME, severity)                             /*NOSONAR*/
+#define RT_DLOG(severity) ET_DLOG(RUNTIME, severity)                           /*NOSONAR*/
+#define RT_VLOG(severity) ET_VLOG(RUNTIME, severity)                           /*NOSONAR*/
+#define RT_LOG_IF(severity, condition) ET_LOG_IF(RUNTIME, severity, condition) /*NOSONAR*/
 
 rt::DeviceErrorCode convert(int responseType, uint32_t responseCode);
 

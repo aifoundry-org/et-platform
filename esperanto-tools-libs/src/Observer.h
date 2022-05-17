@@ -8,7 +8,9 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
+#include "Utils.h"
 #include <algorithm>
+#include <mutex>
 #include <vector>
 namespace patterns {
 
@@ -25,15 +27,18 @@ public:
   virtual ~Subject() = default;
 
   void attach(Observer<T>* o) {
+    SpinLock lock(mutex_);
     if (std::find(observers_.begin(), observers_.end(), o) == observers_.end()) {
       observers_.emplace_back(o);
     }
   }
   void detach(Observer<T>* o) {
+    SpinLock lock(mutex_);
     auto it = std::remove(begin(observers_), end(observers_), o);
     observers_.erase(it, end(observers_));
   }
   void notify(T hint) {
+    SpinLock lock(mutex_);
     for (auto& o : observers_) {
       o->update(hint);
     }
@@ -41,5 +46,6 @@ public:
 
 private:
   std::vector<Observer<T>*> observers_;
+  std::mutex mutex_;
 };
 } // namespace patterns
