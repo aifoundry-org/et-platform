@@ -19,7 +19,7 @@ using namespace device_management;
 
 #define RISCV64_REG_SIZE        8 //bytes
 #define RISCV64_NUM_GPRS        32 //registers
-#define MAX_RSP_PKT_SIZE        256 //bytes
+#define MAX_RSP_PKT_SIZE        512 //bytes
 #define RISCV_PC_INDEX          32
 
 #define HARTS_PER_NEIGH     16

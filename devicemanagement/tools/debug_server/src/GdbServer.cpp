@@ -525,10 +525,12 @@ void GdbServer::rspReadMem() {
   }
 
   // Make sure we won't... overflow the buffer (2 chars per byte)
-  if ((len * 2) >= pkt->getBufSize()) {
+  if ((len * 2) > pkt->getBufSize()) {
     cerr << "Warning: Memory read " << pkt->data
          << " too large for RSP packet: truncated" << endl;
-    len = (pkt->getBufSize() - 1) / 2;
+    pkt->packStr("E01");
+    rsp->putPkt(pkt);
+    return;
   }
 
   // Read memory from device

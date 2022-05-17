@@ -3,6 +3,13 @@ import errno
 import sys
 from datetime import datetime
 
+minion_defs = {
+    "MM_SHIRE_IDX":32,
+    "CM_SHIRE_IDX":0,
+    "HART_IDX_START":0,
+    "HART_IDX_END":1
+}
+
 context_defs = {
     "DUMP_GPRS":0x01,
     "DUMP_CSRS":0x02,
@@ -65,7 +72,6 @@ def debug_session(shire_mask, thread_mask, context_mask, shire_index, thread_ind
     #for key, value in d.items():
     #    print(key, ' : ', value)
 
-
     #Log file managmeent
     shire_name = "shire" + str(shire_index)
     hart_name = "hart" + str(thread_index)
@@ -94,16 +100,18 @@ def debug_session(shire_mask, thread_mask, context_mask, shire_index, thread_ind
         gdb.execute("info frame")
 
     if (context_mask & context_defs["DUMP_MM_SMODE_TRACE_DATA"]) != 0:
-        mm_smode_trace_file = "logs" + '/' + "mm_smode_trace" + ".bin"
-        dump_mm_trace_data_command = "dump binary memory" + " " + mm_smode_trace_file + " " + d["MM_SMODE_TRACE_BUFF_START"] + " " + d["MM_SMODE_TRACE_BUFF_END"]
-        print dump_mm_trace_data_command
-        gdb.execute(dump_mm_trace_data_command)
+        if(shire_index == minion_defs["MM_SHIRE_IDX"]) and (thread_index == minion_defs["HART_IDX_START"]):
+            mm_smode_trace_file = "logs" + '/' + "mm_smode_trace" + ".bin"
+            dump_mm_trace_data_command = "dump binary memory" + " " + mm_smode_trace_file + " " + d["MM_SMODE_TRACE_BUFF_START"] + " " + d["MM_SMODE_TRACE_BUFF_END"]
+            print dump_mm_trace_data_command
+            gdb.execute(dump_mm_trace_data_command)
 
     if (context_mask & context_defs["DUMP_CM_SMODE_TRACE_DATA"]) != 0:
-        cm_smode_trace_file = "logs" + '/' + "cm_smode_trace" + ".bin"
-        dump_cm_trace_data_command = "dump binary memory" + " " + cm_smode_trace_file + " " + d["CM_SMODE_TRACE_BUFF_START"] + " " + d["CM_SMODE_TRACE_BUFF_END"]
-        print dump_cm_trace_data_command
-        gdb.execute(dump_cm_trace_data_command)
+        if(shire_index == minion_defs["CM_SHIRE_IDX"]) and (thread_index == minion_defs["HART_IDX_START"]):
+            cm_smode_trace_file = "logs" + '/' + "cm_smode_trace" + ".bin"
+            dump_cm_trace_data_command = "dump binary memory" + " " + cm_smode_trace_file + " " + d["CM_SMODE_TRACE_BUFF_START"] + " " + d["CM_SMODE_TRACE_BUFF_END"]
+            print dump_cm_trace_data_command
+            gdb.execute(dump_cm_trace_data_command)
 
     #Terminate debug session
     gdb.execute("quit")

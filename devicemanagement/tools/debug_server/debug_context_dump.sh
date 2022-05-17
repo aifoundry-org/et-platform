@@ -82,8 +82,6 @@ do
 
                 # Start client with context_dump.gdb script
                 #sleep 1
-                #date_time_stamp="$(date +"%m-%d-%Y-%H-%M")"
-                #echo $date_time_stamp
 
                 /esperanto/minion/bin/riscv64-unknown-elf-gdb -ex 'py arg0='$shire_mask'; arg1='$thread_mask'; arg2='$context_mask'; arg3='$shire_index'; arg4='$thread_index'' -x debug_context_dump.py
             #else
@@ -97,4 +95,14 @@ do
 
     #echo "**********************************"
 done
+
+date_time_stamp="$(date +"%m-%d-%Y-%H-%M-%S")"
+
+if [[ -d "logs" ]];then
+    mv logs $date_time_stamp
+    if [[ -d "latest_log" ]];then
+        rm latest_log
+    fi
+    ln -s $date_time_stamp latest_log
+fi
 #END
