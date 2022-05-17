@@ -406,7 +406,7 @@ int32_t SP_MM_Iface_Pop(uint8_t target, void *rx_buff)
         {
             ETSOC_RT_MEM_WRITE_64(&p_iface_cb->circ_buff_local.tail_offset,
                 Circbuffer_Get_Tail((circ_buff_cb_t *)(uintptr_t)ETSOC_RT_MEM_READ_64(
-                                        (uint64_t *)(uintptr_t)p_iface_cb->vqueue.circbuff_cb),
+                                        (uint64_t *)(uintptr_t)&p_iface_cb->vqueue.circbuff_cb),
                     ETSOC_RT_MEM_READ_32(&p_iface_cb->vqueue.flags)));
         }
     }
