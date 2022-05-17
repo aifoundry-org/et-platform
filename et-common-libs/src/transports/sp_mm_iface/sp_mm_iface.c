@@ -44,6 +44,13 @@
 #include "etsoc/isa/esr_defines.h"
 #include "hwinc/hal_device.h"
 
+/* Define this macro to enable logging in SP-MM interface transactions. */
+#ifdef SP_MM_IFACE_ENABLE_LOGGING
+
+#include "etsoc/common/log_internal.h"
+
+#endif /* SP_MM_IFACE_ENABLE_LOGGING */
+
 typedef struct sp_iface_cb_ {
     /* Shared copy globals */
     uint32_t vqueue_base;
@@ -281,7 +288,27 @@ int8_t SP_MM_Iface_Push(uint8_t target, const void *p_buff, uint32_t size)
 
     if (p_vq_cb != 0)
     {
+#ifdef SP_MM_IFACE_ENABLE_LOGGING
+        circ_buff_cb_t *circ_buff_ptr =
+            (circ_buff_cb_t *)(uintptr_t)ETSOC_RT_MEM_READ_64((uint64_t *)&p_vq_cb->circbuff_cb);
+
+        Log_Write(LOG_LEVEL_INFO, "%s%s%p%s%ld%s%ld%s%ld%s", LOG_FROM,
+            "SP_MM_Iface_Push:before_push:target_circ_buff:", circ_buff_ptr,
+            ":head:", circ_buff_ptr->head_offset, ":tail:", circ_buff_ptr->tail_offset,
+            ":length:", circ_buff_ptr->length, "\r\n");
+#endif /* SP_MM_IFACE_ENABLE_LOGGING */
+
         status = VQ_Push(p_vq_cb, p_buff, size);
+
+#ifdef SP_MM_IFACE_ENABLE_LOGGING
+        circ_buff_ptr =
+            (circ_buff_cb_t *)(uintptr_t)ETSOC_RT_MEM_READ_64((uint64_t *)&p_vq_cb->circbuff_cb);
+
+        Log_Write(LOG_LEVEL_INFO, "%s%s%p%s%ld%s%ld%s%ld%s", LOG_FROM,
+            "SP_MM_Iface_Push:after_push:target_circ_buff:", circ_buff_ptr,
+            ":head:", circ_buff_ptr->head_offset, ":tail:", circ_buff_ptr->tail_offset,
+            ":length:", circ_buff_ptr->length, "\r\n");
+#endif /* SP_MM_IFACE_ENABLE_LOGGING */
 
         if (!status)
         {

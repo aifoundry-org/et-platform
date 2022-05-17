@@ -26,11 +26,12 @@
 /***********************************************************************/
 #include "transports/vq/vq.h"
 
-/* Uncomment following line to enable VG debug messages. */
-/* #define VQ_DEBUG_LOG */
-#ifdef VQ_DEBUG_LOG
-#include "../../../MasterMinion/include/services/log.h"
-#endif
+/* Define this macro to enable logging of VQ transactions. */
+#ifdef VQ_ENABLE_LOGGING
+
+#include "etsoc/common/log_internal.h"
+
+#endif /* VQ_ENABLE_LOGGING */
 
 /************************************************************************
 *
@@ -64,14 +65,23 @@ int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size, uint16_t peek
     int8_t status;
     uint64_t temp64 = 0;
 
-    ETSOC_RT_MEM_WRITE_64((uint64_t*)&vq_cb->circbuff_cb, vq_base);
+    ETSOC_RT_MEM_WRITE_64((uint64_t *)&vq_cb->circbuff_cb, vq_base);
 
-    temp64 = (((uint64_t)vq_flags << 32) | ((uint32_t)peek_length << 16) |
-        peek_offset);
-    ETSOC_RT_MEM_WRITE_64((uint64_t*)(void*)&vq_cb->cmd_size_peek_offset, temp64);
+    temp64 = (((uint64_t)vq_flags << 32) | ((uint32_t)peek_length << 16) | peek_offset);
+    ETSOC_RT_MEM_WRITE_64((uint64_t *)(void *)&vq_cb->cmd_size_peek_offset, temp64);
 
-    status = Circbuffer_Init((circ_buff_cb_t*)vq_base,
-        (uint32_t)(vq_size - sizeof(circ_buff_cb_t)), vq_flags);
+    status = Circbuffer_Init(
+        (circ_buff_cb_t *)vq_base, (uint32_t)(vq_size - sizeof(circ_buff_cb_t)), vq_flags);
+
+#ifdef VQ_ENABLE_LOGGING
+    circ_buff_cb_t *circ_buff_ptr =
+        (circ_buff_cb_t *)(uintptr_t)ETSOC_RT_MEM_READ_64((uint64_t *)&vq_cb->circbuff_cb);
+
+    Log_Write(LOG_LEVEL_INFO, "%s%s%lx%s%ld%s%ld%s%ld%s", LOG_FROM, "VQ_Init:target_circ_buff:0x",
+        vq_base, ":head:", circ_buff_ptr->head_offset, ":tail:", circ_buff_ptr->tail_offset,
+        ":length:", circ_buff_ptr->length, "\r\n");
+
+#endif /* VQ_ENABLE_LOGGING */
 
     return status;
 }
@@ -97,19 +107,24 @@ int8_t VQ_Init(vq_cb_t *vq_cb, uint64_t vq_base, uint32_t vq_size, uint16_t peek
 *       int8_t    status of virtual queue push operation
 *
 ***********************************************************************/
-int8_t VQ_Push(vq_cb_t* vq_cb, const void* data, uint32_t data_size)
+int8_t VQ_Push(vq_cb_t *vq_cb, const void *data, uint32_t data_size)
 {
     int8_t status;
 
-    #ifdef VQ_DEBUG_LOG
-    Log_Write(LOG_LEVEL_DEBUG, "%s%p%s%p%s%d%s",
-        "VQ_Push:dst_addr:", vq_cb->circbuff_cb->buffer_ptr, ":src_addr:",
-        data, ":data_size:", data_size, "\r\n");
-    #endif
+#ifdef VQ_ENABLE_LOGGING
+    circ_buff_cb_t *circ_buff_ptr =
+        (circ_buff_cb_t *)(uintptr_t)ETSOC_RT_MEM_READ_64((uint64_t *)&vq_cb->circbuff_cb);
 
-    status = Circbuffer_Push((circ_buff_cb_t*)(uintptr_t)
-        ETSOC_RT_MEM_READ_64((uint64_t*)&vq_cb->circbuff_cb),
-        data, data_size, ETSOC_RT_MEM_READ_32(&vq_cb->flags));
+    Log_Write(LOG_LEVEL_INFO, "%s%s%p%s%ld%s%ld%s%p%s%p%s%d%s", LOG_FROM,
+        "VQ_Push:target_circ_buff:", circ_buff_ptr, ":head:", circ_buff_ptr->head_offset,
+        ":tail:", circ_buff_ptr->tail_offset,
+        ":dst_addr:", &circ_buff_ptr->buffer_ptr[circ_buff_ptr->head_offset], ":src_addr:", data,
+        ":data_size:", data_size, "\r\n");
+#endif /* VQ_ENABLE_LOGGING */
+
+    status = Circbuffer_Push(
+        (circ_buff_cb_t *)(uintptr_t)ETSOC_RT_MEM_READ_64((uint64_t *)&vq_cb->circbuff_cb), data,
+        data_size, ETSOC_RT_MEM_READ_32(&vq_cb->flags));
 
     return status;
 }
@@ -136,32 +151,34 @@ int8_t VQ_Push(vq_cb_t* vq_cb, const void* data, uint32_t data_size)
 *                  Positive value - Number of bytes popped
 *
 ***********************************************************************/
-int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
+int32_t VQ_Pop(vq_cb_t *vq_cb, void *rx_buff)
 {
     int32_t return_val;
     cmd_size_t command_size;
 
-    uint64_t temp_addr_64 = ETSOC_RT_MEM_READ_64((uint64_t*)&vq_cb->circbuff_cb);
-    uint64_t temp_val_64 = ETSOC_RT_MEM_READ_64((uint64_t*)(void*)&vq_cb->cmd_size_peek_offset);
+    circ_buff_cb_t *circ_buff_ptr =
+        (circ_buff_cb_t *)(uintptr_t)ETSOC_RT_MEM_READ_64((uint64_t *)&vq_cb->circbuff_cb);
+    uint64_t temp_val_64 = ETSOC_RT_MEM_READ_64((uint64_t *)(void *)&vq_cb->cmd_size_peek_offset);
 
-    return_val = Circbuffer_Peek((circ_buff_cb_t*)temp_addr_64,
-        (void *)&command_size, (uint16_t)(temp_val_64 & 0xFFFF),
-        (uint16_t)((temp_val_64 >> 16) & 0xFFFF),
+    return_val = Circbuffer_Peek(circ_buff_ptr, (void *)&command_size,
+        (uint16_t)(temp_val_64 & 0xFFFF), (uint16_t)((temp_val_64 >> 16) & 0xFFFF),
         (uint32_t)(temp_val_64 >> 32));
 
     if (return_val == STATUS_SUCCESS)
     {
-        #ifdef VQ_DEBUG_LOG
-        Log_Write(LOG_LEVEL_DEBUG, "%s%p%s%p%s%d%s",
-            "VQ_Pop:src_addr:", vq_cb->circbuff_cb, ":dst_addr:",
-            rx_buff, ":data_size:", command_size, "\r\n");
-        #endif
+#ifdef VQ_ENABLE_LOGGING
+        Log_Write(LOG_LEVEL_INFO, "%s%s%p%s%ld%s%ld%s%p%s%p%s%d%s", LOG_FROM,
+            "VQ_Pop:target_circ_buff:", circ_buff_ptr, ":head:", circ_buff_ptr->head_offset,
+            ":tail:", circ_buff_ptr->tail_offset,
+            ":src_addr:", &circ_buff_ptr->buffer_ptr[circ_buff_ptr->tail_offset],
+            ":dst_addr:", rx_buff, ":data_size:", command_size, "\r\n");
+#endif /* VQ_ENABLE_LOGGING */
 
         if (command_size > 0)
         {
             /* Pop the command from circular buffer */
-            return_val = Circbuffer_Pop((circ_buff_cb_t*)temp_addr_64,
-                rx_buff, command_size, (uint32_t)(temp_val_64 >> 32));
+            return_val =
+                Circbuffer_Pop(circ_buff_ptr, rx_buff, command_size, (uint32_t)(temp_val_64 >> 32));
 
             if (return_val == STATUS_SUCCESS)
             {
@@ -181,7 +198,6 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
 
     return return_val;
 }
-
 
 /************************************************************************
 *
@@ -208,16 +224,16 @@ int32_t VQ_Pop(vq_cb_t* vq_cb, void* rx_buff)
 *                      Positive value - Number of bytes popped
 *
 ***********************************************************************/
-int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
-    void *const shared_mem_ptr,  void* rx_buff)
+int32_t VQ_Pop_Optimized(
+    vq_cb_t *vq_cb, uint64_t vq_used_space, void *const shared_mem_ptr, void *rx_buff)
 {
     int32_t return_val;
     uint16_t cmd_size = 0;
     uint32_t payload_size;
 
     /* Pop the header from circular buffer */
-    return_val = Circbuffer_Read(vq_cb->circbuff_cb, shared_mem_ptr,
-        rx_buff, DEVICE_CMD_HEADER_SIZE, vq_cb->flags);
+    return_val = Circbuffer_Read(
+        vq_cb->circbuff_cb, shared_mem_ptr, rx_buff, DEVICE_CMD_HEADER_SIZE, vq_cb->flags);
 
     if (return_val == STATUS_SUCCESS)
     {
@@ -225,9 +241,18 @@ int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
         cmd_size = DEVICE_GET_CMD_SIZE(rx_buff);
     }
 
+#ifdef VQ_ENABLE_LOGGING
+    Log_Write(LOG_LEVEL_INFO, "%s%s%p%s%ld%s%ld%s%p%s%p%s%d%s", LOG_FROM,
+        "VQ_Pop_Optimized:target_circ_buff:", ((uint8_t *)shared_mem_ptr) - sizeof(circ_buff_cb_t),
+        ":head:", vq_cb->circbuff_cb->head_offset, ":tail:", vq_cb->circbuff_cb->tail_offset,
+        ":src_addr:",
+        &(((uint8_t *)shared_mem_ptr)[vq_cb->circbuff_cb->tail_offset - DEVICE_CMD_HEADER_SIZE]),
+        ":dst_addr:", rx_buff, ":data_size:", cmd_size, "\r\n");
+#endif /* VQ_ENABLE_LOGGING */
+
     /* If payload is available.
        Command size should be at least equal to command header + payload. */
-    if(cmd_size > DEVICE_CMD_HEADER_SIZE)
+    if (cmd_size > DEVICE_CMD_HEADER_SIZE)
     {
         payload_size = (cmd_size - DEVICE_CMD_HEADER_SIZE);
 
@@ -236,8 +261,7 @@ int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
         {
             /* Pop the command payload from circular buffer */
             return_val = Circbuffer_Read(vq_cb->circbuff_cb, shared_mem_ptr,
-                ((uint8_t*)rx_buff) + DEVICE_CMD_HEADER_SIZE,
-                payload_size, vq_cb->flags);
+                ((uint8_t *)rx_buff) + DEVICE_CMD_HEADER_SIZE, payload_size, vq_cb->flags);
 
             /* Populate the popped size */
             if (return_val == STATUS_SUCCESS)
@@ -251,7 +275,7 @@ int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
             return_val = VQ_ERROR_BAD_PAYLOAD_LENGTH;
         }
     }
-    else if(cmd_size == DEVICE_CMD_HEADER_SIZE)
+    else if (cmd_size == DEVICE_CMD_HEADER_SIZE)
     {
         /* Populate the popped size */
         return_val = cmd_size;
@@ -288,14 +312,23 @@ int32_t VQ_Pop_Optimized(vq_cb_t* vq_cb, uint64_t vq_used_space,
 *       int8_t         Returns successful status or error code.
 *
 ***********************************************************************/
-int8_t VQ_Prefetch_Buffer(vq_cb_t* vq_cb, uint64_t vq_used_space,
-    void *const shared_mem_ptr,  void* rx_buff)
+int8_t VQ_Prefetch_Buffer(
+    vq_cb_t *vq_cb, uint64_t vq_used_space, void *const shared_mem_ptr, void *rx_buff)
 {
     int8_t status;
 
+#ifdef VQ_ENABLE_LOGGING
+    Log_Write(LOG_LEVEL_INFO, "%s%s%p%s%ld%s%ld%s%p%s%p%s%ld%s", LOG_FROM,
+        "VQ_Prefetch_Buffer:target_circ_buff:",
+        ((uint8_t *)shared_mem_ptr) - sizeof(circ_buff_cb_t),
+        ":head:", vq_cb->circbuff_cb->head_offset, ":tail:", vq_cb->circbuff_cb->tail_offset,
+        ":src_addr:", &(((uint8_t *)shared_mem_ptr)[vq_cb->circbuff_cb->tail_offset]),
+        ":dst_addr:", rx_buff, ":data_size:", vq_used_space, "\r\n");
+#endif /* VQ_ENABLE_LOGGING */
+
     /* Pop the bytes from circular buffer */
-    status = Circbuffer_Read(vq_cb->circbuff_cb, shared_mem_ptr,
-        rx_buff, vq_used_space, vq_cb->flags);
+    status =
+        Circbuffer_Read(vq_cb->circbuff_cb, shared_mem_ptr, rx_buff, vq_used_space, vq_cb->flags);
 
     return status;
 }
@@ -323,18 +356,18 @@ int8_t VQ_Prefetch_Buffer(vq_cb_t* vq_cb, uint64_t vq_used_space,
 *                      Positive value - Number of bytes popped
 *
 ***********************************************************************/
-int32_t VQ_Process_Command(void* cmds_buff, uint64_t buffer_size, uint32_t buffer_idx)
+int32_t VQ_Process_Command(void *cmds_buff, uint64_t buffer_size, uint32_t buffer_idx)
 {
     int32_t return_val;
     uint16_t cmd_size;
     uint32_t payload_size;
 
     /* Get the size of the command header + payload */
-    cmd_size = DEVICE_GET_CMD_SIZE(&(((uint8_t*)cmds_buff)[buffer_idx]));
+    cmd_size = DEVICE_GET_CMD_SIZE(&(((uint8_t *)cmds_buff)[buffer_idx]));
 
     /* If payload is available.
        Command size should be at least equal to command header + payload. */
-    if(cmd_size > DEVICE_CMD_HEADER_SIZE)
+    if (cmd_size > DEVICE_CMD_HEADER_SIZE)
     {
         payload_size = (cmd_size - DEVICE_CMD_HEADER_SIZE);
 
@@ -349,7 +382,7 @@ int32_t VQ_Process_Command(void* cmds_buff, uint64_t buffer_size, uint32_t buffe
             return_val = VQ_ERROR_BAD_PAYLOAD_LENGTH;
         }
     }
-    else if(cmd_size == DEVICE_CMD_HEADER_SIZE)
+    else if (cmd_size == DEVICE_CMD_HEADER_SIZE)
     {
         /* Populate the total command size */
         return_val = cmd_size;
@@ -381,13 +414,23 @@ int32_t VQ_Process_Command(void* cmds_buff, uint64_t buffer_size, uint32_t buffe
 *       int8_t            Returns successful status or error code.
 *
 ***********************************************************************/
-int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset,
-    uint16_t peek_length)
+int8_t VQ_Peek(vq_cb_t *vq_cb, void *peek_buff, uint16_t peek_offset, uint16_t peek_length)
 {
     int8_t status;
 
-    status = Circbuffer_Peek((circ_buff_cb_t*)(uintptr_t)
-        ETSOC_RT_MEM_READ_64((uint64_t*)&vq_cb->circbuff_cb),
+#ifdef VQ_ENABLE_LOGGING
+    circ_buff_cb_t *circ_buff_ptr =
+        (circ_buff_cb_t *)(uintptr_t)ETSOC_RT_MEM_READ_64((uint64_t *)&vq_cb->circbuff_cb);
+
+    Log_Write(LOG_LEVEL_INFO, "%s%s%p%s%ld%s%ld%s%p%s%p%s%d%s", LOG_FROM,
+        "VQ_Peek:target_circ_buff:", circ_buff_ptr, ":head:", circ_buff_ptr->head_offset,
+        ":tail:", circ_buff_ptr->tail_offset,
+        ":src_addr:", &circ_buff_ptr->buffer_ptr[circ_buff_ptr->head_offset],
+        ":dst_addr:", peek_buff, ":data_size:", peek_length, "\r\n");
+#endif /* VQ_ENABLE_LOGGING */
+
+    status = Circbuffer_Peek(
+        (circ_buff_cb_t *)(uintptr_t)ETSOC_RT_MEM_READ_64((uint64_t *)&vq_cb->circbuff_cb),
         peek_buff, peek_offset, peek_length, ETSOC_RT_MEM_READ_32(&vq_cb->flags));
 
     return status;
@@ -412,11 +455,20 @@ int8_t VQ_Peek(vq_cb_t* vq_cb, void* peek_buff, uint16_t peek_offset,
 *       bool      Boolean indicating presence of data to process.
 *
 ***********************************************************************/
-bool VQ_Data_Avail(vq_cb_t* vq_cb)
+bool VQ_Data_Avail(vq_cb_t *vq_cb)
 {
-    return (Circbuffer_Get_Used_Space((circ_buff_cb_t*)(uintptr_t)
-        ETSOC_RT_MEM_READ_64((uint64_t*)&vq_cb->circbuff_cb),
-        ETSOC_RT_MEM_READ_32(&vq_cb->flags)) > 0);
+#ifdef VQ_ENABLE_LOGGING
+    circ_buff_cb_t *circ_buff_ptr =
+        (circ_buff_cb_t *)(uintptr_t)ETSOC_RT_MEM_READ_64((uint64_t *)&vq_cb->circbuff_cb);
+
+    Log_Write(LOG_LEVEL_INFO, "%s%s%p%s%ld%s%ld%s%ld%s", LOG_FROM,
+        "VQ_Data_Avail:target_circ_buff:", circ_buff_ptr, ":head:", circ_buff_ptr->head_offset,
+        ":tail:", circ_buff_ptr->tail_offset, ":length:", circ_buff_ptr->length, "\r\n");
+#endif /* VQ_ENABLE_LOGGING */
+
+    return (Circbuffer_Get_Used_Space(
+                (circ_buff_cb_t *)(uintptr_t)ETSOC_RT_MEM_READ_64((uint64_t *)&vq_cb->circbuff_cb),
+                ETSOC_RT_MEM_READ_32(&vq_cb->flags)) > 0);
 }
 
 /************************************************************************
