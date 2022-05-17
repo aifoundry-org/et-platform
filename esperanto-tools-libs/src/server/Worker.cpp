@@ -286,6 +286,6 @@ void Worker::freeResources() {
 
 void Worker::onStreamError(EventId event, const StreamError& error) {
   if (events_.find(event) != end(events_)) {
-    sendResponse({resp::Type::RUNTIME_EXCEPTION, req::ASYNC_RUNTIME_EVENT, error});
+    sendResponse({resp::Type::STREAM_ERROR, req::ASYNC_RUNTIME_EVENT, error});
   }
 }

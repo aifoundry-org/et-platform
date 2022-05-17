@@ -27,7 +27,6 @@ using namespace rt;
 
 namespace {
 constexpr size_t kMaxMessageSize = 4096;
-constexpr auto kRecevTimeoutMs = 10; // 10 ms
 struct MemStream : public std::streambuf {
   MemStream(char* s, std::size_t n) {
     setg(s, s, s + n);
@@ -49,9 +48,8 @@ Client::Client(const std::string& socketPath) {
   addr.sun_family = AF_UNIX;
   RT_LOG(INFO) << "Connecting to socket " << socketPath;
   strncpy(addr.sun_path, socketPath.c_str(), sizeof(addr.sun_path) - 1);
-  int val = 1;
 
-  if (setsockopt(socket_, SOL_SOCKET, SO_PASSCRED, &val, sizeof(val)) == -1) {
+  if (int val = 1; setsockopt(socket_, SOL_SOCKET, SO_PASSCRED, &val, sizeof(val)) == -1) {
     throw NetworkException(std::string{"unable to set local per credentials: "} + strerror(errno));
   }
 
@@ -76,41 +74,29 @@ void Client::responseProcessor() {
   auto requestBuffer = std::vector<char>(kMaxMessageSize);
   auto ms = MemStream{requestBuffer.data(), requestBuffer.size()};
 
-  pollfd fd;
-  fd.fd = socket_;
-  fd.events = POLLIN;
-  fd.revents = 0;
   try {
     while (running_) {
-      RT_VLOG(HIGH) << "Polling (blocking) for response during " << kRecevTimeoutMs << "ms";
-      if (auto rpoll = poll(&fd, 1, kRecevTimeoutMs); rpoll > 0) {
-        RT_VLOG(HIGH) << "Poll ended";
-        if ((fd.revents & POLLIN) && running_) {
-          RT_VLOG(HIGH) << "There is a POLLIN, reading socket";
-          if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); res < 0) {
-            RT_LOG(WARNING) << "Read socket error: " << strerror(errno);
-            throw NetworkException(std::string{"Read socket error: "} + strerror(errno));
-          }
+      if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); running_) {
+        if (res < 0) {
+          RT_LOG(WARNING) << "Read socket error: " << strerror(errno);
+          break;
+        } else if (res > 0) {
           std::istream is(&ms);
           cereal::PortableBinaryInputArchive archive{is};
           resp::Response response;
           archive >> response;
           processResponse(response);
-        } else if (running_) {
-          RT_LOG(WARNING) << "Unexpected poll events result: " << fd.revents;
-          throw NetworkException("Unexpected poll events result: " + std::to_string(fd.revents));
+        } else {
+          RT_LOG(INFO) << "Socket closed, ending client listener thread.";
+          running_ = false;
         }
-      } else if (rpoll < 0) { // some error happened
-        RT_LOG(WARNING) << "Poll error: " << strerror(errno);
-        throw NetworkException(std::string{"Poll error: "} + strerror(errno));
       }
-      // rpoll==0 means timeout, so run the bucle again
     }
   } catch (const std::exception& e) {
-    RT_LOG(WARNING) << "Exception happened: " << e.what();
+    RT_LOG(WARNING) << std::string{"Exception happened: "} + e.what();
     running_ = false;
-    // some error happened ... let's TODO: fill this when error handling is implemented
   }
+  RT_LOG(INFO) << "End listener thread.";
 }
 
 bool Client::waitForEvent(EventId event, std::chrono::seconds timeout) {
@@ -203,7 +189,12 @@ void Client::processResponse(const resp::Response& response) {
   SpinLock lock(mutex_);
   switch (response.type_) {
   case resp::Type::EVENT_DISPATCHED:
+    CHECK(response.id_ == req::ASYNC_RUNTIME_EVENT) << "Event dispatched should have request ASYNC_RUNTIME_EVENT";
     // dispatch whatever event
+    break;
+  case resp::Type::STREAM_ERROR:
+    CHECK(response.id_ == req::ASYNC_RUNTIME_EVENT) << "Stream error should have request ASYNC_RUNTIME_EVENT";
+    // execute callback or send through the threadpool
     break;
   case resp::Type::RUNTIME_EXCEPTION:
     // process the exception

@@ -197,6 +197,7 @@ enum class Type : uint32_t {
   GET_DEVICES,
   ABORT_STREAM,
   EVENT_DISPATCHED,
+  STREAM_ERROR,
   RUNTIME_EXCEPTION
 };
 
@@ -260,15 +261,6 @@ struct RuntimeException {
     archive(what_message);
     exception_ = Exception{what_message};
   }
-  /*template <class Archive> void save(Archive& archive) const {
-    archive(std::string{exception_.what()});
-  }
-
-  template <class Archive> void load(Archive& archive) {
-    std::string what_message;
-    archive(what_message);
-    exception_ = Exception{what_message};
-  }*/
 };
 
 struct Response {
