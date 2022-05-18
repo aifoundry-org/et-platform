@@ -918,6 +918,9 @@ int32_t SP_Iface_Setup_MM_HeartBeat(void)
     int32_t sw_timer_idx;
     int32_t status = STATUS_SUCCESS;
 
+    /* Send an initial Heartbeat to SP */
+    sp_iface_mm_heartbeat_cb(0);
+
     /* Create timer for MM heartbeat */
     /* TODO: Fine tune the heartbeat interval */
     sw_timer_idx =
