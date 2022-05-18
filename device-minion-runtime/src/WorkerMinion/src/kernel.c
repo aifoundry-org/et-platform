@@ -72,6 +72,7 @@ typedef struct kernel_launch_info {
     uint64_t completed_threads; /* Bitmask of threads that have already completed the launch */
     uint64_t exception_mask;
     uint64_t system_abort_mask;
+    uint64_t bus_error_mask;
     uint64_t exception_buffer;
     uint32_t execution_status;
     union {
@@ -188,6 +189,16 @@ bool kernel_info_has_thread_launched(uint32_t shire_id, uint64_t thread_id)
 uint64_t kernel_info_set_local_exception_mask(uint32_t shire_id, uint64_t thread_id)
 {
     return atomic_or_local_64(&kernel_launch_info[shire_id].exception_mask, 1ULL << thread_id);
+}
+
+uint64_t kernel_info_set_local_bus_error_mask(uint32_t shire_id, uint64_t thread_id)
+{
+    return atomic_or_local_64(&kernel_launch_info[shire_id].bus_error_mask, 1ULL << thread_id);
+}
+
+bool kernel_info_check_local_bus_error(uint32_t shire_id, uint64_t thread_id)
+{
+    return (atomic_load_local_64(&kernel_launch_info[shire_id].bus_error_mask) >> thread_id) & 1;
 }
 
 static inline void kernel_info_reset_execution_status(uint32_t shire_id)
@@ -488,6 +499,7 @@ static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel)
         kernel_info_reset_completed_threads(shire_id);
         kernel_info_reset_thread_returned(shire_id);
         atomic_store_local_64(&kernel_launch_info[shire_id].exception_mask, 0);
+        atomic_store_local_64(&kernel_launch_info[shire_id].bus_error_mask, 0);
         atomic_store_local_64(&kernel_launch_info[shire_id].system_abort_mask, 0);
         /* TODO: Improvement: The global atomic to reset kernel launch globals should be done
         by the first shire involved in kernel launch only, not all shires. */
@@ -595,27 +607,11 @@ static void pre_kernel_setup(const mm_to_cm_message_kernel_params_t *kernel)
     asm volatile("fence");
 }
 
-static void kernel_launch_post_cleanup(
-    const mm_to_cm_message_kernel_params_t *kernel, int64_t return_value, uint64_t return_type)
+static void process_kernel_completion_status(int64_t return_value, uint64_t return_type)
 {
     const uint32_t shire_id = get_shire_id();
     const uint32_t hart_id = get_hart_id();
     const uint64_t thread_id = hart_id & (HARTS_PER_SHIRE - 1);
-    const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
-    const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
-    const uint64_t thread_mask = (shire_id == MASTER_SHIRE) ? 0xFFFFFFFF00000000U :
-                                                              0xFFFFFFFFFFFFFFFFU;
-    int8_t status;
-
-    /* Enable supervisor interrupts. Now the IPIs will trap to trap handler */
-    SUPERVISOR_INTERRUPTS_ENABLE
-
-    /* Update Trace buffer header if Trace was enabled. */
-    if (kernel->flags & KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
-    {
-        /* TODO: SW-9308: Once this is done, remove this update to Trace header. */
-        Trace_Update_UMode_Buffer_Header();
-    }
 
     /* Kernel user error handling. If the return type is not success,
     set the kernel launch status as error */
@@ -634,6 +630,28 @@ static void kernel_launch_post_cleanup(
         {
             /* Set the global system abort flag to indicate that this particular shire was aborted */
             atomic_or_global_64(&kernel_launch_global_system_abort_mask, 1ULL << shire_id);
+        }
+    }
+    else if ((return_type == KERNEL_RETURN_SUCCESS) &&
+             (kernel_info_check_local_bus_error(shire_id, thread_id)))
+    {
+        /* Save the kernel launch status for sending response to MM */
+        kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
+
+        Log_Write(LOG_LEVEL_ERROR,
+            "kernel_launch_post_cleanup: Bus error was detected. kernel completion return code:%ld\r\n",
+            return_value);
+
+        /* Get the kernel error buffer */
+        uint64_t error_buffer = kernel_info_get_exception_buffer(shire_id);
+
+        /* If the kernel error buffer is available */
+        if (error_buffer != 0)
+        {
+            Log_Write(LOG_LEVEL_INFO, "kernel_launch_post_cleanup:Saving context on bus error\r\n");
+
+            CM_To_MM_Save_Kernel_Error(
+                (execution_context_t *)error_buffer, hart_id, CM_CONTEXT_TYPE_BUS_ERROR, 0);
         }
     }
     /* If the return type is success but kernel return value is not success,
@@ -659,6 +677,31 @@ static void kernel_launch_post_cleanup(
                 CM_CONTEXT_TYPE_USER_KERNEL_ERROR, return_value);
         }
     }
+}
+
+static void kernel_launch_post_cleanup(
+    const mm_to_cm_message_kernel_params_t *kernel, int64_t return_value, uint64_t return_type)
+{
+    const uint32_t shire_id = get_shire_id();
+    const uint32_t hart_id = get_hart_id();
+    const uint64_t thread_id = hart_id & (HARTS_PER_SHIRE - 1);
+    const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
+    const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
+    const uint64_t thread_mask = (shire_id == MASTER_SHIRE) ? 0xFFFFFFFF00000000U :
+                                                              0xFFFFFFFFFFFFFFFFU;
+    int8_t status;
+
+    /* Enable supervisor interrupts. Now the IPIs will trap to trap handler */
+    SUPERVISOR_INTERRUPTS_ENABLE
+
+    /* Update Trace buffer header if Trace was enabled. */
+    if (kernel->flags & KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
+    {
+        /* TODO: SW-9308: Once this is done, remove this update to Trace header. */
+        Trace_Update_UMode_Buffer_Header();
+    }
+
+    process_kernel_completion_status(return_value, return_type);
 
     /* Wait for memory accesses and tensor ops */
     WAIT_FOR_MEM_AND_TENSOR_OPS

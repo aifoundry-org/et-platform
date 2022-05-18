@@ -32,6 +32,12 @@ static inline uint64_t __attribute__((always_inline)) get_mhart_id(void)
 uint64_t trap_routine(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t *const regs)
 {
     bool delegate = false;
+    uint64_t mstatus;
+    uint64_t prev_mode;
+
+    asm volatile("csrr %0, mstatus" : "=r"(mstatus));
+
+    prev_mode = (mstatus & MSTATUS_MPP) >> MSTATUS_MPP_SHIFT;
 
     if (mcause == EXCEPTION_ILLEGAL_INSTRUCTION)
     {
@@ -56,6 +62,12 @@ uint64_t trap_routine(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t *
         /* Read the address and PC that caused the bus error */
         __asm__ __volatile__("csrr %0, mbusaddr" : "=r"(mbusaddr));
 
+        /* If bus error interupt was generated from U-mode or S-mode then delegate it to S-mode*/
+        if ((prev_mode == PRV_S) || (prev_mode == PRV_U))
+        {
+            delegate = true;
+        }
+
         /* TODO: Need to log mbusaddr to trace. There is no trace support for M-mode right now */
     }
     else
@@ -67,18 +79,12 @@ uint64_t trap_routine(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t *
     /* Delegate to S-mode by software */
     if (delegate)
     {
-        uint64_t mstatus;
-        uint64_t prev_mode;
         uint64_t stvec;
 
         /* Update S-mode exception info */
         asm volatile("csrw stval,  %0" : : "r"(mtval));
         asm volatile("csrw sepc,   %0" : : "r"(mepc));
         asm volatile("csrw scause, %0" : : "r"(mcause));
-
-        asm volatile("csrr %0, mstatus" : "=r"(mstatus));
-
-        prev_mode = (mstatus & MSTATUS_MPP) >> MSTATUS_MPP_SHIFT;
 
         /* Set MPP to S-mode */
         mstatus &= ~MSTATUS_MPP;

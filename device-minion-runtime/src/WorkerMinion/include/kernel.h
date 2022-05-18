@@ -46,6 +46,22 @@ uint64_t kernel_info_reset_launched_thread(uint32_t shire_id, uint64_t thread_id
 */
 uint64_t kernel_info_set_local_exception_mask(uint32_t shire_id, uint64_t thread_id);
 
+/*! \fn uint64_t kernel_info_set_local_bus_error_mask(uint32_t shire_id, uint64_t thread_id)
+    \brief Used to set the bus error flag in case of a bus error..
+    \param shire_id Shire ID
+    \param thread_id ID of the thread
+    \return Value of bus error mask before setting the current hart's bit
+*/
+uint64_t kernel_info_set_local_bus_error_mask(uint32_t shire_id, uint64_t thread_id);
+
+/*! \fn bool kernel_info_check_local_bus_error(uint32_t shire_id, uint64_t thread_id)
+    \brief Used to get the bus error flag for single hart.
+    \param shire_id Shire ID
+    \param thread_id ID of the thread
+    \return True or False status showing if bus error flag was set or not
+*/
+bool kernel_info_check_local_bus_error(uint32_t shire_id, uint64_t thread_id);
+
 /*! \fn bool kernel_info_has_thread_completed(uint32_t shire_id, uint64_t thread_id)
     \brief Used to check if a thread in a shire has completed kernel or not.
     \param shire_id Shire ID

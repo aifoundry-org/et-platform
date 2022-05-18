@@ -17,9 +17,12 @@
 /* cm_rt_svcs */
 #include <etsoc/isa/macros.h>
 #include <etsoc/isa/riscv_encoding.h>
+#include <etsoc/isa/hart.h>
+#include <etsoc/common/common_defs.h>
 
 /* cm specific headers */
 #include "log.h"
+#include "kernel.h"
 
 void extended_interrupt(uint64_t scause, uint64_t sepc, uint64_t stval, const uint64_t *regs);
 
@@ -38,6 +41,17 @@ void extended_interrupt(uint64_t scause, uint64_t sepc, uint64_t stval, const ui
         Log_Write(LOG_LEVEL_CRITICAL,
             "CM:Bus error interrupt:scause: %lx sepc: %lx stval: %lx sstatus: %lx\n", scause, sepc,
             stval, sstatus);
+
+        /* Check if bus error interupt was generated from U-Mode.
+           The SPP bit would be 0 if interrupt was generated from U-Mode, otherwise 1. */
+        if (!(sstatus & SSTATUS_SPP))
+        {
+            /* Set the kernel bus error mask for current HART which took bus error interrupt. */
+            kernel_info_set_local_bus_error_mask(
+                get_shire_id(), get_hart_id() & (HARTS_PER_SHIRE - 1));
+
+            Log_Write(LOG_LEVEL_ERROR, "Bus error detected in umode kernel execution.\n");
+        }
     }
     else
     {

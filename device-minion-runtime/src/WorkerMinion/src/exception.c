@@ -30,7 +30,7 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
     bool user_mode;
 
     asm volatile("csrr %0, sstatus" : "=r"(sstatus));
-    user_mode = ((sstatus & 0x100U) >> 8U) == 0;
+    user_mode = (sstatus & SSTATUS_SPP) == 0;
 
     /* S-mode exception */
     if (!user_mode)
@@ -96,7 +96,8 @@ void exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t 
 
         /* Only send kernel launch exception message once to MM. To avoid flood of global atomics,
         the shire-level check for exception is done first using local atomics. */
-        if ((kernel_info_set_local_exception_mask(shire_id, hart_id) == 0) &&
+        if ((kernel_info_set_local_exception_mask(shire_id, hart_id & (HARTS_PER_SHIRE - 1)) ==
+                0) &&
             (kernel_launch_set_global_exception_mask(shire_id) == 0))
         {
             /* Sends exception message to MM */
