@@ -587,11 +587,7 @@ int32_t configure_memshire(void)
         .frequency = DDR_FREQUENCY_933MHZ,
         .capacity = DDR_CAPACITY_16GB,
         .ecc = false,
-#if !(FAST_BOOT || TEST_FRAMEWORK)
         .training = true,
-#else
-        .training = false,
-#endif
         .sim_only = false
     };
 
@@ -610,14 +606,14 @@ int32_t configure_memshire(void)
         return MEMSHIRE_PLL_CONFIG_ERROR;
     }
     Log_Write(LOG_LEVEL_INFO, "configure_memshire: configure_memshire_plls completed\n");
-#if !FAST_BOOT
+#if !(FAST_BOOT || TEST_FRAMEWORK)
     if (0 != ddr_config(&ddr_mode))
     {
         Log_Write(LOG_LEVEL_ERROR, "ddr_config() failed!\n");
         return MEMSHIRE_DDR_CONFIG_ERROR;
     }
-    Log_Write(LOG_LEVEL_INFO, "DRAM ready.\n");
 #endif
+    Log_Write(LOG_LEVEL_INFO, "DRAM ready.\n");
     if (ddr_mode.frequency == DDR_FREQUENCY_800MHZ)
     {
         ddr_frequency = 800;
