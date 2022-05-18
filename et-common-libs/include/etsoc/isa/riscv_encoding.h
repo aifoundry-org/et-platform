@@ -11,6 +11,13 @@
 #define PRV_M 3
 #endif
 
+#define SSTATUS_SIE_SHIFT  1
+#define SSTATUS_SIE        0x2ul
+#define SSTATUS_SPIE_SHIFT 5
+#define SSTATUS_SPIE       0x20ul
+#define SSTATUS_SPP_SHIFT  8
+#define SSTATUS_SPP        0x100ul
+
 #define MSTATUS_SIE        0x00000002ul
 #define MSTATUS_SPIE_SHIFT 5
 #define MSTATUS_SPIE       (1ul << MSTATUS_SPIE_SHIFT)
