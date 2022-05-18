@@ -583,13 +583,11 @@ int32_t configure_memshire(void)
     memshire_frequency = 0;
     ddr_frequency = 0;
 
-    DDR_MODE ddr_mode = {
-        .frequency = DDR_FREQUENCY_933MHZ,
-        .capacity = DDR_CAPACITY_16GB,
-        .ecc = false,
-        .training = true,
-        .sim_only = false
-    };
+    DDR_MODE ddr_mode = { .frequency = DDR_FREQUENCY_933MHZ,
+                          .capacity = DDR_CAPACITY_16GB,
+                          .ecc = false,
+                          .training = true,
+                          .sim_only = false };
 
     //TODO: decide ddr_mode based on, e.g. from storage
 

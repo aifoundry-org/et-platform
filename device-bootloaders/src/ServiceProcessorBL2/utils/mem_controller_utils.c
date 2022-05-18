@@ -397,6 +397,7 @@ static void wait_for_training_internal(training_stage stage, uint32_t memshire,
 
             shire_completed[memshire] = 1;
             ++number_of_shire_completed;
+            ms_set_dram_status_physical_memshire(memshire, WORKING);
         }
         else if (major_msg == 0xff || major_msg == 0x0b)
         {

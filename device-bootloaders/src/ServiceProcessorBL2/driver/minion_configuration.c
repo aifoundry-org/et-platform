@@ -230,6 +230,33 @@ static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
 *
 *   FUNCTION
 *
+*       clock_gate_debug_logic
+*
+*   DESCRIPTION
+*
+*       This function clock gates the Minion Shire Debug logic
+*
+*   INPUTS
+*
+*       N/A
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+
+#define CLOCK_GATE_DEBUG_LOGIC                                                         \
+    for (uint8_t id = 0; id <= 33; id++)                                               \
+    {                                                                                  \
+        write_esr_new(PP_MACHINE, id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,         \
+                      ETSOC_SHIRE_OTHER_ESR_DEBUG_CLK_GATE_CTRL_BYTE_ADDRESS, 0x1, 0); \
+    }
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       minion_configure_plls_and_dlls
 *
 *   DESCRIPTION
@@ -479,6 +506,10 @@ static int enable_minion_shire(uint64_t shire_mask)
     shiremask = shire_mask;
     UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xF /*Enable all Neigh*/,
                      false)
+
+    /* Clock gate debug logic */
+    CLOCK_GATE_DEBUG_LOGIC
+
     Log_Write(LOG_LEVEL_CRITICAL, "Shire Cache and Neigh Enable with VPU RF WA\n");
 #else
     /* Enable Minion in all neighs */
