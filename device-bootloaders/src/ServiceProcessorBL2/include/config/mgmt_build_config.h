@@ -492,16 +492,6 @@
 #define FLASHFS_DRIVER_TASK_PRIORITY   1
 #define FLASHFS_DRIVER_TASK_STACK_SIZE 4096
 
-/*! \def MM_RST_TASK_PRIORITY
-    \brief MM Reset task priority
-*/
-#define MM_RST_TASK_PRIORITY 4
-
-/*! \def MM_RST_TASK_STACK
-    \brief MM Reset task stack size
-*/
-#define MM_RST_TASK_STACK 1024
-
 /************************/
 /* Compile-time checks  */
 /************************/

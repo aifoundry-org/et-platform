@@ -52,6 +52,21 @@
 */
 #define MM_MASTER_SHIRE_ID 32
 
+/*! \def MM_HEARTBEAT_TIMEOUT_MSEC
+    \brief MM reset timeout period
+*/
+#define MM_RESET_TIMEOUT_MSEC 1000000
+
+/*!
+ * @enum minion_state_type
+ * @brief Enum defining minion states type
+ */
+typedef enum
+{
+    MM_READY = 0,
+    MM_NOT_READY
+} minion_state_type;
+
 /*! \fn int Minion_Shire_Update_Voltage( uint8_t voltage)
     \brief This function provide support to update the Minion
            Shire Power Rails
@@ -99,10 +114,10 @@ int Minion_Enable_Master_Shire_Threads(void);
 int Minion_Disable_CM_Shire_Threads(void);
 
 /*! \fn int Master_Minion_Reset(uint64_t minion_shires_mask)
-    \brief This function resets the Compute Minion Shire threads
+    \brief This function resets Master minion.
     \return The function call status, pass/fail.
 */
-void Master_Minion_Reset(void *pvParameters);
+int Master_Minion_Reset(void);
 
 /*! \fn int Compute_Minion_Reset_Threads(uint64_t minion_shires_mask)
     \This function resets the Compute Minion Shire threads
@@ -139,8 +154,8 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
     \param  to enable Minion to use Step clock
     \return The function call status, pass/fail.
 */
-int Minion_Configure_Minion_Shire_PLL_no_mask(uint8_t hpdpll_mode,
-                                      uint8_t lvdpll_mode, bool use_step_clock);
+int Minion_Configure_Minion_Shire_PLL_no_mask(uint8_t hpdpll_mode, uint8_t lvdpll_mode,
+                                              bool use_step_clock);
 
 /*! \fn uint64_t Minion_Get_Active_Compute_Minion_Mask(void)
     \brief This function gets the active compute shire mask

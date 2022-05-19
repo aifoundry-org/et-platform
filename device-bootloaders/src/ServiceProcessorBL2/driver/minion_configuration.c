@@ -59,6 +59,7 @@
 #include "minion_state_inspection.h"
 #include "minion_run_control.h"
 #include "trace.h"
+#include "dm_event_control.h"
 
 /*!
  * @struct struct minion_event_control_block
@@ -453,7 +454,7 @@ static void MM_HeartBeat_Timer_Cb(xTimerHandle pxTimer)
     }
 
     /* Reset minion threads */
-    Minion_Create_Reset_Task();
+    Master_Minion_Reset();
 }
 
 /************************************************************************
@@ -693,18 +694,19 @@ int Minion_Disable_CM_Shire_Threads(void)
 *
 *   INPUTS
 *
-*       pvParameters Task input parametes
+*       None
 *
 *   OUTPUTS
 *
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-void Master_Minion_Reset(void *pvParameters)
+int Master_Minion_Reset(void)
 {
-    (void)pvParameters;
     uint64_t shire_mask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
     uint8_t num_shires = get_highest_set_bit_offset(shire_mask);
+    int status = MM_NOT_READY;
+    uint64_t time_end = 0;
 
     /* Disable Minion neighs */
     for (uint8_t i = 0; i <= num_shires; i++)
@@ -758,6 +760,10 @@ void Master_Minion_Reset(void *pvParameters)
         /* Re launch MM command handler */
         launch_mm_sp_command_handler();
 
+        if (Minion_State_Error_Control_Init(minion_event_callback) != 0)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Minion_State_Error_Control_Init Failed\n");
+        }
         /* Initialize heart beat timer */
         if (MM_Init_HeartBeat_Watchdog() != 0)
         {
@@ -773,8 +779,20 @@ void Master_Minion_Reset(void *pvParameters)
         }
     }
 
-    /* Delete task after completing MM reset */
-    vTaskDelete(NULL);
+    /* wait for MM ready flag */
+    time_end = timer_get_ticks_count() + pdMS_TO_TICKS(MM_RESET_TIMEOUT_MSEC);
+    while (timer_get_ticks_count() < time_end)
+    {
+        /* Wait to receive Heartbeat from MM */
+        if (Minion_State_Get_MM_Heartbeat_Count() > 0)
+        {
+            status = MM_READY;
+            break;
+        }
+        vTaskDelay(1);
+    }
+
+    return status;
 }
 
 /************************************************************************
@@ -1346,10 +1364,11 @@ void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
     switch (msg_id)
     {
         case DM_CMD_MM_RESET:
-            /* Create a Task to reset Master Minion. 
-            This is necessary to perform non blocking reset as MM sends command to SP when initialized
-            so the command handler has to respond to that command otherwise MM init will fail*/
-            Minion_Create_Reset_Task();
+            status = Master_Minion_Reset();
+            if (status != SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_ERROR, " mm state svc error: Master_Minion_Reset()\r\n");
+            }
             break;
         case DM_CMD_GET_MM_ERROR_COUNT:
             status = mm_get_error_count(&dm_rsp.mm_error_count);

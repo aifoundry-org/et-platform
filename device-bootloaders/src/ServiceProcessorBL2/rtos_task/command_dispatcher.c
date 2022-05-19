@@ -53,15 +53,6 @@ TaskHandle_t g_mm_cmd_hdlr_handle;
 static StackType_t g_mm_cmd_hdlr_stack[VQUEUE_STACK_SIZE];
 static StaticTask_t g_mm_cmd_hdlr_ptr;
 
-/* The variable used to hold task's handle */
-static TaskHandle_t t_handle;
-
-/* Task stack memory */
-static StackType_t g_mm_rst_stack[MM_RST_TASK_STACK];
-
-/* The variable used to hold the task's data structure. */
-static StaticTask_t g_staticTask_ptr;
-
 static void mm_cmd_hdlr_task(void *pvParameters);
 static void pc_vq_task(void *pvParameters);
 
@@ -464,9 +455,8 @@ static void mm2sp_report_error_event_handler(const void *cmd_buffer)
 
     if (event->error_type == SP_RECOVERABLE_FW_MM_ERROR)
     {
-        /* Restart the Compute Minions  everything */
-        Minion_Create_Reset_Task();
-        Compute_Minion_Reset_Threads(Minion_State_MM_Iface_Get_Active_Shire_Mask());
+        /* Restart the Compute Minions everything */
+        Master_Minion_Reset();
     }
 }
 
@@ -631,37 +621,4 @@ void launch_mm_sp_command_handler(void)
     create_mm_cmd_hdlr_task();
 
     INT_enableInterrupt(SPIO_PLIC_MBOX_MMIN_INTR, 1, vqueue_mm_isr);
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Minion_Create_Reset_Task
-*
-*   DESCRIPTION
-*
-*       This function creates a task to reset Master Minion.
-*
-*   INPUTS
-*
-*       None
-*
-*   OUTPUTS
-*
-*       The function call status, pass/fail
-*
-***********************************************************************/
-int Minion_Create_Reset_Task(void)
-{
-    t_handle = xTaskCreateStatic(Master_Minion_Reset, "MM_RST_TASK", MM_RST_TASK_STACK, NULL,
-                                 MM_RST_TASK_PRIORITY, g_mm_rst_stack, &g_staticTask_ptr);
-
-    if (!t_handle)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Task Creation Failed: Failed to create MM Reset Task.\n");
-        return ERROR_TASK_CREATION_FAILED;
-    }
-
-    return SUCCESS;
 }
