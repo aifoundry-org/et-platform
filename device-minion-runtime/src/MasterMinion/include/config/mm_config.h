@@ -343,6 +343,16 @@
 */
 #define DMAW_NUM 2
 
+/*! \def STATW_BASE_HART_ID
+    \brief Base HART ID for the Device Statistics Sampler Hart.
+*/
+#define STATW_BASE_HART_ID 2062U
+
+/*! \def STATW_NUM
+    \brief Number of DMA Workers
+*/
+#define STATW_NUM 1
+
 /************************/
 /* Compile-time checks  */
 /************************/

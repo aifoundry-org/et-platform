@@ -51,6 +51,15 @@
     (((shire_mask & CM_SHIRE_MASK) && (thread_mask & CM_HART_MASK)) || \
         ((shire_mask & MM_SHIRE_MASK) && (thread_mask & CW_IN_MM_SHIRE)))
 
+/*! \enum mm_trace_custom_id
+    \brief MM Trace custom event IDs
+*/
+enum {
+    MM_TRACE_CUSTOM_ID_START = 0,
+    MM_TRACE_CUSTOM_ID_COMPUTE_RESOURCES,
+    MM_TRACE_CUSTOM_ID_COUNT
+} mm_trace_custom_id;
+
 /*! \fn int32_t Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
     \brief This function initializes Trace for all harts in Master Minion
            Shire

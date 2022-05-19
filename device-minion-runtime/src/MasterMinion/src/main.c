@@ -35,6 +35,7 @@
 #include "workers/sqw_hp.h"
 #include "workers/kw.h"
 #include "workers/dmaw.h"
+#include "workers/statw.h"
 #include "services/log.h"
 
 /* MM FW internal testing */
@@ -124,6 +125,12 @@ void main(void)
         DMAW_Tests(hart_id);
     }
 #endif
+    else if (hart_id == STATW_BASE_HART_ID)
+    {
+        /* Spin wait till dispatcher initialization is complete */
+        local_spinwait_wait(&Launch_Wait, 1, 0);
+        STATW_Launch(hart_id);
+    }
     else
     {
         while (1)

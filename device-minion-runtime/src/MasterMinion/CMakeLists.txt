@@ -34,6 +34,7 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
         src/workers/dmaw.c
         src/workers/kw.c
         src/workers/cw.c
+        src/workers/statw.c
         src/drivers/console.c
         src/drivers/pcie_dma.c
         src/drivers/plic.c
