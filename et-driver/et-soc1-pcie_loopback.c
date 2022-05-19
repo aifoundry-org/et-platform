@@ -131,6 +131,20 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	et_dev = container_of(ops, struct et_pci_dev, ops);
 	size = _IOC_SIZE(cmd);
 
+	if ((cmd & ~IOCSIZE_MASK) == ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(0)) {
+		if (strlen(dev_name(&et_dev->pdev->dev)) + 1 > size)
+			return -ENOMEM;
+
+		if (copy_to_user(usr_arg,
+				 dev_name(&et_dev->pdev->dev),
+				 strlen(dev_name(&et_dev->pdev->dev)) + 1)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME: failed to copy to user\n");
+			return -EFAULT;
+		}
+
+		return strlen(dev_name(&et_dev->pdev->dev)) + 1;
+	}
+
 	switch (cmd) {
 	case ETSOC1_IOCTL_GET_DEVICE_STATE:
 		// TODO: SW-8811: Implement device state with
@@ -512,6 +526,20 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	et_dev = container_of(mgmt, struct et_pci_dev, mgmt);
 
 	size = _IOC_SIZE(cmd);
+
+	if ((cmd & ~IOCSIZE_MASK) == ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(0)) {
+		if (strlen(dev_name(&et_dev->pdev->dev)) + 1 > size)
+			return -ENOMEM;
+
+		if (copy_to_user(usr_arg,
+				 dev_name(&et_dev->pdev->dev),
+				 strlen(dev_name(&et_dev->pdev->dev)) + 1)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME: failed to copy to user\n");
+			return -EFAULT;
+		}
+
+		return strlen(dev_name(&et_dev->pdev->dev)) + 1;
+	}
 
 	switch (cmd) {
 	case ETSOC1_IOCTL_GET_DEVICE_STATE:

@@ -126,4 +126,7 @@ struct trace_desc {
 #define ETSOC1_IOCTL_GET_DEVICE_STATE                                          \
 	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 13, __u32)
 
+#define ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(N)                                 \
+	_IOC(_IOC_READ, ESPERANTO_PCIE_IOCTL_MAGIC, 14, (N))
+
 #endif

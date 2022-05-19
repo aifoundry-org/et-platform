@@ -162,6 +162,19 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		}
 		return 0;
+	} else if ((cmd & ~IOCSIZE_MASK) ==
+		   ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(0)) {
+		if (strlen(dev_name(&et_dev->pdev->dev)) + 1 > size)
+			return -ENOMEM;
+
+		if (copy_to_user(usr_arg,
+				 dev_name(&et_dev->pdev->dev),
+				 strlen(dev_name(&et_dev->pdev->dev)) + 1)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME: failed to copy to user\n");
+			return -EFAULT;
+		}
+
+		return strlen(dev_name(&et_dev->pdev->dev)) + 1;
 	}
 
 	if (dev_state != DEV_STATE_READY)
@@ -582,6 +595,19 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		}
 		return 0;
+	} else if ((cmd & ~IOCSIZE_MASK) ==
+		   ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(0)) {
+		if (strlen(dev_name(&et_dev->pdev->dev)) + 1 > size)
+			return -ENOMEM;
+
+		if (copy_to_user(usr_arg,
+				 dev_name(&et_dev->pdev->dev),
+				 strlen(dev_name(&et_dev->pdev->dev)) + 1)) {
+			pr_err("ioctl: ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME: failed to copy to user\n");
+			return -EFAULT;
+		}
+
+		return strlen(dev_name(&et_dev->pdev->dev)) + 1;
 	}
 
 	if (mgmt_dev_state != DEV_STATE_READY)
