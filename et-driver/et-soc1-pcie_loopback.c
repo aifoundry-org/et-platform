@@ -33,6 +33,7 @@
 #include "et_io.h"
 #include "et_ioctl.h"
 #include "et_pci_dev.h"
+#include "et_sysfs_stats.h"
 #include "et_vma.h"
 #include "et_vqueue.h"
 
@@ -358,6 +359,7 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 static void esperanto_pcie_vm_open(struct vm_area_struct *vma)
 {
 	struct et_dma_mapping *map = vma->vm_private_data;
+	struct et_pci_dev *et_dev;
 
 	dev_dbg(&map->pdev->dev,
 		"vm_open: %p, [size=%lu,vma=%08lx-%08lx]\n",
@@ -367,11 +369,18 @@ static void esperanto_pcie_vm_open(struct vm_area_struct *vma)
 		vma->vm_end);
 
 	map->ref_count++;
+	if (map->ref_count == 1) {
+		et_dev = pci_get_drvdata(map->pdev);
+		atomic64_add(
+			map->size,
+			&et_dev->ops.mem_stats[ET_MEM_STATS_CMA_ALLOCATED]);
+	}
 }
 
 static void esperanto_pcie_vm_close(struct vm_area_struct *vma)
 {
 	struct et_dma_mapping *map = vma->vm_private_data;
+	struct et_pci_dev *et_dev;
 
 	if (!map)
 		return;
@@ -389,6 +398,10 @@ static void esperanto_pcie_vm_close(struct vm_area_struct *vma)
 				  map->size,
 				  map->kern_vaddr,
 				  map->dma_addr);
+		et_dev = pci_get_drvdata(map->pdev);
+		atomic64_sub(
+			map->size,
+			&et_dev->ops.mem_stats[ET_MEM_STATS_CMA_ALLOCATED]);
 
 		kfree(map);
 	}
@@ -775,6 +788,10 @@ static int et_mgmt_dev_init(struct et_pci_dev *et_dev)
 	region->mapped_baseaddr =
 		(void __iomem __force *)kzalloc(region->size, GFP_KERNEL);
 
+	memset(et_dev->mgmt.err_stats,
+	       0,
+	       sizeof(atomic64_t) * ARRAY_SIZE(et_dev->mgmt.err_stats));
+
 	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, true /* mgmt_dev */);
 	if (rv) {
@@ -871,6 +888,10 @@ static int et_ops_dev_init(struct et_pci_dev *et_dev)
 	region->size = 0x2FF000000ULL;
 	region->mapped_baseaddr = NULL;
 
+	memset(et_dev->ops.mem_stats,
+	       0,
+	       sizeof(atomic64_t) * ARRAY_SIZE(et_dev->ops.mem_stats));
+
 	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, false /* ops_dev */);
 	if (rv) {
@@ -960,10 +981,18 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
+	rv = et_sysfs_stats_init(et_dev);
+	if (rv) {
+		dev_err(&pdev->dev,
+			"Failed to init sysfs files, error %d\n",
+			-rv);
+		goto error_clear_master;
+	}
+
 	rv = et_mgmt_dev_init(et_dev);
 	if (rv) {
 		dev_err(&pdev->dev, "Mgmt device initialization failed\n");
-		goto error_clear_master;
+		goto error_sysfs_stats_remove;
 	}
 
 	rv = et_ops_dev_init(et_dev);
@@ -982,6 +1011,9 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 	printk("\n------------ET PCIe loop back driver!-------------\n\n");
 
 	return rv;
+
+error_sysfs_stats_remove:
+	et_sysfs_stats_remove(et_dev);
 
 error_clear_master:
 	pci_clear_master(pdev);
@@ -1008,6 +1040,7 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 		et_ops_dev_destroy(et_dev);
 
 	et_mgmt_dev_destroy(et_dev);
+	et_sysfs_stats_remove(et_dev);
 
 	pci_clear_master(pdev);
 	pci_disable_device(pdev);

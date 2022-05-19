@@ -432,16 +432,14 @@ static void esperanto_pcie_vm_close(struct vm_area_struct *vma)
 
 	map->ref_count--;
 	if (map->ref_count == 0) {
-		et_dev = pci_get_drvdata(map->pdev);
-		atomic64_sub(
-			map->size,
-			&et_dev->ops.mem_stats[ET_MEM_STATS_CMA_ALLOCATED]);
-	}
-	if (map->ref_count == 0) {
 		dma_free_coherent(&map->pdev->dev,
 				  map->size,
 				  map->kern_vaddr,
 				  map->dma_addr);
+		et_dev = pci_get_drvdata(map->pdev);
+		atomic64_sub(
+			map->size,
+			&et_dev->ops.mem_stats[ET_MEM_STATS_CMA_ALLOCATED]);
 
 		kfree(map);
 	}

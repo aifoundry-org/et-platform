@@ -742,6 +742,10 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 		hpsq_baseaddr += hpsq_size;
 
 		mutex_init(&hpsq_pptr[i]->push_mutex);
+
+		memset(hpsq_pptr[i]->stats,
+		       0,
+		       sizeof(atomic64_t) * ARRAY_SIZE(hpsq_pptr[i]->stats));
 	}
 
 	et_dev->ops.hpsq_pptr = hpsq_pptr;
@@ -832,6 +836,10 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		INIT_WORK(&sq_pptr[i]->isr_work, et_sq_isr_work);
 		queue_work(vq_common->sq_workqueue, &sq_pptr[i]->isr_work);
 		flush_workqueue(vq_common->sq_workqueue);
+
+		memset(sq_pptr[i]->stats,
+		       0,
+		       sizeof(atomic64_t) * ARRAY_SIZE(sq_pptr[i]->stats));
 	}
 
 	return 0;
@@ -924,6 +932,10 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		INIT_WORK(&cq_pptr[i]->isr_work, et_cq_isr_work);
 		queue_work(vq_common->cq_workqueue, &cq_pptr[i]->isr_work);
 		flush_workqueue(vq_common->cq_workqueue);
+
+		memset(cq_pptr[i]->stats,
+		       0,
+		       sizeof(atomic64_t) * ARRAY_SIZE(cq_pptr[i]->stats));
 	}
 
 	vq_common->intrpt_addr = (void __iomem __force *)cq_pptr;
@@ -2160,6 +2172,9 @@ ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 		goto update_sq_bitmap;
 	}
 
+	atomic64_inc(&sq->stats[ET_VQ_STATS_MSG_COUNT]);
+	atomic64_add(header->size, &sq->stats[ET_VQ_STATS_BYTE_COUNT]);
+
 	rv = cmd_loopback_handler(sq);
 	if (rv) {
 		// cmd_loopback_handler couldn't push response to CQ
@@ -2458,6 +2473,10 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 
 		rv = et_handle_device_event(cq, &mgmt_event);
 
+		atomic64_inc(&cq->stats[ET_VQ_STATS_MSG_COUNT]);
+		atomic64_add(header.size + sizeof(header),
+			     &cq->stats[ET_VQ_STATS_BYTE_COUNT]);
+
 		return rv;
 	}
 
@@ -2482,6 +2501,10 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	}
 
 	mutex_unlock(&cq->pop_mutex);
+
+	atomic64_inc(&cq->stats[ET_VQ_STATS_MSG_COUNT]);
+	atomic64_add(header.size + sizeof(header),
+		     &cq->stats[ET_VQ_STATS_BYTE_COUNT]);
 
 	// Enqueue msg node to user msg_list of CQ
 	enqueue_msg_node(cq, msg_node);
