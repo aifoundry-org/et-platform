@@ -128,3 +128,9 @@ int DeviceSysEmuMulti::updateFirmwareImage(int device, std::vector<unsigned char
 size_t DeviceSysEmuMulti::getFreeCmaMemory() const {
   return getDevice(0).getFreeCmaMemory();
 }
+std::string DeviceSysEmuMulti::getDeviceAttribute(int device, std::string relAttrPath) const {
+  return getDevice(device).getDeviceAttribute(device, relAttrPath);
+}
+void DeviceSysEmuMulti::clearDeviceAttributes(int device, std::string relGroupPath) const {
+  return getDevice(device).clearDeviceAttributes(device, relGroupPath);
+}

@@ -686,3 +686,11 @@ void DeviceSysEmu::checkSysemuLastError() const {
     throw Exception(lastError.value());
   }
 }
+
+std::string DeviceSysEmu::getDeviceAttribute(int, std::string) const {
+  return "";
+}
+
+void DeviceSysEmu::clearDeviceAttributes(int, std::string) const {
+  // No implementation for DeviceSysEmu class
+}

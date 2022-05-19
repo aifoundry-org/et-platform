@@ -320,6 +320,26 @@ public:
   /// @returns the size in bytes of allocatable CMA memory
   ///
   virtual size_t getFreeCmaMemory() const = 0;
+
+  /// \brief Get device statistics by reading the attribute files
+  ///
+  /// @param[in] device the device which will be queried
+  /// @param[in] relAttrPath the attribute path relative to directory:
+  /// /sys/bus/pci/devices/[[[[<domain>]:]<bus>]:][<slot>][.[<func>]]
+  ///
+  /// @returns the content of requested attribute file
+  ///
+  virtual std::string getDeviceAttribute(int device, std::string relAttrPath) const = 0;
+
+  /// \brief Clear device statistics in the attribute files
+  ///
+  /// @param[in] device the device which will be queried
+  /// @param[in] relGroupPath the relative group path of attributes
+  /// The attribute file /sys/bus/pci/devices/[[[[<domain>]:]<bus>]:][<slot>][.[<func>]]/<relGroupPath>/clear
+  /// should exist and this call will clear all attributes in <relGroupPath> directory.
+  ///
+  virtual void clearDeviceAttributes(int device, std::string relGroupPath) const = 0;
+
 };
 
 class IDeviceLayer : public IDeviceAsync, public IDeviceSync {

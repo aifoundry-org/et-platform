@@ -55,9 +55,12 @@ public:
   int getActiveShiresNum(int device) override;
   uint32_t getFrequencyMHz(int device) override;
   size_t getFreeCmaMemory() const override;
+  std::string getDeviceAttribute(int device, std::string relAttrPath) const override;
+  void clearDeviceAttributes(int device, std::string relGroupPath) const override;
 
 private:
   struct DevInfo {
+    std::array<char, 32> devName;
     dram_info userDram_;
     DeviceConfig cfg_;
     uint16_t mmSqCount_;

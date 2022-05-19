@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - This changelog
+- [SW-12547] Added two new APIs: getDeviceAttribute() and clearDeviceAttributes(), to access ETSoC1 device health and performance statistics through sysfs interface exposed by its Linux Driver.
 ### Changed
 - [SW-12621] as part of IDeviceLayerFake removal, IDeviceLayerMock has also changed. Now its called
 DeviceLayerMock (without the I) since its an implementation, not an interface. Also the delegation mechanism has changed, a new constructor receives a pointer to an instance of the IDeviceLayer delegate.

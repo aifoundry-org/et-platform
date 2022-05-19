@@ -72,6 +72,8 @@ public:
   uint32_t getFrequencyMHz(int device) override;
   int updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) override;
   size_t getFreeCmaMemory() const override;
+  std::string getDeviceAttribute(int device, std::string relAttrPath) const override;
+  void clearDeviceAttributes(int device, std::string relGroupPath) const override;
 
 private:
   struct QueueInfo {

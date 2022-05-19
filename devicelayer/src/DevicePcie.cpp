@@ -264,8 +264,12 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
            << "\nMM VQ Maximum message size: " << deviceInfo.mmSqMaxMsgSize_ << std::endl;
     }
 
+    auto fd = mngmtEnabled_ ? deviceInfo.fdMgmt_ : deviceInfo.fdOps_;
+    wrap_ioctl(fd, ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(deviceInfo.devName.size()), deviceInfo.devName.data());
+    logs << "PCIBUS device name: " << deviceInfo.devName.data() << std::endl;
+
     dev_config cfg;
-    wrap_ioctl(mngmtEnabled_ ? deviceInfo.fdMgmt_ : deviceInfo.fdOps_, ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION, &cfg);
+    wrap_ioctl(fd, ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION, &cfg);
     deviceInfo.cfg_ = DeviceConfig{
       cfg.form_factor == DEV_CONFIG_FORM_FACTOR_PCIE ? DeviceConfig::FormFactor::PCIE : DeviceConfig::FormFactor::M2,
       cfg.tdp,
@@ -606,5 +610,41 @@ int DevicePcie::getActiveShiresNum(int device) {
 uint32_t DevicePcie::getFrequencyMHz(int device) {
   DeviceConfig config = getDeviceConfig(device);
   return config.minionBootFrequency_;
+}
+
+std::string DevicePcie::getDeviceAttribute(int device, std::string relAttrPath) const {
+  if (device >= static_cast<int>(devices_.size())) {
+    throw Exception("Invalid device");
+  }
+  fs::path absAttrPath = fs::path("/sys/bus/pci/devices/") /
+                         fs::path(devices_[static_cast<uint32_t>(device)].devName.data()) / fs::path(relAttrPath);
+  if (!fs::is_regular_file(absAttrPath)) {
+    throw Exception("Invalid attribute file path: '" + absAttrPath.string() + "'");
+  }
+  std::ifstream file(absAttrPath.string());
+  if (!file.is_open()) {
+    throw Exception("Unable to access '" + absAttrPath.string() + "', try with sudo");
+  }
+  return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+}
+
+void DevicePcie::clearDeviceAttributes(int device, std::string relGroupPath) const {
+  if (device >= static_cast<int>(devices_.size())) {
+    throw Exception("Invalid device");
+  }
+  fs::path absGroupPath = fs::path("/sys/bus/pci/devices/") /
+                          fs::path(devices_[static_cast<uint32_t>(device)].devName.data()) / fs::path(relGroupPath);
+  if (!fs::is_directory(absGroupPath)) {
+    throw Exception("Invalid attribute group directory: '" + absGroupPath.string() + "'");
+  }
+  fs::path clearFilePath = absGroupPath / fs::path("clear");
+  if (!fs::is_regular_file(clearFilePath)) {
+    throw Exception("Clear attribute file: '" + clearFilePath.string() + "' not found!");
+  }
+  std::ofstream file(clearFilePath.string());
+  if (!file.is_open()) {
+    throw Exception("Unable to access '" + clearFilePath.string() + "', try with sudo");
+  }
+  file << "1";
 }
 } // namespace dev

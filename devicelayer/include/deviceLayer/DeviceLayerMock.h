@@ -47,6 +47,8 @@ public:
   MOCK_CONST_METHOD0(getDramSize, uint64_t());
   MOCK_CONST_METHOD0(getDramBaseAddress, uint64_t());
   MOCK_CONST_METHOD0(getDevicesCount, int());
+  MOCK_CONST_METHOD2(getDeviceAttribute, std::string(int, std::string));
+  MOCK_CONST_METHOD2(clearDeviceAttributes, void(int, std::string));
   MOCK_METHOD3(allocDmaBuffer, void*(int, size_t sizeInBytes, bool));
   MOCK_METHOD1(freeDmaBuffer, void(void*));
   MOCK_METHOD2(getTraceBufferSizeMasterMinion, size_t(int, TraceBufferType));
@@ -132,6 +134,12 @@ public:
     });
     ON_CALL(*this, getFreeCmaMemory).WillByDefault([this]() { return delegate_->getFreeCmaMemory(); });
     ON_CALL(*this, getDmaInfo).WillByDefault([this](int device) { return delegate_->getDmaInfo(device); });
+    ON_CALL(*this, getDeviceAttribute).WillByDefault([this](int device, std::string relAttrPath) {
+      return delegate_->getDeviceAttribute(device, relAttrPath);
+    });
+    ON_CALL(*this, clearDeviceAttributes).WillByDefault([this](int device, std::string relGroupPath) {
+      delegate_->clearDeviceAttributes(device, relGroupPath);
+    });
   }
 
 private:
