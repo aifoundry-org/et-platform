@@ -17,7 +17,7 @@
 /*
  * ET Specific Correctable Error statistics
  *
- * ce_stats
+ * ce_count
  * |- DramCeEvent		DRAM correctable errors count
  * |- MinionCeEvent		Minion errors count
  * |- PcieCeEvent		PCIe correctable errors count
@@ -29,7 +29,7 @@
  * `- ThermThrottleCeEvent	Thermal throttles count
  */
 static ssize_t
-ce_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
+ce_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 
@@ -67,7 +67,7 @@ ce_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 /*
  * ET Specific Uncorrectable Error statistics
- * uce_stats
+ * uce_count
  * |- DramUceEvent              DDR un-correctable errors count
  * |- MinionHangUceEvent        Minion hangs count
  * |- PcieUceEvent              PCIe un-correctable errors count
@@ -76,7 +76,7 @@ ce_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
  * `- SramUceEvent              SRAM un-correctable errors count
  */
 static ssize_t
-uce_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
+uce_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 
@@ -126,13 +126,13 @@ static ssize_t clear_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR_RO(ce_stats);
-static DEVICE_ATTR_RO(uce_stats);
+static DEVICE_ATTR_RO(ce_count);
+static DEVICE_ATTR_RO(uce_count);
 static DEVICE_ATTR_WO(clear);
 
 static struct attribute *err_stats_attrs[] = {
-	&dev_attr_ce_stats.attr,
-	&dev_attr_uce_stats.attr,
+	&dev_attr_ce_count.attr,
+	&dev_attr_uce_count.attr,
 	&dev_attr_clear.attr,
 	NULL,
 };
