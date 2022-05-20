@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.15)
-project(deviceLayer VERSION 0.1.0 LANGUAGES CXX)
+project(deviceLayer VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_PREFIX_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
@@ -38,7 +38,6 @@ option(ENABLE_TESTS "Enable compiling tests" ON)
 option(ENABLE_DEPRECATED "Generate Deprecated config file" ON)
 
 find_package(linuxDriver REQUIRED)
-find_package(deviceApi REQUIRED)
 find_package(sw-sysemu REQUIRED)
 find_package(hostUtils REQUIRED)
 find_package(Boost REQUIRED)
@@ -61,7 +60,7 @@ target_include_directories(deviceLayer
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 set_target_properties(deviceLayer PROPERTIES
-    PUBLIC_HEADER "include/deviceLayer/IDeviceLayer.h;include/deviceLayer/IDeviceLayerMock.h;include/deviceLayer/IDeviceLayerFake.h"
+    PUBLIC_HEADER "include/deviceLayer/IDeviceLayer.h;include/deviceLayer/DeviceLayerMock.h"
     POSITION_INDEPENDENT_CODE TRUE
 )
 target_link_libraries(deviceLayer
@@ -131,23 +130,3 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/deviceLayerConfigVersion.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceLayer
 )
-
-if (ENABLE_DEPRECATED)
-    configure_package_config_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/DeviceLayerConfig.cmake.in
-        ${CMAKE_CURRENT_BINARY_DIR}/DeviceLayerConfig.cmake
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceLayer
-    )
-
-    write_basic_package_version_file(
-        ${CMAKE_CURRENT_BINARY_DIR}/DeviceLayerConfigVersion.cmake
-        VERSION ${CMAKE_PROJECT_VERSION}
-        COMPATIBILITY SameMajorVersion
-    )
-
-    install(FILES
-        ${CMAKE_CURRENT_BINARY_DIR}/DeviceLayerConfig.cmake
-        ${CMAKE_CURRENT_BINARY_DIR}/DeviceLayerConfigVersion.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceLayer
-    )
-endif()

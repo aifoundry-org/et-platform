@@ -8,8 +8,8 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
+#include <deviceLayer/DeviceLayerMock.h>
 #include <deviceLayer/IDeviceLayer.h>
-#include <deviceLayer/IDeviceLayerMock.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logging.h>
@@ -19,7 +19,7 @@ TEST(Simple, test_nothing) {
 }
 
 TEST(Simple, mock_compiles) {
-  [[maybe_unused]] dev::IDeviceLayerMock mock;
+  [[maybe_unused]] dev::DeviceLayerMock mock;
 }
 
 TEST(VerboseLog, High) {

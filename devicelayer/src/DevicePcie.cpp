@@ -77,7 +77,7 @@ int openAndConfigEpoll(int fd) {
   return epFd;
 }
 
-template <typename... Types> IoctlResult wrap_ioctl(int fd, unsigned long int request, Types... args) {
+template <typename... Types> IoctlResult wrap_ioctl(int fd, unsigned long int request, Types&&... args) {
   std::stringstream params;
   ((params << ", " << std::forward<Types>(args)), ...);
   DV_VLOG(HIGH) << "Doing IOCTL fd: " << fd << " request: " << request << " args: " << params.str();

@@ -43,8 +43,6 @@ class DeviceLayerConan(ConanFile):
         self.requires("linuxDriver/0.1.0")
         self.requires("boost/1.72.0")
 
-        # IDeviceLayerFake.h
-        self.requires("deviceApi/0.4.0")
         # IDeviceLayerMock.h
         self.requires("gtest/1.8.1")
         
@@ -82,8 +80,6 @@ class DeviceLayerConan(ConanFile):
             # IDeviceLayer.h
             "sw-sysemu::sw-sysemu",
             "hostUtils::debug",
-            # IDeviceLayerFake.h
-            "deviceApi::deviceApi",
             # IDeviceLayerMock.h
             "gtest::gmock",
 
