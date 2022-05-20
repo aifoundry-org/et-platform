@@ -121,11 +121,18 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
     msg_id_t msg_id;
     int8_t status = STATUS_SUCCESS;
 
+    /* Enter critical section - Prevents the calling task to not to schedule out.
+    Context switching messes the shared VQ regions, hence this is required for now. */
+    portENTER_CRITICAL();
+
     /* Pop a command from SP<->PC VQueue */
     int32_t pop_ret_val = VQ_Pop_Optimized(vq_cached, vq_used_space, shared_mem_ptr, buffer);
 
     /* Update the tail offset in VQ shared memory (SRAM) so that host is able to push new commands */
     SP_Host_Iface_Optimized_SQ_Update_Tail(vq_shared, vq_cached);
+
+    /* Exit critical section */
+    portEXIT_CRITICAL();
 
     /* Check for valid data */
     if (pop_ret_val > 0)
@@ -539,18 +546,28 @@ static void mm_cmd_hdlr_task(void *pvParameters)
         /* Process as many new messages as possible */
         while (vq_used_space)
         {
-            /* Pop a command from SP<->PC VQueue */
+            /* Enter critical section - Prevents the calling task to not to schedule out.
+            Context switching messes the shared VQ regions, hence this is required for now. */
+            portENTER_CRITICAL();
+
+            /* Pop a command from SP<->MM VQueue */
             int32_t pop_ret_val =
                 VQ_Pop_Optimized(&vq_cached, vq_used_space, shared_mem_ptr, buffer);
 
             if (pop_ret_val < 0)
             {
+                /* Exit critical section */
+                portEXIT_CRITICAL();
                 Log_Write(LOG_LEVEL_ERROR, "MM VQ pop failed: %s\n", __func__);
                 break;
             }
 
             /* Update tail value in VQ memory */
             VQ_Set_Tail_Offset(vq_shared, VQ_Get_Tail_Offset(&vq_cached));
+
+            /* Exit critical section */
+            portEXIT_CRITICAL();
+
             vq_used_space = VQ_Get_Used_Space(&vq_cached, CIRCBUFF_FLAG_NO_READ);
 
             hdr = (void *)&buffer[0];

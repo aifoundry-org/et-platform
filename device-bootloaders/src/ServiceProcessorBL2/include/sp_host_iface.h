@@ -23,9 +23,13 @@
 
 #include "etsoc/common/common_defs.h"
 #include "transports/vq/vq.h"
-#include "sp_vq_build_config.h"
 #include "etsoc/drivers/pcie/pcie_int.h"
 #include "config/mgmt_build_config.h"
+
+/*! \def SP_MM_CQ_MAX_ELEMENT_SIZE
+    \brief Macro for specifying the maximum element size of SP-Host SQ.
+*/
+#define SP_HOST_SQ_MAX_ELEMENT_SIZE 512U
 
 /**
  * @brief Enum of supported virtual queue types

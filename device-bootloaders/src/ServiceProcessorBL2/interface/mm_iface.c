@@ -450,6 +450,43 @@ int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask)
 *
 *   FUNCTION
 *
+*       MM_Iface_Push_Rsp_To_MM2SP_CQ
+*
+*   DESCRIPTION
+*
+*       Pushes response to Master Minion (MM) to Service Processor (SP)
+*       Completion Queue(CQ)
+*
+*   INPUTS
+*
+*       p_rsp       Pointer to cmd buffer
+*       rsp_size    Size of the data to push
+*
+*   OUTPUTS
+*
+*       status      success or error code
+*
+***********************************************************************/
+int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(const void* p_rsp, uint32_t rsp_size)
+{
+    int8_t status;
+
+    /* Enter critical section - Prevents the calling task to not to schedule out.
+    Context switching messes the shared VQ regions, hence this is required for now. */
+    portENTER_CRITICAL();
+
+    status = SP_MM_Iface_Push(SP_CQ, p_rsp, rsp_size);
+
+    /* Exit critical section */
+    portEXIT_CRITICAL();
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       MM_Iface_Pop_Cmd_From_MM2SP_SQ
 *
 *   DESCRIPTION

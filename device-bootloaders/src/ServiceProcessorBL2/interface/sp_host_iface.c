@@ -283,6 +283,13 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void *p_cmd, uint32_t cmd_size)
                 local_head_offset, reference_head_offset);
         }
 
+        if (!INT_Is_Trap_Context())
+        {
+            /* Enter critical section - Prevents the calling task to not to schedule out.
+            Context switching messes the shared VQ regions, hence this is required for now. */
+            portENTER_CRITICAL();
+        }
+
         /* Push the command to circular buffer */
         status = VQ_Push(&SP_Host_CQ.vqueue, p_cmd, cmd_size);
 
@@ -297,6 +304,8 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void *p_cmd, uint32_t cmd_size)
 
         if (!INT_Is_Trap_Context())
         {
+            /* Exit critical section. Protects the interrupt notification above as well. */
+            portEXIT_CRITICAL();
             xSemaphoreGive(Host_CQ_Lock);
         }
     }

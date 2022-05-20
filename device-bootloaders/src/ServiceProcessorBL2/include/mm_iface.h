@@ -26,6 +26,11 @@
 #include "minion_configuration.h"
 #include "FreeRTOS.h"
 
+/*! \def SP_MM_CQ_MAX_ELEMENT_SIZE
+    \brief Macro for specifying the maximum element size of SP-MM SQ.
+*/
+#define SP_MM_CQ_MAX_ELEMENT_SIZE 64U
+
 /*! \fn int8_t MM_Iface_Init(void)
     \brief This function initialise SP to Master Minion interface.
     \param none
@@ -105,14 +110,13 @@ int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask);
 */
 int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff);
 
-/*! \fn int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(void* p_cmd, uint32_t cmd_size)
+/*! \fn int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(const void* p_rsp, uint32_t rsp_size)
     \brief Push response to Master Minion (MM) to Service Processor (SP)
     Completion Queue(CQ)
-    \param p_cmd Pointer to command buffer
-    \param cmd_size Size of command
+    \param p_rsp Pointer to resposne buffer
+    \param rsp_size Size of response
     \return Status indicating success or negative error
 */
-#define MM_Iface_Push_Rsp_To_MM2SP_CQ(p_cmd, cmd_size)    \
-        SP_MM_Iface_Push(SP_CQ, p_cmd, cmd_size)
+int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(const void* p_rsp, uint32_t rsp_size);
 
 #endif
