@@ -66,17 +66,6 @@ TEST_F(IntegrationTestDevMgmtApiTraceCmds, getCmTraceBuffer) {
   }
 }
 
-// TODO:SW-11919 This test can be enabled after adding sampler threads in MM
-TEST_F(IntegrationTestDevMgmtApiTraceCmds, DISABLED_getMMStatsTraceBuffer) {
-  if (targetInList({Target::Silicon, Target::SysEMU})) {
-    /* Only verifying pulling of CM trace buffer from device, trace data validation is being done in firmware tests */
-    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferMMStats);
-  } else {
-    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
-    FLAGS_enable_trace_dump = false;
-  }
-}
-
 // TODO: SW-12030 This test can be enabled after adding sampler threads in SP
 TEST_F(IntegrationTestDevMgmtApiTraceCmds, getSPStatsTraceBuffer) {
   if (targetInList({Target::Silicon, Target::SysEMU})) {

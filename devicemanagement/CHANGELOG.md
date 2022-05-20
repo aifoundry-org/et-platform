@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+    Added new test for MM stat buffer under Ops node dependant tests category.
 ### Changed
 ### Deprecated
 ### Removed

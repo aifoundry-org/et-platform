@@ -55,7 +55,7 @@ function(create_test)
     add_executable(${TEST_TARGET} ${TEST_SOURCES})
     target_compile_features(${TEST_TARGET} PRIVATE cxx_std_17)
     target_include_directories(${TEST_TARGET}
-        PRIVATE 
+        PRIVATE
             $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
             ${CMAKE_CURRENT_SOURCE_DIR}
     )
@@ -220,6 +220,13 @@ create_test(
 create_test(
     TARGET      OpsNodeDependentTestDevMgmtApiMMResetCmds
     SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiMMResetCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;60"
+)
+
+create_test(
+    TARGET      OpsNodeDependentTestDevMgmtApiTraceCmds
+    SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiTraceCmds.cpp TestDevMgmtApiSyncCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;60"
 )
