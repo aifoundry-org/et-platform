@@ -980,7 +980,21 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 	et_dev->dev_index = (u8)index;
 	*new_dev = et_dev;
 
+	INIT_LIST_HEAD(&et_dev->bar_region_list);
+
 	return 0;
+}
+
+static void et_destroy_region_list(struct et_pci_dev *et_dev, bool is_mgmt)
+{
+	struct et_bar_region *pos, *tmp;
+
+	list_for_each_entry_safe (pos, tmp, &et_dev->bar_region_list, list) {
+		if (pos->is_mgmt == is_mgmt) {
+			list_del(&pos->list);
+			kfree(pos);
+		}
+	}
 }
 
 static void et_unmap_discovered_regions(struct et_pci_dev *et_dev, bool is_mgmt)
@@ -1004,6 +1018,8 @@ static void et_unmap_discovered_regions(struct et_pci_dev *et_dev, bool is_mgmt)
 			regions[i].is_valid = false;
 		}
 	}
+
+	et_destroy_region_list(et_dev, is_mgmt);
 }
 
 static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
@@ -1992,16 +2008,6 @@ static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
 	clear_bit(dev_index, dev_bitmap);
 }
 
-static void et_destroy_region_list(struct et_pci_dev *et_dev)
-{
-	struct et_bar_region *pos, *tmp;
-
-	list_for_each_entry_safe (pos, tmp, &et_dev->bar_region_list, list) {
-		list_del(&pos->list);
-		kfree(pos);
-	}
-}
-
 static int esperanto_pcie_probe(struct pci_dev *pdev,
 				const struct pci_device_id *pci_id)
 {
@@ -2015,8 +2021,6 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "create_et_pci_dev failed\n");
 		return rv;
 	}
-
-	INIT_LIST_HEAD(&et_dev->bar_region_list);
 
 	rv = pci_enable_device_mem(pdev);
 	if (rv < 0) {
@@ -2091,8 +2095,6 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		et_dev->is_recovery_mode = false;
 	}
 
-	et_destroy_region_list(et_dev);
-
 	return rv;
 
 error_sysfs_stats_remove:
@@ -2116,7 +2118,6 @@ error_disable_dev:
 	pci_disable_device(pdev);
 
 error_free_dev:
-	et_destroy_region_list(et_dev);
 	destroy_et_pci_dev(et_dev);
 	pci_set_drvdata(pdev, NULL);
 
