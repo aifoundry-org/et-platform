@@ -54,7 +54,7 @@ static bool mm2sp_wait_for_response(uint32_t timeout_ms)
     do
     {
         /* Check if response from MM is received. */
-        if(SP_MM_Iface_Data_Available(MM_CQ) == true)
+        if (SP_MM_Iface_Data_Available(MM_CQ) == true)
         {
             return true;
         }
@@ -67,30 +67,30 @@ static bool mm2sp_wait_for_response(uint32_t timeout_ms)
         }
 
         /* If timeout was enabled */
-        if(timeout_ms)
+        if (timeout_ms)
         {
             wait_for_rsp = milliseconds_elapsed < timeout_ms;
         }
-    } while(wait_for_rsp);
+    } while (wait_for_rsp);
 
     return false;
 }
 
-static inline int32_t mm_command_handler_shell_process_rsp(char* rsp, uint32_t *rsp_size, uint32_t timeout_ms)
+static inline int32_t mm_command_handler_shell_process_rsp(char *rsp, uint32_t *rsp_size,
+                                                           uint32_t timeout_ms)
 {
     int32_t retval = SUCCESS;
 
-    Log_Write(LOG_LEVEL_INFO,
-        "SP2MM:MM_Iface_MM_Command_Shell: Waiting on response...\r\n");
+    Log_Write(LOG_LEVEL_INFO, "SP2MM:MM_Iface_MM_Command_Shell: Waiting on response...\r\n");
 
     /* Wait for response from MM with timeout. */
-    if(mm2sp_wait_for_response(timeout_ms))
+    if (mm2sp_wait_for_response(timeout_ms))
     {
         /* Get response from MM. */
         retval = MM_Iface_Pop_Rsp_From_SP2MM_CQ(rsp);
 
-        Log_Write(LOG_LEVEL_INFO,
-            "SP2MM:MM_Iface_MM_Command_Shell: Got response size = %d \r\n", retval);
+        Log_Write(LOG_LEVEL_INFO, "SP2MM:MM_Iface_MM_Command_Shell: Got response size = %d \r\n",
+                  retval);
 
         if (retval <= 0)
         {
@@ -108,7 +108,7 @@ static inline int32_t mm_command_handler_shell_process_rsp(char* rsp, uint32_t *
         retval = MM_IFACE_MM2SP_TIMEOUT_ERROR;
 
         Log_Write(LOG_LEVEL_INFO,
-            "SP2MM:MM_Iface_MM_Command_Shell:Timed-out waiting for response\r\n");
+                  "SP2MM:MM_Iface_MM_Command_Shell:Timed-out waiting for response\r\n");
     }
 
     return retval;
@@ -139,24 +139,24 @@ static inline int32_t mm_command_handler_shell_process_rsp(char* rsp, uint32_t *
 *       int32_t  Success or error code.
 *
 ***********************************************************************/
-int32_t MM_Iface_MM_Command_Shell(void* cmd, uint32_t cmd_size,
-    char* rsp, uint32_t *rsp_size, uint32_t timeout_ms, uint8_t num_of_rsp)
+int32_t MM_Iface_MM_Command_Shell(const void *cmd, uint32_t cmd_size, char *rsp, uint32_t *rsp_size,
+                                  uint32_t timeout_ms, uint8_t num_of_rsp)
 {
     int32_t retval = SUCCESS;
 
     Log_Write(LOG_LEVEL_INFO, "SP2MM:MM_Iface_MM_Command_Shell.\r\n");
 
-    if(xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
+    if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
         /* Send command to MM. */
-        if(0 != MM_Iface_Push_Cmd_To_SP2MM_SQ(cmd, cmd_size))
+        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ(cmd, cmd_size))
         {
             Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
             xSemaphoreGive(mm_cmd_lock);
             return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
         }
 
-        while(num_of_rsp--)
+        while (num_of_rsp--)
         {
             /* Process the response */
             retval = mm_command_handler_shell_process_rsp(rsp, rsp_size, timeout_ms);
@@ -200,15 +200,15 @@ int32_t MM_Iface_Send_Echo_Cmd(void)
     struct sp2mm_echo_rsp_t rsp;
 
     /* Initialize command header */
-    SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, SP2MM_CMD_ECHO,
-    sizeof(struct sp2mm_echo_cmd_t), SP2MM_CMD_NOTIFY_HART)
+    SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, SP2MM_CMD_ECHO, sizeof(struct sp2mm_echo_cmd_t),
+                             SP2MM_CMD_NOTIFY_HART)
 
     cmd.payload = 0xDEADBEEF;
 
-    if(xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
+    if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
         /* Send command to MM. */
-        if(0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void*)&cmd, sizeof(cmd)))
+        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd)))
         {
             Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
             xSemaphoreGive(mm_cmd_lock);
@@ -216,7 +216,7 @@ int32_t MM_Iface_Send_Echo_Cmd(void)
         }
 
         /* Wait for response from MM with default timeout. */
-        if(mm2sp_wait_for_response(SP2MM_CMD_TIMEOUT))
+        if (mm2sp_wait_for_response(SP2MM_CMD_TIMEOUT))
         {
             /* Get response from MM. */
             status = MM_Iface_Pop_Rsp_From_SP2MM_CQ(&rsp);
@@ -271,12 +271,12 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
 
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, SP2MM_CMD_GET_DRAM_BW,
-    sizeof(struct sp2mm_get_dram_bw_cmd_t), SP2MM_CMD_NOTIFY_HART)
+                             sizeof(struct sp2mm_get_dram_bw_cmd_t), SP2MM_CMD_NOTIFY_HART)
 
-    if(xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
+    if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
         /* Send command to MM. */
-        if(0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void*)&cmd, sizeof(cmd)))
+        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd)))
         {
             Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
             xSemaphoreGive(mm_cmd_lock);
@@ -284,13 +284,12 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
         }
 
         /* Wait for response from MM with default timeout. */
-        if(mm2sp_wait_for_response(SP2MM_CMD_TIMEOUT))
+        if (mm2sp_wait_for_response(SP2MM_CMD_TIMEOUT))
         {
             /* Get response from MM. */
             status = MM_Iface_Pop_Rsp_From_SP2MM_CQ(&rsp);
 
-            if ((status > 0) &&
-                (rsp.msg_hdr.msg_id == SP2MM_RSP_GET_DRAM_BW))
+            if ((status > 0) && (rsp.msg_hdr.msg_id == SP2MM_RSP_GET_DRAM_BW))
             {
                 *read_bw = rsp.read_bw;
                 *write_bw = rsp.write_bw;
@@ -339,12 +338,12 @@ int32_t MM_Iface_Send_Abort_All_Cmd(void)
 
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, SP2MM_CMD_MM_ABORT_ALL,
-    sizeof(struct sp2mm_mm_abort_all_cmd_t), SP2MM_CMD_NOTIFY_HART)
+                             sizeof(struct sp2mm_mm_abort_all_cmd_t), SP2MM_CMD_NOTIFY_HART)
 
-    if(xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
+    if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
         /* Send command to MM. */
-        if(0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void*)&cmd, sizeof(cmd)))
+        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd)))
         {
             Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
             xSemaphoreGive(mm_cmd_lock);
@@ -352,13 +351,12 @@ int32_t MM_Iface_Send_Abort_All_Cmd(void)
         }
 
         /* Wait for response from MM with default timeout. */
-        if(mm2sp_wait_for_response(SP2MM_CMD_TIMEOUT))
+        if (mm2sp_wait_for_response(SP2MM_CMD_TIMEOUT))
         {
             /* Get response from MM. */
             status = MM_Iface_Pop_Rsp_From_SP2MM_CQ(&rsp);
 
-            if ((status > 0) &&
-                (rsp.msg_hdr.msg_id == SP2MM_RSP_MM_ABORT_ALL))
+            if ((status > 0) && (rsp.msg_hdr.msg_id == SP2MM_RSP_MM_ABORT_ALL))
             {
                 status = rsp.status;
             }
@@ -377,7 +375,6 @@ int32_t MM_Iface_Send_Abort_All_Cmd(void)
 
     return status;
 }
-
 
 /************************************************************************
 *
@@ -405,14 +402,14 @@ int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask)
     struct sp2mm_cm_reset_rsp_t rsp;
 
     /* Initialize command header */
-    SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, SP2MM_CMD_CM_RESET,
-    sizeof(struct sp2mm_cm_reset_cmd_t), SP2MM_CMD_NOTIFY_HART)
+    SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, SP2MM_CMD_CM_RESET, sizeof(struct sp2mm_cm_reset_cmd_t),
+                             SP2MM_CMD_NOTIFY_HART)
     cmd.shire_mask = shire_mask;
 
-    if(xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
+    if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
         /* Send command to MM. */
-        if(0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void*)&cmd, sizeof(cmd)))
+        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd)))
         {
             Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
             xSemaphoreGive(mm_cmd_lock);
@@ -420,13 +417,12 @@ int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask)
         }
 
         /* Wait for response from MM with default timeout. */
-        if(mm2sp_wait_for_response(SP2MM_CMD_TIMEOUT))
+        if (mm2sp_wait_for_response(SP2MM_CMD_TIMEOUT))
         {
             /* Get response from MM. */
             status = MM_Iface_Pop_Rsp_From_SP2MM_CQ(&rsp);
 
-            if ((status >= 0) &&
-                (rsp.msg_hdr.msg_id == SP2MM_RSP_CM_RESET))
+            if ((status >= 0) && (rsp.msg_hdr.msg_id == SP2MM_RSP_CM_RESET))
             {
                 status = rsp.status;
             }
@@ -467,7 +463,7 @@ int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask)
 *       status      success or error code
 *
 ***********************************************************************/
-int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(const void* p_rsp, uint32_t rsp_size)
+int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(const void *p_rsp, uint32_t rsp_size)
 {
     int8_t status;
 
@@ -504,13 +500,14 @@ int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(const void* p_rsp, uint32_t rsp_size)
 *                  Positive value - Number of bytes popped
 *
 ***********************************************************************/
-int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff)
+int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void *rx_buff)
 {
 #ifdef SP_MM_VERIFY_VQ_TAIL
-    if(SP_MM_Iface_Verify_Tail(SP_SQ) == SP_MM_IFACE_ERROR_VQ_BAD_TAIL)
+    if (SP_MM_Iface_Verify_Tail(SP_SQ) == SP_MM_IFACE_ERROR_VQ_BAD_TAIL)
     {
-        Log_Write(LOG_LEVEL_WARNING,
-        "MM_Iface_Pop_Cmd_From_MM2SP_SQ:FATAL_ERROR:Tail Mismatch! Using cached value as fallback mechanism\r\n");
+        Log_Write(
+            LOG_LEVEL_WARNING,
+            "MM_Iface_Pop_Cmd_From_MM2SP_SQ:FATAL_ERROR:Tail Mismatch! Using cached value as fallback mechanism\r\n");
     }
 #endif
     return SP_MM_Iface_Pop(SP_SQ, rx_buff);
@@ -541,7 +538,7 @@ int8_t MM_Iface_Init(void)
 
     /* Initialize the mutex */
     mm_cmd_lock = xSemaphoreCreateMutexStatic(&xSemaphoreBuffer);
-    configASSERT( mm_cmd_lock );
+    configASSERT(mm_cmd_lock);
 
     /* Initialize the interface */
     status = SP_MM_Iface_Init();
@@ -553,8 +550,7 @@ int8_t MM_Iface_Init(void)
     if (status == STATUS_SUCCESS)
     {
         /* Register interrupt handler */
-        INT_enableInterrupt(SPIO_PLIC_MBOX_MMIN_INTR, 1,
-            mm2sp_notification_isr);
+        INT_enableInterrupt(SPIO_PLIC_MBOX_MMIN_INTR, 1, mm2sp_notification_isr);
     }
     else
     {

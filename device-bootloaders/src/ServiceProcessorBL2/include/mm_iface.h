@@ -59,8 +59,8 @@ int32_t MM_Iface_Send_Echo_Cmd(void);
     \param num_of_rsp Number of responses to expect
     \return Status indicating success or negative error
 */
-int32_t MM_Iface_MM_Command_Shell(void* cmd, uint32_t cmd_size,
-    char* rsp, uint32_t *rsp_size, uint32_t timeout_ms, uint8_t num_of_rsp);
+int32_t MM_Iface_MM_Command_Shell(const void *cmd, uint32_t cmd_size, char *rsp, uint32_t *rsp_size,
+                                  uint32_t timeout_ms, uint8_t num_of_rsp);
 
 /*! \fn int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
     \brief This sends Get DRAM BW command to Master Minion. It is a blocking call
@@ -90,8 +90,7 @@ int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask);
     \param cmd_size Size of command
     \return Status indicating success or negative error
 */
-#define MM_Iface_Push_Cmd_To_SP2MM_SQ(p_cmd, cmd_size)   \
-        SP_MM_Iface_Push(MM_SQ, p_cmd, cmd_size)
+#define MM_Iface_Push_Cmd_To_SP2MM_SQ(p_cmd, cmd_size) SP_MM_Iface_Push(MM_SQ, p_cmd, cmd_size)
 
 /*! \fn int8_t MM_Iface_Pop_Rsp_From_SP2MM_CQ(void* rx_buff)
     \brief Pop response from to Service Processor (SP) to Master Minion (MM)
@@ -99,8 +98,7 @@ int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask);
     \param rx_buff Buffer to receive response popped
     \return Status indicating success or negative error
 */
-#define MM_Iface_Pop_Rsp_From_SP2MM_CQ(rx_buff)          \
-        SP_MM_Iface_Pop(MM_CQ, rx_buff)
+#define MM_Iface_Pop_Rsp_From_SP2MM_CQ(rx_buff) SP_MM_Iface_Pop(MM_CQ, rx_buff)
 
 /*! \fn int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff)
     \brief Pop command from Master Minion (MM) to Service Processor (SP)
@@ -108,7 +106,7 @@ int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask);
     \param rx_buff Buffer to receive response popped
     \return Status indicating success or negative error
 */
-int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff);
+int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void *rx_buff);
 
 /*! \fn int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(const void* p_rsp, uint32_t rsp_size)
     \brief Push response to Master Minion (MM) to Service Processor (SP)
@@ -117,6 +115,6 @@ int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff);
     \param rsp_size Size of response
     \return Status indicating success or negative error
 */
-int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(const void* p_rsp, uint32_t rsp_size);
+int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(const void *p_rsp, uint32_t rsp_size);
 
 #endif

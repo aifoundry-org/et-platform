@@ -34,7 +34,8 @@
 /**
  * @brief Enum of supported virtual queue types
  */
-typedef enum {
+typedef enum
+{
     SQ,
     CQ
 } vq_type_t;
@@ -64,7 +65,7 @@ int8_t SP_Host_Iface_CQ_Init(void);
     \brief SP interface to peek SQ command size
     \returns [out] command size
 */
-uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff);
+uint32_t SP_Host_Iface_SQ_Pop_Cmd(void *rx_buff);
 
 /*! \fn uint32_t SP_Iface_CQ_Push_Cmd(uint8_t cq_id, void* rx_buff)
     \brief SP interface CQ push API
@@ -72,7 +73,7 @@ uint32_t SP_Host_Iface_SQ_Pop_Cmd(void* rx_buff);
     \param [in] cmd_size: Command size
     \returns [out] Status
 */
-int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size);
+int8_t SP_Host_Iface_CQ_Push_Cmd(void *p_cmd, uint32_t cmd_size);
 
 /*! \fn vq_cb_t* SP_Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type)
     \brief Obtain pointer to virtual queue associated
@@ -80,7 +81,7 @@ int8_t SP_Host_Iface_CQ_Push_Cmd(void* p_cmd, uint32_t cmd_size);
     \param vq_type Virtual Queue Type
     \return vq_cb_t* Pointer to the virtual queue control block
 */
-vq_cb_t* SP_Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type);
+vq_cb_t *SP_Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type);
 
 /******************************/
 /* Special Optimized routines */
