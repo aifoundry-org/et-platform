@@ -8,14 +8,11 @@
  * agreement/contract under which the program(s) have been supplied.
  ------------------------------------------------------------------------------ */
 
-#ifndef ET_DEVICE_APIS_H
-#define ET_DEVICE_APIS_H
+#ifndef ET_DEVICE_APIS_BUILD_CONFIGURATION_H
+#define ET_DEVICE_APIS_BUILD_CONFIGURATION_H
 
-#define ESPERANTO_DEVICE_APIS_VERSION_MAJOR @EsperantoDeviceAPI_VERSION_MAJOR@
-#define ESPERANTO_DEVICE_APIS_VERSION_MINOR @EsperantoDeviceAPI_VERSION_MINOR@
-#define ESPERANTO_DEVICE_APIS_VERSION_PATCH @EsperantoDeviceAPI_VERSION_PATCH@
+#define ESPERANTO_DEVICE_APIS_VERSION_MAJOR @deviceApi_VERSION_MAJOR@
+#define ESPERANTO_DEVICE_APIS_VERSION_MINOR @deviceApi_VERSION_MINOR@
+#define ESPERANTO_DEVICE_APIS_VERSION_PATCH @deviceApi_VERSION_PATCH@
 
-#include "esperanto/device-apis/operations-api/device_ops_api_spec.h"
-//#include "esperanto/device-apis/management-api/device_mgmt_api_spec.h"
-
-#endif // ET_DEVICE_APIS_H
+#endif // ET_DEVICE_APIS_BUILD_CONFIGURATION_H

@@ -8,7 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set(PACKAGE_VERSION "@EsperantoDeviceAPI_VERSION@")
+set(PACKAGE_VERSION "@deviceApi_VERSION@")
 
 # Check whether the requested PACKAGE_FIND_VERSION is compatible
 if ("${PACKAGE_VERSION}" VERSION_LESS "${PACKAGE_FIND_VERSION}")

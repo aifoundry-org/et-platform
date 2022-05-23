@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.0]
 ### Added
 ### Changed
--- [SW-12373] - Removing compatibility checks on device side 
+-- [SW-12373] - Removing compatibility checks on device side
+-- [SW-12598] - Moved project versioning to cmake.
 
 ### Deprecated
 ### Removed
+-- [SW-12598] - YAML based project versioning removed.
 ### Fixed
 ### Security
 
@@ -64,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 
-## [0.1.0] - 
+## [0.1.0] -
 Initial version
 
 [Unreleased]: https://gitlab.esperanto.ai/software/device-api/-/compare/v0.4.0...master

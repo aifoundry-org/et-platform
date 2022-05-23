@@ -10,6 +10,7 @@
 
 /* WARNING: this file is auto-generated do not edit directly */
 
+#include "esperanto/device-apis/device_apis_build_configuration.h"
 #include <stdint.h>
 
 #ifndef ET_DEVICE_<< cgh.c_api_name | upper >>_API_SPEC_H
@@ -25,17 +26,17 @@
 /*! \def DEVICE_<<cgh.c_api_name | upper>>_API_MAJOR
     \brief API Major
 */
-#define DEVICE_<<cgh.c_api_name | upper>>_API_MAJOR <<cgh.spec_data['Version_Major']>>
+#define DEVICE_<<cgh.c_api_name | upper>>_API_MAJOR ESPERANTO_DEVICE_APIS_VERSION_MAJOR
 
 /*! \def DEVICE_<<cgh.c_api_name | upper>>_API_MINOR
     \brief API Minor
 */
-#define DEVICE_<<cgh.c_api_name | upper>>_API_MINOR <<cgh.spec_data['Version_Minor']>>
+#define DEVICE_<<cgh.c_api_name | upper>>_API_MINOR ESPERANTO_DEVICE_APIS_VERSION_MINOR
 
 /*! \def DEVICE_<<cgh.c_api_name | upper>>_API_PATCH
     \brief API Patch
 */
-#define DEVICE_<<cgh.c_api_name | upper>>_API_PATCH <<cgh.spec_data['Version_Patch']>>
+#define DEVICE_<<cgh.c_api_name | upper>>_API_PATCH ESPERANTO_DEVICE_APIS_VERSION_PATCH
 
 /*! \def DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX
     \brief Maximum size of the argument payload supported by kernel launch command

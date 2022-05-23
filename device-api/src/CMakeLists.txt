@@ -8,8 +8,8 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/device_apis.h.in
-    ${CMAKE_CURRENT_BINARY_DIR}/esperanto/device-apis/device_apis.h)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/device_apis_build_configuration.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/esperanto/device-apis/device_apis_build_configuration.h)
 
 set(DEV_API_HDRS ${CMAKE_CURRENT_BINARY_DIR}/device_apis.h
     ${CMAKE_CURRENT_SOURCE_DIR}/device_apis_message_types.h)

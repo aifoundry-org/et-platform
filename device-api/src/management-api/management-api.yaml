@@ -9,9 +9,6 @@
 #------------------------------------------------------------------------------
 
 Name: Mgmt
-Version_Major: 0
-Version_Minor: 1
-Version_Patch: 0
 MessageMaxID: 999
 Modules:
 - Name: Mgmt_API_Calls
@@ -148,7 +145,7 @@ Modules:
         - Name: MDI_SELECT_HART
           Value: 62
         - Name: MDI_UNSELECT_HART
-          Value: 63  
+          Value: 63
         - Name: MDI_RESET_HART
           Value: 64
         - Name: MDI_HALT_HART
@@ -170,7 +167,7 @@ Modules:
         - Name: MDI_DUMP_GPR
           Value: 73
         - Name: MDI_WRITE_GPR
-          Value: 74  
+          Value: 74
         - Name: MDI_READ_CSR
           Value: 75
         - Name: MDI_WRITE_CSR
@@ -685,15 +682,15 @@ Modules:
     - Name: mdi_bp_control_t
       Fields:
         - Name: hart_id
-          Description: Hart ID 
+          Description: Hart ID
           Type: uint64_t
         - Name: bp_address
           Description: Address for breakpoint
           Type: uint64_t
-        - Name: mode 
+        - Name: mode
           Description: Minion mode
           Type: uint64_t
-        - Name: bp_event_wait_timeout 
+        - Name: bp_event_wait_timeout
           Description: Wait time(in ms) for BP to be hit
           Type: uint64_t
         - Name: flags
@@ -720,12 +717,12 @@ Modules:
           Type: uint32_t
         - Name: pad[4]
           Description: Padding for alignment
-          Type: uint8_t 
+          Type: uint8_t
     - Name: mdi_dump_gpr_t
       Fields:
         - Name: gpr[32]
           Description: Padding for alignment
-          Type: uint64_t       
+          Type: uint64_t
     - Name: mdi_gpr_write_t
       Fields:
         - Name: hart_id
@@ -733,13 +730,13 @@ Modules:
           Type: uint64_t
         - Name: data
           Description: Data to be written to GPR
-          Type: uint64_t  
+          Type: uint64_t
         - Name: gpr_index
           Description: GPR Index
           Type: uint32_t
         - Name: pad[4]
           Description: Padding for alignment
-          Type: uint8_t 
+          Type: uint8_t
     - Name: mdi_csr_read_t
       Fields:
         - Name: hart_id
@@ -750,7 +747,7 @@ Modules:
           Type: uint32_t
         - Name: pad[4]
           Description: Padding for alignment
-          Type: uint8_t 
+          Type: uint8_t
     - Name: mdi_csr_write_t
       Fields:
         - Name: hart_id
@@ -758,7 +755,7 @@ Modules:
           Type: uint64_t
         - Name: data
           Description: Data to be written to CSR
-          Type: uint64_t 
+          Type: uint64_t
         - Name: csr_name
           Description: CSR Name
           Type: uint32_t
@@ -775,7 +772,7 @@ Modules:
           Type: uint32_t
         - Name: pad[4]
           Description: Padding for alignment
-          Type: uint8_t 
+          Type: uint8_t
     - Name: mdi_mem_write_t
       Fields:
         - Name: address
@@ -1585,7 +1582,7 @@ Modules:
         - Name: hart_id
           Description: Hart ID for reading GPRs
           Type: uint64_t
-      
+
     - Name: mdi_dump_gpr_rsp
       Description: GPR Dump Response
       Type: Response
@@ -1613,7 +1610,7 @@ Modules:
         - Name: cmd_attr
           Description: Command attributes(hart_id,gpr index, data) for writing GPR
           Type: struct
-          Struct: mdi_gpr_write_t      
+          Struct: mdi_gpr_write_t
 
     - Name: mdi_write_gpr_rsp
       Description: GPR Write Response
@@ -1661,7 +1658,7 @@ Modules:
         - Name: dummy
           Description:  Dummy field
           Type: uint64_t
-    
+
     - Name: mdi_mem_read_cmd
       Description: Memory Read command
       Type: Command

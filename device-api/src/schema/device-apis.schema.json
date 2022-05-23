@@ -7,18 +7,6 @@
             "description": "Name of the API",
             "type": "string"
         },
-        "Version_Major": {
-            "description": "Version Major Number",
-            "type" : "integer"
-        },
-        "Version_Minor": {
-            "description": "Version Minor Number",
-            "type" : "integer"
-        },
-        "Version_Patch": {
-            "description": "Version Patch Number",
-            "type" : "integer"
-        },
         "MessageStartID": {
             "description": "Starting ID of the API messages, default 0, used as the stating value of the C-enumeration",
             "type": "integer"
@@ -33,7 +21,7 @@
             "items": { "$ref": "#/definitions/Module" }
         }
     },
-    "required": [ "Name", "Version_Major", "Version_Minor", "Version_Patch", "Modules"],
+    "required": [ "Name", "Modules"],
     "additionalProperties" : false,
     "definitions": {
         "MemberField": {
