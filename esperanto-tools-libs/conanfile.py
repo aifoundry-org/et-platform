@@ -40,10 +40,10 @@ class RuntimeConan(ConanFile):
             raise ConanInvalidConfiguration("When enabling runtime tests esperanto-flash-tool:header_only must be True")
     
     def requirements(self):
+        device_api = "deviceApi/0.5.0@"
         if self.options.with_tests:
-            self.requires("deviceApi/0.4.0#b581ee71930e41a44a3e10d4ff40496e")
-        else:
-            self.requires("deviceApi/0.4.0")
+            device_api += "#c82f130dcfa1ecd6f7891198306d5349"
+        self.requires(device_api)
         self.requires("deviceLayer/0.1.0")
         self.requires("hostUtils/0.1.0")
         
@@ -55,14 +55,18 @@ class RuntimeConan(ConanFile):
         if self.options.with_tests:
             self.requires("sw-sysemu/0.2.0")
 
-            self.requires("et-common-libs/0.0.5@#44d0cbac248a5fe6b3f7a20746bbe80c")
-            self.requires("device-minion-runtime/0.0.4@#29e324c4bfdae4f81c4c7ed747a719a2")
-            self.requires("device-bootloaders/0.2.0@#5f32a430da600817e7532f007218c416")
+            self.requires("et-common-libs/0.0.5@#cd9b3fa32470beb7485651c89b81edfc")
+            self.requires("device-minion-runtime/0.0.4@#b236c2d89ca586e186b97f7c58f40ef3")
+            self.requires("device-bootloaders/0.2.0@#02cb1edb8c78412add94f11bda2c6ee9")
             self.requires("esperanto-test-kernels/0.1.0@#a943278128156b0c567a9851f89745b9")
 
             # only for pinning dependencies
-            self.requires("esperantoTrace/0.1.0#2c4f00fce55cebb9fb057bc474da499c")
-            self.requires("etsoc_hal/0.1.0#35173765483f78347d3b0d2e50d78a44")
+            self.requires("esperantoTrace/0.2.0@#acfb37d7666cf7b73291ad121da2202f")
+            self.requires("etsoc_hal/0.1.0@#b358d0dce0d2e6c1692ca43f05dd0661")
+            self.requires("tf-protocol/0.1.0@#87d3b8e7ad2f0b39fa6fae35f3bc180b")
+            self.requires("signedImageFormat/1.0@#4503615bd9e6ca9cfae2441dddb96b2e")
+            self.requires("esperanto-flash-tool/0.1.0@#8d7c784f6b8d3cc1dbaa23b42b328782")
+
 
     
     def validate(self):

@@ -9,10 +9,10 @@
  *-------------------------------------------------------------------------*/
 #include "Constants.h"
 #include "json_conversion.h"
+#include "runtime/DeviceLayerFake.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 #include "tools/IBenchmarker.h"
-#include <device-layer/IDeviceLayerFake.h>
 #include <experimental/filesystem>
 #include <gflags/gflags.h>
 #include <hostUtils/logging/Instance.h>
@@ -74,7 +74,7 @@ auto createDeviceLayer() {
   std::unique_ptr<dev::IDeviceLayer> result;
   switch (FLAGS_deviceLayer) {
   case 0:
-    result.reset(new dev::IDeviceLayerFake);
+    result.reset(new dev::DeviceLayerFake);
     break;
   case 1:
     result = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultSysemuOptions());

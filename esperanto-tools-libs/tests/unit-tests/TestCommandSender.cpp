@@ -8,8 +8,8 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
+#include "runtime/DeviceLayerFake.h"
 #include <chrono>
-#include <device-layer/IDeviceLayerFake.h>
 #include <esperanto/device-apis/device_apis_message_types.h>
 #include <hostUtils/logging/Logger.h>
 #include <thread>
@@ -33,7 +33,7 @@ TEST(CommandSender, checkConsistency) {
   // dummy msg_id to make it work on deviceLayerFake
   header->msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD;
   auto numCommands = 3 * 1e4;
-  dev::IDeviceLayerFake deviceLayer;
+  dev::DeviceLayerFake deviceLayer;
   profiling::DummyProfiler profiler;
   CommandSender cs(deviceLayer, profiler, 0, 0);
   for (device_ops_api::tag_id_t i = 0; i < numCommands; ++i) {
@@ -86,7 +86,7 @@ TEST(CommandSender, checkSendBefore) {
   // dummy msg_id to make it work on deviceLayerFake
   header->msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD;
   auto numCommands = 100;
-  dev::IDeviceLayerFake deviceLayer;
+  dev::DeviceLayerFake deviceLayer;
   profiling::DummyProfiler profiler;
   CommandSender cs(deviceLayer, profiler, 0, 0);
   // first emplace commands with odd tag_ids

@@ -41,11 +41,12 @@ enum class KernelId : int {};
 struct Options {
   bool checkMemcpyDeviceOperations_; /// < if set, the runtime will inspect all memcpy operations and throw an
                                      /// exception if invalid device address/size
+  bool checkDeviceApiVersion_;
 };
 
 /// \brief Returns the default options. See \ref Options
 constexpr auto getDefaultOptions() {
-  return Options{true};
+  return Options{true, true};
 }
 
 /// \brief RuntimePtr is an alias for a pointer to a Runtime instantation
@@ -74,11 +75,11 @@ struct MemcpyList {
 /// \brief This is the device kernel error context which is a result of a running kernel terminating on a abnormal state
 /// (exception / abort)
 struct __attribute__((packed, aligned(64))) ErrorContext {
-  uint64_t type_;   ///< 0: compute hang, 1: U-mode exception, 2: system abort, 3: self abort, 4: kernel execution error,
-                    ///< 5: kernel execution tensor error
-  uint64_t cycle_;  ///< The cycle as sampled from the system counters at the point where the event type has happened.
-                    ///< Its accurate to within 100 cycles.
-  uint64_t hartId_; ///< The Hart thread ID which took the error event.
+  uint64_t type_;  ///< 0: compute hang, 1: U-mode exception, 2: system abort, 3: self abort, 4: kernel execution error,
+                   ///< 5: kernel execution tensor error
+  uint64_t cycle_; ///< The cycle as sampled from the system counters at the point where the event type has happened.
+                   ///< Its accurate to within 100 cycles.
+  uint64_t hartId_;              ///< The Hart thread ID which took the error event.
   uint64_t mepc_;                ///< Device exception program counter
   uint64_t mstatus_;             ///< Device status register
   uint64_t mtval_;               ///< Device bad address or instruction
@@ -169,7 +170,8 @@ struct StreamError {
     : errorCode_(errorCode) {
   }
   std::string getString() const; /// < returns a string representation of the StreamError
-  DeviceErrorCode errorCode_;
+  DeviceErrorCode errorCode_ = DeviceErrorCode::Unknown;
+  std::optional<uint64_t> cmShireMask_; /// < only available in some kernel errors. Contains offending shiremask
   std::optional<std::vector<ErrorContext>> errorContext_;
 };
 /// \brief This callback can be optionally set to automatically retrieve stream errors when produced
@@ -187,18 +189,18 @@ struct LoadCodeResult {
 
 /// \brief This struct encodes device properties
 struct DeviceProperties {
-  uint32_t frequency_;       ///< device frequency in Mhz
-  uint32_t availableShires_; ///< device shire count
-  uint32_t memoryBandwidth_; ///< device memory bandwidth in MBytes/second
-  uint64_t memorySize_;      ///< device memory size in bytes
-  uint16_t l3Size_;          ///< device L3 size in bytes
-  uint16_t l2shireSize_;     ///< device L2 shire size in bytes 
-  uint16_t l2scratchpadSize_;///< device L2 scratchpad size in bytes
-  uint16_t cacheLineSize_;   ///< device caceh line size in bytes
-  uint16_t l2CacheBanks_;    ///< number of banks in the L2
-  uint32_t computeMinionShireMask_;       ///< mask which indicates what are the compute minion shires
+  uint32_t frequency_;                  ///< device frequency in Mhz
+  uint32_t availableShires_;            ///< device shire count
+  uint32_t memoryBandwidth_;            ///< device memory bandwidth in MBytes/second
+  uint64_t memorySize_;                 ///< device memory size in bytes
+  uint16_t l3Size_;                     ///< device L3 size in bytes
+  uint16_t l2shireSize_;                ///< device L2 shire size in bytes
+  uint16_t l2scratchpadSize_;           ///< device L2 scratchpad size in bytes
+  uint16_t cacheLineSize_;              ///< device caceh line size in bytes
+  uint16_t l2CacheBanks_;               ///< number of banks in the L2
+  uint32_t computeMinionShireMask_;     ///< mask which indicates what are the compute minion shires
   uint16_t spareComputeMinionoShireId_; ///< spare compute minion Shire ID
-  uint16_t deviceArch_;      ///< device architecture revision
+  uint16_t deviceArch_;                 ///< device architecture revision
 };
 
 // NOTE: this is copied directly from device firmware "encoder.h"; we need to find a proper solution. So this will be in

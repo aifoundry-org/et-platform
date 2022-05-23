@@ -8,10 +8,9 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
+#include "runtime/DeviceLayerFake.h"
 #include "runtime/IRuntime.h"
 #include <algorithm>
-#include <device-layer/IDeviceLayerFake.h>
-#include <device-layer/IDeviceLayerMock.h>
 #include <gmock/gmock-actions.h>
 #include <gtest/gtest-death-test.h>
 #include <hostUtils/logging/Logging.h>
@@ -54,8 +53,8 @@ TEST(MemoryManager, compress_and_uncompress) {
 TEST(MemoryManager, SW8240) {
   auto size = (1 << 20) + 1UL;
   // shouldn't be possible to allocate a non multiple of alignment
-  dev::IDeviceLayerFake deviceLayer;
-  auto runtime = IRuntime::create(&deviceLayer);
+  dev::DeviceLayerFake deviceLayer;
+  auto runtime = IRuntime::create(&deviceLayer, Options{true, false});
   runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto device = runtime->getDevices()[0];
   // now, it works because we are going through runtime
@@ -69,8 +68,8 @@ TEST(MemoryManager, SW8240) {
 }
 
 TEST(MemoryManager, SW8240_2) {
-  dev::IDeviceLayerFake deviceLayer;
-  auto runtime = IRuntime::create(&deviceLayer);
+  dev::DeviceLayerFake deviceLayer;
+  auto runtime = IRuntime::create(&deviceLayer, Options{true, false});
   runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto device = runtime->getDevices()[0];
   auto rimp = static_cast<RuntimeImp*>(runtime.get());
@@ -98,8 +97,8 @@ TEST(MemoryManager, SW8240_2) {
   }
 }
 TEST(MemoryManager, SW8240_3) {
-  dev::IDeviceLayerFake deviceLayer;
-  auto runtime = IRuntime::create(&deviceLayer);
+  dev::DeviceLayerFake deviceLayer;
+  auto runtime = IRuntime::create(&deviceLayer, Options{true, false});
   runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto device = runtime->getDevices()[0];
   auto rimp = static_cast<RuntimeImp*>(runtime.get());
@@ -111,8 +110,8 @@ TEST(MemoryManager, SW8240_3) {
 }
 
 TEST(MemoryManager, SW8240_4) {
-  dev::IDeviceLayerFake deviceLayer;
-  auto runtime = IRuntime::create(&deviceLayer);
+  dev::DeviceLayerFake deviceLayer;
+  auto runtime = IRuntime::create(&deviceLayer, Options{true, false});
   runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto device = runtime->getDevices()[0];
   auto rimp = static_cast<RuntimeImp*>(runtime.get());

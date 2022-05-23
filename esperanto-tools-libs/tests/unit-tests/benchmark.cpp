@@ -8,9 +8,9 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 #include "Utils.h"
+#include "runtime/DeviceLayerFake.h"
 #include "runtime/IRuntime.h"
 #include <chrono>
-#include <device-layer/IDeviceLayerFake.h>
 #include <functional>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logger.h>
@@ -31,7 +31,7 @@ using namespace std::chrono;
 
 struct RuntimeBenchmark : Test {
   void SetUp() override {
-    runtime_ = rt::IRuntime::create(&deviceLayer_, Options{false});
+    runtime_ = rt::IRuntime::create(&deviceLayer_, Options{false, false});
     runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
     device_ = runtime_->getDevices()[0];
     stream_ = runtime_->createStream(device_);
@@ -42,7 +42,7 @@ struct RuntimeBenchmark : Test {
   void TearDown() override {
     runtime_->destroyStream(stream_);
   }
-  dev::IDeviceLayerFake deviceLayer_;
+  dev::DeviceLayerFake deviceLayer_;
   RuntimePtr runtime_;
   KernelId kernel_{0};
   StreamId stream_;

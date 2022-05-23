@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.5)
-project(runtime VERSION 0.1.0 LANGUAGES CXX C)
+project(runtime VERSION 0.2.0 LANGUAGES CXX C)
 
 
 set(CMAKE_CXX_STANDARD 17)
@@ -82,7 +82,7 @@ add_library(etrt_obj OBJECT
 )
 
 set_target_properties(etrt_obj PROPERTIES
-    PUBLIC_HEADER "include/runtime/IProfiler.h;include/runtime/IRuntime.h;include/runtime/IProfileEvent.h;include/runtime/IDmaBuffer.h;include/runtime/Types.h"
+    PUBLIC_HEADER "include/runtime/IProfiler.h;include/runtime/IRuntime.h;include/runtime/IProfileEvent.h;include/runtime/IDmaBuffer.h;include/runtime/Types.h;include/runtime/DeviceLayerFake.h"
     POSITION_INDEPENDENT_CODE ON
 )
     target_compile_definitions(etrt_obj

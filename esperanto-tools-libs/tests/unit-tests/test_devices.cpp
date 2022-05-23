@@ -8,8 +8,9 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 #include "Utils.h"
+#include "runtime/DeviceLayerFake.h"
 #include "runtime/IRuntime.h"
-#include <device-layer/IDeviceLayerMock.h>
+#include <device-layer/DeviceLayerMock.h>
 #include <gmock/gmock-actions.h>
 #include <gtest/gtest.h>
 
@@ -18,8 +19,9 @@ using namespace testing;
 using namespace std::chrono;
 
 TEST(devices, get_properties) {
-  auto deviceLayer = NiceMock<dev::IDeviceLayerMock>{};
-  deviceLayer.DelegateToFake();
+  dev::DeviceLayerFake fake;
+  auto deviceLayer = NiceMock<dev::DeviceLayerMock>{&fake};
+  deviceLayer.Delegate();
 
   auto fakeMemorySize = 40U * 1024U * 1024U;
   auto fakeAvailableShires = 16;
@@ -34,7 +36,7 @@ TEST(devices, get_properties) {
   dc.numL2CacheBanks_ = 8;
   dc.ddrBandwidth_ = 300;
   dc.minionBootFrequency_ = 1000;
-  dc.computeMinionShireMask_ = static_cast<uint32_t>(0xFFFFFFFF);
+  dc.computeMinionShireMask_ = 0xFFFFFFFF;
   dc.spareComputeMinionoShireId_ = 33;
   dc.archRevision_ = 0;
 

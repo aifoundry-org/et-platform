@@ -60,6 +60,9 @@ std::string StreamError::getString() const {
       ss << "]\n}";
     }
   }
+  if (cmShireMask_) {
+    ss << "\n Shire mask: 0x" << *cmShireMask_;
+  }
   return ss.str();
 }
 

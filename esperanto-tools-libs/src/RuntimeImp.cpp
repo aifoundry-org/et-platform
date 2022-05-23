@@ -100,6 +100,11 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling
   for (int d = 0; d < devicesCount; ++d) {
     RT_LOG(INFO) << "Initializing device: " << d;
     abortDevice(DeviceId{d});
+    if (options.checkDeviceApiVersion_) {
+      running_ = true;
+      RT_LOG(INFO) << "Checking device api version for device: " << d;
+      checkDeviceApi(DeviceId{d});
+    }
     RT_LOG(INFO) << "Device: " << d << " initialized.";
   }
   eventManager_.setThrowOnMissingEvent(true);
@@ -356,10 +361,11 @@ void RuntimeImp::setOnStreamErrorsCallback(StreamErrorCallback callback) {
   streamManager_.setErrorCallback(std::move(callback));
 }
 
-void RuntimeImp::processResponseError(DeviceErrorCode errorCode, EventId event) {
-  blockableThreadPool_.pushTask([this, errorCode, event] {
+void RuntimeImp::processResponseError(const ResponseError& responseError) {
+  blockableThreadPool_.pushTask([this, responseError] {
     // here we have to check if there is an associated errorbuffer with the event; if so, copy the buffer from
     // devicebuffer into dmabuffer; then do the callback
+    auto [errorCode, event, kernelExtra] = responseError;
     StreamError streamError(errorCode);
     if (executionContextCache_) {
       if (auto buffer = executionContextCache_->getReservedBuffer(event); buffer != nullptr) {
@@ -375,6 +381,9 @@ void RuntimeImp::processResponseError(DeviceErrorCode errorCode, EventId event) 
         }
         executionContextCache_->releaseBuffer(event);
       }
+    }
+    if (kernelExtra) {
+      streamError.cmShireMask_ = kernelExtra->cm_shire_mask;
     }
     if (!streamManager_.executeCallback(event, streamError)) {
       // the callback was not set, so add the error to the error list
@@ -406,12 +415,26 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
                << " Message Id: " << header->rsp_hdr.msg_id;
   bool responseWasOk = true;
   switch (header->rsp_hdr.msg_id) {
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_API_COMPATIBILITY_RSP:
+    if (auto r = reinterpret_cast<const device_ops_api::device_ops_api_compatibility_rsp_t*>(response.data());
+        r->status != device_ops_api::DEV_OPS_API_COMPATIBILITY_RESPONSE_SUCCESS) {
+      responseWasOk = false;
+      RT_LOG(WARNING) << "Error on device api check version: " << r->status
+                      << ". Tag id: " << static_cast<int>(eventId);
+      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
+    } else {
+      SpinLock lock(mutex_);
+      deviceApiVersion_.major = r->major;
+      deviceApiVersion_.minor = r->minor;
+      deviceApiVersion_.patch = r->patch;
+    }
+    break;
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP:
     if (auto r = reinterpret_cast<const device_ops_api::device_ops_kernel_abort_rsp_t*>(response.data());
         r->status != device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on kernel abort: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
+      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP:
@@ -421,7 +444,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on DMA read: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
+      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
   }
@@ -430,7 +453,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
         r->status != device_ops_api::DEV_OPS_API_ABORT_RESPONSE_SUCCESS) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on abort command: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
+      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP:
@@ -440,7 +463,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on DMA write: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
+      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
   }
@@ -451,7 +474,18 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
         device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on kernel launch: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
+      ResponseError re{convert(header->rsp_hdr.msg_id, r->status), eventId};
+      auto regularPayloadSize =
+        sizeof(device_ops_api::device_ops_kernel_launch_rsp_t) - sizeof(device_ops_api::rsp_header_t);
+      if (r->response_info.rsp_hdr.size >= regularPayloadSize) {
+        CHECK(r->response_info.rsp_hdr.size == regularPayloadSize + sizeof(device_ops_api::kernel_rsp_error_ptr_t))
+          << "Incorrect response size";
+        auto extra = reinterpret_cast<const device_ops_api::kernel_rsp_error_ptr_t*>(r->kernel_rsp_error_ptr);
+        re.kernelLaunchErrorExtra_ = {reinterpret_cast<std::byte*>(extra->umode_exception_buffer_ptr),
+                                      reinterpret_cast<std::byte*>(extra->umode_trace_buffer_ptr),
+                                      extra->cm_shire_mask};
+      }
+      processResponseError(re);
     } else {
       if (executionContextCache_) {
         // it can happen on runtime initialization that executionContextCache does not exist yet and we are receiving
@@ -467,7 +501,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on firmware trace configure: " << r->status
                       << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
+      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP:
@@ -476,13 +510,13 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on firmware trace control (start/stop): " << r->status
                       << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError(convert(header->rsp_hdr.msg_id, r->status), eventId);
+      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_ERROR: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_device_fw_error_t*>(response.data());
     RT_LOG(WARNING) << "Reported asynchronous ERROR event from firmware: " << r->error_type;
-    processResponseError(convert(header->rsp_hdr.msg_id, r->error_type), eventId);
+    processResponseError({convert(header->rsp_hdr.msg_id, r->error_type), eventId});
     break;
   }
   default:
@@ -656,6 +690,28 @@ std::vector<int> RuntimeImp::getDevicesWithEventsOnFly() const {
 
 std::vector<StreamError> RuntimeImp::retrieveStreamErrors(StreamId stream) {
   return streamManager_.retrieveErrors(stream);
+}
+void RuntimeImp::checkDeviceApi(DeviceId device) {
+  auto st = createStreamWithoutProfiling(device);
+  auto streamInfo = streamManager_.getStreamInfo(st);
+  auto evt = eventManager_.getNextId();
+  streamManager_.addEvent(st, evt);
+  std::vector<std::byte> cmd(sizeof(device_ops_api::check_device_ops_api_compatibility_cmd_t));
+  auto cmdPtr = reinterpret_cast<device_ops_api::check_device_ops_api_compatibility_cmd_t*>(cmd.data());
+  cmdPtr->command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
+  cmdPtr->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD;
+  cmdPtr->command_info.cmd_hdr.size = sizeof(cmd);
+  auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
+  commandSender.send(Command{cmd, commandSender, evt, false, true});
+  waitForStreamWithoutProfiling(st);
+  destroyStreamWithoutProfiling(st);
+  // now the responsereceiver will put the data into deviceapi field, check that
+  if (!deviceApiVersion_.isValid()) {
+    throw Exception("Runtime couldn't retrieve a valid device-api version.");
+  }
+  if (deviceApiVersion_.major != 0 || deviceApiVersion_.minor != 1 || deviceApiVersion_.patch != 0) {
+    throw Exception("Incompatible device-api version. This runtime version only supports 0.1.0");
+  }
 }
 
 EventId RuntimeImp::abortCommand(EventId commandId, std::chrono::milliseconds timeout) {

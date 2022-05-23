@@ -11,7 +11,6 @@
 #include "TestUtils.h"
 #include "Utils.h"
 #include "runtime/IRuntime.h"
-#include <device-layer/IDeviceLayerFake.h>
 using namespace rt;
 
 TEST_F(Fixture, checkStackTraceException) {

@@ -23,12 +23,25 @@
 #include "runtime/Types.h"
 #include <algorithm>
 #include <hostUtils/threadPool/ThreadPool.h>
+#include <limits>
+#include <optional>
 #include <type_traits>
 #include <unordered_map>
 
 namespace rt {
 class ExecutionContextCache;
 class MemoryManager;
+
+struct DeviceApiVersion {
+  using type = uint32_t;
+  constexpr static type INVALID = std::numeric_limits<type>::max();
+  bool isValid() const {
+    return major != INVALID && minor != INVALID && patch != INVALID;
+  }
+  uint32_t major = INVALID;
+  uint32_t minor = INVALID;
+  uint32_t patch = INVALID;
+};
 
 class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices {
 public:
@@ -164,10 +177,21 @@ private:
     std::ostream* mmOutput_;
     std::ostream* cmOutput_;
   };
-
-  void processResponseError(DeviceErrorCode errorCode, EventId event);
+  struct ResponseError {
+    struct KernelLaunchErrorExtra {
+      std::byte* exceptionPtr_ = nullptr;
+      std::byte* traceBufferPtr_ = nullptr;
+      uint64_t cm_shire_mask;
+    };
+    DeviceErrorCode errorCode_;
+    EventId event_;
+    std::optional<KernelLaunchErrorExtra> kernelLaunchErrorExtra_ = std::nullopt;
+  };
+  void processResponseError(const ResponseError& error);
 
   void abortDevice(DeviceId d);
+
+  void checkDeviceApi(DeviceId d);
 
   void checkList(int device, const MemcpyList& list) const;
 
@@ -201,5 +225,6 @@ private:
   EventManager eventManager_;
   bool running_ = false;
   bool checkMemcpyDeviceAddress_ = false;
+  DeviceApiVersion deviceApiVersion_;
 };
 } // namespace rt

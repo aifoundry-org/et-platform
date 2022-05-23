@@ -59,7 +59,10 @@ TEST_F(DeviceErrors, KernelLaunchException) {
   EXPECT_EQ(errors.size(), 1UL);
   RT_LOG(logging::VLOG_HIGH) << "";
   bool callbackExecuted = false;
-  runtime_->setOnStreamErrorsCallback([&callbackExecuted](auto, const rt::StreamError&) { callbackExecuted = true; });
+  runtime_->setOnStreamErrorsCallback([&callbackExecuted](auto, const rt::StreamError& error) {
+    callbackExecuted = true;
+    RT_LOG(INFO) << "Error cm mask: " << *error.cmShireMask_;
+  });
   // Launch Kernel on all 32 Shires including Sync Minions
   runtime_->kernelLaunch(defaultStreams_[0], exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0x1FFFFFFFFUL);
   runtime_->waitForStream(defaultStreams_[0]);

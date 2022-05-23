@@ -9,7 +9,6 @@
 //------------------------------------------------------------------------------
 #include "TestUtils.h"
 #include <algorithm>
-#include <device-layer/IDeviceLayerMock.h>
 #include <future>
 #include <g3log/loglevels.hpp>
 #include <gtest/gtest.h>

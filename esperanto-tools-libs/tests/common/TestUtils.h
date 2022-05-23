@@ -10,8 +10,6 @@
 #include "RuntimeImp.h"
 #include "runtime/Types.h"
 #include <common/Constants.h>
-#include <device-layer/IDeviceLayer.h>
-#include <device-layer/IDeviceLayerFake.h>
 #include <experimental/filesystem>
 #include <fstream>
 #include <gmock/gmock.h>
@@ -20,6 +18,7 @@
 #include <hostUtils/threadPool/ThreadPool.h>
 #include <optional>
 #include <random>
+#include <runtime/DeviceLayerFake.h>
 #include <runtime/IRuntime.h>
 #include <sw-sysemu/SysEmuOptions.h>
 
@@ -67,6 +66,7 @@ public:
   enum class Mode { PCIE, SYSEMU, FAKE };
 
   void SetUp() override {
+    auto options = rt::getDefaultOptions();
     switch (sMode) {
     case Mode::PCIE:
       RT_LOG(INFO) << "Running tests with PCIE deviceLayer";
@@ -85,9 +85,10 @@ public:
     }
     case Mode::FAKE:
       RT_LOG(INFO) << "Running tests with FAKE deviceLayer";
-      deviceLayer_ = std::make_unique<dev::IDeviceLayerFake>();
+      deviceLayer_ = std::make_unique<dev::DeviceLayerFake>();
+      options.checkDeviceApiVersion_ = false;
     }
-    runtime_ = rt::IRuntime::create(deviceLayer_.get());
+    runtime_ = rt::IRuntime::create(deviceLayer_.get(), options);
     SetupTrace();
     devices_ = runtime_->getDevices();
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());

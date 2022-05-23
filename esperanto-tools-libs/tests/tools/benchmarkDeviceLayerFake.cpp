@@ -9,22 +9,22 @@
 //------------------------------------------------------------------------------
 
 #include "benchmarkerRunner.h"
+#include "runtime/DeviceLayerFake.h"
 #include "runtime/Types.h"
 
-#include <device-layer/IDeviceLayerFake.h>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logging.h>
 #include <tools/IBenchmarker.h>
 
 TEST(BenchmarkerTool, fake) {
-  dev::IDeviceLayerFake deviceLayer;
+  dev::DeviceLayerFake deviceLayer;
   rt::IBenchmarker::Options options;
   options.bytesD2H = 4 << 20;
   options.bytesH2D = 4 << 20;
   options.numWorkloadsPerThread = 100;
   options.numThreads = 8;
   options.useDmaBuffers = false;
-  auto rt = rt::IRuntime::create(&deviceLayer);
+  auto rt = rt::IRuntime::create(&deviceLayer, rt::Options{true, false});
   runBenchmarker(rt.get(), options);
 }
 
