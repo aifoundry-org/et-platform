@@ -105,9 +105,9 @@ target_add_sanitizers(etrt_obj)
 target_link_libraries(etrt_obj
     PUBLIC
         hostUtils::debug
+        deviceApi::deviceApi
     PRIVATE
         cereal::cereal
-        deviceApi::deviceApi
         deviceLayer::deviceLayer
         hostUtils::logging
         hostUtils::threadPool

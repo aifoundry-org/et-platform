@@ -240,6 +240,12 @@ public:
   size_t getFreeCmaMemory() const override {
     return 1ULL << 30;
   }
+  std::string getDeviceAttribute(int, std::string) const override {
+    return "";
+  }
+  void clearDeviceAttributes(int, std::string) const override {
+    // No implementation
+  }
 };
 
 } // namespace dev
