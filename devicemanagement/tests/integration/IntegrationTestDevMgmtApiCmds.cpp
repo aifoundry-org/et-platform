@@ -54,7 +54,7 @@ TEST_F(IntegrationTestDevMgmtApiCmds, getDeviceErrorEvents) {
   }
 }
 
-TEST_F(IntegrationTestDevMgmtApiCmds, DISABLED_resetMM) {
+TEST_F(IntegrationTestDevMgmtApiCmds, resetMM) {
   // TODO: SW-11288: Enable back when it's stable
   if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
     resetMM(false);
