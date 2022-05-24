@@ -80,7 +80,8 @@
     <reg name="fcsr" bitsize="64" type="int"/>
   </feature>
   <feature name="org.gnu.gdb.riscv.csr">
-    <!-- User Trap Setup. -->
+    <!-- User Mode CSRs are not implemented in ETSOC1 rev.
+         This shall be enabled in next gen rev.
     <reg name="ustatus" bitsize="64" type="int"/>
     <reg name="uie" bitsize="64" type="int"/>
     <reg name="utvec" bitsize="64" type="int"/>
@@ -89,7 +90,6 @@
     <reg name="ucause" bitsize="64" type="int"/>
     <reg name="utval" bitsize="64" type="int"/>
     <reg name="uip" bitsize="64" type="int"/>
-    <!-- User Counters/Timers. -->
     <reg name="cycle" bitsize="64" type="int"/>
     <reg name="time" bitsize="64" type="int"/>
     <reg name="instret" bitsize="64" type="int"/>
@@ -122,6 +122,7 @@
     <reg name="hpmcounter29" bitsize="64" type="int"/>
     <reg name="hpmcounter30" bitsize="64" type="int"/>
     <reg name="hpmcounter31" bitsize="64" type="int"/>
+    -->
     <!-- Supervisor mode. -->
     <reg name="sie" bitsize="64" type="int"/>
     <reg name="stvec" bitsize="64" type="int"/>
