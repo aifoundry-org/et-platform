@@ -1,4 +1,0 @@
-projects:
-  "device-minion-runtime":
-    folder: .
-    configs: [device]
