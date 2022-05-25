@@ -586,8 +586,8 @@ int64_t configure_sc_pmcs(uint64_t ctl_status_cfg, uint64_t pmc0_cfg, uint64_t p
 int64_t configure_ms_pmcs(uint64_t ctl_status_cfg, uint64_t ddrc_perfmon_p0_qual,
     uint64_t ddrc_perfmon_p1_qual, uint64_t ddrc_perfmon_p0_qual2, uint64_t ddrc_perfmon_p1_qual2);
 int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr);
-uint64_t sample_sc_pmcs(uint64_t pmc);
-uint64_t sample_ms_pmcs(uint64_t pmc);
+uint64_t sample_sc_pmcs(uint64_t shire_id, uint64_t neigh_id, uint64_t pmc);
+uint64_t sample_ms_pmcs(uint64_t shire_id, uint64_t pmc);
 int64_t reset_pmcs(void);
 
 /*TODO: This time(cycles) stamping infrastructure does not account for

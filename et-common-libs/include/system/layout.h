@@ -40,10 +40,12 @@
 /* Architectural parameters */
 #define MASTER_SHIRE               32
 #define NUM_SHIRES                 33
+#define NUM_MEM_SHIRES             8
 #define NUM_MASTER_SHIRES          1
 #define NUM_COMPUTE_SHIRES         (NUM_SHIRES - NUM_MASTER_SHIRES)
 #define HARTS_PER_SHIRE            64
 #define NUM_HARTS                  (NUM_SHIRES * HARTS_PER_SHIRE)
+#define NEIGH_PER_SHIRE            4
 #define MASTER_SHIRE_COMPUTE_HARTS 32
 #define MAX_SIMULTANEOUS_KERNELS   4
 #define CM_HART_COUNT              (NUM_COMPUTE_SHIRES * HARTS_PER_SHIRE + MASTER_SHIRE_COMPUTE_HARTS)

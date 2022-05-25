@@ -22,13 +22,13 @@
 static inline uint64_t trace_umode_sample_sc_pmc(uint64_t pmc)
 {
     /* Sample the pmc */
-    return (uint64_t)syscall(SYSCALL_PMC_SC_SAMPLE, pmc, 0, 0);
+    return (uint64_t)syscall(SYSCALL_PMC_SC_SAMPLE, get_shire_id(), get_neighborhood_id(), pmc);
 }
 
 static inline uint64_t trace_umode_sample_ms_pmc(uint64_t pmc)
 {
     /* Sample the pmc */
-    return (uint64_t)syscall(SYSCALL_PMC_MS_SAMPLE, pmc, 0, 0);
+    return (uint64_t)syscall(SYSCALL_PMC_MS_SAMPLE, get_shire_id(), pmc, 0);
 }
 
 #define ET_TRACE_MEM_CPY(dest, src, size)    et_memcpy(dest, src, size)

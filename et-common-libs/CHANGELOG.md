@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added CHANGELOG.md
 - Added a MM2CM message to dump the context of a thread
 - Added exception and abort mask in CM2MM kernel complete command.
+- Added a interface change in PMC sampling syscall
 ### Changed
 - (Conan) Use conan-common get_version_from_cmake_project
 ### Deprecated

@@ -224,7 +224,7 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
         // Read 3 SC bank counters, probably we can save the clock counter.
         for (uint64_t i = 0; i < 3; i++)
         {
-            uint64_t pmc_data = sample_sc_pmcs(i);
+            uint64_t pmc_data = sample_sc_pmcs(shire_id, 0, i);
             if (pmc_data == PMU_INCORRECT_COUNTER)
             {
                 ret = ret - 1;
@@ -245,7 +245,7 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
         // Read the 3 MS pef counters -- probably we can save the clock counter read
         for (uint64_t i = 0; i < 3; i++)
         {
-            uint64_t pmc_data = sample_ms_pmcs(i);
+            uint64_t pmc_data = sample_ms_pmcs(shire_id, i);
             if (pmc_data == PMU_INCORRECT_COUNTER)
             {
                 ret = ret - 1;
@@ -268,10 +268,8 @@ int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_tensor_addr)
     return ret;
 }
 
-uint64_t sample_sc_pmcs(uint64_t pmc)
+uint64_t sample_sc_pmcs(uint64_t shire_id, uint64_t neigh_id, uint64_t pmc)
 {
-    uint64_t shire_id = get_shire_id();
-    uint64_t neigh_id = get_neighborhood_id();
     uint64_t pmc_data = 0;
 
     /* Stop the counter */
@@ -286,9 +284,8 @@ uint64_t sample_sc_pmcs(uint64_t pmc)
     return pmc_data;
 }
 
-uint64_t sample_ms_pmcs(uint64_t pmc)
+uint64_t sample_ms_pmcs(uint64_t shire_id, uint64_t pmc)
 {
-    uint64_t shire_id = get_shire_id();
     uint64_t pmc_data = 0;
 
     /* Stop the counter */
