@@ -37,12 +37,15 @@ struct et_msg_node {
 
 struct et_vq_common {
 	u16 sq_count;
-	u16 hpsq_count;
+	u16 sq_size;
+	u16 hp_sq_count;
+	u16 hp_sq_size;
 	DECLARE_BITMAP(sq_bitmap, ET_MAX_QUEUES);
 	struct mutex sq_bitmap_mutex;
 	struct workqueue_struct *sq_workqueue;
 
 	u16 cq_count;
+	u16 cq_size;
 	DECLARE_BITMAP(cq_bitmap, ET_MAX_QUEUES);
 	struct mutex cq_bitmap_mutex;
 	struct workqueue_struct *cq_workqueue;
@@ -52,15 +55,13 @@ struct et_vq_common {
 	void __iomem *intrpt_addr;
 
 	wait_queue_head_t waitqueue;
-	bool aborting;
-	spinlock_t abort_lock;		/* serializes access to aborting */
 	struct pci_dev *pdev;
 	struct et_mapped_region *trace_region;
 };
 
 struct et_squeue {
 	u16 index;
-	bool is_hpsq;
+	bool is_hp_sq;
 	struct et_circbuffer __iomem *cb_mem;
 	struct et_circbuffer cb;	/* local copy */
 	bool cb_mismatched;
@@ -73,13 +74,13 @@ struct et_squeue {
 
 // clang-format on
 
-ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count);
 ssize_t et_squeue_copy_from_user(struct et_pci_dev *et_dev,
 				 bool is_mgmt,
-				 bool is_hpsq,
+				 bool is_hp_sq,
 				 u16 sq_index,
 				 const char __user *ubuf,
 				 size_t count);
+ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count);
 void et_squeue_sync_bitmap(struct et_squeue *sq);
 bool et_squeue_empty(struct et_squeue *sq);
 
@@ -100,12 +101,12 @@ struct et_cqueue {
 
 // clang-format on
 
-ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host);
 ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 			       bool is_mgmt,
 			       u16 cq_index,
 			       char __user *ubuf,
 			       size_t count);
+ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host);
 bool et_cqueue_msg_available(struct et_cqueue *cq);
 void et_cqueue_isr_bottom(struct et_cqueue *cq);
 
@@ -114,5 +115,12 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt);
 
 struct et_msg_node *et_dequeue_msg_node(struct et_cqueue *cq);
 void et_destroy_msg_list(struct et_cqueue *cq);
+
+struct et_vq_data {
+	struct et_vq_common vq_common;
+	struct et_squeue *sqs;
+	struct et_squeue *hp_sqs;
+	struct et_cqueue *cqs;
+};
 
 #endif

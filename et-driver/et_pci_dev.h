@@ -58,43 +58,39 @@ enum et_msi_vec_idx {
 };
 
 struct et_ops_dev {
-	atomic_t state;
 	struct miscdevice misc_dev;
 	bool is_open;
 	spinlock_t open_lock;		/* serializes access to is_open */
 	void __iomem *dir;
 	struct et_mapped_region regions[OPS_MEM_REGION_TYPE_NUM];
 	struct et_ops_dir_vqueue dir_vq;
-	struct et_squeue **hpsq_pptr;
-	struct et_squeue **sq_pptr;
-	struct et_cqueue **cq_pptr;
-	struct et_vq_common vq_common;
+	struct et_vq_data vq_data;
 	struct rb_root dma_rbtree;
 	struct mutex dma_rbtree_mutex;	/* serializes access to dma_rbtree */
 	atomic64_t mem_stats[ET_MEM_STATS_MAX_ATTRIBUTES];
 };
 
 struct et_mgmt_dev {
-	atomic_t state;
 	struct miscdevice misc_dev;
 	bool is_open;
 	spinlock_t open_lock;		/* serializes access to is_open */
 	void __iomem *dir;
 	struct et_mapped_region regions[MGMT_MEM_REGION_TYPE_NUM];
 	struct et_mgmt_dir_vqueue dir_vq;
-	struct et_squeue **sq_pptr;
-	struct et_cqueue **cq_pptr;
-	struct et_vq_common vq_common;
+	struct et_vq_data vq_data;
 	atomic64_t err_stats[ET_ERR_STATS_MAX_ATTRIBUTES];
 };
 
 struct et_pci_dev {
 	u8 dev_index;
 	bool is_err_reporting;
-	bool is_recovery_mode;
 	struct pci_dev *pdev;
 	struct dev_config cfg;
+	bool ops_initialized;
+	struct mutex ops_init_mutex;	/* serializes access to ops_initialized */
 	struct et_ops_dev ops;
+	bool mgmt_initialized;
+	struct mutex mgmt_init_mutex;	/* serializes access to mgmt_initialized */
 	struct et_mgmt_dev mgmt;
 	struct list_head bar_region_list;
 };
@@ -105,5 +101,10 @@ int et_map_bar(struct et_pci_dev *et_dev,
 	       const struct et_bar_mapping *bm_info,
 	       void __iomem **mapped_addr_ptr);
 void et_unmap_bar(void __iomem *mapped_addr);
+
+int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs);
+void et_mgmt_dev_destroy(struct et_pci_dev *et_dev);
+int et_ops_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs);
+void et_ops_dev_destroy(struct et_pci_dev *et_dev);
 
 #endif

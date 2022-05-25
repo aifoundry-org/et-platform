@@ -20,7 +20,7 @@
 
 struct et_pci_dev;
 
-int et_sysfs_stats_init(struct et_pci_dev *et_dev);
-void et_sysfs_stats_remove(struct et_pci_dev *et_dev);
+int et_sysfs_stats_init(struct et_pci_dev *et_dev, bool is_mgmt);
+void et_sysfs_stats_remove(struct et_pci_dev *et_dev, bool is_mgmt);
 
 #endif

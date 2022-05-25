@@ -25,7 +25,6 @@ enum dev_state {
 	/* TODO: SW-10535 To be removed */
 	DEV_STATE_PENDING_COMMANDS,
 	DEV_STATE_NOT_RESPONDING,
-	DEV_STATE_RESET_IN_PROGRESS,
 };
 
 enum trace_buffer_type {

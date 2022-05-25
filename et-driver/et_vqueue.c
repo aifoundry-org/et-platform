@@ -17,7 +17,6 @@
 #include "et_event_handler.h"
 #include "et_io.h"
 #include "et_pci_dev.h"
-#include "et_reset.h"
 #include "et_vqueue.h"
 
 static struct et_msg_node *create_msg_node(u32 msg_size)
@@ -83,18 +82,15 @@ static void mm_reset_completion_callback(struct et_cqueue *cq,
 		dev_err(&et_dev->pdev->dev,
 			"MM reset failed!, status: %d\n",
 			rsp->status);
-		goto error;
+		return;
 	}
 
-	if (et_ops_dev_reset(et_dev, false) != 0) {
-		dev_err(&et_dev->pdev->dev, "Ops Device reset failed!\n");
-		goto error;
+	// TODO: SW-11288: The init timeout should be 0 secs here, currently
+	// MM reset response does not indicate the completion of reset.
+	if (et_ops_dev_init(et_dev, 60U) != 0) {
+		dev_err(&et_dev->pdev->dev, "Ops Device re-init failed!\n");
+		return;
 	}
-
-	return;
-
-error:
-	atomic_set(&et_dev->ops.state, DEV_STATE_NOT_RESPONDING);
 }
 
 void et_destroy_msg_list(struct et_cqueue *cq)
@@ -130,11 +126,11 @@ bool et_cqueue_msg_available(struct et_cqueue *cq)
 static irqreturn_t et_pcie_sq_isr(int irq, void *sq_id)
 {
 	int i;
-	struct et_squeue **sq_pptr = (struct et_squeue **)sq_id;
-	struct et_vq_common *vq_common = sq_pptr[0]->vq_common;
+	struct et_squeue *sqs = (struct et_squeue *)sq_id;
+	struct et_vq_common *vq_common = sqs[0].vq_common;
 
 	for (i = 0; i < vq_common->sq_count; i++)
-		queue_work(vq_common->sq_workqueue, &sq_pptr[i]->isr_work);
+		queue_work(vq_common->sq_workqueue, &sqs[i].isr_work);
 
 	return IRQ_HANDLED;
 }
@@ -166,11 +162,11 @@ update_sq_bitmap:
 static irqreturn_t et_pcie_cq_isr(int irq, void *cq_id)
 {
 	int i;
-	struct et_cqueue **cq_pptr = (struct et_cqueue **)cq_id;
-	struct et_vq_common *vq_common = cq_pptr[0]->vq_common;
+	struct et_cqueue *cqs = (struct et_cqueue *)cq_id;
+	struct et_vq_common *vq_common = cqs[0].vq_common;
 
 	for (i = 0; i < vq_common->cq_count; i++)
-		queue_work(vq_common->cq_workqueue, &cq_pptr[i]->isr_work);
+		queue_work(vq_common->cq_workqueue, &cqs[i].isr_work);
 
 	return IRQ_HANDLED;
 }
@@ -186,60 +182,52 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 						bool is_mgmt)
 {
 	ssize_t i;
-	struct et_vq_common *vq_common;
-	struct et_squeue **hpsq_pptr;
 	struct et_mapped_region *vq_region;
-	u8 *mem, __iomem *hpsq_baseaddr;
-	u16 hpsq_size;
+	u8 __iomem *hp_sq_baseaddr;
+	struct et_vq_data *vq_data;
+	u16 hp_sq_size;
 
 	if (is_mgmt) {
 		dev_dbg(&et_dev->pdev->dev, "Mgmt: HP SQs are not supported\n");
 		return 0;
 	}
 
-	vq_common = &et_dev->ops.vq_common;
 	if (!et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid) {
 		return -EINVAL;
 	}
 
+	vq_data = &et_dev->ops.vq_data;
 	vq_region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
-	hpsq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
-			et_dev->ops.dir_vq.hpsq_offset;
-	hpsq_size = et_dev->ops.dir_vq.hpsq_size;
+	hp_sq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
+			 et_dev->ops.dir_vq.hp_sq_offset;
+	hp_sq_size = et_dev->ops.dir_vq.hp_sq_size;
 
-	mem = kmalloc_array(vq_common->hpsq_count,
-			    sizeof(*hpsq_pptr) + sizeof(**hpsq_pptr),
-			    GFP_KERNEL);
-	if (!mem)
+	vq_data->hp_sqs = kmalloc_array(vq_data->vq_common.hp_sq_count,
+					sizeof(*vq_data->hp_sqs),
+					GFP_KERNEL);
+	if (!vq_data->hp_sqs)
 		return -ENOMEM;
 
-	hpsq_pptr = (struct et_squeue **)mem;
-	mem += vq_common->hpsq_count * sizeof(*hpsq_pptr);
-
-	for (i = 0; i < vq_common->hpsq_count; i++) {
-		hpsq_pptr[i] = (struct et_squeue *)mem;
-		mem += sizeof(**hpsq_pptr);
-
-		hpsq_pptr[i]->index = i;
-		hpsq_pptr[i]->is_hpsq = true;
-		hpsq_pptr[i]->vq_common = vq_common;
-		hpsq_pptr[i]->cb_mem =
-			(struct et_circbuffer __iomem *)hpsq_baseaddr;
-		et_ioread(hpsq_pptr[i]->cb_mem,
+	for (i = 0; i < vq_data->vq_common.hp_sq_count; i++) {
+		vq_data->hp_sqs[i].index = i;
+		vq_data->hp_sqs[i].is_hp_sq = true;
+		vq_data->hp_sqs[i].vq_common = &vq_data->vq_common;
+		vq_data->hp_sqs[i].cb_mem =
+			(struct et_circbuffer __iomem *)hp_sq_baseaddr;
+		et_ioread(vq_data->hp_sqs[i].cb_mem,
 			  0,
-			  (u8 *)&hpsq_pptr[i]->cb,
-			  sizeof(hpsq_pptr[i]->cb));
-		hpsq_pptr[i]->cb_mismatched = false;
-		hpsq_baseaddr += hpsq_size;
+			  (u8 *)&vq_data->hp_sqs[i].cb,
+			  sizeof(vq_data->hp_sqs[i].cb));
+		vq_data->hp_sqs[i].cb_mismatched = false;
+		hp_sq_baseaddr += hp_sq_size;
 
-		mutex_init(&hpsq_pptr[i]->push_mutex);
+		mutex_init(&vq_data->hp_sqs[i].push_mutex);
 
-		memset(hpsq_pptr[i]->stats,
+		memset(vq_data->hp_sqs[i].stats,
 		       0,
-		       sizeof(atomic64_t) * ARRAY_SIZE(hpsq_pptr[i]->stats));
+		       sizeof(atomic64_t) *
+			       ARRAY_SIZE(vq_data->hp_sqs[i].stats));
 	}
-
-	et_dev->ops.hpsq_pptr = hpsq_pptr;
 
 	return 0;
 }
@@ -248,18 +236,17 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	ssize_t i, rv;
 	unsigned long vec_idx;
-	struct et_vq_common *vq_common;
-	struct et_squeue **sq_pptr;
 	struct et_mapped_region *vq_region;
-	u8 *mem, __iomem *sq_baseaddr;
+	struct et_vq_data *vq_data;
+	u8 __iomem *sq_baseaddr;
 	u16 sq_size;
 
 	if (is_mgmt) {
-		vq_common = &et_dev->mgmt.vq_common;
 		if (!et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER]
 			     .is_valid) {
 			return -EINVAL;
 		}
+		vq_data = &et_dev->mgmt.vq_data;
 		vq_region =
 			&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER];
 		sq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
@@ -268,11 +255,11 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 		vec_idx = ET_MGMT_SQ_VEC_IDX;
 	} else {
-		vq_common = &et_dev->ops.vq_common;
 		if (!et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER]
 			     .is_valid) {
 			return -EINVAL;
 		}
+		vq_data = &et_dev->ops.vq_data;
 		vq_region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
 		sq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
 			      et_dev->ops.dir_vq.sq_offset;
@@ -282,58 +269,49 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	}
 
 	// Initialize sq_workqueue
-	vq_common->sq_workqueue = alloc_workqueue("%s:%s%d_sqwq",
-						  WQ_MEM_RECLAIM | WQ_UNBOUND,
-						  vq_common->sq_count,
-						  dev_name(&et_dev->pdev->dev),
-						  (is_mgmt) ? "mgmt" : "ops",
-						  et_dev->dev_index);
-	if (!vq_common->sq_workqueue)
+	vq_data->vq_common.sq_workqueue =
+		alloc_workqueue("%s:%s%d_sqwq",
+				WQ_MEM_RECLAIM | WQ_UNBOUND,
+				vq_data->vq_common.sq_count,
+				dev_name(&et_dev->pdev->dev),
+				(is_mgmt) ? "mgmt" : "ops",
+				et_dev->dev_index);
+	if (!vq_data->vq_common.sq_workqueue)
 		return -ENOMEM;
 
-	mem = kmalloc_array(vq_common->sq_count,
-			    sizeof(*sq_pptr) + sizeof(**sq_pptr),
-			    GFP_KERNEL);
-	if (!mem) {
+	vq_data->sqs = kmalloc_array(vq_data->vq_common.sq_count,
+				     sizeof(*vq_data->sqs),
+				     GFP_KERNEL);
+	if (!vq_data->sqs) {
 		rv = -ENOMEM;
 		goto error_destroy_sq_workqueue;
 	}
 
-	sq_pptr = (struct et_squeue **)mem;
-	mem += vq_common->sq_count * sizeof(*sq_pptr);
-
-	if (is_mgmt)
-		et_dev->mgmt.sq_pptr = sq_pptr;
-	else
-		et_dev->ops.sq_pptr = sq_pptr;
-
-	for (i = 0; i < vq_common->sq_count; i++) {
-		sq_pptr[i] = (struct et_squeue *)mem;
-		mem += sizeof(**sq_pptr);
-
-		sq_pptr[i]->index = i;
-		sq_pptr[i]->is_hpsq = false;
-		sq_pptr[i]->vq_common = vq_common;
-		sq_pptr[i]->cb_mem =
+	for (i = 0; i < vq_data->vq_common.sq_count; i++) {
+		vq_data->sqs[i].index = i;
+		vq_data->sqs[i].is_hp_sq = false;
+		vq_data->sqs[i].vq_common = &vq_data->vq_common;
+		vq_data->sqs[i].cb_mem =
 			(struct et_circbuffer __iomem *)sq_baseaddr;
-		et_ioread(sq_pptr[i]->cb_mem,
+		et_ioread(vq_data->sqs[i].cb_mem,
 			  0,
-			  (u8 *)&sq_pptr[i]->cb,
-			  sizeof(sq_pptr[i]->cb));
-		sq_pptr[i]->cb_mismatched = false;
+			  (u8 *)&vq_data->sqs[i].cb,
+			  sizeof(vq_data->sqs[i].cb));
+		vq_data->sqs[i].cb_mismatched = false;
 		sq_baseaddr += sq_size;
 
-		mutex_init(&sq_pptr[i]->push_mutex);
-		atomic_set(&sq_pptr[i]->sq_threshold,
+		mutex_init(&vq_data->sqs[i].push_mutex);
+		atomic_set(&vq_data->sqs[i].sq_threshold,
 			   (sq_size - sizeof(struct et_circbuffer)) / 4);
 
-		INIT_WORK(&sq_pptr[i]->isr_work, et_sq_isr_work);
-		queue_work(vq_common->sq_workqueue, &sq_pptr[i]->isr_work);
-		flush_workqueue(vq_common->sq_workqueue);
+		INIT_WORK(&vq_data->sqs[i].isr_work, et_sq_isr_work);
+		queue_work(vq_data->vq_common.sq_workqueue,
+			   &vq_data->sqs[i].isr_work);
+		flush_workqueue(vq_data->vq_common.sq_workqueue);
 
-		memset(sq_pptr[i]->stats,
+		memset(vq_data->sqs[i].stats,
 		       0,
-		       sizeof(atomic64_t) * ARRAY_SIZE(sq_pptr[i]->stats));
+		       sizeof(atomic64_t) * ARRAY_SIZE(vq_data->sqs[i].stats));
 	}
 
 	rv = request_irq(pci_irq_vector(et_dev->pdev, vec_idx),
@@ -345,23 +323,19 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 					is_mgmt ? "mgmt" : "ops",
 					et_dev->dev_index,
 					vec_idx),
-			 (void *)sq_pptr);
+			 (void *)vq_data->sqs);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "request irq failed\n");
-		goto error_free_sq_pptr;
+		goto error_free_sqs;
 	}
 
 	return rv;
 
-error_free_sq_pptr:
-	if (is_mgmt)
-		et_dev->mgmt.sq_pptr = NULL;
-	else
-		et_dev->ops.sq_pptr = NULL;
-	kfree(sq_pptr);
+error_free_sqs:
+	kfree(vq_data->sqs);
 
 error_destroy_sq_workqueue:
-	destroy_workqueue(vq_common->sq_workqueue);
+	destroy_workqueue(vq_data->vq_common.sq_workqueue);
 
 	return rv;
 }
@@ -370,18 +344,17 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	ssize_t i, rv;
 	unsigned long vec_idx;
-	struct et_vq_common *vq_common;
-	struct et_cqueue **cq_pptr;
 	struct et_mapped_region *vq_region;
-	u8 *mem, __iomem *cq_baseaddr;
+	struct et_vq_data *vq_data;
+	u8 __iomem *cq_baseaddr;
 	u16 cq_size;
 
 	if (is_mgmt) {
-		vq_common = &et_dev->mgmt.vq_common;
 		if (!et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER]
 			     .is_valid) {
 			return -EINVAL;
 		}
+		vq_data = &et_dev->mgmt.vq_data;
 		vq_region =
 			&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER];
 		cq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
@@ -390,11 +363,11 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 		vec_idx = ET_MGMT_CQ_VEC_IDX;
 	} else {
-		vq_common = &et_dev->ops.vq_common;
 		if (!et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER]
 			     .is_valid) {
 			return -EINVAL;
 		}
+		vq_data = &et_dev->ops.vq_data;
 		vq_region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
 		cq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
 			      et_dev->ops.dir_vq.cq_offset;
@@ -404,57 +377,48 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	}
 
 	// Initialize cq_workqueue
-	vq_common->cq_workqueue = alloc_workqueue("%s:%s%d_cqwq",
-						  WQ_MEM_RECLAIM | WQ_UNBOUND,
-						  vq_common->cq_count,
-						  dev_name(&et_dev->pdev->dev),
-						  (is_mgmt) ? "mgmt" : "ops",
-						  et_dev->dev_index);
-	if (!vq_common->cq_workqueue)
+	vq_data->vq_common.cq_workqueue =
+		alloc_workqueue("%s:%s%d_cqwq",
+				WQ_MEM_RECLAIM | WQ_UNBOUND,
+				vq_data->vq_common.cq_count,
+				dev_name(&et_dev->pdev->dev),
+				(is_mgmt) ? "mgmt" : "ops",
+				et_dev->dev_index);
+	if (!vq_data->vq_common.cq_workqueue)
 		return -ENOMEM;
 
-	mem = kmalloc_array(vq_common->cq_count,
-			    sizeof(*cq_pptr) + sizeof(**cq_pptr),
-			    GFP_KERNEL);
-	if (!mem) {
+	vq_data->cqs = kmalloc_array(vq_data->vq_common.cq_count,
+				     sizeof(*vq_data->cqs),
+				     GFP_KERNEL);
+	if (!vq_data->cqs) {
 		rv = -ENOMEM;
 		goto error_destroy_cq_workqueue;
 	}
 
-	cq_pptr = (struct et_cqueue **)mem;
-	mem += vq_common->cq_count * sizeof(*cq_pptr);
-
-	if (is_mgmt)
-		et_dev->mgmt.cq_pptr = cq_pptr;
-	else
-		et_dev->ops.cq_pptr = cq_pptr;
-
-	for (i = 0; i < vq_common->cq_count; i++) {
-		cq_pptr[i] = (struct et_cqueue *)mem;
-		mem += sizeof(**cq_pptr);
-
-		cq_pptr[i]->index = i;
-		cq_pptr[i]->vq_common = vq_common;
-		cq_pptr[i]->cb_mem =
+	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
+		vq_data->cqs[i].index = i;
+		vq_data->cqs[i].vq_common = &vq_data->vq_common;
+		vq_data->cqs[i].cb_mem =
 			(struct et_circbuffer __iomem *)cq_baseaddr;
-		et_ioread(cq_pptr[i]->cb_mem,
+		et_ioread(vq_data->cqs[i].cb_mem,
 			  0,
-			  (u8 *)&cq_pptr[i]->cb,
-			  sizeof(cq_pptr[i]->cb));
-		cq_pptr[i]->cb_mismatched = false;
+			  (u8 *)&vq_data->cqs[i].cb,
+			  sizeof(vq_data->cqs[i].cb));
+		vq_data->cqs[i].cb_mismatched = false;
 		cq_baseaddr += cq_size;
 
-		mutex_init(&cq_pptr[i]->pop_mutex);
-		INIT_LIST_HEAD(&cq_pptr[i]->msg_list);
-		mutex_init(&cq_pptr[i]->msg_list_mutex);
+		mutex_init(&vq_data->cqs[i].pop_mutex);
+		INIT_LIST_HEAD(&vq_data->cqs[i].msg_list);
+		mutex_init(&vq_data->cqs[i].msg_list_mutex);
 
-		INIT_WORK(&cq_pptr[i]->isr_work, et_cq_isr_work);
-		queue_work(vq_common->cq_workqueue, &cq_pptr[i]->isr_work);
-		flush_workqueue(vq_common->cq_workqueue);
+		INIT_WORK(&vq_data->cqs[i].isr_work, et_cq_isr_work);
+		queue_work(vq_data->vq_common.cq_workqueue,
+			   &vq_data->cqs[i].isr_work);
+		flush_workqueue(vq_data->vq_common.cq_workqueue);
 
-		memset(cq_pptr[i]->stats,
+		memset(vq_data->cqs[i].stats,
 		       0,
-		       sizeof(atomic64_t) * ARRAY_SIZE(cq_pptr[i]->stats));
+		       sizeof(atomic64_t) * ARRAY_SIZE(vq_data->cqs[i].stats));
 	}
 
 	rv = request_irq(pci_irq_vector(et_dev->pdev, vec_idx),
@@ -466,23 +430,19 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 					is_mgmt ? "mgmt" : "ops",
 					et_dev->dev_index,
 					vec_idx),
-			 (void *)cq_pptr);
+			 (void *)vq_data->cqs);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "request irq failed\n");
-		goto error_free_cq_pptr;
+		goto error_free_cqs;
 	}
 
 	return 0;
 
-error_free_cq_pptr:
-	if (is_mgmt)
-		et_dev->mgmt.cq_pptr = NULL;
-	else
-		et_dev->ops.cq_pptr = NULL;
-	kfree(cq_pptr);
+error_free_cqs:
+	kfree(vq_data->cqs);
 
 error_destroy_cq_workqueue:
-	destroy_workqueue(vq_common->cq_workqueue);
+	destroy_workqueue(vq_data->vq_common.cq_workqueue);
 
 	return rv;
 }
@@ -502,10 +462,13 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		return -EINVAL;
 
 	if (is_mgmt) {
-		vq_common = &et_dev->mgmt.vq_common;
+		vq_common = &et_dev->mgmt.vq_data.vq_common;
 		vq_common->sq_count = et_dev->mgmt.dir_vq.sq_count;
-		vq_common->hpsq_count = 0;
+		vq_common->sq_size = et_dev->mgmt.dir_vq.sq_size;
+		vq_common->hp_sq_count = 0;
+		vq_common->hp_sq_size = 0;
 		vq_common->cq_count = et_dev->mgmt.dir_vq.cq_count;
+		vq_common->cq_size = et_dev->mgmt.dir_vq.cq_size;
 		vq_common->intrpt_id = et_dev->mgmt.dir_vq.intrpt_id;
 		vq_common->intrpt_trg_size =
 			et_dev->mgmt.dir_vq.intrpt_trg_size;
@@ -517,10 +480,13 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_common->trace_region =
 			&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE];
 	} else {
-		vq_common = &et_dev->ops.vq_common;
+		vq_common = &et_dev->ops.vq_data.vq_common;
 		vq_common->sq_count = et_dev->ops.dir_vq.sq_count;
-		vq_common->hpsq_count = et_dev->ops.dir_vq.hpsq_count;
+		vq_common->sq_size = et_dev->ops.dir_vq.sq_size;
+		vq_common->hp_sq_count = et_dev->ops.dir_vq.hp_sq_count;
+		vq_common->hp_sq_size = et_dev->ops.dir_vq.hp_sq_size;
 		vq_common->cq_count = et_dev->ops.dir_vq.cq_count;
+		vq_common->cq_size = et_dev->ops.dir_vq.cq_size;
 		vq_common->intrpt_id = et_dev->ops.dir_vq.intrpt_id;
 		vq_common->intrpt_trg_size = et_dev->ops.dir_vq.intrpt_trg_size;
 		vq_common->intrpt_addr =
@@ -533,8 +499,6 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	bitmap_zero(vq_common->cq_bitmap, ET_MAX_QUEUES);
 	mutex_init(&vq_common->cq_bitmap_mutex);
 	init_waitqueue_head(&vq_common->waitqueue);
-	vq_common->aborting = false;
-	spin_lock_init(&vq_common->abort_lock);
 	vq_common->pdev = et_dev->pdev;
 
 	rv = et_high_priority_squeue_init_all(et_dev, is_mgmt);
@@ -563,112 +527,93 @@ error_high_priority_squeue_destroy_all:
 static void et_high_priority_squeue_destroy_all(struct et_pci_dev *et_dev,
 						bool is_mgmt)
 {
-	struct et_vq_common *vq_common;
-	struct et_squeue **hpsq_pptr;
 	ssize_t i;
+	struct et_vq_data *vq_data;
 
 	if (is_mgmt)
 		return;
 
-	vq_common = &et_dev->ops.vq_common;
-	hpsq_pptr = et_dev->ops.hpsq_pptr;
-
-	for (i = 0; i < vq_common->hpsq_count; i++) {
-		mutex_destroy(&hpsq_pptr[i]->push_mutex);
-		hpsq_pptr[i]->cb_mem = NULL;
-		hpsq_pptr[i]->vq_common = NULL;
-		hpsq_pptr[i] = NULL;
+	vq_data = &et_dev->ops.vq_data;
+	for (i = 0; i < vq_data->vq_common.hp_sq_count; i++) {
+		mutex_destroy(&vq_data->hp_sqs[i].push_mutex);
+		vq_data->hp_sqs[i].cb_mem = NULL;
+		vq_data->hp_sqs[i].vq_common = NULL;
 	}
 
-	kfree(hpsq_pptr);
+	kfree(vq_data->hp_sqs);
 }
 
 static void et_squeue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
-	struct et_vq_common *vq_common;
-	struct et_squeue **sq_pptr;
-	unsigned long vec_idx;
 	int i;
+	unsigned long vec_idx;
+	struct et_vq_data *vq_data;
 
 	if (is_mgmt) {
-		vq_common = &et_dev->mgmt.vq_common;
-		sq_pptr = et_dev->mgmt.sq_pptr;
 		vec_idx = ET_MGMT_SQ_VEC_IDX;
+		vq_data = &et_dev->mgmt.vq_data;
 	} else {
-		vq_common = &et_dev->ops.vq_common;
-		sq_pptr = et_dev->ops.sq_pptr;
 		vec_idx = ET_OPS_SQ_VEC_IDX;
+		vq_data = &et_dev->ops.vq_data;
 	}
 
-	free_irq(pci_irq_vector(et_dev->pdev, vec_idx), (void *)sq_pptr);
+	free_irq(pci_irq_vector(et_dev->pdev, vec_idx), (void *)vq_data->sqs);
 
-	for (i = 0; i < vq_common->sq_count; i++) {
-		cancel_work_sync(&sq_pptr[i]->isr_work);
-		mutex_destroy(&sq_pptr[i]->push_mutex);
-		sq_pptr[i]->cb_mem = NULL;
-		sq_pptr[i]->vq_common = NULL;
-		sq_pptr[i] = NULL;
+	for (i = 0; i < vq_data->vq_common.sq_count; i++) {
+		cancel_work_sync(&vq_data->sqs[i].isr_work);
+		mutex_destroy(&vq_data->sqs[i].push_mutex);
+		vq_data->sqs[i].cb_mem = NULL;
+		vq_data->sqs[i].vq_common = NULL;
 	}
 
-	kfree(sq_pptr);
-	destroy_workqueue(vq_common->sq_workqueue);
+	kfree(vq_data->sqs);
+	destroy_workqueue(vq_data->vq_common.sq_workqueue);
 }
 
 static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
-	struct et_vq_common *vq_common;
-	struct et_cqueue **cq_pptr;
-	unsigned long vec_idx;
 	int i;
+	unsigned long vec_idx;
+	struct et_vq_data *vq_data;
 
 	if (is_mgmt) {
-		vq_common = &et_dev->mgmt.vq_common;
-		cq_pptr = et_dev->mgmt.cq_pptr;
 		vec_idx = ET_MGMT_CQ_VEC_IDX;
+		vq_data = &et_dev->mgmt.vq_data;
 	} else {
-		vq_common = &et_dev->ops.vq_common;
-		cq_pptr = et_dev->ops.cq_pptr;
 		vec_idx = ET_OPS_CQ_VEC_IDX;
+		vq_data = &et_dev->ops.vq_data;
 	}
 
-	free_irq(pci_irq_vector(et_dev->pdev, vec_idx), (void *)cq_pptr);
+	free_irq(pci_irq_vector(et_dev->pdev, vec_idx), (void *)vq_data->cqs);
 
-	for (i = 0; i < vq_common->cq_count; i++) {
-		cancel_work_sync(&cq_pptr[i]->isr_work);
-		mutex_destroy(&cq_pptr[i]->pop_mutex);
-		et_destroy_msg_list(cq_pptr[i]);
-		mutex_destroy(&cq_pptr[i]->msg_list_mutex);
-		cq_pptr[i]->cb_mem = NULL;
-		cq_pptr[i]->vq_common = NULL;
-		cq_pptr[i] = NULL;
+	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
+		cancel_work_sync(&vq_data->cqs[i].isr_work);
+		mutex_destroy(&vq_data->cqs[i].pop_mutex);
+		et_destroy_msg_list(&vq_data->cqs[i]);
+		mutex_destroy(&vq_data->cqs[i].msg_list_mutex);
+		vq_data->cqs[i].cb_mem = NULL;
+		vq_data->cqs[i].vq_common = NULL;
 	}
 
-	kfree(cq_pptr);
-	destroy_workqueue(vq_common->cq_workqueue);
+	kfree(vq_data->cqs);
+	destroy_workqueue(vq_data->vq_common.cq_workqueue);
 }
 
 void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
-	struct et_vq_common *vq_common;
-	unsigned long flags;
+	struct et_vq_data *vq_data;
 
-	if (is_mgmt)
-		vq_common = &et_dev->mgmt.vq_common;
-	else
-		vq_common = &et_dev->ops.vq_common;
-
-	spin_lock_irqsave(&vq_common->abort_lock, flags);
-	vq_common->aborting = true;
-	spin_unlock_irqrestore(&vq_common->abort_lock, flags);
-
-	wake_up_interruptible_all(&vq_common->waitqueue);
+	vq_data = is_mgmt ? &et_dev->mgmt.vq_data : &et_dev->ops.vq_data;
+	wake_up_all(&vq_data->vq_common.waitqueue);
+	while (waitqueue_active(&vq_data->vq_common.waitqueue))
+		msleep(1);
 
 	et_cqueue_destroy_all(et_dev, is_mgmt);
 	et_squeue_destroy_all(et_dev, is_mgmt);
 	et_high_priority_squeue_destroy_all(et_dev, is_mgmt);
 
-	mutex_destroy(&vq_common->sq_bitmap_mutex);
-	mutex_destroy(&vq_common->cq_bitmap_mutex);
+	mutex_destroy(&vq_data->vq_common.sq_bitmap_mutex);
+	mutex_destroy(&vq_data->vq_common.cq_bitmap_mutex);
 }
 
 static inline void interrupt_device(struct et_squeue *sq)
@@ -729,7 +674,7 @@ ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 update_sq_bitmap:
 	mutex_unlock(&sq->push_mutex);
 
-	if (sq->is_hpsq)
+	if (sq->is_hp_sq)
 		return rv;
 
 	// Update sq_bitmap
@@ -747,26 +692,18 @@ update_sq_bitmap:
 
 ssize_t et_squeue_copy_from_user(struct et_pci_dev *et_dev,
 				 bool is_mgmt,
-				 bool is_hpsq,
+				 bool is_hp_sq,
 				 u16 sq_index,
 				 const char __user *ubuf,
 				 size_t count)
 {
+	struct et_vq_data *vq_data;
 	struct et_squeue *sq;
 	u8 *kern_buf;
 	ssize_t rv;
 
-	if (is_mgmt) {
-		if (is_hpsq)
-			return -EINVAL;
-
-		sq = et_dev->mgmt.sq_pptr[sq_index];
-	} else {
-		if (is_hpsq)
-			sq = et_dev->ops.hpsq_pptr[sq_index];
-		else
-			sq = et_dev->ops.sq_pptr[sq_index];
-	}
+	vq_data = (is_mgmt) ? &et_dev->mgmt.vq_data : &et_dev->ops.vq_data;
+	sq = (is_hp_sq) ? &vq_data->hp_sqs[sq_index] : &vq_data->sqs[sq_index];
 
 	if (!count || count > U16_MAX) {
 		pr_err("invalid message size: %ld", count);
@@ -774,20 +711,19 @@ ssize_t et_squeue_copy_from_user(struct et_pci_dev *et_dev,
 	}
 
 	kern_buf = kzalloc(count, GFP_KERNEL);
-
 	if (!kern_buf)
 		return -ENOMEM;
 
 	rv = copy_from_user(kern_buf, ubuf, count);
 	if (rv) {
 		pr_err("copy_from_user failed\n");
-		rv = -ENOMEM;
-		goto error;
+		rv = -EFAULT;
+		goto free_kern_buf;
 	}
 
 	rv = et_squeue_push(sq, kern_buf, count);
 
-error:
+free_kern_buf:
 	kfree(kern_buf);
 
 	return rv;
@@ -915,21 +851,16 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 			       char __user *ubuf,
 			       size_t count)
 {
+	struct et_vq_data *vq_data;
 	struct et_cqueue *cq;
 	struct et_msg_node *msg = NULL;
 	ssize_t rv;
 
-	if (is_mgmt)
-		cq = et_dev->mgmt.cq_pptr[cq_index];
-	else
-		cq = et_dev->ops.cq_pptr[cq_index];
-
-	if (cq->vq_common->aborting)
-		return -EINTR;
-
 	if (!ubuf || !count)
 		return -EINVAL;
 
+	vq_data = is_mgmt ? &et_dev->mgmt.vq_data : &et_dev->ops.vq_data;
+	cq = &vq_data->cqs[cq_index];
 	if (cq->cb_mismatched) {
 		pr_err("CQ[%d] corrupt: circbuffer header invalid!", cq->index);
 		return -ENOTRECOVERABLE;

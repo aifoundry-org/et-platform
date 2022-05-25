@@ -244,7 +244,9 @@ ssize_t et_dma_write_to_device(struct et_pci_dev *et_dev,
 	}
 
 	cmd->src_host_phy_addr = dma_info->dma_addr;
-	rv = et_squeue_push(et_dev->ops.sq_pptr[queue_index], cmd, cmd_size);
+	rv = et_squeue_push(&et_dev->ops.vq_data.sqs[queue_index],
+			    cmd,
+			    cmd_size);
 	if (rv < 0)
 		goto error_dma_delete_info;
 
@@ -340,7 +342,9 @@ ssize_t et_dma_read_from_device(struct et_pci_dev *et_dev,
 	mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
 
 	cmd->dst_host_phy_addr = dma_info->dma_addr;
-	rv = et_squeue_push(et_dev->ops.sq_pptr[queue_index], cmd, cmd_size);
+	rv = et_squeue_push(&et_dev->ops.vq_data.sqs[queue_index],
+			    cmd,
+			    cmd_size);
 	if (rv < 0)
 		goto error_dma_delete_info;
 
@@ -454,7 +458,9 @@ ssize_t et_dma_writelist_to_device(struct et_pci_dev *et_dev,
 			vma->vm_start;
 	}
 
-	rv = et_squeue_push(et_dev->ops.sq_pptr[queue_index], cmd, cmd_size);
+	rv = et_squeue_push(&et_dev->ops.vq_data.sqs[queue_index],
+			    cmd,
+			    cmd_size);
 	if (rv < 0)
 		return rv;
 
@@ -550,7 +556,9 @@ ssize_t et_dma_readlist_from_device(struct et_pci_dev *et_dev,
 			vma->vm_start;
 	}
 
-	rv = et_squeue_push(et_dev->ops.sq_pptr[queue_index], cmd, cmd_size);
+	rv = et_squeue_push(&et_dev->ops.vq_data.sqs[queue_index],
+			    cmd,
+			    cmd_size);
 	if (rv < 0)
 		return rv;
 

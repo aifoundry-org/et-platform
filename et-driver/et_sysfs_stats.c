@@ -45,21 +45,30 @@
  *    new group in et_sysfs_stats.c
  */
 
-static const struct attribute_group *et_sysfs_stats_attr_groups[] = {
-	&et_sysfs_vq_stats_attr_group,
-	&et_sysfs_mem_stats_attr_group,
+static const struct attribute_group *et_sysfs_mgmt_stats_attr_groups[] = {
+	&et_sysfs_mgmt_vq_stats_attr_group,
 	&et_sysfs_err_stats_attr_group,
 	NULL,
 };
 
-int et_sysfs_stats_init(struct et_pci_dev *et_dev)
+static const struct attribute_group *et_sysfs_ops_stats_attr_groups[] = {
+	&et_sysfs_ops_vq_stats_attr_group,
+	&et_sysfs_mem_stats_attr_group,
+	NULL,
+};
+
+int et_sysfs_stats_init(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	int rv;
 
-	rv = device_add_groups(&et_dev->pdev->dev, et_sysfs_stats_attr_groups);
+	rv = is_mgmt ? device_add_groups(&et_dev->pdev->dev,
+					 et_sysfs_mgmt_stats_attr_groups) :
+		       device_add_groups(&et_dev->pdev->dev,
+					 et_sysfs_ops_stats_attr_groups);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev,
-			"Failed to add sysfs stats group to device, error %d\n",
+			"Failed to add sysfs %s stats group to device, error %d\n",
+			is_mgmt ? "mgmt" : "ops",
 			rv);
 		return rv;
 	}
@@ -67,7 +76,10 @@ int et_sysfs_stats_init(struct et_pci_dev *et_dev)
 	return rv;
 }
 
-void et_sysfs_stats_remove(struct et_pci_dev *et_dev)
+void et_sysfs_stats_remove(struct et_pci_dev *et_dev, bool is_mgmt)
 {
-	device_remove_groups(&et_dev->pdev->dev, et_sysfs_stats_attr_groups);
+	is_mgmt ? device_remove_groups(&et_dev->pdev->dev,
+				       et_sysfs_mgmt_stats_attr_groups) :
+		  device_remove_groups(&et_dev->pdev->dev,
+				       et_sysfs_ops_stats_attr_groups);
 }

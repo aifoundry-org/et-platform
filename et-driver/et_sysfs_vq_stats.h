@@ -23,6 +23,7 @@ enum et_vq_stats {
 	ET_VQ_STATS_MAX_ATTRIBUTES,
 };
 
-extern const struct attribute_group et_sysfs_vq_stats_attr_group;
+extern const struct attribute_group et_sysfs_mgmt_vq_stats_attr_group;
+extern const struct attribute_group et_sysfs_ops_vq_stats_attr_group;
 
 #endif

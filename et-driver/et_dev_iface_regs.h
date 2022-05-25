@@ -473,9 +473,9 @@ struct et_ops_dir_vqueue {
 	u32 cq_offset;
 	u16 cq_count;
 	u16 cq_size;
-	u32 hpsq_offset;
-	u16 hpsq_count;
-	u16 hpsq_size;
+	u32 hp_sq_offset;
+	u16 hp_sq_count;
+	u16 hp_sq_size;
 } __packed;
 
 /*
@@ -570,13 +570,13 @@ static inline void et_print_ops_dir(struct device *dev,
 		ops_dir->vqueue.attributes_size);
 	dev_dbg(dev,
 		"HP SQ Offset            : 0x%x\n",
-		ops_dir->vqueue.hpsq_offset);
+		ops_dir->vqueue.hp_sq_offset);
 	dev_dbg(dev,
 		"HP SQ Count             : 0x%x\n",
-		ops_dir->vqueue.hpsq_count);
+		ops_dir->vqueue.hp_sq_count);
 	dev_dbg(dev,
 		"HP SQ Size              : 0x%x\n\n",
-		ops_dir->vqueue.hpsq_size);
+		ops_dir->vqueue.hp_sq_size);
 
 	remaining_size = dir_size - sizeof(struct et_ops_dir_header) -
 			 sizeof(struct et_ops_dir_vqueue);
@@ -719,12 +719,12 @@ static inline bool valid_ops_vq_region(struct et_ops_dir_vqueue *vq_region,
 		rv = false;
 	}
 
-	if (!vq_region->hpsq_count) {
+	if (!vq_region->hp_sq_count) {
 		strlcat(err_str, "HP SQ count is 0\n", len);
 		rv = false;
 	}
 
-	if (!vq_region->hpsq_size) {
+	if (!vq_region->hp_sq_size) {
 		strlcat(err_str, "HP SQ size is 0\n", len);
 		rv = false;
 	}

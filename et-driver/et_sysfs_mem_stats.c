@@ -28,15 +28,11 @@ cma_allocated_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 
-	if (atomic_read(&et_dev->ops.state) == DEV_STATE_READY) {
-		return sysfs_emit(
-			buf,
-			"%llu\n",
-			atomic64_read(&et_dev->ops.mem_stats
-					       [ET_MEM_STATS_CMA_ALLOCATED]));
-	}
-
-	return 0;
+	return sysfs_emit(
+		buf,
+		"%llu\n",
+		atomic64_read(
+			&et_dev->ops.mem_stats[ET_MEM_STATS_CMA_ALLOCATED]));
 }
 
 static ssize_t cma_allocation_rate_show(struct device *dev,
@@ -45,16 +41,12 @@ static ssize_t cma_allocation_rate_show(struct device *dev,
 {
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 
-	if (atomic_read(&et_dev->ops.state) == DEV_STATE_READY) {
-		return sysfs_emit(
-			buf,
-			"%llu\n",
-			atomic64_read(
-				&et_dev->ops.mem_stats
-					 [ET_MEM_STATS_CMA_ALLOCATION_RATE]));
-	}
-
-	return 0;
+	return sysfs_emit(
+		buf,
+		"%llu\n",
+		atomic64_read(
+			&et_dev->ops
+				 .mem_stats[ET_MEM_STATS_CMA_ALLOCATION_RATE]));
 }
 
 static ssize_t cma_utilization_percent_show(struct device *dev,
@@ -63,16 +55,11 @@ static ssize_t cma_utilization_percent_show(struct device *dev,
 {
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 
-	if (atomic_read(&et_dev->ops.state) == DEV_STATE_READY) {
-		return sysfs_emit(
-			buf,
-			"%llu\n",
-			atomic64_read(
-				&et_dev->ops.mem_stats
-					 [ET_MEM_STATS_CMA_UTILIZATION_PERCENT]));
-	}
-
-	return 0;
+	return sysfs_emit(
+		buf,
+		"%llu\n",
+		atomic64_read(&et_dev->ops.mem_stats
+				       [ET_MEM_STATS_CMA_UTILIZATION_PERCENT]));
 }
 
 static ssize_t clear_store(struct device *dev,
@@ -92,10 +79,8 @@ static ssize_t clear_store(struct device *dev,
 	if (value != 1)
 		return -EINVAL;
 
-	if (atomic_read(&et_dev->ops.state) == DEV_STATE_READY) {
-		for (i = 0; i < ARRAY_SIZE(et_dev->ops.mem_stats); i++)
-			atomic64_set(&et_dev->ops.mem_stats[i], 0);
-	}
+	for (i = 0; i < ARRAY_SIZE(et_dev->ops.mem_stats); i++)
+		atomic64_set(&et_dev->ops.mem_stats[i], 0);
 
 	return count;
 }
