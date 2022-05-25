@@ -93,7 +93,7 @@ extern "C" {
 /*! \def TRACE_VERSION_MINOR
     \brief This is Trace layout version (minor).
 */
-#define TRACE_VERSION_MINOR 3
+#define TRACE_VERSION_MINOR 4
 
 /*! \def TRACE_VERSION_PATCH
     \brief This is Trace layout version (patch).
@@ -151,6 +151,38 @@ enum trace_type {
     TRACE_TYPE_CMD_STATUS,
     TRACE_TYPE_POWER_STATUS,
     TRACE_TYPE_CUSTOM_EVENT
+};
+
+/*! \enum trace_custom_type_sp
+    \brief Trace custom type IDs for SP.
+*/
+enum trace_custom_type_sp {
+    TRACE_CUSTOM_TYPE_SP_START = 0,
+    TRACE_CUSTOM_TYPE_SP_PERF_GLOBALS,
+    TRACE_CUSTOM_TYPE_SP_POWER_GLOBALS,
+    TRACE_CUSTOM_TYPE_SP_POWER_STATES_GLOBALS,
+    TRACE_CUSTOM_TYPE_SP_OP_STATS,
+    TRACE_CUSTOM_TYPE_SP_COUNT,
+    TRACE_CUSTOM_TYPE_SP_END = 999
+};
+
+/*! \enum trace_custom_type_mm
+    \brief Trace custom type IDs for MM.
+*/
+enum trace_custom_type_mm {
+    TRACE_CUSTOM_TYPE_MM_START = 1000,
+    TRACE_CUSTOM_TYPE_MM_COMPUTE_RESOURCES,
+    TRACE_CUSTOM_TYPE_MM_COUNT,
+    TRACE_CUSTOM_TYPE_MM_END = 1999
+};
+
+/*! \enum trace_custom_type_cm
+    \brief Trace custom type IDs for CM.
+*/
+enum trace_custom_type_cm {
+    TRACE_CUSTOM_TYPE_CM_START = 2000,
+    TRACE_CUSTOM_TYPE_CM_COUNT,
+    TRACE_CUSTOM_TYPE_CM_END = 2999
 };
 
 /*! \typedef trace_cmd_status_e
