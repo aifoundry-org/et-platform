@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Custom events IDs for SP, MM and CM.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.2.0] - 2022-05-25
+### Added
 - Support for variable length string message.
 ### Changed
 ### Deprecated
@@ -15,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-## [0.2.0]
+## [0.1.0] - 2022-03-08
 Initial version
 ### Added
 - This CHANGELOG file.
@@ -26,5 +35,6 @@ Initial version
 ### Fixed
 ### Security
 
-[Unreleased]: https://gitlab.esperanto.ai/software/et-trace/-/compare/v0.1.0...master
+[Unreleased]: https://gitlab.esperanto.ai/software/et-trace/-/compare/v0.2.0...master
+[0.2.0]: https://gitlab.esperanto.ai/software/et-trace/-/compare/v0.1.0...v0.2.0
 [0.1.0]: https://gitlab.esperanto.ai/software/et-trace/-/tags/v0.1.0
