@@ -141,10 +141,10 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
             ret = evict_l1(arg1, arg2);
             break;
         case SYSCALL_PMC_SC_SAMPLE_INT:
-            ret = (int64_t)sample_sc_pmcs(arg1);
+            ret = (int64_t)sample_sc_pmcs(arg1, arg2, arg3);
             break;
         case SYSCALL_PMC_MS_SAMPLE_INT:
-            ret = (int64_t)sample_ms_pmcs(arg1);
+            ret = (int64_t)sample_ms_pmcs(arg1, arg2);
             break;
         default:
             ret = SYSCALL_INTERNAL_INVALID_ID;

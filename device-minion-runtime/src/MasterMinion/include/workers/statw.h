@@ -29,6 +29,6 @@ void STATW_Launch(uint32_t hart_id);
 /*! \def STATW_SAMPLING_INTERVAL
     \brief Device statistics sampling interval
 */
-#define STATW_SAMPLING_INTERVAL 10
+#define STATW_SAMPLING_INTERVAL 500
 
 #endif
