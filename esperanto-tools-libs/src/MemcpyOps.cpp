@@ -172,10 +172,8 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const st
           RT_VLOG(LOW) << "H2D. Waiting for top prio command: " << static_cast<int>(topPrio.value());
           waitForEventWithoutProfiling(topPrio.value());
         } else {
-          RT_VLOG(LOW) << "H2D. I'm top prio command (" << static_cast<int>(evt) << "); waiting for epoll. ";
-          uint64_t sq;
-          bool cq;
-          deviceLayer_->waitForEpollEventsMasterMinion(streamInfo.device_, sq, cq, std::chrono::milliseconds(1));
+          RT_VLOG(LOW) << "H2D. I'm top prio command (" << static_cast<int>(evt) << "); waiting for cma free. ";
+          cmaManager_->waitUntilFree();
         }
       }
     }
@@ -357,11 +355,8 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
           RT_VLOG(LOW) << "D2H. Waiting for top prio command: " << static_cast<int>(topPrio.value());
           waitForEventWithoutProfiling(topPrio.value());
         } else {
-          RT_VLOG(LOW) << "D2H. Current command is top prio command (" << static_cast<int>(evt)
-                       << "); waiting for epoll. ";
-          uint64_t sq;
-          bool cq;
-          deviceLayer_->waitForEpollEventsMasterMinion(streamInfo.device_, sq, cq, std::chrono::milliseconds(1));
+          RT_VLOG(LOW) << "D2H. I'm top prio command (" << static_cast<int>(evt) << "); waiting for cma free. ";
+          cmaManager_->waitUntilFree();
         }
       }
     }
@@ -431,11 +426,13 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyLi
     while (freeSize <= totalSize) {
       lck.unlock();
       if (topPrio == evt) {
-        throw Exception("Inconsistency in runtime: If current command is topPrio command then it should have enough "
-                        "CMA memory available.");
+        RT_VLOG(HIGH) << "Waiting for CMA ...";
+        cmaManager_->waitUntilFree();
+      } else {
+        RT_VLOG(LOW) << "H2D. Waiting for top prio command: " << static_cast<int>(topPrio.value());
+        waitForEventWithoutProfiling(topPrio.value());
       }
-      RT_VLOG(LOW) << "H2D. Waiting for top prio command: " << static_cast<int>(topPrio.value());
-      waitForEventWithoutProfiling(topPrio.value());
+
       lck.lock();
       topPrio = cs.getTopPrioritaryCommand();
       freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
@@ -493,11 +490,12 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyLi
     while (freeSize <= totalSize) {
       lck.unlock();
       if (topPrio == evt) {
-        throw Exception("Inconsistency in runtime: If current command is topPrio command then it should have enough "
-                        "CMA memory available.");
+        RT_VLOG(HIGH) << "Waiting for CMA ...";
+        cmaManager_->waitUntilFree();
+      } else {
+        RT_VLOG(LOW) << "D2H. Waiting for top prio command: " << static_cast<int>(topPrio.value());
+        waitForEventWithoutProfiling(topPrio.value());
       }
-      RT_VLOG(LOW) << "D2H. Waiting for top prio command: " << static_cast<int>(topPrio.value());
-      waitForEventWithoutProfiling(topPrio.value());
       lck.lock();
       topPrio = cs.getTopPrioritaryCommand();
       freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);

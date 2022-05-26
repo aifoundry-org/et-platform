@@ -11,6 +11,7 @@
 #pragma once
 #include "MemoryManager.h"
 #include "runtime/Types.h"
+#include <condition_variable>
 #include <cstddef>
 #include <mutex>
 namespace rt {
@@ -30,10 +31,14 @@ public:
 
   void free(std::byte* buffer);
 
+  // will block the caller until someone frees cma memory (call to free)
+  void waitUntilFree();
+
 private:
   IRuntime& runtime_;
   std::unique_ptr<IDmaBuffer> dmaBuffer_;
   MemoryManager memoryManager_;
+  std::condition_variable cv_;
   mutable std::mutex mutex_;
 };
 } // namespace rt

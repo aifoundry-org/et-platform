@@ -39,6 +39,13 @@ size_t CmaManager::getFreeBytes() const {
 void CmaManager::free(std::byte* buffer) {
   std::lock_guard lock(mutex_);
   memoryManager_.free(buffer);
+  cv_.notify_all();
+}
+
+void CmaManager::waitUntilFree() {
+  std::unique_lock lock(mutex_);
+  auto freeBytes = memoryManager_.getFreeContiguousBytes();
+  cv_.wait(lock, [this, freeBytes] { return memoryManager_.getFreeBytes() > freeBytes; });
 }
 
 std::byte* CmaManager::alloc(size_t size) {
