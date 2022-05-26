@@ -1,11 +1,17 @@
 include:
   - project: 'software/gitlab-ci-common'
-    ref: eaa145e684411db579462b41feb7736c6ed0028c
+    ref: 9144e448ed346dc769d301572bd7e76e2344f78b
     file:
-      - 'pods/nano-pod.yaml'
-      - 'pods/large-pod.yaml'
-      - 'pods/xlarge-pod.yaml'
-      - 'jobs/generic-k8s-job.yaml'
+      - rules/generic-workflow.yaml
+      - pods/nano-pod.yaml
+      - pods/medium-pod.yaml
+      - pods/large-pod.yaml
+      - pods/xlarge-pod.yaml
+      - jobs/generic-k8s-job.yaml
+      - jobs/sonarqube-job.yaml
+      - rules/exec_maybe_interactively.yaml
+      - jobs/check-top-of-master.yaml
+      - jobs/sw-platform-trigger.yaml
 
   - project: 'software/gitlab-ci-common'
     ref: master
@@ -19,6 +25,29 @@ stages:
   - test
   - deploy
 
+default:
+  interruptible: true
+
+variables:
+  # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
+  SW_PLATFORM_BRANCH: develop/runtime
+  PIPELINE_CI_SUBPROJECT: esperanto-tools-libs
+
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+clang-format:
+  extends:
+    - .template_job
+    - .pod_nano
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.3.0
+  stage: .pre
+  variables:
+    CMD_SCRIPT: |
+      git fetch origin master
+      git clang-format --diff origin/master -- * | grep -e "clang-format did not modify any files$" -e "^no modified files to format$"
 
 ###############################################################################
 ###############################################################################
@@ -70,7 +99,7 @@ generate_build:conan:
       python3 -m ci_build
   
   artifacts:
-    expire_in: 1h 
+    expire_in: 1d 
     paths:
       - conan/build_pipeline.yml
       - conan/lockfiles_info.json
@@ -82,9 +111,10 @@ generate_build:conan:
 # conan child build pipeline
 build:conan:
   stage: build
+  extends:
+    - .exec_maybe_interactively
   needs:
   - generate_build:conan
-  stage: build
   trigger:
     include:
     - artifact: conan/build_pipeline.yml
@@ -121,7 +151,25 @@ tests:conan:sysemu:
       cmake --build .
       ctest -T Test -L 'Generic' -E 'runtime:ut_RuntimeBenchmark' -E 'runtime:it_DeviceErrors.KernelLaunchInvalidMask' --no-compress-output --output-on-failure --parallel 4
 
-
+# FIXME Enable running the sonarqube job in this repo when the Conan image will have the correct 
+# dependencies (java, sonar-scanner)
+#
+# sonarqube:
+#   extends:
+#     - .template_job
+#     - .template_sonarqube_job
+#     - .pod_large
+#     - .template-conan-linux-ubuntu18.04-gcc7
+#   stage: test
+#   variables:
+#     CMD_CONFIG_BUILD: |
+#       mkdir build
+#       cd build
+#       conan install .. -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-release --build missing
+#       cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake-build-release/conan/conan_toolchain.cmake
+#     CMD_BUILD: |
+#       ${BUILD_WRAPPER} --out-dir build_wrapper_output_directory cmake --build ./build -j ${CPU_COUNT}
+    
 # NIGHTLY 
 # - tests are repeated 10 times to catch flacky tests
 # - larger pod to execute more tests in parallel
@@ -153,7 +201,10 @@ nightly_torture_tests:conan:sysemu:
       cmake --build .
       ctest -T Test -L 'Generic' --repeat until-fail:10 --no-compress-output --output-on-failure --parallel 8
 
-# integration tests could go here
+# integration testing with sw-platform
+#
+# This is automatically done thanks to this included file:
+#   /jobs/sw-platform-trigger.yaml
 
 ###############################################################################
 ###############################################################################
@@ -171,6 +222,7 @@ on_success:promote:
     - generate_build:conan
     - build:conan
     - tests:conan:sysemu
+    - meta-trigger
   
   variables:
     PYTHONIOENCODING: utf-8

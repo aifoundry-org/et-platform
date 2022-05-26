@@ -20,64 +20,11 @@ parameters:
     default_value: true
 
 stages:
-  JOB_RUNTIME:
+  CHECKOUT_SCM:
     cmds:
-      - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
-          PYTEST_RETRIES: "0"
-      - job: sw-platform/runtime-integration/pipelines/runtime-checkin-tests
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
-          PYTEST_RETRIES: "0"
-
-  JOB_CODE_QUALITY:
-    cmds:
-      - job: sw-platform/code-analysis/runtime-sonarqube
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          GITLAB_SOURCE_BRANCH:
-            raw_cmd: '"${env.gitlabSourceBranch}"'
-          GITLAB_TARGET_BRANCH: 
-            raw_cmd: '"${env.gitlabTargetBranch}"'
-          GITLAB_MR_ID: 
-            raw_cmd: '"${env.gitlabMergeRequestIid}"'
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
-
-
-  # to be enabled again with SW-4451; when the old runtime is wiped out
-  # JOB_COVERAGE:
-  #   cmds:
-  #     - job: sw-platform/runtime-integration/pipelines/runtime-coverage-tests
-  #       parameters:
-  #         BRANCH: "${SW_PLATFORM_BRANCH}"
-  #         COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
-  #         PYTEST_RETRIES: "2"
-
-  # JOB_SANITIZER:
-  #   cmds:
-  #     - job: sw-platform/runtime-integration/pipelines/runtime-sanitizer-tests
-  #       parameters:
-  #         BRANCH: "${SW_PLATFORM_BRANCH}"
-  #         COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
-  #         PYTEST_RETRIES: "2"
-
-  # Disable Zebu jobs in the checkin as default run
-  # JOB_ZEBU:
-  #  when:
-  #    jenkins:
-  #      all:
-  #        - ${RUN_ZEBU}
-  #    default:
-  #      false
-  #  cmds:
-  #    - job: sw-platform/zebu/zebu-checkin-top-level
-  #      parameters:
-  #        BRANCH: "${SW_PLATFORM_BRANCH}"
-  #        COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/esperanto-tools-libs:${BRANCH}"
-  #        TIMEOUT: "4"
-  #        RUN_ZEBU: ${RUN_ZEBU}
-
-
+      - raw_cmd: |-
+          script {
+            currentBuild.getRawBuild().getExecutor().interrupt(Result.UNSTABLE)
+            sleep(1)   // Interrupt is not blocking and does not take effect immediately.
+          }
+    exec_before: [r".*"]

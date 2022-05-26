@@ -1,4 +1,0 @@
-projects:
-  "runtime":
-    folder: .
-    configs: [host]
