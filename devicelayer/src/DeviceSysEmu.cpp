@@ -194,6 +194,10 @@ DeviceSysEmu::~DeviceSysEmu() {
 bool DeviceSysEmu::sendCommand(QueueInfo& queueInfo, std::byte* command, size_t commandSize, bool& clearEvent) {
   Checker checker{*this};
   clearEvent = true;
+  if (auto size = *reinterpret_cast<uint16_t*>(command) != commandSize) {
+    throw Exception(std::string{"Command size does not match (Header size: "} + std::to_string(size) +
+                    " command size: " + std::to_string(commandSize) + " )");
+  }
 
   // read tail_offset
   sysEmu_->mmioRead(queueInfo.bufferAddress_ + offsetof(CircBuffCb, tail_offset), sizeof(queueInfo.cb_.tail_offset),
