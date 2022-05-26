@@ -10,11 +10,12 @@
 
 #include "TestUtils.h"
 #include "Utils.h"
+#include "runtime/DeviceLayerFake.h"
 #include "runtime/IRuntime.h"
+#include "runtime/Types.h"
 #include "server/Client.h"
 #include "server/Server.h"
 #include <cstdio>
-#include <device-layer/IDeviceLayerFake.h>
 #include <sys/wait.h>
 using namespace rt;
 
@@ -34,7 +35,10 @@ TEST(multiprocess, handshake) {
   logging::LoggerDefault logger_;
   if (pid > 0) {
     RT_LOG(INFO) << "Creating server";
-    auto server = Server{socketName, std::make_unique<dev::IDeviceLayerFake>()};
+    Options options;
+    options.checkDeviceApiVersion_ = false;
+    options.checkMemcpyDeviceOperations_ = true;
+    auto server = Server{socketName, std::make_unique<dev::DeviceLayerFake>(), options};
     RT_LOG(INFO) << "Signaling child to continue";
     write(fd[1], "Y", 1);
     RT_LOG(INFO) << "Waiting child to end";
@@ -83,7 +87,10 @@ TEST(multiprocess_1000, handshake) {
     }
   }
   logging::LoggerDefault logger_;
-  auto server = Server{socketName, std::make_unique<dev::IDeviceLayerFake>()};
+  Options options;
+  options.checkDeviceApiVersion_ = false;
+  options.checkMemcpyDeviceOperations_ = true;
+  auto server = Server{socketName, std::make_unique<dev::DeviceLayerFake>(), options};
   RT_LOG(INFO) << "Signaling children to continue";
   for (int i = 0; i < numChildren; ++i) {
     write(fd[1], "Y", 1);

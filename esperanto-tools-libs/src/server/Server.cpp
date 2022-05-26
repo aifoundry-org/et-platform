@@ -33,10 +33,10 @@ Server::~Server() {
   close(socket_);
 }
 
-Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer) {
+Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer, Options options) {
   deviceLayer_ = std::move(deviceLayer);
 
-  runtime_ = IRuntime::create(deviceLayer_.get());
+  runtime_ = IRuntime::create(deviceLayer_.get(), options);
 
   socket_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
 

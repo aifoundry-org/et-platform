@@ -76,6 +76,10 @@ public:
   EventId stopDeviceTracing(StreamId, bool) override {
     throw Exception("Not implemented.");
   }
+  DeviceProperties getDeviceProperties(DeviceId device) override {
+    unused(device);
+    throw Exception("Not implemented");
+  }
 
   EventId abortCommand(EventId commandId, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) override;
 

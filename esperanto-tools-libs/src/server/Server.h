@@ -18,7 +18,7 @@
 namespace rt {
 class Server {
 public:
-  explicit Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer);
+  explicit Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer, Options options);
   ~Server();
   void removeWorker(Worker* worker);
 
