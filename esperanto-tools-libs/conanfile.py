@@ -42,7 +42,7 @@ class RuntimeConan(ConanFile):
     def requirements(self):
         device_api = "deviceApi/0.5.0@"
         if self.options.with_tests:
-            device_api += "#c82f130dcfa1ecd6f7891198306d5349"
+            device_api += "#10b4680749bc365f08651710ecbabd78"
         self.requires(device_api)
         self.requires("deviceLayer/0.2.0")
         self.requires("hostUtils/0.1.0")
@@ -55,14 +55,14 @@ class RuntimeConan(ConanFile):
         if self.options.with_tests:
             self.requires("sw-sysemu/0.2.0")
 
-            self.requires("et-common-libs/0.0.5@#cd9b3fa32470beb7485651c89b81edfc")
-            self.requires("device-minion-runtime/0.0.4@#b236c2d89ca586e186b97f7c58f40ef3")
-            self.requires("device-bootloaders/0.2.0@#02cb1edb8c78412add94f11bda2c6ee9")
+            self.requires("et-common-libs/0.0.5@#eb1c0a31e7afc903b9515d332016acce")
+            self.requires("device-minion-runtime/0.0.4@#81676197bbe20483baf77d613b179cbe")
+            self.requires("device-bootloaders/0.2.0@#6698ae60e3a82c2cb25a22e1a4fc4ce4")
             self.requires("esperanto-test-kernels/0.1.0@#a943278128156b0c567a9851f89745b9")
 
             # only for pinning dependencies
             self.requires("esperantoTrace/0.2.0@#acfb37d7666cf7b73291ad121da2202f")
-            self.requires("etsoc_hal/0.1.0@#b358d0dce0d2e6c1692ca43f05dd0661")
+            self.requires("etsoc_hal/0.1.0@#ad66d9184bde9f5b0719b75ee396da9e")
             self.requires("tf-protocol/0.1.0@#87d3b8e7ad2f0b39fa6fae35f3bc180b")
             self.requires("signedImageFormat/1.0@#4503615bd9e6ca9cfae2441dddb96b2e")
             self.requires("esperanto-flash-tool/0.1.0@#8d7c784f6b8d3cc1dbaa23b42b328782")
@@ -78,6 +78,7 @@ class RuntimeConan(ConanFile):
         self.folders.source = "."
     
     def generate(self):
+        device_api = self.dependencies["deviceApi"]
         tc = CMakeToolchain(self)
         tc.variables["BUILD_TESTS"] = self.options.get_safe("with_tests")
         tc.variables["BUILD_TOOLS"] = self.options.get_safe("with_tools")

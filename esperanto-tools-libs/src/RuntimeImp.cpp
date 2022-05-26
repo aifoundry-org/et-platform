@@ -23,12 +23,12 @@
 
 #include <cstdint>
 #include <device-layer/IDeviceLayer.h>
+#include <esperanto/device-apis/device_apis_message_types.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 
 #include <elfio/elfio.hpp>
 
 #include <chrono>
-#include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -396,7 +396,7 @@ void RuntimeImp::processResponseError(const ResponseError& responseError) {
 void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
 
   // check the response header
-  auto header = reinterpret_cast<const device_ops_api::rsp_header_t*>(response.data());
+  auto header = reinterpret_cast<const rsp_header_t*>(response.data());
   auto eventId = EventId{header->rsp_hdr.tag_id};
 
   auto recordEvent = [](auto& profiler, const auto& rsp, const auto& evt, ResponseType rspT) {
@@ -475,9 +475,8 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on kernel launch: " << r->status << ". Tag id: " << static_cast<int>(eventId);
       ResponseError re{convert(header->rsp_hdr.msg_id, r->status), eventId};
-      auto regularPayloadSize =
-        sizeof(device_ops_api::device_ops_kernel_launch_rsp_t) - sizeof(device_ops_api::rsp_header_t);
-      if (r->response_info.rsp_hdr.size >= regularPayloadSize) {
+      if (auto regularPayloadSize = sizeof(device_ops_api::device_ops_kernel_launch_rsp_t) - sizeof(rsp_header_t);
+          r->response_info.rsp_hdr.size >= regularPayloadSize) {
         CHECK(r->response_info.rsp_hdr.size == regularPayloadSize + sizeof(device_ops_api::kernel_rsp_error_ptr_t))
           << "Incorrect response size";
         auto extra = reinterpret_cast<const device_ops_api::kernel_rsp_error_ptr_t*>(r->kernel_rsp_error_ptr);
@@ -620,7 +619,7 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
   std::memset(cmdPtr, 0, cmd.size());
   cmdPtr->command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
   cmdPtr->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD;
-  cmdPtr->command_info.cmd_hdr.size = static_cast<device_ops_api::msg_size_t>(cmd.size());
+  cmdPtr->command_info.cmd_hdr.size = static_cast<msg_size_t>(cmd.size());
   if (barrier) {
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
   }
@@ -700,7 +699,7 @@ void RuntimeImp::checkDeviceApi(DeviceId device) {
   auto cmdPtr = reinterpret_cast<device_ops_api::check_device_ops_api_compatibility_cmd_t*>(cmd.data());
   cmdPtr->command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
   cmdPtr->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD;
-  cmdPtr->command_info.cmd_hdr.size = sizeof(cmd);
+  cmdPtr->command_info.cmd_hdr.size = static_cast<msg_size_t>(cmd.size());
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
   commandSender.send(Command{cmd, commandSender, evt, false, true});
   waitForStreamWithoutProfiling(st);
@@ -709,8 +708,8 @@ void RuntimeImp::checkDeviceApi(DeviceId device) {
   if (!deviceApiVersion_.isValid()) {
     throw Exception("Runtime couldn't retrieve a valid device-api version.");
   }
-  if (deviceApiVersion_.major != 0 || deviceApiVersion_.minor != 1 || deviceApiVersion_.patch != 0) {
-    throw Exception("Incompatible device-api version. This runtime version only supports 0.1.0");
+  if (deviceApiVersion_.major != 0 || deviceApiVersion_.minor != 5 || deviceApiVersion_.patch != 0) {
+    throw Exception("Incompatible device-api version. This runtime version only supports 0.5.0");
   }
 }
 
