@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-12683] Added a check for command size in DeviceSysemu
 - This changelog
 - [SW-12547] Added two new APIs: getDeviceAttribute() and clearDeviceAttributes(), to access ETSoC1 device health and performance statistics through sysfs interface exposed by its Linux Driver.
 ### Changed
