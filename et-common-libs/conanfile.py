@@ -42,24 +42,24 @@ class EtCommonLibsConan(ConanFile):
 
     def set_version(self):
         self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "et-common-libs")
-    
+
     def configure(self):
         # et-common-libs is a C library, doesn't depend on any C++ standard library
         del self.settings.compiler.libcxx
         del self.settings.compiler.cppstd
 
     def requirements(self):
-        self.requires("esperantoTrace/0.2.0")
+        self.requires("esperantoTrace/0.3.0")
         # cm-umode doens't require etsoc_hal
         if self.options.with_sp_bl or \
            self.options.with_minion_bl or \
            self.options.with_mm_rt_svcs or \
            self.options.with_cm_rt_svcs:
            self.requires("etsoc_hal/0.1.0")
-    
+
     def package_id(self):
         self.python_requires["conan-common"].module.x86_64_compatible(self)
-    
+
     def validate(self):
         if self.settings.arch != "rv64":
             raise ConanInvalidConfiguration("Cross-compiling to arch %s is not supported" % self.settings.arch)
@@ -79,14 +79,14 @@ class EtCommonLibsConan(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-    
+
     def package(self):
         cmake = CMake(self)
         cmake.install()
         tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
-    
+
     def package_info(self):
-        
+
         if self.options.with_sp_bl:
             self.cpp_info.components["sp-bl1"].set_property("cmake_target_name", "et-common-libs::sp-bl1")
             self.cpp_info.components["sp-bl1"].includedirs = [os.path.join("sp-bl1", "include")]
