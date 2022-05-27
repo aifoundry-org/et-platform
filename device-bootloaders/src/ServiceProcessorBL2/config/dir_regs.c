@@ -88,110 +88,102 @@ void DIR_Init(void)
     Gbl_SP_DIRs->vq_attr.attributes_size = sizeof(SP_DEV_INTF_VQ_ATTR_s);
 
     /* Populate the SP VQ Buffer memory region attributes */
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .type = SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .bar = SP_VQ_BAR;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .bar_offset = SP_PC_MAILBOX_BAR_OFFSET + SP_VQ_OFFSET;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .bar_size = SP_VQ_BAR_SIZE;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .dev_address = 0U;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER]
-        .access_attr = MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].type =
+        SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].bar = SP_VQ_BAR;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].bar_offset =
+        SP_PC_MAILBOX_BAR_OFFSET + SP_VQ_OFFSET;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].bar_size = SP_VQ_BAR_SIZE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].dev_address = 0U;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].attributes_size =
+        sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].access_attr =
+        MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_NONE) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
     /* Populate the VQ interrupt trigger memory region attributes */
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
-        .type = SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
-        .bar = SP_DEV_INTF_INTERRUPT_TRG_REGION_BAR;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
-        .bar_offset = SP_DEV_INTF_INTERRUPT_TRG_REGION_OFFSET;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
-        .bar_size = SP_DEV_INTF_INTERRUPT_TRG_REGION_SIZE;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
-        .dev_address = 0U;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
-        .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER]
-        .access_attr = MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER].type =
+        SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER].bar =
+        SP_DEV_INTF_INTERRUPT_TRG_REGION_BAR;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER].bar_offset =
+        SP_DEV_INTF_INTERRUPT_TRG_REGION_OFFSET;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER].bar_size =
+        SP_DEV_INTF_INTERRUPT_TRG_REGION_SIZE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER].dev_address = 0U;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER].attributes_size =
+        sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_VQ_INT_TRIGGER].access_attr =
+        MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_NONE) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
     /* Populate the Device Management scratch memory region attributes */
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
-        .type = SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
-        .bar = SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_BAR;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
-        .bar_offset = SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_OFFSET;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
-        .bar_size = SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_SIZE;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
-        .dev_address = 0U;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
-        .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH]
-        .access_attr = MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH].type =
+        SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH].bar =
+        SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_BAR;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH].bar_offset =
+        SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_OFFSET;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH].bar_size =
+        SP_DEV_INTF_DEV_MANAGEMENT_SCRATCH_SIZE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH].dev_address = 0U;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH].attributes_size =
+        sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SCRATCH].access_attr =
+        MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
     /* Populate the SP FW Trace buffer memory region attributes */
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
-        .type = SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
-        .bar = SP_DEV_INTF_TRACE_BUFFER_BAR;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
-        .bar_offset = SP_DEV_INTF_TRACE_BUFFER_OFFSET;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
-        .bar_size = SP_DEV_INTF_TRACE_BUFFER_SIZE;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
-        .dev_address = 0U;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
-        .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE]
-        .access_attr = MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE].type =
+        SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE].bar =
+        SP_DEV_INTF_TRACE_BUFFER_BAR;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE].bar_offset =
+        SP_DEV_INTF_TRACE_BUFFER_OFFSET;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE].bar_size =
+        SP_DEV_INTF_TRACE_BUFFER_SIZE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE].dev_address = 0U;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE].attributes_size =
+        sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_SPFW_TRACE].access_attr =
+        MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
     /* Populate the MM FW Trace buffer memory region attributes */
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
-        .type = SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
-        .bar = SP_DEV_INTF_MM_TRACE_BUFFER_BAR;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
-        .bar_offset = SP_DEV_INTF_MM_TRACE_BUFFER_OFFSET;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
-        .bar_size = SP_DEV_INTF_MM_TRACE_BUFFER_SIZE;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
-        .dev_address = 0U;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
-        .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE]
-        .access_attr = MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE].type =
+        SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE].bar =
+        SP_DEV_INTF_MM_TRACE_BUFFER_BAR;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE].bar_offset =
+        SP_DEV_INTF_MM_TRACE_BUFFER_OFFSET;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE].bar_size =
+        SP_DEV_INTF_MM_TRACE_BUFFER_SIZE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE].dev_address = 0U;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE].attributes_size =
+        sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_MMFW_TRACE].access_attr =
+        MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
     /* Populate the CM FW Trace buffer memory region attributes */
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
-        .type = SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
-        .bar = SP_DEV_INTF_CM_TRACE_BUFFER_BAR;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
-        .bar_offset = SP_DEV_INTF_CM_TRACE_BUFFER_OFFSET;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
-        .bar_size = SP_DEV_INTF_CM_TRACE_BUFFER_SIZE;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
-        .dev_address = 0U;
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
-        .attributes_size = sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
-    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE]
-        .access_attr = MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE].type =
+        SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE].bar =
+        SP_DEV_INTF_CM_TRACE_BUFFER_BAR;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE].bar_offset =
+        SP_DEV_INTF_CM_TRACE_BUFFER_OFFSET;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE].bar_size =
+        SP_DEV_INTF_CM_TRACE_BUFFER_SIZE;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE].dev_address = 0U;
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE].attributes_size =
+        sizeof(SP_DEV_INTF_MEM_REGION_ATTR_s);
+    Gbl_SP_DIRs->mem_regions[SP_DEV_INTF_MEM_REGION_TYPE_MNGT_CMFW_TRACE].access_attr =
+        MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
 
@@ -231,9 +223,10 @@ void DIR_Init(void)
 
     /* Calculate CRC32 of the DIRs excluding generic attributes
     NOTE: CRC32 checksum should be calculated at the end */
-    crc32((void*)&Gbl_SP_DIRs->vq_attr,
-        (uint32_t)(Gbl_SP_DIRs->generic_attr.total_size - Gbl_SP_DIRs->generic_attr.attributes_size),
-        &dir_crc32);
+    crc32((void *)&Gbl_SP_DIRs->vq_attr,
+          (uint32_t)(Gbl_SP_DIRs->generic_attr.total_size -
+                     Gbl_SP_DIRs->generic_attr.attributes_size),
+          &dir_crc32);
 
     Gbl_SP_DIRs->generic_attr.crc32 = dir_crc32;
 
@@ -288,11 +281,11 @@ void DIR_Cache_Size_Init(void)
     /* Populate the device generic attributes */
     /* Only use the 32 Compute Minions */
     Gbl_SP_DIRs->generic_attr.l3_size =
-                            Cache_Control_L3_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask & 0xffffffff);
+        Cache_Control_L3_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask & 0xffffffff);
     Gbl_SP_DIRs->generic_attr.l2_size =
-                            Cache_Control_L2_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask & 0xffffffff);
+        Cache_Control_L2_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask & 0xffffffff);
     Gbl_SP_DIRs->generic_attr.scp_size =
-                            Cache_Control_SCP_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask & 0xffffffff);
+        Cache_Control_SCP_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask & 0xffffffff);
 
     return;
 }
