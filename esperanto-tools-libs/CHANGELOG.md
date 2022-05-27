@@ -6,7 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [[_TOC_]]
 
-## [Unreleased]
+## [Unrealeased]
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+## [0.2.0]
 ### Added
 - [SW-12621] 
   - added DeviceLayerFake to runtime
@@ -33,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+ - [SW-12696] inconsistency error on CMA memory when running memcpy list DMA operations
 ### Security
 
 
