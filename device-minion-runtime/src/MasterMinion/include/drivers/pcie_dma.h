@@ -74,6 +74,18 @@ enum dma_write_chan_id {
 */
 typedef uint8_t dma_write_chan_id_e;
 
+/*! \fn int32_t dma_enable_read_engine(void)
+    \brief This function enables the PCIe DMA read engine.
+    \return Status success or error
+*/
+int32_t dma_enable_read_engine(void);
+
+/*! \fn int32_t dma_enable_write_engine(void)
+    \brief This function enables the PCIe DMA write engine.
+    \return Status success or error
+*/
+int32_t dma_enable_write_engine(void);
+
 /*! \fn int32_t dma_configure_read(dma_read_chan_id_e chan)
     \brief This function configures a DMA engine to issue PCIe memory reads to
            the x86 host, pulling data to the SoC.

@@ -363,6 +363,80 @@ int32_t dma_config_write_add_link_node(dma_write_chan_id_e chan, uint32_t index)
 *
 *   FUNCTION
 *
+*       dma_enable_read_engine
+*
+*   DESCRIPTION
+*
+*       This function enables the PCIe DMA read engine.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       int32_t     Status success or error
+*
+***********************************************************************/
+int32_t dma_enable_read_engine(void)
+{
+    uint32_t read_engine_en;
+
+    read_engine_en =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_ADDRESS);
+
+    /* Global enable for DMA reads */
+    read_engine_en =
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_DMA_READ_ENGINE_MODIFY(
+            read_engine_en, 1);
+
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_ADDRESS,
+        read_engine_en);
+
+    return STATUS_SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dma_enable_write_engine
+*
+*   DESCRIPTION
+*
+*       This function enables the PCIe DMA write engine.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       int32_t     Status success or error
+*
+***********************************************************************/
+int32_t dma_enable_write_engine(void)
+{
+    uint32_t write_engine_en;
+
+    write_engine_en =
+        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_ADDRESS);
+
+    /* Global enable for DMA writes */
+    write_engine_en =
+        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_DMA_WRITE_ENGINE_MODIFY(
+            write_engine_en, 1);
+
+    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_ADDRESS,
+        write_engine_en);
+
+    return STATUS_SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       dma_configure_read
 *
 *   DESCRIPTION
@@ -381,7 +455,6 @@ int32_t dma_config_write_add_link_node(dma_write_chan_id_e chan, uint32_t index)
 ***********************************************************************/
 int32_t dma_configure_read(dma_read_chan_id_e chan)
 {
-    uint32_t read_engine_en;
     uint32_t transfer_list_low_addr;
     uint32_t transfer_list_high_addr;
 
@@ -390,17 +463,6 @@ int32_t dma_configure_read(dma_read_chan_id_e chan)
         Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA read channel %d\r\n", chan);
         return DMA_DRIVER_ERROR_INVALID_CHAN_ID;
     }
-
-    read_engine_en =
-        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_ADDRESS);
-
-    /* Global enable for DMA reads */
-    read_engine_en =
-        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_DMA_READ_ENGINE_MODIFY(
-            read_engine_en, 1);
-
-    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_READ_ENGINE_EN_OFF_ADDRESS,
-        read_engine_en);
 
     transfer_list_low_addr = (uint32_t)(DMA_READ_CHAN_GET_LL_BASE(chan) & 0xFFFFFFFF);
     transfer_list_high_addr = (uint32_t)(DMA_READ_CHAN_GET_LL_BASE(chan) >> 32);
@@ -437,7 +499,6 @@ int32_t dma_configure_read(dma_read_chan_id_e chan)
 ***********************************************************************/
 int32_t dma_configure_write(dma_write_chan_id_e chan)
 {
-    uint32_t write_engine_en;
     uint32_t transfer_list_low_addr;
     uint32_t transfer_list_high_addr;
 
@@ -446,17 +507,6 @@ int32_t dma_configure_write(dma_write_chan_id_e chan)
         Log_Write(LOG_LEVEL_CRITICAL, "Invalid DMA write channel %d\r\n", chan);
         return DMA_DRIVER_ERROR_INVALID_CHAN_ID;
     }
-
-    write_engine_en =
-        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_ADDRESS);
-
-    /* Global enable for DMA writes */
-    write_engine_en =
-        PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_DMA_WRITE_ENGINE_MODIFY(
-            write_engine_en, 1);
-
-    iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_DMA_CAP_DMA_WRITE_ENGINE_EN_OFF_ADDRESS,
-        write_engine_en);
 
     transfer_list_low_addr = (uint32_t)(DMA_WRITE_CHAN_GET_LL_BASE(chan) & 0xFFFFFFFF);
     transfer_list_high_addr = (uint32_t)(DMA_WRITE_CHAN_GET_LL_BASE(chan) >> 32);

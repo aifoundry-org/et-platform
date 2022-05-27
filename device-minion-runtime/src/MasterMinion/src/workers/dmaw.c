@@ -688,30 +688,57 @@ static inline void process_dma_read_chan_in_use(
 *
 *       dma_read_chan_id_e           DMA read channel ID
 *       device_ops_data_write_rsp_t  Pointer to buffer for DMA response.
+*       channel_aborted              Pointer to array containing channel
+*                                    abort flags
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-static inline void process_dma_read_chan_aborting(
-    dma_read_chan_id_e read_chan, struct device_ops_data_write_rsp_t *write_rsp)
+static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
+    struct device_ops_data_write_rsp_t *write_rsp, bool *channel_aborted)
 {
     dma_channel_status_t read_chan_status;
     exec_cycles_t dma_read_cycles;
+    uint32_t dma_read_status;
     int32_t status = STATUS_SUCCESS;
-    int32_t dma_status;
+    int32_t dma_status = STATUS_SUCCESS;
     uint16_t msg_id; /* TODO: SW-9022: To be removed */
 
-    /* Abort the channel */
-    dma_status = dma_abort_read(read_chan);
-
-    if (dma_status == STATUS_SUCCESS)
+    if (!channel_aborted[read_chan])
     {
+        channel_aborted[read_chan] = true;
+
+        /* Abort the channel */
+        dma_abort_read(read_chan);
+    }
+
+    /* Verify the channel status after abort */
+    dma_read_status = dma_get_read_int_status();
+
+    if (dma_check_read_done(read_chan, dma_read_status))
+    {
+        /* DMA transfer already completed */
+        dma_clear_read_done(read_chan);
+    }
+    else if (dma_check_read_abort(read_chan, dma_read_status))
+    {
+        Log_Write(LOG_LEVEL_INFO,
+            "DMAW_Read:Clearing abort status and re-configuring channel %d\r\n", read_chan);
+
         /* DMA transfer aborted, clear interrupt status */
         dma_status = dma_clear_read_abort(read_chan);
         dma_status |= dma_configure_read(read_chan);
     }
+    else
+    {
+        /* Abort or done status not set, return */
+        return;
+    }
+
+    /* Clear the channel abort flag */
+    channel_aborted[read_chan] = false;
 
     if (dma_status != STATUS_SUCCESS)
     {
@@ -936,32 +963,59 @@ static inline void process_dma_write_chan_in_use(
 *
 *       dma_write_chan_id_e          DMA write channel ID
 *       device_ops_data_write_rsp_t  Pointer to buffer for DMA response.
+*       channel_aborted              Pointer to array containing channel
+*                                    abort flags
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-static inline void process_dma_write_chan_aborting(
-    dma_write_chan_id_e write_chan, struct device_ops_data_read_rsp_t *read_rsp)
+static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_chan,
+    struct device_ops_data_read_rsp_t *read_rsp, bool *channel_aborted)
 {
     dma_channel_status_t write_chan_status;
     exec_cycles_t dma_write_cycles;
+    uint32_t dma_write_status;
     int32_t status = STATUS_SUCCESS;
-    int32_t dma_write_status = STATUS_SUCCESS;
+    int32_t dma_status = STATUS_SUCCESS;
     uint16_t msg_id; /* TODO: SW-9022: To be removed */
 
-    /* Abort the channel */
-    dma_write_status = dma_abort_write(write_chan);
-
-    if (dma_write_status == STATUS_SUCCESS)
+    if (!channel_aborted[write_chan])
     {
-        /* DMA transfer aborted, clear interrupt status */
-        dma_write_status = dma_clear_write_abort(write_chan);
-        dma_write_status |= dma_configure_write(write_chan);
+        channel_aborted[write_chan] = true;
+
+        /* Abort the channel */
+        dma_abort_write(write_chan);
     }
 
-    if (dma_write_status != STATUS_SUCCESS)
+    /* Verify the channel status after abort */
+    dma_write_status = dma_get_write_int_status();
+
+    if (dma_check_write_done(write_chan, dma_write_status))
+    {
+        /* DMA transfer already completed */
+        dma_clear_write_done(write_chan);
+    }
+    else if (dma_check_write_abort(write_chan, dma_write_status))
+    {
+        Log_Write(LOG_LEVEL_INFO,
+            "DMAW_Write:Clearing abort status and re-configuring channel %d\r\n", write_chan);
+
+        /* DMA transfer aborted, clear interrupt status */
+        dma_status = dma_clear_write_abort(write_chan);
+        dma_status |= dma_configure_write(write_chan);
+    }
+    else
+    {
+        /* Abort or done status not set, return */
+        return;
+    }
+
+    /* Clear the channel abort flag */
+    channel_aborted[write_chan] = false;
+
+    if (dma_status != STATUS_SUCCESS)
     {
         status = DMAW_ERROR_DRIVER_ABORT_FAILED;
     }
@@ -1055,6 +1109,7 @@ __attribute__((noreturn)) static inline void dmaw_launch_read_worker(uint32_t ha
 {
     struct device_ops_data_write_rsp_t write_rsp;
     uint32_t read_chan_state;
+    bool channel_aborted[PCIE_DMA_RD_CHANNEL_COUNT] = { false, false, false, false };
 
     while (1)
     {
@@ -1077,7 +1132,7 @@ __attribute__((noreturn)) static inline void dmaw_launch_read_worker(uint32_t ha
                 Log_Write(
                     LOG_LEVEL_ERROR, "DMAW:%d:read_chan_aborting:%d\r\n", hart_id, read_ch_index);
 
-                process_dma_read_chan_aborting(read_ch_index, &write_rsp);
+                process_dma_read_chan_aborting(read_ch_index, &write_rsp, channel_aborted);
             }
         }
     }
@@ -1106,6 +1161,7 @@ __attribute__((noreturn)) static inline void dmaw_launch_write_worker(uint32_t h
 {
     struct device_ops_data_read_rsp_t read_rsp;
     uint32_t write_chan_state;
+    bool channel_aborted[PCIE_DMA_WRT_CHANNEL_COUNT] = { false, false, false, false };
 
     while (1)
     {
@@ -1127,7 +1183,7 @@ __attribute__((noreturn)) static inline void dmaw_launch_write_worker(uint32_t h
                 Log_Write(
                     LOG_LEVEL_ERROR, "DMAW:%d:write_chan_aborting:%d\r\n", hart_id, write_ch_index);
 
-                process_dma_write_chan_aborting(write_ch_index, &read_rsp);
+                process_dma_write_chan_aborting(write_ch_index, &read_rsp, channel_aborted);
             }
         }
     }
@@ -1165,6 +1221,9 @@ void DMAW_Launch(uint32_t hart_id)
     to move data from device to host */
     if (hart_id == DMAW_FOR_READ)
     {
+        /* Enable the DMA read engine */
+        dma_enable_read_engine();
+
         for (dma_chan_id = DMA_CHAN_ID_READ_0; dma_chan_id <= DMA_CHAN_ID_READ_3; dma_chan_id++)
         {
             dma_configure_read(dma_chan_id);
@@ -1175,6 +1234,9 @@ void DMAW_Launch(uint32_t hart_id)
     }
     else if (hart_id == DMAW_FOR_WRITE)
     {
+        /* Enable the DMA write engine */
+        dma_enable_write_engine();
+
         for (dma_chan_id = DMA_CHAN_ID_WRITE_0; dma_chan_id <= DMA_CHAN_ID_WRITE_3; dma_chan_id++)
         {
             dma_configure_write(dma_chan_id);
