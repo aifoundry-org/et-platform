@@ -588,7 +588,7 @@ uint16_t Cache_Control_SCP_size(uint64_t shire_mask)
 
     bank_scp_size = ETSOC_SHIRE_CACHE_ESR_SC_SCP_CACHE_CTL_ESR_SC_SCP_SET_SIZE_GET(scp_cache_ctrl);
 
-    num_of_active_shires = (uint8_t)__builtin_popcountll(shire_mask & 0xffffffff);
+    num_of_active_shires = (uint8_t)__builtin_popcountll(shire_mask);
 
     return (uint16_t)KB_to_MB(num_of_active_shires * SC_BANK_NUM * bank_scp_size);
 }
@@ -606,7 +606,7 @@ uint16_t Cache_Control_L2_size(uint64_t shire_mask)
 
     bank_l2_size = ETSOC_SHIRE_CACHE_ESR_SC_L2_CACHE_CTL_ESR_SC_L2_SET_SIZE_GET(l2_cache_ctrl);
 
-    num_of_active_shires = (uint8_t)__builtin_popcountll(shire_mask & 0xffffffff);
+    num_of_active_shires = (uint8_t)__builtin_popcountll(shire_mask);
 
     return (uint16_t)KB_to_MB(num_of_active_shires * SC_BANK_NUM * bank_l2_size);
 }
@@ -624,7 +624,7 @@ uint16_t Cache_Control_L3_size(uint64_t shire_mask)
 
     bank_l3_size = ETSOC_SHIRE_CACHE_ESR_SC_L3_CACHE_CTL_ESR_SC_L3_SET_SIZE_GET(l3_cache_ctrl);
 
-    num_of_active_shires = (uint8_t)__builtin_popcountll(shire_mask & 0xffffffff);
+    num_of_active_shires = (uint8_t)__builtin_popcountll(shire_mask);
 
     return (uint16_t)KB_to_MB(num_of_active_shires * SC_BANK_NUM * bank_l3_size);
 }

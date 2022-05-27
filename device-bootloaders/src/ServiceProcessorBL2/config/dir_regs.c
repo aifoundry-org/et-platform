@@ -286,12 +286,13 @@ void DIR_Set_Service_Processor_Status(int16_t status)
 void DIR_Cache_Size_Init(void)
 {
     /* Populate the device generic attributes */
+    /* Only use the 32 Compute Minions */
     Gbl_SP_DIRs->generic_attr.l3_size =
-                            Cache_Control_L3_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask);
+                            Cache_Control_L3_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask & 0xffffffff);
     Gbl_SP_DIRs->generic_attr.l2_size =
-                            Cache_Control_L2_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask);
+                            Cache_Control_L2_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask & 0xffffffff);
     Gbl_SP_DIRs->generic_attr.scp_size =
-                            Cache_Control_SCP_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask);
+                            Cache_Control_SCP_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask & 0xffffffff);
 
     return;
 }
