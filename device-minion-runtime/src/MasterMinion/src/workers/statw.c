@@ -203,7 +203,7 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
             calculate_avg_min_max(
                 &data_sample.ls_l3_write_bw, &sc_pmc1_samples[0][0], NUM_SHIRES * NEIGH_PER_SHIRE);
 
-            Trace_Custom_Event(Trace_Get_MM_Stats_CB(), MM_TRACE_CUSTOM_ID_COMPUTE_RESOURCES,
+            Trace_Custom_Event(Trace_Get_MM_Stats_CB(), TRACE_CUSTOM_TYPE_MM_COMPUTE_RESOURCES,
                 (const uint8_t *)&data_sample, sizeof(data_sample));
 
             Trace_Evict_Buffer_MM_Stats();
