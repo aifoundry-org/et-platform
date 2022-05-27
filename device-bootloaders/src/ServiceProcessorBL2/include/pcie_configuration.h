@@ -212,7 +212,7 @@ int Pshire_NOC_update_routing_table(void);
     \param image pointer to firmware image
     \returns Status indicating success or negative error
 */
-int PCIe_Phy_Firmware_Update (const uint64_t* image);
+int PCIe_Phy_Firmware_Update(const uint64_t *image);
 
 /*! \fn int PCIE_Init_Status(void)
     \brief Interface to find pcie initialization status

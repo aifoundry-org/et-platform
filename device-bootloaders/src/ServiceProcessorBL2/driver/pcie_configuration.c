@@ -42,11 +42,10 @@ static void pcie_ce_error(void);
 static void pcie_uce_error(void);
 static void reconfig_noc_pshire(void);
 
-
 /*! \def BAR2_SIZE
     \brief BAR Sizes must be powers of 2 per the PCIe spec. Round up to next biggest power of 2.
 */
-#define BAR2_SIZE (SP_DEV_INTF_BAR2_SIZE - 1ULL) 
+#define BAR2_SIZE (SP_DEV_INTF_BAR2_SIZE - 1ULL)
 
 /*! \def BAR_IN_MEM_SPACE
     \brief BARs in memory space
@@ -86,31 +85,31 @@ static void reconfig_noc_pshire(void);
 /*! \def PCIE_GEN_3_SPEED
     \brief PCIE GEN 3 max speed field value 8GT/s
 */
-#define PCIE_GEN_3_SPEED         0x3
+#define PCIE_GEN_3_SPEED 0x3
 
 /*! \def PCIE_GEN_4_SPEED
     \brief PCIE GEN 4 max speed field value 16GT/s
 */
-#define PCIE_GEN_4_SPEED         0x5
+#define PCIE_GEN_4_SPEED 0x5
 
 /*! \def PCIE_LANE_WIDTH_X_4
     \brief PCIE_LANE_WIDTH_X_4
 */
-#define PCIE_LANE_WITH_X_4       0x4
+#define PCIE_LANE_WITH_X_4 0x4
 
 /*! \def PCIE_LANE_WIDTH_X_8
     \brief PCIE_LANE_WIDTH_X_8
 */
-#define PCIE_LANE_WITH_X_8       0x8
+#define PCIE_LANE_WITH_X_8 0x8
 
 /*! \def MSI_ENABLED
     \brief  MSI enabled value */
-#define MSI_ENABLED              0x1U
+#define MSI_ENABLED 0x1U
 
 /*! \def MSI_FOUR_VECTORS
     \brief MSI four verctor enable
 */
-#define MSI_FOUR_VECTORS         0x2
+#define MSI_FOUR_VECTORS 0x2
 
 /* The driver can populate this structure with the defaults that will be used during the init
     phase.*/
@@ -118,7 +117,7 @@ static void reconfig_noc_pshire(void);
 static struct pcie_event_control_block event_control_block __attribute__((section(".data")));
 
 /* MEMSHIRE PLL frequency modes (1010MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
-static uint8_t pcie_pll_mode[3] = {6, 12, 18};
+static uint8_t pcie_pll_mode[3] = { 6, 12, 18 };
 
 /*!
  * @struct struct pcie_event_control_block
@@ -163,12 +162,12 @@ void PCIe_release_pshire_from_reset(void)
 
 void initialize_link(void)
 {
-        pcie_init_pshire();
-        pcie_init_caps_list();
-        pcie_init_error_cap();
-        pcie_init_bars();
-        pcie_init_ints();
-        pcie_init_link();
+    pcie_init_pshire();
+    pcie_init_caps_list();
+    pcie_init_error_cap();
+    pcie_init_bars();
+    pcie_init_ints();
+    pcie_init_link();
 }
 
 /*! \brief This step is to initiate PShire, and PCIE SS, and if link is not up,
@@ -297,8 +296,9 @@ static void pcie_init_error_cap(void)
             reg_val, 0x1);
 
     /* Enable Correctable Errors Capability*/
-    iowrite32(
-        PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS, reg_val);
+    iowrite32(PCIE0 +
+                  PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PCIE_CAP_DEVICE_CONTROL_DEVICE_STATUS_ADDRESS,
+              reg_val);
 
     /* Enable UnCorrectable Errors Capability*/
     reg_val =
@@ -319,7 +319,6 @@ static void pcie_init_error_cap(void)
             miscControl, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               miscControl);
-
 }
 
 static void pcie_init_bars(void)
@@ -348,7 +347,7 @@ static void pcie_init_bars(void)
 
     /* All other BARs are not resizeable, and use the mask register to set size */
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_DBI2_BAR2_MASK_REG_ADDRESS,
-              (uint32_t)((BAR2_SIZE | BAR_ENABLE ) & 0xFFFFFFFFULL));
+              (uint32_t)((BAR2_SIZE | BAR_ENABLE) & 0xFFFFFFFFULL));
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_DBI2_BAR3_MASK_REG_ADDRESS,
               (uint32_t)((BAR2_SIZE >> 32) & 0xFFFFFFFFULL));
 
@@ -357,7 +356,7 @@ static void pcie_init_bars(void)
       for accessing things like the MSI-X table, which is in RAM contained in the IP block. */
 
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_DBI2_EXP_ROM_BAR_MASK_REG_ADDRESS,
-             BAR_DISABLE);
+              BAR_DISABLE);
 
     /* Only allow the host to size BAR0 to 32GB */
     iowrite32(
@@ -398,8 +397,10 @@ static void pcie_init_bars(void)
 
     /* Set Class Code to be Processing Accelerator */
     /* Details https://pcisig.com/sites/default/files/files/PCI_Code-ID_r_1_11__v24_Jan_2019.pdf  */
-      iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_TYPE0_HDR_CLASS_CODE_REVISION_ID_ADDRESS,
-         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_CLASS_CODE_REVISION_ID_BASE_CLASS_CODE_SET(0x12));
+    iowrite32(
+        PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_TYPE0_HDR_CLASS_CODE_REVISION_ID_ADDRESS,
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_CLASS_CODE_REVISION_ID_BASE_CLASS_CODE_SET(
+            0x12));
 
     miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
@@ -515,8 +516,8 @@ static void pcie_init_link(void)
 
 void perstn_deassert_handler(void)
 {
-   /* Reinitialize the Link in case PERST_N is deasserted by Host */
-   initialize_link(); 
+    /* Reinitialize the Link in case PERST_N is deasserted by Host */
+    initialize_link();
 }
 
 /*! \def CONFIG_INBOUND_IATU
@@ -654,9 +655,8 @@ static void pcie_init_atus(void)
 
     baseAddr += R_PU_MBOX_PC_SP_SIZE;
 
-    config_inbound_iatu_3(baseAddr,
-                          R_PU_TRG_PCIE_BASEADDR,             /* targetAddr */
-                          R_PU_TRG_PCIE_SIZE);                /* size */
+    config_inbound_iatu_3(baseAddr, R_PU_TRG_PCIE_BASEADDR, /* targetAddr */
+                          R_PU_TRG_PCIE_SIZE);              /* size */
 
     baseAddr += R_PU_TRG_PCIE_SIZE;
 
@@ -724,11 +724,13 @@ static void pcie_ce_error(void)
             ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_CORR_ERR_STATUS_OFF_ADDRESS);
 
         /* clear error register */
-        iowrite32(PCIE + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_CORR_ERR_STATUS_OFF_ADDRESS, error_status);
+        iowrite32(PCIE + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_CORR_ERR_STATUS_OFF_ADDRESS,
+                  error_status);
 
         /* add details in message header and fill payload */
         FILL_EVENT_HEADER(&message.header, PCIE_CE, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, event_control_block.ce_count, error_status, 0)
+        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, event_control_block.ce_count, error_status,
+                           0)
 
         /* call the callback function and post message */
         event_control_block.event_cb(CORRECTABLE, &message);
@@ -746,7 +748,8 @@ static void pcie_uce_error(void)
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_UNCORR_ERR_STATUS_OFF_ADDRESS);
 
     /* clear error register */
-    iowrite32(PCIE + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_UNCORR_ERR_STATUS_OFF_ADDRESS, error_status);
+    iowrite32(PCIE + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_UNCORR_ERR_STATUS_OFF_ADDRESS,
+              error_status);
 
     /* add details in message header and fill payload */
     FILL_EVENT_HEADER(&message.header, PCIE_UCE, sizeof(struct event_message_t))
@@ -784,7 +787,7 @@ int32_t setup_pcie_gen3_link_speed(void)
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
     miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        miscControl, 1);
+            miscControl, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               miscControl);
 
@@ -798,7 +801,7 @@ int32_t setup_pcie_gen3_link_speed(void)
 
     miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        miscControl, 0);
+            miscControl, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               miscControl);
 
@@ -815,7 +818,7 @@ int32_t setup_pcie_gen4_link_speed(void)
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
     miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        miscControl, 1);
+            miscControl, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               miscControl);
 
@@ -829,7 +832,7 @@ int32_t setup_pcie_gen4_link_speed(void)
 
     miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        miscControl, 0);
+            miscControl, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               miscControl);
 
@@ -846,7 +849,7 @@ int32_t setup_pcie_lane_width_x4(void)
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
     miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        miscControl, 1);
+            miscControl, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               miscControl);
 
@@ -860,7 +863,7 @@ int32_t setup_pcie_lane_width_x4(void)
 
     miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        miscControl, 0);
+            miscControl, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               miscControl);
 
@@ -877,7 +880,7 @@ int32_t setup_pcie_lane_width_x8(void)
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
     miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        miscControl, 1);
+            miscControl, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               miscControl);
 
@@ -891,7 +894,7 @@ int32_t setup_pcie_lane_width_x8(void)
 
     miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
-        miscControl, 0);
+            miscControl, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS,
               miscControl);
 
