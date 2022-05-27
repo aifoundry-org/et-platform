@@ -161,6 +161,16 @@ void PCIe_release_pshire_from_reset(void)
               RESET_MANAGER_RM_PSHIRE_WARM_RSTN_SET(1));
 }
 
+void initialize_link(void)
+{
+        pcie_init_pshire();
+        pcie_init_caps_list();
+        pcie_init_error_cap();
+        pcie_init_bars();
+        pcie_init_ints();
+        pcie_init_link();
+}
+
 /*! \brief This step is to initiate PShire, and PCIE SS, and if link is not up,
    kick off the link training process. Expectation Host will ink training successfully
    \param[in] none  */
@@ -186,13 +196,11 @@ void PCIe_init(bool expect_link_up)
 
     if (init_link)
     {
-        pcie_init_pshire();
-        pcie_init_caps_list();
-        pcie_init_error_cap();
-        pcie_init_bars();
-        pcie_init_ints();
-        pcie_init_link();
+        initialize_link();
     }
+
+    /* Register interrupt handler for PERST_N deassertion */
+    INT_enableInterrupt(SPIO_PLIC_PERSTN_DEASSERT_INTR_ID, 1, perstn_deassert_handler);
 }
 
 /*! \brief This is the last step to enable PCIe link so Host/Device can communicate.
@@ -219,12 +227,12 @@ static void pcie_init_pshire(void)
     /* TODO: ABP Reset deassert? In "PCIe Initialization Sequence" doc, TBD what state to check */
 
     /* Wait for PERST_N */
-    Log_Write(LOG_LEVEL_CRITICAL, "Waiting for PCIe bus out of reset...");
+    Log_Write(LOG_LEVEL_DEBUG, "Waiting for PCIe bus out of reset...");
     do
     {
         tmp = ioread32(PCIE_ESR + PCIE_ESR_PSHIRE_STAT_ADDRESS);
     } while (PCIE_ESR_PSHIRE_STAT_PERST_N_GET(tmp) == 0);
-    Log_Write(LOG_LEVEL_CRITICAL, " done\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, " done\r\n");
 
     /* Deassert PCIe cold reset */
     tmp = ioread32(PCIE_ESR + PCIE_ESR_PSHIRE_RESET_ADDRESS);
@@ -388,6 +396,11 @@ static void pcie_init_bars(void)
 
     /* Wait to init iATUs until BAR addresses are assigned - see PCIe_initATUs. */
 
+    /* Set Class Code to be Processing Accelerator */
+    /* Details https://pcisig.com/sites/default/files/files/PCI_Code-ID_r_1_11__v24_Jan_2019.pdf  */
+      iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_AXI_SLAVE_PF0_TYPE0_HDR_CLASS_CODE_REVISION_ID_ADDRESS,
+         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_CLASS_CODE_REVISION_ID_BASE_CLASS_CODE_SET(0x12));
+
     miscControl =
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_DBI_RO_WR_EN_MODIFY(
             miscControl, 0);
@@ -437,10 +450,6 @@ static void pcie_init_ints(void)
 static void pcie_init_link(void)
 {
     uint32_t tmp;
-
-    /*  Setup FSM tracker per Synopsis testbench */
-    iowrite32(PCIE_CUST_SS + DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_FSM_TRACK_1_ADDRESS,
-              0xCC);
 
     /* Configure PCIe LTSSM phase 2 equalization behavior.
        All values below provided by James Yu 2019-06-19 */
@@ -494,15 +503,22 @@ static void pcie_init_link(void)
               tmp);
 
     /* Wait for link training to finish*/
-    Log_Write(LOG_LEVEL_CRITICAL, "Link training...");
+    Log_Write(LOG_LEVEL_DEBUG, "Link training...");
     do
     {
         tmp = ioread32(PCIE_CUST_SS +
                        DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
     } while (DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_SMLH_LTSSM_STATE_GET(
                  tmp) != SMLH_LTSSM_STATE_LINK_UP);
-    Log_Write(LOG_LEVEL_CRITICAL, "done\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "done\r\n");
 }
+
+void perstn_deassert_handler(void)
+{
+   /* Reinitialize the Link in case PERST_N is deasserted by Host */
+   initialize_link(); 
+}
+
 /*! \def CONFIG_INBOUND_IATU
     \brief  See DWC_pcie_ctl_dm_databook section 3.10.11
             Since the regmap codegen does not make an array of iATU registers, parameterize with macros */

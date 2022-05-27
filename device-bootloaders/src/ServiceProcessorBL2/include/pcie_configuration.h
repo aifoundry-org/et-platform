@@ -221,4 +221,18 @@ int PCIe_Phy_Firmware_Update (const uint64_t* image);
 */
 int PCIE_Init_Status(void);
 
+/*! \fn void perstn_deassert_handler(void)
+    \brief PERST_N deassertion handler
+    \param None
+    \returns N/A 
+*/
+void perstn_deassert_handler(void);
+
+/*! \fn void initialize_link(void)
+    \brief PCIe Link initialization routine 
+    \param None
+    \returns N/A 
+*/
+void initialize_link(void);
+
 #endif
