@@ -642,10 +642,6 @@ int et_handle_device_event(struct et_cqueue *cq,
 		atomic64_inc(
 			&et_dev->mgmt.err_stats[ET_ERR_STATS_SP_WDOG_UCE_COUNT]);
 		break;
-		//TODO SW-12608: Add SP stats parsing support in event handler
-	case DEV_MGMT_API_MID_SP_OP_STATS_EVENT:
-		dbg_msg.desc = "SP Stats event received";
-		break;
 	default:
 		dbg_msg.desc = "Un-Supported Event MSG ID";
 		dev_err(&pdev->dev,
