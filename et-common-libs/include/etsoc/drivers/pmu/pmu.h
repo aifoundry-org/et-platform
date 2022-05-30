@@ -70,8 +70,9 @@ enum hpm_counter {
 #define PMU_NEIGH_COUNTERS_PER_HART  2
 #define PMU_SC_COUNTERS_PER_BANK     3
 #define PMU_MS_COUNTERS_PER_MS       3
-#define PMU_MS_COUNTERS_CONTROL_SHIRE 0 /* ID of the Minion Shire responsible for configuration and reset on MS PMCs */
-#define PMU_MEM_SHIRE_COUNT          8
+#define PMU_MS_COUNTERS_CONTROL_SHIRE \
+    0 /* ID of the Minion Shire responsible for configuration and reset on MS PMCs */
+#define PMU_MEM_SHIRE_COUNT 8
 
 // Thread in neigh that does all the PMC configuration, starting / topping and sampling
 // There is a 1-1 neigh-bank mapping. Only 1 hread needs to do that to avoid races as the CTL_STATUS register is shared

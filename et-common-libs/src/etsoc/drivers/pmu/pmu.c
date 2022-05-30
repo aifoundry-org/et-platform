@@ -128,7 +128,8 @@ int64_t reset_ms_pmcs_all(void)
     uint64_t hart_id = get_hart_id();
     uint64_t neigh_id = (hart_id >> 4) & 0x3;
     uint64_t shire_id = (hart_id >> 6) & 0x1F;
-    uint64_t reset_ms_harts = (shire_id == PMU_MS_COUNTERS_CONTROL_SHIRE) && (neigh_id == 3) && ((hart_id & 0xF) == NEIGH_HART_MS);
+    uint64_t reset_ms_harts = (shire_id == PMU_MS_COUNTERS_CONTROL_SHIRE) && (neigh_id == 3) &&
+                              ((hart_id & 0xF) == NEIGH_HART_MS);
 
     if (reset_ms_harts)
     {

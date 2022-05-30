@@ -6,48 +6,48 @@ extern "C" {
 #endif
 /* TODO: Legacy definitions to be removed */
 // From U-mode to S-mode for compute firmware [300-399]
-#define SYSCALL_CACHE_CONTROL        301
-#define SYSCALL_FLUSH_L3             302
-#define SYSCALL_SAMPLE_PMCS          309
-#define SYSCALL_RESET_PMCS           310
+#define SYSCALL_CACHE_CONTROL 301
+#define SYSCALL_FLUSH_L3      302
+#define SYSCALL_SAMPLE_PMCS   309
+#define SYSCALL_RESET_PMCS    310
 
 /* SYSCALL IDs for syscalls from U-Mode */
 /* Range (0-127) dedicated for syscalls allowed from U-Mode */
-#define SYSCALL_UMODE_THRESHOLD         0
-#define SYSCALL_CACHE_OPS_EVICT_SW      (SYSCALL_UMODE_THRESHOLD + 1)
-#define SYSCALL_CACHE_OPS_FLUSH_SW      (SYSCALL_UMODE_THRESHOLD + 2)
-#define SYSCALL_CACHE_OPS_LOCK_SW       (SYSCALL_UMODE_THRESHOLD + 3)
-#define SYSCALL_CACHE_OPS_UNLOCK_SW     (SYSCALL_UMODE_THRESHOLD + 4)
-#define SYSCALL_CACHE_OPS_INVALIDATE    (SYSCALL_UMODE_THRESHOLD + 5)
-#define SYSCALL_CACHE_OPS_EVICT_L1      (SYSCALL_UMODE_THRESHOLD + 6)
-#define SYSCALL_SHIRE_CACHE_BANK_OP     (SYSCALL_UMODE_THRESHOLD + 7)
-#define SYSCALL_RETURN_FROM_KERNEL      (SYSCALL_UMODE_THRESHOLD + 8)
-#define SYSCALL_PMC_SC_SAMPLE           (SYSCALL_UMODE_THRESHOLD + 9)
-#define SYSCALL_PMC_MS_SAMPLE           (SYSCALL_UMODE_THRESHOLD + 10)
-#define SYSCALL_UMODE_THRESHOLD_LIMIT   127
+#define SYSCALL_UMODE_THRESHOLD       0
+#define SYSCALL_CACHE_OPS_EVICT_SW    (SYSCALL_UMODE_THRESHOLD + 1)
+#define SYSCALL_CACHE_OPS_FLUSH_SW    (SYSCALL_UMODE_THRESHOLD + 2)
+#define SYSCALL_CACHE_OPS_LOCK_SW     (SYSCALL_UMODE_THRESHOLD + 3)
+#define SYSCALL_CACHE_OPS_UNLOCK_SW   (SYSCALL_UMODE_THRESHOLD + 4)
+#define SYSCALL_CACHE_OPS_INVALIDATE  (SYSCALL_UMODE_THRESHOLD + 5)
+#define SYSCALL_CACHE_OPS_EVICT_L1    (SYSCALL_UMODE_THRESHOLD + 6)
+#define SYSCALL_SHIRE_CACHE_BANK_OP   (SYSCALL_UMODE_THRESHOLD + 7)
+#define SYSCALL_RETURN_FROM_KERNEL    (SYSCALL_UMODE_THRESHOLD + 8)
+#define SYSCALL_PMC_SC_SAMPLE         (SYSCALL_UMODE_THRESHOLD + 9)
+#define SYSCALL_PMC_MS_SAMPLE         (SYSCALL_UMODE_THRESHOLD + 10)
+#define SYSCALL_UMODE_THRESHOLD_LIMIT 127
 
 /* SYSCALL IDs for syscalls from U-Mode */
 /* Range (128-511) dedicated for syscalls allowed from S-Mode */
-#define SYSCALL_SMODE_THRESHOLD         128
-#define SYSCALL_SMODE_THRESHOLD_LIMIT   512
+#define SYSCALL_SMODE_THRESHOLD       128
+#define SYSCALL_SMODE_THRESHOLD_LIMIT 512
 
 /* SYSCALL error codes */
-#define SYSCALL_SUCCESS                  0
-#define SYSCALL_INVALID_ID              -1
+#define SYSCALL_SUCCESS    0
+#define SYSCALL_INVALID_ID -1
 
 /* Kernel return types. Must be kept synced with FW.
 TODO: Need a separate header for it? */
-#define KERNEL_RETURN_SUCCESS            0
-#define KERNEL_RETURN_SELF_ABORT         1
-#define KERNEL_RETURN_SYSTEM_ABORT       2
-#define KERNEL_RETURN_EXCEPTION          3
+#define KERNEL_RETURN_SUCCESS      0
+#define KERNEL_RETURN_SELF_ABORT   1
+#define KERNEL_RETURN_SYSTEM_ABORT 2
+#define KERNEL_RETURN_EXCEPTION    3
 
 #ifndef __ASSEMBLER__
 
 #include <stdint.h>
 
-static inline __attribute__((always_inline)) int64_t syscall(uint64_t syscall, uint64_t arg1,
-                                                             uint64_t arg2, uint64_t arg3)
+static inline __attribute__((always_inline)) int64_t syscall(
+    uint64_t syscall, uint64_t arg1, uint64_t arg2, uint64_t arg3)
 {
     register uint64_t a0 asm("a0") = syscall;
     register uint64_t a1 asm("a1") = arg1;
