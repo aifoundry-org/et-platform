@@ -67,8 +67,6 @@ static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en);
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
 {
     int64_t ret = SYSCALL_INTERNAL_SUCCESS;
-    volatile const uint64_t *const mtime_reg =
-        (volatile const uint64_t *const)(R_PU_RVTIM_BASEADDR);
 
     /* List of syscalls handled in fast-path (assembly):
      *   SYSCALL_IPI_TRIGGER_INT(uint64_t hart_mask, uint64_t shire_id)
@@ -86,9 +84,6 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         case SYSCALL_POST_KERNEL_CLEANUP_INT:
             ret = post_kernel_cleanup(arg1);
             break;
-        case SYSCALL_GET_MTIME_INT:
-            ret = (int64_t)*mtime_reg;
-            break;
         case SYSCALL_CACHE_CONTROL_INT:
             ret = set_l1_cache_control(arg1, arg2);
             break;
@@ -100,15 +95,6 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
             break;
         case SYSCALL_SHIRE_CACHE_BANK_OP_INT:
             ret = shire_cache_bank_op_with_params(arg1, arg2, arg3);
-            break;
-        case SYSCALL_CONFIGURE_PMCS_INT:
-            ret = configure_pmcs(arg1, arg2);
-            break;
-        case SYSCALL_SAMPLE_PMCS_INT:
-            ret = sample_pmcs(arg1, arg2);
-            break;
-        case SYSCALL_RESET_PMCS_INT:
-            ret = reset_pmcs();
             break;
         case SYSCALL_CONFIGURE_COMPUTE_MINION:
             ret = configure_compute_minion(arg1, arg2);
@@ -309,8 +295,8 @@ static int64_t pre_kernel_setup(uint64_t thread1_enable_mask, uint64_t first_wor
         asm volatile("csrw cache_invalidate, 1");
     }
 
-    /* Reset the PMCs. Details of which hart resets which PMC can be found in PMU component */
-    reset_pmcs();
+    /* Reset Minion Neighborhood PMCs. Details of which hart resets which PMC can be found in PMU component */
+    reset_minion_neigh_pmcs_all();
 
     return SYSCALL_INTERNAL_SUCCESS;
 }

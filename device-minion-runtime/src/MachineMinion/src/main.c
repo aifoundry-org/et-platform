@@ -55,7 +55,7 @@ static inline void initialize_scp(uint32_t shire_id)
     __asm__ __volatile__("fence iorw, iorw\n");
 }
 
-static inline void mm_setup_default_pmcs(uint32_t hart_id)
+static inline void mm_setup_default_pmcs(uint32_t shire_id, uint32_t hart_id)
 {
     /* Enable counter in 1st core of the neighborhood only. */
     if ((hart_id % 16 == 0) || (hart_id % 16 == 1))
@@ -77,7 +77,6 @@ static inline void mm_setup_default_pmcs(uint32_t hart_id)
             configure_sc_pmcs(PMU_SC_CTL_STATUS_MASK, PMU_SC_L2_READS, PMU_SC_L2_WRITES);
 
             uint64_t neigh_id = (hart_id >> 4) & 0x3;
-            uint64_t shire_id = (hart_id >> 6) & 0x1F;
 
             /* Start Shire Cache PMC counters */
             pmu_shire_cache_counter_start(shire_id, neigh_id, PMU_SC_CYCLE_PMC);
@@ -86,10 +85,20 @@ static inline void mm_setup_default_pmcs(uint32_t hart_id)
         }
     }
 
-    /* A single hart in shires 0-7 programs the PMCs of mem shires 0-7 */
-    if (((hart_id & 0xF) == NEIGH_HART_MS) && (get_shire_id() < 8) && (get_neighborhood_id() == 3))
+    /* A single hart programs the PMCs of mem shires 0-7 */
+    if ((shire_id == PMU_MS_COUNTERS_CONTROL_SHIRE) && (get_neighborhood_id() == 3) &&
+        ((hart_id & 0xF) == NEIGH_HART_MS))
     {
-        configure_ms_pmcs(PMU_MS_CTL_STATUS_MASK, PMU_MS_MESH_READS, PMU_MS_MESH_WRITES, 0, 0);
+        for (uint8_t ms_idx = 0; ms_idx < PMU_MEM_SHIRE_COUNT; ms_idx++)
+        {
+            configure_ms_pmcs(
+                ms_idx, PMU_MS_CTL_STATUS_MASK, PMU_MS_MESH_READS, PMU_MS_MESH_WRITES, 0, 0);
+
+            /* Start the counters */
+            pmu_memshire_event_start(ms_idx, PMU_MS_CYCLE_PMC);
+            pmu_memshire_event_start(ms_idx, PMU_MS_PMC0);
+            pmu_memshire_event_start(ms_idx, PMU_MS_PMC1);
+        }
     }
 
     /********************************************/
@@ -105,8 +114,10 @@ static inline void mm_setup_default_pmcs(uint32_t hart_id)
     /* Configure mhpmevent6 for each hart to count L2 miss req */
     pmu_core_event_configure(PMU_MHPMEVENT6, PMU_MINION_EVENT_L2_MISS_REQ);
 
-    /* Reset the PMCs. Detatils of which hart resets which PMC can be found in PMU component */
-    reset_pmcs();
+    /* Reset all the PMCs. Details of which hart resets which PMC can be found in PMU component */
+    reset_minion_neigh_pmcs_all();
+    reset_sc_pmcs_all();
+    reset_ms_pmcs_all();
 }
 
 void __attribute__((noreturn)) main(void)
@@ -143,7 +154,7 @@ void __attribute__((noreturn)) main(void)
     asm volatile("csrw mcounteren, %0\n" : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
 
     /* Setup the default events for PMCs */
-    mm_setup_default_pmcs(hart_id);
+    mm_setup_default_pmcs(shire_id, hart_id);
 
     /* First HART every shire, master or worker */
     if (hart_id % 64 == 0)
