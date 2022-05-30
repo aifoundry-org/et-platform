@@ -65,16 +65,13 @@ enum hpm_counter {
 #define PMU_MHPMCOUNTER7 0xB07
 #define PMU_MHPMCOUNTER8 0xB08
 
-// Constants used to index inside PMC configuration buffer
-// NOTE: THIS IS DEPRECATED. IMPLEMENTATION DETAILS OF THE OLD PMC TRACING CODE
+// Constants used in PMU APIs
 #define PMU_MINION_COUNTERS_PER_HART 4
 #define PMU_NEIGH_COUNTERS_PER_HART  2
 #define PMU_SC_COUNTERS_PER_BANK     3
-#define PMU_EVENT_SHIRE_AREA \
-    (PMU_MINION_COUNTERS_PER_HART * 2 + PMU_NEIGH_COUNTERS_PER_HART * 2 + PMU_SC_COUNTERS_PER_BANK)
-#define NUM_SHIRES_PMC            33
-#define PMU_EVENT_MEMSHIRE_OFFSET (PMU_EVENT_SHIRE_AREA * NUM_SHIRES_PMC)
-#define PMU_MS_COUNTERS_PER_MS    5
+#define PMU_MS_COUNTERS_PER_MS       3
+#define PMU_MS_COUNTERS_CONTROL_SHIRE 0 /* ID of the Minion Shire responsible for configuration and reset on MS PMCs */
+#define PMU_MEM_SHIRE_COUNT          8
 
 // Thread in neigh that does all the PMC configuration, starting / topping and sampling
 // There is a 1-1 neigh-bank mapping. Only 1 hread needs to do that to avoid races as the CTL_STATUS register is shared
@@ -496,22 +493,25 @@ static inline void pmu_memshire_event_set(uint64_t ms_id, uint64_t val)
 }
 
 // Reset a memshire PMC
+// It directly sets the counter value to zero. It does not make use of reset bit in ESR control register
+// because to take affect it needs to start the counter
 static inline void pmu_memshire_event_reset(uint64_t ms_id, uint64_t pmc)
 {
-    uint64_t *ms_pmc_ctrl_addr =
-        (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CTL_STATUS);
-    uint64_t init_val = *ms_pmc_ctrl_addr;
+    uint64_t *ms_pmc_addr = 0;
     if (pmc == PMU_MS_CYCLE_PMC)
     {
-        *ms_pmc_ctrl_addr = init_val | PMU_MS_RESET_CYCLE_CNT_CTRL;
+        ms_pmc_addr = (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_CYC_CNTR);
+        *ms_pmc_addr = 0;
     }
     else if (pmc == PMU_MS_PMC0)
     {
-        *ms_pmc_ctrl_addr = init_val | PMU_MS_RESET_P0_CTRL;
+        ms_pmc_addr = (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_P0_CNTR);
+        *ms_pmc_addr = 0;
     }
     else if (pmc == PMU_MS_PMC1)
     {
-        *ms_pmc_ctrl_addr = init_val | PMU_MS_RESET_P1_CTRL;
+        ms_pmc_addr = (uint64_t *)ESR_DDRC(MEMSHIRE_SHIREID(ms_id), DDRC_PERFMON_P1_CNTR);
+        *ms_pmc_addr = 0;
     }
 }
 
@@ -580,15 +580,14 @@ static inline uint64_t pmu_memshire_event_sample(uint64_t ms_id, uint64_t pmc)
     return val;
 }
 
-// NOTE: THIS IS DEPRECATED
-int64_t configure_pmcs(uint64_t reset_counters, uint64_t conf_area_addr);
 int64_t configure_sc_pmcs(uint64_t ctl_status_cfg, uint64_t pmc0_cfg, uint64_t pmc1_cfg);
-int64_t configure_ms_pmcs(uint64_t ctl_status_cfg, uint64_t ddrc_perfmon_p0_qual,
+int64_t configure_ms_pmcs(uint64_t ms_id, uint64_t ctl_status_cfg, uint64_t ddrc_perfmon_p0_qual,
     uint64_t ddrc_perfmon_p1_qual, uint64_t ddrc_perfmon_p0_qual2, uint64_t ddrc_perfmon_p1_qual2);
-int64_t sample_pmcs(uint64_t reset_counters, uint64_t log_buffer_addr);
 uint64_t sample_sc_pmcs(uint64_t shire_id, uint64_t neigh_id, uint64_t pmc);
-uint64_t sample_ms_pmcs(uint64_t shire_id, uint64_t pmc);
-int64_t reset_pmcs(void);
+uint64_t sample_ms_pmcs(uint64_t ms_id, uint64_t pmc);
+int64_t reset_minion_neigh_pmcs_all(void);
+int64_t reset_sc_pmcs_all(void);
+int64_t reset_ms_pmcs_all(void);
 
 /*TODO: This time(cycles) stamping infrastructure does not account for
 64 bit wrap at this time, should be improved, a proper time_stamping API

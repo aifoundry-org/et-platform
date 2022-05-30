@@ -8,10 +8,6 @@ extern "C" {
 // From U-mode to S-mode for compute firmware [300-399]
 #define SYSCALL_CACHE_CONTROL        301
 #define SYSCALL_FLUSH_L3             302
-#define SYSCALL_EVICT_L1             304
-#define SYSCALL_LOG_WRITE            305
-#define SYSCALL_GET_MTIME            307
-#define SYSCALL_CONFIGURE_PMCS       308 // emizan: This should not be used but I am adding it for testing with hardcoded values.
 #define SYSCALL_SAMPLE_PMCS          309
 #define SYSCALL_RESET_PMCS           310
 
