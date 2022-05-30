@@ -214,7 +214,7 @@ void MemoryManager::checkOperation(const std::byte* address, size_t size) const 
   }
   --it;
 
-  while (lastBlock > it->first + it->second) {
+  while (lastBlock >= it->first + it->second) {
     auto next = it;
     if (++next == end(allocated_) || it->first + it->second != next->first) {
       throwException();

@@ -278,7 +278,6 @@ TEST(MemoryManager, malloc_free_holes) {
 }
 
 TEST(MemoryManager, check_operation) {
-  return;
   auto totalRam = 1UL << 34;
   auto startAddress = 1UL << 12;
   for (auto blockSize : {128U, 1024U, 2048U, 4096U}) {
