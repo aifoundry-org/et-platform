@@ -9,17 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Added CHANGELOG.md
-- Added a MM2CM message to dump the context of a thread
-- Added exception and abort mask in CM2MM kernel complete command.
-- Added a interface change in PMC sampling syscall
+- New APIs in PMU to reset each type of PMCs.
 ### Changed
-- (Conan) Use conan-common get_version_from_cmake_project
+- configure_ms_pmcs() signature.
 ### Deprecated
 ### Removed
-- Removed FW boot config memory space
+- Deprecated APIs from PMU.
+- Deprecated Syscalls.
 ### Fixed
 - (Conan) Recipe compatible with Conan >= 1.46.0
+### Security
+
+## [0.0.6] - 2022-5-30
+### Added
+### Changed
+- Changed the interface of PMC sampling syscall
+### Deprecated
+### Removed
+### Fixed
 ### Security
 
 ## [0.4.0] - 2022-3-06
