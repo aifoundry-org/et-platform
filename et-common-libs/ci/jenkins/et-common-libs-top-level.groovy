@@ -96,25 +96,9 @@ pipeline {
       stages {
         stage('CHECKOUT_SCM') {
           steps {
-            updateGitlabCommitStatus name: JOB_NAME, state: 'pending'
             script {
-              def seconds = -1
-              retry(8) {
-                seconds = seconds * 2 + 2
-                sleep(time: seconds, unit: "SECONDS")
-                scm_variables = checkout([
-                  $class: 'GitSCM',
-                  branches: [[name: BRANCH]],
-                  doGenerateSubmoduleConfigurations: false,
-                  extensions: [],
-                  submoduleCfg: [],
-                  userRemoteConfigs: [[
-                    credentialsId: 'aws_private_key',
-                    url: "${REPO_SSH_URL}"
-                  ]]
-                ])
-                env.GIT_COMMIT = scm_variables.get('GIT_COMMIT')
-              }
+              currentBuild.getRawBuild().getExecutor().interrupt(Result.UNSTABLE)
+              sleep(1)   // Interrupt is not blocking and does not take effect immediately.
             }
           }
         }
@@ -177,183 +161,6 @@ pipeline {
             }
           }
         }
-        stage('CHECK_IN') {
-          steps {
-            script {
-              if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/system-sw-integration/pipelines/device-firmware-checkin-tests', COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}")) {
-                script {
-                  def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}", JOB_NAME: 'sw-platform/system-sw-integration/pipelines/device-firmware-checkin-tests')
-                  build job:
-                    'sw-platform/system-sw-integration/pipelines/device-firmware-checkin-tests',
-                    propagate: true,
-                    parameters: [
-                      string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                      string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"),
-                      booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                      string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
-                      string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                    ]
-                }
-              }
-            }
-          }
-        }
-        stage('PARALLEL1') {
-          parallel {
-            stage('CLANG_CHECK') {
-              steps {
-                script {
-                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/system-sw-integration/pipelines/et-common-libs-clang-tests', COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}")) {
-                    script {
-                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}", JOB_NAME: 'sw-platform/system-sw-integration/pipelines/et-common-libs-clang-tests')
-                      build job:
-                        'sw-platform/system-sw-integration/pipelines/et-common-libs-clang-tests',
-                        propagate: true,
-                        parameters: [
-                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"),
-                          string(name: 'NODE', value: 'WORKER'),
-                          string(name: 'TIMEOUT', value: '1'),
-                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
-                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                        ]
-                    }
-                  }
-                }
-              }
-            }
-            stage('FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU') {
-              steps {
-                script {
-                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev', COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}")) {
-                    script {
-                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev')
-                      build job:
-                        'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev',
-                        propagate: true,
-                        parameters: [
-                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"),
-                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
-                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                        ]
-                    }
-                  }
-                }
-              }
-            }
-            stage('FIRMWARE_TESTS_ZEBU_BEMU') {
-              steps {
-                script {
-                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/system-sw-integration/pipelines/firmware-tests-zebu-bemu', COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}")) {
-                    script {
-                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}", JOB_NAME: 'sw-platform/system-sw-integration/pipelines/firmware-tests-zebu-bemu')
-                      build job:
-                        'sw-platform/system-sw-integration/pipelines/firmware-tests-zebu-bemu',
-                        propagate: true,
-                        parameters: [
-                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"),
-                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
-                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                        ]
-                    }
-                  }
-                }
-              }
-            }
-            stage('JOB_CODE_QUALITY') {
-              steps {
-                script {
-                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/code-analysis/et-common-libs-sonarqube', COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}")) {
-                    script {
-                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}", JOB_NAME: 'sw-platform/code-analysis/et-common-libs-sonarqube')
-                      build job:
-                        'sw-platform/code-analysis/et-common-libs-sonarqube',
-                        propagate: true,
-                        parameters: [
-                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                          string(name: 'GITLAB_SOURCE_BRANCH', value: "${env.gitlabSourceBranch}"),
-                          string(name: 'GITLAB_TARGET_BRANCH', value: "${env.gitlabTargetBranch}"),
-                          string(name: 'GITLAB_MR_ID', value: "${env.gitlabMergeRequestIid}"),
-                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"),
-                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
-                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                        ]
-                    }
-                  }
-                }
-              }
-            }
-            stage('JOB_DEVICE_ARTIFACTS') {
-              steps {
-                script {
-                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/system-sw-integration/pipelines/device-software-build', COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}")) {
-                    script {
-                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}", JOB_NAME: 'sw-platform/system-sw-integration/pipelines/device-software-build')
-                      build job:
-                        'sw-platform/system-sw-integration/pipelines/device-software-build',
-                        propagate: true,
-                        parameters: [
-                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"),
-                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
-                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                        ]
-                    }
-                  }
-                }
-              }
-            }
-            stage('JOB_RUNTIME') {
-              steps {
-                script {
-                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release', COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}")) {
-                    script {
-                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}", JOB_NAME: 'sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release')
-                      build job:
-                        'sw-platform/runtime-integration/pipelines/runtime-checkin-tests-release',
-                        propagate: true,
-                        parameters: [
-                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"),
-                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
-                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                        ]
-                    }
-                  }
-                }
-              }
-            }
-            stage('SW_PLATFORM_BASIC_INTEGRATION') {
-              steps {
-                script {
-                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration', COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}")) {
-                    script {
-                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}", JOB_NAME: 'sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration')
-                      build job:
-                        'sw-platform/tools-and-utils/pipelines/sw-platform-basic-integration',
-                        propagate: true,
-                        parameters: [
-                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/et-common-libs:${BRANCH}"),
-                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
-                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                        ]
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
       }
     }
   }
@@ -368,7 +175,11 @@ pipeline {
     }
     success {
       timeout(time: 1, unit: 'HOURS') {
-        updateGitlabCommitStatus name: JOB_NAME, state: 'success'
+        script {
+          if (! env.PIPELINE_TAGS.contains('NIGHTLY')) {
+            updateGitlabCommitStatus name: JOB_NAME, state: 'success'
+          }
+        }
         script {
             if (env.EMAIL_CI_AUTHORS == 'true') {
               if (env.gitlabUserName) {
@@ -413,7 +224,11 @@ pipeline {
     }
     failure {
       timeout(time: 1, unit: 'HOURS') {
-        updateGitlabCommitStatus name: JOB_NAME, state: 'failed'
+        script {
+          if (! env.PIPELINE_TAGS.contains('NIGHTLY')) {
+            updateGitlabCommitStatus name: JOB_NAME, state: 'failed'
+          }
+        }
         script {
             if (env.EMAIL_CI_AUTHORS == 'true') {
               if (env.gitlabUserName) {
@@ -458,7 +273,11 @@ pipeline {
     }
     aborted {
       timeout(time: 1, unit: 'HOURS') {
-        updateGitlabCommitStatus name: JOB_NAME, state: 'canceled'
+        script {
+          if (! env.PIPELINE_TAGS.contains('NIGHTLY')) {
+            updateGitlabCommitStatus name: JOB_NAME, state: 'canceled'
+          }
+        }
         script {
             if (env.EMAIL_CI_AUTHORS == 'true') {
               if (env.gitlabUserName) {

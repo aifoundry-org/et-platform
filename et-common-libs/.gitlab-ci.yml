@@ -1,9 +1,16 @@
 include:
   - project: 'software/gitlab-ci-common'
-    ref: eaa145e684411db579462b41feb7736c6ed0028c
+    ref: 8326ae83ae1898ef764068693962e2239d65ab26
     file:
-      - 'pods/nano-pod.yaml'
-      - 'jobs/generic-k8s-job.yaml'
+      - rules/generic-workflow.yaml
+      - pods/nano-pod.yaml
+      - pods/medium-pod.yaml
+      - pods/large-pod.yaml
+      - jobs/generic-k8s-job.yaml
+      - jobs/sonarqube-job.yaml
+      - rules/exec_maybe_interactively.yaml
+      - jobs/check-top-of-master.yaml
+      - jobs/sw-platform-trigger.yaml
 
   - project: 'software/gitlab-ci-common'
     ref: master
@@ -16,6 +23,32 @@ stages:
   - test
   - deploy
 
+default:
+  interruptible: true
+
+variables:
+  # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
+  # SW_PLATFORM_BRANCH: develop/system-sw
+  # set to gferrer/SW-11510 while the changes in that branch (which are necessary
+  # for this branch of et-common-libs) aren't merged into develop/system-sw
+  SW_PLATFORM_BRANCH: gferrer/SW-11510
+  PIPELINE_CI_SUBPROJECT: et-common-libs
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+clang-format:
+  extends:
+    - .template_job
+    - .pod_nano
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.3.0
+  stage: .pre
+  variables:
+    CMD_SCRIPT: |
+      git fetch origin master
+      git clang-format --style file --diff origin/master --extensions c,h
+      git clang-format --style file --diff origin/master --extensions c,h | grep -q -e "clang-format did not modify any files$" -e "^no modified files to format$"
 
 ###############################################################################
 ###############################################################################
@@ -35,7 +68,7 @@ generate_build:conan:
       cd conan
       python3 -m ci_build
   artifacts:
-    expire_in: 1h 
+    expire_in: 1d
     paths:
       - conan/build_pipeline.yml
       - conan/lockfiles_info.json
@@ -45,6 +78,8 @@ generate_build:conan:
 ###############################################################################
 
 build:conan:
+  extends:
+    - .exec_maybe_interactively
   needs:
   - generate_build:conan
   stage: build
@@ -58,7 +93,10 @@ build:conan:
 ###############################################################################
 ###############################################################################
 
-# tests would go here
+# integration testing with sw-platform
+#
+# This is automatically done thanks to this included file:
+#   /jobs/sw-platform-trigger.yaml
 
 ###############################################################################
 ###############################################################################
@@ -73,6 +111,7 @@ on_success:promote:
   needs:
     - generate_build:conan
     - build:conan
+    - meta-trigger
   variables:
     PYTHONIOENCODING: utf-8
     CMD_BUILD: |
