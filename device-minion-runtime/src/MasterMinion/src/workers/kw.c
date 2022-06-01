@@ -1304,7 +1304,6 @@ void KW_Launch(uint32_t kw_idx)
 {
     bool wait_for_ipi = true;
     bool kw_abort_serviced;
-    uint32_t cm_stat_index = STATW_INIT_SAMPLE_INDEX;
     uint8_t local_sqw_idx;
     uint16_t tag_id;
     int32_t status;
@@ -1457,9 +1456,9 @@ void KW_Launch(uint32_t kw_idx)
         status = Host_Iface_CQ_Push_Cmd(0, launch_rsp, rsp_size);
 #endif
 
-        /* Save kernel running time for stats Trace. */
-        cm_stat_index = STATW_Add_Resource_Utilization_Sample(
-            STATW_RESOURCE_CM, launch_rsp->device_cmd_execute_dur, cm_stat_index);
+        /* Update kernel running time for stats Trace. Reporting unit is kernels/second */
+        STATW_Add_New_Sample_Atomically(
+            STATW_RESOURCE_CM, (STATW_MINION_FREQ / launch_rsp->device_cmd_execute_dur));
 
         if (status == STATUS_SUCCESS)
         {

@@ -39,18 +39,53 @@
 #include "workers/statw.h"
 #include "workers/kw.h"
 
+/*! \def STATW_ADD_NEW_SAMPLE(resource, current_sample)
+    \brief Helper macro to add new sample into stats. It re-calculates the average, min, and max each time.
+    NOTE: It writes into L1 memory.
+*/
+#define STATW_ADD_NEW_SAMPLE(resource, current_sample)                                             \
+    /* Calculate commutative moving average. */                                                    \
+    resource.avg =                                                                                 \
+        (current_sample + (STATW_CMA_SAMPLE_COUNT * resource.avg)) / (STATW_CMA_SAMPLE_COUNT + 1); \
+    resource.min = MIN(resource.min, current_sample);                                              \
+    resource.max = MAX(resource.max, current_sample);
+
+/*! \def STATW_PMU_REQ_COUNT_TO_MBPS
+    \brief Helper macro to convert request count to PMU to MB/Sec.
+           It assumes that every request is 64 bytes long. And sampling interval unit is milliseconds.
+*/
+#define STATW_PMU_REQ_COUNT_TO_MBPS(req_count)                \
+    ((req_count * CACHE_LINE_SIZE * STATW_NUM_OF_MS_IN_SEC) / \
+        (STATW_SAMPLING_INTERVAL * STATW_NUM_OF_BYTES_IN_1MB))
+
+/*! \def STATW_SAMPLING_FLAG_SET
+    \brief Helper macro to set sampling flag
+*/
+#define STATW_SAMPLING_FLAG_SET 1U
+
+/*! \def STATW_SAMPLING_FLAG_CLEAR
+    \brief Helper macro to clear sampling flag
+*/
+#define STATW_SAMPLING_FLAG_CLEAR 0U
+
 #define UNUSED_SYSCALL_ARGS 0
 
 /*! \typedef statw_cb
     \brief Device statistics worker control block
 */
 typedef struct {
-    uint64_t cm_utilization[STATW_CMA_SAMPLE_COUNT];
-    uint64_t dma_read_utilization[STATW_CMA_SAMPLE_COUNT];
-    uint64_t dma_write_utilization[STATW_CMA_SAMPLE_COUNT];
+    resource_value pcie_dma_read_bw; /* Reserve whole cache line for this to reduce the serialization
+                                         among Worker Harts reading/writing on same cache line */
+    uint64_t pad1[5];
+    resource_value pcie_dma_write_bw; /* Reserve whole cache line for this to reduce the serialization
+                                         among Worker Harts reading/writing on same cache line */
+    uint64_t pad2[5];
+    resource_value cm_utilization; /* Reserve whole cache line for this to reduce the serialization
+                                         among Worker Harts reading/writing on same cache line */
+    uint64_t pad3[5];
     uint32_t sampling_flag;
     uint8_t pad[4];
-} statw_cb;
+} __attribute__((packed, aligned(8))) statw_cb;
 
 /*! \var STATW_CB
     \brief Global Stat Worker Control Block
@@ -63,160 +98,145 @@ static void statw_sample_device_stats_callback(uint8_t arg)
     (void)arg;
 
     /* Set the flag to sample device stats. */
-    atomic_store_local_32(&STATW_CB.sampling_flag, 1);
-}
-
-static void calculate_avg_min_max(
-    resource_value *resource, const uint64_t *sample_array, uint32_t sample_count)
-{
-    uint64_t sum = 0;
-
-    if (sample_count > 0)
-    {
-        /* Initialize min and max with first sample. */
-        resource->max = sample_array[0];
-        resource->min = sample_array[0];
-
-        /* Calculate sum, min, max on rest of samples */
-        for (uint32_t sample = 0; sample < sample_count; sample++)
-        {
-            sum = sum + sample_array[sample];
-            resource->max = MAX(resource->max, sample_array[sample]);
-            resource->min = MIN(resource->min, sample_array[sample]);
-        }
-
-        resource->avg = sum / sample_count;
-    }
+    atomic_store_local_32(&STATW_CB.sampling_flag, STATW_SAMPLING_FLAG_SET);
 }
 
 /************************************************************************
 *
 *   FUNCTION
 *
-*       calculate_avg_min_max_atomically
+*       read_resource_stats_atomically
 *
 *   DESCRIPTION
 *
-*       This functions is used to get resource utilization stats. It reads
-*       the sample data atomically.
+*       This functions reads back the device stats atomically.
+*       It should only used for stats stored global and L2 memory.
 *
 *   INPUTS
 *
-*       resource_type       Resource for which new sample is to be added.
-*       resource            Place to save stats
+*       resource_type   Resource for which new sample is to be added.
+*       current_sample  Sample data
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-static void calculate_avg_min_max_atomically(
-    statw_resource_type_e resource_type, resource_value *resource)
+static inline void read_resource_stats_atomically(
+    statw_resource_type_e resource_type, resource_value *resource_dest)
 {
-    uint64_t sum;
-    uint64_t current_sample;
+    const resource_value *resource;
 
-    const uint64_t *sample_src;
-
-    /* Get base address of resource data/ */
     if (resource_type == STATW_RESOURCE_CM)
     {
-        sample_src = &STATW_CB.cm_utilization[STATW_CMA_SAMPLE_INDEX_START];
+        resource = &STATW_CB.cm_utilization;
     }
     else if (resource_type == STATW_RESOURCE_DMA_READ)
     {
-        sample_src = &STATW_CB.dma_read_utilization[STATW_CMA_SAMPLE_INDEX_START];
+        resource = &STATW_CB.pcie_dma_read_bw;
     }
     else
     {
-        sample_src = &STATW_CB.dma_write_utilization[STATW_CMA_SAMPLE_INDEX_START];
+        resource = &STATW_CB.pcie_dma_write_bw;
     }
 
-    /* Initialize min and max with first sample. */
-    resource->max = atomic_load_local_64(&sample_src[STATW_CMA_SAMPLE_INDEX_START]);
-    resource->min = resource->max;
-    sum = resource->min;
-
-    /* Calculate sum, min, max on rest of samples */
-    for (uint32_t sample = STATW_CMA_SAMPLE_INDEX_START + 1; sample < STATW_CMA_SAMPLE_COUNT;
-         sample++)
-    {
-        current_sample = atomic_load_local_64(&sample_src[sample]);
-        sum = sum + current_sample;
-        resource->max = MAX(resource->max, current_sample);
-        resource->min = MIN(resource->min, current_sample);
-    }
-
-    resource->avg = sum / STATW_CMA_SAMPLE_COUNT;
+    resource_dest->avg = atomic_load_local_64(&resource->avg);
+    resource_dest->min = atomic_load_local_64(&resource->min);
+    resource_dest->max = atomic_load_local_64(&resource->max);
 }
 
 /************************************************************************
 *
 *   FUNCTION
 *
-*       STATW_Add_Resource_Utilization_Sample
+*       statw_init
 *
 *   DESCRIPTION
 *
 *       This functions adds new sample for resource utilization data.
-*       It puts data into a circular buffer. It automatically overrides
-*       the oldest values in the buffer.
 *
 *   INPUTS
 *
-*       resource_type       Resource for which new sample is to be added.
-*       current_sample      Sample data
-*       index               Index of circular buffer.
-*
+*       resource_type   Resource for which new sample is to be added.
+*       current_sample  Sample data
 *
 *   OUTPUTS
 *
-*       uint32_t            Next index of circular buffer.
+*       None
 *
 ***********************************************************************/
-uint32_t STATW_Add_Resource_Utilization_Sample(
-    statw_resource_type_e resource_type, uint64_t current_sample, uint32_t index)
+void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64_t current_sample)
 {
-    uint32_t next_index = index + 1;
-    uint64_t *sample_dest;
+    resource_value *resource;
 
-    /* Get base address of resource data/ */
     if (resource_type == STATW_RESOURCE_CM)
     {
-        sample_dest = &STATW_CB.cm_utilization[STATW_CMA_SAMPLE_INDEX_START];
+        resource = &STATW_CB.cm_utilization;
     }
     else if (resource_type == STATW_RESOURCE_DMA_READ)
     {
-        sample_dest = &STATW_CB.dma_read_utilization[STATW_CMA_SAMPLE_INDEX_START];
+        resource = &STATW_CB.pcie_dma_read_bw;
     }
     else
     {
-        sample_dest = &STATW_CB.dma_write_utilization[STATW_CMA_SAMPLE_INDEX_START];
+        resource = &STATW_CB.pcie_dma_write_bw;
     }
 
-    /* Put the current data sample into circular buffer. */
-    if (index < STATW_CMA_SAMPLE_INDEX_END)
-    {
-        atomic_store_local_64(&sample_dest[index], current_sample);
-    }
-    else if (index == STATW_CMA_SAMPLE_INDEX_END)
-    {
-        atomic_store_local_64(&sample_dest[STATW_CMA_SAMPLE_INDEX_END], current_sample);
-        next_index = STATW_CMA_SAMPLE_INDEX_START;
-    }
-    else
-    {
-        /* This will be done only once for first sample after bootup.
-           Initialize the the whole array with very first sample.
-           This is done to optimize the number of atomic load/stores.*/
-        for (uint32_t i = 0; i < STATW_CMA_SAMPLE_COUNT; i++)
-        {
-            atomic_store_local_64(&sample_dest[i], current_sample);
-        }
-        next_index = STATW_CMA_SAMPLE_INDEX_START + 1;
-    }
+    /* Calculate commutative moving average. */
+    uint64_t avg = atomic_load_local_64(&resource->avg);
+    avg = (current_sample + (STATW_CMA_SAMPLE_COUNT * avg)) / (STATW_CMA_SAMPLE_COUNT + 1);
+    atomic_store_local_64(&resource->avg, avg);
 
-    return next_index;
+    /* TODO: Use ET HW functionality of atomic Min and Max to reduce the number of atomic operations below. */
+    uint64_t prev_min = atomic_load_local_64(&resource->min);
+    uint64_t prev_max = atomic_load_local_64(&resource->max);
+    atomic_store_local_64(&resource->min, MIN(prev_min, current_sample));
+    atomic_store_local_64(&resource->max, MAX(prev_max, current_sample));
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       statw_init
+*
+*   DESCRIPTION
+*
+*       Initialize Device Stat Worker
+*
+*   INPUTS
+*
+*       local_stats_cb  Local device stats pointer in L1 memory.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void statw_init(device_resources *local_stats_cb)
+{
+    atomic_store_local_64(&STATW_CB.cm_utilization.avg, STATW_RESOURCE_DEFAULT_AVG);
+    atomic_store_local_64(&STATW_CB.cm_utilization.max, STATW_RESOURCE_DEFAULT_MAX);
+    atomic_store_local_64(&STATW_CB.cm_utilization.min, STATW_RESOURCE_DEFAULT_MIN);
+    atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
+    atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.max, STATW_RESOURCE_DEFAULT_MAX);
+    atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.min, STATW_RESOURCE_DEFAULT_MIN);
+    atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
+    atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.max, STATW_RESOURCE_DEFAULT_MAX);
+    atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.min, STATW_RESOURCE_DEFAULT_MIN);
+
+    local_stats_cb->ddr_read_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->ddr_read_bw.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->ddr_read_bw.min = STATW_RESOURCE_DEFAULT_MIN;
+    local_stats_cb->ddr_write_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->ddr_write_bw.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->ddr_write_bw.min = STATW_RESOURCE_DEFAULT_MIN;
+    local_stats_cb->l2_l3_read_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->l2_l3_read_bw.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->l2_l3_read_bw.min = STATW_RESOURCE_DEFAULT_MIN;
+    local_stats_cb->l2_l3_write_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->l2_l3_write_bw.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->l2_l3_write_bw.min = STATW_RESOURCE_DEFAULT_MIN;
 }
 
 /************************************************************************
@@ -240,16 +260,14 @@ uint32_t STATW_Add_Resource_Utilization_Sample(
 ***********************************************************************/
 __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
 {
-    compute_resources_sample data_sample;
-    uint64_t ms_pmc0_samples[NUM_MEM_SHIRES];
-    uint64_t ms_pmc1_samples[NUM_MEM_SHIRES];
-    uint64_t sc_pmc0_samples[NUM_SHIRES][NEIGH_PER_SHIRE];
-    uint64_t sc_pmc1_samples[NUM_SHIRES][NEIGH_PER_SHIRE];
+    device_resources data_sample = { 0 };
+    uint64_t sample;
 
+    statw_init(&data_sample);
     Log_Write(LOG_LEVEL_INFO, "STATW:H[%d]\r\n", hart_id);
 
     /* Initialize the flag to sample device stats. Set the flag to log first sample at the start. */
-    atomic_store_local_32(&STATW_CB.sampling_flag, 1);
+    atomic_store_local_32(&STATW_CB.sampling_flag, STATW_SAMPLING_FLAG_SET);
 
     /* Create timeout to wait for all Compute Workers to boot up */
     int sw_timer_idx =
@@ -264,40 +282,39 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
     while (1)
     {
         /* Check the flag to sample device stats. */
-        if (atomic_compare_and_exchange_local_32(&STATW_CB.sampling_flag, 1, 0))
+        if (atomic_compare_and_exchange_local_32(
+                &STATW_CB.sampling_flag, STATW_SAMPLING_FLAG_SET, STATW_SAMPLING_FLAG_CLEAR))
         {
             for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
             {
-                /* Sample PMC MS Counter 0 and 1 (PMU_MS_MESH_READS, PMU_MS_MESH_WRITES). */
-                ms_pmc0_samples[shire_id] = (uint64_t)syscall(
-                    SYSCALL_PMC_MS_SAMPLE_INT, shire_id, PMU_MS_PMC0, UNUSED_SYSCALL_ARGS);
-                ms_pmc1_samples[shire_id] = (uint64_t)syscall(
-                    SYSCALL_PMC_MS_SAMPLE_INT, shire_id, PMU_MS_PMC1, UNUSED_SYSCALL_ARGS);
+                /* Sample PMC MS Counter 0 and 1 (reads, writes). */
+                sample = STATW_PMU_REQ_COUNT_TO_MBPS((uint64_t)syscall(
+                    SYSCALL_PMC_MS_SAMPLE_INT, shire_id, PMU_MS_PMC0, UNUSED_SYSCALL_ARGS));
+                STATW_ADD_NEW_SAMPLE(data_sample.ddr_read_bw, sample)
+
+                sample = STATW_PMU_REQ_COUNT_TO_MBPS((uint64_t)syscall(
+                    SYSCALL_PMC_MS_SAMPLE_INT, shire_id, PMU_MS_PMC1, UNUSED_SYSCALL_ARGS));
+                STATW_ADD_NEW_SAMPLE(data_sample.ddr_write_bw, sample)
             }
 
             for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
             {
                 for (uint64_t neigh_id = 0; neigh_id < NEIGH_PER_SHIRE; neigh_id++)
                 {
-                    /* Sample PMC SC Counter 0 and 1 (PMU_SC_L2_READS and PMU_SC_L2_WRITES). */
-                    sc_pmc0_samples[shire_id][neigh_id] = (uint64_t)syscall(
-                        SYSCALL_PMC_SC_SAMPLE_INT, shire_id, neigh_id, PMU_SC_PMC0);
-                    sc_pmc1_samples[shire_id][neigh_id] = (uint64_t)syscall(
-                        SYSCALL_PMC_SC_SAMPLE_INT, shire_id, neigh_id, PMU_SC_PMC1);
+                    /* Sample PMC SC Counter 0 and 1 (reads, writes). */
+                    sample = STATW_PMU_REQ_COUNT_TO_MBPS((uint64_t)syscall(
+                        SYSCALL_PMC_SC_SAMPLE_INT, shire_id, neigh_id, PMU_SC_PMC0));
+                    STATW_ADD_NEW_SAMPLE(data_sample.l2_l3_read_bw, sample)
+                    sample = STATW_PMU_REQ_COUNT_TO_MBPS((uint64_t)syscall(
+                        SYSCALL_PMC_SC_SAMPLE_INT, shire_id, neigh_id, PMU_SC_PMC1));
+                    STATW_ADD_NEW_SAMPLE(data_sample.l2_l3_write_bw, sample)
                 }
             }
 
-            /* Compute Average, Min, Max of all resources. */
-            calculate_avg_min_max(&data_sample.ddr_read_bw, ms_pmc0_samples, NUM_MEM_SHIRES);
-            calculate_avg_min_max(&data_sample.ddr_write_bw, ms_pmc1_samples, NUM_MEM_SHIRES);
-            calculate_avg_min_max(
-                &data_sample.l2_l3_read_bw, &sc_pmc0_samples[0][0], NUM_SHIRES * NEIGH_PER_SHIRE);
-            calculate_avg_min_max(
-                &data_sample.l2_l3_write_bw, &sc_pmc1_samples[0][0], NUM_SHIRES * NEIGH_PER_SHIRE);
-            calculate_avg_min_max_atomically(STATW_RESOURCE_CM, &data_sample.cm_utilization);
-            calculate_avg_min_max_atomically(
-                STATW_RESOURCE_DMA_READ, &data_sample.pcie_dma_read_bw);
-            calculate_avg_min_max_atomically(
+            /* Read global stats populated by other harts/workers. */
+            read_resource_stats_atomically(STATW_RESOURCE_CM, &data_sample.cm_utilization);
+            read_resource_stats_atomically(STATW_RESOURCE_DMA_READ, &data_sample.pcie_dma_read_bw);
+            read_resource_stats_atomically(
                 STATW_RESOURCE_DMA_WRITE, &data_sample.pcie_dma_write_bw);
 
             Trace_Custom_Event(Trace_Get_MM_Stats_CB(), TRACE_CUSTOM_TYPE_MM_COMPUTE_RESOURCES,

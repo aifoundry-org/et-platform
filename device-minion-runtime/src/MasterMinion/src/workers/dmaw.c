@@ -82,6 +82,13 @@ static dmaw_read_cb_t DMAW_Read_CB __attribute__((aligned(64))) = { 0 };
 */
 static dmaw_write_cb_t DMAW_Write_CB __attribute__((aligned(64))) = { 0 };
 
+/*! \def DMAW_BYTES_PER_CYCLE_TO_MBPS
+    \brief A helper macro to convert DMA bandwidth to MB/Sec using following formulae
+           Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq)
+*/
+#define DMAW_BYTES_PER_CYCLE_TO_MBPS(bytes, cycles) \
+    ((bytes * STATW_MINION_FREQ) / (cycles * STATW_NUM_OF_BYTES_IN_1MB))
+
 /************************************************************************
 *
 *   FUNCTION
@@ -286,6 +293,7 @@ int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
     const struct device_ops_dma_writelist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
     const execution_cycles_t *cycles)
 {
+    uint64_t transfer_size = 0;
     int32_t status = STATUS_SUCCESS;
     dma_channel_status_t chan_status;
 
@@ -308,6 +316,8 @@ int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
         status = dma_config_read_add_data_node(cmd->list[xfer_index].src_host_phy_addr,
             cmd->list[xfer_index].dst_device_phy_addr, cmd->list[xfer_index].size, read_chan_id,
             xfer_index, (xfer_index == last_i ? true : false));
+
+        transfer_size += cmd->list[xfer_index].size;
 
         if (status == DMA_DRIVER_ERROR_INVALID_ADDRESS)
         {
@@ -378,6 +388,8 @@ int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
         /* Update the global structure to make it visible to DMAW */
         atomic_store_local_64(
             &DMAW_Read_CB.chan_status_cb[read_chan_id].status.raw_u64, chan_status.raw_u64);
+        atomic_store_local_64(
+            &DMAW_Read_CB.chan_status_cb[read_chan_id].transfer_size, transfer_size);
 
         Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMAW_Read_Trigger_Transfer:Success!\r\n", sqw_idx);
 
@@ -431,6 +443,7 @@ int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
     const struct device_ops_dma_readlist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
     const execution_cycles_t *cycles, dma_flags_e flags)
 {
+    uint64_t transfer_size = 0;
     int32_t status = STATUS_SUCCESS;
     dma_channel_status_t chan_status;
 
@@ -453,6 +466,8 @@ int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
         status = dma_config_write_add_data_node(cmd->list[xfer_index].src_device_phy_addr,
             cmd->list[xfer_index].dst_host_phy_addr, cmd->list[xfer_index].size, write_chan_id,
             xfer_index, flags, (xfer_index == last_i ? true : false));
+
+        transfer_size += cmd->list[xfer_index].size;
 
         if (status == DMA_DRIVER_ERROR_INVALID_ADDRESS)
         {
@@ -521,6 +536,8 @@ int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
         /* Update the global structure to make it visible to DMAW */
         atomic_store_local_64(
             &DMAW_Write_CB.chan_status_cb[write_chan_id].status.raw_u64, chan_status.raw_u64);
+        atomic_store_local_64(
+            &DMAW_Write_CB.chan_status_cb[write_chan_id].transfer_size, transfer_size);
 
         Log_Write(LOG_LEVEL_DEBUG, "SQ[%d]:DMAW_Write_Trigger_Transfer:Success!\r\n", sqw_idx);
 
@@ -648,6 +665,12 @@ static inline void process_dma_read_chan_in_use(
             write_rsp->response_info.rsp_hdr.tag_id);
 
         status = Host_Iface_CQ_Push_Cmd(0, write_rsp, sizeof(struct device_ops_data_write_rsp_t));
+
+        /* Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq) */
+        STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_READ,
+            DMAW_BYTES_PER_CYCLE_TO_MBPS(
+                atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].transfer_size),
+                write_rsp->device_cmd_execute_dur));
 
         if (status != STATUS_SUCCESS)
         {
@@ -925,6 +948,12 @@ static inline void process_dma_write_chan_in_use(
 
         status = Host_Iface_CQ_Push_Cmd(0, read_rsp, sizeof(struct device_ops_data_read_rsp_t));
 
+        /* Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq) */
+        STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_WRITE,
+            DMAW_BYTES_PER_CYCLE_TO_MBPS(
+                atomic_load_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].transfer_size),
+                read_rsp->device_cmd_execute_dur));
+
         if (status == STATUS_SUCCESS)
         {
             /* Log command status to trace */
@@ -1125,7 +1154,6 @@ __attribute__((noreturn)) static inline void dmaw_launch_read_worker(uint32_t ha
     struct device_ops_data_write_rsp_t write_rsp;
     uint32_t read_chan_state;
     bool channel_aborted[PCIE_DMA_RD_CHANNEL_COUNT] = { false, false, false, false };
-    uint32_t dma_read_stat_index = STATW_INIT_SAMPLE_INDEX;
 
     while (1)
     {
@@ -1133,7 +1161,6 @@ __attribute__((noreturn)) static inline void dmaw_launch_read_worker(uint32_t ha
         {
             read_chan_state = atomic_load_local_32(
                 &DMAW_Read_CB.chan_status_cb[read_ch_index].status.channel_state);
-            write_rsp.device_cmd_execute_dur = 0;
 
             /* Check if HW DMA chan status is done and update
             global DMA channel status for read channels */
@@ -1150,13 +1177,6 @@ __attribute__((noreturn)) static inline void dmaw_launch_read_worker(uint32_t ha
                     LOG_LEVEL_ERROR, "DMAW:%d:read_chan_aborting:%d\r\n", hart_id, read_ch_index);
 
                 process_dma_read_chan_aborting(read_ch_index, &write_rsp, channel_aborted);
-            }
-
-            if (write_rsp.device_cmd_execute_dur > 0)
-            {
-                /* Save DMA running time for stats Trace. */
-                dma_read_stat_index = STATW_Add_Resource_Utilization_Sample(
-                    STATW_RESOURCE_DMA_READ, write_rsp.device_cmd_execute_dur, dma_read_stat_index);
             }
         }
     }
@@ -1186,7 +1206,6 @@ __attribute__((noreturn)) static inline void dmaw_launch_write_worker(uint32_t h
     struct device_ops_data_read_rsp_t read_rsp;
     uint32_t write_chan_state;
     bool channel_aborted[PCIE_DMA_WRT_CHANNEL_COUNT] = { false, false, false, false };
-    uint32_t dma_write_stat_index = STATW_INIT_SAMPLE_INDEX;
 
     while (1)
     {
@@ -1195,7 +1214,6 @@ __attribute__((noreturn)) static inline void dmaw_launch_write_worker(uint32_t h
         {
             write_chan_state = atomic_load_local_32(
                 &DMAW_Write_CB.chan_status_cb[write_ch_index].status.channel_state);
-            read_rsp.device_cmd_execute_dur = 0;
 
             if (write_chan_state == DMA_CHAN_STATE_IN_USE)
             {
@@ -1210,14 +1228,6 @@ __attribute__((noreturn)) static inline void dmaw_launch_write_worker(uint32_t h
                     LOG_LEVEL_ERROR, "DMAW:%d:write_chan_aborting:%d\r\n", hart_id, write_ch_index);
 
                 process_dma_write_chan_aborting(write_ch_index, &read_rsp, channel_aborted);
-            }
-
-            if (read_rsp.device_cmd_execute_dur > 0)
-            {
-                /* Save DMA running time for stats Trace. */
-                dma_write_stat_index =
-                    STATW_Add_Resource_Utilization_Sample(STATW_RESOURCE_DMA_WRITE,
-                        read_rsp.device_cmd_execute_dur, dma_write_stat_index);
             }
         }
     }

@@ -28,7 +28,7 @@ typedef struct {
     uint64_t max;
 } __attribute__((packed, aligned(8))) resource_value;
 
-/*! \typedef compute_resources_sample
+/*! \typedef device_resources
     \brief Device computer resource structure
 */
 typedef struct {
@@ -39,37 +39,61 @@ typedef struct {
     resource_value ddr_write_bw;
     resource_value l2_l3_read_bw;
     resource_value l2_l3_write_bw;
-} __attribute__((packed, aligned(8))) compute_resources_sample;
+} __attribute__((packed, aligned(8))) device_resources;
 
 typedef uint8_t statw_resource_type_e;
 
-enum statw_resource_type { STATW_RESOURCE_DMA_READ, STATW_RESOURCE_DMA_WRITE, STATW_RESOURCE_CM };
+enum statw_resource_type {
+    STATW_RESOURCE_DMA_READ,
+    STATW_RESOURCE_DMA_WRITE,
+    STATW_RESOURCE_CM,
+    STATW_RESOURCE_DDR_READ,
+    STATW_RESOURCE_DDR_WRITE,
+    STATW_RESOURCE_L2_L3_READ,
+    STATW_RESOURCE_L2_L3_WRITE,
+};
 
 /*! \def STATW_SAMPLING_INTERVAL
-    \brief Device statistics sampling interval
+    \brief Minion frequency on silicon
+    TODO: Get it from SP and make it available to all MM workers. Preferably it should be accessible without atomic operation.
 */
-#define STATW_SAMPLING_INTERVAL 500U
+#define STATW_MINION_FREQ 333000000ULL
+
+/*! \def STATW_SAMPLING_INTERVAL
+    \brief Device statistics sampling interval of 100 millisecond
+    WARNING: Assumption is timer granularity is one millisecond
+*/
+#define STATW_SAMPLING_INTERVAL 1U
 
 /*! \def STATW_CMA_SAMPLE_COUNT
     \brief Device statistics moving average sample count.
 */
-#define STATW_CMA_SAMPLE_COUNT 30U
+#define STATW_CMA_SAMPLE_COUNT 100U
 
-/*! \def STATW_CMA_SAMPLE_INDEX_START
-    \brief Device statistics moving average starting index of array.
+/*! \def STATW_RESOURCE_DEFAULT_MIN
+    \brief Default minimum for device resource stat. This is very large value will replace with actual minimum.
 */
-#define STATW_CMA_SAMPLE_INDEX_START 0U
+#define STATW_RESOURCE_DEFAULT_MIN 0xFFFFFFFFFFFFFFFUL
 
-/*! \def STATW_CMA_SAMPLE_INDEX_END
-    \brief Device statistics moving average last index of array.
+/*! \def STATW_RESOURCE_DEFAULT_MAX
+    \brief Default maximum for device resource stat. This is minimum value will replace with actual maximum.
 */
-#define STATW_CMA_SAMPLE_INDEX_END (STATW_CMA_SAMPLE_COUNT - 1U)
+#define STATW_RESOURCE_DEFAULT_MAX 0UL
 
-/*! \def STATW_INIT_SAMPLE_INDEX
-    \brief Index to initialize stat worker's sample array. This should only be used once for very first sample.
-    \NOTE: This value should alway be greater than STATW_CMA_SAMPLE_INDEX_END.
+/*! \def STATW_RESOURCE_DEFAULT_AVG
+    \brief Default average for device resource stat.
 */
-#define STATW_INIT_SAMPLE_INDEX 0xFFFFFFU
+#define STATW_RESOURCE_DEFAULT_AVG 0UL
+
+/*! \def STATW_NUM_OF_BYTES_IN_1MB
+    \brief A macro that define number of bytes in 1 megabytes.
+*/
+#define STATW_NUM_OF_BYTES_IN_1MB 0x100000UL
+
+/*! \def STATW_NUM_OF_MS_IN_SEC
+    \brief A macro that define number of milliseconds in 1 second.
+*/
+#define STATW_NUM_OF_MS_IN_SEC 1000U
 
 /*! \def MAX(x,y)
     \brief Returns max
@@ -88,17 +112,12 @@ enum statw_resource_type { STATW_RESOURCE_DMA_READ, STATW_RESOURCE_DMA_WRITE, ST
 */
 void STATW_Launch(uint32_t hart_id);
 
-/*! \fn uint32_t STATW_Add_Resource_Utilization_Sample
-        (statw_resource_type_e resource_type, uint64_t current_sample, uint32_t index)
+/*! \fn uint32_t STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64_t current_sample)
     \brief This functions adds new sample for resource utilization data.
-           It puts data into a circular buffer. It automatically overrides
-           the oldest values in the buffer.
     \param resource_type Resource for which new sample is to be added.
     \param current_sample Sample data
-    \param index Index of circular buffer.
-    \return Next index of circular buffer.
+    \return None.
 */
-uint32_t STATW_Add_Resource_Utilization_Sample(
-    statw_resource_type_e resource_type, uint64_t current_sample, uint32_t index);
+void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64_t current_sample);
 
 #endif
