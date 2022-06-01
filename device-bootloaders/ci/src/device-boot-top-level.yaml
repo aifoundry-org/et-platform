@@ -24,43 +24,11 @@ parameters:
     default_value: true
 
 stages:
-  CODE_QUALITY:
+  CHECKOUT_SCM:
     cmds:
-      - job: sw-platform/code-analysis/device-bootloaders-sonarqube
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          GITLAB_SOURCE_BRANCH:
-            raw_cmd: '"${env.gitlabSourceBranch}"'
-          GITLAB_TARGET_BRANCH:
-            raw_cmd: '"${env.gitlabTargetBranch}"'
-          GITLAB_MR_ID:
-            raw_cmd: '"${env.gitlabMergeRequestIid}"'
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
-  
-  CLANG_CHECK:
-    cmds:
-      - job: sw-platform/system-sw-integration/pipelines/device-bootloaders-clang-tests
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
-
-  DM_TESTS_ZEBU_BEMU:
-    cmds:
-      - job: sw-platform/system-sw-integration/pipelines/dm-tests-zebu-bemu
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
-
-  DM_TESTS_PCIE_SYSEMU:
-    cmds:
-      - job: sw-platform/virtual-platform/pipelines/dm-tests-pcie-sysemu-1dev
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
-
-  DM_TESTS_RECOVERY_MODE_PCIE_SYSEMU:
-    cmds:
-      - job: sw-platform/virtual-platform/pipelines/dm-tests-recovery-mode-pcie-sysemu-1dev
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/device-bootloaders:${BRANCH}"
+      - raw_cmd: |-
+          script {
+            currentBuild.getRawBuild().getExecutor().interrupt(Result.UNSTABLE)
+            sleep(1)   // Interrupt is not blocking and does not take effect immediately.
+          }
+    exec_before: [r".*"]
