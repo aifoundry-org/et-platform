@@ -187,21 +187,6 @@ bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf,
   }
   std::ofstream logfile;
   std::string fileName = (fs::path("dev" + std::to_string(deviceIdx))).string();
-  switch (bufferType) {
-  case TraceBufferType::TraceBufferSP:
-    fileName += "_sp_";
-    break;
-  case TraceBufferType::TraceBufferMM:
-    fileName += "_mm_";
-    break;
-  case TraceBufferType::TraceBufferCM:
-    fileName += "_cmsmode_";
-    break;
-
-  default:
-    DV_LOG(INFO) << "Cannot dump unknown buffer type!";
-    return false;
-  }
   fileName += "traces.txt";
   DV_LOG(INFO) << "Saving trace to file: " << fileName;
   logfile.open(fileName, std::ios_base::app);
@@ -214,6 +199,12 @@ bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf,
     break;
   case TraceBufferType::TraceBufferCM:
     logfile << "-> CM S-Mode Traces" << std::endl;
+    break;
+  case TraceBufferType::TraceBufferSPStats:
+    logfile << "-> SP Stats Traces" << std::endl;
+    break;
+  case TraceBufferType::TraceBufferMMStats:
+    logfile << "-> MM Stats Traces" << std::endl;
     break;
   default:
     DV_LOG(INFO) << "Cannot decode unknown buffer type!";
@@ -252,23 +243,34 @@ void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
   case TraceBufferType::TraceBufferSP:
     traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
     dataSize = traceHdr->data_size;
-    fileName += "sp_";
+    fileName += "sp_traces";
+    fileFlags |= std::ios_base::app;
+    break;
+  case TraceBufferType::TraceBufferSPStats:
+    traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
+    dataSize = traceHdr->data_size;
+    DV_LOG(INFO) <<"data size "<<dataSize;
+    fileName += "sp_stats";
     fileFlags |= std::ios_base::app;
     break;
   case TraceBufferType::TraceBufferMM:
     traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
     dataSize = traceHdr->data_size;
-    fileName += "mm_";
+    fileName += "mm_traces";
     fileFlags |= std::ios_base::app;
     break;
-
+  case TraceBufferType::TraceBufferMMStats:
+    traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
+    dataSize = traceHdr->data_size;
+    fileName += "mm_stats";
+    fileFlags |= std::ios_base::app;
+    break;
   case TraceBufferType::TraceBufferCM:
     traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
     dataSize = traceHdr->sub_buffer_count * traceHdr->sub_buffer_size;
-    fileName += "cmsmode_";
+    fileName += "cmsmode_traces";
     fileFlags |= std::ofstream::trunc;
     break;
-
   default:
     DV_LOG(INFO) << "Cannot dump unknown buffer type!";
     return;
@@ -1715,7 +1717,8 @@ int getTraceBuffer()
   {
     {"SP",TraceBufferType::TraceBufferSP},
     {"MM",TraceBufferType::TraceBufferMM},
-    {"CM",TraceBufferType::TraceBufferCM}
+    {"CM",TraceBufferType::TraceBufferCM},
+    {"ST",TraceBufferType::TraceBufferSPStats}
   };
 
   auto it = traceBuffers.find(str_optarg);
