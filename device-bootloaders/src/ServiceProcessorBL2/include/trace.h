@@ -45,12 +45,12 @@ enum {
 */
 #define SP_TRACE_GET_ENTRY_OFFSET(addr) ((uint64_t)addr - SP_TRACE_BUFFER_BASE)
 
-/*! \fn void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
+/*! \fn int32_t Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     \brief This function initializes Trace for sp
     \param sp_init_info Pointer Trace init information.
-    \return None
+    \return status of function call
 */
-void Trace_Init_SP(const struct trace_init_info_t *sp_init_info);
+int32_t Trace_Init_SP(const struct trace_init_info_t *sp_init_info);
 
 /*! \fn struct trace_control_block_t* Trace_Get_SP_CB(uint64_t hart_id)
     \brief This function return Trace control block for given Hart ID.
@@ -126,4 +126,11 @@ int32_t Trace_Init_SP_Dev_Stats(const struct trace_init_info_t *dev_trace_init_i
     \return Pointer to the Trace control block .
 */
 struct trace_control_block_t *Trace_Get_Dev_Stats_CB(void);
+
+/*! \fn void Trace_Update_SP_Stats_Buffer_Header(void)
+    \brief This function Updates stats Trace buffer header to reflect current data
+           in buffer.
+    \return None.
+*/
+void Trace_Update_SP_Stats_Buffer_Header(void);
 #endif

@@ -326,7 +326,8 @@ static void taskMain(void *pvParameters)
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
 
     /* Initialize SP Trace component */
-    Trace_Init_SP(NULL);
+    status = Trace_Init_SP(NULL);
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init SP trace component!")
 
     /* Initialize SP Exception Trace component */
     status = Trace_Exception_Init_SP(NULL);
@@ -336,12 +337,12 @@ static void taskMain(void *pvParameters)
     status = Trace_Init_SP_Dev_Stats(NULL);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init Dev Stats trace component!")
 
-    /* Redirect the log messages to trace buffer after initialization is done */
-    Log_Set_Interface(LOG_DUMP_TO_TRACE);
-
     // Initialize DM sampling task
     Log_Write(LOG_LEVEL_INFO, "MAIN:[txt] DM Sampling Task Start\n");
     init_dm_sampling_task();
+
+    /* Redirect the log messages to trace buffer after initialization is done */
+    Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
     while (1)
     {

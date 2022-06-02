@@ -39,10 +39,6 @@
 static inline void et_trace_buffer_lock_acquire(void);
 static inline void et_trace_buffer_lock_release(void);
 
-/* Master Minion trace buffer locks */
-#define ET_TRACE_BUFFER_LOCK_ACQUIRE et_trace_buffer_lock_acquire();
-#define ET_TRACE_BUFFER_LOCK_RELEASE et_trace_buffer_lock_release();
-
 #define ET_TRACE_GET_TIMESTAMP() timer_get_ticks_count()
 
 /* Define for Encoder */
@@ -52,17 +48,17 @@ static inline void et_trace_buffer_lock_release(void);
 /*
  * Service Processor Trace control block.
  */
-struct trace_control_block_t SP_Trace_CB;
+struct trace_control_block_t SP_Trace_CB = { 0 };
 
 /*
  * Exception Trace control block.
  */
-struct trace_control_block_t SP_Exp_Trace_CB;
+struct trace_control_block_t SP_Exp_Trace_CB = { 0 };
 
 /*
  * Dev Stats Trace control block.
  */
-struct trace_control_block_t SP_Dev_Stats_Trace_CB;
+struct trace_control_block_t SP_Stats_Trace_CB = { 0 };
 
 /* Trace buffer lock */
 static SemaphoreHandle_t Trace_Mutex_Handle = NULL;
@@ -192,12 +188,13 @@ static void send_trace_config_response(tag_id_t tag_id, msg_id_t msg_id, uint64_
 *
 *   OUTPUTS
 *
-*       None
+*       status of function call success or error
 *
 ***********************************************************************/
-void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
+int32_t Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
 {
     struct trace_init_info_t sp_init_info_l;
+    int32_t status = ERROR_INVALID_ARGUMENT;
 
     /* Init the trace buffer lock to released state */
     Trace_Mutex_Handle = xSemaphoreCreateMutexStatic(&Trace_Mutex_Buffer);
@@ -205,7 +202,7 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     if (!Trace_Mutex_Handle)
     {
         Log_Write(LOG_LEVEL_ERROR, "Trace buffer Mutex creation failed!\n");
-        return;
+        return ERROR_INVALID_ARGUMENT;
     }
 
     /* If init information is NULL then do default initialization. */
@@ -233,36 +230,45 @@ void Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
         memcpy(&sp_init_info_l, sp_init_info, sizeof(struct trace_init_info_t));
     }
 
+    /* Register locks for SP trace */
+    SP_Trace_CB.buffer_lock_acquire = et_trace_buffer_lock_acquire;
+    SP_Trace_CB.buffer_lock_release = et_trace_buffer_lock_release;
+
     /* Common buffer for all SP HART. */
     SP_Trace_CB.size_per_hart = sp_init_info_l.buffer_size;
     SP_Trace_CB.base_per_hart = sp_init_info_l.buffer;
 
     /* Initialize Trace for each all Harts in Service Processor. */
-    Trace_Init(&sp_init_info_l, &SP_Trace_CB, TRACE_STD_HEADER);
+    status = Trace_Init(&sp_init_info_l, &SP_Trace_CB, TRACE_STD_HEADER);
 
-    /* Initialize trace buffer header. */
-    struct trace_buffer_std_header_t *trace_header =
-        (struct trace_buffer_std_header_t *)SP_Trace_CB.base_per_hart;
+    if (status == SUCCESS)
+    {
+        /* Initialize trace buffer header. */
+        struct trace_buffer_std_header_t *trace_header =
+            (struct trace_buffer_std_header_t *)SP_Trace_CB.base_per_hart;
 
-    /* Put the buffer type */
-    trace_header->type = TRACE_SP_BUFFER;
+        /* Put the buffer type */
+        trace_header->type = TRACE_SP_BUFFER;
 
-    /* Put the MAJIC. */
-    trace_header->magic_header = TRACE_MAGIC_HEADER;
+        /* Put the MAJIC. */
+        trace_header->magic_header = TRACE_MAGIC_HEADER;
 
-    /* SP buffer has been partitioned into two parts, one will be used for SP events and other
-       will be used explicitly for exception events
-       Put the buffer partitioning info for a single buffer. */
-    trace_header->sub_buffer_count = SP_TRACE_SUB_BUFFER_COUNT;
-    trace_header->sub_buffer_size = SP_TRACE_BUFFER_SIZE_PER_SUB_BUFFER;
+        /* SP buffer has been partitioned into two parts, one will be used for SP events and other
+        will be used explicitly for exception events
+        Put the buffer partitioning info for a single buffer. */
+        trace_header->sub_buffer_count = SP_TRACE_SUB_BUFFER_COUNT;
+        trace_header->sub_buffer_size = SP_TRACE_BUFFER_SIZE_PER_SUB_BUFFER;
 
-    /* populate Trace layout version in Header. */
-    trace_header->version.major = TRACE_VERSION_MAJOR;
-    trace_header->version.minor = TRACE_VERSION_MINOR;
-    trace_header->version.patch = TRACE_VERSION_PATCH;
+        /* populate Trace layout version in Header. */
+        trace_header->version.major = TRACE_VERSION_MAJOR;
+        trace_header->version.minor = TRACE_VERSION_MINOR;
+        trace_header->version.patch = TRACE_VERSION_PATCH;
 
-    /* Put the data size. */
-    trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
+        /* Put the data size. */
+        trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
+    }
+
+    return status;
 }
 
 /************************************************************************
@@ -489,6 +495,11 @@ int32_t Trace_Exception_Init_SP(const struct trace_init_info_t *init_info)
     /* Set the default offset */
     SP_Exp_Trace_CB.offset_per_hart = sizeof(struct trace_buffer_size_header_t);
 
+    /* Buffer locks for exception buffer are not required as this will only be accessed
+       from exception reporting context. */
+    SP_Exp_Trace_CB.buffer_lock_acquire = NULL;
+    SP_Exp_Trace_CB.buffer_lock_release = NULL;
+
     /* Initialize Trace for SP Exception buffer. */
     return Trace_Init(&exp_init_info_l, &SP_Exp_Trace_CB, TRACE_SIZE_HEADER);
 }
@@ -622,15 +633,19 @@ int32_t Trace_Init_SP_Dev_Stats(const struct trace_init_info_t *dev_trace_init_i
     }
 
     /* Common buffer for all SP HART. */
-    SP_Dev_Stats_Trace_CB.size_per_hart = dev_trace_init_info_l.buffer_size;
-    SP_Dev_Stats_Trace_CB.base_per_hart = dev_trace_init_info_l.buffer;
+    SP_Stats_Trace_CB.size_per_hart = dev_trace_init_info_l.buffer_size;
+    SP_Stats_Trace_CB.base_per_hart = dev_trace_init_info_l.buffer;
+
+    /* Trace buffer locks are not required as only stats task will be accessing it*/
+    SP_Stats_Trace_CB.buffer_lock_acquire = NULL;
+    SP_Stats_Trace_CB.buffer_lock_release = NULL;
 
     /* Initialize Trace for each all Harts in Service Processor. */
-    status = Trace_Init(&dev_trace_init_info_l, &SP_Dev_Stats_Trace_CB, TRACE_STD_HEADER);
+    status = Trace_Init(&dev_trace_init_info_l, &SP_Stats_Trace_CB, TRACE_STD_HEADER);
 
     /* Initialize trace buffer header. */
     struct trace_buffer_std_header_t *trace_header =
-        (struct trace_buffer_std_header_t *)SP_Dev_Stats_Trace_CB.base_per_hart;
+        (struct trace_buffer_std_header_t *)SP_Stats_Trace_CB.base_per_hart;
 
     /* Put the buffer type */
     trace_header->type = TRACE_SP_STATS_BUFFER;
@@ -672,5 +687,34 @@ int32_t Trace_Init_SP_Dev_Stats(const struct trace_init_info_t *dev_trace_init_i
 ***********************************************************************/
 struct trace_control_block_t *Trace_Get_Dev_Stats_CB(void)
 {
-    return &SP_Dev_Stats_Trace_CB;
+    return &SP_Stats_Trace_CB;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Update_SP_Stats_Buffer_Header
+*
+*   DESCRIPTION
+*
+*       This function Updates Trace buffer header to reflect current data
+*       in buffer.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Update_SP_Stats_Buffer_Header(void)
+{
+    struct trace_buffer_std_header_t *trace_header =
+        (struct trace_buffer_std_header_t *)SP_Stats_Trace_CB.base_per_hart;
+
+    /* Update data size in trace header */
+    trace_header->data_size = SP_Stats_Trace_CB.offset_per_hart;
 }
