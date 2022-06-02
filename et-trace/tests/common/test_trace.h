@@ -22,6 +22,8 @@ struct trace_buffer_std_header_t *test_trace_create(struct trace_control_block_t
     cb->size_per_hart = size;
     cb->base_per_hart = (uint64_t)buf;
     cb->offset_per_hart = sizeof(struct trace_buffer_std_header_t);
+    cb->buffer_lock_acquire = NULL;
+    cb->buffer_lock_release = NULL;
     Trace_Init(&info, cb, TRACE_STD_HEADER);
 
     buf->magic_header = TRACE_MAGIC_HEADER;
@@ -40,7 +42,8 @@ struct trace_buffer_std_header_t *test_trace_create(struct trace_control_block_t
     return buf;
 }
 
-struct trace_buffer_std_header_t *test_cm_trace_create(struct trace_control_block_t *cb, size_t size, size_t sub_buffer_count)
+struct trace_buffer_std_header_t *test_cm_trace_create(struct trace_control_block_t *cb,
+                                                       size_t size, size_t sub_buffer_count)
 {
     struct trace_buffer_std_header_t *buf = malloc(size * sub_buffer_count);
     if (!buf) {
@@ -57,11 +60,12 @@ struct trace_buffer_std_header_t *test_cm_trace_create(struct trace_control_bloc
         cb->size_per_hart = size;
         cb->base_per_hart = (uint64_t)buf + (i * size);
         cb->offset_per_hart = sizeof(struct trace_buffer_std_header_t);
+        cb->buffer_lock_acquire = NULL;
+        cb->buffer_lock_release = NULL;
         if (i == 0) {
             Trace_Init(&info, cb, TRACE_STD_HEADER);
             buf->data_size = sizeof(struct trace_buffer_std_header_t);
-        }
-        else {
+        } else {
             Trace_Init(&info, cb, TRACE_SIZE_HEADER);
             buf->data_size = sizeof(struct trace_buffer_size_header_t);
         }
@@ -79,20 +83,20 @@ struct trace_buffer_std_header_t *test_cm_trace_create(struct trace_control_bloc
     return buf;
 }
 
-void test_cm_trace_evict(struct trace_control_block_t *cb) 
+void test_cm_trace_evict(struct trace_control_block_t *cb)
 {
     if (cb->header == TRACE_STD_HEADER) {
-        struct trace_buffer_std_header_t *std_header_ptr = (struct trace_buffer_std_header_t*)cb->base_per_hart;
+        struct trace_buffer_std_header_t *std_header_ptr =
+            (struct trace_buffer_std_header_t *)cb->base_per_hart;
         std_header_ptr->data_size = cb->offset_per_hart;
-    }
-    else {
-        struct trace_buffer_size_header_t *size_header_ptr = (struct trace_buffer_size_header_t*)cb->base_per_hart;
+    } else {
+        struct trace_buffer_size_header_t *size_header_ptr =
+            (struct trace_buffer_size_header_t *)cb->base_per_hart;
         size_header_ptr->data_size = cb->offset_per_hart;
     }
-    
 }
 
-void test_trace_evict(struct trace_buffer_std_header_t *buf, struct trace_control_block_t *cb) 
+void test_trace_evict(struct trace_buffer_std_header_t *buf, struct trace_control_block_t *cb)
 {
     buf->data_size = cb->offset_per_hart;
 }
