@@ -613,6 +613,10 @@ static int pvt_get_ts_data(uint8_t pvt_id, uint8_t ts_id, TS_Sample *ts_sample)
     uint32_t sample_data;
     uint32_t hilo;
 
+    ts_sample->current = 0;
+    ts_sample->high = 0;
+    ts_sample->low = 0;
+
     sample_data = pReg_Pvtc[pvt_id]->ts.ts_individual[ts_id].sdif_data;
     if (TS_PD_INDIVIDUAL_IP_SDIF_DATA_SAMPLE_FAULT_GET(sample_data))
     {
@@ -657,6 +661,10 @@ static int pvt_get_pd_data(uint8_t pvt_id, uint8_t pd_id, PD_Sample *pd_sample)
 {
     uint32_t sample_data;
     uint32_t hilo;
+
+    pd_sample->current = 0;
+    pd_sample->high = 0;
+    pd_sample->low = 0;
 
     sample_data = pReg_Pvtc[pvt_id]->pd.pd_individual[pd_id].sdif_data;
     if (TS_PD_INDIVIDUAL_IP_SDIF_DATA_SAMPLE_FAULT_GET(sample_data))
@@ -727,6 +735,19 @@ int pvt_get_min_shire_vm_sample(PVTC_MINSHIRE_e min_id, MinShire_VM_sample *vm_s
     uint8_t ch_id = pvtc_minion_shire_vm_map[min_id].ch_id;
     uint32_t sample_data;
     uint32_t hilo;
+    int sample_fault = 0;
+
+    vm_sample->vdd_sram.current = 0;
+    vm_sample->vdd_sram.high = 0;
+    vm_sample->vdd_sram.low = 0;
+
+    vm_sample->vdd_noc.current = 0;
+    vm_sample->vdd_noc.high = 0;
+    vm_sample->vdd_noc.low = 0;
+
+    vm_sample->vdd_mnn.current = 0;
+    vm_sample->vdd_mnn.high = 0;
+    vm_sample->vdd_mnn.low = 0;
 
     for (int i = 0; i < 3; i++)
     {
@@ -736,7 +757,8 @@ int pvt_get_min_shire_vm_sample(PVTC_MINSHIRE_e min_id, MinShire_VM_sample *vm_s
         {
             Log_Write(LOG_LEVEL_WARNING,
                       "Fault occured during VM sampling, sample data invalid\r\n");
-            return ERROR_PVT_SAMPLE_FAULT;
+            sample_fault = ERROR_PVT_SAMPLE_FAULT;
+            continue;
         }
 
         switch (i)
@@ -770,7 +792,7 @@ int pvt_get_min_shire_vm_sample(PVTC_MINSHIRE_e min_id, MinShire_VM_sample *vm_s
         }
     }
 
-    return 0;
+    return sample_fault;
 }
 
 int pvt_get_memshire_vm_sample(PVTC_MEMSHIRE_e memshire_id, MemShire_VM_sample *vm_sample)
@@ -783,6 +805,15 @@ int pvt_get_memshire_vm_sample(PVTC_MEMSHIRE_e memshire_id, MemShire_VM_sample *
 
     uint32_t sample_data;
     uint32_t hilo;
+    int sample_fault = 0;
+
+    vm_sample->vdd_ms.current = 0;
+    vm_sample->vdd_ms.high = 0;
+    vm_sample->vdd_ms.low = 0;
+
+    vm_sample->vdd_noc.current = 0;
+    vm_sample->vdd_noc.high = 0;
+    vm_sample->vdd_noc.low = 0;
 
     for (int i = 0; i < 2; i++)
     {
@@ -796,7 +827,8 @@ int pvt_get_memshire_vm_sample(PVTC_MEMSHIRE_e memshire_id, MemShire_VM_sample *
         {
             Log_Write(LOG_LEVEL_WARNING,
                       "Fault occured during VM sampling, sample data invalid\r\n");
-            return ERROR_PVT_SAMPLE_FAULT;
+            sample_fault = ERROR_PVT_SAMPLE_FAULT;
+            continue;
         }
 
         switch (i)
@@ -822,7 +854,7 @@ int pvt_get_memshire_vm_sample(PVTC_MEMSHIRE_e memshire_id, MemShire_VM_sample *
         }
     }
 
-    return 0;
+    return sample_fault;
 }
 
 int pvt_get_ioshire_vm_sample(IOShire_VM_sample *vm_sample)
@@ -832,6 +864,19 @@ int pvt_get_ioshire_vm_sample(IOShire_VM_sample *vm_sample)
     uint8_t ch_id = pvtc_ioshire_vm_map.ch_id;
     uint32_t sample_data;
     uint32_t hilo;
+    int sample_fault = 0;
+
+    vm_sample->vdd_noc.current = 0;
+    vm_sample->vdd_noc.high = 0;
+    vm_sample->vdd_noc.low = 0;
+
+    vm_sample->vdd_pu.current = 0;
+    vm_sample->vdd_pu.high = 0;
+    vm_sample->vdd_pu.low = 0;
+
+    vm_sample->vdd_mxn.current = 0;
+    vm_sample->vdd_mxn.high = 0;
+    vm_sample->vdd_mxn.low = 0;
 
     for (int i = 0; i < 3; i++)
     {
@@ -841,7 +886,8 @@ int pvt_get_ioshire_vm_sample(IOShire_VM_sample *vm_sample)
         {
             Log_Write(LOG_LEVEL_WARNING,
                       "Fault occured during VM sampling, sample data invalid\r\n");
-            return ERROR_PVT_SAMPLE_FAULT;
+            sample_fault = ERROR_PVT_SAMPLE_FAULT;
+            continue;
         }
 
         switch (i)
@@ -875,7 +921,7 @@ int pvt_get_ioshire_vm_sample(IOShire_VM_sample *vm_sample)
         }
     }
 
-    return 0;
+    return sample_fault;
 }
 
 int pvt_get_pshire_vm_sample(PShire_VM_sample *vm_sample)
@@ -885,6 +931,15 @@ int pvt_get_pshire_vm_sample(PShire_VM_sample *vm_sample)
     uint8_t ch_id = pvtc_pshire_vm_map.ch_id;
     uint32_t sample_data;
     uint32_t hilo;
+    int sample_fault = 0;
+
+    vm_sample->vdd_pshr.current = 0;
+    vm_sample->vdd_pshr.high = 0;
+    vm_sample->vdd_pshr.low = 0;
+
+    vm_sample->vdd_noc.current = 0;
+    vm_sample->vdd_noc.high = 0;
+    vm_sample->vdd_noc.low = 0;
 
     for (int i = 0; i < 2; i++)
     {
@@ -894,7 +949,8 @@ int pvt_get_pshire_vm_sample(PShire_VM_sample *vm_sample)
         {
             Log_Write(LOG_LEVEL_WARNING,
                       "Fault occured during VM sampling, sample data invalid\r\n");
-            return ERROR_PVT_SAMPLE_FAULT;
+            sample_fault = ERROR_PVT_SAMPLE_FAULT;
+            continue;
         }
 
         switch (i)
@@ -920,7 +976,7 @@ int pvt_get_pshire_vm_sample(PShire_VM_sample *vm_sample)
         }
     }
 
-    return 0;
+    return sample_fault;
 }
 
 int pvt_get_ext_analog_vm_sample(PVTC_EXT_ANALOG_e ext_an_id, ExtAnalog_VM_sample *vm_sample)
@@ -936,6 +992,10 @@ int pvt_get_ext_analog_vm_sample(PVTC_EXT_ANALOG_e ext_an_id, ExtAnalog_VM_sampl
     uint8_t ch_id = pvtc_ext_analog_vm_map[ext_an_id].ch_id;
     uint32_t sample_data;
     uint32_t hilo;
+
+    vm_sample->vdd_ext_analog.current = 0;
+    vm_sample->vdd_ext_analog.high = 0;
+    vm_sample->vdd_ext_analog.low = 0;
 
     sample_data = pReg_Pvtc[pvt_id]->vm.vm_individual[vm_id].sdif_data[ch_id];
     hilo = pReg_Pvtc[pvt_id]->vm.vm_individual[vm_id].alarm_and_hilo[ch_id].smpl_hilo;
@@ -1325,7 +1385,6 @@ static int pvt_get_and_print_minshire(uint8_t print_ts, uint8_t print_vm, PVTC_M
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_WARNING, "PVT Sample fault!\r\n");
-        return ERROR_PVT_SAMPLE_FAULT;
     }
     if (print_ts)
     {
@@ -1336,7 +1395,6 @@ static int pvt_get_and_print_minshire(uint8_t print_ts, uint8_t print_vm, PVTC_M
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_WARNING, "PVT Sample fault!\r\n");
-        return ERROR_PVT_SAMPLE_FAULT;
     }
     if (print_vm)
     {
@@ -1362,7 +1420,6 @@ static int pvt_get_and_print_memshire(uint8_t print_vm, PVTC_MEMSHIRE_e mem_id,
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_WARNING, "PVT Sample fault!\r\n");
-        return ERROR_PVT_SAMPLE_FAULT;
     }
     if (print_vm)
     {
@@ -1386,7 +1443,6 @@ static int pvt_get_and_print_ioshire(uint8_t print_ts, uint8_t print_vm,
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_WARNING, "PVT Sample fault!\r\n");
-        return ERROR_PVT_SAMPLE_FAULT;
     }
     if (print_ts)
     {
@@ -1397,7 +1453,6 @@ static int pvt_get_and_print_ioshire(uint8_t print_ts, uint8_t print_vm,
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_WARNING, "PVT Sample fault!\r\n");
-        return ERROR_PVT_SAMPLE_FAULT;
     }
     if (print_vm)
     {
@@ -1420,7 +1475,6 @@ static int pvt_get_and_print_pshire(uint8_t print_vm, PShire_samples *pshr_sampl
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_WARNING, "PVT Sample fault!\r\n");
-        return ERROR_PVT_SAMPLE_FAULT;
     }
     if (print_vm)
     {
