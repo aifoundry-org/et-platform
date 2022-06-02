@@ -215,6 +215,8 @@ enum trace_string_event {
  * Per-thread tracing book-keeping information.
  */
 struct trace_control_block_t {
+    void (*buffer_lock_acquire)(void); /*!< Function pointer for acquiring trace buffer lock */
+    void (*buffer_lock_release)(void); /*!< Function pointer for releasing trace buffer lock */
     uint64_t base_per_hart; /*!< Base address for Trace buffer. User have to populate this. */
     uint32_t size_per_hart; /*!< Size of Trace buffer. User have to populate this. */
     uint32_t
@@ -274,6 +276,10 @@ void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
 
 #ifndef ET_TRACE_READ_U64
 #define ET_TRACE_READ_U64(var)         (var)
+#endif
+
+#ifndef ET_TRACE_READ_U64_PTR
+#define ET_TRACE_READ_U64_PTR(var) (var)
 #endif
 
 #ifndef ET_TRACE_WRITE_U8
@@ -336,15 +342,6 @@ void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
         ET_TRACE_WRITE_HART_ID(msg);                                     \
         ET_TRACE_WRITE_U16(msg->header.type, id);                        \
     }
-#endif
-
-#if defined(ET_TRACE_BUFFER_LOCK_ACQUIRE) && !defined(ET_TRACE_BUFFER_LOCK_RELEASE)
-#error "Trace buffer locks must be defined in pair. ET_TRACE_BUFFER_LOCK_RELEASE not defined!"
-#elif !defined(ET_TRACE_BUFFER_LOCK_ACQUIRE) && defined(ET_TRACE_BUFFER_LOCK_RELEASE)
-#error "Trace buffer locks must be defined in pair. ET_TRACE_BUFFER_LOCK_ACQUIRE not defined!"
-#elif !defined(ET_TRACE_BUFFER_LOCK_ACQUIRE) && !defined(ET_TRACE_BUFFER_LOCK_RELEASE)
-#define ET_TRACE_BUFFER_LOCK_ACQUIRE /* Do nothing */
-#define ET_TRACE_BUFFER_LOCK_RELEASE /* Do nothing */
 #endif
 
 /* Check if Trace is enabled for given control block. */
@@ -518,8 +515,17 @@ static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint6
     void *head;
     uint32_t current_offset;
 
-    /* Acquire the lock */
-    ET_TRACE_BUFFER_LOCK_ACQUIRE
+    void (*lock_acquire)(void) = NULL;
+    void (*lock_release)(void) = NULL;
+
+    /* Load function ptr for buffer lock acquire */
+    lock_acquire = (void (*)())(uintptr_t)ET_TRACE_READ_U64_PTR(cb->buffer_lock_acquire);
+
+    /* Acquire the lock and load release lock function ptr if lock acquire function is defined */
+    if (lock_acquire != NULL) {
+        lock_release = (void (*)())(uintptr_t)ET_TRACE_READ_U64_PTR(cb->buffer_lock_release);
+        lock_acquire();
+    }
 
     /* Read the current offset value of trace buffer */
     current_offset = ET_TRACE_READ_U32(cb->offset_per_hart);
@@ -544,7 +550,9 @@ static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint6
     ET_TRACE_WRITE_U32(cb->offset_per_hart, (uint32_t)(current_offset + size));
 
     /* Release the lock */
-    ET_TRACE_BUFFER_LOCK_RELEASE
+    if (lock_release != NULL) {
+        lock_release();
+    }
 
     /* Update the head pointer to write to */
     head = (void *)(ET_TRACE_READ_U64(cb->base_per_hart) + current_offset);
@@ -596,6 +604,12 @@ int32_t Trace_Init(const struct trace_init_info_t *init_info, struct trace_contr
     {
         cb->enable = TRACE_DISABLE;
         return TRACE_INVALID_BUF_SIZE;
+    }
+    else if (((cb->buffer_lock_acquire != NULL) && (cb->buffer_lock_release == NULL)) ||
+             ((cb->buffer_lock_acquire == NULL) && (cb->buffer_lock_release != NULL)))
+    {
+        cb->enable = TRACE_DISABLE;
+        return TRACE_INVALID_INIT_INFO;
     }
 
     /* Check if it is a shortcut to enable all Trace events and filters. */
