@@ -109,7 +109,9 @@ void Dispatcher_Launch(uint32_t hart_id)
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_NOT_READY);
 
     /* Initialize Trace for Master Minions in default configuration. */
-    Trace_Init_MM(NULL);
+    status = Trace_Init_MM(NULL);
+    dispatcher_assert(
+        status == STATUS_SUCCESS, MM_STATS_TRACE_INIT_ERROR, "MM trace init failure.");
     status = Trace_Init_MM_Stats(NULL);
     dispatcher_assert(
         status == STATUS_SUCCESS, MM_STATS_TRACE_INIT_ERROR, "MM Stats trace init failure.");

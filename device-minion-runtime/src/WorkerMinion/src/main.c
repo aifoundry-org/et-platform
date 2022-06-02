@@ -22,6 +22,7 @@
 *       main
 *
 ***********************************************************************/
+#include "etsoc/common/common_defs.h"
 #include <etsoc/isa/fcc.h>
 #include <etsoc/isa/hart.h>
 #include <etsoc/isa/sync.h>
@@ -53,6 +54,7 @@ void __attribute__((noreturn)) main(void)
 {
     const uint32_t shire_id = get_shire_id();
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
+    int32_t status = GENERAL_ERROR;
 
     /* Setup supervisor trap vector */
     asm volatile("csrw  stvec, %0\n" : : "r"(&trap_handler));
@@ -71,11 +73,21 @@ void __attribute__((noreturn)) main(void)
     /* Enable all available PMU counters to be sampled in U-mode */
     asm volatile("csrw scounteren, %0\n" : : "r"(((1u << PMU_NR_HPM) - 1) << PMU_FIRST_HPM));
 
-    /* Initialize Trace with default configurations. */
-    Trace_Init_CM(NULL);
-
     /* Initialize the MM-CM Iface */
     MM_To_CM_Iface_Init();
+
+    /* Initialize Trace with default configurations. */
+    status = Trace_Init_CM(NULL);
+    if (status != STATUS_SUCCESS)
+    {
+        cm_to_mm_message_fw_error_t message = { .header.id = CM_TO_MM_MESSAGE_ID_FW_ERROR,
+            .hart_id = get_hart_id(),
+            .error_code = status };
+
+        /* Send error message to dispatcher (Master shire Hart 0) */
+        CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
+            CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (cm_iface_message_t *)&message);
+    }
 
     /* Last thread in a shire updates the global CM shire boot mask */
     uint32_t booted_threads = atomic_add_local_32(&CM_Thread_Boot_Counter[shire_id].flag, 1U) + 1;

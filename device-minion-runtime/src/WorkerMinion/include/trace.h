@@ -24,7 +24,7 @@
     \param cm_init_info Pointer Trace init information.
     \return Successful status or error code.
 */
-void Trace_Init_CM(const struct trace_init_info_t *cm_init_info);
+int32_t Trace_Init_CM(const struct trace_init_info_t *cm_init_info);
 
 /*! \fn int32_t Trace_Configure_CM(const struct trace_config_info_t *cm_config_info)
     \brief This function configures the Trace.

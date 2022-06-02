@@ -136,11 +136,12 @@ static_assert(sizeof(trace_umode_control_block_t) <= TRACE_CB_MAX_SIZE,
 *
 *   OUTPUTS
 *
-*       None
+*       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
+int32_t Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
 {
+    int32_t status = STATUS_SUCCESS;
     struct trace_init_info_t hart_init_info;
     const uint32_t hart_id = get_hart_id();
     uint32_t hart_cb_index = GET_CB_INDEX(hart_id);
@@ -170,6 +171,10 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
     CM_TRACE_CB[hart_cb_index].cb.base_per_hart =
         (CM_SMODE_TRACE_BUFFER_BASE + (hart_cb_index * CM_SMODE_TRACE_BUFFER_SIZE_PER_HART));
     CM_TRACE_CB[hart_cb_index].cb.size_per_hart = CM_SMODE_TRACE_BUFFER_SIZE_PER_HART;
+
+    /* Initialize buffer lock acquire/release to NULL as they are not required for CM. */
+    CM_TRACE_CB[hart_cb_index].cb.buffer_lock_acquire = NULL;
+    CM_TRACE_CB[hart_cb_index].cb.buffer_lock_release = NULL;
 
     /* Initialize trace buffer header. First CM hart contains ET Trace header,
        rest of Harts contain only size of trace data in their header.*/
@@ -207,7 +212,11 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
         CM_TRACE_CB[hart_cb_index].cb.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
 
         /* Initialize Trace for current Hart in Compute Minion Shire. */
-        Trace_Init(&hart_init_info, &CM_TRACE_CB[hart_cb_index].cb, TRACE_STD_HEADER);
+        status = Trace_Init(&hart_init_info, &CM_TRACE_CB[hart_cb_index].cb, TRACE_STD_HEADER);
+        if (status != STATUS_SUCCESS)
+        {
+            status = TRACE_ERROR_CM_TRACE_CONFIG_FAILED;
+        }
     }
     else
     {
@@ -220,7 +229,11 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
         CM_TRACE_CB[hart_cb_index].cb.offset_per_hart = sizeof(struct trace_buffer_size_header_t);
 
         /* Initialize Trace for current Hart in Compute Minion Shire. */
-        Trace_Init(&hart_init_info, &CM_TRACE_CB[hart_cb_index].cb, TRACE_SIZE_HEADER);
+        status = Trace_Init(&hart_init_info, &CM_TRACE_CB[hart_cb_index].cb, TRACE_SIZE_HEADER);
+        if (status != STATUS_SUCCESS)
+        {
+            status = TRACE_ERROR_CM_TRACE_CONFIG_FAILED;
+        }
     }
 
     /* Verify if the current shire and thread is enabled for tracing */
@@ -232,6 +245,8 @@ void Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
 
     /* Evict the buffer header to L3 Cache. */
     Trace_Evict_CM_Buffer();
+
+    return status;
 }
 
 /************************************************************************
@@ -449,6 +464,10 @@ void Trace_Init_UMode(const struct trace_init_info_t *init_info)
         cb->enable = TRACE_DISABLE;
         return;
     }
+
+    /* Initialize buffer lock acquire/release to NULL as they are not required for CM. */
+    cb->buffer_lock_acquire = NULL;
+    cb->buffer_lock_release = NULL;
 
     /* Calculate size per Hart by diving total buffer equally among enabled Harts.*/
     cb->size_per_hart =
