@@ -801,7 +801,7 @@ static inline int32_t kernel_launch_cmd_handler(
     struct device_ops_kernel_launch_cmd_t *cmd =
         (struct device_ops_kernel_launch_cmd_t *)command_buffer;
     uint8_t kw_idx;
-    exec_cycles_t cycles;
+    execution_cycles_t cycles;
     int32_t status = STATUS_SUCCESS;
 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, sqw_idx,
@@ -823,11 +823,11 @@ static inline int32_t kernel_launch_cmd_handler(
         status = KW_Dispatch_Kernel_Launch_Cmd(cmd, sqw_idx, &kw_idx);
     }
 
-    /* Compute Wait Cycles (cycles the command waits to launch on Compute Minions)
-        Snapshot current cycle */
+    /* Compute Wait Cycles (cycles the command waits to
+    launch on Compute Minions) Snapshot current cycle */
     cycles.cmd_start_cycles = start_cycles;
-    cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
-    cycles.exec_start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
+    cycles.wait_cycles = (uint32_t)PMC_GET_LATENCY(start_cycles);
+    cycles.exec_start_cycles = PMC_Get_Current_Cycles();
 
     if (status == STATUS_SUCCESS)
     {
@@ -1261,7 +1261,7 @@ static inline int32_t dma_readlist_cmd_handler(
     uint64_t total_dma_size = 0;
     uint8_t dma_xfer_count = 0;
     uint8_t loop_cnt;
-    exec_cycles_t cycles;
+    execution_cycles_t cycles;
 
     TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -1324,11 +1324,11 @@ static inline int32_t dma_readlist_cmd_handler(
             total_dma_size += cmd->list[loop_cnt].size;
         }
 
-        /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
-            Snapshot current cycle */
+        /* Compute Wait Cycles (cycles the command was sitting in
+        SQ prior to launch) Snapshot current cycle */
         cycles.cmd_start_cycles = start_cycles;
-        cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
-        cycles.exec_start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
+        cycles.wait_cycles = (uint32_t)PMC_GET_LATENCY(start_cycles);
+        cycles.exec_start_cycles = PMC_Get_Current_Cycles();
 
         /* Initiate DMA write transfer */
         status = DMAW_Write_Trigger_Transfer(chan, cmd, dma_xfer_count, sqw_idx, &cycles, dma_flag);
@@ -1486,7 +1486,7 @@ static inline int32_t dma_writelist_cmd_handler(
     uint8_t dma_xfer_count = 0;
     uint8_t loop_cnt;
     int32_t status = STATUS_SUCCESS;
-    exec_cycles_t cycles;
+    execution_cycles_t cycles;
 
     TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
@@ -1539,11 +1539,11 @@ static inline int32_t dma_writelist_cmd_handler(
             total_dma_size += cmd->list[loop_cnt].size;
         }
 
-        /* Compute Wait Cycles (cycles the command was sitting in SQ prior to launch)
-            Snapshot current cycle */
+        /* Compute Wait Cycles (cycles the command was sitting in
+        SQ prior to launch) Snapshot current cycle */
         cycles.cmd_start_cycles = start_cycles;
-        cycles.wait_cycles = (PMC_GET_LATENCY(start_cycles) & 0xFFFFFFF);
-        cycles.exec_start_cycles = ((uint32_t)PMC_Get_Current_Cycles() & 0xFFFFFFFF);
+        cycles.wait_cycles = (uint32_t)PMC_GET_LATENCY(start_cycles);
+        cycles.exec_start_cycles = PMC_Get_Current_Cycles();
 
         /* Initiate DMA read transfer */
         status = DMAW_Read_Trigger_Transfer(chan, cmd, dma_xfer_count, sqw_idx, &cycles);

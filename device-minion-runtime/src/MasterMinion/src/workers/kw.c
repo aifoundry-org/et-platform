@@ -124,7 +124,7 @@
     launch command.
 */
 typedef struct kernel_instance_ {
-    exec_cycles_t kw_cycles;
+    execution_cycles_t kw_cycles;
     uint64_t kernel_shire_mask;
     uint64_t umode_exception_buffer_ptr;
     uint64_t umode_trace_buffer_ptr;
@@ -954,7 +954,9 @@ void KW_Init(void)
 
         /* Initialize shire_mask, wait and start cycle count */
         atomic_store_local_64(&KW_CB.kernels[i].kernel_shire_mask, 0U);
-        atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.raw_u64, 0U);
+        atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.exec_start_cycles, 0U);
+        atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.cmd_start_cycles, 0U);
+        atomic_store_local_32(&KW_CB.kernels[i].kw_cycles.wait_cycles, 0U);
     }
 
     return;
@@ -984,7 +986,7 @@ void KW_Init(void)
 *       None
 *
 ***********************************************************************/
-void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
+void KW_Notify(uint8_t kw_idx, const execution_cycles_t *cycle)
 {
     uint32_t minion = KW_WORKER_0 + kw_idx;
 
@@ -993,8 +995,9 @@ void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
 
     atomic_store_local_64(
         (void *)&KW_CB.kernels[kw_idx].kw_cycles.cmd_start_cycles, cycle->cmd_start_cycles);
-
-    atomic_store_local_64((void *)&KW_CB.kernels[kw_idx].kw_cycles.raw_u64, cycle->raw_u64);
+    atomic_store_local_64(
+        (void *)&KW_CB.kernels[kw_idx].kw_cycles.exec_start_cycles, cycle->exec_start_cycles);
+    atomic_store_local_32((void *)&KW_CB.kernels[kw_idx].kw_cycles.wait_cycles, cycle->wait_cycles);
 
     global_fcc_notify(atomic_load_local_8(&KW_CB.host2kw[kw_idx].fcc_id),
         &KW_CB.host2kw[kw_idx].fcc_flag, minion, KW_THREAD_ID);
@@ -1296,7 +1299,6 @@ void KW_Launch(uint32_t kw_idx)
 
     /* Get the kernel instance */
     kernel_instance_t *const kernel = &KW_CB.kernels[kw_idx];
-    exec_cycles_t cycles;
 
     Log_Write(LOG_LEVEL_INFO, "KW[%d]\r\n", kw_idx);
 
@@ -1387,17 +1389,13 @@ void KW_Launch(uint32_t kw_idx)
         /* Read the kernel state to detect abort by host */
         kernel_state = atomic_load_local_32(&kernel->kernel_state);
 
-        /* Read the execution cycles info */
-        cycles.cmd_start_cycles = atomic_load_local_64(&kernel->kw_cycles.cmd_start_cycles);
-        cycles.raw_u64 = atomic_load_local_64(&kernel->kw_cycles.raw_u64);
-
         /* Construct and transmit kernel launch response to host */
         launch_rsp->response_info.rsp_hdr.tag_id = atomic_load_local_16(&kernel->launch_tag_id);
         launch_rsp->response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
-        launch_rsp->device_cmd_start_ts = cycles.cmd_start_cycles;
-        launch_rsp->device_cmd_wait_dur = cycles.wait_cycles;
+        launch_rsp->device_cmd_start_ts = atomic_load_local_64(&kernel->kw_cycles.cmd_start_cycles);
+        launch_rsp->device_cmd_wait_dur = atomic_load_local_32(&kernel->kw_cycles.wait_cycles);
         launch_rsp->device_cmd_execute_dur =
-            (PMC_GET_LATENCY(cycles.exec_start_cycles) & 0xFFFFFFFF);
+            (uint32_t)PMC_GET_LATENCY(atomic_load_local_64(&kernel->kw_cycles.exec_start_cycles));
 
         local_sqw_idx = atomic_load_local_8(&kernel->sqw_idx);
 

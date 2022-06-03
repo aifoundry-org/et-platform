@@ -26,6 +26,7 @@
 /* mm specific svcs */
 #include "config/dir_regs.h"
 #include "drivers/pcie_dma.h"
+#include "services/host_cmd_hdlr.h"
 
 /* common-api, device_ops_api */
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
@@ -87,10 +88,10 @@ typedef struct dma_channel_status {
     information related to given channel's usage
 */
 typedef struct dma_channel_status_cb {
-    dma_channel_status_t status; /* Holds the attributes related to a channel's status */
-    exec_cycles_t dmaw_cycles;   /* Cycles associated with the transaction */
-    uint16_t msg_id;             /* TODO: To be removed, temporary field for dmalist cmds */
-    uint8_t pad[6];              /* Padding for alignment */
+    dma_channel_status_t status;    /* Holds the attributes related to a channel's status */
+    execution_cycles_t dmaw_cycles; /* Cycles associated with the transaction */
+    uint16_t msg_id;                /* TODO: To be removed, temporary field for dmalist cmds */
+    uint8_t pad[6];                 /* Padding for alignment */
 } dma_channel_status_cb_t;
 
 /*! \fn void DMAW_Init(void)
@@ -124,7 +125,7 @@ int32_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint
 
 /*! \fn int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
     const struct device_ops_dma_writelist_cmd_t *cmd, uint16_t xfer_count, uint8_t sqw_idx,
-    exec_cycles_t *cycles, uint8_t sw_timer_idx)
+    execution_cycles_t *cycles, uint8_t sw_timer_idx)
     \brief This function is used to trigger a DMA read transaction by calling the
     PCIe device driver routine
     \param chan_id DMA channel ID
@@ -136,11 +137,11 @@ int32_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint
 */
 int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
     const struct device_ops_dma_writelist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
-    const exec_cycles_t *cycles);
+    const execution_cycles_t *cycles);
 
 /*! \fn int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e chan_id,
     const struct device_ops_dma_readlist_cmd_t *cmd, uint16_t xfer_count, uint8_t sqw_idx,
-    exec_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags)
+    execution_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags)
     \brief This function is used to trigger a DMA write transaction by calling the
     PCIe device driver routine
     \param chan_id DMA channel ID
@@ -153,7 +154,7 @@ int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
 */
 int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e chan_id,
     const struct device_ops_dma_readlist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
-    const exec_cycles_t *cycles, dma_flags_e flags);
+    const execution_cycles_t *cycles, dma_flags_e flags);
 
 /*! \fn void DMAW_Abort_All_Dispatched_Write_Channels(uint8_t sqw_idx)
     \brief Blocking call to abort all DMA write channels

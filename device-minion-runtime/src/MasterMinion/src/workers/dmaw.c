@@ -283,7 +283,7 @@ int32_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint
 ***********************************************************************/
 int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
     const struct device_ops_dma_writelist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
-    const exec_cycles_t *cycles)
+    const execution_cycles_t *cycles)
 {
     int32_t status = STATUS_SUCCESS;
     dma_channel_status_t chan_status;
@@ -369,7 +369,10 @@ int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
             &DMAW_Read_CB.chan_status_cb[read_chan_id].dmaw_cycles.cmd_start_cycles,
             cycles->cmd_start_cycles);
         atomic_store_local_64(
-            &DMAW_Read_CB.chan_status_cb[read_chan_id].dmaw_cycles.raw_u64, cycles->raw_u64);
+            &DMAW_Read_CB.chan_status_cb[read_chan_id].dmaw_cycles.exec_start_cycles,
+            cycles->exec_start_cycles);
+        atomic_store_local_32(&DMAW_Read_CB.chan_status_cb[read_chan_id].dmaw_cycles.wait_cycles,
+            cycles->wait_cycles);
 
         /* Update the global structure to make it visible to DMAW */
         atomic_store_local_64(
@@ -425,7 +428,7 @@ int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
 ***********************************************************************/
 int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
     const struct device_ops_dma_readlist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
-    const exec_cycles_t *cycles, dma_flags_e flags)
+    const execution_cycles_t *cycles, dma_flags_e flags)
 {
     int32_t status = STATUS_SUCCESS;
     dma_channel_status_t chan_status;
@@ -509,7 +512,10 @@ int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
             &DMAW_Write_CB.chan_status_cb[write_chan_id].dmaw_cycles.cmd_start_cycles,
             cycles->cmd_start_cycles);
         atomic_store_local_64(
-            &DMAW_Write_CB.chan_status_cb[write_chan_id].dmaw_cycles.raw_u64, cycles->raw_u64);
+            &DMAW_Write_CB.chan_status_cb[write_chan_id].dmaw_cycles.exec_start_cycles,
+            cycles->exec_start_cycles);
+        atomic_store_local_32(&DMAW_Write_CB.chan_status_cb[write_chan_id].dmaw_cycles.wait_cycles,
+            cycles->wait_cycles);
 
         /* Update the global structure to make it visible to DMAW */
         atomic_store_local_64(
@@ -564,7 +570,7 @@ static inline void process_dma_read_chan_in_use(
     dma_read_chan_id_e read_chan, struct device_ops_data_write_rsp_t *write_rsp)
 {
     dma_channel_status_t read_chan_status;
-    exec_cycles_t dma_rd_cycles;
+    execution_cycles_t dma_rd_cycles;
     uint32_t dma_read_status;
     bool dma_read_done = false;
     bool dma_read_aborted = false;
@@ -610,8 +616,10 @@ static inline void process_dma_read_chan_in_use(
         for the command and obtain current cycles */
         dma_rd_cycles.cmd_start_cycles = atomic_load_local_64(
             &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.cmd_start_cycles);
-        dma_rd_cycles.raw_u64 =
-            atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.raw_u64);
+        dma_rd_cycles.exec_start_cycles = atomic_load_local_64(
+            &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_start_cycles);
+        dma_rd_cycles.wait_cycles =
+            atomic_load_local_32(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.wait_cycles);
 
         /* Update global DMA channel status
         NOTE: Channel state must be made idle once all resources are read */
@@ -633,7 +641,8 @@ static inline void process_dma_read_chan_in_use(
         write_rsp->device_cmd_start_ts = dma_rd_cycles.cmd_start_cycles;
         write_rsp->device_cmd_wait_dur = dma_rd_cycles.wait_cycles;
         /* Compute command execution latency */
-        write_rsp->device_cmd_execute_dur = PMC_GET_LATENCY(dma_rd_cycles.exec_start_cycles);
+        write_rsp->device_cmd_execute_dur =
+            (uint32_t)PMC_GET_LATENCY(dma_rd_cycles.exec_start_cycles);
 
         Log_Write(LOG_LEVEL_DEBUG, "DMAW:Pushing:DATA_WRITE_CMD_RSP:tag_id=%x->Host_CQ\r\n",
             write_rsp->response_info.rsp_hdr.tag_id);
@@ -700,7 +709,7 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
     struct device_ops_data_write_rsp_t *write_rsp, bool *channel_aborted)
 {
     dma_channel_status_t read_chan_status;
-    exec_cycles_t dma_read_cycles;
+    execution_cycles_t dma_read_cycles;
     uint32_t dma_read_status;
     int32_t status = STATUS_SUCCESS;
     int32_t dma_status = STATUS_SUCCESS;
@@ -756,8 +765,10 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
     and obtain current cycles */
     dma_read_cycles.cmd_start_cycles =
         atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.cmd_start_cycles);
-    dma_read_cycles.raw_u64 =
-        atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.raw_u64);
+    dma_read_cycles.exec_start_cycles =
+        atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_start_cycles);
+    dma_read_cycles.wait_cycles =
+        atomic_load_local_32(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.wait_cycles);
 
     /* Update global DMA channel status
     NOTE: Channel state must be made idle once all resources are read */
@@ -788,7 +799,8 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
     write_rsp->device_cmd_start_ts = dma_read_cycles.cmd_start_cycles;
     write_rsp->device_cmd_wait_dur = dma_read_cycles.wait_cycles;
     /* Compute command execution latency */
-    write_rsp->device_cmd_execute_dur = PMC_GET_LATENCY(dma_read_cycles.exec_start_cycles);
+    write_rsp->device_cmd_execute_dur =
+        (uint32_t)PMC_GET_LATENCY(dma_read_cycles.exec_start_cycles);
 
     status = Host_Iface_CQ_Push_Cmd(0, write_rsp, sizeof(struct device_ops_data_write_rsp_t));
 
@@ -841,7 +853,7 @@ static inline void process_dma_write_chan_in_use(
     uint32_t dma_write_status;
     bool dma_write_done = false;
     bool dma_write_aborted = false;
-    exec_cycles_t dma_write_cycles;
+    execution_cycles_t dma_write_cycles;
     dma_channel_status_t write_chan_status;
     int32_t status = STATUS_SUCCESS;
     uint16_t msg_id; /* TODO: SW-9022: To be removed */
@@ -885,8 +897,10 @@ static inline void process_dma_write_chan_in_use(
         for the command and obtain current cycles */
         dma_write_cycles.cmd_start_cycles = atomic_load_local_64(
             &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.cmd_start_cycles);
-        dma_write_cycles.raw_u64 =
-            atomic_load_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.raw_u64);
+        dma_write_cycles.exec_start_cycles = atomic_load_local_64(
+            &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_start_cycles);
+        dma_write_cycles.wait_cycles =
+            atomic_load_local_32(&DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.wait_cycles);
 
         /* Update global DMA channel status
         NOTE: Channel state must be made idle once all resources are read */
@@ -908,7 +922,8 @@ static inline void process_dma_write_chan_in_use(
         read_rsp->device_cmd_start_ts = dma_write_cycles.cmd_start_cycles;
         read_rsp->device_cmd_wait_dur = dma_write_cycles.wait_cycles;
         /* Compute command execution latency */
-        read_rsp->device_cmd_execute_dur = PMC_GET_LATENCY(dma_write_cycles.exec_start_cycles);
+        read_rsp->device_cmd_execute_dur =
+            (uint32_t)PMC_GET_LATENCY(dma_write_cycles.exec_start_cycles);
 
         status = Host_Iface_CQ_Push_Cmd(0, read_rsp, sizeof(struct device_ops_data_read_rsp_t));
 
@@ -975,7 +990,7 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
     struct device_ops_data_read_rsp_t *read_rsp, bool *channel_aborted)
 {
     dma_channel_status_t write_chan_status;
-    exec_cycles_t dma_write_cycles;
+    execution_cycles_t dma_write_cycles;
     uint32_t dma_write_status;
     int32_t status = STATUS_SUCCESS;
     int32_t dma_status = STATUS_SUCCESS;
@@ -1031,8 +1046,10 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
     and obtain current cycles */
     dma_write_cycles.cmd_start_cycles = atomic_load_local_64(
         &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.cmd_start_cycles);
-    dma_write_cycles.raw_u64 =
-        atomic_load_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.raw_u64);
+    dma_write_cycles.exec_start_cycles = atomic_load_local_64(
+        &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_start_cycles);
+    dma_write_cycles.wait_cycles =
+        atomic_load_local_32(&DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.wait_cycles);
 
     /* Update global DMA channel status
     NOTE: Channel state must be made idle once all resources are read */
@@ -1063,7 +1080,8 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
     read_rsp->device_cmd_start_ts = dma_write_cycles.cmd_start_cycles;
     read_rsp->device_cmd_wait_dur = dma_write_cycles.wait_cycles;
     /* Compute command execution latency */
-    read_rsp->device_cmd_execute_dur = PMC_GET_LATENCY(dma_write_cycles.exec_start_cycles);
+    read_rsp->device_cmd_execute_dur =
+        (uint32_t)PMC_GET_LATENCY(dma_write_cycles.exec_start_cycles);
 
     status = Host_Iface_CQ_Push_Cmd(0, read_rsp, sizeof(struct device_ops_data_read_rsp_t));
 

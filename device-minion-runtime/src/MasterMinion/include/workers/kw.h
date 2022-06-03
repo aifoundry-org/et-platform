@@ -20,6 +20,7 @@
 
 /* mm specific headers */
 #include "config/mm_config.h"
+#include "services/host_cmd_hdlr.h"
 
 /* common-api, device_ops_api */
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
@@ -66,7 +67,7 @@ typedef enum {
 */
 void KW_Init(void);
 
-/*! \fn void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle)
+/*! \fn void KW_Notify(uint8_t kw_idx, const execution_cycles_t *cycle)
     \brief Notify Kernel Worker
     \param kw_idx Kernel worker ID
     \param cycle Pointer containing 2 elements:
@@ -74,7 +75,7 @@ void KW_Init(void);
     -Start cycles when Kernels are Launched on the Compute Minions
     \return none
 */
-void KW_Notify(uint8_t kw_idx, const exec_cycles_t *cycle);
+void KW_Notify(uint8_t kw_idx, const execution_cycles_t *cycle);
 
 /*! \fn void KW_Launch(uint32_t hart_id, uint32_t kw_idx)
     \brief Launch the Kernel Worker thread
