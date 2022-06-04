@@ -80,4 +80,28 @@ void Write_CSR(uint64_t hart_id, uint32_t csr, uint64_t data);
 */
 void VPU_RF_Init(uint64_t hart_id);
 
+/*! \fn void Minion_Memory_Read(uint64_t hart_id, uint64_t address)
+    \brief Read value at the address of the Hart specified by hart_id
+    \param hart_id Hart ID for which the memory has to be read
+    \param address Address to be read
+    \returns uint64_t
+*/
+uint64_t Minion_Memory_Read(uint64_t hart_id, uint64_t address);
+
+/*! \fn void Minion_Local_Atomic_Read(uint64_t hart_id, uint64_t address)
+    \brief Read value of local variable's memory address atomically
+    \param hart_id Hart ID for which the memory has to be read
+    \param address Address to be read
+    \returns uint64_t
+*/
+uint64_t Minion_Local_Atomic_Read(uint64_t hart_id, uint64_t address);
+
+/*! \fn void Minion_Global_Atomic_Read(uint64_t hart_id, uint64_t address)
+    \brief Read value of global variable's memory address atomically
+    \param hart_id Hart ID for which the memory has to be read
+    \param address Address to be read
+    \returns uint64_t
+*/
+uint64_t Minion_Global_Atomic_Read(uint64_t hart_id, uint64_t address);
+
 #endif /* MINION_STATE_INSPECTION_H */

@@ -62,3 +62,50 @@ void VPU_RF_Init(uint64_t hart_id)
     execute_instructions(hart_id, vpu_rf_init_list, NUM_INST_VPU_RF_INIT_SEQ);
 }
 
+uint64_t Minion_Local_Atomic_Read(uint64_t hart_id, uint64_t addr)
+{
+    /* Write addr to register(a0) */
+    Write_GPR(hart_id, GPR_REG_INDEX_A0, addr);
+
+    uint32_t read_minion_local_atomic[NUM_INST_MINION_LCL_ATOMIC_READ_SEQ] = {
+        MINION_LCL_ATOMIC_READ_SEQ()
+    };
+
+    /* Execute minion memory read (local) atomically */
+    /* LCL_ATOMIC_READ macro is defined to save the result in GPR(a0) */
+    execute_instructions(hart_id, read_minion_local_atomic, NUM_INST_MINION_LCL_ATOMIC_READ_SEQ);
+
+    /* Return the read value(from the memory) available in the register */
+    return Read_GPR(hart_id, GPR_REG_INDEX_A0);
+}
+
+uint64_t Minion_Global_Atomic_Read(uint64_t hart_id, uint64_t addr)
+{
+    /* Write addr to register(a0) */
+    Write_GPR(hart_id, GPR_REG_INDEX_A0, addr);
+
+    uint32_t read_minion_global_atomic[NUM_INST_MINION_GLB_ATOMIC_READ_SEQ] = {
+        MINION_GLB_ATOMIC_READ_SEQ()
+    };
+
+    /* Execute minion memory read (global) atomically */
+    /* GLB_ATOMIC_READ macro is defined to save the result in GPR(a0) */
+    execute_instructions(hart_id, read_minion_global_atomic, NUM_INST_MINION_GLB_ATOMIC_READ_SEQ);
+
+    /* Return the read value(from the memory) available in the register */
+    return Read_GPR(hart_id, GPR_REG_INDEX_A0);
+}
+
+uint64_t Minion_Memory_Read(uint64_t hart_id, uint64_t addr)
+{
+    /* Write addr to register(a0) */
+    Write_GPR(hart_id, GPR_REG_INDEX_A0, addr);
+
+    uint32_t read_minion_mem[NUM_INST_MINION_MEM_READ_SEQ] = { MINION_MEM_READ_SEQ() };
+
+    /* Execute minion memory read instruction sequence */
+    execute_instructions(hart_id, read_minion_mem, NUM_INST_MINION_MEM_READ_SEQ);
+
+    /* Return the read value(from the memory) available in the register */
+    return Read_GPR(hart_id, GPR_REG_INDEX_A0);
+}

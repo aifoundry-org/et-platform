@@ -25,7 +25,7 @@
 #include "cache_flush_ops.h"
 #include "log.h"
 
-#define DEBUG_ACCESS_MEM_REGION_COUNT 4
+#define DEBUG_ACCESS_MEM_REGION_COUNT 7
 
 /*! \fn void minion_debug_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
     \brief Function takes command ID as input from Host, and accordingly calls the respective minion debug

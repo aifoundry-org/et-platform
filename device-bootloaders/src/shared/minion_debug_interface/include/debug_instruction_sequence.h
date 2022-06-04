@@ -74,4 +74,20 @@
     CLR_MATP, CLR_SATP, INIT_T0, UPDATE_MSTATUS, CLR_FCSR, FMA_3PORT_RF_READ, WFI_INST, EBREAK_INST
 #define NUM_INST_VPU_RF_INIT_SEQ 8
 
+/* Memory read instruction sequence */
+#define GPR_REG_INDEX_A0             10
+#define MINION_MEM_READ              0x00053503 /* ld a0,0(a0) */
+#define MINION_MEM_READ_SEQ(addr)    MINION_MEM_READ, EBREAK_INST
+#define NUM_INST_MINION_MEM_READ_SEQ 2
+
+/* Minion Local Atomic Memory read instruction sequence */
+#define LCL_ATOMIC_READ                     0x4005353b /* amoorl.d a0,zero,(a0) */
+#define MINION_LCL_ATOMIC_READ_SEQ()        LCL_ATOMIC_READ, EBREAK_INST
+#define NUM_INST_MINION_LCL_ATOMIC_READ_SEQ 2
+
+/* Minion Global Atomic Memory read instruction sequence */
+#define GLB_ATOMIC_READ                     0x4205353b /* amoorg.d a0,zero,(a0) */
+#define MINION_GLB_ATOMIC_READ_SEQ(addr)    GLB_ATOMIC_READ, EBREAK_INST
+#define NUM_INST_MINION_GLB_ATOMIC_READ_SEQ 2
+
 #endif /* DEBUG_INSTRUCTION_SEQUENCE_H */

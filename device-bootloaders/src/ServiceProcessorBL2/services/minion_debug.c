@@ -22,22 +22,40 @@ static const mem_region mdi_debug_access_mem_region[DEBUG_ACCESS_MEM_REGION_COUN
         HOST_MANAGED_DRAM_SIZE   /* Size             */
     },
 
-    /* MEMORY REGION 2 - CM S MODE TRACE Buffer region         */
+    /* MEMORY REGION 2 - Worker Minion FW SData region */
+    {
+        FW_WORKER_SDATA_BASE, /* Start  Address   */
+        FW_WORKER_SDATA_SIZE  /* Size             */
+    },
+
+    /* MEMORY REGION 3 - Master Minion FW SData region */
+    {
+        FW_MASTER_SDATA_BASE, /* Start  Address   */
+        FW_MASTER_SDATA_SIZE  /* Size             */
+    },
+
+    /* MEMORY REGION 4 - CM S MODE TRACE Buffer region         */
     {
         CM_SMODE_TRACE_BUFFER_BASE, /* Start  Address   */
         CM_SMODE_TRACE_BUFFER_SIZE  /* Size             */
     },
 
-    /* MEMORY REGION 3 - MM S MODE TRACE Buffer region        */
+    /* MEMORY REGION 5 - MM S MODE TRACE Buffer region        */
     {
         MM_TRACE_BUFFER_BASE, /* Start  Address   */
         MM_TRACE_BUFFER_SIZE  /* Size             */
     },
 
-    /* MEMORY REGION 4 - User mode Kernel Stack region        */
+    /* MEMORY REGION 6 - User mode Kernel Stack region        */
     {
-        KERNEL_UMODE_STACK_BASE, /* Start  Address   */
-        KERNEL_UMODE_STACK_SIZE  /* Size             */
+        KERNEL_UMODE_STACK_END, /* Start  Address   */
+        KERNEL_UMODE_STACK_SIZE /* Size             */
+    },
+
+    /* MEMORY REGION 7 - Supervisor mode Stack region        */
+    {
+        FW_SMODE_STACK_END, /* Start  Address   */
+        FW_SMODE_STACK_BASE /* Size             */
     },
 };
 
@@ -463,18 +481,69 @@ static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
 {
     int32_t status = SUCCESS;
     const struct mdi_mem_read_cmd_t *mdi_cmd_req = (struct mdi_mem_read_cmd_t *)buffer;
+    uint64_t addr = mdi_cmd_req->cmd_attr.address;
     struct mdi_mem_read_rsp_t mdi_rsp = { 0 };
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_READ_MEM\n");
 
-    if (mdi_debug_access_addr_in_valid_range(mdi_cmd_req->cmd_attr.address))
+    if (mdi_debug_access_addr_in_valid_range(addr))
     {
-        status = ETSOC_Memory_Read_Write_Cacheable((const void *)mdi_cmd_req->cmd_attr.address,
-                                                   &mdi_rsp.data, mdi_cmd_req->cmd_attr.size);
+        if (((addr >= FW_WORKER_SDATA_BASE) &&
+             (addr < (FW_WORKER_SDATA_BASE + FW_WORKER_SDATA_SIZE))) ||
+            ((addr >= FW_MASTER_SDATA_BASE) &&
+             (addr < (FW_MASTER_SDATA_BASE + FW_MASTER_SDATA_SIZE))) ||
+            ((addr >= KERNEL_UMODE_STACK_END) &&
+             (addr < (KERNEL_UMODE_STACK_END + KERNEL_UMODE_STACK_SIZE))) ||
+            ((addr >= FW_SMODE_STACK_END) && (addr < (FW_SMODE_STACK_END + FW_SMODE_STACK_SIZE))))
+        {
+            switch (mdi_cmd_req->cmd_attr.access_type)
+            {
+                case MEM_ACCESS_TYPE_GLOBAL_ATOMIC:
+                    mdi_rsp.data = Minion_Global_Atomic_Read(mdi_cmd_req->cmd_attr.hart_id, addr);
 
-        Log_Write(LOG_LEVEL_DEBUG, "Mem Read Status:%d  Read address: %lx, Value: %lx\r\n", status,
-                  mdi_cmd_req->cmd_attr.address, mdi_rsp.data);
+                    Log_Write(
+                        LOG_LEVEL_INFO,
+                        "Minion_Global_Atomic_Read  Hart ID: %lx, Address: %lx, Value: %lx\r\n",
+                        mdi_cmd_req->cmd_attr.hart_id, addr, mdi_rsp.data);
+
+                    break;
+
+                case MEM_ACCESS_TYPE_LOCAL_ATOMIC:
+                    mdi_rsp.data = Minion_Local_Atomic_Read(mdi_cmd_req->cmd_attr.hart_id, addr);
+
+                    Log_Write(
+                        LOG_LEVEL_INFO,
+                        "Minion_Local_Atomic_Read  Hart ID: %lx, Address: %lx, Value: %lx\r\n",
+                        mdi_cmd_req->cmd_attr.hart_id, addr, mdi_rsp.data);
+
+                    break;
+
+                case MEM_ACCESS_TYPE_NORMAL:
+                    mdi_rsp.data = Minion_Memory_Read(mdi_cmd_req->cmd_attr.hart_id, addr);
+
+                    Log_Write(LOG_LEVEL_INFO,
+                              "Minion_Memory_Read  Hart ID: %lx, Address: %lx, Value: %lx\r\n",
+                              mdi_cmd_req->cmd_attr.hart_id, addr, mdi_rsp.data);
+
+                    break;
+
+                default:
+                    Log_Write(LOG_LEVEL_ERROR,
+                              "MDI Invalid Memory access type for the address range!\n");
+                    status = MDI_INVALID_MEMORY_READ_REQUEST;
+                    break;
+            }
+        }
+        else
+        {
+            status = ETSOC_Memory_Read_Write_Cacheable((const void *)addr, &mdi_rsp.data,
+                                                       mdi_cmd_req->cmd_attr.size);
+
+            Log_Write(LOG_LEVEL_DEBUG, "Mem Read Status:%d  Read address: %lx, Value: %lx\r\n",
+                      status, addr, mdi_rsp.data);
+        }
     }
+
     else
     {
         Log_Write(LOG_LEVEL_ERROR, "MDI Invalid Memory read request!\n");
