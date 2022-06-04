@@ -417,6 +417,16 @@ Modules:
           Value: 0
         - Name : CLOCK_TRUE
           Value: 1
+    - Name: mem_access_type
+      Description: Minion memory access type
+      Type: uint8_t
+      Values:
+        - Name : GLOBAL_ATOMIC
+          Value: 0
+        - Name : LOCAL_ATOMIC
+          Value: 1
+        - Name : NORMAL
+          Value: 2
   Structs:
     - Name: asset_info_t
       Description: Asset Information
@@ -767,10 +777,16 @@ Modules:
         - Name: address
           Description: Memory address to be read from
           Type: uint64_t
+        - Name: hart_id
+          Description: HART ID
+          Type: uint64_t
         - Name: size
           Description: Size of memory region
           Type: uint32_t
-        - Name: pad[4]
+        - Name: access_type
+          Description: Memory access type
+          Type: uint8_t
+        - Name: pad[3]
           Description: Padding for alignment
           Type: uint8_t
     - Name: mdi_mem_write_t
