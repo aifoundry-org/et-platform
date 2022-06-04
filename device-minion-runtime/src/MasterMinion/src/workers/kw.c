@@ -1395,7 +1395,7 @@ void KW_Launch(uint32_t kw_idx)
         launch_rsp->device_cmd_start_ts = atomic_load_local_64(&kernel->kw_cycles.cmd_start_cycles);
         launch_rsp->device_cmd_wait_dur = atomic_load_local_32(&kernel->kw_cycles.wait_cycles);
         launch_rsp->device_cmd_execute_dur =
-            (uint32_t)PMC_GET_LATENCY(atomic_load_local_64(&kernel->kw_cycles.exec_start_cycles));
+            PMC_GET_LATENCY(atomic_load_local_64(&kernel->kw_cycles.exec_start_cycles));
 
         local_sqw_idx = atomic_load_local_8(&kernel->sqw_idx);
 

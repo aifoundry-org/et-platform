@@ -641,8 +641,7 @@ static inline void process_dma_read_chan_in_use(
         write_rsp->device_cmd_start_ts = dma_rd_cycles.cmd_start_cycles;
         write_rsp->device_cmd_wait_dur = dma_rd_cycles.wait_cycles;
         /* Compute command execution latency */
-        write_rsp->device_cmd_execute_dur =
-            (uint32_t)PMC_GET_LATENCY(dma_rd_cycles.exec_start_cycles);
+        write_rsp->device_cmd_execute_dur = PMC_GET_LATENCY(dma_rd_cycles.exec_start_cycles);
 
         Log_Write(LOG_LEVEL_DEBUG, "DMAW:Pushing:DATA_WRITE_CMD_RSP:tag_id=%x->Host_CQ\r\n",
             write_rsp->response_info.rsp_hdr.tag_id);
@@ -799,8 +798,7 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
     write_rsp->device_cmd_start_ts = dma_read_cycles.cmd_start_cycles;
     write_rsp->device_cmd_wait_dur = dma_read_cycles.wait_cycles;
     /* Compute command execution latency */
-    write_rsp->device_cmd_execute_dur =
-        (uint32_t)PMC_GET_LATENCY(dma_read_cycles.exec_start_cycles);
+    write_rsp->device_cmd_execute_dur = PMC_GET_LATENCY(dma_read_cycles.exec_start_cycles);
 
     status = Host_Iface_CQ_Push_Cmd(0, write_rsp, sizeof(struct device_ops_data_write_rsp_t));
 
@@ -922,8 +920,7 @@ static inline void process_dma_write_chan_in_use(
         read_rsp->device_cmd_start_ts = dma_write_cycles.cmd_start_cycles;
         read_rsp->device_cmd_wait_dur = dma_write_cycles.wait_cycles;
         /* Compute command execution latency */
-        read_rsp->device_cmd_execute_dur =
-            (uint32_t)PMC_GET_LATENCY(dma_write_cycles.exec_start_cycles);
+        read_rsp->device_cmd_execute_dur = PMC_GET_LATENCY(dma_write_cycles.exec_start_cycles);
 
         status = Host_Iface_CQ_Push_Cmd(0, read_rsp, sizeof(struct device_ops_data_read_rsp_t));
 
@@ -1080,8 +1077,7 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
     read_rsp->device_cmd_start_ts = dma_write_cycles.cmd_start_cycles;
     read_rsp->device_cmd_wait_dur = dma_write_cycles.wait_cycles;
     /* Compute command execution latency */
-    read_rsp->device_cmd_execute_dur =
-        (uint32_t)PMC_GET_LATENCY(dma_write_cycles.exec_start_cycles);
+    read_rsp->device_cmd_execute_dur = PMC_GET_LATENCY(dma_write_cycles.exec_start_cycles);
 
     status = Host_Iface_CQ_Push_Cmd(0, read_rsp, sizeof(struct device_ops_data_read_rsp_t));
 

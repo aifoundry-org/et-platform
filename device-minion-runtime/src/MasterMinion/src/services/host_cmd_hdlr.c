@@ -826,7 +826,7 @@ static inline int32_t kernel_launch_cmd_handler(
     /* Compute Wait Cycles (cycles the command waits to
     launch on Compute Minions) Snapshot current cycle */
     cycles.cmd_start_cycles = start_cycles;
-    cycles.wait_cycles = (uint32_t)PMC_GET_LATENCY(start_cycles);
+    cycles.wait_cycles = PMC_GET_LATENCY(start_cycles);
     cycles.exec_start_cycles = PMC_Get_Current_Cycles();
 
     if (status == STATUS_SUCCESS)
@@ -1327,7 +1327,7 @@ static inline int32_t dma_readlist_cmd_handler(
         /* Compute Wait Cycles (cycles the command was sitting in
         SQ prior to launch) Snapshot current cycle */
         cycles.cmd_start_cycles = start_cycles;
-        cycles.wait_cycles = (uint32_t)PMC_GET_LATENCY(start_cycles);
+        cycles.wait_cycles = PMC_GET_LATENCY(start_cycles);
         cycles.exec_start_cycles = PMC_Get_Current_Cycles();
 
         /* Initiate DMA write transfer */
@@ -1542,7 +1542,7 @@ static inline int32_t dma_writelist_cmd_handler(
         /* Compute Wait Cycles (cycles the command was sitting in
         SQ prior to launch) Snapshot current cycle */
         cycles.cmd_start_cycles = start_cycles;
-        cycles.wait_cycles = (uint32_t)PMC_GET_LATENCY(start_cycles);
+        cycles.wait_cycles = PMC_GET_LATENCY(start_cycles);
         cycles.exec_start_cycles = PMC_Get_Current_Cycles();
 
         /* Initiate DMA read transfer */
