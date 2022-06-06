@@ -464,7 +464,12 @@ static void esperanto_pcie_vm_open(struct vm_area_struct *vma)
 		et_dev = pci_get_drvdata(map->pdev);
 		atomic64_add(
 			map->size,
-			&et_dev->ops.mem_stats[ET_MEM_STATS_CMA_ALLOCATED]);
+			&et_dev->ops.mem_stats
+				 .counters[ET_MEM_COUNTER_STATS_CMA_ALLOCATED]);
+		et_rate_entry_update(
+			map->size,
+			&et_dev->ops.mem_stats
+				 .rates[ET_MEM_RATE_STATS_CMA_ALLOCATION_RATE]);
 	}
 }
 
@@ -492,7 +497,8 @@ static void esperanto_pcie_vm_close(struct vm_area_struct *vma)
 		et_dev = pci_get_drvdata(map->pdev);
 		atomic64_sub(
 			map->size,
-			&et_dev->ops.mem_stats[ET_MEM_STATS_CMA_ALLOCATED]);
+			&et_dev->ops.mem_stats
+				 .counters[ET_MEM_COUNTER_STATS_CMA_ALLOCATED]);
 
 		kfree(map);
 	}
@@ -1719,9 +1725,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 
-	memset(et_dev->mgmt.err_stats,
-	       0,
-	       sizeof(atomic64_t) * ARRAY_SIZE(et_dev->mgmt.err_stats));
+	et_err_stats_init(&et_dev->mgmt.err_stats);
 
 	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, true /* mgmt_dev */);
@@ -2053,9 +2057,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 
-	memset(et_dev->ops.mem_stats,
-	       0,
-	       sizeof(atomic64_t) * ARRAY_SIZE(et_dev->ops.mem_stats));
+	et_mem_stats_init(&et_dev->ops.mem_stats);
 
 	// VQs initialization
 	rv = et_vqueue_init_all(et_dev, false /* ops_dev */);

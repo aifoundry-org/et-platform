@@ -67,7 +67,7 @@ struct et_ops_dev {
 	struct et_vq_data vq_data;
 	struct rb_root dma_rbtree;
 	struct mutex dma_rbtree_mutex;	/* serializes access to dma_rbtree */
-	atomic64_t mem_stats[ET_MEM_STATS_MAX_ATTRIBUTES];
+	struct et_mem_stats mem_stats;
 };
 
 struct et_mgmt_dev {
@@ -78,7 +78,7 @@ struct et_mgmt_dev {
 	struct et_mapped_region regions[MGMT_MEM_REGION_TYPE_NUM];
 	struct et_mgmt_dir_vqueue dir_vq;
 	struct et_vq_data vq_data;
-	atomic64_t err_stats[ET_ERR_STATS_MAX_ATTRIBUTES];
+	struct et_err_stats err_stats;
 };
 
 struct et_pci_dev {

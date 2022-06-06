@@ -135,7 +135,7 @@ static irqreturn_t et_pcie_sq_isr(int irq, void *sq_id)
 	return IRQ_HANDLED;
 }
 
-static void et_squeue_sync_cb_for_host(struct et_squeue *sq);
+void et_squeue_sync_cb_for_host(struct et_squeue *sq);
 
 static void et_sq_isr_work(struct work_struct *work)
 {
@@ -222,11 +222,7 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 		hp_sq_baseaddr += hp_sq_size;
 
 		mutex_init(&vq_data->hp_sqs[i].push_mutex);
-
-		memset(vq_data->hp_sqs[i].stats,
-		       0,
-		       sizeof(atomic64_t) *
-			       ARRAY_SIZE(vq_data->hp_sqs[i].stats));
+		et_vq_stats_init(&vq_data->hp_sqs[i].stats);
 	}
 
 	return 0;
@@ -308,10 +304,7 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		queue_work(vq_data->vq_common.sq_workqueue,
 			   &vq_data->sqs[i].isr_work);
 		flush_workqueue(vq_data->vq_common.sq_workqueue);
-
-		memset(vq_data->sqs[i].stats,
-		       0,
-		       sizeof(atomic64_t) * ARRAY_SIZE(vq_data->sqs[i].stats));
+		et_vq_stats_init(&vq_data->sqs[i].stats);
 	}
 
 	rv = request_irq(pci_irq_vector(et_dev->pdev, vec_idx),
@@ -415,10 +408,7 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		queue_work(vq_data->vq_common.cq_workqueue,
 			   &vq_data->cqs[i].isr_work);
 		flush_workqueue(vq_data->vq_common.cq_workqueue);
-
-		memset(vq_data->cqs[i].stats,
-		       0,
-		       sizeof(atomic64_t) * ARRAY_SIZE(vq_data->cqs[i].stats));
+		et_vq_stats_init(&vq_data->cqs[i].stats);
 	}
 
 	rv = request_irq(pci_irq_vector(et_dev->pdev, vec_idx),
@@ -668,8 +658,12 @@ ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 	// Inform device that message has been pushed to SQ
 	interrupt_device(sq);
 
-	atomic64_inc(&sq->stats[ET_VQ_STATS_MSG_COUNT]);
-	atomic64_add(header->size, &sq->stats[ET_VQ_STATS_BYTE_COUNT]);
+	atomic64_inc(&sq->stats.counters[ET_VQ_COUNTER_STATS_MSG_COUNT]);
+	et_rate_entry_update(1, &sq->stats.rates[ET_VQ_RATE_STATS_MSG_RATE]);
+	atomic64_add(header->size,
+		     &sq->stats.counters[ET_VQ_COUNTER_STATS_BYTE_COUNT]);
+	et_rate_entry_update(header->size,
+			     &sq->stats.rates[ET_VQ_RATE_STATS_BYTE_RATE]);
 
 update_sq_bitmap:
 	mutex_unlock(&sq->push_mutex);
@@ -729,7 +723,7 @@ free_kern_buf:
 	return rv;
 }
 
-static inline void et_squeue_sync_cb_for_host(struct et_squeue *sq)
+void et_squeue_sync_cb_for_host(struct et_squeue *sq)
 {
 	u64 head_local;
 
@@ -962,9 +956,17 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 
 		rv = et_handle_device_event(cq, &mgmt_event);
 
-		atomic64_inc(&cq->stats[ET_VQ_STATS_MSG_COUNT]);
-		atomic64_add(header.size + sizeof(header),
-			     &cq->stats[ET_VQ_STATS_BYTE_COUNT]);
+		atomic64_inc(
+			&cq->stats.counters[ET_VQ_COUNTER_STATS_MSG_COUNT]);
+		et_rate_entry_update(
+			1,
+			&cq->stats.rates[ET_VQ_RATE_STATS_MSG_RATE]);
+		atomic64_add(
+			header.size + sizeof(header),
+			&cq->stats.counters[ET_VQ_COUNTER_STATS_BYTE_COUNT]);
+		et_rate_entry_update(
+			header.size + sizeof(header),
+			&cq->stats.rates[ET_VQ_RATE_STATS_BYTE_RATE]);
 
 		return rv;
 	}
@@ -991,9 +993,12 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 
 	mutex_unlock(&cq->pop_mutex);
 
-	atomic64_inc(&cq->stats[ET_VQ_STATS_MSG_COUNT]);
+	atomic64_inc(&cq->stats.counters[ET_VQ_COUNTER_STATS_MSG_COUNT]);
+	et_rate_entry_update(1, &cq->stats.rates[ET_VQ_RATE_STATS_MSG_RATE]);
 	atomic64_add(header.size + sizeof(header),
-		     &cq->stats[ET_VQ_STATS_BYTE_COUNT]);
+		     &cq->stats.counters[ET_VQ_COUNTER_STATS_BYTE_COUNT]);
+	et_rate_entry_update(header.size + sizeof(header),
+			     &cq->stats.rates[ET_VQ_RATE_STATS_BYTE_RATE]);
 
 	// Check for MM reset command and complete post reset steps
 	if (header.msg_id == DEV_MGMT_API_MID_MM_RESET)
@@ -1018,7 +1023,7 @@ error_unlock_mutex:
 	return rv;
 }
 
-static inline void et_cqueue_sync_cb_for_host(struct et_cqueue *cq)
+void et_cqueue_sync_cb_for_host(struct et_cqueue *cq)
 {
 	u64 tail_local;
 

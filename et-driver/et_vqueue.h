@@ -69,7 +69,7 @@ struct et_squeue {
 	atomic_t sq_threshold;
 	struct et_vq_common *vq_common;
 	struct work_struct isr_work;
-	atomic64_t stats[ET_VQ_STATS_MAX_ATTRIBUTES];
+	struct et_vq_stats stats;
 };
 
 // clang-format on
@@ -81,6 +81,7 @@ ssize_t et_squeue_copy_from_user(struct et_pci_dev *et_dev,
 				 const char __user *ubuf,
 				 size_t count);
 ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count);
+void et_squeue_sync_cb_for_host(struct et_squeue *sq);
 void et_squeue_sync_bitmap(struct et_squeue *sq);
 bool et_squeue_empty(struct et_squeue *sq);
 
@@ -96,7 +97,7 @@ struct et_cqueue {
 	struct work_struct isr_work;
 	struct list_head msg_list;
 	struct mutex msg_list_mutex;	/* serializes access to msg_list */
-	atomic64_t stats[ET_VQ_STATS_MAX_ATTRIBUTES];
+	struct et_vq_stats stats;
 };
 
 // clang-format on
@@ -107,6 +108,7 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 			       char __user *ubuf,
 			       size_t count);
 ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host);
+void et_cqueue_sync_cb_for_host(struct et_cqueue *cq);
 bool et_cqueue_msg_available(struct et_cqueue *cq);
 void et_cqueue_isr_bottom(struct et_cqueue *cq);
 

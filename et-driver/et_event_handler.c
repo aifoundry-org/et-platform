@@ -518,6 +518,7 @@ int et_handle_device_event(struct et_cqueue *cq,
 	struct pci_dev *pdev;
 	struct et_pci_dev *et_dev;
 	struct event_dbg_msg dbg_msg;
+	struct et_err_stats *stats;
 	int rv;
 
 	if (!cq || !event_msg)
@@ -526,6 +527,7 @@ int et_handle_device_event(struct et_cqueue *cq,
 	rv = event_msg->event_info.size;
 	pdev = cq->vq_common->pdev;
 	et_dev = pci_get_drvdata(pdev);
+	stats = &et_dev->mgmt.err_stats;
 
 	switch (event_msg->class_count & EVENT_CLASS_MASK) {
 	case ECLASS_INFO:
@@ -556,91 +558,94 @@ int et_handle_device_event(struct et_cqueue *cq,
 		dbg_msg.desc = "PCIe Correctable Error";
 		parse_pcie_syndrome(event_msg, &dbg_msg);
 		atomic64_inc(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_PCIE_CE_COUNT]);
+			&stats->counters[ET_ERR_COUNTER_STATS_PCIE_CE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_PCIE_UCE_EVENT:
 		dbg_msg.desc = "PCIe Un-Correctable Error";
 		parse_pcie_syndrome(event_msg, &dbg_msg);
 		atomic64_inc(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_PCIE_UCE_COUNT]);
+			&stats->counters[ET_ERR_COUNTER_STATS_PCIE_UCE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_DRAM_CE_EVENT:
 		dbg_msg.desc = "DRAM Correctable Error";
 		parse_dram_syndrome(event_msg, &dbg_msg);
 		atomic64_inc(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_DRAM_CE_COUNT]);
+			&stats->counters[ET_ERR_COUNTER_STATS_DRAM_CE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_DRAM_UCE_EVENT:
 		dbg_msg.desc = "DRAM Un-Correctable Error";
 		parse_dram_syndrome(event_msg, &dbg_msg);
 		atomic64_inc(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_DRAM_UCE_COUNT]);
+			&stats->counters[ET_ERR_COUNTER_STATS_DRAM_UCE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_SRAM_CE_EVENT:
 		dbg_msg.desc = "SRAM Correctable Error";
 		parse_sram_syndrome(event_msg, &dbg_msg);
 		atomic64_inc(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_SRAM_CE_COUNT]);
+			&stats->counters[ET_ERR_COUNTER_STATS_SRAM_CE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_SRAM_UCE_EVENT:
 		dbg_msg.desc = "SRAM Un-Correctable Error";
 		parse_sram_syndrome(event_msg, &dbg_msg);
 		atomic64_inc(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_SRAM_UCE_COUNT]);
+			&stats->counters[ET_ERR_COUNTER_STATS_SRAM_UCE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_THERMAL_LOW_EVENT:
 		dbg_msg.desc = "Temperature Overshoot Warning";
 		parse_thermal_syndrome(event_msg, &dbg_msg);
-		atomic64_inc(&et_dev->mgmt.err_stats
-				      [ET_ERR_STATS_THERM_OVERSHOOT_CE_COUNT]);
+		atomic64_inc(
+			&stats->counters
+				 [ET_ERR_COUNTER_STATS_THERM_OVERSHOOT_CE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_PMIC_ERROR_EVENT:
 		dbg_msg.desc = "Power Management IC Errors";
 		parse_pmic_syndrome(event_msg, &dbg_msg);
 		atomic64_inc(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_PMIC_CE_COUNT]);
+			&stats->counters[ET_ERR_COUNTER_STATS_PMIC_CE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_MINION_RUNTIME_ERROR_EVENT:
 		dbg_msg.desc = "Minion Runtime Error";
 		parse_cm_err_syndrome(event_msg, &dbg_msg);
 		atomic64_inc(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_MINION_CE_COUNT]);
+			&stats->counters[ET_ERR_COUNTER_STATS_MINION_CE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_MINION_RUNTIME_HANG_EVENT:
 		dbg_msg.desc = "Minion Runtime Hang";
 		parse_cm_err_syndrome(event_msg, &dbg_msg);
 		atomic64_inc(
-			&et_dev->mgmt
-				 .err_stats[ET_ERR_STATS_MINION_HANG_UCE_COUNT]);
+			&stats->counters
+				 [ET_ERR_COUNTER_STATS_MINION_HANG_UCE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_THROTTLE_TIME_EVENT:
 		dbg_msg.desc = "Thermal Throttling Error";
 		parse_throttling_syndrome(event_msg, &dbg_msg);
-		atomic64_inc(&et_dev->mgmt.err_stats
-				      [ET_ERR_STATS_THERM_THROTTLE_CE_COUNT]);
+		atomic64_inc(
+			&stats->counters
+				 [ET_ERR_COUNTER_STATS_THERM_THROTTLE_CE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_SP_RUNTIME_EXCEPTION_EVENT:
 		dbg_msg.desc = "SP Runtime Exception";
 		parse_sp_runtime_syndrome(event_msg, &dbg_msg, cq);
 		atomic64_inc(
-			&et_dev->mgmt
-				 .err_stats[ET_ERR_STATS_SP_EXCEPT_CE_COUNT]);
+			&stats->counters
+				 [ET_ERR_COUNTER_STATS_SP_EXCEPT_CE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_SP_RUNTIME_HANG_EVENT:
 		dbg_msg.desc = "SP Runtime Hang";
 		parse_sp_runtime_syndrome(event_msg, &dbg_msg, cq);
 		atomic64_inc(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_SP_HANG_UCE_COUNT]);
+			&stats->counters[ET_ERR_COUNTER_STATS_SP_HANG_UCE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_SP_RUNTIME_ERROR_EVENT:
 		dbg_msg.desc = "SP Runtime Error";
 		parse_runtime_error_syndrome(event_msg, &dbg_msg);
-		atomic64_inc(&et_dev->mgmt.err_stats[ET_ERR_STATS_SP_CE_COUNT]);
+		atomic64_inc(
+			&stats->counters[ET_ERR_COUNTER_STATS_SP_CE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_SP_WATCHDOG_RESET_EVENT:
 		dbg_msg.desc = "SP rebooted due to watchdog timeout";
 		atomic64_inc(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_SP_WDOG_UCE_COUNT]);
+			&stats->counters[ET_ERR_COUNTER_STATS_SP_WDOG_UCE_COUNT]);
 		break;
 	default:
 		dbg_msg.desc = "Un-Supported Event MSG ID";

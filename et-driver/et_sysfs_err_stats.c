@@ -11,8 +11,12 @@
  *-----------------------------------------------------------------------------
  */
 
-#include "et_sysfs_err_stats.h"
+// clang-format off
+
 #include "et_pci_dev.h"
+#include "et_sysfs_err_stats.h"
+
+// clang-format on
 
 /*
  * ET Specific Correctable Error statistics
@@ -32,7 +36,9 @@ static ssize_t
 ce_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
+	struct et_err_stats *stats;
 
+	stats = &et_dev->mgmt.err_stats;
 	return sysfs_emit(
 		buf,
 		"DramCeEvent:           %llu\n"
@@ -45,24 +51,26 @@ ce_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 		"ThermOvershootCeEvent: %llu\n"
 		"ThermThrottleCeEvent:  %llu\n",
 		atomic64_read(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_DRAM_CE_COUNT]),
+			&stats->counters[ET_ERR_COUNTER_STATS_DRAM_CE_COUNT]),
 		atomic64_read(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_MINION_CE_COUNT]),
+			&stats->counters[ET_ERR_COUNTER_STATS_MINION_CE_COUNT]),
 		atomic64_read(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_PCIE_CE_COUNT]),
+			&stats->counters[ET_ERR_COUNTER_STATS_PCIE_CE_COUNT]),
 		atomic64_read(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_PMIC_CE_COUNT]),
+			&stats->counters[ET_ERR_COUNTER_STATS_PMIC_CE_COUNT]),
 		atomic64_read(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_SP_CE_COUNT]),
+			&stats->counters[ET_ERR_COUNTER_STATS_SP_CE_COUNT]),
 		atomic64_read(
-			&et_dev->mgmt
-				 .err_stats[ET_ERR_STATS_SP_EXCEPT_CE_COUNT]),
+			&stats->counters
+				 [ET_ERR_COUNTER_STATS_SP_EXCEPT_CE_COUNT]),
 		atomic64_read(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_SRAM_CE_COUNT]),
-		atomic64_read(&et_dev->mgmt.err_stats
-				       [ET_ERR_STATS_THERM_OVERSHOOT_CE_COUNT]),
-		atomic64_read(&et_dev->mgmt.err_stats
-				       [ET_ERR_STATS_THERM_THROTTLE_CE_COUNT]));
+			&stats->counters[ET_ERR_COUNTER_STATS_SRAM_CE_COUNT]),
+		atomic64_read(
+			&stats->counters
+				 [ET_ERR_COUNTER_STATS_THERM_OVERSHOOT_CE_COUNT]),
+		atomic64_read(
+			&stats->counters
+				 [ET_ERR_COUNTER_STATS_THERM_THROTTLE_CE_COUNT]));
 }
 
 /*
@@ -79,7 +87,9 @@ static ssize_t
 uce_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
+	struct et_err_stats *stats;
 
+	stats = &et_dev->mgmt.err_stats;
 	return sysfs_emit(
 		buf,
 		"DramUceEvent:       %llu\n"
@@ -89,18 +99,18 @@ uce_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 		"SpWdogUceEvent:     %llu\n"
 		"SramUceEvent:       %llu\n",
 		atomic64_read(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_DRAM_UCE_COUNT]),
+			&stats->counters[ET_ERR_COUNTER_STATS_DRAM_UCE_COUNT]),
 		atomic64_read(
-			&et_dev->mgmt
-				 .err_stats[ET_ERR_STATS_MINION_HANG_UCE_COUNT]),
+			&stats->counters
+				 [ET_ERR_COUNTER_STATS_MINION_HANG_UCE_COUNT]),
 		atomic64_read(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_PCIE_UCE_COUNT]),
+			&stats->counters[ET_ERR_COUNTER_STATS_PCIE_UCE_COUNT]),
 		atomic64_read(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_SP_HANG_UCE_COUNT]),
+			&stats->counters[ET_ERR_COUNTER_STATS_SP_HANG_UCE_COUNT]),
 		atomic64_read(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_SP_WDOG_UCE_COUNT]),
+			&stats->counters[ET_ERR_COUNTER_STATS_SP_WDOG_UCE_COUNT]),
 		atomic64_read(
-			&et_dev->mgmt.err_stats[ET_ERR_STATS_SRAM_UCE_COUNT]));
+			&stats->counters[ET_ERR_COUNTER_STATS_SRAM_UCE_COUNT]));
 }
 
 static ssize_t clear_store(struct device *dev,
@@ -108,10 +118,9 @@ static ssize_t clear_store(struct device *dev,
 			   const char *buf,
 			   size_t count)
 {
-	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
-	unsigned long value;
 	ssize_t rv;
-	int i;
+	unsigned long value;
+	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 
 	rv = kstrtoul(buf, 0, &value);
 	if (rv)
@@ -120,8 +129,7 @@ static ssize_t clear_store(struct device *dev,
 	if (value != 1)
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(et_dev->mgmt.err_stats); i++)
-		atomic64_set(&et_dev->mgmt.err_stats[i], 0);
+	et_err_stats_init(&et_dev->mgmt.err_stats);
 
 	return count;
 }

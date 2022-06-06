@@ -36,25 +36,28 @@ msg_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 	ssize_t bytes = 0;
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 	struct et_vq_data *vq_data = &et_dev->mgmt.vq_data;
+	struct et_vq_stats *stats;
 
 	for (i = 0; i < vq_data->vq_common.sq_count; i++) {
+		stats = &vq_data->sqs[i].stats;
 		bytes += sysfs_emit_at(
 			buf,
 			bytes,
 			"SQ%u: %20llu msg(s)\n",
 			vq_data->sqs[i].index,
 			atomic64_read(
-				&vq_data->sqs[i].stats[ET_VQ_STATS_MSG_COUNT]));
+				&stats->counters[ET_VQ_COUNTER_STATS_MSG_COUNT]));
 	}
 
 	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
+		stats = &vq_data->cqs[i].stats;
 		bytes += sysfs_emit_at(
 			buf,
 			bytes,
 			"CQ%u: %20llu msg(s)\n",
 			vq_data->cqs[i].index,
 			atomic64_read(
-				&vq_data->cqs[i].stats[ET_VQ_STATS_MSG_COUNT]));
+				&stats->counters[ET_VQ_COUNTER_STATS_MSG_COUNT]));
 	}
 
 	return bytes;
@@ -67,25 +70,30 @@ byte_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 	ssize_t bytes = 0;
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 	struct et_vq_data *vq_data = &et_dev->mgmt.vq_data;
+	struct et_vq_stats *stats;
 
 	for (i = 0; i < vq_data->vq_common.sq_count; i++) {
+		stats = &vq_data->sqs[i].stats;
 		bytes += sysfs_emit_at(
 			buf,
 			bytes,
 			"SQ%u: %20llu B\n",
 			vq_data->sqs[i].index,
 			atomic64_read(
-				&vq_data->sqs[i].stats[ET_VQ_STATS_BYTE_COUNT]));
+				&stats->counters
+					 [ET_VQ_COUNTER_STATS_BYTE_COUNT]));
 	}
 
 	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
+		stats = &vq_data->cqs[i].stats;
 		bytes += sysfs_emit_at(
 			buf,
 			bytes,
 			"CQ%u: %20llu B\n",
 			vq_data->cqs[i].index,
 			atomic64_read(
-				&vq_data->cqs[i].stats[ET_VQ_STATS_BYTE_COUNT]));
+				&stats->counters
+					 [ET_VQ_COUNTER_STATS_BYTE_COUNT]));
 	}
 
 	return bytes;
@@ -98,25 +106,28 @@ msg_rate_show(struct device *dev, struct device_attribute *attr, char *buf)
 	ssize_t bytes = 0;
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 	struct et_vq_data *vq_data = &et_dev->mgmt.vq_data;
+	struct et_vq_stats *stats;
 
 	for (i = 0; i < vq_data->vq_common.sq_count; i++) {
+		stats = &vq_data->sqs[i].stats;
 		bytes += sysfs_emit_at(
 			buf,
 			bytes,
 			"SQ%u: %20llu msg(s)/sec\n",
 			vq_data->sqs[i].index,
-			atomic64_read(
-				&vq_data->sqs[i].stats[ET_VQ_STATS_MSG_RATE]));
+			et_rate_entry_calculate(
+				&stats->rates[ET_VQ_RATE_STATS_MSG_RATE]));
 	}
 
 	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
+		stats = &vq_data->cqs[i].stats;
 		bytes += sysfs_emit_at(
 			buf,
 			bytes,
 			"CQ%u: %20llu msg(s)/sec\n",
 			vq_data->cqs[i].index,
-			atomic64_read(
-				&vq_data->cqs[i].stats[ET_VQ_STATS_MSG_RATE]));
+			et_rate_entry_calculate(
+				&stats->rates[ET_VQ_RATE_STATS_MSG_RATE]));
 	}
 
 	return bytes;
@@ -129,25 +140,28 @@ byte_rate_show(struct device *dev, struct device_attribute *attr, char *buf)
 	ssize_t bytes = 0;
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 	struct et_vq_data *vq_data = &et_dev->mgmt.vq_data;
+	struct et_vq_stats *stats;
 
 	for (i = 0; i < vq_data->vq_common.sq_count; i++) {
+		stats = &vq_data->sqs[i].stats;
 		bytes += sysfs_emit_at(
 			buf,
 			bytes,
 			"SQ%u: %20llu B/sec\n",
 			vq_data->sqs[i].index,
-			atomic64_read(
-				&vq_data->sqs[i].stats[ET_VQ_STATS_BYTE_RATE]));
+			et_rate_entry_calculate(
+				&stats->rates[ET_VQ_RATE_STATS_BYTE_RATE]));
 	}
 
 	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
+		stats = &vq_data->cqs[i].stats;
 		bytes += sysfs_emit_at(
 			buf,
 			bytes,
 			"CQ%u: %20llu B/sec\n",
 			vq_data->cqs[i].index,
-			atomic64_read(
-				&vq_data->cqs[i].stats[ET_VQ_STATS_BYTE_RATE]));
+			et_rate_entry_calculate(
+				&stats->rates[ET_VQ_RATE_STATS_BYTE_RATE]));
 	}
 
 	return bytes;
@@ -163,25 +177,25 @@ static ssize_t utilization_percent_show(struct device *dev,
 	struct et_vq_data *vq_data = &et_dev->mgmt.vq_data;
 
 	for (i = 0; i < vq_data->vq_common.sq_count; i++) {
+		et_squeue_sync_cb_for_host(&vq_data->sqs[i]);
 		bytes += sysfs_emit_at(
 			buf,
 			bytes,
 			"SQ%u: %3llu %%\n",
 			vq_data->sqs[i].index,
-			atomic64_read(
-				&vq_data->sqs[i].stats
-					 [ET_VQ_STATS_UTILIZATION_PERCENT]));
+			100 * et_circbuffer_used(&vq_data->sqs[i].cb) /
+				vq_data->sqs[i].cb.len);
 	}
 
 	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
+		et_cqueue_sync_cb_for_host(&vq_data->cqs[i]);
 		bytes += sysfs_emit_at(
 			buf,
 			bytes,
 			"CQ%u: %3llu %%\n",
 			vq_data->cqs[i].index,
-			atomic64_read(
-				&vq_data->cqs[i].stats
-					 [ET_VQ_STATS_UTILIZATION_PERCENT]));
+			100 * et_circbuffer_used(&vq_data->cqs[i].cb) /
+				vq_data->cqs[i].cb.len);
 	}
 
 	return bytes;
@@ -192,7 +206,7 @@ static ssize_t clear_store(struct device *dev,
 			   const char *buf,
 			   size_t count)
 {
-	int i, j;
+	int i;
 	ssize_t rv;
 	unsigned long value;
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
@@ -205,15 +219,11 @@ static ssize_t clear_store(struct device *dev,
 	if (value != 1)
 		return -EINVAL;
 
-	for (i = 0; i < vq_data->vq_common.sq_count; i++) {
-		for (j = 0; j < ARRAY_SIZE(vq_data->sqs[i].stats); j++)
-			atomic64_set(&vq_data->sqs[i].stats[j], 0);
-	}
+	for (i = 0; i < vq_data->vq_common.sq_count; i++)
+		et_vq_stats_init(&vq_data->sqs[i].stats);
 
-	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
-		for (j = 0; j < ARRAY_SIZE(vq_data->cqs[i].stats); j++)
-			atomic64_set(&vq_data->cqs[i].stats[j], 0);
-	}
+	for (i = 0; i < vq_data->vq_common.cq_count; i++)
+		et_vq_stats_init(&vq_data->cqs[i].stats);
 
 	return count;
 }

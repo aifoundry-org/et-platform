@@ -14,14 +14,37 @@
 #ifndef __ET_SYSFS_VQ_STATS_H
 #define __ET_SYSFS_VQ_STATS_H
 
-enum et_vq_stats {
-	ET_VQ_STATS_MSG_COUNT = 0,
-	ET_VQ_STATS_MSG_RATE,
-	ET_VQ_STATS_BYTE_COUNT,
-	ET_VQ_STATS_BYTE_RATE,
-	ET_VQ_STATS_UTILIZATION_PERCENT,
-	ET_VQ_STATS_MAX_ATTRIBUTES,
+#include <linux/atomic.h>
+
+#include "et_rate_entry.h"
+
+enum et_vq_counter_stats {
+	ET_VQ_COUNTER_STATS_MSG_COUNT = 0,
+	ET_VQ_COUNTER_STATS_BYTE_COUNT,
+	ET_VQ_COUNTER_STATS_MAX_COUNTERS,
 };
+
+enum et_vq_rate_stats {
+	ET_VQ_RATE_STATS_MSG_RATE = 0,
+	ET_VQ_RATE_STATS_BYTE_RATE,
+	ET_VQ_RATE_STATS_MAX_RATES,
+};
+
+struct et_vq_stats {
+	atomic64_t counters[ET_VQ_COUNTER_STATS_MAX_COUNTERS];
+	struct et_rate_entry rates[ET_VQ_RATE_STATS_MAX_RATES];
+};
+
+static inline void et_vq_stats_init(struct et_vq_stats *stats)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(stats->counters); i++)
+		atomic64_set(&stats->counters[i], 0);
+
+	for (i = 0; i < ARRAY_SIZE(stats->rates); i++)
+		et_rate_entry_init(&stats->rates[i]);
+}
 
 extern const struct attribute_group et_sysfs_mgmt_vq_stats_attr_group;
 extern const struct attribute_group et_sysfs_ops_vq_stats_attr_group;
