@@ -51,25 +51,9 @@ pipeline {
       stages {
         stage('CHECKOUT_SCM') {
           steps {
-            updateGitlabCommitStatus name: JOB_NAME, state: 'pending'
             script {
-              def seconds = -1
-              retry(8) {
-                seconds = seconds * 2 + 2
-                sleep(time: seconds, unit: "SECONDS")
-                scm_variables = checkout([
-                  $class: 'GitSCM',
-                  branches: [[name: BRANCH]],
-                  doGenerateSubmoduleConfigurations: false,
-                  extensions: [],
-                  submoduleCfg: [],
-                  userRemoteConfigs: [[
-                    credentialsId: 'aws_private_key',
-                    url: "${REPO_SSH_URL}"
-                  ]]
-                ])
-                env.GIT_COMMIT = scm_variables.get('GIT_COMMIT')
-              }
+              currentBuild.getRawBuild().getExecutor().interrupt(Result.UNSTABLE)
+              sleep(1)   // Interrupt is not blocking and does not take effect immediately.
             }
           }
         }
@@ -108,27 +92,6 @@ pipeline {
                 sh 'if [ ! -z \"${gitlabTargetBranch}\" ] ; then git fetch && git merge origin/$gitlabTargetBranch | grep Already && ( echo \"Branch is up to date with target branch proceeding...\" && exit 0 ) || ( echo \"Merge request is out of date with respect to target branch. Please, rebase it and re-submit merge request\" && exit 1 ); else echo \"Skipping branch up to date check as environment variable gitlabTargetBranch is not defined!\" ; fi'
               }
             }
-            stage('FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU') {
-              steps {
-                script {
-                  if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}" + '" }\'') != 0) {
-                    build job:
-                      'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-sysemu-1dev',
-                      propagate: true,
-                      parameters: [
-                        string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                        string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"),
-                        string(name: 'PYTEST_RETRIES', value: '0'),
-                        booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                        string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                      ]
-                  }
-                  else {
-                    sh 'echo Skipping job because it passed'
-                  }
-                }
-              }
-            }
           }
         }
         stage('DSL_JOB') {
@@ -142,29 +105,6 @@ pipeline {
                     string(name: 'BRANCH', value: "${BRANCH}"),
                     string(name: 'REPO_SSH_URL', value: "${REPO_SSH_URL}"),
                     string(name: 'REPO_NAME', value: "${REPO_NAME}"),
-                    booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                    string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                  ]
-              }
-              else {
-                sh 'echo Skipping job because it passed'
-              }
-            }
-          }
-        }
-        stage('JOB_CODE_QUALITY') {
-          steps {
-            script {
-              if ( ( (env.FORCE_CHILD_RETRIGGER != null) && sh(returnStatus: true, script: "${FORCE_CHILD_RETRIGGER}") == 0) || sh(returnStatus: true, script: './ci/ci-tools/scripts/jenkins_scripts.py job_passed_for_branch --branch "' + "${SW_PLATFORM_BRANCH}" + '" sw-platform/code-analysis/deviceLayer-sonarqube \'{  "COMPONENT_COMMITS":"' + "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}" + '" }\'') != 0) {
-                build job:
-                  'sw-platform/code-analysis/deviceLayer-sonarqube',
-                  propagate: true,
-                  parameters: [
-                    string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                    string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/deviceLayer:${BRANCH}"),
-                    string(name: 'GITLAB_SOURCE_BRANCH', value: "${env.gitlabSourceBranch}"),
-                    string(name: 'GITLAB_TARGET_BRANCH', value: "${env.gitlabTargetBranch}"),
-                    string(name: 'GITLAB_MR_ID', value: "${env.gitlabMergeRequestIid}"),
                     booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
                     string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
                   ]
