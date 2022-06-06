@@ -1,8 +1,8 @@
 include:
   - project: 'software/gitlab-ci-common'
-    ref: 9144e448ed346dc769d301572bd7e76e2344f78b
+    ref: b5cc8e9eebca04f1f2fd07c604ad5804cdb92a59
     file:
-      - rules/generic-workflow.yaml
+      - rules/generic-workflow-conan.yaml
       - pods/nano-pod.yaml
       - pods/medium-pod.yaml
       - pods/large-pod.yaml
