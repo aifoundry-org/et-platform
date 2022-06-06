@@ -234,17 +234,16 @@ static inline int32_t abort_cmd_handler(void *command_buffer, uint8_t sqw_hp_idx
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
 
         Log_Write(LOG_LEVEL_DEBUG,
-            "SQ_HP[%d] abort_cmd_handler:Pushed:ABORT response:tag_id=%x->Host_CQ\r\n", sqw_hp_idx,
-            rsp.response_info.rsp_hdr.tag_id);
+            "TID[%u]:SQ_HP[%d]:abort_cmd_handler:Pushed:ABORT response->Host_CQ\r\n",
+            rsp.response_info.rsp_hdr.tag_id, sqw_hp_idx);
     }
     else
     {
         TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD, sqw_hp_idx,
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
 
-        Log_Write(LOG_LEVEL_ERROR,
-            "SQ_HP[%d] abort_cmd_handler:Tag_ID=%u:HostIface:Push:Failed\r\n", sqw_hp_idx,
-            cmd->command_info.cmd_hdr.tag_id);
+        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQ_HP[%d]:abort_cmd_handler:HostIface:Push:Failed\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_hp_idx);
 
         SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
     }
@@ -339,8 +338,8 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
 
         Log_Write(LOG_LEVEL_DEBUG,
-            "SQ_HP[%d] cm_reset_cmd_handler:Pushed:CM Reset response:tag_id=%x->Host_CQ\r\n",
-            sqw_hp_idx, rsp.response_info.rsp_hdr.tag_id);
+            "TID[%u]:SQ_HP[%d]:cm_reset_cmd_handler:Pushed:CM Reset response->Host_CQ\r\n",
+            rsp.response_info.rsp_hdr.tag_id, sqw_hp_idx);
     }
     else
     {
@@ -348,8 +347,8 @@ static inline int32_t cm_reset_cmd_handler(void *command_buffer, uint8_t sqw_hp_
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
 
         Log_Write(LOG_LEVEL_ERROR,
-            "SQ_HP[%d] cm_reset_cmd_handler:Tag_ID=%u:HostIface:Push:Failed\r\n", sqw_hp_idx,
-            cmd->command_info.cmd_hdr.tag_id);
+            "TID[%u]:SQ_HP[%d]:cm_reset_cmd_handler:HostIface:Push:Failed\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_hp_idx);
 
         SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
     }
@@ -464,17 +463,16 @@ static inline int32_t compatibility_cmd_handler(void *command_buffer, uint8_t sq
         }
 
         Log_Write(LOG_LEVEL_DEBUG,
-            "TID[%u]:SQW[%d]:HostCommandHandler:Pushed:API_COMPATIBILITY_CMD_RSP:tag_id=%x->Host_CQ\r\n",
-            cmd->command_info.cmd_hdr.tag_id, sqw_idx, rsp.response_info.rsp_hdr.tag_id);
+            "TID[%u]:SQW[%d]:HostCommandHandler:Pushed:API_COMPATIBILITY_CMD_RSP->Host_CQ\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx);
     }
     else
     {
         TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, sqw_idx,
             cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
 
-        Log_Write(LOG_LEVEL_ERROR,
-            "TID[%u]:SQW[%d]:HostCommandHandler:Tag_ID=%u:HostIface:Push:Failed\r\n",
-            cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->command_info.cmd_hdr.tag_id);
+        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCommandHandler:HostIface:Push:Failed\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx);
         SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
     }
 
@@ -641,9 +639,8 @@ static inline int32_t fw_version_cmd_handler(void *command_buffer, uint8_t sqw_i
                 cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
         }
 
-        Log_Write(LOG_LEVEL_DEBUG,
-            "TID[%u]:SQW[%d]:HostCmdHdlr:CQ_Push:FW_VERSION_CMD_RSP:tag_id=%x\r\n",
-            cmd->command_info.cmd_hdr.tag_id, sqw_idx, rsp.response_info.rsp_hdr.tag_id);
+        Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCmdHdlr:CQ_Push:FW_VERSION_CMD_RSP\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx);
     }
     else
     {
@@ -744,9 +741,8 @@ static inline int32_t echo_cmd_handler(void *command_buffer, uint8_t sqw_idx, ui
                 cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_SUCCEEDED)
         }
 
-        Log_Write(LOG_LEVEL_DEBUG,
-            "TID[%u]:SQW[%d]:HostCommandHandler:CQ_Push:ECHO_CMD_RSP:tag_id=%x\r\n",
-            cmd->command_info.cmd_hdr.tag_id, sqw_idx, rsp.response_info.rsp_hdr.tag_id);
+        Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCommandHandler:CQ_Push:ECHO_CMD_RSP\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx);
     }
     else
     {
@@ -894,11 +890,11 @@ static inline int32_t kernel_launch_cmd_handler(
         }
 
         Log_Write(LOG_LEVEL_ERROR,
-            "TID[%u]:SQW[%d]:HostCmdHdlr:KernelLaunch:%s:shire_mask:%lx Status:%d\r\n",
+            "TID[%u]:SQW[%d]:HostCmdHdlr:KernelLaunch:%s:shire_mask:0x%lx Status:%d\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx, kernel_fail_msg, cmd->shire_mask, status);
 
         Log_Write(LOG_LEVEL_DEBUG,
-            "TID[%u]:SQW[%d]:HostCmdHdlr:KernelLaunch:%s:code_start_address:%lx pointer_to_args:%lx\r\n",
+            "TID[%u]:SQW[%d]:HostCmdHdlr:KernelLaunch:%s:code_start_address:0x%lx pointer_to_args:0x%lx\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx, kernel_fail_msg, cmd->code_start_address,
             cmd->pointer_to_args);
 
@@ -998,7 +994,7 @@ static inline int32_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw
     if (status != STATUS_SUCCESS)
     {
         Log_Write(LOG_LEVEL_ERROR,
-            "TID[%u]:SQW[%d]:HostCmdHdlr:KernelAbort:Failed:Status:%d:CmdParams:kernel_launch_tag_id:%x\r\n",
+            "TID[%u]:SQW[%d]:HostCmdHdlr:KernelAbort:Failed:Status:%d:CmdParams:kernel_launch_tag_id:%u\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx, status, cmd->kernel_launch_tag_id);
 
         /* Construct and transit command response */
@@ -1361,12 +1357,12 @@ static inline int32_t dma_readlist_cmd_handler(
         for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:%s:src_device_phy_addr:%lx:size:%x\r\n",
+                "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:%s:src_device_phy_addr:0x%lx:size:0x%x\r\n",
                 cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmar_fail_msg,
                 cmd->list[loop_cnt].src_device_phy_addr, cmd->list[loop_cnt].size);
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:%s:dst_host_virt_addr:%lx:dst_host_phy_addr:%lx\r\n",
+                "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:%s:dst_host_virt_addr:0x%lx:dst_host_phy_addr:0x%lx\r\n",
                 cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmar_fail_msg,
                 cmd->list[loop_cnt].dst_host_virt_addr, cmd->list[loop_cnt].dst_host_phy_addr);
         }
@@ -1576,12 +1572,12 @@ static inline int32_t dma_writelist_cmd_handler(
         for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:%s:dst_device_phy_addr:%lx:size:%x\r\n",
+                "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:%s:dst_device_phy_addr:0x%lx:size:0x%x\r\n",
                 cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmaw_fail_msg,
                 cmd->list[loop_cnt].dst_device_phy_addr, cmd->list[loop_cnt].size);
 
             Log_Write(LOG_LEVEL_DEBUG,
-                "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:%s:src_host_virt_addr:%lx:src_host_phy_addr:%lx\r\n",
+                "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:%s:src_host_virt_addr:0x%lx:src_host_phy_addr:0x%lx\r\n",
                 cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmaw_fail_msg,
                 cmd->list[loop_cnt].src_host_virt_addr, cmd->list[loop_cnt].src_host_phy_addr);
         }
@@ -1803,7 +1799,8 @@ static inline int32_t trace_rt_config_cmd_handler(void *command_buffer, uint8_t 
     TRACE_LOG_CMD_STATUS(DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD, sqw_idx,
         cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
-    Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCmdHdlr:TRACE_CONFIG:Shire:%lx:Thread:%lx\r\n",
+    Log_Write(LOG_LEVEL_DEBUG,
+        "TID[%u]:SQW[%d]:HostCmdHdlr:TRACE_CONFIG:Shire:0x%lx:Thread:0x%lx\r\n",
         cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->shire_mask, cmd->thread_mask);
 
     /* Get the SQW state to check for command abort */
