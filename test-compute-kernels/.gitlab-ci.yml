@@ -1,9 +1,15 @@
 include:
   - project: 'software/gitlab-ci-common'
-    ref: eaa145e684411db579462b41feb7736c6ed0028c
+    ref: ec8109263042925b169aa3c33cd6e7beaf185917
     file:
-      - 'pods/nano-pod.yaml'
-      - 'jobs/generic-k8s-job.yaml'
+      - rules/generic-workflow-conan.yaml
+      - pods/nano-pod.yaml
+      - pods/large-pod.yaml
+      - jobs/generic-k8s-job.yaml
+      - jobs/sonarqube-job.yaml
+      - rules/exec_maybe_interactively.yaml
+      - jobs/check-top-of-master.yaml
+      - jobs/sw-platform-trigger.yaml
 
   - project: 'software/gitlab-ci-common'
     ref: master
@@ -16,6 +22,13 @@ stages:
   - test
   - deploy
 
+default:
+  interruptible: true
+
+variables:
+  # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
+  SW_PLATFORM_BRANCH: develop/system-sw
+  PIPELINE_CI_SUBPROJECT: test-compute-kernels
 
 ###############################################################################
 ###############################################################################
@@ -45,8 +58,10 @@ generate_build:conan:
 ###############################################################################
 
 build:conan:
+  extends:
+    - .exec_maybe_interactively
   needs:
-  - generate_build:conan
+    - generate_build:conan
   stage: build
   trigger:
     include:
@@ -58,7 +73,10 @@ build:conan:
 ###############################################################################
 ###############################################################################
 
-# tests would go here
+# integration testing with sw-platform
+#
+# This is automatically done thanks to this included file:
+#   /jobs/sw-platform-trigger.yaml
 
 ###############################################################################
 ###############################################################################
@@ -73,6 +91,7 @@ on_success:promote:
   needs:
     - generate_build:conan
     - build:conan
+    - meta-trigger
   variables:
     PYTHONIOENCODING: utf-8
     CMD_BUILD: |

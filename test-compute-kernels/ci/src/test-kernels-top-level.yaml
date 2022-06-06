@@ -18,16 +18,11 @@ parameters:
     default_value: "test-compute-kernels"
 
 stages:
-  JOB_CHECK_IN:
+  CHECKOUT_SCM:
     cmds:
-      - job: sw-platform/system-sw-integration/pipelines/test-compute-kernels-build
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/test-compute-kernels:${BRANCH}"
-
-  JOB_FIRMWARE_TESTS_PCIE_SYSEMU:
-    cmds:
-      - job: sw-platform/virtual-platform/pipelines/firmware-tests-pcie-sysemu-1dev
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},device-software/test-compute-kernels:${BRANCH}"
+      - raw_cmd: |-
+          script {
+            currentBuild.getRawBuild().getExecutor().interrupt(Result.UNSTABLE)
+            sleep(1)   // Interrupt is not blocking and does not take effect immediately.
+          }
+    exec_before: [r".*"]

@@ -40,25 +40,9 @@ pipeline {
   stages {
     stage('CHECKOUT_SCM') {
       steps {
-        updateGitlabCommitStatus name: JOB_NAME, state: 'pending'
         script {
-          def seconds = -1
-          retry(8) {
-            seconds = seconds * 2 + 2
-            sleep(time: seconds, unit: "SECONDS")
-            scm_variables = checkout([
-              $class: 'GitSCM',
-              branches: [[name: BRANCH]],
-              doGenerateSubmoduleConfigurations: false,
-              extensions: [],
-              submoduleCfg: [],
-              userRemoteConfigs: [[
-                credentialsId: 'aws_private_key',
-                url: "${REPO_SSH_URL}"
-              ]]
-            ])
-            env.GIT_COMMIT = scm_variables.get('GIT_COMMIT')
-          }
+          currentBuild.getRawBuild().getExecutor().interrupt(Result.UNSTABLE)
+          sleep(1)   // Interrupt is not blocking and does not take effect immediately.
         }
       }
     }
@@ -83,34 +67,6 @@ pipeline {
             string(name: 'REPO_NAME', value: "${REPO_NAME}"),
             string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
           ]
-      }
-    }
-    stage('PARALLEL0') {
-      parallel {
-        stage('JOB_CHECK_IN') {
-          steps {
-            build job:
-              'sw-platform/system-sw-integration/pipelines/test-compute-kernels-build',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/test-compute-kernels:${BRANCH}"),
-                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-              ]
-          }
-        }
-        stage('JOB_FIRMWARE_TESTS_PCIE_SYSEMU') {
-          steps {
-            build job:
-              'sw-platform/virtual-platform/pipelines/firmware-tests-pcie-sysemu-1dev',
-              propagate: true,
-              parameters: [
-                string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},device-software/test-compute-kernels:${BRANCH}"),
-                string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-              ]
-          }
-        }
       }
     }
   }
