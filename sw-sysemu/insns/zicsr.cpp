@@ -286,6 +286,9 @@ static uint64_t csrget(Hart& cpu, uint16_t csr)
         break;
         // unimplemented: TDATA3
     case CSR_DCSR:
+        if (!cpu.debug_mode) {
+            throw trap_illegal_instruction(cpu.inst.bits);
+        }
         val = cpu.dcsr;
         break;
     case CSR_DPC:
@@ -822,6 +825,9 @@ static uint64_t csrset(Hart& cpu, uint16_t csr, uint64_t val)
         break;
         // unimplemented: TDATA3
     case CSR_DCSR:
+        if (!cpu.debug_mode) {
+            throw trap_illegal_instruction(cpu.inst.bits);
+        }
         // TODO: Implement single-step
         cpu.dcsr = val & 0x0FFFF037;
         break;
