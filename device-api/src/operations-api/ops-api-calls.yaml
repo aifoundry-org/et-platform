@@ -126,6 +126,8 @@ Enums:
         Value: 10
       - Name: CW_MINIONS_BOOT_FAILED
         Value: 11
+      - Name: INVALID_ARGS_INVALID_SHIRE_MASK
+        Value: 12
   - Name: dev_ops_api_kernel_abort_response
     Type: uint32_t
     Values:
