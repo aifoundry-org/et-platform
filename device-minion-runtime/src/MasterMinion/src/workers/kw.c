@@ -463,12 +463,6 @@ static int32_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint16_t tag_id, uint64
     int32_t status;
     sqw_state_e sqw_state;
 
-    /* Verify the shire mask */
-    if (req_shire_mask == 0)
-    {
-        return KW_ERROR_KERNEL_INAVLID_SHIRE_MASK;
-    }
-
     /* Acquire the lock */
     acquire_local_spinlock(&KW_CB.resource_lock);
 
@@ -507,8 +501,8 @@ static int32_t kw_reserve_kernel_shires(uint8_t sqw_idx, uint16_t tag_id, uint64
         {
             status = KW_ERROR_CW_SHIRES_NOT_READY;
             Log_Write(LOG_LEVEL_ERROR,
-                "TID[%u]:SQW[%d]:KW:ERROR:kernel shires unavailable:0x%lx\r\n", tag_id, sqw_idx,
-                req_shire_mask);
+                "TID[%u]:SQW[%d]:KW:ERROR:kernel shires unavailable:Requested:0x%lx:Booted:0x%lx\r\n",
+                tag_id, sqw_idx, req_shire_mask, CW_Get_Booted_Shires());
             SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CM_RESERVE_SLOT_ERROR);
         }
     }
@@ -657,6 +651,14 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
     kernel_instance_t *kernel = 0;
     int32_t status = KW_ERROR_KERNEL_INVALID_ADDRESS;
     uint8_t slot_index;
+
+    /* Verify the shire mask */
+    if (cmd->shire_mask == 0)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:KW:ERROR:Invalid Shire Mask:0x%lx\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->shire_mask);
+        return KW_ERROR_KERNEL_INAVLID_SHIRE_MASK;
+    }
 
     /* Verify address bounds
        kernel start address (not optional)
@@ -850,8 +852,8 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
             if (status == STATUS_SUCCESS)
             {
                 Log_Write(LOG_LEVEL_DEBUG,
-                    "SQW[%d]:KW:Pushed:KERNEL_ABORT_CMD_RSP:tag_id=%x->Host_CQ\r\n", sqw_idx,
-                    abort_rsp.response_info.rsp_hdr.tag_id);
+                    "TID[%u]:SQW[%d]:KW:Pushed:KERNEL_ABORT_CMD_RSP->Host_CQ\r\n",
+                    abort_rsp.response_info.rsp_hdr.tag_id, sqw_idx);
             }
             else
             {
@@ -1082,6 +1084,7 @@ static inline int32_t kw_cm_to_mm_kernel_force_abort(uint64_t kernel_shire_mask)
 *   INPUTS
 *
 *       kw_id               Index of kernel worker.
+*       tag_id              Tag ID of the kernel command.
 *       kernel_shire_mask   Shire mask of compute workers.
 *       status_internal     Status control block to return status.
 *
@@ -1090,8 +1093,8 @@ static inline int32_t kw_cm_to_mm_kernel_force_abort(uint64_t kernel_shire_mask)
 *       None
 *
 ***********************************************************************/
-static inline void kw_cm_to_mm_process_messages(
-    uint32_t kw_idx, uint64_t kernel_shire_mask, struct kw_internal_status *status_internal)
+static inline void kw_cm_to_mm_process_messages(uint32_t kw_idx, uint16_t tag_id,
+    uint64_t kernel_shire_mask, struct kw_internal_status *status_internal)
 {
     cm_iface_message_t message;
     int32_t status;
@@ -1133,8 +1136,7 @@ static inline void kw_cm_to_mm_process_messages(
 
                 Log_Write(LOG_LEVEL_DEBUG,
                     "TID[%u]:KW[%d]:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE from S%d:Status:%d\r\n",
-                    KW_CB.kernels[kw_idx].launch_tag_id, kw_idx, completed->shire_id,
-                    completed->status);
+                    tag_id, kw_idx, completed->shire_id, completed->status);
 
                 /* Check the completion status for any error. */
                 if (completed->status == KERNEL_COMPLETE_STATUS_ERROR)
@@ -1145,8 +1147,8 @@ static inline void kw_cm_to_mm_process_messages(
 
                     Log_Write(LOG_LEVEL_ERROR,
                         "TID[%u]:KW[%d]:CM_TO_MM_MESSAGE_ID_KERNEL_COMPLETE:Execution error detected:S%d:Exception Mask:0x%lx:Abort Mask:0x%lx\r\n",
-                        KW_CB.kernels[kw_idx].launch_tag_id, kw_idx, completed->shire_id,
-                        completed->exception_mask, completed->system_abort_mask);
+                        tag_id, kw_idx, completed->shire_id, completed->exception_mask,
+                        completed->system_abort_mask);
                 }
                 break;
 
@@ -1157,9 +1159,8 @@ static inline void kw_cm_to_mm_process_messages(
 
                 Log_Write(LOG_LEVEL_ERROR,
                     "TID[%u]:KW[%d]:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_EXCEPTION from S%d H%lu @ SEPC: 0x%lX SCAUSE: 0x%lX STVAL: 0x%lX SSTATUS: 0x%lX \r\n",
-                    KW_CB.kernels[kw_idx].launch_tag_id, kw_idx, exception->shire_id,
-                    exception->hart_id, exception->mepc, exception->mcause, exception->mtval,
-                    exception->mstatus);
+                    tag_id, kw_idx, exception->shire_id, exception->hart_id, exception->mepc,
+                    exception->mcause, exception->mtval, exception->mstatus);
 
                 /* Save shire mask which took exception. */
                 if (!status_internal->cw_exception)
@@ -1176,7 +1177,7 @@ static inline void kw_cm_to_mm_process_messages(
                 Log_Write(LOG_LEVEL_ERROR,
                     "TID[%u]:KW[%d]:from CW:CM_TO_MM_MESSAGE_ID_KERNEL_LAUNCH_ERROR from H%" PRId64
                     "\r\n",
-                    KW_CB.kernels[kw_idx].launch_tag_id, kw_idx, error_mesg->hart_id);
+                    tag_id, kw_idx, error_mesg->hart_id);
 
                 /* Fatal error received. Try to recover kernel shires by sending abort message */
                 status_internal->status = kw_cm_to_mm_kernel_force_abort(kernel_shire_mask);
@@ -1188,7 +1189,7 @@ static inline void kw_cm_to_mm_process_messages(
             }
             default:
                 Log_Write(LOG_LEVEL_ERROR, "TID[%u]:KW[%d]:from CW: Unexpected msg. ID: %d\r\n",
-                    kw_idx, KW_CB.kernels[kw_idx].launch_tag_id, message.header.id);
+                    kw_idx, tag_id, message.header.id);
 
                 /* Report SP of unknown msg Error */
                 SP_Iface_Report_Error(
@@ -1303,6 +1304,7 @@ void KW_Launch(uint32_t kw_idx)
     bool wait_for_ipi = true;
     bool kw_abort_serviced;
     uint8_t local_sqw_idx;
+    uint16_t tag_id;
     int32_t status;
     int32_t kw_abort_timer;
     uint32_t kernel_state;
@@ -1338,8 +1340,9 @@ void KW_Launch(uint32_t kw_idx)
         kw_abort_timer = -1;
         atomic_store_local_8(&kernel->cm_abort_wait_timeout_flag, 0);
 
-        /* Read the shire mask for the current kernel */
+        /* Read the shire mask and tag ID for the current kernel */
         kernel_shire_mask = atomic_load_local_64(&kernel->kernel_shire_mask);
+        tag_id = atomic_load_local_16(&kernel->launch_tag_id);
 
         /* Process kernel command responses from CM, for all shires
         associated with the kernel launch */
@@ -1355,8 +1358,7 @@ void KW_Launch(uint32_t kw_idx)
             if ((!kw_abort_serviced) && (kernel_state == KERNEL_STATE_ABORTING))
             {
                 kw_abort_serviced = true;
-                Log_Write(LOG_LEVEL_ERROR, "TID[%u]:KW[%d]:Aborting kernel...\r\n",
-                    kernel->launch_tag_id, kw_idx);
+                Log_Write(LOG_LEVEL_ERROR, "TID[%u]:KW[%d]:Aborting kernel...\r\n", tag_id, kw_idx);
 
                 /* Make sure that the kernel is launched on the CMs */
                 kw_wait_for_kernel_launch_flag(kernel->sqw_idx, (uint8_t)kw_idx);
@@ -1380,12 +1382,12 @@ void KW_Launch(uint32_t kw_idx)
 
                 Log_Write(LOG_LEVEL_ERROR,
                     "TID[%u]:KW[%d]:Timeout occured waiting for kernel complete message after CM abort\r\n",
-                    kernel->launch_tag_id, kw_idx);
+                    tag_id, kw_idx);
             }
             else
             {
                 /* Handle messages from Compute Worker */
-                kw_cm_to_mm_process_messages(kw_idx, kernel_shire_mask, &status_internal);
+                kw_cm_to_mm_process_messages(kw_idx, tag_id, kernel_shire_mask, &status_internal);
 
                 /* Enable wait for IPI */
                 wait_for_ipi = true;
@@ -1408,7 +1410,7 @@ void KW_Launch(uint32_t kw_idx)
         kernel_state = atomic_load_local_32(&kernel->kernel_state);
 
         /* Construct and transmit kernel launch response to host */
-        launch_rsp->response_info.rsp_hdr.tag_id = atomic_load_local_16(&kernel->launch_tag_id);
+        launch_rsp->response_info.rsp_hdr.tag_id = tag_id;
         launch_rsp->response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
         launch_rsp->device_cmd_start_ts = atomic_load_local_64(&kernel->kw_cycles.cmd_start_cycles);
         launch_rsp->device_cmd_wait_dur = atomic_load_local_32(&kernel->kw_cycles.wait_cycles);
@@ -1472,8 +1474,8 @@ void KW_Launch(uint32_t kw_idx)
                     launch_rsp->response_info.rsp_hdr.tag_id, CMD_STATUS_FAILED);
             }
 
-            Log_Write(LOG_LEVEL_DEBUG, "KW[%d]:CQ_Push:KERNEL_LAUNCH_CMD_RSP:tag_id=%x\r\n", kw_idx,
-                launch_rsp->response_info.rsp_hdr.tag_id);
+            Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:KW[%d]:CQ_Push:KERNEL_LAUNCH_CMD_RSP\r\n",
+                launch_rsp->response_info.rsp_hdr.tag_id, kw_idx);
         }
         else
         {

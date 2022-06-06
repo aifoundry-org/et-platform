@@ -861,7 +861,11 @@ static inline int32_t kernel_launch_cmd_handler(
         rsp->device_cmd_execute_dur = 0U;
 
         /* Map device internal errors onto device api errors */
-        if (status == KW_ERROR_CW_SHIRES_NOT_READY)
+        if (status == KW_ERROR_KERNEL_INAVLID_SHIRE_MASK)
+        {
+            rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_INVALID_SHIRE_MASK;
+        }
+        else if (status == KW_ERROR_CW_SHIRES_NOT_READY)
         {
             rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SHIRES_NOT_READY;
         }
