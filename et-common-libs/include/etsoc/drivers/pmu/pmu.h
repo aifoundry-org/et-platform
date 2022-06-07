@@ -170,8 +170,49 @@ enum hpm_counter {
 
 // MS default config values
 #define PMU_MS_CTL_STATUS_MASK 0xC00600
-#define PMU_MS_MESH_READS      0x00001FDULL
-#define PMU_MS_MESH_WRITES     0x00001FEULL
+/* To be replaced with new defines given below. */
+#define PMU_MS_MESH_READS  0x000013DULL
+#define PMU_MS_MESH_WRITES 0x000013EULL
+
+/*! \def PMU_MS_QUAL_ALL_MESH_READS
+    \brief Enable memory shire reads for all Minion Shires, IOShire, and PShire.
+*/
+#define PMU_MS_QUAL_ALL_MESH_READS 0x00001FDULL
+
+/*! \def PMU_MS_QUAL_MINIONS_MESH_READS
+    \brief Enable memory shire reads for Minion Shires only.
+*/
+#define PMU_MS_QUAL_MINIONS_MESH_READS 0x000013DULL
+
+/*! \def PMU_MS_QUAL_PSHIRE_MESH_READS
+    \brief Enable memory shire reads for PShire only.
+*/
+#define PMU_MS_QUAL_PSHIRE_MESH_READS 0x00000BDULL
+
+/*! \def PMU_MS_QUAL_IOSHIRE_MESH_READS
+    \brief Enable memory shire reads for IOShire only.
+*/
+#define PMU_MS_QUAL_IOSHIRE_MESH_READS 0x000007DULL
+
+/*! \def PMU_MS_QUAL_ALL_MESH_WRITES
+    \brief Enable memory shire writes for all Minion Shires, IOShire, and PShire.
+*/
+#define PMU_MS_QUAL_ALL_MESH_WRITES 0x00001FEULL
+
+/*! \def PMU_MS_QUAL_MINIONS_MESH_WRITES
+    \brief Enable memory shire writes for Minion Shires only.
+*/
+#define PMU_MS_QUAL_MINIONS_MESH_WRITES 0x000013EULL
+
+/*! \def PMU_MS_QUAL_PSHIRE_MESH_WRITES
+    \brief Enable memory shire writes for PShire only.
+*/
+#define PMU_MS_QUAL_PSHIRE_MESH_WRITES 0x00000BEULL
+
+/*! \def PMU_MS_QUAL_IOSHIRE_MESH_WRITES
+    \brief Enable memory shire writes for IOShire only.
+*/
+#define PMU_MS_QUAL_IOSHIRE_MESH_WRITES 0x000007EULL
 
 // Indices of shire cache and memshire PMCs.
 #define PMU_SC_CYCLE_PMC 0
