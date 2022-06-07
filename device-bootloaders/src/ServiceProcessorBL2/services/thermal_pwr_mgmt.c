@@ -68,6 +68,10 @@ static void pmic_isr_callback(uint8_t int_cause);
 /* The variable used to track power states change time. */
 static uint64_t power_state_change_time = 0;
 
+/* The variable used to track number of samples to calculate moving average. 
+   Initializing samples count = 1 to avoid divide by 0 exception while calculating average */
+uint16_t samples_count = 1;
+
 struct soc_power_reg_t
 {
     struct residency_t power_up_throttled_states_residency;
@@ -78,11 +82,13 @@ struct soc_power_reg_t
     power_state_e module_power_state;
     uint8_t module_tdp_level;
     uint8_t soc_temperature;
+    struct op_stats_t op_stats;
     uint8_t soc_power;
     uint8_t max_temp;
     struct temperature_threshold_t temperature_threshold;
     struct module_uptime_t module_uptime;
     struct module_voltage_t module_voltage;
+    struct module_voltage_t module_current;
     struct residency_t power_max_residency;
     struct residency_t power_managed_residency;
     struct residency_t power_safe_residency;
@@ -191,6 +197,27 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
         POWER_STATE_MAX_POWER :                       \
         (power_mW > SAFE_POWER_THRESHOLD) ? POWER_STATE_MANAGED_POWER : POWER_STATE_SAFE_POWER
 
+/*! \def MAX(x,y)
+    \brief Returns max
+*/
+#define MAX(x, y) x > y ? x : y
+
+/*! \def MIN(x,y)
+    \brief Returns min
+*/
+#define MIN(x, y) y == 0 ? x : x < y ? x : y
+
+/* Macro to calculate cumulative moving average */
+#define CMA(module, current_value) \
+    module.avg = (uint16_t)((current_value + (module.avg * (samples_count - 1))) / samples_count);
+
+/* Macro to calculate Min, Max values and add to the sum for average value later to be calculated by dividing num of samples */
+#define CALC_MIN_MAX(module, current_value)      \
+    module.max = MAX(current_value, module.max); \
+    module.min = MIN(current_value, module.min);
+
+/* Macro to calculate power by multiplying voltage and current */
+#define CALC_POWER(voltage, current) (uint16_t)(voltage * current)
 /************************************************************************
 *
 *   FUNCTION
@@ -416,7 +443,6 @@ int update_module_current_temperature(void)
     int status = 0;
     uint8_t temperature;
     struct temperature_threshold_t temperature_threshold;
-    struct trace_event_power_status_t power_status = { 0 };
 
     if (0 != pvt_get_minion_avg_temperature(&temperature))
     {
@@ -426,22 +452,15 @@ int update_module_current_temperature(void)
     else
     {
         get_soc_power_reg()->soc_temperature = temperature;
-        /* Update max temperature so far */
-        if (get_soc_power_reg()->max_temp < temperature)
-        {
-            get_soc_power_reg()->max_temp = temperature;
-
-            /* Log Power status to SP dev Stats buffer */
-            power_status.current_temp = temperature;
-            Trace_Power_Status(Trace_Get_Dev_Stats_CB(), &power_status);
-        }
+        CALC_MIN_MAX(get_soc_power_reg()->op_stats.minion.temperature, temperature)
+        CMA(get_soc_power_reg()->op_stats.minion.temperature, temperature)
     }
 
     get_module_temperature_threshold(&temperature_threshold);
 
     /* Switch power throttle state only if we are currently in lower priority throttle
         state and Active Power Management is enabled*/
-    if ((get_soc_power_reg()->soc_temperature) > (temperature_threshold.sw_temperature_c) &&
+    if (temperature > (temperature_threshold.sw_temperature_c) &&
         (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_THERMAL_DOWN) &&
         (get_soc_power_reg()->active_power_management))
     {
@@ -537,9 +556,21 @@ int get_module_current_temperature(struct current_temperature_t *temperature)
 int update_module_soc_power(void)
 {
     uint8_t soc_pwr;
+    uint16_t module_pwr;
     int32_t soc_pwr_mW;
     int32_t tdp_level_mW;
-    struct trace_event_power_status_t power_status = { 0 };
+
+    if (SUCCESS != get_module_voltage(NULL))
+    {
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to update module voltage\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
+    }
+
+    if (SUCCESS != update_module_current())
+    {
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to update module current\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
+    }
 
     if (0 != pmic_read_average_soc_power(&soc_pwr))
     {
@@ -548,12 +579,28 @@ int update_module_soc_power(void)
     }
     else
     {
+        CMA(get_soc_power_reg()->op_stats.system.power, soc_pwr)
+        CALC_MIN_MAX(get_soc_power_reg()->op_stats.system.power, soc_pwr)
+        //TODO add support to update sram, noc and minion power
         get_soc_power_reg()->soc_power = soc_pwr;
-
-        /* Log Power status to SP dev Stats buffer */
-        power_status.current_power = soc_pwr;
-        Trace_Power_Status(Trace_Get_Dev_Stats_CB(), &power_status);
     }
+
+    //TODO add support to calculate module powers when current value is available
+    /* Update moving average , min and max values of module powers */
+    module_pwr = CALC_POWER(get_soc_power_reg()->module_voltage.minion,
+                            get_soc_power_reg()->module_current.minion);
+    CMA(get_soc_power_reg()->op_stats.minion.power, module_pwr)
+    CALC_MIN_MAX(get_soc_power_reg()->op_stats.minion.power, module_pwr)
+    module_pwr = CALC_POWER(get_soc_power_reg()->module_voltage.noc,
+                            get_soc_power_reg()->module_current.noc);
+    CMA(get_soc_power_reg()->op_stats.noc.power, module_pwr)
+    CALC_MIN_MAX(get_soc_power_reg()->op_stats.noc.power, module_pwr)
+    /* voltage and current for SRAM  is currently unavailable
+    //module_pwr = CALC_POWER(get_soc_power_reg()-
+    >module_voltage.sram, get_soc_power_reg()->module_current.sram)
+    CMA(get_soc_power_reg()->op_stats.sram.power, soc_pwr)
+    CALC_MIN_MAX(get_soc_power_reg()->op_stats.sram.power, soc_pwr)
+    */
 
     soc_pwr_mW = Power_Convert_Hex_to_mW(soc_pwr);
     /* module_tdp_level is in Watts, converting to miliWatts */
@@ -733,9 +780,38 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
         Log_Write(LOG_LEVEL_INFO, "get_module_voltage: VDDQ Voltage: %d\r\n", voltage);
     }
 
-    *module_voltage = get_soc_power_reg()->module_voltage;
+    if (module_voltage != NULL)
+    {
+        *module_voltage = get_soc_power_reg()->module_voltage;
+    }
 
     return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       update_module_current
+*
+*   DESCRIPTION
+*
+*       This function updates the current value for all modules.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       int                     Return status
+*
+***********************************************************************/
+int update_module_current(void)
+{
+    //TODO Add support to obtain module current values
+
+    return SUCCESS;
 }
 
 /************************************************************************
@@ -1833,4 +1909,218 @@ void print_system_operating_point(void)
     Log_Write(LOG_LEVEL_CRITICAL, "PSHIRE      \t\tHPDPLLP %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
               freq, pshr_voltage.vdd_pshr.current, pshr_voltage.vdd_pshr.low,
               pshr_voltage.vdd_pshr.high);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Thermal_Pwr_Mgmt_Get_Minion_Temperature
+*
+*   DESCRIPTION
+*
+*       This function is used to get minion temperature
+*
+*   INPUTS
+*
+*       temp pointer to store temperature value
+*
+*   OUTPUTS
+*
+*       status of function call success/error
+*
+***********************************************************************/
+int Thermal_Pwr_Mgmt_Get_Minion_Temperature(uint64_t *temp)
+{
+    *temp = get_soc_power_reg()->op_stats.minion.temperature.avg;
+    return SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Thermal_Pwr_Mgmt_Get_System_Temperature
+*
+*   DESCRIPTION
+*
+*       This function is used to get system temperature
+*
+*   INPUTS
+*
+*       temp pointer to store temperature value
+*
+*   OUTPUTS
+*
+*       status of function call success/error
+*
+***********************************************************************/
+int Thermal_Pwr_Mgmt_Get_System_Temperature(uint64_t *temp)
+{
+    *temp = get_soc_power_reg()->op_stats.system.temperature.avg;
+    return SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Thermal_Pwr_Mgmt_Get_Minion_Power
+*
+*   DESCRIPTION
+*
+*       This function returns minion power consumption
+*
+*   INPUTS
+*
+*       power pointer to store temperature value
+*
+*   OUTPUTS
+*
+*       status of function call success/error
+*
+***********************************************************************/
+int Thermal_Pwr_Mgmt_Get_Minion_Power(uint64_t *power)
+{
+    /* voltage value which can be used to calculate power when current 
+       value is available.
+       get_soc_power_reg()->module_voltage.minion */
+    *power = get_soc_power_reg()->op_stats.minion.power.avg;
+    return SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Thermal_Pwr_Mgmt_Get_NOC_Power
+*
+*   DESCRIPTION
+*
+*       This function returns noc power consumption
+*
+*   INPUTS
+*
+*       power pointer to store temperature value
+*
+*   OUTPUTS
+*
+*       status of function call success/error
+*
+***********************************************************************/
+int Thermal_Pwr_Mgmt_Get_NOC_Power(uint64_t *power)
+{
+    /* voltage value which can be used to calculate power when current 
+       value is available.
+       get_soc_power_reg()->module_voltage.noc */
+
+    *power = get_soc_power_reg()->op_stats.noc.power.avg;
+    return SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Thermal_Pwr_Mgmt_Get_SRAM_Power
+*
+*   DESCRIPTION
+*
+*       This function returns sram power consumption
+*
+*   INPUTS
+*
+*       power pointer to store temperature value
+*
+*   OUTPUTS
+*
+*       status of function call success/error
+*
+***********************************************************************/
+int Thermal_Pwr_Mgmt_Get_SRAM_Power(uint64_t *power)
+{
+    /* voltage value which can be used to calculate power when current 
+    value is available.
+    get_soc_power_reg()->module_voltage */
+    *power = get_soc_power_reg()->op_stats.sram.power.avg;
+    return SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Thermal_Pwr_Mgmt_Get_System_Power
+*
+*   DESCRIPTION
+*
+*       This function returns system power consumption
+*
+*   INPUTS
+*
+*       power pointer to store temperature value
+*
+*   OUTPUTS
+*
+*       status of function call success/error
+*
+***********************************************************************/
+int Thermal_Pwr_Mgmt_Get_System_Power(uint64_t *power)
+{
+    *power = get_soc_power_reg()->op_stats.system.power.avg;
+    return SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Thermal_Pwr_Mgmt_Get_OP_Stats
+*
+*   DESCRIPTION
+*
+*       This function returns temperature and power consumption for 
+*       individual component System, Minion, SRAM and NOC.
+*
+*   INPUTS
+*
+*       stats pointer to get all module stats
+*
+*   OUTPUTS
+*
+*       status of function call success/error
+*
+***********************************************************************/
+int Thermal_Pwr_Mgmt_Get_System_Power_Temp_Stats(struct op_stats_t *stats)
+{
+    *stats = get_soc_power_reg()->op_stats;
+    return SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Thermal_Pwr_Mgmt_Update_Sample_counter
+*
+*   DESCRIPTION
+*
+*       This function increments sample counter to calculate average values
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Thermal_Pwr_Mgmt_Update_Sample_counter(void)
+{
+    /* Reset counter after 100 samples */
+    if (samples_count++ > NUM_SAMPLES)
+    {
+        samples_count = 0;
+    }
 }

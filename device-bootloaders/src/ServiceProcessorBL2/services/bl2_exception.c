@@ -147,8 +147,8 @@ static void dump_perf_globals_trace(void)
     memcpy(&data_buff[buff_idx], &last_ts, sizeof(uint64_t));
 
     /* Dump the data to trace using SP custom event */
-    Trace_Custom_Event(Trace_Get_SP_CB(), SP_TRACE_CUSTOM_ID_PERF_GLOBALS,
-        data_buff, SP_PERF_GLOBALS_SIZE);
+    Trace_Custom_Event(Trace_Get_SP_CB(), TRACE_CUSTOM_TYPE_SP_PERF_GLOBALS, data_buff,
+                       SP_PERF_GLOBALS_SIZE);
 }
 
 /************************************************************************
@@ -216,8 +216,8 @@ static void dump_power_globals_trace(void)
     memcpy(&data_buff[buff_idx], &module_voltage, sizeof(struct module_voltage_t));
 
     /* Dump the data to trace using SP custom event */
-    Trace_Custom_Event(Trace_Get_SP_CB(), SP_TRACE_CUSTOM_ID_POWER_GLOBALS,
-        data_buff, SP_POWER_GLOBALS_SIZE);
+    Trace_Custom_Event(Trace_Get_SP_CB(), TRACE_CUSTOM_TYPE_SP_POWER_GLOBALS, data_buff,
+                       SP_POWER_GLOBALS_SIZE);
 }
 
 /************************************************************************
@@ -259,8 +259,8 @@ static void dump_power_states_globals_trace(void)
     DUMP_POWER_RESIDENCY(POWER_STATE_LOW_POWER, residency, &data_buff[buff_idx], buff_idx)
 
     /* Dump the data to trace using SP custom event */
-    Trace_Custom_Event(Trace_Get_SP_CB(), SP_TRACE_CUSTOM_ID_POWER_STATES_GLOBALS,
-        data_buff, SP_POWER_STATES_GLOBALS_SIZE);
+    Trace_Custom_Event(Trace_Get_SP_CB(), TRACE_CUSTOM_TYPE_SP_POWER_STATES_GLOBALS, data_buff,
+                       SP_POWER_STATES_GLOBALS_SIZE);
 }
 
 /************************************************************************

@@ -34,6 +34,35 @@
 #define SECONDS_IN_HOUR   3600
 #define SECONDS_IN_MINUTE 60
 
+/* Number of samples to collect average */
+#define NUM_SAMPLES 100
+
+/* Structures to collect operating point stats */
+typedef struct
+{
+    uint16_t avg;
+    uint16_t min;
+    uint16_t max;
+} __attribute__((packed, aligned(8))) op_value;
+
+typedef struct
+{
+    op_value temperature;
+    op_value power;
+} __attribute__((packed, aligned(8))) op_module;
+
+/*!
+ * @struct struct sp_op_point_stats_
+ * @brief Structure to collect SP operating point stats
+ */
+struct op_stats_t
+{
+    op_module minion;
+    op_module sram;
+    op_module noc;
+    op_module system;
+} __attribute__((packed, aligned(8)));
+
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register
     \param none
@@ -223,6 +252,13 @@ void trace_power_state_test(uint16_t tag, uint64_t req_start_time, void *cmd);
 */
 void thermal_throttling(power_throttle_state_e throttle_state);
 
+/*! \fn int update_module_current(void)
+    \brief This function updates the current value for all modules.
+    \param none
+    \returns Status indicating success or negative error
+*/
+int update_module_current(void);
+
 /*! \fn void print_system_operating_point(void)
     \brief This function prints system operating point
     \param none
@@ -230,4 +266,59 @@ void thermal_throttling(power_throttle_state_e throttle_state);
 */
 void print_system_operating_point(void);
 
+/*! \fn void Thermal_Pwr_Mgmt_Get_Minion_Temperature(void)
+    \brief This function returns minion temperature
+    \param temp placeholder for temperature
+    \returns Status indicating success or negative error
+*/
+int Thermal_Pwr_Mgmt_Get_Minion_Temperature(uint64_t *temp);
+
+/*! \fn void Thermal_Pwr_Mgmt_Get_System_Temperature(void)
+    \brief This function returns system operating temperature
+    \param temp placeholder for temperature
+    \returns Status indicating success or negative error
+*/
+int Thermal_Pwr_Mgmt_Get_System_Temperature(uint64_t *temp);
+
+/*! \fn int Thermal_Pwr_Mgmt_Get_Minion_Power(uint64_t *power)
+    \brief This function returns Minion operating power
+    \param power placeholder for power value
+    \returns Status indicating success or negative error
+*/
+int Thermal_Pwr_Mgmt_Get_Minion_Power(uint64_t *power);
+
+/*! \fn int Thermal_Pwr_Mgmt_Get_NOC_Power(uint64_t *power)
+    \brief This function returns NOC operating power
+    \param power placeholder for power value
+    \returns Status indicating success or negative error
+*/
+int Thermal_Pwr_Mgmt_Get_NOC_Power(uint64_t *power);
+
+/*! \fn int Thermal_Pwr_Mgmt_Get_SRAM_Power(uint64_t *power)
+    \brief This function returns SRAM operating power
+    \param power placeholder for power value
+    \returns Status indicating success or negative error
+*/
+int Thermal_Pwr_Mgmt_Get_SRAM_Power(uint64_t *power);
+
+/*! \fn int Thermal_Pwr_Mgmt_Get_System_Power(uint64_t *power)
+    \brief This function returns System operating power
+    \param power placeholder for power value
+    \returns Status indicating success or negative error
+*/
+int Thermal_Pwr_Mgmt_Get_System_Power(uint64_t *power);
+
+/*! \fn int Thermal_Pwr_Mgmt_Get_System_Power_Temp_Stats(op_stats_t *stats)
+    \brief This function returns System operating stats
+    \param stats placeholder for stats value
+    \returns Status indicating success or negative error
+*/
+int Thermal_Pwr_Mgmt_Get_System_Power_Temp_Stats(struct op_stats_t *stats);
+
+/*! \fn void Thermal_Pwr_Mgmt_Update_Sample_counter(void)
+    \brief This function increments sample counter to calculate average values
+    \param none
+    \returns none
+*/
+void Thermal_Pwr_Mgmt_Update_Sample_counter(void);
 #endif

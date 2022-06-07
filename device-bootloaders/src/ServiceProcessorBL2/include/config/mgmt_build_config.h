@@ -479,7 +479,7 @@
 // Sampler
 #define DM_TASK_PRIORITY 2
 #define DM_TASK_STACK    1024
-#define DM_TASK_DELAY_MS 100
+#define DM_TASK_DELAY_MS 1
 // Power Management
 #define TT_TASK_PRIORITY   2
 #define TT_TASK_STACK_SIZE 1024
