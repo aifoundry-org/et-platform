@@ -45,16 +45,6 @@ TEST_F(IntegrationTestDevMgmtApiCmds, getDeviceErrorEvents) {
   }
 }
 
-TEST_F(IntegrationTestDevMgmtApiCmds, resetMM) {
-  // TODO: SW-11288: Enable back when it's stable
-  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
-    resetMM(false);
-  } else {
-    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
-    FLAGS_enable_trace_dump = false;
-  }
-}
-
 TEST_F(IntegrationTestDevMgmtApiCmds, setTraceControl) {
   DV_LOG(INFO) << "setTraceControl: verifying disable trace control command";
   setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE);

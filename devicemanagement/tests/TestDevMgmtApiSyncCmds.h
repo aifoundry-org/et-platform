@@ -213,6 +213,7 @@ protected:
   void getASICLatencyInvalidDeviceLatency(bool singleDevice);
   void getASICLatencyInvalidOutputBuffer(bool singleDevice);
   void resetMM(bool singleDevice);
+  void resetMMOpsOpen(bool singleDevice);
 
   // Functional tests for  MDI Run control/State Inspection APIs
   void testRunControlCmdsSetandUnsetBreakpoint(uint64_t shireID, uint64_t threadMask, uint64_t hartID, uint64_t bpAddr);

@@ -217,6 +217,13 @@ create_test(
     PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
 )
 
+create_test(
+    TARGET      OpsNodeDependentTestDevMgmtApiMMResetCmds
+    SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiMMResetCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;60"
+)
+
 configure_file(
     mix/MixTestDevMgmtApiAllCmds.sh.in
     ${CMAKE_CURRENT_BINARY_DIR}/MixTestDevMgmtApiAllCmds.sh @ONLY
@@ -248,4 +255,5 @@ set_tests_properties(${TEST_NAME}
     DEPENDS           SecurityTestDevMgmtApiErrorControlCmds
     DEPENDS           SecurityTestDevMgmtApiLinkMgmtCmds
     DEPENDS           SecurityTestDevMgmtApiPerfMgmtCmds
+    DEPENDS           OpsNodeDependentTestDevMgmtApiMMResetCmds
 )

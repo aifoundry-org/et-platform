@@ -112,8 +112,7 @@ bool DeviceManagement::handleEvent(const uint32_t device_node, std::vector<std::
   return false;
 }
 
-bool DeviceManagement::getEvent(const uint32_t device_node, std::vector<std::byte>& event,
-                                uint32_t timeout) {
+bool DeviceManagement::getEvent(const uint32_t device_node, std::vector<std::byte>& event, uint32_t timeout) {
   auto lockable = getDevice(device_node);
   return lockable->popEvent(event, timeout);
 }
@@ -299,8 +298,9 @@ bool DeviceManagement::isValidActivePowerManagement(const char* input_buff) {
 }
 
 bool DeviceManagement::isValidTemperature(const char* input_buff) {
-  device_mgmt_api::temperature_threshold_t* temperature_threshold = (device_mgmt_api::temperature_threshold_t*)input_buff;
-  if(temperature_threshold->sw_temperature_c >= 20 && temperature_threshold->sw_temperature_c <= 125) {
+  device_mgmt_api::temperature_threshold_t* temperature_threshold =
+    (device_mgmt_api::temperature_threshold_t*)input_buff;
+  if (temperature_threshold->sw_temperature_c >= 20 && temperature_threshold->sw_temperature_c <= 125) {
     return true;
   }
   return false;
@@ -327,24 +327,24 @@ bool DeviceManagement::isValidPcieLaneWidth(const char* input_buff) {
 bool DeviceManagement::isInputBufferValid(uint32_t cmd_code, const char* input_buff) {
   bool ret;
   switch (cmd_code) {
-    case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT:
-      ret = isValidActivePowerManagement(input_buff);
-      break;
-    case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS:
-      ret = isValidTemperature(input_buff);
-      break;
-    case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL:
-      ret = isValidTdpLevel(input_buff);
-      break;
-    case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED:
-      ret = isValidPcieLinkSpeed(input_buff);
-      break;
-    case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH:
-      ret = isValidPcieLaneWidth(input_buff);
-      break;
-    default:
-      ret = true;
-      break;
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT:
+    ret = isValidActivePowerManagement(input_buff);
+    break;
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS:
+    ret = isValidTemperature(input_buff);
+    break;
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL:
+    ret = isValidTdpLevel(input_buff);
+    break;
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED:
+    ret = isValidPcieLinkSpeed(input_buff);
+    break;
+  case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH:
+    ret = isValidPcieLaneWidth(input_buff);
+    break;
+  default:
+    ret = true;
+    break;
   }
   return ret;
 }
@@ -473,10 +473,15 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
     }
 
     respReceiveFuture = lockable->getRespReceiveFuture(wCB->info.cmd_hdr.tag_id);
-    if (!devLayer_->sendCommandServiceProcessor(lockable->idx, reinterpret_cast<std::byte*>(wCB.get()),
-                                                wCB->info.cmd_hdr.size,
-                                                cmd_code == device_mgmt_api::DM_CMD::DM_CMD_MM_RESET)) {
-      return -EIO;
+    try {
+      if (!devLayer_->sendCommandServiceProcessor(lockable->idx, reinterpret_cast<std::byte*>(wCB.get()),
+                                                  wCB->info.cmd_hdr.size,
+                                                  cmd_code == device_mgmt_api::DM_CMD::DM_CMD_MM_RESET)) {
+        return -EIO;
+      }
+    } catch (const dev::Exception& ex) {
+      auto eptr = std::make_exception_ptr(ex);
+      std::rethrow_exception(eptr);
     }
 
     DV_DLOG(DEBUG) << "Sent cmd: " << wCB->info.cmd_hdr.msg_id << " with header size: " << wCB->info.cmd_hdr.size
