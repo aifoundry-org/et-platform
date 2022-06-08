@@ -218,19 +218,23 @@ struct et_mgmt_dir_header {
 	u16 version;
 	u16 total_size;
 	u16 num_regions;
-	u64 minion_shire_mask;
-	u32 minion_boot_freq;
-	u32 crc32;
-	s16 status;
-	u16 cache_line_size;
-	u16 l2_size;
-	u16 l3_size;
 	u32 bar0_size;
 	u32 bar2_size;
-	u16 form_factor;
-	u16 device_tdp;
-	u16 scp_size;
-	u8 reserved[2];
+	u32 crc32;
+	u32 ddr_bandwidth;
+	u32 cm_shires_mask;
+	u32 minion_boot_freq;
+	u32 scp_size;
+	u32 l2_size;
+	u32 l3_size;
+	u16 status;
+	u8 l2_shire_banks;
+	u8 sync_min_shire_id;
+	u8 arch_rev;
+	u8 form_factor;
+	u8 device_tdp;
+	u8 cache_line_size;
+	u8 reserved[4];
 } __packed;
 
 struct et_mgmt_dir {
@@ -273,41 +277,53 @@ static inline void et_print_mgmt_dir(struct device *dev,
 		"Number of Regions       : 0x%x\n",
 		mgmt_dir->header.num_regions);
 	dev_dbg(dev,
-		"Minion Shire Mask       : 0x%llx\n",
-		mgmt_dir->header.minion_shire_mask);
+		"BAR0 Size               : 0x%x\n",
+		mgmt_dir->header.bar0_size);
 	dev_dbg(dev,
-		"Status                  : 0x%x\n",
-		mgmt_dir->header.status);
+		"BAR2 Size               : 0x%x\n",
+		mgmt_dir->header.bar2_size);
 	dev_dbg(dev,
 		"CRC32                   : 0x%x\n\n",
 		mgmt_dir->header.crc32);
 	dev_dbg(dev,
-		"form_factor             : 0x%x\n",
-		mgmt_dir->header.form_factor);
+		"DDR Bandwidth           : 0x%x\n\n",
+		mgmt_dir->header.ddr_bandwidth);
 	dev_dbg(dev,
-		"device_tdp              : 0x%x\n",
-		mgmt_dir->header.device_tdp);
+		"CM Shire Mask           : 0x%x\n",
+		mgmt_dir->header.cm_shires_mask);
 	dev_dbg(dev,
-		"minion_boot_freq        : 0x%x\n",
+		"Minion Boot Frequency   : 0x%x\n",
 		mgmt_dir->header.minion_boot_freq);
 	dev_dbg(dev,
-		"l3_size                 : 0x%x\n",
-		mgmt_dir->header.l3_size);
-	dev_dbg(dev,
-		"l2_size                 : 0x%x\n",
-		mgmt_dir->header.l2_size);
-	dev_dbg(dev,
-		"scp_size                : 0x%x\n",
+		"SCP Size (KB)           : 0x%x\n",
 		mgmt_dir->header.scp_size);
 	dev_dbg(dev,
-		"cache_line_size         : 0x%x\n",
+		"L2 Size (KB)            : 0x%x\n",
+		mgmt_dir->header.l2_size);
+	dev_dbg(dev,
+		"L3 Size (KB)            : 0x%x\n",
+		mgmt_dir->header.l3_size);
+	dev_dbg(dev,
+		"Status                  : 0x%x\n",
+		mgmt_dir->header.status);
+	dev_dbg(dev,
+		"L2 Shire Banks          : 0x%x\n",
+		mgmt_dir->header.l2_shire_banks);
+	dev_dbg(dev,
+		"Sync Minion Shire ID    : 0x%x\n",
+		mgmt_dir->header.sync_min_shire_id);
+	dev_dbg(dev,
+		"Architecture Revision   : 0x%x\n",
+		mgmt_dir->header.arch_rev);
+	dev_dbg(dev,
+		"PCIe Form Factor        : 0x%x\n",
+		mgmt_dir->header.form_factor);
+	dev_dbg(dev,
+		"Device TDP              : 0x%x\n",
+		mgmt_dir->header.device_tdp);
+	dev_dbg(dev,
+		"Cache Line Size         : 0x%x\n",
 		mgmt_dir->header.cache_line_size);
-	dev_dbg(dev,
-		"Reserved[0]             : 0x%x\n",
-		mgmt_dir->header.reserved[0]);
-	dev_dbg(dev,
-		"Reserved[1]             : 0x%x\n",
-		mgmt_dir->header.reserved[1]);
 	dev_dbg(dev, "Mgmt DIRs Vqueue\n");
 	dev_dbg(dev,
 		"SQ Offset               : 0x%x\n",

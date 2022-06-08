@@ -1614,7 +1614,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 		goto error_free_dir_data;
 	}
 
-	// TODO: Discover device configuration from DIRs
+	// Read the configuration values
 	et_dev->cfg.form_factor = DEV_CONFIG_FORM_FACTOR_PCIE;
 	et_dev->cfg.tdp = dir_mgmt->device_tdp;
 	et_dev->cfg.total_l3_size = dir_mgmt->l3_size;
@@ -1622,7 +1622,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 	et_dev->cfg.total_scp_size = dir_mgmt->scp_size;
 	et_dev->cfg.cache_line_size = dir_mgmt->cache_line_size;
 	et_dev->cfg.minion_boot_freq = dir_mgmt->minion_boot_freq;
-	et_dev->cfg.cm_shire_mask = dir_mgmt->minion_shire_mask;
+	et_dev->cfg.cm_shire_mask = dir_mgmt->cm_shires_mask;
 
 	dir_pos += section_size;
 

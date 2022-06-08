@@ -68,16 +68,20 @@ struct dram_info {
 	__u16 dma_max_elem_count;
 	__u16 align_in_bits;
 };
-//todo update
+
 struct dev_config {
-	__u16 form_factor;	/* PCIE or M.2 */
-	__u16 tdp;		/* in Watts */
-	__u16 total_l3_size;	/* in MB */
-	__u16 total_l2_size;	/* in MB */
-	__u16 total_scp_size;	/* in MB */
-	__u16 cache_line_size;	/* in Bytes */
-	__u32 minion_boot_freq;	/* in MHz */
-	__u32 cm_shire_mask;	/* Active Compute Shires Mask */
+	__u32 total_l3_size;	 /* in KB */
+	__u32 total_l2_size;	 /* in KB */
+	__u32 total_scp_size;	 /* in KB */
+	__u32 ddr_bandwidth;     /* in MB/sec */
+	__u32 minion_boot_freq;	 /* in MHz */
+	__u32 cm_shire_mask;     /* Active Compute Shires Mask */
+	__u8 form_factor;        /* PCIE or M.2 */
+	__u8 tdp;                /* in Watts */
+	__u8 cache_line_size;	 /* in Bytes */
+	__u8 num_l2_cache_banks; /* Number of L2 Shire Cache banks */
+	__u8 sync_min_shire_id;  /* Spare/sync Minion Shire ID */
+	__u8 arch_rev;           /* Device architecture revision */
 };
 
 struct trace_desc {
