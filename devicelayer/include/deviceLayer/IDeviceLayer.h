@@ -41,12 +41,12 @@ namespace dev {
 struct DeviceConfig {
   enum class FormFactor { PCIE, M2 };
   FormFactor formFactor_;              ///< device form factor
-  uint16_t tdp_;                       ///< TDP in Watts
-  uint16_t totalL3Size_;               ///< total size of L3 cache in MBytes
-  uint16_t totalL2Size_;               ///< total size of L2 cache in MBytes
-  uint16_t totalScratchPadSize_;       ///< total scratchpad size in MBytes
-  uint16_t cacheLineSize_;             ///< chache line size, in Bytes
-  uint16_t numL2CacheBanks_;           ///< num L2 cache banks
+  uint8_t tdp_;                        ///< TDP in Watts
+  uint32_t totalL3Size_;               ///< total size of L3 cache in KBytes
+  uint32_t totalL2Size_;               ///< total size of L2 cache in KBytes
+  uint32_t totalScratchPadSize_;       ///< total scratchpad size in KBytes
+  uint8_t cacheLineSize_;              ///< chache line size, in Bytes
+  uint8_t numL2CacheBanks_;            ///< num L2 cache banks
   uint32_t ddrBandwidth_;              ///< DDR bandwidth in MBytes/s
   uint32_t minionBootFrequency_;       ///< minion boot frequency in Mhz
   uint32_t computeMinionShireMask_;    ///< mask which indicates what are the compute minion shires

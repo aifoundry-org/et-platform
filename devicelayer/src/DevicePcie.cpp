@@ -265,19 +265,19 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
 
     dev_config cfg;
     wrap_ioctl(fd, ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION, &cfg);
-    deviceInfo.cfg_ = DeviceConfig{
+    deviceInfo.cfg_ = DeviceConfig {
       cfg.form_factor == DEV_CONFIG_FORM_FACTOR_PCIE ? DeviceConfig::FormFactor::PCIE : DeviceConfig::FormFactor::M2,
       cfg.tdp,
       cfg.total_l3_size,
       cfg.total_l2_size,
       cfg.total_scp_size,
       cfg.cache_line_size,
-      4,                     /* SW-12534 REMOVE PLACEHOLDER (L2 cache banks) */
-      128000,                /* SW-12534 REMOVE PLACEHOLDER (ddr bandwidth) */
+      cfg.num_l2_cache_banks,
+      cfg.ddr_bandwidth,
       cfg.minion_boot_freq,
       cfg.cm_shire_mask,
-      32,                    /* SW-12534 REMOVE PLACEHOLDER (spare minion shire id) */
-      0                      /* SW-12534 REMOVE PLACEHOLDER (arch revision) */
+      cfg.sync_min_shire_id,
+      cfg.arch_rev
     };
 
     logs << "TDP: " << deviceInfo.cfg_.tdp_ << "W\nMinion boot frequency: " << deviceInfo.cfg_.minionBootFrequency_
