@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [0.5.0] - 2022-06-08
+### Added
+- Custom events IDs new structs for Health Monitor events.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
 ## [0.3.0] - 2022-05-30
 ### Added
 - Custom events IDs for SP, MM and CM.

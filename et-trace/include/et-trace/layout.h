@@ -421,6 +421,55 @@ struct trace_execution_stack_t {
     struct dev_context_registers_t registers;
 } __attribute__((packed));
 
+struct op_value
+{
+    uint16_t avg;
+    uint16_t min;
+    uint16_t max;
+} __attribute__((packed, aligned(8)));
+
+struct op_module
+{
+    struct op_value temperature;
+    struct op_value power;
+} __attribute__((packed, aligned(8)));
+
+/*!
+ * @struct struct sp_op_point_stats_
+ * @brief Structure to collect SP operating point stats
+ */
+struct op_stats_t
+{
+    struct op_module minion;
+    struct op_module sram;
+    struct op_module noc;
+    struct op_module system;
+} __attribute__((packed, aligned(8)));
+
+/*! \struct resource_value
+    \brief Device statistics sample structure
+*/
+struct resource_value
+{
+  uint64_t avg;
+  uint64_t min;
+  uint64_t max;
+} __attribute__((packed, aligned(8)));
+
+/*! \struct compute_resources_sample
+    \brief Device computer resource structure
+*/
+struct compute_resources_sample
+{
+  struct resource_value cm_utilization;
+  struct resource_value pcie_dma_read_bw;
+  struct resource_value pcie_dma_write_bw;
+  struct resource_value ddr_read_bw;
+  struct resource_value ddr_write_bw;
+  struct resource_value l2_l3_read_bw;
+  struct resource_value l2_l3_write_bw;
+} __attribute__((packed, aligned(8)));
+
 /*! \struct trace_custom_event_t
     \brief A Trace packet strucure for logging a custom event in trace buffer.
 */
