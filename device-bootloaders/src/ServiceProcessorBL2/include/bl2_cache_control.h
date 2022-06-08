@@ -52,6 +52,12 @@
 */
 #define CACHE_LINE_SIZE                   64
 
+/*! \def L2_SHIRE_BANKS
+    \brief Macro representing the number of L2 banks in a shire.
+    TODO: Its a dummy value.
+*/
+#define L2_SHIRE_BANKS 4U
+
 /*! \def BIT
     \brief Macto setting bit position
  */
@@ -256,30 +262,26 @@ int32_t sram_get_uce_count(uint32_t *uce_count);
 
 int32_t sram_error_control_init(dm_event_isr_callback event_cb);
 
-/*! \fn uint16_t Cache_Control_SCP_size(uint64_t shire_mask)
-    \brief This function provides SCP size (MB)
+/*! \fn uint32_t Cache_Control_SCP_size(uint64_t shire_mask)
+    \brief This function provides SCP size (KB)
     \param shire_mask Active shire mask
-    \return SCP size in MegaBytes
+    \return SCP size in KiloBytes
 */
+uint32_t Cache_Control_SCP_size(uint64_t shire_mask);
 
-uint16_t Cache_Control_SCP_size(uint64_t shire_mask);
-
-/*! \fn uint16_t Cache_Control_L2_size(uint64_t shire_mask)
-    \brief This function provides L2 size (MB)
+/*! \fn uint32_t Cache_Control_L2_size(uint64_t shire_mask)
+    \brief This function provides L2 size (KB)
     \param shire_mask Active shire mask
-    \return L2 size in MegaBytes
+    \return L2 size in KiloBytes
 */
+uint32_t Cache_Control_L2_size(uint64_t shire_mask);
 
-uint16_t Cache_Control_L2_size(uint64_t shire_mask);
-
-/*! \fn uint16_t Cache_Control_L3_size(uint64_t shire_mask)
-    \brief This function provides L3 cache size (MB)
+/*! \fn uint32_t Cache_Control_L3_size(uint64_t shire_mask)
+    \brief This function provides L3 cache size (KB)
     \param shire_mask Active shire mask
-    \return L3 size in MegaBytes
+    \return L3 size in KiloBytes
 */
-
-uint16_t Cache_Control_L3_size(uint64_t shire_mask);
-
+uint32_t Cache_Control_L3_size(uint64_t shire_mask);
 
 /*! \fn int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size,
 *                                    uint64_t shire_mask)

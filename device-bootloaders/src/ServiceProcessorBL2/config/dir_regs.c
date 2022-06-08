@@ -25,14 +25,21 @@
 *       DIR_Generic_Attributes_Init
 *
 ***********************************************************************/
-#include "config/mgmt_dir_regs.h"
-#include "minion_configuration.h"
+#include <system/layout.h>
+
 #include "bl2_cache_control.h"
-#include "thermal_pwr_mgmt.h"
-#include "perf_mgmt.h"
+#include "config/mgmt_dir_regs.h"
 #include "crc32.h"
-#include "system/layout.h"
 #include "hwinc/hal_device.h"
+#include "mem_controller.h"
+#include "minion_configuration.h"
+#include "perf_mgmt.h"
+#include "thermal_pwr_mgmt.h"
+
+/*! \def CM_SHIRE_MASK
+    \brief Shire mask of Compute Minions Shires.
+*/
+#define CM_SHIRE_MASK 0xFFFFFFFFUL
 
 /*! \var Gbl_SP_DIRs
     \brief Global static instance of Service Processors
@@ -69,11 +76,16 @@ void DIR_Init(void)
     Gbl_SP_DIRs->generic_attr.total_size = sizeof(SP_DEV_INTF_REG_s);
     Gbl_SP_DIRs->generic_attr.attributes_size = sizeof(SP_DEV_INTF_GENERIC_ATTR_s);
     Gbl_SP_DIRs->generic_attr.num_mem_regions = SP_DEV_INTF_MEM_REGION_TYPE_NUM;
-    Gbl_SP_DIRs->generic_attr.minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
     Gbl_SP_DIRs->generic_attr.form_factor = SP_DEV_CONFIG_FORM_FACTOR_PCIE;
     Gbl_SP_DIRs->generic_attr.cache_line_size = CACHE_LINE_SIZE;
     Gbl_SP_DIRs->generic_attr.bar0_size = SP_DEV_INTF_BAR0_SIZE;
     Gbl_SP_DIRs->generic_attr.bar2_size = SP_DEV_INTF_BAR2_SIZE;
+    Gbl_SP_DIRs->generic_attr.sync_min_shire_id = MASTER_SHIRE;
+    Gbl_SP_DIRs->generic_attr.arch_rev = SP_DEV_CONFIG_ARCH_REV_ETSOC1;
+    Gbl_SP_DIRs->generic_attr.l2_shire_banks = L2_SHIRE_BANKS;
+    Gbl_SP_DIRs->generic_attr.ddr_bandwidth = DDR_BANDWIDTH;
+    /* Only Compute Minion shire mask */
+    Gbl_SP_DIRs->generic_attr.cm_shires_mask = Minion_Get_Active_Compute_Minion_Mask() & CM_SHIRE_MASK;
 
     /* Populate the SP VQs attributes */
     Gbl_SP_DIRs->vq_attr.sq_offset = SP_SQ_OFFSET;
@@ -281,11 +293,11 @@ void DIR_Cache_Size_Init(void)
     /* Populate the device generic attributes */
     /* Only use the 32 Compute Minions */
     Gbl_SP_DIRs->generic_attr.l3_size =
-        Cache_Control_L3_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask & 0xffffffff);
+        Cache_Control_L3_size(Gbl_SP_DIRs->generic_attr.cm_shires_mask & CM_SHIRE_MASK);
     Gbl_SP_DIRs->generic_attr.l2_size =
-        Cache_Control_L2_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask & 0xffffffff);
+        Cache_Control_L2_size(Gbl_SP_DIRs->generic_attr.cm_shires_mask & CM_SHIRE_MASK);
     Gbl_SP_DIRs->generic_attr.scp_size =
-        Cache_Control_SCP_size(Gbl_SP_DIRs->generic_attr.minion_shires_mask & 0xffffffff);
+        Cache_Control_SCP_size(Gbl_SP_DIRs->generic_attr.cm_shires_mask & CM_SHIRE_MASK);
 
     return;
 }
@@ -313,6 +325,6 @@ void DIR_Generic_Attributes_Init(void)
 {
     /* Populate the device generic attributes */
     Gbl_SP_DIRs->generic_attr.minion_boot_freq = (uint32_t)Get_Minion_Frequency();
-    get_module_tdp_level((uint8_t *)&Gbl_SP_DIRs->generic_attr.device_tdp);
+    get_module_tdp_level(&Gbl_SP_DIRs->generic_attr.device_tdp);
     return;
 }

@@ -35,6 +35,12 @@
 #include "config/mgmt_build_config.h"
 #include <interrupt.h>
 
+/*! \def DDR_BANDWIDTH
+    \brief Macro representing the DDR bandwidth in MB/sec.
+    TODO: Its a dummy value.
+*/
+#define DDR_BANDWIDTH 128000U
+
 /*! \def NUMBER_OF_MEMSHIRE
 */
 #define HW_NUMBER_OF_MEMSHIRE 8
@@ -201,7 +207,7 @@ uint64_t ms_read_chip_reg(uint32_t memshire, uint32_t mr_num);
 */
 int ddr_config(const DDR_MODE *ddr_mode);
 
-/*! \fn void ms_printout_status(uint32_t memshire, bool ddrc_enabled) 
+/*! \fn void ms_printout_status(uint32_t memshire, bool ddrc_enabled)
     \brief This function prints the status of the DDR Controller
     \param memshire memshire id, ddrc_enabled option to disabled DDR controller
     \return N/A
@@ -315,17 +321,17 @@ uint32_t get_memshire_frequency(void);
 */
 uint32_t get_ddr_frequency(void);
 
-/*! \fn ms_write_phy_ram (..) 
+/*! \fn ms_write_phy_ram (..)
     \brief Helper to write to DDR Phy RAM
     \param NA
-    \return NA 
+    \return NA
 */
 void ms_write_phy_ram(uint32_t memshire, const uint64_t addr, const uint32_t value);
 
-/*! \fn mem_disable_unused_clocks (void) 
+/*! \fn mem_disable_unused_clocks (void)
     \brief Disables unused clocks in memshire
     \param NA
-    \return NA 
+    \return NA
 */
 void mem_disable_unused_clocks(void);
 

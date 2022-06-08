@@ -146,7 +146,17 @@ enum SP_DEV_INTF_MEM_REGION_TYPE_e
     SP_DEV_INTF_MEM_REGION_TYPE_NUM
 };
 
-/*! \enum SP_DEV_INTF_form_factor
+/*! \enum SP_DEV_INTF_ARCH_REV_e
+    \brief Values representing the available types of
+    architecture revisions of device.
+*/
+enum SP_DEV_INTF_ARCH_REV_e {
+	SP_DEV_CONFIG_ARCH_REV_ETSOC1 = 0,
+	SP_DEV_CONFIG_ARCH_REV_PANTERO,
+    SP_DEV_CONFIG_ARCH_REV_GEPARDO
+};
+
+/*! \enum SP_DEV_INTF_FORM_FACTOR_e
     \brief Values representing the available types of
     memory regions supported by the Service Processor
 */
@@ -195,19 +205,23 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR {
     uint16_t version;
     uint16_t total_size;
     uint16_t num_mem_regions;
-    uint64_t minion_shires_mask;
-    uint32_t minion_boot_freq;
-    uint32_t crc32;
-    int16_t  status;
-    uint16_t cache_line_size;
-    uint16_t l2_size;
-    uint16_t l3_size;
     uint32_t bar0_size;
     uint32_t bar2_size;
-    uint16_t form_factor;
-    uint16_t device_tdp;
-    uint16_t scp_size;
-    uint8_t reserved[2];
+    uint32_t crc32;
+    uint32_t ddr_bandwidth;
+    uint32_t cm_shires_mask;
+    uint32_t minion_boot_freq;
+    uint32_t scp_size;
+    uint32_t l2_size;
+    uint32_t l3_size;
+    int16_t  status;
+    uint8_t l2_shire_banks;
+    uint8_t sync_min_shire_id;
+    uint8_t arch_rev;
+    uint8_t form_factor;
+    uint8_t device_tdp;
+    uint8_t cache_line_size;
+    uint8_t reserved[4];
 } SP_DEV_INTF_GENERIC_ATTR_s;
 
 

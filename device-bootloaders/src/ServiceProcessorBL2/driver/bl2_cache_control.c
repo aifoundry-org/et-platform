@@ -575,7 +575,7 @@ void sram_and_icache_error_isr(void)
     icache_error_handler(minshire);
 }
 
-uint16_t Cache_Control_SCP_size(uint64_t shire_mask)
+uint32_t Cache_Control_SCP_size(uint64_t shire_mask)
 {
     uint64_t scp_cache_ctrl;
     uint16_t bank_scp_size;
@@ -590,10 +590,10 @@ uint16_t Cache_Control_SCP_size(uint64_t shire_mask)
 
     num_of_active_shires = (uint8_t)__builtin_popcountll(shire_mask);
 
-    return (uint16_t)KB_to_MB(num_of_active_shires * SC_BANK_NUM * bank_scp_size);
+    return (uint32_t)(num_of_active_shires * SC_BANK_NUM * bank_scp_size);
 }
 
-uint16_t Cache_Control_L2_size(uint64_t shire_mask)
+uint32_t Cache_Control_L2_size(uint64_t shire_mask)
 {
     uint64_t l2_cache_ctrl;
     uint16_t bank_l2_size;
@@ -608,10 +608,10 @@ uint16_t Cache_Control_L2_size(uint64_t shire_mask)
 
     num_of_active_shires = (uint8_t)__builtin_popcountll(shire_mask);
 
-    return (uint16_t)KB_to_MB(num_of_active_shires * SC_BANK_NUM * bank_l2_size);
+    return (uint32_t)(num_of_active_shires * SC_BANK_NUM * bank_l2_size);
 }
 
-uint16_t Cache_Control_L3_size(uint64_t shire_mask)
+uint32_t Cache_Control_L3_size(uint64_t shire_mask)
 {
     uint64_t l3_cache_ctrl;
     uint16_t bank_l3_size;
@@ -626,7 +626,7 @@ uint16_t Cache_Control_L3_size(uint64_t shire_mask)
 
     num_of_active_shires = (uint8_t)__builtin_popcountll(shire_mask);
 
-    return (uint16_t)KB_to_MB(num_of_active_shires * SC_BANK_NUM * bank_l3_size);
+    return (uint32_t)(num_of_active_shires * SC_BANK_NUM * bank_l3_size);
 }
 
 int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size,
