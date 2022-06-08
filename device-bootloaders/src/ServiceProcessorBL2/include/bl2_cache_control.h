@@ -32,25 +32,26 @@
 #define SPIO_PLIC R_SP_PLIC_BASEADDR
 #endif
 
-
 /*! \def NUMBER_OF_MINSHIRE
 */
-#define NUMBER_OF_MINSHIRE     33
+#define NUMBER_OF_MINSHIRE 33
 
-#define FOR_EACH_MINSHIRE(statements)                                              \
-            {                                                                      \
-                for(minshire = 0;minshire < NUMBER_OF_MINSHIRE;++minshire) {       \
-                   if (shire_mask & 1) {                                           \
-                      statements                                                   \
-                   }                                                               \
-                   shire_mask >>= 1;                                               \
-                }                                                                  \
-            }
+#define FOR_EACH_MINSHIRE(statements)                                 \
+    {                                                                 \
+        for (minshire = 0; minshire < NUMBER_OF_MINSHIRE; ++minshire) \
+        {                                                             \
+            if (shire_mask & 1)                                       \
+            {                                                         \
+                statements                                            \
+            }                                                         \
+            shire_mask >>= 1;                                         \
+        }                                                             \
+    }
 
 /*! \def CACHE_LINE_SIZE
     \brief Macro representing the 64-byte cache line size
 */
-#define CACHE_LINE_SIZE                   64
+#define CACHE_LINE_SIZE 64
 
 /*! \def L2_SHIRE_BANKS
     \brief Macro representing the number of L2 banks in a shire.
@@ -69,7 +70,8 @@
  * @enum shire_cache_error_type
  * @brief Enum defining event/error type
  */
-enum shire_cache_error_type {
+enum shire_cache_error_type
+{
     SINGLE_BIT_ECC = 0,
     DOUBLE_BIT_ECC,
     ECC_ERROR_COUNTER_SATURATION,
@@ -129,7 +131,7 @@ int32_t icache_disable_uce_interrupt(uint64_t shire_mask);
 int32_t icache_disble_ecc_counter_saturation_interrupt(uint64_t shire_mask);
 int32_t icache_disable_all_interrupts(uint64_t shire_mask);
 
-void    sram_and_icache_error_isr(void);
+void sram_and_icache_error_isr(void);
 
 /*! \fn int32_t sram_error_control_init(dm_event_isr_callback event_cb)
     \brief This function inits sram error control subsystem.
@@ -298,6 +300,6 @@ uint32_t Cache_Control_L3_size(uint64_t shire_mask);
     \return Status indicating success or negative error
 */
 int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size,
-                                    uint64_t shire_mask);
+                                uint64_t shire_mask);
 
 #endif

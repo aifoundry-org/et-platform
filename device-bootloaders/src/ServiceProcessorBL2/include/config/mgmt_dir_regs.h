@@ -34,7 +34,7 @@
 /*! \def SP_DEV_INTF_REG_VERSION
     \brief Device Interface Register (DIR) version number.
 */
-#define SP_DEV_INTF_REG_VERSION            1U
+#define SP_DEV_INTF_REG_VERSION 1U
 
 /***************************************/
 /* Memory Region accessibility options */
@@ -43,67 +43,67 @@
 /*! \def MEM_REGION_IOACCESS_SET(x)
     \brief Macro that sets the IO access for a memory region
 */
-#define MEM_REGION_IOACCESS_SET(x)                 (x & 0x00000001u)
+#define MEM_REGION_IOACCESS_SET(x) (x & 0x00000001u)
 
 /*! \def MEM_REGION_IOACCESS_DISABLED
     \brief Macro representing IO access disabled for a memory region
 */
-#define MEM_REGION_IOACCESS_DISABLED               0x0
+#define MEM_REGION_IOACCESS_DISABLED 0x0
 
 /*! \def MEM_REGION_IOACCESS_ENABLED
     \brief Macro representing IO access enabled for a memory region
 */
-#define MEM_REGION_IOACCESS_ENABLED                0x1
+#define MEM_REGION_IOACCESS_ENABLED 0x1
 
 /*! \def MEM_REGION_NODE_ACCESSIBLE_SET(x)
     \brief Macro that sets the priviledge mode for a memory region
 */
-#define MEM_REGION_NODE_ACCESSIBLE_SET(x)          (((x) << 1) & 0x00000006u)
+#define MEM_REGION_NODE_ACCESSIBLE_SET(x) (((x) << 1) & 0x00000006u)
 
 /*! \def MEM_REGION_NODE_ACCESSIBLE_NONE
     \brief Macro representing the not accessible node value
 */
-#define MEM_REGION_NODE_ACCESSIBLE_NONE            0x0
+#define MEM_REGION_NODE_ACCESSIBLE_NONE 0x0
 
 /*! \def MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT
     \brief Macro representing the management node value
 */
-#define MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT      0x1
+#define MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT 0x1
 
 /*! \def MEM_REGION_NODE_ACCESSIBLE_OPS
     \brief Macro representing the OPS node value
 */
-#define MEM_REGION_NODE_ACCESSIBLE_OPS             0x2
+#define MEM_REGION_NODE_ACCESSIBLE_OPS 0x2
 
 /*! \def MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS
     \brief Macro representing the management and OPS node value
 */
-#define MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS  0x3
+#define MEM_REGION_NODE_ACCESSIBLE_MANAGEMENT_OPS 0x3
 
 /*! \def MEM_REGION_DMA_ALIGNMENT_SET(x)
     \brief Macro that sets the priviledge mode for a memory region
 */
-#define MEM_REGION_DMA_ALIGNMENT_SET(x)  (((x) << 3) & 0x00000018u)
+#define MEM_REGION_DMA_ALIGNMENT_SET(x) (((x) << 3) & 0x00000018u)
 
 /*! \def MEM_REGION_DMA_ALIGNMENT_NONE
     \brief Macro representing the none DMA alignment value
 */
-#define MEM_REGION_DMA_ALIGNMENT_NONE    0x0
+#define MEM_REGION_DMA_ALIGNMENT_NONE 0x0
 
 /*! \def MEM_REGION_DMA_ALIGNMENT_8_BIT
     \brief Macro representing the 8-bit DMA alignment value
 */
-#define MEM_REGION_DMA_ALIGNMENT_8_BIT   0x1
+#define MEM_REGION_DMA_ALIGNMENT_8_BIT 0x1
 
 /*! \def MEM_REGION_DMA_ALIGNMENT_32_BIT
     \brief Macro representing the 32-bit DMA alignment value
 */
-#define MEM_REGION_DMA_ALIGNMENT_32_BIT  0x2
+#define MEM_REGION_DMA_ALIGNMENT_32_BIT 0x2
 
 /*! \def MEM_REGION_DMA_ALIGNMENT_64_BIT
     \brief Macro representing the 64-bit DMA alignment value
 */
-#define MEM_REGION_DMA_ALIGNMENT_64_BIT  0x3
+#define MEM_REGION_DMA_ALIGNMENT_64_BIT 0x3
 
 /***************************/
 /* SP DIRs data structures */
@@ -112,7 +112,8 @@
 /*! \enum SP_DEV_INTF_SP_BOOT_STATUS_e
     \brief Values representing Service Processor Boot status
 */
-enum SP_DEV_INTF_SP_BOOT_STATUS_e {
+enum SP_DEV_INTF_SP_BOOT_STATUS_e
+{
     SP_DEV_INTF_SP_BOOT_STATUS_BOOT_ERROR = -1,
     SP_DEV_INTF_SP_BOOT_STATUS_DEV_NOT_READY = 0,
     SP_DEV_INTF_SP_BOOT_STATUS_VQ_READY,
@@ -150,9 +151,10 @@ enum SP_DEV_INTF_MEM_REGION_TYPE_e
     \brief Values representing the available types of
     architecture revisions of device.
 */
-enum SP_DEV_INTF_ARCH_REV_e {
-	SP_DEV_CONFIG_ARCH_REV_ETSOC1 = 0,
-	SP_DEV_CONFIG_ARCH_REV_PANTERO,
+enum SP_DEV_INTF_ARCH_REV_e
+{
+    SP_DEV_CONFIG_ARCH_REV_ETSOC1 = 0,
+    SP_DEV_CONFIG_ARCH_REV_PANTERO,
     SP_DEV_CONFIG_ARCH_REV_GEPARDO
 };
 
@@ -160,16 +162,18 @@ enum SP_DEV_INTF_ARCH_REV_e {
     \brief Values representing the available types of
     memory regions supported by the Service Processor
 */
-enum SP_DEV_INTF_FORM_FACTOR_e {
-	SP_DEV_CONFIG_FORM_FACTOR_PCIE = 1,
-	SP_DEV_CONFIG_FORM_FACTOR_M_2
+enum SP_DEV_INTF_FORM_FACTOR_e
+{
+    SP_DEV_CONFIG_FORM_FACTOR_PCIE = 1,
+    SP_DEV_CONFIG_FORM_FACTOR_M_2
 };
 
 /*! \struct SP_DEV_INTF_MEM_REGION_ATTR
     \brief Holds the information of Service Processor interface memory region.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_MEM_REGION_ATTR {
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_MEM_REGION_ATTR
+{
     uint16_t attributes_size;
     uint8_t type;
     uint8_t bar;
@@ -183,7 +187,8 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_MEM_REGION_ATTR {
     \brief Holds the information of Service Processor Virtual Queues.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_VQ_ATTR {
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_VQ_ATTR
+{
     uint16_t attributes_size;
     uint8_t int_trg_size;
     uint8_t int_id;
@@ -200,7 +205,8 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_VQ_ATTR {
     \brief Holds the general information of Service Processor.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR {
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR
+{
     uint16_t attributes_size;
     uint16_t version;
     uint16_t total_size;
@@ -214,7 +220,7 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR {
     uint32_t scp_size;
     uint32_t l2_size;
     uint32_t l3_size;
-    int16_t  status;
+    int16_t status;
     uint8_t l2_shire_banks;
     uint8_t sync_min_shire_id;
     uint8_t arch_rev;
@@ -224,12 +230,12 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR {
     uint8_t reserved[4];
 } SP_DEV_INTF_GENERIC_ATTR_s;
 
-
 /*! \struct SP_DEV_INTF_REG
     \brief Service Processor DIRs which will be used to public device capability to Host.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_REG {
+typedef struct __attribute__((__packed__)) SP_DEV_INTF_REG
+{
     SP_DEV_INTF_GENERIC_ATTR_s generic_attr;
     SP_DEV_INTF_VQ_ATTR_s vq_attr;
     /* Memory regions can be extended by the FW. The host will read it as
@@ -245,7 +251,7 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_REG {
 
 /* Ensure that SP SQs are within limits */
 static_assert(sizeof(SP_DEV_INTF_REG_s) <= SP_DEV_INTF_SIZE,
-    "DIRs size is not within allowed limits.");
+              "DIRs size is not within allowed limits.");
 
 #endif /* __ASSEMBLER__ */
 

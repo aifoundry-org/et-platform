@@ -85,7 +85,8 @@ void DIR_Init(void)
     Gbl_SP_DIRs->generic_attr.l2_shire_banks = L2_SHIRE_BANKS;
     Gbl_SP_DIRs->generic_attr.ddr_bandwidth = DDR_BANDWIDTH;
     /* Only Compute Minion shire mask */
-    Gbl_SP_DIRs->generic_attr.cm_shires_mask = Minion_Get_Active_Compute_Minion_Mask() & CM_SHIRE_MASK;
+    Gbl_SP_DIRs->generic_attr.cm_shires_mask = Minion_Get_Active_Compute_Minion_Mask() &
+                                               CM_SHIRE_MASK;
 
     /* Populate the SP VQs attributes */
     Gbl_SP_DIRs->vq_attr.sq_offset = SP_SQ_OFFSET;
