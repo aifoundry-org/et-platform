@@ -214,11 +214,6 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
   int mngmtDevCount = countDeviceNodes(true);
   int opsDevCount = countDeviceNodes(false);
 
-  // A device always has a mngmt node but ops node is optional.
-  if (mngmtDevCount == 0) {
-    throw Exception("No device available");
-  }
-
   // If ops node does not exist then device is in recovery mode.
   if (opsDevCount != mngmtDevCount && enableOps) {
     throw Exception("Only Mngmt can be enabled in recovery mode");

@@ -19,6 +19,7 @@ DeviceLayerMock (without the I) since its an implementation, not an interface. A
 - [SW-12621] removed IDeviceLayerFake from deviceLayer, changed IDeviceLayerMock -> DeviceLayerMock
   * this is a breaking change, see the ticket description.
 ### Fixed
+- [SW-12919] DevicePcie implementation of deviceLayer won't throw if there are no devices
 ### Security
 
 
