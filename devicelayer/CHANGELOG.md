@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 ### Changed
+- [SW-11835] Updated the SP DIRs and device configuration structures.
+  * This is a breaking change. The SCP, L2 and L3 sizes are now in KB instead of MB.
+  * Packages supported with this change:
+    * linuxDriver/0.1.0@#86ada88a12a28a47f52238641b3c9483
+    * device-bootloaders/0.2.0@#6563ebf4e4e5db6ee978bf47ca112ac2
 ### Deprecated
 ### Removed
 ### Fixed

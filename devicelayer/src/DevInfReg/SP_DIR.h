@@ -106,19 +106,23 @@ using SP_DEV_INTF_GENERIC_ATTR_s = struct __attribute__((__packed__)) SP_DEV_INT
     uint16_t version;
     uint16_t total_size;
     uint16_t num_mem_regions;
-    uint64_t minion_shires_mask;
-    uint32_t minion_boot_freq;
+    uint32_t bar0_size;
+    uint32_t bar2_size;
     uint32_t crc32;
-    int16_t  status;
-    uint16_t form_factor;
-    uint16_t device_tdp;
-    uint16_t l3_size;
-    uint16_t l2_size;
-    uint16_t scp_size;
-    uint16_t cache_line_size;
-    uint16_t bar0_size;
-    uint16_t bar2_size;
-    uint8_t  reserved[6];
+    uint32_t ddr_bandwidth;
+    uint32_t cm_shires_mask;
+    uint32_t minion_boot_freq;
+    uint32_t scp_size;
+    uint32_t l2_size;
+    uint32_t l3_size;
+    int16_t status;
+    uint8_t l2_shire_banks;
+    uint8_t sync_min_shire_id;
+    uint8_t arch_rev;
+    uint8_t form_factor;
+    uint8_t device_tdp;
+    uint8_t cache_line_size;
+    uint8_t reserved[4];
 };
 
 /*! \struct SP_DEV_INTF_REG
