@@ -19,28 +19,6 @@
 #ifndef _STATW_
 #define _STATW_
 
-/*! \typedef resource_value
-    \brief Device statistics sample structure
-*/
-typedef struct {
-    uint64_t avg;
-    uint64_t min;
-    uint64_t max;
-} __attribute__((packed, aligned(8))) resource_value;
-
-/*! \typedef device_resources
-    \brief Device computer resource structure
-*/
-typedef struct {
-    resource_value cm_utilization;
-    resource_value pcie_dma_read_bw;
-    resource_value pcie_dma_write_bw;
-    resource_value ddr_read_bw;
-    resource_value ddr_write_bw;
-    resource_value l2_l3_read_bw;
-    resource_value l2_l3_write_bw;
-} __attribute__((packed, aligned(8))) device_resources;
-
 typedef uint8_t statw_resource_type_e;
 
 enum statw_resource_type {

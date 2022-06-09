@@ -74,13 +74,16 @@
     \brief Device statistics worker control block
 */
 typedef struct {
-    resource_value pcie_dma_read_bw; /* Reserve whole cache line for this to reduce the serialization
+    struct resource_value
+        pcie_dma_read_bw; /* Reserve whole cache line for this to reduce the serialization
                                          among Worker Harts reading/writing on same cache line */
     uint64_t pad1[5];
-    resource_value pcie_dma_write_bw; /* Reserve whole cache line for this to reduce the serialization
+    struct resource_value
+        pcie_dma_write_bw; /* Reserve whole cache line for this to reduce the serialization
                                          among Worker Harts reading/writing on same cache line */
     uint64_t pad2[5];
-    resource_value cm_utilization; /* Reserve whole cache line for this to reduce the serialization
+    struct resource_value
+        cm_utilization; /* Reserve whole cache line for this to reduce the serialization
                                          among Worker Harts reading/writing on same cache line */
     uint64_t pad3[5];
     uint32_t sampling_flag;
@@ -123,9 +126,9 @@ static void statw_sample_device_stats_callback(uint8_t arg)
 *
 ***********************************************************************/
 static inline void read_resource_stats_atomically(
-    statw_resource_type_e resource_type, resource_value *resource_dest)
+    statw_resource_type_e resource_type, struct resource_value *resource_dest)
 {
-    const resource_value *resource;
+    const struct resource_value *resource;
 
     if (resource_type == STATW_RESOURCE_CM)
     {
@@ -167,7 +170,7 @@ static inline void read_resource_stats_atomically(
 ***********************************************************************/
 void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64_t current_sample)
 {
-    resource_value *resource;
+    struct resource_value *resource;
 
     if (resource_type == STATW_RESOURCE_CM)
     {
@@ -213,7 +216,7 @@ void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64
 *       None
 *
 ***********************************************************************/
-static void statw_init(device_resources *local_stats_cb)
+static void statw_init(struct compute_resources_sample *local_stats_cb)
 {
     atomic_store_local_64(&STATW_CB.cm_utilization.avg, STATW_RESOURCE_DEFAULT_AVG);
     atomic_store_local_64(&STATW_CB.cm_utilization.max, STATW_RESOURCE_DEFAULT_MAX);
@@ -260,7 +263,7 @@ static void statw_init(device_resources *local_stats_cb)
 ***********************************************************************/
 __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
 {
-    device_resources data_sample = { 0 };
+    struct compute_resources_sample data_sample = { 0 };
     uint64_t sample;
 
     statw_init(&data_sample);
