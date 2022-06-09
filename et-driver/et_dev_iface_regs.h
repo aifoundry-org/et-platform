@@ -227,7 +227,7 @@ struct et_mgmt_dir_header {
 	u32 scp_size;
 	u32 l2_size;
 	u32 l3_size;
-	u16 status;
+	s16 status;
 	u8 l2_shire_banks;
 	u8 sync_min_shire_id;
 	u8 arch_rev;

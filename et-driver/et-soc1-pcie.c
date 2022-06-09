@@ -1623,6 +1623,10 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 	et_dev->cfg.cache_line_size = dir_mgmt->cache_line_size;
 	et_dev->cfg.minion_boot_freq = dir_mgmt->minion_boot_freq;
 	et_dev->cfg.cm_shire_mask = dir_mgmt->cm_shires_mask;
+	et_dev->cfg.ddr_bandwidth = dir_mgmt->ddr_bandwidth;
+	et_dev->cfg.num_l2_cache_banks = dir_mgmt->l2_shire_banks;
+	et_dev->cfg.sync_min_shire_id = dir_mgmt->sync_min_shire_id;
+	et_dev->cfg.arch_rev = dir_mgmt->arch_rev;
 
 	dir_pos += section_size;
 
