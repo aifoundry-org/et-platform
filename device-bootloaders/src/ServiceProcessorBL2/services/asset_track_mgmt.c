@@ -45,7 +45,7 @@ int get_serial_number(char *ser_number)
     read_ecid(&ecid);
     memcpy(ser_number, &ecid, sizeof(ecid_t));
 
-    return 0 ;
+    return 0;
 }
 
 int get_chip_revision(char *chip_rev)
