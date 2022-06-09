@@ -10,11 +10,13 @@
 
 #include "runtime/DeviceLayerFake.h"
 #include "runtime/IRuntime.h"
+#include "runtime/Types.h"
 #include <algorithm>
 #include <gmock/gmock-actions.h>
 #include <gtest/gtest-death-test.h>
 #include <hostUtils/logging/Logging.h>
 #include <ios>
+#include <limits>
 #include <random>
 #include <string_view>
 #pragma GCC diagnostic push
@@ -304,6 +306,62 @@ TEST(MemoryManager, check_operation) {
         ASSERT_THROW(mm.checkOperation(allocations[5], allocSize * 5 + 1), rt::Exception);
         ASSERT_THROW(mm.checkOperation(allocations[5] + 1, allocSize * 5), rt::Exception);
       }
+  }
+}
+
+TEST(MemoryManager, check_beyond_limits) {
+  std::random_device r;
+  std::default_random_engine e1(r());
+  for (auto startAddress : {1UL << 12, 0x800000UL}) {
+    for (auto blockSize : {1024U, 4096U}) {
+      for (auto dramSize : {1UL << 34, 1UL << 37}) {
+        if ((dramSize - startAddress) / blockSize > std::numeric_limits<uint32_t>::max()) {
+          // skip non realistic scenario to avoid assert, this can happen if blocksize is small for big dram
+          continue;
+        }
+
+        RT_VLOG(MID) << "Params: sa 0x" << std::hex << startAddress << " dram 0x" << dramSize << " bs 0x" << blockSize;
+        auto mm = MemoryManager(startAddress, dramSize, blockSize);
+        // alloc all the addresable size and check limits
+        auto alloc = mm.malloc(dramSize, blockSize);
+        ASSERT_NO_THROW(mm.checkOperation(alloc, dramSize));
+        ASSERT_THROW(mm.checkOperation(alloc, dramSize + 1), rt::Exception);
+        mm.free(alloc);
+        ASSERT_EQ(mm.getFreeBytes(), mm.getFreeContiguousBytes());
+        ASSERT_EQ(mm.getFreeBytes(), dramSize);
+        ASSERT_EQ(mm.getAllocatedBytes(), 0);
+        struct Alloc {
+          std::byte* address_;
+          size_t size_;
+        };
+        // alloc all addresable size but randomly, check limits after
+        std::vector<Alloc> allocs;
+        while (mm.getFreeContiguousBytes() > 0) {
+          std::uniform_int_distribution<size_t> dist(1, mm.getFreeContiguousBytes());
+          auto allocSize = dist(e1);
+          allocs.emplace_back(Alloc{mm.malloc(allocSize, blockSize), allocSize});
+        }
+        // check again the last
+        ASSERT_NO_THROW(mm.checkOperation(alloc, dramSize));
+        ASSERT_THROW(mm.checkOperation(alloc, dramSize + 1), rt::Exception);
+        // check randomly an undef number of ops, all should be good if in limits
+        auto totalRandomChecks = 10000U;
+        for (auto i = 0U; i < totalRandomChecks; ++i) {
+
+          std::uniform_int_distribution<size_t> aRand(startAddress, startAddress + dramSize - blockSize);
+          auto addr = aRand(e1);
+          ASSERT_GE(addr, startAddress);
+          ASSERT_LT(addr, startAddress + dramSize);
+          std::uniform_int_distribution<size_t> sRand(1, startAddress + dramSize - addr);
+          auto size = sRand(e1);
+          ASSERT_NO_THROW(mm.checkOperation(reinterpret_cast<std::byte*>(addr), size));
+          RT_VLOG(MID) << "Checking for addr: 0x" << std::hex << addr << " size: 0x" << dramSize - addr + 1;
+          ASSERT_THROW(mm.checkOperation(reinterpret_cast<std::byte*>(addr), dramSize - addr + startAddress + 1),
+                       rt::Exception);
+          ASSERT_NO_THROW(mm.checkOperation(reinterpret_cast<std::byte*>(addr), dramSize - addr + startAddress));
+        }
+      }
+    }
   }
 }
 

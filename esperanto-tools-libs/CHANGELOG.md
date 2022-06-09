@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unrealeased]
 ### Added
+- [SW-12975] 
+  - more tests for memcpy op checks. 
 ### Changed
 ### Deprecated
 ### Removed
