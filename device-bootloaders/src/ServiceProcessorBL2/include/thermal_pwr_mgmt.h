@@ -37,32 +37,6 @@
 /* Number of samples to collect average */
 #define NUM_SAMPLES 100
 
-/* Structures to collect operating point stats */
-typedef struct
-{
-    uint16_t avg;
-    uint16_t min;
-    uint16_t max;
-} __attribute__((packed, aligned(8))) op_value;
-
-typedef struct
-{
-    op_value temperature;
-    op_value power;
-} __attribute__((packed, aligned(8))) op_module;
-
-/*!
- * @struct struct sp_op_point_stats_
- * @brief Structure to collect SP operating point stats
- */
-struct op_stats_t
-{
-    op_module minion;
-    op_module sram;
-    op_module noc;
-    op_module system;
-} __attribute__((packed, aligned(8)));
-
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register
     \param none
