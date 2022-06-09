@@ -40,7 +40,12 @@ int get_part_number(char *part_number)
 
 int get_serial_number(char *ser_number)
 {
-    return flash_fs_get_serial_number(ser_number);
+    // Retreive ECID from Fuse
+    ecid_t ecid;
+    read_ecid(&ecid);
+    memcpy(ser_number, &ecid, sizeof(ecid_t));
+
+    return 0 ;
 }
 
 int get_chip_revision(char *chip_rev)
