@@ -8,4 +8,4 @@
 
 
 #umode idle dump scenario
-./debug_context_dump.sh -s 0x0000000100000001 -t 0x8000000000000001 -c 0x0000000B -n 0
+./debug_context_dump.sh -s 0x0000000100000001 -t 0x8000000000000001 -c 0x00000001B -n 0 -x /mnt/esperanto/vashi/SW-12091-sysemu/sw-platform/host-software/deviceManagement/tools/debug_server/debug_data_wm_data_structs.txt

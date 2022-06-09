@@ -349,6 +349,11 @@ void MinionDebugInterface::writeReg(std::uint32_t num, uint64_t value) {
 int MinionDebugInterface::readMem(uint8_t *out, uint64_t addr, std::uint32_t len) {
     struct mdi_mem_read_t mdi_cmd_req;
     mdi_cmd_req.address = addr;
+    uint8_t access_type;
+    uint64_t access_initiator; 
+    getAttributesForAddr(addr, &access_initiator, &access_type);
+    mdi_cmd_req.hart_id = access_initiator;
+    mdi_cmd_req.access_type = access_type;
     uint32_t output_size;
     
     while (len >= MDI_MEM_READ_LENGTH_BYTES_8)

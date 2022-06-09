@@ -1,6 +1,7 @@
 import os
 import errno
 import sys
+import csv
 from datetime import datetime
 
 minion_defs = {
@@ -69,10 +70,7 @@ def debug_session(shire_mask, thread_mask, context_mask, shire_index, thread_ind
         f = x.split(":")
         d.update({f[0].strip(): f[1].strip()})
 
-    #for key, value in d.items():
-    #    print(key, ' : ', value)
-
-    #Log file managmeent
+    #Log file management
     shire_name = "shire" + str(shire_index)
     hart_name = "hart" + str(thread_index)
     dir_root = "logs" + "/" + shire_name
@@ -112,6 +110,16 @@ def debug_session(shire_mask, thread_mask, context_mask, shire_index, thread_ind
             dump_cm_trace_data_command = "dump binary memory" + " " + cm_smode_trace_file + " " + d["CM_SMODE_TRACE_BUFF_START"] + " " + d["CM_SMODE_TRACE_BUFF_END"]
             print dump_cm_trace_data_command
             gdb.execute(dump_cm_trace_data_command)
+
+    if (context_mask & context_defs["DUMP_DATA_STRUCTS"]) != 0:
+        with open('debug_data_wm_data_structs.txt', mode='r') as csv_file:
+            csv_reader = csv.DictReader(csv_file)
+            for row in csv_reader:
+                start_address = int(row["Address"], 16)
+                size = int(row["Size"], 16)
+                size = size/8
+                dump_debug_data_command = "x /" + str(size) + "xg" + " " + str(start_address) 
+                gdb.execute(dump_debug_data_command)
 
     #Terminate debug session
     gdb.execute("quit")

@@ -12,6 +12,7 @@
 #include <utils.h>
 #include <device-layer/IDeviceLayer.h>
 #include <deviceManagement/DeviceManagement.h>
+#include <DebugDataConfigParser.hpp>
 
 using namespace dev;
 using namespace device_mgmt_api;

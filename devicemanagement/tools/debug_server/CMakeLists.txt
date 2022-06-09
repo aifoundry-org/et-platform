@@ -24,6 +24,7 @@ add_executable(debug-server
     src/RspConnection.cpp
     src/RspPacket.cpp
     src/MDIEvent.cpp
+    src/DebugDataConfigParser.cpp
 )
 
 target_compile_features(debug-server PUBLIC cxx_std_17)
@@ -54,6 +55,7 @@ file(COPY debug_context_dump.py DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(COPY debug_context_dump.sh DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(COPY debug_context_dump_cmd_run.sh DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(COPY debug_data.txt DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY debug_data_wm_data_structs.txt DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(COPY target.xml DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 if (BUILD_TESTS)

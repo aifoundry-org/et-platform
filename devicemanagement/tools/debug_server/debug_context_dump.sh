@@ -1,5 +1,4 @@
 #!/bin/bash
-
 NUM_SHIRES=33
 NUM_THREADS=64
 
@@ -9,7 +8,7 @@ function usage()
 {
    cat << HEREDOC
 
-   Usage: $script_name [-s SHIRE_MASK -t THREAD_MASK -c CONTEXT_MASK -n INDEX]
+   Usage: $script_name [-s SHIRE_MASK -t THREAD_MASK -c CONTEXT_MASK -n INDEX -x FILEPATH]
 
    optional arguments:
      -h, --help                                  show this help message and exit
@@ -24,6 +23,7 @@ function usage()
                                                  Bit 5: MM S Mode Trace Data
                                                  Bit 6: CM S Mode Trace Data
      -n, --device_index INDEX                    ETSoC1 device index on which the debug server is to be started (default: 0)
+     -x, --file_path FILEPATH                    Metadata file path consisting of details of FW data to be dumped
 
 HEREDOC
 }
@@ -35,6 +35,7 @@ while true; do
     -t | --thread_mask ) let "thread_mask = $2"; shift 2 ;;
     -c | --context_mask ) let "context_mask = $2"; shift 2 ;;
     -n | --device_index ) let "device_index = $2"; shift 2 ;;
+    -x | --file_path ) file_path=$2; shift 2 ;;
     -- ) shift; break ;;
     * ) break ;;
   esac
@@ -78,7 +79,7 @@ do
                 echo "Thread index = " $thread_index
 
                 # Launch Debug Server
-                ./debug-server -s $shire_index -m $thread_curr_bit -n $device_index &
+                ./debug-server -s $shire_index -m $thread_curr_bit -n $device_index -x $file_path &
 
                 # Start client with context_dump.gdb script
                 #sleep 1
