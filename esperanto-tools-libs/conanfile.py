@@ -38,18 +38,20 @@ class RuntimeConan(ConanFile):
     def configure_options(self):
         if self.options.with_tests and not self.dependencies["esperanto-flash-tool"].options.get_safe("header_only"):
             raise ConanInvalidConfiguration("When enabling runtime tests esperanto-flash-tool:header_only must be True")
-    
+
     def requirements(self):
         device_api = "deviceApi/0.5.0@"
+        device_layer = "deviceLayer/0.2.0@"
         if self.options.with_tests:
             device_api += "#10b4680749bc365f08651710ecbabd78"
+            device_layer += "#db6af4c4df505fe7b02f811410e06603"
         self.requires(device_api)
-        self.requires("deviceLayer/0.2.0")
+        self.requires(device_layer)
         self.requires("hostUtils/0.1.0")
-        
+
         self.requires("cereal/1.3.1")
         self.requires("elfio/3.8")
-        
+
         self.requires("cmake-modules/[>=0.4.1 <1.0.0]")
 
         if self.options.with_tests:
@@ -68,7 +70,7 @@ class RuntimeConan(ConanFile):
             self.requires("esperanto-flash-tool/0.1.0@#8d7c784f6b8d3cc1dbaa23b42b328782")
 
 
-    
+
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
         check_req_min_cppstd(self, "17")
@@ -76,7 +78,7 @@ class RuntimeConan(ConanFile):
     def layout(self):
         cmake_layout(self)
         self.folders.source = "."
-    
+
     def generate(self):
         device_api = self.dependencies["deviceApi"]
         tc = CMakeToolchain(self)
@@ -86,7 +88,7 @@ class RuntimeConan(ConanFile):
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
         tc.generate()
-        
+
     def build(self):
         cmake = CMake(self)
         cmake.configure()
@@ -98,7 +100,7 @@ class RuntimeConan(ConanFile):
         cmake = CMake(self)
         cmake.install()
         tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
-    
+
     def package_info(self):
         # library components
         self.cpp_info.components["etrt"].names["cmake_find_package"] = "etrt"
