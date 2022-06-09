@@ -492,9 +492,8 @@ static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
              (addr < (FW_WORKER_SDATA_BASE + FW_WORKER_SDATA_SIZE))) ||
             ((addr >= FW_MASTER_SDATA_BASE) &&
              (addr < (FW_MASTER_SDATA_BASE + FW_MASTER_SDATA_SIZE))) ||
-            ((addr >= KERNEL_UMODE_STACK_END) &&
-             (addr < (KERNEL_UMODE_STACK_END + KERNEL_UMODE_STACK_SIZE))) ||
-            ((addr >= FW_SMODE_STACK_END) && (addr < (FW_SMODE_STACK_END + FW_SMODE_STACK_SIZE))))
+            ((addr < KERNEL_UMODE_STACK_BASE) && (addr >= KERNEL_UMODE_STACK_END)) ||
+            ((addr < FW_SMODE_STACK_BASE) && (addr >= FW_SMODE_STACK_END)))
         {
             switch (mdi_cmd_req->cmd_attr.access_type)
             {
@@ -539,8 +538,10 @@ static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
             status = ETSOC_Memory_Read_Write_Cacheable((const void *)addr, &mdi_rsp.data,
                                                        mdi_cmd_req->cmd_attr.size);
 
-            Log_Write(LOG_LEVEL_DEBUG, "Mem Read Status:%d  Read address: %lx, Value: %lx\r\n",
-                      status, addr, mdi_rsp.data);
+            Log_Write(
+                LOG_LEVEL_INFO,
+                "ETSOC_Memory_Read_Write_Cacheable Mem Read Status:%d  Read address: %lx, Value: %lx\r\n",
+                status, addr, mdi_rsp.data);
         }
     }
 
