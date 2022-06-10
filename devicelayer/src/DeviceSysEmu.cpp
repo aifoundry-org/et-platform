@@ -643,19 +643,19 @@ void DeviceSysEmu::freeDmaBuffer(void* dmaBuffer) {
 }
 
 DeviceConfig DeviceSysEmu::getDeviceConfig(int) {
-  return DeviceConfig {
-    DeviceConfig::FormFactor::PCIE,      /* form factor */
-    25,                                  /* tdp (W) */
-    32768,                               /* L3 cache (KB) */
-    16384,                               /* L2 cache (KB) */
-    81920,                               /* scratchpad (KB) */
-    64,                                  /* cache line size (bytes) */
-    4,                                   /* L2 cache banks */
-    128000,                              /* DDR BW (MB/s) */
-    1000,                                /* Mhz */
-    spInfo_.generic_attr.cm_shires_mask, /* shire mask */
-    32,                                  /* spare minion shire id */
-    0                                    /* Arch revision 0 (ETSOC1) */
+  return DeviceConfig{
+    DeviceConfig::FormFactor::PCIE,                                 /* form factor */
+    25,                                                             /* tdp (W) */
+    32,                                                             /* L3 cache (MB) */
+    16,                                                             /* L2 cache (MB) */
+    80,                                                             /* scratchpad (MB) */
+    64,                                                             /* cache line size (bytes) */
+    4,                                                              /* L2 cache banks */
+    128000,                                                         /* DDR BW (MB/s) */
+    1000,                                                           /* Mhz */
+    static_cast<uint32_t>(spInfo_.generic_attr.minion_shires_mask), /* shire mask */
+    32,                                                             /* spare minion shire id */
+    0                                                               /* Arch revision 0 (ETSOC1) */
   };
 }
 
