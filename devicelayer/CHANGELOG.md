@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 
 ## [Unreleased]
+
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.2.0] - 2022-6-10
 ### Added
 - [SW-12683] Added a check for command size in DeviceSysemu
 - This changelog
@@ -23,7 +32,7 @@ DeviceLayerMock (without the I) since its an implementation, not an interface. A
 ### Security
 
 
-## [0.1.0] - 
+## [0.1.0] -
 Initial version; not tracking changes
 
 
