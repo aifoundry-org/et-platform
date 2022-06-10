@@ -10,6 +10,7 @@
 #include "Utils.h"
 #include "runtime/DeviceLayerFake.h"
 #include "runtime/IRuntime.h"
+#include "runtime/Types.h"
 #include <device-layer/DeviceLayerMock.h>
 #include <gmock/gmock-actions.h>
 #include <gtest/gtest.h>
@@ -40,7 +41,7 @@ TEST(devices, get_properties) {
   dc.spareComputeMinionoShireId_ = 33;
   dc.archRevision_ = 0;
 
-  auto runtime = IRuntime::create(&deviceLayer);
+  auto runtime = IRuntime::create(&deviceLayer, rt::Options{false, false});
 
   EXPECT_CALL(deviceLayer, getDeviceConfig(_)).Times(1).WillRepeatedly(Return(dc));
   EXPECT_CALL(deviceLayer, getDramSize()).Times(1).WillRepeatedly(Return(fakeMemorySize));

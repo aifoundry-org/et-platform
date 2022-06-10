@@ -28,6 +28,10 @@ TEST_F(StressMem, 1KB_1_memcpys_1stream_50thread) {
 }
 
 TEST_F(StressMem, 1KB_1_memcpys_1stream_75thread) {
+  if (sMode == Mode::SYSEMU) {
+    RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
+    return;
+  }
   run_stress_mem(runtime_.get(), 1<<10, 1, 1, 75);
 }
 
@@ -81,6 +85,32 @@ TEST_F(StressMem, 1KB_50_memcpys_10stream_2thread) {
 
 TEST_F(StressMem, 1KB_2_memcpys_2stream_1thread) {
   run_stress_mem(runtime_.get(), 1<<10, 2, 2, 1);
+}
+
+TEST_F(StressMem, 1MB_1000_memcpys_1stream_10thread_05ratio) {
+  if (sMode == Mode::SYSEMU) {
+    RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
+    return;
+  }
+  run_stress_mem(runtime_.get(), 1 << 20, 1000, 1, 10, false, 0, 0.5f);
+}
+
+TEST_F(StressMem, 256MB_3_memcpys_1stream_10thread_05ratio) {
+  if (sMode == Mode::SYSEMU) {
+    RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
+    return;
+  }
+  run_stress_mem(runtime_.get(), 256 << 20, 3, 1, 10, false, 0, 0.5f);
+}
+
+TEST_F(StressMem, 128MB_6_memcpys_4stream_10thread_075ratio_10loops) {
+  if (sMode == Mode::SYSEMU) {
+    RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
+    return;
+  }
+  for (int i = 0; i < 10; ++i) {
+    run_stress_mem(runtime_.get(), 256 << 20, 3, 1, 10, false, 0, 0.75f);
+  }
 }
 
 TEST_F(StressMem, 1KB_50_memcpys_10stream_2thread_8dev) {

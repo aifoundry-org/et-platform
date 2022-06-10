@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 #include "RuntimeImp.h"
 #include "runtime/Types.h"
+#include <cfloat>
 #include <common/Constants.h>
 #include <experimental/filesystem>
 #include <fstream>
@@ -149,15 +150,28 @@ protected:
 };
 
 template <typename TContainer> void randomize(TContainer& container, int init, int end) {
-  std::mt19937 gen(std::random_device{}());
-  std::uniform_int_distribution dis(init, end);
+  static std::mt19937 gen(std::random_device{}());
+  static std::uniform_int_distribution dis(init, end);
   for (auto& v : container) {
     v = static_cast<typename TContainer::value_type>(dis(gen));
   }
 }
+float getRand() {
+  static std::default_random_engine e;
+  static std::uniform_real_distribution<float> dis(0, 1.0f); // rage 0 - 1
+  return dis(e);
+}
+rt::MemcpyList chunkTransfer(std::byte* src, std::byte* dst, size_t size, size_t chunks = 4) {
+  rt::MemcpyList result;
+  for (auto i = 0UL, chunkSize = size / chunks; i < chunks; ++i) {
+    result.addOp(src + i * chunkSize, dst + i * chunkSize, chunkSize);
+  }
+  result.operations_.back().size_ += size % chunks;
+  return result;
+}
 
 void stressMemThreadFunc(rt::IRuntime* runtime, uint32_t streams, uint32_t transactions, size_t bytes,
-                         bool check_results, size_t deviceId) {
+                         bool check_results, size_t deviceId, float memcpyListRatio = 0.0f) {
   ASSERT_LT(deviceId, runtime->getDevices().size());
   auto dev = runtime->getDevices()[deviceId];
   std::vector<rt::StreamId> streams_(streams);
@@ -170,10 +184,19 @@ void stressMemThreadFunc(rt::IRuntime* runtime, uint32_t streams, uint32_t trans
       auto idx = k + j * transactions / streams;
       host_src[idx] = std::vector<std::byte>(bytes);
       host_dst[idx] = std::vector<std::byte>(bytes);
-      randomize(host_src[idx], 0, 256);
+      if (check_results) { // no point in randomizing if we don't want to check results
+        randomize(host_src[idx], 0, 256);
+      }
       dev_mem[idx] = runtime->mallocDevice(dev, bytes);
-      runtime->memcpyHostToDevice(streams_[j], host_src[idx].data(), dev_mem[idx], bytes);
-      runtime->memcpyDeviceToHost(streams_[j], dev_mem[idx], host_dst[idx].data(), bytes);
+      if (getRand() < memcpyListRatio) {
+        auto list = chunkTransfer(host_src[idx].data(), dev_mem[idx], bytes);
+        runtime->memcpyHostToDevice(streams_[j], list);
+        list = chunkTransfer(dev_mem[idx], host_dst[idx].data(), bytes);
+        runtime->memcpyDeviceToHost(streams_[j], list);
+      } else {
+        runtime->memcpyHostToDevice(streams_[j], host_src[idx].data(), dev_mem[idx], bytes);
+        runtime->memcpyDeviceToHost(streams_[j], dev_mem[idx], host_dst[idx].data(), bytes);
+      }
     }
   }
   for (auto j = 0U; j < streams; ++j) {
@@ -190,13 +213,14 @@ void stressMemThreadFunc(rt::IRuntime* runtime, uint32_t streams, uint32_t trans
 }
 
 inline void run_stress_mem(rt::IRuntime* runtime, size_t bytes, uint32_t transactions, uint32_t streams,
-                           uint32_t threads, bool check_results = true, size_t deviceId = 0) {
+                           uint32_t threads, bool check_results = true, size_t deviceId = 0,
+                           float memcpyListRatio = 0.0f) {
   std::vector<std::thread> threads_;
   using namespace testing;
 
   for (auto i = 0U; i < threads; ++i) {
     threads_.emplace_back(
-      std::bind(stressMemThreadFunc, runtime, streams, transactions, bytes, check_results, deviceId));
+      std::bind(stressMemThreadFunc, runtime, streams, transactions, bytes, check_results, deviceId, memcpyListRatio));
   }
   for (auto& t : threads_) {
     t.join();

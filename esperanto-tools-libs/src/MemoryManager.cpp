@@ -228,7 +228,7 @@ void MemoryManager::setDebugMode(bool enabled) {
 }
 
 void MemoryManager::free(std::byte* ptr) {
-  RT_LOG(INFO) << "Free at device address: " << ptr;
+  RT_VLOG(LOW) << "Free at address: " << ptr;
   auto tmp = compressPointer(ptr);
   auto it = allocated_.find(tmp);
   if (it == allocated_.end()) {
@@ -285,8 +285,9 @@ std::byte* MemoryManager::malloc(size_t size, uint32_t alignment) {
   addr += missAlignment;
   allocated_.insert({addr, countBlocks});
 
-  RT_LOG(INFO) << "Malloc at device address: " << std::hex << uncompressPointer(addr)
-               << " compressed pointer (not address): " << addr << " size: " << std::dec << size;
+  RT_VLOG(LOW) << "Malloc at address: " << std::hex << uncompressPointer(addr) << " size: " << std::dec << size
+               << " first block index: " << addr;
+
   if (debugMode_) {
     sanityCheck();
   }

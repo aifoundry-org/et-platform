@@ -30,7 +30,7 @@ size_t CmaManager::getTotalSize() const {
 }
 
 size_t CmaManager::getFreeBytes() const {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   auto freeBytes = memoryManager_.getFreeContiguousBytes();
   RT_VLOG(HIGH) << "Free CMA bytes: " << freeBytes;
   return freeBytes;
@@ -42,10 +42,9 @@ void CmaManager::free(std::byte* buffer) {
   cv_.notify_all();
 }
 
-void CmaManager::waitUntilFree() {
-  std::unique_lock lock(mutex_);
-  auto freeBytes = memoryManager_.getFreeContiguousBytes();
-  cv_.wait(lock, [this, freeBytes] { return memoryManager_.getFreeBytes() > freeBytes; });
+void CmaManager::waitUntilFree(size_t size) {
+  SpinLock lock(mutex_);
+  cv_.wait(lock, [this, size] { return size <= memoryManager_.getFreeContiguousBytes(); });
 }
 
 std::byte* CmaManager::alloc(size_t size) {

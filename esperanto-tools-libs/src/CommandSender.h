@@ -40,7 +40,7 @@ public:
                          int sqIdx);
   ~CommandSender();
 
-  std::optional<EventId> getTopPrioritaryCommand() const;
+  std::optional<EventId> getFirstDmaCommand() const;
 
   void send(Command command);
 

@@ -31,8 +31,8 @@ public:
 
   void free(std::byte* buffer);
 
-  // will block the caller until someone frees cma memory (call to free)
-  void waitUntilFree();
+  // will block the caller until someone frees this amount of cma memory
+  void waitUntilFree(size_t size);
 
 private:
   IRuntime& runtime_;

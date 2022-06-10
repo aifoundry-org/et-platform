@@ -22,13 +22,14 @@ struct MemcpyCommandBuilder {
   void addOp(const std::byte* hostAddr, const std::byte* deviceAddr, size_t size);
   void setTagId(rt::EventId eventId);
 
-  explicit MemcpyCommandBuilder(MemcpyType type, bool barrierEnabled);
+  explicit MemcpyCommandBuilder(MemcpyType type, bool barrierEnabled, uint32_t maxEntries);
 
   std::vector<std::byte> build();
 
   void clear();
 
   uint32_t numEntries_ = 0;
+  uint32_t maxEntries_ = 0;
   std::vector<std::byte> data_;
 };
 

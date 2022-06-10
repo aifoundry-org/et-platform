@@ -5,16 +5,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [[_TOC_]]
-
 ## [Unrealeased]
 ### Added
-- [SW-12975]
-  - more tests for memcpy op checks.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+## [0.2.1]
+### Added
+- [SW-12975] 
+  - more tests for memcpy op checks. 
 ### Changed
   - deviceLayer 0.2.0 version hash pinned.
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-12900]
+  - try to merge memcpylists to avoid deadlocks waiting for huge memcpylists
 - [SW-12736]
   - fixed memcpy check operation, sometimes it didn't caught some bad memcpy operations (using memory beyond previously reserved).
 ### Security

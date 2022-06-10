@@ -56,7 +56,7 @@ TEST_F(TestAbort, abortCommand) {
     done = true;
   });
   RT_LOG(INFO) << "Sending kernel launch which will be aborted later";
-  runtime_->kernelLaunch(defaultStreams_[0], kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1FFFFFFFFUL);
+  runtime_->kernelLaunch(defaultStreams_[0], kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1UL);
   while (!done) {
     RT_LOG(INFO) << "Not done yet, waiting. Error reported? " << errorReported;
     std::this_thread::sleep_for(1s);
@@ -95,7 +95,7 @@ TEST_F(TestAbort, abortStream) {
   });
   for (auto i = 0U; i < commandsToSend; ++i) {
     eventsSubmitted.emplace(
-      runtime_->kernelLaunch(defaultStreams_[0], kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1FFFFFFFFUL));
+      runtime_->kernelLaunch(defaultStreams_[0], kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1UL));
   }
   while (!done) {
     RT_LOG(INFO) << "Not done yet, waiting.";

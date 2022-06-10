@@ -104,9 +104,9 @@ CommandSender::~CommandSender() {
   runner_.join();
 }
 
-std::optional<EventId> CommandSender::getTopPrioritaryCommand() const {
+std::optional<EventId> CommandSender::getFirstDmaCommand() const {
   std::lock_guard lock(mutex_);
-  auto it = std::find_if(begin(commands_), end(commands_), [](const auto& c) { return !c.isEnabled_; });
+  auto it = std::find_if(begin(commands_), end(commands_), [](const auto& c) { return c.isDma_; });
   std::optional<EventId> result;
   if (it != end(commands_)) {
     result = it->eventId_;

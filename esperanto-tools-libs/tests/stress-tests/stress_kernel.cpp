@@ -127,6 +127,10 @@ TEST_F(StressKernel, 256_ele_10_exe_1_st_1_th) {
 }
 
 TEST_F(StressKernel, 1024_ele_100_exe_1_st_2_th) {
+  if (sMode == Mode::SYSEMU) {
+    RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
+    return;
+  }
   run_stress_kernel(1 << 10, 100, 1, 2);
 }
 
@@ -178,14 +182,13 @@ TEST_F(StressKernel, 256_ele_10_exe_10_st_2_th_8_dev) {
   }
 }
 
-TEST_F(StressKernel, 256_ele_100_exe_10_st_4_th_n_devices) {
+TEST_F(StressKernel, 256_ele_10_exe_2_st_4_th_n_devices) {
   decltype(sNumDevices) oldNumDevices = sNumDevices;
   std::vector<std::future<void>> futs;
   auto ndevs = deviceLayer_->getDevicesCount();
   RT_LOG(INFO) << "Running test on " << ndevs << " devices.";
   for (auto dev = 0U; dev < static_cast<uint32_t>(ndevs); ++dev) {
-    futs.emplace_back(
-      std::async(std::launch::async, [this, dev] { run_stress_kernel(1 << 8, 100, 10, 4, true, dev); }));
+    futs.emplace_back(std::async(std::launch::async, [this, dev] { run_stress_kernel(1 << 8, 10, 2, 4, true, dev); }));
   }
   for (auto& f : futs) {
     f.get();

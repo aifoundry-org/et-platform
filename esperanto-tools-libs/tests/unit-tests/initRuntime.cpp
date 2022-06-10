@@ -7,8 +7,6 @@
 // in accordance with the terms and conditions stipulated in the
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
-#if 0
-//#TODO COMMENTED TEST UNTIL WE GET MERGED jvera/SW-12621-remove-devicelayer-fake in SW-PLATFORM
 #include "Utils.h"
 #include "runtime/DeviceLayerFake.h"
 #include "runtime/IRuntime.h"
@@ -34,4 +32,3 @@ int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-#endif

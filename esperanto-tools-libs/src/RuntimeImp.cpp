@@ -39,6 +39,7 @@ using namespace rt;
 using namespace rt::profiling;
 
 RuntimeImp::~RuntimeImp() {
+  RT_LOG(INFO) << "Destroying runtime";
   for (auto d : devices_) {
     setMemoryManagerDebugMode(d, false);
   }
@@ -186,7 +187,7 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
   auto entry = elf.get_entry();
 
   std::vector<EventId> events;
-  std::vector<std::unique_ptr<IDmaBuffer>> buffers;
+  std::vector<std::byte*> cmaBuffers;
   for (auto&& segment : elf.segments) {
     if (segment->get_type() & PT_LOAD) {
       auto offset = segment->get_offset();
@@ -205,13 +206,13 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
         profileEvent.setLoadAddress(reinterpret_cast<uint64_t>(deviceBuffer) - basePhysicalAddress);
       }
       // allocate a dmabuffer to do the copy
-      buffers.emplace_back(allocateDmaBuffer(DeviceId{stInfo.device_}, memSize, true));
-      auto currentBuffer = buffers.back().get();
+      cmaBuffers.emplace_back(cmaManager_->alloc(memSize));
+      auto currentBuffer = cmaBuffers.back();
       // first fill with fileSize
-      std::copy(data + offset, data + offset + fileSize, currentBuffer->getPtr());
+      std::copy(data + offset, data + offset + fileSize, currentBuffer);
       if (memSize > fileSize) {
         RT_VLOG(LOW) << "Memsize of segment " << segment->get_index() << " is larger than fileSize. Filling with 0s";
-        std::fill_n(reinterpret_cast<uint8_t*>(currentBuffer->getPtr()) + fileSize, memSize - fileSize, 0);
+        std::fill_n(reinterpret_cast<uint8_t*>(currentBuffer) + fileSize, memSize - fileSize, 0);
       }
       RT_VLOG(LOW) << "S: " << segment->get_index() << std::hex << " O: 0x" << offset << " PA: 0x" << loadAddress
                    << " MS: 0x" << memSize << " FS: 0x" << fileSize << " @: 0x" << addr << " E: 0x" << entry << "\n";
@@ -244,8 +245,11 @@ LoadCodeResult RuntimeImp::loadCode(StreamId stream, const std::byte* data, size
 
   // add another thread to dispatch the buffers once the copy is done
   eventManager_.addOnDispatchCallback(
-    {std::move(events), [this, buffers = std::move(buffers), evt = loadCodeResult.event_] {
-       RT_VLOG(LOW) << "Load code ended. Buffers released.";
+    {std::move(events), [this, buffers = std::move(cmaBuffers), evt = loadCodeResult.event_] {
+       RT_VLOG(LOW) << "Load code ended. Releasing buffers.";
+       for (auto b : buffers) {
+         cmaManager_->free(b);
+       }
        dispatch(evt);
      }});
   profileEvent.setEventId(loadCodeResult.event_);

@@ -149,7 +149,7 @@ tests:conan:sysemu:
       conan install .. -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE} -o runtime:with_tests=True -o esperanto-flash-tool:header_only=True --build missing
       cmake --configure .. -DCMAKE_TOOLCHAIN_FILE=conan/conan_toolchain.cmake -G Ninja
       cmake --build .
-      ctest -T Test -L 'Generic' -E 'runtime:ut_RuntimeBenchmark' -E 'runtime:it_DeviceErrors.KernelLaunchInvalidMask' --no-compress-output --output-on-failure --parallel 4
+      ctest -T Test -L 'Generic' -E 'runtime:ut_RuntimeBenchmark' -E 'Stress' --no-compress-output --output-on-failure --parallel 4
 
 # FIXME Enable running the sonarqube job in this repo when the Conan image will have the correct 
 # dependencies (java, sonar-scanner)

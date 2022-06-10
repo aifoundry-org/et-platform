@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "Utils.h"
+#include "runtime/Types.h"
 #include <cassert>
 #include <cstddef>
 #include <limits>
@@ -64,7 +66,10 @@ private:
     auto tmp = reinterpret_cast<uint64_t>(ptr);
     tmp -= dramBaseAddr_;
     tmp >>= blockSizeLog2_;
-    assert(tmp < std::numeric_limits<uint32_t>::max());
+    if (tmp >= std::numeric_limits<uint32_t>::max()) {
+      RT_LOG(WARNING) << "Bad address: " << ptr;
+      throw Exception("Bad address");
+    }
     return static_cast<uint32_t>(tmp);
   }
   std::byte* uncompressPointer(uint32_t ptr) const {
