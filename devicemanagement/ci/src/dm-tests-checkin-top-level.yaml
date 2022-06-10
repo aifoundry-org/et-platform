@@ -33,30 +33,11 @@ parameters:
 
 
 stages:
-  DM_DEBUG_TESTS_PCIE_SYSEMU:
+  CHECKOUT_SCM:
     cmds:
-      - job: sw-platform/virtual-platform/pipelines/dm-debug-tests-pcie-sysemu-1dev
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}"
-
-  DM_TESTS_PCIE_SYSEMU:
-    cmds:
-      - job: sw-platform/virtual-platform/pipelines/dm-tests-pcie-sysemu-1dev
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}"
-          
-  DM_TESTS_RECOVERY_MODE_PCIE_SYSEMU:
-    cmds:
-      - job: sw-platform/virtual-platform/pipelines/dm-tests-recovery-mode-pcie-sysemu-1dev
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}"
-
-  FIRMWARE_AND_DM_TESTS_PCIE_LOOPBACK:
-    cmds:
-      - job: sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-loopback-1dev
-        parameters:
-          BRANCH: "${SW_PLATFORM_BRANCH}"
-          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}"
+      - raw_cmd: |-
+          script {
+            currentBuild.getRawBuild().getExecutor().interrupt(Result.UNSTABLE)
+            sleep(1)   // Interrupt is not blocking and does not take effect immediately.
+          }
+    exec_before: [r".*"]

@@ -95,25 +95,9 @@ pipeline {
       stages {
         stage('CHECKOUT_SCM') {
           steps {
-            updateGitlabCommitStatus name: JOB_NAME, state: 'pending'
             script {
-              def seconds = -1
-              retry(8) {
-                seconds = seconds * 2 + 2
-                sleep(time: seconds, unit: "SECONDS")
-                scm_variables = checkout([
-                  $class: 'GitSCM',
-                  branches: [[name: BRANCH]],
-                  doGenerateSubmoduleConfigurations: false,
-                  extensions: [],
-                  submoduleCfg: [],
-                  userRemoteConfigs: [[
-                    credentialsId: 'aws_private_key',
-                    url: "${REPO_SSH_URL}"
-                  ]]
-                ])
-                env.GIT_COMMIT = scm_variables.get('GIT_COMMIT')
-              }
+              currentBuild.getRawBuild().getExecutor().interrupt(Result.UNSTABLE)
+              sleep(1)   // Interrupt is not blocking and does not take effect immediately.
             }
           }
         }
@@ -150,90 +134,6 @@ pipeline {
               }
               steps {
                 sh 'if [ ! -z \"${gitlabTargetBranch}\" ] ; then git fetch && git merge origin/$gitlabTargetBranch | grep Already && ( echo \"Branch is up to date with target branch proceeding...\" && exit 0 ) || ( echo \"Merge request is out of date with respect to target branch. Please, rebase it and re-submit merge request\" && exit 1 ); else echo \"Skipping branch up to date check as environment variable gitlabTargetBranch is not defined!\" ; fi'
-              }
-            }
-            stage('DM_DEBUG_TESTS_PCIE_SYSEMU') {
-              steps {
-                script {
-                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/dm-debug-tests-pcie-sysemu-1dev', COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}")) {
-                    script {
-                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/dm-debug-tests-pcie-sysemu-1dev')
-                      build job:
-                        'sw-platform/virtual-platform/pipelines/dm-debug-tests-pcie-sysemu-1dev',
-                        propagate: true,
-                        parameters: [
-                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}"),
-                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
-                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                        ]
-                    }
-                  }
-                }
-              }
-            }
-            stage('DM_TESTS_PCIE_SYSEMU') {
-              steps {
-                script {
-                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/dm-tests-pcie-sysemu-1dev', COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}")) {
-                    script {
-                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/dm-tests-pcie-sysemu-1dev')
-                      build job:
-                        'sw-platform/virtual-platform/pipelines/dm-tests-pcie-sysemu-1dev',
-                        propagate: true,
-                        parameters: [
-                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}"),
-                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
-                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                        ]
-                    }
-                  }
-                }
-              }
-            }
-            stage('DM_TESTS_RECOVERY_MODE_PCIE_SYSEMU') {
-              steps {
-                script {
-                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/dm-tests-recovery-mode-pcie-sysemu-1dev', COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}")) {
-                    script {
-                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/dm-tests-recovery-mode-pcie-sysemu-1dev')
-                      build job:
-                        'sw-platform/virtual-platform/pipelines/dm-tests-recovery-mode-pcie-sysemu-1dev',
-                        propagate: true,
-                        parameters: [
-                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}"),
-                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
-                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                        ]
-                    }
-                  }
-                }
-              }
-            }
-            stage('FIRMWARE_AND_DM_TESTS_PCIE_LOOPBACK') {
-              steps {
-                script {
-                  if (need_to_retrigger(BRANCH: "${SW_PLATFORM_BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-loopback-1dev', COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}")) {
-                    script {
-                      def child_submodule_commits = get_child_submodule_commits(BRANCH: "${SW_PLATFORM_BRANCH}", COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}", JOB_NAME: 'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-loopback-1dev')
-                      build job:
-                        'sw-platform/virtual-platform/pipelines/firmware-and-dm-tests-pcie-loopback-1dev',
-                        propagate: true,
-                        parameters: [
-                          string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
-                          string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/deviceManagement:${BRANCH}"),
-                          booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
-                          string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
-                          string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
-                        ]
-                    }
-                  }
-                }
               }
             }
           }
