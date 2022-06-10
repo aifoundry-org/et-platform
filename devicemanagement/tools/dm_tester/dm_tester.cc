@@ -9,27 +9,27 @@
 //------------------------------------------------------------------------------
 
 #include "../src/utils.h"
-#include <boost/multiprecision/cpp_int.hpp>
 #include "deviceManagement/DeviceManagement.h"
+#include <boost/multiprecision/cpp_int.hpp>
 #include <cerrno>
 #include <chrono>
 #include <climits>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <ctype.h>
 #include <device-layer/IDeviceLayer.h>
 #include <dlfcn.h>
-#include <experimental/filesystem>
-#include <getopt.h>
-#include <iostream>
-#include <regex>
-#include <unistd.h>
-#include <glog/logging.h>
 #include <exception>
-#include <condition_variable>
+#include <experimental/filesystem>
 #include <fcntl.h>
 #include <fstream>
+#include <getopt.h>
+#include <glog/logging.h>
+#include <iostream>
+#include <regex>
 #include <string>
+#include <unistd.h>
 #define ET_TRACE_DECODER_IMPL
 #include <esperanto/et-trace/decoder.h>
 
@@ -58,7 +58,7 @@ public:
   }
 
   getDM_t getInstance() {
-    const char *error;
+    const char* error;
 
     if (handle_) {
       getDM_t getDM = reinterpret_cast<getDM_t>(dlsym(handle_, "getInstance"));
@@ -84,7 +84,7 @@ public:
       return -EAGAIN;
     }
 
-   return 0;
+    return 0;
   }
 
   void* handle_;
@@ -179,8 +179,7 @@ static inline bool decodeSingleTraceEvent(std::stringstream& logs, const struct 
   }
   return validTypeFound;
 }
-bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf,
-                                               TraceBufferType bufferType) {
+bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) {
   if (traceBuf.empty()) {
     DV_LOG(INFO) << "Invalid trace buffer! size is 0";
     return false;
@@ -228,8 +227,7 @@ bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf,
   return validEventFound;
 }
 
-void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
-                                                TraceBufferType bufferType) {
+void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) {
   if (traceBuf.empty()) {
     DV_LOG(INFO) << "Invalid trace buffer! size is 0";
     return;
@@ -249,7 +247,7 @@ void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
   case TraceBufferType::TraceBufferSPStats:
     traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
     dataSize = traceHdr->data_size;
-    DV_LOG(INFO) <<"data size "<<dataSize;
+    DV_LOG(INFO) << "data size " << dataSize;
     fileName += "sp_stats";
     fileFlags |= std::ios_base::app;
     break;
@@ -382,23 +380,31 @@ int verifyService() {
       return ret;
     }
 
-    try
-    {
-      switch (std::stoi(output_buff,nullptr,10)) {
-      case 2:strncpy(pcie_speed, "PCIE_GEN1", sizeof(pcie_speed)); break;
-      case 5:strncpy(pcie_speed, "PCIE_GEN2", sizeof(pcie_speed)); break;
-      case 8:strncpy(pcie_speed, "PCIE_GEN3", sizeof(pcie_speed)); break;
-      case 16:strncpy(pcie_speed, "PCIE_GEN4", sizeof(pcie_speed)); break;
-      case 32:strncpy(pcie_speed, "PCIE_GEN5", sizeof(pcie_speed)); break;
+    try {
+      switch (std::stoi(output_buff, nullptr, 10)) {
+      case 2:
+        strncpy(pcie_speed, "PCIE_GEN1", sizeof(pcie_speed));
+        break;
+      case 5:
+        strncpy(pcie_speed, "PCIE_GEN2", sizeof(pcie_speed));
+        break;
+      case 8:
+        strncpy(pcie_speed, "PCIE_GEN3", sizeof(pcie_speed));
+        break;
+      case 16:
+        strncpy(pcie_speed, "PCIE_GEN4", sizeof(pcie_speed));
+        break;
+      case 32:
+        strncpy(pcie_speed, "PCIE_GEN5", sizeof(pcie_speed));
+        break;
       }
     } catch (const std::invalid_argument& ia) {
-     DV_LOG(INFO) <<ia.what()<< "Invalid resposne from the device= " << output_buff << std::endl;
-     return -EINVAL;
-   }
-
+      DV_LOG(INFO) << ia.what() << "Invalid resposne from the device= " << output_buff << std::endl;
+      return -EINVAL;
+    }
 
     DV_LOG(INFO) << "PCIE Speed: " << pcie_speed << std::endl;
-  }break;
+  } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_MEMORY_SIZE_MB: {
     const uint32_t output_size = sizeof(struct asset_info_t);
@@ -409,7 +415,7 @@ int verifyService() {
     }
 
     DV_LOG(INFO) << "DDR Memory Size: " << (int)(*output_buff) << "GB" << std::endl;
-  }break;
+  } break;
 
   case DM_CMD::DM_CMD_GET_ASIC_CHIP_REVISION: {
     const uint32_t output_size = sizeof(struct asset_info_t);
@@ -419,13 +425,12 @@ int verifyService() {
       return ret;
     }
 
-    try{
-       std::string str_output = std::string(output_buff, output_size);
-       DV_LOG(INFO) << "ASIC Revision: " << std::stoi (str_output,nullptr,16) << std::endl;
-    }
-    catch (const std::invalid_argument& ia) {
-	     DV_LOG(INFO) << "Invalid response from device: " << ia.what() << '\n';
-    return -EINVAL;
+    try {
+      std::string str_output = std::string(output_buff, output_size);
+      DV_LOG(INFO) << "ASIC Revision: " << std::stoi(str_output, nullptr, 16) << std::endl;
+    } catch (const std::invalid_argument& ia) {
+      DV_LOG(INFO) << "Invalid response from device: " << ia.what() << '\n';
+      return -EINVAL;
     }
 
   } break;
@@ -439,22 +444,22 @@ int verifyService() {
       return ret;
     }
 
-    switch(POWER_STATE(*output_buff)) {
-      case 0:
-        strncpy(power_state,"POWER_STATE_MAX_POWER", sizeof(power_state));
-        break;
-      case 1:
-        strncpy(power_state,"POWER_STATE_MANAGED_POWER", sizeof(power_state));
-        break;
-      case 2:
-        strncpy(power_state,"POWER_STATE_SAFE_POWER", sizeof(power_state));
-        break;
-      case 3:
-        strncpy(power_state,"POWER_STATE_LOW_POWER", sizeof(power_state));
-        break;
-      default:
-        DV_LOG(INFO) << "Invalid power state: "  << std::endl;
-        break;
+    switch (POWER_STATE(*output_buff)) {
+    case 0:
+      strncpy(power_state, "POWER_STATE_MAX_POWER", sizeof(power_state));
+      break;
+    case 1:
+      strncpy(power_state, "POWER_STATE_MANAGED_POWER", sizeof(power_state));
+      break;
+    case 2:
+      strncpy(power_state, "POWER_STATE_SAFE_POWER", sizeof(power_state));
+      break;
+    case 3:
+      strncpy(power_state, "POWER_STATE_LOW_POWER", sizeof(power_state));
+      break;
+    default:
+      DV_LOG(INFO) << "Invalid power state: " << std::endl;
+      break;
     }
 
     DV_LOG(INFO) << "Power State Output: " << power_state << std::endl;
@@ -466,7 +471,8 @@ int verifyService() {
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(power_state_e);
-    const char input_buff[input_size] = {(char)active_power_management_flag}; // bounds check prevents issues with narrowing
+    const char input_buff[input_size] = {
+      (char)active_power_management_flag}; // bounds check prevents issues with narrowing
 
     const uint32_t output_size = sizeof(uint32_t);
     char output_buff[output_size] = {0};
@@ -495,8 +501,7 @@ int verifyService() {
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(uint8_t);
-    const char input_buff[input_size] =
-                                {(char)tdp_level}; // bounds check prevents issues with narrowing
+    const char input_buff[input_size] = {(char)tdp_level}; // bounds check prevents issues with narrowing
 
     const uint32_t output_size = sizeof(uint32_t);
     char output_buff[output_size] = {0};
@@ -554,14 +559,12 @@ int verifyService() {
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES: {
-    std::string throttle_state_name[7] = {
-    "POWER_THROTTLE_STATE_POWER_IDLE",      "POWER_THROTTLE_STATE_THERMAL_IDLE",
-    "POWER_THROTTLE_STATE_POWER_UP",        "POWER_THROTTLE_STATE_POWER_DOWN",
-    "POWER_THROTTLE_STATE_THERMAL_DOWN",    "POWER_THROTTLE_STATE_POWER_SAFE",
-    "POWER_THROTTLE_STATE_THERMAL_SAFE"};
-    for(device_mgmt_api::power_throttle_state_e throttle_state = device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP;
-        throttle_state <= device_mgmt_api::POWER_THROTTLE_STATE_THERMAL_SAFE;
-        throttle_state++) {
+    std::string throttle_state_name[7] = {"POWER_THROTTLE_STATE_POWER_IDLE",   "POWER_THROTTLE_STATE_THERMAL_IDLE",
+                                          "POWER_THROTTLE_STATE_POWER_UP",     "POWER_THROTTLE_STATE_POWER_DOWN",
+                                          "POWER_THROTTLE_STATE_THERMAL_DOWN", "POWER_THROTTLE_STATE_POWER_SAFE",
+                                          "POWER_THROTTLE_STATE_THERMAL_SAFE"};
+    for (device_mgmt_api::power_throttle_state_e throttle_state = device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP;
+         throttle_state <= device_mgmt_api::POWER_THROTTLE_STATE_THERMAL_SAFE; throttle_state++) {
       const uint32_t input_size = sizeof(device_mgmt_api::power_throttle_state_e);
       const char input_buff[input_size] = {throttle_state};
 
@@ -594,20 +597,18 @@ int verifyService() {
       } else if (pll_id == device_mgmt_api::PLL_ID_MINION_PLL) {
         pll_freq = minion_freq_mhz;
       }
-        // Use Step Clock as default as per device config
-        device_mgmt_api::use_step_e use_step = device_mgmt_api::USE_STEP_CLOCK_TRUE;
-        const uint32_t input_size = sizeof(device_mgmt_api::pll_id_e) +
-                                    sizeof(uint16_t) +
-                                    sizeof(device_mgmt_api::use_step_e);
-        char input_buff[input_size];
-        input_buff[0] = (char)(pll_freq & 0xff);
-        input_buff[1] = (char)((pll_freq >> 8) & 0xff);
-        input_buff[2] = (char)pll_id;
-        input_buff[3] = (char)use_step;
-        
-        if ((ret = runService(input_buff, input_size, nullptr, 0)) != DM_STATUS_SUCCESS) {
-          return ret;
-        }
+      // Use Step Clock as default as per device config
+      device_mgmt_api::use_step_e use_step = device_mgmt_api::USE_STEP_CLOCK_TRUE;
+      const uint32_t input_size =
+        sizeof(device_mgmt_api::pll_id_e) + sizeof(uint16_t) + sizeof(device_mgmt_api::use_step_e);
+      char input_buff[input_size];
+      input_buff[0] = (char)(pll_freq & 0xff);
+      input_buff[1] = (char)((pll_freq >> 8) & 0xff);
+      input_buff[2] = (char)pll_id;
+      input_buff[3] = (char)use_step;
+
+      if ((ret = runService(input_buff, input_size, nullptr, 0)) != DM_STATUS_SUCCESS) {
+        return ret;
       }
     }
   } break;
@@ -622,12 +623,11 @@ int verifyService() {
     }
 
     module_power_t* module_power = (module_power_t*)output_buff;
-    power = (module_power->power >> 2) + (module_power->power & 0x03)*0.25;
+    power = (module_power->power >> 2) + (module_power->power & 0x03) * 0.25;
     DV_LOG(INFO) << "Module Power Output: " << +power << " W" << std::endl;
   } break;
 
-  #define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER) \
-     (BASE + REG_VALUE*MULTIPLIER)
+#define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER) (BASE + REG_VALUE * MULTIPLIER)
 
   case DM_CMD::DM_CMD_GET_MODULE_VOLTAGE: {
     const uint32_t output_size = sizeof(module_voltage_t);
@@ -648,7 +648,7 @@ int verifyService() {
     DV_LOG(INFO) << "Module Voltage MAXION: " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(module_voltage->minion, 250, 5);
     DV_LOG(INFO) << "Module Voltage MINION: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(module_voltage->pcie, 600, 6); //FIXME its 6.25 actualy, try float
+    voltage = BIN2VOLTAGE(module_voltage->pcie, 600, 6); // FIXME its 6.25 actualy, try float
     DV_LOG(INFO) << "Module Voltage PCIE: " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(module_voltage->noc, 250, 5);
     DV_LOG(INFO) << "Module Voltage NOC: " << +voltage << " mV" << std::endl;
@@ -702,17 +702,15 @@ int verifyService() {
     }
 
     max_dram_bw_t* max_dram_bw = (max_dram_bw_t*)output_buff;
-    DV_LOG(INFO) << "Module Max DDR BW Read Output: " << +max_dram_bw->max_bw_rd_req_sec << " GB/s"<<std::endl;
-    DV_LOG(INFO) << "Module Max DDR BW Write Output: " << +max_dram_bw->max_bw_wr_req_sec <<" GB/s" <<std::endl;
+    DV_LOG(INFO) << "Module Max DDR BW Read Output: " << +max_dram_bw->max_bw_rd_req_sec << " GB/s" << std::endl;
+    DV_LOG(INFO) << "Module Max DDR BW Write Output: " << +max_dram_bw->max_bw_wr_req_sec << " GB/s" << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES: {
-    std::string power_state_name[4] = {
-    "POWER_STATE_MAX_POWER",      "POWER_STATE_MANAGED_POWER",
-    "POWER_STATE_SAFE_POWER",        "POWER_STATE_LOW_POWER"};
+    std::string power_state_name[4] = {"POWER_STATE_MAX_POWER", "POWER_STATE_MANAGED_POWER", "POWER_STATE_SAFE_POWER",
+                                       "POWER_STATE_LOW_POWER"};
     for (device_mgmt_api::power_state_e power_state = device_mgmt_api::POWER_STATE_MAX_POWER;
-          power_state <= device_mgmt_api::POWER_STATE_SAFE_POWER;
-          power_state++) {
+         power_state <= device_mgmt_api::POWER_STATE_SAFE_POWER; power_state++) {
       const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
       const char input_buff[input_size] = {power_state};
 
@@ -983,33 +981,33 @@ int verifyService() {
 
     uint32_t versions = firmware_versions->fw_release_rev;
     DV_LOG(INFO) << "Firmware release revision: Major: " << ((versions >> 24) & 0xFF)
-        << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
+                 << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->bl1_v;
     DV_LOG(INFO) << "BL1 Firmware versions: Major: " << ((versions >> 24) & 0xFF)
-        << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
+                 << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->bl2_v;
     DV_LOG(INFO) << "BL2 Firmware versions: Major: " << ((versions >> 24) & 0xFF)
-        << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
+                 << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->mm_v;
     DV_LOG(INFO) << "Master Minion Firmware versions: Major: " << ((versions >> 24) & 0xFF)
-        << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
+                 << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->wm_v;
     DV_LOG(INFO) << "Worker Minion versions: Major: " << ((versions >> 24) & 0xFF)
-        << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
+                 << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->machm_v;
     DV_LOG(INFO) << "Machine Minion versions: Major: " << ((versions >> 24) & 0xFF)
-        << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
+                 << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
   } break;
 
   case DM_CMD::DM_CMD_SET_FIRMWARE_VERSION_COUNTER: {
     const uint32_t input_size = sizeof(uint256_t);
-    const char input_buff[input_size] = {123}; //TODO: provide the counter by argument
+    const char input_buff[input_size] = {123}; // TODO: provide the counter by argument
 
     const uint32_t output_size = sizeof(uint32_t);
     char output_buff[output_size] = {0};
@@ -1021,7 +1019,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT: {
     const uint32_t input_size = sizeof(uint512_t);
-    const char input_buff[input_size] = {123}; //TODO: provide the hash by argument
+    const char input_buff[input_size] = {123}; // TODO: provide the hash by argument
 
     const uint32_t output_size = sizeof(uint32_t);
     char output_buff[output_size] = {0};
@@ -1033,7 +1031,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_SW_BOOT_ROOT_CERT: {
     const uint32_t input_size = sizeof(uint512_t);
-    const char input_buff[input_size] = {123}; //TODO: provide the hash by argument
+    const char input_buff[input_size] = {123}; // TODO: provide the hash by argument
 
     const uint32_t output_size = sizeof(uint32_t);
     char output_buff[output_size] = {0};
@@ -1052,18 +1050,17 @@ int verifyService() {
     }
 
     device_mgmt_api::fused_public_keys_t* fused_public_key = (device_mgmt_api::fused_public_keys_t*)output_buff;
-    try{
-       DV_LOG(INFO) << "Public keys: " << std::endl;
-       for (int i = 0; i < output_size; ++i)
-          DV_LOG(INFO) << fused_public_key->keys[i] << " ";
-       DV_LOG(INFO) << std::endl;
-    }
-    catch (const std::invalid_argument& ia) {
-       DV_LOG(INFO) << "SP ROOT HASH wasn't written to OTP " << '\n';
+    try {
+      DV_LOG(INFO) << "Public keys: " << std::endl;
+      for (int i = 0; i < output_size; ++i)
+        DV_LOG(INFO) << fused_public_key->keys[i] << " ";
+      DV_LOG(INFO) << std::endl;
+    } catch (const std::invalid_argument& ia) {
+      DV_LOG(INFO) << "SP ROOT HASH wasn't written to OTP " << '\n';
     }
   } break;
 
-  case DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE : {
+  case DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE: {
     // Unique case in which two service requests are done, first one to reset SP
     // trace buffer followed by second one to perform firmware update. For this
     // reason runService() isn't used.
@@ -1152,7 +1149,7 @@ bool validCommand() {
   if (it != commandCodeTable.end()) {
     cmd = it->first;
     code = it->second;
-    DV_LOG(ERROR) << "command: " << str_optarg << " code " << code <<std::endl;
+    DV_LOG(ERROR) << "command: " << str_optarg << " code " << code << std::endl;
     return true;
   }
 
@@ -1366,9 +1363,9 @@ bool validTimeout() {
 }
 
 bool validPath() {
-  if(!std::experimental::filesystem::exists(std::string(optarg))) {
-      DV_LOG(ERROR) << "The file doesn't exist" << std::string(optarg)<< std::endl;
-      return false;
+  if (!std::experimental::filesystem::exists(std::string(optarg))) {
+    DV_LOG(ERROR) << "The file doesn't exist" << std::string(optarg) << std::endl;
+    return false;
   }
   imagePath.assign(std::string(optarg));
 
@@ -1377,8 +1374,8 @@ bool validPath() {
 
 bool validFrequencies() {
   if (!std::regex_match(std::string(optarg), std::regex("^[0-9]+,[0-9]+$"))) {
-      DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not valid, e.g: 300,100" << std::endl;
-      return false;
+    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not valid, e.g: 300,100" << std::endl;
+    return false;
   }
 
   auto freq = std::stoul(std::strtok(optarg, ","));
@@ -1438,16 +1435,18 @@ void printCommand(char* argv) {
   std::cout << std::endl;
 
   // Declare vector of pairs
-  std::vector<std::pair<std::string, device_mgmt_api::DM_CMD> > A;
-    
+  std::vector<std::pair<std::string, device_mgmt_api::DM_CMD>> A;
+
   // Copy key-value pair from Map to vector of pairs
   for (auto& it : commandCodeTable) {
-      A.push_back(it);
+    A.push_back(it);
   }
-  std::sort(A.begin(), A.end(), [](std::pair<std::string, device_mgmt_api::DM_CMD>& a, std::pair<std::string, device_mgmt_api::DM_CMD>& b){return a.first < b.first;});
+  std::sort(A.begin(), A.end(),
+            [](std::pair<std::string, device_mgmt_api::DM_CMD>& a, std::pair<std::string, device_mgmt_api::DM_CMD>& b) {
+              return a.first < b.first;
+            });
   for (auto const& [key, val] : A) {
-    if(val >= DM_CMD_SET_DM_TRACE_RUN_CONTROL && val <= DM_CMD_SET_DM_TRACE_CONFIG)
-    {
+    if (val >= DM_CMD_SET_DM_TRACE_RUN_CONTROL && val <= DM_CMD_SET_DM_TRACE_CONFIG) {
       continue;
     }
     std::cout << "\t\t\t" << val << ": " << key << std::endl;
@@ -1537,8 +1536,9 @@ void printActivePowerManagement(char* argv) {
 
   std::cout << std::endl;
   std::cout << "\t\t"
-            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT
-            << " -" << (char)long_options[5].val << " 0" << std::endl;
+            << "Ex. " << argv << " -" << (char)long_options[0].val << " "
+            << DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT << " -" << (char)long_options[5].val << " 0"
+            << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[1].val << " SET_MODULE_ACTIVE_POWER_MANAGEMENT"
             << " -" << (char)long_options[5].val << " 0" << std::endl;
@@ -1648,9 +1648,8 @@ void printFWUpdate(char* argv) {
             << "Set Firmware Update" << std::endl;
   std::cout << std::endl;
   std::cout << "\t\t"
-            << "Ex. " << argv << " -" << (char)long_options[0].val << " "
-            << DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE << " -" << (char)long_options[12].val << " path-to-flash-image"
-            << std::endl;
+            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE << " -"
+            << (char)long_options[12].val << " path-to-flash-image" << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[1].val << " DM_CMD_SET_FIRMWARE_UPDATE"
             << " -" << (char)long_options[12].val << " path-to-flash-image" << std::endl;
@@ -1664,20 +1663,21 @@ void printTraceBuf(char* argv) {
             << "Get Trace Buffer" << std::endl;
   std::cout << std::endl;
   std::cout << "\t\t"
-            << "Ex. " << argv << " -" << (char)long_options[13].val << " "<< "[SP, MM, CM]"<< std::endl;
+            << "Ex. " << argv << " -" << (char)long_options[13].val << " "
+            << "[SP, MM, CM]" << std::endl;
 }
 
 void printFrequencies(char* argv) {
   std::cout << std::endl;
   std::cout << "\t"
-            << "-" << (char)long_options[14].val << ", --" << long_options[14].name << "=minionfreq,nocfreq" << std::endl;
+            << "-" << (char)long_options[14].val << ", --" << long_options[14].name << "=minionfreq,nocfreq"
+            << std::endl;
   std::cout << "\t\t"
             << "Set Frequency (MHz)" << std::endl;
   std::cout << std::endl;
   std::cout << "\t\t"
-            << "Ex. " << argv << " -" << (char)long_options[0].val << " "
-            << DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE << " -" << (char)long_options[14].val << " 400,200"
-            << std::endl;
+            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE << " -"
+            << (char)long_options[14].val << " 400,200" << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[1].val << " DM_CMD_SET_FREQUENCY"
             << " -" << (char)long_options[14].val << " 400,200" << std::endl;
@@ -1686,7 +1686,8 @@ void printFrequencies(char* argv) {
 void printUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "Usage: " << argv << " -o ncode | -m command [-n node] [-u nmsecs] [-h]"
-            << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp | -i npath | -f minionfreq,nocfreq]"
+            << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp | -i npath | -f "
+               "minionfreq,nocfreq]"
             << std::endl;
   printCode(argv);
   printCommand(argv);
@@ -1705,19 +1706,15 @@ void printUsage(char* argv) {
   printFrequencies(argv);
 }
 
-int getTraceBuffer()
-{
+int getTraceBuffer() {
   TraceBufferType buf_type;
   int ret;
   std::string str_optarg = std::string(optarg);
-  
-  std::unordered_map<std::string, TraceBufferType> const traceBuffers = 
-  {
-    {"SP",TraceBufferType::TraceBufferSP},
-    {"MM",TraceBufferType::TraceBufferMM},
-    {"CM",TraceBufferType::TraceBufferCM},
-    {"ST",TraceBufferType::TraceBufferSPStats}
-  };
+
+  std::unordered_map<std::string, TraceBufferType> const traceBuffers = {{"SP", TraceBufferType::TraceBufferSP},
+                                                                         {"MM", TraceBufferType::TraceBufferMM},
+                                                                         {"CM", TraceBufferType::TraceBufferCM},
+                                                                         {"ST", TraceBufferType::TraceBufferSPStats}};
 
   auto it = traceBuffers.find(str_optarg);
 
@@ -1733,14 +1730,14 @@ int getTraceBuffer()
     std::vector<std::byte> response;
 
     if (dm.getTraceBufferServiceProcessor(node, buf_type, response) != device_mgmt_api::DM_STATUS_SUCCESS) {
-      DV_LOG(INFO) << "Unable to get trace buffer for node: "<< node << std::endl;
+      DV_LOG(INFO) << "Unable to get trace buffer for node: " << node << std::endl;
     }
-      dumpRawTraceBuffer(node, response, buf_type);
-      decodeTraceEvents(node, response, buf_type);
+    dumpRawTraceBuffer(node, response, buf_type);
+    decodeTraceEvents(node, response, buf_type);
 
     return true;
   }
-  DV_LOG(ERROR) << "Not a valid argument for trace buffer: " << str_optarg  <<std::endl;
+  DV_LOG(ERROR) << "Not a valid argument for trace buffer: " << str_optarg << std::endl;
   return false;
 }
 
@@ -1838,21 +1835,20 @@ int main(int argc, char** argv) {
         return -EINVAL;
       }
       break;
-    case 'i' :
-      if(!validPath()) {
-         return -EINVAL;
+    case 'i':
+      if (!validPath()) {
+        return -EINVAL;
       }
       break;
-    case 'g' :
-      if(!getTraceBuffer())
-      {
-          printTraceBuf(argv[0]);
-          return -EINVAL;
+    case 'g':
+      if (!getTraceBuffer()) {
+        printTraceBuf(argv[0]);
+        return -EINVAL;
       }
       return 0;
-    case 'f' :
-      if(!(frequencies_flag = validFrequencies())) {
-         return -EINVAL;
+    case 'f':
+      if (!(frequencies_flag = validFrequencies())) {
+        return -EINVAL;
       }
       break;
     case '?':
