@@ -384,12 +384,12 @@ int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
             cycles->exec_start_cycles);
         atomic_store_local_32(&DMAW_Read_CB.chan_status_cb[read_chan_id].dmaw_cycles.wait_cycles,
             cycles->wait_cycles);
+        atomic_store_local_64(
+            &DMAW_Read_CB.chan_status_cb[read_chan_id].transfer_size, transfer_size);
 
         /* Update the global structure to make it visible to DMAW */
         atomic_store_local_64(
             &DMAW_Read_CB.chan_status_cb[read_chan_id].status.raw_u64, chan_status.raw_u64);
-        atomic_store_local_64(
-            &DMAW_Read_CB.chan_status_cb[read_chan_id].transfer_size, transfer_size);
 
         Log_Write(LOG_LEVEL_DEBUG, "SQ[%d] DMAW_Read_Trigger_Transfer:Success!\r\n", sqw_idx);
 
@@ -532,12 +532,12 @@ int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
             cycles->exec_start_cycles);
         atomic_store_local_32(&DMAW_Write_CB.chan_status_cb[write_chan_id].dmaw_cycles.wait_cycles,
             cycles->wait_cycles);
+        atomic_store_local_64(
+            &DMAW_Write_CB.chan_status_cb[write_chan_id].transfer_size, transfer_size);
 
         /* Update the global structure to make it visible to DMAW */
         atomic_store_local_64(
             &DMAW_Write_CB.chan_status_cb[write_chan_id].status.raw_u64, chan_status.raw_u64);
-        atomic_store_local_64(
-            &DMAW_Write_CB.chan_status_cb[write_chan_id].transfer_size, transfer_size);
 
         Log_Write(LOG_LEVEL_DEBUG, "SQ[%d]:DMAW_Write_Trigger_Transfer:Success!\r\n", sqw_idx);
 
@@ -593,6 +593,7 @@ static inline void process_dma_read_chan_in_use(
     bool dma_read_done = false;
     bool dma_read_aborted = false;
     int32_t status = STATUS_SUCCESS;
+    uint64_t transfer_size;
     uint16_t msg_id; /* TODO: SW-9022: To be removed */
 
     dma_read_status = dma_get_read_int_status();
@@ -638,6 +639,7 @@ static inline void process_dma_read_chan_in_use(
             &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_start_cycles);
         dma_rd_cycles.wait_cycles =
             atomic_load_local_32(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.wait_cycles);
+        transfer_size = atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].transfer_size);
 
         /* Update global DMA channel status
         NOTE: Channel state must be made idle once all resources are read */
@@ -668,9 +670,7 @@ static inline void process_dma_read_chan_in_use(
 
         /* Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq) */
         STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_READ,
-            DMAW_BYTES_PER_CYCLE_TO_MBPS(
-                atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].transfer_size),
-                write_rsp->device_cmd_execute_dur));
+            DMAW_BYTES_PER_CYCLE_TO_MBPS(transfer_size, write_rsp->device_cmd_execute_dur));
 
         if (status != STATUS_SUCCESS)
         {
@@ -878,6 +878,7 @@ static inline void process_dma_write_chan_in_use(
     execution_cycles_t dma_write_cycles;
     dma_channel_status_t write_chan_status;
     int32_t status = STATUS_SUCCESS;
+    uint64_t transfer_size;
     uint16_t msg_id; /* TODO: SW-9022: To be removed */
 
     dma_write_status = dma_get_write_int_status();
@@ -923,6 +924,8 @@ static inline void process_dma_write_chan_in_use(
             &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_start_cycles);
         dma_write_cycles.wait_cycles =
             atomic_load_local_32(&DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.wait_cycles);
+        transfer_size =
+            atomic_load_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].transfer_size);
 
         /* Update global DMA channel status
         NOTE: Channel state must be made idle once all resources are read */
@@ -950,9 +953,7 @@ static inline void process_dma_write_chan_in_use(
 
         /* Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq) */
         STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_WRITE,
-            DMAW_BYTES_PER_CYCLE_TO_MBPS(
-                atomic_load_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].transfer_size),
-                read_rsp->device_cmd_execute_dur));
+            DMAW_BYTES_PER_CYCLE_TO_MBPS(transfer_size, read_rsp->device_cmd_execute_dur));
 
         if (status == STATUS_SUCCESS)
         {

@@ -1101,7 +1101,8 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
             /* Send command to CM RT to evict Trace buffer. */
             status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
 
-            if (status == CM_IFACE_CM_IN_BAD_STATE)
+            if ((status == CM_IFACE_CM_IN_BAD_STATE) ||
+                (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED))
             {
                 Log_Write(LOG_LEVEL_ERROR,
                     "TID[%u]:HostCmdHdlr:CM Trace Read:CM Multicast:Bad State:Fail:%d\r\n",
