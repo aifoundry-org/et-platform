@@ -594,10 +594,8 @@ int verifyService() {
       } else if (pll_id == device_mgmt_api::PLL_ID_MINION_PLL) {
         pll_freq = minion_freq_mhz;
       }
-      for (device_mgmt_api::use_step_e use_step = device_mgmt_api::USE_STEP_CLOCK_FALSE;
-           use_step <= device_mgmt_api::USE_STEP_CLOCK_TRUE; use_step++) {
-        if(use_step == device_mgmt_api::USE_STEP_CLOCK_TRUE
-           && pll_id != device_mgmt_api::PLL_ID_MINION_PLL) continue;
+        // Use Step Clock as default as per device config
+        device_mgmt_api::use_step_e use_step = device_mgmt_api::USE_STEP_CLOCK_TRUE;
         const uint32_t input_size = sizeof(device_mgmt_api::pll_id_e) +
                                     sizeof(uint16_t) +
                                     sizeof(device_mgmt_api::use_step_e);
