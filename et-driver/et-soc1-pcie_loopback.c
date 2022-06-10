@@ -40,7 +40,11 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Esperanto <esperanto@gmail.com or admin@esperanto.com>");
 MODULE_DESCRIPTION("PCIe loopback device driver for esperanto soc-1");
-MODULE_VERSION("1.0");
+#ifdef ET_MODULE_VERSION
+MODULE_VERSION(ET_MODULE_VERSION);
+#else
+#error ET_MODULE_VERSION is not available
+#endif
 
 #define DRIVER_NAME		  "Esperanto"
 #define PCI_VENDOR_ID_REDHAT	  0x1b36
