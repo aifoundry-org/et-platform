@@ -1,8 +1,8 @@
 include:
   - project: 'software/gitlab-ci-common'
-    ref: 8326ae83ae1898ef764068693962e2239d65ab26
+    ref: ec8109263042925b169aa3c33cd6e7beaf185917
     file:
-      - rules/generic-workflow.yaml
+      - rules/generic-workflow-conan.yaml
       - pods/nano-pod.yaml
       - pods/medium-pod.yaml
       - pods/large-pod.yaml
@@ -28,10 +28,7 @@ default:
 
 variables:
   # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
-  # SW_PLATFORM_BRANCH: develop/system-sw
-  # set to gferrer/SW-11510 while the changes in that branch (which are necessary
-  # for this branch of et-common-libs) aren't merged into develop/system-sw
-  SW_PLATFORM_BRANCH: gferrer/SW-11510
+  SW_PLATFORM_BRANCH: develop/system-sw
   PIPELINE_CI_SUBPROJECT: et-common-libs
 
 ###############################################################################
