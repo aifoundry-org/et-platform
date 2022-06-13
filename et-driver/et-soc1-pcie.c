@@ -1627,7 +1627,8 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 	}
 
 	// Read the configuration values
-	et_dev->cfg.form_factor = DEV_CONFIG_FORM_FACTOR_PCIE;
+	et_dev->cfg.form_factor =
+		(enum dev_config_form_factor)dir_mgmt->form_factor;
 	et_dev->cfg.tdp = dir_mgmt->device_tdp;
 	et_dev->cfg.total_l3_size = dir_mgmt->l3_size;
 	et_dev->cfg.total_l2_size = dir_mgmt->l2_size;
@@ -1638,7 +1639,8 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 	et_dev->cfg.ddr_bandwidth = dir_mgmt->ddr_bandwidth;
 	et_dev->cfg.num_l2_cache_banks = dir_mgmt->l2_shire_banks;
 	et_dev->cfg.sync_min_shire_id = dir_mgmt->sync_min_shire_id;
-	et_dev->cfg.arch_rev = dir_mgmt->arch_rev;
+	et_dev->cfg.arch_rev =
+		(enum dev_config_arch_revision)dir_mgmt->arch_revision;
 
 	dir_pos += section_size;
 

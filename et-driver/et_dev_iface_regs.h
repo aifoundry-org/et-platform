@@ -179,6 +179,20 @@ enum et_mgmt_boot_status {
 };
 
 /*
+ * Values representing the available types of architecture revisions of device.
+ */
+enum et_mgmt_arch_revision {
+	MGMT_ARCH_REVISION_ETSOC1 = 0,
+	MGMT_ARCH_REVISION_PANTERO,
+	MGMT_ARCH_REVISION_GEPARDO
+};
+
+/*
+ * Values representing the available types of form factor.
+*/
+enum et_mgmt_form_factor { MGMT_FORM_FACTOR_PCIE = 1, MGMT_FORM_FACTOR_M_2 };
+
+/*
  * Values representing the available types of memory regions supported by the
  * Mgmt Device. All region types are unique.
  */
@@ -230,7 +244,7 @@ struct et_mgmt_dir_header {
 	s16 status;
 	u8 l2_shire_banks;
 	u8 sync_min_shire_id;
-	u8 arch_rev;
+	u8 arch_revision;
 	u8 form_factor;
 	u8 device_tdp;
 	u8 cache_line_size;
@@ -283,10 +297,10 @@ static inline void et_print_mgmt_dir(struct device *dev,
 		"BAR2 Size               : 0x%x\n",
 		mgmt_dir->header.bar2_size);
 	dev_dbg(dev,
-		"CRC32                   : 0x%x\n\n",
+		"CRC32                   : 0x%x\n",
 		mgmt_dir->header.crc32);
 	dev_dbg(dev,
-		"DDR Bandwidth           : 0x%x\n\n",
+		"DDR Bandwidth           : 0x%x\n",
 		mgmt_dir->header.ddr_bandwidth);
 	dev_dbg(dev,
 		"CM Shire Mask           : 0x%x\n",
@@ -314,7 +328,7 @@ static inline void et_print_mgmt_dir(struct device *dev,
 		mgmt_dir->header.sync_min_shire_id);
 	dev_dbg(dev,
 		"Architecture Revision   : 0x%x\n",
-		mgmt_dir->header.arch_rev);
+		mgmt_dir->header.arch_revision);
 	dev_dbg(dev,
 		"PCIe Form Factor        : 0x%x\n",
 		mgmt_dir->header.form_factor);
@@ -322,7 +336,7 @@ static inline void et_print_mgmt_dir(struct device *dev,
 		"Device TDP              : 0x%x\n",
 		mgmt_dir->header.device_tdp);
 	dev_dbg(dev,
-		"Cache Line Size         : 0x%x\n",
+		"Cache Line Size         : 0x%x\n\n",
 		mgmt_dir->header.cache_line_size);
 	dev_dbg(dev, "Mgmt DIRs Vqueue\n");
 	dev_dbg(dev,

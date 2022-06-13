@@ -20,6 +20,12 @@ enum dev_config_form_factor {
 	DEV_CONFIG_FORM_FACTOR_M_2
 };
 
+enum dev_config_arch_revision {
+	DEV_CONFIG_ARCH_REVISION_ETSOC1 = 0,
+	DEV_CONFIG_ARCH_REVISION_PANTERO,
+	DEV_CONFIG_ARCH_REVISION_GEPARDO
+};
+
 enum dev_state {
 	DEV_STATE_READY = 0,
 	/* TODO: SW-10535 To be removed */
@@ -70,18 +76,18 @@ struct dram_info {
 };
 
 struct dev_config {
-	__u32 total_l3_size;	 /* in KB */
-	__u32 total_l2_size;	 /* in KB */
-	__u32 total_scp_size;	 /* in KB */
-	__u32 ddr_bandwidth;     /* in MB/sec */
-	__u32 minion_boot_freq;	 /* in MHz */
-	__u32 cm_shire_mask;     /* Active Compute Shires Mask */
-	__u8 form_factor;        /* PCIE or M.2 */
-	__u8 tdp;                /* in Watts */
-	__u8 cache_line_size;	 /* in Bytes */
-	__u8 num_l2_cache_banks; /* Number of L2 Shire Cache banks */
-	__u8 sync_min_shire_id;  /* Spare/sync Minion Shire ID */
-	__u8 arch_rev;           /* Device architecture revision */
+	__u32 total_l3_size;		/* in KB */
+	__u32 total_l2_size;		/* in KB */
+	__u32 total_scp_size;		/* in KB */
+	__u32 ddr_bandwidth;		/* in MB/sec */
+	__u32 minion_boot_freq;		/* in MHz */
+	__u32 cm_shire_mask;		/* Active Compute Shires Mask */
+	__u8 form_factor;		/* PCIE or M.2 */
+	__u8 tdp;			/* in Watts */
+	__u8 cache_line_size;		/* in Bytes */
+	__u8 num_l2_cache_banks;	/* Number of L2 Shire Cache banks */
+	__u8 sync_min_shire_id;		/* Spare/sync Minion Shire ID */
+	__u8 arch_rev;			/* Device architecture revision */
 };
 
 struct trace_desc {
