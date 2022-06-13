@@ -8,5 +8,4 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-add_subdirectory(debug_server)
 add_subdirectory(dm_tester)
