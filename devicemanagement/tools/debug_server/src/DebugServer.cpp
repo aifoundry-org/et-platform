@@ -27,9 +27,6 @@ using Clock = std::chrono::system_clock;
 using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
 
-// Enable/Disable flag to control logging
-#define ENABLE_DEFAULT_LOGGING 0
-
 static struct option long_options[] = {{"help", no_argument, 0, 'h'},
                                        {"node", required_argument, 0, 'n'},
                                        {"port", required_argument, 0, 'p'},
@@ -63,10 +60,8 @@ int main(int argc, char** argv) {
   bool exit = false;
   char* filePath;
 
-#if ENABLE_DEFAULT_LOGGING
   // Initialize Google's logging library
-  logging::LoggerDefault loggerDefault_;
-#endif
+  // logging::LoggerDefault loggerDefault_;
 
   while (1) {
     c = getopt(argc, argv, "h:n:p:s:m:t:x:");

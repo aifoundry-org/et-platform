@@ -36,7 +36,51 @@ static int getAttributes(uint64_t addr, string& accessInitiator, string& accessT
   return validAttributes;
 }
 
-// Function  to get the attributes for memory address from the mapped data struct
+static bool checkAddressExists(uint64_t addr, string& accessInitiator, string& accessType) {
+  bool addrFound = false;
+  // Loop through the mapped addresses
+  for (auto item : debugMemDataCfg) {
+
+    if ((addr >= item.StartAddress) && (addr < (item.StartAddress + item.ReadSize))) {
+      accessInitiator = item.AccessInitiator;
+      accessType = item.AccessType;
+      addrFound = true;
+      break;
+    }
+  }
+  return addrFound;
+}
+
+// Function  to get the Validate Access Initiator
+static bool validateAccessInitiator(uint64_t accessInitiator) {
+  bool validAccessor = false;
+
+  if ((accessInitiator >= cmHartID_0 && accessInitiator <= cmHartID_2047) ||
+      (accessInitiator >= cmHartID_2080 && accessInitiator <= cmHartID_2111)) {
+    validAccessor = true;
+  } else if ((accessInitiator >= mmHartID_2048 && accessInitiator <= mmHartID_2079)) {
+    validAccessor = true;
+  }
+
+  return validAccessor;
+}
+
+// Function to Validate Access Type
+static bool validateAccessType(string& accessType) {
+  bool validAccessType = false;
+
+  if (accessType.compare("GLOBAL_ATOMIC") == 0) {
+    validAccessType = true;
+  } else if (accessType.compare("LOCAL_ATOMIC") == 0) {
+    validAccessType = true;
+  } else if (accessType.compare("NORMAL") == 0) {
+    validAccessType = true;
+  }
+
+  return validAccessType;
+}
+
+// Function to Translate Access Type from string to integer type.
 static uint8_t translateAccessTypeStrtoInt(string& accessType) {
   uint8_t accType;
 
@@ -51,26 +95,42 @@ static uint8_t translateAccessTypeStrtoInt(string& accessType) {
   return accType;
 }
 
-// Function to return attributes for a memory address
-void getAttributesForAddr(uint64_t addr, uint64_t* accessInitiator, uint8_t* accessType) {
-  int validAttributes = -1;
+// Function to validate and return attributes for a memory address
+bool getAttributesForAddr(uint64_t addr, uint64_t* accessInitiator, uint8_t* accessType) {
+  bool validAttr = true;
+  bool addrFound;
   // By default access type is normal and access initiator will be SP
   *accessType = MEM_ACCESS_TYPE_NORMAL;
   *accessInitiator = defaultAccessInitiatorSP;
   string tmpAccessType;
   string tmpAccessInitiator;
 
-  // Get the accessor/access type attribute for memory address
-  validAttributes = getAttributes(addr, tmpAccessInitiator, tmpAccessType);
+  // Check if the address request is in the mapped address and get attributes for memory address
+  addrFound = checkAddressExists(addr, tmpAccessInitiator, tmpAccessType);
 
-  // Accesor is either MM or WM
-  if ((validAttributes == 0) && (tmpAccessInitiator.compare("SP") != 0)) {
-    // Access Type will be MEM_ACCESS_TYPE_GLOBAL_ATOMIC or MEM_ACCESS_TYPE_LOCAL_ATOMIC or MEM_ACCESS_TYPE_NORMAL
-    *accessType = translateAccessTypeStrtoInt(tmpAccessType);
+  if (addrFound) {
+    // Accesor is either MM or WM
+    if (tmpAccessInitiator.compare("SP") != 0) {
 
-    // Access Initiator is CM or MM Hart ID
-    *accessInitiator = atoi(tmpAccessInitiator.c_str());
+      // Access Type will be MEM_ACCESS_TYPE_GLOBAL_ATOMIC or MEM_ACCESS_TYPE_LOCAL_ATOMIC or MEM_ACCESS_TYPE_NORMAL
+      if (validateAccessType(tmpAccessType)) {
+        *accessType = translateAccessTypeStrtoInt(tmpAccessType);
+      } else {
+        // Invalid attributes
+        validAttr = false;
+      }
+
+      // Access Initiator is CM or MM Hart ID
+      if (validateAccessInitiator(atoi(tmpAccessInitiator.c_str()))) {
+        *accessInitiator = atoi(tmpAccessInitiator.c_str());
+      } else {
+        // Invalid attributes
+        validAttr = false;
+      }
+    }
   }
+
+  return validAttr;
 }
 
 // Parse the file from the path provided and store it in

@@ -112,14 +112,23 @@ def debug_session(shire_mask, thread_mask, context_mask, shire_index, thread_ind
             gdb.execute(dump_cm_trace_data_command)
 
     if (context_mask & context_defs["DUMP_DATA_STRUCTS"]) != 0:
-        with open('debug_data_wm_data_structs.txt', mode='r') as csv_file:
-            csv_reader = csv.DictReader(csv_file)
-            for row in csv_reader:
-                start_address = int(row["Address"], 16)
-                size = int(row["Size"], 16)
-                size = size/8
-                dump_debug_data_command = "x /" + str(size) + "xg" + " " + str(start_address) 
-                gdb.execute(dump_debug_data_command)
+        file_name = 'debug_dump_predef_data_structs_mem.txt'
+        file_exists = os.path.exists(file_name)
+        if file_exists:
+            with open('debug_dump_predef_data_structs_mem.txt', mode='r') as csv_file:
+                csv_reader = csv.DictReader(csv_file)
+                if csv_reader is not None:
+                    for row in csv_reader:
+                        start_address = hex(int(row["Address"], 16))
+                        size = int(row["Size"], 16)
+                        size = size/8
+                        dump_debug_data_command = "x /" + str(size) + "xg" + " " + str(start_address)
+                        print (dump_debug_data_command)
+                        gdb.execute(dump_debug_data_command)
+                else:
+                    print("Invalid CSV File:",file_name)
+        else:
+            print("File does not exists:",file_name)
 
     #Terminate debug session
     gdb.execute("quit")
