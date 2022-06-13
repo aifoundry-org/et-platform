@@ -79,7 +79,7 @@ inline __attribute__((always_inline)) void co_evict_sw(uint64_t use_tmask, uint6
                    ((dst & 0x3)     << 58) |
                    ((set & 0xF)     << 14) |
                    ((way & 0x3)     << 6 ) |
-                   ((num_lines & 0xF));
+                   (num_lines & 0xF);
 
     __asm__ __volatile__ (
         "csrw 0x7f9, %0\n"
