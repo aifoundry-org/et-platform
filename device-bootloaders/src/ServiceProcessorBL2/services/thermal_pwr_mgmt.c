@@ -2121,6 +2121,6 @@ void Thermal_Pwr_Mgmt_Update_Sample_counter(void)
     /* Reset counter after 100 samples */
     if (samples_count++ > NUM_SAMPLES)
     {
-        samples_count = 0;
+        samples_count = 1;
     }
 }
