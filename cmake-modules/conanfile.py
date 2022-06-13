@@ -2,7 +2,7 @@ from conans import ConanFile
 import os
 class CMakeModulesConan(ConanFile):
     name = "cmake-modules"
-    version = "0.5.1"
+    version = "0.6.0"
     license = "esperanto"
     author = "Pau Farre <pau.farre@esperantotech.com>"
     url = "https://gitlab.esperanto.ai/software/cmake-modules"
