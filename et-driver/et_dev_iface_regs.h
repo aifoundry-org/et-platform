@@ -55,6 +55,10 @@
  * will be generated to update the driver.
  */
 
+/* Mgmt and Ops DIR Versions */
+#define MGMT_DIR_VERSION (0x1)
+#define OPS_DIR_VERSION	 (0x1)
+
 /* MEM_REGION_IOACCESS */
 #define MEM_REGION_IOACCESS_DISABLED (0x0)
 #define MEM_REGION_IOACCESS_ENABLED  (0x1)

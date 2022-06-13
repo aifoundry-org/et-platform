@@ -1539,6 +1539,19 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 	dir_mgmt = (struct et_mgmt_dir_header *)dir_pos;
 	section_size = dir_mgmt->attributes_size;
 
+	// DIR version check
+	if (dir_mgmt->version != MGMT_DIR_VERSION) {
+		dbg_msg.level = LEVEL_WARN;
+		dbg_msg.desc = "DIR version mismatch found!";
+		sprintf(dbg_msg.syndrome,
+			"\nDevice: Mgmt\n"
+			"Region: DIR header\n"
+			"Version: (expected: %u != discovered: %u)\n",
+			MGMT_DIR_VERSION,
+			dir_mgmt->version);
+		et_print_event(et_dev->pdev, &dbg_msg);
+	}
+
 	// BAR0 size check
 	if (dir_mgmt->bar0_size !=
 	    pci_resource_len(et_dev->pdev, 0 /* BAR0 */)) {
@@ -1924,6 +1937,19 @@ int et_ops_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 	 */
 	dir_ops = (struct et_ops_dir_header *)dir_pos;
 	section_size = dir_ops->attributes_size;
+
+	// DIR version check
+	if (dir_ops->version != MGMT_DIR_VERSION) {
+		dbg_msg.level = LEVEL_WARN;
+		dbg_msg.desc = "DIR version mismatch found!";
+		sprintf(dbg_msg.syndrome,
+			"\nDevice: Mgmt\n"
+			"Region: DIR header\n"
+			"Version: (expected: %u != discovered: %u)\n",
+			OPS_DIR_VERSION,
+			dir_ops->version);
+		et_print_event(et_dev->pdev, &dbg_msg);
+	}
 
 	// End of region check
 	if (dir_pos + section_size > dir_data + dir_size) {
