@@ -3,12 +3,12 @@ from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
 from conans import tools
 from conans.errors import ConanInvalidConfiguration
 import os
-import re
+
 
 class EsperantoFlashToolConan(ConanFile):
     name = "esperanto-flash-tool"
     description = "esperanto flashing tool"
-    license = "Esperanto"
+    license = "Esperanto Technologies"
 
     settings = "os", "arch", "compiler", "build_type"
     options = {
@@ -25,10 +25,10 @@ class EsperantoFlashToolConan(ConanFile):
     }
     generators = "CMakeDeps"
 
+    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
+
     def set_version(self):
-        content = tools.load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
-        version = re.search(r"project\(EsperantoFlashTool VERSION \s*([\d.]+)", content).group(1)
-        self.version = version.strip()
+        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "EsperantoFlashTool")
 
     def requirements(self):
         if not self.options.header_only:
