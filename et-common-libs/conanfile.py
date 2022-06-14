@@ -55,7 +55,7 @@ class EtCommonLibsConan(ConanFile):
            self.options.with_minion_bl or \
            self.options.with_mm_rt_svcs or \
            self.options.with_cm_rt_svcs:
-           self.requires("etsoc_hal/0.1.0")
+           self.requires("etsoc_hal/1.0.0")
 
     def package_id(self):
         self.python_requires["conan-common"].module.x86_64_compatible(self)
