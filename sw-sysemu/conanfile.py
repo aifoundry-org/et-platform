@@ -31,12 +31,10 @@ class SwSysemuConan(ConanFile):
     }
     generators = "CMakeDeps"
 
-    python_requires = "conan-common/[>=0.2.0 <1.0.0]"
+    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
 
     def set_version(self):
-        content = tools.load(os.path.join(self.recipe_folder, "CMakeLists.txt"))
-        version = re.search(r"set\(PROJECT_VERSION (.*)\)", content).group(1)
-        self.version = version.strip()
+        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "sw-sysemu")
 
     def requirements(self):
         self.requires("glog/0.4.0")
@@ -66,12 +64,12 @@ class SwSysemuConan(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-    
+
     def package(self):
         cmake = CMake(self)
         cmake.install()
         tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
-    
+
     def package_info(self):
         # library components
         libsysemu_comp_name = "libsysemu"
