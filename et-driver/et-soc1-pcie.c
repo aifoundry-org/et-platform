@@ -1939,11 +1939,11 @@ int et_ops_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 	section_size = dir_ops->attributes_size;
 
 	// DIR version check
-	if (dir_ops->version != MGMT_DIR_VERSION) {
+	if (dir_ops->version != OPS_DIR_VERSION) {
 		dbg_msg.level = LEVEL_WARN;
 		dbg_msg.desc = "DIR version mismatch found!";
 		sprintf(dbg_msg.syndrome,
-			"\nDevice: Mgmt\n"
+			"\nDevice: Ops\n"
 			"Region: DIR header\n"
 			"Version: (expected: %u != discovered: %u)\n",
 			OPS_DIR_VERSION,
@@ -2254,7 +2254,9 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 
 	rv = pci_enable_pcie_error_reporting(pdev);
 	if (rv) {
-		dev_warn(&pdev->dev, "Couldn't enable PCI error reporting\n");
+		dev_warn(&pdev->dev,
+			 "Couldn't enable PCI error reporting, errno: %d\n",
+			 -rv);
 		et_dev->is_err_reporting = false;
 		rv = 0;
 	} else {
