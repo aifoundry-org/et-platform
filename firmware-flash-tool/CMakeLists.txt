@@ -8,7 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.15)
-project(EsperantoFlashTool VERSION 0.1.0 LANGUAGES C)
+project(EsperantoFlashTool VERSION 1.0.0 LANGUAGES C)
 
 include(GNUInstallDirs)
 
@@ -19,7 +19,7 @@ find_package(json-c REQUIRED)
 ### project options
 option(ENABLE_WARNINGS_AS_ERRORS "" OFF)
 
-### 
+###
 
 add_library(headers INTERFACE)
 add_library(esperanto-flash-tool::headers ALIAS headers)
@@ -48,9 +48,9 @@ target_include_directories(esperanto_flash_tool
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto/flash-tool>
 )
-target_compile_options(esperanto_flash_tool 
+target_compile_options(esperanto_flash_tool
     PRIVATE
-        -Wall -Wextra $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror> -Wnull-dereference 
+        -Wall -Wextra $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror> -Wnull-dereference
         -Wduplicated-branches -Wduplicated-cond -Wshadow -Wpointer-arith -Wundef
         -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op
         -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations
