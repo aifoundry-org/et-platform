@@ -45,10 +45,10 @@ class EsperantoBootLoadersConan(ConanFile):
         self.requires("esperantoTrace/0.5.0")
         self.requires("signedImageFormat/1.0")
         self.requires("tf-protocol/0.1.0")
-        self.requires("esperanto-flash-tool/0.1.0") # we only consume a header
+        self.requires("esperanto-flash-tool/1.0.0") # we only consume a header
         # libs
-        self.requires("etsoc_hal/0.1.0")
-        self.requires("et-common-libs/0.0.7")
+        self.requires("etsoc_hal/1.0.0")
+        self.requires("et-common-libs/0.7.0")
 
     def package_id(self):
         self.python_requires["conan-common"].module.x86_64_compatible(self)
