@@ -273,6 +273,14 @@ public:
   ///
   virtual std::vector<StreamError> retrieveStreamErrors(StreamId stream) = 0;
 
+  /// \brief This callback (when set) will be automatically called when a kernel abort happens. This is implemented
+  /// as a workaround (SW-13045).
+  ///
+  /// @param[in] callback see \ref KernelAbortedCallback. This is the callback which will be called when a kernel abort
+  /// happens
+  ///
+  virtual void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) = 0;
+
   /// \brief This callback (when set) will be automatically called when a new StreamError occurs, making the polling
   /// through retrieveStreamErrors unnecessary.
   ///

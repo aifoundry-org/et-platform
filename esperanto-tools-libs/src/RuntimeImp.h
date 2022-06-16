@@ -98,6 +98,8 @@ public:
 
   void setOnStreamErrorsCallback(StreamErrorCallback callback) final;
 
+  void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) final;
+
   std::vector<StreamError> retrieveStreamErrors(StreamId stream) final;
 
   // IResponseServices
@@ -226,5 +228,6 @@ private:
   bool running_ = false;
   bool checkMemcpyDeviceAddress_ = false;
   DeviceApiVersion deviceApiVersion_;
+  KernelAbortedCallback kernelAbortedCallback_;
 };
 } // namespace rt

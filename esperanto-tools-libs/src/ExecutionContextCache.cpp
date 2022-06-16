@@ -73,7 +73,7 @@ ExecutionContextCache::ExecutionContextCache(RuntimeImp* runtime, int initialFre
 
 Buffer* ExecutionContextCache::allocBuffer(DeviceId deviceId) {
   RT_VLOG(MID) << "Allocating buffer for device " << static_cast<int>(deviceId);
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   auto&& list = freeBuffers_[deviceId];
   if (list.empty()) {
     buffers_.emplace_back(std::make_unique<Buffer>(deviceId, runtime_, bufferSize_));
@@ -89,7 +89,7 @@ Buffer* ExecutionContextCache::allocBuffer(DeviceId deviceId) {
 
 void ExecutionContextCache::reserveBuffer(EventId event, Buffer* buffer) {
   RT_VLOG(MID) << "Reserving buffer " << buffer << " for event " << static_cast<int>(event);
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   auto it = find(allocBuffers_, buffer, "Trying to reserve a buffer which wasn't allocated previously");
   auto [insertion, res] = reservedBuffers_.emplace(event, *it);
   unused(insertion, res);
@@ -98,7 +98,7 @@ void ExecutionContextCache::reserveBuffer(EventId event, Buffer* buffer) {
 }
 
 Buffer* ExecutionContextCache::getReservedBuffer(EventId eventId) const {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   if (auto it = reservedBuffers_.find(eventId); it != end(reservedBuffers_)) {
     return it->second;
   }
@@ -107,7 +107,7 @@ Buffer* ExecutionContextCache::getReservedBuffer(EventId eventId) const {
 
 void ExecutionContextCache::releaseBuffer(EventId id) {
   RT_VLOG(MID) << "Releasing buffer for event " << static_cast<int>(id);
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   auto it = find(reservedBuffers_, id);
   freeBuffers_[it->second->device_].emplace_back(it->second);
   reservedBuffers_.erase(it);

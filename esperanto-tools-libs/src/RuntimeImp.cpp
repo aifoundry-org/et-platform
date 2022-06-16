@@ -20,6 +20,7 @@
 
 #include "runtime/IDmaBuffer.h"
 #include "runtime/IRuntime.h"
+#include "runtime/Types.h"
 
 #include <cstdint>
 #include <device-layer/IDeviceLayer.h>
@@ -365,6 +366,11 @@ void RuntimeImp::setOnStreamErrorsCallback(StreamErrorCallback callback) {
   streamManager_.setErrorCallback(std::move(callback));
 }
 
+void RuntimeImp::setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) {
+  SpinLock lock(mutex_);
+  kernelAbortedCallback_ = callback;
+}
+
 void RuntimeImp::processResponseError(const ResponseError& responseError) {
   blockableThreadPool_.pushTask([this, responseError] {
     // here we have to check if there is an associated errorbuffer with the event; if so, copy the buffer from
@@ -382,8 +388,17 @@ void RuntimeImp::processResponseError(const ResponseError& responseError) {
                                       reinterpret_cast<std::byte*>(errorContexts.data()), kExceptionBufferSize, false);
           waitForEventWithoutProfiling(e);
           streamError.errorContext_.emplace(std::move(errorContexts));
+          executionContextCache_->releaseBuffer(event);
+        } else {
+          SpinLock lock(mutex_);
+          if (kernelAbortedCallback_) {
+            auto th = std::thread([cb = this->kernelAbortedCallback_, evt = responseError.event_, buffer, this] {
+              cb(evt, buffer->deviceBuffer_, kExceptionBufferSize);
+              executionContextCache_->releaseBuffer(evt);
+            });
+            th.detach();
+          }
         }
-        executionContextCache_->releaseBuffer(event);
       }
     }
     if (kernelExtra) {

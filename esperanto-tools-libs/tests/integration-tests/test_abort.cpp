@@ -8,6 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
+#include "Constants.h"
 #include "RuntimeImp.h"
 #include "TestUtils.h"
 #include "common/Constants.h"
@@ -102,6 +103,44 @@ TEST_F(TestAbort, abortStream) {
     std::this_thread::sleep_for(1s);
   }
   ASSERT_EQ(eventsReported, eventsSubmitted);
+}
+
+TEST_F(TestAbort, kernelAbortedCallback) {
+  if (Fixture::sMode == Fixture::Mode::SYSEMU) {
+    RT_LOG(WARNING) << "Abort Command is not supported in sysemu. Returning.";
+    FAIL();
+  }
+
+  bool errorReported = false;
+  bool kernelAbortCalled = false;
+
+  runtime_->setOnStreamErrorsCallback([&errorReported](rt::EventId, const rt::StreamError& error) {
+    ASSERT_EQ(error.errorCode_, rt::DeviceErrorCode::KernelLaunchHostAborted);
+    errorReported = true;
+  });
+  runtime_->setOnKernelAbortedErrorCallback([&kernelAbortCalled](auto, std::byte* addr, size_t size) {
+    ASSERT_NE(addr, nullptr);
+    ASSERT_EQ(size, kExceptionBufferSize);
+    kernelAbortCalled = true;
+  });
+  auto rimp = static_cast<rt::RuntimeImp*>(runtime_.get());
+  rimp->setSentCommandCallback(devices_[0], [this](rt::Command* cmd) {
+    RT_LOG(INFO) << "Command sent: " << cmd << ". Now aborting stream.";
+    runtime_->abortStream(defaultStreams_[0]);
+    RT_LOG(INFO) << "Waiting for stream to finish.";
+    runtime_->waitForStream(defaultStreams_[0]);
+  });
+  RT_LOG(INFO) << "Sending kernel launch which will be aborted later";
+  runtime_->kernelLaunch(defaultStreams_[0], kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1UL);
+  while (!kernelAbortCalled) {
+    RT_LOG(INFO) << "Not done yet, waiting. Error reported? " << errorReported
+                 << " Kernel aborted error callback called? " << kernelAbortCalled;
+    std::this_thread::sleep_for(10ms);
+  }
+
+  ASSERT_TRUE(errorReported);
+  ASSERT_TRUE(kernelAbortCalled);
+  ASSERT_EQ(deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(devices_[0])), dev::DeviceState::Ready);
 }
 
 int main(int argc, char** argv) {

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unrealeased]
 ### Added
+- [SW-13045] added a new callback which will be executed when a kernel abort happens. See new API function: 
+```virtual void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) = 0;```
 ### Changed
 ### Deprecated
 ### Removed
