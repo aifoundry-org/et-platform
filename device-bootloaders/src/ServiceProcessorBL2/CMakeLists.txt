@@ -8,9 +8,9 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set(FILE_VERSION_MAJOR 0)
-set(FILE_VERSION_MINOR 0)
-set(FILE_REVISION_NUMBER 4)
+set(FILE_VERSION_MAJOR      ${PROJECT_VERSION_MAJOR})
+set(FILE_VERSION_MINOR      ${PROJECT_VERSION_MINOR})
+set(FILE_REVISION_NUMBER    ${PROJECT_VERSION_PATCH})
 
 add_subdirectory(include)
 
