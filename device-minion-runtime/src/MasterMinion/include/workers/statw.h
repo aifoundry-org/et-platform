@@ -49,9 +49,9 @@ enum statw_resource_type {
 #define STATW_CMA_SAMPLE_COUNT 100U
 
 /*! \def STATW_RESOURCE_DEFAULT_MIN
-    \brief Default minimum for device resource stat. This is very large value will replace with actual minimum.
+    \brief Default minimum for device resource stat. This is minimum value will be replaced by very first data sample.
 */
-#define STATW_RESOURCE_DEFAULT_MIN 0xFFFFFFFFFFFFFFFUL
+#define STATW_RESOURCE_DEFAULT_MIN 0
 
 /*! \def STATW_RESOURCE_DEFAULT_MAX
     \brief Default maximum for device resource stat. This is minimum value will replace with actual maximum.
