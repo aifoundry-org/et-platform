@@ -16,12 +16,10 @@ class DeviceManagementConan(ConanFile):
     options = {
         "fPIC": [True, False],
         "with_tests": [True, False],
-        "with_tools": [True, False],
     }
     default_options = {
         "fPIC": True,
         "with_tests": False,
-        "with_tools": True
     }
 
     scm = {
@@ -41,10 +39,6 @@ class DeviceManagementConan(ConanFile):
         self.requires("deviceApi/0.5.0")
         self.requires("deviceLayer/0.2.0")
         self.requires("hostUtils/0.1.0")
-        self.requires("esperantoTrace/0.5.0")
-
-        if self.options.with_tools:
-            self.requires("glog/0.4.0")
 
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
@@ -60,7 +54,6 @@ class DeviceManagementConan(ConanFile):
     def generate(self):
         tc = CMakeToolchain(self)
         tc.variables["BUILD_TESTS"] = self.options.with_tests
-        tc.variables["BUILD_TOOLS"] = self.options.with_tools
         tc.variables["BUILD_DOC"] = False
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
@@ -97,7 +90,8 @@ class DeviceManagementConan(ConanFile):
             self.cpp_info.components["DM_static"].defines.append("MINION_DEBUG_INTERFACE")
         else:
             self.cpp_info.components["DM"].defines.append("NDEBUG")
-
+    
         bin_path = os.path.join(self.package_folder, "bin")
         self.output.info("Appending PATH environment variable: {}".format(bin_path))
         self.env_info.PATH.append(bin_path)
+

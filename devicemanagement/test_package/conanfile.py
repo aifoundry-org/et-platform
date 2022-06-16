@@ -15,8 +15,7 @@ class DeviceManagementTest(ConanFile):
     def test(self):
         if not tools.cross_building(self.settings):
             test_library = os.path.join("bin", "test_package")
-            test_dm_tester_cmd = "dm-tester -h"
 
-            for test in [test_library, test_dm_tester_cmd]:
+            for test in [test_library]:
                 self.output.info(f"Running -> {test}")
                 self.run(test, run_environment=True)

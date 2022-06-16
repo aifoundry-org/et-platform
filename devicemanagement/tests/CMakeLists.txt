@@ -32,7 +32,7 @@ get_property(MACHINE_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MachineMini
 get_property(WORKER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinion.elf PROPERTY LOCATION)
 
 # This will be used by test case to verify f/w update support as this is CMakeLists for DM tests.
-# End user can use f/w image of choice by passing it as argument to dm-tester.
+# End user can use f/w image of choice by passing it as argument to dev_mngt_service.
 set(FLASH_IMG_PATH "${FLASH_INSTALL_DIR}/dev-image/production-signed-with-test-keys/flash_32Mbit.bin")
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})

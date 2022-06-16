@@ -9,6 +9,9 @@
 #------------------------------------------------------------------------------
 
 @PACKAGE_INIT@
+find_dependency(deviceApi REQUIRED)
+find_dependency(deviceLayer REQUIRED)
+
 
 include(${CMAKE_CURRENT_LIST_DIR}/deviceManagementTargets.cmake)
 check_required_components(deviceManagement)

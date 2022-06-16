@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.17)
-project(deviceManagement VERSION 0.1.3 LANGUAGES C CXX)
+project(deviceManagement VERSION 0.2.0 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
 
@@ -17,17 +17,15 @@ find_package(deviceApi REQUIRED)
 find_package(deviceLayer REQUIRED)
 find_package(hostUtils REQUIRED)
 
-
 option(BUILD_TESTS "Build tests" ON)
-option(BUILD_TOOLS "Build dm_tester tool" ON)
 option(BUILD_DOC "Build documentation" ON)
 
-add_library(deviceManagement_obj OBJECT
+add_library(DM_obj OBJECT
     src/DeviceManagement.cc
     src/utils.h
 )
-target_compile_features(deviceManagement_obj PUBLIC cxx_std_17)
-target_include_directories(deviceManagement_obj
+target_compile_features(DM_obj PUBLIC cxx_std_17)
+target_include_directories(DM_obj
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
@@ -36,26 +34,26 @@ target_include_directories(deviceManagement_obj
 )
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_options(deviceManagement_obj
+    target_compile_options(DM_obj
         PUBLIC
             -DMINION_DEBUG_INTERFACE
             -UNDEBUG
     )
 else()
-    target_compile_options(deviceManagement_obj
+    target_compile_options(DM_obj
         PUBLIC
             -UMINION_DEBUG_INTERFACE
             -DNDEBUG
     )
 endif()
 
-set_target_properties(deviceManagement_obj PROPERTIES
+set_target_properties(DM_obj PROPERTIES
     PUBLIC_HEADER "include/deviceManagement/DeviceManagement.h;include/deviceManagement/dm.h"
     POSITION_INDEPENDENT_CODE TRUE
 )
 #TODO: target_link_directories should be forbidden
-target_link_directories(deviceManagement_obj PUBLIC ${CMAKE_INSTALL_PREFIX}/lib)
-target_link_libraries(deviceManagement_obj
+target_link_directories(DM_obj PUBLIC ${CMAKE_INSTALL_PREFIX}/lib)
+target_link_libraries(DM_obj
     PUBLIC
         deviceApi::deviceApi
         deviceLayer::deviceLayer
@@ -66,18 +64,14 @@ target_link_libraries(deviceManagement_obj
 # Generate shared library
 add_library(DM SHARED)
 add_library(deviceManagement::DM ALIAS DM)
-target_link_libraries(DM PUBLIC deviceManagement_obj)
+target_link_libraries(DM PUBLIC DM_obj)
 
 # Generate static library
 add_library(DM_static STATIC)
 add_library(deviceManagement::DM_static ALIAS DM_static)
-target_link_libraries(DM_static PUBLIC deviceManagement_obj)
+target_link_libraries(DM_static PUBLIC DM_obj)
 
-
-# Add package information
-include(CMakePackageConfigHelpers)
-
-install(TARGETS deviceManagement_obj DM DM_static
+install(TARGETS DM_obj DM DM_static
     EXPORT deviceManagementTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -93,10 +87,6 @@ install(EXPORT deviceManagementTargets
 
 if (BUILD_TESTS)
     add_subdirectory(tests)
-endif()
-
-if (BUILD_TOOLS)
-    add_subdirectory(tools)
 endif()
 
 if (BUILD_DOC)
@@ -132,4 +122,10 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/deviceManagementConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/deviceManagementConfigVersion.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceManagement
+)
+
+# export targets from the build tree (this allows consuming generated deviceManagementTargets.cmake without having to install first - not relocatable)
+export(TARGETS DM_obj DM DM_static
+    FILE "${PROJECT_BINARY_DIR}/deviceManagementTargets.cmake"
+    NAMESPACE deviceManagement::
 )
