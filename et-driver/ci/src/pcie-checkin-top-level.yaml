@@ -40,8 +40,6 @@ stages:
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
           NODE: WORKER
           TIMEOUT: "1"
-    exec_before: [r"JOB_.*"]
-    exec_after: ['DSL_JOB']
 
   DM_TESTS_RECOVERY_MODE_PCIE_SYSEMU:
     cmds:
@@ -49,7 +47,7 @@ stages:
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
-    exec_after: ['CLANG_CHECK']
+          LINUX_KMOD_LOCAL_BUILD: "ON"
 
   FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU:
     cmds:
@@ -57,7 +55,7 @@ stages:
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
-    exec_after: ['CLANG_CHECK']
+          LINUX_KMOD_LOCAL_BUILD: "ON"
 
   FIRMWARE_AND_DM_TESTS_PCIE_LOOPBACK:
     cmds:
@@ -65,4 +63,43 @@ stages:
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
-    exec_after: ['CLANG_CHECK']
+
+  BUILD_DRIVER_WITH_CENTOS_DEBUG_KERNEL:
+    cmds:
+      - job: sw-platform/virtual-platform/pipelines/build-driver
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
+          KERNEL_BUILD_OPTS: centos-qemu
+          KERNEL_BUILD_TYPE: Debug
+    exec_after: [CLANG_CHECK, r".*PCIE_SYSEMU", r".*PCIE_LOOPBACK"]
+
+  BUILD_DRIVER_WITH_CENTOS_RELEASE_KERNEL:
+    cmds:
+      - job: sw-platform/virtual-platform/pipelines/build-driver
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
+          KERNEL_BUILD_OPTS: centos-qemu
+          KERNEL_BUILD_TYPE: Release
+    exec_after: [CLANG_CHECK, r".*PCIE_SYSEMU", r".*PCIE_LOOPBACK"]
+
+  BUILD_DRIVER_WITH_UBUNTU_DEBUG_KERNEL:
+    cmds:
+      - job: sw-platform/virtual-platform/pipelines/build-driver
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
+          KERNEL_BUILD_OPTS: ubuntu-native
+          KERNEL_BUILD_TYPE: Debug
+    exec_after: [CLANG_CHECK, r".*PCIE_SYSEMU", r".*PCIE_LOOPBACK"]
+
+  BUILD_DRIVER_WITH_UBUNTU_RELEASE_KERNEL:
+    cmds:
+      - job: sw-platform/virtual-platform/pipelines/build-driver
+        parameters:
+          BRANCH: "${SW_PLATFORM_BRANCH}"
+          COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
+          KERNEL_BUILD_OPTS: ubuntu-native
+          KERNEL_BUILD_TYPE: Release
+    exec_after: [CLANG_CHECK, r".*PCIE_SYSEMU", r".*PCIE_LOOPBACK"]
