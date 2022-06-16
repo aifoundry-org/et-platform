@@ -134,7 +134,11 @@ void SW_Timer_Processing(void)
         {
             timeout_callback_fn = (void *)(uint64_t)atomic_load_local_64(
                 (void *)&SW_TIMER_CB.cmd_timeout_cb[i].timeout_callback_fn);
-            timeout_callback_fn(atomic_load_local_8(&SW_TIMER_CB.cmd_timeout_cb[i].callback_arg));
+            if (timeout_callback_fn != 0)
+            {
+                timeout_callback_fn(
+                    atomic_load_local_8(&SW_TIMER_CB.cmd_timeout_cb[i].callback_arg));
+            }
         }
     }
 }
@@ -190,6 +194,7 @@ int32_t SW_Timer_Init(void)
 {
     for (uint8_t i = 0; i < SW_TIMER_MAX_SLOTS; i++)
     {
+        atomic_store_local_64((void *)&SW_TIMER_CB.cmd_timeout_cb[i].timeout_callback_fn, 0U);
         /* Use max uint64_t value as flag to mark this slot of time as free */
         atomic_store_local_64(
             &SW_TIMER_CB.cmd_timeout_cb[i].expiration_time, SW_TIME_FREE_SLOT_FLAG);

@@ -14,8 +14,8 @@
 
     Public interfaces:
         PU_Timer_Init
-        PU_Timer_Start
         PU_Timer_Stop
+        PU_Timer_Get_Current_Value
         PU_Timer_Interrupt_Clear
 */
 /***********************************************************************/
@@ -40,35 +40,38 @@
 */
 #define TIMERS_INT_PRIORITY 1
 
-/*! \fn PU_Timer_Enable
+/*! \fn pu_timer_enable
     \brief Helper function for enabling a specific TIMER channel to start counting down
 */
-static inline void PU_Timer_Enable(uint32_t timeout_value)
+static inline void pu_timer_enable(uint32_t timeout_value)
 {
-    iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1LOADCOUNT_OFFSET, timeout_value);
+    /* From PRM: Before writing to a TimerNLoadCount register, you must disable the timer by writing a “0” to
+    the timer enable bit of TimerNControlReg in order to avoid potential synchronization problems */
     iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1CONTROLREG_OFFSET,
         TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_SET(
-            TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_TIMER_ENABLE_ENABLED) |
-            TIMERS_TIMER1CONTROLREG_TIMER_MODE_SET(
-                TIMERS_TIMER1CONTROLREG_TIMER_MODE_TIMER_MODE_USER_DEFINED));
+            TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_TIMER_ENABLE_DISABLE));
+    /* Program the timer mode and set it to unmasked interrupts */
+    iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1CONTROLREG_OFFSET,
+        TIMERS_TIMER1CONTROLREG_TIMER_MODE_SET(
+            TIMERS_TIMER1CONTROLREG_TIMER_MODE_TIMER_MODE_USER_DEFINED) |
+            TIMERS_TIMER1CONTROLREG_TIMER_INTERRUPT_MASK_SET(
+                TIMERS_TIMER1CONTROLREG_TIMER_INTERRUPT_MASK_TIMER_INTERRUPT_MASK_UNMASKED));
+    /* Program the timeout value */
+    iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1LOADCOUNT_OFFSET, timeout_value);
+    /* Enable timer */
+    iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1CONTROLREG_OFFSET,
+        TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_SET(
+            TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_TIMER_ENABLE_ENABLED));
 }
 
-/*! \fn PU_Timer_Disable
+/*! \fn pu_timer_disable
     \brief Helper function for disabling a specific TIMER channel
 */
-static inline void PU_Timer_Disable(void)
+static inline void pu_timer_disable(void)
 {
     iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1CONTROLREG_OFFSET,
         TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_SET(
             TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_TIMER_ENABLE_DISABLE));
-}
-
-/*! \fn PU_Timer_Interrupt_Clear
-    \brief Helper function for clearing TIMER channel interrupt
-*/
-void PU_Timer_Interrupt_Clear(void)
-{
-    ioread32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1EOI_OFFSET);
 }
 
 /************************************************************************
@@ -88,16 +91,45 @@ void PU_Timer_Interrupt_Clear(void)
 *
 *   OUTPUTS
 *
+*       None
 *
 ***********************************************************************/
 void PU_Timer_Init(void (*timeout_callback_fn)(void), uint32_t timeout)
 {
+    /* Load Timer Channel with Timeout value and start counting down */
+    pu_timer_enable(timeout);
+
     /* Register Callback to PLIC Interrupt when Timer fires */
     PLIC_RegisterHandler(
         PU_PLIC_TIMER0_INTR_ID, TIMERS_INT_PRIORITY, (void (*)(uint32_t))timeout_callback_fn);
+}
 
-    /* Load Timer Channel with Timeout value and start counting down */
-    PU_Timer_Enable(timeout);
+/************************************************************************
+*
+*   FUNCTION
+*
+*       PU_Timer_Stop
+*
+*   DESCRIPTION
+*
+*       Disable TIMER channel
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void PU_Timer_Stop(void)
+{
+    /* Disable Timer on Channel */
+    pu_timer_disable();
+
+    /* Unregister PLIC callback */
+    PLIC_UnregisterHandler(PU_PLIC_TIMER0_INTR_ID);
 }
 
 /************************************************************************
@@ -128,11 +160,11 @@ uint32_t PU_Timer_Get_Current_Value(void)
 *
 *   FUNCTION
 *
-*       PU_Timer_Stop
+*       PU_Timer_Interrupt_Clear
 *
 *   DESCRIPTION
 *
-*       Disable TIMER channel
+*       Helper function for clearing TIMER channel interrupt
 *
 *   INPUTS
 *
@@ -143,11 +175,7 @@ uint32_t PU_Timer_Get_Current_Value(void)
 *       None
 *
 ***********************************************************************/
-void PU_Timer_Stop(void)
+void PU_Timer_Interrupt_Clear(void)
 {
-    /* Disable Timer on Channel */
-    PU_Timer_Disable();
-
-    /* Unregister PLIC callback */
-    PLIC_UnregisterHandler(PU_PLIC_TIMER0_INTR_ID);
+    ioread32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1EOI_OFFSET);
 }
