@@ -8,33 +8,66 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-include(ExternalProject)
+cmake_minimum_required(VERSION 3.5)
+project(deviceManagementApplication VERSION 1.0.0 LANGUAGES CXX C)
 
-find_dependency(esperantoTrace REQUIRED)
+include(ExternalProject)
+include(GNUInstallDirs)
+
 find_package(deviceLayer REQUIRED)
+find_package(hostUtils REQUIRED)
+find_package(deviceManagement REQUIRED)
 find_package(glog REQUIRED)
 find_package(Threads REQUIRED)
 find_package(esperantoTrace REQUIRED)
 
-add_executable(dm-tester dm_tester.cc)
-target_compile_features(dm-tester PUBLIC cxx_std_17)
-target_include_directories(dm-tester
+add_executable(dev_mngt_service 
+    src/dev_mngt_service.cc
+)
+target_compile_features(dev_mngt_service PUBLIC cxx_std_17)
+target_include_directories(dev_mngt_service
     PRIVATE
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
 )
-target_link_libraries(dm-tester
+
+target_link_libraries(dev_mngt_service
     PRIVATE 
         glog::glog
         ${CMAKE_THREAD_LIBS_INIT}
         ${CMAKE_DL_LIBS}
         deviceManagement::DM
-        deviceLayer::deviceLayer
         esperantoTrace::et_trace
+        hostUtils::logging
+        $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0.0>>:stdc++fs>
+        deviceLayer::deviceLayer
 )
 
-install(TARGETS dm-tester
-    EXPORT deviceManagementTargets
+install(TARGETS dev_mngt_service
+    EXPORT deviceManagementApplicationTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+# Add package information
+include(CMakePackageConfigHelpers)
+
+##### Package
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/deviceManagementApplicationConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/deviceManagementApplicationConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceManagementApplication
+)
+
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/deviceManagementApplicationConfigVersion.cmake
+    VERSION ${CMAKE_PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/deviceManagementApplicationConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/deviceManagementApplicationConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceManagementApplication
 )

@@ -2,12 +2,12 @@
 
 ## Sysemu
 
-### Usage: dm-tester -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp]
+### Usage: dev_mngt_service -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp]
 
         -o, --code=ncode
                 Command by ID (see below)
 
-                Ex. dm-tester -o 0
+                Ex. dev_mngt_service -o 0
 
         -m, --command=command
                 Command by name:
@@ -67,34 +67,34 @@
                         9: DM_CMD_GET_MODULE_FORM_FACTOR
                         0: DM_CMD_GET_MODULE_MANUFACTURE_NAME
 
-                Ex. dm-tester -m DM_CMD_GET_MODULE_MANUFACTURE_NAME
+                Ex. dev_mngt_service -m DM_CMD_GET_MODULE_MANUFACTURE_NAME
 
         -n, --node=node
                 Device node by index
 
-                Ex. dm-tester -o 0 -n 0
+                Ex. dev_mngt_service -o 0 -n 0
 
         -u, --timeout=nmsecs
                 timeout in miliseconds
 
-                Ex. dm-tester -o 0 -u 70000
+                Ex. dev_mngt_service -o 0 -u 70000
 
         -h, --help
                 Print usage; this output
 
-                Ex. dm-tester -h
+                Ex. dev_mngt_service -h
 
         -c, --memcount=ncount
                 Set memory ECC count for DDR, SRAM, or PCIE (ex. 0)
 
-                Ex. dm-tester -o 36 -c 0
-                Ex. dm-tester -m DM_CMD_SET_DDR_ECC_COUNT -c 0
+                Ex. dev_mngt_service -o 36 -c 0
+                Ex. dev_mngt_service -m DM_CMD_SET_DDR_ECC_COUNT -c 0
 
-                Ex. dm-tester -o 37 -c 0
-                Ex. dm-tester -m DM_CMD_SET_PCIE_ECC_COUNT -c 0
+                Ex. dev_mngt_service -o 37 -c 0
+                Ex. dev_mngt_service -m DM_CMD_SET_PCIE_ECC_COUNT -c 0
 
-                Ex. dm-tester -o 38 -c 0
-                Ex. dm-tester -m DM_CMD_SET_SRAM_ECC_COUNT -c 0
+                Ex. dev_mngt_service -o 38 -c 0
+                Ex. dev_mngt_service -m DM_CMD_SET_SRAM_ECC_COUNT -c 0
 
         -p, --active_pwr_mgmt=active_pwr_m
                 Set active power management:
@@ -102,8 +102,8 @@
                         1: ACTIVE_POWER_MANAGEMENT_TURN_ON
                         0: ACTIVE_POWER_MANAGEMENT_TURN_OFF
 
-                Ex. dm-tester -o 23 -p 0
-                Ex. dm-tester -m DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT -p 0
+                Ex. dev_mngt_service -o 23 -p 0
+                Ex. dev_mngt_service -m DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT -p 0
 
         -r, --pciereset=nreset
                 Set reset type:
@@ -112,8 +112,8 @@
                         0: PCIE_RESET_FLR
                         1: PCIE_RESET_HOT
 
-                Ex. dm-tester -o 39 -r 0
-                Ex. dm-tester -m DM_CMD_SET_PCIE_RESET -r 0
+                Ex. dev_mngt_service -o 39 -r 0
+                Ex. dev_mngt_service -m DM_CMD_SET_PCIE_RESET -r 0
 
         -s, --pciespeed=nspeed
                 Set PCIE link speed:
@@ -121,8 +121,8 @@
                         1: PCIE_LINK_SPEED_GEN4
                         0: PCIE_LINK_SPEED_GEN3
 
-                Ex. dm-tester -o 44 -s 0
-                Ex. dm-tester -m DM_CMD_SET_PCIE_MAX_LINK_SPEED -s 0
+                Ex. dev_mngt_service -o 44 -s 0
+                Ex. dev_mngt_service -m DM_CMD_SET_PCIE_MAX_LINK_SPEED -s 0
 
         -w, --pciewidth=nwidth
                 Set PCIE lane width:
@@ -130,23 +130,23 @@
                         1: PCIE_LANE_W_SPLIT_x8
                         0: PCIE_LANE_W_SPLIT_x4
 
-                Ex. dm-tester -o 45 -w 0
-                Ex. dm-tester -m DM_CMD_SET_PCIE_LANE_WIDTH -w 0
+                Ex. dev_mngt_service -o 45 -w 0
+                Ex. dev_mngt_service -m DM_CMD_SET_PCIE_LANE_WIDTH -w 0
 
         -t, --tdplevel=nlevel
                 Set TDP level in Watts:
 
                         0 < tdp level < 40
 
-                Ex. dm-tester -o 25 -t 0
-                Ex. dm-tester -m DM_CMD_SET_MODULE_STATIC_TDP_LEVEL -t 25
+                Ex. dev_mngt_service -o 25 -t 0
+                Ex. dev_mngt_service -m DM_CMD_SET_MODULE_STATIC_TDP_LEVEL -t 25
 
         -e, --thresholds=nswtemp
                 Set temperature thresholds (software threshold)
 
-                Ex. dm-tester -o 21 -e 80
-                Ex. dm-tester -m DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS -e 80
+                Ex. dev_mngt_service -o 21 -e 80
+                Ex. dev_mngt_service -m DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS -e 80
 
 ## Zebu
 
-### Usage: dm-tester -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp]
+### Usage: dev_mngt_service -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp]

@@ -8,7 +8,6 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "../src/utils.h"
 #include <boost/multiprecision/cpp_int.hpp>
 #include "deviceManagement/DeviceManagement.h"
 #include <cerrno>
@@ -32,6 +31,11 @@
 #include <string>
 #define ET_TRACE_DECODER_IMPL
 #include <esperanto/et-trace/decoder.h>
+#include <hostUtils/logging/Logging.h>
+
+#define DM_LOG(severity) ET_LOG(DEV_MNGT_SERVICE, severity) // severity levels: INFO, WARNING and FATAL respectively
+#define DM_DLOG(severity) ET_DLOG(DEV_MNGT_SERVICE, severity)
+#define DM_VLOG(level) ET_VLOG(DEV_MNGT_SERVICE, level) // severity levels: LOW MID HIGH
 
 namespace fs = std::experimental::filesystem;
 
@@ -65,7 +69,7 @@ public:
       if (!(error = dlerror())) {
         return getDM;
       }
-      DV_LOG(ERROR) << "error:" << error << std::endl;
+      DM_VLOG(HIGH) << "error:" << error << std::endl;
     }
     return (getDM_t)0;
   }
@@ -73,14 +77,14 @@ public:
   int verifyDMLib() {
 
     if (!(devLayer_.get()) || devLayer_.get() == nullptr) {
-      DV_LOG(ERROR) << "Device Layer pointer is null!" << std::endl;
+      DM_VLOG(HIGH) << "Device Layer pointer is null!" << std::endl;
       return -EAGAIN;
     }
 
     dmi = getInstance();
 
     if (!dmi) {
-      DV_LOG(ERROR) << "Device Management instance is null!" << std::endl;
+      DM_VLOG(HIGH) << "Device Management instance is null!" << std::endl;
       return -EAGAIN;
     }
 
@@ -182,13 +186,13 @@ static inline bool decodeSingleTraceEvent(std::stringstream& logs, const struct 
 bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf,
                                                TraceBufferType bufferType) {
   if (traceBuf.empty()) {
-    DV_LOG(INFO) << "Invalid trace buffer! size is 0";
+    DM_LOG(INFO) << "Invalid trace buffer! size is 0";
     return false;
   }
   std::ofstream logfile;
   std::string fileName = (fs::path("dev" + std::to_string(deviceIdx))).string();
   fileName += "traces.txt";
-  DV_LOG(INFO) << "Saving trace to file: " << fileName;
+  DM_LOG(INFO) << "Saving trace to file: " << fileName;
   logfile.open(fileName, std::ios_base::app);
   switch (bufferType) {
   case TraceBufferType::TraceBufferSP:
@@ -207,7 +211,7 @@ bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf,
     logfile << "-> MM Stats Traces" << std::endl;
     break;
   default:
-    DV_LOG(INFO) << "Cannot decode unknown buffer type!";
+    DM_LOG(INFO) << "Cannot decode unknown buffer type!";
     logfile.close();
     return false;
   }
@@ -231,7 +235,7 @@ bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf,
 void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
                                                 TraceBufferType bufferType) {
   if (traceBuf.empty()) {
-    DV_LOG(INFO) << "Invalid trace buffer! size is 0";
+    DM_LOG(INFO) << "Invalid trace buffer! size is 0";
     return;
   }
   struct trace_buffer_std_header_t* traceHdr;
@@ -249,7 +253,7 @@ void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
   case TraceBufferType::TraceBufferSPStats:
     traceHdr = templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data());
     dataSize = traceHdr->data_size;
-    DV_LOG(INFO) <<"data size "<<dataSize;
+    DM_LOG(INFO) <<"data size "<<dataSize;
     fileName += "sp_stats";
     fileFlags |= std::ios_base::app;
     break;
@@ -272,7 +276,7 @@ void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
     fileFlags |= std::ofstream::trunc;
     break;
   default:
-    DV_LOG(INFO) << "Cannot dump unknown buffer type!";
+    DM_LOG(INFO) << "Cannot dump unknown buffer type!";
     return;
   }
 
@@ -318,7 +322,7 @@ void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
       tracefile.close();
     }
   } else {
-    DV_LOG(INFO) << "Unable to open file: " << fileName;
+    DM_LOG(INFO) << "Unable to open file: " << fileName;
   }
 }
 
@@ -328,7 +332,7 @@ int runService(const char* input_buff, const uint32_t input_size, char* output_b
   int ret;
 
   if (ret = dml.verifyDMLib()) {
-    DV_LOG(ERROR) << "Failed to verify the DM lib: " << ret << std::endl;
+    DM_VLOG(HIGH) << "Failed to verify the DM lib: " << ret << std::endl;
     return ret;
   }
   DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
@@ -340,13 +344,13 @@ int runService(const char* input_buff, const uint32_t input_size, char* output_b
                           dev_latency.get(), timeout);
 
   if (ret != DM_STATUS_SUCCESS) {
-    DV_LOG(INFO) << "Service request failed with return code: " << ret << std::endl;
+    DM_LOG(INFO) << "Service request failed with return code: " << ret << std::endl;
     return ret;
   }
 
-  DV_LOG(INFO) << "Host Latency: " << *hst_latency << " ms" << std::endl;
-  DV_LOG(INFO) << "Device Latency: " << *dev_latency << " us" << std::endl;
-  DV_LOG(INFO) << "Service request succeeded" << std::endl;
+  DM_LOG(INFO) << "Host Latency: " << *hst_latency << " ms" << std::endl;
+  DM_LOG(INFO) << "Device Latency: " << *dev_latency << " us" << std::endl;
+  DM_LOG(INFO) << "Service request succeeded" << std::endl;
   return 0;
 }
 
@@ -370,7 +374,7 @@ int verifyService() {
     output_buff[output_size - 1] = '\0';
     std::string str_output = std::string(output_buff);
 
-    DV_LOG(INFO) << "Asset Output: " << str_output << std::endl;
+    DM_LOG(INFO) << "Asset Output: " << str_output << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED: {
@@ -392,12 +396,12 @@ int verifyService() {
       case 32:strncpy(pcie_speed, "PCIE_GEN5", sizeof(pcie_speed)); break;
       }
     } catch (const std::invalid_argument& ia) {
-     DV_LOG(INFO) <<ia.what()<< "Invalid resposne from the device= " << output_buff << std::endl;
+     DM_LOG(INFO) <<ia.what()<< "Invalid resposne from the device= " << output_buff << std::endl;
      return -EINVAL;
    }
 
 
-    DV_LOG(INFO) << "PCIE Speed: " << pcie_speed << std::endl;
+    DM_LOG(INFO) << "PCIE Speed: " << pcie_speed << std::endl;
   }break;
 
   case DM_CMD::DM_CMD_GET_MODULE_MEMORY_SIZE_MB: {
@@ -408,7 +412,7 @@ int verifyService() {
       return ret;
     }
 
-    DV_LOG(INFO) << "DDR Memory Size: " << (int)(*output_buff) << "GB" << std::endl;
+    DM_LOG(INFO) << "DDR Memory Size: " << (int)(*output_buff) << "GB" << std::endl;
   }break;
 
   case DM_CMD::DM_CMD_GET_ASIC_CHIP_REVISION: {
@@ -421,10 +425,10 @@ int verifyService() {
 
     try{
        std::string str_output = std::string(output_buff, output_size);
-       DV_LOG(INFO) << "ASIC Revision: " << std::stoi (str_output,nullptr,16) << std::endl;
+       DM_LOG(INFO) << "ASIC Revision: " << std::stoi (str_output,nullptr,16) << std::endl;
     }
     catch (const std::invalid_argument& ia) {
-	     DV_LOG(INFO) << "Invalid response from device: " << ia.what() << '\n';
+	     DM_LOG(INFO) << "Invalid response from device: " << ia.what() << '\n';
     return -EINVAL;
     }
 
@@ -453,16 +457,16 @@ int verifyService() {
         strncpy(power_state,"POWER_STATE_LOW_POWER", sizeof(power_state));
         break;
       default:
-        DV_LOG(INFO) << "Invalid power state: "  << std::endl;
+        DM_LOG(INFO) << "Invalid power state: "  << std::endl;
         break;
     }
 
-    DV_LOG(INFO) << "Power State Output: " << power_state << std::endl;
+    DM_LOG(INFO) << "Power State Output: " << power_state << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT: {
     if (!active_power_management_flag) {
-      DV_LOG(ERROR) << "Aborting, --active_pwr_mgmt was not defined" << std::endl;
+      DM_VLOG(HIGH) << "Aborting, --active_pwr_mgmt was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(power_state_e);
@@ -486,12 +490,12 @@ int verifyService() {
     }
 
     tdp_level = (uint8_t)output_buff[0];
-    DV_LOG(INFO) << "TDP Level Output: " << +tdp_level << std::endl;
+    DM_LOG(INFO) << "TDP Level Output: " << +tdp_level << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL: {
     if (!tdp_level_flag) {
-      DV_LOG(ERROR) << "Aborting, --tdplevel was not defined" << std::endl;
+      DM_VLOG(HIGH) << "Aborting, --tdplevel was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(uint8_t);
@@ -515,13 +519,13 @@ int verifyService() {
     }
 
     temperature_threshold_t* temperature_threshold = (temperature_threshold_t*)output_buff;
-    DV_LOG(INFO) << "SW Managed Temperature Threshold Output: " << +temperature_threshold->sw_temperature_c << " c"
+    DM_LOG(INFO) << "SW Managed Temperature Threshold Output: " << +temperature_threshold->sw_temperature_c << " c"
                  << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS: {
     if (!thresholds_flag) {
-      DV_LOG(ERROR) << "Aborting, --thresholds was not defined" << std::endl;
+      DM_VLOG(HIGH) << "Aborting, --thresholds was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(temperature_threshold_t);
@@ -544,13 +548,13 @@ int verifyService() {
     }
 
     current_temperature_t* cur_temp = (current_temperature_t*)output_buff;
-    DV_LOG(INFO) << "PMIC SYS Temperature Output: " << +cur_temp->pmic_sys << " c" << std::endl;
-    DV_LOG(INFO) << "IOSHIRE Current Temperature Output: " << +cur_temp->ioshire_current << " c" << std::endl;
-    DV_LOG(INFO) << "IOSHIRE Low Temperature Output: " << +cur_temp->ioshire_low << " c" << std::endl;
-    DV_LOG(INFO) << "IOSHIRE High Temperature Output: " << +cur_temp->ioshire_high << " c" << std::endl;
-    DV_LOG(INFO) << "MINSHIRE Current Temperature Output: " << +cur_temp->minshire_avg << " c" << std::endl;
-    DV_LOG(INFO) << "MINSHIRE Low Temperature Output: " << +cur_temp->minshire_low << " c" << std::endl;
-    DV_LOG(INFO) << "MINSHIRE High Temperature Output: " << +cur_temp->minshire_high << " c" << std::endl;
+    DM_LOG(INFO) << "PMIC SYS Temperature Output: " << +cur_temp->pmic_sys << " c" << std::endl;
+    DM_LOG(INFO) << "IOSHIRE Current Temperature Output: " << +cur_temp->ioshire_current << " c" << std::endl;
+    DM_LOG(INFO) << "IOSHIRE Low Temperature Output: " << +cur_temp->ioshire_low << " c" << std::endl;
+    DM_LOG(INFO) << "IOSHIRE High Temperature Output: " << +cur_temp->ioshire_high << " c" << std::endl;
+    DM_LOG(INFO) << "MINSHIRE Current Temperature Output: " << +cur_temp->minshire_avg << " c" << std::endl;
+    DM_LOG(INFO) << "MINSHIRE Low Temperature Output: " << +cur_temp->minshire_low << " c" << std::endl;
+    DM_LOG(INFO) << "MINSHIRE High Temperature Output: " << +cur_temp->minshire_high << " c" << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES: {
@@ -573,17 +577,17 @@ int verifyService() {
       }
 
       residency_t* residency = (residency_t*)output_buff;
-      DV_LOG(INFO) << "throttle_residency " << throttle_state_name[throttle_state] << "(in usecs):" << std::endl;
-      DV_LOG(INFO) << "cumulative: " << residency->cumulative << std::endl;
-      DV_LOG(INFO) << "average: " << residency->average << std::endl;
-      DV_LOG(INFO) << "maximum: " << residency->maximum << std::endl;
-      DV_LOG(INFO) << "minimum: " << residency->minimum << std::endl;
+      DM_LOG(INFO) << "throttle_residency " << throttle_state_name[throttle_state] << "(in usecs):" << std::endl;
+      DM_LOG(INFO) << "cumulative: " << residency->cumulative << std::endl;
+      DM_LOG(INFO) << "average: " << residency->average << std::endl;
+      DM_LOG(INFO) << "maximum: " << residency->maximum << std::endl;
+      DM_LOG(INFO) << "minimum: " << residency->minimum << std::endl;
     }
   } break;
 
   case DM_CMD::DM_CMD_SET_FREQUENCY: {
     if (!frequencies_flag) {
-      DV_LOG(ERROR) << "Aborting, --frequencies was not defined" << std::endl;
+      DM_VLOG(HIGH) << "Aborting, --frequencies was not defined" << std::endl;
       return -EINVAL;
     }
     for (device_mgmt_api::pll_id_e pll_id = device_mgmt_api::PLL_ID_NOC_PLL;
@@ -625,7 +629,7 @@ int verifyService() {
 
     module_power_t* module_power = (module_power_t*)output_buff;
     power = (module_power->power >> 2) + (module_power->power & 0x03)*0.25;
-    DV_LOG(INFO) << "Module Power Output: " << +power << " W" << std::endl;
+    DM_LOG(INFO) << "Module Power Output: " << +power << " W" << std::endl;
   } break;
 
   #define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER) \
@@ -643,17 +647,17 @@ int verifyService() {
     module_voltage_t* module_voltage = (module_voltage_t*)output_buff;
 
     voltage = BIN2VOLTAGE(module_voltage->ddr, 250, 5);
-    DV_LOG(INFO) << "Module Voltage DDR: " << +voltage << " mV" << std::endl;
+    DM_LOG(INFO) << "Module Voltage DDR: " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(module_voltage->l2_cache, 250, 5);
-    DV_LOG(INFO) << "Module Voltage L2CACHE: " << +voltage << " mV" << std::endl;
+    DM_LOG(INFO) << "Module Voltage L2CACHE: " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(module_voltage->maxion, 250, 5);
-    DV_LOG(INFO) << "Module Voltage MAXION: " << +voltage << " mV" << std::endl;
+    DM_LOG(INFO) << "Module Voltage MAXION: " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(module_voltage->minion, 250, 5);
-    DV_LOG(INFO) << "Module Voltage MINION: " << +voltage << " mV" << std::endl;
+    DM_LOG(INFO) << "Module Voltage MINION: " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(module_voltage->pcie, 600, 6); //FIXME its 6.25 actualy, try float
-    DV_LOG(INFO) << "Module Voltage PCIE: " << +voltage << " mV" << std::endl;
+    DM_LOG(INFO) << "Module Voltage PCIE: " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(module_voltage->noc, 250, 5);
-    DV_LOG(INFO) << "Module Voltage NOC: " << +voltage << " mV" << std::endl;
+    DM_LOG(INFO) << "Module Voltage NOC: " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(module_voltage->pcie_logic, 600, 6);
 
   } break;
@@ -667,7 +671,7 @@ int verifyService() {
     }
 
     module_uptime_t* module_uptime = (module_uptime_t*)output_buff;
-    DV_LOG(INFO) << "Module Uptime Output: " << module_uptime->day << " d " << +module_uptime->hours << " h "
+    DM_LOG(INFO) << "Module Uptime Output: " << module_uptime->day << " d " << +module_uptime->hours << " h "
                  << +module_uptime->mins << " m" << std::endl;
   } break;
 
@@ -680,7 +684,7 @@ int verifyService() {
     }
 
     max_temperature_t* max_temperature = (max_temperature_t*)output_buff;
-    DV_LOG(INFO) << "Module Max Temperature Output: " << +max_temperature->max_temperature_c << " c" << std::endl;
+    DM_LOG(INFO) << "Module Max Temperature Output: " << +max_temperature->max_temperature_c << " c" << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MAX_MEMORY_ERROR: {
@@ -692,7 +696,7 @@ int verifyService() {
     }
 
     max_ecc_count_t* max_ecc_count = (max_ecc_count_t*)output_buff;
-    DV_LOG(INFO) << "Max Memory Error Output: " << +max_ecc_count->count << std::endl;
+    DM_LOG(INFO) << "Max Memory Error Output: " << +max_ecc_count->count << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_MAX_DDR_BW: {
@@ -704,8 +708,8 @@ int verifyService() {
     }
 
     max_dram_bw_t* max_dram_bw = (max_dram_bw_t*)output_buff;
-    DV_LOG(INFO) << "Module Max DDR BW Read Output: " << +max_dram_bw->max_bw_rd_req_sec << " GB/s"<<std::endl;
-    DV_LOG(INFO) << "Module Max DDR BW Write Output: " << +max_dram_bw->max_bw_wr_req_sec <<" GB/s" <<std::endl;
+    DM_LOG(INFO) << "Module Max DDR BW Read Output: " << +max_dram_bw->max_bw_rd_req_sec << " GB/s"<<std::endl;
+    DM_LOG(INFO) << "Module Max DDR BW Write Output: " << +max_dram_bw->max_bw_wr_req_sec <<" GB/s" <<std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES: {
@@ -726,11 +730,11 @@ int verifyService() {
       }
 
       residency_t* residency = (residency_t*)output_buff;
-      DV_LOG(INFO) << "power_residency " << power_state_name[power_state] << "(in usecs):" << std::endl;
-      DV_LOG(INFO) << "cumulative: " << residency->cumulative << std::endl;
-      DV_LOG(INFO) << "average: " << residency->average << std::endl;
-      DV_LOG(INFO) << "maximum: " << residency->maximum << std::endl;
-      DV_LOG(INFO) << "minimum: " << residency->minimum << std::endl;
+      DM_LOG(INFO) << "power_residency " << power_state_name[power_state] << "(in usecs):" << std::endl;
+      DM_LOG(INFO) << "cumulative: " << residency->cumulative << std::endl;
+      DM_LOG(INFO) << "average: " << residency->average << std::endl;
+      DM_LOG(INFO) << "maximum: " << residency->maximum << std::endl;
+      DM_LOG(INFO) << "minimum: " << residency->minimum << std::endl;
     }
   } break;
 
@@ -738,7 +742,7 @@ int verifyService() {
   case DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT:
   case DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT: {
     if (!mem_count_flag) {
-      DV_LOG(ERROR) << "Aborting, --memcount was not defined" << std::endl;
+      DM_VLOG(HIGH) << "Aborting, --memcount was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(uint8_t);
@@ -754,7 +758,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_PCIE_RESET: {
     if (!pcie_reset_flag) {
-      DV_LOG(ERROR) << "Aborting, --pciereset was not defined" << std::endl;
+      DM_VLOG(HIGH) << "Aborting, --pciereset was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(pcie_reset_e);
@@ -777,8 +781,8 @@ int verifyService() {
     }
 
     errors_count_t* errors_count = (errors_count_t*)output_buff;
-    DV_LOG(INFO) << "Module PCIE ECC Output: " << +errors_count->ecc << std::endl;
-    DV_LOG(INFO) << "Module PCIE UECC Output: " << +errors_count->uecc << std::endl;
+    DM_LOG(INFO) << "Module PCIE ECC Output: " << +errors_count->ecc << std::endl;
+    DM_LOG(INFO) << "Module PCIE UECC Output: " << +errors_count->uecc << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_DDR_BW_COUNTER: {
@@ -790,8 +794,8 @@ int verifyService() {
     }
 
     dram_bw_counter_t* dram_bw_counter = (dram_bw_counter_t*)output_buff;
-    DV_LOG(INFO) << "Module DDR BW Read Counter Output: " << dram_bw_counter->bw_rd_req_sec << std::endl;
-    DV_LOG(INFO) << "Module DDR BW Write Counter Output: " << dram_bw_counter->bw_wr_req_sec << std::endl;
+    DM_LOG(INFO) << "Module DDR BW Read Counter Output: " << dram_bw_counter->bw_rd_req_sec << std::endl;
+    DM_LOG(INFO) << "Module DDR BW Write Counter Output: " << dram_bw_counter->bw_wr_req_sec << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_DDR_ECC_UECC: {
@@ -803,8 +807,8 @@ int verifyService() {
     }
 
     errors_count_t* errors_count = (errors_count_t*)output_buff;
-    DV_LOG(INFO) << "Module DDR ECC Output: " << +errors_count->ecc << std::endl;
-    DV_LOG(INFO) << "Module DDR UECC Output: " << +errors_count->uecc << std::endl;
+    DM_LOG(INFO) << "Module DDR ECC Output: " << +errors_count->ecc << std::endl;
+    DM_LOG(INFO) << "Module DDR UECC Output: " << +errors_count->uecc << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_SRAM_ECC_UECC: {
@@ -816,13 +820,13 @@ int verifyService() {
     }
 
     errors_count_t* errors_count = (errors_count_t*)output_buff;
-    DV_LOG(INFO) << "Module SRAM ECC Output: " << +errors_count->ecc << std::endl;
-    DV_LOG(INFO) << "Module SRAM UECC Output: " << +errors_count->uecc << std::endl;
+    DM_LOG(INFO) << "Module SRAM ECC Output: " << +errors_count->ecc << std::endl;
+    DM_LOG(INFO) << "Module SRAM UECC Output: " << +errors_count->uecc << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED: {
     if (!pcie_link_speed_flag) {
-      DV_LOG(ERROR) << "Aborting, --pciespeed was not defined" << std::endl;
+      DM_VLOG(HIGH) << "Aborting, --pciespeed was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(pcie_link_speed_e);
@@ -838,7 +842,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH: {
     if (!pcie_lane_width_flag) {
-      DV_LOG(ERROR) << "Aborting, --pciewidth was not defined" << std::endl;
+      DM_VLOG(HIGH) << "Aborting, --pciewidth was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(pcie_lane_w_split_e);
@@ -873,11 +877,11 @@ int verifyService() {
     }
 
     asic_frequencies_t* asic_frequencies = (asic_frequencies_t*)output_buff;
-    DV_LOG(INFO) << "ASIC Frequency Minion Shire: " << asic_frequencies->minion_shire_mhz << " Mhz" << std::endl;
-    DV_LOG(INFO) << "ASIC Frequency NOC: " << asic_frequencies->noc_mhz << " Mhz" << std::endl;
-    DV_LOG(INFO) << "ASIC Frequency DDR: " << asic_frequencies->ddr_mhz << " Mhz" << std::endl;
-    DV_LOG(INFO) << "ASIC Frequency PCIE Shire: " << asic_frequencies->pcie_shire_mhz << " Mhz" << std::endl;
-    DV_LOG(INFO) << "ASIC Frequency IO Shire: " << asic_frequencies->io_shire_mhz << " Mhz" << std::endl;
+    DM_LOG(INFO) << "ASIC Frequency Minion Shire: " << asic_frequencies->minion_shire_mhz << " Mhz" << std::endl;
+    DM_LOG(INFO) << "ASIC Frequency NOC: " << asic_frequencies->noc_mhz << " Mhz" << std::endl;
+    DM_LOG(INFO) << "ASIC Frequency DDR: " << asic_frequencies->ddr_mhz << " Mhz" << std::endl;
+    DM_LOG(INFO) << "ASIC Frequency PCIE Shire: " << asic_frequencies->pcie_shire_mhz << " Mhz" << std::endl;
+    DM_LOG(INFO) << "ASIC Frequency IO Shire: " << asic_frequencies->io_shire_mhz << " Mhz" << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH: {
@@ -889,8 +893,8 @@ int verifyService() {
     }
 
     dram_bw_t* dram_bw = (dram_bw_t*)output_buff;
-    DV_LOG(INFO) << "DRAM Bandwidth Read Output: " << dram_bw->read_req_sec << " GB/s" << std::endl;
-    DV_LOG(INFO) << "DRAM Bandwidth Write Output: " << dram_bw->write_req_sec << " GB/s" << std::endl;
+    DM_LOG(INFO) << "DRAM Bandwidth Read Output: " << dram_bw->read_req_sec << " GB/s" << std::endl;
+    DM_LOG(INFO) << "DRAM Bandwidth Write Output: " << dram_bw->write_req_sec << " GB/s" << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION: {
@@ -902,7 +906,7 @@ int verifyService() {
     }
 
     percentage_cap_t* percentage_cap = (percentage_cap_t*)output_buff;
-    DV_LOG(INFO) << "DRAM Capacity Utilization Output: " << percentage_cap->pct_cap << " %" << std::endl;
+    DM_LOG(INFO) << "DRAM Capacity Utilization Output: " << percentage_cap->pct_cap << " %" << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION: {
@@ -913,7 +917,7 @@ int verifyService() {
       return ret;
     }
 
-    DV_LOG(INFO) << "ASIC per Core Datapath Utilization Output: " << +output_buff[0] << std::endl;
+    DM_LOG(INFO) << "ASIC per Core Datapath Utilization Output: " << +output_buff[0] << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_ASIC_UTILIZATION: {
@@ -924,7 +928,7 @@ int verifyService() {
       return ret;
     }
 
-    DV_LOG(INFO) << "ASIC Utilization Output: " << +output_buff[0] << std::endl;
+    DM_LOG(INFO) << "ASIC Utilization Output: " << +output_buff[0] << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_ASIC_STALLS: {
@@ -935,7 +939,7 @@ int verifyService() {
       return ret;
     }
 
-    DV_LOG(INFO) << "ASIC Stalls Output: " << +output_buff[0] << std::endl;
+    DM_LOG(INFO) << "ASIC Stalls Output: " << +output_buff[0] << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_ASIC_LATENCY: {
@@ -946,7 +950,7 @@ int verifyService() {
       return ret;
     }
 
-    DV_LOG(INFO) << "ASIC Latency Output: " << +output_buff[0] << std::endl;
+    DM_LOG(INFO) << "ASIC Latency Output: " << +output_buff[0] << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MM_ERROR_COUNT: {
@@ -958,8 +962,8 @@ int verifyService() {
     }
 
     mm_error_count_t* mm_error_count = (mm_error_count_t*)output_buff;
-    DV_LOG(INFO) << "MM Hang Count: " << +mm_error_count->hang_count << std::endl;
-    DV_LOG(INFO) << "MM Exception Count: " << +mm_error_count->exception_count << std::endl;
+    DM_LOG(INFO) << "MM Hang Count: " << +mm_error_count->hang_count << std::endl;
+    DM_LOG(INFO) << "MM Exception Count: " << +mm_error_count->exception_count << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS: {
@@ -970,7 +974,7 @@ int verifyService() {
       return ret;
     }
 
-    DV_LOG(INFO) << "Firmware Boot Status: Success! " << std::endl;
+    DM_LOG(INFO) << "Firmware Boot Status: Success! " << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS: {
@@ -984,27 +988,27 @@ int verifyService() {
     device_mgmt_api::firmware_version_t* firmware_versions = (device_mgmt_api::firmware_version_t*)output_buff;
 
     uint32_t versions = firmware_versions->fw_release_rev;
-    DV_LOG(INFO) << "Firmware release revision: Major: " << ((versions >> 24) & 0xFF)
+    DM_LOG(INFO) << "Firmware release revision: Major: " << ((versions >> 24) & 0xFF)
         << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->bl1_v;
-    DV_LOG(INFO) << "BL1 Firmware versions: Major: " << ((versions >> 24) & 0xFF)
+    DM_LOG(INFO) << "BL1 Firmware versions: Major: " << ((versions >> 24) & 0xFF)
         << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->bl2_v;
-    DV_LOG(INFO) << "BL2 Firmware versions: Major: " << ((versions >> 24) & 0xFF)
+    DM_LOG(INFO) << "BL2 Firmware versions: Major: " << ((versions >> 24) & 0xFF)
         << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->mm_v;
-    DV_LOG(INFO) << "Master Minion Firmware versions: Major: " << ((versions >> 24) & 0xFF)
+    DM_LOG(INFO) << "Master Minion Firmware versions: Major: " << ((versions >> 24) & 0xFF)
         << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->wm_v;
-    DV_LOG(INFO) << "Worker Minion versions: Major: " << ((versions >> 24) & 0xFF)
+    DM_LOG(INFO) << "Worker Minion versions: Major: " << ((versions >> 24) & 0xFF)
         << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->machm_v;
-    DV_LOG(INFO) << "Machine Minion versions: Major: " << ((versions >> 24) & 0xFF)
+    DM_LOG(INFO) << "Machine Minion versions: Major: " << ((versions >> 24) & 0xFF)
         << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
   } break;
@@ -1055,13 +1059,13 @@ int verifyService() {
 
     device_mgmt_api::fused_public_keys_t* fused_public_key = (device_mgmt_api::fused_public_keys_t*)output_buff;
     try{
-       DV_LOG(INFO) << "Public keys: " << std::endl;
+       DM_LOG(INFO) << "Public keys: " << std::endl;
        for (int i = 0; i < output_size; ++i)
-          DV_LOG(INFO) << fused_public_key->keys[i] << " ";
-       DV_LOG(INFO) << std::endl;
+          DM_LOG(INFO) << fused_public_key->keys[i] << " ";
+       DM_LOG(INFO) << std::endl;
     }
     catch (const std::invalid_argument& ia) {
-       DV_LOG(INFO) << "SP ROOT HASH wasn't written to OTP " << '\n';
+       DM_LOG(INFO) << "SP ROOT HASH wasn't written to OTP " << '\n';
     }
   } break;
 
@@ -1073,7 +1077,7 @@ int verifyService() {
     DMLib dml;
 
     if (ret = dml.verifyDMLib()) {
-      DV_LOG(ERROR) << "Failed to verify the DM lib: " << ret << std::endl;
+      DM_VLOG(HIGH) << "Failed to verify the DM lib: " << ret << std::endl;
       return ret;
     }
     DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
@@ -1090,25 +1094,25 @@ int verifyService() {
                             nullptr, 0, hst_latency.get(), dev_latency.get(), timeout);
 
     if (ret != DM_STATUS_SUCCESS) {
-      DV_LOG(INFO) << "Service request failed with return code: " << ret << std::endl;
+      DM_LOG(INFO) << "Service request failed with return code: " << ret << std::endl;
       return ret;
     }
 
-    DV_LOG(INFO) << "Host Latency: " << *hst_latency << " ms" << std::endl;
-    DV_LOG(INFO) << "Device Latency: " << *dev_latency << " us" << std::endl;
-    DV_LOG(INFO) << "Service request succeeded" << std::endl;
+    DM_LOG(INFO) << "Host Latency: " << *hst_latency << " ms" << std::endl;
+    DM_LOG(INFO) << "Device Latency: " << *dev_latency << " us" << std::endl;
+    DM_LOG(INFO) << "Service request succeeded" << std::endl;
 
     ret = dm.serviceRequest(node, code, imagePath.c_str(), imagePath.length(), nullptr, 0, hst_latency.get(),
                             dev_latency.get(), timeout);
 
     if (ret != DM_STATUS_SUCCESS) {
-      DV_LOG(INFO) << "Service request failed with return code: " << ret << std::endl;
+      DM_LOG(INFO) << "Service request failed with return code: " << ret << std::endl;
       return ret;
     }
 
-    DV_LOG(INFO) << "Host Latency: " << *hst_latency << " ms" << std::endl;
-    DV_LOG(INFO) << "Device Latency: " << *dev_latency << " us" << std::endl;
-    DV_LOG(INFO) << "Service request succeeded" << std::endl;
+    DM_LOG(INFO) << "Host Latency: " << *hst_latency << " ms" << std::endl;
+    DM_LOG(INFO) << "Device Latency: " << *dev_latency << " us" << std::endl;
+    DM_LOG(INFO) << "Service request succeeded" << std::endl;
     ret = 0;
   } break;
 
@@ -1119,7 +1123,7 @@ int verifyService() {
   } break;
 
   default:
-    DV_LOG(ERROR) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
     return -EINVAL;
     break;
   }
@@ -1132,7 +1136,7 @@ bool validDigitsOnly() {
   std::regex re("^[0-9]+$");
   std::smatch m;
   if (!std::regex_search(str_optarg, m, re)) {
-    DV_LOG(ERROR) << "Aborting, argument: " << str_optarg << " is not valid. It contains more than just digits"
+    DM_VLOG(HIGH) << "Aborting, argument: " << str_optarg << " is not valid. It contains more than just digits"
                   << std::endl;
     return false;
   }
@@ -1145,7 +1149,7 @@ bool validCommand() {
   std::regex re("^[a-zA-Z_]+$");
   std::smatch m;
   if (!std::regex_search(str_optarg, m, re)) {
-    DV_LOG(ERROR) << "Aborting, command: " << str_optarg << " is not valid ( ^[a-zA-Z_]+$ )" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, command: " << str_optarg << " is not valid ( ^[a-zA-Z_]+$ )" << std::endl;
     return false;
   }
 
@@ -1154,11 +1158,11 @@ bool validCommand() {
   if (it != commandCodeTable.end()) {
     cmd = it->first;
     code = it->second;
-    DV_LOG(ERROR) << "command: " << str_optarg << " code " << code <<std::endl;
+    DM_VLOG(HIGH) << "command: " << str_optarg << " code " << code <<std::endl;
     return true;
   }
 
-  DV_LOG(ERROR) << "Aborting, command: " << str_optarg << " not found" << std::endl;
+  DM_VLOG(HIGH) << "Aborting, command: " << str_optarg << " not found" << std::endl;
   return false;
 }
 
@@ -1173,7 +1177,7 @@ bool validCode() {
   auto tmp_optarg = std::strtoul(optarg, &end, 10);
 
   if (end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, command: " << optarg << " is not valid" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, command: " << optarg << " is not valid" << std::endl;
     return false;
   }
 
@@ -1185,7 +1189,7 @@ bool validCode() {
     }
   }
 
-  DV_LOG(ERROR) << "Aborting, command: " << optarg << " not found" << std::endl;
+  DM_VLOG(HIGH) << "Aborting, command: " << optarg << " not found" << std::endl;
   return false;
 }
 
@@ -1200,7 +1204,7 @@ bool validMemCount() {
   auto count = std::strtoul(optarg, &end, 10);
 
   if (count > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
     return false;
   }
 
@@ -1214,7 +1218,7 @@ bool validNode() {
   std::regex re("^[0-5]{1}$");
   std::smatch m;
   if (!std::regex_search(str_optarg, m, re)) {
-    DV_LOG(ERROR) << "Aborting, node: " << str_optarg << " is not valid ( ^[0-5]{1}$ )" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, node: " << str_optarg << " is not valid ( ^[0-5]{1}$ )" << std::endl;
     return false;
   }
 
@@ -1224,7 +1228,7 @@ bool validNode() {
   node = std::strtoul(optarg, &end, 10);
 
   if (node > 5 || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not a valid device node ( 0-5 )" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not a valid device node ( 0-5 )" << std::endl;
     return false;
   }
 
@@ -1242,7 +1246,7 @@ bool validActivePowerManagement() {
   auto state = std::strtoul(optarg, &end, 10);
 
   if (state > 1 || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not a valid active power management ( 0-1 )" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not a valid active power management ( 0-1 )" << std::endl;
     return false;
   }
 
@@ -1262,7 +1266,7 @@ bool validLaneWidth() {
   pcie_lane_width = std::strtoul(optarg, &end, 10);
 
   if (pcie_lane_width > 1 || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not a valid pcie lane width ( 0-1 )" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not a valid pcie lane width ( 0-1 )" << std::endl;
     return false;
   }
 
@@ -1280,7 +1284,7 @@ bool validLinkSpeed() {
   pcie_link_speed = std::strtoul(optarg, &end, 10);
 
   if (pcie_link_speed > 1 || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not a valid pcie link speed ( 0-1 )" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not a valid pcie link speed ( 0-1 )" << std::endl;
     return false;
   }
 
@@ -1298,7 +1302,7 @@ bool validReset() {
   pcie_reset = std::strtoul(optarg, &end, 10);
 
   if (pcie_reset > 2 || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not a valid pcie reset type ( 0-2 )" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not a valid pcie reset type ( 0-2 )" << std::endl;
     return false;
   }
 
@@ -1318,7 +1322,7 @@ bool validTDPLevel() {
   auto level = std::strtoul(optarg, &end, 10);
 
   if (level > TDP_LEVEL_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not valid tdp level ( 0-40 )" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not valid tdp level ( 0-40 )" << std::endl;
     return false;
   }
 
@@ -1338,7 +1342,7 @@ bool validThresholds() {
   auto lo = std::strtoul(optarg, &end, 10);
 
   if (lo > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, argument: " << lo << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, argument: " << lo << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
     return false;
   }
 
@@ -1360,7 +1364,7 @@ bool validTimeout() {
   timeout = std::strtoul(optarg, &end, 10);
 
   if (end == optarg || *end != '\0' || errno != 0) {
-    DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not valid ( 0 - " << ULONG_MAX << " )" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not valid ( 0 - " << ULONG_MAX << " )" << std::endl;
     return false;
   }
 
@@ -1369,7 +1373,7 @@ bool validTimeout() {
 
 bool validPath() {
   if(!std::experimental::filesystem::exists(std::string(optarg))) {
-      DV_LOG(ERROR) << "The file doesn't exist" << std::string(optarg)<< std::endl;
+      DM_VLOG(HIGH) << "The file doesn't exist" << std::string(optarg)<< std::endl;
       return false;
   }
   imagePath.assign(std::string(optarg));
@@ -1379,13 +1383,13 @@ bool validPath() {
 
 bool validFrequencies() {
   if (!std::regex_match(std::string(optarg), std::regex("^[0-9]+,[0-9]+$"))) {
-      DV_LOG(ERROR) << "Aborting, argument: " << optarg << " is not valid, e.g: 300,100" << std::endl;
+      DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not valid, e.g: 300,100" << std::endl;
       return false;
   }
 
   auto freq = std::stoul(std::strtok(optarg, ","));
   if (freq > std::numeric_limits<decltype(minion_freq_mhz)>::max()) {
-    DV_LOG(ERROR) << "Aborting, minion shire frequency (MHz): " << freq << " is not valid ( 0 - "
+    DM_VLOG(HIGH) << "Aborting, minion shire frequency (MHz): " << freq << " is not valid ( 0 - "
                   << std::numeric_limits<decltype(minion_freq_mhz)>::max() << " )" << std::endl;
     return false;
   }
@@ -1393,7 +1397,7 @@ bool validFrequencies() {
 
   freq = std::stoul(std::strtok(NULL, ","));
   if (freq > std::numeric_limits<decltype(noc_freq_mhz)>::max()) {
-    DV_LOG(ERROR) << "Aborting, noc frequency (MHz): " << freq << " is not valid ( 0 - "
+    DM_VLOG(HIGH) << "Aborting, noc frequency (MHz): " << freq << " is not valid ( 0 - "
                   << std::numeric_limits<decltype(noc_freq_mhz)>::max() << " )" << std::endl;
     return false;
   }
@@ -1728,21 +1732,21 @@ int getTraceBuffer()
 
     static DMLib dml;
     if (ret = dml.verifyDMLib()) {
-      DV_LOG(ERROR) << "Failed to verify the DM lib: " << ret << std::endl;
+      DM_VLOG(HIGH) << "Failed to verify the DM lib: " << ret << std::endl;
       return ret;
     }
     DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
     std::vector<std::byte> response;
 
     if (dm.getTraceBufferServiceProcessor(node, buf_type, response) != device_mgmt_api::DM_STATUS_SUCCESS) {
-      DV_LOG(INFO) << "Unable to get trace buffer for node: "<< node << std::endl;
+      DM_LOG(INFO) << "Unable to get trace buffer for node: "<< node << std::endl;
     }
       dumpRawTraceBuffer(node, response, buf_type);
       decodeTraceEvents(node, response, buf_type);
 
     return true;
   }
-  DV_LOG(ERROR) << "Not a valid argument for trace buffer: " << str_optarg  <<std::endl;
+  DM_VLOG(HIGH) << "Not a valid argument for trace buffer: " << str_optarg  <<std::endl;
   return false;
 }
 
@@ -1765,7 +1769,7 @@ int main(int argc, char** argv) {
 
     case 'o':
       if (cmd_flag) {
-        DV_LOG(INFO) << "Command already provided, ignoring code: " << optarg << std::endl;
+        DM_LOG(INFO) << "Command already provided, ignoring code: " << optarg << std::endl;
         break;
       }
       if (!(code_flag = validCode())) {
@@ -1775,7 +1779,7 @@ int main(int argc, char** argv) {
 
     case 'm':
       if (code_flag) {
-        DV_LOG(INFO) << "Code already provided, ignoring command: " << optarg << std::endl;
+        DM_LOG(INFO) << "Code already provided, ignoring command: " << optarg << std::endl;
         break;
       }
       if (!(cmd_flag = validCommand())) {
@@ -1867,19 +1871,19 @@ int main(int argc, char** argv) {
   }
 
   if (!cmd_flag && !code_flag) {
-    DV_LOG(ERROR) << "Aborting, must provide a command or code" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, must provide a command or code" << std::endl;
     printUsage(argv[0]);
     return -EINVAL;
   }
 
   if (!node_flag) {
-    DV_LOG(ERROR) << "Aborting, must provide a device node" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, must provide a device node" << std::endl;
     printUsage(argv[0]);
     return -EINVAL;
   }
 
   if (!timeout_flag) {
-    DV_LOG(ERROR) << "Aborting, must provide a timeout value" << std::endl;
+    DM_VLOG(HIGH) << "Aborting, must provide a timeout value" << std::endl;
     printUsage(argv[0]);
     return -EINVAL;
   }
