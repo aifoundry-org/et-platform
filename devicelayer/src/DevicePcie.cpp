@@ -265,20 +265,19 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
 
     dev_config cfg;
     wrap_ioctl(fd, ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION, &cfg);
-    deviceInfo.cfg_ = DeviceConfig {
-      cfg.form_factor == DEV_CONFIG_FORM_FACTOR_PCIE ? DeviceConfig::FormFactor::PCIE : DeviceConfig::FormFactor::M2,
-      cfg.tdp,
-      cfg.total_l3_size,
-      cfg.total_l2_size,
-      cfg.total_scp_size,
-      cfg.cache_line_size,
-      cfg.num_l2_cache_banks,
-      cfg.ddr_bandwidth,
-      cfg.minion_boot_freq,
-      cfg.cm_shire_mask,
-      cfg.sync_min_shire_id,
-      cfg.arch_rev
-    };
+    deviceInfo.cfg_ = DeviceConfig{cfg.form_factor == DEV_CONFIG_FORM_FACTOR_PCIE ? DeviceConfig::FormFactor::PCIE
+                                                                                  : DeviceConfig::FormFactor::M2,
+                                   cfg.tdp,
+                                   cfg.total_l3_size,
+                                   cfg.total_l2_size,
+                                   cfg.total_scp_size,
+                                   cfg.cache_line_size,
+                                   cfg.num_l2_cache_banks,
+                                   cfg.ddr_bandwidth,
+                                   cfg.minion_boot_freq,
+                                   cfg.cm_shire_mask,
+                                   cfg.sync_min_shire_id,
+                                   cfg.arch_rev};
 
     logs << "Form Factor: " << static_cast<unsigned long>(deviceInfo.cfg_.formFactor_)
          << "\nTDP: " << static_cast<unsigned long>(deviceInfo.cfg_.tdp_)
@@ -290,8 +289,7 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
          << "\nDDR Bandwidth: " << static_cast<unsigned long>(deviceInfo.cfg_.ddrBandwidth_)
          << "MB/s\nSpare Shire ID: " << static_cast<unsigned long>(deviceInfo.cfg_.spareComputeMinionoShireId_)
          << "\nArchitecture Revision: " << static_cast<unsigned long>(deviceInfo.cfg_.archRevision_)
-         << "\nCM active shire mask: 0x" << std::hex
-         << deviceInfo.cfg_.computeMinionShireMask_ << std::endl;
+         << "\nCM active shire mask: 0x" << std::hex << deviceInfo.cfg_.computeMinionShireMask_ << std::endl;
 
     devices_.emplace_back(deviceInfo);
     DV_DLOG(DEBUG) << logs.str();
