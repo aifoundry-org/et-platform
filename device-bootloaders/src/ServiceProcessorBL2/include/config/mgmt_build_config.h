@@ -479,7 +479,7 @@
 // Sampler
 #define DM_TASK_PRIORITY 2
 #define DM_TASK_STACK    1024
-#define DM_TASK_DELAY_MS 1
+#define DM_TASK_DELAY_MS 10 //TODO: Need to fine tune this value for silicon
 // Power Management
 #define TT_TASK_PRIORITY   2
 #define TT_TASK_STACK_SIZE 1024
