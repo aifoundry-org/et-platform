@@ -16,6 +16,7 @@
 
 /* minion_bl */
 #include <etsoc/isa/esr_defines.h>
+#include <etsoc/isa/atomic.h>
 #include <transports/mm_cm_iface/broadcast.h>
 
 /* etsoc_hal */
@@ -49,18 +50,18 @@ static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
 // will be programmed to the same frequency.
 static int64_t minion_configure_cold_boot_pll(uint64_t shire_mask, uint8_t lvdpll_strap)
 {
-    get_pll_conf_reg()->minion_lvdpll_strap = lvdpll_strap;
+    atomic_store_local_8(&(get_pll_conf_reg()->minion_lvdpll_strap), lvdpll_strap);
 
     if (0 != shire_mask)
     {
-        get_pll_conf_reg()->num_shires = get_highest_set_bit_offset(shire_mask);
+        atomic_store_local_8(
+            &(get_pll_conf_reg()->num_shires), get_highest_set_bit_offset(shire_mask));
     }
-
-    get_pll_conf_reg()->booted_shire_mask = shire_mask;
+    atomic_store_local_64(&(get_pll_conf_reg()->booted_shire_mask), shire_mask);
 
     // minion_current_freq will be set to proper value and used once
     // dynamic frequency update is triggered
-    get_pll_conf_reg()->minion_current_freq = 0;
+    atomic_store_local_16(&(get_pll_conf_reg()->minion_current_freq), 0);
 
     return 0;
 }
@@ -70,28 +71,31 @@ static int64_t minion_configure_cold_boot_pll(uint64_t shire_mask, uint8_t lvdpl
 int64_t dynamic_minion_pll_frequency_update(uint64_t freq)
 {
     int64_t status;
+    uint8_t lvdpll_strap = atomic_load_local_8(&(get_pll_conf_reg()->minion_lvdpll_strap));
+    uint8_t num_shires = atomic_load_local_8(&(get_pll_conf_reg()->num_shires));
+    uint64_t booted_shire_mask = atomic_load_local_64(&(get_pll_conf_reg()->booted_shire_mask));
 
 #if DVFS_USE_FCW == 1
-    if (0 == get_pll_conf_reg()->minion_current_freq)
+    uint16_t minion_current_freq = atomic_load_local_16(&(get_pll_conf_reg()->minion_current_freq));
+    if (0 == minion_current_freq)
     {
-        status = dvfs_update_minion_pll_mode(
-            freq_to_mode((uint16_t)freq, get_pll_conf_reg()->minion_lvdpll_strap),
-            get_pll_conf_reg()->booted_shire_mask, get_pll_conf_reg()->num_shires,
-            DVFS_POLL_FOR_LOCK);
+        status = dvfs_update_minion_pll_mode(freq_to_mode((uint16_t)freq, lvdpll_strap)
+                                                 booted_shire_mask,
+            num_shires, DVFS_POLL_FOR_LOCK);
     }
     else
     {
+        uint16_t minion_norm_freq = atomic_load_local_16(&(get_pll_conf_reg()->minion_norm_freq));
         uint16_t ref_clock = (lvdpll_strap == 0) ? 100 : (lvdpll_strap == 1) ? 24 : 40;
         status = dvfs_fcw_update_minion_pll_freq(freq, booted_shire_mask, num_shires,
             minion_current_freq, minion_norm_freq, ref_clock, DVFS_POLL_FOR_LOCK);
     }
 #else
-    status = dvfs_update_minion_pll_mode(
-        freq_to_mode((uint16_t)freq, get_pll_conf_reg()->minion_lvdpll_strap),
-        get_pll_conf_reg()->booted_shire_mask, get_pll_conf_reg()->num_shires, DVFS_POLL_FOR_LOCK);
+    status = dvfs_update_minion_pll_mode(freq_to_mode((uint16_t)freq, lvdpll_strap),
+        booted_shire_mask, num_shires, DVFS_POLL_FOR_LOCK);
 #endif
 
-    get_pll_conf_reg()->minion_current_freq = (uint16_t)freq;
+    atomic_store_local_16(&(get_pll_conf_reg()->minion_current_freq), (uint16_t)freq);
 
     return status;
 }

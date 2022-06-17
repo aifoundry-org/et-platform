@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- Updated power mm rt management to use atomics while loading data
 ### Security
 
 ## [0.6.3]  - 2022-6-17
