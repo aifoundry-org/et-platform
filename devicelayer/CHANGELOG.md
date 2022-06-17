@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.3.0] - 2022-6-17
+### Added
+### Changed
 - [SW-11835] Updated the SP DIRs and device configuration structures.
   * This is a breaking change. The SCP, L2 and L3 sizes are now in KB instead of MB.
   * Packages supported with this change:
