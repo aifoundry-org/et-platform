@@ -45,23 +45,25 @@
 */
 static inline void pu_timer_enable(uint32_t timeout_value)
 {
+    uint32_t control_reg = 0;
+
     /* From PRM: Before writing to a TimerNLoadCount register, you must disable the timer by writing a “0” to
     the timer enable bit of TimerNControlReg in order to avoid potential synchronization problems */
     iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1CONTROLREG_OFFSET,
         TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_SET(
             TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_TIMER_ENABLE_DISABLE));
     /* Program the timer mode and set it to unmasked interrupts */
-    iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1CONTROLREG_OFFSET,
-        TIMERS_TIMER1CONTROLREG_TIMER_MODE_SET(
-            TIMERS_TIMER1CONTROLREG_TIMER_MODE_TIMER_MODE_USER_DEFINED) |
-            TIMERS_TIMER1CONTROLREG_TIMER_INTERRUPT_MASK_SET(
-                TIMERS_TIMER1CONTROLREG_TIMER_INTERRUPT_MASK_TIMER_INTERRUPT_MASK_UNMASKED));
+    control_reg |= TIMERS_TIMER1CONTROLREG_TIMER_MODE_SET(
+                       TIMERS_TIMER1CONTROLREG_TIMER_MODE_TIMER_MODE_USER_DEFINED) |
+                   TIMERS_TIMER1CONTROLREG_TIMER_INTERRUPT_MASK_SET(
+                       TIMERS_TIMER1CONTROLREG_TIMER_INTERRUPT_MASK_TIMER_INTERRUPT_MASK_UNMASKED);
+    iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1CONTROLREG_OFFSET, control_reg);
     /* Program the timeout value */
     iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1LOADCOUNT_OFFSET, timeout_value);
     /* Enable timer */
-    iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1CONTROLREG_OFFSET,
-        TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_SET(
-            TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_TIMER_ENABLE_ENABLED));
+    control_reg |= TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_SET(
+        TIMERS_TIMER1CONTROLREG_TIMER_ENABLE_TIMER_ENABLE_ENABLED);
+    iowrite32(R_PU_TIMER_BASEADDR + TIMERS_TIMER1CONTROLREG_OFFSET, control_reg);
 }
 
 /*! \fn pu_timer_disable

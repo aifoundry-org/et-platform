@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- PU timer control register value was being overwritten. Fixed it.
 ### Security
 
 ## [0.6.2] - 2022-6-17
