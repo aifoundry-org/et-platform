@@ -49,6 +49,34 @@ install(TARGETS dev_mngt_service
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
+add_executable(et-top
+    src/et-top.cc
+)
+target_compile_features(et-top PUBLIC cxx_std_17)
+target_include_directories(et-top
+    PRIVATE
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
+)
+
+target_link_libraries(et-top
+    PRIVATE
+        glog::glog
+        ${CMAKE_THREAD_LIBS_INIT}
+        ${CMAKE_DL_LIBS}
+        deviceManagement::DM
+        esperantoTrace::et_trace
+        hostUtils::logging
+        $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0.0>>:stdc++fs>
+        deviceLayer::deviceLayer
+)
+
+install(TARGETS et-top
+    EXPORT deviceManagementApplicationTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
 # Add package information
 include(CMakePackageConfigHelpers)
 

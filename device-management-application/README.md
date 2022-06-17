@@ -150,3 +150,7 @@
 ## Zebu
 
 ### Usage: dev_mngt_service -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp]
+
+# et-top application
+
+## Usage: et-top DEVICE (where DEVICE is 0-63)
