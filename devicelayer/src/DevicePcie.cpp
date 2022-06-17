@@ -280,10 +280,17 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
       cfg.arch_rev
     };
 
-    logs << "TDP: " << deviceInfo.cfg_.tdp_ << "W\nMinion boot frequency: " << deviceInfo.cfg_.minionBootFrequency_
-         << "MHz\nL3 size: " << deviceInfo.cfg_.totalL3Size_ << "MB\nL2 size: " << deviceInfo.cfg_.totalL2Size_
-         << "MB\nScratch pad size: " << deviceInfo.cfg_.totalScratchPadSize_
-         << "MB\nCache line size: " << deviceInfo.cfg_.cacheLineSize_ << "B\nCM active shire mask: 0x" << std::hex
+    logs << "Form Factor: " << static_cast<unsigned long>(deviceInfo.cfg_.formFactor_)
+         << "\nTDP: " << static_cast<unsigned long>(deviceInfo.cfg_.tdp_)
+         << "W\nMinion boot frequency: " << deviceInfo.cfg_.minionBootFrequency_
+         << "MHz\nL3 size: " << deviceInfo.cfg_.totalL3Size_ << "KB\nL2 size: " << deviceInfo.cfg_.totalL2Size_
+         << "KB\nScratch pad size: " << deviceInfo.cfg_.totalScratchPadSize_
+         << "KB\nCache line size: " << static_cast<unsigned long>(deviceInfo.cfg_.cacheLineSize_)
+         << "B\nNumber of L2 Banks: " << static_cast<unsigned long>(deviceInfo.cfg_.numL2CacheBanks_)
+         << "\nDDR Bandwidth: " << static_cast<unsigned long>(deviceInfo.cfg_.ddrBandwidth_)
+         << "MB/s\nSpare Shire ID: " << static_cast<unsigned long>(deviceInfo.cfg_.spareComputeMinionoShireId_)
+         << "\nArchitecture Revision: " << static_cast<unsigned long>(deviceInfo.cfg_.archRevision_)
+         << "\nCM active shire mask: 0x" << std::hex
          << deviceInfo.cfg_.computeMinionShireMask_ << std::endl;
 
     devices_.emplace_back(deviceInfo);
