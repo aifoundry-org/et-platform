@@ -548,7 +548,6 @@ FOUND_CONFIG_DATA:
             if (ldo_update == HPDPLL_LDO_DISABLE || ldo_update == HPDPLL_LDO_KICK)
             {
                 register_value |= (0x1u << LDO_POWER_DOWN_OFFSET); // Turn off LDO
-                ldo_reg = register_value;
             }
             if (ldo_update == HPDPLL_LDO_BYPASS)
             {

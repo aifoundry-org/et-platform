@@ -796,7 +796,6 @@ int vaultip_trng_configuration(uint32_t identity)
     gs_input_token.trng_configuration.dw_03.SampleCycles = 8;
     gs_input_token.trng_configuration.dw_03.Scale = 0;
 
-    /* suppress_token_read_diagnostics = true; */
     print_failed_input_token_info(gs_input_token.dw, 4);
 
     if (0 != vaultip_send_input_token(&gs_input_token))
@@ -804,8 +803,6 @@ int vaultip_trng_configuration(uint32_t identity)
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
-
-    /* suppress_token_read_diagnostics = false; */
 
     if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
@@ -845,15 +842,11 @@ int vaultip_trng_get_random_number(void *dst, uint16_t size, bool raw)
 
     l1_data_cache_flush_region(dst, size);
 
-    /* suppress_token_read_diagnostics = true; */
-
     if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
         return -1;
     }
-
-    /* suppress_token_read_diagnostics = false; */
 
     if (0 != vaultip_read_output_token(&gs_output_token, gs_firmware_output_token_timeout_3))
     {
@@ -1591,19 +1584,12 @@ static int vaultip_aes_cbc(uint32_t identity, uint32_t key_asset_id, uint8_t *IV
     gs_input_token.encryption.dw_06.OutputDataAddress_31_00 = PTR232LO(data);
     gs_input_token.encryption.dw_07.OutputDataAddress_63_32 = PTR232HI(data);
     gs_input_token.encryption.dw_08.OutputDataLength = data_size & 0x1FFFFFu;
-    /* gs_input_token.encryption.dw_09.AssociatedDataAddress_31_00 = 0; */
-    /* gs_input_token.encryption.dw_10.AssociatedDataAddress_63_32 = 0; */
     gs_input_token.encryption.dw_11.Algorithm = VAULTIP_ENCRYPT_ALGORITHM_AES;
     gs_input_token.encryption.dw_11.Mode = VAULTIP_ENCRYPT_MODE_CBC;
     gs_input_token.encryption.dw_11.AS_LoadKey = 1;
     gs_input_token.encryption.dw_11.AS_LoadIV = 0;
-    /* gs_input_token.encryption.dw_11.LoadParam = 0; */
-    /* gs_input_token.encryption.dw_11.AS_SaveIV = 1; */
-    /* gs_input_token.encryption.dw_11.GCM_Mode = 0; */
     gs_input_token.encryption.dw_11.Encrypt = encrypt ? 1 : 0;
     gs_input_token.encryption.dw_11.KeyLength = VAULTIP_ENCRYPT_KEY_LENGTH_256;
-    /* gs_input_token.encryption.dw_11.NonceLength = 0; */
-    /* gs_input_token.encryption.dw_11.TagLength_or_F8_SaltKeyLength = 0; */
     gs_input_token.encryption.dw_12.SaveIV_AS_ID = 0;
     memcpy(gs_input_token.encryption.dw_16_13, IV, 16);
     gs_input_token.encryption.dw_24_17[0].Key32 = key_asset_id;
@@ -1664,12 +1650,6 @@ int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t poli
 
     gs_input_token.asset_create.dw_05.Lifetime = lifetime;
 
-    /* MESSAGE_INFO_DEBUG("asset_create:
-     policy=0x%08x_%08x, settings=0x%08x\n", policy_63_32, policy_31_00, other_settings);
-     for (n = 0; n < 6; n++) {
-         MESSAGE_INFO_DEBUG("asset_create[%u]=%08x\n", n, gs_input_token.dw[n]);
-     } */
-
     if (0 != vaultip_send_input_token(&gs_input_token))
     {
         MESSAGE_ERROR("send_input_token() failed!\n");
@@ -1720,12 +1700,6 @@ int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const voi
     gs_input_token.asset_load.dw_04.InputDataAddress_31_00 = PTR232LO(data);
     gs_input_token.asset_load.dw_05.InputDataAddress_63_32 = PTR232HI(data);
 
-    /* for (n = 0; n < 6; n++) {
-         MESSAGE_INFO_DEBUG("asset_load[%u]=%08x\n", n, gs_input_token.dw[n]);
-     }
-
-        MESSAGE_INFO_DEBUG("asset_load_plaintext: assetid=0x%08x, length=0x%08x\n", asset_id, data_size);
-    */
     l1_data_cache_flush_region(data, data_size);
 
     if (0 != vaultip_send_input_token(&gs_input_token))
@@ -1991,8 +1965,7 @@ int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity,
     if (PTR232HI(message) != PTR232HI(sig_data_address))
     {
         Log_Write(LOG_LEVEL_ERROR,
-            "vaultip_public_key_rsa_pss_verify: vaultip limitation - \
-             the high bits of the message and signature address differ!\n");
+            "vaultip_public_key_rsa_pss_verify: vaultip limitation - the high bits of the message and signature address differ!\n");
         return -1;
     }
 

@@ -1176,22 +1176,25 @@ int init_thermal_pwr_mgmt_service(void)
         status = THERMAL_PWR_MGMT_TASK_CREATION_FAILED;
     }
 
-    /* Set default parameters */
-    status = update_module_temperature_threshold(TEMP_THRESHOLD_SW_MANAGED);
-
     if (!status)
     {
-        status = update_module_tdp_level(POWER_THRESHOLD_SW_MANAGED);
-    }
+        /* Set default parameters */
+        status = update_module_temperature_threshold(TEMP_THRESHOLD_SW_MANAGED);
 
-    if (!status)
-    {
-        status = update_module_power_state(POWER_STATE_LOW_POWER);
-    }
+        if (!status)
+        {
+            status = update_module_tdp_level(POWER_THRESHOLD_SW_MANAGED);
+        }
 
-    if (!status)
-    {
-        status = pmic_thermal_pwr_cb_init(pmic_isr_callback);
+        if (!status)
+        {
+            status = update_module_power_state(POWER_STATE_LOW_POWER);
+        }
+
+        if (!status)
+        {
+            status = pmic_thermal_pwr_cb_init(pmic_isr_callback);
+        }
     }
 
     return status;

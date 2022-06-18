@@ -160,12 +160,6 @@ static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate)
     return 0;
 }
 
-/* static void dump_sha512(const uint8_t hash[512/8]) {
-     Log_Write(LOG_LEVEL_DEBUG, "%02x%02x%02x%02x%02x%02x..%02x%02x%02x%02x%02x%02x\n",
-         hash[0], hash[1], hash[2], hash[3], hash[4], hash[5],
-         hash[58], hash[59], hash[60], hash[61], hash[62], hash[63]);
- } */
-
 static int is_sw_root_ca_hash_provisioned(bool *provisioned)
 {
     *provisioned = false;
@@ -217,12 +211,6 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t *certificate
             Log_Write(LOG_LEVEL_ERROR, "enhanced_certificate_check: Parent certificate is not a CA!\n");
             return -1;
         }
-
-        /* todo: verify the esperanto attributes
-         if (0 == parent_certificate->certificate_info.esperanto_attributes) {
-             Log_Write(LOG_LEVEL_ERROR, "enhanced_certificate_check: esperanto attributes mismatch!\n");
-             return -1;
-         } */
 
         if (required_designation_flags !=
             (parent_certificate->certificate_info.esperanto_designation &
@@ -320,10 +308,6 @@ int verify_esperanto_image_certificate(const ESPERANTO_IMAGE_TYPE_t image_type,
             designation_flags = ESPERANTO_CERTIFICATE_DESIGNATION_WORKER_MINION_CA;
             parent_certificate = &(bl2_data->sw_certificates[1]);
             break;
-        /* case ESPERANTO_IMAGE_TYPE_COMPUTE_KERNEL:
-             designation_flags = ;
-             parent_certificate = &(bl2_data->sw_certificates[1]);
-             break; */
         case ESPERANTO_IMAGE_TYPE_MAXION_BL1:
             designation_flags = ESPERANTO_CERTIFICATE_DESIGNATION_MAXION_BL1_CA;
             parent_certificate = &(bl2_data->sw_certificates[1]);
@@ -381,8 +365,7 @@ int load_sw_certificates_chain(void)
 
     if (gs_vaultip_disabled) 
     {
-        /* TODO: Update the following to Log macro - set to INFO/DEBUG
-        Log_Write(LOG_LEVEL_ERROR, "Skip VaultIP OTP SW ROOT CA HASH check!\n"); */
+        Log_Write(LOG_LEVEL_INFO, "Skip VaultIP OTP SW ROOT CA HASH check!\n");
         sw_root_ca_hash_available = false;
     } 
     else 
@@ -396,8 +379,7 @@ int load_sw_certificates_chain(void)
 
     if (!sw_root_ca_hash_available) 
     {
-        /* TODO: Update the following to Log macro - set to INFO/DEBUG
-           Log_Write(LOG_LEVEL_INFO, "SW ROOT CA not provisioned. Using SP ROOT CA.\n"); */
+        Log_Write(LOG_LEVEL_INFO, "SW ROOT CA not provisioned. Using SP ROOT CA.\n");
         memcpy(bl2_data->sw_certificates, bl2_data->sp_certificates,
                sizeof(bl2_data->sw_certificates));
         return 0;

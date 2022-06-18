@@ -162,7 +162,7 @@ int crypto_derive_mac_key(ESPERANTO_MAC_TYPE_t mac_alg, uint32_t kdk_key,
 int crypto_derive_enc_key(uint32_t kdk_key, const void *derivation_data,
                           size_t derivation_data_size, uint32_t *enc_key);
 
-/*! \fn int crypto_delete_key(uint32_t key);
+/*! \fn int crypto_delete_key(uint32_t key)
     \brief This function deletes encryption key
     \param key key to be deleted
     \return Status indicating success or negative error

@@ -138,61 +138,9 @@ static int get_kdk_derivation_data(const ESPERANTO_IMAGE_TYPE_t image_type,
     return 0;
 }
 
-static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
-                                    ESPERANTO_IMAGE_FILE_HEADER_t *image_file_header,
-                                    uint32_t image_file_size)
+static int verify_image_cert(const ESPERANTO_IMAGE_TYPE_t image_type,
+                             const ESPERANTO_IMAGE_FILE_HEADER_t *image_file_header)
 {
-    const uint8_t *kdk_derivation_data;
-    size_t kdk_derivation_data_size;
-    const uint8_t *mack_derivation_data;
-    size_t mack_derivation_data_size;
-    const uint8_t *enck_derivation_data;
-    size_t enck_derivation_data_size;
-    uint32_t monotonic_counter;
-
-    if (NULL == image_file_header) 
-    {
-        return -1;
-    }
-
-    if (0 != get_kdk_derivation_data(image_type, &kdk_derivation_data, &kdk_derivation_data_size,
-                                     &mack_derivation_data, &mack_derivation_data_size,
-                                     &enck_derivation_data, &enck_derivation_data_size)) 
-    {
-        return -1;
-    }
-
-    if (CURRENT_EXEC_FILE_HEADER_TAG != image_file_header->info.file_header_tag) 
-    {
-        Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: invalid file header tag (%08x)!\n",
-               image_file_header->info.file_header_tag);
-        return -1;
-    }
-
-    if (CURRENT_EXEC_IMAGE_HEADER_TAG !=
-        image_file_header->info.image_info_and_signaure.info.public_info.header_tag) 
-    {
-        Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: invalid image header tag (%08x)!\n",
-               image_file_header->info.image_info_and_signaure.info.public_info.header_tag);
-        return -1;
-    }
-
-    if (image_type != image_file_header->info.image_info_and_signaure.info.public_info.image_type) 
-    {
-        Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: Unexpected image type! (%08x, expected %08x)!\n",
-               image_file_header->info.image_info_and_signaure.info.public_info.image_type,
-               image_type);
-        return -1;
-    }
-
-    if ((sizeof(ESPERANTO_IMAGE_FILE_HEADER_t) +
-         image_file_header->info.image_info_and_signaure.info.public_info.code_and_data_size) !=
-        image_file_size) 
-    {
-        Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: invalid file size!\n");
-        return -1;
-    }
-
     if (gs_vaultip_disabled) 
     {
         MESSAGE_INFO("Image CRT IGN\n");
@@ -208,7 +156,18 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
             Log_Write(LOG_LEVEL_INFO, "Image certificate OK!\n");
         }
     }
+    
+    return 0;
+}
 
+static int verify_image_file_header_flags_derive_keys(ESPERANTO_IMAGE_FILE_HEADER_t *image_file_header,
+    const uint8_t *kdk_derivation_data,
+    size_t kdk_derivation_data_size,
+    const uint8_t *mack_derivation_data,
+    size_t mack_derivation_data_size,
+    const uint8_t *enck_derivation_data,
+    size_t enck_derivation_data_size)
+{
     if (0 !=
         (image_file_header->info.file_header_flags & ESPERANTO_IMAGE_FILE_HEADER_FLAGS_ENCRYPTED)) 
     {
@@ -269,6 +228,74 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
             Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: crypto_aes_decrypt_update() failed!\n");
             return -1;
         }
+    }
+    
+    return 0;
+}
+
+static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type,
+                                    ESPERANTO_IMAGE_FILE_HEADER_t *image_file_header,
+                                    uint32_t image_file_size)
+{
+
+    uint32_t monotonic_counter;
+    const uint8_t *kdk_derivation_data;
+    size_t kdk_derivation_data_size;
+    const uint8_t *mack_derivation_data;
+    size_t mack_derivation_data_size;
+    const uint8_t *enck_derivation_data;
+    size_t enck_derivation_data_size;
+
+    if ((NULL == image_file_header) || 
+        (0 != get_kdk_derivation_data(image_type, &kdk_derivation_data, &kdk_derivation_data_size,
+                                     &mack_derivation_data, &mack_derivation_data_size,
+                                     &enck_derivation_data, &enck_derivation_data_size)) )
+    {
+        return -1;
+    }
+
+    if (CURRENT_EXEC_FILE_HEADER_TAG != image_file_header->info.file_header_tag) 
+    {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: invalid file header tag (%08x)!\n",
+               image_file_header->info.file_header_tag);
+        return -1;
+    }
+
+    if (CURRENT_EXEC_IMAGE_HEADER_TAG !=
+        image_file_header->info.image_info_and_signaure.info.public_info.header_tag) 
+    {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: invalid image header tag (%08x)!\n",
+               image_file_header->info.image_info_and_signaure.info.public_info.header_tag);
+        return -1;
+    }
+
+    if (image_type != image_file_header->info.image_info_and_signaure.info.public_info.image_type) 
+    {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: Unexpected image type! (%08x, expected %08x)!\n",
+               image_file_header->info.image_info_and_signaure.info.public_info.image_type,
+               image_type);
+        return -1;
+    }
+
+    if ((sizeof(ESPERANTO_IMAGE_FILE_HEADER_t) +
+         image_file_header->info.image_info_and_signaure.info.public_info.code_and_data_size) !=
+        image_file_size) 
+    {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header: invalid file size!\n");
+        return -1;
+    }
+ 
+    if(0 != verify_image_cert(image_type, image_file_header))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_cert failed!\n");
+        return -1;
+    }
+
+    if(0 != verify_image_file_header_flags_derive_keys(image_file_header, kdk_derivation_data, kdk_derivation_data_size,
+                        mack_derivation_data, mack_derivation_data_size, enck_derivation_data, enck_derivation_data_size))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "verify_image_file_header_flags_derive_keys failed!\n");
+        return -1;
     }
 
     if (gs_vaultip_disabled || gs_ignore_signatures) 
@@ -554,20 +581,16 @@ CLEANUP_ON_ERROR:
         memset((void *)load_address.u64, 0, image_info->secret_info.load_regions[n].memory_size);
     }
 
-    if (encrypted_hash_context_initialized) 
+    if ((encrypted_hash_context_initialized) &&
+        (0 != crypto_hash_abort(&encrypted_hash_context)))
     {
-        if (0 != crypto_hash_abort(&encrypted_hash_context)) 
-        {
-            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_abort(e) failed!\n");
-        }
+        Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_abort(e) failed!\n");
     }
 #ifndef IGNORE_HASH
-    if (hash_context_initialized) 
+    if ((hash_context_initialized) && 
+        (0 != crypto_hash_abort(&hash_context))) 
     {
-        if (0 != crypto_hash_abort(&hash_context)) 
-        {
-            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_abort(p) failed!\n");
-        }
+        Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_abort(p) failed!\n");
     }
 #endif
     return -1;
@@ -596,15 +619,6 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type)
 
     switch (image_type) 
     {
-        /* case ESPERANTO_IMAGE_TYPE_SP_BL1:
-            designation_flags = ESPERANTO_CERTIFICATE_DESIGNATION_BL1_CA;
-            region_id = ESPERANTO_FLASH_REGION_ID_SP_BL1;
-            break;
-        case ESPERANTO_IMAGE_TYPE_SP_BL2:
-            designation_flags = ESPERANTO_CERTIFICATE_DESIGNATION_BL2_CA;
-            region_id = ESPERANTO_FLASH_REGION_ID_SP_BL2;
-            break; 
-        */
         case ESPERANTO_IMAGE_TYPE_MACHINE_MINION:
             region_id = ESPERANTO_FLASH_REGION_ID_MACHINE_MINION;
             image_name = "MACHINE_MINION";
@@ -669,36 +683,28 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type)
     rv = 0;
 
 DONE:
-    if (gs_aes_context_created) 
+    if ((gs_aes_context_created) &&
+        (0 != crypto_aes_decrypt_final(&gs_aes_context, NULL, 0, NULL)))
     {
-        if (0 != crypto_aes_decrypt_final(&gs_aes_context, NULL, 0, NULL)) 
-        {
-            Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_aes_decrypt_final() failed!\n");
-        }
+        Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_aes_decrypt_final() failed!\n");
     }
-    if (gs_enck_created) 
+    if ((gs_enck_created) &&
+         (0 != crypto_delete_key(gs_enck)))
     {
-        if (0 != crypto_delete_key(gs_enck)) 
-        {
-            Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_delete_key(enck) failed!\n");
-            rv = -1;
-        }
+        Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_delete_key(enck) failed!\n");
+        rv = -1;
     }
-    if (gs_mack_created) 
+    if ((gs_mack_created) && 
+        (0 != crypto_delete_key(gs_mack)))
     {
-        if (0 != crypto_delete_key(gs_mack)) 
-        {
-            Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_delete_key(mack) failed!\n");
-            rv = -1;
-        }
+        Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_delete_key(mack) failed!\n");
+        rv = -1;
     }
-    if (gs_kdk_created) 
+    if ((gs_kdk_created) &&
+        (0 != crypto_delete_key(gs_kdk)))
     {
-        if (0 != crypto_delete_key(gs_kdk)) 
-        {
-            Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_delete_key(kdk) failed!\n");
-            rv = -1;
-        }
+        Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_delete_key(kdk) failed!\n");
+        rv = -1;
     }
 
     if (0 != rv) 

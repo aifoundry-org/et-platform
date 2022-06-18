@@ -231,14 +231,14 @@ int pmic_enable_wdog_timeout_reset(void);
 */
 int pmic_disable_wdog_timeout_reset(void);
 
-/*! \fn int pmic_get_wdog_timeout_time(int* wdog_time)
+/*! \fn int pmic_get_wdog_timeout_time(uint32_t* wdog_time)
     \brief This function gets watchdog timeout time.
     \param wdog_time - wdog timeout time in miliseconds
     \return The function call status, pass/fail.
 */
 int pmic_get_wdog_timeout_time(uint32_t *wdog_time);
 
-/*! \fn int int pmic_set_wdog_timeout_time(int timeout_time)
+/*! \fn int pmic_set_wdog_timeout_time(uint32_t timeout_time)
     \brief This function sets watchdog timeout time.
     \param timeout_time - wdog timeout time in miliseconds (multiple of 200ms)
     \return The function call status, pass/fail.
@@ -252,7 +252,7 @@ int pmic_set_wdog_timeout_time(uint32_t timeout_time);
 */
 int pmic_get_tdp_threshold(uint8_t *power_limit);
 
-/*! \fn int pmic_get_tdp_threshold(uint8_t* power_limit)
+/*! \fn int pmic_set_tdp_threshold(uint8_t power_alarm)
     \brief This function sets power alarm point.
     \param power_alarm - power alarm point to be set (binary encoded)
     \return The function call status, pass/fail.

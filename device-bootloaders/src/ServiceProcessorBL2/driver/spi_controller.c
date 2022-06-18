@@ -87,6 +87,28 @@
 */
 #define RX_TIMEOUT 0x1000
 
+#define CHECK_TX_ERROR_CONDITION(cmd_len, data_size, cmd, data)                                 \
+    if (4 != cmd_len)                                                                           \
+    {                                                                                           \
+        MESSAGE_ERROR("spi_controller_tx32_data: command_length is not 4!\n");                  \
+        return -1;                                                                              \
+    }                                                                                           \
+    if (0 != (data_size & 0x3))                                                                 \
+    {                                                                                           \
+        MESSAGE_ERROR("spi_controller_tx32_data: tx_data_size is not a multiple of 32-bit!\n"); \
+        return -1;                                                                              \
+    }                                                                                           \
+    if (0 != (cmd & 0x3))                                                                       \
+    {                                                                                           \
+        MESSAGE_ERROR("spi_controller_tx32_data: command is not 32-bit aligned!\n");            \
+        return -1;                                                                              \
+    }                                                                                           \
+    if (0 != (data & 0x3))                                                                      \
+    {                                                                                           \
+        MESSAGE_ERROR("spi_controller_tx32_data: tx_data is not 32-bit aligned!\n");            \
+        return -1;                                                                              \
+    }                                                                                           \
+
 static void spi_set_divider(uint32_t rx_frequency, uint32_t tx_frequency);
 static uint32_t spi_calculate_divider(uint32_t frequency);
 
@@ -178,31 +200,7 @@ static int spi_controller_tx32_data(uintptr_t spi_regs, const uint8_t *spi_comma
     }
 #endif
 
-    if (4 != spi_command_length)
-    {
-        MESSAGE_ERROR("spi_controller_tx32_data: command_length (%u) is not 4!\n",
-                      spi_command_length);
-        return -1;
-    }
-
-    if (0 != (tx_data_size & 0x3))
-    {
-        MESSAGE_ERROR("spi_controller_tx32_data: tx_data_size (%u) is not a multiple of 4!\n",
-                      tx_data_size);
-        return -1;
-    }
-
-    if (0 != (((const size_t)spi_command) & 0x3))
-    {
-        MESSAGE_ERROR("spi_controller_tx32_data: command is not 32-bit aligned!\n");
-        return -1;
-    }
-
-    if (0 != (((size_t)tx_data) & 0x3))
-    {
-        MESSAGE_ERROR("spi_controller_tx32_data: tx_data is not 32-bit aligned!\n");
-        return -1;
-    }
+    CHECK_TX_ERROR_CONDITION(spi_command_length, tx_data_size, (const size_t)spi_command, (const size_t)tx_data)
 
     rx32_count = (spi_command_length + tx_data_size) / 4;
 
@@ -332,7 +330,7 @@ DONE:
     return rv;
 }
 
-#define CHECK_ERROR_CONDITION(cmd_len, data_size, cmd, data)                                    \
+#define CHECK_RX_ERROR_CONDITION(cmd_len, data_size, cmd, data)                                    \
     if (4 != cmd_len)                                                                           \
     {                                                                                           \
         MESSAGE_ERROR("spi_controller_rx32_data: command_length is not 4!\n");                  \
@@ -422,7 +420,7 @@ static int spi_controller_rx32_data(uintptr_t spi_regs, const uint8_t *spi_comma
     }
 #endif
 
-    CHECK_ERROR_CONDITION(spi_command_length, rx_data_size, (const size_t)spi_command, (const size_t)rx_data)
+    CHECK_RX_ERROR_CONDITION(spi_command_length, rx_data_size, (const size_t)spi_command, (const size_t)rx_data)
 
     spi_command_32 = (const uint32_t *)(const void *)spi_command;
 
@@ -561,34 +559,25 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
     uint8_t spi_command[1 + 3 + MAX_DUMMY_BYTES] __attribute__((aligned(4)));
     uint32_t spi_command_length;
     uintptr_t spi_regs = get_spi_registers(id);
-    uint32_t dfs32_frame_size;
+    uint32_t dfs32_frame_size = SSI_CTRLR0_DFS_32_DFS_32_FRAME_08BITS;
     uint32_t slave_en_mask;
     bool use_32bit_frames = false;
     uint32_t true_write_size;
     uint32_t true_read_size = 0;
     uint32_t skip_read_size = 0;
     uint32_t read_frames;
+    bool command_length_supported;
 
     const SERVICE_PROCESSOR_BL2_DATA_t *bl2_data = get_service_processor_bl2_data();
 
-    if (0 == spi_regs)
+    if ((0 == spi_regs) || (slave_index >= SPI_SSI_NUM_SLAVES) || (command->dummy_bytes > MAX_DUMMY_BYTES))
     {
         return -1;
     }
-    if (slave_index >= SPI_SSI_NUM_SLAVES)
+
+    if ((command->data_receive) && ((0 == command->data_size || command->data_size > 0x10000u)))
     {
         return -1;
-    }
-    if (command->dummy_bytes > MAX_DUMMY_BYTES)
-    {
-        return -1;
-    }
-    if (command->data_receive)
-    {
-        if (0 == command->data_size || command->data_size > 0x10000u)
-        {
-            return -1;
-        }
     }
 
     spi_command[0] = command->cmd;
@@ -616,6 +605,7 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
         {
             /* we will use 32-bit frames */
             use_32bit_frames = true;
+            dfs32_frame_size = SSI_CTRLR0_DFS_32_DFS_32_FRAME_32BITS;
         }
         else if (1 == true_write_size)
         {
@@ -628,46 +618,10 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
                 spi_command_length, command->data_size);
             return -1;
         }
-    }
-    else
-    {
-        /* we are receiving data */
-        true_read_size = command->dummy_bytes + command->data_size;
-        skip_read_size = command->dummy_bytes;
-        if (4 == spi_command_length)
-        {
-            /* command length is 32-bit, we will handle dummy bytes as part of the read */
-            true_read_size = (true_read_size + 3) & 0xFFFFFFFC; /* round up to the next 4 bytes */
-            /* we will use 32-bit frames */
-            use_32bit_frames = true;
-        }
-        else if (1 == spi_command_length)
-        {
-            /* command length is 8-bit, we will handle dummy bytes as part of the read */
-            /* we will use 8-bit frames */
-        }
-        else
-        {
-            MESSAGE_ERROR("spi_controller_command: rx command_length (%u) not supported!\n",
-                          spi_command_length);
-            return -1;
-        }
-    }
 
-    if (use_32bit_frames)
-    {
-        dfs32_frame_size = SSI_CTRLR0_DFS_32_DFS_32_FRAME_32BITS;
-    }
-    else
-    {
-        dfs32_frame_size = SSI_CTRLR0_DFS_32_DFS_32_FRAME_08BITS;
-    }
+        iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
+        slave_en_mask = SSI_SER_SER_SET((1u << slave_index) & SLAVE_MASK);
 
-    iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
-    slave_en_mask = SSI_SER_SER_SET((1u << slave_index) & SLAVE_MASK);
-
-    if (command->data_receive)
-    {
         iowrite32(spi_regs + SSI_BAUDR_ADDRESS, SSI_BAUDR_SCKDV_SET(bl2_data->spi_controller_rx_baudrate_divider));
         iowrite32(spi_regs + SSI_CTRLR0_ADDRESS,
                   (uint32_t)(
@@ -707,6 +661,43 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
     }
     else
     {
+        /* we are receiving data */
+        true_read_size = command->dummy_bytes + command->data_size;
+        skip_read_size = command->dummy_bytes;
+        switch(spi_command_length){
+            case 4:
+            {
+                /* command length is 32-bit, we will handle dummy bytes as part of the read */
+                true_read_size = (true_read_size + 3) & 0xFFFFFFFC; /* round up to the next 4 bytes */
+                /* we will use 32-bit frames */
+                use_32bit_frames = true;
+                command_length_supported = true;
+                dfs32_frame_size = SSI_CTRLR0_DFS_32_DFS_32_FRAME_32BITS;
+                break;
+            }
+                
+            case 1:
+                /* command length is 8-bit, we will handle dummy bytes as part of the read */
+                /* we will use 8-bit frames */
+                command_length_supported = true;
+                break;
+ 
+            default:
+                command_length_supported = false;
+                break;
+            
+        }
+
+        if (!command_length_supported)
+        {
+            MESSAGE_ERROR("spi_controller_command: rx command_length (%u) not supported!\n",
+                          spi_command_length);
+            return -1;
+        }
+
+        iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
+        slave_en_mask = SSI_SER_SER_SET((1u << slave_index) & SLAVE_MASK);
+
         iowrite32(spi_regs + SSI_BAUDR_ADDRESS, SSI_BAUDR_SCKDV_SET(bl2_data->spi_controller_tx_baudrate_divider));
         iowrite32(spi_regs + SSI_CTRLR0_ADDRESS,
                   (uint32_t)(
