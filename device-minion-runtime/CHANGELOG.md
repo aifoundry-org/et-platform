@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unreleased]
 ### Added
+    - Enabled MS PMU Events for all Minions, IOShire, and PShire.
 ### Changed
 ### Deprecated
 ### Removed

@@ -91,8 +91,8 @@ static inline void mm_setup_default_pmcs(uint32_t shire_id, uint32_t hart_id)
     {
         for (uint8_t ms_idx = 0; ms_idx < PMU_MEM_SHIRE_COUNT; ms_idx++)
         {
-            configure_ms_pmcs(
-                ms_idx, PMU_MS_CTL_STATUS_MASK, PMU_MS_MESH_READS, PMU_MS_MESH_WRITES, 0, 0);
+            configure_ms_pmcs(ms_idx, PMU_MS_CTL_STATUS_MASK, PMU_MS_QUAL_ALL_MESH_READS,
+                PMU_MS_QUAL_ALL_MESH_WRITES, 0, 0);
 
             /* Start the counters */
             pmu_memshire_event_start(ms_idx, PMU_MS_CYCLE_PMC);
