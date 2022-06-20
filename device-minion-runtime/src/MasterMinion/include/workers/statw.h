@@ -35,23 +35,23 @@ enum statw_resource_type {
     \brief Minion frequency on silicon
     TODO: Get it from SP and make it available to all MM workers. Preferably it should be accessible without atomic operation.
 */
-#define STATW_MINION_FREQ 333000000ULL
+#define STATW_MINION_FREQ 333000000UL
 
 /*! \def STATW_SAMPLING_INTERVAL
     \brief Device statistics sampling interval of 100 millisecond
     WARNING: Assumption is timer granularity is one millisecond
 */
-#define STATW_SAMPLING_INTERVAL 1U
+#define STATW_SAMPLING_INTERVAL 1UL
 
 /*! \def STATW_CMA_SAMPLE_COUNT
     \brief Device statistics moving average sample count.
 */
-#define STATW_CMA_SAMPLE_COUNT 100U
+#define STATW_CMA_SAMPLE_COUNT 100UL
 
 /*! \def STATW_RESOURCE_DEFAULT_MIN
     \brief Default minimum for device resource stat. This is minimum value will be replaced by very first data sample.
 */
-#define STATW_RESOURCE_DEFAULT_MIN 0
+#define STATW_RESOURCE_DEFAULT_MIN 0UL
 
 /*! \def STATW_RESOURCE_DEFAULT_MAX
     \brief Default maximum for device resource stat. This is minimum value will replace with actual maximum.
@@ -71,7 +71,7 @@ enum statw_resource_type {
 /*! \def STATW_NUM_OF_MS_IN_SEC
     \brief A macro that define number of milliseconds in 1 second.
 */
-#define STATW_NUM_OF_MS_IN_SEC 1000U
+#define STATW_NUM_OF_MS_IN_SEC 1000UL
 
 /*! \def MAX(x,y)
     \brief Returns max
@@ -81,7 +81,7 @@ enum statw_resource_type {
 /*! \def MIN(x,y)
     \brief Returns min
 */
-#define MIN(x, y) (y == 0 ? x : x < y ? x : y)
+#define MIN(x, y) (x == 0 ? y : x < y ? x : y)
 
 /*! \fn void STATW_Launch(uint32_t sqw_idx)
     \brief Initialize Device Stat Workers, used by dispatcher
