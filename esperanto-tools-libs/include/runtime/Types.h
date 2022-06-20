@@ -180,12 +180,16 @@ using StreamErrorCallback = std::function<void(EventId, const StreamError&)>;
 constexpr auto kCacheLineSize = 64U; // TODO This should not be here, it should be
                                      // in a header with project-wide constants
 
-/// \brief This callback will be called when a kernel is aborted
+/// \brief This callback will be called when a kernel is aborted. Be sure to call freeResources() once you are done with
+/// the context, in order to release the resources.
 /// event will contain the eventId which is associated to the aborted kernel
 /// context will contain a pointer to device memory and the size which will be sizeof(ErrorContext) * num of contexts
-/// This callback will be executed in a DETACHED thread, so be sure the execution of this task won't survive runtime
+/// freeResources must be called inside the callback code in order to release the resources, after you are done with
+/// context.
+/// This callback will be executed in a DETACHED thread,so be sure the execution of this task won't survive runtime
 /// instance.
-using KernelAbortedCallback = std::function<void(EventId event, std::byte* context, size_t size)>;
+using KernelAbortedCallback =
+  std::function<void(EventId event, std::byte* context, size_t size, std::function<void()> freeResources)>;
 
 /// \brief This struct will contain the results of calling a loadCode function
 struct LoadCodeResult {

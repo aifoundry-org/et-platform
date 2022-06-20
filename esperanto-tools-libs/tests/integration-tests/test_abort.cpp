@@ -118,11 +118,13 @@ TEST_F(TestAbort, kernelAbortedCallback) {
     ASSERT_EQ(error.errorCode_, rt::DeviceErrorCode::KernelLaunchHostAborted);
     errorReported = true;
   });
-  runtime_->setOnKernelAbortedErrorCallback([&kernelAbortCalled](auto, std::byte* addr, size_t size) {
+  runtime_->setOnKernelAbortedErrorCallback([&kernelAbortCalled](auto, std::byte* addr, size_t size, auto clearFunc) {
     ASSERT_NE(addr, nullptr);
     ASSERT_EQ(size, kExceptionBufferSize);
     kernelAbortCalled = true;
+    clearFunc();
   });
+
   auto rimp = static_cast<rt::RuntimeImp*>(runtime_.get());
   rimp->setSentCommandCallback(devices_[0], [this](rt::Command* cmd) {
     RT_LOG(INFO) << "Command sent: " << cmd << ". Now aborting stream.";

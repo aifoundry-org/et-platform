@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 ### Security
+## [0.3.1]
+### Added
+- [SW-13062] waitForEvent / waitForStream won't block if timeout argument is 0 seconds
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
 ## [0.3.0]
 ### Added
 - [SW-13045] added a new callback which will be executed when a kernel abort happens. See new API function: 

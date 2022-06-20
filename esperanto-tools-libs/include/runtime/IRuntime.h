@@ -248,7 +248,8 @@ public:
   ///
   /// @param[in] event is the event to wait for, result of a memcpy operation or a
   /// kernel launch.
-  /// @param[in] timeout is the number of seconds to wait till aborting the wait.
+  /// @param[in] timeout is the number of seconds to wait till aborting the wait. If timeout is 0 seconds, then it won't
+  /// block in any case.
   ///
   /// @returns false if the timeout is reached, true otherwise.
   ///
@@ -258,7 +259,8 @@ public:
   /// reached. This primitive allows to synchronize with the device execution.
   ///
   /// @param[in] stream this is the stream to synchronize with.
-  /// @param[in] timeout is the number of seconds to wait till aborting the wait.
+  /// @param[in] timeout is the number of seconds to wait till aborting the wait. If timeout is 0 seconds, then it won't
+  /// block in any case.
   ///
   /// @returns false if the timeout is reached, true otherwise.
   ///

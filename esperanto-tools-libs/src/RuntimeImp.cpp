@@ -137,7 +137,7 @@ DeviceProperties RuntimeImp::getDevicePropertiesWithoutProfiling(DeviceId device
   auto deviceInt = static_cast<int>(device);
   auto deviceConfig = deviceLayer_->getDeviceConfig(deviceInt);
   rt::DeviceProperties prop{};
-  
+
   prop.frequency_ = deviceConfig.minionBootFrequency_;
   prop.availableShires_ = static_cast<uint32_t>(deviceLayer_->getActiveShiresNum(deviceInt));
   prop.memoryBandwidth_ = deviceConfig.ddrBandwidth_;
@@ -393,8 +393,8 @@ void RuntimeImp::processResponseError(const ResponseError& responseError) {
           SpinLock lock(mutex_);
           if (kernelAbortedCallback_) {
             auto th = std::thread([cb = this->kernelAbortedCallback_, evt = responseError.event_, buffer, this] {
-              cb(evt, buffer->deviceBuffer_, kExceptionBufferSize);
-              executionContextCache_->releaseBuffer(evt);
+              cb(evt, buffer->getExceptionContextPtr(), kExceptionBufferSize,
+                 [this, evt] { executionContextCache_->releaseBuffer(evt); });
             });
             th.detach();
           }
