@@ -25,15 +25,14 @@
 // then the esperanto_sign_elf tool will use the file_version, git_hash and git_version
 // to automatically initialize the signed header structure
 
-static IMAGE_VERSION_INFO_t g_image_version_info __attribute__((used)) = {
-    .prolog_tag = IMAGE_VERSION_INFO_PROLOG_TAG,
-    .file_version_revision = FILE_REVISION_NUMBER,
-    .file_version_minor = FILE_VERSION_MINOR,
-    .file_version_major = FILE_VERSION_MAJOR,
-    .git_hash = GIT_HASH_ARRAY,
-    .git_version = GIT_VERSION_ARRAY,
-    .epilog_tag = IMAGE_VERSION_INFO_EPILOG_TAG
-};
+static IMAGE_VERSION_INFO_t g_image_version_info
+    __attribute__((used)) = { .prolog_tag = IMAGE_VERSION_INFO_PROLOG_TAG,
+                              .file_version_revision = FILE_REVISION_NUMBER,
+                              .file_version_minor = FILE_VERSION_MINOR,
+                              .file_version_major = FILE_VERSION_MAJOR,
+                              .git_hash = GIT_HASH_ARRAY,
+                              .git_version = GIT_VERSION_ARRAY,
+                              .epilog_tag = IMAGE_VERSION_INFO_EPILOG_TAG };
 
 static inline const IMAGE_VERSION_INFO_t *get_image_version_info(void)
 {

@@ -24,17 +24,18 @@
  * @enum  enum voltage_type_e
  * @brief Different voltage types supported by PMIC
  */
-typedef enum {
-     DDR = 0,
-     L2CACHE,
-     MAXION,
-     MINION,
-     PCIE,
-     NOC,
-     PCIE_LOGIC,
-     VDDQLP,
-     VDDQ
-}voltage_type_e ;
+typedef enum
+{
+    DDR = 0,
+    L2CACHE,
+    MAXION,
+    MINION,
+    PCIE,
+    NOC,
+    PCIE_LOGIC,
+    VDDQLP,
+    VDDQ
+} voltage_type_e;
 
 /*!
  * @struct struct pmic_event_control_block
@@ -43,10 +44,10 @@ typedef enum {
 typedef void (*dm_pmic_isr_callback)(uint8_t int_cause);
 struct pmic_event_control_block
 {
-    uint32_t ce_count;              /**< Correctable error count. */
-    uint32_t uce_count;             /**< Un-Correctable error count. */
-    uint32_t ce_threshold;          /**< Correctable error threshold. */
-    dm_event_isr_callback event_cb; /**< Event callback handler. */
+    uint32_t ce_count;                         /**< Correctable error count. */
+    uint32_t uce_count;                        /**< Un-Correctable error count. */
+    uint32_t ce_threshold;                     /**< Correctable error threshold. */
+    dm_event_isr_callback event_cb;            /**< Event callback handler. */
     dm_pmic_isr_callback thermal_pwr_event_cb; /**< Thermal power event callback handler. */
 };
 
@@ -308,21 +309,21 @@ int I2C_PMIC_Initialize(void);
     \param None
     \return value stored in register
 */
-int I2C_PMIC_Read (uint8_t reg);
+int I2C_PMIC_Read(uint8_t reg);
 
 /*! \fn int I2C_PMIC_Write (uint8_t reg, uint8_t data)
     \brief This function writes data to PMIC register
     \param reg - register to write into
     \return The function call status, pass/fail
 */
-int I2C_PMIC_Write (uint8_t reg, uint8_t data);
+int I2C_PMIC_Write(uint8_t reg, uint8_t data);
 
 /*! \fn int pmic_get_int_config(uint8_t* int_config)
     \brief This function reads Interrupt Controller Configuration register of PMIC.
     \param int_config - interrupt configuration
     \return The function call status, pass/fail
 */
-int pmic_get_int_config(uint8_t* int_config);
+int pmic_get_int_config(uint8_t *int_config);
 
 /*! \fn Power_Convert_Hex_to_mW(int8_t power_hex) 
     \brief This function converts PMIC encoded HEX value to real Power(mW)

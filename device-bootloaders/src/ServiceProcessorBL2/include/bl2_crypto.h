@@ -28,7 +28,8 @@
  * @struct typedef struct CRYPTO_HASH_CONTEXT_s
  * @brief context control block for crypto
  */
-typedef struct CRYPTO_HASH_CONTEXT_s {
+typedef struct CRYPTO_HASH_CONTEXT_s
+{
     HASH_ALG_t hash_alg;
     uint32_t temp_digest_asset_id;
     bool init_done;
@@ -38,7 +39,8 @@ typedef struct CRYPTO_HASH_CONTEXT_s {
  * @struct typedef struct CRYPTO_AES_CONTEXT_s
  * @brief AES context control block for crypto
  */
-typedef struct CRYPTO_AES_CONTEXT_s {
+typedef struct CRYPTO_AES_CONTEXT_s
+{
     uint32_t aes_key_asset_id;
     uint8_t IV[16];
 } CRYPTO_AES_CONTEXT_t;

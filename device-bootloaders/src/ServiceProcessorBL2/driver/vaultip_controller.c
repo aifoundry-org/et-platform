@@ -84,7 +84,7 @@
 /*! \def DEFAULT_READ_TOKEN_TIMEOUT_HUK
     \brief timeout used to read token
 */
-#define DEFAULT_READ_TOKEN_TIMEOUT_HUK       1000000 /* 1000ms */
+#define DEFAULT_READ_TOKEN_TIMEOUT_HUK 1000000 /* 1000ms */
 
 /*! \def DIVIDER_100
     \brief timeout used for token on OTP write
@@ -94,7 +94,7 @@
 /*! \def DEFAULT_READ_TOKEN_TIMEOUT_MC_INC
     \brief timeout for token while reading from OTP
 */
-#define DEFAULT_READ_TOKEN_TIMEOUT_MC_INC    40000 /* 40ms */
+#define DEFAULT_READ_TOKEN_TIMEOUT_MC_INC 40000 /* 40ms */
 
 #define PTR232LO(x) ((uint32_t)(((size_t)x) & 0xFFFFFFFFu))
 #define PTR232HI(x) ((uint32_t)((((size_t)x) >> 32u) & 0xFFFFFFFFu))
@@ -156,7 +156,8 @@ inline static void set_vault_dma_reloc_read(uint32_t reloc)
         iowrite32(R_SP_MISC_BASEADDR + SPIO_MISC_ESR_VAULT_DMA_R_RELOC_ADDRESS,
                   SPIO_MISC_ESR_VAULT_DMA_R_RELOC_RD_CHANNEL_ADDR_SET(reloc & 0xFFu));
         gs_vault_dma_reloc_read = reloc;
-        Log_Write(LOG_LEVEL_INFO, "*** gs_vault_dma_reloc_read = 0x%x ***\n", gs_vault_dma_reloc_read);
+        Log_Write(LOG_LEVEL_INFO, "*** gs_vault_dma_reloc_read = 0x%x ***\n",
+                  gs_vault_dma_reloc_read);
     }
 }
 
@@ -167,7 +168,8 @@ inline static void set_vault_dma_reloc_write(uint32_t reloc)
         iowrite32(R_SP_MISC_BASEADDR + SPIO_MISC_ESR_VAULT_DMA_WR_RELOC_ADDRESS,
                   SPIO_MISC_ESR_VAULT_DMA_WR_RELOC_WT_CHANNEL_ADDR_SET(reloc & 0xFFu));
         gs_vault_dma_reloc_write = reloc;
-        Log_Write(LOG_LEVEL_INFO, "*** gs_vault_dma_reloc_write = 0x%x ***\n", gs_vault_dma_reloc_write);
+        Log_Write(LOG_LEVEL_INFO, "*** gs_vault_dma_reloc_write = 0x%x ***\n",
+                  gs_vault_dma_reloc_write);
     }
 }
 
@@ -337,13 +339,16 @@ bool is_vaultip_disabled(void)
     static bool initialized = false;
     static bool vaultip_disabled = false;
 
-    if (!initialized) {
-        if (0 != sp_otp_get_vaultip_chicken_bit(&vaultip_disabled)) {
+    if (!initialized)
+    {
+        if (0 != sp_otp_get_vaultip_chicken_bit(&vaultip_disabled))
+        {
             vaultip_disabled = false;
         }
         rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
         if (0 != RESET_MANAGER_RM_STATUS2_A0_UNLOCK_GET(rm_status2) &&
-            0 != RESET_MANAGER_RM_STATUS2_SKIP_VAULT_GET(rm_status2)) {
+            0 != RESET_MANAGER_RM_STATUS2_SKIP_VAULT_GET(rm_status2))
+        {
             vaultip_disabled = true;
         }
     }
@@ -1885,7 +1890,8 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
 
     if (PTR232HI(message) != PTR232HI(sig_data_address))
     {
-        Log_Write(LOG_LEVEL_ERROR,
+        Log_Write(
+            LOG_LEVEL_ERROR,
             "vaultip_public_key_ecdsa_verify: vaultip limitation - the high bits of the message and signature address differ!\n");
         return -1;
     }
@@ -1964,7 +1970,8 @@ int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity,
 
     if (PTR232HI(message) != PTR232HI(sig_data_address))
     {
-        Log_Write(LOG_LEVEL_ERROR,
+        Log_Write(
+            LOG_LEVEL_ERROR,
             "vaultip_public_key_rsa_pss_verify: vaultip limitation - the high bits of the message and signature address differ!\n");
         return -1;
     }
