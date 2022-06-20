@@ -52,6 +52,7 @@ macro(build_test_binary)
 
     target_link_libraries(${TEST_TARGET}
         PRIVATE
+            runtime::test_utils
             runtime::etrt_static
             cereal::cereal
             gflags::gflags

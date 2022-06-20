@@ -91,6 +91,7 @@ private:
     sendRequest({type, reqId, std::move(payload)});
     return waitForResponse(reqId);
   }
+  void dispatch(EventId event);
   void handShake();
   bool waitForEventWithoutProfiling(EventId event, std::chrono::seconds timeout);
   bool waitForStreamWithoutProfiling(StreamId stream, std::chrono::seconds timeout);
@@ -101,6 +102,8 @@ private:
   void responseProcessor();
   req::Id getNextId();
   resp::Response::Payload_t waitForResponse(req::Id);
+
+  EventId registerEvent(const resp::Response::Payload_t& payload, StreamId stream);
 
   struct Waiter {
     template <typename Lock> void wait(Lock& lock) {
@@ -122,11 +125,15 @@ private:
     std::condition_variable condVar_;
     bool valid_ = false;
   };
-  std::unordered_map<resp::Id, std::unique_ptr<Waiter>> waiters_;
+
+  std::unordered_map<resp::Id, std::unique_ptr<Waiter>> responseWaiters_;
   std::unordered_map<EventId, StreamId> eventToStream_;
   std::unordered_map<StreamId, std::vector<EventId>> streamToEvents_;
+  std::condition_variable eventSync_;
   std::thread listener_;
   std::mutex mutex_;
+
+  StreamErrorCallback streamErrorCallback_;
 
   int socket_;
   std::atomic<req::Id> nextId_ = 0;

@@ -14,6 +14,7 @@
 #include <hostUtils/threadPool/ThreadPool.h>
 #include <mutex>
 #include <signal.h>
+#include <sys/capability.h>
 #include <sys/param.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
@@ -34,6 +35,26 @@ Server::~Server() {
 }
 
 Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer, Options options) {
+  cap_t caps;
+  const cap_value_t cap_list[1] = {CAP_SYS_PTRACE};
+
+  caps = cap_get_proc();
+  if (caps == NULL) {
+    throw Exception("Can't get process capabilities." + std::string{strerror(errno)});
+  }
+  if (cap_set_flag(caps, CAP_EFFECTIVE, 2, cap_list, CAP_SET) == -1) {
+    throw Exception("Can't set flag for enabling CAP_SYS_PTRACE. " + std::string{strerror(errno)});
+  }
+
+  if (cap_set_proc(caps) == -1) {
+    throw Exception("Can't set required CAP_SYS_PTRACE capability. Be sure this process is run as a root. " +
+                    std::string{strerror(errno)});
+  }
+
+  if (cap_free(caps) == -1) {
+    throw Exception("Couldn't free the caps struct. " + std::string{strerror(errno)});
+  }
+
   deviceLayer_ = std::move(deviceLayer);
 
   runtime_ = IRuntime::create(deviceLayer_.get(), options);
@@ -102,6 +123,7 @@ void Server::removeWorker(Worker* worker) {
       auto it =
         std::find_if(begin(workers_), end(workers_), [worker](const auto& item) { return item.get() == worker; });
       if (it != end(workers_)) {
+        dynamic_cast<RuntimeImp&>(*runtime_).detach(worker);
         workers_.erase(it);
         RT_VLOG(LOW) << "Worker " << worker << " removed.";
       } else {

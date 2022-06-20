@@ -13,11 +13,13 @@
 #include "Protocol.h"
 #include "Server.h"
 #include "Utils.h"
+#include "runtime/Types.h"
 #include <cereal/archives/portable_binary.hpp>
 #include <cstring>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
+#include <variant>
 
 using namespace rt;
 
@@ -28,7 +30,7 @@ struct MemStream : public std::streambuf {
 };
 
 void Worker::update(EventId event) {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
 
   if (events_.erase(event) > 0) {
     sendResponse({resp::Type::EVENT_DISPATCHED, req::ASYNC_RUNTIME_EVENT, resp::Event{event}});
@@ -36,6 +38,7 @@ void Worker::update(EventId event) {
 }
 
 void Worker::sendResponse(const resp::Response& resp) {
+  SpinLock lock(mutex_);
   RT_VLOG(MID) << "Sending response. Type: " << static_cast<int>(resp.type_) << " Id: " << resp.id_;
   std::stringstream response;
   cereal::PortableBinaryOutputArchive archive(response);
@@ -70,9 +73,11 @@ Worker::Worker(int socket, RuntimeImp& runtime, Server& server, ucred credential
       remote.iov_base = dst;
       res = process_vm_writev(pid, &local, 1, &remote, 1, 0);
     }
+    // TODO this exception will backfire since it can be thrown only on server side and it could potentially destroy the
+    // daemon! So remove this exception but keep printing the error ...
     if (res != static_cast<ssize_t>(size)) {
       throw NetworkException("Error copying/writing from/to remote process with PID: " + std::to_string(pid) +
-                             " error: " + strerror(static_cast<int>(res)));
+                             " error: " + strerror(errno));
     };
   };
   runner_ = std::thread(&Worker::requestProcessor, this);
@@ -81,6 +86,7 @@ Worker::Worker(int socket, RuntimeImp& runtime, Server& server, ucred credential
 Worker::~Worker() {
   RT_VLOG(LOW) << "Destroying worker " << this;
   running_ = false;
+  SpinLock lock(mutex_);
   runner_.join();
   freeResources();
   RT_VLOG(LOW) << "Worker dtor ended. Ptr:" << this;
@@ -113,8 +119,8 @@ void Worker::requestProcessor() {
           }
         }
       } else if (running_) {
-        server_.removeWorker(this);
         running_ = false;
+        server_.removeWorker(this);
       }
     }
   } catch (const NetworkException& e) {
@@ -123,7 +129,8 @@ void Worker::requestProcessor() {
 }
 
 void Worker::processRequest(const req::Request& request) {
-  RT_VLOG(MID) << "Processing request. Type: " << static_cast<int>(request.type_) << " Id: " << request.id_;
+  SpinLock lock(mutex_);
+  RT_VLOG(MID) << "Processing request. Type: " << static_cast<uint32_t>(request.type_) << " Id: " << request.id_;
   switch (request.type_) {
 
   case req::Type::VERSION: {
@@ -147,6 +154,7 @@ void Worker::processRequest(const req::Request& request) {
       throw Exception("Trying to deallocate a non previous allocated buffer.");
     }
     runtime_.freeDeviceWithoutProfiling(DeviceId{req.device_}, addr);
+    sendResponse({resp::Type::FREE, request.id_, std::monostate{}});
     break;
   }
 
@@ -174,13 +182,8 @@ void Worker::processRequest(const req::Request& request) {
 
   case req::Type::MEMCPY_LIST_H2D: {
     auto& req = std::get<req::MemcpyList>(request.payload_);
-    MemcpyList memcpyList;
-    for (auto& o : req.ops_) {
-      auto src = reinterpret_cast<std::byte*>(o.src_);
-      auto dst = reinterpret_cast<std::byte*>(o.dst_);
-      memcpyList.addOp(src, dst, o.size_);
-    }
-    auto evt = runtime_.memcpyHostToDeviceWithoutProfiling(req.stream_, memcpyList, req.barrier_, cmaCopyFunction_);
+    auto evt =
+      runtime_.memcpyHostToDeviceWithoutProfiling(req.stream_, MemcpyList(req), req.barrier_, cmaCopyFunction_);
     events_.emplace(evt);
     sendResponse({resp::Type::MEMCPY_LIST_H2D, request.id_, resp::Event{evt}});
     break;
@@ -188,13 +191,8 @@ void Worker::processRequest(const req::Request& request) {
 
   case req::Type::MEMCPY_LIST_D2H: {
     auto& req = std::get<req::MemcpyList>(request.payload_);
-    MemcpyList memcpyList;
-    for (auto& o : req.ops_) {
-      auto src = reinterpret_cast<std::byte*>(o.src_);
-      auto dst = reinterpret_cast<std::byte*>(o.dst_);
-      memcpyList.addOp(src, dst, o.size_);
-    }
-    auto evt = runtime_.memcpyDeviceToHostWithoutProfiling(req.stream_, memcpyList, req.barrier_, cmaCopyFunction_);
+    auto evt =
+      runtime_.memcpyDeviceToHostWithoutProfiling(req.stream_, MemcpyList(req), req.barrier_, cmaCopyFunction_);
     events_.emplace(evt);
     sendResponse({resp::Type::MEMCPY_LIST_D2H, request.id_, resp::Event{evt}});
     break;
@@ -215,6 +213,7 @@ void Worker::processRequest(const req::Request& request) {
       throw Exception("Trying to destroy a non previous created stream.");
     }
     runtime_.destroyStreamWithoutProfiling(req.stream_);
+    sendResponse({resp::Type::DESTROY_STREAM, request.id_, std::monostate{}});
     break;
   }
 
@@ -234,6 +233,7 @@ void Worker::processRequest(const req::Request& request) {
       throw Exception("Trying to unload a non previously loaded kernel.");
     }
     runtime_.unloadCode(req.kernel_);
+    sendResponse({resp::Type::UNLOAD_CODE, request.id_, std::monostate{}});
     break;
   }
 
@@ -285,6 +285,7 @@ void Worker::freeResources() {
 }
 
 void Worker::onStreamError(EventId event, const StreamError& error) {
+  SpinLock lock(mutex_);
   if (events_.find(event) != end(events_)) {
     sendResponse({resp::Type::STREAM_ERROR, req::ASYNC_RUNTIME_EVENT, error});
   }

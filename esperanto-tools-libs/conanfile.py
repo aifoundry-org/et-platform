@@ -51,6 +51,7 @@ class RuntimeConan(ConanFile):
 
         self.requires("cereal/1.3.1")
         self.requires("elfio/3.8")
+        self.requires("libcap/2.62")
 
         self.requires("cmake-modules/[>=0.4.1 <1.0.0]")
 
@@ -93,7 +94,7 @@ class RuntimeConan(ConanFile):
         cmake.configure()
         cmake.build()
         if self.options.with_tests and not tools.cross_building(self.settings):
-            self.run("ctest -T Test -L 'Generic' --no-compress-output")
+            self.run("sudo ctest -T Test -L 'Generic' --no-compress-output")
 
     def package(self):
         cmake = CMake(self)

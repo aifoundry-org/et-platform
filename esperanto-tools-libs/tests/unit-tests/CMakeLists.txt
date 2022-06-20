@@ -19,7 +19,10 @@ set(TEST_LIST
   TestCommandSender.cpp:""
   initRuntime.cpp:""
   test_spinlock.cpp:"" 
-  multiprocess.cpp:""
+  mp_handshake.cpp:""
+  mp_malloc.cpp:""
+  mp_streams.cpp:""
+  mp_sync_events.cpp:""
 )
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;LABELS;Sysemu;LABELS;Unittest;TIMEOUT;300" "ut_")

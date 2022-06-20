@@ -106,6 +106,22 @@ struct MemcpyList {
       archive(src_, dst_, size_);
     }
   };
+  operator rt::MemcpyList() const {
+    rt::MemcpyList list;
+    for (auto& o : ops_) {
+      list.addOp(reinterpret_cast<std::byte*>(o.src_), reinterpret_cast<std::byte*>(o.dst_), o.size_);
+    }
+    return list;
+  }
+  explicit MemcpyList() = default;
+  explicit MemcpyList(const rt::MemcpyList& list, StreamId st, bool barrier)
+    : stream_(st)
+    , barrier_(barrier) {
+    for (auto& o : list.operations_) {
+      ops_.emplace_back(Op{reinterpret_cast<AddressT>(o.src_), reinterpret_cast<AddressT>(o.dst_), o.size_});
+    }
+  }
+
   StreamId stream_;
   std::vector<Op> ops_;
   bool barrier_;
@@ -271,10 +287,10 @@ struct Response {
     , id_(id)
     , payload_(payload) {
   }
-  using Payload_t =
-    std::variant<Version, Malloc, GetDevices, Event, CreateStream, LoadCode, StreamError, RuntimeException>;
+  using Payload_t = std::variant<std::monostate, Version, Malloc, GetDevices, Event, CreateStream, LoadCode,
+                                 StreamError, RuntimeException>;
   Type type_;
-  Id id_;
+  Id id_ = req::INVALID_REQUEST_ID;
   Payload_t payload_;
   template <class Archive> void serialize(Archive& archive) {
     archive(type_, id_, payload_);

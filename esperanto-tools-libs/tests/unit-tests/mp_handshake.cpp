@@ -10,6 +10,7 @@
 
 #include "TestUtils.h"
 #include "Utils.h"
+#include "common/MpOrchestrator.h"
 #include "runtime/DeviceLayerFake.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
@@ -17,15 +18,16 @@
 #include "server/Server.h"
 #include <cstdio>
 #include <sys/wait.h>
-using namespace rt;
 
+using namespace rt;
+namespace {
 auto getTmpFileName() {
   std::string filename("/tmp/mptestXXXXXX");
   auto fd = mkstemp(filename.data());
   close(fd);
   return filename;
 }
-
+} // namespace
 TEST(multiprocess, handshake) {
 
   int fd[2];
@@ -102,8 +104,25 @@ TEST(multiprocess_1000, handshake) {
   }
 }
 
+TEST(multiprocess, mp_orchestrator_hs) {
+  auto dl = std::make_unique<dev::DeviceLayerFake>();
+  MpOrchestrator orch(std::move(dl), Options{true, false});
+  orch.createClient([](auto) {
+    // only do handshake
+  });
+}
+
+TEST(multiprocess, mp_orchestrator_1000_hs) {
+  auto dl = std::make_unique<dev::DeviceLayerFake>();
+  MpOrchestrator orch(std::move(dl), Options{true, false});
+  for (int i = 0; i < 1000; ++i) {
+    orch.createClient([](auto) {
+      // only do handshake
+    });
+  }
+}
+
 int main(int argc, char** argv) {
-  Fixture::sMode = Fixture::Mode::FAKE;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

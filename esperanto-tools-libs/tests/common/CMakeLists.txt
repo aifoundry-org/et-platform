@@ -19,4 +19,13 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+get_target_property(ETRT_OBJ_INCLUDE_DIRS etrt_obj INCLUDE_DIRECTORIES)
+add_library(test_utils MpOrchestrator.cpp)
+add_library(runtime::test_utils ALIAS test_utils)
+target_include_directories(test_utils 
+INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+PRIVATE ${ETRT_OBJ_INCLUDE_DIRS}
+)
+
+target_link_libraries(test_utils PRIVATE runtime::etrt_static cereal::cereal deviceLayer::deviceLayer)
 configure_file(Constants.h.in Constants.h)

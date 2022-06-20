@@ -57,6 +57,7 @@ find_package(cereal REQUIRED)
 find_package(elfio REQUIRED)
 
 # Esperanto dependencies
+find_package(libcap REQUIRED)
 find_package(deviceApi REQUIRED)
 find_package(deviceLayer REQUIRED)
 find_package(hostUtils REQUIRED)
@@ -109,6 +110,7 @@ target_link_libraries(etrt_obj
         hostUtils::debug
         deviceApi::deviceApi
     PRIVATE
+        libcap::libcap
         cereal::cereal
         deviceLayer::deviceLayer
         hostUtils::logging
