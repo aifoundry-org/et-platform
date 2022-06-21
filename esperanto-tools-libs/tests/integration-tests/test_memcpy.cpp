@@ -18,10 +18,10 @@
 #include <random>
 
 namespace {
-class TestMemcpy : public Fixture {
+class TestMemcpy : public RuntimeFixture {
 public:
   void SetUp() override {
-    Fixture::SetUp();
+    RuntimeFixture::SetUp();
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
     imp->setMemoryManagerDebugMode(devices_[0], true);
   }

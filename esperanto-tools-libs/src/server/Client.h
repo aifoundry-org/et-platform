@@ -81,6 +81,11 @@ public:
     throw Exception("Not implemented");
   }
 
+  void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) override {
+    unused(callback);
+    throw Exception("Not implemented");
+  }
+
   EventId abortCommand(EventId commandId, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) override;
 
   EventId abortStream(StreamId streamId) override;

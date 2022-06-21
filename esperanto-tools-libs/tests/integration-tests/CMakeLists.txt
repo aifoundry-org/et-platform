@@ -14,6 +14,7 @@ set(INTEGRATION_TEST_LIST
   test_memcpy.cpp:""
   test_device_errors.cpp:""
   test_dma_errors.cpp:""
+  mp_memcpy.cpp:""
   )
 create_test_targets("${INTEGRATION_TEST_LIST}" "LABELS;Generic;LABELS;Sysemu;TIMEOUT;300" "it_")
 

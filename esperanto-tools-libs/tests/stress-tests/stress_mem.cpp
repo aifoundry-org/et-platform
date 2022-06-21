@@ -13,7 +13,7 @@
 
 using namespace testing;
 
-struct StressMem : Fixture {};
+struct StressMem : RuntimeFixture {};
 
 TEST_F(StressMem, 1KB_1_memcpys_1stream_20thread) {
   run_stress_mem(runtime_.get(), 1<<10, 1, 1, 20);
@@ -28,7 +28,7 @@ TEST_F(StressMem, 1KB_1_memcpys_1stream_50thread) {
 }
 
 TEST_F(StressMem, 1KB_1_memcpys_1stream_75thread) {
-  if (sMode == Mode::SYSEMU) {
+  if (sDlType == DeviceLayerImp::SYSEMU) {
     RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
     return;
   }
@@ -88,7 +88,7 @@ TEST_F(StressMem, 1KB_2_memcpys_2stream_1thread) {
 }
 
 TEST_F(StressMem, 1MB_1000_memcpys_1stream_10thread_05ratio) {
-  if (sMode == Mode::SYSEMU) {
+  if (sDlType == DeviceLayerImp::SYSEMU) {
     RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
     return;
   }
@@ -96,7 +96,7 @@ TEST_F(StressMem, 1MB_1000_memcpys_1stream_10thread_05ratio) {
 }
 
 TEST_F(StressMem, 256MB_3_memcpys_1stream_10thread_05ratio) {
-  if (sMode == Mode::SYSEMU) {
+  if (sDlType == DeviceLayerImp::SYSEMU) {
     RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
     return;
   }
@@ -104,7 +104,7 @@ TEST_F(StressMem, 256MB_3_memcpys_1stream_10thread_05ratio) {
 }
 
 TEST_F(StressMem, 128MB_6_memcpys_4stream_10thread_075ratio_10loops) {
-  if (sMode == Mode::SYSEMU) {
+  if (sDlType == DeviceLayerImp::SYSEMU) {
     RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
     return;
   }
@@ -114,8 +114,8 @@ TEST_F(StressMem, 128MB_6_memcpys_4stream_10thread_075ratio_10loops) {
 }
 
 TEST_F(StressMem, 1KB_50_memcpys_10stream_2thread_8dev) {
-  if (sMode == Mode::PCIE) {
-    RT_LOG(INFO) << "This multi device test is not design to be run on PCIE, skipping it.";
+  if (sDlType != DeviceLayerImp::SYSEMU) {
+    RT_LOG(INFO) << "This multi device test is designed to be run on SYSEMU, skipping it.";
     return;
   }
   decltype(sNumDevices) oldNumDevices = sNumDevices;
@@ -139,7 +139,7 @@ TEST_F(StressMem, 1KB_50_memcpys_10stream_2thread_8dev) {
 }
 
 TEST_F(StressMem, 1KB_1M_memcpies_10th_NOSYSEMU) {
-  if (sMode == Mode::SYSEMU) {
+  if (sDlType == DeviceLayerImp::SYSEMU) {
     RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
     return;
   }

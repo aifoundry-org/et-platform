@@ -105,16 +105,16 @@ TEST(multiprocess_1000, handshake) {
 }
 
 TEST(multiprocess, mp_orchestrator_hs) {
-  auto dl = std::make_unique<dev::DeviceLayerFake>();
-  MpOrchestrator orch(std::move(dl), Options{true, false});
+  MpOrchestrator orch;
+  orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, Options{true, false});
   orch.createClient([](auto) {
     // only do handshake
   });
 }
 
 TEST(multiprocess, mp_orchestrator_1000_hs) {
-  auto dl = std::make_unique<dev::DeviceLayerFake>();
-  MpOrchestrator orch(std::move(dl), Options{true, false});
+  MpOrchestrator orch;
+  orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, Options{true, false});
   for (int i = 0; i < 1000; ++i) {
     orch.createClient([](auto) {
       // only do handshake

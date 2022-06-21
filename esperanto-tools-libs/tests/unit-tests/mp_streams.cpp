@@ -14,8 +14,8 @@
 #include <gtest/gtest.h>
 
 TEST(mp_createdestroy_streams, create_destroy_1000_streams) {
-  auto dl = std::make_unique<dev::DeviceLayerFake>();
-  MpOrchestrator orch(std::move(dl), rt::Options{true, false});
+  MpOrchestrator orch;
+  orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, rt::Options{true, false});
   for (int i = 0; i < 25; ++i) {
     orch.createClient([](rt::IRuntime* rt) {
       std::vector<rt::StreamId> streams;

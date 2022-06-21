@@ -16,8 +16,10 @@
 // this class is not thread-safe
 class MpOrchestrator {
 public:
-  explicit MpOrchestrator(std::unique_ptr<dev::IDeviceLayer>, rt::Options options);
   ~MpOrchestrator();
+  using DeviceLayerCreatorFunc = std::function<std::unique_ptr<dev::IDeviceLayer>()>;
+
+  void createServer(DeviceLayerCreatorFunc deviceLayerCreator, rt::Options options);
   void createClient(const std::function<void(rt::IRuntime* runtime)>&);
   void clearClients();
 
@@ -25,7 +27,7 @@ private:
   int efdToServer_;
   int efdFromServer_;
   std::string socketPath_;
-  pid_t server_;
+  pid_t server_ = -1;
   std::vector<pid_t> clients_;
   std::unique_ptr<logging::LoggerDefault> logger_;
 };

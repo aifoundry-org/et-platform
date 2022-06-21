@@ -31,10 +31,10 @@ bool areEqual(int one, int other, int index, int thread, int stream) {
   (void)stream;
   return one == other;
 }
-class StressKernel : public Fixture {
+class StressKernel : public RuntimeFixture {
 public:
   void SetUp() override {
-    Fixture::SetUp();
+    RuntimeFixture::SetUp();
     kernels_.clear();
     for (auto i = 0U; i < static_cast<uint32_t>(deviceLayer_->getDevicesCount()); ++i) {
       kernels_.emplace_back(loadKernel("add_vector.elf", i));
@@ -127,7 +127,7 @@ TEST_F(StressKernel, 256_ele_10_exe_1_st_1_th) {
 }
 
 TEST_F(StressKernel, 1024_ele_100_exe_1_st_2_th) {
-  if (sMode == Mode::SYSEMU) {
+  if (sDlType == DeviceLayerImp::SYSEMU) {
     RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
     return;
   }
@@ -159,7 +159,7 @@ TEST_F(StressKernel, 64_ele_1_exe_1_st_100_th) {
 }
 
 TEST_F(StressKernel, 256_ele_10_exe_10_st_2_th_8_dev) {
-  if (sMode == Mode::PCIE) {
+  if (sDlType == DeviceLayerImp::PCIE) {
     RT_LOG(INFO) << "This multi device test is not design to be run on PCIE, skipping it.";
     return;
   }
@@ -197,7 +197,7 @@ TEST_F(StressKernel, 256_ele_10_exe_2_st_4_th_n_devices) {
 }
 
 TEST_F(StressKernel, 64_ele_100K_exe_1st_10_th_nocheck_NOSYSEMU) {
-  if (sMode != Mode::PCIE) {
+  if (sDlType == DeviceLayerImp::SYSEMU) {
     RT_LOG(INFO) << "This test is too slow to be run on SYSEMU, skipping it.";
     return;
   }

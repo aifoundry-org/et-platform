@@ -24,7 +24,7 @@
 #include <runtime/IRuntime.h>
 #include <sw-sysemu/SysEmuOptions.h>
 
-inline auto getDefaultOptions() {
+inline auto getSysemuDefaultOptions() {
   constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
   constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
 
@@ -63,20 +63,20 @@ inline std::vector<std::byte> readFile(const std::string& path) {
   return fileContent;
 }
 
-class Fixture : public testing::Test {
+class RuntimeFixture : public testing::Test {
 public:
-  enum class Mode { PCIE, SYSEMU, FAKE };
+  enum class DeviceLayerImp { PCIE, SYSEMU, FAKE };
 
   void SetUp() override {
     auto options = rt::getDefaultOptions();
-    switch (sMode) {
-    case Mode::PCIE:
+    switch (sDlType) {
+    case DeviceLayerImp::PCIE:
       RT_LOG(INFO) << "Running tests with PCIE deviceLayer";
       deviceLayer_ = dev::IDeviceLayer::createPcieDeviceLayer();
       break;
-    case Mode::SYSEMU: {
+    case DeviceLayerImp::SYSEMU: {
       RT_LOG(INFO) << "Running tests with SYSEMU deviceLayer";
-      auto opts = getDefaultOptions();
+      auto opts = getSysemuDefaultOptions();
       std::vector<decltype(opts)> vopts;
       for (auto i = 0; i < sNumDevices; ++i) {
         vopts.emplace_back(opts);
@@ -85,7 +85,7 @@ public:
       deviceLayer_ = dev::IDeviceLayer::createSysEmuDeviceLayer(vopts);
       break;
     }
-    case Mode::FAKE:
+    case DeviceLayerImp::FAKE:
       RT_LOG(INFO) << "Running tests with FAKE deviceLayer";
       deviceLayer_ = std::make_unique<dev::DeviceLayerFake>();
       options.checkDeviceApiVersion_ = false;
@@ -125,7 +125,7 @@ public:
     return res.kernel_;
   }
 
-  inline static Mode sMode = Mode::SYSEMU;
+  inline static DeviceLayerImp sDlType = DeviceLayerImp::SYSEMU;
   inline static uint8_t sNumDevices = 1;
   inline static bool sTraceEnabled = false;
 
@@ -157,12 +157,12 @@ template <typename TContainer> void randomize(TContainer& container, int init, i
     v = static_cast<typename TContainer::value_type>(dis(gen));
   }
 }
-float getRand() {
+inline float getRand() {
   static std::default_random_engine e;
   static std::uniform_real_distribution<float> dis(0, 1.0f); // rage 0 - 1
   return dis(e);
 }
-rt::MemcpyList chunkTransfer(std::byte* src, std::byte* dst, size_t size, size_t chunks = 4) {
+inline rt::MemcpyList chunkTransfer(std::byte* src, std::byte* dst, size_t size, size_t chunks = 4) {
   rt::MemcpyList result;
   for (auto i = 0UL, chunkSize = size / chunks; i < chunks; ++i) {
     result.addOp(src + i * chunkSize, dst + i * chunkSize, chunkSize);
@@ -171,8 +171,8 @@ rt::MemcpyList chunkTransfer(std::byte* src, std::byte* dst, size_t size, size_t
   return result;
 }
 
-void stressMemThreadFunc(rt::IRuntime* runtime, uint32_t streams, uint32_t transactions, size_t bytes,
-                         bool check_results, size_t deviceId, float memcpyListRatio = 0.0f) {
+inline void stressMemThreadFunc(rt::IRuntime* runtime, uint32_t streams, uint32_t transactions, size_t bytes,
+                                bool check_results, size_t deviceId, float memcpyListRatio = 0.0f) {
   ASSERT_LT(deviceId, runtime->getDevices().size());
   auto dev = runtime->getDevices()[deviceId];
   std::vector<rt::StreamId> streams_(streams);
@@ -246,7 +246,23 @@ inline bool IsTraceEnabled(int argc, char* argv[]) {
   return false;
 }
 
+inline RuntimeFixture::DeviceLayerImp getDeviceLayerImp(int argc, char* argv[]) {
+  for (auto i = 1; i < argc; ++i) {
+    if (std::string{argv[i]} == "--mode=pcie") {
+      return RuntimeFixture::DeviceLayerImp::PCIE;
+    }
+    if (std::string{argv[i]} == "--mode=fake") {
+      return RuntimeFixture::DeviceLayerImp::FAKE;
+    }
+    if (std::string{argv[i]} == "--mode=sysemu") {
+      return RuntimeFixture::DeviceLayerImp::SYSEMU;
+    }
+  }
+  // defaults to sysemu
+  return RuntimeFixture::DeviceLayerImp::SYSEMU;
+}
+
 inline void ParseArguments(int argc, char* argv[]) {
-  Fixture::sMode = IsPcie(argc, argv) ? Fixture::Mode::PCIE : Fixture::Mode::SYSEMU;
-  Fixture::sTraceEnabled = IsTraceEnabled(argc, argv);
+  RuntimeFixture::sDlType = getDeviceLayerImp(argc, argv);
+  RuntimeFixture::sTraceEnabled = IsTraceEnabled(argc, argv);
 }

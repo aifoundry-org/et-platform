@@ -21,9 +21,9 @@
 #include <ios>
 #include <random>
 
-struct DeviceErrors : public Fixture {
+struct DeviceErrors : public RuntimeFixture {
   void SetUp() override {
-    Fixture::SetUp();
+    RuntimeFixture::SetUp();
     // unset the callback because we don't want to fail on purpose, thats part of these tests
     runtime_->setOnStreamErrorsCallback(nullptr);
     add_vector_kernel = loadKernel("add_vector.elf");

@@ -17,7 +17,7 @@
 #include <tools/IBenchmarker.h>
 
 TEST(BenchmarkerTool, sysemu) {
-  auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getDefaultOptions());
+  auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getSysemuDefaultOptions());
   rt::IBenchmarker::Options options;
   options.bytesD2H = 300 << 20;
   options.bytesH2D = 300 << 20;

@@ -7,31 +7,34 @@
 // in accordance with the terms and conditions stipulated in the
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
+#include "TestUtils.h"
 #include "common/MpOrchestrator.h"
 #include "runtime/DeviceLayerFake.h"
 #include "runtime/Types.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-TEST(mp_malloc, malloc_free_100clients_1000mallocs) {
+TEST(mp_memcpy, simpleSysemu) {
   MpOrchestrator orch;
-  orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, rt::Options{true, false});
-  auto dram = dev::DeviceLayerFake{}.getDramSize();
+  orch.createServer([] { return dev::IDeviceLayer::createSysEmuDeviceLayer(getSysemuDefaultOptions()); },
+                    rt::Options{true, false});
   for (int i = 0; i < 100; ++i) {
     orch.createClient([](rt::IRuntime* rt) {
-      std::vector<std::byte*> allocs;
-      auto dev = rt::DeviceId{0};
-      for (auto j = 0; j < 1000; ++j) {
-        allocs.emplace_back(rt->mallocDevice(dev, 1024));
-      }
-      for (auto a : allocs) {
-        ASSERT_NE(a, nullptr);
-        rt->freeDevice(dev, a);
-      }
+      auto devices = rt->getDevices();
+      ASSERT_FALSE(devices.empty());
+      auto dev = devices[0];
+      auto st = rt->createStream(dev);
+      std::vector<std::byte> h_src(1024);
+      randomize(h_src, 0, 255);
+      std::vector<std::byte> h_dst(1024);
+      ASSERT_NE(h_src, h_dst);
+      auto mem = rt->mallocDevice(dev, 1024);
+      rt->memcpyHostToDevice(st, h_src.data(), mem, 1024);
+      rt->memcpyDeviceToHost(st, mem, h_dst.data(), 1024);
+      rt->waitForStream(st);
+      ASSERT_EQ(h_src, h_dst);
     });
   }
-  orch.clearClients();
-  orch.createClient([dram](rt::IRuntime* rt) { ASSERT_NO_THROW(rt->mallocDevice(rt::DeviceId{0}, dram - 3358720)); });
 }
 
 int main(int argc, char** argv) {

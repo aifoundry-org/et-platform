@@ -28,7 +28,9 @@ enum class Status : uint64_t { INVALID, SERVER_READY, END_SERVER };
 
 } // namespace
 
-MpOrchestrator::MpOrchestrator(std::unique_ptr<dev::IDeviceLayer> deviceLayer, rt::Options options) {
+void MpOrchestrator::createServer(DeviceLayerCreatorFunc deviceLayerCreator, rt::Options options) {
+  RT_LOG_IF(FATAL, server_ != -1) << "Server already created!";
+
   // find a socketpath
   socketPath_ = getTmpFileName();
   efdToServer_ = eventfd(0, 0);
@@ -39,7 +41,7 @@ MpOrchestrator::MpOrchestrator(std::unique_ptr<dev::IDeviceLayer> deviceLayer, r
   if (server_ == 0) {
     logging::LoggerDefault logger;
     RT_LOG(INFO) << "Creating server process";
-    auto server = rt::Server{socketPath_, std::move(deviceLayer), options};
+    auto server = rt::Server{socketPath_, deviceLayerCreator(), options};
     Status s(Status::SERVER_READY);
     write(efdFromServer_, &s, sizeof(s));
     while (s != Status::END_SERVER) {

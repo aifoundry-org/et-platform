@@ -26,9 +26,9 @@ namespace fs = std::experimental::filesystem;
 
 namespace {
 
-struct TestCodeLoading : public Fixture {
+struct TestCodeLoading : public RuntimeFixture {
   void SetUp() override {
-    Fixture::SetUp();
+    RuntimeFixture::SetUp();
     // unset the callback because we don't want to fail on purpose, thats part of these tests
     runtime_->setOnStreamErrorsCallback(nullptr);
   }

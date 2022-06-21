@@ -11,8 +11,8 @@
 #include "TestUtils.h"
 #include <gtest/gtest.h>
 
-TEST_F(Fixture, Launch_1M_Kernels_withBarrier_NOSYSEMU) {
-  if (sMode == Mode::SYSEMU) {
+TEST_F(RuntimeFixture, Launch_1M_Kernels_withBarrier_NOSYSEMU) {
+  if (sDlType == DeviceLayerImp::SYSEMU) {
     RT_LOG(INFO) << "Not running this test on sysemu, its too slow";
     return;
   }
@@ -27,8 +27,8 @@ TEST_F(Fixture, Launch_1M_Kernels_withBarrier_NOSYSEMU) {
   }
 }
 
-TEST_F(Fixture, Launch_1M_Kernels_noBarrier_NOSYSEMU) {
-  if (sMode == Mode::SYSEMU) {
+TEST_F(RuntimeFixture, Launch_1M_Kernels_noBarrier_NOSYSEMU) {
+  if (sDlType == DeviceLayerImp::SYSEMU) {
     RT_LOG(INFO) << "Not running this test on sysemu, its too slow";
     return;
   }

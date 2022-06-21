@@ -18,10 +18,10 @@
 #include <random>
 
 namespace {
-class TestDmaErrors : public Fixture {
+class TestDmaErrors : public RuntimeFixture {
 public:
   void SetUp() override {
-    Fixture::SetUp();
+    RuntimeFixture::SetUp();
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
     imp->setMemoryManagerDebugMode(devices_[0], true);
     imp->setCheckMemcpyDeviceAddress(false);
@@ -67,7 +67,7 @@ TEST_F(TestDmaErrors, DmaOobPlusCommands) {
     runtime_->memcpyHostToDevice(defaultStreams_[0], hostMem.data(), dst, hostMem.size());
   }
   runtime_->waitForEvent(evt);
-  if (Fixture::sMode == Fixture::Mode::PCIE) {
+  if (RuntimeFixture::sDlType == RuntimeFixture::DeviceLayerImp::PCIE) {
     // this part of the test can only be run in PCIE because sysemu always returns "ready" in DeviceState
     // reinstantiate the runtime and check the device is ready
     runtime_ = nullptr;

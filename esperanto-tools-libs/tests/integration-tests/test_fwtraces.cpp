@@ -22,7 +22,7 @@
 
 namespace {
 
-struct FwTracesTest : public Fixture {};
+struct FwTracesTest : public RuntimeFixture {};
 // Load and removal of a single kernel.
 TEST_F(FwTracesTest, CM_MM_Traces) {
   std::mt19937 gen(std::random_device{}());

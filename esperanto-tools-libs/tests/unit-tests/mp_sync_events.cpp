@@ -14,8 +14,8 @@
 #include <gtest/gtest.h>
 
 TEST(mp_sync_events, wait_memcpy) {
-  auto dl = std::make_unique<dev::DeviceLayerFake>();
-  MpOrchestrator orch(std::move(dl), rt::Options{true, false});
+  MpOrchestrator orch;
+  orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, rt::Options{true, false});
   for (int i = 0; i < 100; ++i) {
     orch.createClient([](rt::IRuntime* rt) {
       auto devices = rt->getDevices();
@@ -33,8 +33,8 @@ TEST(mp_sync_events, wait_memcpy) {
 }
 
 TEST(mp_sync_events, wait_kernel) {
-  auto dl = std::make_unique<dev::DeviceLayerFake>();
-  MpOrchestrator orch(std::move(dl), rt::Options{true, false});
+  MpOrchestrator orch;
+  orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, rt::Options{true, false});
   for (int i = 0; i < 100; ++i) {
     orch.createClient([](rt::IRuntime* rt) {
       auto devices = rt->getDevices();

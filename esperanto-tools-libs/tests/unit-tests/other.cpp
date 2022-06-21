@@ -13,7 +13,7 @@
 #include "runtime/IRuntime.h"
 using namespace rt;
 
-TEST_F(Fixture, checkStackTraceException) {
+TEST_F(RuntimeFixture, checkStackTraceException) {
   //run a kernelLaunch with bad parameters to check for the exception
   try {
     runtime_->kernelLaunch(StreamId{7}, KernelId{8}, nullptr, 0, 0);
@@ -23,7 +23,7 @@ TEST_F(Fixture, checkStackTraceException) {
 }
 
 int main(int argc, char** argv) {
-  Fixture::sMode = Fixture::Mode::FAKE;
+  RuntimeFixture::sDlType = RuntimeFixture::DeviceLayerImp::FAKE;
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

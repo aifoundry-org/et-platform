@@ -22,10 +22,10 @@
 using namespace rt;
 using namespace std::chrono_literals;
 namespace {
-class TestAbort : public Fixture {
+class TestAbort : public RuntimeFixture {
 public:
   void SetUp() override {
-    Fixture::SetUp();
+    RuntimeFixture::SetUp();
     auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
     imp->setMemoryManagerDebugMode(devices_[0], true);
     kernelHang_ = loadKernel("hang.elf");
@@ -36,7 +36,7 @@ public:
 };
 } // namespace
 TEST_F(TestAbort, abortCommand) {
-  if (Fixture::sMode == Fixture::Mode::SYSEMU) {
+  if (RuntimeFixture::sDlType == RuntimeFixture::DeviceLayerImp::SYSEMU) {
     RT_LOG(WARNING) << "Abort Command is not supported in sysemu. Returning.";
     FAIL();
   }
@@ -68,7 +68,7 @@ TEST_F(TestAbort, abortCommand) {
 }
 
 TEST_F(TestAbort, abortStream) {
-  if (Fixture::sMode == Fixture::Mode::SYSEMU) {
+  if (RuntimeFixture::sDlType == RuntimeFixture::DeviceLayerImp::SYSEMU) {
     RT_LOG(WARNING) << "Abort Stream is not supported in sysemu. Returning.";
     FAIL();
   }
@@ -106,7 +106,7 @@ TEST_F(TestAbort, abortStream) {
 }
 
 TEST_F(TestAbort, kernelAbortedCallback) {
-  if (Fixture::sMode == Fixture::Mode::SYSEMU) {
+  if (RuntimeFixture::sDlType == RuntimeFixture::DeviceLayerImp::SYSEMU) {
     RT_LOG(WARNING) << "Abort Command is not supported in sysemu. Returning.";
     FAIL();
   }
