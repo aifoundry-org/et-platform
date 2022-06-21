@@ -8,8 +8,8 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
+#include "RuntimeFixture.h"
 #include "RuntimeImp.h"
-#include "TestUtils.h"
 #include "common/Constants.h"
 #include "runtime/Types.h"
 #include <device-layer/IDeviceLayer.h>
@@ -83,7 +83,7 @@ TEST_F(TestDmaErrors, DmaOobPlusCommands) {
 }
 
 int main(int argc, char** argv) {
-  ParseArguments(argc, argv);
+  RuntimeFixture::ParseArguments(argc, argv);
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

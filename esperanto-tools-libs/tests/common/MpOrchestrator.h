@@ -21,6 +21,9 @@ public:
 
   void createServer(DeviceLayerCreatorFunc deviceLayerCreator, rt::Options options);
   void createClient(const std::function<void(rt::IRuntime* runtime)>&);
+  const std::string& getSocketPath() const { // to be able to create local clients.
+    return socketPath_;
+  }
   void clearClients();
 
 private:

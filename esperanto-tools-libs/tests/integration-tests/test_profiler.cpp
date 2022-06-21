@@ -46,7 +46,7 @@ TEST(Profiler, add_2_vectors_profiling) {
   std::vector<std::byte> kernelContent(static_cast<unsigned long>(size));
   kernel_file.read(reinterpret_cast<char*>(kernelContent.data()), size);
 
-  auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(::getDefaultOptions());
+  auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(::getSysemuDefaultOptions());
   auto runtime = rt::IRuntime::create(deviceLayer.get());
   
 

@@ -7,7 +7,7 @@
 // in accordance with the terms and conditions stipulated in the
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
-#include "TestUtils.h"
+#include "RuntimeFixture.h"
 #include <algorithm>
 #include <thread>
 
@@ -155,6 +155,6 @@ TEST_F(StressMem, 1KB_1M_memcpies_10th_NOSYSEMU) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-  ParseArguments(argc, argv);
+  RuntimeFixture::ParseArguments(argc, argv);
   return RUN_ALL_TESTS();
 }

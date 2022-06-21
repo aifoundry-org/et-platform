@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "TestUtils.h"
+#include "RuntimeFixture.h"
 #include "Utils.h"
 #include "common/Constants.h"
 #include "runtime/IRuntime.h"
@@ -66,7 +66,7 @@ TEST_F(FwTracesTest, CM_MM_Traces) {
 } // namespace
 
 int main(int argc, char** argv) {
-  ParseArguments(argc, argv);
+  RuntimeFixture::ParseArguments(argc, argv);
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

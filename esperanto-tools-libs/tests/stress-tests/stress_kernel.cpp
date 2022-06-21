@@ -7,7 +7,7 @@
 // in accordance with the terms and conditions stipulated in the
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
-#include "TestUtils.h"
+#include "RuntimeFixture.h"
 #include <algorithm>
 #include <future>
 #include <g3log/loglevels.hpp>
@@ -24,7 +24,6 @@
 #include "RuntimeImp.h"
 #undef private
 
-using namespace testing;
 bool areEqual(int one, int other, int index, int thread, int stream) {
   (void)index;
   (void)thread;
@@ -211,7 +210,7 @@ TEST_F(StressKernel, 64_ele_100K_exe_1st_10_th_nocheck_NOSYSEMU) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-  ParseArguments(argc, argv);
+  RuntimeFixture::ParseArguments(argc, argv);
   g3::log_levels::disable(DEBUG);
   return RUN_ALL_TESTS();
 }

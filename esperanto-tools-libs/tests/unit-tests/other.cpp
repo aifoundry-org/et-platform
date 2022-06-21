@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "TestUtils.h"
+#include "RuntimeFixture.h"
 #include "Utils.h"
 #include "runtime/IRuntime.h"
 using namespace rt;

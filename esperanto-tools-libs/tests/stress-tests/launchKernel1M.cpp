@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "TestUtils.h"
+#include "RuntimeFixture.h"
 #include <gtest/gtest.h>
 
 TEST_F(RuntimeFixture, Launch_1M_Kernels_withBarrier_NOSYSEMU) {
@@ -45,7 +45,7 @@ TEST_F(RuntimeFixture, Launch_1M_Kernels_noBarrier_NOSYSEMU) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-  ParseArguments(argc, argv);
+  RuntimeFixture::ParseArguments(argc, argv);
   g3::log_levels::disable(DEBUG);
   return RUN_ALL_TESTS();
 }
