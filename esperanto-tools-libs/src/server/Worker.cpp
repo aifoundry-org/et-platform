@@ -39,7 +39,8 @@ void Worker::update(EventId event) {
 
 void Worker::sendResponse(const resp::Response& resp) {
   SpinLock lock(mutex_);
-  RT_VLOG(MID) << "Sending response. Type: " << static_cast<int>(resp.type_) << " Id: " << resp.id_;
+  RT_VLOG(MID) << "Sending response. Type: " << static_cast<uint32_t>(resp.type_) << "(" << resp::getStr(resp.type_)
+               << ") Id: " << resp.id_;
   std::stringstream response;
   cereal::PortableBinaryOutputArchive archive(response);
   archive(resp);

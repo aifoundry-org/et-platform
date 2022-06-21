@@ -217,6 +217,33 @@ enum class Type : uint32_t {
   RUNTIME_EXCEPTION
 };
 
+constexpr auto getStr(Type t) {
+  switch (t) {
+#define STR_TYPE(t)                                                                                                    \
+  case Type::t:                                                                                                        \
+    return #t;
+    STR_TYPE(VERSION)
+    STR_TYPE(MALLOC)
+    STR_TYPE(FREE)
+    STR_TYPE(MEMCPY_H2D)
+    STR_TYPE(MEMCPY_D2H)
+    STR_TYPE(MEMCPY_LIST_H2D)
+    STR_TYPE(MEMCPY_LIST_D2H)
+    STR_TYPE(CREATE_STREAM)
+    STR_TYPE(DESTROY_STREAM)
+    STR_TYPE(LOAD_CODE)
+    STR_TYPE(UNLOAD_CODE)
+    STR_TYPE(KERNEL_LAUNCH)
+    STR_TYPE(GET_DEVICES)
+    STR_TYPE(ABORT_STREAM)
+    STR_TYPE(EVENT_DISPATCHED)
+    STR_TYPE(STREAM_ERROR)
+    STR_TYPE(RUNTIME_EXCEPTION)
+  default:
+    return "Unknown type";
+  }
+}
+
 using Id = req::Id;
 
 struct GetDevices {

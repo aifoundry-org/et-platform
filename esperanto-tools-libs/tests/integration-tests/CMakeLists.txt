@@ -28,7 +28,13 @@ set(PCIE_TEST_LIST
   test_abort.cpp:"--mode=pcie"
   )
 
+set(MP_SYSEMU_TEST_LIST
+test_memcpy.cpp:"--mp --mode=sysemu"
+)
+
 create_test_targets("${PCIE_TEST_LIST}" "LABELS;Pcie;TIMEOUT;300" "pcie_")
+
+create_test_targets("${MP_SYSEMU_TEST_LIST}" "LABELS;Generic;LABELS;Sysemu;TIMEOUT;300" "it_mp_")
 
 
 configure_file(invoke-pcie-tests.sh.in ${CMAKE_CURRENT_BINARY_DIR}/tests/invoke-pcie-tests.sh)

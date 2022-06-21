@@ -124,7 +124,6 @@ private:
       valid_ = true;
       RT_VLOG(MID) << "Waking up. This: " << this << " valid: " << valid_ << " condVar addr: " << &condVar_;
       condVar_.notify_all();
-      RT_VLOG(MID) << "done";
     }
     resp::Response::Payload_t payload_;
     std::condition_variable condVar_;

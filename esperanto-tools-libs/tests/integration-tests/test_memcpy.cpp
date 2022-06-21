@@ -18,14 +18,7 @@
 #include <random>
 
 namespace {
-class TestMemcpy : public RuntimeFixture {
-public:
-  void SetUp() override {
-    RuntimeFixture::SetUp();
-    auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
-    imp->setMemoryManagerDebugMode(devices_[0], true);
-  }
-};
+class TestMemcpy : public RuntimeFixture {};
 } // namespace
 
 // Load and removal of a single kernel.
@@ -59,6 +52,10 @@ TEST_F(TestMemcpy, SimpleMemcpy) {
 
 // Load and removal of a single kernel.
 TEST_F(TestMemcpy, SimpleMemcpyDmaBuffer) {
+  if (sRtType == RtType::MP) {
+    RT_LOG(INFO) << "Skipping this test for MP because it doesn't support dma buffers.";
+    return;
+  }
   std::mt19937 gen(std::random_device{}());
   std::uniform_int_distribution dis;
 
@@ -139,6 +136,11 @@ TEST_F(TestMemcpy, 2GbMemcpy) {
 }
 
 TEST_F(TestMemcpy, dmaListCheckExceptions) {
+  if (sRtType == RtType::MP) {
+    RT_LOG(INFO)
+      << "Skipping this test until SW-13139 is implemented, uncomment the return and change the dmaInfo query";
+    return;
+  }
   auto dev = devices_[0];
   auto stream = runtime_->createStream(dev);
   auto dmaInfo = deviceLayer_->getDmaInfo(static_cast<int>(dev));
@@ -153,6 +155,11 @@ TEST_F(TestMemcpy, dmaListCheckExceptions) {
 }
 
 TEST_F(TestMemcpy, dmaListSimple) {
+  if (sRtType == RtType::MP) {
+    RT_LOG(INFO)
+      << "Skipping this test until SW-13139 is implemented, uncomment the return and change the dmaInfo query";
+    return;
+  }
   auto dev = devices_[0];
   auto stream = runtime_->createStream(dev);
   auto dmaInfo = deviceLayer_->getDmaInfo(static_cast<int>(dev));

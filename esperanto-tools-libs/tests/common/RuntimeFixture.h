@@ -45,25 +45,28 @@ public:
       options.checkDeviceApiVersion_ = false;
     }
     if (sRtType == RtType::SP) {
+      if (sInitLogger) {
+        loggerDefault_ = std::make_unique<logging::LoggerDefault>();
+      }
       deviceLayer_ = dlCreator();
       runtime_ = rt::IRuntime::create(deviceLayer_.get(), options);
       auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
       for (auto i = 0U; i < static_cast<uint32_t>(deviceLayer_->getDevicesCount()); ++i) {
         imp->setMemoryManagerDebugMode(devices_[i], true);
       }
-      loggerDefault_ = std::make_unique<logging::LoggerDefault>();
     } else {
       mpOrchestrator_ = std::make_unique<MpOrchestrator>();
       mpOrchestrator_->createServer(dlCreator, options);
+      if (sInitLogger) {
+        loggerDefault_ = std::make_unique<logging::LoggerDefault>();
+      }
       runtime_ = std::make_unique<rt::Client>(mpOrchestrator_->getSocketPath());
     }
     SetupTrace();
     devices_ = runtime_->getDevices();
-
-    for (auto i = 0U; i < static_cast<uint32_t>(deviceLayer_->getDevicesCount()); ++i) {
-      defaultStreams_.emplace_back(runtime_->createStream(devices_[i]));
+    for (auto d : devices_) {
+      defaultStreams_.emplace_back(runtime_->createStream(d));
     }
-
     runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   }
 
@@ -99,6 +102,15 @@ public:
     return false;
   }
 
+  static bool IsInitLoggerDisabled(int argc, char* argv[]) {
+    for (auto i = 1; i < argc; ++i) {
+      if (std::string{argv[i]} == "--disable-logger") {
+        return true;
+      }
+    }
+    return false;
+  }
+
   static auto getRtType(int argc, char* argv[]) {
     for (auto i = 1; i < argc; ++i) {
       if (std::string{argv[i]} == "--mp") {
@@ -128,12 +140,14 @@ public:
     sDlType = getDeviceLayerImp(argc, argv);
     sTraceEnabled = IsTraceEnabled(argc, argv);
     sRtType = getRtType(argc, argv);
+    sInitLogger = !IsInitLoggerDisabled(argc, argv);
   }
 
   inline static DeviceLayerImp sDlType = DeviceLayerImp::SYSEMU;
   inline static RtType sRtType = RtType::SP;
   inline static uint8_t sNumDevices = 1;
   inline static bool sTraceEnabled = false;
+  inline static bool sInitLogger = true;
 
 private:
   void SetupTrace() {
