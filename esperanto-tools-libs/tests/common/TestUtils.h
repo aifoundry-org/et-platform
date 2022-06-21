@@ -66,6 +66,7 @@ inline std::vector<std::byte> readFile(const std::string& path) {
 class RuntimeFixture : public testing::Test {
 public:
   enum class DeviceLayerImp { PCIE, SYSEMU, FAKE };
+  enum class RtType { SP, MP };
 
   void SetUp() override {
     auto options = rt::getDefaultOptions();
@@ -126,6 +127,7 @@ public:
   }
 
   inline static DeviceLayerImp sDlType = DeviceLayerImp::SYSEMU;
+  inline static RtType sRtType = RtType::SP;
   inline static uint8_t sNumDevices = 1;
   inline static bool sTraceEnabled = false;
 
@@ -246,7 +248,16 @@ inline bool IsTraceEnabled(int argc, char* argv[]) {
   return false;
 }
 
-inline RuntimeFixture::DeviceLayerImp getDeviceLayerImp(int argc, char* argv[]) {
+inline auto getRtType(int argc, char* argv[]) {
+  for (auto i = 1; i < argc; ++i) {
+    if (std::string{argv[i]} == "--mp") {
+      return RuntimeFixture::RtType::MP;
+    }
+  }
+  return RuntimeFixture::RtType::SP;
+}
+
+inline auto getDeviceLayerImp(int argc, char* argv[]) {
   for (auto i = 1; i < argc; ++i) {
     if (std::string{argv[i]} == "--mode=pcie") {
       return RuntimeFixture::DeviceLayerImp::PCIE;
@@ -265,4 +276,5 @@ inline RuntimeFixture::DeviceLayerImp getDeviceLayerImp(int argc, char* argv[]) 
 inline void ParseArguments(int argc, char* argv[]) {
   RuntimeFixture::sDlType = getDeviceLayerImp(argc, argv);
   RuntimeFixture::sTraceEnabled = IsTraceEnabled(argc, argv);
+  RuntimeFixture::sRtType = getRtType(argc, argv);
 }
