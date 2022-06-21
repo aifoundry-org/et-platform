@@ -597,12 +597,12 @@ CLEANUP_ON_ERROR:
         memset((void *)load_address.u64, 0, image_info->secret_info.load_regions[n].memory_size);
     }
 
-    if ((encrypted_hash_context_initialized) && (0 != crypto_hash_abort(&encrypted_hash_context)))
+    if (encrypted_hash_context_initialized && (0 != crypto_hash_abort(&encrypted_hash_context)))
     {
         Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_abort(e) failed!\n");
     }
 #ifndef IGNORE_HASH
-    if ((hash_context_initialized) && (0 != crypto_hash_abort(&hash_context)))
+    if (hash_context_initialized && (0 != crypto_hash_abort(&hash_context)))
     {
         Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_abort(p) failed!\n");
     }
@@ -699,21 +699,21 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type)
     rv = 0;
 
 DONE:
-    if ((gs_aes_context_created) && (0 != crypto_aes_decrypt_final(&gs_aes_context, NULL, 0, NULL)))
+    if (gs_aes_context_created && (0 != crypto_aes_decrypt_final(&gs_aes_context, NULL, 0, NULL)))
     {
         Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_aes_decrypt_final() failed!\n");
     }
-    if ((gs_enck_created) && (0 != crypto_delete_key(gs_enck)))
+    if (gs_enck_created && (0 != crypto_delete_key(gs_enck)))
     {
         Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_delete_key(enck) failed!\n");
         rv = -1;
     }
-    if ((gs_mack_created) && (0 != crypto_delete_key(gs_mack)))
+    if (gs_mack_created && (0 != crypto_delete_key(gs_mack)))
     {
         Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_delete_key(mack) failed!\n");
         rv = -1;
     }
-    if ((gs_kdk_created) && (0 != crypto_delete_key(gs_kdk)))
+    if (gs_kdk_created && (0 != crypto_delete_key(gs_kdk)))
     {
         Log_Write(LOG_LEVEL_ERROR, "load_firmware: crypto_delete_key(kdk) failed!\n");
         rv = -1;

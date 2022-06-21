@@ -554,6 +554,74 @@ DONE:
     return rv;
 }
 
+static int validate_tx_cmd_attributes(SPI_COMMAND_t *command, uint32_t spi_command_length,
+                                      uint32_t *true_write_size, bool *use_32bit_frames,
+                                      uint32_t *dfs32_frame_size)
+{
+    if (0 != command->dummy_bytes)
+    {
+        MESSAGE_ERROR("spi_controller_command: support for tx with dummy bytes not implemented!\n");
+        return -1;
+    }
+    if (0 == (*true_write_size & 0x3) && 4 == spi_command_length)
+    {
+        /* we will use 32-bit frames */
+        *use_32bit_frames = true;
+        *dfs32_frame_size = SSI_CTRLR0_DFS_32_DFS_32_FRAME_32BITS;
+    }
+    else if (1 == *true_write_size)
+    {
+        /* we will use 8-bit frames */
+    }
+    else
+    {
+        MESSAGE_ERROR(
+            "spi_controller_command: tx command_length (%u) and data_size (%u) not supported!\n",
+            spi_command_length, command->data_size);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int validate_rx_cmd_attributes(uint32_t spi_command_length, uint32_t *true_read_size,
+                                      bool *use_32bit_frames, bool *command_length_supported,
+                                      uint32_t *dfs32_frame_size)
+{
+    switch (spi_command_length)
+    {
+        case 4: {
+            /* command length is 32-bit, we will handle dummy bytes as part of the read */
+            *true_read_size = ((*true_read_size) + 3) &
+                              0xFFFFFFFC; /* round up to the next 4 bytes */
+            /* we will use 32-bit frames */
+            *use_32bit_frames = true;
+            *command_length_supported = true;
+            *dfs32_frame_size = SSI_CTRLR0_DFS_32_DFS_32_FRAME_32BITS;
+            break;
+        }
+
+        case 1:
+            /* command length is 8-bit, we will handle dummy bytes as part of the read */
+            /* we will use 8-bit frames */
+            *command_length_supported = true;
+            break;
+
+        default:
+            *command_length_supported = false;
+            break;
+    }
+
+    if (!command_length_supported)
+    {
+        MESSAGE_ERROR("spi_controller_command: rx command_length (%u) not supported!\n",
+                      spi_command_length);
+        return -1;
+    }
+
+    return 0;
+}
+
 #define MAX_DUMMY_BYTES 8
 int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMMAND_t *command)
 {
@@ -578,7 +646,7 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
         return -1;
     }
 
-    if ((command->data_receive) && ((0 == command->data_size || command->data_size > 0x10000u)))
+    if ((command->data_receive) && (0 == command->data_size || command->data_size > 0x10000u))
     {
         return -1;
     }
@@ -598,27 +666,48 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
         /* we are transmitting data */
         true_write_size = spi_command_length + command->data_size;
 
-        if (0 != command->dummy_bytes)
+        if (0 != validate_tx_cmd_attributes(command, spi_command_length, &true_write_size,
+                                            &use_32bit_frames, &dfs32_frame_size))
         {
-            MESSAGE_ERROR(
-                "spi_controller_command: support for tx with dummy bytes not implemented!\n");
             return -1;
-        }
-        if (0 == (true_write_size & 0x3) && 4 == spi_command_length)
+        };
+
+        iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
+        slave_en_mask = SSI_SER_SER_SET((1u << slave_index) & SLAVE_MASK);
+
+        iowrite32(spi_regs + SSI_BAUDR_ADDRESS,
+                  SSI_BAUDR_SCKDV_SET(bl2_data->spi_controller_tx_baudrate_divider));
+        iowrite32(spi_regs + SSI_CTRLR0_ADDRESS,
+                  (uint32_t)(
+                      /* SSI_CTRLR0_DFS_SET(0)                                       | */
+                      SSI_CTRLR0_FRF_SET(SSI_CTRLR0_FRF_FRF_MOTOROLA_SPI) |
+                      SSI_CTRLR0_SCPH_SET(SCPH_VALUE) | SSI_CTRLR0_SCPOL_SET(SCPOL_VALUE) |
+                      SSI_CTRLR0_TMOD_SET(SSI_CTRLR0_TMOD_TMOD_TX_ONLY) |
+                      SSI_CTRLR0_SRL_SET(SSI_CTRLR0_SRL_SRL_NORMAL_MODE) |
+                      SSI_CTRLR0_DFS_32_SET(dfs32_frame_size & 0x1Fu) |
+                      SSI_CTRLR0_SPI_FRF_SET(SSI_CTRLR0_SPI_FRF_SPI_FRF_STD_SPI_FRF) |
+                      SSI_CTRLR0_SSTE_SET(0)));
+        iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(1));
+        if (use_32bit_frames)
         {
-            /* we will use 32-bit frames */
-            use_32bit_frames = true;
-            dfs32_frame_size = SSI_CTRLR0_DFS_32_DFS_32_FRAME_32BITS;
-        }
-        else if (1 == true_write_size)
-        {
-            /* we will use 8-bit frames */
+            rv = spi_controller_tx32_data(spi_regs, spi_command, spi_command_length,
+                                          command->data_buffer, command->data_size, slave_en_mask);
         }
         else
         {
-            MESSAGE_ERROR(
-                "spi_controller_command: tx command_length (%u) and data_size (%u) not supported!\n",
-                spi_command_length, command->data_size);
+            rv = spi_controller_tx_data(spi_regs, spi_command, spi_command_length,
+                                        command->data_buffer, command->data_size, slave_en_mask);
+        }
+    }
+    else
+    {
+        /* we are receiving data */
+        true_read_size = command->dummy_bytes + command->data_size;
+        skip_read_size = command->dummy_bytes;
+
+        if (0 != validate_rx_cmd_attributes(spi_command_length, &true_read_size, &use_32bit_frames,
+                                            &command_length_supported, &dfs32_frame_size))
+        {
             return -1;
         }
 
@@ -661,69 +750,6 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
         {
             rv = spi_controller_rx_data(spi_regs, spi_command, spi_command_length,
                                         command->data_buffer, command->data_size);
-        }
-    }
-    else
-    {
-        /* we are receiving data */
-        true_read_size = command->dummy_bytes + command->data_size;
-        skip_read_size = command->dummy_bytes;
-        switch (spi_command_length)
-        {
-            case 4: {
-                /* command length is 32-bit, we will handle dummy bytes as part of the read */
-                true_read_size = (true_read_size + 3) &
-                                 0xFFFFFFFC; /* round up to the next 4 bytes */
-                /* we will use 32-bit frames */
-                use_32bit_frames = true;
-                command_length_supported = true;
-                dfs32_frame_size = SSI_CTRLR0_DFS_32_DFS_32_FRAME_32BITS;
-                break;
-            }
-
-            case 1:
-                /* command length is 8-bit, we will handle dummy bytes as part of the read */
-                /* we will use 8-bit frames */
-                command_length_supported = true;
-                break;
-
-            default:
-                command_length_supported = false;
-                break;
-        }
-
-        if (!command_length_supported)
-        {
-            MESSAGE_ERROR("spi_controller_command: rx command_length (%u) not supported!\n",
-                          spi_command_length);
-            return -1;
-        }
-
-        iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
-        slave_en_mask = SSI_SER_SER_SET((1u << slave_index) & SLAVE_MASK);
-
-        iowrite32(spi_regs + SSI_BAUDR_ADDRESS,
-                  SSI_BAUDR_SCKDV_SET(bl2_data->spi_controller_tx_baudrate_divider));
-        iowrite32(spi_regs + SSI_CTRLR0_ADDRESS,
-                  (uint32_t)(
-                      /* SSI_CTRLR0_DFS_SET(0)                                       | */
-                      SSI_CTRLR0_FRF_SET(SSI_CTRLR0_FRF_FRF_MOTOROLA_SPI) |
-                      SSI_CTRLR0_SCPH_SET(SCPH_VALUE) | SSI_CTRLR0_SCPOL_SET(SCPOL_VALUE) |
-                      SSI_CTRLR0_TMOD_SET(SSI_CTRLR0_TMOD_TMOD_TX_ONLY) |
-                      SSI_CTRLR0_SRL_SET(SSI_CTRLR0_SRL_SRL_NORMAL_MODE) |
-                      SSI_CTRLR0_DFS_32_SET(dfs32_frame_size & 0x1Fu) |
-                      SSI_CTRLR0_SPI_FRF_SET(SSI_CTRLR0_SPI_FRF_SPI_FRF_STD_SPI_FRF) |
-                      SSI_CTRLR0_SSTE_SET(0)));
-        iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(1));
-        if (use_32bit_frames)
-        {
-            rv = spi_controller_tx32_data(spi_regs, spi_command, spi_command_length,
-                                          command->data_buffer, command->data_size, slave_en_mask);
-        }
-        else
-        {
-            rv = spi_controller_tx_data(spi_regs, spi_command, spi_command_length,
-                                        command->data_buffer, command->data_size, slave_en_mask);
         }
     }
 

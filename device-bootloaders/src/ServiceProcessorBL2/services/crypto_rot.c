@@ -2553,12 +2553,10 @@ typedef union buffer_u
 
 static uint32_t get_count(buffer_t *buff)
 {
-    uint32_t n = 0;
-    uint32_t w = 0;
     uint32_t count = 0;
-    for (w = 0; w < MAXIMUM_COUNTER_WORDS; w++)
+    for (uint32_t w = 0; w < MAXIMUM_COUNTER_WORDS; w++)
     {
-        for (n = 0; n < 64; n++)
+        for (uint32_t n = 0; n < 64; n++)
         {
             if (0 != (buff->u64[w] & 1))
             {
