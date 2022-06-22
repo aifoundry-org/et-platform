@@ -554,8 +554,8 @@ DONE:
     return rv;
 }
 
-static int validate_tx_cmd_attributes(SPI_COMMAND_t *command, uint32_t spi_command_length,
-                                      uint32_t *true_write_size, bool *use_32bit_frames,
+static int validate_tx_cmd_attributes(const SPI_COMMAND_t *command, uint32_t spi_command_length,
+                                      const uint32_t *true_write_size, bool *use_32bit_frames,
                                       uint32_t *dfs32_frame_size)
 {
     if (0 != command->dummy_bytes)
@@ -641,12 +641,8 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
     const SERVICE_PROCESSOR_BL2_DATA_t *bl2_data = get_service_processor_bl2_data();
 
     if ((0 == spi_regs) || (slave_index >= SPI_SSI_NUM_SLAVES) ||
-        (command->dummy_bytes > MAX_DUMMY_BYTES))
-    {
-        return -1;
-    }
-
-    if ((command->data_receive) && (0 == command->data_size || command->data_size > 0x10000u))
+        (command->dummy_bytes > MAX_DUMMY_BYTES) ||
+        ((command->data_receive) && (0 == command->data_size || command->data_size > 0x10000u)))
     {
         return -1;
     }
@@ -670,7 +666,7 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
                                             &use_32bit_frames, &dfs32_frame_size))
         {
             return -1;
-        };
+        }
 
         iowrite32(spi_regs + SSI_SSIENR_ADDRESS, SSI_SSIENR_SSI_EN_SET(0));
         slave_en_mask = SSI_SER_SER_SET((1u << slave_index) & SLAVE_MASK);

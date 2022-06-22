@@ -1347,6 +1347,11 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id,
             goto DONE;
     }
 
+#if MESSAGEINFO_DEBUG_ENABLE
+    MESSAGE_INFO_DEBUG("crypto_create_ec_parameters_asset: asset size = 0x%x\n",
+                       domain_parameters_size);
+#endif
+
     public_key_parameters_asset_other_settings.DataLength = domain_parameters_size & 0x3FFu;
     if (0 != vaultip_drv_asset_create(get_rom_identity(), public_key_parameters_asset_policy.lo,
                                       public_key_parameters_asset_policy.hi,
@@ -1371,6 +1376,14 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id,
         rv = -1;
         goto DONE;
     }
+
+#if MESSAGEINFO_DEBUG_ENABLE
+    MESSAGE_INFO_DEBUG("Domain parameters asset data @%p:", domain_parameters_data_ptr);
+#endif
+
+#if DUMP_ASSET
+    dump_asset(domain_parameters_data_ptr, domain_parameters_size);
+#endif
 
     *ec_parameters_asset_id = asset_id;
     rv = 0;
@@ -1713,6 +1726,10 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
         return crypto_create_ec_public_key_asset_cleanup();
     }
 
+#if MESSAGEINFO_DEBUG_ENABLE
+    MESSAGE_INFO_DEBUG("crypto_create_ec_public_key_asset: asset created.\n");
+#endif
+
     if (0 != vaultip_drv_asset_load_plaintext(get_rom_identity(), asset_id, public_key_data_ptr,
                                               public_key_data_size))
     {
@@ -1726,9 +1743,12 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg,
         return crypto_create_ec_public_key_asset_cleanup();
     }
 
-#if DUMP_ASSET
+#if MESSAGEINFO_DEBUG_ENABLE
     MESSAGE_INFO_DEBUG("crypto_create_ec_public_key_asset: asset loaded.\n");
     MESSAGE_INFO_DEBUG("Key asset data @ %p:", public_key_data_ptr);
+#endif
+
+#if DUMP_ASSET
     dump_asset(public_key_data_ptr, public_key_data_size);
 #endif
 

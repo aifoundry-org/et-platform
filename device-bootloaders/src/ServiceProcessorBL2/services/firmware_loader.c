@@ -378,21 +378,72 @@ static int remap_load_address(uint64_t *address, uint64_t size)
     return -1;
 }
 
+static int get_code_and_data_hash_size(const ESPERANTO_IMAGE_INFO_t *image_info,
+                                       uint32_t *code_and_data_hash_size)
+{
+    switch (image_info->public_info.code_and_data_hash_algorithm)
+    {
+        case HASH_ALG_SHA2_256:
+            *code_and_data_hash_size = 256 / 8;
+            break;
+        case HASH_ALG_SHA2_384:
+            *code_and_data_hash_size = 384 / 8;
+            break;
+        case HASH_ALG_SHA2_512:
+            *code_and_data_hash_size = 512 / 8;
+            break;
+        default:
+            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: Invalid hash algorithm!\n");
+            return -1;
+    }
+
+    return 0;
+}
+
+typedef union load_address_u
+{
+    uint64_t u64;
+    struct
+    {
+        uint32_t lo;
+        uint32_t hi;
+    };
+} load_address_t;
+
+static int load_image_code_and_data_cleanup_on_error(uint32_t region_no,
+                                                     const ESPERANTO_IMAGE_INFO_t *image_info,
+                                                     bool encrypted_hash_context_initialized,
+                                                     CRYPTO_HASH_CONTEXT_t *encrypted_hash_context,
+                                                     bool hash_context_initialized,
+                                                     CRYPTO_HASH_CONTEXT_t *hash_context)
+{
+    load_address_t load_address;
+    for (uint32_t n = 0; n <= region_no; n++)
+    {
+        load_address.lo = image_info->secret_info.load_regions[n].load_address_lo;
+        load_address.hi = image_info->secret_info.load_regions[n].load_address_hi;
+        memset((void *)load_address.u64, 0, image_info->secret_info.load_regions[n].memory_size);
+    }
+
+    if (encrypted_hash_context_initialized && (0 != crypto_hash_abort(encrypted_hash_context)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_abort(e) failed!\n");
+    }
+#ifndef IGNORE_HASH
+    if (hash_context_initialized && (0 != crypto_hash_abort(hash_context)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_abort(p) failed!\n");
+    }
+#endif
+    return -1;
+}
+
 static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                                     const ESPERANTO_IMAGE_FILE_HEADER_t *image_file_header)
 {
     uint32_t code_and_data_hash_size;
     uint32_t load_offset;
-    union
-    {
-        uint64_t u64;
-        struct
-        {
-            uint32_t lo;
-            uint32_t hi;
-        };
-    } load_address;
-    uint32_t n;
+    load_address_t load_address;
     uint32_t region_no = 0;
 #ifndef IGNORE_HASH
     CRYPTO_HASH_CONTEXT_t hash_context;
@@ -406,43 +457,34 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
     const ESPERANTO_IMAGE_INFO_t *image_info =
         &(image_file_header->info.image_info_and_signaure.info);
 
-    switch (image_info->public_info.code_and_data_hash_algorithm)
+    if (0 != get_code_and_data_hash_size(image_info, &code_and_data_hash_size))
     {
-        case HASH_ALG_SHA2_256:
-            code_and_data_hash_size = 256 / 8;
-            break;
-        case HASH_ALG_SHA2_384:
-            code_and_data_hash_size = 384 / 8;
-            break;
-        case HASH_ALG_SHA2_512:
-            code_and_data_hash_size = 512 / 8;
-            break;
-        default:
-            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: Invalid hash algorithm!\n");
-            return -1;
+        return -1;
     }
 
-    if (0 !=
-        (image_file_header->info.file_header_flags & ESPERANTO_IMAGE_FILE_HEADER_FLAGS_ENCRYPTED))
+    if (0 != (image_file_header->info.file_header_flags &
+              ESPERANTO_IMAGE_FILE_HEADER_FLAGS_ENCRYPTED) &&
+        (0 != crypto_hash_init(&encrypted_hash_context,
+                               image_info->public_info.code_and_data_hash_algorithm)))
     {
-        if (0 != crypto_hash_init(&encrypted_hash_context,
-                                  image_info->public_info.code_and_data_hash_algorithm))
-        {
-            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_init(e) failed!\n");
-            return -1;
-        }
+        Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_init(e) failed!\n");
+        return -1;
+    }
+    else
+    {
         encrypted_hash_context_initialized = true;
     }
 
 #ifndef IGNORE_HASH
-    if (!gs_vaultip_disabled)
+    if ((!gs_vaultip_disabled) &&
+        (0 !=
+         crypto_hash_init(&hash_context, image_info->public_info.code_and_data_hash_algorithm)))
     {
-        if (0 !=
-            crypto_hash_init(&hash_context, image_info->public_info.code_and_data_hash_algorithm))
-        {
-            Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_init() failed!\n");
-            return -1;
-        }
+        Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_init() failed!\n");
+        return -1;
+    }
+    else
+    {
         hash_context_initialized = true;
     }
 #endif
@@ -461,7 +503,9 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                       region_no, load_offset, load_address.u64,
                       image_info->secret_info.load_regions[region_no].load_size,
                       image_info->secret_info.load_regions[region_no].memory_size);
-            goto CLEANUP_ON_ERROR;
+            return load_image_code_and_data_cleanup_on_error(
+                region_no, image_info, encrypted_hash_context_initialized, &encrypted_hash_context,
+                hash_context_initialized, &hash_context);
         }
         /*Log_Write(LOG_LEVEL_ERROR, "Region %u: load=0x%x, addr=0x%lx, fsize=0x%x, msize=0x%x\n", region_no, 
                load_offset, load_address.u64, 
@@ -476,7 +520,9 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
             {
                 Log_Write(LOG_LEVEL_ERROR,
                           "load_image_code_and_data: flashfs_drv_read_file(code) failed!\n");
-                goto CLEANUP_ON_ERROR;
+                return load_image_code_and_data_cleanup_on_error(
+                    region_no, image_info, encrypted_hash_context_initialized,
+                    &encrypted_hash_context, hash_context_initialized, &hash_context);
             }
             /*Log_Write(LOG_LEVEL_ERROR, "loaded 0x%x bytes at 0x%08lx\n",
                    image_info->secret_info.load_regions[region_no].load_size, load_address.u64);*/
@@ -493,7 +539,9 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                     {
                         Log_Write(LOG_LEVEL_ERROR,
                                   "load_image_code_and_data: crypto_hash_update() failed!\n");
-                        goto CLEANUP_ON_ERROR;
+                        return load_image_code_and_data_cleanup_on_error(
+                            region_no, image_info, encrypted_hash_context_initialized,
+                            &encrypted_hash_context, hash_context_initialized, &hash_context);
                     }
 
                     /* decrypt data */
@@ -504,7 +552,9 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                         Log_Write(
                             LOG_LEVEL_ERROR,
                             "load_image_code_and_data: crypto_aes_decrypt_update() failed!\n");
-                        goto CLEANUP_ON_ERROR;
+                        return load_image_code_and_data_cleanup_on_error(
+                            region_no, image_info, encrypted_hash_context_initialized,
+                            &encrypted_hash_context, hash_context_initialized, &hash_context);
                     }
                 }
 
@@ -515,7 +565,9 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                 {
                     Log_Write(LOG_LEVEL_ERROR,
                               "load_image_code_and_data: crypto_hash_update() failed!\n");
-                    goto CLEANUP_ON_ERROR;
+                    return load_image_code_and_data_cleanup_on_error(
+                        region_no, image_info, encrypted_hash_context_initialized,
+                        &encrypted_hash_context, hash_context_initialized, &hash_context);
                 }
 #endif
             }
@@ -542,7 +594,9 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
         if (0 != crypto_hash_final(&encrypted_hash_context, NULL, 0, total_length, hash))
         {
             Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_final(p) failed!\n");
-            goto CLEANUP_ON_ERROR;
+            return load_image_code_and_data_cleanup_on_error(
+                region_no, image_info, encrypted_hash_context_initialized, &encrypted_hash_context,
+                hash_context_initialized, &hash_context);
         }
         encrypted_hash_context_initialized = false;
 
@@ -552,14 +606,18 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
         {
             Log_Write(LOG_LEVEL_ERROR,
                       "load_image_code_and_data: encrypted code+data hash mismatch!\n");
-            goto CLEANUP_ON_ERROR;
+            return load_image_code_and_data_cleanup_on_error(
+                region_no, image_info, encrypted_hash_context_initialized, &encrypted_hash_context,
+                hash_context_initialized, &hash_context);
         }
 
         if (0 != crypto_aes_decrypt_final(&gs_aes_context, NULL, 0, NULL))
         {
             Log_Write(LOG_LEVEL_ERROR,
                       "load_bl1_code_and_data: crypto_aes_decrypt_final() failed!\n");
-            goto CLEANUP_ON_ERROR;
+            return load_image_code_and_data_cleanup_on_error(
+                region_no, image_info, encrypted_hash_context_initialized, &encrypted_hash_context,
+                hash_context_initialized, &hash_context);
         }
         gs_aes_context_created = false;
     }
@@ -574,7 +632,9 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
         if (0 != crypto_hash_final(&hash_context, NULL, 0, total_length, hash))
         {
             Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_final() failed!\n");
-            goto CLEANUP_ON_ERROR;
+            return load_image_code_and_data_cleanup_on_error(
+                region_no, image_info, encrypted_hash_context_initialized, &encrypted_hash_context,
+                hash_context_initialized, &hash_context);
         }
         hash_context_initialized = false;
 
@@ -582,33 +642,16 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                                               code_and_data_hash_size))
         {
             Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: code+data hash mismatch!\n");
-            goto CLEANUP_ON_ERROR;
+            return load_image_code_and_data_cleanup_on_error(
+                region_no, image_info, encrypted_hash_context_initialized, &encrypted_hash_context,
+                hash_context_initialized, &hash_context);
         }
     }
 #endif
 
     return 0;
-
-CLEANUP_ON_ERROR:
-    for (n = 0; n <= region_no; n++)
-    {
-        load_address.lo = image_info->secret_info.load_regions[n].load_address_lo;
-        load_address.hi = image_info->secret_info.load_regions[n].load_address_hi;
-        memset((void *)load_address.u64, 0, image_info->secret_info.load_regions[n].memory_size);
-    }
-
-    if (encrypted_hash_context_initialized && (0 != crypto_hash_abort(&encrypted_hash_context)))
-    {
-        Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_abort(e) failed!\n");
-    }
-#ifndef IGNORE_HASH
-    if (hash_context_initialized && (0 != crypto_hash_abort(&hash_context)))
-    {
-        Log_Write(LOG_LEVEL_ERROR, "load_image_code_and_data: crypto_hash_abort(p) failed!\n");
-    }
-#endif
-    return -1;
 }
+
 int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type)
 {
     int rv;
