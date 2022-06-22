@@ -199,7 +199,7 @@ void insn_fsgnj_s(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fsgnj.s");
-    WRITE_FD( fpu::f32_copySign(FS1.f32[0], FS2.f32[0]) );
+    INTMV_FD( fpu::f32_copySign(FS1.f32[0], FS2.f32[0]) );
 }
 
 
@@ -207,7 +207,7 @@ void insn_fsgnjn_s(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fsgnjn.s");
-    WRITE_FD( fpu::f32_copySignNot(FS1.f32[0], FS2.f32[0]) );
+    INTMV_FD( fpu::f32_copySignNot(FS1.f32[0], FS2.f32[0]) );
 }
 
 
@@ -215,7 +215,7 @@ void insn_fsgnjx_s(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fsgnjx.s");
-    WRITE_FD( fpu::f32_copySignXor(FS1.f32[0], FS2.f32[0]) );
+    INTMV_FD( fpu::f32_copySignXor(FS1.f32[0], FS2.f32[0]) );
 }
 
 
@@ -223,7 +223,7 @@ void insn_fmv_w_x(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_RS1("fmv.w.x");
-    WRITE_FD( uint32_t(RS1) );
+    INTMV_FD( uint32_t(RS1) );
 }
 
 

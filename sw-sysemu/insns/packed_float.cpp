@@ -45,7 +45,7 @@ void insn_fbcx_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_RS1("fbcx.ps");
-    WRITE_VD( uint32_t(RS1) );
+    INTMV_VD( uint32_t(RS1) );
 }
 
 
@@ -61,7 +61,7 @@ void insn_fcmov_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2_FS3("fcmov.ps");
-    WRITE_VD( FS1.u32[e] ? FS2.u32[e] : FS3.u32[e] );
+    INTMV_VD( FS1.u32[e] ? FS2.u32[e] : FS3.u32[e] );
 }
 
 
@@ -70,7 +70,7 @@ void insn_fcmovm_ps(Hart& cpu)
     require_fp_active();
     DISASM_FD_FS1_FS2("fcmovm.ps");
     LOG_MREG(":", 0);
-    WRITE_VD_NOMASK( M0[e] ? FS1.u32[e] : FS2.u32[e] );
+    INTMV_VD_NOMASK( M0[e] ? FS1.u32[e] : FS2.u32[e] );
 }
 
 
@@ -301,7 +301,7 @@ void insn_fsgnj_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fsgnj.ps");
-    WRITE_VD( fpu::f32_copySign(FS1.f32[e], FS2.f32[e]) );
+    INTMV_VD( fpu::f32_copySign(FS1.f32[e], FS2.f32[e]) );
 }
 
 
@@ -309,7 +309,7 @@ void insn_fsgnjn_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fsgnjn.ps");
-    WRITE_VD( fpu::f32_copySignNot(FS1.f32[e], FS2.f32[e]) );
+    INTMV_VD( fpu::f32_copySignNot(FS1.f32[e], FS2.f32[e]) );
 }
 
 
@@ -317,7 +317,7 @@ void insn_fsgnjx_ps(Hart& cpu)
 {
     require_fp_active();
     DISASM_FD_FS1_FS2("fsgnjx.ps");
-    WRITE_VD( fpu::f32_copySignXor(FS1.f32[e], FS2.f32[e]) );
+    INTMV_VD( fpu::f32_copySignXor(FS1.f32[e], FS2.f32[e]) );
 }
 
 
@@ -343,7 +343,7 @@ void insn_fswizz_ps(Hart& cpu)
     require_fp_active();
     DISASM_FD_FS1_UIMM8("fswizz.ps");
     freg_t tmp = FS1;
-    WRITE_VD( tmp.u32[(e & ~3) | ((UIMM8 >> ((2*e) % 8)) & 3)] );
+    INTMV_VD( tmp.u32[(e & ~3) | ((UIMM8 >> ((2*e) % 8)) & 3)] );
 }
 
 

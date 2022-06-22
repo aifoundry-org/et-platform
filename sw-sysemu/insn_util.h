@@ -394,23 +394,22 @@ inline mreg_t mkmask(unsigned len) {
 #define WRITE_MD(expr)  WRITE_MREG(cpu.inst.md(), expr)
 
 
-#define WRITE_FD_REG(expr, load) do { \
+#define WRITE_FD_REG(expr, op) do { \
     FD.u32[0] = fpu::UI32(expr); \
     for (std::size_t e = 1; e < MLEN; ++e) { \
         FD.u32[e] = 0; \
     } \
     LOG_FREG("=", cpu.inst.fd()); \
     dirty_fp_state(); \
-    if (load) \
-        notify_freg_load(cpu, cpu.inst.fd(), mreg_t(-1), FD); \
-    else \
-        notify_freg_write(cpu, cpu.inst.fd(), mreg_t(-1), FD); \
+    notify_freg_##op(cpu, cpu.inst.fd(), mreg_t(-1), FD); \
 } while (0)
 
-#define WRITE_FD(expr)  WRITE_FD_REG(expr, false)
-#define LOAD_FD(expr)   WRITE_FD_REG(expr, true)
+#define LOAD_FD(expr) WRITE_FD_REG(expr, load)
+#define INTMV_FD(expr) WRITE_FD_REG(expr, intmv)
+#define WRITE_FD(expr) WRITE_FD_REG(expr, write)
 
-#define WRITE_VD_REG(expr, load) do { \
+
+#define WRITE_VD_REG(expr, op) do { \
     LOG_MREG(":", 0); \
     if (M0.any()) { \
         for (std::size_t e = 0; e < MLEN; ++e) { \
@@ -421,14 +420,12 @@ inline mreg_t mkmask(unsigned len) {
         LOG_FREG("=", cpu.inst.fd()); \
         dirty_fp_state(); \
     } \
-    if (load) \
-        notify_freg_load(cpu, cpu.inst.fd(), M0, FD); \
-    else \
-        notify_freg_write(cpu, cpu.inst.fd(), M0, FD); \
+    notify_freg_##op(cpu, cpu.inst.fd(), M0, FD); \
 } while (0)
 
-#define WRITE_VD(expr)  WRITE_VD_REG(expr, false)
-#define LOAD_VD(expr)   WRITE_VD_REG(expr, true)
+#define LOAD_VD(expr) WRITE_VD_REG(expr, load)
+#define INTMV_VD(expr) WRITE_VD_REG(expr, intmv)
+#define WRITE_VD(expr) WRITE_VD_REG(expr, write)
 
 #define SCATTER(expr) do { \
     LOG_GSC_PROGRESS(":"); \
@@ -597,13 +594,13 @@ inline mreg_t mkmask(unsigned len) {
 } while (0)
 #endif // ZSIM
 
-#define WRITE_VD_NOMASK(expr) do { \
+#define INTMV_VD_NOMASK(expr) do { \
     for (std::size_t e = 0; e < MLEN; ++e) { \
         FD.u32[e] = fpu::UI32(expr); \
     } \
     LOG_FREG("=", cpu.inst.fd()); \
     dirty_fp_state(); \
-    notify_freg_write(cpu, cpu.inst.fd(), mreg_t(-1), FD); \
+    notify_freg_intmv(cpu, cpu.inst.fd(), mreg_t(-1), FD); \
 } while (0)
 
 

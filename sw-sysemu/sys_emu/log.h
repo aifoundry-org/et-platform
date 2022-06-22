@@ -14,22 +14,30 @@
 #include <cstdint>
 #include "processor.h"
 
-
-// There is no checker so we make this an empty interface
+// Run control
 inline void notify_pc_update(const bemu::Hart&, uint64_t) {}
+inline void notify_trap(const bemu::Hart&,  uint64_t, uint64_t, uint64_t, uint64_t) {}
+
+// General purpose registers (late writes are operations that take more than one cycle)
 inline void notify_xreg_write(const bemu::Hart&, uint8_t, uint64_t) {}
 inline void notify_xreg_late_write(const bemu::Hart&, uint8_t, uint64_t) {}
-inline void notify_freg_write(const bemu::Hart&, uint8_t, const bemu::mreg_t&, const bemu::freg_t&) {}
+
+// Different flavors of writes to the VPU register file (or fregs)
 inline void notify_freg_load(const bemu::Hart&, uint8_t, const bemu::mreg_t&, const bemu::freg_t&) {}
-inline void notify_mreg_write(const bemu::Hart&, uint8_t, const bemu::mreg_t&) {}
-inline void notify_fflags_write(const bemu::Hart&, uint64_t) {}
+inline void notify_freg_intmv(const bemu::Hart&, uint8_t, const bemu::mreg_t&, const bemu::freg_t&) {}
+inline void notify_freg_write(const bemu::Hart&, uint8_t, const bemu::mreg_t&, const bemu::freg_t&) {}
+
+// Memory write backs
 inline void notify_mem_write(const bemu::Hart&, bool, int, uint64_t, uint64_t, uint64_t) {}
 inline void notify_mem_read(const bemu::Hart&, bool, int, uint64_t, uint64_t) {}
 inline void notify_mem_read_write(const bemu::Hart&, bool, int, uint64_t, uint64_t, uint64_t) {}
-inline void notify_trap(const bemu::Hart&,  uint64_t, uint64_t, uint64_t, uint64_t) {}
+
+// Mask registers and misc CSRs
+inline void notify_mreg_write(const bemu::Hart&, uint8_t, const bemu::mreg_t&) {}
+inline void notify_fflags_write(const bemu::Hart&, uint64_t) {}
 inline void notify_gsc_progress(const bemu::Hart&, uint64_t) {}
 
-// tensor_error
+// TensorError
 inline void notify_tensor_error_value(const bemu::Hart&, uint16_t) {}
 
 // TensorLoad

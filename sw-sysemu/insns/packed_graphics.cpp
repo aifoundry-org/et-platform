@@ -45,7 +45,7 @@ void insn_cubeface_ps(Hart& cpu)
     require_feature_gfx();
     require_fp_active();
     DISASM_FDS0_FS1_FS2("cubeface.ps");
-    WRITE_VD( (FD.u32[e] & 1)
+    INTMV_VD( (FD.u32[e] & 1)
               ? ((FS2.u32[e] & 1) ? 0 : 1)
               : ((FS1.u32[e] & 1) ? 0 : 2) );
 }
@@ -56,7 +56,7 @@ void insn_cubefaceidx_ps(Hart& cpu)
     require_feature_gfx();
     require_fp_active();
     DISASM_FD_FS1_FS2("cubefaceidx.ps");
-    WRITE_VD( fpu::f32_cubeFaceIdx(uint8_t(FS1.u32[e]), FS2.f32[e]) );
+    INTMV_VD( fpu::f32_cubeFaceIdx(uint8_t(FS1.u32[e]), FS2.f32[e]) );
     set_fp_exceptions(cpu);
 }
 
@@ -66,7 +66,7 @@ void insn_cubesgnsc_ps(Hart& cpu)
     require_feature_gfx();
     require_fp_active();
     DISASM_FD_FS1_FS2("cubesgnsc.ps");
-    WRITE_VD( fpu::f32_cubeFaceSignS(uint8_t(FS1.u32[e]), FS2.f32[e]) );
+    INTMV_VD( fpu::f32_cubeFaceSignS(uint8_t(FS1.u32[e]), FS2.f32[e]) );
 }
 
 
@@ -75,7 +75,7 @@ void insn_cubesgntc_ps(Hart& cpu)
     require_feature_gfx();
     require_fp_active();
     DISASM_FD_FS1_FS2("cubesgntc.ps");
-    WRITE_VD( fpu::f32_cubeFaceSignT(uint8_t(FS1.u32[e]), FS2.f32[e]) );
+    INTMV_VD( fpu::f32_cubeFaceSignT(uint8_t(FS1.u32[e]), FS2.f32[e]) );
 }
 
 
