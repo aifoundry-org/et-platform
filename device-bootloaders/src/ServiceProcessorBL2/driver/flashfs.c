@@ -962,7 +962,7 @@ int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk
               "passive partition address:%x  partition size:%x  buffer:%lx  buffer_size:%x!\n",
               passive_partition_address, partition_size, (uint64_t)buffer, (uint32_t)buffer_size);
 
-    Log_Write(LOG_LEVEL_CRITICAL, "Erasing affected sectors ...\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Erasing affected sectors ...\n");
 
     if (0 != flash_fs_erase_partition(passive_partition_address, partition_size))
     {
@@ -970,8 +970,8 @@ int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk
         return ERROR_SPI_FLASH_PARTITION_ERASE_FAILED;
     }
 
-    Log_Write(LOG_LEVEL_CRITICAL, "Erase operation completed successfully\n");
-    Log_Write(LOG_LEVEL_CRITICAL, "Programming target (%d bytes) ...\n", partition_size);
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Erase operation completed successfully\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Programming target (%d bytes) ...\n", partition_size);
 
     if (0 !=
         flash_fs_write_partition(passive_partition_address, buffer, partition_size, chunk_size))
@@ -982,7 +982,7 @@ int flash_fs_update_partition(void *buffer, uint64_t buffer_size, uint32_t chunk
         return ERROR_SPI_FLASH_PARTITION_PROGRAM_FAILED;
     }
 
-    Log_Write(LOG_LEVEL_CRITICAL, "Target programmed successfully\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Target programmed successfully\n");
 
     return 0;
 }

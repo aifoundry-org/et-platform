@@ -24,6 +24,7 @@
 #include "esperanto_flash_image.h"
 
 #define SPI_FLASH_256B_CHUNK_SIZE 256
+#define TICKS_TO_SECS(ticks)      (portTICK_RATE_MS * (ticks) / 1000)
 
 /************************************************************************
 *
@@ -644,7 +645,7 @@ static int32_t dm_svc_firmware_update(void)
     start = timer_get_ticks_count();
 
     version = sp_get_image_version_info();
-    Log_Write(LOG_LEVEL_CRITICAL, "Esperanto Flash Programmer Version %u.%u.%u\n",
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Esperanto Flash Programmer Version %u.%u.%u\n",
               (version >> 24) & 0xFF, (version >> 16) & 0xFF, (version >> 8) & 0xFF);
 
     sp_bl2_data = get_service_processor_bl2_data();
@@ -714,8 +715,8 @@ static int32_t dm_svc_firmware_update(void)
     }
 
     verify_end = timer_get_ticks_count();
-    Log_Write(LOG_LEVEL_CRITICAL, "All loaded bytes verified OK!\n");
-    Log_Write(LOG_LEVEL_CRITICAL, "Executing exit sequence...\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] All loaded bytes verified OK!\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Executing exit sequence...\n");
 
     // Swap the priority counter of the partitions. so bootrom will choose
     // the partition with an updated image
@@ -727,11 +728,12 @@ static int32_t dm_svc_firmware_update(void)
     }
 
     end = timer_get_ticks_count();
-    Log_Write(LOG_LEVEL_CRITICAL, "Target erased, programmed and verified successfully\n");
-    Log_Write(LOG_LEVEL_CRITICAL, "Completed after %ld seconds\n", (end - start) / 1000000);
-    Log_Write(LOG_LEVEL_CRITICAL, "OK (Total %lds, Erase and Prog %lds, Verify %lds)\n",
-              (end - start) / 1000000, (prog_end - prog_start) / 1000000,
-              (verify_end - verify_start) / 1000000);
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Target erased, programmed and verified successfully\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Completed after %ld seconds\n",
+              TICKS_TO_SECS(end - start));
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] OK (Total %lds, Erase and Prog %lds, Verify %lds)\n",
+              TICKS_TO_SECS(end - start), TICKS_TO_SECS(prog_end - prog_start),
+              TICKS_TO_SECS(verify_end - verify_start));
 
     return SUCCESS;
 }
