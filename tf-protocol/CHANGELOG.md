@@ -6,9 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [[_TOC_]]
 
-
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.1.0] - 2022-6-22
+### Added
+- Initial version
 - This CHANGELOG file.
 - A README file.
 - Conan recipe to package the project.
@@ -17,10 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 ### Security
-
-
-## [0.1.0] - 2021-10-18
-Initial version
 
 
 [Unreleased]: https://gitlab.esperanto.ai/software/tf-protocol/-/compare/v0.1.0...master
