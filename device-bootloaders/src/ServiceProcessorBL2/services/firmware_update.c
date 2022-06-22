@@ -24,7 +24,9 @@
 #include "esperanto_flash_image.h"
 
 #define SPI_FLASH_256B_CHUNK_SIZE 256
-#define TICKS_TO_SECS(ticks)      (portTICK_RATE_MS * (ticks) / 1000)
+
+/* TODO: Additionally dividing by 1000 because mtime ticks frequency is configured at 4MHz. */
+#define TICKS_TO_SECS(ticks) (portTICK_RATE_MS * (ticks) / 1000 / 1000)
 
 /************************************************************************
 *
