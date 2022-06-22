@@ -52,8 +52,8 @@ public:
       runtime_ = rt::IRuntime::create(deviceLayer_.get(), options);
       auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
       devices_ = runtime_->getDevices();
-      for (auto i = 0U; i < static_cast<uint32_t>(deviceLayer_->getDevicesCount()); ++i) {
-        imp->setMemoryManagerDebugMode(devices_[i], true);
+      for (auto& d : devices_) {
+        imp->setMemoryManagerDebugMode(d, true);
       }
     } else {
       mpOrchestrator_ = std::make_unique<MpOrchestrator>();
@@ -82,6 +82,7 @@ public:
     defaultStreams_.clear();
     devices_.clear();
     deviceLayer_.reset();
+    loggerDefault_.reset();
   }
 
   rt::KernelId loadKernel(const std::string& kernel_name, uint32_t deviceIdx = 0) {

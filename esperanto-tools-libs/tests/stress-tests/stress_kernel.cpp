@@ -157,7 +157,7 @@ TEST_F(StressKernel, 64_ele_1_exe_1_st_100_th) {
   run_stress_kernel(1 << 6, 1, 1, 100);
 }
 
-TEST_F(StressKernel, 256_ele_10_exe_10_st_2_th_8_dev) {
+TEST_F(StressKernel, 256_ele_10_exe_10_st_2_th_8dev) {
   if (sDlType == DeviceLayerImp::PCIE) {
     RT_LOG(INFO) << "This multi device test is not design to be run on PCIE, skipping it.";
     return;
