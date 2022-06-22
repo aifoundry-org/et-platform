@@ -157,30 +157,31 @@
 
 Current et-top sample output:
 
-ET device 0 stats Fri Jun 17 20:52:23 2022
+        ET device 0 stats Fri Jun 17 20:52:23 2022
 
-Contiguous Mem Alloc:      0 MB      0 MB/sec
-Uncorrectable Errors:      0
-Correctable Errors:        0
-PCI AER Errors:            0
-Queues:
-	 SQ0: msgs: 0          msgs/sec: 0          util%: 0
-	 SQ1: msgs: 0          msgs/sec: 0          util%: 0
-	 CQ0: msgs: 0          msgs/sec: 0          util%: 0
+        Contiguous Mem Alloc:      0 MB      0 MB/sec
+        Uncorrectable Errors:      0
+        Correctable Errors:        0
+        PCI AER Errors:            0
+        Queues:
+                SQ0: msgs: 0          msgs/sec: 0          util%: 0
+                SQ1: msgs: 0          msgs/sec: 0          util%: 0
+                CQ0: msgs: 0          msgs/sec: 0          util%: 0
 
-Watts:                                            Temp(C):
-	CARD        avg: 105  min: 40   max: 212
-	- ETSOC     avg: 0    min: 0    max: 0    ETSOC     avg: 0    min: 0    max: 0
-	  - MINION  avg: 0    min: 0    max: 0    - MINION  avg: 51   min: 51   max: 51
-	  - SRAM    avg: 0    min: 0    max: 0
-	  - NOC     avg: 0    min: 0    max: 0
-Compute:
-	Thru put    Kernel/sec    avg: 0      min: 0      max: 0
-	Util        Minion(%)     avg: 0      min: 46975  max: 0
-	            DMA Chan(%)   avg: 0      min: 0      max: 0
-	DDR BW      Read  (MB/s)  avg: 0      min: 46975  max: 0
-	            Write (MB/s)  avg: 0      min: 46975  max: 0
-	L3 BW       Read  (MB/s)  avg: 0      min: 46975  max: 0
-	            Write (MB/s)  avg: 0      min: 46975  max: 0
-	PCI DMA BW  Read  (GB/s)  avg: 0      min: 46975  max: 0
-	            Write (GB/s)  avg: 0      min: 46975  max: 0
+        Watts:                                            Temp(C):
+                CARD        avg: 105  min: 40   max: 212
+                - ETSOC     avg: 0    min: 0    max: 0    ETSOC     avg: 0    min: 0    max: 0
+                  - MINION  avg: 0    min: 0    max: 0    - MINION  avg: 51   min: 51   max: 51
+                  - SRAM    avg: 0    min: 0    max: 0
+                  - NOC     avg: 0    min: 0    max: 0
+        Compute:
+                Thru put    Kernel/sec    avg: 0      min: 0      max: 0
+                Util        Minion(%)     avg: 0      min: 46975  max: 0
+                            DMA Chan(%)   avg: 0      min: 0      max: 0
+                DDR BW      Read  (MB/s)  avg: 0      min: 46975  max: 0
+                            Write (MB/s)  avg: 0      min: 46975  max: 0
+                L3 BW       Read  (MB/s)  avg: 0      min: 46975  max: 0
+                            Write (MB/s)  avg: 0      min: 46975  max: 0
+                PCI DMA BW  Read  (GB/s)  avg: 0      min: 46975  max: 0
+                            Write (GB/s)  avg: 0      min: 46975  max: 0
+                            Write (GB/s)  avg: 0      min: 46975  max: 0
