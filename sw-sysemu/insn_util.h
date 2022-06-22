@@ -114,6 +114,11 @@ namespace bemu {
         (cpu).fregs[n].u32[4], (cpu).fregs[n].u32[5], \
         (cpu).fregs[n].u32[6], (cpu).fregs[n].u32[7])
 
+#define LOG_FREG_READ(n) do { \
+        LOG_FREG(":", n); \
+        notify_freg_read(cpu, n); \
+    } while (0)
+
 #define LOG_FFLAGS(str, n) \
     LOG_HART(DEBUG, cpu, "\tfflags " str " 0x%" PRIx32, uint32_t(n))
 
@@ -722,13 +727,13 @@ inline void set_fp_exceptions(Hart& cpu)
 
 #define DISASM_MD_FS1(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " m%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.md(), cpu.inst.fs1()); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_MD_FS1_FS2(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " m%d,f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.md(), cpu.inst.fs1(), cpu.inst.fs2()); \
-    LOG_FREG(":", cpu.inst.fs1()); \
-    LOG_FREG(":", cpu.inst.fs2()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_MD_MS1(name) do { \
@@ -764,81 +769,81 @@ inline void set_fp_exceptions(Hart& cpu)
 
 #define DISASM_FD_FS1(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1()); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_FS1_FRM(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1()); \
     LOG_FRM(":", true); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2()); \
-    LOG_FREG(":", cpu.inst.fs1()); \
-    LOG_FREG(":", cpu.inst.fs2()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2_FRM(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2()); \
     LOG_FRM(":", true); \
-    LOG_FREG(":", cpu.inst.fs1()); \
-    LOG_FREG(":", cpu.inst.fs2()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_FDS0_FS1_FS2(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2()); \
-    LOG_FREG(":", cpu.inst.fd()); \
-    LOG_FREG(":", cpu.inst.fs1()); \
-    LOG_FREG(":", cpu.inst.fs2()); \
+    LOG_FREG_READ(cpu.inst.fd()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2_FS3(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2(), cpu.inst.fs3()); \
-    LOG_FREG(":", cpu.inst.fs1()); \
-    LOG_FREG(":", cpu.inst.fs2()); \
-    LOG_FREG(":", cpu.inst.fs3()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs2()); \
+    LOG_FREG_READ(cpu.inst.fs3()); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2_FS3_RM(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,f%d,f%d,%s", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2(), cpu.inst.fs3(), RMNAME); \
     LOG_FRM(":", RMDYN); \
-    LOG_FREG(":", cpu.inst.fs1()); \
-    LOG_FREG(":", cpu.inst.fs2()); \
-    LOG_FREG(":", cpu.inst.fs3()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs2()); \
+    LOG_FREG_READ(cpu.inst.fs3()); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2_RM(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,f%d,%s", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.fs2(), RMNAME); \
     LOG_FRM(":", RMDYN); \
-    LOG_FREG(":", cpu.inst.fs1()); \
-    LOG_FREG(":", cpu.inst.fs2()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_FD_FS1_RM(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,%s", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), RMNAME); \
     LOG_FRM(":", RMDYN); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_FS1_UIMM8(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), UIMM8); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_FS1_VIMM(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), VIMM); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_FS1_UVIMM(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), VIMM); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_FS1_SHAMT5(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), SHAMT5); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_FD_I32IMM(name) do { \
@@ -858,24 +863,24 @@ inline void set_fp_exceptions(Hart& cpu)
 
 #define DISASM_RD_FS1(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.fs1()); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_RD_FS1_FS2(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,f%d,f%d", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.fs1(), cpu.inst.fs2()); \
-    LOG_FREG(":", cpu.inst.fs1()); \
-    LOG_FREG(":", cpu.inst.fs2()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_RD_FS1_RM(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,f%d,%s", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.fs1(), RMNAME); \
     LOG_FRM(":", RMDYN); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
 } while (0)
 
 #define DISASM_RD_FS1_UIMM3(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " x%d,f%d,0x%x", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.rd(), cpu.inst.fs1(), UIMM3); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
 } while (0)
 
 
@@ -914,19 +919,19 @@ inline void set_fp_exceptions(Hart& cpu)
 
 #define DISASM_STORE_FD_RS1(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.rs1()); \
-    LOG_FREG(":", cpu.inst.fd()); \
+    LOG_FREG_READ(cpu.inst.fd()); \
     LOG_REG(":", cpu.inst.rs1()); \
 } while (0)
 
 #define DISASM_STORE_FS2_RS1_SIMM(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,%" PRId64 "(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fs2(), SIMM, cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs1()); \
-    LOG_FREG(":", cpu.inst.fs2()); \
+    LOG_FREG_READ(cpu.inst.fs2()); \
 } while (0)
 
 #define DISASM_GATHER_FD_FS1_RS2(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.rs2()); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
     LOG_MREG(":", 0); \
 } while (0)
@@ -940,15 +945,15 @@ inline void set_fp_exceptions(Hart& cpu)
 
 #define DISASM_SCATTER_FD_FS1_RS2(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.rs2()); \
-    LOG_FREG(":", cpu.inst.fd()); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fd()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
     LOG_MREG(":", 0); \
 } while (0)
 
 #define DISASM_SCATTER_FD_RS1_RS2(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,x%d(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.rs1(), cpu.inst.rs2()); \
-    LOG_FREG(":", cpu.inst.fd()); \
+    LOG_FREG_READ(cpu.inst.fd()); \
     LOG_REG(":", cpu.inst.rs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
     LOG_MREG(":", 0); \
@@ -956,8 +961,8 @@ inline void set_fp_exceptions(Hart& cpu)
 
 #define DISASM_AMO_FD_FS1_RS2(name) do { \
     LOG_HART(DEBUG, cpu, "I(%c): 0x%" PRIx64 " (0x%08" PRIx32 ") " name " f%d,f%d(x%d)", PRVNAME, cpu.pc, cpu.inst.bits, cpu.inst.fd(), cpu.inst.fs1(), cpu.inst.rs2()); \
-    LOG_FREG(":", cpu.inst.fd()); \
-    LOG_FREG(":", cpu.inst.fs1()); \
+    LOG_FREG_READ(cpu.inst.fd()); \
+    LOG_FREG_READ(cpu.inst.fs1()); \
     LOG_REG(":", cpu.inst.rs2()); \
     LOG_MREG(":", 0); \
 } while (0)

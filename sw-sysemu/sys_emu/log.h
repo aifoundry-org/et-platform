@@ -26,6 +26,7 @@ inline void notify_xreg_late_write(const bemu::Hart&, uint8_t, uint64_t) {}
 inline void notify_freg_load(const bemu::Hart&, uint8_t, const bemu::mreg_t&, const bemu::freg_t&) {}
 inline void notify_freg_intmv(const bemu::Hart&, uint8_t, const bemu::mreg_t&, const bemu::freg_t&) {}
 inline void notify_freg_write(const bemu::Hart&, uint8_t, const bemu::mreg_t&, const bemu::freg_t&) {}
+inline void notify_freg_read(const bemu::Hart&, uint8_t) {}
 
 // Memory write backs
 inline void notify_mem_write(const bemu::Hart&, bool, int, uint64_t, uint64_t, uint64_t) {}
