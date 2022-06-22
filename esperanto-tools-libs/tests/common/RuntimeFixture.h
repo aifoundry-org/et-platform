@@ -51,6 +51,7 @@ public:
       deviceLayer_ = dlCreator();
       runtime_ = rt::IRuntime::create(deviceLayer_.get(), options);
       auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
+      devices_ = runtime_->getDevices();
       for (auto i = 0U; i < static_cast<uint32_t>(deviceLayer_->getDevicesCount()); ++i) {
         imp->setMemoryManagerDebugMode(devices_[i], true);
       }
@@ -61,9 +62,9 @@ public:
         loggerDefault_ = std::make_unique<logging::LoggerDefault>();
       }
       runtime_ = std::make_unique<rt::Client>(mpOrchestrator_->getSocketPath());
+      devices_ = runtime_->getDevices();
     }
     SetupTrace();
-    devices_ = runtime_->getDevices();
     for (auto d : devices_) {
       defaultStreams_.emplace_back(runtime_->createStream(d));
     }
