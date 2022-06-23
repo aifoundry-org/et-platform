@@ -1,15 +1,21 @@
 from conans import ConanFile, tools
 
-class SignedImageFormat(ConanFile):
+class SignedImageFormatConan(ConanFile):
     name = "signedImageFormat"
-    version = "1.0"
 
-    scm = {"type": "git",
-           "url": "git@https://gitlab.esperanto.ai/software/signedImageFormat.git",
-           "revision": "auto"}
+    scm = {
+        "type": "git",
+        "url": "git@https://gitlab.esperanto.ai/software/signedImageFormat.git",
+        "revision": "auto"
+    }
 
     no_copy_source = True
 
+    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
+
+    def set_version(self):
+        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, self.name)
+    
     def package(self):
         self.copy("*.h")
 
