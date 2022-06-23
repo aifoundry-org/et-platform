@@ -51,10 +51,18 @@ typedef struct {
 typedef struct {
   uint64_t ceCount;
   uint64_t uceCount;
+  std::map<std::string, uint64_t> ce;
+  std::map<std::string, uint64_t> uce;
 } err_stats_t;
 
 typedef struct {
-  uint64_t errCount;
+  uint64_t aerCount;
+  uint64_t fatalCount;
+  uint64_t nonfatalCount;
+  uint64_t correctableCount;
+  std::map<std::string, uint64_t> fatal;
+  std::map<std::string, uint64_t> nonfatal;
+  std::map<std::string, uint64_t> correctable;
 } aer_stats_t;
 
 typedef struct {
@@ -72,7 +80,8 @@ public:
     : devNum_(devNum)
     , dl_(dl)
     , dm_(dm)
-    , stop_(false) {
+    , stop_(false)
+    , displayErrorDetails_(false) {
     vqStats_[0].qname = "SQ0:";
     vqStats_[1].qname = "SQ1:";
     vqStats_[2].qname = "CQ0:";
@@ -95,6 +104,8 @@ public:
   }
 
 private:
+  bool processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total);
+  void displayErrorDetails(std::map<std::string, uint64_t>& error, bool addColon = false, std::string prefix = "");
   void collectMemStats(void);
   void collectErrStats(void);
   void collectAerStats(void);
@@ -104,6 +115,7 @@ private:
 
   int devNum_;
   bool stop_;
+  bool displayErrorDetails_;
   std::unique_ptr<dev::IDeviceLayer>& dl_;
   device_management::DeviceManagement& dm_;
 
@@ -186,43 +198,95 @@ void EtTop::collectVqStats(void) {
   return;
 }
 
+bool EtTop::processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total) {
+  total = 0;
+
+  try {
+    std::istringstream attrFile(dl_->getDeviceAttribute(devNum_, relAttrPath));
+
+    for (std::string line; std::getline(attrFile, line);) {
+      uint64_t count;
+      std::string name;
+      std::stringstream ss;
+
+      ss << line;
+      ss >> name >> count;
+      if (error[name] > count) {
+        DV_LOG(WARNING) << "file " << relAttrPath << "error " << name << "decreased from " << error[name] << "to "
+                        << count << std::endl;
+      }
+      error[name] = count;
+      total += count;
+    }
+  } catch (const dev::Exception& ex) {
+    // just warn for now if the file is not present, which is
+    // the case currently for pci aer files during simulation
+    DV_LOG(WARNING) << "unable to processs file " << relAttrPath;
+    return false;
+  }
+
+  return true;
+}
+
 void EtTop::collectErrStats(void) {
-  uint64_t num;
-  std::string dummy;
-
-  errStats_.ceCount = 0;
-  std::istringstream attrFileCeCount(dl_->getDeviceAttribute(devNum_, "err_stats/ce_count"));
-  for (std::string line; std::getline(attrFileCeCount, line);) {
-    std::stringstream ss;
-    ss << line;
-    ss >> dummy >> num;
-    // XXX save individual stats in addition to accumulating
-    if (num > 0) {
-      errStats_.ceCount += num;
-    }
+  if (!processErrorFile("err_stats/ce_count", errStats_.ce, errStats_.ceCount)) {
+    DV_LOG(ERROR) << "unable to processs file err_stats/ce_count";
+    exit(1);
   }
 
-  errStats_.uceCount = 0;
-  std::istringstream attrFileUceCount(dl_->getDeviceAttribute(devNum_, "err_stats/uce_count"));
-  for (std::string line; std::getline(attrFileUceCount, line);) {
-    std::stringstream ss;
-    ss << line;
-    ss >> dummy >> num;
-    // XXX save individual stats in addition to accumulating
-    if (num > 0) {
-      errStats_.uceCount += num;
-    }
+  if (!processErrorFile("err_stats/uce_count", errStats_.uce, errStats_.uceCount)) {
+    DV_LOG(ERROR) << "unable to processs file err_stats/uce_count";
+    exit(1);
   }
-
   return;
 }
 
 void EtTop::collectAerStats(void) {
-  // XXX read aer_dev_fatal, aer_dev_nonfatal, and aer_dev_correctable files
-  aerStats_.errCount = 0;
+  // These files aren't currently present during simulation, so just skip
+  // processing them for now after trying once if there was a problem.
+  static bool fatalFileError = false;
+  static bool nonfatalFileError = false;
+  static bool correctableFileError = false;
+
+  // These files contain a total in addition to the individual counts, so correct for double
+  // counting and erase it from the map.
+  if (!fatalFileError) {
+    fatalFileError = !processErrorFile("aer_dev_fatal", aerStats_.fatal, aerStats_.fatalCount);
+
+    uint64_t total = aerStats_.fatal["TOT_ERR_FATAL"];
+    aerStats_.fatalCount >>= 1;
+    if (aerStats_.fatalCount != total) {
+      DV_LOG(ERROR) << "aer_dev_fatal count mismatch: " << aerStats_.fatalCount << " != " << total;
+    }
+    aerStats_.fatal.erase("TOT_ERR_FATAL");
+  }
+
+  if (!nonfatalFileError) {
+    nonfatalFileError = !processErrorFile("aer_dev_nonfatal", aerStats_.nonfatal, aerStats_.nonfatalCount);
+
+    uint64_t total = aerStats_.nonfatal["TOT_ERR_NONFATAL"];
+    aerStats_.nonfatalCount >>= 1;
+    if (aerStats_.nonfatalCount != total) {
+      DV_LOG(ERROR) << "aer_dev_nonfatal count mismatch: " << aerStats_.nonfatalCount << " != " << total;
+    }
+    aerStats_.nonfatal.erase("TOT_ERR_NONFATAL");
+  }
+
+  if (!correctableFileError) {
+    correctableFileError = !processErrorFile("aer_dev_correctable", aerStats_.correctable, aerStats_.correctableCount);
+
+    uint64_t total = aerStats_.correctable["TOT_ERR_COR"];
+    aerStats_.correctableCount >>= 1;
+    if (aerStats_.correctableCount != total) {
+      DV_LOG(ERROR) << "aer_dev_correctable count mismatch: " << aerStats_.correctableCount << " != " << total;
+    }
+    aerStats_.correctable.erase("TOT_ERR_COR");
+  }
+
+  aerStats_.aerCount = aerStats_.fatalCount + aerStats_.fatalCount + aerStats_.correctableCount;
+
   return;
 }
-
 void EtTop::collectSpStats(void) {
   std::vector<std::byte> response;
 
@@ -327,37 +391,45 @@ void EtTop::processInput(void) {
       }
     } else if (ch == 'q') {
       stop_ = true;
+    } else if (ch == 'e') {
+      displayErrorDetails_ = !displayErrorDetails_;
     } else if (ch == 'h') {
       help = true;
       system("clear");
-      std::cout << "h\tPrint this help message\n";
-      std::cout << "q\tQuit\n\n";
-      std::cout << "Type 'q' or <ESC> to continue ";
+      std::cout << "e\tToggle display of error details\n"
+                << "h\tPrint this help message\n"
+                << "q\tQuit\n"
+                << "Type 'q' or <ESC> to continue ";
     }
   } while (help || (!stop_ && rc == 1));
 
   return;
 }
 
+void EtTop::displayErrorDetails(std::map<std::string, uint64_t>& error, bool addColon, std::string prefix) {
+  for (auto const& [key, val] : error) {
+    if (val > 0) {
+      std::string str = prefix + key + (addColon ? ": " : " ");
+      printf("\t\t%-30s %-6lu\n", str.data(), val);
+    }
+  }
+  return;
+}
+
 void EtTop::displayStats(void) {
   time_t now;
+  char nowbuf[30];
+  char* hhmmss = &nowbuf[10];
 
   system("clear");
   time(&now);
-  std::cout << "ET device " << devNum_ << " stats " << ctime(&now);
+  ctime_r(&now, nowbuf);
+  nowbuf[20] = '\0';
+  std::cout << "et-top device " << devNum_ << hhmmss << std::endl;
 
-  printf("\nContiguous Mem Alloc: %6lu MB %6lu MB/sec\n", memStats_.cmaAllocated, memStats_.cmaAllocationRate);
-  printf("Uncorrectable Errors: %6lu\n", errStats_.uceCount);
-  printf("Correctable Errors:   %6lu\n", errStats_.ceCount);
-  printf("PCI AER Errors:       %6lu\n", aerStats_.errCount);
+  printf("Contiguous Mem Alloc: %6lu MB %6lu MB/sec\n", memStats_.cmaAllocated, memStats_.cmaAllocationRate);
 
-  std::cout << "Queues:\n";
-  for (uint32_t i = 0; i < vqStats_.size(); i++) {
-    printf("\t%5s msgs: %-10lu msgs/sec: %-10lu util%%: %-10lu\n", vqStats_[i].qname.data(), vqStats_[i].msgCount,
-           vqStats_[i].msgRate, vqStats_[i].utilPercent);
-  }
-
-  std::cout << "\nWatts:                                            Temp(C):\n";
+  std::cout << "Watts:                                            Temp(C):\n";
   struct op_value* power = &spStats_.op.system.power;
   printf("\tCARD        avg: %-4u min: %-4u max: %-4u\n", power->avg, power->min, power->max);
 
@@ -414,6 +486,37 @@ void EtTop::displayStats(void) {
   wr_bw = &mmStats_.computeResources.pcie_dma_write_bw;
   printf("\tPCI DMA BW  Read  (GB/s)  avg: %-6lu min: %-6lu max: %-6lu\n", rd_bw->avg, rd_bw->min, rd_bw->max);
   printf("\t            Write (GB/s)  avg: %-6lu min: %-6lu max: %-6lu\n", wr_bw->avg, wr_bw->min, wr_bw->max);
+
+  std::cout << "Queues:\n";
+  for (uint32_t i = 0; i < vqStats_.size(); i++) {
+    printf("\t%4s msgs: %-10lu msgs/sec: %-10lu util%%: %-10lu\n", vqStats_[i].qname.data(), vqStats_[i].msgCount,
+           vqStats_[i].msgRate, vqStats_[i].utilPercent);
+  }
+
+  bool errors = errStats_.uceCount > 0 || errStats_.ceCount > 0 || aerStats_.aerCount > 0;
+  if (errors || displayErrorDetails_) {
+    std::cout << "Errors:\n";
+    printf("\tUncorrectable: %-6lu\n", errStats_.uceCount);
+    if (displayErrorDetails_ && errStats_.uceCount > 0) {
+      displayErrorDetails(errStats_.uce);
+    }
+    printf("\tCorrectable:   %-6lu\n", errStats_.ceCount);
+    if (displayErrorDetails_ && errStats_.ceCount > 0) {
+      displayErrorDetails(errStats_.ce);
+    }
+    printf("\tPCI AER:       %-6lu\n", aerStats_.aerCount);
+    if (displayErrorDetails_ && aerStats_.aerCount > 0) {
+      if (aerStats_.fatalCount > 0) {
+        displayErrorDetails(aerStats_.fatal, true, "Fatal ");
+      }
+      if (aerStats_.nonfatalCount > 0) {
+        displayErrorDetails(aerStats_.nonfatal, true, "Non-Fatal ");
+      }
+      if (aerStats_.correctableCount > 0) {
+        displayErrorDetails(aerStats_.correctable, true, "Correctable ");
+      }
+    }
+  }
   printf("Type 'h' for help ");
 
   return;
