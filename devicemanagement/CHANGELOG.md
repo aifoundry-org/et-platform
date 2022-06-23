@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- `getModuleFWRevision` test now prints out extracted firmware versions instead
+  of comparing with hard-coded versions. Included package fmt for formatting of
+  these prints.
+- `getDeviceErrorEvents` test allows passing of test with warning message if
+  dmesg is inaccessible.
+- Disable only the un-supported tests for Target::Silicon instead of all tests
+  of that management service.
 ### Deprecated
 ### Removed
 - Workaround for SP Trace
@@ -23,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
-- Caching exception from waitForEpollEventsServiceProcessor().
+- Catching exception from waitForEpollEventsServiceProcessor().
 ### Security
 
 ## [0.1.2] - 2022-06-20

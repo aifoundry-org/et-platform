@@ -19,10 +19,6 @@ using namespace device_management;
 
 class FunctionalTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
-    // TODO: SW-10585: Enable back these tests on silicon currently service not functional
-    if (getTestTarget() == Target::Silicon) {
-      std::exit(EXIT_SUCCESS);
-    }
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     initTestTrace();
@@ -41,7 +37,10 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getMMErrorCount) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getFWBootstatus) {
-  if (targetInList({Target::FullBoot, Target::Silicon})) {
+  // TODO: SW-13219: Enable back on Target::Silicon, response is received with incorrect status on V2/V3
+  // Received incorrect rsp status: -16006 (for DM_CMD_GET_FIRMWARE_BOOT_STATUS)
+  // if (targetInList({Target::FullBoot, Target::Silicon})) {
+  if (targetInList({Target::FullBoot})) {
     getFWBootstatus(false /* Multiple devices */);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";

@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <experimental/filesystem>
 #include <fcntl.h>
+#include <fmt/format.h>
 #include <fstream>
 #include <glog/logging.h>
 #include <iostream>
@@ -48,6 +49,9 @@ DEFINE_string(trace_bin_dir, FLAGS_trace_base_dir + "/bin_files",
               "A directory in the current path where the raw device traces will be dumped");
 
 #define FORMAT_VERSION(major, minor, revision) ((major << 24) | (minor << 16) | (revision << 8))
+#define MAJOR_VERSION(ver) ((ver >> 24) & 0xff)
+#define MINOR_VERSION(ver) ((ver >> 16) & 0xff)
+#define REVISION_VERSION(ver) ((ver >> 8) & 0xff)
 
 getDM_t TestDevMgmtApiSyncCmds::getInstance() {
   const char* error;
@@ -1628,11 +1632,24 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision(bool singleDevice) {
 
       device_mgmt_api::firmware_version_t* firmware_versions = (device_mgmt_api::firmware_version_t*)output_buff;
 
-      EXPECT_EQ(firmware_versions->bl1_v, FORMAT_VERSION(0, 0, 1));
-      EXPECT_EQ(firmware_versions->bl2_v, FORMAT_VERSION(0, 0, 1));
-      EXPECT_EQ(firmware_versions->mm_v, FORMAT_VERSION(0, 0, 1));
-      EXPECT_EQ(firmware_versions->wm_v, FORMAT_VERSION(0, 0, 1));
-      EXPECT_EQ(firmware_versions->machm_v, FORMAT_VERSION(0, 0, 1));
+      std::stringstream ss;
+      ss << "\nFirmware Versions:" << std::endl;
+      ss << fmt::format("\tbl1_v:   {}.{}.{}", MAJOR_VERSION(firmware_versions->bl1_v),
+                        MINOR_VERSION(firmware_versions->bl1_v), REVISION_VERSION(firmware_versions->bl1_v))
+         << std::endl;
+      ss << fmt::format("\tbl2_v:   {}.{}.{}", MAJOR_VERSION(firmware_versions->bl2_v),
+                        MINOR_VERSION(firmware_versions->bl2_v), REVISION_VERSION(firmware_versions->bl2_v))
+         << std::endl;
+      ss << fmt::format("\tmm_v:    {}.{}.{}", MAJOR_VERSION(firmware_versions->mm_v),
+                        MINOR_VERSION(firmware_versions->mm_v), REVISION_VERSION(firmware_versions->mm_v))
+         << std::endl;
+      ss << fmt::format("\twm_v:    {}.{}.{}", MAJOR_VERSION(firmware_versions->wm_v),
+                        MINOR_VERSION(firmware_versions->wm_v), REVISION_VERSION(firmware_versions->wm_v))
+         << std::endl;
+      ss << fmt::format("\tmachm_v: {}.{}.{}", MAJOR_VERSION(firmware_versions->machm_v),
+                        MINOR_VERSION(firmware_versions->machm_v), REVISION_VERSION(firmware_versions->machm_v))
+         << std::endl;
+      DV_LOG(INFO) << ss.str();
     }
   }
 }
@@ -1705,7 +1722,10 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
     result = 0;
     size = 0;
     fd = open("/dev/kmsg", (O_RDONLY | O_NONBLOCK));
-    ASSERT_GE(fd, 0) << "Unable to read dmesg\n";
+    if (fd < 0) {
+      DV_LOG(WARNING) << "Unable to read dmesg, try with sudo";
+      return;
+    }
     ASSERT_NE(lseek(fd, 0, SEEK_END), -1) << "Unable to lseek() dmesg end\n";
     DV_LOG(INFO) << "waiting for error events...\n";
 
@@ -2813,7 +2833,7 @@ void TestDevMgmtApiSyncCmds::resetMMOpsOpen(bool singleDevice) {
                         dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT);
 
     } catch (const dev::Exception& ex) {
-      // Find and compare the if the error message is correct. 
+      // Find and compare the if the error message is correct.
       // Resetting of MM is not permitted when Ops node is open.
       ASSERT_NE(std::string(ex.what()).find("Operation not permitted"), std::string::npos);
     }

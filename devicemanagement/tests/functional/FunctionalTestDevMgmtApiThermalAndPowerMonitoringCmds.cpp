@@ -19,10 +19,6 @@ using namespace device_management;
 
 class FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
-    // TODO: SW-10585: Enable back these tests on silicon currently service not functional
-    if (getTestTarget() == Target::Silicon) {
-      std::exit(EXIT_SUCCESS);
-    }
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     initTestTrace();
@@ -57,7 +53,14 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleUptime) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModulePower) {
-  getModulePower(false /* Multiple devices */);
+  // TODO: SW-13220: Enable back on Target::Silicon, following failure is seen with V2/V3 card
+  // Expected: (module_power->power) != (0), actual: '\0' vs 0
+  if (getTestTarget() != Target::Silicon) {
+    getModulePower(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleVoltage) {
@@ -82,11 +85,32 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setModuleActivePow
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setThrottlePowerStatus) {
-  setThrottlePowerStatus(true /* Multiple Devices */);
+  // TODO: SW-13220: Enable back on Target::Silicon, following failure is seen with V2/V3 card
+  // No SP trace event found!
+  // The txt trace file when failure occurs has no logged traces:
+  // bash-4.2$ cat devtrace/txt_files/dev0_traces.txt
+  //
+  // FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds.setThrottlePowerStatus
+  // -> SP Traces
+  if (getTestTarget() != Target::Silicon) {
+    setThrottlePowerStatus(false /* Multiple Devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setModuleFrequency) {
-  setModuleFrequency(false /* Multiple devices */);
+  // TODO: SW-13219: V2 cards: Setting 400MHz/400MHz freq results in resetting of host
+  // V3 cards: Able to set 400MHz/400MHz freq but fails intermittently after few
+  // iterations with following error:
+  // Received incorrect rsp status: -15001
+  if (getTestTarget() != Target::Silicon) {
+    setModuleFrequency(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
 }
 
 int main(int argc, char** argv) {

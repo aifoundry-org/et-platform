@@ -15,6 +15,7 @@ include(GoogleTest)
 enable_testing()
 
 find_package(deviceLayer REQUIRED)
+find_package(fmt REQUIRED)
 find_package(GTest REQUIRED)
 find_package(gflags REQUIRED)
 find_package(glog REQUIRED)
@@ -63,6 +64,7 @@ function(create_test)
         PRIVATE
             deviceManagement::DM
             deviceLayer::deviceLayer
+            fmt::fmt
             GTest::GTest
             GTest::Main
             gflags::gflags

@@ -19,10 +19,6 @@ using namespace device_management;
 
 class FunctionalTestDevMgmtApiAssetTrackingCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
-    // TODO: SW-10585: Enable back these tests on silicon currently service not functional
-    if (getTestTarget() == Target::Silicon) {
-      std::exit(EXIT_SUCCESS);
-    }
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     initTestTrace();
@@ -55,7 +51,10 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModulePartNumber) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleSerialNumber) {
-  if (targetInList({Target::FullBoot, Target::Silicon})) {
+  // TODO: SW-13220: Enable back on Target::Silicon, following failure is seen with V2/V3 card
+  // received: 0x487811C8, expected: 0x12345678
+  // if (targetInList({Target::FullBoot, Target::Silicon})) {
+  if (targetInList({Target::FullBoot})) {
     getModuleSerialNumber(false /* Multiple devices */);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -64,8 +63,10 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleSerialNumber) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getASICChipRevision) {
-  /* TODO: SW-10585: Chip rev is coming as 255 on V2 cards, expected is 166. Disabling on silicon for now */
-  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
+  // TODO: SW-13220: Enable back on Target::Silicon, following failure is seen with V2/V3 card
+  // received: 255, expected: 160
+  // if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
+  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu})) {
     getASICChipRevision(false /* Multiple devices */);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -74,13 +75,22 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getASICChipRevision) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModulePCIENumPortsMaxSpeed) {
-  /* TODO: SW-10585: PCIe speed coming as 5 on V2 cards. disabled above for now. */
-  /* Need max speed, not current speed. Rename: getModulePCIEPortsMaxSpeed */
-  getModulePCIENumPortsMaxSpeed(false /* Multiple devices */);
+  // TODO: SW-13220: Enable back on Target::Silicon, following failure is seen with V2/V3 card
+  // received: 5, expected: 8, need max speed not current speed, also rename to
+  // getModulePCIEPortsMaxSpeed
+  // Does not fail on all V3 cards, not passing on: card on slot 0000:05:00.0 (mv-swpcie25)
+  if (getTestTarget() != Target::Silicon) {
+    getModulePCIENumPortsMaxSpeed(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleMemorySizeMB) {
-  if (targetInList({Target::FullBoot, Target::Silicon})) {
+  // TODO: SW-13218: Enable back on Target::Silicon, no response is received for this command on V2/V3
+  // if (targetInList({Target::FullBoot, Target::Silicon})) {
+  if (targetInList({Target::FullBoot})) {
     getModuleMemorySizeMB(false /* Multiple devices */);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -107,7 +117,13 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleFormFactor) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleMemoryVendorPartNumber) {
-  getModuleMemoryVendorPartNumber(false /* Multiple devices */);
+  // TODO: SW-13218: Enable back on Target::Silicon, no response is received for this command on V2/V3
+  if (getTestTarget() != Target::Silicon) {
+    getModuleMemoryVendorPartNumber(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleMemoryType) {
