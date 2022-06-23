@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [0.8.0] - 2022-6-23
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- Passing of LINUX_KMOD_LOCAL_BUILD argument to CI jobs
+### Security
+
 ## [0.7.1] - 2022-6-23
 ### Added
 - Initial version of changelog file.
