@@ -7,16 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unreleased]
 ### Added
-    - Enabled MS PMU Events for all Minions, IOShire, and PShire.
 ### Changed
-    - STAT worker Macro defines to unsighned long data type.
 ### Deprecated
 ### Removed
 ### Fixed
-    - Fixed STAT worker minimum comparison
 ### Security
 
-## [0.6.4]  - 2022-6-12
+## [0.6.5]  - 2022-6-23
+### Added
+- Enabled MS PMU Events for all Minions, IOShire, and PShire.
+### Changed
+- STAT worker Macro defines to unsighned long data type.
+### Deprecated
+### Removed
+### Fixed
+- Fixed STAT worker minimum comparison
+### Security
+
+## [0.6.4]  - 2022-6-20
 ### Added
 ### Changed
 ### Deprecated
