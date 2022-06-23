@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [0.7.0]  - 2022-6-23
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
 ## [0.6.5]  - 2022-6-23
 ### Added
 - Enabled MS PMU Events for all Minions, IOShire, and PShire.
