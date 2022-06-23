@@ -189,7 +189,7 @@ pipeline {
                         parameters: [
                           string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
                           string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"),
-                          string(name: 'LINUX_KMOD_LOCAL_BUILD', value: 'ON'),
+                          booleanParam(name: 'LINUX_KMOD_LOCAL_BUILD', value: true),
                           booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
                           string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
                           string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")
@@ -232,7 +232,7 @@ pipeline {
                         parameters: [
                           string(name: 'BRANCH', value: "${SW_PLATFORM_BRANCH}"),
                           string(name: 'COMPONENT_COMMITS', value: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"),
-                          string(name: 'LINUX_KMOD_LOCAL_BUILD', value: 'ON'),
+                          booleanParam(name: 'LINUX_KMOD_LOCAL_BUILD', value: true),
                           booleanParam(name: "FORCE_CHILD_RETRIGGER", value: "${FORCE_CHILD_RETRIGGER}"),
                           string(name: "SUBMODULE_COMMITS", value: child_submodule_commits),
                           string(name: 'INPUT_TAGS', value: "${env.PIPELINE_TAGS}")

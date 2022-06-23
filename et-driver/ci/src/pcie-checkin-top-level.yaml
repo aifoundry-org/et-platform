@@ -47,7 +47,7 @@ stages:
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
-          LINUX_KMOD_LOCAL_BUILD: "ON"
+          LINUX_KMOD_LOCAL_BUILD: ON
 
   FIRMWARE_AND_DM_TESTS_PCIE_SYSEMU:
     cmds:
@@ -55,7 +55,7 @@ stages:
         parameters:
           BRANCH: "${SW_PLATFORM_BRANCH}"
           COMPONENT_COMMITS: "${COMPONENT_COMMITS},host-software/linuxDriver/etsoc1-pcie-driver:${BRANCH}"
-          LINUX_KMOD_LOCAL_BUILD: "ON"
+          LINUX_KMOD_LOCAL_BUILD: ON
 
   FIRMWARE_AND_DM_TESTS_PCIE_LOOPBACK:
     cmds:
