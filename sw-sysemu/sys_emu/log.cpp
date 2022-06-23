@@ -2,6 +2,14 @@
 
 #include "sys_emu.h"
 
+void notify_pc_update(const bemu::Hart& cpu, uint64_t)
+{
+    auto emu = cpu.chip->emu();
+    if (emu->get_vpurf_check()) {
+        emu->get_vpurf_checker().pc_update(cpu);
+    }
+}
+
 void notify_freg_load(const bemu::Hart& cpu, uint8_t fd, const bemu::mreg_t&,
                       const bemu::freg_t&)
 {

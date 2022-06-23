@@ -13,6 +13,7 @@ public:
     Vpurf_checker(bemu::System* chip) : bemu::Agent(chip) {}
     std::string name() const { return "VPURF-Checker"; }
 
+    void pc_update(const bemu::Hart& cpu);
     void freg_write(const bemu::Hart& cpu, uint8_t fd);
     void freg_intmv(const bemu::Hart& cpu, uint8_t fd);
     void freg_load(const bemu::Hart& cpu, uint8_t fd);
@@ -32,6 +33,18 @@ private:
         uint64_t pc;
         bemu::Instruction insn;
         Access_type type;
+
+        bool is_8_cycle_write() const
+        {
+            return type == Access_type::intmv || type == Access_type::write;
+        }
+
+        bool fmv_x0_is_workaround() const
+        {
+            return type == Access_type::load || type == Access_type::write;
+        }
+
+        void clear() { type = Access_type::read; }
     };
 
     using Vpurf_model = std::array<Access, bemu::NFREGS>;

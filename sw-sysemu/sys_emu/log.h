@@ -15,7 +15,7 @@
 #include "processor.h"
 
 // Run control
-inline void notify_pc_update(const bemu::Hart&, uint64_t) {}
+void notify_pc_update(const bemu::Hart&, uint64_t);
 inline void notify_trap(const bemu::Hart&,  uint64_t, uint64_t, uint64_t, uint64_t) {}
 
 // General purpose registers (late writes are operations that take more than one cycle)

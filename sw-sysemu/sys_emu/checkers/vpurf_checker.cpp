@@ -13,6 +13,15 @@ inline bool is_fmv_x0(uint32_t bits)
 }
 } // namespace
 
+void Vpurf_checker::pc_update(const bemu::Hart& cpu)
+{
+    const unsigned hid = bemu::hart_index(cpu);
+    auto& model = m_models[hid];
+    for (auto& access : model) {
+        if (access.is_8_cycle_write()) access.clear();
+    }
+}
+
 void Vpurf_checker::freg_write(const bemu::Hart& cpu, uint8_t fd)
 {
     const uint64_t cycle = cpu.chip->emu_cycle();
@@ -58,19 +67,13 @@ void Vpurf_checker::freg_read(const bemu::Hart& cpu, uint8_t fs)
 
     auto& access = m_models[hid][fs];
 
-    const bool fmv_x0_is_workaround
-        = access.type == Access_type::load || access.type == Access_type::write;
-
-    const bool is_8_cycle_write = access.type == Access_type::write
-                                  || access.type == Access_type::intmv;
-
     const uint64_t cycles_since_access = cycle - access.cycle;
 
     // No outstanding write to register
     if (access.type == Access_type::read) return;
 
     // Register fmv.x.w x0,fs for workarounds
-    if (fmv_x0_is_workaround && is_fmv_x0(cpu.inst.bits)) {
+    if (access.fmv_x0_is_workaround() && is_fmv_x0(cpu.inst.bits)) {
         access.cycle = cycle;
         access.pc = cpu.pc;
         access.insn = cpu.inst;
@@ -79,15 +82,15 @@ void Vpurf_checker::freg_read(const bemu::Hart& cpu, uint8_t fs)
     }
 
     // Handle B/C workarounds with NOPs
-    if (is_8_cycle_write && cycles_since_access >= 8) {
-        access.type = Access_type::read;
+    if (access.is_8_cycle_write() && cycles_since_access >= 8) {
+        access.clear();
         return;
     }
 
     // Handle A/C workarounds with fmv.x.w x0,fs
     if (access.type == Access_type::fmv_x0) {
         if (cycles_since_access > 1) {
-            access.type = Access_type::read;
+            access.clear();
             return;
         } else {
             LOG_AGENT(INFO, *this,
