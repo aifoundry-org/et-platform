@@ -343,6 +343,8 @@ static void pwr_svc_get_module_temp_thresholds(uint16_t tag, uint64_t req_start_
     struct temperature_threshold_t temperature_threshold;
     int32_t status;
 
+    Log_Write(LOG_LEVEL_INFO, "Thermal & pwr mgmt request: %s\n", __func__);
+
     status = get_module_temperature_threshold(&temperature_threshold);
 
     if (0 != status)
@@ -354,6 +356,8 @@ static void pwr_svc_get_module_temp_thresholds(uint16_t tag, uint64_t req_start_
     {
         dm_rsp.temperature_threshold = temperature_threshold;
     }
+
+    Log_Write(LOG_LEVEL_INFO, "Thermal & pwr mgmt request: sending response.\n");
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS,
                     timer_get_ticks_count() - req_start_time, status);
@@ -488,7 +492,7 @@ static void pwr_svc_get_module_current_temperature(uint16_t tag, uint64_t req_st
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t req_start_time, 
+static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t req_start_time,
                                                             power_throttle_state_e throttle_state)
 {
     struct device_mgmt_throttle_residency_rsp_t dm_rsp;
@@ -510,7 +514,7 @@ static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t 
                     timer_get_ticks_count() - req_start_time, status);
 
     if (0 !=
-        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, 
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                     sizeof(struct device_mgmt_throttle_residency_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR,
@@ -541,7 +545,7 @@ static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t 
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_get_module_residency_power_states(uint16_t tag, uint64_t req_start_time, 
+static void pwr_svc_get_module_residency_power_states(uint16_t tag, uint64_t req_start_time,
                                                             power_state_e power_state)
 {
     struct device_mgmt_power_residency_rsp_t dm_rsp;
@@ -563,7 +567,7 @@ static void pwr_svc_get_module_residency_power_states(uint16_t tag, uint64_t req
                     timer_get_ticks_count() - req_start_time, status)
 
     if (0 !=
-        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, 
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
                                     sizeof(struct device_mgmt_power_residency_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR,
@@ -677,7 +681,7 @@ static int pwr_svc_find_hpdpll_mode(uint16_t freq, uint8_t *hpdpll_mode)
 
     static const uint32_t hpdpll_settings_count =
         sizeof(gs_hpdpll_settings) / sizeof(HPDPLL_SETTING_t);
-    
+
     strap_pins = get_hpdpll_strap_value();
     input_freq = input_freqs[strap_pins];
 
@@ -692,7 +696,7 @@ static int pwr_svc_find_hpdpll_mode(uint16_t freq, uint8_t *hpdpll_mode)
             return 0;
         }
     }
-    
+
     return THERMAL_PWR_MGMT_HPDPLL_MODE_FIND_FAILED;
 }
 
@@ -723,7 +727,7 @@ static int pwr_svc_find_lvdpll_mode(uint16_t freq, uint8_t *lvdpll_mode)
 
     static const uint32_t lvdpll_settings_count =
         sizeof(gs_lvdpll_settings) / sizeof(LVDPLL_SETTING_t);
-    
+
     strap_pins = get_lvdpll_strap_value();
     input_freq = input_freqs[strap_pins];
 
@@ -738,7 +742,7 @@ static int pwr_svc_find_lvdpll_mode(uint16_t freq, uint8_t *lvdpll_mode)
             return 0;
         }
     }
-    
+
     return THERMAL_PWR_MGMT_LVDPLL_MODE_FIND_FAILED;
 }
 
@@ -781,7 +785,7 @@ static void pwr_svc_set_module_frequency(tag_id_t tag_id, uint64_t req_start_tim
     pll_id = set_frequency_cmd->pll_id;
     freq = set_frequency_cmd->pll_freq;
     use_step_clock = set_frequency_cmd->use_step_clock ;
-    
+
     if(pll_id == PLL_ID_NOC_PLL || use_step_clock == USE_STEP_CLOCK_TRUE)
     {
         status = pwr_svc_find_hpdpll_mode(freq, &hpdpll_mode);
@@ -798,7 +802,7 @@ static void pwr_svc_set_module_frequency(tag_id_t tag_id, uint64_t req_start_tim
             goto SEND_RESPONSE;
         }
     }
-    
+
     switch(pll_id)
     {
         case PLL_ID_NOC_PLL:
