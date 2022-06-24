@@ -137,7 +137,17 @@ void DeviceManagement::receiver(const uint32_t device_node) {
     auto sqAvail = false;
     auto cqAvail = false;
     while (lockable->receiverRunning && !cqAvail) {
-      devLayer_->waitForEpollEventsServiceProcessor(lockable->idx, sqAvail, cqAvail);
+      try {
+        devLayer_->waitForEpollEventsServiceProcessor(lockable->idx, sqAvail, cqAvail);
+      } catch (const dev::Exception& ex) {
+        if (std::string(ex.what()).find("Interrupted system call") != std::string::npos) {
+          // Ignore 'Interrupted system call' error since this thread is running
+          // in detach mode and epoll call can be interrupted during tear-down.
+          continue;
+        }
+        auto eptr = std::make_exception_ptr(ex);
+        std::rethrow_exception(eptr);
+      }
     }
   }
 }
