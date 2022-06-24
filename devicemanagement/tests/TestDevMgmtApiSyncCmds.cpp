@@ -157,12 +157,14 @@ static inline bool decodeSingleTraceEvent(std::stringstream& logs, const struct 
   return validTypeFound;
 }
 
-void TestDevMgmtApiSyncCmds::dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf,
+void TestDevMgmtApiSyncCmds::dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBufRaw,
                                                 TraceBufferType bufferType) const {
-  if (traceBuf.empty()) {
+  if (traceBufRaw.empty()) {
     DV_LOG(INFO) << "Invalid trace buffer! size is 0";
     return;
   }
+  std::vector<std::byte> traceBuf;
+  traceBuf.insert(traceBuf.begin(), traceBufRaw.begin(), traceBufRaw.end());
   struct trace_buffer_std_header_t* traceHdr;
   std::string fileName = (fs::path(FLAGS_trace_bin_dir) / fs::path("dev" + std::to_string(deviceIdx) + "_")).string();
   unsigned int dataSize = 0;
@@ -251,14 +253,17 @@ void TestDevMgmtApiSyncCmds::dumpRawTraceBuffer(int deviceIdx, const std::vector
   }
 }
 
-bool TestDevMgmtApiSyncCmds::decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf,
+bool TestDevMgmtApiSyncCmds::decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBufRaw,
                                                TraceBufferType bufferType) const {
-  if (traceBuf.empty()) {
+  if (traceBufRaw.empty()) {
     DV_LOG(INFO) << "Invalid trace buffer! size is 0";
     return false;
   }
+  std::vector<std::byte> traceBuf;
   std::ofstream logfile;
   std::string fileName = getTraceTxtName(deviceIdx);
+  traceBuf.insert(traceBuf.begin(), traceBufRaw.begin(), traceBufRaw.end());
+
   DV_LOG(INFO) << "Saving trace to file: " << fileName;
   logfile.open(fileName, std::ios_base::app);
   switch (bufferType) {

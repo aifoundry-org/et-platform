@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-    Added new test for MM stat buffer under Ops node dependant tests category.
+- Added new test for MM stat buffer under Ops node dependant tests category.
+- Added a local copy of trace buffer data.
 ### Changed
 ### Deprecated
 ### Removed
@@ -16,7 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ## [0.1.2] - 2022-06-20
-Initial version
 ### Added
 - This CHANGELOG file.
 ### Changed
