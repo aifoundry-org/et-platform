@@ -97,7 +97,7 @@ static void pwr_svc_get_module_power_state(uint16_t tag, uint64_t req_start_time
 *
 ***********************************************************************/
 static void pwr_svc_set_module_active_power_management(uint16_t tag, uint64_t req_start_time,
-                                           active_power_management_e state)
+                                                       active_power_management_e state)
 {
     struct device_mgmt_default_rsp_t dm_rsp;
     int32_t status;
@@ -107,7 +107,7 @@ static void pwr_svc_set_module_active_power_management(uint16_t tag, uint64_t re
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_ERROR,
-                    " thermal pwr mgmt error: set_module_active_power_management()\r\n");
+                  " thermal pwr mgmt error: set_module_active_power_management()\r\n");
     }
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
@@ -118,7 +118,7 @@ static void pwr_svc_set_module_active_power_management(uint16_t tag, uint64_t re
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_default_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR,
-                    "pwr_svc_set_module_active_power_management: Cqueue push error!\n");
+                  "pwr_svc_set_module_active_power_management: Cqueue push error!\n");
     }
 }
 
@@ -493,7 +493,7 @@ static void pwr_svc_get_module_current_temperature(uint16_t tag, uint64_t req_st
 *
 ***********************************************************************/
 static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t req_start_time,
-                                                            power_throttle_state_e throttle_state)
+                                                         power_throttle_state_e throttle_state)
 {
     struct device_mgmt_throttle_residency_rsp_t dm_rsp;
     struct residency_t residency;
@@ -513,9 +513,8 @@ static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES,
                     timer_get_ticks_count() - req_start_time, status);
 
-    if (0 !=
-        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
-                                    sizeof(struct device_mgmt_throttle_residency_rsp_t)))
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
+                                       sizeof(struct device_mgmt_throttle_residency_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR,
                   "pwr_svc_get_module_residency_throttle_states: Cqueue push error!\n");
@@ -546,7 +545,7 @@ static void pwr_svc_get_module_residency_throttle_states(uint16_t tag, uint64_t 
 *
 ***********************************************************************/
 static void pwr_svc_get_module_residency_power_states(uint16_t tag, uint64_t req_start_time,
-                                                            power_state_e power_state)
+                                                      power_state_e power_state)
 {
     struct device_mgmt_power_residency_rsp_t dm_rsp;
     struct residency_t residency;
@@ -566,9 +565,8 @@ static void pwr_svc_get_module_residency_power_states(uint16_t tag, uint64_t req
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES,
                     timer_get_ticks_count() - req_start_time, status)
 
-    if (0 !=
-        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
-                                    sizeof(struct device_mgmt_power_residency_rsp_t)))
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
+                                       sizeof(struct device_mgmt_power_residency_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR,
                   "pwr_svc_get_module_residency_power_states: Cqueue push error!\n");
@@ -646,12 +644,12 @@ static void pwr_svc_get_module_uptime(uint16_t tag, uint64_t req_start_time)
 *
 ***********************************************************************/
 static void pwr_svc_set_module_active_pwr_mgmt(tag_id_t tag_id, uint64_t req_start_time,
-                                                void *buffer)
+                                               void *buffer)
 {
     const struct device_mgmt_active_power_management_cmd_t *active_power_management_cmd =
-                (struct device_mgmt_active_power_management_cmd_t *)buffer;
+        (struct device_mgmt_active_power_management_cmd_t *)buffer;
     pwr_svc_set_module_active_power_management(tag_id, req_start_time,
-                active_power_management_cmd->pwr_management);
+                                               active_power_management_cmd->pwr_management);
 }
 
 /************************************************************************
@@ -676,7 +674,7 @@ static void pwr_svc_set_module_active_pwr_mgmt(tag_id_t tag_id, uint64_t req_sta
 static int pwr_svc_find_hpdpll_mode(uint16_t freq, uint8_t *hpdpll_mode)
 {
     uint8_t strap_pins;
-    uint32_t input_freqs[] = {100, 24, 40};
+    uint32_t input_freqs[] = { 100, 24, 40 };
     uint32_t input_freq;
 
     static const uint32_t hpdpll_settings_count =
@@ -687,10 +685,10 @@ static int pwr_svc_find_hpdpll_mode(uint16_t freq, uint8_t *hpdpll_mode)
 
     /* Find HPDPLL mode */
     for (uint32_t pll_settings_index = 0; pll_settings_index < hpdpll_settings_count;
-        pll_settings_index++)
+         pll_settings_index++)
     {
-        if (gs_hpdpll_settings[pll_settings_index].input_frequency == input_freq*1000000 &&
-            gs_hpdpll_settings[pll_settings_index].output_frequency == freq*1000000)
+        if (gs_hpdpll_settings[pll_settings_index].input_frequency == input_freq * 1000000 &&
+            gs_hpdpll_settings[pll_settings_index].output_frequency == freq * 1000000)
         {
             *hpdpll_mode = gs_hpdpll_settings[pll_settings_index].mode;
             return 0;
@@ -722,7 +720,7 @@ static int pwr_svc_find_hpdpll_mode(uint16_t freq, uint8_t *hpdpll_mode)
 static int pwr_svc_find_lvdpll_mode(uint16_t freq, uint8_t *lvdpll_mode)
 {
     uint8_t strap_pins;
-    uint32_t input_freqs[] = {100, 24, 40};
+    uint32_t input_freqs[] = { 100, 24, 40 };
     uint32_t input_freq;
 
     static const uint32_t lvdpll_settings_count =
@@ -733,10 +731,10 @@ static int pwr_svc_find_lvdpll_mode(uint16_t freq, uint8_t *lvdpll_mode)
 
     /* Find LVDPLL mode */
     for (uint32_t pll_settings_index = 0; pll_settings_index < lvdpll_settings_count;
-        pll_settings_index++)
+         pll_settings_index++)
     {
-        if (gs_lvdpll_settings[pll_settings_index].input_frequency == input_freq*1000000 &&
-            gs_lvdpll_settings[pll_settings_index].output_frequency == freq*1000000)
+        if (gs_lvdpll_settings[pll_settings_index].input_frequency == input_freq * 1000000 &&
+            gs_lvdpll_settings[pll_settings_index].output_frequency == freq * 1000000)
         {
             *lvdpll_mode = gs_lvdpll_settings[pll_settings_index].mode;
             return 0;
@@ -768,8 +766,7 @@ static int pwr_svc_find_lvdpll_mode(uint16_t freq, uint8_t *lvdpll_mode)
 *       None
 *
 ***********************************************************************/
-static void pwr_svc_set_module_frequency(tag_id_t tag_id, uint64_t req_start_time,
-                                                void *buffer)
+static void pwr_svc_set_module_frequency(tag_id_t tag_id, uint64_t req_start_time, void *buffer)
 {
     uint16_t freq;
     pll_id_e pll_id;
@@ -779,17 +776,17 @@ static void pwr_svc_set_module_frequency(tag_id_t tag_id, uint64_t req_start_tim
     int status;
 
     const struct device_mgmt_set_frequency_cmd_t *set_frequency_cmd =
-                (struct device_mgmt_set_frequency_cmd_t *)buffer;
+        (struct device_mgmt_set_frequency_cmd_t *)buffer;
     struct device_mgmt_set_frequency_rsp_t dm_rsp;
 
     pll_id = set_frequency_cmd->pll_id;
     freq = set_frequency_cmd->pll_freq;
-    use_step_clock = set_frequency_cmd->use_step_clock ;
+    use_step_clock = set_frequency_cmd->use_step_clock;
 
-    if(pll_id == PLL_ID_NOC_PLL || use_step_clock == USE_STEP_CLOCK_TRUE)
+    if (pll_id == PLL_ID_NOC_PLL || use_step_clock == USE_STEP_CLOCK_TRUE)
     {
         status = pwr_svc_find_hpdpll_mode(freq, &hpdpll_mode);
-        if(status != 0)
+        if (status != 0)
         {
             goto SEND_RESPONSE;
         }
@@ -797,25 +794,25 @@ static void pwr_svc_set_module_frequency(tag_id_t tag_id, uint64_t req_start_tim
     else
     {
         status = pwr_svc_find_lvdpll_mode(freq, &lvdpll_mode);
-        if(status != 0)
+        if (status != 0)
         {
             goto SEND_RESPONSE;
         }
     }
 
-    switch(pll_id)
+    switch (pll_id)
     {
         case PLL_ID_NOC_PLL:
             status = configure_sp_pll_2(hpdpll_mode);
-            if(0 != status)
+            if (0 != status)
             {
                 goto SEND_RESPONSE;
             }
             break;
         case PLL_ID_MINION_PLL:
-            status = Minion_Configure_Minion_Shire_PLL_no_mask(hpdpll_mode, lvdpll_mode,
-                                                               use_step_clock);
-            if(0 != status)
+            status =
+                Minion_Configure_Minion_Shire_PLL_no_mask(hpdpll_mode, lvdpll_mode, use_step_clock);
+            if (0 != status)
             {
                 goto SEND_RESPONSE;
             }
@@ -903,10 +900,10 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
             break;
         }
         case DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES: {
-           const struct device_mgmt_power_residency_cmd_t *power_residency_cmd =
+            const struct device_mgmt_power_residency_cmd_t *power_residency_cmd =
                 (struct device_mgmt_power_residency_cmd_t *)buffer;
-            pwr_svc_get_module_residency_power_states(
-                tag_id, req_start_time, power_residency_cmd->pwr_state);
+            pwr_svc_get_module_residency_power_states(tag_id, req_start_time,
+                                                      power_residency_cmd->pwr_state);
             break;
         }
         case DM_CMD_GET_MODULE_POWER: {
