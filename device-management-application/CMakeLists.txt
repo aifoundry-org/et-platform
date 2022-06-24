@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.5)
-project(deviceManagementApplication VERSION 1.0.0 LANGUAGES CXX C)
+project(deviceManagementApplication VERSION 1.1.0 LANGUAGES CXX C)
 
 include(ExternalProject)
 include(GNUInstallDirs)
@@ -21,7 +21,7 @@ find_package(glog REQUIRED)
 find_package(Threads REQUIRED)
 find_package(esperantoTrace REQUIRED)
 
-add_executable(dev_mngt_service 
+add_executable(dev_mngt_service
     src/dev_mngt_service.cc
 )
 target_compile_features(dev_mngt_service PUBLIC cxx_std_17)
@@ -31,7 +31,7 @@ target_include_directories(dev_mngt_service
 )
 
 target_link_libraries(dev_mngt_service
-    PRIVATE 
+    PRIVATE
         glog::glog
         ${CMAKE_THREAD_LIBS_INIT}
         ${CMAKE_DL_LIBS}
