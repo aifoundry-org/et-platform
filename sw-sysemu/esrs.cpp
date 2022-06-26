@@ -253,29 +253,51 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
     if ((shire >= EMU_MEM_SHIRE_BASE_ID) && (shire < (EMU_MEM_SHIRE_BASE_ID + NUM_MEM_SHIRES))) {
         uint64_t esr = addr2 & ESR_SHIRE_ESR_MASK;
         if (msregion == ESR_DDRC_REGION) {
-            uint64_t esr = addr2 & ESR_SHIRE_ESR_MASK;
             switch (esr) {
-                case ESR_MEM_SHIRE_PERF0_QUAL:
-                case ESR_MEM_SHIRE_PERF1_QUAL:
-                case ESR_MEM_SHIRE_PERF0_QUAL2:
-                case ESR_MEM_SHIRE_PERF1_QUAL2:
+                case ESR_DDRC_RESET_CTL:
+                case ESR_DDRC_CLOCK_CTL:
+                case ESR_DDRC_MAIN_CTL:
+                case ESR_DDRC_SCRUB1:
+                case ESR_DDRC_SCRUB:
+                case ESR_DDRC_U0_MRR_DATA:
+                case ESR_DDRC_U1_MRR_DATA:
+                case ESR_DDRC_ERR_INT_LOG:
+                case ESR_DDRC_DEBUG_SIGS_MASK0:
+                case ESR_DDRC_DEBUG_SIGS_MASK1:
+                case ESR_DDRC_SCRATCH:
+                case ESR_DDRC_TRACE_CTL:
+                case ESR_DDRC_PERFMON_CYC_CNTR:
+                case ESR_DDRC_PERFMON_P0_CNTR:
+                case ESR_DDRC_PERFMON_P1_CNTR:
+                case ESR_DDRC_PERFMON_P0_QUAL:
+                case ESR_DDRC_PERFMON_P1_QUAL:
+                case ESR_DDRC_PERFMON_P0_QUAL2:
+                case ESR_DDRC_PERFMON_P1_QUAL2:
                     return 0;
-                case ESR_MEM_SHIRE_CTRL_STATUS:
+                case ESR_DDRC_PERFMON_CTRL_STATUS:
                     return mem_shire_esrs.perf_ctrl_status;
-                case ESR_MEM_SHIRE_STATUS:
+                case ESR_DDRC_MRR_STATUS:
                     return mem_shire_esrs.status;
-                case ESR_MEM_SHIRE_INT_EN:
-                case ESR_MEM_SHIRE_CRTIT_INT_EN:
-                case ESR_MEM_SHIRE_CRTIT2_INT_EN:
+                case ESR_DDRC_INT_EN:
+                case ESR_DDRC_CRTIT_INT_EN:
+                case ESR_DDRC_CRTIT2_INT_EN:
                     return mem_shire_esrs.int_en;
                 default:
                     LOG_AGENT(WARN, agent, "Read unknown DDRC ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
                     throw memory_error(addr);
             }
         } else if (msregion == ESR_MEMSHIRE_REGION) {
-            // TODO: Handle Mem shire ESRs...
-            LOG_AGENT(WARN, agent, "Read unknown MEM Shire ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
-            throw memory_error(addr);
+            switch (esr) {
+                case ESR_MS_MEM_CTL:
+                case ESR_MS_ATOMIC_SM_CTL:
+                case ESR_MS_MEM_REVISION_ID:
+                case ESR_MS_CLK_GATE_CTL:
+                case ESR_MS_MEM_STATUS:
+                    return 0;
+                default:
+                    LOG_AGENT(WARN, agent, "Read unknown MEM Shire ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+                    throw memory_error(addr);
+            }
         } else {
             LOG_AGENT(WARN, agent, "Read unknown MEM Shire region S%u:0x%" PRIx64, SHIREID(shire), esr);
             throw memory_error(addr);
@@ -644,22 +666,36 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
     if ((shire >= EMU_MEM_SHIRE_BASE_ID) && (shire < (EMU_MEM_SHIRE_BASE_ID + NUM_MEM_SHIRES))) {
         uint64_t esr = addr2 & ESR_SHIRE_ESR_MASK;
         if (msregion == ESR_DDRC_REGION) {
-            uint64_t esr = addr2 & ESR_SHIRE_ESR_MASK;
             switch (esr) {
-                case ESR_MEM_SHIRE_PERF0_QUAL:
-                case ESR_MEM_SHIRE_PERF1_QUAL:
-                case ESR_MEM_SHIRE_PERF0_QUAL2:
-                case ESR_MEM_SHIRE_PERF1_QUAL2:
+                case ESR_DDRC_RESET_CTL:
+                case ESR_DDRC_CLOCK_CTL:
+                case ESR_DDRC_MAIN_CTL:
+                case ESR_DDRC_SCRUB1:
+                case ESR_DDRC_SCRUB:
+                case ESR_DDRC_U0_MRR_DATA:
+                case ESR_DDRC_U1_MRR_DATA:
+                case ESR_DDRC_ERR_INT_LOG:
+                case ESR_DDRC_DEBUG_SIGS_MASK0:
+                case ESR_DDRC_DEBUG_SIGS_MASK1:
+                case ESR_DDRC_SCRATCH:
+                case ESR_DDRC_TRACE_CTL:
+                case ESR_DDRC_PERFMON_CYC_CNTR:
+                case ESR_DDRC_PERFMON_P0_CNTR:
+                case ESR_DDRC_PERFMON_P1_CNTR:
+                case ESR_DDRC_PERFMON_P0_QUAL:
+                case ESR_DDRC_PERFMON_P1_QUAL:
+                case ESR_DDRC_PERFMON_P0_QUAL2:
+                case ESR_DDRC_PERFMON_P1_QUAL2:
                     // Dummy access, do nothing
                     break;
-                case ESR_MEM_SHIRE_CTRL_STATUS:
+                case ESR_DDRC_PERFMON_CTRL_STATUS:
                     mem_shire_esrs.perf_ctrl_status = value;
                     LOG_AGENT(DEBUG, agent, "S%u:perf_ctrl_status = 0x%" PRIx64,
                             SHIREID(shire), mem_shire_esrs.perf_ctrl_status);
                     break;
-                case ESR_MEM_SHIRE_INT_EN:
-                case ESR_MEM_SHIRE_CRTIT_INT_EN:
-                case ESR_MEM_SHIRE_CRTIT2_INT_EN:
+                case ESR_DDRC_INT_EN:
+                case ESR_DDRC_CRTIT_INT_EN:
+                case ESR_DDRC_CRTIT2_INT_EN:
                     mem_shire_esrs.int_en = value;
                     LOG_AGENT(DEBUG, agent, "S%u:int_en = 0x%" PRIx64,
                             SHIREID(shire), mem_shire_esrs.int_en);
@@ -669,9 +705,18 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                     throw memory_error(addr);
             }
         } else if (msregion == ESR_MEMSHIRE_REGION) {
-            // TODO: Handle Mem shire ESRs...
-            LOG_AGENT(WARN, agent, "Write unknown MEM Shire ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
-            throw memory_error(addr);
+            switch (esr) {
+                case ESR_MS_MEM_CTL:
+                case ESR_MS_ATOMIC_SM_CTL:
+                case ESR_MS_MEM_REVISION_ID:
+                case ESR_MS_CLK_GATE_CTL:
+                case ESR_MS_MEM_STATUS:
+                    // Dummy access, do nothing
+                    break;
+                default:
+                    LOG_AGENT(WARN, agent, "Write unknown MEM Shire ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+                    throw memory_error(addr);
+            }
         } else {
             LOG_AGENT(WARN, agent, "Write unknown MEM Shire region S%u:0x%" PRIx64, SHIREID(shire), esr);
             throw memory_error(addr);

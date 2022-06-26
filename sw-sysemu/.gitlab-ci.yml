@@ -1,0 +1,104 @@
+include:
+  - project: 'software/gitlab-ci-common'
+    ref: ec8109263042925b169aa3c33cd6e7beaf185917
+    file:
+      - rules/generic-workflow-conan.yaml
+      - pods/nano-pod.yaml
+      - pods/medium-pod.yaml
+      - pods/large-pod.yaml
+      - jobs/generic-k8s-job.yaml
+      - jobs/sonarqube-job.yaml
+      - rules/exec_maybe_interactively.yaml
+      - jobs/check-top-of-master.yaml
+      - jobs/sw-platform-trigger.yaml
+
+  - project: 'software/gitlab-ci-common'
+    ref: master
+    file:
+      - 'jobs/conan-jobs.yaml'
+
+stages:
+  - generate_build
+  - build
+  - test
+  - deploy
+
+default:
+  interruptible: true
+
+variables:
+  # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
+  SW_PLATFORM_BRANCH: develop/system-sw
+  PIPELINE_CI_SUBPROJECT: sw-sysemu
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+generate_build:conan:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan-linux-ubuntu18.04-gcc7
+  stage: generate_build
+
+  variables:
+    TIMEOUT: 15m
+
+    CMD_BUILD: |
+      cd conan
+      python3 -m ci_build
+  artifacts:
+    expire_in: 1d 
+    paths:
+      - conan/build_pipeline.yml
+      - conan/lockfiles_info.json
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+build:conan:
+  extends:
+    - .exec_maybe_interactively
+  needs:
+  - generate_build:conan
+  stage: build
+  trigger:
+    include:
+    - artifact: conan/build_pipeline.yml
+      job: generate_build:conan
+    strategy: depend
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+# hypotetical unit tests would go here
+
+# integration testing with sw-platform
+#
+# This is automatically done thanks to this included file:
+#   /jobs/sw-platform-trigger.yaml
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+on_success:promote:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan-linux-ubuntu18.04-gcc7
+  stage: deploy
+  needs:
+    - generate_build:conan
+    - build:conan
+    - meta-trigger
+  variables:
+    PYTHONIOENCODING: utf-8
+    CMD_BUILD: |
+      cd conan
+      python3 -m ci_promote
+
+
