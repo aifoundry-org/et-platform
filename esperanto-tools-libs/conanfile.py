@@ -41,10 +41,10 @@ class RuntimeConan(ConanFile):
 
     def requirements(self):
         device_api = "deviceApi/0.5.0@"
-        device_layer = "deviceLayer/0.2.0@"
+        device_layer = "deviceLayer/0.3.0@"
         if self.options.with_tests:
             device_api += "#5859dbf139ef47467a1d6a664c33d107"
-            device_layer += "#db6af4c4df505fe7b02f811410e06603"
+            device_layer += "#1d2eb12464a109ee1ba83a38bd4e1f6a"
         self.requires(device_api)
         self.requires(device_layer)
         self.requires("hostUtils/0.1.0")
@@ -59,7 +59,7 @@ class RuntimeConan(ConanFile):
 
             self.requires("et-common-libs/0.7.0@#1f3ab13ae2efbbbe188e6b4d6a362fe0")
             self.requires("device-minion-runtime/0.6.0@#49f19078ed20aa7efe10904ff58bb2a2")
-            self.requires("device-bootloaders/0.2.0@#39aa061e99f9235df7c0bfe8d2fa45bf")
+            self.requires("device-bootloaders/0.3.0@#07bafe92cd37a7229e986010349bad73")
             self.requires("esperanto-test-kernels/1.0.0@#37beed210aa1606b19c74957f64d475e")
 
             # only for pinning dependencies
@@ -68,8 +68,6 @@ class RuntimeConan(ConanFile):
             self.requires("tf-protocol/0.1.0@#87d3b8e7ad2f0b39fa6fae35f3bc180b")
             self.requires("signedImageFormat/1.0@#4503615bd9e6ca9cfae2441dddb96b2e")
             self.requires("esperanto-flash-tool/1.0.0@#a3734839a8d548175ca1c17bb2b502aa")
-
-
 
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
