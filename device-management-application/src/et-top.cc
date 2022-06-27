@@ -8,7 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
-#include "../src/utils.h"
+#include "../../deviceManagement/src/utils.h"
 #include "deviceLayer/IDeviceLayer.h"
 #include "deviceManagement/DeviceManagement.h"
 #include <cstdio>
