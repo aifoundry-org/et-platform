@@ -27,12 +27,16 @@ TEST(devices, get_properties) {
   auto fakeMemorySize = 40U * 1024U * 1024U;
   auto fakeAvailableShires = 16;
 
+  uint32_t L3SizeInMB = 30;
+  uint32_t L2SizeInMB = 15;
+  uint32_t ScratchPadSizeInMB = 10;
+
   dev::DeviceConfig dc;
   dc.formFactor_ = dev::DeviceConfig::FormFactor::PCIE;
   dc.tdp_ = 300;
-  dc.totalL3Size_ = 30;
-  dc.totalL2Size_ = 15;
-  dc.totalScratchPadSize_ = 10;
+  dc.totalL3Size_ = L3SizeInMB * 1024;
+  dc.totalL2Size_ = L2SizeInMB * 1024;
+  dc.totalScratchPadSize_ = ScratchPadSizeInMB * 1024;
   dc.cacheLineSize_ = 64;
   dc.numL2CacheBanks_ = 8;
   dc.ddrBandwidth_ = 300;
@@ -53,9 +57,9 @@ TEST(devices, get_properties) {
   EXPECT_EQ(properties.availableShires_, fakeAvailableShires);
   EXPECT_EQ(properties.memoryBandwidth_, dc.ddrBandwidth_);
   EXPECT_EQ(properties.memorySize_, fakeMemorySize);
-  EXPECT_EQ(properties.l3Size_, dc.totalL3Size_);
-  EXPECT_EQ(properties.l2shireSize_, dc.totalL2Size_);
-  EXPECT_EQ(properties.l2scratchpadSize_, dc.totalScratchPadSize_);
+  EXPECT_EQ(properties.l3Size_, L3SizeInMB);
+  EXPECT_EQ(properties.l2shireSize_, L2SizeInMB);
+  EXPECT_EQ(properties.l2scratchpadSize_, ScratchPadSizeInMB);
   EXPECT_EQ(properties.cacheLineSize_, dc.cacheLineSize_);
   EXPECT_EQ(properties.l2CacheBanks_, dc.numL2CacheBanks_);
   EXPECT_EQ(properties.spareComputeMinionoShireId_, dc.spareComputeMinionoShireId_);

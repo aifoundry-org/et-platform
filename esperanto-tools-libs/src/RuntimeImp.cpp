@@ -142,9 +142,9 @@ DeviceProperties RuntimeImp::getDevicePropertiesWithoutProfiling(DeviceId device
   prop.availableShires_ = static_cast<uint32_t>(deviceLayer_->getActiveShiresNum(deviceInt));
   prop.memoryBandwidth_ = deviceConfig.ddrBandwidth_;
   prop.memorySize_ = deviceLayer_->getDramSize();
-  prop.l3Size_ = deviceConfig.totalL3Size_;
-  prop.l2shireSize_ = deviceConfig.totalL2Size_;
-  prop.l2scratchpadSize_ = deviceConfig.totalScratchPadSize_;
+  prop.l3Size_ = static_cast<uint16_t>(deviceConfig.totalL3Size_ / 1024);
+  prop.l2shireSize_ = static_cast<uint16_t>(deviceConfig.totalL2Size_ / 1024);
+  prop.l2scratchpadSize_ = static_cast<uint16_t>(deviceConfig.totalScratchPadSize_ / 1024);
   prop.cacheLineSize_ = deviceConfig.cacheLineSize_;
   prop.l2CacheBanks_ = deviceConfig.numL2CacheBanks_;
   prop.computeMinionShireMask_ = deviceConfig.computeMinionShireMask_;

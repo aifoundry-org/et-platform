@@ -203,9 +203,9 @@ public:
     return DeviceConfig{
       DeviceConfig::FormFactor::PCIE, // Form factor
       25,                             // TDP
-      32,                             // Total L3 size in MBytes
-      16,                             // Total L2 size in MBytes
-      80,                             // Total L2scp size in MBytes
+      32768,                          // Total L3 size in KBytes
+      16384,                          // Total L2 size in KBytes
+      81920,                          // Total L2scp size in KBytes
       64,                             // CacheLine alignment in Bytes
       4,                              // number of L2 cache banks
       128000,                         // ddr bandwidth
