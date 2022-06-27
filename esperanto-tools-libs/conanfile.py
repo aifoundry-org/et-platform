@@ -43,7 +43,7 @@ class RuntimeConan(ConanFile):
         device_api = "deviceApi/0.5.0@"
         device_layer = "deviceLayer/0.2.0@"
         if self.options.with_tests:
-            device_api += "#10b4680749bc365f08651710ecbabd78"
+            device_api += "#5859dbf139ef47467a1d6a664c33d107"
             device_layer += "#db6af4c4df505fe7b02f811410e06603"
         self.requires(device_api)
         self.requires(device_layer)
@@ -57,17 +57,17 @@ class RuntimeConan(ConanFile):
         if self.options.with_tests:
             self.requires("sw-sysemu/0.2.0")
 
-            self.requires("et-common-libs/0.0.5@#eb1c0a31e7afc903b9515d332016acce")
-            self.requires("device-minion-runtime/0.0.4@#81676197bbe20483baf77d613b179cbe")
-            self.requires("device-bootloaders/0.2.0@#6698ae60e3a82c2cb25a22e1a4fc4ce4")
-            self.requires("esperanto-test-kernels/0.1.0@#a943278128156b0c567a9851f89745b9")
+            self.requires("et-common-libs/0.7.0@#1f3ab13ae2efbbbe188e6b4d6a362fe0")
+            self.requires("device-minion-runtime/0.6.0@#49f19078ed20aa7efe10904ff58bb2a2")
+            self.requires("device-bootloaders/0.2.0@#39aa061e99f9235df7c0bfe8d2fa45bf")
+            self.requires("esperanto-test-kernels/1.0.0@#37beed210aa1606b19c74957f64d475e")
 
             # only for pinning dependencies
-            self.requires("esperantoTrace/0.2.0@#acfb37d7666cf7b73291ad121da2202f")
-            self.requires("etsoc_hal/0.1.0@#ad66d9184bde9f5b0719b75ee396da9e")
+            self.requires("esperantoTrace/0.5.0@#ac7a9098e0140c7858cbe75ee569a079")
+            self.requires("etsoc_hal/1.0.0@#f53ecff2c8a176f37f9e3379d0e19395")
             self.requires("tf-protocol/0.1.0@#87d3b8e7ad2f0b39fa6fae35f3bc180b")
             self.requires("signedImageFormat/1.0@#4503615bd9e6ca9cfae2441dddb96b2e")
-            self.requires("esperanto-flash-tool/0.1.0@#8d7c784f6b8d3cc1dbaa23b42b328782")
+            self.requires("esperanto-flash-tool/1.0.0@#a3734839a8d548175ca1c17bb2b502aa")
 
 
 
