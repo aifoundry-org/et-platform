@@ -100,3 +100,19 @@ on_success:promote:
     CMD_BUILD: |
       cd conan
       python3 -m ci_promote
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+clang-format:
+  extends:
+    - .template_job
+    - .pod_nano
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.3.7
+  stage: .pre
+  variables:
+    CMD_SCRIPT: |
+      git fetch origin master
+      git clang-format --style file --diff origin/master --extensions cpp,h
+      git clang-format --style file --diff origin/master --extensions cpp,h | grep -q -e "clang-format did not modify any files$" -e "^no modified files to format$"
