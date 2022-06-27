@@ -100,6 +100,7 @@ enum class DeviceErrorCode {
   KernelLaunchCmIfaceUnicastFailed,
   KernelLaunchSpIfaceResetFailed,
   KernelLaunchCwMinionsBootFailed,
+  KernelLaunchInvalidArgsInvalidShireMask,
 
   KernelAbortError,
   KernelAbortInvalidTagId,

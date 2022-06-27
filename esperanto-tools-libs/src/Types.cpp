@@ -84,6 +84,7 @@ std::string std::to_string(rt::DeviceErrorCode e) {
     STR_DEVICE_ERROR_CODE(KernelLaunchCmIfaceUnicastFailed)
     STR_DEVICE_ERROR_CODE(KernelLaunchSpIfaceResetFailed)
     STR_DEVICE_ERROR_CODE(KernelLaunchCwMinionsBootFailed)
+    STR_DEVICE_ERROR_CODE(KernelLaunchInvalidArgsInvalidShireMask)
 
     STR_DEVICE_ERROR_CODE(AbortUnexpectedError)
     STR_DEVICE_ERROR_CODE(AbortInvalidTagId)

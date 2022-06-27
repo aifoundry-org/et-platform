@@ -36,6 +36,8 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
       return rt::DeviceErrorCode::KernelLaunchSpIfaceResetFailed;
     case DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_CW_MINIONS_BOOT_FAILED:
       return rt::DeviceErrorCode::KernelLaunchCwMinionsBootFailed;
+    case DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_INVALID_SHIRE_MASK:
+      return rt::DeviceErrorCode::KernelLaunchInvalidArgsInvalidShireMask;
     default:
       RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP response code: " << responseCode;
       return rt::DeviceErrorCode::Unknown;
