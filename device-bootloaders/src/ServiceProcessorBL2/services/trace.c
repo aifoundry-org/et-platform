@@ -65,7 +65,6 @@ static SemaphoreHandle_t Trace_Mutex_Handle = NULL;
 static StaticSemaphore_t Trace_Mutex_Buffer;
 
 static void Trace_Run_Control(trace_enable_e state);
-static void Trace_Configure(uint32_t event_mask, uint32_t filter_mask);
 
 /* Trace buffer locking routines */
 static inline void et_trace_buffer_lock_acquire(void)
@@ -98,8 +97,10 @@ void Trace_Process_Control_Cmd(void *buffer)
     if (dm_cmd->control & TRACE_CONTROL_RESET_TRACEBUF)
     {
         /* Reset the trace buffer */
+        et_trace_buffer_lock_acquire();
         trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
         SP_Trace_CB.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
+        et_trace_buffer_lock_release();
     }
 
     /* Check flag to Enable/Disable Trace. */
@@ -147,13 +148,27 @@ static void send_trace_control_response(tag_id_t tag_id, msg_id_t msg_id, uint64
 void Trace_Process_Config_Cmd(void *buffer)
 {
     struct device_mgmt_trace_config_cmd_t *dm_cmd = (struct device_mgmt_trace_config_cmd_t *)buffer;
+    struct trace_config_info_t config_info = { .filter_mask = dm_cmd->filter_mask,
+                                               .event_mask = dm_cmd->event_mask };
+    int32_t status = STATUS_SUCCESS;
 
-    Trace_Configure(dm_cmd->event_mask, dm_cmd->filter_mask);
-    if (dm_cmd->event_mask & TRACE_EVENT_STRING)
+    et_trace_buffer_lock_acquire();
+    config_info.threshold = SP_Trace_CB.size_per_hart;
+    status = Trace_Config(&config_info, Trace_Get_SP_CB());
+    et_trace_buffer_lock_release();
+
+    if (status != STATUS_SUCCESS)
     {
-        Log_Set_Level(dm_cmd->filter_mask & TRACE_FILTER_STRING_MASK);
+        Log_Write(LOG_LEVEL_ERROR, "TRACE_CONFIG: Unable to configure Trace\n");
     }
-    Log_Write(LOG_LEVEL_INFO, "TRACE_CONFIG:SP:Trace Event/Filter Mask set.\r\n");
+    else
+    {
+        if (dm_cmd->event_mask & TRACE_EVENT_STRING)
+        {
+            Log_Set_Level(dm_cmd->filter_mask & TRACE_FILTER_STRING_MASK);
+        }
+        Log_Write(LOG_LEVEL_INFO, "TRACE_CONFIG:SP:Trace Event/Filter Mask set.\r\n");
+    }
 }
 
 static void send_trace_config_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time)
@@ -343,32 +358,6 @@ uint32_t Trace_Get_SP_Buffer(void)
 static void Trace_Run_Control(trace_enable_e state)
 {
     SP_Trace_CB.enable = state;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Trace_Configure
-*
-*   DESCRIPTION
-*
-*       This function sets event/filter mask of Trace for Service Processor.
-*
-*   INPUTS
-*
-*       uint32_t                     Trace event Mask.
-*       uint32_t                     Trace filter Mask.
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-static void Trace_Configure(uint32_t event_mask, uint32_t filter_mask)
-{
-    SP_Trace_CB.event_mask = event_mask;
-    SP_Trace_CB.filter_mask = filter_mask;
 }
 
 /************************************************************************
