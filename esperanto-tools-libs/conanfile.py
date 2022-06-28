@@ -58,7 +58,7 @@ class RuntimeConan(ConanFile):
             self.requires("sw-sysemu/0.2.0")
 
             self.requires("et-common-libs/0.7.0@#1f3ab13ae2efbbbe188e6b4d6a362fe0")
-            self.requires("device-minion-runtime/0.6.0@#49f19078ed20aa7efe10904ff58bb2a2")
+            self.requires("device-minion-runtime/0.7.0@#d962971c84898cab59f821d62df82ad1")
             self.requires("device-bootloaders/0.3.0@#07bafe92cd37a7229e986010349bad73")
             self.requires("esperanto-test-kernels/1.0.0@#37beed210aa1606b19c74957f64d475e")
 
