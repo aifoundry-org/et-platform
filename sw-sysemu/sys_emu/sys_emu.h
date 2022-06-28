@@ -108,6 +108,7 @@ struct sys_emu_cmd_options {
     bool        gdb                          = false;
     uint64_t    gdb_at_pc                    = ~0ull;
     bool        vpurf_check                  = false;
+    bool        vpurf_warn                   = false;
     bool        mem_check                    = false;
     uint64_t    mem_checker_log_addr         = 1;
     uint32_t    mem_checker_log_minion       = 2048;

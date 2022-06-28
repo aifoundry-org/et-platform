@@ -61,6 +61,7 @@ static const char * help_msg =
      -dump_at_pc_size <size>  Size of the dump\n\
      -dump_at_pc_file <file>  File where to store the dump\n\
      -vpurf_check             Enables VPURF checks\n\
+     -vpurf_warn              Enables VPURF checks (but only as warnings)\n\
      -mem_check               Enables memory coherency checks\n\
      -mem_check_minion        Enables memory coherency check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
      -mem_check_addr          Enables memory coherency check prints for a specific address (default: 0x1 [none])\n\
@@ -158,6 +159,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"dump_at_pc_size",        required_argument, nullptr, 0},
         {"dump_at_pc_file",        required_argument, nullptr, 0},
         {"vpurf_check",            no_argument,       nullptr, 0},
+        {"vpurf_warn",             no_argument,       nullptr, 0},
         {"mem_check",              no_argument,       nullptr, 0},
         {"mem_check_minion",       required_argument, nullptr, 0},
         {"mem_check_addr",         required_argument, nullptr, 0},
@@ -434,6 +436,10 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if (!strcmp(name, "vpurf_check"))
         {
             cmd_options.vpurf_check = true;
+        }
+        else if (!strcmp(name, "vpurf_warn"))
+        {
+            cmd_options.vpurf_warn = true;
         }
         else if (!strcmp(name, "mem_check"))
         {

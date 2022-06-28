@@ -93,18 +93,28 @@ void Vpurf_checker::freg_read(const bemu::Hart& cpu, uint8_t fs)
             access.clear();
             return;
         } else {
-            LOG_AGENT(INFO, *this,
+            LOG_AGENT(WARN, *this,
                       "[%s] 0x%" PRIx64 " (0x%08" PRIx32
                       ") fmv.x.w x0,f%d at cycle %" PRIu64,
                       cpu.name().c_str(), access.pc, access.insn.bits, fs,
                       access.cycle);
-            LOG_AGENT(INFO, *this,
+            LOG_AGENT(WARN, *this,
                       "[%s] 0x%" PRIx64 " (0x%08" PRIx32 ") reads f%d",
                       cpu.name().c_str(), cpu.pc, cpu.inst.bits, fs);
-            LOG_AGENT(
-                FTL, *this,
-                "[%s] Missing NOP between VPURF workaround and actual read",
-                cpu.name().c_str());
+                // FIXME It would be nice to use
+                //           LOG_AGENT( m_waive_errors ? WARN : FTL, ...)
+                //       instead, but that doesn't quite work because these are macros.
+            if (m_waive_errors) {
+                LOG_AGENT(
+                    WARN, *this,
+                    "[%s] Missing NOP between VPURF workaround and actual read",
+                    cpu.name().c_str());
+            } else {
+                LOG_AGENT(
+                    FTL, *this,
+                    "[%s] Missing NOP between VPURF workaround and actual read",
+                    cpu.name().c_str());
+            }
         }
     }
 
@@ -123,11 +133,16 @@ void Vpurf_checker::freg_read(const bemu::Hart& cpu, uint8_t fs)
     }(access.type);
 
     LOG_AGENT(
-        INFO, *this,
+        WARN, *this,
         "[%s] 0x%" PRIx64 " (0x%08" PRIx32 ") writes f%d at cycle %" PRIu64,
         cpu.name().c_str(), access.pc, access.insn.bits, fs, access.cycle);
-    LOG_AGENT(INFO, *this, "[%s] 0x%" PRIx64 " (0x%08" PRIx32 ") reads f%d",
+    LOG_AGENT(WARN, *this, "[%s] 0x%" PRIx64 " (0x%08" PRIx32 ") reads f%d",
               cpu.name().c_str(), cpu.pc, cpu.inst.bits, fs);
-    LOG_AGENT(FTL, *this, "[%s] VPURF workaround required for type %c",
-              cpu.name().c_str(), wa_type);
+    if (m_waive_errors) {
+        LOG_AGENT(WARN, *this, "[%s] VPURF workaround required for type %c",
+                  cpu.name().c_str(), wa_type);
+    } else {
+        LOG_AGENT(FTL, *this, "[%s] VPURF workaround required for type %c",
+                  cpu.name().c_str(), wa_type);
+    }
 }

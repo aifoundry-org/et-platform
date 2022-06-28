@@ -19,6 +19,8 @@ public:
     void freg_load(const bemu::Hart& cpu, uint8_t fd);
     void freg_read(const bemu::Hart& cpu, uint8_t fs);
 
+    void waive_errors() { m_waive_errors = true; }
+
 private:
     enum class Access_type {
         read = 0,
@@ -50,4 +52,5 @@ private:
     using Vpurf_model = std::array<Access, bemu::NFREGS>;
 
     std::array<Vpurf_model, EMU_NUM_THREADS> m_models;
+    bool m_waive_errors = false;
 };
