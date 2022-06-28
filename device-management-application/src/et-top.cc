@@ -30,6 +30,10 @@
 #define DV_DLOG(severity) ET_DLOG(ET_TOP, severity)
 #define DV_VLOG(level) ET_VLOG(ET_TOP, level)
 
+static const int32_t kMaxDeviceNum = 63;
+static const int32_t kOpsCqNum = 1;
+static const int32_t kOpsSqNum = 2;
+
 static struct termios orig_termios;
 
 static void restoreTTY(void) {
@@ -45,8 +49,6 @@ typedef struct {
   uint64_t msgRate;
   uint64_t utilPercent;
 } vq_stats_t;
-
-typedef std::array<vq_stats_t, 3> vq_stats_array_t;
 
 typedef struct {
   uint64_t cmaAllocated;
@@ -124,7 +126,7 @@ private:
   std::unique_ptr<dev::IDeviceLayer>& dl_;
   device_management::DeviceManagement& dm_;
 
-  vq_stats_array_t vqStats_;
+  std::array<vq_stats_t, kOpsSqNum + kOpsCqNum> vqStats_;
   mem_stats_t memStats_;
   err_stats_t errStats_;
   aer_stats_t aerStats_;
@@ -379,6 +381,8 @@ void EtTop::processInput(void) {
   char ch;
   bool help = false;
 
+  std::cout << "Type 'h' for help ";
+
   do {
     rc = read(STDIN_FILENO, &ch, 1);
     if (rc == -1) {
@@ -396,6 +400,7 @@ void EtTop::processInput(void) {
       }
     } else if (ch == 'q') {
       stop_ = true;
+      std::cout << std::endl;
     } else if (ch == 'e') {
       displayErrorDetails_ = !displayErrorDetails_;
     } else if (ch == 'h') {
@@ -546,8 +551,6 @@ void EtTop::displayStats(void) {
     }
   }
 
-  std::cout << "Type 'h' for help ";
-
   return;
 }
 
@@ -556,7 +559,6 @@ int main(int argc, char** argv) {
   long int devNum = 0;
   long int delay = 1;
   bool usageError = false;
-  const int32_t kMaxDeviceNum = 63;
 
   /*
    * Validate the inputs
@@ -647,15 +649,19 @@ int main(int argc, char** argv) {
   EtTop etTop(devNum, dl, dm);
   int elapsed = delay;
 
-  while (!etTop.stopStats()) {
-    etTop.processInput();
-
+  while (1) {
     if (delay > 0 && delay > elapsed) {
       elapsed++;
     } else {
       elapsed = 0;
       etTop.collectStats();
       etTop.displayStats();
+    }
+
+    etTop.processInput();
+
+    if (etTop.stopStats()) {
+      break;
     }
 
     if (delay > 0) {
