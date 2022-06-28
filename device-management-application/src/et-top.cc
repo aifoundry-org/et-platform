@@ -15,6 +15,7 @@
 #include <ctime>
 #include <dlfcn.h>
 #include <glog/logging.h>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <sys/stat.h>
@@ -414,7 +415,7 @@ void EtTop::displayErrorDetails(std::map<std::string, uint64_t>& error, bool add
   for (auto const& [key, val] : error) {
     if (val > 0) {
       std::string str = prefix + key + (addColon ? ": " : " ");
-      printf("\t\t%-30s %-6lu\n", str.data(), val);
+      std::cout << "\t\t" << std::setw(30) << std::left << str.data() << std::setw(6) << std::left << val << std::endl;
     }
   }
   return;
@@ -430,30 +431,37 @@ void EtTop::displayStats(void) {
   ctime_r(&now, nowbuf);
   nowbuf[20] = '\0';
   std::cout << "et-top device " << devNum_ << hhmmss << std::endl;
-
-  printf("Contiguous Mem Alloc: %6lu MB %6lu MB/sec\n", memStats_.cmaAllocated, memStats_.cmaAllocationRate);
+  std::cout << "Contiguous Mem Alloc: " << std::setw(6) << std::right << memStats_.cmaAllocated << " MB "
+            << std::setw(6) << std::right << memStats_.cmaAllocationRate << " MB/sec\n";
 
   std::cout << "Watts:                                            Temp(C):\n";
   struct op_value* power = &spStats_.op.system.power;
-  printf("\tCARD        avg: %-4u min: %-4u max: %-4u\n", power->avg, power->min, power->max);
+  std::cout << "\tCARD        avg: " << std::setw(4) << std::left << power->avg << " min: " << std::setw(4) << std::left
+            << power->min << " max: " << std::setw(4) << std::left << power->max << std::endl;
 
+  uint64_t avg = spStats_.op.minion.power.avg + spStats_.op.sram.power.avg + spStats_.op.noc.power.avg;
+  uint64_t min = spStats_.op.minion.power.min + spStats_.op.sram.power.min + spStats_.op.noc.power.min;
+  uint64_t max = spStats_.op.minion.power.max + spStats_.op.sram.power.max + spStats_.op.noc.power.max;
   struct op_value* temp = &spStats_.op.system.temperature;
-  printf("\t- ETSOC     avg: %-4u min: %-4u max: %-4u ETSOC     avg: %-4u min: %-4u max: %-4u\n",
-         spStats_.op.minion.power.avg + spStats_.op.sram.power.min + spStats_.op.noc.power.max,
-         spStats_.op.minion.power.avg + spStats_.op.sram.power.min + spStats_.op.noc.power.max,
-         spStats_.op.minion.power.avg + spStats_.op.sram.power.min + spStats_.op.noc.power.max, temp->avg, temp->min,
-         temp->max);
+  std::cout << "\t- ETSOC     avg: " << std::setw(4) << std::left << avg << " min: " << std::setw(4) << std::left << min
+            << " max: " << std::setw(4) << std::left << max << " ETSOC     avg: " << std::setw(4) << std::left
+            << temp->avg << " min: " << std::setw(4) << std::left << temp->min << " max: " << std::setw(4) << std::left
+            << temp->max << std::endl;
 
   power = &spStats_.op.minion.power;
   temp = &spStats_.op.minion.temperature;
-  printf("\t  - MINION  avg: %-4u min: %-4u max: %-4u - MINION  avg: %-4u min: %-4u max: %-4u\n", power->avg,
-         power->min, power->max, temp->avg, temp->min, temp->max);
+  std::cout << "\t  - MINION  avg: " << std::setw(4) << std::left << power->avg << " min: " << std::setw(4) << std::left
+            << power->min << " max: " << std::setw(4) << std::left << power->max << " - MINION  avg: " << std::setw(4)
+            << std::left << temp->avg << " min: " << std::setw(4) << std::left << temp->min << " max: " << std::setw(4)
+            << std::left << temp->max << std::endl;
 
   power = &spStats_.op.sram.power;
-  printf("\t  - SRAM    avg: %-4u min: %-4u max: %-4u\n", power->avg, power->min, power->max);
+  std::cout << "\t  - SRAM    avg: " << std::setw(4) << std::left << power->avg << " min: " << std::setw(4) << std::left
+            << power->min << " max: " << std::setw(4) << std::left << power->max << std::endl;
 
   power = &spStats_.op.noc.power;
-  printf("\t  - NOC     avg: %-4u min: %-4u max: %-4u\n", power->avg, power->min, power->max);
+  std::cout << "\t  - NOC     avg: " << std::setw(4) << std::left << power->avg << " min: " << std::setw(4) << std::left
+            << power->min << " max: " << std::setw(4) << std::left << power->max << std::endl;
 
   // XXX sanitize values for display until the mm stat implementation is finished
   std::array<struct resource_value*, 7> a = {
@@ -469,46 +477,62 @@ void EtTop::displayStats(void) {
 
   std::cout << "Compute:\n";
   // XXX  waiting for implementation of this data
-  printf("\tThru put    Kernel/sec    avg: %-6lu min: %-6lu max: %-6lu\n", 0UL, 0UL, 0UL);
+  std::cout << "\tThroughput  Kernel/sec    avg: " << std::setw(6) << std::left << 0 << " min: " << std::setw(6)
+            << std::left << 0 << " max: " << std::setw(6) << std::left << 0 << std::endl;
 
   const resource_value* cm = &mmStats_.computeResources.cm_utilization;
-  printf("\tUtil        Minion(%)     avg: %-6lu min: %-6lu max: %-6lu\n", cm->avg, cm->min, cm->max);
+  std::cout << "\tUtil        Minion(%)     avg: " << std::setw(6) << std::left << cm->avg << " min: " << std::setw(6)
+            << std::left << cm->min << " max: " << std::setw(6) << std::left << cm->max << std::endl;
   // XXX  waiting for implementation of this data
-  printf("\t            DMA Chan(%)   avg: %-6lu min: %-6lu max: %-6lu\n", 0UL, 0UL, 0UL);
+  std::cout << "\t            DMA Chan(%)   avg: " << std::setw(6) << std::left << 0 << " min: " << std::setw(6)
+            << std::left << 0 << " max: " << std::setw(6) << std::left << 0 << std::endl;
 
   struct resource_value* rd_bw = &mmStats_.computeResources.ddr_read_bw;
   struct resource_value* wr_bw = &mmStats_.computeResources.ddr_write_bw;
-  printf("\tDDR BW      Read  (MB/s)  avg: %-6lu min: %-6lu max: %-6lu\n", rd_bw->avg, rd_bw->min, rd_bw->max);
-  printf("\t            Write (MB/s)  avg: %-6lu min: %-6lu max: %-6lu\n", wr_bw->avg, wr_bw->min, wr_bw->max);
+  std::cout << "\tDDR BW      Read  (MB/s)  avg: " << std::setw(6) << std::left << rd_bw->avg
+            << " min: " << std::setw(6) << std::left << rd_bw->min << " max: " << std::setw(6) << std::left
+            << rd_bw->max << std::endl;
+  std::cout << "\t            Write (MB/s)  avg: " << std::setw(6) << std::left << wr_bw->avg
+            << " min: " << std::setw(6) << std::left << wr_bw->min << " max: " << std::setw(6) << std::left
+            << wr_bw->max << std::endl;
 
   rd_bw = &mmStats_.computeResources.l2_l3_read_bw;
   wr_bw = &mmStats_.computeResources.l2_l3_write_bw;
-  printf("\tL3 BW       Read  (MB/s)  avg: %-6lu min: %-6lu max: %-6lu\n", rd_bw->avg, rd_bw->min, rd_bw->max);
-  printf("\t            Write (MB/s)  avg: %-6lu min: %-6lu max: %-6lu\n", wr_bw->avg, wr_bw->min, wr_bw->max);
+  std::cout << "\tL3 BW       Read  (MB/s)  avg: " << std::setw(6) << std::left << rd_bw->avg
+            << " min: " << std::setw(6) << std::left << rd_bw->min << " max: " << std::setw(6) << std::left
+            << rd_bw->max << std::endl;
+  std::cout << "\t            Write (MB/s)  avg: " << std::setw(6) << std::left << wr_bw->avg
+            << " min: " << std::setw(6) << std::left << wr_bw->min << " max: " << std::setw(6) << std::left
+            << wr_bw->max << std::endl;
 
   rd_bw = &mmStats_.computeResources.pcie_dma_read_bw;
   wr_bw = &mmStats_.computeResources.pcie_dma_write_bw;
-  printf("\tPCI DMA BW  Read  (GB/s)  avg: %-6lu min: %-6lu max: %-6lu\n", rd_bw->avg, rd_bw->min, rd_bw->max);
-  printf("\t            Write (GB/s)  avg: %-6lu min: %-6lu max: %-6lu\n", wr_bw->avg, wr_bw->min, wr_bw->max);
+  std::cout << "\tPCI DMA BW  Read  (GB/s)  avg: " << std::setw(6) << std::left << rd_bw->avg
+            << " min: " << std::setw(6) << std::left << rd_bw->min << " max: " << std::setw(6) << std::left
+            << rd_bw->max << std::endl;
+  std::cout << "\t            Write (GB/s)  avg: " << std::setw(6) << std::left << wr_bw->avg
+            << " min: " << std::setw(6) << std::left << wr_bw->min << " max: " << std::setw(6) << std::left
+            << wr_bw->max << std::endl;
 
   std::cout << "Queues:\n";
   for (uint32_t i = 0; i < vqStats_.size(); i++) {
-    printf("\t%4s msgs: %-10lu msgs/sec: %-10lu util%%: %-10lu\n", vqStats_[i].qname.data(), vqStats_[i].msgCount,
-           vqStats_[i].msgRate, vqStats_[i].utilPercent);
+    std::cout << "\t" << std::setw(4) << vqStats_[i].qname.data() << " msgs: " << std::setw(10) << std::left
+              << vqStats_[i].msgCount << " msgs/sec: " << std::setw(10) << std::left << vqStats_[i].msgRate
+              << " util%: " << std::setw(10) << std::left << vqStats_[i].utilPercent << std::endl;
   }
 
   bool errors = errStats_.uceCount > 0 || errStats_.ceCount > 0 || aerStats_.aerCount > 0;
   if (errors || displayErrorDetails_) {
     std::cout << "Errors:\n";
-    printf("\tUncorrectable: %-6lu\n", errStats_.uceCount);
+    std::cout << "\tUncorrectable: " << std::setw(6) << std::left << errStats_.uceCount << std::endl;
     if (displayErrorDetails_ && errStats_.uceCount > 0) {
       displayErrorDetails(errStats_.uce);
     }
-    printf("\tCorrectable:   %-6lu\n", errStats_.ceCount);
+    std::cout << "\tCorrectable:   " << std::setw(6) << std::left << errStats_.ceCount << std::endl;
     if (displayErrorDetails_ && errStats_.ceCount > 0) {
       displayErrorDetails(errStats_.ce);
     }
-    printf("\tPCI AER:       %-6lu\n", aerStats_.aerCount);
+    std::cout << "\tPCI AER:       " << std::setw(6) << std::left << aerStats_.aerCount << std::endl;
     if (displayErrorDetails_ && aerStats_.aerCount > 0) {
       if (aerStats_.fatalCount > 0) {
         displayErrorDetails(aerStats_.fatal, true, "Fatal ");
@@ -521,7 +545,8 @@ void EtTop::displayStats(void) {
       }
     }
   }
-  printf("Type 'h' for help ");
+
+  std::cout << "Type 'h' for help ";
 
   return;
 }
