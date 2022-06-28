@@ -8,7 +8,6 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
-#include "../../deviceManagement/src/utils.h"
 #include "deviceLayer/IDeviceLayer.h"
 #include "deviceManagement/DeviceManagement.h"
 #include <cstdio>
@@ -24,12 +23,17 @@
 #define ET_TRACE_DECODER_IMPL
 #include "esperanto/et-trace/decoder.h"
 #include "esperanto/et-trace/layout.h"
+#include <hostUtils/logging/Logging.h>
+
+#define DV_LOG(severity) ET_LOG(ET_TOP, severity)
+#define DV_DLOG(severity) ET_DLOG(ET_TOP, severity)
+#define DV_VLOG(level) ET_VLOG(ET_TOP, level)
 
 static struct termios orig_termios;
 
 static void restoreTTY(void) {
   if (tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios) != 0) {
-    DV_LOG(ERROR) << "tcsetattr restore on stdin error: " << std::strerror(errno);
+    DV_LOG(WARNING) << "tcsetattr restore on stdin error: " << std::strerror(errno);
   }
   return;
 }
@@ -230,12 +234,12 @@ bool EtTop::processErrorFile(std::string relAttrPath, std::map<std::string, uint
 
 void EtTop::collectErrStats(void) {
   if (!processErrorFile("err_stats/ce_count", errStats_.ce, errStats_.ceCount)) {
-    DV_LOG(ERROR) << "unable to processs file err_stats/ce_count";
+    DV_LOG(WARNING) << "unable to processs file err_stats/ce_count";
     exit(1);
   }
 
   if (!processErrorFile("err_stats/uce_count", errStats_.uce, errStats_.uceCount)) {
-    DV_LOG(ERROR) << "unable to processs file err_stats/uce_count";
+    DV_LOG(WARNING) << "unable to processs file err_stats/uce_count";
     exit(1);
   }
   return;
@@ -256,7 +260,7 @@ void EtTop::collectAerStats(void) {
     uint64_t total = aerStats_.fatal["TOT_ERR_FATAL"];
     aerStats_.fatalCount >>= 1;
     if (aerStats_.fatalCount != total) {
-      DV_LOG(ERROR) << "aer_dev_fatal count mismatch: " << aerStats_.fatalCount << " != " << total;
+      DV_LOG(WARNING) << "aer_dev_fatal count mismatch: " << aerStats_.fatalCount << " != " << total;
     }
     aerStats_.fatal.erase("TOT_ERR_FATAL");
   }
@@ -267,7 +271,7 @@ void EtTop::collectAerStats(void) {
     uint64_t total = aerStats_.nonfatal["TOT_ERR_NONFATAL"];
     aerStats_.nonfatalCount >>= 1;
     if (aerStats_.nonfatalCount != total) {
-      DV_LOG(ERROR) << "aer_dev_nonfatal count mismatch: " << aerStats_.nonfatalCount << " != " << total;
+      DV_LOG(WARNING) << "aer_dev_nonfatal count mismatch: " << aerStats_.nonfatalCount << " != " << total;
     }
     aerStats_.nonfatal.erase("TOT_ERR_NONFATAL");
   }
@@ -278,7 +282,7 @@ void EtTop::collectAerStats(void) {
     uint64_t total = aerStats_.correctable["TOT_ERR_COR"];
     aerStats_.correctableCount >>= 1;
     if (aerStats_.correctableCount != total) {
-      DV_LOG(ERROR) << "aer_dev_correctable count mismatch: " << aerStats_.correctableCount << " != " << total;
+      DV_LOG(WARNING) << "aer_dev_correctable count mismatch: " << aerStats_.correctableCount << " != " << total;
     }
     aerStats_.correctable.erase("TOT_ERR_COR");
   }
@@ -292,22 +296,22 @@ void EtTop::collectSpStats(void) {
 
   if (dm_.getTraceBufferServiceProcessor(devNum_, TraceBufferType::TraceBufferSPStats, response) !=
       device_mgmt_api::DM_STATUS_SUCCESS) {
-    DV_LOG(ERROR) << "getTraceBufferServiceProcessor error";
+    DV_LOG(WARNING) << "getTraceBufferServiceProcessor error";
     exit(1);
   }
 
   struct trace_buffer_std_header_t* tb_hdr;
   tb_hdr = reinterpret_cast<struct trace_buffer_std_header_t*>(response.data());
   if (tb_hdr->type != TRACE_SP_STATS_BUFFER) {
-    DV_LOG(ERROR) << "Trace buffer invalid type: " << tb_hdr->type << " (must be TRACE_SP_STATS_BUFFER "
-                  << TRACE_SP_STATS_BUFFER << ")";
+    DV_LOG(WARNING) << "Trace buffer invalid type: " << tb_hdr->type << " (must be TRACE_SP_STATS_BUFFER "
+                    << TRACE_SP_STATS_BUFFER << ")";
     exit(1);
   }
 
   const struct trace_entry_header_t* entry = NULL;
   while ((entry = Trace_Decode(tb_hdr, entry))) {
     if (entry->type != TRACE_TYPE_CUSTOM_EVENT) {
-      DV_LOG(ERROR) << "Trace type not custom event error: " << entry->type;
+      DV_LOG(WARNING) << "Trace type not custom event error: " << entry->type;
       exit(1);
     }
 
@@ -335,15 +339,15 @@ void EtTop::collectMmStats(void) {
 
   if (dm_.getTraceBufferServiceProcessor(devNum_, TraceBufferType::TraceBufferMMStats, response) !=
       device_mgmt_api::DM_STATUS_SUCCESS) {
-    DV_LOG(ERROR) << "getTraceBufferServiceProcessor error";
+    DV_LOG(WARNING) << "getTraceBufferServiceProcessor error";
     exit(1);
   }
 
   struct trace_buffer_std_header_t* tb_hdr;
   tb_hdr = reinterpret_cast<struct trace_buffer_std_header_t*>(response.data());
   if (tb_hdr->type != TRACE_MM_STATS_BUFFER) {
-    DV_LOG(ERROR) << "Trace buffer invalid type: " << tb_hdr->type << " (must be TRACE_MM_STATS_BUFFER "
-                  << TRACE_MM_STATS_BUFFER << ")";
+    DV_LOG(WARNING) << "Trace buffer invalid type: " << tb_hdr->type << " (must be TRACE_MM_STATS_BUFFER "
+                    << TRACE_MM_STATS_BUFFER << ")";
     exit(1);
   }
 
@@ -351,7 +355,7 @@ void EtTop::collectMmStats(void) {
   const struct trace_entry_header_t* entry = NULL;
   while ((entry = Trace_Decode(tb_hdr, entry))) {
     if (entry->type != TRACE_TYPE_CUSTOM_EVENT) {
-      DV_LOG(ERROR) << "Trace type not custom event error: " << entry->type;
+      DV_LOG(WARNING) << "Trace type not custom event error: " << entry->type;
       exit(1);
     }
 
@@ -377,7 +381,7 @@ void EtTop::processInput(void) {
   do {
     rc = read(STDIN_FILENO, &ch, 1);
     if (rc == -1) {
-      DV_LOG(ERROR) << "read on stdin error: " << std::strerror(errno);
+      DV_LOG(WARNING) << "read on stdin error: " << std::strerror(errno);
       exit(1);
     }
 
@@ -572,12 +576,12 @@ int main(int argc, char** argv) {
   setbuf(stdout, NULL);
 
   if (tcgetattr(STDIN_FILENO, &orig_termios) != 0) {
-    DV_LOG(ERROR) << "tcgetattr on stdin error: " << std::strerror(errno);
+    DV_LOG(WARNING) << "tcgetattr on stdin error: " << std::strerror(errno);
     exit(1);
   }
 
   if (atexit(restoreTTY) != 0) {
-    DV_LOG(ERROR) << "atexit error";
+    DV_LOG(WARNING) << "atexit error";
     exit(1);
   }
 
@@ -586,7 +590,7 @@ int main(int argc, char** argv) {
   new_termios.c_cc[VTIME] = 1;
   new_termios.c_cc[VMIN] = 0;
   if (tcsetattr(STDIN_FILENO, TCSANOW, &new_termios) != 0) {
-    DV_LOG(ERROR) << "tcsetattr on stdin error: " << std::strerror(errno);
+    DV_LOG(WARNING) << "tcsetattr on stdin error: " << std::strerror(errno);
     exit(1);
   }
 
@@ -596,14 +600,14 @@ int main(int argc, char** argv) {
   device_management::getDM_t dmi;
   void* handle = dlopen("libDM.so", RTLD_LAZY);
   if (!handle) {
-    DV_LOG(ERROR) << "dlopen error " << dlerror();
+    DV_LOG(WARNING) << "dlopen error " << dlerror();
     exit(1);
   } else {
     const char* error;
 
     dmi = reinterpret_cast<device_management::getDM_t>(dlsym(handle, "getInstance"));
     if ((error = dlerror())) {
-      DV_LOG(ERROR) << "dlsym error " << error;
+      DV_LOG(WARNING) << "dlsym error " << error;
       exit(1);
     }
   }
