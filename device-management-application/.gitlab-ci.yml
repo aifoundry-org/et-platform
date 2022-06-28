@@ -20,7 +20,7 @@ default:
 
 variables:
   # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
-  SW_PLATFORM_BRANCH: mahad/add_dma_ci # FIXME: develop/system-sw after the MR gets merged
+  SW_PLATFORM_BRANCH: develop/system-sw
   PIPELINE_CI_SUBPROJECT: deviceManagementApplication
 
 ###############################################################################

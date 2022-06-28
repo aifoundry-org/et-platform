@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Gitlab CI with clang format job along with sw-platform regressions
 ### Changed
+- Changed back the sw-platform branch for CI back to develop/system-sw
 ### Deprecated
 ### Removed
 ### Fixed
