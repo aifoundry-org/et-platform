@@ -175,11 +175,12 @@ void test_compute(uint32_t shire_id, uint32_t minion_id)
       : "f0"
     );
 
+    /* TODO: SW-13233: Added back this log once MLP kernel coherency issues is resolved.
     if (minion_id == 0) {
         for (int i = 0; i < 8; i++) {
-            et_printf("%i => %f\n", i, (double) buffer[i]);
+            et_printf("%i => %f\n", i, (double) buffer[i])
         }
-    }
+    } */
 }
 
 

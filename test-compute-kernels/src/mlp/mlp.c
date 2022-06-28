@@ -59,7 +59,11 @@ int64_t main(void)
         test_sync(minion_id, thread_id);
     }
 
-    et_printf("MLP Test done\n");
+    /* TODO: SW-13233: Once MLP kernel coherency issues is resolved, Enable this log for all Harts. */
+    if (hart == 1)
+    {
+        et_printf("MLP Test done\n");
+    }
 
     return 0;
 }
