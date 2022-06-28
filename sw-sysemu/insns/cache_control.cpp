@@ -88,14 +88,13 @@ void dcache_evict_flush_set_way(Hart& cpu, bool evict, uint64_t value)
     for (int i = 0; i < count; ++i) {
         // skip if masked or evicting and hard-locked
         if ((!tm || cpu.tensor_mask[i]) && !(evict && cpu.core->scp_lock[set][way])) {
-            // NB: Hardware sets TensorError[7] if the PA in the set/way
+            // NB: Hardware raises a bus error if the PA in the set/way
             // corresponds to L2SCP and dest > L2, but we do not keep track of
             // unlocked cache lines.
             if ((dest >= 2) && cpu.core->scp_lock[set][way] && paddr_is_scratchpad(cpu.core->scp_addr[set][way])) {
-                LOG_HART(DEBUG, cpu, "\tFlushSW: Set: %d, Way: %d, DestLevel: %d cannot flush L2 scratchpad address 0x%016" PRIx64,
-                    set, way, dest, cpu.core->scp_addr[set][way]);
-                update_tensor_error(cpu, 1 << 7);
-                return;
+                LOG_HART(DEBUG, cpu, "\t%s: Set: %d, Way: %d, DestLevel: %d cannot flush L2 scratchpad address 0x%016" PRIx64,
+                    evict ? "EvictSW" : "FlushSW", set, way, dest, cpu.core->scp_addr[set][way]);
+                throw memory_error(cpu.core->scp_addr[set][way]);
             }
             LOG_HART(DEBUG, cpu, "\tDoing %s: Set: %d, Way: %d, DestLevel: %d",
                 evict ? "EvictSW" : "FlushSW", set, way, dest);
@@ -155,6 +154,9 @@ void dcache_evict_flush_vaddr(Hart& cpu, bool evict, uint64_t value)
                 uint64_t paddr = mmu_translate(cpu, vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, cop);
                 LOG_HART(DEBUG, cpu, "\tDoing %s: 0x%016" PRIx64 " (0x%016" PRIx64 "), DestLevel: %d",
                          evict ? "EvictVA" : "FlushVA", vaddr, paddr, dest);
+                if ((dest >= 2) && paddr_is_scratchpad(paddr)) {
+                    throw memory_error(paddr);
+                }
             }
             catch (const Exception&) {
                 LOG_HART(DEBUG, cpu, "\t%s: 0x%016" PRIx64 ", DestLevel: %d generated exception (suppressed)",
