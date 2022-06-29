@@ -599,6 +599,7 @@ int main(int argc, char** argv) {
    * Enable logging of any internal errors and configure the tty for processing
    */
   logging::LoggerDefault loggerDefault_;
+  g3::log_levels::disable(DEBUG);
   google::InitGoogleLogging(argv[0]);
   setbuf(stdout, NULL);
 
@@ -640,7 +641,6 @@ int main(int argc, char** argv) {
   }
 
   std::unique_ptr<dev::IDeviceLayer> dl = dev::IDeviceLayer::createPcieDeviceLayer(false, true);
-  system("clear"); // XXX eliminate the need for this
   device_management::DeviceManagement& dm = (*dmi)(dl.get());
 
   /*
