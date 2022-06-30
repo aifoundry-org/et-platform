@@ -29,7 +29,10 @@ target_include_directories(dev_mngt_service
     PRIVATE
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
 )
-
+target_compile_definitions(dev_mngt_service
+    PUBLIC
+        -DDM_APP_VERSION="${CMAKE_PROJECT_VERSION}"
+)
 target_link_libraries(dev_mngt_service
     PRIVATE
         glog::glog
