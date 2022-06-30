@@ -44,26 +44,26 @@ static void restoreTTY(void) {
   return;
 }
 
-typedef struct {
+struct vq_stats_t {
   std::string qname;
   uint64_t msgCount;
   uint64_t msgRate;
   uint64_t utilPercent;
-} vq_stats_t;
+};
 
-typedef struct {
+struct mem_stats_t {
   uint64_t cmaAllocated;
   uint64_t cmaAllocationRate;
-} mem_stats_t;
+};
 
-typedef struct {
+struct err_stats_t {
   uint64_t ceCount;
   uint64_t uceCount;
   std::map<std::string, uint64_t> ce;
   std::map<std::string, uint64_t> uce;
-} err_stats_t;
+};
 
-typedef struct {
+struct aer_stats_t {
   uint64_t aerCount;
   uint64_t fatalCount;
   uint64_t nonfatalCount;
@@ -71,14 +71,14 @@ typedef struct {
   std::map<std::string, uint64_t> fatal;
   std::map<std::string, uint64_t> nonfatal;
   std::map<std::string, uint64_t> correctable;
-} aer_stats_t;
+};
 
-typedef struct {
+struct sp_stats_t {
   uint64_t cycle;
   op_stats_t op;
-} sp_stats_t;
+};
 
-typedef struct {
+struct mm_stats_t {
   struct compute_resources_sample computeResources;
 } mm_stats_t;
 
@@ -129,11 +129,11 @@ private:
   device_management::DeviceManagement& dm_;
 
   std::array<vq_stats_t, kOpsSqNum + kOpsCqNum> vqStats_;
-  mem_stats_t memStats_;
-  err_stats_t errStats_;
-  aer_stats_t aerStats_;
-  sp_stats_t spStats_;
-  mm_stats_t mmStats_;
+  struct mem_stats_t memStats_;
+  struct err_stats_t errStats_;
+  struct aer_stats_t aerStats_;
+  struct sp_stats_t spStats_;
+  struct mm_stats_t mmStats_;
 };
 
 void EtTop::collectMemStats(void) {
@@ -168,11 +168,9 @@ void EtTop::collectVqStats(void) {
     ss << line;
     ss >> qname >> num >> dummy;
 
-    for (uint32_t i = 0; i < vqStats_.size(); i++) {
-      if (qname == vqStats_[i].qname) {
-        vqStats_[i].msgCount = num;
-        break;
-      }
+    auto it = std::find_if(vqStats_.begin(), vqStats_.end(), [qname](const auto& e) { return qname == e.qname; });
+    if (it != vqStats_.end()) {
+      (*it).msgCount = num;
     }
   }
 
@@ -182,11 +180,9 @@ void EtTop::collectVqStats(void) {
     ss << line;
     ss >> qname >> num >> dummy;
 
-    for (uint32_t i = 0; i < vqStats_.size(); i++) {
-      if (qname == vqStats_[i].qname) {
-        vqStats_[i].msgRate = num;
-        break;
-      }
+    auto it = std::find_if(vqStats_.begin(), vqStats_.end(), [qname](const auto& e) { return qname == e.qname; });
+    if (it != vqStats_.end()) {
+      (*it).msgRate = num;
     }
   }
 
@@ -196,11 +192,9 @@ void EtTop::collectVqStats(void) {
     ss << line;
     ss >> qname >> num >> dummy;
 
-    for (uint32_t i = 0; i < vqStats_.size(); i++) {
-      if (qname == vqStats_[i].qname) {
-        vqStats_[i].utilPercent = num;
-        break;
-      }
+    auto it = std::find_if(vqStats_.begin(), vqStats_.end(), [qname](const auto& e) { return qname == e.qname; });
+    if (it != vqStats_.end()) {
+      (*it).utilPercent = num;
     }
   }
 
@@ -262,34 +256,34 @@ void EtTop::collectAerStats(void) {
   if (!fatalFileError) {
     fatalFileError = !processErrorFile("aer_dev_fatal", aerStats_.fatal, aerStats_.fatalCount);
 
-    uint64_t total = aerStats_.fatal["TOT_ERR_FATAL"];
+    uint64_t total = aerStats_.fatal["TOTAL_ERR_FATAL"];
     aerStats_.fatalCount >>= 1;
     if (aerStats_.fatalCount != total) {
       DV_LOG(WARNING) << "aer_dev_fatal count mismatch: " << aerStats_.fatalCount << " != " << total;
     }
-    aerStats_.fatal.erase("TOT_ERR_FATAL");
+    aerStats_.fatal.erase("TOTAL_ERR_FATAL");
   }
 
   if (!nonfatalFileError) {
     nonfatalFileError = !processErrorFile("aer_dev_nonfatal", aerStats_.nonfatal, aerStats_.nonfatalCount);
 
-    uint64_t total = aerStats_.nonfatal["TOT_ERR_NONFATAL"];
+    uint64_t total = aerStats_.nonfatal["TOTAL_ERR_NONFATAL"];
     aerStats_.nonfatalCount >>= 1;
     if (aerStats_.nonfatalCount != total) {
       DV_LOG(WARNING) << "aer_dev_nonfatal count mismatch: " << aerStats_.nonfatalCount << " != " << total;
     }
-    aerStats_.nonfatal.erase("TOT_ERR_NONFATAL");
+    aerStats_.nonfatal.erase("TOTAL_ERR_NONFATAL");
   }
 
   if (!correctableFileError) {
     correctableFileError = !processErrorFile("aer_dev_correctable", aerStats_.correctable, aerStats_.correctableCount);
 
-    uint64_t total = aerStats_.correctable["TOT_ERR_COR"];
+    uint64_t total = aerStats_.correctable["TOTAL_ERR_COR"];
     aerStats_.correctableCount >>= 1;
     if (aerStats_.correctableCount != total) {
       DV_LOG(WARNING) << "aer_dev_correctable count mismatch: " << aerStats_.correctableCount << " != " << total;
     }
-    aerStats_.correctable.erase("TOT_ERR_COR");
+    aerStats_.correctable.erase("TOTAL_ERR_COR");
   }
 
   aerStats_.aerCount = aerStats_.fatalCount + aerStats_.fatalCount + aerStats_.correctableCount;
