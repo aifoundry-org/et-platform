@@ -112,6 +112,7 @@ public:
 
 private:
   bool processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total);
+  void displayComputeStat(const std::string stat, const struct resource_value& rv, const bool convertMBtoGB = false);
   void displayErrorDetails(std::map<std::string, uint64_t>& error, bool addColon = false, std::string prefix = "");
   void collectMemStats(void);
   void collectErrStats(void);
@@ -381,8 +382,6 @@ void EtTop::processInput(void) {
   char ch;
   bool help = false;
 
-  std::cout << "Type 'h' for help ";
-
   do {
     rc = read(STDIN_FILENO, &ch, 1);
     if (rc == -1) {
@@ -413,6 +412,21 @@ void EtTop::processInput(void) {
     }
   } while (help || (!stop_ && rc == 1));
 
+  return;
+}
+
+void EtTop::displayComputeStat(const std::string stat, const struct resource_value& rv, const bool convertMBtoGB) {
+  uint64_t avg = rv.avg;
+  uint64_t min = rv.min;
+  uint64_t max = rv.max;
+
+  if (convertMBtoGB) {
+    avg /= 1000;
+    min /= 1000;
+    max /= 1000;
+  }
+  std::cout << "\t" + stat + " avg: " << std::setw(6) << std::left << avg << " min: " << std::setw(6) << std::left
+            << min << " max: " << std::setw(6) << std::left << max << std::endl;
   return;
 }
 
@@ -468,56 +482,17 @@ void EtTop::displayStats(void) {
   std::cout << "\t  - NOC     avg: " << std::setw(4) << std::left << power->avg << " min: " << std::setw(4) << std::left
             << power->min << " max: " << std::setw(4) << std::left << power->max << std::endl;
 
-  // XXX sanitize values for display until the mm stat implementation is finished
-  std::array<struct resource_value*, 7> a = {
-    &mmStats_.computeResources.cm_utilization,   &mmStats_.computeResources.ddr_read_bw,
-    &mmStats_.computeResources.ddr_write_bw,     &mmStats_.computeResources.l2_l3_read_bw,
-    &mmStats_.computeResources.l2_l3_write_bw,   &mmStats_.computeResources.pcie_dma_read_bw,
-    &mmStats_.computeResources.pcie_dma_write_bw};
-  for (int i = 0; i < a.size(); i++) {
-    a[i]->avg %= 100000UL;
-    a[i]->min %= 100000UL;
-    a[i]->max %= 100000UL;
-  }
-
   std::cout << "Compute:\n";
-  // XXX  waiting for implementation of this data
-  std::cout << "\tThroughput  Kernel/sec    avg: " << std::setw(6) << std::left << 0 << " min: " << std::setw(6)
-            << std::left << 0 << " max: " << std::setw(6) << std::left << 0 << std::endl;
-
-  const resource_value* cm = &mmStats_.computeResources.cm_utilization;
-  std::cout << "\tUtil        Minion(%)     avg: " << std::setw(6) << std::left << cm->avg << " min: " << std::setw(6)
-            << std::left << cm->min << " max: " << std::setw(6) << std::left << cm->max << std::endl;
-  // XXX  waiting for implementation of this data
-  std::cout << "\t            DMA Chan(%)   avg: " << std::setw(6) << std::left << 0 << " min: " << std::setw(6)
-            << std::left << 0 << " max: " << std::setw(6) << std::left << 0 << std::endl;
-
-  struct resource_value* rd_bw = &mmStats_.computeResources.ddr_read_bw;
-  struct resource_value* wr_bw = &mmStats_.computeResources.ddr_write_bw;
-  std::cout << "\tDDR BW      Read  (MB/s)  avg: " << std::setw(6) << std::left << rd_bw->avg
-            << " min: " << std::setw(6) << std::left << rd_bw->min << " max: " << std::setw(6) << std::left
-            << rd_bw->max << std::endl;
-  std::cout << "\t            Write (MB/s)  avg: " << std::setw(6) << std::left << wr_bw->avg
-            << " min: " << std::setw(6) << std::left << wr_bw->min << " max: " << std::setw(6) << std::left
-            << wr_bw->max << std::endl;
-
-  rd_bw = &mmStats_.computeResources.l2_l3_read_bw;
-  wr_bw = &mmStats_.computeResources.l2_l3_write_bw;
-  std::cout << "\tL3 BW       Read  (MB/s)  avg: " << std::setw(6) << std::left << rd_bw->avg
-            << " min: " << std::setw(6) << std::left << rd_bw->min << " max: " << std::setw(6) << std::left
-            << rd_bw->max << std::endl;
-  std::cout << "\t            Write (MB/s)  avg: " << std::setw(6) << std::left << wr_bw->avg
-            << " min: " << std::setw(6) << std::left << wr_bw->min << " max: " << std::setw(6) << std::left
-            << wr_bw->max << std::endl;
-
-  rd_bw = &mmStats_.computeResources.pcie_dma_read_bw;
-  wr_bw = &mmStats_.computeResources.pcie_dma_write_bw;
-  std::cout << "\tPCI DMA BW  Read  (GB/s)  avg: " << std::setw(6) << std::left << rd_bw->avg
-            << " min: " << std::setw(6) << std::left << rd_bw->min << " max: " << std::setw(6) << std::left
-            << rd_bw->max << std::endl;
-  std::cout << "\t            Write (GB/s)  avg: " << std::setw(6) << std::left << wr_bw->avg
-            << " min: " << std::setw(6) << std::left << wr_bw->min << " max: " << std::setw(6) << std::left
-            << wr_bw->max << std::endl;
+  resource_value dummy = {0, 0, 0}; // XXX eliminate this when implementation is ready
+  displayComputeStat("Throughput  Kernel/sec   ", mmStats_.computeResources.cm_utilization);
+  displayComputeStat("Util        Minion(%)    ", dummy);
+  displayComputeStat("            DMA Chan(%)  ", dummy);
+  displayComputeStat("DDR BW      Read  (MB/s) ", mmStats_.computeResources.ddr_read_bw);
+  displayComputeStat("            Write (MB/s) ", mmStats_.computeResources.ddr_write_bw);
+  displayComputeStat("L3 BW       Read  (MB/s) ", mmStats_.computeResources.l2_l3_read_bw);
+  displayComputeStat("            Write (MB/s) ", mmStats_.computeResources.l2_l3_write_bw);
+  displayComputeStat("PCI DMA BW  Read  (GB/s) ", mmStats_.computeResources.pcie_dma_read_bw, true);
+  displayComputeStat("            Write (GB/s) ", mmStats_.computeResources.pcie_dma_write_bw, true);
 
   std::cout << "Queues:\n";
   for (uint32_t i = 0; i < vqStats_.size(); i++) {
@@ -551,6 +526,7 @@ void EtTop::displayStats(void) {
     }
   }
 
+  std::cout << "Type 'h' for help ";
   return;
 }
 
