@@ -33,20 +33,19 @@ smoke_tests:conan:sysemu:
 
   parallel:
     matrix:
-      - BUILD_TYPE: [ release, debug ]
+      - BUILD_TYPE: [ Release, Debug ]
   
   variables:
     TIMEOUT: 30m
 
     CMD_BUILD: |
-      mkdir cmake-build-${BUILD_TYPE}
-      cd cmake-build-${BUILD_TYPE}
+      BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       conan remote disable conan-tmp
-      conan install .. -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE} -o deviceLayer:with_tests=True --build missing
-      cmake --configure .. -DCMAKE_TOOLCHAIN_FILE=conan/conan_toolchain.cmake -G Ninja
-      cmake --build .
-      cd threadPool/tests
-      ctest
+      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE_LOWER} -o deviceLayer:with_tests=True --build missing
+      cmake --preset ${BUILD_TYPE} -G Ninja
+      cmake --build --preset ${BUILD_TYPE}
+      cd cmake-build-${BUILD_TYPE_LOWER}/threadPool/tests
+      ctest --no-compress-output --output-on-failure --parallel 4
 
 ###############################################################################
 ###############################################################################
