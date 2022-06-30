@@ -192,8 +192,8 @@ nightly_torture_tests:conan:sysemu:
     TIMEOUT: 30m
 
     CMD_BUILD: |
+      BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
-
       conan remote disable conan-tmp
       conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o esperanto-flash-tool:header_only=True --build missing
       cmake --preset ${BUILD_TYPE} -G Ninja
