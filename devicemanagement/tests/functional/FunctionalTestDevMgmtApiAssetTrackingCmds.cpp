@@ -88,9 +88,7 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModulePCIENumPortsMaxSpeed)
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleMemorySizeMB) {
-  // TODO: SW-13218: Enable back on Target::Silicon, no response is received for this command on V2/V3
-  // if (targetInList({Target::FullBoot, Target::Silicon})) {
-  if (targetInList({Target::FullBoot})) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
     getModuleMemorySizeMB(false /* Multiple devices */);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -117,13 +115,7 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleFormFactor) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleMemoryVendorPartNumber) {
-  // TODO: SW-13218: Enable back on Target::Silicon, no response is received for this command on V2/V3
-  if (getTestTarget() != Target::Silicon) {
-    getModuleMemoryVendorPartNumber(false /* Multiple devices */);
-  } else {
-    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
-    FLAGS_enable_trace_dump = false;
-  }
+  getModuleMemoryVendorPartNumber(false /* Multiple devices */);
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleMemoryType) {

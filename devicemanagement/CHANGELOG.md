@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dmesg is inaccessible.
 - Disable only the un-supported tests for Target::Silicon instead of all tests
   of that management service.
+- [SW-13218] Re-enabling the getModuleMemorySizeMB and getModuleMemoryVendorPartNumber tests for silicon.
 ### Deprecated
 ### Removed
 - Workaround for SP Trace
