@@ -70,12 +70,17 @@ int get_form_factor(char *form_factor)
 
 int get_memory_vendor_ID(char *vendor_ID)
 {
-    return ddr_get_memory_vendor_ID(vendor_ID);
+    /* TODO: reading the registers here hang the system. To be fixed later.
+    return ddr_get_memory_vendor_ID(vendor_ID); */
+    char id[] = "1234567";
+    snprintf(vendor_ID, 8, "%s", id);
+
+    return 0;
 }
 
 int get_memory_size(char *mem_size)
 {
-    return ddr_get_memory_size(mem_size);
+    return flash_fs_get_memory_size(mem_size);
 }
 
 int get_memory_type(char *mem_type)

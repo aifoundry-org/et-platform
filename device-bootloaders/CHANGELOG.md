@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-13218] Reading memory size from flash in get_memory_size().
+  * Reading dummy vendor ID until reading from chip register is fixed.
 ### Security
 
 ## [0.3.0] - 2022-6-25
