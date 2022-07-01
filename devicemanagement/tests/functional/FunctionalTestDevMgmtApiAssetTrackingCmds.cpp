@@ -75,7 +75,13 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getASICChipRevision) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModulePCIEPortsMaxSpeed) {
-  getModulePCIEPortsMaxSpeed(false /* Multiple devices */);
+  // Test not applicable on SysEMU
+  if (getTestTarget() != Target::SysEMU) {
+    getModulePCIEPortsMaxSpeed(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleMemorySizeMB) {
