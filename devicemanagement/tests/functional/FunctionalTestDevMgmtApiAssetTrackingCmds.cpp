@@ -74,17 +74,8 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getASICChipRevision) {
   }
 }
 
-TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModulePCIENumPortsMaxSpeed) {
-  // TODO: SW-13220: Enable back on Target::Silicon, following failure is seen with V2/V3 card
-  // received: 5, expected: 8, need max speed not current speed, also rename to
-  // getModulePCIEPortsMaxSpeed
-  // Does not fail on all V3 cards, not passing on: card on slot 0000:05:00.0 (mv-swpcie25)
-  if (getTestTarget() != Target::Silicon) {
-    getModulePCIENumPortsMaxSpeed(false /* Multiple devices */);
-  } else {
-    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
-    FLAGS_enable_trace_dump = false;
-  }
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModulePCIEPortsMaxSpeed) {
+  getModulePCIEPortsMaxSpeed(false /* Multiple devices */);
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleMemorySizeMB) {

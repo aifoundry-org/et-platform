@@ -462,15 +462,12 @@ void TestDevMgmtApiSyncCmds::getASICChipRevision(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::getModulePCIENumPortsMaxSpeed(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::getModulePCIEPortsMaxSpeed(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
-  char expected[output_size] = {0};
-  strncpy(expected, "8", output_size);
-  printf("expected: %.*s\n", output_size, expected);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -490,7 +487,10 @@ void TestDevMgmtApiSyncCmds::getModulePCIENumPortsMaxSpeed(bool singleDevice) {
 
       device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
 
-      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      auto sysfsMaxLinkSpeed = devLayer_->getDeviceAttribute(deviceIdx, "max_link_speed");
+      auto receivedMaxLinkSpeed = std::string(asset_info->asset);
+      EXPECT_NE(sysfsMaxLinkSpeed.find(receivedMaxLinkSpeed), std::string::npos)
+        << "Max Link Speed: received: " << receivedMaxLinkSpeed << " vs sysfs_attribute: " << sysfsMaxLinkSpeed;
     }
   }
 }

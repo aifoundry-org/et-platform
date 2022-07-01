@@ -17,12 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disable only the un-supported tests for Target::Silicon instead of all tests
   of that management service.
 - [SW-13218] Re-enabling the getModuleMemorySizeMB and getModuleMemoryVendorPartNumber tests for silicon.
+- `getModulePCIENumPortsMaxSpeed` test renamed to `getModulePCIEPortsMaxSpeed`.
 ### Deprecated
 ### Removed
 - Workaround for SP Trace
 ### Fixed
 - `getDeviceErrorEvents` test now reads error events information from sysfs
   counters instead of reading it from dmesg. Enabling this test back for
+  Target::Silicon.
+- `getModulePCIEPortsMaxSpeed` test now compare the received max link speed with
+  sysfs attribute file `max_link_speed`. Enabling this test back for
   Target::Silicon.
 ### Security
 

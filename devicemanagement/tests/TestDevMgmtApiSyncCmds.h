@@ -50,7 +50,7 @@ protected:
   void getModulePartNumber(bool singleDevice);
   void getModuleSerialNumber(bool singleDevice);
   void getASICChipRevision(bool singleDevice);
-  void getModulePCIENumPortsMaxSpeed(bool singleDevice);
+  void getModulePCIEPortsMaxSpeed(bool singleDevice);
   void getModuleMemorySizeMB(bool singleDevice);
   void getModuleRevision(bool singleDevice);
   void getModuleFormFactor(bool singleDevice);
