@@ -918,7 +918,7 @@ int pcie_get_speed(char *pcie_speed)
     /* Get the PCIE Gen */
     pcie_gen = DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_RATE_GET(tmp);
 
-    snprintf(pcie_speed, 8, "%d", PCIE_SPEED[pcie_gen - 1]);
+    snprintf(pcie_speed, 8, "%d", PCIE_SPEED[pcie_gen]);
 
     return 0;
 }
