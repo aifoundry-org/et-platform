@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Added .clang-format file based on LLVM style.
 ### Changed
 - `getModuleFWRevision` test now prints out extracted firmware versions instead
   of comparing with hard-coded versions. Included package fmt for formatting of
