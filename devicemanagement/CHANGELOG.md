@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Workaround for SP Trace
 ### Fixed
+- `getDeviceErrorEvents` test now reads error events information from sysfs
+  counters instead of reading it from dmesg. Enabling this test back for
+  Target::Silicon.
 ### Security
 
 ## [0.2.0] - 2022-06-24

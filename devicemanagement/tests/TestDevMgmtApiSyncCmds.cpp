@@ -24,6 +24,7 @@
 #include <fstream>
 #include <glog/logging.h>
 #include <iostream>
+#include <regex>
 #include <string>
 #include <unistd.h>
 
@@ -1701,33 +1702,29 @@ void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode(bool singleDevice) {
 }
 
 void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
-  int fd, i;
-  char buff[BUFSIZ];
-  ssize_t size = 0;
-  int result = 0;
-  const int max_err_types = 11;
-  std::string line;
-  std::string err_types[max_err_types] = {
-    "PCIe Correctable Error", "PCIe Un-Correctable Error", "DRAM Correctable Error",     "DRAM Un-Correctable Error",
-    "SRAM Correctable Error", "SRAM Un-Correctable Error", "Power Management IC Errors", "Minion Runtime Error",
-    "Minion Runtime Hang",    "SP Runtime Error",          "SP Runtime Exception"};
-
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
-
+  std::vector<std::string> errTypes = {"DramCeEvent",        "MinionCeEvent",   "PcieCeEvent", "PmicCeEvent",
+                                       "SpCeEvent",          "SpExceptCeEvent", "SramCeEvent", "DramUceEvent",
+                                       "MinionHangUceEvent", "PcieUceEvent",    "SramUceEvent"};
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    int err_count[max_err_types] = {0};
-    result = 0;
-    size = 0;
-    fd = open("/dev/kmsg", (O_RDONLY | O_NONBLOCK));
-    if (fd < 0) {
-      DV_LOG(WARNING) << "Unable to read dmesg, try with sudo";
-      return;
+    std::vector<uint64_t> oldErrCount(errTypes.size(), 0);
+    std::vector<uint64_t> newErrCount(errTypes.size(), 0);
+
+    // Skip counters reading if loopback driver
+    if (getTestTarget() != Target::Loopback) {
+      // Read error statistics from sysfs counters
+      auto errStats = devLayer_->getDeviceAttribute(deviceIdx, "err_stats/ce_count") +
+                      devLayer_->getDeviceAttribute(deviceIdx, "err_stats/uce_count");
+      for (auto typeIdx = 0; typeIdx < errTypes.size(); typeIdx++) {
+        std::smatch match;
+        std::regex rgx(errTypes[typeIdx] + ":\\s+(\\d+)");
+        ASSERT_TRUE(std::regex_search(errStats, match, rgx)) << "" << errTypes[typeIdx] << "not found!";
+        oldErrCount[typeIdx] = std::strtoull(match.str(1).c_str(), nullptr, 10);
+      }
     }
-    ASSERT_NE(lseek(fd, 0, SEEK_END), -1) << "Unable to lseek() dmesg end\n";
-    DV_LOG(INFO) << "waiting for error events...\n";
 
     // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
     const uint32_t output_size = sizeof(uint32_t);
@@ -1744,44 +1741,24 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
 
     // Skip validation if loopback driver
     if (getTestTarget() == Target::Loopback) {
-      close(fd);
-      return;
+      continue;
     }
 
     EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DV_LOG(INFO) << "Response received from device, wait for printing\n";
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-    DV_LOG(INFO) << "waiting done, starting events verification...\n";
+    // Read error statistics again from sysfs counters
+    auto errStats = devLayer_->getDeviceAttribute(deviceIdx, "err_stats/ce_count") +
+                    devLayer_->getDeviceAttribute(deviceIdx, "err_stats/uce_count");
+    for (auto typeIdx = 0; typeIdx < errTypes.size(); typeIdx++) {
+      std::smatch match;
+      std::regex rgx(errTypes[typeIdx] + ":\\s+(\\d+)");
+      ASSERT_TRUE(std::regex_search(errStats, match, rgx)) << "" << errTypes[typeIdx] << "not found!";
+      newErrCount[typeIdx] = std::strtoull(match.str(1).c_str(), nullptr, 10);
 
-    do {
-      do {
-        memset(buff, 0, BUFSIZ);
-        size = read(fd, buff, BUFSIZ - 1);
-      } while (size < 0 && errno == EPIPE);
-
-      line.assign(buff);
-
-      for (i = 0; i < max_err_types; i++) {
-        if (std::string::npos != line.find(err_types[i])) {
-          err_count[i] += 1;
-          break;
-        }
-      }
-    } while (size > 0);
-
-    for (i = 0; i < max_err_types; i++) {
-      DV_LOG(INFO) << "matched '" << err_types[i] << "' " << err_count[i] << " time(s)\n";
-      if (err_count[i] > 0) {
-        result++;
-      }
-      EXPECT_GE(err_count[i], 1);
+      // The counter value must be incremented by now
+      EXPECT_GT(newErrCount[typeIdx], oldErrCount[typeIdx]) << errTypes[typeIdx] << " not received!";
+      DV_LOG(INFO) << errTypes[typeIdx] << ": " << oldErrCount[typeIdx] << " -> " << newErrCount[typeIdx];
     }
-
-    close(fd);
-
-    // all events should match once
-    EXPECT_EQ(result, max_err_types);
   }
 }
 

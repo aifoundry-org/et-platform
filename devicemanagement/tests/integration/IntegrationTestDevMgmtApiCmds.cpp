@@ -37,43 +37,7 @@ TEST_F(IntegrationTestDevMgmtApiCmds, serializeAccessMgmtNode) {
 }
 
 TEST_F(IntegrationTestDevMgmtApiCmds, getDeviceErrorEvents) {
-  // TODO: SW-13220: Enable back on Target::Silicon, following failure is seen:
-  // When executed back to back along with ops node tests, dmesg was inundated with
-  // 'Minion Runtime Error' events and could not read other error events probably
-  // because the dmesg buffer wrapped around.
-  // I0624 08:52:49.750947 248176 TestDevMgmtApiSyncCmds.cpp:1750] ET [DM][TH:140591309539968]: waiting done, starting events verification...
-  // I0624 08:52:49.752763 248176 TestDevMgmtApiSyncCmds.cpp:1769] ET [DM][TH:140591309539968]: matched 'PCIe Correctable Error' 0 time(s)
-  // Expected: (err_count[i]) >= (1), actual: 0 vs 1
-  // I0624 08:52:49.752928 248176 TestDevMgmtApiSyncCmds.cpp:1769] ET [DM][TH:140591309539968]: matched 'PCIe Un-Correctable Error' 0 time(s)
-  // Expected: (err_count[i]) >= (1), actual: 0 vs 1
-  // I0624 08:52:49.752971 248176 TestDevMgmtApiSyncCmds.cpp:1769] ET [DM][TH:140591309539968]: matched 'DRAM Correctable Error' 0 time(s)
-  // Expected: (err_count[i]) >= (1), actual: 0 vs 1
-  // I0624 08:52:49.752995 248176 TestDevMgmtApiSyncCmds.cpp:1769] ET [DM][TH:140591309539968]: matched 'DRAM Un-Correctable Error' 0 time(s)
-  // Expected: (err_count[i]) >= (1), actual: 0 vs 1
-  // I0624 08:52:49.753019 248176 TestDevMgmtApiSyncCmds.cpp:1769] ET [DM][TH:140591309539968]: matched 'SRAM Correctable Error' 0 time(s)
-  // Expected: (err_count[i]) >= (1), actual: 0 vs 1
-  // I0624 08:52:49.753041 248176 TestDevMgmtApiSyncCmds.cpp:1769] ET [DM][TH:140591309539968]: matched 'SRAM Un-Correctable Error' 0 time(s)
-  // Expected: (err_count[i]) >= (1), actual: 0 vs 1
-  // I0624 08:52:49.753062 248176 TestDevMgmtApiSyncCmds.cpp:1769] ET [DM][TH:140591309539968]: matched 'Power Management IC Errors' 0 time(s)
-  // Expected: (err_count[i]) >= (1), actual: 0 vs 1
-  // I0624 08:52:49.753085 248176 TestDevMgmtApiSyncCmds.cpp:1769] ET [DM][TH:140591309539968]: matched 'Minion Runtime Error' 1490 time(s)
-  // I0624 08:52:49.753087 248176 TestDevMgmtApiSyncCmds.cpp:1769] ET [DM][TH:140591309539968]: matched 'Minion Runtime Hang' 0 time(s)
-  // Expected: (err_count[i]) >= (1), actual: 0 vs 1
-  // I0624 08:52:49.753108 248176 TestDevMgmtApiSyncCmds.cpp:1769] ET [DM][TH:140591309539968]: matched 'SP Runtime Error' 0 time(s)
-  // Expected: (err_count[i]) >= (1), actual: 0 vs 1
-  // I0624 08:52:49.753129 248176 TestDevMgmtApiSyncCmds.cpp:1769] ET [DM][TH:140591309539968]: matched 'SP Runtime Exception' 0 time(s)
-  // Expected: (err_count[i]) >= (1), actual: 0 vs 1
-  // Expected equality of these values:
-  //   result
-  //     Which is: 1
-  //   max_err_types
-  //     Which is: 11
-  if (getTestTarget() != Target::Silicon) {
-    getDeviceErrorEvents(false /* Multiple devices */);
-  } else {
-    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
-    FLAGS_enable_trace_dump = false;
-  }
+  getDeviceErrorEvents(false /* Multiple devices */);
 }
 
 TEST_F(IntegrationTestDevMgmtApiCmds, setTraceControl) {
