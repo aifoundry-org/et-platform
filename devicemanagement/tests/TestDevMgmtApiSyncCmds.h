@@ -40,13 +40,12 @@ DECLARE_string(trace_base_dir);
 DECLARE_string(trace_txt_dir);
 DECLARE_string(trace_bin_dir);
 
-typedef struct
-{
-    uint64_t lot_id;
-    uint8_t wafer_id;
-    uint8_t x_coordinate;
-    uint8_t y_coordinate;
-    char lot_id_str[ECID_LOT_ID_LENGTH + 1];
+typedef struct {
+  uint64_t lot_id;
+  uint8_t wafer_id;
+  uint8_t x_coordinate;
+  uint8_t y_coordinate;
+  char lot_id_str[ECID_LOT_ID_LENGTH + 1];
 } ecid_t;
 
 enum class Target { Silicon, Bemu, FullBoot, FullChip, SysEMU, Loopback };
