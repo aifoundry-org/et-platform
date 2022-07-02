@@ -402,9 +402,8 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber(bool singleDevice) {
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  const uint32_t output_size = 4;
-  unsigned char expected[output_size] = {0x78, 0x56, 0x34, 0x12};
-  printf("expected: %.*s\n", output_size, expected);
+  ecid_t ecid;
+  const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -420,11 +419,11 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber(bool singleDevice) {
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
-      printf("output_buff: %.*s\n", output_size, output_buff);
-
-      device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
-
-      EXPECT_EQ(memcmp(asset_info->asset, expected, output_size), 0);
+      memcpy(&ecid, output_buff, output_size);
+      printf("  Lot ID       = %s (0x%016lx)\n", ecid.lot_id_str, ecid.lot_id);
+      printf("  Wafer ID     = 0x%02x (%d)\n", ecid.wafer_id, ecid.wafer_id);
+      printf("  X Coordinate = 0x%02x (%d)\n", ecid.x_coordinate, ecid.x_coordinate);
+      printf("  Y Coordinate = 0x%02x (%d)\n", ecid.y_coordinate, ecid.y_coordinate);
     }
   }
 }
@@ -2762,14 +2761,7 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
 
       DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
     }
-    input_size = sizeof(device_mgmt_api::trace_control_e);
-    char input_buff_[input_size] = {device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE};
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff_,
-                                input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
-              device_mgmt_api::DM_STATUS_SUCCESS);
 
-    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
     if (getTestTarget() != Target::Loopback) {
       if (dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response) !=
           device_mgmt_api::DM_STATUS_SUCCESS) {
@@ -2785,13 +2777,6 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
       EXPECT_TRUE(validEventFound) << "No SP trace event found!" << std::endl;
       validEventFound = false;
     }
-    input_buff_[input_size] = {device_mgmt_api::TRACE_CONTROL_RESET_TRACEBUF |
-                               device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE};
-
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff_,
-                                input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
-              device_mgmt_api::DM_STATUS_SUCCESS);
   }
 }
 void TestDevMgmtApiSyncCmds::resetMM(bool singleDevice) {

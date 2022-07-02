@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with max_link_speed sysfs attribute once fixed in SW-13272.
 - Adding a delay in getSpTraceBuffer test as a temporary workaround.
 - Disable getModulePower test on SysEMU.
+- `setThrottlePowerStatus` Removed trace enable/disable within test.
+-  Updated test `getModuleSerialNumber`. Enabled test on silicon
 ### Deprecated
 ### Removed
 ### Fixed

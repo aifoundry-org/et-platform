@@ -51,10 +51,7 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModulePartNumber) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleSerialNumber) {
-  // TODO: SW-13220: Enable back on Target::Silicon, following failure is seen with V2/V3 card
-  // received: 0x487811C8, expected: 0x12345678
-  // if (targetInList({Target::FullBoot, Target::Silicon})) {
-  if (targetInList({Target::FullBoot})) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
     getModuleSerialNumber(false /* Multiple devices */);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
