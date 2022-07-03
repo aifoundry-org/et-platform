@@ -34,6 +34,11 @@
 #define SECONDS_IN_HOUR   3600
 #define SECONDS_IN_MINUTE 60
 
+// Defines the Boot voltages for the respective Voltage Domains
+#define NEIGH_BOOT_VOLTAGE 0x28U // 450 mV  
+#define SRAM_BOOT_VOLTAGE 0x5AU  // 700 mV
+#define NOC_BOOT_VOLTAGE  0x1EU  // 400 mV
+
 /* Number of samples to collect average */
 #define NUM_SAMPLES 100
 
@@ -239,6 +244,13 @@ int update_module_current(void);
     \returns none
 */
 void print_system_operating_point(void);
+
+/*! \fn void set_system_voltages(void)
+    \brief This function set the boot voltages for the main 3 supplies
+    \param none
+    \returns none
+*/
+void set_system_voltages(void);
 
 /*! \fn void Thermal_Pwr_Mgmt_Get_Minion_Temperature(void)
     \brief This function returns minion temperature

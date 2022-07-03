@@ -1158,14 +1158,14 @@ int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
     status = spio_pll_ldo_kick(PLL_ID_SP_PLL_0, (uint32_t *)R_SP_PLL0_BASEADDR, 2);
     if (0 != status)
     {
-        Log_Write(LOG_LEVEL_ERROR, "SPIO PLL0 ldo bypass failed\n");
+        Log_Write(LOG_LEVEL_ERROR, "SPIO PLL0 ldo kick failed\n");
         return status;
     }
 
     status = spio_pll_ldo_kick(PLL_ID_SP_PLL_1, (uint32_t *)R_SP_PLL1_BASEADDR, 2);
     if (0 != status)
     {
-        Log_Write(LOG_LEVEL_ERROR, "SPIO PLL1 ldo bypass failed\n");
+        Log_Write(LOG_LEVEL_ERROR, "SPIO PLL1 ldo kick failed\n");
         return status;
     }
 
@@ -1173,7 +1173,7 @@ int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
     status = spio_pll_ldo_kick(PLL_ID_PSHIRE, (uint32_t *)R_PCIE_PLLP0_BASEADDR, 2);
     if (0 != status)
     {
-        Log_Write(LOG_LEVEL_ERROR, "PSHIRE PLL ldo bypass failed\n");
+        Log_Write(LOG_LEVEL_ERROR, "PSHIRE PLL ldo kick failed\n");
         return status;
     }
 #endif

@@ -32,7 +32,7 @@
        get_throttle_residency
        get_power_residency
        set_power_event_cb
-
+       set_system_voltages
 */
 /***********************************************************************/
 #include "config/mgmt_build_config.h"
@@ -464,7 +464,7 @@ int update_module_current_temperature(void)
         (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_THERMAL_DOWN) &&
         (get_soc_power_reg()->active_power_management))
     {
-        /* Do the thermal throttling */
+        // Do the thermal throttling
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_DOWN;
         xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
     }
@@ -689,7 +689,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.ddr = voltage;
-        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: DDR Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: DDR Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(L2CACHE, &voltage))
@@ -700,7 +700,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.l2_cache = voltage;
-        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: L2 Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: L2 Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(MAXION, &voltage))
@@ -711,7 +711,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.maxion = voltage;
-        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: Maxion Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: Maxion Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(MINION, &voltage))
@@ -722,7 +722,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.minion = voltage;
-        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: Minion Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: Minion Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(PCIE, &voltage))
@@ -733,7 +733,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.pcie = voltage;
-        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: PCIE Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: PCIE Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(NOC, &voltage))
@@ -744,7 +744,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.noc = voltage;
-        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: NOC Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: NOC Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(PCIE_LOGIC, &voltage))
@@ -755,7 +755,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.pcie_logic = voltage;
-        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: PCIE Subsystem Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: PCIE Subsystem Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(VDDQLP, &voltage))
@@ -766,7 +766,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.vddqlp = voltage;
-        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: VDDQ LP Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: VDDQ LP Voltage: %d\r\n", voltage);
     }
 
     if (0 != pmic_get_voltage(VDDQ, &voltage))
@@ -777,7 +777,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     else
     {
         get_soc_power_reg()->module_voltage.vddq = voltage;
-        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: VDDQ Voltage: %d\r\n", voltage);
+        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: VDDQ Voltage: %d\r\n", voltage);
     }
 
     if (module_voltage != NULL)
@@ -1834,6 +1834,46 @@ void dump_power_globals(void)
 *
 *   FUNCTION
 *
+*       set_system_voltages
+*
+*   DESCRIPTION
+*
+*       Set system voltages
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void set_system_voltages(void)
+{
+  uint8_t voltage = 0;
+  /* Setting the Neigh voltages */
+  pmic_set_voltage(MINION, NEIGH_BOOT_VOLTAGE);
+  pmic_get_voltage(MINION, &voltage);
+  Log_Write(LOG_LEVEL_CRITICAL, "Overriding Minion -> 450mV (0x%X)\n",voltage);
+  msdelay(5);
+
+  /* Setting the L2 cache voltages */
+  pmic_set_voltage(L2CACHE, SRAM_BOOT_VOLTAGE);
+  pmic_get_voltage(L2CACHE, &voltage);
+  Log_Write(LOG_LEVEL_CRITICAL, "Overriding SRAM   -> 700mV(0x%X)\n",voltage);
+  msdelay(5);
+
+  /* Setting the NOC voltages */
+  pmic_set_voltage(NOC, NOC_BOOT_VOLTAGE);
+  pmic_get_voltage(NOC, &voltage);
+  Log_Write(LOG_LEVEL_CRITICAL, "Overriding NOC    -> 400mV(0x%X)\n",voltage);
+  msdelay(5);
+}
+/************************************************************************
+*
+*   FUNCTION
+*
 *       print_system_operating_point
 *
 *   DESCRIPTION
@@ -1852,6 +1892,7 @@ void dump_power_globals(void)
 void print_system_operating_point(void)
 {
     uint32_t freq;
+    uint8_t soc_pwr = 0;
     TS_Sample temperature;
 
     Log_Write(LOG_LEVEL_CRITICAL,
@@ -1912,6 +1953,13 @@ void print_system_operating_point(void)
     Log_Write(LOG_LEVEL_CRITICAL, "PSHIRE      \t\tHPDPLLP %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
               freq, pshr_voltage.vdd_pshr.current, pshr_voltage.vdd_pshr.low,
               pshr_voltage.vdd_pshr.high);
+
+    /* Card Power */
+    pmic_read_average_soc_power(&soc_pwr);
+    Log_Write(LOG_LEVEL_CRITICAL, "AVERAGE CARD POWER: %d W \n",(Power_Convert_Hex_to_mW(soc_pwr)/1000));
+    Log_Write(
+        LOG_LEVEL_CRITICAL,
+        "---------------------------------------------------------------------------------------------\r\n");
 }
 
 /************************************************************************

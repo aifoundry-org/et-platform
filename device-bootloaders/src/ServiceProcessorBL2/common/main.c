@@ -302,28 +302,30 @@ static void taskMain(void *pvParameters)
     /* Populate the device generic attributes */
     DIR_Generic_Attributes_Init();
 
-    if (Minion_State_Get_MM_Heartbeat_Count() == 0)
-    {
-        /* Warn, MM is not ready */
-        Log_Write(LOG_LEVEL_WARNING, "MM not ready, SP has not received MM heartbeat!\r\n");
+
+    uint32_t timeout = 6;
+    while(Minion_State_Get_MM_Heartbeat_Count() == 0 && --timeout > 0) {
+        Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]Wait for MM heartbeat... %d\n", timeout);
+        vTaskDelay(1000);
+
     }
+    if(timeout ==  0)
+        Log_Write(LOG_LEVEL_WARNING, "MM not ready, SP has not received MM heartbeat!\n");
     else
-    {
-        /* Warn, MM heartbeat alive */
-        Log_Write(LOG_LEVEL_CRITICAL, "MM heartbeat alive!\r\n");
-    }
+        Log_Write(LOG_LEVEL_CRITICAL, "MM heartbeat alive!\n");
 
     // Initialize  DM event handler task
+    Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]dm_event_control_init\n");
     status = dm_event_control_init();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to create dm event handler task!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_EVENT_HANDLER_READY);
 
+    /* Set System Boot Voltages */
+    Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]set_system_voltages\n");
+    set_system_voltages();
+
     /* Print system operating point */
     print_system_operating_point();
-
-    /* Inform Host Device is Ready */
-    Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");
-    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
 
     /* Initialize SP Trace component */
     status = Trace_Init_SP(NULL);
@@ -340,6 +342,10 @@ static void taskMain(void *pvParameters)
     // Initialize DM sampling task
     Log_Write(LOG_LEVEL_INFO, "MAIN:[txt] DM Sampling Task Start\n");
     init_dm_sampling_task();
+
+    /* Inform Host Device is Ready */
+    Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
 
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
