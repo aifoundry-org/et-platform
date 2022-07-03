@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added -v (version) argument to get DM application version
 - Clang formatter rules.
 - Added support to extract SP and MM stats trace buffer
+- Enforce updation of CHANGELOG.md and patch version in merge request pipelines
 ### Changed
 - Changed back the sw-platform branch for CI back to develop/system-sw
 - Ran clang formatter.
