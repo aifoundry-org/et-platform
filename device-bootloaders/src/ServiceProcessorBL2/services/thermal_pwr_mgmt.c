@@ -47,6 +47,7 @@
 #include "hwinc/minion_lvdpll_program.h"
 #include "bl2_pvt_controller.h"
 #include "mem_controller.h"
+#include "delays.h"
 
 struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
 
@@ -1851,24 +1852,24 @@ void dump_power_globals(void)
 ***********************************************************************/
 void set_system_voltages(void)
 {
-  uint8_t voltage = 0;
-  /* Setting the Neigh voltages */
-  pmic_set_voltage(MINION, NEIGH_BOOT_VOLTAGE);
-  pmic_get_voltage(MINION, &voltage);
-  Log_Write(LOG_LEVEL_CRITICAL, "Overriding Minion -> 450mV (0x%X)\n",voltage);
-  msdelay(5);
+    uint8_t voltage = 0;
+    /* Setting the Neigh voltages */
+    pmic_set_voltage(MINION, NEIGH_BOOT_VOLTAGE);
+    pmic_get_voltage(MINION, &voltage);
+    Log_Write(LOG_LEVEL_INFO, "Overriding Minion -> 450mV (0x%X)\n", voltage);
+    msdelay(5);
 
-  /* Setting the L2 cache voltages */
-  pmic_set_voltage(L2CACHE, SRAM_BOOT_VOLTAGE);
-  pmic_get_voltage(L2CACHE, &voltage);
-  Log_Write(LOG_LEVEL_CRITICAL, "Overriding SRAM   -> 700mV(0x%X)\n",voltage);
-  msdelay(5);
+    /* Setting the L2 cache voltages */
+    pmic_set_voltage(L2CACHE, SRAM_BOOT_VOLTAGE);
+    pmic_get_voltage(L2CACHE, &voltage);
+    Log_Write(LOG_LEVEL_INFO, "Overriding SRAM   -> 700mV(0x%X)\n", voltage);
+    msdelay(5);
 
-  /* Setting the NOC voltages */
-  pmic_set_voltage(NOC, NOC_BOOT_VOLTAGE);
-  pmic_get_voltage(NOC, &voltage);
-  Log_Write(LOG_LEVEL_CRITICAL, "Overriding NOC    -> 400mV(0x%X)\n",voltage);
-  msdelay(5);
+    /* Setting the NOC voltages */
+    pmic_set_voltage(NOC, NOC_BOOT_VOLTAGE);
+    pmic_get_voltage(NOC, &voltage);
+    Log_Write(LOG_LEVEL_INFO, "Overriding NOC    -> 400mV(0x%X)\n", voltage);
+    msdelay(5);
 }
 /************************************************************************
 *
@@ -1895,10 +1896,10 @@ void print_system_operating_point(void)
     uint8_t soc_pwr = 0;
     TS_Sample temperature;
 
-    Log_Write(LOG_LEVEL_CRITICAL,
+    Log_Write(LOG_LEVEL_INFO,
               "SHIRE       \t\tFreq          \t\tVoltage          \t\tTeperature\r\n");
     Log_Write(
-        LOG_LEVEL_CRITICAL,
+        LOG_LEVEL_INFO,
         "---------------------------------------------------------------------------------------------\r\n");
 
     /* Neigh */
@@ -1906,29 +1907,29 @@ void print_system_operating_point(void)
     pvt_get_minion_avg_low_high_temperature(&temperature);
     MinShire_VM_sample minshire_voltage = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
     pvt_get_minion_avg_low_high_voltage(&minshire_voltage);
-    Log_Write(LOG_LEVEL_CRITICAL,
+    Log_Write(LOG_LEVEL_INFO,
               "NEIGH       \t\tHPDPLL4 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t%dC,[%dC,%dC]\r\n", freq,
               minshire_voltage.vdd_mnn.current, minshire_voltage.vdd_mnn.low,
               minshire_voltage.vdd_mnn.high, temperature.current, temperature.low,
               temperature.high);
 
     /* Sram */
-    Log_Write(LOG_LEVEL_CRITICAL, "SRAM        \t\tHPDPLL4 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
-              freq, minshire_voltage.vdd_sram.current, minshire_voltage.vdd_sram.low,
+    Log_Write(LOG_LEVEL_INFO, "SRAM        \t\tHPDPLL4 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n", freq,
+              minshire_voltage.vdd_sram.current, minshire_voltage.vdd_sram.low,
               minshire_voltage.vdd_sram.high);
 
     /* NOC */
     get_pll_frequency(PLL_ID_SP_PLL_2, &freq);
-    Log_Write(LOG_LEVEL_CRITICAL, "NOC         \t\tHPDPLL2 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
-              freq, minshire_voltage.vdd_noc.current, minshire_voltage.vdd_noc.low,
+    Log_Write(LOG_LEVEL_INFO, "NOC         \t\tHPDPLL2 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n", freq,
+              minshire_voltage.vdd_noc.current, minshire_voltage.vdd_noc.low,
               minshire_voltage.vdd_noc.high);
 
     /* MemShire */
     freq = get_memshire_frequency();
     MemShire_VM_sample memshire_voltage = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
     pvt_get_memshire_avg_low_high_voltage(&memshire_voltage);
-    Log_Write(LOG_LEVEL_CRITICAL, "MEMSHIRE    \t\tHPDPLLM %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
-              freq, memshire_voltage.vdd_ms.current, memshire_voltage.vdd_ms.low,
+    Log_Write(LOG_LEVEL_INFO, "MEMSHIRE    \t\tHPDPLLM %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n", freq,
+              memshire_voltage.vdd_ms.current, memshire_voltage.vdd_ms.low,
               memshire_voltage.vdd_ms.high);
 
     /* IOShire SPIO*/
@@ -1936,29 +1937,29 @@ void print_system_operating_point(void)
     pvt_get_ioshire_ts_sample(&temperature);
     IOShire_VM_sample ioshire_voltage = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } };
     pvt_get_ioshire_vm_sample(&ioshire_voltage);
-    Log_Write(LOG_LEVEL_CRITICAL,
+    Log_Write(LOG_LEVEL_INFO,
               "IOSHIRE SPIO\t\tHPDPLL0 %dMHz\t\t/                  \t\t%dC,[%dC,%dC]\r\n", freq,
               temperature.current, temperature.low, temperature.high);
 
     /* IOShire PU*/
     get_pll_frequency(PLL_ID_SP_PLL_1, &freq);
-    Log_Write(LOG_LEVEL_CRITICAL, "        PU  \t\tHPDPLL1 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
-              freq, ioshire_voltage.vdd_pu.current, ioshire_voltage.vdd_pu.low,
+    Log_Write(LOG_LEVEL_INFO, "        PU  \t\tHPDPLL1 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n", freq,
+              ioshire_voltage.vdd_pu.current, ioshire_voltage.vdd_pu.low,
               ioshire_voltage.vdd_pu.high);
 
     /* PSHIRE */
     get_pll_frequency(PLL_ID_PSHIRE, &freq);
     PShire_VM_sample pshr_voltage = { { 0, 0, 0 }, { 0, 0, 0 } };
     pvt_get_pshire_vm_sample(&pshr_voltage);
-    Log_Write(LOG_LEVEL_CRITICAL, "PSHIRE      \t\tHPDPLLP %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n",
-              freq, pshr_voltage.vdd_pshr.current, pshr_voltage.vdd_pshr.low,
-              pshr_voltage.vdd_pshr.high);
+    Log_Write(LOG_LEVEL_INFO, "PSHIRE      \t\tHPDPLLP %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n", freq,
+              pshr_voltage.vdd_pshr.current, pshr_voltage.vdd_pshr.low, pshr_voltage.vdd_pshr.high);
 
     /* Card Power */
     pmic_read_average_soc_power(&soc_pwr);
-    Log_Write(LOG_LEVEL_CRITICAL, "AVERAGE CARD POWER: %d W \n",(Power_Convert_Hex_to_mW(soc_pwr)/1000));
+    Log_Write(LOG_LEVEL_INFO, "AVERAGE CARD POWER: %d W \n",
+              (Power_Convert_Hex_to_mW(soc_pwr) / 1000));
     Log_Write(
-        LOG_LEVEL_CRITICAL,
+        LOG_LEVEL_INFO,
         "---------------------------------------------------------------------------------------------\r\n");
 }
 
