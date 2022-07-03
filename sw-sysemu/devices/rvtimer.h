@@ -51,7 +51,7 @@ struct RVTimer
     void write_mtimecmp(const Agent& agent, uint64_t val)
     {
         bool had_interrupt = interrupt;
-        mtimecmp = val;
+        mtimecmp = mtime+val;
         interrupt = (mtime >= mtimecmp);
         if (had_interrupt && !interrupt) {
             for (unsigned shire = 0; shire < EMU_NUM_SHIRES; ++shire) {
