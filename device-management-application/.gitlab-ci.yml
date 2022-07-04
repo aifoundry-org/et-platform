@@ -57,8 +57,8 @@ clang-format:
   variables:
     CMD_SCRIPT: |
       git fetch origin master
-      git clang-format --style file --diff origin/master --extensions cpp,h
-      git clang-format --style file --diff origin/master --extensions cpp,h | grep -q -e "clang-format did not modify any files$" -e "^no modified files to format$"
+      git clang-format --style file --diff origin/master --extensions cc,cpp,h
+      git clang-format --style file --diff origin/master --extensions cc,cpp,h | grep -q -e "clang-format did not modify any files$" -e "^no modified files to format$"
 
 ###############################################################################
 ###############################################################################
