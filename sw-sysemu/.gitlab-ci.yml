@@ -17,6 +17,11 @@ include:
     file:
       - 'jobs/conan-jobs.yaml'
 
+  - project: 'software/sw-platform'
+    ref: develop/system-sw
+    file:
+      - 'gitlab-ci/system-sw/misc/verify-merge-request.yaml'
+
 stages:
   - generate_build
   - build
@@ -30,6 +35,22 @@ variables:
   # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
   SW_PLATFORM_BRANCH: develop/system-sw
   PIPELINE_CI_SUBPROJECT: sw-sysemu
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+verify_project_changes:
+  extends:
+    - .template_job
+    - .pod_nano
+    - .verify_merge_request
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.3.7
+  stage: .pre
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+  variables:
+    PROJ_VER_FILE_NAME: CMakeLists.txt
 
 ###############################################################################
 ###############################################################################
