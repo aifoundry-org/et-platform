@@ -72,7 +72,13 @@ TEST_F(FunctionalTestDevMgmtApiLinkMgmtCmds, getDDRBWCounter) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiLinkMgmtCmds, setPCIELinkSpeed) {
-  setPCIELinkSpeed(false /* Multiple devices */);
+  // TODO: SW-13272: Enable it back for Target::Silicon
+  if (getTestTarget() != Target::Silicon) {
+    setPCIELinkSpeed(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
 }
 
 TEST_F(FunctionalTestDevMgmtApiLinkMgmtCmds, setPCIELaneWidth) {

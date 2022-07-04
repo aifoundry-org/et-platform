@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13218] Re-enabling the getModuleMemorySizeMB and getModuleMemoryVendorPartNumber tests for silicon.
 - `getModulePCIENumPortsMaxSpeed` test renamed to `getModulePCIEPortsMaxSpeed`.
 - Disabled getModulePCIEPortsMaxSpeed test on SysEMU.
+- Disabled setPCIELinkSpeed test on Silicon. To be enabled back in SW-13272
 ### Deprecated
 ### Removed
 - Workaround for SP Trace
