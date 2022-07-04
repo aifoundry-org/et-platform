@@ -1666,13 +1666,14 @@ void printFWUpdate(char* argv) {
 void printTraceBuf(char* argv) {
   std::cout << std::endl;
   std::cout << "\t"
-            << "-" << (char)long_options[13].val << ", --" << long_options[13].name << "=[SP, MM, CM]" << std::endl;
+            << "-" << (char)long_options[13].val << ", --" << long_options[13].name << "=[SP, SPST, MM, MMST, CM]"
+            << std::endl;
   std::cout << "\t\t"
-            << "Get Trace Buffer" << std::endl;
+            << "Get Trace Buffer for SP, MM and CM. SPST is for SP Stats and MMST is for MM Stats buffer." << std::endl;
   std::cout << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[13].val << " "
-            << "[SP, MM, CM]" << std::endl;
+            << "[SP, SPST, MM, MMST, CM]" << std::endl;
 }
 
 void printFrequencies(char* argv) {
@@ -1733,7 +1734,8 @@ int getTraceBuffer() {
   std::unordered_map<std::string, TraceBufferType> const traceBuffers = {{"SP", TraceBufferType::TraceBufferSP},
                                                                          {"MM", TraceBufferType::TraceBufferMM},
                                                                          {"CM", TraceBufferType::TraceBufferCM},
-                                                                         {"ST", TraceBufferType::TraceBufferSPStats}};
+                                                                         {"SPST", TraceBufferType::TraceBufferSPStats},
+                                                                         {"MMST", TraceBufferType::TraceBufferMMStats}};
 
   auto it = traceBuffers.find(str_optarg);
 
