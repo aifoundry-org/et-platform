@@ -12,8 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
-    - Fixed the issue with rvtimer's write_mtimecmp() function. mtimecmp register value was
-      not set correctly.
+### Security
+
+## [0.3.0] - 2022-7-4
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- Fixed the issue with rvtimer's write_mtimecmp() function. mtimecmp register value was
+  not set correctly.
 ### Security
 
 ## [0.2.0] - 2022-6-23
