@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.1.0] - 2022-7-4
+### Added
+### Changed
 - Conanfile takes version from CMakeLists.txt
 ### Deprecated
 ### Removed
