@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.8.0]  - 2022-7-4
+### Added
+### Changed
 - PU timer load count to 1 MHz.
 - Updated MS and SC PMU counters sampling algorithm to log delta across sampling interval.
 ### Deprecated
