@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `getModulePCIEPortsMaxSpeed` test now compare the received max link speed with
   sysfs attribute file `max_link_speed`. Enabling this test back for
   Target::Silicon.
+- Include .cc file types scan in clang CI job.
 ### Security
 
 ## [0.2.0] - 2022-06-24
