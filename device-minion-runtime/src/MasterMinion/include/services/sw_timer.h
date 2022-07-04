@@ -27,11 +27,10 @@
 #define SW_TIME_FREE_SLOT_FLAG 0xFFFFFFFFFFFFFFFFull
 
 /*! \def SW_TIMER_HW_COUNT_PER_SEC
-    \brief HW count (10s) after which PU timer will expire periodically
-           Note each tick is based of 1 Mhz, however for Zebu set it to 
-           250 Khz clock. Assuming that divider is set to 1
+    \brief The clock speed of timer is 1MHz.
+    NOTE: This 1Mhz is silicon timer clock. Other platforms like Zebu could have different clock.
 */
-#define SW_TIMER_HW_COUNT_PER_SEC 250000
+#define SW_TIMER_HW_COUNT_PER_SEC 1000000U
 
 /*! \def SW_TIMER_SW_TICKS_TO_HW_COUNT(SW_TICKS)
     \brief Compute number of HW count in SW_TICKS
