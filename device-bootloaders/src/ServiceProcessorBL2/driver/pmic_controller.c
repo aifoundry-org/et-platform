@@ -1347,6 +1347,47 @@ int pmic_set_minion_group_voltage(uint8_t group_id, uint8_t voltage)
 *
 *   FUNCTION
 *
+*       pmic_get_pmb_stats
+*
+*   DESCRIPTION
+*
+*       This function returns pmb stats for modules.
+*
+*   INPUTS
+*
+*       module_type      module type to be read (MINION, NOC, SRAM)
+*       reading_type     output value type to be set (CURRENT, MIN, MAX, AVG)
+*
+*   OUTPUTS
+*
+*       current           current value in mA
+*
+***********************************************************************/
+int pmic_get_pmb_stats(pmb_module_type_e module_type, pmb_reading_type_e reading_type,
+                       pmb_value_type_e value_type, uint8_t *value)
+{
+    int32_t status = STATUS_SUCCESS;
+
+    status = set_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS,
+                          (uint8_t)(PMIC_I2C_REG_PMB_STATS_COMPONENT_TYPE_SET(module_type) |
+                                    PMIC_I2C_REG_PMB_STATS_VALUE_TYPE_SET(reading_type) |
+                                    PMIC_I2C_REG_PMB_STATS_OUTPUT_TYPE_SET(value_type)),
+                          1);
+    if (status == STATUS_SUCCESS)
+    {
+        return (get_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS, value, 1));
+    }
+    else
+    {
+        MESSAGE_ERROR("Failed to write PMIC PMB Stats register");
+        return ERROR_PMIC_I2C_WRITE_FAILED;
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       pmic_enable_wdog_timer
 *
 *   DESCRIPTION

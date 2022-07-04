@@ -89,7 +89,7 @@ struct soc_power_reg_t
     struct temperature_threshold_t temperature_threshold;
     struct module_uptime_t module_uptime;
     struct module_voltage_t module_voltage;
-    struct module_voltage_t module_current;
+    struct module_current_t module_current;
     struct residency_t power_max_residency;
     struct residency_t power_managed_residency;
     struct residency_t power_safe_residency;
@@ -97,6 +97,8 @@ struct soc_power_reg_t
     dm_event_isr_callback event_cb;
     power_throttle_state_e power_throttle_state;
     uint8_t active_power_management;
+    /* Temporary placeholder until Device API has been merged */
+    uint8_t sram_module_voltage;
 };
 
 volatile struct soc_power_reg_t *get_soc_power_reg(void)
@@ -586,22 +588,21 @@ int update_module_soc_power(void)
         get_soc_power_reg()->soc_power = soc_pwr;
     }
 
-    //TODO add support to calculate module powers when current value is available
-    /* Update moving average , min and max values of module powers */
+    /* Update moving average , min and max values of Minion, NOC and SRAM powers */
     module_pwr = CALC_POWER(get_soc_power_reg()->module_voltage.minion,
                             get_soc_power_reg()->module_current.minion);
     CMA(get_soc_power_reg()->op_stats.minion.power, module_pwr)
     CALC_MIN_MAX(get_soc_power_reg()->op_stats.minion.power, module_pwr)
+
     module_pwr = CALC_POWER(get_soc_power_reg()->module_voltage.noc,
                             get_soc_power_reg()->module_current.noc);
     CMA(get_soc_power_reg()->op_stats.noc.power, module_pwr)
     CALC_MIN_MAX(get_soc_power_reg()->op_stats.noc.power, module_pwr)
-    /* voltage and current for SRAM  is currently unavailable
-    //module_pwr = CALC_POWER(get_soc_power_reg()-
-    >module_voltage.sram, get_soc_power_reg()->module_current.sram)
+
+    module_pwr = CALC_POWER(get_soc_power_reg()->sram_module_voltage,
+                            get_soc_power_reg()->module_current.sram);
     CMA(get_soc_power_reg()->op_stats.sram.power, soc_pwr)
-    CALC_MIN_MAX(get_soc_power_reg()->op_stats.sram.power, soc_pwr)
-    */
+    CALC_MIN_MAX(get_soc_power_reg()->op_stats.sram.power, module_pwr)
 
     soc_pwr_mW = Power_Convert_Hex_to_mW(soc_pwr);
     /* module_tdp_level is in Watts, converting to miliWatts */
@@ -781,6 +782,17 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
         Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: VDDQ Voltage: %d\r\n", voltage);
     }
 
+    if (0 != pmic_get_pmb_stats(PMB_SRAM, CURRENT, V_OUT, &voltage))
+    {
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get SRAM voltage\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
+    }
+    else
+    {
+        get_soc_power_reg()->sram_module_voltage = voltage;
+        Log_Write(LOG_LEVEL_INFO, "get_module_voltage: SRAM Voltage: %d\r\n", voltage);
+    }
+
     if (module_voltage != NULL)
     {
         *module_voltage = get_soc_power_reg()->module_voltage;
@@ -810,9 +822,29 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
 ***********************************************************************/
 int update_module_current(void)
 {
-    //TODO Add support to obtain module current values
+    uint8_t value = 0;
+    int status = STATUS_SUCCESS;
 
-    return SUCCESS;
+    /* obtain current values in Ma from pmic */
+    status = pmic_get_pmb_stats(PMB_MINION, CURRENT, A_OUT, &value);
+    if (status == STATUS_SUCCESS)
+    {
+        get_soc_power_reg()->module_current.minion = value;
+    }
+
+    status = pmic_get_pmb_stats(PMB_NOC, CURRENT, A_OUT, &value);
+    if (status == STATUS_SUCCESS)
+    {
+        get_soc_power_reg()->module_current.noc = value;
+    }
+
+    status = pmic_get_pmb_stats(PMB_SRAM, CURRENT, A_OUT, &value);
+    if (status == STATUS_SUCCESS)
+    {
+        get_soc_power_reg()->module_current.sram = value;
+    }
+
+    return status;
 }
 
 /************************************************************************

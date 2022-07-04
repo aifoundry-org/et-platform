@@ -38,6 +38,44 @@ typedef enum
 } voltage_type_e;
 
 /*!
+ * @enum  enum pmb_value_type_e
+ * @brief set value types supported by PMIC PMB Stats
+ */
+typedef enum
+{
+    V_OUT = 0,
+    A_OUT,
+    W_OUT,
+    V_IN,
+    A_IN,
+    W_IN,
+    DEG_C
+} pmb_value_type_e;
+
+/*!
+ * @enum  enum pmb_module_type_e
+ * @brief Different module types supported by PMIC
+ */
+typedef enum
+{
+    PMB_MINION = 0,
+    PMB_NOC,
+    PMB_SRAM,
+} pmb_module_type_e;
+
+/*!
+ * @enum  enum pmb_reading_type_e
+ * @brief Different reading types supported by PMIC
+ */
+typedef enum
+{
+    CURRENT = 0,
+    MIN,
+    MAX,
+    AVERAGE,
+} pmb_reading_type_e;
+
+/*!
  * @struct struct pmic_event_control_block
  * @brief PMIC driver error mgmt control block
  */
@@ -187,6 +225,7 @@ int pmic_get_voltage(voltage_type_e voltage_type, uint8_t *voltage);
 *   - PCIE_LOGIC
 *   - VDDQLP
 *   - VDDQ
+*   - SRAM
     \param voltage - voltage value to be set (binary encoded)
     \return The function call status, pass/fail.
 */
@@ -207,6 +246,31 @@ int pmic_get_minion_group_voltage(uint8_t group_id, uint8_t *voltage);
     \return The function call status, pass/fail.
 */
 int pmic_set_minion_group_voltage(uint8_t group_id, uint8_t voltage);
+
+/*! \fn int pmic_get_pmb_stats(pmb_component_type_e module_type, pmb_value_type_e value_type, uint8_t *current)
+    \brief This function returns PMB stats os specified module.
+    \param module_type - voltage type to be set:
+*   - MINION
+*   - NOC
+*   - SRAM
+    \param reading_type - reading type set
+*   - CURRENT
+*   - MIN
+*   - MAX
+*   - AVERAGE
+*   \param value_type - value type set
+*   - V_OUT
+*   - A_OUT
+*   - W_OUT
+*   - V_IN
+*   - A_IN
+*   - W_IN
+*   - DEG_C
+    \param value - output current value in mA.
+    \return The function call status, pass/fail.
+*/
+int32_t pmic_get_pmb_stats(pmb_module_type_e module_type, pmb_reading_type_e reading_type,
+                           pmb_value_type_e value_type, uint8_t *value);
 
 /*! \fn int pmic_enable_wdog_timer(void)
     \brief This function enables the watchdog timer.

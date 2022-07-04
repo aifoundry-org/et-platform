@@ -120,6 +120,9 @@
 /* Register: pmic_i2c.gpio_rw                                              */
 #define PMIC_I2C_GPIO_RW_ADDRESS 0x14u
 #define PMIC_I2C_GPIO_RW_BYTE_ADDRESS 0x14u
+/* Register: pmic_i2c.pmbstats_rw                                              */
+#define PMIC_I2C_PMB_RW_ADDRESS      0x15u
+#define PMIC_I2C_PMB_RW_BYTE_ADDRESS 0x15u
 /* Register: pmic_i2c.vddqlp_voltage                                       */
 #define PMIC_I2C_VDDQLP_VOLTAGE_ADDRESS 0x18u
 #define PMIC_I2C_VDDQLP_VOLTAGE_BYTE_ADDRESS 0x18u
@@ -1740,6 +1743,11 @@
 #define PMIC_I2C_REG_COM_FAIL_DETAILS_VALID_SET(x) ((x) & 0x00000001ul)
 #define PMIC_I2C_REG_COM_FAIL_DETAILS_VALID_MODIFY(r, x) \
    (((x) & 0x00000001ul) | ((r) & 0xfffffffeul))
+
+/* Field member: pmic_i2c_reg_pmb_stats                      */
+#define PMIC_I2C_REG_PMB_STATS_COMPONENT_TYPE_SET(x) ((x)&0x03ul)
+#define PMIC_I2C_REG_PMB_STATS_VALUE_TYPE_SET(x)     (((x) << 2) & 0x1cul)
+#define PMIC_I2C_REG_PMB_STATS_OUTPUT_TYPE_SET(x)    (((x) << 5) & 0x60ul)
 
 /* Addressmap type: pmic_i2c_command_comm_fail                             */
 /* Addressmap template: pmic_i2c_command_comm_fail                         */
