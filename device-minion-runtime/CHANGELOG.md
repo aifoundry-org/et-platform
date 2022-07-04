@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - PU timer load count to 1 MHz.
+- Updated MS and SC PMU counters sampling algorithm to log delta across sampling interval.
 ### Deprecated
 ### Removed
 ### Fixed

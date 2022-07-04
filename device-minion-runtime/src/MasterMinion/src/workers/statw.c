@@ -39,11 +39,11 @@
 #include "workers/statw.h"
 #include "workers/kw.h"
 
-/*! \def STATW_ADD_NEW_SAMPLE(resource, current_sample)
+/*! \def STATW_RECALC_CMA_MIN_MAX(resource, current_sample)
     \brief Helper macro to add new sample into stats. It re-calculates the average, min, and max each time.
     NOTE: It writes into L1 memory.
 */
-#define STATW_ADD_NEW_SAMPLE(resource, current_sample)                                             \
+#define STATW_RECALC_CMA_MIN_MAX(resource, current_sample)                                         \
     /* Calculate commutative moving average. */                                                    \
     resource.avg =                                                                                 \
         (current_sample + (STATW_CMA_SAMPLE_COUNT * resource.avg)) / (STATW_CMA_SAMPLE_COUNT + 1); \
@@ -55,7 +55,7 @@
            It assumes that every request is 64 bytes long. And sampling interval unit is milliseconds.
 */
 #define STATW_PMU_REQ_COUNT_TO_MBPS(req_count)                \
-    ((req_count * CACHE_LINE_SIZE * STATW_NUM_OF_MS_IN_SEC) / \
+    (((req_count)*CACHE_LINE_SIZE * STATW_NUM_OF_MS_IN_SEC) / \
         (STATW_SAMPLING_INTERVAL * STATW_NUM_OF_BYTES_IN_1MB))
 
 /*! \def STATW_SAMPLING_FLAG_SET
@@ -264,7 +264,11 @@ static void statw_init(struct compute_resources_sample *local_stats_cb)
 __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
 {
     struct compute_resources_sample data_sample = { 0 };
-    uint64_t sample;
+    uint64_t current_counter_value;
+    uint64_t prev_ddr_read_counter[NUM_MEM_SHIRES] = { 0 };
+    uint64_t prev_ddr_write_counter[NUM_MEM_SHIRES] = { 0 };
+    uint64_t prev_l2_l3_read_counter[NUM_SHIRES][NEIGH_PER_SHIRE] = { 0 };
+    uint64_t prev_l2_l3_write_counter[NUM_SHIRES][NEIGH_PER_SHIRE] = { 0 };
 
     statw_init(&data_sample);
     Log_Write(LOG_LEVEL_INFO, "STATW:H[%d]\r\n", hart_id);
@@ -291,13 +295,19 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
             for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
             {
                 /* Sample PMC MS Counter 0 and 1 (reads, writes). */
-                sample = STATW_PMU_REQ_COUNT_TO_MBPS((uint64_t)syscall(
-                    SYSCALL_PMC_MS_SAMPLE_INT, shire_id, PMU_MS_PMC0, UNUSED_SYSCALL_ARGS));
-                STATW_ADD_NEW_SAMPLE(data_sample.ddr_read_bw, sample)
+                current_counter_value = (uint64_t)syscall(
+                    SYSCALL_PMC_MS_SAMPLE_INT, shire_id, PMU_MS_PMC0, UNUSED_SYSCALL_ARGS);
+                STATW_RECALC_CMA_MIN_MAX(data_sample.ddr_read_bw,
+                    STATW_PMU_REQ_COUNT_TO_MBPS(
+                        current_counter_value - prev_ddr_read_counter[shire_id]))
+                prev_ddr_read_counter[shire_id] = current_counter_value;
 
-                sample = STATW_PMU_REQ_COUNT_TO_MBPS((uint64_t)syscall(
-                    SYSCALL_PMC_MS_SAMPLE_INT, shire_id, PMU_MS_PMC1, UNUSED_SYSCALL_ARGS));
-                STATW_ADD_NEW_SAMPLE(data_sample.ddr_write_bw, sample)
+                current_counter_value = (uint64_t)syscall(
+                    SYSCALL_PMC_MS_SAMPLE_INT, shire_id, PMU_MS_PMC1, UNUSED_SYSCALL_ARGS);
+                STATW_RECALC_CMA_MIN_MAX(data_sample.ddr_write_bw,
+                    STATW_PMU_REQ_COUNT_TO_MBPS(
+                        current_counter_value - prev_ddr_write_counter[shire_id]))
+                prev_ddr_write_counter[shire_id] = current_counter_value;
             }
 
             for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
@@ -305,12 +315,19 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
                 for (uint64_t neigh_id = 0; neigh_id < NEIGH_PER_SHIRE; neigh_id++)
                 {
                     /* Sample PMC SC Counter 0 and 1 (reads, writes). */
-                    sample = STATW_PMU_REQ_COUNT_TO_MBPS((uint64_t)syscall(
-                        SYSCALL_PMC_SC_SAMPLE_INT, shire_id, neigh_id, PMU_SC_PMC0));
-                    STATW_ADD_NEW_SAMPLE(data_sample.l2_l3_read_bw, sample)
-                    sample = STATW_PMU_REQ_COUNT_TO_MBPS((uint64_t)syscall(
-                        SYSCALL_PMC_SC_SAMPLE_INT, shire_id, neigh_id, PMU_SC_PMC1));
-                    STATW_ADD_NEW_SAMPLE(data_sample.l2_l3_write_bw, sample)
+                    current_counter_value = (uint64_t)syscall(
+                        SYSCALL_PMC_SC_SAMPLE_INT, shire_id, neigh_id, PMU_SC_PMC0);
+                    STATW_RECALC_CMA_MIN_MAX(data_sample.l2_l3_read_bw,
+                        STATW_PMU_REQ_COUNT_TO_MBPS(
+                            current_counter_value - prev_l2_l3_read_counter[shire_id][neigh_id]))
+                    prev_l2_l3_read_counter[shire_id][neigh_id] = current_counter_value;
+
+                    current_counter_value = (uint64_t)syscall(
+                        SYSCALL_PMC_SC_SAMPLE_INT, shire_id, neigh_id, PMU_SC_PMC1);
+                    STATW_RECALC_CMA_MIN_MAX(data_sample.l2_l3_write_bw,
+                        STATW_PMU_REQ_COUNT_TO_MBPS(
+                            current_counter_value - prev_l2_l3_write_counter[shire_id][neigh_id]))
+                    prev_l2_l3_write_counter[shire_id][neigh_id] = current_counter_value;
                 }
             }
 
