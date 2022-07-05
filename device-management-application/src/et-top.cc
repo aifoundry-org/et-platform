@@ -79,6 +79,7 @@ struct sp_stats_t {
 };
 
 struct mm_stats_t {
+  uint64_t cycle;
   struct compute_resources_sample computeResources;
 } mm_stats_t;
 
@@ -94,6 +95,7 @@ public:
     vqStats_[1].qname = "SQ1:";
     vqStats_[2].qname = "CQ0:";
     spStats_.cycle = 0;
+    mmStats_.cycle = 0;
   }
 
   void processInput(void);
@@ -290,6 +292,7 @@ void EtTop::collectAerStats(void) {
 
   return;
 }
+
 void EtTop::collectSpStats(void) {
   std::vector<std::byte> response;
 
@@ -350,13 +353,17 @@ void EtTop::collectMmStats(void) {
     exit(1);
   }
 
-  /* XXX only uses data from the last entry */
   const struct trace_entry_header_t* entry = NULL;
   while ((entry = Trace_Decode(tb_hdr, entry))) {
     if (entry->type != TRACE_TYPE_CUSTOM_EVENT) {
       DV_LOG(ERROR) << "Trace type not custom event error: " << entry->type;
       exit(1);
     }
+
+    if (entry->cycle <= mmStats_.cycle) {
+      continue;
+    }
+    mmStats_.cycle = entry->cycle;
 
     const struct trace_custom_event_t* cev;
     cev = reinterpret_cast<const struct trace_custom_event_t*>(entry);
