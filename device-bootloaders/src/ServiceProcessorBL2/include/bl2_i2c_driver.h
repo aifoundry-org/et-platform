@@ -18,6 +18,9 @@
 #pragma once
 #include "hwinc/sp_i2c0.h"
 #include <stdbool.h>
+#include "FreeRTOS.h"
+#include "portmacro.h"
+#include "semphr.h"
 
 /*!
  * @struct struct ET_I2C_DEV
@@ -26,6 +29,8 @@
 typedef struct ET_I2C_DEV {
   I2c* regs;
   bool isInitialized;
+  StaticSemaphore_t bus_lock;
+  SemaphoreHandle_t bus_lock_handle;
 } ET_I2C_DEV_t;
 
 /*!
@@ -56,6 +61,8 @@ enum ET_I2C_ERROR_CODES {
     ET_I2C_ERROR_DEV_ALREADY_INITIALIZED = -1000,
     ET_I2C_ERROR_DEV_NOT_INITIALIZED = -900,
     ET_I2C_ERROR_SPEED_BAD_VALUE = - 800,
+    ET_I2C_ERROR_BUS_LOCK_INIT = -700,
+    ET_I2C_ERROR_BUS_LOCK = -600,
     ET_I2C_OK = 0
 };
 

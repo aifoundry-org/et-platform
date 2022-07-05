@@ -127,7 +127,7 @@ static void dm_task_entry(void *pvParameters)
 
         if (0 != ret)
         {
-            Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error : get_module_soc_power()\r\n");
+            Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error : update_module_soc_power()\r\n");
         }
 
         /*  Update the module uptime */

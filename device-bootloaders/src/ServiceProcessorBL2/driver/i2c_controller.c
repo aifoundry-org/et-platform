@@ -27,6 +27,8 @@
 #include <stdint.h>
 #include "hwinc/hal_device.h"
 #include "bl2_i2c_driver.h"
+#include "interrupt.h"
+
 
 static void i2c_clock_init(ET_I2C_DEV_t* dev)
 {
@@ -87,12 +89,19 @@ static int i2c_set_connection_params(ET_I2C_DEV_t* dev, ET_I2C_SPEED_t speed)
             return ET_I2C_ERROR_SPEED_BAD_VALUE;
     }
 
-
 }
 
 int i2c_init(ET_I2C_DEV_t* dev, ET_I2C_SPEED_t speed, uint8_t addr_slave)
 {
     if (dev->isInitialized == true) return ET_I2C_ERROR_DEV_ALREADY_INITIALIZED;
+
+    /* Init the i2c bus lock to released state */
+    dev->bus_lock_handle = xSemaphoreCreateMutexStatic(&dev->bus_lock);
+
+    if (!dev->bus_lock_handle)
+    {
+        return ET_I2C_ERROR_BUS_LOCK_INIT;
+    }
 
     /* disable */
     dev->regs->IC_ENABLE = I2C_IC_ENABLE_ENABLE_SET(I2C_IC_ENABLE_ENABLE_ENABLE_DISABLED);
@@ -139,34 +148,42 @@ int i2c_write(ET_I2C_DEV_t* dev, uint8_t regAddr, const uint8_t* txDataBuff, uin
 {
     if (dev->isInitialized == false) return ET_I2C_ERROR_DEV_NOT_INITIALIZED;
 
-
-    /* "write" command byte  is sent throguh MasterFSM, we only need to hint it
-        in the very first data byte we explicitly write to I2C */
-    dev->regs->IC_DATA_CMD = (uint32_t)
-                          (I2C_IC_DATA_CMD_RESET_VALUE |
-                          I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
-                          I2C_IC_DATA_CMD_DAT_SET( regAddr ));
-                          /* send register address */
-
-    /* write all but last byte, since it contains the stop condition generation request */
-    for (uint8_t n=0; n < txDataCount - 1; n++)
+    if (!INT_Is_Trap_Context() && (xSemaphoreTake(dev->bus_lock_handle, portMAX_DELAY) == pdTRUE))
     {
+        /* "write" command byte  is sent throguh MasterFSM, we only need to hint it
+            in the very first data byte we explicitly write to I2C */
         dev->regs->IC_DATA_CMD = (uint32_t)
-                          (I2C_IC_DATA_CMD_RESET_VALUE |
-                          I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
-                          I2C_IC_DATA_CMD_DAT_SET( txDataBuff[n] ));
-                          /*value for above register */
-    }
-    dev->regs->IC_DATA_CMD = (uint32_t)
-                          (I2C_IC_DATA_CMD_RESET_VALUE |
-                          I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
-                          I2C_IC_DATA_CMD_STOP_SET(I2C_IC_DATA_CMD_STOP_STOP_ENABLE) |
-                          I2C_IC_DATA_CMD_DAT_SET( txDataBuff[txDataCount - 1] ));
-                          /* value for above register */
+                            (I2C_IC_DATA_CMD_RESET_VALUE |
+                            I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
+                            I2C_IC_DATA_CMD_DAT_SET( regAddr ));
+                            /* send register address */
 
-    /* wait for transfer to finish */
-    while (I2C_IC_STATUS_MST_ACTIVITY_GET(dev->regs->IC_STATUS) ==
-            I2C_IC_STATUS_MST_ACTIVITY_MST_ACTIVITY_ACTIVE);
+        /* write all but last byte, since it contains the stop condition generation request */
+        for (uint8_t n=0; n < txDataCount - 1; n++)
+        {
+            dev->regs->IC_DATA_CMD = (uint32_t)
+                            (I2C_IC_DATA_CMD_RESET_VALUE |
+                            I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
+                            I2C_IC_DATA_CMD_DAT_SET( txDataBuff[n] ));
+                            /*value for above register */
+        }
+        dev->regs->IC_DATA_CMD = (uint32_t)
+                            (I2C_IC_DATA_CMD_RESET_VALUE |
+                            I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
+                            I2C_IC_DATA_CMD_STOP_SET(I2C_IC_DATA_CMD_STOP_STOP_ENABLE) |
+                            I2C_IC_DATA_CMD_DAT_SET( txDataBuff[txDataCount - 1] ));
+                            /* value for above register */
+
+        /* wait for transfer to finish */
+        while (I2C_IC_STATUS_MST_ACTIVITY_GET(dev->regs->IC_STATUS) ==
+                I2C_IC_STATUS_MST_ACTIVITY_MST_ACTIVITY_ACTIVE);
+
+        xSemaphoreGive(dev->bus_lock_handle);
+    }
+    else
+    {
+        return ET_I2C_ERROR_BUS_LOCK;
+    }
 
     return ET_I2C_OK;
 }
@@ -175,36 +192,46 @@ int i2c_read(ET_I2C_DEV_t* dev, uint8_t regAddr, uint8_t* rxDataBuff, uint8_t rx
 {
     if (dev->isInitialized == false) return ET_I2C_ERROR_DEV_NOT_INITIALIZED;
 
- /* Now read what we have written previously */
-    dev->regs->IC_DATA_CMD =
-                          (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
-                          I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
-                          I2C_IC_DATA_CMD_RESTART_SET(I2C_IC_DATA_CMD_RESTART_RESTART_ENABLE) |
-                          I2C_IC_DATA_CMD_DAT_SET( regAddr ));
-                          /* send register address */
-
-    /* this is where the actual read request(s) happens */
-    for (uint8_t n=0; n < rxDataCount - 1; n++)
+    if (!INT_Is_Trap_Context() && xSemaphoreTake(dev->bus_lock_handle, portMAX_DELAY) == pdTRUE)
     {
+        /* Now read what we have written previously */
         dev->regs->IC_DATA_CMD =
-                              (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
-                              I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_READ));
-                              /* this is what will init an actual read */
+                            (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
+                            I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
+                            I2C_IC_DATA_CMD_RESTART_SET(I2C_IC_DATA_CMD_RESTART_RESTART_ENABLE) |
+                            I2C_IC_DATA_CMD_DAT_SET( regAddr ));
+                            /* send register address */
+
+        /* this is where the actual read request(s) happens */
+        for (uint8_t n=0; n < rxDataCount - 1; n++)
+        {
+            dev->regs->IC_DATA_CMD =
+                                (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
+                                I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_READ));
+                                /* this is what will init an actual read */
+        }
+        dev->regs->IC_DATA_CMD = (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
+                            I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_READ) |
+
+                            /* this is what will init an actual read */
+                            I2C_IC_DATA_CMD_STOP_SET(I2C_IC_DATA_CMD_STOP_STOP_ENABLE));
+
+        /* check RX fifo for received bytes */
+        /* wait until we get the bytes we want in the RX fifo. */
+        while(I2C_IC_RXFLR_RXFLR_GET(dev->regs->IC_RXFLR) < rxDataCount);
+
+        for (uint8_t n=0; n < rxDataCount; n++)
+        {
+            rxDataBuff[n] = I2C_IC_DATA_CMD_DAT_GET(dev->regs->IC_DATA_CMD);
+        }
+
+        xSemaphoreGive(dev->bus_lock_handle);
     }
-    dev->regs->IC_DATA_CMD = (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
-                          I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_READ) |
-
-                          /* this is what will init an actual read */
-                          I2C_IC_DATA_CMD_STOP_SET(I2C_IC_DATA_CMD_STOP_STOP_ENABLE));
-
-    /* check RX fifo for received bytes */
-    /* wait until we get the bytes we want in the RX fifo. */
-    while(I2C_IC_RXFLR_RXFLR_GET(dev->regs->IC_RXFLR) < rxDataCount);
-
-    for (uint8_t n=0; n < rxDataCount; n++)
+    else
     {
-        rxDataBuff[n] = I2C_IC_DATA_CMD_DAT_GET(dev->regs->IC_DATA_CMD);
+        return ET_I2C_ERROR_BUS_LOCK;
     }
+    
     return ET_I2C_OK;
 }
 
@@ -212,10 +239,18 @@ int i2c_disable(ET_I2C_DEV_t* dev)
 {
     if (dev -> isInitialized == false) return ET_I2C_ERROR_DEV_NOT_INITIALIZED;
 
-    dev->regs->IC_ENABLE = I2C_IC_ENABLE_RESET_VALUE |
-                           I2C_IC_ENABLE_ENABLE_SET( I2C_IC_ENABLE_ENABLE_ENABLE_DISABLED);
+    if (!INT_Is_Trap_Context() && xSemaphoreTake(dev->bus_lock_handle, portMAX_DELAY) == pdTRUE)
+    {
 
-    dev->isInitialized = false;
+        dev->regs->IC_ENABLE = I2C_IC_ENABLE_RESET_VALUE |
+                            I2C_IC_ENABLE_ENABLE_SET( I2C_IC_ENABLE_ENABLE_ENABLE_DISABLED);
+
+        dev->isInitialized = false;
+    }
+    else
+    {
+        return ET_I2C_ERROR_BUS_LOCK;
+    }
 
     return ET_I2C_OK;
 }
