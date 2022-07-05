@@ -1,14 +1,20 @@
 include:
   - project: 'software/gitlab-ci-common'
-    ref: eaa145e684411db579462b41feb7736c6ed0028c
+    ref: 1e82845ec49b8294f606238749542e6053056da4
     file:
       - 'pods/nano-pod.yaml'
       - 'jobs/generic-k8s-job.yaml'
+      - 'rules/generic-workflow-conan.yaml'
 
   - project: 'software/gitlab-ci-common'
     ref: master
     file:
       - 'jobs/conan-jobs.yaml'
+
+  - project: 'software/sw-platform'
+    ref: develop/system-sw
+    file:
+      - 'gitlab-ci/system-sw/misc/verify-merge-request.yaml'
 
 stages:
   - generate_build
@@ -16,6 +22,22 @@ stages:
   - test
   - deploy
 
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+verify_project_changes:
+  extends:
+    - .template_job
+    - .pod_nano
+    - .verify_merge_request
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.3.7
+  stage: .pre
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+  variables:
+    PROJ_VER_FILE_NAME: VERSION
 
 ###############################################################################
 ###############################################################################
