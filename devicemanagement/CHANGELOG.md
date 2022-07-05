@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- Disabled `getModuleVoltage` test on Target::Silicon. The test runs fine in the
+  beginning but in longer runs of ops + mgmt regression, it times out.
 ### Deprecated
 ### Removed
 ### Fixed

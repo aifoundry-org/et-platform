@@ -64,7 +64,10 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModulePower) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleVoltage) {
-  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
+  // TODO: 13282: Enable back on Target::Silicon. The test runs fine in the beginning but in
+  // longer runs it times out, i.e. no response is received.
+  // if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
+  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu})) {
     getModuleVoltage(false /* Multiple devices */);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
