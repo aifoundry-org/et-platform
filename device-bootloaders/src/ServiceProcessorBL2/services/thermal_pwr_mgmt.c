@@ -583,8 +583,8 @@ int update_module_soc_power(void)
     else
     {
         soc_pwr_mW = Power_Convert_Hex_to_mW(soc_pwr);
-        CMA(get_soc_power_reg()->op_stats.system.power, soc_pwr)
-        CALC_MIN_MAX(get_soc_power_reg()->op_stats.system.power, soc_pwr)
+        CMA(get_soc_power_reg()->op_stats.system.power, (uint16_t)soc_pwr_mW)
+        CALC_MIN_MAX(get_soc_power_reg()->op_stats.system.power, (uint16_t)soc_pwr_mW)
         get_soc_power_reg()->soc_power = (uint8_t)(soc_pwr_mW / 1000);
     }
 

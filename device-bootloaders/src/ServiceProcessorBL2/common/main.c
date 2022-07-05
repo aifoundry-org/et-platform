@@ -578,10 +578,11 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 
     // Initialize Splash screen
     Log_Write(LOG_LEVEL_CRITICAL, "\n** SP BL2 STARTED **\r\n");
-    Log_Write(LOG_LEVEL_CRITICAL,
-              "BL2 version: %u.%u.%u:" GIT_VERSION_STRING " (" BL2_VARIANT ")\n",
+    Log_Write(LOG_LEVEL_CRITICAL, "BL2 version: %u.%u.%u:\n",
               image_version_info->file_version_major, image_version_info->file_version_minor,
               image_version_info->file_version_revision);
+
+    Log_Write(LOG_LEVEL_CRITICAL, "GIT version: " GIT_VERSION_STRING " (" BL2_VARIANT ")\n");
 
     // Populate BL2 globals using BL1 data from previous BL1
     status = initialize_bl2_data(bl1_data);
