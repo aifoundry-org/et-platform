@@ -417,7 +417,7 @@ static int pmic_get_int_cause(uint8_t *int_cause)
 
 static int pmic_get_reg_fault_details(uint32_t *reg_fault_details)
 {
-    return (get_pmic_reg(PMIC_I2C_REG_FAULT_REG_FAULT_ADDRESS, (uint8_t*)reg_fault_details, 4));
+    return (get_pmic_reg(PMIC_I2C_REG_FAULT_REG_FAULT_ADDRESS, (uint8_t *)reg_fault_details, 4));
 }
 
 /************************************************************************
@@ -444,8 +444,8 @@ static int pmic_get_reg_fault_details(uint32_t *reg_fault_details)
 
 static int pmic_get_reg_comm_fault_details(uint32_t *reg_comm_fault_details)
 {
-    return (get_pmic_reg(PMIC_I2C_REG_COM_FAIL_DETAILS_ADDRESS,
-                            (uint8_t*)reg_comm_fault_details, 4));
+    return (
+        get_pmic_reg(PMIC_I2C_REG_COM_FAIL_DETAILS_ADDRESS, (uint8_t *)reg_comm_fault_details, 4));
 }
 
 /************************************************************************
@@ -473,7 +473,7 @@ static int pmic_get_reg_comm_fault_details(uint32_t *reg_comm_fault_details)
 static int pmic_get_command_comm_fault_details(uint32_t *command_comm_fault_details)
 {
     return (get_pmic_reg(PMIC_I2C_COMMAND_COMM_FAIL_DETAILS_ADDRESS,
-                (uint8_t*)command_comm_fault_details, 4));
+                         (uint8_t *)command_comm_fault_details, 4));
 }
 
 /************************************************************************
@@ -503,7 +503,7 @@ void pmic_error_isr(void)
     uint8_t reg_value = 0;
     uint32_t reg_value_32 = 0;
 
-    if ( 0!= gpio_clear_interrupt(GPIO_CONTROLLER_ID_SPIO, PMIC_GPIO_INT_PIN_NUMBER))
+    if (0 != gpio_clear_interrupt(GPIO_CONTROLLER_ID_SPIO, PMIC_GPIO_INT_PIN_NUMBER))
     {
         MESSAGE_ERROR("GPIO int clear failed!");
     }
@@ -524,8 +524,8 @@ void pmic_error_isr(void)
             MESSAGE_ERROR("PMIC read failed!");
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 
-                            1 << PMIC_I2C_INT_CAUSE_OV_TEMP_LSB, reg_value)
+        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_TEMP_LSB,
+                           reg_value)
         event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 
@@ -538,8 +538,8 @@ void pmic_error_isr(void)
             MESSAGE_ERROR("PMIC read failed!");
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 
-                            1 << PMIC_I2C_INT_CAUSE_OV_POWER_LSB, reg_value)
+        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_POWER_LSB,
+                           reg_value)
         event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 
@@ -550,8 +550,8 @@ void pmic_error_isr(void)
             MESSAGE_ERROR("PMIC read failed!");
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 
-                            1 << PMIC_I2C_INT_CAUSE_PWR_FAIL_LSB, reg_value)
+        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_PWR_FAIL_LSB,
+                           reg_value)
         event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 
@@ -570,7 +570,7 @@ void pmic_error_isr(void)
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
         FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_MESSAGE_ERROR_LSB,
-                            reg_value_32)
+                           reg_value_32)
         event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 
@@ -582,7 +582,7 @@ void pmic_error_isr(void)
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
         FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_REG_COM_FAIL_LSB,
-                            reg_value_32)
+                           reg_value_32)
         event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 
@@ -594,7 +594,7 @@ void pmic_error_isr(void)
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
         FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_REG_FAULT_LSB,
-                            reg_value_32)
+                           reg_value_32)
         event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 }
@@ -623,7 +623,7 @@ void pmic_error_isr(void)
 
 int pmic_get_fw_version(uint32_t *fw_version)
 {
-    return (get_pmic_reg(PMIC_I2C_FIRMWARE_VERSION_ADDRESS, (uint8_t*)fw_version, 4));
+    return (get_pmic_reg(PMIC_I2C_FIRMWARE_VERSION_ADDRESS, (uint8_t *)fw_version, 4));
 }
 
 /************************************************************************
@@ -648,7 +648,7 @@ int pmic_get_fw_version(uint32_t *fw_version)
 
 int pmic_get_board_type(uint32_t *board_type)
 {
-    return (get_pmic_reg(PMIC_I2C_BOARD_TYPE_ADDRESS, (uint8_t*)board_type, 4));
+    return (get_pmic_reg(PMIC_I2C_BOARD_TYPE_ADDRESS, (uint8_t *)board_type, 4));
 }
 
 /************************************************************************
@@ -814,8 +814,8 @@ int pmic_set_gpio_bit(uint8_t index)
 
     reg_value = reg_value | (uint8_t)(0x1u << index);
 
-    return (set_pmic_reg(PMIC_I2C_GPIO_RW_ADDRESS,
-                            PMIC_I2C_GPIO_RW_INPUT_OUTPUT_SET(reg_value), 1));
+    return (
+        set_pmic_reg(PMIC_I2C_GPIO_RW_ADDRESS, PMIC_I2C_GPIO_RW_INPUT_OUTPUT_SET(reg_value), 1));
 }
 
 /************************************************************************
@@ -856,8 +856,8 @@ int pmic_clear_gpio_bit(uint8_t index)
 
     reg_value = reg_value & (uint8_t)(~(0x1u << index));
 
-    return (set_pmic_reg(PMIC_I2C_GPIO_RW_ADDRESS,
-                            PMIC_I2C_GPIO_RW_INPUT_OUTPUT_SET(reg_value), 1));
+    return (
+        set_pmic_reg(PMIC_I2C_GPIO_RW_ADDRESS, PMIC_I2C_GPIO_RW_INPUT_OUTPUT_SET(reg_value), 1));
 }
 
 /************************************************************************
@@ -1084,7 +1084,7 @@ int pmic_disable_etsoc_reset_after_perst(void)
 
 int pmic_get_reset_cause(uint32_t *reset_cause)
 {
-    return (get_pmic_reg(PMIC_I2C_RESET_RESET_CAUSE_ADDRESS, (uint8_t*)reset_cause, 4));
+    return (get_pmic_reg(PMIC_I2C_RESET_RESET_CAUSE_ADDRESS, (uint8_t *)reset_cause, 4));
 }
 
 /************************************************************************
@@ -1667,8 +1667,7 @@ int pmic_set_tdp_threshold(uint8_t power_alarm)
 
 int pmic_force_shutdown(void)
 {
-    return (set_pmic_reg(PMIC_I2C_RESET_COMMAND_ADDRESS,
-                         PMIC_I2C_RESET_COMMAND_SHUTDOWN, 1));
+    return (set_pmic_reg(PMIC_I2C_RESET_COMMAND_ADDRESS, PMIC_I2C_RESET_COMMAND_SHUTDOWN, 1));
 }
 
 /************************************************************************
@@ -1693,8 +1692,7 @@ int pmic_force_shutdown(void)
 
 int pmic_force_power_off_on(void)
 {
-    return (set_pmic_reg(PMIC_I2C_RESET_COMMAND_ADDRESS,
-                         PMIC_I2C_RESET_COMMAND_PWR_CYCLE, 1));
+    return (set_pmic_reg(PMIC_I2C_RESET_COMMAND_ADDRESS, PMIC_I2C_RESET_COMMAND_PWR_CYCLE, 1));
 }
 
 /************************************************************************
@@ -1719,8 +1717,7 @@ int pmic_force_power_off_on(void)
 
 int pmic_force_reset(void)
 {
-    return (set_pmic_reg(PMIC_I2C_RESET_COMMAND_ADDRESS,
-                         PMIC_I2C_RESET_COMMAND_RESET, 1));
+    return (set_pmic_reg(PMIC_I2C_RESET_COMMAND_ADDRESS, PMIC_I2C_RESET_COMMAND_RESET, 1));
 }
 
 /************************************************************************
@@ -1745,8 +1742,7 @@ int pmic_force_reset(void)
 
 int pmic_force_perst(void)
 {
-    return (set_pmic_reg(PMIC_I2C_RESET_COMMAND_ADDRESS,
-                         PMIC_I2C_RESET_COMMAND_PERST, 1));
+    return (set_pmic_reg(PMIC_I2C_RESET_COMMAND_ADDRESS, PMIC_I2C_RESET_COMMAND_PERST, 1));
 }
 
 /************************************************************************
@@ -1883,7 +1879,7 @@ int I2C_PMIC_Write(uint8_t reg, uint8_t data)
 *       Power in mW after conversion
 *
 ***********************************************************************/
-int32_t Power_Convert_Hex_to_mW(uint8_t power_hex) 
+int32_t Power_Convert_Hex_to_mW(uint8_t power_hex)
 {
     return (((power_hex >> 2) * 1000) + ((power_hex & 0x3) * 250));
 }
@@ -1907,7 +1903,7 @@ int32_t Power_Convert_Hex_to_mW(uint8_t power_hex)
 *       Hex  Power in PMIC encoded Hex value
 *
 ***********************************************************************/
-int32_t Power_Convert_mW_to_Hex(uint8_t power_mW) 
+int32_t Power_Convert_mW_to_Hex(uint8_t power_mW)
 {
     return (((power_mW / 1000) << 2) & ((power_mW % 1000) / 250));
 }
