@@ -69,7 +69,7 @@ static void pmic_isr_callback(uint8_t int_cause);
 /* The variable used to track power states change time. */
 static uint64_t power_state_change_time = 0;
 
-/* The variable used to track number of samples to calculate moving average. 
+/* The variable used to track number of samples to calculate moving average.
    Initializing samples count = 1 to avoid divide by 0 exception while calculating average */
 uint16_t samples_count = 1;
 
@@ -1418,6 +1418,7 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
 
     return 0;
 }
+
 /************************************************************************
 *
 *   FUNCTION
@@ -1430,7 +1431,7 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
 *
 *   INPUTS
 *
-        tag               Command tag id
+*       tag               Command tag id
 *       req_start_time    Time stamp when the request was received by the Command
 *                         Dispatcher
 *       cmd               Power throttling command buffer
@@ -1451,6 +1452,9 @@ void trace_power_state_test(uint16_t tag, uint64_t req_start_time, void *cmd)
 
     Trace_Power_Status(Trace_Get_SP_CB(), &power_status);
 
+    /* Update the trace header to make the event visible */
+    Trace_Update_SP_Buffer_Header();
+
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_THROTTLE_POWER_STATE_TEST,
                     timer_get_ticks_count() - req_start_time, DM_STATUS_SUCCESS)
 
@@ -1460,6 +1464,7 @@ void trace_power_state_test(uint16_t tag, uint64_t req_start_time, void *cmd)
         Log_Write(LOG_LEVEL_ERROR, "power_throttling_cmd_handler: Cqueue push error!\n");
     }
 }
+
 /************************************************************************
 *
 *   FUNCTION
@@ -2066,7 +2071,7 @@ int Thermal_Pwr_Mgmt_Get_System_Temperature(uint64_t *temp)
 ***********************************************************************/
 int Thermal_Pwr_Mgmt_Get_Minion_Power(uint64_t *power)
 {
-    /* voltage value which can be used to calculate power when current 
+    /* voltage value which can be used to calculate power when current
        value is available.
        get_soc_power_reg()->module_voltage.minion */
     *power = get_soc_power_reg()->op_stats.minion.power.avg;
@@ -2094,7 +2099,7 @@ int Thermal_Pwr_Mgmt_Get_Minion_Power(uint64_t *power)
 ***********************************************************************/
 int Thermal_Pwr_Mgmt_Get_NOC_Power(uint64_t *power)
 {
-    /* voltage value which can be used to calculate power when current 
+    /* voltage value which can be used to calculate power when current
        value is available.
        get_soc_power_reg()->module_voltage.noc */
 
@@ -2123,7 +2128,7 @@ int Thermal_Pwr_Mgmt_Get_NOC_Power(uint64_t *power)
 ***********************************************************************/
 int Thermal_Pwr_Mgmt_Get_SRAM_Power(uint64_t *power)
 {
-    /* voltage value which can be used to calculate power when current 
+    /* voltage value which can be used to calculate power when current
     value is available.
     get_soc_power_reg()->module_voltage */
     *power = get_soc_power_reg()->op_stats.sram.power.avg;
@@ -2163,7 +2168,7 @@ int Thermal_Pwr_Mgmt_Get_System_Power(uint64_t *power)
 *
 *   DESCRIPTION
 *
-*       This function returns temperature and power consumption for 
+*       This function returns temperature and power consumption for
 *       individual component System, Minion, SRAM and NOC.
 *
 *   INPUTS
