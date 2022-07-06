@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- Included rules/generic-workflow-conan.yaml to enable execution of verify_project_changes pre job
 ### Security
 
 ## [1.1.0] - 2022-7-4
