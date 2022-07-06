@@ -89,6 +89,9 @@ struct pmic_event_control_block
     dm_pmic_isr_callback thermal_pwr_event_cb; /**< Thermal power event callback handler. */
 };
 
+/* Macro to encode voltage value to 8 bit encoding*/
+
+// Multiplier for each Power rail
 #define PMIC_DDR_VOLTAGE_MULTIPLIER        5
 #define PMIC_SRAM_VOLTAGE_MULTIPLIER       5
 #define PMIC_MAXION_VOLTAGE_MULTIPLIER     5
@@ -98,10 +101,12 @@ struct pmic_event_control_block
 #define PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER 625
 #define PMIC_PCIE_VOLTAGE_MULTIPLIER       125
 
-/* Macro to convert PMIC value to Hex */
-#define PMIC_VOLTAGE_TO_HEX(val, idx)       (uint8_t)(((val - 250) / idx))
-#define PMIC_HEX_TO_VOLTAGE(val, idx)       ((val * idx) + 250)
-#define PMIC_PCIE_VOLTAGE_TO_HEX(val)       (uint8_t)(((val - 600) * 10 / 125))
+/* General Voltage convertion formula: Voltage = 0.25V + Reg*0.10 */
+#define PMIC_VOLTAGE_TO_HEX(val, idx) (uint8_t)(((val - 250) / idx))
+#define PMIC_HEX_TO_VOLTAGE(val, idx) ((val * idx) + 250)
+/* PCIe convertion formula: Voltage = 0.6V + Reg*0.10 */
+#define PMIC_PCIE_VOLTAGE_TO_HEX(val) (uint8_t)(((val - 600) * 10 / 125))
+/* PCIe Logic convertion formula: Voltage = 0.6V + Reg*0.100 */
 #define PMIC_PCIE_LOGIC_VOLTAGE_TO_HEX(val) (uint8_t)(((val - 600) * 100 / 625))
 
 /*! \fn void setup_pmic(void)

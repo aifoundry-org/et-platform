@@ -590,7 +590,7 @@ int update_module_soc_power(void)
     /* Update moving average , min and max values of Minion, NOC and SRAM powers */
     module_pwr = CALC_POWER(get_soc_power_reg()->module_voltage.minion,
                             get_soc_power_reg()->module_current.minion);
-    
+
     CMA(get_soc_power_reg()->op_stats.minion.power, module_pwr)
     CALC_MIN_MAX(get_soc_power_reg()->op_stats.minion.power, module_pwr)
 
@@ -604,7 +604,6 @@ int update_module_soc_power(void)
     CMA(get_soc_power_reg()->op_stats.sram.power, soc_pwr)
     CALC_MIN_MAX(get_soc_power_reg()->op_stats.sram.power, module_pwr)
 
-    
     /* module_tdp_level is in Watts, converting to miliWatts */
     tdp_level_mW = get_soc_power_reg()->module_tdp_level * 1000;
 
@@ -690,10 +689,17 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     status = pvt_get_minion_avg_low_high_voltage(&minshire_voltage);
     if (status == STATUS_SUCCESS)
     {
-        get_soc_power_reg()->module_voltage.l2_cache = PMIC_VOLTAGE_TO_HEX(minshire_voltage.vdd_sram.current, PMIC_SRAM_VOLTAGE_MULTIPLIER);
-        get_soc_power_reg()->module_voltage.minion = PMIC_VOLTAGE_TO_HEX(minshire_voltage.vdd_mnn.current, PMIC_MINION_VOLTAGE_MULTIPLIER);
-        get_soc_power_reg()->module_voltage.noc = PMIC_VOLTAGE_TO_HEX(minshire_voltage.vdd_noc.current, PMIC_MINION_VOLTAGE_MULTIPLIER);
-        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: L2 Cache/SRAM Voltage: %d \t minion voltage: %d\t noc voltage: %d\r\n", minshire_voltage.vdd_sram.current, minshire_voltage.vdd_mnn.current, minshire_voltage.vdd_noc.current);
+        get_soc_power_reg()->module_voltage.l2_cache =
+            PMIC_VOLTAGE_TO_HEX(minshire_voltage.vdd_sram.current, PMIC_SRAM_VOLTAGE_MULTIPLIER);
+        get_soc_power_reg()->module_voltage.minion =
+            PMIC_VOLTAGE_TO_HEX(minshire_voltage.vdd_mnn.current, PMIC_MINION_VOLTAGE_MULTIPLIER);
+        get_soc_power_reg()->module_voltage.noc =
+            PMIC_VOLTAGE_TO_HEX(minshire_voltage.vdd_noc.current, PMIC_MINION_VOLTAGE_MULTIPLIER);
+        Log_Write(
+            LOG_LEVEL_DEBUG,
+            "get_module_voltage: L2 Cache/SRAM Voltage: %d \t minion voltage: %d\t noc voltage: %d\r\n",
+            minshire_voltage.vdd_sram.current, minshire_voltage.vdd_mnn.current,
+            minshire_voltage.vdd_noc.current);
     }
     else
     {
@@ -703,8 +709,10 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     status = pvt_get_memshire_avg_low_high_voltage(&memshire_voltage);
     if (status == STATUS_SUCCESS)
     {
-        get_soc_power_reg()->module_voltage.ddr = PMIC_VOLTAGE_TO_HEX(memshire_voltage.vdd_ms.current, PMIC_DDR_VOLTAGE_MULTIPLIER);
-        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: ddr voltage: %d\r\n", memshire_voltage.vdd_ms.current);
+        get_soc_power_reg()->module_voltage.ddr =
+            PMIC_VOLTAGE_TO_HEX(memshire_voltage.vdd_ms.current, PMIC_DDR_VOLTAGE_MULTIPLIER);
+        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: ddr voltage: %d\r\n",
+                  memshire_voltage.vdd_ms.current);
     }
     else
     {
@@ -714,9 +722,11 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     status = pvt_get_ioshire_vm_sample(&ioshire_voltage);
     if (status == STATUS_SUCCESS)
     {
-        get_soc_power_reg()->module_voltage.maxion = PMIC_VOLTAGE_TO_HEX(ioshire_voltage.vdd_mxn.current, PMIC_MAXION_VOLTAGE_MULTIPLIER);
-        
-        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: maxion voltage: %d\r\n", ioshire_voltage.vdd_mxn.current);
+        get_soc_power_reg()->module_voltage.maxion =
+            PMIC_VOLTAGE_TO_HEX(ioshire_voltage.vdd_mxn.current, PMIC_MAXION_VOLTAGE_MULTIPLIER);
+
+        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: maxion voltage: %d\r\n",
+                  ioshire_voltage.vdd_mxn.current);
     }
     else
     {
@@ -726,8 +736,10 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     status = pvt_get_pshire_vm_sample(&pshr_voltage);
     if (status == STATUS_SUCCESS)
     {
-        get_soc_power_reg()->module_voltage.pcie = PMIC_PCIE_VOLTAGE_TO_HEX(pshr_voltage.vdd_pshr.current);
-        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: pcie voltage: %d\r\n", pshr_voltage.vdd_pshr.current);
+        get_soc_power_reg()->module_voltage.pcie =
+            PMIC_PCIE_VOLTAGE_TO_HEX(pshr_voltage.vdd_pshr.current);
+        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: pcie voltage: %d\r\n",
+                  pshr_voltage.vdd_pshr.current);
     }
     else
     {
@@ -737,9 +749,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     /* hardcorded module voltage values because it not currently available with pvt */
     get_soc_power_reg()->module_voltage.vddqlp = 0x25;
     get_soc_power_reg()->module_voltage.vddq = 0x55;
-    get_soc_power_reg()->module_voltage.pcie = 0x48;
     get_soc_power_reg()->module_voltage.pcie_logic = 0x18;
-    get_soc_power_reg()->module_voltage.noc = 0x28;
 
     if (module_voltage != NULL)
     {

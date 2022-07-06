@@ -1383,7 +1383,6 @@ int pmic_get_pmb_stats(pmb_module_type_e module_type, pmb_reading_type_e reading
         MESSAGE_ERROR("Failed to write PMIC PMB Stats register");
         return ERROR_PMIC_I2C_WRITE_FAILED;
     }
-    return 0;
 }
 
 /************************************************************************
