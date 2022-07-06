@@ -83,6 +83,7 @@
 #define PMIC_GPIO_INT_PIN_NUMBER   0x1
 #define ENABLE_ALL_PMIC_INTERRUPTS 0xFF
 #define BYTE_SIZE                  8
+#define PMB_READ_BYTES             4
 
 static struct pmic_event_control_block event_control_block __attribute__((section(".data")));
 
@@ -1364,7 +1365,7 @@ int pmic_set_minion_group_voltage(uint8_t group_id, uint8_t voltage)
 *
 ***********************************************************************/
 int pmic_get_pmb_stats(pmb_module_type_e module_type, pmb_reading_type_e reading_type,
-                       pmb_value_type_e value_type, uint8_t *value)
+                       pmb_value_type_e value_type, uint32_t *value)
 {
     int32_t status = STATUS_SUCCESS;
 
@@ -1375,13 +1376,14 @@ int pmic_get_pmb_stats(pmb_module_type_e module_type, pmb_reading_type_e reading
                           1);
     if (status == STATUS_SUCCESS)
     {
-        return (get_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS, value, 1));
+        return (get_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS, (uint8_t *)value, PMB_READ_BYTES));
     }
     else
     {
         MESSAGE_ERROR("Failed to write PMIC PMB Stats register");
         return ERROR_PMIC_I2C_WRITE_FAILED;
     }
+    return 0;
 }
 
 /************************************************************************

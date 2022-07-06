@@ -42,15 +42,24 @@
 /* Number of samples to collect average */
 #define NUM_SAMPLES 100
 
-/*! \struct module_current_t
-    \brief Struct use to hold samples current values
+/*! \struct pvt_module_voltage_t
+    \brief Struct use to hold samples voltage values
 */
+struct pvt_module_voltage_t
+{
+    uint16_t minion; /**< Minion Voltage */
+    uint16_t noc;    /**< NOC Voltage */
+    uint16_t sram;   /**< SRAM Voltage */
+    uint8_t pad[2];  /**< Padding for alignment */
+
+} __attribute__((packed));
+
 struct module_current_t
 {
-    uint8_t minion; /**< Minion Current */
-    uint8_t noc;    /**< NOC Current */
-    uint8_t sram;   /**< SRAM Current */
-    uint8_t pad[5]; /**< Padding for alignment */
+    uint16_t minion; /**< Minion Current */
+    uint16_t noc;    /**< NOC Current */
+    uint16_t sram;   /**< SRAM Current */
+    uint8_t pad[2];  /**< Padding for alignment */
 
 } __attribute__((packed));
 
