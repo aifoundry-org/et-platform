@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13220] Updates to ensure the correct value is returned for PCIe max link speed. It was returning value for one older GEN.
 - Override MNN, SRM, NOC voltage from SP to enable optimized operation point
 - Throttle power state test to update the trace header.
+- [SW-13253]: updated get module voltage to use values from pvt
 ### Security
 
 ## [0.3.0] - 2022-6-25
