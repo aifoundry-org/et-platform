@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- Fixed software timer reload count at the time of expiry.
 ### Security
 
 ## [0.8.0]  - 2022-7-4

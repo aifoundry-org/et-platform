@@ -40,6 +40,7 @@
 */
 typedef struct cmd_timeout_instance_ {
     uint64_t expiration_time; /* Time at/after which timeout triggers */
+    uint64_t timer_period;    /* Timer load count in SW ticks */
     void (*timeout_callback_fn)(uint8_t);
     uint8_t callback_arg;
 } cmd_timeout_t;
@@ -132,6 +133,8 @@ void SW_Timer_Processing(void)
     {
         if (atomic_load_local_64(&SW_TIMER_CB.cmd_timeout_cb[i].expiration_time) <= accum_period)
         {
+            atomic_add_local_64(&SW_TIMER_CB.cmd_timeout_cb[i].expiration_time,
+                atomic_load_local_64(&SW_TIMER_CB.cmd_timeout_cb[i].timer_period));
             timeout_callback_fn = (void *)(uint64_t)atomic_load_local_64(
                 (void *)&SW_TIMER_CB.cmd_timeout_cb[i].timeout_callback_fn);
             if (timeout_callback_fn != 0)
@@ -244,6 +247,9 @@ int32_t SW_Timer_Create_Timeout(
             (uint64_t)timeout_callback_fn);
         atomic_store_local_8(
             &SW_TIMER_CB.cmd_timeout_cb[free_timer_slot].callback_arg, callback_arg);
+        /* Save the Timer load count in SW ticks */
+        atomic_store_local_64(&SW_TIMER_CB.cmd_timeout_cb[free_timer_slot].timer_period,
+            SW_TIMER_SW_TICKS_TO_HW_COUNT(sw_ticks));
         /* Store expiration_time = sw_ticks + accum_period + elapsed_time */
         atomic_store_local_64(&SW_TIMER_CB.cmd_timeout_cb[free_timer_slot].expiration_time,
             SW_TIMER_SW_TICKS_TO_HW_COUNT(sw_ticks) +
