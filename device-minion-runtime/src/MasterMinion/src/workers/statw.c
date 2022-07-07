@@ -274,7 +274,7 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
     Log_Write(LOG_LEVEL_INFO, "STATW:H[%d]\r\n", hart_id);
 
     /* Initialize the flag to sample device stats. Set the flag to log first sample at the start. */
-    atomic_store_local_32(&STATW_CB.sampling_flag, STATW_SAMPLING_FLAG_SET);
+    atomic_store_local_32(&STATW_CB.sampling_flag, STATW_SAMPLING_FLAG_CLEAR);
 
     /* Create timeout to wait for all Compute Workers to boot up */
     int sw_timer_idx =
@@ -284,6 +284,33 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
     {
         Log_Write(LOG_LEVEL_WARNING,
             "STATW: Unable to register sampler timer! It may not log device stats.\r\n");
+    }
+
+    /* Initilize the first sample for delta calculations. It does not log first sample inot stat Trace. */
+    for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
+    {
+        /* Sample PMC MS Counter 0 and 1 (reads, writes). */
+        current_counter_value = (uint64_t)syscall(
+            SYSCALL_PMC_MS_SAMPLE_INT, shire_id, PMU_MS_PMC0, UNUSED_SYSCALL_ARGS);
+        prev_ddr_read_counter[shire_id] = current_counter_value;
+
+        current_counter_value = (uint64_t)syscall(
+            SYSCALL_PMC_MS_SAMPLE_INT, shire_id, PMU_MS_PMC1, UNUSED_SYSCALL_ARGS);
+        prev_ddr_write_counter[shire_id] = current_counter_value;
+    }
+
+    for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
+    {
+        for (uint64_t neigh_id = 0; neigh_id < NEIGH_PER_SHIRE; neigh_id++)
+        {
+            current_counter_value =
+                (uint64_t)syscall(SYSCALL_PMC_SC_SAMPLE_INT, shire_id, neigh_id, PMU_SC_PMC0);
+            prev_l2_l3_read_counter[shire_id][neigh_id] = current_counter_value;
+
+            current_counter_value =
+                (uint64_t)syscall(SYSCALL_PMC_SC_SAMPLE_INT, shire_id, neigh_id, PMU_SC_PMC1);
+            prev_l2_l3_write_counter[shire_id][neigh_id] = current_counter_value;
+        }
     }
 
     while (1)

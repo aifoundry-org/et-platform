@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - Fixed software timer reload count at the time of expiry.
+- Fixed MM Stat delta initialization.
 ### Security
 
 ## [0.8.0]  - 2022-7-4
