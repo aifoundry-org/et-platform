@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
+
+## [1.2.0] - 2022-7-7
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
 - ET-Top: Decode until you find a valid packet.
 ### Security
 
