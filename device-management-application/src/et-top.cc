@@ -313,8 +313,9 @@ void EtTop::collectSpStats(void) {
   const struct trace_entry_header_t* entry = NULL;
   while ((entry = Trace_Decode(tb_hdr, entry))) {
     if (entry->type != TRACE_TYPE_CUSTOM_EVENT) {
-      DV_LOG(ERROR) << "Trace type not custom event error: " << entry->type;
-      exit(1);
+      DV_LOG(ERROR) << "collectSpStats: Trace type not custom event error: " << entry->type;
+      // Try to decode next event
+      continue;
     }
 
     if (entry->cycle <= spStats_.cycle) {
@@ -356,8 +357,9 @@ void EtTop::collectMmStats(void) {
   const struct trace_entry_header_t* entry = NULL;
   while ((entry = Trace_Decode(tb_hdr, entry))) {
     if (entry->type != TRACE_TYPE_CUSTOM_EVENT) {
-      DV_LOG(ERROR) << "Trace type not custom event error: " << entry->type;
-      exit(1);
+      DV_LOG(ERROR) << "collectMmStats: Trace type not custom event error: " << entry->type;
+      // Try to decode next event
+      continue;
     }
 
     if (entry->cycle <= mmStats_.cycle) {
