@@ -60,6 +60,10 @@ target_include_directories(et-top
     PRIVATE
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
 )
+target_compile_definitions(et-top
+    PUBLIC
+        -DET_TOP_VERSION="${CMAKE_PROJECT_VERSION}"
+)
 
 target_link_libraries(et-top
     PRIVATE

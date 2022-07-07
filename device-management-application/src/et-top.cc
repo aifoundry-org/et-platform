@@ -19,6 +19,7 @@
 #include <cstring>
 #include <ctime>
 #include <dlfcn.h>
+#include <fstream>
 #include <glog/logging.h>
 #include <iomanip>
 #include <iostream>
@@ -30,6 +31,9 @@
 #define DV_LOG(severity) ET_LOG(ET_TOP, severity)
 #define DV_DLOG(severity) ET_DLOG(ET_TOP, severity)
 #define DV_VLOG(level) ET_VLOG(ET_TOP, level)
+
+#define SP_STATS_FILE "sp_stats.bin"
+#define MM_STATS_FILE "mm_stats.bin"
 
 static const int32_t kMaxDeviceNum = 63;
 static const int32_t kOpsCqNum = 1;
@@ -85,10 +89,13 @@ struct mm_stats_t {
 
 class EtTop {
 public:
-  EtTop(int devNum, std::unique_ptr<dev::IDeviceLayer>& dl, device_management::DeviceManagement& dm)
+  EtTop(int devNum, std::unique_ptr<dev::IDeviceLayer>& dl, device_management::DeviceManagement& dm,
+        std::ofstream& mmTrace, std::ofstream& spTrace)
     : devNum_(devNum)
     , dl_(dl)
     , dm_(dm)
+    , mmTrace_(mmTrace)
+    , spTrace_(spTrace)
     , stop_(false)
     , displayErrorDetails_(false) {
     vqStats_[0].qname = "SQ0:";
@@ -129,6 +136,8 @@ private:
   bool displayErrorDetails_;
   std::unique_ptr<dev::IDeviceLayer>& dl_;
   device_management::DeviceManagement& dm_;
+  std::ofstream& mmTrace_;
+  std::ofstream& spTrace_;
 
   std::array<vq_stats_t, kOpsSqNum + kOpsCqNum> vqStats_;
   struct mem_stats_t memStats_;
@@ -302,6 +311,10 @@ void EtTop::collectSpStats(void) {
     exit(1);
   }
 
+  if (spTrace_.is_open()) {
+    spTrace_.write(reinterpret_cast<const char*>(response.data()), response.size());
+  }
+
   struct trace_buffer_std_header_t* tb_hdr;
   tb_hdr = reinterpret_cast<struct trace_buffer_std_header_t*>(response.data());
   if (tb_hdr->type != TRACE_SP_STATS_BUFFER) {
@@ -344,6 +357,10 @@ void EtTop::collectMmStats(void) {
       device_mgmt_api::DM_STATUS_SUCCESS) {
     DV_LOG(ERROR) << "getTraceBufferServiceProcessor error";
     exit(1);
+  }
+
+  if (mmTrace_.is_open()) {
+    mmTrace_.write(reinterpret_cast<const char*>(response.data()), response.size());
   }
 
   struct trace_buffer_std_header_t* tb_hdr;
@@ -453,7 +470,7 @@ void EtTop::displayStats(void) {
   time(&now);
   ctime_r(&now, nowbuf);
   nowbuf[20] = '\0';
-  std::cout << "et-top device " << devNum_ << hhmmss << std::endl;
+  std::cout << "et-top v" ET_TOP_VERSION " device " << devNum_ << hhmmss << std::endl;
   std::cout << "Contiguous Mem Alloc: " << std::setw(6) << std::right << memStats_.cmaAllocated << " MB "
             << std::setw(6) << std::right << memStats_.cmaAllocationRate << " MB/sec\n";
 
@@ -539,27 +556,49 @@ int main(int argc, char** argv) {
   long int devNum = 0;
   long int delay = 1;
   bool usageError = false;
+  bool dumpTraceData = false;
 
   /*
    * Validate the inputs
    */
-  if (argc != 2 && argc != 3) {
+  if (argc < 2 || argc > 4) {
     usageError = true;
   } else {
     devNum = strtol(argv[1], &endptr, 10);
     if (*endptr || devNum < 0 || devNum > kMaxDeviceNum) {
       usageError = true;
-    } else if (argc == 3) {
-      delay = strtol(argv[2], &endptr, 10);
-      if (*endptr || delay < 0) {
-        usageError = true;
+    } else if (argc != 2) {
+      int i = 2;
+      int d = strtol(argv[i], &endptr, 10);
+
+      if (!*endptr) {
+        if (d < 0) {
+          usageError = true;
+        } else {
+          delay = d;
+          i++;
+        }
+      }
+
+      if (!usageError && i < argc) {
+        if (argv[i][0] != '-' || argv[i][1] != 'f' || argv[i][2]) {
+          usageError = true;
+        } else {
+          if (++i < argc) {
+            usageError = true;
+          } else {
+            dumpTraceData = true;
+          }
+        }
       }
     }
   }
 
   if (usageError) {
-    std::cerr << "Usage: " << argv[0] << " DEVNO [DELAY]\n"
-              << "\t\twhere DEVNO is 0-" << kMaxDeviceNum << " and optional update DELAY is in seconds\n";
+    std::cerr << "et-top version " << ET_TOP_VERSION << "\nUsage: " << argv[0] << " DEVNO [DELAY] [-f]\n"
+              << "\tDEVNO is 0-" << kMaxDeviceNum << std::endl
+              << "\tDELAY is an optional update delay in seconds\n"
+              << "\t-f dump trace buffer stats to files " MM_STATS_FILE " and " SP_STATS_FILE "\n";
     exit(1);
   }
 
@@ -573,6 +612,22 @@ int main(int argc, char** argv) {
   if (isatty(STDIN_FILENO) == 0) {
     std::cerr << argv[0] << ": error stdin must be a tty\n";
     exit(1);
+  }
+
+  std::ofstream mmTrace;
+  std::ofstream spTrace;
+  if (dumpTraceData) {
+    mmTrace.open(MM_STATS_FILE, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+    if (!mmTrace.is_open()) {
+      std::cerr << "Error: unable to  open file " MM_STATS_FILE "\n";
+      exit(1);
+    }
+
+    spTrace.open(SP_STATS_FILE, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+    if (!spTrace.is_open()) {
+      std::cerr << "Error: unable to  open file " SP_STATS_FILE "\n";
+      exit(1);
+    }
   }
 
   /*
@@ -626,7 +681,7 @@ int main(int argc, char** argv) {
   /*
    * Enter stats processing loop
    */
-  EtTop etTop(devNum, dl, dm);
+  EtTop etTop(devNum, dl, dm, mmTrace, spTrace);
   int elapsed = delay;
 
   while (1) {
@@ -647,6 +702,11 @@ int main(int argc, char** argv) {
     if (delay > 0) {
       sleep(1);
     }
+  }
+
+  if (dumpTraceData) {
+    mmTrace.close();
+    spTrace.close();
   }
 
   return 0;
