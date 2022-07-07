@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0] - 2022-7-7
 ### Added
+- ET-Top: Add -f dump trace stats buffer option and version info.
 ### Changed
 ### Deprecated
 ### Removed
