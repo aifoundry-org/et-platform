@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.9.0] - 2022-7-7
+### Added
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines
 ### Changed
 ### Deprecated
@@ -16,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed MM Stat delta initialization.
 ### Security
 
-## [0.8.0]  - 2022-7-4
+## [0.8.0] - 2022-7-4
 ### Added
 ### Changed
 - PU timer load count to 1 MHz.
