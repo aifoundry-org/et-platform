@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.4.0] - 2022-07-07
+### Added
+### Changed
 - Disabled `getModuleVoltage` test on Target::Silicon. The test runs fine in the
   beginning but in longer runs of ops + mgmt regression, it times out.
 - Compare received speed with either GEN3 or GEN4 speed in test
