@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Disabled `getModuleVoltage` test on Target::Silicon. The test runs fine in the
   beginning but in longer runs of ops + mgmt regression, it times out.
+- Compare received speed with either GEN3 or GEN4 speed in test
+  `getModulePCIEPortsMaxSpeed`. This will be revert back to comparing the speed
+  with max_link_speed sysfs attribute once fixed in SW-13272.
 ### Deprecated
 ### Removed
 ### Fixed
