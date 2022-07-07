@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Deprecated
 ### Removed
+- mem_stats/clear sysfs attribute file
 ### Fixed
 ### Security
 

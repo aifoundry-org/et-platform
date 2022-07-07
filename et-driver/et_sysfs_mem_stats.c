@@ -56,35 +56,12 @@ static ssize_t cma_allocation_rate_show(struct device *dev,
 			SZ_1M);
 }
 
-static ssize_t clear_store(struct device *dev,
-			   struct device_attribute *attr,
-			   const char *buf,
-			   size_t count)
-{
-	ssize_t rv;
-	unsigned long value;
-	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
-
-	rv = kstrtoul(buf, 0, &value);
-	if (rv)
-		return rv;
-
-	if (value != 1)
-		return -EINVAL;
-
-	et_mem_stats_init(&et_dev->ops.mem_stats);
-
-	return count;
-}
-
 static DEVICE_ATTR_RO(cma_allocated);
 static DEVICE_ATTR_RO(cma_allocation_rate);
-static DEVICE_ATTR_WO(clear);
 
 static struct attribute *mem_stats_attrs[] = {
 	&dev_attr_cma_allocated.attr,
 	&dev_attr_cma_allocation_rate.attr,
-	&dev_attr_clear.attr,
 	NULL,
 };
 
