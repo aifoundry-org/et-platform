@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Deprecated
 ### Removed
+- ET-Top: Remove use of routines from dlfcn.h.
 ### Fixed
 - ET-Top: Decode until you find a valid packet.
 ### Security

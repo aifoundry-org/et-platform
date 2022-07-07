@@ -18,7 +18,6 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
-#include <dlfcn.h>
 #include <fstream>
 #include <glog/logging.h>
 #include <iomanip>
@@ -619,13 +618,13 @@ int main(int argc, char** argv) {
   if (dumpTraceData) {
     mmTrace.open(MM_STATS_FILE, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
     if (!mmTrace.is_open()) {
-      std::cerr << "Error: unable to  open file " MM_STATS_FILE "\n";
+      std::cerr << "Error: unable to open file " MM_STATS_FILE "\n";
       exit(1);
     }
 
     spTrace.open(SP_STATS_FILE, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
     if (!spTrace.is_open()) {
-      std::cerr << "Error: unable to  open file " SP_STATS_FILE "\n";
+      std::cerr << "Error: unable to open file " SP_STATS_FILE "\n";
       exit(1);
     }
   }
@@ -658,29 +657,10 @@ int main(int argc, char** argv) {
   }
 
   /*
-   * Set up access to the target device stats
-   */
-  device_management::getDM_t dmi;
-  void* handle = dlopen("libDM.so", RTLD_LAZY);
-  if (!handle) {
-    DV_LOG(ERROR) << "dlopen error " << dlerror();
-    exit(1);
-  } else {
-    const char* error;
-
-    dmi = reinterpret_cast<device_management::getDM_t>(dlsym(handle, "getInstance"));
-    if ((error = dlerror())) {
-      DV_LOG(ERROR) << "dlsym error " << error;
-      exit(1);
-    }
-  }
-
-  std::unique_ptr<dev::IDeviceLayer> dl = dev::IDeviceLayer::createPcieDeviceLayer(false, true);
-  device_management::DeviceManagement& dm = (*dmi)(dl.get());
-
-  /*
    * Enter stats processing loop
    */
+  std::unique_ptr<dev::IDeviceLayer> dl = dev::IDeviceLayer::createPcieDeviceLayer(false, true);
+  device_management::DeviceManagement& dm = device_management::DeviceManagement::getInstance(dl.get());
   EtTop etTop(devNum, dl, dm, mmTrace, spTrace);
   int elapsed = delay;
 
