@@ -39,6 +39,9 @@ TEST_F(IntegrationTestDevMgmtApiTraceCmds, getSpTraceBuffer) {
   setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
                     device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG);
   setAndGetModuleStaticTDPLevel(false /* Multiple devices */);
+
+  // TODO: Temporary workaround to get the SP traces correctly
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
   ASSERT_TRUE(extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP));
 
   /* Restore the logging level back */

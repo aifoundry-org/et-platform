@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compare received speed with either GEN3 or GEN4 speed in test
   `getModulePCIEPortsMaxSpeed`. This will be revert back to comparing the speed
   with max_link_speed sysfs attribute once fixed in SW-13272.
+- Adding a delay in getSpTraceBuffer test as a temporary workaround.
+- Disable getModulePower test on SysEMU.
 ### Deprecated
 ### Removed
 ### Fixed

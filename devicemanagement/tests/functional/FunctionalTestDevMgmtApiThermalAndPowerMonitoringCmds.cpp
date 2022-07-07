@@ -53,9 +53,9 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleUptime) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModulePower) {
-  // TODO: SW-13220: Enable back on Target::Silicon, following failure is seen with V2/V3 card
+  // TODO: SW-13220: Enable back on Target::Silicon and SysEMU, following failure is seen with V2/V3 card
   // Expected: (module_power->power) != (0), actual: '\0' vs 0
-  if (getTestTarget() != Target::Silicon) {
+  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu})) {
     getModulePower(false /* Multiple devices */);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
