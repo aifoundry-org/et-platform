@@ -21,6 +21,7 @@
        update_module_uptime
        update_module_throttle_time
        update_module_power_residency
+       update_pmb_stats
        get_module_power_state
        get_module_tdp_level
        get_module_temperature_threshold
@@ -89,11 +90,11 @@ struct soc_power_reg_t
     struct temperature_threshold_t temperature_threshold;
     struct module_uptime_t module_uptime;
     struct module_voltage_t module_voltage;
-    struct module_current_t module_current;
     struct residency_t power_max_residency;
     struct residency_t power_managed_residency;
     struct residency_t power_safe_residency;
     struct residency_t power_low_residency;
+    struct pmb_stats_t pmb_stats;
     dm_event_isr_callback event_cb;
     power_throttle_state_e power_throttle_state;
     uint8_t active_power_management;
@@ -558,19 +559,12 @@ int get_module_current_temperature(struct current_temperature_t *temperature)
 int update_module_soc_power(void)
 {
     uint8_t soc_pwr = 0;
-    uint16_t module_pwr = 0;
     int32_t soc_pwr_mW = 0;
     int32_t tdp_level_mW = 0;
 
     if (SUCCESS != get_module_voltage(NULL))
     {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to update module voltage\r\n");
-        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
-    }
-
-    if (SUCCESS != update_module_current())
-    {
-        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to update module current\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
 
@@ -584,25 +578,25 @@ int update_module_soc_power(void)
         soc_pwr_mW = Power_Convert_Hex_to_mW(soc_pwr);
         CMA(get_soc_power_reg()->op_stats.system.power, (uint16_t)soc_pwr_mW)
         CALC_MIN_MAX(get_soc_power_reg()->op_stats.system.power, (uint16_t)soc_pwr_mW)
-        get_soc_power_reg()->soc_power = (uint8_t)(soc_pwr_mW / 1000);
+        get_soc_power_reg()->soc_power = soc_pwr;
     }
 
-    /* Update moving average , min and max values of Minion, NOC and SRAM powers */
-    module_pwr = CALC_POWER(get_soc_power_reg()->module_voltage.minion,
-                            get_soc_power_reg()->module_current.minion);
+    /* Update average, min and max values of Minion, NOC and SRAM powers */
+    get_soc_power_reg()->op_stats.minion.power.avg =
+        get_soc_power_reg()->pmb_stats.minion.w_out.average;
+    get_soc_power_reg()->op_stats.minion.power.min =
+        get_soc_power_reg()->pmb_stats.minion.w_out.min;
+    get_soc_power_reg()->op_stats.minion.power.max =
+        get_soc_power_reg()->pmb_stats.minion.w_out.max;
 
-    CMA(get_soc_power_reg()->op_stats.minion.power, module_pwr)
-    CALC_MIN_MAX(get_soc_power_reg()->op_stats.minion.power, module_pwr)
+    get_soc_power_reg()->op_stats.noc.power.avg = get_soc_power_reg()->pmb_stats.noc.w_out.average;
+    get_soc_power_reg()->op_stats.noc.power.min = get_soc_power_reg()->pmb_stats.noc.w_out.min;
+    get_soc_power_reg()->op_stats.noc.power.max = get_soc_power_reg()->pmb_stats.noc.w_out.max;
 
-    module_pwr = CALC_POWER(get_soc_power_reg()->module_voltage.noc,
-                            get_soc_power_reg()->module_current.noc);
-    CMA(get_soc_power_reg()->op_stats.noc.power, module_pwr)
-    CALC_MIN_MAX(get_soc_power_reg()->op_stats.noc.power, module_pwr)
-
-    module_pwr = CALC_POWER(get_soc_power_reg()->module_voltage.l2_cache,
-                            get_soc_power_reg()->module_current.sram);
-    CMA(get_soc_power_reg()->op_stats.sram.power, soc_pwr)
-    CALC_MIN_MAX(get_soc_power_reg()->op_stats.sram.power, module_pwr)
+    get_soc_power_reg()->op_stats.sram.power.avg =
+        get_soc_power_reg()->pmb_stats.sram.w_out.average;
+    get_soc_power_reg()->op_stats.sram.power.min = get_soc_power_reg()->pmb_stats.sram.w_out.min;
+    get_soc_power_reg()->op_stats.sram.power.max = get_soc_power_reg()->pmb_stats.sram.w_out.max;
 
     /* module_tdp_level is in Watts, converting to miliWatts */
     tdp_level_mW = get_soc_power_reg()->module_tdp_level * 1000;
@@ -689,12 +683,13 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     status = pvt_get_minion_avg_low_high_voltage(&minshire_voltage);
     if (status == STATUS_SUCCESS)
     {
+        /* SRAM voltage value is to be stored in l2_cache placeholder as currently no SRAM member is available in module_voltage */
         get_soc_power_reg()->module_voltage.l2_cache =
-            PMIC_VOLTAGE_TO_HEX(minshire_voltage.vdd_sram.current, PMIC_SRAM_VOLTAGE_MULTIPLIER);
+            PMIC_MILLIVOLT_TO_HEX(minshire_voltage.vdd_sram.current, PMIC_SRAM_VOLTAGE_MULTIPLIER);
         get_soc_power_reg()->module_voltage.minion =
-            PMIC_VOLTAGE_TO_HEX(minshire_voltage.vdd_mnn.current, PMIC_MINION_VOLTAGE_MULTIPLIER);
+            PMIC_MILLIVOLT_TO_HEX(minshire_voltage.vdd_mnn.current, PMIC_MINION_VOLTAGE_MULTIPLIER);
         get_soc_power_reg()->module_voltage.noc =
-            PMIC_VOLTAGE_TO_HEX(minshire_voltage.vdd_noc.current, PMIC_MINION_VOLTAGE_MULTIPLIER);
+            PMIC_MILLIVOLT_TO_HEX(minshire_voltage.vdd_noc.current, PMIC_MINION_VOLTAGE_MULTIPLIER);
         Log_Write(
             LOG_LEVEL_DEBUG,
             "get_module_voltage: L2 Cache/SRAM Voltage: %d \t minion voltage: %d\t noc voltage: %d\r\n",
@@ -710,7 +705,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     if (status == STATUS_SUCCESS)
     {
         get_soc_power_reg()->module_voltage.ddr =
-            PMIC_VOLTAGE_TO_HEX(memshire_voltage.vdd_ms.current, PMIC_DDR_VOLTAGE_MULTIPLIER);
+            PMIC_MILLIVOLT_TO_HEX(memshire_voltage.vdd_ms.current, PMIC_DDR_VOLTAGE_MULTIPLIER);
         Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: ddr voltage: %d\r\n",
                   memshire_voltage.vdd_ms.current);
     }
@@ -723,7 +718,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     if (status == STATUS_SUCCESS)
     {
         get_soc_power_reg()->module_voltage.maxion =
-            PMIC_VOLTAGE_TO_HEX(ioshire_voltage.vdd_mxn.current, PMIC_MAXION_VOLTAGE_MULTIPLIER);
+            PMIC_MILLIVOLT_TO_HEX(ioshire_voltage.vdd_mxn.current, PMIC_MAXION_VOLTAGE_MULTIPLIER);
 
         Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: maxion voltage: %d\r\n",
                   ioshire_voltage.vdd_mxn.current);
@@ -737,7 +732,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     if (status == STATUS_SUCCESS)
     {
         get_soc_power_reg()->module_voltage.pcie =
-            PMIC_PCIE_VOLTAGE_TO_HEX(pshr_voltage.vdd_pshr.current);
+            PMIC_PCIE_MILLIVOLT_TO_HEX(pshr_voltage.vdd_pshr.current);
         Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: pcie voltage: %d\r\n",
                   pshr_voltage.vdd_pshr.current);
     }
@@ -746,7 +741,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
         MESSAGE_ERROR("thermal pwr mgmt svc error: faild to get pshire voltage\n");
     }
 
-    /* hardcorded module voltage values because it not currently available with pvt */
+    /* hardcorded nominal module voltage values because they are not currently available with pvt */
     get_soc_power_reg()->module_voltage.vddqlp = 0x25;
     get_soc_power_reg()->module_voltage.vddq = 0x55;
     get_soc_power_reg()->module_voltage.pcie_logic = 0x18;
@@ -763,11 +758,11 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
 *
 *   FUNCTION
 *
-*       update_module_current
+*       update_pmb_stats
 *
 *   DESCRIPTION
 *
-*       This function updates the current value for all modules.
+*       This function updates the PMB stats for NOC, SRAM and minion modules.
 *
 *   INPUTS
 *
@@ -778,29 +773,12 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
 *       int                     Return status
 *
 ***********************************************************************/
-int update_module_current(void)
+int update_pmb_stats(void)
 {
-    uint32_t value = 0;
     int status = STATUS_SUCCESS;
 
-    /* obtain current values in Ma from pmic */
-    status = pmic_get_pmb_stats(PMB_MINION, CURRENT, A_OUT, &value);
-    if (status == STATUS_SUCCESS)
-    {
-        get_soc_power_reg()->module_current.minion = (uint16_t)value;
-    }
-
-    status = pmic_get_pmb_stats(PMB_NOC, CURRENT, A_OUT, &value);
-    if (status == STATUS_SUCCESS)
-    {
-        get_soc_power_reg()->module_current.noc = (uint16_t)value;
-    }
-
-    status = pmic_get_pmb_stats(PMB_SRAM, CURRENT, A_OUT, &value);
-    if (status == STATUS_SUCCESS)
-    {
-        get_soc_power_reg()->module_current.sram = (uint16_t)value;
-    }
+    /* obtain PMB values from PMIC */
+    status = pmic_get_pmb_stats(&g_soc_power_reg.pmb_stats);
 
     return status;
 }

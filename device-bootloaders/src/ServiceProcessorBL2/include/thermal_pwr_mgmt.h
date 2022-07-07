@@ -42,27 +42,6 @@
 /* Number of samples to collect average */
 #define NUM_SAMPLES 100
 
-/*! \struct pvt_module_voltage_t
-    \brief Struct use to hold samples voltage values
-*/
-struct pvt_module_voltage_t
-{
-    uint16_t minion; /**< Minion Voltage */
-    uint16_t noc;    /**< NOC Voltage */
-    uint16_t sram;   /**< SRAM Voltage */
-    uint8_t pad[2];  /**< Padding for alignment */
-
-} __attribute__((packed));
-
-struct module_current_t
-{
-    uint16_t minion; /**< Minion Current */
-    uint16_t noc;    /**< NOC Current */
-    uint16_t sram;   /**< SRAM Current */
-    uint8_t pad[2];  /**< Padding for alignment */
-
-} __attribute__((packed));
-
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register
     \param none
@@ -252,12 +231,12 @@ void trace_power_state_test(uint16_t tag, uint64_t req_start_time, void *cmd);
 */
 void thermal_throttling(power_throttle_state_e throttle_state);
 
-/*! \fn int update_module_current(void)
-    \brief This function updates the current value for all modules.
+/*! \fn int update_pmb_stats(void)
+    \brief This function updates the PMB stats for NOC, SRAM and minion modules.
     \param none
     \returns Status indicating success or negative error
 */
-int update_module_current(void);
+int update_pmb_stats(void);
 
 /*! \fn void print_system_operating_point(void)
     \brief This function prints system operating point

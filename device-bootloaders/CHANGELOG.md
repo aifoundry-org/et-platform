@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13253] Added support to read Minion, NOC and SRAM current from PMIC
 - [SW-13035] Enforce updation of CHANGELOG.md and patch version in merge request pipelines
 - [SW-13284] Adding locks to I2C driver and minor fixes in soc power
+- [SW-13253]: Adding functionality to read PMB stats from PMIC
 ### Changed
 - Conanfile now declares dependencies with version-ranges
 ### Deprecated

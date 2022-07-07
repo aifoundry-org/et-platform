@@ -48,6 +48,7 @@
         pmic_force_perst
         pmic_reset_wdog_timer
         pmic_read_average_soc_power
+        pmic_get_pmb_stats
         I2C_PMIC_Initialize
         I2C_PMIC_Read
         I2C_PMIC_Write
@@ -75,6 +76,7 @@
 #include "interrupt.h"
 #include "bl_error_code.h"
 #include "log.h"
+#include "delays.h"
 
 #include "hwinc/hal_device.h"
 #include "hwinc/sp_cru_reset.h"
@@ -84,6 +86,10 @@
 #define ENABLE_ALL_PMIC_INTERRUPTS 0xFF
 #define BYTE_SIZE                  8
 #define PMB_READ_BYTES             4
+
+/* PMB related defines */
+#define PMB_READ_BYTES 4
+#define PMB_STATS_MASK 0xffff
 
 static struct pmic_event_control_block event_control_block __attribute__((section(".data")));
 
@@ -204,6 +210,56 @@ inline static int set_pmic_reg(uint8_t reg, uint8_t value, uint8_t reg_size)
     }
 
     return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_get_pmb_rstat
+*
+*   DESCRIPTION
+*
+*       This function gets PMB status for a particular value type. Value types
+*       supported are v_out, a_out, w_out, v_in, a_in, w_in, deg_c.
+*
+*   INPUTS
+*
+*       stat_reading        pmb stats reading placeholder
+*
+*   OUTPUTS
+*
+*       SUCCESS or any error value
+*
+***********************************************************************/
+static int pmic_get_pmb_rstat(struct pmb_reading_type_t *stat_reading)
+{
+    int status = STATUS_SUCCESS;
+    uint32_t temp_val = 0;
+
+    status = get_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS, (uint8_t *)&temp_val, PMB_READ_BYTES);
+    if (status == STATUS_SUCCESS)
+    {
+        stat_reading->current = (temp_val & PMB_STATS_MASK);
+
+        status = get_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS, (uint8_t *)&temp_val, PMB_READ_BYTES);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        stat_reading->min = (temp_val & PMB_STATS_MASK);
+        status = get_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS, (uint8_t *)&temp_val, PMB_READ_BYTES);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        stat_reading->max = (temp_val & PMB_STATS_MASK);
+        status = get_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS, (uint8_t *)&temp_val, PMB_READ_BYTES);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        stat_reading->average = (temp_val & PMB_STATS_MASK);
+    }
+
+    return status;
 }
 
 /************************************************************************
@@ -1364,25 +1420,98 @@ int pmic_set_minion_group_voltage(uint8_t group_id, uint8_t voltage)
 *       current           current value in mA
 *
 ***********************************************************************/
-int pmic_get_pmb_stats(pmb_module_type_e module_type, pmb_reading_type_e reading_type,
-                       pmb_value_type_e value_type, uint32_t *value)
+int pmic_get_pmb_stats(struct pmb_stats_t *pmb_stats)
 {
     int32_t status = STATUS_SUCCESS;
 
-    status = set_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS,
-                          (uint8_t)(PMIC_I2C_REG_PMB_STATS_COMPONENT_TYPE_SET(module_type) |
-                                    PMIC_I2C_REG_PMB_STATS_VALUE_TYPE_SET(reading_type) |
-                                    PMIC_I2C_REG_PMB_STATS_OUTPUT_TYPE_SET(value_type)),
-                          1);
+    /* write PMB register to generate snapshot of all stats and then read all stats*/
+    status = set_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS, PMIC_I2C_PMB_STATS_SNAPSHOT_VALUE, 1);
     if (status == STATUS_SUCCESS)
     {
-        return (get_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS, (uint8_t *)value, PMB_READ_BYTES));
+        status = pmic_get_pmb_rstat(&pmb_stats->minion.v_out);
     }
-    else
+    if (status == STATUS_SUCCESS)
     {
-        MESSAGE_ERROR("Failed to write PMIC PMB Stats register");
-        return ERROR_PMIC_I2C_WRITE_FAILED;
+        status = pmic_get_pmb_rstat(&pmb_stats->minion.a_out);
     }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->minion.w_out);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->minion.v_in);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->minion.a_in);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->minion.w_in);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->minion.deg_c);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->noc.v_out);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->noc.a_out);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->noc.w_out);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->noc.v_in);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->noc.a_in);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->noc.w_in);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->noc.deg_c);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->sram.v_out);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->sram.a_out);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->sram.w_out);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->sram.v_in);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->sram.a_in);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->sram.w_in);
+    }
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_get_pmb_rstat(&pmb_stats->sram.deg_c);
+    }
+
+    return status;
 }
 
 /************************************************************************

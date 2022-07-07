@@ -122,6 +122,14 @@ static void dm_task_entry(void *pvParameters)
                       "thermal pwr mgmt svc error : update_module_current_temperature()\r\n");
         }
 
+        // update PMB stats, it updates voltage, current and power for minion, NOC and SRAM modules
+        ret = update_pmb_stats();
+
+        if (0 != ret)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error : update_pmb_stats()\r\n");
+        }
+
         // Module Power in watts
         ret = update_module_soc_power();
 
@@ -197,8 +205,7 @@ static void dm_log_operating_point_stats(void)
         Trace_Custom_Event(Trace_Get_Dev_Stats_CB(), TRACE_CUSTOM_TYPE_SP_OP_STATS,
                            (uint8_t *)&op_stats, sizeof(struct op_stats_t));
 
-        /* Update data size in stats buffer */
-        Trace_Update_SP_Stats_Buffer_Header();
+        portEXIT_CRITICAL();
     }
     else
     {

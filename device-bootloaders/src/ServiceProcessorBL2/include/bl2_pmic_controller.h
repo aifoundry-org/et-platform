@@ -38,6 +38,18 @@ typedef enum
 } voltage_type_e;
 
 /*!
+ * @enum  enum pmb_module_type_e
+ * @brief Different module types supported by PMIC
+ */
+typedef enum
+{
+    PMB_MINION = 0,
+    PMB_NOC,
+    PMB_SRAM,
+    PMB_MAX_MODULE_TYPE
+} pmb_module_type_e;
+
+/*!
  * @enum  enum pmb_value_type_e
  * @brief set value types supported by PMIC PMB Stats
  */
@@ -49,19 +61,9 @@ typedef enum
     V_IN,
     A_IN,
     W_IN,
-    DEG_C
+    DEG_C,
+    PMB_MAX_VALUE_TYPE
 } pmb_value_type_e;
-
-/*!
- * @enum  enum pmb_module_type_e
- * @brief Different module types supported by PMIC
- */
-typedef enum
-{
-    PMB_MINION = 0,
-    PMB_NOC,
-    PMB_SRAM,
-} pmb_module_type_e;
 
 /*!
  * @enum  enum pmb_reading_type_e
@@ -73,7 +75,43 @@ typedef enum
     MIN,
     MAX,
     AVERAGE,
+    PMB_MAX_READING_TYPE
 } pmb_reading_type_e;
+
+/*! \struct pmb_reading_type_t
+    \brief Struct use to hold PMB stat reading type
+*/
+struct pmb_reading_type_t
+{
+    uint16_t current; /**<current value*/
+    uint16_t min;     /**< minimum value */
+    uint16_t max;     /**< maximum value */
+    uint16_t average; /**< average value */
+} __attribute__((packed));
+
+/*! \struct pmb_values_t
+    \brief Struct use to hold PMB stat values
+*/
+struct pmb_values_t
+{
+    struct pmb_reading_type_t v_out; /**< Voltage output*/
+    struct pmb_reading_type_t a_out; /**< Ampere output */
+    struct pmb_reading_type_t w_out; /**< Power output */
+    struct pmb_reading_type_t v_in;  /**< Voltage input */
+    struct pmb_reading_type_t a_in;  /**< Ampere input */
+    struct pmb_reading_type_t w_in;  /**< Power input */
+    struct pmb_reading_type_t deg_c; /**< Temperature */
+} __attribute__((packed));
+
+/*! \struct pmb_stats_t
+    \brief Struct use to hold PMB stats for minion, noc and sram
+*/
+struct pmb_stats_t
+{
+    struct pmb_values_t minion; /**< Minion stats */
+    struct pmb_values_t noc;    /**< NOC stats */
+    struct pmb_values_t sram;   /**< SRAM stats */
+} __attribute__((packed));
 
 /*!
  * @struct struct pmic_event_control_block
@@ -89,8 +127,6 @@ struct pmic_event_control_block
     dm_pmic_isr_callback thermal_pwr_event_cb; /**< Thermal power event callback handler. */
 };
 
-/* Macro to encode voltage value to 8 bit encoding*/
-
 // Multiplier for each Power rail
 #define PMIC_DDR_VOLTAGE_MULTIPLIER        5
 #define PMIC_SRAM_VOLTAGE_MULTIPLIER       5
@@ -101,14 +137,11 @@ struct pmic_event_control_block
 #define PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER 625
 #define PMIC_PCIE_VOLTAGE_MULTIPLIER       125
 
-/* General Voltage convertion formula: Voltage = 0.25V + Reg*0.10 */
-#define PMIC_VOLTAGE_TO_HEX(val, idx) (uint8_t)(((val - 250) / idx))
-#define PMIC_HEX_TO_VOLTAGE(val, idx) ((val * idx) + 250)
-/* PCIe convertion formula: Voltage = 0.6V + Reg*0.10 */
-#define PMIC_PCIE_VOLTAGE_TO_HEX(val) (uint8_t)(((val - 600) * 10 / 125))
-/* PCIe Logic convertion formula: Voltage = 0.6V + Reg*0.100 */
-#define PMIC_PCIE_LOGIC_VOLTAGE_TO_HEX(val) (uint8_t)(((val - 600) * 100 / 625))
-
+/* Macro to encode voltage value to 8 bit encoding*/
+#define PMIC_MILLIVOLT_TO_HEX(val, idx)       (uint8_t)(((val - 250) / idx))
+#define PMIC_HEX_TO_MILLIVOLT(val, idx)       ((val * idx) + 250)
+#define PMIC_PCIE_MILLIVOLT_TO_HEX(val)       (uint8_t)(((val - 600) * 10 / 125))
+#define PMIC_PCIE_LOGIC_MILLIVOLT_TO_HEX(val) (uint8_t)(((val - 600) * 100 / 625))
 /*! \fn void setup_pmic(void)
     \brief This function initialize I2C connection.
 */
@@ -267,30 +300,15 @@ int pmic_get_minion_group_voltage(uint8_t group_id, uint8_t *voltage);
 */
 int pmic_set_minion_group_voltage(uint8_t group_id, uint8_t voltage);
 
-/*! \fn int pmic_get_pmb_stats(pmb_component_type_e module_type, pmb_value_type_e value_type, uint8_t *current)
+/*! \fn int pmic_get_pmb_stats(struct pmb_stats_t *pmb_stats)
     \brief This function returns PMB stats os specified module.
-    \param module_type - voltage type to be set:
+    \param pmb_stats - pmb stats structure to hold stat values for:
 *   - MINION
 *   - NOC
 *   - SRAM
-    \param reading_type - reading type set
-*   - CURRENT
-*   - MIN
-*   - MAX
-*   - AVERAGE
-*   \param value_type - value type set
-*   - V_OUT
-*   - A_OUT
-*   - W_OUT
-*   - V_IN
-*   - A_IN
-*   - W_IN
-*   - DEG_C
-    \param value - output current value in mA.
     \return The function call status, pass/fail.
 */
-int32_t pmic_get_pmb_stats(pmb_module_type_e module_type, pmb_reading_type_e reading_type,
-                           pmb_value_type_e value_type, uint32_t *value);
+int32_t pmic_get_pmb_stats(struct pmb_stats_t *pmb_stats);
 
 /*! \fn int pmic_enable_wdog_timer(void)
     \brief This function enables the watchdog timer.
