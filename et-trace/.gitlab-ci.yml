@@ -92,12 +92,11 @@ test:conan:
   variables:
     TIMEOUT: 15m
     CMD_BUILD: |
-      mkdir cmake-build-release
-      cd cmake-build-release
-      conan install .. -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-release -o esperantoTrace:with_tests=True
-      cmake .. -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake
-      cmake --build .
-      ctest . --verbose
+      conan remote disable conan-tmp
+      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-release -o esperantoTrace:with_tests=True
+      cmake --preset Release -G Ninja
+      cmake --build --preset Release
+      ctest --test-dir cmake-build-release --output-on-failure
 
 
 ###############################################################################

@@ -1,8 +1,12 @@
 # build
 build
 cmake-build-*
+CMakeUserPresets.json
 
 # conan
+conanbuildinfo.txt
+conaninfo.txt
+graph_info.json
 test_package/build
 *.lock
 
