@@ -121,6 +121,8 @@ public:
 
 private:
   bool processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total);
+  void displayOpStat(const std::string powstat, const struct op_value* power, const std::string tempstat = "",
+                     const struct op_value* temp = NULL);
   void displayComputeStat(const std::string stat, const struct resource_value& rv, const bool convertMBtoGB = false);
   void displayErrorDetails(std::map<std::string, uint64_t>& error, bool addColon = false, std::string prefix = "");
   void collectMemStats(void);
@@ -435,6 +437,24 @@ void EtTop::processInput(void) {
   return;
 }
 
+void EtTop::displayOpStat(const std::string powstat, const struct op_value* power, const std::string tempstat,
+                          const struct op_value* temp) {
+  // convert to watts from milliwatts
+  float avg = power->avg / 1000.0;
+  float min = power->min / 1000.0;
+  float max = power->max / 1000.0;
+
+  std::cout << std::setprecision(2) << std::fixed;
+  std::cout << "\t" + powstat + " avg: " << std::setw(5) << std::right << avg << "  min: " << std::setw(5) << std::right
+            << min << "  max: " << std::setw(5) << std::right << max;
+  if (temp) {
+    std::cout << "  " + tempstat + " avg: " << std::setw(4) << std::left << temp->avg << " min: " << std::setw(4)
+              << std::left << temp->min << " max: " << std::setw(4) << std::left << temp->max;
+  }
+  std::cout << std::endl;
+  return;
+}
+
 void EtTop::displayComputeStat(const std::string stat, const struct resource_value& rv, const bool convertMBtoGB) {
   uint64_t avg = rv.avg;
   uint64_t min = rv.min;
@@ -473,34 +493,17 @@ void EtTop::displayStats(void) {
   std::cout << "Contiguous Mem Alloc: " << std::setw(6) << std::right << memStats_.cmaAllocated << " MB "
             << std::setw(6) << std::right << memStats_.cmaAllocationRate << " MB/sec\n";
 
-  std::cout << "Watts:                                            Temp(C):\n";
-  struct op_value* power = &spStats_.op.system.power;
-  std::cout << "\tCARD        avg: " << std::setw(4) << std::left << power->avg << " min: " << std::setw(4) << std::left
-            << power->min << " max: " << std::setw(4) << std::left << power->max << std::endl;
+  struct op_value etsocPower;
+  etsocPower.avg = spStats_.op.minion.power.avg + spStats_.op.sram.power.avg + spStats_.op.noc.power.avg;
+  etsocPower.min = spStats_.op.minion.power.min + spStats_.op.sram.power.min + spStats_.op.noc.power.min;
+  etsocPower.max = spStats_.op.minion.power.max + spStats_.op.sram.power.max + spStats_.op.noc.power.max;
 
-  uint64_t avg = spStats_.op.minion.power.avg + spStats_.op.sram.power.avg + spStats_.op.noc.power.avg;
-  uint64_t min = spStats_.op.minion.power.min + spStats_.op.sram.power.min + spStats_.op.noc.power.min;
-  uint64_t max = spStats_.op.minion.power.max + spStats_.op.sram.power.max + spStats_.op.noc.power.max;
-  struct op_value* temp = &spStats_.op.system.temperature;
-  std::cout << "\t- ETSOC     avg: " << std::setw(4) << std::left << avg << " min: " << std::setw(4) << std::left << min
-            << " max: " << std::setw(4) << std::left << max << " ETSOC     avg: " << std::setw(4) << std::left
-            << temp->avg << " min: " << std::setw(4) << std::left << temp->min << " max: " << std::setw(4) << std::left
-            << temp->max << std::endl;
-
-  power = &spStats_.op.minion.power;
-  temp = &spStats_.op.minion.temperature;
-  std::cout << "\t  - MINION  avg: " << std::setw(4) << std::left << power->avg << " min: " << std::setw(4) << std::left
-            << power->min << " max: " << std::setw(4) << std::left << power->max << " - MINION  avg: " << std::setw(4)
-            << std::left << temp->avg << " min: " << std::setw(4) << std::left << temp->min << " max: " << std::setw(4)
-            << std::left << temp->max << std::endl;
-
-  power = &spStats_.op.sram.power;
-  std::cout << "\t  - SRAM    avg: " << std::setw(4) << std::left << power->avg << " min: " << std::setw(4) << std::left
-            << power->min << " max: " << std::setw(4) << std::left << power->max << std::endl;
-
-  power = &spStats_.op.noc.power;
-  std::cout << "\t  - NOC     avg: " << std::setw(4) << std::left << power->avg << " min: " << std::setw(4) << std::left
-            << power->min << " max: " << std::setw(4) << std::left << power->max << std::endl;
+  std::cout << "Watts:                                                  Temp(C):\n";
+  displayOpStat("CARD       ", &spStats_.op.system.power);
+  displayOpStat("- ETSOC    ", &etsocPower, "ETSOC    ", &spStats_.op.system.temperature);
+  displayOpStat("  - MINION ", &spStats_.op.minion.power, "- MINION ", &spStats_.op.minion.temperature);
+  displayOpStat("  - SRAM   ", &spStats_.op.sram.power);
+  displayOpStat("  - NOC    ", &spStats_.op.noc.power);
 
   std::cout << "Compute:\n";
   resource_value dummy = {0, 0, 0}; // XXX eliminate this when implementation is ready
