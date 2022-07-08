@@ -88,14 +88,13 @@ struct mm_stats_t {
 
 class EtTop {
 public:
-  EtTop(int devNum, std::unique_ptr<dev::IDeviceLayer>& dl, device_management::DeviceManagement& dm,
-        std::ofstream& mmTrace, std::ofstream& spTrace)
+  EtTop(int devNum, std::unique_ptr<dev::IDeviceLayer>& dl, device_management::DeviceManagement& dm)
     : devNum_(devNum)
     , dl_(dl)
     , dm_(dm)
-    , mmTrace_(mmTrace)
-    , spTrace_(spTrace)
     , stop_(false)
+    , dumpNextSpStatsBuffer_(false)
+    , dumpNextMmStatsBuffer_(false)
     , displayErrorDetails_(false) {
     vqStats_[0].qname = "SQ0:";
     vqStats_[1].qname = "SQ1:";
@@ -134,11 +133,11 @@ private:
 
   int devNum_;
   bool stop_;
+  bool dumpNextSpStatsBuffer_;
+  bool dumpNextMmStatsBuffer_;
   bool displayErrorDetails_;
   std::unique_ptr<dev::IDeviceLayer>& dl_;
   device_management::DeviceManagement& dm_;
-  std::ofstream& mmTrace_;
-  std::ofstream& spTrace_;
 
   std::array<vq_stats_t, kOpsSqNum + kOpsCqNum> vqStats_;
   struct mem_stats_t memStats_;
@@ -312,8 +311,17 @@ void EtTop::collectSpStats(void) {
     exit(1);
   }
 
-  if (spTrace_.is_open()) {
-    spTrace_.write(reinterpret_cast<const char*>(response.data()), response.size());
+  if (dumpNextSpStatsBuffer_) {
+    dumpNextSpStatsBuffer_ = false;
+
+    std::ofstream spTrace;
+    spTrace.open(SP_STATS_FILE, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+    if (!spTrace.is_open()) {
+      DV_LOG(ERROR) << "Error: unable to open file " SP_STATS_FILE "\n";
+    } else {
+      spTrace.write(reinterpret_cast<const char*>(response.data()), response.size());
+      spTrace.close();
+    }
   }
 
   struct trace_buffer_std_header_t* tb_hdr;
@@ -360,8 +368,17 @@ void EtTop::collectMmStats(void) {
     exit(1);
   }
 
-  if (mmTrace_.is_open()) {
-    mmTrace_.write(reinterpret_cast<const char*>(response.data()), response.size());
+  if (dumpNextMmStatsBuffer_) {
+    dumpNextMmStatsBuffer_ = false;
+
+    std::ofstream mmTrace;
+    mmTrace.open(MM_STATS_FILE, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+    if (!mmTrace.is_open()) {
+      DV_LOG(ERROR) << "Error: unable to open file " MM_STATS_FILE "\n";
+    } else {
+      mmTrace.write(reinterpret_cast<const char*>(response.data()), response.size());
+      mmTrace.close();
+    }
   }
 
   struct trace_buffer_std_header_t* tb_hdr;
@@ -422,12 +439,16 @@ void EtTop::processInput(void) {
     } else if (ch == 'q') {
       stop_ = true;
       std::cout << std::endl;
+    } else if (ch == 'd') {
+      dumpNextSpStatsBuffer_ = true;
+      dumpNextMmStatsBuffer_ = true;
     } else if (ch == 'e') {
       displayErrorDetails_ = !displayErrorDetails_;
     } else if (ch == 'h') {
       help = true;
       system("clear");
-      std::cout << "e\tToggle display of error details\n"
+      std::cout << "d\tDump next trace stats buffers to mm_stats.bin and sp_stats.bin files\n"
+                << "e\tToggle display of error details\n"
                 << "h\tPrint this help message\n"
                 << "q\tQuit\n"
                 << "Type 'q' or <ESC> to continue ";
@@ -558,49 +579,28 @@ int main(int argc, char** argv) {
   long int devNum = 0;
   long int delay = 1;
   bool usageError = false;
-  bool dumpTraceData = false;
 
   /*
    * Validate the inputs
    */
-  if (argc < 2 || argc > 4) {
+  if (argc < 2 || argc > 3) {
     usageError = true;
   } else {
     devNum = strtol(argv[1], &endptr, 10);
     if (*endptr || devNum < 0 || devNum > kMaxDeviceNum) {
       usageError = true;
-    } else if (argc != 2) {
-      int i = 2;
-      int d = strtol(argv[i], &endptr, 10);
-
-      if (!*endptr) {
-        if (d < 0) {
-          usageError = true;
-        } else {
-          delay = d;
-          i++;
-        }
-      }
-
-      if (!usageError && i < argc) {
-        if (argv[i][0] != '-' || argv[i][1] != 'f' || argv[i][2]) {
-          usageError = true;
-        } else {
-          if (++i < argc) {
-            usageError = true;
-          } else {
-            dumpTraceData = true;
-          }
-        }
+    } else if (argc == 3) {
+      delay = strtol(argv[2], &endptr, 10);
+      if (*endptr || delay < 0) {
+        usageError = true;
       }
     }
   }
 
   if (usageError) {
-    std::cerr << "et-top version " << ET_TOP_VERSION << "\nUsage: " << argv[0] << " DEVNO [DELAY] [-f]\n"
+    std::cerr << "et-top version " << ET_TOP_VERSION << "\nUsage: " << argv[0] << " DEVNO [DELAY]\n"
               << "\tDEVNO is 0-" << kMaxDeviceNum << std::endl
-              << "\tDELAY is an optional update delay in seconds\n"
-              << "\t-f dump trace buffer stats to files " MM_STATS_FILE " and " SP_STATS_FILE "\n";
+              << "\tDELAY is an optional update delay in seconds\n";
     exit(1);
   }
 
@@ -614,22 +614,6 @@ int main(int argc, char** argv) {
   if (isatty(STDIN_FILENO) == 0) {
     std::cerr << argv[0] << ": error stdin must be a tty\n";
     exit(1);
-  }
-
-  std::ofstream mmTrace;
-  std::ofstream spTrace;
-  if (dumpTraceData) {
-    mmTrace.open(MM_STATS_FILE, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
-    if (!mmTrace.is_open()) {
-      std::cerr << "Error: unable to open file " MM_STATS_FILE "\n";
-      exit(1);
-    }
-
-    spTrace.open(SP_STATS_FILE, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
-    if (!spTrace.is_open()) {
-      std::cerr << "Error: unable to open file " SP_STATS_FILE "\n";
-      exit(1);
-    }
   }
 
   /*
@@ -664,7 +648,7 @@ int main(int argc, char** argv) {
    */
   std::unique_ptr<dev::IDeviceLayer> dl = dev::IDeviceLayer::createPcieDeviceLayer(false, true);
   device_management::DeviceManagement& dm = device_management::DeviceManagement::getInstance(dl.get());
-  EtTop etTop(devNum, dl, dm, mmTrace, spTrace);
+  EtTop etTop(devNum, dl, dm);
   int elapsed = delay;
 
   while (1) {
@@ -685,11 +669,6 @@ int main(int argc, char** argv) {
     if (delay > 0) {
       sleep(1);
     }
-  }
-
-  if (dumpTraceData) {
-    mmTrace.close();
-    spTrace.close();
   }
 
   return 0;
