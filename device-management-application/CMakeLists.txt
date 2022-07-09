@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.5)
-project(deviceManagementApplication VERSION 1.3.0 LANGUAGES CXX C)
+project(deviceManagementApplication VERSION 1.4.0 LANGUAGES CXX C)
 
 include(ExternalProject)
 include(GNUInstallDirs)
