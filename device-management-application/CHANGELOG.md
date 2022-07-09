@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - ET-Top: Remove -f dump trace stats buffer option and add interactive dump command.
 - ET-Top: Add displayOpStats helper and add conversion from milliwatts to watts.
+- Rename execute-able from et-top to et-powertop
 ### Deprecated
 ### Removed
 - ET-Top: Remove use of routines from dlfcn.h.

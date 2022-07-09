@@ -52,20 +52,20 @@ install(TARGETS dev_mngt_service
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
-add_executable(et-top
+add_executable(et-powertop
     src/et-top.cc
 )
-target_compile_features(et-top PUBLIC cxx_std_17)
-target_include_directories(et-top
+target_compile_features(et-powertop PUBLIC cxx_std_17)
+target_include_directories(et-powertop
     PRIVATE
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
 )
-target_compile_definitions(et-top
+target_compile_definitions(et-powertop
     PUBLIC
         -DET_TOP_VERSION="${CMAKE_PROJECT_VERSION}"
 )
 
-target_link_libraries(et-top
+target_link_libraries(et-powertop
     PRIVATE
         glog::glog
         ${CMAKE_THREAD_LIBS_INIT}
@@ -77,7 +77,7 @@ target_link_libraries(et-top
         deviceLayer::deviceLayer
 )
 
-install(TARGETS et-top
+install(TARGETS et-powertop
     EXPORT deviceManagementApplicationTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
