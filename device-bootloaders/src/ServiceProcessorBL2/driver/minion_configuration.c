@@ -182,6 +182,7 @@ static StaticTimer_t MM_Timer_Buffer;
 
 static uint64_t gs_active_shire_mask = 0;
 static uint64_t gs_dlls_initialized = 0;
+static uint64_t gs_pll4_ldo_kick_performed = 0;
 
 /* MM command handler task cb to reset task */
 extern TaskHandle_t g_mm_cmd_hdlr_handle;
@@ -545,7 +546,16 @@ static int minion_configure_hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
     uint32_t freq;
     int status;
 
-    status = configure_sp_pll_4(hpdpll_mode);
+    if (gs_pll4_ldo_kick_performed)
+    {
+        status = configure_sp_pll_4(hpdpll_mode, HPDPLL_LDO_NO_UPDATE);
+    }
+    else
+    {
+        status = configure_sp_pll_4(hpdpll_mode, HPDPLL_LDO_KICK);
+        gs_pll4_ldo_kick_performed = 1;
+    }
+
     if (status != SUCCESS)
     {
         Log_Write(LOG_LEVEL_ERROR, "configure_sp_pll_4() failed!\n");

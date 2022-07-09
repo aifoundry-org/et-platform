@@ -23,7 +23,8 @@
  * @enum PLL_ID_t
  * @brief Enum defining PLL IDs
  */
-typedef enum PLL_ID_e {
+typedef enum PLL_ID_e
+{
     PLL_ID_INVALID,
     PLL_ID_SP_PLL_0,
     PLL_ID_SP_PLL_1,
@@ -39,7 +40,8 @@ typedef enum PLL_ID_e {
  * @enum SP_PLL_STATE_t
  * @brief Enum defining PLL states
  */
-typedef enum SP_PLL_STATE_e {
+typedef enum SP_PLL_STATE_e
+{
     SP_PLL_STATE_INVALID,
     SP_PLL_STATE_OFF,
     SP_PLL_STATE_50_PER_CENT,
@@ -51,7 +53,8 @@ typedef enum SP_PLL_STATE_e {
  * @enum HPDPLL_LDO_UPDATE_t
  * @brief Enum defining HPDPLL LDO update type
  */
-typedef enum HPDPLL_LDO_UPDATE_e {
+typedef enum HPDPLL_LDO_UPDATE_e
+{
     HPDPLL_LDO_NO_UPDATE,
     HPDPLL_LDO_ENABLE,
     HPDPLL_LDO_DISABLE,
@@ -80,19 +83,19 @@ int configure_sp_pll_0(const uint8_t mode);
 */
 int configure_sp_pll_1(const uint8_t mode);
 
-/*! \fn int configure_sp_pll_2(uint8_t mode)
+/*! \fn int configure_sp_pll_2(uint8_t mode, HPDPLL_LDO_UPDATE_t ldo_update)
     \brief This function configures service processor PLL 2
     \param None 
     \return The function call status, pass/fail.
 */
-int configure_sp_pll_2(const uint8_t mode);
+int configure_sp_pll_2(const uint8_t mode, HPDPLL_LDO_UPDATE_t ldo_update);
 
-/*! \fn int configure_sp_pll_4(uint8_t mode)
+/*! \fn int configure_sp_pll_4(uint8_t mode, HPDPLL_LDO_UPDATE_t ldo_update)
     \brief This function configures service processor PLL 4
     \param None 
     \return The function call status, pass/fail.
 */
-int configure_sp_pll_4(const uint8_t mode);
+int configure_sp_pll_4(const uint8_t mode, HPDPLL_LDO_UPDATE_t ldo_update);
 
 /*! \fn int configure_pshire_pll(const uint8_t mode)
     \brief This function configures pshire PLL

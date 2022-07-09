@@ -803,7 +803,7 @@ static void pwr_svc_set_module_frequency(tag_id_t tag_id, uint64_t req_start_tim
     switch (pll_id)
     {
         case PLL_ID_NOC_PLL:
-            status = configure_sp_pll_2(hpdpll_mode);
+            status = configure_sp_pll_2(hpdpll_mode, HPDPLL_LDO_NO_UPDATE);
             if (0 != status)
             {
                 goto SEND_RESPONSE;

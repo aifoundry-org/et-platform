@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Override MNN, SRM, NOC voltage from SP to enable optimized operation point
 - Throttle power state test to update the trace header.
 - [SW-13253]: updated get module voltage to use values from pvt
+- [FV-296, SW-13251, SW-13273] SW WA for FV-296
 ### Security
 
 ## [0.3.0] - 2022-6-25

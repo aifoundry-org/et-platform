@@ -31,6 +31,7 @@
 #include "bl2_timer.h"
 #include "interrupt.h"
 #include "delays.h"
+#include "bl2_reset.h"
 
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/sp_cru.h"
@@ -42,6 +43,11 @@
     \brief lock timeout for PLL
 */
 #define PLL_LOCK_TIMEOUT 10000
+
+/*! \def PLL_PROGRAM_TRY_LIMIT
+    \brief PLL program try limit
+*/
+#define PLL_PROGRAM_TRY_LIMIT 3
 
 /*! \def INPUT_CLK_CONFIG_COUNT
     \brief clock configurations
@@ -62,6 +68,21 @@
     \brief index register number
 */
 #define PLL_REG_INDEX_REG_0 0
+
+/*! \def PLL_REG_INDEX_REG_FCW_INT
+    \brief int multiplier
+*/
+#define PLL_REG_INDEX_REG_FCW_INT 0x02
+
+/*! \def PLL_REG_INDEX_REG_FCW_FRAC
+    \brief frac multiplier
+*/
+#define PLL_REG_INDEX_REG_FCW_FRAC 0x03
+
+/*! \def PLL_REG_INDEX_REG_POST_DIVIDER
+    \brief post divider
+*/
+#define PLL_REG_INDEX_REG_POST_DIVIDER 0x0E
 
 /*! \def PLL_REG_INDEX_REG_LOCK_THRESHOLD
     \brief lock threshold
@@ -684,6 +705,7 @@ static int clock_manager_pll_bypass(PLL_ID_t pll, bool bypass_enable)
 int configure_sp_pll_0(uint8_t mode)
 {
     int rv;
+    int try_num = 0;
 
     rv = clock_manager_pll_bypass(PLL_ID_SP_PLL_0, true);
     if (0 != rv)
@@ -691,8 +713,13 @@ int configure_sp_pll_0(uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_SP_PLL0_BASEADDR, mode, &gs_sp_pll_0_frequency,
-                       HPDPLL_LDO_KICK, 2);
+    do
+    {
+        rv = configure_pll((uint32_t *)R_SP_PLL0_BASEADDR, mode, &gs_sp_pll_0_frequency,
+                           HPDPLL_LDO_KICK, 2);
+        try_num++;
+    } while ((0 != rv) || (try_num < PLL_PROGRAM_TRY_LIMIT));
+
     if (0 != rv)
     {
         goto ERROR;
@@ -723,6 +750,7 @@ ERROR:
 int configure_sp_pll_1(uint8_t mode)
 {
     int rv;
+    int try_num = 0;
 
     rv = clock_manager_pll_bypass(PLL_ID_SP_PLL_1, true);
     if (0 != rv)
@@ -730,8 +758,13 @@ int configure_sp_pll_1(uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_SP_PLL1_BASEADDR, mode, &gs_sp_pll_1_frequency,
-                       HPDPLL_LDO_KICK, 2);
+    do
+    {
+        rv = configure_pll((uint32_t *)R_SP_PLL1_BASEADDR, mode, &gs_sp_pll_1_frequency,
+                           HPDPLL_LDO_KICK, 2);
+        try_num++;
+    } while ((0 != rv) || (try_num < PLL_PROGRAM_TRY_LIMIT));
+
     if (0 != rv)
     {
         goto ERROR;
@@ -755,9 +788,10 @@ ERROR:
     return rv;
 }
 
-int configure_sp_pll_2(uint8_t mode)
+int configure_sp_pll_2(uint8_t mode, HPDPLL_LDO_UPDATE_t ldo_update)
 {
     int rv;
+    int try_num = 0;
 
     rv = clock_manager_pll_bypass(PLL_ID_SP_PLL_2, true);
     if (0 != rv)
@@ -765,8 +799,13 @@ int configure_sp_pll_2(uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_SP_PLL2_BASEADDR, mode, &gs_sp_pll_2_frequency,
-                       HPDPLL_LDO_KICK, 2);
+    do
+    {
+        rv = configure_pll((uint32_t *)R_SP_PLL2_BASEADDR, mode, &gs_sp_pll_2_frequency, ldo_update,
+                           2);
+        try_num++;
+    } while ((0 != rv) || (try_num < PLL_PROGRAM_TRY_LIMIT));
+
     if (0 != rv)
     {
         goto ERROR;
@@ -790,9 +829,10 @@ ERROR:
     return rv;
 }
 
-int configure_sp_pll_4(uint8_t mode)
+int configure_sp_pll_4(uint8_t mode, HPDPLL_LDO_UPDATE_t ldo_update)
 {
     int rv;
+    int try_num = 0;
 
     rv = clock_manager_pll_bypass(PLL_ID_SP_PLL_4, true);
     if (0 != rv)
@@ -800,8 +840,13 @@ int configure_sp_pll_4(uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_SP_PLL4_BASEADDR, mode, &gs_sp_pll_4_frequency,
-                       HPDPLL_LDO_KICK, 2);
+    do
+    {
+        rv = configure_pll((uint32_t *)R_SP_PLL4_BASEADDR, mode, &gs_sp_pll_4_frequency, ldo_update,
+                           2);
+        try_num++;
+    } while ((0 != rv) || (try_num < PLL_PROGRAM_TRY_LIMIT));
+
     if (0 != rv)
     {
         goto ERROR;
@@ -828,6 +873,7 @@ ERROR:
 int configure_pshire_pll(const uint8_t mode)
 {
     int rv;
+    int try_num = 0;
 
     rv = clock_manager_pll_bypass(PLL_ID_PSHIRE, true);
     if (0 != rv)
@@ -835,8 +881,13 @@ int configure_pshire_pll(const uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_PCIE_PLLP0_BASEADDR, mode, &gs_pcie_pll_0_frequency,
-                       HPDPLL_LDO_KICK, 2);
+    do
+    {
+        rv = configure_pll((uint32_t *)R_PCIE_PLLP0_BASEADDR, mode, &gs_pcie_pll_0_frequency,
+                           HPDPLL_LDO_KICK, 2);
+        try_num++;
+    } while ((0 != rv) || (try_num < PLL_PROGRAM_TRY_LIMIT));
+
     if (0 != rv)
     {
         goto ERROR;
@@ -863,6 +914,7 @@ ERROR:
 int configure_maxion_pll_core(uint8_t mode)
 {
     int rv;
+    int try_num = 0;
 
     rv = clock_manager_pll_bypass(PLL_ID_MAXION_CORE, true);
     if (0 != rv)
@@ -870,8 +922,13 @@ int configure_maxion_pll_core(uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_SP_PLLMX0_BASEADDR, mode, &gs_maxion_pll_core_frequency,
-                       HPDPLL_LDO_BYPASS, 1);
+    do
+    {
+        rv = configure_pll((uint32_t *)R_SP_PLLMX0_BASEADDR, mode, &gs_maxion_pll_core_frequency,
+                           HPDPLL_LDO_BYPASS, 1);
+        try_num++;
+    } while ((0 != rv) || (try_num < PLL_PROGRAM_TRY_LIMIT));
+
     if (0 != rv)
     {
         goto ERROR;
@@ -898,6 +955,7 @@ ERROR:
 int configure_maxion_pll_uncore(uint8_t mode)
 {
     int rv;
+    int try_num = 0;
 
     rv = clock_manager_pll_bypass(PLL_ID_MAXION_UNCORE, true);
     if (0 != rv)
@@ -905,8 +963,13 @@ int configure_maxion_pll_uncore(uint8_t mode)
         goto ERROR;
     }
 
-    rv = configure_pll((uint32_t *)R_SP_PLLMX1_BASEADDR, mode, &gs_maxion_pll_uncore_frequency,
-                       HPDPLL_LDO_BYPASS, 1);
+    do
+    {
+        rv = configure_pll((uint32_t *)R_SP_PLLMX1_BASEADDR, mode, &gs_maxion_pll_uncore_frequency,
+                           HPDPLL_LDO_BYPASS, 1);
+        try_num++;
+    } while ((0 != rv) || (try_num < PLL_PROGRAM_TRY_LIMIT));
+
     if (0 != rv)
     {
         goto ERROR;
@@ -930,6 +993,31 @@ ERROR:
     return rv;
 }
 
+static uint32_t calculate_pll_freq(const uint32_t *pll_registers)
+{
+    uint16_t fcw_int = 0;
+    uint16_t fcw_frac = 0;
+    uint16_t post_divider = 0;
+    uint64_t ref_clock_freq = 0;
+    uint64_t ref_clock_freqs[] = { 100, 24, 40 };
+    uint32_t pll_freq = 0;
+    uint8_t hpdpll_strap_pins = 0;
+
+    fcw_int = (uint16_t)pll_registers[PLL_REG_INDEX_REG_FCW_INT];
+    fcw_frac = (uint16_t)pll_registers[PLL_REG_INDEX_REG_FCW_FRAC];
+    post_divider = (uint16_t)pll_registers[PLL_REG_INDEX_REG_POST_DIVIDER];
+    hpdpll_strap_pins = get_hpdpll_strap_value();
+    ref_clock_freq = ref_clock_freqs[hpdpll_strap_pins];
+
+    uint64_t x = (ref_clock_freq * fcw_frac) / (1 << 16);
+    uint64_t y = ref_clock_freq * fcw_int;
+    uint64_t z = (uint64_t)(post_divider * 1000000);
+
+    pll_freq = (uint32_t)((x + y) / z);
+
+    return pll_freq;
+}
+
 int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency)
 {
     if (NULL == frequency)
@@ -940,25 +1028,25 @@ int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency)
     switch (pll_id)
     {
         case PLL_ID_SP_PLL_0:
-            *frequency = gs_sp_pll_0_frequency;
+            *frequency = calculate_pll_freq((uint32_t *)R_SP_PLL0_BASEADDR);
             return 0;
         case PLL_ID_SP_PLL_1:
-            *frequency = gs_sp_pll_1_frequency;
+            *frequency = calculate_pll_freq((uint32_t *)R_SP_PLL1_BASEADDR);
             return 0;
         case PLL_ID_SP_PLL_2:
-            *frequency = gs_sp_pll_2_frequency;
+            *frequency = calculate_pll_freq((uint32_t *)R_SP_PLL2_BASEADDR);
             return 0;
         case PLL_ID_SP_PLL_4:
-            *frequency = gs_sp_pll_4_frequency;
+            *frequency = calculate_pll_freq((uint32_t *)R_SP_PLL4_BASEADDR);
             return 0;
         case PLL_ID_PSHIRE:
-            *frequency = gs_pcie_pll_0_frequency;
+            *frequency = calculate_pll_freq((uint32_t *)R_PCIE_PLLP0_BASEADDR);
             return 0;
         case PLL_ID_MAXION_CORE:
-            *frequency = gs_maxion_pll_core_frequency;
+            *frequency = calculate_pll_freq((uint32_t *)R_SP_PLLMX0_BASEADDR);
             return 0;
         case PLL_ID_MAXION_UNCORE:
-            *frequency = gs_maxion_pll_uncore_frequency;
+            *frequency = calculate_pll_freq((uint32_t *)R_SP_PLLMX1_BASEADDR);
             return 0;
         case PLL_ID_SP_PLL_3:
             return ERROR_SP_PLL_INVALID_PLL_ID;
@@ -1147,6 +1235,7 @@ int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
              uint32_t pcie_pll_0_frequency)
 {
     int status;
+    int try_num = 0;
 
     gs_sp_pll_0_frequency = sp_pll_0_frequency;
     gs_sp_pll_1_frequency = sp_pll_1_frequency;
@@ -1155,14 +1244,25 @@ int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
     gs_pcie_pll_0_frequency = pcie_pll_0_frequency;
 
     /* Perform LDO kick of PLLs configured during Bootrom */
-    status = spio_pll_ldo_kick(PLL_ID_SP_PLL_0, (uint32_t *)R_SP_PLL0_BASEADDR, 2);
+    do
+    {
+        status = spio_pll_ldo_kick(PLL_ID_SP_PLL_0, (uint32_t *)R_SP_PLL0_BASEADDR, 2);
+        try_num++;
+    } while ((0 != status) || (try_num < PLL_PROGRAM_TRY_LIMIT));
+
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_ERROR, "SPIO PLL0 ldo kick failed\n");
         return status;
     }
 
-    status = spio_pll_ldo_kick(PLL_ID_SP_PLL_1, (uint32_t *)R_SP_PLL1_BASEADDR, 2);
+    try_num = 0;
+    do
+    {
+        status = spio_pll_ldo_kick(PLL_ID_SP_PLL_1, (uint32_t *)R_SP_PLL1_BASEADDR, 2);
+        try_num++;
+    } while ((0 != status) || (try_num < PLL_PROGRAM_TRY_LIMIT));
+
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_ERROR, "SPIO PLL1 ldo kick failed\n");
@@ -1170,7 +1270,13 @@ int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
     }
 
 #if !FAST_BOOT
-    status = spio_pll_ldo_kick(PLL_ID_PSHIRE, (uint32_t *)R_PCIE_PLLP0_BASEADDR, 2);
+    try_num = 0;
+    do
+    {
+        status = spio_pll_ldo_kick(PLL_ID_PSHIRE, (uint32_t *)R_PCIE_PLLP0_BASEADDR, 2);
+        try_num++;
+    } while ((0 != status) || (try_num < PLL_PROGRAM_TRY_LIMIT));
+
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_ERROR, "PSHIRE PLL ldo kick failed\n");
