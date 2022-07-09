@@ -14,13 +14,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-## [1.2.0] - 2022-7-7
+## [1.4.0] - 2022-7-8
 ### Added
-- ET-Top: Add -f dump trace stats buffer option and version info.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+
+## [1.3.0] - 2022-7-8
+### Added
 ### Changed
 - ET-Top: Remove -f dump trace stats buffer option and add interactive dump command.
 - ET-Top: Add displayOpStats helper and add conversion from milliwatts to watts.
 - Rename execute-able from et-top to et-powertop
+### Deprecated
+### Removed
+### Fixed
+
+## [1.2.0] - 2022-7-7
+### Added
+- ET-Top: Add -f dump trace stats buffer option and version info.
+### Changed
 ### Deprecated
 ### Removed
 - ET-Top: Remove use of routines from dlfcn.h.
