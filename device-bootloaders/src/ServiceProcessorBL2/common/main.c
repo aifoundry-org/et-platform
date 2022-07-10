@@ -603,7 +603,6 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     // Initialize System Interrupt
     INT_init();
 
-#if !FAST_BOOT
     // Initialize SPI controller
     status = SPI_Flash_Initialize(g_service_processor_bl2_data.flash_fs_bl2_info.flash_id);
     ASSERT_FATAL(status == STATUS_SUCCESS, "SPI_Flash_Initialize() failed!")
@@ -611,7 +610,6 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     // Initialize flash fs
     status = flash_fs_init(&g_service_processor_bl2_data.flash_fs_bl2_info);
     ASSERT_FATAL(status == STATUS_SUCCESS, "flash_fs_init() failed!")
-#endif
 
     // Create Main RTOS task and launch Scheduler
     Log_Write(LOG_LEVEL_CRITICAL, "Starting RTOS...\n");

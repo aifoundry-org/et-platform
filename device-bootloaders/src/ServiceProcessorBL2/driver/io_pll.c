@@ -999,7 +999,7 @@ static uint32_t calculate_pll_freq(const uint32_t *pll_registers)
     uint16_t fcw_frac = 0;
     uint16_t post_divider = 0;
     uint64_t ref_clock_freq = 0;
-    uint64_t ref_clock_freqs[] = { 100, 24, 40 };
+    uint64_t ref_clock_freqs[] = { 100000000, 24000000, 40000000 };
     uint32_t pll_freq = 0;
     uint8_t hpdpll_strap_pins = 0;
 
