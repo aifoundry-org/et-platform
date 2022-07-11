@@ -93,6 +93,7 @@ public:
     , dl_(dl)
     , dm_(dm)
     , stop_(false)
+    , displayWattsBars_(false)
     , dumpNextSpStatsBuffer_(false)
     , dumpNextMmStatsBuffer_(false)
     , displayErrorDetails_(false) {
@@ -120,8 +121,7 @@ public:
 
 private:
   bool processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total);
-  void displayOpStat(const std::string powstat, const struct op_value* power, const std::string tempstat = "",
-                     const struct op_value* temp = NULL);
+  void displayOpStat(const std::string stat, const struct op_value& ov, const bool isPower = true);
   void displayComputeStat(const std::string stat, const struct resource_value& rv, const bool convertMBtoGB = false);
   void displayErrorDetails(std::map<std::string, uint64_t>& error, bool addColon = false, std::string prefix = "");
   void collectMemStats(void);
@@ -133,6 +133,7 @@ private:
 
   int devNum_;
   bool stop_;
+  bool displayWattsBars_;
   bool dumpNextSpStatsBuffer_;
   bool dumpNextMmStatsBuffer_;
   bool displayErrorDetails_;
@@ -439,6 +440,8 @@ void EtTop::processInput(void) {
     } else if (ch == 'q') {
       stop_ = true;
       std::cout << std::endl;
+    } else if (ch == 'w') {
+      displayWattsBars_ = !displayWattsBars_;
     } else if (ch == 'd') {
       dumpNextSpStatsBuffer_ = true;
       dumpNextMmStatsBuffer_ = true;
@@ -451,6 +454,7 @@ void EtTop::processInput(void) {
                 << "e\tToggle display of error details\n"
                 << "h\tPrint this help message\n"
                 << "q\tQuit\n"
+                << "w\tToggle display of watts info\n"
                 << "Type 'q' or <ESC> to continue ";
     }
   } while (help || (!stop_ && rc == 1));
@@ -458,21 +462,39 @@ void EtTop::processInput(void) {
   return;
 }
 
-void EtTop::displayOpStat(const std::string powstat, const struct op_value* power, const std::string tempstat,
-                          const struct op_value* temp) {
-  // convert to watts from milliwatts
-  float avg = power->avg / 1000.0;
-  float min = power->min / 1000.0;
-  float max = power->max / 1000.0;
+void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, const bool isPower) {
+  if (!isPower) {
+    std::cout << "\t" + stat + "   avg: " << std::setw(5) << std::left << ov.avg << "  min: " << std::setw(5)
+              << std::left << ov.min << "  max: " << std::setw(5) << std::left << ov.max << std::endl;
+  } else if (!displayWattsBars_) {
+    float avg = ov.avg / 1000.0; // convert to watts from milliwatts
+    float min = ov.min / 1000.0;
+    float max = ov.max / 1000.0;
 
-  std::cout << std::setprecision(2) << std::fixed;
-  std::cout << "\t" + powstat + " avg: " << std::setw(5) << std::right << avg << "  min: " << std::setw(5) << std::right
-            << min << "  max: " << std::setw(5) << std::right << max;
-  if (temp) {
-    std::cout << "  " + tempstat + " avg: " << std::setw(4) << std::left << temp->avg << " min: " << std::setw(4)
-              << std::left << temp->min << " max: " << std::setw(4) << std::left << temp->max;
+    std::cout << std::setprecision(2) << std::fixed;
+    std::cout << "\t" + stat + " avg: " << std::setw(5) << std::right << avg << "  min: " << std::setw(5) << std::right
+              << min << "  max: " << std::setw(5) << std::right << max << std::endl;
+  } else {
+    const int kHbarSize = 50;
+    const float interval = 75000.0 / kHbarSize;
+    char hbar[kHbarSize + 1];
+
+    memset(hbar, ' ', sizeof(hbar));
+    hbar[kHbarSize] = '\0';
+
+    for (int i = 0; i < kHbarSize; i++) {
+      if (ov.avg > 0 && ov.avg >= interval * i) {
+        hbar[i] = '+';
+      } else if (ov.max > 0 && ov.max >= interval * i) {
+        hbar[i] = '-';
+      } else {
+        break;
+      }
+    }
+
+    std::cout << "\t" + stat + " 0W[" + hbar + "]75W\n";
   }
-  std::cout << std::endl;
+
   return;
 }
 
@@ -519,12 +541,15 @@ void EtTop::displayStats(void) {
   etsocPower.min = spStats_.op.minion.power.min + spStats_.op.sram.power.min + spStats_.op.noc.power.min;
   etsocPower.max = spStats_.op.minion.power.max + spStats_.op.sram.power.max + spStats_.op.noc.power.max;
 
-  std::cout << "Watts:                                                  Temp(C):\n";
-  displayOpStat("CARD       ", &spStats_.op.system.power);
-  displayOpStat("- ETSOC    ", &etsocPower, "ETSOC    ", &spStats_.op.system.temperature);
-  displayOpStat("  - MINION ", &spStats_.op.minion.power, "- MINION ", &spStats_.op.minion.temperature);
-  displayOpStat("  - SRAM   ", &spStats_.op.sram.power);
-  displayOpStat("  - NOC    ", &spStats_.op.noc.power);
+  std::cout << "Watts:\n";
+  displayOpStat("CARD       ", spStats_.op.system.power);
+  displayOpStat("- ETSOC    ", etsocPower);
+  displayOpStat("  - MINION ", spStats_.op.minion.power);
+  displayOpStat("  - SRAM   ", spStats_.op.sram.power);
+  displayOpStat("  - NOC    ", spStats_.op.noc.power);
+  std::cout << "Temp(C):\n";
+  displayOpStat("ETSOC    ", spStats_.op.system.temperature, false);
+  displayOpStat("- MINION ", spStats_.op.minion.temperature, false);
 
   std::cout << "Compute:\n";
   resource_value dummy = {0, 0, 0}; // XXX eliminate this when implementation is ready
