@@ -147,4 +147,3 @@ class EsperantoBootLoadersConan(ConanFile):
         for elf, elf_dir in self._elfs:
             build_modules.append(os.path.join("lib", "cmake", self._custom_cmake_module(elf)))
         self.cpp_info.set_property("cmake_build_modules", build_modules)
-
