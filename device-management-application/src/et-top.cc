@@ -31,6 +31,8 @@
 #define DV_DLOG(severity) ET_DLOG(ET_TOP, severity)
 #define DV_VLOG(level) ET_VLOG(ET_TOP, level)
 
+#define ET_TOP "et-powertop"
+
 #define SP_STATS_FILE "sp_stats.bin"
 #define MM_STATS_FILE "mm_stats.bin"
 
@@ -121,7 +123,8 @@ public:
 
 private:
   bool processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total);
-  void displayOpStat(const std::string stat, const struct op_value& ov, const bool isPower = true);
+  void displayOpStat(const std::string stat, const struct op_value& ov, const bool isPower = false,
+                     const uint32_t max = 0);
   void displayComputeStat(const std::string stat, const struct resource_value& rv, const bool convertMBtoGB = false);
   void displayErrorDetails(std::map<std::string, uint64_t>& error, bool addColon = false, std::string prefix = "");
   void collectMemStats(void);
@@ -462,7 +465,7 @@ void EtTop::processInput(void) {
   return;
 }
 
-void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, const bool isPower) {
+void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, const bool isPower, const uint32_t max) {
   if (!isPower) {
     std::cout << "\t" + stat + "   avg: " << std::setw(5) << std::left << ov.avg << "  min: " << std::setw(5)
               << std::left << ov.min << "  max: " << std::setw(5) << std::left << ov.max << std::endl;
@@ -475,14 +478,16 @@ void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, con
     std::cout << "\t" + stat + " avg: " << std::setw(5) << std::right << avg << "  min: " << std::setw(5) << std::right
               << min << "  max: " << std::setw(5) << std::right << max << std::endl;
   } else {
-    const int kHbarSize = 50;
-    const float interval = 75000.0 / kHbarSize;
+    const uint32_t kHbarSize = 50;
     char hbar[kHbarSize + 1];
+    const uint32_t mWattPciCardMax = 75000;
+    const float fmax = max >= (mWattPciCardMax - 5000) ? mWattPciCardMax : ((max + 5000) / 5000) * 5000;
+    const float interval = fmax / kHbarSize;
 
     memset(hbar, ' ', sizeof(hbar));
     hbar[kHbarSize] = '\0';
 
-    for (int i = 0; i < kHbarSize; i++) {
+    for (uint32_t i = 0; i < kHbarSize; i++) {
       if (ov.avg > 0 && ov.avg >= interval * i) {
         hbar[i] = '+';
       } else if (ov.max > 0 && ov.max >= interval * i) {
@@ -492,7 +497,7 @@ void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, con
       }
     }
 
-    std::cout << "\t" + stat + " 0W[" + hbar + "]75W\n";
+    std::cout << "\t" + stat + " 0W[" + hbar + "]" << std::setw(1) << (int32_t)fmax / 1000 << "W\n";
   }
 
   return;
@@ -532,7 +537,7 @@ void EtTop::displayStats(void) {
   time(&now);
   ctime_r(&now, nowbuf);
   nowbuf[20] = '\0';
-  std::cout << "et-top v" ET_TOP_VERSION " device " << devNum_ << hhmmss << std::endl;
+  std::cout << ET_TOP " v" ET_TOP_VERSION " device " << devNum_ << hhmmss << std::endl;
   std::cout << "Contiguous Mem Alloc: " << std::setw(6) << std::right << memStats_.cmaAllocated << " MB "
             << std::setw(6) << std::right << memStats_.cmaAllocationRate << " MB/sec\n";
 
@@ -540,16 +545,17 @@ void EtTop::displayStats(void) {
   etsocPower.avg = spStats_.op.minion.power.avg + spStats_.op.sram.power.avg + spStats_.op.noc.power.avg;
   etsocPower.min = spStats_.op.minion.power.min + spStats_.op.sram.power.min + spStats_.op.noc.power.min;
   etsocPower.max = spStats_.op.minion.power.max + spStats_.op.sram.power.max + spStats_.op.noc.power.max;
+  uint32_t max = spStats_.op.system.power.max;
 
   std::cout << "Watts:\n";
-  displayOpStat("CARD       ", spStats_.op.system.power);
-  displayOpStat("- ETSOC    ", etsocPower);
-  displayOpStat("  - MINION ", spStats_.op.minion.power);
-  displayOpStat("  - SRAM   ", spStats_.op.sram.power);
-  displayOpStat("  - NOC    ", spStats_.op.noc.power);
+  displayOpStat("CARD       ", spStats_.op.system.power, true, max);
+  displayOpStat("- ETSOC    ", etsocPower, true, max);
+  displayOpStat("  - MINION ", spStats_.op.minion.power, true, max);
+  displayOpStat("  - SRAM   ", spStats_.op.sram.power, true, max);
+  displayOpStat("  - NOC    ", spStats_.op.noc.power, true, max);
   std::cout << "Temp(C):\n";
-  displayOpStat("ETSOC    ", spStats_.op.system.temperature, false);
-  displayOpStat("- MINION ", spStats_.op.minion.temperature, false);
+  displayOpStat("ETSOC    ", spStats_.op.system.temperature);
+  displayOpStat("- MINION ", spStats_.op.minion.temperature);
 
   std::cout << "Compute:\n";
   resource_value dummy = {0, 0, 0}; // XXX eliminate this when implementation is ready
@@ -623,7 +629,7 @@ int main(int argc, char** argv) {
   }
 
   if (usageError) {
-    std::cerr << "et-top version " << ET_TOP_VERSION << "\nUsage: " << argv[0] << " DEVNO [DELAY]\n"
+    std::cerr << ET_TOP " version " << ET_TOP_VERSION << "\nUsage: " << argv[0] << " DEVNO [DELAY]\n"
               << "\tDEVNO is 0-" << kMaxDeviceNum << std::endl
               << "\tDELAY is an optional update delay in seconds\n";
     exit(1);
