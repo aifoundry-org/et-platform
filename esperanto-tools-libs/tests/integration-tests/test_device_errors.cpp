@@ -36,17 +36,11 @@ struct DeviceErrors : public Fixture {
 TEST_F(DeviceErrors, KernelLaunchInvalidMask) {
   std::array<std::byte, 64> dummyArgs;
 
-  runtime_->kernelLaunch(defaultStreams_[0], add_vector_kernel, dummyArgs.data(), sizeof(dummyArgs), 0UL);
-  runtime_->waitForStream(defaultStreams_[0]);
-  auto errors = runtime_->retrieveStreamErrors(defaultStreams_[0]);
-  EXPECT_EQ(errors.size(), 1UL);
-  bool callbackExecuted = false;
-  runtime_->setOnStreamErrorsCallback([&callbackExecuted](auto, const auto&) { callbackExecuted = true; });
-  runtime_->kernelLaunch(defaultStreams_[0], add_vector_kernel, dummyArgs.data(), sizeof(dummyArgs), 0UL);
+  EXPECT_THROW(runtime_->kernelLaunch(defaultStreams_[0], add_vector_kernel, dummyArgs.data(), sizeof(dummyArgs), 0UL),
+               rt::Exception);
   runtime_->waitForStream(defaultStreams_[0]);
   defaultStreams_.clear();
   runtime_.reset();
-  EXPECT_TRUE(callbackExecuted);
 }
 
 TEST_F(DeviceErrors, KernelLaunchException) {
