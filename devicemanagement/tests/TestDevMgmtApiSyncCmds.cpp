@@ -2762,6 +2762,9 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
       DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
     }
 
+    // TODO: Temporary workaround to get the SP traces correctly
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
     if (getTestTarget() != Target::Loopback) {
       if (dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response) !=
           device_mgmt_api::DM_STATUS_SUCCESS) {
