@@ -20,6 +20,7 @@
 #include <elfio/elfio.hpp>
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_spec.h>
+#include <ios>
 #include <sstream>
 #include <type_traits>
 
@@ -29,9 +30,16 @@ using namespace rt::profiling;
 EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std::byte* kernel_args,
                                  size_t kernel_args_size, uint64_t shire_mask, bool barrier, bool flushL3,
                                  std::optional<UserTrace> userTraceConfig) {
-  std::unique_lock lock(mutex_);
+  SpinLock lock(mutex_);
   const auto& kernel = find(kernels_, kernelId)->second;
   ScopedProfileEvent profileEvent(Class::KernelLaunch, *profiler_, streamId, kernelId, kernel->getLoadAddress());
+  auto cfg = deviceLayer_->getDeviceConfig(static_cast<int>(kernel->deviceId_));
+  auto validMask = cfg.computeMinionShireMask_;
+  if (~validMask & shire_mask || !(validMask & shire_mask)) {
+    std::stringstream ss;
+    ss << "Shiremask is invalid. Valid selectable values for shire mask are: 0x" << std::hex << validMask;
+    throw Exception(ss.str());
+  }
 
   if (kernel_args_size > kBlockSize) {
     char buffer[1024];
