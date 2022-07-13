@@ -61,6 +61,11 @@ add_subdirectory(multierror)
 add_subdirectory(bus_error)
 add_subdirectory(tensor_error)
 
+add_subdirectory(vpu_txfma_power_virus)
+add_subdirectory(vpu_tima_power_virus)
+add_subdirectory(scw_power_virus)
+add_subdirectory(noc_power_virus)
+
 # Trace tests disabled for now until we have the new Tracing lib
 #add_subdirectory("pmc_test_2s")
 #add_subdirectory("pmc_test_fc")
