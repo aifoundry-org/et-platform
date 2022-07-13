@@ -1,10 +1,21 @@
+# buld system
 build
 cmake-build-*
-test_package/build
+CMakeUserPresets.json
+
+# testing
 Testing/**
 tests/Testing/**
 
+# conan
+conanbuildinfo.txt
+conaninfo.txt
+graph_info.json
+test_package/build
+
+# conan ci
 *.lock
 lockfiles_info.json
 
+# others
 .idea/
