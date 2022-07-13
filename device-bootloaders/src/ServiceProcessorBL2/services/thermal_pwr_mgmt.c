@@ -1829,7 +1829,7 @@ void set_system_voltages(void)
     /* Setting the Neigh voltages */
     pmic_set_voltage(MINION, NEIGH_BOOT_VOLTAGE);
     pmic_get_voltage(MINION, &voltage);
-    Log_Write(LOG_LEVEL_INFO, "Overriding Minion -> 450mV (0x%X)\n", voltage);
+    Log_Write(LOG_LEVEL_INFO, "Overriding Minion -> 475mV (0x%X)\n", voltage);
     US_DELAY_GENERIC(5000)
 
     /* Setting the L2 cache voltages */

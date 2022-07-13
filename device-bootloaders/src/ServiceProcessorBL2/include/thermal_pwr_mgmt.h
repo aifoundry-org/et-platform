@@ -35,9 +35,9 @@
 #define SECONDS_IN_MINUTE 60
 
 // Defines the Boot voltages for the respective Voltage Domains
-#define NEIGH_BOOT_VOLTAGE 0x28U // 450 mV
-#define SRAM_BOOT_VOLTAGE  0x5AU // 700 mV
-#define NOC_BOOT_VOLTAGE   0x1EU // 400 mV
+#define NEIGH_BOOT_VOLTAGE 0x2DU // 475 mV
+#define SRAM_BOOT_VOLTAGE  0x64U // 750 mV
+#define NOC_BOOT_VOLTAGE   0x28U // 450 mV
 
 /* Number of samples to collect average */
 #define NUM_SAMPLES 100
