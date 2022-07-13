@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - Adapted conan CI to conan 1.49+ (Cmake presets)
+- [SW-12918] Updated the description for waitForEpollEventsMasterMinion() and waitForEpollEventsServiceProcessor() APIs.
 ### Deprecated
 ### Removed
 ### Fixed

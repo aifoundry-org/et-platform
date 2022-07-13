@@ -102,8 +102,8 @@ public:
   /// be both 0 and false.
   ///
   /// @param[in] device indicating which device to wait on for EPOLL events.
-  /// @param[out] sq_bitmap indicates which submission queues are available.
-  /// @param[out] cq_available indicates if Completion Queue is available.
+  /// @param[out] sq_bitmap indicates which submission queue(s) became available since the last call.
+  /// @param[out] cq_available indicates if Completion Queue became available since the last call.
   /// @param[in] timeout the operation will be aborted if no event happen in given timeout
   ///
   virtual void waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap, bool& cq_available,
@@ -147,8 +147,8 @@ public:
   /// be both 0 and false.
   ///
   /// @param[in] device indicating which device to wait on for EPOLL events.
-  /// @param[out] sq_available indicates if Submission Queue is available.
-  /// @param[out] cq_available indicates if Completion Queue is available.
+  /// @param[out] sq_available indicates if submission queue became available since the last call.
+  /// @param[out] cq_available indicates if Completion Queue became available since the last call.
   /// @param[in] timeout the operation will be aborted if no event happen in given timeout
   ///
   virtual void waitForEpollEventsServiceProcessor(int device, bool& sq_available, bool& cq_available,
