@@ -205,7 +205,8 @@ static void dm_log_operating_point_stats(void)
         Trace_Custom_Event(Trace_Get_Dev_Stats_CB(), TRACE_CUSTOM_TYPE_SP_OP_STATS,
                            (uint8_t *)&op_stats, sizeof(struct op_stats_t));
 
-        portEXIT_CRITICAL();
+        /* Update data size in stats buffer */
+        Trace_Update_SP_Stats_Buffer_Header();
     }
     else
     {

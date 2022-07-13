@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13253]: updated get module voltage to use values from pvt
 - [FV-296, SW-13251, SW-13273] SW WA for FV-296
 - [SW-13273] Fix for PLL frequency calculation
+- [SW-13253]: Fixed delays for sysemu by introducing delay macro
 ### Security
 
 ## [0.3.0] - 2022-6-25

@@ -15,6 +15,12 @@
 
 #include <stdint.h>
 
+#if (FAST_BOOT || TEST_FRAMEWORK)
+#define US_DELAY_GENERIC(us) usdelay(us / 100);
+#else
+#define US_DELAY_GENERIC(us) usdelay(us);
+#endif
+
 /*! \fn void cycle_delay(int cycles)
     \brief This function delay for cycles
     \param cycles number of cycles to delay
@@ -22,8 +28,8 @@
 */
 inline void cycle_delay(int cycles)
 {
-  while(cycles-- > 0)
-    ;
+    while (cycles-- > 0)
+        ;
 }
 
 /*! \fn int usdelay(uint32_t usec)
@@ -40,4 +46,4 @@ void usdelay(uint32_t usec);
 */
 void msdelay(uint32_t msec);
 
-#endif  //__DELAYS_H__
+#endif //__DELAYS_H__

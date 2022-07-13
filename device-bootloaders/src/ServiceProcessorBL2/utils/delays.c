@@ -12,6 +12,7 @@
 
 #include <stdint.h>
 #include "delays.h"
+#include "interrupt.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -24,14 +25,14 @@
 */
 void usdelay(uint32_t usec)
 {
-  uint64_t target_tick;
+    uint64_t target_tick;
 
-  if(usec == 0)
-    return;
+    if (usec == 0)
+        return;
 
-  target_tick = timer_get_ticks_count() + usec;
-  while(timer_get_ticks_count() < target_tick)
-    ;
+    target_tick = timer_get_ticks_count() + usec;
+    while (timer_get_ticks_count() < target_tick)
+        ;
 }
 
 /*
@@ -42,11 +43,11 @@ void usdelay(uint32_t usec)
 */
 void msdelay(uint32_t msec)
 {
-  if(msec == 0)
-    return;
+    if (msec == 0)
+        return;
 
-  if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
-    vTaskDelay(msec/portTICK_PERIOD_MS);
-  else
-    usdelay(msec*1000);
+    if (!INT_Is_Trap_Context() && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+        vTaskDelay(msec / portTICK_PERIOD_MS);
+    else
+        usdelay(msec * 1000);
 }

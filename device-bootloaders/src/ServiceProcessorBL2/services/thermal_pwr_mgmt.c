@@ -1830,19 +1830,19 @@ void set_system_voltages(void)
     pmic_set_voltage(MINION, NEIGH_BOOT_VOLTAGE);
     pmic_get_voltage(MINION, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding Minion -> 450mV (0x%X)\n", voltage);
-    msdelay(5);
+    US_DELAY_GENERIC(5000)
 
     /* Setting the L2 cache voltages */
     pmic_set_voltage(L2CACHE, SRAM_BOOT_VOLTAGE);
     pmic_get_voltage(L2CACHE, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding SRAM   -> 700mV(0x%X)\n", voltage);
-    msdelay(5);
+    US_DELAY_GENERIC(5000)
 
     /* Setting the NOC voltages */
     pmic_set_voltage(NOC, NOC_BOOT_VOLTAGE);
     pmic_get_voltage(NOC, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding NOC    -> 400mV(0x%X)\n", voltage);
-    msdelay(5);
+    US_DELAY_GENERIC(5000)
 }
 /************************************************************************
 *
