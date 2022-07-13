@@ -128,6 +128,8 @@ Enums:
         Value: 11
       - Name: INVALID_ARGS_INVALID_SHIRE_MASK
         Value: 12
+      - Name : USER_ERROR
+        Value : 13
   - Name: dev_ops_api_kernel_abort_response
     Type: uint32_t
     Values:

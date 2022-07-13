@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-13464]: Fix the kernel launch error codes. There should be a differenciation between unexpected and user kernel error code.
 ### Security
 
 ## [0.5.0] - 2022-6-22
