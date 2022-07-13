@@ -24,6 +24,7 @@
 #include <fstream>
 #include <glog/logging.h>
 #include <iostream>
+#include <optional>
 #include <regex>
 #include <string>
 #include <unistd.h>
@@ -1099,35 +1100,89 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::setModuleFrequency(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setAndGetModuleFrequency(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+  auto setMinionAndNocFrequencies = [&](int deviceIdx,
+                                        const std::pair<uint16_t /* minionFreq */, uint16_t /* nocFreq */>& freqs) {
+    DV_LOG(INFO) << fmt::format("Device[{}]: Setting Minion={}, NOC={} MHz Frequencies.", deviceIdx, freqs.first,
+                                freqs.second);
     for (device_mgmt_api::pll_id_e pll_id = device_mgmt_api::PLL_ID_NOC_PLL;
          pll_id <= device_mgmt_api::PLL_ID_MINION_PLL; pll_id++) {
+      uint16_t pll_freq = (pll_id == device_mgmt_api::PLL_ID_NOC_PLL) ? freqs.second : freqs.first;
       for (device_mgmt_api::use_step_e use_step = device_mgmt_api::USE_STEP_CLOCK_FALSE;
            use_step <= device_mgmt_api::USE_STEP_CLOCK_TRUE; use_step++) {
-        if (use_step == device_mgmt_api::USE_STEP_CLOCK_TRUE && pll_id != device_mgmt_api::PLL_ID_MINION_PLL)
+        if (use_step == device_mgmt_api::USE_STEP_CLOCK_TRUE && pll_id != device_mgmt_api::PLL_ID_MINION_PLL) {
           continue;
+        }
         const uint32_t input_size =
           sizeof(uint16_t) + sizeof(device_mgmt_api::pll_id_e) + sizeof(device_mgmt_api::use_step_e);
         char input_buff[input_size];
-        input_buff[0] = (char)(0x90);
-        input_buff[1] = (char)(0x01);
+        input_buff[0] = (char)(pll_freq & 0xff);
+        input_buff[1] = (char)((pll_freq >> 8) & 0xff);
         input_buff[2] = (char)pll_id;
         input_buff[3] = (char)use_step;
         auto hst_latency = std::make_unique<uint32_t>();
         auto dev_latency = std::make_unique<uint64_t>();
-
-        EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FREQUENCY, input_buff, input_size,
-                                    nullptr, 0, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
-                  device_mgmt_api::DM_STATUS_SUCCESS);
+        if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FREQUENCY, input_buff, input_size, nullptr,
+                              0, hst_latency.get(), dev_latency.get(),
+                              DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+          return false;
+        }
         DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
       }
     }
+    return true;
+  };
+
+  auto getMinionAndNocFrequencies = [&](int deviceIdx) -> std::optional<std::pair<uint16_t, uint16_t>> {
+    const uint32_t output_size = sizeof(device_mgmt_api::asic_frequencies_t);
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, nullptr, 0, output_buff,
+                          output_size, hst_latency.get(), dev_latency.get(),
+                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+      return std::nullopt;
+    }
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    auto* asic_frequencies = (device_mgmt_api::asic_frequencies_t*)output_buff;
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received Frequencies: Minion={}, NOC={} MHz.", deviceIdx,
+                                asic_frequencies->minion_shire_mhz, asic_frequencies->noc_mhz);
+    return std::make_pair<uint16_t, uint16_t>(asic_frequencies->minion_shire_mhz, asic_frequencies->noc_mhz);
+  };
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    // Get current frequencies
+    auto origFreqs = getMinionAndNocFrequencies(deviceIdx);
+    ASSERT_TRUE(origFreqs.has_value()) << "Unable to get current Minion and NOC Frequencies!";
+
+    std::vector<std::pair<uint16_t, uint16_t>> testFreqsList = {{400, 200}, {500, 250}, {600, 300}};
+    for (auto testFreqs : testFreqsList) {
+      // Set test frequencies
+      EXPECT_TRUE(setMinionAndNocFrequencies(deviceIdx, testFreqs))
+        << fmt::format("Unable to set Minion={} MHz and NOC={} MHz Frequencies!", testFreqs.first, testFreqs.second);
+      auto freqs = getMinionAndNocFrequencies(deviceIdx);
+      ASSERT_TRUE(freqs.has_value()) << "Unable to get test Minion and NOC Frequencies!";
+      EXPECT_EQ(freqs.value().first, testFreqs.first)
+        << fmt::format("Couldn't set test Minion={} MHz Frequency!", testFreqs.first);
+      EXPECT_EQ(freqs.value().second, testFreqs.second)
+        << fmt::format("Couldn't set test NOC={} Frequency!", testFreqs.second);
+    }
+
+    // Revert back to original frequencies
+    EXPECT_TRUE(setMinionAndNocFrequencies(deviceIdx, origFreqs.value())) << fmt::format(
+      "Unable to set Minion={} MHz and NOC={} MHz Frequencies!", origFreqs.value().first, origFreqs.value().second);
+    auto freqs = getMinionAndNocFrequencies(deviceIdx);
+    ASSERT_TRUE(freqs.has_value()) << "Unable to get current Minion and NOC Frequencies!";
+    EXPECT_EQ(freqs.value().first, origFreqs.value().first)
+      << fmt::format("Couldn't revert to original Minion={} Frequency!", origFreqs.value().first);
+    EXPECT_EQ(freqs.value().second, origFreqs.value().second)
+      << fmt::format("Couldn't revert to original NOC={} Frequency!", origFreqs.value().second);
   }
 }
 

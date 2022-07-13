@@ -90,13 +90,13 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setThrottlePowerSt
   setThrottlePowerStatus(false /* Multiple Devices */);
 }
 
-TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setModuleFrequency) {
-  // TODO: SW-13219: V2 cards: Setting 400MHz/400MHz freq results in resetting of host
-  // V3 cards: Able to set 400MHz/400MHz freq but fails intermittently after few
-  // iterations with following error:
+TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setAndGetModuleFrequency) {
+  // TODO: SW-13219: Enable back on Target::Silicon. It fails intermittently after few iterations
+  // with following error:
   // Received incorrect rsp status: -15001
-  if (getTestTarget() != Target::Silicon) {
-    setModuleFrequency(false /* Multiple devices */);
+  // if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
+  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu})) {
+    setAndGetModuleFrequency(false /* Multiple devices */);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;

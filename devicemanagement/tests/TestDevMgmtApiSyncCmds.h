@@ -78,7 +78,7 @@ protected:
   void getModuleResidencyPowerState(bool singleDevice);
   void setModuleActivePowerManagement(bool singleDevice);
   void setThrottlePowerStatus(bool singleDevice);
-  void setModuleFrequency(bool singleDevice);
+  void setAndGetModuleFrequency(bool singleDevice);
 
   // Functional tests historical extreme value service
   void getModuleMaxTemperature(bool singleDevice);
