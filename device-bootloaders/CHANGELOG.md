@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13253] Added support to read Minion, NOC and SRAM current from PMIC
 - [SW-13035] Enforce updation of CHANGELOG.md and patch version in merge request pipelines
 - [SW-13284] Adding locks to I2C driver and minor fixes in soc power
-- [SW-13253]: Adding functionality to read PMB stats from PMIC
+- [SW-13253] Adding functionality to read PMB stats from PMIC
+- [SW-13253] Workaround for flash init for fast boot.
 ### Changed
 - Conanfile now declares dependencies with version-ranges
 ### Deprecated
@@ -23,10 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13220] Updates to ensure the correct value is returned for PCIe max link speed. It was returning value for one older GEN.
 - Override MNN, SRM, NOC voltage from SP to enable optimized operation point
 - Throttle power state test to update the trace header.
-- [SW-13253]: updated get module voltage to use values from pvt
+- [SW-13253] updated get module voltage to use values from pvt
 - [FV-296, SW-13251, SW-13273] SW WA for FV-296
 - [SW-13273] Fix for PLL frequency calculation
-- [SW-13253]: Fixed delays for sysemu by introducing delay macro
+- [SW-13253] Fixed delays for sysemu by introducing delay macro
 ### Security
 
 ## [0.3.0] - 2022-6-25
