@@ -17,22 +17,64 @@
 /***********************************************************************/
 #include <stdint.h>
 #include "bl2_sp_pll.h"
+#include "bl2_reset.h"
 
+#include "bl2_sp_pll.h"
 #include "bl_error_code.h"
 #include "log.h"
 
+#include "etsoc/isa/io.h"
+#include "hwinc/sp_cru_reset.h"
+#include "hwinc/hal_device.h"
+
+#include "hwinc/ms_reg_def.h"
 #include "hwinc/etsoc_shire_cache_esr.h"
 #include "esr.h"
 
 #include "hal_noc_reconfig.h"
 #include "slam_engine.h"
-
 #include "noc_configuration.h"
+
+static void reconfig_memory_shire(CSR_SLAM_TABLE *reconfig_table_ptr)
+{
+    if (reconfig_table_ptr == CSR_SLAM_TABLE_PTR_NULL)
+        return;
+
+    SLAM_ENGINE(reconfig_table_ptr);
+
+    Log_Write(LOG_LEVEL_INFO, "Re-configure NOC for the number of memory shire\n");
+    // sequence from https://esperantotech.atlassian.net/browse/VERIF-3949
+    // release memshire from reset
+    release_memshire_from_reset();
+
+    // configure the memshire control ms_mem_ctl register
+    for (uint8_t i = 0; i < 8; i++)
+    {
+        volatile uint64_t *pRegs64 = (volatile uint64_t *)(ms_mem_ctl | ((232 + i) << 22));
+        if (reconfig_table_ptr == &reconfig_noc_2_west_memshires ||
+            reconfig_table_ptr == &reconfig_noc_2_east_memshires)
+        {
+            pRegs64[0] = 0x000307f187fff1c6;
+        }
+        else if (reconfig_table_ptr == &reconfig_noc_1_west_memshires ||
+                 reconfig_table_ptr == &reconfig_noc_1_east_memshires)
+        {
+            pRegs64[0] = 0x000307f186ffffc6;
+        }
+        else if (reconfig_table_ptr == &reconfig_noc_4_west_memshires ||
+                 reconfig_table_ptr == &reconfig_noc_4_east_memshires)
+        {
+            pRegs64[0] = 0x000307f188fc81c6;
+        }
+    }
+}
 
 static void reconfig_minion_shire(CSR_SLAM_TABLE *reconfig_table_ptr)
 {
     if (reconfig_table_ptr == CSR_SLAM_TABLE_PTR_NULL)
         return;
+
+    Log_Write(LOG_LEVEL_INFO, "Re-configure NOC for the number of minion shires\n");
 
     // sequence from https://esperantotech.atlassian.net/browse/VERIF-3950
     // needed only for 8 shires or less
@@ -68,10 +110,6 @@ int32_t NOC_Configure(uint8_t mode)
         return NOC_MAIN_CLOCK_CONFIGURE_ERROR;
     }
 
-    // TBD: Configure Main NOC Registers via Regbus
-    // Remap NOC ID based on MM OTP value
-    // Other potential NOC workarounds
-
     /* tables are avaiable in hal_noc_reconfig.h.  Currently we have
         reconfig_noc_4_west_memshires
         reconfig_noc_2_west_memshires
@@ -80,10 +118,9 @@ int32_t NOC_Configure(uint8_t mode)
         reconfig_noc_2_east_memshires
         reconfig_noc_1_east_memshires
     */
-    CSR_SLAM_TABLE *reconfig_table_ptr = CSR_SLAM_TABLE_PTR_NULL;
-    if (reconfig_table_ptr != CSR_SLAM_TABLE_PTR_NULL)
-        SLAM_ENGINE(reconfig_table_ptr);
+    reconfig_memory_shire(CSR_SLAM_TABLE_PTR_NULL);
 
+    // Option to reconfigure NOC for different # of MinShires
     /* tables are avaiable in hal_noc_reconfig.h.  Currently we have
         reconfig_noc_16_minshires
         reconfig_noc_8_minshires

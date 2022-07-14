@@ -87,8 +87,8 @@ static uint8_t noc_pll_mode[3] = { 66, 11, 17 };
 /* MIN STEP CLOCK frequency modes (600MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
 static uint8_t min_step_pll_mode[3] = { 34, 45, 46 };
 
-/* LVDPLL frequency modes (500MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
-static uint8_t min_lvdpll_mode[3] = { 15, 60, 105 };
+/* LVDPLL frequency modes (300MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
+static uint8_t min_lvdpll_mode[3] = { 1, 60, 105 };
 
 SERVICE_PROCESSOR_BL2_DATA_t *get_service_processor_bl2_data(void)
 {
@@ -124,6 +124,7 @@ static void taskMain(void *pvParameters)
     read_ecid(&ecid);
 
 #if FAST_BOOT
+    configure_sp_pll_2(40, HPDPLL_LDO_KICK);
     // In cases where BootROM is bypass, initialize PCIe link
     PCIe_release_pshire_from_reset();
     /* Configure Pshire Pll to 1010 Mhz */
@@ -147,10 +148,18 @@ static void taskMain(void *pvParameters)
     minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
     Minion_Set_Active_Shire_Mask(minion_shires_mask);
 
+    /* Print PVT sampled values */
+    pvt_print_temperature_sampled_values(PVTC_MINION_SHIRE);
+    pvt_print_voltage_sampled_values(PVTC_MINION_SHIRE);
+
     // Initialize Minions
     Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]Initialize Minion Shire\n");
     status = Initialize_Minions(minion_shires_mask);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Minion initialization failed!")
+
+    /* Print PVT sampled values */
+    pvt_print_temperature_sampled_values(PVTC_MINION_SHIRE);
+    pvt_print_voltage_sampled_values(PVTC_MINION_SHIRE);
 
     // Initialize Host to Service Processor Interface
 #if !TEST_FRAMEWORK
@@ -220,8 +229,8 @@ static void taskMain(void *pvParameters)
     uint8_t lvdpll_strap_pins;
     lvdpll_strap_pins = get_lvdpll_strap_value();
 
-    Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]Minion Shire PLL Configure \n");
-    Log_Write(LOG_LEVEL_INFO, "HDPLL[Strap: %d] mode: %d LVDPLL[Strap: %d] mode: %d\n",
+    Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]Minion Shire PLL Enable\n");
+    Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]HDPLL[Strap: %d] mode: %d LVDPLL[Strap: %d] mode: %d\n",
               hpdpll_strap_pins, min_step_pll_mode[hpdpll_strap_pins], lvdpll_strap_pins,
               min_lvdpll_mode[lvdpll_strap_pins]);
 
@@ -243,6 +252,7 @@ static void taskMain(void *pvParameters)
 
 #if !(FAST_BOOT || TEST_FRAMEWORK)
     // Extract Minion FW from Flash, authenticate and load to DDR
+    Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]Minion_Load_Authenticate_Firmware\n");
     status = Minion_Load_Authenticate_Firmware();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to load Minion Firmware!")
 #endif
@@ -252,9 +262,11 @@ static void taskMain(void *pvParameters)
 
 #if !TEST_FRAMEWORK
     // Launch Host->SP Command Handler
+    Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]launch_host_sp_command_handler\n");
     launch_host_sp_command_handler();
 #endif
     // Launch MM->SP Command Handler
+    Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]launch_mm_sp_command_handler\n");
     launch_mm_sp_command_handler();
 
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_COMMAND_DISPATCHER_INITIALIZED);
@@ -271,6 +283,11 @@ static void taskMain(void *pvParameters)
 
 #if TEST_FRAMEWORK
     Log_Write(LOG_LEVEL_INFO, "Entering TF_BL2_ENTRY_FOR_SP_MM intercept.\r\n");
+
+    /* Print PVT sampled values */
+    pvt_print_temperature_sampled_values(PVTC_MINION_SHIRE);
+    pvt_print_voltage_sampled_values(PVTC_MINION_SHIRE);
+
     /* Control does not return from call below */
     /* if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_SP_MM .. */
     TF_Wait_And_Process_TF_Cmds(TF_BL2_ENTRY_FOR_SP_MM);
@@ -278,13 +295,16 @@ static void taskMain(void *pvParameters)
 #endif
 
     // Program ATUs here
+    Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]pcie_enable_link\n");
     pcie_enable_link();
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_ATU_PROGRAMMED);
 
-    // Initialize  watchdog service
+#if (FAST_BOOT || TEST_FRAMEWORK)
+    // Initialize watchdog service
     status = init_watchdog_service();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init watchdog service!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_SP_WATCHDOG_TASK_READY);
+#endif
 
 #if !FAST_BOOT
     // At this point, SP and minions have booted successfully. Increment the completed boot counter
@@ -294,6 +314,7 @@ static void taskMain(void *pvParameters)
 #endif
 
     // Initialize thermal power management service
+    Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]init_thermal_pwr_mgmt_service\n");
     status = init_thermal_pwr_mgmt_service();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init thermal power management!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_PM_READY);
@@ -308,9 +329,13 @@ static void taskMain(void *pvParameters)
         timeout -= 1;
     }
     if (timeout == 0)
+    {
         Log_Write(LOG_LEVEL_WARNING, "MM not ready, SP has not received MM heartbeat!\n");
+    }
     else
+    {
         Log_Write(LOG_LEVEL_CRITICAL, "MM heartbeat alive!\n");
+    }
 
     // Initialize MM heartbeat watchdog service
     status = MM_Init_HeartBeat_Watchdog();
@@ -329,10 +354,6 @@ static void taskMain(void *pvParameters)
     /* Print system operating point */
     print_system_operating_point();
 
-    /* Inform Host Device is Ready */
-    Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");
-    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
-
     /* Initialize SP Trace component */
     status = Trace_Init_SP(NULL);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init SP trace component!")
@@ -348,6 +369,10 @@ static void taskMain(void *pvParameters)
     // Initialize DM sampling task
     Log_Write(LOG_LEVEL_INFO, "MAIN:[txt] DM Sampling Task Start\n");
     init_dm_sampling_task();
+
+    /* Inform Host Device is Ready */
+    Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");
+    DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
 
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
@@ -558,7 +583,11 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     SERIAL_init(PU_UART0);
     SERIAL_init(PU_UART1);
 
+#if FAST_BOOT
     Log_Init(LOG_LEVEL_WARNING);
+#else
+    Log_Init(LOG_LEVEL_INFO);
+#endif
 
     /* Initialize and start continuous sampling on PVT sensors */
     pvt_init();

@@ -184,12 +184,12 @@ void PCIe_init(bool expect_link_up)
     {
         if (PCIE_Init_Status() == 0)
         {
+            Log_Write(LOG_LEVEL_CRITICAL, "PCIe link still up...\r\n");
             init_link = false;
         }
         else
         {
-            Log_Write(LOG_LEVEL_WARNING,
-                      "Warning: PCIe link not properly inited, trying again...\r\n");
+            Log_Write(LOG_LEVEL_WARNING, "Warning: PCIe link is down...\r\n");
         }
     }
 
@@ -198,8 +198,11 @@ void PCIe_init(bool expect_link_up)
         initialize_link();
     }
 
+    /* TODO: Need to fix this for silicon */
+#if (FAST_BOOT || TEST_FRAMEWORK)
     /* Register interrupt handler for PERST_N deassertion */
     INT_enableInterrupt(SPIO_PLIC_PERSTN_DEASSERT_INTR_ID, 1, perstn_deassert_handler);
+#endif
 }
 
 /*! \brief This is the last step to enable PCIe link so Host/Device can communicate.
@@ -226,7 +229,7 @@ static void pcie_init_pshire(void)
     /* TODO: ABP Reset deassert? In "PCIe Initialization Sequence" doc, TBD what state to check */
 
     /* Wait for PERST_N */
-    Log_Write(LOG_LEVEL_DEBUG, "Waiting for PCIe bus out of reset...");
+    Log_Write(LOG_LEVEL_CRITICAL, "Waiting for PCIe bus (PRST_N) out of reset...");
     do
     {
         tmp = ioread32(PCIE_ESR + PCIE_ESR_PSHIRE_STAT_ADDRESS);
@@ -239,12 +242,14 @@ static void pcie_init_pshire(void)
     iowrite32(PCIE_ESR + PCIE_ESR_PSHIRE_RESET_ADDRESS, tmp);
 
     /* Wait for CDM (controller, dual-mode; all of the "PCIE0" regs) to be ready */
+    Log_Write(LOG_LEVEL_DEBUG, "Waiting for PCIe CDM out of reset...");
     do
     {
         tmp = ioread32(PCIE_CUST_SS +
                        DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
     } while (DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_CDM_IN_RESET_GET(tmp) !=
              0);
+    Log_Write(LOG_LEVEL_DEBUG, "Wait for CDM: DONE\n");
 }
 
 static void pcie_init_caps_list(void)
@@ -278,6 +283,7 @@ static void pcie_init_error_cap(void)
     uint32_t miscControl;
     uint32_t reg_val;
 
+    Log_Write(LOG_LEVEL_DEBUG, "pcie_init_caps_list()...\n");
     /* The config registers are protected by a write-enable bit */
     miscControl =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
@@ -326,6 +332,7 @@ static void pcie_init_bars(void)
     uint32_t bar0, bar2;
     uint32_t miscControl;
 
+    Log_Write(LOG_LEVEL_DEBUG, "pcie_init_bars()...\n");
     /* The BAR config registers are protected by a write-enable bit */
     miscControl =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
@@ -381,6 +388,7 @@ static void pcie_init_bars(void)
         /* IMPORTANT: Many hosts do not tolerate > 1 gb BARs that are not prefetchable */
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_BAR0_PREFETCH_MODIFY(bar0, 1);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS, bar0);
+    Log_Write(LOG_LEVEL_INFO, "pcie_init_bars: BAR0 baseAddr: %x\r\n", bar0);
 
     /* BAR2 config (maps registers) */
     bar2 = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_ADDRESS);
@@ -392,6 +400,7 @@ static void pcie_init_bars(void)
     /* IMPORTANT - not prefetchable (registers with read side effects mapped here) */
     bar2 = PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_BAR2_PREFETCH_MODIFY(bar2, 0);
     iowrite32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_ADDRESS, bar2);
+    Log_Write(LOG_LEVEL_INFO, "pcie_init_bars: BAR2 baseAddr: %x\r\n", bar2);
 
     /* Wait to init iATUs until BAR addresses are assigned - see PCIe_initATUs. */
 
@@ -414,6 +423,7 @@ static void pcie_init_ints(void)
     uint32_t miscControl;
     uint32_t msi_ctrl;
 
+    Log_Write(LOG_LEVEL_DEBUG, "pcie_init_ints()...\n");
     /* Open access to MSI Capability Register */
     miscControl =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_ADDRESS);
@@ -509,6 +519,7 @@ static void pcie_init_link(void)
     {
         tmp = ioread32(PCIE_CUST_SS +
                        DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
+        Log_Write(LOG_LEVEL_DEBUG, "LTSSM: 0x%08x\n", tmp);
     } while (DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_SMLH_LTSSM_STATE_GET(
                  tmp) != SMLH_LTSSM_STATE_LINK_UP);
     Log_Write(LOG_LEVEL_DEBUG, "done\r\n");
@@ -580,6 +591,7 @@ CONFIG_INBOUND_IATU(3)
 
 static void pcie_init_atus(void)
 {
+    Log_Write(LOG_LEVEL_INFO, "pcie_init_atus()...\n");
     reconfig_noc_pshire();
 
     /* The config registers are protected by a write-enable bit */
@@ -613,6 +625,21 @@ static void pcie_init_atus(void)
             status_command_reg) == 0);
     Log_Write(LOG_LEVEL_CRITICAL, " done\r\n");
 
+    Log_Write(LOG_LEVEL_INFO, "Waiting for host to assign BAR addresses..");
+
+    uint32_t bar0_lo;
+    uint32_t bar0_hi;
+    uint64_t bar0_64bit;
+
+    do
+    {
+        bar0_lo = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
+        bar0_hi = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR1_REG_ADDRESS);
+        bar0_64bit = ((uint64_t)bar0_hi << 32) | ((uint64_t)bar0_lo & 0xFFFFFFF0ULL);
+    } while (bar0_64bit == 0x0ULL);
+
+    Log_Write(LOG_LEVEL_INFO, " done\r\n");
+
     /* Setup BAR0
        Name                  Host Addr           SoC Addr      Size    Notes
        SP_DM_SCRATCH_REGION  BAR0 + 0x00921000   0x80018418c0  4M      F/W update - Scratch
@@ -620,13 +647,12 @@ static void pcie_init_atus(void)
        MM_TRACE_BUFFER       BAR0 + 0x00001000   0x8001C428C0  1M      MM SMode Trace
        CM_TRACE_BUFFER       BAR0 + 0x00101000   0x8001D428C0  8.125M  CM SMode Trace */
 
-    uint32_t bar0_lo =
-        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
-    uint32_t bar0_hi =
-        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR1_REG_ADDRESS);
-    uint64_t bar0 = ((uint64_t)bar0_hi << 32) | ((uint64_t)bar0_lo & 0xFFFFFFF0ULL);
+    bar0_lo = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
+    bar0_hi = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR1_REG_ADDRESS);
+    bar0_64bit = ((uint64_t)bar0_hi << 32) | ((uint64_t)bar0_lo & 0xFFFFFFF0ULL);
+    Log_Write(LOG_LEVEL_INFO, "pcie_init_atus: BAR0 baseAddr: %lx\r\n", bar0_64bit);
 
-    config_inbound_iatu_0(bar0,                       /* baseAddr */
+    config_inbound_iatu_0(bar0_64bit,                 /* baseAddr */
                           SP_DM_SCRATCH_REGION_BEGIN, /* targetAddr */
                           SP_DM_SCRATCH_REGION_SIZE + SP_TRACE_BUFFER_SIZE + MM_TRACE_BUFFER_SIZE +
                               CM_SMODE_TRACE_BUFFER_SIZE + SP_STATS_BUFFER_SIZE +
@@ -644,6 +670,8 @@ static void pcie_init_atus(void)
     uint32_t baseAddr_hi =
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR3_REG_ADDRESS);
     uint64_t baseAddr = ((uint64_t)baseAddr_hi << 32) | ((uint64_t)baseAddr_lo & 0xFFFFFFF0ULL);
+
+    Log_Write(LOG_LEVEL_INFO, "pcie_init_atus: BAR2 baseAddr: %lx\r\n", baseAddr);
 
     config_inbound_iatu_1(baseAddr, R_PU_MBOX_PC_MM_BASEADDR, /* targetAddr */
                           R_PU_MBOX_PC_MM_SIZE);              /* size */

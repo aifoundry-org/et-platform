@@ -25,88 +25,87 @@
 /*! \def PLL_REG_INDEX_REG_0
     \brief index register number
 */
-#define PLL_REG_INDEX_REG_0                  0
+#define PLL_REG_INDEX_REG_0 0
 
 /*! \def PLL_REG_INDEX_REG_LOCK_THRESHOLD
     \brief lock threshold
 */
-#define PLL_REG_INDEX_REG_LOCK_THRESHOLD               0x0B
+#define PLL_REG_INDEX_REG_LOCK_THRESHOLD 0x0B
 
 /*! \def PLL_REG_INDEX_REG_LDO_CONTROL
     \brief LDO control
 */
-#define PLL_REG_INDEX_REG_LDO_CONTROL                  0x18
+#define PLL_REG_INDEX_REG_LDO_CONTROL 0x18
 
 /*! \def PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL
     \brief Lock monitor sample strobe and clear
 */
-#define PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL         0x19
+#define PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL 0x19
 
 /*! \def PLL_REG_INDEX_REG_FREQ_MONITOR_CONTROL
     \brief Freq montior control
 */
-#define PLL_REG_INDEX_REG_FREQ_MONITOR_CONTROL         0x23
+#define PLL_REG_INDEX_REG_FREQ_MONITOR_CONTROL 0x23
 
 /*! \def PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_REF_COUNT
     \brief Freq montior clock ref count
 */
-#define PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_REF_COUNT   0x24
+#define PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_REF_COUNT 0x24
 
 /*! \def PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_COUNT_0
     \brief Freq montior clock count 0
 */
-#define PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_COUNT_0     0x25
+#define PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_COUNT_0 0x25
 
 /*! \def PLL_REG_INDEX_REG_LOCK_MONITOR
     \brief Lock montior
 */
-#define PLL_REG_INDEX_REG_LOCK_MONITOR                 0x30
+#define PLL_REG_INDEX_REG_LOCK_MONITOR 0x30
 
 /*! \def PLL_LOCK_MONITOR_MASK
     \brief Lock montior mask
 */
-#define PLL_LOCK_MONITOR_MASK                          0x3F
+#define PLL_LOCK_MONITOR_MASK 0x3F
 
 /*! \def PLL_REG_INDEX_REG_DCO_CODE_ACQUIRED
     \brief DCO code aquired
 */
-#define PLL_REG_INDEX_REG_DCO_CODE_ACQUIRED            0x31
+#define PLL_REG_INDEX_REG_DCO_CODE_ACQUIRED 0x31
 
 /*! \def PLL_REG_INDEX_REG_DCO_CODE_LOOP_FILTER
     \brief DCO code aquired
 */
-#define PLL_REG_INDEX_REG_DCO_CODE_LOOP_FILTER         0x32
+#define PLL_REG_INDEX_REG_DCO_CODE_LOOP_FILTER 0x32
 
 /*! \def PLL_REG_INDEX_REG_UPDATE_STROBE
     \brief update strobe register index
 */
-#define PLL_REG_INDEX_REG_UPDATE_STROBE                0x38
+#define PLL_REG_INDEX_REG_UPDATE_STROBE 0x38
 
 /*! \def PLL_REG_INDEX_REG_LOCK_DETECT_STATUS
     \brief PLL lock detect status
 */
-#define PLL_REG_INDEX_REG_LOCK_DETECT_STATUS           0x39
-
+#define PLL_REG_INDEX_REG_LOCK_DETECT_STATUS 0x39
 
 /*! \def DCO_NORMALIZATION_ENABLE__SHIFT
     \brief DCO normalization enable shift
 */
-#define DCO_NORMALIZATION_ENABLE__SHIFT      7u
+#define DCO_NORMALIZATION_ENABLE__SHIFT 7u
 
 /*! \def DCO_NORMALIZATION_ENABLE__MASK
     \brief DCO normalization enable mask
 */
-#define DCO_NORMALIZATION_ENABLE__MASK       (1u << DCO_NORMALIZATION_ENABLE__SHIFT)
+#define DCO_NORMALIZATION_ENABLE__MASK (1u << DCO_NORMALIZATION_ENABLE__SHIFT)
 
 /*! \def PLL_ENABLE__SHIFT
     \brief PLL enable shift
 */
-#define PLL_ENABLE__SHIFT      3u
+#define PLL_ENABLE__SHIFT 3u
 
 /*! \def PLL_ENABLE__MASK
     \brief PLL enable mask
 */
-#define PLL_ENABLE__MASK       (1u << PLL_ENABLE__SHIFT)
+#define PLL_ENABLE__MASK (1u << PLL_ENABLE__SHIFT)
 
 /*! \def FREQUENCY_HZ_TO_MHZ(x)
     \brief Converts HZ to MHZ
@@ -117,7 +116,8 @@
  * @enum MEM_HPDPLL_LDO_UPDATE_t
  * @brief Enum defining HPDPLL LDO update type
  */
-typedef enum MEM_HPDPLL_LDO_UPDATE_e {
+typedef enum MEM_HPDPLL_LDO_UPDATE_e
+{
     MEM_HPDPLL_LDO_NO_UPDATE,
     MEM_HPDPLL_LDO_ENABLE,
     MEM_HPDPLL_LDO_DISABLE,
@@ -172,15 +172,16 @@ static int memshire_pll_wait_for_lock(uint8_t ms_num)
     return -1;
 }
 
-static int program_memshire_pll(uint8_t ms_num, uint8_t mode, uint32_t* target_freq,
-                                    MEM_HPDPLL_LDO_UPDATE_t ldo_update,
-                                    uint32_t threshold_multiplier)
+static int program_memshire_pll(uint8_t ms_num, uint8_t mode, uint32_t *target_freq,
+                                MEM_HPDPLL_LDO_UPDATE_t ldo_update, uint32_t threshold_multiplier)
 {
     uint16_t reg0;
     uint16_t ldo_reg = 0;
     uint8_t register_index;
     uint16_t register_value;
     int status;
+
+    Log_Write(LOG_LEVEL_DEBUG, "PLL:[txt]program_memshire_pll: start\n");
 
     /* Start programming PLL to mode N */
     if (!mode)
@@ -193,25 +194,25 @@ static int program_memshire_pll(uint8_t ms_num, uint8_t mode, uint32_t* target_f
         register_index = gs_hpdpll_settings[mode - 1].offsets[i];
         register_value = gs_hpdpll_settings[mode - 1].values[i];
         /* Change LDO configuration if necessary */
-        if(register_index == PLL_REG_INDEX_REG_LDO_CONTROL)
+        if (register_index == PLL_REG_INDEX_REG_LDO_CONTROL)
         {
             if (ldo_update == MEM_HPDPLL_LDO_DISABLE || ldo_update == MEM_HPDPLL_LDO_KICK)
             {
-                register_value |= 0x2;     // Turn off LDO
+                register_value |= 0x2; // Turn off LDO
                 ldo_reg = register_value;
             }
             if (ldo_update == MEM_HPDPLL_LDO_BYPASS)
             {
-                register_value |= 0x1;     // Bypass LDO
+                register_value |= 0x1; // Bypass LDO
             }
         }
         /* Increase lock threshold if necessary */
-        if(register_index == PLL_REG_INDEX_REG_LOCK_THRESHOLD)
+        if (register_index == PLL_REG_INDEX_REG_LOCK_THRESHOLD)
         {
             if ((register_value * threshold_multiplier) > 0x0FFFFu)
             {
                 register_value = (uint16_t)(0xFFFF);
-             }
+            }
             else
             {
                 register_value = (uint16_t)(register_value * threshold_multiplier);
@@ -233,14 +234,14 @@ static int program_memshire_pll(uint8_t ms_num, uint8_t mode, uint32_t* target_f
     update_memshire_pll_regs(ms_num);
 
     status = memshire_pll_wait_for_lock(ms_num);
-    if(0 != status)
+    if (0 != status)
     {
         return status;
     }
 
     if (ldo_update == MEM_HPDPLL_LDO_KICK)
     {
-        ldo_reg &= (uint16_t)(~(0x2));  // Turn on LDO
+        ldo_reg &= (uint16_t)(~(0x2)); // Turn on LDO
         write_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_LDO_CONTROL, ldo_reg);
         update_memshire_pll_regs(ms_num);
 
@@ -255,14 +256,14 @@ static int program_memshire_pll(uint8_t ms_num, uint8_t mode, uint32_t* target_f
         update_memshire_pll_regs(ms_num);
 
         status = memshire_pll_wait_for_lock(ms_num);
-        if(0 != status)
+        if (0 != status)
         {
             return status;
         }
     }
+    Log_Write(LOG_LEVEL_DEBUG, "PLL:[txt]program_memshire_pll: PLL locked\n");
 
-    *target_freq =
-        FREQUENCY_HZ_TO_MHZ(gs_hpdpll_settings[(mode - 1)].output_frequency);
+    *target_freq = FREQUENCY_HZ_TO_MHZ(gs_hpdpll_settings[(mode - 1)].output_frequency);
 
     return 0;
 }

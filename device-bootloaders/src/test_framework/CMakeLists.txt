@@ -64,4 +64,6 @@ target_link_libraries(test_framework
 target_compile_definitions(test_framework
   PRIVATE
     -DTF_CORE=0
+    -DFAST_BOOT=0
+    -DTEST_FRAMEWORK=1
 )

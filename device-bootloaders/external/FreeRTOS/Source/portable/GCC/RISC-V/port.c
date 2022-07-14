@@ -29,6 +29,9 @@
  * Implementation of functions defined in portable.h for the RISC-V RV32 port.
  *----------------------------------------------------------*/
 
+/* Turn of clang format for this file. It is more readable that way. */
+// clang-format off
+
 /* Scheduler includes. */
 #include "FreeRTOS.h"
 #include "task.h"
@@ -211,7 +214,7 @@ extern void xPortStartFirstTask( void );
                     Timer Interrupt - 1 << 7
                     Mmode SW Interrupt - 1 << 3
 		*/
-		__asm volatile( "csrs mie, %0" :: "r"(0x000880) );
+		__asm volatile("csrs mie, %0" ::"r"(0x888));
 	}
 	#else
 	{
@@ -220,7 +223,7 @@ extern void xPortStartFirstTask( void );
                     External Interrrupt - 1 << 11
                     Mmode SW Interrupt - 1 << 3
 		*/
-		__asm volatile( "csrs mie, %0" :: "r"(0x800) );
+		__asm volatile("csrs mie, %0" ::"r"(0x808));
 	}
 	#endif /* ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIMECMP_BASE_ADDRESS != 0 ) */
 

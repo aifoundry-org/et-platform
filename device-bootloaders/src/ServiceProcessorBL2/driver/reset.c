@@ -39,6 +39,9 @@ int release_memshire_from_reset(void)
 {
     iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MEMSHIRE_COLD_ADDRESS,
               RESET_MANAGER_RM_MEMSHIRE_COLD_RSTN_SET(0x01));
+#if !(FAST_BOOT || TEST_FRAMEWORK)
+    msdelay(200);
+#endif
 
     /* Serially bring up each MemShire */
     for (int memshire = 0; memshire < 8; ++memshire)
@@ -47,7 +50,11 @@ int release_memshire_from_reset(void)
                   memshire);
         iormw32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MEMSHIRE_WARM_ADDRESS,
                 (uint32_t)0x1 << memshire);
+#if (FAST_BOOT || TEST_FRAMEWORK)
         usdelay(3);
+#else
+        msdelay(200);
+#endif
     }
 
     return 0;
@@ -69,7 +76,11 @@ int release_minions_from_warm_reset(void)
                   minion);
         iormw32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MINION_WARM_A_ADDRESS,
                 (uint32_t)(0x1 << minion));
+#if (FAST_BOOT || TEST_FRAMEWORK)
         usdelay(3);
+#else
+        msdelay(200);
+#endif
     }
     for (int minion = 0; minion < 2; ++minion)
     {
@@ -77,9 +88,14 @@ int release_minions_from_warm_reset(void)
                   32 + minion);
         iormw32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MINION_WARM_B_ADDRESS,
                 (uint32_t)(0x1 << minion));
+#if (FAST_BOOT || TEST_FRAMEWORK)
         usdelay(3);
+#else
+        msdelay(200);
+#endif
     }
 
+    Log_Write(LOG_LEVEL_INFO, "CRU:[txt]Release minions from reset completed\n");
     return 0;
 }
 

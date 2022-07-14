@@ -448,7 +448,7 @@ static void mm2sp_report_error_event_handler(const void *cmd_buffer)
 {
     const struct mm2sp_report_error_event_t *event = cmd_buffer;
 
-    Log_Write(LOG_LEVEL_INFO, "MM_Error_Reported: Code = %d \r\n", event->error_code);
+    Log_Write(LOG_LEVEL_DEBUG, "MM_Error_Reported: Code = %d \r\n", event->error_code);
 
     /* Handle the error */
     Minion_State_MM_Error_Handler(event->error_type, event->error_code);
@@ -510,7 +510,7 @@ static void mm_cmd_hdlr_task(void *pvParameters)
         /* ISRs set notification bits per ipi_trigger in case we want them - not currently using them */
         xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
 
-        Log_Write(LOG_LEVEL_INFO, "MM request received: %s\n", __func__);
+        Log_Write(LOG_LEVEL_DEBUG, "MM request received: %s\n", __func__);
 
         /* Get the cached tail pointer */
         tail_prev = VQ_Get_Tail_Offset(&vq_cached);

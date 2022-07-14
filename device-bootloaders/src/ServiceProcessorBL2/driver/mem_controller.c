@@ -54,6 +54,15 @@ static void memshire_pll_output_enable(uint32_t memshire)
     ms_write_esr(memshire, ddrc_reset_ctl, value);
 }
 
+static void disable_memory_pll_bypass(uint32_t memshire)
+{
+    uint64_t value;
+
+    value = ms_read_esr(memshire, ddrc_reset_ctl);
+    value |= 0x100;
+    ms_write_esr(memshire, ddrc_reset_ctl, value);
+}
+
 #define MFG_ID     0x5
 #define MFG_CONFIG 0x8
 
@@ -123,6 +132,7 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode)
 
     if (0 != program_memshire_pll(0, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_KICK, 2))
         return -1;
+    disable_memory_pll_bypass(0);
 
     // Switch MemShire clock mux to use PLL output
     memshire_pll_output_enable(0);
@@ -132,6 +142,7 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode)
 
     if (0 != program_memshire_pll(4, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_KICK, 2))
         return -1;
+    disable_memory_pll_bypass(4);
 
     // Switch MemShire clock mux to use PLL output
     memshire_pll_output_enable(4);

@@ -925,7 +925,7 @@ int configure_maxion_pll_core(uint8_t mode)
     do
     {
         rv = configure_pll((uint32_t *)R_SP_PLLMX0_BASEADDR, mode, &gs_maxion_pll_core_frequency,
-                           HPDPLL_LDO_BYPASS, 1);
+                           HPDPLL_LDO_KICK, 1);
         try_num++;
     } while ((0 != rv) && (try_num < PLL_PROGRAM_TRY_LIMIT));
 
@@ -966,7 +966,7 @@ int configure_maxion_pll_uncore(uint8_t mode)
     do
     {
         rv = configure_pll((uint32_t *)R_SP_PLLMX1_BASEADDR, mode, &gs_maxion_pll_uncore_frequency,
-                           HPDPLL_LDO_BYPASS, 1);
+                           HPDPLL_LDO_KICK, 1);
         try_num++;
     } while ((0 != rv) && (try_num < PLL_PROGRAM_TRY_LIMIT));
 

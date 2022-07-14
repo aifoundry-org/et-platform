@@ -356,7 +356,11 @@
            wait for response from MM for this much time at max.
            NOTE: This value is in milliseconds. Should be fine tuned for Sillicon.
 */
+#if (FAST_BOOT || TEST_FRAMEWORK)
 #define SP2MM_CMD_TIMEOUT 5
+#else
+#define SP2MM_CMD_TIMEOUT 1000
+#endif
 
 /*! \def HOST_VQ_MAX_TIMEOUT
     \brief A macro that provides the timeout for host VQ locks
@@ -462,9 +466,14 @@
   RTOS Task Properties
  ************************/
 // Main Task
-#define MAIN_TASK_PRIORITY        4
-#define MAIN_TASK_STACK_SIZE      4096
+#define MAIN_TASK_PRIORITY   4
+#define MAIN_TASK_STACK_SIZE 4096
+#if (FAST_BOOT || TEST_FRAMEWORK)
 #define MAIN_DEFAULT_TIMEOUT_MSEC 1000
+#else
+#define MAIN_DEFAULT_TIMEOUT_MSEC 100000
+#endif
+
 // WDOG Service
 #define WDOG_TASK_PRIORITY        4
 #define WDOG_TASK_STACK_SIZE      512
@@ -479,7 +488,7 @@
 // Sampler
 #define DM_TASK_PRIORITY 2
 #define DM_TASK_STACK    1024
-#define DM_TASK_DELAY_MS 1
+#define DM_TASK_DELAY_MS 10
 // Power Management
 #define TT_TASK_PRIORITY   2
 #define TT_TASK_STACK_SIZE 1024

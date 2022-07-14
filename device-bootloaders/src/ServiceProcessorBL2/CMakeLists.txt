@@ -40,7 +40,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
     else()
         # Debug enabled
         set(FAST_BOOT 1)
-        set(TEST_FRAMEWORK 0)  
+        set(TEST_FRAMEWORK 0)
         set(MINION_DEBUG_INTERFACE 1)
     endif()
 
@@ -167,6 +167,5 @@ target_link_libraries(BL2_driver
         esperantoTrace::et_trace
         et-common-libs::sp-bl2
         FreeRTOS::FreeRTOS
-
         esperantoBootLoader::common
 )

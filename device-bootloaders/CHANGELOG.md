@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13284] Adding locks to I2C driver and minor fixes in soc power
 - [SW-13253] Adding functionality to read PMB stats from PMIC
 - [SW-13253] Workaround for flash init for fast boot.
+- [SW-13466] Porting over changes from silicon branch.
 ### Changed
 - Conanfile now declares dependencies with version-ranges
 ### Deprecated
