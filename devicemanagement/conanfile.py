@@ -73,7 +73,7 @@ class DeviceManagementConan(ConanFile):
         # library components
         self.cpp_info.components["DM"].set_property("cmake_target_name", "deviceManagement::DM")
         self.cpp_info.components["DM"].requires = ["deviceApi::deviceApi", "deviceLayer::deviceLayer", "hostUtils::logging"]
-        self.cpp_info.components["DM"].lib = ["DM"]
+        self.cpp_info.components["DM"].libs = ["DM"]
         self.cpp_info.components["DM"].includedirs = ["include"]
         self.cpp_info.components["DM"].libdirs = ["lib"]
         if self.settings.build_type == "Debug":
@@ -83,7 +83,7 @@ class DeviceManagementConan(ConanFile):
 
         self.cpp_info.components["DM_static"].set_property("cmake_target_name", "deviceManagement::DM_static")
         self.cpp_info.components["DM_static"].requires = ["deviceApi::deviceApi", "deviceLayer::deviceLayer", "hostUtils::logging"]
-        self.cpp_info.components["DM_static"].lib = ["DM_static"]
+        self.cpp_info.components["DM_static"].libs = ["DM_static"]
         self.cpp_info.components["DM_static"].includedirs = ["include"]
         self.cpp_info.components["DM_static"].libdirs = ["lib"]
         if self.settings.build_type == "Debug":
@@ -94,4 +94,3 @@ class DeviceManagementConan(ConanFile):
         bin_path = os.path.join(self.package_folder, "bin")
         self.output.info("Appending PATH environment variable: {}".format(bin_path))
         self.env_info.PATH.append(bin_path)
-
