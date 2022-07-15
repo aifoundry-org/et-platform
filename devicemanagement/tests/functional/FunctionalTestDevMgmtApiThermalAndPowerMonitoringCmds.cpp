@@ -53,25 +53,11 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleUptime) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModulePower) {
-  // TODO: Enable this test for silicon after SW-13282 is resolved.
-  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu})) {
-    getModulePower(false /* Multiple devices */);
-  } else {
-    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
-    FLAGS_enable_trace_dump = false;
-  }
+  getModulePower(false /* Multiple devices */);
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleVoltage) {
-  // TODO: 13282: Enable back on Target::Silicon. The test runs fine in the beginning but in
-  // longer runs it times out, i.e. no response is received.
-  // if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
-  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu})) {
-    getModuleVoltage(false /* Multiple devices */);
-  } else {
-    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
-    FLAGS_enable_trace_dump = false;
-  }
+  getModuleVoltage(false /* Multiple devices */);
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleCurrentTemperature) {

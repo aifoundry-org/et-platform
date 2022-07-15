@@ -900,11 +900,10 @@ void TestDevMgmtApiSyncCmds::getModulePower(bool singleDevice) {
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
-    // Note: Module power could vary. So there cannot be expected value for Module power in the test
-    device_mgmt_api::module_power_t* module_power = (device_mgmt_api::module_power_t*)output_buff;
-
-    // Skip validation if loopback driver
-    if (getTestTarget() != Target::Loopback) {
+    // Skip validation if loopback driver or SysEMU
+    if (targetInList({Target::Loopback, Target::SysEMU})) {
+      // Note: Module power could vary. So there cannot be expected value for Module power in the test
+      device_mgmt_api::module_power_t* module_power = (device_mgmt_api::module_power_t*)output_buff;
       auto power = (module_power->power >> 2) + (module_power->power & 0x03) * 0.25;
       printf("Module power (in Watts): %.3f \n", power);
 
@@ -932,8 +931,8 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage(bool singleDevice) {
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
-    // Skip validation if loopback driver
-    if (getTestTarget() != Target::Loopback) {
+    // Skip validation if loopback driver or SysEMU
+    if (targetInList({Target::Loopback, Target::SysEMU})) {
       // Note: Module power could vary. So there cannot be expected value for Module power in the test
       device_mgmt_api::module_voltage_t* module_voltage = (device_mgmt_api::module_voltage_t*)output_buff;
 

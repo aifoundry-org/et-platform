@@ -30,9 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disable getModulePower test on SysEMU.
 - `setThrottlePowerStatus` Removed trace enable/disable within test.
 -  Updated test `getModuleSerialNumber`. Enabled test on silicon
+- [SW-13282] Enabled `getModulePower` and `getModuleVoltage` on silicon and SysEMU.
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-13282] Skipped validation in `getModulePower` and `getModuleVoltage` for SysEMU and silicon.
 ### Security
 
 ## [0.3.0] - 2022-07-4
