@@ -13,7 +13,6 @@
 #include <linux/atomic.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/rbtree.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>

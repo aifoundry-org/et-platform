@@ -13,7 +13,6 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
-#include "et_dma.h"
 #include "et_event_handler.h"
 #include "et_io.h"
 #include "et_pci_dev.h"
@@ -554,6 +553,25 @@ enum dev_ops_api_kernel_launch_response_e {
 	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED = 4,
 	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS = 5,
 	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG = 6,
+};
+
+/*
+ * DMA readlist/writelist response status codes
+ */
+enum dev_ops_api_dma_response_e {
+	DEV_OPS_API_DMA_RESPONSE_COMPLETE = 0,
+	DEV_OPS_API_DMA_RESPONSE_UNEXPECTED_ERROR = 1,
+	DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE = 2,
+	DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED = 3,
+	DEV_OPS_API_DMA_RESPONSE_ERROR_ABORTED = 4,
+	DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG = 5,
+	DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS = 6,
+	DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE = 7,
+	DEV_OPS_API_DMA_RESPONSE_CM_IFACE_MULTICAST_FAILED = 8,
+	DEV_OPS_API_DMA_RESPONSE_DRIVER_DATA_CONFIG_FAILED = 9,
+	DEV_OPS_API_DMA_RESPONSE_DRIVER_LINK_CONFIG_FAILED = 10,
+	DEV_OPS_API_DMA_RESPONSE_DRIVER_CHAN_START_FAILED = 11,
+	DEV_OPS_API_DMA_RESPONSE_DRIVER_ABORT_FAILED = 12
 };
 
 /*
@@ -1136,10 +1154,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 	struct device_ops_compatibility_rsp_t compat_rsp;
 	struct device_ops_fw_version_cmd_t *fw_version_cmd;
 	struct device_ops_fw_version_rsp_t fw_version_rsp;
-	struct device_ops_data_read_cmd_t *data_read_cmd;
-	struct device_ops_data_read_rsp_t data_read_rsp;
-	struct device_ops_data_write_cmd_t *data_write_cmd;
-	struct device_ops_data_write_rsp_t data_write_rsp;
+	struct device_ops_dma_readlist_cmd_t *dma_readlist_cmd;
+	struct device_ops_dma_readlist_rsp_t dma_readlist_rsp;
+	struct device_ops_dma_writelist_cmd_t *dma_writelist_cmd;
+	struct device_ops_dma_writelist_rsp_t dma_writelist_rsp;
 	struct device_ops_kernel_launch_cmd_t *kernel_launch_cmd;
 	struct device_ops_kernel_launch_rsp_t kernel_launch_rsp;
 	struct device_ops_kernel_abort_cmd_t *kernel_abort_cmd;
@@ -1230,39 +1248,38 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			rv = -EAGAIN;
 		break;
 
-	case DEV_OPS_API_MID_DATA_READ_CMD:
 	case DEV_OPS_API_MID_DMA_READLIST_CMD:
-		data_read_cmd = (struct device_ops_data_read_cmd_t *)cmd;
-		data_read_rsp.response_info.rsp_hdr.size =
-			sizeof(data_read_rsp) - sizeof(header);
-		data_read_rsp.response_info.rsp_hdr.tag_id =
-			data_read_cmd->command_info.cmd_hdr.tag_id;
-		data_read_rsp.response_info.rsp_hdr.msg_id =
-			data_read_cmd->command_info.cmd_hdr.msg_id + 1;
-		data_read_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
+		dma_readlist_cmd = (struct device_ops_dma_readlist_cmd_t *)cmd;
+		dma_readlist_rsp.response_info.rsp_hdr.size =
+			sizeof(dma_readlist_rsp) - sizeof(header);
+		dma_readlist_rsp.response_info.rsp_hdr.tag_id =
+			dma_readlist_cmd->command_info.cmd_hdr.tag_id;
+		dma_readlist_rsp.response_info.rsp_hdr.msg_id =
+			DEV_OPS_API_MID_DMA_READLIST_RSP;
+		dma_readlist_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
 		if (!et_circbuffer_push(&cq->cb,
 					cq->cb_mem,
-					(u8 *)&data_read_rsp,
-					sizeof(data_read_rsp),
+					(u8 *)&dma_readlist_rsp,
+					sizeof(dma_readlist_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
 			rv = -EAGAIN;
 		break;
 
-	case DEV_OPS_API_MID_DATA_WRITE_CMD:
 	case DEV_OPS_API_MID_DMA_WRITELIST_CMD:
-		data_write_cmd = (struct device_ops_data_write_cmd_t *)cmd;
-		data_write_rsp.response_info.rsp_hdr.size =
-			sizeof(data_write_rsp) - sizeof(header);
-		data_write_rsp.response_info.rsp_hdr.tag_id =
-			data_write_cmd->command_info.cmd_hdr.tag_id;
-		data_write_rsp.response_info.rsp_hdr.msg_id =
-			data_write_cmd->command_info.cmd_hdr.msg_id + 1;
-		data_write_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
+		dma_writelist_cmd =
+			(struct device_ops_dma_writelist_cmd_t *)cmd;
+		dma_writelist_rsp.response_info.rsp_hdr.size =
+			sizeof(dma_writelist_rsp) - sizeof(header);
+		dma_writelist_rsp.response_info.rsp_hdr.tag_id =
+			dma_writelist_cmd->command_info.cmd_hdr.tag_id;
+		dma_writelist_rsp.response_info.rsp_hdr.msg_id =
+			DEV_OPS_API_MID_DMA_WRITELIST_RSP;
+		dma_writelist_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
 		if (!et_circbuffer_push(&cq->cb,
 					cq->cb_mem,
-					(u8 *)&data_write_rsp,
-					sizeof(data_write_rsp),
+					(u8 *)&dma_writelist_rsp,
+					sizeof(dma_writelist_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
 			rv = -EAGAIN;
@@ -2314,74 +2331,6 @@ bool et_squeue_empty(struct et_squeue *sq)
 	return true;
 }
 
-static ssize_t free_dma_kernel_entry(struct et_pci_dev *et_dev,
-				     bool is_mgmt,
-				     struct et_msg_node *msg)
-{
-	struct cmn_header_t *header = NULL;
-	struct device_ops_data_read_rsp_t *read_rsp = NULL;
-	struct et_dma_info *dma_info = NULL;
-	ssize_t rv = 0;
-
-	// No DMA kernel entry for mgmt_dev
-	if (is_mgmt)
-		return 0;
-
-	if (!msg || !msg->msg)
-		// empty msg node, try again
-		return -EAGAIN;
-
-	if (msg->msg_size < sizeof(*header))
-		return -EINVAL;
-
-	header = (struct cmn_header_t *)msg->msg;
-	if (header->msg_id != DEV_OPS_API_MID_DATA_READ_RSP &&
-	    header->msg_id != DEV_OPS_API_MID_DATA_WRITE_RSP)
-		return 0;
-
-	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
-	dma_info = et_dma_search_info(&et_dev->ops.dma_rbtree, header->tag_id);
-	if (!dma_info) {
-		pr_err("DMA response kernel entry not found!");
-		rv = -EINVAL;
-		goto unlock_rbtree_mutex;
-	}
-
-	// Copy the DMA data to user buffer if it is data read response with
-	// complete status otherwise only remove the kernel entry
-	if (header->msg_id == DEV_OPS_API_MID_DATA_READ_RSP) {
-		if (header->size < (sizeof(*read_rsp) - sizeof(*header))) {
-			pr_err("Corrupted DATA read response received!");
-			rv = -EINVAL;
-			goto dma_delete_info;
-		}
-
-		read_rsp = (struct device_ops_data_read_rsp_t *)header;
-		if (read_rsp->status != DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
-			// No DMA data to copy to user
-			rv = 0;
-			goto dma_delete_info;
-		}
-
-		if (copy_to_user(dma_info->usr_vaddr,
-				 dma_info->kern_vaddr,
-				 dma_info->size)) {
-			pr_err("failed to copy DMA buffer\n");
-			rv = -EINVAL;
-			goto dma_delete_info;
-		}
-		rv = dma_info->size;
-	}
-
-dma_delete_info:
-	et_dma_delete_info(&et_dev->ops.dma_rbtree, dma_info);
-
-unlock_rbtree_mutex:
-	mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
-
-	return rv;
-}
-
 ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 			       bool is_mgmt,
 			       u16 cq_index,
@@ -2412,10 +2361,6 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 		enqueue_msg_node(cq, msg);
 		return -EINVAL;
 	}
-
-	rv = free_dma_kernel_entry(et_dev, is_mgmt, msg);
-	if (rv < 0)
-		goto free_msg_node;
 
 	if (copy_to_user(ubuf, msg->msg, msg->msg_size)) {
 		pr_err("failed to copy to user\n");

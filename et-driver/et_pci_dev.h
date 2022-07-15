@@ -76,8 +76,6 @@ struct et_ops_dev {
 	struct et_mapped_region regions[OPS_MEM_REGION_TYPE_NUM];
 	struct et_ops_dir_vqueue dir_vq;
 	struct et_vq_data vq_data;
-	struct rb_root dma_rbtree;
-	struct mutex dma_rbtree_mutex;	/* serializes access to dma_rbtree */
 	struct et_mem_stats mem_stats;
 };
 

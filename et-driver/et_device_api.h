@@ -91,11 +91,8 @@ enum device_msg_e {
 	DEV_OPS_API_MID_KERNEL_LAUNCH_RSP,
 	DEV_OPS_API_MID_KERNEL_ABORT_CMD,
 	DEV_OPS_API_MID_KERNEL_ABORT_RSP,
-	DEV_OPS_API_MID_DATA_READ_CMD,
-	DEV_OPS_API_MID_DATA_READ_RSP,
-	DEV_OPS_API_MID_DATA_WRITE_CMD,
-	DEV_OPS_API_MID_DATA_WRITE_RSP,
-	DEV_OPS_API_MID_DMA_READLIST_CMD,
+	/* Device Ops Message IDs reserved */
+	DEV_OPS_API_MID_DMA_READLIST_CMD = 529,
 	DEV_OPS_API_MID_DMA_READLIST_RSP,
 	DEV_OPS_API_MID_DMA_WRITELIST_CMD,
 	DEV_OPS_API_MID_DMA_WRITELIST_RSP,
@@ -112,54 +109,12 @@ enum device_msg_e {
 };
 
 /*
- * DMA response status enum
- */
-enum dev_ops_api_dma_response_e {
-	DEV_OPS_API_DMA_RESPONSE_COMPLETE = 0,
-	DEV_OPS_API_DMA_RESPONSE_UNEXPECTED_ERROR = 1,
-	DEV_OPS_API_DMA_RESPONSE_TIMEOUT_IDLE_CHANNEL_UNAVAILABLE = 2,
-	DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED = 3,
-	DEV_OPS_API_DMA_RESPONSE_ERROR_ABORTED = 4,
-	DEV_OPS_API_DMA_RESPONSE_TIMEOUT_HANG = 5,
-	DEV_OPS_API_DMA_RESPONSE_INVALID_ADDRESS = 6,
-	DEV_OPS_API_DMA_RESPONSE_INVALID_SIZE = 7,
-	DEV_OPS_API_DMA_RESPONSE_CM_IFACE_MULTICAST_FAILED = 8,
-	DEV_OPS_API_DMA_RESPONSE_DRIVER_DATA_CONFIG_FAILED = 9,
-	DEV_OPS_API_DMA_RESPONSE_DRIVER_LINK_CONFIG_FAILED = 10,
-	DEV_OPS_API_DMA_RESPONSE_DRIVER_CHAN_START_FAILED = 11,
-	DEV_OPS_API_DMA_RESPONSE_DRIVER_ABORT_FAILED = 12
-};
-
-/*
  * MM reset response status enum
  */
 enum dev_mgmt_api_mm_reset_response_e {
 	DEV_OPS_API_MM_RESET_RESPONSE_COMPLETE = 0,
 	// TODO: SW-11288: Add other possible error responses
 };
-
-/*
- * Command to read data from device memory
- */
-struct device_ops_data_read_cmd_t {
-	struct cmd_header_t command_info;
-	u64 dst_host_virt_addr;
-	u64 dst_host_phy_addr;
-	u64 src_device_phy_addr;
-	u32 size;
-	u32 pad;
-} __packed __aligned(8);
-
-/*
- * Data read command response
- */
-struct device_ops_data_read_rsp_t {
-	struct rsp_header_t response_info;
-	u64 cmd_start_ts;
-	u64 cmd_execution_time;
-	u32 cmd_wait_time;
-	u32 status;
-} __packed __aligned(8);
 
 /*
  * Node containing one DMA read transfer information
@@ -184,29 +139,6 @@ struct device_ops_dma_readlist_cmd_t {
  * DMA readlist command response
  */
 struct device_ops_dma_readlist_rsp_t {
-	struct rsp_header_t response_info;
-	u64 cmd_start_ts;
-	u64 cmd_execution_time;
-	u32 cmd_wait_time;
-	u32 status;
-} __packed __aligned(8);
-
-/*
- * Command to write data to device memory
- */
-struct device_ops_data_write_cmd_t {
-	struct cmd_header_t command_info;
-	u64 src_host_virt_addr;
-	u64 src_host_phy_addr;
-	u64 dst_device_phy_addr;
-	u32 size;
-	u32 pad;
-} __packed __aligned(8);
-
-/*
- * Data write command response
- */
-struct device_ops_data_write_rsp_t {
 	struct rsp_header_t response_info;
 	u64 cmd_start_ts;
 	u64 cmd_execution_time;

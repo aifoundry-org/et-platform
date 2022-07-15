@@ -1990,10 +1990,6 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 	et_dev->ops.is_open = false;
 	spin_lock_init(&et_dev->ops.open_lock);
 
-	// Init DMA rbtree
-	mutex_init(&et_dev->ops.dma_rbtree_mutex);
-	et_dev->ops.dma_rbtree = RB_ROOT;
-
 	// Map DIR region
 	rv = et_map_bar(et_dev,
 			&DIR_MAPPINGS[IOMEM_R_DIR_OPS],
@@ -2318,12 +2314,6 @@ void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
 	et_unmap_discovered_regions(et_dev, false /* ops_dev */);
 	et_unmap_bar(et_dev->ops.dir);
-
-	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
-	et_dma_delete_all_info(&et_dev->ops.dma_rbtree);
-	mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
-
-	mutex_destroy(&et_dev->ops.dma_rbtree_mutex);
 
 update_state:
 	atomic_set(&et_dev->ops.state, DEV_STATE_NOT_READY);

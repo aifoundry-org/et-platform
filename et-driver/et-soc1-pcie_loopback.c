@@ -1163,10 +1163,6 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 	et_dev->ops.is_open = false;
 	spin_lock_init(&et_dev->ops.open_lock);
 
-	// Init DMA rbtree
-	mutex_init(&et_dev->ops.dma_rbtree_mutex);
-	et_dev->ops.dma_rbtree = RB_ROOT;
-
 	et_dev->ops.dir_vq.sq_count = 2;
 	et_dev->ops.dir_vq.sq_size = 0x400UL;
 	et_dev->ops.dir_vq.sq_offset = 0;
@@ -1292,12 +1288,6 @@ void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 	kfree((void __force *)et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER]
 		      .mapped_baseaddr);
 	et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
-
-	mutex_lock(&et_dev->ops.dma_rbtree_mutex);
-	et_dma_delete_all_info(&et_dev->ops.dma_rbtree);
-	mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
-
-	mutex_destroy(&et_dev->ops.dma_rbtree_mutex);
 
 update_state:
 	atomic_set(&et_dev->ops.state, DEV_STATE_NOT_READY);
