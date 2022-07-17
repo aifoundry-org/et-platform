@@ -6,7 +6,7 @@ import os
 
 class DeviceManagementApplicationConan(ConanFile):
     name = "deviceManagementApplication"
-    url = "https://gitlab.esperanto.ai/software/trace-utils"
+    url = "https://gitlab.esperanto.ai/software/device-management-application"
     description = ""
     license = "Esperanto Technologies"
 
