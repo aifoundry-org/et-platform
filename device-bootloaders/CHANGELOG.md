@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13273] Fix for PLL frequency calculation
 - [SW-13253] Fixed delays for sysemu by introducing delay macro
 - [FV-296] Fix of SW WA for FV-296
+- [SW-13479] Fix for Zebu FAST_BOOT
 ### Security
 
 ## [0.3.0] - 2022-6-25
