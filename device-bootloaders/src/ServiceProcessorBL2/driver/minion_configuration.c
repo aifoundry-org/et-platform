@@ -83,7 +83,7 @@ struct minion_event_control_block
 static struct minion_event_control_block event_control_block __attribute__((section(".data")));
 
 /* Globals for SW timer */
-TimerHandle_t MM_HeartBeat_Timer;
+TimerHandle_t MM_HeartBeat_Timer = NULL;
 static StaticTimer_t MM_Timer_Buffer;
 
 /* Macro to increment exception error counter and send event to host */
@@ -187,9 +187,6 @@ static uint64_t gs_pll4_ldo_kick_performed = 0;
 /* MM command handler task cb to reset task */
 extern TaskHandle_t g_mm_cmd_hdlr_handle;
 
-/* MM heartbeat time CB to delete timer */
-extern TimerHandle_t MM_HeartBeat_Timer;
-
 /*==================== Function Separator =============================*/
 
 /*! \def TIMEOUT_PLL_CONFIG
@@ -203,6 +200,33 @@ extern TimerHandle_t MM_HeartBeat_Timer;
 #define TIMEOUT_PLL_LOCK 100000
 
 /*==================== Function Separator =============================*/
+
+static inline void minion_mm_heartbeat_timer_start(void)
+{
+    if (MM_HeartBeat_Timer && (xTimerStart(MM_HeartBeat_Timer, 0) != pdPASS))
+    {
+        /* The timer start was not successful - Log Error */
+        Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer start failed\n", __func__);
+    }
+}
+
+static inline void minion_mm_heartbeat_timer_reset(void)
+{
+    if (MM_HeartBeat_Timer && (xTimerReset(MM_HeartBeat_Timer, 0) != pdPASS))
+    {
+        /* The timer reset was not successful - Log Error */
+        Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer reset failed\n", __func__);
+    }
+}
+
+static inline void minion_mm_heartbeat_timer_delete(void)
+{
+    if (MM_HeartBeat_Timer && (xTimerDelete(MM_HeartBeat_Timer, 0) != pdPASS))
+    {
+        /* The timer delete was not successful - Log Error */
+        Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer delete failed\n", __func__);
+    }
+}
 
 /************************************************************************
 *
@@ -444,7 +468,9 @@ static int mm_get_error_count(struct mm_error_count_t *mm_error_count)
 ***********************************************************************/
 static void MM_HeartBeat_Timer_Cb(xTimerHandle pxTimer)
 {
-    Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer expired\n", __func__);
+    Log_Write(LOG_LEVEL_ERROR,
+              "%s : MM Hung: MM heartbeat watchdog timer expired. MM needs to be reset.\n",
+              __func__);
 
     Minion_State_MM_Error_Handler(SP_RECOVERABLE_FW_MM_HANG, MM_HEARTBEAT_WD_EXPIRED);
 
@@ -453,9 +479,6 @@ static void MM_HeartBeat_Timer_Cb(xTimerHandle pxTimer)
     {
         Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer stop failed\n", __func__);
     }
-
-    /* Reset minion threads */
-    Master_Minion_Reset();
 }
 
 /************************************************************************
@@ -496,7 +519,7 @@ static int enable_minion_shire(uint64_t shire_mask)
     UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xF /*Enable all Neigh*/,
                      true /*Enable VPU RF WA*/)
 
-    /* Due to workaround to initialize Minion VPU RF using Minion Program Buffer 
+    /* Due to workaround to initialize Minion VPU RF using Minion Program Buffer
        we need to reset the Neigh/Minion Core to bring it back to clean state */
 
     /* Disable Minion in all neighs */
@@ -740,7 +763,7 @@ int Master_Minion_Reset(void)
     vTaskDelete(g_mm_cmd_hdlr_handle);
 
     /* Delete MM heartbeat timer before disabling MM threads */
-    xTimerDelete(MM_HeartBeat_Timer, 0);
+    minion_mm_heartbeat_timer_delete();
 
     /* Get active shire mask */
     shire_mask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
@@ -1477,19 +1500,11 @@ void Minion_State_MM_Heartbeat_Handler(void)
     if (!event_control_block.mm_watchdog_initialized)
     {
         event_control_block.mm_watchdog_initialized = true;
-        if (xTimerStart(MM_HeartBeat_Timer, 0) != pdPASS)
-        {
-            /* The start command was not executed successfully - Log Error */
-            Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer start failed\n", __func__);
-        }
+        minion_mm_heartbeat_timer_start();
     }
     else
     {
-        if (xTimerReset(MM_HeartBeat_Timer, 0) != pdPASS)
-        {
-            /* The reset command was not executed successfully - Log Error */
-            Log_Write(LOG_LEVEL_ERROR, "%s : MM heartbeat watchdog timer reset failed\n", __func__);
-        }
+        minion_mm_heartbeat_timer_reset();
     }
 
     /* Increment mm heartbeat counter */

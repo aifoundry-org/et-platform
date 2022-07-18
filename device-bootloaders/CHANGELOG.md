@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Conanfile now declares dependencies with version-ranges
 ### Deprecated
 ### Removed
+- [SW-12973] Auto reset of MM from MM heartbeat watchdog expiry.
 ### Fixed
 - [SW-13218] Reading memory size from flash in get_memory_size().
   * Reading dummy vendor ID until reading from chip register is fixed.
@@ -30,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13253] Fixed delays for sysemu by introducing delay macro
 - [FV-296] Fix of SW WA for FV-296
 - [SW-13479] Fix for Zebu FAST_BOOT
+- [SW-12973] Initialized the MM heartbeat timer after the PCIe initialization is complete.
 ### Security
 
 ## [0.3.0] - 2022-6-25

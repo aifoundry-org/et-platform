@@ -279,7 +279,6 @@ static void taskMain(void *pvParameters)
 
     // Program ATUs here
     pcie_enable_link();
-
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_ATU_PROGRAMMED);
 
     // Initialize  watchdog service
@@ -312,6 +311,10 @@ static void taskMain(void *pvParameters)
         Log_Write(LOG_LEVEL_WARNING, "MM not ready, SP has not received MM heartbeat!\n");
     else
         Log_Write(LOG_LEVEL_CRITICAL, "MM heartbeat alive!\n");
+
+    // Initialize MM heartbeat watchdog service
+    status = MM_Init_HeartBeat_Watchdog();
+    ASSERT_FATAL(status == STATUS_SUCCESS, "MM_Init_HeartBeat_Watchdog: Failed!")
 
     // Initialize  DM event handler task
     Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]dm_event_control_init\n");

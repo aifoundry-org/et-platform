@@ -542,10 +542,6 @@ int8_t MM_Iface_Init(void)
 
     /* Initialize the interface */
     status = SP_MM_Iface_Init();
-    if (status == STATUS_SUCCESS)
-    {
-        status = MM_Init_HeartBeat_Watchdog();
-    }
 
     if (status == STATUS_SUCCESS)
     {
