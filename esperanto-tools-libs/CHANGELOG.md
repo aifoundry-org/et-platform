@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - deviceLayer 0.3.0 version hash pinned.
 - Convert from KB to MB the device sizes for L2 and L3 
+- Changed gitlab configuration to allow more memory in kubernetes instances
 ### Deprecated
 ### Removed
 ### Fixed
