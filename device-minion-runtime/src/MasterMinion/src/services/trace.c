@@ -501,8 +501,8 @@ uint32_t Trace_Evict_Buffer_MM(void)
 *
 *   DESCRIPTION
 *
-*       This function Evict the MM Stats Trace buffer upto current used 
-*       buffer, it also updates the trace buffer header to include buffer 
+*       This function Evict the MM Stats Trace buffer upto current used
+*       buffer, it also updates the trace buffer header to include buffer
 *       usage.
 *
 *   INPUTS
@@ -525,6 +525,45 @@ uint32_t Trace_Evict_Buffer_MM_Stats(void)
     atomic_store_local_32(&trace_header->data_size, offset);
 
     ETSOC_MEM_EVICT((uint64_t *)MM_STATS_TRACE_BUFFER_BASE, offset, to_L3)
+
+    return offset;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Evict_Event_MM_Stats
+*
+*   DESCRIPTION
+*
+*       This function evicts single MM Stat event packet, it also
+*       updates the trace buffer header to include buffer usage.
+*       WARNING: This function must be called everytime an event is
+*       logged into MM Stat Trace. Otherwise it is not safe.
+*
+*   INPUTS
+*
+*       entry   Starting address of event.
+*       size    Size of event.
+*
+*   OUTPUTS
+*
+*       uint32_t    Size of buffer that was used and evicted.
+*
+***********************************************************************/
+uint32_t Trace_Evict_Event_MM_Stats(const void *entry, uint32_t size)
+{
+    struct trace_buffer_std_header_t *trace_header =
+        (struct trace_buffer_std_header_t *)MM_STATS_TRACE_BUFFER_BASE;
+
+    uint32_t offset = atomic_load_local_32(&(MM_Stats_Trace_CB.cb.offset_per_hart));
+
+    /* Store used buffer size in buffer header directly in L3. */
+    atomic_store_global_32(&trace_header->data_size, offset);
+
+    /* Evict the packet to L3 */
+    ETSOC_MEM_EVICT(entry, size, to_L3)
 
     return offset;
 }
@@ -591,7 +630,6 @@ int32_t Trace_Init_MM_Stats(const struct trace_init_info_t *mm_init_info)
 
     if (status == STATUS_SUCCESS)
     {
-
         /* Common buffer for all MM Harts. */
         MM_Stats_Trace_CB.cb.size_per_hart = MM_STATS_BUFFER_SIZE;
         MM_Stats_Trace_CB.cb.base_per_hart = MM_STATS_TRACE_BUFFER_BASE;

@@ -269,6 +269,7 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
     uint64_t prev_ddr_write_counter[NUM_MEM_SHIRES] = { 0 };
     uint64_t prev_l2_l3_read_counter[NUM_SHIRES][NEIGH_PER_SHIRE] = { 0 };
     uint64_t prev_l2_l3_write_counter[NUM_SHIRES][NEIGH_PER_SHIRE] = { 0 };
+    struct trace_custom_event_t *entry;
 
     statw_init(&data_sample);
     Log_Write(LOG_LEVEL_INFO, "STATW:H[%d]\r\n", hart_id);
@@ -364,10 +365,14 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
             read_resource_stats_atomically(
                 STATW_RESOURCE_DMA_WRITE, &data_sample.pcie_dma_write_bw);
 
-            Trace_Custom_Event(Trace_Get_MM_Stats_CB(), TRACE_CUSTOM_TYPE_MM_COMPUTE_RESOURCES,
-                (const uint8_t *)&data_sample, sizeof(data_sample));
+            entry = (struct trace_custom_event_t *)Trace_Custom_Event(Trace_Get_MM_Stats_CB(),
+                TRACE_CUSTOM_TYPE_MM_COMPUTE_RESOURCES, (const uint8_t *)&data_sample,
+                sizeof(data_sample));
 
-            Trace_Evict_Buffer_MM_Stats();
+            /* Evict last Trace event which is logged above.
+               Evicting complete buffer evertime does not evict properly. */
+            Trace_Evict_Event_MM_Stats(
+                entry, (sizeof(struct trace_custom_event_t) + sizeof(data_sample)));
         }
     }
 }

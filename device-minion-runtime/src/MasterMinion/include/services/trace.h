@@ -115,6 +115,17 @@ uint32_t Trace_Evict_Buffer_MM(void);
 */
 uint32_t Trace_Evict_Buffer_MM_Stats(void);
 
+/*! \fn uint32_t Trace_Evict_Event_MM_Stats(void * entry, uint32_t size)
+    \brief This function evicts single MM Stat event packet, it also
+           updates the trace buffer header to include buffer usage.
+    WARNING: This function must be called everytime an event is
+           logged into MM Stat Trace. Otherwise it is not safe.
+    \param entry Starting address of event.
+    \param size Size of event.
+    \return Size of buffer that was used and victed.
+*/
+uint32_t Trace_Evict_Event_MM_Stats(const void *entry, uint32_t size);
+
 /*! \fn int32_t Trace_Init_MM_Stats(const struct trace_init_info_t *mm_init_info)
     \brief This function initializes Stats trace for Master Minion
            Shire
