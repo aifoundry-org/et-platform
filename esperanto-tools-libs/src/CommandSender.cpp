@@ -43,12 +43,12 @@ CommandSender::CommandSender(dev::IDeviceLayer& deviceLayer, profiling::IProfile
   runner_ = std::thread{std::bind(&CommandSender::runnerFunc, this)};
 }
 void CommandSender::setOnCommandSentCallback(CommandSentCallback callback) {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   callback_ = std::move(callback);
 }
 
 void CommandSender::send(Command command) {
-  std::unique_lock lock(mutex_);
+  SpinLock lock(mutex_);
   RT_VLOG(MID) << "Adding command (send) " << static_cast<int>(command.eventId_) << " to the send list. Enabled? "
                << (command.isEnabled_ ? "True" : "False");
   commands_.emplace_back(std::move(command));
@@ -57,7 +57,7 @@ void CommandSender::send(Command command) {
 }
 
 void CommandSender::sendBefore(EventId existingCommand, Command command) {
-  std::unique_lock lock(mutex_);
+  SpinLock lock(mutex_);
   RT_VLOG(MID) << "Adding command (sendBefore) " << static_cast<int>(command.eventId_) << " to the send list. Enabled? "
                << (command.isEnabled_ ? "True" : "False");
   auto it = std::find_if(begin(commands_), end(commands_),
@@ -75,7 +75,7 @@ void Command::enable() {
 }
 
 void CommandSender::setCommandData(EventId command, std::vector<std::byte> data) {
-  std::unique_lock lock(mutex_);
+  SpinLock lock(mutex_);
   auto it =
     std::find_if(begin(commands_), end(commands_), [command](const Command& elem) { return elem.eventId_ == command; });
   if (it == end(commands_)) {
@@ -85,7 +85,7 @@ void CommandSender::setCommandData(EventId command, std::vector<std::byte> data)
 }
 
 void CommandSender::enable(EventId event) {
-  std::unique_lock lock(mutex_);
+  SpinLock lock(mutex_);
   RT_VLOG(HIGH) << "Enabling command " << static_cast<int>(event);
   auto it =
     std::find_if(begin(commands_), end(commands_), [event](const Command& elem) { return elem.eventId_ == event; });
@@ -98,14 +98,14 @@ void CommandSender::enable(EventId event) {
 }
 
 CommandSender::~CommandSender() {
-  RT_LOG(INFO) << "Destroying commandSender for device: " << deviceId_ << " SQ:" << sqIdx_;
+  RT_LOG(INFO) << "Destroying commandSender for device: " << deviceId_ << " SQ: " << sqIdx_;
   running_ = false;
   condVar_.notify_one();
   runner_.join();
 }
 
 std::optional<EventId> CommandSender::getFirstDmaCommand() const {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   auto it = std::find_if(begin(commands_), end(commands_), [](const auto& c) { return c.isDma_; });
   std::optional<EventId> result;
   if (it != end(commands_)) {
@@ -115,7 +115,7 @@ std::optional<EventId> CommandSender::getFirstDmaCommand() const {
 }
 
 void CommandSender::cancel(EventId event) {
-  std::unique_lock lock(mutex_);
+  SpinLock lock(mutex_);
   RT_VLOG(HIGH) << "Cancel command " << static_cast<int>(event);
   auto it =
     std::find_if(begin(commands_), end(commands_), [event](const Command& elem) { return elem.eventId_ == event; });
@@ -131,42 +131,48 @@ void CommandSender::cancel(EventId event) {
 void CommandSender::runnerFunc() {
 
   while (running_) {
-    std::unique_lock lock(mutex_);
-    if (!commands_.empty() && commands_.front().isEnabled_) {
-      auto& cmd = commands_.front();
-      if (deviceLayer_.sendCommandMasterMinion(deviceId_, sqIdx_, cmd.commandData_.data(), cmd.commandData_.size(),
-                                               cmd.isDma_)) {
-        RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_) << ". DeviceID: " << deviceId_
-                     << "SQ: " << sqIdx_;
+    try {
+      SpinLock lock(mutex_);
+      if (!commands_.empty() && commands_.front().isEnabled_) {
+        auto& cmd = commands_.front();
+        if (deviceLayer_.sendCommandMasterMinion(deviceId_, sqIdx_, cmd.commandData_.data(), cmd.commandData_.size(),
+                                                 cmd.isDma_)) {
+          RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_) << ". DeviceID: " << deviceId_
+                       << "SQ: " << sqIdx_;
 
-        profiling::ProfileEvent event(profiling::Type::Instant, profiling::Class::CommandSent);
-        event.setEvent(cmd.eventId_);
-        event.setDeviceId(DeviceId(deviceId_));
-        profiler_.record(event);
+          profiling::ProfileEvent event(profiling::Type::Instant, profiling::Class::CommandSent);
+          event.setEvent(cmd.eventId_);
+          event.setDeviceId(DeviceId(deviceId_));
+          profiler_.record(event);
 
-        if (callback_) {
-          callback_(&cmd);
+          if (callback_) {
+            callback_(&cmd);
+          }
+          commands_.pop_front();
+        } else {
+          lock.unlock();
+          RT_LOG(INFO) << "Submission queue " << sqIdx_
+                       << " is full. Can't send command now, blocking the thread till an event has been dispatched.";
+          uint64_t sq_bitmap = 0;
+          bool cq_available = false;
+          while (!(sq_bitmap & (1UL << sqIdx_))) {
+            deviceLayer_.waitForEpollEventsMasterMinion(deviceId_, sq_bitmap, cq_available, std::chrono::seconds(1));
+            if (!running_) {
+              break;
+            }
+            if (sq_bitmap == 0 && !cq_available) {
+              RT_VLOG(LOW) << "Didn't get any epoll events (timedout). Trying to send the command again.";
+              break;
+            }
+          }
         }
-        commands_.pop_front();
       } else {
-        lock.unlock();
-        RT_LOG(INFO) << "Submission queue " << sqIdx_
-                     << " is full. Can't send command now, blocking the thread till an event has been dispatched.";
-        uint64_t sq_bitmap = 0;
-        bool cq_available = false;
-        while (!(sq_bitmap & (1UL << sqIdx_))) {
-          deviceLayer_.waitForEpollEventsMasterMinion(deviceId_, sq_bitmap, cq_available, std::chrono::seconds(1));
-          if (!running_) {
-            break;
-          }
-          if (sq_bitmap == 0 && !cq_available) {
-            RT_VLOG(LOW) << "Didn't get any epoll events (timedout). Trying to send the command again.";
-            break;
-          }
-        }
+        condVar_.wait(lock, [this] { return !running_ || (!commands_.empty() && commands_.front().isEnabled_); });
       }
-    } else {
-      condVar_.wait(lock, [this] { return !running_ || (!commands_.empty() && commands_.front().isEnabled_); });
+    } catch (const std::exception& e) {
+      RT_LOG(WARNING)
+        << "Exception in command sender runner thread. DeviceLayer could be in a BAD STATE. Exception message: "
+        << e.what();
     }
   }
 }
