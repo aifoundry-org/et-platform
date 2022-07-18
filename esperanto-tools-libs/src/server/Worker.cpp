@@ -16,6 +16,7 @@
 #include "runtime/Types.h"
 #include <cereal/archives/portable_binary.hpp>
 #include <cstring>
+#include <g3log/loglevels.hpp>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
@@ -74,11 +75,9 @@ Worker::Worker(int socket, RuntimeImp& runtime, Server& server, ucred credential
       remote.iov_base = dst;
       res = process_vm_writev(pid, &local, 1, &remote, 1, 0);
     }
-    // TODO this exception will backfire since it can be thrown only on server side and it could potentially destroy the
-    // daemon! So remove this exception but keep printing the error ...
     if (res != static_cast<ssize_t>(size)) {
-      throw NetworkException("Error copying/writing from/to remote process with PID: " + std::to_string(pid) +
-                             " error: " + strerror(errno));
+      RT_LOG(WARNING) << "Error copying/writing from/to remote process with PID: " + std::to_string(pid) +
+                           " error: " + strerror(errno);
     };
   };
   runner_ = std::thread(&Worker::requestProcessor, this);
