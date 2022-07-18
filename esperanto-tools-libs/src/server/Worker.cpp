@@ -94,7 +94,7 @@ Worker::~Worker() {
 }
 
 void Worker::requestProcessor() {
-  constexpr size_t kMaxRequestSize = 4096;
+  constexpr size_t kMaxRequestSize = req::kMaxKernelSize + 4096; // 4096 is for all metadata
   auto requestBuffer = std::vector<char>(kMaxRequestSize);
   try {
     while (running_) {
@@ -222,6 +222,7 @@ void Worker::processRequest(const req::Request& request) {
     auto& req = std::get<req::LoadCode>(request.payload_);
     auto resp = runtime_.loadCode(req.stream_, req.elf_.data(), req.elf_.size());
     events_.emplace(resp.event_);
+    kernels_.emplace(resp.kernel_);
     sendResponse({resp::Type::LOAD_CODE, request.id_,
                   resp::LoadCode{resp.event_, resp.kernel_, reinterpret_cast<AddressT>(resp.loadAddress_)}});
     break;

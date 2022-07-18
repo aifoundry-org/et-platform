@@ -109,6 +109,7 @@ private:
   resp::Response::Payload_t waitForResponse(req::Id);
 
   EventId registerEvent(const resp::Response::Payload_t& payload, StreamId stream);
+  void registerEvent(EventId evt, StreamId stream);
 
   struct Waiter {
     template <typename Lock> void wait(Lock& lock) {

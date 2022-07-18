@@ -45,6 +45,10 @@ TEST_F(TestCodeLoading, LoadKernel) {
 
 // Test loading a kernel with bss
 TEST_F(TestCodeLoading, KernelWithBss) {
+  if (sRtType == RtType::MP) {
+    RT_LOG(INFO) << "Skipping this test until SW-13181 is implemented.";
+    return;
+  }
   auto kernel = loadKernel("bss.elf");
   auto numElems = 150U;
   auto hSrc1 = std::vector<int>(numElems);

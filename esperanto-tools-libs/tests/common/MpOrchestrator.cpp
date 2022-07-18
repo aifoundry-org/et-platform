@@ -70,8 +70,9 @@ void MpOrchestrator::createClient(const std::function<void(rt::IRuntime*)>& func
 }
 
 void MpOrchestrator::clearClients() {
+  RT_LOG(INFO) << "Num clients: " << clients_.size();
   for (auto pid : clients_) {
-    CHECK(pid > 0);
+    CHECK(pid > 0) << "bad PID";
     if (pid > 0) {
       int status;
       waitpid(pid, &status, 0);

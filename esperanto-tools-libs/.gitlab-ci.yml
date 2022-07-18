@@ -10,7 +10,6 @@ include:
       - jobs/generic-k8s-job.yaml
       - jobs/sonarqube-job.yaml
       - rules/exec_maybe_interactively.yaml
-      - jobs/check-top-of-master.yaml
       - jobs/sw-platform-trigger.yaml
 
   - project: 'software/gitlab-ci-common'

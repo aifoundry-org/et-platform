@@ -62,6 +62,7 @@ using Id = uint32_t;
 // special Id used for asynchronous events from runtime. This Id won't correspond to any request
 constexpr Id ASYNC_RUNTIME_EVENT = 0xFFFFFFFF;
 constexpr Id INVALID_REQUEST_ID = ASYNC_RUNTIME_EVENT - 1;
+constexpr size_t kMaxKernelSize = 10 << 20;
 
 constexpr bool IsRegularId(Id id) {
   return id != ASYNC_RUNTIME_EVENT && id != INVALID_REQUEST_ID;
@@ -145,11 +146,24 @@ struct DestroyStream {
 };
 
 struct LoadCode {
+  LoadCode() = default;
+  LoadCode(StreamId st, std::vector<std::byte> elf)
+    : stream_(st)
+    , elf_(std::move(elf)) {
+    if (elf.size() > kMaxKernelSize) {
+      throw rt::Exception("Current runtime only support loading kernels up to: " + std::to_string(kMaxKernelSize) +
+                          " bytes.");
+    }
+  }
   StreamId stream_;
   // an alternative would be to send only pointer + size; but it would complicate the load code part. It woulf safe a
   // couple of memcpys, its likely not worth it...
   std::vector<std::byte> elf_;
   template <class Archive> void serialize(Archive& archive) {
+    if (elf_.size() > kMaxKernelSize) {
+      throw rt::Exception("Current runtime only support loading kernels up to: " + std::to_string(kMaxKernelSize) +
+                          " bytes.");
+    }
     archive(stream_, elf_);
   }
 };

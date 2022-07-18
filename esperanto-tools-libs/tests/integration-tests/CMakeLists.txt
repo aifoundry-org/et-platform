@@ -30,6 +30,7 @@ set(PCIE_TEST_LIST
 
 set(MP_SYSEMU_TEST_LIST
 test_memcpy.cpp:"--mp --mode=sysemu"
+test_code_loading.cpp:"--mp --mode=sysemu"
 )
 
 create_test_targets("${PCIE_TEST_LIST}" "LABELS;Pcie;TIMEOUT;300" "pcie_")

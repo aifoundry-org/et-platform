@@ -10,6 +10,7 @@
 
 #include "Client.h"
 #include "Utils.h"
+#include "runtime/Types.h"
 #include "server/NetworkException.h"
 #include "server/Protocol.h"
 #include <cereal/archives/portable_binary.hpp>
@@ -21,6 +22,7 @@
 #include <sstream>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <thread>
 #include <unistd.h>
 #include <variant>
 
@@ -28,6 +30,7 @@ using namespace rt;
 
 namespace {
 constexpr size_t kMaxMessageSize = 4096;
+constexpr auto kProcessResponseTries = 100;
 struct MemStream : public std::streambuf {
   MemStream(char* s, std::size_t n) {
     setg(s, s, s + n);
@@ -91,7 +94,16 @@ void Client::responseProcessor() {
           archive >> response;
           RT_VLOG(HIGH) << "Got response, size: " << res << ". Type: " << static_cast<uint32_t>(response.type_)
                         << " id: " << response.id_;
-          processResponse(response);
+          bool done = false;
+          for (int i = 0; i < kProcessResponseTries && !done;) {
+            try {
+              processResponse(response);
+              done = true;
+            } catch (const Exception& e) {
+              using namespace std::literals;
+              std::this_thread::sleep_for(100ms);
+            }
+          }
         } else {
           RT_LOG(INFO) << "Socket closed, ending client listener thread.";
           running_ = false;
@@ -213,11 +225,15 @@ void Client::processResponse(const resp::Response& response) {
 
 EventId Client::registerEvent(const resp::Response::Payload_t& payload, StreamId st) {
   auto evt = std::get<resp::Event>(payload).event_;
+  registerEvent(evt, st);
+  return evt;
+}
+
+void Client::registerEvent(EventId evt, StreamId st) {
   SpinLock lock(mutex_);
   find(streamToEvents_, st, "Stream does not exist");
   eventToStream_[evt] = st;
   streamToEvents_[st].emplace_back(evt);
-  return evt;
 }
 
 EventId Client::abortStream(StreamId st) {
@@ -242,6 +258,7 @@ EventId Client::memcpyDeviceToHost(StreamId st, std::byte const* src, std::byte*
 StreamId Client::createStream(DeviceId deviceId) {
   auto payload = sendRequestAndWait(req::Type::CREATE_STREAM, req::CreateStream{deviceId});
   auto st = std::get<resp::CreateStream>(payload).stream_;
+  SpinLock lock(mutex_);
   streamToEvents_[st] = {};
   return st;
 }
@@ -275,22 +292,36 @@ std::vector<StreamError> Client::retrieveStreamErrors(StreamId) {
 IProfiler* Client::getProfiler() {
   throw Exception("UNIMPLEMENTED, YET");
 }
-LoadCodeResult Client::loadCode(StreamId, std::byte const*, unsigned long) {
-  throw Exception("UNIMPLEMENTED, YET");
+LoadCodeResult Client::loadCode(StreamId st, std::byte const* data, unsigned long size) {
+  std::vector<std::byte> elf;
+  elf.reserve(size);
+  std::copy(data, data + size, std::back_inserter(elf));
+  auto payload = sendRequestAndWait(req::Type::LOAD_CODE, req::LoadCode{st, std::move(elf)});
+  LoadCodeResult r;
+  auto resp = std::get<resp::LoadCode>(payload);
+  r.loadAddress_ = reinterpret_cast<std::byte*>(resp.loadAddress_);
+  r.event_ = resp.event_;
+  r.kernel_ = resp.kernel_;
+  registerEvent(r.event_, st);
+  return r;
 }
+
 std::vector<DeviceId> Client::getDevices() {
   auto payload = sendRequestAndWait(req::Type::GET_DEVICES, std::monostate{});
   return std::get<resp::GetDevices>(payload).devices_;
 }
-void Client::unloadCode(KernelId) {
-  throw Exception("UNIMPLEMENTED, YET");
+void Client::unloadCode(KernelId kid) {
+  sendRequestAndWait(req::Type::UNLOAD_CODE, req::UnloadCode{kid});
 }
 EventId Client::memcpyHostToDevice(StreamId st, MemcpyList memcpyList, bool barrier) {
   auto payload = sendRequestAndWait(req::Type::MEMCPY_LIST_H2D, req::MemcpyList{memcpyList, st, barrier});
   return registerEvent(payload, st);
 }
 void Client::destroyStream(StreamId stream) {
+  SpinLock lock(mutex_);
   find(streamToEvents_, stream, "Stream does not exist");
+  lock.unlock();
   sendRequestAndWait(req::Type::DESTROY_STREAM, req::DestroyStream{stream});
+  lock.lock();
   streamToEvents_.erase(stream);
 }

@@ -12,6 +12,16 @@
 #include "runtime/Types.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <thread>
+
+using namespace std::literals;
+TEST(mp_only_orchestrator, 1000_process) {
+  MpOrchestrator orch;
+  orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, rt::Options{true, false});
+  for (int i = 0; i < 1000; ++i) {
+    orch.createClient([](rt::IRuntime*) {});
+  }
+}
 
 TEST(mp_sync_events, wait_memcpy) {
   MpOrchestrator orch;
