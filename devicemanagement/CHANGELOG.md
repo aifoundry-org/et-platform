@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
-- [SW-13282] Skipped validation in `getModulePower` and `getModuleVoltage` for SysEMU and silicon.
+- [SW-13282] Skipped validation in `getModulePower` and `getModuleVoltage` for SysEMU and Loopback.
 ### Security
 
 ## [0.3.0] - 2022-07-4
