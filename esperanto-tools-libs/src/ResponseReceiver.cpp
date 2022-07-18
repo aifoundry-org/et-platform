@@ -40,15 +40,21 @@ void ResponseReceiver::checkResponses() {
   while (runReceiver_) {
     int responsesCount = 0;
     for (int i = 0; i < kResponseNumTriesBeforePolling; ++i) {
-      auto devicesToCheck = receiverServices_->getDevicesWithEventsOnFly();
-      std::shuffle(begin(devicesToCheck), end(devicesToCheck), gen);
-      for (auto dev : devicesToCheck) {
-        while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
-          RT_VLOG(LOW) << "Got response from deviceId: " << dev;
-          responsesCount++;
-          receiverServices_->onResponseReceived(buffer);
-          RT_VLOG(LOW) << "Response processed";
+      try {
+        auto devicesToCheck = receiverServices_->getDevicesWithEventsOnFly();
+        std::shuffle(begin(devicesToCheck), end(devicesToCheck), gen);
+        for (auto dev : devicesToCheck) {
+          while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
+            RT_VLOG(LOW) << "Got response from deviceId: " << dev;
+            responsesCount++;
+            receiverServices_->onResponseReceived(buffer);
+            RT_VLOG(LOW) << "Response processed";
+          }
         }
+      } catch (const std::exception& e) {
+        RT_LOG(WARNING)
+          << "Exception in device receiver runner thread. DeviceLayer could be in a BAD STATE. Exception message: "
+          << e.what();
       }
     }
     if (responsesCount == 0) {
@@ -61,12 +67,18 @@ void ResponseReceiver::checkDevices() {
   auto devices = deviceLayer_->getDevicesCount();
   auto lastCheck = std::chrono::high_resolution_clock::now() - kCheckDevicesInterval;
   while (runDeviceChecker_) {
-    if (auto currentTime = std::chrono::high_resolution_clock::now();
-        currentTime > (lastCheck + kCheckDevicesInterval)) {
-      for (int i = 0; i < devices; ++i) {
-        receiverServices_->checkDevice(i);
+    try {
+      if (auto currentTime = std::chrono::high_resolution_clock::now();
+          currentTime > (lastCheck + kCheckDevicesInterval)) {
+        for (int i = 0; i < devices; ++i) {
+          receiverServices_->checkDevice(i);
+        }
+        lastCheck = currentTime;
       }
-      lastCheck = currentTime;
+    } catch (const std::exception& e) {
+      RT_LOG(WARNING)
+        << "Exception in device checker runner thread. DeviceLayer could be in a BAD STATE. Exception message: "
+        << e.what();
     }
     std::this_thread::sleep_for(kCheckDevicesPolling);
   }
