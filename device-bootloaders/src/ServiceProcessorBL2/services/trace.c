@@ -40,11 +40,25 @@ static inline void et_trace_buffer_lock_acquire(void);
 static inline void et_trace_buffer_lock_release(void);
 
 #define ET_TRACE_GET_TIMESTAMP() timer_get_ticks_count()
+#define ET_TRACE_STRING_MAX_SIZE 128
 
 /* Define for Encoder */
 #define ET_TRACE_ENCODER_IMPL
 #include "trace.h"
 #include "bl2_exception.h"
+
+/************************/
+/* Compile-time checks  */
+/************************/
+#ifndef __ASSEMBLER__
+
+/* Ensure that Max trace size is in sync.
+   NOTE: This will be rmoved as result of SW-13550. */
+static_assert(ET_TRACE_STRING_MAX_SIZE == TRACE_STRING_MAX_SIZE_SP,
+              "SP Trace Max string size does not match with Trace encoder");
+
+#endif /* __ASSEMBLER__ */
+
 /*
  * Service Processor Trace control block.
  */
@@ -471,7 +485,7 @@ int32_t Trace_Exception_Init_SP(const struct trace_init_info_t *init_info)
         memcpy(&exp_init_info_l, init_info, sizeof(struct trace_init_info_t));
     }
 
-    /* Initialize exception trace buffer as sub-buffer of SP trace buffer 
+    /* Initialize exception trace buffer as sub-buffer of SP trace buffer
        with size equal to sub buffer size. */
     SP_Exp_Trace_CB.size_per_hart = SP_TRACE_BUFFER_SIZE_PER_SUB_BUFFER;
     SP_Exp_Trace_CB.base_per_hart = (SP_TRACE_BUFFER_BASE + SP_TRACE_BUFFER_SIZE_PER_SUB_BUFFER);
@@ -530,7 +544,7 @@ struct trace_control_block_t *Trace_Get_SP_Exp_CB(void)
 *
 *   INPUTS
 *
-*       stack_frame 
+*       stack_frame
 *
 *   OUTPUTS
 *

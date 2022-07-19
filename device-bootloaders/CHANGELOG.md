@@ -16,11 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13253] Workaround for flash init for fast boot.
 - [SW-13466] Porting over changes from silicon branch.
 ### Changed
+- [SW-11649] Separate out Trace and Serial log string max size.
 - Conanfile now declares dependencies with version-ranges
 ### Deprecated
 ### Removed
 - [SW-12973] Auto reset of MM from MM heartbeat watchdog expiry.
 ### Fixed
+- [SW-11649] Fixed usage of Trace string length to be not fixed size.
 - [SW-13218] Reading memory size from flash in get_memory_size().
   * Reading dummy vendor ID until reading from chip register is fixed.
 - [SW-13220] Updates to ensure the correct value is returned for PCIe max link speed. It was returning value for one older GEN.

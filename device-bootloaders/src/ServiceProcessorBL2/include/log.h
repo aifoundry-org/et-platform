@@ -20,6 +20,11 @@
 #include <inttypes.h>
 #include "etsoc/common/log_common.h"
 
+/*! \def LOG_STRING_MAX_SIZE_SP
+    \brief Max string message length which can be logged over serial.
+*/
+#define LOG_STRING_MAX_SIZE_SP 128
+
 /*! \fn void Log_Init(void)
     \brief Initialize the logging component
     \param level Log level to set
@@ -59,7 +64,8 @@ log_interface_t Log_Get_Interface(void);
     \param ... variable list
     \return Bytes written
 */
-int32_t Log_Write(log_level_t level, const char *const fmt, ...) __attribute__((format(printf, 2, 3)));
+int32_t Log_Write(log_level_t level, const char *const fmt, ...)
+    __attribute__((format(printf, 2, 3)));
 
 /*! \fn int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
     \brief Write a string log
@@ -70,6 +76,8 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...) __attribute__((
 */
 int32_t Log_Write_String(log_level_t level, const char *str, size_t length);
 
-#define ASSERT_LOG(log_level,msg,expr) if (!(expr)) Log_Write(log_level,"%s || File:%s Line:%d\r\n", msg, __FILE__, __LINE__)
+#define ASSERT_LOG(log_level, msg, expr) \
+    if (!(expr))                         \
+    Log_Write(log_level, "%s || File:%s Line:%d\r\n", msg, __FILE__, __LINE__)
 
 #endif /* LOG_DEFS_H */

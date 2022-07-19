@@ -66,7 +66,8 @@ static uint32_t RT_Error_Count = 0;
 /*! \def CHECK_STRING_FILTER
     \brief This checks if trace string log level is enabled to log the given level.
 */
-#define CHECK_STRING_FILTER(cb, log_level) ((cb->filter_mask & TRACE_FILTER_STRING_MASK) >= log_level)
+#define CHECK_STRING_FILTER(cb, log_level) \
+    ((cb->filter_mask & TRACE_FILTER_STRING_MASK) >= log_level)
 
 /************************************************************************
 *
@@ -224,16 +225,90 @@ log_interface_t Log_Get_Interface(void)
 ***********************************************************************/
 int32_t Log_Write(log_level_t level, const char *const fmt, ...)
 {
-    char buff[128];
-    va_list va;
     int32_t bytes_written = 0;
+    uint32_t error_count = 0;
 
-    if (level <= Log_CB.current_log_level)
+    /* Check if given log level is enabled */
+    if (level > Log_CB.current_log_level)
     {
+        return bytes_written;
+    }
+
+    /* Dump the log message over current log interface. */
+    if (Log_CB.current_log_interface == LOG_DUMP_TO_TRACE)
+    {
+        char str[TRACE_STRING_MAX_SIZE_SP];
+        va_list va;
         va_start(va, fmt);
-        vsnprintf(buff, sizeof(buff), fmt, va);
+        bytes_written = vsnprintf(str, TRACE_STRING_MAX_SIZE_SP, fmt, va);
         va_end(va);
-        bytes_written = Log_Write_String(level, buff, sizeof(buff));
+
+        Trace_String(level, Trace_Get_SP_CB(), str);
+
+        /* Update trace buffer header, this will update data size field in header
+           to reflect current data in buffer. */
+        Trace_Update_SP_Buffer_Header();
+
+        /* Check if severity of message is error or above */
+        if (level == LOG_LEVEL_ERROR)
+        {
+            /* Acquire the Mutex */
+            if (Log_Mutex && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+            {
+                xSemaphoreTake(Log_Mutex, portMAX_DELAY);
+            }
+
+            /* Increment the error count */
+            error_count = ++RT_Error_Count;
+
+            /* Release the Mutex */
+            if (Log_Mutex && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+            {
+                xSemaphoreGive(Log_Mutex);
+            }
+        }
+    }
+    else
+    {
+        /* Verify the logging level */
+        if (level > Log_CB.current_log_level)
+        {
+            return 0;
+        }
+
+        char str[LOG_STRING_MAX_SIZE_SP];
+        va_list va;
+        va_start(va, fmt);
+        bytes_written = vsnprintf(str, LOG_STRING_MAX_SIZE_SP, fmt, va);
+        va_end(va);
+
+        /* Acquire the Mutex */
+        if (Log_Mutex && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+        {
+            xSemaphoreTake(Log_Mutex, portMAX_DELAY);
+        }
+
+        /* Write the data to console */
+        bytes_written = printf("%s", str);
+
+        /* Check if severity of message is error or above */
+        if (level == LOG_LEVEL_ERROR)
+        {
+            /* Increment the error count */
+            error_count = ++RT_Error_Count;
+        }
+
+        /* Release the Mutex */
+        if (Log_Mutex && (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED))
+        {
+            xSemaphoreGive(Log_Mutex);
+        }
+    }
+
+    /* Check if the error_count was updated. */
+    if (error_count)
+    {
+        generate_runtime_error_event(error_count);
     }
 
     return bytes_written;
@@ -264,20 +339,17 @@ int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
 {
     int32_t bytes_written = 0;
     uint32_t error_count = 0;
-    (void)length;
 
     /* Dump the log message over current log interface. */
     if (Log_CB.current_log_interface == LOG_DUMP_TO_TRACE)
     {
         Trace_String(level, Trace_Get_SP_CB(), str);
 
-        /* Update trace buffer header, this will update data size field
+        /* Update trace buffer header, this will update data size field in header
            to reflect current data in buffer. */
         Trace_Update_SP_Buffer_Header();
 
-        /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
-           type message. */
-        bytes_written = TRACE_STRING_MAX_SIZE;
+        bytes_written = (int32_t)length;
 
         /* Check if severity of message is error or above */
         if (level == LOG_LEVEL_ERROR)
