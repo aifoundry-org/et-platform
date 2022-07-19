@@ -19,7 +19,7 @@
 #include "StreamManager.h"
 #include "Utils.h"
 #include "dma/CmaManager.h"
-#include "runtime/IDmaBuffer.h"
+#include "dma/IDmaBuffer.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 #include <algorithm>
@@ -73,15 +73,11 @@ public:
 
   EventId memcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) final;
   EventId memcpyDeviceToHost(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) final;
-  EventId memcpyHostToDevice(StreamId stream, const IDmaBuffer* src, std::byte* dst, size_t size, bool barrier) final;
-  EventId memcpyDeviceToHost(StreamId stream, const std::byte* src, IDmaBuffer* dst, size_t size, bool barrier) final;
   EventId memcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier) final;
   EventId memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier) final;
 
   bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) final;
   bool waitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) final;
-
-  std::unique_ptr<IDmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) final;
 
   EventId setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
                              uint32_t filterMask, bool barrier) final;
@@ -136,11 +132,6 @@ public:
   EventId memcpyDeviceToHostWithoutProfiling(StreamId stream, const std::byte* src, std::byte* dst, size_t size,
                                              bool barrier,
                                              const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
-  EventId memcpyHostToDeviceWithoutProfiling(StreamId stream, const IDmaBuffer* src, const std::byte* dst, size_t size,
-                                             bool barrier);
-  EventId memcpyDeviceToHostWithoutProfiling(StreamId stream, const std::byte* src, const IDmaBuffer* dst, size_t size,
-                                             bool barrier);
-
   EventId memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier,
                                              const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
   EventId memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier,
@@ -224,7 +215,7 @@ private:
   int nextKernelId_ = 0;
 
   std::unique_ptr<ResponseReceiver> responseReceiver_;
-  threadPool::ThreadPool blockableThreadPool_{8};
+  threadPool::ThreadPool tp_{8};
   EventManager eventManager_;
   bool running_ = false;
   bool checkMemcpyDeviceAddress_ = false;

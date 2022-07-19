@@ -10,7 +10,6 @@
 #include "BenchmarkerImp.h"
 #include "Logging.h"
 #include "Worker.h"
-#include "runtime/IDmaBuffer.h"
 #include "runtime/IProfiler.h"
 #include "runtime/Types.h"
 #include "tools/IBenchmarker.h"

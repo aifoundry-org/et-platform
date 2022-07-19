@@ -33,7 +33,7 @@ TEST(devices, get_properties) {
 
   dev::DeviceConfig dc;
   dc.formFactor_ = dev::DeviceConfig::FormFactor::PCIE;
-  dc.tdp_ = 300;
+  dc.tdp_ = 250;
   dc.totalL3Size_ = L3SizeInMB * 1024;
   dc.totalL2Size_ = L2SizeInMB * 1024;
   dc.totalScratchPadSize_ = ScratchPadSizeInMB * 1024;

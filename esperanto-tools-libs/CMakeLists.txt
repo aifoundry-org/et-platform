@@ -85,7 +85,7 @@ add_library(etrt_obj OBJECT
 )
 
 set_target_properties(etrt_obj PROPERTIES
-    PUBLIC_HEADER "include/runtime/IProfiler.h;include/runtime/IRuntime.h;include/runtime/IProfileEvent.h;include/runtime/IDmaBuffer.h;include/runtime/Types.h;include/runtime/DeviceLayerFake.h"
+    PUBLIC_HEADER "include/runtime/IProfiler.h;include/runtime/IRuntime.h;include/runtime/IProfileEvent.h;include/runtime/Types.h;include/runtime/DeviceLayerFake.h"
     POSITION_INDEPENDENT_CODE ON
 )
     target_compile_definitions(etrt_obj

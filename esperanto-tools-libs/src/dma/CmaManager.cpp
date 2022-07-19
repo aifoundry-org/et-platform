@@ -10,7 +10,7 @@
 #include "CmaManager.h"
 #include "MemoryManager.h"
 #include "Utils.h"
-#include "runtime/IDmaBuffer.h"
+#include "dma/IDmaBuffer.h"
 #include "runtime/IRuntime.h"
 #include <mutex>
 using namespace rt;
@@ -18,11 +18,10 @@ namespace {
 constexpr auto kCmaBlockSize = 1024U;
 }
 
-CmaManager::CmaManager(IRuntime& runtime, size_t cmaSize)
-  : runtime_(runtime)
-  , dmaBuffer_(runtime_.allocateDmaBuffer(DeviceId{0}, cmaSize, true))
+CmaManager::CmaManager(std::unique_ptr<IDmaBuffer> dmaBuffer)
+  : dmaBuffer_(std::move(dmaBuffer))
   , memoryManager_(reinterpret_cast<uint64_t>(dmaBuffer_->getPtr()), dmaBuffer_->getSize(), kCmaBlockSize) {
-  RT_VLOG(LOW) << "Runtime CMA allocation size: 0x" << std::hex << cmaSize;
+  RT_VLOG(LOW) << "Runtime CMA allocation size: 0x" << std::hex << dmaBuffer_->getSize();
 }
 
 size_t CmaManager::getTotalSize() const {

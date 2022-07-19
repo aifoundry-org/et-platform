@@ -18,7 +18,7 @@ namespace rt {
 class IRuntime;
 class CmaManager {
 public:
-  CmaManager(IRuntime& runtime, size_t cmaSize);
+  CmaManager(std::unique_ptr<IDmaBuffer> dmaBuffer);
 
   // returns total size
   size_t getTotalSize() const;
@@ -35,7 +35,6 @@ public:
   void waitUntilFree(size_t size);
 
 private:
-  IRuntime& runtime_;
   std::unique_ptr<IDmaBuffer> dmaBuffer_;
   MemoryManager memoryManager_;
   std::condition_variable cv_;

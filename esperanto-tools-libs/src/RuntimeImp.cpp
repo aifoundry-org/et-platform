@@ -18,7 +18,7 @@
 #include "dma/CmaManager.h"
 #include "dma/DmaBufferImp.h"
 
-#include "runtime/IDmaBuffer.h"
+#include "dma/IDmaBuffer.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 
@@ -77,7 +77,8 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling
       deviceLayer_->getTraceBufferSizeMasterMinion(static_cast<int>(d), dev::TraceBufferType::TraceBufferCM) +
       deviceLayer_->getTraceBufferSizeMasterMinion(static_cast<int>(d), dev::TraceBufferType::TraceBufferMM);
     memoryManagers_.try_emplace(d, dramBaseAddress, dramSize, kBlockSize);
-    deviceTracing_.try_emplace(d, DeviceFwTracing{allocateDmaBuffer(d, tracingBufferSize, false), nullptr, nullptr});
+    deviceTracing_.try_emplace(
+      d, DeviceFwTracing{std::make_unique<DmaBufferImp>(0, tracingBufferSize, true, deviceLayer_), nullptr, nullptr});
     auto dmaInfo = deviceLayer_->getDmaInfo(static_cast<int>(d));
     maxElementCount = std::max(maxElementCount, dmaInfo.maxElementCount_);
     totalElementSize += dmaInfo.maxElementSize_;
@@ -95,7 +96,7 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling
     RT_LOG(INFO) << "Overriding default calculated CMA size of " << desiredCma << " with a CMA size of " << mem;
     desiredCma = mem;
   }
-  cmaManager_ = std::make_unique<CmaManager>(*this, desiredCma);
+  cmaManager_ = std::make_unique<CmaManager>(std::make_unique<DmaBufferImp>(0, desiredCma, true, deviceLayer_));
   responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
 
   // initialization sequence, need to send abort command to ensure the device is in a proper state
@@ -372,7 +373,7 @@ void RuntimeImp::setOnKernelAbortedErrorCallback(const KernelAbortedCallback& ca
 }
 
 void RuntimeImp::processResponseError(const ResponseError& responseError) {
-  blockableThreadPool_.pushTask([this, responseError] {
+  tp_.pushTask([this, responseError] {
     // here we have to check if there is an associated errorbuffer with the event; if so, copy the buffer from
     // devicebuffer into dmabuffer; then do the callback
     auto [errorCode, event, kernelExtra] = responseError;
@@ -547,10 +548,6 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
   }
 }
 
-std::unique_ptr<IDmaBuffer> RuntimeImp::allocateDmaBuffer(DeviceId device, size_t size, bool writeable) {
-  return std::make_unique<DmaBufferImp>(static_cast<int>(device), size, writeable, deviceLayer_);
-}
-
 EventId RuntimeImp::setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
                                        uint32_t filterMask, bool barrier) {
 
@@ -662,8 +659,8 @@ EventId RuntimeImp::stopDeviceTracing(StreamId stream, bool barrier) {
   evt = eventManager_.getNextId();
   streamManager_.addEvent(stream, evt);
 
-  blockableThreadPool_.pushTask([this, mmTraceSize, cmTraceSize, memcpyEvt, dmaPtr = deviceTracing.dmaBuffer_->getPtr(),
-                                 mmOut = deviceTracing.mmOutput_, cmOut = deviceTracing.cmOutput_, evt]() mutable {
+  tp_.pushTask([this, mmTraceSize, cmTraceSize, memcpyEvt, dmaPtr = deviceTracing.dmaBuffer_->getPtr(),
+                mmOut = deviceTracing.mmOutput_, cmOut = deviceTracing.cmOutput_, evt]() mutable {
     // first wait till the copy ends
     waitForEventWithoutProfiling(memcpyEvt);
 

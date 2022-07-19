@@ -174,43 +174,6 @@ public:
   virtual EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                      bool barrier = true) = 0;
 
-  /// \brief Queues a memcpy operation from host memory to device memory. The device memory must be previously allocated
-  /// by a mallocDevice. This version is faster because it utilizes DMABuffer, so avoid one extra copy.
-  ///
-  /// @param[in] stream handler indicating in which stream to queue the memcpy operation
-  /// @param[in] h_src host memmory source dmaBuffer previously allocated with \ref allocateDmaBuffer
-  /// @param[in] d_dst device memory buffer to copy to
-  /// @param[in] size indicates the size of the memcpy
-  /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
-  /// issued into this stream finish (a barrier). Usually the memcpies from host to device can run in parallel, hence
-  /// the default value is false. All memcpy operations are always asynchronous.
-  ///
-  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
-  /// ends.
-  ///
-  virtual EventId memcpyHostToDevice(StreamId stream, const IDmaBuffer* h_src, std::byte* d_dst, size_t size,
-                                     bool barrier = false) = 0;
-
-  /// \brief Queues a memcpy operation from device memory to host memory. The device memory must be a valid region
-  /// previously allocated by a mallocDevice; the host memory must be a previously allocated memory in the host by the
-  /// conventional means (for example the heap). This version is faster because it utilizes DMABuffer, so avoid one
-  /// extra copy.
-  ///
-  /// @param[in] stream handler indicating in which stream to queue the memcpy
-  /// operation
-  /// @param[in] d_src device memory buffer to copy from
-  /// @param[in] h_dst host memory destination dmaBuffer previously allocated with \ref allocateDmaBuffer
-  /// @param[in] size indicates the size of the memcpy
-  /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
-  /// issued into this stream finish (a barrier). Usually the memcpies from device to host must wait till a previous
-  /// kernel execution finishes, hence the default value is true. All memcpy operations are always asynchronous.
-  ///
-  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
-  /// ends.
-  ///
-  virtual EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, IDmaBuffer* h_dst, size_t size,
-                                     bool barrier = true) = 0;
-
   /// \brief Queues many memcpy operations from host memory to device memory. These operations are defined in struct
   /// \ref MemcpyList. The device memory must be a valid region previously allocated by a mallocDevice; the host memory
   /// must be a previously allocated memory in the host by the conventional means (for example the heap).
@@ -300,18 +263,6 @@ public:
   /// @returns IProfiler an interface to the profiler. See \ref IProfiler
   ///
   virtual IProfiler* getProfiler() = 0;
-
-  /// \brief Allocates a DmaBuffer which can be used to perform "zero-copy" DMA transfers. Ideally all memcpy operations
-  /// should be used using DmaBuffers; if not, runtime will do it under the hood.
-  ///
-  /// @param[in] device indicates the device where the DmaBuffer will be assoaciated to.
-  /// @param[in] size is the desired size in bytes of the DmaBuffer allocation.
-  /// @param[in] writeable indicates if the DmaBuffer should be writeable by the host or not (for read-only buffers pass
-  /// "false").
-  ///
-  /// @returns DmaBuffer which can be used to avoid unnecessary staging memory copies; enabling "zero-copy".
-  ///
-  virtual std::unique_ptr<IDmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) = 0;
 
   /// \brief Setup the device for getting master minion and compute minion traces. Tracing is done using internal
   /// buffers which, if overflow, they will overwrite the start of the buffer. In the future there will be a mechanism

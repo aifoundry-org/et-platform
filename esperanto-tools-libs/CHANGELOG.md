@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed gitlab configuration to allow more memory in kubernetes instances
 ### Deprecated
 ### Removed
+- ***BREAKING CHANGE***: [SW-13511] ***removed*** IDmaBuffers from the runtime API. All three following methods have been removed from the API:
+  * virtual EventId memcpyHostToDevice(StreamId stream, const IDmaBuffer* h_src, std::byte* d_dst, size_t size, bool barrier = false)
+  * virtual EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, IDmaBuffer* h_dst, size_t size,bool barrier = true) = 0;
+  * virtual std::unique_ptr<IDmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) = 0;
+
 ### Fixed
 - Adapt device tests to return L2 and L3 sizes in KB
 ### Security

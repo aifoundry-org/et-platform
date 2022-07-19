@@ -8,9 +8,9 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
+#include "IDmaBuffer.h"
 #include "Utils.h"
 #include <device-layer/IDeviceLayer.h>
-#include <runtime/IDmaBuffer.h>
 #include <runtime/IRuntime.h>
 
 namespace rt {

@@ -77,7 +77,7 @@ unit_tests:conan:sysemu:
       cmake --preset ${BUILD_TYPE} -G Ninja
       cmake --build --preset ${BUILD_TYPE}
       cd cmake-build-${BUILD_TYPE_LOWER}
-      sudo ctest -T Test -L 'Generic' -R 'runtime:ut_' -E 'runtime:ut_RuntimeBenchmark' --no-compress-output --output-on-failure --parallel 4
+      sudo ctest -V -L 'Generic' -R 'runtime:ut_' -E 'runtime:ut_RuntimeBenchmark' --output-on-failure
 
 ###############################################################################
 ###############################################################################
@@ -150,7 +150,7 @@ tests:conan:sysemu:
       cmake --preset ${BUILD_TYPE} -G Ninja
       cmake --build --preset ${BUILD_TYPE}
       cd cmake-build-${BUILD_TYPE_LOWER}
-      sudo ctest -T Test -L 'Generic' -E 'runtime:ut_RuntimeBenchmark' -E 'Stress' --no-compress-output --output-on-failure --parallel 4
+      sudo ctest -V -L 'Generic' -E 'runtime:ut_RuntimeBenchmark' -E 'Stress' --output-on-failure
 
 # FIXME Enable running the sonarqube job in this repo when the Conan image will have the correct 
 # dependencies (java, sonar-scanner)
@@ -200,7 +200,7 @@ nightly_torture_tests:conan:sysemu:
       cmake --preset ${BUILD_TYPE} -G Ninja
       cmake --build --preset ${BUILD_TYPE}
       cd cmake-build-${BUILD_TYPE_LOWER}
-      sudo ctest -T Test -L 'Generic' --repeat until-fail:10 --no-compress-output --output-on-failure --parallel 8
+      sudo ctest -V -L 'Generic' --repeat until-fail:10 --output-on-failure
 
 # integration testing with sw-platform
 #

@@ -53,18 +53,6 @@ public:
 
   IProfiler* getProfiler() override;
 
-  EventId memcpyHostToDevice(StreamId, const IDmaBuffer*, std::byte*, size_t, bool) override {
-    throw Exception("Not implemented.");
-  }
-
-  EventId memcpyDeviceToHost(StreamId, const std::byte*, IDmaBuffer*, size_t, bool) override {
-    throw Exception("Not implemented.");
-  }
-
-  std::unique_ptr<IDmaBuffer> allocateDmaBuffer(DeviceId, size_t, bool) override {
-    throw Exception("Not implemented.");
-  }
-
   EventId setupDeviceTracing(StreamId, uint32_t, uint32_t, uint32_t, uint32_t, bool) override {
     throw Exception("Not implemented.");
   }

@@ -125,7 +125,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const st
   commandSender.send(Command{{}, commandSender, evt, true});
   RT_VLOG(MID) << "H2D: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  blockableThreadPool_.pushTask([this, size, barrier, d_dst, h_src, evt, stream, streamInfo, cmaCopyFunction] {
+  tp_.pushTask([this, size, barrier, d_dst, h_src, evt, stream, streamInfo, cmaCopyFunction] {
     RT_VLOG(MID) << "Start processing command id " << static_cast<int>(evt);
     std::vector<EventId> cmdEvents;
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
@@ -196,70 +196,6 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const st
   return evt;
 }
 
-EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const IDmaBuffer* h_src, std::byte* d_dst, size_t size,
-                                       bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, *profiler_, stream);
-  auto eventId = memcpyHostToDeviceWithoutProfiling(stream, h_src, d_dst, size, barrier);
-  profileEvent.setEventId(eventId);
-  return eventId;
-}
-
-EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const IDmaBuffer* h_src, const std::byte* d_dst,
-                                                       size_t size, bool barrier) {
-  if (size > h_src->getSize()) {
-    throw Exception("Trying to do a memcpy host to device using a dma buffer shorter than required size.");
-  }
-  std::unique_lock lock(mutex_);
-  auto streamInfo = streamManager_.getStreamInfo(stream);
-  if (checkMemcpyDeviceAddress_) {
-    auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
-    mm.checkOperation(d_dst, size);
-  }
-  MemcpyCommandBuilder cmdBuilder{MemcpyType::H2D, barrier, 1};
-  cmdBuilder.addOp(h_src->getPtr(), d_dst, size);
-  auto evt = eventManager_.getNextId();
-  cmdBuilder.setTagId(evt);
-  RT_VLOG(LOW) << "MemcpyHostToDevice (DMABuffer) stream: " << static_cast<int>(stream)
-               << " EventId: " << static_cast<int>(evt) << std::hex << " Host address: " << h_src->getPtr()
-               << " Device address: " << d_dst << " Size: " << size;
-  auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-  streamManager_.addEvent(stream, evt);
-  commandSender.send(Command{cmdBuilder.build(), commandSender, evt, true, true});
-  return evt;
-}
-
-EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, IDmaBuffer* h_dst, size_t size,
-                                       bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream);
-  auto eventId = memcpyDeviceToHostWithoutProfiling(stream, d_src, h_dst, size, barrier);
-  profileEvent.setEventId(eventId);
-  return eventId;
-}
-
-EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const std::byte* d_src, const IDmaBuffer* h_dst,
-                                                       size_t size, bool barrier) {
-  if (size > h_dst->getSize()) {
-    throw Exception("Trying to do a memcpy device to host using a dma buffer shorter than required size.");
-  }
-  std::unique_lock lock(mutex_);
-  auto streamInfo = streamManager_.getStreamInfo(stream);
-  if (checkMemcpyDeviceAddress_) {
-    auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
-    mm.checkOperation(d_src, size);
-  }
-  MemcpyCommandBuilder cmdBuilder{MemcpyType::D2H, barrier, 1};
-  cmdBuilder.addOp(h_dst->getPtr(), d_src, size);
-  auto evt = eventManager_.getNextId();
-  cmdBuilder.setTagId(evt);
-  RT_VLOG(LOW) << "MemcpyDeviceToHost (DMABuffer) stream: " << static_cast<int>(stream)
-               << " EventId: " << static_cast<int>(evt) << std::hex << " Host address: " << d_src
-               << " Device address: " << h_dst->getPtr() << std::dec << " Size: " << size;
-  auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-  streamManager_.addEvent(stream, evt);
-  commandSender.send(Command{cmdBuilder.build(), commandSender, evt, true, true});
-  return evt;
-}
-
 EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                        bool barrier) {
   ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream);
@@ -291,7 +227,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
   commandSender.send(Command{{}, commandSender, evt, true});
   RT_VLOG(MID) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  blockableThreadPool_.pushTask([this, stream, size, barrier, d_src, h_dst, evt, streamInfo, cmaCopyFunction] {
+  tp_.pushTask([this, stream, size, barrier, d_src, h_dst, evt, streamInfo, cmaCopyFunction] {
     RT_VLOG(MID) << "Start processing command id " << static_cast<int>(evt);
     std::vector<EventId> cmdEvents;
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
@@ -414,7 +350,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyLi
   commandSender.send(Command{{}, commandSender, evt, true});
   RT_VLOG(MID) << "H2D: Added command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  blockableThreadPool_.pushTask([this, barrier, memcpyList, evt, streamInfo, cmaCopyFunction] {
+  tp_.pushTask([this, barrier, memcpyList, evt, streamInfo, cmaCopyFunction] {
     RT_VLOG(MID) << "Start processing command id " << static_cast<int>(evt);
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto totalSize = 0UL;
@@ -480,7 +416,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyLi
   commandSender.send(Command{{}, commandSender, evt, true});
   RT_VLOG(MID) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  blockableThreadPool_.pushTask([this, barrier, memcpyList, evt, streamInfo, stream, cmaCopyFunction] {
+  tp_.pushTask([this, barrier, memcpyList, evt, streamInfo, stream, cmaCopyFunction] {
     RT_VLOG(MID) << "Start processing command id " << static_cast<int>(evt);
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto totalSize = 0UL;
