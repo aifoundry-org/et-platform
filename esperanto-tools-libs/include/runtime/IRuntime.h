@@ -336,6 +336,21 @@ public:
   /// @returns EventId is a handler of the abortStream which can be waited for (waitForEventId) to synchronize.
   virtual EventId abortStream(StreamId streamId) = 0;
 
+  /// \brief Returns the DmaInfo of given device (see \ref DmaInfo). This DmaInfo contains max size for each operation
+  /// in a memcpy list command and max number of operations allowed in a single memcpy list command.
+  ///
+  /// @param[in] deviceId indicates the device to get the DMA configuration from.
+  ///
+  /// @returns DmaInfo contains max number of operations allowed in a single memcpy list command and max size for each
+  /// operation.
+  virtual DmaInfo getDmaInfo(DeviceId deviceId) const = 0;
+
+  /// \brief returns a \ref DeviceConfig struct containing device configured details.
+  ///
+  /// @param[in] device the device which will be queried
+  ///
+  virtual DeviceConfig getDeviceConfig(DeviceId device) const = 0;
+
   ///
   /// \brief Factory method to instantiate a IRuntime implementation
   ///

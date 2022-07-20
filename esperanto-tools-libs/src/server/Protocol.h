@@ -22,6 +22,18 @@
 #include <type_traits>
 #include <variant>
 
+namespace cereal {
+template <class Archive> void serialize(Archive& archive, rt::DmaInfo& dmaInfo) {
+  archive(dmaInfo.maxElementCount_, dmaInfo.maxElementSize_);
+}
+
+template <class Archive> void serialize(Archive& archive, rt::DeviceConfig& dc) {
+  archive(dc.formFactor_, dc.tdp_, dc.totalL3Size_, dc.totalL2Size_, dc.totalScratchPadSize_, dc.cacheLineSize_,
+          dc.numL2CacheBanks_, dc.ddrBandwidth_, dc.minionBootFrequency_, dc.computeMinionShireMask_,
+          dc.spareComputeMinionoShireId_, dc.archRevision_);
+}
+
+} // namespace cereal
 namespace rt {
 using AddressT = uint64_t;
 
@@ -54,7 +66,9 @@ enum class Type : uint32_t {
   UNLOAD_CODE,
   KERNEL_LAUNCH,
   GET_DEVICES,
-  ABORT_STREAM
+  ABORT_STREAM,
+  DMA_INFO,
+  DEVICE_CONFIG
 };
 
 using Id = uint32_t;
@@ -67,6 +81,7 @@ constexpr size_t kMaxKernelSize = 10 << 20;
 constexpr bool IsRegularId(Id id) {
   return id != ASYNC_RUNTIME_EVENT && id != INVALID_REQUEST_ID;
 }
+
 struct UnloadCode {
   KernelId kernel_;
   template <class Archive> void serialize(Archive& archive) {
@@ -202,7 +217,7 @@ struct Request {
   Type type_;
   Id id_ = INVALID_REQUEST_ID;
   std::variant<std::monostate, UnloadCode, KernelLaunch, Memcpy, MemcpyList, CreateStream, DestroyStream, LoadCode,
-               Malloc, Free, AbortStream>
+               Malloc, Free, AbortStream, DeviceId>
     payload_;
   template <class Archive> void serialize(Archive& archive) {
     archive(type_, id_, payload_);
@@ -228,7 +243,9 @@ enum class Type : uint32_t {
   ABORT_STREAM,
   EVENT_DISPATCHED,
   STREAM_ERROR,
-  RUNTIME_EXCEPTION
+  RUNTIME_EXCEPTION,
+  DMA_INFO,
+  DEVICE_CONFIG
 };
 
 constexpr auto getStr(Type t) {
@@ -319,7 +336,6 @@ struct RuntimeException {
     exception_ = Exception{what_message};
   }
 };
-
 struct Response {
   Response() = default;
   template <typename T>
@@ -329,7 +345,7 @@ struct Response {
     , payload_(payload) {
   }
   using Payload_t = std::variant<std::monostate, Version, Malloc, GetDevices, Event, CreateStream, LoadCode,
-                                 StreamError, RuntimeException>;
+                                 StreamError, RuntimeException, DmaInfo, DeviceConfig>;
   Type type_;
   Id id_ = req::INVALID_REQUEST_ID;
   Payload_t payload_;

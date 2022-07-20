@@ -227,6 +227,30 @@ struct UserTrace {
   uint32_t eventMask_;   /*!< This is a bit mask, each bit corresponds to a specific Event to trace. */
   uint32_t filterMask_;  /*!< This is a bit mask representing a list of filters for a given event to trace. */
 };
+
+// These two structs (DmaInfo and DeviceConfig) are directly copied from IDeviceLayer.h; these needs to be republished
+// by runtime since runtime consumers dont necessary need to know about DeviceLayer component once runtime multiprocess
+// is released
+struct DmaInfo {
+  uint64_t maxElementSize_;  ///< maximum amount of memory that can be transfer per each DMA command entry
+  uint64_t maxElementCount_; ///< max number of DMA entries per DMA command
+};
+
+struct DeviceConfig {
+  enum class FormFactor { PCIE, M2 };
+  FormFactor formFactor_;              ///< device form factor
+  uint8_t tdp_;                        ///< TDP in Watts
+  uint32_t totalL3Size_;               ///< total size of L3 cache in KBytes
+  uint32_t totalL2Size_;               ///< total size of L2 cache in KBytes
+  uint32_t totalScratchPadSize_;       ///< total scratchpad size in KBytes
+  uint8_t cacheLineSize_;              ///< chache line size, in Bytes
+  uint8_t numL2CacheBanks_;            ///< num L2 cache banks
+  uint32_t ddrBandwidth_;              ///< DDR bandwidth in MBytes/s
+  uint32_t minionBootFrequency_;       ///< minion boot frequency in Mhz
+  uint32_t computeMinionShireMask_;    ///< mask which indicates what are the compute minion shires
+  uint8_t spareComputeMinionoShireId_; ///< spare compute minion Shire ID
+  uint8_t archRevision_;               ///< architecture revision
+};
 } // namespace rt
 
 namespace std {

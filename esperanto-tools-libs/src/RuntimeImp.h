@@ -139,6 +139,10 @@ public:
 
   std::vector<DeviceId> getDevicesWithoutProfiling() const;
 
+  DmaInfo getDmaInfo(DeviceId deviceId) const final;
+
+  DeviceConfig getDeviceConfig(DeviceId device) const final;
+
 private:
   friend ExecutionContextCache;
 

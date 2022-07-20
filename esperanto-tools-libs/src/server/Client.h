@@ -78,6 +78,10 @@ public:
 
   EventId abortStream(StreamId streamId) override;
 
+  DmaInfo getDmaInfo(DeviceId deviceId) const final;
+
+  DeviceConfig getDeviceConfig(DeviceId device) const final;
+
 private:
   template <typename Payload> resp::Response::Payload_t sendRequestAndWait(req::Type type, Payload payload) {
     auto reqId = getNextId();
@@ -99,6 +103,13 @@ private:
   EventId registerEvent(const resp::Response::Payload_t& payload, StreamId stream);
   void registerEvent(EventId evt, StreamId stream);
 
+  // store dmaInfo and deviceConfig for each device
+
+  struct DeviceLayerProperties {
+    DmaInfo dmaInfo_;
+    DeviceConfig deviceConfig_;
+  };
+
   struct Waiter {
     template <typename Lock> void wait(Lock& lock) {
       while (!valid_) {
@@ -119,6 +130,7 @@ private:
     bool valid_ = false;
   };
 
+  std::vector<DeviceLayerProperties> deviceLayerProperties_;
   std::unordered_map<resp::Id, std::unique_ptr<Waiter>> responseWaiters_;
   std::unordered_map<EventId, StreamId> eventToStream_;
   std::unordered_map<StreamId, std::vector<EventId>> streamToEvents_;

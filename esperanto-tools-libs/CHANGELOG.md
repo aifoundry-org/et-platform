@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-12942] implemented a check in host for kernel shire mask
 - Added new error code for kernel launches with invalid shire mask
 - [SW-11138] added some exceptions catch inside runtime threads which could cause the server to hang.
+- [SW-13139] Added getDmaInfo API and getDeviceConfig API; which returns two new types. See "runtime/Types.h". The new API calls are these:  
+  ```cpp
+    virtual DmaInfo getDmaInfo(DeviceId deviceId) const = 0;  
+    virtual DeviceConfig getDeviceConfig(DeviceId device) const = 0;
+  ```
+  
 ### Changed
 - deviceLayer 0.3.0 version hash pinned.
 - Convert from KB to MB the device sizes for L2 and L3 
@@ -17,9 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 - ***BREAKING CHANGE***: [SW-13511] ***removed*** IDmaBuffers from the runtime API. All three following methods have been removed from the API:
-  * virtual EventId memcpyHostToDevice(StreamId stream, const IDmaBuffer* h_src, std::byte* d_dst, size_t size, bool barrier = false)
-  * virtual EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, IDmaBuffer* h_dst, size_t size,bool barrier = true) = 0;
-  * virtual std::unique_ptr<IDmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) = 0;
+  ```cpp
+   virtual EventId memcpyHostToDevice(StreamId stream, const IDmaBuffer* h_src, std::byte* d_dst, size_t size, bool barrier = false)
+   virtual EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, IDmaBuffer* h_dst, size_t size,bool barrier = true) = 0;
+   virtual std::unique_ptr<IDmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) = 0;
+  ```
 
 ### Fixed
 - Adapt device tests to return L2 and L3 sizes in KB
@@ -35,7 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0]
 ### Added
 - [SW-13045] added a new callback which will be executed when a kernel abort happens. See new API function: 
-```virtual void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) = 0;```
+```cpp
+virtual void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) = 0;
+```
 ### Changed
 ### Deprecated
 ### Removed
@@ -64,21 +74,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - this CHANGELOG.md
 - [SW-12580]
   - Added CM mask to error handling.
-  - StreamError has the new field   `std::optional<uint64_t> cmShireMask_; /// < only available in some kernel errors. Contains offending shiremask`
+  - StreamError has the new field   
+  - ```cpp 
+    std::optional<uint64_t> cmShireMask_; /// < only available in some kernel errors. Contains offending shiremask
+    ``` 
 ### Changed
  - *BREAKING CHANGE*: due to check device-api compatibility we need to take care when using IDeviceLayerFake since it doesnt support this command. There is a new option in runtime creation which if set will skip the device-api compatibility check, that needs to be set when using IDeviceLayerFake:
 
-    `static RuntimePtr create dev::IDeviceLayer* deviceLayer, Options options = getDefaultOptions());`
+    ```cpp 
+    static RuntimePtr create dev::IDeviceLayer* deviceLayer, Options options = getDefaultOptions());
+    ```
 
     Instead of relying on default Options, we need to set to false this one (only when using IDeviceLayerFake): `options.checkDeviceApiVersion_=false`
 
     Example runtime initialization using IDeviceLayerFake:
-
-        dev::IDeviceLayerFake fake;
-        auto options = rt::getDefaultOptions();
-        options.checkDeviceApiVersion_ = false;
-        auto runtime = rt::IRuntime::create(&fake, options);
-
+    ```cpp
+    dev::IDeviceLayerFake fake;
+    auto options = rt::getDefaultOptions();
+    options.checkDeviceApiVersion_ = false;
+    auto runtime = rt::IRuntime::create(&fake, options);
+    ```
 ### Deprecated
 ### Removed
 ### Fixed

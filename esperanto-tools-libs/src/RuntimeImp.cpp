@@ -47,6 +47,22 @@ RuntimeImp::~RuntimeImp() {
   running_ = false;
 }
 
+DmaInfo RuntimeImp::getDmaInfo(DeviceId deviceId) const {
+  DmaInfo res;
+  auto r = deviceLayer_->getDmaInfo(static_cast<int>(deviceId));
+  res.maxElementCount_ = r.maxElementCount_;
+  res.maxElementSize_ = r.maxElementSize_;
+  return res;
+}
+
+DeviceConfig RuntimeImp::getDeviceConfig(DeviceId device) const {
+  DeviceConfig res;
+  auto dc = deviceLayer_->getDeviceConfig(static_cast<int>(device));
+  static_assert(sizeof(res) == sizeof(dc), "Incompatible DeviceConfig structs");
+  memcpy(&res, &dc, sizeof(res));
+  return res;
+}
+
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling::IProfilerRecorder> profiler,
                        Options options)
   : deviceLayer_{deviceLayer}

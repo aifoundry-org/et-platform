@@ -247,6 +247,16 @@ void Client::handShake() {
     throw Exception("Unsupported version. Current client version only supports version: 1. Please update the runtime "
                     "client library.");
   }
+  // get deviceLayerProperties now
+  auto devices = getDevices();
+  for (auto d : devices) {
+    DeviceLayerProperties dlp;
+    auto pl = sendRequestAndWait(req::Type::DEVICE_CONFIG, d);
+    dlp.deviceConfig_ = std::get<DeviceConfig>(pl);
+    pl = sendRequestAndWait(req::Type::DMA_INFO, d);
+    dlp.dmaInfo_ = std::get<DmaInfo>(pl);
+    deviceLayerProperties_.emplace_back(dlp);
+  }
 }
 
 EventId Client::memcpyDeviceToHost(StreamId st, std::byte const* src, std::byte* dst, unsigned long size,
@@ -324,4 +334,20 @@ void Client::destroyStream(StreamId stream) {
   sendRequestAndWait(req::Type::DESTROY_STREAM, req::DestroyStream{stream});
   lock.lock();
   streamToEvents_.erase(stream);
+}
+
+DmaInfo Client::getDmaInfo(DeviceId deviceId) const {
+  auto idx = static_cast<uint64_t>(deviceId);
+  if (idx >= deviceLayerProperties_.size()) {
+    throw Exception("Invalid device");
+  }
+  return deviceLayerProperties_[idx].dmaInfo_;
+}
+
+DeviceConfig Client::getDeviceConfig(DeviceId device) const {
+  auto idx = static_cast<uint64_t>(device);
+  if (idx >= deviceLayerProperties_.size()) {
+    throw Exception("Invalid device");
+  }
+  return deviceLayerProperties_[idx].deviceConfig_;
 }

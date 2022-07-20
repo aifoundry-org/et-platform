@@ -261,6 +261,20 @@ void Worker::processRequest(const req::Request& request) {
     break;
   }
 
+  case req::Type::DMA_INFO: {
+    auto device = std::get<DeviceId>(request.payload_);
+    auto dmaInfo = runtime_.getDmaInfo(device);
+    sendResponse({resp::Type::DMA_INFO, request.id_, dmaInfo});
+    break;
+  }
+
+  case req::Type::DEVICE_CONFIG: {
+    auto device = std::get<DeviceId>(request.payload_);
+    auto dc = runtime_.getDeviceConfig(device);
+    sendResponse({resp::Type::DEVICE_CONFIG, request.id_, dc});
+    break;
+  }
+
   default:
     RT_LOG(WARNING) << "Unknown request: " << static_cast<int>(request.type_) << " id: " << request.id_;
     throw Exception("Unknown request: " + std::to_string(static_cast<int>(request.type_)));

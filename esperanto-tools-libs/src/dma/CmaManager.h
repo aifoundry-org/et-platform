@@ -18,7 +18,7 @@ namespace rt {
 class IRuntime;
 class CmaManager {
 public:
-  CmaManager(std::unique_ptr<IDmaBuffer> dmaBuffer);
+  explicit CmaManager(std::unique_ptr<IDmaBuffer> dmaBuffer);
 
   // returns total size
   size_t getTotalSize() const;

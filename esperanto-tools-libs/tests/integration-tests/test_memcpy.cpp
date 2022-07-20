@@ -96,14 +96,9 @@ TEST_F(TestMemcpy, 2GbMemcpy) {
 }
 
 TEST_F(TestMemcpy, dmaListCheckExceptions) {
-  if (sRtType == RtType::MP) {
-    RT_LOG(INFO)
-      << "Skipping this test until SW-13139 is implemented, uncomment the return and change the dmaInfo query";
-    return;
-  }
   auto dev = devices_[0];
   auto stream = runtime_->createStream(dev);
-  auto dmaInfo = deviceLayer_->getDmaInfo(static_cast<int>(dev));
+  auto dmaInfo = runtime_->getDmaInfo(dev);
   rt::MemcpyList list;
   list.addOp(nullptr, nullptr, dmaInfo.maxElementSize_ + 1);
   EXPECT_THROW(runtime_->memcpyHostToDevice(stream, list);, rt::Exception);
