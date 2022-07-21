@@ -1362,7 +1362,8 @@ void KW_Launch(uint32_t kw_idx)
                 Log_Write(LOG_LEVEL_ERROR, "TID[%u]:KW[%d]:Aborting kernel...\r\n", tag_id, kw_idx);
 
                 /* Make sure that the kernel is launched on the CMs */
-                kw_wait_for_kernel_launch_flag(kernel->sqw_idx, (uint8_t)kw_idx);
+                kw_wait_for_kernel_launch_flag(
+                    atomic_load_local_8(&kernel->sqw_idx), (uint8_t)kw_idx);
 
                 /* Multicast abort to shires associated with current kernel slot
                 This abort should forcefully abort all the shires involved in kernel launch */
