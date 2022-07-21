@@ -26,13 +26,6 @@ namespace cereal {
 template <class Archive> void serialize(Archive& archive, rt::DmaInfo& dmaInfo) {
   archive(dmaInfo.maxElementCount_, dmaInfo.maxElementSize_);
 }
-
-template <class Archive> void serialize(Archive& archive, rt::DeviceConfig& dc) {
-  archive(dc.formFactor_, dc.tdp_, dc.totalL3Size_, dc.totalL2Size_, dc.totalScratchPadSize_, dc.cacheLineSize_,
-          dc.numL2CacheBanks_, dc.ddrBandwidth_, dc.minionBootFrequency_, dc.computeMinionShireMask_,
-          dc.spareComputeMinionoShireId_, dc.archRevision_);
-}
-
 } // namespace cereal
 namespace rt {
 using AddressT = uint64_t;
@@ -68,7 +61,7 @@ enum class Type : uint32_t {
   GET_DEVICES,
   ABORT_STREAM,
   DMA_INFO,
-  DEVICE_CONFIG
+  DEVICE_PROPERTIES
 };
 
 using Id = uint32_t;
@@ -245,7 +238,7 @@ enum class Type : uint32_t {
   STREAM_ERROR,
   RUNTIME_EXCEPTION,
   DMA_INFO,
-  DEVICE_CONFIG
+  DEVICE_PROPERTIES
 };
 
 constexpr auto getStr(Type t) {
@@ -345,7 +338,7 @@ struct Response {
     , payload_(payload) {
   }
   using Payload_t = std::variant<std::monostate, Version, Malloc, GetDevices, Event, CreateStream, LoadCode,
-                                 StreamError, RuntimeException, DmaInfo, DeviceConfig>;
+                                 StreamError, RuntimeException, DmaInfo, DeviceProperties>;
   Type type_;
   Id id_ = req::INVALID_REQUEST_ID;
   Payload_t payload_;

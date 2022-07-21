@@ -11,6 +11,7 @@
 #include "Protocol.h"
 #include "StreamManager.h"
 #include "runtime/IRuntime.h"
+#include "runtime/Types.h"
 #include <condition_variable>
 #include <mutex>
 #include <thread>
@@ -64,10 +65,7 @@ public:
   EventId stopDeviceTracing(StreamId, bool) override {
     throw Exception("Not implemented.");
   }
-  DeviceProperties getDeviceProperties(DeviceId device) override {
-    unused(device);
-    throw Exception("Not implemented");
-  }
+  DeviceProperties getDeviceProperties(DeviceId device) const override;
 
   void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) override {
     unused(callback);
@@ -79,8 +77,6 @@ public:
   EventId abortStream(StreamId streamId) override;
 
   DmaInfo getDmaInfo(DeviceId deviceId) const final;
-
-  DeviceConfig getDeviceConfig(DeviceId device) const final;
 
 private:
   template <typename Payload> resp::Response::Payload_t sendRequestAndWait(req::Type type, Payload payload) {
@@ -107,7 +103,7 @@ private:
 
   struct DeviceLayerProperties {
     DmaInfo dmaInfo_;
-    DeviceConfig deviceConfig_;
+    DeviceProperties deviceProperties_;
   };
 
   struct Waiter {

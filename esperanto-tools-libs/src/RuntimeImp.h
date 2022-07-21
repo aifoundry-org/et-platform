@@ -57,7 +57,7 @@ public:
 
   std::vector<DeviceId> getDevices() final;
 
-  DeviceProperties getDeviceProperties(DeviceId device) final;
+  DeviceProperties getDeviceProperties(DeviceId device) const final;
 
   LoadCodeResult loadCode(StreamId stream, const std::byte* elf, size_t elf_size) final;
   void unloadCode(KernelId kernel) final;
@@ -115,7 +115,7 @@ public:
   }
   void setSentCommandCallback(DeviceId device, CommandSender::CommandSentCallback callback);
 
-  DeviceProperties getDevicePropertiesWithoutProfiling(DeviceId device);
+  DeviceProperties getDevicePropertiesWithoutProfiling(DeviceId device) const;
 
   std::byte* mallocDeviceWithoutProfiling(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize);
   void freeDeviceWithoutProfiling(DeviceId device, std::byte* buffer);
@@ -140,8 +140,6 @@ public:
   std::vector<DeviceId> getDevicesWithoutProfiling() const;
 
   DmaInfo getDmaInfo(DeviceId deviceId) const final;
-
-  DeviceConfig getDeviceConfig(DeviceId device) const final;
 
 private:
   friend ExecutionContextCache;

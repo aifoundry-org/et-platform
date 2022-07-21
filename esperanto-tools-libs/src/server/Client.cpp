@@ -10,6 +10,7 @@
 
 #include "Client.h"
 #include "Utils.h"
+#include "runtime/IProfileEvent.h"
 #include "runtime/Types.h"
 #include "server/NetworkException.h"
 #include "server/Protocol.h"
@@ -251,8 +252,8 @@ void Client::handShake() {
   auto devices = getDevices();
   for (auto d : devices) {
     DeviceLayerProperties dlp;
-    auto pl = sendRequestAndWait(req::Type::DEVICE_CONFIG, d);
-    dlp.deviceConfig_ = std::get<DeviceConfig>(pl);
+    auto pl = sendRequestAndWait(req::Type::DEVICE_PROPERTIES, d);
+    dlp.deviceProperties_ = std::get<DeviceProperties>(pl);
     pl = sendRequestAndWait(req::Type::DMA_INFO, d);
     dlp.dmaInfo_ = std::get<DmaInfo>(pl);
     deviceLayerProperties_.emplace_back(dlp);
@@ -344,10 +345,10 @@ DmaInfo Client::getDmaInfo(DeviceId deviceId) const {
   return deviceLayerProperties_[idx].dmaInfo_;
 }
 
-DeviceConfig Client::getDeviceConfig(DeviceId device) const {
+DeviceProperties Client::getDeviceProperties(DeviceId device) const {
   auto idx = static_cast<uint64_t>(device);
   if (idx >= deviceLayerProperties_.size()) {
     throw Exception("Invalid device");
   }
-  return deviceLayerProperties_[idx].deviceConfig_;
+  return deviceLayerProperties_[idx].deviceProperties_;
 }

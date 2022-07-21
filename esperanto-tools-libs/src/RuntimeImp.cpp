@@ -55,14 +55,6 @@ DmaInfo RuntimeImp::getDmaInfo(DeviceId deviceId) const {
   return res;
 }
 
-DeviceConfig RuntimeImp::getDeviceConfig(DeviceId device) const {
-  DeviceConfig res;
-  auto dc = deviceLayer_->getDeviceConfig(static_cast<int>(device));
-  static_assert(sizeof(res) == sizeof(dc), "Incompatible DeviceConfig structs");
-  memcpy(&res, &dc, sizeof(res));
-  return res;
-}
-
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling::IProfilerRecorder> profiler,
                        Options options)
   : deviceLayer_{deviceLayer}
@@ -143,30 +135,32 @@ std::vector<DeviceId> RuntimeImp::getDevicesWithoutProfiling() const {
   return devices_;
 }
 
-DeviceProperties RuntimeImp::getDeviceProperties(DeviceId device) {
+DeviceProperties RuntimeImp::getDeviceProperties(DeviceId device) const {
   ScopedProfileEvent profileEvent(Class::GetDeviceProperties, *profiler_, device);
   auto prop = getDevicePropertiesWithoutProfiling(device);
   profileEvent.setDeviceProperties(prop);
   return prop;
 }
 
-DeviceProperties RuntimeImp::getDevicePropertiesWithoutProfiling(DeviceId device) {
+DeviceProperties RuntimeImp::getDevicePropertiesWithoutProfiling(DeviceId device) const {
   auto deviceInt = static_cast<int>(device);
-  auto deviceConfig = deviceLayer_->getDeviceConfig(deviceInt);
+  auto dc = deviceLayer_->getDeviceConfig(deviceInt);
   rt::DeviceProperties prop{};
 
-  prop.frequency_ = deviceConfig.minionBootFrequency_;
+  prop.frequency_ = dc.minionBootFrequency_;
   prop.availableShires_ = static_cast<uint32_t>(deviceLayer_->getActiveShiresNum(deviceInt));
-  prop.memoryBandwidth_ = deviceConfig.ddrBandwidth_;
+  prop.memoryBandwidth_ = dc.ddrBandwidth_;
   prop.memorySize_ = deviceLayer_->getDramSize();
-  prop.l3Size_ = static_cast<uint16_t>(deviceConfig.totalL3Size_ / 1024);
-  prop.l2shireSize_ = static_cast<uint16_t>(deviceConfig.totalL2Size_ / 1024);
-  prop.l2scratchpadSize_ = static_cast<uint16_t>(deviceConfig.totalScratchPadSize_ / 1024);
-  prop.cacheLineSize_ = deviceConfig.cacheLineSize_;
-  prop.l2CacheBanks_ = deviceConfig.numL2CacheBanks_;
-  prop.computeMinionShireMask_ = deviceConfig.computeMinionShireMask_;
-  prop.spareComputeMinionoShireId_ = deviceConfig.spareComputeMinionoShireId_;
-  prop.deviceArch_ = deviceConfig.archRevision_;
+  prop.l3Size_ = static_cast<uint16_t>(dc.totalL3Size_ / 1024);
+  prop.l2shireSize_ = static_cast<uint16_t>(dc.totalL2Size_ / 1024);
+  prop.l2scratchpadSize_ = static_cast<uint16_t>(dc.totalScratchPadSize_ / 1024);
+  prop.cacheLineSize_ = dc.cacheLineSize_;
+  prop.l2CacheBanks_ = dc.numL2CacheBanks_;
+  prop.computeMinionShireMask_ = dc.computeMinionShireMask_;
+  prop.spareComputeMinionoShireId_ = dc.spareComputeMinionoShireId_;
+  prop.deviceArch_ = dc.archRevision_;
+  prop.formFactor_ = static_cast<DeviceProperties::FormFactor>(dc.formFactor_);
+  prop.tdp_ = dc.tdp_;
 
   return prop;
 }

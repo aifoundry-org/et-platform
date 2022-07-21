@@ -202,7 +202,8 @@ struct LoadCodeResult {
 
 /// \brief This struct encodes device properties
 struct DeviceProperties {
-  uint32_t frequency_;                  ///< device frequency in Mhz
+  enum class FormFactor { PCIE, M2 };
+  uint32_t frequency_;                  ///< minion boot frequency in Mhz
   uint32_t availableShires_;            ///< device shire count
   uint32_t memoryBandwidth_;            ///< device memory bandwidth in MBytes/second
   uint64_t memorySize_;                 ///< device memory size in bytes
@@ -214,6 +215,8 @@ struct DeviceProperties {
   uint32_t computeMinionShireMask_;     ///< mask which indicates what are the compute minion shires
   uint16_t spareComputeMinionoShireId_; ///< spare compute minion Shire ID
   uint16_t deviceArch_;                 ///< device architecture revision
+  FormFactor formFactor_;               ///< device form factor
+  uint8_t tdp_;                         ///< TDP in Watts
 };
 
 // NOTE: this is copied directly from device firmware "encoder.h"; we need to find a proper solution. So this will be in
@@ -234,22 +237,6 @@ struct UserTrace {
 struct DmaInfo {
   uint64_t maxElementSize_;  ///< maximum amount of memory that can be transfer per each DMA command entry
   uint64_t maxElementCount_; ///< max number of DMA entries per DMA command
-};
-
-struct DeviceConfig {
-  enum class FormFactor { PCIE, M2 };
-  FormFactor formFactor_;              ///< device form factor
-  uint8_t tdp_;                        ///< TDP in Watts
-  uint32_t totalL3Size_;               ///< total size of L3 cache in KBytes
-  uint32_t totalL2Size_;               ///< total size of L2 cache in KBytes
-  uint32_t totalScratchPadSize_;       ///< total scratchpad size in KBytes
-  uint8_t cacheLineSize_;              ///< chache line size, in Bytes
-  uint8_t numL2CacheBanks_;            ///< num L2 cache banks
-  uint32_t ddrBandwidth_;              ///< DDR bandwidth in MBytes/s
-  uint32_t minionBootFrequency_;       ///< minion boot frequency in Mhz
-  uint32_t computeMinionShireMask_;    ///< mask which indicates what are the compute minion shires
-  uint8_t spareComputeMinionoShireId_; ///< spare compute minion Shire ID
-  uint8_t archRevision_;               ///< architecture revision
 };
 } // namespace rt
 

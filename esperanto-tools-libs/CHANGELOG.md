@@ -10,13 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-12942] implemented a check in host for kernel shire mask
 - Added new error code for kernel launches with invalid shire mask
 - [SW-11138] added some exceptions catch inside runtime threads which could cause the server to hang.
-- [SW-13139] Added getDmaInfo API and getDeviceConfig API; which returns two new types. See "runtime/Types.h". The new API calls are these:  
+- [SW-13139] Added getDmaInfo API; which returns a new types. See "runtime/Types.h". The new API call is:  
   ```cpp
     virtual DmaInfo getDmaInfo(DeviceId deviceId) const = 0;  
-    virtual DeviceConfig getDeviceConfig(DeviceId device) const = 0;
   ```
-  
 ### Changed
+- [SW-13523] updated DeviceProperties serialization and struct (see "runtime/Types.h") to expose two new fields:
+  * tdp
+  * form factor
 - deviceLayer 0.3.0 version hash pinned.
 - Convert from KB to MB the device sizes for L2 and L3 
 - Changed gitlab configuration to allow more memory in kubernetes instances

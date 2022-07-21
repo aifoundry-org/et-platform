@@ -268,10 +268,10 @@ void Worker::processRequest(const req::Request& request) {
     break;
   }
 
-  case req::Type::DEVICE_CONFIG: {
+  case req::Type::DEVICE_PROPERTIES: {
     auto device = std::get<DeviceId>(request.payload_);
-    auto dc = runtime_.getDeviceConfig(device);
-    sendResponse({resp::Type::DEVICE_CONFIG, request.id_, dc});
+    auto dc = runtime_.getDeviceProperties(device);
+    sendResponse({resp::Type::DEVICE_PROPERTIES, request.id_, dc});
     break;
   }
 

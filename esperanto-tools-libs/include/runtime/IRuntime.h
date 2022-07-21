@@ -49,8 +49,8 @@ public:
   /// @param[in] device handler indicating the device
   ///
   /// @returns the properties for the requested device
-  virtual DeviceProperties getDeviceProperties(DeviceId device) = 0;
-  
+  virtual DeviceProperties getDeviceProperties(DeviceId device) const = 0;
+
   /// \brief Allocates memory in the device, returns a device memory pointer. One can't use this pointer directly from
   /// the host, this pointer is intended to be used for memory operations between the host and the device.
   ///
@@ -344,13 +344,6 @@ public:
   /// @returns DmaInfo contains max number of operations allowed in a single memcpy list command and max size for each
   /// operation.
   virtual DmaInfo getDmaInfo(DeviceId deviceId) const = 0;
-
-  /// \brief returns a \ref DeviceConfig struct containing device configured details.
-  ///
-  /// @param[in] device the device which will be queried
-  ///
-  virtual DeviceConfig getDeviceConfig(DeviceId device) const = 0;
-
   ///
   /// \brief Factory method to instantiate a IRuntime implementation
   ///

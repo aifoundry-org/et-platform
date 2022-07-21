@@ -7,6 +7,7 @@
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
+#pragma once
 #include "Protocol.h"
 #include "RuntimeImp.h"
 #include "runtime/Types.h"
@@ -15,7 +16,6 @@
 #include <sys/socket.h>
 #include <thread>
 
-#pragma once
 namespace rt {
 class Server;
 class Worker : public patterns::Observer<EventId> {

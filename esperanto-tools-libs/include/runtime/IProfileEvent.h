@@ -210,6 +210,8 @@ template <typename Archive> void serialize(Archive& ar, rt::DeviceProperties& pr
   ar(cereal::make_nvp("compute_minion_shire_mask", props.computeMinionShireMask_));
   ar(cereal::make_nvp("spare_compute_minion_shire_id", props.spareComputeMinionoShireId_));
   ar(cereal::make_nvp("device_arch_rev", props.deviceArch_));
+  ar(cereal::make_nvp("form_factor", props.formFactor_));
+  ar(cereal::make_nvp("tdp", props.tdp_));
 }
 
 } // end namespace cereal
