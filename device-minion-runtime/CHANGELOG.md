@@ -11,8 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-11649] Separate out Trace and Serial log string max size.
 - [SW-13241] Read coherence issue in KW abort path.
 - Fixed MM Stat buffer eviction.
+- [SW-11649] Fixed usage of Trace string length to be not fixed size.
 ### Security
 
 ## [0.9.0] - 2022-7-7

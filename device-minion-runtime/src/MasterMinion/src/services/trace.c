@@ -69,9 +69,22 @@ void et_trace_mm_cb_lock_release(void);
 #define ET_TRACE_WRITE_U64(addr, value)   atomic_store_local_64(&addr, value)
 #define ET_TRACE_WRITE_FLOAT(loc, value)  et_trace_write_float(&(loc), (value))
 #define ET_TRACE_MEM_CPY(dest, src, size) ETSOC_Memory_Write_Local_Atomic(src, dest, size)
+#define ET_TRACE_STRING_MAX_SIZE          128
 
 #define ET_TRACE_ENCODER_IMPL
 #include "services/trace.h"
+
+/************************/
+/* Compile-time checks  */
+/************************/
+#ifndef __ASSEMBLER__
+
+/* Ensure that Max trace size is in sync.
+   NOTE: This will be rmoved as result of SW-13550. */
+static_assert(ET_TRACE_STRING_MAX_SIZE == TRACE_STRING_MAX_SIZE_MM,
+    "MM Trace Max string size does not match with Trace encoder");
+
+#endif /* __ASSEMBLER__ */
 
 union data_u32_f {
     uint32_t value_u32;

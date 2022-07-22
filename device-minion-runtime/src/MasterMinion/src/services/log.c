@@ -163,21 +163,20 @@ log_level_t Log_Get_Level(void)
 ***********************************************************************/
 int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
 {
-    char buff[128];
-    va_list va;
-
-    int32_t bytes_written = 0;
-    va_start(va, fmt);
-    vsnprintf(buff, sizeof(buff), fmt, va);
+    int32_t bytes_written;
 
     /* Dump the log message over current log interface. */
     if (atomic_load_local_8(&Log_Interface) == LOG_DUMP_TO_TRACE)
     {
+        char buff[TRACE_STRING_MAX_SIZE_MM];
+        va_list va;
+
+        va_start(va, fmt);
+        bytes_written = vsnprintf(buff, TRACE_STRING_MAX_SIZE_MM, fmt, va);
+        va_end(va);
+
         Trace_String((trace_string_event_e)level, Trace_Get_MM_CB(), buff);
 
-        /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
-        type message. */
-        bytes_written = TRACE_STRING_MAX_SIZE;
         /* Evict trace buffer to L3 so that it can be access on host side for extraction
            through IOCTL */
         if (level <= LOG_MM_TRACE_EVICT_LEVEL)
@@ -187,6 +186,13 @@ int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
     }
     else
     {
+        char buff[LOG_STRING_MAX_SIZE_MM];
+        va_list va;
+
+        va_start(va, fmt);
+        vsnprintf(buff, LOG_STRING_MAX_SIZE_MM, fmt, va);
+        va_end(va);
+
         acquire_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
         bytes_written = SERIAL_puts(PU_UART0, buff);
         release_global_spinlock((spinlock_t *)FW_GLOBAL_UART_LOCK_ADDR);
@@ -225,9 +231,7 @@ int32_t __Log_Write_String(log_level_e level, const char *str, size_t length)
     {
         Trace_String((trace_string_event_e)level, Trace_Get_MM_CB(), str);
 
-        /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
-           type message. */
-        bytes_written = TRACE_STRING_MAX_SIZE;
+        bytes_written = (int32_t)length;
         /* Evict trace buffer to L3 so that it can be access on host side for extraction
            through IOCTL */
         if (level <= LOG_MM_TRACE_EVICT_LEVEL)

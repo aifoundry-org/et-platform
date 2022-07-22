@@ -37,6 +37,11 @@
 #define CURRENT_LOG_LEVEL LOG_LEVEL_INFO
 #endif
 
+/*! \def LOG_STRING_MAX_SIZE_MM
+    \brief Max string message length which can be logged over serial.
+*/
+#define LOG_STRING_MAX_SIZE_MM 128
+
 /*! \fn void Log_Init(void)
     \brief Initialize the logging component
     \return none

@@ -44,9 +44,11 @@ int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
        of libc_nano to process va_list string formatting. Also, remove log_level check
        from here, as trace library does that internally .*/
     va_list va;
-    char buff[128];
+    int32_t bytes_written;
+    char buff[TRACE_STRING_MAX_SIZE_CM];
     va_start(va, fmt);
-    vsnprintf(buff, sizeof(buff), fmt, va);
+    bytes_written = vsnprintf(buff, TRACE_STRING_MAX_SIZE_CM, fmt, va);
+    va_end(va);
 
     Trace_String(level, Trace_Get_CM_CB(), buff);
 
@@ -57,9 +59,7 @@ int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
         Trace_Evict_CM_Buffer();
     }
 
-    /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
-        type message. */
-    return TRACE_STRING_MAX_SIZE;
+    return bytes_written;
 }
 
 /************************************************************************
@@ -85,8 +85,6 @@ int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
 ***********************************************************************/
 int32_t __Log_Write_Str(log_level_e level, const char *str, size_t length)
 {
-    (void)length;
-
     Trace_String(level, Trace_Get_CM_CB(), str);
 
     /* Evict trace buffer to L3 so that it can be access on host side for extraction
@@ -95,7 +93,6 @@ int32_t __Log_Write_Str(log_level_e level, const char *str, size_t length)
     {
         Trace_Evict_CM_Buffer();
     }
-    /* Trace always consumes TRACE_STRING_MAX_SIZE bytes for every string
-        type message. */
-    return TRACE_STRING_MAX_SIZE;
+
+    return (int32_t)length;
 }
