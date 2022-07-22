@@ -1,2 +1,4 @@
 Device Management Overview
 ==========================
+
+The Device Management library provides an interface to manage the core functionality of the ET-SOC.  This is accomplished by issuing commands to the service processor primarily via the **serviceRequest** method to modify the configuration of the device.  There is a large number of such configuration commands, and these command arguments contain "set" or "reset" in their name (e.g., set module frequency).  There is also a large number of commands to retrieve status from the device, such as current configuration or various aspects of the health and performance of the device.  These command arguments contain "get" in their name (e.g., get asic utilization).  One other notable method for retrieving status from the device is the **getTraceBufferServiceProcessor** method to get various trace data and statistics continuously maintained by the device.
