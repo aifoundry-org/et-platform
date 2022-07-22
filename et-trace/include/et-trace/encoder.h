@@ -310,6 +310,10 @@ void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
 #define ET_TRACE_STRLEN(str) strlen(str)
 #endif
 
+#ifndef ET_TRACE_STRING_MAX_SIZE
+#define ET_TRACE_STRING_MAX_SIZE 512
+#endif
+
 #ifndef ET_TRACE_GET_TIMESTAMP
 #define ET_TRACE_GET_TIMESTAMP() 0
 #endif
@@ -405,8 +409,8 @@ inline static bool trace_check_buffer_min_size(const struct trace_control_block_
         struct trace_execution_stack_t event7;
     };
 
-    size_t max_event_size = (sizeof(union max_event) > (TRACE_STRING_MAX_SIZE + hdr_size)) ?
-                            sizeof(union max_event) : (TRACE_STRING_MAX_SIZE + hdr_size);
+    size_t max_event_size = (sizeof(union max_event) > (ET_TRACE_STRING_MAX_SIZE + hdr_size)) ?
+                            sizeof(union max_event) : (ET_TRACE_STRING_MAX_SIZE + hdr_size);
 
     if ((cb->size_per_hart >= hdr_size) &&
         (max_event_size < (cb->size_per_hart - hdr_size)))
@@ -684,7 +688,7 @@ int32_t Trace_Config(const struct trace_config_info_t *config_info, struct trace
 *   DESCRIPTION
 *
 *       A function to log Trace string message. Strings longer than
-*       TRACE_STRING_MAX_SIZE will not be logged into Trace.
+*       ET_TRACE_STRING_MAX_SIZE will not be logged into Trace.
 *
 *   INPUTS
 *
@@ -701,7 +705,7 @@ void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *
 {
     /* Get string message size plus one null termination character.*/
     size_t str_length = TRACE_STRING_SIZE_ALIGN(ET_TRACE_STRLEN(str) + 1);
-    str_length = (str_length < TRACE_STRING_MAX_SIZE) ? str_length: TRACE_STRING_MAX_SIZE;
+    str_length = (str_length < ET_TRACE_STRING_MAX_SIZE) ? str_length: ET_TRACE_STRING_MAX_SIZE;
 
     if (trace_is_str_enabled(cb, log_level)) {
         struct trace_string_t *entry =
@@ -743,7 +747,7 @@ void Trace_Format_String(trace_string_event_e log_level, struct trace_control_bl
 
     /* Get string message size plus one null termination character.*/
     size_t str_length = TRACE_STRING_SIZE_ALIGN((size_t)vsnprintf(0, 0, format, args) + 1);
-    str_length = (str_length < TRACE_STRING_MAX_SIZE) ? str_length: TRACE_STRING_MAX_SIZE;
+    str_length = (str_length < ET_TRACE_STRING_MAX_SIZE) ? str_length: ET_TRACE_STRING_MAX_SIZE;
 
     if (trace_is_str_enabled(cb, log_level)) {
         struct trace_string_t *entry =
