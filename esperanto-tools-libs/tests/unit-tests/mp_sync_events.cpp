@@ -42,29 +42,6 @@ TEST(mp_sync_events, wait_memcpy) {
   }
 }
 
-TEST(mp_sync_events, wait_kernel) {
-  MpOrchestrator orch;
-  orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, rt::Options{true, false});
-  for (int i = 0; i < 100; ++i) {
-    orch.createClient([](rt::IRuntime* rt) {
-      auto devices = rt->getDevices();
-      ASSERT_FALSE(devices.empty());
-      auto dev = devices[0];
-      auto st = rt->createStream(dev);
-      std::vector<std::byte> h_mem(1024);
-
-      auto mem = rt->mallocDevice(dev, 1024);
-      // TODO: when uncomment when https://esperantotech.atlassian.net/browse/SW-13022 is implemented
-      // auto lc = rt->loadCode(st, h_mem.data(), 1024);
-      rt->memcpyHostToDevice(st, h_mem.data(), mem, 1024);
-      // TODO: when uncomment when https://esperantotech.atlassian.net/browse/SW-13022 is implemented
-      // rt->kernelLaunch(st, lc.kernel_, nullptr, 0, 0x1);
-      rt->memcpyDeviceToHost(st, mem, h_mem.data(), 1024);
-      rt->waitForStream(st);
-    });
-  }
-}
-
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

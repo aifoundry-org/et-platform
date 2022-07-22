@@ -28,6 +28,7 @@ Server::~Server() {
   running_ = false;
   SpinLock lock(mutex_);
   RT_LOG(INFO) << "Waiting for listener.";
+  close(socket_);
   listener_.join();
   RT_LOG(INFO) << "Destroying all existing workers.";
   workers_.clear();

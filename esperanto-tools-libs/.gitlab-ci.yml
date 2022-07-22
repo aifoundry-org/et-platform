@@ -77,7 +77,7 @@ unit_tests:conan:sysemu:
       cmake --preset ${BUILD_TYPE} -G Ninja
       cmake --build --preset ${BUILD_TYPE}
       cd cmake-build-${BUILD_TYPE_LOWER}
-      sudo ctest -V -L 'Generic' -R 'runtime:ut_' -E 'runtime:ut_RuntimeBenchmark' --output-on-failure
+      sudo ctest -L 'Generic' -R 'runtime:ut_' -E 'runtime:ut_RuntimeBenchmark' E'_mp_' --output-on-failure -j 4
 
 ###############################################################################
 ###############################################################################
@@ -128,7 +128,7 @@ build:conan:
 # MR
 tests:conan:sysemu:
   extends:
-    - .pod_large
+    - .pod_xlarge
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   
@@ -140,7 +140,7 @@ tests:conan:sysemu:
   
   variables:
     KUBERNETES_MEMORY_LIMIT: 32Gi
-    TIMEOUT: 30m
+    TIMEOUT: 1h
 
     CMD_BUILD: |
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
@@ -150,7 +150,7 @@ tests:conan:sysemu:
       cmake --preset ${BUILD_TYPE} -G Ninja
       cmake --build --preset ${BUILD_TYPE}
       cd cmake-build-${BUILD_TYPE_LOWER}
-      sudo ctest -V -L 'Generic' -E 'runtime:ut_RuntimeBenchmark' -E 'Stress' --output-on-failure
+      sudo ctest -L 'Generic' -E 'runtime:ut_RuntimeBenchmark' --output-on-failure -j 4
 
 # FIXME Enable running the sonarqube job in this repo when the Conan image will have the correct 
 # dependencies (java, sonar-scanner)
@@ -190,7 +190,7 @@ nightly_torture_tests:conan:sysemu:
       - BUILD_TYPE: [ Release ]
   
   variables:
-    TIMEOUT: 30m
+    TIMEOUT: 2h
 
     CMD_BUILD: |
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
@@ -200,7 +200,7 @@ nightly_torture_tests:conan:sysemu:
       cmake --preset ${BUILD_TYPE} -G Ninja
       cmake --build --preset ${BUILD_TYPE}
       cd cmake-build-${BUILD_TYPE_LOWER}
-      sudo ctest -V -L 'Generic' --repeat until-fail:10 --output-on-failure
+      sudo ctest -L 'Generic' --repeat until-fail:10 --output-on-failure
 
 # integration testing with sw-platform
 #

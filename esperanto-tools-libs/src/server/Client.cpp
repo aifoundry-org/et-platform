@@ -45,7 +45,9 @@ void Client::setOnStreamErrorsCallback(std::function<void(EventId, StreamError c
 Client::~Client() {
   RT_LOG(INFO) << "Destroying client.";
   running_ = false;
+  close(socket_);
   listener_.join();
+  RT_VLOG(LOW) << "Listener joined.";
   eventSync_.notify_all();
 }
 
@@ -83,6 +85,7 @@ void Client::responseProcessor() {
   auto requestBuffer = std::vector<char>(kMaxMessageSize);
   try {
     while (running_) {
+      RT_VLOG(LOW) << "Reading response ...";
       if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); running_) {
         if (res < 0) {
           RT_LOG(WARNING) << "Read socket error: " << strerror(errno);
@@ -290,9 +293,14 @@ EventId Client::memcpyHostToDevice(StreamId st, std::byte const* src, std::byte*
 void Client::freeDevice(DeviceId device, std::byte* ptr) {
   sendRequestAndWait(req::Type::FREE, req::Free{device, reinterpret_cast<AddressT>(ptr)});
 }
-EventId Client::kernelLaunch(StreamId, KernelId, std::byte const*, unsigned long, unsigned long, bool, bool,
-                             std::optional<UserTrace>) {
-  throw Exception("UNIMPLEMENTED, YET");
+EventId Client::kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
+                             uint64_t shire_mask, bool barrier, bool flushL3,
+                             std::optional<UserTrace> userTraceConfig) {
+  std::vector<std::byte> kernelArgs;
+  std::copy(kernel_args, kernel_args + kernel_args_size, std::back_inserter(kernelArgs));
+  auto payload = sendRequestAndWait(req::Type::KERNEL_LAUNCH, req::KernelLaunch{stream, kernel, shire_mask, kernelArgs,
+                                                                                barrier, flushL3, userTraceConfig});
+  return registerEvent(payload, stream);
 }
 EventId Client::abortCommand(EventId, std::chrono::milliseconds) {
   throw Exception("UNIMPLEMENTED, YET");
