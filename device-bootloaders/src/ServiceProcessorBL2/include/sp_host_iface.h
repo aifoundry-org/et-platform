@@ -41,43 +41,43 @@ typedef enum
 } vq_type_t;
 
 /*! \fn int8_t SP_Host_Iface_Init(void)
-    \brief Initialize SP to Host Interface
+    \brief Initialize the SP to Host Interface
     \param none
     \return status
 */
 int8_t SP_Host_Iface_Init(void);
 
-/*! \fn int8_t SP_Iface_SQs_Init(void)
-    \brief Initialize SP Interface SQs
+/*! \fn int8_t SP_Host_Iface_SQ_Init(void)
+    \brief Initialize the SP to Host Interface SQs
     \param none
-    \return status
+    \return Status indicating success or negative error
 */
 int8_t SP_Host_Iface_SQ_Init(void);
 
-/*! \fn int8_t SP_Iface_CQs_Init(void)
-    \brief Initialize SP Interface CQs
+/*! \fn int8_t SP_Host_Iface_CQ_Init(void)
+    \brief Initialize the SP to Host Interface CQs
     \param none
-    \return status
+    \return Status indicating success or negative error
 */
 int8_t SP_Host_Iface_CQ_Init(void);
 
-/*! \fn uint16_t SP_Iface_Peek_SQ_Cmd_Size(uint8_t sq_id)
-    \brief SP interface to peek SQ command size
-    \returns [out] command size
+/*! \fn uint16_t SP_Host_Iface_SQ_Pop_Cmd(void *rx_buff)
+    \brief Pop command from SP to Host SQ interface
+    \param [in] rx_buff Pointer to command rx buffer
+    \returns Command size or zero for error
 */
 uint32_t SP_Host_Iface_SQ_Pop_Cmd(void *rx_buff);
 
-/*! \fn uint32_t SP_Iface_CQ_Push_Cmd(uint8_t cq_id, void* rx_buff)
-    \brief SP interface CQ push API
+/*! \fn uint32_t SP_Host_Iface_CQ_Push_Cmd(void *p_cmd, uint32_t cmd_size)
+    \brief Push command to SP to Host interface CQ interface
     \param [in] p_cmd: Pointer to command rx buffer
-    \param [in] cmd_size: Command size
-    \returns [out] Status
+    \param [in] cmd_size: Command size or zero for error
+    \returns Status indicating success or negative error
 */
 int8_t SP_Host_Iface_CQ_Push_Cmd(void *p_cmd, uint32_t cmd_size);
 
 /*! \fn vq_cb_t* SP_Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type)
-    \brief Obtain pointer to virtual queue associated
-    with the queue type
+    \brief Obtain pointer to virtual queue associated with the queue type
     \param vq_type Virtual Queue Type
     \return vq_cb_t* Pointer to the virtual queue control block
 */
@@ -88,7 +88,7 @@ vq_cb_t *SP_Host_Iface_Get_VQ_Base_Addr(uint8_t vq_type);
 /******************************/
 
 /*! \fn void SP_Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached)
-    \brief This function is used to update the value of tail
+    \brief Update the value of SQ tail
     from cached VQ CB to shared VQ CB
     \param sq_shared Pointer to shared VQ CB
     \param sq_cached Pointer to cached VQ CB

@@ -376,7 +376,7 @@ Note:
 In BL2, we are creating RTOS as a Static task, hence there is no need to
 free when a Crash happens.
 
-.. image:: https://esperantotech.atlassian.net/wiki/download/attachments/779190286/Screen%20Shot%202021-06-11%20at%205.15.12%20PM.png?api=v2
+.. image:: rtos_static_task.png
 
 Format of Error Context Layout
 

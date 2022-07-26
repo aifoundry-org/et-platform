@@ -32,25 +32,24 @@
 #define SP_MM_CQ_MAX_ELEMENT_SIZE 64U
 
 /*! \fn int8_t MM_Iface_Init(void)
-    \brief This function initialise SP to Master Minion interface.
+    \brief Initialize the SP to Master Minion interface.
     \param none
     \return Status indicating success or negative error
 */
 int8_t MM_Iface_Init(void);
 
-/*! \fn int8_t MM_Iface_Send_Echo_Cmd(TickType_t timeout)
-    \brief This sends Echo command to Master Minion. It is a blocking call
-    and it waits for response for a given time.
-    This is an example to SP2MM command.
+/*! \fn int8_t MM_Iface_Send_Echo_Cmd(void)
+    \brief Send the Echo command to Master Minion. Note a timeout failure is possible.
+    \param none
     \return Status indicating success or negative error
 */
 int32_t MM_Iface_Send_Echo_Cmd(void);
 
-/*! \fn int32_t MM_Iface_MM_Command_Shell(void* cmd, uint32_t cmd_size,
-    char* rsp, uint32_t *rsp_size, uint8_t num_of_rsp)
-    \brief This interface receives TF command shell command, sends
-    encapsulatedMM command to MM FW, wait and receive response from
-    MM FW, wrap MM response in TF response shell, and return response.
+/*! \fn int32_t MM_Iface_MM_Command_Shell(const void* cmd, uint32_t cmd_size,
+    char* rsp, uint32_t *rsp_size, uint32_t timeout_ms, uint8_t num_of_rsp)
+    \brief Receive the TF command shell command, send
+    the encapsulatedMM command to MM FW, wait and receive the response from
+    MM FW, wrap the MM response in TF response shell, and return the response.
     \param cmd Pointer to MM device-api command
     \param cmd_size Size of MM device-api command
     \param rsp Pointer to receive the command's response
@@ -63,8 +62,7 @@ int32_t MM_Iface_MM_Command_Shell(const void *cmd, uint32_t cmd_size, char *rsp,
                                   uint32_t timeout_ms, uint8_t num_of_rsp);
 
 /*! \fn int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
-    \brief This sends Get DRAM BW command to Master Minion. It is a blocking call
-    and it waits for response for a given time.
+    \brief Send the Get DRAM BW command to Master Minion. Note a timeout failure is possible.
     \param read_bw response containing read BW
     \param write_bw response containing write BW
     \return Status indicating success or negative error
@@ -72,17 +70,18 @@ int32_t MM_Iface_MM_Command_Shell(const void *cmd, uint32_t cmd_size, char *rsp,
 int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw);
 
 /*! \fn int32_t MM_Iface_Send_Abort_All_Cmd(void)
-    \brief This sends Get Abort command to Master Minion Firmware.
+    \brief Send the Get Abort command to Master Minion Firmware.
     \return Status indicating success or negative error
 */
 int32_t MM_Iface_Send_Abort_All_Cmd(void);
 
-/*! \fn int32_t MM_Iface_Wait_For_CM_Boot_Cmd(void)
-    \brief This sends warm reset to CM and wait for them to boot.
+/*! \fn int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask)
+    \brief Send a warm reset to CM and wait for them to boot.
     \param shire_mask Minion shire mask to perform reset on
     \return Status indicating success or negative error
 */
 int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask);
+
 /*! \fn int8_t MM_Iface_Push_Cmd_To_SP2MM_SQ(void* p_cmd, uint32_t cmd_size)
     \brief Push command to Service Processor (SP) to Master Minion (MM)
     Submission Queue(SQ)
@@ -93,7 +92,7 @@ int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask);
 #define MM_Iface_Push_Cmd_To_SP2MM_SQ(p_cmd, cmd_size) SP_MM_Iface_Push(MM_SQ, p_cmd, cmd_size)
 
 /*! \fn int8_t MM_Iface_Pop_Rsp_From_SP2MM_CQ(void* rx_buff)
-    \brief Pop response from to Service Processor (SP) to Master Minion (MM)
+    \brief Pop response from Service Processor (SP) to Master Minion (MM)
     Completion Queue(CQ)
     \param rx_buff Buffer to receive response popped
     \return Status indicating success or negative error
@@ -109,9 +108,9 @@ int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask);
 int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void *rx_buff);
 
 /*! \fn int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(const void* p_rsp, uint32_t rsp_size)
-    \brief Push response to Master Minion (MM) to Service Processor (SP)
+    \brief Push response from Master Minion (MM) to Service Processor (SP)
     Completion Queue(CQ)
-    \param p_rsp Pointer to resposne buffer
+    \param p_rsp Pointer to response buffer
     \param rsp_size Size of response
     \return Status indicating success or negative error
 */
