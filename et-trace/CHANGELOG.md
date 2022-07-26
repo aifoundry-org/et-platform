@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines
+- Added resource utilization stats support
 ### Changed
 - Made Trace string length as configurable.
 - Adapt conan pipeline to conan 1.49
