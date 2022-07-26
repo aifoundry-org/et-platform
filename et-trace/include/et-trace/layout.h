@@ -462,8 +462,11 @@ struct resource_value
 struct compute_resources_sample
 {
   struct resource_value cm_utilization;
+  struct resource_value cm_bw;
   struct resource_value pcie_dma_read_bw;
+  struct resource_value pcie_dma_read_utilization;
   struct resource_value pcie_dma_write_bw;
+  struct resource_value pcie_dma_write_utilization;
   struct resource_value ddr_read_bw;
   struct resource_value ddr_write_bw;
   struct resource_value l2_l3_read_bw;
