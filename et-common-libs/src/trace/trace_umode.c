@@ -38,6 +38,7 @@ static inline uint64_t trace_umode_sample_ms_pmc(uint64_t pmc)
 #define ET_TRACE_GET_SHIRE_CACHE_COUNTER(id) trace_umode_sample_sc_pmc(id)
 #define ET_TRACE_GET_MEM_SHIRE_COUNTER(id)   trace_umode_sample_ms_pmc(id)
 #define ET_TRACE_GET_HART_ID()               get_hart_id()
+#define ET_TRACE_STRING_MAX_SIZE             128
 #define ET_TRACE_ENCODER_IMPL
 
 #include "etsoc/common/utils.h"
@@ -72,20 +73,16 @@ static inline uint64_t trace_umode_sample_ms_pmc(uint64_t pmc)
 void __et_printf(const char *fmt, ...)
 {
     va_list va;
+    char data[ET_TRACE_STRING_MAX_SIZE];
     va_start(va, fmt);
-    /* Get string message size. */
-    int32_t str_length = vsnprintf(NULL, 0, fmt, va) + 1;
 
-    if (str_length > 0)
+    if (vsnprintf(data, ET_TRACE_STRING_MAX_SIZE, fmt, va) > 0)
     {
-        /* Add one null termination character. */
-        str_length += 1;
-        char data[str_length];
-        vsnprintf(data, (size_t)str_length, fmt, va);
-
         Trace_String(
             TRACE_EVENT_STRING_CRITICAL, &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb, data);
     }
+
+    va_end(va);
 }
 
 /************************************************************************
