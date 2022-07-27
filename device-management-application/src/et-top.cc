@@ -37,6 +37,7 @@
 #define MM_STATS_FILE "mm_stats.bin"
 
 static const int32_t kMaxDeviceNum = 63;
+static const uint16_t kMiscPower = 8200;
 static const int32_t kOpsCqNum = 1;
 static const int32_t kOpsSqNum = 2;
 
@@ -567,20 +568,27 @@ void EtTop::displayStats(void) {
             << std::setw(6) << std::right << memStats_.cmaAllocationRate << " MB/sec\n";
 
   struct op_value etsocPower;
-  etsocPower.avg = spStats_.op.minion.power.avg + spStats_.op.sram.power.avg + spStats_.op.noc.power.avg;
-  etsocPower.min = spStats_.op.minion.power.min + spStats_.op.sram.power.min + spStats_.op.noc.power.min;
-  etsocPower.max = spStats_.op.minion.power.max + spStats_.op.sram.power.max + spStats_.op.noc.power.max;
-  uint32_t max = spStats_.op.system.power.max;
+  struct op_value miscPower;
+  const struct op_stats_t& op = spStats_.op;
+  const uint32_t max = op.system.power.max;
+
+  miscPower.avg = kMiscPower;
+  miscPower.min = kMiscPower;
+  miscPower.max = kMiscPower;
+  etsocPower.avg = op.minion.power.avg + op.sram.power.avg + op.noc.power.avg + miscPower.avg;
+  etsocPower.min = op.minion.power.min + op.sram.power.min + op.noc.power.min + miscPower.min;
+  etsocPower.max = op.minion.power.max + op.sram.power.max + op.noc.power.max + miscPower.max;
 
   std::cout << "Watts:";
-  displayOpStat("CARD       ", spStats_.op.system.power, true, max, true);
+  displayOpStat("CARD       ", op.system.power, true, max, true);
   displayOpStat("- ETSOC    ", etsocPower, true, max);
-  displayOpStat("  - MINION ", spStats_.op.minion.power, true, max);
-  displayOpStat("  - SRAM   ", spStats_.op.sram.power, true, max);
-  displayOpStat("  - NOC    ", spStats_.op.noc.power, true, max);
+  displayOpStat("  - MINION ", op.minion.power, true, max);
+  displayOpStat("  - SRAM   ", op.sram.power, true, max);
+  displayOpStat("  - NOC    ", op.noc.power, true, max);
+  displayOpStat("  - MISC   ", miscPower, true, max);
   std::cout << "Temp(C):\n";
-  displayOpStat("ETSOC    ", spStats_.op.system.temperature);
-  displayOpStat("- MINION ", spStats_.op.minion.temperature);
+  displayOpStat("ETSOC    ", op.system.temperature);
+  displayOpStat("- MINION ", op.minion.temperature);
 
   std::cout << "Compute:\n";
   resource_value dummy = {0, 0, 0}; // XXX eliminate this when implementation is ready
