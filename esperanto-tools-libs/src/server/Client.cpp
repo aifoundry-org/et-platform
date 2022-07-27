@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #include "Client.h"
+#include "Constants.h"
 #include "Utils.h"
 #include "runtime/IProfileEvent.h"
 #include "runtime/Types.h"
@@ -18,6 +19,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
+#include <g3log/loglevels.hpp>
 #include <mutex>
 #include <poll.h>
 #include <sstream>
@@ -30,7 +32,8 @@
 using namespace rt;
 
 namespace {
-constexpr size_t kMaxMessageSize = 4096;
+constexpr auto kSocketNeededSize = static_cast<int>(sizeof(ErrorContext) * kNumErrorContexts);
+constexpr size_t kMaxMessageSize = kSocketNeededSize * 2;
 constexpr auto kProcessResponseTries = 100;
 struct MemStream : public std::streambuf {
   MemStream(char* s, std::size_t n) {
@@ -86,6 +89,14 @@ void Client::responseProcessor() {
   try {
     while (running_) {
       RT_VLOG(LOW) << "Reading response ...";
+
+      pollfd pfd;
+      pfd.events = POLLIN;
+      pfd.fd = socket_;
+      if (poll(&pfd, 1, 5) == 0) {
+        continue;
+      }
+
       if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); running_) {
         if (res < 0) {
           RT_LOG(WARNING) << "Read socket error: " << strerror(errno);
@@ -214,10 +225,23 @@ void Client::processResponse(const resp::Response& response) {
     dispatch(evt);
     break;
   }
-  case resp::Type::STREAM_ERROR:
+  case resp::Type::STREAM_ERROR: {
     CHECK(response.id_ == req::ASYNC_RUNTIME_EVENT) << "Stream error should have request type ASYNC_RUNTIME_EVENT";
-    // execute callback or send through the threadpool
+    auto payload = std::get<resp::StreamError>(response.payload_);
+    auto evt = payload.event_;
+    auto error = std::move(payload.error_);
+    if (streamErrorCallback_) {
+      tp_.pushTask([cb = streamErrorCallback_, evt, error] { cb(evt, error); });
+    } else {
+      auto it = eventToStream_.find(evt);
+      if (it == end(eventToStream_)) {
+        RT_LOG(WARNING) << "Got an stream error for an unkown event. Ignoring this error";
+      } else {
+        streamErrors_[it->second].emplace_back(std::move(payload.error_));
+      }
+    }
     break;
+  }
   default:
     RT_VLOG(MID) << "Got response type: " << static_cast<uint32_t>(response.type_) << " wake up waiter.";
     auto it = find(responseWaiters_, response.id_, "Couldn't found the request id" + std::to_string(response.id_));
@@ -302,11 +326,18 @@ EventId Client::kernelLaunch(StreamId stream, KernelId kernel, const std::byte* 
                                                                                 barrier, flushL3, userTraceConfig});
   return registerEvent(payload, stream);
 }
-EventId Client::abortCommand(EventId, std::chrono::milliseconds) {
-  throw Exception("UNIMPLEMENTED, YET");
+
+EventId Client::abortCommand(EventId evt, std::chrono::milliseconds timeout) {
+  SpinLock lock(mutex_);
+  auto st = find(eventToStream_, evt, "Trying to abort a non existing command.")->second;
+  auto payload = sendRequestAndWait(req::Type::ABORT_COMMAND, req::AbortCommand{evt, timeout});
+  return registerEvent(payload, st);
 }
-std::vector<StreamError> Client::retrieveStreamErrors(StreamId) {
-  throw Exception("UNIMPLEMENTED, YET");
+
+std::vector<StreamError> Client::retrieveStreamErrors(StreamId st) {
+  SpinLock lock(mutex_);
+  auto errors = std::move(streamErrors_[st]);
+  return errors;
 }
 IProfiler* Client::getProfiler() {
   throw Exception("UNIMPLEMENTED, YET");
@@ -343,6 +374,10 @@ void Client::destroyStream(StreamId stream) {
   sendRequestAndWait(req::Type::DESTROY_STREAM, req::DestroyStream{stream});
   lock.lock();
   streamToEvents_.erase(stream);
+  if (!streamErrors_[stream].empty()) {
+    RT_LOG(WARNING) << "Destroying stream with pending errors. These errors will be ignored.";
+    streamErrors_[stream].clear();
+  }
 }
 
 DmaInfo Client::getDmaInfo(DeviceId deviceId) const {

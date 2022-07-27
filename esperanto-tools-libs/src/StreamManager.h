@@ -76,8 +76,9 @@ public:
   void removeEvent(EventId event);
   std::vector<StreamError> retrieveErrors(StreamId stream);
   void setErrorCallback(StreamErrorCallback callback);
-  // returns false if there is no callback
-  bool executeCallback(EventId eventId, const StreamError& error);
+  // returns false if there is no callback. If true, it will execute the callback and after that it will execute the
+  // "executeAfterCallback"
+  bool executeCallback(EventId eventId, const StreamError& error, const std::function<void()>& executeAfterCallback);
   void addError(EventId event, StreamError error);
   void addError(const StreamError& error);
 

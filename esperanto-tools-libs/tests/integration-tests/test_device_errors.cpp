@@ -50,8 +50,7 @@ TEST_F(DeviceErrors, KernelLaunchException) {
   runtime_->kernelLaunch(defaultStreams_[0], exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0x1FFFFFFFFUL);
   runtime_->waitForStream(defaultStreams_[0]);
   auto errors = runtime_->retrieveStreamErrors(defaultStreams_[0]);
-  EXPECT_EQ(errors.size(), 1UL);
-  RT_LOG(logging::VLOG_HIGH) << "";
+  ASSERT_EQ(errors.size(), 1UL);
   bool callbackExecuted = false;
   runtime_->setOnStreamErrorsCallback([&callbackExecuted](auto, const rt::StreamError& error) {
     callbackExecuted = true;
@@ -60,10 +59,10 @@ TEST_F(DeviceErrors, KernelLaunchException) {
   // Launch Kernel on all 32 Shires including Sync Minions
   runtime_->kernelLaunch(defaultStreams_[0], exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0x1FFFFFFFFUL);
   runtime_->waitForStream(defaultStreams_[0]);
-  RT_LOG(INFO) << "This is expected, part of the test. Stream error message: \n" << errors[0].getString();
-  defaultStreams_.clear();
   runtime_.reset();
-  EXPECT_TRUE(callbackExecuted);
+  defaultStreams_.clear();
+  ASSERT_TRUE(callbackExecuted);
+  RT_LOG(INFO) << "This is expected, part of the test. Stream error message: \n" << errors[0].getString();
 }
 
 int main(int argc, char** argv) {

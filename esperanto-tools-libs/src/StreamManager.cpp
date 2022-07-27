@@ -99,15 +99,17 @@ std::vector<EventId> StreamManager::getLiveEvents(StreamId stream) const {
   return res;
 }
 
-bool StreamManager::executeCallback(EventId eventId, const StreamError& error) {
+bool StreamManager::executeCallback(EventId eventId, const StreamError& error,
+                                    const std::function<void()>& executeAfterCallback) {
   SpinLock lock(mutex_);
   if (!streamErrorCallback_) {
     RT_VLOG(LOW) << "No error callback.";
     return false;
   } else {
-    threadPool_.pushTask([cb = streamErrorCallback_, eventId, error] {
+    threadPool_.pushTask([cb = streamErrorCallback_, afterCb = executeAfterCallback, eventId, error] {
       RT_VLOG(LOW) << "Executing error callback.";
       cb(eventId, error);
+      afterCb();
     });
     return true;
   }

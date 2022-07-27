@@ -14,7 +14,7 @@ set(TEST_LIST
   launchKernel1M.cpp:""
   )
   
-  set(PCIE_TEST_LIST
+set(PCIE_TEST_LIST
   stress_mem.cpp:"--mode=pcie"
   stress_kernel.cpp:"--mode=pcie"
   launchKernel1M.cpp:"--mode=pcie"

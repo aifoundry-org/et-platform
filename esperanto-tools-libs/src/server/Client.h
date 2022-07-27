@@ -13,6 +13,7 @@
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 #include <condition_variable>
+#include <hostUtils/threadPool/ThreadPool.h>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
@@ -130,11 +131,13 @@ private:
   std::unordered_map<resp::Id, std::unique_ptr<Waiter>> responseWaiters_;
   std::unordered_map<EventId, StreamId> eventToStream_;
   std::unordered_map<StreamId, std::vector<EventId>> streamToEvents_;
+  std::unordered_map<StreamId, std::vector<StreamError>> streamErrors_;
   std::condition_variable eventSync_;
   std::thread listener_;
   std::mutex mutex_;
 
   StreamErrorCallback streamErrorCallback_;
+  threadPool::ThreadPool tp_{2};
 
   int socket_;
   std::atomic<req::Id> nextId_ = 0;

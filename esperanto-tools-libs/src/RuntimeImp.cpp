@@ -415,11 +415,11 @@ void RuntimeImp::processResponseError(const ResponseError& responseError) {
     if (kernelExtra) {
       streamError.cmShireMask_ = kernelExtra->cm_shire_mask;
     }
-    if (!streamManager_.executeCallback(event, streamError)) {
+    if (!streamManager_.executeCallback(event, streamError, [this, evt = event] { dispatch(evt); })) {
       // the callback was not set, so add the error to the error list
       streamManager_.addError(event, std::move(streamError));
+      dispatch(event);
     }
-    dispatch(event);
   });
 }
 

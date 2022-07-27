@@ -8,6 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #include "Server.h"
+#include "Constants.h"
 #include "Utils.h"
 #include "Worker.h"
 #include "runtime/Types.h"
@@ -22,6 +23,9 @@
 #include <sys/un.h>
 #include <unistd.h>
 using namespace rt;
+namespace {
+constexpr auto kSocketNeededSize = static_cast<int>(sizeof(ErrorContext) * kNumErrorContexts);
+}
 
 Server::~Server() {
   RT_LOG(INFO) << "Destroying server.";
@@ -97,6 +101,16 @@ void Server::listen() {
       RT_LOG(WARNING) << "Accept error: " << strerror(errno) << ". Ignoring this client connection.";
       continue;
     }
+    if (auto val = kSocketNeededSize; setsockopt(cl, SOL_SOCKET, SO_SNDBUFFORCE, &val, sizeof(val)) < 0) {
+      RT_LOG(FATAL) << "Unable to set send buffer size to required: " << strerror(errno)
+                    << ". Be sure runtime daemon has CAP_NET_ADMIN capability.";
+    }
+
+    if (auto val = kSocketNeededSize; setsockopt(cl, SOL_SOCKET, SO_RCVBUFFORCE, &val, sizeof(val)) < 0) {
+      RT_LOG(FATAL) << "Unable to set receive buffer size to required: " << strerror(errno)
+                    << ". Be sure runtime daemon has CAP_NET_ADMIN capability.";
+    }
+
     if (int val = 1; setsockopt(cl, SOL_SOCKET, SO_PASSCRED, &val, sizeof(val)) < 0) {
       RT_LOG(FATAL) << "Unable to set local passcred: " << strerror(errno)
                     << ". Be sure runtime daemon has CAP_SYS_PTRACE capability.";

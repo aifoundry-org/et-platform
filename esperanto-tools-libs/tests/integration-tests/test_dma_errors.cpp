@@ -14,7 +14,6 @@
 #include "runtime/Types.h"
 #include <device-layer/IDeviceLayer.h>
 #include <gtest/gtest.h>
-#include <hostUtils/logging/Logger.h>
 #include <random>
 
 namespace {
@@ -22,13 +21,15 @@ class TestDmaErrors : public RuntimeFixture {
 public:
   void SetUp() override {
     RuntimeFixture::SetUp();
-    auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
-    imp->setMemoryManagerDebugMode(devices_[0], true);
-    imp->setCheckMemcpyDeviceAddress(false);
+    if (sRtType == RuntimeFixture::RtType::SP) {
+      auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
+      imp->setMemoryManagerDebugMode(devices_[0], true);
+      imp->setCheckMemcpyDeviceAddress(false);
+    }
   }
 };
 } // namespace
-TEST_F(TestDmaErrors, DmaOob) {
+TEST_F(TestDmaErrors, DmaOobSimple) {
   auto dramAddr = deviceLayer_->getDramBaseAddress();
   auto dramSize = deviceLayer_->getDramSize();
   auto ramUpperLimit = dramAddr + dramSize;

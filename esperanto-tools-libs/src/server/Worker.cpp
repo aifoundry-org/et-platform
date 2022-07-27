@@ -17,6 +17,7 @@
 #include <cereal/archives/portable_binary.hpp>
 #include <cstring>
 #include <g3log/loglevels.hpp>
+#include <sys/poll.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
@@ -34,6 +35,7 @@ void Worker::update(EventId event) {
   SpinLock lock(mutex_);
 
   if (events_.erase(event) > 0) {
+    RT_DLOG(INFO) << "Dispatched at worker event " << static_cast<int>(event);
     sendResponse({resp::Type::EVENT_DISPATCHED, req::ASYNC_RUNTIME_EVENT, resp::Event{event}});
   }
 }
@@ -87,6 +89,7 @@ Worker::~Worker() {
   RT_VLOG(LOW) << "Destroying worker " << this;
   running_ = false;
   SpinLock lock(mutex_);
+  close(socket_);
   runner_.join();
   freeResources();
   RT_VLOG(LOW) << "Worker dtor ended. Ptr:" << this;
@@ -98,6 +101,13 @@ void Worker::requestProcessor() {
   try {
     while (running_) {
       RT_VLOG(MID) << "Reading next request";
+      pollfd pfd;
+      pfd.events = POLLIN;
+      pfd.fd = socket_;
+      if (poll(&pfd, 1, 5) == 0) {
+        continue;
+      }
+
       if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); res < 0) {
         auto msg = std::string{"Read socket error: "} + strerror(errno);
         RT_VLOG(LOW) << msg;
@@ -243,6 +253,7 @@ void Worker::processRequest(const req::Request& request) {
     auto evt = runtime_.kernelLaunch(req.stream_, req.kernel_, req.kernelArgs_.data(), req.kernelArgs_.size(),
                                      req.shireMask_, req.barrier_, req.flushL3_, req.userTrace_);
     events_.emplace(evt);
+    RT_DLOG(INFO) << "Registered at worker event " << static_cast<int>(evt);
     sendResponse({resp::Type::KERNEL_LAUNCH, request.id_, resp::Event{evt}});
     break;
   }
@@ -250,6 +261,14 @@ void Worker::processRequest(const req::Request& request) {
   case req::Type::GET_DEVICES: {
     auto devices = runtime_.getDevices();
     sendResponse({resp::Type::GET_DEVICES, request.id_, resp::GetDevices{devices}});
+    break;
+  }
+
+  case req::Type::ABORT_COMMAND: {
+    auto event = std::get<EventId>(request.payload_);
+    auto evt = runtime_.abortCommand(event);
+    events_.emplace(evt);
+    sendResponse({resp::Type::ABORT_COMMAND, request.id_, resp::Event{evt}});
     break;
   }
 
@@ -302,6 +321,10 @@ void Worker::freeResources() {
 void Worker::onStreamError(EventId event, const StreamError& error) {
   SpinLock lock(mutex_);
   if (events_.find(event) != end(events_)) {
-    sendResponse({resp::Type::STREAM_ERROR, req::ASYNC_RUNTIME_EVENT, error});
+    lock.unlock();
+    sendResponse({resp::Type::STREAM_ERROR, req::ASYNC_RUNTIME_EVENT, resp::StreamError{event, error}});
+  } else {
+    RT_LOG(WARNING) << "Got streamError for event " << static_cast<int>(event)
+                    << " but the event is not registered; ignoring the StreamError.";
   }
 }

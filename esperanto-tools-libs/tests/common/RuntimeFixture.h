@@ -165,8 +165,7 @@ private:
 
 protected:
   std::ofstream traceOut_;
-  std::unique_ptr<logging::LoggerDefault>
-    loggerDefault_; // will be set always for SP mode, must be set manually for MP mode (if needed)
+  std::unique_ptr<logging::LoggerDefault> loggerDefault_;
   std::unique_ptr<dev::IDeviceLayer> deviceLayer_; // only set for SP mode
   std::unique_ptr<MpOrchestrator> mpOrchestrator_; // only set for MP mode
   rt::RuntimePtr runtime_;

@@ -32,5 +32,4 @@ private:
   std::string socketPath_;
   pid_t server_ = -1;
   std::vector<pid_t> clients_;
-  std::unique_ptr<logging::LoggerDefault> logger_;
 };

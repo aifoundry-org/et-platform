@@ -16,6 +16,7 @@
 #include <cereal/types/string.hpp>
 #include <cereal/types/variant.hpp>
 #include <cereal/types/vector.hpp>
+#include <chrono>
 #include <cstddef>
 #include <limits>
 #include <stdint.h>
@@ -39,7 +40,7 @@ template <class Archive> void serialize(Archive& archive, UserTrace& uc) {
 }
 
 template <class Archive> void serialize(Archive& archive, StreamError& se) {
-  archive(se.errorCode_, se.errorContext_);
+  archive(se.errorCode_, se.cmShireMask_, se.errorContext_);
 }
 
 namespace req {
@@ -60,6 +61,7 @@ enum class Type : uint32_t {
   KERNEL_LAUNCH,
   GET_DEVICES,
   ABORT_STREAM,
+  ABORT_COMMAND,
   DMA_INFO,
   DEVICE_PROPERTIES
 };
@@ -199,6 +201,14 @@ struct AbortStream {
   }
 };
 
+struct AbortCommand {
+  EventId eventId_;
+  std::chrono::milliseconds timeout_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(eventId_, timeout_);
+  }
+};
+
 struct Request {
   Request() = default;
   template <typename T>
@@ -210,7 +220,7 @@ struct Request {
   Type type_;
   Id id_ = INVALID_REQUEST_ID;
   std::variant<std::monostate, UnloadCode, KernelLaunch, Memcpy, MemcpyList, CreateStream, DestroyStream, LoadCode,
-               Malloc, Free, AbortStream, DeviceId>
+               Malloc, Free, AbortStream, AbortCommand, DeviceId, EventId>
     payload_;
   template <class Archive> void serialize(Archive& archive) {
     archive(type_, id_, payload_);
@@ -234,6 +244,7 @@ enum class Type : uint32_t {
   KERNEL_LAUNCH,
   GET_DEVICES,
   ABORT_STREAM,
+  ABORT_COMMAND,
   EVENT_DISPATCHED,
   STREAM_ERROR,
   RUNTIME_EXCEPTION,
@@ -327,6 +338,13 @@ struct RuntimeException {
     std::string what_message;
     archive(what_message);
     exception_ = Exception{what_message};
+  }
+};
+struct StreamError {
+  EventId event_;
+  rt::StreamError error_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(event_, error_);
   }
 };
 struct Response {

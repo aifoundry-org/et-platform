@@ -28,7 +28,7 @@ auto getTmpFileName() {
   return filename;
 }
 } // namespace
-TEST(multiprocess, handshake) {
+TEST(mp, handshake) {
 
   int fd[2];
   ASSERT_EQ(pipe(fd), 0);
@@ -61,7 +61,7 @@ TEST(multiprocess, handshake) {
   }
 }
 
-TEST(multiprocess_1000, handshake) {
+TEST(mp, handshake_1000) {
 #ifdef __SANITIZE_ADDRESS__
   {
     logging::LoggerDefault logger_;
@@ -104,7 +104,14 @@ TEST(multiprocess_1000, handshake) {
   }
 }
 
-TEST(multiprocess, mp_orchestrator_hs) {
+TEST(mp, mp_orchestrator_hs) {
+#ifdef __SANITIZE_ADDRESS__
+  {
+    logging::LoggerDefault logger_;
+    RT_LOG(INFO) << "Skipping this test as it seems the address sanitizer doesn't like forks :/";
+    return;
+  }
+#endif
   MpOrchestrator orch;
   orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, Options{true, false});
   orch.createClient([](auto) {
@@ -112,7 +119,14 @@ TEST(multiprocess, mp_orchestrator_hs) {
   });
 }
 
-TEST(multiprocess, mp_orchestrator_1000_hs) {
+TEST(mp, mp_orchestrator_1000_hs) {
+#ifdef __SANITIZE_ADDRESS__
+  {
+    logging::LoggerDefault logger_;
+    RT_LOG(INFO) << "Skipping this test as it seems the address sanitizer doesn't like forks :/";
+    return;
+  }
+#endif
   MpOrchestrator orch;
   orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, Options{true, false});
   for (int i = 0; i < 1000; ++i) {
