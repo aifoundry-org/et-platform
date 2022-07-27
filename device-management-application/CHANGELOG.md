@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Conanfile & Conan CI
+- [SW-13480]: Adding memshire frequency log print
 ### Changed
 ### Deprecated
 ### Removed

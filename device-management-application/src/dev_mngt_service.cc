@@ -881,6 +881,7 @@ int verifyService() {
     DM_LOG(INFO) << "ASIC Frequency DDR: " << asic_frequencies->ddr_mhz << " Mhz" << std::endl;
     DM_LOG(INFO) << "ASIC Frequency PCIE Shire: " << asic_frequencies->pcie_shire_mhz << " Mhz" << std::endl;
     DM_LOG(INFO) << "ASIC Frequency IO Shire: " << asic_frequencies->io_shire_mhz << " Mhz" << std::endl;
+    DM_LOG(INFO) << "ASIC Frequency Mem Shire: " << asic_frequencies->mem_shire_mhz << " Mhz" << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH: {
