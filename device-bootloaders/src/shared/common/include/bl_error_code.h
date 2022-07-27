@@ -47,6 +47,7 @@
 #define MINION_ENABLE_SHIRE_ERROR         -3006
 #define MINION_CORE_NOT_HALTED            -3007
 #define MINION_GET_FREQ_ERROR             -3008
+#define MINION_MM_NOT_READY               -3009
 
 /*! \def Main::FW Load and Authenticate Setup Error Return code  */
 #define FW_SW_CERTS_LOAD_ERROR -4000

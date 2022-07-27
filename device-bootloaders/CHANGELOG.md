@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [FV-296] Fix of SW WA for FV-296
 - [SW-13479] Fix for Zebu FAST_BOOT
 - [SW-12973] Initialized the MM heartbeat timer after the PCIe initialization is complete.
+- [SW-12853] Updated sequence changes in MM reset flow
 ### Security
 
 ## [0.3.0] - 2022-6-25

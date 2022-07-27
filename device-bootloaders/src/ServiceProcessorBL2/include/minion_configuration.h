@@ -57,16 +57,6 @@
 */
 #define MM_RESET_TIMEOUT_MSEC 1000000
 
-/*!
- * @enum minion_state_type
- * @brief Enum defining minion states type
- */
-typedef enum
-{
-    MM_READY = 0,
-    MM_NOT_READY
-} minion_state_type;
-
 /*! \fn int Minion_Shire_Update_Voltage( uint8_t voltage)
     \brief This function provide support to update the Minion
            Shire Power Rails

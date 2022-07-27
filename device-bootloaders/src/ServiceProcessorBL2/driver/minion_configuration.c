@@ -736,93 +736,86 @@ int Minion_Disable_CM_Shire_Threads(void)
 ***********************************************************************/
 int Master_Minion_Reset(void)
 {
-    uint64_t shire_mask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
-    uint8_t num_shires = get_highest_set_bit_offset(shire_mask);
-    int status = MM_NOT_READY;
+    uint64_t shiremask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
+    uint8_t num_shires = get_highest_set_bit_offset(shiremask);
+    int status;
     uint64_t time_end = 0;
-
-    /* Disable Minion neighs */
-    for (uint8_t i = 0; i <= num_shires; i++)
-    {
-        if (shire_mask & 1)
-        {
-            /* Set values for Shire ID, enable cache and all Neighborhoods */
-            const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(i) |
-                                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(0) |
-                                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(0x0);
-            write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
-                          ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
-        }
-        shire_mask >>= 1;
-    }
 
     /* Disable CM threads  */
     Minion_Disable_CM_Shire_Threads();
 
-    /* Delete MM command handler task to re initialize it*/
-    vTaskDelete(g_mm_cmd_hdlr_handle);
-
     /* Delete MM heartbeat timer before disabling MM threads */
     minion_mm_heartbeat_timer_delete();
 
-    /* Get active shire mask */
-    shire_mask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
+    /* Disable Minion neighs */
+    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 0 /* Disable S$*/, 0x0 /*Disable all Neigh*/,
+                     false)
 
+    shiremask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
     /* Enab Minion neighs. Minion threads will be enabled by MM when it will bring up CMs after reset */
-    for (uint8_t i = 0; i <= num_shires; i++)
-    {
-        if (shire_mask & 1)
-        {
-            /* Set Shire ID, enable cache and all Neighborhoods */
-            const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(i) |
-                                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(1) |
-                                    ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(0xf);
-            write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
-                          ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
-        }
-        shire_mask >>= 1;
-    }
+    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xf /*Enable all Neigh*/,
+                     false)
 
     /* Re initialize SP-MM services */
-    if (SP_MM_Iface_Init() != 0)
+    status = SP_MM_Iface_Init();
+    if (status != STATUS_SUCCESS)
     {
         Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Init Failed\n");
     }
-    else
-    {
-        /* Re launch MM command handler */
-        launch_mm_sp_command_handler();
 
-        if (Minion_State_Error_Control_Init(minion_event_callback) != 0)
+    if (status == STATUS_SUCCESS)
+    {
+        status = Minion_State_Error_Control_Init(minion_event_callback);
+        if (status == STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "Minion_State_Error_Control_Init Failed\n");
-        }
-        /* Initialize heart beat timer */
-        if (MM_Init_HeartBeat_Watchdog() != 0)
-        {
-            Log_Write(LOG_LEVEL_ERROR, "MM_Init_HeartBeat_Watchdog Failed\n");
+            /* Delete MM command handler task to re initialize it*/
+            vTaskDelete(g_mm_cmd_hdlr_handle);
+
+            /* Re launch MM command handler */
+            launch_mm_sp_command_handler();
+
+            /* Bringing MM RT out of reset */
+            status = Minion_Enable_Master_Shire_Threads();
+            if (status == STATUS_SUCCESS)
+            {
+                /*TODO: Will be removed after SW-11279 */
+                status = Trace_Init_SP(NULL);
+            }
+            else
+            {
+                Log_Write(LOG_LEVEL_ERROR, "Minion_Enable_Master_Shire_Threads Failed\n");
+            }
         }
         else
         {
-            /* Bringing MM RT and CM harts out of reset */
-            Minion_Enable_Master_Shire_Threads();
-
-            /*TODO: Will be removed after SW-11279 */
-            Trace_Init_SP(NULL);
+            Log_Write(LOG_LEVEL_ERROR, "Minion_State_Error_Control_Init Failed\n");
         }
     }
 
-    /* wait for MM ready flag */
-    time_end = timer_get_ticks_count() + pdMS_TO_TICKS(MM_RESET_TIMEOUT_MSEC);
-    while (timer_get_ticks_count() < time_end)
+    if (status == STATUS_SUCCESS)
     {
-        /* Wait to receive Heartbeat from MM */
-        if (Minion_State_Get_MM_Heartbeat_Count() > 0)
+        status = MINION_MM_NOT_READY;
+        /* wait for MM ready flag */
+        time_end = timer_get_ticks_count() + pdMS_TO_TICKS(MM_RESET_TIMEOUT_MSEC);
+        while (timer_get_ticks_count() < time_end)
         {
-            status = MM_READY;
-            break;
+            /* Wait to receive Heartbeat from MM */
+            if (Minion_State_Get_MM_Heartbeat_Count() > 0)
+            {
+                status = STATUS_SUCCESS;
+                break;
+            }
+            vTaskDelay(10);
         }
-        vTaskDelay(1);
+        if (status == STATUS_SUCCESS)
+        {
+            /* Initialize heart beat timer */
+            status = MM_Init_HeartBeat_Watchdog();
+        }
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MM_Init_HeartBeat_Watchdog Failed\n");
     }
 
     return status;
