@@ -124,7 +124,7 @@ public:
 private:
   bool processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total);
   void displayOpStat(const std::string stat, const struct op_value& ov, const bool isPower = false,
-                     const uint32_t max = 0);
+                     const uint32_t max = 0, const bool addBarLabels = false);
   void displayComputeStat(const std::string stat, const struct resource_value& rv, const bool convertMBtoGB = false);
   void displayErrorDetails(std::map<std::string, uint64_t>& error, bool addColon = false, std::string prefix = "");
   void collectMemStats(void);
@@ -465,7 +465,12 @@ void EtTop::processInput(void) {
   return;
 }
 
-void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, const bool isPower, const uint32_t max) {
+void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, const bool isPower, const uint32_t max,
+                          const bool addBarLabels) {
+  if (!displayWattsBars_ && addBarLabels) {
+    std::cout << std::endl;
+  }
+
   if (!isPower) {
     std::cout << "\t" + stat + "   avg: " << std::setw(5) << std::left << ov.avg << "  min: " << std::setw(5)
               << std::left << ov.min << "  max: " << std::setw(5) << std::left << ov.max << std::endl;
@@ -495,6 +500,26 @@ void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, con
       } else {
         break;
       }
+    }
+
+    if (addBarLabels) {
+      const uint32_t labelCount = 3;
+      char spacing[stat.length() + 5];
+      char labelBar[kHbarSize + 1];
+
+      memset(spacing, ' ', sizeof(spacing));
+      spacing[sizeof(spacing) - 1] = '\0';
+      memset(labelBar, ' ', sizeof(labelBar));
+      labelBar[kHbarSize] = '\0';
+
+      for (uint32_t i = 1; i <= labelCount; i++) {
+        uint32_t index = kHbarSize / (labelCount + 1) * i;
+        uint32_t label = (int32_t)fmax / 1000 * i / (labelCount + 1);
+        std::string labelStr = std::to_string(label) + "W";
+        strncpy(&labelBar[index], labelStr.data(), labelStr.size());
+      }
+
+      std::cout << "\t" << spacing << labelBar << std::endl;
     }
 
     std::cout << "\t" + stat + " 0W[" + hbar + "]" << std::setw(1) << (int32_t)fmax / 1000 << "W\n";
@@ -547,8 +572,8 @@ void EtTop::displayStats(void) {
   etsocPower.max = spStats_.op.minion.power.max + spStats_.op.sram.power.max + spStats_.op.noc.power.max;
   uint32_t max = spStats_.op.system.power.max;
 
-  std::cout << "Watts:\n";
-  displayOpStat("CARD       ", spStats_.op.system.power, true, max);
+  std::cout << "Watts:";
+  displayOpStat("CARD       ", spStats_.op.system.power, true, max, true);
   displayOpStat("- ETSOC    ", etsocPower, true, max);
   displayOpStat("  - MINION ", spStats_.op.minion.power, true, max);
   displayOpStat("  - SRAM   ", spStats_.op.sram.power, true, max);

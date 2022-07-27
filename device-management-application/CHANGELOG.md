@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.4.0] - 2022-7-12
 ### Added
 - ET-Top: Add 'w' interactive command to toggle display of watts in horizonal bar form.
+- ET-Top: Add labels to the display of watts in horizonal bar form.
 ### Changed
 ### Deprecated
 ### Removed
