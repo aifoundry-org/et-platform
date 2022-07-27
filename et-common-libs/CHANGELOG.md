@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines
 ### Changed
 - Optimized et_printf by removing extra vsnprintf call.
-
+- [SW-10869] replaced cache inline functions with macros
 ### Deprecated
 ### Removed
 ### Fixed
