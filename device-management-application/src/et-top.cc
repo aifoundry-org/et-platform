@@ -37,7 +37,7 @@
 #define MM_STATS_FILE "mm_stats.bin"
 
 static const int32_t kMaxDeviceNum = 63;
-static const uint16_t kMiscPower = 8200;
+static const uint16_t kOtherPower = 5750;
 static const int32_t kOpsCqNum = 1;
 static const int32_t kOpsSqNum = 2;
 
@@ -568,16 +568,16 @@ void EtTop::displayStats(void) {
             << std::setw(6) << std::right << memStats_.cmaAllocationRate << " MB/sec\n";
 
   struct op_value etsocPower;
-  struct op_value miscPower;
+  struct op_value otherPower;
   const struct op_stats_t& op = spStats_.op;
   const uint32_t max = op.system.power.max;
 
-  miscPower.avg = kMiscPower;
-  miscPower.min = kMiscPower;
-  miscPower.max = kMiscPower;
-  etsocPower.avg = op.minion.power.avg + op.sram.power.avg + op.noc.power.avg + miscPower.avg;
-  etsocPower.min = op.minion.power.min + op.sram.power.min + op.noc.power.min + miscPower.min;
-  etsocPower.max = op.minion.power.max + op.sram.power.max + op.noc.power.max + miscPower.max;
+  otherPower.avg = kOtherPower;
+  otherPower.min = kOtherPower;
+  otherPower.max = kOtherPower;
+  etsocPower.avg = op.minion.power.avg + op.sram.power.avg + op.noc.power.avg + otherPower.avg;
+  etsocPower.min = op.minion.power.min + op.sram.power.min + op.noc.power.min + otherPower.min;
+  etsocPower.max = op.minion.power.max + op.sram.power.max + op.noc.power.max + otherPower.max;
 
   std::cout << "Watts:";
   displayOpStat("CARD       ", op.system.power, true, max, true);
@@ -585,7 +585,7 @@ void EtTop::displayStats(void) {
   displayOpStat("  - MINION ", op.minion.power, true, max);
   displayOpStat("  - SRAM   ", op.sram.power, true, max);
   displayOpStat("  - NOC    ", op.noc.power, true, max);
-  displayOpStat("  - MISC   ", miscPower, true, max);
+  displayOpStat("  - OTHER  ", otherPower, true, max);
   std::cout << "Temp(C):\n";
   displayOpStat("ETSOC    ", op.system.temperature);
   displayOpStat("- MINION ", op.minion.temperature);
