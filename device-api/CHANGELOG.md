@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines
 ### Changed
 ### Deprecated
+- [SW-13464] - Marked enum log_levels as deprecated.
 ### Removed
 ### Fixed
 - [SW-13464]: Fix the kernel launch error codes. There should be a differenciation between unexpected and user kernel error code.

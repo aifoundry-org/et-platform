@@ -60,6 +60,7 @@ Enums:
         Value: 32
   - Name: log_levels
     Type: uint8_t
+    Description: This enum is deprecated and should not be used.
     Values:
       - Name: CRITICAL
         Value: 0
