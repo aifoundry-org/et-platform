@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Deprecated
 - [SW-13464] - Marked enum log_levels as deprecated.
+- [SW-13572] - Marked device_ops_data_read_cmd, device_ops_data_read_rsp, device_ops_data_write_cmd and device_ops_data_write_rsp as deprecated.
 ### Removed
 ### Fixed
 - [SW-13464]: Fix the kernel launch error codes. There should be a differenciation between unexpected and user kernel error code.

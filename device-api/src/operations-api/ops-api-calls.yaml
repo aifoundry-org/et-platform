@@ -515,7 +515,7 @@ Messages :
 # Data Transfer Commands and Responses
 #-------------------------------------------------------------------------------
   - Name: device_ops_data_read_cmd
-    Description: Command to read data from device memory
+    Description: Command to read data from device memory. This command is deprecated, use device_ops_dma_readlist_cmd instead.
     Type: Command
     PairedMessage: device_ops_data_read_rsp
     Fields:
@@ -535,7 +535,7 @@ Messages :
         Description: Padding for alignment
         Type: uint8_t
   - Name: device_ops_data_read_rsp
-    Description:  Data read command response
+    Description:  Data read command response. This response is deprecated, use device_ops_dma_readlist_rsp instead.
     Type: Response
     PairedMessage: device_ops_data_read_cmd
     Fields:
@@ -557,7 +557,7 @@ Messages :
         Type: uint8_t
 #-------------------------------------------------------------------------------
   - Name: device_ops_data_write_cmd
-    Description: Command to write data to device memory
+    Description: Command to write data to device memory. This command is deprecated, use device_ops_dma_writelist_cmd instead.
     Type: Command
     PairedMessage: device_ops_data_write_rsp
     Fields:
@@ -577,7 +577,7 @@ Messages :
         Description: Padding for alignment
         Type: uint8_t
   - Name: device_ops_data_write_rsp
-    Description:  Data write command response
+    Description:  Data write command response. This response is deprecated, use device_ops_dma_writelist_rsp instead.
     Type: Response
     PairedMessage: device_ops_data_write_cmd
     Fields:
