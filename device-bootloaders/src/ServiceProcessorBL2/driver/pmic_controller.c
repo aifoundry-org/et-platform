@@ -26,7 +26,7 @@
         pmic_get_temperature_threshold
         pmic_set_temperature_threshold
         pmic_get_temperature
-        pmic_read_instantenous_soc_power
+        pmic_read_instantaneous_soc_power
         pmic_enable_etsoc_reset_after_perst
         pmic_disable_etsoc_reset_after_perst
         pmic_get_reset_cause
@@ -85,7 +85,6 @@
 #define PMIC_GPIO_INT_PIN_NUMBER   0x1
 #define ENABLE_ALL_PMIC_INTERRUPTS 0xFF
 #define BYTE_SIZE                  8
-#define PMB_READ_BYTES             4
 
 /* PMB related defines */
 #define PMB_READ_BYTES 4
@@ -241,7 +240,6 @@ static int pmic_get_pmb_rstat(struct pmb_reading_type_t *stat_reading)
     if (status == STATUS_SUCCESS)
     {
         stat_reading->current = (temp_val & PMB_STATS_MASK);
-
         status = get_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS, (uint8_t *)&temp_val, PMB_READ_BYTES);
     }
     if (status == STATUS_SUCCESS)
@@ -590,7 +588,7 @@ void pmic_error_isr(void)
     {
         event_control_block.thermal_pwr_event_cb(int_cause);
 
-        if (0 != pmic_read_instantenous_soc_power(&reg_value))
+        if (0 != pmic_read_instantaneous_soc_power(&reg_value))
         {
             MESSAGE_ERROR("PMIC read failed!");
         }
@@ -1030,7 +1028,7 @@ int pmic_get_temperature(uint8_t *sys_temp)
 *
 *   FUNCTION
 *
-*       pmic_read_instantenous_soc_power
+*       pmic_read_instantaneous_soc_power
 *
 *   DESCRIPTION
 *
@@ -1038,15 +1036,15 @@ int pmic_get_temperature(uint8_t *sys_temp)
 *
 *   INPUTS
 *
-*       none
+*       uint8_t  Pointer to data to load result to
 *
 *   OUTPUTS
 *
-*       soc_pwr    value of Input Power in mW.
+*       soc_pwr    value of Input Power in binary encoded value.
 *
 ***********************************************************************/
 
-int pmic_read_instantenous_soc_power(uint8_t *soc_pwr)
+int pmic_read_instantaneous_soc_power(uint8_t *soc_pwr)
 {
     return (get_pmic_reg(PMIC_I2C_INPUT_POWER_ADDRESS, soc_pwr, 1));
 }
@@ -1426,6 +1424,7 @@ int pmic_get_pmb_stats(struct pmb_stats_t *pmb_stats)
 
     /* write PMB register to generate snapshot of all stats and then read all stats*/
     status = set_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS, PMIC_I2C_PMB_STATS_SNAPSHOT_VALUE, 1);
+
     if (status == STATUS_SUCCESS)
     {
         status = pmic_get_pmb_rstat(&pmb_stats->minion.v_out);
@@ -1921,11 +1920,11 @@ int pmic_reset_wdog_timer(void)
 *
 *   INPUTS
 *
-*       none
+*       uint8_t  Pointer to data to load result to
 *
 *   OUTPUTS
 *
-*       avg_power     value of Average Power in mW.
+*       avg_power     value of Average Power in binary encoded value.
 *
 ***********************************************************************/
 

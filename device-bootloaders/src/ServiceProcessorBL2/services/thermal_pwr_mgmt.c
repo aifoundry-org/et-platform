@@ -570,15 +570,25 @@ int update_module_soc_power(void)
 
     if (0 != pmic_read_average_soc_power(&soc_pwr))
     {
-        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get soc power\r\n");
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get soc average power\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else
     {
         soc_pwr_mW = Power_Convert_Hex_to_mW(soc_pwr);
-        CMA(get_soc_power_reg()->op_stats.system.power, (uint16_t)soc_pwr_mW)
-        CALC_MIN_MAX(get_soc_power_reg()->op_stats.system.power, (uint16_t)soc_pwr_mW)
+        get_soc_power_reg()->op_stats.system.power.avg = (uint16_t)soc_pwr_mW;
+    }
+
+    if (0 != pmic_read_instantaneous_soc_power(&soc_pwr))
+    {
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get soc instant power\r\n");
+        return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
+    }
+    else
+    {
         get_soc_power_reg()->soc_power = soc_pwr;
+        soc_pwr_mW = Power_Convert_Hex_to_mW(soc_pwr);
+        CALC_MIN_MAX(get_soc_power_reg()->op_stats.system.power, (uint16_t)soc_pwr_mW)
     }
 
     /* Update average, min and max values of Minion, NOC and SRAM powers */
@@ -2144,9 +2154,9 @@ int Thermal_Pwr_Mgmt_Get_System_Power_Temp_Stats(struct op_stats_t *stats)
 ***********************************************************************/
 void Thermal_Pwr_Mgmt_Update_Sample_counter(void)
 {
-    /* Reset counter after 100 samples */
-    if (samples_count++ > NUM_SAMPLES)
+    /* Update counters as long as less than NUM_SAMPLES */
+    if (samples_count < NUM_SAMPLES)
     {
-        samples_count = 1;
+        samples_count++;
     }
 }
