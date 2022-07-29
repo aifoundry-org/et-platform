@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-6111] Add basic info to Device Management Overview section.
+
 ### Changed
 - Updated `setModuleFrequency` test to revert back to original frequencies and
   check by setting a list of test frequencies.
