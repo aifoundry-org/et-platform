@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13253] Adding functionality to read PMB stats from PMIC
 - [SW-13253] Workaround for flash init for fast boot.
 - [SW-13466] Porting over changes from silicon branch.
+- [SW-6113] Add doxygen support for sp_host_iface.h and mm_iface.h.
 ### Changed
 - [SW-11649] Separate out Trace and Serial log string max size.
 - Conanfile now declares dependencies with version-ranges
