@@ -70,10 +70,6 @@ static void pmic_isr_callback(uint8_t int_cause);
 /* The variable used to track power states change time. */
 static uint64_t power_state_change_time = 0;
 
-/* The variable used to track number of samples to calculate moving average.
-   Initializing samples count = 1 to avoid divide by 0 exception while calculating average */
-uint16_t samples_count = 1;
-
 struct soc_power_reg_t
 {
     struct residency_t power_up_throttled_states_residency;
@@ -209,9 +205,15 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 */
 #define MIN(x, y) y == 0 ? x : x < y ? x : y
 
+/*! \def CMA_MAX_SAMPLE_COUNT
+    \brief Device statistics moving average sample count.
+*/
+#define CMA_MAX_SAMPLE_COUNT 100UL
+
 /* Macro to calculate cumulative moving average */
-#define CMA(module, current_value) \
-    module.avg = (uint16_t)((current_value + (module.avg * (samples_count - 1))) / samples_count);
+#define CMA(module, current_value)                                                        \
+    module.avg = (uint16_t)((current_value + (module.avg * (CMA_MAX_SAMPLE_COUNT - 1))) / \
+                            CMA_MAX_SAMPLE_COUNT);
 
 /* Macro to calculate Min, Max values and add to the sum for average value later to be calculated by dividing num of samples */
 #define CALC_MIN_MAX(module, current_value)      \
@@ -2131,32 +2133,4 @@ int Thermal_Pwr_Mgmt_Get_System_Power_Temp_Stats(struct op_stats_t *stats)
 {
     *stats = get_soc_power_reg()->op_stats;
     return SUCCESS;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Thermal_Pwr_Mgmt_Update_Sample_counter
-*
-*   DESCRIPTION
-*
-*       This function increments sample counter to calculate average values
-*
-*   INPUTS
-*
-*       None
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-void Thermal_Pwr_Mgmt_Update_Sample_counter(void)
-{
-    /* Update counters as long as less than NUM_SAMPLES */
-    if (samples_count < NUM_SAMPLES)
-    {
-        samples_count++;
-    }
 }

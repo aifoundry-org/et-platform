@@ -162,9 +162,6 @@ static void dm_task_entry(void *pvParameters)
             Log_Write(LOG_LEVEL_ERROR, "perf mgmt svc error : update_dram_capacity_percent()\r\n");
         }
 
-        /* Update sample counter */
-        Thermal_Pwr_Mgmt_Update_Sample_counter();
-
         /* Log op stats to trace */
         dm_log_operating_point_stats();
 
@@ -181,7 +178,7 @@ static void dm_task_entry(void *pvParameters)
 *
 *   DESCRIPTION
 *
-*       This function will collect sample of current values of temperature and power 
+*       This function will collect sample of current values of temperature and power
 *       and calculate min, max and moving average.
 *
 *

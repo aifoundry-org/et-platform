@@ -39,9 +39,6 @@
 #define SRAM_BOOT_VOLTAGE  0x64U // 750 mV
 #define NOC_BOOT_VOLTAGE   0x28U // 450 mV
 
-/* Number of samples to collect average */
-#define NUM_SAMPLES 100
-
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register
     \param none
@@ -301,10 +298,4 @@ int Thermal_Pwr_Mgmt_Get_System_Power(uint64_t *power);
 */
 int Thermal_Pwr_Mgmt_Get_System_Power_Temp_Stats(struct op_stats_t *stats);
 
-/*! \fn void Thermal_Pwr_Mgmt_Update_Sample_counter(void)
-    \brief This function increments sample counter to calculate average values
-    \param none
-    \returns none
-*/
-void Thermal_Pwr_Mgmt_Update_Sample_counter(void);
 #endif

@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 - [SW-12973] Auto reset of MM from MM heartbeat watchdog expiry.
+- Removed Thermal_Pwr_Mgmt_Update_Sample_counter() since its no longer required.
 ### Fixed
 - [SW-11649] Fixed usage of Trace string length to be not fixed size.
 - [SW-13218] Reading memory size from flash in get_memory_size().
