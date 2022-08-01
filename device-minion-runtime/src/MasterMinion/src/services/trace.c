@@ -569,14 +569,18 @@ uint32_t Trace_Evict_Event_MM_Stats(const void *entry, uint32_t size)
 {
     struct trace_buffer_std_header_t *trace_header =
         (struct trace_buffer_std_header_t *)MM_STATS_TRACE_BUFFER_BASE;
+    uint32_t offset;
 
-    uint32_t offset = atomic_load_local_32(&(MM_Stats_Trace_CB.cb.offset_per_hart));
-
-    /* Store used buffer size in buffer header directly in L3. */
-    atomic_store_global_32(&trace_header->data_size, offset);
-
-    /* Evict the packet to L3 */
+    /* Evict the data packet to L3 */
     ETSOC_MEM_EVICT(entry, size, to_L3)
+
+    offset = atomic_load_local_32(&(MM_Stats_Trace_CB.cb.offset_per_hart));
+
+    /* Update buffer size in buffer header */
+    atomic_store_local_32(&trace_header->data_size, offset);
+
+    /* Evict the header to L3 */
+    ETSOC_MEM_EVICT((void *)trace_header, size, to_L3)
 
     return offset;
 }
