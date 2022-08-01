@@ -12,6 +12,7 @@
 #include "MemoryManager.h"
 #include "RuntimeImp.h"
 #include "Utils.h"
+#include "runtime/Types.h"
 
 #include <algorithm>
 #include <cassert>
@@ -24,11 +25,11 @@ Buffer::Buffer(DeviceId device, RuntimeImp* runtime, size_t size)
   : hostBuffer_(size)
   , device_(device)
   , runtime_(runtime) {
-  deviceBuffer_ = runtime->mallocDeviceWithoutProfiling(device, size);
+  deviceBuffer_ = runtime->doMallocDevice(device, size);
 }
 
 Buffer::~Buffer() {
-  runtime_->freeDeviceWithoutProfiling(device_, deviceBuffer_);
+  runtime_->doFreeDevice(device_, deviceBuffer_);
 }
 
 ExecutionContextCache::~ExecutionContextCache() {
@@ -48,12 +49,12 @@ ExecutionContextCache::~ExecutionContextCache() {
 ExecutionContextCache::ExecutionContextCache(RuntimeImp* runtime, int initialFreeListSize, int bufferSize)
   : runtime_(runtime)
   , bufferSize_(bufferSize) {
-  auto devices = runtime_->getDevicesWithoutProfiling();
+  auto devices = runtime_->doGetDevices();
   // TODO: see SW-9219, we fill these buffers with trash until this is properly handled
   std::vector<std::byte> trash;
   std::fill_n(std::back_inserter(trash), bufferSize, std::byte{0xCD});
   for (auto dev : devices) {
-    auto st = runtime_->createStreamWithoutProfiling(dev);
+    auto st = runtime_->doCreateStream(dev);
     auto [it, res] = freeBuffers_.try_emplace(dev, std::vector<Buffer*>{});
     (void)res;
     assert(res);
@@ -62,12 +63,12 @@ ExecutionContextCache::ExecutionContextCache(RuntimeImp* runtime, int initialFre
       buffers_.emplace_back(std::make_unique<Buffer>(dev, runtime_, bufferSize_));
       auto bufferPtr = buffers_.back().get();
       // TODO: see SW-9219, we fill these buffers with trash until this is properly handled
-      runtime_->memcpyHostToDeviceWithoutProfiling(st, trash.data(), bufferPtr->deviceBuffer_,
-                                                   static_cast<size_t>(bufferSize), true);
+      runtime_->doMemcpyHostToDevice(st, trash.data(), bufferPtr->deviceBuffer_, static_cast<size_t>(bufferSize), true,
+                                     defaultCmaCopyFunction);
       list.emplace_back(bufferPtr);
     }
-    runtime_->waitForStreamWithoutProfiling(st);
-    runtime_->destroyStreamWithoutProfiling(st);
+    runtime_->doWaitForStream(st);
+    runtime_->doDestroyStream(st);
   }
 }
 

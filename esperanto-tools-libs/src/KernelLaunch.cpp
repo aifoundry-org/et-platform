@@ -27,12 +27,11 @@
 using namespace rt;
 using namespace rt::profiling;
 
-EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std::byte* kernel_args,
-                                 size_t kernel_args_size, uint64_t shire_mask, bool barrier, bool flushL3,
-                                 std::optional<UserTrace> userTraceConfig) {
+EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const std::byte* kernel_args,
+                                   size_t kernel_args_size, uint64_t shire_mask, bool barrier, bool flushL3,
+                                   std::optional<UserTrace> userTraceConfig) {
   SpinLock lock(mutex_);
   const auto& kernel = find(kernels_, kernelId)->second;
-  ScopedProfileEvent profileEvent(Class::KernelLaunch, *profiler_, streamId, kernelId, kernel->getLoadAddress());
   auto cfg = deviceLayer_->getDeviceConfig(static_cast<int>(kernel->deviceId_));
   auto validMask = cfg.computeMinionShireMask_;
   if (~validMask & shire_mask || !(validMask & shire_mask)) {
@@ -84,8 +83,8 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
     barrier = true; // we must wait for parameters, so barrier is true if parameters
     // stage parameters in host buffer
     std::copy(kernel_args, kernel_args + kernel_args_size, begin(pBuffer->hostBuffer_));
-    memcpyHostToDeviceWithoutProfiling(streamId, pBuffer->hostBuffer_.data(), pBuffer->getParametersPtr(),
-                                       kernel_args_size, false);
+    doMemcpyHostToDevice(streamId, pBuffer->hostBuffer_.data(), pBuffer->getParametersPtr(), kernel_args_size, false,
+                         defaultCmaCopyFunction);
   }
   auto event = eventManager_.getNextId();
   streamManager_.addEvent(streamId, event);
@@ -124,7 +123,6 @@ EventId RuntimeImp::kernelLaunch(StreamId streamId, KernelId kernelId, const std
                << shire_mask;
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
   commandSender.send(Command{cmdBase, commandSender, event, false, true});
-  profileEvent.setEventId(event);
 
   Sync(event);
   return event;

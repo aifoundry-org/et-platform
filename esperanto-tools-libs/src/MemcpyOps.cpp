@@ -95,18 +95,9 @@ void MemcpyCommandBuilder::clear() {
   data_.resize(offsetof(device_ops_dma_readlist_cmd_t, list));
 }
 
-EventId RuntimeImp::memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
-                                       bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, *profiler_, stream);
-  auto eventId = memcpyHostToDeviceWithoutProfiling(stream, h_src, d_dst, size, barrier);
-  profileEvent.setEventId(eventId);
-  return eventId;
-}
-
-EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const std::byte* h_src, const std::byte* d_dst,
-                                                       size_t size, bool barrier,
-                                                       const CmaCopyFunction& cmaCopyFunction) {
-  std::unique_lock lock(mutex_);
+EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
+                                         bool barrier, const CmaCopyFunction& cmaCopyFunction) {
+  SpinLock lock(mutex_);
   auto streamInfo = streamManager_.getStreamInfo(stream);
   if (checkMemcpyDeviceAddress_) {
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
@@ -173,7 +164,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const st
         lck.unlock();
         if (topPrio && topPrio != evt) {
           RT_VLOG(LOW) << "H2D. Waiting for top prio command: " << static_cast<int>(topPrio.value());
-          waitForEventWithoutProfiling(topPrio.value());
+          doWaitForEvent(topPrio.value());
         } else {
           RT_VLOG(LOW) << "H2D. I'm top prio command (" << static_cast<int>(evt) << "); waiting for cma free. ";
           cmaManager_->waitUntilFree(kMinBytesPerEntry);
@@ -196,17 +187,8 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, const st
   return evt;
 }
 
-EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
-                                       bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream);
-  auto eventId = memcpyDeviceToHostWithoutProfiling(stream, d_src, h_dst, size, barrier);
-  profileEvent.setEventId(eventId);
-  return eventId;
-}
-
-EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const std::byte* d_src, std::byte* h_dst,
-                                                       size_t size, bool barrier,
-                                                       const CmaCopyFunction& cmaCopyFunction) {
+EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
+                                         bool barrier, const CmaCopyFunction& cmaCopyFunction) {
   std::unique_lock lock(mutex_);
   auto streamInfo = streamManager_.getStreamInfo(stream);
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
@@ -292,7 +274,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
         lck.unlock();
         if (topPrio && topPrio != evt) {
           RT_VLOG(LOW) << "D2H. Waiting for top prio command: " << static_cast<int>(topPrio.value());
-          waitForEventWithoutProfiling(topPrio.value());
+          doWaitForEvent(topPrio.value());
         } else {
           RT_VLOG(LOW) << "D2H. I'm top prio command (" << static_cast<int>(evt) << "); waiting for cma free. ";
           cmaManager_->waitUntilFree(kMinBytesPerEntry);
@@ -314,22 +296,9 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, const st
   return evt;
 }
 
-EventId RuntimeImp::memcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, *profiler_, stream);
-  auto eventId = memcpyHostToDeviceWithoutProfiling(stream, memcpyList, barrier);
-  profileEvent.setEventId(eventId);
-  return eventId;
-}
-EventId RuntimeImp::memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier) {
-  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream);
-  auto eventId = memcpyDeviceToHostWithoutProfiling(stream, memcpyList, barrier);
-  profileEvent.setEventId(eventId);
-  return eventId;
-}
-
-EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier,
-                                                       const CmaCopyFunction& cmaCopyFunction) {
-  std::unique_lock lock(mutex_);
+EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier,
+                                         const CmaCopyFunction& cmaCopyFunction) {
+  SpinLock lock(mutex_);
   auto streamInfo = streamManager_.getStreamInfo(stream);
   checkList(streamInfo.device_, memcpyList);
 
@@ -369,7 +338,7 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyLi
         cmaManager_->waitUntilFree(totalSize);
       } else {
         RT_VLOG(LOW) << "H2D. Waiting for top prio command: " << static_cast<int>(topPrio.value());
-        waitForEventWithoutProfiling(topPrio.value());
+        doWaitForEvent(topPrio.value());
       }
 
       lck.lock();
@@ -395,9 +364,9 @@ EventId RuntimeImp::memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyLi
   Sync(evt);
   return evt;
 }
-EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier,
-                                                       const CmaCopyFunction& cmaCopyFunction) {
-  std::unique_lock lock(mutex_);
+EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier,
+                                         const CmaCopyFunction& cmaCopyFunction) {
+  SpinLock lock(mutex_);
   auto streamInfo = streamManager_.getStreamInfo(stream);
   checkList(streamInfo.device_, memcpyList);
   if (checkMemcpyDeviceAddress_) {
@@ -453,7 +422,7 @@ EventId RuntimeImp::memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyLi
     RT_VLOG(MID) << "D2H: Cancelled GHOST command: " << static_cast<int>(evt);
     // This part is needed because we have to copy the data into the user buffer before triggering that the event is
     // finished
-    eventManager_.addOnDispatchCallback({{cmdEvt}, [this, evt, cmaPtr, cmaCopyFunction, ops = memcpyList.operations_] {
+    eventManager_.addOnDispatchCallback({{cmdEvt}, [this, evt, cmaPtr, ops = memcpyList.operations_, cmaCopyFunction] {
                                            auto offset = 0UL;
                                            for (auto& op : ops) {
                                              cmaCopyFunction(cmaPtr + offset, op.dst_, op.size_, CmaCopyType::FROM_CMA);

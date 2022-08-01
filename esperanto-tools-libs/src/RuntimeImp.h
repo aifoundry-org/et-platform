@@ -20,6 +20,7 @@
 #include "Utils.h"
 #include "dma/CmaManager.h"
 #include "dma/IDmaBuffer.h"
+#include "runtime/IProfileEvent.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 #include <algorithm>
@@ -46,58 +47,56 @@ struct DeviceApiVersion {
 
 class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices, public patterns::Subject<EventId> {
 public:
-  enum class CmaCopyType { TO_CMA, FROM_CMA };
-  using CmaCopyFunction = std::function<void(const std::byte* src, std::byte* dst, size_t size, CmaCopyType type)>;
-  static constexpr auto defaultCmaCopyFunction = [](const std::byte* src, std::byte* dst, size_t size, CmaCopyType) {
-    std::copy(src, src + size, dst);
-  };
+  explicit RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options);
 
-  explicit RuntimeImp(dev::IDeviceLayer* deviceLayer, std::unique_ptr<profiling::IProfilerRecorder> profiler,
-                      Options options);
+  std::vector<DeviceId> doGetDevices() final;
 
-  std::vector<DeviceId> getDevices() final;
+  DeviceProperties doGetDeviceProperties(DeviceId device) const final;
 
-  DeviceProperties getDeviceProperties(DeviceId device) const final;
+  LoadCodeResult doLoadCode(StreamId stream, const std::byte* elf, size_t elf_size) final;
+  void doUnloadCode(KernelId kernel) final;
 
-  LoadCodeResult loadCode(StreamId stream, const std::byte* elf, size_t elf_size) final;
-  void unloadCode(KernelId kernel) final;
+  std::byte* doMallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) final;
+  void doFreeDevice(DeviceId device, std::byte* buffer) final;
 
-  std::byte* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) final;
-  void freeDevice(DeviceId device, std::byte* buffer) final;
+  StreamId doCreateStream(DeviceId device) final;
+  void doDestroyStream(StreamId stream) final;
 
-  StreamId createStream(DeviceId device) final;
-  void destroyStream(StreamId stream) final;
+  EventId doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
+                         uint64_t shire_mask, bool barrier, bool flushL3,
+                         std::optional<UserTrace> userTraceConfig) final;
 
-  EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                       uint64_t shire_mask, bool barrier, bool flushL3, std::optional<UserTrace> userTraceConfig) final;
+  EventId doMemcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier,
+                               const CmaCopyFunction& cmaCopyFunction) final;
+  EventId doMemcpyDeviceToHost(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier,
+                               const CmaCopyFunction& cmaCopyFunction) final;
+  EventId doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier,
+                               const CmaCopyFunction& cmaCopyFunction) final;
+  EventId doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier,
+                               const CmaCopyFunction& cmaCopyFunction) final;
 
-  EventId memcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) final;
-  EventId memcpyDeviceToHost(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier) final;
-  EventId memcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier) final;
-  EventId memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier) final;
+  bool doWaitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) final;
+  bool doWaitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) final;
 
-  bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) final;
-  bool waitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) final;
+  EventId doSetupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
+                               uint32_t filterMask, bool barrier) final;
+  EventId doStartDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput, bool barrier) final;
 
-  EventId setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
-                             uint32_t filterMask, bool barrier) final;
-  EventId startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput, bool barrier) final;
+  EventId doStopDeviceTracing(StreamId stream, bool barrier) final;
 
-  EventId stopDeviceTracing(StreamId stream, bool barrier) final;
+  EventId doAbortCommand(EventId commandId, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) final;
 
-  EventId abortCommand(EventId commandId, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) final;
+  EventId doAbortStream(StreamId streamId) final;
 
-  EventId abortStream(StreamId streamId) final;
+  void doSetOnStreamErrorsCallback(StreamErrorCallback callback) final;
 
-  IProfiler* getProfiler() final {
-    return profiler_.get();
-  }
+  void doSetOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) final;
 
-  void setOnStreamErrorsCallback(StreamErrorCallback callback) final;
+  std::vector<StreamError> doRetrieveStreamErrors(StreamId stream) final;
 
-  void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) final;
+  DmaInfo doGetDmaInfo(DeviceId deviceId) const final;
 
-  std::vector<StreamError> retrieveStreamErrors(StreamId stream) final;
+  ~RuntimeImp();
 
   // IResponseServices
   std::vector<int> getDevicesWithEventsOnFly() const final;
@@ -106,8 +105,6 @@ public:
   // this method is a helper to call eventManager dispatch and streamManager removeEvent
   void dispatch(EventId event);
 
-  ~RuntimeImp();
-
   // these methods are intended for debugging, internal use only
   void setMemoryManagerDebugMode(DeviceId device, bool enable);
   void setCheckMemcpyDeviceAddress(bool value) {
@@ -115,38 +112,15 @@ public:
   }
   void setSentCommandCallback(DeviceId device, CommandSender::CommandSentCallback callback);
 
-  DeviceProperties getDevicePropertiesWithoutProfiling(DeviceId device) const;
-
-  std::byte* mallocDeviceWithoutProfiling(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize);
-  void freeDeviceWithoutProfiling(DeviceId device, std::byte* buffer);
-
-  StreamId createStreamWithoutProfiling(DeviceId device);
-  void destroyStreamWithoutProfiling(StreamId stream);
-
-  bool waitForEventWithoutProfiling(EventId event, std::chrono::seconds timeout = std::chrono::hours(24));
-  bool waitForStreamWithoutProfiling(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24));
-
-  EventId memcpyHostToDeviceWithoutProfiling(StreamId stream, const std::byte* src, const std::byte* dst, size_t size,
-                                             bool barrier,
-                                             const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
-  EventId memcpyDeviceToHostWithoutProfiling(StreamId stream, const std::byte* src, std::byte* dst, size_t size,
-                                             bool barrier,
-                                             const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
-  EventId memcpyHostToDeviceWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier,
-                                             const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
-  EventId memcpyDeviceToHostWithoutProfiling(StreamId stream, MemcpyList memcpyList, bool barrier,
-                                             const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
-
-  std::vector<DeviceId> getDevicesWithoutProfiling() const;
-
-  DmaInfo getDmaInfo(DeviceId deviceId) const final;
-
 private:
   friend ExecutionContextCache;
 
   void dumpFwTraces(DeviceId device);
 
   void checkDevice(int device) override;
+
+  void onProfilerChanged() override;
+
   struct Kernel {
     Kernel(DeviceId deviceId, std::byte* deviceBuffer, uint64_t entryPoint)
       : deviceId_(deviceId)
@@ -205,7 +179,6 @@ private:
   mutable std::recursive_mutex mutex_;
   dev::IDeviceLayer* deviceLayer_;
   std::unique_ptr<CmaManager> cmaManager_;
-  std::unique_ptr<profiling::IProfilerRecorder> profiler_;
   std::vector<DeviceId> devices_;
   StreamManager streamManager_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;

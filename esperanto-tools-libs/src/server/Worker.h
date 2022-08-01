@@ -42,8 +42,8 @@ private:
     }
   };
 
-  RuntimeImp::CmaCopyFunction cmaCopyFunction_;
   RuntimeImp& runtime_;
+  CmaCopyFunction cmaCopyFunction_;
   std::set<Allocation> allocations_;
   std::set<StreamId> streams_;
   std::set<KernelId> kernels_;

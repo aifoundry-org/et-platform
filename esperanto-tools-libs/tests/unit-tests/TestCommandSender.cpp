@@ -35,7 +35,7 @@ TEST(CommandSender, checkConsistency) {
   auto numCommands = 3 * 1e4;
   dev::DeviceLayerFake deviceLayer;
   profiling::DummyProfiler profiler;
-  CommandSender cs(deviceLayer, profiler, 0, 0);
+  CommandSender cs(deviceLayer, &profiler, 0, 0);
   for (device_ops_api::tag_id_t i = 0; i < numCommands; ++i) {
     header->tag_id = device_ops_api::tag_id_t(i + 1);
     cs.send(Command{commandData, cs, EventId(i + 1)});
@@ -88,7 +88,7 @@ TEST(CommandSender, checkSendBefore) {
   auto numCommands = 100;
   dev::DeviceLayerFake deviceLayer;
   profiling::DummyProfiler profiler;
-  CommandSender cs(deviceLayer, profiler, 0, 0);
+  CommandSender cs(deviceLayer, &profiler, 0, 0);
   // first emplace commands with odd tag_ids
   for (device_ops_api::tag_id_t i = 0; i < numCommands / 2; ++i) {
     header->tag_id = device_ops_api::tag_id_t(i * 2 + 1);

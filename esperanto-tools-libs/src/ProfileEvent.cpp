@@ -8,8 +8,9 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
-#include "runtime/IProfileEvent.h"
 #include "Utils.h"
+#include "runtime/IProfileEvent.h"
+#include "runtime/IProfiler.h"
 
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/portable_binary.hpp>
@@ -284,5 +285,4 @@ template <typename T> std::optional<T> ProfileEvent::getExtra(const std::string&
   }
   return optValue;
 }
-
 } // namespace rt::profiling

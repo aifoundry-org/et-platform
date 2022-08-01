@@ -74,7 +74,7 @@ ResponseType response_type_from_string(const std::string& str);
 
 class ScopedProfileEvent;
 
-/// \brief IProfileEvent exposes serialization internals for runtime users.
+/// \brief ProfileEvent exposes serialization internals for runtime users.
 ///
 class ProfileEvent {
 public:

@@ -34,7 +34,7 @@ template <typename List> std::string getCommandPtrs(List& commands) {
   return ss.str();
 }
 
-CommandSender::CommandSender(dev::IDeviceLayer& deviceLayer, profiling::IProfilerRecorder& profiler, int deviceId,
+CommandSender::CommandSender(dev::IDeviceLayer& deviceLayer, profiling::IProfilerRecorder* profiler, int deviceId,
                              int sqIdx)
   : deviceLayer_(deviceLayer)
   , profiler_(profiler)
@@ -143,7 +143,7 @@ void CommandSender::runnerFunc() {
           profiling::ProfileEvent event(profiling::Type::Instant, profiling::Class::CommandSent);
           event.setEvent(cmd.eventId_);
           event.setDeviceId(DeviceId(deviceId_));
-          profiler_.record(event);
+          profiler_->record(event);
 
           if (callback_) {
             callback_(&cmd);

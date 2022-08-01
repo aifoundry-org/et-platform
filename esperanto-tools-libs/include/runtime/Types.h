@@ -25,6 +25,11 @@ class IDmaBuffer;
 /// \brief Forward declaration of \ref IProfiler
 class IProfiler;
 
+/// \brief Forward declaration of \ref IProfilerRecorder
+namespace profiling {
+class IProfilerRecorder;
+}
+
 /// \brief Event Handler
 enum class EventId : uint16_t {};
 
@@ -238,6 +243,15 @@ struct DmaInfo {
   uint64_t maxElementSize_;  ///< maximum amount of memory that can be transfer per each DMA command entry
   uint64_t maxElementCount_; ///< max number of DMA entries per DMA command
 };
+
+/// These are related to DMA transfers, intended for internal use only
+
+enum class CmaCopyType { TO_CMA, FROM_CMA }; // type of CMA
+using CmaCopyFunction = std::function<void(const std::byte* src, std::byte* dst, size_t size, CmaCopyType type)>;
+static constexpr auto defaultCmaCopyFunction = [](const std::byte* src, std::byte* dst, size_t size, CmaCopyType) {
+  std::copy(src, src + size, dst);
+};
+
 } // namespace rt
 
 namespace std {

@@ -28,10 +28,10 @@ void RuntimeImp::dumpFwTraces(DeviceId device) {
 
   deviceTracing.cmOutput_ = &cmOutputStream;
   deviceTracing.mmOutput_ = &mmOutputStream;
-  auto st = createStreamWithoutProfiling(device);
-  stopDeviceTracing(st, true);
-  waitForStreamWithoutProfiling(st);
-  destroyStreamWithoutProfiling(st);
+  auto st = doCreateStream(device);
+  doStopDeviceTracing(st, true);
+  doWaitForStream(st);
+  doDestroyStream(st);
   deviceTracing.cmOutput_ = oldCmOutput;
   deviceTracing.mmOutput_ = oldMmOutput;
 }

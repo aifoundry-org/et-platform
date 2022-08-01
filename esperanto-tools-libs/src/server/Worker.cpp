@@ -61,14 +61,13 @@ Worker::Worker(int socket, RuntimeImp& runtime, Server& server, ucred credential
   , socket_(socket) {
 
   runtime_.attach(this);
-  cmaCopyFunction_ = [pid = credentials.pid](const std::byte* src, std::byte* dst, size_t size,
-                                             RuntimeImp::CmaCopyType type) {
+  cmaCopyFunction_ = [pid = credentials.pid](const std::byte* src, std::byte* dst, size_t size, CmaCopyType type) {
     iovec local;
     iovec remote;
     local.iov_len = remote.iov_len = size;
 
     ssize_t res;
-    if (type == RuntimeImp::CmaCopyType::TO_CMA) {
+    if (type == CmaCopyType::TO_CMA) {
       remote.iov_base = const_cast<std::byte*>(src);
       local.iov_base = dst;
       res = process_vm_readv(pid, &local, 1, &remote, 1, 0);
@@ -78,8 +77,8 @@ Worker::Worker(int socket, RuntimeImp& runtime, Server& server, ucred credential
       res = process_vm_writev(pid, &local, 1, &remote, 1, 0);
     }
     if (res != static_cast<ssize_t>(size)) {
-      RT_LOG(WARNING) << "Error copying/writing from/to remote process with PID: " + std::to_string(pid) +
-                           " error: " + strerror(errno);
+      RT_LOG(WARNING) << "Error copying/writing from/to remote process with PID: " + std::to_string(pid) + " Src: "
+                      << std::hex << src << " Dst: " << dst << std::string{" error: "} + strerror(errno);
     };
   };
   runner_ = std::thread(&Worker::requestProcessor, this);
@@ -150,7 +149,7 @@ void Worker::processRequest(const req::Request& request) {
 
   case req::Type::MALLOC: {
     auto& req = std::get<req::Malloc>(request.payload_);
-    auto ptr = runtime_.mallocDeviceWithoutProfiling(req.device_, req.size_, req.alignment_);
+    auto ptr = runtime_.mallocDevice(req.device_, req.size_, req.alignment_);
     allocations_.insert(Allocation{req.device_, ptr});
     sendResponse({resp::Type::MALLOC, request.id_, resp::Malloc{reinterpret_cast<AddressT>(ptr)}});
     break;
@@ -163,7 +162,7 @@ void Worker::processRequest(const req::Request& request) {
       RT_LOG(WARNING) << "Trying to deallocate a non previous allocated buffer.";
       throw Exception("Trying to deallocate a non previous allocated buffer.");
     }
-    runtime_.freeDeviceWithoutProfiling(DeviceId{req.device_}, addr);
+    runtime_.freeDevice(DeviceId{req.device_}, addr);
     sendResponse({resp::Type::FREE, request.id_, std::monostate{}});
     break;
   }
@@ -172,8 +171,7 @@ void Worker::processRequest(const req::Request& request) {
     auto& req = std::get<req::Memcpy>(request.payload_);
     auto src = reinterpret_cast<std::byte*>(req.src_);
     auto dst = reinterpret_cast<std::byte*>(req.dst_);
-    auto evt =
-      runtime_.memcpyHostToDeviceWithoutProfiling(req.stream_, src, dst, req.size_, req.barrier_, cmaCopyFunction_);
+    auto evt = runtime_.memcpyHostToDevice(req.stream_, src, dst, req.size_, req.barrier_, cmaCopyFunction_);
     events_.emplace(evt);
     sendResponse({resp::Type::MEMCPY_H2D, request.id_, resp::Event{evt}});
     break;
@@ -183,8 +181,7 @@ void Worker::processRequest(const req::Request& request) {
     auto& req = std::get<req::Memcpy>(request.payload_);
     auto src = reinterpret_cast<std::byte*>(req.src_);
     auto dst = reinterpret_cast<std::byte*>(req.dst_);
-    auto evt =
-      runtime_.memcpyDeviceToHostWithoutProfiling(req.stream_, src, dst, req.size_, req.barrier_, cmaCopyFunction_);
+    auto evt = runtime_.memcpyDeviceToHost(req.stream_, src, dst, req.size_, req.barrier_, cmaCopyFunction_);
     events_.emplace(evt);
     sendResponse({resp::Type::MEMCPY_D2H, request.id_, resp::Event{evt}});
     break;
@@ -192,8 +189,7 @@ void Worker::processRequest(const req::Request& request) {
 
   case req::Type::MEMCPY_LIST_H2D: {
     auto& req = std::get<req::MemcpyList>(request.payload_);
-    auto evt =
-      runtime_.memcpyHostToDeviceWithoutProfiling(req.stream_, MemcpyList(req), req.barrier_, cmaCopyFunction_);
+    auto evt = runtime_.memcpyHostToDevice(req.stream_, MemcpyList(req), req.barrier_, cmaCopyFunction_);
     events_.emplace(evt);
     sendResponse({resp::Type::MEMCPY_LIST_H2D, request.id_, resp::Event{evt}});
     break;
@@ -201,8 +197,7 @@ void Worker::processRequest(const req::Request& request) {
 
   case req::Type::MEMCPY_LIST_D2H: {
     auto& req = std::get<req::MemcpyList>(request.payload_);
-    auto evt =
-      runtime_.memcpyDeviceToHostWithoutProfiling(req.stream_, MemcpyList(req), req.barrier_, cmaCopyFunction_);
+    auto evt = runtime_.memcpyDeviceToHost(req.stream_, MemcpyList(req), req.barrier_, cmaCopyFunction_);
     events_.emplace(evt);
     sendResponse({resp::Type::MEMCPY_LIST_D2H, request.id_, resp::Event{evt}});
     break;
@@ -210,7 +205,7 @@ void Worker::processRequest(const req::Request& request) {
 
   case req::Type::CREATE_STREAM: {
     auto& req = std::get<req::CreateStream>(request.payload_);
-    auto st = runtime_.createStreamWithoutProfiling(req.device_);
+    auto st = runtime_.createStream(req.device_);
     streams_.insert(st);
     sendResponse({resp::Type::CREATE_STREAM, request.id_, resp::CreateStream{st}});
     break;
@@ -222,7 +217,7 @@ void Worker::processRequest(const req::Request& request) {
       RT_LOG(WARNING) << "Trying to destroy a non previous created stream.";
       throw Exception("Trying to destroy a non previous created stream.");
     }
-    runtime_.destroyStreamWithoutProfiling(req.stream_);
+    runtime_.destroyStream(req.stream_);
     sendResponse({resp::Type::DESTROY_STREAM, request.id_, std::monostate{}});
     break;
   }

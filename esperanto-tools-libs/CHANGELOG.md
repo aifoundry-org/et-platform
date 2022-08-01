@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ```cpp
     virtual DmaInfo getDmaInfo(DeviceId deviceId) const = 0;  
   ```
+- small performance improvement to profiler
+- [SW-13614] refactored runtime internal implementation to follow NVI idiom; easing the implementation of common parts -profiling- (kind of template pattern).
+- [SW-13533] added profiling in client side. This profiling does not include internals, only runtime API.
 ### Changed
 - [SW-13523] updated DeviceProperties serialization and struct (see "runtime/Types.h") to expose two new fields:
   * tdp
@@ -21,8 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - deviceLayer 0.3.0 version hash pinned.
 - Convert from KB to MB the device sizes for L2 and L3 
 - Changed gitlab configuration to allow more memory in kubernetes instances
+- IRuntime interface has changed but these are no breaking changes:
+  * added CmaCopyFunction as an optional parameter to customize the way the data is copied from user-space virtual memory to CMA buffers. This is intended to be used internally and defaults to regular std::copy function.
 ### Deprecated
 ### Removed
+- ***BREAKING CHANGE***: tracing:
+  - profileEvent Class::LoadCode "loadAddress" will indeed contain the loadAddress instead of the entryPoint. This is actually a FIX but changes the old behavior
+  - profileEvent Class::KernelLaunch won't trace a meaningful loadAddress anymore. Still the field will be fill but with a -1 (0xFFFFFFFFFFFFFFFF)
+
 - ***BREAKING CHANGE***: [SW-13511] ***removed*** IDmaBuffers from the runtime API. All three following methods have been removed from the API:
   ```cpp
    virtual EventId memcpyHostToDevice(StreamId stream, const IDmaBuffer* h_src, std::byte* d_dst, size_t size, bool barrier = false)

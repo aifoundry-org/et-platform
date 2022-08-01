@@ -36,7 +36,7 @@ struct Command {
 class CommandSender {
 public:
   using CommandSentCallback = std::function<void(Command*)>;
-  explicit CommandSender(dev::IDeviceLayer& deviceLayer, profiling::IProfilerRecorder& profiler, int deviceId,
+  explicit CommandSender(dev::IDeviceLayer& deviceLayer, profiling::IProfilerRecorder* profiler, int deviceId,
                          int sqIdx);
   ~CommandSender();
 
@@ -53,6 +53,10 @@ public:
   void enable(EventId command);
   void setOnCommandSentCallback(CommandSentCallback callback);
 
+  void setProfiler(profiling::IProfilerRecorder* profiler) {
+    profiler_ = profiler;
+  }
+
 private:
   CommandSender(const CommandSender&) = delete;
   CommandSender& operator=(const CommandSender&) = delete;
@@ -65,7 +69,7 @@ private:
   std::thread runner_;
   std::condition_variable condVar_;
   dev::IDeviceLayer& deviceLayer_;
-  profiling::IProfilerRecorder& profiler_;
+  profiling::IProfilerRecorder* profiler_;
   CommandSentCallback callback_;
   int deviceId_;
   int sqIdx_;

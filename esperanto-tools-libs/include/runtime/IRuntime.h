@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "IProfiler.h"
 #include "Types.h"
 #include <chrono>
 #include <cstddef>
@@ -42,14 +43,14 @@ public:
   ///
   /// @returns a vector containing all device handlers
   ///
-  virtual std::vector<DeviceId> getDevices() = 0;
+  std::vector<DeviceId> getDevices();
 
   /// \brief Returns the properties of a given device
   ///
   /// @param[in] device handler indicating the device
   ///
   /// @returns the properties for the requested device
-  virtual DeviceProperties getDeviceProperties(DeviceId device) const = 0;
+  DeviceProperties getDeviceProperties(DeviceId device) const;
 
   /// \brief Allocates memory in the device, returns a device memory pointer. One can't use this pointer directly from
   /// the host, this pointer is intended to be used for memory operations between the host and the device.
@@ -60,7 +61,7 @@ public:
   ///
   /// @returns a device memory pointer
   ///
-  virtual std::byte* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) = 0;
+  std::byte* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize);
 
   /// \brief Deallocates previously allocated memory on the given device.
   ///
@@ -69,7 +70,7 @@ public:
   /// @param[in] buffer device memory pointer previously allocated with
   /// mallocDevice to be deallocated
   ///
-  virtual void freeDevice(DeviceId device, std::byte* buffer) = 0;
+  void freeDevice(DeviceId device, std::byte* buffer);
 
   /// \brief Creates a new stream and associates it to the given device. A stream is an abstraction of a "pipeline"
   /// where you can push operations (mem copies or kernel launches) and enforce the dependencies between these
@@ -79,14 +80,14 @@ public:
   ///
   /// @returns a stream handler
   ///
-  virtual StreamId createStream(DeviceId device) = 0;
+  StreamId createStream(DeviceId device);
 
   /// \brief Destroys a previously created stream
   ///
   /// @param[in] stream handler to the stream to be destroyed
   ///
   ///
-  virtual void destroyStream(StreamId stream) = 0;
+  void destroyStream(StreamId stream);
 
   /// \brief Loads an elf into the device. The caller will provide a byte code containing the elf representation and its
   /// size. Host memory.
@@ -98,19 +99,19 @@ public:
   /// kernelLaunch and the kernel load address.
   ///
   /// NOTE: remember to not deallocate the elf memory \param elf until the EventId from \ref LoadCodeResult is completed
-  virtual LoadCodeResult loadCode(StreamId stream, const std::byte* elf, size_t elf_size) = 0;
+  LoadCodeResult loadCode(StreamId stream, const std::byte* elf, size_t elf_size);
 
   /// \brief Unloads a previously loaded elf code, identified by the kernel handler
   ///
   /// @param[in] kernel a handler to the code that must be unloaded
   ///
-  virtual void unloadCode(KernelId kernel) = 0;
+  void unloadCode(KernelId kernel);
 
   /// \brief Queues a execution work into a stream. The work is identified by the kernel handler, which has been
   /// previously loaded into the device which is associated to the stream. The parameters of the kernel are given by
-  /// kernel_args and kernel_args_size; these parameters will be copied from the host memory to the device memory by the
-  /// runtime. The firmware will load these parameters into RA register, the kernel code should cast this register to
-  /// the expected types. The kernel execution is always asynchronous.
+  /// kernel_args and kernel_args_size; these parameters will be copied from the host memory to the device memory by
+  /// the runtime. The firmware will load these parameters into RA register, the kernel code should cast this register
+  /// to the expected types. The kernel execution is always asynchronous.
   ///
   /// @param[in] stream handler indicating in which stream the kernel will be executed. The kernel code have to be
   /// registered into the device associated to the stream previously.
@@ -131,12 +132,12 @@ public:
   /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to syncrhonize when the kernel
   /// ends the execution.
   ///
-  virtual EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                               uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
-                               std::optional<UserTrace> userTraceConfig = std::nullopt) = 0;
+  EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
+                       uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
+                       std::optional<UserTrace> userTraceConfig = std::nullopt);
 
-  /// \brief Queues a memcpy operation from host memory to device memory. The device memory must be previously allocated
-  /// by a mallocDevice.
+  /// \brief Queues a memcpy operation from host memory to device memory. The device memory must be previously
+  /// allocated by a mallocDevice.
   ///
   /// @param[in] stream handler indicating in which stream to queue the memcpy operation
   /// @param[in] h_src host memory buffer to copy from
@@ -145,14 +146,16 @@ public:
   /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
   /// issued into this stream finish (a barrier). Usually the memcpies from host to device can run in parallel, hence
   /// the default value is false All memcpy operations are always asynchronous.
+  /// @param[in] cmaCopyFunction this parameter allows to customize the function used to copy from user-space virtual
+  /// memory to the CMA buffer. Intended for internal usage, regular API user shouldn't modify the default value.
   ///
   /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
   /// ends.
   ///
   /// NOTE: the host memory pointer must be kept alive until the operation has completely ended in device.
   ///
-  virtual EventId memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
-                                     bool barrier = false) = 0;
+  EventId memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
+                             bool barrier = false, const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
 
   /// \brief Queues a memcpy operation from device memory to host memory. The device memory must be a valid region
   /// previously allocated by a mallocDevice; the host memory must be a previously allocated memory in the host by the
@@ -165,14 +168,16 @@ public:
   /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
   /// issued into this stream finish (a barrier). Usually the memcpies from device to host must wait till a previous
   /// kernel execution finishes, hence the default value is true All memcpy operations are always asynchronous.
+  /// @param[in] cmaCopyFunction this parameter allows to customize the function used to copy from user-space virtual
+  /// memory to the CMA buffer. Intended for internal usage, regular API user shouldn't modify the default value.
   ///
   /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
   /// ends.
   ///
   /// NOTE: the host memory pointer must be kept alive until the operation has completely ended in device.
   ///
-  virtual EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
-                                     bool barrier = true) = 0;
+  EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
+                             bool barrier = true, const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
 
   /// \brief Queues many memcpy operations from host memory to device memory. These operations are defined in struct
   /// \ref MemcpyList. The device memory must be a valid region previously allocated by a mallocDevice; the host memory
@@ -184,11 +189,14 @@ public:
   /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
   /// issued into this stream finish (a barrier). Usually the memcpies from device to host must wait till a previous
   /// kernel execution finishes, hence the default value is false. All memcpy operations are always asynchronous.
+  /// @param[in] cmaCopyFunction this parameter allows to customize the function used to copy from user-space virtual
+  /// memory to the CMA buffer. Intended for internal usage, regular API user shouldn't modify the default value.
   ///
   /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
   /// ends.
   ///
-  virtual EventId memcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier = false) = 0;
+  EventId memcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier = false,
+                             const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
 
   /// \brief Queues many memcpy operations from device memory to host memory. These operations are defined in struct
   /// \ref MemcpyList. The device memory must be a valid region previously allocated by a mallocDevice; the host memory
@@ -200,34 +208,37 @@ public:
   /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
   /// issued into this stream finish (a barrier). Usually the memcpies from device to host must wait till a previous
   /// kernel execution finishes, hence the default value is true All memcpy operations are always asynchronous.
+  /// @param[in] cmaCopyFunction this parameter allows to customize the function used to copy from user-space virtual
+  /// memory to the CMA buffer. Intended for internal usage, regular API user shouldn't modify the default value.
   ///
   /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
   /// ends.
   ///
-  virtual EventId memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier = true) = 0;
+  EventId memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier = true,
+                             const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
 
   /// \brief This will block the caller thread until the given event is dispatched or the timeout is reached. This
   /// primitive allows to synchronize with the device execution.
   ///
   /// @param[in] event is the event to wait for, result of a memcpy operation or a
   /// kernel launch.
-  /// @param[in] timeout is the number of seconds to wait till aborting the wait. If timeout is 0 seconds, then it won't
-  /// block in any case.
+  /// @param[in] timeout is the number of seconds to wait till aborting the wait. If timeout is 0 seconds, then it
+  /// won't block in any case.
   ///
   /// @returns false if the timeout is reached, true otherwise.
   ///
-  virtual bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) = 0;
+  bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24));
 
-  /// \brief This will block the caller thread until all commands issued to the given stream finish or if the timeout is
-  /// reached. This primitive allows to synchronize with the device execution.
+  /// \brief This will block the caller thread until all commands issued to the given stream finish or if the timeout
+  /// is reached. This primitive allows to synchronize with the device execution.
   ///
   /// @param[in] stream this is the stream to synchronize with.
-  /// @param[in] timeout is the number of seconds to wait till aborting the wait. If timeout is 0 seconds, then it won't
-  /// block in any case.
+  /// @param[in] timeout is the number of seconds to wait till aborting the wait. If timeout is 0 seconds, then it
+  /// won't block in any case.
   ///
   /// @returns false if the timeout is reached, true otherwise.
   ///
-  virtual bool waitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) = 0;
+  bool waitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24));
 
   /// \brief This will return a list of errors and their execution context (if any)
   ///
@@ -236,7 +247,7 @@ public:
   ///
   /// @returns StreamStatus contains the state of the associated stream.
   ///
-  virtual std::vector<StreamError> retrieveStreamErrors(StreamId stream) = 0;
+  std::vector<StreamError> retrieveStreamErrors(StreamId stream);
 
   /// \brief This callback (when set) will be automatically called when a kernel abort happens. This is implemented
   /// as a workaround (SW-13045).
@@ -244,7 +255,7 @@ public:
   /// @param[in] callback see \ref KernelAbortedCallback. This is the callback which will be called when a kernel abort
   /// happens
   ///
-  virtual void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) = 0;
+  void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback);
 
   /// \brief This callback (when set) will be automatically called when a new StreamError occurs, making the polling
   /// through retrieveStreamErrors unnecessary.
@@ -252,17 +263,22 @@ public:
   /// @param[in] callback see \ref StreamErrorCallbac. This is the callback which will be called when a StreamError
   /// occurs.
   ///
-  virtual void setOnStreamErrorsCallback(StreamErrorCallback callback) = 0;
+  void setOnStreamErrorsCallback(StreamErrorCallback callback);
 
-  /// \brief Virtual Destructor to enable polymorphic release of the runtime instances
-  virtual ~IRuntime() = default;
+  /// \brief Sets a profiler to be used by runtime.
+  void setProfiler(std::unique_ptr<profiling::IProfilerRecorder> profiler) {
+    profiler_ = std::move(profiler);
+    onProfilerChanged();
+  }
 
   /// \brief Returns a pointer to the profiler interface; don't delete/free this pointer since this is owned by the
   /// runtime itself.
   ///
-  /// @returns IProfiler an interface to the profiler. See \ref IProfiler
+  /// @returns IProfilerRecorder an interface to the profiler. See \ref IProfilerRecorder
   ///
-  virtual IProfiler* getProfiler() = 0;
+  profiling::IProfilerRecorder* getProfiler() const {
+    return profiler_.get();
+  }
 
   /// \brief Setup the device for getting master minion and compute minion traces. Tracing is done using internal
   /// buffers which, if overflow, they will overwrite the start of the buffer. In the future there will be a mechanism
@@ -271,8 +287,8 @@ public:
   /// @param[in] stream handler indicating in which stream to queue the setup operation
   /// @param[in] shireMask indicates which shires will be traced
   /// @param[in] threadMask indicates which threads, for each shire, will be traced
-  /// @param[in] eventMask indicates which events to be traced. NOTE: there are some lacking information on what are the
-  /// events we can trace
+  /// @param[in] eventMask indicates which events to be traced. NOTE: there are some lacking information on what are
+  /// the events we can trace
   /// @param[in] filterMask bit mask representing a list of filters for a given event to trace. NOTE: we don't know
   /// which are these filters yet
   /// @param[in] barrier this parameter indicates if the setup operation should be postponed till all previous works
@@ -281,24 +297,23 @@ public:
   /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the setup
   /// ends
   ///
-  virtual EventId setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
-                                     uint32_t filterMask, bool barrier = true) = 0;
+  EventId setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
+                             uint32_t filterMask, bool barrier = true);
 
-  /// \brief Instructs the device to start tracing, and let the trace results on the output binary streams provided, one
-  /// or two binary output streams can be provided.
+  /// \brief Instructs the device to start tracing, and let the trace results on the output binary streams provided,
+  /// one or two binary output streams can be provided.
   ///
   /// @param[in] stream handler indicating in which stream to queue the start tracing operation.
   /// @param[out] mmOutput binary stream where master minion device traces will be recorded. Can be null if don't want
   /// master minion traces.
-  /// @param[out] cmOutput binary stream where computer minion device traces will be recorded. Can be null if don't want
-  /// computer minion traces.
+  /// @param[out] cmOutput binary stream where computer minion device traces will be recorded. Can be null if don't
+  /// want computer minion traces.
   /// @param[in] barrier this parameter indicates if the start tracing operation should be postponed till all previous
   /// works issued into this stream finish (a barrier).
   ///
   /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize.
   ///
-  virtual EventId startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput,
-                                     bool barrier = true) = 0;
+  EventId startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput, bool barrier = true);
 
   /// \brief Instructs the device to stop tracing.
   ///
@@ -308,11 +323,11 @@ public:
   ///
   /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize.
   ///
-  virtual EventId stopDeviceTracing(StreamId stream, bool barrier = true) = 0;
+  EventId stopDeviceTracing(StreamId stream, bool barrier = true);
 
   /// \brief Instructs the device to abort given command.
-  /// NOTE: as per current firmware implementation, aborting a command will have undesirable side effects on the rest of
-  /// the submitted commands to the same virtual queue. So, after aborting a command it could potentially affect the
+  /// NOTE: as per current firmware implementation, aborting a command will have undesirable side effects on the rest
+  /// of the submitted commands to the same virtual queue. So, after aborting a command it could potentially affect the
   /// rest of the executions
   /// BUG: individual memcpyHostToDevice and memcpyDeviceToHost commands can not be aborted individually right now. The
   /// could be aborted through \ref abortStream.
@@ -321,20 +336,20 @@ public:
   /// @param[in] timeout indicates the maximum time trying to QUEUE an abort command into the device. If the timeout is
   /// reached and the runtime was not able to push the command into the device, an Exception will be thrown
   ///
-  /// @returns EventId is a handler of the abort command itself which can be waited for (waitForEventId) to synchronize.
+  /// @returns EventId is a handler of the abort command itself which can be waited for (waitForEventId) to
+  /// synchronize.
   ///
-  virtual EventId abortCommand(EventId commandId,
-                               std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) = 0;
+  EventId abortCommand(EventId commandId, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
 
   /// \brief Instructs the device to abort all outstanding commands on a given stream. This will affect to all commands
   /// previously issued to given stream, later commands will execute normally. NOTE: as per current firmware
-  /// implementation, aborting a command will have undesirable side effects on the rest of the submitted commands to the
-  /// same virtual queue. So, after aborting a command it could potentially affect the rest of the executions.
+  /// implementation, aborting a command will have undesirable side effects on the rest of the submitted commands to
+  /// the same virtual queue. So, after aborting a command it could potentially affect the rest of the executions.
   ///
   /// @param[in] streamId indicates the stream to abort commands
   ///
   /// @returns EventId is a handler of the abortStream which can be waited for (waitForEventId) to synchronize.
-  virtual EventId abortStream(StreamId streamId) = 0;
+  EventId abortStream(StreamId streamId);
 
   /// \brief Returns the DmaInfo of given device (see \ref DmaInfo). This DmaInfo contains max size for each operation
   /// in a memcpy list command and max number of operations allowed in a single memcpy list command.
@@ -343,7 +358,16 @@ public:
   ///
   /// @returns DmaInfo contains max number of operations allowed in a single memcpy list command and max size for each
   /// operation.
-  virtual DmaInfo getDmaInfo(DeviceId deviceId) const = 0;
+  DmaInfo getDmaInfo(DeviceId deviceId) const;
+
+  /// \brief Virtual Destructor to enable polymorphic release of the runtime instances
+  virtual ~IRuntime() = default;
+  ///
+
+  /// \brief Constructor to initialize with a dummy profiler
+  IRuntime();
+  ///
+
   ///
   /// \brief Factory method to instantiate a IRuntime implementation
   ///
@@ -351,6 +375,61 @@ public:
   /// @returns RuntimePtr an IRuntime instance. See \ref dev::IDeviceLayer
   ///
   static RuntimePtr create(dev::IDeviceLayer* deviceLayer, Options options = getDefaultOptions());
+
+private:
+  std::unique_ptr<profiling::IProfilerRecorder> profiler_;
+
+  // NVI applied, all public interface is non-virtual; customization is in the private part
+  virtual std::vector<DeviceId> doGetDevices() = 0;
+
+  virtual DeviceProperties doGetDeviceProperties(DeviceId device) const = 0;
+
+  virtual LoadCodeResult doLoadCode(StreamId stream, const std::byte* elf, size_t elf_size) = 0;
+  virtual void doUnloadCode(KernelId kernel) = 0;
+
+  virtual std::byte* doMallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) = 0;
+  virtual void doFreeDevice(DeviceId device, std::byte* buffer) = 0;
+
+  virtual StreamId doCreateStream(DeviceId device) = 0;
+  virtual void doDestroyStream(StreamId stream) = 0;
+
+  virtual EventId doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args,
+                                 size_t kernel_args_size, uint64_t shire_mask, bool barrier, bool flushL3,
+                                 std::optional<UserTrace> userTraceConfig) = 0;
+
+  virtual EventId doMemcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier,
+                                       const CmaCopyFunction& cmaCopyFunction) = 0;
+  virtual EventId doMemcpyDeviceToHost(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier,
+                                       const CmaCopyFunction& cmaCopyFunction) = 0;
+  virtual EventId doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier,
+                                       const CmaCopyFunction& cmaCopyFunction) = 0;
+  virtual EventId doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier,
+                                       const CmaCopyFunction& cmaCopyFunction) = 0;
+
+  virtual bool doWaitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) = 0;
+  virtual bool doWaitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) = 0;
+
+  virtual EventId doSetupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
+                                       uint32_t filterMask, bool barrier) = 0;
+  virtual EventId doStartDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput,
+                                       bool barrier) = 0;
+
+  virtual EventId doStopDeviceTracing(StreamId stream, bool barrier) = 0;
+
+  virtual EventId doAbortCommand(EventId commandId,
+                                 std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) = 0;
+
+  virtual EventId doAbortStream(StreamId streamId) = 0;
+
+  virtual void doSetOnStreamErrorsCallback(StreamErrorCallback callback) = 0;
+
+  virtual void doSetOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) = 0;
+
+  virtual std::vector<StreamError> doRetrieveStreamErrors(StreamId stream) = 0;
+
+  virtual DmaInfo doGetDmaInfo(DeviceId deviceId) const = 0;
+
+  virtual void onProfilerChanged(){};
 };
 
 } // namespace rt

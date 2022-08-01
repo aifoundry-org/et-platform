@@ -8,15 +8,11 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
+#include "ProfilerImp.h"
 #include "Protocol.h"
 #include "StreamManager.h"
-#include "runtime/IRuntime.h"
 #include "runtime/Types.h"
-#include <condition_variable>
 #include <hostUtils/threadPool/ThreadPool.h>
-#include <mutex>
-#include <thread>
-#include <unordered_map>
 
 namespace rt {
 class Client : public IRuntime {
@@ -25,59 +21,58 @@ public:
 
   ~Client();
 
-  std::vector<DeviceId> getDevices() override;
-  std::byte* mallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) override;
-  void freeDevice(DeviceId device, std::byte* buffer) override;
-  StreamId createStream(DeviceId device) override;
-  void destroyStream(StreamId stream) override;
-  LoadCodeResult loadCode(StreamId stream, const std::byte* elf, size_t elf_size) override;
-  void unloadCode(KernelId kernel) override;
-  EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                       uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
-                       std::optional<UserTrace> userTraceConfig = std::nullopt) override;
-  EventId memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
-                             bool barrier = false) override;
+  std::vector<DeviceId> doGetDevices() override;
+  std::byte* doMallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) override;
+  void doFreeDevice(DeviceId device, std::byte* buffer) override;
+  StreamId doCreateStream(DeviceId device) override;
+  void doDestroyStream(StreamId stream) override;
+  LoadCodeResult doLoadCode(StreamId stream, const std::byte* elf, size_t elf_size) override;
+  void doUnloadCode(KernelId kernel) override;
+  EventId doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
+                         uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
+                         std::optional<UserTrace> userTraceConfig = std::nullopt) override;
+  EventId doMemcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size, bool barrier,
+                               const CmaCopyFunction&) override;
 
-  EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
-                             bool barrier = true) override;
+  EventId doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size, bool barrier,
+                               const CmaCopyFunction&) override;
 
-  EventId memcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier = false) override;
+  EventId doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier, const CmaCopyFunction&) override;
 
-  EventId memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier = true) override;
+  EventId doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier, const CmaCopyFunction&) override;
 
-  bool waitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) override;
+  bool doWaitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) override;
 
-  bool waitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) override;
+  bool doWaitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) override;
 
-  std::vector<StreamError> retrieveStreamErrors(StreamId stream) override;
+  std::vector<StreamError> doRetrieveStreamErrors(StreamId stream) override;
 
-  void setOnStreamErrorsCallback(StreamErrorCallback callback) override;
+  void doSetOnStreamErrorsCallback(StreamErrorCallback callback) override;
 
-  IProfiler* getProfiler() override;
-
-  EventId setupDeviceTracing(StreamId, uint32_t, uint32_t, uint32_t, uint32_t, bool) override {
+  EventId doSetupDeviceTracing(StreamId, uint32_t, uint32_t, uint32_t, uint32_t, bool) override {
     throw Exception("Not implemented.");
   }
 
-  EventId startDeviceTracing(StreamId, std::ostream*, std::ostream*, bool) override {
+  EventId doStartDeviceTracing(StreamId, std::ostream*, std::ostream*, bool) override {
     throw Exception("Not implemented.");
   }
 
-  EventId stopDeviceTracing(StreamId, bool) override {
+  EventId doStopDeviceTracing(StreamId, bool) override {
     throw Exception("Not implemented.");
   }
-  DeviceProperties getDeviceProperties(DeviceId device) const override;
+  DeviceProperties doGetDeviceProperties(DeviceId device) const override;
 
-  void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) override {
+  void doSetOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) override {
     unused(callback);
     throw Exception("Not implemented");
   }
 
-  EventId abortCommand(EventId commandId, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) override;
+  EventId doAbortCommand(EventId commandId,
+                         std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) override;
 
-  EventId abortStream(StreamId streamId) override;
+  EventId doAbortStream(StreamId streamId) override;
 
-  DmaInfo getDmaInfo(DeviceId deviceId) const final;
+  DmaInfo doGetDmaInfo(DeviceId deviceId) const final;
 
 private:
   template <typename Payload> resp::Response::Payload_t sendRequestAndWait(req::Type type, Payload payload) {
@@ -87,8 +82,6 @@ private:
   }
   void dispatch(EventId event);
   void handShake();
-  bool waitForEventWithoutProfiling(EventId event, std::chrono::seconds timeout);
-  bool waitForStreamWithoutProfiling(StreamId stream, std::chrono::seconds timeout);
 
   void sendRequest(const req::Request& request);
   void processResponse(const resp::Response& response);
@@ -127,11 +120,13 @@ private:
     bool valid_ = false;
   };
 
+  std::vector<DeviceId> devices_;
   std::vector<DeviceLayerProperties> deviceLayerProperties_;
   std::unordered_map<resp::Id, std::unique_ptr<Waiter>> responseWaiters_;
   std::unordered_map<EventId, StreamId> eventToStream_;
   std::unordered_map<StreamId, std::vector<EventId>> streamToEvents_;
   std::unordered_map<StreamId, std::vector<StreamError>> streamErrors_;
+
   std::condition_variable eventSync_;
   std::thread listener_;
   std::mutex mutex_;

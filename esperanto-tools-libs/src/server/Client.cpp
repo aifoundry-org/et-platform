@@ -10,24 +10,17 @@
 
 #include "Client.h"
 #include "Constants.h"
+#include "NetworkException.h"
+#include "ProfilerImp.h"
+#include "Protocol.h"
 #include "Utils.h"
-#include "runtime/IProfileEvent.h"
 #include "runtime/Types.h"
-#include "server/NetworkException.h"
-#include "server/Protocol.h"
-#include <cereal/archives/portable_binary.hpp>
-#include <chrono>
-#include <condition_variable>
-#include <cstring>
-#include <g3log/loglevels.hpp>
-#include <mutex>
+
 #include <poll.h>
 #include <sstream>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <thread>
 #include <unistd.h>
-#include <variant>
 
 using namespace rt;
 
@@ -41,7 +34,7 @@ struct MemStream : public std::streambuf {
   }
 };
 } // namespace
-void Client::setOnStreamErrorsCallback(std::function<void(EventId, StreamError const&)> callback) {
+void Client::doSetOnStreamErrorsCallback(std::function<void(EventId, StreamError const&)> callback) {
   SpinLock lock(mutex_);
   streamErrorCallback_ = std::move(callback);
 }
@@ -55,6 +48,7 @@ Client::~Client() {
 }
 
 Client::Client(const std::string& socketPath) {
+
   socket_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
 
   sockaddr_un addr;
@@ -132,15 +126,7 @@ void Client::responseProcessor() {
   RT_LOG(INFO) << "End listener thread.";
 }
 
-bool Client::waitForEvent(EventId event, std::chrono::seconds timeout) {
-  return waitForEventWithoutProfiling(event, timeout);
-}
-
-bool Client::waitForStream(StreamId stream, std::chrono::seconds timeout) {
-  return waitForStreamWithoutProfiling(stream, timeout);
-}
-
-bool Client::waitForEventWithoutProfiling(EventId event, std::chrono::seconds timeout) {
+bool Client::doWaitForEvent(EventId event, std::chrono::seconds timeout) {
   SpinLock lock(mutex_);
   if (eventToStream_.find(event) == end(eventToStream_)) {
     return true;
@@ -149,7 +135,7 @@ bool Client::waitForEventWithoutProfiling(EventId event, std::chrono::seconds ti
                              [this, event] { return eventToStream_.find(event) == end(eventToStream_); });
 }
 
-bool Client::waitForStreamWithoutProfiling(StreamId stream, std::chrono::seconds timeout) {
+bool Client::doWaitForStream(StreamId stream, std::chrono::seconds timeout) {
   auto start = std::chrono::steady_clock::now();
   std::unique_lock lock(mutex_);
   auto events = find(streamToEvents_, stream, "Stream does not exist")->second;
@@ -159,7 +145,7 @@ bool Client::waitForStreamWithoutProfiling(StreamId stream, std::chrono::seconds
   }
   for (auto e : events) {
     auto now = std::chrono::steady_clock::now();
-    if (!waitForEventWithoutProfiling(e, timeout - std::chrono::duration_cast<std::chrono::seconds>(now - start))) {
+    if (!doWaitForEvent(e, timeout - std::chrono::duration_cast<std::chrono::seconds>(now - start))) {
       return false;
     }
   }
@@ -264,7 +250,7 @@ void Client::registerEvent(EventId evt, StreamId st) {
   streamToEvents_[st].emplace_back(evt);
 }
 
-EventId Client::abortStream(StreamId st) {
+EventId Client::doAbortStream(StreamId st) {
   auto payload = sendRequestAndWait(req::Type::ABORT_STREAM, req::AbortStream{st});
   return registerEvent(payload, st);
 }
@@ -287,39 +273,39 @@ void Client::handShake() {
   }
 }
 
-EventId Client::memcpyDeviceToHost(StreamId st, std::byte const* src, std::byte* dst, unsigned long size,
-                                   bool barrier) {
+EventId Client::doMemcpyDeviceToHost(StreamId st, std::byte const* src, std::byte* dst, unsigned long size,
+                                     bool barrier, const CmaCopyFunction&) {
   auto payload = sendRequestAndWait(req::Type::MEMCPY_D2H, req::Memcpy{st, reinterpret_cast<AddressT>(src),
                                                                        reinterpret_cast<AddressT>(dst), size, barrier});
   return registerEvent(payload, st);
 }
-StreamId Client::createStream(DeviceId deviceId) {
+StreamId Client::doCreateStream(DeviceId deviceId) {
   auto payload = sendRequestAndWait(req::Type::CREATE_STREAM, req::CreateStream{deviceId});
   auto st = std::get<resp::CreateStream>(payload).stream_;
   SpinLock lock(mutex_);
   streamToEvents_[st] = {};
   return st;
 }
-std::byte* Client::mallocDevice(DeviceId device, unsigned long size, unsigned int alignment) {
+std::byte* Client::doMallocDevice(DeviceId device, unsigned long size, unsigned int alignment) {
   auto payload = sendRequestAndWait(req::Type::MALLOC, req::Malloc{size, device, alignment});
   return reinterpret_cast<std::byte*>(std::get<resp::Malloc>(payload).address_);
 }
-EventId Client::memcpyDeviceToHost(StreamId st, MemcpyList memcpyList, bool barrier) {
+EventId Client::doMemcpyDeviceToHost(StreamId st, MemcpyList memcpyList, bool barrier, const CmaCopyFunction&) {
   auto payload = sendRequestAndWait(req::Type::MEMCPY_LIST_D2H, req::MemcpyList{memcpyList, st, barrier});
   return registerEvent(payload, st);
 }
-EventId Client::memcpyHostToDevice(StreamId st, std::byte const* src, std::byte* dst, unsigned long size,
-                                   bool barrier) {
+EventId Client::doMemcpyHostToDevice(StreamId st, std::byte const* src, std::byte* dst, unsigned long size,
+                                     bool barrier, const CmaCopyFunction&) {
   auto payload = sendRequestAndWait(req::Type::MEMCPY_H2D, req::Memcpy{st, reinterpret_cast<AddressT>(src),
                                                                        reinterpret_cast<AddressT>(dst), size, barrier});
   return registerEvent(payload, st);
 }
-void Client::freeDevice(DeviceId device, std::byte* ptr) {
+void Client::doFreeDevice(DeviceId device, std::byte* ptr) {
   sendRequestAndWait(req::Type::FREE, req::Free{device, reinterpret_cast<AddressT>(ptr)});
 }
-EventId Client::kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                             uint64_t shire_mask, bool barrier, bool flushL3,
-                             std::optional<UserTrace> userTraceConfig) {
+EventId Client::doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
+                               uint64_t shire_mask, bool barrier, bool flushL3,
+                               std::optional<UserTrace> userTraceConfig) {
   std::vector<std::byte> kernelArgs;
   std::copy(kernel_args, kernel_args + kernel_args_size, std::back_inserter(kernelArgs));
   auto payload = sendRequestAndWait(req::Type::KERNEL_LAUNCH, req::KernelLaunch{stream, kernel, shire_mask, kernelArgs,
@@ -327,22 +313,20 @@ EventId Client::kernelLaunch(StreamId stream, KernelId kernel, const std::byte* 
   return registerEvent(payload, stream);
 }
 
-EventId Client::abortCommand(EventId evt, std::chrono::milliseconds timeout) {
+EventId Client::doAbortCommand(EventId evt, std::chrono::milliseconds timeout) {
   SpinLock lock(mutex_);
   auto st = find(eventToStream_, evt, "Trying to abort a non existing command.")->second;
   auto payload = sendRequestAndWait(req::Type::ABORT_COMMAND, req::AbortCommand{evt, timeout});
   return registerEvent(payload, st);
 }
 
-std::vector<StreamError> Client::retrieveStreamErrors(StreamId st) {
+std::vector<StreamError> Client::doRetrieveStreamErrors(StreamId st) {
   SpinLock lock(mutex_);
   auto errors = std::move(streamErrors_[st]);
   return errors;
 }
-IProfiler* Client::getProfiler() {
-  throw Exception("UNIMPLEMENTED, YET");
-}
-LoadCodeResult Client::loadCode(StreamId st, std::byte const* data, unsigned long size) {
+
+LoadCodeResult Client::doLoadCode(StreamId st, std::byte const* data, unsigned long size) {
   std::vector<std::byte> elf;
   elf.reserve(size);
   std::copy(data, data + size, std::back_inserter(elf));
@@ -356,18 +340,18 @@ LoadCodeResult Client::loadCode(StreamId st, std::byte const* data, unsigned lon
   return r;
 }
 
-std::vector<DeviceId> Client::getDevices() {
+std::vector<DeviceId> Client::doGetDevices() {
   auto payload = sendRequestAndWait(req::Type::GET_DEVICES, std::monostate{});
   return std::get<resp::GetDevices>(payload).devices_;
 }
-void Client::unloadCode(KernelId kid) {
+void Client::doUnloadCode(KernelId kid) {
   sendRequestAndWait(req::Type::UNLOAD_CODE, req::UnloadCode{kid});
 }
-EventId Client::memcpyHostToDevice(StreamId st, MemcpyList memcpyList, bool barrier) {
+EventId Client::doMemcpyHostToDevice(StreamId st, MemcpyList memcpyList, bool barrier, const CmaCopyFunction&) {
   auto payload = sendRequestAndWait(req::Type::MEMCPY_LIST_H2D, req::MemcpyList{memcpyList, st, barrier});
   return registerEvent(payload, st);
 }
-void Client::destroyStream(StreamId stream) {
+void Client::doDestroyStream(StreamId stream) {
   SpinLock lock(mutex_);
   find(streamToEvents_, stream, "Stream does not exist");
   lock.unlock();
@@ -380,7 +364,7 @@ void Client::destroyStream(StreamId stream) {
   }
 }
 
-DmaInfo Client::getDmaInfo(DeviceId deviceId) const {
+DmaInfo Client::doGetDmaInfo(DeviceId deviceId) const {
   auto idx = static_cast<uint64_t>(deviceId);
   if (idx >= deviceLayerProperties_.size()) {
     throw Exception("Invalid device");
@@ -388,7 +372,7 @@ DmaInfo Client::getDmaInfo(DeviceId deviceId) const {
   return deviceLayerProperties_[idx].dmaInfo_;
 }
 
-DeviceProperties Client::getDeviceProperties(DeviceId device) const {
+DeviceProperties Client::doGetDeviceProperties(DeviceId device) const {
   auto idx = static_cast<uint64_t>(device);
   if (idx >= deviceLayerProperties_.size()) {
     throw Exception("Invalid device");

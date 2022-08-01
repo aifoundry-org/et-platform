@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 #pragma once
 #include "ProfilerImp.h"
+#include "runtime/IProfileEvent.h"
 
 #include <optional>
 #include <tuple>
@@ -18,7 +19,7 @@ namespace rt::profiling {
 
 class ScopedProfileEvent {
 public:
-  explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, StreamId streamId, KernelId kernelId,
+  explicit ScopedProfileEvent(Class cls, IProfiler& profiler, StreamId streamId, KernelId kernelId,
                               uint64_t loadAddress)
     : profiler_(profiler)
     , event_{Type::Complete, cls} {
@@ -27,31 +28,31 @@ public:
     event_.setLoadAddress(loadAddress);
     init();
   }
-  explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, KernelId kernelId)
+  explicit ScopedProfileEvent(Class cls, IProfiler& profiler, KernelId kernelId)
     : profiler_(profiler)
     , event_{Type::Complete, cls} {
     event_.setKernelId(kernelId);
     init();
   }
-  explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, DeviceId deviceId)
+  explicit ScopedProfileEvent(Class cls, IProfiler& profiler, DeviceId deviceId)
     : profiler_(profiler)
     , event_{Type::Complete, cls} {
     event_.setDeviceId(deviceId);
     init();
   }
-  explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, StreamId streamId)
+  explicit ScopedProfileEvent(Class cls, IProfiler& profiler, StreamId streamId)
     : profiler_(profiler)
     , event_{Type::Complete, cls} {
     event_.setStream(streamId);
     init();
   }
-  explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler, EventId eventId)
+  explicit ScopedProfileEvent(Class cls, IProfiler& profiler, EventId eventId)
     : profiler_(profiler)
     , event_{Type::Complete, cls} {
     event_.setEvent(eventId);
     init();
   }
-  explicit ScopedProfileEvent(Class cls, IProfilerRecorder& profiler)
+  explicit ScopedProfileEvent(Class cls, IProfiler& profiler)
     : profiler_(profiler)
     , event_{Type::Complete, cls} {
     init();
@@ -82,7 +83,7 @@ public:
 
   ~ScopedProfileEvent() {
     event_.setDuration(ProfileEvent::Clock::now() - event_.getTimeStamp());
-    profiler_.record(event_);
+    static_cast<IProfilerRecorder&>(profiler_).record(event_);
   }
 
   ScopedProfileEvent(const ScopedProfileEvent&) = delete;
@@ -92,7 +93,7 @@ public:
   ScopedProfileEvent& operator=(ScopedProfileEvent&&) = delete;
 
 private:
-  IProfilerRecorder& profiler_;
+  IProfiler& profiler_;
   ProfileEvent event_;
 };
 

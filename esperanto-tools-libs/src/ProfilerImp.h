@@ -22,11 +22,6 @@
 
 namespace rt::profiling {
 
-class IProfilerRecorder : public IProfiler {
-public:
-  virtual void record(const ProfileEvent& event) = 0;
-};
-
 // Dummy implementation that does nothing (for performance measuring without traces)
 class DummyProfiler : public IProfilerRecorder {
 public:
@@ -47,6 +42,7 @@ public:
   // IProfiler interface
   void start(std::ostream& outputStream, OutputType outputType) override {
     std::lock_guard lock{mutex_};
+    recording_ = true;
 
     switch (outputType) {
     case OutputType::Json:
@@ -61,11 +57,14 @@ public:
   }
   void stop() override {
     std::lock_guard lock{mutex_};
+    recording_ = false;
     // emplacing monostate makes the profiler stop recording (see record function)
     archive_.emplace<std::monostate>();
   }
 
   void record(const ProfileEvent& event) override {
+    if (!recording_)
+      return;
     std::lock_guard lock{mutex_};
     std::visit(
       [&event](auto&& archive) {
@@ -80,6 +79,7 @@ public:
 private:
   std::variant<std::monostate, cereal::JSONOutputArchive, cereal::PortableBinaryOutputArchive> archive_;
   std::mutex mutex_;
+  bool recording_ = false;
 };
 
 } // namespace rt::profiling

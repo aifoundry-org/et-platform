@@ -45,6 +45,17 @@ public:
   virtual void stop() = 0;
 };
 
+namespace profiling {
+/// \brief Forward declaration of ProfileEvent
+class ProfileEvent;
+
+/// \brief IProfilerRecorder interface declaration, its a simple added method to IProfiler interface for recording
+class IProfilerRecorder : public IProfiler {
+public:
+  virtual void record(const ProfileEvent& event) = 0;
+};
+
+} // namespace profiling
 } // namespace rt
 
 /// @}
