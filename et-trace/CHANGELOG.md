@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-13631] Aligned trace standard header to cache-line size.
 ### Security
 
 ## [0.5.0] - 2022-6-22

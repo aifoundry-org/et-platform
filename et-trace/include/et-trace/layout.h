@@ -278,6 +278,7 @@ struct trace_buffer_size_header_t {
            It contains size of valid data, type of buffer and Esperanto magic
            number to validate buffer. It is used for once for the whole buffer
            not matter if it divided into sub-buffers or not
+           Note: This structure must be cache-line aligned, i.e, 64-bytes aligned.
 */
 struct trace_buffer_std_header_t {
     uint32_t magic_header;          /**< Esperanto magic header. */
@@ -287,8 +288,7 @@ struct trace_buffer_std_header_t {
                                          in sub-buffers (if present) */
     uint32_t sub_buffer_size;       /**< Size of one partition on Trace buffer, All partitions must be equal in size. */
     uint16_t sub_buffer_count;      /**< Number of Trace buffer partitions. */
-    uint8_t pad[2];
-} __attribute__((packed));
+} __attribute__((packed, aligned(64)));
 
 /*! \struct trace_entry_header_t
     \brief Information common for different entry types.
