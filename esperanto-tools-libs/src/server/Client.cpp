@@ -137,7 +137,7 @@ bool Client::doWaitForEvent(EventId event, std::chrono::seconds timeout) {
 
 bool Client::doWaitForStream(StreamId stream, std::chrono::seconds timeout) {
   auto start = std::chrono::steady_clock::now();
-  std::unique_lock lock(mutex_);
+  SpinLock lock(mutex_);
   auto events = find(streamToEvents_, stream, "Stream does not exist")->second;
   lock.unlock();
   if (events.empty()) {
@@ -205,6 +205,22 @@ void Client::processResponse(const resp::Response& response) {
   RT_VLOG(MID) << "Processing response";
   SpinLock lock(mutex_);
   switch (response.type_) {
+  case resp::Type::KERNEL_ABORTED: {
+    CHECK(response.id_ == req::ASYNC_RUNTIME_EVENT)
+      << "Kernel aborted message should have request type ASYNC_RUNTIME_EVENT";
+    auto payload = std::get<resp::KernelAborted>(response.payload_);
+    auto evt = payload.event_;
+    auto buffer = reinterpret_cast<std::byte*>(payload.buffer_);
+    if (kernelAbortCallback_) {
+      tp_.pushTask([this, cb = kernelAbortCallback_, evt, buffer, size = payload.size_] {
+        cb(evt, buffer, size, [this, evt] { sendRequestAndWait(req::Type::KERNEL_ABORT_RELEASE_RESOURCES, evt); });
+      });
+    } else {
+      lock.unlock();
+      sendRequestAndWait(req::Type::KERNEL_ABORT_RELEASE_RESOURCES, evt);
+    }
+    break;
+  }
   case resp::Type::EVENT_DISPATCHED: {
     CHECK(response.id_ == req::ASYNC_RUNTIME_EVENT) << "Event dispatched should have request type ASYNC_RUNTIME_EVENT";
     auto evt = std::get<resp::Event>(response.payload_).event_;

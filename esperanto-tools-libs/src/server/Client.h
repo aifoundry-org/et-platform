@@ -63,8 +63,8 @@ public:
   DeviceProperties doGetDeviceProperties(DeviceId device) const override;
 
   void doSetOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) override {
-    unused(callback);
-    throw Exception("Not implemented");
+    SpinLock lock(mutex_);
+    kernelAbortCallback_ = callback;
   }
 
   EventId doAbortCommand(EventId commandId,
@@ -132,6 +132,7 @@ private:
   std::mutex mutex_;
 
   StreamErrorCallback streamErrorCallback_;
+  KernelAbortedCallback kernelAbortCallback_;
   threadPool::ThreadPool tp_{2};
 
   int socket_;

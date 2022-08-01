@@ -63,7 +63,8 @@ enum class Type : uint32_t {
   ABORT_STREAM,
   ABORT_COMMAND,
   DMA_INFO,
-  DEVICE_PROPERTIES
+  DEVICE_PROPERTIES,
+  KERNEL_ABORT_RELEASE_RESOURCES
 };
 
 using Id = uint32_t;
@@ -249,7 +250,9 @@ enum class Type : uint32_t {
   STREAM_ERROR,
   RUNTIME_EXCEPTION,
   DMA_INFO,
-  DEVICE_PROPERTIES
+  DEVICE_PROPERTIES,
+  KERNEL_ABORTED,
+  KERNEL_ABORT_RELEASE_RESOURCES
 };
 
 constexpr auto getStr(Type t) {
@@ -347,6 +350,16 @@ struct StreamError {
     archive(event_, error_);
   }
 };
+
+struct KernelAborted {
+  size_t size_;
+  AddressT buffer_;
+  EventId event_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(size_, buffer_, event_);
+  }
+};
+
 struct Response {
   Response() = default;
   template <typename T>
@@ -355,8 +368,9 @@ struct Response {
     , id_(id)
     , payload_(payload) {
   }
+
   using Payload_t = std::variant<std::monostate, Version, Malloc, GetDevices, Event, CreateStream, LoadCode,
-                                 StreamError, RuntimeException, DmaInfo, DeviceProperties>;
+                                 StreamError, RuntimeException, DmaInfo, DeviceProperties, KernelAborted>;
   Type type_;
   Id id_ = req::INVALID_REQUEST_ID;
   Payload_t payload_;

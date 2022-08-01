@@ -289,6 +289,20 @@ void Worker::processRequest(const req::Request& request) {
     break;
   }
 
+  case req::Type::KERNEL_ABORT_RELEASE_RESOURCES: {
+    auto evt = std::get<EventId>(request.payload_);
+    auto it = kernelAbortedFreeResources_.find(evt);
+    if (it == end(kernelAbortedFreeResources_)) {
+      RT_LOG(WARNING) << "Received a request to release kernel abort resources but this event " << static_cast<int>(evt)
+                      << " was not registered. Ignoring it.";
+    } else {
+      it->second();
+      kernelAbortedFreeResources_.erase(it);
+    }
+    sendResponse({resp::Type::KERNEL_ABORT_RELEASE_RESOURCES, request.id_, std::monostate{}});
+    break;
+  }
+
   default:
     RT_LOG(WARNING) << "Unknown request: " << static_cast<int>(request.type_) << " id: " << request.id_;
     throw Exception("Unknown request: " + std::to_string(static_cast<int>(request.type_)));
@@ -311,6 +325,14 @@ void Worker::freeResources() {
     runtime_.unloadCode(k);
   }
   kernels_.clear();
+  for (auto& res : kernelAbortedFreeResources_) {
+    RT_LOG(WARNING) << "Resources for event " << static_cast<int>(res.first)
+                    << " were not freed. Freeing them automatically.";
+    if (res.second) {
+      res.second();
+    }
+  }
+  kernelAbortedFreeResources_.clear();
 }
 
 void Worker::onStreamError(EventId event, const StreamError& error) {
@@ -321,5 +343,22 @@ void Worker::onStreamError(EventId event, const StreamError& error) {
   } else {
     RT_LOG(WARNING) << "Got streamError for event " << static_cast<int>(event)
                     << " but the event is not registered; ignoring the StreamError.";
+  }
+}
+
+void Worker::onKernelAborted(EventId event, std::byte* context, size_t size, std::function<void()> freeResources) {
+  SpinLock lock(mutex_);
+  if (events_.find(event) != end(events_)) {
+    auto it = kernelAbortedFreeResources_.find(event);
+    if (it != end(kernelAbortedFreeResources_)) {
+      RT_LOG(WARNING) << "Kernel abort for an event which was already aborted but resources not freed. Freeing now.";
+      it->second();
+      it->second = std::move(freeResources);
+    } else {
+      kernelAbortedFreeResources_[event] = std::move(freeResources);
+    }
+    lock.unlock();
+    sendResponse({resp::Type::KERNEL_ABORTED, req::ASYNC_RUNTIME_EVENT,
+                  resp::KernelAborted{size, reinterpret_cast<AddressT>(context), event}});
   }
 }

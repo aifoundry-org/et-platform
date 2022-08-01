@@ -339,6 +339,7 @@ void RuntimeImp::doSetOnKernelAbortedErrorCallback(const KernelAbortedCallback& 
 
 void RuntimeImp::processResponseError(const ResponseError& responseError) {
   tp_.pushTask([this, responseError] {
+    bool dispatchNow = true;
     // here we have to check if there is an associated errorbuffer with the event; if so, copy the buffer from
     // devicebuffer into dmabuffer; then do the callback
     auto [errorCode, event, kernelExtra] = responseError;
@@ -358,9 +359,11 @@ void RuntimeImp::processResponseError(const ResponseError& responseError) {
         } else {
           SpinLock lock(mutex_);
           if (kernelAbortedCallback_) {
+            dispatchNow = false;
             auto th = std::thread([cb = this->kernelAbortedCallback_, evt = responseError.event_, buffer, this] {
               cb(evt, buffer->getExceptionContextPtr(), kExceptionBufferSize,
                  [this, evt] { executionContextCache_->releaseBuffer(evt); });
+              dispatch(evt);
             });
             th.detach();
           }
@@ -370,10 +373,16 @@ void RuntimeImp::processResponseError(const ResponseError& responseError) {
     if (kernelExtra) {
       streamError.cmShireMask_ = kernelExtra->cm_shire_mask;
     }
-    if (!streamManager_.executeCallback(event, streamError, [this, evt = event] { dispatch(evt); })) {
+    if (!streamManager_.executeCallback(event, streamError, [this, evt = event, dispatchNow] {
+          if (dispatchNow) {
+            dispatch(evt);
+          }
+        })) {
       // the callback was not set, so add the error to the error list
       streamManager_.addError(event, std::move(streamError));
-      dispatch(event);
+      if (dispatchNow) {
+        dispatch(event);
+      }
     }
   });
 }

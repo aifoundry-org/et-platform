@@ -27,6 +27,8 @@ public:
 
   void onStreamError(EventId event, const StreamError& error);
 
+  void onKernelAborted(EventId event, std::byte* context, size_t size, std::function<void()> freeResources);
+
 private:
   void requestProcessor();
   void freeResources();
@@ -44,6 +46,7 @@ private:
 
   RuntimeImp& runtime_;
   CmaCopyFunction cmaCopyFunction_;
+  std::unordered_map<EventId, std::function<void()>> kernelAbortedFreeResources_;
   std::set<Allocation> allocations_;
   std::set<StreamId> streams_;
   std::set<KernelId> kernels_;
