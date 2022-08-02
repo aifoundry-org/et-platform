@@ -408,7 +408,7 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   opts.mem_reset = options.mem_reset32;
   opts.shires_en = options.minionShiresMask | (1ull << 34); // always enable Service Processor
   opts.max_cycles = options.maxCycles;
-  opts.gdb = options.startGdb;
+  opts.gdb |= options.startGdb;
 
   /* Route PU UART0 output to log file */
   opts.pu_uart0_tx_file = options.puUart0Path.empty() ? options.runDir + "/" + "pu_uart0_tx.log" : options.puUart0Path;
@@ -460,11 +460,11 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   }
 
   opts.elf_files = preloadElfs;
-  opts.mem_check = options.memcheck;
-  opts.l2_scp_check = options.l2ScpCheck;
-  opts.l1_scp_check = options.l1ScpCheck;
-  opts.flb_check = options.flbCheck;
-  opts.tstore_check = options.tstoreCheck;
+  opts.mem_check |= options.memcheck;
+  opts.l2_scp_check |= options.l2ScpCheck;
+  opts.l1_scp_check |=  options.l1ScpCheck;
+  opts.flb_check |= options.flbCheck;
+  opts.tstore_check |= options.tstoreCheck;
   opts.log_path = options.logFile;
 
   sysEmuThread_ = std::thread(runMain, opts, this, &sysEmuError_); // FIXME Passing `this` like this is dangerous..
