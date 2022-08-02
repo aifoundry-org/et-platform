@@ -169,6 +169,32 @@ bool iatuTranslate(bemu::System* chip, uint64_t pci_addr, uint64_t size, uint64_
   }
   return false;
 }
+
+/**
+ * Warn about runtime options that may be ignored.
+ * This parses a vector of user-supplied runtime options and makes sure
+ * that none of them are forcibly overwritten by the SW stack.
+ * @param opts Vector of `--opt` style runtime options.
+ */
+void checkExtraOptions(const std::vector<std::string>& opts)
+{
+  static constexpr std::array<const char*, 17> reserved = {
+    "-mins_dis", "-minions_en", "-mem_reset", "-mem_reset32",
+    "-shires", "-max_cycles", "-elf", "-elf_load", "-lp",
+    "-pu_uart0_rx_file", "-pu_uart1_rx_file",
+    "-spio_uart0_rx_file", "-spio_uart1_rx_file",
+    "-pu_uart0_tx_file", "-pu_uart1_tx_file",
+    "-spio_uart0_tx_file", "-spio_uart1_tx_file",
+  };
+  for (auto&& opt : opts) {
+    for (auto&& res : reserved) {
+      if (opt.find(res) != std::string::npos) {
+        SE_LOG(ERROR) << "Option '" << res << "' is reserved and may be overwritten";
+      }
+    }
+  }
+}
+
 } // namespace
 
 void SysEmuImp::set_system(bemu::System* system) {
@@ -379,6 +405,7 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   sys_emu_cmd_options opts;
 
   if (!options.additionalOptions.empty()) {
+    checkExtraOptions(options.additionalOptions);
     std::vector<const char*> extraOptions;
     extraOptions.emplace_back("dummyExecName");
     for (auto& opt : options.additionalOptions) {
