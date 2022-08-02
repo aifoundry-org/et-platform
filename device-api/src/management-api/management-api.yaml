@@ -142,7 +142,7 @@ Modules:
           Value: 60
         - Name: SET_FREQUENCY
           Value: 61
-        - Name: GET_OP_STATS
+        - Name: GET_SP_STATS
           Value: 62
         - Name: GET_MM_STATS
           Value: 63
@@ -807,7 +807,7 @@ Modules:
         - Name: pad[4]
           Description: Padding for alignment
           Type: uint8_t
-    - Name: get_op_stats_t
+    - Name: get_sp_stats_t
       Fields:
         - Name: system_power_avg
           Description: System power average
@@ -1542,23 +1542,23 @@ Modules:
           Description: MM error count details.
           Type: struct
           Struct: mm_error_count_t
-    - Name: device_mgmt_get_op_stats_cmd
-      Description: Command for get op stats request
+    - Name: device_mgmt_get_sp_stats_cmd
+      Description: Command for get sp stats request
       Type: Command
-      PairedMessage: device_mgmt_get_op_stats_rsp
+      PairedMessage: device_mgmt_get_sp_stats_rsp
       Fields:
         - Name: dummy
           Description: Dummy field.
           Type: uint64_t
-    - Name: device_mgmt_get_op_stats_rsp
+    - Name: device_mgmt_get_sp_stats_rsp
       Type: Response
-      Description: Response for get op stats command
-      PairedMessage: device_mgmt_get_op_stats_cmd
+      Description: Response for get sp stats command
+      PairedMessage: device_mgmt_get_sp_stats_cmd
       Fields:
-        - Name: op_stats
+        - Name: sp_stats
           Description: SP operating point stats.
           Type: struct
-          Struct: get_op_stats_t
+          Struct: get_sp_stats_t
     - Name: device_mgmt_get_mm_stats_cmd
       Description: Command for get mm stats request
       Type: Command
