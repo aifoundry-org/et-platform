@@ -112,7 +112,9 @@ void init_l2_scp(uint32_t shire_id, uint32_t minion_id)
     }
 
     // Global barrier (harts, flb to use, source shire id, fcc to sync minions)
-    global_barrier_starter(32, 0, shire_id, 0);
+    // There are total 32 FLBs. Use seprate for each compute shire for syncing harts
+    // in order to avoid race conditions between harts accessing the same FLB again.
+    global_barrier_starter(32, shire_id, shire_id, 0);
 
     // Waits for credit to come back
     fcc(FCC_0);
@@ -122,8 +124,8 @@ void test_compute(uint32_t shire_id, uint32_t minion_id)
 {
     __asm__ __volatile__ ("mov.m.x m0, zero, 0xff /*255*/  \n");
 
-    // Initialize L2 Scp for all except Shire 32
-    if(shire_id != 32) {
+    // Initialize L2 Scp for all compute shires
+    if (shire_id < N_SHIRES_COMPUTE) {
         init_l2_scp(shire_id, minion_id);
     }
 
@@ -175,12 +177,11 @@ void test_compute(uint32_t shire_id, uint32_t minion_id)
       : "f0"
     );
 
-    /* TODO: SW-13233: Added back this log once MLP kernel coherency issues is resolved.
     if (minion_id == 0) {
         for (int i = 0; i < 8; i++) {
-            et_printf("%i => %f\n", i, (double) buffer[i])
+            et_printf("%i => %f\n", i, (double) buffer[i]);
         }
-    } */
+    }
 }
 
 
