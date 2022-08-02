@@ -10,6 +10,7 @@
 #pragma once
 #include "Worker.h"
 #include "device-layer/IDeviceLayer.h"
+#include "runtime/IProfiler.h"
 #include "runtime/IRuntime.h"
 #include <hostUtils/threadPool/ThreadPool.h>
 #include <string_view>
@@ -21,6 +22,9 @@ public:
   explicit Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer, Options options);
   ~Server();
   void removeWorker(Worker* worker);
+  profiling::IProfilerRecorder* getProfiler() const {
+    return runtime_->getProfiler();
+  }
 
 private:
   void listen();
