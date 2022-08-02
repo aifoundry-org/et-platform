@@ -10,11 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines.
 - BEMU: Checker for VPU RF accesses that may fail under certain operating conditions.
+- Added checks for runtime options that may be overwritten.
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
 - BEMU: Fixed behavior of cache control extension (fill/evict)
+- Runtime options (ex: -gdb) may now be set as part of --simulator-params.
 ### Security
 
 ## [0.3.0] - 2022-7-4
