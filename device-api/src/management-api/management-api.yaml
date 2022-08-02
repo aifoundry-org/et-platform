@@ -144,40 +144,42 @@ Modules:
           Value: 61
         - Name: GET_OP_STATS
           Value: 62
-        - Name: MDI_SELECT_HART
+        - Name: GET_MM_STATS
           Value: 63
-        - Name: MDI_UNSELECT_HART
+        - Name: MDI_SELECT_HART
           Value: 64
-        - Name: MDI_RESET_HART
+        - Name: MDI_UNSELECT_HART
           Value: 65
-        - Name: MDI_HALT_HART
+        - Name: MDI_RESET_HART
           Value: 66
-        - Name: MDI_RESUME_HART
+        - Name: MDI_HALT_HART
           Value: 67
-        - Name: MDI_GET_HART_STATUS
+        - Name: MDI_RESUME_HART
           Value: 68
-        - Name: MDI_SET_BREAKPOINT
+        - Name: MDI_GET_HART_STATUS
           Value: 69
-        - Name: MDI_UNSET_BREAKPOINT
+        - Name: MDI_SET_BREAKPOINT
           Value: 70
-        - Name: MDI_ENABLE_SINGLE_STEP
+        - Name: MDI_UNSET_BREAKPOINT
           Value: 71
-        - Name: MDI_DISABLE_SINGLE_STEP
+        - Name: MDI_ENABLE_SINGLE_STEP
           Value: 72
-        - Name: MDI_READ_GPR
+        - Name: MDI_DISABLE_SINGLE_STEP
           Value: 73
-        - Name: MDI_DUMP_GPR
+        - Name: MDI_READ_GPR
           Value: 74
-        - Name: MDI_WRITE_GPR
+        - Name: MDI_DUMP_GPR
           Value: 75
-        - Name: MDI_READ_CSR
+        - Name: MDI_WRITE_GPR
           Value: 76
-        - Name: MDI_WRITE_CSR
+        - Name: MDI_READ_CSR
           Value: 77
-        - Name: MDI_READ_MEM
+        - Name: MDI_WRITE_CSR
           Value: 78
-        - Name: MDI_WRITE_MEM
+        - Name: MDI_READ_MEM
           Value: 79
+        - Name: MDI_WRITE_MEM
+          Value: 80
         - Name: MDI_SET_BREAKPOINT_EVENT
           Value: 128
         - Name: MDI_END
@@ -879,6 +881,71 @@ Modules:
         - Name: noc_temperature_max
           Description: NOC temperature maximum
           Type: uint16_t
+    - Name: get_mm_stats_t
+      Fields:
+        - Name: cm_utilization_avg
+          Description: Compute minion utilization average
+          Type: uint64_t
+        - Name: cm_utilization_min
+          Description: Compute minion utilization minimum
+          Type: uint64_t
+        - Name: cm_utilization_max
+          Description: Compute minion utilization maximum
+          Type: uint64_t
+        - Name: pcie_dma_read_bw_avg
+          Description: PCIE DMA read bandwidth average
+          Type: uint64_t
+        - Name: pcie_dma_read_bw_min
+          Description: PCIE DMA read bandwidth minimum
+          Type: uint64_t
+        - Name: pcie_dma_read_bw_max
+          Description: PCIE DMA read bandwidth maximum
+          Type: uint64_t
+        - Name: pcie_dma_write_bw_avg
+          Description: PCIE DMA write bandwidth average
+          Type: uint64_t
+        - Name: pcie_dma_write_bw_min
+          Description: PCIE DMA write bandwidth minimum
+          Type: uint64_t
+        - Name: pcie_dma_write_bw_max
+          Description: PCIE DMA write bandwidth maximum
+          Type: uint64_t
+        - Name: ddr_read_bw_avg
+          Description: DDR read bandwidth average
+          Type: uint64_t
+        - Name: ddr_read_bw_min
+          Description: DDR read bandwidth minimum
+          Type: uint64_t
+        - Name: ddr_read_bw_max
+          Description: DDR read bandwidth maximum
+          Type: uint64_t
+        - Name: ddr_write_bw_avg
+          Description: DDR write bandwidth average
+          Type: uint64_t
+        - Name: ddr_write_bw_min
+          Description: DDR write bandwidth minimum
+          Type: uint64_t
+        - Name: ddr_write_bw_max
+          Description: DDR write bandwidth maximum
+          Type: uint64_t
+        - Name: l2_l3_read_bw_avg
+          Description: L2/L3 read bandwidth average
+          Type: uint64_t
+        - Name: l2_l3_read_bw_min
+          Description: L2/L3 read bandwidth minimum
+          Type: uint64_t
+        - Name: l2_l3_read_bw_max
+          Description: L2/L3 read bandwidth maximum
+          Type: uint64_t
+        - Name: l2_l3_write_bw_avg
+          Description: L2/L3 write bandwidth average
+          Type: uint64_t
+        - Name: l2_l3_write_bw_min
+          Description: L2/L3 write bandwidth minimum
+          Type: uint64_t
+        - Name: l2_l3_write_bw_max
+          Description: L2/L3 write bandwidth maximum
+          Type: uint64_t
   # List of Commands, Responses, Events
   Messages :
       #-------------------------------------------------------------------------------
@@ -1492,6 +1559,23 @@ Modules:
           Description: SP operating point stats.
           Type: struct
           Struct: get_op_stats_t
+    - Name: device_mgmt_get_mm_stats_cmd
+      Description: Command for get mm stats request
+      Type: Command
+      PairedMessage: device_mgmt_get_mm_stats_rsp
+      Fields:
+        - Name: dummy
+          Description: Dummy field.
+          Type: uint64_t
+    - Name: device_mgmt_get_mm_stats_rsp
+      Type: Response
+      Description: Response for get mm stats command
+      PairedMessage: device_mgmt_get_mm_stats_cmd
+      Fields:
+        - Name: mm_stats
+          Description: MM get compute performance stats.
+          Type: struct
+          Struct: get_mm_stats_t
 #-------------------------------------------------------------------------------
 # Trace Management Commands and Responses
 #-------------------------------------------------------------------------------

@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines
-- [SW-13620] Add DM command GET_OP_STATS
+- [SW-13620] Add DM command GET_OP_STATS and GET_MM_STATS
 ### Changed
 ### Deprecated
 - [SW-13464] - Marked enum log_levels as deprecated.
