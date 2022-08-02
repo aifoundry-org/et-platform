@@ -32,12 +32,6 @@ enum statw_resource_type {
 };
 
 /*! \def STATW_SAMPLING_INTERVAL
-    \brief Minion frequency on silicon
-    TODO: Get it from SP and make it available to all MM workers. Preferably it should be accessible without atomic operation.
-*/
-#define STATW_MINION_FREQ 333000000UL
-
-/*! \def STATW_SAMPLING_INTERVAL
     \brief Device statistics sampling interval of 1 millisecond
     WARNING: Assumption is timer granularity is one millisecond
 */
@@ -68,10 +62,10 @@ enum statw_resource_type {
 */
 #define STATW_RESOURCE_DEFAULT_AVG 0UL
 
-/*! \def STATW_NUM_OF_BYTES_IN_1MB
+/*! \def STATW_1MB
     \brief A macro that define number of bytes in 1 megabytes.
 */
-#define STATW_NUM_OF_BYTES_IN_1MB 0x100000UL
+#define STATW_1MB 0x100000UL
 
 /*! \def STATW_NUM_OF_MS_IN_SEC
     \brief A macro that define number of milliseconds in 1 second.
@@ -102,5 +96,11 @@ void STATW_Launch(uint32_t hart_id);
     \return None.
 */
 void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64_t current_sample);
+
+/*! \fn uint32_t STATW_Get_Minion_Freq(void)
+    \brief Returns the Minion frequency in MHz.
+    \return Frequency value in hertz.
+*/
+uint32_t STATW_Get_Minion_Freq(void);
 
 #endif

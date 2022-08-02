@@ -19,6 +19,8 @@
 
     Public interfaces:
         STATW_Launch
+        STATW_Get_Minion_Freq
+        STATW_Add_New_Sample_Atomically
 
 */
 /***********************************************************************/
@@ -38,6 +40,7 @@
 #include "services/log.h"
 #include "services/sw_timer.h"
 #include "services/trace.h"
+#include "services/sp_iface.h"
 #include "config/mm_config.h"
 #include "workers/statw.h"
 #include "workers/kw.h"
@@ -51,7 +54,7 @@
     resource.min = MIN(resource.min, current_sample);  \
     resource.max = MAX(resource.max, current_sample);
 
-/*! \def STATW_RECALC_CMA_MIN_MAX(resource, current_sample)
+/*! \def STATW_RECALC_CMA_MIN_MAX(resource, new_sample)
     \brief Helper macro to add new sample into stats. It re-calculates the average, min, and max each time.
     NOTE: Uses local writes.
 */
@@ -65,9 +68,8 @@
     \brief Helper macro to convert request count to PMU to MB/Sec.
            It assumes that every request is 64 bytes long. And sampling interval unit is milliseconds.
 */
-#define STATW_PMU_REQ_COUNT_TO_MBPS(req_count)                \
-    (((req_count)*CACHE_LINE_SIZE * STATW_NUM_OF_MS_IN_SEC) / \
-        (STATW_SAMPLING_INTERVAL * STATW_NUM_OF_BYTES_IN_1MB))
+#define STATW_PMU_REQ_COUNT_TO_MBPS(req_count) \
+    (((req_count)*CACHE_LINE_SIZE * STATW_NUM_OF_MS_IN_SEC) / (STATW_SAMPLING_INTERVAL * STATW_1MB))
 
 /*! \def STATW_UTIL_OVERFLOW_CHECK(util_type_str, sample_val, total_val)
     \brief Macro that checks for overflow in utilization values.
@@ -76,12 +78,27 @@
     {                                                                                                          \
         if (sample_val > total_val)                                                                            \
         {                                                                                                      \
-            Log_Write(LOG_LEVEL_ERROR,                                                                         \
+            Log_Write(LOG_LEVEL_DEBUG,                                                                         \
                 "statw: %s: Sampled value greater than total value: sampled value: %ld: total value: %ld\r\n", \
                 util_type_str, sample_val, total_val);                                                         \
             /* TODO: For now, just make both values equal. Need to check and fix this case. */                 \
             sample_val = total_val;                                                                            \
         }                                                                                                      \
+    }
+
+/*! \def STATW_UTIL_BAD_PMC_CHECK(util_type_str, shire_id, bank_id, prev_val, curr_val)
+    \brief Macro that checks for bad PMC values.
+*/
+#define STATW_UTIL_BAD_PMC_CHECK(util_type_str, shire_id, bank_id, prev_val, curr_val)                               \
+    {                                                                                                                \
+        if (prev_val > curr_val)                                                                                     \
+        {                                                                                                            \
+            Log_Write(LOG_LEVEL_DEBUG,                                                                               \
+                "statw: %s: shire: %ld: bank: %ld: Previous greater than current: prev_val: %ld: curr_val: %ld\r\n", \
+                util_type_str, shire_id, bank_id, prev_val, curr_val);                                               \
+            /* TODO: For now, just make both values equal. Need to check and fix this case. */                       \
+            curr_val = prev_val;                                                                                     \
+        }                                                                                                            \
     }
 
 /*! \def STATW_SAMPLING_FLAG_SET
@@ -120,7 +137,7 @@ typedef struct {
                                          among Worker Harts reading/writing on same cache line */
     uint64_t pad3[5];
     uint32_t sampling_flag;
-    uint8_t pad[4];
+    uint32_t minion_freq;
 } __attribute__((packed, aligned(8))) statw_cb;
 
 /*! \var STATW_CB
@@ -185,7 +202,31 @@ static inline void read_resource_stats_atomically(
 *
 *   FUNCTION
 *
-*       statw_init
+*       STATW_Get_Minion_Freq
+*
+*   DESCRIPTION
+*
+*       This function returns the Minion frequency in MHz.
+*
+*   INPUTS
+*
+*       void
+*
+*   OUTPUTS
+*
+*       Frequency value in MHz.
+*
+***********************************************************************/
+uint32_t STATW_Get_Minion_Freq(void)
+{
+    return atomic_load_local_32(&STATW_CB.minion_freq);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       STATW_Add_New_Sample_Atomically
 *
 *   DESCRIPTION
 *
@@ -251,6 +292,21 @@ void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64
 ***********************************************************************/
 static void statw_init(struct compute_resources_sample *local_stats_cb)
 {
+    /* Set default to 100 Mhz */
+    uint32_t min_freq_mhz = 100;
+
+    /* TODO: Updates to account for Dynamically changing frequency */
+    int32_t status = SP_Iface_Get_Boot_Freq(&min_freq_mhz);
+
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+            "statw_init: Unable to get Minion boot frequency. Status code: %d\r\n", status);
+    }
+
+    /* Convert the frequency to hertz and store it */
+    atomic_store_local_32(&STATW_CB.minion_freq, min_freq_mhz * 1000000);
+
     atomic_store_local_64(&STATW_CB.cm_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
     atomic_store_local_64(&STATW_CB.cm_bw.max, STATW_RESOURCE_DEFAULT_MAX);
     atomic_store_local_64(&STATW_CB.cm_bw.min, STATW_RESOURCE_BW_DEFAULT_MIN);
@@ -392,6 +448,9 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
                     /* Sample PMC SC Counter 0 and 1 (reads, writes). */
                     current_counter_value = (uint64_t)syscall(
                         SYSCALL_PMC_SC_SAMPLE_INT, shire_id, neigh_id, PMU_SC_PMC0);
+                    /* Add check */
+                    STATW_UTIL_BAD_PMC_CHECK("L3_Read", shire_id, neigh_id,
+                        prev_l2_l3_read_counter[shire_id][neigh_id], current_counter_value)
                     STATW_RECALC_CMA_MIN_MAX(data_sample.l2_l3_read_bw,
                         STATW_PMU_REQ_COUNT_TO_MBPS(
                             current_counter_value - prev_l2_l3_read_counter[shire_id][neigh_id]))
@@ -399,6 +458,9 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
 
                     current_counter_value = (uint64_t)syscall(
                         SYSCALL_PMC_SC_SAMPLE_INT, shire_id, neigh_id, PMU_SC_PMC1);
+                    /* Add check */
+                    STATW_UTIL_BAD_PMC_CHECK("L3_Write", shire_id, neigh_id,
+                        prev_l2_l3_write_counter[shire_id][neigh_id], current_counter_value)
                     STATW_RECALC_CMA_MIN_MAX(data_sample.l2_l3_write_bw,
                         STATW_PMU_REQ_COUNT_TO_MBPS(
                             current_counter_value - prev_l2_l3_write_counter[shire_id][neigh_id]))

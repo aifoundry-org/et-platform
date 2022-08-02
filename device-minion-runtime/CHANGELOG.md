@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed MM Stat buffer eviction.
 - [SW-11649] Fixed usage of Trace string length to be not fixed size.
 - [SW-13631] Coherency write hazard in stats worker while writing to L3.
+- [SW-13640] Updating STAT worker to query for freq Vs hardcoding it
 ### Security
 
 ## [0.9.0] - 2022-7-7

@@ -86,10 +86,10 @@ static dmaw_write_cb_t DMAW_Write_CB __attribute__((aligned(64))) = { 0 };
 
 /*! \def DMAW_BYTES_PER_CYCLE_TO_MBPS
     \brief A helper macro to convert DMA bandwidth to MB/Sec using following formulae
-           Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq)
+           Total DMA BW = (Total Transfer size (in bytes) * Minion Freq) / (DMA duration cycles * num of bytes in 1MB)
 */
 #define DMAW_BYTES_PER_CYCLE_TO_MBPS(bytes, cycles) \
-    ((bytes * STATW_MINION_FREQ) / (cycles * STATW_NUM_OF_BYTES_IN_1MB))
+    ((bytes * STATW_Get_Minion_Freq()) / (STATW_1MB * cycles))
 
 /************************************************************************
 *
@@ -677,7 +677,7 @@ static inline void process_dma_read_chan_in_use(
                 atomic_exchange_local_32(
                     &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_prev_cycles, 0)));
 
-        /* Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq) */
+        /* Calculate and log the DMA BW */
         STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_WRITE,
             DMAW_BYTES_PER_CYCLE_TO_MBPS(transfer_size, write_rsp->device_cmd_execute_dur));
 
@@ -845,7 +845,7 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
             atomic_exchange_local_32(
                 &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_prev_cycles, 0)));
 
-    /* Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq) */
+    /* Calculate and log the DMA BW */
     /* TODO: In case of abort, read the actual number of bytes transferred from DMA engine instead of total transfer size */
     STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_WRITE,
         DMAW_BYTES_PER_CYCLE_TO_MBPS(abort_transfer_size, abort_write_rsp->device_cmd_execute_dur));
@@ -982,7 +982,7 @@ static inline void process_dma_write_chan_in_use(
                 atomic_exchange_local_32(
                     &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_prev_cycles, 0)));
 
-        /* Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq) */
+        /* Calculate and log the DMA BW */
         STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_READ,
             DMAW_BYTES_PER_CYCLE_TO_MBPS(transfer_size, read_rsp->device_cmd_execute_dur));
 
@@ -1153,7 +1153,7 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
             atomic_exchange_local_32(
                 &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_prev_cycles, 0)));
 
-    /* Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq) */
+    /* Calculate and log the DMA BW */
     /* TODO: In case of abort, read the actual number of bytes transferred from DMA engine instead of total transfer size */
     STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_READ,
         DMAW_BYTES_PER_CYCLE_TO_MBPS(abort_transfer_size, abort_read_rsp->device_cmd_execute_dur));
