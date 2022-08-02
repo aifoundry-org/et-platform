@@ -35,7 +35,7 @@ public:
   void SetUp() override {
     RuntimeFixture::SetUp();
     kernels_.clear();
-    for (auto i = 0U; i < static_cast<uint32_t>(deviceLayer_->getDevicesCount()); ++i) {
+    for (auto i = 0U; i < devices_.size(); ++i) {
       kernels_.emplace_back(loadKernel("add_vector.elf", i));
     }
   }
@@ -184,7 +184,7 @@ TEST_F(StressKernel, 256_ele_10_exe_10_st_2_th_8dev) {
 TEST_F(StressKernel, 256_ele_10_exe_2_st_4_th_n_devices) {
   decltype(sNumDevices) oldNumDevices = sNumDevices;
   std::vector<std::future<void>> futs;
-  auto ndevs = deviceLayer_->getDevicesCount();
+  auto ndevs = devices_.size();
   RT_LOG(INFO) << "Running test on " << ndevs << " devices.";
   for (auto dev = 0U; dev < static_cast<uint32_t>(ndevs); ++dev) {
     futs.emplace_back(std::async(std::launch::async, [this, dev] { run_stress_kernel(1 << 8, 10, 2, 4, true, dev); }));

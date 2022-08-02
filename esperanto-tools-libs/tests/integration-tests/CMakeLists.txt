@@ -35,7 +35,16 @@ test_device_errors.cpp:"--mp --mode=sysemu"
 #test_dma_errors.cpp:"--mp --mode=sysemu" cant be in MP since we can not access the underlying runtime.
 )
 
+set(MP_PCIE_TEST_LIST
+test_memcpy.cpp:"--mp --mode=pcie"
+test_code_loading.cpp:"--mp --mode=pcie"
+test_device_errors.cpp:"--mp --mode=pcie"
+#test_dma_errors.cpp:"--mp --mode=pcie" cant be in MP since we can not access the underlying runtime.
+)
+
 create_test_targets("${PCIE_TEST_LIST}" "LABELS;Pcie;TIMEOUT;300" "pcie_")
+
+create_test_targets("${PCIE_TEST_LIST}" "LABELS;Pcie;LABELS;MP;TIMEOUT;300" "pcie_mp_")
 
 create_test_targets("${MP_SYSEMU_TEST_LIST}" "LABELS;Generic;LABELS;Sysemu;LABELS;MP;TIMEOUT;300" "it_mp_")
 

@@ -153,9 +153,8 @@ bool Client::doWaitForStream(StreamId stream, std::chrono::seconds timeout) {
 }
 
 req::Id Client::getNextId() {
-  while (!req::IsRegularId(++nextId_))
-    ;
-  return nextId_;
+  auto res = ++nextId_;
+  return req::IsRegularId(res) ? res : getNextId();
 }
 
 void Client::sendRequest(const req::Request& request) {
