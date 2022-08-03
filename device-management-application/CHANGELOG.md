@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Typo in conanfile url metadata
 - Warnings in device management service.
+- Warnings in et-power-top.
 ### Security
 
 ## [1.4.0] - 2022-7-12

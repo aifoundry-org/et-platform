@@ -93,13 +93,13 @@ class EtTop {
 public:
   EtTop(int devNum, std::unique_ptr<dev::IDeviceLayer>& dl, device_management::DeviceManagement& dm)
     : devNum_(devNum)
-    , dl_(dl)
-    , dm_(dm)
     , stop_(false)
     , displayWattsBars_(false)
     , dumpNextSpStatsBuffer_(false)
     , dumpNextMmStatsBuffer_(false)
-    , displayErrorDetails_(false) {
+    , displayErrorDetails_(false)
+    , dl_(dl)
+    , dm_(dm) {
     vqStats_[0].qname = "SQ0:";
     vqStats_[1].qname = "SQ1:";
     vqStats_[2].qname = "CQ0:";
