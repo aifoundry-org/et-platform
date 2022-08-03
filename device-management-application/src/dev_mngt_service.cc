@@ -329,7 +329,8 @@ int runService(const char* input_buff, const uint32_t input_size, char* output_b
   static DMLib dml;
   int ret;
 
-  if (ret = dml.verifyDMLib()) {
+  ret = dml.verifyDMLib();
+  if (ret != DM_STATUS_SUCCESS) {
     DM_VLOG(HIGH) << "Failed to verify the DM lib: " << ret << std::endl;
     return ret;
   }
@@ -570,7 +571,7 @@ int verifyService() {
     for (device_mgmt_api::power_throttle_state_e throttle_state = device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP;
          throttle_state <= device_mgmt_api::POWER_THROTTLE_STATE_THERMAL_SAFE; throttle_state++) {
       const uint32_t input_size = sizeof(device_mgmt_api::power_throttle_state_e);
-      const char input_buff[input_size] = {throttle_state};
+      const char input_buff[input_size] = {(char)throttle_state};
 
       const uint32_t output_size = sizeof(residency_t);
       char output_buff[output_size] = {0};
@@ -719,7 +720,7 @@ int verifyService() {
     for (device_mgmt_api::power_state_e power_state = device_mgmt_api::POWER_STATE_MAX_POWER;
          power_state <= device_mgmt_api::POWER_STATE_SAFE_POWER; power_state++) {
       const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
-      const char input_buff[input_size] = {power_state};
+      const char input_buff[input_size] = {(char)power_state};
 
       const uint32_t output_size = sizeof(residency_t);
       char output_buff[output_size] = {0};
@@ -1060,7 +1061,7 @@ int verifyService() {
     device_mgmt_api::fused_public_keys_t* fused_public_key = (device_mgmt_api::fused_public_keys_t*)output_buff;
     try {
       DM_LOG(INFO) << "Public keys: " << std::endl;
-      for (int i = 0; i < output_size; ++i)
+      for (unsigned int i = 0; i < output_size; ++i)
         DM_LOG(INFO) << fused_public_key->keys[i] << " ";
       DM_LOG(INFO) << std::endl;
     } catch (const std::invalid_argument& ia) {
@@ -1075,7 +1076,8 @@ int verifyService() {
 
     DMLib dml;
 
-    if (ret = dml.verifyDMLib()) {
+    ret = dml.verifyDMLib();
+    if (ret != DM_STATUS_SUCCESS) {
       DM_VLOG(HIGH) << "Failed to verify the DM lib: " << ret << std::endl;
       return ret;
     }
@@ -1744,7 +1746,8 @@ int getTraceBuffer() {
     buf_type = it->second;
 
     static DMLib dml;
-    if (ret = dml.verifyDMLib()) {
+    ret = dml.verifyDMLib();
+    if (ret != DM_STATUS_SUCCESS) {
       DM_VLOG(HIGH) << "Failed to verify the DM lib: " << ret << std::endl;
       return ret;
     }

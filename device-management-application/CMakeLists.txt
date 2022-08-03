@@ -21,6 +21,8 @@ find_package(glog REQUIRED)
 find_package(Threads REQUIRED)
 find_package(esperantoTrace REQUIRED)
 
+option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
+
 add_executable(dev_mngt_service
     src/dev_mngt_service.cc
 )
@@ -44,7 +46,11 @@ target_link_libraries(dev_mngt_service
         $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0.0>>:stdc++fs>
         deviceLayer::deviceLayer
 )
-
+target_compile_options(dev_mngt_service
+    PRIVATE
+        -Wall
+        $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
+)
 install(TARGETS dev_mngt_service
     EXPORT deviceManagementApplicationTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -64,7 +70,6 @@ target_compile_definitions(et-powertop
     PUBLIC
         -DET_TOP_VERSION="${CMAKE_PROJECT_VERSION}"
 )
-
 target_link_libraries(et-powertop
     PRIVATE
         glog::glog
@@ -76,7 +81,11 @@ target_link_libraries(et-powertop
         $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0.0>>:stdc++fs>
         deviceLayer::deviceLayer
 )
-
+target_compile_options(et-powertop
+    PRIVATE
+        -Wall
+        $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
+)
 install(TARGETS et-powertop
     EXPORT deviceManagementApplicationTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
