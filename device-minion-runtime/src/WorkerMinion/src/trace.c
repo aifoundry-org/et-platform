@@ -32,6 +32,7 @@
 #include "log.h"
 #include "error_codes.h"
 #include "cm_mm_defines.h"
+#include "common_utils.h"
 
 #define ET_TRACE_GET_HART_ID()       get_hart_id()
 #define ET_TRACE_GET_TIMESTAMP()     PMC_Get_Current_Cycles()
@@ -57,10 +58,7 @@ static_assert(ET_TRACE_STRING_MAX_SIZE == TRACE_STRING_MAX_SIZE_CM,
 #include <assert.h>
 #endif
 
-/* Helper functions for bit operations. */
-static uint32_t get_set_bit_count(uint64_t mask);
-static uint32_t get_lsb_set_pos(uint64_t value);
-static uint32_t get_msb_set_pos(uint64_t value);
+/* Function prototypes */
 static uint32_t get_index_among_enabled_harts(uint64_t shire, uint64_t thread, uint64_t hart_id);
 
 /*
@@ -653,101 +651,4 @@ static uint32_t get_index_among_enabled_harts(uint64_t shire, uint64_t thread, u
     enabled_hart_index += (get_set_bit_count(lower_thread) - 1);
 
     return enabled_hart_index;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       get_set_bit_count
-*
-*   DESCRIPTION
-*
-*       Count number of set bits in given bit mask
-*
-*   INPUTS
-*
-*       mask       Bit mask.
-*
-*   OUTPUTS
-*
-*       uint32_t   Number of set bit in mask
-*
-***********************************************************************/
-static uint32_t get_set_bit_count(uint64_t mask)
-{
-    uint32_t count = 0;
-    while (mask)
-    {
-        mask &= (mask - 1);
-        count++;
-    }
-    return count;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       get_set_bit_count
-*
-*   DESCRIPTION
-*
-*       Get the first least significat bit which is set in given mask.
-*
-*   INPUTS
-*
-*       mask       Bit mask.
-*
-*   OUTPUTS
-*
-*       uint32_t   Bit position of first set LSB. Zero means no bit was set.
-*
-***********************************************************************/
-static uint32_t get_lsb_set_pos(uint64_t value)
-{
-    uint32_t pos = 0;
-
-    if (value != 0)
-    {
-        pos = 1;
-        while (!(value & 1))
-        {
-            value >>= 1;
-            ++pos;
-        }
-    }
-    return pos;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       get_msb_set_pos
-*
-*   DESCRIPTION
-*
-*       Get the first most significat bit which is set in given mask.
-*
-*   INPUTS
-*
-*       mask       Bit mask.
-*
-*   OUTPUTS
-*
-*       uint32_t   Bit position of first set MSB. Zero means no bit was set.
-*
-***********************************************************************/
-static uint32_t get_msb_set_pos(uint64_t value)
-{
-    uint32_t msb_pos = 0;
-
-    while (value != 0)
-    {
-        value = value / 2;
-        msb_pos++;
-    }
-
-    return msb_pos;
 }

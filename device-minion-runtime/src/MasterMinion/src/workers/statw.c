@@ -13,6 +13,9 @@
 /*! \file statw.c
     \brief A C module that implements the device statistics sampler
     worker.
+    Design notes:
+    The stats are logged from host's perspective. That means, the device's
+    DMA read is DMA write and DMA write is DMA read from host's perspective.
 
     Public interfaces:
         STATW_Launch
@@ -38,17 +41,25 @@
 #include "config/mm_config.h"
 #include "workers/statw.h"
 #include "workers/kw.h"
+#include "workers/dmaw.h"
+
+/*! \def STATW_RECALC_MIN_MAX(resource, current_sample)
+    \brief It re-calculates the min, and max each time.
+    NOTE: Uses local writes.
+*/
+#define STATW_RECALC_MIN_MAX(resource, current_sample) \
+    resource.min = MIN(resource.min, current_sample);  \
+    resource.max = MAX(resource.max, current_sample);
 
 /*! \def STATW_RECALC_CMA_MIN_MAX(resource, current_sample)
     \brief Helper macro to add new sample into stats. It re-calculates the average, min, and max each time.
-    NOTE: It writes into L1 memory.
+    NOTE: Uses local writes.
 */
 #define STATW_RECALC_CMA_MIN_MAX(resource, current_sample)                                         \
     /* Calculate commutative moving average. */                                                    \
     resource.avg =                                                                                 \
         (current_sample + (STATW_CMA_SAMPLE_COUNT * resource.avg)) / (STATW_CMA_SAMPLE_COUNT + 1); \
-    resource.min = MIN(resource.min, current_sample);                                              \
-    resource.max = MAX(resource.max, current_sample);
+    STATW_RECALC_MIN_MAX(resource, current_sample)
 
 /*! \def STATW_PMU_REQ_COUNT_TO_MBPS
     \brief Helper macro to convert request count to PMU to MB/Sec.
@@ -57,6 +68,21 @@
 #define STATW_PMU_REQ_COUNT_TO_MBPS(req_count)                \
     (((req_count)*CACHE_LINE_SIZE * STATW_NUM_OF_MS_IN_SEC) / \
         (STATW_SAMPLING_INTERVAL * STATW_NUM_OF_BYTES_IN_1MB))
+
+/*! \def STATW_UTIL_OVERFLOW_CHECK(util_type_str, sample_val, total_val)
+    \brief Macro that checks for overflow in utilization values.
+*/
+#define STATW_UTIL_OVERFLOW_CHECK(util_type_str, sample_val, total_val)                                        \
+    {                                                                                                          \
+        if (sample_val > total_val)                                                                            \
+        {                                                                                                      \
+            Log_Write(LOG_LEVEL_ERROR,                                                                         \
+                "statw: %s: Sampled value greater than total value: sampled value: %ld: total value: %ld\r\n", \
+                util_type_str, sample_val, total_val);                                                         \
+            /* TODO: For now, just make both values equal. Need to check and fix this case. */                 \
+            sample_val = total_val;                                                                            \
+        }                                                                                                      \
+    }
 
 /*! \def STATW_SAMPLING_FLAG_SET
     \brief Helper macro to set sampling flag
@@ -70,6 +96,14 @@
 
 #define UNUSED_SYSCALL_ARGS 0
 
+/*! \def STATW_PERCENTAGE_MULTIPLIER
+    \brief Multiplier to convert percentage from float to a whole decimal numbers.
+    WARNING: When this is 100 or less, then max perectage will go to 100, which
+             divided by STATW_CMA_SAMPLE_COUNT for average calculations becomes zero
+             because of int data type.
+*/
+#define STATW_PERCENTAGE_MULTIPLIER 100
+
 /*! \typedef statw_cb
     \brief Device statistics worker control block
 */
@@ -82,8 +116,7 @@ typedef struct {
         pcie_dma_write_bw; /* Reserve whole cache line for this to reduce the serialization
                                          among Worker Harts reading/writing on same cache line */
     uint64_t pad2[5];
-    struct resource_value
-        cm_utilization; /* Reserve whole cache line for this to reduce the serialization
+    struct resource_value cm_bw; /* Reserve whole cache line for this to reduce the serialization
                                          among Worker Harts reading/writing on same cache line */
     uint64_t pad3[5];
     uint32_t sampling_flag;
@@ -132,7 +165,7 @@ static inline void read_resource_stats_atomically(
 
     if (resource_type == STATW_RESOURCE_CM)
     {
-        resource = &STATW_CB.cm_utilization;
+        resource = &STATW_CB.cm_bw;
     }
     else if (resource_type == STATW_RESOURCE_DMA_READ)
     {
@@ -174,7 +207,7 @@ void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64
 
     if (resource_type == STATW_RESOURCE_CM)
     {
-        resource = &STATW_CB.cm_utilization;
+        resource = &STATW_CB.cm_bw;
     }
     else if (resource_type == STATW_RESOURCE_DMA_READ)
     {
@@ -218,28 +251,37 @@ void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64
 ***********************************************************************/
 static void statw_init(struct compute_resources_sample *local_stats_cb)
 {
-    atomic_store_local_64(&STATW_CB.cm_utilization.avg, STATW_RESOURCE_DEFAULT_AVG);
-    atomic_store_local_64(&STATW_CB.cm_utilization.max, STATW_RESOURCE_DEFAULT_MAX);
-    atomic_store_local_64(&STATW_CB.cm_utilization.min, STATW_RESOURCE_DEFAULT_MIN);
+    atomic_store_local_64(&STATW_CB.cm_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
+    atomic_store_local_64(&STATW_CB.cm_bw.max, STATW_RESOURCE_DEFAULT_MAX);
+    atomic_store_local_64(&STATW_CB.cm_bw.min, STATW_RESOURCE_BW_DEFAULT_MIN);
     atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
     atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.max, STATW_RESOURCE_DEFAULT_MAX);
-    atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.min, STATW_RESOURCE_DEFAULT_MIN);
+    atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.min, STATW_RESOURCE_BW_DEFAULT_MIN);
     atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
     atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.max, STATW_RESOURCE_DEFAULT_MAX);
-    atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.min, STATW_RESOURCE_DEFAULT_MIN);
+    atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.min, STATW_RESOURCE_BW_DEFAULT_MIN);
 
     local_stats_cb->ddr_read_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
     local_stats_cb->ddr_read_bw.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->ddr_read_bw.min = STATW_RESOURCE_DEFAULT_MIN;
+    local_stats_cb->ddr_read_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
+    local_stats_cb->pcie_dma_read_utilization.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->pcie_dma_read_utilization.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->pcie_dma_read_utilization.min = STATW_RESOURCE_UTIL_DEFAULT_MIN;
     local_stats_cb->ddr_write_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
     local_stats_cb->ddr_write_bw.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->ddr_write_bw.min = STATW_RESOURCE_DEFAULT_MIN;
+    local_stats_cb->ddr_write_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
+    local_stats_cb->pcie_dma_write_utilization.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->pcie_dma_write_utilization.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->pcie_dma_write_utilization.min = STATW_RESOURCE_UTIL_DEFAULT_MIN;
     local_stats_cb->l2_l3_read_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
     local_stats_cb->l2_l3_read_bw.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->l2_l3_read_bw.min = STATW_RESOURCE_DEFAULT_MIN;
+    local_stats_cb->l2_l3_read_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
     local_stats_cb->l2_l3_write_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
     local_stats_cb->l2_l3_write_bw.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->l2_l3_write_bw.min = STATW_RESOURCE_DEFAULT_MIN;
+    local_stats_cb->l2_l3_write_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
+    local_stats_cb->cm_utilization.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->cm_utilization.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->cm_utilization.min = STATW_RESOURCE_UTIL_DEFAULT_MIN;
 }
 
 /************************************************************************
@@ -269,6 +311,8 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
     uint64_t prev_ddr_write_counter[NUM_MEM_SHIRES] = { 0 };
     uint64_t prev_l2_l3_read_counter[NUM_SHIRES][NEIGH_PER_SHIRE] = { 0 };
     uint64_t prev_l2_l3_write_counter[NUM_SHIRES][NEIGH_PER_SHIRE] = { 0 };
+    uint64_t current_timestamp;
+    uint64_t prev_timestamp;
     struct trace_custom_event_t *entry;
 
     statw_init(&data_sample);
@@ -286,6 +330,9 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
         Log_Write(LOG_LEVEL_WARNING,
             "STATW: Unable to register sampler timer! It may not log device stats.\r\n");
     }
+
+    /* Take the initial timestamp */
+    prev_timestamp = PMC_Get_Current_Cycles();
 
     /* Initilize the first sample for delta calculations. It does not log first sample inot stat Trace. */
     for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
@@ -360,14 +407,44 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
             }
 
             /* Read global stats populated by other harts/workers. */
-            read_resource_stats_atomically(STATW_RESOURCE_CM, &data_sample.cm_utilization);
+            read_resource_stats_atomically(STATW_RESOURCE_CM, &data_sample.cm_bw);
             read_resource_stats_atomically(STATW_RESOURCE_DMA_READ, &data_sample.pcie_dma_read_bw);
             read_resource_stats_atomically(
                 STATW_RESOURCE_DMA_WRITE, &data_sample.pcie_dma_write_bw);
 
+            /* Percent utilization = trasnsaction accumulated cycles * 100 / Cycles in sampling interval. */
+            current_timestamp = PMC_Get_Current_Cycles();
+            uint64_t total_cycles = current_timestamp - prev_timestamp;
+            uint64_t dma_read_util_cycles = DMAW_Write_Get_Average_Exec_Cycles();
+            uint64_t dma_write_util_cycles = DMAW_Read_Get_Average_Exec_Cycles();
+            uint64_t cm_util_cycles = KW_Get_Average_Exec_Cycles();
+
+            /* Add some checks on utilization */
+            STATW_UTIL_OVERFLOW_CHECK("dma_read_util_cycles", dma_read_util_cycles, total_cycles)
+            STATW_UTIL_OVERFLOW_CHECK("dma_write_util_cycles", dma_write_util_cycles, total_cycles)
+            STATW_UTIL_OVERFLOW_CHECK("cm_util_cycles", cm_util_cycles, total_cycles)
+
+            /* Caclulate the instantaneous average for utilization. This would
+            directly be logged in trace while min and max will be re-calculated */
+            uint64_t instant_average =
+                (dma_read_util_cycles * STATW_PERCENTAGE_MULTIPLIER) / total_cycles;
+            data_sample.pcie_dma_read_utilization.avg = instant_average;
+            STATW_RECALC_MIN_MAX(data_sample.pcie_dma_read_utilization, instant_average)
+
+            instant_average = (dma_write_util_cycles * STATW_PERCENTAGE_MULTIPLIER) / total_cycles;
+            data_sample.pcie_dma_write_utilization.avg = instant_average;
+            STATW_RECALC_MIN_MAX(data_sample.pcie_dma_write_utilization, instant_average)
+
+            instant_average = (cm_util_cycles * STATW_PERCENTAGE_MULTIPLIER) / total_cycles;
+            data_sample.cm_utilization.avg = instant_average;
+            STATW_RECALC_MIN_MAX(data_sample.cm_utilization, instant_average)
+
+            /* Log the event in trace */
             entry = (struct trace_custom_event_t *)Trace_Custom_Event(Trace_Get_MM_Stats_CB(),
                 TRACE_CUSTOM_TYPE_MM_COMPUTE_RESOURCES, (const uint8_t *)&data_sample,
                 sizeof(data_sample));
+
+            prev_timestamp = current_timestamp;
 
             /* Evict last Trace event which is logged above.
                Evicting complete buffer evertime does not evict properly. */

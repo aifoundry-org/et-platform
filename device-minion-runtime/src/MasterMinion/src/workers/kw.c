@@ -27,6 +27,7 @@
         KW_Dispatch_Kernel_Launch_Cmd
         KW_Dispatch_Kernel_Abort_Cmd
         KW_Abort_All_Dispatched_Kernels
+        KW_Get_Average_Exec_Cycles
 */
 /***********************************************************************/
 /* mm_rt_svcs */
@@ -42,6 +43,7 @@
 /* mm_rt_helpers */
 #include "error_codes.h"
 #include "syscall_internal.h"
+#include "common_utils.h"
 
 /* mm specific headers */
 #include "config/mm_config.h"
@@ -126,6 +128,8 @@
 */
 typedef struct kernel_instance_ {
     execution_cycles_t kw_cycles;
+    uint64_t kernel_exec_cycles; /* Total cycles consumed while executing kernels.
+                                     Stat worker will reset this upon reading. */
     uint64_t kernel_shire_mask;
     uint64_t umode_exception_buffer_ptr;
     uint64_t umode_trace_buffer_ptr;
@@ -1457,6 +1461,11 @@ void KW_Launch(uint32_t kw_idx)
         status = Host_Iface_CQ_Push_Cmd(0, launch_rsp, rsp_size);
 #endif
 
+        /* Accumlate kernel execution cycles. */
+        atomic_add_local_64(&kernel->kernel_exec_cycles,
+            (launch_rsp->device_cmd_execute_dur -
+                atomic_exchange_local_32(&kernel->kw_cycles.exec_prev_cycles, 0)));
+
         /* Update kernel running time for stats Trace. Reporting unit is kernels/second */
         STATW_Add_New_Sample_Atomically(
             STATW_RESOURCE_CM, (STATW_MINION_FREQ / launch_rsp->device_cmd_execute_dur));
@@ -1509,4 +1518,69 @@ void KW_Launch(uint32_t kw_idx)
     } /* loop forever */
 
     /* will not return */
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       KW_Get_Average_Exec_Cycles
+*
+*   DESCRIPTION
+*
+*       This function gets Compute Minion utlization in terms of cycles.
+*       It calculates the average of all kernel slots.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint64_t    Average consumed cycles
+*
+***********************************************************************/
+uint64_t KW_Get_Average_Exec_Cycles(void)
+{
+    uint64_t accum_cycles = 0;
+    kernel_instance_t *kernel;
+    uint64_t total_shire_count = get_set_bit_count(CW_Get_Booted_Shires());
+
+    if (total_shire_count > 0)
+    {
+        for (int kw = 0; kw < KW_NUM; kw++)
+        {
+            kernel = &KW_CB.kernels[kw];
+
+            /* Execution cycles for completed transactions. */
+            accum_cycles += atomic_exchange_local_64(&kernel->kernel_exec_cycles, 0);
+
+            /* Check if there is any active transaction. */
+            if (atomic_load_local_32(&kernel->kernel_state) == KERNEL_STATE_IN_USE)
+            {
+                uint32_t delta_active_exec =
+                    PMC_GET_LATENCY(atomic_load_local_64(&kernel->kw_cycles.exec_start_cycles));
+
+                /* TODO: While doing this calculation, the value of exec_prev_cycles might change.
+                Hence, we need to cater for this race condition */
+                delta_active_exec =
+                    delta_active_exec - atomic_load_local_32(&kernel->kw_cycles.exec_prev_cycles);
+
+                atomic_add_local_32(&kernel->kw_cycles.exec_prev_cycles, delta_active_exec);
+
+                accum_cycles += delta_active_exec;
+
+                /* Apply scaling factor. */
+                accum_cycles = (accum_cycles * get_set_bit_count(atomic_load_local_64(
+                                                   &kernel->kernel_shire_mask))) /
+                               total_shire_count;
+            }
+        }
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "KW_Get_Average_Exec_Cycles: Invalid total shire count.\r\n");
+    }
+
+    return (accum_cycles / KW_NUM);
 }

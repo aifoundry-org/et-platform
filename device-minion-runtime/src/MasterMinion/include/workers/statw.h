@@ -38,7 +38,7 @@ enum statw_resource_type {
 #define STATW_MINION_FREQ 333000000UL
 
 /*! \def STATW_SAMPLING_INTERVAL
-    \brief Device statistics sampling interval of 100 millisecond
+    \brief Device statistics sampling interval of 1 millisecond
     WARNING: Assumption is timer granularity is one millisecond
 */
 #define STATW_SAMPLING_INTERVAL 1UL
@@ -48,13 +48,18 @@ enum statw_resource_type {
 */
 #define STATW_CMA_SAMPLE_COUNT 100UL
 
-/*! \def STATW_RESOURCE_DEFAULT_MIN
-    \brief Default minimum for device resource stat. This is minimum value will be replaced by very first data sample.
+/*! \def STATW_RESOURCE_UTIL_DEFAULT_MIN
+    \brief Default minimum value for device utilization resource stat.
 */
-#define STATW_RESOURCE_DEFAULT_MIN 0UL
+#define STATW_RESOURCE_UTIL_DEFAULT_MIN 0xFFFFFFFFFFFFFFFFUL
+
+/*! \def STATW_RESOURCE_BW_DEFAULT_MIN
+    \brief Default minimum value for device bandwidth resource stat.
+*/
+#define STATW_RESOURCE_BW_DEFAULT_MIN 0UL
 
 /*! \def STATW_RESOURCE_DEFAULT_MAX
-    \brief Default maximum for device resource stat. This is minimum value will replace with actual maximum.
+    \brief Default maximum for device resource stat.
 */
 #define STATW_RESOURCE_DEFAULT_MAX 0UL
 
@@ -81,7 +86,7 @@ enum statw_resource_type {
 /*! \def MIN(x,y)
     \brief Returns min
 */
-#define MIN(x, y) (x == 0 ? y : x < y ? x : y)
+#define MIN(x, y) (x < y ? x : y)
 
 /*! \fn void STATW_Launch(uint32_t sqw_idx)
     \brief Initialize Device Stat Workers, used by dispatcher

@@ -90,10 +90,12 @@ typedef struct dma_channel_status {
 typedef struct dma_channel_status_cb {
     dma_channel_status_t status;    /* Holds the attributes related to a channel's status */
     execution_cycles_t dmaw_cycles; /* Cycles associated with the transaction */
-    uint64_t
-        transfer_size; /* Transfer size of data. This is only valid when channel state is 'in use'. */
-    uint16_t msg_id;   /* TODO: To be removed, temporary field for dmalist cmds */
-    uint8_t pad[6];    /* Padding for alignment */
+    uint64_t dma_trans_cycles; /* Total cycles consumed when the DMA engine was transferring data.
+                                       Stat worker will reset this upon reading. */
+    uint64_t transfer_size;    /* Transfer size of data. This is only valid when channel state
+                                       is 'in use'. */
+    uint16_t msg_id;           /* TODO: To be removed, temporary field for dmalist cmds */
+    uint8_t pad[6];            /* Padding for alignment */
 } dma_channel_status_cb_t;
 
 /*! \fn void DMAW_Init(void)
@@ -157,6 +159,20 @@ int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
 int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e chan_id,
     const struct device_ops_dma_readlist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
     const execution_cycles_t *cycles, dma_flags_e flags);
+
+/*! \fn uint64_t DMAW_Write_Get_Average_Exec_Cycles(void)
+    \brief This function gets DMA write utlization. It caclulates per
+    channel utlization then returns the average of all channels.
+    \return Average consumed cycles
+*/
+uint64_t DMAW_Write_Get_Average_Exec_Cycles(void);
+
+/*! \fn uint64_t DMAW_Read_Get_Average_Exec_Cycles(void)
+    \brief This function gets DMA read utlization. It caclulates per
+    channel utlization then returns the average of all channels.
+    \return Average consumed cycles
+*/
+uint64_t DMAW_Read_Get_Average_Exec_Cycles(void);
 
 /*! \fn void DMAW_Abort_All_Dispatched_Write_Channels(uint8_t sqw_idx)
     \brief Blocking call to abort all DMA write channels

@@ -32,6 +32,8 @@
         DMAW_Read_Trigger_Transfer
         DMAW_Write_Trigger_Transfer
         DMAW_Launch
+        DMAW_Read_Get_Average_Exec_Cycles
+        DMAW_Write_Get_Average_Exec_Cycles
         DMAW_Abort_All_Dispatched_Read_Channels
         DMAW_Abort_All_Dispatched_Write_Channels
 */
@@ -668,8 +670,15 @@ static inline void process_dma_read_chan_in_use(
 
         status = Host_Iface_CQ_Push_Cmd(0, write_rsp, sizeof(struct device_ops_data_write_rsp_t));
 
+        /* Accumulate DMA execution cycles. Any previous exceution cycles will be
+        deducted from total transaction cycles and previous execution cycles will be reset. */
+        atomic_add_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dma_trans_cycles,
+            (write_rsp->device_cmd_execute_dur -
+                atomic_exchange_local_32(
+                    &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_prev_cycles, 0)));
+
         /* Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq) */
-        STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_READ,
+        STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_WRITE,
             DMAW_BYTES_PER_CYCLE_TO_MBPS(transfer_size, write_rsp->device_cmd_execute_dur));
 
         if (status != STATUS_SUCCESS)
@@ -729,10 +738,11 @@ static inline void process_dma_read_chan_in_use(
 *
 ***********************************************************************/
 static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
-    struct device_ops_data_write_rsp_t *write_rsp, bool *channel_aborted)
+    struct device_ops_data_write_rsp_t *abort_write_rsp, bool *channel_aborted)
 {
     dma_channel_status_t read_chan_status;
     execution_cycles_t dma_read_cycles;
+    uint64_t abort_transfer_size;
     uint32_t dma_read_status;
     int32_t status = STATUS_SUCCESS;
     int32_t dma_status = STATUS_SUCCESS;
@@ -792,6 +802,8 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
         atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_start_cycles);
     dma_read_cycles.wait_cycles =
         atomic_load_local_32(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.wait_cycles);
+    abort_transfer_size =
+        atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].transfer_size);
 
     /* Update global DMA channel status
     NOTE: Channel state must be made idle once all resources are read */
@@ -804,27 +816,39 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
 
     if (status == DMAW_ERROR_DRIVER_ABORT_FAILED)
     {
-        write_rsp->status = DEV_OPS_API_DMA_RESPONSE_DRIVER_ABORT_FAILED;
+        abort_write_rsp->status = DEV_OPS_API_DMA_RESPONSE_DRIVER_ABORT_FAILED;
     }
     else
     {
-        write_rsp->status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;
+        abort_write_rsp->status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;
     }
 
     /* Create and transmit DMA command response */
-    write_rsp->response_info.rsp_hdr.size =
+    abort_write_rsp->response_info.rsp_hdr.size =
         sizeof(struct device_ops_data_write_rsp_t) - sizeof(struct cmn_header_t);
-    write_rsp->response_info.rsp_hdr.tag_id = read_chan_status.tag_id;
-    write_rsp->response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
+    abort_write_rsp->response_info.rsp_hdr.tag_id = read_chan_status.tag_id;
+    abort_write_rsp->response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
     /* TODO: SW-9022 To be enabled back
-    write_rsp->response_info.rsp_hdr.msg_id =
+    abort_write_rsp->response_info.rsp_hdr.msg_id =
         DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP */
-    write_rsp->device_cmd_start_ts = dma_read_cycles.cmd_start_cycles;
-    write_rsp->device_cmd_wait_dur = dma_read_cycles.wait_cycles;
+    abort_write_rsp->device_cmd_start_ts = dma_read_cycles.cmd_start_cycles;
+    abort_write_rsp->device_cmd_wait_dur = dma_read_cycles.wait_cycles;
     /* Compute command execution latency */
-    write_rsp->device_cmd_execute_dur = PMC_GET_LATENCY(dma_read_cycles.exec_start_cycles);
+    abort_write_rsp->device_cmd_execute_dur = PMC_GET_LATENCY(dma_read_cycles.exec_start_cycles);
 
-    status = Host_Iface_CQ_Push_Cmd(0, write_rsp, sizeof(struct device_ops_data_write_rsp_t));
+    status = Host_Iface_CQ_Push_Cmd(0, abort_write_rsp, sizeof(struct device_ops_data_write_rsp_t));
+
+    /* Accumulate DMA execution cycles. Any previous exceution cycles will be
+    deducted from total transaction cycles and previous execution cycles will be reset. */
+    atomic_add_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dma_trans_cycles,
+        (abort_write_rsp->device_cmd_execute_dur -
+            atomic_exchange_local_32(
+                &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_prev_cycles, 0)));
+
+    /* Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq) */
+    /* TODO: In case of abort, read the actual number of bytes transferred from DMA engine instead of total transfer size */
+    STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_WRITE,
+        DMAW_BYTES_PER_CYCLE_TO_MBPS(abort_transfer_size, abort_write_rsp->device_cmd_execute_dur));
 
     if (status == STATUS_SUCCESS)
     {
@@ -844,7 +868,7 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
     }
 
     /* Report device API error to SP */
-    SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_DMA_WRITELIST, (int16_t)write_rsp->status);
+    SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_DMA_WRITELIST, (int16_t)abort_write_rsp->status);
 }
 
 /************************************************************************
@@ -951,8 +975,15 @@ static inline void process_dma_write_chan_in_use(
 
         status = Host_Iface_CQ_Push_Cmd(0, read_rsp, sizeof(struct device_ops_data_read_rsp_t));
 
+        /* Accumulate DMA execution cycles. Any previous exceution cycles will be
+        deducted from total transaction cycles and previous execution cycles will be reset. */
+        atomic_add_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].dma_trans_cycles,
+            (read_rsp->device_cmd_execute_dur -
+                atomic_exchange_local_32(
+                    &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_prev_cycles, 0)));
+
         /* Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq) */
-        STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_WRITE,
+        STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_READ,
             DMAW_BYTES_PER_CYCLE_TO_MBPS(transfer_size, read_rsp->device_cmd_execute_dur));
 
         if (status == STATUS_SUCCESS)
@@ -1015,10 +1046,11 @@ static inline void process_dma_write_chan_in_use(
 *
 ***********************************************************************/
 static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_chan,
-    struct device_ops_data_read_rsp_t *read_rsp, bool *channel_aborted)
+    struct device_ops_data_read_rsp_t *abort_read_rsp, bool *channel_aborted)
 {
     dma_channel_status_t write_chan_status;
     execution_cycles_t dma_write_cycles;
+    uint64_t abort_transfer_size;
     uint32_t dma_write_status;
     int32_t status = STATUS_SUCCESS;
     int32_t dma_status = STATUS_SUCCESS;
@@ -1078,6 +1110,8 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
         &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_start_cycles);
     dma_write_cycles.wait_cycles =
         atomic_load_local_32(&DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.wait_cycles);
+    abort_transfer_size =
+        atomic_load_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].transfer_size);
 
     /* Update global DMA channel status
     NOTE: Channel state must be made idle once all resources are read */
@@ -1090,27 +1124,39 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
 
     if (status == DMAW_ERROR_DRIVER_ABORT_FAILED)
     {
-        read_rsp->status = DEV_OPS_API_DMA_RESPONSE_DRIVER_ABORT_FAILED;
+        abort_read_rsp->status = DEV_OPS_API_DMA_RESPONSE_DRIVER_ABORT_FAILED;
     }
     else
     {
-        read_rsp->status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;
+        abort_read_rsp->status = DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED;
     }
 
     /* Create and transmit DMA command response */
-    read_rsp->response_info.rsp_hdr.size =
+    abort_read_rsp->response_info.rsp_hdr.size =
         sizeof(struct device_ops_data_read_rsp_t) - sizeof(struct cmn_header_t);
-    read_rsp->response_info.rsp_hdr.tag_id = write_chan_status.tag_id;
-    read_rsp->response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
+    abort_read_rsp->response_info.rsp_hdr.tag_id = write_chan_status.tag_id;
+    abort_read_rsp->response_info.rsp_hdr.msg_id = (msg_id_t)(msg_id + 1U);
     /* TODO: SW-9022 To be enabled back
-    read_rsp->response_info.rsp_hdr.msg_id =
+    abort_read_rsp->response_info.rsp_hdr.msg_id =
         DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP */
-    read_rsp->device_cmd_start_ts = dma_write_cycles.cmd_start_cycles;
-    read_rsp->device_cmd_wait_dur = dma_write_cycles.wait_cycles;
+    abort_read_rsp->device_cmd_start_ts = dma_write_cycles.cmd_start_cycles;
+    abort_read_rsp->device_cmd_wait_dur = dma_write_cycles.wait_cycles;
     /* Compute command execution latency */
-    read_rsp->device_cmd_execute_dur = PMC_GET_LATENCY(dma_write_cycles.exec_start_cycles);
+    abort_read_rsp->device_cmd_execute_dur = PMC_GET_LATENCY(dma_write_cycles.exec_start_cycles);
 
-    status = Host_Iface_CQ_Push_Cmd(0, read_rsp, sizeof(struct device_ops_data_read_rsp_t));
+    status = Host_Iface_CQ_Push_Cmd(0, abort_read_rsp, sizeof(struct device_ops_data_read_rsp_t));
+
+    /* Accumulate DMA execution cycles. Any previous exceution cycles will be
+    deducted from total transaction cycles and previous execution cycles will be reset. */
+    atomic_add_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].dma_trans_cycles,
+        (abort_read_rsp->device_cmd_execute_dur -
+            atomic_exchange_local_32(
+                &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_prev_cycles, 0)));
+
+    /* Total DMA BW = (Total Transfer size (in bytes) / num of bytes in 1MB) / (DMA duration cycles / Minion Freq) */
+    /* TODO: In case of abort, read the actual number of bytes transferred from DMA engine instead of total transfer size */
+    STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_READ,
+        DMAW_BYTES_PER_CYCLE_TO_MBPS(abort_transfer_size, abort_read_rsp->device_cmd_execute_dur));
 
     if (status == STATUS_SUCCESS)
     {
@@ -1128,7 +1174,7 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
     }
 
     /* Report device API error to SP */
-    SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_DMA_READLIST, (int16_t)read_rsp->status);
+    SP_Iface_Report_Error(MM_RECOVERABLE_OPS_API_DMA_READLIST, (int16_t)abort_read_rsp->status);
 }
 
 /************************************************************************
@@ -1296,6 +1342,116 @@ void DMAW_Launch(uint32_t hart_id)
     }
 
     return;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       DMAW_Read_Get_Average_Exec_Cycles
+*
+*   DESCRIPTION
+*
+*       This function gets DMA read utlization. It caclulates per
+*       channel utlization then returns the average of all channels.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint64_t    Average consumed cycles
+*
+***********************************************************************/
+uint64_t DMAW_Read_Get_Average_Exec_Cycles(void)
+{
+    uint64_t accum_cycles = 0;
+
+    for (int read_chan = 0; read_chan < PCIE_DMA_RD_CHANNEL_COUNT; read_chan++)
+    {
+        /* Execution cycles for completed transactions. */
+        accum_cycles +=
+            atomic_exchange_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dma_trans_cycles, 0);
+
+        /* Check if there is any active transaction. */
+        if (atomic_load_local_32(&DMAW_Read_CB.chan_status_cb[read_chan].status.channel_state) ==
+            DMA_CHAN_STATE_IN_USE)
+        {
+            uint32_t delta_active_trans = PMC_GET_LATENCY(atomic_load_local_64(
+                &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_start_cycles));
+
+            /* TODO: While doing this calculation, the value of exec_prev_cycles might change.
+            Hence, we need to cater for this race condition */
+            delta_active_trans =
+                delta_active_trans -
+                atomic_load_local_32(
+                    &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_prev_cycles);
+
+            atomic_add_local_32(
+                &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_prev_cycles,
+                delta_active_trans);
+
+            accum_cycles += delta_active_trans;
+        }
+    }
+
+    return (accum_cycles / PCIE_DMA_RD_CHANNEL_COUNT);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       DMAW_Write_Get_Average_Exec_Cycles
+*
+*   DESCRIPTION
+*
+*       This function gets DMA write utlization. It caclulates per
+*       channel utlization then returns the average of all channels.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint64_t    Average consumed cycles
+*
+***********************************************************************/
+uint64_t DMAW_Write_Get_Average_Exec_Cycles(void)
+{
+    uint64_t accum_cycles = 0;
+
+    for (int write_chan = 0; write_chan < PCIE_DMA_WRT_CHANNEL_COUNT; write_chan++)
+    {
+        /* Execution cycles for completed transactions. */
+        accum_cycles +=
+            atomic_exchange_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].dma_trans_cycles, 0);
+
+        /* Check if there is any active transaction. */
+        if (atomic_load_local_32(&DMAW_Write_CB.chan_status_cb[write_chan].status.channel_state) ==
+            DMA_CHAN_STATE_IN_USE)
+        {
+            uint32_t delta_active_trans = PMC_GET_LATENCY(atomic_load_local_64(
+                &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_start_cycles));
+
+            /* TODO: While doing this calculation, the value of exec_prev_cycles might change.
+            Hence, we need to cater for this race condition */
+            delta_active_trans =
+                delta_active_trans -
+                atomic_load_local_32(
+                    &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_prev_cycles);
+
+            atomic_add_local_32(
+                &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_prev_cycles,
+                delta_active_trans);
+
+            accum_cycles += delta_active_trans;
+        }
+    }
+
+    return (accum_cycles / PCIE_DMA_WRT_CHANNEL_COUNT);
 }
 
 /************************************************************************
