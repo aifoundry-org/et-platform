@@ -153,7 +153,7 @@
 
 # et-top application
 
-## Usage: et-top DEVICE (where DEVICE is 0-63)
+## Usage: et-top DEVICE [DELAY] (where DEVICE is 0-63, and DELAY is optional and in milliseconds)
 
 Current et-top sample output:
 

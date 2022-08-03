@@ -126,7 +126,7 @@ private:
   bool processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total);
   void displayOpStat(const std::string stat, const struct op_value& ov, const bool isPower = false,
                      const uint32_t max = 0, const bool addBarLabels = false);
-  void displayComputeStat(const std::string stat, const struct resource_value& rv, const bool convertMBtoGB = false);
+  void displayComputeStat(const std::string stat, const struct resource_value& rv);
   void displayErrorDetails(std::map<std::string, uint64_t>& error, bool addColon = false, std::string prefix = "");
   void collectMemStats(void);
   void collectErrStats(void);
@@ -529,16 +529,11 @@ void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, con
   return;
 }
 
-void EtTop::displayComputeStat(const std::string stat, const struct resource_value& rv, const bool convertMBtoGB) {
+void EtTop::displayComputeStat(const std::string stat, const struct resource_value& rv) {
   uint64_t avg = rv.avg;
   uint64_t min = rv.min;
   uint64_t max = rv.max;
 
-  if (convertMBtoGB) {
-    avg /= 1000;
-    min /= 1000;
-    max /= 1000;
-  }
   std::cout << "\t" + stat + " avg: " << std::setw(6) << std::left << avg << " min: " << std::setw(6) << std::left
             << min << " max: " << std::setw(6) << std::left << max << std::endl;
   return;
@@ -599,8 +594,8 @@ void EtTop::displayStats(void) {
   displayComputeStat("            Write (MB/s) ", mmStats_.computeResources.ddr_write_bw);
   displayComputeStat("L3 BW       Read  (MB/s) ", mmStats_.computeResources.l2_l3_read_bw);
   displayComputeStat("            Write (MB/s) ", mmStats_.computeResources.l2_l3_write_bw);
-  displayComputeStat("PCI DMA BW  Read  (GB/s) ", mmStats_.computeResources.pcie_dma_read_bw, true);
-  displayComputeStat("            Write (GB/s) ", mmStats_.computeResources.pcie_dma_write_bw, true);
+  displayComputeStat("PCI DMA BW  Read  (MB/s) ", mmStats_.computeResources.pcie_dma_read_bw);
+  displayComputeStat("            Write (MB/s) ", mmStats_.computeResources.pcie_dma_write_bw);
 
   std::cout << "Queues:\n";
   for (uint32_t i = 0; i < vqStats_.size(); i++) {
@@ -641,7 +636,7 @@ void EtTop::displayStats(void) {
 int main(int argc, char** argv) {
   char* endptr = NULL;
   long int devNum = 0;
-  long int delay = 1;
+  std::chrono::duration delay = std::chrono::milliseconds(100);
   bool usageError = false;
 
   /*
@@ -654,9 +649,11 @@ int main(int argc, char** argv) {
     if (*endptr || devNum < 0 || devNum > kMaxDeviceNum) {
       usageError = true;
     } else if (argc == 3) {
-      delay = strtol(argv[2], &endptr, 10);
-      if (*endptr || delay < 0) {
+      auto delayCount = strtol(argv[2], &endptr, 10);
+      if (*endptr || delayCount < 0) {
         usageError = true;
+      } else {
+        delay = std::chrono::milliseconds(delayCount);
       }
     }
   }
@@ -664,7 +661,7 @@ int main(int argc, char** argv) {
   if (usageError) {
     std::cerr << ET_TOP " version " << ET_TOP_VERSION << "\nUsage: " << argv[0] << " DEVNO [DELAY]\n"
               << "\tDEVNO is 0-" << kMaxDeviceNum << std::endl
-              << "\tDELAY is an optional update delay in seconds\n";
+              << "\tDELAY is an optional update delay in milliseconds\n";
     exit(1);
   }
 
@@ -713,25 +710,16 @@ int main(int argc, char** argv) {
   std::unique_ptr<dev::IDeviceLayer> dl = dev::IDeviceLayer::createPcieDeviceLayer(false, true);
   device_management::DeviceManagement& dm = device_management::DeviceManagement::getInstance(dl.get());
   EtTop etTop(devNum, dl, dm);
-  int elapsed = delay;
 
-  while (1) {
-    if (delay > 0 && delay > elapsed) {
-      elapsed++;
+  auto checkPoint = std::chrono::steady_clock::now();
+  while (!etTop.stopStats()) {
+    etTop.processInput();
+    if (checkPoint > std::chrono::steady_clock::now()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     } else {
-      elapsed = 0;
+      checkPoint = std::chrono::steady_clock::now() + delay;
       etTop.collectStats();
       etTop.displayStats();
-    }
-
-    etTop.processInput();
-
-    if (etTop.stopStats()) {
-      break;
-    }
-
-    if (delay > 0) {
-      sleep(1);
     }
   }
 
