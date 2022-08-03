@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   check by setting a list of test frequencies.
 - Renamed `setModuleFrequency` to `setAndGetModuleFrequency` because now this
   test sets the frequency and validates it by reading back those frequencies.
+- [SW-13583] Enabled getFWBootstatus test
 ### Deprecated
 ### Removed
 ### Fixed

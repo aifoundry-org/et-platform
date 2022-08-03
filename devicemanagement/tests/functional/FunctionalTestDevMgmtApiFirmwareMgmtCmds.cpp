@@ -37,10 +37,7 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getMMErrorCount) {
 }
 
 TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getFWBootstatus) {
-  // TODO: SW-13219: Enable back on Target::Silicon, response is received with incorrect status on V2/V3
-  // Received incorrect rsp status: -16006 (for DM_CMD_GET_FIRMWARE_BOOT_STATUS)
-  // if (targetInList({Target::FullBoot, Target::Silicon})) {
-  if (targetInList({Target::FullBoot})) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
     getFWBootstatus(false /* Multiple devices */);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
