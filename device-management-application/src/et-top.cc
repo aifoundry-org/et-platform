@@ -591,10 +591,10 @@ void EtTop::displayStats(void) {
   displayOpStat("- MINION ", op.minion.temperature);
 
   std::cout << "Compute:\n";
-  resource_value dummy = {0, 0, 0}; // XXX eliminate this when implementation is ready
-  displayComputeStat("Throughput  Kernel/sec   ", mmStats_.computeResources.cm_utilization);
-  displayComputeStat("Util        Minion(%)    ", dummy);
-  displayComputeStat("            DMA Chan(%)  ", dummy);
+  displayComputeStat("Utilization Minion   (%) ", mmStats_.computeResources.cm_utilization);
+  displayComputeStat("            DMA Read (%) ", mmStats_.computeResources.pcie_dma_read_utilization);
+  displayComputeStat("            DMA Write(%) ", mmStats_.computeResources.pcie_dma_write_utilization);
+  displayComputeStat("Throughput  Kernel/sec   ", mmStats_.computeResources.cm_bw);
   displayComputeStat("DDR BW      Read  (MB/s) ", mmStats_.computeResources.ddr_read_bw);
   displayComputeStat("            Write (MB/s) ", mmStats_.computeResources.ddr_write_bw);
   displayComputeStat("L3 BW       Read  (MB/s) ", mmStats_.computeResources.l2_l3_read_bw);
