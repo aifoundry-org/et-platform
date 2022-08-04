@@ -41,13 +41,13 @@ class RuntimeConan(ConanFile):
 
     def requirements(self):
         device_api = "deviceApi/0.5.0@"
-        device_layer = "deviceLayer/0.3.0@"
+        device_layer = "deviceLayer/[>=0.3.0 <1.0.0]@"
         if self.options.with_tests:
             device_api += "#5859dbf139ef47467a1d6a664c33d107"
             device_layer += "#1d2eb12464a109ee1ba83a38bd4e1f6a"
         self.requires(device_api)
         self.requires(device_layer)
-        self.requires("hostUtils/0.1.0")
+        self.requires("hostUtils/[>=0.1.0 <1.0.0]")
 
         self.requires("cereal/1.3.1")
         self.requires("elfio/3.8")
