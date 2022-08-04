@@ -19,7 +19,7 @@ class HostUtilsConan(ConanFile):
     }
     default_options = {
         "shared": False,
-        "with_tests": True
+        "with_tests": False
     }
 
     scm = {
