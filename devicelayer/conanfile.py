@@ -44,7 +44,7 @@ class DeviceLayerConan(ConanFile):
         self.requires("boost/1.72.0")
 
         # IDeviceLayerMock.h
-        self.requires("gtest/1.8.1")
+        self.requires("gtest/1.10.0")
         
         self.requires("cmake-modules/[>=0.4.1 <1.0.0]")
     
