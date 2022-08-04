@@ -134,14 +134,14 @@ static inline int search_bit_location(uint32_t byte_index, uint32_t current_chun
             }
         }
     }
-    return -1;
+    return 0;
 }
 
 /************************************************************************
 *
 *   FUNCTION
 *
-*       find_first_unset_bit_offset
+*       find_first_set_bit_offset
 *
 *   DESCRIPTION
 *
@@ -159,8 +159,8 @@ static inline int search_bit_location(uint32_t byte_index, uint32_t current_chun
 *
 ***********************************************************************/
 
-static int find_first_unset_bit_offset(uint32_t *offset, uint32_t *bit,
-                                       const unsigned long long *ull_array, uint32_t ull_array_size)
+static int find_first_set_bit_offset(uint32_t *offset, uint32_t *bit,
+                                     const unsigned long long *ull_array, uint32_t ull_array_size)
 {
     uint32_t ull_index;
     const unsigned long long *data = ull_array;
@@ -1177,7 +1177,7 @@ int flash_fs_increment_completed_boot_count(void)
 
     counter_data_address = (uint32_t)(partition_address + region_address);
 
-    if (0 != find_first_unset_bit_offset(
+    if (0 != find_first_set_bit_offset(
                  &increment_offset, &bit_offset,
                  sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                          .boot_counters_region_data.ull +
