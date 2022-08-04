@@ -55,6 +55,7 @@ class RuntimeConan(ConanFile):
         self.requires("cmake-modules/[>=0.4.1 <1.0.0]")
 
         if self.options.with_tests:
+            self.requires("gtest/1.10.0")
             self.requires("sw-sysemu/0.2.0")
 
             self.requires("et-common-libs/0.7.0@#1f3ab13ae2efbbbe188e6b4d6a362fe0")
