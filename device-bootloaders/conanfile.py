@@ -41,7 +41,7 @@ class EsperantoBootLoadersConan(ConanFile):
 
     def requirements(self):
         # header-only libs
-        self.requires("deviceApi/[>=0.5.0 <1.0.0]")
+        self.requires("deviceApi/[>=0.6.0 <1.0.0]")
         self.requires("esperantoTrace/[>=0.5.0 <1.0.0]")
         self.requires("signedImageFormat/1.0")
         self.requires("tf-protocol/[>=0.1.0 <1.0.0]")
