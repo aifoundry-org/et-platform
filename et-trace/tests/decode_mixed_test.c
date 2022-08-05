@@ -18,10 +18,10 @@
 static void write_random_entry(struct trace_control_block_t *cb)
 {
     int type = rand() % 4;
-    reg_mhartid = rand() % 16;
+    reg_mhartid = (uint64_t)(rand() % 16);
     reg_hpmcounter3 += 1;
-    uint16_t tag = rand() & 0xffff;
-    uint8_t value = rand() & 0xff;
+    uint16_t tag = (uint16_t)(rand() & 0xffff);
+    uint8_t value = (uint8_t)(rand() & 0xff);
     switch (type) {
     case 0:
         Trace_Value_u8(cb, tag, value);
@@ -47,10 +47,10 @@ static void write_random_entry(struct trace_control_block_t *cb)
 #define CHECK_ENTRY(shtype, type)                                                  \
     static void check_entry_##shtype(const struct trace_value_##shtype##_t *entry) \
     {                                                                              \
-        uint64_t mhartid = rand() % 16;                                            \
+        uint64_t mhartid = (uint64_t)(rand() % 16);                                \
         reg_hpmcounter3 += 1;                                                      \
-        uint16_t tag = rand() & 0xffff;                                            \
-        type value = rand() & 0xff;                                                \
+        uint16_t tag = (uint16_t)(rand() & 0xffff);                                \
+        type value = (type)(rand() & 0xff);                                        \
         CHECK_HARTID(entry, mhartid);                                              \
         CHECK_EQ(entry->header.cycle, reg_hpmcounter3);                            \
         CHECK_EQ(entry->tag, tag);                                                 \
@@ -83,7 +83,7 @@ static void check_random_entry(const void *entry)
 int main(int argc, const char **argv)
 {
     static const size_t trace_size = 4096 * 4;
-    static const int n_entries = 10;
+    static const unsigned int n_entries = 10;
 
     struct user_args uargs;
     parse_args(argc, argv, &uargs);
@@ -95,7 +95,7 @@ int main(int argc, const char **argv)
 
     printf("-- populating trace buffer\n");
     { /* Populate trace buffer */
-        for (int i = 0; i < n_entries; ++i) {
+        for (unsigned int i = 0; i < n_entries; ++i) {
             write_random_entry(&cb);
         }
     }
@@ -116,14 +116,14 @@ int main(int argc, const char **argv)
 
     { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
-        const struct trace_string_t *entry = NULL;
-        uint64_t i = 0;
+        const struct trace_entry_header_t *entry_header = NULL;
+        unsigned int i = 0;
         while (1) {
-            printf("-- entry #%ld\n", i);
-            entry = Trace_Decode(buf, entry);
-            if (!entry)
+            printf("-- entry #%d\n", i);
+            entry_header = Trace_Decode(buf, entry_header);
+            if (!entry_header)
                 break;
-            check_random_entry(entry);
+            check_random_entry(entry_header);
             ++i;
         }
         CHECK_EQ(i, n_entries);

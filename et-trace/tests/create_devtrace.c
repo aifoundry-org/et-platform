@@ -24,7 +24,7 @@ static int randint(int a, int b)
 
 static void write_queue(struct trace_control_block_t *cb, struct trace_event_cmd_status_t *queue)
 {
-    static int trans_id = 0;
+    static uint16_t trans_id = 0;
     switch (queue->cmd_status) {
     case CMD_STATUS_WAIT_BARRIER:
         queue->cmd_status = CMD_STATUS_RECEIVED;
@@ -48,7 +48,7 @@ static void write_queue(struct trace_control_block_t *cb, struct trace_event_cmd
     }
     default:
         queue->cmd_status = rand() & 1 ? CMD_STATUS_WAIT_BARRIER : CMD_STATUS_RECEIVED;
-        queue->mesg_id = randint(512, 536);
+        queue->mesg_id = (uint16_t)randint(512, 536);
         queue->trans_id = ++trans_id;
         break;
     }
@@ -59,10 +59,10 @@ static void write_queue(struct trace_control_block_t *cb, struct trace_event_cmd
 static void write_counter(struct trace_control_block_t *cb)
 {
     if (rand() & 1) {
-        reg_hpmcounter4 += randint(1000, 2000);
+        reg_hpmcounter4 += (uint64_t)randint(1000, 2000);
         Trace_PMC_Counter(cb, PMC_COUNTER_HPMCOUNTER4);
     } else {
-        reg_hpmcounter5 += randint(1000, 2000);
+        reg_hpmcounter5 += (uint64_t)randint(1000, 2000);
         Trace_PMC_Counter(cb, PMC_COUNTER_HPMCOUNTER5);
     }
 }
@@ -70,12 +70,12 @@ static void write_counter(struct trace_control_block_t *cb)
 static void write_power(struct trace_control_block_t *cb)
 {
     struct trace_event_power_status_t power_data = {
-        .throttle_state = randint(1, 10),
-        .power_state = randint(1, 10),
-        .current_power = randint(200, 400),
-        .current_temp = randint(80, 120),
-        .tgt_freq = randint(1000, 2000),
-        .tgt_voltage = randint(1, 5),
+        .throttle_state = (uint8_t)randint(1, 10),
+        .power_state = (uint8_t)randint(1, 10),
+        .current_power = (uint8_t)randint(200, 400),
+        .current_temp = (uint8_t)randint(80, 120),
+        .tgt_freq = (uint16_t)randint(1000, 2000),
+        .tgt_voltage = (uint16_t)randint(1, 5),
     };
     Trace_Power_Status(cb, &power_data);
 }
@@ -85,7 +85,7 @@ int main(int argc, const char **argv)
     /* TODO Set static variables */
     static const size_t trace_size = 4096 * 4;
     static const int n_entries = 500;
-    static const int n_queues = 4;
+    static const uint8_t n_queues = 4;
 
     struct user_args uargs;
     parse_args(argc, argv, &uargs);
@@ -96,7 +96,7 @@ int main(int argc, const char **argv)
     struct trace_buffer_std_header_t *buf = test_trace_create(&cb, trace_size);
 
     struct trace_event_cmd_status_t queues[n_queues];
-    for (int i = 0; i < n_queues; ++i) {
+    for (uint8_t i = 0; i < n_queues; ++i) {
         queues[i].queue_slot_id = i;
         queues[i].cmd_status = CMD_STATUS_SUCCEEDED;
     }
@@ -104,7 +104,7 @@ int main(int argc, const char **argv)
     printf("-- populating trace buffer\n");
     { /* Populate trace buffer */
         for (int i = 0; i < n_entries; ++i) {
-            reg_hpmcounter3 += randint(1000, 2000); /* Update cycle time */
+            reg_hpmcounter3 += (uint64_t)randint(1000, 2000); /* Update cycle time */
             switch (i % 3) {
             case 0:
                 write_queue(&cb, queues + (rand() % n_queues));

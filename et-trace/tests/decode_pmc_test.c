@@ -17,7 +17,6 @@
 int main(int argc, const char **argv)
 {
     static const size_t trace_size = 4096;
-    static const uint32_t test_tag = 0x5AD;
     static const uint64_t n_entries = 10;
     static const size_t n_counters = 7;
 
@@ -31,8 +30,7 @@ int main(int argc, const char **argv)
     {
         printf("-- populating trace buffer\n");
         for (uint64_t i = 0; i < n_entries; ++i) {
-            int counter = i % n_counters;
-            Trace_PMC_Counter(&cb, counter);
+            Trace_PMC_Counter(&cb, (pmc_counter_e)(i % n_counters));
         }
     }
 
@@ -50,15 +48,17 @@ int main(int argc, const char **argv)
     srand(uargs.seed);
     {
         printf("-- decoding trace buffer\n");
-        const struct trace_pmc_counter_t *entry = NULL;
+        const struct trace_entry_header_t *entry_header = NULL;
+        /* const struct trace_pmc_counter_t *entry = NULL; */
         uint64_t i = 0;
         while (1) {
-            int next_counter = i % n_counters;
-            entry = Trace_Decode(buf, entry);
-            if (!entry)
+            /* int next_counter = i % n_counters; */
+            entry_header = Trace_Decode(buf, entry_header);
+            if (!entry_header)
                 break;
-            CHECK_EQ(entry->header.type, TRACE_TYPE_PMC_COUNTER);
-            /* CHECK_EQ(entry->counter, next_counter); */ /* TODO */
+            CHECK_EQ(entry_header->type, TRACE_TYPE_PMC_COUNTER);
+            /* entry = (const struct trace_pmc_counter_t *)entry_header;
+             * CHECK_EQ(entry->counter, next_counter); */ /* TODO */
             ++i;
         }
         CHECK_EQ(i, n_entries);

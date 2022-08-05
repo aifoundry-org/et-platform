@@ -29,7 +29,7 @@ static void trace_log_cmd_status(struct trace_control_block_t *cb, uint16_t mess
 int main(int argc, const char **argv)
 {
     static const size_t trace_size = 4096;
-    static const uint64_t n_entries = 10;
+    static const uint8_t n_entries = 10;
 
     struct user_args uargs;
     parse_args(argc, argv, &uargs);
@@ -41,8 +41,8 @@ int main(int argc, const char **argv)
 
     printf("-- populating trace buffer\n");
     { /* Populate trace buffer */
-        for (uint64_t i = 0; i < n_entries; ++i) {
-            trace_log_cmd_status(&cb, i, i + 1, i + 2, i + 3);
+        for (uint8_t i = 0; i < n_entries; ++i) {
+            trace_log_cmd_status(&cb, i, (uint8_t)(i + 1U), (uint16_t)(i + 2U), (uint8_t)(i + 3U));
         }
     }
 
@@ -59,17 +59,19 @@ int main(int argc, const char **argv)
 
     { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
+        const struct trace_entry_header_t *entry_header = NULL;
         const struct trace_cmd_status_t *entry = NULL;
-        uint64_t i = 0;
+        uint8_t i = 0;
         while (1) {
-            entry = Trace_Decode(buf, entry);
-            if (!entry)
+            entry_header = Trace_Decode(buf, entry_header);
+            if (!entry_header)
                 break;
-            CHECK_EQ(entry->header.type, TRACE_TYPE_CMD_STATUS);
+            CHECK_EQ(entry_header->type, TRACE_TYPE_CMD_STATUS);
+            entry = (const struct trace_cmd_status_t *)entry_header;
             CHECK_EQ(entry->cmd.mesg_id, i);
-            CHECK_EQ(entry->cmd.queue_slot_id, i + 1);
-            CHECK_EQ(entry->cmd.trans_id, i + 2);
-            CHECK_EQ(entry->cmd.cmd_status, i + 3);
+            CHECK_EQ(entry->cmd.queue_slot_id, (uint8_t)(i + 1U));
+            CHECK_EQ(entry->cmd.trans_id, (uint8_t)(i + 2U));
+            CHECK_EQ(entry->cmd.cmd_status, (uint8_t)(i + 3U));
             ++i;
         }
         CHECK_EQ(i, n_entries);

@@ -131,7 +131,7 @@ static inline const struct trace_entry_header_t *get_next_trace_event(const stru
     if (payload_size == 0)
         return NULL;
 
-    return ((struct trace_entry_header_t *)((const uint8_t *)packet + payload_size));
+    return ((const struct trace_entry_header_t *)((const uint8_t *)packet + payload_size));
 }
 
 /*! \fn decode_next_valid_sub_buffer
@@ -146,7 +146,7 @@ static inline const struct trace_entry_header_t *decode_next_valid_sub_buffer(
     struct trace_buffer_size_header_t *base = NULL;
     struct trace_entry_header_t *next = NULL;
     /* */
-    for (size_t i = (buf_index + 1); i < tb->sub_buffer_count; i++)
+    for (size_t i = (buf_index + 1U); i < tb->sub_buffer_count; i++)
     {
         /* Get the base of Nth sub buffer */
         base = (struct trace_buffer_size_header_t *)((uint64_t)tb +
@@ -183,7 +183,7 @@ const struct trace_entry_header_t *Trace_Decode(const struct trace_buffer_std_he
         else if (payload_size > sizeof(struct trace_buffer_std_header_t))
         {
             /* First entry */
-            return (struct trace_entry_header_t *)(tb + 1);
+            return (const struct trace_entry_header_t *)(tb + 1);
         }
         else if (tb->sub_buffer_count > 1)
         {
@@ -195,14 +195,14 @@ const struct trace_entry_header_t *Trace_Decode(const struct trace_buffer_std_he
             return NULL;
         }
     }
-    else if (prev < (const void *)tb)
+    else if (prev < (const struct trace_entry_header_t *)tb)
     {
         /* Invalid prev entry */
         return NULL;
     }
     else if (tb->sub_buffer_count > 1)
     {
-        buf_index = ((uint64_t)prev - (uint64_t)tb)  / tb->sub_buffer_size;
+        buf_index = (uint16_t)(((uint64_t)prev - (uint64_t)tb) / tb->sub_buffer_size);
         /* Previous event node lies in sub buffer? */
         if ((buf_index > 0) && (buf_index < tb->sub_buffer_count))
         {
@@ -248,17 +248,17 @@ const struct trace_entry_header_t *Trace_Decode_Sub(const struct trace_buffer_si
         if (buffer_size <= sizeof(struct trace_buffer_size_header_t))
             return NULL;
         /* First entry */
-        return (struct trace_entry_header_t *)(tb + 1);
+        return (const struct trace_entry_header_t *)(tb + 1);
     }
 
     /* Invalid prev entry */
-    if (prev < (const void *)tb)
+    if (prev < (const struct trace_entry_header_t *)tb)
         return NULL;
 
     const struct trace_entry_header_t *next = get_next_trace_event(prev);;
 
     /* End of buffer? */
-    const size_t cur_size = (const uint8_t *)next - (const uint8_t *)tb;
+    const size_t cur_size = (const size_t)((const uint8_t *)next - (const uint8_t *)tb);
     if (cur_size >= buffer_size)
         return NULL;
 

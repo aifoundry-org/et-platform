@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines
 - Added resource utilization stats support
+- CMake option ENABLE_WARNINGS_AS_ERRORS in tests
 ### Changed
 - Made Trace string length as configurable.
 - Adapt conan pipeline to conan 1.49
@@ -18,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - [SW-13631] Aligned trace standard header to cache-line size.
+- Build warnings in tests.
 ### Security
 
 ## [0.5.0] - 2022-6-22

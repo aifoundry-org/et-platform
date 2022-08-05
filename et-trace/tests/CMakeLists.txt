@@ -1,24 +1,26 @@
+option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
+
 add_library(et_trace_test common/mock_etsoc.c common/user_args.c)
 
 add_library(et_trace_impl_mm common/et_trace_impl.c)
-target_compile_options(et_trace_impl_mm PUBLIC -Wall)
+target_compile_options(et_trace_impl_mm PUBLIC -Wall $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>)
 target_compile_definitions(et_trace_impl_mm PUBLIC MASTER_MINION)
 target_link_libraries(et_trace_impl_mm PUBLIC et_trace)
 
 add_library(et_trace_impl common/et_trace_impl.c)
-target_compile_options(et_trace_impl PUBLIC -Wall)
+target_compile_options(et_trace_impl PUBLIC -Wall $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>)
 target_link_libraries(et_trace_impl PUBLIC et_trace)
 
 macro(add_et_trace_test name)
   add_executable(${name}_mm ${name}.c)
   target_link_libraries(${name}_mm PRIVATE et_trace_impl_mm et_trace_test)
-  target_compile_options(${name}_mm PRIVATE -Wall)
+  target_compile_options(${name}_mm PRIVATE -Wall $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>)
   target_compile_definitions(${name}_mm PRIVATE MASTER_MINION)
 
   add_executable(${name} ${name}.c)
   target_link_libraries(${name} PRIVATE et_trace_impl et_trace_test)
 
-  target_compile_options(${name} PRIVATE -Wall)
+  target_compile_options(${name} PRIVATE -Wall $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>)
 
   add_test(NAME ${name}_mm COMMAND ${name}_mm)
   add_test(NAME ${name} COMMAND ${name})
