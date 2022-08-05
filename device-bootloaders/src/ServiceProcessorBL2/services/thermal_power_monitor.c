@@ -836,6 +836,80 @@ SEND_RESPONSE:
 *
 *   FUNCTION
 *
+*      pwr_svc_get_sp_stats
+*
+*   DESCRIPTION
+*
+*       This function gets the current sp stats
+*
+*   INPUTS
+*
+*       tag_id            Tag id
+*       req_start_time    Time stamp when the request was received by the Command
+*                         Dispatcher
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void pwr_svc_get_sp_stats(tag_id_t tag_id, uint64_t req_start_time)
+{
+    struct device_mgmt_get_sp_stats_rsp_t dm_rsp;
+    struct op_stats_t op_stats;
+    int32_t status;
+
+    status = Thermal_Pwr_Mgmt_Get_System_Power_Temp_Stats(&op_stats);
+
+    if (0 != status)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt error: get_sp_stats()\r\n");
+    }
+    else
+    {
+        dm_rsp.sp_stats.system_power_avg = op_stats.system.power.avg;
+        dm_rsp.sp_stats.system_power_min = op_stats.system.power.min;
+        dm_rsp.sp_stats.system_power_max = op_stats.system.power.max;
+        dm_rsp.sp_stats.system_temperature_avg = op_stats.system.temperature.avg;
+        dm_rsp.sp_stats.system_temperature_min = op_stats.system.temperature.min;
+        dm_rsp.sp_stats.system_temperature_max = op_stats.system.temperature.max;
+
+        dm_rsp.sp_stats.minion_power_avg = op_stats.minion.power.avg;
+        dm_rsp.sp_stats.minion_power_min = op_stats.minion.power.min;
+        dm_rsp.sp_stats.minion_power_max = op_stats.minion.power.max;
+        dm_rsp.sp_stats.minion_temperature_avg = op_stats.minion.temperature.avg;
+        dm_rsp.sp_stats.minion_temperature_min = op_stats.minion.temperature.min;
+        dm_rsp.sp_stats.minion_temperature_max = op_stats.minion.temperature.max;
+
+        dm_rsp.sp_stats.sram_power_avg = op_stats.sram.power.avg;
+        dm_rsp.sp_stats.sram_power_min = op_stats.sram.power.min;
+        dm_rsp.sp_stats.sram_power_max = op_stats.sram.power.max;
+        dm_rsp.sp_stats.sram_temperature_avg = op_stats.sram.temperature.avg;
+        dm_rsp.sp_stats.sram_temperature_min = op_stats.sram.temperature.min;
+        dm_rsp.sp_stats.sram_temperature_max = op_stats.sram.temperature.max;
+
+        dm_rsp.sp_stats.noc_power_avg = op_stats.noc.power.avg;
+        dm_rsp.sp_stats.noc_power_min = op_stats.noc.power.min;
+        dm_rsp.sp_stats.noc_power_max = op_stats.noc.power.max;
+        dm_rsp.sp_stats.noc_temperature_avg = op_stats.noc.temperature.avg;
+        dm_rsp.sp_stats.noc_temperature_min = op_stats.noc.temperature.min;
+        dm_rsp.sp_stats.noc_temperature_max = op_stats.noc.temperature.max;
+    }
+
+    FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_SP_STATS, timer_get_ticks_count() - req_start_time,
+                    status);
+
+    if (0 !=
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_get_sp_stats_rsp_t)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_get_sp_stats: Cqueue push error!\n");
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       thermal_power_monitoring_process
 *
 *   DESCRIPTION
@@ -860,6 +934,10 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
 
     switch (msg_id)
     {
+        case DM_CMD_GET_SP_STATS: {
+            pwr_svc_get_sp_stats(tag_id, req_start_time);
+            break;
+        }
         case DM_CMD_GET_MODULE_POWER_STATE: {
             pwr_svc_get_module_power_state(tag_id, req_start_time);
             break;
