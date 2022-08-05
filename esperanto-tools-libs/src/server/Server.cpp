@@ -39,7 +39,8 @@ Server::~Server() {
   close(socket_);
 }
 
-Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer, Options options) {
+Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer, Options options)
+  : deviceLayer_{std::move(deviceLayer)} {
   cap_t caps;
   const cap_value_t cap_list[1] = {CAP_SYS_PTRACE};
 
@@ -59,8 +60,7 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
   if (cap_free(caps) == -1) {
     throw Exception("Couldn't free the caps struct. " + std::string{strerror(errno)});
   }
-
-  deviceLayer_ = std::move(deviceLayer);
+  CHECK(deviceLayer_ != nullptr) << "DeviceLayer can't be null";
 
   runtime_ = IRuntime::create(deviceLayer_.get(), options);
 

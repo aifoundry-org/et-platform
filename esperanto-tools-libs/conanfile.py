@@ -52,6 +52,7 @@ class RuntimeConan(ConanFile):
         self.requires("cereal/1.3.1")
         self.requires("elfio/3.8")
         self.requires("libcap/2.62")
+        self.requires("gflags/2.2.2")
 
         self.requires("cmake-modules/[>=0.4.1 <1.0.0]")
 

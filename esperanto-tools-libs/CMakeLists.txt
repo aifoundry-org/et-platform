@@ -55,6 +55,7 @@ set(LIB_INSTALL_DIR  ${CMAKE_INSTALL_PREFIX}/lib/  CACHE STRING "Library install
 # System dependencies
 find_package(cereal REQUIRED)
 find_package(elfio REQUIRED)
+find_package(gflags REQUIRED)
 
 # Esperanto dependencies
 find_package(libcap REQUIRED)
@@ -127,6 +128,14 @@ target_link_libraries(etrt PUBLIC etrt_obj)
 add_library(etrt_static STATIC)
 add_library(runtime::etrt_static ALIAS etrt)
 target_link_libraries(etrt_static PUBLIC etrt_obj)
+
+## Add server daemon
+add_executable(server src/server/main.cpp)
+target_link_libraries(server 
+    PRIVATE 
+        runtime::etrt_static
+        deviceLayer::deviceLayer
+        gflags::gflags)
 
 ## Install library targets (new)
 install(TARGETS etrt_obj etrt etrt_static

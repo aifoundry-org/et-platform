@@ -8,15 +8,15 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
-#include "Worker.h"
-#include "device-layer/IDeviceLayer.h"
 #include "runtime/IProfiler.h"
 #include "runtime/IRuntime.h"
+#include <deviceLayer/IDeviceLayer.h>
 #include <hostUtils/threadPool/ThreadPool.h>
 #include <string_view>
 #include <thread>
 #include <vector>
 namespace rt {
+class Worker;
 class Server {
 public:
   explicit Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer, Options options);
