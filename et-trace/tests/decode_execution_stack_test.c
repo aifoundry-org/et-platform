@@ -20,7 +20,7 @@ static void trace_log_execution_stack(struct trace_control_block_t *cb, uint64_t
     struct dev_context_registers_t regs = {.epc = iter, .tval = iter + 1,
         .status = iter + 2, .cause = iter + 3};
     /* Populate GPRs */
-    for (int i = 0; i < TRACE_DEV_CONTEXT_GPRS; i++)
+    for (unsigned int i = 0; i < TRACE_DEV_CONTEXT_GPRS; i++)
     {
         regs.gpr[i] = iter + 4 + i;
     }
@@ -31,7 +31,7 @@ static void trace_log_execution_stack(struct trace_control_block_t *cb, uint64_t
 int main(int argc, const char **argv)
 {
     static size_t trace_size = 4096;
-    static int n_entries = 10;
+    static unsigned int n_entries = 10;
 
     struct user_args uargs;
     parse_args(argc, argv, &uargs);
@@ -43,7 +43,7 @@ int main(int argc, const char **argv)
 
     printf("-- populating trace buffer\n");
     { /* Populate trace buffer */
-        for (int i = 0; i < n_entries; ++i) {
+        for (unsigned int i = 0; i < n_entries; ++i) {
             trace_log_execution_stack(&cb, i);
         }
     }
@@ -65,20 +65,22 @@ int main(int argc, const char **argv)
 
     { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
+        const struct trace_entry_header_t *entry_header = NULL;
         const struct trace_execution_stack_t *entry = NULL;
-        int i = 0;
+        unsigned int i = 0;
         while (1) {
-            entry = Trace_Decode(buf, entry);
-            if (!entry)
+            entry_header = Trace_Decode(buf, entry_header);
+            if (!entry_header)
                 break;
-            CHECK_EQ(entry->header.type, TRACE_TYPE_EXCEPTION);
+            CHECK_EQ(entry_header->type, TRACE_TYPE_EXCEPTION);
+            entry = (const struct trace_execution_stack_t *)entry_header;
             CHECK_EQ(entry->registers.epc, i);
             CHECK_EQ(entry->registers.tval, i + 1);
             CHECK_EQ(entry->registers.status, i + 2);
             CHECK_EQ(entry->registers.cause, i + 3);
-            for (int j = 0; j < TRACE_DEV_CONTEXT_GPRS; j++)
+            for (unsigned int j = 0; j < TRACE_DEV_CONTEXT_GPRS; j++)
             {
-                CHECK_EQ(entry->registers.gpr[j], i + 4 + j);
+                CHECK_EQ(entry->registers.gpr[j], (uint64_t)(i + 4U + j));
             }
             ++i;
         }

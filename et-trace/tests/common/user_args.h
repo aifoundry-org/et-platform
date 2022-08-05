@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 struct user_args {
-    int seed;
+    unsigned int seed;
     const char *output;
 };
 

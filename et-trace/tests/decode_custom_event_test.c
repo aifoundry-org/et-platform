@@ -19,7 +19,7 @@ int main(int argc, const char **argv)
 {
     static char event_payload[] = { "This is a ET custom event" };
     static size_t trace_size = 4096;
-    static int n_entries = 10;
+    static unsigned int n_entries = 10;
 
     struct user_args uargs;
     parse_args(argc, argv, &uargs);
@@ -31,7 +31,7 @@ int main(int argc, const char **argv)
 
     printf("-- populating trace buffer\n");
     { /* Populate trace buffer */
-        for (int i = 0; i < n_entries; ++i) {
+        for (unsigned int i = 0; i < n_entries; ++i) {
             Trace_Custom_Event(&cb, i, (uint8_t*)event_payload, sizeof(event_payload));
         }
     }
@@ -53,16 +53,18 @@ int main(int argc, const char **argv)
 
     { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
+        const struct trace_entry_header_t *entry_header = NULL;
         const struct trace_custom_event_t *entry = NULL;
-        int i = 0;
+        unsigned int i = 0;
         while (1) {
-            entry = Trace_Decode(buf, entry);
-            if (!entry)
+            entry_header = Trace_Decode(buf, entry_header);
+            if (!entry_header)
                 break;
-            CHECK_EQ(entry->header.type, TRACE_TYPE_CUSTOM_EVENT);
+            CHECK_EQ(entry_header->type, TRACE_TYPE_CUSTOM_EVENT);
+            entry = (const struct trace_custom_event_t *)entry_header;
             CHECK_EQ(entry->custom_type, i);
             CHECK_EQ(entry->payload_size, sizeof(event_payload));
-            CHECK_STREQ(entry->payload, event_payload);
+            CHECK_STREQ((const char*)entry->payload, event_payload);
             ++i;
         }
         CHECK_EQ(i, n_entries);

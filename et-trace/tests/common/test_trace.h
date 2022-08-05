@@ -5,6 +5,13 @@
 
 #include <et-trace/layout.h>
 
+struct trace_buffer_std_header_t *test_trace_create(struct trace_control_block_t *cb, size_t size);
+struct trace_buffer_std_header_t *test_cm_trace_create(struct trace_control_block_t *cb,
+                                                       size_t size, size_t sub_buffer_count);
+void test_cm_trace_evict(struct trace_control_block_t *cb);
+void test_trace_evict(struct trace_buffer_std_header_t *buf, struct trace_control_block_t *cb);
+void test_trace_destroy(struct trace_buffer_std_header_t *buf);
+
 struct trace_buffer_std_header_t *test_trace_create(struct trace_control_block_t *cb, size_t size)
 {
     struct trace_buffer_std_header_t *buf = malloc(size);
@@ -17,9 +24,9 @@ struct trace_buffer_std_header_t *test_trace_create(struct trace_control_block_t
     info.thread_mask = 0XFFFFFFFF;
     info.event_mask = TRACE_EVENT_ENABLE_ALL;
     info.filter_mask = TRACE_FILTER_ENABLE_ALL;
-    info.threshold = size;
+    info.threshold = (uint32_t)size;
 
-    cb->size_per_hart = size;
+    cb->size_per_hart = (uint32_t)size;
     cb->base_per_hart = (uint64_t)buf;
     cb->offset_per_hart = sizeof(struct trace_buffer_std_header_t);
     cb->buffer_lock_acquire = NULL;
@@ -29,7 +36,7 @@ struct trace_buffer_std_header_t *test_trace_create(struct trace_control_block_t
     buf->magic_header = TRACE_MAGIC_HEADER;
     buf->data_size = sizeof(struct trace_buffer_std_header_t);
     buf->sub_buffer_count = 1;
-    buf->sub_buffer_size = size;
+    buf->sub_buffer_size = (uint32_t)size;
     buf->version.major = TRACE_VERSION_MAJOR;
     buf->version.minor = TRACE_VERSION_MINOR;
     buf->version.patch = TRACE_VERSION_PATCH;
@@ -54,10 +61,10 @@ struct trace_buffer_std_header_t *test_cm_trace_create(struct trace_control_bloc
     info.thread_mask = 0XFFFFFFFF;
     info.event_mask = TRACE_EVENT_ENABLE_ALL;
     info.filter_mask = TRACE_FILTER_ENABLE_ALL;
-    info.threshold = size;
+    info.threshold = (uint32_t)size;
 
     for (uint32_t i = 0; i < sub_buffer_count; i++) {
-        cb->size_per_hart = size;
+        cb->size_per_hart = (uint32_t)size;
         cb->base_per_hart = (uint64_t)buf + (i * size);
         cb->offset_per_hart = sizeof(struct trace_buffer_std_header_t);
         cb->buffer_lock_acquire = NULL;
@@ -73,8 +80,8 @@ struct trace_buffer_std_header_t *test_cm_trace_create(struct trace_control_bloc
     }
 
     buf->magic_header = TRACE_MAGIC_HEADER;
-    buf->sub_buffer_count = sub_buffer_count;
-    buf->sub_buffer_size = size;
+    buf->sub_buffer_count = (uint16_t)sub_buffer_count;
+    buf->sub_buffer_size = (uint32_t)size;
     buf->version.major = TRACE_VERSION_MAJOR;
     buf->version.minor = TRACE_VERSION_MINOR;
     buf->version.patch = TRACE_VERSION_PATCH;

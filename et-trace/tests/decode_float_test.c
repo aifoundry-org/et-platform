@@ -19,7 +19,6 @@ int main(int argc, const char **argv)
     static const size_t trace_size = 4096;
     static const uint32_t test_tag = 0x5AD;
     static const uint64_t n_entries = 10;
-    static const size_t n_counters = 7;
 
     struct user_args uargs;
     parse_args(argc, argv, &uargs);
@@ -31,7 +30,7 @@ int main(int argc, const char **argv)
     {
         printf("-- populating trace buffer\n");
         for (uint64_t i = 0; i < n_entries; ++i) {
-            Trace_Value_float(&cb, test_tag, i + 0.5f);
+            Trace_Value_float(&cb, test_tag, (float)i + 0.5f);
         }
     }
 
@@ -49,17 +48,21 @@ int main(int argc, const char **argv)
     srand(uargs.seed);
     {
         printf("-- decoding trace buffer\n");
+        const struct trace_entry_header_t *entry_header = NULL;
         const struct trace_value_float_t *entry = NULL;
         uint64_t i = 0;
+        float value;
         while (1) {
-            entry = Trace_Decode(buf, entry);
-            if (!entry)
+            entry_header = Trace_Decode(buf, entry_header);
+            if (!entry_header)
                 break;
-            CHECK_EQ(entry->header.type, TRACE_TYPE_VALUE_FLOAT);
+            CHECK_EQ(entry_header->type, TRACE_TYPE_VALUE_FLOAT);
+            entry = (const struct trace_value_float_t *)entry_header;
             CHECK_EQ(entry->tag, test_tag);
+            value = (float)i + 0.5f;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat"
-            CHECK_EQ(entry->value, i + 0.5f);
+            CHECK_EQ(entry->value, value);
 #pragma GCC diagnostic pop
             ++i;
         }

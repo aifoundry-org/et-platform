@@ -17,7 +17,6 @@
 int main(int argc, const char **argv)
 {
     static const size_t trace_size = 4096;
-    static const uint32_t test_tag = 0x5AD;
     static const uint64_t n_entries = 10;
     static const char test_str[64] = "Hello world";
 
@@ -49,13 +48,15 @@ int main(int argc, const char **argv)
 
     { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
+        const struct trace_entry_header_t *entry_header = NULL;
         const struct trace_string_t *entry = NULL;
         uint64_t i = 0;
         while (1) {
-            entry = Trace_Decode(buf, entry);
-            if (!entry)
+            entry_header = Trace_Decode(buf, entry_header);
+            if (!entry_header)
                 break;
-            CHECK_EQ(entry->header.type, TRACE_TYPE_STRING);
+            CHECK_EQ(entry_header->type, TRACE_TYPE_STRING);
+            entry = (const struct trace_string_t *)entry_header;
             CHECK_STREQ(entry->string, test_str);
             ++i;
         }

@@ -14,8 +14,8 @@
 #include "common/test_macros.h"
 #include "common/user_args.h"
 
-#define rand_u8()  (rand() % (1 << 8))
-#define rand_u16() (rand() % (1 << 16))
+#define rand_u8()  (uint8_t)(rand() % (1 << 8))
+#define rand_u16() (uint16_t)(rand() % (1 << 16))
 
 static void write_random_power_status(struct trace_control_block_t *cb)
 {
@@ -81,13 +81,15 @@ int main(int argc, const char **argv)
 
     { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
+        const struct trace_entry_header_t *entry_header = NULL;
         const struct trace_power_status_t *entry = NULL;
         uint64_t i = 0;
         while (1) {
-            entry = Trace_Decode(buf, entry);
-            if (!entry)
+            entry_header = Trace_Decode(buf, entry_header);
+            if (!entry_header)
                 break;
-            CHECK_EQ(entry->header.type, TRACE_TYPE_POWER_STATUS);
+            CHECK_EQ(entry_header->type, TRACE_TYPE_POWER_STATUS);
+            entry = (const struct trace_power_status_t *)entry_header;
             check_random_power_status(&entry->power);
             ++i;
         }

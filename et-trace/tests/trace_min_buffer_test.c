@@ -36,9 +36,9 @@ int main(int argc, const char **argv)
     info.thread_mask = 0XFFFFFFFF;
     info.event_mask = TRACE_EVENT_ENABLE_ALL;
     info.filter_mask = TRACE_FILTER_ENABLE_ALL;
-    info.threshold = trace_size;
+    info.threshold = (uint32_t)trace_size;
 
-    cb.size_per_hart = trace_size;
+    cb.size_per_hart = (uint32_t)trace_size;
     cb.base_per_hart = (uint64_t)buf;
     cb.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
     printf("-- initialize trace with invalid buffer size\n");

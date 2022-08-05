@@ -523,11 +523,11 @@ static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint6
     void (*lock_release)(void) = NULL;
 
     /* Load function ptr for buffer lock acquire */
-    lock_acquire = (void (*)())(uintptr_t)ET_TRACE_READ_U64_PTR(cb->buffer_lock_acquire);
+    lock_acquire = (void (*)(void))(uintptr_t)ET_TRACE_READ_U64_PTR(cb->buffer_lock_acquire);
 
     /* Acquire the lock and load release lock function ptr if lock acquire function is defined */
     if (lock_acquire != NULL) {
-        lock_release = (void (*)())(uintptr_t)ET_TRACE_READ_U64_PTR(cb->buffer_lock_release);
+        lock_release = (void (*)(void))(uintptr_t)ET_TRACE_READ_U64_PTR(cb->buffer_lock_release);
         lock_acquire();
     }
 
@@ -711,7 +711,7 @@ void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *
         struct trace_string_t *entry =
             (struct trace_string_t *)trace_buffer_reserve(cb, (sizeof(*entry) + str_length));
 
-        ET_TRACE_MESSAGE_HEADER(entry, str_length, TRACE_TYPE_STRING)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)str_length, TRACE_TYPE_STRING)
         ET_TRACE_MEM_CPY(entry->string, str, str_length);
     }
 }
@@ -753,7 +753,7 @@ void Trace_Format_String(trace_string_event_e log_level, struct trace_control_bl
         struct trace_string_t *entry =
             (struct trace_string_t *)trace_buffer_reserve(cb, (sizeof(*entry) + str_length));
 
-        ET_TRACE_MESSAGE_HEADER(entry, str_length, TRACE_TYPE_STRING)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)str_length, TRACE_TYPE_STRING)
         va_start(args, format);
         vsnprintf(entry->string, str_length, format, args);
     }
@@ -787,7 +787,7 @@ void Trace_Cmd_Status(struct trace_control_block_t *cb,
         struct trace_cmd_status_t *entry =
             (struct trace_cmd_status_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-        ET_TRACE_MESSAGE_HEADER(entry, ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_CMD_STATUS)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_CMD_STATUS)
         ET_TRACE_WRITE_U64(entry->cmd.raw_cmd, cmd_data->raw_cmd);
     }
 }
@@ -819,7 +819,7 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
         struct trace_power_status_t *entry =
             (struct trace_power_status_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-        ET_TRACE_MESSAGE_HEADER(entry, ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_POWER_STATUS)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_POWER_STATUS)
         ET_TRACE_WRITE_U64(entry->power.raw_cmd, pwr_data->raw_cmd);
     }
 }
@@ -849,7 +849,7 @@ void Trace_PMC_Counters_Compute(struct trace_control_block_t *cb)
         struct trace_pmc_counters_compute_t *entry =
             (struct trace_pmc_counters_compute_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-        ET_TRACE_MESSAGE_HEADER(entry, ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_PMC_COUNTERS_COMPUTE)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_PMC_COUNTERS_COMPUTE)
         ET_TRACE_WRITE_U64(entry->hpmcounter3, ET_TRACE_GET_HPM_COUNTER(PMC_COUNTER_HPMCOUNTER3));
         ET_TRACE_WRITE_U64(entry->hpmcounter4, ET_TRACE_GET_HPM_COUNTER(PMC_COUNTER_HPMCOUNTER4));
         ET_TRACE_WRITE_U64(entry->hpmcounter5, ET_TRACE_GET_HPM_COUNTER(PMC_COUNTER_HPMCOUNTER5));
@@ -884,7 +884,7 @@ void Trace_PMC_Counters_Memory(struct trace_control_block_t *cb)
         struct trace_pmc_counters_memory_t *entry =
             (struct trace_pmc_counters_memory_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-        ET_TRACE_MESSAGE_HEADER(entry, ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_PMC_COUNTERS_MEMORY)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_PMC_COUNTERS_MEMORY)
         ET_TRACE_WRITE_U64(entry->sc_pmc0,
             ET_TRACE_GET_SHIRE_CACHE_COUNTER(PMC_COUNTER_SHIRE_CACHE_1 - PMC_COUNTER_SHIRE_CACHE_CYCLE));
         ET_TRACE_WRITE_U64(entry->sc_pmc1,
@@ -922,7 +922,7 @@ void Trace_PMC_Counter(struct trace_control_block_t *cb, pmc_counter_e counter)
         struct trace_pmc_counter_t *entry =
             (struct trace_pmc_counter_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-        ET_TRACE_MESSAGE_HEADER(entry, ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_PMC_COUNTER)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_PMC_COUNTER)
         ET_TRACE_WRITE_U8(entry->counter, counter);
 
         switch(counter)
@@ -974,7 +974,7 @@ void Trace_Value_u64(struct trace_control_block_t *cb, uint32_t tag, uint64_t va
         struct trace_value_u64_t *entry =
             (struct trace_value_u64_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-        ET_TRACE_MESSAGE_HEADER(entry, ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_VALUE_U64)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_VALUE_U64)
 
         ET_TRACE_WRITE_U32(entry->tag, tag);
         ET_TRACE_WRITE_U64(entry->value, value);
@@ -1008,7 +1008,7 @@ void Trace_Value_u32(struct trace_control_block_t *cb, uint32_t tag, uint32_t va
         struct trace_value_u32_t *entry =
             (struct trace_value_u32_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-        ET_TRACE_MESSAGE_HEADER(entry, ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_VALUE_U32)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_VALUE_U32)
 
         ET_TRACE_WRITE_U32(entry->tag, tag);
         ET_TRACE_WRITE_U32(entry->value, value);
@@ -1042,7 +1042,7 @@ void Trace_Value_u16(struct trace_control_block_t *cb, uint32_t tag, uint16_t va
         struct trace_value_u16_t *entry =
             (struct trace_value_u16_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-        ET_TRACE_MESSAGE_HEADER(entry, ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_VALUE_U16)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_VALUE_U16)
 
         ET_TRACE_WRITE_U32(entry->tag, tag);
         ET_TRACE_WRITE_U16(entry->value, value);
@@ -1076,7 +1076,7 @@ void Trace_Value_u8(struct trace_control_block_t *cb, uint32_t tag, uint8_t valu
         struct trace_value_u8_t *entry =
             (struct trace_value_u8_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-        ET_TRACE_MESSAGE_HEADER(entry, ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_VALUE_U8)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_VALUE_U8)
 
         ET_TRACE_WRITE_U32(entry->tag, tag);
         ET_TRACE_WRITE_U8(entry->value, value);
@@ -1110,7 +1110,7 @@ void Trace_Value_float(struct trace_control_block_t *cb, uint32_t tag, float val
         struct trace_value_float_t *entry =
             (struct trace_value_float_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-        ET_TRACE_MESSAGE_HEADER(entry, ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_VALUE_FLOAT)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_VALUE_FLOAT)
 
         ET_TRACE_WRITE_U32(entry->tag, tag);
         ET_TRACE_WRITE_FLOAT(entry->value, value);
@@ -1146,7 +1146,7 @@ void *Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint32_
         (size <= (ET_TRACE_READ_U32(cb->size_per_hart) - trace_get_header_size(cb)))) {
         entry = (struct trace_memory_t *)trace_buffer_reserve(cb, sizeof(*entry) + size);
 
-        ET_TRACE_MESSAGE_HEADER(entry, ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry) + size), TRACE_TYPE_MEMORY)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry) + size), TRACE_TYPE_MEMORY)
 
         ET_TRACE_WRITE_U64(entry->src_addr, (uint64_t)(src));
         ET_TRACE_WRITE_U64(entry->size, size);
@@ -1184,7 +1184,7 @@ void *Trace_Execution_Stack(struct trace_control_block_t *cb,
     if (trace_is_enabled(cb)) {
         entry = (struct trace_execution_stack_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-        ET_TRACE_MESSAGE_HEADER(entry, ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_EXCEPTION)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_EXCEPTION)
         ET_TRACE_MEM_CPY(&entry->registers, regs, sizeof(struct dev_context_registers_t));
     }
 
@@ -1224,7 +1224,7 @@ void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
         /* Reserve the trace buffer */
         entry = (struct trace_custom_event_t *)trace_buffer_reserve(cb, sizeof(*entry) + payload_size);
 
-        ET_TRACE_MESSAGE_HEADER(entry, ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry) + payload_size), TRACE_TYPE_CUSTOM_EVENT)
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry) + payload_size), TRACE_TYPE_CUSTOM_EVENT)
         ET_TRACE_WRITE_U32(entry->custom_type, custom_type);
         ET_TRACE_WRITE_U32(entry->payload_size, payload_size);
         ET_TRACE_MEM_CPY(entry->payload, payload, payload_size);

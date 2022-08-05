@@ -38,10 +38,10 @@ int main(int argc, const char **argv)
 
     struct trace_config_info_t trace_config = { .filter_mask = 0,
         .event_mask = 0,
-        .threshold = trace_size / 2};
+        .threshold = (uint32_t)(trace_size / 2)};
 
     printf("-- Configuring trace to disable all events.\n");
-    uint32_t status = Trace_Config(&trace_config, &cb);
+    int32_t status = Trace_Config(&trace_config, &cb);
     CHECK_EQ(status, TRACE_STATUS_SUCCESS);
     CHECK_EQ(cb.event_mask, trace_config.event_mask);
     CHECK_EQ(cb.filter_mask, trace_config.filter_mask);
@@ -67,13 +67,15 @@ int main(int argc, const char **argv)
 
     { /* Decoder trace buffer */
         printf("-- decoding trace buffer\n");
+	const struct trace_entry_header_t *entry_header = NULL;
         const struct trace_string_t *entry = NULL;
         uint64_t i = 0;
         while (1) {
-            entry = Trace_Decode(buf, entry);
-            if (!entry)
+            entry_header = Trace_Decode(buf, entry_header);
+            if (!entry_header)
                 break;
-            CHECK_EQ(entry->header.type, TRACE_TYPE_STRING);
+            CHECK_EQ(entry_header->type, TRACE_TYPE_STRING);
+            entry = (const struct trace_string_t *)entry_header;
             CHECK_STREQ(entry->string, test_str);
             ++i;
         }

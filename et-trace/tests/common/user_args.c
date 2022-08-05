@@ -15,7 +15,7 @@ void parse_args(int argc, const char **argv, struct user_args *uargs)
     while ((ret = getopt(argc, (char *const *)argv, ":s:o:h")) != -1) {
         switch (ret) {
         case 's':
-            uargs->seed = atoi(optarg);
+            uargs->seed = (unsigned int)atoi(optarg);
             break;
         case 'o':
             uargs->output = optarg;
