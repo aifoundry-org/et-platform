@@ -13,6 +13,7 @@
 #include "ScopedProfileEvent.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
+#include "server/Client.h"
 
 namespace rt {
 using namespace profiling;
@@ -160,6 +161,12 @@ void IRuntime::unloadCode(KernelId kernel) {
 
 RuntimePtr IRuntime::create(dev::IDeviceLayer* deviceLayer, rt::Options options) {
   auto res = std::make_unique<RuntimeImp>(deviceLayer, options);
+  res->setProfiler(std::make_unique<profiling::ProfilerImp>());
+  return res;
+}
+
+RuntimePtr IRuntime::create(const std::string& socketPath) {
+  auto res = std::make_unique<Client>(socketPath);
   res->setProfiler(std::make_unique<profiling::ProfilerImp>());
   return res;
 }

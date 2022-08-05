@@ -369,12 +369,22 @@ public:
   ///
 
   ///
-  /// \brief Factory method to instantiate a IRuntime implementation
+  /// \brief Factory method to instantiate a standalone IRuntime implementation
   ///
+  /// @param[in] Options can set some runtime parameters. See \ref Options
   ///
   /// @returns RuntimePtr an IRuntime instance. See \ref dev::IDeviceLayer
   ///
   static RuntimePtr create(dev::IDeviceLayer* deviceLayer, Options options = getDefaultOptions());
+
+  ///
+  /// \brief Factory method to instantiate a client IRuntime implementation
+  ///
+  /// @param[in] socketPath indicates which socket the Client will connect to
+  ///
+  /// @returns RuntimePtr an IRuntime instance. See \ref dev::IDeviceLayer
+  ///
+  static RuntimePtr create(const std::string& socketPath);
 
 private:
   std::unique_ptr<profiling::IProfilerRecorder> profiler_;

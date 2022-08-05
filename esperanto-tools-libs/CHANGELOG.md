@@ -17,6 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - small performance improvement to profiler
 - [SW-13614] refactored runtime internal implementation to follow NVI idiom; easing the implementation of common parts -profiling- (kind of template pattern).
 - [SW-13533] added profiling in client side. This profiling does not include internals, only runtime API.
+- [SW-11402] and [SW-10777] added a new factory method to instantiate runtime client (instead of runtime standalone)
+  ```cpp
+  ///
+  /// \brief Factory method to instantiate a client IRuntime implementation
+  ///
+  /// @param[in] socketPath indicates which socket the Client will connect to
+  ///
+  /// @returns RuntimePtr an IRuntime instance. See \ref dev::IDeviceLayer
+  ///
+  static RuntimePtr create(const std::string& socketPath);
+  ```
+  - all tickets from [SW-10470]
+
 ### Changed
 - [SW-13523] updated DeviceProperties serialization and struct (see "runtime/Types.h") to expose two new fields:
   * tdp
@@ -28,6 +41,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * added CmaCopyFunction as an optional parameter to customize the way the data is copied from user-space virtual memory to CMA buffers. This is intended to be used internally and defaults to regular std::copy function.
 ### Deprecated
 ### Removed
+- ***BREAKING CHANGE***: device fw tracing
+  - when using the new Client runtime mode, device firmware related methods won't be usable until
+  this ticket is done: https://esperantotech.atlassian.net/browse/SW-10843 
+  methods affected are:
+  ```cpp
+  EventId setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask, uint32_t filterMask, bool barrier = true);
+  EventId startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput, bool barrier = true);
+  EventId stopDeviceTracing(StreamId stream, bool barrier = true);
+
+  ```
 - ***BREAKING CHANGE***: tracing:
   - profileEvent Class::LoadCode "loadAddress" will indeed contain the loadAddress instead of the entryPoint. This is actually a FIX but changes the old behavior
   - profileEvent Class::KernelLaunch won't trace a meaningful loadAddress anymore. Still the field will be fill but with a -1 (0xFFFFFFFFFFFFFFFF)
