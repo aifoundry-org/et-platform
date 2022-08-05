@@ -174,9 +174,9 @@ void do_tima(bool tenc, bool firstpass, uint64_t tenaoff, uint64_t scp_off) {
 uint64_t vpu_tima_power_virus(uint64_t loop_size) {
    uint64_t res = 0;
    uint64_t mask_tima_gold_ref = 0xffff;
-   set_mregs(mask_tima_gold_ref);
+   //set_mregs(mask_tima_gold_ref);
 
-   setup_l1_scp();
+   //setup_l1_scp();
    
    for (uint64_t i = 0; i < loop_size; i++) {
       do_tima( true,  true,  0, 0);
@@ -205,7 +205,7 @@ uint64_t vpu_tima_power_virus(uint64_t loop_size) {
          return res;
       }
    }
-   setup_cache_shared();
+   //setup_cache_shared();
    return res;
 }
 
