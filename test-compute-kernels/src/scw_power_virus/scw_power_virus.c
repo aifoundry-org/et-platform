@@ -12,7 +12,6 @@ typedef struct {
 } Parameters;
 
 int main(const Parameters* const kernel_params_ptr) {
-    sc_pv_clear_l2_scratchpad(0xff);
     uint64_t loop_size = kernel_params_ptr->loop_size;
     loop_size = 1;
     uint64_t ret = shire_cache_power_virus(loop_size);
