@@ -157,7 +157,6 @@ void load_l1_scp(uint64_t* ptr, uint64_t start, uint64_t num_lines) {
 }
 
 void setup_l1_scp() {
-   setup_cache_scp();
    float (*l1_scp_content)[FLOAT_PER_SCP_LINE] = (float (*)[FLOAT_PER_SCP_LINE]) SCP_CONTENT;
    load_l1_scp((uint64_t*)l1_scp_content[ 0],  0, 16);
    load_l1_scp((uint64_t*)l1_scp_content[16], 16, 16);
@@ -205,7 +204,6 @@ uint64_t vpu_tima_power_virus(uint64_t loop_size) {
          return res;
       }
    }
-   setup_cache_shared();
    return res;
 }
 

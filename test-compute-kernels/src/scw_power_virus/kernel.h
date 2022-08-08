@@ -304,7 +304,6 @@ uint64_t shire_cache_power_virus_thread0(uint64_t loop_size) {
    uint64_t seed = SC_PV_INIT_SEED+hid;
    sc_pv_init_rand_data(sc_pv_local_scp[local_hid], seed);
 
-   setup_cache_scp();
    for (uint64_t it = 0; it < loop_size; it++) {
       int i = 0;
       while (i < num_iter_0) {
@@ -322,7 +321,6 @@ uint64_t shire_cache_power_virus_thread0(uint64_t loop_size) {
       WAIT_TENSOR_STORE;
       //sc_pv_evict_coalescing_buffer();
    }
-   setup_cache_shared();
 
    return sc_pv_self_check(sc_pv_local_scp[local_hid], seed);
 }

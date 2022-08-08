@@ -217,7 +217,6 @@ uint64_t noc_power_virus(uint64_t loop_size) {
    uint64_t init_bank = mid%4;
    uint64_t base_addr0 = (uint64_t) soc_scp[mid].mem[sid][tid][init_bank];
    if ((hid&0x1) == 0) {
-      setup_cache_scp();
       uint64_t base_addr1 = (uint64_t) soc_scp[mid].mem[sid][tid][init_bank + 16];
       noc_load_store(loop_size, base_addr0, base_addr1);
    }
