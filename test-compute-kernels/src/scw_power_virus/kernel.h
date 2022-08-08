@@ -80,7 +80,8 @@ uint64_t sc_pv_init_rand_data(uint64_t scp[][SC_PV_ELEMS_CACHE], uint64_t seed) 
          scp[i][j] = seed;
       }
    }
-   sc_pv_evict_whole_l1();
+   // TODO: replace this by SW ENV routines
+   //sc_pv_evict_whole_l1();
    return seed;
 }
 
