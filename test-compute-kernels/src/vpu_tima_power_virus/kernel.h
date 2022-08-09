@@ -25,26 +25,14 @@ void check(uint32_t *mem, uint32_t* gold) {
       "flq2 f6, 64(%[gold])\n"
       "flq2 f3, 96(%[mem])\n"
       "flq2 f7, 96(%[gold])\n"
-
-      "fmin.pi f31, f0, f4\n"
-      "addi     x0, x0,  0\n"
-      "feqm.ps  m1, f0, f4\n"
-      "maskand  m0, m0, m1\n"
-
-      "fmin.pi f31, f1, f5\n"
-      "addi     x0, x0,  0\n"
-      "feqm.ps  m1, f1, f5\n"
-      "maskand  m0, m0, m1\n"
-
-      "fmin.pi f31, f2, f6\n"
-      "addi     x0, x0,  0\n"
-      "feqm.ps  m1, f2, f6\n"
-      "maskand  m0, m0, m1\n"
-
-      "fmin.pi f31, f3, f7\n"
-      "addi     x0, x0,  0\n"
-      "feqm.ps  m1, f3, f7\n"
-      "maskand  m0, m0, m1\n"
+      "feqm.ps m1, f0, f4\n"
+      "maskand m0, m0, m1\n"
+      "feqm.ps m1, f1, f5\n"
+      "maskand m0, m0, m1\n"
+      "feqm.ps m1, f2, f6\n"
+      "maskand m0, m0, m1\n"
+      "feqm.ps m1, f3, f7\n"
+      "maskand m0, m0, m1\n"
       :
       : [mem]  "r" (mem), [gold] "r" (gold)
       :
