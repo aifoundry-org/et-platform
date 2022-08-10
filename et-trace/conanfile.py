@@ -16,7 +16,7 @@ class EsperantoTraceConan(ConanFile):
         "with_tests": [True, False]
     }
     default_options = {
-        "with_tests": True
+        "with_tests": False
     }
 
     scm = {
@@ -53,6 +53,13 @@ class EsperantoTraceConan(ConanFile):
     
     def package_id(self):
         self.info.header_only()
+        
+        # If user requests package without tests but only packages with tests are available
+        # it is legal to use a package with tests
+        if not self.options.with_tests:
+            compatible_pkg = self.info.clone()
+            compatible_pkg.options.with_tests = True
+            self.compatible_packages.append(compatible_pkg)
 
     def package_info(self):
         self.cpp_info.components["et_trace"].set_property("cmake_target_name",  "esperantoTrace::et_trace")
