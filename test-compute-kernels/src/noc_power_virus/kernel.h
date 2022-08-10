@@ -75,7 +75,13 @@ uint64_t noc_pv_self_check(uint64_t seed) {
    return 0x0;
 }
 
+#include "common.h"
+#include "sync_minions.h"
+
 void noc_load_store(uint64_t loop_size, uint64_t base_addr0, uint64_t base_addr1) {
+   uint64_t hid = get_hart_id();
+   uint64_t local_hid = hid%64;
+
    uint64_t tl_enc_0 = 0xf + base_addr0;
    uint64_t tl_enc_1 = 0x20000000000000f + base_addr1;
    
@@ -93,15 +99,20 @@ void noc_load_store(uint64_t loop_size, uint64_t base_addr0, uint64_t base_addr1
 
    for (uint64_t i = 0; i < loop_size; i++) {
 
-      __asm__ __volatile__ ("csrw tensor_load, %[tl_enc_0]\n" : : [tl_enc_0] "r" (tl_enc_0) : );
+      __asm__ __volatile__ ("csrw tensor_load, %[tl_enc_0]\n" : : [tl_enc_0] "r" (tl_enc_0) : "x31");
       WAIT_TENSOR_LOAD_0;
-      __asm__ __volatile__ ("csrw tensor_store, %[ts_scp_enc_0]\n" : : [ts_scp_enc_0] "r" (ts_scp_enc_0) : );
+      __asm__ __volatile__ ("csrw tensor_store, %[ts_scp_enc_0]\n" : : [ts_scp_enc_0] "r" (ts_scp_enc_0) : "x31");
+
+      /*****************************************************************************************************************/
+
+      __asm__ __volatile__ ("csrw tensor_load, %[tl_enc_1]\n" : : [tl_enc_1] "r" (tl_enc_1) : "x31");
+      WAIT_TENSOR_LOAD_0;
+      __asm__ __volatile__ ("csrw tensor_store, %[ts_scp_enc_1]\n" : : [ts_scp_enc_1] "r" (ts_scp_enc_1) : "x31");
       
       /*****************************************************************************************************************/
       
-      __asm__ __volatile__ ("csrw tensor_load, %[tl_enc_1]\n" : : [tl_enc_1] "r" (tl_enc_1) : );
-      WAIT_TENSOR_LOAD_0;
-      __asm__ __volatile__ ("csrw tensor_store, %[ts_scp_enc_1]\n" : : [ts_scp_enc_1] "r" (ts_scp_enc_1) : );
+      //        local_sid,      minion_id, flb_id
+      drain_scb(     0xff, local_hid >> 1,      3);
 
    }
    WAIT_TENSOR_STORE;
