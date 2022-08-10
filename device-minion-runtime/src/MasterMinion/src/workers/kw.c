@@ -1467,8 +1467,8 @@ void KW_Launch(uint32_t kw_idx)
                 atomic_exchange_local_32(&kernel->kw_cycles.exec_prev_cycles, 0)));
 
         /* Update kernel running time for stats Trace. Reporting unit is kernels/second */
-        STATW_Add_New_Sample_Atomically(
-            STATW_RESOURCE_CM, (STATW_Get_Minion_Freq() / launch_rsp->device_cmd_execute_dur));
+        STATW_Add_New_Sample_Atomically(STATW_RESOURCE_CM,
+            (STATW_Get_Minion_Freq() * 1000000UL / launch_rsp->device_cmd_execute_dur));
 
         if (status == STATUS_SUCCESS)
         {

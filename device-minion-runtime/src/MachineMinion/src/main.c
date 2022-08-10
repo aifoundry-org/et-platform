@@ -79,9 +79,7 @@ static inline void mm_setup_default_pmcs(uint32_t shire_id, uint32_t hart_id)
             uint64_t neigh_id = (hart_id >> 4) & 0x3;
 
             /* Start Shire Cache PMC counters */
-            pmu_shire_cache_counter_start(shire_id, neigh_id, PMU_SC_CYCLE_PMC);
-            pmu_shire_cache_counter_start(shire_id, neigh_id, PMU_SC_PMC0);
-            pmu_shire_cache_counter_start(shire_id, neigh_id, PMU_SC_PMC1);
+            pmu_shire_cache_counter_start(shire_id, neigh_id, PMU_SC_ALL);
         }
     }
 
@@ -95,9 +93,7 @@ static inline void mm_setup_default_pmcs(uint32_t shire_id, uint32_t hart_id)
                 PMU_MS_QUAL_ALL_MESH_WRITES, 0, 0);
 
             /* Start the counters */
-            pmu_memshire_event_start(ms_idx, PMU_MS_CYCLE_PMC);
-            pmu_memshire_event_start(ms_idx, PMU_MS_PMC0);
-            pmu_memshire_event_start(ms_idx, PMU_MS_PMC1);
+            pmu_memshire_event_start(ms_idx, PMU_MS_ALL);
         }
     }
 

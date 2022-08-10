@@ -99,7 +99,7 @@ void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64
 
 /*! \fn uint32_t STATW_Get_Minion_Freq(void)
     \brief Returns the Minion frequency in MHz.
-    \return Frequency value in hertz.
+    \return Frequency value in mega hertz.
 */
 uint32_t STATW_Get_Minion_Freq(void);
 

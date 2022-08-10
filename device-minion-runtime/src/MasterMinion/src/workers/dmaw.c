@@ -86,10 +86,10 @@ static dmaw_write_cb_t DMAW_Write_CB __attribute__((aligned(64))) = { 0 };
 
 /*! \def DMAW_BYTES_PER_CYCLE_TO_MBPS
     \brief A helper macro to convert DMA bandwidth to MB/Sec using following formulae
-           Total DMA BW = (Total Transfer size (in bytes) * Minion Freq) / (DMA duration cycles * num of bytes in 1MB)
+           Total DMA BW = (Total Transfer size (in bytes) * Minion Freq in Mhz) / DMA duration cycles
 */
 #define DMAW_BYTES_PER_CYCLE_TO_MBPS(bytes, cycles) \
-    ((bytes * STATW_Get_Minion_Freq()) / (STATW_1MB * cycles))
+    ((bytes * STATW_Get_Minion_Freq()) / (cycles ? cycles : 1))
 
 /************************************************************************
 *

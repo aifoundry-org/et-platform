@@ -132,6 +132,12 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         case SYSCALL_PMC_MS_SAMPLE_INT:
             ret = (int64_t)sample_ms_pmcs(arg1, arg2);
             break;
+        case SYSCALL_PMC_SC_SAMPLE_ALL_INT:
+            ret = sample_sc_pmcs_all(arg1, arg2, (shire_pmc_cnt_t *)arg3);
+            break;
+        case SYSCALL_PMC_MS_SAMPLE_ALL_INT:
+            ret = sample_ms_pmcs_all(arg1, (shire_pmc_cnt_t *)arg2);
+            break;
         default:
             ret = SYSCALL_INTERNAL_INVALID_ID;
             break;
