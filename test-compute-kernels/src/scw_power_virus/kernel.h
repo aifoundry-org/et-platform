@@ -61,16 +61,9 @@ void sc_pv_evict_coalescing_buffer() {
    #include "evict_coalescing_buffer.h"
 }
 
+#include "etsoc/isa/syscall.h"
 void sc_pv_evict_whole_l1() {
-   excl_mode(1);
-   //       use_tmask, dst, way, set, num_lines, warl
-   evict_sw(        0,   1,   0,   0,       0xf,    0);
-   evict_sw(        0,   1,   1,   0,       0xf,    0);
-   evict_sw(        0,   1,   2,   0,       0xf,    0);
-   evict_sw(        0,   1,   3,   0,       0xf,    0);
-   FENCE;
-   WAIT_CACHEOPS;
-   excl_mode(0);
+   syscall(SYSCALL_CACHE_OPS_EVICT_L1, 0, to_L2, 0);
 }
 
 uint64_t sc_pv_init_rand_data(uint64_t scp[][SC_PV_ELEMS_CACHE], uint64_t seed) {
@@ -80,8 +73,7 @@ uint64_t sc_pv_init_rand_data(uint64_t scp[][SC_PV_ELEMS_CACHE], uint64_t seed) 
          scp[i][j] = seed;
       }
    }
-   // TODO: replace this by SW ENV routines
-   //sc_pv_evict_whole_l1();
+   sc_pv_evict_whole_l1();
    return seed;
 }
 
