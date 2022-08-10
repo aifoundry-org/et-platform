@@ -14,13 +14,13 @@ target_link_libraries(et_trace_impl PUBLIC et_trace)
 macro(add_et_trace_test name)
   add_executable(${name}_mm ${name}.c)
   target_link_libraries(${name}_mm PRIVATE et_trace_impl_mm et_trace_test)
-  target_compile_options(${name}_mm PRIVATE -Wall $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>)
+  target_compile_options(${name}_mm PRIVATE -Wall $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror> -Wno-double-promotion)
   target_compile_definitions(${name}_mm PRIVATE MASTER_MINION)
 
   add_executable(${name} ${name}.c)
   target_link_libraries(${name} PRIVATE et_trace_impl et_trace_test)
 
-  target_compile_options(${name} PRIVATE -Wall $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>)
+  target_compile_options(${name} PRIVATE -Wall $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror> -Wno-double-promotion)
 
   add_test(NAME ${name}_mm COMMAND ${name}_mm)
   add_test(NAME ${name} COMMAND ${name})
