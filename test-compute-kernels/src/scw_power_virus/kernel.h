@@ -7,7 +7,6 @@
 
 uint64_t sc_pv_lcg(uint64_t seed);
 uint64_t sc_pv_self_check(uint64_t scp[][SC_PV_ELEMS_CACHE], uint64_t seed);
-void sc_pv_evict_coalescing_buffer(void);
 void sc_pv_evict_whole_l1(void);
 uint64_t sc_pv_init_rand_data(uint64_t scp[][SC_PV_ELEMS_CACHE], uint64_t seed);
 void sc_pv_load_store_l1scp_0(uint64_t scp[][SC_PV_ELEMS_CACHE]);
@@ -56,10 +55,6 @@ uint64_t sc_pv_self_check(uint64_t scp[][SC_PV_ELEMS_CACHE], uint64_t seed) {
 }
 
 #include "clear_l2_scp.h"
-
-void sc_pv_evict_coalescing_buffer() {
-   #include "evict_coalescing_buffer.h"
-}
 
 #include "etsoc/isa/syscall.h"
 void sc_pv_evict_whole_l1() {
@@ -287,6 +282,9 @@ void sc_pv_load_store_fp_1(uint64_t scp[][SC_PV_ELEMS_CACHE]) {
    sc_pv_store_fp((uint64_t) scp[16]);
 }
 
+#include "common.h"
+#include "sync_minions.h"
+
 uint64_t shire_cache_power_virus_thread0(uint64_t loop_size) {
    const int num_iter_0 = (((int)(SC_PV_SCP_LINES_PER_HART/L1_SCP_NLINES))*L1_SCP_NLINES);
    const int num_iter_1 = num_iter_0 - L1_SCP_NLINES;
@@ -304,7 +302,8 @@ uint64_t shire_cache_power_virus_thread0(uint64_t loop_size) {
          i+=L1_SCP_NLINES;
       }
       WAIT_TENSOR_STORE;
-      //sc_pv_evict_coalescing_buffer();
+      //        local_sid,      minion_id, flb_id
+      drain_scb(     0xff, local_hid >> 1,      3);
    
       i = num_iter_1;
       while (i >= 0) {
@@ -312,7 +311,8 @@ uint64_t shire_cache_power_virus_thread0(uint64_t loop_size) {
          i-=L1_SCP_NLINES;
       }
       WAIT_TENSOR_STORE;
-      //sc_pv_evict_coalescing_buffer();
+      //        local_sid,      minion_id, flb_id
+      drain_scb(     0xff, local_hid >> 1,      3);
    }
 
    return sc_pv_self_check(sc_pv_local_scp[local_hid], seed);
