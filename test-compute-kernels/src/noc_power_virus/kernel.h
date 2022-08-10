@@ -47,9 +47,9 @@ void noc_pv_evict_whole_l1() {
 }
 
 uint64_t noc_pv_init_rand_data(uint64_t seed) {
-   uint64_t mid = get_minion_id();
    uint64_t sid = get_shire_id();
    uint64_t hid = get_hart_id();
+   uint64_t mid = (hid >> 1) % 32;
    uint64_t tid = hid & 0x1;
 
    soc_l2_scp *soc_scp = (soc_l2_scp*) 0x000080000000;
@@ -65,9 +65,9 @@ uint64_t noc_pv_init_rand_data(uint64_t seed) {
 }
 
 uint64_t noc_pv_self_check(uint64_t seed) {
-   uint64_t mid = get_minion_id();
    uint64_t sid = get_shire_id();
    uint64_t hid = get_hart_id();
+   uint64_t mid = (hid >> 1) % 32;
    uint64_t tid = hid & 0x1;
 
    soc_l2_scp *soc_scp = (soc_l2_scp*) 0x000080000000;
@@ -204,7 +204,7 @@ void noc_pv_load_store_fp(uint64_t loop_size, uint64_t base_addr0) {
 uint64_t noc_power_virus(uint64_t loop_size) {
 
    uint64_t hid = get_hart_id();
-   uint64_t mid = get_minion_id();
+   uint64_t mid = (hid >> 1) % 32;
    uint64_t sid = get_shire_id();
 
    uint64_t tid = hid & 0x1;
