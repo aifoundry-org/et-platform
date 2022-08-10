@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Made Trace string length as configurable.
 - Adapt conan pipeline to conan 1.49
+- Set with_tests to False by default.
 ### Deprecated
 ### Removed
 ### Fixed
