@@ -146,3 +146,38 @@ int64_t reset_ms_pmcs_all(void)
 
     return ret;
 }
+
+int32_t sample_sc_pmcs_all(uint64_t shire_id, uint64_t bank_id, shire_pmc_cnt_t *val)
+{
+    int32_t status;
+
+    /* Stop the counter */
+    pmu_shire_cache_counter_stop(shire_id, bank_id, PMU_SC_ALL);
+
+    /* Sample the counter */
+    status = pmu_shire_cache_counter_sample_all(shire_id, bank_id, val);
+
+    /* Start the counter */
+    pmu_shire_cache_counter_start(shire_id, bank_id, PMU_SC_ALL);
+
+    return status;
+}
+
+int32_t sample_ms_pmcs_all(uint64_t ms_id, shire_pmc_cnt_t *val)
+{
+    int32_t status = -1;
+
+    if (ms_id < PMU_MEM_SHIRE_COUNT)
+    {
+        /* Stop the counter */
+        pmu_memshire_event_stop(ms_id, PMU_MS_ALL);
+
+        /* Sample the counter */
+        status = pmu_memshire_event_sample_all(ms_id, val);
+
+        /* Start the counter */
+        pmu_memshire_event_start(ms_id, PMU_MS_ALL);
+    }
+
+    return status;
+}
