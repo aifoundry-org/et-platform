@@ -101,32 +101,32 @@ void sc_pv_load_store_l1scp_0(uint64_t scp[][SC_PV_ELEMS_CACHE]) {
    /*****************************************************************************************************************/
 
    tl_enc = tl_enc_0 + ((uint64_t) scp[16]);
-   __asm__ __volatile__ ("csrw tensor_load, %[tl_enc]\n" : : [tl_enc] "r" (tl_enc) : );
+   __asm__ __volatile__ ("csrw tensor_load, %[tl_enc]\n" : : [tl_enc] "r" (tl_enc) :  "x31");
 
    WAIT_TENSOR_LOAD_0;
 
    ts_fromscp_enc = ts_scp_enc_0 + ((uint64_t) scp[0]);
-   __asm__ __volatile__ ("csrw tensor_store, %[ts_fromscp_enc]\n" : : [ts_fromscp_enc] "r" (ts_fromscp_enc) : );
+   __asm__ __volatile__ ("csrw tensor_store, %[ts_fromscp_enc]\n" : : [ts_fromscp_enc] "r" (ts_fromscp_enc) : "x31");
 
    /*****************************************************************************************************************/
 
    tl_enc = tl_enc_1 + ((uint64_t) scp[32]);
-   __asm__ __volatile__ ("csrw tensor_load, %[tl_enc]\n" : : [tl_enc] "r" (tl_enc) : );
+   __asm__ __volatile__ ("csrw tensor_load, %[tl_enc]\n" : : [tl_enc] "r" (tl_enc) : "x31");
 
    WAIT_TENSOR_LOAD_0;
 
    ts_fromscp_enc = ts_scp_enc_1 + ((uint64_t) scp[16]);
-   __asm__ __volatile__ ("csrw tensor_store, %[ts_fromscp_enc]\n" : : [ts_fromscp_enc] "r" (ts_fromscp_enc) : );
+   __asm__ __volatile__ ("csrw tensor_store, %[ts_fromscp_enc]\n" : : [ts_fromscp_enc] "r" (ts_fromscp_enc) : "x31");
 
    /*****************************************************************************************************************/
 
    tl_enc = tl_enc_2 + ((uint64_t) scp[48]);
-   __asm__ __volatile__ ("csrw tensor_load, %[tl_enc]\n" : : [tl_enc] "r" (tl_enc) : );
+   __asm__ __volatile__ ("csrw tensor_load, %[tl_enc]\n" : : [tl_enc] "r" (tl_enc) : "x31");
 
    WAIT_TENSOR_LOAD_0;
 
    ts_fromscp_enc = ts_scp_enc_2 + ((uint64_t) scp[32]);
-   __asm__ __volatile__ ("csrw tensor_store, %[ts_fromscp_enc]\n" : : [ts_fromscp_enc] "r" (ts_fromscp_enc) : );
+   __asm__ __volatile__ ("csrw tensor_store, %[ts_fromscp_enc]\n" : : [ts_fromscp_enc] "r" (ts_fromscp_enc) : "x31");
 
    /*****************************************************************************************************************/
 }
@@ -155,32 +155,32 @@ void sc_pv_load_store_l1scp_1(uint64_t scp[][SC_PV_ELEMS_CACHE]) {
    /*****************************************************************************************************************/
 
    tl_enc = tl_enc_0 + ((uint64_t) scp[32]);
-   __asm__ __volatile__ ("csrw tensor_load, %[tl_enc]\n" : : [tl_enc] "r" (tl_enc) : );
+   __asm__ __volatile__ ("csrw tensor_load, %[tl_enc]\n" : : [tl_enc] "r" (tl_enc) : "x31");
 
    WAIT_TENSOR_LOAD_0;
 
    ts_fromscp_enc = ts_scp_enc_0 + ((uint64_t) scp[48]);
-   __asm__ __volatile__ ("csrw tensor_store, %[ts_fromscp_enc]\n" : : [ts_fromscp_enc] "r" (ts_fromscp_enc) : );
+   __asm__ __volatile__ ("csrw tensor_store, %[ts_fromscp_enc]\n" : : [ts_fromscp_enc] "r" (ts_fromscp_enc) : "x31");
 
    /*****************************************************************************************************************/
 
    tl_enc = tl_enc_1 + ((uint64_t) scp[16]);
-   __asm__ __volatile__ ("csrw tensor_load, %[tl_enc]\n" : : [tl_enc] "r" (tl_enc) : );
+   __asm__ __volatile__ ("csrw tensor_load, %[tl_enc]\n" : : [tl_enc] "r" (tl_enc) : "x31");
 
    WAIT_TENSOR_LOAD_0;
 
    ts_fromscp_enc = ts_scp_enc_1 + ((uint64_t) scp[32]);
-   __asm__ __volatile__ ("csrw tensor_store, %[ts_fromscp_enc]\n" : : [ts_fromscp_enc] "r" (ts_fromscp_enc) : );
+   __asm__ __volatile__ ("csrw tensor_store, %[ts_fromscp_enc]\n" : : [ts_fromscp_enc] "r" (ts_fromscp_enc) : "x31");
 
    /*****************************************************************************************************************/
 
    tl_enc = tl_enc_2 + ((uint64_t) scp[0]);
-   __asm__ __volatile__ ("csrw tensor_load, %[tl_enc]\n" : : [tl_enc] "r" (tl_enc) : );
+   __asm__ __volatile__ ("csrw tensor_load, %[tl_enc]\n" : : [tl_enc] "r" (tl_enc) : "x31");
 
    WAIT_TENSOR_LOAD_0;
 
    ts_fromscp_enc = ts_scp_enc_2 + ((uint64_t) scp[16]);
-   __asm__ __volatile__ ("csrw tensor_store, %[ts_fromscp_enc]\n" : : [ts_fromscp_enc] "r" (ts_fromscp_enc) : );
+   __asm__ __volatile__ ("csrw tensor_store, %[ts_fromscp_enc]\n" : : [ts_fromscp_enc] "r" (ts_fromscp_enc) : "x31");
 
    /*****************************************************************************************************************/
 }
