@@ -19,7 +19,7 @@ int64_t configure_sc_pmcs(uint64_t ctl_status_cfg, uint64_t pmc0_cfg, uint64_t p
     int64_t ret;
     uint64_t hart_id = get_hart_id();
     uint64_t neigh_id = (hart_id >> 4) & 0x3;
-    uint64_t shire_id = (hart_id >> 6) & 0x1F;
+    uint64_t shire_id = (hart_id >> 6);
 
     // Turn off clock gating so you count cycles and related events properly
     volatile uint64_t *sc_reqq_ctl_esr = (uint64_t *)ESR_CACHE(shire_id, neigh_id, SC_REQQ_CTL);
@@ -107,7 +107,7 @@ int64_t reset_sc_pmcs_all(void)
     int64_t ret = 0;
     uint64_t hart_id = get_hart_id();
     uint64_t neigh_id = (hart_id >> 4) & 0x3;
-    uint64_t shire_id = (hart_id >> 6) & 0x1F;
+    uint64_t shire_id = (hart_id >> 6);
     uint64_t reset_sc_harts = ((hart_id & 0xF) == NEIGH_HART_SC);
 
     if (reset_sc_harts)
@@ -127,7 +127,7 @@ int64_t reset_ms_pmcs_all(void)
     int64_t ret = 0;
     uint64_t hart_id = get_hart_id();
     uint64_t neigh_id = (hart_id >> 4) & 0x3;
-    uint64_t shire_id = (hart_id >> 6) & 0x1F;
+    uint64_t shire_id = (hart_id >> 6);
     uint64_t reset_ms_harts = (shire_id == PMU_MS_COUNTERS_CONTROL_SHIRE) && (neigh_id == 3) &&
                               ((hart_id & 0xF) == NEIGH_HART_MS);
 

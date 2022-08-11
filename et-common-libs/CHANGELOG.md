@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+[SW-13750] Invalid shire ID bug in PMU.
 ### Security
 
 ## [0.8.0] - 2022-7-4
