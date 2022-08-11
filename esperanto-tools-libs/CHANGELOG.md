@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - all tickets from [SW-10470]
 
 ### Changed
+- Runtime will check device-api version only for major and a minor minimum. Its device-api implementors responsability to respect the semversion and make it compatible for any version with the same major.
 - [SW-13523] updated DeviceProperties serialization and struct (see "runtime/Types.h") to expose two new fields:
   * tdp
   * form factor

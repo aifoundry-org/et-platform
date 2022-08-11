@@ -567,8 +567,8 @@ void RuntimeImp::checkDeviceApi(DeviceId device) {
   if (!deviceApiVersion_.isValid()) {
     throw Exception("Runtime couldn't retrieve a valid device-api version.");
   }
-  if (deviceApiVersion_.major != 0 || deviceApiVersion_.minor != 5 || deviceApiVersion_.patch != 0) {
-    throw Exception("Incompatible device-api version. This runtime version only supports 0.5.0");
+  if (deviceApiVersion_.major != 0 || deviceApiVersion_.minor < 5) {
+    throw Exception("Incompatible device-api version. This runtime version supports device-api 0.>=5.X.");
   }
 }
 
