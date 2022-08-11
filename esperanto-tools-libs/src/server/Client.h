@@ -49,17 +49,6 @@ public:
 
   void doSetOnStreamErrorsCallback(StreamErrorCallback callback) override;
 
-  EventId doSetupDeviceTracing(StreamId, uint32_t, uint32_t, uint32_t, uint32_t, bool) override {
-    throw Exception("Not implemented.");
-  }
-
-  EventId doStartDeviceTracing(StreamId, std::ostream*, std::ostream*, bool) override {
-    throw Exception("Not implemented.");
-  }
-
-  EventId doStopDeviceTracing(StreamId, bool) override {
-    throw Exception("Not implemented.");
-  }
   DeviceProperties doGetDeviceProperties(DeviceId device) const override;
 
   void doSetOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) override {

@@ -42,8 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 - ***BREAKING CHANGE***: device fw tracing
-  - when using the new Client runtime mode, device firmware related methods won't be usable until
-  this ticket is done: https://esperantotech.atlassian.net/browse/SW-10843 
+  - runtime won't pull firmware traces automatically on initialization
+  - all device firmware trace related methods will be removed: https://esperantotech.atlassian.net/browse/SW-10843 and https://esperantotech.atlassian.net/browse/SW-11156
   methods affected are:
   ```cpp
   EventId setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask, uint32_t filterMask, bool barrier = true);

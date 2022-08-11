@@ -10,7 +10,6 @@
 
 set(INTEGRATION_TEST_LIST
   test_code_loading.cpp:""
-  test_fwtraces.cpp:""
   test_memcpy.cpp:""
   test_device_errors.cpp:""
   test_dma_errors.cpp:""
@@ -21,7 +20,6 @@ create_test_targets("${INTEGRATION_TEST_LIST}" "LABELS;Generic;LABELS;Sysemu;TIM
 
 set(PCIE_TEST_LIST
   test_code_loading.cpp:"--mode=pcie"
-  test_fwtraces.cpp:"--mode=pcie"
   test_memcpy.cpp:"--mode=pcie"
   test_device_errors.cpp:"--mode=pcie"
   test_dma_errors.cpp:"--mode=pcie"

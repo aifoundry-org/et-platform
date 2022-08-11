@@ -125,19 +125,6 @@ void IRuntime::setOnKernelAbortedErrorCallback(const KernelAbortedCallback& call
   doSetOnKernelAbortedErrorCallback(callback);
 }
 
-EventId IRuntime::setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
-                                     uint32_t filterMask, bool barrier) {
-  return doSetupDeviceTracing(stream, shireMask, threadMask, eventMask, filterMask, barrier);
-}
-
-EventId IRuntime::startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput, bool barrier) {
-  return doStartDeviceTracing(stream, mmOutput, cmOutput, barrier);
-}
-
-EventId IRuntime::stopDeviceTracing(StreamId stream, bool barrier) {
-  return doStopDeviceTracing(stream, barrier);
-}
-
 std::vector<StreamError> IRuntime::retrieveStreamErrors(StreamId stream) {
   return doRetrieveStreamErrors(stream);
 }
@@ -170,4 +157,4 @@ RuntimePtr IRuntime::create(const std::string& socketPath) {
   res->setProfiler(std::make_unique<profiling::ProfilerImp>());
   return res;
 }
-}
+} // namespace rt

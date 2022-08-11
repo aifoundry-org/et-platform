@@ -280,51 +280,6 @@ public:
     return profiler_.get();
   }
 
-  /// \brief Setup the device for getting master minion and compute minion traces. Tracing is done using internal
-  /// buffers which, if overflow, they will overwrite the start of the buffer. In the future there will be a mechanism
-  /// to achieve larger traces. There are some parameters to be discussed yet.
-  ///
-  /// @param[in] stream handler indicating in which stream to queue the setup operation
-  /// @param[in] shireMask indicates which shires will be traced
-  /// @param[in] threadMask indicates which threads, for each shire, will be traced
-  /// @param[in] eventMask indicates which events to be traced. NOTE: there are some lacking information on what are
-  /// the events we can trace
-  /// @param[in] filterMask bit mask representing a list of filters for a given event to trace. NOTE: we don't know
-  /// which are these filters yet
-  /// @param[in] barrier this parameter indicates if the setup operation should be postponed till all previous works
-  /// issued into this stream finish (a barrier).
-  ///
-  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the setup
-  /// ends
-  ///
-  EventId setupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
-                             uint32_t filterMask, bool barrier = true);
-
-  /// \brief Instructs the device to start tracing, and let the trace results on the output binary streams provided,
-  /// one or two binary output streams can be provided.
-  ///
-  /// @param[in] stream handler indicating in which stream to queue the start tracing operation.
-  /// @param[out] mmOutput binary stream where master minion device traces will be recorded. Can be null if don't want
-  /// master minion traces.
-  /// @param[out] cmOutput binary stream where computer minion device traces will be recorded. Can be null if don't
-  /// want computer minion traces.
-  /// @param[in] barrier this parameter indicates if the start tracing operation should be postponed till all previous
-  /// works issued into this stream finish (a barrier).
-  ///
-  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize.
-  ///
-  EventId startDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput, bool barrier = true);
-
-  /// \brief Instructs the device to stop tracing.
-  ///
-  /// @param[in] stream handler indicating in which stream to queue the start tracing operation.
-  /// @param[in] barrier this parameter indicates if the stop tracing operation should be postponed till all previous
-  /// works issued into this stream finish (a barrier).
-  ///
-  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize.
-  ///
-  EventId stopDeviceTracing(StreamId stream, bool barrier = true);
-
   /// \brief Instructs the device to abort given command.
   /// NOTE: as per current firmware implementation, aborting a command will have undesirable side effects on the rest
   /// of the submitted commands to the same virtual queue. So, after aborting a command it could potentially affect the
@@ -418,13 +373,6 @@ private:
 
   virtual bool doWaitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) = 0;
   virtual bool doWaitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) = 0;
-
-  virtual EventId doSetupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
-                                       uint32_t filterMask, bool barrier) = 0;
-  virtual EventId doStartDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput,
-                                       bool barrier) = 0;
-
-  virtual EventId doStopDeviceTracing(StreamId stream, bool barrier) = 0;
 
   virtual EventId doAbortCommand(EventId commandId,
                                  std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) = 0;

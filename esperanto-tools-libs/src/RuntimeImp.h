@@ -78,12 +78,6 @@ public:
   bool doWaitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) final;
   bool doWaitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) final;
 
-  EventId doSetupDeviceTracing(StreamId stream, uint32_t shireMask, uint32_t threadMask, uint32_t eventMask,
-                               uint32_t filterMask, bool barrier) final;
-  EventId doStartDeviceTracing(StreamId stream, std::ostream* mmOutput, std::ostream* cmOutput, bool barrier) final;
-
-  EventId doStopDeviceTracing(StreamId stream, bool barrier) final;
-
   EventId doAbortCommand(EventId commandId, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) final;
 
   EventId doAbortStream(StreamId streamId) final;
@@ -114,8 +108,6 @@ public:
 
 private:
   friend ExecutionContextCache;
-
-  void dumpFwTraces(DeviceId device);
 
   void checkDevice(int device) override;
 
