@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extend support to read instantenous power, and added delay to PMIC reg access
 - Updated DDR frequency from 933 Mhz to 1066 Mhz
 - [SW-13620] Add implementation for DM_CMD_GET_SP_STATS
+- [SW-13788] Forcing all shires to be initialized for silicon. Workaround for VPURF bug.
 ### Changed
 - [SW-11649] Separate out Trace and Serial log string max size.
 - Conanfile now declares dependencies with version-ranges

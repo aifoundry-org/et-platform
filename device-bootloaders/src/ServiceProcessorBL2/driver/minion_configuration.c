@@ -502,19 +502,14 @@ static void MM_HeartBeat_Timer_Cb(xTimerHandle pxTimer)
 ***********************************************************************/
 static int enable_minion_shire(uint64_t shire_mask)
 {
-    uint8_t num_shires;
-    if (0 != shire_mask)
-    {
-        num_shires = get_highest_set_bit_offset(shire_mask);
-    }
-    else
-    {
-        return MINION_INVALID_SHIRE_MASK;
-    }
+#if !(FAST_BOOT || TEST_FRAMEWORK)
 
+    /* Force all the shires (Compute + Master + Spare) to be initialized.
+    Workaround to get rid of a bug that causes huge excess current draw. */
+    shire_mask = 0x3FFFFFFFF;
+    uint8_t num_shires = 33;
     uint64_t shiremask = shire_mask;
 
-#if !(FAST_BOOT || TEST_FRAMEWORK)
     /* Enable Minion in all neighs */
     UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xF /*Enable all Neigh*/,
                      true /*Enable VPU RF WA*/)
@@ -537,8 +532,18 @@ static int enable_minion_shire(uint64_t shire_mask)
 
     Log_Write(LOG_LEVEL_CRITICAL, "Shire Cache and Neigh Enable with VPU RF WA\n");
 #else
+    uint8_t num_shires;
+    if (0 != shire_mask)
+    {
+        num_shires = get_highest_set_bit_offset(shire_mask);
+    }
+    else
+    {
+        return MINION_INVALID_SHIRE_MASK;
+    }
+
     /* Enable Minion in all neighs */
-    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xF /*Enable all Neigh*/,
+    UPDATE_ALL_SHIRE(shire_mask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xF /*Enable all Neigh*/,
                      false)
 #endif
 
