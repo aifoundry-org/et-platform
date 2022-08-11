@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - [SW-11649] Separate out Trace and Serial log string max size.
 - Conanfile now declares dependencies with version-ranges
+- Changed DDR Frequency to 933MHz.
 ### Deprecated
 ### Removed
 - [SW-12973] Auto reset of MM from MM heartbeat watchdog expiry.
