@@ -31,35 +31,43 @@ enum class Status : uint64_t { INVALID, SERVER_READY, END_SERVER };
 void MpOrchestrator::createServer(DeviceLayerCreatorFunc deviceLayerCreator, rt::Options options) {
   RT_LOG_IF(FATAL, server_ != -1) << "Server already created!";
 
-  // find a socketpath
-  socketPath_ = getTmpFileName();
   efdToServer_ = eventfd(0, 0);
   efdFromServer_ = eventfd(0, 0);
-  try {
-    // instantiate the server
-    server_ = fork();
-    if (server_ == 0) {
-      auto logger = std::make_unique<logging::LoggerDefault>();
-      RT_LOG(INFO) << "Creating server process";
-      auto server = rt::Server{socketPath_, deviceLayerCreator(), options};
-      Status s(Status::SERVER_READY);
-      write(efdFromServer_, &s, sizeof(s));
-      while (s != Status::END_SERVER) {
-        read(efdToServer_, &s, sizeof(s));
+
+  if (auto socketPath = getenv("ET_SOCKET_PATH"); socketPath != nullptr) {
+    socketPath_ = socketPath;
+    Status s(Status::SERVER_READY);
+    write(efdFromServer_, &s, sizeof(s));
+    useExternalServer_ = true;
+  } else {
+    // find a socketpath
+    socketPath_ = getTmpFileName();
+    try {
+      // instantiate the server
+      server_ = fork();
+      if (server_ == 0) {
+        auto logger = std::make_unique<logging::LoggerDefault>();
+        RT_LOG(INFO) << "Creating server process";
+        auto server = rt::Server{socketPath_, deviceLayerCreator(), options};
+        Status s(Status::SERVER_READY);
+        write(efdFromServer_, &s, sizeof(s));
+        while (s != Status::END_SERVER) {
+          read(efdToServer_, &s, sizeof(s));
+        }
+        RT_LOG(INFO) << "Exiting server process.";
+        logger.reset();
+        exit(0);
+      } else {
+        Status s(Status::INVALID);
+        while (s != Status::SERVER_READY) {
+          read(efdFromServer_, &s, sizeof(s));
+        }
       }
-      RT_LOG(INFO) << "Exiting server process.";
-      logger.reset();
-      exit(0);
-    } else {
-      Status s(Status::INVALID);
-      while (s != Status::SERVER_READY) {
-        read(efdFromServer_, &s, sizeof(s));
-      }
+    } catch (const std::exception& e) {
+      FAIL() << "Exception in server process: " << e.what();
+    } catch (...) {
+      FAIL() << "Unknown exception in server process.";
     }
-  } catch (const std::exception& e) {
-    FAIL() << "Exception in server process: " << e.what();
-  } catch (...) {
-    FAIL() << "Unknown exception in server process.";
   }
 }
 
@@ -100,8 +108,10 @@ MpOrchestrator::~MpOrchestrator() {
   Status s(Status::END_SERVER);
   write(efdToServer_, &s, sizeof(s));
 
-  int status;
-  waitpid(server_, &status, 0);
-  RT_LOG_IF(FATAL, status != 0) << "Child server did not ended properly";
-  std::remove(socketPath_.c_str());
+  if (!useExternalServer_) {
+    int status;
+    waitpid(server_, &status, 0);
+    RT_LOG_IF(FATAL, status != 0) << "Child server did not ended properly";
+    std::remove(socketPath_.c_str());
+  }
 }

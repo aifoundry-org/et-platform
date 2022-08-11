@@ -27,6 +27,7 @@ public:
   void clearClients();
 
 private:
+  bool useExternalServer_ = false;
   int efdToServer_;
   int efdFromServer_;
   std::string socketPath_;
