@@ -10,7 +10,7 @@
 #pragma once
 #include "runtime/IProfiler.h"
 #include "runtime/IRuntime.h"
-#include <deviceLayer/IDeviceLayer.h>
+#include <device-layer/IDeviceLayer.h>
 #include <hostUtils/threadPool/ThreadPool.h>
 #include <string_view>
 #include <thread>

@@ -11,7 +11,7 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <cstring>
-#include <deviceLayer/IDeviceLayer.h>
+#include <device-layer/IDeviceLayer.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <mutex>
 #include <queue>

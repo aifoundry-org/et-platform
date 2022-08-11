@@ -11,7 +11,6 @@
 #include "MpOrchestrator.h"
 #include "TestUtils.h"
 #include "server/Client.h"
-#include <device-layer/IDeviceLayer.h>
 
 class RuntimeFixture : public testing::Test {
 public:
