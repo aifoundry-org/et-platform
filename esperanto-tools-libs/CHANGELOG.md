@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unrealeased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+## [0.4.0]
+### Added
 - [SW-12942] implemented a check in host for kernel shire mask
 - Added new error code for kernel launches with invalid shire mask
 - [SW-11138] added some exceptions catch inside runtime threads which could cause the server to hang.
