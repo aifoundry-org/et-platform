@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - ET-TOP: Change the DELAY argument to take milliseconds instead of seconds (default: 100ms)
 - ET-TOP: Print PCI DMA BW in MB/s instead of GB/s.
+- [SW-13620] Use new DM_CMD_GET_SP_STATS instead of getTraceBufferServiceProcessor
 ### Deprecated
 ### Removed
 ### Fixed

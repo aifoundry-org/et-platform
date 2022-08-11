@@ -80,7 +80,6 @@ struct aer_stats_t {
 };
 
 struct sp_stats_t {
-  uint64_t cycle;
   op_stats_t op;
 };
 
@@ -103,7 +102,6 @@ public:
     vqStats_[0].qname = "SQ0:";
     vqStats_[1].qname = "SQ1:";
     vqStats_[2].qname = "CQ0:";
-    spStats_.cycle = 0;
     mmStats_.cycle = 0;
   }
 
@@ -308,57 +306,67 @@ void EtTop::collectAerStats(void) {
 }
 
 void EtTop::collectSpStats(void) {
-  std::vector<std::byte> response;
+  const uint32_t kDmServiceRequestTimeout = 100000;
+  const uint32_t outputSize = sizeof(device_mgmt_api::get_sp_stats_t);
+  char outputBuff[outputSize] = {0};
+  uint32_t hostLatency;
+  uint64_t deviceLatency;
+  int ret;
 
-  if (dm_.getTraceBufferServiceProcessor(devNum_, TraceBufferType::TraceBufferSPStats, response) !=
-      device_mgmt_api::DM_STATUS_SUCCESS) {
-    DV_LOG(ERROR) << "getTraceBufferServiceProcessor error";
-    exit(1);
+  ret = dm_.serviceRequest(devNum_, device_mgmt_api::DM_CMD::DM_CMD_GET_SP_STATS, nullptr, 0, outputBuff, outputSize,
+                           &hostLatency, &deviceLatency, kDmServiceRequestTimeout);
+
+  if (ret != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(ERROR) << "Service request get sp stats failed with return code: " << std::dec << ret << std::endl;
+  } else {
+    device_mgmt_api::get_sp_stats_t* sp_stats = (struct device_mgmt_api::get_sp_stats_t*)outputBuff;
+
+    spStats_.op.system.power.avg = sp_stats->system_power_avg;
+    spStats_.op.system.power.min = sp_stats->system_power_min;
+    spStats_.op.system.power.max = sp_stats->system_power_max;
+    spStats_.op.system.temperature.avg = sp_stats->system_temperature_avg;
+    spStats_.op.system.temperature.min = sp_stats->system_temperature_min;
+    spStats_.op.system.temperature.max = sp_stats->system_temperature_max;
+
+    spStats_.op.minion.power.avg = sp_stats->minion_power_avg;
+    spStats_.op.minion.power.min = sp_stats->minion_power_min;
+    spStats_.op.minion.power.max = sp_stats->minion_power_max;
+    spStats_.op.minion.temperature.avg = sp_stats->minion_temperature_avg;
+    spStats_.op.minion.temperature.min = sp_stats->minion_temperature_min;
+    spStats_.op.minion.temperature.max = sp_stats->minion_temperature_max;
+
+    spStats_.op.sram.power.avg = sp_stats->sram_power_avg;
+    spStats_.op.sram.power.min = sp_stats->sram_power_min;
+    spStats_.op.sram.power.max = sp_stats->sram_power_max;
+    spStats_.op.sram.temperature.avg = sp_stats->sram_temperature_avg;
+    spStats_.op.sram.temperature.min = sp_stats->sram_temperature_min;
+    spStats_.op.sram.temperature.max = sp_stats->sram_temperature_max;
+
+    spStats_.op.noc.power.avg = sp_stats->noc_power_avg;
+    spStats_.op.noc.power.min = sp_stats->noc_power_min;
+    spStats_.op.noc.power.max = sp_stats->noc_power_max;
+    spStats_.op.noc.temperature.avg = sp_stats->noc_temperature_avg;
+    spStats_.op.noc.temperature.min = sp_stats->noc_temperature_min;
+    spStats_.op.noc.temperature.max = sp_stats->noc_temperature_max;
   }
 
   if (dumpNextSpStatsBuffer_) {
     dumpNextSpStatsBuffer_ = false;
 
-    std::ofstream spTrace;
-    spTrace.open(SP_STATS_FILE, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
-    if (!spTrace.is_open()) {
-      DV_LOG(ERROR) << "Error: unable to open file " SP_STATS_FILE "\n";
+    std::vector<std::byte> response;
+    if (dm_.getTraceBufferServiceProcessor(devNum_, TraceBufferType::TraceBufferSPStats, response) !=
+        device_mgmt_api::DM_STATUS_SUCCESS) {
+      DV_LOG(ERROR) << "getTraceBufferServiceProcessor SPStats error";
     } else {
-      spTrace.write(reinterpret_cast<const char*>(response.data()), response.size());
-      spTrace.close();
+      std::ofstream spTrace;
+      spTrace.open(SP_STATS_FILE, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+      if (!spTrace.is_open()) {
+        DV_LOG(ERROR) << "Error: unable to open file " SP_STATS_FILE "\n";
+      } else {
+        spTrace.write(reinterpret_cast<const char*>(response.data()), response.size());
+        spTrace.close();
+      }
     }
-  }
-
-  struct trace_buffer_std_header_t* tb_hdr;
-  tb_hdr = reinterpret_cast<struct trace_buffer_std_header_t*>(response.data());
-  if (tb_hdr->type != TRACE_SP_STATS_BUFFER) {
-    DV_LOG(ERROR) << "Trace buffer invalid type: " << tb_hdr->type << " (must be TRACE_SP_STATS_BUFFER "
-                  << TRACE_SP_STATS_BUFFER << ")";
-    exit(1);
-  }
-
-  const struct trace_entry_header_t* entry = NULL;
-  while ((entry = Trace_Decode(tb_hdr, entry))) {
-    if (entry->type != TRACE_TYPE_CUSTOM_EVENT) {
-      DV_LOG(ERROR) << "collectSpStats: Trace type not custom event error: " << entry->type;
-      // Try to decode next event
-      continue;
-    }
-
-    if (entry->cycle <= spStats_.cycle) {
-      continue;
-    }
-    spStats_.cycle = entry->cycle;
-
-    const struct trace_custom_event_t* cev;
-    cev = reinterpret_cast<const struct trace_custom_event_t*>(entry);
-    if (cev->custom_type != TRACE_CUSTOM_TYPE_SP_OP_STATS) {
-      continue;
-    }
-
-    const struct op_stats_t* op_stats;
-    op_stats = reinterpret_cast<const struct op_stats_t*>(cev->payload);
-    spStats_.op = *op_stats;
   }
 
   return;
