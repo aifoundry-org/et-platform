@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.0] - 2022-8-16
 ### Added
 - [SW-13005] Workaround for MLP kernel.
+- Added new Virus Kernels for Power measurement
 ### Changed
 ### Deprecated
 ### Removed
