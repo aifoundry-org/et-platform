@@ -118,7 +118,7 @@ struct MemcpyList {
       archive(src_, dst_, size_);
     }
   };
-  operator rt::MemcpyList() const {
+  explicit operator rt::MemcpyList() const {
     rt::MemcpyList list;
     for (auto& o : ops_) {
       list.addOp(reinterpret_cast<std::byte*>(o.src_), reinterpret_cast<std::byte*>(o.dst_), o.size_);
@@ -161,7 +161,7 @@ struct LoadCode {
   LoadCode(StreamId st, std::vector<std::byte> elf)
     : stream_(st)
     , elf_(std::move(elf)) {
-    if (elf.size() > kMaxKernelSize) {
+    if (elf_.size() > kMaxKernelSize) {
       throw rt::Exception("Current runtime only support loading kernels up to: " + std::to_string(kMaxKernelSize) +
                           " bytes.");
     }

@@ -64,7 +64,7 @@ constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
 constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
 } // namespace
 
-DEFINE_string(socket_path, "/var/run/et_runtime.sock",
+DEFINE_string(socket_path, "/var/run/et_runtime/pcie.sock",
               "Socket path for the runtime communications. This file will be removed, so if you want several runtime "
               "servers, please specify a different one for each runtime server.");
 DEFINE_string(log_folder, "/var/log/et_runtime", "Folder where runtime will store the server logs.");

@@ -37,8 +37,9 @@ public:
       case DeviceLayerImp::FAKE:
         RT_LOG(INFO) << "Running tests with FAKE deviceLayer";
         return std::unique_ptr<dev::IDeviceLayer>{std::make_unique<dev::DeviceLayerFake>()};
+      default:
+        throw dev::Exception("Invalid devicelayer type");
       }
-      throw dev::Exception("Invalid devicelayer type");
     };
     if (sDlType == DeviceLayerImp::FAKE) {
       options.checkDeviceApiVersion_ = false;

@@ -19,7 +19,7 @@ class Client : public IRuntime {
 public:
   explicit Client(const std::string& socketPath);
 
-  ~Client();
+  ~Client() override;
 
   std::vector<DeviceId> doGetDevices() override;
   std::byte* doMallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) override;

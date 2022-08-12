@@ -21,7 +21,7 @@ class Server;
 class Worker : public patterns::Observer<EventId> {
 public:
   explicit Worker(int socket, RuntimeImp& runtime, Server& server, ucred credentials);
-  ~Worker();
+  ~Worker() override;
 
   void update(EventId event) override;
 

@@ -90,7 +90,7 @@ public:
 
   DmaInfo doGetDmaInfo(DeviceId deviceId) const final;
 
-  ~RuntimeImp();
+  ~RuntimeImp() final;
 
   // IResponseServices
   std::vector<int> getDevicesWithEventsOnFly() const final;

@@ -79,7 +79,7 @@ Worker::Worker(int socket, RuntimeImp& runtime, Server& server, ucred credential
     if (res != static_cast<ssize_t>(size)) {
       RT_LOG(WARNING) << "Error copying/writing from/to remote process with PID: " + std::to_string(pid) + " Src: "
                       << std::hex << src << " Dst: " << dst << std::string{" error: "} + strerror(errno);
-    };
+    }
   };
   runner_ = std::thread(&Worker::requestProcessor, this);
 }
@@ -291,8 +291,7 @@ void Worker::processRequest(const req::Request& request) {
 
   case req::Type::KERNEL_ABORT_RELEASE_RESOURCES: {
     auto evt = std::get<EventId>(request.payload_);
-    auto it = kernelAbortedFreeResources_.find(evt);
-    if (it == end(kernelAbortedFreeResources_)) {
+    if (auto it = kernelAbortedFreeResources_.find(evt); it == end(kernelAbortedFreeResources_)) {
       RT_LOG(WARNING) << "Received a request to release kernel abort resources but this event " << static_cast<int>(evt)
                       << " was not registered. Ignoring it.";
     } else {
@@ -349,8 +348,7 @@ void Worker::onStreamError(EventId event, const StreamError& error) {
 void Worker::onKernelAborted(EventId event, std::byte* context, size_t size, std::function<void()> freeResources) {
   SpinLock lock(mutex_);
   if (events_.find(event) != end(events_)) {
-    auto it = kernelAbortedFreeResources_.find(event);
-    if (it != end(kernelAbortedFreeResources_)) {
+    if (auto it = kernelAbortedFreeResources_.find(event); it != end(kernelAbortedFreeResources_)) {
       RT_LOG(WARNING) << "Kernel abort for an event which was already aborted but resources not freed. Freeing now.";
       it->second();
       it->second = std::move(freeResources);

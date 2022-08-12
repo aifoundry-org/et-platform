@@ -65,8 +65,7 @@ Client::Client(const std::string& socketPath) {
     throw NetworkException(std::string{"connect error: "} + strerror(errno));
   }
   ucred ucred;
-  socklen_t len = sizeof(ucred);
-  if (getsockopt(socket_, SOL_SOCKET, SO_PEERCRED, &ucred, &len) == -1) {
+  if (socklen_t len = sizeof(ucred); getsockopt(socket_, SOL_SOCKET, SO_PEERCRED, &ucred, &len) == -1) {
     throw NetworkException(std::string{"getsockopt error: "} + strerror(errno));
   }
 
@@ -108,7 +107,7 @@ void Client::responseProcessor() {
             try {
               processResponse(response);
               done = true;
-            } catch (const Exception& e) {
+            } catch (const Exception&) {
               using namespace std::literals;
               std::this_thread::sleep_for(100ms);
             }
