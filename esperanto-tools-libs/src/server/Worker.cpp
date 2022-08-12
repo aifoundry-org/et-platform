@@ -324,11 +324,11 @@ void Worker::freeResources() {
     runtime_.unloadCode(k);
   }
   kernels_.clear();
-  for (auto& res : kernelAbortedFreeResources_) {
-    RT_LOG(WARNING) << "Resources for event " << static_cast<int>(res.first)
+  for (const auto& [evt, cb] : kernelAbortedFreeResources_) {
+    RT_LOG(WARNING) << "Resources for event " << static_cast<int>(evt)
                     << " were not freed. Freeing them automatically.";
-    if (res.second) {
-      res.second();
+    if (cb) {
+      cb();
     }
   }
   kernelAbortedFreeResources_.clear();

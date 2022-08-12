@@ -387,7 +387,7 @@ private:
 
   virtual DmaInfo doGetDmaInfo(DeviceId deviceId) const = 0;
 
-  virtual void onProfilerChanged(){};
+  virtual void onProfilerChanged(){/* defaults do nothing */};
 };
 
 } // namespace rt

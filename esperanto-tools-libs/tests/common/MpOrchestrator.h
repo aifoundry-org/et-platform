@@ -16,10 +16,11 @@
 // this class is not thread-safe
 class MpOrchestrator {
 public:
+  MpOrchestrator() = default;
   ~MpOrchestrator();
   using DeviceLayerCreatorFunc = std::function<std::unique_ptr<dev::IDeviceLayer>()>;
 
-  void createServer(DeviceLayerCreatorFunc deviceLayerCreator, rt::Options options);
+  void createServer(const DeviceLayerCreatorFunc& deviceLayerCreator, rt::Options options);
   void createClient(const std::function<void(rt::IRuntime* runtime)>&);
   const std::string& getSocketPath() const { // to be able to create local clients.
     return socketPath_;
@@ -27,6 +28,8 @@ public:
   void clearClients();
 
 private:
+  MpOrchestrator(const MpOrchestrator&) = delete;
+  MpOrchestrator& operator=(const MpOrchestrator&) = delete;
   bool useExternalServer_ = false;
   int efdToServer_;
   int efdFromServer_;

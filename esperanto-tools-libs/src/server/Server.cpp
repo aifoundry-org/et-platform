@@ -82,7 +82,7 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
   listener_ = std::thread(&Server::listen, this);
   runtime_->setOnStreamErrorsCallback([this](EventId evt, const StreamError& error) {
     SpinLock lock(mutex_);
-    for (auto& w : workers_) {
+    for (const auto& w : workers_) {
       w->onStreamError(evt, error);
     }
   });

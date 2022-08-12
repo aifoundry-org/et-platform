@@ -422,15 +422,16 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
     RT_VLOG(MID) << "D2H: Cancelled GHOST command: " << static_cast<int>(evt);
     // This part is needed because we have to copy the data into the user buffer before triggering that the event is
     // finished
-    eventManager_.addOnDispatchCallback({{cmdEvt}, [this, evt, cmaPtr, ops = memcpyList.operations_, cmaCopyFunction] {
-                                           auto offset = 0UL;
-                                           for (auto& op : ops) {
-                                             cmaCopyFunction(cmaPtr + offset, op.dst_, op.size_, CmaCopyType::FROM_CMA);
-                                             offset += op.size_;
-                                           }
-                                           cmaManager_->free(cmaPtr);
-                                           dispatch(evt);
-                                         }});
+    eventManager_.addOnDispatchCallback(
+      {{cmdEvt}, [this, evt, cmaPtr, ops = std::move(memcpyList.operations_), cmaCopyFunction] {
+         auto offset = 0UL;
+         for (auto& op : ops) {
+           cmaCopyFunction(cmaPtr + offset, op.dst_, op.size_, CmaCopyType::FROM_CMA);
+           offset += op.size_;
+         }
+         cmaManager_->free(cmaPtr);
+         dispatch(evt);
+       }});
     RT_VLOG(MID) << "End processing command id " << static_cast<int>(evt);
   });
   lock.unlock();

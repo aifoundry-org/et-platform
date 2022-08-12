@@ -52,7 +52,7 @@ public:
       runtime_ = rt::IRuntime::create(deviceLayer_.get(), options);
       auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
       devices_ = runtime_->getDevices();
-      for (auto& d : devices_) {
+      for (const auto& d : devices_) {
         imp->setMemoryManagerDebugMode(d, true);
       }
     } else {

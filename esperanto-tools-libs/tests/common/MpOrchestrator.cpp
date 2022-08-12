@@ -28,7 +28,7 @@ enum class Status : uint64_t { INVALID, SERVER_READY, END_SERVER };
 
 } // namespace
 
-void MpOrchestrator::createServer(DeviceLayerCreatorFunc deviceLayerCreator, rt::Options options) {
+void MpOrchestrator::createServer(const DeviceLayerCreatorFunc& deviceLayerCreator, rt::Options options) {
   RT_LOG_IF(FATAL, server_ != -1) << "Server already created!";
 
   efdToServer_ = eventfd(0, 0);

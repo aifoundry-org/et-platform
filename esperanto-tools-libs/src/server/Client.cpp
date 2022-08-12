@@ -178,11 +178,11 @@ void Client::sendRequest(const req::Request& request) {
 resp::Response::Payload_t Client::waitForResponse(req::Id req) {
   SpinLock lock(mutex_);
   auto it = find(responseWaiters_, req, "Request not registered");
-  auto& waiter = it->second;
+  auto& waiter = *it->second;
   RT_VLOG(MID) << "Waiting for response with id: " << req;
-  waiter->wait(lock);
+  waiter.wait(lock);
   RT_VLOG(MID) << "Wait ended";
-  auto payload = std::move(waiter->payload_);
+  auto payload = std::move(waiter.payload_);
   responseWaiters_.erase(it);
   if (std::holds_alternative<resp::RuntimeException>(payload)) {
     auto exception = std::get<resp::RuntimeException>(payload);
@@ -206,7 +206,7 @@ void Client::processResponse(const resp::Response& response) {
   case resp::Type::KERNEL_ABORTED: {
     CHECK(response.id_ == req::ASYNC_RUNTIME_EVENT)
       << "Kernel aborted message should have request type ASYNC_RUNTIME_EVENT";
-    auto payload = std::get<resp::KernelAborted>(response.payload_);
+    auto& payload = std::get<resp::KernelAborted>(response.payload_);
     auto evt = payload.event_;
     auto buffer = reinterpret_cast<std::byte*>(payload.buffer_);
     if (kernelAbortCallback_) {
@@ -227,11 +227,11 @@ void Client::processResponse(const resp::Response& response) {
   }
   case resp::Type::STREAM_ERROR: {
     CHECK(response.id_ == req::ASYNC_RUNTIME_EVENT) << "Stream error should have request type ASYNC_RUNTIME_EVENT";
-    auto payload = std::get<resp::StreamError>(response.payload_);
+    auto& payload = std::get<resp::StreamError>(response.payload_);
     auto evt = payload.event_;
-    auto error = std::move(payload.error_);
+    auto& error = payload.error_;
     if (streamErrorCallback_) {
-      tp_.pushTask([cb = streamErrorCallback_, evt, error] { cb(evt, error); });
+      tp_.pushTask([cb = streamErrorCallback_, evt, error = std::move(error)] { cb(evt, error); });
     } else {
       auto it = eventToStream_.find(evt);
       if (it == end(eventToStream_)) {

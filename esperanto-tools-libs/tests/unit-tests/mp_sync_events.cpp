@@ -19,7 +19,7 @@ TEST(mp_only_orchestrator, 1000_process) {
   MpOrchestrator orch;
   orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, rt::Options{true, false});
   for (int i = 0; i < 1000; ++i) {
-    orch.createClient([](rt::IRuntime*) {});
+    orch.createClient([](const rt::IRuntime*) {});
   }
 }
 
