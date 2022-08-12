@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.10.0] - 2022-08-12
+### Added
 - [SW-13352] DMA and Kernel utilization stats support.
 ### Changed
 - [SW-13750] Using the new APIs from PMU to sample SC and MS PMCs.
