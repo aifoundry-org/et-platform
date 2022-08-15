@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 
 ## [Unreleased]
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
 
+## [0.6.0] - 2022-8-15
 ### Added
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines
 - [SW-13620] Add DM command GET_SP_STATS and GET_MM_STATS
