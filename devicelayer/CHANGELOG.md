@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines.
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.4.0] - 2022-8-15
+### Added
+### Changed
 - Adapted conan CI to conan 1.49+ (Cmake presets)
 - [SW-12918] Updated the description for waitForEpollEventsMasterMinion() and waitForEpollEventsServiceProcessor() APIs.
 ### Deprecated
