@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.6.0] - 2022-8-15
+### Added
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines
 - Added resource utilization stats support
 - CMake option ENABLE_WARNINGS_AS_ERRORS in tests
