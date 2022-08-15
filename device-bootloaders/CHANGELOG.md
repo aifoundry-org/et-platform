@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.4.0] - 2022-08-16
+### Added
 - Added locks while configure/reset SP trace
 - [SW-13253] Added support to read Minion, NOC and SRAM current from PMIC
 - [SW-13035] Enforce updation of CHANGELOG.md and patch version in merge request pipelines
