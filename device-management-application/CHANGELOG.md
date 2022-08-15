@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 
 ## [Unreleased]
+
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.4.0] - 2022-8-15
+### Added
+- ET-Top: Add 'w' interactive command to toggle display of watts in horizonal bar form.
+- ET-Top: Add labels to the display of watts in horizonal bar form.
+- ET-Top: Add MISC power at a constant 5.75 watts under the ETSOC power category.
 - Conanfile & Conan CI
 - [SW-13480]: Adding memshire frequency log print
 - et-power-top: Printing compute utilization stats.
@@ -23,16 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Warnings in device management service.
 - Warnings in et-power-top.
 ### Security
-
-## [1.4.0] - 2022-7-12
-### Added
-- ET-Top: Add 'w' interactive command to toggle display of watts in horizonal bar form.
-- ET-Top: Add labels to the display of watts in horizonal bar form.
-- ET-Top: Add MISC power at a constant 5.75 watts under the ETSOC power category.
-### Changed
-### Deprecated
-### Removed
-### Fixed
 
 ## [1.3.0] - 2022-7-8
 ### Added
