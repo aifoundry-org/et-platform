@@ -36,6 +36,7 @@
 #define SP_STATS_FILE "sp_stats.bin"
 #define MM_STATS_FILE "mm_stats.bin"
 
+static const uint32_t kUpdateDelayMS = 100;
 static const int32_t kMaxDeviceNum = 63;
 static const uint16_t kOtherPower = 5750;
 static const int32_t kOpsCqNum = 1;
@@ -90,13 +91,16 @@ struct mm_stats_t {
 
 class EtTop {
 public:
-  EtTop(int devNum, std::unique_ptr<dev::IDeviceLayer>& dl, device_management::DeviceManagement& dm)
+  EtTop(int devNum, std::unique_ptr<dev::IDeviceLayer>& dl, device_management::DeviceManagement& dm, bool batchMode,
+        uint64_t updateLimit)
     : devNum_(devNum)
+    , batchMode_(batchMode)
+    , updateLimit_(updateLimit)
     , stop_(false)
     , displayWattsBars_(false)
     , dumpNextSpStatsBuffer_(false)
     , dumpNextMmStatsBuffer_(false)
-    , displayErrorDetails_(false)
+    , displayErrorDetails_(batchMode)
     , dl_(dl)
     , dm_(dm) {
     vqStats_[0].qname = "SQ0:";
@@ -134,6 +138,8 @@ private:
   void collectMmStats(void);
 
   int devNum_;
+  bool batchMode_;
+  uint64_t updateLimit_;
   bool stop_;
   bool displayWattsBars_;
   bool dumpNextSpStatsBuffer_;
@@ -451,7 +457,6 @@ void EtTop::processInput(void) {
       }
     } else if (ch == 'q') {
       stop_ = true;
-      std::cout << std::endl;
     } else if (ch == 'w') {
       displayWattsBars_ = !displayWattsBars_;
     } else if (ch == 'd') {
@@ -562,7 +567,15 @@ void EtTop::displayStats(void) {
   char nowbuf[30];
   char* hhmmss = &nowbuf[10];
 
-  system("clear");
+  if (updateLimit_ > 0 && --updateLimit_ == 0) {
+    stop_ = true;
+  }
+
+  if (batchMode_) {
+    std::cout << std::endl;
+  } else {
+    system("clear");
+  }
   time(&now);
   ctime_r(&now, nowbuf);
   nowbuf[20] = '\0';
@@ -637,39 +650,64 @@ void EtTop::displayStats(void) {
     }
   }
 
-  std::cout << "Type 'h' for help ";
+  if (!batchMode_) {
+    std::cout << "Type 'h' for help ";
+  }
+
   return;
 }
 
 int main(int argc, char** argv) {
   char* endptr = NULL;
   long int devNum = 0;
-  std::chrono::duration delay = std::chrono::milliseconds(100);
+  std::chrono::duration delay = std::chrono::milliseconds(kUpdateDelayMS);
+  long int updateLimit = 0;
+  bool batchMode = false;
   bool usageError = false;
 
   /*
    * Validate the inputs
    */
-  if (argc < 2 || argc > 3) {
+  if (argc < 2 || argc > 6) {
     usageError = true;
   } else {
     devNum = strtol(argv[1], &endptr, 10);
     if (*endptr || devNum < 0 || devNum > kMaxDeviceNum) {
       usageError = true;
-    } else if (argc == 3) {
-      auto delayCount = strtol(argv[2], &endptr, 10);
-      if (*endptr || delayCount < 0) {
-        usageError = true;
-      } else {
-        delay = std::chrono::milliseconds(delayCount);
+    } else if (argc > 2) {
+      int i = 2;
+
+      if (argv[i][0] != '-') {
+        auto delayCount = strtol(argv[i], &endptr, 10);
+        if (*endptr || delayCount < 0) {
+          usageError = true;
+        } else {
+          delay = std::chrono::milliseconds(delayCount);
+        }
+        i++;
+      }
+
+      while (!usageError && i < argc) {
+        if (!batchMode && !strcmp(argv[i], "-b")) {
+          batchMode = true;
+        } else if (updateLimit == 0 && !strcmp(argv[i], "-n") && ++i < argc) {
+          updateLimit = strtol(argv[i], &endptr, 10);
+          usageError = *endptr || updateLimit < 1;
+        } else {
+          usageError = true;
+        }
+        i++;
       }
     }
   }
 
   if (usageError) {
-    std::cerr << ET_TOP " version " << ET_TOP_VERSION << "\nUsage: " << argv[0] << " DEVNO [DELAY]\n"
+    std::cerr << ET_TOP " version " << ET_TOP_VERSION << "\nUsage: " << argv[0] << " DEVNO [DELAY] [OPTION]\n"
               << "\tDEVNO is 0-" << kMaxDeviceNum << std::endl
-              << "\tDELAY is an optional update delay in milliseconds\n";
+              << "\tDELAY is an optional update delay in milliseconds (default " << kUpdateDelayMS << ")\n"
+              << "\tOPTION is one or more of the following:\n"
+              << "\t  -b operate in batch mode (accept no input and run until -n limit or killed)\n"
+              << "\t  -n [NUM] display stats a maximum of NUM times before ending (NUM > 0)\n";
     exit(1);
   }
 
@@ -680,7 +718,7 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-  if (isatty(STDIN_FILENO) == 0) {
+  if (!batchMode && isatty(STDIN_FILENO) == 0) {
     std::cerr << argv[0] << ": error stdin must be a tty\n";
     exit(1);
   }
@@ -693,23 +731,25 @@ int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   setbuf(stdout, NULL);
 
-  if (tcgetattr(STDIN_FILENO, &orig_termios) != 0) {
-    DV_LOG(ERROR) << "tcgetattr on stdin error: " << std::strerror(errno);
-    exit(1);
-  }
+  if (!batchMode) {
+    if (tcgetattr(STDIN_FILENO, &orig_termios) != 0) {
+      DV_LOG(ERROR) << "tcgetattr on stdin error: " << std::strerror(errno);
+      exit(1);
+    }
 
-  if (atexit(restoreTTY) != 0) {
-    DV_LOG(ERROR) << "atexit error";
-    exit(1);
-  }
+    if (atexit(restoreTTY) != 0) {
+      DV_LOG(ERROR) << "atexit error";
+      exit(1);
+    }
 
-  struct termios new_termios = orig_termios;
-  new_termios.c_lflag &= ~(ICANON | ECHO);
-  new_termios.c_cc[VTIME] = 1;
-  new_termios.c_cc[VMIN] = 0;
-  if (tcsetattr(STDIN_FILENO, TCSANOW, &new_termios) != 0) {
-    DV_LOG(ERROR) << "tcsetattr on stdin error: " << std::strerror(errno);
-    exit(1);
+    struct termios new_termios = orig_termios;
+    new_termios.c_lflag &= ~(ICANON | ECHO);
+    new_termios.c_cc[VTIME] = 1;
+    new_termios.c_cc[VMIN] = 0;
+    if (tcsetattr(STDIN_FILENO, TCSANOW, &new_termios) != 0) {
+      DV_LOG(ERROR) << "tcsetattr on stdin error: " << std::strerror(errno);
+      exit(1);
+    }
   }
 
   /*
@@ -717,11 +757,14 @@ int main(int argc, char** argv) {
    */
   std::unique_ptr<dev::IDeviceLayer> dl = dev::IDeviceLayer::createPcieDeviceLayer(false, true);
   device_management::DeviceManagement& dm = device_management::DeviceManagement::getInstance(dl.get());
-  EtTop etTop(devNum, dl, dm);
+  EtTop etTop(devNum, dl, dm, batchMode, updateLimit);
 
   auto checkPoint = std::chrono::steady_clock::now();
   while (!etTop.stopStats()) {
-    etTop.processInput();
+    if (!batchMode) {
+      etTop.processInput();
+    }
+
     if (checkPoint > std::chrono::steady_clock::now()) {
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     } else {
@@ -731,5 +774,6 @@ int main(int argc, char** argv) {
     }
   }
 
+  std::cout << std::endl;
   return 0;
 }
