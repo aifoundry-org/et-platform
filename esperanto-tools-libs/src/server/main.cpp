@@ -183,7 +183,6 @@ int main(int argc, char* argv[]) {
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
     signal(SIGABRT, signalHandler);
-    signal(SIGSEGV, signalHandler);
     auto opts = rt::Options{true, true};
     if (FLAGS_device_type == "fake") {
       opts.checkDeviceApiVersion_ = false;
@@ -201,9 +200,6 @@ int main(int argc, char* argv[]) {
 
     std::unique_lock lock(s_m);
     s_cv.wait(lock, [] { return !s_running; });
-    if (FLAGS_enable_tracing) {
-      s.getProfiler()->stop();
-    }
     std::cout << "End server execution\n.";
     return 0;
   } catch (const rt::Exception& e) {

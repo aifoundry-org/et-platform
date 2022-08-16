@@ -38,6 +38,9 @@ Server::~Server() {
   RT_LOG(INFO) << "Destroying all existing workers.";
   workers_.clear();
   close(socket_);
+  if (auto p = getProfiler(); p != nullptr) {
+    p->stop();
+  }
 }
 
 Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer, Options options)
