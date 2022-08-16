@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13583] Enabled getFWBootstatus test
 - [SW-13620] Add new command DM_CMD_GET_SP_STATS to the commandCodeTable
 - Show output on failure for mix tests.
+- Disabled getFWBootstatus test. To be fixed under SW-13807.
 ### Deprecated
 ### Removed
 ### Fixed
