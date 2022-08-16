@@ -68,11 +68,51 @@
 #define UPDATE_MSTATUS    0x3002a073 /* csrs  mstatus,t0          */
 #define CLR_FCSR          0x00305073 /* csrwi fcsr,0              */
 #define FMA_3PORT_RF_READ 0x00007043 /* fmadd.s f0, f0, f0, f0 */
+#define FPU_CLR_M0        0x57f0707b /* mov.m.x m0, x0, 0xff */
+#define FMA_CLR_RF_F0     0x0000705b /* fmadd.ps f0, f0, f0, f0 */
+#define FMA_CLR_RF_F1     0x0810f0db /* fmadd.ps f1, f1, f1, f1 */
+#define FMA_CLR_RF_F2     0x1021715b /* fmadd.ps f2, f2, f2, f2 */
+#define FMA_CLR_RF_F3     0x1831f1db /* fmadd.ps f3, f3, f3, f3 */
+#define FMA_CLR_RF_F4     0x2042725b /* fmadd.ps f4, f4, f4, f4 */
+#define FMA_CLR_RF_F5     0x2852f2db /* fmadd.ps f5, f5, f5, f5 */
+#define FMA_CLR_RF_F6     0x3063735b /* fmadd.ps f6, f6, f6, f6 */
+#define FMA_CLR_RF_F7     0x3873f3db /* fmadd.ps f7, f7, f7, f7 */
+#define FMA_CLR_RF_F8     0x4084745b /* fmadd.ps f8, f8, f8, f8 */
+#define FMA_CLR_RF_F9     0x4894f4db /* fmadd.ps f9, f9, f9, f9 */
+#define FMA_CLR_RF_F10    0x50a5755b /* fmadd.ps f10, f10, f10, f10 */
+#define FMA_CLR_RF_F11    0x58b5f5db /* fmadd.ps f11, f11, f11, f11 */
+#define FMA_CLR_RF_F12    0x60c6765b /* fmadd.ps f12, f12, f12, f12 */
+#define FMA_CLR_RF_F13    0x68d6f6db /* fmadd.ps f13, f13, f13, f13 */
+#define FMA_CLR_RF_F14    0x70e7775b /* fmadd.ps f14, f14, f14, f14 */
+#define FMA_CLR_RF_F15    0x78f7f7db /* fmadd.ps f15, f15, f15, f15 */
+#define FMA_CLR_RF_F16    0x8108785b /* fmadd.ps f16, f16, f16, f16 */
+#define FMA_CLR_RF_F17    0x8918f8db /* fmadd.ps f17, f17, f17, f17 */
+#define FMA_CLR_RF_F18    0x9129795b /* fmadd.ps f18, f18, f18, f18 */
+#define FMA_CLR_RF_F19    0x9939f9db /* fmadd.ps f19, f19, f19, f19 */
+#define FMA_CLR_RF_F20    0xa14a7a5b /* fmadd.ps f20, f20, f20, f20 */
+#define FMA_CLR_RF_F21    0xa95afadb /* fmadd.ps f21, f21, f21, f21 */
+#define FMA_CLR_RF_F22    0xb16b7b5b /* fmadd.ps f22, f22, f22, f22 */
+#define FMA_CLR_RF_F23    0xb97bfbdb /* fmadd.ps f23, f23, f23, f23 */
+#define FMA_CLR_RF_F24    0xc18c7c5b /* fmadd.ps f24, f24, f24, f24 */
+#define FMA_CLR_RF_F25    0xc99cfcdb /* fmadd.ps f25, f25, f25, f25 */
+#define FMA_CLR_RF_F26    0xd1ad7d5b /* fmadd.ps f26, f26, f26, f26 */
+#define FMA_CLR_RF_F27    0xd9bdfddb /* fmadd.ps f27, f27, f27, f27 */
+#define FMA_CLR_RF_F28    0xe1ce7e5b /* fmadd.ps f28, f28, f28, f28 */
+#define FMA_CLR_RF_F29    0xe9defedb /* fmadd.ps f29, f29, f29, f29 */
+#define FMA_CLR_RF_F30    0xf1ef7f5b /* fmadd.ps f30, f30, f30, f30 */
+#define FMA_CLR_RF_F31    0xf9ffffdb /* fmadd.ps f31, f31, f31, f31 */
 #define WFI_INST          0x10500073 /* wfi */
 
-#define VPU_RF_INIT_SEQ() \
-    CLR_MATP, CLR_SATP, INIT_T0, UPDATE_MSTATUS, CLR_FCSR, FMA_3PORT_RF_READ, WFI_INST, EBREAK_INST
-#define NUM_INST_VPU_RF_INIT_SEQ 8
+#define VPU_RF_INIT_SEQ()                                                                         \
+    CLR_MATP, CLR_SATP, INIT_T0, UPDATE_MSTATUS, CLR_FCSR, FMA_3PORT_RF_READ, FPU_CLR_M0,         \
+        FMA_CLR_RF_F0, FMA_CLR_RF_F1, FMA_CLR_RF_F2, FMA_CLR_RF_F3, FMA_CLR_RF_F4, FMA_CLR_RF_F5, \
+        FMA_CLR_RF_F6, FMA_CLR_RF_F7, FMA_CLR_RF_F8, FMA_CLR_RF_F9, FMA_CLR_RF_F10,               \
+        FMA_CLR_RF_F11, FMA_CLR_RF_F12, FMA_CLR_RF_F13, FMA_CLR_RF_F14, FMA_CLR_RF_F15,           \
+        FMA_CLR_RF_F16, FMA_CLR_RF_F17, FMA_CLR_RF_F18, FMA_CLR_RF_F19, FMA_CLR_RF_F20,           \
+        FMA_CLR_RF_F21, FMA_CLR_RF_F22, FMA_CLR_RF_F23, FMA_CLR_RF_F24, FMA_CLR_RF_F25,           \
+        FMA_CLR_RF_F26, FMA_CLR_RF_F27, FMA_CLR_RF_F28, FMA_CLR_RF_F29, FMA_CLR_RF_F30,           \
+        FMA_CLR_RF_F31, WFI_INST, EBREAK_INST
+#define NUM_INST_VPU_RF_INIT_SEQ 41
 
 /* Memory read instruction sequence */
 #define GPR_REG_INDEX_A0             10
