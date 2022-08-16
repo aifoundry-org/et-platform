@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test sets the frequency and validates it by reading back those frequencies.
 - [SW-13583] Enabled getFWBootstatus test
 - [SW-13620] Add new command DM_CMD_GET_SP_STATS to the commandCodeTable
+- Show output on failure for mix tests.
 ### Deprecated
 ### Removed
 ### Fixed
