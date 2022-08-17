@@ -892,6 +892,15 @@ Modules:
         - Name: cm_utilization_max
           Description: Compute minion utilization maximum
           Type: uint64_t
+        - Name: cm_bw_avg
+          Description: Compute minion bandwidth average
+          Type: uint64_t
+        - Name: cm_bw_min
+          Description: Compute minion bandwidth minimum
+          Type: uint64_t
+        - Name: cm_bw_max
+          Description: Compute minion bandwidth maximum
+          Type: uint64_t
         - Name: pcie_dma_read_bw_avg
           Description: PCIE DMA read bandwidth average
           Type: uint64_t
@@ -909,6 +918,24 @@ Modules:
           Type: uint64_t
         - Name: pcie_dma_write_bw_max
           Description: PCIE DMA write bandwidth maximum
+          Type: uint64_t
+        - Name: pcie_dma_read_utilization_avg
+          Description: PCIE DMA read utilization average
+          Type: uint64_t
+        - Name: pcie_dma_read_utilization_min
+          Description: PCIE DMA read utilization minimum
+          Type: uint64_t
+        - Name: pcie_dma_read_utilization_max
+          Description: PCIE DMA read utilization maximum
+          Type: uint64_t
+        - Name: pcie_dma_write_utilization_avg
+          Description: PCIE DMA write utilization average
+          Type: uint64_t
+        - Name: pcie_dma_write_utilization_min
+          Description: PCIE DMA write utilization minimum
+          Type: uint64_t
+        - Name: pcie_dma_write_utilization_max
+          Description: PCIE DMA write utilization maximum
           Type: uint64_t
         - Name: ddr_read_bw_avg
           Description: DDR read bandwidth average
