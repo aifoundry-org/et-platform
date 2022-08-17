@@ -18,6 +18,7 @@
 #define SP_MM_COMMS_SPEC_H
 
 #include <inttypes.h>
+#include <esperanto/et-trace/layout.h>
 
 typedef int16_t mm2sp_mm_recoverable_error_code_e;
 
@@ -152,7 +153,9 @@ enum sp_mm_msg_e {
     SP2MM_CMD_MM_ABORT_ALL,
     SP2MM_RSP_MM_ABORT_ALL,
     SP2MM_CMD_CM_RESET,
-    SP2MM_RSP_CM_RESET
+    SP2MM_RSP_CM_RESET,
+    SP2MM_CMD_GET_MM_STATS,
+    SP2MM_RSP_GET_MM_STATS
 };
 
 typedef uint8_t mm2sp_fw_type_e;
@@ -196,14 +199,14 @@ struct mm2sp_echo_rsp_t {
 } __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_get_active_shire_mask_cmd_t
-    \brief MM to SP command strutcure for get active shire command
+    \brief MM to SP command structure for get active shire command
 */
 struct mm2sp_get_active_shire_mask_cmd_t {
     struct dev_cmd_hdr_t msg_hdr;
 } __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_get_active_shire_mask_rsp_t
-    \brief MM to SP command strutcure for get active shire command'
+    \brief MM to SP command structure for get active shire command
            response
 */
 struct mm2sp_get_active_shire_mask_rsp_t {
@@ -213,7 +216,7 @@ struct mm2sp_get_active_shire_mask_rsp_t {
 } __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_get_cm_boot_freq_cmd_t
-    \brief MM to SP command strutcure for get Compute Minion Boot
+    \brief MM to SP command structure for get Compute Minion Boot
            frequency
 */
 struct mm2sp_get_cm_boot_freq_cmd_t {
@@ -221,7 +224,7 @@ struct mm2sp_get_cm_boot_freq_cmd_t {
 } __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_get_cm_boot_freq_rsp_t
-    \brief MM to SP command strutcure for get Compute Minion Boot
+    \brief MM to SP command structure for get Compute Minion Boot
            frequency command's response.
 */
 struct mm2sp_get_cm_boot_freq_rsp_t {
@@ -247,7 +250,7 @@ struct mm2sp_reset_minion_cmd_t {
 } __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_reset_minion_rsp_t
-    \brief MM to SP Reset Minion response strutcure
+    \brief MM to SP Reset Minion response structure
 */
 struct mm2sp_reset_minion_rsp_t {
     struct dev_cmd_hdr_t msg_hdr;
@@ -270,7 +273,7 @@ struct mm2sp_get_fw_version_t {
 } __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_get_fw_version_rsp_t
-    \brief MM to SP response strutcure to receive fw version.
+    \brief MM to SP response structure to receive fw version.
 */
 struct mm2sp_get_fw_version_rsp_t {
     struct dev_cmd_hdr_t msg_hdr;
@@ -301,7 +304,7 @@ struct sp2mm_echo_rsp_t {
 } __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_update_freq_cmd_t
-    \brief SP to MM command strutcure to update MM frequency.
+    \brief SP to MM command structure to update MM frequency.
 */
 struct sp2mm_update_freq_cmd_t {
     struct dev_cmd_hdr_t msg_hdr;
@@ -309,7 +312,7 @@ struct sp2mm_update_freq_cmd_t {
 } __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_update_freq_rsp_t
-    \brief SP to MM response strutcure to update MM frequency command.
+    \brief SP to MM response structure to update MM frequency command.
 */
 struct sp2mm_update_freq_rsp_t {
     struct dev_cmd_hdr_t msg_hdr;
@@ -317,14 +320,14 @@ struct sp2mm_update_freq_rsp_t {
 } __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_teardown_mm_cmd_t
-    \brief SP to MM command strutcure to tear down MM.
+    \brief SP to MM command structure to tear down MM.
 */
 struct sp2mm_teardown_mm_cmd_t {
     struct dev_cmd_hdr_t msg_hdr;
 } __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_teardown_mm_rsp_t
-    \brief SP to MM response strutcure to tear down command.
+    \brief SP to MM response structure to tear down command.
 */
 struct sp2mm_teardown_mm_rsp_t {
     struct dev_cmd_hdr_t msg_hdr;
@@ -332,14 +335,14 @@ struct sp2mm_teardown_mm_rsp_t {
 } __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_quiesce_traffic_cmd_t
-    \brief SP to MM command strutcure for quiesce traffic.
+    \brief SP to MM command structure for quiesce traffic.
 */
 struct sp2mm_quiesce_traffic_cmd_t {
     struct dev_cmd_hdr_t msg_hdr;
 } __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_quiesce_traffic_rsp_t
-    \brief SP to MM response strutcure for quiesce traffic command.
+    \brief SP to MM response structure for quiesce traffic command.
 */
 struct sp2mm_quiesce_traffic_rsp_t {
     struct dev_cmd_hdr_t msg_hdr;
@@ -347,7 +350,7 @@ struct sp2mm_quiesce_traffic_rsp_t {
 } __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_kernel_launch_cmd_t
-    \brief SP to MM command strutcure for Kernel Launch command.
+    \brief SP to MM command structure for Kernel Launch command.
 */
 struct sp2mm_kernel_launch_cmd_t {
     struct dev_cmd_hdr_t msg_hdr;
@@ -356,7 +359,7 @@ struct sp2mm_kernel_launch_cmd_t {
 } __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_kernel_launch_rsp_t
-    \brief SP to MM response strutcure for Kernel Launch command.
+    \brief SP to MM response structure for Kernel Launch command.
 */
 struct sp2mm_kernel_launch_rsp_t {
     struct dev_cmd_hdr_t msg_hdr;
@@ -364,14 +367,14 @@ struct sp2mm_kernel_launch_rsp_t {
 } __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_get_dram_bw_cmd_t
-    \brief SP to MM command strutcure for Get DRAM BW command.
+    \brief SP to MM command structure for Get DRAM BW command.
 */
 struct sp2mm_get_dram_bw_cmd_t {
     struct dev_cmd_hdr_t msg_hdr;
 } __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_get_dram_bw_rsp_t
-    \brief SP to MM response strutcure for Get DRAM BW command.
+    \brief SP to MM response structure for Get DRAM BW command.
 */
 struct sp2mm_get_dram_bw_rsp_t {
     struct dev_cmd_hdr_t msg_hdr;
@@ -379,15 +382,30 @@ struct sp2mm_get_dram_bw_rsp_t {
     uint32_t write_bw;
 } __attribute__((aligned(8), packed));
 
+/*! \struct sp2mm_get_mm_stats_cmd_t
+    \brief SP to MM command structure for Get MM Stats command.
+*/
+struct sp2mm_get_mm_stats_cmd_t {
+    struct dev_cmd_hdr_t msg_hdr;
+} __attribute__((aligned(8), packed));
+
+/*! \struct sp2mm_get_mm_stats_rsp_t
+    \brief SP to MM response structure for Get MM Stats command.
+*/
+struct sp2mm_get_mm_stats_rsp_t {
+    struct dev_cmd_hdr_t msg_hdr;
+    struct compute_resources_sample sample;
+} __attribute__((aligned(8), packed));
+
 /*! \struct sp2mm_mm_abort_all_cmd_t
-    \brief SP to MM command strutcure for abort command.
+    \brief SP to MM command structure for abort command.
 */
 struct sp2mm_mm_abort_all_cmd_t {
     struct dev_cmd_hdr_t msg_hdr;
 };
 
 /*! \struct sp2mm_mm_abort_all_rsp_t
-    \brief SP to MM response strutcure to abort command.
+    \brief SP to MM response structure to abort command.
 */
 struct sp2mm_mm_abort_all_rsp_t {
     struct dev_cmd_hdr_t msg_hdr;
@@ -395,7 +413,7 @@ struct sp2mm_mm_abort_all_rsp_t {
 };
 
 /*! \struct sp2mm_cm_reset_cmd_t
-    \brief SP to MM command strutcure for cm reset command.
+    \brief SP to MM command structure for cm reset command.
 */
 struct sp2mm_cm_reset_cmd_t {
     struct dev_cmd_hdr_t msg_hdr;
@@ -403,7 +421,7 @@ struct sp2mm_cm_reset_cmd_t {
 };
 
 /*! \struct sp2mm_cm_reset_rsp_t
-    \brief SP to MM response strutcure to cm reset command.
+    \brief SP to MM response structure to cm reset command.
 */
 struct sp2mm_cm_reset_rsp_t {
     struct dev_cmd_hdr_t msg_hdr;

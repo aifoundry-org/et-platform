@@ -73,7 +73,11 @@ add_library(mm-rt-svcs STATIC
 
 set_target_properties(mm-rt-svcs PROPERTIES LINKER_LANGUAGE C)
 
-target_link_libraries(mm-rt-svcs PUBLIC etsoc_hal::etsoc_hal)
+target_link_libraries(mm-rt-svcs 
+    PUBLIC 
+        etsoc_hal::etsoc_hal
+        esperantoTrace::et_trace
+)
 
 target_include_directories(mm-rt-svcs
     PUBLIC

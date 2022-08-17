@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- [SW-13832] Add SP2MM GET_MM_STATS command and response. Also fixed some typos.
 ### Changed
 ### Deprecated
 ### Removed

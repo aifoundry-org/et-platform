@@ -121,7 +121,7 @@ class EtCommonLibsConan(ConanFile):
             self.cpp_info.components["mm-rt-svcs"].libdirs = [os.path.join("mm-rt-svcs", "lib")]
             self.cpp_info.components["mm-rt-svcs"].libs = ["mm-rt-svcs"]
             self.cpp_info.components["mm-rt-svcs"].defines = ["MM_RT=1"]
-            self.cpp_info.components["mm-rt-svcs"].requires = ["etsoc_hal::etsoc_hal"]
+            self.cpp_info.components["mm-rt-svcs"].requires = ["etsoc_hal::etsoc_hal", "esperantoTrace::et_trace"]
 
         if self.options.with_cm_rt_svcs:
             self.cpp_info.components["cm-rt-svcs"].set_property("cmake_target_name", "et-common-libs::cm-rt-svcs")
