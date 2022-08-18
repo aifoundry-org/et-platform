@@ -299,12 +299,10 @@ static void taskMain(void *pvParameters)
     pcie_enable_link();
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_ATU_PROGRAMMED);
 
-#if (FAST_BOOT || TEST_FRAMEWORK)
     // Initialize watchdog service
     status = init_watchdog_service();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init watchdog service!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_SP_WATCHDOG_TASK_READY);
-#endif
 
 #if !FAST_BOOT
     // At this point, SP and minions have booted successfully. Increment the completed boot counter

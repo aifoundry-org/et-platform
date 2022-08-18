@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-13571]: Fixed watchdog timeout calculations with respect to pclk
 ### Security
 
 ## [0.4.0] - 2022-08-16

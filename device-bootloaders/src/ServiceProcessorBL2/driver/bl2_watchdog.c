@@ -41,11 +41,13 @@
 
 static struct watchdog_control_block wdog_control_block __attribute__((section(".data")));
 
-/* Macro to extract number of clock cycles(k) required for time in milliseconds. */
-#define MAP_MS_TO_KCLOCKS(ms) ((configCPU_CLOCK_HZ / (1000000)) * ms)
+/* There are sixteen TOPs (timeout periods) that can be set in the watchdog. */
+#define WDT_NUM_TOP_VALUES 16
+#define WDT_TOP_VAL(top)   (1U << (16 + top))
+#define WDT_CLOCK_RATE     24000000ULL
+#define MSEC_PER_SEC       1000
 
-/* Macro to convert K clocks to approx milliseconds. */
-#define MAP_TOP_TO_MS(top) ((pow(2, top + 6) * 1000000) / configCPU_CLOCK_HZ)
+#define WDT_CALC_MSECS_FROM_TOP(top) ((WDT_TOP_VAL(top) / WDT_CLOCK_RATE) * MSEC_PER_SEC)
 
 /************************************************************************
 *
@@ -68,80 +70,23 @@ static struct watchdog_control_block wdog_control_block __attribute__((section("
 *       value of TOP or error in case of invalid input
 *
 ***********************************************************************/
-static int32_t get_top_from_msec(uint32_t timeout_msec)
+static uint8_t wdt_get_top_from_msec(uint32_t timeout_msec)
 {
-    uint64_t num_clocks = MAP_MS_TO_KCLOCKS(timeout_msec);
+    uint8_t top = 0;
 
-    if (num_clocks <= 64)
+    /* Find a TOP with timeout greater or equal to the requested number.
+    Max TOP value will be selected if no match found. */
+    for (top = 0; top < WDT_NUM_TOP_VALUES; top++)
     {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER0_OR_64K;
+        if (WDT_CALC_MSECS_FROM_TOP(top) >= timeout_msec)
+            break;
     }
-    else if ((num_clocks > 64) && (num_clocks <= 128))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER1_OR_128K;
-    }
-    else if ((num_clocks > 128) && (num_clocks <= 256))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER2_OR_256K;
-    }
-    else if ((num_clocks > 256) && (num_clocks <= 512))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER3_OR_512K;
-    }
-    else if ((num_clocks > 512) && (num_clocks <= 1024))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER4_OR_1M;
-    }
-    else if ((num_clocks > 1024) && (num_clocks <= 2048))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER5_OR_2M;
-    }
-    else if ((num_clocks > 2048) && (num_clocks <= 4096))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER6_OR_4M;
-    }
-    else if ((num_clocks > 4096) && (num_clocks <= 8192))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER7_OR_8M;
-    }
-    else if ((num_clocks > 8192) && (num_clocks <= 16384))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER8_OR_16M;
-    }
-    else if ((num_clocks > 16384) && (num_clocks <= 32768))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER9_OR_32M;
-    }
-    else if ((num_clocks > 32768) && (num_clocks <= 65536))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER10_OR_64M;
-    }
-    else if ((num_clocks > 65536) && (num_clocks <= 131072))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER11_OR_128M;
-    }
-    else if ((num_clocks > 131072) && (num_clocks <= 262144))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER12_OR_256M;
-    }
-    else if ((num_clocks > 262144) && (num_clocks <= 524288))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER13_OR_512M;
-    }
-    else if ((num_clocks > 524288) && (num_clocks <= 1048576))
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER14_OR_1G;
-    }
-    else if (num_clocks > 1048576)
-    {
-        return WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER15_OR_2G;
-    }
-    else
-    {
-        return ERROR_INVALID_ARGUMENT;
-    }
+
+    if (top == WDT_NUM_TOP_VALUES)
+        --top;
+
+    return top;
 }
-
 /************************************************************************
 *
 *   FUNCTION
@@ -170,7 +115,7 @@ int32_t watchdog_init(uint32_t timeout_msec)
       and reset the system, spio_wdt_sys_rstn*.
       Start the watch dog
     */
-    int32_t val = get_top_from_msec(timeout_msec);
+    int32_t val = wdt_get_top_from_msec(timeout_msec);
     if (val < 0)
     {
         Log_Write(LOG_LEVEL_ERROR, "Invalid watchdog timeout setting\n");
@@ -187,7 +132,7 @@ int32_t watchdog_init(uint32_t timeout_msec)
         watchdog_start();
 
         /* Save actual msec value to wdog DB */
-        wdog_control_block.timeout_msec = (uint32_t)MAP_TOP_TO_MS(val);
+        wdog_control_block.timeout_msec = (uint32_t)WDT_CALC_MSECS_FROM_TOP(val);
 
         Log_Write(LOG_LEVEL_WARNING, "Watchdog timeout set to approx %d milliseconds\n",
                   wdog_control_block.timeout_msec);
@@ -195,7 +140,7 @@ int32_t watchdog_init(uint32_t timeout_msec)
 
     /* Update max timeout value */
     wdog_control_block.max_timeout_msec =
-        (uint32_t)MAP_TOP_TO_MS(WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER15_OR_2G);
+        (uint32_t)WDT_CALC_MSECS_FROM_TOP(WDT_WDT_TORR_TOP_INIT_TOP_INIT_USER15_OR_2G);
 
     return 0;
 }
