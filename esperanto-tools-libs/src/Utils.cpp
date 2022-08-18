@@ -78,9 +78,7 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
       RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP response code: " << responseCode;
       return rt::DeviceErrorCode::Unknown;
     }
-  case DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP:
   case DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP:
-  case DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP:
   case DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP:
     switch (responseCode) {
     case DEV_OPS_API_DMA_RESPONSE_UNEXPECTED_ERROR:

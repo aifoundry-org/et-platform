@@ -37,13 +37,7 @@ public:
     rsp.rsp_hdr.tag_id = cmd->tag_id;
     switch (cmd->msg_id) {
     case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD:
-      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP;
-      break;
-    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
       rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP;
-      break;
-    case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
-      rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP;
       break;
     case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD:
       rsp.rsp_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP;

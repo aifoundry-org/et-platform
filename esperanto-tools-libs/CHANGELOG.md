@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 ### Deprecated
+- [SW-13472] removed deprecated handling and usage of device-api old structs.
 ### Removed
 ### Fixed
 ### Security

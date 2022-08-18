@@ -30,6 +30,7 @@
 #include <elfio/elfio.hpp>
 
 #include <chrono>
+#include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -431,9 +432,8 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
       processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
-  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP:
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP: {
-    auto r = reinterpret_cast<const device_ops_api::device_ops_data_read_rsp_t*>(response.data());
+    auto r = reinterpret_cast<const device_ops_api::device_ops_dma_readlist_rsp_t*>(response.data());
     recordEvent(*getProfiler(), *r, eventId, ResponseType::DMARead);
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
       responseWasOk = false;
@@ -450,9 +450,8 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
       processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
-  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP:
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP: {
-    auto r = reinterpret_cast<const device_ops_api::device_ops_data_write_rsp_t*>(response.data());
+    auto r = reinterpret_cast<const device_ops_api::device_ops_dma_writelist_rsp_t*>(response.data());
     recordEvent(*getProfiler(), *r, eventId, ResponseType::DMAWrite);
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
       responseWasOk = false;
