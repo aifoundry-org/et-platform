@@ -9,9 +9,15 @@
 #define CL_NELEMS 64/sizeof(uint64_t)
 typedef uint64_t scp_mem[34][2][64][CL_NELEMS];
 
+
+// SW Kernel is stored in S32:L2SCP
+// More info in the repo et-common-libs:include/system/layout.h
+typedef uint64_t sw_kernel[(32*1024)/sizeof(uint64_t)];
+
 typedef struct soc_l2_scp {
+   sw_kernel padding0;
    scp_mem mem;
-   uint64_t padding[(0x0800000-sizeof(scp_mem))/sizeof(uint64_t)];
+   uint64_t padding[(0x0800000-sizeof(scp_mem)-sizeof(sw_kernel))/sizeof(uint64_t)];
 } soc_l2_scp;
 
 uint64_t noc_pv_lcg(uint64_t seed);
