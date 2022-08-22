@@ -11,8 +11,8 @@ void sc_pv_evict_whole_l1(void);
 uint64_t sc_pv_init_rand_data(uint64_t scp[][SC_PV_ELEMS_CACHE], uint64_t seed);
 void sc_pv_load_store_l1scp_0(uint64_t scp[][SC_PV_ELEMS_CACHE]);
 void sc_pv_load_store_l1scp_1(uint64_t scp[][SC_PV_ELEMS_CACHE]);
-inline void sc_pv_load_fp(uint64_t base_addr);
-inline void sc_pv_store_fp(uint64_t base_addr);
+void sc_pv_load_fp(uint64_t base_addr);
+void sc_pv_store_fp(uint64_t base_addr);
 void sc_pv_load_store_fp_0(uint64_t scp[][SC_PV_ELEMS_CACHE]);
 void sc_pv_load_store_fp_1(uint64_t scp[][SC_PV_ELEMS_CACHE]);
 uint64_t shire_cache_power_virus_thread0(uint64_t loop_size);
@@ -180,7 +180,7 @@ void sc_pv_load_store_l1scp_1(uint64_t scp[][SC_PV_ELEMS_CACHE]) {
    /*****************************************************************************************************************/
 }
 
-inline void sc_pv_load_fp(uint64_t base_addr) {
+void sc_pv_load_fp(uint64_t base_addr) {
    __asm__ __volatile__ (
       "flq2 f0, 0(%[base_addr])\n"
       "flq2 f2, 64(%[base_addr])\n"
@@ -216,11 +216,14 @@ inline void sc_pv_load_fp(uint64_t base_addr) {
       "flq2 f31, 992(%[base_addr])\n"
       :
       : [base_addr] "r" (base_addr)
-      :
+      :  "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
+         "f8",  "f9", "f10", "f11", "f12", "f13", "f14", "f15",
+        "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
+        "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31"
    );
 }
 
-inline void sc_pv_store_fp(uint64_t base_addr) {
+void sc_pv_store_fp(uint64_t base_addr) {
    __asm__ __volatile__ (
       "fsq2 f0, 0(%[base_addr])\n"
       "fsq2 f2, 64(%[base_addr])\n"
@@ -256,7 +259,10 @@ inline void sc_pv_store_fp(uint64_t base_addr) {
       "fsq2 f31, 992(%[base_addr])\n"
       :
       : [base_addr] "r" (base_addr)
-      :
+      :  "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
+         "f8",  "f9", "f10", "f11", "f12", "f13", "f14", "f15",
+        "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
+        "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31"
    );
 }
 
