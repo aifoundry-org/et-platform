@@ -83,6 +83,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Adapt device tests to return L2 and L3 sizes in KB
 ### Security
+## [0.3.2]
+### Added
+### Changed
+  - deviceLayer 0.3.0 version hash pinned.
+  - Added new error code for kernel launches with invalid shire mask
+  - Convert from KB to MB the device sizes for L2 and L3 
+### Deprecated
+### Removed
+### Fixed
+  - Adapt device tests to return L2 and L3 sizes in KB
+### Security
 ## [0.3.1]
 ### Added
 - [SW-13062] waitForEvent / waitForStream won't block if timeout argument is 0 seconds
@@ -102,6 +113,27 @@ virtual void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callba
 ### Removed
 ### Fixed
 ### Security
+## [0.2.4]
+### Added
+### Changed
+  - removed device-api check because system-sw needs to use an untested device-api for client release.
+### Deprecated
+  - release [0.2.3] was a "hotfix" to enable system-sw to do a merge without checking device-api. Problem is that it was not built on top of 0.2.2 but on top of unstable/untested master. So its encouraged to not use that release.
+### Removed
+### Fixed
+### Security
+## [0.2.2]
+### Added
+- deviceLayer 0.3.0 version hash pinned.
+- Added new error code for kernel launches with invalid shire mask
+- Convert from KB to MB the device sizes for L2 and L3 
+- Adapt device tests to return L2 and L3 sizes in KB
+
+### Changed
+### Deprecated
+### Removed
+### Fixed
+
 ## [0.2.1]
 ### Added
 - [SW-12975] 
