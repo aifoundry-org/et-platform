@@ -367,6 +367,8 @@ void RuntimeImp::processResponseError(const ResponseError& responseError) {
               dispatch(evt);
             });
             th.detach();
+          } else {
+            executionContextCache_->releaseBuffer(event);
           }
         }
       }
