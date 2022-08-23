@@ -36,6 +36,7 @@
 #define SP_STATS_FILE "sp_stats.bin"
 #define MM_STATS_FILE "mm_stats.bin"
 
+static const uint32_t kDmServiceRequestTimeout = 100000;
 static const uint32_t kUpdateDelayMS = 100;
 static const int32_t kMaxDeviceNum = 63;
 static const uint16_t kOtherPower = 5750;
@@ -101,12 +102,17 @@ public:
     , dumpNextSpStatsBuffer_(false)
     , dumpNextMmStatsBuffer_(false)
     , displayErrorDetails_(batchMode)
+    , displayFreqDetails_(batchMode)
+    , displayVoltDetails_(batchMode)
     , dl_(dl)
     , dm_(dm) {
     vqStats_[0].qname = "SQ0:";
     vqStats_[1].qname = "SQ1:";
     vqStats_[2].qname = "CQ0:";
     mmStats_.cycle = 0;
+    getDeviceDetails();
+    collectFreqStats();
+    collectVoltStats();
   }
 
   void processInput(void);
@@ -125,9 +131,12 @@ public:
   }
 
 private:
+  void getDeviceDetails(void);
   bool processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total);
   void displayOpStat(const std::string stat, const struct op_value& ov, const bool isPower = false,
                      const uint32_t max = 0, const bool addBarLabels = false);
+  void displayFreqStat(const std::string stat, bool endLine, uint64_t frequency);
+  void displayVoltStat(const std::string stat, bool endLine, uint64_t value, uint32_t base, uint32_t multiplier);
   void displayComputeStat(const std::string stat, const struct resource_value& rv);
   void displayErrorDetails(std::map<std::string, uint64_t>& error, bool addColon = false, std::string prefix = "");
   void collectMemStats(void);
@@ -136,6 +145,8 @@ private:
   void collectVqStats(void);
   void collectSpStats(void);
   void collectMmStats(void);
+  void collectFreqStats(void);
+  void collectVoltStats(void);
 
   int devNum_;
   bool batchMode_;
@@ -145,8 +156,13 @@ private:
   bool dumpNextSpStatsBuffer_;
   bool dumpNextMmStatsBuffer_;
   bool displayErrorDetails_;
+  bool displayFreqDetails_;
+  bool displayVoltDetails_;
   std::unique_ptr<dev::IDeviceLayer>& dl_;
   device_management::DeviceManagement& dm_;
+  std::string cardId_;
+  std::string fwVersion_;
+  std::string pmicFwVersion_ = "v0.6.0";
 
   std::array<vq_stats_t, kOpsSqNum + kOpsCqNum> vqStats_;
   struct mem_stats_t memStats_;
@@ -154,6 +170,8 @@ private:
   struct aer_stats_t aerStats_;
   struct sp_stats_t spStats_;
   struct mm_stats_t mmStats_;
+  device_mgmt_api::asic_frequencies_t freqStats_;
+  device_mgmt_api::module_voltage_t voltStats_;
 };
 
 void EtTop::collectMemStats(void) {
@@ -312,20 +330,16 @@ void EtTop::collectAerStats(void) {
 }
 
 void EtTop::collectSpStats(void) {
-  const uint32_t kDmServiceRequestTimeout = 100000;
-  const uint32_t outputSize = sizeof(device_mgmt_api::get_sp_stats_t);
-  char outputBuff[outputSize] = {0};
   uint32_t hostLatency;
   uint64_t deviceLatency;
-  int ret;
+  std::vector<char> outputBuff(sizeof(device_mgmt_api::get_sp_stats_t), 0);
 
-  ret = dm_.serviceRequest(devNum_, device_mgmt_api::DM_CMD::DM_CMD_GET_SP_STATS, nullptr, 0, outputBuff, outputSize,
-                           &hostLatency, &deviceLatency, kDmServiceRequestTimeout);
-
+  auto ret = dm_.serviceRequest(devNum_, device_mgmt_api::DM_CMD::DM_CMD_GET_SP_STATS, nullptr, 0, outputBuff.data(),
+                                outputBuff.size(), &hostLatency, &deviceLatency, kDmServiceRequestTimeout);
   if (ret != device_mgmt_api::DM_STATUS_SUCCESS) {
     DV_LOG(ERROR) << "Service request get sp stats failed with return code: " << std::dec << ret << std::endl;
   } else {
-    device_mgmt_api::get_sp_stats_t* sp_stats = (struct device_mgmt_api::get_sp_stats_t*)outputBuff;
+    auto* sp_stats = static_cast<device_mgmt_api::get_sp_stats_t*>(static_cast<void*>(outputBuff.data()));
 
     spStats_.op.system.power.avg = sp_stats->system_power_avg;
     spStats_.op.system.power.min = sp_stats->system_power_min;
@@ -376,6 +390,56 @@ void EtTop::collectSpStats(void) {
   }
 
   return;
+}
+
+void EtTop::getDeviceDetails(void) {
+  uint32_t hostLatency;
+  uint64_t deviceLatency;
+  device_mgmt_api::asset_info_t assetInfo = {0};
+  auto ret = dm_.serviceRequest(devNum_, device_mgmt_api::DM_CMD_GET_MODULE_PART_NUMBER, nullptr, 0,
+                                static_cast<char*>(static_cast<void*>(&assetInfo)), sizeof(assetInfo), &hostLatency,
+                                &deviceLatency, kDmServiceRequestTimeout);
+  if (ret != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(ERROR) << "Service request get asset info failed with return code: " << std::dec << ret << std::endl;
+  } else {
+    std::stringstream sstream;
+    sstream << "0x" << std::hex << *static_cast<uint32_t*>(static_cast<void*>(assetInfo.asset));
+    cardId_ = sstream.str();
+  }
+
+  device_mgmt_api::firmware_version_t versions = {0};
+  ret = dm_.serviceRequest(devNum_, device_mgmt_api::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS, nullptr, 0,
+                           static_cast<char*>(static_cast<void*>(&versions)), sizeof(versions), &hostLatency,
+                           &deviceLatency, kDmServiceRequestTimeout);
+  if (ret != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(ERROR) << "Service request get firmware version failed with return code: " << std::dec << ret << std::endl;
+  } else {
+    fwVersion_ = "v" + std::to_string((versions.fw_release_rev >> 24) & 0xff) + "." +
+                 std::to_string((versions.fw_release_rev >> 16) & 0xff) + "." +
+                 std::to_string((versions.fw_release_rev >> 8) & 0xff);
+  }
+}
+
+void EtTop::collectFreqStats(void) {
+  uint32_t hostLatency;
+  uint64_t deviceLatency;
+  auto ret = dm_.serviceRequest(devNum_, device_mgmt_api::DM_CMD_GET_ASIC_FREQUENCIES, nullptr, 0,
+                                static_cast<char*>(static_cast<void*>(&freqStats_)), sizeof(freqStats_), &hostLatency,
+                                &deviceLatency, kDmServiceRequestTimeout);
+  if (ret != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(ERROR) << "Service request get asic frequencies failed with return code: " << std::dec << ret << std::endl;
+  }
+}
+
+void EtTop::collectVoltStats(void) {
+  uint32_t hostLatency;
+  uint64_t deviceLatency;
+  auto ret = dm_.serviceRequest(devNum_, device_mgmt_api::DM_CMD_GET_MODULE_VOLTAGE, nullptr, 0,
+                                static_cast<char*>(static_cast<void*>(&voltStats_)), sizeof(voltStats_), &hostLatency,
+                                &deviceLatency, kDmServiceRequestTimeout);
+  if (ret != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(ERROR) << "Service request get module voltage failed with return code: " << std::dec << ret << std::endl;
+  }
 }
 
 void EtTop::collectMmStats(void) {
@@ -464,6 +528,10 @@ void EtTop::processInput(void) {
       dumpNextMmStatsBuffer_ = true;
     } else if (ch == 'e') {
       displayErrorDetails_ = !displayErrorDetails_;
+    } else if (ch == 'f') {
+      displayFreqDetails_ = !displayFreqDetails_;
+    } else if (ch == 'v') {
+      displayVoltDetails_ = !displayVoltDetails_;
     } else if (ch == 'h') {
       help = true;
       system("clear");
@@ -542,6 +610,14 @@ void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, con
   return;
 }
 
+void EtTop::displayVoltStat(const std::string stat, bool endLine, uint64_t value, uint32_t base, uint32_t multiplier) {
+  std::cout << "\t" + stat + ": " << std::setw(6) << std::left << (base + value * multiplier) << (endLine ? "\n" : "");
+}
+
+void EtTop::displayFreqStat(const std::string stat, bool endLine, uint64_t frequency) {
+  std::cout << "\t" + stat + ": " << std::setw(6) << std::left << frequency << (endLine ? "\n" : "");
+}
+
 void EtTop::displayComputeStat(const std::string stat, const struct resource_value& rv) {
   uint64_t avg = rv.avg;
   uint64_t min = rv.min;
@@ -580,6 +656,8 @@ void EtTop::displayStats(void) {
   ctime_r(&now, nowbuf);
   nowbuf[20] = '\0';
   std::cout << ET_TOP " v" ET_TOP_VERSION " device " << devNum_ << hhmmss << std::endl;
+  std::cout << "Card ID: " << std::setw(10) << std::left << cardId_ << "\tETSOC FW: " << std::setw(12) << std::left
+            << fwVersion_ << "\tPMIC FW: " << std::setw(12) << std::left << pmicFwVersion_ << std::endl;
   std::cout << "Contiguous Mem Alloc: " << std::setw(6) << std::right << memStats_.cmaAllocated << " MB "
             << std::setw(6) << std::right << memStats_.cmaAllocationRate << " MB/sec\n";
 
@@ -602,6 +680,7 @@ void EtTop::displayStats(void) {
   displayOpStat("  - SRAM   ", op.sram.power, true, max);
   displayOpStat("  - NOC    ", op.noc.power, true, max);
   displayOpStat("  - OTHER  ", otherPower, true, max);
+
   std::cout << "Temp(C):\n";
   displayOpStat("ETSOC    ", op.system.temperature);
   displayOpStat("- MINION ", op.minion.temperature);
@@ -623,6 +702,27 @@ void EtTop::displayStats(void) {
     std::cout << "\t" << std::setw(4) << vqStats_[i].qname.data() << " msgs: " << std::setw(10) << std::left
               << vqStats_[i].msgCount << " msgs/sec: " << std::setw(10) << std::left << vqStats_[i].msgRate
               << " util%: " << std::setw(10) << std::left << vqStats_[i].utilPercent << std::endl;
+  }
+
+  if (displayFreqDetails_) {
+    std::cout << "Frequencies(MHz):\n";
+    displayFreqStat("MINION    ", false, freqStats_.minion_shire_mhz);
+    displayFreqStat("NOC       ", true, freqStats_.noc_mhz);
+    displayFreqStat("DDR       ", false, freqStats_.ddr_mhz);
+    displayFreqStat("IO SHIRE  ", true, freqStats_.io_shire_mhz);
+    displayFreqStat("MEM SHIRE ", false, freqStats_.mem_shire_mhz);
+    displayFreqStat("PCIE SHIRE", true, freqStats_.pcie_shire_mhz);
+  }
+
+  if (displayVoltDetails_) {
+    std::cout << "Voltages(mV):\n";
+    displayVoltStat("MAXION    ", false, voltStats_.maxion, 250, 5);
+    displayVoltStat("MINION    ", true, voltStats_.minion, 250, 5);
+    displayVoltStat("NOC       ", false, voltStats_.noc, 250, 5);
+    displayVoltStat("DDR       ", true, voltStats_.ddr, 250, 5);
+    displayVoltStat("PCIE      ", false, voltStats_.pcie, 600, 6);
+    displayVoltStat("PCIE LOGIC", true, voltStats_.pcie_logic, 600, 6);
+    displayVoltStat("L2 CACHE  ", true, voltStats_.l2_cache, 250, 5);
   }
 
   bool errors = errStats_.uceCount > 0 || errStats_.ceCount > 0 || aerStats_.aerCount > 0;
