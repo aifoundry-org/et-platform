@@ -562,7 +562,6 @@ int update_module_soc_power(void)
 {
     uint8_t soc_pwr = 0;
     int32_t soc_pwr_mW = 0;
-    int32_t tdp_level_mW = 0;
 
     if (SUCCESS != get_module_voltage(NULL))
     {
@@ -610,8 +609,9 @@ int update_module_soc_power(void)
     get_soc_power_reg()->op_stats.sram.power.min = get_soc_power_reg()->pmb_stats.sram.w_out.min;
     get_soc_power_reg()->op_stats.sram.power.max = get_soc_power_reg()->pmb_stats.sram.w_out.max;
 
+#if 0 /* TODO: SW-13951: Power throttling causes a hang on silicon under stress */
     /* module_tdp_level is in Watts, converting to miliWatts */
-    tdp_level_mW = get_soc_power_reg()->module_tdp_level * 1000;
+    int32_t tdp_level_mW = get_soc_power_reg()->module_tdp_level * 1000;
 
     /* Update the power state */
     update_module_power_state(GET_POWER_STATE(soc_pwr_mW, tdp_level_mW));
@@ -635,7 +635,7 @@ int update_module_soc_power(void)
         get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_POWER_UP;
         xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
     }
-
+#endif
     return 0;
 }
 
