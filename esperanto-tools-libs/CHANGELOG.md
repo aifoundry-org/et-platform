@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13472] removed deprecated handling and usage of device-api old structs.
 ### Removed
 ### Fixed
+- added missing dependency libcap.
+- [SW-13861] fixed releasing execution cache buffer when there were no abortkernel callback registered.
 ### Security
 ## [0.4.0]
 ### Added
