@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - [SW-13233] Coherency hazards fixed in MLP kernel and removed workaround.
 - [SW-13685] FLB checker issues fixed in MLP kernel.
+- Fix bug to remove cobbler which was causing registers to be backed up
 ### Security
 
 ## [1.1.0] - 2022-7-4
