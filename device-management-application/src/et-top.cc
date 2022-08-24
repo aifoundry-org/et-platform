@@ -111,8 +111,6 @@ public:
     vqStats_[2].qname = "CQ0:";
     mmStats_.cycle = 0;
     getDeviceDetails();
-    collectFreqStats();
-    collectVoltStats();
   }
 
   void processInput(void);
@@ -127,6 +125,12 @@ public:
     collectVqStats();
     collectSpStats();
     collectMmStats();
+    if (displayFreqDetails_) {
+      collectFreqStats();
+    }
+    if (displayVoltDetails_) {
+      collectVoltStats();
+    }
     return;
   }
 
@@ -537,8 +541,10 @@ void EtTop::processInput(void) {
       system("clear");
       std::cout << "d\tDump next trace stats buffers to mm_stats.bin and sp_stats.bin files\n"
                 << "e\tToggle display of error details\n"
+                << "f\tToggle display of frequency details\n"
                 << "h\tPrint this help message\n"
                 << "q\tQuit\n"
+                << "v\tToggle display of voltage details\n"
                 << "w\tToggle display of watts info\n"
                 << "Type 'q' or <ESC> to continue ";
     }

@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13480]: Adding memshire frequency log print
 - et-power-top: Printing compute utilization stats.
 - ET-TOP: Print Device Id, FW version, voltages and frequencies.
+- ET-TOP: Collect frequency and voltage statistics in every iteration if their display is enabled
 ### Changed
 - ET-TOP: Change the DELAY argument to take milliseconds instead of seconds (default: 100ms)
 - ET-TOP: Print PCI DMA BW in MB/s instead of GB/s.
