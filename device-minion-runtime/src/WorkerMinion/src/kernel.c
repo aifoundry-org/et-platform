@@ -62,6 +62,21 @@
         WAIT_TENSOR_QUANT                              \
     }
 
+#define DUMP_TO_KERNEL_ERROR_BUFFER(shire_id, hart_id, error_type, return_value)           \
+    {                                                                                      \
+        /* Get the kernel error buffer */                                                  \
+        uint64_t error_buffer = kernel_info_get_exception_buffer(shire_id);                \
+                                                                                           \
+        /* If the kernel error buffer is available */                                      \
+        if (error_buffer != 0)                                                             \
+        {                                                                                  \
+            Log_Write(LOG_LEVEL_INFO, "Saving context in exception buffer on error.\r\n"); \
+                                                                                           \
+            CM_To_MM_Save_Kernel_Error(                                                    \
+                (execution_context_t *)error_buffer, hart_id, error_type, return_value);   \
+        }                                                                                  \
+    }
+
 /*******************/
 /* Data structures */
 /*******************/
@@ -289,15 +304,8 @@ static inline void kernel_check_tensor_errors(uint32_t shire_id, uint32_t hart_i
 
         kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
 
-        /* Get the kernel error buffer */
-        uint64_t error_buffer = kernel_info_get_exception_buffer(shire_id);
-
-        /* If the kernel error buffer is available */
-        if (error_buffer != 0)
-        {
-            CM_To_MM_Save_Kernel_Error((execution_context_t *)error_buffer, hart_id,
-                CM_CONTEXT_TYPE_TENSOR_ERROR, (int64_t)tensor_error);
-        }
+        DUMP_TO_KERNEL_ERROR_BUFFER(
+            shire_id, hart_id, CM_CONTEXT_TYPE_TENSOR_ERROR, (int64_t)tensor_error)
     }
 }
 
@@ -620,6 +628,7 @@ static void process_kernel_completion_status(int64_t return_value, uint64_t retu
     const uint32_t shire_id = get_shire_id();
     const uint32_t hart_id = get_hart_id();
     const uint64_t thread_id = hart_id & (HARTS_PER_SHIRE - 1);
+    const bool is_bus_error = kernel_info_check_local_bus_error(shire_id, thread_id);
 
     /* Kernel user error handling. If the return type is not success,
     set the kernel launch status as error */
@@ -639,51 +648,23 @@ static void process_kernel_completion_status(int64_t return_value, uint64_t retu
             /* Set the global system abort flag to indicate that this particular shire was aborted */
             atomic_or_global_64(&kernel_launch_global_system_abort_mask, 1ULL << shire_id);
         }
+        else if (return_type == KERNEL_RETURN_BUS_ERROR)
+        {
+            DUMP_TO_KERNEL_ERROR_BUFFER(shire_id, hart_id, CM_CONTEXT_TYPE_BUS_ERROR, return_value)
+        }
     }
-    else if ((return_type == KERNEL_RETURN_SUCCESS) &&
-             (kernel_info_check_local_bus_error(shire_id, thread_id)))
+    else if (is_bus_error || (return_value < KERNEL_COMPLETE_STATUS_SUCCESS))
     {
         /* Save the kernel launch status for sending response to MM */
         kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
 
         Log_Write(LOG_LEVEL_ERROR,
-            "kernel_launch_post_cleanup: Bus error was detected. kernel completion return code:%ld\r\n",
-            return_value);
+            "kernel_launch_post_cleanup:Error detected:return code:%ld:is_bus_error:%d\r\n",
+            return_value, is_bus_error);
 
-        /* Get the kernel error buffer */
-        uint64_t error_buffer = kernel_info_get_exception_buffer(shire_id);
-
-        /* If the kernel error buffer is available */
-        if (error_buffer != 0)
-        {
-            Log_Write(LOG_LEVEL_INFO, "kernel_launch_post_cleanup:Saving context on bus error\r\n");
-
-            CM_To_MM_Save_Kernel_Error(
-                (execution_context_t *)error_buffer, hart_id, CM_CONTEXT_TYPE_BUS_ERROR, 0);
-        }
-    }
-    /* If the return type is success but kernel return value is not success,
-    save the error code in u-mode error context buffer (if available) */
-    else if ((return_type == KERNEL_RETURN_SUCCESS) &&
-             (return_value < KERNEL_COMPLETE_STATUS_SUCCESS))
-    {
-        /* Save the kernel launch status for sending response to MM */
-        kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
-
-        Log_Write(LOG_LEVEL_ERROR,
-            "kernel_launch_post_cleanup:kernel completion return code:%ld\r\n", return_value);
-
-        /* Get the kernel error buffer */
-        uint64_t error_buffer = kernel_info_get_exception_buffer(shire_id);
-
-        /* If the kernel error buffer is available */
-        if (error_buffer != 0)
-        {
-            Log_Write(LOG_LEVEL_INFO, "kernel_launch_post_cleanup:Saving context on error\r\n");
-
-            CM_To_MM_Save_Kernel_Error((execution_context_t *)error_buffer, hart_id,
-                CM_CONTEXT_TYPE_USER_KERNEL_ERROR, return_value);
-        }
+        DUMP_TO_KERNEL_ERROR_BUFFER(shire_id, hart_id,
+            (is_bus_error ? CM_CONTEXT_TYPE_BUS_ERROR : CM_CONTEXT_TYPE_USER_KERNEL_ERROR),
+            return_value)
     }
 }
 

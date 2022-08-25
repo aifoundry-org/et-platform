@@ -397,10 +397,23 @@ RESERVED
 
 /********************************** COMPUTE MINION ERROR CODES - START ***********************************/
 
+/***********************************************
+ * Define CM MM Interface error codes.         *
+ ***********************************************/
+
 /*! \def CM_INVALID_MM_TO_CM_MESSAGE_ID
     \brief Compute worker error - Invalid MM to CM message ID.
 */
 #define CM_INVALID_MM_TO_CM_MESSAGE_ID -3000
+
+/***********************************************
+ * Define CM FW (S-mode) error codes.          *
+ ***********************************************/
+
+/*! \def CM_FW_BUS_ERROR_RECEIVED
+    \brief Compute worker error - Bus Error
+*/
+#define CM_FW_BUS_ERROR_RECEIVED -3100
 
 /********************************** COMPUTE MINION ERROR CODES - END *************************************/
 

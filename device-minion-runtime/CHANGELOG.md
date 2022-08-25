@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- [SW-13964] Aborting the execution of kernel on a hart if bus error is received.
 ### Deprecated
 ### Removed
 ### Fixed
