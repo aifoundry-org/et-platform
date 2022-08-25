@@ -44,6 +44,7 @@
 #include "workers/kw.h"
 #include "workers/dmaw.h"
 #include "workers/sqw.h"
+#include "workers/statw.h"
 
 /*! \struct sp_iface_sq_cb_t
     \brief SP interface control block that manages
@@ -241,6 +242,31 @@ static int32_t sp_command_handler(const void *cmd_buffer)
 
     switch (hdr->msg_id)
     {
+        case SP2MM_CMD_GET_MM_STATS:
+        {
+            struct sp2mm_get_mm_stats_rsp_t rsp;
+
+            Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:SP_Command_Handler:GetMMStats:%s%d%s%d%s",
+                ":msg_id:", hdr->msg_id, ":msg_size:", hdr->msg_size, "\r\n");
+
+            SP_MM_IFACE_INIT_MSG_HDR(
+                &rsp.msg_hdr, SP2MM_RSP_GET_MM_STATS, sizeof(struct sp2mm_get_mm_stats_rsp_t), 0);
+
+            STATW_Get_MM_Stats(&rsp.sample);
+
+            status = SP_Iface_Push_Rsp_To_SP2MM_CQ((void *)&rsp, sizeof(rsp));
+            if (status == STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "MM2SP:RSP:SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push success!\r\n");
+            }
+            else
+            {
+                Log_Write(LOG_LEVEL_ERROR, "SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push error!\r\n");
+            }
+
+            break;
+        }
         case SP2MM_CMD_ECHO:
         {
             const struct sp2mm_echo_cmd_t *echo_cmd = (const void *)hdr;

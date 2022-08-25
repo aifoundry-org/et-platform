@@ -20,6 +20,7 @@
     Public interfaces:
         STATW_Launch
         STATW_Get_Minion_Freq
+        STATW_Get_MM_Stats
         STATW_Add_New_Sample_Atomically
 
 */
@@ -146,6 +147,7 @@ typedef struct {
     struct resource_value cm_bw; /* Reserve whole cache line for this to reduce the serialization
                                          among Worker Harts reading/writing on same cache line */
     uint64_t pad3[5];
+    uint64_t saved_trace_entry;
     uint32_t sampling_flag;
     uint32_t minion_freq_mhz;
 } __attribute__((packed, aligned(8))) statw_cb;
@@ -236,6 +238,45 @@ uint32_t STATW_Get_Minion_Freq(void)
 *
 *   FUNCTION
 *
+*       STATW_Get_MM_Stats
+*
+*   DESCRIPTION
+*
+*       This function returns the current MM stats.
+*
+*   INPUTS
+*
+*       sample  pointer to compute_resource_sample to populate
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void STATW_Get_MM_Stats(struct compute_resources_sample *sample)
+{
+    struct trace_custom_event_t *event;
+    struct compute_resources_sample *saved_sample;
+    uint64_t trace_entry = atomic_load_local_64(&STATW_CB.saved_trace_entry);
+
+    if (!trace_entry)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "STATW_Get_MM_Stats: unexpected startup race condition\n");
+        memset(sample, 0, sizeof(*sample));
+    }
+    else
+    {
+        /* The saved trace entry contents are safe from being overwritten before/during this read */
+        event = (struct trace_custom_event_t *)trace_entry;
+        saved_sample = (struct compute_resources_sample *)(uintptr_t)event->payload;
+        *sample = *saved_sample;
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       STATW_Add_New_Sample_Atomically
 *
 *   DESCRIPTION
@@ -304,6 +345,8 @@ static void statw_init(struct compute_resources_sample *local_stats_cb)
 {
     /* Set default to 100 Mhz */
     uint32_t min_freq_mhz = 100;
+
+    atomic_store_local_64(&STATW_CB.saved_trace_entry, 0);
 
     /* TODO: Updates to account for Dynamically changing frequency */
     int32_t status = SP_Iface_Get_Boot_Freq(&min_freq_mhz);
@@ -388,7 +431,7 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
     Log_Write(LOG_LEVEL_INFO, "STATW:H[%d]\r\n", hart_id);
 
     /* Initialize the flag to sample device stats. Set the flag to log first sample at the start. */
-    atomic_store_local_32(&STATW_CB.sampling_flag, STATW_SAMPLING_FLAG_CLEAR);
+    atomic_store_local_32(&STATW_CB.sampling_flag, STATW_SAMPLING_FLAG_SET);
 
     /* Create timeout to wait for all Compute Workers to boot up */
     int sw_timer_idx =
@@ -534,10 +577,11 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
             data_sample.cm_utilization.avg = instant_average;
             STATW_RECALC_MIN_MAX(data_sample.cm_utilization, instant_average)
 
-            /* Log the event in trace */
+            /* Log the event in trace and save it for STATW_Get_MM_Stats */
             entry = (struct trace_custom_event_t *)Trace_Custom_Event(Trace_Get_MM_Stats_CB(),
                 TRACE_CUSTOM_TYPE_MM_COMPUTE_RESOURCES, (const uint8_t *)&data_sample,
                 sizeof(data_sample));
+            atomic_store_local_64(&STATW_CB.saved_trace_entry, (uint64_t)entry);
 
             prev_timestamp = current_timestamp;
 

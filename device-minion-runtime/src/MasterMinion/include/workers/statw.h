@@ -19,6 +19,8 @@
 #ifndef _STATW_
 #define _STATW_
 
+#include "services/trace.h"
+
 typedef uint8_t statw_resource_type_e;
 
 enum statw_resource_type {
@@ -124,5 +126,12 @@ void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64
     \return Frequency value in mega hertz.
 */
 uint32_t STATW_Get_Minion_Freq(void);
+
+/*! \fn void STATW_Get_MM_Stats(struct compute_resources_sample *sample)
+    \brief Returns the current MM stats.
+    \param sample Pointer to sample to populate.
+    \return None.
+*/
+void STATW_Get_MM_Stats(struct compute_resources_sample *sample);
 
 #endif
