@@ -138,13 +138,13 @@ TEST_F(StressMem, 1KB_50_memcpys_10stream_2thread_8dev) {
   }
 }
 
-TEST_F(StressMem, 1KB_1M_memcpies_10th_NOSYSEMU) {
+TEST_F(StressMem, 1KB_10K_memcpies_10th_NOSYSEMU) {
   if (sDlType == DeviceLayerImp::SYSEMU) {
     RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
     return;
   }
   auto memcpySize = 1U << 10;
-  auto numCopies = static_cast<uint32_t>(1e6);
+  auto numCopies = static_cast<uint32_t>(1e4);
   auto numThreads = 10U;
   auto numBatches = 100U;
   for (auto i = 1U; i <= numBatches; ++i) {

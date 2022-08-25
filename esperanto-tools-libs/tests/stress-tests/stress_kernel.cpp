@@ -195,16 +195,17 @@ TEST_F(StressKernel, 256_ele_10_exe_2_st_4_th_n_devices) {
   sNumDevices = oldNumDevices;
 }
 
-TEST_F(StressKernel, 64_ele_100K_exe_1st_10_th_nocheck_NOSYSEMU) {
+TEST_F(StressKernel, 128_ele_1K_exe_1st_10_th_nocheck_NOSYSEMU) {
   if (sDlType == DeviceLayerImp::SYSEMU) {
     RT_LOG(INFO) << "This test is too slow to be run on SYSEMU, skipping it.";
     return;
   }
+  auto numElements = 128U;
   auto numIters = 100U;
-  auto numExecs = static_cast<uint32_t>(1e5) / numIters;
+  auto numExecs = static_cast<uint32_t>(1e3) / numIters;
   for (auto i = 1U; i <= numIters; ++i) {
     RT_LOG(INFO) << "Running batch " << i << "/" << numExecs;
-    run_stress_kernel(1 << 6, numExecs, 1, 10, false);
+    run_stress_kernel(numElements, numExecs, 1, 10, false);
   }
 }
 

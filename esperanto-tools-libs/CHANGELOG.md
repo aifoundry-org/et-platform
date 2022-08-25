@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-13976] NOSYSEMU tests tunned down, now running al PCIE MP tests (including "NOSYSEMU" tests) takes less than 6mins.
 ### Security
 ## [0.5.0]
 ### Added
