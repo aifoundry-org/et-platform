@@ -13,6 +13,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include "delays.h"
 #include "log.h"
 #include "etsoc/isa/io.h"
 #include "system/layout.h"
@@ -229,12 +230,12 @@ static void pcie_init_pshire(void)
     /* TODO: ABP Reset deassert? In "PCIe Initialization Sequence" doc, TBD what state to check */
 
     /* Wait for PERST_N */
-    Log_Write(LOG_LEVEL_CRITICAL, "Waiting for PCIe bus (PRST_N) out of reset...");
+    Log_Write(LOG_LEVEL_DEBUG, "Waiting for PCIe bus (PRST_N) out of reset...\r\n");
     do
     {
         tmp = ioread32(PCIE_ESR + PCIE_ESR_PSHIRE_STAT_ADDRESS);
     } while (PCIE_ESR_PSHIRE_STAT_PERST_N_GET(tmp) == 0);
-    Log_Write(LOG_LEVEL_DEBUG, " done\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "done!\r\n");
 
     /* Deassert PCIe cold reset */
     tmp = ioread32(PCIE_ESR + PCIE_ESR_PSHIRE_RESET_ADDRESS);
@@ -242,7 +243,7 @@ static void pcie_init_pshire(void)
     iowrite32(PCIE_ESR + PCIE_ESR_PSHIRE_RESET_ADDRESS, tmp);
 
     /* Wait for CDM (controller, dual-mode; all of the "PCIE0" regs) to be ready */
-    Log_Write(LOG_LEVEL_DEBUG, "Waiting for PCIe CDM out of reset...");
+    Log_Write(LOG_LEVEL_DEBUG, "Waiting for PCIe CDM out of reset...\r\n");
     do
     {
         tmp = ioread32(PCIE_CUST_SS +
@@ -514,15 +515,16 @@ static void pcie_init_link(void)
               tmp);
 
     /* Wait for link training to finish*/
-    Log_Write(LOG_LEVEL_DEBUG, "Link training...");
+    Log_Write(LOG_LEVEL_DEBUG, "Link training...\r\n");
     do
     {
+        MS_DELAY_GENERIC(10)
         tmp = ioread32(PCIE_CUST_SS +
                        DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS);
         Log_Write(LOG_LEVEL_DEBUG, "LTSSM: 0x%08x\n", tmp);
     } while (DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_SMLH_LTSSM_STATE_GET(
                  tmp) != SMLH_LTSSM_STATE_LINK_UP);
-    Log_Write(LOG_LEVEL_DEBUG, "done\r\n");
+    Log_Write(LOG_LEVEL_DEBUG, "done!\r\n");
 }
 
 void perstn_deassert_handler(void)
@@ -614,31 +616,35 @@ static void pcie_init_atus(void)
       critical to wait to program the iATUs until after memory space is enabled. */
 
     /* This wait could be long (tens of seconds), depending on when the OS enables PCIe */
-    Log_Write(LOG_LEVEL_CRITICAL, "Waiting for host to enable memory space...");
+    Log_Write(LOG_LEVEL_CRITICAL, "Waiting for host to enable memory space...\r\n");
     uint32_t status_command_reg;
     do
     {
+        MS_DELAY_GENERIC(200)
         status_command_reg = ioread32(
             PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_STATUS_COMMAND_REG_ADDRESS);
     } while (
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_STATUS_COMMAND_REG_PCI_TYPE0_MEM_SPACE_EN_GET(
             status_command_reg) == 0);
-    Log_Write(LOG_LEVEL_CRITICAL, " done\r\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "done!\r\n");
 
-    Log_Write(LOG_LEVEL_INFO, "Waiting for host to assign BAR addresses..");
+    uint32_t baseAddr_lo;
+    uint32_t baseAddr_hi;
+    uint64_t baseAddr;
 
-    uint32_t bar0_lo;
-    uint32_t bar0_hi;
-    uint64_t bar0_64bit;
-
+    Log_Write(LOG_LEVEL_INFO, "Waiting for host to assign BAR0 address...\r\n");
+    /* Poll wait for the bar0 address to be assigned */
     do
     {
-        bar0_lo = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
-        bar0_hi = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR1_REG_ADDRESS);
-        bar0_64bit = ((uint64_t)bar0_hi << 32) | ((uint64_t)bar0_lo & 0xFFFFFFF0ULL);
-    } while (bar0_64bit == 0x0ULL);
-
-    Log_Write(LOG_LEVEL_INFO, " done\r\n");
+        MS_DELAY_GENERIC(200)
+        baseAddr_lo =
+            ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
+        baseAddr_hi =
+            ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR1_REG_ADDRESS);
+        baseAddr = ((uint64_t)baseAddr_hi << 32) | ((uint64_t)baseAddr_lo & 0xFFFFFFF0ULL);
+    } while (baseAddr == 0x0ULL);
+    Log_Write(LOG_LEVEL_INFO, "done!\r\n");
+    Log_Write(LOG_LEVEL_INFO, "pcie_init_atus: BAR0 baseAddr: %lx\r\n", baseAddr);
 
     /* Setup BAR0
        Name                  Host Addr           SoC Addr      Size    Notes
@@ -647,31 +653,31 @@ static void pcie_init_atus(void)
        MM_TRACE_BUFFER       BAR0 + 0x00001000   0x8001C428C0  1M      MM SMode Trace
        CM_TRACE_BUFFER       BAR0 + 0x00101000   0x8001D428C0  8.125M  CM SMode Trace */
 
-    bar0_lo = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
-    bar0_hi = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR1_REG_ADDRESS);
-    bar0_64bit = ((uint64_t)bar0_hi << 32) | ((uint64_t)bar0_lo & 0xFFFFFFF0ULL);
-    Log_Write(LOG_LEVEL_INFO, "pcie_init_atus: BAR0 baseAddr: %lx\r\n", bar0_64bit);
-
-    config_inbound_iatu_0(bar0_64bit,                 /* baseAddr */
+    config_inbound_iatu_0(baseAddr,                   /* baseAddr */
                           SP_DM_SCRATCH_REGION_BEGIN, /* targetAddr */
                           SP_DM_SCRATCH_REGION_SIZE + SP_TRACE_BUFFER_SIZE + MM_TRACE_BUFFER_SIZE +
                               CM_SMODE_TRACE_BUFFER_SIZE + SP_STATS_BUFFER_SIZE +
                               MM_STATS_BUFFER_SIZE); /* size */
+
+    Log_Write(LOG_LEVEL_INFO, "Waiting for host to assign BAR2 address...\r\n");
+    /* Poll wait for the bar2 address to be assigned */
+    do
+    {
+        MS_DELAY_GENERIC(200)
+        baseAddr_lo =
+            ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_ADDRESS);
+        baseAddr_hi =
+            ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR3_REG_ADDRESS);
+        baseAddr = ((uint64_t)baseAddr_hi << 32) | ((uint64_t)baseAddr_lo & 0xFFFFFFF0ULL);
+    } while (baseAddr == 0x0ULL);
+    Log_Write(LOG_LEVEL_INFO, "done!\r\n");
+    Log_Write(LOG_LEVEL_INFO, "pcie_init_atus: BAR2 baseAddr: %lx\r\n", baseAddr);
 
     /* Setup BAR2
        Name              Host Addr       SoC Addr      Size   Notes
        R_PU_MBOX_PC_MM   BAR2 + 0x0000   0x0020007000  4k     Mailbox shared memory
        R_PU_MBOX_PC_SP   BAR2 + 0x1000   0x0030003000  4k     Mailbox shared memory
        R_PU_TRG_PCIE     BAR2 + 0x2000   0x0030008000  8k     Mailbox interrupts */
-
-    /* start on BAR2 */
-    uint32_t baseAddr_lo =
-        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR2_REG_ADDRESS);
-    uint32_t baseAddr_hi =
-        ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR3_REG_ADDRESS);
-    uint64_t baseAddr = ((uint64_t)baseAddr_hi << 32) | ((uint64_t)baseAddr_lo & 0xFFFFFFF0ULL);
-
-    Log_Write(LOG_LEVEL_INFO, "pcie_init_atus: BAR2 baseAddr: %lx\r\n", baseAddr);
 
     config_inbound_iatu_1(baseAddr, R_PU_MBOX_PC_MM_BASEADDR, /* targetAddr */
                           R_PU_MBOX_PC_MM_SIZE);              /* size */
@@ -702,7 +708,7 @@ static void pcie_wait_for_ints(void)
 
     uint32_t msi_ctrl;
 
-    Log_Write(LOG_LEVEL_CRITICAL, "Waiting for host to enable MSI...");
+    Log_Write(LOG_LEVEL_CRITICAL, "Waiting for host to enable MSI...\r\n");
     do
     {
         msi_ctrl = ioread32(
@@ -710,7 +716,7 @@ static void pcie_wait_for_ints(void)
     } while (
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_PCI_MSI_ENABLE_GET(
             msi_ctrl) != MSI_ENABLED);
-    Log_Write(LOG_LEVEL_CRITICAL, " done\r\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "done!\r\n");
 }
 
 int32_t pcie_error_control_deinit(void)

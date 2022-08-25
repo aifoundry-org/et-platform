@@ -16,8 +16,10 @@
 #include <stdint.h>
 
 #if (FAST_BOOT || TEST_FRAMEWORK)
-#define US_DELAY_GENERIC(us) usdelay(us / 100);
+#define MS_DELAY_GENERIC(ms) msdelay((ms / 100) ? (ms / 100) : 1);
+#define US_DELAY_GENERIC(us) usdelay((us / 100) ? (us / 100) : 1);
 #else
+#define MS_DELAY_GENERIC(ms) msdelay(ms);
 #define US_DELAY_GENERIC(us) usdelay(us);
 #endif
 

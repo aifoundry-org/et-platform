@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
-- [SW-13571]: Fixed watchdog timeout calculations with respect to pclk
+- [SW-13571] Fixed watchdog timeout calculations with respect to pclk
+- [SW-13974] Updating the PCIe driver to poll on bar addresses until assigned with delays.
 ### Security
 
 ## [0.4.0] - 2022-08-16
