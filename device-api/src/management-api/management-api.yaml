@@ -146,42 +146,48 @@ Modules:
           Value: 62
         - Name: GET_MM_STATS
           Value: 63
-        - Name: MDI_SELECT_HART
+        - Name: SET_MODULE_PART_NUMBER
           Value: 64
-        - Name: MDI_UNSELECT_HART
+        - Name: SET_MODULE_VOLTAGE
           Value: 65
-        - Name: MDI_RESET_HART
-          Value: 66
-        - Name: MDI_HALT_HART
-          Value: 67
-        - Name: MDI_RESUME_HART
-          Value: 68
-        - Name: MDI_GET_HART_STATUS
-          Value: 69
-        - Name: MDI_SET_BREAKPOINT
-          Value: 70
-        - Name: MDI_UNSET_BREAKPOINT
-          Value: 71
-        - Name: MDI_ENABLE_SINGLE_STEP
-          Value: 72
-        - Name: MDI_DISABLE_SINGLE_STEP
-          Value: 73
-        - Name: MDI_READ_GPR
-          Value: 74
-        - Name: MDI_DUMP_GPR
-          Value: 75
-        - Name: MDI_WRITE_GPR
-          Value: 76
-        - Name: MDI_READ_CSR
-          Value: 77
-        - Name: MDI_WRITE_CSR
-          Value: 78
-        - Name: MDI_READ_MEM
-          Value: 79
-        - Name: MDI_WRITE_MEM
-          Value: 80
-        - Name: MDI_SET_BREAKPOINT_EVENT
+        - Name: MDI_BEGIN
           Value: 128
+        - Name: MDI_SELECT_HART
+          Value: 128
+        - Name: MDI_UNSELECT_HART
+          Value: 129
+        - Name: MDI_RESET_HART
+          Value: 130
+        - Name: MDI_HALT_HART
+          Value: 131
+        - Name: MDI_RESUME_HART
+          Value: 132
+        - Name: MDI_GET_HART_STATUS
+          Value: 133
+        - Name: MDI_SET_BREAKPOINT
+          Value: 134
+        - Name: MDI_UNSET_BREAKPOINT
+          Value: 135
+        - Name: MDI_ENABLE_SINGLE_STEP
+          Value: 136
+        - Name: MDI_DISABLE_SINGLE_STEP
+          Value: 137
+        - Name: MDI_READ_GPR
+          Value: 138
+        - Name: MDI_DUMP_GPR
+          Value: 139
+        - Name: MDI_WRITE_GPR
+          Value: 140
+        - Name: MDI_READ_CSR
+          Value: 141
+        - Name: MDI_WRITE_CSR
+          Value: 142
+        - Name: MDI_READ_MEM
+          Value: 143
+        - Name: MDI_WRITE_MEM
+          Value: 144
+        - Name: MDI_SET_BREAKPOINT_EVENT
+          Value: 192
         - Name: MDI_END
           Value: 255
   ## List of Enums that are used in our messages
@@ -462,6 +468,12 @@ Modules:
           Type: uint32_t
         - Name: fw_release_rev
           Description: Firmware release revision
+          Type: uint32_t
+        - Name: pmic_v
+          Description: PMIC Firmware version
+          Type: uint32_t
+        - Name: pad
+          Description: Padding for alignment
           Type: uint32_t
     - Name: fw_image_path_t
       Description: Firmware image path
@@ -1227,6 +1239,7 @@ Modules:
           Description: Module power (binary encoded)
           Type: struct
           Struct: module_power_t
+    ## TODO: DEPRECATED: Te be removed, replaced by device_mgmt_get_module_voltage_cmd
     - Name: device_mgmt_module_voltage_cmd
       Description:  Command to get the module voltage info
       Type: Command
@@ -1235,6 +1248,7 @@ Modules:
         - Name: dummy
           Description: Dummy field.
           Type: uint64_t
+    ## TODO: DEPRECATED: Te be removed, replaced by device_mgmt_get_module_voltage_rsp
     - Name: device_mgmt_module_voltage_rsp
       Type: Response
       Description: Response for module voltage command
@@ -1244,6 +1258,57 @@ Modules:
           Description: Module voltage (binary encoded)
           Type: struct
           Struct: module_voltage_t
+    - Name: device_mgmt_get_module_voltage_cmd
+      Description:  Command to get the module voltage info
+      Type: Command
+      PairedMessage: device_mgmt_get_module_voltage_rsp
+      Fields:
+        - Name: dummy
+          Description: Dummy field.
+          Type: uint64_t
+    - Name: device_mgmt_get_module_voltage_rsp
+      Type: Response
+      Description: Response for get module voltage command
+      PairedMessage: device_mgmt_module_voltage_cmd
+      Fields:
+        - Name: module_voltage
+          Description: Module voltage (binary encoded)
+          Type: struct
+          Struct: module_voltage_t
+    - Name: device_mgmt_set_module_voltage_cmd
+      Description:  Command to set the module voltage
+      Type: Command
+      PairedMessage: device_mgmt_set_module_voltage_rsp
+      Fields:
+        - Name: type
+          Description: Module type
+          Type: enum
+          Enum: module
+        - Name: value
+          Description: Module voltage value (binary encoded)
+          Type: uint8_t
+        - Name: pad[6]
+          Description: Padding for alignment
+          Type: uint8_t
+    - Name: device_mgmt_set_module_voltage_rsp
+      Type: Response
+      Description: Response for set module voltage command
+      PairedMessage: device_mgmt_set_module_voltage_cmd
+      Fields:
+        - Name: dummy
+          Description: Dummy field.
+          Type: uint64_t
+    - Name: device_mgmt_set_module_part_number_cmd
+      Type: Command
+      Description: Command to set module part number
+      PairedMessage: None
+      Fields:
+        - Name: part_number
+          Description: Part number.
+          Type: uint32_t
+        - Name: pad
+          Description: Padding for alignment
+          Type: uint32_t
     - Name: device_mgmt_module_uptime_cmd
       Description:  Command to get the module uptime info
       Type: Command
