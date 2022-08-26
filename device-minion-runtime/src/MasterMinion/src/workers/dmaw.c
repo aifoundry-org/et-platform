@@ -673,9 +673,7 @@ static inline void process_dma_read_chan_in_use(
         /* Accumulate DMA execution cycles. Any previous exceution cycles will be
         deducted from total transaction cycles and previous execution cycles will be reset. */
         atomic_add_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dma_trans_cycles,
-            (write_rsp->device_cmd_execute_dur -
-                atomic_exchange_local_32(
-                    &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_prev_cycles, 0)));
+            write_rsp->device_cmd_execute_dur);
 
         /* Calculate and log the DMA BW */
         STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_WRITE,
@@ -841,9 +839,7 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
     /* Accumulate DMA execution cycles. Any previous exceution cycles will be
     deducted from total transaction cycles and previous execution cycles will be reset. */
     atomic_add_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dma_trans_cycles,
-        (abort_write_rsp->device_cmd_execute_dur -
-            atomic_exchange_local_32(
-                &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_prev_cycles, 0)));
+        abort_write_rsp->device_cmd_execute_dur);
 
     /* Calculate and log the DMA BW */
     /* TODO: In case of abort, read the actual number of bytes transferred from DMA engine instead of total transfer size */
@@ -978,9 +974,7 @@ static inline void process_dma_write_chan_in_use(
         /* Accumulate DMA execution cycles. Any previous exceution cycles will be
         deducted from total transaction cycles and previous execution cycles will be reset. */
         atomic_add_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].dma_trans_cycles,
-            (read_rsp->device_cmd_execute_dur -
-                atomic_exchange_local_32(
-                    &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_prev_cycles, 0)));
+            read_rsp->device_cmd_execute_dur);
 
         /* Calculate and log the DMA BW */
         STATW_Add_New_Sample_Atomically(STATW_RESOURCE_DMA_READ,
@@ -1149,9 +1143,7 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
     /* Accumulate DMA execution cycles. Any previous exceution cycles will be
     deducted from total transaction cycles and previous execution cycles will be reset. */
     atomic_add_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].dma_trans_cycles,
-        (abort_read_rsp->device_cmd_execute_dur -
-            atomic_exchange_local_32(
-                &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_prev_cycles, 0)));
+        abort_read_rsp->device_cmd_execute_dur);
 
     /* Calculate and log the DMA BW */
     /* TODO: In case of abort, read the actual number of bytes transferred from DMA engine instead of total transfer size */
@@ -1348,112 +1340,151 @@ void DMAW_Launch(uint32_t hart_id)
 *
 *   FUNCTION
 *
-*       DMAW_Read_Get_Average_Exec_Cycles
+*       DMAW_Get_Average_Exec_Cycles
 *
 *   DESCRIPTION
 *
-*       This function gets DMA read utlization. It caclulates per
-*       channel utlization then returns the average of all channels.
+*       This function gets DMA channel utlization. It caclulates per
+*       channel utlization within given interval then returns the 
+*       average of all channels.
 *
 *   INPUTS
 *
-*       None
+*       chan_type           DMA channel type read/write
+*       interval_start      start cycles of sampling interval
+*       interval_end        end cycles of sampling interval
 *
 *   OUTPUTS
 *
 *       uint64_t    Average consumed cycles
 *
 ***********************************************************************/
-uint64_t DMAW_Read_Get_Average_Exec_Cycles(void)
+
+uint64_t DMAW_Get_Average_Exec_Cycles(
+    dma_chan_type_e chan_type, uint64_t interval_start, uint64_t interval_end)
 {
     uint64_t accum_cycles = 0;
+    uint8_t active_channel = 0;
+    uint64_t exec_start_cycles = 0;
+    uint64_t exec_end_cycles = 0;
+    uint8_t dma_chan_count = 0;
+    dma_channel_status_cb_t *chan_cb;
 
-    for (int read_chan = 0; read_chan < PCIE_DMA_RD_CHANNEL_COUNT; read_chan++)
+    switch (chan_type)
     {
-        /* Execution cycles for completed transactions. */
-        accum_cycles +=
-            atomic_exchange_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dma_trans_cycles, 0);
+        case DMA_CHAN_TYPE_READ:
+            chan_cb = DMAW_Read_CB.chan_status_cb;
+            dma_chan_count = PCIE_DMA_RD_CHANNEL_COUNT;
+            break;
+        case DMA_CHAN_TYPE_WRITE:
+            chan_cb = DMAW_Write_CB.chan_status_cb;
+            dma_chan_count = PCIE_DMA_WRT_CHANNEL_COUNT;
+            break;
+        default:
+            Log_Write(LOG_LEVEL_WARNING, "DMAW: invalid DMA channel type");
+            return 0;
+    }
+
+    for (int chan = 0; chan < dma_chan_count; chan++)
+    {
+        /* get execution start cycles and dma transaction cycles to calculate execution end cycles.
+        this will help identifying dma transaction boundries within sampling interval. */
+        exec_start_cycles = atomic_load_local_64(&chan_cb[chan].dmaw_cycles.exec_start_cycles);
+        uint64_t dma_tans_cycles = atomic_exchange_local_64(&chan_cb[chan].dma_trans_cycles, 0);
+        exec_end_cycles = exec_start_cycles + dma_tans_cycles;
+
+        /* The case where dma transaction has started after sampling interval end, this needs to be skipped */
+        /*
+                                        DMA Transaction
+                                         ┌───────────
+        ───────▲─────────────────────▲───┴───────────
+               │                     │
+        Interval start              end
+        */
+        if ((exec_start_cycles > interval_end) && (dma_tans_cycles == 0))
+        {
+            continue;
+        }
 
         /* Check if there is any active transaction. */
-        if (atomic_load_local_32(&DMAW_Read_CB.chan_status_cb[read_chan].status.channel_state) ==
-            DMA_CHAN_STATE_IN_USE)
+        if (atomic_load_local_32(&chan_cb[chan].status.channel_state) == DMA_CHAN_STATE_IN_USE)
         {
-            uint32_t delta_active_trans = PMC_GET_LATENCY(atomic_load_local_64(
-                &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_start_cycles));
+            /* scenario where DMA transaction started before sampling interval and ended within sampling interval.
+            the execution cycles before start of sampling interval has to be subtracted from total execution cycles. */
+            if ((exec_start_cycles < interval_start) && (exec_end_cycles < interval_end))
+            {
+                /* if dma transaction is continued past the sampling interval end then end cycles will be equal to start cycles
+                because there are no total dma transaction cycles. In this case total cycles will be the interval cycles 
+           
+                              DMA Transaction             DMA Transaction(continued)
+                            ┌───▲─────────┐   ▲          ┌───▲───────────────▲─┐
+                            │   │         │   │          │   │               │ │
+                         ───┴───┼─────────┴───┼──────────┴───┼───────────────┼─┴──────
+                    Interval    │             │              │               │
+                                start          end         start            end 
+               */
+                accum_cycles += STATW_CHECK_FOR_CONTINUED_EXEC_TRANSACTION(exec_start_cycles,
+                    exec_end_cycles, dma_tans_cycles, (interval_start - exec_start_cycles));
+                active_channel++;
+            }
+            else
+            {
+                /* scenario where DMA transaction started after sampling interval start and continued past interval end. 
 
-            /* TODO: While doing this calculation, the value of exec_prev_cycles might change.
-            Hence, we need to cater for this race condition */
-            delta_active_trans =
-                delta_active_trans -
-                atomic_load_local_32(
-                    &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_prev_cycles);
+                            DMA Transaction
+                    ▲      ┌────────▲──────┐
+                    │      │        │      │
+                ────┼──────┴────────┼──────┴──
+                    │               │
+                    start            end
+                */
+                accum_cycles += interval_end - exec_start_cycles;
+                active_channel++;
+            }
+        }
+        else
+        {
+            /* scenario where DMA transaction was completed and channel was idle 
+              
+                            DMA Transaction
+                                ▲  ┌────────┐   ▲
+                                │  │        │   │
+                            ────┼──┴────────┴───┼───
+                                │               │
+                                start            end
+            */
+            if (dma_tans_cycles > 0)
+            {
+                accum_cycles += dma_tans_cycles;
 
-            atomic_add_local_32(
-                &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_prev_cycles,
-                delta_active_trans);
+                /* scenario in which completed dma transaction ended after sampling interval 
+                            DMA Transaction
+                    ▲      ┌────────▲──────┐
+                    │      │        │      │
+                ────┼──────┴────────┼──────┴──
+                    │               │
+                    start            end
+                */
+                accum_cycles -= STATW_CHECK_FOR_TRANS_COMPLETION_AFTER_SAMPLING_INTERVAL(
+                    exec_end_cycles, interval_end);
 
-            accum_cycles += delta_active_trans;
+                /* scenario where dma transaction started before sampling interval. 
+                              DMA Transaction             
+                            ┌───▲─────────┐   ▲          
+                            │   │         │   │          
+                         ───┴───┼─────────┴───┼────
+                    Interval    │             │              
+                                start          end        
+                */
+                accum_cycles -= STATW_CHECK_FOR_TRANS_COMPLETION_BEFORE_SAMPLING_INTERVAL(
+                    exec_start_cycles, interval_start);
+                active_channel++;
+            }
         }
     }
 
-    return (accum_cycles / PCIE_DMA_RD_CHANNEL_COUNT);
+    return (active_channel > 0 ? (accum_cycles / (uint64_t)active_channel) : accum_cycles);
 }
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       DMAW_Write_Get_Average_Exec_Cycles
-*
-*   DESCRIPTION
-*
-*       This function gets DMA write utlization. It caclulates per
-*       channel utlization then returns the average of all channels.
-*
-*   INPUTS
-*
-*       None
-*
-*   OUTPUTS
-*
-*       uint64_t    Average consumed cycles
-*
-***********************************************************************/
-uint64_t DMAW_Write_Get_Average_Exec_Cycles(void)
-{
-    uint64_t accum_cycles = 0;
-
-    for (int write_chan = 0; write_chan < PCIE_DMA_WRT_CHANNEL_COUNT; write_chan++)
-    {
-        /* Execution cycles for completed transactions. */
-        accum_cycles +=
-            atomic_exchange_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].dma_trans_cycles, 0);
-
-        /* Check if there is any active transaction. */
-        if (atomic_load_local_32(&DMAW_Write_CB.chan_status_cb[write_chan].status.channel_state) ==
-            DMA_CHAN_STATE_IN_USE)
-        {
-            uint32_t delta_active_trans = PMC_GET_LATENCY(atomic_load_local_64(
-                &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_start_cycles));
-
-            /* TODO: While doing this calculation, the value of exec_prev_cycles might change.
-            Hence, we need to cater for this race condition */
-            delta_active_trans =
-                delta_active_trans -
-                atomic_load_local_32(
-                    &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_prev_cycles);
-
-            atomic_add_local_32(
-                &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_prev_cycles,
-                delta_active_trans);
-
-            accum_cycles += delta_active_trans;
-        }
-    }
-
-    return (accum_cycles / PCIE_DMA_WRT_CHANNEL_COUNT);
-}
-
 /************************************************************************
 *
 *   FUNCTION

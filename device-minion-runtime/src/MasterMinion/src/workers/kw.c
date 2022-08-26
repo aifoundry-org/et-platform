@@ -1462,9 +1462,7 @@ void KW_Launch(uint32_t kw_idx)
 #endif
 
         /* Accumlate kernel execution cycles. */
-        atomic_add_local_64(&kernel->kernel_exec_cycles,
-            (launch_rsp->device_cmd_execute_dur -
-                atomic_exchange_local_32(&kernel->kw_cycles.exec_prev_cycles, 0)));
+        atomic_add_local_64(&kernel->kernel_exec_cycles, launch_rsp->device_cmd_execute_dur);
 
         /* Update kernel running time for stats Trace. Reporting unit is kernels/second */
         STATW_Add_New_Sample_Atomically(STATW_RESOURCE_CM,
@@ -1533,54 +1531,125 @@ void KW_Launch(uint32_t kw_idx)
 *
 *   INPUTS
 *
-*       None
+*       interval_start      start cycles of sampling interval
+*       interval_end        end cycles of sampling interval
 *
 *   OUTPUTS
 *
 *       uint64_t    Average consumed cycles
 *
 ***********************************************************************/
-uint64_t KW_Get_Average_Exec_Cycles(void)
+uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_end)
 {
     uint64_t accum_cycles = 0;
+    uint8_t active_kw = 0;
+    uint64_t exec_start_cycles = 0;
+    uint64_t exec_end_cycles = 0;
     kernel_instance_t *kernel;
     uint64_t total_shire_count = get_set_bit_count(CW_Get_Booted_Shires());
 
-    if (total_shire_count > 0)
+    if (!(total_shire_count > 0))
     {
-        for (int kw = 0; kw < KW_NUM; kw++)
+        Log_Write(LOG_LEVEL_ERROR, "KW_Get_Average_Exec_Cycles: Invalid total shire count.\r\n");
+        return 0;
+    }
+    for (int kw = 0; kw < KW_NUM; kw++)
+    {
+        kernel = &KW_CB.kernels[kw];
+
+        /* get kernel and execution start cycles to calculate execution end cycles.
+        this will help identifying kernel execution boundries within sampling interval. */
+        exec_start_cycles = atomic_load_local_64(&kernel->kw_cycles.exec_start_cycles);
+        uint64_t kw_tans_cycles = atomic_exchange_local_64(&kernel->kernel_exec_cycles, 0);
+        exec_end_cycles = exec_start_cycles + kw_tans_cycles;
+
+        /* The case where kernel execution has started after sampling interval end, this needs to be skipped 
+                                        Kernel execution
+                                             ┌───────────
+            ───────▲─────────────────────▲───┴───────────
+                   │                     │
+            Interval start              end
+        */
+        if (exec_start_cycles > interval_end && (kw_tans_cycles == 0))
         {
-            kernel = &KW_CB.kernels[kw];
+            continue;
+        }
 
-            /* Execution cycles for completed transactions. */
-            accum_cycles += atomic_exchange_local_64(&kernel->kernel_exec_cycles, 0);
-
-            /* Check if there is any active transaction. */
-            if (atomic_load_local_32(&kernel->kernel_state) == KERNEL_STATE_IN_USE)
+        /* Check if there is any active kernel execution. */
+        if (atomic_load_local_32(&kernel->kernel_state) == KERNEL_STATE_IN_USE)
+        {
+            /* scenario where kernel execution started before sampling interval and ended within sampling interval.
+            the execution cycles before start of sampling interval has to be subtracted from total execution cycles. 
+                              Kernel execution             Kernel execution(continued)
+                            ┌───▲─────────┐   ▲          ┌───▲───────────────▲─┐
+                            │   │         │   │          │   │               │ │
+                         ───┴───┼─────────┴───┼──────────┴───┼───────────────┼─┴──────
+                    Interval    │             │              │               │
+                                start          end         start            end 
+        */
+            if ((exec_start_cycles < interval_start) && (exec_end_cycles < interval_end))
             {
-                uint32_t delta_active_exec =
-                    PMC_GET_LATENCY(atomic_load_local_64(&kernel->kw_cycles.exec_start_cycles));
+                /* if kernel execution is continued past the sampling interval end then end cycles will be equal to start cycles
+                becaus ethere are no total kernel execution cycles. In this case total cycles will be the interval cycles */
+                accum_cycles += STATW_CHECK_FOR_CONTINUED_EXEC_TRANSACTION(exec_start_cycles,
+                    exec_end_cycles, kw_tans_cycles, (interval_start - exec_start_cycles));
+                active_kw++;
+            }
+            else
+            {
+                /* scenario where kernel execution started after sampling interval start and continued past interval end. 
+                            Kernel execution 
+                    ▲      ┌────────▲──────┐
+                    │      │        │      │
+                ────┼──────┴────────┼──────┴──
+                    │               │
+                    start            end
+                */
+                accum_cycles += interval_end - exec_start_cycles;
+                active_kw++;
+            }
 
-                /* TODO: While doing this calculation, the value of exec_prev_cycles might change.
-                Hence, we need to cater for this race condition */
-                delta_active_exec =
-                    delta_active_exec - atomic_load_local_32(&kernel->kw_cycles.exec_prev_cycles);
+            /* Apply scaling factor. */
+            accum_cycles = (accum_cycles * get_set_bit_count(
+                                               atomic_load_local_64(&kernel->kernel_shire_mask))) /
+                           total_shire_count;
+        }
+        else
+        {
+            /* scenario where kernel execution was completed and channel was idle
+                                ▲  ┌────────┐   ▲
+                                │  │        │   │
+                            ────┼──┴────────┴───┼───
+                                │               │
+                                start            end
+             */
+            if (kw_tans_cycles > 0)
+            {
+                accum_cycles += kw_tans_cycles;
 
-                atomic_add_local_32(&kernel->kw_cycles.exec_prev_cycles, delta_active_exec);
+                /* scenario in which completed kernel execution ended after sampling interval 
+                    ▲      ┌────────▲──────┐
+                    │      │        │      │
+                ────┼──────┴────────┼──────┴──
+                    │               │
+                    start            end
+                */
+                accum_cycles -= STATW_CHECK_FOR_TRANS_COMPLETION_AFTER_SAMPLING_INTERVAL(
+                    exec_end_cycles, interval_end);
 
-                accum_cycles += delta_active_exec;
-
-                /* Apply scaling factor. */
-                accum_cycles = (accum_cycles * get_set_bit_count(atomic_load_local_64(
-                                                   &kernel->kernel_shire_mask))) /
-                               total_shire_count;
+                /* scenario where kernel execution started before sampling interval. 
+                            ┌───▲─────────┐   ▲          
+                            │   │         │   │          
+                         ───┴───┼─────────┴───┼────
+                    Interval    │             │              
+                                start          end        
+                */
+                accum_cycles -= STATW_CHECK_FOR_TRANS_COMPLETION_BEFORE_SAMPLING_INTERVAL(
+                    exec_start_cycles, interval_start);
+                active_kw++;
             }
         }
     }
-    else
-    {
-        Log_Write(LOG_LEVEL_ERROR, "KW_Get_Average_Exec_Cycles: Invalid total shire count.\r\n");
-    }
 
-    return (accum_cycles / KW_NUM);
+    return (active_kw > 0 ? (accum_cycles / (uint64_t)active_kw) : accum_cycles);
 }

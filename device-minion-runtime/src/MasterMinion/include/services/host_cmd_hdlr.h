@@ -34,7 +34,6 @@
 typedef struct execution_cycles_ {
     uint64_t cmd_start_cycles;
     uint64_t exec_start_cycles;
-    uint32_t exec_prev_cycles;
     uint32_t wait_cycles;
 } __attribute__((packed, aligned(8))) execution_cycles_t;
 

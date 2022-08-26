@@ -82,6 +82,28 @@ enum statw_resource_type {
 */
 #define MIN(x, y) (x < y ? x : y)
 
+/*! \def STATW_CHECK_FOR_CONTINUED_EXEC_TRANSACTION
+    \brief This is check if transaction is continued past the sampling interval end then end cycles will be equal to start cycles
+                because there are no total dma transaction cycles. In this case total cycles will be the interval cycles.
+*/
+#define STATW_CHECK_FOR_CONTINUED_EXEC_TRANSACTION(                            \
+    exec_start_cycles, exec_end_cycles, dma_tans_cycles, prev_cycles)          \
+    (exec_start_cycles == exec_end_cycles) ? (interval_end - interval_start) : \
+                                             (dma_tans_cycles - prev_cycles)
+
+/*! \def STATW_CHECK_FOR_TRANS_COMPLETION_AFTER_SAMPLING_INTERVAL
+    \brief This is check for scenario in which completed transaction ended after sampling interval
+*/
+#define STATW_CHECK_FOR_TRANS_COMPLETION_AFTER_SAMPLING_INTERVAL(exec_end_cycles, interval_end) \
+    (exec_end_cycles > interval_end) ? (exec_end_cycles - interval_end) : 0
+
+/*! \def STATW_CHECK_FOR_TRANS_COMPLETION_BEFORE_SAMPLING_INTERVAL
+    \brief This is check for scenario where transaction started before sampling interval.
+*/
+#define STATW_CHECK_FOR_TRANS_COMPLETION_BEFORE_SAMPLING_INTERVAL( \
+    exec_start_cycles, interval_start)                             \
+    (exec_start_cycles < interval_start) ? (interval_start - exec_start_cycles) : 0
+
 /*! \fn void STATW_Launch(uint32_t sqw_idx)
     \brief Initialize Device Stat Workers, used by dispatcher
     \param hart_id HART ID on which the Stat Worker should be launched

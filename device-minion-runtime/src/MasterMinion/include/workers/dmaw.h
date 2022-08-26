@@ -67,6 +67,11 @@ typedef enum {
     DMA_CHAN_STATE_ABORTING = 4
 } dma_chan_state_e;
 
+/*! \enum dma_chan_type_e
+    \brief Enum that provides the type of a DMA channel
+*/
+typedef enum { DMA_CHAN_TYPE_READ = 0, DMA_CHAN_TYPE_WRITE = 1 } dma_chan_type_e;
+
 /*! \struct dma_channel_status
     \brief DMA channel data structure to maintain
     information related to given channel's status
@@ -160,19 +165,16 @@ int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e chan_id,
     const struct device_ops_dma_readlist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
     const execution_cycles_t *cycles, dma_flags_e flags);
 
-/*! \fn uint64_t DMAW_Write_Get_Average_Exec_Cycles(void)
+/*! \fn uint64_t DMAW_Get_Average_Exec_Cycles(void)
     \brief This function gets DMA write utlization. It caclulates per
     channel utlization then returns the average of all channels.
+    \param chan_type DMA channel type read or write
+    \param interval_start start cycles for sampling interval
+    \param interval_end end cycles for sampling interval
     \return Average consumed cycles
 */
-uint64_t DMAW_Write_Get_Average_Exec_Cycles(void);
-
-/*! \fn uint64_t DMAW_Read_Get_Average_Exec_Cycles(void)
-    \brief This function gets DMA read utlization. It caclulates per
-    channel utlization then returns the average of all channels.
-    \return Average consumed cycles
-*/
-uint64_t DMAW_Read_Get_Average_Exec_Cycles(void);
+uint64_t DMAW_Get_Average_Exec_Cycles(
+    dma_chan_type_e chan_type, uint64_t interval_start, uint64_t interval_end);
 
 /*! \fn void DMAW_Abort_All_Dispatched_Write_Channels(uint8_t sqw_idx)
     \brief Blocking call to abort all DMA write channels

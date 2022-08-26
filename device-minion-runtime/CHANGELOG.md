@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13631] Coherency write hazard in stats worker while writing to L3.
 - [SW-13640] Updating STAT worker to query for freq Vs hardcoding it.
 - [SW-13825] Making sure that accesses to L3 are complete before evicting the lines before a kernel launch.
+- [SW-13738]: Fixed algorithm to calculate DAMW & KW utilization
 ### Security
 
 ## [0.9.0] - 2022-7-7

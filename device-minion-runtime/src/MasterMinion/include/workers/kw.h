@@ -114,8 +114,10 @@ void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx);
 
 /*! \fn uint64_t KW_Get_Average_Exec_Cycles(void)
     \brief This function gets Compute Minion utlization.
+    \param interval_start start cycles for sampling interval
+    \param interval_end end cycles for sampling interval
     \return Average consumed cycles
 */
-uint64_t KW_Get_Average_Exec_Cycles(void);
+uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_end);
 
 #endif /* KW_DEFS_H */

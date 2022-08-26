@@ -82,21 +82,6 @@
         }                                               \
     }
 
-/*! \def STATW_UTIL_OVERFLOW_CHECK(util_type_str, sample_val, total_val)
-    \brief Macro that checks for overflow in utilization values.
-*/
-#define STATW_UTIL_OVERFLOW_CHECK(util_type_str, sample_val, total_val)                                        \
-    {                                                                                                          \
-        if (sample_val > total_val)                                                                            \
-        {                                                                                                      \
-            Log_Write(LOG_LEVEL_DEBUG,                                                                         \
-                "statw: %s: Sampled value greater than total value: sampled value: %ld: total value: %ld\r\n", \
-                util_type_str, sample_val, total_val);                                                         \
-            /* TODO: For now, just make both values equal. Need to check and fix this case. */                 \
-            sample_val = total_val;                                                                            \
-        }                                                                                                      \
-    }
-
 /*! \def STATW_UTIL_BAD_PMC_CHECK(util_type_str, shire_id, bank_id, prev_val, curr_val)
     \brief Macro that checks for bad PMC values.
 */
@@ -528,14 +513,11 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
             /* Percent utilization = trasnsaction accumulated cycles * 100 / Cycles in sampling interval. */
             current_timestamp = PMC_Get_Current_Cycles();
             uint64_t total_cycles = current_timestamp - prev_timestamp;
-            uint64_t dma_read_util_cycles = DMAW_Write_Get_Average_Exec_Cycles();
-            uint64_t dma_write_util_cycles = DMAW_Read_Get_Average_Exec_Cycles();
-            uint64_t cm_util_cycles = KW_Get_Average_Exec_Cycles();
-
-            /* Add some checks on utilization */
-            STATW_UTIL_OVERFLOW_CHECK("dma_read_util_cycles", dma_read_util_cycles, total_cycles)
-            STATW_UTIL_OVERFLOW_CHECK("dma_write_util_cycles", dma_write_util_cycles, total_cycles)
-            STATW_UTIL_OVERFLOW_CHECK("cm_util_cycles", cm_util_cycles, total_cycles)
+            uint64_t dma_write_util_cycles =
+                DMAW_Get_Average_Exec_Cycles(DMA_CHAN_TYPE_READ, prev_timestamp, current_timestamp);
+            uint64_t dma_read_util_cycles = DMAW_Get_Average_Exec_Cycles(
+                DMA_CHAN_TYPE_WRITE, prev_timestamp, current_timestamp);
+            uint64_t cm_util_cycles = KW_Get_Average_Exec_Cycles(prev_timestamp, current_timestamp);
 
             /* Caclulate the instantaneous average for utilization. This would
             directly be logged in trace while min and max will be re-calculated */
