@@ -38,6 +38,13 @@ int get_manufacturer_name(char *mfg_name);
 */
 int get_part_number(char *part_number);
 
+/*! \fn int set_part_number(uint32_t part_number)
+    \brief Interface to get the Part number.
+    \param part_number  part number
+    \returns Status indicating success or negative error
+*/
+int set_part_number(uint32_t part_number);
+
 /*! \fn int get_serial_number(char *ser_number)
     \brief Interface to get the Module's Serial Number
     \param *ser_number  Pointer to Serial number

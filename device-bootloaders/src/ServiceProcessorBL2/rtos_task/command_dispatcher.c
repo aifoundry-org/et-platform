@@ -139,8 +139,9 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
         switch (msg_id)
         {
             case DM_CMD_GET_MODULE_MANUFACTURE_NAME ... DM_CMD_GET_MODULE_MEMORY_TYPE:
+            case DM_CMD_SET_MODULE_PART_NUMBER:
                 /* Process asset tracking service request cmd */
-                asset_tracking_process_request(tag_id, msg_id);
+                asset_tracking_process_request(tag_id, msg_id, (void *)buffer);
                 break;
             case DM_CMD_GET_FUSED_PUBLIC_KEYS ... DM_CMD_SET_FIRMWARE_VALID:
                 /* Process firmware service request cmd */

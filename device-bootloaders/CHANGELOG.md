@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - [SW-13850] Disabled power throttling code in update_module_soc_power() until SW-13951 is resolved.
 - Updating NOC, DDR and Maxion boot voltages
+- [SW-13954] Add handling for DM_CMD_SET_MODULE_PART_NUMBER
 ### Deprecated
 ### Removed
 ### Fixed

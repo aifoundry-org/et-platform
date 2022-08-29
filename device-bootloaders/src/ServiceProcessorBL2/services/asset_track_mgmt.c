@@ -16,6 +16,7 @@
     Public interfaces:
     get_manufacturer_name
     get_part_number
+    set_part_number
     get_serial_number
     get_chip_revision
     get_PCIE_speed
@@ -36,6 +37,11 @@ int get_manufacturer_name(char *mfg_name)
 int get_part_number(char *part_number)
 {
     return flash_fs_get_part_number(part_number);
+}
+
+int set_part_number(uint32_t part_number)
+{
+    return flash_fs_set_part_number(part_number);
 }
 
 int get_serial_number(char *ser_number)

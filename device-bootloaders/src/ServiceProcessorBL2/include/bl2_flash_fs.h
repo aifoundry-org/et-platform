@@ -146,7 +146,14 @@ int flash_fs_get_manufacturer_name(char *mfg_name);
 */
 int flash_fs_get_part_number(char *part_number);
 
-/*! \fn int flash_fs_get_serial_number(char *ser_number, size_t size)
+/*! \fn int flash_fs_set_part_number(uint32_t part_number)
+    \brief This function sets ET-SOC part number.
+    \param part_number - part number
+    \return The function call status, pass/fail.
+*/
+int flash_fs_set_part_number(uint32_t part_number);
+
+/*! \fn int flash_fs_get_serial_number(char *ser_number, )
     \brief This function returns ET-SOC serial number.
     \param ser_number - serial number
     \param size - size of the serial number

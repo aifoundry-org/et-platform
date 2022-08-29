@@ -28,6 +28,7 @@
         flash_fs_increment_attempted_boot_count
         flash_fs_get_manufacturer_name
         flash_fs_get_part_number
+        flash_fs_set_part_number
         flash_fs_get_serial_number
         flash_fs_get_module_rev
         flash_fs_get_memory_size
@@ -1401,6 +1402,93 @@ int flash_fs_get_part_number(char *part_number)
 {
     memcpy(part_number, &(sg_flash_fs_bl2_info.asset_config_data.part_num),
            sizeof(sg_flash_fs_bl2_info.asset_config_data.part_num));
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_set_part_number
+*
+*   DESCRIPTION
+*
+*       This function sets ET-SOC part number.
+*
+*   INPUTS
+*
+*       part_number          part number
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+
+int flash_fs_set_part_number(uint32_t part_number)
+{
+    uint32_t partition_address;
+    uint32_t config_data_address;
+    uint8_t asset_config_reg[sizeof(ESPERANTO_CONFIG_HEADER_t) + sizeof(ESPERANTO_CONFIG_DATA_t)] = {
+        0
+    };
+
+    if (0 == sg_flash_fs_bl2_info.active_partition)
+    {
+        partition_address = 0;
+    }
+    else if (1 == sg_flash_fs_bl2_info.active_partition)
+    {
+        partition_address = sg_flash_fs_bl2_info.flash_size / 2;
+    }
+    else
+    {
+        return ERROR_SPI_FLASH_NO_VALID_PARTITION;
+    }
+
+    config_data_address = partition_address + sg_flash_fs_bl2_info.configuration_region_address;
+
+    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id,
+                                   config_data_address +
+                                       (uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t),
+                                   (uint8_t *)&asset_config_reg, sizeof(asset_config_reg)))
+    {
+        MESSAGE_ERROR("flash_fs_set_part_number: failed to read asset config region!\n");
+        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+
+    /* Update the part_num */
+    memcpy(asset_config_reg + sizeof(ESPERANTO_CONFIG_HEADER_t) +
+               offsetof(ESPERANTO_CONFIG_DATA_t, part_num),
+           &part_number, sizeof(part_number));
+
+    /* Erase the asset config region. */
+    if (0 != spi_flash_sector_erase(sg_flash_fs_bl2_info.flash_id, config_data_address))
+    {
+        MESSAGE_ERROR("flash_fs_set_part_number: failed to erase asset config data!\n");
+        return ERROR_SPI_FLASH_SE_FAILED;
+    }
+
+    if (0 != spi_flash_page_program(sg_flash_fs_bl2_info.flash_id,
+                                    config_data_address +
+                                        (uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t),
+                                    asset_config_reg, sizeof(asset_config_reg)))
+    {
+        MESSAGE_ERROR("flash_fs_set_part_number: spi_flash_program() failed!\n");
+        return ERROR_SPI_FLASH_PP_FAILED;
+    }
+
+    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id,
+                                   config_data_address +
+                                       (uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                                       (uint32_t)sizeof(ESPERANTO_CONFIG_HEADER_t),
+                                   (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_data),
+                                   sizeof(sg_flash_fs_bl2_info.asset_config_data)))
+    {
+        MESSAGE_ERROR("flash_fs_set_part_number: failed to read asset_config_data!\n");
+        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+
     return 0;
 }
 

@@ -48,6 +48,23 @@ static int32_t asset_svc_getpartnumber(char *part_number)
     return status;
 }
 
+static int32_t
+asset_svc_setpartnumber(const struct device_mgmt_set_module_part_number_cmd_t *dm_cmd)
+{
+    int32_t status;
+
+    Log_Write(LOG_LEVEL_INFO, "Asset tracking request: %s\n", __func__);
+
+    status = set_part_number(dm_cmd->part_number);
+
+    if (0 != status)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Asset tracking svc error: %s\n", __func__);
+    }
+
+    return status;
+}
+
 static int32_t asset_svc_getserialnumber(char *ser_number)
 {
     int32_t status;
@@ -202,17 +219,19 @@ static void asset_tracking_send_response(tag_id_t tag_id, msg_id_t msg_id, uint6
 *   INPUTS
 *
 *       msg_id      Unique enum representing specific command
+*       buffer      Pointer to command buffer
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id)
+void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id, const void *buffer)
 {
     int32_t ret = 0;
     char req_asset_info[sizeof(struct asset_info_t)] = { 0 };
     uint64_t req_start_time;
+    const struct device_mgmt_set_module_part_number_cmd_t *dm_cmd = buffer;
 
     req_start_time = timer_get_ticks_count();
 
@@ -222,6 +241,9 @@ void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id)
         break;
     case DM_CMD_GET_MODULE_PART_NUMBER:
         ret = asset_svc_getpartnumber(req_asset_info);
+        break;
+    case DM_CMD_SET_MODULE_PART_NUMBER:
+        ret = asset_svc_setpartnumber(dm_cmd);
         break;
     case DM_CMD_GET_MODULE_SERIAL_NUMBER:
         ret = asset_svc_getserialnumber(req_asset_info);
