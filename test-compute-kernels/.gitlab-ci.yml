@@ -17,7 +17,7 @@ include:
       - 'jobs/conan-jobs.yaml'
 
   - project: 'software/sw-platform'
-    ref: develop/system-sw 
+    ref: develop/system-sw
     file:
       - 'gitlab-ci/system-sw/misc/verify-merge-request.yaml'
 
@@ -69,7 +69,7 @@ generate_build:conan:
       cd conan
       python3 -m ci_build
   artifacts:
-    expire_in: 1h 
+    expire_in: 1d
     paths:
       - conan/build_pipeline.yml
       - conan/lockfiles_info.json
