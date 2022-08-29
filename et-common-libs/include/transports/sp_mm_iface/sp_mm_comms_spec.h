@@ -395,6 +395,7 @@ struct sp2mm_get_mm_stats_cmd_t {
 struct sp2mm_get_mm_stats_rsp_t {
     struct dev_cmd_hdr_t msg_hdr;
     struct compute_resources_sample sample;
+    int32_t status;
 } __attribute__((aligned(8), packed));
 
 /*! \struct sp2mm_mm_abort_all_cmd_t
