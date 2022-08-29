@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-13978] dev_mngt_service: Intermittent failures while setting MINION,NOC frequencies.
 ### Security
 
 ## [1.4.0] - 2022-8-15

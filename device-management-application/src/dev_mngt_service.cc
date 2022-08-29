@@ -602,21 +602,16 @@ int verifyService() {
       } else if (pll_id == device_mgmt_api::PLL_ID_MINION_PLL) {
         pll_freq = minion_freq_mhz;
       }
-      for (device_mgmt_api::use_step_e use_step = device_mgmt_api::USE_STEP_CLOCK_FALSE;
-           use_step <= device_mgmt_api::USE_STEP_CLOCK_TRUE; use_step++) {
-        if (use_step == device_mgmt_api::USE_STEP_CLOCK_TRUE && pll_id != device_mgmt_api::PLL_ID_MINION_PLL)
-          continue;
-        const uint32_t input_size =
-          sizeof(device_mgmt_api::pll_id_e) + sizeof(uint16_t) + sizeof(device_mgmt_api::use_step_e);
-        char input_buff[input_size];
-        input_buff[0] = (char)(pll_freq & 0xff);
-        input_buff[1] = (char)((pll_freq >> 8) & 0xff);
-        input_buff[2] = (char)pll_id;
-        input_buff[3] = (char)use_step;
+      const uint32_t input_size =
+        sizeof(device_mgmt_api::pll_id_e) + sizeof(uint16_t) + sizeof(device_mgmt_api::use_step_e);
+      char input_buff[input_size];
+      input_buff[0] = (char)(pll_freq & 0xff);
+      input_buff[1] = (char)((pll_freq >> 8) & 0xff);
+      input_buff[2] = (char)pll_id;
+      input_buff[3] = (char)device_mgmt_api::USE_STEP_CLOCK_TRUE;
 
-        if ((ret = runService(input_buff, input_size, nullptr, 0)) != DM_STATUS_SUCCESS) {
-          return ret;
-        }
+      if ((ret = runService(input_buff, input_size, nullptr, 0)) != DM_STATUS_SUCCESS) {
+        return ret;
       }
     }
   } break;
