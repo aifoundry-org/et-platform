@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [SW-13248] Modifying bus error kernel to access non-existent ESR in U-mode.
+- [SW-14007] Modifying bus error kernel to generate bus error interrupt on every hart.
 ### Deprecated
 ### Removed
 ### Fixed

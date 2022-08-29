@@ -10,12 +10,9 @@
 /* Generates bus error */
 int main(void)
 {
-    /* Generate bus error on single hart */
-    if (get_hart_id() == 0)
-    {
-        /* Access a non-existent ESR. According to spec, it would generate a bus error */
-        volatile uint64_t dummy = *((volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, 0, DUMMY_MPROT));
-    }
+    /* Generate bus error on every hart */
+    /* Access a non-existent ESR. According to spec, it would generate a bus error */
+    volatile uint64_t dummy = *((volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, 0, DUMMY_MPROT));
 
     return 0;
 }
