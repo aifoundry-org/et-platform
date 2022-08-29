@@ -758,7 +758,8 @@ static void pcie_ce_error(void)
             ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_CORR_ERR_STATUS_OFF_ADDRESS);
 
         /* clear error register */
-        iowrite32(PCIE + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_CORR_ERR_STATUS_OFF_ADDRESS,
+        iowrite32(MODULE_PCIE +
+                      PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_CORR_ERR_STATUS_OFF_ADDRESS,
                   error_status);
 
         /* add details in message header and fill payload */
@@ -782,7 +783,7 @@ static void pcie_uce_error(void)
         ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_UNCORR_ERR_STATUS_OFF_ADDRESS);
 
     /* clear error register */
-    iowrite32(PCIE + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_UNCORR_ERR_STATUS_OFF_ADDRESS,
+    iowrite32(MODULE_PCIE + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_AER_CAP_UNCORR_ERR_STATUS_OFF_ADDRESS,
               error_status);
 
     /* add details in message header and fill payload */
@@ -981,7 +982,7 @@ int PCIE_Phy_Initialize(void)
 
 int PShire_Voltage_Update(uint8_t voltage)
 {
-    return pmic_set_voltage(PCIE, voltage);
+    return pmic_set_voltage(MODULE_PCIE, voltage);
 }
 
 int Pshire_PLL_Program(uint8_t mode)

@@ -1162,27 +1162,27 @@ int pmic_get_reset_cause(uint32_t *reset_cause)
 *
 ***********************************************************************/
 
-int pmic_get_voltage(voltage_type_e voltage_type, uint8_t *voltage)
+int pmic_get_voltage(module_e voltage_type, uint8_t *voltage)
 {
     switch (voltage_type)
     {
-        case DDR:
+        case MODULE_DDR:
             return (get_pmic_reg(PMIC_I2C_DDR_VOLTAGE_ADDRESS, voltage, 1));
-        case L2CACHE:
+        case MODULE_L2CACHE:
             return (get_pmic_reg(PMIC_I2C_L2_CACHE_VOLTAGE_ADDRESS, voltage, 1));
-        case MAXION:
+        case MODULE_MAXION:
             return (get_pmic_reg(PMIC_I2C_MAXION_VOLTAGE_ADDRESS, voltage, 1));
-        case MINION:
+        case MODULE_MINION:
             return (get_pmic_reg(PMIC_I2C_MINION_ALL_VOLTAGE_ADDRESS, voltage, 1));
-        case PCIE:
+        case MODULE_PCIE:
             return (get_pmic_reg(PMIC_I2C_PCIE_VOLTAGE_ADDRESS, voltage, 1));
-        case NOC:
+        case MODULE_NOC:
             return (get_pmic_reg(PMIC_I2C_NOC_VOLTAGE_ADDRESS, voltage, 1));
-        case PCIE_LOGIC:
+        case MODULE_PCIE_LOGIC:
             return (get_pmic_reg(PMIC_I2C_PCIE_LOGIC_VOLTAGE_ADDRESS, voltage, 1));
-        case VDDQLP:
+        case MODULE_VDDQLP:
             return (get_pmic_reg(PMIC_I2C_VDDQLP_VOLTAGE_ADDRESS, voltage, 1));
-        case VDDQ:
+        case MODULE_VDDQ:
             return (get_pmic_reg(PMIC_I2C_VDDQ_VOLTAGE_ADDRESS, voltage, 1));
         default: {
             MESSAGE_ERROR("Error invalid voltage type to extract Voltage");
@@ -1212,35 +1212,35 @@ int pmic_get_voltage(voltage_type_e voltage_type, uint8_t *voltage)
 *
 ***********************************************************************/
 
-int pmic_set_voltage(voltage_type_e voltage_type, uint8_t voltage)
+int pmic_set_voltage(module_e voltage_type, uint8_t voltage)
 {
     switch (voltage_type)
     {
-        case DDR:
+        case MODULE_DDR:
             return (set_pmic_reg(PMIC_I2C_DDR_VOLTAGE_ADDRESS,
                                  PMIC_I2C_DDR_VOLTAGE_VOLTAGE_SET(voltage), 1));
-        case L2CACHE:
+        case MODULE_L2CACHE:
             return (set_pmic_reg(PMIC_I2C_L2_CACHE_VOLTAGE_ADDRESS,
                                  PMIC_I2C_L2_CACHE_VOLTAGE_VOLTAGE_SET(voltage), 1));
-        case MAXION:
+        case MODULE_MAXION:
             return (set_pmic_reg(PMIC_I2C_MAXION_VOLTAGE_ADDRESS,
                                  PMIC_I2C_MAXION_VOLTAGE_VOLTAGE_SET(voltage), 1));
-        case MINION:
+        case MODULE_MINION:
             return (set_pmic_reg(PMIC_I2C_MINION_ALL_VOLTAGE_ADDRESS,
                                  PMIC_I2C_MINION_ALL_VOLTAGE_VOLTAGE_SET(voltage), 1));
-        case PCIE:
+        case MODULE_PCIE:
             return (set_pmic_reg(PMIC_I2C_PCIE_VOLTAGE_ADDRESS,
                                  PMIC_I2C_PCIE_VOLTAGE_VOLTAGE_SET(voltage), 1));
-        case NOC:
+        case MODULE_NOC:
             return (set_pmic_reg(PMIC_I2C_NOC_VOLTAGE_ADDRESS,
                                  PMIC_I2C_NOC_VOLTAGE_VOLTAGE_SET(voltage), 1));
-        case PCIE_LOGIC:
+        case MODULE_PCIE_LOGIC:
             return (set_pmic_reg(PMIC_I2C_PCIE_LOGIC_VOLTAGE_ADDRESS,
                                  PMIC_I2C_PCIE_LOGIC_VOLTAGE_VOLTAGE_SET(voltage), 1));
-        case VDDQLP:
+        case MODULE_VDDQLP:
             return (set_pmic_reg(PMIC_I2C_VDDQLP_VOLTAGE_ADDRESS,
                                  PMIC_I2C_VDDQLP_VOLTAGE_VOLTAGE_SET(voltage), 1));
-        case VDDQ:
+        case MODULE_VDDQ:
             return (set_pmic_reg(PMIC_I2C_VDDQ_VOLTAGE_ADDRESS,
                                  PMIC_I2C_VDDQ_VOLTAGE_VOLTAGE_SET(voltage), 1));
         default: {

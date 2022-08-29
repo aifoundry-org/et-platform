@@ -881,7 +881,7 @@ int Compute_Minion_Reset_Threads(uint64_t shires_mask)
 ***********************************************************************/
 int Minion_Shire_Update_Voltage(uint8_t voltage)
 {
-    return pmic_set_voltage(MINION, voltage);
+    return pmic_set_voltage(MODULE_MINION, voltage);
 }
 
 /************************************************************************

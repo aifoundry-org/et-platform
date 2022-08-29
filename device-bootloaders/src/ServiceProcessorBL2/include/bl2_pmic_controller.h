@@ -16,26 +16,10 @@
 #ifndef __BL2_PMIC_CONTROLLER_H__
 #define __BL2_PMIC_CONTROLLER_H__
 
+#include "dm.h"
 #include "dm_event_def.h"
 
 #include "pmic_hal.h"
-
-/*!
- * @enum  enum voltage_type_e
- * @brief Different voltage types supported by PMIC
- */
-typedef enum
-{
-    DDR = 0,
-    L2CACHE,
-    MAXION,
-    MINION,
-    PCIE,
-    NOC,
-    PCIE_LOGIC,
-    VDDQLP,
-    VDDQ
-} voltage_type_e;
 
 /*!
  * @enum  enum pmb_module_type_e
@@ -249,40 +233,40 @@ int pmic_disable_etsoc_reset_after_perst(void);
 */
 int pmic_get_reset_cause(uint32_t *reset_cause);
 
-/*! \fn int pmic_get_voltage(voltage_type_e voltage_type, uint8_t* voltage)
+/*! \fn int pmic_get_voltage(module_e voltage_type, uint8_t* voltage)
     \brief This function returns specific voltage setting.
     \param voltage_type - voltage type to be read:
-*   - DDR
-*   - L2CACHE
-*   - MAXION
-*   - MINION
-*   - PCIE
-*   - NOC
-*   - PCIE_LOGIC
-*   - VDDQLP
-*   - VDDQ
+*   - MODULE_DDR
+*   - MODULE_L2CACHE
+*   - MODULE_MAXION
+*   - MODULE_MINION
+*   - MODULE_PCIE
+*   - MODULE_NOC
+*   - MODULE_PCIE_LOGIC
+*   - MODULE_VDDQLP
+*   - MODULE_VDDQ
     \param voltage - voltage value (binary encoded)
     \return The function call status, pass/fail.
 */
-int pmic_get_voltage(voltage_type_e voltage_type, uint8_t *voltage);
+int pmic_get_voltage(module_e voltage_type, uint8_t *voltage);
 
-/*! \fn int pmic_set_voltage(voltage_type_e voltage_type, uint8_t voltage)
+/*! \fn int pmic_set_voltage(module_e voltage_type, uint8_t voltage)
     \brief This function returns specific voltage setting.
     \param voltage_type - voltage type to be set:
-*   - DDR
-*   - L2CACHE
-*   - MAXION
-*   - MINION
-*   - PCIE
-*   - NOC
-*   - PCIE_LOGIC
-*   - VDDQLP
-*   - VDDQ
-*   - SRAM
+*   - MODULE_DDR
+*   - MODULE_L2CACHE
+*   - MODULE_MAXION
+*   - MODULE_MINION
+*   - MODULE_PCIE
+*   - MODULE_NOC
+*   - MODULE_PCIE_LOGIC
+*   - MODULE_VDDQLP
+*   - MODULE_VDDQ
+*   - MODULE_SRAM
     \param voltage - voltage value to be set (binary encoded)
     \return The function call status, pass/fail.
 */
-int pmic_set_voltage(voltage_type_e voltage_type, uint8_t voltage);
+int pmic_set_voltage(module_e voltage_type, uint8_t voltage);
 
 /*! \fn int pmic_get_minion_group_voltage(uint8_t group_id, uint8_t* voltage)
     \brief This function returns minion group voltage setting.

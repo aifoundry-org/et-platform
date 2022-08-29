@@ -195,7 +195,7 @@ static void pwr_svc_get_module_power(uint16_t tag, uint64_t req_start_time)
 ***********************************************************************/
 static void pwr_svc_get_module_voltage(uint16_t tag, uint64_t req_start_time)
 {
-    struct device_mgmt_module_voltage_rsp_t dm_rsp;
+    struct device_mgmt_get_module_voltage_rsp_t dm_rsp;
     struct module_voltage_t module_voltage;
     int32_t status;
 
@@ -213,10 +213,56 @@ static void pwr_svc_get_module_voltage(uint16_t tag, uint64_t req_start_time)
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_VOLTAGE,
                     timer_get_ticks_count() - req_start_time, status);
 
-    if (STATUS_SUCCESS !=
-        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_module_voltage_rsp_t)))
+    if (STATUS_SUCCESS != SP_Host_Iface_CQ_Push_Cmd(
+                              (char *)&dm_rsp, sizeof(struct device_mgmt_get_module_voltage_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR, "pwr_svc_get_module_voltage: Cqueue push error!\n");
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pwr_svc_set_module_voltage
+*
+*   DESCRIPTION
+*
+*       This function sets the value of voltage for a given voltage domain.
+*       Note there are many voltage domains in the device, hence this will take
+*       as an argument the domain of interest
+*
+*   INPUTS
+*
+*       req_start_time    Time stamp when the request was received by the Command
+*                         Dispatcher
+*       buffer            Command input buffer
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void pwr_svc_set_module_voltage(uint16_t tag, uint64_t req_start_time, void *buffer)
+{
+    const struct device_mgmt_set_module_voltage_cmd_t *set_voltage_cmd =
+        (struct device_mgmt_set_module_voltage_cmd_t *)buffer;
+    struct device_mgmt_set_module_voltage_rsp_t dm_rsp;
+    int32_t status;
+
+    status = pmic_set_voltage(set_voltage_cmd->type, set_voltage_cmd->value);
+    if (STATUS_SUCCESS != status)
+    {
+        Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error: set_module_voltage()\r\n");
+    }
+
+    FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_MODULE_VOLTAGE,
+                    timer_get_ticks_count() - req_start_time, status)
+
+    if (STATUS_SUCCESS != SP_Host_Iface_CQ_Push_Cmd(
+                              (char *)&dm_rsp, sizeof(struct device_mgmt_set_module_voltage_rsp_t)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_set_module_voltage: Cqueue push error!\n");
     }
 }
 
@@ -983,6 +1029,10 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
         }
         case DM_CMD_GET_MODULE_VOLTAGE: {
             pwr_svc_get_module_voltage(tag_id, req_start_time);
+            break;
+        }
+        case DM_CMD_SET_MODULE_VOLTAGE: {
+            pwr_svc_set_module_voltage(tag_id, req_start_time, buffer);
             break;
         }
         case DM_CMD_GET_MODULE_UPTIME: {

@@ -1839,33 +1839,33 @@ void set_system_voltages(void)
 {
     uint8_t voltage = 0;
     /* Setting the Neigh voltages */
-    pmic_set_voltage(MINION, NEIGH_BOOT_VOLTAGE);
+    pmic_set_voltage(MODULE_MINION, NEIGH_BOOT_VOLTAGE);
     US_DELAY_GENERIC(5000)
-    pmic_get_voltage(MINION, &voltage);
+    pmic_get_voltage(MODULE_MINION, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding Minion -> 475mV (0x%X)\n", voltage);
 
     /* Setting the L2 cache voltages */
-    pmic_set_voltage(L2CACHE, SRAM_BOOT_VOLTAGE);
+    pmic_set_voltage(MODULE_L2CACHE, SRAM_BOOT_VOLTAGE);
     US_DELAY_GENERIC(5000)
     pmic_get_voltage(L2CACHE, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding SRAM   -> 720mV(0x%X)\n", voltage);
 
     /* Setting the NOC voltages */
-    pmic_set_voltage(NOC, NOC_BOOT_VOLTAGE);
+    pmic_set_voltage(MODULE_NOC, NOC_BOOT_VOLTAGE);
     US_DELAY_GENERIC(5000)
-    pmic_get_voltage(NOC, &voltage);
+    pmic_get_voltage(MODULE_NOC, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding NOC    -> 430mV(0x%X)\n", voltage);
 
     /* Setting the DDR voltages */
-    pmic_set_voltage(DDR, DDR_BOOT_VOLTAGE);
+    pmic_set_voltage(MODULE_DDR, DDR_BOOT_VOLTAGE);
     US_DELAY_GENERIC(5000)
-    pmic_get_voltage(DDR, &voltage);
+    pmic_get_voltage(MODULE_DDR, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding DDR    -> 750mV(0x%X)\n", voltage);
 
     /* Setting the MAXION voltages */
-    pmic_set_voltage(MAXION, MXN_BOOT_VOLTAGE);
+    pmic_set_voltage(MODULE_MAXION, MXN_BOOT_VOLTAGE);
     US_DELAY_GENERIC(5000)
-    pmic_get_voltage(MAXION, &voltage);
+    pmic_get_voltage(MODULE_MAXION, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding MAXION  -> 750mV(0x%X)\n", voltage);
 }
 
