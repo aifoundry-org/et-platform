@@ -36,7 +36,7 @@ class DeviceManagementConan(ConanFile):
         self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "deviceManagement")
 
     def requirements(self):
-        self.requires("deviceApi/0.6.0")
+        self.requires("deviceApi/0.7.0")
         self.requires("deviceLayer/0.2.0")
         self.requires("hostUtils/0.1.0")
 

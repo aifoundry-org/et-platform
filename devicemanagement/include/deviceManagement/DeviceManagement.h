@@ -31,6 +31,7 @@ namespace device_management {
 static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCodeTable = {
   {"DM_CMD_GET_MODULE_MANUFACTURE_NAME", device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME},
   {"DM_CMD_GET_MODULE_PART_NUMBER", device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER},
+  {"DM_CMD_SET_MODULE_PART_NUMBER", device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_PART_NUMBER},
   {"DM_CMD_GET_MODULE_SERIAL_NUMBER", device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_SERIAL_NUMBER},
   {"DM_CMD_GET_ASIC_CHIP_REVISION", device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_CHIP_REVISION},
   {"DM_CMD_GET_MODULE_PCIE_ADDR", device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PCIE_ADDR},

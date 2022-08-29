@@ -56,7 +56,7 @@ protected:
 
   // Functional tests asset tracking service
   void getModuleManufactureName(bool singleDevice);
-  void getModulePartNumber(bool singleDevice);
+  void setAndGetModulePartNumber(bool singleDevice);
   void getModuleSerialNumber(bool singleDevice);
   void getASICChipRevision(bool singleDevice);
   void getModulePCIEPortsMaxSpeed(bool singleDevice);

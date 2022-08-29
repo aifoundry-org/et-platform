@@ -370,30 +370,81 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  uint32_t partNumber;
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER, nullptr, 0,
+                                static_cast<char*>(static_cast<void*>(&partNumber)), sizeof(partNumber),
+                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received partNumber={:08x}", deviceIdx, partNumber);
+  }
+}
 
-  const uint32_t output_size = 4;
-  char expected[output_size] = {0x63, 0x56, 0x34, 0x11};
-  printf("expected: %.*s\n", output_size, expected);
+void TestDevMgmtApiSyncCmds::setAndGetModulePartNumber(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto setModulePartNumber = [&](int deviceIdx, uint32_t partNumber) {
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    DV_LOG(INFO) << fmt::format("Device[{}]: Setting partNumber={:08x}", deviceIdx, partNumber);
+    if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_PART_NUMBER,
+                          static_cast<char*>(static_cast<void*>(&partNumber)), sizeof(partNumber), nullptr, 0,
+                          hst_latency.get(), dev_latency.get(),
+                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+      return false;
+    }
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    return true;
+  };
+
+  auto getModulePartNumber = [&](int deviceIdx) -> std::optional<uint32_t> {
+    uint32_t partNumber;
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER, nullptr, 0,
+                          static_cast<char*>(static_cast<void*>(&partNumber)), sizeof(partNumber), hst_latency.get(),
+                          dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+      return std::nullopt;
+    }
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received partNumber={:08x}", deviceIdx, partNumber);
+    return partNumber;
+  };
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    char output_buff[output_size] = {0};
-    auto hst_latency = std::make_unique<uint32_t>();
-    auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER, nullptr, 0,
-                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
-              device_mgmt_api::DM_STATUS_SUCCESS);
+    // Get default partNumber
+    auto container = getModulePartNumber(deviceIdx);
+    ASSERT_TRUE(container.has_value()) << "getModulePartNumber() failed!";
+    auto defaultPartNumber = container.value();
 
-    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    // Set the testPartNumber (0xdeadbeef)
+    uint32_t testPartNumber = 0xdeadbeef;
+    EXPECT_TRUE(setModulePartNumber(deviceIdx, testPartNumber)) << "setModulePartNumber() failed!";
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
-      printf("output_buff: %.*s\n", output_size, output_buff);
+      // Validate testPartNumber
+      container = getModulePartNumber(deviceIdx);
+      ASSERT_TRUE(container.has_value()) << "getModulePartNumber() failed!";
+      EXPECT_EQ(container.value(), testPartNumber) << "Unable to set test partNumber";
+    }
 
-      device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
+    // Revert back to default partNumber
+    ASSERT_TRUE(setModulePartNumber(deviceIdx, defaultPartNumber)) << "setModulePartNumber() failed";
 
-      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+    // Skip validation if loopback driver
+    if (getTestTarget() != Target::Loopback) {
+      // Validate default partNumber is set
+      container = getModulePartNumber(deviceIdx);
+      ASSERT_TRUE(container.has_value()) << "getModulePartNumber() failed!";
+      EXPECT_EQ(container.value(), defaultPartNumber) << "Unable to revert to default partNumber";
     }
   }
 }
