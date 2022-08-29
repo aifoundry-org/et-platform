@@ -1111,27 +1111,21 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleFrequency(bool singleDevice) {
     for (device_mgmt_api::pll_id_e pll_id = device_mgmt_api::PLL_ID_NOC_PLL;
          pll_id <= device_mgmt_api::PLL_ID_MINION_PLL; pll_id++) {
       uint16_t pll_freq = (pll_id == device_mgmt_api::PLL_ID_NOC_PLL) ? freqs.second : freqs.first;
-      for (device_mgmt_api::use_step_e use_step = device_mgmt_api::USE_STEP_CLOCK_FALSE;
-           use_step <= device_mgmt_api::USE_STEP_CLOCK_TRUE; use_step++) {
-        if (use_step == device_mgmt_api::USE_STEP_CLOCK_TRUE && pll_id != device_mgmt_api::PLL_ID_MINION_PLL) {
-          continue;
-        }
-        const uint32_t input_size =
-          sizeof(uint16_t) + sizeof(device_mgmt_api::pll_id_e) + sizeof(device_mgmt_api::use_step_e);
-        char input_buff[input_size];
-        input_buff[0] = (char)(pll_freq & 0xff);
-        input_buff[1] = (char)((pll_freq >> 8) & 0xff);
-        input_buff[2] = (char)pll_id;
-        input_buff[3] = (char)use_step;
-        auto hst_latency = std::make_unique<uint32_t>();
-        auto dev_latency = std::make_unique<uint64_t>();
-        if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FREQUENCY, input_buff, input_size, nullptr,
-                              0, hst_latency.get(), dev_latency.get(),
-                              DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
-          return false;
-        }
-        DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+      const uint32_t input_size =
+        sizeof(uint16_t) + sizeof(device_mgmt_api::pll_id_e) + sizeof(device_mgmt_api::use_step_e);
+      char input_buff[input_size];
+      input_buff[0] = (char)(pll_freq & 0xff);
+      input_buff[1] = (char)((pll_freq >> 8) & 0xff);
+      input_buff[2] = (char)pll_id;
+      input_buff[3] = (char)device_mgmt_api::USE_STEP_CLOCK_TRUE;
+      auto hst_latency = std::make_unique<uint32_t>();
+      auto dev_latency = std::make_unique<uint64_t>();
+      if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FREQUENCY, input_buff, input_size, nullptr,
+                            0, hst_latency.get(), dev_latency.get(),
+                            DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+        return false;
       }
+      DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
     }
     return true;
   };

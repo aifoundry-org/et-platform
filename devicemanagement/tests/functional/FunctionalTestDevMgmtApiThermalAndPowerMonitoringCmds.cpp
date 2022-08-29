@@ -88,13 +88,8 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setThrottlePowerSt
   }
 }
 
-// TODO: SW-13952: Intermittent segmentation fault occuring
-TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, DISABLED_setAndGetModuleFrequency) {
-  // TODO: SW-13952: Enable back on Target::Silicon. It fails intermittently after few iterations
-  // with following error:
-  // Received incorrect rsp status: -15001
-  // if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
-  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu})) {
+TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setAndGetModuleFrequency) {
+  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
     setAndGetModuleFrequency(false /* Multiple devices */);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
