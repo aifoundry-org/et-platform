@@ -1955,6 +1955,9 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision(bool singleDevice) {
       ss << fmt::format("\tbl2_v:   {}.{}.{}", MAJOR_VERSION(firmware_versions->bl2_v),
                         MINOR_VERSION(firmware_versions->bl2_v), REVISION_VERSION(firmware_versions->bl2_v))
          << std::endl;
+      ss << fmt::format("\tpmic_v: {}.{}.{}", MAJOR_VERSION(firmware_versions->pmic_v),
+                        MINOR_VERSION(firmware_versions->pmic_v), REVISION_VERSION(firmware_versions->pmic_v))
+         << std::endl;
       ss << fmt::format("\tmm_v:    {}.{}.{}", MAJOR_VERSION(firmware_versions->mm_v),
                         MINOR_VERSION(firmware_versions->mm_v), REVISION_VERSION(firmware_versions->mm_v))
          << std::endl;

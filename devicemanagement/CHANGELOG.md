@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13850] Disabling setThrottlePowerStatus test on silicon until SW-13953 is resolved
 - [SW-13850] Disabling setAndGetModuleFrequency test until SW-13952 is resolved
 - [SW-13953]: Removing workarrounds for trace related tests and fixed SP trace log levels 
+- [SW-13954] updated getFirmwareRevisions test to also print pmic_v
 ### Deprecated
 ### Removed
 ### Fixed
