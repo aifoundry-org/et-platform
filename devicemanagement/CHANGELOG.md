@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - [SW-13954] Added setAndGetModulePartNumber
+- [SW-13954] Added setAndGetModuleVoltage
 ### Changed
 - [SW-13850] Disabling setThrottlePowerStatus test on silicon until SW-13953 is resolved
 - [SW-13850] Disabling setAndGetModuleFrequency test until SW-13952 is resolved

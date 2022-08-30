@@ -56,6 +56,7 @@ protected:
 
   // Functional tests asset tracking service
   void getModuleManufactureName(bool singleDevice);
+  void getModulePartNumber(bool singleDevice);
   void setAndGetModulePartNumber(bool singleDevice);
   void getModuleSerialNumber(bool singleDevice);
   void getASICChipRevision(bool singleDevice);
@@ -74,6 +75,7 @@ protected:
   void getModuleUptime(bool singleDevice);
   void getModulePower(bool singleDevice);
   void getModuleVoltage(bool singleDevice);
+  void setAndGetModuleVoltage(bool singleDevice);
   void getModuleCurrentTemperature(bool singleDevice);
   void getModuleResidencyPowerState(bool singleDevice);
   void setModuleActivePowerManagement(bool singleDevice);

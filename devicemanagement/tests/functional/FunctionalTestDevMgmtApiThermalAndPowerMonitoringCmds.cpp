@@ -60,6 +60,11 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleVoltage) 
   getModuleVoltage(false /* Multiple devices */);
 }
 
+// Disabled until SW-14061 is resolved
+TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, DISABLED_setAndGetModuleVoltage) {
+  setAndGetModuleVoltage(false /* Multiple devices */);
+}
+
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleCurrentTemperature) {
   getModuleCurrentTemperature(false /* Multiple devices */);
 }
