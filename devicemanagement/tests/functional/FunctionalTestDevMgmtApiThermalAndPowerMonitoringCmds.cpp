@@ -73,19 +73,7 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setModuleActivePow
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setThrottlePowerStatus) {
-  // TODO: SW-13953: Enable back on Target::Silicon, following failure is seen on silicon
-  // No SP trace event found!
-  // The txt trace file when failure occurs has no logged traces:
-  // bash-4.2$ cat devtrace/txt_files/dev0_traces.txt
-  //
-  // FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds.setThrottlePowerStatus
-  // -> SP Traces
-  if (getTestTarget() != Target::Silicon) {
-    setThrottlePowerStatus(false /* Multiple Devices */);
-  } else {
-    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
-    FLAGS_enable_trace_dump = false;
-  }
+  setThrottlePowerStatus(false /* Multiple Devices */);
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setAndGetModuleFrequency) {
