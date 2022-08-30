@@ -114,6 +114,7 @@ void Trace_Process_Control_Cmd(void *buffer)
         et_trace_buffer_lock_acquire();
         trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
         SP_Trace_CB.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
+        ETSOC_MEM_EVICT((uint64_t *)SP_TRACE_BUFFER_BASE, SP_Trace_CB.offset_per_hart, to_L2)
         et_trace_buffer_lock_release();
     }
 
@@ -126,9 +127,8 @@ void Trace_Process_Control_Cmd(void *buffer)
     else
     {
         trace_header->data_size = SP_Trace_CB.offset_per_hart;
+        ETSOC_MEM_EVICT((uint64_t *)SP_TRACE_BUFFER_BASE, SP_Trace_CB.offset_per_hart, to_L2)
         Trace_Run_Control(TRACE_DISABLE);
-        //NOSONAR TODO: https://esperantotech.atlassian.net/browse/SW-9220
-        //NOSONAR evict(to_Mem, (void *)SP_Trace_CB.base_per_hart, SP_Trace_CB.offset_per_hart);
         Log_Write(LOG_LEVEL_INFO, "TRACE_RT_CONTROL:SP:Trace Disabled.\r\n");
     }
 
@@ -295,6 +295,7 @@ int32_t Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
 
         /* Put the data size. */
         trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
+        ETSOC_MEM_EVICT((uint64_t *)SP_TRACE_BUFFER_BASE, SP_Trace_CB.offset_per_hart, to_L2)
     }
 
     return status;
@@ -400,6 +401,7 @@ void Trace_Update_SP_Buffer_Header(void)
         (struct trace_buffer_std_header_t *)SP_Trace_CB.base_per_hart;
 
     trace_header->data_size = SP_Trace_CB.offset_per_hart;
+    ETSOC_MEM_EVICT((uint64_t *)SP_TRACE_BUFFER_BASE, SP_Trace_CB.offset_per_hart, to_L2)
 }
 
 /************************************************************************
@@ -497,7 +499,8 @@ int32_t Trace_Exception_Init_SP(const struct trace_init_info_t *init_info)
 
     /* Set the default offset */
     SP_Exp_Trace_CB.offset_per_hart = sizeof(struct trace_buffer_size_header_t);
-
+    ETSOC_MEM_EVICT((uint64_t *)SP_Exp_Trace_CB.base_per_hart, SP_Exp_Trace_CB.offset_per_hart,
+                    to_L2)
     /* Buffer locks for exception buffer are not required as this will only be accessed
        from exception reporting context. */
     SP_Exp_Trace_CB.buffer_lock_acquire = NULL;
@@ -589,7 +592,8 @@ uint8_t *Trace_Exception_Dump_Context(const void *stack_frame)
         (struct trace_buffer_size_header_t *)SP_Exp_Trace_CB.base_per_hart;
 
     size_header->data_size = SP_Exp_Trace_CB.offset_per_hart;
-
+    ETSOC_MEM_EVICT((uint64_t *)SP_Exp_Trace_CB.base_per_hart, SP_Exp_Trace_CB.offset_per_hart,
+                    to_L2)
     return trace_buf;
 }
 
@@ -665,7 +669,8 @@ int32_t Trace_Init_SP_Dev_Stats(const struct trace_init_info_t *dev_trace_init_i
 
     /* Put the data size. */
     trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
-
+    ETSOC_MEM_EVICT((uint64_t *)SP_STATS_TRACE_BUFFER_BASE, SP_Stats_Trace_CB.offset_per_hart,
+                    to_L2)
     return status;
 }
 
@@ -720,4 +725,6 @@ void Trace_Update_SP_Stats_Buffer_Header(void)
 
     /* Update data size in trace header */
     trace_header->data_size = SP_Stats_Trace_CB.offset_per_hart;
+    ETSOC_MEM_EVICT((uint64_t *)SP_STATS_TRACE_BUFFER_BASE, SP_Stats_Trace_CB.offset_per_hart,
+                    to_L2)
 }
