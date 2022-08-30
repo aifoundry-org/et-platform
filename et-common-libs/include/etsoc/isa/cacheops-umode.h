@@ -23,14 +23,6 @@ enum cop_dest { to_L1 = 0x0ULL, to_L2 = 0x1ULL, to_L3 = 0x2ULL, to_Mem = 0x3ULL 
 
 enum l1d_mode { l1d_shared, l1d_split, l1d_scp };
 
-#define CALC_CACHE_OPS_VAL(use_tmask, dst, way, set, num_lines)              \
-    (((((uint64_t)use_tmask) & 1) << 63) | ((((uint64_t)dst) & 0x3) << 58) | \
-        ((((uint16_t)set) & 0xF) << 14) | ((way & 0x3) << 6) | (((num_lines)&0xF)))
-
-#define CALC_CSR_ENC_VAL(use_tmask, dst, addr, num_lines)                   \
-    ((((uint64_t)use_tmask) & 1) << 63) |                                   \
-        ((((uint64_t)dst) & 0x3 /* 00=L1, 01=L2, 10=L3, 11=MEM */) << 58) | \
-        ((((uint64_t)addr) & 0xFFFFFFFFFFC0ULL)) | (((num_lines)&0xF))
 //-------------------------------------------------------------------------------------------------
 //   Privledged U-Mode cache operations
 //-------------------------------------------------------------------------------------------------
@@ -43,8 +35,11 @@ enum l1d_mode { l1d_shared, l1d_split, l1d_scp };
 //   destination. Optionally, a repeat count can be specified to evict more adjacent cache lines.
 //   Optionally, each potential line eviction can be gated by the value of the TensorMask CSR.
 //
-#define cache_ops_priv_evict_sw(use_tmask, dst, way, set, num_lines)                             \
-    syscall(SYSCALL_CACHE_OPS_EVICT_SW, CALC_CACHE_OPS_VAL(use_tmask, dst, way, set, num_lines), \
+#define cache_ops_priv_evict_sw(use_tmask, dst, way, set, num_lines)             \
+    syscall(SYSCALL_CACHE_OPS_EVICT_SW,                                          \
+        (((((uint64_t)use_tmask) & 1) << 63) | ((((uint64_t)dst) & 0x3) << 58) | \
+            ((((uint64_t)set) & 0xF) << 14) | ((((uint64_t)way) & 0x3) << 6) |   \
+            ((((uint64_t)num_lines) & 0xF))),                                    \
         0, 0);
 
 //-------------------------------------------------------------------------------------------------
@@ -55,8 +50,11 @@ enum l1d_mode { l1d_shared, l1d_split, l1d_scp };
 //   line is dirty. Optionally, a repeat count can be specified to flush more adjacent cache lines.
 //   Optionally, each potential line flush can be gated by the value of the TensorMask CSR.
 //
-#define cache_ops_priv_flush_sw(use_tmask, dst, way, set, num_lines)                             \
-    syscall(SYSCALL_CACHE_OPS_FLUSH_SW, CALC_CACHE_OPS_VAL(use_tmask, dst, way, set, num_lines), \
+#define cache_ops_priv_flush_sw(use_tmask, dst, way, set, num_lines)             \
+    syscall(SYSCALL_CACHE_OPS_FLUSH_SW,                                          \
+        (((((uint64_t)use_tmask) & 1) << 63) | ((((uint64_t)dst) & 0x3) << 58) | \
+            ((((uint64_t)set) & 0xF) << 14) | ((((uint64_t)way) & 0x3) << 6) |   \
+            ((((uint64_t)num_lines) & 0xF))),                                    \
         0, 0);
 
 //-------------------------------------------------------------------------------------------------
@@ -75,9 +73,9 @@ enum l1d_mode { l1d_shared, l1d_split, l1d_scp };
 //
 //   Hard-unlock and zero a particular set-way in the L1 data cache
 //
-#define cache_ops_priv_l1_cache_unlock_sw(way, set)                                              \
-    syscall(SYSCALL_CACHE_OPS_UNLOCK_SW, (((((uint64_t)way) & 0x3) << 55) | ((set & 0xF) << 6)), \
-        0, 0);
+#define cache_ops_priv_l1_cache_unlock_sw(way, set) \
+    syscall(SYSCALL_CACHE_OPS_UNLOCK_SW,            \
+        (((((uint64_t)way) & 0x3) << 55) | ((((uint64_t)set) & 0xF) << 6)), 0, 0);
 
 //-------------------------------------------------------------------------------------------------
 //
@@ -112,14 +110,17 @@ enum l1d_mode { l1d_shared, l1d_split, l1d_scp };
 //   are calculated using the provided stride.
 //   Optionally, each potential line eviction can be gated by the value of the TensorMask CSR.
 //
-#define cache_ops_evict_va(use_tmask, dst, addr, num_lines, stride, id)                   \
-    {                                                                                     \
-        uint64_t csr_enc = CALC_CSR_ENC_VAL(use_tmask, dst, addr, num_lines);             \
-        register uint64_t x31_enc asm("x31") = (((uint64_t)stride) & 0xFFFFFFFFFFC0ULL) | \
-                                               (id & 0x1);                                \
-        __asm__ __volatile__("csrw 0x89f, %[csr_enc]\n"                                   \
-                             :                                                            \
-                             : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));           \
+#define cache_ops_evict_va(use_tmask, dst, addr, num_lines, stride, id)                        \
+    {                                                                                          \
+        uint64_t csr_enc = ((((uint64_t)use_tmask) & 1) << 63) |                               \
+                           ((((uint64_t)dst) & 0x3) << 58) | /* 00=L1, 01=L2, 10=L3, 11=MEM */ \
+                           ((((uint64_t)addr) & 0xFFFFFFFFFFC0ULL)) |                          \
+                           ((((uint64_t)num_lines) & 0xF));                                    \
+        register uint64_t x31_enc asm("x31") = (((uint64_t)stride) & 0xFFFFFFFFFFC0ULL) |      \
+                                               (((uint64_t)id) & 0x1);                         \
+        __asm__ __volatile__("csrw 0x89f, %[csr_enc]\n"                                        \
+                             :                                                                 \
+                             : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));                \
     }
 
 //-------------------------------------------------------------------------------------------------
@@ -129,8 +130,8 @@ enum l1d_mode { l1d_shared, l1d_split, l1d_scp };
 //   This function evicts all cache lines from address to address+size up to the provided
 //   cache level.
 //
-#define cache_ops_evict(dest, address, size)                               \
-    cache_ops_evict_va(0, (enum cop_dest)dest, (volatile uint64_t)address, \
+#define cache_ops_evict(dest, address, size)                           \
+    cache_ops_evict_va((uint64_t)0, (uint64_t)dest, (uint64_t)address, \
         (((uint64_t)address & 0x3F) + (uint64_t)size) >> 6, 64, 0);
 
 //-------------------------------------------------------------------------------------------------
@@ -142,14 +143,16 @@ enum l1d_mode { l1d_shared, l1d_split, l1d_scp };
 //   more lines, whose addresses are calculated using the provided stride.
 //   Optionally, each potential line flush can be gated by the value of the TensorMask CSR.
 //
-#define cache_ops_flush_va(use_tmask, dst, addr, num_lines, stride, id)                   \
-    {                                                                                     \
-        uint64_t csr_enc = CALC_CSR_ENC_VAL(use_tmask, dst, addr, num_lines);             \
-        register uint64_t x31_enc asm("x31") = (((uint64_t)stride) & 0xFFFFFFFFFFC0ULL) | \
-                                               (id & 0x1);                                \
-        __asm__ __volatile__("csrw 0x8bf, %[csr_enc]\n"                                   \
-                             :                                                            \
-                             : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));           \
+#define cache_ops_flush_va(use_tmask, dst, addr, num_lines, stride, id)                            \
+    {                                                                                              \
+        uint64_t csr_enc = ((((uint64_t)use_tmask) & 1) << 63) | ((((uint64_t)dst) & 0x3) << 58) | \
+                           ((((uint64_t)addr) & 0xFFFFFFFFFFC0ULL)) |                              \
+                           ((((uint64_t)num_lines) & 0xF));                                        \
+        register uint64_t x31_enc asm("x31") = (((uint64_t)stride) & 0xFFFFFFFFFFC0ULL) |          \
+                                               (((uint64_t)id) & 0x1);                             \
+        __asm__ __volatile__("csrw 0x8bf, %[csr_enc]\n"                                            \
+                             :                                                                     \
+                             : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));                    \
     }
 //-------------------------------------------------------------------------------------------------
 //
@@ -160,14 +163,16 @@ enum l1d_mode { l1d_shared, l1d_split, l1d_scp };
 //   calculated using the provided stride.
 //   Optionally, each line prefetch can be gated by the value of the TensorMask CSR.
 //
-#define cache_ops_prefetch_va(use_tmask, dst, addr, num_lines, stride, id)                \
-    {                                                                                     \
-        uint64_t csr_enc = CALC_CSR_ENC_VAL(use_tmask, dst, addr, num_lines);             \
-        register uint64_t x31_enc asm("x31") = (((uint64_t)stride) & 0xFFFFFFFFFFC0ULL) | \
-                                               (id & 0x1);                                \
-        __asm__ __volatile__("csrw 0x81f, %[csr_enc]\n"                                   \
-                             :                                                            \
-                             : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));           \
+#define cache_ops_prefetch_va(use_tmask, dst, addr, num_lines, stride, id)                         \
+    {                                                                                              \
+        uint64_t csr_enc = ((((uint64_t)use_tmask) & 1) << 63) | ((((uint64_t)dst) & 0x3) << 58) | \
+                           ((((uint64_t)addr) & 0xFFFFFFFFFFC0ULL)) |                              \
+                           ((((uint64_t)num_lines) & 0xF));                                        \
+        register uint64_t x31_enc asm("x31") = (((uint64_t)stride) & 0xFFFFFFFFFFC0ULL) |          \
+                                               (((uint64_t)id) & 0x1);                             \
+        __asm__ __volatile__("csrw 0x81f, %[csr_enc]\n"                                            \
+                             :                                                                     \
+                             : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));                    \
     }
 
 //-------------------------------------------------------------------------------------------------
@@ -180,15 +185,16 @@ enum l1d_mode { l1d_shared, l1d_split, l1d_scp };
 //   calculated using the provided stride.
 //   Optionally, each line lock can be gated by the value of the TensorMask CSR.
 //
-#define cache_ops_lock_va(use_tmask, addr, num_lines, stride, id)                          \
-    {                                                                                      \
-        uint64_t csr_enc = ((((uint64_t)use_tmask) & 1) << 63) |                           \
-                           ((((uint64_t)addr) & 0xFFFFFFFFFFC0ULL)) | (((num_lines)&0xF)); \
-        register uint64_t x31_enc asm("x31") = (((uint64_t)stride) & 0xFFFFFFFFFFC0ULL) |  \
-                                               (id & 0x1);                                 \
-        __asm__ __volatile__("csrw 0x8df, %[csr_enc]\n"                                    \
-                             :                                                             \
-                             : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));            \
+#define cache_ops_lock_va(use_tmask, addr, num_lines, stride, id)                         \
+    {                                                                                     \
+        uint64_t csr_enc = ((((uint64_t)use_tmask) & 1) << 63) |                          \
+                           ((((uint64_t)addr) & 0xFFFFFFFFFFC0ULL)) |                     \
+                           ((((uint64_t)num_lines) & 0xF));                               \
+        register uint64_t x31_enc asm("x31") = (((uint64_t)stride) & 0xFFFFFFFFFFC0ULL) | \
+                                               (((uint64_t)id) & 0x1);                    \
+        __asm__ __volatile__("csrw 0x8df, %[csr_enc]\n"                                   \
+                             :                                                            \
+                             : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));           \
     }
 
 //-------------------------------------------------------------------------------------------------
@@ -200,15 +206,16 @@ enum l1d_mode { l1d_shared, l1d_split, l1d_scp };
 //   calculated using the provided stride.
 //   Optionally, each unlock can be gated by the value of the TensorMask CSR.
 //
-#define cache_ops_unlock_va(use_tmask, addr, num_lines, stride, id)                        \
-    {                                                                                      \
-        uint64_t csr_enc = ((((uint64_t)use_tmask) & 1) << 63) |                           \
-                           ((((uint64_t)addr) & 0xFFFFFFFFFFC0ULL)) | (((num_lines)&0xF)); \
-        register uint64_t x31_enc asm("x31") = (((uint64_t)stride) & 0xFFFFFFFFFFC0ULL) |  \
-                                               (id & 0x1);                                 \
-        __asm__ __volatile__("csrw 0x8ff, %[csr_enc]\n"                                    \
-                             :                                                             \
-                             : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));            \
+#define cache_ops_unlock_va(use_tmask, addr, num_lines, stride, id)                       \
+    {                                                                                     \
+        uint64_t csr_enc = ((((uint64_t)use_tmask) & 1) << 63) |                          \
+                           ((((uint64_t)addr) & 0xFFFFFFFFFFC0ULL)) |                     \
+                           ((((uint64_t)num_lines) & 0xF));                               \
+        register uint64_t x31_enc asm("x31") = (((uint64_t)stride) & 0xFFFFFFFFFFC0ULL) | \
+                                               (((uint64_t)id) & 0x1);                    \
+        __asm__ __volatile__("csrw 0x8ff, %[csr_enc]\n"                                   \
+                             :                                                            \
+                             : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));           \
     }
 
 //
@@ -222,12 +229,13 @@ enum l1d_mode { l1d_shared, l1d_split, l1d_scp };
         __asm__ __volatile__("csrw 0x810, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc) : "x31"); \
     }
 
-#define cache_ops_get_l1d_mode                                                                    \
-    ({                                                                                            \
-        uint64_t csr_enc;                                                                         \
-        __asm__ __volatile__("csrr %[csr_enc], 0x810\n" : [csr_enc] "=r"(csr_enc) : :);           \
-        (((csr_enc & 0x3) == 0x3) ? l1d_scp : ((csr_enc & 0x3) == 0x1) ? l1d_split : l1d_shared); \
-    })
+#define cache_ops_get_l1d_mode                                                               \
+    {                                                                                        \
+        uint64_t csr_enc;                                                                    \
+        __asm__ __volatile__("csrr %[csr_enc], 0x810\n" : [csr_enc] "=r"(csr_enc) : :);      \
+        return ((csr_enc & 0x3) == 0x3) ? l1d_scp :                                          \
+                                          ((csr_enc & 0x3) == 0x1) ? l1d_split : l1d_shared; \
+    }
 
 #define cache_ops_scp(warl, DEscratchpad)                                                    \
     {                                                                                        \
