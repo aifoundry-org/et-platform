@@ -280,8 +280,6 @@ inline void __attribute__((always_inline)) excl_mode(uint64_t val)
 
 inline void __attribute__((always_inline)) scp(uint64_t warl, uint64_t DEscratchpad)
 {
-    // Hard partition L1 Data cache between the harts
-    //mcache_control(0,0,0);
     FENCE
     WAIT_CACHEOPS
 
