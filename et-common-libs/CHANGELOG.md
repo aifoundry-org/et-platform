@@ -23,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [SW-13750] New APIs in PMU to simultaneously sample all PMCs.
 ### Changed
 - Optimized et_printf by removing extra vsnprintf call.
-- [SW-10869] replaced cache inline functions with macros
 - Require esperantoTrace/0.6.0
 ### Deprecated
 ### Removed
