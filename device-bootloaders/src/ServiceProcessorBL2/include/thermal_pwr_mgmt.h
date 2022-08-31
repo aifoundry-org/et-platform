@@ -36,8 +36,10 @@
 
 // Defines the Boot voltages for the respective Voltage Domains
 #define NEIGH_BOOT_VOLTAGE 0x2DU // 475 mV
-#define SRAM_BOOT_VOLTAGE  0x64U // 750 mV
-#define NOC_BOOT_VOLTAGE   0x28U // 450 mV
+#define SRAM_BOOT_VOLTAGE  0x5EU // 720 mV
+#define NOC_BOOT_VOLTAGE   0x24U // 430 mV
+#define DDR_BOOT_VOLTAGE   0x64U // 750 mV
+#define MXN_BOOT_VOLTAGE   0x64U // 750 mV
 
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register
