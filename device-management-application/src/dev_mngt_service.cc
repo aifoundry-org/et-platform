@@ -1724,9 +1724,8 @@ void printUsage(char* argv) {
   printVersionUsage(argv);
 }
 
-int getTraceBuffer() {
+bool getTraceBuffer() {
   TraceBufferType buf_type;
-  int ret;
   std::string str_optarg = std::string(optarg);
 
   std::unordered_map<std::string, TraceBufferType> const traceBuffers = {{"SP", TraceBufferType::TraceBufferSP},
@@ -1741,16 +1740,16 @@ int getTraceBuffer() {
     buf_type = it->second;
 
     static DMLib dml;
-    ret = dml.verifyDMLib();
-    if (ret != DM_STATUS_SUCCESS) {
-      DM_VLOG(HIGH) << "Failed to verify the DM lib: " << ret << std::endl;
-      return ret;
+    if (dml.verifyDMLib() != DM_STATUS_SUCCESS) {
+      DM_VLOG(HIGH) << "Failed to verify the DM lib: " << std::endl;
+      return false;
     }
     DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
     std::vector<std::byte> response;
 
     if (dm.getTraceBufferServiceProcessor(node, buf_type, response) != device_mgmt_api::DM_STATUS_SUCCESS) {
       DM_LOG(INFO) << "Unable to get trace buffer for node: " << node << std::endl;
+      return false;
     }
     dumpRawTraceBuffer(node, response, buf_type);
     decodeTraceEvents(node, response, buf_type);

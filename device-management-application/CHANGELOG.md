@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - [SW-13978] dev_mngt_service: Intermittent failures while setting MINION,NOC frequencies.
+- [SW-13978]: Fixed get sp trace buffer to return error in case of buffer not reterieved 
 ### Security
 
 ## [1.4.0] - 2022-8-15
