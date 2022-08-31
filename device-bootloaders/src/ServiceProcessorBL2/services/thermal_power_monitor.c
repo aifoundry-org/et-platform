@@ -792,42 +792,28 @@ static void pwr_svc_set_module_frequency(tag_id_t tag_id, uint64_t req_start_tim
     if (pll_id == PLL_ID_NOC_PLL || use_step_clock == USE_STEP_CLOCK_TRUE)
     {
         status = pwr_svc_find_hpdpll_mode(freq, &hpdpll_mode);
-        if (status != 0)
-        {
-            goto SEND_RESPONSE;
-        }
     }
     else
     {
         status = pwr_svc_find_lvdpll_mode(freq, &lvdpll_mode);
-        if (status != 0)
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        switch (pll_id)
         {
-            goto SEND_RESPONSE;
+            case PLL_ID_NOC_PLL:
+                status = configure_sp_pll_2(hpdpll_mode, HPDPLL_LDO_NO_UPDATE);
+                break;
+            case PLL_ID_MINION_PLL:
+                status = Minion_Configure_Minion_Shire_PLL_no_mask(hpdpll_mode, lvdpll_mode,
+                                                                   use_step_clock);
+                break;
+            default:
+                status = THERMAL_PWR_MGMT_SET_FREQ_ID_INVALID;
         }
     }
 
-    switch (pll_id)
-    {
-        case PLL_ID_NOC_PLL:
-            status = configure_sp_pll_2(hpdpll_mode, HPDPLL_LDO_NO_UPDATE);
-            if (STATUS_SUCCESS != status)
-            {
-                goto SEND_RESPONSE;
-            }
-            break;
-        case PLL_ID_MINION_PLL:
-            status =
-                Minion_Configure_Minion_Shire_PLL_no_mask(hpdpll_mode, lvdpll_mode, use_step_clock);
-            if (STATUS_SUCCESS != status)
-            {
-                goto SEND_RESPONSE;
-            }
-            break;
-        default:
-            status = THERMAL_PWR_MGMT_SET_FREQ_ID_INVALID;
-    }
-
-SEND_RESPONSE:
     FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_SET_FREQUENCY, timer_get_ticks_count() - req_start_time,
                     status)
 
