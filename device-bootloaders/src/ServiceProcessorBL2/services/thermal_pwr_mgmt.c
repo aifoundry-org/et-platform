@@ -687,10 +687,10 @@ int get_module_soc_power(uint8_t *soc_power)
 int get_module_voltage(struct module_voltage_t *module_voltage)
 {
     int status = STATUS_SUCCESS;
+    uint8_t temp;
     MinShire_VM_sample minshire_voltage = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
     MemShire_VM_sample memshire_voltage = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
     PShire_VM_sample pshr_voltage = { { 0, 0, 0 }, { 0, 0, 0 } };
-    IOShire_VM_sample ioshire_voltage = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } };
 
     status = pvt_get_minion_avg_low_high_voltage(&minshire_voltage);
     if (status == STATUS_SUCCESS)
@@ -726,20 +726,6 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
         MESSAGE_ERROR("thermal pwr mgmt svc error: faild to get memshire voltage\n");
     }
 
-    status = pvt_get_ioshire_vm_sample(&ioshire_voltage);
-    if (status == STATUS_SUCCESS)
-    {
-        get_soc_power_reg()->module_voltage.maxion =
-            PMIC_MILLIVOLT_TO_HEX(ioshire_voltage.vdd_mxn.current, PMIC_MAXION_VOLTAGE_MULTIPLIER);
-
-        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: maxion voltage: %d\r\n",
-                  ioshire_voltage.vdd_mxn.current);
-    }
-    else
-    {
-        MESSAGE_ERROR("thermal pwr mgmt svc error: faild to get ioshire voltage\n");
-    }
-
     status = pvt_get_pshire_vm_sample(&pshr_voltage);
     if (status == STATUS_SUCCESS)
     {
@@ -753,10 +739,15 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
         MESSAGE_ERROR("thermal pwr mgmt svc error: faild to get pshire voltage\n");
     }
 
-    /* hardcorded nominal module voltage values because they are not currently available with pvt */
-    get_soc_power_reg()->module_voltage.vddqlp = 0x25;
-    get_soc_power_reg()->module_voltage.vddq = 0x55;
-    get_soc_power_reg()->module_voltage.pcie_logic = 0x18;
+    /* For these values we dont have PVT, so will use PMIC */
+    pmic_get_voltage(MODULE_MAXION, &temp);
+    get_soc_power_reg()->module_voltage.maxion = temp;
+    pmic_get_voltage(MODULE_VDDQLP, &temp);
+    get_soc_power_reg()->module_voltage.vddqlp = temp;
+    pmic_get_voltage(MODULE_VDDQ, &temp);
+    get_soc_power_reg()->module_voltage.vddq = temp;
+    pmic_get_voltage(MODULE_PCIE_LOGIC, &temp);
+    get_soc_power_reg()->module_voltage.pcie_logic = temp;
 
     if (module_voltage != NULL)
     {

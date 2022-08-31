@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updating NOC, DDR and Maxion boot voltages
 - [SW-13954] Add handling for DM_CMD_SET_MODULE_PART_NUMBER
 - [SW-13954] Add handling for DM_CMD_SET_MODULE_VOLTAGE
+- [SW-13954] Using PMIC voltage values for Maxion, PCIe Logic, VDDQ and VDDQLP.
 ### Deprecated
 ### Removed
 ### Fixed
