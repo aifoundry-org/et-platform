@@ -50,6 +50,7 @@
  *     Trace_Power_Status
  *     Trace_Execution_Stack
  *     Trace_Custom_Event
+ *     Trace_Event_Copy
  *
  * The trace buffer itself is accessed via a control block.
  * This data structure has to be filled with a pointer to the
@@ -187,6 +188,8 @@ extern "C" {
 #define TRACE_INVALID_INIT_INFO -2
 #define TRACE_INVALID_THRESHOLD -3
 #define TRACE_INVALID_BUF_SIZE  -4
+#define TRACE_INVALID_SRC_ENTRY -5
+#define TRACE_INVALID_DST_ENTRY -6
 
 typedef uint8_t trace_enable_e;
 
@@ -254,6 +257,8 @@ void *Trace_Execution_Stack(struct trace_control_block_t *cb,
                             const struct dev_context_registers_t *regs);
 void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
                          const uint8_t *payload, uint32_t payload_size);
+int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_header_t *src_entry,
+                         void *dst_entry, const uint32_t dst_size);
 
 #ifdef ET_TRACE_ENCODER_IMPL
 
@@ -1231,6 +1236,72 @@ void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
     }
 
     return (void*)entry;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Event_Copy
+*
+*   DESCRIPTION
+*
+*       A function to copy an event from the trace buffer.  This assumes the event
+*       hasn't be overwritten in the mean time, which is safe for current design
+*       and usage, but revisit as needed for future changes in this regard.
+*
+*   INPUTS
+*
+*       trace_control_block_t    Trace control block of logging Thread/Hart.
+*       src_entry                Pointer to source trace entry
+*       dst_entry                Pointer to destination trace entry
+*       dst_size                 Size of the destination trace entry
+*
+*   OUTPUTS
+*
+*       int32_t                  Successful status or error code.
+*
+************************************************************************/
+int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_header_t *src_entry,
+                         void *dst_entry, const uint32_t dst_size)
+{
+    int32_t status = TRACE_STATUS_SUCCESS;
+    void *lo_bound;
+    void *hi_bound;
+    void *buffer;
+
+    if (!cb || !trace_is_enabled(cb)) {
+        return TRACE_INVALID_CB;
+    } else if (!src_entry) {
+        return TRACE_INVALID_SRC_ENTRY;
+    } else if (!dst_entry) {
+        return TRACE_INVALID_DST_ENTRY;
+    }
+
+    /* Do a basic validation of the src_entry before copying. This could be enhanced if
+       worthwhile (inspect more fields, use a lock, etc). */
+    buffer = (void *)ET_TRACE_READ_U64(cb->base_per_hart);
+    lo_bound = buffer + trace_get_header_size(cb);
+    hi_bound = buffer + ET_TRACE_READ_U32(cb->size_per_hart);
+
+    if (lo_bound > (void *)src_entry || hi_bound < (void *)src_entry + sizeof(*src_entry)) {
+        status = TRACE_INVALID_SRC_ENTRY;
+    } else {
+        const trace_type_e type = ET_TRACE_READ_U16(src_entry->type);
+        const uint32_t src_size = sizeof(*src_entry) + ET_TRACE_READ_U32(src_entry->payload_size);
+
+        if (type < TRACE_TYPE_START || type >= TRACE_TYPE_END) {
+            status = TRACE_INVALID_SRC_ENTRY;
+        } else if ((void *)src_entry + src_size > hi_bound) {
+            status = TRACE_INVALID_SRC_ENTRY;
+        } else if (src_size > dst_size) {
+            status = TRACE_INVALID_DST_ENTRY;
+        } else {
+            ET_TRACE_MEM_CPY(dst_entry, src_entry, src_size);
+        }
+    }
+
+    return status;
 }
 
 #endif /* ET_TRACE_ENCODER_IMPL */

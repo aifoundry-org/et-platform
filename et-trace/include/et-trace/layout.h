@@ -137,7 +137,8 @@ typedef uint16_t trace_type_e;
     \brief Trace packet types.
 */
 enum trace_type {
-    TRACE_TYPE_STRING,
+    TRACE_TYPE_START,
+    TRACE_TYPE_STRING = TRACE_TYPE_START,
     TRACE_TYPE_PMC_COUNTER,
     TRACE_TYPE_PMC_COUNTERS_COMPUTE,
     TRACE_TYPE_PMC_COUNTERS_MEMORY,
@@ -150,7 +151,8 @@ enum trace_type {
     TRACE_TYPE_EXCEPTION,
     TRACE_TYPE_CMD_STATUS,
     TRACE_TYPE_POWER_STATUS,
-    TRACE_TYPE_CUSTOM_EVENT
+    TRACE_TYPE_CUSTOM_EVENT,
+    TRACE_TYPE_END
 };
 
 /*! \enum trace_custom_type_sp
@@ -297,7 +299,7 @@ struct trace_entry_header_t {
     uint64_t cycle;   /**< Current cycle */
     uint32_t payload_size; /**< Size of the event payload following the entry header */
     uint16_t hart_id; /**< (optional) Hart ID of the Hart which is logging Trace */
-    uint16_t type;    /**< One of enum trace_type_e */
+    trace_type_e type; /**< One of enum trace_type */
 } __attribute__((packed));
 
 /*! \struct trace_pmc_counters_compute_t
