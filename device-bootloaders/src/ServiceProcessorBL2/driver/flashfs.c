@@ -42,6 +42,7 @@
 #include "log.h"
 #include "etsoc/drivers/serial/serial.h"
 #include "crc32.h"
+#include "bl2_scratch_buffer.h"
 #include "bl2_spi_controller.h"
 #include "bl2_spi_flash.h"
 #include "bl2_flash_fs.h"
@@ -53,6 +54,12 @@
 #pragma GCC push_options
 /* #pragma GCC optimize ("O2") */
 #pragma GCC diagnostic ignored "-Wswitch-enum"
+
+/* Assertion to make sure that the sector being modified in flash_fs_set_part_number() is the expected one */
+static_assert(SPI_FLASH_SECTOR_SIZE >= sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                                           sizeof(ESPERANTO_CONFIG_HEADER_t) +
+                                           sizeof(ESPERANTO_CONFIG_DATA_t),
+              "flash_fs_set_part_number(): ESPERANTO_CONFIG_DATA_t not in the expected sector!");
 
 /*! \def INVALID_REGION_INDEX
     \brief invalid region index value.
@@ -1429,9 +1436,15 @@ int flash_fs_set_part_number(uint32_t part_number)
 {
     uint32_t partition_address;
     uint32_t config_data_address;
-    uint8_t asset_config_reg[sizeof(ESPERANTO_CONFIG_HEADER_t) + sizeof(ESPERANTO_CONFIG_DATA_t)] = {
-        0
-    };
+    uint32_t scratch_buffer_size;
+    void *scratch_buffer;
+
+    /* Since Flash sector size is 4KB, get scratch buffer to use */
+    scratch_buffer = get_scratch_buffer(&scratch_buffer_size);
+    if (scratch_buffer_size < SPI_FLASH_SECTOR_SIZE)
+    {
+        return ERROR_INSUFFICIENT_MEMORY;
+    }
 
     if (0 == sg_flash_fs_bl2_info.active_partition)
     {
@@ -1448,18 +1461,17 @@ int flash_fs_set_part_number(uint32_t part_number)
 
     config_data_address = partition_address + sg_flash_fs_bl2_info.configuration_region_address;
 
-    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id,
-                                   config_data_address +
-                                       (uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t),
-                                   (uint8_t *)&asset_config_reg, sizeof(asset_config_reg)))
+    /* Read the whole sector */
+    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id, config_data_address,
+                                   (uint8_t *)scratch_buffer, SPI_FLASH_SECTOR_SIZE))
     {
         MESSAGE_ERROR("flash_fs_set_part_number: failed to read asset config region!\n");
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
     }
 
     /* Update the part_num */
-    memcpy(asset_config_reg + sizeof(ESPERANTO_CONFIG_HEADER_t) +
-               offsetof(ESPERANTO_CONFIG_DATA_t, part_num),
+    memcpy(((uint8_t *)scratch_buffer) + sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+               sizeof(ESPERANTO_CONFIG_HEADER_t) + offsetof(ESPERANTO_CONFIG_DATA_t, part_num),
            &part_number, sizeof(part_number));
 
     /* Erase the asset config region. */
@@ -1469,15 +1481,15 @@ int flash_fs_set_part_number(uint32_t part_number)
         return ERROR_SPI_FLASH_SE_FAILED;
     }
 
-    if (0 != spi_flash_page_program(sg_flash_fs_bl2_info.flash_id,
-                                    config_data_address +
-                                        (uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t),
-                                    asset_config_reg, sizeof(asset_config_reg)))
+    /* Write back the updated sector */
+    if (0 != flash_fs_write_partition(config_data_address, scratch_buffer, SPI_FLASH_SECTOR_SIZE,
+                                      SPI_FLASH_PAGE_SIZE))
     {
         MESSAGE_ERROR("flash_fs_set_part_number: spi_flash_program() failed!\n");
         return ERROR_SPI_FLASH_PP_FAILED;
     }
 
+    /* Update the global copy */
     if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id,
                                    config_data_address +
                                        (uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +

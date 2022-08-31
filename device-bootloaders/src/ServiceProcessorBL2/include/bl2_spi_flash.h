@@ -19,8 +19,10 @@
 #include "service_processor_BL2_data.h"
 
 /* PAGE:           : 256 B
+   SECTOR:         : 4096 B
    BLOCK (256 * Page): 64 KB */
 #define SPI_FLASH_PAGE_SIZE   256
+#define SPI_FLASH_SECTOR_SIZE 4096
 #define SPI_FLASH_BLOCK_SIZE  0x10000U
 #define SPI_FLASH_BLOCK_MASK  0xFFFFul
 #define SPI_FLASH_SECTOR_MASK 0x0FFFul
@@ -30,7 +32,7 @@
     \param type - type of flash fs to be initialized
     \return The function call status, pass/fail.
 */
-int SPI_Flash_Initialize (uint32_t type);
+int SPI_Flash_Initialize(uint32_t type);
 
 /*! \fn int SPI_Flash_Read_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t* data_buffer, uint32_t size)
     \brief This function reads the data from the file of the particular region.
@@ -40,9 +42,10 @@ int SPI_Flash_Initialize (uint32_t type);
     \param size - size of data to read
     \return The function call status, pass/fail.
 */
-int SPI_Flash_Read_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t* data_buffer, uint32_t size);
+int SPI_Flash_Read_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t *data_buffer,
+                        uint32_t size);
 
-/*! \fn int SPI_Flash_Write_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t *data, uint32_t size) 
+/*! \fn int SPI_Flash_Write_Page(SPI_FLASH_ID_t flash_id, uint32_t address, uint32_t *data, uint32_t size)
     \brief This function reads the data from the file of the particular region.
     \param flash_id flash device id
     \param address - memory address
@@ -76,7 +79,7 @@ int spi_flash_rdsr(SPI_FLASH_ID_t flash_id, uint8_t *status);
 */
 int spi_flash_rdid(SPI_FLASH_ID_t flash_id, uint8_t *manufacturer_id, uint8_t device_id[2]);
 
-/*! \fn int spi_flash_rdsfdp(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer, 
+/*! \fn int spi_flash_rdsfdp(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer,
 *                            uint32_t data_buffer_size)
     \brief This function performs read of SFDP (Serial Flash Discoverable Parameter) area.
     \param flash_id - flash id (SPI_FLASH_ON_PACKAGE or SPI_FLASH_OFF_PACKAGE)
@@ -88,7 +91,7 @@ int spi_flash_rdid(SPI_FLASH_ID_t flash_id, uint8_t *manufacturer_id, uint8_t de
 int spi_flash_rdsfdp(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer,
                      uint32_t data_buffer_size);
 
-/*! \fn int spi_flash_normal_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer, 
+/*! \fn int spi_flash_normal_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer,
 *                                 uint32_t data_buffer_size)
     \brief This function performs normal read from the memory.
     \param flash_id - flash id (SPI_FLASH_ON_PACKAGE or SPI_FLASH_OFF_PACKAGE)
@@ -100,7 +103,7 @@ int spi_flash_rdsfdp(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_bu
 int spi_flash_normal_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer,
                           uint32_t data_buffer_size);
 
-/*! \fn int spi_flash_fast_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer, 
+/*! \fn int spi_flash_fast_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer,
 *                               uint32_t data_buffer_size)
     \brief This function performs fast read from the memory.
     \param flash_id - flash id (SPI_FLASH_ON_PACKAGE or SPI_FLASH_OFF_PACKAGE)
@@ -112,7 +115,7 @@ int spi_flash_normal_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *da
 int spi_flash_fast_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer,
                         uint32_t data_buffer_size);
 
-/*! \fn int spi_flash_page_program(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer, 
+/*! \fn int spi_flash_page_program(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t *data_buffer,
 *                                  uint32_t data_buffer_size)
     \brief This function performs write of up to 256 bytes to the memory.
     \param flash_id - flash id (SPI_FLASH_ON_PACKAGE or SPI_FLASH_OFF_PACKAGE)

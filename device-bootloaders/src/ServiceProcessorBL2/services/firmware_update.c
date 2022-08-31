@@ -23,8 +23,6 @@
 #include "crc32.h"
 #include "esperanto_flash_image.h"
 
-#define SPI_FLASH_256B_CHUNK_SIZE 256
-
 /* TODO: Additionally dividing by 1000 because mtime ticks frequency is configured at 4MHz. */
 #define TICKS_TO_SECS(ticks) (portTICK_RATE_MS * (ticks) / 1000 / 1000)
 
@@ -677,7 +675,7 @@ static int32_t dm_svc_firmware_update(void)
 
     // Image has passed verifcation checks, program it to flash.
     if (0 != flash_fs_update_partition((void *)SP_DM_SCRATCH_REGION_BEGIN, partition_size,
-                                       SPI_FLASH_256B_CHUNK_SIZE))
+                                       SPI_FLASH_PAGE_SIZE))
     {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_update_partition: failed to write data!\n");
         return ERROR_FW_UPDATE_ERASE_WRITE_PARTITION;
@@ -697,19 +695,18 @@ static int32_t dm_svc_firmware_update(void)
     */
     verify_start = timer_get_ticks_count();
     const uint8_t *ddr_data = (const uint8_t *)SP_DM_SCRATCH_REGION_BEGIN;
-    uint8_t flash_data[SPI_FLASH_256B_CHUNK_SIZE];
+    uint8_t flash_data[SPI_FLASH_PAGE_SIZE];
 
-    for (uint32_t i = 0; i < partition_size; i = i + SPI_FLASH_256B_CHUNK_SIZE)
+    for (uint32_t i = 0; i < partition_size; i = i + SPI_FLASH_PAGE_SIZE)
     {
         /* Read data from flash passive partition */
-        if (0 != flash_fs_read(false, flash_data, SPI_FLASH_256B_CHUNK_SIZE, i))
+        if (0 != flash_fs_read(false, flash_data, SPI_FLASH_PAGE_SIZE, i))
         {
             Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: read back from flash failed!\n");
             return ERROR_FW_UPDATE_READ_PARTITON;
         }
         /* Compare with the image data in the DDR */
-        if (memcmp((const void *)(ddr_data + i), (const void *)flash_data,
-                   SPI_FLASH_256B_CHUNK_SIZE))
+        if (memcmp((const void *)(ddr_data + i), (const void *)flash_data, SPI_FLASH_PAGE_SIZE))
         {
             Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: data validation failed!\n");
             return ERROR_FW_UPDATE_MEMCOMPARE;
@@ -826,6 +823,9 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
 
     // Get the FW release revision values
     flash_fs_get_fw_release_rev((char *)&dm_rsp.firmware_version.fw_release_rev);
+
+    // TODO: Get the PMIC FW version once available
+    dm_rsp.firmware_version.pmic_v = FORMAT_VERSION(0, 6, 0);
 
     FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MODULE_FIRMWARE_REVISIONS,
                     timer_get_ticks_count() - req_start_time, DM_STATUS_SUCCESS);
