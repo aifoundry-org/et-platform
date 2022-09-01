@@ -38,6 +38,8 @@
 */
 #define DEVICE_<<cgh.c_api_name | upper>>_API_PATCH ESPERANTO_DEVICE_APIS_VERSION_PATCH
 
+<%- if cgh.c_api_name == 'ops' %>
+
 /*! \def DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX
     \brief Maximum size of the argument payload supported by kernel launch command
 */
@@ -47,9 +49,10 @@
     \brief Maximum number of nodes supported in device-ops DMA list read/write command
 */
 #define DEVICE_OPS_DMA_LIST_NODES_MAX             4
+<%- endif %>
 
 /* Device << cgh.api_name >> API Enumerations */
-<% for enum in cgh.enums() -%>
+<%- for enum in cgh.enums() %>
 
 typedef << enum["Type"] >> << enum.c_type_name>>;
 
@@ -57,11 +60,11 @@ typedef << enum["Type"] >> << enum.c_type_name>>;
     \brief << enum["Description"] >>
 */
 enum << enum.Name | upper >> {
-  <% for val in enum.Values -%>
+  <%- for val in enum.Values %>
   << enum.Name | upper >>_<< val["Name"] >> = << val["Value"] >>, /**< << val["Description"] >> */
-  <% endfor %>
+  <%- endfor %>
 };
-<% endfor %>
+<%- endfor %>
 
 <%- if cgh.c_api_name == 'ops' %>
 

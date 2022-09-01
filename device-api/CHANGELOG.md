@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - [SW-13832] Update get_mm_stats_t with new CM BW and PCIE DMA utilization fields
 - [SW-13954] get PMIC firmware version in GET_MODULE_FIRMWARE_REVISIONS, add `pmic_v` field in struct firmware_version_t. Defined range for MDI commands from 128-255
+- Added a check for defines related to OPS API only.
 ### Deprecated
 - [SW-13954] Marked deprecated device_mgmt_module_voltage_cmd/rsp (replaced by device_mgmt_get_module_voltage_cmd/rsp)
 ### Removed
