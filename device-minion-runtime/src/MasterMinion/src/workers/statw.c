@@ -250,27 +250,54 @@ uint32_t STATW_Get_Minion_Freq(void)
 *
 *   OUTPUTS
 *
-*       None
+*       success or error
 *
 ***********************************************************************/
-void STATW_Get_MM_Stats(struct compute_resources_sample *sample)
+int32_t STATW_Get_MM_Stats(struct compute_resources_sample *sample)
 {
-    struct trace_custom_event_t *event;
-    struct compute_resources_sample *saved_sample;
+    int32_t status = STATUS_SUCCESS;
     uint64_t trace_entry = atomic_load_local_64(&STATW_CB.saved_trace_entry);
 
-    if (!trace_entry)
+    if (!sample)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "STATW_Get_MM_Stats: invalid null sample argument\n");
+        status = STATW_ERROR_GET_MM_STATS_INVALID_ARG;
+    }
+    else if (!trace_entry)
     {
         Log_Write(LOG_LEVEL_WARNING, "STATW_Get_MM_Stats: unexpected startup race condition\n");
         memset(sample, 0, sizeof(*sample));
     }
     else
     {
-        /* The saved trace entry contents are safe from being overwritten before/during this read */
-        event = (struct trace_custom_event_t *)trace_entry;
-        saved_sample = (struct compute_resources_sample *)(uintptr_t)event->payload;
-        *sample = *saved_sample;
+        struct dst_type_t {
+            struct trace_custom_event_t event;
+            struct compute_resources_sample sample;
+        } __attribute__((packed, aligned(8)));
+        struct dst_type_t dst;
+        struct trace_entry_header_t *src = (struct trace_entry_header_t *)trace_entry;
+
+        status = Trace_Event_Copy(Trace_Get_MM_Stats_CB(), src, &dst, sizeof(dst));
+        if (status != TRACE_STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "STATW_Get_MM_Stats: Trace_Event_Copy failed %d!\n", status);
+        }
+        else if (dst.event.header.type != TRACE_TYPE_CUSTOM_EVENT ||
+                 dst.event.custom_type != TRACE_CUSTOM_TYPE_MM_COMPUTE_RESOURCES)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "STATW_Get_MM_Stats: type mismatch %d %d (expect %d %d)!\n",
+                dst.event.header.type, dst.event.custom_type, TRACE_TYPE_CUSTOM_EVENT,
+                TRACE_CUSTOM_TYPE_MM_COMPUTE_RESOURCES);
+            status = STATW_ERROR_GET_MM_STATS_INVALID_EVENT;
+        }
+        else
+        {
+            *sample = dst.sample;
+            status = STATUS_SUCCESS;
+        }
     }
+
+    return status;
 }
 
 /************************************************************************
@@ -577,11 +604,10 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
             data_sample.cm_utilization.avg = instant_average;
             STATW_RECALC_MIN_MAX(data_sample.cm_utilization, instant_average)
 
-            /* Log the event in trace and save it for STATW_Get_MM_Stats */
+            /* Log the event in trace */
             entry = (struct trace_custom_event_t *)Trace_Custom_Event(Trace_Get_MM_Stats_CB(),
                 TRACE_CUSTOM_TYPE_MM_COMPUTE_RESOURCES, (const uint8_t *)&data_sample,
                 sizeof(data_sample));
-            atomic_store_local_64(&STATW_CB.saved_trace_entry, (uint64_t)entry);
 
             prev_timestamp = current_timestamp;
 
@@ -589,6 +615,9 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
                Evicting complete buffer evertime does not evict properly. */
             Trace_Evict_Event_MM_Stats(
                 entry, (sizeof(struct trace_custom_event_t) + sizeof(data_sample)));
+
+            /* Save the trace entry for retrieval in STATW_Get_MM_Stats via Trace_Event_Copy */
+            atomic_store_local_64(&STATW_CB.saved_trace_entry, (uint64_t)entry);
         }
     }
 }

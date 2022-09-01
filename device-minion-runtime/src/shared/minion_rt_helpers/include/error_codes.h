@@ -51,24 +51,25 @@ WORKERS
 - Serive Processor Worker ------ [-1200, -1299]
 - Submission Queue Worker ------ [-1300, -1399]
 - Submission Queue HP Worker --- [-1400, -1499]
+- Stat Worker ------------------ [-1500, -1599]
 
 SERVICES
-- Trace ------------------------ [-1500, -1599]
-- SP Interface ----------------- [-1600, -1699]
-- CM Interface  ---------------- [-1700, -1799]
-- Host Interface --------------- [-1800, -1899]
-- Host Command Handler --------- [-1900, -1999]
-- Software Timer --------------- [-2000, -2099]
-- Log -------------------------- [-2100, -2199]
+- Trace ------------------------ [-1600, -1699]
+- SP Interface ----------------- [-1700, -1799]
+- CM Interface  ---------------- [-1800, -1899]
+- Host Interface --------------- [-1900, -1999]
+- Host Command Handler --------- [-2000, -2099]
+- Software Timer --------------- [-2100, -2199]
+- Log -------------------------- [-2200, -2299]
 
 DISPATCHER
-- Dispatcher ------------------- [-2200, -2299]
+- Dispatcher ------------------- [-2300, -2399]
 
 CONFIG
-- DIR Registers ---------------- [-2300, -2399]
+- DIR Registers ---------------- [-2400, -2499]
 
 RESERVED
-- Reserved --------------------- [-2400, -2999]
+- Reserved --------------------- [-2500, -2999]
 
 ****************************************************/
 
@@ -141,7 +142,7 @@ RESERVED
 #define DMAW_ERROR_DRIVER_CHAN_START_FAILED -909
 
 /*************************************
- * Define Kernel Worker error codes.    *
+ * Define Kernel Worker error codes. *
  *************************************/
 
 /*! \def KW_ERROR_CW_MINIONS_BOOT_FAILED
@@ -219,9 +220,9 @@ RESERVED
 */
 #define KW_ERROR_CM_ABORT_TIMEOUT -1014
 
-/*************************************
- * Define Compute Worker error codes.    *
- *************************************/
+/**************************************
+ * Define Compute Worker error codes. *
+ **************************************/
 
 /*! \def CW_SHIRE_UNAVAILABLE
     \brief Compute Worker - Shires unavailable
@@ -248,43 +249,57 @@ RESERVED
 #define SQW_STATUS_BARRIER_ABORTED -1300
 
 /*************************************
+ * Define Stat Worker error codes.   *
+ *************************************/
+
+/*! \def STATW_ERROR_GET_MM_STATS_INVALID_ARG
+    \brief Stat Worker - Get MM Stats invalid argument
+*/
+#define STATW_ERROR_GET_MM_STATS_INVALID_ARG -1500
+
+/*! \def STATW_ERROR_GET_MM_STATS_EVENT_COPY
+    \brief Stat Worker - Get MM Stats invalid event error
+*/
+#define STATW_ERROR_GET_MM_STATS_INVALID_EVENT -1501
+
+/*************************************
  * Define Trace error codes.         *
  *************************************/
 
 /*! \def TRACE_ERROR_CM_TRACE_CONFIG_FAILED
     \brief Trace - Failed to configure CM S-Mode Trace
 */
-#define TRACE_ERROR_CM_TRACE_CONFIG_FAILED -1500
+#define TRACE_ERROR_CM_TRACE_CONFIG_FAILED -1600
 
 /*! \def TRACE_ERROR_MM_TRACE_CONFIG_FAILED
     \brief Trace - Failed to configure MM S-Mode Trace
 */
-#define TRACE_ERROR_MM_TRACE_CONFIG_FAILED -1501
+#define TRACE_ERROR_MM_TRACE_CONFIG_FAILED -1601
 
 /*! \def TRACE_ERROR_INVALID_SHIRE_MASK
     \brief Trace - Invalid shire mask
 */
-#define TRACE_ERROR_INVALID_SHIRE_MASK -1503
+#define TRACE_ERROR_INVALID_SHIRE_MASK -1603
 
 /*! \def TRACE_ERROR_INVALID_THREAD_MASK
     \brief Trace - Invalid thread mask
 */
-#define TRACE_ERROR_INVALID_THREAD_MASK -1504
+#define TRACE_ERROR_INVALID_THREAD_MASK -1604
 
 /*! \def TRACE_ERROR_INVALID_RUNTIME_TYPE
     \brief Trace - Invalid Trace runtime component
 */
-#define TRACE_ERROR_INVALID_RUNTIME_TYPE -1505
+#define TRACE_ERROR_INVALID_RUNTIME_TYPE -1605
 
 /*! \def TRACE_ERROR_CM_IFACE_MULTICAST_FAILED
     \brief Trace - MM to CM multicast message failed
 */
-#define TRACE_ERROR_CM_IFACE_MULTICAST_FAILED -1506
+#define TRACE_ERROR_CM_IFACE_MULTICAST_FAILED -1606
 
 /*! \def TRACE_ERROR_INVALID_TRACE_CONFIG_INFO
     \brief Trace - Invalid Trace configuration info
 */
-#define TRACE_ERROR_INVALID_TRACE_CONFIG_INFO -1507
+#define TRACE_ERROR_INVALID_TRACE_CONFIG_INFO -1607
 
 /*************************************
  * Define SP Interface error codes.  *
@@ -293,42 +308,42 @@ RESERVED
 /*! \def SP_IFACE_INVALID_SHIRE_MASK
     \brief SP iface error code - Invalid shire mask
 */
-#define SP_IFACE_INVALID_SHIRE_MASK -1600
+#define SP_IFACE_INVALID_SHIRE_MASK -1700
 
 /*! \def SP_IFACE_INVALID_BOOT_FREQ
     \brief SP iface error code - Invalid boot frequency
 */
-#define SP_IFACE_INVALID_BOOT_FREQ -1601
+#define SP_IFACE_INVALID_BOOT_FREQ -1701
 
 /*! \def SP_IFACE_TIMER_REGISTER_FAILED
     \brief SP iface error code - Timer resgistration failure
 */
-#define SP_IFACE_TIMER_REGISTER_FAILED -1602
+#define SP_IFACE_TIMER_REGISTER_FAILED -1702
 
 /*! \def SP_IFACE_SP_RSP_TIMEDOUT
     \brief SP iface error code - SP response timeout occurred
 */
-#define SP_IFACE_SP_RSP_TIMEDOUT -1603
+#define SP_IFACE_SP_RSP_TIMEDOUT -1703
 
 /*! \def SP_IFACE_INVALID_FW_VERSION
     \brief SP iface error code - Invalid fw version
 */
-#define SP_IFACE_INVALID_FW_VERSION -1604
+#define SP_IFACE_INVALID_FW_VERSION -1704
 
 /*! \def SP_IFACE_SP2MM_CMD_POP_FAILED
     \brief SP iface error code - SP2MM cmd pop failure
 */
-#define SP_IFACE_SP2MM_CMD_POP_FAILED -1605
+#define SP_IFACE_SP2MM_CMD_POP_FAILED -1705
 
 /*! \def SP_IFACE_SP2MM_RSP_POP_FAILED
     \brief SP iface error code - SP2MM rsp pop failure
 */
-#define SP_IFACE_SP2MM_RSP_POP_FAILED -1606
+#define SP_IFACE_SP2MM_RSP_POP_FAILED -1706
 
 /*! \def SP_IFACE_INVALID_RSP_ID
     \brief SP iface error code - Invalid response ID
 */
-#define SP_IFACE_INVALID_RSP_ID -1607
+#define SP_IFACE_INVALID_RSP_ID -1707
 
 /*************************************
  * Define CM Interface error codes.  *
@@ -337,22 +352,22 @@ RESERVED
 /*! \def CM_IFACE_MULTICAST_INAVLID_SHIRE_MASK
     \brief CM Iface error - Invalid multicast shire mask
 */
-#define CM_IFACE_MULTICAST_INAVLID_SHIRE_MASK -1700
+#define CM_IFACE_MULTICAST_INAVLID_SHIRE_MASK -1800
 
 /*! \def CM_IFACE_MULTICAST_TIMEOUT_EXPIRED
     \brief CM Iface error - Wait timeout expired
 */
-#define CM_IFACE_MULTICAST_TIMEOUT_EXPIRED -1701
+#define CM_IFACE_MULTICAST_TIMEOUT_EXPIRED -1801
 
 /*! \def CM_IFACE_MULTICAST_TIMER_REGISTER_FAILED
     \brief CM Iface error - Failed to register timeout
 */
-#define CM_IFACE_MULTICAST_TIMER_REGISTER_FAILED -1702
+#define CM_IFACE_MULTICAST_TIMER_REGISTER_FAILED -1802
 
 /*! \def CM_IFACE_CM_IN_BAD_STATE
     \brief CM Iface error - CM is in bad state.
 */
-#define CM_IFACE_CM_IN_BAD_STATE -1703
+#define CM_IFACE_CM_IN_BAD_STATE -1803
 
 /***********************************************
  * Define Host command handler's error codes.  *
@@ -361,37 +376,37 @@ RESERVED
 /*! \def HOST_CMD_STATUS_ABORTED
     \brief Host command handler - Command aborted
 */
-#define HOST_CMD_STATUS_ABORTED -1900
+#define HOST_CMD_STATUS_ABORTED -2000
 
 /*! \def HOST_CMD_ERROR_FW_VER_INVALID_FW_TYPE
     \brief Host command handler - Invalid firmware type
 */
-#define HOST_CMD_ERROR_FW_VER_INVALID_FW_TYPE -1901
+#define HOST_CMD_ERROR_FW_VER_INVALID_FW_TYPE -2001
 
 /*! \def HOST_CMD_ERROR_SP_IFACE_FW_QUERY_FAILED
     \brief Host command handler - Firmware version query to SP (MM to SP Interface)
            is failed.
 */
-#define HOST_CMD_ERROR_SP_IFACE_FW_QUERY_FAILED -1902
+#define HOST_CMD_ERROR_SP_IFACE_FW_QUERY_FAILED -2002
 
 /*! \def HOST_CMD_ERROR_INVALID_CMD_ID
     \brief Host command handler - Invalid Command ID
 */
-#define HOST_CMD_ERROR_INVALID_CMD_ID -1906
+#define HOST_CMD_ERROR_INVALID_CMD_ID -2006
 
 /*! \def HOST_CMD_ERROR_CM_RESET_FAILED
     \brief Host command handler - Failed to reset CM shires
 */
-#define HOST_CMD_ERROR_CM_RESET_FAILED -1908
+#define HOST_CMD_ERROR_CM_RESET_FAILED -2008
 
-/***********************************************
- * Define Software Timer error codes.  *
- ***********************************************/
+/**************************************
+ * Define Software Timer error codes. *
+ **************************************/
 
 /*! \def SW_TIMER_NO_FREE_TIMESLOT_AVAILABLE
     \brief Software Timer error - No free slot available to create timer.
 */
-#define SW_TIMER_NO_FREE_TIMESLOT_AVAILABLE -2000
+#define SW_TIMER_NO_FREE_TIMESLOT_AVAILABLE -2100
 
 /********************************** MASTER MINION ERROR CODES - END *************************************/
 

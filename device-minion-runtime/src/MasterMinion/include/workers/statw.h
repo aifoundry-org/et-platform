@@ -127,11 +127,11 @@ void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64
 */
 uint32_t STATW_Get_Minion_Freq(void);
 
-/*! \fn void STATW_Get_MM_Stats(struct compute_resources_sample *sample)
-    \brief Returns the current MM stats.
+/*! \fn int32_t STATW_Get_MM_Stats(struct compute_resources_sample *sample)
+    \brief Get the current MM stats.
     \param sample Pointer to sample to populate.
-    \return None.
+    \return status success or error.
 */
-void STATW_Get_MM_Stats(struct compute_resources_sample *sample);
+int32_t STATW_Get_MM_Stats(struct compute_resources_sample *sample);
 
 #endif
