@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 
 ## [Unreleased]
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
 
+## [1.3.0] - 2022-09-02
 ### Added
 ### Changed
 - [SW-13248] Modifying bus error kernel to access non-existent ESR in U-mode.
