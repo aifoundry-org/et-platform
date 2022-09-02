@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.7.0] - 2022-09-02
+### Added
 - [SW-13832] Add Trace_Event_Copy API
 - Added ET_TRACE_READ_MEM and ET_TRACE_WRITE_MEM macros.
 ### Changed
