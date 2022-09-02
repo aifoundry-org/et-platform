@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13248] Modifying bus error kernel to access non-existent ESR in U-mode.
 - [SW-14007] Modifying bus error kernel to generate bus error interrupt on every hart.
 - [SW-14007] Increasing the artifacts expiry from 1h to 1d in Gitlab CI.
+- Bumping et-common-libs and esperantoTrace version in Conan.
 ### Deprecated
 ### Removed
 ### Fixed
