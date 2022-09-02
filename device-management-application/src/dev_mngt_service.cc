@@ -36,6 +36,8 @@
 #define DM_LOG(severity) ET_LOG(DEV_MNGT_SERVICE, severity) // severity levels: INFO, WARNING and FATAL respectively
 #define DM_DLOG(severity) ET_DLOG(DEV_MNGT_SERVICE, severity)
 #define DM_VLOG(level) ET_VLOG(DEV_MNGT_SERVICE, level) // severity levels: LOW MID HIGH
+#define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER) (BASE + REG_VALUE * MULTIPLIER)
+#define VOLTAGE2BIN(VOL_VALUE, BASE, MULTIPLIER) ((VOL_VALUE - BASE) / MULTIPLIER)
 
 namespace fs = std::experimental::filesystem;
 
@@ -134,6 +136,13 @@ static std::string imagePath;
 static uint16_t minion_freq_mhz;
 static uint16_t noc_freq_mhz;
 static bool frequencies_flag = false;
+
+static uint8_t volt_enc;
+static device_mgmt_api::module_e volt_type;
+static bool voltage_flag = false;
+
+static uint32_t partid;
+static uint32_t partid_flag = false;
 
 // A namespace containing template for `bit_cast`. To be removed when `bit_cast` will be available
 namespace templ {
@@ -374,6 +383,20 @@ int verifyService() {
     std::string str_output = std::string(output_buff);
 
     DM_LOG(INFO) << "Asset Output: " << str_output << std::endl;
+  } break;
+
+  case DM_CMD::DM_CMD_SET_MODULE_PART_NUMBER: {
+    if (!partid_flag) {
+      DM_VLOG(HIGH) << "Aborting, --partid was not defined" << std::endl;
+      return -EINVAL;
+    }
+    const uint32_t input_size = sizeof(uint32_t);
+    char input_buff[input_size] = {0};
+    *((uint32_t*)input_buff) = partid;
+
+    if ((ret = runService(input_buff, input_size, nullptr, 0)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED: {
@@ -630,8 +653,6 @@ int verifyService() {
     DM_LOG(INFO) << "Module Power Output: " << +power << " W" << std::endl;
   } break;
 
-#define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER) (BASE + REG_VALUE * MULTIPLIER)
-
   case DM_CMD::DM_CMD_GET_MODULE_VOLTAGE: {
     const uint32_t output_size = sizeof(module_voltage_t);
     char output_buff[output_size] = {0};
@@ -657,6 +678,21 @@ int verifyService() {
     DM_LOG(INFO) << "Module Voltage NOC: " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(module_voltage->pcie_logic, 600, 6);
 
+  } break;
+
+  case DM_CMD::DM_CMD_SET_MODULE_VOLTAGE: {
+    if (!voltage_flag) {
+      DM_VLOG(HIGH) << "Aborting, --voltage was not defined" << std::endl;
+      return -EINVAL;
+    }
+    const uint32_t input_size = sizeof(volt_type) + sizeof(volt_enc);
+    char input_buff[input_size] = {0};
+    input_buff[0] = (char)device_mgmt_api::MODULE_DDR;
+    input_buff[1] = (char)volt_enc;
+
+    if ((ret = runService(input_buff, input_size, nullptr, 0)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_UPTIME: {
@@ -993,6 +1029,10 @@ int verifyService() {
 
     versions = firmware_versions->bl2_v;
     DM_LOG(INFO) << "BL2 Firmware versions: Major: " << ((versions >> 24) & 0xFF)
+                 << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
+
+    versions = firmware_versions->pmic_v;
+    DM_LOG(INFO) << "PMIC Firmware versions: Major: " << ((versions >> 24) & 0xFF)
                  << " Minor: " << ((versions >> 16) & 0xFF) << " Revision: " << ((versions >> 8) & 0xFF) << std::endl;
 
     versions = firmware_versions->mm_v;
@@ -1402,6 +1442,68 @@ bool validFrequencies() {
   return true;
 }
 
+bool validVoltage() {
+  if (!std::regex_match(std::string(optarg), std::regex("^[A-Z]+,[0-9]+$"))) {
+    DM_VLOG(HIGH) << "Aborting, argument: " << optarg
+                  << " is not valid, arguments should be in this format: <MODULE_TYPE>,<VOLTAGE_VALUE_IN_MV>"
+                  << std::endl;
+    return false;
+  }
+
+  static const std::map<std::string,
+                        std::tuple<device_mgmt_api::module_e, uint8_t /* base */, uint8_t /* multiplier */>>
+    moduleTypes{
+      {"DDR", {device_mgmt_api::MODULE_DDR, 250, 5}},
+      {"L2CACHE", {device_mgmt_api::MODULE_L2CACHE, 250, 5}},
+      {"MAXION", {device_mgmt_api::MODULE_MAXION, 250, 5}},
+      {"MINION", {device_mgmt_api::MODULE_MINION, 250, 5}},
+      {"PCIE", {device_mgmt_api::MODULE_PCIE, 600, 6}},
+      {"NOC", {device_mgmt_api::MODULE_NOC, 250, 5}},
+      {"PCIE_LOGIC", {device_mgmt_api::MODULE_PCIE_LOGIC, 600, 6}},
+    };
+  auto moduleType = std::strtok(optarg, ",");
+
+  auto itr = moduleTypes.find(moduleType);
+  if (itr == moduleTypes.end()) {
+    DM_VLOG(HIGH) << "Aborting, Invalid Module Type: " << moduleType
+                  << ", possible types are {DDR, L2CACHE, MAXION, MINION, PCIE, NOC, PCIE_LOGIC}" << std::endl;
+    return false;
+  }
+
+  uint8_t base;
+  uint8_t multiplier;
+  std::tie(volt_type, base, multiplier) = itr->second;
+
+  auto voltage = std::stoul(std::strtok(NULL, ","));
+  if (voltage > std::numeric_limits<uint16_t>::max()) {
+    DM_VLOG(HIGH) << "Aborting, Voltage : " << voltage << " is not valid ( 0 - " << std::numeric_limits<uint16_t>::max()
+                  << " )" << std::endl;
+    return false;
+  }
+  volt_enc = static_cast<decltype(volt_enc)>(VOLTAGE2BIN(voltage, base, multiplier));
+
+  return true;
+}
+
+bool validPartId() {
+  if (!validDigitsOnly()) {
+    return false;
+  }
+
+  char* end;
+  errno = 0;
+
+  partid = std::strtoul(optarg, &end, 10);
+
+  if (end == optarg || *end != '\0' || errno != 0) {
+    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not valid ( 0 - "
+                  << std::numeric_limits<decltype(partid)>::max() << " )" << std::endl;
+    return false;
+  }
+
+  return true;
+}
+
 static struct option long_options[] = {{"code", required_argument, 0, 'o'},
                                        {"command", required_argument, 0, 'm'},
                                        {"help", no_argument, 0, 'h'},
@@ -1417,7 +1519,9 @@ static struct option long_options[] = {{"code", required_argument, 0, 'o'},
                                        {"imagepath", required_argument, 0, 'i'},
                                        {"gettrace", required_argument, 0, 'g'},
                                        {"frequencies", required_argument, 0, 'f'},
-                                       {"version", no_argument, 0, 'v'},
+                                       {"version", required_argument, 0, 'V'},
+                                       {"voltage", required_argument, 0, 'v'},
+                                       {"partid", required_argument, 0, 'd'},
                                        {0, 0, 0, 0}};
 
 void printCode(char* argv) {
@@ -1683,7 +1787,7 @@ void printFrequencies(char* argv) {
             << "Set Frequency (MHz)" << std::endl;
   std::cout << std::endl;
   std::cout << "\t\t"
-            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE << " -"
+            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_FREQUENCY << " -"
             << (char)long_options[14].val << " 400,200" << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[1].val << " DM_CMD_SET_FREQUENCY"
@@ -1700,11 +1804,42 @@ void printVersionUsage(char* argv) {
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[15].val << std::endl;
 }
+
+void printVoltageUsage(char* argv) {
+  std::cout << std::endl;
+  std::cout << "\t"
+            << "-" << (char)long_options[16].val << ", --" << long_options[16].name << "=module,voltage" << std::endl;
+  std::cout << "\t\t"
+            << "Set Voltage (mV)" << std::endl;
+  std::cout << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_MODULE_VOLTAGE << " -"
+            << (char)long_options[16].val << " DDR,715" << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[1].val << " DM_CMD_SET_MODULE_VOLTAGE"
+            << " -" << (char)long_options[16].val << " DDR,715" << std::endl;
+}
+
+void printPartIdUsage(char* argv) {
+  std::cout << std::endl;
+  std::cout << "\t"
+            << "-" << (char)long_options[17].val << ", --" << long_options[17].name << "=module,voltage" << std::endl;
+  std::cout << "\t\t"
+            << "Set Part ID" << std::endl;
+  std::cout << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_MODULE_PART_NUMBER
+            << " -" << (char)long_options[17].val << " 320" << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[1].val << " DM_CMD_SET_MODULE_PART_NUMBER"
+            << " -" << (char)long_options[17].val << " 320" << std::endl;
+}
+
 void printUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "Usage: " << argv << " -o ncode | -m command [-n node] [-u nmsecs] [-h]"
             << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp | -i npath | -f "
-               "minionfreq,nocfreq | -g tracebuf | -v ]"
+               "minionfreq,nocfreq | -g tracebuf | -v module,voltage | -d partid | -V ]"
             << std::endl;
   printCode(argv);
   printCommand(argv);
@@ -1722,6 +1857,8 @@ void printUsage(char* argv) {
   printTraceBuf(argv);
   printFrequencies(argv);
   printVersionUsage(argv);
+  printVoltageUsage(argv);
+  printPartIdUsage(argv);
 }
 
 bool getTraceBuffer() {
@@ -1773,13 +1910,19 @@ int main(int argc, char** argv) {
 
   while (1) {
 
-    c = getopt_long(argc, argv, "o:m:hc:n:p:r:s:w:t:e:u:i:g:f:v", long_options, &option_index);
+    c = getopt_long(argc, argv, "d:o:m:hc:n:p:r:s:w:t:e:u:i:g:f:v:V", long_options, &option_index);
 
     if (c == -1) {
       break;
     }
 
     switch (c) {
+
+    case 'd':
+      if (!(partid_flag = validPartId())) {
+        return -EINVAL;
+      }
+      break;
 
     case 'o':
       if (cmd_flag) {
@@ -1875,12 +2018,16 @@ int main(int argc, char** argv) {
       }
       break;
     case 'v':
-      printVersion();
-      return 0;
+      if (!(voltage_flag = validVoltage())) {
+        return -EINVAL;
+      }
       break;
     case '?':
       printUsage(argv[0]);
       return -EINVAL;
+    case 'V':
+      printVersion();
+      return 0;
 
     default:
       return -EINVAL;

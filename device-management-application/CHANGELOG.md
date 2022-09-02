@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- [SW-13954] dev_mngt_service: Add options to set module partid and voltage.
 ### Changed
 ### Deprecated
 ### Removed
