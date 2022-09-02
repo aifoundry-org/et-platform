@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13832] Add support for SP2MM_CMD_GET_MM_STATS and start sampling without a delay.
 - Adding support for ET_TRACE_READ_MEM and ET_TRACE_WRITE_MEM in MasterMinion.
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.11.0] - 2022-09-02
+### Added
+### Changed
 - [SW-13964] Aborting the execution of kernel on a hart if bus error is received.
 - Bumping the version of etsoc_hal in conanfile.
 ### Deprecated
