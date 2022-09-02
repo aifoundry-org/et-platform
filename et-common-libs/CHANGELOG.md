@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 
 ## [Unreleased]
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
 
+## [0.10.0] - 2022-09-02
 ### Added
 - [SW-13832] Add SP2MM GET_MM_STATS command and response. Also fixed some typos.
 - [SW-13832] Update SP2MM GET_MM_STATS command response to include a status field.
