@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.7.0] - 2022-09-02
+### Added
 - [SW-13954] Add DM command SET_MODULE_VOLTAGE and structs device_mgmt_get_module_voltage_cmd/rsp, device_mgmt_set_module_part_number_cmd
 ### Changed
 - [SW-13832] Update get_mm_stats_t with new CM BW and PCIE DMA utilization fields
