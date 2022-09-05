@@ -852,9 +852,9 @@
         },
         "TF_RSP_PMIC_MODULE_POWER": {
             "flags": 2,
-            "payload_size": 1,
+            "payload_size": 2,
             "payload_args": {
-                "mod_power": "uint8_t"
+                "mod_power": "uint16_t"
             }
         },
         "TF_RSP_PMIC_MODULE_VOLTAGE": {
