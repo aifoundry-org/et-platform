@@ -539,8 +539,8 @@ Modules:
       Fields:
         - Name: power
           Description: binary encoded
-          Type: uint8_t
-        - Name: pad[7]
+          Type: uint16_t
+        - Name: pad[6]
           Description: Padding for alignment
           Type: uint8_t
     - Name: module_uptime_t
