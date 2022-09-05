@@ -42,6 +42,9 @@ std::string StreamError::getString() const {
       case 5:
         ss << "kernel execution tensor error";
         break;
+      case 6:
+        ss << "kernel execution bus error";
+        break;
       default:
         ss << " unknown";
         break;
@@ -54,7 +57,7 @@ std::string StreamError::getString() const {
       ss << "\n\ttrap cause: 0x" << ctx.mcause_;
       ss << "\n\tuser defined error: 0x" << ctx.userDefinedError_;
       ss << "\n\tGPR registers (x1-x31): [";
-      for (auto j = 0UL; j < (ctx.gpr_.size()-1); ++j) {
+      for (auto j = 0UL; j < (ctx.gpr_.size() - 1); ++j) {
         ss << "\n\t\t0x" << ctx.gpr_[j];
       }
       ss << "]\n}";
@@ -85,6 +88,7 @@ std::string std::to_string(rt::DeviceErrorCode e) {
     STR_DEVICE_ERROR_CODE(KernelLaunchSpIfaceResetFailed)
     STR_DEVICE_ERROR_CODE(KernelLaunchCwMinionsBootFailed)
     STR_DEVICE_ERROR_CODE(KernelLaunchInvalidArgsInvalidShireMask)
+    STR_DEVICE_ERROR_CODE(KernelLaunchResponseUserError)
 
     STR_DEVICE_ERROR_CODE(AbortUnexpectedError)
     STR_DEVICE_ERROR_CODE(AbortInvalidTagId)

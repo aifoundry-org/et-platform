@@ -40,10 +40,10 @@ class RuntimeConan(ConanFile):
             raise ConanInvalidConfiguration("When enabling runtime tests esperanto-flash-tool:header_only must be True")
 
     def requirements(self):
-        device_api = "deviceApi/0.5.0@"
+        device_api = "deviceApi/0.6.0@"
         device_layer = "deviceLayer/[>=0.3.0 <1.0.0]@"
         if self.options.with_tests:
-            device_api += "#5859dbf139ef47467a1d6a664c33d107"
+            device_api += "#3e1a8064f37596b34be470b368556536"
             device_layer += "#1d2eb12464a109ee1ba83a38bd4e1f6a"
         self.requires(device_api)
         self.requires(device_layer)
@@ -60,17 +60,17 @@ class RuntimeConan(ConanFile):
             self.requires("gtest/1.10.0")
             self.requires("sw-sysemu/0.2.0")
 
-            self.requires("et-common-libs/0.7.0@#1f3ab13ae2efbbbe188e6b4d6a362fe0")
-            self.requires("device-minion-runtime/0.7.0@#d962971c84898cab59f821d62df82ad1")
-            self.requires("device-bootloaders/0.3.0@#07bafe92cd37a7229e986010349bad73")
-            self.requires("esperanto-test-kernels/1.0.0@#37beed210aa1606b19c74957f64d475e")
+            self.requires("et-common-libs/0.9.0@#330284afd56b61ddd4c1b1dfde597b53")
+            self.requires("device-minion-runtime/0.10.0#4bded86c8893468057a7600258151b23")
+            self.requires("device-bootloaders/0.4.0#d6798104317f163cbe860cf5c9c11f5a")
+            self.requires("esperanto-test-kernels/1.2.0@#c65c500cbea0795566249e17fa3bfa1c")
 
             # only for pinning dependencies
-            self.requires("esperantoTrace/0.5.0@#ac7a9098e0140c7858cbe75ee569a079")
+            self.requires("esperantoTrace/0.6.0#c24ff325c75833a83a04f13414a1f10e")
             self.requires("etsoc_hal/1.0.0@#f53ecff2c8a176f37f9e3379d0e19395")
-            self.requires("tf-protocol/0.1.0@#87d3b8e7ad2f0b39fa6fae35f3bc180b")
-            self.requires("signedImageFormat/1.0@#4503615bd9e6ca9cfae2441dddb96b2e")
-            self.requires("esperanto-flash-tool/1.0.0@#a3734839a8d548175ca1c17bb2b502aa")
+            self.requires("tf-protocol/0.2.0#fe6749a6d3e624d1d211b475e122880f")
+            self.requires("signedImageFormat/1.0#8b0007bbb87386fd90730d7e1aeb4089")
+            self.requires("esperanto-flash-tool/1.1.0#287ea2a3bf61faa862bea0083aaa5c7f")
 
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd

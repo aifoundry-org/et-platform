@@ -38,6 +38,8 @@ rt::DeviceErrorCode convert(int responseType, uint32_t responseCode) {
       return rt::DeviceErrorCode::KernelLaunchCwMinionsBootFailed;
     case DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_INVALID_SHIRE_MASK:
       return rt::DeviceErrorCode::KernelLaunchInvalidArgsInvalidShireMask;
+    case DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_USER_ERROR:
+      return rt::DeviceErrorCode::KernelLaunchResponseUserError;
     default:
       RT_LOG(WARNING) << "Unknown DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP response code: " << responseCode;
       return rt::DeviceErrorCode::Unknown;
