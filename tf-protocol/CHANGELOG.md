@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.2.0] - 2022-09-05
+### Added
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines
 ### Changed
 ### Deprecated
