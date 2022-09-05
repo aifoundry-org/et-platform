@@ -957,8 +957,8 @@ void TestDevMgmtApiSyncCmds::getModulePower(bool singleDevice) {
     if (!targetInList({Target::Loopback, Target::SysEMU})) {
       // Note: Module power could vary. So there cannot be expected value for Module power in the test
       device_mgmt_api::module_power_t* module_power = (device_mgmt_api::module_power_t*)output_buff;
-      auto power = (module_power->power >> 2) + (module_power->power & 0x03) * 0.25;
-      printf("Module power (in Watts): %.3f \n", power);
+      float power = ((float)module_power->power / 1000);
+      DV_LOG(INFO) << "Module power (in Watts): \n" << power;
 
       EXPECT_NE(module_power->power, 0);
     }
