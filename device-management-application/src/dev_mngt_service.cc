@@ -649,8 +649,8 @@ int verifyService() {
     }
 
     module_power_t* module_power = (module_power_t*)output_buff;
-    power = (module_power->power >> 2) + (module_power->power & 0x03) * 0.25;
-    DM_LOG(INFO) << "Module Power Output: " << +power << " W" << std::endl;
+    power = ((float)module_power->power / 1000);
+    DM_LOG(INFO) << "Module Power Output: " << power << " W" << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_VOLTAGE: {
