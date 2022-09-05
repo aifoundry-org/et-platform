@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-13953]: Adding eviction of SP stats and trace buffer to avoid trace header update delay
+- [SW-14044]: Addition of op stats init function and refactoring update temperature stats function
 ### Changed
 - [SW-13850] Disabled power throttling code in update_module_soc_power() until SW-13951 is resolved.
 - Updating NOC, DDR and Maxion boot voltages

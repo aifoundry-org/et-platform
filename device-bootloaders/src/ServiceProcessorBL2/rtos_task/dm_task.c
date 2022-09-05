@@ -110,6 +110,11 @@ static void dm_task_entry(void *pvParameters)
     (void)pvParameters;
     int ret;
 
+    ret = Thermal_Pwr_Mgmt_Init_OP_Stats();
+    if (ret != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Error initializing OP stats: %s\n", __func__);
+    }
     while (1)
     {
         Log_Write(LOG_LEVEL_DEBUG, "Updating the periodically sampled parameters: %s\n", __func__);

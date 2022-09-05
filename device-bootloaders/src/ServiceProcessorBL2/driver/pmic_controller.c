@@ -556,6 +556,7 @@ void pmic_error_isr(void)
     uint8_t int_cause = 0;
     struct event_message_t message;
     uint8_t reg_value = 0;
+    uint16_t reg_value_16 = 0;
     uint32_t reg_value_32 = 0;
 
     if (0 != gpio_clear_interrupt(GPIO_CONTROLLER_ID_SPIO, PMIC_GPIO_INT_PIN_NUMBER))
@@ -588,13 +589,13 @@ void pmic_error_isr(void)
     {
         event_control_block.thermal_pwr_event_cb(int_cause);
 
-        if (0 != pmic_read_instantaneous_soc_power(&reg_value))
+        if (0 != pmic_read_instantaneous_soc_power(&reg_value_16))
         {
             MESSAGE_ERROR("PMIC read failed!");
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
         FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_POWER_LSB,
-                           reg_value)
+                           reg_value_16)
         event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 
@@ -1044,9 +1045,19 @@ int pmic_get_temperature(uint8_t *sys_temp)
 *
 ***********************************************************************/
 
-int pmic_read_instantaneous_soc_power(uint8_t *soc_pwr)
+int pmic_read_instantaneous_soc_power(uint16_t *soc_pwr)
 {
-    return (get_pmic_reg(PMIC_I2C_INPUT_POWER_ADDRESS, soc_pwr, 1));
+    int status;
+
+    /* read input power from PMIC */
+    status = get_pmic_reg(PMIC_I2C_INPUT_POWER_ADDRESS, (uint8_t *)soc_pwr, 2);
+    if (status == STATUS_SUCCESS)
+    {
+        /* Power is in 10 mW units as defined in PMIC docs*/
+        *soc_pwr = (uint16_t)((*soc_pwr) * 10);
+    }
+
+    return status;
 }
 
 /************************************************************************
@@ -1928,9 +1939,19 @@ int pmic_reset_wdog_timer(void)
 *
 ***********************************************************************/
 
-int pmic_read_average_soc_power(uint8_t *avg_power)
+int pmic_read_average_soc_power(uint16_t *avg_power)
 {
-    return (get_pmic_reg(PMIC_I2C_AVERAGE_PWR_ADDRESS, avg_power, 1));
+    int32_t status;
+
+    /* Read avg soc power form PMIC */
+    status = get_pmic_reg(PMIC_I2C_AVERAGE_PWR_ADDRESS, (uint8_t *)avg_power, 2);
+    if (status == STATUS_SUCCESS)
+    {
+        /* Power is in 10 mW units as defined in PMIC docs*/
+        *avg_power = (uint16_t)((*avg_power) * 10);
+    }
+
+    return status;
 }
 
 /************************************************************************
@@ -1987,52 +2008,4 @@ int I2C_PMIC_Read(uint8_t reg)
 int I2C_PMIC_Write(uint8_t reg, uint8_t data)
 {
     return set_pmic_reg(reg, data, 1);
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Power_Convert_Hex_to_mW
-*
-*   DESCRIPTION
-*
-*       This function converts PMIC encoded HEX value to real Power(mW).
-*
-*   INPUTS
-*
-*       Hex  Power in PMIC encoded Hex value
-*
-*   OUTPUTS
-*
-*       Power in mW after conversion
-*
-***********************************************************************/
-int32_t Power_Convert_Hex_to_mW(uint8_t power_hex)
-{
-    return (((power_hex >> 2) * 1000) + ((power_hex & 0x3) * 250));
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Power_Convert_mW_to_Hex
-*
-*   DESCRIPTION
-*
-*       This function converts real Power(mW)to PMIC encoded HEX value
-*
-*   INPUTS
-*
-*       Power in mW after conversion
-*
-*   OUTPUTS
-*
-*       Hex  Power in PMIC encoded Hex value
-*
-***********************************************************************/
-int32_t Power_Convert_mW_to_Hex(uint8_t power_mW)
-{
-    return (((power_mW / 1000) << 2) & ((power_mW % 1000) / 250));
 }

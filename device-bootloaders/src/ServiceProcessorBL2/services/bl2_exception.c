@@ -36,9 +36,9 @@ static void dump_power_states_globals_trace(void);
 /*! \def DUMP_POWER_RESIDENCY(power_state, residency_struct, buff_ptr, buff_idx)
     \brief Dumps power residency to memory
 */
-#define DUMP_POWER_RESIDENCY(power_state, residency_struct, buff_ptr, buff_idx)       \
-    get_power_residency(power_state, &residency_struct);                              \
-    memcpy(buff_ptr, &residency_struct, sizeof(residency_struct));                    \
+#define DUMP_POWER_RESIDENCY(power_state, residency_struct, buff_ptr, buff_idx) \
+    get_power_residency(power_state, &residency_struct);                        \
+    memcpy(buff_ptr, &residency_struct, sizeof(residency_struct));              \
     buff_idx += sizeof(residency_struct);
 
 /* trap context variable has to be set to true in case of exception. This will
@@ -177,6 +177,7 @@ static void dump_power_globals_trace(void)
     power_state_e power_state = 0;
     uint8_t tdp_level = 0;
     uint8_t temp = 0;
+    uint16_t soc_pwr = 0;
     struct current_temperature_t temperature;
     uint8_t data_buff[SP_POWER_GLOBALS_SIZE];
     uint64_t buff_idx = 0;
@@ -197,9 +198,9 @@ static void dump_power_globals_trace(void)
     buff_idx += sizeof(uint8_t);
 
     /* Read the value and copy it to buffer */
-    get_module_soc_power(&temp);
-    data_buff[buff_idx] = temp;
-    buff_idx += sizeof(uint8_t);
+    get_module_soc_power(&soc_pwr);
+    memcpy(&data_buff[buff_idx], &soc_pwr, sizeof(uint16_t));
+    buff_idx += sizeof(uint16_t);
 
     /* Read the value and copy it to buffer */
     get_soc_max_temperature(&temp);
@@ -246,11 +247,16 @@ static void dump_power_states_globals_trace(void)
     uint64_t buff_idx = 0;
 
     /* Read the value and copy it to buffer */
-    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_UP, residency, &data_buff[buff_idx], buff_idx)
-    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_DOWN, residency, &data_buff[buff_idx], buff_idx)
-    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_THERMAL_DOWN, residency, &data_buff[buff_idx], buff_idx)
-    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_SAFE, residency, &data_buff[buff_idx], buff_idx)
-    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_THERMAL_SAFE, residency, &data_buff[buff_idx], buff_idx)
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_UP, residency, &data_buff[buff_idx],
+                            buff_idx)
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_DOWN, residency, &data_buff[buff_idx],
+                            buff_idx)
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_THERMAL_DOWN, residency, &data_buff[buff_idx],
+                            buff_idx)
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_SAFE, residency, &data_buff[buff_idx],
+                            buff_idx)
+    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_THERMAL_SAFE, residency, &data_buff[buff_idx],
+                            buff_idx)
 
     /* Read the value and copy it to buffer */
     DUMP_POWER_RESIDENCY(POWER_STATE_MAX_POWER, residency, &data_buff[buff_idx], buff_idx)

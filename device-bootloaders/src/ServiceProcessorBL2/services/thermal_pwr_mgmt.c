@@ -34,6 +34,14 @@
        get_power_residency
        set_power_event_cb
        set_system_voltages
+       Thermal_Pwr_Mgmt_Get_Minion_Temperature
+       Thermal_Pwr_Mgmt_Get_System_Temperature
+       Thermal_Pwr_Mgmt_Get_Minion_Power
+       Thermal_Pwr_Mgmt_Get_NOC_Power
+       Thermal_Pwr_Mgmt_Get_SRAM_Power
+       Thermal_Pwr_Mgmt_Get_System_Power
+       Thermal_Pwr_Mgmt_Get_System_Power_Temp_Stats
+       Thermal_Pwr_Mgmt_Init_OP_Stats
 */
 /***********************************************************************/
 #include "config/mgmt_build_config.h"
@@ -81,7 +89,7 @@ struct soc_power_reg_t
     uint8_t module_tdp_level;
     uint8_t soc_temperature;
     struct op_stats_t op_stats;
-    uint8_t soc_power;
+    uint16_t soc_power_mw;
     uint8_t max_temp;
     struct temperature_threshold_t temperature_threshold;
     struct module_uptime_t module_uptime;
@@ -107,12 +115,13 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 /*! \def FILL_POWER_STATUS(ptr, throttle_st, pwr_st, curr_pwr, curr_temp)
     \brief Help macro to fill up Power Status Struct
 */
-#define FILL_POWER_STATUS(ptr, u, v, w, x, y, z) \
-    ptr.throttle_state = u;                      \
-    ptr.power_state = v;                         \
-    ptr.current_power = w;                       \
-    ptr.current_temp = x;                        \
-    ptr.tgt_freq = y;                            \
+#define FILL_POWER_STATUS(ptr, u, v, w, x, y, z)           \
+    ptr.throttle_state = u;                                \
+    ptr.power_state = v;                                   \
+    /* TODO:[SW-14083] update current power to uint16_t */ \
+    ptr.current_power = (uint8_t)w;                        \
+    ptr.current_temp = x;                                  \
+    ptr.tgt_freq = y;                                      \
     ptr.tgt_voltage = z;
 
 /*! \def SEND_THROTTLE_EVENT(THROTTLE_EVENT_TYPE)
@@ -205,15 +214,14 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 */
 #define MIN(x, y) y == 0 ? x : x < y ? x : y
 
-/*! \def CMA_MAX_SAMPLE_COUNT
-    \brief Device statistics moving average sample count.
+/*! \def CMA_TEMP_SAMPLE_COUNT
+    \brief Device statistics moving average sample count for temperature.
 */
-#define CMA_MAX_SAMPLE_COUNT 100UL
+#define CMA_TEMP_SAMPLE_COUNT 5
 
 /* Macro to calculate cumulative moving average */
-#define CMA(module, current_value)                                                        \
-    module.avg = (uint16_t)((current_value + (module.avg * (CMA_MAX_SAMPLE_COUNT - 1))) / \
-                            CMA_MAX_SAMPLE_COUNT);
+#define CMA(module, current_value, sample_count) \
+    module.avg = (uint16_t)((current_value + (module.avg * (sample_count - 1))) / sample_count);
 
 /* Macro to calculate Min, Max values and add to the sum for average value later to be calculated by dividing num of samples */
 #define CALC_MIN_MAX(module, current_value)      \
@@ -222,6 +230,12 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 
 /* Macro to calculate power by multiplying voltage and current */
 #define CALC_POWER(voltage, current) (uint16_t)(voltage * current)
+
+/* Macro to initialize avg, min and max of a stat module */
+#define INIT_STAT_VALUE(module, value) \
+    module.avg = value;                \
+    module.max = 0;                    \
+    module.min = 0xFFFF;
 
 /************************************************************************
 *
@@ -449,29 +463,41 @@ int update_module_current_temperature(void)
     uint8_t temperature;
     struct temperature_threshold_t temperature_threshold;
 
-    if (0 != pvt_get_minion_avg_temperature(&temperature))
-    {
-        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get temperature\r\n");
-        status = THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
-    }
-    else
+    status = pvt_get_minion_avg_temperature(&temperature);
+    if (status == STATUS_SUCCESS)
     {
         get_soc_power_reg()->soc_temperature = temperature;
         CALC_MIN_MAX(get_soc_power_reg()->op_stats.minion.temperature, temperature)
-        CMA(get_soc_power_reg()->op_stats.minion.temperature, temperature)
+        get_soc_power_reg()->op_stats.minion.temperature.avg = temperature;
+
+        /*TODO: PMIC is currently reporting system temperature as 0. This is to be validated once fixed */
+        status = pmic_get_temperature(&temperature);
     }
 
-    get_module_temperature_threshold(&temperature_threshold);
-
-    /* Switch power throttle state only if we are currently in lower priority throttle
-        state and Active Power Management is enabled*/
-    if (temperature > (temperature_threshold.sw_temperature_c) &&
-        (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_THERMAL_DOWN) &&
-        (get_soc_power_reg()->active_power_management))
+    /* Update system temperature */
+    if (status == STATUS_SUCCESS)
     {
-        // Do the thermal throttling
-        get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_DOWN;
-        xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
+        CALC_MIN_MAX(get_soc_power_reg()->op_stats.system.temperature, temperature)
+        get_soc_power_reg()->op_stats.system.temperature.avg = temperature;
+        status = get_module_temperature_threshold(&temperature_threshold);
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        /* Switch power throttle state only if we are currently in lower priority throttle
+            state and Active Power Management is enabled*/
+        if (temperature > (temperature_threshold.sw_temperature_c) &&
+            (get_soc_power_reg()->power_throttle_state < POWER_THROTTLE_STATE_THERMAL_DOWN) &&
+            (get_soc_power_reg()->active_power_management))
+        {
+            // Do the thermal throttling
+            get_soc_power_reg()->power_throttle_state = POWER_THROTTLE_STATE_THERMAL_DOWN;
+            xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
+        }
+    }
+    else
+    {
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to update temperature\r\n");
     }
 
     return status;
@@ -560,8 +586,7 @@ int get_module_current_temperature(struct current_temperature_t *temperature)
 ***********************************************************************/
 int update_module_soc_power(void)
 {
-    uint8_t soc_pwr = 0;
-    int32_t soc_pwr_mW = 0;
+    uint16_t soc_pwr_mW = 0;
 
     if (SUCCESS != get_module_voltage(NULL))
     {
@@ -569,26 +594,24 @@ int update_module_soc_power(void)
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
 
-    if (0 != pmic_read_average_soc_power(&soc_pwr))
+    if (0 != pmic_read_average_soc_power(&soc_pwr_mW))
     {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get soc average power\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else
     {
-        soc_pwr_mW = Power_Convert_Hex_to_mW(soc_pwr);
-        get_soc_power_reg()->op_stats.system.power.avg = (uint16_t)soc_pwr_mW;
+        get_soc_power_reg()->op_stats.system.power.avg = soc_pwr_mW;
     }
 
-    if (0 != pmic_read_instantaneous_soc_power(&soc_pwr))
+    if (0 != pmic_read_instantaneous_soc_power(&soc_pwr_mW))
     {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get soc instant power\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else
     {
-        get_soc_power_reg()->soc_power = soc_pwr;
-        soc_pwr_mW = Power_Convert_Hex_to_mW(soc_pwr);
+        get_soc_power_reg()->soc_power_mw = soc_pwr_mW;
         CALC_MIN_MAX(get_soc_power_reg()->op_stats.system.power, (uint16_t)soc_pwr_mW)
     }
 
@@ -658,9 +681,9 @@ int update_module_soc_power(void)
 *       int                Return status
 *
 ***********************************************************************/
-int get_module_soc_power(uint8_t *soc_power)
+int get_module_soc_power(uint16_t *soc_power)
 {
-    *soc_power = get_soc_power_reg()->soc_power;
+    *soc_power = get_soc_power_reg()->soc_power_mw;
     return 0;
 }
 
@@ -1306,7 +1329,7 @@ static int increase_minion_operating_point(int32_t delta_power,
 static int go_to_safe_state(power_state_e power_state, power_throttle_state_e throttle_state)
 {
     uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
-    uint8_t average_power = 0;
+    uint16_t average_power = 0;
     struct trace_event_power_status_t power_status = { 0 };
     int32_t new_voltage = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY);
 
@@ -1428,8 +1451,7 @@ void power_throttling(power_throttle_state_e throttle_state)
     uint64_t start_time;
     uint64_t end_time;
     uint8_t current_temperature = 0;
-    uint8_t average_power = 0;
-    int32_t average_power_mW;
+    uint16_t average_power_mW;
     int32_t tdp_level_mW;
     int32_t delta_power_mW;
     uint8_t throttle_condition_met = 0;
@@ -1448,12 +1470,11 @@ void power_throttling(power_throttle_state_e throttle_state)
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc temperature\r\n");
     }
 
-    if (0 != pmic_read_average_soc_power(&average_power))
+    if (0 != pmic_read_average_soc_power(&average_power_mW))
     {
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
     }
 
-    average_power_mW = Power_Convert_Hex_to_mW(average_power);
     /* module_tdp_level is in Watts, converting to miliWatts */
     tdp_level_mW = get_soc_power_reg()->module_tdp_level * 1000;
 
@@ -1465,7 +1486,7 @@ void power_throttling(power_throttle_state_e throttle_state)
             case POWER_THROTTLE_STATE_POWER_UP: {
                 delta_power_mW = ((average_power_mW * (POWER_SCALE_FACTOR)) / 100);
                 FILL_POWER_STATUS(power_status, throttle_state,
-                                  get_soc_power_reg()->module_power_state, average_power,
+                                  get_soc_power_reg()->module_power_state, average_power_mW,
                                   current_temperature, 0, 0)
                 increase_minion_operating_point(delta_power_mW, &power_status);
                 break;
@@ -1473,7 +1494,7 @@ void power_throttling(power_throttle_state_e throttle_state)
             case POWER_THROTTLE_STATE_POWER_DOWN: {
                 delta_power_mW = ((average_power_mW * (POWER_SCALE_FACTOR)) / 100);
                 FILL_POWER_STATUS(power_status, throttle_state,
-                                  get_soc_power_reg()->module_power_state, average_power,
+                                  get_soc_power_reg()->module_power_state, average_power_mW,
                                   current_temperature, 0, 0)
                 reduce_minion_operating_point(delta_power_mW, &power_status);
                 break;
@@ -1490,11 +1511,10 @@ void power_throttling(power_throttle_state_e throttle_state)
         vTaskDelay(pdMS_TO_TICKS(DELTA_POWER_UPDATE_PERIOD));
 
         /* Get the current power */
-        if (0 != pmic_read_average_soc_power(&average_power))
+        if (0 != pmic_read_average_soc_power(&average_power_mW))
         {
             Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
         }
-        average_power_mW = Power_Convert_Hex_to_mW(average_power);
 
         /* Check if throttle condition is met */
         switch (throttle_state)
@@ -1562,8 +1582,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
     uint64_t end_time;
     uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
     struct event_message_t message;
-    uint8_t average_power = 0;
-    int32_t average_power_mW;
+    uint16_t average_power_mW;
     int32_t delta_power_mW;
     struct trace_event_power_status_t power_status = { 0 };
 
@@ -1587,17 +1606,16 @@ void thermal_throttling(power_throttle_state_e throttle_state)
         {
             case POWER_THROTTLE_STATE_THERMAL_DOWN: {
                 /* Get the current power */
-                if (0 != pmic_read_average_soc_power(&average_power))
+                if (0 != pmic_read_average_soc_power(&average_power_mW))
                 {
                     Log_Write(LOG_LEVEL_ERROR,
                               "thermal pwr mgmt svc error: failed to get soc power\r\n");
                 }
 
-                average_power_mW = Power_Convert_Hex_to_mW(average_power);
                 delta_power_mW = ((average_power_mW * (POWER_SCALE_FACTOR)) / 100);
 
                 FILL_POWER_STATUS(power_status, throttle_state,
-                                  get_soc_power_reg()->module_power_state, average_power,
+                                  get_soc_power_reg()->module_power_state, average_power_mW,
                                   current_temperature, 0, 0)
                 /* Program the new operating point  */
                 reduce_minion_operating_point(delta_power_mW, &power_status);
@@ -1769,7 +1787,7 @@ void dump_power_globals(void)
         LOG_LEVEL_CRITICAL,
         "power_state = %u, tdp_level = %u, temperature = %u c, power = %u W, max_temperature = %u c\n",
         soc_power_reg->module_power_state, soc_power_reg->module_tdp_level,
-        soc_power_reg->soc_temperature, soc_power_reg->soc_power, soc_power_reg->max_temp);
+        soc_power_reg->soc_temperature, soc_power_reg->soc_power_mw, soc_power_reg->max_temp);
 
     Log_Write(LOG_LEVEL_CRITICAL, "Module uptime (day:hours:mins): %d:%d:%d\n",
               soc_power_reg->module_uptime.day, soc_power_reg->module_uptime.hours,
@@ -1882,11 +1900,11 @@ void set_system_voltages(void)
 void print_system_operating_point(void)
 {
     uint32_t freq;
-    uint8_t soc_pwr = 0;
+    uint16_t soc_pwr = 0;
     TS_Sample temperature;
 
     Log_Write(LOG_LEVEL_INFO,
-              "SHIRE       \t\tFreq          \t\tVoltage          \t\tTeperature\r\n");
+              "SHIRE       \t\tFreq          \t\tVoltage          \t\tTemperature\r\n");
     Log_Write(
         LOG_LEVEL_INFO,
         "---------------------------------------------------------------------------------------------\r\n");
@@ -1945,8 +1963,7 @@ void print_system_operating_point(void)
 
     /* Card Power */
     pmic_read_average_soc_power(&soc_pwr);
-    Log_Write(LOG_LEVEL_INFO, "AVERAGE CARD POWER: %d W \n",
-              (Power_Convert_Hex_to_mW(soc_pwr) / 1000));
+    Log_Write(LOG_LEVEL_INFO, "AVERAGE CARD POWER: %d W \n", (soc_pwr / 1000));
     Log_Write(
         LOG_LEVEL_INFO,
         "---------------------------------------------------------------------------------------------\r\n");
@@ -2136,4 +2153,63 @@ int Thermal_Pwr_Mgmt_Get_System_Power_Temp_Stats(struct op_stats_t *stats)
 {
     *stats = get_soc_power_reg()->op_stats;
     return SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Thermal_Pwr_Mgmt_Init_OP_Stats
+*
+*   DESCRIPTION
+*
+*       This function initialize operating point stats to theur current values.
+*
+*   INPUTS
+*
+*       stats pointer to get all module stats
+*
+*   OUTPUTS
+*
+*       status of function call success/error
+*
+***********************************************************************/
+int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
+{
+    int status = STATUS_SUCCESS;
+    uint8_t tmp_val;
+    uint16_t soc_pwr_mw;
+
+    /* read temperature values from pvt */
+    status = pvt_get_minion_avg_temperature(&tmp_val);
+    if (status == STATUS_SUCCESS)
+    {
+        /* initialize temperature valuesin op stats */
+        INIT_STAT_VALUE(get_soc_power_reg()->op_stats.minion.temperature, tmp_val);
+
+        /* Update PMB stats */
+        status = update_pmb_stats();
+        if (status == STATUS_SUCCESS)
+        {
+            /* Initialize stats min, max andd avg values */
+            INIT_STAT_VALUE(get_soc_power_reg()->op_stats.minion.power,
+                            get_soc_power_reg()->pmb_stats.minion.w_out.average)
+            INIT_STAT_VALUE(get_soc_power_reg()->op_stats.sram.power,
+                            get_soc_power_reg()->pmb_stats.sram.w_out.average)
+            INIT_STAT_VALUE(get_soc_power_reg()->op_stats.noc.power,
+                            get_soc_power_reg()->pmb_stats.noc.w_out.average)
+
+            /* Read card average power */
+            status = pmic_read_average_soc_power(&soc_pwr_mw);
+        }
+
+        /* Updater card average power */
+        if (status == STATUS_SUCCESS)
+        {
+            /* initialize op stats with average power in mW */
+            INIT_STAT_VALUE(get_soc_power_reg()->op_stats.system.power, soc_pwr_mw)
+        }
+    }
+
+    return status;
 }

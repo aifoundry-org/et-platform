@@ -25,11 +25,12 @@
 #define SP_PERF_GLOBALS_SIZE                                                                       \
     (sizeof(struct asic_frequencies_t) + sizeof(struct dram_bw_t) + sizeof(struct max_dram_bw_t) + \
      sizeof(uint32_t) + sizeof(uint64_t))
-#define SP_POWER_STATES_GLOBALS_SIZE  (sizeof(struct residency_t) * 9)
-#define SP_POWER_GLOBALS_SIZE                                                                      \
-    (sizeof(power_state_e) + (sizeof(uint8_t) * 4) + sizeof(struct module_uptime_t) +              \
-    sizeof(struct module_voltage_t))
-#define SP_GLOBALS_SIZE (SP_PERF_GLOBALS_SIZE + SP_POWER_STATES_GLOBALS_SIZE + SP_POWER_GLOBALS_SIZE)
+#define SP_POWER_STATES_GLOBALS_SIZE (sizeof(struct residency_t) * 9)
+#define SP_POWER_GLOBALS_SIZE                                           \
+    (sizeof(power_state_e) + (sizeof(uint8_t) * 3) + sizeof(uint16_t) + \
+     sizeof(struct module_uptime_t) + sizeof(struct module_voltage_t))
+#define SP_GLOBALS_SIZE \
+    (SP_PERF_GLOBALS_SIZE + SP_POWER_STATES_GLOBALS_SIZE + SP_POWER_GLOBALS_SIZE)
 
 /*! \fn void bl2_exception_entry(stack_frame)
     \brief High level exception handler - dumps the system state to trace buffer or console

@@ -118,12 +118,12 @@ int get_module_current_temperature(struct current_temperature_t *temperature);
 */
 int update_module_soc_power(void);
 
-/*! \fn int get_module_soc_power(uint8_t *soc_power);
+/*! \fn int get_module_soc_power(uint16_t *soc_power)
     \brief Interface to get the module's SOC Power.
     \param soc_temperature  Pointer to SOC power variable
     \returns Status indicating success or negative error
 */
-int get_module_soc_power(uint8_t *soc_power);
+int get_module_soc_power(uint16_t *soc_power);
 
 /*! \fn int get_module_voltage(struct module_voltage_t *module_voltage);
     \brief Interface to get the module's voltage for different domains.
@@ -299,5 +299,11 @@ int Thermal_Pwr_Mgmt_Get_System_Power(uint64_t *power);
     \returns Status indicating success or negative error
 */
 int Thermal_Pwr_Mgmt_Get_System_Power_Temp_Stats(struct op_stats_t *stats);
+
+/*! \fn int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
+    \brief This function initialize operaitng point stats to their current values.
+    \returns Status indicating success or negative error
+*/
+int Thermal_Pwr_Mgmt_Init_OP_Stats(void);
 
 #endif

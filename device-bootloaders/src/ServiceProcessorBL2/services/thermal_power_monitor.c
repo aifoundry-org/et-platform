@@ -147,7 +147,7 @@ static void pwr_svc_set_module_active_power_management(uint16_t tag, uint64_t re
 static void pwr_svc_get_module_power(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_module_power_rsp_t dm_rsp;
-    uint8_t soc_power;
+    uint16_t soc_power;
     int32_t status;
 
     status = get_module_soc_power(&soc_power);
