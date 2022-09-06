@@ -44,23 +44,27 @@ static void dm_svc_perf_get_asic_frequencies(uint16_t tag, uint64_t req_start_ti
     struct asic_frequencies_t asic_frequencies;
     int32_t status;
 
-    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n", __func__);
 
     status = get_module_asic_frequencies(&asic_frequencies);
 
-    if (0 != status) {
+    if (0 != status)
+    {
         Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_module_asic_frequencies()\r\n");
-    } else {
+    }
+    else
+    {
         dm_rsp.asic_frequency = asic_frequencies;
     }
 
-    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n", __func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_ASIC_FREQUENCIES,
                     timer_get_ticks_count() - req_start_time, status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
-                                       sizeof(struct device_mgmt_asic_frequencies_rsp_t))) {
+                                       sizeof(struct device_mgmt_asic_frequencies_rsp_t)))
+    {
         Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_get_asic_frequencies: Cqueue push error!\n");
     }
 }
@@ -91,22 +95,26 @@ static void dm_svc_perf_get_dram_bw(uint16_t tag, uint64_t req_start_time)
     struct dram_bw_t dram_bw;
     int32_t status;
 
-    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n", __func__);
 
     status = get_module_dram_bw(&dram_bw);
 
-    if (0 != status) {
+    if (0 != status)
+    {
         Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_module_dram_bw()\r\n");
-    } else {
+    }
+    else
+    {
         dm_rsp.dram_bw = dram_bw;
     }
 
-    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n", __func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_DRAM_BANDWIDTH,
                     timer_get_ticks_count() - req_start_time, status);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_dram_bw_rsp_t))) {
+    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_dram_bw_rsp_t)))
+    {
         Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_get_dram_bw: Cqueue push error!\n");
     }
 }
@@ -137,23 +145,27 @@ static void dm_svc_perf_get_dram_capacity_util(uint16_t tag, uint64_t req_start_
     uint32_t pct_cap;
     int32_t status;
 
-    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n", __func__);
 
     status = get_dram_capacity_percent(&pct_cap);
 
-    if (0 != status) {
+    if (0 != status)
+    {
         Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_dram_capacity_percent()\r\n");
-    } else {
+    }
+    else
+    {
         dm_rsp.percentage_cap.pct_cap = pct_cap;
     }
 
-    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n", __func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_DRAM_CAPACITY_UTILIZATION,
                     timer_get_ticks_count() - req_start_time, status);
 
-    if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
-                                       sizeof(struct device_mgmt_dram_capacity_rsp_t))) {
+    if (0 !=
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_dram_capacity_rsp_t)))
+    {
         Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_get_dram_capacity_util: Cqueue push error!\n");
     }
 }
@@ -184,23 +196,27 @@ static void dm_svc_perf_get_asic_per_core_util(uint16_t tag, uint64_t req_start_
     uint8_t core_util = 0;
     int32_t status;
 
-    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n", __func__);
 
     status = get_asic_per_core_util(&core_util);
 
-    if (0 != status) {
+    if (0 != status)
+    {
         Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_asic_per_core_util()\r\n");
-    } else {
+    }
+    else
+    {
         dm_rsp.dummy = core_util;
     }
 
-    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n", __func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION,
                     timer_get_ticks_count() - req_start_time, status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
-                                       sizeof(struct device_mgmt_asic_per_core_util_rsp_t))) {
+                                       sizeof(struct device_mgmt_asic_per_core_util_rsp_t)))
+    {
         Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_get_asic_per_core_util: Cqueue push error!\n");
     }
 }
@@ -231,23 +247,27 @@ static void dm_svc_perf_get_asic_utilization(uint16_t tag, uint64_t req_start_ti
     uint8_t asic_util = 0;
     int32_t status;
 
-    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n", __func__);
 
     status = get_asic_utilization(&asic_util);
 
-    if (0 != status) {
+    if (0 != status)
+    {
         Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_asic_utilization()\r\n");
-    } else {
+    }
+    else
+    {
         dm_rsp.dummy = asic_util;
     }
 
-    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n", __func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_ASIC_UTILIZATION,
                     timer_get_ticks_count() - req_start_time, status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
-                                       sizeof(struct device_mgmt_asic_per_core_util_rsp_t))) {
+                                       sizeof(struct device_mgmt_asic_per_core_util_rsp_t)))
+    {
         Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_get_asic_utilization: Cqueue push error!\n");
     }
 }
@@ -278,23 +298,27 @@ static void dm_svc_perf_get_asic_stalls(uint16_t tag, uint64_t req_start_time)
     uint8_t asic_stall = 0;
     int32_t status;
 
-    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n", __func__);
 
     status = get_asic_stalls(&asic_stall);
 
-    if (0 != status) {
+    if (0 != status)
+    {
         Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_asic_stalls()\r\n");
-    } else {
+    }
+    else
+    {
         dm_rsp.dummy = asic_stall;
     }
 
-    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n", __func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_ASIC_STALLS, timer_get_ticks_count() - req_start_time,
                     status);
 
     if (0 !=
-        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_stalls_rsp_t))) {
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_stalls_rsp_t)))
+    {
         Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_get_asic_stalls: Cqueue push error!\n");
     }
 }
@@ -325,23 +349,27 @@ static void dm_svc_perf_get_asic_latency(uint16_t tag, uint64_t req_start_time)
     uint8_t asic_latency = 0;
     int32_t status;
 
-    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n", __func__);
 
     status = get_asic_latency(&asic_latency);
 
-    if (0 != status) {
+    if (0 != status)
+    {
         Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: get_asic_latency()\r\n");
-    } else {
+    }
+    else
+    {
         dm_rsp.dummy = asic_latency;
     }
 
-    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n",__func__);
+    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n", __func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_ASIC_LATENCY, timer_get_ticks_count() - req_start_time,
                     status);
 
     if (0 !=
-        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_latency_rsp_t))) {
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_asic_latency_rsp_t)))
+    {
         Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_perf_get_asic_latency: Cqueue push error!\n");
     }
 }
@@ -369,30 +397,31 @@ void process_performance_request(tag_id_t tag_id, msg_id_t msg_id)
 {
     uint64_t req_start_time = timer_get_ticks_count();
 
-    switch (msg_id) {
-    case DM_CMD_GET_ASIC_FREQUENCIES:
-        dm_svc_perf_get_asic_frequencies(tag_id, req_start_time);
-        break;
-    case DM_CMD_GET_DRAM_BANDWIDTH:
-        dm_svc_perf_get_dram_bw(tag_id, req_start_time);
-        break;
-    case DM_CMD_GET_DRAM_CAPACITY_UTILIZATION:
-        dm_svc_perf_get_dram_capacity_util(tag_id, req_start_time);
-        break;
-    case DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION:
-        dm_svc_perf_get_asic_per_core_util(tag_id, req_start_time);
-        break;
-    case DM_CMD_GET_ASIC_UTILIZATION:
-        dm_svc_perf_get_asic_utilization(tag_id, req_start_time);
-        break;
-    case DM_CMD_GET_ASIC_STALLS:
-        dm_svc_perf_get_asic_stalls(tag_id, req_start_time);
-        break;
-    case DM_CMD_GET_ASIC_LATENCY:
-        dm_svc_perf_get_asic_latency(tag_id, req_start_time);
-        break;
-    default:
-        Log_Write(LOG_LEVEL_ERROR, "cmd_id: %d is not supported\r\n", msg_id);
-        break;
+    switch (msg_id)
+    {
+        case DM_CMD_GET_ASIC_FREQUENCIES:
+            dm_svc_perf_get_asic_frequencies(tag_id, req_start_time);
+            break;
+        case DM_CMD_GET_DRAM_BANDWIDTH:
+            dm_svc_perf_get_dram_bw(tag_id, req_start_time);
+            break;
+        case DM_CMD_GET_DRAM_CAPACITY_UTILIZATION:
+            dm_svc_perf_get_dram_capacity_util(tag_id, req_start_time);
+            break;
+        case DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION:
+            dm_svc_perf_get_asic_per_core_util(tag_id, req_start_time);
+            break;
+        case DM_CMD_GET_ASIC_UTILIZATION:
+            dm_svc_perf_get_asic_utilization(tag_id, req_start_time);
+            break;
+        case DM_CMD_GET_ASIC_STALLS:
+            dm_svc_perf_get_asic_stalls(tag_id, req_start_time);
+            break;
+        case DM_CMD_GET_ASIC_LATENCY:
+            dm_svc_perf_get_asic_latency(tag_id, req_start_time);
+            break;
+        default:
+            Log_Write(LOG_LEVEL_ERROR, "cmd_id: %d is not supported\r\n", msg_id);
+            break;
     }
 }

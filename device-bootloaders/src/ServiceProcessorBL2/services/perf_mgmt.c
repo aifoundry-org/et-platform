@@ -33,7 +33,8 @@
 #include "bl_error_code.h"
 #include "log.h"
 
-struct soc_perf_reg_t {
+struct soc_perf_reg_t
+{
     struct asic_frequencies_t asic_frequency;
     struct dram_bw_t dram_bw;
     struct max_dram_bw_t max_dram_bw;
@@ -89,13 +90,15 @@ int update_dram_bw(void)
 
     /* Update the max DRAM BW values if condition met */
     if (get_soc_perf_reg()->max_dram_bw.max_bw_rd_req_sec <
-        get_soc_perf_reg()->dram_bw.read_req_sec) {
+        get_soc_perf_reg()->dram_bw.read_req_sec)
+    {
         get_soc_perf_reg()->max_dram_bw.max_bw_rd_req_sec =
             get_soc_perf_reg()->dram_bw.read_req_sec;
     }
 
     if (get_soc_perf_reg()->max_dram_bw.max_bw_wr_req_sec <
-        get_soc_perf_reg()->dram_bw.write_req_sec) {
+        get_soc_perf_reg()->dram_bw.write_req_sec)
+    {
         get_soc_perf_reg()->max_dram_bw.max_bw_wr_req_sec =
             get_soc_perf_reg()->dram_bw.write_req_sec;
     }
@@ -228,12 +231,12 @@ int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies)
 
     get_soc_perf_reg()->asic_frequency.minion_shire_mhz = (uint32_t)Get_Minion_Frequency();
 
-    if(0 != get_pll_frequency(PLL_ID_SP_PLL_2, &freq))
+    if (0 != get_pll_frequency(PLL_ID_SP_PLL_2, &freq))
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to get NOC frequency!");
         return ERROR_PERF_MGMT_FAILED_TO_GET_FREQ;
     }
-    else 
+    else
     {
         get_soc_perf_reg()->asic_frequency.noc_mhz = freq;
     }
@@ -241,22 +244,22 @@ int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies)
     get_soc_perf_reg()->asic_frequency.mem_shire_mhz = get_memshire_frequency();
     get_soc_perf_reg()->asic_frequency.ddr_mhz = get_ddr_frequency();
 
-    if(0 != get_pll_frequency(PLL_ID_PSHIRE, &freq))
+    if (0 != get_pll_frequency(PLL_ID_PSHIRE, &freq))
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to get PSHIRE frequency!");
         return ERROR_PERF_MGMT_FAILED_TO_GET_FREQ;
     }
-    else 
+    else
     {
         get_soc_perf_reg()->asic_frequency.pcie_shire_mhz = freq;
     }
 
-    if(0 != get_pll_frequency(PLL_ID_SP_PLL_0, &freq))
+    if (0 != get_pll_frequency(PLL_ID_SP_PLL_0, &freq))
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to get IOSHIRE frequency!");
         return ERROR_PERF_MGMT_FAILED_TO_GET_FREQ;
     }
-    else 
+    else
     {
         get_soc_perf_reg()->asic_frequency.io_shire_mhz = freq;
     }
@@ -480,26 +483,21 @@ void dump_perf_globals(void)
     volatile struct soc_perf_reg_t const *soc_perf_reg = get_soc_perf_reg();
 
     /* Dump performance globals */
-    Log_Write(LOG_LEVEL_CRITICAL,
-                "Module Frequency (MHz) : minion_shire = %u, noc = %u, memshire = %u, ddr = %u, pcie_shire = %u, io_shire = %u\n",
-                soc_perf_reg->asic_frequency.minion_shire_mhz,
-                soc_perf_reg->asic_frequency.noc_mhz,
-                soc_perf_reg->asic_frequency.mem_shire_mhz,
-                soc_perf_reg->asic_frequency.ddr_mhz,
-                soc_perf_reg->asic_frequency.pcie_shire_mhz,
-                soc_perf_reg->asic_frequency.io_shire_mhz);
+    Log_Write(
+        LOG_LEVEL_CRITICAL,
+        "Module Frequency (MHz) : minion_shire = %u, noc = %u, memshire = %u, ddr = %u, pcie_shire = %u, io_shire = %u\n",
+        soc_perf_reg->asic_frequency.minion_shire_mhz, soc_perf_reg->asic_frequency.noc_mhz,
+        soc_perf_reg->asic_frequency.mem_shire_mhz, soc_perf_reg->asic_frequency.ddr_mhz,
+        soc_perf_reg->asic_frequency.pcie_shire_mhz, soc_perf_reg->asic_frequency.io_shire_mhz);
 
-    Log_Write(LOG_LEVEL_CRITICAL,
-                "DRAM BW Read = %u, DRAM BW Write = %u\n", soc_perf_reg->dram_bw.read_req_sec,
-                soc_perf_reg->dram_bw.write_req_sec);
+    Log_Write(LOG_LEVEL_CRITICAL, "DRAM BW Read = %u, DRAM BW Write = %u\n",
+              soc_perf_reg->dram_bw.read_req_sec, soc_perf_reg->dram_bw.write_req_sec);
 
-    Log_Write(LOG_LEVEL_CRITICAL,
-                "DRAM BW Read (Max) = %u, DRAM BW Write  (Max)= %u\n", soc_perf_reg->max_dram_bw.max_bw_rd_req_sec,
-                soc_perf_reg->max_dram_bw.max_bw_wr_req_sec);
+    Log_Write(LOG_LEVEL_CRITICAL, "DRAM BW Read (Max) = %u, DRAM BW Write  (Max)= %u\n",
+              soc_perf_reg->max_dram_bw.max_bw_rd_req_sec,
+              soc_perf_reg->max_dram_bw.max_bw_wr_req_sec);
 
-    Log_Write(LOG_LEVEL_CRITICAL,
-                "DRAM capacity = %u\n", soc_perf_reg->dram_capacity_percent);
+    Log_Write(LOG_LEVEL_CRITICAL, "DRAM capacity = %u\n", soc_perf_reg->dram_capacity_percent);
 
-    Log_Write(LOG_LEVEL_CRITICAL,
-                "Last update TS = %lu\n", soc_perf_reg->last_ts_min);
+    Log_Write(LOG_LEVEL_CRITICAL, "Last update TS = %lu\n", soc_perf_reg->last_ts_min);
 }
