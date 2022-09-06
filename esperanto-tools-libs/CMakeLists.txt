@@ -137,7 +137,7 @@ target_link_libraries(server
         gflags::gflags)
 
 ## Install library targets (new)
-install(TARGETS etrt_obj etrt etrt_static
+install(TARGETS etrt_obj etrt etrt_static server
     EXPORT runtimeTargets
     RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}

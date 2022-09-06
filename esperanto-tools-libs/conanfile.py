@@ -95,7 +95,7 @@ class RuntimeConan(ConanFile):
         cmake.configure()
         cmake.build()
         if self.options.with_tests and not tools.cross_building(self.settings):
-            self.run("sudo ctest -T Test -L 'Generic' --no-compress-output")
+            self.run("ctest -L 'Generic' --no-compress-output")
 
     def package(self):
         cmake = CMake(self)
@@ -119,3 +119,10 @@ class RuntimeConan(ConanFile):
         self.cpp_info.components["etrt_static"].libs = ["etrt_static"]
         self.cpp_info.components["etrt_static"].includedirs = ["include"]
         self.cpp_info.components["etrt_static"].libdirs = ["lib"]
+        
+        binpath = os.path.join(self.package_folder, "bin")
+        self.output.info("Appending PATH env var: {}".format(binpath))
+        self.runenv_info.prepend_path('PATH', binpath)
+
+        # TODO: to remove in conan v2 once old virtualrunenv is removed
+        self.env_info.PATH.append(binpath)
