@@ -152,6 +152,13 @@ static void dm_task_entry(void *pvParameters)
             Log_Write(LOG_LEVEL_ERROR, "update_module_uptime error : update_module_uptime()\r\n");
         }
 
+        /* Update MM stats */
+        ret = update_mm_stats();
+        if (0 != ret)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "perf mgmt svc error : update_mm_stats()\r\n");
+        }
+
         /* Update the DRAM BW(Read/Write request) details */
         ret = update_dram_bw();
 

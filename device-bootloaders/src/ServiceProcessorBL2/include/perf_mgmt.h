@@ -17,6 +17,8 @@
     the host can query device for performance related details.
 */
 /***********************************************************************/
+#include <esperanto/device-apis/management-api/device_mgmt_api_spec.h>
+#include <esperanto/device-apis/management-api/device_mgmt_api_rpc_types.h>
 #include "dm.h"
 
 /*! \fn volatile struct soc_perf_reg_t *get_soc_perf_reg(void)
@@ -116,6 +118,19 @@ int get_asic_latency(uint8_t *asic_latency);
     \returns int
 */
 int get_last_update_ts(uint64_t *last_ts);
+
+/*! \fn int get_mm_stats(struct get_mm_stats_t *stats)
+    \brief Interface to get current mm stats
+    \param get_mm_stats_t *stats
+    \returns int
+*/
+int get_mm_stats(struct get_mm_stats_t *stats);
+
+/*! \fn int update_mm_stats(void);
+    \brief Interface to update current mm stats
+    \returns int
+*/
+int update_mm_stats(void);
 
 /*! \fn void dump_perf_globals(void)
     \brief This function prints the performance globals

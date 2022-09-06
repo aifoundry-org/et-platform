@@ -21,6 +21,8 @@
 #ifndef MM_IFACE_H
 #define MM_IFACE_H
 
+#include <esperanto/device-apis/management-api/device_mgmt_api_spec.h>
+#include <esperanto/device-apis/management-api/device_mgmt_api_rpc_types.h>
 #include "etsoc/common/common_defs.h"
 #include "transports/sp_mm_iface/sp_mm_iface.h"
 #include "minion_configuration.h"
@@ -68,6 +70,13 @@ int32_t MM_Iface_MM_Command_Shell(const void *cmd, uint32_t cmd_size, char *rsp,
     \return Status indicating success or negative error
 */
 int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw);
+
+/*! \fn int32_t MM_Iface_Get_MM_Stats(struct get_mm_stats_t *stats)
+    \brief Send the Get MM Stats command to Master Minion. Note a timeout failure is possible.
+    \param stats response containing mm stats
+    \return Status indicating success or negative error
+*/
+int32_t MM_Iface_Get_MM_Stats(struct get_mm_stats_t *stats);
 
 /*! \fn int32_t MM_Iface_Send_Abort_All_Cmd(void)
     \brief Send the Get Abort command to Master Minion Firmware.

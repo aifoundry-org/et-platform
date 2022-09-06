@@ -378,6 +378,52 @@ static void dm_svc_perf_get_asic_latency(uint16_t tag, uint64_t req_start_time)
 *
 *   FUNCTION
 *
+*       dm_svc_perf_get_mm_stats
+*
+*   DESCRIPTION
+*
+*       This function returns the current mm stats
+*
+*   INPUTS
+*
+*       req_start_time    Time stamp when the request was received by the Command
+*                         Dispatcher
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void dm_svc_perf_get_mm_stats(uint16_t tag, uint64_t req_start_time)
+{
+    struct device_mgmt_get_mm_stats_rsp_t dm_rsp;
+    int32_t status;
+
+    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n", __func__);
+
+    status = get_mm_stats(&dm_rsp.mm_stats);
+
+    if (0 != status)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: dm_svc_perf_get_mm_stats()\r\n");
+    }
+
+    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n", __func__);
+
+    FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MM_STATS, timer_get_ticks_count() - req_start_time,
+                    status);
+
+    if (0 !=
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_get_mm_stats_rsp_t)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "dm_svc_perf_get_mm_stats: Cqueue push error!\n");
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       process_performance_request
 *
 *   DESCRIPTION
@@ -399,6 +445,9 @@ void process_performance_request(tag_id_t tag_id, msg_id_t msg_id)
 
     switch (msg_id)
     {
+        case DM_CMD_GET_MM_STATS:
+            dm_svc_perf_get_mm_stats(tag_id, req_start_time);
+            break;
         case DM_CMD_GET_ASIC_FREQUENCIES:
             dm_svc_perf_get_asic_frequencies(tag_id, req_start_time);
             break;

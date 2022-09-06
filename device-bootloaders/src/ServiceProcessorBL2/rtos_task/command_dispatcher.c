@@ -167,6 +167,7 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
             case DM_CMD_GET_MM_ERROR_COUNT ... DM_CMD_MM_RESET:
                 Minion_State_Host_Iface_Process_Request(tag_id, msg_id);
                 break;
+            case DM_CMD_GET_MM_STATS:
             case DM_CMD_GET_ASIC_FREQUENCIES ... DM_CMD_GET_ASIC_LATENCY:
                 process_performance_request(tag_id, msg_id);
                 break;

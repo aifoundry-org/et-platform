@@ -22,6 +22,7 @@
 *       MM_Iface_MM_Command_Shell
 *       MM_Iface_Send_Echo_Cmd
 *       MM_Iface_Get_DRAM_BW
+*       MM_Iface_Get_MM_Stats
 *       MM_Iface_Pop_Cmd_From_MM2SP_SQ
 *       MM_Iface_Init
 *
@@ -294,6 +295,118 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
                 *read_bw = rsp.read_bw;
                 *write_bw = rsp.write_bw;
                 status = SUCCESS;
+            }
+            else
+            {
+                status = MM_IFACE_SP2MM_INVALID_RESPONSE;
+            }
+        }
+
+        xSemaphoreGive(mm_cmd_lock);
+    }
+    else
+    {
+        return MM_IFACE_SP2MM_TIMEOUT_ERROR;
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       MM_Iface_Get_MM_Stats
+*
+*   DESCRIPTION
+*
+*       This sends Get MM_Stats command to Master Minion. It is a blocking call
+*       and it waits for response for a given time.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       int32_t  Success or error code.
+*
+***********************************************************************/
+int32_t MM_Iface_Get_MM_Stats(struct get_mm_stats_t *stats)
+{
+    int32_t status = MM_IFACE_SP2MM_CMD_ERROR;
+    struct sp2mm_get_mm_stats_cmd_t cmd;
+    struct sp2mm_get_mm_stats_rsp_t rsp;
+
+    /* Initialize command header */
+    SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, SP2MM_CMD_GET_MM_STATS,
+                             sizeof(struct sp2mm_get_mm_stats_cmd_t), SP2MM_CMD_NOTIFY_HART)
+
+    if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
+    {
+        /* Send command to MM. */
+        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd)))
+        {
+            Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
+            xSemaphoreGive(mm_cmd_lock);
+            return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
+        }
+
+        /* Wait for response from MM with default timeout. */
+        if (mm2sp_wait_for_response(SP2MM_CMD_TIMEOUT))
+        {
+            /* Get response from MM. */
+            status = MM_Iface_Pop_Rsp_From_SP2MM_CQ(&rsp);
+
+            if ((status > 0) && (rsp.msg_hdr.msg_id == SP2MM_RSP_GET_MM_STATS))
+            {
+                status = rsp.status;
+
+                if (status != 0)
+                {
+                    Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Get_MM_Stats: response status %d!\r\n",
+                              status);
+                }
+                else
+                {
+                    stats->cm_bw_avg = rsp.sample.cm_bw.avg;
+                    stats->cm_bw_min = rsp.sample.cm_bw.min;
+                    stats->cm_bw_max = rsp.sample.cm_bw.max;
+                    stats->cm_utilization_avg = rsp.sample.cm_utilization.avg;
+                    stats->cm_utilization_min = rsp.sample.cm_utilization.min;
+                    stats->cm_utilization_max = rsp.sample.cm_utilization.max;
+
+                    stats->pcie_dma_read_bw_avg = rsp.sample.pcie_dma_read_bw.avg;
+                    stats->pcie_dma_read_bw_min = rsp.sample.pcie_dma_read_bw.min;
+                    stats->pcie_dma_read_bw_max = rsp.sample.pcie_dma_read_bw.max;
+                    stats->pcie_dma_write_bw_avg = rsp.sample.pcie_dma_write_bw.avg;
+                    stats->pcie_dma_write_bw_min = rsp.sample.pcie_dma_write_bw.min;
+                    stats->pcie_dma_write_bw_max = rsp.sample.pcie_dma_write_bw.max;
+
+                    stats->ddr_read_bw_avg = rsp.sample.ddr_read_bw.avg;
+                    stats->ddr_read_bw_min = rsp.sample.ddr_read_bw.min;
+                    stats->ddr_read_bw_max = rsp.sample.ddr_read_bw.max;
+                    stats->ddr_write_bw_avg = rsp.sample.ddr_write_bw.avg;
+                    stats->ddr_write_bw_min = rsp.sample.ddr_write_bw.min;
+                    stats->ddr_write_bw_max = rsp.sample.ddr_write_bw.max;
+
+                    stats->l2_l3_read_bw_avg = rsp.sample.l2_l3_read_bw.avg;
+                    stats->l2_l3_read_bw_min = rsp.sample.l2_l3_read_bw.min;
+                    stats->l2_l3_read_bw_max = rsp.sample.l2_l3_read_bw.max;
+                    stats->l2_l3_write_bw_avg = rsp.sample.l2_l3_write_bw.avg;
+                    stats->l2_l3_write_bw_min = rsp.sample.l2_l3_write_bw.min;
+                    stats->l2_l3_write_bw_max = rsp.sample.l2_l3_write_bw.max;
+
+                    stats->pcie_dma_read_utilization_avg = rsp.sample.pcie_dma_read_utilization.avg;
+                    stats->pcie_dma_read_utilization_min = rsp.sample.pcie_dma_read_utilization.min;
+                    stats->pcie_dma_read_utilization_max = rsp.sample.pcie_dma_read_utilization.max;
+                    stats->pcie_dma_write_utilization_avg =
+                        rsp.sample.pcie_dma_write_utilization.avg;
+                    stats->pcie_dma_write_utilization_min =
+                        rsp.sample.pcie_dma_write_utilization.min;
+                    stats->pcie_dma_write_utilization_max =
+                        rsp.sample.pcie_dma_write_utilization.max;
+                }
             }
             else
             {

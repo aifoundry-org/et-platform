@@ -23,6 +23,8 @@
     get_asic_utilization
     get_asic_stalls
     get_asic_latency
+    get_mm_stats
+    update_mm_stats
     dump_perf_globals
 */
 /***********************************************************************/
@@ -35,6 +37,7 @@
 
 struct soc_perf_reg_t
 {
+    struct get_mm_stats_t mm_stats;
     struct asic_frequencies_t asic_frequency;
     struct dram_bw_t dram_bw;
     struct max_dram_bw_t max_dram_bw;
@@ -456,6 +459,66 @@ int get_asic_latency(uint8_t *asic_latency)
 int get_last_update_ts(uint64_t *last_ts)
 {
     *last_ts = get_soc_perf_reg()->last_ts_min;
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       update_mm_stats
+*
+*   DESCRIPTION
+*
+*       This function updates the current mm stats
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       int         Return status
+*
+***********************************************************************/
+int update_mm_stats(void)
+{
+    struct get_mm_stats_t mm_stats;
+    int ret = MM_Iface_Get_MM_Stats(&mm_stats);
+
+    if (0 != ret)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to update MM stats command error %d!\n", ret);
+    }
+    else
+    {
+        get_soc_perf_reg()->mm_stats = mm_stats;
+    }
+    return ret;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       get_mm_stats
+*
+*   DESCRIPTION
+*
+*       This function gets the current mm stats
+*
+*   INPUTS
+*
+*       get_mm_stats_t Pointer to mm_stats
+*
+*   OUTPUTS
+*
+*       int            Return status
+*
+***********************************************************************/
+int get_mm_stats(struct get_mm_stats_t *mm_stats)
+{
+    *mm_stats = get_soc_perf_reg()->mm_stats;
     return 0;
 }
 
