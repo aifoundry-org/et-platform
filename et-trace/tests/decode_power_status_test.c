@@ -20,9 +20,9 @@
 static void write_random_power_status(struct trace_control_block_t *cb)
 {
     struct trace_event_power_status_t power_data = {
+        .current_power = rand_u16(),
         .throttle_state = rand_u8(),
         .power_state = rand_u8(),
-        .current_power = rand_u8(),
         .current_temp = rand_u8(),
         .tgt_freq = rand_u16(),
         .tgt_voltage = rand_u16(),
@@ -32,9 +32,9 @@ static void write_random_power_status(struct trace_control_block_t *cb)
 
 static void check_random_power_status(const struct trace_event_power_status_t *pwr)
 {
+    uint16_t current_power = rand_u16();
     uint8_t throttle_state = rand_u8();
     uint8_t power_state = rand_u8();
-    uint8_t current_power = rand_u8();
     uint8_t current_temp = rand_u8();
     uint16_t tgt_freq = rand_u16();
     uint16_t tgt_voltage = rand_u16();

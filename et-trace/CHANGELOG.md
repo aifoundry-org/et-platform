@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-13832] Add Trace_Event_Copy API
 ### Changed
+- [SW-14083]: Update power status structure to use current power as 16 bits instead of 8
+    - This is a breaking change, trace_event_power_status_t now returns 16-bit power value instead of 8-bit
 ### Deprecated
 ### Removed
 ### Fixed
