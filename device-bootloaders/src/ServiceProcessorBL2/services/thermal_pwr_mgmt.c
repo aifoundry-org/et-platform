@@ -115,13 +115,12 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 /*! \def FILL_POWER_STATUS(ptr, throttle_st, pwr_st, curr_pwr, curr_temp)
     \brief Help macro to fill up Power Status Struct
 */
-#define FILL_POWER_STATUS(ptr, u, v, w, x, y, z)           \
-    ptr.throttle_state = u;                                \
-    ptr.power_state = v;                                   \
-    /* TODO:[SW-14083] update current power to uint16_t */ \
-    ptr.current_power = (uint8_t)w;                        \
-    ptr.current_temp = x;                                  \
-    ptr.tgt_freq = y;                                      \
+#define FILL_POWER_STATUS(ptr, u, v, w, x, y, z) \
+    ptr.throttle_state = u;                      \
+    ptr.power_state = v;                         \
+    ptr.current_power = w;                       \
+    ptr.current_temp = x;                        \
+    ptr.tgt_freq = y;                            \
     ptr.tgt_voltage = z;
 
 /*! \def SEND_THROTTLE_EVENT(THROTTLE_EVENT_TYPE)
@@ -1410,6 +1409,8 @@ void trace_power_state_test(uint16_t tag, uint64_t req_start_time, void *cmd)
         (struct device_mgmt_power_throttle_config_cmd_t *)cmd;
     struct trace_event_power_status_t power_status = { 0 };
 
+    pmic_read_average_soc_power(&power_status.current_power);
+    pvt_get_minion_avg_temperature(&power_status.current_temp);
     power_status.power_state = pwr_state_cmd->power_state;
 
     Trace_Power_Status(Trace_Get_SP_CB(), &power_status);

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13954] Add handling for DM_CMD_SET_MODULE_PART_NUMBER
 - [SW-13954] Add handling for DM_CMD_SET_MODULE_VOLTAGE
 - [SW-13954] Using PMIC voltage values for Maxion, PCIe Logic, VDDQ and VDDQLP.
+- [SW-14083] Update power status structure to use current power as 16 bits instead of 8
 ### Deprecated
 ### Removed
 ### Fixed
