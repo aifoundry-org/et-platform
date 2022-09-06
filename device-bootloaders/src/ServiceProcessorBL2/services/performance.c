@@ -30,6 +30,7 @@
 *
 *   INPUTS
 *
+*       tag               tag id
 *       req_start_time    Time stamp when the request was received by the Command
 *                         Dispatcher
 *
@@ -81,6 +82,7 @@ static void dm_svc_perf_get_asic_frequencies(uint16_t tag, uint64_t req_start_ti
 *
 *   INPUTS
 *
+*       tag               tag id
 *       req_start_time    Time stamp when the request was received by the Command
 *                         Dispatcher
 *
@@ -131,6 +133,7 @@ static void dm_svc_perf_get_dram_bw(uint16_t tag, uint64_t req_start_time)
 *
 *   INPUTS
 *
+*       tag               tag id
 *       req_start_time    Time stamp when the request was received by the Command
 *                         Dispatcher
 *
@@ -182,6 +185,7 @@ static void dm_svc_perf_get_dram_capacity_util(uint16_t tag, uint64_t req_start_
 *
 *   INPUTS
 *
+*       tag               tag id
 *       req_start_time    Time stamp when the request was received by the Command
 *                         Dispatcher
 *
@@ -233,6 +237,7 @@ static void dm_svc_perf_get_asic_per_core_util(uint16_t tag, uint64_t req_start_
 *
 *   INPUTS
 *
+*       tag               tag id
 *       req_start_time    Time stamp when the request was received by the Command
 *                         Dispatcher
 *
@@ -284,6 +289,7 @@ static void dm_svc_perf_get_asic_utilization(uint16_t tag, uint64_t req_start_ti
 *
 *   INPUTS
 *
+*       tag               tag id
 *       req_start_time    Time stamp when the request was received by the Command
 *                         Dispatcher
 *
@@ -335,6 +341,7 @@ static void dm_svc_perf_get_asic_stalls(uint16_t tag, uint64_t req_start_time)
 *
 *   INPUTS
 *
+*       tag               tag id
 *       req_start_time    Time stamp when the request was received by the Command
 *                         Dispatcher
 *
@@ -386,6 +393,7 @@ static void dm_svc_perf_get_asic_latency(uint16_t tag, uint64_t req_start_time)
 *
 *   INPUTS
 *
+*       tag               tag id
 *       req_start_time    Time stamp when the request was received by the Command
 *                         Dispatcher
 *
@@ -411,7 +419,7 @@ static void dm_svc_perf_get_mm_stats(uint16_t tag, uint64_t req_start_time)
     Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n", __func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MM_STATS, timer_get_ticks_count() - req_start_time,
-                    status);
+                    status)
 
     if (0 !=
         SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(struct device_mgmt_get_mm_stats_rsp_t)))
@@ -432,7 +440,8 @@ static void dm_svc_perf_get_mm_stats(uint16_t tag, uint64_t req_start_time)
 *
 *   INPUTS
 *
-*       msg_id    ID of serivces to handle
+*       tag_id    ID of tag
+*       msg_id    ID of services to handle
 *
 *   OUTPUTS
 *

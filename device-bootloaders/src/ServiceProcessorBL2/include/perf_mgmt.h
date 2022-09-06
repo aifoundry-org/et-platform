@@ -17,7 +17,7 @@
     the host can query device for performance related details.
 */
 /***********************************************************************/
-#include <esperanto/device-apis/management-api/device_mgmt_api_spec.h>
+#include <esperanto/device-apis/management-api/device_mgmt_api_spec.h> /* TODO: eliminate this */
 #include <esperanto/device-apis/management-api/device_mgmt_api_rpc_types.h>
 #include "dm.h"
 
@@ -128,6 +128,7 @@ int get_mm_stats(struct get_mm_stats_t *stats);
 
 /*! \fn int update_mm_stats(void);
     \brief Interface to update current mm stats
+    \param none
     \returns int
 */
 int update_mm_stats(void);

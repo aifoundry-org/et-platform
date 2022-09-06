@@ -37,7 +37,7 @@
 
 struct soc_perf_reg_t
 {
-    struct get_mm_stats_t mm_stats;
+    struct compute_resources_sample mm_stats;
     struct asic_frequencies_t asic_frequency;
     struct dram_bw_t dram_bw;
     struct max_dram_bw_t max_dram_bw;
@@ -483,7 +483,7 @@ int get_last_update_ts(uint64_t *last_ts)
 ***********************************************************************/
 int update_mm_stats(void)
 {
-    struct get_mm_stats_t mm_stats;
+    struct compute_resources_sample mm_stats;
     int ret = MM_Iface_Get_MM_Stats(&mm_stats);
 
     if (0 != ret)
@@ -518,7 +518,43 @@ int update_mm_stats(void)
 ***********************************************************************/
 int get_mm_stats(struct get_mm_stats_t *mm_stats)
 {
-    *mm_stats = get_soc_perf_reg()->mm_stats;
+    volatile struct soc_perf_reg_t const *reg = get_soc_perf_reg();
+
+    mm_stats->cm_bw_avg = reg->mm_stats.cm_bw.avg;
+    mm_stats->cm_bw_min = reg->mm_stats.cm_bw.min;
+    mm_stats->cm_bw_max = reg->mm_stats.cm_bw.max;
+    mm_stats->cm_utilization_avg = reg->mm_stats.cm_utilization.avg;
+    mm_stats->cm_utilization_min = reg->mm_stats.cm_utilization.min;
+    mm_stats->cm_utilization_max = reg->mm_stats.cm_utilization.max;
+
+    mm_stats->pcie_dma_read_bw_avg = reg->mm_stats.pcie_dma_read_bw.avg;
+    mm_stats->pcie_dma_read_bw_min = reg->mm_stats.pcie_dma_read_bw.min;
+    mm_stats->pcie_dma_read_bw_max = reg->mm_stats.pcie_dma_read_bw.max;
+    mm_stats->pcie_dma_write_bw_avg = reg->mm_stats.pcie_dma_write_bw.avg;
+    mm_stats->pcie_dma_write_bw_min = reg->mm_stats.pcie_dma_write_bw.min;
+    mm_stats->pcie_dma_write_bw_max = reg->mm_stats.pcie_dma_write_bw.max;
+
+    mm_stats->ddr_read_bw_avg = reg->mm_stats.ddr_read_bw.avg;
+    mm_stats->ddr_read_bw_min = reg->mm_stats.ddr_read_bw.min;
+    mm_stats->ddr_read_bw_max = reg->mm_stats.ddr_read_bw.max;
+    mm_stats->ddr_write_bw_avg = reg->mm_stats.ddr_write_bw.avg;
+    mm_stats->ddr_write_bw_min = reg->mm_stats.ddr_write_bw.min;
+    mm_stats->ddr_write_bw_max = reg->mm_stats.ddr_write_bw.max;
+
+    mm_stats->l2_l3_read_bw_avg = reg->mm_stats.l2_l3_read_bw.avg;
+    mm_stats->l2_l3_read_bw_min = reg->mm_stats.l2_l3_read_bw.min;
+    mm_stats->l2_l3_read_bw_max = reg->mm_stats.l2_l3_read_bw.max;
+    mm_stats->l2_l3_write_bw_avg = reg->mm_stats.l2_l3_write_bw.avg;
+    mm_stats->l2_l3_write_bw_min = reg->mm_stats.l2_l3_write_bw.min;
+    mm_stats->l2_l3_write_bw_max = reg->mm_stats.l2_l3_write_bw.max;
+
+    mm_stats->pcie_dma_read_utilization_avg = reg->mm_stats.pcie_dma_read_utilization.avg;
+    mm_stats->pcie_dma_read_utilization_min = reg->mm_stats.pcie_dma_read_utilization.min;
+    mm_stats->pcie_dma_read_utilization_max = reg->mm_stats.pcie_dma_read_utilization.max;
+    mm_stats->pcie_dma_write_utilization_avg = reg->mm_stats.pcie_dma_write_utilization.avg;
+    mm_stats->pcie_dma_write_utilization_min = reg->mm_stats.pcie_dma_write_utilization.min;
+    mm_stats->pcie_dma_write_utilization_max = reg->mm_stats.pcie_dma_write_utilization.max;
+
     return 0;
 }
 

@@ -325,14 +325,14 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
 *
 *   INPUTS
 *
-*       None
+*       stats         Pointer to receive the mm stats
 *
 *   OUTPUTS
 *
 *       int32_t  Success or error code.
 *
 ***********************************************************************/
-int32_t MM_Iface_Get_MM_Stats(struct get_mm_stats_t *stats)
+int32_t MM_Iface_Get_MM_Stats(struct compute_resources_sample *stats)
 {
     int32_t status = MM_IFACE_SP2MM_CMD_ERROR;
     struct sp2mm_get_mm_stats_cmd_t cmd;
@@ -358,59 +358,21 @@ int32_t MM_Iface_Get_MM_Stats(struct get_mm_stats_t *stats)
             /* Get response from MM. */
             status = MM_Iface_Pop_Rsp_From_SP2MM_CQ(&rsp);
 
-            if ((status > 0) && (rsp.msg_hdr.msg_id == SP2MM_RSP_GET_MM_STATS))
+            if ((status <= 0) || (rsp.msg_hdr.msg_id != SP2MM_RSP_GET_MM_STATS))
             {
-                status = rsp.status;
+                xSemaphoreGive(mm_cmd_lock);
+                return MM_IFACE_SP2MM_INVALID_RESPONSE;
+            }
 
-                if (status != 0)
-                {
-                    Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Get_MM_Stats: response status %d!\r\n",
-                              status);
-                }
-                else
-                {
-                    stats->cm_bw_avg = rsp.sample.cm_bw.avg;
-                    stats->cm_bw_min = rsp.sample.cm_bw.min;
-                    stats->cm_bw_max = rsp.sample.cm_bw.max;
-                    stats->cm_utilization_avg = rsp.sample.cm_utilization.avg;
-                    stats->cm_utilization_min = rsp.sample.cm_utilization.min;
-                    stats->cm_utilization_max = rsp.sample.cm_utilization.max;
-
-                    stats->pcie_dma_read_bw_avg = rsp.sample.pcie_dma_read_bw.avg;
-                    stats->pcie_dma_read_bw_min = rsp.sample.pcie_dma_read_bw.min;
-                    stats->pcie_dma_read_bw_max = rsp.sample.pcie_dma_read_bw.max;
-                    stats->pcie_dma_write_bw_avg = rsp.sample.pcie_dma_write_bw.avg;
-                    stats->pcie_dma_write_bw_min = rsp.sample.pcie_dma_write_bw.min;
-                    stats->pcie_dma_write_bw_max = rsp.sample.pcie_dma_write_bw.max;
-
-                    stats->ddr_read_bw_avg = rsp.sample.ddr_read_bw.avg;
-                    stats->ddr_read_bw_min = rsp.sample.ddr_read_bw.min;
-                    stats->ddr_read_bw_max = rsp.sample.ddr_read_bw.max;
-                    stats->ddr_write_bw_avg = rsp.sample.ddr_write_bw.avg;
-                    stats->ddr_write_bw_min = rsp.sample.ddr_write_bw.min;
-                    stats->ddr_write_bw_max = rsp.sample.ddr_write_bw.max;
-
-                    stats->l2_l3_read_bw_avg = rsp.sample.l2_l3_read_bw.avg;
-                    stats->l2_l3_read_bw_min = rsp.sample.l2_l3_read_bw.min;
-                    stats->l2_l3_read_bw_max = rsp.sample.l2_l3_read_bw.max;
-                    stats->l2_l3_write_bw_avg = rsp.sample.l2_l3_write_bw.avg;
-                    stats->l2_l3_write_bw_min = rsp.sample.l2_l3_write_bw.min;
-                    stats->l2_l3_write_bw_max = rsp.sample.l2_l3_write_bw.max;
-
-                    stats->pcie_dma_read_utilization_avg = rsp.sample.pcie_dma_read_utilization.avg;
-                    stats->pcie_dma_read_utilization_min = rsp.sample.pcie_dma_read_utilization.min;
-                    stats->pcie_dma_read_utilization_max = rsp.sample.pcie_dma_read_utilization.max;
-                    stats->pcie_dma_write_utilization_avg =
-                        rsp.sample.pcie_dma_write_utilization.avg;
-                    stats->pcie_dma_write_utilization_min =
-                        rsp.sample.pcie_dma_write_utilization.min;
-                    stats->pcie_dma_write_utilization_max =
-                        rsp.sample.pcie_dma_write_utilization.max;
-                }
+            status = rsp.status;
+            if (status != 0)
+            {
+                Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Get_MM_Stats: response status %d!\r\n",
+                          status);
             }
             else
             {
-                status = MM_IFACE_SP2MM_INVALID_RESPONSE;
+                *stats = rsp.sample;
             }
         }
 
