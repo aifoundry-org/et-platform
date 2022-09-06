@@ -126,7 +126,7 @@ int get_last_update_ts(uint64_t *last_ts);
 */
 int get_mm_stats(struct get_mm_stats_t *stats);
 
-/*! \fn int update_mm_stats(void);
+/*! \fn int update_mm_stats(void)
     \brief Interface to update current mm stats
     \param none
     \returns int
