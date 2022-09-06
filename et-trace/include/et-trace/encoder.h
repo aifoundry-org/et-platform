@@ -824,8 +824,10 @@ void Trace_Power_Status(struct trace_control_block_t *cb,
         struct trace_power_status_t *entry =
             (struct trace_power_status_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_POWER_STATUS)
-        ET_TRACE_WRITE_U64(entry->power.raw_cmd, pwr_data->raw_cmd);
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)),
+                                TRACE_TYPE_POWER_STATUS)
+        ET_TRACE_WRITE_U64(entry->power.raw_bits_64, pwr_data->raw_bits_64);
+        ET_TRACE_WRITE_U32(entry->power.raw_bits_32, pwr_data->raw_bits_32);
     }
 }
 

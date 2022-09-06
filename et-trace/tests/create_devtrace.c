@@ -70,9 +70,9 @@ static void write_counter(struct trace_control_block_t *cb)
 static void write_power(struct trace_control_block_t *cb)
 {
     struct trace_event_power_status_t power_data = {
+        .current_power = (uint16_t)randint(200, 400),
         .throttle_state = (uint8_t)randint(1, 10),
         .power_state = (uint8_t)randint(1, 10),
-        .current_power = (uint8_t)randint(200, 400),
         .current_temp = (uint8_t)randint(80, 120),
         .tgt_freq = (uint16_t)randint(1000, 2000),
         .tgt_voltage = (uint16_t)randint(1, 5),
