@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- [SW-13832] Add new command DM_CMD_GET_MM_STATS to the commandCodeTable
 ### Changed
 ### Deprecated
 ### Removed
