@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-13832] Add Trace_Event_Copy API
+- Added ET_TRACE_READ_MEM and ET_TRACE_WRITE_MEM macros.
 ### Changed
 - [SW-14083]: Update power status structure to use current power as 16 bits instead of 8
     - This is a breaking change, trace_event_power_status_t now returns 16-bit power value instead of 8-bit
 ### Deprecated
 ### Removed
 ### Fixed
+- Read coherency issue in Trace_Event_Copy().
 ### Security
 
 ## [0.6.0] - 2022-8-15
