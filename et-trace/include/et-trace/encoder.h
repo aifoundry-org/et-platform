@@ -287,6 +287,10 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
 #define ET_TRACE_READ_U64_PTR(var) (var)
 #endif
 
+#ifndef ET_TRACE_READ_MEM
+#define ET_TRACE_READ_MEM(dest, src, size) memcpy(dest, src, size)
+#endif
+
 #ifndef ET_TRACE_WRITE_U8
 #define ET_TRACE_WRITE_U8(var, val)    (var = val)
 #endif
@@ -307,6 +311,11 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
 #define ET_TRACE_WRITE_FLOAT(loc, val) (loc = val)
 #endif
 
+#ifndef ET_TRACE_WRITE_MEM
+#define ET_TRACE_WRITE_MEM(dest, src, size) memcpy(dest, src, size)
+#endif
+
+/* TODO: Deprecated, to be removed. */
 #ifndef ET_TRACE_MEM_CPY
 #define ET_TRACE_MEM_CPY(dest, src, size) memcpy(dest, src, size)
 #endif
@@ -1299,7 +1308,7 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
         } else if (src_size > dst_size) {
             status = TRACE_INVALID_DST_ENTRY;
         } else {
-            ET_TRACE_MEM_CPY(dst_entry, src_entry, src_size);
+            ET_TRACE_READ_MEM(dst_entry, src_entry, src_size);
         }
     }
 
