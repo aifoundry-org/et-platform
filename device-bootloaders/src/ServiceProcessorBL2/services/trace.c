@@ -400,8 +400,12 @@ void Trace_Update_SP_Buffer_Header(void)
     struct trace_buffer_std_header_t *trace_header =
         (struct trace_buffer_std_header_t *)SP_Trace_CB.base_per_hart;
 
+    et_trace_buffer_lock_acquire();
+
     trace_header->data_size = SP_Trace_CB.offset_per_hart;
     ETSOC_MEM_EVICT((uint64_t *)SP_TRACE_BUFFER_BASE, SP_Trace_CB.offset_per_hart, to_L2)
+
+    et_trace_buffer_lock_release();
 }
 
 /************************************************************************

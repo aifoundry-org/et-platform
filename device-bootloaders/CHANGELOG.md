@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13571] Fixed watchdog timeout calculations with respect to pclk
 - [SW-13974] Updating the PCIe driver to poll on bar addresses until assigned with delays.
 - [SW-13978]: Refactored set frequency function
+- Adding locks in SP trace buffer evict and reduced versbosity of some logs.
 ### Security
 
 ## [0.4.0] - 2022-08-16

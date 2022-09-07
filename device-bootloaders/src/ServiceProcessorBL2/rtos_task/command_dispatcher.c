@@ -288,7 +288,7 @@ static void mm2sp_echo_cmd_handler(const void *cmd_buffer)
     struct mm2sp_echo_rsp_t rsp;
     int8_t status;
 
-    Log_Write(LOG_LEVEL_INFO, "MM2SP_CMD_ECHO: \n");
+    Log_Write(LOG_LEVEL_DEBUG, "MM2SP_CMD_ECHO: \n");
 
     /* Initialize command header */
     SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_ECHO, sizeof(struct mm2sp_echo_rsp_t),
@@ -310,7 +310,7 @@ static void mm2sp_get_active_shire_mask_cmd_handler(const void *cmd_buffer)
     struct mm2sp_get_active_shire_mask_rsp_t rsp;
     int8_t status;
 
-    Log_Write(LOG_LEVEL_INFO, "MM2SP_CMD_GET_ACTIVE_SHIRE_MASK: response going to  MM HART: %d\n",
+    Log_Write(LOG_LEVEL_DEBUG, "MM2SP_CMD_GET_ACTIVE_SHIRE_MASK: response going to  MM HART: %d\n",
               cmd->msg_hdr.issuing_hart_id);
 
     SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_ACTIVE_SHIRE_MASK,
@@ -336,7 +336,7 @@ static void mm2sp_get_fw_version_cmd_handler(const void *cmd_buffer)
     struct mm2sp_get_fw_version_rsp_t rsp;
     int8_t status;
 
-    Log_Write(LOG_LEVEL_INFO, "MM2SP_CMD_GET_FW_VERSION: \n");
+    Log_Write(LOG_LEVEL_DEBUG, "MM2SP_CMD_GET_FW_VERSION: \n");
 
     SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_FW_VERSION,
                              sizeof(struct mm2sp_get_fw_version_rsp_t),
@@ -347,7 +347,7 @@ static void mm2sp_get_fw_version_cmd_handler(const void *cmd_buffer)
     /* Call the API to get the FW version */
     if (cmd->fw_type == MM2SP_MASTER_MINION_FW)
     {
-        Log_Write(LOG_LEVEL_INFO, "MM2SP_MASTER_MINION_FW: \n");
+        Log_Write(LOG_LEVEL_DEBUG, "MM2SP_MASTER_MINION_FW: \n");
 
         /* Request firmware service for version */
         firmware_service_get_mm_version(&rsp.major, &rsp.minor, &rsp.revision);
@@ -357,7 +357,7 @@ static void mm2sp_get_fw_version_cmd_handler(const void *cmd_buffer)
     }
     else if (cmd->fw_type == MM2SP_MACHINE_MINION_FW)
     {
-        Log_Write(LOG_LEVEL_INFO, "MM2SP_MACHINE_MINION_FW: \n");
+        Log_Write(LOG_LEVEL_DEBUG, "MM2SP_MACHINE_MINION_FW: \n");
 
         /* Request firmware service for version */
         firmware_service_get_machm_version(&rsp.major, &rsp.minor, &rsp.revision);
@@ -368,7 +368,7 @@ static void mm2sp_get_fw_version_cmd_handler(const void *cmd_buffer)
     }
     else if (cmd->fw_type == MM2SP_WORKER_MINION_FW)
     {
-        Log_Write(LOG_LEVEL_INFO, "MM2SP_WORKER_MINION_FW: \n");
+        Log_Write(LOG_LEVEL_DEBUG, "MM2SP_WORKER_MINION_FW: \n");
 
         /* Request firmware service for version */
         firmware_service_get_wm_version(&rsp.major, &rsp.minor, &rsp.revision);
