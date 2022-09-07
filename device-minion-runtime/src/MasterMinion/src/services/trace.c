@@ -58,16 +58,19 @@ void et_trace_mm_cb_lock_release(void);
 #define ET_TRACE_GET_HART_ID()       get_hart_id()
 
 /* Master Minion Trace memory access primitives. */
-#define ET_TRACE_READ_U8(addr)            atomic_load_local_8(&addr)
-#define ET_TRACE_READ_U16(addr)           atomic_load_local_16(&addr)
-#define ET_TRACE_READ_U32(addr)           atomic_load_local_32(&addr)
-#define ET_TRACE_READ_U64(addr)           atomic_load_local_64(&addr)
-#define ET_TRACE_READ_U64_PTR(addr)       atomic_load_local_64((void *)&addr)
-#define ET_TRACE_WRITE_U8(addr, value)    atomic_store_local_8(&addr, value)
-#define ET_TRACE_WRITE_U16(addr, value)   atomic_store_local_16(&addr, value)
-#define ET_TRACE_WRITE_U32(addr, value)   atomic_store_local_32(&addr, value)
-#define ET_TRACE_WRITE_U64(addr, value)   atomic_store_local_64(&addr, value)
-#define ET_TRACE_WRITE_FLOAT(loc, value)  et_trace_write_float(&(loc), (value))
+#define ET_TRACE_READ_U8(addr)              atomic_load_local_8(&addr)
+#define ET_TRACE_READ_U16(addr)             atomic_load_local_16(&addr)
+#define ET_TRACE_READ_U32(addr)             atomic_load_local_32(&addr)
+#define ET_TRACE_READ_U64(addr)             atomic_load_local_64(&addr)
+#define ET_TRACE_READ_U64_PTR(addr)         atomic_load_local_64((void *)&addr)
+#define ET_TRACE_READ_MEM(dest, src, size)  ETSOC_Memory_Read_Local_Atomic(src, dest, size)
+#define ET_TRACE_WRITE_U8(addr, value)      atomic_store_local_8(&addr, value)
+#define ET_TRACE_WRITE_U16(addr, value)     atomic_store_local_16(&addr, value)
+#define ET_TRACE_WRITE_U32(addr, value)     atomic_store_local_32(&addr, value)
+#define ET_TRACE_WRITE_U64(addr, value)     atomic_store_local_64(&addr, value)
+#define ET_TRACE_WRITE_FLOAT(loc, value)    et_trace_write_float(&(loc), (value))
+#define ET_TRACE_WRITE_MEM(dest, src, size) ETSOC_Memory_Write_Local_Atomic(src, dest, size)
+/* TODO: ET_TRACE_MEM_CPY deprecated, to be removed. */
 #define ET_TRACE_MEM_CPY(dest, src, size) ETSOC_Memory_Write_Local_Atomic(src, dest, size)
 #define ET_TRACE_STRING_MAX_SIZE          128
 
