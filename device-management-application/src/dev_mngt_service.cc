@@ -22,6 +22,7 @@
 #include <exception>
 #include <experimental/filesystem>
 #include <fcntl.h>
+#include <fmt/format.h>
 #include <fstream>
 #include <getopt.h>
 #include <glog/logging.h>
@@ -38,6 +39,7 @@
 #define DM_VLOG(level) ET_VLOG(DEV_MNGT_SERVICE, level) // severity levels: LOW MID HIGH
 #define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER) (BASE + REG_VALUE * MULTIPLIER)
 #define VOLTAGE2BIN(VOL_VALUE, BASE, MULTIPLIER) ((VOL_VALUE - BASE) / MULTIPLIER)
+#define ECID_LOT_ID_LENGTH 6
 
 namespace fs = std::experimental::filesystem;
 
@@ -367,8 +369,6 @@ int verifyService() {
 
   switch (code) {
   case DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME:
-  case DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER:
-  case DM_CMD::DM_CMD_GET_MODULE_SERIAL_NUMBER:
   case DM_CMD::DM_CMD_GET_MODULE_REVISION:
   case DM_CMD::DM_CMD_GET_MODULE_FORM_FACTOR:
   case DM_CMD::DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
@@ -383,6 +383,38 @@ int verifyService() {
     std::string str_output = std::string(output_buff);
 
     DM_LOG(INFO) << "Asset Output: " << str_output << std::endl;
+  } break;
+
+  case DM_CMD::DM_CMD_GET_MODULE_SERIAL_NUMBER: {
+    struct {
+      uint64_t lot_id;
+      uint8_t wafer_id;
+      uint8_t x_coordinate;
+      uint8_t y_coordinate;
+      std::array<char, ECID_LOT_ID_LENGTH + 1> lot_id_str;
+    } ecid;
+    const uint32_t output_size = sizeof(struct asset_info_t);
+    char output_buff[output_size] = {0};
+
+    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+    memcpy(&ecid, output_buff, output_size);
+    DM_LOG(INFO) << fmt::format("Lot ID       = {} 0x{:016x}", ecid.lot_id_str.data(), ecid.lot_id);
+    DM_LOG(INFO) << fmt::format("Wafer ID     = 0x{:02x} ({})", ecid.wafer_id, ecid.wafer_id);
+    DM_LOG(INFO) << fmt::format("X Coordinate = 0x{:02x} ({})", ecid.x_coordinate, ecid.x_coordinate);
+    DM_LOG(INFO) << fmt::format("Y Coordinate = 0x{:02x} ({})", ecid.y_coordinate, ecid.y_coordinate);
+  } break;
+
+  case DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER: {
+    const uint32_t output_size = sizeof(struct asset_info_t);
+    char output_buff[output_size] = {0};
+
+    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+    uint32_t partNumber = *(static_cast<uint32_t*>(static_cast<void*>(output_buff)));
+    DM_LOG(INFO) << fmt::format("Part Number = 0x{:02x} ({})", partNumber, partNumber);
   } break;
 
   case DM_CMD::DM_CMD_SET_MODULE_PART_NUMBER: {

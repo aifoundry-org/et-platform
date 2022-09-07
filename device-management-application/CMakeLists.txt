@@ -15,6 +15,7 @@ include(ExternalProject)
 include(GNUInstallDirs)
 
 find_package(deviceLayer REQUIRED)
+find_package(fmt REQUIRED)
 find_package(hostUtils REQUIRED)
 find_package(deviceManagement REQUIRED)
 find_package(glog REQUIRED)
@@ -37,6 +38,7 @@ target_compile_definitions(dev_mngt_service
 )
 target_link_libraries(dev_mngt_service
     PRIVATE
+        fmt::fmt
         glog::glog
         ${CMAKE_THREAD_LIBS_INIT}
         ${CMAKE_DL_LIBS}

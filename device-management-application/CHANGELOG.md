@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - [SW-13954] dev_mngt_service: Add options to set module partid and voltage.
+- [SW-14096] Add parsing for SERIAL and PART numbers before printing them.
 ### Changed
 ### Deprecated
 ### Removed

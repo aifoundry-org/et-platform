@@ -44,6 +44,7 @@ class DeviceManagementApplicationConan(ConanFile):
         self.requires("hostUtils/[>=0.1.0 <1.0.0]")
         self.requires("deviceApi/[>=0.7.0 <1.0.0]")
 
+        self.requires("fmt/7.1.3")
         self.requires("glog/0.4.0")
     
     def generate(self):

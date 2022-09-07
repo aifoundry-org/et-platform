@@ -12,6 +12,7 @@
 
 include(CMakeFindDependencyMacro)
 find_dependency(esperantoTrace REQUIRED)
+find_dependency(fmt REQUIRED)
 find_dependency(deviceLayer REQUIRED)
 find_dependency(hostUtils REQUIRED)
 find_dependency(deviceManagement REQUIRED)
