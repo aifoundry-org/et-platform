@@ -114,7 +114,6 @@ void Trace_Process_Control_Cmd(void *buffer)
         et_trace_buffer_lock_acquire();
         trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
         SP_Trace_CB.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
-        ETSOC_MEM_EVICT((uint64_t *)SP_TRACE_BUFFER_BASE, SP_Trace_CB.offset_per_hart, to_L2)
         et_trace_buffer_lock_release();
     }
 

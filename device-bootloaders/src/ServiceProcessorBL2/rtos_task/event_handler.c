@@ -124,7 +124,7 @@ static void dm_event_task_entry(void *pvParameters)
         /* block until a message is received */
         if (xQueueReceive(q_handle, &msg, portMAX_DELAY) == pdTRUE)
         {
-            Log_Write(LOG_LEVEL_INFO, "DM event received: msg_id: %d, %s\n", msg.header.msg_id,
+            Log_Write(LOG_LEVEL_DEBUG, "DM event received: msg_id: %d, %s\n", msg.header.msg_id,
                       __func__);
             status = SP_Host_Iface_CQ_Push_Cmd((void *)&msg, sizeof(msg));
             if (status)

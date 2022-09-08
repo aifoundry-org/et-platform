@@ -17,8 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13954] Add handling for DM_CMD_SET_MODULE_VOLTAGE
 - [SW-13954] Using PMIC voltage values for Maxion, PCIe Logic, VDDQ and VDDQLP.
 - [SW-14083] Update power status structure to use current power as 16 bits instead of 8
+- Lowered the verbosity of a log.
 ### Deprecated
 ### Removed
+- Removed trace buffer evict from reset.
 ### Fixed
 - [SW-13571] Fixed watchdog timeout calculations with respect to pclk
 - [SW-13974] Updating the PCIe driver to poll on bar addresses until assigned with delays.
