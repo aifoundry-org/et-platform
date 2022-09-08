@@ -33,9 +33,6 @@
 
 #define ET_TOP "et-powertop"
 
-#define SP_STATS_FILE "sp_stats.bin"
-#define MM_STATS_FILE "mm_stats.bin"
-
 static const uint32_t kDmServiceRequestTimeout = 100000;
 static const uint32_t kUpdateDelayMS = 100;
 static const int32_t kMaxDeviceNum = 63;
@@ -55,6 +52,14 @@ static void restoreTTY(void) {
 static inline std::string formatVersion(uint32_t ver) {
   return "v" + std::to_string((ver >> 24) & 0xff) + "." + std::to_string((ver >> 16) & 0xff) + "." +
          std::to_string((ver >> 8) & 0xff);
+}
+
+static inline std::string getNewFileName(int devNum, bool isSp) {
+  std::stringstream ss;
+  const auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  ss << "dev" << devNum << "_" << (isSp ? "sp" : "mm") << "_stats_"
+     << std::put_time(std::localtime(&time), "%Y:%m:%d_%X") << ".bin";
+  return ss.str();
 }
 
 struct vq_stats_t {
@@ -387,10 +392,11 @@ void EtTop::collectSpStats(void) {
         device_mgmt_api::DM_STATUS_SUCCESS) {
       DV_LOG(ERROR) << "getTraceBufferServiceProcessor SPStats error";
     } else {
+      auto fileName = getNewFileName(devNum_, true /* SP */);
       std::ofstream spTrace;
-      spTrace.open(SP_STATS_FILE, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+      spTrace.open(fileName, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
       if (!spTrace.is_open()) {
-        DV_LOG(ERROR) << "Error: unable to open file " SP_STATS_FILE "\n";
+        DV_LOG(ERROR) << "Error: unable to open file " << fileName << std::endl;
       } else {
         spTrace.write(reinterpret_cast<const char*>(response.data()), response.size());
         spTrace.close();
@@ -462,10 +468,11 @@ void EtTop::collectMmStats(void) {
   if (dumpNextMmStatsBuffer_) {
     dumpNextMmStatsBuffer_ = false;
 
+    auto fileName = getNewFileName(devNum_, false /* MM */);
     std::ofstream mmTrace;
-    mmTrace.open(MM_STATS_FILE, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+    mmTrace.open(fileName, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
     if (!mmTrace.is_open()) {
-      DV_LOG(ERROR) << "Error: unable to open file " MM_STATS_FILE "\n";
+      DV_LOG(ERROR) << "Error: unable to open file " << fileName << std::endl;
     } else {
       mmTrace.write(reinterpret_cast<const char*>(response.data()), response.size());
       mmTrace.close();

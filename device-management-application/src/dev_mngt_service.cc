@@ -16,6 +16,7 @@
 #include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <ctype.h>
 #include <device-layer/IDeviceLayer.h>
 #include <dlfcn.h>
@@ -201,7 +202,7 @@ bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf, Tr
   }
   std::ofstream logfile;
   std::string fileName = (fs::path("dev" + std::to_string(deviceIdx))).string();
-  fileName += "traces.txt";
+  fileName += "_traces.txt";
   DM_LOG(INFO) << "Saving trace to file: " << fileName;
   logfile.open(fileName, std::ios_base::app);
   switch (bufferType) {
@@ -289,7 +290,10 @@ void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf, T
     return;
   }
 
-  fileName += ".bin";
+  const auto time = Clock::to_time_t(Clock::now());
+  std::stringstream ss;
+  ss << std::put_time(std::localtime(&time), "_%Y:%m:%d_%X") << ".bin";
+  fileName += ss.str();
 
   if (dataSize < sizeof(trace_buffer_std_header_t)) {
     return;
