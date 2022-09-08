@@ -13,11 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14096] Add parsing for SERIAL and PART numbers before printing them.
 ### Changed
 - [SW-14107] update trace bin file names to be unique w.r.t time.
+- Renaming PCIE and PCIE Logic voltage labels in et-power-top.
 ### Deprecated
 ### Removed
 ### Fixed
 - [SW-13978] dev_mngt_service: Intermittent failures while setting MINION,NOC frequencies.
-- [SW-13978]: Fixed get sp trace buffer to return error in case of buffer not reterieved 
+- [SW-13978]: Fixed get sp trace buffer to return error in case of buffer not reterieved
 ### Security
 
 ## [1.4.0] - 2022-8-15

@@ -733,13 +733,13 @@ void EtTop::displayStats(void) {
 
   if (displayVoltDetails_) {
     std::cout << "Voltages(mV):\n";
-    displayVoltStat("MAXION    ", false, voltStats_.maxion, 250, 5);
-    displayVoltStat("MINION    ", true, voltStats_.minion, 250, 5);
-    displayVoltStat("NOC       ", false, voltStats_.noc, 250, 5);
-    displayVoltStat("DDR       ", true, voltStats_.ddr, 250, 5);
-    displayVoltStat("PCIE      ", false, voltStats_.pcie, 600, 6);
-    displayVoltStat("PCIE LOGIC", true, voltStats_.pcie_logic, 600, 6);
-    displayVoltStat("L2 CACHE  ", true, voltStats_.l2_cache, 250, 5);
+    displayVoltStat("MAXION   ", false, voltStats_.maxion, 250, 5);
+    displayVoltStat("MINION   ", true, voltStats_.minion, 250, 5);
+    displayVoltStat("NOC      ", false, voltStats_.noc, 250, 5);
+    displayVoltStat("DDR      ", true, voltStats_.ddr, 250, 5);
+    displayVoltStat("PCIE SS  ", false, voltStats_.pcie, 600, 6);
+    displayVoltStat("PCL      ", true, voltStats_.pcie_logic, 600, 6);
+    displayVoltStat("L2 CACHE ", true, voltStats_.l2_cache, 250, 5);
   }
 
   bool errors = errStats_.uceCount > 0 || errStats_.ceCount > 0 || aerStats_.aerCount > 0;
