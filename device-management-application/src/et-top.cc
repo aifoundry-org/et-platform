@@ -52,6 +52,11 @@ static void restoreTTY(void) {
   return;
 }
 
+static inline std::string formatVersion(uint32_t ver) {
+  return "v" + std::to_string((ver >> 24) & 0xff) + "." + std::to_string((ver >> 16) & 0xff) + "." +
+         std::to_string((ver >> 8) & 0xff);
+}
+
 struct vq_stats_t {
   std::string qname;
   uint64_t msgCount;
@@ -166,7 +171,7 @@ private:
   device_management::DeviceManagement& dm_;
   std::string cardId_;
   std::string fwVersion_;
-  std::string pmicFwVersion_ = "v0.6.0";
+  std::string pmicFwVersion_;
 
   std::array<vq_stats_t, kOpsSqNum + kOpsCqNum> vqStats_;
   struct mem_stats_t memStats_;
@@ -418,9 +423,8 @@ void EtTop::getDeviceDetails(void) {
   if (ret != device_mgmt_api::DM_STATUS_SUCCESS) {
     DV_LOG(ERROR) << "Service request get firmware version failed with return code: " << std::dec << ret << std::endl;
   } else {
-    fwVersion_ = "v" + std::to_string((versions.fw_release_rev >> 24) & 0xff) + "." +
-                 std::to_string((versions.fw_release_rev >> 16) & 0xff) + "." +
-                 std::to_string((versions.fw_release_rev >> 8) & 0xff);
+    fwVersion_ = formatVersion(versions.fw_release_rev);
+    pmicFwVersion_ = formatVersion(versions.pmic_v);
   }
 }
 
