@@ -3076,7 +3076,7 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
           }
         }
       }
-      EXPECT_TRUE(validEventFound) << "No SP trace event found!" << std::endl;
+      EXPECT_TRUE(validEventFound) << "No SP Power status trace event found for Device: " << deviceIdx << std::endl;
       validEventFound = false;
     }
   }

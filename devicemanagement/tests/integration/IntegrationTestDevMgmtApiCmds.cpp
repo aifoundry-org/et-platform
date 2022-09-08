@@ -44,10 +44,10 @@ TEST_F(IntegrationTestDevMgmtApiCmds, setTraceControl) {
   DV_LOG(INFO) << "setTraceControl: verifying disable trace control command";
   setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE);
   DV_LOG(INFO) << "setTraceControl: verifying enabling trace (dump to UART) control command";
+  setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_UART_ENABLE);
+  DV_LOG(INFO) << "setTraceControl: verifying enabling trace (dump to trace buffer) control command";
   setTraceControl(false /* Multiple devices */,
                   device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE | device_mgmt_api::TRACE_CONTROL_TRACE_UART_ENABLE);
-  DV_LOG(INFO) << "setTraceControl: verifying enabling trace (dump to trace buffer) control command";
-  setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE);
 }
 
 TEST_F(IntegrationTestDevMgmtApiCmds, setTraceConfigure) {

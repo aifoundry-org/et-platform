@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - [SW-13978] Enabling back setAndGetModuleFrequency
+- Fixed setTraceControl test and fixed a log.
 ### Security
 
 ## [0.5.0] - 2022-08-15
