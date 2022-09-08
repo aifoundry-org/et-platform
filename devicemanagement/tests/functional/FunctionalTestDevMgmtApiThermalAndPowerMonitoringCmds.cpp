@@ -81,15 +81,6 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setThrottlePowerSt
   setThrottlePowerStatus(false /* Multiple Devices */);
 }
 
-TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setAndGetModuleFrequency) {
-  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
-    setAndGetModuleFrequency(false /* Multiple devices */);
-  } else {
-    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
-    FLAGS_enable_trace_dump = false;
-  }
-}
-
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");

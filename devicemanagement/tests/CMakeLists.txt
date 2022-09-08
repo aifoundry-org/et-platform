@@ -233,6 +233,13 @@ create_test(
     PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;60"
 )
 
+create_test(
+    TARGET      OpsNodeDependentTestDevMgmtApiThermalAndPowerMonitoringCmds
+    SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiThermalAndPowerMonitoringCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;60"
+)
+
 configure_file(
     mix/MixTestDevMgmtApiAllCmds.sh.in
     ${CMAKE_CURRENT_BINARY_DIR}/MixTestDevMgmtApiAllCmds.sh @ONLY
