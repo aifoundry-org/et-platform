@@ -36,9 +36,9 @@ class DeviceManagementConan(ConanFile):
         self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "deviceManagement")
 
     def requirements(self):
-        self.requires("deviceApi/0.7.0")
-        self.requires("deviceLayer/0.2.0")
-        self.requires("hostUtils/0.1.0")
+        self.requires("deviceApi/[>=0.7.0 <1.0.0]")
+        self.requires("deviceLayer/[>=0.2.0 <1.0.0]")
+        self.requires("hostUtils/[>=0.1.0 <1.0.0]")
 
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
@@ -90,7 +90,7 @@ class DeviceManagementConan(ConanFile):
             self.cpp_info.components["DM_static"].defines.append("MINION_DEBUG_INTERFACE")
         else:
             self.cpp_info.components["DM"].defines.append("NDEBUG")
-    
+
         bin_path = os.path.join(self.package_folder, "bin")
         self.output.info("Appending PATH environment variable: {}".format(bin_path))
         self.env_info.PATH.append(bin_path)
