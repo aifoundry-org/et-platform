@@ -8,14 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-### Changed
-### Deprecated
-### Removed
-### Fixed
-### Security
-
-## [0.5.0] - 2022-09-02
-### Added
 - [SW-13953]: Adding eviction of SP stats and trace buffer to avoid trace header update delay
 - [SW-14044]: Addition of op stats init function and refactoring update temperature stats function
 ### Changed
