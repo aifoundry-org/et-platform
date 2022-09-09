@@ -39,7 +39,7 @@
 #define SRAM_BOOT_VOLTAGE  0x5EU // 720 mV
 #define NOC_BOOT_VOLTAGE   0x24U // 430 mV
 #define DDR_BOOT_VOLTAGE   0x64U // 750 mV
-#define MXN_BOOT_VOLTAGE   0x64U // 750 mV
+#define MXN_BOOT_VOLTAGE   0x46U // 600 mV
 
 // Defines for converting power values
 #define POWER_10MW_TO_MW(pwr_10mw) (pwr_10mw * 10)
