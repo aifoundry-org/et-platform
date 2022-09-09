@@ -41,6 +41,8 @@
 #define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER) (BASE + REG_VALUE * MULTIPLIER)
 #define VOLTAGE2BIN(VOL_VALUE, BASE, MULTIPLIER) ((VOL_VALUE - BASE) / MULTIPLIER)
 #define ECID_LOT_ID_LENGTH 6
+#define POWER_10MW_TO_MW(pwr_10mw) (pwr_10mw * 10)
+#define POWER_10MW_TO_W(pwr_10mw) (pwr_10mw / 100)
 
 namespace fs = std::experimental::filesystem;
 
@@ -685,7 +687,7 @@ int verifyService() {
     }
 
     module_power_t* module_power = (module_power_t*)output_buff;
-    power = ((float)module_power->power / 1000);
+    power = POWER_10MW_TO_W((float)module_power->power);
     DM_LOG(INFO) << "Module Power Output: " << power << " W" << std::endl;
   } break;
 
