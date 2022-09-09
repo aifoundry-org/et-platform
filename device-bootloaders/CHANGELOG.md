@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13954] Using PMIC voltage values for Maxion, PCIe Logic, VDDQ and VDDQLP.
 - [SW-14083] Update power status structure to use current power as 16 bits instead of 8
 - Lowered the verbosity of a log.
+- [SW-14115] Changing the power value reading routines to read raw power values from PMIC in 10 mW steps.
 ### Deprecated
 ### Removed
 - Removed trace buffer evict from reset.

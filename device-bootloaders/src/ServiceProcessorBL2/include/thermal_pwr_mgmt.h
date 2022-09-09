@@ -41,6 +41,10 @@
 #define DDR_BOOT_VOLTAGE   0x64U // 750 mV
 #define MXN_BOOT_VOLTAGE   0x64U // 750 mV
 
+// Defines for converting power values
+#define POWER_10MW_TO_MW(pwr_10mw) (pwr_10mw * 10)
+#define POWER_10MW_TO_W(pwr_10mw)  (pwr_10mw / 100)
+
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register
     \param none
@@ -118,12 +122,12 @@ int get_module_current_temperature(struct current_temperature_t *temperature);
 */
 int update_module_soc_power(void);
 
-/*! \fn int get_module_soc_power(uint16_t *soc_power)
-    \brief Interface to get the module's SOC Power.
-    \param soc_temperature  Pointer to SOC power variable
+/*! \fn int get_module_soc_power(uint16_t *soc_pwr_10mw)
+    \brief Interface to get the module's SOC Power in 10 mW steps.
+    \param soc_pwr_10mw  Pointer to SOC power variable
     \returns Status indicating success or negative error
 */
-int get_module_soc_power(uint16_t *soc_power);
+int get_module_soc_power(uint16_t *soc_pwr_10mw);
 
 /*! \fn int get_module_voltage(struct module_voltage_t *module_voltage);
     \brief Interface to get the module's voltage for different domains.

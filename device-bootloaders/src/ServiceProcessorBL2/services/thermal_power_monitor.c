@@ -147,10 +147,10 @@ static void pwr_svc_set_module_active_power_management(uint16_t tag, uint64_t re
 static void pwr_svc_get_module_power(uint16_t tag, uint64_t req_start_time)
 {
     struct device_mgmt_module_power_rsp_t dm_rsp;
-    uint16_t soc_power;
+    uint16_t soc_pwr_10mW;
     int32_t status;
 
-    status = get_module_soc_power(&soc_power);
+    status = get_module_soc_power(&soc_pwr_10mW);
 
     if (STATUS_SUCCESS != status)
     {
@@ -158,7 +158,7 @@ static void pwr_svc_get_module_power(uint16_t tag, uint64_t req_start_time)
     }
     else
     {
-        dm_rsp.module_power.power = soc_power;
+        dm_rsp.module_power.power = soc_pwr_10mW;
     }
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_POWER, timer_get_ticks_count() - req_start_time,

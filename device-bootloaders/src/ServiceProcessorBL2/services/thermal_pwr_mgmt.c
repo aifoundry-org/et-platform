@@ -89,7 +89,7 @@ struct soc_power_reg_t
     uint8_t module_tdp_level;
     uint8_t soc_temperature;
     struct op_stats_t op_stats;
-    uint16_t soc_power_mw;
+    uint16_t soc_pwr_10mW;
     uint8_t max_temp;
     struct temperature_threshold_t temperature_threshold;
     struct module_uptime_t module_uptime;
@@ -585,7 +585,7 @@ int get_module_current_temperature(struct current_temperature_t *temperature)
 ***********************************************************************/
 int update_module_soc_power(void)
 {
-    uint16_t soc_pwr_mW = 0;
+    uint16_t soc_pwr_10mW = 0;
 
     if (SUCCESS != get_module_voltage(NULL))
     {
@@ -593,25 +593,25 @@ int update_module_soc_power(void)
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
 
-    if (0 != pmic_read_average_soc_power(&soc_pwr_mW))
+    if (0 != pmic_read_average_soc_power(&soc_pwr_10mW))
     {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get soc average power\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else
     {
-        get_soc_power_reg()->op_stats.system.power.avg = soc_pwr_mW;
+        get_soc_power_reg()->op_stats.system.power.avg = soc_pwr_10mW;
     }
 
-    if (0 != pmic_read_instantaneous_soc_power(&soc_pwr_mW))
+    if (0 != pmic_read_instantaneous_soc_power(&soc_pwr_10mW))
     {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to get soc instant power\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
     else
     {
-        get_soc_power_reg()->soc_power_mw = soc_pwr_mW;
-        CALC_MIN_MAX(get_soc_power_reg()->op_stats.system.power, (uint16_t)soc_pwr_mW)
+        get_soc_power_reg()->soc_pwr_10mW = soc_pwr_10mW;
+        CALC_MIN_MAX(get_soc_power_reg()->op_stats.system.power, soc_pwr_10mW)
     }
 
     /* Update average, min and max values of Minion, NOC and SRAM powers */
@@ -669,20 +669,21 @@ int update_module_soc_power(void)
 *
 *   DESCRIPTION
 *
-*       This function gets the current power consumed by the device.
+*       This function gets the current power consumed by the device in
+*       10 mW steps.
 *
 *   INPUTS
 *
-*       *soc_power         Pointer to soc power variable
+*       soc_pwr_10mw       Pointer to soc power value in 10mW
 *
 *   OUTPUTS
 *
 *       int                Return status
 *
 ***********************************************************************/
-int get_module_soc_power(uint16_t *soc_power)
+int get_module_soc_power(uint16_t *soc_pwr_10mw)
 {
-    *soc_power = get_soc_power_reg()->soc_power_mw;
+    *soc_pwr_10mw = get_soc_power_reg()->soc_pwr_10mW;
     return 0;
 }
 
@@ -1328,7 +1329,7 @@ static int increase_minion_operating_point(int32_t delta_power,
 static int go_to_safe_state(power_state_e power_state, power_throttle_state_e throttle_state)
 {
     uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
-    uint16_t average_power = 0;
+    uint16_t soc_pwr_10mW = 0;
     struct trace_event_power_status_t power_status = { 0 };
     int32_t new_voltage = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY);
 
@@ -1362,7 +1363,7 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
     Update_Minion_Frequency_Global_Reg(SAFE_STATE_FREQUENCY);
 
     /* Get the current power */
-    if (0 != pmic_read_average_soc_power(&average_power))
+    if (0 != pmic_read_average_soc_power(&soc_pwr_10mW))
     {
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
     }
@@ -1372,8 +1373,8 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
     }
 
-    FILL_POWER_STATUS(power_status, throttle_state, power_state, average_power, current_temperature,
-                      (uint16_t)SAFE_STATE_FREQUENCY, (uint16_t)new_voltage)
+    FILL_POWER_STATUS(power_status, throttle_state, power_state, POWER_10MW_TO_W(soc_pwr_10mW),
+                      current_temperature, (uint16_t)SAFE_STATE_FREQUENCY, (uint16_t)new_voltage)
 
     Trace_Power_Status(Trace_Get_SP_CB(), &power_status);
 
@@ -1410,6 +1411,7 @@ void trace_power_state_test(uint16_t tag, uint64_t req_start_time, void *cmd)
     struct trace_event_power_status_t power_status = { 0 };
 
     pmic_read_average_soc_power(&power_status.current_power);
+    power_status.current_power = POWER_10MW_TO_W(power_status.current_power);
     pvt_get_minion_avg_temperature(&power_status.current_temp);
     power_status.power_state = pwr_state_cmd->power_state;
 
@@ -1452,7 +1454,7 @@ void power_throttling(power_throttle_state_e throttle_state)
     uint64_t start_time;
     uint64_t end_time;
     uint8_t current_temperature = 0;
-    uint16_t average_power_mW;
+    uint16_t avg_pwr_10mW;
     int32_t tdp_level_mW;
     int32_t delta_power_mW;
     uint8_t throttle_condition_met = 0;
@@ -1471,7 +1473,7 @@ void power_throttling(power_throttle_state_e throttle_state)
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc temperature\r\n");
     }
 
-    if (0 != pmic_read_average_soc_power(&average_power_mW))
+    if (0 != pmic_read_average_soc_power(&avg_pwr_10mW))
     {
         Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
     }
@@ -1485,18 +1487,18 @@ void power_throttling(power_throttle_state_e throttle_state)
         switch (throttle_state)
         {
             case POWER_THROTTLE_STATE_POWER_UP: {
-                delta_power_mW = ((average_power_mW * (POWER_SCALE_FACTOR)) / 100);
+                delta_power_mW = ((POWER_10MW_TO_MW(avg_pwr_10mW) * (POWER_SCALE_FACTOR)) / 100);
                 FILL_POWER_STATUS(power_status, throttle_state,
-                                  get_soc_power_reg()->module_power_state, average_power_mW,
-                                  current_temperature, 0, 0)
+                                  get_soc_power_reg()->module_power_state,
+                                  POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
                 increase_minion_operating_point(delta_power_mW, &power_status);
                 break;
             }
             case POWER_THROTTLE_STATE_POWER_DOWN: {
-                delta_power_mW = ((average_power_mW * (POWER_SCALE_FACTOR)) / 100);
+                delta_power_mW = ((POWER_10MW_TO_MW(avg_pwr_10mW) * (POWER_SCALE_FACTOR)) / 100);
                 FILL_POWER_STATUS(power_status, throttle_state,
-                                  get_soc_power_reg()->module_power_state, average_power_mW,
-                                  current_temperature, 0, 0)
+                                  get_soc_power_reg()->module_power_state,
+                                  POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
                 reduce_minion_operating_point(delta_power_mW, &power_status);
                 break;
             }
@@ -1512,7 +1514,7 @@ void power_throttling(power_throttle_state_e throttle_state)
         vTaskDelay(pdMS_TO_TICKS(DELTA_POWER_UPDATE_PERIOD));
 
         /* Get the current power */
-        if (0 != pmic_read_average_soc_power(&average_power_mW))
+        if (0 != pmic_read_average_soc_power(&avg_pwr_10mW))
         {
             Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
         }
@@ -1521,7 +1523,7 @@ void power_throttling(power_throttle_state_e throttle_state)
         switch (throttle_state)
         {
             case POWER_THROTTLE_STATE_POWER_UP: {
-                if (average_power_mW > tdp_level_mW)
+                if (POWER_10MW_TO_MW(avg_pwr_10mW) > tdp_level_mW)
                 {
                     throttle_condition_met = 1;
                 }
@@ -1529,7 +1531,7 @@ void power_throttling(power_throttle_state_e throttle_state)
             }
             case POWER_THROTTLE_STATE_POWER_DOWN:
             case POWER_THROTTLE_STATE_POWER_SAFE: {
-                if (average_power_mW < MAX_POWER_THRESHOLD_GUARDBAND(tdp_level_mW))
+                if (POWER_10MW_TO_MW(avg_pwr_10mW) < MAX_POWER_THRESHOLD_GUARDBAND(tdp_level_mW))
                 {
                     throttle_condition_met = 1;
                 }
@@ -1583,7 +1585,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
     uint64_t end_time;
     uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
     struct event_message_t message;
-    uint16_t average_power_mW;
+    uint16_t avg_pwr_10mW;
     int32_t delta_power_mW;
     struct trace_event_power_status_t power_status = { 0 };
 
@@ -1607,17 +1609,17 @@ void thermal_throttling(power_throttle_state_e throttle_state)
         {
             case POWER_THROTTLE_STATE_THERMAL_DOWN: {
                 /* Get the current power */
-                if (0 != pmic_read_average_soc_power(&average_power_mW))
+                if (0 != pmic_read_average_soc_power(&avg_pwr_10mW))
                 {
                     Log_Write(LOG_LEVEL_ERROR,
                               "thermal pwr mgmt svc error: failed to get soc power\r\n");
                 }
 
-                delta_power_mW = ((average_power_mW * (POWER_SCALE_FACTOR)) / 100);
+                delta_power_mW = ((POWER_10MW_TO_MW(avg_pwr_10mW) * (POWER_SCALE_FACTOR)) / 100);
 
                 FILL_POWER_STATUS(power_status, throttle_state,
-                                  get_soc_power_reg()->module_power_state, average_power_mW,
-                                  current_temperature, 0, 0)
+                                  get_soc_power_reg()->module_power_state,
+                                  POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
                 /* Program the new operating point  */
                 reduce_minion_operating_point(delta_power_mW, &power_status);
                 break;
@@ -1788,7 +1790,8 @@ void dump_power_globals(void)
         LOG_LEVEL_CRITICAL,
         "power_state = %u, tdp_level = %u, temperature = %u c, power = %u W, max_temperature = %u c\n",
         soc_power_reg->module_power_state, soc_power_reg->module_tdp_level,
-        soc_power_reg->soc_temperature, soc_power_reg->soc_power_mw, soc_power_reg->max_temp);
+        soc_power_reg->soc_temperature, POWER_10MW_TO_W(soc_power_reg->soc_pwr_10mW),
+        soc_power_reg->max_temp);
 
     Log_Write(LOG_LEVEL_CRITICAL, "Module uptime (day:hours:mins): %d:%d:%d\n",
               soc_power_reg->module_uptime.day, soc_power_reg->module_uptime.hours,
@@ -1901,7 +1904,7 @@ void set_system_voltages(void)
 void print_system_operating_point(void)
 {
     uint32_t freq;
-    uint16_t soc_pwr = 0;
+    uint16_t soc_pwr_10mW = 0;
     TS_Sample temperature;
 
     Log_Write(LOG_LEVEL_INFO,
@@ -1963,8 +1966,8 @@ void print_system_operating_point(void)
               pshr_voltage.vdd_pshr.current, pshr_voltage.vdd_pshr.low, pshr_voltage.vdd_pshr.high);
 
     /* Card Power */
-    pmic_read_average_soc_power(&soc_pwr);
-    Log_Write(LOG_LEVEL_INFO, "AVERAGE CARD POWER: %d W \n", (soc_pwr / 1000));
+    pmic_read_average_soc_power(&soc_pwr_10mW);
+    Log_Write(LOG_LEVEL_INFO, "AVERAGE CARD POWER: %d W \n", POWER_10MW_TO_W(soc_pwr_10mW));
     Log_Write(
         LOG_LEVEL_INFO,
         "---------------------------------------------------------------------------------------------\r\n");
@@ -2179,7 +2182,7 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
 {
     int status = STATUS_SUCCESS;
     uint8_t tmp_val;
-    uint16_t soc_pwr_mw;
+    uint16_t soc_pwr_10mW;
 
     /* read temperature values from pvt */
     status = pvt_get_minion_avg_temperature(&tmp_val);
@@ -2201,14 +2204,14 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
                             get_soc_power_reg()->pmb_stats.noc.w_out.average)
 
             /* Read card average power */
-            status = pmic_read_average_soc_power(&soc_pwr_mw);
+            status = pmic_read_average_soc_power(&soc_pwr_10mW);
         }
 
         /* Updater card average power */
         if (status == STATUS_SUCCESS)
         {
             /* initialize op stats with average power in mW */
-            INIT_STAT_VALUE(get_soc_power_reg()->op_stats.system.power, soc_pwr_mw)
+            INIT_STAT_VALUE(get_soc_power_reg()->op_stats.system.power, soc_pwr_10mW)
         }
     }
 

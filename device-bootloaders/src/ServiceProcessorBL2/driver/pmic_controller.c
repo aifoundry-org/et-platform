@@ -1033,31 +1033,22 @@ int pmic_get_temperature(uint8_t *sys_temp)
 *
 *   DESCRIPTION
 *
-*       This function returns soc input power in mW.
+*       This function returns soc input power in 10 mW steps.
 *
 *   INPUTS
 *
-*       uint8_t  Pointer to data to load result to
+*       soc_pwr_10mW  Pointer to data to load result to
 *
 *   OUTPUTS
 *
-*       soc_pwr    value of Input Power in binary encoded value.
+*       status        The function call status, pass/fail.
 *
 ***********************************************************************/
 
-int pmic_read_instantaneous_soc_power(uint16_t *soc_pwr)
+int pmic_read_instantaneous_soc_power(uint16_t *soc_pwr_10mW)
 {
-    int status;
-
-    /* read input power from PMIC */
-    status = get_pmic_reg(PMIC_I2C_INPUT_POWER_ADDRESS, (uint8_t *)soc_pwr, 2);
-    if (status == STATUS_SUCCESS)
-    {
-        /* Power is in 10 mW units as defined in PMIC docs*/
-        *soc_pwr = (uint16_t)((*soc_pwr) * 10);
-    }
-
-    return status;
+    /* Read input power from PMIC */
+    return get_pmic_reg(PMIC_I2C_INPUT_POWER_ADDRESS, (uint8_t *)soc_pwr_10mW, 2);
 }
 
 /************************************************************************
@@ -1927,31 +1918,22 @@ int pmic_reset_wdog_timer(void)
 *
 *   DESCRIPTION
 *
-*       This function gets Average Power in mW.
+*       This function gets Average Power in 10 mW steps.
 *
 *   INPUTS
 *
-*       uint8_t  Pointer to data to load result to
+*       avg_pwr_10mw  Pointer to data to load result to
 *
 *   OUTPUTS
 *
-*       avg_power     value of Average Power in binary encoded value.
+*       status        Success or error code.
 *
 ***********************************************************************/
 
-int pmic_read_average_soc_power(uint16_t *avg_power)
+int pmic_read_average_soc_power(uint16_t *avg_pwr_10mw)
 {
-    int32_t status;
-
     /* Read avg soc power form PMIC */
-    status = get_pmic_reg(PMIC_I2C_AVERAGE_PWR_ADDRESS, (uint8_t *)avg_power, 2);
-    if (status == STATUS_SUCCESS)
-    {
-        /* Power is in 10 mW units as defined in PMIC docs*/
-        *avg_power = (uint16_t)((*avg_power) * 10);
-    }
-
-    return status;
+    return get_pmic_reg(PMIC_I2C_AVERAGE_PWR_ADDRESS, (uint8_t *)avg_pwr_10mw, 2);
 }
 
 /************************************************************************

@@ -207,12 +207,12 @@ int pmic_set_temperature_threshold(uint8_t temp_limit);
 */
 int pmic_get_temperature(uint8_t *sys_temp);
 
-/*! \fn int pmic_read_instantaneous_soc_power(uint16_t* soc_pwr)
-    \brief This function returns soc input power.
-    \param soc_pwr - value of Input Power (binary encoded).
+/*! \fn int pmic_read_instantaneous_soc_power(uint16_t *soc_pwr_10mW)
+    \brief This function returns soc input power in 10 mW steps.
+    \param soc_pwr_10mW Value of Input Power (10 mW steps).
     \return The function call status, pass/fail.
 */
-int pmic_read_instantaneous_soc_power(uint16_t *soc_pwr);
+int pmic_read_instantaneous_soc_power(uint16_t *soc_pwr_10mW);
 
 /*! \fn int pmic_enable_etsoc_reset_after_perst(void)
     \brief This function enables a PERST event to also reset the ET-SOC.
@@ -376,12 +376,12 @@ int pmic_force_perst(void);
 */
 int pmic_reset_wdog_timer(void);
 
-/*! \fn int pmic_read_average_soc_power(uint16_t* avg_power)
-    \brief This function gets Average Power.
-    \param avg_power - value of Average Power (binary encoded).
+/*! \fn int pmic_read_average_soc_power(uint16_t *avg_pwr_10mw)
+    \brief This function gets Average Power in 10 mW steps.
+    \param avg_pwr_10mw Value of Average Power (10 mW steps).
     \return The function call status, pass/fail.
 */
-int pmic_read_average_soc_power(uint16_t *avg_power);
+int pmic_read_average_soc_power(uint16_t *avg_pwr_10mw);
 
 /*! \fn int I2C_PMIC_Initialize(uint8_t i2c_id)
     \brief This function initializes PMIC

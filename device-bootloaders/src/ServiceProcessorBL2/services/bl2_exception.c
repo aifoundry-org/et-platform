@@ -199,6 +199,7 @@ static void dump_power_globals_trace(void)
 
     /* Read the value and copy it to buffer */
     get_module_soc_power(&soc_pwr);
+    soc_pwr = POWER_10MW_TO_W(soc_pwr);
     memcpy(&data_buff[buff_idx], &soc_pwr, sizeof(uint16_t));
     buff_idx += sizeof(uint16_t);
 
