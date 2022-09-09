@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-13851] add DM command SET_STATS_RUN_CONTROL and struct device_mgmt_stats_run_control_cmd
 ### Changed
 ### Deprecated
 ### Removed

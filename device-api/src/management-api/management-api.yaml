@@ -150,6 +150,8 @@ Modules:
           Value: 64
         - Name: SET_MODULE_VOLTAGE
           Value: 65
+        - Name: SET_STATS_RUN_CONTROL
+          Value: 66
         - Name: MDI_BEGIN
           Value: 128
         - Name: MDI_SELECT_HART
@@ -437,6 +439,26 @@ Modules:
           Value: 1
         - Name : NORMAL
           Value: 2
+    - Name: stats_type
+      Description:  Stats type
+      Type: uint32_t
+      Values:
+        - Name : SP
+          Value: 1
+        - Name : MM
+          Value: 2
+    - Name: stats_control
+      Description:  Stats Control
+      Type: uint32_t
+      Values:
+        - Name : TRACE_DISABLE
+          Value: 0
+        - Name : TRACE_ENABLE
+          Value: 1
+        - Name : RESET_COUNTER
+          Value: 2
+        - Name : RESET_TRACEBUF
+          Value: 4
   Structs:
     - Name: asset_info_t
       Description: Asset Information
@@ -1668,6 +1690,29 @@ Modules:
           Description: MM get compute performance stats.
           Type: struct
           Struct: get_mm_stats_t
+    - Name: device_mgmt_stats_run_control_cmd
+      Description: Command to enable, disable, reset stats counter OR reset stats trace buffer.
+      Type: Command
+      PairedMessage: None
+      Fields:
+        - Name: type
+          Description: |-
+              This is a bit mask, each bit corresponds a stats type.
+                      Bit 0 - 1 - apply command to SP stats
+                      Bit 1 - 1 - apply command to MM stats
+          Type: enum
+          Enum: stats_type
+        - Name: control
+          Description: |-
+              This is a bit mask, each bit corresponds control a Stats Trace run control.
+                      Bit 0 - 0 - Disable - Stop dumping to stats trace buffer
+                              1 - Enable - Start dumping to stats trace buffer (Default)
+                      Bit 1 - 0 - Do not reset stats counter
+                              1 - Reset stats counter
+                      Bit 2 - 0 - Do not reset stats trace buffer
+                              1 - Reset stats trace buffer
+          Type: enum
+          Enum: stats_control
 #-------------------------------------------------------------------------------
 # Trace Management Commands and Responses
 #-------------------------------------------------------------------------------
