@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13954] updated getFirmwareRevisions test to also print pmic_v
 - [SW-14044] Updating power value to remove hex conversion
 - Moved setAndGetModuleFrequency test to Ops node dependent category of tests.
+- [SW-14115] Converting module power from 10mW to W.
 ### Deprecated
 ### Removed
 ### Fixed

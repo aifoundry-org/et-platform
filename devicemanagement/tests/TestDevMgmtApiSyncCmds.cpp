@@ -41,6 +41,8 @@ using TimeDuration = Clock::duration;
 #define DM_SERVICE_REQUEST_TIMEOUT 100000
 #define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER) (BASE + REG_VALUE * MULTIPLIER)
 #define VOLTAGE2BIN(VOL_VALUE, BASE, MULTIPLIER) (uint8_t)((VOL_VALUE - BASE) / MULTIPLIER)
+#define POWER_10MW_TO_MW(pwr_10mw) (pwr_10mw * 10)
+#define POWER_10MW_TO_W(pwr_10mw) (pwr_10mw / 100)
 
 DEFINE_bool(enable_trace_dump, true,
             "Enable SP trace dump to file specified by flag: trace_logfile, otherwise on UART");
@@ -957,7 +959,7 @@ void TestDevMgmtApiSyncCmds::getModulePower(bool singleDevice) {
     if (!targetInList({Target::Loopback, Target::SysEMU})) {
       // Note: Module power could vary. So there cannot be expected value for Module power in the test
       device_mgmt_api::module_power_t* module_power = (device_mgmt_api::module_power_t*)output_buff;
-      float power = ((float)module_power->power / 1000);
+      float power = POWER_10MW_TO_W((float)module_power->power);
       DV_LOG(INFO) << "Module power (in Watts): \n" << power;
 
       EXPECT_NE(module_power->power, 0);
