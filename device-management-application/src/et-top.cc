@@ -33,6 +33,9 @@
 
 #define ET_TOP "et-powertop"
 
+#define POWER_10MW_TO_W(pwr10mw) (pwr10mw / 100.0)
+#define POWER_MW_TO_W(pwrMw) (pwrMw / 1000.0)
+
 static const uint32_t kDmServiceRequestTimeout = 100000;
 static const uint32_t kUpdateDelayMS = 100;
 static const int32_t kMaxDeviceNum = 63;
@@ -41,6 +44,13 @@ static const int32_t kOpsCqNum = 1;
 static const int32_t kOpsSqNum = 2;
 
 static struct termios orig_termios;
+
+enum op_value_unit {
+  OP_VALUE_UNIT_WATTS,
+  OP_VALUE_UNIT_MILLIWATTS,
+  OP_VALUE_UNIT_10MILLIWATTS,
+  OP_VALUE_UNIT_TEMPERATURE_CELCIUS
+};
 
 static void restoreTTY(void) {
   if (tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios) != 0) {
@@ -60,6 +70,21 @@ static inline std::string getNewFileName(int devNum, bool isSp) {
   ss << "dev" << devNum << "_" << (isSp ? "sp" : "mm") << "_stats_"
      << std::put_time(std::localtime(&time), "%Y:%m:%d_%X") << ".bin";
   return ss.str();
+}
+
+const char* opUnitToString(op_value_unit unit) {
+  switch (unit) {
+  case OP_VALUE_UNIT_WATTS:
+    return "W";
+  case OP_VALUE_UNIT_MILLIWATTS:
+    return "mW";
+  case OP_VALUE_UNIT_10MILLIWATTS:
+    return "10mW";
+  case OP_VALUE_UNIT_TEMPERATURE_CELCIUS:
+    return "C";
+  default:
+    return "[Unknown Unit]";
+  }
 }
 
 struct vq_stats_t {
@@ -147,8 +172,8 @@ public:
 private:
   void getDeviceDetails(void);
   bool processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total);
-  void displayOpStat(const std::string stat, const struct op_value& ov, const bool isPower = false,
-                     const uint32_t max = 0, const bool addBarLabels = false);
+  void displayOpStat(const std::string stat, const struct op_value& ov, const op_value_unit unit,
+                     const bool isPower = false, const uint32_t max = 0, const bool addBarLabels = false);
   void displayFreqStat(const std::string stat, bool endLine, uint64_t frequency);
   void displayVoltStat(const std::string stat, bool endLine, uint64_t value, uint32_t base, uint32_t multiplier);
   void displayComputeStat(const std::string stat, const struct resource_value& rv);
@@ -564,8 +589,8 @@ void EtTop::processInput(void) {
   return;
 }
 
-void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, const bool isPower, const uint32_t max,
-                          const bool addBarLabels) {
+void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, const op_value_unit unit,
+                          const bool isPower, const uint32_t max, const bool addBarLabels) {
   if (!displayWattsBars_ && addBarLabels) {
     std::cout << std::endl;
   }
@@ -574,9 +599,25 @@ void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, con
     std::cout << "\t" + stat + "   avg: " << std::setw(5) << std::left << ov.avg << "  min: " << std::setw(5)
               << std::left << ov.min << "  max: " << std::setw(5) << std::left << ov.max << std::endl;
   } else if (!displayWattsBars_) {
-    float avg = ov.avg / 1000.0; // convert to watts from milliwatts
-    float min = ov.min / 1000.0;
-    float max = ov.max / 1000.0;
+    float avg, min, max;
+    // convert to watts
+    switch (unit) {
+    case OP_VALUE_UNIT_MILLIWATTS:
+      avg = POWER_MW_TO_W(ov.avg);
+      min = POWER_MW_TO_W(ov.min);
+      max = POWER_MW_TO_W(ov.max);
+      break;
+    case OP_VALUE_UNIT_10MILLIWATTS:
+      avg = POWER_10MW_TO_W(ov.avg);
+      min = POWER_10MW_TO_W(ov.min);
+      max = POWER_10MW_TO_W(ov.max);
+      break;
+    default:
+      avg = ov.avg;
+      min = ov.min;
+      max = ov.max;
+      break;
+    }
 
     std::cout << std::setprecision(2) << std::fixed;
     std::cout << "\t" + stat + " avg: " << std::setw(5) << std::right << avg << "  min: " << std::setw(5) << std::right
@@ -691,16 +732,16 @@ void EtTop::displayStats(void) {
   etsocPower.max = op.minion.power.max + op.sram.power.max + op.noc.power.max + otherPower.max;
 
   std::cout << "Watts:";
-  displayOpStat("CARD       ", op.system.power, true, max, true);
-  displayOpStat("- ETSOC    ", etsocPower, true, max);
-  displayOpStat("  - MINION ", op.minion.power, true, max);
-  displayOpStat("  - SRAM   ", op.sram.power, true, max);
-  displayOpStat("  - NOC    ", op.noc.power, true, max);
-  displayOpStat("  - OTHER  ", otherPower, true, max);
+  displayOpStat("CARD       ", op.system.power, OP_VALUE_UNIT_10MILLIWATTS, true, max, true);
+  displayOpStat("- ETSOC    ", etsocPower, OP_VALUE_UNIT_MILLIWATTS, true, max);
+  displayOpStat("  - MINION ", op.minion.power, OP_VALUE_UNIT_MILLIWATTS, true, max);
+  displayOpStat("  - SRAM   ", op.sram.power, OP_VALUE_UNIT_MILLIWATTS, true, max);
+  displayOpStat("  - NOC    ", op.noc.power, OP_VALUE_UNIT_MILLIWATTS, true, max);
+  displayOpStat("  - OTHER  ", otherPower, OP_VALUE_UNIT_MILLIWATTS, true, max);
 
   std::cout << "Temp(C):\n";
-  displayOpStat("ETSOC    ", op.system.temperature);
-  displayOpStat("- MINION ", op.minion.temperature);
+  displayOpStat("ETSOC    ", op.system.temperature, OP_VALUE_UNIT_TEMPERATURE_CELCIUS);
+  displayOpStat("- MINION ", op.minion.temperature, OP_VALUE_UNIT_TEMPERATURE_CELCIUS);
 
   std::cout << "Compute:\n";
   displayComputeStat("Utilization Minion   (%) ", mmStats_.computeResources.cm_utilization);

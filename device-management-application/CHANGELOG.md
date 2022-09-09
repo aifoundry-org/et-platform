@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14107] update trace bin file names to be unique w.r.t time.
 - Renaming PCIE and PCIE Logic voltage labels in et-power-top.
 - [SW-14115] Converting module power from 10mW to W in dev_mgmt_service.
+- [SW-14115] Converting module power from 10mW to mW in et-power-top.
 ### Deprecated
 ### Removed
 ### Fixed
