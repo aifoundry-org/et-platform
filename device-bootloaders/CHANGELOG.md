@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lowered the verbosity of a log.
 - [SW-14115] Changing the power value reading routines to read raw power values from PMIC in 10 mW steps.
 - Changing Maxion boot voltage to 600mV.
+- PMIC FW version updated to 0.6.2.
 ### Deprecated
 ### Removed
 - Removed trace buffer evict from reset.

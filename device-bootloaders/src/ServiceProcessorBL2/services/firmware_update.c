@@ -825,7 +825,7 @@ static void dm_svc_get_firmware_version(tag_id_t tag_id, uint64_t req_start_time
     flash_fs_get_fw_release_rev((char *)&dm_rsp.firmware_version.fw_release_rev);
 
     // TODO: Get the PMIC FW version once available
-    dm_rsp.firmware_version.pmic_v = FORMAT_VERSION(0, 6, 0);
+    dm_rsp.firmware_version.pmic_v = FORMAT_VERSION(0, 6, 2);
 
     FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_MODULE_FIRMWARE_REVISIONS,
                     timer_get_ticks_count() - req_start_time, DM_STATUS_SUCCESS);
