@@ -155,7 +155,9 @@ enum sp_mm_msg_e {
     SP2MM_CMD_CM_RESET,
     SP2MM_RSP_CM_RESET,
     SP2MM_CMD_GET_MM_STATS,
-    SP2MM_RSP_GET_MM_STATS
+    SP2MM_RSP_GET_MM_STATS,
+    SP2MM_CMD_MM_STATS_RUN_CONTROL,
+    SP2MM_RSP_MM_STATS_RUN_CONTROL
 };
 
 typedef uint8_t mm2sp_fw_type_e;
@@ -167,6 +169,18 @@ enum mm2sp_fw_type {
     MM2SP_MASTER_MINION_FW = 0,
     MM2SP_MACHINE_MINION_FW = 1,
     MM2SP_WORKER_MINION_FW = 2
+};
+
+typedef uint32_t sp2mm_stats_control_e;
+
+/*! \enum sp2mm_stats_control_e
+    \brief SP to MM stats run control options.
+*/
+enum sp2mm_stats_control {
+    MM_STATS_CONTROL_TRACE_DISABLE = 0,
+    MM_STATS_CONTROL_TRACE_ENABLE = 1,
+    MM_STATS_CONTROL_RESET_COUNTER = 2,
+    MM_STATS_CONTROL_RESET_TRACEBUF = 4
 };
 
 /*********************************
@@ -395,6 +409,22 @@ struct sp2mm_get_mm_stats_cmd_t {
 struct sp2mm_get_mm_stats_rsp_t {
     struct dev_cmd_hdr_t msg_hdr;
     struct compute_resources_sample sample;
+    int32_t status;
+} __attribute__((aligned(8), packed));
+
+/*! \struct sp2mm_mm_stats_run_control_cmd_t
+    \brief SP to MM command structure for MM Stats run control command.
+*/
+struct sp2mm_mm_stats_run_control_cmd_t {
+    struct dev_cmd_hdr_t msg_hdr;
+    sp2mm_stats_control_e control;
+} __attribute__((aligned(8), packed));
+
+/*! \struct sp2mm_mm_stats_run_control_rsp_t
+    \brief SP to MM response structure for MM Stats run control command.
+*/
+struct sp2mm_mm_stats_run_control_rsp_t {
+    struct dev_cmd_hdr_t msg_hdr;
     int32_t status;
 } __attribute__((aligned(8), packed));
 

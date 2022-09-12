@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-13851] Add SP2MM_CMD_MM_STATS_RUN_CONTROL command and response.
 ### Changed
 ### Deprecated
 ### Removed
