@@ -482,58 +482,73 @@ void EtTop::collectVoltStats(void) {
 }
 
 void EtTop::collectMmStats(void) {
-  std::vector<std::byte> response;
+  uint32_t hostLatency;
+  uint64_t deviceLatency;
+  std::vector<char> outputBuff(sizeof(device_mgmt_api::get_mm_stats_t), 0);
 
-  if (dm_.getTraceBufferServiceProcessor(devNum_, TraceBufferType::TraceBufferMMStats, response) !=
-      device_mgmt_api::DM_STATUS_SUCCESS) {
-    DV_LOG(ERROR) << "getTraceBufferServiceProcessor error";
-    exit(1);
+  auto ret = dm_.serviceRequest(devNum_, device_mgmt_api::DM_CMD::DM_CMD_GET_MM_STATS, nullptr, 0, outputBuff.data(),
+                                outputBuff.size(), &hostLatency, &deviceLatency, kDmServiceRequestTimeout);
+
+  if (ret != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(ERROR) << "Service request get mm stats failed with return code: " << std::dec << ret << std::endl;
+  } else {
+    auto* mm_stats = static_cast<device_mgmt_api::get_mm_stats_t*>(static_cast<void*>(outputBuff.data()));
+
+    mmStats_.computeResources.cm_bw.avg = mm_stats->cm_bw_avg;
+    mmStats_.computeResources.cm_bw.min = mm_stats->cm_bw_min;
+    mmStats_.computeResources.cm_bw.max = mm_stats->cm_bw_max;
+    mmStats_.computeResources.cm_utilization.avg = mm_stats->cm_utilization_avg;
+    mmStats_.computeResources.cm_utilization.min = mm_stats->cm_utilization_min;
+    mmStats_.computeResources.cm_utilization.max = mm_stats->cm_utilization_max;
+
+    mmStats_.computeResources.pcie_dma_read_utilization.avg = mm_stats->pcie_dma_read_utilization_avg;
+    mmStats_.computeResources.pcie_dma_read_utilization.min = mm_stats->pcie_dma_read_utilization_min;
+    mmStats_.computeResources.pcie_dma_read_utilization.max = mm_stats->pcie_dma_read_utilization_max;
+    mmStats_.computeResources.pcie_dma_write_utilization.avg = mm_stats->pcie_dma_write_utilization_avg;
+    mmStats_.computeResources.pcie_dma_write_utilization.min = mm_stats->pcie_dma_write_utilization_min;
+    mmStats_.computeResources.pcie_dma_write_utilization.max = mm_stats->pcie_dma_write_utilization_max;
+
+    mmStats_.computeResources.pcie_dma_read_bw.avg = mm_stats->pcie_dma_read_bw_avg;
+    mmStats_.computeResources.pcie_dma_read_bw.min = mm_stats->pcie_dma_read_bw_min;
+    mmStats_.computeResources.pcie_dma_read_bw.max = mm_stats->pcie_dma_read_bw_max;
+    mmStats_.computeResources.pcie_dma_write_bw.avg = mm_stats->pcie_dma_write_bw_avg;
+    mmStats_.computeResources.pcie_dma_write_bw.min = mm_stats->pcie_dma_write_bw_min;
+    mmStats_.computeResources.pcie_dma_write_bw.max = mm_stats->pcie_dma_write_bw_max;
+
+    mmStats_.computeResources.ddr_read_bw.avg = mm_stats->ddr_read_bw_avg;
+    mmStats_.computeResources.ddr_read_bw.min = mm_stats->ddr_read_bw_min;
+    mmStats_.computeResources.ddr_read_bw.max = mm_stats->ddr_read_bw_max;
+    mmStats_.computeResources.ddr_write_bw.avg = mm_stats->ddr_write_bw_avg;
+    mmStats_.computeResources.ddr_write_bw.min = mm_stats->ddr_write_bw_min;
+    mmStats_.computeResources.ddr_write_bw.max = mm_stats->ddr_write_bw_max;
+
+    mmStats_.computeResources.l2_l3_read_bw.avg = mm_stats->l2_l3_read_bw_avg;
+    mmStats_.computeResources.l2_l3_read_bw.min = mm_stats->l2_l3_read_bw_min;
+    mmStats_.computeResources.l2_l3_read_bw.max = mm_stats->l2_l3_read_bw_max;
+    mmStats_.computeResources.l2_l3_write_bw.avg = mm_stats->l2_l3_write_bw_avg;
+    mmStats_.computeResources.l2_l3_write_bw.min = mm_stats->l2_l3_write_bw_min;
+    mmStats_.computeResources.l2_l3_write_bw.max = mm_stats->l2_l3_write_bw_max;
   }
 
   if (dumpNextMmStatsBuffer_) {
     dumpNextMmStatsBuffer_ = false;
 
-    auto fileName = getNewFileName(devNum_, false /* MM */);
-    std::ofstream mmTrace;
-    mmTrace.open(fileName, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
-    if (!mmTrace.is_open()) {
-      DV_LOG(ERROR) << "Error: unable to open file " << fileName << std::endl;
+    std::vector<std::byte> response;
+    if (dm_.getTraceBufferServiceProcessor(devNum_, TraceBufferType::TraceBufferMMStats, response) !=
+        device_mgmt_api::DM_STATUS_SUCCESS) {
+      DV_LOG(ERROR) << "getTraceBufferServiceProcessor MMStats error";
     } else {
-      mmTrace.write(reinterpret_cast<const char*>(response.data()), response.size());
-      mmTrace.close();
+      auto fileName = getNewFileName(devNum_, false /* MM */);
+      std::ofstream mmTrace;
+
+      mmTrace.open(fileName, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+      if (!mmTrace.is_open()) {
+        DV_LOG(ERROR) << "Error: unable to open file " << fileName << std::endl;
+      } else {
+        mmTrace.write(reinterpret_cast<const char*>(response.data()), response.size());
+        mmTrace.close();
+      }
     }
-  }
-
-  struct trace_buffer_std_header_t* tb_hdr;
-  tb_hdr = reinterpret_cast<struct trace_buffer_std_header_t*>(response.data());
-  if (tb_hdr->type != TRACE_MM_STATS_BUFFER) {
-    DV_LOG(ERROR) << "Trace buffer invalid type: " << tb_hdr->type << " (must be TRACE_MM_STATS_BUFFER "
-                  << TRACE_MM_STATS_BUFFER << ")";
-    exit(1);
-  }
-
-  const struct trace_entry_header_t* entry = NULL;
-  while ((entry = Trace_Decode(tb_hdr, entry))) {
-    if (entry->type != TRACE_TYPE_CUSTOM_EVENT) {
-      DV_LOG(ERROR) << "collectMmStats: Trace type not custom event error: " << entry->type;
-      // Try to decode next event
-      continue;
-    }
-
-    if (entry->cycle <= mmStats_.cycle) {
-      continue;
-    }
-    mmStats_.cycle = entry->cycle;
-
-    const struct trace_custom_event_t* cev;
-    cev = reinterpret_cast<const struct trace_custom_event_t*>(entry);
-    if (cev->custom_type != TRACE_CUSTOM_TYPE_MM_COMPUTE_RESOURCES) {
-      continue;
-    }
-
-    const struct compute_resources_sample* crsPtr;
-    crsPtr = reinterpret_cast<const struct compute_resources_sample*>(cev->payload);
-    mmStats_.computeResources = *crsPtr;
   }
 
   return;
