@@ -134,6 +134,91 @@ void TestDevMgmtApiSyncCmds::controlTraceLogging(void) {
   }
 }
 
+void TestDevMgmtApiSyncCmds::dmStatsRunControl(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto setStatsRunControl = [&](int deviceIdx, device_mgmt_api::stats_type_e type,
+                                device_mgmt_api::stats_control_e control) {
+    // Trace control input params
+    std::array<char, sizeof(type) + sizeof(control)> input_buff;
+    memcpy(input_buff.data(), &type, sizeof(type));
+    memcpy(input_buff.data() + sizeof(type), &control, sizeof(control));
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_STATS_RUN_CONTROL, input_buff.data(),
+                          input_buff.size(), nullptr, 0, hst_latency.get(), dev_latency.get(),
+                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+      return false;
+    }
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    return true;
+  };
+
+  auto findStatsSampleInStatsBuffer = [&](int deviceIdx, TraceBufferType type) {
+    std::vector<std::byte> buff;
+    bool found = false;
+    if (dm.getTraceBufferServiceProcessor(deviceIdx, type, buff) != device_mgmt_api::DM_STATUS_SUCCESS) {
+      return found;
+    } else {
+      for (const trace_entry_header_t* entry = nullptr;
+           entry = Trace_Decode(static_cast<trace_buffer_std_header_t*>(static_cast<void*>(buff.data())), entry);) {
+        if (entry->type == TRACE_TYPE_CUSTOM_EVENT) {
+          found = true;
+          break;
+        }
+      }
+    }
+    return found;
+  };
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    // Disable the trace logging
+    EXPECT_TRUE(setStatsRunControl(deviceIdx, device_mgmt_api::STATS_TYPE_SP | device_mgmt_api::STATS_TYPE_MM,
+                                   device_mgmt_api::STATS_CONTROL_TRACE_DISABLE))
+      << fmt::format("Device[{}]: setStatsRunControl() failed!", deviceIdx);
+
+    // Reset the trace buffer
+    EXPECT_TRUE(setStatsRunControl(deviceIdx, device_mgmt_api::STATS_TYPE_SP | device_mgmt_api::STATS_TYPE_MM,
+                                   device_mgmt_api::STATS_CONTROL_TRACE_DISABLE |
+                                     device_mgmt_api::STATS_CONTROL_RESET_COUNTER |
+                                     device_mgmt_api::STATS_CONTROL_RESET_TRACEBUF))
+      << fmt::format("Device[{}]: setStatsRunControl() failed!", deviceIdx);
+    EXPECT_FALSE(findStatsSampleInStatsBuffer(deviceIdx, TraceBufferType::TraceBufferSPStats))
+      << fmt::format("Device[{}]: No SP Stats should have received!", deviceIdx);
+    EXPECT_FALSE(findStatsSampleInStatsBuffer(deviceIdx, TraceBufferType::TraceBufferMMStats))
+      << fmt::format("Device[{}]: No MM Stats should have received!", deviceIdx);
+
+    EXPECT_TRUE(setStatsRunControl(deviceIdx, device_mgmt_api::STATS_TYPE_SP | device_mgmt_api::STATS_TYPE_MM,
+                                   device_mgmt_api::STATS_CONTROL_TRACE_ENABLE))
+      << fmt::format("Device[{}]: setStatsRunControl() failed!", deviceIdx);
+  }
+
+  std::vector<bool> spStatsFound(deviceCount, false);
+  std::vector<bool> mmStatsFound(deviceCount, false);
+  auto loopDelay = (getTestTarget() == Target::Silicon) ? std::chrono::milliseconds(250) : std::chrono::seconds(1);
+  // Stats not immediately available, requires a delay. Wait until SP and MM Stats of all devices are received.
+  for (auto endTime = Clock::now() + std::chrono::milliseconds(DM_SERVICE_REQUEST_TIMEOUT);
+       Clock::now() < endTime && !(std::all_of(spStatsFound.begin(), spStatsFound.end(), [](bool v) { return v; }) &&
+                                   std::all_of(mmStatsFound.begin(), mmStatsFound.end(), [](bool v) { return v; }));
+       std::this_thread::sleep_for(loopDelay)) {
+    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+      if (!spStatsFound[deviceIdx]) {
+        spStatsFound[deviceIdx] = findStatsSampleInStatsBuffer(deviceIdx, TraceBufferType::TraceBufferSPStats);
+      }
+      if (!mmStatsFound[deviceIdx]) {
+        mmStatsFound[deviceIdx] = findStatsSampleInStatsBuffer(deviceIdx, TraceBufferType::TraceBufferMMStats);
+      }
+    }
+  }
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    EXPECT_TRUE(spStatsFound[deviceIdx]) << fmt::format("Device[{}]: SP stats should have received now!", deviceIdx);
+    EXPECT_TRUE(mmStatsFound[deviceIdx]) << fmt::format("Device[{}]: MM stats should have received now!", deviceIdx);
+  }
+}
+
 static inline void logTraceException(std::stringstream& logs, const struct trace_entry_header_t* entry) {
   const trace_execution_stack_t* tracePacketExecStack = templ::bit_cast<trace_execution_stack_t*>(entry);
   logs << "\nsepc = 0x" << std::hex << tracePacketExecStack->registers.epc << std::endl;

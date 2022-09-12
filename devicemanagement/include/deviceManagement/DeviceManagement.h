@@ -93,7 +93,8 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_SET_DM_TRACE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG},
   {"DM_CMD_SET_THROTTLE_POWER_STATE_TEST", device_mgmt_api::DM_CMD::DM_CMD_SET_THROTTLE_POWER_STATE_TEST},
   {"DM_CMD_GET_SP_STATS", device_mgmt_api::DM_CMD::DM_CMD_GET_SP_STATS},
-  {"DM_CMD_GET_MM_STATS", device_mgmt_api::DM_CMD::DM_CMD_GET_MM_STATS}
+  {"DM_CMD_GET_MM_STATS", device_mgmt_api::DM_CMD::DM_CMD_GET_MM_STATS},
+  {"DM_CMD_SET_STATS_RUN_CONTROL", device_mgmt_api::DM_CMD::DM_CMD_SET_STATS_RUN_CONTROL}
 #if MINION_DEBUG_INTERFACE
   ,
   {"DM_CMD_MDI_SELECT_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART},
