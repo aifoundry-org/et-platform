@@ -48,6 +48,7 @@
         pmic_force_perst
         pmic_reset_wdog_timer
         pmic_read_average_soc_power
+        pmic_reset_pmb_stats
         pmic_get_pmb_stats
         I2C_PMIC_Initialize
         I2C_PMIC_Read
@@ -1404,6 +1405,31 @@ int pmic_set_minion_group_voltage(uint8_t group_id, uint8_t voltage)
 *
 *   FUNCTION
 *
+*       pmic_reset_pmb_stats
+*
+*   DESCRIPTION
+*
+*       This function resets pmb stats for modules.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       status           status of reset success/error
+*
+***********************************************************************/
+int pmic_reset_pmb_stats(void)
+{
+    /* write PMB register to reset all stats */
+    return set_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS, PMIC_I2C_PMB_STATS_RESET_VALUE, 1);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       pmic_get_pmb_stats
 *
 *   DESCRIPTION
@@ -1412,12 +1438,11 @@ int pmic_set_minion_group_voltage(uint8_t group_id, uint8_t voltage)
 *
 *   INPUTS
 *
-*       module_type      module type to be read (MINION, NOC, SRAM)
-*       reading_type     output value type to be set (CURRENT, MIN, MAX, AVG)
+*       pmb_stats        stats to update
 *
 *   OUTPUTS
 *
-*       current           current value in mA
+*       status           status of update success/error
 *
 ***********************************************************************/
 int pmic_get_pmb_stats(struct pmb_stats_t *pmb_stats)

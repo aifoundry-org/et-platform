@@ -22,13 +22,14 @@
 #include "sp_host_iface.h"
 #include "perf_mgmt.h"
 
-/*! \fn void process_performance_request(tag_id_t tag_id, msg_id_t msg_id)
+/*! \fn void process_performance_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
     \brief Interface to process the performance request command
     by the msg_id
     \param tag_id Tag ID
     \param msg_id ID of the command received
+    \param buffer Pointer to command buffer
     \returns none
 */
-void process_performance_request(tag_id_t tag_id, msg_id_t msg_id);
+void process_performance_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer);
 
 #endif

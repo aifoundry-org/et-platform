@@ -284,6 +284,12 @@ int pmic_get_minion_group_voltage(uint8_t group_id, uint8_t *voltage);
 */
 int pmic_set_minion_group_voltage(uint8_t group_id, uint8_t voltage);
 
+/*! \fn int pmic_reset_pmb_stats(void)
+    \brief This function resets PMB stats.
+    \return The function call status, pass/fail.
+*/
+int pmic_reset_pmb_stats(void);
+
 /*! \fn int pmic_get_pmb_stats(struct pmb_stats_t *pmb_stats)
     \brief This function returns PMB stats os specified module.
     \param pmb_stats - pmb stats structure to hold stat values for:

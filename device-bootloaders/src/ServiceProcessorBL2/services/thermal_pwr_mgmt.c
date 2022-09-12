@@ -799,19 +799,28 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
 *
 *   INPUTS
 *
-*       None
+*       reset                   reset statistics before update
 *
 *   OUTPUTS
 *
 *       int                     Return status
 *
 ***********************************************************************/
-int update_pmb_stats(void)
+int update_pmb_stats(bool reset)
 {
     int status = STATUS_SUCCESS;
 
-    /* obtain PMB values from PMIC */
-    status = pmic_get_pmb_stats(&g_soc_power_reg.pmb_stats);
+    if (reset)
+    {
+        /* reset PMB values from PMIC */
+        status = pmic_reset_pmb_stats();
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        /* obtain PMB values from PMIC */
+        status = pmic_get_pmb_stats(&g_soc_power_reg.pmb_stats);
+    }
 
     return status;
 }
@@ -2198,8 +2207,18 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
         /* initialize temperature valuesin op stats */
         INIT_STAT_VALUE(get_soc_power_reg()->op_stats.minion.temperature, tmp_val);
 
-        /* Update PMB stats */
-        status = update_pmb_stats();
+        /* TODO: PMIC is currently reporting system temperature as 0. This is to be validated once fixed */
+        status = pmic_get_temperature(&tmp_val);
+
+        /* Update system temperature */
+        if (status == STATUS_SUCCESS)
+        {
+            INIT_STAT_VALUE(get_soc_power_reg()->op_stats.system.temperature, tmp_val)
+
+            /* Update PMB stats */
+            status = update_pmb_stats(true);
+        }
+
         if (status == STATUS_SUCCESS)
         {
             /* Initialize stats min, max andd avg values */

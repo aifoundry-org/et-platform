@@ -168,8 +168,9 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
                 Minion_State_Host_Iface_Process_Request(tag_id, msg_id);
                 break;
             case DM_CMD_GET_MM_STATS:
+            case DM_CMD_SET_STATS_RUN_CONTROL:
             case DM_CMD_GET_ASIC_FREQUENCIES ... DM_CMD_GET_ASIC_LATENCY:
-                process_performance_request(tag_id, msg_id);
+                process_performance_request(tag_id, msg_id, (void *)buffer);
                 break;
             case DM_CMD_GET_DEVICE_ERROR_EVENTS:
 #ifdef TEST_EVENT_GEN

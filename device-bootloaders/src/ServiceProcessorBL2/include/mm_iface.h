@@ -78,6 +78,13 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw);
 */
 int32_t MM_Iface_Get_MM_Stats(struct compute_resources_sample *stats);
 
+/*! \fn int32_t MM_Iface_MM_Stats_Run_Control(sp2mm_stats_control_e control)
+    \brief Send the MM Stats run control command to Master Minion. Note a timeout failure is possible.
+    \param control Control operation to be performed on MM stats.
+    \return Status indicating success or negative error
+*/
+int32_t MM_Iface_MM_Stats_Run_Control(sp2mm_stats_control_e control);
+
 /*! \fn int32_t MM_Iface_Send_Abort_All_Cmd(void)
     \brief Send the Get Abort command to Master Minion Firmware.
     \return Status indicating success or negative error

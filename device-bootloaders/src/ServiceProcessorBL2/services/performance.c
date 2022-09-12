@@ -17,6 +17,9 @@
 /***********************************************************************/
 
 #include "bl2_perf.h"
+#include "mm_iface.h"
+#include "trace.h"
+#include "thermal_pwr_mgmt.h"
 
 /************************************************************************
 *
@@ -432,6 +435,99 @@ static void dm_svc_perf_get_mm_stats(uint16_t tag, uint64_t req_start_time)
 *
 *   FUNCTION
 *
+*      dm_svc_perf_stats_run_control
+*
+*   DESCRIPTION
+*
+*       This function controls the enable, disable or reset of DM stats
+*       (MM or SP) or reset of DM stats trace buffer
+*
+*   INPUTS
+*
+*       tag_id            Tag id
+*       req_start_time    Time stamp when the request was received by the Command
+*                         Dispatcher
+*       buffer            Command input buffer
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void dm_svc_perf_stats_run_control(tag_id_t tag_id, uint64_t req_start_time, void *buffer)
+{
+    const struct device_mgmt_stats_run_control_cmd_t *dm_cmd =
+        (struct device_mgmt_stats_run_control_cmd_t *)buffer;
+    struct device_mgmt_default_rsp_t dm_rsp;
+    sp2mm_stats_control_e control = 0;
+    int32_t status = STATUS_SUCCESS;
+
+    if (dm_cmd->type & STATS_TYPE_SP)
+    {
+        /* Check flag to Enable/Disable SP Trace logging. */
+        if (dm_cmd->control & STATS_CONTROL_TRACE_ENABLE)
+        {
+            Trace_Run_Control_SP_Dev_Stats(TRACE_ENABLE);
+        }
+        else
+        {
+            Trace_Run_Control_SP_Dev_Stats(TRACE_DISABLE);
+        }
+
+        /* Check flag to reset SP stats trace buffer. */
+        if (dm_cmd->control & STATS_CONTROL_RESET_TRACEBUF)
+        {
+            Trace_Reset_SP_Dev_Stats_Buffer();
+        }
+
+        /* Check flag to reset SP stats. */
+        if (dm_cmd->control & STATS_CONTROL_RESET_COUNTER)
+        {
+            Thermal_Pwr_Mgmt_Init_OP_Stats();
+        }
+    }
+
+    if (dm_cmd->type & STATS_TYPE_MM)
+    {
+        /* Check flag to Enable/Disable MM Trace logging. */
+        if (dm_cmd->control & STATS_CONTROL_TRACE_ENABLE)
+        {
+            control |= MM_STATS_CONTROL_TRACE_ENABLE;
+        }
+
+        /* Check flag to reset MM stats trace buffer. */
+        if (dm_cmd->control & STATS_CONTROL_RESET_TRACEBUF)
+        {
+            control |= MM_STATS_CONTROL_RESET_TRACEBUF;
+        }
+
+        /* Check flag to reset MM stats. */
+        if (dm_cmd->control & STATS_CONTROL_RESET_COUNTER)
+        {
+            control |= MM_STATS_CONTROL_RESET_COUNTER;
+        }
+
+        status = MM_Iface_MM_Stats_Run_Control(control);
+    }
+
+    if (0 == (dm_cmd->type & (STATS_TYPE_SP | STATS_TYPE_MM)))
+    {
+        status = ERROR_INVALID_ARGUMENT;
+    }
+
+    FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_SET_STATS_RUN_CONTROL,
+                    timer_get_ticks_count() - req_start_time, status)
+
+    if (STATUS_SUCCESS != SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp, sizeof(dm_rsp)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s: Cqueue push error!\n", __func__);
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       process_performance_request
 *
 *   DESCRIPTION
@@ -442,13 +538,14 @@ static void dm_svc_perf_get_mm_stats(uint16_t tag, uint64_t req_start_time)
 *
 *       tag_id    ID of tag
 *       msg_id    ID of services to handle
+*       buffer    Pointer to command buffer
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void process_performance_request(tag_id_t tag_id, msg_id_t msg_id)
+void process_performance_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
 {
     uint64_t req_start_time = timer_get_ticks_count();
 
@@ -456,6 +553,9 @@ void process_performance_request(tag_id_t tag_id, msg_id_t msg_id)
     {
         case DM_CMD_GET_MM_STATS:
             dm_svc_perf_get_mm_stats(tag_id, req_start_time);
+            break;
+        case DM_CMD_SET_STATS_RUN_CONTROL:
+            dm_svc_perf_stats_run_control(tag_id, req_start_time, buffer);
             break;
         case DM_CMD_GET_ASIC_FREQUENCIES:
             dm_svc_perf_get_asic_frequencies(tag_id, req_start_time);

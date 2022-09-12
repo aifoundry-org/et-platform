@@ -128,7 +128,7 @@ static void dm_task_entry(void *pvParameters)
         }
 
         // update PMB stats, it updates voltage, current and power for minion, NOC and SRAM modules
-        ret = update_pmb_stats();
+        ret = update_pmb_stats(false);
 
         if (0 != ret)
         {

@@ -681,6 +681,7 @@
 
 /* Register member: pmic_i2c.pmb_stats                                     */
 #define PMIC_I2C_PMB_STATS_SNAPSHOT_VALUE 0x43u
+#define PMIC_I2C_PMB_STATS_RESET_VALUE    0x47u
 
 /* Register type: pmic_i2c::input_voltage                                  */
 /* Register template: pmic_i2c::input_voltage                              */

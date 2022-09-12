@@ -20,6 +20,8 @@
         Trace_Run_Control
         Trace_Configure
         Trace_Process_CMD
+        Trace_Reset_SP_Dev_Stats_Buffer
+        Trace_Run_Control_SP_Dev_Stats
 
 */
 /***********************************************************************/
@@ -99,6 +101,29 @@ static inline void et_trace_buffer_lock_release(void)
     }
 }
 
+/* Stats Trace buffer lock. NOTE: This lock is meant to be used within trace component */
+static SemaphoreHandle_t Trace_Stats_Cb_Mutex_Handle = NULL;
+static StaticSemaphore_t Trace_Stats_Cb_Mutex_Buffer;
+
+/* Stats Trace buffer locking routines */
+static inline void et_trace_stats_cb_lock_acquire(void)
+{
+    /* Acquire the Mutex (only in case of non-trap context)*/
+    if (!INT_Is_Trap_Context() && Trace_Stats_Cb_Mutex_Handle)
+    {
+        xSemaphoreTake(Trace_Stats_Cb_Mutex_Handle, portMAX_DELAY);
+    }
+}
+
+static inline void et_trace_stats_cb_lock_release(void)
+{
+    /* Release the Mutex (only in case of non-trap context)*/
+    if (!INT_Is_Trap_Context() && Trace_Stats_Cb_Mutex_Handle)
+    {
+        xSemaphoreGive(Trace_Stats_Cb_Mutex_Handle);
+    }
+}
+
 void Trace_Process_Control_Cmd(void *buffer)
 {
     struct device_mgmt_trace_run_control_cmd_t *dm_cmd =
@@ -125,8 +150,6 @@ void Trace_Process_Control_Cmd(void *buffer)
     }
     else
     {
-        trace_header->data_size = SP_Trace_CB.offset_per_hart;
-        ETSOC_MEM_EVICT((uint64_t *)SP_TRACE_BUFFER_BASE, SP_Trace_CB.offset_per_hart, to_L2)
         Trace_Run_Control(TRACE_DISABLE);
         Log_Write(LOG_LEVEL_INFO, "TRACE_RT_CONTROL:SP:Trace Disabled.\r\n");
     }
@@ -371,6 +394,10 @@ uint32_t Trace_Get_SP_Buffer(void)
 ***********************************************************************/
 static void Trace_Run_Control(trace_enable_e state)
 {
+    if (state == TRACE_DISABLE)
+    {
+        Trace_Update_SP_Buffer_Header();
+    }
     SP_Trace_CB.enable = state;
 }
 
@@ -604,11 +631,73 @@ uint8_t *Trace_Exception_Dump_Context(const void *stack_frame)
 *
 *   FUNCTION
 *
+*       Trace_Run_Control_SP_Dev_Stats()
+*
+*   DESCRIPTION
+*
+*       This function enable/disable Trace for Service Processor stats buffer.
+*
+*   INPUTS
+*
+*       trace_enable_e    Enable/Disable Trace.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Run_Control_SP_Dev_Stats(trace_enable_e state)
+{
+    if (state == TRACE_DISABLE)
+    {
+        Trace_Update_SP_Stats_Buffer_Header();
+    }
+    SP_Stats_Trace_CB.enable = state;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Reset_SP_Dev_Stats_Buffer
+*
+*   DESCRIPTION
+*
+*       This function resets Service Processor stats trace buffer.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_Reset_SP_Dev_Stats_Buffer(void)
+{
+    struct trace_buffer_std_header_t *trace_header =
+        (struct trace_buffer_std_header_t *)SP_Stats_Trace_CB.base_per_hart;
+
+    /* Reset the trace buffer */
+    et_trace_stats_cb_lock_acquire();
+    trace_header->data_size = sizeof(struct trace_buffer_std_header_t);
+    SP_Stats_Trace_CB.offset_per_hart = sizeof(struct trace_buffer_std_header_t);
+    ETSOC_MEM_EVICT((uint64_t *)SP_STATS_TRACE_BUFFER_BASE, SP_Stats_Trace_CB.offset_per_hart,
+                    to_L2)
+    et_trace_stats_cb_lock_release();
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       Trace_Init_SP_Dev_Stats
 *
 *   DESCRIPTION
 *
 *       This function initializes Trace for device stats.
+*       NOTE: SP Stats Trace Buffer is not thread safe.
 *
 *   INPUTS
 *
@@ -624,7 +713,8 @@ int32_t Trace_Init_SP_Dev_Stats(const struct trace_init_info_t *dev_trace_init_i
     int32_t status = ERROR_INVALID_ARGUMENT;
     struct trace_init_info_t dev_trace_init_info_l;
 
-    //TODO: A Mutex lock should be added to make this thread safe.
+    /* Init the stats trace cb lock to released state */
+    Trace_Stats_Cb_Mutex_Handle = xSemaphoreCreateMutexStatic(&Trace_Stats_Cb_Mutex_Buffer);
 
     /* If init information is NULL then do default initialization. */
     if (dev_trace_init_info == NULL)
@@ -727,7 +817,9 @@ void Trace_Update_SP_Stats_Buffer_Header(void)
         (struct trace_buffer_std_header_t *)SP_Stats_Trace_CB.base_per_hart;
 
     /* Update data size in trace header */
+    et_trace_stats_cb_lock_acquire();
     trace_header->data_size = SP_Stats_Trace_CB.offset_per_hart;
     ETSOC_MEM_EVICT((uint64_t *)SP_STATS_TRACE_BUFFER_BASE, SP_Stats_Trace_CB.offset_per_hart,
                     to_L2)
+    et_trace_stats_cb_lock_release();
 }

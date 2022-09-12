@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-13832]: Add support for DM_CMD_GET_MM_STATS
+- [SW-13851] add handling for DM_CMD_SET_STATS_RUN_CONTROL
 ### Changed
 - [SW-14084]: Fixing the CMA calculation to scale up and down the values correctly.
 ### Deprecated

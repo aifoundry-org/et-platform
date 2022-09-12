@@ -129,4 +129,18 @@ struct trace_control_block_t *Trace_Get_Dev_Stats_CB(void);
     \return None.
 */
 void Trace_Update_SP_Stats_Buffer_Header(void);
+
+/*! \fn Trace_Run_Control_SP_Dev_Stats(trace_enable_e control)
+    \brief This function enable/disable Trace for Service Processor stats buffer.
+    \param control Enable/Disable Trace.
+    \return None.
+*/
+void Trace_Run_Control_SP_Dev_Stats(trace_enable_e control);
+
+/*! \fn Trace_Reset_SP_Dev_Stats_Buffer(void)
+    \brief This function resets stats trace buffer
+    \return None.
+*/
+void Trace_Reset_SP_Dev_Stats_Buffer(void);
+
 #endif

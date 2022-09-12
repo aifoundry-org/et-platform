@@ -234,12 +234,12 @@ void trace_power_state_test(uint16_t tag, uint64_t req_start_time, void *cmd);
 */
 void thermal_throttling(power_throttle_state_e throttle_state);
 
-/*! \fn int update_pmb_stats(void)
+/*! \fn int update_pmb_stats(bool reset)
     \brief This function updates the PMB stats for NOC, SRAM and minion modules.
-    \param none
+    \param reset reset stats before updating
     \returns Status indicating success or negative error
 */
-int update_pmb_stats(void);
+int update_pmb_stats(bool reset);
 
 /*! \fn void print_system_operating_point(void)
     \brief This function prints system operating point
