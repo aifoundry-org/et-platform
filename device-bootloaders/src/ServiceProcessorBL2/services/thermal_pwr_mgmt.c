@@ -44,6 +44,7 @@
        Thermal_Pwr_Mgmt_Init_OP_Stats
 */
 /***********************************************************************/
+#include <math.h>
 #include "config/mgmt_build_config.h"
 #include "thermal_pwr_mgmt.h"
 #include "perf_mgmt.h"
@@ -219,8 +220,14 @@ volatile struct soc_power_reg_t *get_soc_power_reg(void)
 #define CMA_TEMP_SAMPLE_COUNT 5
 
 /* Macro to calculate cumulative moving average */
-#define CMA(module, current_value, sample_count) \
-    module.avg = (uint16_t)((current_value + (module.avg * (sample_count - 1))) / sample_count);
+#define CMA(module, current_value, sample_count)                                         \
+    double cma_temp =                                                                    \
+        (current_value > module.avg) ?                                                   \
+            ceil((((double)current_value + (double)(module.avg * (sample_count - 1))) /  \
+                  sample_count)) :                                                       \
+            floor((((double)current_value + (double)(module.avg * (sample_count - 1))) / \
+                   sample_count));                                                       \
+    module.avg = (uint16_t)cma_temp;
 
 /* Macro to calculate Min, Max values and add to the sum for average value later to be calculated by dividing num of samples */
 #define CALC_MIN_MAX(module, current_value)      \
@@ -467,7 +474,7 @@ int update_module_current_temperature(void)
     {
         get_soc_power_reg()->soc_temperature = temperature;
         CALC_MIN_MAX(get_soc_power_reg()->op_stats.minion.temperature, temperature)
-        get_soc_power_reg()->op_stats.minion.temperature.avg = temperature;
+        CMA(get_soc_power_reg()->op_stats.minion.temperature, temperature, CMA_TEMP_SAMPLE_COUNT)
 
         /*TODO: PMIC is currently reporting system temperature as 0. This is to be validated once fixed */
         status = pmic_get_temperature(&temperature);
@@ -477,7 +484,7 @@ int update_module_current_temperature(void)
     if (status == STATUS_SUCCESS)
     {
         CALC_MIN_MAX(get_soc_power_reg()->op_stats.system.temperature, temperature)
-        get_soc_power_reg()->op_stats.system.temperature.avg = temperature;
+        CMA(get_soc_power_reg()->op_stats.system.temperature, temperature, CMA_TEMP_SAMPLE_COUNT)
         status = get_module_temperature_threshold(&temperature_threshold);
     }
 

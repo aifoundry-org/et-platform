@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-13832]: Add support for DM_CMD_GET_MM_STATS
 ### Changed
+- [SW-14084]: Fixing the CMA calculation to scale up and down the values correctly.
 ### Deprecated
 ### Removed
 ### Fixed
@@ -18,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-13953]: Adding eviction of SP stats and trace buffer to avoid trace header update delay
 - [SW-14044]: Addition of op stats init function and refactoring update temperature stats function
-- [SW-13832]: Add support for DM_CMD_GET_MM_STATS
 ### Changed
 - [SW-13850] Disabled power throttling code in update_module_soc_power() until SW-13951 is resolved.
 - Updating NOC, DDR and Maxion boot voltages
