@@ -134,4 +134,10 @@ uint32_t STATW_Get_Minion_Freq(void);
 */
 int32_t STATW_Get_MM_Stats(struct compute_resources_sample *sample);
 
+/*! \fn int32_t STATW_Reset_MM_Stats(void)
+    \brief Reset the current MM stats.
+    \return status success or error.
+*/
+int32_t STATW_Reset_MM_Stats(void);
+
 #endif

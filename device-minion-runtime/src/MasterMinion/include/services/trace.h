@@ -122,6 +122,13 @@ uint32_t Trace_Evict_Buffer_MM(void);
 */
 uint32_t Trace_Evict_Buffer_MM_Stats(void);
 
+/*! \fn void Trace_RT_Control_MM_Stats(uint32_t control)
+    \brief This function updates control of MM Trace runtime.
+    \param control Bit encoded trace control flags.
+    \return None
+*/
+void Trace_RT_Control_MM_Stats(uint32_t control);
+
 /*! \fn uint32_t Trace_Evict_Event_MM_Stats(void * entry, uint32_t size)
     \brief This function evicts single MM Stat event packet, it also
            updates the trace buffer header to include buffer usage.

@@ -21,6 +21,7 @@
         Trace_Configure_CM_RT
         Trace_RT_Control_MM
         Trace_Evict_Buffer_MM
+        Trace_RT_Control_MM_Stats
 
 */
 /***********************************************************************/
@@ -52,6 +53,8 @@
 static inline void et_trace_write_float(void *addr, float value);
 void et_trace_mm_cb_lock_acquire(void);
 void et_trace_mm_cb_lock_release(void);
+void et_trace_mm_stats_cb_lock_acquire(void);
+void et_trace_mm_stats_cb_lock_release(void);
 
 #define ET_TRACE_GET_HPM_COUNTER(id) pmu_core_counter_read_unpriv(id)
 #define ET_TRACE_GET_TIMESTAMP()     PMC_Get_Current_Cycles()
@@ -143,6 +146,20 @@ void et_trace_mm_cb_lock_release(void)
 {
     /* Release the lock */
     release_local_spinlock(&MM_Trace_CB.mm_trace_cb_lock);
+}
+
+/* Stats Trace buffer locking routines
+   NOTE: This lock is meant to be used within trace component. */
+void et_trace_mm_stats_cb_lock_acquire(void)
+{
+    /* Acquire the lock */
+    acquire_local_spinlock(&MM_Stats_Trace_CB.mm_trace_cb_lock);
+}
+
+void et_trace_mm_stats_cb_lock_release(void)
+{
+    /* Release the lock */
+    release_local_spinlock(&MM_Stats_Trace_CB.mm_trace_cb_lock);
 }
 
 /************************************************************************
@@ -513,6 +530,57 @@ uint32_t Trace_Evict_Buffer_MM(void)
 *
 *   FUNCTION
 *
+*       Trace_RT_Control_MM_Stats
+*
+*   DESCRIPTION
+*
+*       This function updates the control of MM Trace runtime.
+*
+*   INPUTS
+*
+*       uint32_t    Bit encoded trace control flags.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_RT_Control_MM_Stats(uint32_t control)
+{
+    struct trace_buffer_std_header_t *trace_header;
+
+    /* Acquire the lock */
+    et_trace_mm_stats_cb_lock_acquire();
+
+    /* Check flag to Enable/Disable Trace. */
+    if (control & TRACE_RT_CONTROL_ENABLE_TRACE)
+    {
+        atomic_store_local_8(&(MM_Stats_Trace_CB.cb.enable), TRACE_ENABLE);
+    }
+    else
+    {
+        atomic_store_local_8(&(MM_Stats_Trace_CB.cb.enable), TRACE_DISABLE);
+    }
+
+    /* Check flag to reset Trace buffer. */
+    if (control & TRACE_RT_CONTROL_RESET_TRACEBUF)
+    {
+        trace_header = (struct trace_buffer_std_header_t *)MM_STATS_TRACE_BUFFER_BASE;
+        atomic_store_local_32(
+            &(MM_Stats_Trace_CB.cb.offset_per_hart), sizeof(struct trace_buffer_std_header_t));
+        atomic_store_local_32(&trace_header->data_size, sizeof(struct trace_buffer_std_header_t));
+        ETSOC_MEM_EVICT(
+            (uint64_t *)MM_STATS_TRACE_BUFFER_BASE, sizeof(struct trace_buffer_std_header_t), to_L3)
+    }
+
+    /* Release the lock */
+    et_trace_mm_stats_cb_lock_release();
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       Trace_Evict_Buffer_MM_Stats
 *
 *   DESCRIPTION
@@ -535,12 +603,16 @@ uint32_t Trace_Evict_Buffer_MM_Stats(void)
     struct trace_buffer_std_header_t *trace_header =
         (struct trace_buffer_std_header_t *)MM_STATS_TRACE_BUFFER_BASE;
 
+    et_trace_mm_stats_cb_lock_acquire();
+
     uint32_t offset = atomic_load_local_32(&(MM_Stats_Trace_CB.cb.offset_per_hart));
 
     /* Store used buffer size in buffer header. */
     atomic_store_local_32(&trace_header->data_size, offset);
 
     ETSOC_MEM_EVICT((uint64_t *)MM_STATS_TRACE_BUFFER_BASE, offset, to_L3)
+
+    et_trace_mm_stats_cb_lock_release();
 
     return offset;
 }
@@ -574,6 +646,8 @@ uint32_t Trace_Evict_Event_MM_Stats(const void *entry, uint32_t size)
         (struct trace_buffer_std_header_t *)MM_STATS_TRACE_BUFFER_BASE;
     uint32_t offset;
 
+    et_trace_mm_stats_cb_lock_acquire();
+
     /* Evict the data packet to L3 */
     ETSOC_MEM_EVICT(entry, size, to_L3)
 
@@ -583,7 +657,9 @@ uint32_t Trace_Evict_Event_MM_Stats(const void *entry, uint32_t size)
     atomic_store_local_32(&trace_header->data_size, offset);
 
     /* Evict the header to L3 */
-    ETSOC_MEM_EVICT((void *)trace_header, size, to_L3)
+    ETSOC_MEM_EVICT((void *)trace_header, sizeof(struct trace_buffer_std_header_t), to_L3)
+
+    et_trace_mm_stats_cb_lock_release();
 
     return offset;
 }
@@ -650,6 +726,9 @@ int32_t Trace_Init_MM_Stats(const struct trace_init_info_t *mm_init_info)
 
     if (status == STATUS_SUCCESS)
     {
+        /* Initialize the spinlock */
+        init_local_spinlock(&MM_Stats_Trace_CB.mm_trace_cb_lock, 0);
+
         /* Common buffer for all MM Harts. */
         MM_Stats_Trace_CB.cb.size_per_hart = MM_STATS_BUFFER_SIZE;
         MM_Stats_Trace_CB.cb.base_per_hart = MM_STATS_TRACE_BUFFER_BASE;

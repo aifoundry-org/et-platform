@@ -35,6 +35,7 @@
 #include "services/sp_iface.h"
 #include "services/sw_timer.h"
 #include "services/log.h"
+#include "services/trace.h"
 #include "services/host_cmd_hdlr.h"
 #include "workers/cw.h"
 
@@ -253,6 +254,53 @@ static int32_t sp_command_handler(const void *cmd_buffer)
                 &rsp.msg_hdr, SP2MM_RSP_GET_MM_STATS, sizeof(struct sp2mm_get_mm_stats_rsp_t), 0)
 
             rsp.status = STATW_Get_MM_Stats(&rsp.sample);
+
+            status = SP_Iface_Push_Rsp_To_SP2MM_CQ((void *)&rsp, sizeof(rsp));
+            if (status == STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "MM2SP:RSP:SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push success!\r\n");
+            }
+            else
+            {
+                Log_Write(LOG_LEVEL_ERROR, "SP_Iface_Push_Cmd_To_SP2MM_CQ: CQ push error!\r\n");
+            }
+
+            break;
+        }
+        case SP2MM_CMD_MM_STATS_RUN_CONTROL:
+        {
+            const struct sp2mm_mm_stats_run_control_cmd_t *control_cmd = (const void *)hdr;
+            struct sp2mm_mm_stats_run_control_rsp_t rsp;
+            uint32_t control = 0;
+
+            Log_Write(LOG_LEVEL_DEBUG, "SP2MM:CMD:SP_Command_Handler:MMStatsRunControl:%s%d%s%d%s",
+                ":msg_id:", hdr->msg_id, ":msg_size:", hdr->msg_size, "\r\n");
+
+            SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, SP2MM_RSP_MM_STATS_RUN_CONTROL, sizeof(rsp), 0)
+
+            rsp.status = STATUS_SUCCESS;
+
+            if (control_cmd->control & MM_STATS_CONTROL_RESET_COUNTER)
+            {
+                rsp.status = STATW_Reset_MM_Stats();
+            }
+
+            if (control_cmd->control & MM_STATS_CONTROL_TRACE_ENABLE)
+            {
+                control |= TRACE_RT_CONTROL_ENABLE_TRACE;
+            }
+            else
+            {
+                control |= TRACE_RT_CONTROL_DISABLE_TRACE;
+            }
+
+            if (control_cmd->control & MM_STATS_CONTROL_RESET_TRACEBUF)
+            {
+                control |= TRACE_RT_CONTROL_RESET_TRACEBUF;
+            }
+
+            Trace_RT_Control_MM_Stats(control);
 
             status = SP_Iface_Push_Rsp_To_SP2MM_CQ((void *)&rsp, sizeof(rsp));
             if (status == STATUS_SUCCESS)

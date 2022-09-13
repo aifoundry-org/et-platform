@@ -21,6 +21,7 @@
         STATW_Launch
         STATW_Get_Minion_Freq
         STATW_Get_MM_Stats
+        STATW_Reset_MM_Stats
         STATW_Add_New_Sample_Atomically
 
 */
@@ -149,6 +150,7 @@ typedef struct {
     uint64_t pad3[5];
     uint64_t saved_trace_entry;
     uint32_t sampling_flag;
+    uint32_t reset_sampling_flag;
     uint32_t minion_freq_mhz;
 } __attribute__((packed, aligned(8))) statw_cb;
 
@@ -304,6 +306,31 @@ int32_t STATW_Get_MM_Stats(struct compute_resources_sample *sample)
 *
 *   FUNCTION
 *
+*       STATW_Reset_MM_Stats
+*
+*   DESCRIPTION
+*
+*       This function sets the flag to reset the MM stats.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       success or error
+*
+***********************************************************************/
+int32_t STATW_Reset_MM_Stats(void)
+{
+    atomic_store_local_32(&STATW_CB.reset_sampling_flag, STATW_SAMPLING_FLAG_SET);
+    return STATUS_SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       STATW_Add_New_Sample_Atomically
 *
 *   DESCRIPTION
@@ -353,6 +380,60 @@ void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64
 *
 *   FUNCTION
 *
+*       statw_sample_init
+*
+*   DESCRIPTION
+*
+*       Initialize sample stats
+*
+*   INPUTS
+*
+*       local_stats_cb  Local device stats pointer in L1 memory.
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void statw_sample_init(struct compute_resources_sample *local_stats_cb)
+{
+    atomic_store_local_64(&STATW_CB.cm_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
+    atomic_store_local_64(&STATW_CB.cm_bw.max, STATW_RESOURCE_DEFAULT_MAX);
+    atomic_store_local_64(&STATW_CB.cm_bw.min, STATW_RESOURCE_BW_DEFAULT_MIN);
+    atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
+    atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.max, STATW_RESOURCE_DEFAULT_MAX);
+    atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.min, STATW_RESOURCE_BW_DEFAULT_MIN);
+    atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
+    atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.max, STATW_RESOURCE_DEFAULT_MAX);
+    atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.min, STATW_RESOURCE_BW_DEFAULT_MIN);
+
+    local_stats_cb->ddr_read_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->ddr_read_bw.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->ddr_read_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
+    local_stats_cb->pcie_dma_read_utilization.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->pcie_dma_read_utilization.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->pcie_dma_read_utilization.min = STATW_RESOURCE_UTIL_DEFAULT_MIN;
+    local_stats_cb->ddr_write_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->ddr_write_bw.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->ddr_write_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
+    local_stats_cb->pcie_dma_write_utilization.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->pcie_dma_write_utilization.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->pcie_dma_write_utilization.min = STATW_RESOURCE_UTIL_DEFAULT_MIN;
+    local_stats_cb->l2_l3_read_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->l2_l3_read_bw.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->l2_l3_read_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
+    local_stats_cb->l2_l3_write_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->l2_l3_write_bw.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->l2_l3_write_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
+    local_stats_cb->cm_utilization.avg = STATW_RESOURCE_DEFAULT_AVG;
+    local_stats_cb->cm_utilization.max = STATW_RESOURCE_DEFAULT_MAX;
+    local_stats_cb->cm_utilization.min = STATW_RESOURCE_UTIL_DEFAULT_MIN;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       statw_init
 *
 *   DESCRIPTION
@@ -387,37 +468,7 @@ static void statw_init(struct compute_resources_sample *local_stats_cb)
     /* Store the frequency */
     atomic_store_local_32(&STATW_CB.minion_freq_mhz, min_freq_mhz);
 
-    atomic_store_local_64(&STATW_CB.cm_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
-    atomic_store_local_64(&STATW_CB.cm_bw.max, STATW_RESOURCE_DEFAULT_MAX);
-    atomic_store_local_64(&STATW_CB.cm_bw.min, STATW_RESOURCE_BW_DEFAULT_MIN);
-    atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
-    atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.max, STATW_RESOURCE_DEFAULT_MAX);
-    atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.min, STATW_RESOURCE_BW_DEFAULT_MIN);
-    atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
-    atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.max, STATW_RESOURCE_DEFAULT_MAX);
-    atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.min, STATW_RESOURCE_BW_DEFAULT_MIN);
-
-    local_stats_cb->ddr_read_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
-    local_stats_cb->ddr_read_bw.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->ddr_read_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
-    local_stats_cb->pcie_dma_read_utilization.avg = STATW_RESOURCE_DEFAULT_AVG;
-    local_stats_cb->pcie_dma_read_utilization.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->pcie_dma_read_utilization.min = STATW_RESOURCE_UTIL_DEFAULT_MIN;
-    local_stats_cb->ddr_write_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
-    local_stats_cb->ddr_write_bw.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->ddr_write_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
-    local_stats_cb->pcie_dma_write_utilization.avg = STATW_RESOURCE_DEFAULT_AVG;
-    local_stats_cb->pcie_dma_write_utilization.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->pcie_dma_write_utilization.min = STATW_RESOURCE_UTIL_DEFAULT_MIN;
-    local_stats_cb->l2_l3_read_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
-    local_stats_cb->l2_l3_read_bw.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->l2_l3_read_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
-    local_stats_cb->l2_l3_write_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
-    local_stats_cb->l2_l3_write_bw.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->l2_l3_write_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
-    local_stats_cb->cm_utilization.avg = STATW_RESOURCE_DEFAULT_AVG;
-    local_stats_cb->cm_utilization.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->cm_utilization.min = STATW_RESOURCE_UTIL_DEFAULT_MIN;
+    statw_sample_init(local_stats_cb);
 }
 
 /************************************************************************
@@ -460,6 +511,9 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
     /* Initialize the flag to sample device stats. Set the flag to log first sample at the start. */
     atomic_store_local_32(&STATW_CB.sampling_flag, STATW_SAMPLING_FLAG_SET);
 
+    /* Initialize the flag to reset sample device stats. Set the flag to clear at the start. */
+    atomic_store_local_32(&STATW_CB.reset_sampling_flag, STATW_SAMPLING_FLAG_CLEAR);
+
     /* Create timeout to wait for all Compute Workers to boot up */
     int sw_timer_idx =
         SW_Timer_Create_Timeout(&statw_sample_device_stats_callback, 0, STATW_SAMPLING_INTERVAL);
@@ -501,6 +555,12 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
         if (atomic_compare_and_exchange_local_32(
                 &STATW_CB.sampling_flag, STATW_SAMPLING_FLAG_SET, STATW_SAMPLING_FLAG_CLEAR))
         {
+            if (atomic_compare_and_exchange_local_32(&STATW_CB.reset_sampling_flag,
+                    STATW_SAMPLING_FLAG_SET, STATW_SAMPLING_FLAG_CLEAR))
+            {
+                statw_sample_init(&data_sample);
+            }
+
             for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
             {
                 /* Sample PMC MS Counter 0 and 1 (reads, writes). */
