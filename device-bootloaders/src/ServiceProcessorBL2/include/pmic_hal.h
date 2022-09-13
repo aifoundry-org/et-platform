@@ -217,7 +217,7 @@
 #define PMIC_I2C_MINION_G17_VOLTAGE_BYTE_ADDRESS 0x31u
 
 /* Address Space for Addressmap: pmic_i2c_firmware                         */
-/* Register: pmic_i2c_firmware.version                                     */
+/* Register: pmic_i2c_firmware.src_hash                                    */
 #define PMIC_I2C_FIRMWARE_SRC_HASH_ADDRESS      0x1u
 #define PMIC_I2C_FIRMWARE_SRC_HASH_BYTE_ADDRESS 0x1u
 
@@ -1439,9 +1439,9 @@
 /* Addressmap template: pmic_i2c_firmware                                  */
 #define PMIC_I2C_FIRMWARE_SIZE      0x5u
 #define PMIC_I2C_FIRMWARE_BYTE_SIZE 0x5u
-/* Register member: pmic_i2c_firmware.version                              */
-/* Register type referenced: pmic_i2c_firmware::version                    */
-/* Register template referenced: pmic_i2c_firmware::version                */
+/* Register member: pmic_i2c_firmware.src_hash                             */
+/* Register type referenced: pmic_i2c_firmware::src_hash                   */
+/* Register template referenced: pmic_i2c_firmware::src_hash               */
 #define PMIC_I2C_FIRMWARE_SRC_HASH_OFFSET       0x1u
 #define PMIC_I2C_FIRMWARE_SRC_HASH_BYTE_OFFSET  0x1u
 #define PMIC_I2C_FIRMWARE_SRC_HASH_READ_ACCESS  1u
@@ -1451,9 +1451,9 @@
 #define PMIC_I2C_FIRMWARE_SRC_HASH_READ_MASK    0xfffffffful
 #define PMIC_I2C_FIRMWARE_SRC_HASH_WRITE_MASK   0x00000000ul
 
-/* Register type: pmic_i2c_firmware::version                               */
-/* Register template: pmic_i2c_firmware::version                           */
-/* Field member: pmic_i2c_firmware::version.ver                            */
+/* Register type: pmic_i2c_firmware::src_hash                              */
+/* Register template: pmic_i2c_firmware::src_hash                          */
+/* Field member: pmic_i2c_firmware::src_hash                               */
 #define PMIC_I2C_FIRMWARE_SRC_HASH_VER_MSB          31u
 #define PMIC_I2C_FIRMWARE_SRC_HASH_VER_LSB          0u
 #define PMIC_I2C_FIRMWARE_SRC_HASH_VER_WIDTH        32u

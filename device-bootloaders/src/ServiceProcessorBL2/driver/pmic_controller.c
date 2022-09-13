@@ -670,7 +670,7 @@ void pmic_error_isr(void)
 *
 *   INPUTS
 *
-*       none
+*       fw_src_hash Pointer to return value of source HASH
 *
 *   OUTPUTS
 *
@@ -695,7 +695,7 @@ int pmic_get_fw_src_hash(uint32_t *fw_src_hash)
 *
 *   INPUTS
 *
-*       none
+*       Pointer to major, minor and patch
 *
 *   OUTPUTS
 *
@@ -710,7 +710,8 @@ int pmic_get_fw_version(uint8_t *major, uint8_t *minor, uint8_t *patch)
     set_pmic_reg(PMIC_I2C_UPDATECMD_ADDRESS, PMIC_I2C_UPDATECMD_SUBCMD_FW_SEM_VER, 1);
 
     /* read data back */
-    if (0 != get_pmic_reg(PMIC_I2C_UPDATEDATA_ADDRESS, (uint8_t *)&fw_sem_ver, 4)) {
+    if (0 != get_pmic_reg(PMIC_I2C_UPDATEDATA_ADDRESS, (uint8_t *)&fw_sem_ver, 4))
+    {
         MESSAGE_ERROR("PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
@@ -734,7 +735,7 @@ int pmic_get_fw_version(uint8_t *major, uint8_t *minor, uint8_t *patch)
 *
 *   INPUTS
 *
-*       none
+*       Board_type Pointer to value
 *
 *   OUTPUTS
 *
