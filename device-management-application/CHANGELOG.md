@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- Fix et-powertop regression of bar graph display of watts info via the 'w' command
 ### Security
 
 ## [1.5.0] - 2022-09-05

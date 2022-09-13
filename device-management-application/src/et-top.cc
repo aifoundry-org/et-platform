@@ -173,7 +173,7 @@ private:
   void getDeviceDetails(void);
   bool processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total);
   void displayOpStat(const std::string stat, const struct op_value& ov, const op_value_unit unit,
-                     const bool isPower = false, const uint32_t max = 0, const bool addBarLabels = false);
+                     const bool isPower = false, const float cardMax = 0.0, const bool addBarLabels = false);
   void displayFreqStat(const std::string stat, bool endLine, uint64_t frequency);
   void displayVoltStat(const std::string stat, bool endLine, uint64_t value, uint32_t base, uint32_t multiplier);
   void displayComputeStat(const std::string stat, const struct resource_value& rv);
@@ -605,7 +605,7 @@ void EtTop::processInput(void) {
 }
 
 void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, const op_value_unit unit,
-                          const bool isPower, const uint32_t max, const bool addBarLabels) {
+                          const bool isPower, const float cardMax, const bool addBarLabels) {
   if (!displayWattsBars_ && addBarLabels) {
     std::cout << std::endl;
   }
@@ -613,7 +613,7 @@ void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, con
   if (!isPower) {
     std::cout << "\t" + stat + "   avg: " << std::setw(5) << std::left << ov.avg << "  min: " << std::setw(5)
               << std::left << ov.min << "  max: " << std::setw(5) << std::left << ov.max << std::endl;
-  } else if (!displayWattsBars_) {
+  } else {
     float avg, min, max;
     // convert to watts
     switch (unit) {
@@ -634,50 +634,52 @@ void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, con
       break;
     }
 
-    std::cout << std::setprecision(2) << std::fixed;
-    std::cout << "\t" + stat + " avg: " << std::setw(5) << std::right << avg << "  min: " << std::setw(5) << std::right
-              << min << "  max: " << std::setw(5) << std::right << max << std::endl;
-  } else {
-    const uint32_t kHbarSize = 50;
-    char hbar[kHbarSize + 1];
-    const uint32_t mWattPciCardMax = 75000;
-    const float fmax = max >= (mWattPciCardMax - 5000) ? mWattPciCardMax : ((max + 5000) / 5000) * 5000;
-    const float interval = fmax / kHbarSize;
+    if (!displayWattsBars_) {
+      std::cout << std::setprecision(2) << std::fixed;
+      std::cout << "\t" + stat + " avg: " << std::setw(5) << std::right << avg << "  min: " << std::setw(5)
+                << std::right << min << "  max: " << std::setw(5) << std::right << max << std::endl;
+    } else {
+      const uint32_t kHbarSize = 50;
+      char hbar[kHbarSize + 1];
+      const float wattPciCardMax = 75.0;
+      const float barMax = cardMax >= (wattPciCardMax - 5.0) ? wattPciCardMax : cardMax + 5.0;
+      const float interval = barMax / kHbarSize;
 
-    memset(hbar, ' ', sizeof(hbar));
-    hbar[kHbarSize] = '\0';
+      memset(hbar, ' ', sizeof(hbar));
+      hbar[kHbarSize] = '\0';
 
-    for (uint32_t i = 0; i < kHbarSize; i++) {
-      if (ov.avg > 0 && ov.avg >= interval * i) {
-        hbar[i] = '+';
-      } else if (ov.max > 0 && ov.max >= interval * i) {
-        hbar[i] = '-';
-      } else {
-        break;
-      }
-    }
-
-    if (addBarLabels) {
-      const uint32_t labelCount = 3;
-      char spacing[stat.length() + 5];
-      char labelBar[kHbarSize + 1];
-
-      memset(spacing, ' ', sizeof(spacing));
-      spacing[sizeof(spacing) - 1] = '\0';
-      memset(labelBar, ' ', sizeof(labelBar));
-      labelBar[kHbarSize] = '\0';
-
-      for (uint32_t i = 1; i <= labelCount; i++) {
-        uint32_t index = kHbarSize / (labelCount + 1) * i;
-        uint32_t label = (int32_t)fmax / 1000 * i / (labelCount + 1);
-        std::string labelStr = std::to_string(label) + "W";
-        strncpy(&labelBar[index], labelStr.data(), labelStr.size());
+      for (uint32_t i = 0; i < kHbarSize; i++) {
+        if (avg > 0 && avg >= interval * i) {
+          hbar[i] = '+';
+        } else if (max > 0 && max >= interval * i) {
+          hbar[i] = '-';
+        } else {
+          break;
+        }
       }
 
-      std::cout << "\t" << spacing << labelBar << std::endl;
-    }
+      if (addBarLabels) {
+        const uint32_t labelCount = 3;
+        char spacing[stat.length() + 5];
+        char labelBar[kHbarSize + 1];
 
-    std::cout << "\t" + stat + " 0W[" + hbar + "]" << std::setw(1) << (int32_t)fmax / 1000 << "W\n";
+        memset(spacing, ' ', sizeof(spacing));
+        spacing[sizeof(spacing) - 1] = '\0';
+        memset(labelBar, ' ', sizeof(labelBar));
+        labelBar[kHbarSize] = '\0';
+
+        for (uint32_t i = 1; i <= labelCount; i++) {
+          uint32_t index = kHbarSize / (labelCount + 1) * i;
+          uint32_t label = (int32_t)barMax * i / (labelCount + 1);
+          std::string labelStr = std::to_string(label) + "W";
+          strncpy(&labelBar[index], labelStr.data(), labelStr.size());
+        }
+
+        std::cout << "\t" << spacing << labelBar << std::endl;
+      }
+
+      std::cout << "\t" + stat + " 0W[" + hbar + "]" << std::setw(1) << (int32_t)barMax << "W\n";
+    }
   }
 
   return;
@@ -737,7 +739,7 @@ void EtTop::displayStats(void) {
   struct op_value etsocPower;
   struct op_value otherPower;
   const struct op_stats_t& op = spStats_.op;
-  const uint32_t max = op.system.power.max;
+  const float cardMax = POWER_10MW_TO_W(op.system.power.max);
 
   otherPower.avg = kOtherPower;
   otherPower.min = kOtherPower;
@@ -747,12 +749,12 @@ void EtTop::displayStats(void) {
   etsocPower.max = op.minion.power.max + op.sram.power.max + op.noc.power.max + otherPower.max;
 
   std::cout << "Watts:";
-  displayOpStat("CARD       ", op.system.power, OP_VALUE_UNIT_10MILLIWATTS, true, max, true);
-  displayOpStat("- ETSOC    ", etsocPower, OP_VALUE_UNIT_MILLIWATTS, true, max);
-  displayOpStat("  - MINION ", op.minion.power, OP_VALUE_UNIT_MILLIWATTS, true, max);
-  displayOpStat("  - SRAM   ", op.sram.power, OP_VALUE_UNIT_MILLIWATTS, true, max);
-  displayOpStat("  - NOC    ", op.noc.power, OP_VALUE_UNIT_MILLIWATTS, true, max);
-  displayOpStat("  - OTHER  ", otherPower, OP_VALUE_UNIT_MILLIWATTS, true, max);
+  displayOpStat("CARD       ", op.system.power, OP_VALUE_UNIT_10MILLIWATTS, true, cardMax, true);
+  displayOpStat("- ETSOC    ", etsocPower, OP_VALUE_UNIT_MILLIWATTS, true, cardMax);
+  displayOpStat("  - MINION ", op.minion.power, OP_VALUE_UNIT_MILLIWATTS, true, cardMax);
+  displayOpStat("  - SRAM   ", op.sram.power, OP_VALUE_UNIT_MILLIWATTS, true, cardMax);
+  displayOpStat("  - NOC    ", op.noc.power, OP_VALUE_UNIT_MILLIWATTS, true, cardMax);
+  displayOpStat("  - OTHER  ", otherPower, OP_VALUE_UNIT_MILLIWATTS, true, cardMax);
 
   std::cout << "Temp(C):\n";
   displayOpStat("ETSOC    ", op.system.temperature, OP_VALUE_UNIT_TEMPERATURE_CELCIUS);
