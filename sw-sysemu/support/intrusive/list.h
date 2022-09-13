@@ -374,6 +374,9 @@ public:
     bool empty() const noexcept
     { return cbegin() == cend(); }
 
+    size_type
+    size() const noexcept;
+
 private:
     List_hook  m_hook;
 };
@@ -440,6 +443,19 @@ List<T, member>::clear() noexcept
         node->m_prev = node->m_next = node;
         node = next_node;
     } while (node != &m_hook);
+}
+
+
+template<class T, List_hook T::* member>
+auto
+List<T, member>::size() const noexcept -> size_type
+{
+    size_type rv = 0;
+    for (auto&& it : *this) {
+        (void)it;
+        ++rv;
+    }
+    return rv;
 }
 
 
