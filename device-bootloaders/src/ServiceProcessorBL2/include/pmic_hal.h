@@ -71,6 +71,16 @@
 #define PMIC_I2C_RESET_RESET_CAUSE_OVRPOWER_PWRCYCLE 0xbu
 #define PMIC_I2C_RESET_RESET_CAUSE_OVRTEMPR_PWRCYCLE 0xcu
 
+/* Enumeration: pmic_i2c_updatecmd_sub command          */
+#define PMIC_I2C_UPDATECMD_SUBCMD_DATAREAD   0x0
+#define PMIC_I2C_UPDATECMD_SUBCMD_UPDATE     0x1
+#define PMIC_I2C_UPDATECMD_SUBCMD_BOARDTYPE  0x2
+#define PMIC_I2C_UPDATECMD_SUBCMD_CHKSUMREAD 0x3
+#define PMIC_I2C_UPDATECMD_SUBCMD_HASHREAD   0x4
+#define PMIC_I2C_UPDATECMD_SUBCMD_FW_SEM_VER 0x5
+#define PMIC_I2C_UPDATECMD_SUBCMD_RW_ADDRESS 0x6
+#define PMIC_I2C_UPDATECMD_SUBCMD_IMAGETYPE  0x7
+
 /* ####################################################################### */
 /*        ADDRESS MACROS                                                   */
 /* ####################################################################### */
@@ -121,6 +131,12 @@
 /* Register: pmic_i2c.pmbstats_rw                                              */
 #define PMIC_I2C_PMB_RW_ADDRESS      0x15u
 #define PMIC_I2C_PMB_RW_BYTE_ADDRESS 0x15u
+/* Register: pmic_i2c.updatecnd_rw                                         */
+#define PMIC_I2C_UPDATECMD_ADDRESS      0x16u
+#define PMIC_I2C_UPDATECMD_BYTE_ADDRESS 0x16u
+/* Register: pmic_i2c.updatedata_rw                                         */
+#define PMIC_I2C_UPDATEDATA_ADDRESS      0x17u
+#define PMIC_I2C_UPDATEDATA_BYTE_ADDRESS 0x17u
 /* Register: pmic_i2c.vddqlp_voltage                                       */
 #define PMIC_I2C_VDDQLP_VOLTAGE_ADDRESS      0x18u
 #define PMIC_I2C_VDDQLP_VOLTAGE_BYTE_ADDRESS 0x18u
@@ -202,8 +218,8 @@
 
 /* Address Space for Addressmap: pmic_i2c_firmware                         */
 /* Register: pmic_i2c_firmware.version                                     */
-#define PMIC_I2C_FIRMWARE_VERSION_ADDRESS      0x1u
-#define PMIC_I2C_FIRMWARE_VERSION_BYTE_ADDRESS 0x1u
+#define PMIC_I2C_FIRMWARE_SRC_HASH_ADDRESS      0x1u
+#define PMIC_I2C_FIRMWARE_SRC_HASH_BYTE_ADDRESS 0x1u
 
 /* Address Space for Addressmap: pmic_i2c_board                            */
 /* Register: pmic_i2c_board.type                                           */
@@ -1426,28 +1442,28 @@
 /* Register member: pmic_i2c_firmware.version                              */
 /* Register type referenced: pmic_i2c_firmware::version                    */
 /* Register template referenced: pmic_i2c_firmware::version                */
-#define PMIC_I2C_FIRMWARE_VERSION_OFFSET       0x1u
-#define PMIC_I2C_FIRMWARE_VERSION_BYTE_OFFSET  0x1u
-#define PMIC_I2C_FIRMWARE_VERSION_READ_ACCESS  1u
-#define PMIC_I2C_FIRMWARE_VERSION_WRITE_ACCESS 0u
-#define PMIC_I2C_FIRMWARE_VERSION_RESET_VALUE  0x00000000ul
-#define PMIC_I2C_FIRMWARE_VERSION_RESET_MASK   0xfffffffful
-#define PMIC_I2C_FIRMWARE_VERSION_READ_MASK    0xfffffffful
-#define PMIC_I2C_FIRMWARE_VERSION_WRITE_MASK   0x00000000ul
+#define PMIC_I2C_FIRMWARE_SRC_HASH_OFFSET       0x1u
+#define PMIC_I2C_FIRMWARE_SRC_HASH_BYTE_OFFSET  0x1u
+#define PMIC_I2C_FIRMWARE_SRC_HASH_READ_ACCESS  1u
+#define PMIC_I2C_FIRMWARE_SRC_HASH_WRITE_ACCESS 0u
+#define PMIC_I2C_FIRMWARE_SRC_HASH_RESET_VALUE  0x00000000ul
+#define PMIC_I2C_FIRMWARE_SRC_HASH_RESET_MASK   0xfffffffful
+#define PMIC_I2C_FIRMWARE_SRC_HASH_READ_MASK    0xfffffffful
+#define PMIC_I2C_FIRMWARE_SRC_HASH_WRITE_MASK   0x00000000ul
 
 /* Register type: pmic_i2c_firmware::version                               */
 /* Register template: pmic_i2c_firmware::version                           */
 /* Field member: pmic_i2c_firmware::version.ver                            */
-#define PMIC_I2C_FIRMWARE_VERSION_VER_MSB          31u
-#define PMIC_I2C_FIRMWARE_VERSION_VER_LSB          0u
-#define PMIC_I2C_FIRMWARE_VERSION_VER_WIDTH        32u
-#define PMIC_I2C_FIRMWARE_VERSION_VER_READ_ACCESS  1u
-#define PMIC_I2C_FIRMWARE_VERSION_VER_WRITE_ACCESS 0u
-#define PMIC_I2C_FIRMWARE_VERSION_VER_RESET        0x00000000ul
-#define PMIC_I2C_FIRMWARE_VERSION_VER_FIELD_MASK   0xfffffffful
-#define PMIC_I2C_FIRMWARE_VERSION_VER_GET(x)       ((x)&0xfffffffful)
-#define PMIC_I2C_FIRMWARE_VERSION_VER_SET(x)       ((x)&0xfffffffful)
-#define PMIC_I2C_FIRMWARE_VERSION_VER_MODIFY(r, x) ((x)&0xfffffffful)
+#define PMIC_I2C_FIRMWARE_SRC_HASH_VER_MSB          31u
+#define PMIC_I2C_FIRMWARE_SRC_HASH_VER_LSB          0u
+#define PMIC_I2C_FIRMWARE_SRC_HASH_VER_WIDTH        32u
+#define PMIC_I2C_FIRMWARE_SRC_HASH_VER_READ_ACCESS  1u
+#define PMIC_I2C_FIRMWARE_SRC_HASH_VER_WRITE_ACCESS 0u
+#define PMIC_I2C_FIRMWARE_SRC_HASH_VER_RESET        0x00000000ul
+#define PMIC_I2C_FIRMWARE_SRC_HASH_VER_FIELD_MASK   0xfffffffful
+#define PMIC_I2C_FIRMWARE_SRC_HASH_VER_GET(x)       ((x)&0xfffffffful)
+#define PMIC_I2C_FIRMWARE_SRC_HASH_VER_SET(x)       ((x)&0xfffffffful)
+#define PMIC_I2C_FIRMWARE_SRC_HASH_VER_MODIFY(r, x) ((x)&0xfffffffful)
 
 /* Addressmap type: pmic_i2c_board                                         */
 /* Addressmap template: pmic_i2c_board                                     */

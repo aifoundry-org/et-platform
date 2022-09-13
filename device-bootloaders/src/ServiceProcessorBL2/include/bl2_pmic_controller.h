@@ -150,12 +150,18 @@ int32_t pmic_thermal_pwr_cb_init(dm_pmic_isr_callback event_cb);
 */
 void pmic_error_isr(void);
 
-/*! \fn int pmic_get_fw_version(uint32_t* fw_version)
-    \brief This function reads Firmware Version register of PMIC.
-    \param fw_version - value of Firmware Version register of PMIC.
+/*! \fn int pmic_get_fw_src_hash(uint32_t* fw_src_hash)
+    \brief This function reads Firmware Git Hash of PMIC source.
+    \param fw_src_hash - GIT hash value of Firmware source.
     \return The function call status, pass/fail.
 */
-int pmic_get_fw_version(uint32_t *fw_version);
+int pmic_get_fw_src_hash(uint32_t *fw_src_hash);
+
+/*! \fn int pmic_get_fw_version(uint8_t *major, uint8_t *minor, uint8_t *patch)
+    \brief This function retrieves the currect PMIC FW version.
+    \return The function call status, pass/fail.
+*/
+int32_t pmic_get_fw_version(uint8_t *major, uint8_t *minor, uint8_t *patch);
 
 /*! \fn int pmic_get_gpio_bit(uint8_t index, uint8_t* gpio_bit_value)
     \brief This function reads GPIO Control register bit of PMIC.

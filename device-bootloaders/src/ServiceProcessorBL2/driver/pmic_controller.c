@@ -662,11 +662,11 @@ void pmic_error_isr(void)
 *
 *   FUNCTION
 *
-*       pmic_get_fw_version
+*       pmic_get_fw_src_hash
 *
 *   DESCRIPTION
 *
-*       This function reads Firmware Version register of PMIC.
+*       This function reads GIT HASH of the current PMIC version.
 *
 *   INPUTS
 *
@@ -674,13 +674,52 @@ void pmic_error_isr(void)
 *
 *   OUTPUTS
 *
-*       fw_version    value of Firmware Version register of PMIC.
+*       fw_src_hash  GIT HASH value of the PMIC Firmware source.
 *
 ***********************************************************************/
 
-int pmic_get_fw_version(uint32_t *fw_version)
+int pmic_get_fw_src_hash(uint32_t *fw_src_hash)
 {
-    return (get_pmic_reg(PMIC_I2C_FIRMWARE_VERSION_ADDRESS, (uint8_t *)fw_version, 4));
+    return (get_pmic_reg(PMIC_I2C_FIRMWARE_SRC_HASH_ADDRESS, (uint8_t *)fw_src_hash, 4));
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_get_fw_version
+*
+*   DESCRIPTION
+*
+*       This function returns the PMIC FW SEM version.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       fw_sem_ver  SEM Version of the current PMIC Firmware.
+*       
+***********************************************************************/
+int pmic_get_fw_version(uint8_t *major, uint8_t *minor, uint8_t *patch)
+{
+    uint32_t fw_sem_ver;
+
+    /* write SUB_CMD:05 */
+    set_pmic_reg(PMIC_I2C_UPDATECMD_ADDRESS, PMIC_I2C_UPDATECMD_SUBCMD_FW_SEM_VER, 1);
+
+    /* read data back */
+    if (0 != get_pmic_reg(PMIC_I2C_UPDATEDATA_ADDRESS, (uint8_t *)&fw_sem_ver, 4)) {
+        MESSAGE_ERROR("PMIC read failed");
+        return ERROR_PMIC_I2C_READ_FAILED;
+    }
+
+    *major = (fw_sem_ver & 0xFF0000) >> 16;
+    *minor = (fw_sem_ver & 0xFF00) >> 8;
+    *patch = (fw_sem_ver & 0xFF);
+
+    return SUCCESS;
 }
 
 /************************************************************************
