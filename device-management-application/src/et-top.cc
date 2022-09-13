@@ -443,7 +443,7 @@ void EtTop::getDeviceDetails(void) {
     DV_LOG(ERROR) << "Service request get asset info failed with return code: " << std::dec << ret << std::endl;
   } else {
     std::stringstream sstream;
-    sstream << "0x" << std::hex << *static_cast<uint32_t*>(static_cast<void*>(assetInfo.asset));
+    sstream << *static_cast<uint32_t*>(static_cast<void*>(assetInfo.asset));
     cardId_ = sstream.str();
   }
 
