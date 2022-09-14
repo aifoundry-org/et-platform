@@ -42,116 +42,118 @@ Modules:
           Value: 10
         - Name: GET_MODULE_MEMORY_TYPE
           Value: 11
-        - Name: GET_FUSED_PUBLIC_KEYS
-          Value: 12
-        - Name: GET_MODULE_FIRMWARE_REVISIONS
-          Value: 13
-        - Name: SET_FIRMWARE_UPDATE
-          Value: 14
-        - Name: GET_FIRMWARE_BOOT_STATUS
-          Value: 15
-        - Name: SET_SP_BOOT_ROOT_CERT
-          Value: 16
-        - Name: SET_SW_BOOT_ROOT_CERT
-          Value: 17
-        - Name: SET_FIRMWARE_VERSION_COUNTER
-          Value: 18
-        - Name: SET_FIRMWARE_VALID
-          Value: 19
-        - Name: GET_MODULE_TEMPERATURE_THRESHOLDS
-          Value: 20
-        - Name: SET_MODULE_TEMPERATURE_THRESHOLDS
-          Value: 21
-        - Name: GET_MODULE_POWER_STATE
-          Value: 22
-        - Name: SET_MODULE_ACTIVE_POWER_MANAGEMENT
-          Value: 23
-        - Name: GET_MODULE_STATIC_TDP_LEVEL
-          Value: 24
-        - Name: SET_MODULE_STATIC_TDP_LEVEL
-          Value: 25
-        - Name: GET_MODULE_CURRENT_TEMPERATURE
-          Value: 26
-        - Name: GET_MODULE_TEMPERATURE_THROTTLE_STATUS
-          Value: 27
-        - Name: GET_MODULE_RESIDENCY_THROTTLE_STATES
-          Value: 28
-        - Name: GET_MODULE_UPTIME
-          Value: 29
-        - Name: GET_MODULE_VOLTAGE
-          Value: 30
-        - Name: GET_MODULE_POWER
-          Value: 31
-        - Name: GET_MODULE_RESIDENCY_POWER_STATES
-          Value: 32
-        - Name: GET_MODULE_MAX_TEMPERATURE
-          Value: 33
-        - Name: GET_MODULE_MAX_DDR_BW
-          Value: 34
-        - Name: GET_MAX_MEMORY_ERROR
-          Value: 35
-        - Name: SET_DDR_ECC_COUNT
-          Value: 36
-        - Name: SET_PCIE_ECC_COUNT
-          Value: 37
-        - Name: SET_SRAM_ECC_COUNT
-          Value: 38
-        - Name: SET_PCIE_RESET
-          Value: 39
-        - Name: GET_MODULE_PCIE_ECC_UECC
-          Value: 40
-        - Name: GET_MODULE_DDR_BW_COUNTER
-          Value: 41
-        - Name: GET_MODULE_DDR_ECC_UECC
-          Value: 42
-        - Name: GET_MODULE_SRAM_ECC_UECC
-          Value: 43
-        - Name: SET_PCIE_MAX_LINK_SPEED
-          Value: 44
-        - Name: SET_PCIE_LANE_WIDTH
-          Value: 45
-        - Name: SET_PCIE_RETRAIN_PHY
-          Value: 46
-        - Name: RESET_ETSOC
-          Value: 47
-        - Name: GET_ASIC_FREQUENCIES
-          Value: 48
-        - Name: GET_DRAM_BANDWIDTH
-          Value: 49
-        - Name: GET_DRAM_CAPACITY_UTILIZATION
-          Value: 50
-        - Name: GET_ASIC_PER_CORE_DATAPATH_UTILIZATION
-          Value: 51
-        - Name: GET_ASIC_UTILIZATION
-          Value: 52
-        - Name: GET_ASIC_STALLS
-          Value: 53
-        - Name: GET_ASIC_LATENCY
-          Value: 54
-        - Name: GET_MM_ERROR_COUNT
-          Value: 55
-        - Name: MM_RESET
-          Value: 56
-        - Name: GET_DEVICE_ERROR_EVENTS
-          Value: 57
-        - Name: SET_DM_TRACE_RUN_CONTROL
-          Value: 58
-        - Name: SET_DM_TRACE_CONFIG
-          Value: 59
-        - Name: SET_THROTTLE_POWER_STATE_TEST
-          Value: 60
-        - Name: SET_FREQUENCY
-          Value: 61
-        - Name: GET_SP_STATS
-          Value: 62
-        - Name: GET_MM_STATS
-          Value: 63
         - Name: SET_MODULE_PART_NUMBER
-          Value: 64
+          Value: 12
+        - Name: GET_FUSED_PUBLIC_KEYS
+          Value: 13
+        - Name: GET_MODULE_FIRMWARE_REVISIONS
+          Value: 14
+        - Name: SET_FIRMWARE_UPDATE
+          Value: 15
+        - Name: GET_FIRMWARE_BOOT_STATUS
+          Value: 16
+        - Name: SET_SP_BOOT_ROOT_CERT
+          Value: 17
+        - Name: SET_SW_BOOT_ROOT_CERT
+          Value: 18
+        - Name: SET_FIRMWARE_VERSION_COUNTER
+          Value: 19
+        - Name: SET_FIRMWARE_VALID
+          Value: 20
+        - Name: GET_MODULE_TEMPERATURE_THRESHOLDS
+          Value: 21
+        - Name: SET_MODULE_TEMPERATURE_THRESHOLDS
+          Value: 22
+        - Name: GET_MODULE_POWER_STATE
+          Value: 23
+        - Name: SET_MODULE_ACTIVE_POWER_MANAGEMENT
+          Value: 24
+        - Name: GET_MODULE_STATIC_TDP_LEVEL
+          Value: 25
+        - Name: SET_MODULE_STATIC_TDP_LEVEL
+          Value: 26
+        - Name: GET_MODULE_CURRENT_TEMPERATURE
+          Value: 27
+        - Name: GET_MODULE_TEMPERATURE_THROTTLE_STATUS
+          Value: 28
+        - Name: GET_MODULE_RESIDENCY_THROTTLE_STATES
+          Value: 29
+        - Name: GET_MODULE_UPTIME
+          Value: 30
+        - Name: GET_MODULE_VOLTAGE
+          Value: 31
+        - Name: GET_ASIC_VOLTAGE
+          Value: 32
+        - Name: GET_MODULE_POWER
+          Value: 33
+        - Name: GET_MODULE_RESIDENCY_POWER_STATES
+          Value: 34
         - Name: SET_MODULE_VOLTAGE
-          Value: 65
+          Value: 35
+        - Name: SET_THROTTLE_POWER_STATE_TEST
+          Value: 36
+        - Name: SET_FREQUENCY
+          Value: 37
+        - Name: GET_MODULE_MAX_TEMPERATURE
+          Value: 38
+        - Name: GET_MODULE_MAX_DDR_BW
+          Value: 39
+        - Name: GET_MAX_MEMORY_ERROR
+          Value: 40
+        - Name: SET_DDR_ECC_COUNT
+          Value: 41
+        - Name: SET_PCIE_ECC_COUNT
+          Value: 42
+        - Name: SET_SRAM_ECC_COUNT
+          Value: 43
+        - Name: SET_PCIE_RESET
+          Value: 44
+        - Name: GET_MODULE_PCIE_ECC_UECC
+          Value: 45
+        - Name: GET_MODULE_DDR_BW_COUNTER
+          Value: 46
+        - Name: GET_MODULE_DDR_ECC_UECC
+          Value: 47
+        - Name: GET_MODULE_SRAM_ECC_UECC
+          Value: 48
+        - Name: SET_PCIE_MAX_LINK_SPEED
+          Value: 49
+        - Name: SET_PCIE_LANE_WIDTH
+          Value: 50
+        - Name: SET_PCIE_RETRAIN_PHY
+          Value: 51
+        - Name: RESET_ETSOC
+          Value: 52
+        - Name: GET_ASIC_FREQUENCIES
+          Value: 53
+        - Name: GET_DRAM_BANDWIDTH
+          Value: 54
+        - Name: GET_DRAM_CAPACITY_UTILIZATION
+          Value: 55
+        - Name: GET_ASIC_PER_CORE_DATAPATH_UTILIZATION
+          Value: 56
+        - Name: GET_ASIC_UTILIZATION
+          Value: 57
+        - Name: GET_ASIC_STALLS
+          Value: 58
+        - Name: GET_ASIC_LATENCY
+          Value: 59
+        - Name: GET_SP_STATS
+          Value: 60
+        - Name: GET_MM_STATS
+          Value: 61
         - Name: SET_STATS_RUN_CONTROL
+          Value: 62
+        - Name: GET_MM_ERROR_COUNT
+          Value: 63
+        - Name: MM_RESET
+          Value: 64
+        - Name: GET_DEVICE_ERROR_EVENTS
+          Value: 65
+        - Name: SET_DM_TRACE_RUN_CONTROL
           Value: 66
+        - Name: SET_DM_TRACE_CONFIG
+          Value: 67
         - Name: MDI_BEGIN
           Value: 128
         - Name: MDI_SELECT_HART

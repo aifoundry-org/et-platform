@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-13851] add DM command SET_STATS_RUN_CONTROL and struct device_mgmt_stats_run_control_cmd
+- [SW-14061] Adding DM_CMD_GET_ASIC_VOLTAGE.
 ### Changed
+- [SW-14061] Re-arranging commands according to their category.
 ### Deprecated
 ### Removed
 ### Fixed
