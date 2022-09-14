@@ -150,6 +150,7 @@ public:
 
   void processInput(void);
   void displayStats(void);
+  void resetStats(void);
   bool stopStats(void) {
     return stop_;
   }
@@ -554,6 +555,26 @@ void EtTop::collectMmStats(void) {
   return;
 }
 
+void EtTop::resetStats(void) {
+  uint32_t hostLatency;
+  uint64_t deviceLatency;
+  std::vector<char> inputBuff(sizeof(device_mgmt_api::stats_type_e) + sizeof(device_mgmt_api::stats_control_e), 0);
+  device_mgmt_api::stats_type_e type = device_mgmt_api::STATS_TYPE_SP | device_mgmt_api::STATS_TYPE_MM;
+  device_mgmt_api::stats_control_e control = device_mgmt_api::STATS_CONTROL_TRACE_ENABLE |
+                                             device_mgmt_api::STATS_CONTROL_RESET_TRACEBUF |
+                                             device_mgmt_api::STATS_CONTROL_RESET_COUNTER;
+  memcpy(inputBuff.data(), &type, sizeof(type));
+  memcpy(inputBuff.data() + sizeof(type), &control, sizeof(control));
+
+  auto ret = dm_.serviceRequest(devNum_, device_mgmt_api::DM_CMD::DM_CMD_SET_STATS_RUN_CONTROL, inputBuff.data(),
+                                inputBuff.size(), nullptr, 0, &hostLatency, &deviceLatency, kDmServiceRequestTimeout);
+  if (ret != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(ERROR) << "Service request stats run control failed with return code: " << std::dec << ret << std::endl;
+  }
+
+  return;
+}
+
 void EtTop::processInput(void) {
   int rc;
   char ch;
@@ -576,6 +597,8 @@ void EtTop::processInput(void) {
       }
     } else if (ch == 'q') {
       stop_ = true;
+    } else if (ch == 'r') {
+      resetStats();
     } else if (ch == 'w') {
       displayWattsBars_ = !displayWattsBars_;
     } else if (ch == 'd') {
@@ -595,6 +618,7 @@ void EtTop::processInput(void) {
                 << "f\tToggle display of frequency details\n"
                 << "h\tPrint this help message\n"
                 << "q\tQuit\n"
+                << "r\tReset statistics\n"
                 << "v\tToggle display of voltage details\n"
                 << "w\tToggle display of watts info\n"
                 << "Type 'q' or <ESC> to continue ";
@@ -839,6 +863,7 @@ int main(int argc, char** argv) {
   long int updateLimit = 0;
   bool batchMode = false;
   bool usageError = false;
+  bool resetStats = false;
 
   /*
    * Validate the inputs
@@ -865,6 +890,8 @@ int main(int argc, char** argv) {
       while (!usageError && i < argc) {
         if (!batchMode && !strcmp(argv[i], "-b")) {
           batchMode = true;
+        } else if (!resetStats && !strcmp(argv[i], "-r")) {
+          resetStats = true;
         } else if (updateLimit == 0 && !strcmp(argv[i], "-n") && ++i < argc) {
           updateLimit = strtol(argv[i], &endptr, 10);
           usageError = *endptr || updateLimit < 1;
@@ -882,7 +909,8 @@ int main(int argc, char** argv) {
               << "\tDELAY is an optional update delay in milliseconds (default " << kUpdateDelayMS << ")\n"
               << "\tOPTION is one or more of the following:\n"
               << "\t  -b operate in batch mode (accept no input and run until -n limit or killed)\n"
-              << "\t  -n [NUM] display stats a maximum of NUM times before ending (NUM > 0)\n";
+              << "\t  -n [NUM] display stats a maximum of NUM times before ending (NUM > 0)\n"
+              << "\t  -r reset statistics at start\n";
     exit(1);
   }
 
@@ -933,6 +961,10 @@ int main(int argc, char** argv) {
   std::unique_ptr<dev::IDeviceLayer> dl = dev::IDeviceLayer::createPcieDeviceLayer(false, true);
   device_management::DeviceManagement& dm = device_management::DeviceManagement::getInstance(dl.get());
   EtTop etTop(devNum, dl, dm, batchMode, updateLimit);
+
+  if (resetStats) {
+    etTop.resetStats();
+  }
 
   auto checkPoint = std::chrono::steady_clock::now();
   while (!etTop.stopStats()) {
