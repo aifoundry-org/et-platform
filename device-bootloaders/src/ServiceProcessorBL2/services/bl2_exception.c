@@ -173,7 +173,7 @@ static void dump_perf_globals_trace(void)
 static void dump_power_globals_trace(void)
 {
     struct module_uptime_t module_uptime = { 0 };
-    struct module_voltage_t module_voltage = { 0 };
+    struct asic_voltage_t module_voltage = { 0 };
     power_state_e power_state = 0;
     uint8_t tdp_level = 0;
     uint8_t temp = 0;
@@ -214,8 +214,8 @@ static void dump_power_globals_trace(void)
     buff_idx += sizeof(struct module_uptime_t);
 
     /* Read the value and copy it to buffer */
-    get_module_voltage(&module_voltage);
-    memcpy(&data_buff[buff_idx], &module_voltage, sizeof(struct module_voltage_t));
+    get_asic_voltage(&module_voltage);
+    memcpy(&data_buff[buff_idx], &module_voltage, sizeof(struct asic_voltage_t));
 
     /* Dump the data to trace using SP custom event */
     Trace_Custom_Event(Trace_Get_SP_CB(), TRACE_CUSTOM_TYPE_SP_POWER_GLOBALS, data_buff,

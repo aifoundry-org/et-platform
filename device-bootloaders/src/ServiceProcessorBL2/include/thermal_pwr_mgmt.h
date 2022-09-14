@@ -129,12 +129,19 @@ int update_module_soc_power(void);
 */
 int get_module_soc_power(uint16_t *soc_pwr_10mw);
 
-/*! \fn int get_module_voltage(struct module_voltage_t *module_voltage);
-    \brief Interface to get the module's voltage for different domains.
-    \param *module_voltage  Pointer to module voltage struct
+/*! \fn int get_module_voltage(struct module_voltage_t *module_voltage)
+    \brief Interface to get the module's voltage for different domains from PMIC.
+    \param module_voltage  Pointer to module voltage struct
     \returns Status indicating success or negative error
 */
 int get_module_voltage(struct module_voltage_t *module_voltage);
+
+/*! \fn int get_asic_voltage(struct asic_voltage_t *asic_voltage)
+    \brief Interface to get the module's voltage for different domains from PVT.
+    \param asic_voltage  Pointer to asic voltage struct
+    \returns Status indicating success or negative error
+*/
+int get_asic_voltage(struct asic_voltage_t *asic_voltage);
 
 /*! \fn int update_module_uptime(void)
     \brief Interface to update the module's uptime.

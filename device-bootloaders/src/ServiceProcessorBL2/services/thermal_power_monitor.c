@@ -175,18 +175,70 @@ static void pwr_svc_get_module_power(uint16_t tag, uint64_t req_start_time)
 *
 *   FUNCTION
 *
+*       pwr_svc_get_asic_voltage
+*
+*   DESCRIPTION
+*
+*       This function returns the value of voltage for a given voltage domain.
+*       Note there are many voltage domains in the device, hence this will take
+*       as an argument the domain of interest. These values are read from PVT.
+*
+*   INPUTS
+*
+*       tag               Tag ID of the command
+*       req_start_time    Time stamp when the request was received by the
+*                         Command Dispatcher
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void pwr_svc_get_asic_voltage(uint16_t tag, uint64_t req_start_time)
+{
+    struct device_mgmt_get_asic_voltage_rsp_t dm_rsp;
+    struct asic_voltage_t asic_voltage;
+    int32_t status;
+
+    status = get_asic_voltage(&asic_voltage);
+
+    if (STATUS_SUCCESS != status)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s: Error getting asic voltages. status: %d\r\n", __func__,
+                  status);
+    }
+    else
+    {
+        dm_rsp.asic_voltage = asic_voltage;
+    }
+
+    FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_VOLTAGE,
+                    timer_get_ticks_count() - req_start_time, status);
+
+    if (STATUS_SUCCESS != SP_Host_Iface_CQ_Push_Cmd(
+                              (char *)&dm_rsp, sizeof(struct device_mgmt_get_asic_voltage_rsp_t)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s: Cqueue push error!\r\n", __func__);
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       pwr_svc_get_module_voltage
 *
 *   DESCRIPTION
 *
 *       This function returns the value of voltage for a given voltage domain.
 *       Note there are many voltage domains in the device, hence this will take
-*       as an argument the domain of interest
+*       as an argument the domain of interest. These values are read from PMIC.
 *
 *   INPUTS
 *
-*       req_start_time    Time stamp when the request was received by the Command
-*                         Dispatcher
+*       tag               Tag ID of the command
+*       req_start_time    Time stamp when the request was received by the
+*                         Command Dispatcher
 *
 *   OUTPUTS
 *
@@ -203,7 +255,8 @@ static void pwr_svc_get_module_voltage(uint16_t tag, uint64_t req_start_time)
 
     if (STATUS_SUCCESS != status)
     {
-        Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error: get_module_voltage()\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "%s: Error getting module voltages. status: %d\r\n", __func__,
+                  status);
     }
     else
     {
@@ -216,7 +269,7 @@ static void pwr_svc_get_module_voltage(uint16_t tag, uint64_t req_start_time)
     if (STATUS_SUCCESS != SP_Host_Iface_CQ_Push_Cmd(
                               (char *)&dm_rsp, sizeof(struct device_mgmt_get_module_voltage_rsp_t)))
     {
-        Log_Write(LOG_LEVEL_ERROR, "pwr_svc_get_module_voltage: Cqueue push error!\n");
+        Log_Write(LOG_LEVEL_ERROR, "%s: Cqueue push error!\r\n", __func__);
     }
 }
 
@@ -898,6 +951,10 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
 
     switch (msg_id)
     {
+        case DM_CMD_GET_ASIC_VOLTAGE: {
+            pwr_svc_get_asic_voltage(tag_id, req_start_time);
+            break;
+        }
         case DM_CMD_GET_MODULE_POWER_STATE: {
             pwr_svc_get_module_power_state(tag_id, req_start_time);
             break;

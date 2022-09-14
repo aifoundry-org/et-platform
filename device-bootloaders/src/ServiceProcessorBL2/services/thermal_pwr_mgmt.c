@@ -28,6 +28,7 @@
        get_module_current_temperature
        get_module_soc_power
        get_module_voltage
+       get_asic_voltage
        get_soc_max_temperature
        get_module_uptime
        get_throttle_residency
@@ -95,6 +96,7 @@ struct soc_power_reg_t
     struct temperature_threshold_t temperature_threshold;
     struct module_uptime_t module_uptime;
     struct module_voltage_t module_voltage;
+    struct asic_voltage_t asic_voltage;
     struct residency_t power_max_residency;
     struct residency_t power_managed_residency;
     struct residency_t power_safe_residency;
@@ -594,7 +596,7 @@ int update_module_soc_power(void)
 {
     uint16_t soc_pwr_10mW = 0;
 
-    if (SUCCESS != get_module_voltage(NULL))
+    if (SUCCESS != get_asic_voltage(NULL))
     {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to update module voltage\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
@@ -702,19 +704,151 @@ int get_module_soc_power(uint16_t *soc_pwr_10mw)
 *
 *   DESCRIPTION
 *
-*       This function gets the voltage value for a given voltage domain.
+*       This function gets the voltage value for a given voltage domain
+*       from PMIC.
 *
 *   INPUTS
 *
-*       *module_voltage         Pointer to Module voltage struct
-*        shire                  The shire specific voltage domain
+*       module_voltage  Pointer to module voltage struct
+*
+*   OUTPUTS
+*
+*       int             Return status
+*
+***********************************************************************/
+int get_module_voltage(struct module_voltage_t *module_voltage)
+{
+    int status;
+    uint8_t temp = 0;
+
+    status = pmic_get_voltage(MODULE_DDR, &temp);
+    if (status == STATUS_SUCCESS)
+    {
+        get_soc_power_reg()->module_voltage.ddr = temp;
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s: Unable to get DDR voltage from PMIC. Status: %d\r\n",
+                  __func__, status);
+    }
+
+    status = pmic_get_voltage(MODULE_L2CACHE, &temp);
+    if (status == STATUS_SUCCESS)
+    {
+        get_soc_power_reg()->module_voltage.l2_cache = temp;
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s: Unable to get L2 Cache voltage from PMIC. Status: %d\r\n",
+                  __func__, status);
+    }
+
+    status = pmic_get_voltage(MODULE_MAXION, &temp);
+    if (status == STATUS_SUCCESS)
+    {
+        get_soc_power_reg()->module_voltage.maxion = temp;
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s: Unable to get Maxion voltage from PMIC. Status: %d\r\n",
+                  __func__, status);
+    }
+
+    status = pmic_get_voltage(MODULE_MINION, &temp);
+    if (status == STATUS_SUCCESS)
+    {
+        get_soc_power_reg()->module_voltage.minion = temp;
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s: Unable to get Minion voltage from PMIC. Status: %d\r\n",
+                  __func__, status);
+    }
+
+    status = pmic_get_voltage(MODULE_PCIE, &temp);
+    if (status == STATUS_SUCCESS)
+    {
+        get_soc_power_reg()->module_voltage.pcie = temp;
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s: Unable to get PCIe voltage from PMIC. Status: %d\r\n",
+                  __func__, status);
+    }
+
+    status = pmic_get_voltage(MODULE_NOC, &temp);
+    if (status == STATUS_SUCCESS)
+    {
+        get_soc_power_reg()->module_voltage.noc = temp;
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s: Unable to get NOC voltage from PMIC. Status: %d\r\n",
+                  __func__, status);
+    }
+
+    pmic_get_voltage(MODULE_PCIE_LOGIC, &temp);
+    if (status == STATUS_SUCCESS)
+    {
+        get_soc_power_reg()->module_voltage.pcie_logic = temp;
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s: Unable to get PCIE Logic voltage from PMIC. Status: %d\r\n",
+                  __func__, status);
+    }
+
+    status = pmic_get_voltage(MODULE_VDDQLP, &temp);
+    if (status == STATUS_SUCCESS)
+    {
+        get_soc_power_reg()->module_voltage.vddqlp = temp;
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s: Unable to get VDDQLP voltage from PMIC. Status: %d\r\n",
+                  __func__, status);
+    }
+
+    pmic_get_voltage(MODULE_VDDQ, &temp);
+    if (status == STATUS_SUCCESS)
+    {
+        get_soc_power_reg()->module_voltage.vddq = temp;
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s: Unable to get VDDQ voltage from PMIC. Status: %d\r\n",
+                  __func__, status);
+    }
+
+    if (module_voltage != NULL)
+    {
+        *module_voltage = get_soc_power_reg()->module_voltage;
+    }
+
+    return STATUS_SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       get_asic_voltage
+*
+*   DESCRIPTION
+*
+*       This function gets the voltage value for a given voltage domain
+*       from PVT.
+*
+*   INPUTS
+*
+*       asic_voltage            Pointer to Module voltage struct
 *
 *   OUTPUTS
 *
 *       int                     Return status
 *
 ***********************************************************************/
-int get_module_voltage(struct module_voltage_t *module_voltage)
+int get_asic_voltage(struct asic_voltage_t *asic_voltage)
 {
     int status = STATUS_SUCCESS;
     uint8_t temp;
@@ -725,16 +859,16 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     status = pvt_get_minion_avg_low_high_voltage(&minshire_voltage);
     if (status == STATUS_SUCCESS)
     {
-        /* SRAM voltage value is to be stored in l2_cache placeholder as currently no SRAM member is available in module_voltage */
-        get_soc_power_reg()->module_voltage.l2_cache =
+        /* SRAM voltage value is to be stored in l2_cache placeholder as currently no SRAM member is available in asic_voltage */
+        get_soc_power_reg()->asic_voltage.l2_cache =
             PMIC_MILLIVOLT_TO_HEX(minshire_voltage.vdd_sram.current, PMIC_SRAM_VOLTAGE_MULTIPLIER);
-        get_soc_power_reg()->module_voltage.minion =
+        get_soc_power_reg()->asic_voltage.minion =
             PMIC_MILLIVOLT_TO_HEX(minshire_voltage.vdd_mnn.current, PMIC_MINION_VOLTAGE_MULTIPLIER);
-        get_soc_power_reg()->module_voltage.noc =
+        get_soc_power_reg()->asic_voltage.noc =
             PMIC_MILLIVOLT_TO_HEX(minshire_voltage.vdd_noc.current, PMIC_MINION_VOLTAGE_MULTIPLIER);
         Log_Write(
             LOG_LEVEL_DEBUG,
-            "get_module_voltage: L2 Cache/SRAM Voltage: %d \t minion voltage: %d\t noc voltage: %d\r\n",
+            "get_asic_voltage: L2 Cache/SRAM Voltage: %d \t minion voltage: %d\t noc voltage: %d\r\n",
             minshire_voltage.vdd_sram.current, minshire_voltage.vdd_mnn.current,
             minshire_voltage.vdd_noc.current);
     }
@@ -746,9 +880,9 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     status = pvt_get_memshire_avg_low_high_voltage(&memshire_voltage);
     if (status == STATUS_SUCCESS)
     {
-        get_soc_power_reg()->module_voltage.ddr =
+        get_soc_power_reg()->asic_voltage.ddr =
             PMIC_MILLIVOLT_TO_HEX(memshire_voltage.vdd_ms.current, PMIC_DDR_VOLTAGE_MULTIPLIER);
-        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: ddr voltage: %d\r\n",
+        Log_Write(LOG_LEVEL_DEBUG, "get_asic_voltage: ddr voltage: %d\r\n",
                   memshire_voltage.vdd_ms.current);
     }
     else
@@ -759,9 +893,9 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
     status = pvt_get_pshire_vm_sample(&pshr_voltage);
     if (status == STATUS_SUCCESS)
     {
-        get_soc_power_reg()->module_voltage.pcie =
+        get_soc_power_reg()->asic_voltage.pcie =
             PMIC_PCIE_MILLIVOLT_TO_HEX(pshr_voltage.vdd_pshr.current);
-        Log_Write(LOG_LEVEL_DEBUG, "get_module_voltage: pcie voltage: %d\r\n",
+        Log_Write(LOG_LEVEL_DEBUG, "get_asic_voltage: pcie voltage: %d\r\n",
                   pshr_voltage.vdd_pshr.current);
     }
     else
@@ -771,17 +905,17 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
 
     /* For these values we dont have PVT, so will use PMIC */
     pmic_get_voltage(MODULE_MAXION, &temp);
-    get_soc_power_reg()->module_voltage.maxion = temp;
+    get_soc_power_reg()->asic_voltage.maxion = temp;
     pmic_get_voltage(MODULE_VDDQLP, &temp);
-    get_soc_power_reg()->module_voltage.vddqlp = temp;
+    get_soc_power_reg()->asic_voltage.vddqlp = temp;
     pmic_get_voltage(MODULE_VDDQ, &temp);
-    get_soc_power_reg()->module_voltage.vddq = temp;
+    get_soc_power_reg()->asic_voltage.vddq = temp;
     pmic_get_voltage(MODULE_PCIE_LOGIC, &temp);
-    get_soc_power_reg()->module_voltage.pcie_logic = temp;
+    get_soc_power_reg()->asic_voltage.pcie_logic = temp;
 
-    if (module_voltage != NULL)
+    if (asic_voltage != NULL)
     {
-        *module_voltage = get_soc_power_reg()->module_voltage;
+        *asic_voltage = get_soc_power_reg()->asic_voltage;
     }
 
     return 0;

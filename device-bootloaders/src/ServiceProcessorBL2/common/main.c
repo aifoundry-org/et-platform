@@ -113,11 +113,7 @@ static void taskMain(void *pvParameters)
     Log_Set_Level(log_level);
 
     // Establish connection to PMIC
-    // NOSONAR struct module_voltage_t module_voltage ={0};
     setup_pmic();
-    // Read all Voltage Rails
-    // Bug in PMIC FW preventing access to these registers
-    // NOSONAR get_module_voltage(&module_voltage);
 
     // Read and printout ecid
     ecid_t ecid;

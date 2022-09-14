@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-13832]: Add support for DM_CMD_GET_MM_STATS
 - [SW-13851] add handling for DM_CMD_SET_STATS_RUN_CONTROL
+- [SW-14061] Added support for GET_ASIC_VOLTAGES command.
 ### Changed
 - [SW-14084]: Fixing the CMA calculation to scale up and down the values correctly.
 - Support to read PMIC FW from PMIC directly versus hardcoded value
 - [SW-14061] Moving the GET_SP_STATS handling to process_performance_request().
+- [SW-14061] Separating voltages read from PVT and PMIC.
 ### Deprecated
 ### Removed
 ### Fixed
