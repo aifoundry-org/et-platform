@@ -150,7 +150,6 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
             case DM_CMD_SET_THROTTLE_POWER_STATE_TEST:
             case DM_CMD_SET_FREQUENCY:
             case DM_CMD_SET_MODULE_VOLTAGE:
-            case DM_CMD_GET_SP_STATS:
             case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS ... DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES:
                 thermal_power_monitoring_process(tag_id, msg_id, (void *)buffer);
                 break;
@@ -167,6 +166,7 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
             case DM_CMD_GET_MM_ERROR_COUNT ... DM_CMD_MM_RESET:
                 Minion_State_Host_Iface_Process_Request(tag_id, msg_id);
                 break;
+            case DM_CMD_GET_SP_STATS:
             case DM_CMD_GET_MM_STATS:
             case DM_CMD_SET_STATS_RUN_CONTROL:
             case DM_CMD_GET_ASIC_FREQUENCIES ... DM_CMD_GET_ASIC_LATENCY:

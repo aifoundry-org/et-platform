@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - [SW-14084]: Fixing the CMA calculation to scale up and down the values correctly.
 - Support to read PMIC FW from PMIC directly versus hardcoded value
+- [SW-14061] Moving the GET_SP_STATS handling to process_performance_request().
 ### Deprecated
 ### Removed
 ### Fixed
