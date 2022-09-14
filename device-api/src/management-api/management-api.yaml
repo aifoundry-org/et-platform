@@ -1263,25 +1263,6 @@ Modules:
           Description: Module power (binary encoded)
           Type: struct
           Struct: module_power_t
-    ## TODO: DEPRECATED: Te be removed, replaced by device_mgmt_get_module_voltage_cmd
-    - Name: device_mgmt_module_voltage_cmd
-      Description:  Command to get the module voltage info
-      Type: Command
-      PairedMessage: device_mgmt_module_voltage_rsp
-      Fields:
-        - Name: dummy
-          Description: Dummy field.
-          Type: uint64_t
-    ## TODO: DEPRECATED: Te be removed, replaced by device_mgmt_get_module_voltage_rsp
-    - Name: device_mgmt_module_voltage_rsp
-      Type: Response
-      Description: Response for module voltage command
-      PairedMessage: device_mgmt_module_voltage_cmd
-      Fields:
-        - Name: module_voltage
-          Description: Module voltage (binary encoded)
-          Type: struct
-          Struct: module_voltage_t
     - Name: device_mgmt_get_module_voltage_cmd
       Description:  Command to get the module voltage info
       Type: Command
