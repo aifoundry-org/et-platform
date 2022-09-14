@@ -678,6 +678,38 @@ Modules:
         - Name: exception_count
           Description: MM Exception count
           Type: uint32_t
+    - Name: asic_voltage_t
+      Fields:
+        - Name: ddr
+          Description: DDR Voltage
+          Type: uint8_t
+        - Name: l2_cache
+          Description: L2 Cache Voltage
+          Type: uint8_t
+        - Name: maxion
+          Description: Maxion's Voltage
+          Type: uint8_t
+        - Name: minion
+          Description: Minion's Voltage
+          Type: uint8_t
+        - Name: pcie
+          Description: PCIe's Voltage
+          Type: uint8_t
+        - Name: noc
+          Description: NOC's Voltage
+          Type: uint8_t
+        - Name: pcie_logic
+          Description: PCIE Logic Voltage
+          Type: uint8_t
+        - Name: vddqlp
+          Description: Vddlp Voltage
+          Type: uint8_t
+        - Name: vddq
+          Description: Vddq Voltage
+          Type: uint8_t
+        - Name: pad[7]
+          Description: Padding for alignment
+          Type: uint8_t
     - Name: module_voltage_t
       Fields:
         - Name: ddr
@@ -1263,6 +1295,23 @@ Modules:
           Description: Module power (binary encoded)
           Type: struct
           Struct: module_power_t
+    - Name: device_mgmt_get_asic_voltage_cmd
+      Description:  Command to get the asic voltage info
+      Type: Command
+      PairedMessage: device_mgmt_get_asic_voltage_rsp
+      Fields:
+        - Name: dummy
+          Description: Dummy field.
+          Type: uint64_t
+    - Name: device_mgmt_get_asic_voltage_rsp
+      Type: Response
+      Description: Response for get asic voltage command
+      PairedMessage: device_mgmt_get_asic_voltage_cmd
+      Fields:
+        - Name: asic_voltage
+          Description: asic voltage (binary encoded)
+          Type: struct
+          Struct: asic_voltage_t
     - Name: device_mgmt_get_module_voltage_cmd
       Description:  Command to get the module voltage info
       Type: Command
@@ -1274,7 +1323,7 @@ Modules:
     - Name: device_mgmt_get_module_voltage_rsp
       Type: Response
       Description: Response for get module voltage command
-      PairedMessage: device_mgmt_module_voltage_cmd
+      PairedMessage: device_mgmt_get_module_voltage_cmd
       Fields:
         - Name: module_voltage
           Description: Module voltage (binary encoded)
