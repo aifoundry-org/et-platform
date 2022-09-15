@@ -105,7 +105,7 @@ int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask);
     \param cmd_size Size of command
     \return Status indicating success or negative error
 */
-#define MM_Iface_Push_Cmd_To_SP2MM_SQ(p_cmd, cmd_size) SP_MM_Iface_Push(MM_SQ, p_cmd, cmd_size)
+int8_t MM_Iface_Push_Cmd_To_SP2MM_SQ(const void *p_cmd, uint32_t cmd_size);
 
 /*! \fn int8_t MM_Iface_Pop_Rsp_From_SP2MM_CQ(void* rx_buff)
     \brief Pop response from Service Processor (SP) to Master Minion (MM)
@@ -113,7 +113,7 @@ int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask);
     \param rx_buff Buffer to receive response popped
     \return Status indicating success or negative error
 */
-#define MM_Iface_Pop_Rsp_From_SP2MM_CQ(rx_buff) SP_MM_Iface_Pop(MM_CQ, rx_buff)
+int32_t MM_Iface_Pop_Rsp_From_SP2MM_CQ(void *rx_buff);
 
 /*! \fn int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void* rx_buff)
     \brief Pop command from Master Minion (MM) to Service Processor (SP)

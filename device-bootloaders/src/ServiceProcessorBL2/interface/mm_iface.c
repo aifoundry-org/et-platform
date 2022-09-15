@@ -437,6 +437,9 @@ int32_t MM_Iface_MM_Stats_Run_Control(sp2mm_stats_control_e control)
             if ((status <= 0) || (rsp.msg_hdr.msg_id != SP2MM_RSP_MM_STATS_RUN_CONTROL))
             {
                 xSemaphoreGive(mm_cmd_lock);
+                Log_Write(LOG_LEVEL_ERROR,
+                          "MM_Iface_MM_Stats_Run_Control: response msg_id %d, status %d!\r\n",
+                          rsp.msg_hdr.msg_id, status);
                 return MM_IFACE_SP2MM_INVALID_RESPONSE;
             }
 
@@ -630,6 +633,43 @@ int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(const void *p_rsp, uint32_t rsp_size)
 *
 *   FUNCTION
 *
+*       MM_Iface_Push_Cmd_To_SP2MM_SQ
+*
+*   DESCRIPTION
+*
+*       Pushes command from Service Processor (MM) to Master Minion (MM)
+*       Submission Queue(SQ)
+*
+*   INPUTS
+*
+*       p_cmd       Pointer to cmd buffer
+*       cmd_size    Size of the data to push
+*
+*   OUTPUTS
+*
+*       status      success or error code
+*
+***********************************************************************/
+int8_t MM_Iface_Push_Cmd_To_SP2MM_SQ(const void *p_cmd, uint32_t cmd_size)
+{
+    int8_t status;
+
+    /* Enter critical section - Prevents the calling task to not to schedule out.
+    Context switching messes the shared VQ regions, hence this is required for now. */
+    portENTER_CRITICAL();
+
+    status = SP_MM_Iface_Push(MM_SQ, p_cmd, cmd_size);
+
+    /* Exit critical section */
+    portEXIT_CRITICAL();
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       MM_Iface_Pop_Cmd_From_MM2SP_SQ
 *
 *   DESCRIPTION
@@ -649,6 +689,12 @@ int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(const void *p_rsp, uint32_t rsp_size)
 ***********************************************************************/
 int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void *rx_buff)
 {
+    int32_t ret_val;
+
+    /* Enter critical section - Prevents the calling task to not to schedule out.
+    Context switching messes the shared VQ regions, hence this is required for now. */
+    portENTER_CRITICAL();
+
 #ifdef SP_MM_VERIFY_VQ_TAIL
     if (SP_MM_Iface_Verify_Tail(SP_SQ) == SP_MM_IFACE_ERROR_VQ_BAD_TAIL)
     {
@@ -657,7 +703,49 @@ int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void *rx_buff)
             "MM_Iface_Pop_Cmd_From_MM2SP_SQ:FATAL_ERROR:Tail Mismatch! Using cached value as fallback mechanism\r\n");
     }
 #endif
-    return SP_MM_Iface_Pop(SP_SQ, rx_buff);
+    ret_val = SP_MM_Iface_Pop(SP_SQ, rx_buff);
+
+    /* Exit critical section */
+    portEXIT_CRITICAL();
+
+    return ret_val;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       MM_Iface_Pop_Rsp_From_SP2MM_CQ
+*
+*   DESCRIPTION
+*
+*       This function is used to pop a command from SP2MM completion queue.
+*
+*   INPUTS
+*
+*       rx_buff    Pointer to rx buffer to copy popped data.
+*
+*   OUTPUTS
+*
+*       int32_t    Negative value - error
+*                  zero - No Data
+*                  Positive value - Number of bytes popped
+*
+***********************************************************************/
+int32_t MM_Iface_Pop_Rsp_From_SP2MM_CQ(void *rx_buff)
+{
+    int32_t ret_val;
+
+    /* Enter critical section - Prevents the calling task to not to schedule out.
+    Context switching messes the shared VQ regions, hence this is required for now. */
+    portENTER_CRITICAL();
+
+    ret_val = SP_MM_Iface_Pop(MM_CQ, rx_buff);
+
+    /* Exit critical section */
+    portEXIT_CRITICAL();
+
+    return ret_val;
 }
 
 /************************************************************************
