@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14061] Added device_mgmt_get_asic_voltage_cmd_t and device_mgmt_get_asic_voltage_rsp_t.
 ### Changed
 - [SW-14061] Re-arranging commands according to their category.
+- Updating the gitlab-ci-common to the latest reference.
 ### Deprecated
 ### Removed
 - [SW-14061] Removed deprecated device_mgmt_module_voltage_cmd and device_mgmt_module_voltage_rsp.
