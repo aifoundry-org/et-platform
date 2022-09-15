@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- [SW-14061] Updating the device mgmt api command codes and Get Module Voltage response name.
 ### Deprecated
 ### Removed
 ### Fixed
