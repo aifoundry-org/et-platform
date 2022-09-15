@@ -608,6 +608,12 @@ int update_module_soc_power(void)
 
     if (SUCCESS != get_asic_voltage(NULL))
     {
+        MESSAGE_ERROR("thermal pwr mgmt svc error: failed to update asic voltage\r\n");
+        return THERMAL_PWR_MGMT_PVT_ACCESS_FAILED;
+    }
+
+    if (SUCCESS != get_module_voltage(NULL))
+    {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to update module voltage\r\n");
         return THERMAL_PWR_MGMT_PMIC_ACCESS_FAILED;
     }
@@ -793,7 +799,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
                   __func__, status);
     }
 
-    pmic_get_voltage(MODULE_PCIE_LOGIC, &temp);
+    status = pmic_get_voltage(MODULE_PCIE_LOGIC, &temp);
     if (status == STATUS_SUCCESS)
     {
         g_pmic_power_reg.module_voltage.pcie_logic = temp;
@@ -815,7 +821,7 @@ int get_module_voltage(struct module_voltage_t *module_voltage)
                   __func__, status);
     }
 
-    pmic_get_voltage(MODULE_VDDQ, &temp);
+    status = pmic_get_voltage(MODULE_VDDQ, &temp);
     if (status == STATUS_SUCCESS)
     {
         g_pmic_power_reg.module_voltage.vddq = temp;
@@ -867,11 +873,14 @@ int get_asic_voltage(struct asic_voltage_t *asic_voltage)
     {
         /* SRAM voltage value is to be stored in l2_cache placeholder as currently no SRAM member is available in asic_voltage */
         g_soc_power_reg.asic_voltage.l2_cache =
-            PMIC_MILLIVOLT_TO_HEX(minshire_voltage.vdd_sram.current, PMIC_SRAM_VOLTAGE_MULTIPLIER);
+            PMIC_MILLIVOLT_TO_HEX(minshire_voltage.vdd_sram.current, PMIC_SRAM_VOLTAGE_BASE,
+                                  PMIC_SRAM_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER);
         g_soc_power_reg.asic_voltage.minion =
-            PMIC_MILLIVOLT_TO_HEX(minshire_voltage.vdd_mnn.current, PMIC_MINION_VOLTAGE_MULTIPLIER);
+            PMIC_MILLIVOLT_TO_HEX(minshire_voltage.vdd_mnn.current, PMIC_MINION_VOLTAGE_BASE,
+                                  PMIC_MINION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER);
         g_soc_power_reg.asic_voltage.noc =
-            PMIC_MILLIVOLT_TO_HEX(minshire_voltage.vdd_noc.current, PMIC_MINION_VOLTAGE_MULTIPLIER);
+            PMIC_MILLIVOLT_TO_HEX(minshire_voltage.vdd_noc.current, PMIC_NOC_VOLTAGE_BASE,
+                                  PMIC_NOC_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER);
         Log_Write(
             LOG_LEVEL_DEBUG,
             "get_asic_voltage: L2 Cache/SRAM Voltage: %d \t minion voltage: %d\t noc voltage: %d\r\n",
@@ -887,7 +896,8 @@ int get_asic_voltage(struct asic_voltage_t *asic_voltage)
     if (status == STATUS_SUCCESS)
     {
         g_soc_power_reg.asic_voltage.ddr =
-            PMIC_MILLIVOLT_TO_HEX(memshire_voltage.vdd_ms.current, PMIC_DDR_VOLTAGE_MULTIPLIER);
+            PMIC_MILLIVOLT_TO_HEX(memshire_voltage.vdd_ms.current, PMIC_DDR_VOLTAGE_BASE,
+                                  PMIC_DDR_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER);
         Log_Write(LOG_LEVEL_DEBUG, "get_asic_voltage: ddr voltage: %d\r\n",
                   memshire_voltage.vdd_ms.current);
     }
@@ -900,7 +910,8 @@ int get_asic_voltage(struct asic_voltage_t *asic_voltage)
     if (status == STATUS_SUCCESS)
     {
         g_soc_power_reg.asic_voltage.pcie =
-            PMIC_PCIE_MILLIVOLT_TO_HEX(pshr_voltage.vdd_pshr.current);
+            PMIC_MILLIVOLT_TO_HEX(pshr_voltage.vdd_pshr.current, PMIC_PCIE_VOLTAGE_BASE,
+                                  PMIC_PCIE_VOLTAGE_MULTIPLIER, PMIC_PCIE_VOLTAGE_DIVIDER);
         Log_Write(LOG_LEVEL_DEBUG, "get_asic_voltage: pcie voltage: %d\r\n",
                   pshr_voltage.vdd_pshr.current);
     }
@@ -925,6 +936,95 @@ int get_asic_voltage(struct asic_voltage_t *asic_voltage)
     }
 
     return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       get_delta_voltage
+*
+*   DESCRIPTION
+*
+*       This function reads the latest voltage values and calculates
+*       delta between them.
+*
+*   INPUTS
+*
+*       module_type      Type of module
+*       delta_voltage    Pointer to delta voltage variable
+*
+*   OUTPUTS
+*
+*       int               Return status
+*
+***********************************************************************/
+int get_delta_voltage(module_e module_type, int8_t *delta_voltage)
+{
+    int status = STATUS_SUCCESS;
+    uint8_t pmic_voltage = 0;
+    uint8_t pvt_voltage = 0;
+
+    switch (module_type)
+    {
+        case MODULE_DDR:
+            pmic_voltage = g_pmic_power_reg.module_voltage.ddr;
+            pvt_voltage = g_soc_power_reg.asic_voltage.ddr;
+            break;
+        case MODULE_L2CACHE:
+            pmic_voltage = g_pmic_power_reg.module_voltage.l2_cache;
+            pvt_voltage = g_soc_power_reg.asic_voltage.l2_cache;
+            break;
+        case MODULE_MAXION:
+            pmic_voltage = g_pmic_power_reg.module_voltage.maxion;
+            pvt_voltage = g_soc_power_reg.asic_voltage.maxion;
+            break;
+        case MODULE_MINION:
+            pmic_voltage = g_pmic_power_reg.module_voltage.minion;
+            pvt_voltage = g_soc_power_reg.asic_voltage.minion;
+            break;
+        case MODULE_PCIE:
+            pmic_voltage = g_pmic_power_reg.module_voltage.pcie;
+            pvt_voltage = g_soc_power_reg.asic_voltage.pcie;
+            break;
+        case MODULE_NOC:
+            pmic_voltage = g_pmic_power_reg.module_voltage.noc;
+            pvt_voltage = g_soc_power_reg.asic_voltage.noc;
+            break;
+        case MODULE_PCIE_LOGIC:
+            pmic_voltage = g_pmic_power_reg.module_voltage.pcie_logic;
+            pvt_voltage = g_soc_power_reg.asic_voltage.pcie_logic;
+            break;
+        case MODULE_VDDQLP:
+            pmic_voltage = g_pmic_power_reg.module_voltage.vddqlp;
+            pvt_voltage = g_soc_power_reg.asic_voltage.vddqlp;
+            break;
+        case MODULE_VDDQ:
+            pmic_voltage = g_pmic_power_reg.module_voltage.vddq;
+            pvt_voltage = g_soc_power_reg.asic_voltage.vddq;
+            break;
+        default: {
+            status = THERMAL_PWR_MGMT_INVALID_MODULE_TYPE;
+        }
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        *delta_voltage = (int8_t)(pmic_voltage - pvt_voltage);
+        if (*delta_voltage < 0)
+        {
+            status = THERMAL_PWR_MGMT_INVALID_VOLTAGE;
+            Log_Write(LOG_LEVEL_ERROR, "%s: Error: PMIC voltage less than PVT voltage.\r\n",
+                      __func__);
+        }
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s: Invalid module type specified. Status: %d\r\n", __func__,
+                  status);
+    }
+
+    return status;
 }
 
 /************************************************************************
@@ -1039,7 +1139,7 @@ int update_module_uptime()
 
     g_soc_power_reg.module_uptime.day = day;      //days
     g_soc_power_reg.module_uptime.hours = hours;  //hours
-    g_soc_power_reg.module_uptime.mins = minutes; //mins;
+    g_soc_power_reg.module_uptime.mins = minutes; //mins
     return 0;
 }
 
@@ -2012,7 +2112,7 @@ void set_system_voltages(void)
     pmic_set_voltage(MODULE_MINION, NEIGH_BOOT_VOLTAGE);
     US_DELAY_GENERIC(5000)
     pmic_get_voltage(MODULE_MINION, &voltage);
-    Log_Write(LOG_LEVEL_INFO, "Overriding Minion -> 475mV (0x%X)\n", voltage);
+    Log_Write(LOG_LEVEL_INFO, "Overriding Minion -> 475mV(0x%X)\n", voltage);
 
     /* Setting the L2 cache voltages */
     pmic_set_voltage(MODULE_L2CACHE, SRAM_BOOT_VOLTAGE);
@@ -2036,7 +2136,7 @@ void set_system_voltages(void)
     pmic_set_voltage(MODULE_MAXION, MXN_BOOT_VOLTAGE);
     US_DELAY_GENERIC(5000)
     pmic_get_voltage(MODULE_MAXION, &voltage);
-    Log_Write(LOG_LEVEL_INFO, "Overriding MAXION  -> 600mV(0x%X)\n", voltage);
+    Log_Write(LOG_LEVEL_INFO, "Overriding MAXION -> 600mV(0x%X)\n", voltage);
 }
 
 /************************************************************************
@@ -2062,6 +2162,7 @@ void print_system_operating_point(void)
 {
     uint32_t freq;
     uint16_t soc_pwr_10mW = 0;
+    uint8_t pmic_vol;
     TS_Sample temperature;
 
     Log_Write(LOG_LEVEL_INFO,
@@ -2073,54 +2174,70 @@ void print_system_operating_point(void)
     /* Neigh */
     freq = (uint32_t)Get_Minion_Frequency();
     pvt_get_minion_avg_low_high_temperature(&temperature);
+    pmic_get_voltage(MODULE_MINION, &pmic_vol);
     MinShire_VM_sample minshire_voltage = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
     pvt_get_minion_avg_low_high_voltage(&minshire_voltage);
-    Log_Write(LOG_LEVEL_INFO,
-              "NEIGH       \t\tHPDPLL4 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t%dC,[%dC,%dC]\r\n", freq,
-              minshire_voltage.vdd_mnn.current, minshire_voltage.vdd_mnn.low,
-              minshire_voltage.vdd_mnn.high, temperature.current, temperature.low,
+    Log_Write(LOG_LEVEL_INFO, "NEIGH       \t\tHPDPLL4 %dMHz\t\t%dmV (%dmV)\t\t%dC,[%dC,%dC]\r\n",
+              freq,
+              PMIC_HEX_TO_MILLIVOLT(pmic_vol, PMIC_MINION_VOLTAGE_BASE,
+                                    PMIC_MINION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER),
+              minshire_voltage.vdd_mnn.current, temperature.current, temperature.low,
               temperature.high);
 
     /* Sram */
-    Log_Write(LOG_LEVEL_INFO, "SRAM        \t\tHPDPLL4 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n", freq,
-              minshire_voltage.vdd_sram.current, minshire_voltage.vdd_sram.low,
-              minshire_voltage.vdd_sram.high);
+    pmic_get_voltage(MODULE_L2CACHE, &pmic_vol);
+    Log_Write(LOG_LEVEL_INFO, "SRAM        \t\tHPDPLL4 %dMHz\t\t%dmV (%dmV)\t\t/\r\n", freq,
+              PMIC_HEX_TO_MILLIVOLT(pmic_vol, PMIC_SRAM_VOLTAGE_BASE, PMIC_SRAM_VOLTAGE_MULTIPLIER,
+                                    PMIC_GENERIC_VOLTAGE_DIVIDER),
+              minshire_voltage.vdd_sram.current);
 
     /* NOC */
     get_pll_frequency(PLL_ID_SP_PLL_2, &freq);
-    Log_Write(LOG_LEVEL_INFO, "NOC         \t\tHPDPLL2 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n", freq,
-              minshire_voltage.vdd_noc.current, minshire_voltage.vdd_noc.low,
-              minshire_voltage.vdd_noc.high);
+    pmic_get_voltage(MODULE_NOC, &pmic_vol);
+    Log_Write(LOG_LEVEL_INFO, "NOC         \t\tHPDPLL2 %dMHz\t\t%dmV (%dmV)\t\t/\r\n", freq,
+              PMIC_HEX_TO_MILLIVOLT(pmic_vol, PMIC_NOC_VOLTAGE_BASE, PMIC_NOC_VOLTAGE_MULTIPLIER,
+                                    PMIC_GENERIC_VOLTAGE_DIVIDER),
+              minshire_voltage.vdd_noc.current);
 
     /* MemShire */
     freq = get_memshire_frequency();
     MemShire_VM_sample memshire_voltage = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
     pvt_get_memshire_avg_low_high_voltage(&memshire_voltage);
-    Log_Write(LOG_LEVEL_INFO, "MEMSHIRE    \t\tHPDPLLM %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n", freq,
-              memshire_voltage.vdd_ms.current, memshire_voltage.vdd_ms.low,
-              memshire_voltage.vdd_ms.high);
+    pmic_get_voltage(MODULE_DDR, &pmic_vol);
+    Log_Write(LOG_LEVEL_INFO, "MEMSHIRE    \t\tHPDPLLM %dMHz\t\t%dmV (%dmV)\t\t/\r\n", freq,
+              PMIC_HEX_TO_MILLIVOLT(pmic_vol, PMIC_DDR_VOLTAGE_BASE, PMIC_DDR_VOLTAGE_MULTIPLIER,
+                                    PMIC_GENERIC_VOLTAGE_DIVIDER),
+              memshire_voltage.vdd_ms.current);
 
-    /* IOShire SPIO*/
+    /* IOShire SPIO */
     get_pll_frequency(PLL_ID_SP_PLL_0, &freq);
     pvt_get_ioshire_ts_sample(&temperature);
     IOShire_VM_sample ioshire_voltage = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } };
     pvt_get_ioshire_vm_sample(&ioshire_voltage);
-    Log_Write(LOG_LEVEL_INFO,
-              "IOSHIRE SPIO\t\tHPDPLL0 %dMHz\t\t/                  \t\t%dC,[%dC,%dC]\r\n", freq,
-              temperature.current, temperature.low, temperature.high);
+    Log_Write(LOG_LEVEL_INFO, "IOSHIRE SPIO\t\tHPDPLL0 %dMHz\t\t/           \t\t%dC,[%dC,%dC]\r\n",
+              freq, temperature.current, temperature.low, temperature.high);
 
-    /* IOShire PU*/
+    /* IOShire PU */
     get_pll_frequency(PLL_ID_SP_PLL_1, &freq);
-    Log_Write(LOG_LEVEL_INFO, "        PU  \t\tHPDPLL1 %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n", freq,
-              ioshire_voltage.vdd_pu.current, ioshire_voltage.vdd_pu.low,
-              ioshire_voltage.vdd_pu.high);
+    Log_Write(LOG_LEVEL_INFO, "        PU  \t\tHPDPLL1 %dMHz\t\t      (%dmV)\t\t/\r\n", freq,
+              ioshire_voltage.vdd_pu.current);
+
+    /* MAXION */
+    pmic_get_voltage(MODULE_MAXION, &pmic_vol);
+    Log_Write(LOG_LEVEL_INFO, "MAXION      \t\t/            \t\t%dmV (%dmV)\t\t/\r\n",
+              PMIC_HEX_TO_MILLIVOLT(pmic_vol, PMIC_MAXION_VOLTAGE_BASE,
+                                    PMIC_MAXION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER),
+              ioshire_voltage.vdd_mxn.current);
 
     /* PSHIRE */
     get_pll_frequency(PLL_ID_PSHIRE, &freq);
     PShire_VM_sample pshr_voltage = { { 0, 0, 0 }, { 0, 0, 0 } };
     pvt_get_pshire_vm_sample(&pshr_voltage);
-    Log_Write(LOG_LEVEL_INFO, "PSHIRE      \t\tHPDPLLP %dMHz\t\t%dmV,[%dmV,%dmV]\t\t/\r\n", freq,
-              pshr_voltage.vdd_pshr.current, pshr_voltage.vdd_pshr.low, pshr_voltage.vdd_pshr.high);
+    pmic_get_voltage(MODULE_PCIE, &pmic_vol);
+    Log_Write(LOG_LEVEL_INFO, "PSHIRE      \t\tHPDPLLP %dMHz\t\t%dmV (%dmV)\t\t/\r\n", freq,
+              PMIC_HEX_TO_MILLIVOLT(pmic_vol, PMIC_PCIE_VOLTAGE_BASE, PMIC_PCIE_VOLTAGE_MULTIPLIER,
+                                    PMIC_PCIE_VOLTAGE_DIVIDER),
+              pshr_voltage.vdd_pshr.current);
 
     /* Card Power */
     pmic_read_average_soc_power(&soc_pwr_10mW);
@@ -2342,7 +2459,7 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
     if (status == STATUS_SUCCESS)
     {
         /* initialize temperature valuesin op stats */
-        INIT_STAT_VALUE(g_soc_power_reg.op_stats.minion.temperature, tmp_val);
+        INIT_STAT_VALUE(g_soc_power_reg.op_stats.minion.temperature, tmp_val)
 
         /* TODO: PMIC is currently reporting system temperature as 0. This is to be validated once fixed */
         status = pmic_get_temperature(&tmp_val);

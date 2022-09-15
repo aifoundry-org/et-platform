@@ -213,7 +213,7 @@ static void pwr_svc_get_asic_voltage(uint16_t tag, uint64_t req_start_time)
     }
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_VOLTAGE,
-                    timer_get_ticks_count() - req_start_time, status);
+                    timer_get_ticks_count() - req_start_time, status)
 
     if (STATUS_SUCCESS != SP_Host_Iface_CQ_Push_Cmd(
                               (char *)&dm_rsp, sizeof(struct device_mgmt_get_asic_voltage_rsp_t)))
@@ -264,7 +264,7 @@ static void pwr_svc_get_module_voltage(uint16_t tag, uint64_t req_start_time)
     }
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MODULE_VOLTAGE,
-                    timer_get_ticks_count() - req_start_time, status);
+                    timer_get_ticks_count() - req_start_time, status)
 
     if (STATUS_SUCCESS != SP_Host_Iface_CQ_Push_Cmd(
                               (char *)&dm_rsp, sizeof(struct device_mgmt_get_module_voltage_rsp_t)))

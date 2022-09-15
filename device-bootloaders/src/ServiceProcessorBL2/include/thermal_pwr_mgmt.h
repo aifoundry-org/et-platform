@@ -101,28 +101,28 @@ int get_module_tdp_level(uint8_t *tdp_level);
 */
 int update_module_temperature_threshold(uint8_t lo_threshold);
 
-/*! \fn int get_module_temperature_threshold(struct temperature_threshold_t *temperature_threshold);
+/*! \fn int get_module_temperature_threshold(struct temperature_threshold_t *temperature_threshold)
     \brief Interface to get the temperature threshold.
     \param temperature_threshold  Pointer to temperature threshold
     \returns Status indicating success or negative error
 */
 int get_module_temperature_threshold(struct temperature_threshold_t *temperature_threshold);
 
-/*! \fn int update_module_current_temperature(void);
+/*! \fn int update_module_current_temperature(void)
     \brief Interface to update the module's current temperature.
     \param none
     \returns Status indicating success or negative error
 */
 int update_module_current_temperature(void);
 
-/*! \fn int get_module_current_temperature(struct current_temperature_t *temperature);
+/*! \fn int get_module_current_temperature(struct current_temperature_t *temperature)
     \brief Interface to get the module's current temperature.
     \param temperature  Pointer to SOC temperature variable
     \returns Status indicating success or negative error
 */
 int get_module_current_temperature(struct current_temperature_t *temperature);
 
-/*! \fn int update_module_soc_power(void);
+/*! \fn int update_module_soc_power(void)
     \brief Interface to update the module's SOC Power consumption.
     \param none
     \returns Status indicating success or negative error
@@ -131,24 +131,32 @@ int update_module_soc_power(void);
 
 /*! \fn int get_module_soc_power(uint16_t *soc_pwr_10mw)
     \brief Interface to get the module's SOC Power in 10 mW steps.
-    \param soc_pwr_10mw  Pointer to SOC power variable
+    \param soc_pwr_10mw Pointer to SOC power variable
     \returns Status indicating success or negative error
 */
 int get_module_soc_power(uint16_t *soc_pwr_10mw);
 
 /*! \fn int get_module_voltage(struct module_voltage_t *module_voltage)
     \brief Interface to get the module's voltage for different domains from PMIC.
-    \param module_voltage  Pointer to module voltage struct
+    \param module_voltage Pointer to module voltage struct
     \returns Status indicating success or negative error
 */
 int get_module_voltage(struct module_voltage_t *module_voltage);
 
 /*! \fn int get_asic_voltage(struct asic_voltage_t *asic_voltage)
     \brief Interface to get the module's voltage for different domains from PVT.
-    \param asic_voltage  Pointer to asic voltage struct
+    \param asic_voltage Pointer to asic voltage struct
     \returns Status indicating success or negative error
 */
 int get_asic_voltage(struct asic_voltage_t *asic_voltage);
+
+/*! \fn int get_delta_voltage(module_e module_type, int8_t *delta_voltage)
+    \brief Reads the latest voltage values and calculates delta between them.
+    \param module_type Module type
+    \param delta_voltage Pointer to delta voltage
+    \returns Status indicating success or negative error
+*/
+int get_delta_voltage(module_e module_type, int8_t *delta_voltage);
 
 /*! \fn int update_module_uptime(void)
     \brief Interface to update the module's uptime.
@@ -157,9 +165,9 @@ int get_asic_voltage(struct asic_voltage_t *asic_voltage);
 */
 int update_module_uptime(void);
 
-/*! \fn int get_module_uptime(struct module_uptime_t  *module_uptime);
+/*! \fn int get_module_uptime(struct module_uptime_t  *module_uptime)
     \brief Interface to get the module's uptime.
-    \param *module_uptime  Pointer to module uptime struct
+    \param module_uptime Pointer to module uptime struct
     \returns Status indicating success or negative error
 */
 int get_module_uptime(struct module_uptime_t *module_uptime);

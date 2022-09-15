@@ -111,21 +111,39 @@ struct pmic_event_control_block
     dm_pmic_isr_callback thermal_pwr_event_cb; /**< Thermal power event callback handler. */
 };
 
-// Multiplier for each Power rail
+/* Base for each voltage rail */
+#define PMIC_DDR_VOLTAGE_BASE        250
+#define PMIC_SRAM_VOLTAGE_BASE       250
+#define PMIC_MAXION_VOLTAGE_BASE     250
+#define PMIC_MINION_VOLTAGE_BASE     250
+#define PMIC_NOC_VOLTAGE_BASE        250
+#define PMIC_VDDQLP_VOLTAGE_BASE     250
+#define PMIC_VDDQ_VOLTAGE_BASE       250
+#define PMIC_PCIE_LOGIC_VOLTAGE_BASE 600
+#define PMIC_PCIE_VOLTAGE_BASE       600
+
+/* Multiplier for each voltage rail */
 #define PMIC_DDR_VOLTAGE_MULTIPLIER        5
 #define PMIC_SRAM_VOLTAGE_MULTIPLIER       5
 #define PMIC_MAXION_VOLTAGE_MULTIPLIER     5
 #define PMIC_MINION_VOLTAGE_MULTIPLIER     5
+#define PMIC_NOC_VOLTAGE_MULTIPLIER        5
 #define PMIC_VDDQLP_VOLTAGE_MULTIPLIER     10
 #define PMIC_VDDQ_VOLTAGE_MULTIPLIER       10
 #define PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER 625
 #define PMIC_PCIE_VOLTAGE_MULTIPLIER       125
 
-/* Macro to encode voltage value to 8 bit encoding*/
-#define PMIC_MILLIVOLT_TO_HEX(val, idx)       (uint8_t)(((val - 250) / idx))
-#define PMIC_HEX_TO_MILLIVOLT(val, idx)       ((val * idx) + 250)
-#define PMIC_PCIE_MILLIVOLT_TO_HEX(val)       (uint8_t)(((val - 600) * 10 / 125))
-#define PMIC_PCIE_LOGIC_MILLIVOLT_TO_HEX(val) (uint8_t)(((val - 600) * 100 / 625))
+/* Divider for each voltage rail */
+#define PMIC_GENERIC_VOLTAGE_DIVIDER    1
+#define PMIC_PCIE_LOGIC_VOLTAGE_DIVIDER 100
+#define PMIC_PCIE_VOLTAGE_DIVIDER       10
+
+/* Macro to encode voltage value to 8 bit encoding */
+#define PMIC_MILLIVOLT_TO_HEX(mV_val, base, multiplier, divider) \
+    (uint8_t)(((mV_val - base) * divider) / multiplier)
+#define PMIC_HEX_TO_MILLIVOLT(hex_val, base, multiplier, divider) \
+    (((hex_val * multiplier) / divider) + base)
+
 /*! \fn void setup_pmic(void)
     \brief This function initialize I2C connection.
 */
