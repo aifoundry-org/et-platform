@@ -52,6 +52,13 @@
 */
 volatile struct soc_power_reg_t *get_soc_power_reg(void);
 
+/*! \fn volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
+    \brief Interface to get the PMIC power register
+    \param none
+    \returns Returns pointer to PMIC power reg struct
+*/
+volatile struct pmic_power_reg_t *get_pmic_power_reg(void);
+
 /*! \fn int set_module_active_power_management(active_power_management_e state)
     \brief Interface to update the module Active Power Management.
     \param state   PActive Power Management

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support to read PMIC FW from PMIC directly versus hardcoded value
 - [SW-14061] Moving the GET_SP_STATS handling to process_performance_request().
 - [SW-14061] Separating voltages read from PVT and PMIC.
+- [SW-14061] Separated the PMIC and SOC power registers.
 ### Deprecated
 ### Removed
 ### Fixed
