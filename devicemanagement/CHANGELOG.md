@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-14061] Fixing the convertion of binary to mV and mV to binary voltage values.
 ### Security
 
 ## [0.6.0] - 2022-09-05
