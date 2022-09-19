@@ -39,10 +39,15 @@ enum statw_resource_type {
 */
 #define STATW_SAMPLING_INTERVAL 1UL
 
-/*! \def STATW_CMA_SAMPLE_COUNT
-    \brief Device statistics moving average sample count.
+/*! \def STATW_UTILIZATION_CMA_SAMPLE_COUNT
+    \brief Device utilization statistics moving average sample count.
 */
-#define STATW_CMA_SAMPLE_COUNT 100UL
+#define STATW_UTILIZATION_CMA_SAMPLE_COUNT 5UL
+
+/*! \def STATW_BW_CMA_SAMPLE_COUNT
+    \brief Device bandwidth statistics moving average sample count.
+*/
+#define STATW_BW_CMA_SAMPLE_COUNT 100UL
 
 /*! \def STATW_RESOURCE_UTIL_DEFAULT_MIN
     \brief Default minimum value for device utilization resource stat.

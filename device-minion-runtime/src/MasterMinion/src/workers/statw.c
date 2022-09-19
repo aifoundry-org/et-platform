@@ -27,6 +27,8 @@
 */
 /***********************************************************************/
 
+#include <math.h>
+
 /* mm_rt_svcs */
 #include <etsoc/isa/syscall.h>
 #include <etsoc/isa/sync.h>
@@ -56,14 +58,13 @@
     resource.min = MIN(resource.min, current_sample);  \
     resource.max = MAX(resource.max, current_sample);
 
-/*! \def STATW_RECALC_CMA_MIN_MAX(resource, new_sample)
+/*! \def STATW_RECALC_CMA_MIN_MAX(resource, current_sample, sample_count)
     \brief Helper macro to add new sample into stats. It re-calculates the average, min, and max each time.
     NOTE: Uses local writes.
 */
-#define STATW_RECALC_CMA_MIN_MAX(resource, current_sample)                                         \
-    /* Calculate commutative moving average. */                                                    \
-    resource.avg =                                                                                 \
-        (current_sample + (STATW_CMA_SAMPLE_COUNT * resource.avg)) / (STATW_CMA_SAMPLE_COUNT + 1); \
+#define STATW_RECALC_CMA_MIN_MAX(resource, current_sample, sample_count)              \
+    /* Calculate commutative moving average. */                                       \
+    resource.avg = statw_recalculate_cma(resource.avg, current_sample, sample_count); \
     STATW_RECALC_MIN_MAX(resource, current_sample)
 
 /*! \def STATW_PMU_REQ_COUNT_TO_MBPS
@@ -111,9 +112,7 @@
 
 /*! \def STATW_PERCENTAGE_MULTIPLIER
     \brief Multiplier to convert percentage from float to a whole decimal numbers.
-    WARNING: When this is 100 or less, then max perectage will go to 100, which
-             divided by STATW_CMA_SAMPLE_COUNT for average calculations becomes zero
-             because of int data type.
+    WARNING: When this is 100 or less, then max perectage will go to 100.
 */
 #define STATW_PERCENTAGE_MULTIPLIER 100
 
@@ -159,6 +158,24 @@ typedef struct {
     \warning Not thread safe!
 */
 static statw_cb STATW_CB __attribute__((aligned(CACHE_LINE_SIZE))) = { 0 };
+
+static inline uint64_t statw_recalculate_cma(
+    uint64_t old_value, uint64_t current_value, uint64_t sample_count)
+{
+    if (current_value > old_value)
+    {
+        double cma_temp = ceil(((double)current_value + (double)(old_value * (sample_count - 1))) /
+                               (double)sample_count);
+        return (uint64_t)cma_temp;
+    }
+    else if (current_value < old_value)
+    {
+        double cma_temp = floor(((double)current_value + (double)(old_value * (sample_count - 1))) /
+                                (double)sample_count);
+        return (uint64_t)cma_temp;
+    }
+    return old_value;
+}
 
 static void statw_sample_device_stats_callback(uint8_t arg)
 {
@@ -366,7 +383,7 @@ void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64
 
     /* Calculate commutative moving average. */
     uint64_t avg = atomic_load_local_64(&resource->avg);
-    avg = (current_sample + (STATW_CMA_SAMPLE_COUNT * avg)) / (STATW_CMA_SAMPLE_COUNT + 1);
+    avg = statw_recalculate_cma(avg, current_sample, STATW_BW_CMA_SAMPLE_COUNT);
     atomic_store_local_64(&resource->avg, avg);
 
     /* TODO: Use ET HW functionality of atomic Min and Max to reduce the number of atomic operations below. */
@@ -374,6 +391,56 @@ void STATW_Add_New_Sample_Atomically(statw_resource_type_e resource_type, uint64
     uint64_t prev_max = atomic_load_local_64(&resource->max);
     atomic_store_local_64(&resource->min, MIN(prev_min, current_sample));
     atomic_store_local_64(&resource->max, MAX(prev_max, current_sample));
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       statw_fill_utilization_stats
+*
+*   DESCRIPTION
+*
+*       This functions fills the utilization stats int the given data
+*       sample struct.
+*
+*   INPUTS
+*
+*       data_sample          Pointer to the compute resources
+*       prev_timestamp       Timestamp of previously sampled utilization
+*
+*
+*   OUTPUTS
+*
+*       current_timestamp    Timestamp at which the stats were calculated
+*
+***********************************************************************/
+static uint64_t statw_fill_utilization_stats(
+    struct compute_resources_sample *data_sample, uint64_t prev_timestamp)
+{
+    /* Percent utilization = trasnsaction accumulated cycles * 100 / Cycles in sampling interval. */
+    uint64_t current_timestamp = PMC_Get_Current_Cycles();
+    uint64_t total_cycles = current_timestamp - prev_timestamp;
+    uint64_t dma_write_util_cycles =
+        DMAW_Get_Average_Exec_Cycles(DMA_CHAN_TYPE_READ, prev_timestamp, current_timestamp);
+    uint64_t dma_read_util_cycles =
+        DMAW_Get_Average_Exec_Cycles(DMA_CHAN_TYPE_WRITE, prev_timestamp, current_timestamp);
+    uint64_t cm_util_cycles = KW_Get_Average_Exec_Cycles(prev_timestamp, current_timestamp);
+
+    /* Caclulate the instantaneous average for utilization. */
+    uint64_t instant_average = (dma_read_util_cycles * STATW_PERCENTAGE_MULTIPLIER) / total_cycles;
+    STATW_RECALC_CMA_MIN_MAX(
+        data_sample->pcie_dma_read_utilization, instant_average, STATW_UTILIZATION_CMA_SAMPLE_COUNT)
+
+    instant_average = (dma_write_util_cycles * STATW_PERCENTAGE_MULTIPLIER) / total_cycles;
+    STATW_RECALC_CMA_MIN_MAX(data_sample->pcie_dma_write_utilization, instant_average,
+        STATW_UTILIZATION_CMA_SAMPLE_COUNT)
+
+    instant_average = (cm_util_cycles * STATW_PERCENTAGE_MULTIPLIER) / total_cycles;
+    STATW_RECALC_CMA_MIN_MAX(
+        data_sample->cm_utilization, instant_average, STATW_UTILIZATION_CMA_SAMPLE_COUNT)
+
+    return current_timestamp;
 }
 
 /************************************************************************
@@ -499,7 +566,6 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
     uint64_t prev_l2_l3_cycle_counter[NUM_SHIRES][BANKS_PER_SC] = { 0 };
     uint64_t prev_l2_l3_read_counter[NUM_SHIRES][BANKS_PER_SC] = { 0 };
     uint64_t prev_l2_l3_write_counter[NUM_SHIRES][BANKS_PER_SC] = { 0 };
-    uint64_t current_timestamp;
     uint64_t prev_timestamp;
     struct trace_custom_event_t *entry;
     shire_pmc_cnt_t sc_pmcs = { 0 };
@@ -578,11 +644,13 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
                 STATW_RECALC_CMA_MIN_MAX(data_sample.ddr_read_bw,
                     STATW_PMU_REQ_COUNT_TO_MBPS(
                         (ms_pmcs.pmc0 - prev_ddr_read_counter[shire_id]) * 2, DDR_FREQUENCY,
-                        ms_pmcs.cycle - prev_ddr_cycle_counter[shire_id]))
+                        ms_pmcs.cycle - prev_ddr_cycle_counter[shire_id]),
+                    STATW_BW_CMA_SAMPLE_COUNT)
                 STATW_RECALC_CMA_MIN_MAX(data_sample.ddr_write_bw,
                     STATW_PMU_REQ_COUNT_TO_MBPS(
                         (ms_pmcs.pmc1 - prev_ddr_write_counter[shire_id]) * 2, DDR_FREQUENCY,
-                        ms_pmcs.cycle - prev_ddr_cycle_counter[shire_id]))
+                        ms_pmcs.cycle - prev_ddr_cycle_counter[shire_id]),
+                    STATW_BW_CMA_SAMPLE_COUNT)
 
                 /* Update the previous values */
                 prev_ddr_cycle_counter[shire_id] = ms_pmcs.cycle;
@@ -620,12 +688,14 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
                         STATW_PMU_REQ_COUNT_TO_MBPS(
                             sc_pmcs.pmc0 - prev_l2_l3_read_counter[shire_id][bank_id],
                             minion_freq_mhz,
-                            sc_pmcs.cycle - prev_l2_l3_cycle_counter[shire_id][bank_id]))
+                            sc_pmcs.cycle - prev_l2_l3_cycle_counter[shire_id][bank_id]),
+                        STATW_BW_CMA_SAMPLE_COUNT)
                     STATW_RECALC_CMA_MIN_MAX(data_sample.l2_l3_write_bw,
                         STATW_PMU_REQ_COUNT_TO_MBPS(
                             sc_pmcs.pmc1 - prev_l2_l3_write_counter[shire_id][bank_id],
                             minion_freq_mhz,
-                            sc_pmcs.cycle - prev_l2_l3_cycle_counter[shire_id][bank_id]))
+                            sc_pmcs.cycle - prev_l2_l3_cycle_counter[shire_id][bank_id]),
+                        STATW_BW_CMA_SAMPLE_COUNT)
 
                     /* Update the previous values */
                     prev_l2_l3_cycle_counter[shire_id][bank_id] = sc_pmcs.cycle;
@@ -640,36 +710,13 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
             read_resource_stats_atomically(
                 STATW_RESOURCE_DMA_WRITE, &data_sample.pcie_dma_write_bw);
 
-            /* Percent utilization = trasnsaction accumulated cycles * 100 / Cycles in sampling interval. */
-            current_timestamp = PMC_Get_Current_Cycles();
-            uint64_t total_cycles = current_timestamp - prev_timestamp;
-            uint64_t dma_write_util_cycles =
-                DMAW_Get_Average_Exec_Cycles(DMA_CHAN_TYPE_READ, prev_timestamp, current_timestamp);
-            uint64_t dma_read_util_cycles = DMAW_Get_Average_Exec_Cycles(
-                DMA_CHAN_TYPE_WRITE, prev_timestamp, current_timestamp);
-            uint64_t cm_util_cycles = KW_Get_Average_Exec_Cycles(prev_timestamp, current_timestamp);
-
-            /* Caclulate the instantaneous average for utilization. This would
-            directly be logged in trace while min and max will be re-calculated */
-            uint64_t instant_average =
-                (dma_read_util_cycles * STATW_PERCENTAGE_MULTIPLIER) / total_cycles;
-            data_sample.pcie_dma_read_utilization.avg = instant_average;
-            STATW_RECALC_MIN_MAX(data_sample.pcie_dma_read_utilization, instant_average)
-
-            instant_average = (dma_write_util_cycles * STATW_PERCENTAGE_MULTIPLIER) / total_cycles;
-            data_sample.pcie_dma_write_utilization.avg = instant_average;
-            STATW_RECALC_MIN_MAX(data_sample.pcie_dma_write_utilization, instant_average)
-
-            instant_average = (cm_util_cycles * STATW_PERCENTAGE_MULTIPLIER) / total_cycles;
-            data_sample.cm_utilization.avg = instant_average;
-            STATW_RECALC_MIN_MAX(data_sample.cm_utilization, instant_average)
+            /* Fill the utilization stats */
+            prev_timestamp = statw_fill_utilization_stats(&data_sample, prev_timestamp);
 
             /* Log the event in trace */
             entry = (struct trace_custom_event_t *)Trace_Custom_Event(Trace_Get_MM_Stats_CB(),
                 TRACE_CUSTOM_TYPE_MM_COMPUTE_RESOURCES, (const uint8_t *)&data_sample,
                 sizeof(data_sample));
-
-            prev_timestamp = current_timestamp;
 
             /* Evict last Trace event which is logged above.
                Evicting complete buffer evertime does not evict properly. */
