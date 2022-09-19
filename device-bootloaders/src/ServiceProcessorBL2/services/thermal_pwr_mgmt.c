@@ -867,6 +867,7 @@ int get_asic_voltage(struct asic_voltage_t *asic_voltage)
     MinShire_VM_sample minshire_voltage = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
     MemShire_VM_sample memshire_voltage = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
     PShire_VM_sample pshr_voltage = { { 0, 0, 0 }, { 0, 0, 0 } };
+    IOShire_VM_sample ioshire_voltage = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } };
 
     status = pvt_get_minion_avg_low_high_voltage(&minshire_voltage);
     if (status == STATUS_SUCCESS)
@@ -906,6 +907,21 @@ int get_asic_voltage(struct asic_voltage_t *asic_voltage)
         MESSAGE_ERROR("thermal pwr mgmt svc error: faild to get memshire voltage\n");
     }
 
+    status = pvt_get_ioshire_vm_sample(&ioshire_voltage);
+    if (status == STATUS_SUCCESS)
+    {
+        g_soc_power_reg.asic_voltage.maxion =
+            PMIC_MILLIVOLT_TO_HEX(ioshire_voltage.vdd_mxn.current, PMIC_MAXION_VOLTAGE_BASE,
+                                  PMIC_MAXION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER);
+
+        Log_Write(LOG_LEVEL_DEBUG, "PMIC_GENERIC_VOLTAGE_DIVIDER: maxion voltage: %d\r\n",
+                  ioshire_voltage.vdd_mxn.current);
+    }
+    else
+    {
+        MESSAGE_ERROR("thermal pwr mgmt svc error: faild to get ioshire voltage\n");
+    }
+
     status = pvt_get_pshire_vm_sample(&pshr_voltage);
     if (status == STATUS_SUCCESS)
     {
@@ -921,8 +937,6 @@ int get_asic_voltage(struct asic_voltage_t *asic_voltage)
     }
 
     /* For these values we dont have PVT, so will use PMIC */
-    pmic_get_voltage(MODULE_MAXION, &temp);
-    g_soc_power_reg.asic_voltage.maxion = temp;
     pmic_get_voltage(MODULE_VDDQLP, &temp);
     g_soc_power_reg.asic_voltage.vddqlp = temp;
     pmic_get_voltage(MODULE_VDDQ, &temp);
