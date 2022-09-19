@@ -691,6 +691,38 @@ int verifyService() {
     DM_LOG(INFO) << "Module Power Output: " << power << " W" << std::endl;
   } break;
 
+  case DM_CMD::DM_CMD_GET_ASIC_VOLTAGE: {
+    const uint32_t output_size = sizeof(asic_voltage_t);
+    char output_buff[output_size] = {0};
+    uint32_t voltage;
+
+    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+
+    asic_voltage_t* asic_voltage = (asic_voltage_t*)output_buff;
+
+    voltage = BIN2VOLTAGE(asic_voltage->ddr, 250, 5, 1);
+    DM_LOG(INFO) << "ASIC Voltage DDR: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(asic_voltage->l2_cache, 250, 5, 1);
+    DM_LOG(INFO) << "ASIC Voltage L2CACHE: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(asic_voltage->maxion, 250, 5, 1);
+    DM_LOG(INFO) << "ASIC Voltage MAXION: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(asic_voltage->minion, 250, 5, 1);
+    DM_LOG(INFO) << "ASIC Voltage MINION: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(asic_voltage->pcie, 600, 125, 10);
+    DM_LOG(INFO) << "ASIC Voltage PCIE: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(asic_voltage->noc, 250, 5, 1);
+    DM_LOG(INFO) << "ASIC Voltage NOC: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(asic_voltage->pcie_logic, 600, 625, 100);
+    DM_LOG(INFO) << "ASIC Voltage PCIE Logic: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(asic_voltage->vddq, 250, 10, 1);
+    DM_LOG(INFO) << "ASIC Voltage VDDQ: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(asic_voltage->vddqlp, 250, 10, 1);
+    DM_LOG(INFO) << "ASIC Voltage VDDQLP: " << +voltage << " mV" << std::endl;
+
+  } break;
+
   case DM_CMD::DM_CMD_GET_MODULE_VOLTAGE: {
     const uint32_t output_size = sizeof(module_voltage_t);
     char output_buff[output_size] = {0};
