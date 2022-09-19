@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - Fix et-powertop regression of bar graph display of watts info via the 'w' command
+- [SW-14061] Fixing the conversion of binary to mV and mV to binary voltage values.
 ### Security
 
 ## [1.5.0] - 2022-09-05

@@ -38,8 +38,8 @@
 #define DM_LOG(severity) ET_LOG(DEV_MNGT_SERVICE, severity) // severity levels: INFO, WARNING and FATAL respectively
 #define DM_DLOG(severity) ET_DLOG(DEV_MNGT_SERVICE, severity)
 #define DM_VLOG(level) ET_VLOG(DEV_MNGT_SERVICE, level) // severity levels: LOW MID HIGH
-#define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER) (BASE + REG_VALUE * MULTIPLIER)
-#define VOLTAGE2BIN(VOL_VALUE, BASE, MULTIPLIER) ((VOL_VALUE - BASE) / MULTIPLIER)
+#define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER, DIVIDER) (BASE + ((REG_VALUE * MULTIPLIER) / DIVIDER))
+#define VOLTAGE2BIN(VOL_VALUE, BASE, MULTIPLIER, DIVIDER) (((VOL_VALUE - BASE) * DIVIDER) / MULTIPLIER)
 #define ECID_LOT_ID_LENGTH 6
 #define POWER_10MW_TO_MW(pwr_10mw) (pwr_10mw * 10)
 #define POWER_10MW_TO_W(pwr_10mw) (pwr_10mw / 100)
@@ -702,19 +702,24 @@ int verifyService() {
 
     module_voltage_t* module_voltage = (module_voltage_t*)output_buff;
 
-    voltage = BIN2VOLTAGE(module_voltage->ddr, 250, 5);
+    voltage = BIN2VOLTAGE(module_voltage->ddr, 250, 5, 1);
     DM_LOG(INFO) << "Module Voltage DDR: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(module_voltage->l2_cache, 250, 5);
+    voltage = BIN2VOLTAGE(module_voltage->l2_cache, 250, 5, 1);
     DM_LOG(INFO) << "Module Voltage L2CACHE: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(module_voltage->maxion, 250, 5);
+    voltage = BIN2VOLTAGE(module_voltage->maxion, 250, 5, 1);
     DM_LOG(INFO) << "Module Voltage MAXION: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(module_voltage->minion, 250, 5);
+    voltage = BIN2VOLTAGE(module_voltage->minion, 250, 5, 1);
     DM_LOG(INFO) << "Module Voltage MINION: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(module_voltage->pcie, 600, 6); // FIXME its 6.25 actualy, try float
+    voltage = BIN2VOLTAGE(module_voltage->pcie, 600, 125, 10);
     DM_LOG(INFO) << "Module Voltage PCIE: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(module_voltage->noc, 250, 5);
+    voltage = BIN2VOLTAGE(module_voltage->noc, 250, 5, 1);
     DM_LOG(INFO) << "Module Voltage NOC: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(module_voltage->pcie_logic, 600, 6);
+    voltage = BIN2VOLTAGE(module_voltage->pcie_logic, 600, 625, 100);
+    DM_LOG(INFO) << "Module Voltage PCIE Logic: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(module_voltage->vddq, 250, 10, 1);
+    DM_LOG(INFO) << "Module Voltage VDDQ: " << +voltage << " mV" << std::endl;
+    voltage = BIN2VOLTAGE(module_voltage->vddqlp, 250, 10, 1);
+    DM_LOG(INFO) << "Module Voltage VDDQLP: " << +voltage << " mV" << std::endl;
 
   } break;
 
@@ -1488,29 +1493,33 @@ bool validVoltage() {
     return false;
   }
 
-  static const std::map<std::string,
-                        std::tuple<device_mgmt_api::module_e, uint8_t /* base */, uint8_t /* multiplier */>>
+  static const std::map<std::string, std::tuple<device_mgmt_api::module_e, uint16_t /* base */,
+                                                uint16_t /* multiplier */, uint16_t /* divider */>>
     moduleTypes{
-      {"DDR", {device_mgmt_api::MODULE_DDR, 250, 5}},
-      {"L2CACHE", {device_mgmt_api::MODULE_L2CACHE, 250, 5}},
-      {"MAXION", {device_mgmt_api::MODULE_MAXION, 250, 5}},
-      {"MINION", {device_mgmt_api::MODULE_MINION, 250, 5}},
-      {"PCIE", {device_mgmt_api::MODULE_PCIE, 600, 6}},
-      {"NOC", {device_mgmt_api::MODULE_NOC, 250, 5}},
-      {"PCIE_LOGIC", {device_mgmt_api::MODULE_PCIE_LOGIC, 600, 6}},
+      {"DDR", {device_mgmt_api::MODULE_DDR, 250, 5, 1}},
+      {"L2CACHE", {device_mgmt_api::MODULE_L2CACHE, 250, 5, 1}},
+      {"MAXION", {device_mgmt_api::MODULE_MAXION, 250, 5, 1}},
+      {"MINION", {device_mgmt_api::MODULE_MINION, 250, 5, 1}},
+      {"PCIE", {device_mgmt_api::MODULE_PCIE, 600, 125, 10}},
+      {"NOC", {device_mgmt_api::MODULE_NOC, 250, 5, 1}},
+      {"PCIE_LOGIC", {device_mgmt_api::MODULE_PCIE_LOGIC, 600, 625, 100}},
+      {"VDDQ", {device_mgmt_api::MODULE_VDDQ, 250, 10, 1}},
+      {"VDDQLP", {device_mgmt_api::MODULE_VDDQLP, 250, 10, 1}},
     };
   auto moduleType = std::strtok(optarg, ",");
 
   auto itr = moduleTypes.find(moduleType);
   if (itr == moduleTypes.end()) {
     DM_VLOG(HIGH) << "Aborting, Invalid Module Type: " << moduleType
-                  << ", possible types are {DDR, L2CACHE, MAXION, MINION, PCIE, NOC, PCIE_LOGIC}" << std::endl;
+                  << ", possible types are {DDR, L2CACHE, MAXION, MINION, PCIE, NOC, PCIE_LOGIC, VDDQ, VDDQLP}"
+                  << std::endl;
     return false;
   }
 
-  uint8_t base;
-  uint8_t multiplier;
-  std::tie(volt_type, base, multiplier) = itr->second;
+  uint16_t base;
+  uint16_t multiplier;
+  uint16_t divider;
+  std::tie(volt_type, base, multiplier, divider) = itr->second;
 
   auto voltage = std::stoul(std::strtok(NULL, ","));
   if (voltage > std::numeric_limits<uint16_t>::max()) {
@@ -1518,7 +1527,7 @@ bool validVoltage() {
                   << " )" << std::endl;
     return false;
   }
-  volt_enc = static_cast<decltype(volt_enc)>(VOLTAGE2BIN(voltage, base, multiplier));
+  volt_enc = static_cast<decltype(volt_enc)>(VOLTAGE2BIN(voltage, base, multiplier, divider));
 
   return true;
 }
