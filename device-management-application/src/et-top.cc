@@ -33,6 +33,8 @@
 
 #define ET_TOP "et-powertop"
 
+#define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER, DIVIDER) (BASE + ((REG_VALUE * MULTIPLIER) / DIVIDER))
+#define VOLTAGE2BIN(VOL_VALUE, BASE, MULTIPLIER, DIVIDER) (((VOL_VALUE - BASE) * DIVIDER) / MULTIPLIER)
 #define POWER_10MW_TO_W(pwr10mw) (pwr10mw / 100.0)
 #define POWER_MW_TO_W(pwrMw) (pwrMw / 1000.0)
 
@@ -176,7 +178,7 @@ private:
   void displayOpStat(const std::string stat, const struct op_value& ov, const op_value_unit unit,
                      const bool isPower = false, const float cardMax = 0.0, const bool addBarLabels = false);
   void displayFreqStat(const std::string stat, bool endLine, uint64_t frequency);
-  void displayVoltStat(const std::string stat, bool endLine, uint64_t value, uint32_t base, uint32_t multiplier);
+  void displayVoltStat(const std::string stat, bool endLine, uint64_t moduleVoltage, uint64_t asicVoltage);
   void displayComputeStat(const std::string stat, const struct resource_value& rv);
   void displayErrorDetails(std::map<std::string, uint64_t>& error, bool addColon = false, std::string prefix = "");
   void collectMemStats(void);
@@ -211,7 +213,8 @@ private:
   struct sp_stats_t spStats_;
   struct mm_stats_t mmStats_;
   device_mgmt_api::asic_frequencies_t freqStats_;
-  device_mgmt_api::module_voltage_t voltStats_;
+  device_mgmt_api::module_voltage_t moduleVoltStats_;
+  device_mgmt_api::asic_voltage_t asicVoltStats_;
 };
 
 void EtTop::collectMemStats(void) {
@@ -475,10 +478,16 @@ void EtTop::collectVoltStats(void) {
   uint32_t hostLatency;
   uint64_t deviceLatency;
   auto ret = dm_.serviceRequest(devNum_, device_mgmt_api::DM_CMD_GET_MODULE_VOLTAGE, nullptr, 0,
-                                static_cast<char*>(static_cast<void*>(&voltStats_)), sizeof(voltStats_), &hostLatency,
-                                &deviceLatency, kDmServiceRequestTimeout);
+                                static_cast<char*>(static_cast<void*>(&moduleVoltStats_)), sizeof(moduleVoltStats_),
+                                &hostLatency, &deviceLatency, kDmServiceRequestTimeout);
   if (ret != device_mgmt_api::DM_STATUS_SUCCESS) {
     DV_LOG(ERROR) << "Service request get module voltage failed with return code: " << std::dec << ret << std::endl;
+  }
+  ret = dm_.serviceRequest(devNum_, device_mgmt_api::DM_CMD_GET_ASIC_VOLTAGE, nullptr, 0,
+                           static_cast<char*>(static_cast<void*>(&asicVoltStats_)), sizeof(asicVoltStats_),
+                           &hostLatency, &deviceLatency, kDmServiceRequestTimeout);
+  if (ret != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(ERROR) << "Service request get asic voltage failed with return code: " << std::dec << ret << std::endl;
   }
 }
 
@@ -709,8 +718,11 @@ void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, con
   return;
 }
 
-void EtTop::displayVoltStat(const std::string stat, bool endLine, uint64_t value, uint32_t base, uint32_t multiplier) {
-  std::cout << "\t" + stat + ": " << std::setw(6) << std::left << (base + value * multiplier) << (endLine ? "\n" : "");
+void EtTop::displayVoltStat(const std::string stat, bool endLine, uint64_t moduleVoltage, uint64_t asicVoltage) {
+  std::stringstream asicVoltFormat;
+  asicVoltFormat << "(" << asicVoltage << ")";
+  std::cout << "\t" + stat + ": " << std::setw(5) << std::left << moduleVoltage << std::setw(7) << std::right
+            << asicVoltFormat.str() << std::left << (endLine ? "\n" : " ");
 }
 
 void EtTop::displayFreqStat(const std::string stat, bool endLine, uint64_t frequency) {
@@ -815,13 +827,24 @@ void EtTop::displayStats(void) {
 
   if (displayVoltDetails_) {
     std::cout << "Voltages(mV):\n";
-    displayVoltStat("MAXION   ", false, voltStats_.maxion, 250, 5);
-    displayVoltStat("MINION   ", true, voltStats_.minion, 250, 5);
-    displayVoltStat("NOC      ", false, voltStats_.noc, 250, 5);
-    displayVoltStat("DDR      ", true, voltStats_.ddr, 250, 5);
-    displayVoltStat("PCIE SS  ", false, voltStats_.pcie, 600, 6);
-    displayVoltStat("PCL      ", true, voltStats_.pcie_logic, 600, 6);
-    displayVoltStat("L2 CACHE ", true, voltStats_.l2_cache, 250, 5);
+    displayVoltStat("MAXION   ", false, BIN2VOLTAGE(moduleVoltStats_.maxion, 250, 5, 1),
+                    BIN2VOLTAGE(asicVoltStats_.maxion, 250, 5, 1));
+    displayVoltStat("MINION   ", true, BIN2VOLTAGE(moduleVoltStats_.minion, 250, 5, 1),
+                    BIN2VOLTAGE(asicVoltStats_.minion, 250, 5, 1));
+    displayVoltStat("NOC      ", false, BIN2VOLTAGE(moduleVoltStats_.noc, 250, 5, 1),
+                    BIN2VOLTAGE(asicVoltStats_.noc, 250, 5, 1));
+    displayVoltStat("L2 CACHE ", true, BIN2VOLTAGE(moduleVoltStats_.l2_cache, 250, 5, 1),
+                    BIN2VOLTAGE(asicVoltStats_.l2_cache, 250, 5, 1));
+    displayVoltStat("PCIE SS  ", false, BIN2VOLTAGE(moduleVoltStats_.pcie, 600, 125, 10),
+                    BIN2VOLTAGE(asicVoltStats_.pcie, 600, 125, 10));
+    displayVoltStat("PCL      ", true, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 600, 625, 100),
+                    BIN2VOLTAGE(asicVoltStats_.pcie_logic, 600, 625, 100));
+    displayVoltStat("VDDQ     ", false, BIN2VOLTAGE(moduleVoltStats_.vddq, 250, 10, 1),
+                    BIN2VOLTAGE(asicVoltStats_.vddq, 250, 10, 1));
+    displayVoltStat("VDDQLP   ", true, BIN2VOLTAGE(moduleVoltStats_.vddqlp, 250, 10, 1),
+                    BIN2VOLTAGE(asicVoltStats_.vddqlp, 250, 10, 1));
+    displayVoltStat("DDR      ", true, BIN2VOLTAGE(moduleVoltStats_.ddr, 250, 5, 1),
+                    BIN2VOLTAGE(asicVoltStats_.ddr, 250, 5, 1));
   }
 
   bool errors = errStats_.uceCount > 0 || errStats_.ceCount > 0 || aerStats_.aerCount > 0;

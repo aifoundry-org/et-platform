@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-13851] et-powertop: Add support to reset device stats.
-- [SW-14061] Added support for DM_CMD_GET_ASIC_VOLTAGE service.
+- [SW-14061] dev_mngt_service: Added support for DM_CMD_GET_ASIC_VOLTAGE service.
+- [SW-14061] et-powertop: Added support for displaying ASIC voltages.
 ### Changed
 - [SW-13832] Use DM_CMD_GET_MM_STATS instead of getTraceBufferServiceProcessor
 ### Deprecated
