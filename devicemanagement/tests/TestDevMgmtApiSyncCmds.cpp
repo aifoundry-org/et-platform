@@ -1052,6 +1052,47 @@ void TestDevMgmtApiSyncCmds::getModulePower(bool singleDevice) {
   }
 }
 
+void TestDevMgmtApiSyncCmds::getAsicVoltage(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    device_mgmt_api::asic_voltage_t* moduleVoltage;
+    const uint32_t output_size = sizeof(device_mgmt_api::asic_voltage_t);
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_VOLTAGE, nullptr, 0, output_buff,
+                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    device_mgmt_api::asic_voltage_t* voltages = (device_mgmt_api::asic_voltage_t*)output_buff;
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received DDR={} mV", deviceIdx, BIN2VOLTAGE(voltages->ddr, 250, 5, 1));
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received L2CACHE={} mV", deviceIdx,
+                                BIN2VOLTAGE(voltages->l2_cache, 250, 5, 1));
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received MAXION={} mV", deviceIdx,
+                                BIN2VOLTAGE(voltages->maxion, 250, 5, 1));
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received MINION={} mV", deviceIdx,
+                                BIN2VOLTAGE(voltages->minion, 250, 5, 1));
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received PCIE={} mV", deviceIdx,
+                                BIN2VOLTAGE(voltages->pcie, 600, 125, 10));
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received NOC={} mV", deviceIdx, BIN2VOLTAGE(voltages->noc, 250, 5, 1));
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received PCIE_LOGIC={} mV", deviceIdx,
+                                BIN2VOLTAGE(voltages->pcie_logic, 600, 625, 100));
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received VDDQ={} mV", deviceIdx, BIN2VOLTAGE(voltages->vddq, 250, 10, 1));
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received VDDQLP={} mV", deviceIdx,
+                                BIN2VOLTAGE(voltages->vddqlp, 250, 10, 1));
+    // Skip validation if loopback driver or SysEMU
+    if (!targetInList({Target::Loopback, Target::SysEMU})) {
+      // Expect that output_buff is non-zero
+      EXPECT_TRUE(
+        std::any_of(output_buff, output_buff + output_size, [](unsigned char const byte) { return byte != 0; }));
+    }
+  }
+}
+
 void TestDevMgmtApiSyncCmds::getModuleVoltage(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);

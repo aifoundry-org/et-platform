@@ -74,6 +74,7 @@ protected:
   void getModuleResidencyThrottleState(bool singleDevice);
   void getModuleUptime(bool singleDevice);
   void getModulePower(bool singleDevice);
+  void getAsicVoltage(bool singleDevice);
   void getModuleVoltage(bool singleDevice);
   void setAndGetModuleVoltage(bool singleDevice);
   void getModuleCurrentTemperature(bool singleDevice);

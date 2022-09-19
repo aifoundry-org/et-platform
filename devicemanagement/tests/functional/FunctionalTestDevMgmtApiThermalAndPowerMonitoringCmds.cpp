@@ -56,13 +56,22 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModulePower) {
   getModulePower(false /* Multiple devices */);
 }
 
+TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getAsicVoltage) {
+  getAsicVoltage(false /* Multiple devices */);
+}
+
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleVoltage) {
   getModuleVoltage(false /* Multiple devices */);
 }
 
-// Disabled until SW-14061 is resolved
-TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, DISABLED_setAndGetModuleVoltage) {
-  setAndGetModuleVoltage(false /* Multiple devices */);
+TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setAndGetModuleVoltage) {
+  // Skip if loopback driver - handling not implemented yet
+  if (getTestTarget() != Target::Loopback) {
+    setAndGetModuleVoltage(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleCurrentTemperature) {
