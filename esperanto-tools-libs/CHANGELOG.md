@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unrealeased]
 ### Added
+- [SW-14117] added support for benchmark tool using new runtime server
 - [SW-14093] added new docker image which will host the server multiprocess instance.
 - [SW-14053] added new kernel error handling from device api 0.6.0. Bumped system-sw projects to work with device api 0.6.0.
 ### Changed

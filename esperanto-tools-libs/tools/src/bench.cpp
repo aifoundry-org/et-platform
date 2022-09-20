@@ -38,10 +38,11 @@ DECLARE_bool(helpshort);
 
 // DEFINE_bool(dma, false, "enable dma buffers (allows zero-copy)");
 // DEFINE_string(kernelPath, "", "path of the kernel to load and execute");
-DEFINE_uint32(deviceLayer, 0, "DeviceLayer type: 0 -> fake; 1 -> sysemu based; 2 -> pcie");
+DEFINE_uint32(deviceLayer, 0, "DeviceLayer type: 0 -> fake; 1 -> sysemu based; 2 -> pcie; 3-> socket");
+DEFINE_string(socketPath, "/var/run/et_runtime/pcie.sock", "socket path when connecting to a daemon");
 
 static bool ValidatePort(const char* flagname, google::uint32 value) {
-  if (value >= 0 && value <= 2) // value is ok
+  if (value >= 0 && value <= 3) // value is ok
     return true;
   printf("Invalid value for --%s: %d\n", flagname, (int)value);
   return false;
@@ -82,6 +83,10 @@ auto createDeviceLayer() {
   case 2:
     result = dev::IDeviceLayer::createPcieDeviceLayer();
     break;
+  case 3:
+    // case 3 won't create a devicelayer, it will connect through socket
+  default:;
+    // do nothing
   }
   return result;
 }
@@ -100,7 +105,12 @@ int main(int argc, char* argv[]) {
   google::HandleCommandLineHelpFlags();
 
   auto deviceLayer = createDeviceLayer();
-  auto runtime = rt::IRuntime::create(deviceLayer.get());
+  decltype(rt::IRuntime::create(nullptr)) runtime;
+  if (deviceLayer) {
+    runtime = rt::IRuntime::create(deviceLayer.get());
+  } else {
+    runtime = rt::IRuntime::create(FLAGS_socketPath);
+  }
   auto benchmarker = IBenchmarker::create(runtime.get());
   IBenchmarker::Options opts;
   opts.runtimeTracePath = FLAGS_tracePath;
