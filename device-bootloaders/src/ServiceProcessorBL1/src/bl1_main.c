@@ -17,6 +17,8 @@
 #include "bl1_build_configuration.h"
 #include "sp_otp.h"
 #include "etsoc/isa/io.h"
+#include "bl1_spi_controller.h"
+#include "bl1_pll.h"
 
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/hal_device.h"
@@ -296,6 +298,12 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t *rom_data)
         printx("copy_rom_data() failed!!\n");
         goto FATAL_ERROR;
     }
+
+    if (get_pll_requested_percent() != SP_PLL_STATE_100_PER_CENT)
+        printx("WARNING: PLLs are not at 100%%!\r\n");
+
+    check_spi_dividers_otp_override_values();
+    check_pll_otp_override_values();
 
     timer_init();
 

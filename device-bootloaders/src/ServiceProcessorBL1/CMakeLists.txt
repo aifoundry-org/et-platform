@@ -19,6 +19,7 @@ add_riscv_executable(ServiceProcessorBL1
     src/bl1_spi_controller.c
     src/bl1_spi_flash.c
     src/bl1_flash_fs.c
+    src/bl1_pll.c
     src/crc32.c
     src/memory_copy_8x32.S
     src/bl1_timer.c

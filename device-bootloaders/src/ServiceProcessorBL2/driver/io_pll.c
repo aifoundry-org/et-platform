@@ -32,6 +32,7 @@
 #include "interrupt.h"
 #include "delays.h"
 #include "bl2_reset.h"
+#include "hpdpll_register_defines.h"
 
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/sp_cru.h"
@@ -63,111 +64,6 @@
     \brief PLL configuration count
 */
 #define PLL_CONFIG_COUNT 4
-
-/*! \def PLL_REG_INDEX_REG_0
-    \brief index register number
-*/
-#define PLL_REG_INDEX_REG_0 0
-
-/*! \def PLL_REG_INDEX_REG_FCW_INT
-    \brief int multiplier
-*/
-#define PLL_REG_INDEX_REG_FCW_INT 0x02
-
-/*! \def PLL_REG_INDEX_REG_FCW_FRAC
-    \brief frac multiplier
-*/
-#define PLL_REG_INDEX_REG_FCW_FRAC 0x03
-
-/*! \def PLL_REG_INDEX_REG_POST_DIVIDER
-    \brief post divider
-*/
-#define PLL_REG_INDEX_REG_POST_DIVIDER 0x0E
-
-/*! \def PLL_REG_INDEX_REG_LOCK_THRESHOLD
-    \brief lock threshold
-*/
-#define PLL_REG_INDEX_REG_LOCK_THRESHOLD 0x0B
-
-/*! \def PLL_REG_INDEX_REG_LDO_CONTROL
-    \brief LDO control
-*/
-#define PLL_REG_INDEX_REG_LDO_CONTROL 0x18
-
-/*! \def PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL
-    \brief Lock monitor sample strobe and clear
-*/
-#define PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL 0x19
-
-/*! \def PLL_REG_INDEX_REG_FREQ_MONITOR_CONTROL
-    \brief Freq montior control
-*/
-#define PLL_REG_INDEX_REG_FREQ_MONITOR_CONTROL 0x23
-
-/*! \def PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_REF_COUNT
-    \brief Freq montior clock ref count
-*/
-#define PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_REF_COUNT 0x24
-
-/*! \def PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_COUNT_0
-    \brief Freq montior clock count 0
-*/
-#define PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_COUNT_0 0x25
-
-/*! \def PLL_REG_INDEX_REG_LOCK_MONITOR
-    \brief Lock montior
-*/
-#define PLL_REG_INDEX_REG_LOCK_MONITOR 0x30
-
-/*! \def PLL_LOCK_MONITOR_MASK
-    \brief Lock montior mask
-*/
-#define PLL_LOCK_MONITOR_MASK 0x3F
-
-/*! \def PLL_REG_INDEX_REG_DCO_CODE_LOOP_FILTER
-    \brief DCO code aquired
-*/
-#define PLL_REG_INDEX_REG_DCO_CODE_LOOP_FILTER 0x32
-
-/*! \def PLL_REG_INDEX_REG_UPDATE_STROBE
-    \brief update strobe register index
-*/
-#define PLL_REG_INDEX_REG_UPDATE_STROBE 0x38
-
-/*! \def PLL_REG_INDEX_REG_LOCK_DETECT_STATUS
-    \brief PLL lock detect status
-*/
-#define PLL_REG_INDEX_REG_LOCK_DETECT_STATUS 0x39
-
-/*! \def DCO_NORMALIZATION_ENABLE_OFFSET
-    \brief DCO normalization enable offset
-*/
-#define DCO_NORMALIZATION_ENABLE_OFFSET 7u
-
-/*! \def DCO_NORMALIZATION_ENABLE_MASK
-    \brief DCO normalization enable mask
-*/
-#define DCO_NORMALIZATION_ENABLE_MASK (1u << DCO_NORMALIZATION_ENABLE_OFFSET)
-
-/*! \def STROBE_UPDATE_OFFSET
-    \brief Strobe update offset
-*/
-#define STROBE_UPDATE_OFFSET 0u
-
-/*! \def PLL_ENABLE_OFFSET
-    \brief PLL enable offset
-*/
-#define PLL_ENABLE_OFFSET 3u
-
-/*! \def LDO_POWER_DOWN_OFFSET
-    \brief LDO power down offset
-*/
-#define LDO_POWER_DOWN_OFFSET 1u
-
-/*! \def LDO_BYPASS_OFFSET
-    \brief LDO bypass offset
-*/
-#define LDO_BYPASS_OFFSET 0u
 
 /*! \def FREQUENCY_HZ_TO_MHZ(x)
     \brief Converts HZ to MHZ
@@ -1243,46 +1139,66 @@ int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
     gs_sp_pll_4_frequency = 0;
     gs_pcie_pll_0_frequency = pcie_pll_0_frequency;
 
-    /* Perform LDO kick of PLLs configured during Bootrom */
-    do
+    if (get_pll_requested_percent() != SP_PLL_STATE_OFF)
     {
-        status = spio_pll_ldo_kick(PLL_ID_SP_PLL_0, (uint32_t *)R_SP_PLL0_BASEADDR, 2);
-        try_num++;
-    } while ((0 != status) && (try_num < PLL_PROGRAM_TRY_LIMIT));
+        /* Perform LDO kick of PLLs configured during Bootrom */
+        do
+        {
+            status = spio_pll_ldo_kick(PLL_ID_SP_PLL_0, (uint32_t *)R_SP_PLL0_BASEADDR, 2);
+            try_num++;
+        } while ((0 != status) && (try_num < PLL_PROGRAM_TRY_LIMIT));
 
-    if (0 != status)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "SPIO PLL0 ldo kick failed\n");
-        return status;
-    }
+        if (0 != status)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "SPIO PLL0 ldo kick failed\n");
+            return status;
+        }
 
-    try_num = 0;
-    do
-    {
-        status = spio_pll_ldo_kick(PLL_ID_SP_PLL_1, (uint32_t *)R_SP_PLL1_BASEADDR, 2);
-        try_num++;
-    } while ((0 != status) && (try_num < PLL_PROGRAM_TRY_LIMIT));
+        try_num = 0;
+        do
+        {
+            status = spio_pll_ldo_kick(PLL_ID_SP_PLL_1, (uint32_t *)R_SP_PLL1_BASEADDR, 2);
+            try_num++;
+        } while ((0 != status) && (try_num < PLL_PROGRAM_TRY_LIMIT));
 
-    if (0 != status)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "SPIO PLL1 ldo kick failed\n");
-        return status;
-    }
+        if (0 != status)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "SPIO PLL1 ldo kick failed\n");
+            return status;
+        }
 
 #if !FAST_BOOT
-    try_num = 0;
-    do
-    {
-        status = spio_pll_ldo_kick(PLL_ID_PSHIRE, (uint32_t *)R_PCIE_PLLP0_BASEADDR, 2);
-        try_num++;
-    } while ((0 != status) && (try_num < PLL_PROGRAM_TRY_LIMIT));
+        try_num = 0;
+        do
+        {
+            status = spio_pll_ldo_kick(PLL_ID_PSHIRE, (uint32_t *)R_PCIE_PLLP0_BASEADDR, 2);
+            try_num++;
+        } while ((0 != status) && (try_num < PLL_PROGRAM_TRY_LIMIT));
 
-    if (0 != status)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "PSHIRE PLL ldo kick failed\n");
-        return status;
-    }
+        if (0 != status)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "PSHIRE PLL ldo kick failed\n");
+            return status;
+        }
 #endif
+    }
 
     return 0;
+}
+
+SP_PLL_STATE_t get_pll_requested_percent(void)
+{
+    const SERVICE_PROCESSOR_BL2_DATA_t *bl2_data = get_service_processor_bl2_data();
+
+    switch ((bl2_data->sp_gpio_pins >> 3) & 0x3)
+    {
+        case 0:
+            return SP_PLL_STATE_100_PER_CENT; // all PLLs are configured to 100%
+        case 1:
+            return SP_PLL_STATE_75_PER_CENT; // all PLLs are configured to 75%
+        case 2:
+            return SP_PLL_STATE_50_PER_CENT; // all PLLs are configured to 50%
+        default:
+            return SP_PLL_STATE_OFF; // all PLLs are left OFF
+    }
 }

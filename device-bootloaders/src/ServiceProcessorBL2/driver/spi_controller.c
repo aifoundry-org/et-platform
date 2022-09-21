@@ -54,6 +54,11 @@
 */
 #define MAX_RX_TX_FIFO_SIZE 256
 
+/*! \def DEFAULT_SPI_FREQ
+    \brief Default SPI freq
+*/
+#define DEFAULT_SPI_FREQ 100
+
 #if 1
 /*! \def SCPOL_VALUE
     \brief
@@ -782,17 +787,31 @@ static uint32_t spi_calculate_divider(uint32_t frequency)
     uint32_t pll_frequency;
     uint32_t spi_divider;
     uint32_t calculated_frequency;
+    uint32_t spi_frequency;
 
-    if (0 != get_pll_frequency(PLL_ID_SP_PLL_1, &pll_frequency))
+    if (get_pll_requested_percent() == SP_PLL_STATE_OFF)
     {
-        MESSAGE_ERROR("Failed to get PLL 1 frequency!\n");
-        return (uint32_t)-1;
+        spi_frequency = DEFAULT_SPI_FREQ;
+    }
+    else
+    {
+        if (0 != get_pll_frequency(PLL_ID_SP_PLL_1, &pll_frequency))
+        {
+            MESSAGE_ERROR("Failed to get PLL 1 frequency!\n");
+            return (uint32_t)-1;
+        }
+        spi_frequency = pll_frequency / 4;
     }
 
-    spi_divider = (pll_frequency / 4) / frequency;
-    calculated_frequency = (pll_frequency / 4) / spi_divider;
+    spi_divider = spi_frequency / frequency;
+    calculated_frequency = spi_frequency / spi_divider;
 
     if (calculated_frequency > frequency)
+    {
+        spi_divider++;
+    }
+
+    if ((spi_divider % 2) == 1)
     {
         spi_divider++;
     }

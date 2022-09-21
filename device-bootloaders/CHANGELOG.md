@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14061] Separating voltages read from PVT and PMIC.
 - [SW-14061] Separated the PMIC and SOC power registers.
 - [SW-14061] Reading ASIC voltage for Maxion from PVT.
+- [SW-14106] Add checks for the OTP override for PLL setting and also strap options
 ### Deprecated
 ### Removed
 ### Fixed

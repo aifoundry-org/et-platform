@@ -14,6 +14,7 @@
 
 #include "hwinc/hpdpll_modes_config.h"
 #include "delays.h"
+#include "hpdpll_register_defines.h"
 
 #define MEMSHIRE_PLL_CONFIG_BASE 0x61000000
 
@@ -21,91 +22,6 @@
     \brief lock timeout for PLL
 */
 #define PLL_LOCK_TIMEOUT 10000
-
-/*! \def PLL_REG_INDEX_REG_0
-    \brief index register number
-*/
-#define PLL_REG_INDEX_REG_0 0
-
-/*! \def PLL_REG_INDEX_REG_LOCK_THRESHOLD
-    \brief lock threshold
-*/
-#define PLL_REG_INDEX_REG_LOCK_THRESHOLD 0x0B
-
-/*! \def PLL_REG_INDEX_REG_LDO_CONTROL
-    \brief LDO control
-*/
-#define PLL_REG_INDEX_REG_LDO_CONTROL 0x18
-
-/*! \def PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL
-    \brief Lock monitor sample strobe and clear
-*/
-#define PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL 0x19
-
-/*! \def PLL_REG_INDEX_REG_FREQ_MONITOR_CONTROL
-    \brief Freq montior control
-*/
-#define PLL_REG_INDEX_REG_FREQ_MONITOR_CONTROL 0x23
-
-/*! \def PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_REF_COUNT
-    \brief Freq montior clock ref count
-*/
-#define PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_REF_COUNT 0x24
-
-/*! \def PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_COUNT_0
-    \brief Freq montior clock count 0
-*/
-#define PLL_REG_INDEX_REG_FREQ_MONITOR_CLK_COUNT_0 0x25
-
-/*! \def PLL_REG_INDEX_REG_LOCK_MONITOR
-    \brief Lock montior
-*/
-#define PLL_REG_INDEX_REG_LOCK_MONITOR 0x30
-
-/*! \def PLL_LOCK_MONITOR_MASK
-    \brief Lock montior mask
-*/
-#define PLL_LOCK_MONITOR_MASK 0x3F
-
-/*! \def PLL_REG_INDEX_REG_DCO_CODE_ACQUIRED
-    \brief DCO code aquired
-*/
-#define PLL_REG_INDEX_REG_DCO_CODE_ACQUIRED 0x31
-
-/*! \def PLL_REG_INDEX_REG_DCO_CODE_LOOP_FILTER
-    \brief DCO code aquired
-*/
-#define PLL_REG_INDEX_REG_DCO_CODE_LOOP_FILTER 0x32
-
-/*! \def PLL_REG_INDEX_REG_UPDATE_STROBE
-    \brief update strobe register index
-*/
-#define PLL_REG_INDEX_REG_UPDATE_STROBE 0x38
-
-/*! \def PLL_REG_INDEX_REG_LOCK_DETECT_STATUS
-    \brief PLL lock detect status
-*/
-#define PLL_REG_INDEX_REG_LOCK_DETECT_STATUS 0x39
-
-/*! \def DCO_NORMALIZATION_ENABLE__SHIFT
-    \brief DCO normalization enable shift
-*/
-#define DCO_NORMALIZATION_ENABLE__SHIFT 7u
-
-/*! \def DCO_NORMALIZATION_ENABLE__MASK
-    \brief DCO normalization enable mask
-*/
-#define DCO_NORMALIZATION_ENABLE__MASK (1u << DCO_NORMALIZATION_ENABLE__SHIFT)
-
-/*! \def PLL_ENABLE__SHIFT
-    \brief PLL enable shift
-*/
-#define PLL_ENABLE__SHIFT 3u
-
-/*! \def PLL_ENABLE__MASK
-    \brief PLL enable mask
-*/
-#define PLL_ENABLE__MASK (1u << PLL_ENABLE__SHIFT)
 
 /*! \def FREQUENCY_HZ_TO_MHZ(x)
     \brief Converts HZ to MHZ
@@ -224,12 +140,12 @@ static int program_memshire_pll(uint8_t ms_num, uint8_t mode, uint32_t *target_f
 
     /*dco_normalization toggle */
     reg0 = read_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_0);
-    reg0 = reg0 & (uint16_t)~DCO_NORMALIZATION_ENABLE__MASK;
+    reg0 = reg0 & (uint16_t)~DCO_NORMALIZATION_ENABLE_MASK;
     write_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_0, reg0);
     update_memshire_pll_regs(ms_num);
 
     reg0 = read_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_0);
-    reg0 = reg0 | (uint16_t)DCO_NORMALIZATION_ENABLE__MASK;
+    reg0 = reg0 | (uint16_t)DCO_NORMALIZATION_ENABLE_MASK;
     write_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_0, reg0);
     update_memshire_pll_regs(ms_num);
 
@@ -247,11 +163,11 @@ static int program_memshire_pll(uint8_t ms_num, uint8_t mode, uint32_t *target_f
 
         usdelay(3);
 
-        reg0 = reg0 & (uint16_t)~PLL_ENABLE__MASK; // Disable PLL
+        reg0 = reg0 & (uint16_t)~PLL_ENABLE_MASK; // Disable PLL
         write_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_0, reg0);
         update_memshire_pll_regs(ms_num);
 
-        reg0 = reg0 | (uint16_t)PLL_ENABLE__MASK; // Enable PLL
+        reg0 = reg0 | (uint16_t)PLL_ENABLE_MASK; // Enable PLL
         write_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_0, reg0);
         update_memshire_pll_regs(ms_num);
 

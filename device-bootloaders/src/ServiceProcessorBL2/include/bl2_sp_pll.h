@@ -194,4 +194,11 @@ void print_spio_lock_loss_monitors(void);
 */
 void clear_spio_lock_loss_monitors(void);
 
+/*! \fn SP_PLL_STATE_t get_pll_requested_percent(void)
+    \brief This function returns PLL state (100%, 75%, 50%, PLL OFF)
+    \param None 
+    \return PLL state
+*/
+SP_PLL_STATE_t get_pll_requested_percent(void);
+
 #endif
