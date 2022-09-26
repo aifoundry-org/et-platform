@@ -66,13 +66,7 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleVoltage) 
 
 // TODO: Disabled the test until SW-14288 is resolved
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, DISABLED_setAndGetModuleVoltage) {
-  // Skip if loopback driver - handling not implemented yet
-  if (getTestTarget() != Target::Loopback) {
-    setAndGetModuleVoltage(false /* Multiple devices */);
-  } else {
-    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
-    FLAGS_enable_trace_dump = false;
-  }
+  setAndGetModuleVoltage(false /* Multiple devices */);
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleCurrentTemperature) {

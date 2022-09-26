@@ -1138,6 +1138,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  double voltagePercentDrop = 0.0;
 
   auto setModuleVoltages = [&](int deviceIdx, const device_mgmt_api::module_voltage_t& voltages) {
     const uint32_t input_size = sizeof(device_mgmt_api::module_e) + sizeof(uint8_t);
@@ -1286,8 +1287,8 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
     testVoltages.pcie = defaultVoltages.pcie + 5;
     testVoltages.noc = defaultVoltages.noc + 5;
     testVoltages.pcie_logic = defaultVoltages.pcie_logic + 5;
-    testVoltages.vddq = defaultVoltages.vddq + 5;
-    testVoltages.vddqlp = defaultVoltages.vddqlp + 5;
+    testVoltages.vddq = defaultVoltages.vddq + 1;
+    testVoltages.vddqlp = defaultVoltages.vddqlp + 1;
     EXPECT_TRUE(setModuleVoltages(deviceIdx, testVoltages)) << "setModuleVoltages() failed!";
 
     // Skip validation if loopback driver or SysEMU
@@ -1302,23 +1303,24 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
           break;
         }
       }
-      EXPECT_LE(percentVoltageChange(container.value().ddr, testVoltages.ddr, 250, 5, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().ddr, testVoltages.ddr, 250, 5, 1), voltagePercentDrop)
         << "Unable to set DDR test voltage";
-      EXPECT_LE(percentVoltageChange(container.value().l2_cache, testVoltages.l2_cache, 250, 5, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().l2_cache, testVoltages.l2_cache, 250, 5, 1), voltagePercentDrop)
         << "Unable to set L2CACHE test voltage";
-      EXPECT_LE(percentVoltageChange(container.value().maxion, testVoltages.maxion, 250, 5, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().maxion, testVoltages.maxion, 250, 5, 1), voltagePercentDrop)
         << "Unable to set MAXION test voltage";
-      EXPECT_LE(percentVoltageChange(container.value().minion, testVoltages.minion, 250, 5, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().minion, testVoltages.minion, 250, 5, 1), voltagePercentDrop)
         << "Unable to set MINION test voltage";
-      EXPECT_LE(percentVoltageChange(container.value().pcie, testVoltages.pcie, 600, 125, 10), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().pcie, testVoltages.pcie, 600, 125, 10), voltagePercentDrop)
         << "Unable to set PCIE test voltage";
-      EXPECT_LE(percentVoltageChange(container.value().noc, testVoltages.noc, 250, 5, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().noc, testVoltages.noc, 250, 5, 1), voltagePercentDrop)
         << "Unable to set NOC test voltage";
-      EXPECT_LE(percentVoltageChange(container.value().pcie_logic, testVoltages.pcie_logic, 600, 625, 100), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().pcie_logic, testVoltages.pcie_logic, 600, 625, 100),
+                voltagePercentDrop)
         << "Unable to set PCIE_LOGIC test voltage";
-      EXPECT_LE(percentVoltageChange(container.value().vddq, testVoltages.vddq, 250, 10, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().vddq, testVoltages.vddq, 250, 10, 1), voltagePercentDrop)
         << "Unable to set VDDQ test voltage";
-      EXPECT_LE(percentVoltageChange(container.value().vddqlp, testVoltages.vddqlp, 250, 10, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().vddqlp, testVoltages.vddqlp, 250, 10, 1), voltagePercentDrop)
         << "Unable to set VDDQLP test voltage";
       EXPECT_NE(memcmp(&defaultVoltages, &container.value(), sizeof(defaultVoltages)), 0)
         << "No changes in voltage after SET_MODULE_VOLTAGE command";
@@ -1339,23 +1341,25 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
           break;
         }
       }
-      EXPECT_LE(percentVoltageChange(container.value().ddr, defaultVoltages.ddr, 250, 5, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().ddr, defaultVoltages.ddr, 250, 5, 1), voltagePercentDrop)
         << "Unable to set DDR default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().l2_cache, defaultVoltages.l2_cache, 250, 5, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().l2_cache, defaultVoltages.l2_cache, 250, 5, 1),
+                voltagePercentDrop)
         << "Unable to set L2CACHE default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().maxion, defaultVoltages.maxion, 250, 5, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().maxion, defaultVoltages.maxion, 250, 5, 1), voltagePercentDrop)
         << "Unable to set MAXION default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().minion, defaultVoltages.minion, 250, 5, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().minion, defaultVoltages.minion, 250, 5, 1), voltagePercentDrop)
         << "Unable to set MINION default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().pcie, defaultVoltages.pcie, 600, 125, 10), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().pcie, defaultVoltages.pcie, 600, 125, 10), voltagePercentDrop)
         << "Unable to set PCIE default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().noc, defaultVoltages.noc, 250, 5, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().noc, defaultVoltages.noc, 250, 5, 1), voltagePercentDrop)
         << "Unable to set NOC default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().pcie_logic, defaultVoltages.pcie_logic, 600, 625, 100), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().pcie_logic, defaultVoltages.pcie_logic, 600, 625, 100),
+                voltagePercentDrop)
         << "Unable to set PCIE_LOGIC default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().vddq, defaultVoltages.vddq, 250, 10, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().vddq, defaultVoltages.vddq, 250, 10, 1), voltagePercentDrop)
         << "Unable to set VDDQ test voltage";
-      EXPECT_LE(percentVoltageChange(container.value().vddqlp, defaultVoltages.vddqlp, 250, 10, 1), 5.0)
+      EXPECT_LE(percentVoltageChange(container.value().vddqlp, defaultVoltages.vddqlp, 250, 10, 1), voltagePercentDrop)
         << "Unable to set VDDQLP test voltage";
       EXPECT_NE(memcmp(&testVoltages, &container.value(), sizeof(testVoltages)), 0)
         << "No changes in voltage after SET_MODULE_VOLTAGE command";

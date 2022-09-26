@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14061] Added DM_CMD_GET_ASIC_VOLTAGE test.
 ### Changed
 - [SW-14061] Enabled back setAndGetModuleVoltage test.
-- [SW-14061] Disabled the test until SW-14288 is resolved.
+- [SW-14288] Disabled the test until SW-14288 is resolved.
+- [SW-14288] Changing voltage percentage drop to zero in setAndGetModuleVoltage test.
 ### Deprecated
 ### Removed
 ### Fixed
