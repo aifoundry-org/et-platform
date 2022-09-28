@@ -26,6 +26,9 @@
 /* TODO: Additionally dividing by 1000 because mtime ticks frequency is configured at 4MHz. */
 #define TICKS_TO_SECS(ticks) (portTICK_RATE_MS * (ticks) / 1000 / 1000)
 
+/* timout value for SP to complete boot */
+#define SP_BOOT_TIMEOUT 60000000
+
 /************************************************************************
 *
 *   FUNCTION
@@ -34,7 +37,7 @@
 *
 *   DESCRIPTION
 *
-*       This function resets ETSOC
+*       This function resets ETSOC through PMIC
 *
 *   INPUTS
 *
@@ -47,10 +50,26 @@
 ***********************************************************************/
 static void reset_etsoc(void)
 {
+    int32_t status;
     Log_Write(LOG_LEVEL_INFO, "Resetting ETSOC..!\n");
 
-    // Now Reset SP.
-    release_etsoc_reset();
+    /* enable and program external PMIC watchdog timeout to auto reset SP if it fails to reset watchdog in time.
+       This watchdog reset will be disabled upon successful SP boot.
+       PERST is also toggle by pmic in this force reset process */
+    status = pmic_enable_wdog_timeout_reset();
+    if (status == STATUS_SUCCESS)
+    {
+        status = pmic_set_wdog_timeout_time(SP_BOOT_TIMEOUT);
+        if (status == STATUS_SUCCESS)
+        {
+            // Now Reset SP.
+            pmic_force_reset();
+        }
+    }
+    else
+    {
+        pmic_disable_wdog_timeout_reset();
+    }
 }
 
 /************************************************************************

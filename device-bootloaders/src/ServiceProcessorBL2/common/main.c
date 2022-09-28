@@ -368,6 +368,9 @@ static void taskMain(void *pvParameters)
     Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
 
+    /* SP Boot was successful, disable external PMIc watchdog */
+    pmic_disable_wdog_timeout_reset();
+
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
