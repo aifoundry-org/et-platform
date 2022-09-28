@@ -241,6 +241,19 @@ struct module_voltage {
 	u8 pad[7];
 } __packed;
 
+struct asic_voltage {
+	u8 ddr;
+	u8 l2_cache;
+	u8 maxion;
+	u8 minion;
+	u8 pcie;
+	u8 noc;
+	u8 pcie_logic;
+	u8 vddqlp;
+	u8 vddq;
+	u8 pad[7];
+} __packed;
+
 typedef u8 power_state_e;
 typedef u8 tdp_level_e;
 
@@ -342,6 +355,14 @@ struct device_mgmt_module_power_rsp_t {
 struct device_mgmt_get_module_voltage_rsp_t {
 	struct dev_mgmt_rsp_header_t rsp_hdr;
 	struct module_voltage module_voltage;
+} __packed;
+
+/*
+ * Response for get asic voltage command
+ */
+struct device_mgmt_get_asic_voltage_rsp_t {
+	struct dev_mgmt_rsp_header_t rsp_hdr;
+	struct asic_voltage asic_voltage;
 } __packed;
 
 /*
@@ -1093,6 +1114,7 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 	struct device_mgmt_throttle_residency_rsp_t dm_tht_rsp;
 	struct device_mgmt_module_power_rsp_t dm_mp_rsp;
 	struct device_mgmt_get_module_voltage_rsp_t dm_mv_rsp;
+	struct device_mgmt_get_asic_voltage_rsp_t dm_av_rsp;
 	struct device_mgmt_module_uptime_rsp_t dm_mu_rsp;
 	struct device_mgmt_asic_frequencies_rsp_t dm_af_rsp;
 	struct device_mgmt_dram_bw_rsp_t dm_db_rsp;
@@ -1873,6 +1895,21 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			rv = -EAGAIN;
 		break;
 
+	case DM_CMD_GET_ASIC_VOLTAGE:
+		FILL_RSP_HEADER(dm_av_rsp,
+				header.tag_id,
+				DM_CMD_GET_ASIC_VOLTAGE,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_av_rsp,
+					sizeof(dm_av_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
 	case DM_CMD_GET_MODULE_UPTIME:
 		FILL_RSP_HEADER(dm_mu_rsp,
 				header.tag_id,
@@ -2057,6 +2094,21 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		FILL_RSP_HEADER(dm_def_rsp,
 				header.tag_id,
 				DM_CMD_SET_DM_TRACE_CONFIG,
+				0,
+				DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&dm_def_rsp,
+					sizeof(dm_def_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DM_CMD_SET_MODULE_VOLTAGE:
+		FILL_RSP_HEADER(dm_def_rsp,
+				header.tag_id,
+				DM_CMD_SET_MODULE_VOLTAGE,
 				0,
 				DM_STATUS_SUCCESS);
 		if (!et_circbuffer_push(&cq->cb,
