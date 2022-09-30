@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines.
+- SW-14309 - Extend Flash template to add PMIC FW img
 ### Changed
 ### Deprecated
 ### Removed
