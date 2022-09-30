@@ -33,7 +33,7 @@ class EsperantoFlashToolConan(ConanFile):
     def requirements(self):
         if not self.options.header_only:
             self.requires("json-c/0.15")
-    
+
     def package_id(self):
         if self.options.header_only:
             self.info.header_only()
