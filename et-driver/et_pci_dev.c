@@ -32,49 +32,50 @@ const struct et_bar_mapping DIR_MAPPINGS[] = {
 
 // clang-format on
 
+void et_save_bars(struct et_pci_dev *et_dev)
+{
+	int i, err = 0;
+
+	for (i = 0; i < sizeof(et_dev->bar_cfgs) / sizeof(et_dev->bar_cfgs[0]);
+	     i++) {
+		err |= pci_read_config_dword(et_dev->pdev,
+					     PCI_BASE_ADDRESS_0 + i * 4,
+					     &et_dev->bar_cfgs[i]);
+	}
+
+	WARN_ON(err);
+}
+
+void et_restore_bars(struct et_pci_dev *et_dev)
+{
+	int i, err = 0;
+
+	for (i = 0; i < sizeof(et_dev->bar_cfgs) / sizeof(et_dev->bar_cfgs[0]);
+	     i++) {
+		err |= pci_write_config_dword(et_dev->pdev,
+					      PCI_BASE_ADDRESS_0 + i * 4,
+					      et_dev->bar_cfgs[i]);
+	}
+
+	WARN_ON(err);
+}
+
 int et_map_bar(struct et_pci_dev *et_dev,
 	       const struct et_bar_mapping *bm_info,
 	       void __iomem **mapped_addr_ptr)
 {
 	u32 bar_cfg;
 
-	switch (bm_info->bar) {
-	case 0:
-		pci_read_config_dword(et_dev->pdev,
-				      PCI_BASE_ADDRESS_0,
-				      &bar_cfg);
-		break;
-	case 1:
-		pci_read_config_dword(et_dev->pdev,
-				      PCI_BASE_ADDRESS_1,
-				      &bar_cfg);
-		break;
-	case 2:
-		pci_read_config_dword(et_dev->pdev,
-				      PCI_BASE_ADDRESS_2,
-				      &bar_cfg);
-		break;
-	case 3:
-		pci_read_config_dword(et_dev->pdev,
-				      PCI_BASE_ADDRESS_3,
-				      &bar_cfg);
-		break;
-	case 4:
-		pci_read_config_dword(et_dev->pdev,
-				      PCI_BASE_ADDRESS_4,
-				      &bar_cfg);
-		break;
-	case 5:
-		pci_read_config_dword(et_dev->pdev,
-				      PCI_BASE_ADDRESS_5,
-				      &bar_cfg);
-		break;
-	default:
+	if (bm_info->bar >= 6) {
 		dev_err(&et_dev->pdev->dev,
 			"Invalid BAR number: %d\n",
 			bm_info->bar);
 		return -EINVAL;
 	}
+
+	pci_read_config_dword(et_dev->pdev,
+			      PCI_BASE_ADDRESS_0 + bm_info->bar * 4,
+			      &bar_cfg);
 
 	if (bar_cfg & PCI_BASE_ADDRESS_MEM_PREFETCH)
 		*mapped_addr_ptr = pci_iomap_wc_range(et_dev->pdev,

@@ -56,6 +56,7 @@ struct evt_header_t {
 enum device_msg_e {
 	DEV_MGMT_API_MID_BEGIN = 0,
 	/* Device Mgmt Message IDs reserved */
+	DEV_MGMT_API_MID_ETSOC_RESET = 52,
 	DEV_MGMT_API_MID_MM_RESET = 64,
 	/* Device Mgmt Message IDs reserved */
 	DEV_MGMT_API_MID_EVENTS_BEGIN = 256,

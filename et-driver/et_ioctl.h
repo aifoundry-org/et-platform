@@ -11,7 +11,8 @@ enum cmd_desc_flag {
 	CMD_DESC_FLAG_NONE = 0x0,
 	CMD_DESC_FLAG_DMA = 0x1 << 0,
 	CMD_DESC_FLAG_MM_RESET = 0x1 << 1,
-	CMD_DESC_FLAG_HIGH_PRIORITY = 0x1 << 2
+	CMD_DESC_FLAG_HIGH_PRIORITY = 0x1 << 2,
+	CMD_DESC_FLAG_ETSOC_RESET = 0x1 << 3
 };
 
 enum dev_config_form_factor {
@@ -26,11 +27,44 @@ enum dev_config_arch_revision {
 	DEV_CONFIG_ARCH_REVISION_GEPARDO
 };
 
+/*
+ * Device State enum
+ *
+ * These states reflect the internal state of the each device and are also being
+ * used internally to take proper actions related to each state.
+ * NOTE: Be careful while adding a new state to this enum. It must be handled
+ * internally as well.
+ *
+ * DEV_STATE_NOT_READY
+ * 	- This represents that device is not initialized yet i.e., no device
+ * 	  specific structures are initialized. This is the state before probe
+ * 	  or when device could never be initialized.
+ * DEV_STATE_READY
+ * 	- This represents that device is properly initialized and is ready to
+ * 	  use.
+ * DEV_STATE_RESET_IN_PROGRESS
+ * 	- This represents that device is undergoing a reset. User will not be
+ * 	  able to open the device node in this state. If the device node is
+ * 	  already opened then device node must be closed to let the reset
+ * 	  complete. On successful reset, state will be changed to
+ * 	  `DEV_STATE_READY` or on failure, state will be changed to
+ * 	  `DEV_STATE_NOT_RESPONDING`.
+ * DEV_STATE_NOT_RESPONDING
+ * 	- This represents that device has undergone a failure. This could be
+ * 	  a failure at time of device discovery or during re-initialization
+ * 	  of device after reset.
+ * DEV_STATE_PENDING_COMMANDS
+ * 	- TODO: SW-10535 To be removed
+ * 	- This represents the state of Virtual Queues. This is not an internal
+ * 	  state of the device. This represents availability of pending command
+ * 	  in any submission queue(s) of the device.
+ */
 enum dev_state {
-	DEV_STATE_READY = 0,
-	/* TODO: SW-10535 To be removed */
-	DEV_STATE_PENDING_COMMANDS,
+	DEV_STATE_NOT_READY = 0,
+	DEV_STATE_READY,
+	DEV_STATE_RESET_IN_PROGRESS,
 	DEV_STATE_NOT_RESPONDING,
+	DEV_STATE_PENDING_COMMANDS
 };
 
 enum trace_buffer_type {

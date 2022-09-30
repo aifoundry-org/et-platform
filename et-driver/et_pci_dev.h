@@ -58,7 +58,18 @@ enum et_msi_vec_idx {
 };
 
 struct et_ops_dev {
+        atomic_t state;                 /*
+                                         * state is readable without holding
+                                         * a mutex hence atomic.
+                                         */
+        struct mutex state_chng_mutex;  /*
+                                         * Mutex should be held when making a
+                                         * state transition, to capture the
+                                         * critical section related to changes
+                                         * in state.
+                                         */
 	struct miscdevice misc_dev;
+	bool miscdev_created;
 	bool is_open;
 	spinlock_t open_lock;		/* serializes access to is_open */
 	void __iomem *dir;
@@ -71,7 +82,18 @@ struct et_ops_dev {
 };
 
 struct et_mgmt_dev {
+	atomic_t state;			/*
+					 * state is readable without holding
+					 * a mutex hence atomic.
+					 */
+	struct mutex state_chng_mutex;	/*
+					 * Mutex should be held when making a
+					 * state transition, to capture the
+					 * critical section related to changes
+					 * in state.
+					 */
 	struct miscdevice misc_dev;
+	bool miscdev_created;
 	bool is_open;
 	spinlock_t open_lock;		/* serializes access to is_open */
 	void __iomem *dir;
@@ -83,28 +105,34 @@ struct et_mgmt_dev {
 
 struct et_pci_dev {
 	u8 dev_index;
+	bool is_initialized;
 	bool is_err_reporting;
 	struct pci_dev *pdev;
 	struct dev_config cfg;
-	bool ops_initialized;
-	struct mutex ops_init_mutex;	/* serializes access to ops_initialized */
 	struct et_ops_dev ops;
-	bool mgmt_initialized;
-	struct mutex mgmt_init_mutex;	/* serializes access to mgmt_initialized */
 	struct et_mgmt_dev mgmt;
 	struct list_head bar_region_list;
+	u32 bar_cfgs[6];
+	struct workqueue_struct *reset_workqueue;
+	struct work_struct isr_work;
 };
 
 // clang-format on
 
+void et_save_bars(struct et_pci_dev *et_dev);
+void et_restore_bars(struct et_pci_dev *et_dev);
 int et_map_bar(struct et_pci_dev *et_dev,
 	       const struct et_bar_mapping *bm_info,
 	       void __iomem **mapped_addr_ptr);
 void et_unmap_bar(void __iomem *mapped_addr);
 
-int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs);
-void et_mgmt_dev_destroy(struct et_pci_dev *et_dev);
-int et_ops_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs);
-void et_ops_dev_destroy(struct et_pci_dev *et_dev);
+int et_mgmt_dev_init(struct et_pci_dev *et_dev,
+		     u32 timeout_secs,
+		     bool miscdev_create);
+void et_mgmt_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy);
+int et_ops_dev_init(struct et_pci_dev *et_dev,
+		    u32 timeout_secs,
+		    bool miscdev_create);
+void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy);
 
 #endif

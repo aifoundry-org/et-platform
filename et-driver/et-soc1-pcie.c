@@ -131,11 +131,12 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	void __user *usr_arg = (void __user *)arg;
 	u16 sq_idx;
 	u16 max_size;
-	u32 dev_state;
+	u32 ops_state;
 	u8 trace_type;
 
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
 	et_dev = container_of(ops, struct et_pci_dev, ops);
+	ops_state = atomic_read(&ops->state);
 
 	if ((cmd & ~IOCSIZE_MASK) == ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(0)) {
 		if (strlen(dev_name(&et_dev->pdev->dev)) + 1 > _IOC_SIZE(cmd)) {
@@ -155,32 +156,52 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		}
 
 		return strlen(dev_name(&et_dev->pdev->dev)) + 1;
-	}
 
-	switch (cmd) {
-	case ETSOC1_IOCTL_GET_DEVICE_STATE:
+	} else if (cmd == ETSOC1_IOCTL_GET_DEVICE_STATE) {
 		// TODO: SW-10535: DEV_STATE_PENDING_COMMANDS is to be removed.
 		// A corner case is possible here that single command sent that
 		// causes hang will not be detected because the command will be
 		// popped out of SQ by device and SQ will appear empty here.
-		dev_state = DEV_STATE_READY;
-		for (sq_idx = 0; dev_state == DEV_STATE_READY &&
+		for (sq_idx = 0; ops_state == DEV_STATE_READY &&
 				 sq_idx < ops->vq_data.vq_common.sq_count;
 		     sq_idx++) {
 			// Check if SQ has pending command(s)
 			if (!et_squeue_empty(&ops->vq_data.sqs[sq_idx]))
-				dev_state = DEV_STATE_PENDING_COMMANDS;
+				ops_state = DEV_STATE_PENDING_COMMANDS;
 		}
 
-		if (copy_to_user(usr_arg, &dev_state, _IOC_SIZE(cmd))) {
+		if (copy_to_user(usr_arg, &ops_state, _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"ops_ioctl[%u]: failed to copy to user!\n",
 				_IOC_NR(cmd));
-			return -EFAULT;
+			rv = -EFAULT;
 		}
 
-		break;
+		return rv;
+	}
 
+	if (ops_state == DEV_STATE_RESET_IN_PROGRESS) {
+		dev_err(&et_dev->pdev->dev,
+			"ops_ioctl[%u]: action cannot be completed (%s), re-open the node!\n",
+			_IOC_NR(cmd),
+			__stringify(DEV_STATE_RESET_IN_PROGRESS));
+		return -EUCLEAN;
+	} else if (ops_state == DEV_STATE_NOT_RESPONDING) {
+		dev_err(&et_dev->pdev->dev,
+			"ops_ioctl[%u]: action cannot be completed (%s)! Try recovering through Mgmt device\n",
+			_IOC_NR(cmd),
+			__stringify(DEV_STATE_NOT_RESPONDING));
+		return -ENODEV;
+	} else if (ops_state == DEV_STATE_NOT_READY) {
+		// Should never reach here
+		dev_err(&et_dev->pdev->dev,
+			"ops_ioctl[%u]: action cannot be completed (%s)!\n",
+			_IOC_NR(cmd),
+			__stringify(DEV_STATE_NOT_READY));
+		return -ENODEV;
+	}
+
+	switch (cmd) {
 	case ETSOC1_IOCTL_GET_USER_DRAM_INFO:
 		region = &ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED];
 		if (!region->is_valid || !(region->access.node_access &
@@ -299,6 +320,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 		if (!cmd_info.cmd || !cmd_info.size ||
 		    cmd_info.flags & CMD_DESC_FLAG_MM_RESET ||
+		    cmd_info.flags & CMD_DESC_FLAG_ETSOC_RESET ||
 		    (cmd_info.flags & CMD_DESC_FLAG_DMA &&
 		     cmd_info.flags & CMD_DESC_FLAG_HIGH_PRIORITY))
 			return -EINVAL;
@@ -610,12 +632,13 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	void __user *usr_arg = (void __user *)arg;
 	u16 sq_idx;
 	u16 max_size;
-	u32 dev_state;
+	u32 mgmt_state, ops_state;
 	u8 trace_type;
 	void *trace_buf;
 
 	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
 	et_dev = container_of(mgmt, struct et_pci_dev, mgmt);
+	mgmt_state = atomic_read(&mgmt->state);
 
 	if ((cmd & ~IOCSIZE_MASK) == ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(0)) {
 		if (strlen(dev_name(&et_dev->pdev->dev)) + 1 > _IOC_SIZE(cmd)) {
@@ -635,32 +658,52 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		}
 
 		return strlen(dev_name(&et_dev->pdev->dev)) + 1;
-	}
 
-	switch (cmd) {
-	case ETSOC1_IOCTL_GET_DEVICE_STATE:
+	} else if (cmd == ETSOC1_IOCTL_GET_DEVICE_STATE) {
 		// TODO: SW-10535: DEV_STATE_PENDING_COMMANDS is to be removed.
 		// A corner case is possible here that single command sent that
 		// causes hang will not be detected because the command will be
 		// popped out of SQ by device and SQ will appear empty here.
-		dev_state = DEV_STATE_READY;
-		for (sq_idx = 0; dev_state == DEV_STATE_READY &&
+		for (sq_idx = 0; mgmt_state == DEV_STATE_READY &&
 				 sq_idx < mgmt->vq_data.vq_common.sq_count;
 		     sq_idx++) {
 			// Check if SQ has pending command(s)
 			if (!et_squeue_empty(&mgmt->vq_data.sqs[sq_idx]))
-				dev_state = DEV_STATE_PENDING_COMMANDS;
+				mgmt_state = DEV_STATE_PENDING_COMMANDS;
 		}
 
-		if (copy_to_user(usr_arg, &dev_state, _IOC_SIZE(cmd))) {
+		if (copy_to_user(usr_arg, &mgmt_state, _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"mgmt_ioctl[%u]: failed to copy to user!\n",
 				_IOC_NR(cmd));
-			return -EFAULT;
+			rv = -EFAULT;
 		}
 
-		break;
+		return rv;
+	}
 
+	if (mgmt_state == DEV_STATE_RESET_IN_PROGRESS) {
+		dev_err(&et_dev->pdev->dev,
+			"mgmt_ioctl[%u]: action cannot be completed (%s), re-open the node!\n",
+			_IOC_NR(cmd),
+			__stringify(DEV_STATE_RESET_IN_PROGRESS));
+		return -EUCLEAN;
+	} else if (mgmt_state == DEV_STATE_NOT_RESPONDING) {
+		dev_err(&et_dev->pdev->dev,
+			"mgmt_ioctl[%u]: action cannot be completed (%s)!\n",
+			_IOC_NR(cmd),
+			__stringify(DEV_STATE_NOT_RESPONDING));
+		return -ENOTRECOVERABLE;
+	} else if (mgmt_state == DEV_STATE_NOT_READY) {
+		// Should never reach here
+		dev_err(&et_dev->pdev->dev,
+			"mgmt_ioctl[%u]: action cannot be completed (%s)!\n",
+			_IOC_NR(cmd),
+			__stringify(DEV_STATE_NOT_READY));
+		return -ENODEV;
+	}
+
+	switch (cmd) {
 	case ETSOC1_IOCTL_FW_UPDATE:
 		if (copy_from_user(&fw_update_info, usr_arg, _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
@@ -726,27 +769,57 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			    (CMD_DESC_FLAG_DMA | CMD_DESC_FLAG_HIGH_PRIORITY))
 			return -EINVAL;
 
-		if (cmd_info.flags & CMD_DESC_FLAG_MM_RESET) {
+		if (cmd_info.flags & CMD_DESC_FLAG_ETSOC_RESET) {
+			mutex_lock(&et_dev->mgmt.state_chng_mutex);
+			atomic_set(&et_dev->mgmt.state,
+				   DEV_STATE_RESET_IN_PROGRESS);
+			mutex_unlock(&et_dev->mgmt.state_chng_mutex);
+		}
+
+		if (cmd_info.flags &
+		    (CMD_DESC_FLAG_ETSOC_RESET | CMD_DESC_FLAG_MM_RESET)) {
 			spin_lock(&et_dev->ops.open_lock);
 			if (!et_dev->ops.is_open) {
-				et_ops_dev_destroy(et_dev);
+				// Read current state of device
+				ops_state = atomic_read(&et_dev->ops.state);
+				mutex_lock(&et_dev->ops.state_chng_mutex);
+				atomic_set(&et_dev->ops.state,
+					   DEV_STATE_RESET_IN_PROGRESS);
+				mutex_unlock(&et_dev->ops.state_chng_mutex);
 			} else {
-				spin_unlock(&et_dev->ops.open_lock);
 				dev_err(&et_dev->pdev->dev,
-					"mgmt_ioctl[%u]: Ops Device is in use, MM reset cannot be done!\n",
+					"mgmt_ioctl[%u]: Ops Device is in use, reset cannot be done!\n",
 					_IOC_NR(cmd));
-				return -EPERM;
+				rv = -EPERM;
 			}
 			spin_unlock(&et_dev->ops.open_lock);
 		}
 
-		rv = et_squeue_copy_from_user(
-			et_dev,
-			true /* mgmt_dev */,
-			false /* normal SQ */,
-			cmd_info.sq_index,
-			(char __user __force *)cmd_info.cmd,
-			cmd_info.size);
+		if (rv == 0)
+			rv = et_squeue_copy_from_user(
+				et_dev,
+				true /* mgmt_dev */,
+				false /* normal SQ */,
+				cmd_info.sq_index,
+				(char __user __force *)cmd_info.cmd,
+				cmd_info.size);
+
+		if (cmd_info.flags & CMD_DESC_FLAG_MM_RESET &&
+		    rv != cmd_info.size) {
+			// On failure, revert the state
+			mutex_lock(&et_dev->ops.state_chng_mutex);
+			atomic_set(&et_dev->ops.state, ops_state);
+			mutex_unlock(&et_dev->ops.state_chng_mutex);
+		}
+
+		if (cmd_info.flags & CMD_DESC_FLAG_ETSOC_RESET &&
+		    rv != cmd_info.size) {
+			// On failure, revert the state
+			mutex_lock(&et_dev->mgmt.state_chng_mutex);
+			atomic_set(&et_dev->mgmt.state, mgmt_state);
+			mutex_unlock(&et_dev->mgmt.state_chng_mutex);
+		}
+
 		break;
 
 	case ETSOC1_IOCTL_POP_CQ:
@@ -932,37 +1005,61 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 static int esperanto_pcie_ops_open(struct inode *inode, struct file *fp)
 {
 	struct et_ops_dev *ops;
+	struct et_pci_dev *et_dev;
+	int rv = 0;
 
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
+	et_dev = container_of(ops, struct et_pci_dev, ops);
 
 	spin_lock(&ops->open_lock);
 	if (ops->is_open) {
-		spin_unlock(&ops->open_lock);
-		pr_err("Tried to open same device multiple times\n");
-		return -EBUSY; /* already open */
+		dev_err(&et_dev->pdev->dev,
+			"Ops: Tried to open same device multiple times\n");
+		rv = -EBUSY; /* already open */
+		goto spin_unlock;
+	} else if (atomic_read(&ops->state) == DEV_STATE_RESET_IN_PROGRESS) {
+		dev_err(&et_dev->pdev->dev,
+			"Ops: Action cannot be completed (%s)\n",
+			__stringify(DEV_STATE_RESET_IN_PROGRESS));
+		rv = -EPERM;
+		goto spin_unlock;
 	}
 	ops->is_open = true;
+
+spin_unlock:
 	spin_unlock(&ops->open_lock);
 
-	return 0;
+	return rv;
 }
 
 static int esperanto_pcie_mgmt_open(struct inode *inode, struct file *fp)
 {
 	struct et_mgmt_dev *mgmt;
+	struct et_pci_dev *et_dev;
+	int rv = 0;
 
 	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
+	et_dev = container_of(mgmt, struct et_pci_dev, mgmt);
 
 	spin_lock(&mgmt->open_lock);
 	if (mgmt->is_open) {
-		spin_unlock(&mgmt->open_lock);
-		pr_err("Tried to open same device multiple times\n");
-		return -EBUSY; /* already open */
+		dev_err(&et_dev->pdev->dev,
+			"Mgmt: Tried to open same device multiple times\n");
+		rv = -EBUSY; /* already open */
+		goto spin_unlock;
+	} else if (atomic_read(&mgmt->state) == DEV_STATE_RESET_IN_PROGRESS) {
+		dev_err(&et_dev->pdev->dev,
+			"Mgmt: Action cannot be completed (%s)\n",
+			__stringify(DEV_STATE_RESET_IN_PROGRESS));
+		rv = -EPERM;
+		goto spin_unlock;
 	}
 	mgmt->is_open = true;
+
+spin_unlock:
 	spin_unlock(&mgmt->open_lock);
 
-	return 0;
+	return rv;
 }
 
 static int esperanto_pcie_ops_release(struct inode *inode, struct file *fp)
@@ -970,7 +1067,9 @@ static int esperanto_pcie_ops_release(struct inode *inode, struct file *fp)
 	struct et_ops_dev *ops;
 
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
+	spin_lock(&ops->open_lock);
 	ops->is_open = false;
+	spin_unlock(&ops->open_lock);
 
 	return 0;
 }
@@ -978,9 +1077,17 @@ static int esperanto_pcie_ops_release(struct inode *inode, struct file *fp)
 static int esperanto_pcie_mgmt_release(struct inode *inode, struct file *fp)
 {
 	struct et_mgmt_dev *mgmt;
+	struct et_pci_dev *et_dev;
 
 	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
+	spin_lock(&mgmt->open_lock);
 	mgmt->is_open = false;
+	spin_unlock(&mgmt->open_lock);
+
+	if (atomic_read(&mgmt->state) == DEV_STATE_RESET_IN_PROGRESS) {
+		et_dev = container_of(mgmt, struct et_pci_dev, mgmt);
+		queue_work(et_dev->reset_workqueue, &et_dev->isr_work);
+	}
 
 	return 0;
 }
@@ -1088,10 +1195,13 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 
 	INIT_LIST_HEAD(&et_dev->bar_region_list);
 
-	et_dev->mgmt_initialized = false;
-	mutex_init(&et_dev->mgmt_init_mutex);
-	et_dev->ops_initialized = false;
-	mutex_init(&et_dev->ops_init_mutex);
+	et_dev->is_initialized = false;
+	et_dev->mgmt.miscdev_created = false;
+	atomic_set(&et_dev->mgmt.state, DEV_STATE_NOT_READY);
+	mutex_init(&et_dev->mgmt.state_chng_mutex);
+	et_dev->ops.miscdev_created = false;
+	atomic_set(&et_dev->ops.state, DEV_STATE_NOT_READY);
+	mutex_init(&et_dev->ops.state_chng_mutex);
 
 	return 0;
 }
@@ -1441,7 +1551,9 @@ error_unmap_discovered_regions:
 	return rv;
 }
 
-int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
+int et_mgmt_dev_init(struct et_pci_dev *et_dev,
+		     u32 timeout_secs,
+		     bool miscdev_create)
 {
 	bool dir_ready = false;
 	u8 *dir_data, *dir_pos;
@@ -1454,12 +1566,12 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 	struct event_dbg_msg dbg_msg;
 	char syndrome_str[ET_EVENT_SYNDROME_LEN];
 
-	mutex_lock(&et_dev->mgmt_init_mutex);
-	if (et_dev->mgmt_initialized) {
+	mutex_lock(&et_dev->mgmt.state_chng_mutex);
+	if (atomic_read(&et_dev->mgmt.state) == DEV_STATE_READY) {
 		dev_info(&et_dev->pdev->dev,
 			 "Mgmt: Device is already initialized\n");
 		rv = 0;
-		goto error_unlock_mgmt_init_mutex;
+		goto error_unlock_state_chng_mutex;
 	}
 
 	et_dev->mgmt.is_open = false;
@@ -1471,7 +1583,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 			&et_dev->mgmt.dir);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "Mgmt: DIR mapping failed\n");
-		goto error_unlock_mgmt_init_mutex;
+		goto error_unlock_state_chng_mutex;
 	}
 
 	dir_mgmt_mem = (struct et_mgmt_dir_header __iomem *)et_dev->mgmt.dir;
@@ -1775,23 +1887,27 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 		goto error_vqueue_destroy_all;
 	}
 
-	// Create Mgmt device node
-	et_dev->mgmt.misc_dev.minor = MISC_DYNAMIC_MINOR;
-	et_dev->mgmt.misc_dev.fops = &et_pcie_mgmt_fops;
-	et_dev->mgmt.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
-						    GFP_KERNEL,
-						    "et%d_mgmt",
-						    et_dev->dev_index);
-	rv = misc_register(&et_dev->mgmt.misc_dev);
-	if (rv) {
-		dev_err(&et_dev->pdev->dev, "Mgmt: misc_register() failed!\n");
-		goto error_sysfs_stats_remove;
+	if (miscdev_create && !et_dev->mgmt.miscdev_created) {
+		// Create Mgmt device node
+		et_dev->mgmt.misc_dev.minor = MISC_DYNAMIC_MINOR;
+		et_dev->mgmt.misc_dev.fops = &et_pcie_mgmt_fops;
+		et_dev->mgmt.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
+							    GFP_KERNEL,
+							    "et%d_mgmt",
+							    et_dev->dev_index);
+		rv = misc_register(&et_dev->mgmt.misc_dev);
+		if (rv) {
+			dev_err(&et_dev->pdev->dev,
+				"Mgmt: misc_register() failed!\n");
+			goto error_sysfs_stats_remove;
+		}
+		et_dev->mgmt.miscdev_created = true;
 	}
 
 	kfree(mgmt_bar_addr_dbg);
 	kfree(dir_data);
-	et_dev->mgmt_initialized = true;
-	mutex_unlock(&et_dev->mgmt_init_mutex);
+	atomic_set(&et_dev->mgmt.state, DEV_STATE_READY);
+	mutex_unlock(&et_dev->mgmt.state_chng_mutex);
 
 	return rv;
 
@@ -1813,31 +1929,44 @@ error_free_dir_data:
 error_unmap_dir_region:
 	et_unmap_bar(et_dev->mgmt.dir);
 
-error_unlock_mgmt_init_mutex:
-	mutex_unlock(&et_dev->mgmt_init_mutex);
+error_unlock_state_chng_mutex:
+	atomic_set(&et_dev->mgmt.state, DEV_STATE_NOT_RESPONDING);
+	mutex_unlock(&et_dev->mgmt.state_chng_mutex);
 
 	return rv;
 }
 
-void et_mgmt_dev_destroy(struct et_pci_dev *et_dev)
+void et_mgmt_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 {
-	mutex_lock(&et_dev->mgmt_init_mutex);
-	if (!et_dev->mgmt_initialized)
-		goto unlock_mgmt_init_mutex;
+	u32 mgmt_state;
 
-	misc_deregister(&et_dev->mgmt.misc_dev);
+	if (miscdev_destroy && et_dev->mgmt.miscdev_created) {
+		misc_deregister(&et_dev->mgmt.misc_dev);
+		et_dev->mgmt.miscdev_created = false;
+	}
+
+	mutex_lock(&et_dev->mgmt.state_chng_mutex);
+	mgmt_state = atomic_read(&et_dev->mgmt.state);
+	if (mgmt_state == DEV_STATE_NOT_READY)
+		goto unlock_state_chng_mutex;
+	else if (mgmt_state == DEV_STATE_NOT_RESPONDING)
+		goto update_state;
 
 	et_sysfs_stats_remove(et_dev, true /* mgmt_dev */);
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
 	et_unmap_discovered_regions(et_dev, true /* mgmt_dev */);
 	et_unmap_bar(et_dev->mgmt.dir);
-	et_dev->mgmt_initialized = false;
 
-unlock_mgmt_init_mutex:
-	mutex_unlock(&et_dev->mgmt_init_mutex);
+update_state:
+	atomic_set(&et_dev->mgmt.state, DEV_STATE_NOT_READY);
+
+unlock_state_chng_mutex:
+	mutex_unlock(&et_dev->mgmt.state_chng_mutex);
 }
 
-int et_ops_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
+int et_ops_dev_init(struct et_pci_dev *et_dev,
+		    u32 timeout_secs,
+		    bool miscdev_create)
 {
 	bool dir_ready = false;
 	u8 *dir_data, *dir_pos;
@@ -1850,12 +1979,12 @@ int et_ops_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 	struct event_dbg_msg dbg_msg;
 	char syndrome_str[ET_EVENT_SYNDROME_LEN];
 
-	mutex_lock(&et_dev->ops_init_mutex);
-	if (et_dev->ops_initialized) {
+	mutex_lock(&et_dev->ops.state_chng_mutex);
+	if (atomic_read(&et_dev->ops.state) == DEV_STATE_READY) {
 		dev_info(&et_dev->pdev->dev,
 			 "Ops: Device is already initialized\n");
 		rv = 0;
-		goto error_unlock_ops_init_mutex;
+		goto error_unlock_state_chng_mutex;
 	}
 
 	et_dev->ops.is_open = false;
@@ -1871,7 +2000,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 			&et_dev->ops.dir);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "Ops: DIR mapping failed\n");
-		goto error_unlock_ops_init_mutex;
+		goto error_unlock_state_chng_mutex;
 	}
 
 	dir_ops_mem = (struct et_ops_dir_header __iomem *)et_dev->ops.dir;
@@ -2120,23 +2249,27 @@ int et_ops_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs)
 		goto error_vqueue_destroy_all;
 	}
 
-	// Create Ops device node
-	et_dev->ops.misc_dev.minor = MISC_DYNAMIC_MINOR;
-	et_dev->ops.misc_dev.fops = &et_pcie_ops_fops;
-	et_dev->ops.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
-						   GFP_KERNEL,
-						   "et%d_ops",
-						   et_dev->dev_index);
-	rv = misc_register(&et_dev->ops.misc_dev);
-	if (rv) {
-		dev_err(&et_dev->pdev->dev, "Ops: misc_register() failed!\n");
-		goto error_sysfs_stats_remove;
+	if (miscdev_create && !et_dev->ops.miscdev_created) {
+		// Create Ops device node
+		et_dev->ops.misc_dev.minor = MISC_DYNAMIC_MINOR;
+		et_dev->ops.misc_dev.fops = &et_pcie_ops_fops;
+		et_dev->ops.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
+							   GFP_KERNEL,
+							   "et%d_ops",
+							   et_dev->dev_index);
+		rv = misc_register(&et_dev->ops.misc_dev);
+		if (rv) {
+			dev_err(&et_dev->pdev->dev,
+				"Ops: misc_register() failed!\n");
+			goto error_sysfs_stats_remove;
+		}
+		et_dev->ops.miscdev_created = true;
 	}
 
 	kfree(ops_bar_addr_dbg);
 	kfree(dir_data);
-	et_dev->ops_initialized = true;
-	mutex_unlock(&et_dev->ops_init_mutex);
+	atomic_set(&et_dev->ops.state, DEV_STATE_READY);
+	mutex_unlock(&et_dev->ops.state_chng_mutex);
 
 	return rv;
 
@@ -2158,19 +2291,28 @@ error_free_dir_data:
 error_unmap_dir_region:
 	et_unmap_bar(et_dev->ops.dir);
 
-error_unlock_ops_init_mutex:
-	mutex_unlock(&et_dev->ops_init_mutex);
+error_unlock_state_chng_mutex:
+	atomic_set(&et_dev->ops.state, DEV_STATE_NOT_RESPONDING);
+	mutex_unlock(&et_dev->ops.state_chng_mutex);
 
 	return rv;
 }
 
-void et_ops_dev_destroy(struct et_pci_dev *et_dev)
+void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 {
-	mutex_lock(&et_dev->ops_init_mutex);
-	if (!et_dev->ops_initialized)
-		goto unlock_ops_init_mutex;
+	u32 ops_state;
 
-	misc_deregister(&et_dev->ops.misc_dev);
+	if (miscdev_destroy && et_dev->ops.miscdev_created) {
+		misc_deregister(&et_dev->ops.misc_dev);
+		et_dev->ops.miscdev_created = false;
+	}
+
+	mutex_lock(&et_dev->ops.state_chng_mutex);
+	ops_state = atomic_read(&et_dev->ops.state);
+	if (ops_state == DEV_STATE_NOT_READY)
+		goto unlock_state_chng_mutex;
+	else if (ops_state == DEV_STATE_NOT_RESPONDING)
+		goto update_state;
 
 	et_sysfs_stats_remove(et_dev, false /* ops_dev */);
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
@@ -2182,10 +2324,12 @@ void et_ops_dev_destroy(struct et_pci_dev *et_dev)
 	mutex_unlock(&et_dev->ops.dma_rbtree_mutex);
 
 	mutex_destroy(&et_dev->ops.dma_rbtree_mutex);
-	et_dev->ops_initialized = false;
 
-unlock_ops_init_mutex:
-	mutex_unlock(&et_dev->ops_init_mutex);
+update_state:
+	atomic_set(&et_dev->ops.state, DEV_STATE_NOT_READY);
+
+unlock_state_chng_mutex:
+	mutex_unlock(&et_dev->ops.state_chng_mutex);
 }
 
 static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
@@ -2197,28 +2341,24 @@ static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
 
 	dev_index = et_dev->dev_index;
 	clear_bit(dev_index, dev_bitmap);
-	mutex_destroy(&et_dev->mgmt_init_mutex);
-	mutex_destroy(&et_dev->ops_init_mutex);
+	mutex_destroy(&et_dev->mgmt.state_chng_mutex);
+	mutex_destroy(&et_dev->ops.state_chng_mutex);
 }
 
-static int esperanto_pcie_probe(struct pci_dev *pdev,
-				const struct pci_device_id *pci_id)
+static int init_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_create)
 {
 	int rv;
-	struct et_pci_dev *et_dev;
+	struct pci_dev *pdev = et_dev->pdev;
 
-	// Create instance data for this device, save it to drvdata
-	rv = create_et_pci_dev(&et_dev, pdev);
-	pci_set_drvdata(pdev, et_dev); // Set even if NULL
-	if (rv < 0) {
-		dev_err(&pdev->dev, "create_et_pci_dev failed\n");
-		return rv;
+	if (et_dev->is_initialized) {
+		dev_info(&pdev->dev, "et_pci_dev is already initialized\n");
+		return 0;
 	}
 
 	rv = pci_enable_device_mem(pdev);
 	if (rv < 0) {
 		dev_err(&pdev->dev, "enable device failed\n");
-		goto error_free_dev;
+		return rv;
 	}
 
 	rv = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
@@ -2263,19 +2403,21 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		et_dev->is_err_reporting = true;
 	}
 
-	rv = et_mgmt_dev_init(et_dev, mgmt_discovery_timeout);
+	rv = et_mgmt_dev_init(et_dev, mgmt_discovery_timeout, miscdev_create);
 	if (rv) {
 		dev_err(&pdev->dev, "Mgmt device initialization failed\n");
 		goto error_pci_disable_pcie_error_reporting;
 	}
 
-	rv = et_ops_dev_init(et_dev, ops_discovery_timeout);
+	rv = et_ops_dev_init(et_dev, ops_discovery_timeout, miscdev_create);
 	if (rv) {
 		dev_warn(&pdev->dev,
 			 "Ops device initialization failed, errno: %d\n",
 			 -rv);
 		rv = 0;
 	}
+
+	et_dev->is_initialized = true;
 
 	return rv;
 
@@ -2296,6 +2438,89 @@ error_clear_master:
 error_disable_dev:
 	pci_disable_device(pdev);
 
+	return rv;
+}
+
+static void uninit_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_destroy)
+{
+	struct pci_dev *pdev = et_dev->pdev;
+
+	if (!et_dev->is_initialized)
+		return;
+
+	et_ops_dev_destroy(et_dev, miscdev_destroy);
+	et_mgmt_dev_destroy(et_dev, miscdev_destroy);
+
+	if (et_dev->is_err_reporting) {
+		pci_disable_pcie_error_reporting(pdev);
+		et_dev->is_err_reporting = false;
+	}
+
+	pci_release_regions(pdev);
+	pci_free_irq_vectors(pdev);
+	pci_clear_master(pdev);
+	pci_disable_device(pdev);
+	et_dev->is_initialized = false;
+}
+
+static void et_reset_isr_work(struct work_struct *work)
+{
+	int rv = 0;
+	struct et_pci_dev *et_dev =
+		container_of(work, struct et_pci_dev, isr_work);
+
+	uninit_et_pci_dev(et_dev, false);
+
+	dev_dbg(&et_dev->pdev->dev, "Waiting for PCIe link to settle...\n");
+	msleep(300);
+	et_restore_bars(et_dev);
+
+	rv = init_et_pci_dev(et_dev, false);
+	if (rv < 0)
+		dev_err(&et_dev->pdev->dev,
+			"PCIe re-initialization failed, errno: %d\n",
+			-rv);
+}
+
+static int esperanto_pcie_probe(struct pci_dev *pdev,
+				const struct pci_device_id *pci_id)
+{
+	int rv;
+	struct et_pci_dev *et_dev = NULL;
+
+	// Create instance data for this device, save it to drvdata
+	rv = create_et_pci_dev(&et_dev, pdev);
+	pci_set_drvdata(pdev, et_dev); // Set even if NULL
+	if (rv < 0) {
+		dev_err(&pdev->dev, "create_et_pci_dev failed\n");
+		return rv;
+	}
+
+	rv = init_et_pci_dev(et_dev, true);
+	if (rv < 0) {
+		dev_err(&pdev->dev, "PCIe initialization failed\n");
+		goto error_free_dev;
+	}
+
+	et_dev->reset_workqueue = alloc_workqueue("%s:%d_rstwq",
+						  WQ_MEM_RECLAIM | WQ_UNBOUND,
+						  1,
+						  dev_name(&et_dev->pdev->dev),
+						  et_dev->dev_index);
+	if (!et_dev->reset_workqueue) {
+		dev_err(&pdev->dev, "Mgmt device initialization failed\n");
+		rv = -ENOMEM;
+		goto error_uninit_et_pci_dev;
+	}
+	INIT_WORK(&et_dev->isr_work, et_reset_isr_work);
+
+	et_save_bars(et_dev);
+
+	return rv;
+
+error_uninit_et_pci_dev:
+	uninit_et_pci_dev(et_dev, true);
+
 error_free_dev:
 	destroy_et_pci_dev(et_dev);
 	pci_set_drvdata(pdev, NULL);
@@ -2311,16 +2536,11 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 	if (!et_dev)
 		return;
 
-	et_ops_dev_destroy(et_dev);
-	et_mgmt_dev_destroy(et_dev);
+	cancel_work_sync(&et_dev->isr_work);
+	destroy_workqueue(et_dev->reset_workqueue);
 
-	if (et_dev->is_err_reporting)
-		pci_disable_pcie_error_reporting(pdev);
+	uninit_et_pci_dev(et_dev, true);
 
-	pci_release_regions(pdev);
-	pci_free_irq_vectors(pdev);
-	pci_clear_master(pdev);
-	pci_disable_device(pdev);
 	destroy_et_pci_dev(et_dev);
 	pci_set_drvdata(pdev, NULL);
 }
