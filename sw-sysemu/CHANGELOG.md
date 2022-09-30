@@ -7,10 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 
 ## [Unreleased]
-
 ### Added
 ### Changed
 - [SW-14481] (Conan) libsysemu component to require libfpu
+- [SW-14434] (Conan) CI now generates Debug & Release pkgs
 ### Deprecated
 ### Removed
 ### Fixed
