@@ -659,6 +659,7 @@ static void destroy_msg_node(struct et_msg_node *node)
 static void mm_reset_completion_callback(struct et_cqueue *cq,
 					 struct device_mgmt_rsp_hdr_t *rsp)
 {
+	int rv = 0;
 	struct et_pci_dev *et_dev = pci_get_drvdata(cq->vq_common->pdev);
 
 	if (rsp->status != DEV_OPS_API_MM_RESET_RESPONSE_COMPLETE) {
@@ -668,10 +669,12 @@ static void mm_reset_completion_callback(struct et_cqueue *cq,
 		return;
 	}
 
-	if (et_ops_dev_init(et_dev, 0U) != 0) {
-		dev_err(&et_dev->pdev->dev, "Ops Device re-init failed!\n");
-		return;
-	}
+	et_ops_dev_destroy(et_dev, false);
+	rv = et_ops_dev_init(et_dev, 0, false);
+	if (rv)
+		dev_err(&et_dev->pdev->dev,
+			"Ops device re-initialization failed, errno: %d\n",
+			-rv);
 }
 
 void et_destroy_msg_list(struct et_cqueue *cq)
@@ -1570,6 +1573,7 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_RESET_ETSOC:
+		// Do nothing, no response will be returned
 		break;
 
 	case DM_CMD_GET_MODULE_MANUFACTURE_NAME:
