@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14061] Added support for GET_ASIC_VOLTAGES command.
 - [SW-14061] Added implementation of get_delta_voltage().
 - [SW-6851]: Add support to reset ETSOC through PMIC
+- Added more clear debug info for PMIC error
 ### Changed
 - [SW-14084]: Fixing the CMA calculation to scale up and down the values correctly.
 - Support to read PMIC FW from PMIC directly versus hardcoded value

@@ -151,6 +151,39 @@ int I2C_PMIC_Initialize(void)
 *
 *   FUNCTION
 *
+*       Wait PMIC Ready 
+*
+*   DESCRIPTION
+*
+*       This function waits for PMIC ready to be cleared.
+*
+*   INPUTS
+*
+*       timeout   timeout value      
+*
+*   OUTPUTS
+*
+*       status     status of initialization success/error
+*
+***********************************************************************/
+int wait_pmic_ready(int timeout)
+{
+    while (timeout > 0)
+    {
+        /* GPIO 15 is designated as PMIC Ready indication */
+        if (gpio_read_pin_value(GPIO_CONTROLLER_ID_SPIO, 15))
+        {
+            return 0;
+        }
+        --timeout;
+    }
+    return -1;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       get_pmic_reg
 *
 *   DESCRIPTION
@@ -172,7 +205,7 @@ inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size
 {
     if (0 != i2c_read(&g_pmic_i2c_dev_reg, reg, reg_value, reg_size))
     {
-        MESSAGE_ERROR("PMIC read failed!");
+        MESSAGE_ERROR("get_pmic_reg: PMIC read reg: %d failed!", reg);
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -205,7 +238,7 @@ inline static int set_pmic_reg(uint8_t reg, uint8_t value, uint8_t reg_size)
 {
     if (0 != i2c_write(&g_pmic_i2c_dev_reg, reg, &value, reg_size))
     {
-        MESSAGE_ERROR("PMIC write failed!");
+        MESSAGE_ERROR("set_pmic_reg: PMIC write failed!");
         return ERROR_PMIC_I2C_WRITE_FAILED;
     }
 
@@ -567,7 +600,7 @@ void pmic_error_isr(void)
 
     if (0 != pmic_get_int_cause(&int_cause))
     {
-        MESSAGE_ERROR("PMIC read failed!");
+        MESSAGE_ERROR("pmic_error_isr: PMIC read int cause failed!");
     }
 
     /* Generate PMIC Error */
@@ -578,7 +611,7 @@ void pmic_error_isr(void)
 
         if (0 != pmic_get_temperature(&reg_value))
         {
-            MESSAGE_ERROR("PMIC read failed!");
+            MESSAGE_ERROR("pmic_error_isr: PMIC get_temperature failed!");
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
         FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_TEMP_LSB,
@@ -592,7 +625,7 @@ void pmic_error_isr(void)
 
         if (0 != pmic_read_instantaneous_soc_power(&reg_value_16))
         {
-            MESSAGE_ERROR("PMIC read failed!");
+            MESSAGE_ERROR("pmic_error_isr: PMIC read instantenous soc power failed!");
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
         FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_POWER_LSB,
@@ -604,7 +637,7 @@ void pmic_error_isr(void)
     {
         if (0 != pmic_get_input_voltage(&reg_value))
         {
-            MESSAGE_ERROR("PMIC read failed!");
+            MESSAGE_ERROR("pmic_error_isr: PMIC get_input_voltage failed!");
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
         FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_PWR_FAIL_LSB,
@@ -623,7 +656,7 @@ void pmic_error_isr(void)
     {
         if (0 != pmic_get_command_comm_fault_details(&reg_value_32))
         {
-            MESSAGE_ERROR("PMIC read failed!");
+            MESSAGE_ERROR("pmic_error_isr: PMIC get_command_comm_fault failed!");
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
         FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_MESSAGE_ERROR_LSB,
@@ -635,7 +668,7 @@ void pmic_error_isr(void)
     {
         if (0 != pmic_get_reg_comm_fault_details(&reg_value_32))
         {
-            MESSAGE_ERROR("PMIC read failed!");
+            MESSAGE_ERROR("pmic_error_isr: PMIC get_reg_comm_fault failed!");
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
         FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_REG_COM_FAIL_LSB,
@@ -647,7 +680,7 @@ void pmic_error_isr(void)
     {
         if (0 != pmic_get_reg_fault_details(&reg_value_32))
         {
-            MESSAGE_ERROR("PMIC read failed!");
+            MESSAGE_ERROR("pmic_error_isr: PMIC get_reg_fault failed!");
         }
         FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
         FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_REG_FAULT_LSB,
@@ -712,7 +745,7 @@ int pmic_get_fw_version(uint8_t *major, uint8_t *minor, uint8_t *patch)
     /* read data back */
     if (0 != get_pmic_reg(PMIC_I2C_UPDATEDATA_ADDRESS, (uint8_t *)&fw_sem_ver, 4))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_get_fw_version: PMIC read reg failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -780,7 +813,7 @@ int pmic_set_gpio_as_input(uint8_t index)
 
     if (0 != get_pmic_reg(PMIC_I2C_GPIO_CONFIG_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_set_gpio_as_input: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -822,7 +855,7 @@ int pmic_set_gpio_as_output(uint8_t index)
 
     if (0 != get_pmic_reg(PMIC_I2C_GPIO_CONFIG_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_set_gpio_as_output: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -864,7 +897,7 @@ int pmic_get_gpio_bit(uint8_t index, uint8_t *gpio_bit_value)
 
     if (0 != get_pmic_reg(PMIC_I2C_GPIO_RW_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_get_gpio_bit: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -905,7 +938,7 @@ int pmic_set_gpio_bit(uint8_t index)
 
     if (0 != get_pmic_reg(PMIC_I2C_GPIO_RW_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_set_gpio_bit: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -947,7 +980,7 @@ int pmic_clear_gpio_bit(uint8_t index)
 
     if (0 != get_pmic_reg(PMIC_I2C_GPIO_RW_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_clear_gpio_bit: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -1118,7 +1151,7 @@ int pmic_enable_etsoc_reset_after_perst(void)
 
     if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_enable_etsoc_reset_after_perst: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -1152,7 +1185,7 @@ int pmic_disable_etsoc_reset_after_perst(void)
 
     if (0 != get_pmic_reg(PMIC_I2C_RESET_CTRL_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_disable_etsoc_reset_after_perst: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -1606,7 +1639,7 @@ int pmic_enable_wdog_timer(void)
 
     if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_enable_wdog_timer: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -1640,7 +1673,7 @@ int pmic_disable_wdog_timer(void)
 
     if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_disable_wdog_timer: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -1674,7 +1707,7 @@ int pmic_enable_wdog_timeout_reset(void)
 
     if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_enable_wdog_timeout_reset: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -1708,7 +1741,7 @@ int pmic_disable_wdog_timeout_reset(void)
 
     if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_disable_wdog_timeout_reset: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -1743,7 +1776,7 @@ int pmic_get_wdog_timeout_time(uint32_t *wdog_time)
 
     if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_get_wdog_timeout_time: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -1782,7 +1815,7 @@ int pmic_set_wdog_timeout_time(uint32_t timeout_time)
 
     if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_set_wdog_timeout_time: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
     new_timeout_value = (uint8_t)(timeout_time / 200);
@@ -1967,7 +2000,7 @@ int pmic_reset_wdog_timer(void)
 
     if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_RESET_ADDRESS, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("pmic_reset_wdog_timer: PMIC read failed");
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -2026,7 +2059,7 @@ int I2C_PMIC_Read(uint8_t reg)
 
     if (0 != get_pmic_reg(reg, &reg_value, 1))
     {
-        MESSAGE_ERROR("PMIC read failed");
+        MESSAGE_ERROR("I2C_PMIC_Read: PMIC read reg: %d failed", reg);
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 

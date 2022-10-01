@@ -15,27 +15,30 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef enum {
+typedef enum
+{
     GPIO_CONTROLLER_ID_INVALID = 0,
     GPIO_CONTROLLER_ID_SPIO,
     GPIO_CONTROLLER_ID_PU
 } GPIO_CONTROLLER_ID_t;
 
-typedef enum {
+typedef enum
+{
     GPIO_INT_LEVEL = 0,
     GPIO_INT_EDGE
 } GPIO_INT_SENSITIVITY_t;
 
-typedef enum {
+typedef enum
+{
     GPIO_INT_LOW = 0,
     GPIO_INT_HIGH
 } GPIO_INT_POLARITY_t;
 
-typedef enum {
+typedef enum
+{
     GPIO_INT_DEBOUNCE_OFF = 0,
     GPIO_INT_DEBOUNCE_ON
 } GPIO_INT_DEBOUNCE_t;
-
 
 /*! \fn int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number, GPIO_INT_SENSITIVITY_t sensitivity,
 *                          GPIO_INT_POLARITY_t polarity, GPIO_INT_DEBOUNCE_t debounce)
@@ -52,8 +55,9 @@ typedef enum {
     \return The function call status, pass/fail.
 */
 
-int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number, GPIO_INT_SENSITIVITY_t sensitivity,
-                          GPIO_INT_POLARITY_t polarity, GPIO_INT_DEBOUNCE_t debounce);
+int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number,
+                          GPIO_INT_SENSITIVITY_t sensitivity, GPIO_INT_POLARITY_t polarity,
+                          GPIO_INT_DEBOUNCE_t debounce);
 
 /*! \fn int gpio_enable_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number)
     \brief This function unmask and enables GPIO interrupt
@@ -81,5 +85,21 @@ int gpio_disable_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number);
 */
 
 int gpio_clear_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number);
+
+/*! \fn int gpio_pin_set_output(GPIO_CONTROLLER_ID_t id, uint8_t pin_number)
+    \brief This function sets the GPIO pins as output
+    \param id - GPIO controller id (SPIO/PU).
+    \param pin_number - GPIO pin number
+    \return The function call status, pass/fail.
+*/
+int gpio_pin_set_output(GPIO_CONTROLLER_ID_t id, uint8_t pin_number);
+
+/*! \fn bool gpio_read_pin_value(GPIO_CONTROLLER_ID_t id, uint8_t pin_number)
+    \brief This function reads the value of a given GPIO pin
+    \param id - GPIO controller id (SPIO/PU).
+    \param pin_number - GPIO pin number
+    \return The function call status, pass/fail.
+*/
+bool gpio_read_pin_value(GPIO_CONTROLLER_ID_t id, uint8_t pin_number);
 
 #endif

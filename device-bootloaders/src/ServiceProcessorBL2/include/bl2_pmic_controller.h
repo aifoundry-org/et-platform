@@ -149,6 +149,13 @@ struct pmic_event_control_block
 */
 void setup_pmic(void);
 
+/*! \fn int wait_pmic_ready(int timeout)
+    \brief This function waits for PMIC ready to be cleared.
+    \param timeout timeout value
+    \return The function call status, pass/fail.
+*/
+int wait_pmic_ready(int timeout);
+
 /*! \fn int32_t pmic_error_control_init(dm_event_isr_callback event_cb)
     \brief This function setup error callback.
     \param event_cb - callback pointer

@@ -91,8 +91,9 @@ static uintptr_t get_gpio_registers(GPIO_CONTROLLER_ID_t id)
 *       none
 *
 ***********************************************************************/
-int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number, GPIO_INT_SENSITIVITY_t sensitivity,
-                          GPIO_INT_POLARITY_t polarity, GPIO_INT_DEBOUNCE_t debounce)
+int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number,
+                          GPIO_INT_SENSITIVITY_t sensitivity, GPIO_INT_POLARITY_t polarity,
+                          GPIO_INT_DEBOUNCE_t debounce)
 {
     uint32_t reg_value;
 
@@ -103,14 +104,14 @@ int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number, GPIO_INT_
         return ERROR_GPIO_INVALID_ID;
     }
 
-    if(pin_number > 31)
+    if (pin_number > 31)
     {
         MESSAGE_ERROR("Invalid pin number!");
         return ERROR_GPIO_INVALID_ARGUMENTS;
     }
 
     reg_value = ioread32(gpio_regs + SPIO_GPIO_GPIO_INTTYPE_LEVEL_ADDRESS);
-    if(sensitivity == 0)
+    if (sensitivity == 0)
     {
         reg_value = reg_value & (uint32_t)(~(1 << pin_number));
     }
@@ -121,7 +122,7 @@ int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number, GPIO_INT_
     iowrite32(gpio_regs + SPIO_GPIO_GPIO_INTTYPE_LEVEL_ADDRESS, reg_value);
 
     reg_value = ioread32(gpio_regs + SPIO_GPIO_GPIO_INT_POLARITY_ADDRESS);
-    if(polarity == 0)
+    if (polarity == 0)
     {
         reg_value = reg_value & (uint32_t)(~(1 << pin_number));
     }
@@ -132,7 +133,7 @@ int gpio_config_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number, GPIO_INT_
     iowrite32(gpio_regs + SPIO_GPIO_GPIO_INT_POLARITY_ADDRESS, reg_value);
 
     reg_value = ioread32(gpio_regs + SPIO_GPIO_GPIO_DEBOUNCE_ADDRESS);
-    if(debounce == 0)
+    if (debounce == 0)
     {
         reg_value = reg_value & (uint32_t)(~(1 << pin_number));
     }
@@ -176,7 +177,7 @@ int gpio_enable_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number)
         return ERROR_GPIO_INVALID_ID;
     }
 
-    if(pin_number > 31)
+    if (pin_number > 31)
     {
         MESSAGE_ERROR("Invalid pin number!");
         return ERROR_GPIO_INVALID_ARGUMENTS;
@@ -220,13 +221,13 @@ int gpio_disable_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number)
     uintptr_t gpio_regs = get_gpio_registers(id);
     if (0 == gpio_regs)
     {
-        MESSAGE_ERROR("Invalid GPIO ID!");
+        MESSAGE_ERROR("gpio_disable_interrupt: Invalid GPIO ID!");
         return ERROR_GPIO_INVALID_ID;
     }
 
-    if(pin_number > 31)
+    if (pin_number > 31)
     {
-        MESSAGE_ERROR("Invalid pin number!");
+        MESSAGE_ERROR("gpio_disable_interrupt: Invalid pin number!");
         return ERROR_GPIO_INVALID_ARGUMENTS;
     }
 
@@ -268,13 +269,13 @@ int gpio_clear_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number)
     uintptr_t gpio_regs = get_gpio_registers(id);
     if (0 == gpio_regs)
     {
-        MESSAGE_ERROR("Invalid GPIO ID!");
+        MESSAGE_ERROR("gpio_clear_interrupt: Invalid GPIO ID!");
         return ERROR_GPIO_INVALID_ID;
     }
 
-    if(pin_number > 31)
+    if (pin_number > 31)
     {
-        MESSAGE_ERROR("Invalid pin number!");
+        MESSAGE_ERROR("gpio_clear_interrupt: Invalid pin number!");
         return ERROR_GPIO_INVALID_ARGUMENTS;
     }
 
@@ -282,4 +283,89 @@ int gpio_clear_interrupt(GPIO_CONTROLLER_ID_t id, uint8_t pin_number)
     iowrite32(gpio_regs + SPIO_GPIO_GPIO_PORTA_EOI_ADDRESS, reg_value);
 
     return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       gpio_pin_set_output
+*
+*   DESCRIPTION
+*
+*       This function sets the GPIO pins as output
+*
+*   INPUTS
+*
+*       id           GPIO controller id
+*       pin_number   GPIO pin number
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+int gpio_pin_set_output(GPIO_CONTROLLER_ID_t id, uint8_t pin_number)
+{
+    uint32_t reg_value = 0;
+
+    uintptr_t gpio_regs = get_gpio_registers(id);
+    if (0 == gpio_regs)
+    {
+        MESSAGE_ERROR("gpio_pin_set_output: Invalid GPIO ID!");
+        return ERROR_GPIO_INVALID_ID;
+    }
+
+    if (pin_number > 31)
+    {
+        MESSAGE_ERROR("gpio_pin_set_output: Invalid pin number!");
+        return ERROR_GPIO_INVALID_ARGUMENTS;
+    }
+
+    reg_value = ioread32(gpio_regs + SPIO_GPIO_GPIO_SWPORTA_DDR_ADDRESS);
+    reg_value = reg_value | (uint32_t)(1 << pin_number);
+    iowrite32(gpio_regs + SPIO_GPIO_GPIO_SWPORTA_DDR_ADDRESS, reg_value);
+
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       gpio_read_pin_value
+*
+*   DESCRIPTION
+*
+*       This function reads the value of a given GPIO pin
+*       
+*   INPUTS
+*
+*       id           GPIO controller id
+*       pin_number   GPIO pin number
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+bool gpio_read_pin_value(GPIO_CONTROLLER_ID_t id, uint8_t pin_number)
+{
+    uint32_t reg_value = 0;
+
+    uintptr_t gpio_regs = get_gpio_registers(id);
+    if (0 == gpio_regs)
+    {
+        MESSAGE_ERROR("gpio_pin_set_output: Invalid GPIO ID!");
+        return ERROR_GPIO_INVALID_ID;
+    }
+
+    if (pin_number > 31)
+    {
+        MESSAGE_ERROR("gpio_pin_set_output: Invalid pin number!");
+        return ERROR_GPIO_INVALID_ARGUMENTS;
+    }
+
+    reg_value = ioread32(gpio_regs + SPIO_GPIO_GPIO_EXT_PORTA_ADDRESS);
+    return ((reg_value >> pin_number) & 0x1);
 }
