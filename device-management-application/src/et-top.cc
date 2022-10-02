@@ -41,7 +41,7 @@
 static const uint32_t kDmServiceRequestTimeout = 100000;
 static const uint32_t kUpdateDelayMS = 100;
 static const int32_t kMaxDeviceNum = 63;
-static const uint16_t kOtherPower = 5750;
+static const uint16_t kOtherPower = 3750;
 static const int32_t kOpsCqNum = 1;
 static const int32_t kOpsSqNum = 2;
 
@@ -835,7 +835,7 @@ void EtTop::displayStats(void) {
                     BIN2VOLTAGE(asicVoltStats_.noc, 250, 5, 1));
     displayVoltStat("L2 CACHE ", true, BIN2VOLTAGE(moduleVoltStats_.l2_cache, 250, 5, 1),
                     BIN2VOLTAGE(asicVoltStats_.l2_cache, 250, 5, 1));
-    displayVoltStat("PCIE SS  ", false, BIN2VOLTAGE(moduleVoltStats_.pcie, 600, 125, 10),
+    displayVoltStat("PCIE SS  ", false, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 600, 625, 100),
                     BIN2VOLTAGE(asicVoltStats_.pcie, 600, 125, 10));
     displayVoltStat("PCL      ", true, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 600, 625, 100),
                     BIN2VOLTAGE(asicVoltStats_.pcie_logic, 600, 625, 100));
