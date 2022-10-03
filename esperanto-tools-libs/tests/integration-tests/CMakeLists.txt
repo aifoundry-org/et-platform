@@ -13,7 +13,6 @@ set(INTEGRATION_TEST_LIST
   test_memcpy.cpp:""
   test_device_errors.cpp:""
   test_dma_errors.cpp:""
-  mp_memcpy.cpp:""
   )
 create_test_targets("${INTEGRATION_TEST_LIST}" "LABELS;Generic;LABELS;Sysemu;TIMEOUT;300" "it_")
 
@@ -30,6 +29,7 @@ set(MP_SYSEMU_TEST_LIST
 test_memcpy.cpp:"--mp --mode=sysemu"
 test_code_loading.cpp:"--mp --mode=sysemu"
 test_device_errors.cpp:"--mp --mode=sysemu"
+mp_memcpy.cpp:""
 #test_dma_errors.cpp:"--mp --mode=sysemu" cant be in MP since we can not access the underlying runtime.
 )
 
