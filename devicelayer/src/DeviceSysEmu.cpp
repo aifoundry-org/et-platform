@@ -234,24 +234,23 @@ bool DeviceSysEmu::sendCommand(QueueInfo& queueInfo, std::byte* command, size_t 
   return true;
 }
 
-bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, size_t commandSize, bool,
-                                           bool isHighPriority) {
+bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, size_t commandSize, CmdFlagMM flags) {
   std::lock_guard lock(mutex_);
   Checker checker{*this};
   auto sq_idx = static_cast<uint32_t>(sqIdx);
-  if (sq_idx >= (isHighPriority ? hpSubmissionQueuesMM_.size() : submissionQueuesMM_.size())) {
+  if (sq_idx >= (flags.isHpSq_ ? hpSubmissionQueuesMM_.size() : submissionQueuesMM_.size())) {
     throw Exception("Invalid queue");
   }
 
   bool clearEvent = true;
-  auto res = sendCommand(isHighPriority ? hpSubmissionQueuesMM_[sq_idx] : submissionQueuesMM_[sq_idx], command,
+  auto res = sendCommand(flags.isHpSq_ ? hpSubmissionQueuesMM_[sq_idx] : submissionQueuesMM_[sq_idx], command,
                          commandSize, clearEvent);
   if (res) {
     sysEmu_->raiseDevicePuPlicPcieMessageInterrupt();
   }
 
   // No bitmap for high priority queues
-  if (clearEvent && !isHighPriority) {
+  if (clearEvent && !flags.isHpSq_) {
     // clear corresponding bit
     mmSqBitmap_ &= ~(1U << sq_idx);
   }
@@ -259,7 +258,7 @@ bool DeviceSysEmu::sendCommandMasterMinion(int, int sqIdx, std::byte* command, s
   return res;
 }
 
-bool DeviceSysEmu::sendCommandServiceProcessor(int, std::byte* command, size_t commandSize, bool) {
+bool DeviceSysEmu::sendCommandServiceProcessor(int, std::byte* command, size_t commandSize, CmdFlagSP) {
   std::lock_guard lock(mutex_);
   Checker checker{*this};
   bool clearEvent = true;
@@ -643,7 +642,7 @@ void DeviceSysEmu::freeDmaBuffer(void* dmaBuffer) {
 }
 
 DeviceConfig DeviceSysEmu::getDeviceConfig(int) {
-  return DeviceConfig {
+  return DeviceConfig{
     DeviceConfig::FormFactor::PCIE,      /* form factor */
     25,                                  /* tdp (W) */
     32768,                               /* L3 cache (KB) */
@@ -655,7 +654,7 @@ DeviceConfig DeviceSysEmu::getDeviceConfig(int) {
     1000,                                /* Mhz */
     spInfo_.generic_attr.cm_shires_mask, /* shire mask */
     32,                                  /* spare minion shire id */
-    0                                    /* Arch revision 0 (ETSOC1) */
+    DeviceConfig::ArchRevision::ETSOC1   /* Arch revision */
   };
 }
 

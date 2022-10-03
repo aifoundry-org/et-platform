@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- [SW-14409] Added ETSOC reset flag in sendCommandServiceProcessor(). Now sendCommandServiceProcessor()/sendCommandMasterMinion() APIs use `SPCmdFlag/MMCmdFlag` in place of bool argument `isMmReset`, `isDma` and `isHighPriority` etc.
+  * The use of enum `DeviceState` depends on new et_ioctl.h header.
+  * Package required for this change:
+    * linuxDriver/0.1.0@#9f0abce8d2566d2c178e687df7324c68
 ### Changed
+- [SW-14409] Changed dev::DeviceConfig::archRevision_ from `uint8_t` to `enum dev::DeviceConfig::ArchRevision` to be consistent with `enum dev::DeviceConfig::FormFactor`.
 ### Deprecated
 ### Removed
 ### Fixed

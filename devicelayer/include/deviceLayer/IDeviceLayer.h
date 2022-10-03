@@ -37,9 +37,12 @@
 /// @{
 namespace dev {
 
+/// NOTE: New enum/struct entities should be added in the end for backward compatibility
+
 /// \brief This struct contains device configured information
 struct DeviceConfig {
   enum class FormFactor { PCIE, M2 };
+  enum class ArchRevision { ETSOC1, PANTERO, GEPARDO };
   FormFactor formFactor_;              ///< device form factor
   uint8_t tdp_;                        ///< TDP in Watts
   uint32_t totalL3Size_;               ///< total size of L3 cache in KBytes
@@ -51,7 +54,7 @@ struct DeviceConfig {
   uint32_t minionBootFrequency_;       ///< minion boot frequency in Mhz
   uint32_t computeMinionShireMask_;    ///< mask which indicates what are the compute minion shires
   uint8_t spareComputeMinionoShireId_; ///< spare compute minion Shire ID
-  uint8_t archRevision_;               ///< architecture revision
+  ArchRevision archRevision_;          ///< architecture revision
 };
 
 /// \brief This struct contains the limitations / optimal DMA parameters.
@@ -61,10 +64,29 @@ struct DmaInfo {
 };
 
 /// \brief This enum contains possible device states
-enum class DeviceState { Ready, PendingCommands, NotResponding, ResetInProgress, Undefined };
+enum class DeviceState { Ready, PendingCommands, NotResponding, ResetInProgress, NotReady, Undefined };
+
+/// \brief This struct contains possible command flags for SP
+struct CmdFlagSP {
+  bool isMmReset_ = false;
+  bool isEtsocReset_ = false;
+};
+
+/// \brief This struct contains possible command flags for MM
+struct CmdFlagMM {
+  bool isDma_ = false;
+  bool isHpSq_ = false;
+};
 
 /// \brief This enum contains possible trace buffer types to extract from SP
-enum class TraceBufferType { TraceBufferSP = 0, TraceBufferMM, TraceBufferCM, TraceBufferSPStats, TraceBufferMMStats, TraceBufferTypeNum };
+enum class TraceBufferType {
+  TraceBufferSP = 0,
+  TraceBufferMM,
+  TraceBufferCM,
+  TraceBufferSPStats,
+  TraceBufferMMStats,
+  TraceBufferTypeNum
+};
 
 class Exception : public dbg::StackException {
   using dbg::StackException::StackException;
@@ -79,12 +101,12 @@ public:
   /// @param[in] sqIdx indicates which submission queue to send the command to.
   /// @param[in] command its a buffer which contains the command itself.
   /// @param[in] commandSize the size of the command + payload buffer.
-  /// @param[in] isDma indicates if the command involves a DMA operation. Needed for PCIe deviceLayer implementations
+  /// @param[in] flags indicates command options as defined by `CmdFlagMM`. Needed for PCIe deviceLayer
   ///
   /// @returns false if there was not enough space to send the command, true otherwise
   ///
-  virtual bool sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma,
-                                       bool isHighPriority = false) = 0;
+  virtual bool sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize,
+                                       CmdFlagMM flags) = 0;
 
   /// \brief Set the submission queue availability threshold. Submission queue epoll event will be generated only if
   /// space on submission queue is greater or equal to this threshold set. Default threshold value is one forth of size
@@ -125,11 +147,12 @@ public:
   /// @param[in] device indicating which device to send the command.
   /// @param[in] command its a buffer which contains the command itself.
   /// @param[in] commandSize the size of the command + payload buffer.
-  /// @param[in] isMmReset indicates if the command involves MM Reset handling. Needed for PCIe deviceLayer implementations
+  /// @param[in] flags indicates command options as defined by `CmdFlagSO`. Needed for PCIe deviceLayer
+  /// implementations
   ///
   /// @returns false if there was not enough space to send the command, true otherwise
   ///
-  virtual bool sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize, bool isMmReset = false) = 0;
+  virtual bool sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize, CmdFlagSP flags) = 0;
 
   /// \brief Set the submission queue availability threshold. Submission queue epoll event will be generated only if
   /// space on submission queue is greater or equal to this threshold set. Default threshold value is one forth of size
@@ -339,7 +362,6 @@ public:
   /// should exist and this call will clear all attributes in <relGroupPath> directory.
   ///
   virtual void clearDeviceAttributes(int device, std::string relGroupPath) const = 0;
-
 };
 
 class IDeviceLayer : public IDeviceAsync, public IDeviceSync {

@@ -15,6 +15,7 @@
 #include <experimental/filesystem>
 #include <fcntl.h>
 #include <fstream>
+#include <iomanip>
 #include <mutex>
 #include <regex>
 #include <stdio.h>
@@ -52,6 +53,90 @@ unsigned long getCmaFreeMem() {
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
   }
   return 0;
+}
+
+inline cmd_desc_flag parseCmdFlagSP(CmdFlagSP flags) {
+  auto descFlags = static_cast<std::byte>(CMD_DESC_FLAG_NONE);
+  if (flags.isMmReset_) {
+    descFlags |= static_cast<std::byte>(CMD_DESC_FLAG_MM_RESET);
+  }
+  if (flags.isEtsocReset_) {
+    descFlags |= static_cast<std::byte>(CMD_DESC_FLAG_ETSOC_RESET);
+  }
+  return static_cast<cmd_desc_flag>(static_cast<uint8_t>(descFlags));
+}
+
+inline cmd_desc_flag parseCmdFlagMM(CmdFlagMM flags) {
+  auto descFlags = static_cast<std::byte>(CMD_DESC_FLAG_NONE);
+  if (flags.isDma_) {
+    descFlags |= static_cast<std::byte>(CMD_DESC_FLAG_DMA);
+  }
+  if (flags.isHpSq_) {
+    descFlags |= static_cast<std::byte>(CMD_DESC_FLAG_HIGH_PRIORITY);
+  }
+  return static_cast<cmd_desc_flag>(static_cast<uint8_t>(descFlags));
+}
+
+inline DeviceConfig::FormFactor parseRawFormFactor(dev_config_form_factor ffRaw) {
+  DeviceConfig::FormFactor ff;
+  switch (ffRaw) {
+  case DEV_CONFIG_FORM_FACTOR_PCIE:
+    ff = DeviceConfig::FormFactor::PCIE;
+    break;
+  case DEV_CONFIG_FORM_FACTOR_M_2:
+    ff = DeviceConfig::FormFactor::M2;
+    break;
+  default:
+    throw Exception("Invalid form factor: " + std::to_string(ffRaw));
+  }
+  return ff;
+}
+
+inline DeviceConfig::ArchRevision parseRawArchRevision(dev_config_arch_revision revRaw) {
+  DeviceConfig::ArchRevision rev;
+  switch (revRaw) {
+  case DEV_CONFIG_ARCH_REVISION_ETSOC1:
+    rev = DeviceConfig::ArchRevision::ETSOC1;
+    break;
+  case DEV_CONFIG_ARCH_REVISION_PANTERO:
+    rev = DeviceConfig::ArchRevision::PANTERO;
+    break;
+  case DEV_CONFIG_ARCH_REVISION_GEPARDO:
+    rev = DeviceConfig::ArchRevision::GEPARDO;
+    break;
+  default:
+    throw Exception("Invalid architecture revision: " + std::to_string(revRaw));
+  }
+  return rev;
+}
+
+std::ostream& operator<<(std::ostream& os, DeviceConfig::FormFactor ff) {
+  static const std::unordered_map<DeviceConfig::FormFactor, std::string> ffString = {
+    {DeviceConfig::FormFactor::PCIE, "PCIE"}, {DeviceConfig::FormFactor::M2, "M2"}};
+  return os << ffString.at(ff);
+}
+
+std::ostream& operator<<(std::ostream& os, DeviceConfig::ArchRevision rev) {
+  static const std::unordered_map<DeviceConfig::ArchRevision, std::string> revString = {
+    {DeviceConfig::ArchRevision::ETSOC1, "ETSOC1"},
+    {DeviceConfig::ArchRevision::PANTERO, "PANTERO"},
+    {DeviceConfig::ArchRevision::GEPARDO, "GEPARDO"}};
+  return os << revString.at(rev);
+}
+
+template <typename T>
+inline void logInfoLine(std::stringstream& ss, const std::string attrStr, T attrVal, bool hex = false) {
+  ss << std::setw(32) << std::left << attrStr << std::setw(16) << std::left << attrVal;
+  if (hex) {
+    if constexpr (std::is_same_v<T, std::string>) {
+      // Nothing to print as hex for std::string
+    } else if constexpr (std::is_enum_v<T>) {
+      ss << " (0x" << std::hex << static_cast<unsigned long>(attrVal) << ")" << std::dec;
+    } else {
+      ss << " (0x" << std::hex << attrVal << ")" << std::dec;
+    }
+  }
+  ss << std::endl;
 }
 
 struct IoctlResult {
@@ -94,6 +179,9 @@ DeviceState getDeviceState(int fd) {
   wrap_ioctl(fd, ETSOC1_IOCTL_GET_DEVICE_STATE, &devState);
   DeviceState res;
   switch (devState) {
+  case DEV_STATE_NOT_READY:
+    res = DeviceState::NotReady;
+    break;
   case DEV_STATE_READY:
     res = DeviceState::Ready;
     break;
@@ -103,10 +191,40 @@ DeviceState getDeviceState(int fd) {
   case DEV_STATE_NOT_RESPONDING:
     res = DeviceState::NotResponding;
     break;
+  case DEV_STATE_RESET_IN_PROGRESS:
+    res = DeviceState::ResetInProgress;
+    break;
   default:
     res = DeviceState::Undefined;
   }
   return res;
+}
+
+int openWhenReady(const std::string path, std::chrono::seconds timeout) {
+  auto end = std::chrono::steady_clock::now() + timeout;
+  // EPERM indicates that device could be in progress and hence device node is not accessible.
+  // Wait for the given time for device to be ready.
+  int fd;
+  for (fd = open(path.c_str(), O_RDWR | O_NONBLOCK); fd < 0 && errno == EPERM && std::chrono::steady_clock::now() < end;
+       fd = open(path.c_str(), O_RDWR | O_NONBLOCK)) {
+    DV_LOG(INFO) << "Waiting for device " << path << " to be accessible ...";
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+  if (fd < 0) {
+    throw Exception("Error opening device " + path + ":'" + std::strerror(errno) + "'");
+  }
+
+  auto state = getDeviceState(fd);
+  for (; state != DeviceState::Ready && state != DeviceState::NotResponding && std::chrono::steady_clock::now() < end;
+       state = getDeviceState(fd)) {
+    DV_LOG(INFO) << "Waiting for device " << path << " to be ready ...";
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+  if (state != DeviceState::Ready) {
+    throw Exception("Error device " + path +
+                    " is not in DeviceState::Ready, state: " + std::to_string(static_cast<int>(state)));
+  }
+  return fd;
 }
 
 constexpr int kMaxEpollEvents = 6;
@@ -204,6 +322,102 @@ size_t DevicePcie::getSubmissionQueueSizeServiceProcessor(int device) const {
   return devices_[static_cast<unsigned long>(device)].spSqMaxMsgSize_;
 }
 
+void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, std::chrono::seconds timeout) const {
+  auto end = std::chrono::steady_clock::now() + timeout;
+  std::stringstream logs;
+  if (mngmtEnabled_) {
+    std::string path = "/dev/et" + std::to_string(device) + "_mgmt";
+    deviceInfo.fdMgmt_ =
+      openWhenReady(path, std::chrono::duration_cast<std::chrono::seconds>(end - std::chrono::steady_clock::now()));
+
+    deviceInfo.epFdMgmt_ = openAndConfigEpoll(deviceInfo.fdMgmt_);
+
+    wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE, &deviceInfo.spSqMaxMsgSize_);
+
+    logs << std::endl;
+    logInfoLine(logs, "PCIe target:", path);
+    logInfoLine(logs, "SP VQ Maximum message size (B):", deviceInfo.spSqMaxMsgSize_, true);
+  }
+  if (opsEnabled_) {
+    std::string path = "/dev/et" + std::to_string(device) + "_ops";
+    deviceInfo.fdOps_ =
+      openWhenReady(path, std::chrono::duration_cast<std::chrono::seconds>(end - std::chrono::steady_clock::now()));
+
+    deviceInfo.epFdOps_ = openAndConfigEpoll(deviceInfo.fdOps_);
+
+    wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_USER_DRAM_INFO, &deviceInfo.userDram_);
+    wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_SQ_COUNT, &deviceInfo.mmSqCount_);
+    wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE, &deviceInfo.mmSqMaxMsgSize_);
+
+    logs << std::endl;
+    logInfoLine(logs, "PCIe target:", path);
+    logInfoLine(logs, "DRAM base:", deviceInfo.userDram_.base, true);
+    logInfoLine(logs, "DRAM size (B):", deviceInfo.userDram_.size, true);
+    logInfoLine(logs, "DRAM alignment (bits):", deviceInfo.userDram_.align_in_bits);
+    logInfoLine(logs, "MM SQ count:", deviceInfo.mmSqCount_, true);
+    logInfoLine(logs, "MM VQ Maximum message size (B):", deviceInfo.mmSqMaxMsgSize_, true);
+  }
+
+  auto fd = mngmtEnabled_ ? deviceInfo.fdMgmt_ : deviceInfo.fdOps_;
+
+  wrap_ioctl(fd, ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(deviceInfo.devName.size()), deviceInfo.devName.data());
+
+  dev_config cfg;
+  wrap_ioctl(fd, ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION, &cfg);
+  deviceInfo.cfg_ = DeviceConfig{parseRawFormFactor(static_cast<dev_config_form_factor>(cfg.form_factor)),
+                                 cfg.tdp,
+                                 cfg.total_l3_size,
+                                 cfg.total_l2_size,
+                                 cfg.total_scp_size,
+                                 cfg.cache_line_size,
+                                 cfg.num_l2_cache_banks,
+                                 cfg.ddr_bandwidth,
+                                 cfg.minion_boot_freq,
+                                 cfg.cm_shire_mask,
+                                 cfg.sync_min_shire_id,
+                                 parseRawArchRevision(static_cast<dev_config_arch_revision>(cfg.arch_rev))};
+
+  logInfoLine(logs, "PCIBUS device name:", deviceInfo.devName.data());
+  logInfoLine(logs, "Form Factor:", deviceInfo.cfg_.formFactor_, true);
+  logInfoLine(logs, "TDP (W):", +deviceInfo.cfg_.tdp_);
+  logInfoLine(logs, "Minion boot frequency (MHz):", +deviceInfo.cfg_.minionBootFrequency_);
+  logInfoLine(logs, "L3 size (KB):", deviceInfo.cfg_.totalL3Size_, true);
+  logInfoLine(logs, "L2 size (KB):", deviceInfo.cfg_.totalL2Size_, true);
+  logInfoLine(logs, "Scratch pad size (KB):", deviceInfo.cfg_.totalScratchPadSize_, true);
+  logInfoLine(logs, "Cache line size (B):", +deviceInfo.cfg_.cacheLineSize_, true);
+  logInfoLine(logs, "Number of L2 Banks:", +deviceInfo.cfg_.numL2CacheBanks_);
+  logInfoLine(logs, "DDR Bandwidth (MB/s):", +deviceInfo.cfg_.ddrBandwidth_);
+  logInfoLine(logs, "Spare shire ID:", +deviceInfo.cfg_.spareComputeMinionoShireId_);
+  logInfoLine(logs, "Architecture revision:", deviceInfo.cfg_.archRevision_, true);
+  logInfoLine(logs, "CM active shire mask:", deviceInfo.cfg_.computeMinionShireMask_, true);
+
+  DV_DLOG(DEBUG) << logs.str();
+}
+
+void DevicePcie::teardownDeviceInfo(const DevInfo& deviceInfo) const {
+  if (opsEnabled_) {
+    auto res = close(deviceInfo.fdOps_);
+    if (res < 0) {
+      throw Exception("Failed to close ops file, error: '"s + std::strerror(errno) + "'"s);
+    }
+    res = close(deviceInfo.epFdOps_);
+    if (res < 0) {
+      throw Exception("Failed to close ops epoll file, error: '"s + std::strerror(errno) + "'"s);
+    }
+  }
+  if (mngmtEnabled_) {
+    auto res = close(deviceInfo.fdMgmt_);
+    if (res < 0) {
+      throw Exception("Failed to close mgmt file, error: '"s + std::strerror(errno) + "'"s);
+    }
+
+    res = close(deviceInfo.epFdMgmt_);
+    if (res < 0) {
+      throw Exception("Failed to close mgmt epoll file, error: '"s + std::strerror(errno) + "'"s);
+    }
+  }
+}
+
 DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
   : opsEnabled_(enableOps)
   , mngmtEnabled_(enableMngmt) {
@@ -211,126 +425,39 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
     throw Exception("Ops or Mngmt must be enabled");
   }
 
-  int mngmtDevCount = countDeviceNodes(true);
-  int opsDevCount = countDeviceNodes(false);
+  auto mngmtDevCount = countDeviceNodes(true);
 
   // If ops node does not exist then device is in recovery mode.
-  if (opsDevCount != mngmtDevCount && enableOps) {
+  if (auto opsDevCount = countDeviceNodes(false); opsDevCount != mngmtDevCount && enableOps) {
     throw Exception("Only Mngmt can be enabled in recovery mode");
   }
 
   for (int i = 0; i < mngmtDevCount; ++i) {
     DevInfo deviceInfo;
-    std::stringstream logs;
-    if (mngmtEnabled_) {
-      char path[32];
-      std::snprintf(path, sizeof(path), "/dev/et%d_mgmt", i);
-
-      deviceInfo.fdMgmt_ = open(path, O_RDWR | O_NONBLOCK);
-      if (deviceInfo.fdMgmt_ < 0) {
-        throw Exception("Error opening mgmt file: '"s + std::strerror(errno) + "'"s);
-      }
-
-      wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE, &deviceInfo.spSqMaxMsgSize_);
-      deviceInfo.epFdMgmt_ = openAndConfigEpoll(deviceInfo.fdMgmt_);
-
-      logs << "\nPCIe target mgmt opened: \"" << path << "\""
-           << "\nSP VQ Maximum message size: " << deviceInfo.spSqMaxMsgSize_ << std::endl;
-    }
-    if (opsEnabled_) {
-      char path[32];
-      std::snprintf(path, sizeof(path), "/dev/et%d_ops", i);
-      deviceInfo.fdOps_ = open(path, O_RDWR | O_NONBLOCK);
-      if (deviceInfo.fdOps_ < 0) {
-        throw Exception("Error opening ops file: '"s + std::strerror(errno) + "'"s);
-      }
-
-      wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_USER_DRAM_INFO, &deviceInfo.userDram_);
-      wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_SQ_COUNT, &deviceInfo.mmSqCount_);
-      wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE, &deviceInfo.mmSqMaxMsgSize_);
-
-      deviceInfo.epFdOps_ = openAndConfigEpoll(deviceInfo.fdOps_);
-
-      logs << "\nPCIe target ops opened: \"" << path << "\""
-           << "\nDRAM base: 0x" << std::hex << deviceInfo.userDram_.base << "\nDRAM size: 0x" << std::hex
-           << deviceInfo.userDram_.size << "\nDRAM alignment: " << std::dec << deviceInfo.userDram_.align_in_bits
-           << "bits"
-           << "\nMM SQ count: " << deviceInfo.mmSqCount_
-           << "\nMM VQ Maximum message size: " << deviceInfo.mmSqMaxMsgSize_ << std::endl;
-    }
-
-    auto fd = mngmtEnabled_ ? deviceInfo.fdMgmt_ : deviceInfo.fdOps_;
-    wrap_ioctl(fd, ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(deviceInfo.devName.size()), deviceInfo.devName.data());
-    logs << "PCIBUS device name: " << deviceInfo.devName.data() << std::endl;
-
-    dev_config cfg;
-    wrap_ioctl(fd, ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION, &cfg);
-    deviceInfo.cfg_ = DeviceConfig{cfg.form_factor == DEV_CONFIG_FORM_FACTOR_PCIE ? DeviceConfig::FormFactor::PCIE
-                                                                                  : DeviceConfig::FormFactor::M2,
-                                   cfg.tdp,
-                                   cfg.total_l3_size,
-                                   cfg.total_l2_size,
-                                   cfg.total_scp_size,
-                                   cfg.cache_line_size,
-                                   cfg.num_l2_cache_banks,
-                                   cfg.ddr_bandwidth,
-                                   cfg.minion_boot_freq,
-                                   cfg.cm_shire_mask,
-                                   cfg.sync_min_shire_id,
-                                   cfg.arch_rev};
-
-    logs << "Form Factor: " << static_cast<unsigned long>(deviceInfo.cfg_.formFactor_)
-         << "\nTDP: " << static_cast<unsigned long>(deviceInfo.cfg_.tdp_)
-         << "W\nMinion boot frequency: " << deviceInfo.cfg_.minionBootFrequency_
-         << "MHz\nL3 size: " << deviceInfo.cfg_.totalL3Size_ << "KB\nL2 size: " << deviceInfo.cfg_.totalL2Size_
-         << "KB\nScratch pad size: " << deviceInfo.cfg_.totalScratchPadSize_
-         << "KB\nCache line size: " << static_cast<unsigned long>(deviceInfo.cfg_.cacheLineSize_)
-         << "B\nNumber of L2 Banks: " << static_cast<unsigned long>(deviceInfo.cfg_.numL2CacheBanks_)
-         << "\nDDR Bandwidth: " << static_cast<unsigned long>(deviceInfo.cfg_.ddrBandwidth_)
-         << "MB/s\nSpare Shire ID: " << static_cast<unsigned long>(deviceInfo.cfg_.spareComputeMinionoShireId_)
-         << "\nArchitecture Revision: " << static_cast<unsigned long>(deviceInfo.cfg_.archRevision_)
-         << "\nCM active shire mask: 0x" << std::hex << deviceInfo.cfg_.computeMinionShireMask_ << std::endl;
-
+    setupDeviceInfo(i, deviceInfo);
     devices_.emplace_back(deviceInfo);
-    DV_DLOG(DEBUG) << logs.str();
   }
 }
 
 DevicePcie::~DevicePcie() {
   for (auto& d : devices_) {
-    if (opsEnabled_) {
-      auto res = close(d.fdOps_);
-      if (res < 0) {
-        DV_LOG(FATAL) << "Failed to close ops file, error: " << std::strerror(errno);
-      }
-      res = close(d.epFdOps_);
-      if (res < 0) {
-        DV_LOG(FATAL) << "Failed to close ops epoll file, error: " << std::strerror(errno);
-      }
-    }
-    if (mngmtEnabled_) {
-      auto res = close(d.fdMgmt_);
-      if (res < 0) {
-        DV_LOG(FATAL) << "Failed to close mgmt file, error: " << std::strerror(errno);
-      }
-
-      res = close(d.epFdMgmt_);
-      if (res < 0) {
-        DV_LOG(FATAL) << "Failed to close mgmt epoll file, error: " << std::strerror(errno);
-      }
+    try {
+      teardownDeviceInfo(d);
+    } catch (const dev::Exception& ex) {
+      DV_LOG(FATAL) << ex.what();
     }
   }
 }
 
-bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma,
-                                         bool isHighPriority) {
+bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize,
+                                         CmdFlagMM flags) {
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
   if (device >= static_cast<int>(devices_.size())) {
     throw Exception("Invalid device");
   }
-  auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
+  const auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
   if (sqIdx >= deviceInfo.mmSqCount_) {
     throw Exception("Invalid queue");
   }
@@ -338,13 +465,7 @@ bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* comma
   cmdInfo.cmd = command;
   cmdInfo.size = static_cast<uint16_t>(commandSize);
   cmdInfo.sq_index = static_cast<uint16_t>(sqIdx);
-  cmdInfo.flags = 0;
-  if (isDma) {
-    cmdInfo.flags |= CMD_DESC_FLAG_DMA;
-  }
-  if (isHighPriority) {
-    cmdInfo.flags |= CMD_DESC_FLAG_HIGH_PRIORITY;
-  }
+  cmdInfo.flags = parseCmdFlagMM(flags);
   return wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_PUSH_SQ, &cmdInfo);
 }
 
@@ -430,22 +551,19 @@ size_t DevicePcie::getTraceBufferSizeMasterMinion(int device, TraceBufferType tr
   return static_cast<size_t>(wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_TRACE_BUFFER_SIZE, &trace_type).rc_);
 }
 
-bool DevicePcie::sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize, bool isMmReset) {
+bool DevicePcie::sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize, CmdFlagSP flags) {
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
   }
   if (device >= static_cast<int>(devices_.size())) {
     throw Exception("Invalid device");
   }
-  auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
+  const auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
   cmd_desc cmdInfo;
   cmdInfo.cmd = command;
   cmdInfo.size = static_cast<uint16_t>(commandSize);
   cmdInfo.sq_index = 0;
-  cmdInfo.flags = 0;
-  if (isMmReset) {
-    cmdInfo.flags |= CMD_DESC_FLAG_MM_RESET;
-  }
+  cmdInfo.flags = parseCmdFlagSP(flags);
   return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_PUSH_SQ, &cmdInfo);
 }
 

@@ -17,14 +17,13 @@ public:
   explicit DeviceSysEmuMulti(std::vector<emu::SysEmuOptions> options);
 
   // IDeviceAsync
-  bool sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma,
-                               bool isHighPriority) override;
+  bool sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize, CmdFlagMM flags) override;
   void setSqThresholdMasterMinion(int device, int sqIdx, uint32_t bytesNeeded) override;
   void waitForEpollEventsMasterMinion(int device, uint64_t& sqBitmap, bool& cqAvailable,
                                       std::chrono::milliseconds timeout = std::chrono::seconds(10)) override;
   bool receiveResponseMasterMinion(int device, std::vector<std::byte>& response) override;
 
-  bool sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize, bool isMmReset) override;
+  bool sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize, CmdFlagSP flags) override;
   void setSqThresholdServiceProcessor(int device, uint32_t bytesNeeded) override;
   void waitForEpollEventsServiceProcessor(int device, bool& sqAvailable, bool& cqAvailable,
                                           std::chrono::milliseconds timeout = std::chrono::seconds(10)) override;

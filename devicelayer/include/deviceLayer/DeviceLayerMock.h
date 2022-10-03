@@ -25,14 +25,14 @@ public:
   explicit DeviceLayerMock(IDeviceLayer* delegate)
     : delegate_(delegate) {
   }
-  MOCK_METHOD6(sendCommandMasterMinion,
-               bool(int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma, bool isHighPriority));
+  MOCK_METHOD5(sendCommandMasterMinion,
+               bool(int device, int sqIdx, std::byte* command, size_t commandSize, CmdFlagMM flags));
   MOCK_METHOD3(setSqThresholdMasterMinion, void(int device, int sqIdx, uint32_t bytesNeeded));
   MOCK_METHOD3(waitForEpollEventsMasterMinion, void(int device, uint64_t& sq_bitmap, bool& cq_available));
   MOCK_METHOD4(waitForEpollEventsMasterMinion,
                void(int device, uint64_t& sq_bitmap, bool& cq_available, std::chrono::milliseconds timeout));
   MOCK_METHOD2(receiveResponseMasterMinion, bool(int device, std::vector<std::byte>& response));
-  MOCK_METHOD4(sendCommandServiceProcessor, bool(int device, std::byte* command, size_t commandSize, bool isMmReset));
+  MOCK_METHOD4(sendCommandServiceProcessor, bool(int device, std::byte* command, size_t commandSize, CmdFlagSP flags));
   MOCK_METHOD2(setSqThresholdServiceProcessor, void(int device, uint32_t bytesNeeded));
   MOCK_METHOD3(waitForEpollEventsServiceProcessor, void(int device, bool& sq_available, bool& cq_available));
   MOCK_METHOD4(waitForEpollEventsServiceProcessor,
@@ -62,10 +62,9 @@ public:
 
   void Delegate() {
     ON_CALL(*this, sendCommandMasterMinion)
-      .WillByDefault(
-        [this](int device, int sqIdx, std::byte* command, size_t commandSize, bool isDma, bool isHighPriority) {
-          return delegate_->sendCommandMasterMinion(device, sqIdx, command, commandSize, isDma, isHighPriority);
-        });
+      .WillByDefault([this](int device, int sqIdx, std::byte* command, size_t commandSize, CmdFlagMM flags) {
+        return delegate_->sendCommandMasterMinion(device, sqIdx, command, commandSize, flags);
+      });
     ON_CALL(*this, setSqThresholdMasterMinion).WillByDefault([this](int device, int sqIdx, uint32_t bytesNeeded) {
       delegate_->setSqThresholdMasterMinion(device, sqIdx, bytesNeeded);
     });
@@ -81,8 +80,8 @@ public:
       return delegate_->receiveResponseMasterMinion(device, response);
     });
     ON_CALL(*this, sendCommandServiceProcessor)
-      .WillByDefault([this](int device, std::byte* command, size_t commandSize, bool isMmReset) {
-        return delegate_->sendCommandServiceProcessor(device, command, commandSize, isMmReset);
+      .WillByDefault([this](int device, std::byte* command, size_t commandSize, CmdFlagSP flags) {
+        return delegate_->sendCommandServiceProcessor(device, command, commandSize, flags);
       });
     ON_CALL(*this, setSqThresholdServiceProcessor).WillByDefault([this](int device, uint32_t bytesNeeded) {
       delegate_->setSqThresholdServiceProcessor(device, bytesNeeded);

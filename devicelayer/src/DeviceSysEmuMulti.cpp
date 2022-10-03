@@ -40,10 +40,9 @@ DeviceSysEmuMulti::DeviceSysEmuMulti(std::vector<emu::SysEmuOptions> options) {
 }
 
 bool DeviceSysEmuMulti::sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize,
-                                                bool isDma, bool isHighPriority) {
-  return getDevice(device).sendCommandMasterMinion(device, sqIdx, command, commandSize, isDma, isHighPriority);
+                                                CmdFlagMM flags) {
+  return getDevice(device).sendCommandMasterMinion(device, sqIdx, command, commandSize, flags);
 }
-
 void DeviceSysEmuMulti::setSqThresholdMasterMinion(int device, int sqIdx, uint32_t bytesNeeded) {
   return getDevice(device).setSqThresholdMasterMinion(device, sqIdx, bytesNeeded);
 }
@@ -56,8 +55,8 @@ bool DeviceSysEmuMulti::receiveResponseMasterMinion(int device, std::vector<std:
 }
 
 bool DeviceSysEmuMulti::sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize,
-                                                    bool isMmReset) {
-  return getDevice(device).sendCommandServiceProcessor(device, command, commandSize, isMmReset);
+                                                    CmdFlagSP flags) {
+  return getDevice(device).sendCommandServiceProcessor(device, command, commandSize, flags);
 }
 void DeviceSysEmuMulti::setSqThresholdServiceProcessor(int device, uint32_t bytesNeeded) {
   return getDevice(device).setSqThresholdServiceProcessor(device, bytesNeeded);
