@@ -72,19 +72,6 @@ class SwSysemuConan(ConanFile):
 
     def package_info(self):
         # library components
-        libsysemu_comp_name = "libsysemu"
-        libsysemu_cmake_name = "sysemu"
-        self.cpp_info.components[libsysemu_comp_name].names["cmake_find_package"] = libsysemu_cmake_name # deprecated (remove with conan 2.0)
-        self.cpp_info.components[libsysemu_comp_name].names["cmake_find_package_multi"] = libsysemu_cmake_name # deprecated (remove with conan 2.0)
-        self.cpp_info.components[libsysemu_comp_name].set_property("cmake_target_name", libsysemu_cmake_name)
-        self.cpp_info.components[libsysemu_comp_name].requires = ["elfio::elfio"]
-        self.cpp_info.components[libsysemu_comp_name].libs = ["sysemu"]
-        self.cpp_info.components[libsysemu_comp_name].defines = ["SYS_EMU"]
-        self.cpp_info.components[libsysemu_comp_name].includedirs =  ["include"]
-        self.cpp_info.components[libsysemu_comp_name].libdirs = ["lib"]
-        if self.options.backtrace:
-            self.cpp_info.components[libsysemu_comp_name].requires.append("libunwind::libunwind")
-
         libfpu_comp_name = "libfpu"
         libfpu_cmake_name = "fpu"
         self.cpp_info.components[libfpu_comp_name].names["cmake_find_package"] = libfpu_cmake_name # deprecated (remove with conan 2.0)
@@ -94,6 +81,19 @@ class SwSysemuConan(ConanFile):
         self.cpp_info.components[libfpu_comp_name].libs = ["fpu"]
         self.cpp_info.components[libfpu_comp_name].includedirs =  ["include"]
         self.cpp_info.components[libfpu_comp_name].libdirs = ["lib"]
+
+        libsysemu_comp_name = "libsysemu"
+        libsysemu_cmake_name = "sysemu"
+        self.cpp_info.components[libsysemu_comp_name].names["cmake_find_package"] = libsysemu_cmake_name # deprecated (remove with conan 2.0)
+        self.cpp_info.components[libsysemu_comp_name].names["cmake_find_package_multi"] = libsysemu_cmake_name # deprecated (remove with conan 2.0)
+        self.cpp_info.components[libsysemu_comp_name].set_property("cmake_target_name", libsysemu_cmake_name)
+        self.cpp_info.components[libsysemu_comp_name].requires = ["elfio::elfio", libfpu_comp_name]
+        self.cpp_info.components[libsysemu_comp_name].libs = ["sysemu"]
+        self.cpp_info.components[libsysemu_comp_name].defines = ["SYS_EMU"]
+        self.cpp_info.components[libsysemu_comp_name].includedirs =  ["include"]
+        self.cpp_info.components[libsysemu_comp_name].libdirs = ["lib"]
+        if self.options.backtrace:
+            self.cpp_info.components[libsysemu_comp_name].requires.append("libunwind::libunwind")
 
         libsw_sysemu_comp_name = "libsw-sysemu"
         libsw_sysemu_cmake_name = "sw-sysemu"
