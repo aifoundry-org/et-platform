@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13832] Add new command DM_CMD_GET_MM_STATS to the commandCodeTable
 - [SW-13851] Add test for command DM_CMD_SET_DM_STATS_RUN_CONTROL
 - [SW-14061] Added DM_CMD_GET_ASIC_VOLTAGE test.
+- [SW-14337] Add ETSOC reset handling and its test case.
 ### Changed
 - [SW-14061] Enabled back setAndGetModuleVoltage test.
 - [SW-14288] Disabled the test until SW-14288 is resolved.

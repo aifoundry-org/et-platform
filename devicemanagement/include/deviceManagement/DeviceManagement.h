@@ -19,6 +19,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -221,8 +222,9 @@ private:
 
   /// @brief DeviceManagement Destructor
   ~DeviceManagement() {
-    deviceMap_.clear();
+    destroyDevices();
   };
+
   struct destruction_;
 
   /// @brief Determine if command is a 'set' or 'get' data command
@@ -336,8 +338,19 @@ private:
 
   /// @brief Communicates with device for receiving the responses or events
   ///
+  /// @param[in] lockable  Smart shared pointer to lockable_ struct representing
+  /// device
+  void receiver(std::shared_ptr<lockable_> lockable);
+
+  /// @brief Create device profile
+  ///
   /// @param[in] device_node  device index to use
-  void receiver(const uint32_t device_node);
+  void createDevices();
+
+  /// @brief Destroy device profile
+  ///
+  /// @param[in] exitReceiver wait for receiver thread to exit
+  void destroyDevices(bool exitReceiver = false);
 
 #ifdef MINION_DEBUG_INTERFACE
   /// @brief Handles the event message types
@@ -350,6 +363,7 @@ private:
 #endif
 
   std::unordered_map<uint32_t, std::shared_ptr<lockable_>> deviceMap_;
+  std::mutex deviceMapMtx_;
   IDeviceLayer* devLayer_;
   std::atomic<device_mgmt_api::tag_id_t> tag_id_;
 };

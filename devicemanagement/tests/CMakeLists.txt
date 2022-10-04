@@ -220,8 +220,8 @@ create_test(
 )
 
 create_test(
-    TARGET      OpsNodeDependentTestDevMgmtApiMMResetCmds
-    SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiMMResetCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    TARGET      OpsNodeDependentTestDevMgmtApiResetCmds
+    SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiResetCmds.cpp TestDevMgmtApiSyncCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;60"
 )

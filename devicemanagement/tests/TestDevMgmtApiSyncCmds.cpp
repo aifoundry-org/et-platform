@@ -3914,3 +3914,32 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
+
+void TestDevMgmtApiSyncCmds::resetSOC(bool singleDevice, std::function<void(void)> initialize,
+                                      std::function<void(void)> destroy) {
+  initialize();
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_RESET_ETSOC, nullptr, 0, nullptr, 0,
+                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+
+    // Re-initialize
+    destroy();
+    initialize();
+    dmi = getInstance();
+    ASSERT_TRUE(dmi);
+    DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+    // Check if trace control works after reset
+    controlTraceLogging();
+  }
+}
