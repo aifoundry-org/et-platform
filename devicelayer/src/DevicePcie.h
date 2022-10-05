@@ -59,7 +59,7 @@ public:
 
 private:
   struct DevInfo {
-    std::array<char, 32> devName;
+    std::array<char, 32> devName_;
     dram_info userDram_;
     DeviceConfig cfg_;
     uint16_t mmSqCount_;

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * The use of enum `DeviceState` depends on new et_ioctl.h header.
   * Package required for this change:
     * linuxDriver/0.1.0@#9f0abce8d2566d2c178e687df7324c68
+- [SW-14538] Add version compatibility check.
 ### Changed
 - [SW-14409] Changed dev::DeviceConfig::archRevision_ from `uint8_t` to `enum dev::DeviceConfig::ArchRevision` to be consistent with `enum dev::DeviceConfig::FormFactor`.
 ### Deprecated

@@ -29,6 +29,9 @@ using namespace std::string_literals;
 namespace fs = std::experimental::filesystem;
 
 namespace {
+
+constexpr auto kMinReqDriverVersion = "0.10.0";
+
 int countDeviceNodes(bool isMngmt) {
   auto it = fs::directory_iterator("/dev");
   return static_cast<int>(std::count_if(fs::begin(it), fs::end(it), [isMngmt](auto& e) {
@@ -139,6 +142,34 @@ inline void logInfoLine(std::stringstream& ss, const std::string attrStr, T attr
   ss << std::endl;
 }
 
+std::string getDeviceAttributeByName(std::string devName, std::string relAttrPath) {
+  fs::path absAttrPath = fs::path("/sys/bus/pci/devices") / fs::path(devName) / fs::path(relAttrPath);
+  if (!fs::is_regular_file(absAttrPath)) {
+    throw Exception("Invalid attribute file path: '" + absAttrPath.string() + "'");
+  }
+  std::ifstream file(absAttrPath.string());
+  if (!file.is_open()) {
+    throw Exception("Unable to access '" + absAttrPath.string() + "', try with sudo");
+  }
+  return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+}
+
+void clearDeviceAttributeByName(std::string devName, std::string relGroupPath) {
+  fs::path absGroupPath = fs::path("/sys/bus/pci/devices") / fs::path(devName) / fs::path(relGroupPath);
+  if (!fs::is_directory(absGroupPath)) {
+    throw Exception("Invalid attribute group directory: '" + absGroupPath.string() + "'");
+  }
+  fs::path clearFilePath = absGroupPath / fs::path("clear");
+  if (!fs::is_regular_file(clearFilePath)) {
+    throw Exception("Clear attribute file: '" + clearFilePath.string() + "' not found!");
+  }
+  std::ofstream file(clearFilePath.string());
+  if (!file.is_open()) {
+    throw Exception("Unable to access '" + clearFilePath.string() + "', try with sudo");
+  }
+  file << "1";
+}
+
 struct IoctlResult {
   int rc_;
   operator bool() const {
@@ -212,6 +243,35 @@ int openWhenReady(const std::string path, std::chrono::seconds timeout) {
   }
   if (fd < 0) {
     throw Exception("Error opening device " + path + ":'" + std::strerror(errno) + "'");
+  }
+
+  std::array<char, 32> devName;
+  wrap_ioctl(fd, ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(devName.size()), devName.data());
+  auto curVersion = getDeviceAttributeByName(std::string(devName.data()), "driver/module/version");
+  auto minReqVersion = std::string{kMinReqDriverVersion};
+  std::smatch curSemVers;
+  std::smatch minSemVers;
+  if (std::regex rgx("(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)");
+      std::regex_search(curVersion, curSemVers, rgx) && std::regex_search(minReqVersion, minSemVers, rgx) &&
+      curSemVers.size() == minSemVers.size()) {
+    // index 0 : Complete semantic version i.e. 1.2.3
+    // index 1 : Major i.e. 1
+    // index 2 : Minor i.e. 2
+    // index 3 : Patch i.e. 3
+    if (atoi(curSemVers[1].str().c_str()) != atoi(minSemVers[1].str().c_str())) {
+      throw Exception("Driver version is incompatible (MAJOR: " + curSemVers[1].str() + " != " + minSemVers[1].str() +
+                      ")!");
+    }
+    for (unsigned i = 2; i < curSemVers.size(); i++) {
+      if (atoi(curSemVers[i].str().c_str()) < atoi(minSemVers[i].str().c_str())) {
+        throw Exception("Driver version is incompatible (" + curSemVers[0].str() + " < " + minSemVers[0].str() + ")!");
+      } else if (atoi(curSemVers[i].str().c_str()) > atoi(minSemVers[i].str().c_str())) {
+        break;
+      }
+    }
+  } else {
+    // Driver does not follow semantic versioning
+    throw Exception("Error unable to evaluate compatibility!");
   }
 
   auto state = getDeviceState(fd);
@@ -360,7 +420,7 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, std::chrono::s
 
   auto fd = mngmtEnabled_ ? deviceInfo.fdMgmt_ : deviceInfo.fdOps_;
 
-  wrap_ioctl(fd, ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(deviceInfo.devName.size()), deviceInfo.devName.data());
+  wrap_ioctl(fd, ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(deviceInfo.devName_.size()), deviceInfo.devName_.data());
 
   dev_config cfg;
   wrap_ioctl(fd, ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION, &cfg);
@@ -377,7 +437,7 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, std::chrono::s
                                  cfg.sync_min_shire_id,
                                  parseRawArchRevision(static_cast<dev_config_arch_revision>(cfg.arch_rev))};
 
-  logInfoLine(logs, "PCIBUS device name:", deviceInfo.devName.data());
+  logInfoLine(logs, "PCIBUS device name:", deviceInfo.devName_.data());
   logInfoLine(logs, "Form Factor:", deviceInfo.cfg_.formFactor_, true);
   logInfoLine(logs, "TDP (W):", +deviceInfo.cfg_.tdp_);
   logInfoLine(logs, "Minion boot frequency (MHz):", +deviceInfo.cfg_.minionBootFrequency_);
@@ -734,35 +794,13 @@ std::string DevicePcie::getDeviceAttribute(int device, std::string relAttrPath) 
   if (device >= static_cast<int>(devices_.size())) {
     throw Exception("Invalid device");
   }
-  fs::path absAttrPath = fs::path("/sys/bus/pci/devices/") /
-                         fs::path(devices_[static_cast<uint32_t>(device)].devName.data()) / fs::path(relAttrPath);
-  if (!fs::is_regular_file(absAttrPath)) {
-    throw Exception("Invalid attribute file path: '" + absAttrPath.string() + "'");
-  }
-  std::ifstream file(absAttrPath.string());
-  if (!file.is_open()) {
-    throw Exception("Unable to access '" + absAttrPath.string() + "', try with sudo");
-  }
-  return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+  return getDeviceAttributeByName(std::string(devices_[static_cast<uint32_t>(device)].devName_.data()), relAttrPath);
 }
 
 void DevicePcie::clearDeviceAttributes(int device, std::string relGroupPath) const {
   if (device >= static_cast<int>(devices_.size())) {
     throw Exception("Invalid device");
   }
-  fs::path absGroupPath = fs::path("/sys/bus/pci/devices/") /
-                          fs::path(devices_[static_cast<uint32_t>(device)].devName.data()) / fs::path(relGroupPath);
-  if (!fs::is_directory(absGroupPath)) {
-    throw Exception("Invalid attribute group directory: '" + absGroupPath.string() + "'");
-  }
-  fs::path clearFilePath = absGroupPath / fs::path("clear");
-  if (!fs::is_regular_file(clearFilePath)) {
-    throw Exception("Clear attribute file: '" + clearFilePath.string() + "' not found!");
-  }
-  std::ofstream file(clearFilePath.string());
-  if (!file.is_open()) {
-    throw Exception("Unable to access '" + clearFilePath.string() + "', try with sudo");
-  }
-  file << "1";
+  clearDeviceAttributeByName(std::string(devices_[static_cast<uint32_t>(device)].devName_.data()), relGroupPath);
 }
 } // namespace dev
