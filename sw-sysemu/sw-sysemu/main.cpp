@@ -13,6 +13,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <memory>
 
 #include "sys_emu.h"
 
@@ -66,6 +67,6 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    sys_emu emu(cmd_options, api_comm.get());
-    return emu.main_internal();
+    auto emu = std::make_unique<sys_emu>(cmd_options, api_comm.get());
+    return emu.get()->main_internal();
 }
