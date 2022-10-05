@@ -768,7 +768,7 @@ static inline uint64_t PMC_Get_Current_Cycles(void)
     \brief A macro to calculate latency. Uses PMC Counter 3 to get current cycle
     minus start_cycle(argument)
 */
-#define PMC_GET_LATENCY(x) (uint32_t)(PMC_Get_Current_Cycles() - x)
+#define PMC_GET_LATENCY(x) (PMC_Get_Current_Cycles() - x)
 
 #ifdef __cplusplus
 }
