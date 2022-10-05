@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- Allocate sysemu instance on the heap to fix segfaults
 ### Security
 
 ## [0.4.0] - 2022-8-16
