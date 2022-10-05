@@ -61,24 +61,20 @@ smoke_tests:conan:sysemu:
     - .pod_large
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
-  
   stage: smoke
-
   parallel:
     matrix:
       - BUILD_TYPE: [ Release, Debug ]
-  
   variables:
     TIMEOUT: 30m
-
     CMD_BUILD: |
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
       conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE_LOWER} -o deviceLayer:with_tests=True --build missing
-      cmake --preset ${BUILD_TYPE} -G Ninja
-      cmake --build --preset ${BUILD_TYPE}
-      cd cmake-build-${BUILD_TYPE_LOWER}/tests/integration
+      cmake --preset ${BUILD_TYPE_LOWER} -G Ninja
+      cmake --build --preset ${BUILD_TYPE_LOWER}
+      cd build/${BUILD_TYPE}/tests/integration
       ctest --output-on-failure
 
 ###############################################################################
