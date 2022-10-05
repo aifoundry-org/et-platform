@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines.
 - Added PMIC_FW id to the Flash format
 ### Changed
+- Moved the PMIC FW region ID at the end of enum.
 ### Deprecated
 ### Removed
 ### Fixed
