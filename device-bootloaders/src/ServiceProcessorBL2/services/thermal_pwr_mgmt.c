@@ -50,6 +50,7 @@
 #include "thermal_pwr_mgmt.h"
 #include "perf_mgmt.h"
 #include "bl2_pmic_controller.h"
+#include "bl2_thermal_power_monitor.h"
 #include "minion_configuration.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -1609,13 +1610,15 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
     uint16_t soc_pwr_10mW = 0;
     struct trace_event_power_status_t power_status = { 0 };
     int32_t new_voltage = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY);
+    int status = STATUS_SUCCESS;
 
-    if (SAFE_STATE_FREQUENCY < Get_Minion_Frequency())
+    /* update module frequency */
+    if (SAFE_STATE_FREQUENCY != Get_Minion_Frequency())
     {
-        if (0 != Minion_Shire_Update_PLL_Freq(SAFE_STATE_FREQUENCY))
+        status = Thermal_Pwr_Set_Module_Frequency(PLL_ID_MINION_PLL, SAFE_STATE_FREQUENCY, true);
+        if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR, "Failed to go to safe state!\n");
-            return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
         }
 
         if (new_voltage != g_soc_power_reg.asic_voltage.minion)
@@ -1623,39 +1626,38 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
             //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
         }
     }
-    else if (SAFE_STATE_FREQUENCY > Get_Minion_Frequency())
+
+    if (status == STATUS_SUCCESS)
     {
-        if (new_voltage != g_soc_power_reg.asic_voltage.minion)
+        Update_Minion_Frequency_Global_Reg(SAFE_STATE_FREQUENCY);
+
+        /* Get the current power */
+        status = pmic_read_average_soc_power(&soc_pwr_10mW);
+        if (status == STATUS_SUCCESS)
         {
-            //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
-        }
+            /* Get current temperature */
+            status = pvt_get_minion_avg_temperature(&current_temperature);
+            if (status == STATUS_SUCCESS)
+            {
+                FILL_POWER_STATUS(power_status, throttle_state, power_state,
+                                  POWER_10MW_TO_W(soc_pwr_10mW), current_temperature,
+                                  (uint16_t)SAFE_STATE_FREQUENCY, (uint16_t)new_voltage)
 
-        if (0 != Minion_Shire_Update_PLL_Freq(SAFE_STATE_FREQUENCY))
+                Trace_Power_Status(Trace_Get_SP_CB(), &power_status);
+            }
+            else
+            {
+                Log_Write(LOG_LEVEL_ERROR,
+                          "thermal pwr mgmt svc error: failed to get temperature\r\n");
+            }
+        }
+        else
         {
-            Log_Write(LOG_LEVEL_ERROR, "Failed to go to safe state!\n");
-            return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
+            Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
         }
     }
 
-    Update_Minion_Frequency_Global_Reg(SAFE_STATE_FREQUENCY);
-
-    /* Get the current power */
-    if (0 != pmic_read_average_soc_power(&soc_pwr_10mW))
-    {
-        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
-    }
-
-    if (0 != pvt_get_minion_avg_temperature(&current_temperature))
-    {
-        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
-    }
-
-    FILL_POWER_STATUS(power_status, throttle_state, power_state, POWER_10MW_TO_W(soc_pwr_10mW),
-                      current_temperature, (uint16_t)SAFE_STATE_FREQUENCY, (uint16_t)new_voltage)
-
-    Trace_Power_Status(Trace_Get_SP_CB(), &power_status);
-
-    return 0;
+    return status;
 }
 
 /************************************************************************

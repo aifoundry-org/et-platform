@@ -35,4 +35,13 @@
 */
 void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *buffer);
 
+/*! \fn int32_t Thermal_Pwr_Set_Module_Frequency(pll_id_e pll_id, uint16_t freq, uint8_t use_step_clock)
+    \brief This function sets module PLL frequency
+    \param pll_id PLL id to update frequency
+    \param freq frequency vlaue to set for module
+    \param use_step_clock flag to use step clock
+    \returns status of function call, success or error
+*/
+int32_t Thermal_Pwr_Set_Module_Frequency(pll_id_e pll_id, uint16_t freq, uint8_t use_step_clock);
+
 #endif

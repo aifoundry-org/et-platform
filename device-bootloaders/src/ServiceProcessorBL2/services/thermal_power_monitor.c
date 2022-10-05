@@ -1031,3 +1031,59 @@ void thermal_power_monitoring_process(tag_id_t tag_id, msg_id_t msg_id, void *bu
         }
     }
 }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Thermal_Pwr_Set_Module_Frequency
+*
+*   DESCRIPTION
+*
+*       This function sets module PLL frequency
+*
+*   INPUTS
+*
+*       pll_id            PLL id to update frequency
+*       freq              frequency vlaue to set for module
+*       use_step_clock    flag to use step clock
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+int32_t Thermal_Pwr_Set_Module_Frequency(pll_id_e pll_id, uint16_t freq, uint8_t use_step_clock)
+{
+    uint8_t hpdpll_mode = 0;
+    uint8_t lvdpll_mode = 0;
+
+    int32_t status = ERROR_INVALID_ARGUMENT;
+
+    if (pll_id == PLL_ID_NOC_PLL || use_step_clock == USE_STEP_CLOCK_TRUE)
+    {
+        status = pwr_svc_find_hpdpll_mode(freq, &hpdpll_mode);
+    }
+    else
+    {
+        status = pwr_svc_find_lvdpll_mode(freq, &lvdpll_mode);
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        switch (pll_id)
+        {
+            case PLL_ID_NOC_PLL:
+                status = configure_sp_pll_2(hpdpll_mode, HPDPLL_LDO_NO_UPDATE);
+                break;
+            case PLL_ID_MINION_PLL:
+                status = Minion_Configure_Minion_Shire_PLL_no_mask(hpdpll_mode, lvdpll_mode,
+                                                                   use_step_clock);
+                break;
+            default:
+                status = THERMAL_PWR_MGMT_SET_FREQ_ID_INVALID;
+        }
+    }
+
+    return status;
+}
