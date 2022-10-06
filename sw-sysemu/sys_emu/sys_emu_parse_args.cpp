@@ -78,6 +78,8 @@ static const char * help_msg =
      -tstore_check_thread     Enables TensorStore check prints for a specific thread (default: 4096 [4096 => no thread, -1 => all threads])\n\
      -gdb                     Start the GDB stub for remote debugging at the start of simulation\n\
      -gdb_at_pc <PC>          Start the GDB stub for remote debugging at a given PC\n\
+     -sleep_timeout <ms>        Sleep for <ms> milliseconds during low activity\n\
+     -sleep_threshold <cycles>  Wait for <cycles> cycles between sleeping\n\
 "
 #ifdef SYSEMU_PROFILING
 "    -dump_prof <path>        Path to the file in which to dump the profiling content at the end of the simulation\n"
@@ -176,6 +178,8 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"tstore_check_thread",    required_argument, nullptr, 0},
         {"gdb",                    no_argument,       nullptr, 0},
         {"gdb_at_pc",              required_argument, nullptr, 0},
+        {"sleep_threshold",        required_argument, nullptr, 0},
+        {"sleep_timeout",          required_argument, nullptr, 0},
         {"m",                      no_argument,       nullptr, 0},
 #ifdef SYSEMU_PROFILING
         {"dump_prof",              required_argument, nullptr, 0},
@@ -505,6 +509,14 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
             cmd_options.gdb = true;
             sscanf(optarg, "%" PRIx64, &cmd_options.gdb_at_pc);
+        }
+        else if (!strcmp(name, "sleep_timeout"))
+        {
+            cmd_options.sleep_timeout = atoi(optarg);
+        }
+        else if (!strcmp(name, "sleep_threshold"))
+        {
+            cmd_options.sleep_threshold = strtoull(optarg, nullptr, 0);
         }
         else if (!strcmp(name, "m"))
         {

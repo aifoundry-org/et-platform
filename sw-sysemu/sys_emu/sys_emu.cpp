@@ -22,12 +22,14 @@
 #include <locale>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <thread>
 #include <tuple>
 #include <unistd.h>
 
 #include "api_communicate.h"
 #include "checkers/l2_scp_checker.h"
 #include "devices/rvtimer.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
 #include "esrs.h"
 #include "gdbstub.h"
@@ -208,6 +210,23 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
         }
         chip.log.setOutputStream(&log_file);
     }
+
+    sleep_threshold = cmd_options.sleep_threshold;
+    sleep_timeout = cmd_options.sleep_timeout;
+
+#ifdef CALVIN_DEBUG
+    if (char* env = getenv("SYSEMU_SLEEP_THRESHOLD"); env != nullptr) {
+        LOG_AGENT(INFO, agent, "SLEEP_THRESHOLD = %s", env);
+        sleep_threshold = strtoull(env, nullptr, 0);
+    }
+
+    if (char* env = getenv("SYSEMU_SLEEP_TIMEOUT"); env != nullptr) {
+        LOG_AGENT(INFO, agent, "SLEEP_TIMEOUT = %s", env);
+        sleep_timeout = atoi(env);
+    }
+
+    LOG_AGENT(INFO, agent, "Sleep threshold: %lu cycles -- Sleep timeout: %d ms", sleep_threshold, sleep_timeout);
+#endif
 
     // Reset the SoC
     emu_cycle = 0;
@@ -416,6 +435,24 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
 }
 
 
+bool sys_emu::has_low_activity() const
+{
+    const bool only_sp_is_running = chip.active.size() == 1 &&
+                                    (bemu::hart_index(chip.active.front()) == EMU_IO_SHIRE_SP_THREAD);
+    return !chip.has_active_harts() || only_sp_is_running;
+}
+
+
+void sys_emu::maybe_sleep()
+{
+    if (sleep_timeout > 0 && (emu_cycle - last_sleep_cycle) >= sleep_threshold) {
+        last_sleep_cycle = emu_cycle;
+        LOG_AGENT(INFO, agent, "Sleeping for %d ms due to low activity", sleep_timeout);
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleep_timeout));
+    }
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // Main function implementation
 ////////////////////////////////////////////////////////////////////////////////
@@ -440,6 +477,13 @@ int sys_emu::main_internal() {
 
     double total_time = 0.0;
     const auto start_time = std::chrono::high_resolution_clock::now();
+
+#ifdef CALVIN_DEBUG
+    unsigned log_cycle = 0;
+    if (char* env = getenv("SYSEMU_LOG_CYCLE"); env) {
+        log_cycle = atoi(env);
+    }
+#endif
 
     // While there are active threads or the network emulator is still not done
     while (!chip.get_emu_done()
@@ -485,7 +529,30 @@ int sys_emu::main_internal() {
         // Runtime API: Process new commands
         if (api_listener) {
             api_listener->process();
+
+            if (has_low_activity()) {
+                maybe_sleep();
+            }
         }
+
+#ifdef CALVIN_DEBUG
+        if (emu_cycle % 1000 == 0) {
+            std::stringstream ss;
+            int n_active = 0;
+            for (auto&& hart : chip.active) {
+                ss << hart.name() << ", ";
+                ++n_active;
+            }
+            LOG_AGENT(INFO, agent, "Active harts %d: %s", n_active, ss.str().c_str());
+        }
+
+        if (log_cycle && emu_cycle >= log_cycle) {
+            chip.log.setLogLevel(LOG_DEBUG);
+            chip.log_thread[2058] = true;
+            chip.log_thread[2060] = true;
+            chip.log_thread[2062] = true;
+        }
+#endif
 
         // Update peripherals/devices
         chip.tick_peripherals(emu_cycle);
