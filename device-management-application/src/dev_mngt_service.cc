@@ -1233,6 +1233,12 @@ int verifyService() {
     }
   } break;
 
+  case DM_CMD::DM_CMD_RESET_ETSOC: {
+    if ((ret = runService(nullptr, 0, nullptr, 0)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+  } break;
+
   default:
     DM_VLOG(HIGH) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
     return -EINVAL;
