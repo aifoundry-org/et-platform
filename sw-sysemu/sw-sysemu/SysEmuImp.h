@@ -37,6 +37,8 @@ public:
   void raiseDeviceSpioPlicPcieMessageInterrupt() override;
   uint32_t waitForInterrupt(uint32_t bitmask) override;
   void stop() override;
+  void pause() override;
+  void resume() override;
 
 
   // api_communicate interface
@@ -60,6 +62,7 @@ private:
 
   std::mutex mutex_;
   bool running_ = true;
+  bool should_pause_ = true;
   uint32_t pendingInterruptsBitmask_ = 0;
   uint64_t raised_interrupt_count_ = 0;
   std::condition_variable condVar_;

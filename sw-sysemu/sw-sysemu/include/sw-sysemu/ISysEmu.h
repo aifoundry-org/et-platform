@@ -38,6 +38,8 @@ public:
   virtual void raiseDevicePuPlicPcieMessageInterrupt() = 0;
   virtual void raiseDeviceSpioPlicPcieMessageInterrupt() = 0;
   virtual void stop() = 0;
+  virtual void pause() = 0;
+  virtual void resume() = 0;
   virtual ~ISysEmu() = default;
 
   static std::unique_ptr<ISysEmu> create(const SysEmuOptions& options, const std::array<uint64_t, 8>& barAddresses,

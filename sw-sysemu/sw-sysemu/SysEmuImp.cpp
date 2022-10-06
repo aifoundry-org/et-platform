@@ -203,16 +203,22 @@ void SysEmuImp::set_system(bemu::System* system) {
 }
 
 void SysEmuImp::process() {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::unique_lock<std::mutex> lock(mutex_);
   if (!requests_.empty()) {
     SE_LOG(INFO) << "Processing request...";
     auto&& req = requests_.front();
     req();
     requests_.pop();
   }
+  if (should_pause_) {
+    using namespace std::chrono_literals;
+    condVar_.wait_for(lock, 100ms, [=]() { return !should_pause_; });
+    // condVar_.wait(lock, [=]() { return !should_pause_; });
+  }
 }
 
 void SysEmuImp::mmioRead(uint64_t address, size_t size, std::byte* dst) {
+  resume();
   std::promise<void> p;
   auto request = [=, &p]() {
     SE_LOG(INFO) << "Device memory read at: " << std::hex << address << " size: " << size << " host dst: " << dst;
@@ -257,6 +263,7 @@ void SysEmuImp::mmioRead(uint64_t address, size_t size, std::byte* dst) {
 }
 
 void SysEmuImp::mmioWrite(uint64_t address, size_t size, const std::byte* src) {
+  resume();
   std::promise<void> p;
   auto request = [=, &p]() {
     SE_LOG(INFO) << "Device memory write at: " << std::hex << address << " size: " << size << " host src: " << src;
@@ -297,6 +304,7 @@ void SysEmuImp::mmioWrite(uint64_t address, size_t size, const std::byte* src) {
 }
 
 void SysEmuImp::raiseDevicePuPlicPcieMessageInterrupt() {
+  resume();
   auto request = [=]() {
     SE_LOG(INFO) << "raiseDevicePuPlicPcieMessageInterrupt";
     LOG_AGENT(INFO, agent_, "raise_device_interrupt(type = %s)", "PU");
@@ -307,6 +315,7 @@ void SysEmuImp::raiseDevicePuPlicPcieMessageInterrupt() {
 }
 
 uint32_t SysEmuImp::waitForInterrupt(uint32_t bitmap) {
+  resume();
   std::unique_lock<std::mutex> lock(mutex_);
   if (!(pendingInterruptsBitmask_ & bitmap)) {
     condVar_.wait(lock, [this, bitmap]() { return !running_ || (bitmap & pendingInterruptsBitmask_); });
@@ -317,6 +326,7 @@ uint32_t SysEmuImp::waitForInterrupt(uint32_t bitmap) {
   }
   return bitmap;
 }
+
 bool SysEmuImp::raise_host_interrupt(uint32_t bitmap) {
   LOG_AGENT(INFO, agent_, "Raise Host (Count: %" PRId64 ") Interrupt Bitmap: (0x%" PRIx32 ")",
             ++raised_interrupt_count_, bitmap);
@@ -327,6 +337,7 @@ bool SysEmuImp::raise_host_interrupt(uint32_t bitmap) {
 }
 
 void SysEmuImp::raiseDeviceSpioPlicPcieMessageInterrupt() {
+  resume();
   auto request = [=]() {
     SE_LOG(INFO) << "raiseDeviceSpioPlicPcieMessageInterrupt";
     LOG_AGENT(INFO, agent_, "raise_device_interrupt(type = %s)", "SP");
@@ -512,4 +523,21 @@ void SysEmuImp::stop() {
   running_ = false;
   // Wake host interrupt waiters
   condVar_.notify_all();
+}
+
+void SysEmuImp::pause() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!should_pause_) {
+    SE_LOG(INFO) << "Pause sysemu thread";
+    should_pause_ = true;
+  }
+}
+
+void SysEmuImp::resume() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (should_pause_) {
+    SE_LOG(INFO) << "Resume sysemu thread";
+    should_pause_ = false;
+    condVar_.notify_all();
+  }
 }
