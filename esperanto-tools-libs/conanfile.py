@@ -58,7 +58,7 @@ class RuntimeConan(ConanFile):
 
         if self.options.with_tests:
             self.requires("gtest/1.10.0")
-            self.requires("sw-sysemu/0.2.0")
+            self.requires("sw-sysemu/0.2.1")
 
             self.requires("et-common-libs/0.9.0@#330284afd56b61ddd4c1b1dfde597b53")
             self.requires("device-minion-runtime/0.10.0#4bded86c8893468057a7600258151b23")

@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14053] added new kernel error handling from device api 0.6.0. Bumped system-sw projects to work with device api 0.6.0.
 - [SW-14415] added a IO thread to process the serialization and writing of the traces in background. Improvement (when traces enabled and JSON format) of ~35% in some heavy runtime intensive workloads (ie. DLRM_RMC1)
 ### Changed
+- (Conan) (CI) Updated build flow to conan 1.52.0
+- (Conan) Depend on sw-sysemu/0.2.1
 ### Deprecated
 ### Removed
 ### Fixed

@@ -76,9 +76,9 @@ unit_tests:conan:sysemu:
       sudo apt install ninja-build
       conan remote disable conan-tmp
       conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o esperanto-flash-tool:header_only=True --build missing
-      cmake --preset ${BUILD_TYPE} -G Ninja
-      cmake --build --preset ${BUILD_TYPE}
-      cd cmake-build-${BUILD_TYPE_LOWER}
+      cmake --preset ${BUILD_TYPE_LOWER} -G Ninja
+      cmake --build --preset ${BUILD_TYPE_LOWER}
+      cd build/${BUILD_TYPE}
       ctest -L 'UT' -E 'runtime:ut_RuntimeBenchmark' -LE 'MP' --output-on-failure -j 4
 
 ###############################################################################
@@ -149,9 +149,9 @@ tests:conan:sysemu:
       sudo apt install ninja-build
       conan remote disable conan-tmp
       conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o esperanto-flash-tool:header_only=True --build missing
-      cmake --preset ${BUILD_TYPE} -G Ninja
-      cmake --build --preset ${BUILD_TYPE}
-      cd cmake-build-${BUILD_TYPE_LOWER}
+      cmake --preset ${BUILD_TYPE_LOWER} -G Ninja
+      cmake --build --preset ${BUILD_TYPE_LOWER}
+      cd build/${BUILD_TYPE}
       ctest -L 'Generic' -LE 'MP' --output-on-failure -j 4
       ctest -L 'Generic' -L 'MP' --output-on-failure
 
@@ -200,9 +200,9 @@ nightly_torture_tests:conan:sysemu:
       sudo apt install ninja-build
       conan remote disable conan-tmp
       conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o esperanto-flash-tool:header_only=True --build missing
-      cmake --preset ${BUILD_TYPE} -G Ninja
-      cmake --build --preset ${BUILD_TYPE}
-      cd cmake-build-${BUILD_TYPE_LOWER}
+      cmake --preset ${BUILD_TYPE_LOWER} -G Ninja
+      cmake --build --preset ${BUILD_TYPE_LOWER}
+      cd build/${BUILD_TYPE}
       ctest -L 'Generic' --repeat until-fail:10 --output-on-failure
 
 # integration testing with sw-platform
