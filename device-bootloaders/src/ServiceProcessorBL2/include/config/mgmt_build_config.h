@@ -414,7 +414,7 @@
 /*! \def SAFE_STATE_FREQUENCY
     \brief A macro that provides safe state frequency
 */
-#define SAFE_STATE_FREQUENCY 400
+#define SAFE_STATE_FREQUENCY 300
 
 /*! \def POWER_SCALE_FACTOR
     \brief A macro that provides power scale factor in percentages.
