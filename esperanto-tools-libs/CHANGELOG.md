@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-14527] fixed race condition on dispatch event where the profiler could be gone if the runtime is already destroyed.
 - [SW-13976] NOSYSEMU tests tunned down, now running al PCIE MP tests (including "NOSYSEMU" tests) takes less than 6mins.
 ### Security
 ## [0.5.0]

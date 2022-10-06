@@ -632,7 +632,9 @@ void RuntimeImp::dispatch(EventId event) {
                     << static_cast<int>(event);
     return;
   }
-  ScopedProfileEvent profileEvent(Class::DispatchEvent, *getProfiler(), event);
+  ProfileEvent evt(Type::Instant, Class::DispatchEvent);
+  evt.setEvent(event);
+  getProfiler()->record(evt);
   streamManager_.removeEvent(event);
   eventManager_.dispatch(event);
   notify(event);
