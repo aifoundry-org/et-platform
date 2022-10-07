@@ -49,15 +49,10 @@ enum statw_resource_type {
 */
 #define STATW_BW_CMA_SAMPLE_COUNT 100UL
 
-/*! \def STATW_RESOURCE_UTIL_DEFAULT_MIN
-    \brief Default minimum value for device utilization resource stat.
-*/
-#define STATW_RESOURCE_UTIL_DEFAULT_MIN 0xFFFFFFFFFFFFFFFFUL
-
-/*! \def STATW_RESOURCE_BW_DEFAULT_MIN
+/*! \def STATW_RESOURCE_DEFAULT_MIN
     \brief Default minimum value for device bandwidth resource stat.
 */
-#define STATW_RESOURCE_BW_DEFAULT_MIN 0UL
+#define STATW_RESOURCE_DEFAULT_MIN 0UL
 
 /*! \def STATW_RESOURCE_DEFAULT_MAX
     \brief Default maximum for device resource stat.
@@ -87,7 +82,7 @@ enum statw_resource_type {
 /*! \def MIN(x,y)
     \brief Returns min
 */
-#define MIN(x, y) (x < y ? x : y)
+#define MIN(x, y) (x == STATW_RESOURCE_DEFAULT_MIN) ? y : (x < y ? x : y)
 
 /*! \def STATW_CHECK_FOR_CONTINUED_EXEC_TRANSACTION
     \brief This is check if transaction is continued past the sampling interval end then end cycles will be equal to start cycles

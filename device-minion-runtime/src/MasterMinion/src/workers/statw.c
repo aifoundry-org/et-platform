@@ -206,7 +206,7 @@ static void statw_sample_device_stats_callback(uint8_t arg)
 *       None
 *
 ***********************************************************************/
-static inline void read_resource_stats_atomically(
+static void read_resource_stats_atomically(
     statw_resource_type_e resource_type, struct resource_value *resource_dest)
 {
     const struct resource_value *resource;
@@ -466,35 +466,35 @@ static void statw_sample_init(struct compute_resources_sample *local_stats_cb)
 {
     atomic_store_local_64(&STATW_CB.cm_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
     atomic_store_local_64(&STATW_CB.cm_bw.max, STATW_RESOURCE_DEFAULT_MAX);
-    atomic_store_local_64(&STATW_CB.cm_bw.min, STATW_RESOURCE_BW_DEFAULT_MIN);
+    atomic_store_local_64(&STATW_CB.cm_bw.min, STATW_RESOURCE_DEFAULT_MIN);
     atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
     atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.max, STATW_RESOURCE_DEFAULT_MAX);
-    atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.min, STATW_RESOURCE_BW_DEFAULT_MIN);
+    atomic_store_local_64(&STATW_CB.pcie_dma_read_bw.min, STATW_RESOURCE_DEFAULT_MIN);
     atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.avg, STATW_RESOURCE_DEFAULT_AVG);
     atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.max, STATW_RESOURCE_DEFAULT_MAX);
-    atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.min, STATW_RESOURCE_BW_DEFAULT_MIN);
+    atomic_store_local_64(&STATW_CB.pcie_dma_write_bw.min, STATW_RESOURCE_DEFAULT_MIN);
 
     local_stats_cb->ddr_read_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
     local_stats_cb->ddr_read_bw.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->ddr_read_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
+    local_stats_cb->ddr_read_bw.min = STATW_RESOURCE_DEFAULT_MIN;
     local_stats_cb->pcie_dma_read_utilization.avg = STATW_RESOURCE_DEFAULT_AVG;
     local_stats_cb->pcie_dma_read_utilization.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->pcie_dma_read_utilization.min = STATW_RESOURCE_UTIL_DEFAULT_MIN;
+    local_stats_cb->pcie_dma_read_utilization.min = STATW_RESOURCE_DEFAULT_MIN;
     local_stats_cb->ddr_write_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
     local_stats_cb->ddr_write_bw.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->ddr_write_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
+    local_stats_cb->ddr_write_bw.min = STATW_RESOURCE_DEFAULT_MIN;
     local_stats_cb->pcie_dma_write_utilization.avg = STATW_RESOURCE_DEFAULT_AVG;
     local_stats_cb->pcie_dma_write_utilization.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->pcie_dma_write_utilization.min = STATW_RESOURCE_UTIL_DEFAULT_MIN;
+    local_stats_cb->pcie_dma_write_utilization.min = STATW_RESOURCE_DEFAULT_MIN;
     local_stats_cb->l2_l3_read_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
     local_stats_cb->l2_l3_read_bw.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->l2_l3_read_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
+    local_stats_cb->l2_l3_read_bw.min = STATW_RESOURCE_DEFAULT_MIN;
     local_stats_cb->l2_l3_write_bw.avg = STATW_RESOURCE_DEFAULT_AVG;
     local_stats_cb->l2_l3_write_bw.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->l2_l3_write_bw.min = STATW_RESOURCE_BW_DEFAULT_MIN;
+    local_stats_cb->l2_l3_write_bw.min = STATW_RESOURCE_DEFAULT_MIN;
     local_stats_cb->cm_utilization.avg = STATW_RESOURCE_DEFAULT_AVG;
     local_stats_cb->cm_utilization.max = STATW_RESOURCE_DEFAULT_MAX;
-    local_stats_cb->cm_utilization.min = STATW_RESOURCE_UTIL_DEFAULT_MIN;
+    local_stats_cb->cm_utilization.min = STATW_RESOURCE_DEFAULT_MIN;
 }
 
 /************************************************************************

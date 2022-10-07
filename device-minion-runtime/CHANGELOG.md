@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - [SW-14084] Fixing the CMA calculation to ceil and floor the values correctly.
+- [SW-14290] Fix to address stats in et_powertop becoming zero
 ### Security
 
 ## [0.11.0] - 2022-09-02
