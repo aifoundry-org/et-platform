@@ -571,10 +571,10 @@ struct device_ops_kernel_launch_cmd_t {
  */
 struct device_ops_kernel_launch_rsp_t {
 	struct rsp_header_t response_info;
-	u64 cmd_wait_time;
+	u64 cmd_start_ts;
 	u64 cmd_execution_time;
+	u32 cmd_wait_time;
 	u32 status;
-	u32 pad;
 } __packed __aligned(8);
 
 enum dev_ops_api_kernel_abort_response_e {

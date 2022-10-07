@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - [SW-14061] Updating the device mgmt api command codes and Get Module Voltage response name.
 - (CI) Fetch latest conan docker image
+- [SW-14154] Updating DMA response structures to match API structures
 ### Deprecated
 ### Removed
 ### Fixed
