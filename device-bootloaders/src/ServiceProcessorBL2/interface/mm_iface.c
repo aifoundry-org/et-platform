@@ -530,6 +530,55 @@ int32_t MM_Iface_Send_Abort_All_Cmd(void)
 *
 *   FUNCTION
 *
+*       MM_Iface_Send_Update_Freq_Cmd
+*
+*   DESCRIPTION
+*
+*       This sends Frequency update command to Master Minion Firmware.
+*
+*   INPUTS
+*
+*       freq    frequncy value to set for MM
+*
+*   OUTPUTS
+*
+*       int32_t  Success or error code.
+*
+***********************************************************************/
+int32_t MM_Iface_Send_Update_Freq_Cmd(uint16_t freq)
+{
+    int32_t status = MM_IFACE_SP2MM_CMD_ERROR;
+    struct sp2mm_update_freq_cmd_t cmd;
+
+    /* Initialize command header */
+    SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, SP2MM_CMD_UPDATE_FREQ,
+                             sizeof(struct sp2mm_update_freq_cmd_t), SP2MM_CMD_NOTIFY_HART)
+    cmd.freq = freq;
+    if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
+    {
+        /* Send command to MM. */
+        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd)))
+        {
+            Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
+            xSemaphoreGive(mm_cmd_lock);
+            return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
+        }
+
+        /* TODO: No response is expected; is there a need for it? */
+        xSemaphoreGive(mm_cmd_lock);
+    }
+    else
+    {
+        return MM_IFACE_SP2MM_TIMEOUT_ERROR;
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       MM_Iface_Wait_For_CM_Boot_Cmd
 *
 *   DESCRIPTION

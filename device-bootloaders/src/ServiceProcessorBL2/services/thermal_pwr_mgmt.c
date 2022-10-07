@@ -1507,7 +1507,8 @@ static int reduce_minion_operating_point(int32_t delta_power,
                MODE_FREQUENCY_STEP_SIZE;
 #endif
 
-    if (0 != Minion_Shire_Update_PLL_Freq((uint16_t)new_freq))
+    /* TODO: SW-14539: Handling of set frequency in lvdpll mode through minion should be configured  */
+    if (0 != MM_Iface_Send_Update_Freq_Cmd((uint16_t)new_freq))
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
         return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
@@ -1568,7 +1569,8 @@ static int increase_minion_operating_point(int32_t delta_power,
         //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
     }
 
-    if (0 != Minion_Shire_Update_PLL_Freq((uint16_t)new_freq))
+    /* TODO: SW-14539: Handling of set frequency in lvdpll mode through minion should be configured  */
+    if (0 != MM_Iface_Send_Update_Freq_Cmd((uint16_t)new_freq))
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
         return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
@@ -1615,6 +1617,7 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
     /* update module frequency */
     if (SAFE_STATE_FREQUENCY != Get_Minion_Frequency())
     {
+        /* TODO: SW-14539: Handling of set frequency in lvdpll mode through minion should be configured  */
         status = Thermal_Pwr_Set_Module_Frequency(PLL_ID_MINION_PLL, SAFE_STATE_FREQUENCY,
                                                   MINION_PLL_USE_STEP_CLOCK);
         if (status != STATUS_SUCCESS)

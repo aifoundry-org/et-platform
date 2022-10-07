@@ -132,4 +132,10 @@ int32_t MM_Iface_Pop_Cmd_From_MM2SP_SQ(void *rx_buff);
 */
 int8_t MM_Iface_Push_Rsp_To_MM2SP_CQ(const void *p_rsp, uint32_t rsp_size);
 
+/*! \fn int32_t MM_Iface_Send_Update_Freq_Cmd(uint16_t freq)
+    \brief PThis sends Frequency update command to Master Minion Firmware.
+    \param freq Frequency value to set
+    \return Status indicating success or negative error
+*/
+int32_t MM_Iface_Send_Update_Freq_Cmd(uint16_t freq);
 #endif

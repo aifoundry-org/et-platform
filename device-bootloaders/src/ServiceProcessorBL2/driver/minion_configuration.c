@@ -20,7 +20,6 @@
         Minion_Enable_Compute_Minion
         Minion_Get_Active_Compute_Minion_Mask
         Minion_Load_Authenticate_Firmware
-        Minion_Shire_Update_PLL_Freq
         Minion_Read_ESR
         Minion_Read_ESR
         Minion_Kernel_Launch
@@ -1176,39 +1175,6 @@ int Minion_Load_Authenticate_Firmware(void)
     Log_Write(LOG_LEVEL_INFO, "WM FW loaded.\n");
 
     return SUCCESS;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Minion_Shire_Update_PLL_Freq
-*
-*   DESCRIPTION
-*
-*       This function supports updating the Minion
-        Shire PLL dynamically without stoppong the cores.
-*
-*   INPUTS
-*
-*       Frequency to bring up Minions
-*
-*   OUTPUTS
-*
-*       The function call status, pass/fail
-*
-***********************************************************************/
-int Minion_Shire_Update_PLL_Freq(uint16_t freq)
-{
-    struct sp2mm_update_freq_cmd_t cmd;
-
-    cmd.msg_hdr.msg_id = SP2MM_CMD_UPDATE_FREQ;
-    cmd.msg_hdr.msg_size = sizeof(struct sp2mm_update_freq_cmd_t);
-    cmd.freq = freq;
-
-    MM_Iface_Push_Cmd_To_SP2MM_SQ(&cmd, sizeof(cmd));
-
-    return 0;
 }
 
 /************************************************************************
