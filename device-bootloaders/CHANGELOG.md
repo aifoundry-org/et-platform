@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14479] Add API to change module frequency and set safe state frequency to 300
 - [SW-14479] Add Macro to set use step clock to set minion frequency
 - [SW-14398]: Adding API to send CMD to update minion frequency
+- [SW-14534]: Added a pmic write byte API and fixed set pmic reg to use pinter to value for multi byte write
 ### Changed
 - [SW-14084]: Fixing the CMA calculation to scale up and down the values correctly.
 - Support to read PMIC FW from PMIC directly versus hardcoded value
