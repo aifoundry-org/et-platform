@@ -1615,7 +1615,8 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
     /* update module frequency */
     if (SAFE_STATE_FREQUENCY != Get_Minion_Frequency())
     {
-        status = Thermal_Pwr_Set_Module_Frequency(PLL_ID_MINION_PLL, SAFE_STATE_FREQUENCY, true);
+        status = Thermal_Pwr_Set_Module_Frequency(PLL_ID_MINION_PLL, SAFE_STATE_FREQUENCY,
+                                                  MINION_PLL_USE_STEP_CLOCK);
         if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR, "Failed to go to safe state!\n");

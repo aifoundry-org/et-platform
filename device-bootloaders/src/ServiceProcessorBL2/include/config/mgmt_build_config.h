@@ -416,6 +416,11 @@
 */
 #define SAFE_STATE_FREQUENCY 300
 
+/*! \def MINION_PLL_USE_STEP_CLOCK
+    \brief A macro to enable/disable step clock
+*/
+#define MINION_PLL_USE_STEP_CLOCK true
+
 /*! \def POWER_SCALE_FACTOR
     \brief A macro that provides power scale factor in percentages.
 */
