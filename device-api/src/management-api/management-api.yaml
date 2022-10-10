@@ -682,33 +682,33 @@ Modules:
       Fields:
         - Name: ddr
           Description: DDR Voltage
-          Type: uint8_t
+          Type: uint16_t
         - Name: l2_cache
           Description: L2 Cache Voltage
-          Type: uint8_t
+          Type: uint16_t
         - Name: maxion
           Description: Maxion's Voltage
-          Type: uint8_t
+          Type: uint16_t
         - Name: minion
           Description: Minion's Voltage
-          Type: uint8_t
-        - Name: pcie
-          Description: PCIe's Voltage
-          Type: uint8_t
+          Type: uint16_t
+        - Name: pshire_0p75
+          Description: PShire 0p75 Voltage
+          Type: uint16_t
         - Name: noc
           Description: NOC's Voltage
-          Type: uint8_t
-        - Name: pcie_logic
-          Description: PCIE Logic Voltage
-          Type: uint8_t
+          Type: uint16_t
+        - Name: ioshire_0p75
+          Description: IOShire 0p75 Voltage
+          Type: uint16_t
         - Name: vddqlp
           Description: Vddlp Voltage
-          Type: uint8_t
+          Type: uint16_t
         - Name: vddq
           Description: Vddq Voltage
-          Type: uint8_t
-        - Name: pad[7]
-          Description: Padding for alignment
+          Type: uint16_t
+        - Name: pad[6]
+          Description: Padding for alignment 
           Type: uint8_t
     - Name: module_voltage_t
       Fields:

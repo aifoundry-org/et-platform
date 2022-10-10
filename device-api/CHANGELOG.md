@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14061] Re-arranging commands according to their category.
 - Updating the gitlab-ci-common to the latest reference.
 - [SW-14154]: Changing duration cycles to use 64 bits
+- [FV-317] Changed Device Management API to asic_voltage from uint8_t to uint16_t 
 ### Deprecated
 ### Removed
 - [SW-14061] Removed deprecated device_mgmt_module_voltage_cmd and device_mgmt_module_voltage_rsp.
