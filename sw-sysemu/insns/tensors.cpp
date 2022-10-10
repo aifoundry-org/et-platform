@@ -420,7 +420,7 @@ void tensor_load_start(Hart& cpu, uint64_t control)
         }
 
         LOG_HART(DEBUG, cpu,
-                 "\tLeader-neigh: %d, minion-mask=0x%08lx, pending-mask=0x%lx",
+                 "\tLeader-neigh: %d, minion-mask=0x%08lx, pending-mask=0x%08lx",
                  leader, all.to_ulong(), pending.to_ulong());
 
         if (pending.none()) {
