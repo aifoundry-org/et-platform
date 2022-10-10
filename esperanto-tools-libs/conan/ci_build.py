@@ -9,8 +9,9 @@ def main():
     
     build = Packager(ci_build=True)
     build.add_package(conanfile_path)
-    build.add_consumer("rt/0.12.0@")
-    build.add_configuration("default", "linux-ubuntu18.04-x86_64-gcc7-release")
+    c1 = build.add_configuration("default", "linux-ubuntu18.04-x86_64-gcc7-release")
+    c2 = build.add_configuration("default", "linux-ubuntu18.04-x86_64-gcc7-debug")
+    build.add_consumer("rt/0.12.0@", config_ids=[c1])
     build.report()
 
     build.run()

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - (Conan) (CI) Updated build flow to conan 1.52.0
 - (Conan) Depend on sw-sysemu/0.2.1
+- [SW-14434] (Conan) CI now generates Debug & Release pkgs
 ### Deprecated
 ### Removed
 ### Fixed
