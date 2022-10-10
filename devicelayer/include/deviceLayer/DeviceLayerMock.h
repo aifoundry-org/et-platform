@@ -60,6 +60,7 @@ public:
   MOCK_CONST_METHOD0(getFreeCmaMemory, size_t());
   MOCK_CONST_METHOD1(getDmaInfo, DmaInfo(int));
   MOCK_METHOD3(reinitDeviceInstance, void(int device, bool masterMinionOnly, std::chrono::milliseconds timeout));
+  MOCK_METHOD1(hintInactivity, void(int));
 
   void Delegate() {
     ON_CALL(*this, sendCommandMasterMinion)

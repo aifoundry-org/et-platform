@@ -701,3 +701,6 @@ void DeviceSysEmu::clearDeviceAttributes(int, std::string) const {
 void DeviceSysEmu::reinitDeviceInstance(int, bool, std::chrono::milliseconds) {
   // No implementation for DeviceSysEmu class
 }
+void DeviceSysEmu::hintInactivity(int) {
+  sysEmu_->pause();
+}

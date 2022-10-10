@@ -136,3 +136,6 @@ void DeviceSysEmuMulti::clearDeviceAttributes(int device, std::string relGroupPa
 void DeviceSysEmuMulti::reinitDeviceInstance(int device, bool masterMinionOnly, std::chrono::milliseconds timeout) {
   getDevice(device).reinitDeviceInstance(device, masterMinionOnly, timeout);
 }
+void DeviceSysEmuMulti::hintInactivity(int device) {
+  return getDevice(device).hintInactivity(device);
+}
