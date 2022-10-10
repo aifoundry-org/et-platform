@@ -4,9 +4,13 @@ include:
     file:
       - 'pods/nano-pod.yaml'
       - 'jobs/generic-k8s-job.yaml'
-      - 'jobs/conan-jobs.yaml'
       - 'jobs/sw-platform-trigger.yaml'
       - 'jobs/check-top-of-master.yaml'
+  
+  - project: 'software/gitlab-ci-common'
+    ref: master
+    file:
+      - 'jobs/conan-jobs.yaml'
 
   - project: 'software/sw-platform'
     ref: develop/system-sw
