@@ -64,8 +64,8 @@ namespace bemu {
 // FastCreditCounters
 #define EMU_NUM_FCC_COUNTERS_PER_THREAD 2
 
-// Main memory size (16GiB)
-#define EMU_DRAM_SIZE  (16ULL*1024ULL*1024ULL*1024ULL)
+// Main memory size (up to 32GiB)
+#define EMU_DRAM_SIZE  (32ULL*1024ULL*1024ULL*1024ULL)
 
 // VA to PA translation
 #define PA_SIZE        40

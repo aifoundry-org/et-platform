@@ -192,6 +192,8 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
 
     chip.set_emu(this);
 
+    chip.dram_size = cmd_options.dram_size;
+
     // Setup logging
     chip.log.setDevice(this);
     chip.log_trigger_insn = cmd_options.log_trigger_insn;

@@ -41,6 +41,7 @@ static const char * help_msg =
      -max_cycles <cycles>     Stops execution after provided number of cycles (default: 10M)\n\
      -mem_reset <byte>        Reset value of main memory (default: 0)\n\
      -mem_reset32 <uint32>    Reset value of main memory (default: 0)\n\
+     -dram_size <gb>          Size of installed DRAM in GB (options: 8/16/24/32; default: 16)\n\
      -pu_uart0_rx_file <path> Path to the file in which to read the contents of PU UART0 RX (default is stdin)\n\
      -pu_uart1_rx_file <path> Path to the file in which to read the contents of PU UART1 RX (default is stdin)\n\
      -spio_uart0_rx_file <path> Path to the file in which to read the contents of SPIO UART0 RX (default is stdin)\n\
@@ -140,6 +141,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"max_cycles",             required_argument, nullptr, 0},
         {"mem_reset",              required_argument, nullptr, 0},
         {"mem_reset32",            required_argument, nullptr, 0},
+        {"dram_size",              required_argument, nullptr, 0},
         {"pu_uart0_rx_file",       required_argument, nullptr, 0},
         {"pu_uart1_rx_file",       required_argument, nullptr, 0},
         {"spio_uart0_rx_file",     required_argument, nullptr, 0},
@@ -354,6 +356,15 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if (!strcmp(name, "mem_reset32"))
         {
           cmd_options.mem_reset = strtol(optarg, NULL, 0);
+        }
+        else if (!strcmp(name, "dram_size"))
+        {
+            const uint64_t dram_size = atoi(optarg);
+            if (dram_size == 8 || dram_size == 16 || dram_size == 24 || dram_size == 32) {
+                cmd_options.dram_size = dram_size << 30;
+            } else {
+                SE_ERROR("Command line option '-dram_size': Invalid size");
+            }
         }
         else if (!strcmp(name, "pu_uart0_rx_file"))
         {

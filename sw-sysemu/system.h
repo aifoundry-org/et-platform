@@ -233,6 +233,7 @@ public:
     // Main memory
     MainMemory                                memory {};
     typename MemoryRegion::reset_value_type   memory_reset_value {};
+    typename MemoryRegion::size_type          dram_size = 16ULL << 30;
 
     // Performance monitoring counters
     std::array<neigh_pmu_counters_t, EMU_NUM_NEIGHS>  neigh_pmu_counters {};

@@ -94,6 +94,7 @@ struct sys_emu_cmd_options {
     bool        mins_dis                     = false;
     bool        sp_dis                       = false;
     uint32_t    mem_reset                    = 0;
+    uint64_t    dram_size                    = 16ull << 30;
     std::string pu_uart0_rx_file;
     std::string pu_uart1_rx_file;
     std::string spio_uart0_rx_file;

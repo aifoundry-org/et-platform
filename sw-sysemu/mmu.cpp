@@ -202,10 +202,14 @@ static inline bool paddr_is_sp_cacheable(uint64_t addr)
 { return paddr_is_sp_rom(addr) || paddr_is_sp_sram(addr); }
 
 
-// NB: We have only 16GiB of DRAM installed
-static inline uint64_t truncated_dram_addr(uint64_t addr)
+static inline uint64_t truncated_dram_addr(const Hart& cpu, uint64_t addr)
 {
-    return 0x8000000000ULL + ((addr - 0x8000000000ULL) % EMU_DRAM_SIZE);
+    const uint64_t dram_size = cpu.chip->dram_size;
+    const uint64_t naddr = 0x8000000000ULL + ((addr - 0x8000000000ULL) % dram_size);
+    if (naddr != addr) {
+        LOG_HART(WARN, cpu, "Truncating DRAM address: %010lx => %010lx", addr, naddr);
+    }
+    return naddr;
 }
 
 
@@ -360,7 +364,7 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
 #endif
         // NB: The memory controller truncates addresses, but since we do not
         // model it we need to do the truncation here.
-        return truncated_dram_addr(addr);
+        return truncated_dram_addr(cpu, addr);
     }
 
     if (paddr_is_scratchpad(addr)) {
@@ -499,7 +503,7 @@ static uint64_t pma_check_fetch_access(const Hart& cpu, uint64_t vaddr,
 #endif
         // NB: The memory controller truncates addresses, but since we do not
         // model it we need to do the truncation here.
-        return truncated_dram_addr(addr);
+        return truncated_dram_addr(cpu, addr);
     }
 
     if (paddr_is_sp_rom(addr)) {
@@ -572,7 +576,7 @@ static uint64_t pma_check_ptw_access(const Hart& cpu, uint64_t vaddr,
                 throw_access_fault(vaddr, macc);
             }
         }
-        return truncated_dram_addr(addr);
+        return truncated_dram_addr(cpu, addr);
     }
 
     if (paddr_is_sp_rom(addr) || paddr_is_sp_sram(addr)) {
