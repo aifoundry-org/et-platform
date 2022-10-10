@@ -240,6 +240,9 @@ public:
   void clearDeviceAttributes(int, std::string) const override {
     // No implementation
   }
+  void hintInactivity(int) override {
+    // No implementation
+  }
 };
 
 } // namespace dev
