@@ -207,7 +207,7 @@ static inline uint64_t truncated_dram_addr(const Hart& cpu, uint64_t addr)
     const uint64_t dram_size = cpu.chip->dram_size;
     const uint64_t naddr = 0x8000000000ULL + ((addr - 0x8000000000ULL) % dram_size);
     if (naddr != addr) {
-        LOG_HART(WARN, cpu, "Truncating DRAM address: %010lx => %010lx", addr, naddr);
+        WARN_HART(memory, cpu, "Truncating DRAM address: %010lx => %010lx", addr, naddr);
     }
     return naddr;
 }
@@ -286,7 +286,7 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
                 if (cpu.chip->stepping == System::Stepping::A0) {
                     // NB: On ET-SoC-1 A0 the PMA does not catch this case
                     // which leads to undefined behavior.
-                    LOG_HART(WARN, cpu, "CacheOp to uncacheable addr 0x%016"
+                    WARN_HART(cacheops, cpu, "CacheOp to uncacheable addr 0x%016"
                              PRIx64 " is UNDEFINED behavior", vaddr);
                 }
                 throw_access_fault(vaddr, macc);
@@ -357,7 +357,7 @@ static uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
 #endif
 #ifdef SMB_SIZE
         if (((addr + size) > uint64_t(SMB_ADDR)) && (addr < (uint64_t(SMB_ADDR) + uint64_t(SMB_SIZE)))) {
-            LOG_HART(WARN, cpu, "%s SMB-reserved addr 0x%" PRIx64,
+            WARN_HART(memory, cpu, "%s SMB-reserved addr 0x%" PRIx64,
                      data_access_is_write(macc) ? "Writing to" : "Reading from",
                      std::max(addr, uint64_t(SMB_ADDR)));
         }
@@ -497,7 +497,7 @@ static uint64_t pma_check_fetch_access(const Hart& cpu, uint64_t vaddr,
 #endif
 #ifdef SMB_SIZE
         if (((addr + size) > uint64_t(SMB_ADDR)) && (addr < (uint64_t(SMB_ADDR) + uint64_t(SMB_SIZE)))) {
-            LOG_HART(WARN, cpu, "Fetching from SMB-reserved addr 0x%" PRIx64,
+            WARN_HART(memory, cpu, "Fetching from SMB-reserved addr 0x%" PRIx64,
                      std::max(addr, uint64_t(SMB_ADDR)));
         }
 #endif

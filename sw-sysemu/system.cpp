@@ -382,7 +382,7 @@ bool System::raise_host_interrupt(uint32_t bitmap)
         if (emu()->get_api_communicate()) {
             return emu()->get_api_communicate()->raise_host_interrupt(bitmap);
         }
-        LOG_AGENT(WARN, noagent, "%s", "API Communicate is NULL!");
+        WARN_AGENT(other, noagent, "%s", "API Communicate is NULL!");
     }
 #else
     (void) bitmap;
@@ -401,7 +401,7 @@ void System::copy_memory_from_host_to_device(uint64_t from_addr, uint64_t to_add
         memory.write(noagent, to_addr, size, buff);
         delete[] buff;
     } else {
-        LOG_AGENT(WARN, noagent, "%s", "API Communicate is NULL!");
+        WARN_AGENT(other, noagent, "%s", "API Communicate is NULL!");
     }
 #else
     (void) from_addr;
@@ -421,7 +421,7 @@ void System::copy_memory_from_device_to_host(uint64_t from_addr, uint64_t to_add
         api_comm->host_memory_write(to_addr, size, buff);
         delete[] buff;
     } else {
-        LOG_AGENT(WARN, noagent, "%s", "API Communicate is NULL!");
+        WARN_AGENT(other, noagent, "%s", "API Communicate is NULL!");
     }
 #else
     (void) from_addr;
@@ -438,7 +438,7 @@ void System::notify_iatu_ctrl_2_reg_write(int pcie_id, uint32_t iatu, uint32_t v
     if (api_comm) {
         api_comm->notify_iatu_ctrl_2_reg_write(pcie_id, iatu, value);
     } else {
-        LOG_AGENT(WARN, noagent, "%s", "API Communicate is NULL!");
+        WARN_AGENT(other, noagent, "%s", "API Communicate is NULL!");
     }
 #else
     (void) pcie_id;

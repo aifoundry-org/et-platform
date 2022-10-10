@@ -239,12 +239,12 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
             throw sysreg_error(esr);
         }
 #endif
-        LOG_AGENT(WARN, agent, "Read unknown R_PU_RVTim ESR 0x%" PRIx64, esr);
+        WARN_AGENT(esrs, agent, "Read unknown R_PU_RVTim ESR 0x%" PRIx64, esr);
         throw memory_error(addr);
     }
 
     if ((shire >= EMU_NUM_SHIRES) && !((shire >= EMU_MEM_SHIRE_BASE_ID) && (shire < (EMU_MEM_SHIRE_BASE_ID + NUM_MEM_SHIRES)))) {
-        LOG_AGENT(WARN, agent, "Read illegal ESR S%u:0x%llx", SHIREID(shire), addr2 & ~ESR_REGION_SHIRE_MASK);
+        WARN_AGENT(esrs, agent, "Read illegal ESR S%u:0x%llx", SHIREID(shire), addr2 & ~ESR_REGION_SHIRE_MASK);
         throw memory_error(addr);
     }
 
@@ -283,7 +283,7 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
                 case ESR_DDRC_CRTIT2_INT_EN:
                     return mem_shire_esrs.int_en;
                 default:
-                    LOG_AGENT(WARN, agent, "Read unknown DDRC ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+                    WARN_AGENT(esrs, agent, "Read unknown DDRC ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
                     throw memory_error(addr);
             }
         } else if (msregion == ESR_MEMSHIRE_REGION) {
@@ -295,11 +295,11 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
                 case ESR_MS_MEM_STATUS:
                     return 0;
                 default:
-                    LOG_AGENT(WARN, agent, "Read unknown MEM Shire ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+                    WARN_AGENT(esrs, agent, "Read unknown MEM Shire ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
                     throw memory_error(addr);
             }
         } else {
-            LOG_AGENT(WARN, agent, "Read unknown MEM Shire region S%u:0x%" PRIx64, SHIREID(shire), esr);
+            WARN_AGENT(esrs, agent, "Read unknown MEM Shire region S%u:0x%" PRIx64, SHIREID(shire), esr);
             throw memory_error(addr);
         }
     }
@@ -323,7 +323,7 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
         case ESR_AXDATA1:
             return cpu[hart + shire * EMU_THREADS_PER_SHIRE].ddata0 >> 32;
         default:
-            LOG_AGENT(WARN, agent, "Read unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
+            WARN_AGENT(esrs, agent, "Read unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
                       SHIREID(shire), MINION(hart), THREAD(hart), esr);
             throw memory_error(addr);
         }
@@ -333,7 +333,7 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
         unsigned neigh = (addr2 & ESR_REGION_NEIGH_MASK) >> ESR_REGION_NEIGH_SHIFT;
         uint64_t esr = addr2 & ESR_NEIGH_ESR_MASK;
         if ((shire == EMU_IO_SHIRE_SP) || (neigh >= EMU_NEIGH_PER_SHIRE)) {
-            LOG_AGENT(WARN, agent, "Read illegal neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
+            WARN_AGENT(esrs, agent, "Read illegal neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
             throw memory_error(addr);
         }
         unsigned pos = neigh + EMU_NEIGH_PER_SHIRE * shire;
@@ -381,7 +381,7 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
         case ESR_AND_OR_TREE_L0:
             return calculate_andortree0(pos);
         }
-        LOG_AGENT(WARN, agent, "Read unknown neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
+        WARN_AGENT(esrs, agent, "Read unknown neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
         throw memory_error(addr);
     }
 
@@ -391,7 +391,7 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
         uint64_t esr = addr2 & ESR_CACHE_ESR_MASK;
         unsigned bnk = (addr2 & ESR_REGION_BANK_MASK) >> ESR_REGION_BANK_SHIFT;
         if (bnk >= 4) {
-            LOG_AGENT(WARN, agent, "Read illegal shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
+            WARN_AGENT(esrs, agent, "Read illegal shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
             throw memory_error(addr);
         }
         switch (esr) {
@@ -449,14 +449,14 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
         case ESR_SC_IDX_COP_SM_CTL_USER:
             return 4ull << 24; // idx_cop_sm_state = IDLE
         }
-        LOG_AGENT(WARN, agent, "Read unknown shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
+        WARN_AGENT(esrs, agent, "Read unknown shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
         throw memory_error(addr);
     }
 
     if (sregion_extra == ESR_RBOX_REGION) {
         uint64_t esr = addr2 & ESR_RBOX_ESR_MASK;
         if (shire >= EMU_NUM_COMPUTE_SHIRES) {
-            LOG_AGENT(WARN, agent, "Read illegal rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+            WARN_AGENT(esrs, agent, "Read illegal rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
             throw memory_error(addr);
         }
         switch (esr) {
@@ -470,7 +470,7 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
         case ESR_RBOX_STATUS:
             return 0; //GET_RBOX(shire, 0).read_esr((esr >> 3) & 0x3FFF);
         }
-        LOG_AGENT(WARN, agent, "Read unknown rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+        WARN_AGENT(esrs, agent, "Read unknown rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
         throw memory_error(addr);
     }
 
@@ -592,11 +592,11 @@ uint64_t System::esr_read(const Agent& agent, uint64_t addr)
         case ESR_AND_OR_TREE_L1:
             return calculate_andortree1(shire);
         }
-        LOG_AGENT(WARN, agent, "Read unknown shire_other ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+        WARN_AGENT(esrs, agent, "Read unknown shire_other ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
         throw memory_error(addr);
     }
 
-    LOG_AGENT(WARN, agent, "Read illegal ESR 0x%" PRIx64, addr);
+    WARN_AGENT(esrs, agent, "Read illegal ESR 0x%" PRIx64, addr);
     throw memory_error(addr);
 }
 
@@ -652,12 +652,12 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
             throw sysreg_error(esr);
         }
 #endif
-        LOG_AGENT(WARN, agent, "Write unknown R_PU_RVTim ESR 0x%" PRIx64, esr);
+        WARN_AGENT(esrs, agent, "Write unknown R_PU_RVTim ESR 0x%" PRIx64, esr);
         throw memory_error(addr);
     }
 
     if ((shire >= EMU_NUM_SHIRES) && !((shire >= EMU_MEM_SHIRE_BASE_ID) && (shire < (EMU_MEM_SHIRE_BASE_ID + NUM_MEM_SHIRES)))) {
-        LOG_AGENT(WARN, agent, "Write illegal ESR S%u:0x%llx", SHIREID(shire), addr2 & ~ESR_REGION_SHIRE_MASK);
+        WARN_AGENT(esrs, agent, "Write illegal ESR S%u:0x%llx", SHIREID(shire), addr2 & ~ESR_REGION_SHIRE_MASK);
         throw memory_error(addr);
     }
 
@@ -701,7 +701,7 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                             SHIREID(shire), mem_shire_esrs.int_en);
                     break;
                 default:
-                    LOG_AGENT(WARN, agent, "Write unknown DDRC ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+                    WARN_AGENT(esrs, agent, "Write unknown DDRC ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
                     throw memory_error(addr);
             }
         } else if (msregion == ESR_MEMSHIRE_REGION) {
@@ -715,10 +715,11 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                     break;
                 default:
                     LOG_AGENT(WARN, agent, "Write unknown MEM Shire ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+                    WARN_AGENT(esrs, agent, "Write unknown MEM Shire ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
                     throw memory_error(addr);
             }
         } else {
-            LOG_AGENT(WARN, agent, "Write unknown MEM Shire region S%u:0x%" PRIx64, SHIREID(shire), esr);
+            WARN_AGENT(esrs, agent, "Write unknown MEM Shire region S%u:0x%" PRIx64, SHIREID(shire), esr);
             throw memory_error(addr);
         }
         return;
@@ -781,7 +782,7 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
             break;
         }
         default:
-            LOG_AGENT(WARN, agent, "Write unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
+            WARN_AGENT(esrs, agent, "Write unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
                       SHIREID(shire), MINION(hart), THREAD(hart), esr);
             throw memory_error(addr);
         }
@@ -794,14 +795,14 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
         unsigned frst = neigh + EMU_NEIGH_PER_SHIRE * shire;
         unsigned last = frst + 1;
         if (shire == EMU_IO_SHIRE_SP) {
-            LOG_AGENT(WARN, agent, "Write illegal neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
+            WARN_AGENT(esrs, agent, "Write illegal neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
             throw memory_error(addr);
         }
         if (neigh == ESR_REGION_NEIGH_BROADCAST) {
             frst = EMU_NEIGH_PER_SHIRE * shire;
             last = frst + EMU_NEIGH_PER_SHIRE;
         } else if (neigh >= EMU_NEIGH_PER_SHIRE) {
-            LOG_AGENT(WARN, agent, "Write illegal neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
+            WARN_AGENT(esrs, agent, "Write illegal neigh ESR S%u:N%u:0x%" PRIx64, SHIREID(shire), neigh, esr);
             throw memory_error(addr);
         }
         for (unsigned pos = frst; pos < last; ++pos) {
@@ -890,7 +891,7 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                           SHIREID(shire), NEIGHID(pos), neigh_esrs[pos].hastatus1);
                 break;
             default:
-                LOG_AGENT(WARN, agent, "Write unknown neigh ESR S%u:N%u:0x%" PRIx64,
+                WARN_AGENT(esrs, agent, "Write unknown neigh ESR S%u:N%u:0x%" PRIx64,
                           SHIREID(shire), NEIGHID(pos), esr);
                 throw memory_error(addr);
             }
@@ -909,7 +910,7 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
             frst = 0;
             last = frst + 4;
         } else if (bnk >= 4) {
-            LOG_AGENT(WARN, agent, "Write illegal shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
+            WARN_AGENT(esrs, agent, "Write illegal shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
             throw memory_error(addr);
         }
         for (unsigned b = frst; b < last; ++b) {
@@ -1050,7 +1051,7 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                 // shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_ctl = value;
                 break;
              default:
-                LOG_AGENT(WARN, agent, "Write unknown shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
+                WARN_AGENT(esrs, agent, "Write unknown shire_cache ESR S%u:B%u:0x%" PRIx64, SHIREID(shire), bnk, esr);
                 throw memory_error(addr);
             }
         }
@@ -1060,7 +1061,7 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
     if (sregion_extra == ESR_RBOX_REGION) {
         uint64_t esr = addr2 & ESR_RBOX_ESR_MASK;
         if (shire >= EMU_NUM_COMPUTE_SHIRES) {
-            LOG_AGENT(WARN, agent, "Write illegal rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+            WARN_AGENT(esrs, agent, "Write illegal rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
             throw memory_error(addr);
         }
         switch (esr) {
@@ -1093,7 +1094,7 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
             //GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         }
-        LOG_AGENT(WARN, agent, "Write unknown rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+        WARN_AGENT(esrs, agent, "Write unknown rbox ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
         throw memory_error(addr);
     }
 
@@ -1310,11 +1311,11 @@ void System::esr_write(const Agent& agent, uint64_t addr, uint64_t value)
                       SHIREID(shire), shire_other_esrs[shire].shire_channel_eco_ctl);
             return;
         }
-        LOG_AGENT(WARN, agent, "Write unknown shire_other ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
+        WARN_AGENT(esrs, agent, "Write unknown shire_other ESR S%u:0x%" PRIx64, SHIREID(shire), esr);
         throw memory_error(addr);
     }
 
-    LOG_AGENT(WARN, agent, "Write illegal ESR 0x%" PRIx64, addr);
+    WARN_AGENT(esrs, agent, "Write illegal ESR 0x%" PRIx64, addr);
     throw memory_error(addr);
 }
 

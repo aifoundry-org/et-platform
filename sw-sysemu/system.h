@@ -28,6 +28,30 @@ class sys_emu;
 
 namespace bemu {
 
+//! Mask to keep track of which warnings trigger errors.
+struct Warning {
+    enum Category {
+        none = 0,
+        other = 1 << 0,
+        memory = 1 << 1, // Memory accesses
+        tensors = 1 << 2, // Tensor operations
+        trans = 1 << 3, // Transcendental instructions
+        esrs = 1 << 4, // Undefined ESRs
+        cacheops = 1 << 5, // Cache operations
+        debug = 1 << 6, // Debug infrastructure
+        all = -1,
+    };
+
+    logLevel severity(Category category) const
+    {
+        return (m_errors & category) ? LOG_ERR : LOG_WARN;
+    }
+
+    void make_error(Category category) { m_errors |= category; }
+
+private:
+    int m_errors = none;
+};
 
 //
 // A bitmask with 1-bit per Minion of a shire
@@ -258,6 +282,7 @@ public:
     uint64_t    log_trigger_start;
     uint64_t    log_trigger_stop;
     uint64_t    log_trigger_count;
+    Warning     warning;
 
     // System agent
     Noagent   noagent {this, "SYSTEM"};

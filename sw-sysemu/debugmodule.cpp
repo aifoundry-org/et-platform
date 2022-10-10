@@ -88,7 +88,7 @@ void System::write_dmctrl(uint32_t value)
     // following bits: resumereq, hartreset, ackhavereset, setresethaltreq,
     // and clrresethaltreq. The others must be written 0.
     if (dmctrl_reqbits(newvalue) > 1) {
-        LOG_AGENT(WARN, noagent, "dmctrl: issuing multiple debug requests: 0x%08x", newvalue);
+        WARN_AGENT(debug, noagent, "dmctrl: issuing multiple debug requests: 0x%08x", newvalue);
     }
 
     // Apply a given function to each selected hart

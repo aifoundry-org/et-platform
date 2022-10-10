@@ -38,7 +38,7 @@ bool sys_emu::parse_mem_file(const char* filename)
         char str[1024];
         if(sscanf(buffer, "New Mem Region: 40'h%" PRIX64 ", 40'h%" PRIX64 ", %s", &base_addr, &size, str) == 3)
         {
-            LOG_AGENT(WARN, agent, "Ignore: New Mem Region found: @ 0x%" PRIx64 ", size = 0x%" PRIu64, base_addr, size);
+            WARN_AGENT(other, agent, "Ignore: New Mem Region found: @ 0x%" PRIx64 ", size = 0x%" PRIu64, base_addr, size);
         }
         else if(sscanf(buffer, "File Load: 40'h%" PRIX64 ", %s", &base_addr, str) == 2)
         {

@@ -83,6 +83,7 @@ struct sys_emu_cmd_options {
     uint64_t    log_trigger_hart             = 0;
     uint64_t    log_trigger_start            = 0;
     uint64_t    log_trigger_stop             = 0;
+    bemu::Warning     warning;
     std::vector<dump_info> dump_at_end;
     std::unordered_multimap<uint64_t, dump_info> dump_at_pc;
     std::string dump_mem;

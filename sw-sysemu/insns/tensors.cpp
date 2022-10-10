@@ -277,10 +277,10 @@ static TLoad& coop_tload_find_partner(Hart& hart, const TLoad& tload)
         LOG_HART(ERR, hart, "coop tload: tensor_coop does not match: expected 0x%08x, found 0x%08x", tload.tcoop, other.tcoop);
     }
     if (tload.value != other.value) {
-        LOG_HART(WARN, hart, "coop tload: CSR does not match: expected 0x%016lx, found 0x%016lx", tload.value, other.value);
+        WARN_HART(tensors, hart, "coop tload: CSR does not match: expected 0x%016lx, found 0x%016lx", tload.value, other.value);
     }
     if (tload.stride != other.stride) {
-        LOG_HART(WARN, hart, "coop tload: x31 does not match: expected 0x%016lx, found 0x%016lx", tload.stride, other.stride);
+        WARN_HART(tensors, hart, "coop tload: x31 does not match: expected 0x%016lx, found 0x%016lx", tload.stride, other.stride);
     }
     return other;
 }
@@ -344,14 +344,14 @@ void tensor_load_start(Hart& cpu, uint64_t control)
 
     // Check if L1SCP is enabled
     if (cpu.core->mcache_control != 0x3) {
-        LOG_HART(WARN, cpu, "%s", "\tTensorLoad with L1SCP disabled!!");
+        WARN_HART(tensors, cpu, "%s", "\tTensorLoad with L1SCP disabled!!");
         update_tensor_error(cpu, 1 << 4);
         return;
     }
 
     // Check for invalid transformation
     if ((cmd == tload_cmd_reserved_3) || (cmd == tload_cmd_reserved_4)) {
-        LOG_HART(WARN, cpu, "%s", "\tTensorLoad with illegal transform!!");
+        WARN_HART(tensors, cpu, "%s", "\tTensorLoad with illegal transform!!");
         update_tensor_error(cpu, 1 << 1);
         return;
     }
@@ -2028,7 +2028,7 @@ void tensor_reduce_execute(Hart& cpu)
     if (cpu.core->reduce.hart->mhartid != snd_cpu.mhartid
         || snd_cpu.core->reduce.hart->mhartid != cpu.mhartid)
     {
-        LOG_HART(WARN, cpu,
+        WARN_HART(tensors, cpu,
                  "\tTensor reduce hart mismatch with sender=H%u receiver=H%u "
                  "sender_partner=H%u receiver_partner=H%u",
                  snd_cpu.mhartid, cpu.mhartid,
@@ -2041,7 +2041,7 @@ void tensor_reduce_execute(Hart& cpu)
     }
 
     if (snd_cpu.core->reduce.count != cpu.core->reduce.count) {
-        LOG_HART(WARN, cpu,
+        WARN_HART(tensors, cpu,
                  "\tTensor reduce count mismatch with sender=H%u receiver=H%u "
                  "sender_count=%u receiver_count=%u",
                  snd_cpu.mhartid, cpu.mhartid,
@@ -2129,7 +2129,7 @@ void tensor_wait_execute(Hart& cpu, Hart::Waiting what)
 void tensor_wait_start(Hart& cpu, uint64_t value)
 {
     if (cpu.debug_mode) {
-        LOG_HART(WARN, cpu, "%s", "Executing a TensorWait from debug mode has undefined behavior");
+        WARN_HART(tensors, cpu, "%s", "Executing a TensorWait from debug mode has undefined behavior");
         return; // treat as a nop just in case
     }
 

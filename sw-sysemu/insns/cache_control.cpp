@@ -86,7 +86,7 @@ void dcache_evict_flush_set_way(Hart& cpu, bool evict, uint64_t value)
         return;
 
     if ((dest != 1) && (cpu.mhartid == IO_SHIRE_SP_HARTID)) {
-        LOG_HART(WARN, cpu, "\t%s with DestLevel: %d has undefined behavior on the SP",
+        WARN_HART(cacheops, cpu, "\t%s with DestLevel: %d has undefined behavior on the SP",
             evict ? " EvictSW" : "FlushSW", dest);
         return;
     }
@@ -147,7 +147,7 @@ void dcache_evict_flush_vaddr(Hart& cpu, bool evict, uint64_t value)
         return;
 
     if ((dest != 1) && (cpu.mhartid == IO_SHIRE_SP_HARTID)) {
-        LOG_HART(WARN, cpu, "\t%s with DestLevel: %d has undefined behavior on the SP",
+        WARN_HART(cacheops, cpu, "\t%s with DestLevel: %d has undefined behavior on the SP",
             evict ? " EvictVA" : "FlushVA", dest);
         return;
     }

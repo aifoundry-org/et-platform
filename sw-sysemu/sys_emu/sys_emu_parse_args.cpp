@@ -30,6 +30,15 @@ static const char * help_msg =
      -ltrigger_hart <hart>    Logging verbosity will be set to DEBUG after this hart finds the trigger instruction. (default: 0)\n\
      -ltrigger_start <count>  Logging verbosity will be set to DEBUG after finding the trigger instruction this many times. (default: 0)\n\
      -ltrigger_stop <count>   Logging verbosity will be set back to INFO after finding the trigger instruction this many times. (default: 0)\n\
+     -Werror                  Make all warnings into errors.\n\
+     -Werror=*                Make the specified warning into an error:\n\
+                                memory    Undefined memory accesses\n\
+                                tensors   Tensor operations with undefined behavior\n\
+                                trans     Transcendental instructions with undefined behavior\n\
+                                esrs      Accesses to undefined ESRs\n\
+                                cacheops  Cache operations with undefined behavior\n\
+                                debug     Undefined behavior while in debug mode\n\
+                                other     Other warnings\n\
      -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
      -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
      -single_thread           Disable 2nd Minion thread\n\
@@ -101,6 +110,21 @@ static int strsplit(char *str, const char *delimiters, char *tokens[], int max_t
     return n;
 }
 
+namespace {
+
+bemu::Warning::Category parse_category(const char* str)
+{
+    if (strcmp(str, "other") == 0) return bemu::Warning::other;
+    else if (strcmp(str, "memory") == 0) return bemu::Warning::memory;
+    else if (strcmp(str, "tensors") == 0) return bemu::Warning::tensors;
+    else if (strcmp(str, "trans") == 0) return bemu::Warning::trans;
+    else if (strcmp(str, "esrs") == 0) return bemu::Warning::esrs;
+    else if (strcmp(str, "all") == 0) return bemu::Warning::all;
+    else return bemu::Warning::none;
+}
+
+}
+
 // Util macros for the cmdline parser
 #define SE_WARN(msg) std::cerr << "sys_emu: " << msg << std::endl;
 #define SE_ERROR(msg) do { SE_WARN(msg); return std::make_pair(false, cmd_options); } while (0)
@@ -129,6 +153,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"ltrigger_hart",          required_argument, nullptr, 0},
         {"ltrigger_start",         required_argument, nullptr, 0},
         {"ltrigger_stop",          required_argument, nullptr, 0},
+        {"Werror",                 optional_argument, nullptr, 0},
         {"minions",                required_argument, nullptr, 0},
         {"shires",                 required_argument, nullptr, 0},
         {"master_min",             no_argument,       nullptr, 0}, // deprecated, use -shires <mask> to enable Master Shire and SP
@@ -281,6 +306,16 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if (!strcmp(name, "ltrigger_stop"))
         {
             cmd_options.log_trigger_stop = atoi(optarg);
+        }
+        else if (!strcmp(name, "Werror"))
+        {
+            const auto category = optarg ?
+                                  parse_category(optarg) :
+                                  bemu::Warning::all;
+            if (category == bemu::Warning::none) {
+                SE_WARN("Unknown warning '" << optarg << "'");
+            }
+            cmd_options.warning.make_error(category);
         }
         else if (!strcmp(name, "minions"))
         {

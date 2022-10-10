@@ -149,7 +149,7 @@ void insn_fswg_ps(Hart& cpu)
     if (cpu.chip->stepping == System::Stepping::A0) {
         msk = mreg_t(-1);
         if (msk != M0) {
-            LOG_HART(WARN, cpu, "%s", "fswg.ps with m0 not all 1s is UNDEFINED behavior");
+            WARN_HART(memory, cpu, "%s", "fswg.ps with m0 not all 1s is UNDEFINED behavior");
         }
     } else {
         msk = M0;
@@ -167,7 +167,7 @@ void insn_fswl_ps(Hart& cpu)
     if (cpu.chip->stepping == System::Stepping::A0) {
         msk = mreg_t(-1);
         if (msk != M0) {
-            LOG_HART(WARN, cpu, "%s", "fswl.ps with m0 not all 1s is UNDEFINED behavior");
+            WARN_HART(memory, cpu, "%s", "fswl.ps with m0 not all 1s is UNDEFINED behavior");
         }
     } else {
         msk = M0;

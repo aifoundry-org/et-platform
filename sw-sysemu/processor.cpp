@@ -1556,7 +1556,7 @@ void Hart::become_unavailable()
     }
     if (index_in_core(*this) == 0) {
         if (has_active_coprocessor()) {
-            LOG_HART(WARN, *this, "%s",
+            WARN_HART(tensors, *this, "%s",
                      "Stopping a hart with an active coprocessor!");
         }
         core->tload_a[0].clear();

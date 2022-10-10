@@ -93,12 +93,12 @@ void Vpurf_checker::freg_read(const bemu::Hart& cpu, uint8_t fs)
             access.clear();
             return;
         } else {
-            LOG_AGENT(WARN, *this,
+            WARN_AGENT(other, *this,
                       "[%s] 0x%" PRIx64 " (0x%08" PRIx32
                       ") fmv.x.w x0,f%d at cycle %" PRIu64,
                       cpu.name().c_str(), access.pc, access.insn.bits, fs,
                       access.cycle);
-            LOG_AGENT(WARN, *this,
+            WARN_AGENT(other, *this,
                       "[%s] 0x%" PRIx64 " (0x%08" PRIx32 ") reads f%d",
                       cpu.name().c_str(), cpu.pc, cpu.inst.bits, fs);
                 // FIXME It would be nice to use
@@ -136,10 +136,10 @@ void Vpurf_checker::freg_read(const bemu::Hart& cpu, uint8_t fs)
         WARN, *this,
         "[%s] 0x%" PRIx64 " (0x%08" PRIx32 ") writes f%d at cycle %" PRIu64,
         cpu.name().c_str(), access.pc, access.insn.bits, fs, access.cycle);
-    LOG_AGENT(WARN, *this, "[%s] 0x%" PRIx64 " (0x%08" PRIx32 ") reads f%d",
+    WARN_AGENT(other, *this, "[%s] 0x%" PRIx64 " (0x%08" PRIx32 ") reads f%d",
               cpu.name().c_str(), cpu.pc, cpu.inst.bits, fs);
     if (m_waive_errors) {
-        LOG_AGENT(WARN, *this, "[%s] VPURF workaround required for type %c",
+        WARN_AGENT(other, *this, "[%s] VPURF workaround required for type %c",
                   cpu.name().c_str(), wa_type);
     } else {
         LOG_AGENT(FTL, *this, "[%s] VPURF workaround required for type %c",

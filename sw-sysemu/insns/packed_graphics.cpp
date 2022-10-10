@@ -31,7 +31,7 @@ static inline int32_t frcp_fix_rast_vs_gold(const Hart& cpu, int32_t x, int32_t 
     int32_t fpuval = fpu::fxp1714_rcpStep(x, y);
     int32_t gldval = gld::fxp1714_rcpStep(x, y);
     if (abs(fpuval - gldval) > 1) {
-        LOG_HART(WARN, cpu,
+        WARN_HART(other, cpu,
                  "FRCP_FIX_RAST mismatch with input: 0x%08x,0x%08x golden: 0x%08x libfpu: 0x%08x."
                  " This might happen, report to jordi.sola@esperantotech.com if needed.",
                  x, y, gldval, fpuval);

@@ -204,6 +204,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     chip.log_dynamic = (chip.log_trigger_insn != 0) && (chip.log_trigger_stop > chip.log_trigger_start) && (chip.log_trigger_hart < EMU_NUM_THREADS);
     chip.log.setLogLevel(cmd_options.log_en && (!chip.log_dynamic || (chip.log_trigger_start == 0)) ? LOG_DEBUG : LOG_INFO);
     chip.log_thread = cmd_options.log_thread;
+    chip.warning = cmd_options.warning;
 
     if (!cmd_options.log_path.empty()) {
         log_file.open(cmd_options.log_path);
@@ -592,14 +593,14 @@ int sys_emu::main_internal() {
                     hart->advance_progbuf();
                 }
                 catch (const bemu::Trap& t) {
-                    LOG_AGENT(WARN, *hart, "Program buffer trapped: %s", t.what());
+                    WARN_AGENT(debug, *hart, "Program buffer trapped: %s", t.what());
                     hart->exit_progbuf(Progbuf::exception);
                 }
                 catch (const bemu::instruction_restart) {
                     LOG_AGENT(DEBUG, *hart, "%s", "Instruction killed and will be restarted");
                 }
                 catch (const bemu::memory_error& e) {
-                    LOG_AGENT(WARN, *hart, "Program buffer bus error: 0x%" PRIx64, e.addr);
+                    WARN_AGENT(debug, *hart, "Program buffer bus error: 0x%" PRIx64, e.addr);
                     hart->exit_progbuf(Progbuf::exception);
                 }
                 catch (const std::exception& e) {

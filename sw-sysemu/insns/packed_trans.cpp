@@ -30,7 +30,7 @@ static inline float32_t fexp_vs_gold(const Hart& cpu, float32_t x)
     float32_t fpuval = fpu::f32_exp2(x);
     float32_t gldval = gld::f32_exp2(x);
     if (gld::security_ulp_check(gldval.v, fpuval.v)) {
-        LOG_HART(WARN, cpu, "FEXP mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x."
+        WARN_HART(trans, cpu, "FEXP mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x."
                  " This might happen, report to jordi.sola@esperantotech.com if needed.",
                  x.v, gldval.v, fpuval.v);
     }
@@ -42,11 +42,11 @@ static inline float32_t flog_vs_gold(const Hart& cpu, float32_t x)
     float32_t fpuval = fpu::f32_log2(x);
     float32_t gldval = gld::f32_log2(x);
     if (gld::security_ulp_check(gldval.v, fpuval.v)) {
-        LOG_HART(WARN, cpu, "FLOG 2ULP mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x",
+        WARN_HART(trans, cpu, "FLOG 2ULP mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x",
                  x.v, gldval.v, fpuval.v);
     }
     /*else if (fpuval.v != gldval.v) {
-        LOG_HART(WARN, cpu, "FLOG 1ULP diff with input: 0x%08x golden: 0x%08x libfpu: 0x%08x",
+        WARN_HART(trans, cpu, "FLOG 1ULP diff with input: 0x%08x golden: 0x%08x libfpu: 0x%08x",
                  x.v, gldval.v, fpuval.v);
     }*/
     return fpuval;
@@ -57,7 +57,7 @@ static inline float32_t frcp_vs_gold(const Hart& cpu, float32_t x)
     float32_t fpuval = fpu::f32_rcp(x);
     float32_t gldval = gld::f32_rcp(x);
     if (gld::security_ulp_check(gldval.v, fpuval.v)) {
-        LOG_HART(WARN, cpu, "FRCP mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x."
+        WARN_HART(trans, cpu, "FRCP mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x."
                  " This might happen, report to jordi.sola@esperantotech.com if needed.",
                  x.v, gldval.v, fpuval.v);
     }
@@ -72,7 +72,7 @@ static inline float32_t frsq_vs_gold(float32_t x)
     float32_t gldval = gld::f32_rsqrt(x);
     if (gld::security_ulp_check(gldval.v, fpuval.v))
     {
-        LOG_HART(WARN, cpu, "FRSQ mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+        WARN_HART(trans, cpu, "FRSQ mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
             x.v, gldval.v, fpuval.v);
     }
     return fpuval;
@@ -85,7 +85,7 @@ static inline float32_t fsin_vs_gold(float32_t x)
     float32_t gldval = gld::f32_sin2pi(x);
     if (gld::security_ulp_check(gldval.v, fpuval.v))
     {
-        LOG_HART(WARN, cpu, "FSIN mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+        WARN_HART(trans, cpu, "FSIN mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
             x.v, gldval.v, fpuval.v);
     }
     return fpuval;
