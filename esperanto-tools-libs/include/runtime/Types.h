@@ -209,6 +209,7 @@ struct LoadCodeResult {
 /// \brief This struct encodes device properties
 struct DeviceProperties {
   enum class FormFactor { PCIE, M2 };
+  enum class ArchRevision { ETSOC1, PANTERO, GEPARDO, UNKNOWN = -1 };
   uint32_t frequency_;                  ///< minion boot frequency in Mhz
   uint32_t availableShires_;            ///< device shire count
   uint32_t memoryBandwidth_;            ///< device memory bandwidth in MBytes/second
@@ -220,7 +221,7 @@ struct DeviceProperties {
   uint16_t l2CacheBanks_;               ///< number of banks in the L2
   uint32_t computeMinionShireMask_;     ///< mask which indicates what are the compute minion shires
   uint16_t spareComputeMinionoShireId_; ///< spare compute minion Shire ID
-  uint16_t deviceArch_;                 ///< device architecture revision
+  ArchRevision deviceArch_;             ///< device architecture revision
   FormFactor formFactor_;               ///< device form factor
   uint8_t tdp_;                         ///< TDP in Watts
 };

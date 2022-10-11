@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (Conan) (CI) Updated build flow to conan 1.52.0
 - (Conan) Depend on sw-sysemu/0.2.1
 - [SW-14434] (Conan) CI now generates Debug & Release pkgs
+- *** Breaking Change *** changed ArchRevision from DeviceProperties to be consistent with DeviceLayer
 ### Deprecated
 ### Removed
 ### Fixed

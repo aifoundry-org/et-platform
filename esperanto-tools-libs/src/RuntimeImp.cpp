@@ -151,7 +151,21 @@ DeviceProperties RuntimeImp::doGetDeviceProperties(DeviceId device) const {
   prop.l2CacheBanks_ = dc.numL2CacheBanks_;
   prop.computeMinionShireMask_ = dc.computeMinionShireMask_;
   prop.spareComputeMinionoShireId_ = dc.spareComputeMinionoShireId_;
-  prop.deviceArch_ = dc.archRevision_;
+  switch (dc.archRevision_) {
+  case dev::DeviceConfig::ArchRevision::ETSOC1:
+    prop.deviceArch_ = DeviceProperties::ArchRevision::ETSOC1;
+    break;
+  case dev::DeviceConfig::ArchRevision::GEPARDO:
+    prop.deviceArch_ = DeviceProperties::ArchRevision::GEPARDO;
+    break;
+  case dev::DeviceConfig::ArchRevision::PANTERO:
+    prop.deviceArch_ = DeviceProperties::ArchRevision::PANTERO;
+    break;
+  default:
+    RT_LOG(WARNING) << "Unknown architecture revision.";
+    prop.deviceArch_ = DeviceProperties::ArchRevision::UNKNOWN;
+    break;
+  }
   prop.formFactor_ = static_cast<DeviceProperties::FormFactor>(dc.formFactor_);
   prop.tdp_ = dc.tdp_;
 
