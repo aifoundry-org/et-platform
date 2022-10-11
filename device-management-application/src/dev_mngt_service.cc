@@ -702,24 +702,17 @@ int verifyService() {
 
     asic_voltage_t* asic_voltage = (asic_voltage_t*)output_buff;
 
-    voltage = BIN2VOLTAGE(asic_voltage->ddr, 250, 5, 1);
-    DM_LOG(INFO) << "ASIC Voltage DDR: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(asic_voltage->l2_cache, 250, 5, 1);
-    DM_LOG(INFO) << "ASIC Voltage L2CACHE: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(asic_voltage->maxion, 250, 5, 1);
-    DM_LOG(INFO) << "ASIC Voltage MAXION: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(asic_voltage->minion, 250, 5, 1);
-    DM_LOG(INFO) << "ASIC Voltage MINION: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(asic_voltage->pcie, 600, 125, 10);
-    DM_LOG(INFO) << "ASIC Voltage PCIE: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(asic_voltage->noc, 250, 5, 1);
-    DM_LOG(INFO) << "ASIC Voltage NOC: " << +voltage << " mV" << std::endl;
-    voltage = BIN2VOLTAGE(asic_voltage->pcie_logic, 600, 625, 100);
-    DM_LOG(INFO) << "ASIC Voltage PCIE Logic: " << +voltage << " mV" << std::endl;
+    DM_LOG(INFO) << "ASIC Voltage L2CACHE: " << +asic_voltage->l2_cache << " mV" << std::endl;
+    DM_LOG(INFO) << "ASIC Voltage MAXION: " << +asic_voltage->maxion << " mV" << std::endl;
+    DM_LOG(INFO) << "ASIC Voltage MINION: " << +asic_voltage->minion << " mV" << std::endl;
+    DM_LOG(INFO) << "ASIC Voltage PSHIRE: " << +asic_voltage->pshire_0p75 << " mV" << std::endl;
+    DM_LOG(INFO) << "ASIC Voltage NOC: " << +asic_voltage->noc << " mV" << std::endl;
+    DM_LOG(INFO) << "ASIC Voltage IOShire: " << +asic_voltage->ioshire_0p75 << " mV" << std::endl;
     voltage = BIN2VOLTAGE(asic_voltage->vddq, 250, 10, 1);
     DM_LOG(INFO) << "ASIC Voltage VDDQ: " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(asic_voltage->vddqlp, 250, 10, 1);
     DM_LOG(INFO) << "ASIC Voltage VDDQLP: " << +voltage << " mV" << std::endl;
+    DM_LOG(INFO) << "ASIC Voltage DDR: " << +asic_voltage->ddr << " mV" << std::endl;
 
   } break;
 

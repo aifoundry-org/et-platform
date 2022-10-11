@@ -827,24 +827,19 @@ void EtTop::displayStats(void) {
 
   if (displayVoltDetails_) {
     std::cout << "Voltages(mV):\n";
-    displayVoltStat("MAXION   ", false, BIN2VOLTAGE(moduleVoltStats_.maxion, 250, 5, 1),
-                    BIN2VOLTAGE(asicVoltStats_.maxion, 250, 5, 1));
-    displayVoltStat("MINION   ", true, BIN2VOLTAGE(moduleVoltStats_.minion, 250, 5, 1),
-                    BIN2VOLTAGE(asicVoltStats_.minion, 250, 5, 1));
-    displayVoltStat("NOC      ", false, BIN2VOLTAGE(moduleVoltStats_.noc, 250, 5, 1),
-                    BIN2VOLTAGE(asicVoltStats_.noc, 250, 5, 1));
-    displayVoltStat("L2 CACHE ", true, BIN2VOLTAGE(moduleVoltStats_.l2_cache, 250, 5, 1),
-                    BIN2VOLTAGE(asicVoltStats_.l2_cache, 250, 5, 1));
-    displayVoltStat("PCIE SS  ", false, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 600, 625, 100),
-                    BIN2VOLTAGE(asicVoltStats_.pcie, 600, 125, 10));
-    displayVoltStat("PCL      ", true, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 600, 625, 100),
-                    BIN2VOLTAGE(asicVoltStats_.pcie_logic, 600, 625, 100));
-    displayVoltStat("VDDQ     ", false, BIN2VOLTAGE(moduleVoltStats_.vddq, 250, 10, 1),
+    displayVoltStat("MAXION       ", false, BIN2VOLTAGE(moduleVoltStats_.maxion, 250, 5, 1), asicVoltStats_.maxion);
+    displayVoltStat("MINION       ", true, BIN2VOLTAGE(moduleVoltStats_.minion, 250, 5, 1), asicVoltStats_.minion);
+    displayVoltStat("NOC          ", false, BIN2VOLTAGE(moduleVoltStats_.noc, 250, 5, 1), asicVoltStats_.noc);
+    displayVoltStat("L2 CACHE     ", true, BIN2VOLTAGE(moduleVoltStats_.l2_cache, 250, 5, 1), asicVoltStats_.l2_cache);
+    displayVoltStat("PShire(0p75) ", false, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 600, 625, 100),
+                    asicVoltStats_.pshire_0p75);
+    displayVoltStat("IOShire(0p75)", true, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 600, 625, 100),
+                    asicVoltStats_.ioshire_0p75);
+    displayVoltStat("VDDQ         ", false, BIN2VOLTAGE(moduleVoltStats_.vddq, 250, 10, 1),
                     BIN2VOLTAGE(asicVoltStats_.vddq, 250, 10, 1));
-    displayVoltStat("VDDQLP   ", true, BIN2VOLTAGE(moduleVoltStats_.vddqlp, 250, 10, 1),
+    displayVoltStat("VDDQLP       ", true, BIN2VOLTAGE(moduleVoltStats_.vddqlp, 250, 10, 1),
                     BIN2VOLTAGE(asicVoltStats_.vddqlp, 250, 10, 1));
-    displayVoltStat("DDR      ", true, BIN2VOLTAGE(moduleVoltStats_.ddr, 250, 5, 1),
-                    BIN2VOLTAGE(asicVoltStats_.ddr, 250, 5, 1));
+    displayVoltStat("DDR          ", true, BIN2VOLTAGE(moduleVoltStats_.ddr, 250, 5, 1), asicVoltStats_.ddr);
   }
 
   bool errors = errStats_.uceCount > 0 || errStats_.ceCount > 0 || aerStats_.aerCount > 0;
