@@ -37,11 +37,13 @@ void ResponseReceiver::checkResponses() {
   std::random_device rd;
   std::mt19937 gen(rd());
 
+  auto devCount = deviceLayer_->getDevicesCount();
   while (runReceiver_) {
+    std::vector<int> devicesToCheck;
     int responsesCount = 0;
     for (int i = 0; i < kResponseNumTriesBeforePolling; ++i) {
       try {
-        auto devicesToCheck = receiverServices_->getDevicesWithEventsOnFly();
+        receiverServices_->getDevicesWithEventsOnFly(devicesToCheck);
         std::shuffle(begin(devicesToCheck), end(devicesToCheck), gen);
         for (auto dev : devicesToCheck) {
           while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
@@ -55,6 +57,12 @@ void ResponseReceiver::checkResponses() {
         RT_LOG(WARNING)
           << "Exception in device receiver runner thread. DeviceLayer could be in a BAD STATE. Exception message: "
           << e.what();
+      }
+    }
+    // hint inactivity those devices which doesnt have any event on fly
+    for (int d = 0; d < devCount; ++d) {
+      if (std::find(begin(devicesToCheck), end(devicesToCheck), d) == end(devicesToCheck)) {
+        deviceLayer_->hintInactivity(d);
       }
     }
     if (responsesCount == 0) {

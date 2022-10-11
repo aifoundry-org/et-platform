@@ -20,7 +20,7 @@ class ResponseReceiver {
 public:
   struct IReceiverServices {
     virtual ~IReceiverServices() = default;
-    virtual std::vector<int> getDevicesWithEventsOnFly() const = 0;
+    virtual void getDevicesWithEventsOnFly(std::vector<int>& outResult) const = 0;
     virtual void checkDevice(int device) = 0;
     virtual void onResponseReceived(const std::vector<std::byte>& response) = 0;
   };

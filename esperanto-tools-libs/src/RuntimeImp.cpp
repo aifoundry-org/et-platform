@@ -120,6 +120,7 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
       RT_LOG(INFO) << "Checking device api version for device: " << d;
       checkDeviceApi(DeviceId{d});
     }
+    deviceLayer_->hintInactivity(d);
     RT_LOG(INFO) << "Device: " << d << " initialized.";
   }
   eventManager_.setThrowOnMissingEvent(true);
@@ -537,14 +538,13 @@ void RuntimeImp::setSentCommandCallback(DeviceId device, CommandSender::CommandS
   }
 }
 
-std::vector<int> RuntimeImp::getDevicesWithEventsOnFly() const {
-  std::vector<int> result;
-  std::for_each(begin(devices_), end(devices_), [this, &result](const auto& device) {
+void RuntimeImp::getDevicesWithEventsOnFly(std::vector<int>& outResult) const {
+  outResult.clear();
+  std::for_each(begin(devices_), end(devices_), [this, &outResult](const auto& device) {
     if (streamManager_.hasEventsOnFly(device)) {
-      result.emplace_back(static_cast<int>(device));
+      outResult.emplace_back(static_cast<int>(device));
     }
   });
-  return result;
 }
 
 std::vector<StreamError> RuntimeImp::doRetrieveStreamErrors(StreamId stream) {
