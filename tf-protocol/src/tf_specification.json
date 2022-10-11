@@ -1104,10 +1104,9 @@
             "payload_size": 4,
             "payload_args": {
                 "device_cmd_start_ts": "uint64_t",
+                "device_cmd_execute_dur": "uint64_t",
                 "device_cmd_wait_dur": "uint32_t",
-                "device_cmd_execute_dur": "uint32_t",
-                "status": "uint32_t",
-                "pad": "uint32_t"
+                "status": "uint32_t"
             }
         },
         "TF_RSP_MM_TRACE_RT_CONFIG": {
