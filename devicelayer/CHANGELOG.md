@@ -25,9 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     * linuxDriver/0.1.0@#9f0abce8d2566d2c178e687df7324c68
 - [SW-14538] Add version compatibility check.
 ### Changed
-- [SW-14409] Changed dev::DeviceConfig::archRevision_ from `uint8_t` to `enum dev::DeviceConfig::ArchRevision` to be consistent with `enum dev::DeviceConfig::FormFactor`.
+- *** Breaking change *** [SW-14409] Changed dev::DeviceConfig::archRevision_ from `uint8_t` to `enum dev::DeviceConfig::ArchRevision` to be consistent with `enum dev::DeviceConfig::FormFactor`.
 ### Deprecated
 ### Removed
+- *** Breaking change *** [SW-14409] Removed old sendCommandServiceProcessor and sendCommandMasterMinion
 ### Fixed
 ### Security
 
