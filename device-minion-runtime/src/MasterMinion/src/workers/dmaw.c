@@ -124,6 +124,10 @@ void DMAW_Init(void)
     {
         /* Store tag id, channel state and sqw idx */
         atomic_store_local_64(&DMAW_Read_CB.chan_status_cb[i].status.raw_u64, chan_status.raw_u64);
+        atomic_store_local_64(&DMAW_Read_CB.chan_status_cb[i].dmaw_cycles.exec_start_cycles, 0U);
+        atomic_store_local_64(&DMAW_Read_CB.chan_status_cb[i].dmaw_cycles.cmd_start_cycles, 0U);
+        atomic_store_local_32(&DMAW_Read_CB.chan_status_cb[i].dmaw_cycles.wait_cycles, 0U);
+        atomic_store_local_64(&DMAW_Read_CB.chan_status_cb[i].dmaw_cycles.prev_cycles, 0U);
     }
 
     /* Initialize DMA Write channel status */
@@ -131,6 +135,10 @@ void DMAW_Init(void)
     {
         /* Store tag id, channel state and sqw idx */
         atomic_store_local_64(&DMAW_Write_CB.chan_status_cb[i].status.raw_u64, chan_status.raw_u64);
+        atomic_store_local_64(&DMAW_Write_CB.chan_status_cb[i].dmaw_cycles.exec_start_cycles, 0U);
+        atomic_store_local_64(&DMAW_Write_CB.chan_status_cb[i].dmaw_cycles.cmd_start_cycles, 0U);
+        atomic_store_local_32(&DMAW_Write_CB.chan_status_cb[i].dmaw_cycles.wait_cycles, 0U);
+        atomic_store_local_64(&DMAW_Write_CB.chan_status_cb[i].dmaw_cycles.prev_cycles, 0U);
     }
 
     return;
@@ -1369,6 +1377,8 @@ uint64_t DMAW_Get_Average_Exec_Cycles(
     uint64_t exec_end_cycles = 0;
     uint8_t dma_chan_count = 0;
     dma_channel_status_cb_t *chan_cb;
+    uint64_t prev_cycles = 0;
+    uint64_t dma_tans_cycles = 0;
 
     switch (chan_type)
     {
@@ -1390,16 +1400,16 @@ uint64_t DMAW_Get_Average_Exec_Cycles(
         /* get execution start cycles and dma transaction cycles to calculate execution end cycles.
         this will help identifying dma transaction boundries within sampling interval. */
         exec_start_cycles = atomic_load_local_64(&chan_cb[chan].dmaw_cycles.exec_start_cycles);
-        uint64_t dma_tans_cycles = atomic_exchange_local_64(&chan_cb[chan].dma_trans_cycles, 0);
+        dma_tans_cycles = atomic_exchange_local_64(&chan_cb[chan].dma_trans_cycles, 0);
         exec_end_cycles = exec_start_cycles + dma_tans_cycles;
 
-        /* The case where dma transaction has started after sampling interval end, this needs to be skipped */
-        /*
-                                        DMA Transaction
-                                         ┌───────────
-        ───────▲─────────────────────▲───┴───────────
-               │                     │
-        Interval start              end
+        /* The case where DMA execution has started or completed before or after sampling interval end, 
+           this needs to be skipped 
+            DMA execution                        DMA execution
+            ───────┐                         ┌───────────
+            ───────┴───▲─────────────────▲───┴───────────
+                       │                 │
+                Interval start          end
         */
         if ((exec_start_cycles > interval_end) && (dma_tans_cycles == 0))
         {
@@ -1411,7 +1421,7 @@ uint64_t DMAW_Get_Average_Exec_Cycles(
         {
             /* scenario where DMA transaction started before sampling interval and ended within sampling interval.
             the execution cycles before start of sampling interval has to be subtracted from total execution cycles. */
-            if ((exec_start_cycles < interval_start) && (exec_end_cycles < interval_end))
+            if (exec_start_cycles < interval_start)
             {
                 /* if dma transaction is continued past the sampling interval end then end cycles will be equal to start cycles
                 because there are no total dma transaction cycles. In this case total cycles will be the interval cycles 
@@ -1425,9 +1435,10 @@ uint64_t DMAW_Get_Average_Exec_Cycles(
                */
                 accum_cycles += STATW_CHECK_FOR_CONTINUED_EXEC_TRANSACTION(exec_start_cycles,
                     exec_end_cycles, dma_tans_cycles, (interval_start - exec_start_cycles));
+                atomic_add_local_64(&chan_cb[chan].prev_cycles, (interval_end - interval_start));
                 active_channel++;
             }
-            else
+            else if ((exec_start_cycles < interval_end) && (exec_start_cycles > interval_start))
             {
                 /* scenario where DMA transaction started after sampling interval start and continued past interval end. 
 
@@ -1439,6 +1450,13 @@ uint64_t DMAW_Get_Average_Exec_Cycles(
                     start            end
                 */
                 accum_cycles += interval_end - exec_start_cycles;
+                active_channel++;
+            }
+            /* scenario where DMA transaction was completed earler and channel is also active for a new transaction */
+            if (dma_tans_cycles > 0)
+            {
+                accum_cycles =
+                    dma_tans_cycles - atomic_exchange_local_64(&chan_cb[chan].prev_cycles, 0);
                 active_channel++;
             }
         }
@@ -1453,10 +1471,11 @@ uint64_t DMAW_Get_Average_Exec_Cycles(
                                 │               │
                                 start            end
             */
-            if (dma_tans_cycles > 0)
+            prev_cycles = atomic_exchange_local_64(&chan_cb[chan].prev_cycles, 0);
+            if (((dma_tans_cycles > 0) && (exec_start_cycles < interval_end)) &&
+                (exec_end_cycles > interval_start))
             {
-                accum_cycles += dma_tans_cycles;
-
+                dma_tans_cycles -= prev_cycles;
                 /* scenario in which completed dma transaction ended after sampling interval 
                             DMA Transaction
                     ▲      ┌────────▲──────┐
@@ -1465,8 +1484,8 @@ uint64_t DMAW_Get_Average_Exec_Cycles(
                     │               │
                     start            end
                 */
-                accum_cycles -= STATW_CHECK_FOR_TRANS_COMPLETION_AFTER_SAMPLING_INTERVAL(
-                    exec_end_cycles, interval_end);
+                accum_cycles += STATW_CHECK_FOR_TRANS_COMPLETION_AFTER_SAMPLING_INTERVAL(
+                    exec_end_cycles, interval_end, dma_tans_cycles);
 
                 /* scenario where dma transaction started before sampling interval. 
                               DMA Transaction             
@@ -1476,8 +1495,8 @@ uint64_t DMAW_Get_Average_Exec_Cycles(
                     Interval    │             │              
                                 start          end        
                 */
-                accum_cycles -= STATW_CHECK_FOR_TRANS_COMPLETION_BEFORE_SAMPLING_INTERVAL(
-                    exec_start_cycles, interval_start);
+                accum_cycles += STATW_CHECK_FOR_TRANS_COMPLETION_BEFORE_SAMPLING_INTERVAL(
+                    exec_start_cycles, exec_end_cycles, interval_start, dma_tans_cycles);
                 active_channel++;
             }
         }

@@ -97,6 +97,7 @@ typedef struct dma_channel_status_cb {
     execution_cycles_t dmaw_cycles; /* Cycles associated with the transaction */
     uint64_t dma_trans_cycles; /* Total cycles consumed when the DMA engine was transferring data.
                                        Stat worker will reset this upon reading. */
+    uint64_t prev_cycles;      /* previous cycles froma continued transaction */
     uint64_t transfer_size;    /* Transfer size of data. This is only valid when channel state
                                        is 'in use'. */
     uint16_t msg_id;           /* TODO: To be removed, temporary field for dmalist cmds */

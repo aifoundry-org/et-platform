@@ -978,6 +978,7 @@ void KW_Init(void)
         atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.exec_start_cycles, 0U);
         atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.cmd_start_cycles, 0U);
         atomic_store_local_32(&KW_CB.kernels[i].kw_cycles.wait_cycles, 0U);
+        atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.prev_cycles, 0U);
     }
 
     return;
@@ -1547,6 +1548,8 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
     uint64_t exec_end_cycles = 0;
     kernel_instance_t *kernel;
     uint64_t total_shire_count = get_set_bit_count(CW_Get_Booted_Shires());
+    uint64_t prev_cycles = 0;
+    uint64_t kw_tans_cycles = 0;
 
     if (!(total_shire_count > 0))
     {
@@ -1560,17 +1563,18 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
         /* get kernel and execution start cycles to calculate execution end cycles.
         this will help identifying kernel execution boundries within sampling interval. */
         exec_start_cycles = atomic_load_local_64(&kernel->kw_cycles.exec_start_cycles);
-        uint64_t kw_tans_cycles = atomic_exchange_local_64(&kernel->kernel_exec_cycles, 0);
+        kw_tans_cycles = atomic_exchange_local_64(&kernel->kernel_exec_cycles, 0);
         exec_end_cycles = exec_start_cycles + kw_tans_cycles;
 
-        /* The case where kernel execution has started after sampling interval end, this needs to be skipped 
-                                        Kernel execution
-                                             ┌───────────
-            ───────▲─────────────────────▲───┴───────────
-                   │                     │
-            Interval start              end
+        /* The case where kernel execution has started or completed before or after sampling interval end, 
+           this needs to be skipped 
+          Kernel execution                   Kernel execution
+            ───────┐                         ┌───────────
+            ───────┴───▲─────────────────▲───┴───────────
+                       │                 │
+                Interval start          end
         */
-        if (exec_start_cycles > interval_end && (kw_tans_cycles == 0))
+        if ((exec_start_cycles > interval_end) && (kw_tans_cycles == 0))
         {
             continue;
         }
@@ -1586,16 +1590,18 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
                          ───┴───┼─────────┴───┼──────────┴───┼───────────────┼─┴──────
                     Interval    │             │              │               │
                                 start          end         start            end 
-        */
-            if ((exec_start_cycles < interval_start) && (exec_end_cycles < interval_end))
+            */
+            if (exec_start_cycles < interval_start)
             {
                 /* if kernel execution is continued past the sampling interval end then end cycles will be equal to start cycles
-                becaus ethere are no total kernel execution cycles. In this case total cycles will be the interval cycles */
+                because there are no total kernel execution cycles. In this case total cycles will be the interval cycles */
                 accum_cycles += STATW_CHECK_FOR_CONTINUED_EXEC_TRANSACTION(exec_start_cycles,
                     exec_end_cycles, kw_tans_cycles, (interval_start - exec_start_cycles));
+                atomic_add_local_64(
+                    &kernel->kw_cycles.prev_cycles, (interval_end - interval_start));
                 active_kw++;
             }
-            else
+            else if ((exec_start_cycles < interval_end) && (exec_start_cycles > interval_start))
             {
                 /* scenario where kernel execution started after sampling interval start and continued past interval end. 
                             Kernel execution 
@@ -1608,7 +1614,6 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
                 accum_cycles += interval_end - exec_start_cycles;
                 active_kw++;
             }
-
             /* Apply scaling factor. */
             accum_cycles = (accum_cycles * get_set_bit_count(
                                                atomic_load_local_64(&kernel->kernel_shire_mask))) /
@@ -1623,9 +1628,11 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
                                 │               │
                                 start            end
              */
-            if (kw_tans_cycles > 0)
+            prev_cycles = atomic_exchange_local_64(&kernel->kw_cycles.prev_cycles, 0);
+            if ((kw_tans_cycles > 0) && (exec_start_cycles < interval_end) &&
+                (exec_end_cycles > interval_start))
             {
-                accum_cycles += kw_tans_cycles;
+                kw_tans_cycles -= prev_cycles;
 
                 /* scenario in which completed kernel execution ended after sampling interval 
                     ▲      ┌────────▲──────┐
@@ -1634,8 +1641,8 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
                     │               │
                     start            end
                 */
-                accum_cycles -= STATW_CHECK_FOR_TRANS_COMPLETION_AFTER_SAMPLING_INTERVAL(
-                    exec_end_cycles, interval_end);
+                accum_cycles += STATW_CHECK_FOR_TRANS_COMPLETION_AFTER_SAMPLING_INTERVAL(
+                    exec_end_cycles, interval_end, kw_tans_cycles);
 
                 /* scenario where kernel execution started before sampling interval. 
                             ┌───▲─────────┐   ▲          
@@ -1644,8 +1651,8 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
                     Interval    │             │              
                                 start          end        
                 */
-                accum_cycles -= STATW_CHECK_FOR_TRANS_COMPLETION_BEFORE_SAMPLING_INTERVAL(
-                    exec_start_cycles, interval_start);
+                accum_cycles += STATW_CHECK_FOR_TRANS_COMPLETION_BEFORE_SAMPLING_INTERVAL(
+                    exec_start_cycles, exec_end_cycles, interval_start, kw_tans_cycles);
                 active_kw++;
             }
         }
