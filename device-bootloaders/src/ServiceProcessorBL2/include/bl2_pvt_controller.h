@@ -250,7 +250,7 @@ typedef struct
 typedef struct
 {
     VM_Sample vdd_noc;
-    VM_Sample vdd_pu;
+    VM_Sample vdd_0p75;
     VM_Sample vdd_mxn;
 } IOShire_VM_sample;
 

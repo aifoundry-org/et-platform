@@ -35,7 +35,7 @@
         ret = pvt_get_min_shire_vm_sample(min, &minshire_sample);                                  \
         if (0 != ret)                                                                              \
         {                                                                                          \
-            Log_Write(LOG_LEVEL_DEBUG,                                                             \
+            Log_Write(LOG_LEVEL_WARNING,                                                           \
                       "MS %2d Voltage [mV]: VDD_MNN: Sample fault"                                 \
                       " VDD_SRAM: Sample fault VDD_NOC: Sample fault\n",                           \
                       min);                                                                        \
@@ -870,9 +870,9 @@ int pvt_get_ioshire_vm_sample(IOShire_VM_sample *vm_sample)
     vm_sample->vdd_noc.high = 0;
     vm_sample->vdd_noc.low = 0;
 
-    vm_sample->vdd_pu.current = 0;
-    vm_sample->vdd_pu.high = 0;
-    vm_sample->vdd_pu.low = 0;
+    vm_sample->vdd_0p75.current = 0;
+    vm_sample->vdd_0p75.high = 0;
+    vm_sample->vdd_0p75.low = 0;
 
     vm_sample->vdd_mxn.current = 0;
     vm_sample->vdd_mxn.high = 0;
@@ -901,11 +901,11 @@ int pvt_get_ioshire_vm_sample(IOShire_VM_sample *vm_sample)
                     (uint16_t)VM_INDIVIDUAL_IP_ALARM_AND_HILO_SMPL_HILO_SMPL_LO_GET(hilo));
                 break;
             case 1:
-                vm_sample->vdd_pu.current =
+                vm_sample->vdd_0p75.current =
                     pvt_vm_conversion(VM_INDIVIDUAL_IP_SDIF_DATA_SAMPLE_DATA_GET(sample_data));
-                vm_sample->vdd_pu.high = pvt_vm_conversion(
+                vm_sample->vdd_0p75.high = pvt_vm_conversion(
                     (uint16_t)VM_INDIVIDUAL_IP_ALARM_AND_HILO_SMPL_HILO_SMPL_HI_GET(hilo));
-                vm_sample->vdd_pu.low = pvt_vm_conversion(
+                vm_sample->vdd_0p75.low = pvt_vm_conversion(
                     (uint16_t)VM_INDIVIDUAL_IP_ALARM_AND_HILO_SMPL_HILO_SMPL_LO_GET(hilo));
                 break;
             case 2:
@@ -1123,8 +1123,8 @@ static void pvt_print_ioshire_voltage_sampled_values(void)
         Log_Write(LOG_LEVEL_CRITICAL,
                   "IOSHIRE Voltage [mV]: VDD_PU: %d [%d, %d]"
                   " VDD_NOC: %d [%d, %d]\n",
-                  ioshire_sample.vdd_pu.current, ioshire_sample.vdd_pu.low,
-                  ioshire_sample.vdd_pu.high, ioshire_sample.vdd_noc.current,
+                  ioshire_sample.vdd_0p75.current, ioshire_sample.vdd_0p75.low,
+                  ioshire_sample.vdd_0p75.high, ioshire_sample.vdd_noc.current,
                   ioshire_sample.vdd_noc.low, ioshire_sample.vdd_noc.high);
     }
 }
@@ -1459,8 +1459,8 @@ static int pvt_get_and_print_ioshire(uint8_t print_ts, uint8_t print_vm,
         Log_Write(LOG_LEVEL_CRITICAL,
                   "IOSHIRE Voltage [mV]: VDD_PU: %d [%d, %d]"
                   " VDD_NOC: %d [%d, %d]\n",
-                  io_samples->vm.vdd_pu.current, io_samples->vm.vdd_pu.low,
-                  io_samples->vm.vdd_pu.high, io_samples->vm.vdd_noc.current,
+                  io_samples->vm.vdd_0p75.current, io_samples->vm.vdd_0p75.low,
+                  io_samples->vm.vdd_0p75.high, io_samples->vm.vdd_noc.current,
                   io_samples->vm.vdd_noc.low, io_samples->vm.vdd_noc.high);
     }
 
