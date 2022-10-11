@@ -1076,11 +1076,11 @@ void TestDevMgmtApiSyncCmds::getAsicVoltage(bool singleDevice) {
                                 BIN2VOLTAGE(voltages->maxion, 250, 5, 1));
     DV_LOG(INFO) << fmt::format("Device[{}]: Received MINION={} mV", deviceIdx,
                                 BIN2VOLTAGE(voltages->minion, 250, 5, 1));
-    DV_LOG(INFO) << fmt::format("Device[{}]: Received PCIE={} mV", deviceIdx,
-                                BIN2VOLTAGE(voltages->pcie, 600, 125, 10));
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received PShire={} mV", deviceIdx,
+                                BIN2VOLTAGE(voltages->pshire_0p75, 600, 125, 10));
     DV_LOG(INFO) << fmt::format("Device[{}]: Received NOC={} mV", deviceIdx, BIN2VOLTAGE(voltages->noc, 250, 5, 1));
-    DV_LOG(INFO) << fmt::format("Device[{}]: Received PCIE_LOGIC={} mV", deviceIdx,
-                                BIN2VOLTAGE(voltages->pcie_logic, 600, 625, 100));
+    DV_LOG(INFO) << fmt::format("Device[{}]: Received IOShire={} mV", deviceIdx,
+                                BIN2VOLTAGE(voltages->ioshire_0p75, 600, 625, 100));
     DV_LOG(INFO) << fmt::format("Device[{}]: Received VDDQ={} mV", deviceIdx, BIN2VOLTAGE(voltages->vddq, 250, 10, 1));
     DV_LOG(INFO) << fmt::format("Device[{}]: Received VDDQLP={} mV", deviceIdx,
                                 BIN2VOLTAGE(voltages->vddqlp, 250, 10, 1));

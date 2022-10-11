@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14061] Enabled back setAndGetModuleVoltage test.
 - [SW-14288] Disabled the test until SW-14288 is resolved.
 - [SW-14288] Changing voltage percentage drop to zero in setAndGetModuleVoltage test.
+- [FV-317] Updating asic_voltage elements to be 16bits
 ### Deprecated
 ### Removed
 ### Fixed
