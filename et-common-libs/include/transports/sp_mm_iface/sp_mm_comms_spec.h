@@ -126,6 +126,8 @@ enum mm_sp_msg_e {
     MM2SP_RSP_GET_FW_VERSION,
     MM2SP_CMD_GET_CM_BOOT_FREQ,
     MM2SP_RSP_GET_CM_BOOT_FREQ,
+    MM2SP_CMD_GET_DDR_MEM_SIZE,
+    MM2SP_RSP_GET_DDR_MEM_SIZE,
     MM2SP_EVENT_REPORT_ERROR, /* this is more flexible, the payload now can report error codes in a scalable fashion */
     MM2SP_EVENT_HEARTBEAT,
     MM2SP_CMD_RESET_MINION,
@@ -297,6 +299,20 @@ struct mm2sp_get_fw_version_rsp_t {
     uint8_t pad;
 } __attribute__((aligned(8), packed));
 
+/*! \struct mm2sp_get_fw_version_t
+    \brief MM to SP command structure to get fw version.
+*/
+struct mm2sp_get_ddr_mem_size_t {
+    struct dev_cmd_hdr_t msg_hdr;
+} __attribute__((aligned(8), packed));
+
+/*! \struct mm2sp_get_fw_version_rsp_t
+    \brief MM to SP response structure to receive fw version.
+*/
+struct mm2sp_get_ddr_mem_size_rsp_t {
+    struct dev_cmd_hdr_t msg_hdr;
+    uint64_t ddr_mem_size;
+} __attribute__((aligned(8), packed));
 /*********************************
     SP to MM Command Structures
 **********************************/

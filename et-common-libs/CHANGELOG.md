@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-13851] Add SP2MM_CMD_MM_STATS_RUN_CONTROL command and response.
+- [SW-14508] Adding get memory size command from MM to SP interface and replace HOST_MANAGED_DRAM_SIZE with ddr_get_memory_size
 ### Changed
 - [SW-14154]: Removing typecast for get current cycles
 ### Deprecated

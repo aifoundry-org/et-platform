@@ -304,11 +304,11 @@ Offset by 1<<6 = 64 to distribute stack bases across different memory controller
 #define KERNEL_UMODE_ENTRY                      FOUR_K_ALIGN(KERNEL_UMODE_STACK_BASE + SIZE_4KB)
 
 /* Define the address range in DRAM that the host runtime can explicitly manage
-the range is the START to (END-1) */
+the range is the START to (END-1). */
+/* TODO remove HOST_MANAGED_DRAM_SIZE define as it will be obtained in runtime */
 #define HOST_MANAGED_DRAM_START                 KERNEL_UMODE_ENTRY
 #define HOST_MANAGED_DRAM_END                   0x8400000000ULL
 #define HOST_MANAGED_DRAM_SIZE                  (HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START)
-
 /************************/
 /* Compile-time checks  */
 /************************/
