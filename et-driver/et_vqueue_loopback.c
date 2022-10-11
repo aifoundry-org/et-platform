@@ -242,16 +242,16 @@ struct module_voltage {
 } __packed;
 
 struct asic_voltage {
-	u8 ddr;
-	u8 l2_cache;
-	u8 maxion;
-	u8 minion;
-	u8 pcie;
-	u8 noc;
-	u8 pcie_logic;
-	u8 vddqlp;
-	u8 vddq;
-	u8 pad[7];
+	u16 ddr;
+	u16 l2_cache;
+	u16 maxion;
+	u16 minion;
+	u16 pcie;
+	u16 noc;
+	u16 pcie_logic;
+	u16 vddqlp;
+	u16 vddq;
+	u8 pad[6];
 } __packed;
 
 typedef u8 power_state_e;
