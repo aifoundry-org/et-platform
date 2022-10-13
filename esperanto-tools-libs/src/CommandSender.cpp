@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 #include "CommandSender.h"
 #include "Utils.h"
+#include <device-layer/IDeviceLayer.h>
 #include <functional>
 #include <iomanip>
 #include <mutex>
@@ -135,8 +136,11 @@ void CommandSender::runnerFunc() {
       SpinLock lock(mutex_);
       if (!commands_.empty() && commands_.front().isEnabled_) {
         auto& cmd = commands_.front();
+        dev::CmdFlagMM flags;
+        flags.isDma_ = cmd.isDma_;
+        flags.isHpSq_ = false;
         if (deviceLayer_.sendCommandMasterMinion(deviceId_, sqIdx_, cmd.commandData_.data(), cmd.commandData_.size(),
-                                                 cmd.isDma_)) {
+                                                 flags)) {
           RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_) << ". DeviceID: " << deviceId_
                        << "SQ: " << sqIdx_;
 

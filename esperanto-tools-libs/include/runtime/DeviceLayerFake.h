@@ -27,7 +27,7 @@ class DeviceLayerFake : public IDeviceLayer {
   std::mutex spMutex_;
 
 public:
-  bool sendCommandMasterMinion(int, int, std::byte* command, size_t, bool, bool) override {
+  bool sendCommandMasterMinion(int, int, std::byte* command, size_t, dev::CmdFlagMM) override {
     std::unique_lock lock(mmMutex_, std::defer_lock);
     while (!lock.try_lock()) {
       // spin-lock
@@ -99,7 +99,7 @@ public:
     return false;
   }
 
-  bool sendCommandServiceProcessor(int, std::byte* command, size_t, bool) override {
+  bool sendCommandServiceProcessor(int, std::byte* command, size_t, CmdFlagSP) override {
     std::unique_lock<std::mutex> lock(spMutex_, std::defer_lock);
     while (!lock.try_lock()) {
       // spin-lock
@@ -195,18 +195,18 @@ public:
   }
   DeviceConfig getDeviceConfig(int) override {
     return DeviceConfig{
-      DeviceConfig::FormFactor::PCIE, // Form factor
-      25,                             // TDP
-      32768,                          // Total L3 size in KBytes
-      16384,                          // Total L2 size in KBytes
-      81920,                          // Total L2scp size in KBytes
-      64,                             // CacheLine alignment in Bytes
-      4,                              // number of L2 cache banks
-      128000,                         // ddr bandwidth
-      1000,                           // Base frequency
-      0xFFFFFFFF,                     // Compute minion mask
-      32,                             // spare minion shire id
-      0                               // arch revision (ETSOC)
+      DeviceConfig::FormFactor::PCIE,    // Form factor
+      25,                                // TDP
+      32768,                             // Total L3 size in KBytes
+      16384,                             // Total L2 size in KBytes
+      81920,                             // Total L2scp size in KBytes
+      64,                                // CacheLine alignment in Bytes
+      4,                                 // number of L2 cache banks
+      128000,                            // ddr bandwidth
+      1000,                              // Base frequency
+      0xFFFFFFFF,                        // Compute minion mask
+      32,                                // spare minion shire id
+      DeviceConfig::ArchRevision::ETSOC1 // arch revision (ETSOC)
     };
   }
   int getActiveShiresNum(int device) override {

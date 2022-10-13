@@ -604,8 +604,11 @@ EventId RuntimeImp::doAbortCommand(EventId commandId, std::chrono::milliseconds 
     cmd.command_info.cmd_hdr.tag_id = static_cast<uint16_t>(evt);
     auto deadLine = std::chrono::steady_clock::now() + timeout;
     // check what device contains that eventid
+    dev::CmdFlagMM flags;
+    flags.isDma_ = false;
+    flags.isHpSq_ = true;
     while (!deviceLayer_->sendCommandMasterMinion(stInfo->device_, stInfo->vq_, reinterpret_cast<std::byte*>(&cmd),
-                                                  sizeof(cmd), false, true)) {
+                                                  sizeof(cmd), flags)) {
       if (std::chrono::steady_clock::now() > deadLine) {
         throw rt::Exception("Couldn't use the HPSQ. Perhaps the Master Minion is hanged?");
       }

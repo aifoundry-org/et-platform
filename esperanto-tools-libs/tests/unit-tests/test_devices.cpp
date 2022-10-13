@@ -12,6 +12,7 @@
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 #include <device-layer/DeviceLayerMock.h>
+#include <device-layer/IDeviceLayer.h>
 #include <gmock/gmock-actions.h>
 #include <gtest/gtest.h>
 
@@ -43,7 +44,7 @@ TEST(devices, get_properties) {
   dc.minionBootFrequency_ = 1000;
   dc.computeMinionShireMask_ = 0xFFFFFFFF;
   dc.spareComputeMinionoShireId_ = 33;
-  dc.archRevision_ = 0;
+  dc.archRevision_ = dev::DeviceConfig::ArchRevision::ETSOC1;
 
   auto runtime = IRuntime::create(&deviceLayer, rt::Options{false, false});
 
@@ -63,7 +64,6 @@ TEST(devices, get_properties) {
   EXPECT_EQ(properties.cacheLineSize_, dc.cacheLineSize_);
   EXPECT_EQ(properties.l2CacheBanks_, dc.numL2CacheBanks_);
   EXPECT_EQ(properties.spareComputeMinionoShireId_, dc.spareComputeMinionoShireId_);
-  EXPECT_EQ(properties.deviceArch_, dc.archRevision_);
 }
 
 int main(int argc, char** argv) {
