@@ -301,11 +301,13 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		atomic_set(&vq_data->sqs[i].sq_threshold,
 			   (sq_size - sizeof(struct et_circbuffer)) / 4);
 
+		// Init statistics before work handler
+		et_vq_stats_init(&vq_data->sqs[i].stats);
+
 		INIT_WORK(&vq_data->sqs[i].isr_work, et_sq_isr_work);
 		queue_work(vq_data->vq_common.sq_workqueue,
 			   &vq_data->sqs[i].isr_work);
 		flush_workqueue(vq_data->vq_common.sq_workqueue);
-		et_vq_stats_init(&vq_data->sqs[i].stats);
 	}
 
 	rv = request_irq(pci_irq_vector(et_dev->pdev, vec_idx),
@@ -405,11 +407,13 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		INIT_LIST_HEAD(&vq_data->cqs[i].msg_list);
 		mutex_init(&vq_data->cqs[i].msg_list_mutex);
 
+		// Init statistics before work handler
+		et_vq_stats_init(&vq_data->cqs[i].stats);
+
 		INIT_WORK(&vq_data->cqs[i].isr_work, et_cq_isr_work);
 		queue_work(vq_data->vq_common.cq_workqueue,
 			   &vq_data->cqs[i].isr_work);
 		flush_workqueue(vq_data->vq_common.cq_workqueue);
-		et_vq_stats_init(&vq_data->cqs[i].stats);
 	}
 
 	rv = request_irq(pci_irq_vector(et_dev->pdev, vec_idx),
