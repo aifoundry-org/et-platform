@@ -149,6 +149,11 @@ static bool voltage_flag = false;
 static uint32_t partid;
 static uint32_t partid_flag = false;
 
+static std::array trace_types{"SP", "MM", "CM", "SPST", "MMST"};
+static std::array trace_ops{"disable", "enable", "extract", "reset", "to_memory", "to_uart"};
+static TraceBufferType given_trace_type;
+static std::string given_trace_ops;
+
 // A namespace containing template for `bit_cast`. To be removed when `bit_cast` will be available
 namespace templ {
 template <class To, class From>
@@ -1591,11 +1596,11 @@ static struct option long_options[] = {{"code", required_argument, 0, 'o'},
                                        {"pciereset", required_argument, 0, 'r'},
                                        {"pciespeed", required_argument, 0, 's'},
                                        {"pciewidth", required_argument, 0, 'w'},
-                                       {"tdplevel", required_argument, 0, 't'},
+                                       {"tdplevel", required_argument, 0, 'l'},
                                        {"thresholds", required_argument, 0, 'e'},
                                        {"timeout", required_argument, 0, 'u'},
                                        {"imagepath", required_argument, 0, 'i'},
-                                       {"gettrace", required_argument, 0, 'g'},
+                                       {"trace", required_argument, 0, 't'},
                                        {"frequencies", required_argument, 0, 'f'},
                                        {"version", required_argument, 0, 'V'},
                                        {"voltage", required_argument, 0, 'v'},
@@ -1843,17 +1848,20 @@ void printFWUpdate(char* argv) {
             << " -" << (char)long_options[12].val << " path-to-flash-image" << std::endl;
 }
 
-void printTraceBuf(char* argv) {
+void printTraceOperation(char* argv) {
   std::cout << std::endl;
   std::cout << "\t"
-            << "-" << (char)long_options[13].val << ", --" << long_options[13].name << "=[SP, SPST, MM, MMST, CM]"
-            << std::endl;
+            << "-" << (char)long_options[13].val << ", --" << long_options[13].name
+            << fmt::format("=[{}]:[{}],...", fmt::join(trace_types, "|"), fmt::join(trace_ops, "|")) << std::endl;
   std::cout << "\t\t"
-            << "Get Trace Buffer for SP, MM and CM. SPST is for SP Stats and MMST is for MM Stats buffer." << std::endl;
+            << fmt::format("Perform Trace Operations {{{}}} for Trace Type {{{}}}", fmt::join(trace_ops, ", "),
+                           fmt::join(trace_types, ", "))
+            << std::endl;
   std::cout << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[13].val << " "
-            << "[SP, SPST, MM, MMST, CM]" << std::endl;
+            << fmt::format("{}:{}", trace_types[0], fmt::join(trace_ops.begin() + 1, trace_ops.end() - 1, ","))
+            << std::endl;
 }
 
 void printFrequencies(char* argv) {
@@ -1916,8 +1924,8 @@ void printPartIdUsage(char* argv) {
 void printUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "Usage: " << argv << " -o ncode | -m command [-n node] [-u nmsecs] [-h]"
-            << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp | -i npath | -f "
-               "minionfreq,nocfreq | -g tracebuf | -v module,voltage | -d partid | -V ]"
+            << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -l nlevel | -e nswtemp | -i npath | -f "
+               "minionfreq,nocfreq | -t tracebuf | -v module,voltage | -d partid | -V ]"
             << std::endl;
   printCode(argv);
   printCommand(argv);
@@ -1932,47 +1940,158 @@ void printUsage(char* argv) {
   printTDPLevel(argv);
   printThresholds(argv);
   printFWUpdate(argv);
-  printTraceBuf(argv);
+  printTraceOperation(argv);
   printFrequencies(argv);
   printVersionUsage(argv);
   printVoltageUsage(argv);
   printPartIdUsage(argv);
 }
 
-bool getTraceBuffer() {
-  TraceBufferType buf_type;
-  std::string str_optarg = std::string(optarg);
+bool validTraceOperation() {
+  auto strArg = std::string(optarg);
+  std::smatch m;
+  if (std::regex re(fmt::format("^({}):((?:(?:{}),?)+)$", fmt::join(trace_types, "|"), fmt::join(trace_ops, "|")));
+      !std::regex_search(strArg, m, re)) {
+    DM_VLOG(HIGH) << "Aborting, argument: " << strArg << " is not valid." << std::endl;
+    return false;
+  }
 
-  std::unordered_map<std::string, TraceBufferType> const traceBuffers = {{"SP", TraceBufferType::TraceBufferSP},
-                                                                         {"MM", TraceBufferType::TraceBufferMM},
-                                                                         {"CM", TraceBufferType::TraceBufferCM},
-                                                                         {"SPST", TraceBufferType::TraceBufferSPStats},
-                                                                         {"MMST", TraceBufferType::TraceBufferMMStats}};
+  if (m[1].str().compare("SP") == 0) {
+    given_trace_type = TraceBufferType::TraceBufferSP;
+  } else if (m[1].str().compare("MM") == 0) {
+    given_trace_type = TraceBufferType::TraceBufferMM;
+  } else if (m[1].str().compare("CM") == 0) {
+    given_trace_type = TraceBufferType::TraceBufferCM;
+  } else if (m[1].str().compare("SPST") == 0) {
+    given_trace_type = TraceBufferType::TraceBufferSPStats;
+  } else if (m[1].str().compare("MMST") == 0) {
+    given_trace_type = TraceBufferType::TraceBufferMMStats;
+  } else {
+    DM_VLOG(HIGH) << "Aborting, unknown type: " << m[1].str() << std::endl;
+    return false;
+  }
+  given_trace_ops = m[2].str();
+  return true;
+}
 
-  auto it = traceBuffers.find(str_optarg);
+bool doTraceOperation() {
+  static DMLib dml;
+  if (dml.verifyDMLib() != DM_STATUS_SUCCESS) {
+    DM_VLOG(HIGH) << "Failed to verify the DM lib: " << std::endl;
+    return false;
+  }
+  DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
 
-  if (it != traceBuffers.end()) {
-    buf_type = it->second;
-
-    static DMLib dml;
-    if (dml.verifyDMLib() != DM_STATUS_SUCCESS) {
-      DM_VLOG(HIGH) << "Failed to verify the DM lib: " << std::endl;
+  struct traceCtrlOps {
+    bool enable = true;
+    bool reset = false;
+    bool toUart = false;
+  };
+  auto controlTrace = [&](traceCtrlOps ops) {
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    if (given_trace_type == TraceBufferType::TraceBufferSP) {
+      device_mgmt_api::trace_control_e control = 0;
+      if (ops.enable) {
+        control |= device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE;
+      }
+      if (ops.reset) {
+        control |= device_mgmt_api::TRACE_CONTROL_RESET_TRACEBUF;
+      }
+      if (ops.toUart) {
+        control |= device_mgmt_api::TRACE_CONTROL_TRACE_UART_ENABLE;
+      }
+      std::array<char, sizeof(control)> input_buff;
+      memcpy(input_buff.data(), &control, sizeof(control));
+      auto ret = dm.serviceRequest(node, DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff.data(), input_buff.size(),
+                                   nullptr, 0, hst_latency.get(), dev_latency.get(), timeout);
+      if (ret != DM_STATUS_SUCCESS) {
+        DM_LOG(INFO) << "Service request failed with return code: " << ret << std::endl;
+        return false;
+      }
+    } else if (given_trace_type == TraceBufferType::TraceBufferMM) {
+      // TODO: Add control
+      DM_LOG(INFO) << "Trace control operations are not available for this trace type" << std::endl;
+      return false;
+    } else if (given_trace_type == TraceBufferType::TraceBufferCM) {
+      // TODO: Add control
+      DM_LOG(INFO) << "Trace control operations are not available for this trace type" << std::endl;
+      return false;
+    } else if (given_trace_type == TraceBufferType::TraceBufferSPStats ||
+               given_trace_type == TraceBufferType::TraceBufferMMStats) {
+      device_mgmt_api::stats_type_e type = given_trace_type == TraceBufferType::TraceBufferSPStats
+                                             ? device_mgmt_api::STATS_TYPE_SP
+                                             : device_mgmt_api::STATS_TYPE_MM;
+      device_mgmt_api::stats_control_e control = 0;
+      if (ops.enable) {
+        control |= device_mgmt_api::STATS_CONTROL_TRACE_ENABLE;
+      }
+      if (ops.reset) {
+        control |= device_mgmt_api::STATS_CONTROL_RESET_TRACEBUF | device_mgmt_api::STATS_CONTROL_RESET_COUNTER;
+      }
+      if (ops.toUart) {
+        DM_LOG(INFO) << "Trace redirection to UART is not available for this trace type" << std::endl;
+      }
+      std::array<char, sizeof(type) + sizeof(control)> input_buff;
+      memcpy(input_buff.data(), &type, sizeof(type));
+      memcpy(input_buff.data() + sizeof(type), &control, sizeof(control));
+      auto ret = dm.serviceRequest(node, DM_CMD::DM_CMD_SET_STATS_RUN_CONTROL, input_buff.data(), input_buff.size(),
+                                   nullptr, 0, hst_latency.get(), dev_latency.get(), timeout);
+      if (ret != DM_STATUS_SUCCESS) {
+        DM_LOG(INFO) << "Service request failed with return code: " << ret << std::endl;
+        return false;
+      }
+    } else {
       return false;
     }
-    DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
-    std::vector<std::byte> response;
-
-    if (dm.getTraceBufferServiceProcessor(node, buf_type, response) != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DM_LOG(INFO) << "Host Latency: " << *hst_latency << " ms" << std::endl;
+    DM_LOG(INFO) << "Device Latency: " << *dev_latency << " us" << std::endl;
+    DM_LOG(INFO) << "Service request succeeded" << std::endl;
+    return true;
+  };
+  auto extractTrace = [&]() {
+    std::vector<std::byte> buf;
+    if (dm.getTraceBufferServiceProcessor(node, given_trace_type, buf) != device_mgmt_api::DM_STATUS_SUCCESS) {
       DM_LOG(INFO) << "Unable to get trace buffer for node: " << node << std::endl;
       return false;
     }
-    dumpRawTraceBuffer(node, response, buf_type);
-    decodeTraceEvents(node, response, buf_type);
-
+    dumpRawTraceBuffer(node, buf, given_trace_type);
+    decodeTraceEvents(node, buf, given_trace_type);
     return true;
+  };
+
+  std::string op;
+  traceCtrlOps ctrlOps;
+  auto pendingOps = 0;
+  bool result = true;
+  for (std::istringstream iss(given_trace_ops); result && std::getline(iss, op, ',');) {
+    if (op.compare("disable") == 0) {
+      ctrlOps.enable = false;
+      pendingOps++;
+    } else if (op.compare("enable") == 0) {
+      ctrlOps.enable = true;
+      pendingOps++;
+    } else if (op.compare("extract") == 0) {
+      if (pendingOps) {
+        result = controlTrace(ctrlOps);
+        pendingOps = 0;
+      }
+      result = result && extractTrace();
+    } else if (op.compare("reset") == 0) {
+      ctrlOps.reset = true;
+      pendingOps++;
+    } else if (op.compare("to_memory") == 0) {
+      ctrlOps.toUart = false;
+      pendingOps++;
+    } else if (op.compare("to_uart") == 0) {
+      ctrlOps.toUart = true;
+      pendingOps++;
+    }
   }
-  DM_VLOG(HIGH) << "Not a valid argument for trace buffer: " << str_optarg << std::endl;
-  return false;
+  if (pendingOps) {
+    result = result && controlTrace(ctrlOps);
+  }
+  return result;
 }
 
 void printVersion(void) {
@@ -1988,7 +2107,7 @@ int main(int argc, char** argv) {
 
   while (1) {
 
-    c = getopt_long(argc, argv, "d:o:m:hc:n:p:r:s:w:t:e:u:i:g:f:v:V", long_options, &option_index);
+    c = getopt_long(argc, argv, "d:o:m:hc:n:p:r:s:w:l:e:u:i:t:f:v:V", long_options, &option_index);
 
     if (c == -1) {
       break;
@@ -2062,7 +2181,7 @@ int main(int argc, char** argv) {
       }
       break;
 
-    case 't':
+    case 'l':
       if (!(tdp_level_flag = validTDPLevel())) {
         return -EINVAL;
       }
@@ -2084,11 +2203,12 @@ int main(int argc, char** argv) {
         return -EINVAL;
       }
       break;
-    case 'g':
-      if (!getTraceBuffer()) {
-        printTraceBuf(argv[0]);
+    case 't':
+      if (!validTraceOperation()) {
+        printTraceOperation(argv[0]);
         return -EINVAL;
       }
+      doTraceOperation();
       return 0;
     case 'f':
       if (!(frequencies_flag = validFrequencies())) {

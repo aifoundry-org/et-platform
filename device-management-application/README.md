@@ -2,7 +2,7 @@
 
 ## Sysemu
 
-### Usage: dev_mngt_service -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp]
+### Usage: dev_mngt_service -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -l nlevel | -e nswtemp | -t tracetype:traceop1,traceop2,...]
 
         -o, --code=ncode
                 Command by ID (see below)
@@ -133,13 +133,13 @@
                 Ex. dev_mngt_service -o 45 -w 0
                 Ex. dev_mngt_service -m DM_CMD_SET_PCIE_LANE_WIDTH -w 0
 
-        -t, --tdplevel=nlevel
+        -l, --tdplevel=nlevel
                 Set TDP level in Watts:
 
                         0 < tdp level < 40
 
-                Ex. dev_mngt_service -o 25 -t 0
-                Ex. dev_mngt_service -m DM_CMD_SET_MODULE_STATIC_TDP_LEVEL -t 25
+                Ex. dev_mngt_service -o 25 -l 0
+                Ex. dev_mngt_service -m DM_CMD_SET_MODULE_STATIC_TDP_LEVEL -l 25
 
         -e, --thresholds=nswtemp
                 Set temperature thresholds (software threshold)
@@ -147,9 +147,14 @@
                 Ex. dev_mngt_service -o 21 -e 80
                 Ex. dev_mngt_service -m DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS -e 80
 
+        -t, --trace=[SP|MM|CM|SPST|MMST]:[disable|enable|extract|reset|to_memory|to_uart],...
+                Perform Trace Operations {disable, enable, extract, reset, to_memory, to_uart} for Trace Type {SP, MM, CM, SPST, MMST}
+
+                Ex. ./dev_mngt_service -t SP:enable,extract,reset,to_memory
+
 ## Zebu
 
-### Usage: dev_mngt_service -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -t nlevel | -e nswtemp]
+### Usage: dev_mngt_service -o ncode | -m command [-n node] [-u nmsecs] [-h][-c ncount | -p active_pwr_m | -r nreset | -s nspeed | -w nwidth | -l nlevel | -e nswtemp | -t tracetype:traceop1,traceop2,...]
 
 # et-top application
 
