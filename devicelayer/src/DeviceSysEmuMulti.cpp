@@ -133,3 +133,6 @@ std::string DeviceSysEmuMulti::getDeviceAttribute(int device, std::string relAtt
 void DeviceSysEmuMulti::clearDeviceAttributes(int device, std::string relGroupPath) const {
   return getDevice(device).clearDeviceAttributes(device, relGroupPath);
 }
+void DeviceSysEmuMulti::reinitDeviceInstance(int device, bool masterMinionOnly, std::chrono::milliseconds timeout) {
+  getDevice(device).reinitDeviceInstance(device, masterMinionOnly, timeout);
+}

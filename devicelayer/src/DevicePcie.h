@@ -56,6 +56,7 @@ public:
   size_t getFreeCmaMemory() const override;
   std::string getDeviceAttribute(int device, std::string relAttrPath) const override;
   void clearDeviceAttributes(int device, std::string relGroupPath) const override;
+  void reinitDeviceInstance(int device, bool masterMinionOnly, std::chrono::milliseconds timeout) override;
 
 private:
   struct DevInfo {
@@ -71,8 +72,9 @@ private:
     int epFdMgmt_;
   };
 
-  void setupDeviceInfo(int device, DevInfo& deviceInfo, std::chrono::seconds timeout = std::chrono::seconds(30)) const;
-  void teardownDeviceInfo(const DevInfo& deviceInfo) const;
+  void setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMngmt, bool enableOps,
+                       std::chrono::milliseconds timeout = std::chrono::seconds(30)) const;
+  void teardownDeviceInfo(const DevInfo& deviceInfo, bool disableMngmt, bool disableOps) const;
 
   std::unordered_map<void*, size_t> dmaBuffers_;
   std::vector<DevInfo> devices_;

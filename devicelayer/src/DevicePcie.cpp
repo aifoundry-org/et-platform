@@ -382,10 +382,11 @@ size_t DevicePcie::getSubmissionQueueSizeServiceProcessor(int device) const {
   return devices_[static_cast<unsigned long>(device)].spSqMaxMsgSize_;
 }
 
-void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, std::chrono::seconds timeout) const {
+void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMngmt, bool enableOps,
+                                 std::chrono::milliseconds timeout) const {
   auto end = std::chrono::steady_clock::now() + timeout;
   std::stringstream logs;
-  if (mngmtEnabled_) {
+  if (enableMngmt) {
     std::string path = "/dev/et" + std::to_string(device) + "_mgmt";
     deviceInfo.fdMgmt_ =
       openWhenReady(path, std::chrono::duration_cast<std::chrono::seconds>(end - std::chrono::steady_clock::now()));
@@ -398,7 +399,7 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, std::chrono::s
     logInfoLine(logs, "PCIe target:", path);
     logInfoLine(logs, "SP VQ Maximum message size (B):", deviceInfo.spSqMaxMsgSize_, true);
   }
-  if (opsEnabled_) {
+  if (enableOps) {
     std::string path = "/dev/et" + std::to_string(device) + "_ops";
     deviceInfo.fdOps_ =
       openWhenReady(path, std::chrono::duration_cast<std::chrono::seconds>(end - std::chrono::steady_clock::now()));
@@ -454,8 +455,8 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, std::chrono::s
   DV_DLOG(DEBUG) << logs.str();
 }
 
-void DevicePcie::teardownDeviceInfo(const DevInfo& deviceInfo) const {
-  if (opsEnabled_) {
+void DevicePcie::teardownDeviceInfo(const DevInfo& deviceInfo, bool disableMngmt, bool disableOps) const {
+  if (disableOps) {
     auto res = close(deviceInfo.fdOps_);
     if (res < 0) {
       throw Exception("Failed to close ops file, error: '"s + std::strerror(errno) + "'"s);
@@ -465,7 +466,7 @@ void DevicePcie::teardownDeviceInfo(const DevInfo& deviceInfo) const {
       throw Exception("Failed to close ops epoll file, error: '"s + std::strerror(errno) + "'"s);
     }
   }
-  if (mngmtEnabled_) {
+  if (disableMngmt) {
     auto res = close(deviceInfo.fdMgmt_);
     if (res < 0) {
       throw Exception("Failed to close mgmt file, error: '"s + std::strerror(errno) + "'"s);
@@ -494,7 +495,7 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
 
   for (int i = 0; i < mngmtDevCount; ++i) {
     DevInfo deviceInfo;
-    setupDeviceInfo(i, deviceInfo);
+    setupDeviceInfo(i, deviceInfo, mngmtEnabled_, opsEnabled_);
     devices_.emplace_back(deviceInfo);
   }
 }
@@ -502,7 +503,7 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
 DevicePcie::~DevicePcie() {
   for (auto& d : devices_) {
     try {
-      teardownDeviceInfo(d);
+      teardownDeviceInfo(d, mngmtEnabled_, opsEnabled_);
     } catch (const dev::Exception& ex) {
       DV_LOG(FATAL) << ex.what();
     }
@@ -802,5 +803,14 @@ void DevicePcie::clearDeviceAttributes(int device, std::string relGroupPath) con
     throw Exception("Invalid device");
   }
   clearDeviceAttributeByName(std::string(devices_[static_cast<uint32_t>(device)].devName_.data()), relGroupPath);
+}
+
+void DevicePcie::reinitDeviceInstance(int device, bool masterMinionOnly, std::chrono::milliseconds timeout) {
+  if (device >= static_cast<int>(devices_.size())) {
+    throw Exception("Invalid device");
+  }
+  auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
+  teardownDeviceInfo(deviceInfo, mngmtEnabled_ && !masterMinionOnly, opsEnabled_);
+  setupDeviceInfo(device, deviceInfo, mngmtEnabled_ && !masterMinionOnly, opsEnabled_, timeout);
 }
 } // namespace dev

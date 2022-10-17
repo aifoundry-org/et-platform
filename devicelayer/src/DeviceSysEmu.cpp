@@ -697,3 +697,7 @@ std::string DeviceSysEmu::getDeviceAttribute(int, std::string) const {
 void DeviceSysEmu::clearDeviceAttributes(int, std::string) const {
   // No implementation for DeviceSysEmu class
 }
+
+void DeviceSysEmu::reinitDeviceInstance(int, bool, std::chrono::milliseconds) {
+  // No implementation for DeviceSysEmu class
+}

@@ -362,6 +362,17 @@ public:
   /// should exist and this call will clear all attributes in <relGroupPath> directory.
   ///
   virtual void clearDeviceAttributes(int device, std::string relGroupPath) const = 0;
+
+  /// \brief Reinitialize the device master minion or both master minion and service processor
+  /// NOTE: During master minion reinitialization other master minion APIs cannot be used. During both
+  /// devices' reinitialization no other API should be used.
+  ///
+  /// @param[in] device the device to be reinitialized
+  /// @param[in] masterMinionOnly if true only master minion will be reinitialized otherwise both master minion
+  /// and service processor will be reinitialized.
+  /// @param[in] timeout the operation will be aborted if time exceeds given timeout
+  ///
+  virtual void reinitDeviceInstance(int device, bool masterMinionOnly, std::chrono::milliseconds timeout) = 0;
 };
 
 class IDeviceLayer : public IDeviceAsync, public IDeviceSync {

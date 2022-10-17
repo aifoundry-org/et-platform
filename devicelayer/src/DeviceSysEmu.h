@@ -73,6 +73,7 @@ public:
   size_t getFreeCmaMemory() const override;
   std::string getDeviceAttribute(int device, std::string relAttrPath) const override;
   void clearDeviceAttributes(int device, std::string relGroupPath) const override;
+  void reinitDeviceInstance(int device, bool masterMinionOnly, std::chrono::milliseconds timeout) override;
 
 private:
   struct QueueInfo {
