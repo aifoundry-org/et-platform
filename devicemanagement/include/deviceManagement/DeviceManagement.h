@@ -222,7 +222,7 @@ private:
 
   /// @brief DeviceManagement Destructor
   ~DeviceManagement() {
-    destroyDevices();
+    destroyDevicesInstance();
   };
 
   struct destruction_;
@@ -303,7 +303,7 @@ private:
   /// @param[in] index  index of device
   ///
   /// @return Smart shared pointer to lockable_ struct wrapping the device
-  std::shared_ptr<lockable_> getDevice(const uint32_t index);
+  std::shared_ptr<lockable_> getDeviceInstance(const uint32_t index);
 
   /// @brief Fetch firmware image, verify, and write to FW region
   ///
@@ -345,12 +345,18 @@ private:
   /// @brief Create device profile
   ///
   /// @param[in] device_node  device index to use
-  void createDevices();
+  void createDeviceInstance(const uint32_t device_node);
 
   /// @brief Destroy device profile
   ///
-  /// @param[in] exitReceiver wait for receiver thread to exit
-  void destroyDevices(bool exitReceiver = false);
+  /// @param[in] device_node  device index to use
+  /// @param[in] waitReceiverExit wait for receiver thread to exit
+  void destroyDeviceInstance(const uint32_t device_node, bool waitReceiverExit = false);
+
+  /// @brief Destroy all devices profile
+  ///
+  /// @param[in] waitReceiverExit wait for receiver thread to exit
+  void destroyDevicesInstance(bool waitReceiverExit = false);
 
 #ifdef MINION_DEBUG_INTERFACE
   /// @brief Handles the event message types

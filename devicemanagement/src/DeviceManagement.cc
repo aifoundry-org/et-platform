@@ -110,7 +110,7 @@ bool DeviceManagement::handleEvent(const uint32_t device_node, std::vector<std::
   // The range can be extended to handle all type of events
   if (rCB->info.event_hdr.msg_id >= device_mgmt_api::DM_CMD_MDI_SET_BREAKPOINT_EVENT &&
       rCB->info.event_hdr.msg_id < device_mgmt_api::DM_CMD_MDI_END) {
-    auto lockable = getDevice(device_node);
+    auto lockable = getDeviceInstance(device_node);
     lockable->pushEvent(message);
     return true;
   }
@@ -118,7 +118,7 @@ bool DeviceManagement::handleEvent(const uint32_t device_node, std::vector<std::
 }
 
 bool DeviceManagement::getEvent(const uint32_t device_node, std::vector<std::byte>& event, uint32_t timeout) {
-  auto lockable = getDevice(device_node);
+  auto lockable = getDeviceInstance(device_node);
   return lockable->popEvent(event, timeout);
 }
 #endif
@@ -166,7 +166,9 @@ struct DeviceManagement::destruction_ {
 DeviceManagement& DeviceManagement::getInstance(IDeviceLayer* devLayer) {
   static std::unique_ptr<DeviceManagement, destruction_> instance(new DeviceManagement());
   (*instance).setDeviceLayer(devLayer);
-  (*instance).createDevices(); // Must be called after setDeviceLayer
+  for (int i = 0; i < devLayer->getDevicesCount(); i++) {
+    (*instance).createDeviceInstance(static_cast<unsigned int>(i));
+  }
   return *instance;
 }
 
@@ -209,29 +211,37 @@ bool DeviceManagement::isGetCommand(itCmd& cmd) {
   return false;
 }
 
-void DeviceManagement::createDevices() {
+void DeviceManagement::createDeviceInstance(const uint32_t device_node) {
   std::scoped_lock lk(deviceMapMtx_);
-  for (int i = 0; i < getDevicesCount(); i++) {
-    auto& ptr = deviceMap_[i];
-    if (!ptr) {
-      ptr = std::make_shared<lockable_>(i);
-      if (!ptr->receiverRunning) {
-        ptr->receiverRunning = true;
-        ptr->receiver = std::thread(std::bind(&DeviceManagement::receiver, this, ptr));
-        ptr->receiver.detach();
-      }
+  if (auto& ptr = deviceMap_[device_node]; !ptr) {
+    ptr = std::make_shared<lockable_>(device_node);
+    if (!ptr->receiverRunning) {
+      ptr->receiverRunning = true;
+      ptr->receiver = std::thread(std::bind(&DeviceManagement::receiver, this, ptr));
+      ptr->receiver.detach();
     }
   }
 }
 
-void DeviceManagement::destroyDevices(bool exitReceiver) {
+void DeviceManagement::destroyDeviceInstance(const uint32_t device_node, bool waitReceiverExit) {
+  std::scoped_lock lk(deviceMapMtx_);
+  if (auto& ptr = deviceMap_[device_node]; ptr) {
+    ptr->receiverRunning = false;
+    if (waitReceiverExit) {
+      ptr->exitReceiverFuture.get();
+    }
+  }
+  deviceMap_.erase(device_node);
+}
+
+void DeviceManagement::destroyDevicesInstance(bool waitReceiverExit) {
   std::scoped_lock lk(deviceMapMtx_);
   for (auto& d : deviceMap_) {
     if (auto& ptr = d.second; ptr) {
       ptr->receiverRunning = false;
     }
   }
-  if (exitReceiver) {
+  if (waitReceiverExit) {
     for (auto& d : deviceMap_) {
       auto& ptr = d.second;
       if (auto& ptr = d.second; ptr) {
@@ -242,7 +252,7 @@ void DeviceManagement::destroyDevices(bool exitReceiver) {
   deviceMap_.clear();
 }
 
-std::shared_ptr<lockable_> DeviceManagement::getDevice(const uint32_t index) {
+std::shared_ptr<lockable_> DeviceManagement::getDeviceInstance(const uint32_t index) {
   std::scoped_lock lk(deviceMapMtx_);
   auto& ptr = deviceMap_[index];
   if (!ptr) {
@@ -434,7 +444,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
   }
 
   auto inputSize = input_size;
-  auto lockable = getDevice(device_node);
+  auto lockable = getDeviceInstance(device_node);
 
   std::future<std::vector<std::byte>> respReceiveFuture;
   if (lockable->sqGuard.try_lock_for(end - std::chrono::steady_clock::now())) {
@@ -523,8 +533,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
 
     // There will be no response for ETSOC Reset, so do not add response placeholder and stop device functionality
     if (flags.isEtsocReset_) {
-      // TODO: Add support to reset single device at a time.
-      destroyDevices(true);
+      destroyDeviceInstance(lockable->idx, true);
     } else {
       respReceiveFuture = lockable->getRespReceiveFuture(wCB->info.cmd_hdr.tag_id);
     }
@@ -532,7 +541,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
       if (!devLayer_->sendCommandServiceProcessor(lockable->idx, reinterpret_cast<std::byte*>(wCB.get()),
                                                   wCB->info.cmd_hdr.size, flags)) {
         if (flags.isEtsocReset_) {
-          createDevices();
+          createDeviceInstance(lockable->idx);
         }
         return -EIO;
       }
@@ -545,7 +554,10 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
                    << std::endl;
 
     if (flags.isEtsocReset_) {
-      // Do not expect response for ETSOC Reset
+      devLayer_->reinitDeviceInstance(
+        lockable->idx, false,
+        std::chrono::duration_cast<std::chrono::milliseconds>(end - std::chrono::steady_clock::now()));
+      createDeviceInstance(lockable->idx);
       return 0;
     }
 

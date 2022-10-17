@@ -55,20 +55,27 @@ TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetMMInvalidOpsNodePermission)
   }
 }
 
-TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetSOC) {
+TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetSOCSingleDevice) {
   if (targetInList({Target::Silicon, Target::SysEMU, Target::Loopback})) {
-    auto initialize = [&](void) {
-      devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
-      ASSERT_NE(devLayer_, nullptr);
-      initTestTrace();
-      controlTraceLogging();
-    };
-    auto destroy = [&](void) {
-      if (devLayer_) {
-        devLayer_.reset();
-      }
-    };
-    resetSOC(false /* Multiple Devices */, initialize, destroy);
+    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
+    ASSERT_NE(devLayer_, nullptr);
+    initTestTrace();
+    controlTraceLogging();
+    resetSOC(true /* Single Device */);
+    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+  }
+}
+
+TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetSOCMultiDevice) {
+  if (targetInList({Target::Silicon, Target::SysEMU, Target::Loopback})) {
+    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
+    ASSERT_NE(devLayer_, nullptr);
+    initTestTrace();
+    controlTraceLogging();
+    resetSOC(false /* Multiple Devices */);
+    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
   }

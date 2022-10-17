@@ -3915,9 +3915,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
   }
 }
 
-void TestDevMgmtApiSyncCmds::resetSOC(bool singleDevice, std::function<void(void)> initialize,
-                                      std::function<void(void)> destroy) {
-  initialize();
+void TestDevMgmtApiSyncCmds::resetSOC(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -3931,13 +3929,6 @@ void TestDevMgmtApiSyncCmds::resetSOC(bool singleDevice, std::function<void(void
                                 hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-
-    // Re-initialize
-    destroy();
-    initialize();
-    dmi = getInstance();
-    ASSERT_TRUE(dmi);
-    DeviceManagement& dm = (*dmi)(devLayer_.get());
 
     // Check if trace control works after reset
     controlTraceLogging();
