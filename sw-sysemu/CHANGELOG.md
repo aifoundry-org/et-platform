@@ -16,7 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Allocate sysemu instance on the heap to fix segfaults
 ### Security
-
+## [0.5.0] - 2022-10-19
+### Added
+- [SW-13986] Added pause / resume API to hint sysemu when it can put the main simulation thread to sleep, because there is nothing useful to be simulated (so avoid wasting CPU cycles doing nothing useful).
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- BEMU: Fixed behavior of cache control extension (fill/evict)
+- Runtime options (ex: -gdb) may now be set as part of --simulator-params.
+### Security
 ## [0.4.0] - 2022-8-16
 ### Added
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines.
