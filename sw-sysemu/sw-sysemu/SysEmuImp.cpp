@@ -525,7 +525,6 @@ void SysEmuImp::stop() {
 }
 
 void SysEmuImp::pause() {
-  std::lock_guard<std::mutex> lock(mutex_);
   if (!should_pause_) {
     SE_LOG(INFO) << "Pause sysemu thread";
     should_pause_ = true;
@@ -533,10 +532,9 @@ void SysEmuImp::pause() {
 }
 
 void SysEmuImp::resume() {
-  std::lock_guard<std::mutex> lock(mutex_);
   if (should_pause_) {
     SE_LOG(INFO) << "Resume sysemu thread";
     should_pause_ = false;
-    condVar_.notify_all();
+    condVar_.notify_one();
   }
 }
