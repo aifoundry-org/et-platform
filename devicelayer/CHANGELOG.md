@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.0.0] - 2022-10-19
+
+### Added
 - [SW-14409] Added ETSOC reset flag in sendCommandServiceProcessor(). Now sendCommandServiceProcessor()/sendCommandMasterMinion() APIs use `SPCmdFlag/MMCmdFlag` in place of bool argument `isMmReset`, `isDma` and `isHighPriority` etc.
   * The use of enum `DeviceState` depends on new et_ioctl.h header.
   * Package required for this change:
