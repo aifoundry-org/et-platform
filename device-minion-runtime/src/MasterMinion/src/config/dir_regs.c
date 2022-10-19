@@ -87,8 +87,6 @@ static void crc32(const void *data, uint32_t len, uint32_t *crc)
 ***********************************************************************/
 void DIR_Init(void)
 {
-    uint32_t dir_crc32 = 0U; /* Initial value should be zero */
-
     /* Populate the device generic attributes */
     Gbl_MM_DIRs->generic_attr.version = MM_DEV_INTF_REG_VERSION;
     Gbl_MM_DIRs->generic_attr.total_size = sizeof(MM_DEV_INTF_REG_s);
@@ -131,8 +129,6 @@ void DIR_Init(void)
         MM_DEV_INTF_USER_KERNEL_SPACE_BAR;
     Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].bar_offset =
         MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET;
-    Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].bar_size =
-        MM_DEV_INTF_USER_KERNEL_SPACE_SIZE;
     Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].dev_address =
         HOST_MANAGED_DRAM_START;
     Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].attributes_size =
@@ -143,18 +139,6 @@ void DIR_Init(void)
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_64_BIT) |
         MEM_REGION_DMA_ELEMENT_COUNT_SET(MEM_REGION_DMA_ELEMENT_COUNT) |
         MEM_REGION_DMA_ELEMENT_SIZE_SET(MEM_REGION_DMA_ELEMENT_SIZE);
-
-    /* Calculate CRC32 of the DIRs excluding generic attributes
-    NOTE: CRC32 checksum should be calculated at the end */
-    crc32((void *)&Gbl_MM_DIRs->vq_attr,
-        (uint32_t)(
-            Gbl_MM_DIRs->generic_attr.total_size - Gbl_MM_DIRs->generic_attr.attributes_size),
-        &dir_crc32);
-
-    Gbl_MM_DIRs->generic_attr.crc32 = dir_crc32;
-
-    /* Update Status to indicate MM Device Interface Registers are ready */
-    Gbl_MM_DIRs->generic_attr.status = MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY;
 
     return;
 }
@@ -181,4 +165,66 @@ void DIR_Init(void)
 void DIR_Set_Master_Minion_Status(int16_t status)
 {
     Gbl_MM_DIRs->generic_attr.status = status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       DIR_Update_Interface_Ready
+*
+*   DESCRIPTION
+*
+*       Calculate CRC for DIRs after update and set status to interface ready
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void DIR_Update_Interface_Ready(void)
+{
+    uint32_t dir_crc32 = 0U; /* Initial value should be zero */
+
+    /* Calculate CRC32 of the DIRs excluding generic attributes
+    NOTE: CRC32 checksum should be calculated at the end */
+    crc32((void *)&Gbl_MM_DIRs->vq_attr,
+        (uint32_t)(
+            Gbl_MM_DIRs->generic_attr.total_size - Gbl_MM_DIRs->generic_attr.attributes_size),
+        &dir_crc32);
+
+    Gbl_MM_DIRs->generic_attr.crc32 = dir_crc32;
+
+    /* Update Status to indicate MM Device Interface Registers are ready */
+    Gbl_MM_DIRs->generic_attr.status = MM_DEV_INTF_MM_BOOT_STATUS_DEV_INTF_READY;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       DIR_Update_Mem_Region_Size
+*
+*   DESCRIPTION
+*
+*       Set Mem region bar size based on DDR size retrieved from SP
+*
+*   INPUTS
+*
+*       region_type     Type of region to update
+*       region_size     size of mem region
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void DIR_Update_Mem_Region_Size(int16_t region_type, uint64_t region_size)
+{
+    /* update ops mem region with DDR size */
+    Gbl_MM_DIRs->mem_regions[region_type].bar_size = region_size;
 }

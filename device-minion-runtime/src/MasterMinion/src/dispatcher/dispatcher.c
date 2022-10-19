@@ -161,6 +161,23 @@ void Dispatcher_Launch(uint32_t hart_id)
     status = SW_Timer_Init();
     dispatcher_assert(status == STATUS_SUCCESS, MM_SW_TIMER_INIT_ERROR, "SW Timer init failure.");
 
+    /* initialize MM configuration */
+    status = MM_Config_Init();
+    dispatcher_assert(status == STATUS_SUCCESS, MM_CONFIG_GET_DDR_SIZE_SP_FAILED,
+        "MM Config get DDR info failure.");
+
+    /* initialize DMA driver */
+    status = dma_init();
+    dispatcher_assert(status == STATUS_SUCCESS, DMA_DRIVER_CONFIG_MEM_REGION_FAILED,
+        "DMA Mem regions config failed.");
+
+    /* update DDR size in ops mem region */
+    DIR_Update_Mem_Region_Size(
+        MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED, MM_Config_Get_Host_Managed_DRAM_Size());
+
+    /* set DIR interface ready status */
+    DIR_Update_Interface_Ready();
+
     /* Initialize Computer Workers */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:CW_Init\r\n");
     status = CW_Init();
@@ -178,6 +195,7 @@ void Dispatcher_Launch(uint32_t hart_id)
     KW_Init();
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:DMAW_Init\r\n");
     DMAW_Init();
+
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:Setting DIR ready status, MM_WORKERS_INITIALIZED\r\n");
     DIR_Set_Master_Minion_Status(MM_DEV_INTF_MM_BOOT_STATUS_MM_WORKERS_INITIALIZED);
 

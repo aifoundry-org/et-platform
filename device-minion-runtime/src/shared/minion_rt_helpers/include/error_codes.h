@@ -67,9 +67,10 @@ DISPATCHER
 
 CONFIG
 - DIR Registers ---------------- [-2400, -2499]
+- MM Config -------------------- [-2500, -2599]
 
 RESERVED
-- Reserved --------------------- [-2500, -2999]
+- Reserved --------------------- [-2600, -2999]
 
 ****************************************************/
 
@@ -91,6 +92,11 @@ RESERVED
     \brief Invalid address for DMA operation
 */
 #define DMA_DRIVER_ERROR_INVALID_ADDRESS -602
+
+/*! \def DMA_DRIVER_CONFIG_MEM_REGION_FAILED
+    \brief Mem regions configuration failed due to invalid capacity
+*/
+#define DMA_DRIVER_CONFIG_MEM_REGION_FAILED -603
 
 /*************************************
  * Define DMA Worker error codes.    *
@@ -345,6 +351,10 @@ RESERVED
 */
 #define SP_IFACE_INVALID_RSP_ID -1707
 
+/*! \def SP_IFACE_INVALID_DDR_SIZE
+    \brief SP iface error code - Invalid DDR size
+*/
+#define SP_IFACE_INVALID_DDR_SIZE -1708
 /*************************************
  * Define CM Interface error codes.  *
  *************************************/
@@ -407,6 +417,15 @@ RESERVED
     \brief Software Timer error - No free slot available to create timer.
 */
 #define SW_TIMER_NO_FREE_TIMESLOT_AVAILABLE -2100
+
+/*************************************
+ * Define MM Configuration error codes.    *
+ *************************************/
+
+/*! \def MM_CONFIG_GET_DDR_SIZE_SP_FAILED
+    \brief Failed to get DDR size from SP.
+*/
+#define MM_CONFIG_GET_DDR_SIZE_SP_FAILED -2500
 
 /********************************** MASTER MINION ERROR CODES - END *************************************/
 

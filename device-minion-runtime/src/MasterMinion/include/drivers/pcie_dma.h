@@ -74,6 +74,12 @@ enum dma_write_chan_id {
 */
 typedef uint8_t dma_write_chan_id_e;
 
+/*! \fn int32_t dma_init(void)
+    \brief This function configures DMA memory regions.
+    \return Status success or error
+*/
+int32_t dma_init(void);
+
 /*! \fn int32_t dma_enable_read_engine(void)
     \brief This function enables the PCIe DMA read engine.
     \return Status success or error

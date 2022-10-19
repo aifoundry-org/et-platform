@@ -27,6 +27,7 @@ foreach(MM_BUILD_VARIANT IN ITEMS MasterMinion MasterMinionTF)
         src/main.c
         src/build_configuration.c
         src/config/dir_regs.c
+        src/config/mm_config.c
         src/dispatcher/dispatcher.c
         src/workers/spw.c
         src/workers/sqw.c

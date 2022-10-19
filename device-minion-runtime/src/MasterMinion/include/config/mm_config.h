@@ -96,12 +96,6 @@
 */
 #define MM_DEV_INTF_USER_KERNEL_SPACE_OFFSET (HOST_MANAGED_DRAM_START - DRAM_MEMMAP_BEGIN)
 
-/*! \def MM_DEV_INTF_USER_KERNEL_SPACE_SIZE
-    \brief A macro that provides the total size of User Kernel space
-    on PCI BAR.
-*/
-#define MM_DEV_INTF_USER_KERNEL_SPACE_SIZE HOST_MANAGED_DRAM_SIZE
-
 /******************************************************/
 /* Definitions to locate and manage Host to MM SQs/CQ */
 /******************************************************/
@@ -397,5 +391,33 @@ static_assert(MM_SQ_SIZE <= MM_SQ_SIZE_MAX,
     "Size of MM Submission Queues not synced with memory layout file.");
 
 #endif /* __ASSEMBLER__ */
+
+/*! \fn int32_t MM_Config_Init(void)
+    \brief This function retrieves DDR size from SP and saves it to a global to be used further
+    \param None
+    \return Status indicating success or negative error
+*/
+int32_t MM_Config_Init(void);
+
+/*! \fn uint64_t MM_Config_Get_DDR_Size(void)
+    \brief This function returns DDR memory size
+    \param None
+    \return DDR memory size
+*/
+uint64_t MM_Config_Get_DDR_Size(void);
+
+/*! \fn uint64_t MM_Config_Get_Host_Managed_DRAM_Size(void)
+    \brief This function returns host managed DRAM size
+    \param None
+    \return host managed DRAM size
+*/
+uint64_t MM_Config_Get_Host_Managed_DRAM_Size(void);
+
+/*! \fn uint64_t MM_Config_Get_DRAM_End_Address(void)
+    \brief This function returns DDR memory end address
+    \param None
+    \return host managed DRAM end address
+*/
+uint64_t MM_Config_Get_DRAM_End_Address(void);
 
 #endif /* __MM_CONFIG_H__ */

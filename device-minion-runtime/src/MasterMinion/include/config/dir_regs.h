@@ -245,4 +245,18 @@ void DIR_Init(void);
 */
 void DIR_Set_Master_Minion_Status(int16_t status);
 
+/*! \fn void DIR_Update_Interface_Ready(void)
+    \brief Calculate CRC for DIRs after update and set status to interface ready
+    \return none
+*/
+void DIR_Update_Interface_Ready(void);
+
+/*! \fn void DIR_Update_Mem_Region_Size(MM_DEV_INTF_MEM_REGION_TYPE_e region_type, uint64_t ddr_size)
+    \brief Set Mem region bar size based on DDR size retrieved from SP
+    \param region_type Type of region to update
+    \param region_size size of region
+    \return none
+*/
+void DIR_Update_Mem_Region_Size(int16_t region_type, uint64_t region_size);
+
 #endif /* DIR_REGS_H */

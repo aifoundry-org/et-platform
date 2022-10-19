@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13832] Add support for SP2MM_CMD_GET_MM_STATS and start sampling without a delay.
 - Adding support for ET_TRACE_READ_MEM and ET_TRACE_WRITE_MEM in MasterMinion.
 - [SW-13851] add handling for SP2MM_CMD_MM_STATS_RUN_CONTROL.
+- [SW-14508] Adding get memory size command from MM to SP interface and replace HOST_MANAGED_DRAM_SIZE with ddr_get_memory_size
 ### Changed
 ### Deprecated
 ### Removed

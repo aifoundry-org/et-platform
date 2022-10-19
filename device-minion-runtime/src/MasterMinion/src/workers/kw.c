@@ -149,6 +149,7 @@ typedef struct kw_cb_ {
     spinlock_t resource_lock;
     kernel_instance_t kernels[MM_MAX_PARALLEL_KERNELS];
     uint32_t launch_wait_timeout_flag[SQW_NUM];
+    uint64_t host_managed_dram_end;
 } kw_cb_t;
 
 /*! \struct kw_internal_status
@@ -181,7 +182,8 @@ static inline bool kw_check_address_bounds(uint64_t dev_address, bool is_optiona
     }
 
     /* Verify the bounds */
-    return ((dev_address >= HOST_MANAGED_DRAM_START) && (dev_address < HOST_MANAGED_DRAM_END));
+    return ((dev_address >= HOST_MANAGED_DRAM_START) &&
+            (dev_address < (atomic_load_local_64(&KW_CB.host_managed_dram_end))));
 }
 
 /************************************************************************
@@ -980,6 +982,9 @@ void KW_Init(void)
         atomic_store_local_32(&KW_CB.kernels[i].kw_cycles.wait_cycles, 0U);
         atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.prev_cycles, 0U);
     }
+
+    /* Initialize DDR size */
+    atomic_store_local_64(&KW_CB.host_managed_dram_end, MM_Config_Get_DRAM_End_Address());
 
     return;
 }

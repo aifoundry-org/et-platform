@@ -924,6 +924,101 @@ int32_t SP_Iface_Get_Fw_Version(
 *
 *   FUNCTION
 *
+*       SP_Iface_Get_DDR_Memory_Info
+*
+*   DESCRIPTION
+*
+*       A blocking call to obtain DDR memory size from SP
+*
+*   INPUTS
+*
+*       mem_size    DDR memory size
+*
+*   OUTPUTS
+*
+*       int32_t      status success or failure of Interface initialization
+*
+***********************************************************************/
+int32_t SP_Iface_Get_DDR_Memory_Info(uint64_t *mem_size)
+{
+    uint8_t rsp_buff[64] __attribute__((aligned(64))) = { 0 };
+    const struct dev_cmd_hdr_t *hdr;
+    uint64_t rsp_length = 0;
+    struct mm2sp_get_ddr_mem_size_t cmd;
+    int32_t status = STATUS_SUCCESS;
+
+    Log_Write(LOG_LEVEL_DEBUG, "MM2SP:SP_Iface_Get_DDR_Memory_Size.\r\n");
+
+    /* Initialize command header */
+    SP_MM_IFACE_INIT_MSG_HDR(&cmd.msg_hdr, MM2SP_CMD_GET_DDR_MEM_SIZE,
+        sizeof(struct mm2sp_get_ddr_mem_size_t), (int32_t)get_hart_id())
+
+    /* Acquire the lock. Multiple threads can call this function. */
+    acquire_local_spinlock(&SP_SQ_CB.vq_lock);
+
+    /* Send command to Service Processor */
+    status = SP_Iface_Push_Cmd_To_MM2SP_SQ(&cmd, sizeof(cmd));
+
+    if (status == STATUS_SUCCESS)
+    {
+        /* Wait for response from Service Processor */
+        status = wait_for_response_from_service_processor();
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "ERROR: Pushing command to MM to SP SQ\r\n");
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        /* Pop response from MM to SP completion queue */
+        rsp_length = (uint64_t)SP_Iface_Pop_Rsp_From_MM2SP_CQ(&rsp_buff[0]);
+
+        /* Process response and fetch shire mask */
+        if (rsp_length != 0)
+        {
+            Log_Write(
+                LOG_LEVEL_DEBUG, "SP2MM:received response of size %ld bytes.\r\n", rsp_length);
+
+            hdr = (void *)rsp_buff;
+            if (hdr->msg_id == MM2SP_RSP_GET_DDR_MEM_SIZE)
+            {
+                const struct mm2sp_get_ddr_mem_size_rsp_t *rsp = (void *)rsp_buff;
+
+                /* validate DDR size */
+                if (rsp->ddr_mem_size > HOST_MANAGED_DRAM_SIZE_MAX)
+                {
+                    status = SP_IFACE_INVALID_DDR_SIZE;
+                }
+                else
+                {
+                    *mem_size = rsp->ddr_mem_size;
+                }
+            }
+            else
+            {
+                status = SP_IFACE_INVALID_RSP_ID;
+                Log_Write(LOG_LEVEL_ERROR,
+                    "ERROR: Received unexpected response, for ddr get mem size from SP\r\n");
+            }
+        }
+        else
+        {
+            status = SP_IFACE_SP2MM_RSP_POP_FAILED;
+            Log_Write(LOG_LEVEL_ERROR, "ERROR: Received a notification from SP with no data\r\n");
+        }
+    }
+
+    /* Release the lock */
+    release_local_spinlock(&SP_SQ_CB.vq_lock);
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       SP_Iface_Report_Error
 *
 *   DESCRIPTION

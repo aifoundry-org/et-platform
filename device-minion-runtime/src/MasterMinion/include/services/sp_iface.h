@@ -119,6 +119,12 @@ int32_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq);
 int32_t SP_Iface_Get_Fw_Version(
     mm2sp_fw_type_e fw_type, uint8_t *major, uint8_t *minor, uint8_t *revision);
 
+/*! \fn int32_t SP_Iface_Get_DDR_Memory_Info(uint8_t *mem_size)
+    \brief A blocking call to obtain DDR memory size from SP
+    \param mem_size    DDR memory size
+*/
+int32_t SP_Iface_Get_DDR_Memory_Info(uint64_t *mem_size);
+
 /*! \fn int32_t SP_Iface_Report_Error(mm2sp_error_type_e error_type, int16_t error_code)
     \brief A non-blocking API to report Master Minion error codes to Service Processor
     \param error_type Error type

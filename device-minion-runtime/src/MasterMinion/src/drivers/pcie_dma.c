@@ -7,6 +7,7 @@
 #include "drivers/pcie_dma_ll.h"
 #include "services/log.h"
 #include "services/trace.h"
+#include "config/mm_config.h"
 
 /* mm-rt-svcs */
 #include <etsoc/isa/etsoc_memory.h>
@@ -70,9 +71,10 @@ struct dma_mem_region {
 /*!
     Valid DMA memory range upon which DMA can perform Read/Write.
 */
-static const struct dma_mem_region valid_dma_targets[] = {
-    /* L3, but beginning reserved for minion stacks, end reserved for DMA config */
-    { .begin = HOST_MANAGED_DRAM_START, .end = (HOST_MANAGED_DRAM_END - 1) },
+static struct dma_mem_region valid_dma_targets[] = {
+    /* L3, but beginning reserved for minion stacks, end reserved for DMA config.
+       end of first region will be updated through DDR config regions below */
+    { .begin = HOST_MANAGED_DRAM_START },
     /* Shire-cache scratch pads. Limit to first 4MB * 33 shires */
     { .begin = 0x80000000, .end = 0x883FFFFF }
 };
@@ -190,6 +192,31 @@ static inline int32_t dma_bounds_check(uint64_t soc_addr, uint64_t size)
     }
 
     return DMA_DRIVER_ERROR_INVALID_ADDRESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dma_init
+*
+*   DESCRIPTION
+*
+*       This function configures DMA memory regions.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       int32_t     Status success or error
+*
+***********************************************************************/
+int32_t dma_init(void)
+{
+    atomic_store_local_64(&valid_dma_targets[0].end, (MM_Config_Get_DRAM_End_Address() - 1));
+    return STATUS_SUCCESS;
 }
 
 /************************************************************************
