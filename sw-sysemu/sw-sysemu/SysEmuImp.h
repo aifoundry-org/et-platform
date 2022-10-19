@@ -62,7 +62,7 @@ private:
 
   std::mutex mutex_;
   bool running_ = true;
-  bool should_pause_ = true;
+  bool should_pause_ = false;
   uint32_t pendingInterruptsBitmask_ = 0;
   uint64_t raised_interrupt_count_ = 0;
   std::condition_variable condVar_;

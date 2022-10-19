@@ -212,8 +212,7 @@ void SysEmuImp::process() {
   }
   if (should_pause_) {
     using namespace std::chrono_literals;
-    condVar_.wait_for(lock, 100ms, [=]() { return !should_pause_; });
-    // condVar_.wait(lock, [=]() { return !should_pause_; });
+    condVar_.wait_for(lock, 100ms);
   }
 }
 
