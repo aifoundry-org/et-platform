@@ -40,6 +40,21 @@
 #include "hwinc/hal_device.h"
 #include "hwinc/hpdpll_modes_config.h"
 
+/*! \def PLL0_100_PERCENT_TARGET_MODE
+    \brief PLL 0 frequency mode for 100% target frequency
+*/
+#define PLL0_100_PERCENT_TARGET_MODE 3
+
+/*! \def PLL1_100_PERCENT_TARGET_MODE
+    \brief PLL 1 frequency mode for 100% target frequency
+*/
+#define PLL1_100_PERCENT_TARGET_MODE 1
+
+/*! \def PSHR_PLL_100_PERCENT_TARGET_MODE
+    \brief PShire PLL frequency mode for 100% target frequency
+*/
+#define PSHR_PLL_100_PERCENT_TARGET_MODE 6
+
 /*! \def PLL_LOCK_TIMEOUT
     \brief lock timeout for PLL
 */
@@ -1031,157 +1046,35 @@ void clear_spio_lock_loss_monitors(void)
     spio_pll_clear_lock_monitor(PLL_ID_PSHIRE);
 }
 
-static int spio_pll_ldo_kick(PLL_ID_t pll, volatile uint32_t *pll_registers,
-                             uint32_t threshold_multiplier)
-{
-    uint16_t ldo_reg = 0;
-    uint16_t reg0 = 0;
-    uint16_t lock_threshold = 0;
-    int status;
-    uint32_t timeout = PLL_LOCK_TIMEOUT;
-
-    status = clock_manager_pll_bypass(pll, true);
-    if (0 != status)
-    {
-        return status;
-    }
-
-    lock_threshold = (uint16_t)pll_registers[PLL_REG_INDEX_REG_LOCK_THRESHOLD];
-    if ((lock_threshold * threshold_multiplier) > 0x0FFFFu)
-    {
-        lock_threshold = (uint16_t)(0xFFFF);
-    }
-    else
-    {
-        lock_threshold = (uint16_t)(lock_threshold * threshold_multiplier);
-    }
-    pll_registers[PLL_REG_INDEX_REG_LOCK_THRESHOLD] = lock_threshold;
-
-    HPDPLL_CLEAR_REG_BIT(pll_registers, ldo_reg, PLL_REG_INDEX_REG_LDO_CONTROL,
-                         LDO_BYPASS_OFFSET) // Clear LDO bypass
-    HPDPLL_SET_REG_BIT(pll_registers, ldo_reg, PLL_REG_INDEX_REG_LDO_CONTROL,
-                       LDO_POWER_DOWN_OFFSET) // Turn off LDO
-    update_pll_registers(pll_registers);
-
-    HPDPLL_CLEAR_REG_BIT(pll_registers, ldo_reg, PLL_REG_INDEX_REG_LDO_CONTROL,
-                         LDO_POWER_DOWN_OFFSET) // Turn oon LDO
-    update_pll_registers(pll_registers);
-
-    /* Wait some time.
-    */
-    if (pll == PLL_ID_SP_PLL_0)
-    {
-        for (int i = 0; i < 300; i++)
-            __asm volatile(" nop ");
-    }
-    else
-    {
-        for (int i = 0; i < 1500; i++)
-            __asm volatile(" nop ");
-    }
-
-    HPDPLL_CLEAR_REG_BIT(pll_registers, reg0, PLL_REG_INDEX_REG_0,
-                         PLL_ENABLE_OFFSET) // Disable PLL
-    update_pll_registers(pll_registers);
-
-    HPDPLL_SET_REG_BIT(pll_registers, reg0, PLL_REG_INDEX_REG_0,
-                       PLL_ENABLE_OFFSET) // Enable PLL
-    update_pll_registers(pll_registers);
-
-    /* Give some time for the clock to be stable
-       Document suggest 65 ref clock.
-    */
-    if (pll == PLL_ID_SP_PLL_0)
-    {
-        for (int i = 0; i < 300; i++)
-            __asm volatile(" nop ");
-    }
-    else
-    {
-        for (int i = 0; i < 1500; i++)
-            __asm volatile(" nop ");
-    }
-
-    /* Wait for the PLL to lock within a given timeout */
-    while (timeout > 0)
-    {
-        if (pll_registers[PLL_REG_INDEX_REG_LOCK_DETECT_STATUS] & 1)
-        {
-            break;
-        }
-        --timeout;
-    }
-    if (0 == timeout)
-    {
-        return ERROR_SP_PLL_PLL_LOCK_TIMEOUT;
-    }
-
-    status = clock_manager_pll_bypass(pll, false);
-    if (0 != status)
-    {
-        return status;
-    }
-
-    clear_lock_monitor(pll_registers);
-
-    return 0;
-}
-
-int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
-             uint32_t pcie_pll_0_frequency)
+int pll_init(void)
 {
     int status;
-    int try_num = 0;
 
-    gs_sp_pll_0_frequency = sp_pll_0_frequency;
-    gs_sp_pll_1_frequency = sp_pll_1_frequency;
     gs_sp_pll_2_frequency = 0;
     gs_sp_pll_4_frequency = 0;
-    gs_pcie_pll_0_frequency = pcie_pll_0_frequency;
 
-    if (get_pll_requested_percent() != SP_PLL_STATE_OFF)
+    status = configure_sp_pll_0(PLL0_100_PERCENT_TARGET_MODE);
+    if (0 != status)
     {
-        /* Perform LDO kick of PLLs configured during Bootrom */
-        do
-        {
-            status = spio_pll_ldo_kick(PLL_ID_SP_PLL_0, (uint32_t *)R_SP_PLL0_BASEADDR, 2);
-            try_num++;
-        } while ((0 != status) && (try_num < PLL_PROGRAM_TRY_LIMIT));
+        Log_Write(LOG_LEVEL_ERROR, "SPIO PLL0 ldo kick failed\n");
+        return status;
+    }
 
-        if (0 != status)
-        {
-            Log_Write(LOG_LEVEL_ERROR, "SPIO PLL0 ldo kick failed\n");
-            return status;
-        }
-
-        try_num = 0;
-        do
-        {
-            status = spio_pll_ldo_kick(PLL_ID_SP_PLL_1, (uint32_t *)R_SP_PLL1_BASEADDR, 2);
-            try_num++;
-        } while ((0 != status) && (try_num < PLL_PROGRAM_TRY_LIMIT));
-
-        if (0 != status)
-        {
-            Log_Write(LOG_LEVEL_ERROR, "SPIO PLL1 ldo kick failed\n");
-            return status;
-        }
+    status = configure_sp_pll_1(PLL1_100_PERCENT_TARGET_MODE);
+    if (0 != status)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "SPIO PLL1 ldo kick failed\n");
+        return status;
+    }
 
 #if !FAST_BOOT
-        try_num = 0;
-        do
-        {
-            status = spio_pll_ldo_kick(PLL_ID_PSHIRE, (uint32_t *)R_PCIE_PLLP0_BASEADDR, 2);
-            try_num++;
-        } while ((0 != status) && (try_num < PLL_PROGRAM_TRY_LIMIT));
-
-        if (0 != status)
-        {
-            Log_Write(LOG_LEVEL_ERROR, "PSHIRE PLL ldo kick failed\n");
-            return status;
-        }
-#endif
+    status = configure_pshire_pll(PSHR_PLL_100_PERCENT_TARGET_MODE);
+    if (0 != status)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "PSHIRE PLL ldo kick failed\n");
+        return status;
     }
+#endif
 
     return 0;
 }

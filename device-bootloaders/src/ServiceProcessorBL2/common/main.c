@@ -629,9 +629,8 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     configure_sp_pll_1(1);
 #endif
 
-    // Initialize PLL 0,1, PShire globals
-    status = pll_init(bl1_data->sp_pll0_frequency, bl1_data->sp_pll1_frequency,
-                      bl1_data->pcie_pll0_frequency);
+    // Reprogram PLL 0,1, PShire PLL to 100% target frequency
+    status = pll_init();
     ASSERT_FATAL(status == STATUS_SUCCESS, "pll_init() failed!")
 
     // Initialize System Interrupt

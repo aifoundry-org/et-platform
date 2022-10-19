@@ -134,16 +134,12 @@ int configure_maxion_pll_uncore(const uint8_t mode);
 */
 int get_pll_frequency(PLL_ID_t pll_id, uint32_t *frequency);
 
-/*! \fn int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
-             uint32_t pcie_pll_0_frequency)
+/*! \fn int pll_init(void)
     \brief This function initializes PLL sub system
-    \param sp_pll_0_frequency PLL0 default frequency 
-    \param sp_pll_1_frequency PLL1 default frequency 
-    \param pcie_pll_0_frequency PCIe PLL default frequency 
+    \param none
     \return The function call status, pass/fail.
 */
-int pll_init(uint32_t sp_pll_0_frequency, uint32_t sp_pll_1_frequency,
-             uint32_t pcie_pll_0_frequency);
+int pll_init(void);
 
 /*! \fn void pll_lock_loss_isr(void)
     \brief This is interrupt handler for CRU interrupt
