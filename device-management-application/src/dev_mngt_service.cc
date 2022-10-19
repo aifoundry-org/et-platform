@@ -98,6 +98,17 @@ public:
     return 0;
   }
 
+  void printPciSlotName(int device) {
+    auto uevent = devLayer_->getDeviceAttribute(device, "uevent");
+    std::regex re("PCI_SLOT_NAME=.*(?=\\n)");
+    std::smatch m;
+    if (!std::regex_search(uevent, m, re) || m.empty()) {
+      DM_VLOG(HIGH) << "Aborting, couldn't get PCI_SLOT_NAME from uevent attribute file." << std::endl;
+      return;
+    }
+    std::cout << m[0] << std::endl;
+  }
+
   void* handle_;
   std::unique_ptr<IDeviceLayer> devLayer_;
   getDM_t dmi;
@@ -1605,6 +1616,7 @@ static struct option long_options[] = {{"code", required_argument, 0, 'o'},
                                        {"version", required_argument, 0, 'V'},
                                        {"voltage", required_argument, 0, 'v'},
                                        {"partid", required_argument, 0, 'd'},
+                                       {"get_slot_name", no_argument, 0, 'g'},
                                        {0, 0, 0, 0}};
 
 void printCode(char* argv) {
@@ -1925,7 +1937,7 @@ void printUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "Usage: " << argv << " -o ncode | -m command [-n node] [-u nmsecs] [-h]"
             << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -l nlevel | -e nswtemp | -i npath | -f "
-               "minionfreq,nocfreq | -t tracebuf | -v module,voltage | -d partid | -V ]"
+               "minionfreq,nocfreq | -g get_slot_name | -t tracebuf | -v module,voltage | -d partid | -V ]"
             << std::endl;
   printCode(argv);
   printCommand(argv);
@@ -2107,7 +2119,7 @@ int main(int argc, char** argv) {
 
   while (1) {
 
-    c = getopt_long(argc, argv, "d:o:m:hc:n:p:r:s:w:l:e:u:i:t:f:v:V", long_options, &option_index);
+    c = getopt_long(argc, argv, "d:o:m:hc:n:p:r:s:w:l:e:u:i:t:f:v:Vg", long_options, &option_index);
 
     if (c == -1) {
       break;
@@ -2140,6 +2152,17 @@ int main(int argc, char** argv) {
         return -EINVAL;
       }
       break;
+
+    case 'g': {
+      DMLib dml;
+      auto ret = dml.verifyDMLib();
+      if (ret != DM_STATUS_SUCCESS) {
+        DM_VLOG(HIGH) << "Failed to verify the DM lib: " << ret << std::endl;
+        return ret;
+      }
+      dml.printPciSlotName(node);
+      return 0;
+    }
 
     case 'h':
       printUsage(argv[0]);
