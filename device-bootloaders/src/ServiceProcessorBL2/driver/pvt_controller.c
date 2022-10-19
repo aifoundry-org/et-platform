@@ -753,7 +753,11 @@ int pvt_get_min_shire_vm_sample(PVTC_MINSHIRE_e min_id, MinShire_VM_sample *vm_s
     {
         sample_data = pReg_Pvtc[pvt_id]->vm.vm_individual[vm_id].sdif_data[ch_id + i];
         hilo = pReg_Pvtc[pvt_id]->vm.vm_individual[vm_id].alarm_and_hilo[ch_id + i].smpl_hilo;
-        if (VM_INDIVIDUAL_IP_SDIF_DATA_FAULT_GET(sample_data))
+        if (VM_INDIVIDUAL_IP_SDIF_DATA_FAULT_GET(sample_data)
+#if !FAST_BOOT
+            || VM_INDIVIDUAL_IP_SDIF_DATA_SAMPLE_DATA_GET(sample_data) == 0
+#endif
+        )
         {
             Log_Write(LOG_LEVEL_WARNING,
                       "Fault occured during VM sampling, sample data invalid\r\n");

@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14106] Add checks for the OTP override for PLL setting and also strap options
 - [FV-317] Changed asic_voltage struct elements to 16bits 
 - [SW-14592] PLL0, PLL1 and PSHIRE PLL reprogrammed to 100% target frequency in BL2
+- [SW-14480] Minion PVT VM reading of zero removed from Minion AVG calculation
 ### Deprecated
 ### Removed
 ### Fixed
