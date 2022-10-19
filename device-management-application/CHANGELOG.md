@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13832] Use DM_CMD_GET_MM_STATS instead of getTraceBufferServiceProcessor
 - Changed other Power from 5.75W to 3.75W
 - [FV-317] Updated asic_voltage element to be 16bits
+- [SW-14409] update deviceLayer version for Conan
 ### Deprecated
 ### Removed
 ### Fixed

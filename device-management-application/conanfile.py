@@ -40,7 +40,7 @@ class DeviceManagementApplicationConan(ConanFile):
     def requirements(self):
         self.requires("deviceManagement/[>=0.6.0 <1.0.0]")
         self.requires("esperantoTrace/[>=0.6.0 <1.0.0]")
-        self.requires("deviceLayer/[>=1.0.0 <2.0.0]")
+        self.requires("deviceLayer/[>=1.1.0 <2.0.0]")
         self.requires("hostUtils/[>=0.1.0 <1.0.0]")
         self.requires("deviceApi/[>=0.7.0 <1.0.0]")
 
