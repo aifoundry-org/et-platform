@@ -82,7 +82,8 @@ enum statw_resource_type {
 /*! \def MIN(x,y)
     \brief Returns min
 */
-#define MIN(x, y) (x == STATW_RESOURCE_DEFAULT_MIN) ? y : (x < y ? x : y)
+#define MIN(x, y) \
+    (y == STATW_RESOURCE_DEFAULT_MIN) ? x : (x == STATW_RESOURCE_DEFAULT_MIN) ? y : (x < y ? x : y)
 
 /*! \def STATW_CHECK_FOR_CONTINUED_EXEC_TRANSACTION
     \brief This is check if transaction is continued past the sampling interval end then end cycles will be equal to start cycles
