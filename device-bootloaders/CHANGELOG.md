@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14061] Added implementation of get_delta_voltage().
 - [SW-6851]: Add support to reset ETSOC through PMIC
 - Added more clear debug info for PMIC error
-- [SW-14309] Extend Flash template to add PMIC FW img 
+- [SW-14309] Extend Flash template to add PMIC FW img
 - [SW-14479] Add API to change module frequency and set safe state frequency to 300
 - [SW-14479] Add Macro to set use step clock to set minion frequency
 - [SW-14398]: Adding API to send CMD to update minion frequency
@@ -27,9 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14061] Separated the PMIC and SOC power registers.
 - [SW-14061] Reading ASIC voltage for Maxion from PVT.
 - [SW-14106] Add checks for the OTP override for PLL setting and also strap options
-- [FV-317] Changed asic_voltage struct elements to 16bits 
+- [FV-317] Changed asic_voltage struct elements to 16bits
 - [SW-14592] PLL0, PLL1 and PSHIRE PLL reprogrammed to 100% target frequency in BL2
 - [SW-14480] Minion PVT VM reading of zero removed from Minion AVG calculation
+- [SW-14615] Lowering the verbosity of some logs as a WA for trace issue.
 ### Deprecated
 ### Removed
 ### Fixed

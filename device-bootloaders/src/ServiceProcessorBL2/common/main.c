@@ -375,9 +375,13 @@ static void taskMain(void *pvParameters)
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
 
+    Log_Write(LOG_LEVEL_CRITICAL, "SP Alive..\r\n");
+
     while (1)
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "SP Alive..\r\n");
+        // TODO: SW-14210: Concurrent logging messes up trace
+        // Set log level to critical once resolved
+        Log_Write(LOG_LEVEL_DEBUG, "SP Alive..\r\n");
         // Print SP Hearbeat
         vTaskDelay(MAIN_DEFAULT_TIMEOUT_MSEC);
     }

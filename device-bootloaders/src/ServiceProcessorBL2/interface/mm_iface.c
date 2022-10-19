@@ -62,7 +62,8 @@ static bool mm2sp_wait_for_response(uint32_t timeout_ms)
         }
         else
         {
-            Log_Write(LOG_LEVEL_INFO, "MM2SP:Waiting for response...\r\n");
+            Log_Write(LOG_LEVEL_DEBUG, "MM2SP:Waiting for response...\r\n");
+
             /* Data not available, suspend the task for 1 ms time. and then check again. */
             vTaskDelay(pdMS_TO_TICKS(1));
             milliseconds_elapsed++;
