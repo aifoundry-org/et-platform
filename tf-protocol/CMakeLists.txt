@@ -8,7 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.5)
-project(tf-protocol VERSION 1.1.0 DESCRIPTION "Esperanto Test Framework Project" LANGUAGES C CXX)
+project(tf-protocol VERSION 1.2.0 DESCRIPTION "Esperanto Test Framework Project" LANGUAGES C CXX)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
