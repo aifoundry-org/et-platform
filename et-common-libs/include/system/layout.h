@@ -305,10 +305,8 @@ Offset by 1<<6 = 64 to distribute stack bases across different memory controller
 
 /* Define the address range in DRAM that the host runtime can explicitly manage
 the range is the START to (END-1). */
-/* TODO remove HOST_MANAGED_DRAM_SIZE define as it will be obtained in runtime */
 #define HOST_MANAGED_DRAM_START                 KERNEL_UMODE_ENTRY
-#define HOST_MANAGED_DRAM_END                   0x8400000000ULL
-#define HOST_MANAGED_DRAM_SIZE                  (HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START)
+#define HOST_MANAGED_DRAM_SIZE_MAX              0x800000000ULL /* 32 GB */
 /************************/
 /* Compile-time checks  */
 /************************/
