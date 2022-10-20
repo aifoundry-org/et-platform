@@ -14,12 +14,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [1.1.0] - 2022-10-20
+### Added
+### Changed
+- [SW-14154] Updating Kernel TF specification according to ops api
+### Deprecated
+### Removed
+### Fixed
+### Security
+
 ## [1.0.0] - 2022-09-07
 ### Added
 ### Changed
 - [SW-14044] Update module power to be 2 bytes in module power structure
     - This is a breaking change, TF_RSP_PMIC_MODULE_POWER now returns 16-bit power value instead of 8-bit.
-- [SW-14154]; Updating Kernel TF specification according to ops api
 ### Deprecated
 ### Removed
 ### Fixed
