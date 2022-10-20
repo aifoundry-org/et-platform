@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.6.0] - 2022-10-20
+### Added
 - [SW-13832]: Add support for DM_CMD_GET_MM_STATS
 - [SW-13851] add handling for DM_CMD_SET_STATS_RUN_CONTROL
 - [SW-14061] Added support for GET_ASIC_VOLTAGES command.
