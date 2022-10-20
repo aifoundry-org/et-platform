@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.10.0] - 2022-10-20
+### Added
 - [SW-14288] Adding support for DM get asic voltage and set module voltage commands in loopback driver.
 - [SW-14306] Add ETSOC reset support.
 - Updated conanfile to get version from VERSION file.
