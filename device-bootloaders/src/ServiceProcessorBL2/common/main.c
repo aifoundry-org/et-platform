@@ -144,18 +144,10 @@ static void taskMain(void *pvParameters)
     minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
     Minion_Set_Active_Shire_Mask(minion_shires_mask);
 
-    /* Print PVT sampled values */
-    pvt_print_temperature_sampled_values(PVTC_MINION_SHIRE);
-    pvt_print_voltage_sampled_values(PVTC_MINION_SHIRE);
-
     // Initialize Minions
     Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]Initialize Minion Shire\n");
     status = Initialize_Minions(minion_shires_mask);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Minion initialization failed!")
-
-    /* Print PVT sampled values */
-    pvt_print_temperature_sampled_values(PVTC_MINION_SHIRE);
-    pvt_print_voltage_sampled_values(PVTC_MINION_SHIRE);
 
     /* initialize minion debug component `*/
     minion_debug_init();
@@ -284,10 +276,6 @@ static void taskMain(void *pvParameters)
 #if TEST_FRAMEWORK
     Log_Write(LOG_LEVEL_INFO, "Entering TF_BL2_ENTRY_FOR_SP_MM intercept.\r\n");
 
-    /* Print PVT sampled values */
-    pvt_print_temperature_sampled_values(PVTC_MINION_SHIRE);
-    pvt_print_voltage_sampled_values(PVTC_MINION_SHIRE);
-
     /* Control does not return from call below */
     /* if TF_Interception_Point is set by host to TF_BL2_ENTRY_FOR_SP_MM .. */
     TF_Wait_And_Process_TF_Cmds(TF_BL2_ENTRY_FOR_SP_MM);
@@ -349,6 +337,8 @@ static void taskMain(void *pvParameters)
     Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]set_system_voltages\n");
     set_system_voltages();
 
+    /* Initialize and start continuous sampling on PVT sensors */
+    pvt_init();
     /* Print system operating point */
     print_system_operating_point();
 
@@ -593,9 +583,6 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 #else
     Log_Init(LOG_LEVEL_INFO);
 #endif
-
-    /* Initialize and start continuous sampling on PVT sensors */
-    pvt_init();
 
 #if TEST_FRAMEWORK
     // Control does not return from call below
