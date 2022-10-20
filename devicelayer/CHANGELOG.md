@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 
 ## [Unreleased]
-
 ### Added
-- [SW-14409] Added new method reinitDeviceInstance() which facilitates single device reinitialization.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+## [1.1.0] - 2022-10-20
+### Added
+- [SW-14409] Added new method reinitDeviceInstance() which facilitates single device reinitialization. Note, the declaration of this interface is non pure virtual in order to not introduce a breaking change. The default implementation will throw an exception.
+- [SW-14542] Added a new method hintInactivity which indicates to the device that the host does not expect activity. Currently there is only a sysemu based implementation of this API, which is useful to avoid wasting CPU cycles emulating nothing.
 ### Changed
 ### Deprecated
 ### Removed

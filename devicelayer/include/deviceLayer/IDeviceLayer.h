@@ -372,14 +372,14 @@ public:
   /// and service processor will be reinitialized.
   /// @param[in] timeout the operation will be aborted if time exceeds given timeout
   ///
-  virtual void reinitDeviceInstance(int device, bool masterMinionOnly, std::chrono::milliseconds timeout) = 0;
+  virtual void reinitDeviceInstance(int device, bool masterMinionOnly, std::chrono::milliseconds timeout);
 
   /// \brief Hints the underlying device that we don't have anything to process, so it could potentially go idle / low
   /// power consumption.
   ///
   /// @param[in] device the device to be hinted
   ///
-  virtual void hintInactivity(int device) = 0;
+  virtual void hintInactivity(int device);
 };
 
 class IDeviceLayer : public IDeviceAsync, public IDeviceSync {

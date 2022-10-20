@@ -31,3 +31,11 @@ std::unique_ptr<IDeviceLayer> IDeviceLayer::createPcieDeviceLayer(bool enableMas
                                                                   bool enableServiceProcessor) {
   return std::make_unique<DevicePcie>(enableMasterMinion, enableServiceProcessor);
 }
+
+void IDeviceSync::reinitDeviceInstance(int, bool, std::chrono::milliseconds) {
+  throw Exception("Not implemented reinitDeviceInstance");
+}
+
+void IDeviceSync::hintInactivity(int) {
+  // do nothing by default
+}

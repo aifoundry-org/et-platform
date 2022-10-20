@@ -813,7 +813,4 @@ void DevicePcie::reinitDeviceInstance(int device, bool masterMinionOnly, std::ch
   teardownDeviceInfo(deviceInfo, mngmtEnabled_ && !masterMinionOnly, opsEnabled_);
   setupDeviceInfo(device, deviceInfo, mngmtEnabled_ && !masterMinionOnly, opsEnabled_, timeout);
 }
-void DevicePcie::hintInactivity(int) {
-  // not implemented for DevicePcie
-}
 } // namespace dev
