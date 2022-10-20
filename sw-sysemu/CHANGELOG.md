@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
-- [SW-14481] (Conan) libsysemu component to require libfpu
-- [SW-14434] (Conan) CI now generates Debug & Release pkgs
 ### Deprecated
 ### Removed
 ### Fixed
@@ -20,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-13986] Added pause / resume API to hint sysemu when it can put the main simulation thread to sleep, because there is nothing useful to be simulated (so avoid wasting CPU cycles doing nothing useful).
 ### Changed
+- [SW-14481] (Conan) libsysemu component to require libfpu
+- [SW-14434] (Conan) CI now generates Debug & Release pkgs
 ### Deprecated
 ### Removed
 ### Fixed
