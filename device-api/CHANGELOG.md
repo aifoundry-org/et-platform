@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.8.0] - 2022-10-20
+### Added
 - [SW-13851] add DM command SET_STATS_RUN_CONTROL and struct device_mgmt_stats_run_control_cmd
 - [SW-14061] Adding DM_CMD_GET_ASIC_VOLTAGE.
 - [SW-14061] Added device_mgmt_get_asic_voltage_cmd_t and device_mgmt_get_asic_voltage_rsp_t.
@@ -15,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14061] Re-arranging commands according to their category.
 - Updating the gitlab-ci-common to the latest reference.
 - [SW-14154]: Changing duration cycles to use 64 bits
-- [FV-317] Changed Device Management API to asic_voltage from uint8_t to uint16_t 
+- [FV-317] Changed Device Management API to asic_voltage from uint8_t to uint16_t
 ### Deprecated
 ### Removed
 - [SW-14061] Removed deprecated device_mgmt_module_voltage_cmd and device_mgmt_module_voltage_rsp.
