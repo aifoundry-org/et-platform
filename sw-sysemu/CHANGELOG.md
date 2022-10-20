@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Allocate sysemu instance on the heap to fix segfaults
 ### Security
-## [0.5.0] - 2022-10-19
+## [0.5.0] - 2022-10-20
 ### Added
 - [SW-13986] Added pause / resume API to hint sysemu when it can put the main simulation thread to sleep, because there is nothing useful to be simulated (so avoid wasting CPU cycles doing nothing useful).
 ### Changed
