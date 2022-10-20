@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.11.0] - 2022-10-20
+### Added
 - [SW-13851] Add SP2MM_CMD_MM_STATS_RUN_CONTROL command and response.
 - [SW-14508] Adding get memory size command from MM to SP interface and replace HOST_MANAGED_DRAM_SIZE with ddr_get_memory_size
 - [SW-14508] Removing hardcoded DRAM size and adding MAX size define to validate DDR size
