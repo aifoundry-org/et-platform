@@ -12,14 +12,15 @@
 #include "minion_debug.h"
 #include "FreeRTOS.h"
 #include "queue.h"
+#include "mem_controller.h"
 
 extern QueueHandle_t q_dm_mdi_bp_notify_handle;
 
-static const mem_region mdi_debug_access_mem_region[DEBUG_ACCESS_MEM_REGION_COUNT] = {
+static mem_region mdi_debug_access_mem_region[DEBUG_ACCESS_MEM_REGION_COUNT] = {
     /* MEMORY REGION 1 - DRAM                                 */
     {
         HOST_MANAGED_DRAM_START, /* Start  Address   */
-        HOST_MANAGED_DRAM_SIZE   /* Size             */
+        0                        /* Size will be populated in init function */
     },
 
     /* MEMORY REGION 2 - Worker Minion FW SData region */
@@ -58,6 +59,23 @@ static const mem_region mdi_debug_access_mem_region[DEBUG_ACCESS_MEM_REGION_COUN
         FW_SMODE_STACK_BASE /* Size             */
     },
 };
+
+int32_t minion_debug_init(void)
+{
+    struct ddr_mem_info_t *mem_info;
+
+    /* get DDR size and update debug memory region size */
+    mem_info = mem_controller_get_ddr_info();
+    mdi_debug_access_mem_region[0].size =
+        mem_info->ddr_mem_size - (KERNEL_UMODE_ENTRY - LOW_MCODE_SUBREGION_BASE);
+    Log_Write(
+        LOG_LEVEL_CRITICAL,
+        "mem_info->ddr_mem_size %lX mdi_debug_access_mem_region[0].size %lX KERNEL_UMODE_ENTRY %llX LOW_OS_SUBREGION_BASE %llX",
+        mem_info->ddr_mem_size, mdi_debug_access_mem_region[0].size, KERNEL_UMODE_ENTRY,
+        LOW_OS_SUBREGION_BASE);
+
+    return STATUS_SUCCESS;
+}
 
 static bool mdi_debug_access_addr_in_valid_range(uint64_t addr)
 {

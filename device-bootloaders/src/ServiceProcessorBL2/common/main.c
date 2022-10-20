@@ -42,7 +42,7 @@
 #include "dm_event_control.h"
 #include "bl2_crypto.h"
 #include "bl2_asset_trk.h"
-
+#include "minion_debug.h"
 #include "command_dispatcher.h"
 
 #include "trace.h"
@@ -156,6 +156,9 @@ static void taskMain(void *pvParameters)
     /* Print PVT sampled values */
     pvt_print_temperature_sampled_values(PVTC_MINION_SHIRE);
     pvt_print_voltage_sampled_values(PVTC_MINION_SHIRE);
+
+    /* initialize minion debug component `*/
+    minion_debug_init();
 
     // Initialize Host to Service Processor Interface
 #if !TEST_FRAMEWORK

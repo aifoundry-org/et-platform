@@ -91,6 +91,12 @@
 #define CHECK_MEMSHIRE_ID(memshire)
 #endif
 
+/* DDR size values */
+#define SIZE_4GB  0x0000000100000000ULL
+#define SIZE_8GB  0x0000000200000000ULL
+#define SIZE_16GB 0x0000000400000000ULL
+#define SIZE_32GB 0x0000000800000000ULL
+
 /**
  * @enum ms_status_t
  * @brief Enum defines for memory status
@@ -131,10 +137,31 @@ typedef enum
 typedef enum
 {
     DDR_CAPACITY_4GB,
-    DDR_CAPACITY_8GB,
-    DDR_CAPACITY_16GB,
-    DDR_CAPACITY_32GB,
+    DDR_CAPACITY_8GB = 0x2,
+    DDR_CAPACITY_16GB = 0x4,
+    DDR_CAPACITY_32GB = 0x6,
 } ddr_capacity_t;
+
+/**
+ * @enum ddr_vendor_t
+ * @brief Vendor enum defines for DDR memory
+ */
+typedef enum
+{
+    DDR_VENDOR_MICRON,
+    DDR_VENDOR_SKHYNIX,
+    DDR_VENDOR_SAMSUNG,
+    DDR_VENDOR_UNDEF,
+} ddr_vendor_t;
+
+/*! \struct dma_mem_region
+    \brief Structure for a memory region, used to verify DMA bounds check.
+*/
+struct ddr_mem_info_t
+{
+    uint64_t ddr_mem_size;
+    uint32_t ddr_vendor_id;
+};
 
 /**
  * @struct DDR_MODE
@@ -362,5 +389,26 @@ void print_memshire_pll_lock_monitors(void);
     \return none
 */
 void clear_memshire_pll_lock_monitors(void);
+
+/*! \fn uint32_t ms_verify_ddr_density (uint32_t memshire)
+    \brief This function returns memory capacity 
+    \param none
+    \return none
+*/
+uint32_t ms_verify_ddr_density(uint32_t memshire);
+
+/*! \fn void clear_memshire_pll_lock_monitors(void)
+    \brief This function return DDR vendor ID
+    \param none
+    \return none
+*/
+uint32_t ms_verify_ddr_vendor(uint32_t memshire);
+
+/*! \fn struct ddr_mem_info_t *mem_controller_get_ddr_info(void)
+    \brief This function return DDR information including density and vendor ID
+    \param None return pointer to hold mem info
+    \return return pointer to mem info
+*/
+struct ddr_mem_info_t *mem_controller_get_ddr_info(void);
 
 #endif

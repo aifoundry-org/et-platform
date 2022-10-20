@@ -43,6 +43,8 @@ static uint8_t min_lvdpll_mode_933MHz[3] = { 28, 29, 30 };
 /* MEMSHIRE PLL frequency modes (1066MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
 static uint8_t min_lvdpll_mode_1066MHz[3] = { 19, 20, 21 };
 
+static struct ddr_mem_info_t ddr_mem_info = { 0 };
+
 static void ddr_error_threshold_isr(void);
 static void ddr_error_crit_isr(void);
 static void memshire_pll_output_enable(uint32_t memshire)
@@ -189,6 +191,7 @@ int ddr_config(const DDR_MODE *ddr_mode)
     uint32_t config_4gb;
     uint32_t config_8gb;
     uint32_t config_32gb;
+    uint32_t ddr_density;
     bool config_training;
     bool config_training_2d;
 
@@ -216,36 +219,42 @@ int ddr_config(const DDR_MODE *ddr_mode)
     {
         return -1;
     }
+    /* TODO: use ms_verify_ddr_density to get DDR density
+    ddr_density = ms_verify_ddr_density(MEMSHIRE_BASE); */
+    ddr_density = ddr_mode->capacity;
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: DRAM Capacity = 0x%x\n", MEMSHIRE_BASE,
+              ddr_density);
+    switch (ddr_density)
+    {
+        case DDR_CAPACITY_32GB:
+            ddr_mem_info.ddr_mem_size = SIZE_32GB;
+            config_4gb = 0;
+            config_8gb = 0;
+            config_32gb = 1;
+            break;
+        case DDR_CAPACITY_16GB:
+            ddr_mem_info.ddr_mem_size = SIZE_16GB;
+            config_4gb = 0;
+            config_8gb = 0;
+            config_32gb = 0;
+            break;
+        case DDR_CAPACITY_8GB:
+            ddr_mem_info.ddr_mem_size = SIZE_8GB;
+            config_4gb = 0;
+            config_8gb = 1;
+            config_32gb = 0;
+            break;
+        default:
+            ddr_mem_info.ddr_mem_size = SIZE_4GB;
+            config_4gb = 1;
+            config_8gb = 0;
+            config_32gb = 0;
+            break;
+    }
 
-    // decide capacity parameters
-    if (ddr_mode->capacity == DDR_CAPACITY_4GB)
-    {
-        config_4gb = 1;
-        config_8gb = 0;
-        config_32gb = 0;
-    }
-    else if (ddr_mode->capacity == DDR_CAPACITY_8GB)
-    {
-        config_4gb = 0;
-        config_8gb = 1;
-        config_32gb = 0;
-    }
-    else if (ddr_mode->capacity == DDR_CAPACITY_16GB)
-    {
-        config_4gb = 0;
-        config_8gb = 0;
-        config_32gb = 0;
-    }
-    else if (ddr_mode->capacity == DDR_CAPACITY_32GB)
-    {
-        config_4gb = 0;
-        config_8gb = 0;
-        config_32gb = 1;
-    }
-    else
-    {
-        return -1;
-    }
+    ddr_mem_info.ddr_vendor_id = ms_verify_ddr_vendor(MEMSHIRE_BASE);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: DRAM Vendor = 0x%x\n", MEMSHIRE_BASE,
+              ddr_mem_info.ddr_vendor_id);
 
     config_ecc = ddr_mode->ecc ? 1 : 0;
     config_training = ddr_mode->training ? 1 : 0;
@@ -621,6 +630,9 @@ int32_t configure_memshire(void)
         Log_Write(LOG_LEVEL_ERROR, "ddr_config() failed!\n");
         return MEMSHIRE_DDR_CONFIG_ERROR;
     }
+#else
+    /* TODO update the size on runtime for sysemu */
+    ddr_mem_info.ddr_mem_size = SIZE_16GB;
 #endif
     Log_Write(LOG_LEVEL_INFO, "DRAM ready.\n");
     if (ddr_mode.frequency == DDR_FREQUENCY_800MHZ)
@@ -687,4 +699,10 @@ void clear_memshire_pll_lock_monitors(void)
 {
     memshire_pll_clear_lock_monitor(0);
     memshire_pll_clear_lock_monitor(4);
+}
+
+struct ddr_mem_info_t *mem_controller_get_ddr_info(void)
+{
+    /* return memory information including density and vendor id*/
+    return &ddr_mem_info;
 }

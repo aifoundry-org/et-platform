@@ -25,6 +25,11 @@
 
 #include "mem_controller.h"
 
+#define MR_DENSITY         8
+#define MR_VENDOR_ID       5
+#define SET_MR_ADDRESS(mr) (mr << 8)
+#define MR_SET_READ        ((0 << 31) | 1)
+#define MR_READ            (uint32_t)((1 << 31) | 1)
 /*
 ** Private functions/macros/variables used only in this file
 */
@@ -930,4 +935,182 @@ void mem_disable_unused_clocks(void)
                       ms_write_ddrc_reg(memshire, 0, SS_clk_rst_ctrl,
                                         0xffffe3f5); // turn off pclks and scrub clocks
     )
+}
+
+//-----------------------------------------------------
+// Check DRAM Density (MR8)
+//  - initiate MRR to U0/MR8
+//-----------------------------------------------------
+//
+// MR8 has the DRAM density and type
+// for the micron part it is 0x10 for 32gb and 0x18 for 64gb
+//
+uint32_t ms_verify_ddr_density(uint32_t memshire)
+{
+    uint32_t value;
+    uint32_t status = 0;
+
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][ms_verify_ddr_density] Reading MR %d\n", memshire,
+              MR_DENSITY);
+
+    // Poll MSTAT to ensure the bus isn't busy.
+    uint32_t busy = 1;
+    while (busy == 1)
+    {
+        busy = (uint32_t)ms_read_ddrc_reg(memshire, 0, MRSTAT) & 0x1;
+        usdelay(10);
+    }
+    // Set MR Address in MRCTRL1[15:8]
+    value = ms_read_ddrc_reg(memshire, 0, MRCTRL1);
+    value |= SET_MR_ADDRESS(MR_DENSITY);
+    ms_write_ddrc_reg(memshire, 0, MRCTRL1, value);
+
+    // set type = read in MRCTRL0
+    ms_write_ddrc_reg(memshire, 0, MRCTRL0, MR_SET_READ);
+
+    // Clear status before initiating read.
+    ms_write_esr(memshire, ddrc_mrr_status, 0x0);
+
+    // setting bit 31 causes mrr to occur
+    ms_write_ddrc_reg(memshire, 0, MRCTRL0, MR_READ);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][ms_verify_ddr_density] Waiting for status.\n", memshire);
+    //wait for mrr u0 status to be set
+    //ms_poll_ddrc_reg(memshire,0,ddrc_mrr_status,0x1,0x1,100,1); // RHS: This don't work
+
+    while (status == 0)
+    {
+        status = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
+        usdelay(10);
+    }
+
+    value = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
+    //evl_log [format "TCL: Read %x from mrr_status,"  $data];
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][ms_verify_ddr_density] ddrc_mrr_status=%x\n", memshire,
+              value);
+    // FUTURE : should also check bit 2 = 0
+    //check_esr ddrc_mrr_status 0x1 0x1
+    value = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
+    if (value != 0x1)
+    {
+        Log_Write(LOG_LEVEL_DEBUG,
+                  "DDR:[%d][ms_verify_ddr_density] ERROR: ddrc_mrr_status=%x expecting 0x1\n",
+                  memshire, value);
+    }
+    //check_esr ddrc_u0_mrr_data 0x10|0x18 (32gb|64gb)
+    value = (uint32_t)ms_read_esr(memshire, ddrc_u0_mrr_data);
+    uint32_t density = 0;
+    density = (uint32_t)((value >> 2) & 0xf);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][ms_verify_ddr_density] ddrc_mrr_data=%x, density=%x \n",
+              memshire, value, density);
+    if (density == 0x6)
+    {
+        Log_Write(LOG_LEVEL_DEBUG,
+                  "DDR:[%d][ms_verify_ddr_density] Density=64gb/32GB, density=%x \n", memshire,
+                  density);
+    }
+    else if (density == 0x4)
+    {
+        Log_Write(LOG_LEVEL_DEBUG,
+                  "DDR:[%d][ms_verify_ddr_density] Density=32gb/16GB, density=%x \n", memshire,
+                  density);
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_DEBUG,
+                  "DDR:[%d][ms_verify_ddr_density] ERROR: Density=??, density=%x \n", memshire,
+                  density);
+    }
+
+    //write_esr ddrc_mrr_status 0x0
+    ms_write_esr(memshire, ddrc_mrr_status, 0x0);
+
+    //check_esr ddrc_mrr_status 0x0
+    value = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
+    if (value != 0x0)
+    {
+        Log_Write(LOG_LEVEL_DEBUG,
+                  "DDR:[%d][ms_verify_ddr_density] ERROR: ddrc_mrr_status=%x expecting 0x0\n",
+                  memshire, value);
+    }
+    return density;
+}
+
+//-----------------------------------------------------
+// Check DRAM Vendor ID (MR5)
+//  - initiate MRR to U0/MR5
+//-----------------------------------------------------
+//
+// MR5 has the DRAM Vendor ID
+// Micron = 0xFF
+// SK-Hynix = 0x06
+//
+uint32_t ms_verify_ddr_vendor(uint32_t memshire)
+{
+    uint32_t value;
+    uint32_t status = 0;
+    uint32_t busy = 1;
+    uint32_t vendor = 0;
+
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][ms_verify_ddr_vendor] Reading MR %d\n", memshire,
+              MR_VENDOR_ID);
+
+    // Poll MSTAT to ensure the bus isn't busy.
+
+    while (busy == 1)
+    {
+        busy = (uint32_t)ms_read_ddrc_reg(memshire, 0, MRSTAT) & 0x1;
+        usdelay(10);
+    }
+    // Set MR Address in MRCTRL1[15:8]
+    value = ms_read_ddrc_reg(memshire, 0, MRCTRL1);
+    value |= SET_MR_ADDRESS(MR_VENDOR_ID);
+    ms_write_ddrc_reg(memshire, 0, MRCTRL1, value);
+
+    // set type = read in MRCTRL0
+    ms_write_ddrc_reg(memshire, 0, MRCTRL0, MR_SET_READ);
+
+    // Clear status before initiating read.
+    ms_write_esr(memshire, ddrc_mrr_status, 0x0);
+
+    // setting bit 31 causes mrr to occur
+    ms_write_ddrc_reg(memshire, 0, MRCTRL0, MR_READ);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][ms_verify_ddr_vendor] Waiting for status.\n", memshire);
+    //wait for mrr u0 status to be set
+    //ms_poll_ddrc_reg(memshire,0,ddrc_mrr_status,0x1,0x1,100,1); // RHS: This don't work
+
+    while (status == 0)
+    {
+        status = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
+        usdelay(10);
+    }
+    //poll_esr ddrc_mrr_status 0x1 0x1 100
+    value = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
+    //evl_log [format "TCL: Read %x from mrr_status,"  $value];
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][ms_verify_ddr_vendor] ddrc_mrr_status=%x\n", memshire,
+              value);
+    // FUTURE : should also check bit 2 = 0
+    //check_esr ddrc_mrr_status 0x1 0x1
+    value = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
+    if (value != 0x1)
+    {
+        Log_Write(LOG_LEVEL_DEBUG,
+                  "DDR:[%d][ms_verify_ddr_vendor] ERROR: ddrc_mrr_status=%x expecting 0x1\n",
+                  memshire, value);
+    }
+    //check_esr ddrc_u0_mrr_data 0x10|0x18 (32gb|64gb)
+    value = (uint32_t)ms_read_esr(memshire, ddrc_u0_mrr_data);
+    vendor = (uint32_t)(value & 0xff);
+
+    //write_esr ddrc_mrr_status 0x0
+    ms_write_esr(memshire, ddrc_mrr_status, 0x0);
+
+    //check_esr ddrc_mrr_status 0x0
+    value = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
+    if (value != 0x0)
+    {
+        Log_Write(LOG_LEVEL_DEBUG,
+                  "DDR:[%d][ms_verify_ddr_vendor] ERROR: ddrc_mrr_status=%x expecting 0x0\n",
+                  memshire, value);
+    }
+    return vendor;
 }

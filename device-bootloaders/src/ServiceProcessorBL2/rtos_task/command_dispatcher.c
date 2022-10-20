@@ -478,6 +478,31 @@ static void mm2sp_heartbeat_event_handler(const void *cmd_buffer)
     Minion_State_MM_Heartbeat_Handler();
 }
 
+static void mm2sp_get_ddr_mem_size_cmd_handler(const void *cmd_buffer)
+{
+    const struct mm2sp_get_ddr_mem_size_t *cmd = cmd_buffer;
+    struct mm2sp_get_ddr_mem_size_rsp_t rsp;
+    struct ddr_mem_info_t *mem_info;
+    int status;
+
+    SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_DDR_MEM_SIZE,
+                             sizeof(struct mm2sp_get_ddr_mem_size_rsp_t),
+                             cmd->msg_hdr.issuing_hart_id)
+
+    /* get memory info from mem controller */
+    mem_info = mem_controller_get_ddr_info();
+    rsp.ddr_mem_size = mem_info->ddr_mem_size;
+
+    status = MM_Iface_Push_Rsp_To_MM2SP_CQ((void *)&rsp, sizeof(rsp));
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(
+            LOG_LEVEL_ERROR,
+            "mm2sp_get_ddr_mem_size_cmd_handler:MM_Iface_Push_Rsp_To_MM2SP_CQ:Cqueue push error:%d\n",
+            status);
+    }
+}
+
 static void mm_cmd_hdlr_task(void *pvParameters)
 {
     (void)pvParameters;
@@ -597,7 +622,9 @@ static void mm_cmd_hdlr_task(void *pvParameters)
                 case MM2SP_CMD_RESET_MINION:
                     mm2sp_minion_reset_handler(buffer);
                     break;
-
+                case MM2SP_CMD_GET_DDR_MEM_SIZE:
+                    mm2sp_get_ddr_mem_size_cmd_handler(buffer);
+                    break;
                 default:
                     Log_Write(LOG_LEVEL_ERROR, "[MM VQ] Invalid message id: %" PRIu16 "\r\n",
                               hdr->msg_id);

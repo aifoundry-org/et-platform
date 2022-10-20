@@ -27,6 +27,12 @@
 
 #define DEBUG_ACCESS_MEM_REGION_COUNT 7
 
+/*! \fn int32_t minion_debug_init(void)
+    \brief Function to configure MDI DDR region by requesting DDr size from SP.
+    \returns status of function call
+*/
+int32_t minion_debug_init(void);
+
 /*! \fn void minion_debug_request(tag_id_t tag_id, msg_id_t msg_id, void *buffer)
     \brief Function takes command ID as input from Host, and accordingly calls the respective minion debug
 *       run control/state inspection APIs.
