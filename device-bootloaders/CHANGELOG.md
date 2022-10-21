@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14480] Minion PVT VM reading of zero removed from Minion AVG calculation
 - [SW-14615] Lowering the verbosity of some logs as a WA for trace issue.
 - Temporarily disabling the read of vendor ID dynamically due to hang.
+- Increase the counter based timeout value for SPI flash accesses.
 ### Deprecated
 ### Removed
 ### Fixed
