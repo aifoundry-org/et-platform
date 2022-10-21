@@ -41,10 +41,10 @@ class RuntimeConan(ConanFile):
 
     def requirements(self):
         device_api = "deviceApi/0.6.0@"
-        device_layer = "deviceLayer/[>=0.3.0 <1.0.0]@"
+        device_layer = "deviceLayer/[>=1.1.0 <1.2.0]@"
         if self.options.with_tests:
             device_api += "#3e1a8064f37596b34be470b368556536"
-            device_layer += "#1d2eb12464a109ee1ba83a38bd4e1f6a"
+            device_layer += "#ffc0b1963da5bd4eb7a7189a1b8a6b73"
         self.requires(device_api)
         self.requires(device_layer)
         self.requires("hostUtils/[>=0.1.0 <1.0.0]")
@@ -58,7 +58,7 @@ class RuntimeConan(ConanFile):
 
         if self.options.with_tests:
             self.requires("gtest/1.10.0")
-            self.requires("sw-sysemu/0.2.1")
+            self.requires("sw-sysemu/0.5.0")
 
             self.requires("et-common-libs/0.9.0@#330284afd56b61ddd4c1b1dfde597b53")
             self.requires("device-minion-runtime/0.10.0#4bded86c8893468057a7600258151b23")
