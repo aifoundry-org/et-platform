@@ -252,7 +252,9 @@ int ddr_config(const DDR_MODE *ddr_mode)
             break;
     }
 
-    ddr_mem_info.ddr_vendor_id = ms_verify_ddr_vendor(MEMSHIRE_BASE);
+    /* TODO: Read vendor ID using ms_verify_ddr_vendor(MEMSHIRE_BASE) */
+    ddr_mem_info.ddr_vendor_id = 0xFF;
+
     Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: DRAM Vendor = 0x%x\n", MEMSHIRE_BASE,
               ddr_mem_info.ddr_vendor_id);
 
