@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 
 ## [Unreleased]
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
 
+## [0.7.0] - 2022-10-21
 ### Added
 - [SW-13832] Add new command DM_CMD_GET_MM_STATS to the commandCodeTable
 - [SW-13851] Add test for command DM_CMD_SET_DM_STATS_RUN_CONTROL
