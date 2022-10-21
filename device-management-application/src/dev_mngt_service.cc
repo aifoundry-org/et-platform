@@ -164,6 +164,9 @@ static std::array trace_types{"SP", "MM", "CM", "SPST", "MMST"};
 static std::array trace_ops{"disable", "enable", "extract", "reset", "to_memory", "to_uart"};
 static TraceBufferType given_trace_type;
 static std::string given_trace_ops;
+static bool trace_flag = false;
+
+static bool pci_slot_flag = false;
 
 // A namespace containing template for `bit_cast`. To be removed when `bit_cast` will be available
 namespace templ {
@@ -2153,16 +2156,9 @@ int main(int argc, char** argv) {
       }
       break;
 
-    case 'g': {
-      DMLib dml;
-      auto ret = dml.verifyDMLib();
-      if (ret != DM_STATUS_SUCCESS) {
-        DM_VLOG(HIGH) << "Failed to verify the DM lib: " << ret << std::endl;
-        return ret;
-      }
-      dml.printPciSlotName(node);
-      return 0;
-    }
+    case 'g':
+      pci_slot_flag = true;
+      break;
 
     case 'h':
       printUsage(argv[0]);
@@ -2227,12 +2223,11 @@ int main(int argc, char** argv) {
       }
       break;
     case 't':
-      if (!validTraceOperation()) {
+      if (trace_flag = validTraceOperation(); !trace_flag) {
         printTraceOperation(argv[0]);
         return -EINVAL;
       }
-      doTraceOperation();
-      return 0;
+      break;
     case 'f':
       if (!(frequencies_flag = validFrequencies())) {
         return -EINVAL;
@@ -2255,12 +2250,6 @@ int main(int argc, char** argv) {
     }
   }
 
-  if (!cmd_flag && !code_flag) {
-    DM_VLOG(HIGH) << "Aborting, must provide a command or code" << std::endl;
-    printUsage(argv[0]);
-    return -EINVAL;
-  }
-
   if (!node_flag) {
     DM_VLOG(HIGH) << "Aborting, must provide a device node" << std::endl;
     printUsage(argv[0]);
@@ -2269,6 +2258,28 @@ int main(int argc, char** argv) {
 
   if (!timeout_flag) {
     DM_VLOG(HIGH) << "Aborting, must provide a timeout value" << std::endl;
+    printUsage(argv[0]);
+    return -EINVAL;
+  }
+
+  if (trace_flag) {
+    doTraceOperation();
+    return 0;
+  }
+
+  if (pci_slot_flag) {
+    DMLib dml;
+    auto ret = dml.verifyDMLib();
+    if (ret != DM_STATUS_SUCCESS) {
+      DM_VLOG(HIGH) << "Failed to verify the DM lib: " << ret << std::endl;
+      return ret;
+    }
+    dml.printPciSlotName(node);
+    return 0;
+  }
+
+  if (!cmd_flag && !code_flag) {
+    DM_VLOG(HIGH) << "Aborting, must provide a command or code" << std::endl;
     printUsage(argv[0]);
     return -EINVAL;
   }

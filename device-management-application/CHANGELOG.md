@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix et-powertop regression of bar graph display of watts info via the 'w' command
 - [SW-14061] Fixing the conversion of binary to mV and mV to binary voltage values.
 - PCIE SS Voltage should use PCIe_LOGIC value
+- [SW-14633] dev_mngt_service: Behavior should be same regardless of the arguments ordering.
 ### Security
 
 ## [1.5.0] - 2022-09-05
