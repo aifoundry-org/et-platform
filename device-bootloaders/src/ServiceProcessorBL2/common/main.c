@@ -337,8 +337,6 @@ static void taskMain(void *pvParameters)
     Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]set_system_voltages\n");
     set_system_voltages();
 
-    /* Initialize and start continuous sampling on PVT sensors */
-    pvt_init();
     /* Print system operating point */
     print_system_operating_point();
 
@@ -583,6 +581,9 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
 #else
     Log_Init(LOG_LEVEL_INFO);
 #endif
+
+    /* Initialize and start continuous sampling on PVT sensors */
+    pvt_init();
 
 #if TEST_FRAMEWORK
     // Control does not return from call below

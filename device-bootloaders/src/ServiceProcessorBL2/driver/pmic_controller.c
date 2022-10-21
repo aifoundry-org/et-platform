@@ -1535,7 +1535,7 @@ int pmic_get_pmb_stats(struct pmb_stats_t *pmb_stats)
     int32_t status = STATUS_SUCCESS;
     uint32_t val = PMIC_I2C_PMB_STATS_SNAPSHOT_VALUE;
     /* write PMB register to generate snapshot of all stats and then read all stats*/
-    status = set_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS,(uint8_t *) &val, 4);
+    status = set_pmic_reg(PMIC_I2C_PMB_RW_ADDRESS, (uint8_t *)&val, 4);
 
     if (status == STATUS_SUCCESS)
     {
