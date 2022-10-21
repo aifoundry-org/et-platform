@@ -351,10 +351,6 @@ RESERVED
 */
 #define SP_IFACE_INVALID_RSP_ID -1707
 
-/*! \def SP_IFACE_INVALID_DDR_SIZE
-    \brief SP iface error code - Invalid DDR size
-*/
-#define SP_IFACE_INVALID_DDR_SIZE -1708
 /*************************************
  * Define CM Interface error codes.  *
  *************************************/
@@ -426,6 +422,11 @@ RESERVED
     \brief Failed to get DDR size from SP.
 */
 #define MM_CONFIG_GET_DDR_SIZE_SP_FAILED -2500
+
+/*! \def MM_CONFIG_INVALID_DDR_SIZE
+    \brief MM config - Invalid DDR size
+*/
+#define MM_CONFIG_INVALID_DDR_SIZE -2501
 
 /********************************** MASTER MINION ERROR CODES - END *************************************/
 

@@ -21,6 +21,9 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+/* mm_rt_svcs */
+#include <system/layout.h>
+
 /* mm specific headers */
 #include "services/log.h"
 #include "services/sp_iface.h"
@@ -63,13 +66,21 @@ int32_t MM_Config_Init(void)
     status = SP_Iface_Get_DDR_Memory_Info(&ddr_mem_size);
     if (status == STATUS_SUCCESS)
     {
-        /* save DDR size and DRAM end based on size in CB */
-        atomic_store_local_64(&MM_Config_CB.ddr_size, ddr_mem_size);
-        atomic_store_local_64(&MM_Config_CB.host_managed_dram_size,
-            (ddr_mem_size - (KERNEL_UMODE_ENTRY - LOW_MCODE_SUBREGION_BASE)));
-        atomic_store_local_64(&MM_Config_CB.host_managed_dram_end,
-            (HOST_MANAGED_DRAM_START +
-                (ddr_mem_size - (KERNEL_UMODE_ENTRY - LOW_MCODE_SUBREGION_BASE))));
+        /* Validate DDR size limit */
+        if (ddr_mem_size <= HOST_MANAGED_DRAM_SIZE_MAX)
+        {
+            /* Save DDR size and DRAM end based on size in CB */
+            atomic_store_local_64(&MM_Config_CB.ddr_size, ddr_mem_size);
+            atomic_store_local_64(&MM_Config_CB.host_managed_dram_size,
+                (ddr_mem_size - (KERNEL_UMODE_ENTRY - LOW_MCODE_SUBREGION_BASE)));
+            atomic_store_local_64(&MM_Config_CB.host_managed_dram_end,
+                (HOST_MANAGED_DRAM_START +
+                    (ddr_mem_size - (KERNEL_UMODE_ENTRY - LOW_MCODE_SUBREGION_BASE))));
+        }
+        else
+        {
+            status = MM_CONFIG_INVALID_DDR_SIZE;
+        }
     }
     else
     {

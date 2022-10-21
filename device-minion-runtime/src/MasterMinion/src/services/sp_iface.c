@@ -985,15 +985,7 @@ int32_t SP_Iface_Get_DDR_Memory_Info(uint64_t *mem_size)
             {
                 const struct mm2sp_get_ddr_mem_size_rsp_t *rsp = (void *)rsp_buff;
 
-                /* validate DDR size */
-                if (rsp->ddr_mem_size > HOST_MANAGED_DRAM_SIZE_MAX)
-                {
-                    status = SP_IFACE_INVALID_DDR_SIZE;
-                }
-                else
-                {
-                    *mem_size = rsp->ddr_mem_size;
-                }
+                *mem_size = rsp->ddr_mem_size;
             }
             else
             {
