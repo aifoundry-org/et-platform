@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 ### Security
+
 ## [1.1.0] - 2022-10-20
 ### Added
 - [SW-14409] Added new method reinitDeviceInstance() which facilitates single device reinitialization. Note, the declaration of this interface is non pure virtual in order to not introduce a breaking change. The default implementation will throw an exception.
