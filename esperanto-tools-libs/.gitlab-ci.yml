@@ -30,8 +30,7 @@ default:
 variables:
   # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
   #TODO put back develop/runtime when jvera/merge-master is fully merged
-  #SW_PLATFORM_BRANCH: develop/runtime
-  SW_PLATFORM_BRANCH: jvera/merge-master
+  SW_PLATFORM_BRANCH: develop/runtime
   PIPELINE_CI_SUBPROJECT: esperanto-tools-libs
 
 
