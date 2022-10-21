@@ -144,17 +144,12 @@ int32_t CW_Init(void)
     uint64_t booted_shires_mask = 0;
     uint64_t sip;
 
-    /* Obtain the number of shires to be used from SP and initialize the CW control block */
-    status = SP_Iface_Get_Shire_Mask_And_Strap(&shire_mask, &lvdpll_strap);
-    if (status != STATUS_SUCCESS)
-    {
-        return status;
-    }
+    /* Obtain the number of shires to be used and lvdpll strap value */
+    shire_mask = MM_Config_Get_CM_Shire_Mask();
+    lvdpll_strap = MM_Config_Get_Lvdpll_Strap();
 
     /* Reset the globals and clear the whole shire mask */
     CW_RESET_CB(0xFFFFFFFFFFFFFFFF)
-
-    Log_Write(LOG_LEVEL_DEBUG, "CW_Init:Shire mask from SP: 0x%lx\r\n", shire_mask);
 
     /* Set the bit for MM shire sync Minions */
     shire_mask = MASK_SET_BIT(shire_mask, MASTER_SHIRE);

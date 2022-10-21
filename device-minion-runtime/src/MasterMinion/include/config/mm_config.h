@@ -420,4 +420,18 @@ uint64_t MM_Config_Get_Host_Managed_DRAM_Size(void);
 */
 uint64_t MM_Config_Get_DRAM_End_Address(void);
 
+/*! \fn uint64_t MM_Config_Get_CM_Shire_Mask(void)
+    \brief This function returns CM Shire mask.
+    \param None
+    \return CM shire mask
+*/
+uint64_t MM_Config_Get_CM_Shire_Mask(void);
+
+/*! \fn uint8_t MM_Config_Get_Lvdpll_Strap(void)
+    \brief This function returns lvdll strap value
+    \param None
+    \return lvdpll strap
+*/
+uint8_t MM_Config_Get_Lvdpll_Strap(void);
+
 #endif /* __MM_CONFIG_H__ */

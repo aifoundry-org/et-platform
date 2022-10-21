@@ -18,6 +18,20 @@
 #define COMMON_UTILS_H
 
 #include <stdio.h>
+#include <inttypes.h>
+
+/*! \enum mprot_field_e
+    \brief enum defining MPROT register fields.
+*/
+enum mprot_field {
+    MPROT_FIELD_IO_ACCESS_MODE = 0,
+    MPROT_FIELD_DISABLE_PCIE_ACCESS,
+    MPROT_FIELD_DISABLE_OSBOX_ACCESS,
+    MPROT_FIELD_DRAM_SIZE,
+    MPROT_FIELD_SECURE_MEMORY
+};
+
+typedef uint64_t mprot_field_e;
 
 /*! \fn static inline uint32_t get_set_bit_count(uint64_t mask)
     \brief Count number of set bits in given bit mask

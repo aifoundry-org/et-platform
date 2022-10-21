@@ -11,8 +11,9 @@
 */
 
 /* machine minion specific headers */
-#include "minion_cfg.h"
 #include "config/mm_config.h"
+#include "minion_cfg.h"
+#include "common_utils.h"
 
 /* minion_bl */
 #include <etsoc/isa/esr_defines.h>
@@ -39,13 +40,6 @@ volatile struct pll_conf_reg_t *get_pll_conf_reg(void)
     return &pll_conf_reg;
 }
 
-// get_highest_set_bit_offset
-// This function returns highest set bit offset
-static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
-{
-    return (uint8_t)(64 - __builtin_clzl(shire_mask));
-}
-
 // Configure Minion PLL to specific mode. This uses the broadcast mechanism hence all Minions
 // will be programmed to the same frequency.
 static int64_t minion_configure_cold_boot_pll(uint64_t shire_mask, uint8_t lvdpll_strap)
@@ -55,7 +49,7 @@ static int64_t minion_configure_cold_boot_pll(uint64_t shire_mask, uint8_t lvdpl
     if (0 != shire_mask)
     {
         atomic_store_local_8(
-            &(get_pll_conf_reg()->num_shires), get_highest_set_bit_offset(shire_mask));
+            &(get_pll_conf_reg()->num_shires), (uint8_t)get_msb_set_pos(shire_mask));
     }
     atomic_store_local_64(&(get_pll_conf_reg()->booted_shire_mask), shire_mask);
 
@@ -137,7 +131,7 @@ void disable_neigh(uint64_t shires_mask)
 {
     uint64_t disable_neig_mask;
     uint64_t minion_shires_mask = shires_mask;
-    uint8_t num_shires = get_highest_set_bit_offset(shires_mask);
+    uint32_t num_shires = get_msb_set_pos(shires_mask);
 
     for (uint8_t shire_id = 0; shire_id <= num_shires; shire_id++)
     {
@@ -167,7 +161,7 @@ int64_t enable_neigh(uint64_t shires_mask)
 {
     uint64_t enable_neig_mask;
     uint64_t minion_shires_mask = shires_mask;
-    uint8_t num_shires = get_highest_set_bit_offset(shires_mask);
+    uint32_t num_shires = get_msb_set_pos(shires_mask);
 
     for (uint8_t shire_id = 0; shire_id <= num_shires; shire_id++)
     {
