@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.6.0] - 2022-10-21
+### Added
 - [SW-13851] et-powertop: Add support to reset device stats.
 - [SW-14061] dev_mngt_service: Added support for DM_CMD_GET_ASIC_VOLTAGE service.
 - [SW-14061] et-powertop: Added support for displaying ASIC voltages.
