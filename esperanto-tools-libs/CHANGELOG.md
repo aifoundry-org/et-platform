@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unrealeased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+## [0.6.0]
+### Added
 - [SW-14117] added support for benchmark tool using new runtime server
 - [SW-14093] added new docker image which will host the server multiprocess instance.
 - [SW-14053] added new kernel error handling from device api 0.6.0. Bumped system-sw projects to work with device api 0.6.0.
@@ -17,12 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14434] (Conan) CI now generates Debug & Release pkgs
 - *** Breaking Change *** changed ArchRevision from DeviceProperties to be consistent with DeviceLayer
 - Adapted to deviceLayer breaking changes
-### Deprecated
-### Removed
 ### Fixed
 - [SW-14527] fixed race condition on dispatch event where the profiler could be gone if the runtime is already destroyed.
 - [SW-13976] NOSYSEMU tests tunned down, now running al PCIE MP tests (including "NOSYSEMU" tests) takes less than 6mins.
-### Security
 ## [0.5.0]
 ### Added
 ### Changed
