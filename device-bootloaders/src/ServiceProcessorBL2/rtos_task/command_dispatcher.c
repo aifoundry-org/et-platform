@@ -482,7 +482,7 @@ static void mm2sp_get_ddr_mem_size_cmd_handler(const void *cmd_buffer)
 {
     const struct mm2sp_get_ddr_mem_size_t *cmd = cmd_buffer;
     struct mm2sp_get_ddr_mem_size_rsp_t rsp;
-    struct ddr_mem_info_t *mem_info;
+    const struct ddr_mem_info_t *mem_info;
     int status;
 
     SP_MM_IFACE_INIT_MSG_HDR(&rsp.msg_hdr, MM2SP_RSP_GET_DDR_MEM_SIZE,

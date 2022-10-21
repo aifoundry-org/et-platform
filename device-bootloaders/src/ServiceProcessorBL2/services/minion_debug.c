@@ -62,7 +62,7 @@ static mem_region mdi_debug_access_mem_region[DEBUG_ACCESS_MEM_REGION_COUNT] = {
 
 int32_t minion_debug_init(void)
 {
-    struct ddr_mem_info_t *mem_info;
+    const struct ddr_mem_info_t *mem_info;
 
     /* get DDR size and update debug memory region size */
     mem_info = mem_controller_get_ddr_info();
@@ -137,7 +137,7 @@ static void send_mdi_hart_selection_response(tag_id_t tag_id, msg_id_t msg_id,
 
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
 
-    /* MDI lib function does not return status for Select/Unselect Hart operation. 
+    /* MDI lib function does not return status for Select/Unselect Hart operation.
         Sending success status by default in response */
     mdi_rsp.status = (uint32_t)status;
 
@@ -227,7 +227,7 @@ static void mdi_select_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start
         }
     }
 
-    /* MDI lib function does not return status for Select/Unselect Hart operation. 
+    /* MDI lib function does not return status for Select/Unselect Hart operation.
         Sending success status by default in response */
     send_mdi_hart_selection_response(tag_id, msg_id, req_start_time, status);
 }
@@ -250,7 +250,7 @@ static void mdi_unselect_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_sta
         }
     }
 
-    /* MDI lib function does not return status for Select/Unselect Hart operation. 
+    /* MDI lib function does not return status for Select/Unselect Hart operation.
         Sending success status by default in response */
     send_mdi_hart_selection_response(tag_id, msg_id, req_start_time, status);
 }
