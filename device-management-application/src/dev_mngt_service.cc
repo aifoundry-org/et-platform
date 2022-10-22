@@ -759,7 +759,7 @@ int verifyService() {
     voltage = BIN2VOLTAGE(module_voltage->noc, 250, 5, 1);
     DM_LOG(INFO) << "Module Voltage NOC: " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(module_voltage->pcie_logic, 600, 625, 100);
-    DM_LOG(INFO) << "Module Voltage PCIE Logic: " << +voltage << " mV" << std::endl;
+    DM_LOG(INFO) << "Module Voltage IOShire(0p75): " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(module_voltage->vddq, 250, 10, 1);
     DM_LOG(INFO) << "Module Voltage VDDQ: " << +voltage << " mV" << std::endl;
     voltage = BIN2VOLTAGE(module_voltage->vddqlp, 250, 10, 1);
@@ -774,7 +774,7 @@ int verifyService() {
     }
     const uint32_t input_size = sizeof(volt_type) + sizeof(volt_enc);
     char input_buff[input_size] = {0};
-    input_buff[0] = (char)device_mgmt_api::MODULE_DDR;
+    input_buff[0] = (char)volt_type;
     input_buff[1] = (char)volt_enc;
 
     if ((ret = runService(input_buff, input_size, nullptr, 0)) != DM_STATUS_SUCCESS) {

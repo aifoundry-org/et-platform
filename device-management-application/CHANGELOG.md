@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- Replaced label PCIE_LOGIC with IOSHIRE(p075)
 ### Deprecated
 ### Removed
 ### Fixed
+- Fixed bug in handling SET_MODULE_VOTLAGE
 ### Security
 
 ## [1.6.0] - 2022-10-21
