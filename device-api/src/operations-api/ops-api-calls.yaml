@@ -474,11 +474,14 @@ Messages :
         Type: uint64_t
       - Name: device_cmd_wait_dur
         Description: Time transpired between command arrival and dispatch
-        Type: uint32_t
+        Type: uint64_t
       - Name: status
         Description: Kernel Launch status
         Type: enum
         Enum: dev_ops_api_kernel_launch_response
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint32_t
       - Name: kernel_rsp_error_ptr[]
         Description: |-
                 This is an optional response payload containing pointers to Exception and Trace buffers (struct kernel_rsp_error_ptr_t)
@@ -536,11 +539,14 @@ Messages :
         Type: uint64_t
       - Name: device_cmd_wait_dur
         Description: Time transpired between command arrival and dispatch
-        Type: uint32_t
+        Type: uint64_t
       - Name: status
         Description: Status of the DMA operation
         Type: enum
         Enum: dev_ops_api_dma_response
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint32_t
 #-------------------------------------------------------------------------------
   - Name: device_ops_dma_writelist_cmd
     Description: Single list Command to perform multiple DMA writes on device memory
@@ -566,11 +572,14 @@ Messages :
         Type: uint64_t
       - Name: device_cmd_wait_dur
         Description: Time transpired between command arrival and dispatch
-        Type: uint32_t
+        Type: uint64_t
       - Name: status
         Description: Status of the DMA operation
         Type: enum
         Enum: dev_ops_api_dma_response
+      - Name: pad
+        Description: Padding for alignment
+        Type: uint32_t
 #-------------------------------------------------------------------------------
 # Trace Management Commands and Responses
 #-------------------------------------------------------------------------------

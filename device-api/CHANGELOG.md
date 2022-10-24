@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- [SW-14614] Changed wait duration cycles from 32-bits to 64-bits.
 ### Deprecated
 ### Removed
 - [SW-9022] Removed legacy DMA commands/responses.
