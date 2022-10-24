@@ -148,10 +148,9 @@ typedef enum
  */
 typedef enum
 {
-    DDR_VENDOR_MICRON,
-    DDR_VENDOR_SKHYNIX,
-    DDR_VENDOR_SAMSUNG,
-    DDR_VENDOR_UNDEF,
+    DDR_VENDOR_MICRON = 0xFF,
+    DDR_VENDOR_SKHYNIX = 0x06,
+    DDR_VENDOR_SAMSUNG = 0x01
 } ddr_vendor_t;
 
 /*! \struct dma_mem_region
@@ -232,7 +231,7 @@ uint64_t ms_read_chip_reg(uint32_t memshire, uint32_t mr_num);
     \param ddr_mode point to a DDR_MODE structure, which contains the parameters for DDR init
     \return Zero indicating success or non-zero for error
 */
-int ddr_config(const DDR_MODE *ddr_mode);
+int ddr_config(DDR_MODE *ddr_mode);
 
 /*! \fn void ms_printout_status(uint32_t memshire, bool ddrc_enabled)
     \brief This function prints the status of the DDR Controller
@@ -391,7 +390,7 @@ void print_memshire_pll_lock_monitors(void);
 void clear_memshire_pll_lock_monitors(void);
 
 /*! \fn uint32_t ms_verify_ddr_density (uint32_t memshire)
-    \brief This function returns memory capacity 
+    \brief This function returns memory capacity
     \param none
     \return none
 */

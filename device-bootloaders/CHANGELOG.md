@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-14630] Reading DDR density and vendor dynamically.
 ### Security
 
 ## [0.6.0] - 2022-10-20

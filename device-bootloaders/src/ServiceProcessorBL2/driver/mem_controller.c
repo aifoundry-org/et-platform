@@ -73,13 +73,13 @@ uint64_t ms_read_chip_reg(uint32_t memshire, uint32_t mr_num)
     uint64_t data;
 
     // set mr_num in MRCTRL1 (DDR controller register)
-    ms_write_ddrc_reg(memshire, 2, MRCTRL1, mr_num << 8);
+    ms_write_ddrc_reg(memshire, 0, MRCTRL1, mr_num << 8);
 
     // set type = read in MRCTRL0 (DDR controller register)
-    ms_write_ddrc_reg(memshire, 2, MRCTRL0, 0x1);
+    ms_write_ddrc_reg(memshire, 0, MRCTRL0, 0x1);
 
     // setting bit 31 causes mrr to occur (Memshire register)
-    ms_write_ddrc_reg(memshire, 2, MRCTRL0, 0x80000001);
+    ms_write_ddrc_reg(memshire, 0, MRCTRL0, 0x80000001);
 
     // wait for mrr u0 status to be set (Memshire register)
     Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d]Reading from memory chip, register 0x%08x\n", memshire,
@@ -175,7 +175,7 @@ static void ms_patch_phy_ram_before_training(uint32_t memshire)
     ms_write_phy_ram(memshire, 0x54036, 0x0040 | mr14);        // MR14 Channel B
 }
 
-int ddr_config(const DDR_MODE *ddr_mode)
+int ddr_config(DDR_MODE *ddr_mode)
 {
     // algorithm/flow and config parameters are from hardware team
     uint32_t config_ecc;
@@ -188,10 +188,10 @@ int ddr_config(const DDR_MODE *ddr_mode)
     uint32_t config_disable_unused_clks;
     uint32_t config_train_poll_max_iterations;
     uint32_t config_train_poll_iteration_delay;
-    uint32_t config_4gb;
-    uint32_t config_8gb;
-    uint32_t config_32gb;
-    uint32_t ddr_density;
+    uint32_t config_4gb = 0;
+    uint32_t config_8gb = 0;
+    uint32_t config_32gb = 0;
+    uint32_t ddr_density = 0;
     bool config_training;
     bool config_training_2d;
 
@@ -219,44 +219,6 @@ int ddr_config(const DDR_MODE *ddr_mode)
     {
         return -1;
     }
-    /* TODO: use ms_verify_ddr_density to get DDR density
-    ddr_density = ms_verify_ddr_density(MEMSHIRE_BASE); */
-    ddr_density = ddr_mode->capacity;
-    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: DRAM Capacity = 0x%x\n", MEMSHIRE_BASE,
-              ddr_density);
-    switch (ddr_density)
-    {
-        case DDR_CAPACITY_32GB:
-            ddr_mem_info.ddr_mem_size = SIZE_32GB;
-            config_4gb = 0;
-            config_8gb = 0;
-            config_32gb = 1;
-            break;
-        case DDR_CAPACITY_16GB:
-            ddr_mem_info.ddr_mem_size = SIZE_16GB;
-            config_4gb = 0;
-            config_8gb = 0;
-            config_32gb = 0;
-            break;
-        case DDR_CAPACITY_8GB:
-            ddr_mem_info.ddr_mem_size = SIZE_8GB;
-            config_4gb = 0;
-            config_8gb = 1;
-            config_32gb = 0;
-            break;
-        default:
-            ddr_mem_info.ddr_mem_size = SIZE_4GB;
-            config_4gb = 1;
-            config_8gb = 0;
-            config_32gb = 0;
-            break;
-    }
-
-    /* TODO: Read vendor ID using ms_verify_ddr_vendor(MEMSHIRE_BASE) */
-    ddr_mem_info.ddr_vendor_id = 0xFF;
-
-    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: DRAM Vendor = 0x%x\n", MEMSHIRE_BASE,
-              ddr_mem_info.ddr_vendor_id);
 
     config_ecc = ddr_mode->ecc ? 1 : 0;
     config_training = ddr_mode->training ? 1 : 0;
@@ -370,8 +332,8 @@ int ddr_config(const DDR_MODE *ddr_mode)
 
     FOR_EACH_MEMSHIRE(if (dram_status_ptr->physical_memshire_status[memshire] == WORKING) {
         Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: phase4_02\n", memshire);
-        ms_init_seq_phase4_02(memshire, config_auto_precharge, config_disable_unused_clks,
-                              config_training);
+        /* Unused clocks are disabled at the end */
+        ms_init_seq_phase4_02(memshire, config_auto_precharge, 0, config_training);
     })
 
     Log_Write(LOG_LEVEL_INFO, "DDR:[-1][txt]DRAM status (bit=1: failure) = 0x%08x\n",
@@ -380,6 +342,70 @@ int ddr_config(const DDR_MODE *ddr_mode)
     {
         Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt] shire[%d] = %d\n", i,
                   dram_status_ptr->physical_memshire_status[i]);
+    }
+
+    /* Obtain the DDR vendor ID */
+    ddr_mem_info.ddr_vendor_id = ms_verify_ddr_vendor(MEMSHIRE_BASE);
+    switch (ddr_mem_info.ddr_vendor_id)
+    {
+        case DDR_VENDOR_MICRON:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM vendor = MICRON\n",
+                      MEMSHIRE_BASE);
+            break;
+        case DDR_VENDOR_SKHYNIX:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM vendor = SKHYNIX\n",
+                      MEMSHIRE_BASE);
+            break;
+        case DDR_VENDOR_SAMSUNG:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM vendor = SAMSUNG\n",
+                      MEMSHIRE_BASE);
+            break;
+        default:
+            Log_Write(LOG_LEVEL_INFO,
+                      "DDR:[%d][txt]ddr_config: DRAM vendor = UNKNOWN: Value = 0x%x\n",
+                      MEMSHIRE_BASE, ddr_mem_info.ddr_vendor_id);
+            break;
+    }
+
+    /* Read the MR8 register once the interface has been trained to determine the density.
+    Read MS(0) since they should all be equivalent. */
+    ddr_density = ms_verify_ddr_density(MEMSHIRE_BASE);
+    switch (ddr_density)
+    {
+        case DDR_CAPACITY_32GB:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM size = 32GB\n", MEMSHIRE_BASE);
+            ddr_mem_info.ddr_mem_size = SIZE_32GB;
+            config_4gb = 0;
+            config_8gb = 0;
+            config_32gb = 1;
+            break;
+        case DDR_CAPACITY_16GB:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM size = 16GB\n", MEMSHIRE_BASE);
+            ddr_mem_info.ddr_mem_size = SIZE_16GB;
+            config_4gb = 0;
+            config_8gb = 0;
+            config_32gb = 0;
+            break;
+        case DDR_CAPACITY_8GB:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM size = 8GB\n", MEMSHIRE_BASE);
+            ddr_mem_info.ddr_mem_size = SIZE_8GB;
+            config_4gb = 0;
+            config_8gb = 1;
+            config_32gb = 0;
+            break;
+        default:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM size = 4GB\n", MEMSHIRE_BASE);
+            ddr_mem_info.ddr_mem_size = SIZE_4GB;
+            config_4gb = 1;
+            config_8gb = 0;
+            config_32gb = 0;
+            break;
+    }
+
+    /* Disable the unused clocks */
+    if (config_disable_unused_clks)
+    {
+        mem_disable_unused_clocks();
     }
 
     if (dram_status_ptr->system_status == 0x0)

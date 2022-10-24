@@ -960,10 +960,9 @@ uint32_t ms_verify_ddr_density(uint32_t memshire)
         busy = ms_read_ddrc_reg(memshire, 0, MRSTAT) & 0x1;
         usdelay(10);
     }
+
     // Set MR Address in MRCTRL1[15:8]
-    value_dd = ms_read_ddrc_reg(memshire, 0, MRCTRL1);
-    value_dd |= SET_MR_ADDRESS(MR_DENSITY);
-    ms_write_ddrc_reg(memshire, 0, MRCTRL1, value_dd);
+    ms_write_ddrc_reg(memshire, 0, MRCTRL1, SET_MR_ADDRESS(MR_DENSITY));
 
     // set type = read in MRCTRL0
     ms_write_ddrc_reg(memshire, 0, MRCTRL0, MR_SET_READ);
@@ -975,23 +974,17 @@ uint32_t ms_verify_ddr_density(uint32_t memshire)
     ms_write_ddrc_reg(memshire, 0, MRCTRL0, MR_READ);
     Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][ms_verify_ddr_density] Waiting for status.\n", memshire);
 
-    //wait for mrr u0 status to be set
-    //ms_poll_ddrc_reg(memshire,0,ddrc_mrr_status,0x1,0x1,100,1); // RHS: This don't work
-
     while (status == 0)
     {
         status = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
         usdelay(10);
     }
 
-    value_dd = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
-    //evl_log [format "TCL: Read %x from mrr_status,"  $data];
-    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][ms_verify_ddr_density] ddrc_mrr_status=%x\n", memshire,
-              value_dd);
-
     // FUTURE : should also check bit 2 = 0
     //check_esr ddrc_mrr_status 0x1 0x1
     value_dd = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][ms_verify_ddr_density] ddrc_mrr_status=%x\n", memshire,
+              value_dd);
     if (value_dd != 0x1)
     {
         Log_Write(LOG_LEVEL_DEBUG,
@@ -1066,9 +1059,7 @@ uint32_t ms_verify_ddr_vendor(uint32_t memshire)
     }
 
     // Set MR Address in MRCTRL1[15:8]
-    value_dv = ms_read_ddrc_reg(memshire, 0, MRCTRL1);
-    value_dv |= SET_MR_ADDRESS(MR_VENDOR_ID);
-    ms_write_ddrc_reg(memshire, 0, MRCTRL1, value_dv);
+    ms_write_ddrc_reg(memshire, 0, MRCTRL1, SET_MR_ADDRESS(MR_VENDOR_ID));
 
     // set type = read in MRCTRL0
     ms_write_ddrc_reg(memshire, 0, MRCTRL0, MR_SET_READ);
@@ -1079,23 +1070,19 @@ uint32_t ms_verify_ddr_vendor(uint32_t memshire)
     // setting bit 31 causes mrr to occur
     ms_write_ddrc_reg(memshire, 0, MRCTRL0, MR_READ);
     Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][ms_verify_ddr_vendor] Waiting for status.\n", memshire);
-    //wait for mrr u0 status to be set
-    //ms_poll_ddrc_reg(memshire,0,ddrc_mrr_status,0x1,0x1,100,1); // RHS: This don't work
 
+    //poll_esr ddrc_mrr_status 0x1 0x1 100
     while (status == 0)
     {
         status = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
         usdelay(10);
     }
-    //poll_esr ddrc_mrr_status 0x1 0x1 100
-    value_dv = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
-    //evl_log [format "TCL: Read %x from mrr_status,"  $value_dv];
-    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][ms_verify_ddr_vendor] ddrc_mrr_status=%x\n", memshire,
-              value_dv);
 
     // FUTURE : should also check bit 2 = 0
     //check_esr ddrc_mrr_status 0x1 0x1
     value_dv = (uint32_t)ms_read_esr(memshire, ddrc_mrr_status);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][ms_verify_ddr_vendor] ddrc_mrr_status=%x\n", memshire,
+              value_dv);
 
     if (value_dv != 0x1)
     {
@@ -1103,6 +1090,7 @@ uint32_t ms_verify_ddr_vendor(uint32_t memshire)
                   "DDR:[%d][ms_verify_ddr_vendor] ERROR: ddrc_mrr_status=%x expecting 0x1\n",
                   memshire, value_dv);
     }
+
     //check_esr ddrc_u0_mrr_data 0x10|0x18 (32gb|64gb)
     value_dv = (uint32_t)ms_read_esr(memshire, ddrc_u0_mrr_data);
     vendor = value_dv & 0xff;
