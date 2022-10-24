@@ -142,8 +142,9 @@ struct device_ops_dma_readlist_rsp_t {
 	struct rsp_header_t response_info;
 	u64 cmd_start_ts;
 	u64 cmd_execution_time;
-	u32 cmd_wait_time;
+	u64 cmd_wait_time;
 	u32 status;
+	u8 pad[4];
 } __packed __aligned(8);
 
 /*
@@ -172,8 +173,9 @@ struct device_ops_dma_writelist_rsp_t {
 	struct rsp_header_t response_info;
 	u64 cmd_start_ts;
 	u64 cmd_execution_time;
-	u32 cmd_wait_time;
+	u64 cmd_wait_time;
 	u32 status;
+	u8 pad[4];
 } __packed __aligned(8);
 
 /*
