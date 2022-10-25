@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - Fixed bug in handling SET_MODULE_VOTLAGE
+- [SW-14679] dev_mngt_service: Fix argument for setting L2CACHE voltage
 ### Security
 
 ## [1.6.0] - 2022-10-21

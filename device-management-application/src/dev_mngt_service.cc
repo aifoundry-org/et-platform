@@ -1536,16 +1536,10 @@ bool validFrequencies() {
 }
 
 bool validVoltage() {
-  if (!std::regex_match(std::string(optarg), std::regex("^[A-Z]+,[0-9]+$"))) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << optarg
-                  << " is not valid, arguments should be in this format: <MODULE_TYPE>,<VOLTAGE_VALUE_IN_MV>"
-                  << std::endl;
-    return false;
-  }
-
+  auto strArg = std::string(optarg);
   static const std::map<std::string, std::tuple<device_mgmt_api::module_e, uint16_t /* base */,
                                                 uint16_t /* multiplier */, uint16_t /* divider */>>
-    moduleTypes{
+    moduleMap{
       {"DDR", {device_mgmt_api::MODULE_DDR, 250, 5, 1}},
       {"L2CACHE", {device_mgmt_api::MODULE_L2CACHE, 250, 5, 1}},
       {"MAXION", {device_mgmt_api::MODULE_MAXION, 250, 5, 1}},
@@ -1556,12 +1550,15 @@ bool validVoltage() {
       {"VDDQ", {device_mgmt_api::MODULE_VDDQ, 250, 10, 1}},
       {"VDDQLP", {device_mgmt_api::MODULE_VDDQLP, 250, 10, 1}},
     };
-  auto moduleType = std::strtok(optarg, ",");
+  std::vector<std::string> moduleTypes;
+  std::transform(moduleMap.begin(), moduleMap.end(), std::back_inserter(moduleTypes), [](auto& e) { return e.first; });
 
-  auto itr = moduleTypes.find(moduleType);
-  if (itr == moduleTypes.end()) {
-    DM_VLOG(HIGH) << "Aborting, Invalid Module Type: " << moduleType
-                  << ", possible types are {DDR, L2CACHE, MAXION, MINION, PCIE, NOC, PCIE_LOGIC, VDDQ, VDDQLP}"
+  std::smatch m;
+  if (std::regex re(fmt::format("^({}),([0-9]+)$", fmt::join(moduleTypes, "|")));
+      !std::regex_search(strArg, m, re) || m.size() < 3) {
+    DM_VLOG(HIGH) << fmt::format("Aborting, argument: {} is not valid, arguments should be in this format: "
+                                 "<MODULE_TYPE>,<VOLTAGE_VALUE_IN_MV> where valid MODULE_TYPEs are: {{{}}}",
+                                 strArg, fmt::join(moduleTypes, ", "))
                   << std::endl;
     return false;
   }
@@ -1569,9 +1566,9 @@ bool validVoltage() {
   uint16_t base;
   uint16_t multiplier;
   uint16_t divider;
-  std::tie(volt_type, base, multiplier, divider) = itr->second;
+  std::tie(volt_type, base, multiplier, divider) = moduleMap.at(m[1].str());
 
-  auto voltage = std::stoul(std::strtok(NULL, ","));
+  auto voltage = std::stoul(m[2].str());
   if (voltage > std::numeric_limits<uint16_t>::max()) {
     DM_VLOG(HIGH) << "Aborting, Voltage : " << voltage << " is not valid ( 0 - " << std::numeric_limits<uint16_t>::max()
                   << " )" << std::endl;
