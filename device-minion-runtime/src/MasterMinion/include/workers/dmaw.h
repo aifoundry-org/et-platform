@@ -100,8 +100,6 @@ typedef struct dma_channel_status_cb {
     uint64_t prev_cycles;      /* previous cycles froma continued transaction */
     uint64_t transfer_size;    /* Transfer size of data. This is only valid when channel state
                                        is 'in use'. */
-    uint16_t msg_id;           /* TODO: To be removed, temporary field for dmalist cmds */
-    uint8_t pad[6];            /* Padding for alignment */
 } dma_channel_status_cb_t;
 
 /*! \fn void DMAW_Init(void)

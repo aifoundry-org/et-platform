@@ -1272,7 +1272,7 @@ static inline int32_t dma_readlist_cmd_handler(
     on device to move data from host to device, similarly a read
     command from host will trigger the implementation to configure
     a DMA write channel on device to move data from device to host */
-    Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCommandHandler:Processing:DATA_READ_CMD\r\n",
+    Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCommandHandler:Processing:DMA_READLIST_CMD\r\n",
         cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
     /* Get the SQW state to check for command abort */
@@ -1342,10 +1342,7 @@ static inline int32_t dma_readlist_cmd_handler(
 
         /* Construct and transmit command response */
         rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
-        rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(cmd->command_info.cmd_hdr.msg_id + 1U);
-        /* TODO: SW-9022: Add dma_readlist_cmd handling
-        rsp.response_info.rsp_hdr.msg_id =
-            DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_RSP */
+        rsp.response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP;
         rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
         /* Compute Wait Cycles (cycles the command was sitting
         in SQ prior to launch) Snapshot current cycle */
@@ -1373,7 +1370,7 @@ static inline int32_t dma_readlist_cmd_handler(
         }
 
         Log_Write(LOG_LEVEL_DEBUG,
-            "TID[%u]:SQW[%d]:HostCommandHandler:Pushing:DATA_READ_CMD_RSP:Host_CQ\r\n",
+            "TID[%u]:SQW[%d]:HostCommandHandler:Pushing:DMA_READLIST_CMD_RSP:Host_CQ\r\n",
             rsp.response_info.rsp_hdr.tag_id, sqw_idx);
 
         status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
@@ -1497,7 +1494,8 @@ static inline int32_t dma_writelist_cmd_handler(
     data from host to device, similarly a read command from host will
     trigger the implementation to configure a DMA write channel on device
     to move data from device to host */
-    Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCommandHandler:Processing:DATA_WRITE_CMD\r\n",
+    Log_Write(LOG_LEVEL_DEBUG,
+        "TID[%u]:SQW[%d]:HostCommandHandler:Processing:DMA_WRITELIST_CMD\r\n",
         cmd->command_info.cmd_hdr.tag_id, sqw_idx);
 
     /* Get the SQW state to check for command abort */
@@ -1557,10 +1555,7 @@ static inline int32_t dma_writelist_cmd_handler(
 
         /* Construct and transit command response */
         rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
-        rsp.response_info.rsp_hdr.msg_id = (msg_id_t)(cmd->command_info.cmd_hdr.msg_id + 1U);
-        /* TODO: SW-9022: Add dma_writelist_cmd handling
-        rsp.response_info.rsp_hdr.msg_id =
-            DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_RSP */
+        rsp.response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP;
         rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
         /* Compute Wait Cycles (cycles the command was sitting
         in SQ prior to launch) Snapshot current cycle */
@@ -1605,7 +1600,7 @@ static inline int32_t dma_writelist_cmd_handler(
         if (status == STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_DEBUG,
-                "TID[%u]:SQW[%d]:HostCommandHandler:Pushed:DATA_WRITE_CMD_RSP:Host_CQ\r\n",
+                "TID[%u]:SQW[%d]:HostCommandHandler:Pushed:DMA_WRITELIST_CMD_RSP:Host_CQ\r\n",
                 rsp.response_info.rsp_hdr.tag_id, sqw_idx);
         }
         else
@@ -2021,11 +2016,9 @@ int32_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t sta
         case DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD:
             status = kernel_abort_cmd_handler(command_buffer, sqw_idx);
             break;
-        case DEV_OPS_API_MID_DEVICE_OPS_DATA_READ_CMD:
         case DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD:
             status = dma_readlist_cmd_handler(command_buffer, sqw_idx, start_cycles);
             break;
-        case DEV_OPS_API_MID_DEVICE_OPS_DATA_WRITE_CMD:
         case DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD:
             status = dma_writelist_cmd_handler(command_buffer, sqw_idx, start_cycles);
             break;
