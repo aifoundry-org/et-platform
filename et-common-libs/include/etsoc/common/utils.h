@@ -73,18 +73,16 @@ __attribute__((noreturn)) void et_abort(void);
     \brief A macro that allows diagnostic information to be written to the trace buffer
     and abort the appilcation if the expr provided is false.
 */
-#define et_assert(expr)                                                 \
-    if (!(expr))                                                        \
-    {                                                                   \
-        et_printf("Assertion \"%s\" failed: file \"%s\", line %d%s%s\n",\
-                expr, __FILE__, __LINE__,                               \
-                __FUNCTION__ ? ", function: " : "",                     \
-                __FUNCTION__ ? __FUNCTION__ : "");                      \
-        et_abort();                                                     \
-    }                                                                   \
-    else                                                                \
-    {                                                                   \
-        (void)(expr);                                                   \
+#define et_assert(expr)                                                                      \
+    if (!(expr))                                                                             \
+    {                                                                                        \
+        et_printf("Assertion \"%s\" failed: file \"%s\", line %d%s%s\n", #expr, __FILE__,    \
+            __LINE__, __FUNCTION__ ? ", function: " : "", __FUNCTION__ ? __FUNCTION__ : ""); \
+        et_abort();                                                                          \
+    }                                                                                        \
+    else                                                                                     \
+    {                                                                                        \
+        (void)(expr);                                                                        \
     }
 
 #define et_get_timestamp()                      PMC_Get_Current_Cycles()
