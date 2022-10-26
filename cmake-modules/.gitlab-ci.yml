@@ -1,6 +1,6 @@
 include:
   - project: 'software/gitlab-ci-common'
-    ref: eaa145e684411db579462b41feb7736c6ed0028c
+    ref: ec8109263042925b169aa3c33cd6e7beaf185917
     file:
       - 'pods/nano-pod.yaml'
       - 'jobs/generic-k8s-job.yaml'
