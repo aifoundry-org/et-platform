@@ -125,8 +125,6 @@ struct sys_emu_cmd_options {
     bool        tstore_check                 = false;
     uint64_t    tstore_checker_log_addr      = 1;
     uint32_t    tstore_checker_log_thread    = 4096;
-    int         sleep_timeout                = 0;
-    uint64_t    sleep_threshold              = 10000;
 #ifdef SYSEMU_PROFILING
     std::string dump_prof_file;
 #endif
@@ -165,9 +163,6 @@ public:
     void clear_external_supervisor_interrupt(unsigned shire_id);
     void evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask);
     int main_internal();
-
-    bool has_low_activity() const;
-    void maybe_sleep();
 
     uint64_t get_emu_cycle()  { return emu_cycle; }
 
@@ -244,10 +239,6 @@ private:
 
     api_communicate* api_listener = nullptr;
     sys_emu_cmd_options cmd_options;
-
-    uint64_t sleep_threshold  = 10000;
-    int      sleep_timeout    = 0;
-    uint64_t last_sleep_cycle = 0;
 };
 
 
