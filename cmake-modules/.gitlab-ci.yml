@@ -4,7 +4,7 @@ include:
     file:
       - 'pods/nano-pod.yaml'
       - 'jobs/generic-k8s-job.yaml'
-      - rules/generic-workflow-conan.yaml
+      - 'rules/generic-workflow-conan.yaml'
   - project: 'software/gitlab-ci-common'
     ref: master
     file:
