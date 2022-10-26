@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 ### Security
+## [0.6.1]
+### Fixed
+- [SW-14771] this fixes the hang for ioThread.
 ## [0.6.0]
 ### Added
 - [SW-14117] added support for benchmark tool using new runtime server
