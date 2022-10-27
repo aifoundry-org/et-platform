@@ -64,8 +64,7 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleVoltage) 
   getModuleVoltage(false /* Multiple devices */);
 }
 
-// TODO: Disabled the test until SW-14288 is resolved
-TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, DISABLED_setAndGetModuleVoltage) {
+TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setAndGetModuleVoltage) {
   setAndGetModuleVoltage(false /* Multiple devices */);
 }
 
