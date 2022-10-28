@@ -81,9 +81,16 @@ public:
     event_.setDeviceProperties(std::move(props));
   }
 
+  void recordNow() {
+    if (!isRecorded_) {
+      isRecorded_ = true;
+      event_.setDuration(ProfileEvent::Clock::now() - event_.getTimeStamp());
+      static_cast<IProfilerRecorder&>(profiler_).record(event_);
+    }
+  }
+
   ~ScopedProfileEvent() {
-    event_.setDuration(ProfileEvent::Clock::now() - event_.getTimeStamp());
-    static_cast<IProfilerRecorder&>(profiler_).record(event_);
+    recordNow();
   }
 
   ScopedProfileEvent(const ScopedProfileEvent&) = delete;
@@ -95,6 +102,7 @@ public:
 private:
   IProfiler& profiler_;
   ProfileEvent event_;
+  bool isRecorded_ = false;
 };
 
 } // namespace rt::profiling

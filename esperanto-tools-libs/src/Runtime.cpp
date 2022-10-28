@@ -70,6 +70,7 @@ LoadCodeResult IRuntime::loadCode(StreamId stream, const std::byte* elf, size_t 
   profileEvent.setEventId(res.event_);
   profileEvent.setLoadAddress(reinterpret_cast<uint64_t>(res.loadAddress_));
   profileEvent.setKernelId(res.kernel_);
+  profileEvent.recordNow();
   return res;
 }
 
