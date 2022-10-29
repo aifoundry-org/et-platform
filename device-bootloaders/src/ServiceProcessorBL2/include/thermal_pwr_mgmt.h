@@ -36,7 +36,7 @@
 
 // Defines the Boot voltages for the respective Voltage Domains
 #define NEIGH_BOOT_VOLTAGE 0x2DU // 475 mV
-#define SRAM_BOOT_VOLTAGE  0x5EU // 720 mV
+#define SRAM_BOOT_VOLTAGE  0x64U // 750 mV
 #define NOC_BOOT_VOLTAGE   0x24U // 430 mV
 #define DDR_BOOT_VOLTAGE   0x64U // 750 mV
 #define MXN_BOOT_VOLTAGE   0x46U // 600 mV

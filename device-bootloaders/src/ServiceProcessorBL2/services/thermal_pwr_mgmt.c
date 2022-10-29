@@ -2130,7 +2130,7 @@ void set_system_voltages(void)
     pmic_set_voltage(MODULE_L2CACHE, SRAM_BOOT_VOLTAGE);
     US_DELAY_GENERIC(5000)
     pmic_get_voltage(MODULE_L2CACHE, &voltage);
-    Log_Write(LOG_LEVEL_INFO, "Overriding SRAM   -> 720mV(0x%X)\n", voltage);
+    Log_Write(LOG_LEVEL_INFO, "Overriding SRAM   -> 750mV(0x%X)\n", voltage);
 
     /* Setting the NOC voltages */
     pmic_set_voltage(MODULE_NOC, NOC_BOOT_VOLTAGE);
