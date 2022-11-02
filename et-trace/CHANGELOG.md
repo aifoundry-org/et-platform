@@ -9,8 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- [SW-14349] Replaced ET_TRACE_MEM_CPY with ET_TRACE_WRITE_MEM
 ### Deprecated
 ### Removed
+- [SW-14349] Removed ET_TRACE_MEM_CPY config option for encoder
 ### Fixed
 ### Security
 
