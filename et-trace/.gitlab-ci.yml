@@ -58,7 +58,7 @@ generate_build:conan:
       cd conan
       python3 -m ci_build
   artifacts:
-    expire_in: 1h 
+    expire_in: 1h
     paths:
       - conan/build_pipeline.yml
       - conan/lockfiles_info.json
@@ -87,16 +87,20 @@ test:conan:
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: test
+  parallel:
+    matrix:
+      - BUILD_TYPE: [ Release ]
   needs:
     - build:conan
   variables:
     TIMEOUT: 15m
     CMD_BUILD: |
+      BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       conan remote disable conan-tmp
-      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-release -o esperantoTrace:with_tests=True
-      cmake --preset Release -G Ninja
-      cmake --build --preset Release
-      ctest --test-dir cmake-build-release --output-on-failure
+      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE_LOWER} -o esperantoTrace:with_tests=True
+      cmake --preset ${BUILD_TYPE_LOWER} -G Ninja
+      cmake --build --preset ${BUILD_TYPE_LOWER}
+      ctest --test-dir build/${BUILD_TYPE} --output-on-failure
 
 
 ###############################################################################
