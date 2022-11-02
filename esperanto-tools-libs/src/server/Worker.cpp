@@ -224,6 +224,7 @@ void Worker::processRequest(const req::Request& request) {
 
   case req::Type::LOAD_CODE: {
     auto& req = std::get<req::LoadCode>(request.payload_);
+    // instead of serialize and unserialize the code here, do a process_vm_readv as we do for memcpies
     auto resp = runtime_.loadCode(req.stream_, req.elf_.data(), req.elf_.size());
     events_.emplace(resp.event_);
     kernels_.emplace(resp.kernel_);

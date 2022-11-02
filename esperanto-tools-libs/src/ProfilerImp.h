@@ -53,6 +53,7 @@ public:
   void stop() override {
     if (recording_) {
       recording_ = false;
+      cv_.notify_one();
       ioThread_.join();
     }
   }
