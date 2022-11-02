@@ -315,11 +315,6 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
 #define ET_TRACE_WRITE_MEM(dest, src, size) memcpy(dest, src, size)
 #endif
 
-/* TODO: Deprecated, to be removed. */
-#ifndef ET_TRACE_MEM_CPY
-#define ET_TRACE_MEM_CPY(dest, src, size) memcpy(dest, src, size)
-#endif
-
 #ifndef ET_TRACE_STRLEN
 #define ET_TRACE_STRLEN(str) strlen(str)
 #endif
@@ -726,7 +721,7 @@ void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *
             (struct trace_string_t *)trace_buffer_reserve(cb, (sizeof(*entry) + str_length));
 
         ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)str_length, TRACE_TYPE_STRING)
-        ET_TRACE_MEM_CPY(entry->string, str, str_length);
+        ET_TRACE_WRITE_MEM(entry->string, str, str_length);
     }
 }
 
@@ -1166,7 +1161,7 @@ void *Trace_Memory(struct trace_control_block_t *cb, const uint8_t *src, uint32_
 
         ET_TRACE_WRITE_U64(entry->src_addr, (uint64_t)(src));
         ET_TRACE_WRITE_U64(entry->size, size);
-        ET_TRACE_MEM_CPY(entry->data, src, size);
+        ET_TRACE_WRITE_MEM(entry->data, src, size);
     }
 
     return (void*)entry;
@@ -1201,7 +1196,7 @@ void *Trace_Execution_Stack(struct trace_control_block_t *cb,
         entry = (struct trace_execution_stack_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
         ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_EXCEPTION)
-        ET_TRACE_MEM_CPY(&entry->registers, regs, sizeof(struct dev_context_registers_t));
+        ET_TRACE_WRITE_MEM(&entry->registers, regs, sizeof(struct dev_context_registers_t));
     }
 
     return (void*)entry;
@@ -1243,7 +1238,7 @@ void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
         ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry) + payload_size), TRACE_TYPE_CUSTOM_EVENT)
         ET_TRACE_WRITE_U32(entry->custom_type, custom_type);
         ET_TRACE_WRITE_U32(entry->payload_size, payload_size);
-        ET_TRACE_MEM_CPY(entry->payload, payload, payload_size);
+        ET_TRACE_WRITE_MEM(entry->payload, payload, payload_size);
     }
 
     return (void*)entry;
