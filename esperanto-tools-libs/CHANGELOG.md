@@ -11,10 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- (Conan) Fix package_info requires
 ### Security
+
 ## [0.6.1]
 ### Fixed
 - [SW-14771] this fixes the hang for ioThread.
+
 ## [0.6.0]
 ### Added
 - [SW-14117] added support for benchmark tool using new runtime server
@@ -30,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - [SW-14527] fixed race condition on dispatch event where the profiler could be gone if the runtime is already destroyed.
 - [SW-13976] NOSYSEMU tests tunned down, now running al PCIE MP tests (including "NOSYSEMU" tests) takes less than 6mins.
+
 ## [0.5.0]
 ### Added
 ### Changed
@@ -40,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - added missing dependency libcap.
 - [SW-13861] fixed releasing execution cache buffer when there were no abortkernel callback registered.
 ### Security
+
 ## [0.4.0]
 ### Added
 - [SW-12942] implemented a check in host for kernel shire mask
@@ -64,7 +69,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   static RuntimePtr create(const std::string& socketPath);
   ```
   - all tickets from [SW-10470]
-
 ### Changed
 - Runtime will check device-api version only for major and a minor minimum. Its device-api implementors responsability to respect the semversion and make it compatible for any version with the same major.
 - [SW-13523] updated DeviceProperties serialization and struct (see "runtime/Types.h") to expose two new fields:
@@ -97,10 +101,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    virtual EventId memcpyDeviceToHost(StreamId stream, const std::byte* d_src, IDmaBuffer* h_dst, size_t size,bool barrier = true) = 0;
    virtual std::unique_ptr<IDmaBuffer> allocateDmaBuffer(DeviceId device, size_t size, bool writeable) = 0;
   ```
-
 ### Fixed
 - Adapt device tests to return L2 and L3 sizes in KB
 ### Security
+
 ## [0.3.2]
 ### Added
 ### Changed
@@ -112,6 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
   - Adapt device tests to return L2 and L3 sizes in KB
 ### Security
+
 ## [0.3.1]
 ### Added
 - [SW-13062] waitForEvent / waitForStream won't block if timeout argument is 0 seconds
@@ -131,6 +136,7 @@ virtual void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callba
 ### Removed
 ### Fixed
 ### Security
+
 ## [0.2.4]
 ### Added
 ### Changed
@@ -140,13 +146,13 @@ virtual void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callba
 ### Removed
 ### Fixed
 ### Security
+
 ## [0.2.2]
 ### Added
 - deviceLayer 0.3.0 version hash pinned.
 - Added new error code for kernel launches with invalid shire mask
 - Convert from KB to MB the device sizes for L2 and L3 
 - Adapt device tests to return L2 and L3 sizes in KB
-
 ### Changed
 ### Deprecated
 ### Removed
@@ -166,6 +172,7 @@ virtual void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callba
 - [SW-12736]
   - fixed memcpy check operation, sometimes it didn't caught some bad memcpy operations (using memory beyond previously reserved).
 ### Security
+
 ## [0.2.0]
 ### Added
 - [SW-12621]
@@ -205,4 +212,20 @@ virtual void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callba
 ## [0.1.0] -
 Initial version; not tracking changes until 0.2.0
 
+[Unreleased]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.6.1...master
+
+[0.6.1]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.6.0...0.6.1
+[0.6.0]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.5.0...0.6.0
+[0.5.1]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.5.0...0.5.1
+[0.5.0]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.4.0...0.5.0
+[0.4.0]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.3.2...0.4.0
+[0.3.2]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.3.1...0.3.2
+[0.3.1]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.3.0...0.3.1
+[0.3.0]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.2.4...0.3.0
+[0.2.4]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.2.3...0.2.4
+[0.2.3]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.2.2...0.2.3
+[0.2.2]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.2.1...0.2.2
+[0.2.1]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.2.0...0.2.1
+[0.2.0]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/compare/0.1.0...0.2.0
+[0.1.0]: https://gitlab.esperanto.ai/software/esperanto-tools-libs/-/tags/0.1.0
 
