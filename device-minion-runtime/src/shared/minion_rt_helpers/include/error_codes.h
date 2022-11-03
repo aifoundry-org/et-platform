@@ -418,10 +418,10 @@ RESERVED
  * Define MM Configuration error codes.    *
  *************************************/
 
-/*! \def MM_CONFIG_GET_DDR_SIZE_SP_FAILED
-    \brief Failed to get DDR size from SP.
+/*! \def MM_CONFIG_INIT_FAILED
+    \brief Failed to initialize MM configurations
 */
-#define MM_CONFIG_GET_DDR_SIZE_SP_FAILED -2500
+#define MM_CONFIG_INIT_FAILED -2500
 
 /*! \def MM_CONFIG_INVALID_DDR_SIZE
     \brief MM config - Invalid DDR size

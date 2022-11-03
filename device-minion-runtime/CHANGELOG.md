@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - [SW-9022] Removed legacy DMA commands.
 ### Fixed
+- [SW-14813] Fixed coherency issue in PCIe DMA driver and set the DRAM size to 16 GB default.
 ### Security
 
 ## [0.12.0] - 2022-10-20

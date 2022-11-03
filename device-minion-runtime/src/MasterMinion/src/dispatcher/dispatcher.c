@@ -161,22 +161,21 @@ void Dispatcher_Launch(uint32_t hart_id)
     status = SW_Timer_Init();
     dispatcher_assert(status == STATUS_SUCCESS, MM_SW_TIMER_INIT_ERROR, "SW Timer init failure.");
 
-    /* initialize MM configuration */
+    /* Initialize MM configuration */
     status = MM_Config_Init();
-    dispatcher_assert(status == STATUS_SUCCESS, MM_CONFIG_GET_DDR_SIZE_SP_FAILED,
-        "MM Config get DDR info failure.");
+    dispatcher_assert(status == STATUS_SUCCESS, MM_CONFIG_INIT_FAILED, "MM Config init failed.");
 
-    /* initialize DMA driver */
-    status = dma_init();
-    dispatcher_assert(status == STATUS_SUCCESS, DMA_DRIVER_CONFIG_MEM_REGION_FAILED,
-        "DMA Mem regions config failed.");
-
-    /* update DDR size in ops mem region */
+    /* Update DDR size in ops mem region */
     DIR_Update_Mem_Region_Size(
         MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED, MM_Config_Get_Host_Managed_DRAM_Size());
 
-    /* set DIR interface ready status */
+    /* Set DIR ready */
     DIR_Update_Interface_Ready();
+
+    /* Initialize DMA driver */
+    status = dma_init();
+    dispatcher_assert(status == STATUS_SUCCESS, DMA_DRIVER_CONFIG_MEM_REGION_FAILED,
+        "DMA Mem regions config failed.");
 
     /* Initialize Computer Workers */
     Log_Write(LOG_LEVEL_INFO, "Dispatcher:CW_Init\r\n");

@@ -179,9 +179,9 @@ void __attribute__((noreturn)) main(void)
                 (volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, neighborhood_id, MPROT);
             uint64_t mprot = *mprot_ptr;
             // Clear io_access_mode, disable_pcie_access, disable_osbox_access
-            mprot &= ~0x7Fu;
-            // Set secure memory permissions (M/S RX/RW regions), 32 GB of DRAM size and allow I/O accesses at S-mode
-            mprot |= 0x71;
+            mprot &= ~0x4Fu;
+            // Set secure memory permissions (M/S RX/RW regions), and allow I/O accesses at S-mode
+            mprot |= 0x41;
             if (neighborhood_id != 0)
             {
                 // For Neighborhoods 1-3 in master shire: disable access to PCI-E region
@@ -230,9 +230,9 @@ void __attribute__((noreturn)) main(void)
                 (volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, neighborhood_id, MPROT);
             uint64_t mprot = *mprot_ptr;
             // Clear io_access_mode, disable_pcie_access, disable_osbox_access
-            mprot &= ~0x7Fu;
-            // Set enable_secure_memory, disable_pcie_access , 32 GB DRAM size and io_access_mode = b11 (M-mode only)
-            mprot |= 0x77;
+            mprot &= ~0x4Fu;
+            // Set enable_secure_memory, disable_pcie_access and io_access_mode = b11 (M-mode only)
+            mprot |= 0x47;
             *mprot_ptr = mprot;
 
             // minion thread1s aren't enabled yet, so send FCC0 to all thread0s

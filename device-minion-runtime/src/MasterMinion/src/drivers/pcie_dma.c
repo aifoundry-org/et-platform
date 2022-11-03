@@ -60,6 +60,11 @@
 */
 #define IS_DMA_WRITE_CHAN_VALID(chan) (chan <= DMA_CHAN_ID_WRITE_3)
 
+/*! \def DMA_VALID_TARGETS_COUNT
+    \brief Number of valid DMA targets upon which DMA can perform Read/Write.
+*/
+#define DMA_VALID_TARGETS_COUNT 2
+
 /*! \struct dma_mem_region
     \brief Structure for a memory region, used to verify DMA bounds check.
 */
@@ -68,15 +73,23 @@ struct dma_mem_region {
     uint64_t end;
 };
 
-/*!
-    Valid DMA memory range upon which DMA can perform Read/Write.
+/*! \typedef pcie_dma_
+    \brief PCIe DMA driver Control Block structure.
 */
-static struct dma_mem_region valid_dma_targets[] = {
+typedef struct pcie_dma_ {
+    struct dma_mem_region valid_dma_targets[DMA_VALID_TARGETS_COUNT];
+} pcie_dma_t;
+
+/*! \var pcie_dma_t PCIE_DMA_CB
+    \brief Global PCIe DMA driver Control Block
+    \warning Not thread safe!
+*/
+static pcie_dma_t PCIE_DMA_CB __attribute__((aligned(64))) = {
     /* L3, but beginning reserved for minion stacks, end reserved for DMA config.
-       end of first region will be updated through DDR config regions below */
-    { .begin = HOST_MANAGED_DRAM_START },
-    /* Shire-cache scratch pads. Limit to first 4MB * 33 shires */
-    { .begin = 0x80000000, .end = 0x883FFFFF }
+       End will be initialized at runtime in init */
+    { { .begin = HOST_MANAGED_DRAM_START },
+        /* Shire-cache scratch pads. Limit to first 4MB * 33 shires */
+        { .begin = 0x80000000, .end = 0x883FFFFF } }
 };
 
 /************************************************************************
@@ -182,9 +195,10 @@ static inline int32_t dma_bounds_check(uint64_t soc_addr, uint64_t size)
     /* Check for uint64_t overflow */
     if (end_addr >= soc_addr)
     {
-        for (uint16_t i = 0; i < sizeof(valid_dma_targets) / sizeof(*valid_dma_targets); ++i)
+        for (uint16_t i = 0; i < DMA_VALID_TARGETS_COUNT; ++i)
         {
-            if ((soc_addr >= valid_dma_targets[i].begin) && (end_addr <= valid_dma_targets[i].end))
+            if ((soc_addr >= atomic_load_local_64(&PCIE_DMA_CB.valid_dma_targets[i].begin)) &&
+                (end_addr <= atomic_load_local_64(&PCIE_DMA_CB.valid_dma_targets[i].end)))
             {
                 return STATUS_SUCCESS;
             }
@@ -215,7 +229,8 @@ static inline int32_t dma_bounds_check(uint64_t soc_addr, uint64_t size)
 ***********************************************************************/
 int32_t dma_init(void)
 {
-    atomic_store_local_64(&valid_dma_targets[0].end, (MM_Config_Get_DRAM_End_Address() - 1));
+    atomic_store_local_64(
+        &PCIE_DMA_CB.valid_dma_targets[0].end, (MM_Config_Get_DRAM_End_Address() - 1));
     return STATUS_SUCCESS;
 }
 

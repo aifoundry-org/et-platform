@@ -145,11 +145,11 @@ typedef struct kernel_instance_ {
     for the life time of MM runtime.
 */
 typedef struct kw_cb_ {
+    uint64_t host_managed_dram_end;
     fcc_sync_cb_t host2kw[MM_MAX_PARALLEL_KERNELS];
     spinlock_t resource_lock;
     kernel_instance_t kernels[MM_MAX_PARALLEL_KERNELS];
     uint32_t launch_wait_timeout_flag[SQW_NUM];
-    uint64_t host_managed_dram_end;
 } kw_cb_t;
 
 /*! \struct kw_internal_status
@@ -1571,8 +1571,8 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
         kw_tans_cycles = atomic_exchange_local_64(&kernel->kernel_exec_cycles, 0);
         exec_end_cycles = exec_start_cycles + kw_tans_cycles;
 
-        /* The case where kernel execution has started or completed before or after sampling interval end, 
-           this needs to be skipped 
+        /* The case where kernel execution has started or completed before or after sampling interval end,
+           this needs to be skipped
           Kernel execution                   Kernel execution
             ───────┐                         ┌───────────
             ───────┴───▲─────────────────▲───┴───────────
@@ -1588,13 +1588,13 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
         if (atomic_load_local_32(&kernel->kernel_state) == KERNEL_STATE_IN_USE)
         {
             /* scenario where kernel execution started before sampling interval and ended within sampling interval.
-            the execution cycles before start of sampling interval has to be subtracted from total execution cycles. 
+            the execution cycles before start of sampling interval has to be subtracted from total execution cycles.
                               Kernel execution             Kernel execution(continued)
                             ┌───▲─────────┐   ▲          ┌───▲───────────────▲─┐
                             │   │         │   │          │   │               │ │
                          ───┴───┼─────────┴───┼──────────┴───┼───────────────┼─┴──────
                     Interval    │             │              │               │
-                                start          end         start            end 
+                                start          end         start            end
             */
             if (exec_start_cycles < interval_start)
             {
@@ -1608,8 +1608,8 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
             }
             else if ((exec_start_cycles < interval_end) && (exec_start_cycles > interval_start))
             {
-                /* scenario where kernel execution started after sampling interval start and continued past interval end. 
-                            Kernel execution 
+                /* scenario where kernel execution started after sampling interval start and continued past interval end.
+                            Kernel execution
                     ▲      ┌────────▲──────┐
                     │      │        │      │
                 ────┼──────┴────────┼──────┴──
@@ -1639,7 +1639,7 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
             {
                 kw_tans_cycles -= prev_cycles;
 
-                /* scenario in which completed kernel execution ended after sampling interval 
+                /* scenario in which completed kernel execution ended after sampling interval
                     ▲      ┌────────▲──────┐
                     │      │        │      │
                 ────┼──────┴────────┼──────┴──
@@ -1649,12 +1649,12 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
                 accum_cycles += STATW_CHECK_FOR_TRANS_COMPLETION_AFTER_SAMPLING_INTERVAL(
                     exec_end_cycles, interval_end, kw_tans_cycles);
 
-                /* scenario where kernel execution started before sampling interval. 
-                            ┌───▲─────────┐   ▲          
-                            │   │         │   │          
+                /* scenario where kernel execution started before sampling interval.
+                            ┌───▲─────────┐   ▲
+                            │   │         │   │
                          ───┴───┼─────────┴───┼────
-                    Interval    │             │              
-                                start          end        
+                    Interval    │             │
+                                start          end
                 */
                 accum_cycles += STATW_CHECK_FOR_TRANS_COMPLETION_BEFORE_SAMPLING_INTERVAL(
                     exec_start_cycles, exec_end_cycles, interval_start, kw_tans_cycles);
