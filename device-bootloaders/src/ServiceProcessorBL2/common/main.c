@@ -103,6 +103,9 @@ static void taskMain(void *pvParameters)
 {
     uint64_t minion_shires_mask;
     int status;
+    uint8_t major;
+    uint8_t minor;
+    uint8_t revision;
     (void)pvParameters;
 
     // Disable buffering on stdout
@@ -114,6 +117,17 @@ static void taskMain(void *pvParameters)
 
     // Establish connection to PMIC
     setup_pmic();
+
+    // Read PMIC version and display
+    if (0 != pmic_get_fw_version(&major, &minor, &revision))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MAIN:[txt]PMIC get FW Version error!\n");
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]PMIC FW version: %d.%d.%d\n", major, minor,
+                  revision);
+    }
 
     // Read and printout ecid
     ecid_t ecid;
