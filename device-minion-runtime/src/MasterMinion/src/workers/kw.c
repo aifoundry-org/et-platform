@@ -1553,14 +1553,15 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
     uint64_t exec_end_cycles = 0;
     kernel_instance_t *kernel;
     uint64_t total_shire_count = get_set_bit_count(CW_Get_Booted_Shires());
-    uint64_t prev_cycles = 0;
     uint64_t kw_tans_cycles = 0;
+    uint64_t interval_cycles = (interval_end - interval_start);
 
-    if (!(total_shire_count > 0))
+    if (total_shire_count == 0)
     {
         Log_Write(LOG_LEVEL_ERROR, "KW_Get_Average_Exec_Cycles: Invalid total shire count.\r\n");
         return 0;
     }
+
     for (int kw = 0; kw < KW_NUM; kw++)
     {
         kernel = &KW_CB.kernels[kw];
@@ -1587,6 +1588,9 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
         /* Check if there is any active kernel execution. */
         if (atomic_load_local_32(&kernel->kernel_state) == KERNEL_STATE_IN_USE)
         {
+            uint64_t temp_cycles = 0;
+            bool cycles_exists = false;
+
             /* scenario where kernel execution started before sampling interval and ended within sampling interval.
             the execution cycles before start of sampling interval has to be subtracted from total execution cycles.
                               Kernel execution             Kernel execution(continued)
@@ -1600,11 +1604,10 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
             {
                 /* if kernel execution is continued past the sampling interval end then end cycles will be equal to start cycles
                 because there are no total kernel execution cycles. In this case total cycles will be the interval cycles */
-                accum_cycles += STATW_CHECK_FOR_CONTINUED_EXEC_TRANSACTION(exec_start_cycles,
-                    exec_end_cycles, kw_tans_cycles, (interval_start - exec_start_cycles));
-                atomic_add_local_64(
-                    &kernel->kw_cycles.prev_cycles, (interval_end - interval_start));
-                active_kw++;
+                temp_cycles += STATW_CHECK_FOR_CONTINUED_EXEC_TRANSACTION(interval_start,
+                    interval_end, exec_start_cycles, exec_end_cycles, kw_tans_cycles,
+                    (interval_start - exec_start_cycles), &kernel->kw_cycles.prev_cycles);
+                cycles_exists = true;
             }
             else if ((exec_start_cycles < interval_end) && (exec_start_cycles > interval_start))
             {
@@ -1616,9 +1619,47 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
                     │               │
                     start            end
                 */
-                accum_cycles += interval_end - exec_start_cycles;
+                temp_cycles += interval_end - exec_start_cycles;
+                atomic_add_local_64(
+                    &kernel->kw_cycles.prev_cycles, (interval_end - exec_start_cycles));
+                cycles_exists = true;
+            }
+
+            /* scenario where KW transaction was completed earlier and channel is also active for a new transaction */
+            if (!((exec_start_cycles > interval_end) && (exec_end_cycles > interval_end)) &&
+                (kw_tans_cycles > 0))
+            {
+                temp_cycles +=
+                    kw_tans_cycles - atomic_exchange_local_64(&kernel->kw_cycles.prev_cycles, 0);
+                /* add current accomodated cycles to previous cycles for this new transaction */
+                atomic_add_local_64(
+                    &kernel->kw_cycles.prev_cycles, (interval_end - exec_start_cycles));
+                cycles_exists = true;
+            }
+
+            /* scenario where KW transaction was started and completed after interval and channel is also active for a new transaction */
+            if (((exec_start_cycles > interval_end) && (exec_end_cycles > interval_end)) &&
+                (kw_tans_cycles > 0))
+            {
+                atomic_exchange_local_64(&kernel->kw_cycles.prev_cycles, 0);
+            }
+
+            /* check if current calculated cycles exceeded interval cycles, accumulate reamining cycles into
+            execution cycles to be addressed in next interval */
+            if (temp_cycles > interval_cycles)
+            {
+                atomic_add_local_64(&kernel->kernel_exec_cycles, (temp_cycles - interval_cycles));
+                temp_cycles -= (temp_cycles - interval_cycles);
+            }
+
+            accum_cycles += temp_cycles;
+
+            /* check if we have accumulated cycles for this channel */
+            if (cycles_exists)
+            {
                 active_kw++;
             }
+
             /* Apply scaling factor. */
             accum_cycles = (accum_cycles * get_set_bit_count(
                                                atomic_load_local_64(&kernel->kernel_shire_mask))) /
@@ -1633,31 +1674,21 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
                                 │               │
                                 start            end
              */
-            prev_cycles = atomic_exchange_local_64(&kernel->kw_cycles.prev_cycles, 0);
-            if ((kw_tans_cycles > 0) && (exec_start_cycles < interval_end) &&
-                (exec_end_cycles > interval_start))
+            if (kw_tans_cycles > 0)
             {
-                kw_tans_cycles -= prev_cycles;
+                kw_tans_cycles -= atomic_exchange_local_64(&kernel->kw_cycles.prev_cycles, 0);
 
-                /* scenario in which completed kernel execution ended after sampling interval
-                    ▲      ┌────────▲──────┐
-                    │      │        │      │
-                ────┼──────┴────────┼──────┴──
-                    │               │
-                    start            end
-                */
-                accum_cycles += STATW_CHECK_FOR_TRANS_COMPLETION_AFTER_SAMPLING_INTERVAL(
-                    exec_end_cycles, interval_end, kw_tans_cycles);
-
-                /* scenario where kernel execution started before sampling interval.
-                            ┌───▲─────────┐   ▲
-                            │   │         │   │
-                         ───┴───┼─────────┴───┼────
-                    Interval    │             │
-                                start          end
-                */
-                accum_cycles += STATW_CHECK_FOR_TRANS_COMPLETION_BEFORE_SAMPLING_INTERVAL(
-                    exec_start_cycles, exec_end_cycles, interval_start, kw_tans_cycles);
+                /* check if the dma cycles are within interval range, accumulated remaining cycles into execution cycles to be addressed in next interval*/
+                if (kw_tans_cycles > interval_cycles)
+                {
+                    atomic_add_local_64(
+                        &kernel->kernel_exec_cycles, (kw_tans_cycles - interval_cycles));
+                    accum_cycles += interval_cycles;
+                }
+                else
+                {
+                    accum_cycles += kw_tans_cycles;
+                }
                 active_kw++;
             }
         }

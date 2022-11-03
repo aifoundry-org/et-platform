@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14290] Fix to address stats in et_powertop becoming zero
 - [SW-14154]: Fix utilization calculation algorithm to handle execution scenarios beyond or before sampling interval
 - [SW-14290] Adding the missing check for minimum stats value.
+- [SW-14508] More fixes to DMA and KW utilization 
 ### Security
 
 ## [0.11.0] - 2022-09-02
