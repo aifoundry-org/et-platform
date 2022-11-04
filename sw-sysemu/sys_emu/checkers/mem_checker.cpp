@@ -344,7 +344,7 @@ bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, ui
     // Time stamp is coherent
     coherent &= !global_found || (access_time_stamp == it_global->second.latest_time_stamp);
 
-    if(!coherent) dump_state(it_global, it_shire, it_minion, shire_id, minion);
+    if(!coherent && !m_waive_reads) dump_state(it_global, it_shire, it_minion, shire_id, minion);
 
     bool update_minion = (location == COH_MINION);
     bool update_shire  = (location == COH_MINION) || (location == COH_SHIRE) || (location == COH_CB);
@@ -1023,8 +1023,12 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
 
         if(!coherent)
         {
-            LOG_AGENT(FTL, *this, "\t(Coherency Read Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
-            return false;
+            if (!m_waive_reads) {
+                LOG_AGENT(FTL, *this, "\t(Coherency Read Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
+                return false;
+            } else {
+                LOG_AGENT(WARN, *this, "\t(Coherency Read Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
+            }
         }
 
         if(((addr & 0x3FULL) + size) > 64)
@@ -1033,8 +1037,12 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
 
             if(!coherent)
             {
-                LOG_AGENT(FTL, *this, "\t(Coherency Read Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
-                return false;
+                if (!m_waive_reads) {
+                    LOG_AGENT(FTL, *this, "\t(Coherency Read Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
+                    return false;
+                } else {
+                    LOG_AGENT(WARN, *this, "\t(Coherency Read Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
+                }
             }
         }
     }
@@ -1175,7 +1183,8 @@ void mem_checker::l2_flush(uint32_t shire_id, uint32_t cache_bank)
 // Public function called when there's an ESR write that evicts an L2 bank
 void mem_checker::l2_evict(uint32_t shire_id, uint32_t cache_bank)
 {
-    MD_LOG(0, log_minion + 1, LOG_AGENT(DEBUG, *this, "mem_checker::l2_evict => shire_id %i, bank %i", shire_id, cache_bank));
+    // MD_LOG(0, log_minion + 1, LOG_AGENT(DEBUG, *this, "mem_checker::l2_evict => shire_id %i, bank %i", shire_id, cache_bank));
+    LOG_AGENT(DEBUG, *this, "mem_checker::l2_evict => shire_id %i, bank %i", shire_id, cache_bank);
     shire_directory_map_t::iterator it_shire = shire_directory_map[shire_id].begin();
 
     while(it_shire != shire_directory_map[shire_id].end())

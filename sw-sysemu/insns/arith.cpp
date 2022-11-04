@@ -147,14 +147,20 @@ void insn_slti(Hart& cpu)
     // Note: This is a late addition, so most of these hints are not actually implemented.
     //
     // [1]: https://esperantotech.atlassian.net/wiki/spaces/VE/pages/221216827/Interface+between+assembly+test+and+EVL+DV+environment
-    switch (IIMM) {
-    case 0x602: { // L1 eviction for the given minion (sysemu only).
-        if (cpu.chip->emu()->get_mem_check()) {
+    if (cpu.chip->emu()->get_mem_check()) {
+        switch (IIMM) {
+        case 0x602: // L1 eviction for the given minion (sysemu only).
             cpu.chip->emu()->get_mem_checker().l1_evict_all(shire_index(cpu), core_index(cpu) % EMU_MINIONS_PER_SHIRE);
+            break;
+        case 0x603:
+            cpu.chip->emu()->get_mem_checker().waive_reads(true);
+            break;
+        case 0x604:
+            cpu.chip->emu()->get_mem_checker().waive_reads(false);
+            break;
+            break;
+        default:;
         }
-        break;
-    }
-    default:;
     }
 #endif
 }
