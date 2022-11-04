@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Deprecated
 ### Removed
+- [SW-14349] Removed deprecated ET_TRACE_MEM_CPY config option from trace.
 ### Fixed
 - [SW-14768] fix et_assert expr stringification
 ### Security

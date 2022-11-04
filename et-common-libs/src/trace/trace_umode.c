@@ -31,10 +31,8 @@ static inline uint64_t trace_umode_sample_ms_pmc(uint64_t pmc)
     return (uint64_t)syscall(SYSCALL_PMC_MS_SAMPLE, get_shire_id(), pmc, 0);
 }
 
-#define ET_TRACE_READ_MEM(dest, src, size)  et_memcpy(dest, src, size)
-#define ET_TRACE_WRITE_MEM(dest, src, size) et_memcpy(dest, src, size)
-/* TODO: ET_TRACE_MEM_CPY deprecated, to be removed. */
-#define ET_TRACE_MEM_CPY(dest, src, size)    et_memcpy(dest, src, size)
+#define ET_TRACE_READ_MEM(dest, src, size)   et_memcpy(dest, src, size)
+#define ET_TRACE_WRITE_MEM(dest, src, size)  et_memcpy(dest, src, size)
 #define ET_TRACE_STRLEN(str)                 et_strlen(str)
 #define ET_TRACE_GET_TIMESTAMP()             PMC_Get_Current_Cycles()
 #define ET_TRACE_GET_HPM_COUNTER(id)         pmu_core_counter_read_unpriv(id)
