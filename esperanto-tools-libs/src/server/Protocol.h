@@ -158,24 +158,16 @@ struct DestroyStream {
 
 struct LoadCode {
   LoadCode() = default;
-  LoadCode(StreamId st, std::vector<std::byte> elf)
+  LoadCode(StreamId st, const std::byte* data, size_t size)
     : stream_(st)
-    , elf_(std::move(elf)) {
-    if (elf_.size() > kMaxKernelSize) {
-      throw rt::Exception("Current runtime only support loading kernels up to: " + std::to_string(kMaxKernelSize) +
-                          " bytes.");
-    }
+    , elfData_(reinterpret_cast<uint64_t>(data))
+    , elfSize_(size) {
   }
   StreamId stream_;
-  // an alternative would be to send only pointer + size; but it would complicate the load code part. It woulf safe a
-  // couple of memcpys, its likely not worth it...
-  std::vector<std::byte> elf_;
+  AddressT elfData_;
+  size_t elfSize_;
   template <class Archive> void serialize(Archive& archive) {
-    if (elf_.size() > kMaxKernelSize) {
-      throw rt::Exception("Current runtime only support loading kernels up to: " + std::to_string(kMaxKernelSize) +
-                          " bytes.");
-    }
-    archive(stream_, elf_);
+    archive(stream_, elfData_, elfSize_);
   }
 };
 struct Malloc {
