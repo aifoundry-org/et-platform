@@ -79,7 +79,9 @@ enum mm2sp_sp_recoverable_error_code_e {
     MM_CQ_INIT_ERROR = -8,
     MM_SQ_INIT_ERROR = -9,
     MM_RUNTIME_EXCEPTION = -10,
-    MM_HEARTBEAT_WD_EXPIRED = -11
+    MM_HEARTBEAT_WD_EXPIRED = -11,
+    MM_CONFIG_ERROR = -12,
+    MM_DMA_INIT_ERROR = -13
 };
 
 typedef uint16_t mm2sp_error_type_e;

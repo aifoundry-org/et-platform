@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Adding new error codes for SP recoverable errors.
 ### Changed
 ### Deprecated
 ### Removed
