@@ -52,6 +52,11 @@
 */
 #define MM_MASTER_SHIRE_ID 32
 
+/*! \def MM_MASTER_SHIRE_NEIGH_NUM
+    \brief MM master shire number of neighborhoods
+*/
+#define MM_MASTER_SHIRE_NEIGH_NUM 2
+
 /*! \def MM_HEARTBEAT_TIMEOUT_MSEC
     \brief MM reset timeout period
 */
@@ -123,6 +128,13 @@ int Compute_Minion_Reset_Threads(uint64_t minion_shires_mask);
     \return The function call status, pass/fail.
 */
 int Initialize_Minions(uint64_t shires_mask);
+
+/*! \fn int Minion_Configure_MPROT(uint64_t shire_mask)
+    \brief This function configures the MPROT ESR for Minion shires.
+    \param  shire_mask Shire Mask
+    \return Status indicating success or negative error
+*/
+int Minion_Configure_MPROT(uint64_t shire_mask);
 
 /*! \fn int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpll_mode,
 *                                             uint8_t lvdpll_mode, bool use_step_clock)

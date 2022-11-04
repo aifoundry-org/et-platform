@@ -48,6 +48,7 @@
 #include "esr.h"
 #include "bl2_otp.h"
 #include "minion_configuration.h"
+#include "mem_controller.h"
 #include "command_dispatcher.h"
 #include "hal_minion_pll.h"
 #include "FreeRTOS.h"
@@ -84,6 +85,30 @@ static struct minion_event_control_block event_control_block __attribute__((sect
 /* Globals for SW timer */
 TimerHandle_t MM_HeartBeat_Timer = NULL;
 static StaticTimer_t MM_Timer_Buffer;
+
+#define BYTES_IN_GB(x) (x * 1024UL * 1024UL * 1024UL)
+
+/* Macro for encoding the DRAM size for MPROT */
+#define MPROT_ENCODE_DDR_SIZE(size_in_bytes, encoded_value) \
+    {                                                       \
+        /* Check DRAM size and set the value */             \
+        if (size_in_bytes <= BYTES_IN_GB(8))                \
+        {                                                   \
+            encoded_value = 0;                              \
+        }                                                   \
+        else if (size_in_bytes <= BYTES_IN_GB(16))          \
+        {                                                   \
+            encoded_value = 1;                              \
+        }                                                   \
+        else if (size_in_bytes <= BYTES_IN_GB(24))          \
+        {                                                   \
+            encoded_value = 2;                              \
+        }                                                   \
+        else                                                \
+        {                                                   \
+            encoded_value = 3;                              \
+        }                                                   \
+    }
 
 /* Macro to increment exception error counter and send event to host */
 #define MINION_EXCEPT_ERROR_EVENT_HANDLE(error_type, error_code)                             \
@@ -129,6 +154,21 @@ static StaticTimer_t MM_Timer_Buffer;
         shiremask >>= 1;                                        \
     }
 
+/* Macro to update all nieghs of all Shires for a given input function */
+#define UPDATE_ALL_SHIRE_ALL_NEIGH(shiremask, function, arg)                    \
+    uint8_t num_shires = get_highest_set_bit_offset(shiremask);                 \
+    for (uint8_t shireid = 0; shireid <= num_shires; shireid++)                 \
+    {                                                                           \
+        if (shiremask & 1)                                                      \
+        {                                                                       \
+            for (uint8_t neighid = 0; neighid < NUM_NEIGH_PER_SHIRE; neighid++) \
+            {                                                                   \
+                function(shireid, neighid, arg);                                \
+            }                                                                   \
+        }                                                                       \
+        shiremask >>= 1;                                                        \
+    }
+
 /* Macro to switch to Step Clock and disable LVDPLL     */
 #define SWITCH_TO_STEP_CLOCK                              \
     (shiremask) for (uint8_t i = 0; i <= num_shires; i++) \
@@ -146,14 +186,51 @@ static StaticTimer_t MM_Timer_Buffer;
     const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(id) |        \
                             ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(sc_enable) | \
                             ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(neigh_mask); \
-    write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,                \
+    write_esr_new(PP_MACHINE, id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,               \
                   ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);                \
     if (enable_vpu_rf_wa)                                                                \
     {                                                                                    \
         /* VPU Array init */                                                             \
-        if (0 != Minion_VPU_RF_Init(i))                                                  \
-            Log_Write(LOG_LEVEL_WARNING, "Shire %d VPU RF not initialized\n", i);        \
+        if (0 != Minion_VPU_RF_Init(id))                                                 \
+            Log_Write(LOG_LEVEL_WARNING, "Shire %d VPU RF not initialized\n", id);       \
     }
+
+#define CONFIG_SHIRE_NEIGH_MPROT(shire_id, neigh_id, dram_size_encoded)                       \
+    uint64_t mprot = read_esr_new(PP_MACHINE, shire_id, REGION_NEIGHBOURHOOD, neigh_id,       \
+                                  ETSOC_NEIGH_ESR_MPROT_ADDRESS, 0);                          \
+                                                                                              \
+    /* Set DRAM Size, Enable access to DRAM OS region, Set secure memory mode */              \
+    mprot = ETSOC_NEIGH_ESR_MPROT_DRAM_SIZE_MODIFY(mprot, dram_size_encoded) |                \
+            ETSOC_NEIGH_ESR_MPROT_DISABLE_OSBOX_ACCESS_MODIFY(mprot, 0x0) |                   \
+            ETSOC_NEIGH_ESR_MPROT_SECURE_MEMORY_MODIFY(mprot, 0x1);                           \
+                                                                                              \
+    /* Master Shire neighborhoods */                                                          \
+    if ((shire_id == MM_MASTER_SHIRE_ID) && (neigh_id < MM_MASTER_SHIRE_NEIGH_NUM))           \
+    {                                                                                         \
+        /* Allow I/O accesses at S-mode */                                                    \
+        mprot = ETSOC_NEIGH_ESR_MPROT_IO_ACCESS_MODE_MODIFY(mprot, 0x1);                      \
+        if (neigh_id == 0)                                                                    \
+        {                                                                                     \
+            /* Clear disable_pcie_access */                                                   \
+            mprot = ETSOC_NEIGH_ESR_MPROT_DISABLE_PCIE_ACCESS_MODIFY(mprot, 0x0);             \
+        }                                                                                     \
+        else                                                                                  \
+        {                                                                                     \
+            /* Set disable_pcie_access */                                                     \
+            mprot = ETSOC_NEIGH_ESR_MPROT_DISABLE_PCIE_ACCESS_MODIFY(mprot, 0x1);             \
+        }                                                                                     \
+    }                                                                                         \
+    else /* Compute Shires neighborhoods */                                                   \
+    {                                                                                         \
+        /* Allow I/O accesses at M-mode, Set disable_pcie_access */                           \
+        mprot = ETSOC_NEIGH_ESR_MPROT_IO_ACCESS_MODE_MODIFY(mprot, 0x3) |                     \
+                ETSOC_NEIGH_ESR_MPROT_DISABLE_PCIE_ACCESS_MODIFY(mprot, 0x1);                 \
+    }                                                                                         \
+    Log_Write(LOG_LEVEL_INFO, "MPROT Config: Shire: %d: Neigh: %d: mprot: 0x%lx\n", shire_id, \
+              neigh_id, mprot);                                                               \
+    /* Write the updated value to MPROT */                                                    \
+    write_esr_new(PP_MACHINE, shire_id, REGION_NEIGHBOURHOOD, neigh_id,                       \
+                  ETSOC_NEIGH_ESR_MPROT_ADDRESS, mprot, 0);
 
 /*! \def FREQUENCY_HZ_TO_MHZ(x)
     \brief Converts HZ to MHZ
@@ -659,7 +736,7 @@ int Minion_Enable_Master_Shire_Threads(void)
     {
         Log_Write(LOG_LEVEL_WARNING,
                   "Master shire ID was not found in the OTP, using default value of 32!\n");
-        mm_id = 32;
+        mm_id = MM_MASTER_SHIRE_ID;
     }
 
     // Set SC REQQ to distribute arbritration equally between Neigh/L3 Slave
@@ -907,6 +984,43 @@ int Minion_Get_Voltage_Given_Freq(int32_t target_frequency)
     int target_voltage = THRESHOLD_VOLTAGE + (target_frequency * DeltaVolt_per_DeltaFreq);
 
     return target_voltage;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Configure_MPROT
+*
+*   DESCRIPTION
+*
+*       This function configures mprot ESR of minion shires.
+*
+*   INPUTS
+*
+*       shire_mask - Shire MASK
+*
+*   OUTPUTS
+*
+*       The function call status, pass/fail
+*
+***********************************************************************/
+int Minion_Configure_MPROT(uint64_t shire_mask)
+{
+    /* Get memory info from mem controller */
+    const struct ddr_mem_info_t *mem_info = mem_controller_get_ddr_info();
+    uint64_t encoded_val = 0;
+
+    /* Encode the DDR size */
+    MPROT_ENCODE_DDR_SIZE(mem_info->ddr_mem_size, encoded_val)
+
+    Log_Write(LOG_LEVEL_INFO, "Minion_Configure_MPROT: DRAM size: %ld, mprot encoded dram: 0x%lx\n",
+              mem_info->ddr_mem_size, encoded_val);
+
+    /* Configure the MPROT ESR for all neighs of shires with default values and DRAM size */
+    UPDATE_ALL_SHIRE_ALL_NEIGH(shire_mask, CONFIG_SHIRE_NEIGH_MPROT, encoded_val)
+
+    return SUCCESS;
 }
 
 /************************************************************************
