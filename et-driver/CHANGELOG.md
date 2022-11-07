@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [SW-14614] et_device_api: Changed wait time from u32 to u64
+- [SW-9608b] et_device_api: Removed reserved IDs before DMA list commands
 ### Deprecated
 ### Removed
 - [SW-9608] Removed legacy DMA read/write support
