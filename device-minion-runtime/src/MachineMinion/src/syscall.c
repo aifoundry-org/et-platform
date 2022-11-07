@@ -65,33 +65,6 @@ static inline void l1_shared_to_split(
 static inline void l1_split_to_shared(
     uint64_t scp_enabled, uint64_t cacheop_reprate, uint64_t cacheop_max);
 static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en);
-static int64_t config_mprot(mprot_field_e field, uint64_t value, uint64_t shire_mask);
-
-#define MPROT_CONFIG(field, value, shire_id, neigh_id)                                             \
-    {                                                                                              \
-        volatile uint64_t *const mprot_ptr =                                                       \
-            (volatile uint64_t *)ESR_NEIGH(shire_id, neigh_id, MPROT);                             \
-        switch (field)                                                                             \
-        {                                                                                          \
-            case MPROT_FIELD_IO_ACCESS_MODE:                                                       \
-                *mprot_ptr = ETSOC_NEIGH_ESR_MPROT_IO_ACCESS_MODE_MODIFY(*mprot_ptr, value);       \
-                break;                                                                             \
-            case MPROT_FIELD_DISABLE_PCIE_ACCESS:                                                  \
-                *mprot_ptr = ETSOC_NEIGH_ESR_MPROT_DISABLE_PCIE_ACCESS_MODIFY(*mprot_ptr, value);  \
-                break;                                                                             \
-            case MPROT_FIELD_DISABLE_OSBOX_ACCESS:                                                 \
-                *mprot_ptr = ETSOC_NEIGH_ESR_MPROT_DISABLE_OSBOX_ACCESS_MODIFY(*mprot_ptr, value); \
-                break;                                                                             \
-            case MPROT_FIELD_DRAM_SIZE:                                                            \
-                *mprot_ptr = ETSOC_NEIGH_ESR_MPROT_DRAM_SIZE_MODIFY(*mprot_ptr, value);            \
-                break;                                                                             \
-            case MPROT_FIELD_SECURE_MEMORY:                                                        \
-                *mprot_ptr = ETSOC_NEIGH_ESR_MPROT_SECURE_MEMORY_MODIFY(*mprot_ptr, value);        \
-                break;                                                                             \
-            default:                                                                               \
-                break;                                                                             \
-        }                                                                                          \
-    }
 
 int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
 {
@@ -166,9 +139,6 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
             break;
         case SYSCALL_PMC_MS_SAMPLE_ALL_INT:
             ret = sample_ms_pmcs_all(arg1, (shire_pmc_cnt_t *)arg2);
-            break;
-        case SYSCALL_MPROT_CONFIG:
-            ret = config_mprot(arg1, arg2, arg3);
             break;
 
         default:
@@ -651,25 +621,6 @@ static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en)
 
     // Release the hold of the processor
     excl_mode(0);
-
-    return SYSCALL_INTERNAL_SUCCESS;
-}
-
-static int64_t config_mprot(mprot_field_e field, uint64_t value, uint64_t shires_mask)
-{
-    uint32_t num_shires = get_msb_set_pos(shires_mask);
-
-    for (uint64_t shire_id = 0; shire_id <= num_shires; shire_id++)
-    {
-        if (shires_mask & 1)
-        {
-            for (uint64_t neigh_id = 0; neigh_id < NEIGH_PER_SHIRE; neigh_id++)
-            {
-                MPROT_CONFIG(field, value, shire_id, neigh_id)
-            }
-        }
-        shires_mask >>= 1;
-    }
 
     return SYSCALL_INTERNAL_SUCCESS;
 }

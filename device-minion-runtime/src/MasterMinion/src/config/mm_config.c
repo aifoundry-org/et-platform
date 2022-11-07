@@ -35,29 +35,6 @@
 #include "error_codes.h"
 #include "syscall_internal.h"
 
-#define BYTES_IN_GB(x) (x * 1024UL * 1024UL * 1024UL)
-
-#define MPROT_ENCODE_DDR_SIZE(size_in_bytes, encoded_value) \
-    {                                                       \
-        /* Check DRAM size and set the value */             \
-        if (size_in_bytes <= BYTES_IN_GB(8))                \
-        {                                                   \
-            encoded_value = 0;                              \
-        }                                                   \
-        else if (size_in_bytes <= BYTES_IN_GB(16))          \
-        {                                                   \
-            encoded_value = 1;                              \
-        }                                                   \
-        else if (size_in_bytes <= BYTES_IN_GB(24))          \
-        {                                                   \
-            encoded_value = 2;                              \
-        }                                                   \
-        else                                                \
-        {                                                   \
-            encoded_value = 3;                              \
-        }                                                   \
-    }
-
 typedef struct mm_config_ {
     uint64_t ddr_size;
     uint64_t host_managed_dram_size;
@@ -129,25 +106,6 @@ int32_t MM_Config_Init(void)
 
         atomic_store_local_64(&MM_Config_CB.cm_shire_mask, shire_mask);
         atomic_store_local_8(&MM_Config_CB.lvdpll_strap, lvdpll_strap);
-    }
-
-    /* Configure the DDR size in mprot */
-    if (status == STATUS_SUCCESS)
-    {
-        uint64_t value;
-
-        /* Set the bit for MM shire */
-        shire_mask = MASK_SET_BIT(shire_mask, MASTER_SHIRE);
-
-        /* Encode the DDR size */
-        MPROT_ENCODE_DDR_SIZE(ddr_mem_size, value)
-
-        Log_Write(LOG_LEVEL_INFO,
-            "MM_Config_Init:Setting mprot:DRAM size:%ld:Encoded value:%ld\r\n", ddr_mem_size,
-            value);
-
-        /* Perform the syscall for mprot */
-        syscall(SYSCALL_MPROT_CONFIG, MPROT_FIELD_DRAM_SIZE, value, shire_mask);
     }
 
     return status;

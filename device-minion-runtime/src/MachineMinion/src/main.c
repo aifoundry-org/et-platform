@@ -35,9 +35,6 @@
 /* Machine minion specific headers */
 #include "config/mm_config.h"
 
-/* Global variable to keep track of Machine Minions boot */
-static spinlock_t MM_Thread_Boot_Counter[NUM_SHIRES] = { 0 };
-
 static inline void initialize_scp(uint32_t shire_id)
 {
     /* Setup cache op state machine to zero out the SCP region of the given shire */
@@ -168,46 +165,6 @@ void __attribute__((noreturn)) main(void)
     if ((shire_id == MM_SHIRE_ID) && ((get_minion_id() & 0x1F) < 16))
     {
         const uint64_t *const master_entry = (uint64_t *)FW_MASTER_SMODE_ENTRY;
-        const uint32_t minion_mask = 0xFFFFU;
-
-        // First HART in each neighborhood
-        if (hart_id % 16 == 0)
-        {
-            const uint64_t neighborhood_id = get_neighborhood_id();
-
-            volatile uint64_t *const mprot_ptr =
-                (volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, neighborhood_id, MPROT);
-            uint64_t mprot = *mprot_ptr;
-            // Clear io_access_mode, disable_pcie_access, disable_osbox_access
-            mprot &= ~0x4Fu;
-            // Set secure memory permissions (M/S RX/RW regions), and allow I/O accesses at S-mode
-            mprot |= 0x41;
-            if (neighborhood_id != 0)
-            {
-                // For Neighborhoods 1-3 in master shire: disable access to PCI-E region
-                mprot |= 0x04;
-            }
-            *mprot_ptr = mprot;
-
-            /* Wait for MPROT config on all 2 non-sync neighborhoods
-            to complete before any thread can continue. */
-            if (atomic_add_local_32(&MM_Thread_Boot_Counter[MASTER_SHIRE].flag, 1U) == 1)
-            {
-                /* Reset the thread boot counter */
-                init_local_spinlock(&MM_Thread_Boot_Counter[MASTER_SHIRE], 0);
-
-                /* Last neighborhood to configure MPROT sends FCC0 to all HARTs (other than sync-minions)
-                in this shire minion thread1s aren't enabled yet, so send FCC0 to 16 thread0s. */
-                SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, minion_mask);
-            }
-        }
-
-        // Only thread0s participate in the initial MRPOT config rendezvous
-        // thread1s boot up later, long after MPROT has been configured per neighborhood
-        if (get_thread_id() == 0)
-        {
-            WAIT_FCC(0);
-        }
 
         // Jump to master firmware in supervisor mode
         asm volatile("csrw  mepc, %0 \n" // write return address
@@ -219,32 +176,6 @@ void __attribute__((noreturn)) main(void)
     {
         // Worker shire and Master shire sync-minions (upper 16)
         const uint64_t *const worker_entry = (uint64_t *)FW_WORKER_SMODE_ENTRY;
-        const uint32_t minion_mask = (shire_id == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
-
-        // First HART in each neighborhood
-        if (hart_id % 16 == 0)
-        {
-            const uint64_t neighborhood_id = get_neighborhood_id();
-
-            volatile uint64_t *const mprot_ptr =
-                (volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, neighborhood_id, MPROT);
-            uint64_t mprot = *mprot_ptr;
-            // Clear io_access_mode, disable_pcie_access, disable_osbox_access
-            mprot &= ~0x4Fu;
-            // Set enable_secure_memory, disable_pcie_access and io_access_mode = b11 (M-mode only)
-            mprot |= 0x47;
-            *mprot_ptr = mprot;
-
-            // minion thread1s aren't enabled yet, so send FCC0 to all thread0s
-            SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, minion_mask);
-        }
-
-        // Only thread0s participate in the initial MRPOT config rendezvous
-        // thread1s boot up later, long after MPROT has been configured per neighborhood
-        if (get_thread_id() == 0)
-        {
-            WAIT_FCC(0);
-        }
 
         // Jump to worker firmware in supervisor mode
         asm volatile("csrw  mepc, %0 \n" // write return address

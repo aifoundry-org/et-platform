@@ -24,7 +24,6 @@
 #define SYSCALL_ENABLE_NEIGH                21
 #define SYSCALL_PMC_SC_SAMPLE_ALL_INT       22
 #define SYSCALL_PMC_MS_SAMPLE_ALL_INT       23
-#define SYSCALL_MPROT_CONFIG                24
 
 /* SYSCALL error codes */
 #define SYSCALL_INTERNAL_SUCCESS    0
