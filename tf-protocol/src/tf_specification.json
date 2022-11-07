@@ -983,8 +983,8 @@
         "TF_CMD_MM_ECHO": 517,
         "TF_CMD_MM_ABORT": 519,
         "TF_CMD_MM_KERNEL_LAUNCH": 521,
-        "TF_CMD_MM_TRACE_RT_CONFIG": 533,
-        "TF_CMD_MM_TRACE_RT_CONTROL": 535
+        "TF_CMD_MM_TRACE_RT_CONFIG": 529,
+        "TF_CMD_MM_TRACE_RT_CONTROL": 531
     },
     "tf_mm_device_api_rsp_ids.description": "TF can tunnel device-api ops responses from MM, so these ids should be aligned with device-api response ids",
     "tf_mm_device_api_rsp_ids.instruction": "To add a new mm device-api command, a new entry should be added to tf_mm_device_api_cmd_id",
@@ -993,8 +993,8 @@
         "TF_RSP_MM_ECHO": 518,
         "TF_RSP_MM_ABORT": 520,
         "TF_RSP_MM_KERNEL_LAUNCH": 522,
-        "TF_RSP_MM_TRACE_RT_CONFIG": 534,
-        "TF_RSP_MM_TRACE_RT_CONTROL": 536
+        "TF_RSP_MM_TRACE_RT_CONFIG": 530,
+        "TF_RSP_MM_TRACE_RT_CONTROL": 532
     },
     "tf_mm_device_api_cmd_hdr": {
         "size": "uint16_t",
