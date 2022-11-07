@@ -13,6 +13,8 @@
 
 #include <map>
 
+#include <cassert>
+
 #include "emu_defines.h"
 #include "cache.h"
 #include "agent.h"
@@ -57,7 +59,7 @@ class mem_checker : public bemu::Agent
 
 private:
     uint64_t global_time_stamp = 0;
-    bool     m_waive_reads     = false;
+    std::bitset<EMU_NUM_THREADS> m_waive_reads{0};
 
     // Directories global, per shire and per minion
     global_directory_map_t global_directory_map;
@@ -109,7 +111,11 @@ public:
     void l1_flush_sw(uint32_t shire_id, uint32_t minion_id, uint32_t set, uint32_t way);
     void mcache_control_up(uint32_t shire_id, uint32_t minion_id, uint32_t val);
 
-    void waive_reads(bool value) { m_waive_reads = value; }
+    void waive_reads(uint32_t hart_id, bool value)
+    {
+        assert(hart_id < EMU_NUM_THREADS);
+        m_waive_reads[hart_id] = value;
+    }
 
     // Logging variables
     uint64_t log_addr = 1;

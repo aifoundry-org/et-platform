@@ -275,6 +275,7 @@ bool mem_checker::write(uint64_t pc, uint64_t address, op_location_t location, u
 bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id)
 {
     uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
+    const uint32_t thread = minion << 1 | thread_id;
 
     global_directory_map_t::iterator it_global;
     shire_directory_map_t::iterator  it_shire;
@@ -344,7 +345,7 @@ bool mem_checker::read(uint64_t pc, uint64_t address, op_location_t location, ui
     // Time stamp is coherent
     coherent &= !global_found || (access_time_stamp == it_global->second.latest_time_stamp);
 
-    if(!coherent && !m_waive_reads) dump_state(it_global, it_shire, it_minion, shire_id, minion);
+    if(!coherent && !m_waive_reads[thread]) dump_state(it_global, it_shire, it_minion, shire_id, minion);
 
     bool update_minion = (location == COH_MINION);
     bool update_shire  = (location == COH_MINION) || (location == COH_SHIRE) || (location == COH_CB);
@@ -1023,7 +1024,7 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
 
         if(!coherent)
         {
-            if (!m_waive_reads) {
+            if (!m_waive_reads[thread]) {
                 LOG_AGENT(FTL, *this, "\t(Coherency Read Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
                 return false;
             } else {
@@ -1037,7 +1038,7 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
 
             if(!coherent)
             {
-                if (!m_waive_reads) {
+                if (!m_waive_reads[thread]) {
                     LOG_AGENT(FTL, *this, "\t(Coherency Read Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
                     return false;
                 } else {

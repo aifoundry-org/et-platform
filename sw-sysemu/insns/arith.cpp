@@ -153,11 +153,10 @@ void insn_slti(Hart& cpu)
             cpu.chip->emu()->get_mem_checker().l1_evict_all(shire_index(cpu), core_index(cpu) % EMU_MINIONS_PER_SHIRE);
             break;
         case 0x603:
-            cpu.chip->emu()->get_mem_checker().waive_reads(true);
+            cpu.chip->emu()->get_mem_checker().waive_reads(hart_index(cpu), true);
             break;
         case 0x604:
-            cpu.chip->emu()->get_mem_checker().waive_reads(false);
-            break;
+            cpu.chip->emu()->get_mem_checker().waive_reads(hart_index(cpu), false);
             break;
         default:;
         }
