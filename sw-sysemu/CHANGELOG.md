@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [ARCHSIM-692] Added a SW hint to waive read coherency errors
 ### Changed
 ### Deprecated
 ### Removed
