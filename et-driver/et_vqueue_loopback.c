@@ -18,7 +18,37 @@
 #include "et_pci_dev.h"
 #include "et_vqueue.h"
 
-enum mgmt_device_msg_e {
+enum device_ops_api_msg_e {
+	DEV_OPS_API_MID_BEGIN = 512,
+	DEV_OPS_API_MID_COMPATIBILITY_CMD,
+	DEV_OPS_API_MID_COMPATIBILITY_RSP,
+	DEV_OPS_API_MID_FW_VERSION_CMD,
+	DEV_OPS_API_MID_FW_VERSION_RSP,
+	DEV_OPS_API_MID_ECHO_CMD,
+	DEV_OPS_API_MID_ECHO_RSP,
+	DEV_OPS_API_MID_ABORT_CMD,
+	DEV_OPS_API_MID_ABORT_RSP,
+	DEV_OPS_API_MID_KERNEL_LAUNCH_CMD,
+	DEV_OPS_API_MID_KERNEL_LAUNCH_RSP,
+	DEV_OPS_API_MID_KERNEL_ABORT_CMD,
+	DEV_OPS_API_MID_KERNEL_ABORT_RSP,
+	DEV_OPS_API_MID_DMA_READLIST_CMD,
+	DEV_OPS_API_MID_DMA_READLIST_RSP,
+	DEV_OPS_API_MID_DMA_WRITELIST_CMD,
+	DEV_OPS_API_MID_DMA_WRITELIST_RSP,
+	DEV_OPS_API_MID_TRACE_RT_CONFIG_CMD,
+	DEV_OPS_API_MID_TRACE_RT_CONFIG_RSP,
+	DEV_OPS_API_MID_TRACE_RT_CONTROL_CMD,
+	DEV_OPS_API_MID_TRACE_RT_CONTROL_RSP,
+	DEV_OPS_API_MID_CM_RESET_CMD,
+	DEV_OPS_API_MID_CM_RESET_RSP,
+	DEV_OPS_API_MID_DEVICE_FW_ERROR,
+	DEV_OPS_API_MID_TRACE_BUFFER_FULL_EVENT,
+	/* Device Ops Message IDs reserved */
+	DEV_OPS_API_MID_END = 1023,
+};
+
+enum device_mgmt_api_cmd_e {
 	DM_CMD_GET_MODULE_MANUFACTURE_NAME = 0,
 	DM_CMD_GET_MODULE_PART_NUMBER = 1,
 	DM_CMD_GET_MODULE_SERIAL_NUMBER = 2,
@@ -545,16 +575,6 @@ struct device_ops_fw_version_rsp_t {
 	u8 pad;
 } __packed __aligned(8);
 
-enum dev_ops_api_kernel_launch_response_e {
-	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED = 0,
-	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR = 1,
-	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION = 2,
-	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SHIRES_NOT_READY = 3,
-	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED = 4,
-	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS = 5,
-	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG = 6,
-};
-
 /*
  * DMA readlist/writelist response status codes
  */
@@ -572,6 +592,19 @@ enum dev_ops_api_dma_response_e {
 	DEV_OPS_API_DMA_RESPONSE_DRIVER_LINK_CONFIG_FAILED = 10,
 	DEV_OPS_API_DMA_RESPONSE_DRIVER_CHAN_START_FAILED = 11,
 	DEV_OPS_API_DMA_RESPONSE_DRIVER_ABORT_FAILED = 12
+};
+
+/*
+ * Kernel launch response status codes
+ */
+enum dev_ops_api_kernel_launch_response_e {
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED = 0,
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_ERROR = 1,
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_EXCEPTION = 2,
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_SHIRES_NOT_READY = 3,
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_HOST_ABORTED = 4,
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ADDRESS = 5,
+	DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_TIMEOUT_HANG = 6,
 };
 
 /*
@@ -596,6 +629,9 @@ struct device_ops_kernel_launch_rsp_t {
 	u8 pad[4];
 } __packed __aligned(8);
 
+/*
+ * Kernel abort response status codes
+ */
 enum dev_ops_api_kernel_abort_response_e {
 	DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS = 0,
 	DEV_OPS_API_KERNEL_ABORT_RESPONSE_ERROR = 1,
@@ -1155,10 +1191,8 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 	struct device_ops_compatibility_rsp_t compat_rsp = { 0 };
 	struct device_ops_fw_version_cmd_t *fw_version_cmd;
 	struct device_ops_fw_version_rsp_t fw_version_rsp = { 0 };
-	struct device_ops_dma_readlist_cmd_t *dma_readlist_cmd;
-	struct device_ops_dma_readlist_rsp_t dma_readlist_rsp = { 0 };
-	struct device_ops_dma_writelist_cmd_t *dma_writelist_cmd;
-	struct device_ops_dma_writelist_rsp_t dma_writelist_rsp = { 0 };
+	struct device_ops_dmalist_cmd_t *dmalist_cmd;
+	struct device_ops_dmalist_rsp_t dmalist_rsp = { 0 };
 	struct device_ops_kernel_launch_cmd_t *kernel_launch_cmd;
 	struct device_ops_kernel_launch_rsp_t kernel_launch_rsp = { 0 };
 	struct device_ops_kernel_abort_cmd_t *kernel_abort_cmd;
@@ -1250,41 +1284,24 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DEV_OPS_API_MID_DMA_READLIST_CMD:
-		dma_readlist_cmd = (struct device_ops_dma_readlist_cmd_t *)cmd;
-		dma_readlist_rsp.response_info.rsp_hdr.size =
-			sizeof(dma_readlist_rsp) - sizeof(header);
-		dma_readlist_rsp.response_info.rsp_hdr.tag_id =
-			dma_readlist_cmd->command_info.cmd_hdr.tag_id;
-		dma_readlist_rsp.response_info.rsp_hdr.msg_id =
-			DEV_OPS_API_MID_DMA_READLIST_RSP;
-		dma_readlist_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
+	case DEV_OPS_API_MID_DMA_WRITELIST_CMD:
+		dmalist_cmd = (struct device_ops_dmalist_cmd_t *)cmd;
+		dmalist_rsp.response_info.rsp_hdr.size =
+			sizeof(dmalist_rsp) - sizeof(header);
+		dmalist_rsp.response_info.rsp_hdr.tag_id =
+			dmalist_cmd->command_info.cmd_hdr.tag_id;
+		dmalist_rsp.response_info.rsp_hdr.msg_id =
+			dmalist_cmd->command_info.cmd_hdr.msg_id + 1;
+		dmalist_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
 		if (!et_circbuffer_push(&cq->cb,
 					cq->cb_mem,
-					(u8 *)&dma_readlist_rsp,
-					sizeof(dma_readlist_rsp),
+					(u8 *)&dmalist_rsp,
+					sizeof(dmalist_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
 			rv = -EAGAIN;
 		break;
 
-	case DEV_OPS_API_MID_DMA_WRITELIST_CMD:
-		dma_writelist_cmd =
-			(struct device_ops_dma_writelist_cmd_t *)cmd;
-		dma_writelist_rsp.response_info.rsp_hdr.size =
-			sizeof(dma_writelist_rsp) - sizeof(header);
-		dma_writelist_rsp.response_info.rsp_hdr.tag_id =
-			dma_writelist_cmd->command_info.cmd_hdr.tag_id;
-		dma_writelist_rsp.response_info.rsp_hdr.msg_id =
-			DEV_OPS_API_MID_DMA_WRITELIST_RSP;
-		dma_writelist_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dma_writelist_rsp,
-					sizeof(dma_writelist_rsp),
-					ET_CB_SYNC_FOR_HOST |
-						ET_CB_SYNC_FOR_DEVICE))
-			rv = -EAGAIN;
-		break;
 	case DEV_OPS_API_MID_KERNEL_LAUNCH_CMD:
 		kernel_launch_cmd =
 			(struct device_ops_kernel_launch_cmd_t *)cmd;

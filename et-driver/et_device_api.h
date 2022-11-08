@@ -50,10 +50,9 @@ struct evt_header_t {
 } __packed __aligned(8);
 
 /*
- * Enumeration of all the RPC messages that the Device Mgmt/Ops API
- * send/receive
+ * Enumeration of all the RPC messages that the Device Mgmt API send/receive
  */
-enum device_msg_e {
+enum device_mgmt_api_msg_e {
 	DEV_MGMT_API_MID_BEGIN = 0,
 	/* Device Mgmt Message IDs reserved */
 	DEV_MGMT_API_MID_ETSOC_RESET = 52,
@@ -78,33 +77,6 @@ enum device_msg_e {
 	DEV_MGMT_API_MID_SP_WATCHDOG_RESET_EVENT,
 	/* Device Mgmt Event IDs reserved */
 	DEV_MGMT_API_MID_EVENTS_END = 511,
-	DEV_OPS_API_MID_BEGIN = 512,
-	DEV_OPS_API_MID_COMPATIBILITY_CMD,
-	DEV_OPS_API_MID_COMPATIBILITY_RSP,
-	DEV_OPS_API_MID_FW_VERSION_CMD,
-	DEV_OPS_API_MID_FW_VERSION_RSP,
-	DEV_OPS_API_MID_ECHO_CMD,
-	DEV_OPS_API_MID_ECHO_RSP,
-	DEV_OPS_API_MID_ABORT_CMD,
-	DEV_OPS_API_MID_ABORT_RSP,
-	DEV_OPS_API_MID_KERNEL_LAUNCH_CMD,
-	DEV_OPS_API_MID_KERNEL_LAUNCH_RSP,
-	DEV_OPS_API_MID_KERNEL_ABORT_CMD,
-	DEV_OPS_API_MID_KERNEL_ABORT_RSP,
-	DEV_OPS_API_MID_DMA_READLIST_CMD,
-	DEV_OPS_API_MID_DMA_READLIST_RSP,
-	DEV_OPS_API_MID_DMA_WRITELIST_CMD,
-	DEV_OPS_API_MID_DMA_WRITELIST_RSP,
-	DEV_OPS_API_MID_TRACE_RT_CONFIG_CMD,
-	DEV_OPS_API_MID_TRACE_RT_CONFIG_RSP,
-	DEV_OPS_API_MID_TRACE_RT_CONTROL_CMD,
-	DEV_OPS_API_MID_TRACE_RT_CONTROL_RSP,
-	DEV_OPS_API_MID_CM_RESET_CMD,
-	DEV_OPS_API_MID_CM_RESET_RSP,
-	DEV_OPS_API_MID_DEVICE_FW_ERROR,
-	DEV_OPS_API_MID_TRACE_BUFFER_FULL_EVENT,
-	/* Device Ops Message IDs reserved */
-	DEV_OPS_API_MID_END = 1023,
 };
 
 /*
@@ -116,59 +88,31 @@ enum dev_mgmt_api_mm_reset_response_e {
 };
 
 /*
- * Node containing one DMA read transfer information
+ * Node containing one DMA transfer information
  */
-struct dma_read_node {
-	u64 dst_host_virt_addr;
-	u64 dst_host_phy_addr;
-	u64 src_device_phy_addr;
+struct dma_node {
+	u64 host_virt_addr;
+	u64 host_phy_addr;
+	u64 device_phy_addr;
 	u32 size;
 	u8 pad[4];
 } __packed __aligned(8);
 
 /*
- * Single list Command to perform multiple DMA reads from device memory
+ * Single list Command to perform multiple DMA to/from device memory
+ * NOTE: DMA readlist/writelist commands are internally consolidated in driver
+ * but device-api has separate commands as of now. Hence, both commands should
+ * be kept identical in device-api.
  */
-struct device_ops_dma_readlist_cmd_t {
+struct device_ops_dmalist_cmd_t {
 	struct cmd_header_t command_info;
-	struct dma_read_node list[];
+	struct dma_node list[];
 } __packed __aligned(8);
 
 /*
- * DMA readlist command response
+ * DMA list command response
  */
-struct device_ops_dma_readlist_rsp_t {
-	struct rsp_header_t response_info;
-	u64 cmd_start_ts;
-	u64 cmd_execution_time;
-	u64 cmd_wait_time;
-	u32 status;
-	u8 pad[4];
-} __packed __aligned(8);
-
-/*
- * Node containing one DMA write transfer information
- */
-struct dma_write_node {
-	u64 src_host_virt_addr;
-	u64 src_host_phy_addr;
-	u64 dst_device_phy_addr;
-	u32 size;
-	u8 pad[4];
-} __packed __aligned(8);
-
-/*
- * Single list Command to perform multiple DMA writes on device memory
- */
-struct device_ops_dma_writelist_cmd_t {
-	struct cmd_header_t command_info;
-	struct dma_write_node list[];
-} __packed __aligned(8);
-
-/*
- * DMA writelist command response
- */
-struct device_ops_dma_writelist_rsp_t {
+struct device_ops_dmalist_rsp_t {
 	struct rsp_header_t response_info;
 	u64 cmd_start_ts;
 	u64 cmd_execution_time;
