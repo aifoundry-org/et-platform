@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- Update conanfile requirements to use version-ranges
 ### Deprecated
 ### Removed
 ### Fixed
