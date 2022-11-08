@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unrealeased]
 ### Added
 ### Changed
+- [SW-14803] implemented a new way for loading kernels. This has caused a change version in the protocol.
+**breaking change:**  new protocol version 2. There is not backwards compatibility.
+
 ### Deprecated
 ### Removed
 ### Fixed
