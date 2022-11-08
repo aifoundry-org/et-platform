@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- Conan recipe to use version ranges
 ### Deprecated
 ### Removed
 - [SW-9022] Removed legacy DMA commands.
