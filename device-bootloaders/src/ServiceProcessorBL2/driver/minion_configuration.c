@@ -195,41 +195,41 @@ static StaticTimer_t MM_Timer_Buffer;
             Log_Write(LOG_LEVEL_WARNING, "Shire %d VPU RF not initialized\n", id);       \
     }
 
-#define CONFIG_SHIRE_NEIGH_MPROT(shire_id, neigh_id, dram_size_encoded)                       \
-    uint64_t mprot = read_esr_new(PP_MACHINE, shire_id, REGION_NEIGHBOURHOOD, neigh_id,       \
-                                  ETSOC_NEIGH_ESR_MPROT_ADDRESS, 0);                          \
-                                                                                              \
-    /* Set DRAM Size, Enable access to DRAM OS region, Set secure memory mode */              \
-    mprot = ETSOC_NEIGH_ESR_MPROT_DRAM_SIZE_MODIFY(mprot, dram_size_encoded) |                \
-            ETSOC_NEIGH_ESR_MPROT_DISABLE_OSBOX_ACCESS_MODIFY(mprot, 0x0) |                   \
-            ETSOC_NEIGH_ESR_MPROT_SECURE_MEMORY_MODIFY(mprot, 0x1);                           \
-                                                                                              \
-    /* Master Shire neighborhoods */                                                          \
-    if ((shire_id == MM_MASTER_SHIRE_ID) && (neigh_id < MM_MASTER_SHIRE_NEIGH_NUM))           \
-    {                                                                                         \
-        /* Allow I/O accesses at S-mode */                                                    \
-        mprot = ETSOC_NEIGH_ESR_MPROT_IO_ACCESS_MODE_MODIFY(mprot, 0x1);                      \
-        if (neigh_id == 0)                                                                    \
-        {                                                                                     \
-            /* Clear disable_pcie_access */                                                   \
-            mprot = ETSOC_NEIGH_ESR_MPROT_DISABLE_PCIE_ACCESS_MODIFY(mprot, 0x0);             \
-        }                                                                                     \
-        else                                                                                  \
-        {                                                                                     \
-            /* Set disable_pcie_access */                                                     \
-            mprot = ETSOC_NEIGH_ESR_MPROT_DISABLE_PCIE_ACCESS_MODIFY(mprot, 0x1);             \
-        }                                                                                     \
-    }                                                                                         \
-    else /* Compute Shires neighborhoods */                                                   \
-    {                                                                                         \
-        /* Allow I/O accesses at M-mode, Set disable_pcie_access */                           \
-        mprot = ETSOC_NEIGH_ESR_MPROT_IO_ACCESS_MODE_MODIFY(mprot, 0x3) |                     \
-                ETSOC_NEIGH_ESR_MPROT_DISABLE_PCIE_ACCESS_MODIFY(mprot, 0x1);                 \
-    }                                                                                         \
-    Log_Write(LOG_LEVEL_INFO, "MPROT Config: Shire: %d: Neigh: %d: mprot: 0x%lx\n", shire_id, \
-              neigh_id, mprot);                                                               \
-    /* Write the updated value to MPROT */                                                    \
-    write_esr_new(PP_MACHINE, shire_id, REGION_NEIGHBOURHOOD, neigh_id,                       \
+#define CONFIG_SHIRE_NEIGH_MPROT(shire_id, neigh_id, dram_size_encoded)                        \
+    uint64_t mprot = read_esr_new(PP_MACHINE, shire_id, REGION_NEIGHBOURHOOD, neigh_id,        \
+                                  ETSOC_NEIGH_ESR_MPROT_ADDRESS, 0);                           \
+                                                                                               \
+    /* Set DRAM Size, Enable access to DRAM OS region, Set secure memory mode */               \
+    mprot = ETSOC_NEIGH_ESR_MPROT_DRAM_SIZE_MODIFY(mprot, dram_size_encoded) |                 \
+            ETSOC_NEIGH_ESR_MPROT_DISABLE_OSBOX_ACCESS_MODIFY(mprot, 0x0) |                    \
+            ETSOC_NEIGH_ESR_MPROT_SECURE_MEMORY_MODIFY(mprot, 0x1);                            \
+                                                                                               \
+    /* Master Shire neighborhoods */                                                           \
+    if ((shire_id == MM_MASTER_SHIRE_ID) && (neigh_id < MM_MASTER_SHIRE_NEIGH_NUM))            \
+    {                                                                                          \
+        /* Allow I/O accesses at S-mode */                                                     \
+        mprot = ETSOC_NEIGH_ESR_MPROT_IO_ACCESS_MODE_MODIFY(mprot, 0x1);                       \
+        if (neigh_id == 0)                                                                     \
+        {                                                                                      \
+            /* Clear disable_pcie_access */                                                    \
+            mprot = ETSOC_NEIGH_ESR_MPROT_DISABLE_PCIE_ACCESS_MODIFY(mprot, 0x0);              \
+        }                                                                                      \
+        else                                                                                   \
+        {                                                                                      \
+            /* Set disable_pcie_access */                                                      \
+            mprot = ETSOC_NEIGH_ESR_MPROT_DISABLE_PCIE_ACCESS_MODIFY(mprot, 0x1);              \
+        }                                                                                      \
+    }                                                                                          \
+    else /* Compute Shires neighborhoods */                                                    \
+    {                                                                                          \
+        /* Allow I/O accesses at M-mode, Set disable_pcie_access */                            \
+        mprot = ETSOC_NEIGH_ESR_MPROT_IO_ACCESS_MODE_MODIFY(mprot, 0x3) |                      \
+                ETSOC_NEIGH_ESR_MPROT_DISABLE_PCIE_ACCESS_MODIFY(mprot, 0x1);                  \
+    }                                                                                          \
+    Log_Write(LOG_LEVEL_DEBUG, "MPROT Config: Shire: %d: Neigh: %d: mprot: 0x%lx\n", shire_id, \
+              neigh_id, mprot);                                                                \
+    /* Write the updated value to MPROT */                                                     \
+    write_esr_new(PP_MACHINE, shire_id, REGION_NEIGHBOURHOOD, neigh_id,                        \
                   ETSOC_NEIGH_ESR_MPROT_ADDRESS, mprot, 0);
 
 /*! \def FREQUENCY_HZ_TO_MHZ(x)
@@ -1014,7 +1014,8 @@ int Minion_Configure_MPROT(uint64_t shire_mask)
     /* Encode the DDR size */
     MPROT_ENCODE_DDR_SIZE(mem_info->ddr_mem_size, encoded_val)
 
-    Log_Write(LOG_LEVEL_INFO, "Minion_Configure_MPROT: DRAM size: %ld, mprot encoded dram: 0x%lx\n",
+    Log_Write(LOG_LEVEL_DEBUG,
+              "Minion_Configure_MPROT: DRAM size: %ld, mprot encoded dram: 0x%lx\n",
               mem_info->ddr_mem_size, encoded_val);
 
     /* Configure the MPROT ESR for all neighs of shires with default values and DRAM size */

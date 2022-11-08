@@ -1020,10 +1020,15 @@ void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *bu
     {
         case DM_CMD_SET_FIRMWARE_UPDATE:
             ret = MM_Iface_Send_Abort_All_Cmd();
-            if (ret == SUCCESS)
+            if (ret != SUCCESS)
             {
-                ret = dm_svc_firmware_update();
+                Log_Write(
+                    LOG_LEVEL_ERROR,
+                    "firmware_service_process_request: Unable to abort all MM commands. Status: %d\n",
+                    ret);
             }
+            /* Do firmware update regardless of MM commands not able to abort */
+            ret = dm_svc_firmware_update();
             send_status_response(tag_id, msg_id, req_start_time, ret);
             break;
 

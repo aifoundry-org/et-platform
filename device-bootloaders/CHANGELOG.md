@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14813] Get and display PMIC FW version at SP boot.
 - [SW-14813] Configuring the MPROT ESR for neighboorhoods of all Minion Shires.
 ### Changed
+- Allow FW update even if MM commands are not aborted and change verbosity of some logs.
 ### Deprecated
 ### Removed
 ### Fixed
