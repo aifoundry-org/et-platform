@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14813] Configuring the MPROT ESR for neighboorhoods of all Minion Shires.
 ### Changed
 - Allow FW update even if MM commands are not aborted and change verbosity of some logs.
+- (Conan) Consume same signedImageFormat version (1.2.0) as device-minion-rt
 ### Deprecated
 ### Removed
 ### Fixed
