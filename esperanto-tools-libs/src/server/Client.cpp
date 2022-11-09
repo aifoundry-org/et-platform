@@ -271,9 +271,9 @@ EventId Client::doAbortStream(StreamId st) {
 
 void Client::handShake() {
   auto payload = sendRequestAndWait(req::Type::VERSION, std::monostate{});
-  if (std::get<resp::Version>(payload).version_ != 1) {
-    throw Exception("Unsupported version. Current client version only supports version: 1. Please update the runtime "
-                    "client library.");
+  if (std::get<resp::Version>(payload).version_ != 2) {
+    throw Exception("Unsupported version. Current client version only supports version: 2. Please update the runtime "
+                    "client library or runtime daemon server.");
   }
   // get deviceLayerProperties now
   auto devices = getDevices();
@@ -341,10 +341,7 @@ std::vector<StreamError> Client::doRetrieveStreamErrors(StreamId st) {
 }
 
 LoadCodeResult Client::doLoadCode(StreamId st, std::byte const* data, unsigned long size) {
-  std::vector<std::byte> elf;
-  elf.reserve(size);
-  std::copy(data, data + size, std::back_inserter(elf));
-  auto payload = sendRequestAndWait(req::Type::LOAD_CODE, req::LoadCode{st, std::move(elf)});
+  auto payload = sendRequestAndWait(req::Type::LOAD_CODE, req::LoadCode{st, data, size});
   LoadCodeResult r;
   auto resp = std::get<resp::LoadCode>(payload);
   r.loadAddress_ = reinterpret_cast<std::byte*>(resp.loadAddress_);

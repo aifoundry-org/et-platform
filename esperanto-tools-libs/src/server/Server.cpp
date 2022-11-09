@@ -25,7 +25,7 @@
 #include <unistd.h>
 using namespace rt;
 namespace {
-constexpr auto kSocketNeededSize = static_cast<int>(sizeof(ErrorContext) * kNumErrorContexts);
+constexpr auto kSocketNeededSize = static_cast<int>(2 * sizeof(ErrorContext) * kNumErrorContexts);
 }
 
 Server::~Server() {

@@ -143,7 +143,7 @@ void Worker::processRequest(const req::Request& request) {
   switch (request.type_) {
 
   case req::Type::VERSION: {
-    sendResponse({resp::Type::VERSION, request.id_, resp::Version{1}}); // current version is "1"
+    sendResponse({resp::Type::VERSION, request.id_, resp::Version{2}}); // current version is "2"
     break;
   }
 
@@ -224,8 +224,14 @@ void Worker::processRequest(const req::Request& request) {
 
   case req::Type::LOAD_CODE: {
     auto& req = std::get<req::LoadCode>(request.payload_);
-    // instead of serialize and unserialize the code here, do a process_vm_readv as we do for memcpies
-    auto resp = runtime_.loadCode(req.stream_, req.elf_.data(), req.elf_.size());
+    std::vector<std::byte> tmpBuffer(req.elfSize_);
+    // there is no problem using a tmpBuffer in the stack because the loadCode function does not return until it has
+    // already copied the data into a CMA buffer. A further improvement could be to make the copy directly to the CMA
+    // buffer here (or in a specialized loadCode function).
+    cmaCopyFunction_(reinterpret_cast<const std::byte*>(req.elfData_), tmpBuffer.data(), req.elfSize_,
+                     CmaCopyType::TO_CMA);
+
+    auto resp = runtime_.loadCode(req.stream_, tmpBuffer.data(), tmpBuffer.size());
     events_.emplace(resp.event_);
     kernels_.emplace(resp.kernel_);
     sendResponse({resp::Type::LOAD_CODE, request.id_,

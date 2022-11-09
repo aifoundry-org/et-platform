@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (Conan) Fix package_info requires
 ### Security
 
+## [0.6.2]
+### Changed
+- [SW-14803] implemented a new way for loading kernels. This has caused a change version in the protocol.
+**breaking change:**  new protocol version 2. There is not backwards compatibility.
 ## [0.6.1]
 ### Fixed
 - [SW-14771] this fixes the hang for ioThread.
