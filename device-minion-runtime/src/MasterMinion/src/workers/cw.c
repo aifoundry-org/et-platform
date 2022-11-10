@@ -46,6 +46,7 @@
 #include "services/sw_timer.h"
 #include "workers/cw.h"
 #include "services/host_cmd_hdlr.h"
+#include "workers/statw.h"
 
 /* mm_rt_helpers */
 #include "error_codes.h"
@@ -489,6 +490,9 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(void)
     /* Acquire the lock */
     acquire_local_spinlock(&CW_CB.cm_reset_lock);
 
+    /* Stop PMU stats sampling */
+    STATW_Update_PMU_Sampling_State(STATW_PMU_SAMPLING_STOP_SYNC);
+
     /* Pause MM-CM communication */
     CM_Iface_Multicast_Block();
 
@@ -545,6 +549,9 @@ int32_t CW_CM_Configure_And_Wait_For_Boot(void)
 
     /* Unblock mm-cm multicast */
     CM_Iface_Multicast_Unblock();
+
+    /* Reset and start PMU stats sampling */
+    STATW_Update_PMU_Sampling_State(STATW_PMU_SAMPLING_RESET_AND_START);
 
     if (sw_timer_idx >= 0)
     {

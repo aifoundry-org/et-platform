@@ -72,7 +72,8 @@
     Every request is 64 bytes long.
 */
 #define STATW_PMU_REQ_COUNT_TO_MBPS(req_count, count_freq_mhz, cycles_consumed) \
-    (((req_count)*CACHE_LINE_SIZE * count_freq_mhz) / ((cycles_consumed) ? (cycles_consumed) : 1))
+    (cycles_consumed == 0) ? 0 :                                                \
+                             (((req_count)*CACHE_LINE_SIZE * count_freq_mhz) / (cycles_consumed))
 
 /*! \def STATW_PMU_RESET_ON_OVERFLOW(overflow, prev_val)
     \brief Macro that checks for overflow in PMC value and resets the previous value.
@@ -99,6 +100,11 @@
             curr_val = prev_val;                                                                                     \
         }                                                                                                            \
     }
+
+/*! \def CHECK_BIT_SET(data, pos)
+    \brief Macro that checks for set bits in mask with position.
+*/
+#define CHECK_BIT_SET(data, pos) (data & (1U << pos))
 
 /*! \def STATW_SAMPLING_FLAG_SET
     \brief Helper macro to set sampling flag
@@ -132,6 +138,11 @@
 */
 #define DDR_FREQUENCY 933UL
 
+/*! \def STATW_PMU_SAMPLING_STATE_TIMEOUT
+    \brief Timeout value for PMU state change.
+*/
+#define STATW_PMU_SAMPLING_STATE_TIMEOUT 100
+
 /*! \typedef statw_cb
     \brief Device statistics worker control block
 */
@@ -151,7 +162,21 @@ typedef struct {
     uint32_t sampling_flag;
     uint32_t reset_sampling_flag;
     uint32_t minion_freq_mhz;
+    uint32_t pmu_sampling_state;
+    uint32_t pmu_sampling_timeout_flag;
 } __attribute__((packed, aligned(8))) statw_cb;
+
+/*! \typedef pmc_prev_counters
+    \brief Struct to hold previous counter values for PMU
+*/
+typedef struct {
+    uint64_t prev_ddr_cycle_counter[NUM_MEM_SHIRES];
+    uint64_t prev_ddr_read_counter[NUM_MEM_SHIRES];
+    uint64_t prev_ddr_write_counter[NUM_MEM_SHIRES];
+    uint64_t prev_l2_l3_cycle_counter[NUM_SHIRES][BANKS_PER_SC];
+    uint64_t prev_l2_l3_read_counter[NUM_SHIRES][BANKS_PER_SC];
+    uint64_t prev_l2_l3_write_counter[NUM_SHIRES][BANKS_PER_SC];
+} __attribute__((packed, aligned(8))) pmc_prev_counters;
 
 /*! \var STATW_CB
     \brief Global Stat Worker Control Block
@@ -177,6 +202,220 @@ static inline uint64_t statw_recalculate_cma(
     return old_value;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       statw_update_pmc_stats
+*
+*   DESCRIPTION
+*
+*       This functions updates pmu sampling stats by reading mem shire
+*       and shire cache read/write cycles.
+*
+*   INPUTS
+*
+*       shire_mask  Shire mask of the available shires
+*       pmc_cnt     data struct to hold previous cycles values.
+*       ms_pmcs     Memshire pmcs
+*       sc_pmcs     Shire cache pmcs
+*       data_sample data struct containing sampled data
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void statw_update_pmc_stats(uint64_t shire_mask, pmc_prev_counters *pmc_cnt,
+    shire_pmc_cnt_t *ms_pmcs, shire_pmc_cnt_t *sc_pmcs,
+    struct compute_resources_sample *data_sample)
+{
+    /* Check the flag to sample device stats. */
+    switch (atomic_load_local_32(&STATW_CB.pmu_sampling_state))
+    {
+        case STATW_PMU_SAMPLING_START:
+            for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
+            {
+                /* Sample PMC MS Counter 0 and 1 (reads, writes). */
+                syscall(SYSCALL_PMC_MS_SAMPLE_ALL_INT, shire_id, (uintptr_t)ms_pmcs,
+                    UNUSED_SYSCALL_ARGS);
+
+                /* Check for overflow */
+                STATW_PMU_RESET_ON_OVERFLOW(
+                    ms_pmcs->cycle_overflow, pmc_cnt->prev_ddr_cycle_counter[shire_id])
+                STATW_PMU_RESET_ON_OVERFLOW(
+                    ms_pmcs->pmc0_overflow, pmc_cnt->prev_ddr_read_counter[shire_id])
+                STATW_PMU_RESET_ON_OVERFLOW(
+                    ms_pmcs->pmc1_overflow, pmc_cnt->prev_ddr_write_counter[shire_id])
+
+                /* Calulate CMA, min and max */
+                /* For DDR BW, multiply the request count by 2 due to double data rate in DDR */
+                STATW_RECALC_CMA_MIN_MAX(data_sample->ddr_read_bw,
+                    STATW_PMU_REQ_COUNT_TO_MBPS(
+                        (ms_pmcs->pmc0 - pmc_cnt->prev_ddr_read_counter[shire_id]) * 2,
+                        DDR_FREQUENCY, ms_pmcs->cycle - pmc_cnt->prev_ddr_cycle_counter[shire_id]),
+                    STATW_BW_CMA_SAMPLE_COUNT)
+                STATW_RECALC_CMA_MIN_MAX(data_sample->ddr_write_bw,
+                    STATW_PMU_REQ_COUNT_TO_MBPS(
+                        (ms_pmcs->pmc1 - pmc_cnt->prev_ddr_write_counter[shire_id]) * 2,
+                        DDR_FREQUENCY, ms_pmcs->cycle - pmc_cnt->prev_ddr_cycle_counter[shire_id]),
+                    STATW_BW_CMA_SAMPLE_COUNT)
+
+                /* Update the previous values */
+                pmc_cnt->prev_ddr_cycle_counter[shire_id] = ms_pmcs->cycle;
+                pmc_cnt->prev_ddr_read_counter[shire_id] = ms_pmcs->pmc0;
+                pmc_cnt->prev_ddr_write_counter[shire_id] = ms_pmcs->pmc1;
+            }
+
+            for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
+            {
+                if (CHECK_BIT_SET(shire_mask, shire_id))
+                {
+                    for (uint64_t bank_id = 0; bank_id < BANKS_PER_SC; bank_id++)
+                    {
+                        uint32_t minion_freq_mhz = atomic_load_local_32(&STATW_CB.minion_freq_mhz);
+
+                        /* Sample PMC SC Counter 0 and 1 (reads, writes). */
+                        syscall(
+                            SYSCALL_PMC_SC_SAMPLE_ALL_INT, shire_id, bank_id, (uintptr_t)sc_pmcs);
+
+                        /* Check for overflow */
+                        STATW_PMU_RESET_ON_OVERFLOW(sc_pmcs->cycle_overflow,
+                            pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id])
+                        STATW_PMU_RESET_ON_OVERFLOW(sc_pmcs->pmc0_overflow,
+                            pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id])
+                        STATW_PMU_RESET_ON_OVERFLOW(sc_pmcs->pmc1_overflow,
+                            pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id])
+
+                        /* Add checks for bad values */
+                        STATW_UTIL_BAD_PMC_CHECK("L3_Cycle", shire_id, bank_id,
+                            pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id], sc_pmcs->cycle)
+                        STATW_UTIL_BAD_PMC_CHECK("L3_Read", shire_id, bank_id,
+                            pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id], sc_pmcs->pmc0)
+                        STATW_UTIL_BAD_PMC_CHECK("L3_Write", shire_id, bank_id,
+                            pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id], sc_pmcs->pmc1)
+
+                        /* Calculate the stats */
+                        STATW_RECALC_CMA_MIN_MAX(data_sample->l2_l3_read_bw,
+                            STATW_PMU_REQ_COUNT_TO_MBPS(
+                                sc_pmcs->pmc0 - pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id],
+                                minion_freq_mhz,
+                                sc_pmcs->cycle -
+                                    pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id]),
+                            STATW_BW_CMA_SAMPLE_COUNT)
+                        STATW_RECALC_CMA_MIN_MAX(data_sample->l2_l3_write_bw,
+                            STATW_PMU_REQ_COUNT_TO_MBPS(
+                                sc_pmcs->pmc1 -
+                                    pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id],
+                                minion_freq_mhz,
+                                sc_pmcs->cycle -
+                                    pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id]),
+                            STATW_BW_CMA_SAMPLE_COUNT)
+
+                        /* Update the previous values */
+                        pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id] = sc_pmcs->cycle;
+                        pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id] = sc_pmcs->pmc0;
+                        pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id] = sc_pmcs->pmc1;
+                    }
+                }
+            }
+            break;
+
+        case STATW_PMU_SAMPLING_RESET_AND_START:
+            /* Initialize the first sample for delta calculations */
+            for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
+            {
+                /* Sample PMC MS Counter 0 and 1 (reads, writes). */
+                syscall(SYSCALL_PMC_MS_SAMPLE_ALL_INT, shire_id, (uintptr_t)ms_pmcs,
+                    UNUSED_SYSCALL_ARGS);
+                pmc_cnt->prev_ddr_cycle_counter[shire_id] =
+                    ms_pmcs->cycle_overflow ? 0 : ms_pmcs->cycle;
+                pmc_cnt->prev_ddr_read_counter[shire_id] = ms_pmcs->pmc0_overflow ? 0 :
+                                                                                    ms_pmcs->pmc0;
+                pmc_cnt->prev_ddr_write_counter[shire_id] = ms_pmcs->pmc1_overflow ? 0 :
+                                                                                     ms_pmcs->pmc1;
+            }
+
+            for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
+            {
+                if (CHECK_BIT_SET(shire_mask, shire_id))
+                {
+                    for (uint64_t bank_id = 0; bank_id < BANKS_PER_SC; bank_id++)
+                    {
+                        syscall(
+                            SYSCALL_PMC_SC_SAMPLE_ALL_INT, shire_id, bank_id, (uintptr_t)sc_pmcs);
+                        pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id] =
+                            sc_pmcs->cycle_overflow ? 0 : sc_pmcs->cycle;
+                        pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id] =
+                            sc_pmcs->pmc0_overflow ? 0 : sc_pmcs->pmc0;
+                        pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id] =
+                            sc_pmcs->pmc1_overflow ? 0 : sc_pmcs->pmc1;
+                    }
+                }
+            }
+
+            /* Start PMU sampling */
+            STATW_Update_PMU_Sampling_State(STATW_PMU_SAMPLING_START);
+            break;
+        case STATW_PMU_SAMPLING_STOP_ASYNC:
+        case STATW_PMU_SAMPLING_STOP_SYNC:
+            atomic_store_local_32(&STATW_CB.pmu_sampling_state, STATW_PMU_SAMPLING_STOPPED);
+            break;
+        case STATW_PMU_SAMPLING_STOPPED:
+            /* Nothing need to be done for this case */
+            break;
+        default:
+            Log_Write(LOG_LEVEL_ERROR, "statw_update_pmc_stats: Invalid PMU sampling state\r\n");
+            break;
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       statw_sample_pmu_state_timeout_callback
+*
+*   DESCRIPTION
+*
+*       Callback for stats worker state change wait timeout.
+*
+*   INPUTS
+*
+*       arg    optional argument
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void statw_sample_pmu_state_timeout_callback(uint8_t arg)
+{
+    (void)arg;
+
+    /* Set the pmu sampling state change timeout flag */
+    atomic_store_local_32(&STATW_CB.pmu_sampling_timeout_flag, 1U);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       statw_sample_device_stats_callback
+*
+*   DESCRIPTION
+*
+*       Callback for periodic sampling of stats.
+*
+*   INPUTS
+*
+*       arg    optional argument
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
 static void statw_sample_device_stats_callback(uint8_t arg)
 {
     (void)arg;
@@ -199,7 +438,7 @@ static void statw_sample_device_stats_callback(uint8_t arg)
 *   INPUTS
 *
 *       resource_type   Resource for which new sample is to be added.
-*       current_sample  Sample data
+*       resource_dest   Sample data
 *
 *   OUTPUTS
 *
@@ -560,13 +799,9 @@ static void statw_init(struct compute_resources_sample *local_stats_cb)
 __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
 {
     struct compute_resources_sample data_sample = { 0 };
-    uint64_t prev_ddr_cycle_counter[NUM_MEM_SHIRES] = { 0 };
-    uint64_t prev_ddr_read_counter[NUM_MEM_SHIRES] = { 0 };
-    uint64_t prev_ddr_write_counter[NUM_MEM_SHIRES] = { 0 };
-    uint64_t prev_l2_l3_cycle_counter[NUM_SHIRES][BANKS_PER_SC] = { 0 };
-    uint64_t prev_l2_l3_read_counter[NUM_SHIRES][BANKS_PER_SC] = { 0 };
-    uint64_t prev_l2_l3_write_counter[NUM_SHIRES][BANKS_PER_SC] = { 0 };
+    pmc_prev_counters pmc_counters = { 0 };
     uint64_t prev_timestamp;
+    uint64_t shire_mask;
     struct trace_custom_event_t *entry;
     shire_pmc_cnt_t sc_pmcs = { 0 };
     shire_pmc_cnt_t ms_pmcs = { 0 };
@@ -580,6 +815,9 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
     /* Initialize the flag to reset sample device stats. Set the flag to clear at the start. */
     atomic_store_local_32(&STATW_CB.reset_sampling_flag, STATW_SAMPLING_FLAG_CLEAR);
 
+    /* Initialize the flag to reset and start PMU sample device stats. */
+    atomic_store_local_32(&STATW_CB.pmu_sampling_state, STATW_PMU_SAMPLING_RESET_AND_START);
+
     /* Create timeout to wait for all Compute Workers to boot up */
     int sw_timer_idx =
         SW_Timer_Create_Timeout(&statw_sample_device_stats_callback, 0, STATW_SAMPLING_INTERVAL);
@@ -590,30 +828,14 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
             "STATW: Unable to register sampler timer! It may not log device stats.\r\n");
     }
 
+    /* Obtain the CM shire mask */
+    shire_mask = MM_Config_Get_CM_Shire_Mask();
+
+    /* Set the bit for MM shire */
+    shire_mask = MASK_SET_BIT(shire_mask, MASTER_SHIRE);
+
     /* Take the initial timestamp */
     prev_timestamp = PMC_Get_Current_Cycles();
-
-    /* Initilize the first sample for delta calculations. It does not log first sample into stat Trace. */
-    for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
-    {
-        /* Sample PMC MS Counter 0 and 1 (reads, writes). */
-        syscall(SYSCALL_PMC_MS_SAMPLE_ALL_INT, shire_id, (uintptr_t)&ms_pmcs, UNUSED_SYSCALL_ARGS);
-        prev_ddr_cycle_counter[shire_id] = ms_pmcs.cycle_overflow ? 0 : ms_pmcs.cycle;
-        prev_ddr_read_counter[shire_id] = ms_pmcs.pmc0_overflow ? 0 : ms_pmcs.pmc0;
-        prev_ddr_write_counter[shire_id] = ms_pmcs.pmc1_overflow ? 0 : ms_pmcs.pmc1;
-    }
-
-    for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
-    {
-        for (uint64_t bank_id = 0; bank_id < BANKS_PER_SC; bank_id++)
-        {
-            syscall(SYSCALL_PMC_SC_SAMPLE_ALL_INT, shire_id, bank_id, (uintptr_t)&sc_pmcs);
-            prev_l2_l3_cycle_counter[shire_id][bank_id] = sc_pmcs.cycle_overflow ? 0 :
-                                                                                   sc_pmcs.cycle;
-            prev_l2_l3_read_counter[shire_id][bank_id] = sc_pmcs.pmc0_overflow ? 0 : sc_pmcs.pmc0;
-            prev_l2_l3_write_counter[shire_id][bank_id] = sc_pmcs.pmc1_overflow ? 0 : sc_pmcs.pmc1;
-        }
-    }
 
     while (1)
     {
@@ -627,82 +849,8 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
                 statw_sample_init(&data_sample);
             }
 
-            for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
-            {
-                /* Sample PMC MS Counter 0 and 1 (reads, writes). */
-                syscall(SYSCALL_PMC_MS_SAMPLE_ALL_INT, shire_id, (uintptr_t)&ms_pmcs,
-                    UNUSED_SYSCALL_ARGS);
-
-                /* Check for overflow */
-                STATW_PMU_RESET_ON_OVERFLOW(
-                    ms_pmcs.cycle_overflow, prev_ddr_cycle_counter[shire_id])
-                STATW_PMU_RESET_ON_OVERFLOW(ms_pmcs.pmc0_overflow, prev_ddr_read_counter[shire_id])
-                STATW_PMU_RESET_ON_OVERFLOW(ms_pmcs.pmc1_overflow, prev_ddr_write_counter[shire_id])
-
-                /* Calulate CMA, min and max */
-                /* For DDR BW, multiply the request count by 2 due to double data rate in DDR */
-                STATW_RECALC_CMA_MIN_MAX(data_sample.ddr_read_bw,
-                    STATW_PMU_REQ_COUNT_TO_MBPS(
-                        (ms_pmcs.pmc0 - prev_ddr_read_counter[shire_id]) * 2, DDR_FREQUENCY,
-                        ms_pmcs.cycle - prev_ddr_cycle_counter[shire_id]),
-                    STATW_BW_CMA_SAMPLE_COUNT)
-                STATW_RECALC_CMA_MIN_MAX(data_sample.ddr_write_bw,
-                    STATW_PMU_REQ_COUNT_TO_MBPS(
-                        (ms_pmcs.pmc1 - prev_ddr_write_counter[shire_id]) * 2, DDR_FREQUENCY,
-                        ms_pmcs.cycle - prev_ddr_cycle_counter[shire_id]),
-                    STATW_BW_CMA_SAMPLE_COUNT)
-
-                /* Update the previous values */
-                prev_ddr_cycle_counter[shire_id] = ms_pmcs.cycle;
-                prev_ddr_read_counter[shire_id] = ms_pmcs.pmc0;
-                prev_ddr_write_counter[shire_id] = ms_pmcs.pmc1;
-            }
-
-            for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
-            {
-                for (uint64_t bank_id = 0; bank_id < BANKS_PER_SC; bank_id++)
-                {
-                    uint32_t minion_freq_mhz = atomic_load_local_32(&STATW_CB.minion_freq_mhz);
-
-                    /* Sample PMC SC Counter 0 and 1 (reads, writes). */
-                    syscall(SYSCALL_PMC_SC_SAMPLE_ALL_INT, shire_id, bank_id, (uintptr_t)&sc_pmcs);
-
-                    /* Check for overflow */
-                    STATW_PMU_RESET_ON_OVERFLOW(
-                        sc_pmcs.cycle_overflow, prev_l2_l3_cycle_counter[shire_id][bank_id])
-                    STATW_PMU_RESET_ON_OVERFLOW(
-                        sc_pmcs.pmc0_overflow, prev_l2_l3_read_counter[shire_id][bank_id])
-                    STATW_PMU_RESET_ON_OVERFLOW(
-                        sc_pmcs.pmc1_overflow, prev_l2_l3_write_counter[shire_id][bank_id])
-
-                    /* Add checks for bad values */
-                    STATW_UTIL_BAD_PMC_CHECK("L3_Cycle", shire_id, bank_id,
-                        prev_l2_l3_cycle_counter[shire_id][bank_id], sc_pmcs.cycle)
-                    STATW_UTIL_BAD_PMC_CHECK("L3_Read", shire_id, bank_id,
-                        prev_l2_l3_read_counter[shire_id][bank_id], sc_pmcs.pmc0)
-                    STATW_UTIL_BAD_PMC_CHECK("L3_Write", shire_id, bank_id,
-                        prev_l2_l3_write_counter[shire_id][bank_id], sc_pmcs.pmc1)
-
-                    /* Calculate the stats */
-                    STATW_RECALC_CMA_MIN_MAX(data_sample.l2_l3_read_bw,
-                        STATW_PMU_REQ_COUNT_TO_MBPS(
-                            sc_pmcs.pmc0 - prev_l2_l3_read_counter[shire_id][bank_id],
-                            minion_freq_mhz,
-                            sc_pmcs.cycle - prev_l2_l3_cycle_counter[shire_id][bank_id]),
-                        STATW_BW_CMA_SAMPLE_COUNT)
-                    STATW_RECALC_CMA_MIN_MAX(data_sample.l2_l3_write_bw,
-                        STATW_PMU_REQ_COUNT_TO_MBPS(
-                            sc_pmcs.pmc1 - prev_l2_l3_write_counter[shire_id][bank_id],
-                            minion_freq_mhz,
-                            sc_pmcs.cycle - prev_l2_l3_cycle_counter[shire_id][bank_id]),
-                        STATW_BW_CMA_SAMPLE_COUNT)
-
-                    /* Update the previous values */
-                    prev_l2_l3_cycle_counter[shire_id][bank_id] = sc_pmcs.cycle;
-                    prev_l2_l3_read_counter[shire_id][bank_id] = sc_pmcs.pmc0;
-                    prev_l2_l3_write_counter[shire_id][bank_id] = sc_pmcs.pmc1;
-                }
-            }
+            /* Fill stats based on PMC stats (L3 and DDR) */
+            statw_update_pmc_stats(shire_mask, &pmc_counters, &ms_pmcs, &sc_pmcs, &data_sample);
 
             /* Read global stats populated by other harts/workers. */
             read_resource_stats_atomically(STATW_RESOURCE_CM, &data_sample.cm_bw);
@@ -727,4 +875,77 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
             atomic_store_local_64(&STATW_CB.saved_trace_entry, (uint64_t)entry);
         }
     }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       STATW_Update_PMU_Sampling_State
+*
+*   DESCRIPTION
+*
+*       This function sets the state of PMU sampling.
+*
+*   INPUTS
+*
+*       pmu_state   sampling state to be changed
+*
+*   OUTPUTS
+*
+*       status      success or error
+*
+***********************************************************************/
+int32_t STATW_Update_PMU_Sampling_State(enum statw_pmu_sampling_state pmu_state)
+{
+    int32_t status = STATUS_SUCCESS;
+
+    /* Change PMU sampling state and wait for state to be changed if it's a stop sync */
+    if (pmu_state != atomic_load_local_32(&STATW_CB.pmu_sampling_state))
+    {
+        /* Update PMU sampling state */
+        atomic_store_local_32(&STATW_CB.pmu_sampling_state, pmu_state);
+
+        /* Force the Stats worker to do sampling in order to transition the state */
+        atomic_store_local_32(&STATW_CB.sampling_flag, STATW_SAMPLING_FLAG_SET);
+
+        /* Check if state is stop sync */
+        if (pmu_state == STATW_PMU_SAMPLING_STOP_SYNC)
+        {
+            int32_t sw_timer_idx;
+            uint32_t timeout_flag;
+
+            /* Create timeout to wait for PMU sampling to be completely stopped */
+            sw_timer_idx = SW_Timer_Create_Timeout(
+                &statw_sample_pmu_state_timeout_callback, 0, STATW_PMU_SAMPLING_STATE_TIMEOUT);
+
+            if (sw_timer_idx < 0)
+            {
+                Log_Write(LOG_LEVEL_ERROR,
+                    "STATW: Unable to register PMU sampling stop wait timeout!\r\n");
+            }
+            else
+            {
+                /* Wait for state to be completely stopped */
+                do
+                {
+                    /* Read the timeout flag */
+                    timeout_flag = atomic_compare_and_exchange_local_32(
+                        &STATW_CB.pmu_sampling_timeout_flag, 1, 0);
+                } while ((atomic_load_local_32(&STATW_CB.pmu_sampling_state) ==
+                             STATW_PMU_SAMPLING_STOP_SYNC) &&
+                         (timeout_flag == 0));
+
+                /* Check for timeout */
+                if (timeout_flag == 1)
+                {
+                    status = STATW_ERROR_UPDATE_PMU_SAMPLING_STATE_TIMEOUT;
+                }
+                /* Free the registered SW Timeout slot */
+                SW_Timer_Cancel_Timeout((uint8_t)sw_timer_idx);
+            }
+        }
+    }
+
+    return status;
 }

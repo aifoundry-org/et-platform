@@ -268,6 +268,11 @@ RESERVED
 */
 #define STATW_ERROR_GET_MM_STATS_INVALID_EVENT -1501
 
+/*! \def STATW_ERROR_UPDATE_PMU_SAMPLING_STATE_TIMEOUT
+    \brief Stat Worker - PMU sampling update timeout
+*/
+#define STATW_ERROR_UPDATE_PMU_SAMPLING_STATE_TIMEOUT -1502
+
 /*************************************
  * Define Trace error codes.         *
  *************************************/

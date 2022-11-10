@@ -33,6 +33,14 @@ enum statw_resource_type {
     STATW_RESOURCE_L2_L3_WRITE,
 };
 
+enum statw_pmu_sampling_state {
+    STATW_PMU_SAMPLING_START,
+    STATW_PMU_SAMPLING_RESET_AND_START,
+    STATW_PMU_SAMPLING_STOP_ASYNC,
+    STATW_PMU_SAMPLING_STOP_SYNC,
+    STATW_PMU_SAMPLING_STOPPED,
+};
+
 /*! \def STATW_SAMPLING_INTERVAL
     \brief Device statistics sampling interval of 1 millisecond
     WARNING: Assumption is timer granularity is one millisecond
@@ -156,5 +164,12 @@ int32_t STATW_Get_MM_Stats(struct compute_resources_sample *sample);
     \return status success or error.
 */
 int32_t STATW_Reset_MM_Stats(void);
+
+/*! \fn int32_t STATW_Update_PMU_Sampling_State(enum statw_pmu_sampling_state pmu_state)
+    \brief This function sets the state of PMU sampling.
+    \param pmu_state   sampling state to be changed
+    \return status success or error.
+*/
+int32_t STATW_Update_PMU_Sampling_State(enum statw_pmu_sampling_state pmu_state);
 
 #endif
