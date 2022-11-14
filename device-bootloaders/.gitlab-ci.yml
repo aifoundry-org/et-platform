@@ -90,7 +90,6 @@ generate_build:conan:
     paths:
       - conan/build_pipeline.yml
       - conan/lockfiles_info.json
-  allow_failure: true
 
 ###############################################################################
 ###############################################################################
@@ -107,7 +106,6 @@ build:conan:
     - artifact: conan/build_pipeline.yml
       job: generate_build:conan
     strategy: depend
-  allow_failure: true
 
 ###############################################################################
 ###############################################################################
@@ -137,5 +135,3 @@ on_success:promote:
     CMD_BUILD: |
       cd conan
       python3 -m ci_promote
-  allow_failure: true
-
