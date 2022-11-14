@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unreleased]
 ### Added
+- [SW-14813]: Adding hart ID in MM exception log.
 ### Changed
 - Conan recipe to use version ranges
 ### Deprecated
