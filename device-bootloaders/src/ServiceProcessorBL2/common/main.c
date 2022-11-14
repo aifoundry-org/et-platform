@@ -163,9 +163,6 @@ static void taskMain(void *pvParameters)
     status = Initialize_Minions(minion_shires_mask);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Minion initialization failed!")
 
-    /* initialize minion debug component `*/
-    minion_debug_init();
-
     // Initialize Host to Service Processor Interface
 #if !TEST_FRAMEWORK
     status = SP_Host_Iface_Init();
@@ -265,6 +262,10 @@ static void taskMain(void *pvParameters)
 
     DIR_Set_Service_Processor_Status(
         SP_DEV_INTF_SP_BOOT_STATUS_MINION_FW_AUTHENTICATED_INITIALIZED);
+
+    /* Minion Debug init - Should be called after initializing DDR
+    and before launching Host->SP Command Handler */
+    minion_debug_init();
 
 #if !TEST_FRAMEWORK
     // Launch Host->SP Command Handler

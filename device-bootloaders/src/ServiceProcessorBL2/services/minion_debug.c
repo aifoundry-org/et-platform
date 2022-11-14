@@ -68,9 +68,10 @@ int32_t minion_debug_init(void)
     mem_info = mem_controller_get_ddr_info();
     mdi_debug_access_mem_region[0].size =
         mem_info->ddr_mem_size - (KERNEL_UMODE_ENTRY - LOW_MCODE_SUBREGION_BASE);
+
     Log_Write(
-        LOG_LEVEL_CRITICAL,
-        "mem_info->ddr_mem_size %lX mdi_debug_access_mem_region[0].size %lX KERNEL_UMODE_ENTRY %llX LOW_OS_SUBREGION_BASE %llX",
+        LOG_LEVEL_DEBUG,
+        "ddr_mem_size: 0x%lx mdi_debug_access_mem_region[0].size: 0x%lx KERNEL_UMODE_ENTRY: 0x%llx LOW_OS_SUBREGION_BASE: 0x%llx\n",
         mem_info->ddr_mem_size, mdi_debug_access_mem_region[0].size, KERNEL_UMODE_ENTRY,
         LOW_OS_SUBREGION_BASE);
 
