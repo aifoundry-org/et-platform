@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Allow FW update even if MM commands are not aborted and change verbosity of some logs.
 - (Conan) Consume same signedImageFormat version (1.2.0) as device-minion-rt
+- Reformatting the minion_init print log.
 ### Deprecated
 ### Removed
 ### Fixed

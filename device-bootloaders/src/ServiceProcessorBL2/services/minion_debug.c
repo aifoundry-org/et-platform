@@ -71,9 +71,9 @@ int32_t minion_debug_init(void)
 
     Log_Write(
         LOG_LEVEL_DEBUG,
-        "ddr_mem_size: 0x%lx mdi_debug_access_mem_region[0].size: 0x%lx KERNEL_UMODE_ENTRY: 0x%llx LOW_OS_SUBREGION_BASE: 0x%llx\n",
-        mem_info->ddr_mem_size, mdi_debug_access_mem_region[0].size, KERNEL_UMODE_ENTRY,
-        LOW_OS_SUBREGION_BASE);
+        "minion_debug_init: DDR Size: 0x%lx Host Managed DRAM Size: 0x%lx Reserved DDR size: 0x%lx\n",
+        mem_info->ddr_mem_size, mdi_debug_access_mem_region[0].size,
+        (uint64_t)(KERNEL_UMODE_ENTRY - LOW_MCODE_SUBREGION_BASE));
 
     return STATUS_SUCCESS;
 }
