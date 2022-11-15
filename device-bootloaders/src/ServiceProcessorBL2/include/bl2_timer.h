@@ -17,6 +17,7 @@
 #define __BL2_TIMER_H__
 
 #include <stdint.h>
+#include "FreeRTOS.h"
 
 /*! \fn void timer_init(uint64_t timer_raw_ticks_before_pll_turned_on, uint32_t sp_pll0_frequency)
     \brief This function configures initializes timer subsystem
@@ -39,5 +40,27 @@ uint64_t timer_get_ticks_count(void);
     \return none
 */
 void timer_update(uint32_t sp_pll0_frequency);
+
+/*! \fn static inline uint64_t timer_convert_ticks_to_secs(uint64_t ticks)
+    \brief This function converts timer ticks to seconds.
+    \param ticks ticks value
+    \return seconds value
+*/
+static inline uint64_t timer_convert_ticks_to_secs(uint64_t ticks)
+{
+    /* Still need to fine tune the timing of the clocks */
+    return portTICK_RATE_MS * ticks / 1000 / 1000;
+}
+
+/*! \fn static inline uint64_t timer_convert_ticks_to_ms(uint64_t ticks)
+    \brief This function converts timer ticks to milliseconds.
+    \param ticks ticks value
+    \return milliseconds value
+*/
+static inline uint64_t timer_convert_ticks_to_ms(uint64_t ticks)
+{
+    /* Still need to fine tune the timing of the clocks */
+    return portTICK_RATE_MS * ticks / 1000;
+}
 
 #endif

@@ -82,6 +82,7 @@
 #include "hwinc/hal_device.h"
 #include "hwinc/sp_cru_reset.h"
 
+#define PMIC_READY_WAIT_MS         30
 #define PMIC_SLAVE_ADDRESS         0x42
 #define PMIC_GPIO_INT_PIN_NUMBER   0x1
 #define ENABLE_ALL_PMIC_INTERRUPTS 0xFF
@@ -90,6 +91,15 @@
 /* PMB related defines */
 #define PMB_READ_BYTES 4
 #define PMB_STATS_MASK 0xffff
+
+/* PMIC firmware update defines (timeouts wait up to 3x the expected time) */
+#define FW_UPDATE_WAIT_FACTOR      3
+#define FW_UPDATE_START_TIMEOUT_MS (6 * FW_UPDATE_WAIT_FACTOR)
+#define FW_UPDATE_PAGE_TIMEOUT_MS  (3 * FW_UPDATE_WAIT_FACTOR)
+#define FW_UPDATE_ROW_TIMEOUT_MS   (9 * FW_UPDATE_WAIT_FACTOR)
+#define FW_UPDATE_CKSUM_TIMEOUT_MS (21 * FW_UPDATE_WAIT_FACTOR)
+#define FW_UPDATE_FLASH_ROW_SIZE   256
+#define FW_UPDATE_FLASH_PAGE_SIZE  64
 
 static struct pmic_event_control_block event_control_block __attribute__((section(".data")));
 
@@ -151,7 +161,7 @@ int I2C_PMIC_Initialize(void)
 *
 *   FUNCTION
 *
-*       Wait PMIC Ready 
+*       Wait PMIC Ready
 *
 *   DESCRIPTION
 *
@@ -159,24 +169,29 @@ int I2C_PMIC_Initialize(void)
 *
 *   INPUTS
 *
-*       timeout   timeout value      
+*       timeout_ms timeout milliseconds value
 *
 *   OUTPUTS
 *
 *       status     status of initialization success/error
 *
 ***********************************************************************/
-int wait_pmic_ready(int timeout)
+int wait_pmic_ready(uint64_t timeout_ms)
 {
-    while (timeout > 0)
+    uint64_t elapsed_ms;
+    const uint64_t start_ticks = timer_get_ticks_count();
+
+    do
     {
         /* GPIO 15 is designated as PMIC Ready indication */
         if (gpio_read_pin_value(GPIO_CONTROLLER_ID_SPIO, 15))
         {
             return 0;
         }
-        --timeout;
-    }
+
+        elapsed_ms = timer_convert_ticks_to_ms(timer_get_ticks_count() - start_ticks);
+    } while (elapsed_ms < timeout_ms);
+
     return -1;
 }
 
@@ -203,6 +218,12 @@ int wait_pmic_ready(int timeout)
 
 inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size)
 {
+    if (wait_pmic_ready(PMIC_READY_WAIT_MS) != 0)
+    {
+        // Just log for now instead of returning failure
+        MESSAGE_ERROR("get_pmic_reg: PMIC read reg: %d timeout!", reg);
+    }
+
     if (0 != i2c_read(&g_pmic_i2c_dev_reg, reg, reg_value, reg_size))
     {
         MESSAGE_ERROR("get_pmic_reg: PMIC read reg: %d failed!", reg);
@@ -236,6 +257,12 @@ inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size
 
 inline static int set_pmic_reg(uint8_t reg, const uint8_t *value, uint8_t reg_size)
 {
+    if (wait_pmic_ready(PMIC_READY_WAIT_MS) != 0)
+    {
+        // Just log for now instead of returning failure
+        MESSAGE_ERROR("set_pmic_reg: PMIC write reg: %d timeout!", reg);
+    }
+
     if (0 != i2c_write(&g_pmic_i2c_dev_reg, reg, value, reg_size))
     {
         MESSAGE_ERROR("set_pmic_reg: PMIC write failed!");
@@ -733,18 +760,18 @@ int pmic_get_fw_src_hash(uint32_t *fw_src_hash)
 *   OUTPUTS
 *
 *       fw_sem_ver  SEM Version of the current PMIC Firmware.
-*       
+*
 ***********************************************************************/
 int pmic_get_fw_version(uint8_t *major, uint8_t *minor, uint8_t *patch)
 {
     uint32_t fw_sem_ver;
-    uint8_t val = PMIC_I2C_UPDATECMD_SUBCMD_FW_SEM_VER;
+    uint8_t val = PMIC_I2C_FW_MGMTCMD_VERSION;
 
     /* write SUB_CMD:05 */
-    set_pmic_reg(PMIC_I2C_UPDATECMD_ADDRESS, &val, 1);
+    set_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &val, 1);
 
     /* read data back */
-    if (0 != get_pmic_reg(PMIC_I2C_UPDATEDATA_ADDRESS, (uint8_t *)&fw_sem_ver, 4))
+    if (0 != get_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&fw_sem_ver, 4))
     {
         MESSAGE_ERROR("pmic_get_fw_version: PMIC read reg failed");
         return ERROR_PMIC_I2C_READ_FAILED;
@@ -2055,6 +2082,332 @@ int pmic_read_average_soc_power(uint16_t *avg_pwr_10mw)
     return get_pmic_reg(PMIC_I2C_AVERAGE_PWR_ADDRESS, (uint8_t *)avg_pwr_10mw, 2);
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_get_inactive_boot_slot
+*
+*   DESCRIPTION
+*
+*       This function gets the boot slot not currently running.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       slot      boot slot not currently running
+*
+***********************************************************************/
+
+static int pmic_get_inactive_boot_slot(uint8_t *slot)
+{
+    int status;
+    uint32_t val;
+    uint8_t cmd = PMIC_I2C_FW_MGMTCMD_ACTIVE_SLOT;
+
+    if (!slot)
+    {
+        MESSAGE_ERROR("Error slot argument is null\n");
+        return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
+    }
+
+    status = set_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &cmd, 1);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    status = get_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&val, 4);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    *slot = (uint8_t)!val;
+    return STATUS_SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_wait_for_flash_ready
+*
+*   DESCRIPTION
+*
+*       This function waits up to the timeout for the pmic flash to be
+*       ready (busy bit is clear) while checking for an error.  PMIC_READY
+*       is also checked prior to entering the timed loop.
+*
+*   INPUTS
+*
+*       timeout_ms timeout value in milliseconds
+*
+*   OUTPUTS
+*
+*       status     Success or error code.
+*
+***********************************************************************/
+
+static int pmic_wait_for_flash_ready(uint64_t timeout_ms)
+{
+    bool busy;
+    uint8_t value;
+    uint64_t elapsed_ms;
+    uint64_t start_ticks;
+
+    if (wait_pmic_ready(PMIC_READY_WAIT_MS) != 0)
+    {
+        MESSAGE_ERROR("pmic_wait_for_flash_ready: PMIC_READY timeout!");
+        return ERROR_PMIC_I2C_FW_MGMTCMD_TIMEOUT;
+    }
+
+    start_ticks = timer_get_ticks_count();
+
+    do
+    {
+        int status = get_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &value, 1);
+
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+
+        if ((value & PMIC_I2C_FW_MGMTCMD_STATUS_ERROR) != 0)
+        {
+            Log_Write(LOG_LEVEL_CRITICAL, "pmic status error\n");
+            return ERROR_PMIC_I2C_FW_MGMTCMD_ILLEGAL;
+        }
+
+        busy = (value & PMIC_I2C_FW_MGMTCMD_STATUS_BUSY) != 0;
+        elapsed_ms = timer_convert_ticks_to_ms(timer_get_ticks_count() - start_ticks);
+    } while (busy && elapsed_ms < timeout_ms);
+
+    if (busy)
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "pmic_wait_for_flash_ready timed out %ld ms\n", timeout_ms);
+        return ERROR_PMIC_I2C_FW_MGMTCMD_TIMEOUT;
+    }
+
+    return STATUS_SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_send_firmware_block
+*
+*   DESCRIPTION
+*
+*       This function sends a block of firmware to the pmic.
+*
+*   INPUTS
+*
+*       timeout_ms    timeout value in milliseconds
+*
+*   OUTPUTS
+*
+*       status        Success or error code.
+*
+***********************************************************************/
+
+static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32_t fw_block_size)
+{
+    int status = STATUS_SUCCESS;
+    uint32_t write_count;
+    uint64_t flash_wait_ms = 0;
+
+    for (write_count = 0; write_count < fw_block_size / 4; write_count++)
+    {
+        if (flash_addr == 0)
+        {
+            flash_wait_ms = FW_UPDATE_START_TIMEOUT_MS;
+        }
+        else if ((flash_addr & (FW_UPDATE_FLASH_ROW_SIZE - 1)) == 0)
+        {
+            flash_wait_ms = FW_UPDATE_ROW_TIMEOUT_MS;
+        }
+        else if ((flash_addr & (FW_UPDATE_FLASH_PAGE_SIZE - 1)) == 0)
+        {
+            flash_wait_ms = FW_UPDATE_PAGE_TIMEOUT_MS;
+        }
+        else
+        {
+            flash_wait_ms = 0;
+        }
+
+        // Check the busy bit if needed
+        if (flash_wait_ms > 0)
+        {
+            status = pmic_wait_for_flash_ready(flash_wait_ms);
+        }
+
+        if (status != STATUS_SUCCESS)
+        {
+            break;
+        }
+
+        status = set_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, fw_ptr, 4);
+        if (status != STATUS_SUCCESS)
+        {
+            break;
+        }
+
+        fw_ptr += 4;
+        flash_addr += 4;
+    }
+
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC programming failed (write_count %u)\n",
+                  flash_addr / 4);
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_firmware_update
+*
+*   DESCRIPTION
+*
+*       This function updates the pmic firmware
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       match   pmic update version and currently running version match
+*
+***********************************************************************/
+
+int pmic_firmware_update(bool *match)
+{
+    int status;
+    uint8_t cmd;
+    uint8_t slot;
+    uint32_t i;
+    uint32_t sum;
+    uint32_t cksum_result;
+    uint32_t flash_addr = 0;
+    uint64_t start;
+    uint64_t end;
+    uint64_t prog_start;
+    uint64_t prog_end;
+    uint64_t verify_start;
+    uint64_t verify_end;
+    uint32_t fw[256];                   // 1K block of firmware to send
+    const uint32_t fw_send_count = 100; // send 1K firmware block this many times (must be <= 122)
+    const uint32_t fw_size = sizeof(fw) * fw_send_count;
+
+    start = timer_get_ticks_count();
+
+    if (!match)
+    {
+        MESSAGE_ERROR("Error match pointer is null\n");
+        return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
+    }
+
+    status = pmic_get_inactive_boot_slot(&slot);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Programming PMIC slot %u (%u bytes)...\n", slot, fw_size);
+
+    prog_start = timer_get_ticks_count();
+    cmd = (uint8_t)(PMIC_I2C_FW_MGMTCMD_UPDATE | (slot << 4));
+    status = set_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &cmd, 1);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    // Create a test pattern to send
+    sum = 0;
+    for (i = 0; i < sizeof(fw) / sizeof(fw[0]); i++)
+    {
+        fw[i] = 0x1u << (i % 32);
+        sum += fw[i];
+    }
+    sum *= fw_send_count;
+
+    // The first sent firmare block has special info, so adjust it accordingly
+    sum += (0x2000 - fw[0]) + (fw_size - fw[2]) - fw[3];
+    fw[0] = 0x2000;  // loadable image location
+    fw[2] = fw_size; // loadable image length
+    fw[3] = 0 - sum; // cksum adjustment
+
+    flash_addr = 0;
+    status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, sizeof(fw));
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    // Restore the original test pattern for the remaining sends
+    fw[0] = 1 << 0;
+    fw[2] = 1 << 2;
+    fw[3] = 1 << 3;
+    for (i = 1; i < fw_send_count; i++)
+    {
+        flash_addr += (uint32_t)sizeof(fw);
+        status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, sizeof(fw));
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+    }
+
+    prog_end = timer_get_ticks_count();
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC programmed successfully\n");
+
+    verify_start = timer_get_ticks_count();
+    cmd = (uint8_t)(PMIC_I2C_FW_MGMTCMD_CKSUMREAD | (slot << 4));
+    status = set_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &cmd, 1);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    status = pmic_wait_for_flash_ready(FW_UPDATE_CKSUM_TIMEOUT_MS);
+    if (status != STATUS_SUCCESS)
+    {
+        MESSAGE_ERROR("pmic flash cksum wait error\n");
+        return status;
+    }
+
+    status = get_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&cksum_result, 4);
+    if (status == STATUS_SUCCESS && cksum_result != 1)
+    {
+        MESSAGE_ERROR("pmic flash cksum failure %u\n", cksum_result);
+        return ERROR_PMIC_I2C_FW_MGMTCMD_CKSUM;
+    }
+
+    verify_end = timer_get_ticks_count();
+    end = timer_get_ticks_count();
+
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC loaded bytes verified OK!\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC programmed and verified successfully\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC completed after %ld seconds\n",
+              timer_convert_ticks_to_secs(end - start));
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC OK (Total %lds, Prog %lds, Verify %lds)\n",
+              timer_convert_ticks_to_secs(end - start),
+              timer_convert_ticks_to_secs(prog_end - prog_start),
+              timer_convert_ticks_to_secs(verify_end - verify_start));
+
+    return STATUS_SUCCESS;
+}
 /************************************************************************
 *
 *   FUNCTION

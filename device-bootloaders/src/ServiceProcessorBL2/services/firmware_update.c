@@ -23,9 +23,6 @@
 #include "crc32.h"
 #include "esperanto_flash_image.h"
 
-/* TODO: Additionally dividing by 1000 because mtime ticks frequency is configured at 4MHz. */
-#define TICKS_TO_SECS(ticks) (portTICK_RATE_MS * (ticks) / 1000 / 1000)
-
 /* timout value for SP to complete boot */
 #define SP_BOOT_TIMEOUT 60000000
 
@@ -617,6 +614,56 @@ static int32_t verify_image_header(void *fw_addr)
 *
 *   FUNCTION
 *
+*       dm_svc_pmic_firmware_update
+*
+*   DESCRIPTION
+*
+*       This is a function for updating PMIC firmware in the inactive slot
+*       of PMIC flash memory. The active slot from which the PMIC booted
+*       is not modified.  If the PMIC is already running an exact match
+*       of firmware provided, then success is returned without updating the
+*       PMIC flash memory.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       Status
+*
+***********************************************************************/
+// The following line is to avoid a compiler error.  It should be removed and
+// static added to the declaration when this feature, which is under development,
+// is ready.
+int32_t dm_svc_pmic_firmware_update(void);
+int32_t dm_svc_pmic_firmware_update(void)
+{
+    int32_t ret;
+    bool match;
+
+    ret = pmic_firmware_update(&match);
+    if (ret != 0)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "dm_svc_pmic_firmware_update: update failed %d\n", ret);
+        return ret;
+    }
+
+    if (match)
+    {
+        // pmic is already running with this exact fw version
+        return SUCCESS;
+    }
+
+    // Add code here to set the pmic boot slot to the new pmic firmware
+
+    return SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       dm_svc_firmware_update
 *
 *   DESCRIPTION
@@ -746,13 +793,16 @@ static int32_t dm_svc_firmware_update(void)
         return ERROR_FW_UPDATE_PRIORITY_COUNTER_SWAP;
     }
 
+    // Call dm_svc_pmic_firmware_update() here to test pmic update, which is under development.
+
     end = timer_get_ticks_count();
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Target erased, programmed and verified successfully\n");
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Completed after %ld seconds\n",
-              TICKS_TO_SECS(end - start));
+              timer_convert_ticks_to_secs(end - start));
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] OK (Total %lds, Erase and Prog %lds, Verify %lds)\n",
-              TICKS_TO_SECS(end - start), TICKS_TO_SECS(prog_end - prog_start),
-              TICKS_TO_SECS(verify_end - verify_start));
+              timer_convert_ticks_to_secs(end - start),
+              timer_convert_ticks_to_secs(prog_end - prog_start),
+              timer_convert_ticks_to_secs(verify_end - verify_start));
 
     return SUCCESS;
 }

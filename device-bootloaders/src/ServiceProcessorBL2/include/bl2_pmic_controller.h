@@ -149,12 +149,12 @@ struct pmic_event_control_block
 */
 void setup_pmic(void);
 
-/*! \fn int wait_pmic_ready(int timeout)
+/*! \fn int wait_pmic_ready(uint64_t timeout_ms)
     \brief This function waits for PMIC ready to be cleared.
-    \param timeout timeout value
+    \param timeout_ms timeout milliseconds value
     \return The function call status, pass/fail.
 */
-int wait_pmic_ready(int timeout);
+int wait_pmic_ready(uint64_t timeout_ms);
 
 /*! \fn int32_t pmic_error_control_init(dm_event_isr_callback event_cb)
     \brief This function setup error callback.
@@ -468,5 +468,12 @@ int pmic_set_gpio_as_output(uint8_t index);
     \return The function call status, pass/fail
 */
 int pmic_set_gpio_as_input(uint8_t index);
+
+/*! \fn int pmic_firmware_update(bool *match)
+    \brief This function updates the inactive pmic boot slot with the firmware
+    \param match - fw version of update and currently running version match
+    \return The function call status, pass/fail
+*/
+int pmic_firmware_update(bool *match);
 
 #endif

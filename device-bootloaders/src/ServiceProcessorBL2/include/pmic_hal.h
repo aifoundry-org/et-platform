@@ -71,15 +71,22 @@
 #define PMIC_I2C_RESET_RESET_CAUSE_OVRPOWER_PWRCYCLE 0xbu
 #define PMIC_I2C_RESET_RESET_CAUSE_OVRTEMPR_PWRCYCLE 0xcu
 
-/* Enumeration: pmic_i2c_updatecmd_sub command          */
-#define PMIC_I2C_UPDATECMD_SUBCMD_DATAREAD   0x0
-#define PMIC_I2C_UPDATECMD_SUBCMD_UPDATE     0x1
-#define PMIC_I2C_UPDATECMD_SUBCMD_BOARDTYPE  0x2
-#define PMIC_I2C_UPDATECMD_SUBCMD_CHKSUMREAD 0x3
-#define PMIC_I2C_UPDATECMD_SUBCMD_HASHREAD   0x4
-#define PMIC_I2C_UPDATECMD_SUBCMD_FW_SEM_VER 0x5
-#define PMIC_I2C_UPDATECMD_SUBCMD_RW_ADDRESS 0x6
-#define PMIC_I2C_UPDATECMD_SUBCMD_IMAGETYPE  0x7
+/* Enumeration: pmic_i2c_fw_mgmtcmd subcommand */
+#define PMIC_I2C_FW_MGMTCMD_DATAREAD     0x0
+#define PMIC_I2C_FW_MGMTCMD_UPDATE       0x1
+#define PMIC_I2C_FW_MGMTCMD_BOARDTYPE    0x2
+#define PMIC_I2C_FW_MGMTCMD_CKSUMREAD    0x3
+#define PMIC_I2C_FW_MGMTCMD_HASHREAD     0x4
+#define PMIC_I2C_FW_MGMTCMD_VERSION      0x5
+#define PMIC_I2C_FW_MGMTCMD_RW_ADDRESS   0x6
+#define PMIC_I2C_FW_MGMTCMD_ACTIVE_SLOT  0x7
+#define PMIC_I2C_FW_MGMTCMD_BOOT_SLOT    0x8
+#define PMIC_I2C_FW_MGMTCMD_BOOT_COUNTER 0x9
+
+/* Enumeration: pmic_i2c_fw_mgmtcmd_status */
+#define PMIC_I2C_FW_MGMTCMD_STATUS_UPDATING 0x20
+#define PMIC_I2C_FW_MGMTCMD_STATUS_ERROR    0x40
+#define PMIC_I2C_FW_MGMTCMD_STATUS_BUSY     0x80
 
 /* ####################################################################### */
 /*        ADDRESS MACROS                                                   */
@@ -131,12 +138,12 @@
 /* Register: pmic_i2c.pmbstats_rw                                              */
 #define PMIC_I2C_PMB_RW_ADDRESS      0x15u
 #define PMIC_I2C_PMB_RW_BYTE_ADDRESS 0x15u
-/* Register: pmic_i2c.updatecnd_rw                                         */
-#define PMIC_I2C_UPDATECMD_ADDRESS      0x16u
-#define PMIC_I2C_UPDATECMD_BYTE_ADDRESS 0x16u
-/* Register: pmic_i2c.updatedata_rw                                         */
-#define PMIC_I2C_UPDATEDATA_ADDRESS      0x17u
-#define PMIC_I2C_UPDATEDATA_BYTE_ADDRESS 0x17u
+/* Register: pmic_i2c.fw_mgmtcmd_rw                                         */
+#define PMIC_I2C_FW_MGMTCMD_ADDRESS      0x16u
+#define PMIC_I2C_FW_MGMTCMD_BYTE_ADDRESS 0x16u
+/* Register: pmic_i2c.fw_mgmtdata_rw                                         */
+#define PMIC_I2C_FW_MGMTDATA_ADDRESS      0x17u
+#define PMIC_I2C_FW_MGMTDATA_BYTE_ADDRESS 0x17u
 /* Register: pmic_i2c.vddqlp_voltage                                       */
 #define PMIC_I2C_VDDQLP_VOLTAGE_ADDRESS      0x18u
 #define PMIC_I2C_VDDQLP_VOLTAGE_BYTE_ADDRESS 0x18u
