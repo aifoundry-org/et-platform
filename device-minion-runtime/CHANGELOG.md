@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-9022] Removed legacy DMA commands.
 - [SW-14349] Removed deprecated ET_TRACE_MEM_CPY config option from trace.
 - [SW-14813] Removing the MPROT config from Machine FW and removing the syscall for MPROT.
+- Remove WA for CM reset on Zebu.
 ### Fixed
 - [SW-14813] Fixed coherency issue in PCIe DMA driver and set the DRAM size to 16 GB default.
 ### Security

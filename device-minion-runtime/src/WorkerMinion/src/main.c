@@ -93,9 +93,6 @@ void __attribute__((noreturn)) main(void)
     uint32_t booted_threads = atomic_add_local_32(&CM_Thread_Boot_Counter[shire_id].flag, 1U) + 1;
     if (booted_threads == thread_count)
     {
-        /* TODO:SW-11626: This is workaround for Zebu CM reset failure. */
-        Log_Write(LOG_LEVEL_CRITICAL, "CM:Shire %d sending Ack to MM!\r\n", shire_id);
-
         /* Reset the thread boot counter */
         init_local_spinlock(&CM_Thread_Boot_Counter[shire_id], 0);
 
