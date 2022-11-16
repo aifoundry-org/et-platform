@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include "hwinc/hal_device.h"
 #include "bl2_i2c_driver.h"
+#include "bl2_pmic_controller.h"
 #include "interrupt.h"
 #include "delays.h"
 
@@ -146,6 +147,13 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
 
     if (!INT_Is_Trap_Context() && (xSemaphoreTake(dev->bus_lock_handle, portMAX_DELAY) == pdTRUE))
     {
+        if (wait_pmic_ready() != 0)
+        {
+            // An unexpected time out has occurred, which was logged by wait_pmic_ready().
+            // Continue for now instead of returning failure, but this can be revisited
+            // after the new pmic ready feature has been fully tested.
+        }
+
         /* "write" command byte  is sent throguh MasterFSM, we only need to hint it
             in the very first data byte we explicitly write to I2C */
         dev->regs->IC_DATA_CMD = (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |

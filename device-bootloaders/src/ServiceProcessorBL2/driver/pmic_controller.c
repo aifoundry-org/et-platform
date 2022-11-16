@@ -165,20 +165,24 @@ int I2C_PMIC_Initialize(void)
 *
 *   DESCRIPTION
 *
-*       This function waits for PMIC ready to be cleared.
+*       This function does a timed wait for PMIC ready to assert.  Profiling
+*       shows PMIC ready is de-asserted a maximum of ~0.5 milliseconds with
+*       ~0.1 milliseconds the common case.  The timeout value used here has
+*       ample slack.
 *
 *   INPUTS
 *
-*       timeout_ms timeout milliseconds value
+*       None
 *
 *   OUTPUTS
 *
-*       status     status of initialization success/error
+*       status   success/error
 *
 ***********************************************************************/
-int wait_pmic_ready(uint64_t timeout_ms)
+int wait_pmic_ready(void)
 {
     uint64_t elapsed_ms;
+    const uint64_t timeout_ms = 3;
     const uint64_t start_ticks = timer_get_ticks_count();
 
     do
@@ -192,6 +196,7 @@ int wait_pmic_ready(uint64_t timeout_ms)
         elapsed_ms = timer_convert_ticks_to_ms(timer_get_ticks_count() - start_ticks);
     } while (elapsed_ms < timeout_ms);
 
+    Log_Write(LOG_LEVEL_CRITICAL, "wait_pmic_ready timed out after %lu ms\n", timeout_ms);
     return -1;
 }
 
@@ -218,12 +223,6 @@ int wait_pmic_ready(uint64_t timeout_ms)
 
 inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size)
 {
-    if (wait_pmic_ready(PMIC_READY_WAIT_MS) != 0)
-    {
-        // Just log for now instead of returning failure
-        MESSAGE_ERROR("get_pmic_reg: PMIC read reg: %d timeout!", reg);
-    }
-
     if (0 != i2c_read(&g_pmic_i2c_dev_reg, reg, reg_value, reg_size))
     {
         MESSAGE_ERROR("get_pmic_reg: PMIC read reg: %d failed!", reg);
@@ -257,12 +256,6 @@ inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size
 
 inline static int set_pmic_reg(uint8_t reg, const uint8_t *value, uint8_t reg_size)
 {
-    if (wait_pmic_ready(PMIC_READY_WAIT_MS) != 0)
-    {
-        // Just log for now instead of returning failure
-        MESSAGE_ERROR("set_pmic_reg: PMIC write reg: %d timeout!", reg);
-    }
-
     if (0 != i2c_write(&g_pmic_i2c_dev_reg, reg, value, reg_size))
     {
         MESSAGE_ERROR("set_pmic_reg: PMIC write failed!");
@@ -2140,7 +2133,9 @@ static int pmic_get_inactive_boot_slot(uint8_t *slot)
 *
 *       This function waits up to the timeout for the pmic flash to be
 *       ready (busy bit is clear) while checking for an error.  PMIC_READY
-*       is also checked prior to entering the timed loop.
+*       is also checked prior to entering the timed loop since it is
+*       deasserted until the busy bit is set.  This ensures the busy bit
+*       status is accurate.
 *
 *   INPUTS
 *
@@ -2159,9 +2154,8 @@ static int pmic_wait_for_flash_ready(uint64_t timeout_ms)
     uint64_t elapsed_ms;
     uint64_t start_ticks;
 
-    if (wait_pmic_ready(PMIC_READY_WAIT_MS) != 0)
+    if (wait_pmic_ready() != 0)
     {
-        MESSAGE_ERROR("pmic_wait_for_flash_ready: PMIC_READY timeout!");
         return ERROR_PMIC_I2C_FW_MGMTCMD_TIMEOUT;
     }
 

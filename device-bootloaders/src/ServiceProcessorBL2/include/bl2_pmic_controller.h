@@ -149,12 +149,11 @@ struct pmic_event_control_block
 */
 void setup_pmic(void);
 
-/*! \fn int wait_pmic_ready(uint64_t timeout_ms)
-    \brief This function waits for PMIC ready to be cleared.
-    \param timeout_ms timeout milliseconds value
+/*! \fn int wait_pmic_ready(void)
+    \brief This function waits for PMIC ready to assert or time out.
     \return The function call status, pass/fail.
 */
-int wait_pmic_ready(uint64_t timeout_ms);
+int wait_pmic_ready(void);
 
 /*! \fn int32_t pmic_error_control_init(dm_event_isr_callback event_cb)
     \brief This function setup error callback.
