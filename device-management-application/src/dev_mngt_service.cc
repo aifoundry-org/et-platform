@@ -1344,22 +1344,13 @@ bool validMemCount() {
 
 bool validNode() {
   std::string str_optarg = std::string(optarg);
-  std::regex re("^[0-5]{1}$");
   std::smatch m;
-  if (!std::regex_search(str_optarg, m, re)) {
-    DM_VLOG(HIGH) << "Aborting, node: " << str_optarg << " is not valid ( ^[0-5]{1}$ )" << std::endl;
+  if (std::regex re("^(?:([0-9]|[1-5][0-9]|[6][0-3]))$"); !std::regex_search(str_optarg, m, re) || m.size() < 2) {
+    DM_VLOG(HIGH) << "Aborting, node: " << str_optarg << " is not in range ( 0-63 )" << std::endl;
     return false;
   }
 
-  char* end;
-  errno = 0;
-
-  node = std::strtoul(optarg, &end, 10);
-
-  if (node > 5 || end == optarg || *end != '\0' || errno != 0) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not a valid device node ( 0-5 )" << std::endl;
-    return false;
-  }
+  node = static_cast<decltype(node)>(std::stoul(m[1].str()));
 
   return true;
 }

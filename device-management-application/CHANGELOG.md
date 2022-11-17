@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed bug in handling SET_MODULE_VOTLAGE
 - [SW-14679] dev_mngt_service: Fix argument for setting L2CACHE voltage
+- Fixed device id ranges from 0-5 to 0-63
 ### Security
 
 ## [1.6.0] - 2022-10-21
