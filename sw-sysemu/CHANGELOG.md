@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [ARCHSIM-692] Added a SW hint to waive read coherency errors
 ### Changed
+- Add support for 'conan editable' with sw-sysemu recipe
 ### Deprecated
 ### Removed
 ### Fixed
