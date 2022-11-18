@@ -83,6 +83,9 @@
 #define PMIC_I2C_FW_MGMTCMD_BOOT_SLOT    0x8
 #define PMIC_I2C_FW_MGMTCMD_BOOT_COUNTER 0x9
 
+/* Enumeration: pmic_i2c_fw_mgmtcmd shift values */
+#define PMIC_I2C_FW_MGMTCMD_SLOT_LSB 0x4
+
 /* Enumeration: pmic_i2c_fw_mgmtcmd_status */
 #define PMIC_I2C_FW_MGMTCMD_STATUS_UPDATING 0x20
 #define PMIC_I2C_FW_MGMTCMD_STATUS_ERROR    0x40

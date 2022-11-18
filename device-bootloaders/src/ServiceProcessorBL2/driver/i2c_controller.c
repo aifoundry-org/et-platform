@@ -151,7 +151,10 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
         {
             // An unexpected time out has occurred, which was logged by wait_pmic_ready().
             // Continue for now instead of returning failure, but this can be revisited
-            // after the new pmic ready feature has been fully tested.
+            // after the new pmic ready feature has been fully tested.  Note pmic_ready
+            // is a hack for back pressuring of commands that deviates from the i2c spec.
+            // The mechanism for this purpose within the i2c spec should be investigated
+            // and used instead if possible.
         }
 
         /* "write" command byte  is sent throguh MasterFSM, we only need to hint it
@@ -201,6 +204,16 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
 
     if (!INT_Is_Trap_Context() && xSemaphoreTake(dev->bus_lock_handle, portMAX_DELAY) == pdTRUE)
     {
+        if (wait_pmic_ready() != 0)
+        {
+            // An unexpected time out has occurred, which was logged by wait_pmic_ready().
+            // Continue for now instead of returning failure, but this can be revisited
+            // after the new pmic ready feature has been fully tested.  Note pmic_ready
+            // is a hack for back pressuring of commands that deviates from the i2c spec.
+            // The mechanism for this purpose within the i2c spec should be investigated
+            // and used instead if possible.
+        }
+
         /* Now read what we have written previously */
         dev->regs->IC_DATA_CMD = (uint32_t)(
             I2C_IC_DATA_CMD_RESET_VALUE | I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |

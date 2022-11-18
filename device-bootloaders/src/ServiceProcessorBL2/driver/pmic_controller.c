@@ -82,7 +82,6 @@
 #include "hwinc/hal_device.h"
 #include "hwinc/sp_cru_reset.h"
 
-#define PMIC_READY_WAIT_MS         30
 #define PMIC_SLAVE_ADDRESS         0x42
 #define PMIC_GPIO_INT_PIN_NUMBER   0x1
 #define ENABLE_ALL_PMIC_INTERRUPTS 0xFF
@@ -196,7 +195,7 @@ int wait_pmic_ready(void)
         elapsed_ms = timer_convert_ticks_to_ms(timer_get_ticks_count() - start_ticks);
     } while (elapsed_ms < timeout_ms);
 
-    Log_Write(LOG_LEVEL_CRITICAL, "wait_pmic_ready timed out after %lu ms\n", timeout_ms);
+    Log_Write(LOG_LEVEL_ERROR, "wait_pmic_ready timed out after %lu ms\n", timeout_ms);
     return -1;
 }
 
@@ -2182,7 +2181,7 @@ static int pmic_wait_for_flash_ready(uint64_t timeout_ms)
 
     if (busy)
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "pmic_wait_for_flash_ready timed out %ld ms\n", timeout_ms);
+        Log_Write(LOG_LEVEL_ERROR, "pmic_wait_for_flash_ready timed out %ld ms\n", timeout_ms);
         return ERROR_PMIC_I2C_FW_MGMTCMD_TIMEOUT;
     }
 
@@ -2197,11 +2196,13 @@ static int pmic_wait_for_flash_ready(uint64_t timeout_ms)
 *
 *   DESCRIPTION
 *
-*       This function sends a block of firmware to the pmic.
+*       This function sends a block of firmware to the pmic 4 bytes at a time.
 *
 *   INPUTS
 *
-*       timeout_ms    timeout value in milliseconds
+*       flash_addr    current flash addr
+*       fw_ptr        current fw image ptr
+*       fw_block_size size in bytes of the next block of fw to send
 *
 *   OUTPUTS
 *
@@ -2213,28 +2214,10 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
 {
     int status = STATUS_SUCCESS;
     uint32_t write_count;
-    uint64_t flash_wait_ms = 0;
+    uint64_t flash_wait_ms = flash_addr == 0 ? FW_UPDATE_START_TIMEOUT_MS : 0;
 
     for (write_count = 0; write_count < fw_block_size / 4; write_count++)
     {
-        if (flash_addr == 0)
-        {
-            flash_wait_ms = FW_UPDATE_START_TIMEOUT_MS;
-        }
-        else if ((flash_addr & (FW_UPDATE_FLASH_ROW_SIZE - 1)) == 0)
-        {
-            flash_wait_ms = FW_UPDATE_ROW_TIMEOUT_MS;
-        }
-        else if ((flash_addr & (FW_UPDATE_FLASH_PAGE_SIZE - 1)) == 0)
-        {
-            flash_wait_ms = FW_UPDATE_PAGE_TIMEOUT_MS;
-        }
-        else
-        {
-            flash_wait_ms = 0;
-        }
-
-        // Check the busy bit if needed
         if (flash_wait_ms > 0)
         {
             status = pmic_wait_for_flash_ready(flash_wait_ms);
@@ -2249,6 +2232,19 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
         if (status != STATUS_SUCCESS)
         {
             break;
+        }
+
+        if ((flash_addr & (FW_UPDATE_FLASH_ROW_SIZE - 1)) == 0)
+        {
+            flash_wait_ms = FW_UPDATE_ROW_TIMEOUT_MS;
+        }
+        else if ((flash_addr & (FW_UPDATE_FLASH_PAGE_SIZE - 1)) == 0)
+        {
+            flash_wait_ms = FW_UPDATE_PAGE_TIMEOUT_MS;
+        }
+        else
+        {
+            flash_wait_ms = 0;
         }
 
         fw_ptr += 4;
@@ -2302,6 +2298,7 @@ int pmic_firmware_update(bool *match)
     uint32_t fw[256];                   // 1K block of firmware to send
     const uint32_t fw_send_count = 100; // send 1K firmware block this many times (must be <= 122)
     const uint32_t fw_size = sizeof(fw) * fw_send_count;
+    const uint32_t fw_image_location = 0x2000;
 
     start = timer_get_ticks_count();
 
@@ -2320,7 +2317,7 @@ int pmic_firmware_update(bool *match)
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Programming PMIC slot %u (%u bytes)...\n", slot, fw_size);
 
     prog_start = timer_get_ticks_count();
-    cmd = (uint8_t)(PMIC_I2C_FW_MGMTCMD_UPDATE | (slot << 4));
+    cmd = (uint8_t)(PMIC_I2C_FW_MGMTCMD_UPDATE | (slot << PMIC_I2C_FW_MGMTCMD_SLOT_LSB));
     status = set_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &cmd, 1);
     if (status != STATUS_SUCCESS)
     {
@@ -2337,10 +2334,10 @@ int pmic_firmware_update(bool *match)
     sum *= fw_send_count;
 
     // The first sent firmare block has special info, so adjust it accordingly
-    sum += (0x2000 - fw[0]) + (fw_size - fw[2]) - fw[3];
-    fw[0] = 0x2000;  // loadable image location
-    fw[2] = fw_size; // loadable image length
-    fw[3] = 0 - sum; // cksum adjustment
+    sum += (fw_image_location - fw[0]) + (fw_size - fw[2]) - fw[3];
+    fw[0] = fw_image_location; // loadable image location
+    fw[2] = fw_size;           // loadable image length
+    fw[3] = 0 - sum;           // cksum adjustment so all words in the fw image sum to zero
 
     flash_addr = 0;
     status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, sizeof(fw));
@@ -2367,7 +2364,7 @@ int pmic_firmware_update(bool *match)
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC programmed successfully\n");
 
     verify_start = timer_get_ticks_count();
-    cmd = (uint8_t)(PMIC_I2C_FW_MGMTCMD_CKSUMREAD | (slot << 4));
+    cmd = (uint8_t)(PMIC_I2C_FW_MGMTCMD_CKSUMREAD | (slot << PMIC_I2C_FW_MGMTCMD_SLOT_LSB));
     status = set_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &cmd, 1);
     if (status != STATUS_SUCCESS)
     {
