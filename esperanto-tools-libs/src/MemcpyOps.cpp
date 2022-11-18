@@ -124,16 +124,17 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
     MemcpyCommandBuilder builder(MemcpyType::H2D, barrier, static_cast<uint32_t>(dmaInfo.maxElementCount_));
     auto offset = 0UL;
     auto pendingBytes = size;
+    auto cmaManager = cmaManagers_.at(DeviceId{streamInfo.device_}).get();
     while (pendingBytes > 0) {
       std::unique_lock lck(mutex_);
       auto topPrio = cs.getFirstDmaCommand();
-      auto freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
+      auto freeSize = getFreeCmaForCommand(*cmaManager, topPrio, evt);
       if (freeSize > kMinBytesPerEntry) {
         // calculate current memcpy command size
         auto currentSize =
           std::min(std::min(freeSize, pendingBytes), dmaInfo.maxElementSize_ * dmaInfo.maxElementCount_);
         // prepare the command
-        auto cmaPtr = cmaManager_->alloc(currentSize);
+        auto cmaPtr = cmaManager->alloc(currentSize);
         lck.unlock();
         if (!cmaPtr) {
           throw Exception("Inconsistency error in CMA Manager");
@@ -159,7 +160,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
         cmdEvents.emplace_back(cmdEvt);
 
         // add a thread which will free the cma memory
-        eventManager_.addOnDispatchCallback({{cmdEvt}, [this, cmaPtr] { cmaManager_->free(cmaPtr); }});
+        eventManager_.addOnDispatchCallback({{cmdEvt}, [cmaManager, cmaPtr] { cmaManager->free(cmaPtr); }});
       } else {
         lck.unlock();
         if (topPrio && topPrio != evt) {
@@ -167,7 +168,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
           doWaitForEvent(topPrio.value());
         } else {
           RT_VLOG(LOW) << "H2D. I'm top prio command (" << static_cast<int>(evt) << "); waiting for cma free. ";
-          cmaManager_->waitUntilFree(kMinBytesPerEntry);
+          cmaManager->waitUntilFree(kMinBytesPerEntry);
         }
       }
     }
@@ -217,10 +218,11 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
     MemcpyCommandBuilder builder(MemcpyType::D2H, barrier, static_cast<uint32_t>(dmaInfo.maxElementCount_));
     auto offset = 0UL;
     auto pendingBytes = size;
+    auto cmaManager = cmaManagers_.at(DeviceId{streamInfo.device_}).get();
     while (pendingBytes > 0) {
       std::unique_lock lck(mutex_);
       auto topPrio = cs.getFirstDmaCommand();
-      auto freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
+      auto freeSize = getFreeCmaForCommand(*cmaManager, topPrio, evt);
       if (freeSize > kMinBytesPerEntry) {
         struct FinalCopy {
           std::byte* src;
@@ -233,7 +235,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
         auto currentSize =
           std::min(std::min(freeSize, pendingBytes), dmaInfo.maxElementSize_ * dmaInfo.maxElementCount_);
         // prepare the command
-        auto cmaPtr = cmaManager_->alloc(currentSize);
+        auto cmaPtr = cmaManager->alloc(currentSize);
         lck.unlock();
         if (!cmaPtr) {
           throw Exception("Inconsistency error in CMA Manager");
@@ -263,11 +265,12 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
 
         // add a callback which will free the cma memory
         eventManager_.addOnDispatchCallback(
-          {{cmdEvt}, [this, cmaPtr, cmdFinalCopies = std::move(cmdFinalCopies), syncCopyEvt, cmaCopyFunction] {
+          {{cmdEvt},
+           [this, cmaManager, cmaPtr, cmdFinalCopies = std::move(cmdFinalCopies), syncCopyEvt, cmaCopyFunction] {
              for (auto& copy : cmdFinalCopies) {
                cmaCopyFunction(copy.src, copy.dst, copy.size, CmaCopyType::FROM_CMA);
              }
-             cmaManager_->free(cmaPtr);
+             cmaManager->free(cmaPtr);
              dispatch(syncCopyEvt);
            }});
       } else {
@@ -277,7 +280,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
           doWaitForEvent(topPrio.value());
         } else {
           RT_VLOG(LOW) << "D2H. I'm top prio command (" << static_cast<int>(evt) << "); waiting for cma free. ";
-          cmaManager_->waitUntilFree(kMinBytesPerEntry);
+          cmaManager->waitUntilFree(kMinBytesPerEntry);
         }
       }
     }
@@ -330,12 +333,13 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
     builder.setTagId(evt);
     std::unique_lock lck(mutex_);
     auto topPrio = cs.getFirstDmaCommand();
-    auto freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
+    auto cmaManager = cmaManagers_.at(DeviceId{streamInfo.device_}).get();
+    auto freeSize = getFreeCmaForCommand(*cmaManager, topPrio, evt);
     while (freeSize < totalSize) {
       lck.unlock();
       if (topPrio == evt) {
         RT_VLOG(MID) << "Waiting for CMA ...";
-        cmaManager_->waitUntilFree(totalSize);
+        cmaManager->waitUntilFree(totalSize);
       } else {
         RT_VLOG(LOW) << "H2D. Waiting for top prio command: " << static_cast<int>(topPrio.value());
         doWaitForEvent(topPrio.value());
@@ -343,9 +347,9 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
 
       lck.lock();
       topPrio = cs.getFirstDmaCommand();
-      freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
+      freeSize = getFreeCmaForCommand(*cmaManager, topPrio, evt);
     }
-    auto cmaPtr = cmaManager_->alloc(totalSize);
+    auto cmaPtr = cmaManager->alloc(totalSize);
     if (!cmaPtr) {
       throw Exception("Inconsistency error in CMA Manager");
     }
@@ -357,7 +361,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
     }
     cs.setCommandData(evt, builder.build());
     cs.enable(evt);
-    eventManager_.addOnDispatchCallback({{evt}, [this, cmaPtr] { cmaManager_->free(cmaPtr); }});
+    eventManager_.addOnDispatchCallback({{evt}, [cmaManager, cmaPtr] { cmaManager->free(cmaPtr); }});
     RT_VLOG(MID) << "End processing command id " << static_cast<int>(evt);
   });
   lock.unlock();
@@ -394,17 +398,18 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
     }
     std::unique_lock lck(mutex_);
     auto topPrio = cs.getFirstDmaCommand();
-    auto freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
+    auto cmaManager = cmaManagers_.at(DeviceId{streamInfo.device_}).get();
+    auto freeSize = getFreeCmaForCommand(*cmaManager, topPrio, evt);
     while (freeSize < totalSize) {
       lck.unlock();
       RT_VLOG(MID) << "Waiting for CMA. Current free cma: " << freeSize << " needed: " << totalSize
                    << " evtId: " << static_cast<uint32_t>(evt);
-      cmaManager_->waitUntilFree(totalSize);
+      cmaManager->waitUntilFree(totalSize);
       lck.lock();
       topPrio = cs.getFirstDmaCommand();
-      freeSize = getFreeCmaForCommand(*cmaManager_, topPrio, evt);
+      freeSize = getFreeCmaForCommand(*cmaManager, topPrio, evt);
     }
-    auto cmaPtr = cmaManager_->alloc(totalSize);
+    auto cmaPtr = cmaManager->alloc(totalSize);
     if (!cmaPtr) {
       throw Exception("Inconsistency error in CMA Manager");
     }
@@ -423,13 +428,13 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
     // This part is needed because we have to copy the data into the user buffer before triggering that the event is
     // finished
     eventManager_.addOnDispatchCallback(
-      {{cmdEvt}, [this, evt, cmaPtr, ops = std::move(memcpyList.operations_), cmaCopyFunction] {
+      {{cmdEvt}, [this, cmaManager, evt, cmaPtr, ops = std::move(memcpyList.operations_), cmaCopyFunction] {
          auto offset = 0UL;
          for (auto& op : ops) {
            cmaCopyFunction(cmaPtr + offset, op.dst_, op.size_, CmaCopyType::FROM_CMA);
            offset += op.size_;
          }
-         cmaManager_->free(cmaPtr);
+         cmaManager->free(cmaPtr);
          dispatch(evt);
        }});
     RT_VLOG(MID) << "End processing command id " << static_cast<int>(evt);

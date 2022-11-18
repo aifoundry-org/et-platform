@@ -170,7 +170,7 @@ private:
 
   mutable std::recursive_mutex mutex_;
   dev::IDeviceLayer* deviceLayer_;
-  std::unique_ptr<CmaManager> cmaManager_;
+  std::unordered_map<DeviceId, std::unique_ptr<CmaManager>> cmaManagers_;
   std::vector<DeviceId> devices_;
   StreamManager streamManager_;
   std::unordered_map<DeviceId, MemoryManager> memoryManagers_;

@@ -89,16 +89,19 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
       deviceLayer_->getTraceBufferSizeMasterMinion(static_cast<int>(d), dev::TraceBufferType::TraceBufferCM) +
       deviceLayer_->getTraceBufferSizeMasterMinion(static_cast<int>(d), dev::TraceBufferType::TraceBufferMM);
     memoryManagers_.try_emplace(d, dramBaseAddress, dramSize, kBlockSize);
+    auto devInt = static_cast<int>(d);
     deviceTracing_.try_emplace(
-      d, DeviceFwTracing{std::make_unique<DmaBufferImp>(0, tracingBufferSize, true, deviceLayer_), nullptr, nullptr});
-    auto dmaInfo = deviceLayer_->getDmaInfo(static_cast<int>(d));
+      d,
+      DeviceFwTracing{std::make_unique<DmaBufferImp>(devInt, tracingBufferSize, true, deviceLayer_), nullptr, nullptr});
+    auto dmaInfo = deviceLayer_->getDmaInfo(devInt);
     maxElementCount = std::max(maxElementCount, dmaInfo.maxElementCount_);
     totalElementSize += dmaInfo.maxElementSize_;
   }
   auto desiredCma = maxElementCount * totalElementSize * kAllocFactorTotalMaxMemory;
   // use 80% of CMA as max
   if (auto maxCma = deviceLayer_->getFreeCmaMemory() * 8 / 10; maxCma < desiredCma) {
-    RT_LOG(WARNING) << "Free CMA is not enough to fullfill runtime needs. DMA transfers could be slower.";
+    RT_LOG(WARNING) << "Free CMA is not enough to fullfill runtime needs. DMA transfers could be slower. Desired CMA: "
+                    << desiredCma << " Available CMA (80% max usage): " << maxCma;
     desiredCma = maxCma;
   }
   RT_LOG_IF(FATAL, desiredCma < 1024) << "Error: need at least 1024B of CMA to work";
@@ -108,7 +111,11 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
     RT_LOG(INFO) << "Overriding default calculated CMA size of " << desiredCma << " with a CMA size of " << mem;
     desiredCma = mem;
   }
-  cmaManager_ = std::make_unique<CmaManager>(std::make_unique<DmaBufferImp>(0, desiredCma, true, deviceLayer_));
+  for (auto& d : devices_) {
+    cmaManagers_.try_emplace(
+      d, std::make_unique<CmaManager>(std::make_unique<DmaBufferImp>(
+           static_cast<int>(d), desiredCma / static_cast<uint32_t>(devicesCount), true, deviceLayer_)));
+  }
   responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
 
   // initialization sequence, need to send abort command to ensure the device is in a proper state
@@ -223,7 +230,7 @@ LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, si
         basePhysicalAddressCalculated = true;
       }
       // allocate a dmabuffer to do the copy
-      cmaBuffers.emplace_back(cmaManager_->alloc(memSize));
+      cmaBuffers.emplace_back(cmaManagers_.at(DeviceId{stInfo.device_})->alloc(memSize));
       auto currentBuffer = cmaBuffers.back();
       // first fill with fileSize
       std::copy(data + offset, data + offset + fileSize, currentBuffer);
@@ -261,10 +268,11 @@ LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, si
 
   // add another thread to dispatch the buffers once the copy is done
   eventManager_.addOnDispatchCallback(
-    {std::move(events), [this, buffers = std::move(cmaBuffers), evt = loadCodeResult.event_] {
+    {std::move(events),
+     [this, buffers = std::move(cmaBuffers), dev = DeviceId{stInfo.device_}, evt = loadCodeResult.event_] {
        RT_VLOG(LOW) << "Load code ended. Releasing buffers.";
        for (auto b : buffers) {
-         cmaManager_->free(b);
+         cmaManagers_.at(dev)->free(b);
        }
        dispatch(evt);
      }});
@@ -700,9 +708,9 @@ void RuntimeImp::checkList(int device, const MemcpyList& list) const {
       throw Exception("Invalid size in memcpy list. Max size available is: " + std::to_string(dmaInfo.maxElementSize_));
     }
   }
-  if (totalSize > cmaManager_->getTotalSize()) {
+  if (totalSize > cmaManagers_.at(DeviceId{device})->getTotalSize()) {
     throw Exception("Required total size for the list is: " + std::to_string(totalSize) +
-                    " which is larger of maximum allowed of " + std::to_string(cmaManager_->getTotalSize()) +
-                    " bytes.");
+                    " which is larger of maximum allowed of " +
+                    std::to_string(cmaManagers_.at(DeviceId{device})->getTotalSize()) + " bytes.");
   }
 }

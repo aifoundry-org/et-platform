@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - (Conan) Fix package_info requires
+- [SW-15083] change from a single CMA memory pool to one per device
 ### Security
 
 ## [0.6.2]
