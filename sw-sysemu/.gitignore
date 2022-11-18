@@ -5,3 +5,5 @@ test_package/build
 locks/
 *.lock
 .idea/
+CMakeUserPresets.json
+graph_info.json
