@@ -428,7 +428,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
     // This part is needed because we have to copy the data into the user buffer before triggering that the event is
     // finished
     eventManager_.addOnDispatchCallback(
-      {{cmdEvt}, [this, cmaManager, evt, cmaPtr, ops = std::move(memcpyList.operations_), cmaCopyFunction] {
+      {{cmdEvt}, [this, cmaManager, evt, cmaPtr, ops = memcpyList.operations_, cmaCopyFunction] {
          auto offset = 0UL;
          for (auto& op : ops) {
            cmaCopyFunction(cmaPtr + offset, op.dst_, op.size_, CmaCopyType::FROM_CMA);

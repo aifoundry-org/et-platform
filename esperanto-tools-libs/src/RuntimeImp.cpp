@@ -111,7 +111,7 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
     RT_LOG(INFO) << "Overriding default calculated CMA size of " << desiredCma << " with a CMA size of " << mem;
     desiredCma = mem;
   }
-  for (auto& d : devices_) {
+  for (const auto& d : devices_) {
     cmaManagers_.try_emplace(
       d, std::make_unique<CmaManager>(std::make_unique<DmaBufferImp>(
            static_cast<int>(d), desiredCma / static_cast<uint32_t>(devicesCount), true, deviceLayer_)));
