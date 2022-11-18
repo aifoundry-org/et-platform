@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14630] Reading DDR density and vendor dynamically.
 - Updating SRAM voltage to 750 mV
 - Fix MDI init sequence.
+- Fix DDR and Minion boot changes to address some issues
 ### Security
 
 ## [0.6.0] - 2022-10-20

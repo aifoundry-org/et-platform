@@ -35,10 +35,10 @@
 #define SECONDS_IN_MINUTE 60
 
 // Defines the Boot voltages for the respective Voltage Domains
-#define NEIGH_BOOT_VOLTAGE 0x2DU // 475 mV
+#define NEIGH_BOOT_VOLTAGE 0x32U // 500 mV
 #define SRAM_BOOT_VOLTAGE  0x64U // 750 mV
 #define NOC_BOOT_VOLTAGE   0x24U // 430 mV
-#define DDR_BOOT_VOLTAGE   0x64U // 750 mV
+#define DDR_BOOT_VOLTAGE   0x6EU // 800 mV
 #define MXN_BOOT_VOLTAGE   0x46U // 600 mV
 
 // Defines for converting power values
