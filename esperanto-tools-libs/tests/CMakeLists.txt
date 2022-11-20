@@ -116,7 +116,6 @@ set(KERNELS_DIR "${ESPERANTO_TEST_KERNELS_LIB_DIR}/esperanto-fw/kernels")
 message(STATUS "${KERNELS_DIR}")
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(${BREAKPAD_INCLUDE_DIR}/breakpad)
 
 add_subdirectory(common)
 add_subdirectory(unit-tests)

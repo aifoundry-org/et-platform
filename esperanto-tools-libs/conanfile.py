@@ -15,12 +15,14 @@ class RuntimeConan(ConanFile):
 
     settings = "os", "arch", "compiler", "build_type"
     options = {
-        "with_tests": [True, False],
         "with_tools": [True, False],
+        "with_tests": [True, False],
+        "with_sysemu_artifacts": ['0.12.1', '0.12.3', '0.14.1', 'latest'],
     }
     default_options = {
+        "with_tools": False,
         "with_tests": False,
-        "with_tools": False
+        "with_sysemu_artifacts": "0.12.1",
     }
 
     scm = {
@@ -33,20 +35,24 @@ class RuntimeConan(ConanFile):
     python_requires = "conan-common/[>=0.5.0 <1.0.0]"
 
     def set_version(self):
-        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "runtime")
+        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, self.name)
 
     def configure_options(self):
         if self.options.with_tests and not self.dependencies["esperanto-flash-tool"].options.get_safe("header_only"):
             raise ConanInvalidConfiguration("When enabling runtime tests esperanto-flash-tool:header_only must be True")
 
+    @property
+    def _min_device_api(self):
+        return {
+            "0.12.1": "0.6.0@#3e1a8064f37596b34be470b368556536",
+            "0.12.3": "0.7.0",
+            "0.14.1": "0.8.0",
+            "latest": "0.9.0"
+        }.get(str(self.options.with_sysemu_artifacts))
+
     def requirements(self):
-        device_api = "deviceApi/0.6.0@"
-        device_layer = "deviceLayer/[>=1.1.0 <1.2.0]@"
-        if self.options.with_tests:
-            device_api += "#3e1a8064f37596b34be470b368556536"
-            device_layer += "#ffc0b1963da5bd4eb7a7189a1b8a6b73"
-        self.requires(device_api)
-        self.requires(device_layer)
+        self.requires(f"deviceApi/{self._min_device_api}")
+        self.requires("deviceLayer/[>=1.1.0 <1.2.0]")
         self.requires("hostUtils/[>=0.1.0 <1.0.0]")
 
         self.requires("cereal/1.3.1")
@@ -60,17 +66,8 @@ class RuntimeConan(ConanFile):
             self.requires("gtest/1.10.0")
             self.requires("sw-sysemu/0.5.0")
 
-            self.requires("et-common-libs/0.9.0@#330284afd56b61ddd4c1b1dfde597b53")
-            self.requires("device-minion-runtime/0.10.0#4bded86c8893468057a7600258151b23")
-            self.requires("device-bootloaders/0.4.0#d6798104317f163cbe860cf5c9c11f5a")
-            self.requires("esperanto-test-kernels/1.2.0@#c65c500cbea0795566249e17fa3bfa1c")
-
-            # only for pinning dependencies
-            self.requires("esperantoTrace/0.6.0#c24ff325c75833a83a04f13414a1f10e")
-            self.requires("etsoc_hal/1.0.0@#f53ecff2c8a176f37f9e3379d0e19395")
-            self.requires("tf-protocol/0.2.0#fe6749a6d3e624d1d211b475e122880f")
-            self.requires("signedImageFormat/1.0#8b0007bbb87386fd90730d7e1aeb4089")
-            self.requires("esperanto-flash-tool/1.1.0#287ea2a3bf61faa862bea0083aaa5c7f")
+            sysemu_artifacts_conanfile = f"conanfile_device_artifacts_{self.options.with_sysemu_artifacts}.txt"
+            self.run(f"conan install {sysemu_artifacts_conanfile} -pr:b default -pr:h baremetal-rv64-gcc8.2-release --remote conan-develop --build missing")
 
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
