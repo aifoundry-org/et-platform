@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14868] et_device_api: Removed dependency from device-ops-api message IDs.
 - [SW-15075] Reducing device discovery timeouts to 100s
 - [SW-15100] et_vma: avoid across device usage of VMA mapping.
+- [SW-14867] Saving and restoring the entire PCIe config space for hot reset to remove potential performance degradation.
 ### Deprecated
 ### Removed
 - [SW-9608] Removed legacy DMA read/write support

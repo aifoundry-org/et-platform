@@ -2466,8 +2466,17 @@ static void et_reset_isr_work(struct work_struct *work)
 
 	dev_dbg(&et_dev->pdev->dev, "Waiting for PCIe link to settle...\n");
 	msleep(300);
-	et_restore_bars(et_dev);
 
+	rv = pci_load_saved_state(et_dev->pdev, et_dev->pstate);
+	if (rv) {
+		dev_warn(&et_dev->pdev->dev,
+			 "Failed to load PCI state, err: %d\n",
+			 -rv);
+	} else {
+		pci_restore_state(et_dev->pdev);
+	}
+
+	// We'll try to init the et_dev even if unable to restore the state
 	rv = init_et_pci_dev(et_dev, false);
 	if (rv < 0)
 		dev_err(&et_dev->pdev->dev,
@@ -2489,10 +2498,17 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		return rv;
 	}
 
+	rv = pci_save_state(pdev);
+	if (rv) {
+		dev_warn(&pdev->dev, "couldn't save PCI state\n");
+	} else {
+		et_dev->pstate = pci_store_saved_state(pdev);
+	}
+
 	rv = init_et_pci_dev(et_dev, true);
 	if (rv < 0) {
 		dev_err(&pdev->dev, "PCIe initialization failed\n");
-		goto error_free_dev;
+		goto error_free_saved_state;
 	}
 
 	et_dev->reset_workqueue = alloc_workqueue("%s:%d_rstwq",
@@ -2507,14 +2523,17 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 	}
 	INIT_WORK(&et_dev->isr_work, et_reset_isr_work);
 
-	et_save_bars(et_dev);
-
 	return rv;
 
 error_uninit_et_pci_dev:
 	uninit_et_pci_dev(et_dev, true);
 
-error_free_dev:
+error_free_saved_state:
+	if (et_dev->pstate) {
+		kfree(et_dev->pstate);
+		et_dev->pstate = NULL;
+	}
+
 	destroy_et_pci_dev(et_dev);
 	pci_set_drvdata(pdev, NULL);
 
@@ -2533,7 +2552,10 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 	destroy_workqueue(et_dev->reset_workqueue);
 
 	uninit_et_pci_dev(et_dev, true);
-
+	if (et_dev->pstate) {
+		kfree(et_dev->pstate);
+		et_dev->pstate = NULL;
+	}
 	destroy_et_pci_dev(et_dev);
 	pci_set_drvdata(pdev, NULL);
 }

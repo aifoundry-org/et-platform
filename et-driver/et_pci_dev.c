@@ -32,34 +32,6 @@ const struct et_bar_mapping DIR_MAPPINGS[] = {
 
 // clang-format on
 
-void et_save_bars(struct et_pci_dev *et_dev)
-{
-	int i, err = 0;
-
-	for (i = 0; i < sizeof(et_dev->bar_cfgs) / sizeof(et_dev->bar_cfgs[0]);
-	     i++) {
-		err |= pci_read_config_dword(et_dev->pdev,
-					     PCI_BASE_ADDRESS_0 + i * 4,
-					     &et_dev->bar_cfgs[i]);
-	}
-
-	WARN_ON(err);
-}
-
-void et_restore_bars(struct et_pci_dev *et_dev)
-{
-	int i, err = 0;
-
-	for (i = 0; i < sizeof(et_dev->bar_cfgs) / sizeof(et_dev->bar_cfgs[0]);
-	     i++) {
-		err |= pci_write_config_dword(et_dev->pdev,
-					      PCI_BASE_ADDRESS_0 + i * 4,
-					      et_dev->bar_cfgs[i]);
-	}
-
-	WARN_ON(err);
-}
-
 int et_map_bar(struct et_pci_dev *et_dev,
 	       const struct et_bar_mapping *bm_info,
 	       void __iomem **mapped_addr_ptr)

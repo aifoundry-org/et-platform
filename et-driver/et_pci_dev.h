@@ -106,19 +106,17 @@ struct et_pci_dev {
 	bool is_initialized;
 	bool is_err_reporting;
 	struct pci_dev *pdev;
+	struct pci_saved_state *pstate;
 	struct dev_config cfg;
 	struct et_ops_dev ops;
 	struct et_mgmt_dev mgmt;
 	struct list_head bar_region_list;
-	u32 bar_cfgs[6];
 	struct workqueue_struct *reset_workqueue;
 	struct work_struct isr_work;
 };
 
 // clang-format on
 
-void et_save_bars(struct et_pci_dev *et_dev);
-void et_restore_bars(struct et_pci_dev *et_dev);
 int et_map_bar(struct et_pci_dev *et_dev,
 	       const struct et_bar_mapping *bm_info,
 	       void __iomem **mapped_addr_ptr);
