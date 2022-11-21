@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [ARCHSIM-692] Added a SW hint to waive read coherency errors
+- BEMU: Add option to upgrade warnings to errors
+- BEMU: Add DRAM size parameter
 ### Changed
 - Add support for 'conan editable' with sw-sysemu recipe
 ### Deprecated
 ### Removed
+- Reverted stale commit
 ### Fixed
+- BEMU: Fix log format for coop TL
 - Allocate sysemu instance on the heap to fix segfaults
 ### Security
 ## [0.5.0] - 2022-10-20
