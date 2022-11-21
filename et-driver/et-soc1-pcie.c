@@ -68,10 +68,10 @@ static struct et_bar_addr_dbg *ops_bar_addr_dbg;
  *
  * TODO: Remove these params in production after bringup
  */
-static uint mgmt_discovery_timeout = 300;
+static uint mgmt_discovery_timeout = 100;
 module_param(mgmt_discovery_timeout, uint, 0);
 
-static uint ops_discovery_timeout = 300;
+static uint ops_discovery_timeout = 100;
 module_param(ops_discovery_timeout, uint, 0);
 
 static DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
