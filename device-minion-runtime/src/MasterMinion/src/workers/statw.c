@@ -288,11 +288,11 @@ static void statw_update_pmc_stats(uint64_t shire_mask, pmc_prev_counters *pmc_c
                             pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id])
 
                         /* Add checks for bad values */
-                        STATW_UTIL_BAD_PMC_CHECK("L3_Cycle", shire_id, bank_id,
+                        STATW_UTIL_BAD_PMC_CHECK("SC_Cycle", shire_id, bank_id,
                             pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id], sc_pmcs->cycle)
-                        STATW_UTIL_BAD_PMC_CHECK("L3_Read", shire_id, bank_id,
+                        STATW_UTIL_BAD_PMC_CHECK("SC_Read", shire_id, bank_id,
                             pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id], sc_pmcs->pmc0)
-                        STATW_UTIL_BAD_PMC_CHECK("L3_Write", shire_id, bank_id,
+                        STATW_UTIL_BAD_PMC_CHECK("SC_Write", shire_id, bank_id,
                             pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id], sc_pmcs->pmc1)
 
                         /* Calculate the stats */
@@ -849,7 +849,7 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
                 statw_sample_init(&data_sample);
             }
 
-            /* Fill stats based on PMC stats (L3 and DDR) */
+            /* Fill stats based on PMC stats (Shire Cache and DDR) */
             statw_update_pmc_stats(shire_mask, &pmc_counters, &ms_pmcs, &sc_pmcs, &data_sample);
 
             /* Read global stats populated by other harts/workers. */

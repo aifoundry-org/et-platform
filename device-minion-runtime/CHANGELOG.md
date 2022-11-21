@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13796] Halting PMU sampling while CM reset and adding sampling states
 ### Fixed
 - [SW-14813] Fixed coherency issue in PCIe DMA driver and set the DRAM size to 16 GB default.
+- Making all instance of Shire Cache PMU generic
 ### Security
 
 ## [0.12.0] - 2022-10-20
