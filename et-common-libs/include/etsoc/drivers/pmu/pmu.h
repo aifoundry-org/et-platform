@@ -186,10 +186,15 @@ typedef struct shire_pmc_cnt_ {
 #define PMU_NEIGH_EVENT_BANK_UC_FIFO_PUSH_ETLINK_REQ 22
 #define PMU_NEIGH_EVENT_SC_UC_ETLINK_RSP             23
 
+/******************************************* SC PMCs Event mode 0 qual spec ******************************************/
+/* Link: https://docs.google.com/document/d/1zMfIFV49HJY2qijftTB9n8vMKYFr-7iupdJ2q657Wps/edit#heading=h.u87axsdehb9h */
+/*                                                                                                                   */
+/*********************************************************************************************************************/
+
 /* SC default config values. These values are Hardware ESRs of PMC component. */
 #define PMU_SC_CTL_STATUS_MASK \
     0x280144 /* Enables p0 and p1 counters in event mode 0, overflow bits for cycle, p0 and p1. */
-#define PMU_SC_L2_READS  0x4250
+#define PMU_SC_L2_READS  0x7FF0
 #define PMU_SC_L2_WRITES 0xBFF0
 #define PMU_SC_MSG_SEND  0x4
 

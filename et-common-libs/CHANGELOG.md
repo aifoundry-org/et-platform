@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14349] Removed deprecated ET_TRACE_MEM_CPY config option from trace.
 ### Fixed
 - [SW-14768] fix et_assert expr stringification
+- [SW-15097] Fixing the SC PMC config value for L2 reads.
 ### Security
 
 ## [0.11.0] - 2022-10-20
