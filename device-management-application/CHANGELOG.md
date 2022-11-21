@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14679] dev_mngt_service: Fix argument for setting L2CACHE voltage
 - Fixed device id ranges from 0-5 to 0-63
 - [SW-15097] Fixing the display msg for L2 BW in et-power-top.
+- Changing et_powertop to display SC Bank Vs PMC specific counter
 ### Security
 
 ## [1.6.0] - 2022-10-21
