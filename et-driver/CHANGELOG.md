@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-9608b] et_device_api: Removed reserved IDs before DMA list commands
 - [SW-14868] et_device_api: Removed dependency from device-ops-api message IDs.
 - [SW-15075] Reducing device discovery timeouts to 100s
+- [SW-15100] et_vma: avoid across device usage of VMA mapping.
 ### Deprecated
 ### Removed
 - [SW-9608] Removed legacy DMA read/write support

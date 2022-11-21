@@ -60,7 +60,7 @@ ssize_t et_dma_move_data(struct et_pci_dev *et_dev,
 			goto free_cmd_mem;
 		}
 
-		vma = et_find_vma(cmd->list[node_num].host_virt_addr);
+		vma = et_find_vma(et_dev, cmd->list[node_num].host_virt_addr);
 		if (!vma) {
 			dev_err(&et_dev->pdev->dev,
 				"mapping for DMA list[%u].host_virt_addr not found!",

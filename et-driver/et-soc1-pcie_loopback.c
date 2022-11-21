@@ -503,15 +503,18 @@ static const struct vm_operations_struct esperanto_pcie_vm_ops = {
 };
 // clang-format on
 
-struct vm_area_struct *et_find_vma(unsigned long vaddr)
+struct vm_area_struct *et_find_vma(struct et_pci_dev *et_dev,
+				   unsigned long vaddr)
 {
 	struct vm_area_struct *vma;
 
 	mmap_read_lock(current->mm);
 
 	vma = find_vma(current->mm, vaddr);
-	if (!vma || vma->vm_ops != &esperanto_pcie_vm_ops)
-		return NULL;
+	if (!vma || vma->vm_ops != &esperanto_pcie_vm_ops ||
+	    ((struct et_dma_mapping *)vma->vm_private_data)->pdev !=
+		    et_dev->pdev)
+		vma = NULL;
 
 	mmap_read_unlock(current->mm);
 
