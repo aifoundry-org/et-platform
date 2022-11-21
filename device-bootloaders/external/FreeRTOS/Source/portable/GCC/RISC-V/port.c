@@ -153,14 +153,7 @@ task stack, not the ISR stack). */
 		{
 			uint64_t ullCurrentTime;
 			volatile const uint64_t * const pullTime = ( volatile uint64_t * const ) ( configMTIME_BASE_ADDRESS );
-			#ifdef RISCV_ET_MINION
-				pullMachineTimerCompareRegister  = ( volatile uint64_t * ) ( ullMachineTimerCompareRegisterBase );
-			#else
-				volatile uint32_t ulHartId;
-
-				__asm volatile( "csrr %0, mhartid" : "=r"( ulHartId ) );
-				pullMachineTimerCompareRegister  = ( volatile uint64_t * ) ( ullMachineTimerCompareRegisterBase + ( ulHartId * sizeof( uint64_t ) ) );
-			#endif
+			pullMachineTimerCompareRegister  = ( volatile uint64_t * ) ( ullMachineTimerCompareRegisterBase );
 
 			ullCurrentTime = *pullTime;
 			ullNextTime = ullCurrentTime + uxTimerIncrementsForOneTick;
