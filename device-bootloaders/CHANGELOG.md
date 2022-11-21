@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14813] Get and display PMIC FW version at SP boot.
 - [SW-14813] Configuring the MPROT ESR for neighboorhoods of all Minion Shires.
 - [SW-14272] Add PMIC_READY checks and disabled pmic firmware update test code
+- Workaround for handling PMIC_READY in Zebu
 ### Changed
 - Allow FW update even if MM commands are not aborted and change verbosity of some logs.
 - (Conan) Consume same signedImageFormat version (1.2.0) as device-minion-rt

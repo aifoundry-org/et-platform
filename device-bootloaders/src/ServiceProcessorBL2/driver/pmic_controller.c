@@ -180,10 +180,10 @@ int I2C_PMIC_Initialize(void)
 ***********************************************************************/
 int wait_pmic_ready(void)
 {
+#if !FAST_BOOT
     uint64_t elapsed_ms;
     const uint64_t timeout_ms = 3;
     const uint64_t start_ticks = timer_get_ticks_count();
-
     do
     {
         /* GPIO 15 is designated as PMIC Ready indication */
@@ -197,6 +197,9 @@ int wait_pmic_ready(void)
 
     Log_Write(LOG_LEVEL_ERROR, "wait_pmic_ready timed out after %lu ms\n", timeout_ms);
     return -1;
+#else
+    return 0;
+#endif
 }
 
 /************************************************************************
