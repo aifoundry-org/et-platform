@@ -1,13 +1,18 @@
 /*-------------------------------------------------------------------------
-* Copyright (C) 2020, Esperanto Technologies Inc.
-* The copyright to the computer program(s) herein is the
-* property of Esperanto Technologies, Inc. All Rights Reserved.
-* The program(s) may be used and/or copied only with
-* the written permission of Esperanto Technologies and
-* in accordance with the terms and conditions stipulated in the
-* agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------*/
+ * Copyright (C) 2020, Esperanto Technologies Inc.
+ * The copyright to the computer program(s) herein is the
+ * property of Esperanto Technologies, Inc. All Rights Reserved.
+ * The program(s) may be used and/or copied only with
+ * the written permission of Esperanto Technologies and
+ * in accordance with the terms and conditions stipulated in the
+ * agreement/contract under which the program(s) have been supplied.
+ *-------------------------------------------------------------------------*/
 
+#include "gdbstub.h"
+#include "emu_defines.h"
+#include "emu_gio.h"
+#include "gdb_target_xml.h"
+#include "sys_emu.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -15,13 +20,8 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include "emu_defines.h"
-#include "emu_gio.h"
-#include "gdb_target_xml.h"
-#include "gdbstub.h"
-#include "sys_emu.h"
 
-#define ARRAY_SIZE(x)           (sizeof(x) / sizeof(*x))
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*x))
 
 #define GDBSTUB_DEFAULT_PORT    1337
 #define GDBSTUB_MAX_PACKET_SIZE 4096
@@ -36,14 +36,14 @@
 
 #define THREAD_ID_ALL_THREADS -1
 
-static const unsigned target_csr_list[] {
+static const unsigned target_csr_list[]{
 #define CSRDEF(num, lower, upper) num,
 #include "csrs.h"
 #undef CSRDEF
 };
 
-#define NUM_XREGS 32
-#define NUM_FREGS 32
+#define NUM_XREGS     32
+#define NUM_FREGS     32
 #define NUM_CSR_FREGS 3
 
 #define XREGS_START     0
@@ -59,23 +59,22 @@ static const unsigned target_csr_list[] {
 #define LOG_GDBSTUB(lvl, fmt, ...) LOG_AGENT(lvl, g_agent, fmt, __VA_ARGS__)
 
 struct gdbstub_target_description {
-    const char *annex;
-    const char *data;
-    size_t size;
+    const char* annex;
+    const char* data;
+    size_t      size;
 };
 
 static const gdbstub_target_description gdbstub_target_descs[] = {
     {"target.xml", gdb_target_xml, sizeof(gdb_target_xml) - 1},
-    {"target_csr.xml", gdb_target_csr_xml, sizeof(gdb_target_csr_xml) - 1}
-};
+    {"target_csr.xml", gdb_target_csr_xml, sizeof(gdb_target_csr_xml) - 1}};
 
-static enum gdbstub_status g_status = GDBSTUB_STATUS_NOT_INITIALIZED;
-static int g_listen_fd = -1;
-static int g_client_fd = -1;
-static int g_cur_general_thread = 1;
-static char *g_thread_list_xml = NULL;
-static sys_emu* g_sys_emu = nullptr;
-static bemu::Noagent g_agent(nullptr);
+static enum gdbstub_status g_status             = GDBSTUB_STATUS_NOT_INITIALIZED;
+static int                 g_listen_fd          = -1;
+static int                 g_client_fd          = -1;
+static int                 g_cur_general_thread = 1;
+static char*               g_thread_list_xml    = NULL;
+static sys_emu*            g_sys_emu            = nullptr;
+static bemu::Noagent       g_agent(nullptr);
 
 /** Helper routines ***/
 
@@ -110,7 +109,7 @@ static inline unsigned int to_hex(int digit)
 }
 
 /* writes 2*len+1 bytes in buf */
-static void memtohex(char *buf, const uint8_t *mem, int len)
+static void memtohex(char* buf, const uint8_t* mem, int len)
 {
     for (int i = 0; i < len; i++) {
         *buf++ = to_hex(mem[i] >> 4);
@@ -119,7 +118,7 @@ static void memtohex(char *buf, const uint8_t *mem, int len)
     *buf = '\0';
 }
 
-static void hextomem(uint8_t *mem, const char *buf, int len)
+static void hextomem(uint8_t* mem, const char* buf, int len)
 {
     for (int i = 0; i < len; i++) {
         mem[i] = (from_hex(buf[0]) << 4) | from_hex(buf[1]);
@@ -127,7 +126,7 @@ static void hextomem(uint8_t *mem, const char *buf, int len)
     }
 }
 
-static void hextostr(char *str, const char *hex)
+static void hextostr(char* str, const char* hex)
 {
     while (*hex && *(hex + 1)) {
         *str++ = (from_hex(hex[0]) << 4) | from_hex(hex[1]);
@@ -136,17 +135,17 @@ static void hextostr(char *str, const char *hex)
     *str = '\0';
 }
 
-static inline void u32_to_hexstr(char *str, uint32_t value)
+static inline void u32_to_hexstr(char* str, uint32_t value)
 {
     sprintf(str, "%08" PRIx32, bswap32(value));
 }
 
-static inline void u64_to_hexstr(char *str, uint64_t value)
+static inline void u64_to_hexstr(char* str, uint64_t value)
 {
     sprintf(str, "%016" PRIx64, bswap64(value));
 }
 
-static inline void freg_to_hexstr(char *str, bemu::freg_t freg)
+static inline void freg_to_hexstr(char* str, bemu::freg_t freg)
 {
     char tmp[8 * 2 + 1];
     str[0] = '\0';
@@ -157,20 +156,20 @@ static inline void freg_to_hexstr(char *str, bemu::freg_t freg)
     }
 }
 
-static inline uint64_t hexstr_to_u64(const char *buf)
+static inline uint64_t hexstr_to_u64(const char* buf)
 {
     return bswap64(strtoull(buf, NULL, 16));
 }
 
-static inline uint32_t hexstr_to_u32(const char *buf)
+static inline uint32_t hexstr_to_u32(const char* buf)
 {
     return bswap32(strtoul(buf, NULL, 16));
 }
 
-static inline bemu::freg_t hexstr_to_freg(const char *buf)
+static inline bemu::freg_t hexstr_to_freg(const char* buf)
 {
     bemu::freg_t freg;
-    char tmp[8 * 2 + 1];
+    char         tmp[8 * 2 + 1];
 
     for (unsigned i = 0; i < bemu::VLEN / 64; i++) {
         strncpy(tmp, &buf[i * 16], 16);
@@ -180,25 +179,25 @@ static inline bemu::freg_t hexstr_to_freg(const char *buf)
     return freg;
 }
 
-static inline int strsplit(char *str, const char *delimiters, char *tokens[], int max_tokens)
+static inline int strsplit(char* str, const char* delimiters, char* tokens[], int max_tokens)
 {
-    int n = 0;
-    char *tok = strtok(str, delimiters);
+    int   n   = 0;
+    char* tok = strtok(str, delimiters);
 
     while ((tok != NULL) && (n < max_tokens)) {
         tokens[n++] = tok;
-        tok = strtok(NULL, delimiters);
+        tok         = strtok(NULL, delimiters);
     }
 
     return n;
 }
 
-static inline char *strconcat(char *dst, const char *suffix)
+static inline char* strconcat(char* dst, const char* suffix)
 {
-    char *newstr;
-    size_t dst_len = strlen(dst);
+    char*  newstr;
+    size_t dst_len    = strlen(dst);
     size_t suffix_len = strlen(suffix);
-    newstr = (char *)realloc((void *)dst, dst_len + suffix_len + 1);
+    newstr            = (char*)realloc((void*)dst, dst_len + suffix_len + 1);
     strcat(newstr, suffix);
     return newstr;
 }
@@ -215,7 +214,8 @@ static inline int to_gdb_thread(int thread_id)
 {
     if ((thread_id == IO_SHIRE_SP_HARTID) || (thread_id == EMU_IO_SHIRE_SP_THREAD)) {
         return IO_SHIRE_SP_HARTID + 1;
-    } else {
+    }
+    else {
         return thread_id + 1;
     }
 }
@@ -234,26 +234,28 @@ static inline bool target_thread_exists(int thread)
 static inline bool target_thread_is_alive(int thread)
 {
     return !g_sys_emu->thread_is_unavailable(to_target_thread(thread))
-        /* && !g_sys_emu->thread_is_running(to_target_thread(thread)) */ ;
+        /* && !g_sys_emu->thread_is_running(to_target_thread(thread)) */;
 }
 
-static bool target_read_memory(int thread, uint64_t addr, uint8_t *buffer, uint64_t size)
+static bool target_read_memory(int thread, uint64_t addr, uint8_t* buffer, uint64_t size)
 {
     try {
         g_sys_emu->thread_read_memory(to_target_thread(thread), addr, size, buffer);
         return true;
-    } catch (...) {
+    }
+    catch (...) {
         LOG_GDBSTUB(INFO, "%s", "read memory exception");
         return false;
     }
 }
 
-static bool target_write_memory(int thread, uint64_t addr, const uint8_t *buffer, uint64_t size)
+static bool target_write_memory(int thread, uint64_t addr, const uint8_t* buffer, uint64_t size)
 {
     try {
         g_sys_emu->thread_write_memory(to_target_thread(thread), addr, size, buffer);
         return true;
-    } catch (...) {
+    }
+    catch (...) {
         LOG_GDBSTUB(INFO, "%s", "write memory exception");
         return false;
     }
@@ -293,7 +295,8 @@ static uint64_t target_read_csr(int thread, int csr)
 {
     try {
         return g_sys_emu->thread_get_csr(to_target_thread(thread), csr);
-    } catch (...) {
+    }
+    catch (...) {
         return 0;
     }
 }
@@ -302,7 +305,8 @@ static void target_write_csr(int thread, int csr, uint64_t data)
 {
     try {
         g_sys_emu->thread_set_csr(to_target_thread(thread), csr, data);
-    } catch (...) {
+    }
+    catch (...) {
     }
 }
 
@@ -327,10 +331,10 @@ static void target_breakpoint_remove(uint64_t addr)
     g_sys_emu->breakpoint_remove(addr);
 }
 
-static void target_remote_command(char *cmd)
+static void target_remote_command(char* cmd)
 {
-    char *tokens[2];
-    int ntokens = strsplit(cmd, " ", tokens, ARRAY_SIZE(tokens));
+    char* tokens[2];
+    int   ntokens = strsplit(cmd, " ", tokens, ARRAY_SIZE(tokens));
 
     LOG_GDBSTUB(DEBUG, "remote command: \"%s\"", cmd);
 
@@ -349,7 +353,7 @@ static void target_remote_command(char *cmd)
 
 /** RSP protocol ***/
 
-static inline ssize_t rsp_get_char(char *ch)
+static inline ssize_t rsp_get_char(char* ch)
 {
     return recv(g_client_fd, ch, sizeof(*ch), 0);
 }
@@ -359,25 +363,22 @@ static inline ssize_t rsp_put_char(char ch)
     return send(g_client_fd, &ch, sizeof(ch), 0);
 }
 
-static inline ssize_t rsp_put_buffer(const void *buf, size_t len)
+static inline ssize_t rsp_put_buffer(const void* buf, size_t len)
 {
     return send(g_client_fd, buf, len, 0);
 }
 
 static inline int rsp_is_token(int ch)
 {
-    return (ch == RSP_START_TOKEN  ||
-            ch == RSP_END_TOKEN    ||
-            ch == RSP_ESCAPE_TOKEN ||
-            ch == RSP_RUNLENGTH_TOKEN);
+    return (ch == RSP_START_TOKEN || ch == RSP_END_TOKEN || ch == RSP_ESCAPE_TOKEN || ch == RSP_RUNLENGTH_TOKEN);
 }
 
-static ssize_t rsp_receive_packet(char *packet, unsigned int size)
+static ssize_t rsp_receive_packet(char* packet, unsigned int size)
 {
-    char chr;
-    char upper, lower;
-    uint8_t checksum;
-    ssize_t ret = 0;
+    char         chr;
+    char         upper, lower;
+    uint8_t      checksum;
+    ssize_t      ret = 0;
     unsigned int len = 0;
     unsigned int sum = 0;
 
@@ -424,8 +425,8 @@ static ssize_t rsp_receive_packet(char *packet, unsigned int size)
     checksum = from_hex(upper) << 4 | from_hex(lower);
     if ((sum & 0xFF) != checksum) {
         LOG_GDBSTUB(WARN, "read_packet checksum mismatch, "
-                           "0x%02X (calc) != 0x%02X (packet)\n",
-                     (sum & 0xFF), checksum);
+                          "0x%02X (calc) != 0x%02X (packet)\n",
+                    (sum & 0xFF), checksum);
         ret = 0;
         goto failure;
     }
@@ -441,10 +442,10 @@ failure:
     return ret;
 }
 
-static ssize_t rsp_send_packet_len(const char *packet, size_t len)
+static ssize_t rsp_send_packet_len(const char* packet, size_t len)
 {
-    char buf[GDBSTUB_MAX_PACKET_SIZE];
-    size_t cnt = 0;
+    char         buf[GDBSTUB_MAX_PACKET_SIZE];
+    size_t       cnt = 0;
     unsigned int sum = 0;
 
     LOG_GDBSTUB(DEBUG, "send packet: \"%s\"", packet);
@@ -475,16 +476,15 @@ static ssize_t rsp_send_packet_len(const char *packet, size_t len)
     return rsp_put_buffer(buf, cnt);
 }
 
-static inline ssize_t rsp_send_packet(const char *packet)
+static inline ssize_t rsp_send_packet(const char* packet)
 {
     return rsp_send_packet_len(packet, strlen(packet));
 }
 
-static int rsp_is_query_packet(const char *p, const char *query, char separator)
+static int rsp_is_query_packet(const char* p, const char* query, char separator)
 {
     unsigned int query_len = strlen(query);
-    return strncmp(p + 1, query, query_len) == 0 &&
-           (p[query_len + 1] == '\0' || p[query_len + 1] == separator);
+    return strncmp(p + 1, query, query_len) == 0 && (p[query_len + 1] == '\0' || p[query_len + 1] == separator);
 }
 
 /** GDB stub routines ***/
@@ -496,13 +496,13 @@ static void gdbstub_handle_qsupported(void)
     LOG_GDBSTUB(DEBUG, "%s", "handle qSupported");
 
     snprintf(reply, sizeof(reply),
-         "PacketSize=%x;qXfer:features:read+;qXfer:threads:read+;vContSupported+;hwbreak+",
-         GDBSTUB_MAX_PACKET_SIZE);
+             "PacketSize=%x;qXfer:features:read+;qXfer:threads:read+;vContSupported+;hwbreak+",
+             GDBSTUB_MAX_PACKET_SIZE);
 
     rsp_send_packet(reply);
 }
 
-static ssize_t gdbstub_qxfer_send_object(const char *object, size_t object_size,
+static ssize_t gdbstub_qxfer_send_object(const char* object, size_t object_size,
                                          unsigned long offset, unsigned long length)
 {
     char resp;
@@ -519,8 +519,9 @@ static ssize_t gdbstub_qxfer_send_object(const char *object, size_t object_size,
 
     if (length > object_size - offset) {
         length = object_size - offset;
-        resp = 'l';
-    } else {
+        resp   = 'l';
+    }
+    else {
         resp = 'm'; /* More data to be read */
     }
 
@@ -533,15 +534,15 @@ static ssize_t gdbstub_qxfer_send_object(const char *object, size_t object_size,
     return rsp_send_packet_len(reply, length + 1);
 }
 
-static void gdbstub_handle_qxfer_features_read(const char *annex, const char *offset_length)
+static void gdbstub_handle_qxfer_features_read(const char* annex, const char* offset_length)
 {
-    const char *annex_data = NULL;
-    size_t annex_size;
+    const char*   annex_data = NULL;
+    size_t        annex_size;
     unsigned long offset = strtoul(offset_length, NULL, 16);
-    unsigned long length = strtoul(strchr(offset_length, ',') + 1 , NULL, 16);
+    unsigned long length = strtoul(strchr(offset_length, ',') + 1, NULL, 16);
 
     LOG_GDBSTUB(DEBUG, "handle qXfer:features:read annex: %s, offset: 0x%lx, size: 0x%lx",
-        annex, offset, length);
+                annex, offset, length);
 
     for (unsigned int i = 0; i < ARRAY_SIZE(gdbstub_target_descs); i++) {
         if (strcmp(annex, gdbstub_target_descs[i].annex) == 0) {
@@ -559,7 +560,7 @@ static void gdbstub_handle_qxfer_features_read(const char *annex, const char *of
     gdbstub_qxfer_send_object(annex_data, annex_size, offset, length);
 }
 
-static void gdbstub_handle_qxfer_features(char *tokens[], int ntokens)
+static void gdbstub_handle_qxfer_features(char* tokens[], int ntokens)
 {
     if (ntokens < 5) {
         rsp_send_packet("");
@@ -572,38 +573,38 @@ static void gdbstub_handle_qxfer_features(char *tokens[], int ntokens)
         rsp_send_packet("");
 }
 
-static void gdbstub_handle_qxfer_threads(char *tokens[], int ntokens)
+static void gdbstub_handle_qxfer_threads(char* tokens[], int ntokens)
 {
     unsigned long offset, length;
 
     /* Generate the list */
     if (g_thread_list_xml == NULL) {
-        g_thread_list_xml = (char *)malloc(1);
+        g_thread_list_xml    = (char*)malloc(1);
         g_thread_list_xml[0] = '\0';
 
         g_thread_list_xml = strconcat(g_thread_list_xml,
-            "<?xml version=\"1.0\"?>\n"
-            "<!DOCTYPE threads SYSTEM \"threads.dtd\">\n"
-            "<threads>\n");
+                                      "<?xml version=\"1.0\"?>\n"
+                                      "<!DOCTYPE threads SYSTEM \"threads.dtd\">\n"
+                                      "<threads>\n");
 
         for (unsigned shire = 0; shire < EMU_NUM_SHIRES; shire++) {
             unsigned minion_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
             unsigned thread_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
-            unsigned shire_id = (shire == EMU_IO_SHIRE_SP ? IO_SHIRE_ID : shire);
+            unsigned shire_id     = (shire == EMU_IO_SHIRE_SP ? IO_SHIRE_ID : shire);
 
             for (unsigned minion = 0; minion < minion_count; minion++) {
                 unsigned minion_id = minion + EMU_MINIONS_PER_SHIRE * shire_id;
 
                 for (unsigned thread = 0; thread < thread_count; thread++) {
-                    unsigned thread_id = thread + minion_id * EMU_THREADS_PER_MINION;
-                    bool is_sp = thread_id == IO_SHIRE_SP_HARTID;
+                    unsigned thread_id     = thread + minion_id * EMU_THREADS_PER_MINION;
+                    bool     is_sp         = thread_id == IO_SHIRE_SP_HARTID;
                     unsigned gdb_thread_id = to_gdb_thread(thread_id);
 
                     if (target_thread_exists(gdb_thread_id)) {
                         char desc[512];
                         snprintf(desc, sizeof(desc),
-                            "    <thread id=\"%X\" core=\"%d\" name=\"S%d:M%d:T%d%s\"></thread>\n",
-                            gdb_thread_id, minion_id, shire_id, minion, thread, is_sp ? " (SP)" : "");
+                                 "    <thread id=\"%X\" core=\"%d\" name=\"S%d:M%d:T%d%s\"></thread>\n",
+                                 gdb_thread_id, minion_id, shire_id, minion, thread, is_sp ? " (SP)" : "");
                         g_thread_list_xml = strconcat(g_thread_list_xml, desc);
                     }
                 }
@@ -625,15 +626,15 @@ static void gdbstub_handle_qxfer_threads(char *tokens[], int ntokens)
     }
 
     offset = strtoul(tokens[3], NULL, 16);
-    length = strtoul(strchr(tokens[3], ',') + 1 , NULL, 16);
+    length = strtoul(strchr(tokens[3], ',') + 1, NULL, 16);
 
     gdbstub_qxfer_send_object(g_thread_list_xml, strlen(g_thread_list_xml), offset, length);
 }
 
-static void gdbstub_handle_qxfer(char *packet)
+static void gdbstub_handle_qxfer(char* packet)
 {
-    char *tokens[5];
-    int ntokens = strsplit(packet, ":", tokens, ARRAY_SIZE(tokens));
+    char* tokens[5];
+    int   ntokens = strsplit(packet, ":", tokens, ARRAY_SIZE(tokens));
 
     if (ntokens < 2) {
         rsp_send_packet("");
@@ -697,26 +698,31 @@ static void gdbstub_handle_read_general_registers(void)
     rsp_send_packet(reply);
 }
 
-static void gdbstub_handle_read_register(const char *packet)
+static void gdbstub_handle_read_register(const char* packet)
 {
-    char buffer[(bemu::VLEN / 8) * 2 + 1];
+    char     buffer[(bemu::VLEN / 8) * 2 + 1];
     uint64_t reg = strtoul(packet + 1, NULL, 16);
 
     LOG_GDBSTUB(DEBUG, "read register: %" PRIu64, reg);
 
     if (/* reg >= XREGS_START && */ reg <= XREGS_END) {
         u64_to_hexstr(buffer, target_read_register(g_cur_general_thread, reg));
-    } else if (reg == PC_REG) { /* PC register */
+    }
+    else if (reg == PC_REG) { /* PC register */
         u64_to_hexstr(buffer, target_read_pc(g_cur_general_thread));
-    } else if (reg >= FREGS_START && reg <= FREGS_END) { /* Floating-point vector registers */
+    }
+    else if (reg >= FREGS_START && reg <= FREGS_END) { /* Floating-point vector registers */
         freg_to_hexstr(buffer, target_read_fregister(g_cur_general_thread, reg - FREGS_START));
-    } else if (reg >= CSR_FREGS_START && reg <= CSR_FREGS_END) { /* fflags, frm, fcsr */
+    }
+    else if (reg >= CSR_FREGS_START && reg <= CSR_FREGS_END) { /* fflags, frm, fcsr */
         int fcsr = bemu::CSR_FFLAGS + (reg - CSR_FREGS_START);
         u32_to_hexstr(buffer, target_read_csr(g_cur_general_thread, fcsr));
-    } else if (reg >= CSR_REGS_START && reg <= CSR_REGS_END) {
+    }
+    else if (reg >= CSR_REGS_START && reg <= CSR_REGS_END) {
         int csr = target_csr_list[reg - CSR_REGS_START];
         u64_to_hexstr(buffer, target_read_csr(g_cur_general_thread, csr));
-    } else {
+    }
+    else {
         LOG_GDBSTUB(INFO, "read register: unknown register %" PRIu64, reg);
         rsp_send_packet("E00");
         return;
@@ -725,26 +731,31 @@ static void gdbstub_handle_read_register(const char *packet)
     rsp_send_packet(buffer);
 }
 
-static void gdbstub_handle_write_register(const char *packet)
+static void gdbstub_handle_write_register(const char* packet)
 {
-    uint64_t reg = strtoul(packet + 1, NULL, 16);
-    const char *valuep = strchr(packet + 1, '=') + 1;
+    uint64_t    reg    = strtoul(packet + 1, NULL, 16);
+    const char* valuep = strchr(packet + 1, '=') + 1;
 
     LOG_GDBSTUB(DEBUG, "write register: %" PRIu64 " <- \"%s\"", reg, valuep);
 
     if (/* reg >= XREGS_START && */ reg <= XREGS_END) {
         target_write_register(g_cur_general_thread, reg, hexstr_to_u64(valuep));
-    } else if (reg == PC_REG) { /* PC register */
+    }
+    else if (reg == PC_REG) { /* PC register */
         target_write_pc(g_cur_general_thread, hexstr_to_u64(valuep));
-    } else if (reg >= FREGS_START && reg <= FREGS_END) { /* Floating-point vector registers */
+    }
+    else if (reg >= FREGS_START && reg <= FREGS_END) { /* Floating-point vector registers */
         target_write_fregister(g_cur_general_thread, reg - FREGS_START, hexstr_to_freg(valuep));
-    } else if (reg >= CSR_FREGS_START && reg <= CSR_FREGS_END) { /* fflags, frm, fcsr */
+    }
+    else if (reg >= CSR_FREGS_START && reg <= CSR_FREGS_END) { /* fflags, frm, fcsr */
         int fcsr = bemu::CSR_FFLAGS + (reg - CSR_FREGS_START);
         target_write_csr(g_cur_general_thread, fcsr, hexstr_to_u32(valuep));
-    } else if (reg >= CSR_REGS_START && reg <= CSR_REGS_END) {
+    }
+    else if (reg >= CSR_REGS_START && reg <= CSR_REGS_END) {
         int csr = target_csr_list[reg - CSR_REGS_START];
         target_write_csr(g_cur_general_thread, csr, hexstr_to_u32(valuep));
-    } else {
+    }
+    else {
         LOG_GDBSTUB(INFO, "write register: unknown register %" PRIu64, reg);
         rsp_send_packet("E00");
         return;
@@ -753,7 +764,7 @@ static void gdbstub_handle_write_register(const char *packet)
     rsp_send_packet("OK");
 }
 
-static void gdbstub_handle_set_thread(const char *packet)
+static void gdbstub_handle_set_thread(const char* packet)
 {
     char op = packet[1];
 
@@ -765,11 +776,13 @@ static void gdbstub_handle_set_thread(const char *packet)
         if (g_cur_general_thread == 0)
             g_cur_general_thread = 1;
         LOG_GDBSTUB(DEBUG, "setting general thread to: %d", g_cur_general_thread);
-    } else if (op == 'c') {
+    }
+    else if (op == 'c') {
         /* We support vCont, this is deprecated */
         rsp_send_packet("");
         return;
-    } else {
+    }
+    else {
         LOG_GDBSTUB(INFO, "handle set_thread: invalid op: %c", op);
         return;
     }
@@ -783,10 +796,10 @@ static void gdbstub_handle_query_thread(void)
     rsp_send_packet("");
 }
 
-static void gdbstub_handle_qrcmd(const char *packet)
+static void gdbstub_handle_qrcmd(const char* packet)
 {
-    char cmd[GDBSTUB_MAX_PACKET_SIZE + 1];
-    const char *cmd_hex = strchr(packet, ',');
+    char        cmd[GDBSTUB_MAX_PACKET_SIZE + 1];
+    const char* cmd_hex = strchr(packet, ',');
 
     if (!cmd_hex) {
         rsp_send_packet("");
@@ -798,7 +811,7 @@ static void gdbstub_handle_qrcmd(const char *packet)
     rsp_send_packet("OK");
 }
 
-static void gdbstub_handle_thread_alive(const char *packet)
+static void gdbstub_handle_thread_alive(const char* packet)
 {
     int thread_id;
 
@@ -817,15 +830,16 @@ static inline void gdbstub_handle_vcont_action(char action, int thread)
     if (target_thread_exists(thread)) {
         if (action == 's') {
             target_step(thread);
-        } else if (action == 'c') {
+        }
+        else if (action == 'c') {
             target_continue(thread);
         }
     }
 }
 
-static void gdbstub_handle_vcont(char *packet)
+static void gdbstub_handle_vcont(char* packet)
 {
-    char *action;
+    char* action;
 
     LOG_GDBSTUB(DEBUG, "%s", "handle vCont");
 
@@ -834,9 +848,9 @@ static void gdbstub_handle_vcont(char *packet)
     while (action != NULL) {
         int thread = THREAD_ID_ALL_THREADS;
         /* Find optional thread-id */
-        char *threadptr = strchr(action, ':');
+        char* threadptr = strchr(action, ':');
         if (threadptr) {
-            thread = strtol(threadptr + 1, NULL, 16);
+            thread     = strtol(threadptr + 1, NULL, 16);
             *threadptr = '\0';
         }
 
@@ -846,7 +860,8 @@ static void gdbstub_handle_vcont(char *packet)
             for (unsigned id = 1; id <= target_num_threads(); id++) {
                 gdbstub_handle_vcont_action(*action, id);
             }
-        } else {
+        }
+        else {
             gdbstub_handle_vcont_action(*action, thread);
         }
 
@@ -856,10 +871,10 @@ static void gdbstub_handle_vcont(char *packet)
     /* The response is sent when something (such a breakpoint) happens */
 }
 
-static bool parse_breakpoint(char *packet, char *type, uint64_t *addr, uint64_t *kind)
+static bool parse_breakpoint(char* packet, char* type, uint64_t* addr, uint64_t* kind)
 {
-    char *tokens[3];
-    int ntokens = strsplit(packet, ",", tokens, ARRAY_SIZE(tokens));
+    char* tokens[3];
+    int   ntokens = strsplit(packet, ",", tokens, ARRAY_SIZE(tokens));
 
     if (ntokens < 3)
         return false;
@@ -870,9 +885,9 @@ static bool parse_breakpoint(char *packet, char *type, uint64_t *addr, uint64_t 
     return true;
 }
 
-static void gdbstub_handle_breakpoint_insert(char *packet)
+static void gdbstub_handle_breakpoint_insert(char* packet)
 {
-    char type;
+    char     type;
     uint64_t addr, kind;
 
     if (!parse_breakpoint(packet, &type, &addr, &kind)) {
@@ -904,9 +919,9 @@ static void gdbstub_handle_breakpoint_insert(char *packet)
     }
 }
 
-static void gdbstub_handle_breakpoint_remove(char *packet)
+static void gdbstub_handle_breakpoint_remove(char* packet)
 {
-    char type;
+    char     type;
     uint64_t addr, kind;
 
     if (!parse_breakpoint(packet, &type, &addr, &kind)) {
@@ -938,12 +953,12 @@ static void gdbstub_handle_breakpoint_remove(char *packet)
     }
 }
 
-static void gdbstub_handle_read_memory(const char *packet)
+static void gdbstub_handle_read_memory(const char* packet)
 {
-    char *p;
+    char*    p;
     uint64_t addr, length;
-    uint8_t data[GDBSTUB_MAX_PACKET_SIZE / 2];
-    char send[2 * sizeof(data) + 1];
+    uint8_t  data[GDBSTUB_MAX_PACKET_SIZE / 2];
+    char     send[2 * sizeof(data) + 1];
 
     addr = strtoull(packet + 1, &p, 16);
     if (*p == ',')
@@ -960,11 +975,11 @@ static void gdbstub_handle_read_memory(const char *packet)
     rsp_send_packet(send);
 }
 
-static void gdbstub_handle_write_memory(const char *packet)
+static void gdbstub_handle_write_memory(const char* packet)
 {
-    char *p;
+    char*    p;
     uint64_t addr, length;
-    uint8_t data[GDBSTUB_MAX_PACKET_SIZE / 2];
+    uint8_t  data[GDBSTUB_MAX_PACKET_SIZE / 2];
 
     addr = strtoull(packet + 1, &p, 16);
     if (*p == ',')
@@ -981,7 +996,7 @@ static void gdbstub_handle_write_memory(const char *packet)
     rsp_send_packet("OK");
 }
 
-static int gdbstub_handle_packet(char *packet)
+static int gdbstub_handle_packet(char* packet)
 {
     switch (packet[0]) {
     case '!': /* Enable extended mode */
@@ -1053,7 +1068,8 @@ static int gdbstub_handle_packet(char *packet)
                 rsp_send_packet("vCont;c;C;s;S;r");
             else
                 gdbstub_handle_vcont(packet);
-        } else {
+        }
+        else {
             rsp_send_packet("");
         }
         break;
@@ -1072,11 +1088,11 @@ static int gdbstub_handle_packet(char *packet)
     return 0;
 }
 
-static int gdbstub_open_port(unsigned short *port)
+static int gdbstub_open_port(unsigned short* port)
 {
     struct sockaddr_in sockaddr;
-    int fd, ret, opt;
-    socklen_t len = sizeof(sockaddr);
+    int                fd, ret, opt;
+    socklen_t          len = sizeof(sockaddr);
 
     fd = socket(PF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
@@ -1093,15 +1109,15 @@ static int gdbstub_open_port(unsigned short *port)
         return ret;
     }
 
-    sockaddr.sin_family = AF_INET;
-    sockaddr.sin_port = htons(GDBSTUB_DEFAULT_PORT);
+    sockaddr.sin_family      = AF_INET;
+    sockaddr.sin_port        = htons(GDBSTUB_DEFAULT_PORT);
     sockaddr.sin_addr.s_addr = 0;
-    ret = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+    ret                      = bind(fd, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
     if (ret < 0) {
-        sockaddr.sin_family = AF_INET;
-        sockaddr.sin_port = htons(0); /* Automatic port */
+        sockaddr.sin_family      = AF_INET;
+        sockaddr.sin_port        = htons(0); /* Automatic port */
         sockaddr.sin_addr.s_addr = 0;
-        ret = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+        ret                      = bind(fd, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
         if (ret < 0) {
             LOG_GDBSTUB(INFO, "bind error: %d", ret);
             close(fd);
@@ -1109,7 +1125,7 @@ static int gdbstub_open_port(unsigned short *port)
         }
     }
 
-    ret = getsockname(fd, (struct sockaddr *)&sockaddr, &len);
+    ret = getsockname(fd, (struct sockaddr*)&sockaddr, &len);
     if (ret < 0) {
         LOG_GDBSTUB(INFO, "getsockname error: %d", ret);
         close(fd);
@@ -1131,11 +1147,11 @@ static int gdbstub_open_port(unsigned short *port)
 static int gdbstub_accept(int listen_fd)
 {
     struct sockaddr_in sockaddr;
-    socklen_t len;
-    int fd, ret, opt;
+    socklen_t          len;
+    int                fd, ret, opt;
 
     len = sizeof(sockaddr);
-    fd = accept(listen_fd, (struct sockaddr *)&sockaddr, &len);
+    fd  = accept(listen_fd, (struct sockaddr*)&sockaddr, &len);
     if (fd < 0) {
         LOG_GDBSTUB(INFO, "accept error: %d", fd);
         return fd;
@@ -1163,7 +1179,7 @@ int gdbstub_init(sys_emu* emu, bemu::System* chip)
         return -1;
 
     g_sys_emu = emu;
-    g_agent = bemu::Noagent(chip, "GDB-stub");
+    g_agent   = bemu::Noagent(chip, "GDB-stub");
 
     LOG_GDBSTUB(INFO, "%s", "Initializing...");
 
@@ -1215,28 +1231,28 @@ void gdbstub_fini()
         g_listen_fd = -1;
     }
 
-    (void) gdbstub_close_client();
+    (void)gdbstub_close_client();
 
     if (g_thread_list_xml) {
         free(g_thread_list_xml);
         g_thread_list_xml = NULL;
     }
 
-    g_status = GDBSTUB_STATUS_NOT_INITIALIZED;
+    g_status  = GDBSTUB_STATUS_NOT_INITIALIZED;
     g_sys_emu = nullptr;
 }
 
 int gdbstub_io()
 {
-    ssize_t ret;
+    ssize_t       ret;
     struct pollfd pollfd;
-    char packet[GDBSTUB_MAX_PACKET_SIZE + 1];
+    char          packet[GDBSTUB_MAX_PACKET_SIZE + 1];
 
     if (g_status != GDBSTUB_STATUS_RUNNING)
         return -1;
 
     memset(&pollfd, 0, sizeof(pollfd));
-    pollfd.fd = g_client_fd;
+    pollfd.fd     = g_client_fd;
     pollfd.events = POLLIN;
 
     /* Return immediately */
@@ -1247,10 +1263,11 @@ int gdbstub_io()
     ret = rsp_receive_packet(packet, sizeof(packet) - 1);
     if (ret < 0) {
         LOG_GDBSTUB(WARN, "RSP: error receiving packet: %s",
-                     strerror(ret));
+                    strerror(ret));
         gdbstub_fini();
         return ret;
-    } else if (ret == 0) {
+    }
+    else if (ret == 0) {
         return 0;
     }
 
@@ -1262,9 +1279,9 @@ int gdbstub_io()
 void gdbstub_signal_break(int thread)
 {
     const int signal = 5;
-    char buffer[32];
-    int len;
-    int gdb_thread = to_gdb_thread(thread);
+    char      buffer[32];
+    int       len;
+    int       gdb_thread = to_gdb_thread(thread);
 
     len = snprintf(buffer, sizeof(buffer), "T%02Xthread:%02X;", signal, gdb_thread);
     rsp_send_packet_len(buffer, len);
