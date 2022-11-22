@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.7.0] - 2022-11-22
+### Added
 - [SW-14813] Get and display PMIC FW version at SP boot.
 - [SW-14813] Configuring the MPROT ESR for neighboorhoods of all Minion Shires.
 - [SW-14272] Add PMIC_READY checks and disabled pmic firmware update test code
