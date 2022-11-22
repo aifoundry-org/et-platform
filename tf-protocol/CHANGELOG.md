@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.2.0] - 2022-11-22
+### Added
+### Changed
 - [SW-14614] Changed wait duration cycles from 32-bits to 64-bits
 - [SW-9608] Updated TRACE RT control/configure IDs
 ### Deprecated
