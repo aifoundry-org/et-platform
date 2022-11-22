@@ -181,7 +181,12 @@ public:
     // PCIe DMA needs this
     bemu::MainMemory& get_memory() { return chip.memory; }
 
-    void thread_set_single_step(int thread_id) { single_step[thread_id] = true; }
+    void thread_set_single_step(int thread_id) { thread_set_single_step(thread_id, 0, 0); }
+    void thread_set_single_step(int thread_id, uint64_t start_pc, uint64_t end_pc)
+    {
+        single_step[thread_id] = true;
+        step_range[thread_id] = Addr_range{start_pc, end_pc};
+    }
 
     bool get_vpurf_check() const { return vpurf_checker != nullptr; }
     Vpurf_checker& get_vpurf_checker() { return *vpurf_checker.get(); }
@@ -217,6 +222,17 @@ protected:
 
 private:
 
+    struct Addr_range {
+        uint64_t start;
+        uint64_t end;
+
+        bool is_empty() const noexcept { return start == end; }
+        bool contains(uint64_t addr) const noexcept
+        {
+            return (start <= addr) && (addr < end);
+        }
+    };
+
     bemu::System    chip;
 
     std::ofstream   log_file;
@@ -234,6 +250,7 @@ private:
     tstore_checker  tstore_checker_{&chip};
     std::unordered_set<uint64_t> breakpoints;
     std::bitset<EMU_NUM_THREADS> single_step;
+    std::array<Addr_range, EMU_NUM_THREADS> step_range;
 
     bemu::Noagent   agent{&chip, "SYS-EMU"};
 

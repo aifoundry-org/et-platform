@@ -321,6 +321,13 @@ static void target_continue(int thread)
     g_sys_emu->thread_set_running(to_target_thread(thread));
 }
 
+static void target_run(int thread, uint64_t start_pc, uint64_t end_pc)
+{
+    LOG_GDBSTUB(DEBUG, "run thread %d from 0x%010lx to 0x%010lx", thread, start_pc, end_pc);
+    g_sys_emu->thread_set_single_step(to_target_thread(thread), start_pc, end_pc);
+    g_sys_emu->thread_set_running(to_target_thread(thread));
+}
+
 static void target_breakpoint_insert(uint64_t addr)
 {
     g_sys_emu->breakpoint_insert(addr);
@@ -825,14 +832,26 @@ static void gdbstub_handle_thread_alive(const char* packet)
         rsp_send_packet("E00");
 }
 
-static inline void gdbstub_handle_vcont_action(char action, int thread)
+static inline void gdbstub_handle_vcont_action(char* action, int thread)
 {
     if (target_thread_exists(thread)) {
-        if (action == 's') {
+        switch (action[0]) {
+        case 's':
+        case 'S':
             target_step(thread);
-        }
-        else if (action == 'c') {
+            break;
+        case 'c':
+        case 'C':
             target_continue(thread);
+            break;
+        case 'r': {
+            uint64_t start_pc = strtoul(action + 1, &action, 16);
+            uint64_t end_pc   = strtoul(action + 1, NULL, 16);
+            target_run(thread, start_pc, end_pc);
+            break;
+        }
+        default:
+            break;
         }
     }
 }
@@ -858,11 +877,11 @@ static void gdbstub_handle_vcont(char* packet)
 
         if (thread == THREAD_ID_ALL_THREADS) {
             for (unsigned id = 1; id <= target_num_threads(); id++) {
-                gdbstub_handle_vcont_action(*action, id);
+                gdbstub_handle_vcont_action(action, id);
             }
         }
         else {
-            gdbstub_handle_vcont_action(*action, thread);
+            gdbstub_handle_vcont_action(action, thread);
         }
 
         action = strtok(NULL, ";");

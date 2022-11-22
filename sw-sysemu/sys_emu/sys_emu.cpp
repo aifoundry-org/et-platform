@@ -602,11 +602,13 @@ int sys_emu::main_internal() {
 
             // Check for single-step mode
             if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) && single_step[thread_id]) {
-                LOG_AGENT(DEBUG, *hart, "%s", "Single-step done");
-                gdbstub_signal_break(thread_id);
-                single_step[thread_id] = false;
-                hart->enter_debug_mode(bemu::Debug_entry::Cause::haltreq);
-                continue;
+                if (!step_range[thread_id].contains(hart->pc)) {
+                    LOG_AGENT(DEBUG, *hart, "%s", "Single-step done");
+                    gdbstub_signal_break(thread_id);
+                    single_step[thread_id] = false;
+                    hart->enter_debug_mode(bemu::Debug_entry::Cause::haltreq);
+                    continue;
+                }
             }
         }
 
