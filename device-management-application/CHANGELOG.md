@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-15117] et-powertop: add option to switch between devices
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.7.0] - 2022-11-22
+### Added
+### Changed
 - Replaced label PCIE_LOGIC with IOSHIRE(p075)
 - Fixed conan recipe with VirtualRunEnv usage + modernize recipe to conan 2.0
 ### Deprecated
