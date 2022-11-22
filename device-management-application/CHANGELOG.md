@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-15117] et-powertop: add option to switch between devices
 ### Changed
 - Replaced label PCIE_LOGIC with IOSHIRE(p075)
 - Fixed conan recipe with VirtualRunEnv usage + modernize recipe to conan 2.0

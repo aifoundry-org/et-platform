@@ -22,6 +22,7 @@
 #include <glog/logging.h>
 #include <iomanip>
 #include <iostream>
+#include <regex>
 #include <sstream>
 #include <sys/stat.h>
 #include <termios.h>
@@ -89,6 +90,35 @@ const char* opUnitToString(op_value_unit unit) {
   }
 }
 
+static inline char getCharFromStdin(bool echoOnStdout = false) {
+  char ch = 0;
+  while (true) {
+    auto rc = read(STDIN_FILENO, &ch, 1);
+    if (rc == -1) {
+      std::cerr << "read on stdin error: " << std::strerror(errno);
+      exit(1);
+    } else if (rc > 0) {
+      if (echoOnStdout) {
+        std::cout << ch;
+      }
+      break;
+    }
+  }
+  return ch;
+}
+
+static inline std::string getLineFromStdin(size_t strLength, bool echoOnStdout = false) {
+  std::vector<char> vec(strLength + 1 /* to terminate with null character */, 0);
+  for (unsigned int i = 0; i < strLength; i++) {
+    if (auto ch = getCharFromStdin(echoOnStdout); ch != '\n') {
+      vec[i] = ch;
+    } else {
+      break;
+    }
+  }
+  return std::string(vec.begin(), vec.end());
+}
+
 struct vq_stats_t {
   std::string qname;
   uint64_t msgCount;
@@ -129,12 +159,13 @@ struct mm_stats_t {
 
 class EtTop {
 public:
-  EtTop(int devNum, std::unique_ptr<dev::IDeviceLayer>& dl, device_management::DeviceManagement& dm, bool batchMode,
+  EtTop(int defDevNum, std::unique_ptr<dev::IDeviceLayer>& dl, device_management::DeviceManagement& dm, bool batchMode,
         uint64_t updateLimit)
-    : devNum_(devNum)
+    : devNum_(defDevNum)
     , batchMode_(batchMode)
     , updateLimit_(updateLimit)
     , stop_(false)
+    , refreshDeviceDetails_(true)
     , displayWattsBars_(false)
     , dumpNextSpStatsBuffer_(false)
     , dumpNextMmStatsBuffer_(false)
@@ -147,7 +178,6 @@ public:
     vqStats_[1].qname = "SQ1:";
     vqStats_[2].qname = "CQ0:";
     mmStats_.cycle = 0;
-    getDeviceDetails();
   }
 
   void processInput(void);
@@ -157,6 +187,10 @@ public:
     return stop_;
   }
   void collectStats(void) {
+    if (refreshDeviceDetails_) {
+      collectDeviceDetails();
+      refreshDeviceDetails_ = false;
+    }
     collectMemStats();
     collectErrStats();
     collectAerStats();
@@ -173,7 +207,7 @@ public:
   }
 
 private:
-  void getDeviceDetails(void);
+  void collectDeviceDetails(void);
   bool processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total);
   void displayOpStat(const std::string stat, const struct op_value& ov, const op_value_unit unit,
                      const bool isPower = false, const float cardMax = 0.0, const bool addBarLabels = false);
@@ -194,6 +228,7 @@ private:
   bool batchMode_;
   uint64_t updateLimit_;
   bool stop_;
+  bool refreshDeviceDetails_;
   bool displayWattsBars_;
   bool dumpNextSpStatsBuffer_;
   bool dumpNextMmStatsBuffer_;
@@ -436,7 +471,7 @@ void EtTop::collectSpStats(void) {
   return;
 }
 
-void EtTop::getDeviceDetails(void) {
+void EtTop::collectDeviceDetails(void) {
   uint32_t hostLatency;
   uint64_t deviceLatency;
   device_mgmt_api::asset_info_t assetInfo = {0};
@@ -617,6 +652,26 @@ void EtTop::processInput(void) {
       displayErrorDetails_ = !displayErrorDetails_;
     } else if (ch == 'f') {
       displayFreqDetails_ = !displayFreqDetails_;
+    } else if (ch == 's' && dl_->getDevicesCount() > 1) {
+      system("clear");
+      std::cout << "Switch to device [0-" << dl_->getDevicesCount() - 1 << "] (<ENTER> to continue): ";
+      while (true) {
+        auto str = getLineFromStdin(2 /* 2-digit string */, true);
+        if (str.empty() || str.at(0) == '\0') {
+          // Enter results in empty string
+          break;
+        }
+        std::smatch m;
+        if (std::regex re("[0-9]+"); std::regex_search(str, m, re) && !m.empty()) {
+          if (int devNum = std::stoul(m[0].str()); devNum >= 0 && devNum < dl_->getDevicesCount()) {
+            devNum_ = devNum;
+            refreshDeviceDetails_ = true;
+            break;
+          }
+        }
+        std::cout << "\nInvalid device: " << str << ", please select in range [0-" << dl_->getDevicesCount() - 1
+                  << "]: ";
+      }
     } else if (ch == 'v') {
       displayVoltDetails_ = !displayVoltDetails_;
     } else if (ch == 'h') {
@@ -628,6 +683,7 @@ void EtTop::processInput(void) {
                 << "h\tPrint this help message\n"
                 << "q\tQuit\n"
                 << "r\tReset statistics\n"
+                << "s\tSwitch device\n"
                 << "v\tToggle display of voltage details\n"
                 << "w\tToggle display of watts info\n"
                 << "Type 'q' or <ESC> to continue ";
