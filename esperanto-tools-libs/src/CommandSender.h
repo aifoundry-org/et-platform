@@ -29,6 +29,7 @@ struct Command {
   std::vector<std::byte> commandData_;
   class CommandSender& parent_;
   EventId eventId_;
+  EventId parentEventId_;
   bool isDma_ = false;
   bool isEnabled_ = false;
 };

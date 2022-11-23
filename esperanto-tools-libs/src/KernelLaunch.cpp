@@ -122,7 +122,7 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
                << cmdPtr->pointer_to_args << ", PC: 0x" << cmdPtr->code_start_address << ", shire_mask: 0x"
                << shire_mask;
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-  commandSender.send(Command{cmdBase, commandSender, event, false, true});
+  commandSender.send(Command{cmdBase, commandSender, event, event, false, true});
 
   Sync(event);
   return event;

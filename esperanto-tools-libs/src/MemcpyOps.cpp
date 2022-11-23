@@ -11,6 +11,7 @@
 #include "MemcpyOps.h"
 #include "RuntimeImp.h"
 #include "ScopedProfileEvent.h"
+#include "Utils.h"
 #include "dma/CmaManager.h"
 #include "runtime/Types.h"
 #include <algorithm>
@@ -113,7 +114,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
   // start sending a "ghost" command which will be create the needed barrier in command sender until we have sent all
   // commands. This is needed because we don't know if we will have enough CMA memory to hold all commands with their
   // addresses and sizes in the queue or we will have to chunk them
-  commandSender.send(Command{{}, commandSender, evt, true});
+  commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "H2D: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   tp_.pushTask([this, size, barrier, d_dst, h_src, evt, stream, streamInfo, cmaCopyFunction] {
@@ -126,7 +127,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
     auto pendingBytes = size;
     auto cmaManager = cmaManagers_.at(DeviceId{streamInfo.device_}).get();
     while (pendingBytes > 0) {
-      std::unique_lock lck(mutex_);
+      SpinLock lck(mutex_);
       auto topPrio = cs.getFirstDmaCommand();
       auto freeSize = getFreeCmaForCommand(*cmaManager, topPrio, evt);
       if (freeSize > kMinBytesPerEntry) {
@@ -155,7 +156,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
         auto cmdEvt = eventManager_.getNextId();
         streamManager_.addEvent(stream, cmdEvt);
         builder.setTagId(cmdEvt);
-        cs.sendBefore(evt, {builder.build(), cs, cmdEvt, true, true});
+        cs.sendBefore(evt, {builder.build(), cs, cmdEvt, evt, true, true});
         builder.clear();
         cmdEvents.emplace_back(cmdEvt);
 
@@ -190,7 +191,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
 
 EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                          bool barrier, const CmaCopyFunction& cmaCopyFunction) {
-  std::unique_lock lock(mutex_);
+  SpinLock lock(mutex_);
   auto streamInfo = streamManager_.getStreamInfo(stream);
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
@@ -207,7 +208,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
   // commands. This is needed because we don't know if we will have enough CMA memory to hold all commands with their
   // addresses and sizes in the queue or we will have to chunk them
 
-  commandSender.send(Command{{}, commandSender, evt, true});
+  commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   tp_.pushTask([this, stream, size, barrier, d_src, h_dst, evt, streamInfo, cmaCopyFunction] {
@@ -220,7 +221,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
     auto pendingBytes = size;
     auto cmaManager = cmaManagers_.at(DeviceId{streamInfo.device_}).get();
     while (pendingBytes > 0) {
-      std::unique_lock lck(mutex_);
+      SpinLock lck(mutex_);
       auto topPrio = cs.getFirstDmaCommand();
       auto freeSize = getFreeCmaForCommand(*cmaManager, topPrio, evt);
       if (freeSize > kMinBytesPerEntry) {
@@ -255,7 +256,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
         auto cmdEvt = eventManager_.getNextId();
         streamManager_.addEvent(stream, cmdEvt);
         builder.setTagId(cmdEvt);
-        cs.sendBefore(evt, {builder.build(), cs, cmdEvt, true, true});
+        cs.sendBefore(evt, {builder.build(), cs, cmdEvt, evt, true, true});
         builder.clear();
 
         // this extra event is needed to make sure we wait till the final copy between cma and user memory
@@ -319,7 +320,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
                << " EventId: " << static_cast<int>(evt);
   streamManager_.addEvent(stream, evt);
 
-  commandSender.send(Command{{}, commandSender, evt, true});
+  commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "H2D: Added command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   tp_.pushTask([this, barrier, memcpyList, evt, streamInfo, cmaCopyFunction] {
@@ -331,7 +332,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
     }
     MemcpyCommandBuilder builder(MemcpyType::H2D, barrier, static_cast<uint32_t>(memcpyList.operations_.size()));
     builder.setTagId(evt);
-    std::unique_lock lck(mutex_);
+    SpinLock lck(mutex_);
     auto topPrio = cs.getFirstDmaCommand();
     auto cmaManager = cmaManagers_.at(DeviceId{streamInfo.device_}).get();
     auto freeSize = getFreeCmaForCommand(*cmaManager, topPrio, evt);
@@ -386,7 +387,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
                << " EventId: " << static_cast<int>(evt);
   streamManager_.addEvent(stream, evt);
 
-  commandSender.send(Command{{}, commandSender, evt, true});
+  commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   tp_.pushTask([this, barrier, memcpyList, evt, streamInfo, stream, cmaCopyFunction] {
@@ -396,7 +397,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
     for (auto& op : memcpyList.operations_) {
       totalSize += op.size_;
     }
-    std::unique_lock lck(mutex_);
+    SpinLock lck(mutex_);
     auto topPrio = cs.getFirstDmaCommand();
     auto cmaManager = cmaManagers_.at(DeviceId{streamInfo.device_}).get();
     auto freeSize = getFreeCmaForCommand(*cmaManager, topPrio, evt);
@@ -422,7 +423,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
       builder.addOp(cmaPtr + cmaPtrOffset, op.src_, op.size_);
       cmaPtrOffset += op.size_;
     }
-    cs.sendBefore(evt, {builder.build(), cs, cmdEvt, true, true});
+    cs.sendBefore(evt, {builder.build(), cs, cmdEvt, evt, true, true});
     cs.cancel(evt);
     RT_VLOG(MID) << "D2H: Cancelled GHOST command: " << static_cast<int>(evt);
     // This part is needed because we have to copy the data into the user buffer before triggering that the event is

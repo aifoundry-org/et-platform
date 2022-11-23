@@ -583,7 +583,7 @@ void RuntimeImp::checkDeviceApi(DeviceId device) {
   cmdPtr->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD;
   cmdPtr->command_info.cmd_hdr.size = static_cast<msg_size_t>(cmd.size());
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-  commandSender.send(Command{cmd, commandSender, evt, false, true});
+  commandSender.send(Command{cmd, commandSender, evt, evt, false, true});
   doWaitForStream(st);
   doDestroyStream(st);
   // now the responsereceiver will put the data into deviceapi field, check that

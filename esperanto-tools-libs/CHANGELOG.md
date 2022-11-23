@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unrealeased]
 ### Added
+- [SW-15123] Added Start and Stop events to runtime traces. Added parentId field for commands derived from a single application-level eventId
 ### Changed
 - (Conan) Refactor sysemu artifacts provided when runtime:with_tests=True
 ### Deprecated

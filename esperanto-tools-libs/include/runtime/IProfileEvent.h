@@ -44,6 +44,10 @@ class ProfileEventDeserializationTest;
 
 namespace profiling {
 
+enum class Version : uint16_t {};
+
+constexpr auto kCurrentVersion = Version{1};
+
 enum class Type { Start, End, Complete, Instant };
 enum class Class {
   GetDevices,
@@ -64,7 +68,8 @@ enum class Class {
   ResponseReceived,
   DispatchEvent,
   GetDeviceProperties,
-
+  StartProfiling,
+  EndProfiling,
   COUNT
 };
 enum class ResponseType { DMARead, DMAWrite, Kernel, COUNT };
@@ -83,19 +88,22 @@ public:
   using Clock = std::chrono::steady_clock;
   using TimePoint = std::chrono::time_point<Clock>;
   using Duration = TimePoint::duration;
-  using ExtraValues = std::variant<uint64_t, EventId, StreamId, DeviceId, KernelId, ResponseType, Duration, DeviceProperties>;
+  using ExtraValues =
+    std::variant<uint64_t, EventId, StreamId, DeviceId, KernelId, ResponseType, Duration, DeviceProperties, Version>;
   using ExtraMetadata = std::unordered_map<std::string, ExtraValues>;
 
   ProfileEvent() = default;
   explicit ProfileEvent(Type type, Class cls);
   explicit ProfileEvent(Type type, Class cls, StreamId stream, EventId event, ExtraMetadata extra = {});
 
+  // returns the trace protocol version
   Type getType() const;
   Class getClass() const;
   TimePoint getTimeStamp() const;
   std::string getThreadId() const;
   ExtraMetadata getExtras() const;
 
+  std::optional<Version> getVersion() const;
   std::optional<Id> getPairId() const;
   std::optional<Duration> getDuration() const;
   std::optional<EventId> getEvent() const;

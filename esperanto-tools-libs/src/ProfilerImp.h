@@ -48,10 +48,15 @@ public:
     }
     recording_ = true;
     ioThread_ = std::thread(std::bind(&ProfilerImp::ioThread, this, outputType, &outputStream));
+    ProfileEvent evt(Type::Instant, Class::StartProfiling);
+    evt.setExtras({{"version", kCurrentVersion}});
+    record(evt);
   }
 
   void stop() override {
     if (recording_) {
+      ProfileEvent evt(Type::Instant, Class::EndProfiling);
+      record(evt);
       recording_ = false;
       cv_.notify_one();
       ioThread_.join();

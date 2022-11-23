@@ -38,7 +38,8 @@ TEST(CommandSender, checkConsistency) {
   CommandSender cs(deviceLayer, &profiler, 0, 0);
   for (device_ops_api::tag_id_t i = 0; i < numCommands; ++i) {
     header->tag_id = device_ops_api::tag_id_t(i + 1);
-    cs.send(Command{commandData, cs, EventId(i + 1)});
+    auto evt = EventId(i + 1);
+    cs.send(Command{commandData, cs, evt, evt});
   }
   // no command is enabled now, so a call to receiveResponseMasterMinion should return false
   std::vector<std::byte> response;
@@ -92,12 +93,14 @@ TEST(CommandSender, checkSendBefore) {
   // first emplace commands with odd tag_ids
   for (device_ops_api::tag_id_t i = 0; i < numCommands / 2; ++i) {
     header->tag_id = device_ops_api::tag_id_t(i * 2 + 1);
-    cs.send(Command{commandData, cs, EventId(header->tag_id)});
+    auto evt = EventId(header->tag_id);
+    cs.send(Command{commandData, cs, evt, evt});
   }
   // now emplace commands with even tag_ids
   for (device_ops_api::tag_id_t i = 0; i < numCommands / 2; ++i) {
     header->tag_id = device_ops_api::tag_id_t(i * 2);
-    cs.sendBefore(EventId(header->tag_id + 1), Command{commandData, cs, EventId(header->tag_id)});
+    auto evt = EventId(header->tag_id);
+    cs.sendBefore(EventId(header->tag_id + 1), Command{commandData, cs, evt, evt});
   }
 
   // lets enable all commands

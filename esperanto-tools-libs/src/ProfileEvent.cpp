@@ -29,7 +29,7 @@ namespace rt::profiling {
   case rt::profiling::Class::CLASS: {                                                                                  \
     return #CLASS;                                                                                                     \
   }
-   
+
 std::string getString(Class cls) {
   switch (cls) {
     STR_PROFILING_CLASS(GetDevices)
@@ -109,6 +109,8 @@ Class class_from_string(const std::string& str) {
     s_map[getString(Class::ResponseReceived)] = Class::ResponseReceived;
     s_map[getString(Class::DispatchEvent)] = Class::DispatchEvent;
     s_map[getString(Class::GetDeviceProperties)] = Class::GetDeviceProperties;
+    s_map[getString(Class::StartProfiling)] = Class::StartProfiling;
+    s_map[getString(Class::EndProfiling)] = Class::EndProfiling;
 
     assert(s_map.size() == static_cast<int>(Class::COUNT));
   });
@@ -169,6 +171,10 @@ std::string ProfileEvent::getThreadId() const {
 }
 ProfileEvent::ExtraMetadata ProfileEvent::getExtras() const {
   return extra_;
+}
+
+std::optional<Version> ProfileEvent::getVersion() const {
+  return getExtra<Version>("version");
 }
 
 std::optional<ProfileEvent::Id> ProfileEvent::getPairId() const {
