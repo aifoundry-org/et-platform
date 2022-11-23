@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - BEMU: Fix log format for coop TL
 - Allocate sysemu instance on the heap to fix segfaults
+- [ARCHSIM-685] Fixed GDB stub next/step commands
 ### Security
 ## [0.5.0] - 2022-10-20
 ### Added
