@@ -584,14 +584,10 @@ void System::config_simulated_harts(unsigned shire, uint32_t minionmask,
 }
 
 
-void System::load_elf(const char* filename)
+void System::load_elf(std::istream& stream)
 {
-    std::ifstream file;
     ELFIO::elfio elf;
-
-    file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    file.open(filename, std::ios::in | std::ios::binary);
-    elf.load(file);
+    elf.load(stream);
     for (const ELFIO::segment* seg : elf.segments) {
         if (!(seg->get_type() & PT_LOAD))
             continue;
@@ -625,6 +621,16 @@ void System::load_elf(const char* filename)
             memory.init(noagent, lma, sec->get_size(), sec->get_data());
         }
     }
+}
+
+
+void System::load_elf(const char* filename)
+{
+    std::ifstream file;
+
+    file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    file.open(filename, std::ios::in | std::ios::binary);
+    load_elf(file);
 }
 
 

@@ -38,6 +38,7 @@
 #include "mmu.h"
 #include "processor.h"
 #include "profiling.h"
+#include "preload.h"
 #include "sys_emu.h"
 #ifdef HAVE_BACKTRACE
 #include "crash_handler.h"
@@ -243,13 +244,20 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     single_step.reset();
 
     if (cmd_options.elf_files.empty() && cmd_options.file_load_files.empty() &&
-        cmd_options.mem_desc_file.empty() && cmd_options.api_comm_path.empty()) {
+        cmd_options.mem_desc_file.empty() && cmd_options.api_comm_path.empty() && g_preload->empty()) {
         LOG_AGENT(FTL, agent, "%s", "Need an ELF file, a file load, a mem_desc file or runtime API!");
     }
 
     // Init emu
     chip.init(bemu::System::Stepping::A0);
     memcpy(&chip.memory_reset_value, &cmd_options.mem_reset, MEM_RESET_PATTERN_SIZE);
+
+    for (int i = 0; !g_preload[i].empty(); ++i) {
+        LOG_AGENT(INFO, agent, "Preloading ELF[%d]", i);
+        std::string str{g_preload[i]};
+        std::istringstream inp{str};
+        chip.load_elf(inp);
+    }
 
     // Parses the ELF files and memory description
     for (const auto &elf: cmd_options.elf_files) {

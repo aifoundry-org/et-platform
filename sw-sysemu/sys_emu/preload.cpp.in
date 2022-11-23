@@ -1,0 +1,29 @@
+#define N_PRELOAD_ELFS @N_PRELOAD_ELFS@
+
+#define REP0(X)
+#define REP1(X) X(0)
+#define REP2(X) REP1(X) X(1)
+#define REP3(X) REP2(X) X(2)
+#define REP4(X) REP3(X) X(3)
+#define REP5(X) REP4(X) X(4)
+#define REP6(X) REP5(X) X(5)
+#define REP7(X) REP6(X) X(6)
+#define REP8(X) REP7(X) X(7)
+
+#define REPN(N, X) REP##N(X)
+#define REP(N, X)  REPN(N, X)
+
+#define DECL(I)                             \
+    extern "C" char g_preload_##I##_data[]; \
+    extern "C" int  g_preload_##I##_size;
+
+#define IMPL(I) std::string_view{(const char*)g_preload_##I##_data, (size_t)g_preload_##I##_size},
+
+#include "preload.h"
+
+REP(N_PRELOAD_ELFS, DECL)
+
+std::string_view g_preload[] = {
+    REP(N_PRELOAD_ELFS, IMPL)
+    std::string_view{},
+};

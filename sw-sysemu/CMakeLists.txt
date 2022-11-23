@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.15)
-project(sw-sysemu VERSION 0.7.0 LANGUAGES C CXX)
+project(sw-sysemu VERSION 0.7.0 LANGUAGES ASM C CXX)
 
 list(APPEND CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -21,6 +21,29 @@ message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 
 option(PROFILING "Enable profiling" OFF)
 option(BACKTRACE "Enable backtrace" OFF)
+set(PRELOAD_ELFS "" CACHE STRING "Semicolon seperated list of ELFs to preload")
+
+list(LENGTH PRELOAD_ELFS N_PRELOAD_ELFS)
+
+configure_file(sys_emu/preload.cpp.in preload.cpp)
+
+set(AUTOGEN_SRCS "${CMAKE_CURRENT_BINARY_DIR}/preload.cpp")
+
+if (PRELOAD_ELFS)
+    message(STATUS "Preloading ${N_PRELOAD_ELFS} ELFs")
+    math(EXPR N_PRELOAD_ELFS_M1 "${N_PRELOAD_ELFS} - 1")
+    foreach(i RANGE ${N_PRELOAD_ELFS_M1})
+        list(GET PRELOAD_ELFS ${i} elf)
+        message(STATUS "* preload[${i}]: ${elf}")
+        add_custom_command(
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S
+            COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/pack.py
+                    ${elf} ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S g_preload_${i}
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/scripts/pack.py ${elf}
+        )
+        list(APPEND AUTOGEN_SRCS "${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S")
+    endforeach()
+endif()
 
 include(GNUInstallDirs)
 
@@ -86,6 +109,7 @@ add_library(sysemu
     system.cpp
     $<$<BOOL:${PROFILING}>:sys_emu/profiling.cpp>
     $<$<BOOL:${BACKTRACE}>:sys_emu/crash_handler.cpp>
+    ${AUTOGEN_SRCS}
 )
 add_library(sw-sysemu::sysemu ALIAS sysemu)
 target_include_directories(sysemu
