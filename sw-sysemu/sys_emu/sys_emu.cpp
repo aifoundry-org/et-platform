@@ -40,6 +40,7 @@
 #include "profiling.h"
 #include "preload.h"
 #include "sys_emu.h"
+#include "support/lz4_stream.h"
 #ifdef HAVE_BACKTRACE
 #include "crash_handler.h"
 #endif
@@ -254,9 +255,19 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
 
     for (int i = 0; !g_preload[i].empty(); ++i) {
         LOG_AGENT(INFO, agent, "Preloading ELF[%d]", i);
-        std::string str{g_preload[i]};
-        std::istringstream inp{str};
-        chip.load_elf(inp);
+        try {
+            std::string str{g_preload[i]};
+            std::istringstream buf{str};
+            lz4_stream::istream decomp{buf};
+            // NB: There seems to be a bug in either lz4_stream or elfio...
+            // Filtering through an extra stringstream works though :)
+            std::stringstream buf2;
+            buf2 << decomp.rdbuf();
+            chip.load_elf(buf2);
+        }
+        catch (...) {
+            LOG_AGENT(FTL, agent, "Error preloading ELF[%d]", i);
+        }
     }
 
     // Parses the ELF files and memory description

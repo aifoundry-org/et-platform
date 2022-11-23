@@ -49,6 +49,7 @@ include(GNUInstallDirs)
 
 find_package(elfio REQUIRED)
 find_package(glog REQUIRED)
+find_package(lz4 REQUIRED)
 
 # dependencies
 if (BACKTRACE)
@@ -131,6 +132,7 @@ target_link_libraries(sysemu
     PRIVATE
         elfio::elfio
         $<$<BOOL:${BACKTRACE}>:libunwind::libunwind>
+        lz4::lz4
 )
 
 install(TARGETS sysemu
