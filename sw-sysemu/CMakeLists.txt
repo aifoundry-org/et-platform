@@ -21,6 +21,7 @@ message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 
 option(PROFILING "Enable profiling" OFF)
 option(BACKTRACE "Enable backtrace" OFF)
+option(PRELOAD_LZ4 " Enable lz4 compression for preloaded ELFs" OFF)
 set(PRELOAD_ELFS "" CACHE STRING "Semicolon seperated list of ELFs to preload")
 
 include(GNUInstallDirs)
@@ -47,22 +48,34 @@ if (PRELOAD_ELFS)
     foreach(i RANGE ${N_PRELOAD_ELFS_M1})
         list(GET PRELOAD_ELFS ${i} elf)
         message(STATUS "* preload[${i}]: ${elf}")
-        add_custom_command(
-            OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.elf.lz4
-            COMMAND ${LZ4_EXECUTABLE} -f
-                    ${elf}
-                    ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.elf.lz4
-            DEPENDS ${elf}
-        )
-        add_custom_command(
-            OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S
-            COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/pack.py
-                    ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.elf.lz4
-                    ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S
-                    g_preload_${i}
-            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/scripts/pack.py
-                    ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.elf.lz4
-        )
+        if (PRELOAD_LZ4)
+            add_custom_command(
+                OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.elf.lz4
+                COMMAND ${LZ4_EXECUTABLE} -f
+                        ${elf}
+                        ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.elf.lz4
+                DEPENDS ${elf}
+            )
+            add_custom_command(
+                OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S
+                COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/pack.py
+                        ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.elf.lz4
+                        ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S
+                        g_preload_${i}
+                DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/scripts/pack.py
+                        ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.elf.lz4
+            )
+        else()
+            add_custom_command(
+                OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S
+                COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/pack.py
+                        ${elf}
+                        ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S
+                        g_preload_${i}
+                DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/scripts/pack.py
+                        ${elf}
+            )
+        endif()
         list(APPEND AUTOGEN_SRCS "${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S")
     endforeach()
 endif()
@@ -136,6 +149,7 @@ target_compile_definitions(sysemu
         SYS_EMU
     PRIVATE
         $<$<BOOL:${BACKTRACE}>:BACKTRACE=1>
+        $<$<BOOL:${PRELOAD_LZ4}>:PRELOAD_LZ4=1>
 )
 target_compile_features(sysemu PUBLIC cxx_std_17)
 target_compile_options(sysemu PRIVATE -Wall -Wextra -pedantic-errors)

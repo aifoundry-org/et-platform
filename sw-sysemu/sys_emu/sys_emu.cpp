@@ -258,12 +258,16 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
         try {
             std::string str{g_preload[i]};
             std::istringstream buf{str};
+#ifdef PRELOAD_LZ4
             lz4_stream::istream decomp{buf};
             // NB: There seems to be a bug in either lz4_stream or elfio...
             // Filtering through an extra stringstream works though :)
             std::stringstream buf2;
             buf2 << decomp.rdbuf();
             chip.load_elf(buf2);
+#else
+            chip.load_elf(buf);
+#endif
         }
         catch (...) {
             LOG_AGENT(FTL, agent, "Error preloading ELF[%d]", i);
