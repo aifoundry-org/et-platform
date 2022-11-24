@@ -13,13 +13,14 @@
 
 include(FindPackageHandleStandardArgs)
 
+find_program(LZ4_EXECUTABLE NAMES lz4)
 find_path(LZ4_INCLUDE_DIR lz4.h)
 find_library(LZ4_LIBRARY NAMES liblz4.a lz4)
 
-find_package_handle_standard_args(lz4 DEFAULT_MSG LZ4_INCLUDE_DIR LZ4_LIBRARY)
+find_package_handle_standard_args(lz4 DEFAULT_MSG LZ4_EXECUTABLE LZ4_INCLUDE_DIR LZ4_LIBRARY)
 
 if (LZ4_FOUND)
-    mark_as_advanced(LZ4_INCLUDE_DIR LZ4_LIBRARY)
+    mark_as_advanced(LZ4_EXECUTABLE LZ4_INCLUDE_DIR LZ4_LIBRARY)
 
     if (NOT TARGET lz4)
         add_library(lz4 UNKNOWN IMPORTED GLOBAL)

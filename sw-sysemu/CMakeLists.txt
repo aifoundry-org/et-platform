@@ -23,6 +23,18 @@ option(PROFILING "Enable profiling" OFF)
 option(BACKTRACE "Enable backtrace" OFF)
 set(PRELOAD_ELFS "" CACHE STRING "Semicolon seperated list of ELFs to preload")
 
+include(GNUInstallDirs)
+
+find_package(elfio REQUIRED)
+find_package(glog REQUIRED)
+find_package(lz4 REQUIRED)
+
+# dependencies
+if (BACKTRACE)
+    find_package(libunwind REQUIRED)
+endif()
+
+
 list(LENGTH PRELOAD_ELFS N_PRELOAD_ELFS)
 
 configure_file(sys_emu/preload.cpp.in preload.cpp)
@@ -36,25 +48,25 @@ if (PRELOAD_ELFS)
         list(GET PRELOAD_ELFS ${i} elf)
         message(STATUS "* preload[${i}]: ${elf}")
         add_custom_command(
-            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S
+            OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.elf.lz4
+            COMMAND ${LZ4_EXECUTABLE} -f
+                    ${elf}
+                    ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.elf.lz4
+            DEPENDS ${elf}
+        )
+        add_custom_command(
+            OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S
             COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/pack.py
-                    ${elf} ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S g_preload_${i}
-            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/scripts/pack.py ${elf}
+                    ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.elf.lz4
+                    ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S
+                    g_preload_${i}
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/scripts/pack.py
+                    ${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.elf.lz4
         )
         list(APPEND AUTOGEN_SRCS "${CMAKE_CURRENT_BINARY_DIR}/preload_${i}.S")
     endforeach()
 endif()
 
-include(GNUInstallDirs)
-
-find_package(elfio REQUIRED)
-find_package(glog REQUIRED)
-find_package(lz4 REQUIRED)
-
-# dependencies
-if (BACKTRACE)
-    find_package(libunwind REQUIRED)
-endif()
 
 add_library(sysemu
     sys_emu/checkers/flb_checker.cpp
