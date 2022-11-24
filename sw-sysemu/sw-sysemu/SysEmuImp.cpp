@@ -13,6 +13,7 @@
 #include "sys_emu.h"
 #include "system.h"
 #include "utils.h"
+#include "preload.h"
 #include <fstream>
 #include <future>
 #include <mutex>
@@ -496,7 +497,8 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
     SE_LOG(INFO) << "SP RX FIFO path " << opts.spio_uart1_rx_file;
   }
 
-  opts.elf_files = preloadElfs;
+  std::copy_if(preloadElfs.begin(), preloadElfs.end(),
+               opts.elf_files.begin(), [](const std::string& path) { return !path.empty(); });
   opts.mem_check |= options.memcheck;
   opts.l2_scp_check |= options.l2ScpCheck;
   opts.l1_scp_check |=  options.l1ScpCheck;
