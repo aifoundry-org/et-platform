@@ -24,6 +24,7 @@ option(BACKTRACE "Enable backtrace" OFF)
 option(PRELOAD_LZ4 " Enable lz4 compression for preloaded ELFs" OFF)
 set(PRELOAD_ELFS "" CACHE STRING "Semicolon seperated list of ELFs to preload")
 option(SDK_RELEASE "Enable various changes for SDK release" OFF)
+option(STRIP_SYMBOLS "Strip unnecessary symbols from build artifacts" OFF)
 
 include(GNUInstallDirs)
 
@@ -483,6 +484,18 @@ install(EXPORT sw-sysemuTargets
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/sw-sysemu
     NAMESPACE sw-sysemu::
 )
+
+if (STRIP_SYMBOLS)
+    add_custom_command(TARGET sys_emu POST_BUILD
+        COMMAND strip $<TARGET_FILE:sys_emu>
+        COMMENT "Stripping sys_emu symbols..."
+    )
+    add_custom_command(TARGET sw-sysemu POST_BUILD
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/strip_lib.sh $<TARGET_FILE:sw-sysemu>
+        COMMENT "Stripping sw-sysemu symbols..."
+    )
+endif()
+
 
 ##### Package
 
