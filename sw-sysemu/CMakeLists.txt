@@ -23,6 +23,7 @@ option(PROFILING "Enable profiling" OFF)
 option(BACKTRACE "Enable backtrace" OFF)
 option(PRELOAD_LZ4 " Enable lz4 compression for preloaded ELFs" OFF)
 set(PRELOAD_ELFS "" CACHE STRING "Semicolon seperated list of ELFs to preload")
+option(ONLY_LOG_UMODE "Always disable all but U-Mode logging for harts" OFF)
 
 include(GNUInstallDirs)
 
@@ -150,6 +151,7 @@ target_compile_definitions(sysemu
     PRIVATE
         $<$<BOOL:${BACKTRACE}>:BACKTRACE=1>
         $<$<BOOL:${PRELOAD_LZ4}>:PRELOAD_LZ4=1>
+        $<$<BOOL:${ONLY_LOG_UMODE}>:ONLY_LOG_UMODE=1>
 )
 target_compile_features(sysemu PUBLIC cxx_std_17)
 target_compile_options(sysemu PRIVATE -Wall -Wextra -pedantic-errors)
