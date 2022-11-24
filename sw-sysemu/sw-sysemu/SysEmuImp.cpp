@@ -498,7 +498,7 @@ SysEmuImp::SysEmuImp(const SysEmuOptions& options, const std::array<uint64_t, 8>
   }
 
   std::copy_if(preloadElfs.begin(), preloadElfs.end(),
-               opts.elf_files.begin(), [](const std::string& path) { return !path.empty(); });
+               std::back_inserter(opts.elf_files), [](const std::string& path) { return !path.empty(); });
   opts.mem_check |= options.memcheck;
   opts.l2_scp_check |= options.l2ScpCheck;
   opts.l1_scp_check |=  options.l1ScpCheck;
