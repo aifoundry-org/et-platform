@@ -9,7 +9,7 @@ def assetpack(input: Path, output: Path, varname: str):
     data = input.read_bytes()
     size = len(data)
     output.write_text(
-        f""".data
+        f""".section .rodata
 .globl {varname}_size
 {varname}_size:
     .long {size}

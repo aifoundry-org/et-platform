@@ -13,9 +13,9 @@
 #define REPN(N, X) REP##N(X)
 #define REP(N, X)  REPN(N, X)
 
-#define DECL(I)                             \
-    extern "C" char g_preload_##I##_data[]; \
-    extern "C" int  g_preload_##I##_size;
+#define DECL(I)                                   \
+    extern "C" const char g_preload_##I##_data[]; \
+    extern "C" const int  g_preload_##I##_size;
 
 #define IMPL(I) std::string_view{(const char*)g_preload_##I##_data, (size_t)g_preload_##I##_size},
 
