@@ -491,7 +491,8 @@ if (STRIP_SYMBOLS)
         COMMENT "Stripping sys_emu symbols..."
     )
     add_custom_command(TARGET sw-sysemu POST_BUILD
-        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/strip_lib.sh $<TARGET_FILE:sw-sysemu>
+        # COMMAND ${CMAKE_CURRENT_BINARY_DIR}/scripts/strip_lib.sh $<TARGET_FILE:sw-sysemu>
+        COMMAND strip -S -x $<TARGET_FILE:sw-sysemu>
         COMMENT "Stripping sw-sysemu symbols..."
     )
 endif()

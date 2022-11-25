@@ -11,3 +11,4 @@ strip=$(nm --defined-only -A $1 \
     | awk 'BEGIN{printf "strip"} {printf " --keep-symbol="$3} END{printf "\n"}')
 
 $strip $1
+ranlib $1
