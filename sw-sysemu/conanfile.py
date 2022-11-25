@@ -25,7 +25,7 @@ class SwSysemuConan(ConanFile):
         "shared": False,
         "profiling": False,
         "backtrace": False,
-        "preload_elfs": False,
+        "preload_elfs": True,
         "preload_compression": "lz4",
         "with_sys_emu_exe": True,
     }
