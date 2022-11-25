@@ -16,12 +16,16 @@ class SwSysemuConan(ConanFile):
     options = {
         "shared": [True, False],
         "profiling": [True, False],
-        "backtrace": [True, False]
+        "backtrace": [True, False],
+        "preload_elfs": [True, False],
+        "preload_compression": [None, "lz4"],
     }
     default_options = {
         "shared": False,
         "profiling": False,
-        "backtrace": False
+        "backtrace": False,
+        "preload_elfs": False,
+        "preload_compression": "lz4",
     }
 
     scm = {
@@ -97,6 +101,18 @@ class SwSysemuConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.variables["PROFILING"] = self.options.profiling
         tc.variables["BACKTRACE"] = self.options.backtrace
+        tc.variables["PRELOAD_LZ4"] = "lz4" is self.options.preload_compression
+        if self.options.preload_elfs:
+            emmedded_elfs_conanfile = os.path.join(self.source_folder, "conanfile_embedded_elfs.txt")
+            self.run(f"conan install {emmedded_elfs_conanfile} -pr:b default -pr:h baremetal-rv64-gcc8.2-release --build missing -g deploy -if={self.build_folder}")
+            preload_elfs_list = [
+                os.path.join(self.build_folder, "device-bootloaders/lib/esperanto-fw/BootromTrampolineToBL2/BootromTrampolineToBL2.elf"),
+                os.path.join(self.build_folder, "device-bootloaders/lib/esperanto-fw/ServiceProcessorBL2/fast-boot/ServiceProcessorBL2_fast-boot.elf"),
+                os.path.join(self.build_folder, "device-minion-runtime/lib/esperanto-fw/MachineMinion/MachineMinion.elf"),
+                os.path.join(self.build_folder, "device-minion-runtime/lib/esperanto-fw/MasterMinion/MasterMinion.elf"),
+                os.path.join(self.build_folder, "device-minion-runtime/lib/esperanto-fw/WorkerMinion/WorkerMinion.elf"),
+            ]
+            tc.variables["PRELOAD_ELFS"] = ";".join(preload_elfs_list)
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.generate()
 
