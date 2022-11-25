@@ -38,6 +38,7 @@ class SwSysemuConan(ConanFile):
     def requirements(self):
         self.requires("glog/0.4.0")
         self.requires("elfio/3.8")
+        self.requires("lz4/1.9.3")
         if self.options.backtrace:
             self.requires("libunwind/1.5.0")
 
