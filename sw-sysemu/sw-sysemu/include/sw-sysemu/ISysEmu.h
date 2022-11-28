@@ -15,6 +15,8 @@
 #include <stdexcept>
 #include <stdint.h>
 
+#pragma GCC visibility push(default)
+
 namespace emu {
 struct Exception : public std::runtime_error {
   using std::runtime_error::runtime_error;
@@ -46,3 +48,5 @@ public:
                                          IHostListener* hostListener);
 };
 }  // namespace emu
+
+#pragma GCC visibility pop

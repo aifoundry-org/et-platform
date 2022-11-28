@@ -11,6 +11,9 @@
 #pragma once
 #include <string>
 #include <vector>
+
+#pragma GCC visibility push(default)
+
 namespace emu {
 /// \brief SysemuOptions are parameters to customize sysemu instantiation
 struct SysEmuOptions {
@@ -72,3 +75,5 @@ struct SysEmuOptions {
   std::vector<std::string> additionalOptions;
 };
 } // namespace emu
+
+#pragma GCC visibility pop

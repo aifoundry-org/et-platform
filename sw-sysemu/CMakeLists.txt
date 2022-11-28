@@ -23,8 +23,7 @@ option(PROFILING "Enable profiling" OFF)
 option(BACKTRACE "Enable backtrace" OFF)
 option(PRELOAD_LZ4 " Enable lz4 compression for preloaded ELFs" OFF)
 set(PRELOAD_ELFS "" CACHE STRING "Semicolon seperated list of ELFs to preload")
-option(SDK_RELEASE "Enable various changes for SDK release" OFF)
-option(STRIP_SYMBOLS "Strip unnecessary symbols from build artifacts" OFF)
+option(SDK_RELEASE "Enable various changes for SDK release" ON)
 
 include(GNUInstallDirs)
 
@@ -450,7 +449,6 @@ add_library(sw-sysemu
     sw-sysemu/utils.h
     sw-sysemu/ISysEmu.cpp
 )
-add_library(sw-sysemu::sw-sysemu ALIAS sw-sysemu)
 target_include_directories(sw-sysemu
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemu/include>
@@ -479,23 +477,74 @@ install(TARGETS sw-sysemu
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sw-sysemu
 )
 
+
+add_library(sysemu-bundle SHARED)
+target_sources(sysemu-bundle PRIVATE
+    $<TARGET_PROPERTY:sysemu,SOURCES>
+    $<TARGET_PROPERTY:fpu,SOURCES>
+    $<TARGET_PROPERTY:sw-sysemu,SOURCES>
+)
+target_include_directories(sysemu-bundle
+    PUBLIC  $<TARGET_PROPERTY:sysemu,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:fpu,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:sw-sysemu,INTERFACE_INCLUDE_DIRECTORIES>
+    PRIVATE $<TARGET_PROPERTY:sysemu,INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:fpu,INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:sw-sysemu,INCLUDE_DIRECTORIES>
+)
+target_compile_definitions(sysemu-bundle
+    PUBLIC  $<TARGET_PROPERTY:sysemu,INTERFACE_COMPILE_DEFINITIONS>
+            $<TARGET_PROPERTY:fpu,INTERFACE_COMPILE_DEFINITIONS>
+            $<TARGET_PROPERTY:sw-sysemu,INTERFACE_COMPILE_DEFINITIONS>
+    PRIVATE $<TARGET_PROPERTY:sysemu,COMPILE_DEFINITIONS>
+            $<TARGET_PROPERTY:fpu,COMPILE_DEFINITIONS>
+            $<TARGET_PROPERTY:sw-sysemu,COMPILE_DEFINITIONS>
+)
+target_compile_features(sysemu-bundle
+    PUBLIC  $<TARGET_PROPERTY:sysemu,INTERFACE_COMPILE_FEATURES>
+            $<TARGET_PROPERTY:fpu,INTERFACE_COMPILE_FEATURES>
+            $<TARGET_PROPERTY:sw-sysemu,INTERFACE_COMPILE_FEATURES>
+    PRIVATE $<TARGET_PROPERTY:sysemu,COMPILE_FEATURES>
+            $<TARGET_PROPERTY:fpu,COMPILE_FEATURES>
+            $<TARGET_PROPERTY:sw-sysemu,COMPILE_FEATURES>
+)
+target_link_libraries(sysemu-bundle
+    PRIVATE elfio::elfio
+            $<$<BOOL:${BACKTRACE}>:libunwind::libunwind>
+            glog::glog
+)
+set_target_properties(sysemu-bundle PROPERTIES
+    ASM_VISIBILITY_PRESET hidden
+    C_VISIBILITY_PRESET   hidden
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
+)
+add_custom_command(TARGET sysemu-bundle POST_BUILD
+    COMMAND strip -S -x $<TARGET_FILE:sysemu-bundle>
+    COMMENT "Stripping sysemu-bundle symbols"
+)
+
+
+if (SDK_RELEASE)
+    add_library(sw-sysemu::sw-sysemu ALIAS sysemu-bundle)
+else()
+    add_library(sw-sysemu::sw-sysemu ALIAS sw-sysemu)
+endif()
+
+install(TARGETS sysemu-bundle
+    EXPORT sw-sysemuTargets
+    RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sw-sysemu
+)
+
+
 # Install the export set for use with the install-tree
 install(EXPORT sw-sysemuTargets
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/sw-sysemu
     NAMESPACE sw-sysemu::
 )
-
-if (STRIP_SYMBOLS)
-    add_custom_command(TARGET sys_emu POST_BUILD
-        COMMAND strip $<TARGET_FILE:sys_emu>
-        COMMENT "Stripping sys_emu symbols..."
-    )
-    add_custom_command(TARGET sw-sysemu POST_BUILD
-        # COMMAND ${CMAKE_CURRENT_BINARY_DIR}/scripts/strip_lib.sh $<TARGET_FILE:sw-sysemu>
-        COMMAND strip -S -x $<TARGET_FILE:sw-sysemu>
-        COMMENT "Stripping sw-sysemu symbols..."
-    )
-endif()
 
 
 ##### Package
