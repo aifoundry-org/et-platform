@@ -38,7 +38,7 @@ class DeviceLayerConan(ConanFile):
         self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, self.name)
     
     def requirements(self):
-        self.requires("sw-sysemu/0.5.0")
+        self.requires("sw-sysemu/0.7.0")
         self.requires("hostUtils/0.2.0")
         self.requires("linuxDriver/0.10.0")
         self.requires("boost/1.72.0")
