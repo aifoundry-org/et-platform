@@ -216,12 +216,14 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
 
     // Reset the SoC
     emu_cycle = 0;
+#ifndef SDK_RELEASE
     if (cmd_options.vpurf_check || cmd_options.vpurf_warn) {
         vpurf_checker = std::unique_ptr<Vpurf_checker>(new Vpurf_checker(&chip));
         if (cmd_options.vpurf_warn) {
             vpurf_checker.get()->waive_errors();
         }
     }
+#endif
     mem_check = cmd_options.mem_check;
     mem_checker_ = mem_checker{&chip};
     mem_checker_.log_addr = cmd_options.mem_checker_log_addr;

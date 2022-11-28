@@ -19,7 +19,8 @@
 #include "system.h"
 #include "testLog.h"
 
-#ifdef ONLY_LOG_UMODE
+#ifdef SDK_RELEASE
+// Only log in U-Mode if building for SDK release
 #define HART_LOG_EN(hart) \
     (hart).chip->log_thread[bemu::hart_index(hart)] && ((hart).prv == bemu::Privilege::U)
 #else

@@ -29,7 +29,9 @@
 #include "checkers/l2_scp_checker.h"
 #include "checkers/mem_checker.h"
 #include "checkers/tstore_checker.h"
+#ifndef SDK_RELEASE
 #include "checkers/vpurf_checker.h"
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // Defines
@@ -109,8 +111,10 @@ struct sys_emu_cmd_options {
     bool        display_trap_info            = false;
     bool        gdb                          = false;
     uint64_t    gdb_at_pc                    = ~0ull;
+#ifndef SDK_RELEASE
     bool        vpurf_check                  = false;
     bool        vpurf_warn                   = false;
+#endif
     bool        mem_check                    = false;
     uint64_t    mem_checker_log_addr         = 1;
     uint32_t    mem_checker_log_minion       = 2048;
@@ -188,8 +192,10 @@ public:
         step_range[thread_id] = Addr_range{start_pc, end_pc};
     }
 
+#ifndef SDK_RELEASE
     bool get_vpurf_check() const { return vpurf_checker != nullptr; }
     Vpurf_checker& get_vpurf_checker() { return *vpurf_checker.get(); }
+#endif
     bool get_mem_check() { return mem_check; }
     mem_checker& get_mem_checker() { return mem_checker_; }
     bool get_l1_scp_check() { return l1_scp_check; }
@@ -237,7 +243,9 @@ private:
 
     std::ofstream   log_file;
     uint64_t        emu_cycle = 0;
+#ifndef SDK_RELEASE
     std::unique_ptr<Vpurf_checker> vpurf_checker = nullptr;
+#endif
     bool            mem_check = false;
     mem_checker     mem_checker_{&chip};
     bool            l1_scp_check = false;

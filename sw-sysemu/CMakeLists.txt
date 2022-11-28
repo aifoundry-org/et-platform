@@ -23,7 +23,7 @@ option(PROFILING "Enable profiling" OFF)
 option(BACKTRACE "Enable backtrace" OFF)
 option(PRELOAD_LZ4 " Enable lz4 compression for preloaded ELFs" OFF)
 set(PRELOAD_ELFS "" CACHE STRING "Semicolon seperated list of ELFs to preload")
-option(ONLY_LOG_UMODE "Always disable all but U-Mode logging for harts" OFF)
+option(SDK_RELEASE "Enable various changes for SDK release" OFF)
 
 include(GNUInstallDirs)
 
@@ -88,7 +88,7 @@ add_library(sysemu
     sys_emu/checkers/l2_scp_checker.cpp
     sys_emu/checkers/mem_checker.cpp
     sys_emu/checkers/tstore_checker.cpp
-    sys_emu/checkers/vpurf_checker.cpp
+    $<$<NOT:$<BOOL:${SDK_RELEASE}>>:sys_emu/checkers/vpurf_checker.cpp>
     sys_emu/gdbstub.cpp
     sys_emu/sys_emu.cpp
     sys_emu/sys_emu_main.cpp
@@ -151,7 +151,7 @@ target_compile_definitions(sysemu
     PRIVATE
         $<$<BOOL:${BACKTRACE}>:BACKTRACE=1>
         $<$<BOOL:${PRELOAD_LZ4}>:PRELOAD_LZ4=1>
-        $<$<BOOL:${ONLY_LOG_UMODE}>:ONLY_LOG_UMODE=1>
+        $<$<BOOL:${SDK_RELEASE}>:SDK_RELEASE=1>
 )
 target_compile_features(sysemu PUBLIC cxx_std_17)
 target_compile_options(sysemu PRIVATE -Wall -Wextra -pedantic-errors)
