@@ -19,6 +19,7 @@ class SwSysemuConan(ConanFile):
         "backtrace": [True, False],
         "preload_elfs": [True, False],
         "preload_compression": [None, "lz4"],
+        "sdk_release": [True, False],
         "with_sys_emu_exe": [True, False],
     }
     default_options = {
@@ -27,6 +28,7 @@ class SwSysemuConan(ConanFile):
         "backtrace": False,
         "preload_elfs": True,
         "preload_compression": "lz4",
+        "sdk_release": False,
         "with_sys_emu_exe": True,
     }
 
@@ -115,6 +117,7 @@ class SwSysemuConan(ConanFile):
                 os.path.join(self.build_folder, "device-minion-runtime/lib/esperanto-fw/WorkerMinion/WorkerMinion.elf"),
             ]
             tc.variables["PRELOAD_ELFS"] = ";".join(preload_elfs_list)
+        tc.variables["SDK_RELEASE"] = self.options.sdk_release
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.generate()
 
