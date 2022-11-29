@@ -37,7 +37,8 @@ int64_t main(const Parameters *const kernel_params_ptr)
 
   /* Dump shire-cache and mem-shire related PMCs
   Only a single hart should ideally do this. */
-  et_trace_pmc_memory(63);
+  et_trace_pmc_sc(63);
+  et_trace_pmc_ms(63, 0);
 
   et_printf("Kernel execution duration: %ld", et_get_delta_timestamp(start_ts));
 

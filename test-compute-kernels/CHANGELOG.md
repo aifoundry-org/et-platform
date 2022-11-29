@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14007] Modifying bus error kernel to generate bus error interrupt on every hart.
 - [SW-14007] Increasing the artifacts expiry from 1h to 1d in Gitlab CI.
 - Bumping et-common-libs and esperantoTrace version in Conan.
+- [SW-10308] separate out SC and MS APIs to log PMC events
 ### Deprecated
 ### Removed
 ### Fixed
