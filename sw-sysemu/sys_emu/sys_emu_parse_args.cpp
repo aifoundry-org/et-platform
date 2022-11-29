@@ -14,90 +14,94 @@
 #include "sys_emu.h"
 
 static const char * help_msg =
-"\n ET System Emulator\n\n\
-     sys_emu [options]\n\n\
- Where options are:\n\
-     -elf_load <path>         Path to an ELF file to load. Can be used multiple times.\n\
-     -file_load <addr>,<path> Address and path to the file to load. Can be used multiple times.\n\
-     -mem_write32 <addr>,<value> Write the 32 bit value to address at init. Can be used multiple times.\n\
-     -mem_desc <path>         Path to a file describing what ELFs and files to load\n\
-     -l                       Set logging verbosity to DEBUG\n\
-     -lt <thread>             Log a given Thread. Can be used multiple times. (default: all)\n\
-     -lm <minion>             Log a given Minion. Can be used multiple times. (default: all)\n\
-     -ls <shire>,<threads>    Log given Threads of a Shire. Can be used multiple times. (default: all)\n\
-     -lp <path>               Redirect log output to path. (default: stdout)\n\
-     -ltrigger_insn <instn>   Logging verbosity will be set to DEBUG after finding this instruction. (hex format, default: 0)\n\
-     -ltrigger_hart <hart>    Logging verbosity will be set to DEBUG after this hart finds the trigger instruction. (default: 0)\n\
-     -ltrigger_start <count>  Logging verbosity will be set to DEBUG after finding the trigger instruction this many times. (default: 0)\n\
-     -ltrigger_stop <count>   Logging verbosity will be set back to INFO after finding the trigger instruction this many times. (default: 0)\n\
-     -Werror                  Make all warnings into errors.\n\
-     -Werror=*                Make the specified warning into an error:\n\
-                                memory    Undefined memory accesses\n\
-                                tensors   Tensor operations with undefined behavior\n\
-                                trans     Transcendental instructions with undefined behavior\n\
-                                esrs      Accesses to undefined ESRs\n\
-                                cacheops  Cache operations with undefined behavior\n\
-                                debug     Undefined behavior while in debug mode\n\
-                                other     Other warnings\n\
-     -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
-     -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
-     -single_thread           Disable 2nd Minion thread\n\
-     -mins_dis                Minions (not including SP) start disabled\n\
-     -sp_dis                  SP starts disabled\n\
-     -reset_pc <addr>         Sets boot program counter (default: 0x8000001000)\n\
-     -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n\
-     -set_xreg <t>,<r>,<val>  Sets the xregister (integer) <r> of thread <t> to value <val>. <t> can be 'sp' for the Service Processor\n\
-     -max_cycles <cycles>     Stops execution after provided number of cycles (default: 10M)\n\
-     -mem_reset <byte>        Reset value of main memory (default: 0)\n\
-     -mem_reset32 <uint32>    Reset value of main memory (default: 0)\n\
-     -dram_size <gb>          Size of installed DRAM in GB (options: 8/16/24/32; default: 16)\n\
-     -pu_uart0_rx_file <path> Path to the file in which to read the contents of PU UART0 RX (default is stdin)\n\
-     -pu_uart1_rx_file <path> Path to the file in which to read the contents of PU UART1 RX (default is stdin)\n\
-     -spio_uart0_rx_file <path> Path to the file in which to read the contents of SPIO UART0 RX (default is stdin)\n\
-     -spio_uart1_rx_file <path> Path to the file in which to read the contents of SPIO UART1 RX (default is stdin)\n\
-     -pu_uart0_tx_file <path> Path to the file in which to dump the contents of PU UART0 TX (default is stdout)\n\
-     -pu_uart1_tx_file <path> Path to the file in which to dump the contents of PU UART1 TX (default is stdout)\n\
-     -spio_uart0_tx_file <path> Path to the file in which to dump the contents of SPIO UART0 TX (default is stdout)\n\
-     -spio_uart1_tx_file <path> Path to the file in which to dump the contents of SPIO UART1 TX (default is stdout)\n\
-     -log_at_pc <PC>          Enables logging when minion reaches a given PC\n\
-     -stop_log_at_pc <PC>     Disables logging when minion reaches a given PC\n\
-     -display_trap_info       Displays trap logging in the INFO channel instead of DEBUG\n\
-     -dump_addr <addr>        At the end of simulation, address where to start the dump. Only valid if -dump_file is used\n\
-     -dump_size <size>        At the end of simulation, size of the dump. Only valid if -dump_file is used\n\
-     -dump_file <path>        At the end of simulation, file in which to dump\n\
-     -dump_mem <path>         At the end of simulation, file where to dump ALL the memory content\n\
-     -dump_at_pc_pc <PC>      Dump when PC M0:T0 reaches this PC\n\
-     -dump_at_pc_addr <addr>  Address where to start the dump\n\
-     -dump_at_pc_size <size>  Size of the dump\n\
-     -dump_at_pc_file <file>  File where to store the dump\n"
+"\n ET System Emulator\n\n"
+"     sys_emu [options]\n\n"
+" Where options are:\n"
 #ifndef SDK_RELEASE
-"\
-     -vpurf_check             Enables VPURF checks\n\
-     -vpurf_warn              Enables VPURF checks (but only as warnings)\n"
+"     -elf_load <path>         Path to an ELF file to load. Can be used multiple times.\n"
+"     -file_load <addr>,<path> Address and path to the file to load. Can be used multiple times.\n"
+"     -mem_write32 <addr>,<value> Write the 32 bit value to address at init. Can be used multiple times.\n"
+"     -mem_desc <path>         Path to a file describing what ELFs and files to load\n"
 #endif
-"\
-     -mem_check               Enables memory coherency checks\n\
-     -mem_check_minion        Enables memory coherency check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
-     -mem_check_addr          Enables memory coherency check prints for a specific address (default: 0x1 [none])\n\
-     -l1_scp_check            Enables L1 SCP checks\n\
-     -l1_scp_check_minion     Enables L1 SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
-     -l2_scp_check            Enables L2 SCP checks\n\
-     -l2_scp_check_shire      Enables L2 SCP check prints for a specific shire (default: 64 [64 => no shire, -1 => all shires])\n\
-     -l2_scp_check_line       Enables L2 SCP check prints for a specific minion (default: 1048576 [1048576 => no L2 scp line, -1 => all L2 scp lines])\n\
-     -l2_scp_check_minion     Enables L2 SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
-     -flb_check               Enables FLB checks\n\
-     -flb_check_shire         Enables FLB check prints for a specific shire (default: 64 [64 => no shire, -1 => all shires])\n\
-     -tstore_check            Enables TensorStore checks\n\
-     -tstore_check_addr       Enables TensorStore check prints for a specific address (default: 0x1 [none])\n\
-     -tstore_check_thread     Enables TensorStore check prints for a specific thread (default: 4096 [4096 => no thread, -1 => all threads])\n\
-     -gdb                     Start the GDB stub for remote debugging at the start of simulation\n\
-     -gdb_at_pc <PC>          Start the GDB stub for remote debugging at a given PC\n\
-"
+"     -l                       Set logging verbosity to DEBUG\n"
+"     -lt <thread>             Log a given Thread. Can be used multiple times. (default: all)\n"
+"     -lm <minion>             Log a given Minion. Can be used multiple times. (default: all)\n"
+"     -ls <shire>,<threads>    Log given Threads of a Shire. Can be used multiple times. (default: all)\n"
+"     -lp <path>               Redirect log output to path. (default: stdout)\n"
+"     -ltrigger_insn <instn>   Logging verbosity will be set to DEBUG after finding this instruction. (hex format, default: 0)\n"
+"     -ltrigger_hart <hart>    Logging verbosity will be set to DEBUG after this hart finds the trigger instruction. (default: 0)\n"
+"     -ltrigger_start <count>  Logging verbosity will be set to DEBUG after finding the trigger instruction this many times. (default: 0)\n"
+"     -ltrigger_stop <count>   Logging verbosity will be set back to INFO after finding the trigger instruction this many times. (default: 0)\n"
+"     -Werror                  Make all warnings into errors.\n"
+"     -Werror=*                Make the specified warning into an error:\n"
+"                                memory    Undefined memory accesses\n"
+"                                tensors   Tensor operations with undefined behavior\n"
+"                                trans     Transcendental instructions with undefined behavior\n"
+"                                esrs      Accesses to undefined ESRs\n"
+"                                cacheops  Cache operations with undefined behavior\n"
+"                                debug     Undefined behavior while in debug mode\n"
+"                                other     Other warnings\n"
+"     -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n"
+"     -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n"
+"     -single_thread           Disable 2nd Minion thread\n"
+#ifndef SDK_RELEASE
+"     -mins_dis                Minions (not including SP) start disabled\n"
+"     -sp_dis                  SP starts disabled\n"
+"     -reset_pc <addr>         Sets boot program counter (default: 0x8000001000)\n"
+"     -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n"
+"     -set_xreg <t>,<r>,<val>  Sets the xregister (integer) <r> of thread <t> to value <val>. <t> can be 'sp' for the Service Processor\n"
+#endif
+"     -max_cycles <cycles>     Stops execution after provided number of cycles (default: 10M)\n"
+#ifndef SDK_RELEASE
+"     -mem_reset <byte>        Reset value of main memory (default: 0)\n"
+"     -mem_reset32 <uint32>    Reset value of main memory (default: 0)\n"
+#endif
+"     -dram_size <gb>          Size of installed DRAM in GB (options: 8/16/24/32; default: 16)\n"
+#ifndef SDK_RELEASE
+"     -pu_uart0_rx_file <path> Path to the file in which to read the contents of PU UART0 RX (default is stdin)\n"
+"     -pu_uart1_rx_file <path> Path to the file in which to read the contents of PU UART1 RX (default is stdin)\n"
+"     -spio_uart0_rx_file <path> Path to the file in which to read the contents of SPIO UART0 RX (default is stdin)\n"
+"     -spio_uart1_rx_file <path> Path to the file in which to read the contents of SPIO UART1 RX (default is stdin)\n"
+"     -pu_uart0_tx_file <path> Path to the file in which to dump the contents of PU UART0 TX (default is stdout)\n"
+"     -pu_uart1_tx_file <path> Path to the file in which to dump the contents of PU UART1 TX (default is stdout)\n"
+"     -spio_uart0_tx_file <path> Path to the file in which to dump the contents of SPIO UART0 TX (default is stdout)\n"
+"     -spio_uart1_tx_file <path> Path to the file in which to dump the contents of SPIO UART1 TX (default is stdout)\n"
+#endif
+"     -log_at_pc <PC>          Enables logging when minion reaches a given PC\n"
+"     -stop_log_at_pc <PC>     Disables logging when minion reaches a given PC\n"
+#ifndef SDK_RELEASE
+"     -display_trap_info       Displays trap logging in the INFO channel instead of DEBUG\n"
+"     -dump_addr <addr>        At the end of simulation, address where to start the dump. Only valid if -dump_file is used\n"
+"     -dump_size <size>        At the end of simulation, size of the dump. Only valid if -dump_file is used\n"
+"     -dump_file <path>        At the end of simulation, file in which to dump\n"
+"     -dump_mem <path>         At the end of simulation, file where to dump ALL the memory content\n"
+"     -dump_at_pc_pc <PC>      Dump when PC M0:T0 reaches this PC\n"
+"     -dump_at_pc_addr <addr>  Address where to start the dump\n"
+"     -dump_at_pc_size <size>  Size of the dump\n"
+"     -dump_at_pc_file <file>  File where to store the dump\n"
+"     -vpurf_check             Enables VPURF checks\n"
+"     -vpurf_warn              Enables VPURF checks (but only as warnings)\n"
+#endif
+"     -mem_check               Enables memory coherency checks\n"
+"     -mem_check_minion        Enables memory coherency check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n"
+"     -mem_check_addr          Enables memory coherency check prints for a specific address (default: 0x1 [none])\n"
+"     -l1_scp_check            Enables L1 SCP checks\n"
+"     -l1_scp_check_minion     Enables L1 SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n"
+"     -l2_scp_check            Enables L2 SCP checks\n"
+"     -l2_scp_check_shire      Enables L2 SCP check prints for a specific shire (default: 64 [64 => no shire, -1 => all shires])\n"
+"     -l2_scp_check_line       Enables L2 SCP check prints for a specific minion (default: 1048576 [1048576 => no L2 scp line, -1 => all L2 scp lines])\n"
+"     -l2_scp_check_minion     Enables L2 SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n"
+"     -flb_check               Enables FLB checks\n"
+"     -flb_check_shire         Enables FLB check prints for a specific shire (default: 64 [64 => no shire, -1 => all shires])\n"
+"     -tstore_check            Enables TensorStore checks\n"
+"     -tstore_check_addr       Enables TensorStore check prints for a specific address (default: 0x1 [none])\n"
+"     -tstore_check_thread     Enables TensorStore check prints for a specific thread (default: 4096 [4096 => no thread, -1 => all threads])\n"
+"     -gdb                     Start the GDB stub for remote debugging at the start of simulation\n"
+"     -gdb_at_pc <PC>          Start the GDB stub for remote debugging at a given PC\n"
 #ifdef SYSEMU_PROFILING
-"    -dump_prof <path>        Path to the file in which to dump the profiling content at the end of the simulation\n"
+"     -dump_prof <path>        Path to the file in which to dump the profiling content at the end of the simulation\n"
 #endif
-"\
-";
+;
 
 static int strsplit(char *str, const char *delimiters, char *tokens[], int max_tokens)
 {
@@ -141,11 +145,13 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
     uint64_t dump_at_pc_pc, dump_at_pc_addr, dump_at_pc_size;
 
     static const struct option long_options[] = {
+#ifndef SDK_RELEASE
         {"elf",                    required_argument, nullptr, 0}, // same as '-elf', kept for backwards compatibility
         {"elf_load",               required_argument, nullptr, 0},
         {"file_load",              required_argument, nullptr, 0},
         {"mem_write32",            required_argument, nullptr, 0},
         {"mem_desc",               required_argument, nullptr, 0},
+#endif
         {"l",                      no_argument,       nullptr, 0},
         {"lt",                     required_argument, nullptr, 0},
         {"lm",                     required_argument, nullptr, 0},
@@ -160,15 +166,20 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"shires",                 required_argument, nullptr, 0},
         {"master_min",             no_argument,       nullptr, 0}, // deprecated, use -shires <mask> to enable Master Shire and SP
         {"single_thread",          no_argument,       nullptr, 0},
+#ifndef SDK_RELEASE
         {"mins_dis",               no_argument,       nullptr, 0},
         {"sp_dis",                 no_argument,       nullptr, 0},
         {"reset_pc",               required_argument, nullptr, 0},
         {"sp_reset_pc",            required_argument, nullptr, 0},
         {"set_xreg",               required_argument, nullptr, 0},
+#endif
         {"max_cycles",             required_argument, nullptr, 0},
+#ifndef SDK_RELEASE
         {"mem_reset",              required_argument, nullptr, 0},
         {"mem_reset32",            required_argument, nullptr, 0},
+#endif
         {"dram_size",              required_argument, nullptr, 0},
+#ifndef SDK_RELEASE
         {"pu_uart0_rx_file",       required_argument, nullptr, 0},
         {"pu_uart1_rx_file",       required_argument, nullptr, 0},
         {"spio_uart0_rx_file",     required_argument, nullptr, 0},
@@ -178,8 +189,10 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"pu_uart1_tx_file",       required_argument, nullptr, 0},
         {"spio_uart0_tx_file",     required_argument, nullptr, 0},
         {"spio_uart1_tx_file",     required_argument, nullptr, 0},
+#endif
         {"log_at_pc",              required_argument, nullptr, 0},
         {"stop_log_at_pc",         required_argument, nullptr, 0},
+#ifndef SDK_RELEASE
         {"display_trap_info",      no_argument,       nullptr, 0},
         {"dump_addr",              required_argument, nullptr, 0},
         {"dump_size",              required_argument, nullptr, 0},
@@ -189,7 +202,6 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"dump_at_pc_addr",        required_argument, nullptr, 0},
         {"dump_at_pc_size",        required_argument, nullptr, 0},
         {"dump_at_pc_file",        required_argument, nullptr, 0},
-#ifndef SDK_RELEASE
         {"vpurf_check",            no_argument,       nullptr, 0},
         {"vpurf_warn",             no_argument,       nullptr, 0},
 #endif
