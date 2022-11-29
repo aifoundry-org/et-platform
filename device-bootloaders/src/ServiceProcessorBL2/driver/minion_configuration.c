@@ -710,7 +710,7 @@ static int minion_configure_hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
 *
 *   INPUTS
 *
-*       enable flag to enable/disable MM threads
+*       None
 *
 *   OUTPUTS
 *
@@ -723,6 +723,14 @@ int Minion_Enable_Master_Shire_Threads(void)
     int status;
     uint32_t yield_priority = 0x1;
     uint64_t sc_esr;
+
+    // Configure the MPROT just before enabling Master Shire threads
+    status = Minion_Configure_MPROT(gs_active_shire_mask);
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to configure minion mprot ESR\n");
+        return status;
+    }
 
     // Extract Master Minion Shire ID from Fuses
     status = otp_get_master_shire_id(&mm_id);
@@ -822,26 +830,28 @@ int Master_Minion_Reset(void)
     int status;
     uint64_t time_end = 0;
 
-    /* Disable CM threads  */
+    /* Disable CM threads */
     Minion_Disable_CM_Shire_Threads();
 
     /* Delete MM heartbeat timer before disabling MM threads */
     minion_mm_heartbeat_timer_delete();
 
     /* Disable Minion neighs */
-    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 0 /* Disable S$*/, 0x0 /*Disable all Neigh*/,
+    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 0 /* Disable SC */, 0x0 /* Disable all Neigh */,
                      false)
 
     shiremask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
-    /* Enab Minion neighs. Minion threads will be enabled by MM when it will bring up CMs after reset */
-    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xf /*Enable all Neigh*/,
+
+    /* Enable Minion neighs. Master shire threads will be enabled later below and
+    Compute Minion threads will be enabled by MM when it will boot up */
+    UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable SC */, 0xf /* Enable all Neigh */,
                      false)
 
     /* Re initialize SP-MM services */
     status = SP_MM_Iface_Init();
     if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Init Failed\n");
+        Log_Write(LOG_LEVEL_ERROR, "SP_MM_Iface_Init Failed\n");
     }
 
     if (status == STATUS_SUCCESS)
@@ -876,6 +886,7 @@ int Master_Minion_Reset(void)
     if (status == STATUS_SUCCESS)
     {
         status = MINION_MM_NOT_READY;
+
         /* wait for MM ready flag */
         time_end = timer_get_ticks_count() + pdMS_TO_TICKS(MM_RESET_TIMEOUT_MSEC);
         while (timer_get_ticks_count() < time_end)
@@ -888,15 +899,16 @@ int Master_Minion_Reset(void)
             }
             vTaskDelay(10);
         }
+
         if (status == STATUS_SUCCESS)
         {
             /* Initialize heart beat timer */
             status = MM_Init_HeartBeat_Watchdog();
         }
-    }
-    else
-    {
-        Log_Write(LOG_LEVEL_ERROR, "MM_Init_HeartBeat_Watchdog Failed\n");
+        else
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Master_Minion_Reset: MM heart beat not received\n");
+        }
     }
 
     return status;

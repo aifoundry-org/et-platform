@@ -281,10 +281,6 @@ static void taskMain(void *pvParameters)
     /* Initialize the Cache Size DIRs */
     DIR_Cache_Size_Init();
 
-    /* Configure the MPROT just before enabling Master Shire */
-    status = Minion_Configure_MPROT(minion_shires_mask);
-    ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to configure minion mprot DRAM size!")
-
     // Launch Master Minion Runtime
     Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]Minion_Enable_Master_Shire_Threads\n");
     status = Minion_Enable_Master_Shire_Threads();
