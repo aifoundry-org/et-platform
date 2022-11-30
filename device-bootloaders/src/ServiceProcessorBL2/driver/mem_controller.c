@@ -34,6 +34,11 @@
 #include "hal_ddr_init.h"
 #include "delays.h"
 
+/*! \def MEM_PLL_PROGRAM_TRY_LIMIT
+    \brief MEM PLL program try limit
+*/
+#define MEM_PLL_PROGRAM_TRY_LIMIT 3
+
 static uint32_t memshire_frequency;
 static uint32_t ddr_frequency;
 /* MEMSHIRE PLL frequency modes (795MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
@@ -102,6 +107,8 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode)
 {
     uint8_t pll_mode;
     uint8_t hpdpll_strap_pins;
+    int rv;
+    int try_num = 0;
 
     hpdpll_strap_pins = get_hpdpll_strap_value();
 
@@ -132,8 +139,17 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode)
         ms_write_esr(memshire, ms_clk_gate_ctl, 0x1);
     }
 
-    if (0 != program_memshire_pll(0, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_KICK, 2))
-        return -1;
+    do
+    {
+        rv = program_memshire_pll(0, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_KICK, 2);
+        try_num++;
+    } while ((0 != rv) && (try_num < MEM_PLL_PROGRAM_TRY_LIMIT));
+
+    if (0 != rv)
+    {
+        return MEMSHIRE_PLL_CONFIG_ERROR;
+    }
+
     disable_memory_pll_bypass(0);
 
     // Switch MemShire clock mux to use PLL output
@@ -142,8 +158,17 @@ int configure_memshire_plls(const DDR_MODE *ddr_mode)
     // Clear Lock monitor
     memshire_pll_clear_lock_monitor(0);
 
-    if (0 != program_memshire_pll(4, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_KICK, 2))
-        return -1;
+    do
+    {
+        rv = program_memshire_pll(4, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_KICK, 2);
+        try_num++;
+    } while ((0 != rv) && (try_num < MEM_PLL_PROGRAM_TRY_LIMIT));
+
+    if (0 != rv)
+    {
+        return MEMSHIRE_PLL_CONFIG_ERROR;
+    }
+
     disable_memory_pll_bypass(4);
 
     // Switch MemShire clock mux to use PLL output
