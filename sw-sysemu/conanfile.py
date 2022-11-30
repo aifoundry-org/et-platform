@@ -20,6 +20,7 @@ class SwSysemuConan(ConanFile):
         "preload_elfs": [True, False],
         "preload_compression": [None, "lz4"],
         "sdk_release": [True, False],
+        "with_sys_emu_exe": [True, False],
     }
     default_options = {
         "shared": False,
@@ -28,6 +29,7 @@ class SwSysemuConan(ConanFile):
         "preload_elfs": True,
         "preload_compression": "lz4",
         "sdk_release": False,
+        "with_sys_emu_exe": True,
     }
 
     scm = {
@@ -131,6 +133,8 @@ class SwSysemuConan(ConanFile):
         cmake = CMake(self)
         cmake.install()
         rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
+        if not self.options.with_sys_emu_exe:
+            rm(self, "sys_emu", os.path.join(self.package_folder, "bin"))
 
     def package_info(self):
         # utilities
