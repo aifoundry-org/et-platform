@@ -86,7 +86,9 @@ static const char* debug_cause(Debug_entry::Cause cause)
     case Cause::trigger: return "trigger module";
     case Cause::haltreq: return "halt request";
     case Cause::step: return "single step";
-    default: assert(0 && "Unreachable");
+    default:
+        assert(0 && "Unreachable");
+        return "unknown";
     }
 }
 
