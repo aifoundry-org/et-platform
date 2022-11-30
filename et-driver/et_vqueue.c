@@ -85,12 +85,24 @@ static void mm_reset_completion_callback(struct et_cqueue *cq,
 		return;
 	}
 
+	mutex_lock(&et_dev->ops.reset_mutex);
+
+	if (!et_dev->ops.is_resetting) {
+		dev_err(&et_dev->pdev->dev,
+			"MM reset response received but no reset was triggered!");
+		goto unlock_reset_mutex;
+	}
 	et_ops_dev_destroy(et_dev, false);
 	rv = et_ops_dev_init(et_dev, 0, false);
 	if (rv)
 		dev_err(&et_dev->pdev->dev,
 			"Ops device re-initialization failed, errno: %d\n",
 			-rv);
+
+	et_dev->ops.is_resetting = false;
+
+unlock_reset_mutex:
+	mutex_unlock(&et_dev->ops.reset_mutex);
 }
 
 void et_destroy_msg_list(struct et_cqueue *cq)

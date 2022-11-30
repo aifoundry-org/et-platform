@@ -133,7 +133,6 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
 	et_dev = container_of(ops, struct et_pci_dev, ops);
-	ops_state = atomic_read(&ops->state);
 
 	if ((cmd & ~IOCSIZE_MASK) == ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(0)) {
 		if (strlen(dev_name(&et_dev->pdev->dev)) + 1 > _IOC_SIZE(cmd)) {
@@ -155,6 +154,13 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		return strlen(dev_name(&et_dev->pdev->dev)) + 1;
 
 	} else if (cmd == ETSOC1_IOCTL_GET_DEVICE_STATE) {
+		if (ops->is_resetting)
+			ops_state = DEV_STATE_RESET_IN_PROGRESS;
+		else if (ops->is_initialized)
+			ops_state = DEV_STATE_READY;
+		else
+			ops_state = DEV_STATE_NOT_RESPONDING;
+
 		// TODO: SW-10535: DEV_STATE_PENDING_COMMANDS is to be removed.
 		// A corner case is possible here that single command sent that
 		// causes hang will not be detected because the command will be
@@ -177,24 +183,15 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		return rv;
 	}
 
-	if (ops_state == DEV_STATE_RESET_IN_PROGRESS) {
+	if (ops->is_resetting) {
 		dev_err(&et_dev->pdev->dev,
-			"ops_ioctl[%u]: action cannot be completed (%s), re-open the node!\n",
-			_IOC_NR(cmd),
-			__stringify(DEV_STATE_RESET_IN_PROGRESS));
+			"ops_ioctl[%u]: device is resetting, request cannot be completed! Re-open the node\n",
+			_IOC_NR(cmd));
 		return -EUCLEAN;
-	} else if (ops_state == DEV_STATE_NOT_RESPONDING) {
+	} else if (!ops->is_initialized) {
 		dev_err(&et_dev->pdev->dev,
-			"ops_ioctl[%u]: action cannot be completed (%s)! Try recovering through Mgmt device\n",
-			_IOC_NR(cmd),
-			__stringify(DEV_STATE_NOT_RESPONDING));
-		return -ENODEV;
-	} else if (ops_state == DEV_STATE_NOT_READY) {
-		// Should never reach here
-		dev_err(&et_dev->pdev->dev,
-			"ops_ioctl[%u]: action cannot be completed (%s)!\n",
-			_IOC_NR(cmd),
-			__stringify(DEV_STATE_NOT_READY));
+			"ops_ioctl[%u]: device is not initialized, request cannot be completed!\n",
+			_IOC_NR(cmd));
 		return -ENODEV;
 	}
 
@@ -599,11 +596,10 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	void __user *usr_arg = (void __user *)arg;
 	u16 sq_idx;
 	u16 max_size;
-	u32 mgmt_state, ops_state;
+	u32 mgmt_state;
 
 	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
 	et_dev = container_of(mgmt, struct et_pci_dev, mgmt);
-	mgmt_state = atomic_read(&mgmt->state);
 
 	if ((cmd & ~IOCSIZE_MASK) == ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(0)) {
 		if (strlen(dev_name(&et_dev->pdev->dev)) + 1 > _IOC_SIZE(cmd)) {
@@ -625,6 +621,13 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		return strlen(dev_name(&et_dev->pdev->dev)) + 1;
 
 	} else if (cmd == ETSOC1_IOCTL_GET_DEVICE_STATE) {
+		if (mgmt->is_resetting)
+			mgmt_state = DEV_STATE_RESET_IN_PROGRESS;
+		else if (mgmt->is_initialized)
+			mgmt_state = DEV_STATE_READY;
+		else
+			mgmt_state = DEV_STATE_NOT_RESPONDING;
+
 		// TODO: SW-10535: DEV_STATE_PENDING_COMMANDS is to be removed.
 		// A corner case is possible here that single command sent that
 		// causes hang will not be detected because the command will be
@@ -647,24 +650,15 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		return rv;
 	}
 
-	if (mgmt_state == DEV_STATE_RESET_IN_PROGRESS) {
+	if (mgmt->is_resetting) {
 		dev_err(&et_dev->pdev->dev,
-			"mgmt_ioctl[%u]: action cannot be completed (%s), re-open the node!\n",
-			_IOC_NR(cmd),
-			__stringify(DEV_STATE_RESET_IN_PROGRESS));
+			"mgmt_ioctl[%u]: device is resetting, request cannot be completed! Re-open the node\n",
+			_IOC_NR(cmd));
 		return -EUCLEAN;
-	} else if (mgmt_state == DEV_STATE_NOT_RESPONDING) {
+	} else if (!mgmt->is_initialized) {
 		dev_err(&et_dev->pdev->dev,
-			"mgmt_ioctl[%u]: action cannot be completed (%s)!\n",
-			_IOC_NR(cmd),
-			__stringify(DEV_STATE_NOT_RESPONDING));
-		return -ENOTRECOVERABLE;
-	} else if (mgmt_state == DEV_STATE_NOT_READY) {
-		// Should never reach here
-		dev_err(&et_dev->pdev->dev,
-			"mgmt_ioctl[%u]: action cannot be completed (%s)!\n",
-			_IOC_NR(cmd),
-			__stringify(DEV_STATE_NOT_READY));
+			"mgmt_ioctl[%u]: device is not initialized, request cannot be completed!\n",
+			_IOC_NR(cmd));
 		return -ENODEV;
 	}
 
@@ -735,21 +729,16 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 
 		if (cmd_info.flags & CMD_DESC_FLAG_ETSOC_RESET) {
-			mutex_lock(&et_dev->mgmt.state_chng_mutex);
-			atomic_set(&et_dev->mgmt.state,
-				   DEV_STATE_RESET_IN_PROGRESS);
-			mutex_unlock(&et_dev->mgmt.state_chng_mutex);
+			mutex_lock(&et_dev->mgmt.reset_mutex);
+			et_dev->mgmt.is_resetting = true;
 		}
 
 		if (cmd_info.flags &
 		    (CMD_DESC_FLAG_ETSOC_RESET | CMD_DESC_FLAG_MM_RESET)) {
+			mutex_lock(&et_dev->ops.reset_mutex);
 			spin_lock(&et_dev->ops.open_lock);
 			if (!et_dev->ops.is_open) {
-				mutex_lock(&et_dev->ops.state_chng_mutex);
-				ops_state = atomic_read(&et_dev->ops.state);
-				atomic_set(&et_dev->ops.state,
-					   DEV_STATE_RESET_IN_PROGRESS);
-				mutex_unlock(&et_dev->ops.state_chng_mutex);
+				et_dev->ops.is_resetting = true;
 			} else {
 				dev_err(&et_dev->pdev->dev,
 					"mgmt_ioctl[%u]: Ops Device is in use, reset cannot be done!\n",
@@ -768,18 +757,17 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 				(char __user __force *)cmd_info.cmd,
 				cmd_info.size);
 
-		if (cmd_info.flags & CMD_DESC_FLAG_MM_RESET &&
-		    rv != cmd_info.size) {
-			mutex_lock(&et_dev->ops.state_chng_mutex);
-			atomic_set(&et_dev->ops.state, ops_state);
-			mutex_unlock(&et_dev->ops.state_chng_mutex);
+		if (cmd_info.flags &
+		    (CMD_DESC_FLAG_ETSOC_RESET | CMD_DESC_FLAG_MM_RESET)) {
+			if (rv != cmd_info.size)
+				et_dev->ops.is_resetting = false;
+			mutex_unlock(&et_dev->ops.reset_mutex);
 		}
 
-		if (cmd_info.flags & CMD_DESC_FLAG_ETSOC_RESET &&
-		    rv != cmd_info.size) {
-			mutex_lock(&et_dev->mgmt.state_chng_mutex);
-			atomic_set(&et_dev->mgmt.state, mgmt_state);
-			mutex_unlock(&et_dev->mgmt.state_chng_mutex);
+		if (cmd_info.flags & CMD_DESC_FLAG_ETSOC_RESET) {
+			if (rv != cmd_info.size)
+				et_dev->mgmt.is_resetting = false;
+			mutex_unlock(&et_dev->mgmt.reset_mutex);
 		}
 
 		break;
@@ -880,10 +868,9 @@ static int esperanto_pcie_ops_open(struct inode *inode, struct file *fp)
 			"Ops: Tried to open same device multiple times\n");
 		rv = -EBUSY; /* already open */
 		goto spin_unlock;
-	} else if (atomic_read(&ops->state) == DEV_STATE_RESET_IN_PROGRESS) {
+	} else if (ops->is_resetting) {
 		dev_err(&et_dev->pdev->dev,
-			"Ops: Action cannot be completed (%s)\n",
-			__stringify(DEV_STATE_RESET_IN_PROGRESS));
+			"Ops: Device is resetting, action cannot be completed!\n");
 		rv = -EPERM;
 		goto spin_unlock;
 	}
@@ -899,6 +886,7 @@ static int esperanto_pcie_mgmt_open(struct inode *inode, struct file *fp)
 {
 	struct et_mgmt_dev *mgmt;
 	struct et_pci_dev *et_dev;
+	int lock_acquired;
 	int rv = 0;
 
 	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
@@ -910,14 +898,20 @@ static int esperanto_pcie_mgmt_open(struct inode *inode, struct file *fp)
 			"Mgmt: Tried to open same device multiple times\n");
 		rv = -EBUSY; /* already open */
 		goto spin_unlock;
-	} else if (atomic_read(&mgmt->state) == DEV_STATE_RESET_IN_PROGRESS) {
-		dev_err(&et_dev->pdev->dev,
-			"Mgmt: Action cannot be completed (%s)\n",
-			__stringify(DEV_STATE_RESET_IN_PROGRESS));
-		rv = -EPERM;
-		goto spin_unlock;
 	}
+	lock_acquired = mutex_trylock(&mgmt->reset_mutex);
+	if (!lock_acquired || mgmt->is_resetting) {
+		dev_err(&et_dev->pdev->dev,
+			"Mgmt: Device is resetting, action cannot be completed!\n");
+		rv = -EPERM;
+		goto unlock_reset_mutex;
+	}
+
 	mgmt->is_open = true;
+
+unlock_reset_mutex:
+	if (lock_acquired)
+		mutex_unlock(&mgmt->reset_mutex);
 
 spin_unlock:
 	spin_unlock(&mgmt->open_lock);
@@ -947,10 +941,12 @@ static int esperanto_pcie_mgmt_release(struct inode *inode, struct file *fp)
 	mgmt->is_open = false;
 	spin_unlock(&mgmt->open_lock);
 
-	if (atomic_read(&mgmt->state) == DEV_STATE_RESET_IN_PROGRESS) {
+	mutex_lock(&mgmt->reset_mutex);
+	if (mgmt->is_resetting) {
 		et_dev = container_of(mgmt, struct et_pci_dev, mgmt);
 		queue_work(et_dev->reset_workqueue, &et_dev->isr_work);
 	}
+	mutex_unlock(&mgmt->reset_mutex);
 
 	return 0;
 }
@@ -994,12 +990,18 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 	INIT_LIST_HEAD(&et_dev->bar_region_list);
 
 	et_dev->is_initialized = false;
+
+	et_dev->mgmt.is_initialized = false;
+	mutex_init(&et_dev->mgmt.init_mutex);
+	et_dev->mgmt.is_resetting = false;
+	mutex_init(&et_dev->mgmt.reset_mutex);
 	et_dev->mgmt.miscdev_created = false;
-	atomic_set(&et_dev->mgmt.state, DEV_STATE_NOT_READY);
-	mutex_init(&et_dev->mgmt.state_chng_mutex);
+
+	et_dev->ops.is_initialized = false;
+	mutex_init(&et_dev->ops.init_mutex);
+	et_dev->ops.is_resetting = false;
+	mutex_init(&et_dev->ops.reset_mutex);
 	et_dev->ops.miscdev_created = false;
-	atomic_set(&et_dev->ops.state, DEV_STATE_NOT_READY);
-	mutex_init(&et_dev->ops.state_chng_mutex);
 
 	return 0;
 }
@@ -1012,12 +1014,13 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 	int rv;
 
 	(void)timeout_secs;
-	mutex_lock(&et_dev->mgmt.state_chng_mutex);
-	if (atomic_read(&et_dev->mgmt.state) == DEV_STATE_READY) {
+	mutex_lock(&et_dev->mgmt.init_mutex);
+
+	if (et_dev->mgmt.is_initialized) {
 		dev_info(&et_dev->pdev->dev,
 			 "Mgmt: Device is already initialized\n");
 		rv = 0;
-		goto error_unlock_state_chng_mutex;
+		goto error_unlock_init_mutex;
 	}
 
 	et_dev->mgmt.is_open = false;
@@ -1053,7 +1056,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 	if (!region->mapped_baseaddr) {
 		region->is_valid = false;
 		rv = -ENOMEM;
-		goto error_unlock_state_chng_mutex;
+		goto error_unlock_init_mutex;
 	}
 
 	et_err_stats_init(&et_dev->mgmt.err_stats);
@@ -1092,8 +1095,8 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		et_dev->mgmt.miscdev_created = true;
 	}
 
-	atomic_set(&et_dev->mgmt.state, DEV_STATE_READY);
-	mutex_unlock(&et_dev->mgmt.state_chng_mutex);
+	et_dev->mgmt.is_initialized = true;
+	mutex_unlock(&et_dev->mgmt.init_mutex);
 
 	return rv;
 
@@ -1109,28 +1112,23 @@ error_free_vq_buffer:
 		      .mapped_baseaddr);
 	et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
 
-error_unlock_state_chng_mutex:
-	atomic_set(&et_dev->mgmt.state, DEV_STATE_NOT_RESPONDING);
-	mutex_unlock(&et_dev->mgmt.state_chng_mutex);
+error_unlock_init_mutex:
+	mutex_unlock(&et_dev->mgmt.init_mutex);
 
 	return rv;
 }
 
 void et_mgmt_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 {
-	u32 mgmt_state;
+	mutex_lock(&et_dev->mgmt.init_mutex);
 
 	if (miscdev_destroy && et_dev->mgmt.miscdev_created) {
 		misc_deregister(&et_dev->mgmt.misc_dev);
 		et_dev->mgmt.miscdev_created = false;
 	}
 
-	mutex_lock(&et_dev->mgmt.state_chng_mutex);
-	mgmt_state = atomic_read(&et_dev->mgmt.state);
-	if (mgmt_state == DEV_STATE_NOT_READY)
-		goto unlock_state_chng_mutex;
-	else if (mgmt_state == DEV_STATE_NOT_RESPONDING)
-		goto update_state;
+	if (!et_dev->mgmt.is_initialized)
+		goto unlock_init_mutex;
 
 	et_sysfs_stats_remove(et_dev, true /* mgmt_dev */);
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
@@ -1140,11 +1138,10 @@ void et_mgmt_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 		      .mapped_baseaddr);
 	et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
 
-update_state:
-	atomic_set(&et_dev->mgmt.state, DEV_STATE_NOT_READY);
+	et_dev->mgmt.is_initialized = false;
 
-unlock_state_chng_mutex:
-	mutex_unlock(&et_dev->mgmt.state_chng_mutex);
+unlock_init_mutex:
+	mutex_unlock(&et_dev->mgmt.init_mutex);
 }
 
 int et_ops_dev_init(struct et_pci_dev *et_dev,
@@ -1155,12 +1152,13 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 	int rv;
 
 	(void)timeout_secs;
-	mutex_lock(&et_dev->ops.state_chng_mutex);
-	if (atomic_read(&et_dev->ops.state) == DEV_STATE_READY) {
+	mutex_lock(&et_dev->ops.init_mutex);
+
+	if (et_dev->ops.is_initialized) {
 		dev_info(&et_dev->pdev->dev,
 			 "Ops: Device is already initialized\n");
 		rv = 0;
-		goto error_unlock_state_chng_mutex;
+		goto error_unlock_init_mutex;
 	}
 
 	et_dev->ops.is_open = false;
@@ -1195,7 +1193,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 	if (!region->mapped_baseaddr) {
 		region->is_valid = false;
 		rv = -ENOMEM;
-		goto error_unlock_state_chng_mutex;
+		goto error_unlock_init_mutex;
 	}
 
 	// Initialize HOST_MANAGED region
@@ -1246,8 +1244,8 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 		et_dev->ops.miscdev_created = true;
 	}
 
-	atomic_set(&et_dev->ops.state, DEV_STATE_READY);
-	mutex_unlock(&et_dev->ops.state_chng_mutex);
+	et_dev->ops.is_initialized = true;
+	mutex_unlock(&et_dev->ops.init_mutex);
 
 	return rv;
 
@@ -1262,28 +1260,23 @@ error_free_vq_buffer:
 		      .mapped_baseaddr);
 	et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
 
-error_unlock_state_chng_mutex:
-	atomic_set(&et_dev->ops.state, DEV_STATE_NOT_RESPONDING);
-	mutex_unlock(&et_dev->ops.state_chng_mutex);
+error_unlock_init_mutex:
+	mutex_unlock(&et_dev->ops.init_mutex);
 
 	return rv;
 }
 
 void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 {
-	u32 ops_state;
+	mutex_lock(&et_dev->ops.init_mutex);
 
 	if (miscdev_destroy && et_dev->ops.miscdev_created) {
 		misc_deregister(&et_dev->ops.misc_dev);
 		et_dev->ops.miscdev_created = false;
 	}
 
-	mutex_lock(&et_dev->ops.state_chng_mutex);
-	ops_state = atomic_read(&et_dev->ops.state);
-	if (ops_state == DEV_STATE_NOT_READY)
-		goto unlock_state_chng_mutex;
-	else if (ops_state == DEV_STATE_NOT_RESPONDING)
-		goto update_state;
+	if (!et_dev->ops.is_initialized)
+		goto unlock_init_mutex;
 
 	et_sysfs_stats_remove(et_dev, false /* ops_dev */);
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
@@ -1292,11 +1285,10 @@ void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 		      .mapped_baseaddr);
 	et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
 
-update_state:
-	atomic_set(&et_dev->ops.state, DEV_STATE_NOT_READY);
+	et_dev->ops.is_initialized = false;
 
-unlock_state_chng_mutex:
-	mutex_unlock(&et_dev->ops.state_chng_mutex);
+unlock_init_mutex:
+	mutex_unlock(&et_dev->ops.init_mutex);
 }
 
 static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
@@ -1308,8 +1300,10 @@ static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
 
 	dev_index = et_dev->dev_index;
 	clear_bit(dev_index, dev_bitmap);
-	mutex_destroy(&et_dev->mgmt.state_chng_mutex);
-	mutex_destroy(&et_dev->ops.state_chng_mutex);
+	mutex_destroy(&et_dev->mgmt.init_mutex);
+	mutex_destroy(&et_dev->mgmt.reset_mutex);
+	mutex_destroy(&et_dev->ops.init_mutex);
+	mutex_destroy(&et_dev->ops.reset_mutex);
 }
 
 static int init_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_create)
@@ -1386,6 +1380,15 @@ static void et_reset_isr_work(struct work_struct *work)
 	struct et_pci_dev *et_dev =
 		container_of(work, struct et_pci_dev, isr_work);
 
+	mutex_lock(&et_dev->mgmt.reset_mutex);
+	mutex_lock(&et_dev->ops.reset_mutex);
+
+	if (!et_dev->mgmt.is_resetting || !et_dev->ops.is_resetting) {
+		dev_warn(&et_dev->pdev->dev,
+			 "Reset ISR is invoked but no reset was triggered!");
+		goto unlock_reset_mutex;
+	}
+
 	uninit_et_pci_dev(et_dev, false);
 
 	dev_dbg(&et_dev->pdev->dev, "Waiting for PCIe link to settle...\n");
@@ -1406,6 +1409,13 @@ static void et_reset_isr_work(struct work_struct *work)
 		dev_err(&et_dev->pdev->dev,
 			"PCIe re-initialization failed, errno: %d\n",
 			-rv);
+
+	et_dev->mgmt.is_resetting = false;
+	et_dev->ops.is_resetting = false;
+
+unlock_reset_mutex:
+	mutex_unlock(&et_dev->ops.reset_mutex);
+	mutex_unlock(&et_dev->mgmt.reset_mutex);
 }
 
 static int esperanto_pcie_probe(struct pci_dev *pdev,

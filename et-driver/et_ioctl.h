@@ -30,12 +30,8 @@ enum dev_config_arch_revision {
 /*
  * Device State enum
  *
- * These states reflect the internal state of the each device and are also being
- * used internally to take proper actions related to each state.
- * NOTE: Be careful while adding a new state to this enum. It must be handled
- * internally as well.
- *
  * DEV_STATE_NOT_READY
+ * 	- TODO: SW-10535 To be removed
  * 	- This represents that device is not initialized yet i.e., no device
  * 	  specific structures are initialized. This is the state before probe
  * 	  or when device could never be initialized.

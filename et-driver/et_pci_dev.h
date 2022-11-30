@@ -58,16 +58,10 @@ enum et_msi_vec_idx {
 };
 
 struct et_ops_dev {
-        atomic_t state;                 /*
-                                         * state is readable without holding
-                                         * a mutex hence atomic.
-                                         */
-        struct mutex state_chng_mutex;  /*
-                                         * Mutex should be held when making a
-                                         * state transition, to capture the
-                                         * critical section related to changes
-                                         * in state.
-                                         */
+	bool is_initialized;
+	struct mutex init_mutex;	/* serializes access to is_initialized */
+	bool is_resetting;
+	struct mutex reset_mutex;	/* serializes access to is_resetting */
 	struct miscdevice misc_dev;
 	bool miscdev_created;
 	bool is_open;
@@ -80,16 +74,10 @@ struct et_ops_dev {
 };
 
 struct et_mgmt_dev {
-	atomic_t state;			/*
-					 * state is readable without holding
-					 * a mutex hence atomic.
-					 */
-	struct mutex state_chng_mutex;	/*
-					 * Mutex should be held when making a
-					 * state transition, to capture the
-					 * critical section related to changes
-					 * in state.
-					 */
+	bool is_initialized;
+	struct mutex init_mutex;	/* serializes access to is_initialized */
+	bool is_resetting;
+	struct mutex reset_mutex;	/* serializes access to is_resetting */
 	struct miscdevice misc_dev;
 	bool miscdev_created;
 	bool is_open;

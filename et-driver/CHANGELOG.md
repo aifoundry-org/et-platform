@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- [SW-15181] `enum dev_state` will not be used internally for maintaining states. The usage is now limited to GET_DEVICE_STATE IOCTL only.
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-15181] Fixed the following:
+  * MM reset workflow when previous MM reset has failed
+  * Race condition in restoring device state when reset command submission to SQ has failed
 ### Security
 
 ## [0.11.0] - 2022-11-23
