@@ -23,7 +23,7 @@ option(PROFILING "Enable profiling" OFF)
 option(BACKTRACE "Enable backtrace" OFF)
 option(PRELOAD_LZ4 " Enable lz4 compression for preloaded ELFs" OFF)
 set(PRELOAD_ELFS "" CACHE STRING "Semicolon seperated list of ELFs to preload")
-option(SDK_RELEASE "Enable various changes for SDK release" ON)
+option(SDK_RELEASE "Enable various changes for SDK release" OFF)
 
 include(GNUInstallDirs)
 
@@ -82,7 +82,39 @@ if (PRELOAD_ELFS)
 endif()
 
 
-add_library(sysemu
+if (SDK_RELEASE)
+    if (NOT BUILD_SHARED_LIBS)
+        message(WARNING "Forcefully building a shared library for the SDK release")
+    endif()
+    add_library(sw-sysemu SHARED)
+    set_target_properties(sw-sysemu PROPERTIES
+        ASM_VISIBILITY_PRESET hidden
+        C_VISIBILITY_PRESET   hidden
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
+    )
+    add_custom_command(TARGET sw-sysemu POST_BUILD
+        COMMAND strip -S -x $<TARGET_FILE:sw-sysemu>
+        COMMENT "Stripping sw-sysemu symbols"
+    )
+else()
+    add_library(sw-sysemu)
+    add_executable(sys_emu sw-sysemu/main.cpp)
+    target_link_libraries(sys_emu PRIVATE sw-sysemu)
+    target_include_directories(sys_emu
+        PRIVATE
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sys_emu>
+    )
+    install(TARGETS sys_emu
+        RUNTIME DESTINATION ${SYSEMU_INSTALL_DIR}
+        COMPONENT tools
+    )
+endif()
+
+
+target_sources(sw-sysemu PRIVATE
+    # Core sysemu files
     sys_emu/checkers/flb_checker.cpp
     sys_emu/checkers/l1_scp_checker.cpp
     sys_emu/checkers/l2_scp_checker.cpp
@@ -137,41 +169,7 @@ add_library(sysemu
     $<$<BOOL:${PROFILING}>:sys_emu/profiling.cpp>
     $<$<BOOL:${BACKTRACE}>:sys_emu/crash_handler.cpp>
     ${AUTOGEN_SRCS}
-)
-add_library(sw-sysemu::sysemu ALIAS sysemu)
-target_include_directories(sysemu
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sys_emu>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
-target_compile_definitions(sysemu
-    PUBLIC
-        SYS_EMU
-    PRIVATE
-        $<$<BOOL:${BACKTRACE}>:BACKTRACE=1>
-        $<$<BOOL:${PRELOAD_LZ4}>:PRELOAD_LZ4=1>
-        $<$<BOOL:${SDK_RELEASE}>:SDK_RELEASE=1>
-)
-target_compile_features(sysemu PUBLIC cxx_std_17)
-target_compile_options(sysemu PRIVATE -Wall -Wextra -pedantic-errors)
-set_target_properties(sysemu PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
-target_link_libraries(sysemu
-    PRIVATE
-        elfio::elfio
-        $<$<BOOL:${BACKTRACE}>:libunwind::libunwind>
-        lz4::lz4
-)
-
-install(TARGETS sysemu
-  EXPORT sw-sysemuTargets
-  RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sw-sysemu
-)
-
-add_library(fpu
+    # Softfloat emulation
     fpu/cvt.cpp
     fpu/f10_to_f32.cpp
     fpu/f11_to_f32.cpp
@@ -407,43 +405,7 @@ add_library(fpu
     softfloat/ui64_to_f16.c
     softfloat/ui64_to_f32.c
     softfloat/ui64_to_f64.c
-)
-add_library(sw-sysemu::fpu ALIAS fpu)
-target_include_directories(fpu
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
-target_compile_features(fpu PUBLIC cxx_std_17)
-target_compile_options(fpu PRIVATE -Wall -Werror -Wextra -Wno-implicit-fallthrough -Wno-sign-compare)
-set_target_properties(fpu PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
-
-install(TARGETS fpu
-  EXPORT sw-sysemuTargets
-  RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sw-sysemu
-)
-
-# sys_emu
-add_executable(sys_emu
-    sw-sysemu/main.cpp
-)
-
-install(TARGETS sys_emu
-    RUNTIME DESTINATION ${SYSEMU_INSTALL_DIR}
-    COMPONENT tools
-)
-
-target_link_libraries(sys_emu
-    PRIVATE
-        sw-sysemu::sysemu
-        sw-sysemu::fpu
-)
-
-# sw-sysemu
-add_library(sw-sysemu
+    # SW wrapper
     sw-sysemu/SysEmuImp.cpp
     sw-sysemu/SysEmuImp.h
     sw-sysemu/utils.h
@@ -454,9 +416,19 @@ target_include_directories(sw-sysemu
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemu/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     PRIVATE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sys_emu>
+)
+target_compile_definitions(sw-sysemu
+    PUBLIC
+        SYS_EMU
+    PRIVATE
+        $<$<BOOL:${BACKTRACE}>:BACKTRACE=1>
+        $<$<BOOL:${PRELOAD_LZ4}>:PRELOAD_LZ4=1>
+        $<$<BOOL:${SDK_RELEASE}>:SDK_RELEASE=1>
 )
 target_compile_features(sw-sysemu PUBLIC cxx_std_17)
+target_compile_options(sw-sysemu PRIVATE -Wall -Wextra -pedantic-errors -Werror -Wno-implicit-fallthrough -Wno-sign-compare)
 set_target_properties(sw-sysemu PROPERTIES
     PUBLIC_HEADER "sw-sysemu/include/sw-sysemu/ISysEmu.h;sw-sysemu/include/sw-sysemu/SysEmuOptions.h"
     POSITION_INDEPENDENT_CODE TRUE
@@ -464,74 +436,13 @@ set_target_properties(sw-sysemu PROPERTIES
 )
 target_link_libraries(sw-sysemu
     PRIVATE
-        sw-sysemu::sysemu
-        sw-sysemu::fpu
+        elfio::elfio
+        $<$<BOOL:${BACKTRACE}>:libunwind::libunwind>
+        lz4::lz4
         glog::glog
 )
 
 install(TARGETS sw-sysemu
-    EXPORT sw-sysemuTargets
-    RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sw-sysemu
-)
-
-
-add_library(sysemu-bundle SHARED)
-target_sources(sysemu-bundle PRIVATE
-    $<TARGET_PROPERTY:sysemu,SOURCES>
-    $<TARGET_PROPERTY:fpu,SOURCES>
-    $<TARGET_PROPERTY:sw-sysemu,SOURCES>
-)
-target_include_directories(sysemu-bundle
-    PUBLIC  $<TARGET_PROPERTY:sysemu,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:fpu,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:sw-sysemu,INTERFACE_INCLUDE_DIRECTORIES>
-    PRIVATE $<TARGET_PROPERTY:sysemu,INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:fpu,INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:sw-sysemu,INCLUDE_DIRECTORIES>
-)
-target_compile_definitions(sysemu-bundle
-    PUBLIC  $<TARGET_PROPERTY:sysemu,INTERFACE_COMPILE_DEFINITIONS>
-            $<TARGET_PROPERTY:fpu,INTERFACE_COMPILE_DEFINITIONS>
-            $<TARGET_PROPERTY:sw-sysemu,INTERFACE_COMPILE_DEFINITIONS>
-    PRIVATE $<TARGET_PROPERTY:sysemu,COMPILE_DEFINITIONS>
-            $<TARGET_PROPERTY:fpu,COMPILE_DEFINITIONS>
-            $<TARGET_PROPERTY:sw-sysemu,COMPILE_DEFINITIONS>
-)
-target_compile_features(sysemu-bundle
-    PUBLIC  $<TARGET_PROPERTY:sysemu,INTERFACE_COMPILE_FEATURES>
-            $<TARGET_PROPERTY:fpu,INTERFACE_COMPILE_FEATURES>
-            $<TARGET_PROPERTY:sw-sysemu,INTERFACE_COMPILE_FEATURES>
-    PRIVATE $<TARGET_PROPERTY:sysemu,COMPILE_FEATURES>
-            $<TARGET_PROPERTY:fpu,COMPILE_FEATURES>
-            $<TARGET_PROPERTY:sw-sysemu,COMPILE_FEATURES>
-)
-target_link_libraries(sysemu-bundle
-    PRIVATE elfio::elfio
-            $<$<BOOL:${BACKTRACE}>:libunwind::libunwind>
-            glog::glog
-)
-set_target_properties(sysemu-bundle PROPERTIES
-    ASM_VISIBILITY_PRESET hidden
-    C_VISIBILITY_PRESET   hidden
-    CXX_VISIBILITY_PRESET hidden
-    VISIBILITY_INLINES_HIDDEN ON
-)
-add_custom_command(TARGET sysemu-bundle POST_BUILD
-    COMMAND strip -S -x $<TARGET_FILE:sysemu-bundle>
-    COMMENT "Stripping sysemu-bundle symbols"
-)
-
-
-if (SDK_RELEASE)
-    add_library(sw-sysemu::sw-sysemu ALIAS sysemu-bundle)
-else()
-    add_library(sw-sysemu::sw-sysemu ALIAS sw-sysemu)
-endif()
-
-install(TARGETS sysemu-bundle
     EXPORT sw-sysemuTargets
     RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
