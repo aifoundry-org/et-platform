@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [ARCHSIM-693] Add option to preload ELFs
 - (Conan) Added preload_elfs/preload_compression parameters
 ### Changed
+- [ARCHSIM-695] Reorganize build artifacts
 ### Deprecated
 ### Removed
 ### Fixed
