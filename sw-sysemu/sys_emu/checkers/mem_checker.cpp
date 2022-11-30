@@ -88,22 +88,6 @@ bool mem_checker::write(uint64_t pc, uint64_t address, op_location_t location, u
         }
     }
 
-    // Checks if data is in any minion besides the current one
-    bool data_in_other_minion = false;
-    if(shire_found)
-    {
-        for(uint32_t i = 0; i < EMU_MINIONS_PER_SHIRE; i++)
-            data_in_other_minion |= it_shire->second.minion_mask[i] && (i != minion_id);
-    }
-
-    // Checks if data is in any shire besides current one
-    bool data_in_other_shire = false;
-    if(global_found)
-    {
-        for(uint32_t shire = 0; shire < EMU_NUM_SHIRES; shire++)
-            data_in_other_shire |= it_global->second.shire_mask[shire] && (shire != shire_id);
-    }
-
     // Checks if access is coherent
     bool coherent = true;
 
