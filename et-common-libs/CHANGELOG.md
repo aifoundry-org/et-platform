@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adding new error codes for SP recoverable errors.
 ### Changed
 - [SW-12171] Large buffer to be evicted per cache line
+- [SW-10308] separate out SC and MS APIs to log PMC events
 ### Deprecated
 ### Removed
 - [SW-14349] Removed deprecated ET_TRACE_MEM_CPY config option from trace.

@@ -36,17 +36,30 @@ extern "C" {
         }                                                                                 \
     }
 
-/*! \def et_trace_pmc_memory(hart_id)
-    \brief A macro used to dump Shire-Cache and Mem-Shire PMCs in trace buffer.
+/*! \def et_trace_pmc_sc(hart_id)
+    \brief A macro used to dump Shire-Cache PMCs in trace buffer.
     \warning Must only we called from a single hart in a kernel.
 */
-#define et_trace_pmc_memory(hart_id)                                                     \
-    {                                                                                    \
-        uint32_t cur_hart_id = get_hart_id();                                            \
-        if (hart_id == cur_hart_id)                                                      \
-        {                                                                                \
-            Trace_PMC_Counters_Memory(&CM_UMODE_TRACE_CB[GET_CB_INDEX(cur_hart_id)].cb); \
-        }                                                                                \
+#define et_trace_pmc_sc(hart_id)                                                     \
+    {                                                                                \
+        uint32_t cur_hart_id = get_hart_id();                                        \
+        if (hart_id == cur_hart_id)                                                  \
+        {                                                                            \
+            Trace_PMC_Counters_SC(&CM_UMODE_TRACE_CB[GET_CB_INDEX(cur_hart_id)].cb); \
+        }                                                                            \
+    }
+
+/*! \def et_trace_pmc_ms(hart_id, ms_id)
+    \brief A macro used to dump Mem-Shire PMCs in trace buffer.
+    \warning Must only we called from a single hart in a kernel.
+*/
+#define et_trace_pmc_ms(hart_id, ms_id)                                                     \
+    {                                                                                       \
+        uint32_t cur_hart_id = get_hart_id();                                               \
+        if (hart_id == cur_hart_id)                                                         \
+        {                                                                                   \
+            Trace_PMC_Counters_MS(&CM_UMODE_TRACE_CB[GET_CB_INDEX(cur_hart_id)].cb, ms_id); \
+        }                                                                                   \
     }
 
 /*! \def et_trace_memory(src_ptr, size)

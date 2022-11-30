@@ -25,21 +25,21 @@ static inline uint64_t trace_umode_sample_sc_pmc(uint64_t pmc)
     return (uint64_t)syscall(SYSCALL_PMC_SC_SAMPLE, get_shire_id(), get_neighborhood_id(), pmc);
 }
 
-static inline uint64_t trace_umode_sample_ms_pmc(uint64_t pmc)
+static inline uint64_t trace_umode_sample_ms_pmc(uint64_t pmc, uint8_t ms_id)
 {
     /* Sample the pmc */
-    return (uint64_t)syscall(SYSCALL_PMC_MS_SAMPLE, get_shire_id(), pmc, 0);
+    return (uint64_t)syscall(SYSCALL_PMC_MS_SAMPLE, ms_id, pmc, 0);
 }
 
-#define ET_TRACE_READ_MEM(dest, src, size)   et_memcpy(dest, src, size)
-#define ET_TRACE_WRITE_MEM(dest, src, size)  et_memcpy(dest, src, size)
-#define ET_TRACE_STRLEN(str)                 et_strlen(str)
-#define ET_TRACE_GET_TIMESTAMP()             PMC_Get_Current_Cycles()
-#define ET_TRACE_GET_HPM_COUNTER(id)         pmu_core_counter_read_unpriv(id)
-#define ET_TRACE_GET_SHIRE_CACHE_COUNTER(id) trace_umode_sample_sc_pmc(id)
-#define ET_TRACE_GET_MEM_SHIRE_COUNTER(id)   trace_umode_sample_ms_pmc(id)
-#define ET_TRACE_GET_HART_ID()               get_hart_id()
-#define ET_TRACE_STRING_MAX_SIZE             128
+#define ET_TRACE_READ_MEM(dest, src, size)     et_memcpy(dest, src, size)
+#define ET_TRACE_WRITE_MEM(dest, src, size)    et_memcpy(dest, src, size)
+#define ET_TRACE_STRLEN(str)                   et_strlen(str)
+#define ET_TRACE_GET_TIMESTAMP()               PMC_Get_Current_Cycles()
+#define ET_TRACE_GET_HPM_COUNTER(id)           pmu_core_counter_read_unpriv(id)
+#define ET_TRACE_GET_SHIRE_CACHE_COUNTER(id)   trace_umode_sample_sc_pmc(id)
+#define ET_TRACE_GET_MSHIRE_COUNTER(id, ms_id) trace_umode_sample_ms_pmc(id, ms_id)
+#define ET_TRACE_GET_HART_ID()                 get_hart_id()
+#define ET_TRACE_STRING_MAX_SIZE               128
 #define ET_TRACE_ENCODER_IMPL
 
 #include "etsoc/common/utils.h"
