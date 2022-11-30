@@ -155,7 +155,6 @@ bool iatuTranslate(bemu::System* chip, uint64_t pci_addr, uint64_t size, uint64_
     uint64_t iatu_base_addr = (uint64_t)iatus[i].upper_base_addr << 32 | (uint64_t)iatus[i].lwr_base_addr;
     uint64_t iatu_limit_addr = (uint64_t)iatus[i].uppr_limit_addr << 32 | (uint64_t)iatus[i].limit_addr;
     uint64_t iatu_target_addr = (uint64_t)iatus[i].upper_target_addr << 32 | (uint64_t)iatus[i].lwr_target_addr;
-    uint64_t iatu_size = iatu_limit_addr - iatu_base_addr + 1;
 
     // Address within iATU
     if (pci_addr >= iatu_base_addr && pci_addr <= iatu_limit_addr) {
