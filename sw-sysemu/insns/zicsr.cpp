@@ -83,23 +83,15 @@ void tensor_wait_start(Hart&, uint64_t);
 
 static const char* csr_name(uint16_t num)
 {
-    static thread_local char unknown_name[48] = {'\0', };
-    static thread_local int  unknown_start = 0;
-    static const std::unordered_map<uint16_t, const char*> csr_names = {
-#define CSRDEF(num, lower, upper)       { num, #lower },
+    static thread_local char unknown_name[6] = {'\0'};
+    switch (num) {
+#define CSRDEF(num, lower, upper)       case num: return #lower;
 #include "csrs.h"
 #undef CSRDEF
-    };
-
-    auto it = csr_names.find(num);
-    if (it == csr_names.cend()) {
-        (void) snprintf(&unknown_name[unknown_start], 6, "0x%03x",
-                        unsigned(num & 0xfff));
-        const char* ptr = &unknown_name[unknown_start];
-        unknown_start = (unknown_start >= 42) ? 0 : (unknown_start + 6);
-        return ptr;
+    default:
+        snprintf(unknown_name, sizeof(unknown_name), "0x%03x", unsigned(num & 0xfff));
+        return unknown_name;
     }
-    return it->second;
 }
 
 
