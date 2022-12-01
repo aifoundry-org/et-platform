@@ -27,7 +27,8 @@
 // clang-format off
 
 /* Aligns an address to the next 64-byte cache line */
-#define FOUR_K_ALIGN(x)            (((x + 0xFFFULL) / 0x1000ULL) * 0x1000ULL)
+#define ALIGN_64B(x)               (((x + 0x3FULL) / 0x40ULL) * 0x40ULL)
+#define ALIGN_4K(x)                (((x + 0xFFFULL) / 0x1000ULL) * 0x1000ULL)
 #define SIZE_8B                    0x8
 #define SIZE_32B                   0x20
 #define SIZE_64B                   0x40
@@ -201,25 +202,25 @@
 /*              - Low OS Region Layout (4032M) -                            */
 /*                (Base Address: 0x8004000000)                              */
 /*     - user                    - base          - size              - BAR  */
-/*     DMA Linked Lists          0x8004000000    0x1000    (4k)      NA     */
-/*     Scratch                   0x8004001000    0x400000  (4M)      0      */
-/*     SP SMode Trace            0x8004402000    0x2000    (8K)      0      */
+/*     DMA Linked Lists          0x8004000000    0x800     (2K)      NA     */
+/*     Scratch (4K aligned)      0x8004001000    0x400000  (4M)      0      */
+/*     SP BL2 FW Trace           0x8004401000    0x2000    (8K)      0      */
 /*     MM SMode Trace            0x8004403000    0x100000  (1M)      0      */
 /*     CM SMode Trace            0x8004503000    0x820000  (8.125M)  0      */
 /*     SP Dev Stats Trace        0x8004D23000    0x100000  (1.0 MB)  0      */
 /*     MM Dev Stats Trace        0x8004E23000    0x100000  (1.0 MB)  0      */
 /*     CM UMode Trace CB (FIXED) 0x8004F23000    0x20800   (130K)    NA     */
-/*     UNUSED                    until offset 0x57FFFFF   ~(2.74M)   NA     */
-/*     UMode stacks end          0x8004fbf800    0x840800 ~(8.25M)   NA     */
+/*     UNUSED                    0x8004F43800    0x9C800   (626K)    NA     */
+/*     UMode stacks end          0x8004FBF800    0x840800  ~(8.25M)  NA     */
 /*     UMode stacks base         0x8005800000                        NA     */
-/*     UNUSED                    0x8005800000    0x2000    (8K)      NA     */
-/*     Kernel UMode Entry(FIXED) 0x8005802000    until DRAM End      NA     */
+/*     UNUSED                    0x8005800000    0x1000    (4K)      NA     */
+/*     Kernel UMode Entry(FIXED) 0x8005801000    until DRAM End      NA     */
 /*     / Host Managed DRAM                                                  */
 /*                                                                          */
 /*              - Low Memory Sub-Region Layout (28G) -                      */
 /*                (Base Address: 0x8100000000)                              */
 /*     - user                    - base          - size              - BAR  */
-/*     Host Managed DRAM        0x8100000000    until region Ends     NA    */
+/*     Host Managed DRAM         0x8100000000    until region Ends     NA   */
 /****************************************************************************/
 
 /* Storage for DMA configuration linked lists. Store at the end of U-mode stack base + 4K offset.
@@ -227,28 +228,28 @@
    And per entry size is 24 bytes. Memory is reserved dynamically based on number of entries per link-list */
 #define DMA_LL_BASE                             LOW_OS_SUBREGION_BASE
 #define DMA_PER_ENTRY_SIZE                      24U
-#define DMA_MAX_ENTRIES_PER_LL                  4U
-#define DMA_LL_SIZE                             (((DMA_MAX_ENTRIES_PER_LL + 1U /* Link entry*/) * DMA_PER_ENTRY_SIZE) + SIZE_8B /* Cache line Alignment*/)
-/* size of linklist is 128B per channel */
+#define DMA_MAX_ENTRIES_PER_LL                  8U
+#define DMA_LL_SIZE                             ALIGN_64B((DMA_MAX_ENTRIES_PER_LL + 1U /* Link entry*/) * DMA_PER_ENTRY_SIZE)
+
 /* Read Chan 0 LL Base = 0x8004000000 */
 #define DMA_CHAN_READ_0_LL_BASE                 DMA_LL_BASE
-/* Read Chan 1 LL Base = 0x8004000080 */
+/* Read Chan 1 LL Base = 0x8004000100 */
 #define DMA_CHAN_READ_1_LL_BASE                 (DMA_CHAN_READ_0_LL_BASE + DMA_LL_SIZE)
-/* Read Chan 2 LL Base = 0x8004000100 */
+/* Read Chan 2 LL Base = 0x8004000200 */
 #define DMA_CHAN_READ_2_LL_BASE                 (DMA_CHAN_READ_1_LL_BASE + DMA_LL_SIZE)
-/* Read Chan 3 LL Base = 0x8004000180 */
+/* Read Chan 3 LL Base = 0x8004000300 */
 #define DMA_CHAN_READ_3_LL_BASE                 (DMA_CHAN_READ_2_LL_BASE + DMA_LL_SIZE)
-/* Write Chan 0 LL Base = 0x8004000200 */
+/* Write Chan 0 LL Base = 0x8004000400 */
 #define DMA_CHAN_WRITE_0_LL_BASE                (DMA_CHAN_READ_3_LL_BASE + DMA_LL_SIZE)
-/* Write Chan 1 LL Base = 0x8004000280 */
+/* Write Chan 1 LL Base = 0x8004000500 */
 #define DMA_CHAN_WRITE_1_LL_BASE                (DMA_CHAN_WRITE_0_LL_BASE + DMA_LL_SIZE)
-/* Write Chan 2 LL Base = 0x8004000300 */
+/* Write Chan 2 LL Base = 0x8004000600 */
 #define DMA_CHAN_WRITE_2_LL_BASE                (DMA_CHAN_WRITE_1_LL_BASE + DMA_LL_SIZE)
-/* Write Chan 3  LL Base = 0x8004000380 */
+/* Write Chan 3  LL Base = 0x8004000700 */
 #define DMA_CHAN_WRITE_3_LL_BASE                (DMA_CHAN_WRITE_2_LL_BASE + DMA_LL_SIZE)
 
 /* Expose whole DRAM low memory region and portion of LOW OS region used as DRAM to the host via BAR0. */
-#define DRAM_MEMMAP_BEGIN                       FOUR_K_ALIGN(DMA_CHAN_WRITE_3_LL_BASE + DMA_LL_SIZE)
+#define DRAM_MEMMAP_BEGIN                       ALIGN_4K(DMA_CHAN_WRITE_3_LL_BASE + DMA_LL_SIZE)
 /* Low memory region plus portion of LOW OS region used as DRAM. */
 #define DRAM_MEMMAP_SIZE                        (LOW_MEMORY_SUBREGION_SIZE + DRAM_MEMMAP_BEGIN - LOW_OS_SUBREGION_BASE)
 #define DRAM_MEMMAP_END                         (DRAM_MEMMAP_BEGIN + DRAM_MEMMAP_SIZE - 1)
@@ -277,7 +278,7 @@ correspoding Flash partition to take affect. */
 #define CM_SMODE_TRACE_BUFFER_SIZE              (CM_SMODE_TRACE_BUFFER_SIZE_PER_HART * CM_HART_COUNT)
 
 /* SP Dev Stats Trace Buffer */
-#define SP_STATS_TRACE_BUFFER_BASE              (CM_SMODE_TRACE_BUFFER_BASE + CM_SMODE_TRACE_BUFFER_SIZE )
+#define SP_STATS_TRACE_BUFFER_BASE              (CM_SMODE_TRACE_BUFFER_BASE + CM_SMODE_TRACE_BUFFER_SIZE)
 #define SP_STATS_BUFFER_SIZE                    SIZE_1MB
 
 /* MM Dev Stats Trace Buffer */
@@ -301,12 +302,13 @@ Offset by 1<<6 = 64 to distribute stack bases across different memory controller
 /* U-mode user kernels entry point
    (WARNING: Fixed address - should sync compute kernels linker script)
    Note: Give a 4K offset from U-mode stacks so that we don't have any address collision. */
-#define KERNEL_UMODE_ENTRY                      FOUR_K_ALIGN(KERNEL_UMODE_STACK_BASE + SIZE_4KB)
+#define KERNEL_UMODE_ENTRY                      ALIGN_4K(KERNEL_UMODE_STACK_BASE + SIZE_4KB)
 
 /* Define the address range in DRAM that the host runtime can explicitly manage
 the range is the START to (END-1). */
 #define HOST_MANAGED_DRAM_START                 KERNEL_UMODE_ENTRY
 #define HOST_MANAGED_DRAM_SIZE_MAX              0x800000000ULL /* 32 GB */
+
 /************************/
 /* Compile-time checks  */
 /************************/

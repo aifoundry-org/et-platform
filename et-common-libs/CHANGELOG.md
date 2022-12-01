@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-5479] Adding Trace Buffer Full message for CM-MM interface.
 ### Changed
 - Changed the CI common repo hash to allow triggerring pipeline without MR.
+- Updated DMA Max Element from 4 to 8
 ### Deprecated
 ### Removed
 - Removed temporary define to pass the build.
