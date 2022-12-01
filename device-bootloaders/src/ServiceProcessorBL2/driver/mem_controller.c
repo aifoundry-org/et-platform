@@ -70,9 +70,6 @@ static void disable_memory_pll_bypass(uint32_t memshire)
     ms_write_esr(memshire, ddrc_reset_ctl, value);
 }
 
-#define MFG_ID     0x5
-#define MFG_CONFIG 0x8
-
 uint64_t ms_read_chip_reg(uint32_t memshire, uint32_t mr_num)
 {
     uint64_t data;
@@ -623,13 +620,9 @@ static void ddr_error_crit_isr(void)
     event_control_block.event_cb(UNCORRECTABLE, &message);
 }
 
-int ddr_get_memory_vendor_ID(char *vendor_ID)
+int ddr_get_memory_vendor_ID(uint32_t *vendor_ID)
 {
-    uint64_t vendor_id_val;
-
-    vendor_id_val = ms_read_chip_reg(0, MFG_ID);
-    *vendor_ID = (char)vendor_id_val;
-
+    *vendor_ID = ddr_mem_info.ddr_vendor_id;
     return 0;
 }
 
@@ -641,13 +634,9 @@ int ddr_get_memory_type(char *mem_type)
     return 0;
 }
 
-int ddr_get_memory_size(char *mem_size)
+int ddr_get_memory_size(uint64_t *mem_size_bytes)
 {
-    uint64_t config_val;
-
-    config_val = ms_read_chip_reg(0, MFG_CONFIG);
-    *mem_size = (char)config_val;
-    printf("DDR size: %ld ptr mem_size %s\n", config_val, mem_size);
+    *mem_size_bytes = ddr_mem_info.ddr_mem_size;
     return 0;
 }
 

@@ -169,14 +169,6 @@ int flash_fs_get_serial_number(char *ser_number);
 */
 int flash_fs_get_module_rev(char *module_rev);
 
-/*! \fn int flash_fs_get_memory_size(char *mem_size, size_t size)
-    \brief This function returns ET-SOC memory size.
-    \param mem_size - memory size
-    \param size - size of the memory
-    \return The function call status, pass/fail.
-*/
-int flash_fs_get_memory_size(char *mem_size);
-
 /*! \fn int flash_fs_get_form_factor(char *form_factor, size_t size)
     \brief This function returns ET-SOC form factor (PCIe or Dual M.2).
     \param form_factor - form factor

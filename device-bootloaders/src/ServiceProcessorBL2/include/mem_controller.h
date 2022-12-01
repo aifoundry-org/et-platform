@@ -305,12 +305,12 @@ int32_t ddr_get_ce_count(uint32_t *ce_count);
 */
 int32_t ddr_get_uce_count(uint32_t *uce_count);
 
-/*! \fn int ddr_get_memory_vendor_ID(char *vendor_ID)
+/*! \fn int ddr_get_memory_vendor_ID(uint32_t *vendor_ID)
     \brief This function get Memory vendor ID
     \param vendor_ID pointer to variable to hold Memory vendor ID
     \return Status indicating success or negative error
 */
-int ddr_get_memory_vendor_ID(char *vendor_ID);
+int ddr_get_memory_vendor_ID(uint32_t *vendor_ID);
 
 /*! \fn int ddr_get_memory_type(char *mem_type)
     \brief This function get Memory type details
@@ -319,12 +319,12 @@ int ddr_get_memory_vendor_ID(char *vendor_ID);
 */
 int ddr_get_memory_type(char *mem_type);
 
-/*! \fn int ddr_get_memory_size(char *mem_size)
+/*! \fn int ddr_get_memory_size(uint64_t *ddr_mem_info)
     \brief This function get Memory size
-    \param mem_type pointer to variable to hold memory size value
+    \param ddr_mem_info pointer to variable to hold memory size value
     \return Status indicating success or negative error
 */
-int ddr_get_memory_size(char *mem_size);
+int ddr_get_memory_size(uint64_t *ddr_mem_info);
 
 /*! \fn int32_t configure_memshire(void)
     \brief This function configures the MemShire and DDR Controllers

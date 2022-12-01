@@ -435,8 +435,6 @@ static int flash_fs_preload_config_data(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
               flash_fs_bl2_info->asset_config_data.part_num);
     Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.serial_num:  0x%016lx\n",
               flash_fs_bl2_info->asset_config_data.serial_num);
-    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.mem_size:    0x%02x\n",
-              flash_fs_bl2_info->asset_config_data.mem_size);
     Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.module_rev:  0x%08x\n",
               flash_fs_bl2_info->asset_config_data.module_rev);
     Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.form_factor: 0x%02x\n",
@@ -1555,33 +1553,6 @@ int flash_fs_get_module_rev(char *module_rev)
 {
     memcpy(module_rev, &(sg_flash_fs_bl2_info.asset_config_data.module_rev),
            sizeof(sg_flash_fs_bl2_info.asset_config_data.module_rev));
-    return 0;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_memory_size
-*
-*   DESCRIPTION
-*
-*       This function returns ET-SOC memory size in bytes.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       mem_size          memory size
-*
-***********************************************************************/
-
-int flash_fs_get_memory_size(char *mem_size)
-{
-    memcpy(mem_size, &(sg_flash_fs_bl2_info.asset_config_data.mem_size),
-           sizeof(sg_flash_fs_bl2_info.asset_config_data.mem_size));
     return 0;
 }
 

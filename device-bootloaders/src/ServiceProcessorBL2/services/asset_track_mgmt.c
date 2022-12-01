@@ -76,17 +76,27 @@ int get_form_factor(char *form_factor)
 
 int get_memory_vendor_ID(char *vendor_ID)
 {
-    /* TODO: reading the registers here hang the system. To be fixed later.
-    return ddr_get_memory_vendor_ID(vendor_ID); */
-    char id[] = "1234567";
-    snprintf(vendor_ID, 8, "%s", id);
+    uint32_t vendor_id;
+
+    /* Get the vendor ID */
+    ddr_get_memory_vendor_ID(&vendor_id);
+    memcpy(vendor_ID, &vendor_id, sizeof(uint32_t));
 
     return 0;
 }
 
 int get_memory_size(char *mem_size)
 {
-    return flash_fs_get_memory_size(mem_size);
+    uint64_t ddr_mem_size;
+
+    /* Get the memory size in bytes */
+    ddr_get_memory_size(&ddr_mem_size);
+
+    /* Convert it to GB */
+    ddr_mem_size = ddr_mem_size / 1024 / 1024 / 1024;
+    memcpy(mem_size, &ddr_mem_size, sizeof(uint64_t));
+
+    return 0;
 }
 
 int get_memory_type(char *mem_type)
