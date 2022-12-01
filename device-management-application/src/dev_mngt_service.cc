@@ -394,9 +394,6 @@ int verifyService() {
 
   switch (code) {
   case DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME:
-  case DM_CMD::DM_CMD_GET_MODULE_REVISION:
-  case DM_CMD::DM_CMD_GET_MODULE_FORM_FACTOR:
-  case DM_CMD::DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
   case DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE: {
     const uint32_t output_size = sizeof(struct asset_info_t);
     char output_buff[output_size] = {0};
@@ -408,6 +405,43 @@ int verifyService() {
     std::string str_output = std::string(output_buff);
 
     DM_LOG(INFO) << "Asset Output: " << str_output << std::endl;
+  } break;
+
+  case DM_CMD::DM_CMD_GET_MODULE_REVISION:
+  case DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER:
+  case DM_CMD::DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER: {
+    const uint32_t output_size = sizeof(struct asset_info_t);
+    char output_buff[output_size] = {0};
+
+    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+
+    DM_LOG(INFO) << fmt::format("Asset Output: {:#x}", *(static_cast<uint64_t*>(static_cast<void*>(output_buff))));
+  } break;
+
+  case DM_CMD::DM_CMD_GET_MODULE_FORM_FACTOR: {
+    const uint32_t output_size = sizeof(struct asset_info_t);
+    char output_buff[output_size] = {0};
+
+    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+
+    uint64_t form_factor = *(static_cast<uint64_t*>(static_cast<void*>(output_buff)));
+    switch (form_factor) {
+    case 1:
+      DM_LOG(INFO) << fmt::format("Form Factor: PCIE ({:#x})", form_factor);
+      break;
+
+    case 2:
+      DM_LOG(INFO) << fmt::format("Form Factor: Dual M2 ({:#x})", form_factor);
+      break;
+
+    default:
+      DM_LOG(INFO) << fmt::format("Form Factor: Unknown ({:#x})", form_factor);
+      break;
+    }
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_SERIAL_NUMBER: {
@@ -429,17 +463,6 @@ int verifyService() {
     DM_LOG(INFO) << fmt::format("Wafer ID     = 0x{:02x} ({})", ecid.wafer_id, ecid.wafer_id);
     DM_LOG(INFO) << fmt::format("X Coordinate = 0x{:02x} ({})", ecid.x_coordinate, ecid.x_coordinate);
     DM_LOG(INFO) << fmt::format("Y Coordinate = 0x{:02x} ({})", ecid.y_coordinate, ecid.y_coordinate);
-  } break;
-
-  case DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER: {
-    const uint32_t output_size = sizeof(struct asset_info_t);
-    char output_buff[output_size] = {0};
-
-    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
-      return ret;
-    }
-    uint32_t partNumber = *(static_cast<uint32_t*>(static_cast<void*>(output_buff)));
-    DM_LOG(INFO) << fmt::format("Part Number = 0x{:02x} ({})", partNumber, partNumber);
   } break;
 
   case DM_CMD::DM_CMD_SET_MODULE_PART_NUMBER: {
