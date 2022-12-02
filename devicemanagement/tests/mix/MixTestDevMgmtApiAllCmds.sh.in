@@ -24,8 +24,8 @@ if [ -n "$VERBOSE" ]; then
     VERBOSE="-V"
 fi
 
-labels="FUNCTIONAL|SECURITY|INTEGRATION"
-mgmt_tests=($(ctest -L $labels -E "RunControlApiTestcmds|StateInspectionApiTestcmds" -N | awk '$2 ~ /#[0-9]+:/ && $4 !~ /Disabled/ {print $3}'))
+labels="FUNCTIONAL|SECURITY|INTEGRATION|OPS_NODE_DEPENDENT"
+mgmt_tests=($(ctest -L $labels -LE "NOPARALLEL" -E "RunControlApiTestcmds|StateInspectionApiTestcmds" -N | awk '$2 ~ /#[0-9]+:/ && $4 !~ /Disabled/ {print $3}'))
 mgmt_tests_count=${#mgmt_tests[@]}
 if [[ $mgmt_tests_count -eq 0 ]]; then
     exit 1

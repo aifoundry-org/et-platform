@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Updating the test plan for resetSOC tests.
+- Added NOPARALLEL label for tests which should not be run in parallel regression.
 ### Changed
 - [SW-14288] Enabled back setAndGetModuleVoltage test.
 ### Deprecated

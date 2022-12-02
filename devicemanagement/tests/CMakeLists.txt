@@ -133,6 +133,20 @@ create_test(
     PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
 )
 
+create_test(
+    TARGET      FunctionalTestDevMgmtApiFrequencyCmds
+    SOURCES     functional/FunctionalTestDevMgmtApiFrequencyCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;FUNCTIONAL;LABELS;NOPARALLEL;TIMEOUT;60"
+)
+
+create_test(
+    TARGET      FunctionalTestDevMgmtApiResetCmds
+    SOURCES     functional/FunctionalTestDevMgmtApiResetCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;FUNCTIONAL;LABELS;NOPARALLEL;TIMEOUT;60"
+)
+
 #####################
 # INTEGRATION TESTS #
 #####################
@@ -223,19 +237,12 @@ create_test(
     TARGET      OpsNodeDependentTestDevMgmtApiResetCmds
     SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiResetCmds.cpp TestDevMgmtApiSyncCmds.cpp
     ARGS        ""
-    PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;60"
+    PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;LABELS;NOPARALLEL;TIMEOUT;60"
 )
 
 create_test(
     TARGET      OpsNodeDependentTestDevMgmtApiTraceCmds
     SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiTraceCmds.cpp TestDevMgmtApiSyncCmds.cpp
-    ARGS        ""
-    PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;60"
-)
-
-create_test(
-    TARGET      OpsNodeDependentTestDevMgmtApiThermalAndPowerMonitoringCmds
-    SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiThermalAndPowerMonitoringCmds.cpp TestDevMgmtApiSyncCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;60"
 )
@@ -271,5 +278,4 @@ set_tests_properties(${TEST_NAME}
     DEPENDS           SecurityTestDevMgmtApiErrorControlCmds
     DEPENDS           SecurityTestDevMgmtApiLinkMgmtCmds
     DEPENDS           SecurityTestDevMgmtApiPerfMgmtCmds
-    DEPENDS           OpsNodeDependentTestDevMgmtApiMMResetCmds
 )

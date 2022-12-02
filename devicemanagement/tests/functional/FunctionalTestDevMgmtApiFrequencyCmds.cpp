@@ -17,7 +17,7 @@
 using namespace dev;
 using namespace device_management;
 
-class OpsNodeDependentTestDevMgmtApiThermalAndPowerMonitoringCmds : public TestDevMgmtApiSyncCmds {
+class FunctionalTestDevMgmtApiFrequencyCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
@@ -32,7 +32,7 @@ class OpsNodeDependentTestDevMgmtApiThermalAndPowerMonitoringCmds : public TestD
   }
 };
 
-TEST_F(OpsNodeDependentTestDevMgmtApiThermalAndPowerMonitoringCmds, setAndGetModuleFrequency) {
+TEST_F(FunctionalTestDevMgmtApiFrequencyCmds, setAndGetModuleFrequency) {
   if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
     setAndGetModuleFrequency(false /* Multiple devices */);
   } else {

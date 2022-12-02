@@ -1,5 +1,5 @@
 //******************************************************************************
-// Copyright (C) 2020 Esperanto Technologies Inc.
+// Copyright (C) 2022 Esperanto Technologies Inc.
 // The copyright to the computer program(s) herein is the
 // property of Esperanto Technologies, Inc. All Rights Reserved.
 // The program(s) may be used and/or copied only with
@@ -17,7 +17,7 @@
 using namespace dev;
 using namespace device_management;
 
-class OpsNodeDependentTestDevMgmtApiResetCmds : public TestDevMgmtApiSyncCmds {
+class FunctionalTestDevMgmtApiResetCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     ASSERT_NE(handle_, nullptr);
@@ -29,26 +29,26 @@ class OpsNodeDependentTestDevMgmtApiResetCmds : public TestDevMgmtApiSyncCmds {
   }
 };
 
-TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetMM) {
-  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
+TEST_F(FunctionalTestDevMgmtApiResetCmds, resetSOCSingleDevice) {
+  if (targetInList({Target::Silicon, Target::SysEMU, Target::Loopback})) {
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     ASSERT_NE(devLayer_, nullptr);
     initTestTrace();
     controlTraceLogging();
-    resetMM(false);
+    resetSOC(true /* Single Device */);
     extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
   }
 }
 
-TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetMMInvalidOpsNodePermission) {
-  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
-    devLayer_ = IDeviceLayer::createPcieDeviceLayer(true, true);
+TEST_F(FunctionalTestDevMgmtApiResetCmds, resetSOCMultiDevice) {
+  if (targetInList({Target::Silicon, Target::SysEMU, Target::Loopback})) {
+    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     ASSERT_NE(devLayer_, nullptr);
     initTestTrace();
     controlTraceLogging();
-    resetMMOpsOpen(false);
+    resetSOC(false /* Multiple Devices */);
     extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
