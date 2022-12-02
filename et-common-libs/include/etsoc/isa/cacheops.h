@@ -110,6 +110,25 @@ inline void __attribute__((always_inline)) evict_va(uint64_t use_tmask, uint64_t
 
 //-------------------------------------------------------------------------------------------------
 //
+// FUNCTION: evict_va_all
+//
+//   This function is a wrapper of evict_va for any number for cache lines. It calls evict_va as
+//   many times as needed to evict all lines
+//
+inline void __attribute__((always_inline)) evict_va_all(uint64_t use_tmask, uint64_t dst,
+    uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
+{
+    while (num_lines > 15)
+    {
+        evict_va(use_tmask, dst, addr, 15, stride, id);
+        addr += (stride * 16);
+        num_lines -= 15;
+    }
+    evict_va(use_tmask, dst, addr, num_lines, stride, id);
+}
+
+//-------------------------------------------------------------------------------------------------
+//
 // FUNCTION: evict
 //
 //   This function evicts all cache lines from address to address+size up to the provided
@@ -118,7 +137,7 @@ inline void __attribute__((always_inline)) evict_va(uint64_t use_tmask, uint64_t
 inline void __attribute__((always_inline))
 evict(enum cop_dest dest, volatile const void *const address, uint64_t size)
 {
-    evict_va(0, dest, (uint64_t)address, (((uint64_t)address & 0x3F) + size) >> 6, 64, 0);
+    evict_va_all(0, dest, (uint64_t)address, (((uint64_t)address & 0x3F) + size) >> 6, 64, 0);
 }
 
 //-------------------------------------------------------------------------------------------------
