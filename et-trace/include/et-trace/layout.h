@@ -142,6 +142,8 @@ enum trace_type {
     TRACE_TYPE_PMC_COUNTER,
     TRACE_TYPE_PMC_COUNTERS_COMPUTE,
     TRACE_TYPE_PMC_COUNTERS_MEMORY,
+    TRACE_TYPE_PMC_COUNTERS_SC,
+    TRACE_TYPE_PMC_COUNTERS_MS,
     TRACE_TYPE_VALUE_U64,
     TRACE_TYPE_VALUE_U32,
     TRACE_TYPE_VALUE_U16,
@@ -225,10 +227,35 @@ enum pmc_counter {
     PMC_COUNTER_SHIRE_CACHE_CYCLE,
     PMC_COUNTER_SHIRE_CACHE_1,
     PMC_COUNTER_SHIRE_CACHE_2,
-    /* Base of mem-shire PMCs */
+    /* Deprecated Defines */
     PMC_COUNTER_MEMSHIRE_CYCLE,
     PMC_COUNTER_MEMSHIRE_1,
-    PMC_COUNTER_MEMSHIRE_2
+    PMC_COUNTER_MEMSHIRE_2,
+    /* Base of mem-shire PMCs */
+    PMC_COUNTER_MEMSHIRE0_CYCLE,
+    PMC_COUNTER_MEMSHIRE1_CYCLE,
+    PMC_COUNTER_MEMSHIRE2_CYCLE,
+    PMC_COUNTER_MEMSHIRE3_CYCLE,
+    PMC_COUNTER_MEMSHIRE4_CYCLE,
+    PMC_COUNTER_MEMSHIRE5_CYCLE,
+    PMC_COUNTER_MEMSHIRE6_CYCLE,
+    PMC_COUNTER_MEMSHIRE7_CYCLE,
+    PMC_COUNTER_MEMSHIRE0_1,
+    PMC_COUNTER_MEMSHIRE1_1,
+    PMC_COUNTER_MEMSHIRE2_1,
+    PMC_COUNTER_MEMSHIRE3_1,
+    PMC_COUNTER_MEMSHIRE4_1,
+    PMC_COUNTER_MEMSHIRE5_1,
+    PMC_COUNTER_MEMSHIRE6_1,
+    PMC_COUNTER_MEMSHIRE7_1,
+    PMC_COUNTER_MEMSHIRE0_2,
+    PMC_COUNTER_MEMSHIRE1_2,
+    PMC_COUNTER_MEMSHIRE2_2,
+    PMC_COUNTER_MEMSHIRE3_2,
+    PMC_COUNTER_MEMSHIRE4_2,
+    PMC_COUNTER_MEMSHIRE5_2,
+    PMC_COUNTER_MEMSHIRE6_2,
+    PMC_COUNTER_MEMSHIRE7_2
 };
 
 /*
@@ -324,6 +351,26 @@ struct trace_pmc_counters_memory_t {
     uint64_t sc_pmc1;
     uint64_t ms_pmc0;
     uint64_t ms_pmc1;
+} __attribute__((packed));
+
+/*! \struct trace_pmc_counters_sc_t
+    \brief A Trace packet strucure for all shire cache PMC counters.
+*/
+struct trace_pmc_counters_sc_t {
+    struct trace_entry_header_t header;
+    uint64_t sc_pmc0;
+    uint64_t sc_pmc1;
+} __attribute__((packed));
+
+/*! \struct trace_pmc_counters_ms_t
+    \brief A Trace packet strucure for all mem shire PMC counters.
+*/
+struct trace_pmc_counters_ms_t {
+    struct trace_entry_header_t header;
+    uint64_t ms_pmc0;
+    uint64_t ms_pmc1;
+    uint8_t ms_id;
+    uint8_t pad[7];
 } __attribute__((packed));
 
 /*! \struct trace_pmc_counter_t

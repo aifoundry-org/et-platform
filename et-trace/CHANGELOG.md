@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [SW-14349] Replaced ET_TRACE_MEM_CPY with ET_TRACE_WRITE_MEM
+- [SW-10308] Separate out SC and MS APIs to log PMC events
 ### Deprecated
 ### Removed
 - [SW-14349] Removed ET_TRACE_MEM_CPY config option for encoder
