@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-15179] Fix tensor_wait logging
 ### Security
 
 ## [0.6.0] - 2022-11-22
