@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - Adding version ranges for Conan package requirements.
+- Provide __assert_func() handler to support libc asserts
 ### Deprecated
 ### Removed
 ### Fixed
