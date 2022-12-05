@@ -342,6 +342,7 @@ public:
   ///
   /// @returns the size in bytes of allocatable CMA memory
   ///
+  /// DEPRECATED: To be removed
   virtual size_t getFreeCmaMemory() const = 0;
 
   /// \brief Get device statistics by reading the attribute files

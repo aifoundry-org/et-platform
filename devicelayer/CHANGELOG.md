@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - (Conan) Consume sw-sysemu/0.7.0
+- Unconditionally forward CMA allocation request to driver
 ### Deprecated
+- Marked getFreeCmaMemory() as deprecated
 ### Removed
 ### Fixed
 ### Security

@@ -734,11 +734,6 @@ void* DevicePcie::allocDmaBuffer(int device, size_t sizeInBytes, bool writeable)
     throw Exception("Invalid device");
   }
 
-  if (auto freeMem = getCmaFreeMem(); sizeInBytes > freeMem) {
-    throw Exception("Not enough CMA memory! (requested: " + std::to_string(sizeInBytes) +
-                    ", available: " + std::to_string(freeMem) + ")");
-  }
-
   // NOTE fdOps_ must be open with O_RDWR for PROT_READ/PROT_WRITE with MAP_SHARED
   // Argument "prot" can be one of PROT_WRITE, PROT_READ, or both.
   // Refer: https://man7.org/linux/man-pages/man2/mmap.2.html
