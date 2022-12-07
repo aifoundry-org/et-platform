@@ -605,11 +605,14 @@ void Trace_Evict_UMode_Buffer(void)
 {
     const struct trace_control_block_t *cb = &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb;
 
-    /* Updated buffer header. */
-    Trace_Update_UMode_Buffer_Header();
+    if (cb->enable == TRACE_ENABLE)
+    {
+        /* Updated buffer header. */
+        Trace_Update_UMode_Buffer_Header();
 
-    /* Flush the buffer from Cache to Memory. */
-    ETSOC_MEM_EVICT((uint64_t *)cb->base_per_hart, cb->offset_per_hart, to_L3)
+        /* Flush the buffer from Cache to Memory. */
+        ETSOC_MEM_EVICT((uint64_t *)cb->base_per_hart, cb->offset_per_hart, to_L3)
+    }
 }
 
 /************************************************************************
