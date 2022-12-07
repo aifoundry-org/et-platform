@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - [SW-15183] Update MemShire PLL programming to support retries similar to other HPDPLL
+- Fixing the BP hit wait timeout for fast-boot.
 ### Security
 
 ## [0.7.0] - 2022-11-22
