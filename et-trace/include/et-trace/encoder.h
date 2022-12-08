@@ -323,6 +323,10 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
 #define ET_TRACE_STRLEN(str) strlen(str)
 #endif
 
+#ifndef ET_TRACE_VSNPRINTF
+#define ET_TRACE_VSNPRINTF(buffer, count, format, va) vsnprintf(buffer, count, format, va)
+#endif
+
 #ifndef ET_TRACE_STRING_MAX_SIZE
 #define ET_TRACE_STRING_MAX_SIZE 512
 #endif
@@ -720,11 +724,11 @@ int32_t Trace_Config(const struct trace_config_info_t *config_info, struct trace
 ***********************************************************************/
 void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *cb, const char *str)
 {
-    /* Get string message size plus one null termination character.*/
-    size_t str_length = TRACE_STRING_SIZE_ALIGN(ET_TRACE_STRLEN(str) + 1);
-    str_length = (str_length < ET_TRACE_STRING_MAX_SIZE) ? str_length: ET_TRACE_STRING_MAX_SIZE;
-
     if (trace_is_str_enabled(cb, log_level)) {
+        /* Get string message size plus one null termination character.*/
+        size_t str_length = TRACE_STRING_SIZE_ALIGN(ET_TRACE_STRLEN(str) + 1);
+        str_length = (str_length < ET_TRACE_STRING_MAX_SIZE) ? str_length: ET_TRACE_STRING_MAX_SIZE;
+
         struct trace_string_t *entry =
             (struct trace_string_t *)trace_buffer_reserve(cb, (sizeof(*entry) + str_length));
 
@@ -742,14 +746,13 @@ void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *
 *   DESCRIPTION
 *
 *       A function to log Trace string message with given formatting.
-*       This is not supported yet.
 *
 *   INPUTS
 *
 *       trace_string_event        Trace String event type.
 *       trace_control_block_t     Trace control block of logging Thread/Hart.
-*       const char                Log Message.
 *       const char                Log message string format.
+*       ...                       Variable arguments
 *
 *   OUTPUTS
 *
@@ -759,22 +762,22 @@ void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *
 void Trace_Format_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
                          const char *format, ...)
 {
-    va_list args;
-    va_start(args, format);
-
-    /* Get string message size plus one null termination character.*/
-    size_t str_length = TRACE_STRING_SIZE_ALIGN((size_t)vsnprintf(0, 0, format, args) + 1);
-    str_length = (str_length < ET_TRACE_STRING_MAX_SIZE) ? str_length: ET_TRACE_STRING_MAX_SIZE;
-
     if (trace_is_str_enabled(cb, log_level)) {
+        va_list args;
+        char buff[ET_TRACE_STRING_MAX_SIZE] __attribute__((aligned(8)));
+
+        va_start(args, format);
+        uint32_t str_length =
+            TRACE_STRING_SIZE_ALIGN(ET_TRACE_VSNPRINTF(buff, ET_TRACE_STRING_MAX_SIZE, format, args) + 1);
+        va_end(args);
+        str_length = (str_length < ET_TRACE_STRING_MAX_SIZE) ? str_length: ET_TRACE_STRING_MAX_SIZE;
+
         struct trace_string_t *entry =
             (struct trace_string_t *)trace_buffer_reserve(cb, (sizeof(*entry) + str_length));
 
-        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)str_length, TRACE_TYPE_STRING)
-        va_start(args, format);
-        vsnprintf(entry->string, str_length, format, args);
+        ET_TRACE_MESSAGE_HEADER(entry, str_length, TRACE_TYPE_STRING)
+        ET_TRACE_WRITE_MEM(entry->string, buff, str_length);
     }
-    va_end(args);
 }
 
 /************************************************************************
@@ -975,7 +978,7 @@ void Trace_PMC_Counters_MS(struct trace_control_block_t *cb, uint8_t ms_id)
 
         ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_PMC_COUNTERS_MS)
         ET_TRACE_WRITE_U64(entry->ms_pmc0,
-            ET_TRACE_GET_MSHIRE_COUNTER(1, ms_id)); 
+            ET_TRACE_GET_MSHIRE_COUNTER(1, ms_id));
         ET_TRACE_WRITE_U64(entry->ms_pmc1,
             ET_TRACE_GET_MSHIRE_COUNTER(2, ms_id));
         ET_TRACE_WRITE_U8(entry->ms_id, ms_id);

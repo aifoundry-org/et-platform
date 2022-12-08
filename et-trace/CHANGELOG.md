@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-7460] Added ET_TRACE_VSNPRINTF configurable option and fixed Trace_Format_String() implementation.
 ### Changed
 ### Deprecated
 ### Removed
