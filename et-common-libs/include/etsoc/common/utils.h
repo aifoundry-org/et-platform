@@ -18,14 +18,16 @@ extern "C" {
 
 #include <stddef.h>
 #include "etsoc/drivers/pmu/pmu.h"
-#include "trace/trace_umode_intern.h"
+#include "trace/trace_umode.h"
 
 /*! \def et_printf(fmt)
     \brief Write a log with va_list style args
     \param fmt String format specifier
     \param ... Variable argument list
 */
-#define et_printf(fmt, ...)      __et_printf(fmt, ##__VA_ARGS__)
+#define et_printf(fmt, ...)                          \
+    Trace_Format_String(TRACE_EVENT_STRING_CRITICAL, \
+        &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb, fmt, ##__VA_ARGS__)
 
 /*! \fn void *et_memset(void *s, int c, size_t n)
     \brief Copies the character c to the first n characters of the string pointed argument s.
@@ -85,9 +87,9 @@ __attribute__((noreturn)) void et_abort(void);
         (void)(expr);                                                                        \
     }
 
-#define et_get_timestamp()                      PMC_Get_Current_Cycles()
+#define et_get_timestamp() PMC_Get_Current_Cycles()
 
-#define et_get_delta_timestamp(prev_timestamp)  (PMC_Get_Current_Cycles() - prev_timestamp)
+#define et_get_delta_timestamp(prev_timestamp) (PMC_Get_Current_Cycles() - prev_timestamp)
 
 #ifdef __cplusplus
 }

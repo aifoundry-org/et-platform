@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Adding version ranges for Conan package requirements.
 - Provide __assert_func() handler to support libc asserts
+- [SW-13350] Replaced the usage of Trace_String() with Trace_Format_String().
 ### Deprecated
 ### Removed
 - Removed old exec_cycles_t structure.

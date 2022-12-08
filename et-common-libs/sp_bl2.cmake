@@ -17,7 +17,6 @@ set(SP_BL2_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}/sp-bl2)
 set(SP_BL2_HDRS
     include/etsoc/common/common_defs.h
     include/etsoc/common/log_common.h
-    include/etsoc/common/utils.h
     include/etsoc/drivers/pcie/pcie_int.h
     include/etsoc/drivers/pmu/pmu.h
     include/etsoc/isa/atomic.h

@@ -23,7 +23,6 @@
 // sp_bl2
 #include <etsoc/common/common_defs.h>
 #include <etsoc/common/log_common.h>
-// #include <etsoc/common/utils.h> // includes trace/trace_umode_intern.h but umode trace headers aren't shipped with sp_bl2
 #include <etsoc/drivers/pcie/pcie_int.h>
 #include <etsoc/drivers/pmu/pmu.h>
 #include <etsoc/isa/atomic.h>
@@ -62,7 +61,6 @@
 #include <etsoc/isa/utils.h>
 #include <trace/trace_umode.h>
 #include <trace/trace_umode_cb.h>
-#include <trace/trace_umode_intern.h>
 
 #include <etsoc/common/utils.h>
 #include <etsoc/drivers/pmu/pmu.h>
