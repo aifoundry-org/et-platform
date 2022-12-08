@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - Updating Conan package requirements.
+- [SW-13350] Replaced the usage of Trace_String() with Trace_Format_String().
 ### Deprecated
 ### Removed
 ### Fixed

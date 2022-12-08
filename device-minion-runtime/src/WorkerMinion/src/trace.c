@@ -29,30 +29,23 @@
 #include <etsoc/isa/cacheops.h>
 #include <system/layout.h>
 
-#include "log.h"
 #include "error_codes.h"
 #include "cm_mm_defines.h"
 #include "common_utils.h"
 
-#define ET_TRACE_GET_HART_ID()       get_hart_id()
-#define ET_TRACE_GET_TIMESTAMP()     PMC_Get_Current_Cycles()
-#define ET_TRACE_GET_HPM_COUNTER(id) pmu_core_counter_read_unpriv(id)
-#define ET_TRACE_STRING_MAX_SIZE     128
+#include <common/printf.h>
+
+#define ET_TRACE_GET_HART_ID()                        get_hart_id()
+#define ET_TRACE_GET_TIMESTAMP()                      PMC_Get_Current_Cycles()
+#define ET_TRACE_GET_HPM_COUNTER(id)                  pmu_core_counter_read_unpriv(id)
+#define ET_TRACE_VSNPRINTF(buffer, count, format, va) vsnprintf(buffer, count, format, va)
+#define ET_TRACE_STRING_MAX_SIZE                      128
 
 #define ET_TRACE_ENCODER_IMPL
 #include "trace.h"
 
-/************************/
-/* Compile-time checks  */
-/************************/
-#ifndef __ASSEMBLER__
-
-/* Ensure that Max trace size is in sync.
-   NOTE: This will be rmoved as result of SW-13550. */
-static_assert(ET_TRACE_STRING_MAX_SIZE == TRACE_STRING_MAX_SIZE_CM,
-    "MM Trace Max string size does not match with Trace encoder");
-
-#endif /* __ASSEMBLER__ */
+/* The log header should be included after the trace encoder is initilaized. */
+#include "log.h"
 
 #ifndef __ASSEMBLER__
 #include <assert.h>

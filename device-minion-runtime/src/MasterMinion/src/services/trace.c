@@ -42,12 +42,13 @@
 #include "config/mm_config.h"
 #include "services/cm_iface.h"
 #include "workers/cw.h"
-#include "services/log.h"
 #include "services/host_cmd_hdlr.h"
 
 /* mm_rt_helpers */
 #include "cm_mm_defines.h"
 #include "error_codes.h"
+
+#include <common/printf.h>
 
 /* Encoder function prototypes */
 static inline void et_trace_write_float(void *addr, float value);
@@ -61,34 +62,26 @@ void et_trace_mm_stats_cb_lock_release(void);
 #define ET_TRACE_GET_HART_ID()       get_hart_id()
 
 /* Master Minion Trace memory access primitives. */
-#define ET_TRACE_READ_U8(addr)              atomic_load_local_8(&addr)
-#define ET_TRACE_READ_U16(addr)             atomic_load_local_16(&addr)
-#define ET_TRACE_READ_U32(addr)             atomic_load_local_32(&addr)
-#define ET_TRACE_READ_U64(addr)             atomic_load_local_64(&addr)
-#define ET_TRACE_READ_U64_PTR(addr)         atomic_load_local_64((void *)&addr)
-#define ET_TRACE_READ_MEM(dest, src, size)  ETSOC_Memory_Read_Local_Atomic(src, dest, size)
-#define ET_TRACE_WRITE_U8(addr, value)      atomic_store_local_8(&addr, value)
-#define ET_TRACE_WRITE_U16(addr, value)     atomic_store_local_16(&addr, value)
-#define ET_TRACE_WRITE_U32(addr, value)     atomic_store_local_32(&addr, value)
-#define ET_TRACE_WRITE_U64(addr, value)     atomic_store_local_64(&addr, value)
-#define ET_TRACE_WRITE_FLOAT(loc, value)    et_trace_write_float(&(loc), (value))
-#define ET_TRACE_WRITE_MEM(dest, src, size) ETSOC_Memory_Write_Local_Atomic(src, dest, size)
-#define ET_TRACE_STRING_MAX_SIZE            128
+#define ET_TRACE_READ_U8(addr)                        atomic_load_local_8(&addr)
+#define ET_TRACE_READ_U16(addr)                       atomic_load_local_16(&addr)
+#define ET_TRACE_READ_U32(addr)                       atomic_load_local_32(&addr)
+#define ET_TRACE_READ_U64(addr)                       atomic_load_local_64(&addr)
+#define ET_TRACE_READ_U64_PTR(addr)                   atomic_load_local_64((void *)&addr)
+#define ET_TRACE_READ_MEM(dest, src, size)            ETSOC_Memory_Read_Local_Atomic(src, dest, size)
+#define ET_TRACE_WRITE_U8(addr, value)                atomic_store_local_8(&addr, value)
+#define ET_TRACE_WRITE_U16(addr, value)               atomic_store_local_16(&addr, value)
+#define ET_TRACE_WRITE_U32(addr, value)               atomic_store_local_32(&addr, value)
+#define ET_TRACE_WRITE_U64(addr, value)               atomic_store_local_64(&addr, value)
+#define ET_TRACE_WRITE_FLOAT(loc, value)              et_trace_write_float(&(loc), (value))
+#define ET_TRACE_WRITE_MEM(dest, src, size)           ETSOC_Memory_Write_Local_Atomic(src, dest, size)
+#define ET_TRACE_VSNPRINTF(buffer, count, format, va) vsnprintf(buffer, count, format, va)
+#define ET_TRACE_STRING_MAX_SIZE                      128
 
 #define ET_TRACE_ENCODER_IMPL
 #include "services/trace.h"
 
-/************************/
-/* Compile-time checks  */
-/************************/
-#ifndef __ASSEMBLER__
-
-/* Ensure that Max trace size is in sync.
-   NOTE: This will be rmoved as result of SW-13550. */
-static_assert(ET_TRACE_STRING_MAX_SIZE == TRACE_STRING_MAX_SIZE_MM,
-    "MM Trace Max string size does not match with Trace encoder");
-
-#endif /* __ASSEMBLER__ */
+/* The log header should be included after the trace encoder is initilaized. */
+#include "services/log.h"
 
 union data_u32_f {
     uint32_t value_u32;

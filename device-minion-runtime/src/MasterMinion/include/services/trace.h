@@ -51,13 +51,6 @@
     (((shire_mask & CM_SHIRE_MASK) && (thread_mask & CM_HART_MASK)) || \
         ((shire_mask & MM_SHIRE_MASK) && (thread_mask & CW_IN_MM_SHIRE)))
 
-/*! \def TRACE_STRING_MAX_SIZE_MM
-    \brief Max string message lentgh which can be logged into Trace.
-        NOTE: This will be removed as a result of SW-13550. Because
-        it will direclty use Trace encoder for string formatting.
-*/
-#define TRACE_STRING_MAX_SIZE_MM 128
-
 /*! \fn int32_t Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
     \brief This function initializes Trace for all harts in Master Minion
            Shire

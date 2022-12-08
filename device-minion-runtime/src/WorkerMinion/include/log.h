@@ -7,6 +7,7 @@
 /* cm specific headers */
 #include <etsoc/common/log_common.h>
 #include "device_minion_runtime_build_configuration.h"
+#include "trace.h"
 
 /* CM Trace eviction level */
 #define LOG_CM_TRACE_EVICT_LEVEL LOG_LEVEL_ERROR
@@ -19,51 +20,46 @@
 #define CURRENT_LOG_LEVEL LOG_LEVEL_INFO
 #endif
 
-/*! \fn int32_t __Log_Write(const char *const fmt, ...)
-    \brief Write a log with va_list style args
-    \param level Log level for the current log
-    \param fmt format specifier
-    \param ... variable list
-    \return Bytes written
-*/
-int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
-    __attribute__((format(printf, 2, 3)));
-
-/*! \fn int32_t __Log_Write_Str(const char *str, size_t length)
-    \brief Write a string log without any restriction by log level
-    \param level Log level for the current log
-    \param str Pointer to a string
-    \param length Length of string
-    \return bytes written
-*/
-int32_t __Log_Write_Str(log_level_e level, const char *str, size_t length);
-
 /*! \fn int32_t Log_Write(log_level_t level, const char *const fmt, ...)
     \brief Write a log with va_list style args
     \param level Log level for the current log
     \param fmt format specifier
     \param ... variable list
-    \return Bytes written
+    \return None
 */
-#define Log_Write(level, fmt, ...)                  \
-    do                                              \
-    {                                               \
-        if (level <= CURRENT_LOG_LEVEL)             \
-            __Log_Write(level, fmt, ##__VA_ARGS__); \
+#define Log_Write(level, fmt, ...)                                             \
+    do                                                                         \
+    {                                                                          \
+        if (level <= CURRENT_LOG_LEVEL)                                        \
+        {                                                                      \
+            Trace_Format_String(level, Trace_Get_CM_CB(), fmt, ##__VA_ARGS__); \
+                                                                               \
+            if (level <= LOG_CM_TRACE_EVICT_LEVEL)                             \
+            {                                                                  \
+                Trace_Evict_CM_Buffer();                                       \
+            }                                                                  \
+        }                                                                      \
     } while (0)
 
-/*! \fn int32_t Log_Write_String(const char *str, size_t length)
+/*! \fn int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
     \brief Write a string log
     \param level Log level for the current log
     \param str Pointer to a string
     \param length Length of string
-    \return bytes written
+    \return None
 */
-#define log_write_str(level, str, length)        \
-    do                                           \
-    {                                            \
-        if (level <= CURRENT_LOG_LEVEL)          \
-            __Log_Write_Str(level, str, length); \
+#define Log_Write_String(level, str, length)             \
+    do                                                   \
+    {                                                    \
+        if (level <= CURRENT_LOG_LEVEL)                  \
+        {                                                \
+            Trace_String(level, Trace_Get_CM_CB(), str); \
+                                                         \
+            if (level <= LOG_CM_TRACE_EVICT_LEVEL)       \
+            {                                            \
+                Trace_Evict_CM_Buffer();                 \
+            }                                            \
+        }                                                \
     } while (0)
 
 #endif

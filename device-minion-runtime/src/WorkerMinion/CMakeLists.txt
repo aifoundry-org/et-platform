@@ -24,7 +24,6 @@ add_riscv_executable(WorkerMinion
     src/kernel.c
     src/kernel_return.c
     src/build_configuration.c
-    src/log.c
     src/trace.c
 )
 target_include_directories(WorkerMinion.elf

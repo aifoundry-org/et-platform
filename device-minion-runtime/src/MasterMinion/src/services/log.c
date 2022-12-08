@@ -14,13 +14,14 @@
 
     Public interfaces:
         Log_Init
-        __Log_Write
+        Log_Write_Uart
         __Log_Write_String
 */
 /***********************************************************************/
 #include <stddef.h>
 
 /* mm_rt_svcs */
+#include <common/printf.h>
 #include <etsoc/isa/atomic.h>
 #include <etsoc/isa/hart.h>
 #include <etsoc/isa/sync.h>
@@ -28,7 +29,6 @@
 
 /* mm specific headers */
 #include "services/log.h"
-#include "services/trace.h"
 #include "drivers/console.h"
 
 /*! \var log_interface_t Log_Interface
@@ -144,7 +144,7 @@ log_level_t Log_Get_Level(void)
 *
 *   FUNCTION
 *
-*       __Log_Write
+*       Log_Write_Uart
 *
 *   DESCRIPTION
 *
@@ -161,30 +161,11 @@ log_level_t Log_Get_Level(void)
 *       int32_t        bytes written
 *
 ***********************************************************************/
-int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
+int32_t Log_Write_Uart(log_level_e level, const char *const fmt, ...)
 {
-    int32_t bytes_written;
+    int32_t bytes_written = 0;
 
-    /* Dump the log message over current log interface. */
-    if (atomic_load_local_8(&Log_Interface) == LOG_DUMP_TO_TRACE)
-    {
-        char buff[TRACE_STRING_MAX_SIZE_MM];
-        va_list va;
-
-        va_start(va, fmt);
-        bytes_written = vsnprintf(buff, TRACE_STRING_MAX_SIZE_MM, fmt, va);
-        va_end(va);
-
-        Trace_String((trace_string_event_e)level, Trace_Get_MM_CB(), buff);
-
-        /* Evict trace buffer to L3 so that it can be access on host side for extraction
-           through IOCTL */
-        if (level <= LOG_MM_TRACE_EVICT_LEVEL)
-        {
-            Trace_Evict_Buffer_MM();
-        }
-    }
-    else
+    if (level <= CURRENT_LOG_LEVEL)
     {
         char buff[LOG_STRING_MAX_SIZE_MM];
         va_list va;

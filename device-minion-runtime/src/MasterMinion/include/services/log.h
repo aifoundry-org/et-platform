@@ -24,6 +24,7 @@
 
 /* mm specific headers */
 #include "device_minion_runtime_build_configuration.h"
+#include "services/trace.h"
 
 #if defined(DEVICE_MINION_RUNTIME_BUILD_RELEASE)
 #if TEST_FRAMEWORK == 1
@@ -66,15 +67,15 @@ log_interface_t Log_Get_Interface(void);
 */
 log_level_t Log_Get_Level(void);
 
-/*! \fn int32_t __Log_Write(const char *const fmt, ...)
-    \brief Write a log with va_list style args without any restriction by log level
+/*! \fn int32_t Log_Write_Uart(log_level_e level, const char *const fmt, ...)
+    \brief Write a log with va_list style args on UART console
     \param level Log level for the current log
     \param fmt format specifier
     \param ... variable list
     \return Bytes written
 */
-int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
-    __attribute__((format(printf, 2, 3)));
+int32_t Log_Write_Uart(log_level_e level, const char *const fmt, ...)
+    __attribute__((format(__printf__, 2, 3)));
 
 /*! \fn int32_t Log_Write_String(const char *str, size_t length)
     \brief Write a string log without any restriction by log level
@@ -90,21 +91,36 @@ int32_t __Log_Write_String(log_level_e level, const char *str, size_t length);
     \param level Log level for the current log
     \param fmt format specifier
     \param ... variable list
-    \return Bytes written
+    \return None
 */
-#define Log_Write(level, fmt, ...)                  \
-    do                                              \
-    {                                               \
-        if (level <= CURRENT_LOG_LEVEL)             \
-            __Log_Write(level, fmt, ##__VA_ARGS__); \
+#define Log_Write(level, fmt, ...)                                                       \
+    do                                                                                   \
+    {                                                                                    \
+        if (level <= CURRENT_LOG_LEVEL)                                                  \
+        {                                                                                \
+            if (Log_Get_Interface() == LOG_DUMP_TO_TRACE)                                \
+            {                                                                            \
+                Trace_Format_String(                                                     \
+                    (trace_string_event_e)level, Trace_Get_MM_CB(), fmt, ##__VA_ARGS__); \
+                                                                                         \
+                if (level <= LOG_MM_TRACE_EVICT_LEVEL)                                   \
+                {                                                                        \
+                    Trace_Evict_Buffer_MM();                                             \
+                }                                                                        \
+            }                                                                            \
+            else                                                                         \
+            {                                                                            \
+                Log_Write_Uart(level, fmt, ##__VA_ARGS__);                               \
+            }                                                                            \
+        }                                                                                \
     } while (0)
 
-/*! \fn int32_t Log_Write_String(const char *str, size_t length)
+/*! \fn int32_t Log_Write_String(log_level_t level, const char *str, size_t length)
     \brief Write a string log
     \param level Log level for the current log
     \param str Pointer to a string
     \param length Length of string
-    \return bytes written
+    \return None
 */
 #define Log_Write_String(level, str, length)        \
     do                                              \
@@ -123,4 +139,4 @@ int32_t __Log_Write_String(log_level_e level, const char *str, size_t length);
 /* MM Trace eviction level */
 #define LOG_MM_TRACE_EVICT_LEVEL LOG_LEVEL_ERROR
 
-#endif /* LOG1_DEFS_H */
+#endif /* LOG_DEFS_H */
