@@ -573,11 +573,10 @@ static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_DONTCOPY | VM_NORESERVE;
 	vma->vm_ops = &esperanto_pcie_vm_ops;
 
-	// TODO: Remove GFP_NOWAIT, adding GFP_NOWAIT for experimental purpose
 	kern_vaddr = dma_alloc_coherent(&et_dev->pdev->dev,
 					size,
 					&dma_addr,
-					GFP_USER | GFP_NOWAIT);
+					GFP_USER | GFP_NOWAIT | __GFP_NOWARN);
 	if (!kern_vaddr) {
 		dev_err(&et_dev->pdev->dev, "dma_alloc_coherent() failed!\n");
 		return -ENOMEM;
