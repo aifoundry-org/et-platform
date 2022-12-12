@@ -62,6 +62,9 @@ static inline void mm_setup_default_pmcs(uint32_t shire_id, uint32_t hart_id)
         the cores and won't give us any advantage */
         pmu_core_event_configure(PMU_MHPMEVENT3, PMU_MINION_EVENT_CYCLES);
 
+        /* Reset the counter for cyles only at the boot time once after configuration. */
+        pmu_core_counter_reset(PMU_MHPMCOUNTER3);
+
         /* Configure mhpmevent7 for each neighborhood to count minion icache requests */
         pmu_core_event_configure(PMU_MHPMEVENT7, PMU_NEIGH_EVENT_MINION_ICACHE_REQ);
 

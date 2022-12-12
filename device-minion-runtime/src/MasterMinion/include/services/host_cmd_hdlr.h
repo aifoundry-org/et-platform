@@ -26,16 +26,17 @@
 #include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 
 /*! \struct execution_cycles_t
-     \brief Struct containing 3 elements:
+     \brief Struct containing 4 elements:
             - Command start time (The timestamp at which the command was popped from SQ)
             - Wait Latency(amount of Minion cycles that the command took sitting in the Submission Queue)
             - Start cycles(Snapshot cycle when a command gets launched on a specific HW component: DMA, Compute Minion)
+            - Previous Cycles (Used in the calculation of bandwidths)
 */
 typedef struct execution_cycles_ {
     uint64_t cmd_start_cycles;
     uint64_t exec_start_cycles;
     uint64_t prev_cycles;
-    uint32_t wait_cycles;
+    uint64_t wait_cycles;
 } __attribute__((packed, aligned(8))) execution_cycles_t;
 
 /*! \fn int32_t Host_Command_Handler(void* command_buffer, uint8_t sqw_idx,

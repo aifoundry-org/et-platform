@@ -979,7 +979,7 @@ void KW_Init(void)
         atomic_store_local_64(&KW_CB.kernels[i].kernel_shire_mask, 0U);
         atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.exec_start_cycles, 0U);
         atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.cmd_start_cycles, 0U);
-        atomic_store_local_32(&KW_CB.kernels[i].kw_cycles.wait_cycles, 0U);
+        atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.wait_cycles, 0U);
         atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.prev_cycles, 0U);
     }
 
@@ -1024,7 +1024,7 @@ void KW_Notify(uint8_t kw_idx, const execution_cycles_t *cycle)
         (void *)&KW_CB.kernels[kw_idx].kw_cycles.cmd_start_cycles, cycle->cmd_start_cycles);
     atomic_store_local_64(
         (void *)&KW_CB.kernels[kw_idx].kw_cycles.exec_start_cycles, cycle->exec_start_cycles);
-    atomic_store_local_32((void *)&KW_CB.kernels[kw_idx].kw_cycles.wait_cycles, cycle->wait_cycles);
+    atomic_store_local_64((void *)&KW_CB.kernels[kw_idx].kw_cycles.wait_cycles, cycle->wait_cycles);
 
     global_fcc_notify(atomic_load_local_8(&KW_CB.host2kw[kw_idx].fcc_id),
         &KW_CB.host2kw[kw_idx].fcc_flag, minion, KW_THREAD_ID);
@@ -1425,7 +1425,7 @@ void KW_Launch(uint32_t kw_idx)
         launch_rsp->response_info.rsp_hdr.tag_id = tag_id;
         launch_rsp->response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP;
         launch_rsp->device_cmd_start_ts = atomic_load_local_64(&kernel->kw_cycles.cmd_start_cycles);
-        launch_rsp->device_cmd_wait_dur = atomic_load_local_32(&kernel->kw_cycles.wait_cycles);
+        launch_rsp->device_cmd_wait_dur = atomic_load_local_64(&kernel->kw_cycles.wait_cycles);
         launch_rsp->device_cmd_execute_dur =
             PMC_GET_LATENCY(atomic_load_local_64(&kernel->kw_cycles.exec_start_cycles));
 

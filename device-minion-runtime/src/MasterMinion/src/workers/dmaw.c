@@ -126,7 +126,7 @@ void DMAW_Init(void)
         atomic_store_local_64(&DMAW_Read_CB.chan_status_cb[i].status.raw_u64, chan_status.raw_u64);
         atomic_store_local_64(&DMAW_Read_CB.chan_status_cb[i].dmaw_cycles.exec_start_cycles, 0U);
         atomic_store_local_64(&DMAW_Read_CB.chan_status_cb[i].dmaw_cycles.cmd_start_cycles, 0U);
-        atomic_store_local_32(&DMAW_Read_CB.chan_status_cb[i].dmaw_cycles.wait_cycles, 0U);
+        atomic_store_local_64(&DMAW_Read_CB.chan_status_cb[i].dmaw_cycles.wait_cycles, 0U);
         atomic_store_local_64(&DMAW_Read_CB.chan_status_cb[i].dmaw_cycles.prev_cycles, 0U);
     }
 
@@ -137,7 +137,7 @@ void DMAW_Init(void)
         atomic_store_local_64(&DMAW_Write_CB.chan_status_cb[i].status.raw_u64, chan_status.raw_u64);
         atomic_store_local_64(&DMAW_Write_CB.chan_status_cb[i].dmaw_cycles.exec_start_cycles, 0U);
         atomic_store_local_64(&DMAW_Write_CB.chan_status_cb[i].dmaw_cycles.cmd_start_cycles, 0U);
-        atomic_store_local_32(&DMAW_Write_CB.chan_status_cb[i].dmaw_cycles.wait_cycles, 0U);
+        atomic_store_local_64(&DMAW_Write_CB.chan_status_cb[i].dmaw_cycles.wait_cycles, 0U);
         atomic_store_local_64(&DMAW_Write_CB.chan_status_cb[i].dmaw_cycles.prev_cycles, 0U);
     }
 
@@ -388,7 +388,7 @@ int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e read_chan_id,
         atomic_store_local_64(
             &DMAW_Read_CB.chan_status_cb[read_chan_id].dmaw_cycles.exec_start_cycles,
             cycles->exec_start_cycles);
-        atomic_store_local_32(&DMAW_Read_CB.chan_status_cb[read_chan_id].dmaw_cycles.wait_cycles,
+        atomic_store_local_64(&DMAW_Read_CB.chan_status_cb[read_chan_id].dmaw_cycles.wait_cycles,
             cycles->wait_cycles);
         atomic_store_local_64(
             &DMAW_Read_CB.chan_status_cb[read_chan_id].transfer_size, transfer_size);
@@ -532,7 +532,7 @@ int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e write_chan_id,
         atomic_store_local_64(
             &DMAW_Write_CB.chan_status_cb[write_chan_id].dmaw_cycles.exec_start_cycles,
             cycles->exec_start_cycles);
-        atomic_store_local_32(&DMAW_Write_CB.chan_status_cb[write_chan_id].dmaw_cycles.wait_cycles,
+        atomic_store_local_64(&DMAW_Write_CB.chan_status_cb[write_chan_id].dmaw_cycles.wait_cycles,
             cycles->wait_cycles);
         atomic_store_local_64(
             &DMAW_Write_CB.chan_status_cb[write_chan_id].transfer_size, transfer_size);
@@ -636,7 +636,7 @@ static inline void process_dma_read_chan_in_use(
         dma_rd_cycles.exec_start_cycles = atomic_load_local_64(
             &DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_start_cycles);
         dma_rd_cycles.wait_cycles =
-            atomic_load_local_32(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.wait_cycles);
+            atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.wait_cycles);
         transfer_size = atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].transfer_size);
 
         /* Update global DMA channel status
@@ -790,7 +790,7 @@ static inline void process_dma_read_chan_aborting(dma_read_chan_id_e read_chan,
     dma_read_cycles.exec_start_cycles =
         atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.exec_start_cycles);
     dma_read_cycles.wait_cycles =
-        atomic_load_local_32(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.wait_cycles);
+        atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].dmaw_cycles.wait_cycles);
     abort_transfer_size =
         atomic_load_local_64(&DMAW_Read_CB.chan_status_cb[read_chan].transfer_size);
 
@@ -932,7 +932,7 @@ static inline void process_dma_write_chan_in_use(
         dma_write_cycles.exec_start_cycles = atomic_load_local_64(
             &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_start_cycles);
         dma_write_cycles.wait_cycles =
-            atomic_load_local_32(&DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.wait_cycles);
+            atomic_load_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.wait_cycles);
         transfer_size =
             atomic_load_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].transfer_size);
 
@@ -1087,7 +1087,7 @@ static inline void process_dma_write_chan_aborting(dma_write_chan_id_e write_cha
     dma_write_cycles.exec_start_cycles = atomic_load_local_64(
         &DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.exec_start_cycles);
     dma_write_cycles.wait_cycles =
-        atomic_load_local_32(&DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.wait_cycles);
+        atomic_load_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].dmaw_cycles.wait_cycles);
     abort_transfer_size =
         atomic_load_local_64(&DMAW_Write_CB.chan_status_cb[write_chan].transfer_size);
 
