@@ -147,7 +147,7 @@ void CommandSender::runnerFunc() {
           profiling::ProfileEvent event(profiling::Type::Instant, profiling::Class::CommandSent);
           event.setEvent(cmd.eventId_);
           event.setDeviceId(DeviceId(deviceId_));
-          event.setExtras({{"parentId", cmd.parentEventId_}});
+          event.setParentId(cmd.parentEventId_);
           profiler_->record(event);
 
           if (callback_) {

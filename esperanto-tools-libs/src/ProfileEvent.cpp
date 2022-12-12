@@ -50,7 +50,9 @@ std::string getString(Class cls) {
     STR_PROFILING_CLASS(ResponseReceived)
     STR_PROFILING_CLASS(DispatchEvent)
     STR_PROFILING_CLASS(GetDeviceProperties)
-  
+    STR_PROFILING_CLASS(StartProfiling)
+    STR_PROFILING_CLASS(EndProfiling)
+
   default:
     RT_LOG(WARNING) << "No stringized unknown profiling::Class. Consider adding it to " __FILE__;
     return "Unknown class: " + std::to_string(static_cast<int>(cls));
@@ -177,9 +179,6 @@ std::optional<Version> ProfileEvent::getVersion() const {
   return getExtra<Version>("version");
 }
 
-std::optional<ProfileEvent::Id> ProfileEvent::getPairId() const {
-  return getExtra<ProfileEvent::Id>("pair_id");
-}
 std::optional<ProfileEvent::Duration> ProfileEvent::getDuration() const {
   return getExtra<ProfileEvent::Duration>("duration");
 }
@@ -214,6 +213,10 @@ std::optional<DeviceProperties> ProfileEvent::getDeviceProperties() const {
   return getExtra<DeviceProperties>("device_properties");
 }
 
+std::optional<EventId> ProfileEvent::getParentId() const {
+  return getExtra<EventId>("parent_id");
+}
+
 void ProfileEvent::setType(Type t) {
   type_ = t;
 }
@@ -232,8 +235,8 @@ void ProfileEvent::setExtras(ExtraMetadata extras) {
   extra_ = std::move(extras);
 }
 
-void ProfileEvent::setPairId(Id id) {
-  addExtra("pair_id", id);
+void ProfileEvent::setParentId(EventId parent) {
+  addExtra("parent_id", parent);
 }
 
 void ProfileEvent::setDuration(Duration d) {
@@ -241,19 +244,19 @@ void ProfileEvent::setDuration(Duration d) {
 }
 
 void ProfileEvent::setEvent(EventId event) {
-  addExtra("event", std::move(event));
+  addExtra("event", event);
 }
 
 void ProfileEvent::setStream(StreamId stream) {
-  addExtra("stream", std::move(stream));
+  addExtra("stream", stream);
 }
 
 void ProfileEvent::setDeviceId(DeviceId deviceId) {
-  addExtra("device_id", std::move(deviceId));
+  addExtra("device_id", deviceId);
 }
 
 void ProfileEvent::setKernelId(KernelId kernelId) {
-  addExtra("kernel_id", std::move(kernelId));
+  addExtra("kernel_id", kernelId);
 }
 
 void ProfileEvent::setResponseType(ResponseType rspType) {

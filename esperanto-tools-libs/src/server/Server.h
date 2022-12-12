@@ -22,6 +22,9 @@ public:
   explicit Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer, Options options);
   ~Server();
   void removeWorker(Worker* worker);
+  void setProfiler(std::unique_ptr<profiling::IProfilerRecorder> profiler) {
+    runtime_->setProfiler(std::move(profiler));
+  }
   profiling::IProfilerRecorder* getProfiler() const {
     return runtime_->getProfiler();
   }

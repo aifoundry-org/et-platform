@@ -30,6 +30,7 @@ DEFINE_uint64(wl, 10, "number of workloads to execute per thread");
 DEFINE_uint32(numh2d, 1, "number of transfers of h2d/numh2d bytes size");
 DEFINE_uint32(numd2h, 1, "number of transfers of d2h/numd2h bytes size");
 DEFINE_bool(enableLogging, false, "enable INFO level of logger");
+DEFINE_bool(computeOpStats, false, "enable to get start and end timestamps for all operations");
 DEFINE_string(tracePath, "", "path for the runtime trace. If empty then it won't be a runtime trace");
 DEFINE_bool(h, false, "Show help");
 DEFINE_bool(json, false, "Outputs a json summary.");
@@ -37,7 +38,9 @@ DECLARE_bool(help);
 DECLARE_bool(helpshort);
 
 // DEFINE_bool(dma, false, "enable dma buffers (allows zero-copy)");
-// DEFINE_string(kernelPath, "", "path of the kernel to load and execute");
+DEFINE_string(kernelPath, "",
+              "path of the kernel to load and execute (per workload). If empty then it won't execute any kernel. "
+              "Parameters for the kernel will be the H2D buffer + size and D2H buffer + size");
 DEFINE_uint32(deviceLayer, 0, "DeviceLayer type: 0 -> fake; 1 -> sysemu based; 2 -> pcie; 3-> socket");
 DEFINE_string(socketPath, "/var/run/et_runtime/pcie.sock", "socket path when connecting to a daemon");
 
@@ -107,14 +110,14 @@ int main(int argc, char* argv[]) {
   auto deviceLayer = createDeviceLayer();
   decltype(rt::IRuntime::create(nullptr)) runtime;
   if (deviceLayer) {
-    runtime = rt::IRuntime::create(deviceLayer.get());
+    runtime = rt::IRuntime::create(deviceLayer.get(), rt::Options{false, false});
   } else {
     runtime = rt::IRuntime::create(FLAGS_socketPath);
   }
   auto benchmarker = IBenchmarker::create(runtime.get());
   IBenchmarker::Options opts;
   opts.runtimeTracePath = FLAGS_tracePath;
-  // opts.kernelPath = FLAGS_kernelPath;
+  opts.kernelPath = FLAGS_kernelPath;
   // opts.useDmaBuffers = FLAGS_dma;
   opts.bytesD2H = FLAGS_d2h;
   opts.bytesH2D = FLAGS_h2d;
@@ -122,6 +125,7 @@ int main(int argc, char* argv[]) {
   opts.numD2H = FLAGS_numd2h;
   opts.numH2D = FLAGS_numh2d;
   opts.numWorkloadsPerThread = FLAGS_wl;
+  opts.computeOpStats = FLAGS_computeOpStats;
 
   IBenchmarker::DeviceMask mask;
   mask.mask_ = FLAGS_dmask;

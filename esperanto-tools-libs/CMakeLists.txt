@@ -130,11 +130,13 @@ target_link_libraries(etrt_static PUBLIC etrt_obj)
 
 ## Add server daemon
 add_executable(server src/server/main.cpp)
+target_include_directories(server PRIVATE src)
 target_link_libraries(server 
     PRIVATE 
         runtime::etrt_static
         deviceLayer::deviceLayer
-        gflags::gflags)
+        gflags::gflags
+        cereal::cereal)
 
 ## Install library targets (new)
 install(TARGETS etrt_obj etrt etrt_static server

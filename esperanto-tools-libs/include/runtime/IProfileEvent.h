@@ -104,9 +104,9 @@ public:
   ExtraMetadata getExtras() const;
 
   std::optional<Version> getVersion() const;
-  std::optional<Id> getPairId() const;
   std::optional<Duration> getDuration() const;
   std::optional<EventId> getEvent() const;
+  std::optional<EventId> getParentId() const;
   std::optional<StreamId> getStream() const;
   std::optional<DeviceId> getDeviceId() const;
   std::optional<KernelId> getKernelId() const;
@@ -123,9 +123,9 @@ public:
   void setThreadId(std::thread::id id = std::this_thread::get_id());
   void setExtras(ExtraMetadata extras);
 
-  void setPairId(Id id);
   void setDuration(Duration d);
   void setEvent(EventId event);
+  void setParentId(EventId parent);
   void setStream(StreamId stream);
   void setDeviceId(DeviceId deviceId);
   void setKernelId(KernelId kernelId);

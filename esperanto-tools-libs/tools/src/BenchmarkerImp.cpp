@@ -72,8 +72,8 @@ IBenchmarker::SummaryResults BenchmarkerImp::run(Options options, DeviceMask mas
     if (mask.isEnabled(d)) {
       BM_LOG(INFO) << "\t Device " << static_cast<int>(d) << " is enabled. Creating workers.";
       for (int i = 0; i < options.numThreads; ++i) {
-        workers.emplace_back(
-          std::make_unique<Worker>(options.bytesH2D, options.bytesD2H, options.numH2D, options.numD2H, d, *runtime_));
+        workers.emplace_back(std::make_unique<Worker>(options.bytesH2D, options.bytesD2H, options.numH2D,
+                                                      options.numD2H, d, *runtime_, options.kernelPath));
       }
     }
   }
@@ -82,7 +82,7 @@ IBenchmarker::SummaryResults BenchmarkerImp::run(Options options, DeviceMask mas
   BM_LOG(INFO) << "Starting the run.";
   auto start = std::chrono::high_resolution_clock::now();
   for (auto& w : workers) {
-    w->start(options.numWorkloadsPerThread);
+    w->start(options.numWorkloadsPerThread, options.computeOpStats);
   }
   BM_LOG(INFO) << "Waiting until all workers have ended.";
   SummaryResults summary;

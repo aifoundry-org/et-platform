@@ -36,6 +36,8 @@ public:
     bool useDmaBuffers = false;
     // optionally get runtime traces, if this is not empty runtime will gather execution traces there.
     std::string runtimeTracePath;
+    // if true, then results will have timestamps for each start and end operation
+    bool computeOpStats = false;
   };
 
   // DeviceMask by default has all devices disabled
@@ -49,7 +51,21 @@ public:
     std::bitset<kMaxDevices> mask_;
   };
 
+  struct OpStats {
+    explicit OpStats(EventId evt)
+      : start_(std::chrono::high_resolution_clock::now())
+      , evt_(evt) {
+    }
+    void setEnd() {
+      end_ = std::chrono::high_resolution_clock::now();
+    }
+    std::chrono::high_resolution_clock::time_point start_;
+    std::chrono::high_resolution_clock::time_point end_;
+    EventId evt_;
+  };
   struct WorkerResult {
+    std::vector<OpStats> opStats_; // this is optionally filled with detailed start and end timestamps for each
+                                   // operation
     DeviceId device; // device corresponding to these results
     float bytesSentPerSecond;
     float bytesReceivedPerSecond;

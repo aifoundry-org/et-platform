@@ -10,10 +10,14 @@
 #include "Worker.h"
 #include "Logging.h"
 #include "runtime/Types.h"
+#include "tools/IBenchmarker.h"
+#include <chrono>
+#include <fstream>
 #include <hostUtils/logging/Logging.h>
 using namespace rt;
 
-Worker::Worker(size_t bytesH2D, size_t bytesD2H, size_t numH2D, size_t numD2H, DeviceId device, IRuntime& runtime)
+Worker::Worker(size_t bytesH2D, size_t bytesD2H, size_t numH2D, size_t numD2H, DeviceId device, IRuntime& runtime,
+               const std::string& kernelPath)
   : runtime_(runtime)
   , device_(device)
   , numH2D_(numH2D)
@@ -37,11 +41,40 @@ Worker::Worker(size_t bytesH2D, size_t bytesD2H, size_t numH2D, size_t numD2H, D
   }
   stream_ = runtime_.createStream(device_);
   result_.device = device_;
+
+  // load code if any
+  if (!kernelPath.empty()) {
+    std::ifstream file(kernelPath);
+    if (file.is_open()) {
+      throw Exception("Couldn't open kernel file.");
+    }
+    auto iniF = file.tellg();
+    file.seekg(0, std::ios::end);
+    auto endF = file.tellg();
+    auto size = endF - iniF;
+    file.seekg(0, std::ios::beg);
+
+    std::vector<std::byte> fileContent(static_cast<uint32_t>(size));
+    file.read(reinterpret_cast<char*>(fileContent.data()), size);
+    auto res = runtime_.loadCode(stream_, fileContent.data(), fileContent.size());
+    kernel_ = res.kernel_;
+    runtime_.waitForEvent(res.event_);
+    if (!runtime_.retrieveStreamErrors(stream_).empty()) {
+      throw Exception("There were some errors in runtime");
+    }
+    parameters_.src = dH2D_;
+    parameters_.srcSize = hH2D_.size();
+    parameters_.dst = dD2H_;
+    parameters_.dstSize = hD2H_.size();
+  }
 }
 
-void Worker::start(int numIterations) {
-  runner_ = std::thread([this, numIterations] {
+void Worker::start(int numIterations, bool computeOpStats) {
+  runner_ = std::thread([this, numIterations, computeOpStats] {
     auto start = std::chrono::high_resolution_clock::now();
+    using OpStats = rt::IBenchmarker::OpStats;
+    std::vector<OpStats> opstats;
+
     std::vector<rt::MemcpyList> listH2D;
     std::vector<rt::MemcpyList> listD2H;
 
@@ -59,33 +92,61 @@ void Worker::start(int numIterations) {
       }
       listD2H.back().addOp(dD2H_ + i * size, hD2H_.data() + i * size, size);
     }
+    auto shireMask = runtime_.getDeviceProperties(device_).computeMinionShireMask_;
     for (int i = 0; i < numIterations; ++i) {
       if (dH2D_) {
         if (numH2D_ > 1) {
           for (auto& op : listH2D) {
-            runtime_.memcpyHostToDevice(stream_, op);
+            auto evt = runtime_.memcpyHostToDevice(stream_, op);
+            if (computeOpStats) {
+              opstats.emplace_back(OpStats{evt});
+            }
           }
         } else {
-          runtime_.memcpyHostToDevice(stream_, hH2D_.data(), dH2D_, hH2D_.size());
+          auto evt = runtime_.memcpyHostToDevice(stream_, hH2D_.data(), dH2D_, hH2D_.size());
+          if (computeOpStats) {
+            opstats.emplace_back(OpStats{evt});
+          }
+        }
+      }
+      if (kernel_) {
+        auto evt = runtime_.kernelLaunch(stream_, kernel_.value(), reinterpret_cast<std::byte*>(&parameters_),
+                                         sizeof(parameters_), shireMask);
+        if (computeOpStats) {
+          opstats.emplace_back(OpStats{evt});
         }
       }
       if (dD2H_) {
         if (numD2H_ > 1) {
           for (auto& op : listD2H) {
-            runtime_.memcpyDeviceToHost(stream_, op);
+            auto evt = runtime_.memcpyDeviceToHost(stream_, op);
+            if (computeOpStats) {
+              opstats.emplace_back(OpStats{evt});
+            }
           }
         } else {
-          runtime_.memcpyDeviceToHost(stream_, dD2H_, hD2H_.data(), hD2H_.size());
+          auto evt = runtime_.memcpyDeviceToHost(stream_, dD2H_, hD2H_.data(), hD2H_.size());
+          if (computeOpStats) {
+            opstats.emplace_back(OpStats{evt});
+          }
         }
       }
     }
-    runtime_.waitForStream(stream_);
+    if (computeOpStats) {
+      for (auto& e : opstats) {
+        runtime_.waitForEvent(e.evt_);
+        e.setEnd();
+      }
+    } else {
+      runtime_.waitForStream(stream_);
+    }
     auto et = std::chrono::high_resolution_clock::now() - start;
     auto us = std::chrono::duration_cast<std::chrono::microseconds>(et);
     auto secs = us.count() / 1e6f;
     result_.bytesReceivedPerSecond = hD2H_.size() * numIterations / secs;
     result_.bytesSentPerSecond = hH2D_.size() * numIterations / secs;
     result_.workloadsPerSecond = numIterations / secs;
+    result_.opStats_ = std::move(opstats);
   });
 }
 

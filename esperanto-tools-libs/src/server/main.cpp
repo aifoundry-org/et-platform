@@ -8,6 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
+#include "ProfilerImp.h"
 #include "Server.h"
 #include "runtime/DeviceLayerFake.h"
 #include "runtime/IProfiler.h"
@@ -83,7 +84,7 @@ DEFINE_validator(tracing_mode, &validateTraceMode);
 DEFINE_string(tracing_file, "daemon.trace",
               "File which will be stored in tracing_folder containing the traces, it will be appended with '.json' or "
               "'.bin' depending on tracing_mode");
-DEFINE_bool(enable_tracing, true, "Enables/disables runtime tracing.");
+DEFINE_bool(enable_tracing, false, "Enables/disables runtime tracing.");
 DEFINE_string(sysemu_data_folder, "/var/lib/et_runtime",
               "In case of running device_type=sysemu this folder must contain required sysemu elfs: "
               "\n\tBootromTrampolineToBL2.elf\n\tServiceProcessorBL2_fast-boot.elf\n\tMasterMinion."
@@ -196,6 +197,8 @@ int main(int argc, char* argv[]) {
         type = rt::IProfiler::OutputType::Binary;
       }
       profiler->start(*traceFileStream, type);
+    } else {
+      s.setProfiler(std::make_unique<rt::profiling::DummyProfiler>());
     }
 
     std::unique_lock lock(s_m);
