@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-14909] Added API method to set profiler in Server (runtime mp daemon).
 - [SW-14909] Added couple of python scripts to DMA performance evaluation.
 ### Changed
+- deviceApi minimum required 1.0.0. Due to some changes in firmware device-api 1.0.0 is not backwards compatible.
 - (Conan) Refactor sysemu artifacts provided when runtime:with_tests=True
 - (Conan) Update accepted range of deviceLayer versions from `>=1.1.0 <1.2.0` to `>=1.1.0 <2.0.0`
 ### Removed
