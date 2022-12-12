@@ -14,9 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 ## [0.7.0]
 ### Added
-- [SW-15123] Added Start and Stop events to runtime traces. Added parentId field for commands derived from a single application-level eventId
-- [SW-14909] Added API method to set profiler in Server (runtime mp daemon)
-- [SW-14909] Added couple of python scripts to DMA performance evaluation
+- [SW-15123] Added Start and Stop events to runtime traces. Added parentId field for commands derived from a single application-level eventId.
+- [SW-14909] Added API method to set profiler in Server (runtime mp daemon).
+- [SW-14909] Added couple of python scripts to DMA performance evaluation.
 ### Changed
 - (Conan) Refactor sysemu artifacts provided when runtime:with_tests=True
 - (Conan) Update accepted range of deviceLayer versions from `>=1.1.0 <1.2.0` to `>=1.1.0 <2.0.0`
@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **breaking change:** Removed getPairId because it was not used. Inside runtime itself ...
 ### Fixed
 - (Conan) Fix package_info requires
+- [SW-15322] Unlock earlier in mem operations involving memcpylist to improve the latency
+
+## [0.6.3]
+### Fixed
 - [SW-15083] change from a single CMA memory pool to one per device
 
 ## [0.6.2]
