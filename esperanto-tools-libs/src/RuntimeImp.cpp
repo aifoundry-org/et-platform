@@ -593,6 +593,8 @@ void RuntimeImp::checkDeviceApi(DeviceId device) {
   if (deviceApiVersion_.major != 1) {
     throw Exception("Incompatible device-api version. This runtime version supports device-api 1.X.Y.");
   }
+  RT_LOG(INFO) << "Device API version: " << deviceApiVersion_.major << "." << deviceApiVersion_.minor << "."
+               << deviceApiVersion_.patch;
 }
 
 EventId RuntimeImp::doAbortCommand(EventId commandId, std::chrono::milliseconds timeout) {
