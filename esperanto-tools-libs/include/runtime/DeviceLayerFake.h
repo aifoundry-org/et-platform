@@ -37,6 +37,9 @@ class DeviceLayerFake : public IDeviceLayer {
 public:
   explicit DeviceLayerFake(int numDevices = 1)
     : numDevices_(numDevices) {
+    if (numDevices <= 0) {
+      throw Exception("Num devices needs to be >0.");
+    }
     for (int i = 0; i < numDevices_; ++i) {
       responsesMasterMinion_[i] = {};
       responsesServiceProcessor_[i] = {};
