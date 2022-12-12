@@ -354,6 +354,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
     if (!cmaPtr) {
       throw Exception("Inconsistency error in CMA Manager");
     }
+    lck.unlock();
     auto cmaPtrOffset = 0UL;
     for (auto& op : memcpyList.operations_) {
       builder.addOp(cmaPtr + cmaPtrOffset, op.dst_, op.size_);
@@ -411,6 +412,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
       freeSize = getFreeCmaForCommand(*cmaManager, topPrio, evt);
     }
     auto cmaPtr = cmaManager->alloc(totalSize);
+    lck.unlock();
     if (!cmaPtr) {
       throw Exception("Inconsistency error in CMA Manager");
     }
