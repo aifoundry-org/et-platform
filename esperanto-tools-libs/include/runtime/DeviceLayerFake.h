@@ -8,6 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
+#include "runtime/Types.h"
 #include <condition_variable>
 #include <cstdlib>
 #include <cstring>
@@ -19,15 +20,30 @@
 
 namespace dev {
 class DeviceLayerFake : public IDeviceLayer {
-  std::queue<device_ops_api::rsp_header_t> responsesMasterMinion_;
-  std::queue<device_ops_api::dev_mgmt_rsp_header_t> responsesServiceProcessor_;
+  std::unordered_map<int, std::queue<device_ops_api::rsp_header_t>> responsesMasterMinion_;
+  std::unordered_map<int, std::queue<device_ops_api::dev_mgmt_rsp_header_t>> responsesServiceProcessor_;
   std::condition_variable cvMm_;
   std::condition_variable cvSp_;
   std::mutex mmMutex_;
   std::mutex spMutex_;
+  const int numDevices_;
+
+  void checkDevice(int device) {
+    if (device >= numDevices_ || device < 0) {
+      throw Exception("Invalid device");
+    }
+  }
 
 public:
-  bool sendCommandMasterMinion(int, int, std::byte* command, size_t, dev::CmdFlagMM) override {
+  explicit DeviceLayerFake(int numDevices = 1)
+    : numDevices_(numDevices) {
+    for (int i = 0; i < numDevices_; ++i) {
+      responsesMasterMinion_[i] = {};
+      responsesServiceProcessor_[i] = {};
+    }
+  }
+  bool sendCommandMasterMinion(int device, int, std::byte* command, size_t, dev::CmdFlagMM) override {
+    checkDevice(device);
     std::unique_lock lock(mmMutex_, std::defer_lock);
     while (!lock.try_lock()) {
       // spin-lock
@@ -66,25 +82,28 @@ public:
     default:
       throw Exception("Please, add command with msg_id: " + std::to_string(cmd->msg_id));
     }
-    responsesMasterMinion_.push(rsp);
+    responsesMasterMinion_[device].push(rsp);
     return true;
   }
 
   void setSqThresholdMasterMinion(int, int, uint32_t) override {
+    // does nothing in fake
   }
 
-  void waitForEpollEventsMasterMinion(int, uint64_t& sq_bitmap, bool& cq_available,
+  void waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap, bool& cq_available,
                                       std::chrono::milliseconds timeout) override {
+    checkDevice(device);
     std::unique_lock<std::mutex> lock(mmMutex_, std::defer_lock);
     while (!lock.try_lock()) {
       // spin-lock
     }
-    cvMm_.wait_for(lock, timeout, [this] { return !responsesMasterMinion_.empty(); });
+    cvMm_.wait_for(lock, timeout, [this, device] { return !responsesMasterMinion_[device].empty(); });
     cq_available = true;
     sq_bitmap = 0xFFFFFFFFFFFFFFFF;
   }
 
-  bool receiveResponseMasterMinion(int, std::vector<std::byte>& response) override {
+  bool receiveResponseMasterMinion(int device, std::vector<std::byte>& response) override {
+    checkDevice(device);
     std::unique_lock<std::mutex> lock(mmMutex_, std::defer_lock);
     while (!lock.try_lock()) {
       // spin-lock
@@ -92,14 +111,15 @@ public:
 
     if (!responsesMasterMinion_.empty()) {
       response.resize(sizeof(device_ops_api::rsp_header_t));
-      std::memcpy(response.data(), &responsesMasterMinion_.front(), sizeof(device_ops_api::rsp_header_t));
-      responsesMasterMinion_.pop();
+      std::memcpy(response.data(), &responsesMasterMinion_[device].front(), sizeof(device_ops_api::rsp_header_t));
+      responsesMasterMinion_[device].pop();
       return true;
     }
     return false;
   }
 
-  bool sendCommandServiceProcessor(int, std::byte* command, size_t, CmdFlagSP) override {
+  bool sendCommandServiceProcessor(int device, std::byte* command, size_t, CmdFlagSP) override {
+    checkDevice(device);
     std::unique_lock<std::mutex> lock(spMutex_, std::defer_lock);
     while (!lock.try_lock()) {
       // spin-lock
@@ -107,35 +127,37 @@ public:
     auto cmd = reinterpret_cast<device_ops_api::cmn_header_t*>(command);
     device_ops_api::dev_mgmt_rsp_header_t rsp;
     rsp.rsp_hdr.tag_id = cmd->tag_id;
-    responsesServiceProcessor_.push(rsp);
+    responsesServiceProcessor_[device].push(rsp);
     return true;
   }
 
   void setSqThresholdServiceProcessor(int, uint32_t) override{};
 
-  void waitForEpollEventsServiceProcessor(int, bool& sq_available, bool& cq_available,
+  void waitForEpollEventsServiceProcessor(int device, bool& sq_available, bool& cq_available,
                                           std::chrono::milliseconds timeout) override {
+    checkDevice(device);
     std::unique_lock lock(spMutex_);
-    cvMm_.wait_for(lock, timeout, [this] { return !responsesServiceProcessor_.empty(); });
+    cvMm_.wait_for(lock, timeout, [this, device] { return !responsesServiceProcessor_[device].empty(); });
     sq_available = cq_available = true;
   }
 
-  bool receiveResponseServiceProcessor(int, std::vector<std::byte>& response) override {
+  bool receiveResponseServiceProcessor(int device, std::vector<std::byte>& response) override {
+    checkDevice(device);
     std::unique_lock<std::mutex> lock(spMutex_, std::defer_lock);
     while (!lock.try_lock()) {
       // spin-lock
     }
     if (!responsesServiceProcessor_.empty()) {
       response.resize(sizeof(device_ops_api::rsp_header_t));
-      std::memcpy(response.data(), &responsesServiceProcessor_.front(), sizeof(device_ops_api::rsp_header_t));
-      responsesServiceProcessor_.pop();
+      std::memcpy(response.data(), &responsesServiceProcessor_[device].front(), sizeof(device_ops_api::rsp_header_t));
+      responsesServiceProcessor_[device].pop();
       return true;
     }
     return false;
   };
 
   int getDevicesCount() const override {
-    return 1;
+    return numDevices_;
   };
 
   DeviceState getDeviceStateMasterMinion(int) const override {
