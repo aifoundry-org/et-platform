@@ -19,6 +19,7 @@
 /***********************************************************************/
 #include "bl2_exception.h"
 #include "portmacro.h"
+#include "sp_host_iface.h"
 
 /* Local functions */
 static void dump_perf_globals_trace(void);
@@ -44,6 +45,7 @@ static void dump_power_states_globals_trace(void);
 /* trap context variable has to be set to true in case of exception. This will
    enable sending exception event to host without using any semaphores */
 extern bool is_trap_context;
+
 /************************************************************************
 *
 *   FUNCTION

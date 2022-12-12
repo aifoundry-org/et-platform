@@ -33,6 +33,7 @@
 #include <stdarg.h>
 #include "dm_event_def.h"
 #include "config/mgmt_build_config.h"
+#include "sp_host_iface.h"
 
 static void generate_runtime_error_event(uint32_t error_count);
 
@@ -62,12 +63,6 @@ static log_cb_t Log_CB __attribute__((aligned(64))) = { .current_log_level = LOG
 static SemaphoreHandle_t Log_Mutex = NULL;
 static StaticSemaphore_t Log_Mutex_Buffer;
 static uint32_t RT_Error_Count = 0;
-
-/*! \def CHECK_STRING_FILTER
-    \brief This checks if trace string log level is enabled to log the given level.
-*/
-#define CHECK_STRING_FILTER(cb, log_level) \
-    ((cb->filter_mask & TRACE_FILTER_STRING_MASK) >= log_level)
 
 /************************************************************************
 *
@@ -210,7 +205,7 @@ log_interface_t Log_Get_Interface(void)
 *
 *   DESCRIPTION
 *
-*       Write a va_list style payload to serial port
+*       Write a va_list style payload to trace or serial port
 *
 *   INPUTS
 *
@@ -237,19 +232,16 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
     /* Dump the log message over current log interface. */
     if (Log_CB.current_log_interface == LOG_DUMP_TO_TRACE)
     {
-        char str[TRACE_STRING_MAX_SIZE_SP];
         va_list va;
         va_start(va, fmt);
-        bytes_written = vsnprintf(str, TRACE_STRING_MAX_SIZE_SP, fmt, va);
+        Trace_Format_String_V(level, Trace_Get_SP_CB(), fmt, va);
         va_end(va);
-
-        Trace_String(level, Trace_Get_SP_CB(), str);
 
         /* Update trace buffer header, this will update data size field in header
            to reflect current data in buffer. */
         Trace_Update_SP_Buffer_Header();
 
-        /* Check if severity of message is error or above */
+        /* Check if severity of message is error */
         if (level == LOG_LEVEL_ERROR)
         {
             /* Acquire the Mutex */
@@ -270,12 +262,6 @@ int32_t Log_Write(log_level_t level, const char *const fmt, ...)
     }
     else
     {
-        /* Verify the logging level */
-        if (level > Log_CB.current_log_level)
-        {
-            return 0;
-        }
-
         char str[LOG_STRING_MAX_SIZE_SP];
         va_list va;
         va_start(va, fmt);
@@ -448,7 +434,7 @@ static void generate_runtime_error_event(uint32_t error_count)
         /* Send the event message to the host */
         if (0 != SP_Host_Iface_CQ_Push_Cmd((void *)&message, sizeof(message)))
         {
-            Log_Write(LOG_LEVEL_WARNING, "generate_runtime_error_event :  push to CQ failed!\n");
+            Log_Write(LOG_LEVEL_WARNING, "generate_runtime_error_event : push to CQ failed!\n");
         }
     }
 }

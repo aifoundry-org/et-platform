@@ -48,18 +48,7 @@ static inline void et_trace_buffer_lock_release(void);
 #define ET_TRACE_ENCODER_IMPL
 #include "trace.h"
 #include "bl2_exception.h"
-
-/************************/
-/* Compile-time checks  */
-/************************/
-#ifndef __ASSEMBLER__
-
-/* Ensure that Max trace size is in sync.
-   NOTE: This will be rmoved as result of SW-13550. */
-static_assert(ET_TRACE_STRING_MAX_SIZE == TRACE_STRING_MAX_SIZE_SP,
-              "SP Trace Max string size does not match with Trace encoder");
-
-#endif /* __ASSEMBLER__ */
+#include "sp_host_iface.h"
 
 /*
  * Service Processor Trace control block.

@@ -21,6 +21,7 @@
 #include <stdint.h>
 #include "dm.h"
 #include "transports/sp_mm_iface/sp_mm_comms_spec.h"
+#include <device-apis/device_apis_message_types.h>
 
 /*!
  * @enum enum event_class
@@ -39,7 +40,8 @@ enum event_class
  * @brief Enum defining event ids. Event IDs 0 - 255 are used for OPS events and
  *        256 - 512 are used for management events
  */
-enum event_ids {
+enum event_ids
+{
     PCIE_CE = 256,         /**< Correctable PCIE error. */
     PCIE_UCE,              /**< Uncorrectable PCIE error. */
     DRAM_CE,               /**< Correctable DRAM error. */
@@ -96,10 +98,10 @@ struct event_message_t
     (header)->msg_id = id;                \
     (header)->size = sz;
 
-#define FILL_EVENT_PAYLOAD(payload, class, count, syndrome1, syndrome2)            \
-    (payload)->class_count = ((uint16_t)(((count)&EVENT_ERROR_COUNT_MASK) << 2) |  \
-                             ((class) & EVENT_CLASS_MASK));                        \
-    (payload)->syndrome[0] = (syndrome1);                                          \
+#define FILL_EVENT_PAYLOAD(payload, class, count, syndrome1, syndrome2)                     \
+    (payload)->class_count =                                                                \
+        ((uint16_t)(((count)&EVENT_ERROR_COUNT_MASK) << 2) | ((class) & EVENT_CLASS_MASK)); \
+    (payload)->syndrome[0] = (syndrome1);                                                   \
     (payload)->syndrome[1] = (syndrome2);
 
 #define EVENT_PAYLOAD_GET_EVENT_CLASS(payload) (((payload)->class_count) & EVENT_ERROR_CLASS_MASK)

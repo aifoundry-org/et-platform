@@ -17,10 +17,8 @@
 #define SP_TRACE_H
 
 #include "dm.h"
-#include "dm_event_def.h"
 #include <et-trace/encoder.h>
-#include "sp_host_iface.h"
-#include "log.h"
+#include <device-apis/device_apis_message_types.h>
 
 /**************************/
 /* SP Trace Status Codes  */
@@ -28,13 +26,6 @@
 #define INVALID_TRACE_INIT_INFO -10
 #define SP_TRACE_ENABLE         (1U << 0)
 #define SP_TRACE_UART_ENABLE    (1U << 1)
-
-/*! \def TRACE_STRING_MAX_SIZE_SP
-    \brief Max string message lentgh which can be logged into Trace.
-    NOTE: This will be removed as a result of SW-13550. Because
-          it will direclty use Trace encoder for string formatting.
-*/
-#define TRACE_STRING_MAX_SIZE_SP 128
 
 /*! \def SP_TRACE_GET_ENTRY_OFFSET(addr)
     \brief Returns offset of addr from SP trace buffer base.
