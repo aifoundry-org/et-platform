@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [1.0.0] - 2022-12-12
+### Added
+### Changed
+- Fixed the device-api version to 1.0.0 since 0.9.0 had a breaking change.
+### Deprecated
+### Removed
+### Fixed
+### Security
+
 ## [0.9.0] - 2022-11-22
 ### Added
 ### Changed
