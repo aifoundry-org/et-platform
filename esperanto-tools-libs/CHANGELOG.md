@@ -5,20 +5,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [[_TOC_]]
-
 ## [Unrealeased]
 ### Added
-- [SW-15123] Added Start and Stop events to runtime traces. Added parentId field for commands derived from a single application-level eventId
-- [SW-14909] Added API method to set profiler in Server (runtime mp daemon)
 ### Changed
-- (Conan) Refactor sysemu artifacts provided when runtime:with_tests=True
-- (Conan) Update accepted range of deviceLayer versions from `>=1.1.0 <1.2.0` to `>=1.1.0 <2.0.0`
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
+## [0.7.0]
+### Added
+- [SW-15123] Added Start and Stop events to runtime traces. Added parentId field for commands derived from a single application-level eventId
+- [SW-14909] Added API method to set profiler in Server (runtime mp daemon)
+- [SW-14909] Added couple of python scripts to DMA performance evaluation
+### Changed
+- (Conan) Refactor sysemu artifacts provided when runtime:with_tests=True
+- (Conan) Update accepted range of deviceLayer versions from `>=1.1.0 <1.2.0` to `>=1.1.0 <2.0.0`
+### Removed
+- **breaking change:** Removed getPairId because it was not used. Inside runtime itself ...
+### Fixed
 - (Conan) Fix package_info requires
 - [SW-15083] change from a single CMA memory pool to one per device
-### Security
 
 ## [0.6.2]
 ### Changed
